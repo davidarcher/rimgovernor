@@ -27,6 +27,12 @@ internal static class NativeConstructionActivity
     {
         if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out var context, out _)) return new();
         legs ??= new(map);
+        if (request.Store is { } store)
+        {
+            var storeFindings = new HashSet<string>(StringComparer.Ordinal);
+            var stored = StoreRead(map, legs, store, storeFindings);
+            return new() { Context = context, Known = true, Store = stored, Findings = EquatableArray.From(storeFindings.OrderBy(s => s, StringComparer.Ordinal)) };
+        }
         // Where the hop's run time goes, per part of the read (hop_run parts): the placement legality, the rows (both
         // runs of the batched read, less the searches), the path searches, the thermal read and the room predictions.
         var mark = Stopwatch.GetTimestamp();
@@ -475,6 +481,104 @@ internal static class NativeConstructionActivity
                 { SiteApproachTicks = Fact.Known((double)first), AvailableInput = Fact.Known((double)item.stackCount) });
         }
         return rows;
+    }
+
+    // At most this many stacks per store read, nearest the asked colonists first, and this many uses per resource, the most units first.
+    // Kept (docs/developers/contracts/kept-constants.md).
+    private const int StoreHaulLimit = 32;
+    private const int StoreUseLimit = 8;
+
+    // The store hauls (#3624): every loose stack outside storage the haulables lister holds (alwaysHaulable items, or a
+    // Haul designation's), unforbidden and seen, whose resource has a use or which deteriorates or rots where it lies,
+    // with the best storage accepting it (Destination, the whole map's). Its deterioration at either cell is the game's
+    // rate now rescaled by the DeteriorationRate stat's StatPart_EnvironmentalEffects factor at the destination; its rot,
+    // ticks until rotted at either cell's temperature. Rows are the haul rows of the asked free colonists; travel to each
+    // use is walked by the first row's pawn, from the stack and from the destination.
+    private static Obs.StoreHaulRead StoreRead(Map map, NativePathLegs legs, Obs.StoreHaulRequest asked, HashSet<string> findings)
+    {
+        var names = new HashSet<string>(asked.Pawns, StringComparer.Ordinal);
+        var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => names.Contains(p.GetUniqueLoadID()) && Free(p))
+            .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+        if (pawns.Length == 0) return new(StatWorker_MarketValue.ValuePerWork);
+        var uses = asked.Uses.Concat(BillUses(map)).GroupBy(u => u.Resource, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(u => u.Units).ThenBy(u => u.Consumer.X).ThenBy(u => u.Consumer.Z).Take(StoreUseLimit).ToArray(), StringComparer.Ordinal);
+        var anchor = pawns[0].Position;
+        var stacks = map.listerHaulables.ThingsPotentiallyNeedingHauling()
+            .Where(t => t.Spawned && Haulable(t) && !t.IsInAnyStorage() && !t.IsForbidden(Faction.OfPlayer) && !t.Position.Fogged(map)
+                && (uses.ContainsKey(t.def.defName) || SteadyEnvironmentEffects.FinalDeteriorationRate(t) > 0 || t.TryGetComp<CompRottable>() != null))
+            .OrderBy(t => (t.Position - anchor).LengthHorizontalSquared).ThenBy(t => t.thingIDNumber).ToList();
+        if (stacks.Count > StoreHaulLimit) findings.Add("store_haul_limit");
+        var part = NativeNeedsForecast.DeteriorationPart();
+        var targets = new List<(Thing Thing, IntVec3 Destination)>();
+        foreach (var thing in stacks.Take(StoreHaulLimit))
+        {
+            if (Destination(map, thing, new HashSet<IntVec3>()) is not { } destination) { findings.Add("store_haul_destination_unknown"); continue; }
+            targets.Add((thing, destination));
+        }
+        var giver = Giver<WorkGiver_HaulGeneral>();
+        var hauls = legs.Batched(() => targets.Select(t =>
+        {
+            var (thing, destination) = t;
+            var rows = HaulRows(legs, pawns, thing, thing.GetUniqueLoadID(), thing.def.defName, giver, destination);
+            var walker = rows.Count == 0 ? null : pawns.First(p => p.GetUniqueLoadID() == rows[0].Pawn);
+            var travel = walker == null || !uses.TryGetValue(thing.def.defName, out var mine) ? Array.Empty<Obs.StoreHaulTravel>()
+                : mine.Select(u => new Obs.StoreHaulTravel(u, Ticks(legs.Cost(walker, thing.Position, new IntVec3(u.Consumer.X, 0, u.Consumer.Z), PathEndMode.Touch)),
+                    Ticks(legs.Cost(walker, destination, new IntVec3(u.Consumer.X, 0, u.Consumer.Z), PathEndMode.Touch)))).ToArray();
+            var rate = SteadyEnvironmentEffects.FinalDeteriorationRate(thing);
+            var rot = thing.TryGetComp<CompRottable>();
+            return new Obs.StoreHaul(thing.GetUniqueLoadID(), thing.def.defName, new(thing.Position.x, thing.Position.z), new(destination.x, destination.z),
+                thing.stackCount, thing.MarketValue, thing.HitPoints, rate, StoredRate(map, thing, destination, rate, part))
+            {
+                RotTicks = rot == null ? default : Fact.Known((double)rot.TicksUntilRotAtTemp(thing.Position.GetTemperature(map))),
+                StoredRotTicks = rot == null ? default : Fact.Known((double)rot.TicksUntilRotAtTemp(destination.GetTemperature(map))),
+                Options = EquatableArray.From(rows), Uses = EquatableArray.From(travel),
+            };
+        }).Where(h => h.Options.Count > 0).ToArray());
+        return new(StatWorker_MarketValue.ValuePerWork) { Hauls = EquatableArray.From(hauls) };
+    }
+
+    private static Fact<double> Ticks(float? cost) => cost is { } c ? Fact.Known((double)c) : default;
+
+    // StatPart_EnvironmentalEffects.TransformValue's factor at a cell (unroofed and outdoors offsets, the terrain's extra
+    // factor, the rain multiplier unroofed, the edifice protection); the thing's rate at the destination is its rate now
+    // times the destination's factor over its cell's. A thing the part does not cover keeps its rate; an unread part
+    // leaves the rate where it lies.
+    private static double StoredRate(Map map, Thing thing, IntVec3 destination, float rate, Obs.NeedDeteriorationPart? part)
+    {
+        if (rate <= 0 || !thing.def.deteriorateFromEnvironmentalEffects) return rate;
+        if (part == null) return rate;
+        double Factor(IntVec3 cell)
+        {
+            var roofed = cell.Roofed(map);
+            var factor = (roofed ? 0 : part.UnroofedOffset) + (cell.GetRoom(map)?.UsesOutdoorTemperature == true ? part.OutdoorsOffset : 0)
+                + (cell.GetTerrain(map)?.extraDeteriorationFactor ?? 0);
+            if (!roofed) factor *= UnityEngine.Mathf.Lerp(1f, 5f, map.weatherManager.RainRate);
+            if (SteadyEnvironmentEffects.ProtectedByEdifice(cell, map)) factor *= part.ProtectedFactor;
+            return factor;
+        }
+        var here = Factor(thing.Position);
+        return here <= 0 ? rate : rate * Factor(destination) / here;
+    }
+
+    // The open bills' fixed ingredients (#3624), at each bench's interaction cell: a bill the game would do now, its
+    // remaining repeats for a repeat-count bill and one batch otherwise. A mixed ingredient names no one resource and is left out.
+    private static IEnumerable<Obs.StoreHaulUse> BillUses(Map map)
+    {
+        foreach (var building in map.listerBuildings.allBuildingsColonist)
+        {
+            if (building is not IBillGiver giver || giver.BillStack == null) continue;
+            var cell = building.def.hasInteractionCell ? building.InteractionCell : building.Position;
+            foreach (var bill in giver.BillStack.Bills.OfType<Bill_Production>())
+            {
+                if (bill.suspended || !bill.ShouldDoNow() || bill.recipe?.ingredients == null) continue;
+                var batches = bill.repeatMode == BillRepeatModeDefOf.RepeatCount ? Math.Max(0, bill.repeatCount) : 1;
+                foreach (var ingredient in bill.recipe.ingredients.Where(i => i.IsFixedIngredient))
+                {
+                    var units = ingredient.CountRequiredOfFor(ingredient.FixedIngredient, bill.recipe, bill) * batches;
+                    if (units > 0) yield return new(ingredient.FixedIngredient.defName, new(cell.x, cell.z), units);
+                }
+            }
+        }
     }
 
     // A spawned item a standing Haul designation names that hauling can move (#3614).

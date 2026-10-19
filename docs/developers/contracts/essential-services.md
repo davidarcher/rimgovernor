@@ -135,10 +135,10 @@ Real-game runs under the normal planner (no fixture-selected winner) at the #316
 | Case | Result | What it establishes |
 | --- | --- | --- |
 | `production/productive-cooking` | passes (ordinary crew, prepared level-5 cooking skill) | the planner plans and cooks, a meal is produced, and the level-5 skill is observed rather than boosted |
-| `production/development-reassignment` | passes (#3167, #3626) | a far better cook joining takes the bills from the first cook's Method |
+| `production/development-reassignment` | passes (#3167, #3624, #3626) | a far better cook joining takes the bills from the first cook's Method |
 | `production/development-lifecycle` | passes (#3167, #3598) | the claim: a tired cook finishes the current meal, is released at the task boundary (never interrupted mid-task), sleeps, resumes the bill when rested, and the Method retires once the demand is satisfied |
 | `production/maintenance-range`, `production/maintenance-sparring` | pass | an assigned role floor with a real deficit is maintained by existing range and sparring |
-| `production/coupled-needs`, `lifecycle/load` | pass | normal harvest/ingestion and load preserve ownership |
+| `production/coupled-needs`, `lifecycle/load` | pass (coupled-needs 2 runs in 5, #3630) | normal harvest/ingestion and load preserve ownership |
 | `shelter/service-investment` | passes (#3245): the cold-room heater frame is selected, built, powered and warms the room, with the paired decision explained | food/shelter investment is observed. The cause was search order: a construction root rejected for lacking supported service relief was never paired with the sleep that gives it relief, because hundreds of sleep-time roots sorted ahead of it and spent the budget. Need roots now sort last and an unserved construction root seeds the extension |
 | `production/coupled-thermal` | passes (#3246): normal planner closes the roof of the first review's sleeping room (a small Shelter), the room warms, and the occupant sleeps there | roof work is reassigned to rested pawns when the tired sleeper's recovered capacity cannot cover it, and each roof job claims its own cell so two pawns never refuse each other at admission. The case runs up to 45000 ticks because the rested sleeper tires about tick 30000; a pre-tired sleeper makes thermal exposure unassessed and the planner chooses no roof
 | `service/restart` | passes (25 s; #3268 fixed so the case's routine families reach the game) | a restarted brain re-attaches to the in-game brain and keeps ownership |
@@ -169,13 +169,19 @@ once the cook of the first meal is owned, a far better cook joins (another colon
 raised to 15). It passes when the first cook's Method no longer owns that cook, the better cook completes
 a meal under a coupled Method, and every completed repeat is exactly one Method-owned completion. A
 Cooking work priority is not an input: activity cooking ignores work priorities. A coupled Method with bills
-left is reconsidered only at a boundary (every participant completed or holding, nothing carried) and only
+left is reconsidered only at a boundary (every participant completed, holding, or bound its next task and
+not yet started it, nothing carried) and only
 while a colonist outside it is offered one of its bills faster than its own cooks (#3167): in total ticks, the
 walk to the ingredients (the cheapest delivery of them to the bench, else the walk to the bench) plus the
 work, or equally fast with a lower known chance of poisoning the meal (the game's rule: room chance r plus
 (1 − r) times the cook's `FoodPoisonChance`, on `CoupledFoodConversion.FoodPoisonChance`). It then has no
 retain commitment: the comparison sees its pawns free, and it is released only when the selection gives one
-of its bills to that colonist; a Method that only defers colonists is offered beside it and released when
-the selection gives one of them work. The move never happens mid-recipe. A meal that waits on another
+of its bills to that colonist. A worker finishing a task while bills are left raises that review at the
+next scheduler step (`task`, #3624), one event per finished task and no timer; the colonists on standby
+are free to the comparison. The move releases the whole Method and never happens mid-recipe.
+The assignment search tries for each task the pawns its placed prerequisites went to, then the cheapest
+(its work plus its walk to the task, at its opportunity cost, #3624):
+a truncated search reaches only the plans its first choices lead to, and trying pawns in id order gave
+the first meals to whichever cook sorted first, a level-6 cook beside a level-15 one. A meal that waits on another
 colonist's cooking defers its eater by its planned start, not its immediate departure. Peg-leg doctor
 training is outside this epic (#3344).

@@ -59,6 +59,16 @@ public sealed class RoundsCadenceTests
         Assert.Equal("freed", ClockScheduler.RoundsSelection(StepCause.Retry, false, Reviewed + 600, true, Reviewed, Every, true));
     }
 
+    /// <summary>#3624: a coupled worker finished a task with bills left: the next step runs the rounder to reconsider who
+    /// takes its next task, without a freed colonist or a due review; freed and due still name their own reasons.</summary>
+    [Fact]
+    public void AFinishedTaskRunsTheRounderAtTheNextStep()
+    {
+        Assert.Equal("task", ClockScheduler.RoundsSelection(StepCause.Review, false, Reviewed + 600, true, Reviewed, Every, false, true));
+        Assert.Equal("freed", ClockScheduler.RoundsSelection(StepCause.Review, false, Reviewed + 600, true, Reviewed, Every, true, true));
+        Assert.Equal("due", ClockScheduler.RoundsSelection(StepCause.Review, false, Reviewed + Every, true, Reviewed, Every, false, true));
+    }
+
     /// <summary>
     /// #3599, the speedmatrix run: the review at +1200 deferred the colonists for 600 ticks; the deferral installed after
     /// that step read the journal and was released before the +1800 step read it, so neither read saw it held. The

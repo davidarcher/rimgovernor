@@ -79,6 +79,37 @@ not merely because a stockpile accepts chunks. Unrelated chunks remain outside
 that demand. Native storage filters, reservations and work legality still apply;
 global item definitions are not changed to make all chunks haulable.
 
+## Store hauls
+
+Carrying a loose stack to storage is standby work (#3624): after the coupled
+admission, each colonist on standby or given nothing (`StandbyWorkPawnsOf`) may
+take one haul, when its [value](../architecture/forecast-value.md#store-haul-value)
+is positive. Hauling is never valued for its own sake: a stack earns only the
+travel its future uses save and the market value it would lose where it lies.
+
+One native store read (`ConstructionActivityRequest.Store`) gives the stacks: the
+haulables lister's loose stacks outside storage, unforbidden and seen, whose
+resource has a use or which deteriorate or rot where they lie, nearest the asked
+colonists first, at most `StoreHaulLimit` (32, finding `store_haul_limit`). Native
+chooses each stack's storage cell (the best storage accepting it on the map; none
+is finding `store_haul_destination_unknown`), and returns the haul rows of the
+asked colonists, the walk from the stack and from the storage cell to each use,
+the game's deterioration rate at either cell and the ticks to rot at either cell's
+temperature. The uses are the planned sites' materials (the stuff the room
+selection chose, at the site's first cell) and the open bills' fixed ingredients
+at the bench's interaction cell (repeat-count bills by their remaining repeats,
+others one batch), at most `StoreUseLimit` (8) per resource. Tier-2 material use
+has no location and is not a use ([#3627](https://github.com/davidarcher/rimgovernor/issues/3627)).
+
+A haul binds as the planned-clearing haul does (#3614): one Deliver step of the
+whole stack in one carry, one claimed `haul-` Method per colonist under the
+admin/work-assignments Need, until the comparison's horizon. It never takes a
+stack another Method claims, a stack a pending service names (an eater's food, a
+cook's or a supply's inputs and source cell, a treatment's medicine), or a stack
+on such a cell, so a haul cannot starve a meal or a cook. Each stack is hauled by
+one colonist; the best-valued haul goes first. A `standby` decision with reason
+`store_haul` records it.
+
 ## Execution and evidence
 
 The existing `coupled_selection` decision includes first-care latency, pending

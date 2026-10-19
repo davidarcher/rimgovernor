@@ -120,7 +120,7 @@ public static class SpeedMatrixCommand
     private static FixtureStart Start() => new()
     {
         Op = SpeedmatrixRun.PrepareTool,
-        Args = FixtureRecordJson.Args(new Fx.ThroughputPrepareRequest { ItemCount = SpeedmatrixRun.Items, WallSegments = SpeedmatrixRun.Segments }),
+        Args = FixtureRecordJson.Args(new Fx.ThroughputPrepareRequest { ItemCount = SpeedmatrixRun.Items }),
         On = new DebugStart { Size = new DebugStartSize { Flat = true } },
     };
 
@@ -136,7 +136,7 @@ public static class SpeedMatrixCommand
             Root = opts.Root,
             Output = opts.Output,
 
-            // The stage is hauling and wall building inside the home area, so its wild map is quiet.
+            // The stage is cloth hauling and planned-room building inside the home area, so its wild map is quiet.
             Headless = true,
             QuietWorld = true,
             GameId = opts.GameId,

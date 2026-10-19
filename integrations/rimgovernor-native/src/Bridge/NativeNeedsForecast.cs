@@ -148,7 +148,7 @@ internal static class NativeNeedsForecast
         return new(room?.Role?.defName ?? "", stage, bed.ForPrisoners);
     }
     /// <summary>StatPart_EnvironmentalEffects def data on the DeteriorationRate stat, read by reflection (private fields); null without the part.</summary>
-    private static Obs.NeedDeteriorationPart? DeteriorationPart()
+    internal static Obs.NeedDeteriorationPart? DeteriorationPart()
     {
         var part = StatDefOf.DeteriorationRate.parts?.OfType<StatPart_EnvironmentalEffects>().FirstOrDefault();
         if (part == null) return null;

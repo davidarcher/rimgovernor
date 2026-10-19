@@ -100,7 +100,11 @@ RimGovernor.cmd acceptance speedmatrix -root <abs root>
 ```
 
 Needs a `ThroughputFixture` build. One staged colony is reloaded per row and
-run with the `haul` and `work` families to a 30000-tick target.
+run with the `work` family to a 30000-tick target. The stage is brain-valued
+work only ([#3624](https://github.com/davidarcher/rimgovernor/issues/3624)): cloth
+stacks deteriorating outside a roofed stockpile, which the brain hauls as
+valued standby work, and the walls of rooms the brain plans. It places no
+blueprint, so a player blueprint is never counted.
 Rows are `DefaultSpeedMatrix`
 (`Normal,Fast,Superfast,Ultrafast,Hyperfast,uncapped,governor-off`);
 `-speeds uncapped,governor-off` narrows a run. The command has its own driver
@@ -145,7 +149,7 @@ brain attached (the simulation ceiling): it reports only `ticks_advanced`,
 The run fails when a required row has no metrics row or advanced no ticks, or
 a compared row has no outcome (`row_problems`; `SpeedRowProblems` is the
 boundary), on pawn outcomes differing by more than 1 across speeds, an
-unsuccessful plan stage, or nothing hauled or built. `max_paused_fraction` and
+unsuccessful plan stage, or no cloth stored and no wall built map-wide. `max_paused_fraction` and
 `min_ultrafast_tps_ratio` are written to the report and checked at zero:
 reported, not enforced.
 

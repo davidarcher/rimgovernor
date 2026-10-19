@@ -168,4 +168,23 @@ public sealed class ForecastActivitiesTests
         Assert.Throws<DomainException>(() => ForecastActivities.CompareActivityPlans(p with { Options = [.. p.Options, p.Options[0]] }));
         Assert.Throws<DomainException>(() => ForecastActivities.CompareActivityPlans(p with { ExpansionBudget = 0 }));
     }
+
+    [Fact]
+    public void TruncatedSearchReachesTheFasterPawnWhateverItsId()
+    {
+        // #3624: six meals, a level-6 cook whose id sorts first and a level-15 cook beside it (the case's native work ticks).
+        // Trying pawns in id order, the truncated search reached only plans giving the early meals to the slow cook.
+        var meals = Enumerable.Range(0, 6).Select(i => "meal-" + i).ToArray();
+        var problem = new ForecastActivityProblem
+        {
+            Activities = [.. meals.Select(m => new ForecastActivity(m, "stove", "stove", []))],
+            Pawns = [Pawn("cook-a", until: 20000), Pawn("cook-b", until: 20000)],
+            Options = [.. meals.SelectMany(m => new[] { Option(m, "cook-a", 494), Option(m, "cook-b", 289) })],
+            Routes = [Route("cook-a", "home", "stove", 20), Route("cook-b", "home", "stove", 30)],
+            Deadline = Known(20000.0), AlternativeLaborCost = Known(1e9), ExpansionBudget = 64,
+        };
+        var result = ForecastActivities.CompareActivityPlans(problem);
+        Assert.True(result.SearchTruncated);
+        Assert.All(meals, m => Assert.Equal("cook-b", Assigned(result, m).Pawn));
+    }
 }

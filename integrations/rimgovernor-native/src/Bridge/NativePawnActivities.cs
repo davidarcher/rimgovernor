@@ -137,7 +137,7 @@ namespace HomeBridge.BridgeTools
                 {
                     if (step.Deadline <= Find.TickManager.TicksGame) return Refuse("Activity deadline already passed.");
                     if (step.WaitForFilth.Length != 0 && !(Thing(step.WaitForFilth) is Filth)) return Refuse("Unknown filth dependency.");
-                    if (step.Kind is PawnActivityKind.Hold or PawnActivityKind.Idle or PawnActivityKind.Standby) continue;
+                    if (step.Kind is PawnActivityKind.Hold or PawnActivityKind.Standby) continue;
                     if (step.Kind == PawnActivityKind.Approach)
                     {
                         var destination = step.Destination!.Value;
@@ -445,7 +445,7 @@ namespace HomeBridge.BridgeTools
             if (Find.TickManager.TicksGame >= step.Deadline) { Fault(e, "deadline"); return JobMaker.MakeJob(holdDef); }
             var p = e.Pawn;
             if (step.Kind == PawnActivityKind.Standby) return StandbyJob(p);
-            if (!Ready(e) || step.Kind is PawnActivityKind.Hold or PawnActivityKind.Idle) return JobMaker.MakeJob(holdDef);
+            if (!Ready(e) || step.Kind == PawnActivityKind.Hold) return JobMaker.MakeJob(holdDef);
             if (step.Kind == PawnActivityKind.Approach)
                 return JobMaker.MakeJob(JobDefOf.Goto, new IntVec3(step.Destination!.Value.X, 0, step.Destination.Value.Z));
             if (step.Kind == PawnActivityKind.Work && step.Job == "BuildRoof")
@@ -695,12 +695,6 @@ namespace HomeBridge.BridgeTools
             // A terminal assignment retains ownership for continuation, not permission to advance time.
             if (e.State == "failed" || e.Step >= e.Order.Steps.Length) return;
             var step = e.Order.Steps[e.Step];
-            if (step.Kind == PawnActivityKind.Idle)
-            {
-                if (Find.TickManager.TicksGame < step.Deadline) return;
-                e.Step++; e.State = "completed"; e.Reason = "reconsider_due"; e.Tick = Find.TickManager.TicksGame;
-                Emit(e); pawn.jobs.EndCurrentJob(JobCondition.Succeeded); return;
-            }
             if (Find.TickManager.TicksGame >= step.Deadline) { Fault(e, "hold_deadline"); return; }
             if (!Ready(e)) return;
             if (step.Kind == PawnActivityKind.Hold && step.WaitForFilth.Length == 0) return;

@@ -194,7 +194,6 @@ Policy|MechanicCardSite.Writers
 Policy|MechanicCardWriter.Guards
 Policy|PawnBody.CellTemperatureC
 Policy|PawnBody.ComfortableMaxC
-Policy|PlannedBuildSite.CanPlace
 Policy|PrisonerMedicineRules.CareOp.Part
 Policy|PrisonerMedicineRules.CareOp.Pawn
 Policy|PrisonerMedicineRules.CareOp.Recipe

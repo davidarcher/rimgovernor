@@ -10,6 +10,8 @@ public sealed partial class Worker
     private async Task ContinueActivityMethodsAsync(GenerationSnapshot current, CancellationToken ct)
     {
         var methods = _player.Journal.ActivityMethods(current, ct);
+        var live = methods.SelectMany(m => m.Batch.Orders.Select(o => o.Method)).ToHashSet(StringComparer.Ordinal);
+        _finishedTasks.RemoveWhere(k => !live.Contains(k[..k.IndexOf('/', StringComparison.Ordinal)]));
         if (methods.Count == 0 || _config.Pawns is null) return;
         var ids = methods.SelectMany(m => m.Batch.Orders.Select(o => o.Pawn)).Distinct(StringComparer.Ordinal).ToArray();
         var (rows, tick) = await ArrivalRowsAsync(current, ids, ct).ConfigureAwait(false);
@@ -32,6 +34,10 @@ public sealed partial class Worker
                     _advanced = true;
                     continue;
                 }
+                // A worker finished a task and bills are left: the next scheduler step reviews who takes its next task (#3624).
+                var finished = false;
+                foreach (var key in ActivityContinuationRules.FinishedTasks(method.Batch, participants)) finished |= _finishedTasks.Add(key);
+                if (finished) _player.SignalTaskFinished();
                 var needed = ForecastServiceInvestments.ReviewServiceActivityNeed(method.Batch, method.Needed, read);
                 var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(method.Batch, needed, read);
                 ActivityContinuationAdmission? admission = null;

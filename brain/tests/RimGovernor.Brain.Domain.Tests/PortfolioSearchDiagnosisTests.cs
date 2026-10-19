@@ -212,7 +212,8 @@ public sealed class PortfolioSearchDiagnosisTests
         Assert.Equal(2, eats.Count(a => a.Pawn == "diner"));
         Assert.Equal(0d, selection.SelectedVector.Value.UrgentZero.Excess);
         Assert.Equal(Known(0d), selection.SelectedVector.Value.Ledger.Hunger);
-        Assert.Equal(947, selection.Selected.Plan.LaborCost);
+        // #3624: the scheduler tries the pawn that made a meal for carrying it first, so the cook delivers without a hand waiting: 721, was 947.
+        Assert.Equal(721, selection.Selected.Plan.LaborCost);
         Assert.DoesNotContain("selected_activity_budget_truncated", selection.Selection.Findings);
 
         Assert.Equal(0d, selection.SelectedVector.Needs[4].Value);

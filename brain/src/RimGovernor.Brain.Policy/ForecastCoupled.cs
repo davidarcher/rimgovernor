@@ -228,7 +228,7 @@ public static partial class ForecastCoupled
         }
         var alternatives = compared?.Alternatives ?? [new ForecastActivityPlan([], 0, 0)];
         var results = alternatives.Select(plan => cache.Evaluate(request, commitments, problem, plan)).ToArray();
-        // The assignment search is bounded and tries pawns in id order, so every plan it reaches can hand the same work to a pawn the
+        // The assignment search is bounded and tries the cheapest pawn first, so every plan it reaches can hand the same work to a pawn the
         // needs timeline then shows cannot do it. When that leaves nothing feasible, search again without those pawn choices.
         var retried = problem;
         for (var round = 0; round < 2 && compared is not null && results.All(r => r.Feasible != Known(true)); round++)

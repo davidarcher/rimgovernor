@@ -29,9 +29,8 @@ internal sealed partial class SpeedmatrixRun
     // stage's work takes grow with the pace (~2,300 at Normal).
     internal const ulong Ticks = 30000;
 
-    // Items and Segments size the stage: Steel stacks spawned and wall segments laid out.
+    // Items sizes the stage: the Cloth stacks spawned outside the roofed stockpile.
     internal const int Items = 4;
-    internal const int Segments = 6;
 
     // Tolerance is the allowed spread of each pawn-outcome postcondition across speeds.
     private const int Tolerance = 1;
@@ -48,9 +47,8 @@ internal sealed partial class SpeedmatrixRun
     private readonly List<SpeedOutcome> _outcomes = [];
     private readonly List<JsonObject> _rows = [];
 
-    // The fixture's cell lists, in the "x:z" form test/throughput_control reads back.
+    // The fixture's storage cells, in the "x:z" form test/throughput_control reads back.
     private string _storage = "";
-    private string _walls = "";
 
     private SpeedmatrixRun(Session session, Config config, Report report, IReadOnlyList<SpeedCase> cases)
     {
@@ -152,12 +150,13 @@ internal sealed partial class SpeedmatrixRun
             throw new AcceptanceException("pawn outcomes differ across speeds: " + string.Join("; ", outcomeProblems));
         }
 
-        // The stage must have been reachable: a matrix where nothing was hauled or built agrees trivially and proves nothing.
+        // The stage must have been reachable: a matrix where no brain-valued work was done agrees trivially and proves nothing.
+        // That work is a cloth haul the brain valued (#3624) or a wall of a room it planned (#3610); the stage places no blueprint.
         foreach (var o in m._outcomes)
         {
             if (o.StoredUnits == 0 && o.WallsBuilt == 0)
             {
-                throw new AcceptanceException($"{o.Case}: nothing was hauled or built within the tick target; raise ticks or check the stage");
+                throw new AcceptanceException($"{o.Case}: no cloth was hauled and no planned wall built within the tick target; check the stage");
             }
         }
 
@@ -189,12 +188,6 @@ internal sealed partial class SpeedmatrixRun
         _ = Directory.CreateDirectory(stageOutput);
         var h = HarnessFor(stageOutput);
         _storage = CellList(prepared.StorageCells.Select(c => (c.X, c.Z)));
-        _walls = CellList(prepared.Sites.Select(s => (s.X, s.Z)));
-
-        if (prepared.Sites.Count != Segments)
-        {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"stage laid out {prepared.Sites.Count} wall sites, want {Segments}"));
-        }
 
         // Frozen needs do not survive a reload (the op is per game), so the save carries the stage only; each case
         // freezes again after loading.
@@ -429,7 +422,7 @@ internal sealed partial class SpeedmatrixRun
     private async Task<(JsonObject Raw, Fx.ThroughputControlRead Read)> ControlReadAsync(Harness h, JsonObject identity, string label, CancellationToken cancellationToken)
     {
         var id = Harness.IdentityOf(identity);
-        var request = new Fx.ThroughputControlRequest { ColonyId = id.ColonyId, LoadToken = id.LoadToken, MapId = id.MapId, StorageCells = _storage, WallCells = _walls };
+        var request = new Fx.ThroughputControlRequest { ColonyId = id.ColonyId, LoadToken = id.LoadToken, MapId = id.MapId, StorageCells = _storage };
         var reply = await h.CallAsync(label, ControlTool, FixtureRecordJson.Args(request), cancellationToken).ConfigureAwait(false);
         var read = Harness.FixtureReply<Fx.ThroughputControlRead>(ControlTool, reply);
         return read.Success ? (reply, read) : throw new AcceptanceException($"{ControlTool} refused: {reply.ToJson()}");
@@ -441,7 +434,7 @@ internal sealed partial class SpeedmatrixRun
     {
         var (before, read) = await ControlReadAsync(h, identity, "control-before", cancellationToken).ConfigureAwait(false);
         report["control_before"] = before.DeepClone();
-        if (read.StoredUnits != 0 || read.WallsBuilt != 0 || read.WallBlueprints != 0)
+        if (read.StoredUnits != 0 || read.WallsBuilt != 0)
         {
             throw new AcceptanceException("stage is not fresh after reload: " + before.ToJson());
         }

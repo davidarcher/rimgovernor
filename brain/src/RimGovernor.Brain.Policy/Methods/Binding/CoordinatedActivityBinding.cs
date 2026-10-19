@@ -16,34 +16,26 @@ internal static class CoordinatedActivityBinding
     /// the shelter family names BuildRoofs.</summary>
     private static EquatableArray<PawnActivityStep> PriorSteps(ActivityTaskCandidate task) => task.RoofCells.Count == 0 ? default
         : [new(PawnActivityKind.Work, task.Target, "RemoveRoofs", "RemoveRoof", task.RoofCells.Count, task.Deadline) { Cells = task.RoofCells }];
-    internal static PawnActivities? StartWithDeferred(ForecastCoupledSelection selection,
+    internal static PawnActivities? StartSelected(ForecastActivityOutcomeComparison selection,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick,
         IEnumerable<ForecastPlannedSite>? planned = null)
     {
         // Planned sites are selectable but not placed: they have no action template, so they start no order (#3278). A
         // planned Deconstruct clearing is bound to its standing building and is not among them (#3557).
         var unplaced = (planned ?? []).SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
-        var active = Start(selection.Selection, bindings, authority, method, tick, unplaced);
-        var deferredPawns = selection.Deferred.Where(t => t.Until > tick).ToList();
+        var active = Start(selection, bindings, authority, method, tick, unplaced);
         // The scheduler departs a waiting pawn at once and holds it at the site: its service is as far as its planned start.
-        var leave = selection.Selection.Plan?.Allocations.GroupBy(a => a.Activity, StringComparer.Ordinal)
+        var leave = selection.Plan?.Allocations.GroupBy(a => a.Activity, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => checked(tick + (long)Math.Floor(g.Min(a => a.Start - a.TravelTicks))), StringComparer.Ordinal);
-        active = DeferDistantServices(active, tick, deferredPawns, leave);
-        var deferred = deferredPawns.Select(t => new SelectedActivityTask(
-            "defer/" + t.Pawn, t.Pawn, [], new(PawnActivityKind.Idle, "", "", "", 0, t.Until), t.Location, tick)).ToArray();
-        if (deferred.Length == 0) return active;
-        return new(authority, [.. active?.Orders ?? [], .. deferred.Select(t => new PawnActivityOrder(t.Pawn,
-            method + "/" + t.Pawn, method, 0, 1, false, [t.Step]) { Task = t.Id })])
-        { Tasks = EquatableArray.From((active?.Tasks ?? []).Concat(deferred)) };
+        return DeferDistantServices(active, tick, leave);
     }
 
     /// <summary>An installed Method is protected from reselection, so holding a pawn for a service that departs far ahead would
     /// freeze the colony until the hold ends (#3047). A pawn whose first task is such a service, with nothing waiting on it,
-    /// is deferred like any unselected pawn: it is reconsidered after the interval and the service starts once it is due. So is
-    /// a meal waiting only on other pawns' work (#3167): holding the eater until the cook's last meal froze it for most of a
-    /// day; deferred, it eats from what the work has stocked by then.</summary>
-    internal static PawnActivities? DeferDistantServices(PawnActivities? active, long tick, List<ForecastDeferredPawn> deferred,
-        IReadOnlyDictionary<string, long>? leave = null)
+    /// is left out like any unselected pawn: standby takes it (#3624) and a later review starts the service once it is due. So
+    /// is a meal waiting only on other pawns' work (#3167): holding the eater until the cook's last meal froze it for most of
+    /// a day; left out, it eats from what the work has stocked by then.</summary>
+    internal static PawnActivities? DeferDistantServices(PawnActivities? active, long tick, IReadOnlyDictionary<string, long>? leave = null)
     {
         if (active is null) return null;
         var far = active.Orders.Where(o => !o.Release && o.Preparing && active.Tasks.SingleOrDefault(t => t.Id == o.Task) is { } task
@@ -54,13 +46,25 @@ internal static class CoordinatedActivityBinding
             .ToArray();
         if (far.Length == 0) return active;
         var pawns = far.Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal);
-        foreach (var order in far)
-            deferred.Add(new(order.Pawn, active.Tasks.Single(t => t.Id == order.Task).Location, tick + DistantServiceTicks));
         var orders = active.Orders.Where(o => !pawns.Contains(o.Pawn)).ToArray();
         return orders.Length == 0 ? null : new(active.AuthorityGeneration, orders)
             { Tasks = EquatableArray.From(active.Tasks.Where(t => !pawns.Contains(t.Pawn))) };
     }
     private const long DistantServiceTicks = 600;
+
+    /// <summary>One task started now outside a schedule (#3624, a store haul): its pawn's one order runs the task's step at
+    /// once, and its stack claim holds for the task's <paramref name="ticks"/>. The selected task is kept, so continuation
+    /// releases the pawn when the step completes.</summary>
+    internal static PawnActivities StartAlone(ActivityTaskCandidate task, ulong authority, string method, long tick, double ticks)
+    {
+        var selected = new SelectedActivityTask(task.Id, task.Pawn, [],
+            new(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count, task.Deadline) { Destination = task.Destination }, task.Location, tick)
+            { Resource = task.Resource, Source = task.Source, UseUntilTick = SelectedActivityTask.UseUntil(tick, 0, ticks) };
+        var order = new PawnActivityOrder(task.Pawn, method + "/" + task.Pawn, method, 0, 1, false, [selected.Step])
+        { Task = selected.Id, OutputDelivery = task.Resource.Length != 0 && task.Count > 0
+            ? new(task.Resource, task.Source ?? task.Location, task.Destination ?? task.Location, task.Count, task.Deadline, selected.AttemptsLeft) : null };
+        return new(authority, [order]) { Tasks = [selected] };
+    }
     internal static PawnActivities? Start(ForecastActivityOutcomeComparison? selection,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick,
         IReadOnlySet<string>? unplaced = null)

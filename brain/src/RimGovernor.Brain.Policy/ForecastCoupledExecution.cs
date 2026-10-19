@@ -12,8 +12,7 @@ public sealed partial record ForecastCoupledExecution
     /// incumbent's own tasks, any task of an incumbent's pawn (retained: it has an owner; released: its release is not yet
     /// observed) and any task waiting on one of those, which would never start. A reconsidered productive Method (one with
     /// bills, #3167) has no retain commitment: it is released only when the selection gives one of its bills to a pawn other
-    /// than its cooks, and otherwise keeps its owners like any retained incumbent. A deferral beside it is released when the
-    /// selection gives its pawn work.</summary>
+    /// than its cooks, and otherwise keeps its owners like any retained incumbent.</summary>
     public static ForecastCoupledExecution ReviewCoupledExecution(ForecastCoupledSelection selection,
         EquatableArray<ForecastObservedIncumbent> incumbents, long tick, IReadOnlyList<ForecastActivity>? activities = null,
         ForecastCoupledCandidates? candidates = null)
@@ -28,10 +27,8 @@ public sealed partial record ForecastCoupledExecution
                 && bindings.TryGetValue((a.Activity, a.Pawn), out var b) && (b.Recipe?.Bill ?? b.Cooking?.Continuation.Bill) is { } bill
                 && incumbent.Bills.Contains(bill));
         }
-        bool Employed(ForecastObservedIncumbent incumbent) => selection.Selection.Plan is { } chosen
-            && chosen.Allocations.Any(a => incumbent.Owned.Any(o => o.Pawn == a.Pawn));
         var releases = new List<ForecastIncumbentRelease>();
-        foreach (var incumbent in incumbents.Where(i => i.Deferral ? Employed(i) : i.Bills.Count > 0 ? Moved(i) : !retained.Contains(i.Commitment)))
+        foreach (var incumbent in incumbents.Where(i => i.Bills.Count > 0 ? Moved(i) : !retained.Contains(i.Commitment)))
         {
             var decision = ActivityContinuationRules.ReviewActivityOwnership(incumbent.Batch, Known(false), tick, incumbent.Owned);
             if (decision.Release is not { } release) return new([], null);
@@ -52,9 +49,9 @@ public sealed partial record ForecastCoupledExecution
                 dropped.Add(a.Activity);
         }
         var allocations = plan.Allocations.Where(a => !dropped.Contains(a.Activity)).ToArray();
-        var deferred = selection.Deferred.Where(d => !pawns.Contains(d.Pawn)).ToArray();
+        var deferred = selection.Deferred.Where(d => !pawns.Contains(d)).ToArray();
         // Retention with future work for its own pawn and nothing else to start keeps the incumbent alone.
-        if (allocations.Length == 0 && deferred.Length == 0) return new(EquatableArray.From(releases), null);
+        if (allocations.Length == 0) return new(EquatableArray.From(releases), null);
         return new(EquatableArray.From(releases), selection with
         {
             Selection = selection.Selection with

@@ -795,7 +795,7 @@ the loss of its authority or hooks, and the review tick the last `Run` named, an
 else. The brain holds it for a coupled order, an autosave or a review when the bot stops acting,
 and for nothing else. Progress is never a hold and never an invalidation: a pawn
 activity completing or failing, or a controlled pawn with no activity, is an attempt outcome the next review
-reads (#3556); a colonist left without an activity Method makes that review step run the rounds review (#3599). A zone turning ripe or any other observed fact change is an `ObservationInvalidated` event
+reads (#3556); a colonist left without an activity Method, or a coupled worker that finished a task with a recipe left, makes that review step run the rounds review (#3599, #3624). A zone turning ripe or any other observed fact change is an `ObservationInvalidated` event
 that marks planners for the next review while the game keeps running.
 
 The cadence is the clock's (#3556). Every `Run` carries the tick native holds the clock at for
@@ -814,12 +814,19 @@ committed rounds review has stood an hour; otherwise its planners read the last 
 from the journal, as every family step already does, and the step reports `rounds` `last` on its
 `clock_step` row. An early review (any hold but the review tick) and a step that runs every
 planner (a full step, an authority change) review first regardless. So does the first review step
-after a colonist lost its activity Method (`freed`, #3599: its order finished, its deferral ran out
-or it was released), even with no planner dirty or due: only the review's coupled selection and
+after a colonist lost its activity Method (`freed`, #3599: its order finished or it was
+released), even with no planner dirty or due: only the review's coupled selection and
 standby assign it again, and until then it stands idle. The step compares the colonists the
 journal's installed activity Methods hold with the previous step's set, to which a rounds review
 adds the colonists its admission assigned: a Method installs after the step that admitted it read
-the journal, and a 600-tick deferral can install and end before the next step reads. The rounds review derives
+the journal, and a short store haul can install and end before the next step reads. Standby is a
+Method, so a colonist the review gave nothing is held, not freed again at every step (#3624).
+The first review step after a coupled Method's worker finished a task while the Method has a
+recipe left reviews too (`task`, #3624): the worker reads native `completed` at its order's
+revision (the continuation binds its next task, or defers it), the worker loop signals the
+scheduler once per finished task, and the review may hand that worker's next task to a faster
+free cook ([incumbent reconsideration](../contracts/essential-services.md)).
+It is an event, not a timer: a Method whose workers finish nothing raises none. The rounds review derives
 the colony model, the stock, the planned sites and the coupled search from facts that rarely
 change in 600 ticks, and it was the cost of the common review; a need that first appears
 between two rounds reviews waits at most an hour for its ranking, while the planners that

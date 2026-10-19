@@ -709,6 +709,11 @@ urgent-time components that used to break such ties no longer do:
   four ingestions are served, but the third and fourth meals swap consumers (`delivery/1` is eaten by the diner, `delivery/2`
   by the pawn); labor (947) and completion (567) are equal.
 
+The scheduler's option order changed in #3624: a task tries the pawns its placed prerequisites went to first, then
+the cheapest from where each stands, not pawn ids. At the default 16,384 the four-worker fixture serves the same four
+ingestions at labor 721 instead of 947 (`ScreenedFixpointExtensionServesAllFourDemandedIngestionsAtTheDefaultBudget`);
+the other pins hold. The tables above predate it.
+
 Tie resolution is 0.01 capability-days over a one-day horizon; the 700-tick fixtures scale it to the horizon, so
 only differences above that resolution decide.
 

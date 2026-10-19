@@ -123,7 +123,8 @@ public static class ForecastActivities
         // The prefix being searched by task index, its prerequisites by index, and each task's options by pawn.
         var placed = new ForecastActivityAllocation?[tasks.Length];
         var prerequisites = tasks.Select(t => t.Prerequisites.Select(id => taskIndex[id]).ToArray()).ToArray();
-        var optionsOf = tasks.Select(t => problem.Options.Where(o => o.Activity == t.Id).OrderBy(o => o.Pawn, StringComparer.Ordinal).ToArray()).ToArray();
+        var optionsOf = tasks.Select(t => problem.Options.Where(o => o.Activity == t.Id)
+            .OrderBy(o => DirectCost(o, t, pawns, routes)).ThenBy(o => o.Pawn, StringComparer.Ordinal).ToArray()).ToArray();
         var rejected = new bool[PairRejections.Length * tasks.Length * Math.Max(1, problem.Pawns.Length)];
         void Reject(int kind, int taskAt, string pawn) => rejected[(kind * tasks.Length + taskAt) * problem.Pawns.Length + pawnIndex[pawn]] = true;
         var ready1 = new double[1];
@@ -173,7 +174,7 @@ public static class ForecastActivities
                 if (waiting) continue;
                 var task = tasks[taskAt];
                 var ready = Math.Max(task.NotBefore, after);
-                foreach (var option in optionsOf[taskAt])
+                foreach (var option in Continuing(optionsOf[taskAt], prerequisites[taskAt], placed))
                 {
                     // Unknown/refused options also consume the deterministic search budget.
                     if (!SpendExpansion()) return;
@@ -276,6 +277,33 @@ public static class ForecastActivities
         var selected = ranked.FirstOrDefault(p => p.LaborCost < alternative);
         return new(selected, ranked, selected != null ? "lower_labor_cost" : ranked.Length == 0 ? "no_known_feasible_plan" : "retain_alternative",
             findings.ToArray(), expansions, truncated);
+    }
+
+    /// <summary>A task's options with the pawns its placed prerequisites went to first (#3624), each part in the
+    /// <see cref="DirectCost"/> order: the cook that made a meal tries carrying it before a cheaper hand that would wait for it,
+    /// so ordering by cost alone does not lead the bounded search into chains of waits.</summary>
+    private static IEnumerable<ForecastActivityOption> Continuing(ForecastActivityOption[] options, int[] prerequisites, ForecastActivityAllocation?[] placed)
+    {
+        if (prerequisites.Length == 0) return options;
+        var pawns = prerequisites.Select(i => placed[i]!.Pawn).ToHashSet(StringComparer.Ordinal);
+        return options.Where(o => pawns.Contains(o.Pawn)).Concat(options.Where(o => !pawns.Contains(o.Pawn)));
+    }
+
+    /// <summary>The search's order of a task's options (#3624): the labor the option costs from where its pawn stands (work plus
+    /// the walk to the task at the pawn's opportunity cost, plus recovery), the plans' own ranking measure, unknown last. The
+    /// bounded search reaches the plans that put its first options first, so trying pawns in id order handed the early tasks to
+    /// whichever pawn sorted first: a level-6 cook took the first three meals beside a level-15 one a few cells away. The order
+    /// only decides which plans a truncated search reaches; ranking still decides among them.</summary>
+    private static double DirectCost(ForecastActivityOption option, ForecastActivity task, Dictionary<string, ForecastPawnCapacity> pawns,
+        Dictionary<(string Pawn, string From, string To), ForecastActivityRoute> routes)
+    {
+        if (!option.WorkTicks.TryGetValue(out var work) || !option.RecoveryLaborTicks.TryGetValue(out var recovery)
+            || !pawns.TryGetValue(option.Pawn, out var pawn) || !pawn.OpportunityCostPerTick.TryGetValue(out var rate)) return double.PositiveInfinity;
+        var travel = 0d;
+        if (pawn.Location != task.Location && !(routes.TryGetValue((option.Pawn, pawn.Location, task.Location), out var route)
+            && route.Ticks.TryGetValue(out travel))) return double.PositiveInfinity;
+        var cost = (work + travel) * rate + recovery;
+        return double.IsFinite(cost) ? cost : double.PositiveInfinity;
     }
 
     private static bool EquipmentOccupied(ForecastActivityOption option, Dictionary<string, ForecastEquipmentCapacity> equipment,

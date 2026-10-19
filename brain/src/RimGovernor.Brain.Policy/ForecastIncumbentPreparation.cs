@@ -11,9 +11,6 @@ public sealed record ForecastObservedIncumbent(PlanId Plan, PawnActivities Batch
     /// <summary>A productive Method's remaining bills. Non-empty marks a reconsidered Method: it has no retain commitment, and
     /// it is released only when the selection moves one of these bills to a pawn outside it (#3167).</summary>
     public EquatableArray<string> Bills { get; init; }
-    /// <summary>A Method that only defers its pawns, offered beside a reconsidered Method: released when the selection gives one
-    /// of its pawns work (#3167).</summary>
-    public bool Deferral { get; init; }
     public IReadOnlyList<ActivityOwnership> Owned => [Ownership, .. Participants, .. ReleasedOwnership];
 
     /// <summary>The pawns a batch has cooking one of <paramref name="bills"/>.</summary>
@@ -133,8 +130,6 @@ public static class ForecastIncumbentPreparation
                 actions.Actions.Where(a => !omitted.Contains((a.Plan, a.Action.Id))), actions.Truncated);
             return ForecastCoupledCandidates.GenerateCoupledActivities(facts with { WorkView = conditional, WorkClaims = conditional.Claims });
         }
-        // A deferred pawn is offered only beside a reconsidered Method: alone, its deferral stands until it is due.
-        if (!methods.Any(m => m.Bills.Count > 0)) methods.Clear();
         if (chosen.Length == 0 && methods.Count == 0) return Protected();
         var generated = Generate();
         // A Method is reconsidered only while a pawn outside it is offered its bills at a faster rate than its own cooks:
@@ -142,8 +137,7 @@ public static class ForecastIncumbentPreparation
         if (generated is not null)
         {
             var before = methods.Count;
-            methods.RemoveAll(m => m.Bills.Count > 0 && !FasterOutside(generated, m));
-            if (!methods.Any(m => m.Bills.Count > 0)) methods.Clear();
+            methods.RemoveAll(m => !FasterOutside(generated, m));
             if (methods.Count != before) generated = chosen.Length == 0 && methods.Count == 0 ? null : Generate();
         }
         if (generated is null) return Protected();
@@ -194,7 +188,7 @@ public static class ForecastIncumbentPreparation
             incumbents.Add(new(method.Row.Plan, method.Batch, "method/" + method.Row.Plan.Value + "/" + method.Row.Action.Id.Value, method.Owners[0])
             {
                 Activities = EquatableArray.From(method.Batch.Tasks.Select(t => t.Id)), Participants = EquatableArray.From(method.Owners.Skip(1)),
-                ReleasedOwnership = method.Released, Bills = method.Bills, Deferral = method.Bills.Count == 0,
+                ReleasedOwnership = method.Released, Bills = method.Bills,
             });
         if (truncated) findings.Add("incumbent_preparation_truncated:protected_remaining_owners");
         var prepared = generated with
@@ -215,10 +209,9 @@ public static class ForecastIncumbentPreparation
     private sealed record BoundaryMethod(WorkAction Row, PawnActivities Batch, ActivityOwnership[] Owners,
         EquatableArray<ActivityOwnership> Released, EquatableArray<string> Bills);
 
-    /// <summary>A coupled Method with bills still to cook, every participant between tasks (its task completed, holding for
-    /// the next, or deferred) and observed exactly at its order, carrying nothing (#3167). Nothing is in flight, so a release
-    /// interrupts no recipe; the bills say what moving the work would mean. A Method that only defers its pawns has no bills: it
-    /// is offered beside such a Method, so a deferred colonist can take the work.</summary>
+    /// <summary>A coupled Method with bills still to cook, every participant between tasks (its task completed or holding for
+    /// the next) and observed exactly at its order, carrying nothing (#3167). Nothing is in flight, so a release
+    /// interrupts no recipe; the bills say what moving the work would mean.</summary>
     private static List<BoundaryMethod> BoundaryMethods(RoundsFacts facts, WorkActionCensus actions, WorkAdmissionEvidence evidence,
         EquatableArray<WorkResourcePawn> native)
     {
@@ -233,7 +226,7 @@ public static class ForecastIncumbentPreparation
             var done = orders.Where(o => !o.Preparing).Select(o => o.Task).ToHashSet(StringComparer.Ordinal);
             var bills = batch.Tasks.Where(t => !done.Contains(t.Id)).Select(t => t.Step.Recipe?.Bill).OfType<string>()
                 .Where(b => b.Length != 0).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-            if (bills.Length == 0 && !orders.All(PawnActivities.IsDeferral)) continue;
+            if (bills.Length == 0) continue;
             var owners = new List<ActivityOwnership>();
             foreach (var order in orders)
             {
@@ -241,7 +234,7 @@ public static class ForecastIncumbentPreparation
                 if (physical.Length != 1) break;
                 var p = physical[0];
                 if (p.Assignment != order.Assignment || p.Revision != order.Revision
-                    || !(PawnActivities.IsDeferral(order) ? p.State != "failed" : order.Preparing ? p.State == "holding" : p.State == "completed")
+                    || !(order.Preparing ? p.State == "holding" : p.State == "completed" || Continued(order, p.State))
                     || p.CarriedCount != 0 || p.CarriedThing.Length != 0 || p.CarriedResource.Length != 0
                     || p.Bill.Length != 0 || p.Unfinished.Length != 0) break;
                 owners.Add(new(order.Pawn, order.Assignment, order.Method, order.Revision, p.State));
@@ -261,6 +254,11 @@ public static class ForecastIncumbentPreparation
         }
         return methods;
     }
+
+    /// <summary>Whether a worker's order is the next task its Method bound when it finished one, authorized and not yet
+    /// started (#3624): the worker is still at the boundary, so the review the finished task raised can hand that next
+    /// task to someone else. A Method's first orders are not continuations: their selection has just chosen them.</summary>
+    internal static bool Continued(PawnActivityOrder order, string state) => state == "installed" && order.ExpectedRevision != 0;
 
     /// <summary>Whether a pawn other than the Method's cooks is offered one of its bills' recipes faster than the best of them
     /// (#3167): its total ticks, travelling from where it stands to the ingredients, carrying them to the bench and cooking, are

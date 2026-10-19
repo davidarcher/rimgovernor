@@ -63,7 +63,6 @@ internal static class ControlActivities
             "overrides",
             "Native involuntary sleep, vomiting and an imposed sleep each release voluntary ownership, and the imposed effect's "
                 + "permission ends with its source.");
-        yield return Lifecycle("idle-completion", "idle", "A bounded idle completes, and the completed task-backed hold holds the clock.");
         yield return Lifecycle("player-takeover", "player", "A player's ordered job and a direct native menu command each take the pawn from Hands ownership.");
         yield return Case(
             "activity-reload",

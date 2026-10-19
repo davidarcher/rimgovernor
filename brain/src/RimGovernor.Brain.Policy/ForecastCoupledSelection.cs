@@ -23,7 +23,10 @@ public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeCom
 {
     public int CompositionExpansions { get; init; }
     public EquatableArray<ForecastServiceInvestment> ServiceInvestments { get; init; }
-    public EquatableArray<ForecastDeferredPawn> Deferred { get; init; }
+    /// <summary>The eligible colonists the selection left unassigned while their needs stand above every threshold: standby takes them
+    /// (#3624), with its valued hauls, and a later review reconsiders them. While any stands, the admin/work-assignments Need is
+    /// owed (<see cref="RoundsRules.WorkAssignmentsOwed"/>), so the standby and haul Methods under it are not released as unneeded.</summary>
+    public EquatableArray<string> Deferred { get; init; }
     /// <summary>The search's expansions per phase it reached (#3563): baseline, warm, seed, unserved, extend, confirm, sweep.</summary>
     public EquatableArray<ForecastSearchPhase> SearchPhases { get; init; }
     /// <summary>The phase in which the chosen portfolio first became the leader; "baseline" when nothing beat it.</summary>
@@ -31,7 +34,6 @@ public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeCom
     /// <summary>"" without a previous selection; "seeded" when the previous selection resolved to current roots and was evaluated first; "missing" when none of its ids resolved.</summary>
     public string WarmStart { get; init; } = "";
 }
-public sealed record ForecastDeferredPawn(string Pawn, Cell Location, long Until);
 /// <summary>
 /// One phase the search reached: its scheduler expansions and, for the profile (#3556), its wall, the schedule
 /// searches it ran (<see cref="Evaluations"/>; a subset whose schedule was already searched at the bound runs none) with
@@ -504,9 +506,7 @@ public sealed partial record ForecastCoupledSelection
         }
         if (!bestVector.Value.Death.Assessed) findings.Add("death_floor_unassessed");
         if (!bestVector.Value.BreakRisk.Assessed) findings.Add("break_floor_unassessed");
-        var deferred = DeferUnselectedPawns(candidates.Context, best.Plan, request.Origin.ObservedTick);
-        var deferredCapacity = Math.Max(0, 32 - best.Plan.Allocations.Length);
-        if (deferred.Count > deferredCapacity) findings.Add("deferred_pawn_limit");
+        var deferred = DeferUnselectedPawns(candidates.Context, best.Plan);
         span?.SetTag("rimgovernor.expansions", expansions);
         span?.SetTag("rimgovernor.schedules", schedulesByKey.Count);
         span?.SetTag("rimgovernor.truncated", truncated);
@@ -514,7 +514,7 @@ public sealed partial record ForecastCoupledSelection
             baselineVector, bestVector, EquatableArray.From(evidence), request.HorizonDays * GameTime.TicksPerDay, candidates.Truncated)
         { CompositionExpansions = candidates.CompositionExpansions,
             ServiceInvestments = ForecastServiceInvestments.ServiceInvestmentsOf(baseline, best, candidates.Context, request.HorizonDays * GameTime.TicksPerDay),
-            Deferred = EquatableArray.From(deferred.Take(deferredCapacity)),
+            Deferred = deferred,
             SearchPhases = EquatableArray.From(phases), SelectedPhase = selectedPhase, WarmStart = warmStartState };
     }
 
@@ -721,21 +721,21 @@ public sealed partial record ForecastCoupledSelection
     {
         if (selection.Selection.Selected.Any(id => candidates.Incumbents.Any(c => c.Id == id)))
             throw new DomainException("retained incumbent is forecast-only; observe release before fresh binding");
-        return Methods.Binding.CoordinatedActivityBinding.StartWithDeferred(selection, candidates.Context.Bindings, authority, method, tick, candidates.Context.PlannedSites);
+        return Methods.Binding.CoordinatedActivityBinding.StartSelected(selection.Selection, candidates.Context.Bindings, authority, method, tick, candidates.Context.PlannedSites);
     }
 
-    /// <summary>The no-change choice has a finite observed safe interval, not permission for a native selector.
-    /// Reconsider at most every 600 ticks and before the first supported need threshold.</summary>
-    private static EquatableArray<ForecastDeferredPawn> DeferUnselectedPawns(ForecastCoupledContext context, ForecastActivityPlan plan, long tick)
+    /// <summary>The unselected colonists whose observed needs stay above every supported threshold for at least a tick: the
+    /// no-change choice is safe for them. They are not held: standby takes them, with its valued hauls (#3624).</summary>
+    private static EquatableArray<string> DeferUnselectedPawns(ForecastCoupledContext context, ForecastActivityPlan plan)
     {
         if (context.Resources.Claims.Truncated
             || !context.Activities.Deadline.TryGetValue(out var horizon) || !double.IsFinite(horizon) || horizon <= 0) return [];
         var limit = Math.Min(600d, horizon);
         var selected = plan.Allocations.Select(a => a.Pawn).ToHashSet(StringComparer.Ordinal);
-        var result = new List<ForecastDeferredPawn>();
+        var result = new List<string>();
         foreach (var pawn in context.Needs.Pawns.OrderBy(p => p.Pawn, StringComparer.Ordinal))
         {
-            if (pawn.State != "eligible" || pawn.VoluntaryControlBlockers.Count != 0 || pawn.Location is not { } location || selected.Contains(pawn.Pawn)
+            if (pawn.State != "eligible" || pawn.VoluntaryControlBlockers.Count != 0 || pawn.Location is null || selected.Contains(pawn.Pawn)
                 || context.Resources.Claims.Pawns.Contains(pawn.Pawn) || pawn.Needs.Count == 0) continue;
             var capacity = ForecastNeeds.NeedsWorkCapacity(context.Resources, pawn.Pawn, limit).Capacity;
             if (!capacity.Windows.TryGetValue(out var windows) || !windows.Any(w => w.Start <= 0 && w.End > 0)) continue;
@@ -749,7 +749,7 @@ public sealed partial record ForecastCoupledSelection
                 if (fall > 0) duration = Math.Min(duration, (level - threshold) / fall);
             }
             if (duration < 1) continue;
-            result.Add(new(pawn.Pawn, location, checked(tick + (long)Math.Floor(duration))));
+            result.Add(pawn.Pawn);
         }
         return EquatableArray.From(result);
     }

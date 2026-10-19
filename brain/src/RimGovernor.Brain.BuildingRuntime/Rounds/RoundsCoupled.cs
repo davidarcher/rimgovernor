@@ -29,7 +29,7 @@ public sealed partial class Rounder
         if (execution.Dispatch is not { } dispatch)
         { RecordCoupledSelection(selection, facts.Tick.Value, "retained_method_future_work", true); return taken; }
         selection = dispatch;
-        if (selection.Selection.Selected.Length == 0 && selection.Deferred.Count == 0)
+        if (selection.Selection.Selected.Length == 0)
         { RecordCoupledSelection(selection, facts.Tick.Value, "continue", facts.CoupledWorkActive); return taken; }
         // The activity is the admin/work-assignments Need's Method (#3304); a runtime without the Need starts none.
         if (!Needs.Contains(AdminFamily.WorkAssignments)) return taken;
@@ -61,6 +61,64 @@ public sealed partial class Rounder
     }
 
     /// <summary>
+    /// Standby work (#3624): after this review's coupled admission, a colonist with nothing more valuable to do (no Hands
+    /// assignment, or standby) carries a loose stack to storage when the haul is worth more than its labor
+    /// (<see cref="ForecastValue.StoreHaulValueOf"/>): future travel saved for a planned site's or an open bill's use (native
+    /// reads the bills' ingredients), or
+    /// market value kept from deteriorating or rotting. One claimed Method per haul under the admin/work-assignments Need;
+    /// the stack, its storage cell and the walks come from one native store read. Only after a comparison: its horizon bounds
+    /// the order, and a colonist it gave no work is what standby means.
+    /// </summary>
+    /// <returns>The colonists a haul was committed for.</returns>
+    private async Task<HashSet<string>> AdmitStoreHaulsAsync(RoundsResult review, RoundsFacts facts, WorkActionCensus actions, IReadOnlySet<string> taken,
+        GenerationSnapshot snapshot, CancellationToken call, CancellationToken epoch)
+    {
+        var hauled = new HashSet<string>(StringComparer.Ordinal);
+        if (!Needs.Contains(AdminFamily.WorkAssignments) || review.Needs.CoupledSelection is not { } compared) return hauled;
+        var pawns = StandbyAssignmentsRules.StandbyWorkPawnsOf(facts, actions, taken);
+        if (pawns.Count == 0) return hauled;
+        var uses = facts.PlannedSites.TryGetValue(out var planned) ? StoreHaulRules.PlannedUses(planned, RoomSelection.Get(snapshot)) : [];
+        var read = await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), [])
+            { Store = new() { Pawns = pawns, Uses = uses } }, call).ConfigureAwait(false);
+        if (read is not { Known: true, Store: { } store } || read.Context?.Tick is not { } tick) return hauled;
+        var (things, cells) = StoreHaulRules.Reserved(facts);
+        var proposals = StoreHaulRules.Propose(store, pawns, things, cells, new ColonyModelPolicy().HorizonDays);
+        if (proposals.Count == 0) return hauled;
+        Player.Current(call, epoch);
+        if (Player.Session.State().Snapshot != snapshot) throw new ControlException("store haul scope changed");
+        var deadline = checked(tick + (long)compared.Horizon);
+        foreach (var proposal in proposals)
+        {
+            var pawn = proposal.Row.Pawn;
+            var id = PlanIds.MintPlanId();
+            var method = new MethodId($"{StandbyAssignmentsRules.StoreHaulMethodPrefix}{id}");
+            var attrs = new Dictionary<string, object?>
+            {
+                ["method"] = method.Value, ["thing"] = proposal.Haul.Thing, ["resource"] = proposal.Haul.Resource, ["count"] = proposal.Haul.Count,
+                ["destination"] = $"{proposal.Haul.Destination.X},{proposal.Haul.Destination.Z}", ["value"] = proposal.Value.Total,
+                ["travel_saved"] = proposal.Value.TravelSaved, ["loss_avoided"] = proposal.Value.LossAvoided, ["labor"] = proposal.Value.Labor,
+            };
+            try
+            {
+                var commit = Player.Journal.CommitClaimedMethod(AdminFamily.WorkAssignments, snapshot, method, "standby work: valued store haul",
+                    new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"),
+                        StoreHaulRules.Activity(proposal, snapshot.Native.Value, method.Value, tick, deadline))]), call);
+                Tel.Decide(new Decision { Kind = "standby", Component = "rounds", Target = pawn,
+                    Verdict = commit.Outcome == ClaimOutcome.Conflict ? "deferred" : "selected",
+                    Reason = commit.Conflict?.Reason ?? "store_haul", Attrs = attrs });
+                if (commit.Outcome != ClaimOutcome.Conflict) hauled.Add(pawn);
+            }
+            catch (NotAdmittedException refusal)
+            {
+                attrs["refusal"] = refusal.Message;
+                Tel.Decide(new Decision { Kind = "standby", Component = "rounds", Target = pawn, Verdict = "deferred",
+                    Reason = "method_not_admitted", Attrs = attrs });
+            }
+        }
+        return hauled;
+    }
+
+    /// <summary>
     /// The explicit idle (#3322): after this review's coupled admission, each controlled colonist still without a Hands
     /// assignment gets standby, one claimed Method per colonist under the admin/work-assignments Need. Without it an
     /// unassigned colonist stands idle until a later review assigns it.
@@ -78,7 +136,7 @@ public sealed partial class Rounder
         foreach (var pawn in pawns)
         {
             var id = PlanIds.MintPlanId();
-            var method = new MethodId($"standby-{id}");
+            var method = new MethodId($"{StandbyAssignmentsRules.StandbyMethodPrefix}{id}");
             try
             {
                 var commit = Player.Journal.CommitClaimedMethod(AdminFamily.WorkAssignments, snapshot, method, "explicit idle: nothing selected",
@@ -122,7 +180,7 @@ public sealed partial class Rounder
                 ["observed_tick"] = tick, ["horizon_ticks"] = selection.Horizon,
                 ["protected_continuation"] = protectedContinuation, ["admission_failure"] = admissionFailure,
                 ["selected_ids"] = selection.Selection.Selected,
-                ["deferred_pawns"] = selection.Deferred.Select(t => t.Pawn).ToArray(),
+                ["deferred_pawns"] = selection.Deferred.ToArray(),
                 ["baseline"] = ConsequenceAttrs(selection.BaselineVector), ["selected"] = ConsequenceAttrs(selection.SelectedVector),
                 ["rejected"] = selection.Rejected.Take(16).Select(r => new Dictionary<string, object?>
                 { ["ids"] = r.Commitments.ToArray(), ["reason"] = r.Reason, ["vector"] = r.Consequences is { } v ? ConsequenceAttrs(v) : null }).ToArray(),

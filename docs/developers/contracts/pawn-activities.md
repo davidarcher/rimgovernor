@@ -219,7 +219,7 @@ before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
 The initial step families are exact thing-target work (Clean, Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused unless the order's earlier RemoveRoof steps take off the roof it leaves unsupported ([prior steps](#prior-steps), #3617); a designation the room reconcile stood by Designate is read back as a removal op and ordered the same way, and the order marks its record `Ordered`, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613; RemoveFloor is the cell set step, Work over a set of floored cells through `WorkGiver_ConstructRemoveFloor`, the order standing each member cell's RemoveFloor designation, #3615; Mine is the third, Work over a set of rock through `WorkGiver_Miner`, the order standing each member's Mine designation under the mine_safety guard, #3616; RemoveRoof is the second cell set step, Work over a set of roofed cells through `WorkGiver_RemoveRoof`, the order putting each member in the NoRoof area, #3617), selected food/count,
-selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold, bounded Idle and Standby (explicit idle). Unsupported families are refused, not sent to a
+selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold and Standby (explicit idle). Unsupported families are refused, not sent to a
 native economic selector. Recreation without a building (walks, skygazing, social relaxing, drugs,
 reading) remains outside this initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,
 capabilities, native target checks and native reservations. They may still perform
@@ -395,7 +395,7 @@ does not reserve a pawn or authorize native fallback.
 | Drafted / player-controlled / queued or player-forced work | No voluntary candidate. Existing player/combat authority owns the pawn; a timetable bypass cannot override it. |
 | Downed / dead / mental state | No voluntary candidate or supported productive capacity. Native involuntary behavior and existing protection remain authoritative. |
 | Unknown mechanics / occupied job duration | Unknown capacity, never free time. |
-| Other recreation, DLC/mod needs, babies or special ingestion | Explicit unsupported effects/targets; no inferred adapter or hidden fallback. The blocker is a visible finding; the pawn's supported needs and labor stay selectable, and only the bounded Idle defer and incumbent retention exclude it ([control boundary](voluntary-control.md#control-boundary-and-unsupported-states), #3557). |
+| Other recreation, DLC/mod needs, babies or special ingestion | Explicit unsupported effects/targets; no inferred adapter or hidden fallback. The blocker is a visible finding; the pawn's supported needs and labor stay selectable, and only incumbent retention excludes it ([control boundary](voluntary-control.md#control-boundary-and-unsupported-states), #3557). |
 
 Needs choices use the same Method journal and Hands ownership as productive work. Ingestion timing belongs to selected activities; there is no separate food-bar override or native food-seeking threshold writer.
 
@@ -435,12 +435,10 @@ exact orders may finish; player work, drafted pawns, involuntary states and
 burning retain their native or protective owner. Changing authority interrupts
 unowned voluntary work so it cannot silently continue under the new policy.
 
-When comparison retains no change for an available pawn, policy can bind Idle
-through the same Method. Its observed interval ends within 600 ticks or at the
-first supported need threshold, whichever comes first. Unknown needs, unmet
-needs, explicit unsupported-state blockers and shared claims cannot authorize
-that interval. Idle completion wakes review and release; it creates no inventory
-or recovery benefit. Hold remains solely an already-authorized task dependency.
+When comparison retains no change for an available pawn, the review gives it
+`Standby` or standby work (a valued store haul, #3624), not a timed idle: the
+bounded 600-tick Idle kind is gone. Hold remains solely an already-authorized
+task dependency.
 
 Under brain authority every controlled colonist holds a Hands assignment (#3322).
 After a round's coupled selection, the brain gives each available, unoccupied

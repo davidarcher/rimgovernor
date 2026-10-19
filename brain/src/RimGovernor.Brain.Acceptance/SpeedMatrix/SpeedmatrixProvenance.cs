@@ -29,7 +29,7 @@ internal sealed partial class SpeedmatrixRun
                 ("cpus", Environment.ProcessorCount),
                 ("gomaxprocs", Environment.ProcessorCount))),
             ("tick_target", Ticks),
-            ("stage", OutputJson.Fields(("save", StageSave), ("items", Items), ("wall_segments", Segments))),
+            ("stage", OutputJson.Fields(("save", StageSave), ("items", Items))),
             ("warmup", "the reload, the needs freeze and the resume precede the measured interval"),
             ("measured_interval", "per row: wall_seconds from resume to the tick budget"));
 

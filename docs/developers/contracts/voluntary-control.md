@@ -79,11 +79,18 @@ The idle is not a resting state: a colonist that lost its activity Method makes
 the next review step run the rounds review (`freed`, #3599), which assigns every
 such pawn it selects nothing for an explicit `Standby`
 (colony wander, no work, no deadline; see [pawn activities](pawn-activities.md)).
+A colonist on standby, or one the review gave nothing, may take standby work
+instead (#3624): a haul of a loose stack to the storage native chose for it,
+when the haul is worth more than its labor ([support work](support-work.md#store-hauls),
+[store-haul value](../architecture/forecast-value.md#store-haul-value)). Standby
+work is what nothing more valuable left: the coupled selection runs first and
+the standby colonists are free to it, so a haul never displaces a selected task.
+A colonist whose next service the comparison deferred gets standby or standby
+work the same way; there is no separate timed defer.
 An unsupported need/state blocker is a visible finding
 (`unsupported_voluntary_state:<pawn>:<blocker>`), not a capacity exclusion: the
 pawn's supported needs and labor stay selectable, so it is fed and worked like any
-colonist, while the bounded `Idle` defer and incumbent retention still exclude it
-(#3557). The blocker is not autonomous coverage of the unsupported need.
+colonist, while incumbent retention still excludes it (#3557). The blocker is not autonomous coverage of the unsupported need.
 
 The native support check admits the exact need types Food, Rest, Joy, Mood,
 Comfort, Beauty, Outdoors, Indoors and RoomSize. Derived/modded classes do not
@@ -94,11 +101,8 @@ specific blockers. A scheduled drug produces either `scheduled_drug_due` or
 `scheduled_drug_onset_unassessed`; a missing drug definition produces
 `unknown_scheduled_drug`. Supported ordinary needs do not cancel another blocker.
 
-Bounded `Idle` is selected only for an eligible pawn with known available
-capacity, no selected task/claim and known needs above their thresholds. Its
-deadline is at most 600 ticks and no later than the earliest forecast threshold
-crossing or available-window end. Truncated observations or unknown need
-estimates do not authorize this defer. Review must renew or replace it. `Standby`
+The bounded 600-tick `Idle` defer is gone (#3624): it freed its colonist every
+600 ticks and each expiry reran the rounds review. `Standby`
 is not a defer: it claims no capacity, authorizes no work and is replaced as soon
 as review selects anything, including eating or sleeping for a falling need. A completed or failed
 assignment keeps its exact ownership pending continuation or release, but stops the existing

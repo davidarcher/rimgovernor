@@ -10,5 +10,6 @@ public static class StorageCases
         registry.Register(StorageStrandedLoot.Case());
         registry.Register(StorageYardShelf.Case());
         registry.Register(StorageOccupancyRing.Case());
+        registry.Register(StorageValuedHaul.Case());
     }
 }

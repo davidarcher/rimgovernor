@@ -18,12 +18,12 @@ public sealed class CoordinatedActivityTests
         };
 
     [Fact]
-    public void CompletedIdleReleasesBeforeReadyDeliveryRebindWithoutChangingItsObligation()
+    public void CompletedHoldReleasesBeforeReadyDeliveryRebindWithoutChangingItsObligation()
     {
         var step = new PawnActivityStep(PawnActivityKind.Deliver, "observed-output", "", "", 6, 2000)
             { Destination = new(2, 2) };
         var delivery = new SelectedActivityTask("delivery", "helper", [], step, new(1, 1), 100) { Resource = "Rice" };
-        var idleStep = new PawnActivityStep(PawnActivityKind.Idle, "", "", "", 0, 300);
+        var idleStep = new PawnActivityStep(PawnActivityKind.Hold, "", "", "", 0, 300);
         var idle = new PawnActivityOrder("producer", "m/idle", "m", 0, 1, false, [idleStep]) { Task = "idle" };
         var waiting = new PawnActivityOrder("helper", "m/helper", "m", 0, 1, false,
             [new(PawnActivityKind.Hold, "", "", "", 0, 2000)]) { Task = "delivery", Preparing = true };

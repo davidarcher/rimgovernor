@@ -140,7 +140,7 @@ binds new productive work. Retained orders and selected obligations stay exact;
 the cleanup delta removes only the released participant's tasks and their
 satisfied prerequisite edges. Store validates that no labor, target or input is
 added before bypassing productive readmission for this cleanup-only delta.
-A temporarily claimed output stack therefore cannot strand a completed Idle
+A temporarily claimed output stack therefore cannot strand a completed
 participant. Productive rebinding still requires ordinary shared admission,
 fresh native evidence and the original finite deadline; cleanup grants no right
 to take another Method's target.

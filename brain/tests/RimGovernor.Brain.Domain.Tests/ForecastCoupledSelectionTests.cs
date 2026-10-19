@@ -196,10 +196,10 @@ public sealed class ForecastCoupledSelectionTests
     }
 
     [Theory]
-    [InlineData(1, 0, 300)]
-    [InlineData(.5, .001, 200)]
-    [InlineData(.2, 0, 0)]
-    public void NoChangeOwnsOnlyAFiniteIntervalBeforeNeedPressure(double level, double fall, long duration)
+    [InlineData(1, 0, true)]
+    [InlineData(.5, .001, true)]
+    [InlineData(.2, 0, false)]
+    public void AColonistWithNoChangeDueIsDeferredToStandby(double level, double fall, bool deferred)
     {
         var facts = Review(level, fall);
         var candidates = facts.CoupledAlternatives!;
@@ -208,15 +208,10 @@ public sealed class ForecastCoupledSelectionTests
         { Needs = candidates.Context.Needs with { Pawns = [pawn] } } };
         facts = facts with { CoupledAlternatives = candidates };
         var choice = Select(facts);
-        if (duration == 0) { Assert.Empty(choice.Deferred); return; }
-        var deferred = Assert.Single(choice.Deferred);
-
-        Assert.InRange(deferred.Until, 100 + duration - 1, 100 + duration);
-        var batch = Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(choice, candidates, 1, "method", 100));
-        batch.Validate();
-        Assert.Equal("defer/" + deferred.Pawn, Assert.Single(batch.Orders).Task);
-        Assert.Equal(PawnActivityKind.Idle, Assert.Single(batch.Tasks).Step.Kind);
-        Assert.Empty(batch.Tasks.SelectMany(t => t.Inputs));
+        if (!deferred) { Assert.Empty(choice.Deferred); return; }
+        // #3624: the deferred colonist is named for standby admission; the coupled Method itself binds nothing for it.
+        Assert.Equal("pawn", Assert.Single(choice.Deferred));
+        Assert.Null(ForecastCoupledSelection.StartCoupledActivity(choice, candidates, 1, "method", 100));
     }
 
     [Fact]

@@ -34,8 +34,24 @@ public sealed class ActivityContinuationTests
     private static Journal Open(CancellationToken ct) => Journal.Open(Path.Combine(Path.GetTempPath(),
         "rg-continuation-" + Guid.NewGuid().ToString("N") + ".db"), ct);
 
+    /// <summary>#3624: a coupled worker read completed while a recipe is left is one finished task, keyed by its order, so a
+    /// continuation deferred at that boundary and read again is the same event; none when no recipe is left or mid-task.</summary>
     [Fact]
-    public void TerminalIdleCleanupDoesNotReadmitDeliveryAgainstAnotherMethodsResidualMeal()
+    public void ACoupledWorkerThatFinishedATaskWithBillsLeftIsOneFinishedTask()
+    {
+        var recipe = new PawnActivityStep(PawnActivityKind.Recipe, "bench", "Cook", "", 0, 2000) { Recipe = new("bill/CookRice", "CookRice", []) };
+        var first = new SelectedActivityTask("cook-1", "pawn", [], recipe, new(2, 1), 0);
+        var order = new PawnActivityOrder("pawn", "assignment", "coupled-cook", 0, 1, false, [recipe]) { Task = first.Id };
+        var batch = new PawnActivities(1, [order]) { Tasks = [first, first with { Id = "cook-2" }] };
+        var completed = new ActivityOwnership("pawn", "assignment", "coupled-cook", 1, "completed");
+        Assert.Equal(["coupled-cook/pawn/1"], ActivityContinuationRules.FinishedTasks(batch, [completed]));
+        Assert.Empty(ActivityContinuationRules.FinishedTasks(batch, [completed with { State = "started" }]));
+        Assert.Empty(ActivityContinuationRules.FinishedTasks(batch with { Tasks = [first] }, [completed]));
+        Assert.Empty(ActivityContinuationRules.FinishedTasks(batch, [completed with { Revision = 2 }]));
+    }
+
+    [Fact]
+    public void TerminalHoldCleanupDoesNotReadmitDeliveryAgainstAnotherMethodsResidualMeal()
     {
         var ct = TestContext.Current.CancellationToken;
         using var journal = Open(ct);
@@ -47,7 +63,7 @@ public sealed class ActivityContinuationTests
             Inputs = [new("Rice", "harvest", 6, new(1, 1), "observed harvest") { Producers = ["completed-harvest"] }]
         };
         var waiting = Order with { Pawn = "helper", Assignment = "helper-assignment", Task = delivery.Id, Preparing = true };
-        var idleStep = new PawnActivityStep(PawnActivityKind.Idle, "", "", "", 0, 110);
+        var idleStep = new PawnActivityStep(PawnActivityKind.Hold, "", "", "", 0, 110);
         var idle = Order with { Steps = [idleStep], Task = "idle" };
         var batch = new PawnActivities(1, [waiting, idle])
         { Tasks = [delivery, new("idle", "pawn", [], idleStep, new(3, 3), 100)] };

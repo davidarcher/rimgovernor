@@ -114,6 +114,9 @@ public sealed partial class Worker
     // The last step moved an action to another stage, so a successor may have become dispatchable.
     private bool _advanced;
 
+    // The finished tasks already signalled to the scheduler (#3624), so a task deferred at its boundary is one event.
+    private readonly HashSet<string> _finishedTasks = new(StringComparer.Ordinal);
+
     private Worker(Player player, IWorkerSession session, WorkerConfig config, CancellationTokenSource lifetime)
     {
         _player = player;

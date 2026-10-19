@@ -12,7 +12,23 @@ public static partial class StandbyAssignmentsRules
     /// no journaled activity action for it is still in flight, and <paramref name="selected"/> (the pawns this review's
     /// own work just took) does not hold it. Sorted, at most 64.
     /// </summary>
-    public static EquatableArray<string> StandbyPawnsOf(RoundsFacts facts, WorkActionCensus actions, IReadOnlySet<string> selected)
+    public static EquatableArray<string> StandbyPawnsOf(RoundsFacts facts, WorkActionCensus actions, IReadOnlySet<string> selected) =>
+        IdlePawnsOf(facts, actions, selected, assignment => assignment.Length == 0);
+
+    /// <summary>The prefix of a colonist's standby Method (and so of its native assignment).</summary>
+    public const string StandbyMethodPrefix = "standby-";
+
+    /// <summary>The prefix of a store haul's Method (#3624): standby work, owed while it runs.</summary>
+    public const string StoreHaulMethodPrefix = "haul-";
+
+    /// <summary>
+    /// The colonists standby work may take (#3624): those <see cref="StandbyPawnsOf"/> gives standby and those already
+    /// holding it (native reports a standby assignment), under the same reads. Sorted, at most 64.
+    /// </summary>
+    public static EquatableArray<string> StandbyWorkPawnsOf(RoundsFacts facts, WorkActionCensus actions, IReadOnlySet<string> selected) =>
+        IdlePawnsOf(facts, actions, selected, assignment => assignment.Length == 0 || assignment.StartsWith(StandbyMethodPrefix, StringComparison.Ordinal));
+
+    private static EquatableArray<string> IdlePawnsOf(RoundsFacts facts, WorkActionCensus actions, IReadOnlySet<string> selected, Func<string, bool> idle)
     {
         if (facts.WorkView is not { } view || actions.Truncated || view.Claims.Truncated
             || !view.Evidence.WorkResources.TryGetValue(out var native) || !view.Evidence.Pawns.TryGetValue(out var pawns)) return [];
@@ -21,7 +37,7 @@ public static partial class StandbyAssignmentsRules
             .SelectMany(a => a.Action.PawnActivities?.Orders ?? []).Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal);
         return EquatableArray.From(pawns
             .Where(p => p.Available == Known(true) && p.Occupied == Known(false)
-                && native.Where(n => n.Pawn == p.Pawn).ToArray() is [{ Assignment.Length: 0 }]
+                && native.Where(n => n.Pawn == p.Pawn).ToArray() is [{ } row] && idle(row.Assignment)
                 && !view.Claims.Pawns.Contains(p.Pawn) && !inFlight.Contains(p.Pawn) && !selected.Contains(p.Pawn))
             .Select(p => p.Pawn).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Take(64));
     }

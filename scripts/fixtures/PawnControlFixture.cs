@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
             return FixtureKit.Reply(new Fx.FixtureDone { Success=true });
         },ct).ConfigureAwait(false);
 
-        [Tool("test/pawn_control_install",Description="UNSAFE FOR MODEL EXECUTION. Validate and install the producer's dependency hold, harvest, meal and sleep, the helper's cleaning, and an idle for every other colonist.")]
+        [Tool("test/pawn_control_install",Description="UNSAFE FOR MODEL EXECUTION. Validate and install the producer's dependency hold, harvest, meal and sleep, the helper's cleaning, and standby for every other colonist.")]
         public async Task<object> Install(IRimBridgeContext ctx,CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(()=>
         {
             var c=Context();
@@ -90,7 +90,7 @@ namespace HomeBridge.BridgeTools
             var batch=new PawnActivities(c.NativeGeneration!.Value,new[]{workerOrder,helperOrder}.Concat(worker.Map.mapPawns.FreeColonistsSpawned
                 .Where(p => p != worker && p != helper).Select(p => new PawnActivityOrder(p.GetUniqueLoadID(),
                     "fixture-idle-" + p.GetUniqueLoadID(), "food-method", 0, 1, false,
-                    [new(PawnActivityKind.Idle, "", "", "", 0, deadline)]))).ToArray());
+                    [new(PawnActivityKind.Standby, "", "", "", 0, long.MaxValue)]))).ToArray());
             var invalid=NativePawnActivities.Validate(batch,c); if(invalid!=null)throw new InvalidOperationException(invalid.Detail);
             NativePawnActivities.Apply(batch,c);
             NativePawnActivities.Apply(batch,c); // Idempotent reinstall must not restart work.
@@ -121,9 +121,9 @@ namespace HomeBridge.BridgeTools
             return FixtureKit.Reply(new Fx.FixtureDone { Success=true });
         },ct).ConfigureAwait(false);
 
-        [Tool("test/pawn_control_probe",Description="UNSAFE FOR MODEL EXECUTION. One bounded native lifecycle probe over the installed executions: atomic, deadline, refusal, preemption, release, overrides, idle or player.")]
+        [Tool("test/pawn_control_probe",Description="UNSAFE FOR MODEL EXECUTION. One bounded native lifecycle probe over the installed executions: atomic, deadline, refusal, preemption, release, overrides or player.")]
         public async Task<object> Probe(IRimBridgeContext ctx,CancellationToken ct,
-            [ToolParameter(Description="The probe: atomic, deadline, refusal, preemption, release, overrides, idle or player.")] string probe = "")=>await ctx.MainThread.InvokeAsync<object>(()=>
+            [ToolParameter(Description="The probe: atomic, deadline, refusal, preemption, release, overrides or player.")] string probe = "")=>await ctx.MainThread.InvokeAsync<object>(()=>
         {
             if(workerOrder==null||helperOrder==null)throw new InvalidOperationException("Install the executions first.");
             switch(probe)
@@ -134,7 +134,6 @@ namespace HomeBridge.BridgeTools
                 case "preemption": Preemption(); break;
                 case "release": Release(); break;
                 case "overrides": Overrides(); break;
-                case "idle": Idle(); break;
                 case "player": Player(); break;
                 default: throw new ArgumentException($"Unknown probe \"{probe}\".");
             }
@@ -256,21 +255,6 @@ namespace HomeBridge.BridgeTools
             worker.jobs.StartJob(afterImposed,JobCondition.InterruptForced);
             if(ReferenceEquals(worker.CurJob,afterImposed))
                 throw new InvalidOperationException("Native imposed-effect permission leaked beyond its source or exception.");
-        }
-
-        // A bounded idle completes, and the completed task-backed hold holds the clock.
-        private static void Idle()
-        {
-            worker!.needs.rest.CurLevelPercentage=.1f;
-            Install(Revised(workerOrder!,new PawnActivityStep(PawnActivityKind.Idle,"","","",0,Find.TickManager.TicksGame+1)) with {Task="terminal-fixture"});
-            var idleOffer=Offer();
-            worker.jobs.StartJob(idleOffer.Job,JobCondition.InterruptForced,idleOffer.SourceNode);
-            Find.TickManager.DoSingleTick();
-            NativePawnActivities.WaitTick(worker);
-            if(NativePawnActivities.Read(worker)?.State!="completed")throw new InvalidOperationException("Bounded idle did not complete.");
-            Find.TickManager.CurTimeSpeed=TimeSpeed.Normal;
-            NativePawnActivities.WaitTick(worker);
-            if(!Find.TickManager.Paused)throw new InvalidOperationException("Completed task-backed hold allowed time without continuation.");
         }
 
         // A player's ordered job and a direct native menu command each take the pawn from Hands ownership.

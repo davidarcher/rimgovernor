@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Domain;
 /// <summary><see cref="Standby"/> is the explicit idle every controlled colonist holds when nothing is selected for it (#3322):
 /// native wander or wait, no work, no deadline. It is the order's only step and any other assignment replaces it from
 /// revision zero (pawn-activities.md).</summary>
-public enum PawnActivityKind { Work, Eat, Sleep, Hold, Recreation, Deliver, Recipe, Approach, Supply, Idle, Standby }
+public enum PawnActivityKind { Work, Eat, Sleep, Hold, Recreation, Deliver, Recipe, Approach, Supply, Standby }
 
 public sealed record PawnActivityPractice(string Skill, string Role, int RequirementIndex, string Partner, string PartnerTarget, int DurationTicks)
 { public string Beneficiary { get; init; } = ""; }
@@ -90,10 +90,6 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
     public EquatableArray<SelectedActivityTask> Tasks { get; init; }
     /// <summary>A live order whose one step is <see cref="PawnActivityKind.Standby"/>: an explicit idle that claims nothing.</summary>
     public static bool IsStandby(PawnActivityOrder order) => !order.Release && order.Steps is [{ Kind: PawnActivityKind.Standby }];
-    /// <summary>A live order that only defers its pawn: one <see cref="PawnActivityKind.Idle"/> step until the pawn is
-    /// reconsidered (#3047).</summary>
-    public static bool IsDeferral(PawnActivityOrder order) => !order.Release && order.Task.StartsWith("defer/", StringComparison.Ordinal)
-        && order.Steps is [{ Kind: PawnActivityKind.Idle }];
     public static bool SameOrder(PawnActivityOrder a, PawnActivityOrder b) => a.Pawn == b.Pawn && a.Assignment == b.Assignment
         && a.Method == b.Method && a.ExpectedRevision == b.ExpectedRevision && a.Revision == b.Revision
         && a.Release == b.Release && a.OutputDelivery == b.OutputDelivery && a.Task == b.Task && a.Preparing == b.Preparing
@@ -130,7 +126,7 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
             foreach (var step in order.Steps)
             {
                 DomainException.Require(step != null && Enum.IsDefined(step.Kind) && step.Deadline > 0
-                    && (step.Kind is PawnActivityKind.Hold or PawnActivityKind.Idle or PawnActivityKind.Standby or PawnActivityKind.Approach || IdText.IsValidText(step.Target))
+                    && (step.Kind is PawnActivityKind.Hold or PawnActivityKind.Standby or PawnActivityKind.Approach || IdText.IsValidText(step.Target))
                     && (step.Kind != PawnActivityKind.Standby || order.Steps.Length == 1 && step.Target.Length == 0 && step.Count == 0
                         && step.WorkGiver.Length == 0 && step.Job.Length == 0 && step.WaitForFilth.Length == 0 && order.OutputDelivery == null && order.Task.Length == 0)
                     && (step.Kind != PawnActivityKind.Work || IdText.IsValidText(step.WorkGiver) && IdText.IsValidText(step.Job))
