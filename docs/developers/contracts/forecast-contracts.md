@@ -232,7 +232,7 @@ The brain mirrors the game literals these mechanics use; each constant cites its
 The capability-days ledger ([forecast value](../architecture/forecast-value.md#capability-days),
 `ForecastValue.Of`) prices what malnutrition, food poisoning, hypothermia and heatstroke take from a pawn
 with the game's own tables (#3519, #3520, #3521). Hypothermia and heatstroke are priced from the
-pawn's `ForecastThermalExposure.Spans`: exact piecewise integration of the givers' severity (quadratic gain under a linear temperature, exponential recovery), the stage path priced as the other terms are, and a severity reaching `LethalSeverity` charging the remaining horizon plus `DeathTerminalValue`. A pawn with unknown occupancy has the term unassessed, with `unassessed_thermal_exposure`.
+pawn's `ForecastThermalExposure.Spans`: exact piecewise integration of the givers' severity (quadratic gain under a linear temperature, exponential recovery), the stage path priced as the other terms are, and a severity reaching `LethalSeverity` charging the remaining horizon plus `DeathTerminalValue`. A pawn with unknown occupancy has the term unassessed, with `unassessed_thermal_exposure`. Exhaustion collapse (#3598) reads the rest zero spans of the pawn's timeline and its observed `WakeThreshold` and rest `NeedRate.UnservedGainPerTick` (the ground sleep a collapse takes).
 
 - `RoundsFacts.CapacityPenalties` (`CapacityPenaltyTables`): one
   `HediffPenaltyTable` each for `Malnutrition` and `FoodPoisoning`, decoded by

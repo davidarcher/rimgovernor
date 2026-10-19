@@ -113,7 +113,8 @@ penalty. The `StatPart_Food` and `StatPart_Rest` parts on `ImmunityGainSpeed`
 tired, very tired and exhausted) are the only stat parts the game reads a need
 category through, and slow immunity only. Every other category effect is a mood
 thought (`ThoughtWorker_NeedFood`, `ThoughtWorker_NeedRest`, already in the mood
-model) or a rate above. The game's `HediffGiver_Heatstroke` is `HediffGiver_Heat`.
+model) or a rate above. Zero rest's involuntary sleep is the one rest effect the ledger prices
+([exhaustion collapse](../architecture/forecast-value.md#capability-days), #3598). The game's `HediffGiver_Heatstroke` is `HediffGiver_Heat`.
 
 The ledger prices a hediff's pain (`painOffset`, which lowers consciousness by up
 to 0.4 in `PawnCapacityWorker_Consciousness`) as unpriced: the pawn's current pain

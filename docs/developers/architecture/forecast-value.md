@@ -86,7 +86,8 @@ exchange rates are mechanical, not chosen:
 
 | Effect | How it costs capability-days |
 | --- | --- |
-| Hunger, exhaustion | The capacity penalties of malnutrition and exhaustion over their duration. |
+| Hunger | The capacity penalties of malnutrition over their duration. |
+| Exhaustion | No rest category changes a capacity, so the cost is the collapse: the expected time a pawn awake at zero rest spends asleep where it falls, as a full loss (below). |
 | Injury | Capacity lost to pain and part damage until healed. Healing per pawn is 8/day naturally (12 not standing) plus 8 × (0.5 + tend quality) tended, × health scale and healing factors. |
 | Downed | Full loss from the down until able, plus the rescue labor. |
 | Treatment | Tend labor, about 600 ticks ÷ tend speed per injury plus walking, and medicine consumed. |
@@ -94,6 +95,22 @@ exchange rates are mechanical, not chosen:
 | Death | Remaining capability-days to the horizon, plus `DeathTerminalValue`. |
 | Labor | Hours spent are hours not available for other work. This is already in the schedule. |
 | Investment | Capability added after completion, from tier 2: the work's progress times the project's marginal value. A gain, so a negative loss like the goals term. |
+
+**Exhaustion collapse (#3598).** Rest changes no capacity and no work speed in 1.7; its mood thoughts are already in the
+mood model. What exhaustion costs is the involuntary sleep (`Need_Rest.ShouldInvoluntarySleepFromMTB`): once a pawn has
+been at zero rest for more than 1000 ticks, each 150-tick need interval it falls asleep where it stands with chance
+150 / (MTB × 60000), the MTB being 0.25 days, then 0.125, 1/12 and 0.0625 days once the time at zero passes a quarter,
+a half and three quarters of a day. It then sleeps on the ground (`BedRestEffectiveness.valueIfMissing`, 0.8) until its
+wake threshold, which is `WakeThreshold / UnservedGainPerTick` ticks from empty. `ForecastValue.Of` walks each rest zero
+span of the pawn's timeline in those intervals and charges, per pawn, the probability it collapses there (having stayed
+awake until then) times that sleep, clipped to the horizon, as a full loss. The time at zero restarts with each span,
+and a collapse ends the walk because the sleep refills the need. A plan that sleeps the pawn in a bed pays its sleep in
+schedule time instead, so when food's zero time is unavoidable and ties the urgent-zero floor, cutting rest's zero time
+still wins on the ledger. The time a pawn has already spent at zero before the review is not observed, so a span
+open at the review counts from 0 (`rest_ticks_at_zero_unobserved:<pawn>`, which under-prices it). Without the
+pawn's ground gain or wake threshold a pawn that reaches zero leaves the term unknown (`rest_collapse_unassessed:<pawn>`).
+Not priced: the ground-sleep and outdoor-sleep thoughts of the collapse, the slower immunity of the tired categories
+(`StatPart_Rest`), and the life-stage collapse curve of children.
 
 **Policy constants.** These are named, documented and tuned by playtest.
 Nothing else is chosen by hand.

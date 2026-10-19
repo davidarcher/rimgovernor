@@ -94,7 +94,7 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
     /// <summary>Capacity lost to malnutrition while a pawn starves, and for as long as the severity it accrued lasts.</summary>
     public Fact<double> Hunger { get; init; }
 
-    /// <summary>Capacity lost to exhaustion: the game gives no rest category a capacity effect, so it is 0 once the rest timelines are known.</summary>
+    /// <summary>Capability lost to exhaustion collapse: the expected time a pawn awake at zero rest spends asleep on the ground (#3598). No rest category changes a capacity.</summary>
     public Fact<double> Rest { get; init; }
 
     /// <summary>Expected food-poisoning cases times the capacity one case loses over its course, clipped to the horizon.</summary>
@@ -244,17 +244,14 @@ public static partial class ForecastValue
         if (pawns.Length == 0) findings.Add("rest_unassessed:no_pawns");
         else
         {
+            double sum = 0;
             var known = true;
             foreach (var (pawn, result) in pawns)
             {
-                // No rest category carries a capacity effect in the game, so a known rest timeline costs nothing; an unknown one is unassessed.
-                if (Need(result, "rest") is { } need && !need.ZeroTicks.IsKnown)
-                {
-                    findings.Add("rest_unassessed:" + pawn);
-                    known = false;
-                }
+                if (RestLoss(pawn, result, index.Rows.GetValueOrDefault(pawn), horizon, findings) is { } lost) sum += lost;
+                else known = false;
             }
-            rest = known ? Known(0d) : default;
+            rest = known ? Known(sum) : default;
         }
 
         var poisoning = default(Fact<double>);
@@ -442,6 +439,52 @@ public static partial class ForecastValue
         if (spans.Count > 0) findings.Add("malnutrition_rate_pawn_factor_unobserved:" + pawn);
         return course.LostTicks / GameTime.TicksPerDay;
     }
+
+    /// <summary>
+    /// A pawn's capability-days lost to exhaustion collapse (#3598). No rest category changes a capacity, but a pawn awake at
+    /// zero rest falls asleep where it stands (Need_Rest.ShouldInvoluntarySleepFromMTB): each 150-tick need interval after its
+    /// first 1000 ticks at zero it collapses with chance 150 / (MTB × a day), the MTB falling with the time at zero. Collapsed, it
+    /// sleeps on the ground until the wake threshold, a whole loss for that time, clipped to the horizon. The time at zero restarts
+    /// with each zero span, and a collapse ends the walk (the sleep refills the need). Null when the rest timeline, the wake
+    /// threshold or the ground gain is unobserved.
+    /// </summary>
+    private static double? RestLoss(string pawn, ForecastNeedsResult result, NeedsForecastPawn? row, double horizon, SortedSet<string> findings)
+    {
+        var rest = Need(result, "rest");
+        if (rest is null) return 0;
+        if (!rest.ZeroTicks.IsKnown) { findings.Add("rest_unassessed:" + pawn); return null; }
+        var spans = rest.ZeroSpans;
+        if (spans.Count == 0) return 0;
+        NeedRate? rate = null;
+        if (row is not null) foreach (var need in row.Needs) if (need.Kind == "rest") { rate = need; break; }
+        if (row is null || rate is null || !rate.UnservedGainPerTick.TryGetValue(out var gain) || gain <= 0 || !row.WakeThreshold.TryGetValue(out var wake))
+        { findings.Add("rest_collapse_unassessed:" + pawn); return null; }
+        var asleep = wake / gain;
+        Span<int> order = spans.Count <= 64 ? stackalloc int[spans.Count] : new int[spans.Count];
+        ByStart(spans, order);
+        double awake = 1, lost = 0;
+        foreach (var i in order)
+        {
+            var span = spans[i];
+            // The pawn's time at zero before the review is not observed: a span open at the review counts from 0.
+            if (span.Start <= 0) findings.Add("rest_ticks_at_zero_unobserved:" + pawn);
+            for (var atZero = RestInterval; atZero <= span.End - span.Start; atZero += RestInterval)
+            {
+                if (InvoluntarySleepMtbDays(atZero) is not { } mtb) continue;
+                var collapse = RestInterval / (mtb * GameTime.TicksPerDay);
+                lost += awake * collapse * Math.Min(asleep, horizon - (span.Start + atZero));
+                awake *= 1 - collapse;
+            }
+        }
+        return lost / GameTime.TicksPerDay;
+    }
+
+    // Need.NeedInterval runs every 150 ticks; Need_Rest counts the time at zero and draws the collapse there.
+    private const double RestInterval = 150;
+
+    /// <summary>Need_Rest.ShouldInvoluntarySleepFromMTB: no collapse in the first 1000 ticks at zero, then an MTB of 0.25, 0.125, 1/12 and 0.0625 days, stepping at 15000, 30000 and 45000 ticks (a quarter, half and three quarters of a day).</summary>
+    private static double? InvoluntarySleepMtbDays(double ticksAtZero) => ticksAtZero <= 1000 ? null
+        : ticksAtZero < GameTime.TicksPerDay / 4 ? 0.25 : ticksAtZero < GameTime.TicksPerDay / 2 ? 0.125 : ticksAtZero < GameTime.TicksPerDay * 3 / 4 ? 1d / 12 : 0.0625;
 
     /// <summary>The spans' indexes by Start, ties in span order (a stable sort, as OrderBy ranks them), with nothing allocated (#3468).</summary>
     private static void ByStart(EquatableArray<ForecastNeedSpan> spans, Span<int> order)

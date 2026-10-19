@@ -11,11 +11,14 @@ public sealed class ForecastValueTests
 {
     private const double Day = GameTime.TicksPerDay;
 
+    // The ground sleep a collapse takes: wake threshold 1 over the pawn's ground gain.
+    private const double Asleep = 1500;
+
     internal static NeedsForecastPawn Pawn(double foodLevel = 1, double fall = 0, double consciousness = 1) => new()
     {
         Pawn = "pawn", State = "eligible", Awake = Known(true), SleepThreshold = Known(.75), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(0d),
         Mood = Known(.5), MoodTarget = Known(.5), BreakThreshold = Known(.3),
-        Needs = [new("rest", Known(1d), Known(0d), Known(.28)), new("food", Known(foodLevel), Known(fall), Known(.3))],
+        Needs = [new("rest", Known(1d), Known(0d), Known(.28)) { UnservedGainPerTick = Known(1 / Asleep) }, new("food", Known(foodLevel), Known(fall), Known(.3))],
         Memories = Known<EquatableArray<NeedMemory>>([]),
         Consciousness = Known(consciousness), Moving = Known(1d), Manipulation = Known(1d), Sight = Known(1d), Talking = Known(1d),
         MalnutritionSeverity = Known(0d), FoodPoisoningSeverity = Known(0d), HypothermiaSeverity = Known(0d), HeatstrokeSeverity = Known(0d),
@@ -159,19 +162,83 @@ public sealed class ForecastValueTests
         Assert.Equal(0.5, value.Hunger.Value, 9);
     }
 
-    [Fact]
-    public void ExhaustionCostsNoCapacityBecauseTheGameGivesNoRestCategoryAnEffect()
+    // A pawn whose rest is zero over the given spans, with nothing else wrong.
+    private static ForecastNeedsResult Exhausted(params ForecastNeedSpan[] spans) => Calm() with
     {
-        // Rest reaches zero three hours before the day ends; the tables carry no rest stage, so the term is a known 0.
-        var threeHours = 3 * GameTime.TicksPerHour;
-        var pawn = Pawn() with { Needs = [new("rest", Known(.5), Known(.5 / (Day - threeHours)), Known(.28)), new("food", Known(1d), Known(0d), Known(.3))] };
-        var exhausted = Timeline(pawn) with { Mood = Mood(0, [0, 0, 0]) };
-        Assert.Equal(threeHours, Assert.Single(exhausted.Needs, n => n.Kind == "rest").ZeroTicks.Value, 3);
+        Needs = [new("rest", Known(0d), default, default, default) { ZeroTicks = Known(spans.Sum(s => s.End - s.Start)), ZeroSpans = EquatableArray.From(spans) },
+            .. Calm().Needs.Where(n => n.Kind != "rest")],
+    };
 
-        var value = ForecastValue.Of(Outcome(exhausted), Context(pawn), Day, Outcome(exhausted));
+    [Fact]
+    public void AnExhaustedPawnLosesTheGroundSleepOfItsExpectedCollapse()
+    {
+        // The timeline's own zero span: rest reaches zero 20000 ticks before the day ends.
+        var pawn = Pawn() with { Needs = [Pawn().Needs[0] with { Level = Known(.5), FallPerTick = Known(.5 / (Day - 20000)) }, Pawn().Needs[1]] };
+        var timeline = Timeline(pawn) with { Mood = Mood(0, [0, 0, 0]) };
+        var span = Assert.Single(Assert.Single(timeline.Needs, n => n.Kind == "rest").ZeroSpans);
+        Assert.Equal(Day - 20000, span.Start, 3);
 
-        Assert.Equal(0, value.Rest.Value);
-        Assert.Equal(0, value.Total.Value);
+        // No collapse in the first 1000 ticks at zero, then 1% a need interval (MTB 0.25 days) to 15000 and 2% (0.125) after;
+        // each collapse costs the 1500-tick ground sleep, clipped to the horizon in the last 1500 ticks. About 80% collapse.
+        var value = ForecastValue.Of(Outcome(timeline), Context(pawn), Day, Outcome(timeline));
+
+        double expected = 0, awake = 1;
+        for (var atZero = 1050d; atZero <= 20000; atZero += 150)
+        {
+            var collapse = atZero < 15000 ? 0.01 : 0.02;
+            expected += awake * collapse * Math.Min(Asleep, 20000 - atZero);
+            awake *= 1 - collapse;
+        }
+        Assert.Equal(expected / Day, value.Rest.Value, 9);
+        Assert.InRange(value.Rest.Value, Asleep / Day / 2, Asleep / Day);
+        Assert.Equal(value.Rest.Value, value.Total.Value, 9);
+        Assert.DoesNotContain(value.Findings, f => f.StartsWith("rest_", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void TheTimeAtZeroRestartsWithEachSpan()
+    {
+        // Two 1600-tick spans, each with four draws at 1% after its first 1000 ticks, well inside the horizon.
+        var value = ForecastValue.Of(Outcome(Exhausted(new ForecastNeedSpan(10000, 11600), new ForecastNeedSpan(20000, 21600))), Context(Pawn()), Day, Outcome(Calm()));
+
+        Assert.Equal((1 - Math.Pow(0.99, 8)) * Asleep / Day, value.Rest.Value, 9);
+    }
+
+    [Fact]
+    public void AnExhaustedPawnWithNoObservedGroundGainLeavesTheRestTermUnknown()
+    {
+        var pawn = Pawn() with { Needs = [Pawn().Needs[0] with { UnservedGainPerTick = default }, Pawn().Needs[1]] };
+
+        var value = ForecastValue.Of(Outcome(Exhausted(new ForecastNeedSpan(30000, 50000))), Context(pawn), Day, Outcome(Calm()));
+
+        Assert.False(value.Rest.IsKnown);
+        Assert.Contains("rest_collapse_unassessed:pawn", value.Findings);
+        // A pawn whose rest never reaches zero needs no gain: its rest costs nothing.
+        Assert.Equal(0, ForecastValue.Of(Outcome(Calm()), Context(pawn), Day, Outcome(Calm())).Rest.Value);
+    }
+
+    [Fact]
+    public void SleepingAnExhaustedPawnBeatsWorkingWhenFoodZeroTimeIsUnavoidableAndEqual()
+    {
+        // Review 12245 (#3598): food is at zero for the same span in both portfolios, so the urgent-zero floor ties; the
+        // portfolio that keeps working leaves rest at zero for 33068 ticks but has less joy exposure. The sleep wins on rest.
+        var hungry = Calm().Needs.Single(n => n.Kind == "food") with { ZeroTicks = Known(47025d), ZeroSpans = [new(Day - 47025, Day)] };
+        static ForecastNeedMetric Joy(double exposure) => new("joy", Known(.5), Known(0d), Known(exposure), Known(0d)) { ZeroTicks = Known(0d), ThresholdDepthTicks = Known(0d) };
+        var exhausted = Exhausted(new ForecastNeedSpan(Day - 33068, Day)).Needs.Single(n => n.Kind == "rest");
+        var rested = Calm().Needs.Single(n => n.Kind == "rest");
+        var working = Calm() with { Needs = [exhausted, hungry, Joy(0)] };
+        var sleeping = Calm() with { Needs = [rested, hungry, Joy(5000)] };
+        var context = Context(Pawn());
+
+        var work = ForecastCoupledSelection.CoupledConsequences(Outcome(working), [], context, Day, Outcome(sleeping), null);
+        var sleep = ForecastCoupledSelection.CoupledConsequences(Outcome(sleeping), [], context, Day, Outcome(sleeping), null);
+
+        Assert.Equal(47025, sleep.Value.UrgentZero.Excess, 3);
+        Assert.Equal(work.Value.UrgentZero.Excess, sleep.Value.UrgentZero.Excess);
+        Assert.Equal(work.Value.Ledger.Hunger.Value, sleep.Value.Ledger.Hunger.Value, 9);
+        Assert.True(work.Value.Ledger.Rest.Value > sleep.Value.Ledger.Rest.Value + new ForecastValuePolicy().TieResolution);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(sleep, work) < 0);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(work, sleep) > 0);
     }
 
     [Fact]
