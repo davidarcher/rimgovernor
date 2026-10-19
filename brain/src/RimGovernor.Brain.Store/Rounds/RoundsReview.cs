@@ -239,7 +239,7 @@ public sealed partial class Store
             facts = facts with { Disaster = disaster, DisasterTick = request.Tick };
             detection = new RoundsDetection(facts, latches, request.Policy);
             var inspectBegan = System.Diagnostics.Stopwatch.GetTimestamp();
-            needs = RoundsRules.InspectRounds(facts, latches, request.Policy);
+            needs = RoundsRules.InspectRounds(facts, latches, request.Policy, () => System.Diagnostics.Stopwatch.GetElapsedTime(inspectBegan).TotalMilliseconds);
             needs.InspectMs = System.Diagnostics.Stopwatch.GetElapsedTime(inspectBegan).TotalMilliseconds;
             disaster = needs.Disaster;
         }

@@ -811,6 +811,77 @@ What the day says:
   the review hold every 600 ticks when nothing is dirty or due. (3) The heavy entries' work on every `due` wave
   (admin, shelter, economy), which now sets the wave's wall.
 
+### The review's search, profiled; the warm start survives renumbering (#3556)
+
+The first cut at the rounds stage (44.5 s a day over 25 reviews on the shared-scope day), in two steps. First the
+profile: the stage's `review` lap (26 to 28 s a day, p50 900 to 1000 ms) is the policy inspection, and the
+inspection is the coupled portfolio search (`inspect_ms`); the other laps are `layout` 5 to 6 s, `d_planned` 3.5 to
+4 s (its planned-site reads), `derive`, `acquisition` and `d_stock` 1.5 to 2.5 s each. The `rounds_review` row now
+carries `search_profile`, per search phase: its wall, the schedule searches it ran and their wall, and the evaluations
+that ended infeasible, without supported relief, as a swap, or as a new leader. On the profile day (session
+`a53f4706ced4430998dc04d97f243679`, 26 reviews, review lap 27.6 s, search 26.0 s):
+
+| Phase | Reviews | Expansions | Wall | Schedule searches | Infeasible | New leader |
+| --- | --- | --- | --- | --- | --- | --- |
+| `seed` (every root alone, screened at 64) | 26 | 167,959 | 12.8 s | 3,454 | 1,155 | 68 |
+| `extend` (the leader plus each root, to a fixpoint) | 16 | 276,336 | 10.9 s | 9,496 | 6,650 | 169 |
+| `confirm` (the leader at 4,096) | 15 | 56,415 | 2.1 s | 15 | 0 | 0 |
+| `warm`, `unserved`, `baseline` | 9, 10, 26 | 1,781 | 0.1 s | 53 | 35 | 6 |
+
+What the profile says. The seed pass is a fixed cost: 147 single-root screens every review, 7,437 expansions, 0.3
+to 1.5 s, the same whether or not a warm leader stands, and in the last seven reviews of the day every one of the 147
+came back infeasible (`no_feasible_need_choice` for food, joy and rest at night) while the search still screened them
+all. The extension is the variable cost and it scales with the roots times the levels: about 25,000 expansions and 1
+to 1.5 s when the previous selection was missing, 2,300 to 7,000 when it stood, and it was missing in 12 of 25 reviews
+because a tiled replan (10 a day) hands an unbuilt planned room a new id (room5, room35, room65: never reused, no
+`Replaces` link), so `planned/room5/door/Steel/composition/15` named nothing. The confirm always ran its full bound
+(4,097 expansions, truncated) and never changed the leader. Per expansion the search costs 27 µs and per schedule
+alternative evaluated about 0.2 ms; a single-root screen evaluates about 11 alternatives, almost all of them then
+rejected as construction without supported relief.
+
+The cut: the rounder remembers the planned rooms with the selected ids, and `RoundsRules.WarmStartOf` points a
+previous id whose room left the plan at the current room of the same role whose floor overlaps the remembered one, the
+lowest id when several do, before the search (`warm_translated` on the row counts the ids moved). The search's clock
+is injected (`clockMs`), since Policy reads no clock. Landed 7e9592335.
+
+Measured 2026-10-18, same colony and machine, brain session `450b39dc04eb42848620cbb8f88eff79`, one passing
+colony-review day of 60000 ticks, against the shared-scope day and the profile day above:
+
+| What | Shared-scope day | Profile day | This day |
+| --- | --- | --- | --- |
+| Rounder runs, rounds wall | 25, 44.5 s, p50 1699 ms, p95 3738 ms | 26, 47.5 s, p50 1622 ms, p95 3237 ms | 25, 44.1 s, p50 1393 ms, p95 4377 ms |
+| `review` lap | 26.1 s, p50 900 ms | 27.6 s, p50 1014 ms | 25.8 s, p50 821 ms |
+| `warm_start` after the first two reviews | 11 `seeded`, 12 `missing` | 9 `seeded`, 15 `missing` | 23 `seeded`, 0 `missing`; 9 reviews moved 1 to 8 ids |
+| Warm leader screened / stood | 9 / 6 | 9 / 6 | 20 / 9 (11 infeasible: the remembered work is done or its pawn moved on) |
+| Selection taken from the warm leader | 3 | 3 | 4 |
+| `extend` expansions, wall | 300,000 (est.) | 276,336, 10.9 s | 229,347, 11.5 s |
+| `seed` expansions, wall | | 167,959, 12.8 s | 158,361, 10.5 s |
+| Search expansions a day | | 503,000 | 446,000 |
+| Reviews over 20,000 extension expansions | | 9 | 6 |
+| Wave wall (`critical` + `optional`) | 13.0 s | 8.5 s + 7.3 s = 15.8 s | 7.9 s + 5.3 s = 13.2 s |
+| Step wall sum | 68.1 s | 74.3 s | 68.6 s |
+| `clock_run` wall | 13.7 s | 15.2 s | 14.0 s |
+| Hold-to-step (`stop_latency_ms`) | p50 143 ms, 17.2 s over 103 | p50 142 ms, 18.1 s over 106 | p50 144 ms, 18.8 s over 105 |
+| Brain-held wall / first to last step | 99.0 s / 147.9 s | 107.6 s / 175.1 s | 101.4 s / 150.1 s |
+
+What the day says:
+
+- **The translated seed stands where the remembered work is still open, and then the extension is a fifth of the
+  cost.** In the reviews whose ids were moved and whose seed was feasible, the extension fell from 26,000 to 29,000
+  expansions on the profile day to 4,753 (tick 36013), 10,720 (15000) and 15,377 (21000); where the moved seed was
+  infeasible (27000, 42013) the search ran exactly as before (28,018 and 14,696). Over the day the extension's
+  expansions fell 17% and the search's 11%; the rounds wall is 44.1 s against 44.5 s and 47.5 s, p50 1393 ms against
+  1699 and 1622. The per-expansion wall varies 1.8x between days for the same search (tick 18000: 55,915 expansions in
+  1528 ms then 2838 ms), so the expansions are the measure, not the milliseconds.
+- **The seed pass is the fixed cost left: 10 to 13 s a day.** 147 screens per review at 2.6 to 10 ms each, every
+  review, and all 147 infeasible in the night reviews. It does not read the warm start.
+- **A warm leader stands in under half the reviews.** 9 of 20 screened; the other 11 were infeasible because the
+  selected work completed or its pawn's needs moved on, and the search then starts from the seed pass as before.
+- **Next cuts, in order.** (1) The seed pass, 10 to 13 s: skip or shorten the single-root screens whose root cannot
+  be feasible at this tick (the night reviews screen 147 roots that all fail the same need choice), or screen a root's
+  composition variants once. (2) The extension when no warm leader stands, 6 to 11 s. (3) The empty review steps,
+  about 23 s, and hold-to-step at 18 s, unchanged.
+
 ## Hosting in the mod (#3115)
 
 Decided (user, 2026-10-13):

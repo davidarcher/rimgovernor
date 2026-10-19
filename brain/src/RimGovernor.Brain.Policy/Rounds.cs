@@ -485,6 +485,8 @@ public sealed record RoundsFacts
     public bool CoupledWorkActive { get; init; }
     /// <summary>The ids the latest coupled comparison selected (#3563): the warm start of this review's search; empty before the first selection after a restart.</summary>
     public EquatableArray<string> PreviousCoupledSelection { get; init; }
+    /// <summary>The planned rooms (<see cref="PlannedShelters"/>) at the review that selected <see cref="PreviousCoupledSelection"/> (#3556): a room the layout re-tiled under a new id since is found again by its role and ground (<see cref="RoundsRules.WarmStartOf"/>).</summary>
+    public EquatableArray<PlannedRoom> PreviousPlannedShelters { get; init; }
     public EssentialServiceInputs EssentialInputs { get; init; } = new();
 
     public Fact<long> Wood { get; init; }
@@ -620,6 +622,10 @@ public sealed record RoundsFindings
     /// <summary>The wall time the policy inspection that produced these findings took (the store times it; the coupled search <see cref="CoupledSelection"/> dominates it), for the rounds_review row; derived, not saved.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public double InspectMs { get; set; }
+
+    /// <summary>How many ids of the previous selection named a planned room re-tiled under a new id and were pointed at its successor (#3556); derived, not saved.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public int CoupledWarmStartTranslated { get; set; }
     public DisasterHistory? Disaster { get; set; }
 
     public RoundsLatches Latches { get; set; } = new();
@@ -800,7 +806,36 @@ public static partial class RoundsRules
     /// demand, the coupled selection, the disaster history, the trade review, the work-assignments measure and the
     /// essential services). It judges no Need. Throws DomainException on invalid facts.
     /// </summary>
-    public static RoundsFindings InspectRounds(RoundsFacts f, RoundsLatches previous, RoundsPolicy p)
+    /// <summary>
+    /// The previous selection as this review's warm start (#3556). A tiled replan hands an unbuilt planned room a new id
+    /// (ids are never reused), so an id of the previous selection that names a room no longer in the plan is pointed at
+    /// the current room of the same role whose floor overlaps the remembered one, the lowest id when several do; an id
+    /// naming a room still in the plan, no planned room, or a room with no such successor is kept as it was.
+    /// </summary>
+    public static EquatableArray<string> WarmStartOf(EquatableArray<string> previous, EquatableArray<PlannedRoom> previousRooms, EquatableArray<PlannedRoom> rooms)
+    {
+        if (previous.Count == 0 || previousRooms.Count == 0) return previous;
+        var standing = rooms.Select(r => r.Id).ToHashSet();
+        var successors = new Dictionary<int, int>();
+        foreach (var old in previousRooms)
+        {
+            if (standing.Contains(old.Id)) continue;
+            var successor = rooms.Where(r => r.Role == old.Role && r.Region.Overlaps(old.Region)).Select(r => r.Id).DefaultIfEmpty(0).Min();
+            if (successor != 0) successors[old.Id] = successor;
+        }
+        if (successors.Count == 0) return previous;
+        const string prefix = "planned/room";
+        return EquatableArray.From(previous.Select(id =>
+        {
+            if (!id.StartsWith(prefix, StringComparison.Ordinal)) return id;
+            var end = id.IndexOf('/', prefix.Length);
+            if (end < 0) end = id.Length;
+            return int.TryParse(id.AsSpan(prefix.Length, end - prefix.Length), out var room) && successors.TryGetValue(room, out var successor)
+                ? prefix + successor + id[end..] : id;
+        }));
+    }
+
+    public static RoundsFindings InspectRounds(RoundsFacts f, RoundsLatches previous, RoundsPolicy p, Func<double>? clockMs = null)
     {
         if (f.Calendar.TryGetValue(out var calendar) && !calendar.Valid())
         {
@@ -838,9 +873,11 @@ public static partial class RoundsRules
         };
         var demand = ResourceRules.ResourceDemandOf(f, p, latches);
         var r = new RoundsFindings { Latches = latches, ResourceDemand = demand };
+        var warm = WarmStartOf(f.PreviousCoupledSelection, f.PreviousPlannedShelters, f.PlannedShelters);
+        r.CoupledWarmStartTranslated = warm.Zip(f.PreviousCoupledSelection).Count(pair => pair.First != pair.Second);
         if (f.CoupledAlternatives is { } coupled)
             r.CoupledSelection = ForecastCoupledSelection.CompareActivityOutcomes(ForecastCoupled.CoupledForecastRequestOf(new("observed-review", f.Tick.Value),
-                1, f, demand, [], new()), coupled, warmStart: f.PreviousCoupledSelection);
+                1, f, demand, [], new()), coupled, warmStart: warm, clockMs: clockMs);
         // The disaster history the disaster family's Needs read (#3304).
         r.Disaster = DisasterRules.ReviewDisaster(f.DisasterConditions, f.RecoveryBuildings, DisasterServiceFacts(f, p), f.Disaster, f.DisasterTick, f.ShortCircuitTick);
         r.Trade = TradeReviewOf(f, p, medicine, demand);

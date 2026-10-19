@@ -67,8 +67,8 @@ public sealed partial class Rounder
     /// </summary>
     internal ReviewMemory<PlannedSelection> RoomSelection = new(new());
 
-    /// <summary>The ids the latest coupled comparison that selected anything chose (#3563): the next search's warm start; derived state, empty until the first such review after a restart.</summary>
-    internal ReviewMemory<EquatableArray<string>> CoupledMemory = new([]);
+    /// <summary>The ids the latest coupled comparison that selected anything chose (#3563) and the planned rooms of that review (#3556): the next search's warm start; derived state, empty until the first such review after a restart.</summary>
+    internal ReviewMemory<(EquatableArray<string> Selected, EquatableArray<PlannedRoom> Rooms)> CoupledMemory = new(([], []));
 
     /// <summary>Since when each room has had unfinished blueprints or frames; see noteStall.</summary>
     internal Dictionary<string, RoomStall> RoomStalls = [];
@@ -713,7 +713,7 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills] });
         fine.Lap("derive/bills");
         var reconsideration = ForecastIncumbentPreparation.PrepareCoupledIncumbents(reading.Projection.Facts, batches, workActions);
-        reading = reading.WithFacts(_ => reconsideration.Facts with { PreviousCoupledSelection = CoupledMemory.Get(state.Snapshot) });
+        reading = reading.WithFacts(_ => reconsideration.Facts with { PreviousCoupledSelection = CoupledMemory.Get(state.Snapshot).Selected, PreviousPlannedShelters = CoupledMemory.Get(state.Snapshot).Rooms });
         fine.Lap("derive/incumbents");
         // Tier 2 (#3531): once per review, before the comparison, so the tasks of research and sowing carry their credit.
         IReadOnlyDictionary<string, int> goalEtas = new Dictionary<string, int>();
@@ -737,7 +737,7 @@ public sealed partial class Rounder
         TradeMemory.Set(result.Review.Snapshot, result.Needs.Trade);
         WorkAssignments.Set(result.Review.Snapshot, result.Needs.WorkAssignments);
         NoteGearChoices(GearChoices, result.Review.Snapshot, reading.Projection.Facts.CoupledAlternatives, result.Needs.CoupledSelection);
-        if (result.Needs.CoupledSelection is { Selection.Selected.Length: > 0 } chosen) CoupledMemory.Set(result.Review.Snapshot, EquatableArray.From(chosen.Selection.Selected));
+        if (result.Needs.CoupledSelection is { Selection.Selected.Length: > 0 } chosen) CoupledMemory.Set(result.Review.Snapshot, (EquatableArray.From(chosen.Selection.Selected), reading.Projection.Facts.PlannedShelters));
         RoomSelection.Set(result.Review.Snapshot, PlannedSelectionReviewed(RoomSelection.Get(result.Review.Snapshot), reading.Projection, result.Needs.CoupledSelection));
         GoalEta.Set(result.Review.Snapshot, goalEtas);
         if (result.Needs.CoupledSelection is { } compared) GoalInfeasible.Set(result.Review.Snapshot, GoalRules.InfeasibleOf(compared));
@@ -753,7 +753,14 @@ public sealed partial class Rounder
             ("coupled_search_expansions", result.Needs.CoupledSelection?.Selection.Expansions ?? -1),
             // The search's expansions per phase, the phase that found the chosen subset and whether the previous selection seeded it (#3563).
             ("search_phases", result.Needs.CoupledSelection is { } searched ? searched.SearchPhases.ToDictionary(p => p.Phase, p => (object?)p.Expansions) : null),
-            ("selected_phase", result.Needs.CoupledSelection?.SelectedPhase), ("warm_start", result.Needs.CoupledSelection?.WarmStart),
+            // Per phase, what it cost and what its evaluations found (#3556): the wall, the schedule searches run and their
+            // wall, and the evaluations that ended infeasible or without supported relief.
+            ("search_profile", result.Needs.CoupledSelection is { } profiled ? profiled.SearchPhases.ToDictionary(p => p.Phase, p => (object?)new Dictionary<string, object?>
+            {
+                ["ms"] = p.Ms, ["evaluations"] = p.Evaluations, ["schedule_ms"] = p.ScheduleMs, ["infeasible"] = p.Infeasible, ["unsupported"] = p.Unsupported,
+                ["swaps"] = p.Swaps, ["improved"] = p.Improved,
+            }) : null),
+            ("selected_phase", result.Needs.CoupledSelection?.SelectedPhase), ("warm_start", result.Needs.CoupledSelection?.WarmStart), ("warm_translated", result.Needs.CoupledWarmStartTranslated),
         };
         // Per lap, the properties of the reading it entered on that differ from the previous review's; the laps
         // that entered on the same reading; what the comparison cost (#3564).

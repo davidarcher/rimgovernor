@@ -124,7 +124,10 @@ the single roots still reaches further contributions, and truncation stays expli
 (`portfolio_search_truncated`). A screened search's truncation is reported only when no
 full-bound search of the same schedule follows. The `rounds_review` and `coupled_selection` rows report
 the expansions per phase reached (`search_phases`), the phase in which the chosen subset first
-led (`selected_phase`) and whether the previous selection seeded the search (`warm_start`). See
+led (`selected_phase`) and whether the previous selection seeded the search (`warm_start`). A tiled replan
+hands an unbuilt planned room a new id, so a previous id naming a room no longer in the plan is pointed at the
+current room of the same role whose floor overlaps the remembered one before the search
+(`RoundsRules.WarmStartOf`, the rooms remembered with the selection; `warm_translated` counts them, #3556). See
 [the measured cost](../testing/portfolio-allocations.md#fixpoint-extension-with-screened-evaluation-3215)
 and the [first extension](../testing/portfolio-allocations.md#incumbent-seeded-extension-3197).
 

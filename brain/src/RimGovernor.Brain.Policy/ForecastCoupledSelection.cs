@@ -32,7 +32,25 @@ public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeCom
     public string WarmStart { get; init; } = "";
 }
 public sealed record ForecastDeferredPawn(string Pawn, Cell Location, long Until);
-public sealed record ForecastSearchPhase(string Phase, int Expansions);
+/// <summary>
+/// One phase the search reached: its scheduler expansions and, for the profile (#3556), its wall, the schedule
+/// searches it ran (<see cref="Evaluations"/>; a subset whose schedule was already searched at the bound runs none) with
+/// their wall (<see cref="ScheduleMs"/>; the rest of <see cref="Ms"/> is keying, feasibility and ranking), and the
+/// evaluations whose every outcome was infeasible or unassessed (<see cref="Infeasible"/>) or whose construction
+/// lacked supported service relief (<see cref="Unsupported"/>).
+/// </summary>
+public sealed record ForecastSearchPhase(string Phase, int Expansions)
+{
+    public int Evaluations { get; init; }
+    public double Ms { get; init; }
+    public double ScheduleMs { get; init; }
+    public int Infeasible { get; init; }
+    public int Unsupported { get; init; }
+    /// <summary>Extension evaluations that swapped a root exclusive with a leader member in for it, rather than adding a compatible root.</summary>
+    public int Swaps { get; init; }
+    /// <summary>Evaluations that made a new leader.</summary>
+    public int Improved { get; init; }
+}
 public sealed record ForecastPortfolioEvidence(EquatableArray<string> Commitments,
     ForecastConsequenceVector? Consequences, string Reason);
 
@@ -62,16 +80,16 @@ public sealed partial record ForecastCoupledSelection
     /// defers join the selection (#3557): the record places the planned sites, the orders start the startable work,
     /// and standby is the fallback only when nothing startable is worth selecting.</summary>
     public static ForecastCoupledSelection CompareActivityOutcomes(ColonyForecastRequest request,
-        ForecastCoupledCandidates candidates, int budget = 65536, IReadOnlyList<string>? warmStart = null)
+        ForecastCoupledCandidates candidates, int budget = 65536, IReadOnlyList<string>? warmStart = null, Func<double>? clockMs = null)
     {
-        var selection = CompareOnce(request, candidates, budget, warmStart);
+        var selection = CompareOnce(request, candidates, budget, warmStart, clockMs);
         var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         var allocations = selection.Selected.Plan.Allocations;
         if (unplaced.Count == 0 || allocations.Length == 0 || !allocations.All(a => unplaced.Contains(a.Activity))) return selection;
         var reaching = ReachingActivities(candidates.Context.Activities.Activities, unplaced);
         var placed = candidates with { Alternatives = EquatableArray.From(candidates.Alternatives.Where(c => !c.ActivityCompletions.Any(reaching.Contains))) };
         if (placed.Alternatives.Count == candidates.Alternatives.Count) return selection;
-        var orders = CompareOnce(request, placed, budget, warmStart: null);
+        var orders = CompareOnce(request, placed, budget, warmStart: null, clockMs);
         var findings = new SortedSet<string>(selection.Selection.Findings, StringComparer.Ordinal) { PlannedUnplacedReselected };
         findings.UnionWith(orders.Selection.Findings);
         return selection with
@@ -103,7 +121,7 @@ public sealed partial record ForecastCoupledSelection
     }
 
     private static ForecastCoupledSelection CompareOnce(ColonyForecastRequest request,
-        ForecastCoupledCandidates candidates, int budget, IReadOnlyList<string>? warmStart)
+        ForecastCoupledCandidates candidates, int budget, IReadOnlyList<string>? warmStart, Func<double>? clockMs)
     {
         if (budget < 0) throw new DomainException("negative portfolio budget");
         // The in-game cost of the comparator: the review runs its planners in parallel, so only this span times it.
@@ -160,7 +178,20 @@ public sealed partial record ForecastCoupledSelection
         var expansions = baselineScenario.Expansions; var truncated = baselineScenario.Truncated;
         // Expansions per phase and the phase that found the chosen subset (#3563).
         var phases = new List<ForecastSearchPhase>(); var phase = "baseline"; var phaseStart = 0; var selectedPhase = "baseline";
-        void Phase(string next) { phases.Add(new(phase, expansions - phaseStart)); phaseStart = expansions; phase = next; }
+        // The phase's profile (#3556): wall, schedule searches and their wall, infeasible and unsupported evaluations.
+        double Now() => clockMs?.Invoke() ?? 0; var phaseAt = Now(); var phaseEvaluations = 0; var phaseScheduleMs = 0.0; var phaseInfeasible = 0; var phaseUnsupported = 0;
+        var phaseSwaps = 0; var phaseImproved = 0;
+        void Phase(string next)
+        {
+            var now = Now();
+            phases.Add(new(phase, expansions - phaseStart)
+            {
+                Evaluations = phaseEvaluations, Ms = now - phaseAt,
+                ScheduleMs = phaseScheduleMs, Infeasible = phaseInfeasible, Unsupported = phaseUnsupported,
+                Swaps = phaseSwaps, Improved = phaseImproved,
+            });
+            (phaseStart, phase, phaseAt, phaseEvaluations, phaseScheduleMs, phaseInfeasible, phaseUnsupported, phaseSwaps, phaseImproved) = (expansions, next, now, 0, 0.0, 0, 0, 0, 0);
+        }
         // Need roots come in dozens of time variants per pawn; ordered by id they would spend the budget before any investment root is reached.
         var alternatives = candidates.Alternatives.Concat(candidates.Incumbents).OrderBy(c => c.ExclusiveOutcome.StartsWith("need/", StringComparison.Ordinal) ? 1 : 0)
             .ThenBy(c => c.Id, StringComparer.Ordinal).ToArray();
@@ -275,8 +306,10 @@ public sealed partial record ForecastCoupledSelection
             {
                 var remaining = budget - expansions;
                 if (remaining == 0) { truncated = true; return false; }
+                var searchAt = Now();
                 var searched = ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById(commitments), cache,
                     expansionBudget: Math.Min(bound, remaining)).Coupled!;
+                phaseScheduleMs += Now() - searchAt; phaseEvaluations++;
                 expansions += searched.Expansions;
                 known = (searched.Truncated ? bound : PortfolioBound, searched);
                 schedules[schedule] = known;
@@ -293,6 +326,7 @@ public sealed partial record ForecastCoupledSelection
             var feasible = scenario.Alternatives.Where(a => a.Feasible == Known(true)).ToArray();
             if (feasible.Length == 0)
             {
+                phaseInfeasible++;
                 evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), null, "infeasible_or_unassessed"));
                 foreach (var reason in scenario.Alternatives.SelectMany(a => a.Findings)) findings.Add(reason.Reason + ":" + reason.Commitment);
             }
@@ -316,6 +350,7 @@ public sealed partial record ForecastCoupledSelection
                 }
                 if (unsupported && (!outcome.StationaryThermalRelief.IsKnown || outcome.StationaryThermalRelief.Value <= 0))
                 {
+                    phaseUnsupported++;
                     if (unserved.Count < 4 && additions.Length == 1) unserved.Add([additions[0].Id]);
                     evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector, "construction_without_supported_service_relief" + string.Concat(outcome.Findings.Where(f => f.Reason.StartsWith("thermal_relief_unassessed", StringComparison.Ordinal)).Select(f => ":" + f.Reason))
                         + (outcome.StationaryThermalRelief.IsKnown ? ":relief=" + outcome.StationaryThermalRelief.Value : "")));
@@ -327,7 +362,7 @@ public sealed partial record ForecastCoupledSelection
                 if (best.Feasible != Known(true) || rank < 0 || rank == 0 && !bestIsBaseline && retainsSelectedIncumbents && vector.Labor < bestVector.Labor)
                 {
                     var ids = additions.Select(c => c.Id).ToArray();
-                    if (!ids.SequenceEqual(selected, StringComparer.Ordinal)) selectedPhase = phase;
+                    if (!ids.SequenceEqual(selected, StringComparer.Ordinal)) { selectedPhase = phase; phaseImproved++; }
                     best = outcome; bestVector = vector; selected = ids; bestIsBaseline = false;
                 }
                 else evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector, "consequence_or_incumbent"));
@@ -375,6 +410,7 @@ public sealed partial record ForecastCoupledSelection
                 for (var w = 0; w < rootWords; w++) portfolioBits[w] = seed[w] & ~incompatible[root][w];
                 Bits.Set(portfolioBits, root);
                 if (!CompatibleSet(portfolioBits) || !Bits.Disjoint(redundant[root], portfolioBits)) continue;
+                if (!Bits.Disjoint(incompatible[root], seed)) phaseSwaps++;
                 if (!Evaluate(Members(portfolioBits), ScreenBound)) return false;
             }
             return true;
