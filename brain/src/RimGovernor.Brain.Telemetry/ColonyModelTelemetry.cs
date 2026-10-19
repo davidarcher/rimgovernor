@@ -29,6 +29,9 @@ public static class ColonyModelTelemetry
     /// <summary>The projects completed, each as <c>day:id</c>, in order.</summary>
     public const string CompletionsKey = "completions";
 
+    /// <summary>Each resource the run's harvests, hunts and crafts delivered, as <c>day:node:resource=count</c>, in order (#3622).</summary>
+    public const string ArrivalsKey = "arrivals";
+
     /// <summary>Capability-days an hour of each valued project's work adds (dV/dt), each as <c>node=value</c>, joined by <c>;</c>.</summary>
     public const string ProjectsKey = "dvdt";
 

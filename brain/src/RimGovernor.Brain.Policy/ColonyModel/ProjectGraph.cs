@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// The tier-2 colony model's project graph (#3530 of #3470, hunts #3620): nodes in priority order, built from a ColonyModelInput. The builders
+// The tier-2 colony model's project graph (#3530 of #3470, hunts #3620, per-stuff garments #3622): nodes in priority order, built from a ColonyModelInput. The builders
 // read only facts the input carries; a fact the input lacks leaves the nodes that need it out and is named in Findings, never
 // defaulted. The labor allocation and the growth integration are in ProjectRun and CropGrowthModel.
 
@@ -38,33 +38,116 @@ public sealed record ProjectGraph
 
     /// <summary>
     /// What a review runs: the research chain of the project being researched, and each field with a crop set, from sowing to
-    /// harvest, gated on the research the crop's sowing waits on (<see cref="CropChoice.Research"/>). A crop whose harvest is the
-    /// stuff of a garment the colony could craft (<see cref="Garment"/>) also gets that garment's craft after its harvests, so the
-    /// harm model prices what wearing it avoids. Last, each herd of huntable wildlife is hunted and butchered (<see cref="Hunts"/>).
+    /// harvest, gated on the research the crop's sowing waits on (<see cref="CropChoice.Research"/>). Then each herd of huntable
+    /// wildlife is hunted and butchered (<see cref="Hunts"/>). Last, the garments the colony can make from the stuffs it holds or those
+    /// nodes yield (<see cref="Garments"/>), so the harm model prices what wearing each avoids from the day it is made.
     /// </summary>
     public static ProjectGraph Standing(ColonyModelInput input, IReadOnlyList<GearOption> options, Fact<RaidThreat> threat)
     {
         var graph = input.Research.TryGetValue(out var research) && !research.Current.IsEmpty ? ResearchChain(input, research.Current) : new ProjectGraph();
         if (input.Land.TryGetValue(out var land))
         {
-            var sown = land.Where(f => f.Crop.Length > 0).ToList();
-            foreach (var field in sown)
+            foreach (var field in land.Where(f => f.Crop.Length > 0))
             {
                 var gates = input.Crops.TryGetValue(out var crops) && crops.FirstOrDefault(c => c.Name == field.Crop) is { } choice ? choice.Research : default;
                 graph = graph.Then(CropChain(input, field.Crop, field.Id, gates));
             }
+        }
 
-            foreach (var crop in sown.Select(f => f.Crop).Distinct())
+        graph = graph.Then(Hunts(input));
+        return graph.Then(Garments(input, graph, options, threat));
+    }
+
+    /// <summary>The id of the garment node of a stuff in a gear slot.</summary>
+    public static string GarmentId(Resource stuff, GearSlot slot) => $"garment:{stuff}:{slot}";
+
+    /// <summary>
+    /// One craft node per reachable stuff and gear slot (#3622): of the gear planner's bill options in that stuff and slot (not a
+    /// slave's, a child's, a shield, a psychic or a smoke-pop garment), the def with the most damage avoided per hit against the
+    /// colony's expected raid (<see cref="GearArmorTerm"/>), ties by option id; an option without armor makes no node. A stuff is
+    /// reachable when the stock covers the garment's units of it, or a harvest or hunt node of <paramref name="sources"/> yields it.
+    /// A node waits on the research its bill needs and takes its stuff from the run's ledger when it starts, so a sourced garment
+    /// starts once its harvest or hunt has delivered.
+    /// <para>
+    /// Before the run a node is dropped when another node of its slot arrives no later and has at least its armor. Only a
+    /// stock-covered garment is known to arrive no later: its stuff is in hand, its research is a subset of the other's and its craft
+    /// work is no more. A sourced stuff's day is the run's, so two sourced garments both stay and the valuation keeps only the upgrade
+    /// of the later one (<see cref="ColonyValue"/>).
+    /// </para>
+    /// The nodes are in armor order (most first), ties by id.
+    /// </summary>
+    public static ProjectGraph Garments(ColonyModelInput input, ProjectGraph sources, IReadOnlyList<GearOption> options, Fact<RaidThreat> threat)
+    {
+        var held = input.Stocks.Materials.TryGetValue(out var materials) ? materials.GroupBy(a => a.Resource).ToDictionary(g => g.Key, g => g.Sum(a => a.Count)) : [];
+        var yielded = new HashSet<Resource>();
+        foreach (var node in sources.Nodes)
+        {
+            if (node.Kind == ProjectKind.Harvest && input.Crops.TryGetValue(out var crops) && crops.FirstOrDefault(c => c.Name == node.Crop) is { } crop
+                && crop.Harvests.TryGetValue(out var harvested))
             {
-                var harvests = sown.Where(f => f.Crop == crop && graph.Nodes.Any(n => n.Id == $"harvest:{f.Id}")).Select(f => $"harvest:{f.Id}").ToArray();
-                if (harvests.Length > 0)
-                {
-                    graph = graph.Then(GarmentCraft(input, crop, harvests, options, threat));
-                }
+                yielded.Add(harvested);
+            }
+            else if (node.Kind == ProjectKind.Hunt)
+            {
+                yielded.UnionWith(node.Products.Select(p => p.Resource));
             }
         }
 
-        return graph.Then(Hunts(input));
+        var armor = new GearArmorTerm(threat);
+        var gaps = new ProjectGraph();
+        var garments = new List<Garment>();
+        var picks = options.Where(o => o.Source == GearSource.Bill && !o.Stuff.IsEmpty && !o.SlaveOnly && !o.Shield && !o.Psychic && !o.Smokepop
+                && !o.Definition.Value.StartsWith("Kid", StringComparison.Ordinal) && !o.Definition.Value.StartsWith("Apparel_Kid", StringComparison.Ordinal) && armor.Of(o) > 0)
+            .GroupBy(o => (o.Stuff, o.Slot))
+            .Select(g => g.OrderByDescending(armor.Of).ThenBy(o => o.ID, StringComparer.Ordinal).First());
+        foreach (var garment in picks)
+        {
+            var sourced = yielded.Contains(garment.Stuff);
+            if (!sourced && held.GetValueOrDefault(garment.Stuff) <= 0)
+            {
+                continue;
+            }
+
+            if (GoalPaths.RecipeFor(input, garment.Definition.Value, garment.Stuff) is not { } recipe)
+            {
+                gaps = gaps.Then(Gap($"garment_recipe_unknown:{garment.Definition.Value}"));
+                continue;
+            }
+
+            var bill = garment.Research.Aggregate(new ProjectGraph(), (g, project) => g.Then(ResearchChain(input, new ResearchProjectId(project))));
+            var after = garment.Research.Select(p => ResearchId(new ResearchProjectId(p))).Where(id => bill.Nodes.Any(n => n.Id == id));
+            var craft = Craft(input, recipe.Recipe, EquatableArray.From(after), false, 1, garment.Stuff);
+            if (craft.Nodes.Count == 0)
+            {
+                gaps = gaps.Then(craft);
+                continue;
+            }
+
+            var node = craft.Nodes[0] with { Id = GarmentId(garment.Stuff, garment.Slot) };
+            var covered = held.GetValueOrDefault(garment.Stuff) >= node.Ingredients.Where(a => a.Resource == garment.Stuff).Sum(a => a.Count);
+            if (covered || sourced)
+            {
+                garments.Add(new(bill.Then(craft with { Nodes = EquatableArray.From(new[] { node }) }), node, garment.Slot, armor.Of(garment), covered));
+            }
+        }
+
+        return garments.Where(b => !garments.Any(a => a.Dominates(b)))
+            .OrderByDescending(g => g.Armor).ThenBy(g => g.Node.Id, StringComparer.Ordinal)
+            .Aggregate(gaps, (graph, g) => graph.Then(g.Graph));
+    }
+
+    /// <summary>A garment node (<see cref="Garments"/>) with the research it waits on, and what its pruning compares.</summary>
+    private sealed record Garment(ProjectGraph Graph, ProjectNode Node, GearSlot Slot, double Armor, bool Covered)
+    {
+        /// <summary>
+        /// This garment arrives no later than <paramref name="other"/> in its slot and has at least its armor: it is stock-covered, its
+        /// research is a subset of the other's and its work no more. Equal ones keep the stock-covered one, then the lower id.
+        /// </summary>
+        internal bool Dominates(Garment other) =>
+            Node.Id != other.Node.Id && Slot == other.Slot && Covered && Armor >= other.Armor && Node.Work <= other.Node.Work
+            && Node.Prerequisites.All(other.Node.Prerequisites.Contains)
+            && (Armor > other.Armor || Node.Work < other.Node.Work || !other.Covered || Node.Prerequisites.Count < other.Node.Prerequisites.Count
+                || string.CompareOrdinal(Node.Id, other.Node.Id) < 0);
     }
 
     /// <summary>The id of the hunt node of a race.</summary>
@@ -95,44 +178,6 @@ public sealed record ProjectGraph
             Nodes = EquatableArray.From(nodes),
             Findings = nodes.Length == 0 ? default : Gap("butcher_work_unread").Findings,
         };
-    }
-
-    /// <summary>
-    /// The one garment a crop's harvest is made into: of the bill options made from the crop's yield (not a slave's, a child's, a
-    /// shield, a psychic or a smoke-pop garment), the one the gear planner scores highest, its damage avoided per hit against the
-    /// colony's expected raid (<see cref="GearArmorTerm"/>), ties by option id. Null when the crop yields no stuff a garment is made
-    /// of or none of them has armor.
-    /// </summary>
-    public static GearOption? Garment(CropChoice crop, IReadOnlyList<GearOption> options, Fact<RaidThreat> threat)
-    {
-        if (!crop.Harvests.TryGetValue(out var stuff))
-        {
-            return null;
-        }
-
-        var armor = new GearArmorTerm(threat);
-        return options.Where(o => o.Source == GearSource.Bill && o.Stuff == stuff && !o.SlaveOnly && !o.Shield && !o.Psychic && !o.Smokepop
-                && !o.Definition.Value.StartsWith("Kid", StringComparison.Ordinal) && !o.Definition.Value.StartsWith("Apparel_Kid", StringComparison.Ordinal) && armor.Of(o) > 0)
-            .OrderByDescending(armor.Of).ThenBy(o => o.ID, StringComparer.Ordinal).FirstOrDefault();
-    }
-
-    /// <summary>The craft of the crop's garment (<see cref="Garment"/>) after its harvests and the research the garment's bill waits on; empty when the crop has none.</summary>
-    private static ProjectGraph GarmentCraft(ColonyModelInput input, string crop, string[] harvests, IReadOnlyList<GearOption> options, Fact<RaidThreat> threat)
-    {
-        if (!input.Crops.TryGetValue(out var crops) || crops.FirstOrDefault(c => c.Name == crop) is not { } choice || Garment(choice, options, threat) is not { } garment)
-        {
-            return new ProjectGraph();
-        }
-
-        var recipe = GoalPaths.RecipeFor(input, garment.Definition.Value, garment.Stuff);
-        if (recipe is null)
-        {
-            return Gap($"garment_recipe_unknown:{garment.Definition.Value}");
-        }
-
-        var bill = garment.Research.Aggregate(new ProjectGraph(), (graph, project) => graph.Then(ResearchChain(input, new ResearchProjectId(project))));
-        var after = harvests.Concat(garment.Research.Select(p => ResearchId(new ResearchProjectId(p))).Where(id => bill.Nodes.Any(n => n.Id == id)));
-        return bill.Then(Craft(input, recipe.Recipe, EquatableArray.From(after), false, 1, garment.Stuff));
     }
 
     /// <summary>

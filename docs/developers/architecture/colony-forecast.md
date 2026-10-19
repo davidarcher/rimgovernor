@@ -1517,5 +1517,5 @@ in the same capability-days as food, rest and harm. It competes below the safety
 floor loses to one that does not, whatever its investment.
 
 **The `colony_model` event.** One row per review that had coupled candidates, emitted by the Rounder before the comparison:
-horizon, events, `truncated`, `runway_day`, `value`, `nutrition_end`, `completions`, `dvdt` per node, `findings` and `elapsed_ms`
+horizon, events, `truncated`, `runway_day`, `value`, `nutrition_end`, `completions`, `arrivals` (each resource the run's ledger receives, #3622), `dvdt` per node, `findings` and `elapsed_ms`
 ([otel signals](../contracts/otel-signals.md#kinds)). The `coupled_selection` rows carry the term as `value.investment`.

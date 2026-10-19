@@ -70,6 +70,17 @@ public sealed class GearStuffChoiceTests
     }
 
     [Fact]
+    public void AStoredCorpseArrivesAfterItsButchering()
+    {
+        // A deer corpse's race yields 30 leather; one butchering's 450 work at speed 1 is 0.0075 days.
+        var lead = 450.0 / GameTime.TicksPerDay;
+        var corpse = ClothingDemandRules.CorpseYieldCandidate("corpse1", [new SourceProduct(Leather, 30)], lead);
+        Assert.Equal(Known(lead), Arrival(new() { [Leather] = 20 }, corpse).Of(Shirt(Leather.Value, .1)));
+        Assert.False(Arrival(new(), corpse).Of(Shirt(Leather.Value, .1)).IsKnown);
+        Assert.Null(ClothingDemandRules.CorpseYieldCandidate("corpse1", [], lead));
+    }
+
+    [Fact]
     public void AStuffWithNoSourceHasNoArrivalAndIsNotOffered()
     {
         GearOption[] options = [Shirt("Plasteel", .5), Shirt("Steel", .2)];

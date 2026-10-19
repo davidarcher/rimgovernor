@@ -21,6 +21,7 @@ internal sealed record ColonyModelReview(ProjectMarginals Marginals, IReadOnlyLi
             (ColonyModelTelemetry.TruncatedKey, trajectory.Truncated),
             (ColonyModelTelemetry.CompletionsKey, trajectory.Events.Where(e => e.Kind is ModelEventKind.ProjectCompletion or ModelEventKind.Harvest)
                 .Select(e => string.Create(CultureInfo.InvariantCulture, $"{e.Day:0.##}:{e.Id}")).ToArray()),
+            (ColonyModelTelemetry.ArrivalsKey, trajectory.Arrivals.Select(a => string.Create(CultureInfo.InvariantCulture, $"{a.Day:0.##}:{a.Node}:{a.Resource}={a.Count:0.#}")).ToArray()),
             (ColonyModelTelemetry.ProjectsKey, string.Join(';', Marginals.PerHour.Select(p => string.Create(CultureInfo.InvariantCulture, $"{p.Key}={p.Value:0.#####}")))),
             (ColonyModelTelemetry.GoalsKey, GoalNotes.ToArray()),
             (ColonyModelTelemetry.FindingsKey, Marginals.Findings.Concat(Unknowns.Select(u => "input:" + u)).ToArray()),

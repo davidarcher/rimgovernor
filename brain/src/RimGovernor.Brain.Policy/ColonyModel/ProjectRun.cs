@@ -43,6 +43,7 @@ internal sealed class ProjectRun
     private readonly SortedSet<string> unstaffed = new(StringComparer.Ordinal);
     private readonly SortedSet<string> materialsShort = new(StringComparer.Ordinal);
     private readonly List<ApparelMade> apparel = [];
+    private readonly List<ResourceArrival> arrivals = [];
     private double now;
 
     internal ProjectRun(ColonyModelInput input, ModelPawn[] pawns, PawnCycle[][] cycles, ProjectGraph graph, InjectedProgress? injected, double horizon, SortedSet<string> findings)
@@ -144,6 +145,9 @@ internal sealed class ProjectRun
     /// <summary>The apparel the run's craft nodes finished, in completion order.</summary>
     internal EquatableArray<ApparelMade> Apparel => EquatableArray.From(apparel);
 
+    /// <summary>The resources the run's nodes added to the ledger, in completion order.</summary>
+    internal EquatableArray<ResourceArrival> Arrivals => EquatableArray.From(arrivals);
+
     /// <summary>Completes the node at <paramref name="day"/>, moving the stocks it consumes and makes. <paramref name="levels"/> is indexed by <see cref="ModelStock"/>.</summary>
     internal void Complete(string id, double day, double[] levels)
     {
@@ -154,13 +158,13 @@ internal sealed class ProjectRun
         switch (node.Kind)
         {
             case ProjectKind.Harvest:
-                Harvest(node, levels);
+                Harvest(node, day, levels);
                 break;
             case ProjectKind.Craft:
                 levels[(int)ModelStock.Materials] -= node.Ingredients.Sum(a => a.Count);
                 foreach (var product in node.Products)
                 {
-                    ledger[product.Resource] = ledger.GetValueOrDefault(product.Resource) + product.Count;
+                    Arrive(node, day, product.Resource, product.Count);
                 }
 
                 if (node.ProductsToStock)
@@ -181,7 +185,7 @@ internal sealed class ProjectRun
                 levels[(int)ModelStock.Materials] += node.Products.Sum(a => a.Count);
                 foreach (var product in node.Products)
                 {
-                    ledger[product.Resource] = ledger.GetValueOrDefault(product.Resource) + product.Count;
+                    Arrive(node, day, product.Resource, product.Count);
                 }
 
                 break;
@@ -387,7 +391,14 @@ internal sealed class ProjectRun
         return true;
     }
 
-    private void Harvest(ProjectNode node, double[] levels)
+    /// <summary>Adds <paramref name="count"/> of <paramref name="resource"/> to the ledger on <paramref name="day"/>, recorded as an arrival.</summary>
+    private void Arrive(ProjectNode node, double day, Resource resource, double count)
+    {
+        ledger[resource] = ledger.GetValueOrDefault(resource) + count;
+        arrivals.Add(new ResourceArrival { Day = day, Node = node.Id, Resource = resource, Count = count });
+    }
+
+    private void Harvest(ProjectNode node, double day, double[] levels)
     {
         if (CropOf(node) is not { } crop)
         {
@@ -402,7 +413,7 @@ internal sealed class ProjectRun
         {
             var yield = node.Cells * units;
             levels[(int)ModelStock.Materials] += yield;
-            ledger[resource] = ledger.GetValueOrDefault(resource) + yield;
+            Arrive(node, day, resource, yield);
         }
         else
         {

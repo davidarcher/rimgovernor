@@ -209,6 +209,7 @@ public static class ColonyModel
             Events = EquatableArray.From(events),
             Starvation = EquatableArray.From(starved),
             Apparel = graph.Apparel,
+            Arrivals = graph.Arrivals,
             FoodRunwayDay = runway,
             Findings = EquatableArray.From(findings),
         };

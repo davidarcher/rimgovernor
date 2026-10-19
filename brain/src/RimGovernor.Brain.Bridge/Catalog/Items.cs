@@ -141,12 +141,21 @@ public sealed partial class DefinitionCatalog
         return within;
     }
 
-    /// <summary>Whether a corpse def is of a humanlike race: the race def its ingestible names as its source.</summary>
-    public bool HumanlikeCorpse(string name)
-    {
-        var source = ThingRow(name).ingestible?.sourceDef ?? throw new CatalogException($"corpse def {name} names no source race");
-        return ThingRow(source.defName).race?.intelligence >= Intelligence.Humanlike;
-    }
+    /// <summary>Whether a corpse def is of a humanlike race (<see cref="CorpseRace"/>).</summary>
+    public bool HumanlikeCorpse(string name) => ThingRow(CorpseRace(name)).race?.intelligence >= Intelligence.Humanlike;
+
+    /// <summary>The race def of a corpse def: the def its ingestible names as its source.</summary>
+    public string CorpseRace(string name) =>
+        ThingRow(name).ingestible?.sourceDef?.defName ?? throw new CatalogException($"corpse def {name} names no source race");
+
+    /// <summary>
+    /// The work one butchering of a creature takes: the work amount (<see cref="RecipeWorkAmount"/>) of the butcher recipe
+    /// (<see cref="RecipeRole.ButcherFlesh"/>), the first by defName; unknown when the catalog has none.
+    /// </summary>
+    public Fact<double> ButcherWork() =>
+        Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal).FirstOrDefault(r => RecipeRoleOf(r.defName) == RecipeRole.ButcherFlesh) is { } butcher
+            ? RecipeWorkAmount(butcher.defName)
+            : Unknown<double>();
 
     /// <summary>Whether a power building shorts out in rain, from its power or battery comp.</summary>
     public bool RainVulnerable(string name) =>

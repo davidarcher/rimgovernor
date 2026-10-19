@@ -12,10 +12,11 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ColonyValueResult(Fact<double> Value, EquatableArray<string> Findings);
 
 /// <summary>
-/// Prices trajectories under one review's context. The value is the apparel harm avoided (per day worn, from the day the craft
-/// finishes to the horizon) less the capability lost to starvation: the colony's starvation spans walk each pawn's malnutrition
-/// severity through the game's stage table from the observed severity, and a pawn whose severity reaches lethal costs the
-/// rest of the horizon plus <see cref="ForecastValuePolicy.DeathTerminalValue"/>, as the ledger's thermal term does.
+/// Prices trajectories under one review's context. The value is the apparel harm avoided (<see cref="ApparelGain"/>: each garment
+/// worn from the day it is made to the horizon, credited with its gain over what its wearer wore before) less the capability lost
+/// to starvation: the colony's starvation spans walk each pawn's malnutrition severity through the game's stage table from the
+/// observed severity, and a pawn whose severity reaches lethal costs the rest of the horizon plus
+/// <see cref="ForecastValuePolicy.DeathTerminalValue"/>, as the ledger's thermal term does.
 /// </summary>
 public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<GearOption> options, double horizonDays)
 {
@@ -28,25 +29,15 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     private readonly ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> harmCache = new();
     private readonly Dictionary<string, NeedsForecastPawn> rows = context.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal)
         .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
-    private readonly Dictionary<string, double?> perDay = new(StringComparer.Ordinal);
+
+    // The perturbation runs walk the same outfits: one review's losses are priced once.
+    private readonly Dictionary<(string, EquatableArray<GearOption>), Fact<double>> losses = [];
 
     public ColonyValueResult Of(ColonyTrajectory trajectory)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var hunger = HungerLoss(trajectory, findings);
-        double apparel = 0;
-        foreach (var made in trajectory.Apparel)
-        {
-            if (ApparelPerDay(made) is { } gain)
-            {
-                apparel += gain * Math.Max(0, horizonDays - made.Day);
-            }
-            else
-            {
-                findings.Add(ApparelHarmUnassessed);
-            }
-        }
-
+        var apparel = ApparelGain(trajectory, findings);
         return new(hunger is { } lost ? Known(apparel - lost) : default, EquatableArray.From(findings));
     }
 
@@ -134,20 +125,43 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     }
 
     /// <summary>
-    /// Capability-days a day the apparel is worn avoids in harm, over the pawns that wear the best of each unit made (the loss per
-    /// day of its outfit now less the loss with the product in its slot); null while the harm model or the product's gear option is unassessed.
+    /// Capability-days the run's apparel avoids in harm (#3622). The garments are walked in the order they are made; each unit goes
+    /// to the pawn it helps most (the loss per day of the pawn's outfit then less the loss with the unit in its slot) and is credited
+    /// with that gain for the days from its making to the horizon. The pawn wears it from then on, so a later garment in that slot is
+    /// credited only with its gain over this one, and a unit no pawn gains from is not worn. A garment the harm model or the gear
+    /// options cannot price is named (<see cref="ApparelHarmUnassessed"/>) and credited nothing.
     /// </summary>
-    private double? ApparelPerDay(ApparelMade made)
+    private double ApparelGain(ColonyTrajectory trajectory, SortedSet<string> findings)
     {
-        if (perDay.TryGetValue(made.Node, out var known))
+        var outfits = new SortedDictionary<string, EquatableArray<GearOption>>(StringComparer.Ordinal);
+        foreach (var (pawn, worn) in context.Outfits)
         {
-            return known;
+            if (rows.ContainsKey(pawn))
+            {
+                outfits[pawn] = worn;
+            }
         }
 
-        return perDay[made.Node] = Price(made);
+        var total = 0.0;
+        foreach (var made in trajectory.Apparel.OrderBy(m => m.Day).ThenBy(m => m.Node, StringComparer.Ordinal))
+        {
+            var worn = new SortedDictionary<string, EquatableArray<GearOption>>(outfits, StringComparer.Ordinal);
+            if (Wear(made, worn) is { } gain)
+            {
+                total += gain * Math.Max(0, horizonDays - made.Day);
+                outfits = worn;
+            }
+            else
+            {
+                findings.Add(ApparelHarmUnassessed);
+            }
+        }
+
+        return total;
     }
 
-    private double? Price(ApparelMade made)
+    /// <summary>Puts each unit of the garment on the pawn it helps most, in <paramref name="outfits"/>; the gain a day, or null while unpriced.</summary>
+    private double? Wear(ApparelMade made, SortedDictionary<string, EquatableArray<GearOption>> outfits)
     {
         var sum = 0.0;
         foreach (var product in made.Products.Where(p => p.Count > 0))
@@ -159,35 +173,48 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
                 return null;
             }
 
-            var gains = new List<double>();
-            foreach (var (pawn, worn) in context.Outfits.OrderBy(o => o.Key, StringComparer.Ordinal))
+            for (var unit = 0; unit < product.Count; unit++)
             {
-                if (!rows.ContainsKey(pawn))
+                var (wearer, best) = ((string?)null, 0.0);
+                foreach (var (pawn, worn) in outfits)
                 {
-                    continue;
+                    if (!DailyLoss(pawn, worn).TryGetValue(out var b) || !DailyLoss(pawn, Wearing(worn, option)).TryGetValue(out var a))
+                    {
+                        return null;
+                    }
+
+                    if (b - a > best)
+                    {
+                        (wearer, best) = (pawn, b - a);
+                    }
                 }
 
-                var before = DailyLoss(pawn, worn);
-                var after = DailyLoss(pawn, EquatableArray.From(worn.Where(w => w.Slot != option.Slot).Append(option)));
-                if (!before.TryGetValue(out var b) || !after.TryGetValue(out var a))
+                if (wearer is null)
                 {
-                    return null;
+                    break;
                 }
 
-                gains.Add(b - a);
+                sum += best;
+                outfits[wearer] = Wearing(outfits[wearer], option);
             }
-
-            sum += gains.Where(g => g > 0).OrderByDescending(g => g).Take((int)product.Count).Sum();
         }
 
         return sum;
     }
 
+    private static EquatableArray<GearOption> Wearing(EquatableArray<GearOption> worn, GearOption option) =>
+        EquatableArray.From(worn.Where(w => w.Slot != option.Slot).Append(option));
+
     /// <summary>One pawn's harm in capability-days for a day of raids at the outfit; the horizon is a day so the loss is per day (the cache keys omit it).</summary>
     private Fact<double> DailyLoss(string pawn, EquatableArray<GearOption> outfit)
     {
+        if (losses.TryGetValue((pawn, outfit), out var known))
+        {
+            return known;
+        }
+
         var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult> { [pawn] = NoNeeds }, []);
-        return HarmLedger.Of(outcome, context, GameTime.TicksPerDay, harmCache, rows,
+        return losses[(pawn, outfit)] = HarmLedger.Of(outcome, context, GameTime.TicksPerDay, harmCache, rows,
             [new ForecastCommitment("apparel", default) { OutfitChanges = [new(pawn, outfit)] }]).Loss;
     }
 }

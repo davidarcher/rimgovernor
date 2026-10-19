@@ -257,7 +257,10 @@ Its cost grows with the number of events, not with ticks.
   products (`AnimalRace.Butchery`: leather by `LeatherAmount`) join materials
   and the ledger, so a craft can take the leather. Butchering takes no labor
   (`butcher_work_unread`). A leather arrival beyond tier 1's one day is
-  valued here, not in tier 1.
+  valued here, not in tier 1. Each addition to the ledger (a harvest's yield,
+  a hunt's products, a craft's products) is a `ResourceArrival` on the
+  trajectory (`ColonyTrajectory.Arrivals`, the `colony_model` event's
+  `arrivals`, #3622): the day each stuff arrives and how much.
 - **Crop growth.** The game's rate is 1 / (60,000 × growDays) per tick while
   not resting, × fertility × temperature × light (`Plant.GrowthPerTick`,
   `PlantUtility`). Growth stops outside the growth temperature band. Tier 2
@@ -288,20 +291,27 @@ injected at time zero (a pawn at speed 1: 0.00825 × 2,500 research points, 2,50
 is the hour's value (`dV/dt`, the `colony_model` event's `dvdt`). `ColonyValue` is in capability-days, higher better: the apparel
 a craft node makes is priced by the harm model as the harm of a day of raids at the worn outfit less the same with the product in
 its slot, for the best wearer of each unit, times the days from the craft to the horizon (`apparel_harm_unassessed` when the
-harm model or the gear option is unknown); starvation spans walk each pawn's malnutrition severity through the game's stage table,
+harm model or the gear option is unknown). The garments are walked in the order they are made (#3622): each unit goes to the pawn
+it helps most against what that pawn wears by then, including a garment made earlier in the run, and is credited only that gain,
+so a later, stronger garment counts only its upgrade over the earlier one and a weaker one made after it counts nothing; starvation spans walk each pawn's malnutrition severity through the game's stage table,
 and a pawn whose severity reaches lethal costs the rest of the horizon plus `DeathTerminalValue`. A crop that cannot mature
 changes nothing, so it is worth nothing. Tier 1 reads the value per progress unit (research point, cell sown) from
 `ForecastCoupledContext.Investment`, keyed by `ForecastProjectProgress.Project`, and `ForecastValue.Of` writes
 `-(work ticks × progress per tick × value per unit)` to the `Investment` term, which `coupled_selection.value.terms.investment` logs.
 In a real review (`ProjectGraph.Standing`, #3559) the graph is the current research chain and each standing field's crop from sowing to
 harvest. A crop's sowing waits on the research its plant def names (`CropChoice.Research`, the catalog's sowing prerequisites: Devilstrand,
-TreeSowing), so an unfinished one is a research node the sowing depends on. A crop whose yield is the stuff of a garment gets one craft node
-after its harvests (and after the research the garment's bill waits on). The garment is one deterministic choice: of the gear planner's bill
-options made from that stuff (excluding slave, child, shield, psychic and smoke-pop garments), the one with the most damage avoided per hit
+TreeSowing), so an unfinished one is a research node the sowing depends on. Then the herds are hunted (above), and last come the garment
+nodes (`ProjectGraph.Garments`, #3622): one craft node per reachable stuff and gear slot (`garment:<stuff>:<slot>`). A stuff is reachable
+when the stock covers the garment's units of it, or a harvest or hunt node of the graph yields it. Within a stuff and slot the garment is
+the gear planner's bill option (excluding slave, child, shield, psychic and smoke-pop garments) with the most damage avoided per hit
 against the colony's expected raid (`GearArmorTerm`, the planner's own item score), ties by option id; none when no such option has armor.
-The recipe is the one that makes it with that stuff as its first ingredient alternative. The craft's value is the apparel harm avoided
-(above); no fibre stock is priced, and while the exposure table is a placeholder (#3543) the node exists, the harm is `apparel_harm_unassessed`
-and the chain's investment credit is 0.
+The recipe is the one that makes it with that stuff as its first ingredient alternative, and the node waits on the research its bill
+needs. A node needs no harvest or hunt prerequisite: it takes its stuff from the ledger when it starts, so a sourced garment is made
+once its harvest or hunt has delivered. Before the run a node is dropped when another of its slot is known to arrive no later and has
+at least its armor: that one's stuff is in stock, its research a subset of the other's and its work no more. Two sourced garments both
+stay, and the arrival-order walk above credits only the later one's upgrade. With the stuff in stock the garment is made at once, so
+a field of the same stuff adds nothing to it. No fibre stock is priced, and while the exposure table is a placeholder (#3543) the nodes
+exist, the harm is `apparel_harm_unassessed` and the chain's investment credit is 0.
 
 *Goal terminals (#3505).* `GoalPaths.Of` turns an unmet goal into a terminal of that graph: a research goal is the project's research
 chain, a `WornCount` goal the sow, grow, harvest and craft chain of its stuff (the crop's research gates, the garment's recipe, one

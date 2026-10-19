@@ -62,9 +62,10 @@ public sealed record FieldHarvest
 
 /// <summary>
 /// When a stuff is in hand (#2467), in days from now: the stock covers the units at once; otherwise the supply candidates
-/// that yield the stuff (a growing field at its harvest lead, a huntable animal's butchery at the hunt's lead) are taken
-/// in lead order and the stuff arrives with the candidate whose yield, added to the stock, covers the units. Unknown
-/// when no known source covers them: a recipe chain has no arrival here yet (tier 2's craft days feed it later).
+/// that yield the stuff (a growing field at its harvest lead, a huntable animal's butchery at the hunt's lead, a stored
+/// corpse's butchery at its butchering work) are taken in lead order and the stuff arrives with the candidate whose yield,
+/// added to the stock, covers the units. Unknown when no known source covers them: a stuff only a recipe chain makes is
+/// valued in tier 2, not here.
 /// </summary>
 public sealed class StuffArrival(IReadOnlyDictionary<Resource, long> stock, IReadOnlyList<SupplyCandidate> supply)
 {
@@ -336,6 +337,18 @@ public static class ClothingDemandRules
             Yields = [new CandidateYield { Good = new ResourceKey { Def = resource }, StockCap = Known((long)units) }],
             LeadDays = lead,
         };
+    }
+
+    /// <summary>
+    /// A stored animal corpse as the arrival of what its race's butchery yields besides meat (its leather, #3622), at the
+    /// butchering's <paramref name="leadDays"/>. Null for a corpse whose race yields nothing.
+    /// </summary>
+    public static SupplyCandidate? CorpseYieldCandidate(string id, EquatableArray<SourceProduct> butchery, double leadDays)
+    {
+        var yields = butchery.Where(p => p.Amount >= 1)
+            .Select(p => new CandidateYield { Good = new ResourceKey { Def = p.Def }, StockCap = Known((long)p.Amount) })
+            .ToArray();
+        return yields.Length > 0 ? CandidateRules.SourceCandidate(CandidateKind.Corpse, id, Unknown<double>(), Unknown<double>(), true, 0, yields) with { LeadDays = Known(leadDays) } : null;
     }
 
     /// <summary>

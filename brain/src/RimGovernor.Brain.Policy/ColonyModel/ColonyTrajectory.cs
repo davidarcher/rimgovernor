@@ -20,7 +20,19 @@ public sealed record ApparelMade
     public EquatableArray<Amount> Ingredients { get; init; }
 }
 
-/// <summary>The tier-2 run's output: the events in order, the starvation spans, the apparel made and the food runway.</summary>
+/// <summary>A resource entering the run's per-resource ledger (#3622): a harvest's yield, a hunt's butchery products or a craft's products, on the day the node completes.</summary>
+public sealed record ResourceArrival
+{
+    public double Day { get; init; }
+
+    public string Node { get; init; } = "";
+
+    public Resource Resource { get; init; }
+
+    public double Count { get; init; }
+}
+
+/// <summary>The tier-2 run's output: the events in order, the starvation spans, the apparel made, the resource arrivals and the food runway.</summary>
 public sealed record ColonyTrajectory
 {
     /// <summary>The finding of a run that reached <see cref="ColonyModelPolicy.MaxEvents"/> before the horizon; the trajectory is the partial run.</summary>
@@ -34,6 +46,9 @@ public sealed record ColonyTrajectory
     public EquatableArray<StarvationSpan> Starvation { get; init; }
 
     public EquatableArray<ApparelMade> Apparel { get; init; }
+
+    /// <summary>Each addition to the per-resource ledger, in completion order: the day each stuff arrives and how much.</summary>
+    public EquatableArray<ResourceArrival> Arrivals { get; init; }
 
     /// <summary>The day nutrition falls to the stock that bridges the lead days at the consumption then (stock over consumption, less the lead); null when it does not within the run.</summary>
     public double? FoodRunwayDay { get; init; }

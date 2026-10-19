@@ -57,9 +57,11 @@ public static class ColonyGearReads
 
     /// <summary>
     /// When each gear stuff arrives (#3619): the stock census; the huntable animals of the frame's acquisition census at
-    /// their butchery yields (none when that census is unknown); and the growing <paramref name="fields"/>, each its
-    /// standing crop (the growing cells times the plant's harvest yield) at its harvest lead. A field whose crop the
-    /// <paramref name="crops"/> lack, or whose product or yield is unread, offers nothing; unknown fields offer nothing.
+    /// their butchery yields (none when that census is unknown); the unforbidden animal corpses of the food census (#3622),
+    /// each its race's butchery yields after one butchering's work at speed 1 (none without the census, the butcher
+    /// recipe's work or the race's row); and the growing <paramref name="fields"/>, each its standing crop (the growing
+    /// cells times the plant's harvest yield) at its harvest lead. A field whose crop the <paramref name="crops"/> lack,
+    /// or whose product or yield is unread, offers nothing; unknown fields offer nothing.
     /// </summary>
     internal static StuffArrival StuffArrivalFacts(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog catalog, IReadOnlyDictionary<Resource, long> stock,
         Fact<EquatableArray<FoodField>> fields, IReadOnlyList<PlanningDefinition> crops)
@@ -70,6 +72,19 @@ public static class ColonyGearReads
             if (ClothingDemandRules.HuntYieldCandidate(s) is { } hunt)
             {
                 supply.Add(hunt);
+            }
+        }
+        if (v.FoodSupply?.Outcome is { } food && catalog.ButcherWork().TryGetValue(out var butcher))
+        {
+            var races = catalog.AnimalRaces();
+            foreach (var held in food.Stocks)
+            {
+                if (tables.Things.TryRow(held.Item, out var row) && row.Corpse && !row.Forbidden && !catalog.HumanlikeCorpse(row.Entity.DefName)
+                    && races.Race(new Resource(catalog.CorpseRace(row.Entity.DefName)), out var race)
+                    && ClothingDemandRules.CorpseYieldCandidate(row.Entity.Id, race.Butchery, butcher / GameTime.TicksPerDay) is { } corpse)
+                {
+                    supply.Add(corpse);
+                }
             }
         }
         foreach (var f in fields.ValueOrDefault)

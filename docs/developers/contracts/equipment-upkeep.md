@@ -139,8 +139,10 @@ the units the option takes is now. Otherwise the supply that yields the stuff is
 lead order until, with the stock, it covers the units: a growing field's standing crop
 (growing cells times the plant's harvest yield) at its harvest lead, and a huntable animal
 of the acquisition census at its butchery yield (its leather) at the hunt channel's lead of
-zero. A recipe chain gives no arrival yet (tier 2's craft days feed it later), so a stuff
-only a recipe makes is unknown, and unknown is not offered. The decode takes the fields from
+zero, and an unforbidden animal corpse of the food census at its race's butchery yield after
+one butchering's work (the butcher recipe's work amount) at speed 1 (#3622). A recipe chain
+gives no tier-1 arrival: a stuff only a recipe makes is unknown, and unknown is not offered;
+tier 2 values it as a garment node from the day its chain delivers. The decode takes the fields from
 the zones read; a step's own colony facts read (the workshop's gear ladder) has no zones and
 counts no field. Stats then choose among the offered stuffs, so a better stuff with no
 arrival (plasteel with none in stock) is never planned; of two options with equal stats the cheaper (`GearOption.Cost`, the def ×

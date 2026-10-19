@@ -17,6 +17,8 @@ public sealed class ColonyModelWiringTests
         ID = "bill:Apparel_Duster/DevilstrandCloth", Definition = new Resource("Apparel_Duster"), Stuff = new Resource(ColonyModelFixtures.Cloth), Source = GearSource.Bill,
     };
 
+    private static readonly string Garment = ProjectGraph.GarmentId(new Resource(ColonyModelFixtures.Cloth), GearSlot.Unset);
+
     private static ColonyProjection Frame()
     {
         var projection = ColonyModelFixtures.Projection();
@@ -45,7 +47,7 @@ public sealed class ColonyModelWiringTests
         var review = RoundsColonyModel.Review(Frame(), Context(ForecastValueTests.RaidDay()), null);
         var ids = review.Marginals.Trajectory.Events.Select(e => e.Id).Where(id => id.Length > 0).ToArray();
 
-        Assert.Equal(["research:Devilstrand", "sow:zone1", "grow:zone1", "harvest:zone1", "craft:" + ColonyModelFixtures.Recipe], ids);
+        Assert.Equal(["research:Devilstrand", "sow:zone1", "grow:zone1", "harvest:zone1", Garment], ids);
         Assert.DoesNotContain(ColonyValue.ApparelHarmUnassessed, review.Marginals.Findings);
         Assert.True(review.Marginals.PerHour["research:Devilstrand"] > 0);
         Assert.True(review.Marginals.PerHour["sow:zone1"] > 0);
@@ -57,22 +59,25 @@ public sealed class ColonyModelWiringTests
     {
         var review = RoundsColonyModel.Review(Frame(), Context(new HarmInputs()), null);
 
-        Assert.True(review.Marginals.Trajectory.Events.Any(e => e.Id == "craft:" + ColonyModelFixtures.Recipe), string.Join(',', review.Marginals.Findings));
+        Assert.True(review.Marginals.Trajectory.Events.Any(e => e.Id == Garment), string.Join(',', review.Marginals.Findings));
         Assert.Contains(ColonyValue.ApparelHarmUnassessed, review.Marginals.Findings);
         Assert.Equal(0, review.Marginals.PerHour["research:Devilstrand"]);
         Assert.Equal(0, review.Marginals.PerUnit["Devilstrand"]);
     }
 
     [Fact]
-    public void TheGarmentIsTheBillOptionOfTheCropsStuffTheGearPlannerScoresHighest()
+    public void EachReachableStuffAndSlotIsAGarmentNodeOfTheDefWithTheMostArmor()
     {
-        var crop = RoundsFieldPlanner.CropChoices(Frame()).Single();
+        var (input, _) = RoundsColonyModel.InputOf(Frame());
         var better = BillDuster() with { ID = "bill:Apparel_Parka/DevilstrandCloth", Definition = new Resource("Apparel_Parka"), Sharp = 0.9 };
         var cotton = BillDuster() with { ID = "bill:Apparel_Duster/Cloth", Stuff = new Resource("Cloth"), Sharp = 0.99 };
+        ProjectNode[] Garments(ProjectGraph graph) => [.. graph.Nodes.Where(n => n.Kind == ProjectKind.Craft)];
 
-        Assert.Equal(["Devilstrand"], crop.Research.Select(r => r.Value));
-        Assert.Equal(better.ID, ProjectGraph.Garment(crop, [BillDuster(), better, cotton], default)?.ID);
-        Assert.Null(ProjectGraph.Garment(crop, [cotton], default));
-        Assert.Null(ProjectGraph.Garment(crop, [BillDuster() with { Sharp = 0, Blunt = 0 }], default));
+        // The parka beats the duster in the harvest's cloth, and the frame has no recipe for it; no cotton is grown or held.
+        var graph = ProjectGraph.Standing(input, [BillDuster(), better, cotton], default);
+        Assert.Empty(Garments(graph));
+        Assert.Contains("garment_recipe_unknown:Apparel_Parka", graph.Findings);
+        Assert.Equal([Garment], Garments(ProjectGraph.Standing(input, [BillDuster()], default)).Select(n => n.Id));
+        Assert.Empty(Garments(ProjectGraph.Standing(input, [BillDuster() with { Sharp = 0, Blunt = 0 }], default)));
     }
 }
