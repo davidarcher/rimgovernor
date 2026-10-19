@@ -46,8 +46,10 @@ internal static class NativeNeedsForecast
                 : pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0 ? "player_work" : "eligible";
             var blockers = VoluntaryControlBlockers(pawn);
             if (state == "eligible" && blockers.Count != 0) state = "unsupported_voluntary_state";
+            // A blocked pawn's supported needs stay the brain's to serve (#3557): its targets are read like an eligible pawn's.
+            var voluntary = state is "eligible" or "unsupported_voluntary_state";
             var targets = new List<Obs.NeedTarget>();
-            if (state == "eligible")
+            if (voluntary)
             {
                 possible ??= map.listerThings.AllThings.Where(t => t.Spawned &&
                     (t.def.IsNutritionGivingIngestible && t is not Corpse || t is Building_Bed || NativeRecreation.GiverFor(t) != null))
@@ -101,7 +103,7 @@ internal static class NativeNeedsForecast
             unsupported.Add("disease_and_relationship_changes");
             var conditionalMood = NativeConditionalMood.Read(pawn, unsupported);
             rows.Add(conditionalMood with { Pawn = pawn.GetUniqueLoadID(), State = state, Location = new(pawn.Position.x, pawn.Position.z),
-                CurrentService = state == "eligible" ? CurrentService(pawn) : null,
+                CurrentService = voluntary ? CurrentService(pawn) : null,
                 ComfortableMin = K(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)), ComfortableMax = K(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)), Needs = EquatableArray.From(needs),
                 Mood = pawn.needs?.mood is { } mood ? K(mood.CurLevelPercentage) : default,
                 MoodTarget = pawn.needs?.mood is { } targetMood ? K(targetMood.CurInstantLevel) : default,

@@ -255,6 +255,41 @@ public sealed class ForecastCoupledSelectionTests
         }
     }
 
+    [Fact]
+    public void AHungryBlockedPawnIsFedRatherThanHeldOnStandby()
+    {
+        // #3557: two colonists with chemical needs stood on standby at food 0 beside 13.9 nutrition: a blocked pawn had no
+        // need targets, no capacity and so no eat to select; its urgent-zero excess was the same in every outcome.
+        var facts = Review(1, 0);
+        var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
+        {
+            State = "unsupported_voluntary_state", VoluntaryControlBlockers = ["chemical_need:Chemical_Smokeleaf"], Location = new(1, 1),
+            Needs = [new("food", Known(.02), Known(.003), Known(.3)), new("rest", Known(1d), Known(0d), Known(.3))],
+            Targets = [new("meal", "food", "MealSimple", 1, Known(0d), Known(10d), Known(.9), default)
+                { Location = new(1, 1), StockCount = Known(1d), MaxPawns = Known(1), FreshTicks = Known(100000d) }]
+        };
+        facts = facts with { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("MealSimple"), 1)]), ForecastObserved = facts.ForecastObserved with
+        {
+            Needs = facts.ForecastObserved.Needs with { Pawns = [pawn] },
+            Coupled = facts.ForecastObserved.Coupled! with { Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [] }
+        } };
+        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
+        var candidates = facts.CoupledAlternatives!;
+        Assert.Contains("unsupported_voluntary_state:pawn:chemical_need:Chemical_Smokeleaf", candidates.Findings);
+        var selected = Select(facts);
+        var why = string.Join(";", candidates.Findings.Concat(selected.Selection.Findings))
+            + " tasks=" + string.Join(",", candidates.Context.NeedTasks.Select(n => n.Task))
+            + " selected=" + string.Join(",", selected.Selection.Selected);
+        Assert.True(selected.Selected.Plan.Allocations.Any(a => a.Pawn == "pawn"
+            && candidates.Context.NeedTasks.Any(n => n.Task == a.Activity && n.Kind == "food")), why);
+        Assert.Empty(selected.Deferred);
+        var batch = ForecastCoupledSelection.StartCoupledActivity(selected, candidates, 1, "fed-method", 100);
+        Assert.NotNull(batch);
+        Assert.Contains(batch.Orders, o => o.Pawn == "pawn" && !o.Release);
+        Assert.True(selected.SelectedVector.Value.UrgentZero.Excess < selected.BaselineVector.Value.UrgentZero.Excess, why);
+    }
+
     [Theory]
     [InlineData("graph", false)]
     [InlineData("cost", true)]

@@ -537,7 +537,9 @@ reading, food and drug policies as one Method under the Need owner; each pawn's
 settings claim `settings/<pawn>` and each written policy
 `policy/{reading,food,drug}/<name>`. Coupled activities commit under the same
 Need, and their productive continuation is admitted only while the Need's latest
-progress row is unmet; a met Need permits release only. Only this Need may set
+progress row is unmet; a met Need permits release only. The step waits on its own
+open `work-` Methods alone: the coupled and standby Methods that share the Need are
+not its existing work (#3557). Only this Need may set
 work priorities: other Needs' assignments are area-only.
 
 **People, mood (#3304).** EnsureMood and the mood relief planner are now the

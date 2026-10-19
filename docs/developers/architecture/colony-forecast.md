@@ -601,7 +601,8 @@ partial names `planned_room_effect_unassessed` instead of a whole-room value.
 Selection treats planned allocations as requested development: the thermal-relief gate exempts allocations in
 the closure of selected commitments that carry requested-development relief. Binding skips planned allocations
 (`CoordinatedActivityBinding.Start`): a planned site has no action template until placed. A selection whose
-only work is planned starts no order and records `coupled_selection` with target `planned_unplaced`. The room
+only work is planned is compared again without the planned roots for the review's orders (#3557); one that then
+starts no order records `coupled_selection` with target `planned_unplaced`. The room
 reconcile then places exactly the sites the selected plan completes (`RequestedDevelopment`) of an unstarted
 assessed room, in their stuff, and holds an assessed room with none completed ([portfolio selection](portfolio-selection.md#planned-rooms)).
 

@@ -317,7 +317,7 @@ does not reserve a pawn or authorize native fallback.
 | Drafted / player-controlled / queued or player-forced work | No voluntary candidate. Existing player/combat authority owns the pawn; a timetable bypass cannot override it. |
 | Downed / dead / mental state | No voluntary candidate or supported productive capacity. Native involuntary behavior and existing protection remain authoritative. |
 | Unknown mechanics / occupied job duration | Unknown capacity, never free time. |
-| Other recreation, DLC/mod needs, babies or special ingestion | Explicit unsupported effects/targets; no inferred adapter or hidden fallback. The pawn is excluded from ordinary capacity and the state is visible through the Supervisor hold ([control boundary](voluntary-control.md#control-boundary-and-unsupported-states)). |
+| Other recreation, DLC/mod needs, babies or special ingestion | Explicit unsupported effects/targets; no inferred adapter or hidden fallback. The blocker is a visible finding; the pawn's supported needs and labor stay selectable, and only the bounded Idle defer and incumbent retention exclude it ([control boundary](voluntary-control.md#control-boundary-and-unsupported-states), #3557). |
 
 Needs choices use the same Method journal and Hands ownership as productive work. Ingestion timing belongs to selected activities; there is no separate food-bar override or native food-seeking threshold writer.
 

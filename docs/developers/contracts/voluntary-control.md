@@ -76,9 +76,11 @@ tick, and the unassigned colonist is already in the census the review reads).
 The idle is not a resting state: the brain's next rounds review, on its own
 cadence, assigns every such pawn it selects nothing for an explicit `Standby`
 (colony wander, no work, no deadline; see [pawn activities](pawn-activities.md)).
-Unsupported
-need/state observations are excluded from ordinary capacity and defer admission.
-This is a visible unsupported outcome, not successful autonomous coverage.
+An unsupported need/state blocker is a visible finding
+(`unsupported_voluntary_state:<pawn>:<blocker>`), not a capacity exclusion: the
+pawn's supported needs and labor stay selectable, so it is fed and worked like any
+colonist, while the bounded `Idle` defer and incumbent retention still exclude it
+(#3557). The blocker is not autonomous coverage of the unsupported need.
 
 The native support check admits the exact need types Food, Rest, Joy, Mood,
 Comfort, Beauty, Outdoors, Indoors and RoomSize. Derived/modded classes do not
@@ -105,7 +107,7 @@ Supervisor clock; readmitting time cannot turn that terminal assignment into ind
 | Harvest, food conversion, material delivery, construction, roof work, clothing | Shared task composition and selection, with observed input/output rebinding. A delivered garment is not evidence it was worn or that physiological cold exposure improved. |
 | Cleaning and medical support | Shared support candidates; exact pending service identities and native conditional room factors. Critical medical protection remains with its existing emergency owner. No fabricated prognosis or retroactive post-tend infection benefit. |
 | Fire/combat/player protection | Existing protection and emergency paths retain authority; an ordinary Method cannot convert protected occupancy into free capacity. |
-| Drugs, addictions, genetic dependencies, hemogen, psyfocus, unsupported or modded needs | Native observations expose blockers. Ordinary safe-idle admission cannot cover them. A future Method must supply onset/effect observations and exact execution under the existing Concern owner before support can be claimed. |
+| Drugs, addictions, genetic dependencies, hemogen, psyfocus, unsupported or modded needs | Native observations expose blockers; the pawn's supported needs and labor stay selectable. Ordinary safe-idle admission cannot cover them. A future Method must supply onset/effect observations and exact execution under the existing Concern owner before support can be claimed. |
 | Mining, tree cutting, research, general repair, non-supported production and colony services | Existing provisioning/Concern mechanisms can describe demand or configure the world; this alone does not establish planner-owned pawn execution. Each supported service needs an exact shared Method and observable completion. Do not silently restore vanilla work selection for these gaps. |
 
 The boundary does not establish universal autonomous play across DLCs and mods.

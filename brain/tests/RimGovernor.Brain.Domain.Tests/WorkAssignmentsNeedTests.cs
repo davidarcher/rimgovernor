@@ -74,6 +74,32 @@ public sealed class WorkAssignmentsNeedTests
     }
 
     [Fact]
+    public void AStandbyMethodUnderTheNeedIsNotThePlannersExistingWork()
+    {
+        // #3557: the coupled and standby Methods share the Need; counting their open plans as the Work planner's own
+        // left it "already working" for whole reviews, so no priorities or finishing-skill choices were written.
+        var ct = TestContext.Current.CancellationToken;
+        IntentActionRules.RegisterIntentKinds();
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-work-standby-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        var facts = WorkRules.ReviewWorkResources(WorkResourceTestFacts.Create("a", "b"), Known<EquatableArray<ProductionBatch>>([]), new([]));
+        journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        var standby = PlanIds.MintPlanId();
+        var held = journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new MethodId("standby-" + standby.Value), "explicit idle: nothing selected",
+            new PlanSpec(standby, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId(standby.Value + "-0"),
+                StandbyAssignmentsRules.StandbyActivity("a", 1, "standby-" + standby.Value))]), ct);
+        Assert.Equal(ClaimOutcome.Admitted, held.Outcome);
+        Assert.True(StorePackage.PlanOpen(journal.LoadPlan(held.Owner.Methods[0].Plan, ct)));
+        Assert.Empty(BuildingRuntime.RoundsWorkPlanner.OpenWorkPlans(journal, held.Owner, ct));
+
+        var work = PlanIds.MintPlanId();
+        var committed = journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new MethodId("work-a"), "", new PlanSpec(work, new PlanRevision(1),
+            [DomainAction.NewWorkAssignmentAction(new ActionId(work.Value + "-0"), WorkAssignment.NewWorkAssignment(new("b"), [new WorkSetting("TestWork", 1)]))]), ct);
+        Assert.Equal(ClaimOutcome.Admitted, committed.Outcome);
+        var open = Assert.Single(BuildingRuntime.RoundsWorkPlanner.OpenWorkPlans(journal, committed.Owner, ct));
+        Assert.Equal(work, open.Spec.Id);
+    }
+
+    [Fact]
     public void AFinishingSkillChoiceRidesTheWorkMethodBesideItsAssignments()
     {
         // #3558: the step commits work priorities and construction finishing-skill choices as one Method; admission

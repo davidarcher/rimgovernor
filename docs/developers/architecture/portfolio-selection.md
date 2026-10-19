@@ -199,7 +199,12 @@ pure tests own preference, conservation and bounded-search claims.
 
 A planned site has no action template until it is placed, so a selection of
 planned sites starts no order (`coupled_selection` target `planned_unplaced`).
-Instead each review keeps the latest known comparison's planned-room selection
+When the chosen portfolio is unplaced planned sites alone, the comparison runs
+again without the roots that reach a planned site, and that run's selected roots,
+allocations and unselected-pawn defers join the selection (finding
+`planned_unplaced_reselected`): the record places the planned sites while the
+orders start the startable work, and standby is the fallback only when nothing
+startable is worth selecting (#3557). Each review keeps the latest known comparison's planned-room selection
 in memory (`Rounder.RoomSelection`, a `ReviewMemory<PlannedSelection>`): the
 rooms it assessed (a valued alternative in `Context.PlannedRooms`) and the
 selected sites with their op, def, stuff and cells. A review that compared

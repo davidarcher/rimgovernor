@@ -40,15 +40,7 @@ public sealed partial class RoundsWorkPlanner
         {
             return BuildingReasonNoReview;
         }
-        var open = new List<PlanState>();
-        foreach (var method in need.Owner.Methods)
-        {
-            var plan = p.Journal.LoadPlan(method.Plan, call);
-            if (StorePackage.PlanOpen(plan))
-            {
-                open.Add(plan);
-            }
-        }
+        var open = OpenWorkPlans(p.Journal, need.Owner, call);
         Verdict Existing(Verdict unknown) => open.Count > 0 ? BuildingReasonExistingWork : unknown;
 
         var plans = p.Journal.LoadPlans(call);
@@ -266,6 +258,32 @@ public sealed partial class RoundsWorkPlanner
 
 partial class RoundsWorkPlanner
 {
+    /// <summary>A Method of this planner: <c>work-&lt;hash&gt;</c>.</summary>
+    internal static bool IsWorkMethod(MethodId method) => method.Value.StartsWith("work-", StringComparison.Ordinal);
+
+    /// <summary>
+    /// The planner's own open plans under the admin/work-assignments Need. The coupled and standby Methods share the
+    /// Need (#3304) and hold their pawns for whole reviews, so counting them as this planner's existing work left the
+    /// priorities and finishing-skill choices unwritten while the colony stood on standby (#3557).
+    /// </summary>
+    internal static List<PlanState> OpenWorkPlans(JournalStore journal, NeedOwner owner, CancellationToken call)
+    {
+        var open = new List<PlanState>();
+        foreach (var method in owner.Methods)
+        {
+            if (!IsWorkMethod(method.Method))
+            {
+                continue;
+            }
+            var plan = journal.LoadPlan(method.Plan, call);
+            if (StorePackage.PlanOpen(plan))
+            {
+                open.Add(plan);
+            }
+        }
+        return open;
+    }
+
     /// <summary>
     /// Cancels the not-yet-dispatched work and settings actions of an open plan of the admin/work-assignments Need that
     /// the fresh review no longer wants.

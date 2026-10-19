@@ -56,9 +56,54 @@ public sealed partial record ForecastCoupledSelection
     /// screened, repeated from each new leader until none improves it; the final leader at the full
     /// per-portfolio bound; then the full cardinality sweep (singles, pairs, ...) at that bound, skipping
     /// subsets already evaluated at it. <paramref name="warmStart"/>, the previous review's selected ids, is screened
-    /// before the seed pass (#3563) so the extension starts from last review's leader when it still stands.</summary>
+    /// before the seed pass (#3563) so the extension starts from last review's leader when it still stands.
+    /// A chosen portfolio of unplaced planned sites alone starts no order (#3278), so the comparison is run again
+    /// without the roots that reach a planned site, and that run's selected roots, allocations and unselected-pawn
+    /// defers join the selection (#3557): the record places the planned sites, the orders start the startable work,
+    /// and standby is the fallback only when nothing startable is worth selecting.</summary>
     public static ForecastCoupledSelection CompareActivityOutcomes(ColonyForecastRequest request,
         ForecastCoupledCandidates candidates, int budget = 65536, IReadOnlyList<string>? warmStart = null)
+    {
+        var selection = CompareOnce(request, candidates, budget, warmStart);
+        var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
+        var allocations = selection.Selected.Plan.Allocations;
+        if (unplaced.Count == 0 || allocations.Length == 0 || !allocations.All(a => unplaced.Contains(a.Activity))) return selection;
+        var reaching = ReachingActivities(candidates.Context.Activities.Activities, unplaced);
+        var placed = candidates with { Alternatives = EquatableArray.From(candidates.Alternatives.Where(c => !c.ActivityCompletions.Any(reaching.Contains))) };
+        if (placed.Alternatives.Count == candidates.Alternatives.Count) return selection;
+        var orders = CompareOnce(request, placed, budget, warmStart: null);
+        var findings = new SortedSet<string>(selection.Selection.Findings, StringComparer.Ordinal) { PlannedUnplacedReselected };
+        findings.UnionWith(orders.Selection.Findings);
+        return selection with
+        {
+            Selection = selection.Selection with
+            {
+                Selected = [.. selection.Selection.Selected, .. orders.Selection.Selected],
+                Plan = selection.Selection.Plan! with { Allocations = [.. allocations, .. orders.Selection.Plan?.Allocations ?? []] },
+                Findings = findings.ToArray(),
+            },
+            Deferred = orders.Deferred,
+        };
+    }
+
+    /// <summary>A selection finding: the chosen portfolio was unplaced planned sites alone, so the comparison without them adds the review's orders (#3557).</summary>
+    public const string PlannedUnplacedReselected = "planned_unplaced_reselected";
+
+    /// <summary>The activities in <paramref name="seeds"/> and every activity whose prerequisites reach one.</summary>
+    private static HashSet<string> ReachingActivities(IReadOnlyList<ForecastActivity> activities, HashSet<string> seeds)
+    {
+        var reaching = new HashSet<string>(seeds, StringComparer.Ordinal);
+        for (var grew = true; grew;)
+        {
+            grew = false;
+            foreach (var task in activities)
+                if (!reaching.Contains(task.Id) && task.Prerequisites.Any(reaching.Contains)) grew |= reaching.Add(task.Id);
+        }
+        return reaching;
+    }
+
+    private static ForecastCoupledSelection CompareOnce(ColonyForecastRequest request,
+        ForecastCoupledCandidates candidates, int budget, IReadOnlyList<string>? warmStart)
     {
         if (budget < 0) throw new DomainException("negative portfolio budget");
         // The in-game cost of the comparator: the review runs its planners in parallel, so only this span times it.

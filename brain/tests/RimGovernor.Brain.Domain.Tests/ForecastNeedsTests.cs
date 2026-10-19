@@ -242,6 +242,21 @@ public sealed class ForecastNeedsTests
         { CurrentWork = new(new("pawn"), Known(true), default, Known(500.0)) }, [Sleep()]));
     }
     [Fact]
+    public void ABlockedPawnKeepsItsNeedChoicesAndCapacityWhileAnUncontrolledOneHasNone()
+    {
+        // #3557: a voluntary-control blocker is a finding, not a capacity exclusion; the pawn is fed rather than held on standby.
+        var blocked = Pawn() with { State = "unsupported_voluntary_state", VoluntaryControlBlockers = ["chemical_need:Chemical_Smokeleaf"] };
+        var capacity = ForecastCapacity.ForecastPawnCapacityOf(Input());
+        var generated = ForecastNeeds.GenerateNeedsAlternatives(blocked, capacity, 1000);
+        Assert.Contains(generated.Choices, c => c.Kind == "food");
+        Assert.DoesNotContain(generated.Findings, f => f.StartsWith("needs_state:", StringComparison.Ordinal));
+        Assert.Equal(ForecastNeeds.ForecastNeedsTimeline(Pawn(), Input(), []).Capacity, ForecastNeeds.ForecastNeedsTimeline(blocked, Input(), []).Capacity);
+        var downed = ForecastNeeds.GenerateNeedsAlternatives(Pawn() with { State = "downed" }, capacity, 1000);
+        Assert.Empty(downed.Choices);
+        Assert.Contains("needs_state:downed", downed.Findings);
+    }
+
+    [Fact]
     public void NativeNeedsWireRoundTripsKnownUnknownAndPermanentFacts()
     {
         var source = new NeedsForecastRead { Tick = 100, Pawns = [Pawn() with

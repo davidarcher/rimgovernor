@@ -47,6 +47,13 @@ public static class ForecastNeeds
     public static ForecastCapacityResult NeedsWorkCapacity(WorkResourceView view, string pawn, double horizon)
         => WorkRules.WorkCapacityOf(view, pawn, horizon, protectTimetable: false);
 
+    /// <summary>
+    /// Whether the pawn's time is the brain's to select: eligible, or eligible but for a voluntary-control blocker
+    /// (<c>unsupported_voluntary_state</c>). A blocker is a visible finding, not a capacity exclusion: the pawn's
+    /// supported needs and labor stay selectable, so it is fed rather than held on standby (#3557).
+    /// </summary>
+    public static bool Voluntary(string state) => state is "eligible" or "unsupported_voluntary_state";
+
     public static ForecastNeedsCandidates GenerateNeedsAlternatives(NeedsForecastPawn pawn, ForecastCapacityResult capacity,
         double horizon, int budget = 256)
     {
@@ -56,7 +63,7 @@ public static class ForecastNeeds
         var choiceKeys = new HashSet<(string Target, string Kind, int Count, double Depart, double Start, double End)>();
         var findings = new SortedSet<string>(pawn.Unsupported, StringComparer.Ordinal);
         var truncated = pawn.Targets.Count > 256;
-        if (pawn.State != "eligible") return new([], ["needs_state:" + pawn.State], truncated);
+        if (!Voluntary(pawn.State)) return new([], ["needs_state:" + pawn.State], truncated);
         if (!capacity.Capacity.Windows.TryGetValue(out var windows)) return new([], ["unknown_needs_capacity"], truncated);
         var plans = new List<(NeedTarget Target, double Level, double Fall, double Travel, List<(double Depart, (int Count, double Duration, double Gain) Variant)> Pairs)>();
         foreach (var target in pawn.Targets.Take(256).OrderBy(t => t.Kind, StringComparer.Ordinal).ThenBy(t => t.Id, StringComparer.Ordinal))
@@ -237,7 +244,7 @@ public static class ForecastNeeds
             || intervals.Zip(intervals.Skip(1)).Any(p => p.First.End > p.Second.Choice.Depart))
             throw new DomainException("overlapping or invalid needs activities");
         var occupied = new List<ForecastOccupancy>();
-        if (pawn.State != "eligible") occupied.Add(new("needs_state", pawn.Pawn, Known(0.0), Known(horizonTicks), ForecastOccupancyState.Active));
+        if (!Voluntary(pawn.State)) occupied.Add(new("needs_state", pawn.Pawn, Known(0.0), Known(horizonTicks), ForecastOccupancyState.Active));
         occupied.AddRange(intervals.Select(c => c.Choice.Occupancy with { End = Known(c.End) }));
         var sleepEnds = SleepServiceEnds(pawn, selected, interruptedAt, findings);
         var metrics = new List<ForecastNeedMetric>();
@@ -373,7 +380,7 @@ public static class ForecastNeeds
             throw new DomainException("needs overlap protected work");
         var unprotected = input.ProtectTimetable ? input with { ProtectTimetable = false } : input;
         initialCapacity ??= ForecastCapacity.ForecastPawnCapacityOf(unprotected);
-        if (intervals.Length > 0 && (pawn.State != "eligible" || !initialCapacity.Capacity.Windows.TryGetValue(out var free)
+        if (intervals.Length > 0 && (!Voluntary(pawn.State) || !initialCapacity.Capacity.Windows.TryGetValue(out var free)
             || intervals.Any(c => !free.Any(w => w.Start <= c.Choice.Depart && w.End >= c.End))))
             throw new DomainException("needs occupy unavailable pawn time");
         Fact<EquatableArray<ForecastOccupancy>> occupancy = default;

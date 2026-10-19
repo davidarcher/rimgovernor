@@ -318,6 +318,46 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Null(PlannedRules.PlannedSelectionOf(candidates, null, facts.PlannedSites));
     }
 
+    /// <summary>
+    /// #3557: a chosen portfolio of unplaced planned sites alone started no order, so every colonist stood on standby
+    /// review after review while the sites waited for placement. The comparison without the planned roots now adds
+    /// the review's orders; the planned record keeps the planned comparison's sites.
+    /// </summary>
+    [Fact]
+    public void AnUnplacedPlannedSelectionStillOrdersTheStartableWork()
+    {
+        // #3557: the room's shell outscored every startable alternative, so the selection was planned sites only; nothing
+        // bound before placement, no order went out and the builder stood on standby beside an open blueprint it could work.
+        // The floor blueprint and the shell do not both fit the builder's horizon; equal development, so the cheaper shell wins.
+        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 100), Ring(OpKind.DoorIn, "WoodLog", 40)]);
+        var floor = new ConstructionActivityOption("blueprint/floor", FlooringRules.DefaultFlooringPolicy().Floors[0], new(2, 2), Pawn,
+            "WoodLog", "stack-WoodLog", StackCell("WoodLog"), 1, 1, "FinishFrames", Known(0d), Known(10d), Known(200d))
+            { SiteApproachTicks = Known(0d), AvailableInput = Known(10d) };
+        facts = facts with
+        {
+            Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 10)]),
+            ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
+                { Construction = facts.ForecastObserved.Coupled.Construction! with { Options = [floor] } } },
+        };
+        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
+        var candidates = facts.CoupledAlternatives!;
+        var result = Select(facts);
+        var why = Why(facts, result) + " selected=" + string.Join(",", result.Selection.Selected);
+        Assert.True(PlannedSelected(result, "planned/room1/wall/WoodLog"), why);
+        Assert.True(result.Selection.Findings.Contains(ForecastCoupledSelection.PlannedUnplacedReselected), why);
+        Assert.Equal(["planned/room1/WoodLog/Shell"], Assert.Single(result.Selected.PlannedRooms).Complete);
+        var record = PlannedRules.PlannedSelectionOf(candidates, result, facts.PlannedSites)!;
+        Assert.Equal(PlannedRoomGate.Selected, PlannedRules.PlannedRoomGateOf(record, 1, started: false).Gate);
+        var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
+        Assert.True(result.Selection.Selected.Any(id => !id.StartsWith("planned/", StringComparison.Ordinal)), why);
+        var batch = ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "planned-test", 100);
+        Assert.NotNull(batch);
+        var order = Assert.Single(batch.Orders, o => !o.Release && o.Task.Length != 0);
+        Assert.Equal(Pawn, order.Pawn);
+        Assert.DoesNotContain(unplaced, id => id == order.Task);
+    }
+
     [Fact]
     public void ARoomLeftPartialInTheHorizonIsNamedUnassessed()
     {

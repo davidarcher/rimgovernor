@@ -262,9 +262,7 @@ public sealed partial record ForecastCoupledCandidates
                 Activities = distinctTasks.ToArray(),
                 Options = options.Distinct().ToArray(),
                 Routes = routes.Values.ToArray(),
-                Pawns = needs.Pawns.Select(p => p.VoluntaryControlBlockers.Count == 0
-                    ? ForecastNeeds.NeedsWorkCapacity(resources, p.Pawn, horizon).Capacity
-                    : new ForecastPawnCapacity(p.Pawn, "start", Known<EquatableArray<ForecastTimeWindow>>([]), Known(1d))).ToArray(),
+                Pawns = needs.Pawns.Select(p => ForecastNeeds.NeedsWorkCapacity(resources, p.Pawn, horizon).Capacity).ToArray(),
                 Equipment = equipment,
                 Deadline = Known(horizon),
                 AlternativeLaborCost = Known(horizon * Math.Max(1, needs.Pawns.Count)),
