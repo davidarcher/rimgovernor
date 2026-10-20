@@ -178,6 +178,9 @@ a depleted drill for removal from the deep drill step's recorded read.
   player-forced/interruptibility/native priority, timetable, carry/fire/draft/
   mental/dead/downed and medical rest facts. PawnState/Settings/JobEvidence carries
   these; operation admission does not stand in for later recovered need levels.
+- `JobEvidence` reports the pawn's real current job. `preemptible` is set when the
+  pawn is controlled with no committed coupled order, so the job is vanilla job
+  selection a coupled order may replace (#3670, [pawn activities](../../docs/developers/contracts/pawn-activities.md)).
 - BillStack, BuildingSettings, PawnSettings, ZoneState, GearLoadout,
   ResearchSnapshot and TradeSheet expose SnapshotRef for exact
   compare-and-set. Read tokens cannot revive authority or prove successful writes.

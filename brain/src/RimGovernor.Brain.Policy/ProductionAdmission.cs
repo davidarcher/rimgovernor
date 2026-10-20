@@ -62,7 +62,7 @@ public static partial class ProductionRules
                 ? Known(EquatableArray.From(pawns.Select(p => new WorkPawnAvailability(p.Id.Value, p.Available, p.Applies,
                     ForecastCurrentWork.ForecastCurrentWorkOf(p).Occupied, p.Job.TryGetValue(out var job) && job.Target.TryGetValue(out var target)
                         ? Known(target.Thing) : default)
-                    { Schedule = p.Schedule, LocalHour = facts.WorkResources.TryGetValue(out var native)
+                    { Schedule = p.Schedule, Preemptible = p.Job.TryGetValue(out var held) && held.Preemptible, LocalHour = facts.WorkResources.TryGetValue(out var native)
                         && native.SingleOrDefault(n => n.Pawn == p.Id.Value)?.LocalHour is { } hour ? Known(hour) : default }))) : default,
             // Standing blueprints are optional work, not reservations. Admitted actions below own stock.
             // Keep an absent census explicit; this does not establish a zero construction deficit.

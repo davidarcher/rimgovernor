@@ -274,7 +274,7 @@ public static class ConstructionHelpersRules
         var free = 0;
         foreach (var o in owners)
         {
-            if (!o.Pawn.Job.TryGetValue(out var job) || job.Work == WorkType.None || job.Work == WorkType.Construction)
+            if (!o.Pawn.Job.TryGetValue(out var job) || IdleJob(job) || job.Work == WorkType.None || job.Work == WorkType.Construction)
             {
                 free++;
             }
@@ -352,7 +352,8 @@ public static class ConstructionHelpersRules
 
     internal static bool BusyBuilding(WorkWorker w) => w.Pawn.Job.TryGetValue(out var job) && job.Work == WorkType.Construction;
 
-    /// <summary>Reports a pawn job with no productive work.</summary>
+    /// <summary>Reports a pawn job that holds the pawn from no work: none, waiting or wandering, or a preemptible
+    /// vanilla job any coupled order may replace (#3670).</summary>
     internal static bool IdleJob(PawnJob job) =>
-        job.Def is "" or "Wait" or "Wait_Wander" or "GotoWander" or "Wait_MaintainPosture";
+        job.Preemptible || job.Def is "" or "Wait" or "Wait_Wander" or "GotoWander" or "Wait_MaintainPosture";
 }

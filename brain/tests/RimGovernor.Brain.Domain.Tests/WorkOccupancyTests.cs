@@ -106,6 +106,27 @@ public sealed class WorkOccupancyTests
         Assert.Throws<DomainException>(() => ForecastCurrentWork.ForecastCurrentWorkOf(pawn, Known(-1.0)));
     }
 
+    // #3670: a preemptible pawn's vanilla job leaves it free for the forecast, yet still protects its current role.
+    [Fact]
+    public void PreemptibleVanillaJobIsUnoccupiedButKeepsItsRole()
+    {
+        var cook = Pawn("cook", building: 20) with { Job = Known(new PawnJob { Def = "DoBill", Work = WorkType.Cooking, Preemptible = true }) };
+        var current = ForecastCurrentWork.ForecastCurrentWorkOf(cook);
+        Assert.Equal(Known(false), current.Occupied);
+        Assert.Equal(Known(WorkType.Cooking), current.Work);
+        Assert.Equal(Known(0.0), current.RemainingTicks);
+        Assert.True(ConstructionHelpersRules.IdleJob(cook.Job.Value));
+        var input = new ForecastCapacityInput
+        {
+            Pawn = cook, Location = "home", HorizonTicks = 100, LocalHour = Known(12.0),
+            Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
+        };
+        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(input).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        var decision = Plan(cook, Pawn("free", cooking: 5));
+        Assert.Equal(1, Priority(decision, "cook", WorkType.Cooking));
+        Assert.NotEqual(1, Priority(decision, "cook", WorkType.Construction));
+    }
+
     [Fact]
     public void ConstructionSkillOrderingStillWinsAmongEligibleBuilders()
     {

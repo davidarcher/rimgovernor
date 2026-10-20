@@ -23,15 +23,16 @@ internal static class NativeProtoObservationsProbe
         AppDomain.CurrentDomain.AssemblyResolve+=(_,e)=>{var path=directories.Select(d=>Path.Combine(d,new AssemblyName(e.Name).Name+".dll")).FirstOrDefault(File.Exists);return path==null?null:Assembly.LoadFrom(path);};
         bridge=Assembly.LoadFrom(Path.GetFullPath(args[0]));foreach(var reference in bridge.GetReferencedAssemblies())Assembly.Load(reference);
         tools=bridge.GetType("HomeBridge.BridgeTools.NativeObservationTools",true)!;
-        foreach (var queued in new[] { 0, 2, 256 }) {
-            var idle=tools.GetMethod("JobRow",Flags)!.Invoke(null,new object?[]{null,queued})!;
+        foreach (var queued in new[] { 0, 2, 256 }) foreach (var preemptible in new[] { false, true }) {
+            var idle=tools.GetMethod("JobRow",Flags)!.Invoke(null,new object?[]{null,queued,preemptible})!;
             Check(Get(idle,"PlayerForced") is false,"idle current job is known not player forced");
             Check(Get(idle,"QueuedJobs") is uint queuedJobs && queuedJobs==queued,"idle queue remains independently observed");
             Check(Get(idle,"DefName")==null,"idle has no invented current job identity");
+            Check(Get(idle,"Preemptible") is bool flag && flag==preemptible,"the preemptible flag is carried as given");
         }
         foreach (var invalidQueue in new[] {-1,257}) {
             bool refused=false;
-            try { tools.GetMethod("JobRow",Flags)!.Invoke(null,new object?[]{null,invalidQueue}); }
+            try { tools.GetMethod("JobRow",Flags)!.Invoke(null,new object?[]{null,invalidQueue,false}); }
             catch(TargetInvocationException) { refused=true; }
             Check(refused,"invalid or oversized job queue is refused");
         }

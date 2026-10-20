@@ -216,6 +216,33 @@ public sealed class WorkResourcesTests
         Assert.Equal("shared_target:stack", WorkRules.WorkResourcesRefusal(view, Batch("clash", Staged("cook-builder", "stack"), Staged("helper", "stack"))));
     }
 
+    // #3670: a preemptible pawn's vanilla job is reported. Occupancy reads it as free; the claims still see its target and
+    // tell it from a committed holder: a coupled order interrupts the preemptible one (#3671) but never a committed one.
+    [Fact]
+    public void PreemptibleVanillaJobIsFreeButStillShowsItsTargetToClaims()
+    {
+        RoundsFacts Holding(bool preemptible)
+        {
+            var facts = WorkResourceTestFacts.Create("cook-builder", "helper");
+            return facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From(facts.ForecastObserved.WorkPawns.Value
+                .Select(p => p.Id.Value != "helper" ? p : p with { Job = Known(new PawnJob { Def = "HaulToCell", Work = WorkType.Hauling,
+                    Target = Known(new JobTarget { Thing = "stack" }), Preemptible = preemptible }) }))) } };
+        }
+        PlanSpec Approach(string target) => Plan("approach", DomainAction.NewPawnActivitiesAction(new("approach-0"), new(1,
+            [new("cook-builder", "m/cook-builder", "m", 0, 1, false,
+                [new(PawnActivityKind.Approach, target, "", "", 0, 500) { Destination = new(5, 5) }, new(PawnActivityKind.Hold, "", "", "", 0, 500)]) { Preparing = true }])));
+        var vanilla = View(Holding(preemptible: true));
+        var row = vanilla.Evidence.Pawns.Value.Single(p => p.Pawn == "helper");
+        Assert.True(row.Preemptible);
+        Assert.Equal(Known(false), row.Occupied);
+        Assert.Equal(Known("stack"), row.Target);
+        Assert.True(vanilla.Capacity["helper"].Capacity.Windows.Value.Sum(w => w.End - w.Start) > 0);
+        Assert.Null(WorkRules.WorkResourcesRefusal(vanilla, Approach("stack")));
+        var committed = View(Holding(preemptible: false));
+        Assert.Equal(Known(true), committed.Evidence.Pawns.Value.Single(p => p.Pawn == "helper").Occupied);
+        Assert.Equal("pawn_target_claimed", WorkRules.WorkResourcesRefusal(committed, Approach("stack")));
+    }
+
     [Fact]
     public void OneCookBuilderCannotPromiseTwoDaysAndDisjointPawnRemainsAvailable()
     {

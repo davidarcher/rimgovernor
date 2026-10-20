@@ -187,10 +187,11 @@ namespace HomeBridge.BridgeTools
             return found.OrderBy(t => t.thingIDNumber).ToList();
         }
 
-        internal static Obs.JobEvidence JobRow(Verse.AI.Job? job, int queuedJobs)
+        // preemptible: controlled with no committed coupled order (NativePawnActivities.Standing, #3670).
+        internal static Obs.JobEvidence JobRow(Verse.AI.Job? job, int queuedJobs, bool preemptible)
         {
             if (queuedJobs < 0) throw new InvalidOperationException("Negative native queued job count.");
-            var row = new Obs.JobEvidence { PlayerForced = job?.playerForced ?? false, QueuedJobs = (uint)queuedJobs };
+            var row = new Obs.JobEvidence { PlayerForced = job?.playerForced ?? false, QueuedJobs = (uint)queuedJobs, Preemptible = preemptible };
             if (job != null) {
                 row = row with { DefName = Identifier(job.def.defName) };
                 // The work giver's WorkTypeDef names the labor the job spends
@@ -240,7 +241,7 @@ namespace HomeBridge.BridgeTools
             var lord = pawn.GetLord();
             if (lord?.LordJob != null) { row = row with { LordJobClass = Identifier(lord.LordJob.GetType().Name) }; if (lord.CurLordToil != null) row = row with { LordToilClass = Identifier(lord.CurLordToil.GetType().Name) }; }
             // A pawn without a job tracker (a corpse's) carries no job block.
-            if (pawn.jobs?.jobQueue != null) row = row with { Job = JobRow(NativePawnActivities.Standing(pawn) ? null : pawn.CurJob, pawn.jobs.jobQueue.Count) };
+            if (pawn.jobs?.jobQueue != null) row = row with { Job = JobRow(pawn.CurJob, pawn.jobs.jobQueue.Count, NativePawnActivities.Standing(pawn)) };
             row = row with { Biotech = NativeBiotechFacts.Pawn(pawn) };
             row = row with { Anomaly = NativeAnomalyFacts.Pawn(pawn) };
             row = NativePawnRoyalty.Apply(pawn, row);

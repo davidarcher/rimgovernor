@@ -246,6 +246,10 @@ public sealed record PawnJob
 
     /// <summary>The thing or cell the job works; unknown from a producer that carried none, a known default JobTarget for a job with no target.</summary>
     public Fact<JobTarget> Target { get; init; }
+
+    /// <summary>Vanilla job selection on a controlled pawn with no committed coupled order (#3670): any coupled order may
+    /// replace it, so occupancy reads the pawn as free while target claims still see what it holds.</summary>
+    public bool Preemptible { get; init; }
 }
 
 public sealed record WorkRequirement
@@ -671,11 +675,12 @@ public static partial class WorkRules
         var currentWork = workers.ToDictionary(w => w.Pawn.Id, w => ForecastCurrentWork.ForecastCurrentWorkOf(w.Pawn));
         // Protect only ordinary work that remains demanded and eligible. Needs/forced jobs are not productive
         // owner roles; medical holds and changed requirements still win. This reserves a primary role, not a day.
+        // A preemptible vanilla job is free for occupancy but still names its work, so it is protected too (#3670).
         var ongoing = new Dictionary<PawnId, WorkType>();
         foreach (var w in workers)
         {
             var current = currentWork[w.Pawn.Id];
-            if (!w.Committed && current.Occupied.TryGetValue(out var occupied) && occupied && current.Work.TryGetValue(out var work)
+            if (!w.Committed && current.Work.TryGetValue(out var work)
                 && types.Contains(work) && DemandOf(work) > 0 && Able(w, work)
                 && w.Work[work].Priority > 0)
                 ongoing.Add(w.Pawn.Id, work);

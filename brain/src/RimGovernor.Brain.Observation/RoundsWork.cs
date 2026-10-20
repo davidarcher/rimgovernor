@@ -191,12 +191,12 @@ public static class RoundsWorkReads
         if (row.Job is { } j)
         {
             // JobRow: a pawn with no job carries no def; a job always carries its def and, when a work giver issued
-            // it, that giver's work type.
+            // it, that giver's work type. A preemptible pawn's job is its vanilla job (#3670).
             w = w with
             {
                 Job = Known(j.DefName is null
-                    ? new PawnJob()
-                    : new PawnJob { Def = j.DefName, Work = ColonyDecodeReads.WireParseOpen(j.WorkTypeDefName, WorkType.Unrecognized), Target = JobTarget(j.TargetA, j.TargetACell) }),
+                    ? new PawnJob { Preemptible = j.Preemptible }
+                    : new PawnJob { Def = j.DefName, Work = ColonyDecodeReads.WireParseOpen(j.WorkTypeDefName, WorkType.Unrecognized), Target = JobTarget(j.TargetA, j.TargetACell), Preemptible = j.Preemptible }),
             };
         }
         if (row.Biography is { } bio)

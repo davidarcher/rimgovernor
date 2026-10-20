@@ -441,8 +441,10 @@ review installs nothing for it; there is no timed idle (the bounded 600-tick Idl
 kind is gone) and no standby order. Hold remains solely an already-authorized
 task dependency. An unowned colonist claims no pawn or target, so selected work,
 eat or sleep acquires it from revision zero and interrupts its vanilla job. Work
-candidacy and food/support availability treat it as free, and the pawn read
-reports it with no job, whatever vanilla job it runs. Changing authority leaves
+candidacy and food/support availability treat it as free (`NativePawnActivities.Standing`).
+The pawn read reports its real vanilla job with `JobEvidence.preemptible` set
+(#3670): brain occupancy reads it as free, and target claims still see what it
+holds, so a coupled order on that target is not refused for it. Changing authority leaves
 an unowned colonist's vanilla job running; it only releases stale orders. Native
 publishes nothing for an unowned colonist (#3556; the `unassigned_voluntary_pawn`
 invalidation is gone), and the next rounds review reads it in the census. See [supported scope and remaining owners](voluntary-control.md).

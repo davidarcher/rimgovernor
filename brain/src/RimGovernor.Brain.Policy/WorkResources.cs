@@ -10,6 +10,8 @@ public sealed record WorkPawnAvailability(string Pawn, Fact<bool> Available, Fac
 {
     public Fact<EquatableArray<string>> Schedule { get; init; }
     public Fact<double> LocalHour { get; init; }
+    /// <summary>The pawn runs a preemptible vanilla job (#3670): it holds <see cref="Target"/>, but a coupled order replaces it.</summary>
+    public bool Preemptible { get; init; }
 }
 public sealed record WorkAction(PlanId Plan, DomainAction Action, ProgressView Progress);
 public sealed record WorkActionCensus(EquatableArray<WorkAction> Actions, bool Truncated = false);
@@ -509,8 +511,9 @@ public static partial class WorkRules
                     || !windows.Any(w => w.Start == 0 && w.End > 0))) return "pawn_capacity_unavailable:" + pawn;
         }
         // A pawn the plan does not move already occupying a target: whole for an exclusive one, one more owner for a capacity target.
+        // A preemptible holder runs vanilla work the coupled order interrupts (#3671), so it holds nothing against the candidate (#3670).
         IEnumerable<string> Holders(string target, bool journal) => journal
-            ? view.Evidence.Pawns.TryGetValue(out var rows) ? rows.Where(p => p.Target.TryGetValue(out var occupied) && occupied == target).Select(p => p.Pawn) : []
+            ? view.Evidence.Pawns.TryGetValue(out var rows) ? rows.Where(p => !p.Preemptible && p.Target.TryGetValue(out var occupied) && occupied == target).Select(p => p.Pawn) : []
             : view.Evidence.WorkResources.TryGetValue(out var all) ? all.Where(p => p.Target == target).Select(p => p.Pawn) : [];
         bool Occupied(string target, bool journal) => Holders(target, journal).Any(p => !candidate.Pawns.Contains(p));
         bool Crowded(string target, bool journal) => Occupied(target, journal) && TargetOverCapacity(view.Evidence, target,
