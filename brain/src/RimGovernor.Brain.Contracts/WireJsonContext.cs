@@ -1358,6 +1358,8 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(EquatableArray<Observations.PracticeWorker>))]
 [JsonSerializable(typeof(EquatableArray<Observations.PracticeSurgeryWorker>))]
 [JsonSerializable(typeof(Observations.PracticeSurgeryWorker))]
+[JsonSerializable(typeof(EquatableArray<Observations.PracticeSurgeryMemory>))]
+[JsonSerializable(typeof(Observations.PracticeSurgeryMemory))]
 [JsonSerializable(typeof(Observations.PracticeActivityRead))]
 [JsonSerializable(typeof(EquatableArray<Observations.ResearchWorker>))]
 [JsonSerializable(typeof(Observations.ResearchActivityRead))]

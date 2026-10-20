@@ -65,7 +65,9 @@ internal static class NativePracticeActivities
 
     /// <summary>Practice surgeries (#3637): per colony prisoner, each restore on a missing part and each removal of an added part the
     /// native recipe offers now with every other ingredient on the map, per eligible free doctor, per stocked medicine kind the recipe
-    /// and the prisoner's care allow. The chance is the vanilla outcome quality with that medicine; the brain picks the legal steps.</summary>
+    /// and the prisoner's care allow. A prisoner with no such step instead offers the steps that make one (#3639): removing a natural
+    /// part, or installing an artificial part over it, on the first present natural part of each part def a stocked artificial-part
+    /// install applies to. The chance is the vanilla outcome quality with that medicine; the brain picks the legal steps.</summary>
     private static List<Obs.PracticeSurgeryWorker> Surgeries(Map map, NativePathLegs legs, List<string> findings)
     {
         var rows = new List<Obs.PracticeSurgeryWorker>();
@@ -76,7 +78,17 @@ internal static class NativePracticeActivities
         {
             var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(patient));
             if (giver == null || patient.Dead) continue;
+            var before = rows.Count;
+            if (!Rows(patient, giver, false) || rows.Count == before && !Rows(patient, giver, true)) return rows;
+        }
+        if (rows.Count > 0) findings.Add("practice_surgery_part_fetch_unassessed");
+        return rows;
+
+        // Adds the patient's cycle steps, or with slot the steps that make one; false once the read is truncated.
+        bool Rows(Pawn patient, WorkGiverDef giver, bool slot)
+        {
             var parts = patient.RaceProps.body.AllParts;
+            var hediffs = patient.health.hediffSet;
             float? bed = patient.InBed() ? null : facts.BestBed?.GetStatValue(StatDefOf.SurgerySuccessChanceFactor) ?? 1f;
             foreach (var def in patient.def.AllRecipes.OrderBy(d => d.defName, StringComparer.Ordinal))
             {
@@ -85,18 +97,36 @@ internal static class NativePracticeActivities
                 if (!recipe.Others) continue;
                 var kinds = stock.Where(t => patient.playerSettings?.medCare.AllowsMedicine(t.def) == true && def.ingredients.Any(i => i.filter.Allows(t)))
                     .Select(t => t.def).Distinct().OrderBy(d => d.defName, StringComparer.Ordinal).ToArray();
-                foreach (var part in def.Worker.GetPartsToApplyOn(patient, def).Where(p => def.AvailableOnNow(patient, p)))
+                var seen = new HashSet<BodyPartDef>();
+                foreach (var part in def.Worker.GetPartsToApplyOn(patient, def).Where(p => def.AvailableOnNow(patient, p)).OrderBy(p => parts.IndexOf(p)))
                 {
                     var kind = NativePawnDetails.Kind(patient, def, part);
-                    if (!(kind == Obs.SurgeryKind.Restore || kind == Obs.SurgeryKind.Amputate && def.Worker is Recipe_RemoveBodyPart
-                        && patient.health.hediffSet.hediffs.OfType<Hediff_AddedPart>().Any(h => h.Part == part))) continue;
+                    var harvest = false;
+                    if (!slot)
+                    {
+                        if (!(kind == Obs.SurgeryKind.Restore || kind == Obs.SurgeryKind.Amputate && def.Worker is Recipe_RemoveBodyPart
+                            && hediffs.hediffs.OfType<Hediff_AddedPart>().Any(h => h.Part == part))) continue;
+                    }
+                    else
+                    {
+                        var removes = def.Worker is Recipe_RemoveBodyPart;
+                        if (!(removes || def.Worker is Recipe_InstallArtificialBodyPart && kind == Obs.SurgeryKind.Install)
+                            || hediffs.PartIsMissing(part) || hediffs.PartOrAnyAncestorHasDirectlyAddedParts(part)
+                            || !patient.def.AllRecipes.Any(r => r.Worker is Recipe_InstallArtificialBodyPart && r.AvailableNow
+                                && r.appliedOnFixedBodyParts?.Contains(part.def) == true && facts.Recipe(r, map).Others) || !seen.Add(part.def)) continue;
+                        // Recipe_RemoveBodyPart.ApplyOnPawn raises the harvest thoughts on a clean part; Recipe_InstallArtificialBodyPart
+                        // only on a clean part it violates whose def spawns a thing on removal.
+                        harvest = MedicalRecipesUtility.IsClean(patient, part)
+                            && (removes || def.Worker.IsViolationOnPawn(patient, part, Faction.OfPlayer) && part.def.spawnThingOnRemoved != null);
+                    }
                     foreach (var doctor in recipe.Doctors.Where(d => NativeFoodActivity.Available(d) && d.CanReach(patient, PathEndMode.Touch, Danger.Deadly)))
                     {
                         var work = NativeProductiveSkill.ReadSurgery(doctor, def);
                         var speed = def.workSpeedStat == null ? 1f : doctor.GetStatValue(def.workSpeedStat);
+                        var memories = harvest ? EquatableArray.From(HarvestMemories(map, doctor)) : default;
                         foreach (var medicine in kinds)
                         {
-                            if (rows.Count >= SurgeryRows) { findings.Add("practice_surgery_read_truncated"); return rows; }
+                            if (rows.Count >= SurgeryRows) { findings.Add("practice_surgery_read_truncated"); return false; }
                             var count = def.ingredients.Where(i => i.filter.Allows(medicine)).Sum(i => (int)i.CountRequiredOfFor(medicine, def));
                             var source = stock.Where(t => t.def == medicine && doctor.CanReach(t, PathEndMode.ClosestTouch, Danger.Deadly))
                                 .OrderBy(t => t.Position.DistanceToSquared(doctor.Position)).FirstOrDefault();
@@ -105,14 +135,45 @@ internal static class NativePracticeActivities
                                 && legs.Cost(doctor, source.Position, patient.Position, PathEndMode.Touch) is { } carry ? Fact.Known((double)fetch + carry) : default;
                             rows.Add(new(doctor.GetUniqueLoadID(), patient.GetUniqueLoadID(), def.defName, parts.IndexOf(part), medicine.defName, count,
                                 Fact.Known(NativePawnDetails.Chance(def, doctor, patient, part, medicine, bed)), giver.defName, new(patient.Position.x, patient.Position.z),
-                                approach, speed > 0 ? Fact.Known((double)def.WorkAmountTotal(null) / speed) : default) { SkillWork = work });
+                                approach, speed > 0 ? Fact.Known((double)def.WorkAmountTotal(null) / speed) : default) { SkillWork = work, Memories = memories });
                         }
                     }
                 }
             }
+            return true;
         }
-        if (rows.Count > 0) findings.Add("practice_surgery_part_fetch_unassessed");
-        return rows;
+    }
+
+    /// <summary>The negative memories a doctor's clean part removal from a colony prisoner gives the free colonists here (#3639), read
+    /// unattached off the native path: ThoughtUtility.GiveThoughtsForPawnOrganHarvested records HarvestedOrganFromGuest (and HarvestedOrgan
+    /// with Ideology); IdeoUtility.Notify_HistoryEvent hands each to the doctor's self-took and every other member's knows precept comps,
+    /// whose own conditions apply here, as does MemoryThoughtHandler.TryGainMemory's ThoughtUtility.CanGetThought (Psychopath, Bloodlust).</summary>
+    private static IEnumerable<Obs.PracticeSurgeryMemory> HarvestMemories(Map map, Pawn doctor)
+    {
+        var events = ModsConfig.IdeologyActive ? new[] { HistoryEventDefOf.HarvestedOrganFromGuest, HistoryEventDefOf.HarvestedOrgan } : new[] { HistoryEventDefOf.HarvestedOrganFromGuest };
+        foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
+        {
+            if (pawn.Ideo == null || pawn.needs?.mood == null) continue;
+            foreach (var precept in pawn.Ideo.PreceptsListForReading)
+            {
+                foreach (var comp in precept.def.comps)
+                {
+                    ThoughtDef? def = null;
+                    if (pawn == doctor && comp is PreceptComp_SelfTookMemoryThought self && events.Contains(self.eventDef) && (!self.onlyForNonSlaves || !pawn.IsSlave)
+                        && (self.thought.minExpectation == null || ExpectationsUtility.CurrentExpectationFor(pawn).order >= self.thought.minExpectation.order)) def = self.thought;
+                    else if (pawn != doctor && comp is PreceptComp_KnowsMemoryThought knows && events.Contains(knows.eventDef)
+                        && (precept.def.enabledForNPCFactions || pawn.CountsAsNonNPCForPrecepts())
+                        && (!(knows.doerMustBeMyFaction ?? knows.thought.stages.Any(s => s.baseMoodEffect != 0f)) || doctor.Faction == pawn.Faction)
+                        && (!knows.doerMustBeMyIdeo || doctor.Ideo == pawn.Ideo) && (!knows.onlyForNonSlaves || !pawn.IsSlave)) def = knows.thought;
+                    if (def == null || !ThoughtUtility.CanGetThought(pawn, def)) continue;
+                    var thought = ThoughtMaker.MakeThought(def, precept);
+                    thought.pawn = pawn;
+                    var offset = thought.MoodOffset();
+                    if (!(offset < 0)) continue;
+                    yield return new(pawn.GetUniqueLoadID(), new Obs.NeedMemory(def.defName, offset, Fact.Known((double)thought.DurationTicks), def.lerpMoodToZero) { StackLimit = def.stackLimit });
+                }
+            }
+        }
     }
 
     /// <summary>A practice step is still assigned: a maintenance practice while its role requirement stands, a practice surgery (#3637)

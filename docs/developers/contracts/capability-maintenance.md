@@ -77,3 +77,30 @@ selection (#3638), each on a Medicine-3 doctor and a prisoner missing a leg: `me
 (a raid threat in a calibrated exposure cell selects practice and the native callback pays),
 `medical/practice-surgery-no-demand` (a quiet world refuses it) and `medical/practice-surgery-cheaper-learning`
 (a patient needing tending is selected and practice is not). Practice surgery is the only doctor-training path.
+
+## Practice slots (#3639)
+
+A held prisoner with no practice-cycle step can be given one: removing a natural limb, or installing a
+material part over it (`RecipeFacts.PracticeSlotOf`), is a practice-surgery step on the same Surgery variant.
+The native read offers these only for a prisoner with no cycle step, on the first present natural part of
+each part def a stocked artificial-part install applies to. Beyond the practice-surgery gates the step is
+legal only when it is not lethal, the part is not one a prisoner keeps (`RecipeFacts.KeptPart`), the
+install's learning is read, and the population policy is not recruiting the prisoner
+(`PopulationRules.Recruiting`, the Recruit/Convert intent the Recruit need and `PrisonerRecruitDeficit`
+drive; unknown holds it with `practice_slot_recruiting_unknown`). A goodwill violation is allowed.
+Once one limb is gone the prisoner has a slot and cycles it, so a second limb is never taken; feeding a
+legless prisoner is the warden's work in the forecast, not a rule here.
+
+The step is valued by the slot's tier-2 counterfactual: `ColonyModelInput.Openings` lists one slot per
+material install recipe a surgery could open, and `ProjectMarginalValue` prices `practice_slot/<recipe>`
+(`ProjectGraph.SlotKey`) as the run with that slot's practice node less the run without, once per review;
+a value that leaves a skill or medicine stock unpriced names `practice_slot_unpriced:<recipe>` instead.
+The task carries that key as project progress at the native success chance per work tick, so a completed
+step credits the chance times the slot's worth: a failed surgery opens nothing, and the prisoner a fatal
+failure loses is worth only what `recruit_option_value_unassessed`, `prisoner_goodwill_unassessed` and
+`prisoner_sale_value_unassessed` leave out. The colonists' mood is priced through the mood forecast only:
+the native read lists, per row that removes a clean natural part, the unattached memories the native
+harvest events (HarvestedOrganFromGuest, and HarvestedOrgan with Ideology) give each spawned free colonist
+through its ideoligion's self-took and knows precepts, after their own conditions and `CanGetThought`
+(none for a psychopath or a precept that approves); the commitment grants them as mood memories.
+`medical/practice-amputation` checks a limb taken and a cycle step on that part following.

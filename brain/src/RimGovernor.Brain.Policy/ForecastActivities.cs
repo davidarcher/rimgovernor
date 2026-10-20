@@ -42,6 +42,10 @@ public sealed record ForecastProjectProgress(string Project, double PointsPerTic
 {
     /// <summary>The prefix of the project key of sowing a zone (the key is the sowing node's id, <see cref="ProjectGraph.SowId"/>, so the credit tier 2 prices lands on it).</summary>
     public const string SowPrefix = "sow:";
+
+    /// <summary>The prefix of the project key of opening a practice slot (#3639), by material install recipe (<see cref="ProjectGraph.SlotKey"/>):
+    /// one unit is one slot, so a step that opens it with chance p credits p units.</summary>
+    public const string PracticeSlotPrefix = "practice_slot/";
 }
 public sealed record ForecastActivityOption(string Activity, string Pawn, Fact<double> WorkTicks, Fact<double> RecoveryLaborTicks)
 {

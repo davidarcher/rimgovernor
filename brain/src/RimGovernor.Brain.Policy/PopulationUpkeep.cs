@@ -304,6 +304,54 @@ public static partial class PopulationRules
     /// </summary>
     internal static (PrisonerInteractionMode? Intent, bool Unknown) PrisonerIntent(PrisonerFacts row, PrisonerColony colony, Fact<double> food, PrisonerPolicy p)
     {
+        var (recruit, unknown) = RecruitIntent(row, colony);
+        if (unknown || recruit is not null || row.Dead.Value)
+        {
+            return (recruit, unknown);
+        }
+        var current = row.CurrentInteraction.Value;
+        var prospect = row.Prospect.Value;
+        if (colony.SlaveryAllowed() && !row.WildMan && CanLabor(prospect!))
+        {
+            return (PrisonerInteractionMode.Enslave, false);
+        }
+        if (current == PrisonerInteractionMode.Release)
+        {
+            return (PrisonerInteractionMode.Release, false);
+        }
+        if (!food.TryGetValue(out var days))
+        {
+            return (null, true);
+        }
+        if (days < p.FoodTargetDays)
+        {
+            return (PrisonerInteractionMode.Release, false);
+        }
+        if (!row.HeldTicks.TryGetValue(out var held))
+        {
+            return (null, true);
+        }
+        if (held >= p.ReleaseAfterDays * GameTime.TicksPerDay)
+        {
+            return (PrisonerInteractionMode.Release, false);
+        }
+        return (null, false);
+    }
+
+    /// <summary>
+    /// Reports whether the population policy is recruiting a living prisoner (#3639): <see cref="PrisonerIntent"/> wants Recruit or
+    /// Convert for it, the use that Prisoners' Recruit need and <see cref="PrisonerRecruitDeficit"/> drive. Unknown when the decision
+    /// needs a fact the census did not carry.
+    /// </summary>
+    internal static Fact<bool> Recruiting(PrisonerFacts row, PrisonerColony colony)
+    {
+        var (recruit, unknown) = RecruitIntent(row, colony);
+        return unknown ? Unknown<bool>() : Known(recruit is not null);
+    }
+
+    /// <summary>The recruit-or-convert rules that open <see cref="PrisonerIntent"/>: null for a dead prisoner or one the colony would not recruit.</summary>
+    private static (PrisonerInteractionMode? Intent, bool Unknown) RecruitIntent(PrisonerFacts row, PrisonerColony colony)
+    {
         if (!row.Dead.TryGetValue(out var dead))
         {
             return (null, true);
@@ -334,30 +382,6 @@ public static partial class PopulationRules
         if (recruitable && row.WorthRecruiting(prospect!, colony))
         {
             return foreign ? (PrisonerInteractionMode.Convert, false) : (PrisonerInteractionMode.Recruit, false);
-        }
-        if (colony.SlaveryAllowed() && !row.WildMan && CanLabor(prospect!))
-        {
-            return (PrisonerInteractionMode.Enslave, false);
-        }
-        if (current == PrisonerInteractionMode.Release)
-        {
-            return (PrisonerInteractionMode.Release, false);
-        }
-        if (!food.TryGetValue(out var days))
-        {
-            return (null, true);
-        }
-        if (days < p.FoodTargetDays)
-        {
-            return (PrisonerInteractionMode.Release, false);
-        }
-        if (!row.HeldTicks.TryGetValue(out var held))
-        {
-            return (null, true);
-        }
-        if (held >= p.ReleaseAfterDays * GameTime.TicksPerDay)
-        {
-            return (PrisonerInteractionMode.Release, false);
         }
         return (null, false);
     }

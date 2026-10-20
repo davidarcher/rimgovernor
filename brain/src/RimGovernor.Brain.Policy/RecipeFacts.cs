@@ -54,6 +54,12 @@ public sealed record RecipeFacts
     public MaterialInstall? PracticeCycleOf(SurgeryOperation op) =>
         op.Kind == SurgeryKind.Restore && op.Recipe.TryGetValue(out var recipe) ? MaterialInstallByRecipe(recipe)
         : op.Kind == SurgeryKind.Amputate && op.AddedPart.TryGetValue(out var part) ? MaterialInstallOfPart(part) : null;
+
+    /// <summary>The material install whose practice cycle a step opens (#3639): the removal of a natural part (no added part on it) a material
+    /// install serves, or a material install over a present natural part. Null for every other operation.</summary>
+    public MaterialInstall? PracticeSlotOf(SurgeryOperation op) =>
+        op.Kind is SurgeryKind.Harvest or SurgeryKind.Amputate && !op.AddedPart.IsKnown && op.PartDefName.TryGetValue(out var body) ? MaterialInstallFor(body)
+        : op.Kind == SurgeryKind.Install && op.Recipe.TryGetValue(out var recipe) ? MaterialInstallByRecipe(recipe) : null;
 }
 
 /// <summary>

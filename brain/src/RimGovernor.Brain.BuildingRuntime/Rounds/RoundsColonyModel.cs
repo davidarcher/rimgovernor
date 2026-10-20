@@ -113,6 +113,7 @@ internal static class RoundsColonyModel
             Research = ResearchOf(facts.Research, facts.NeedsAlternatives?.Observation),
             Stocks = new ModelStocks { Nutrition = NutritionOf(colony.CombinedFoodSupply), Materials = MaterialsOf(colony.Resources), Medicine = MedicineOf(facts.MedicalReserve) },
             Practice = PracticeOf(facts.Prisoners, facts.Recipes),
+            Openings = OpeningsOf(facts.Prisoners, facts.Recipes),
             Pawns = PawnsOf(colony),
             Recipes = facts.WorkAdmission.Recipes,
             Sites = facts.CurrentConstruction.TryGetValue(out var construction) ? Known(construction.Sites) : Unknown<EquatableArray<ConstructionSite>>(),
@@ -332,20 +333,48 @@ internal static class RoundsColonyModel
 
             var install = operations.Where(o => o.Kind == Policy.SurgeryKind.Restore).Select(recipes.PracticeCycleOf).FirstOrDefault(m => m is not null)
                 ?? operations.Where(o => o.Kind == Policy.SurgeryKind.Amputate).Select(recipes.PracticeCycleOf).FirstOrDefault(m => m is not null);
-            if (install?.Learning is not { } learning)
+            if (install is not null && SlotOf(row.Pawn.Value, install) is { } slot)
             {
-                continue;
+                slots.Add(slot);
             }
-
-            slots.Add(new ModelPracticeSlot
-            {
-                Prisoner = row.Pawn.Value, Recipe = install.Recipe, Skill = learning.Skill, Work = install.Work, RawXpPerWorkTick = learning.RawXpPerWorkTick,
-                SpeedStat = install.SpeedStat, Medicine = install.Medicine,
-            });
         }
 
         return Known(EquatableArray.From(slots));
     }
+
+    /// <summary>
+    /// The practice slots a surgery could open (#3639), one per material install recipe: on a living held prisoner with no practice-cycle
+    /// operation, an operation that opens one (<see cref="RecipeFacts.PracticeSlotOf"/>). Empty while the census or a row is unread.
+    /// </summary>
+    internal static EquatableArray<ModelPracticeSlot> OpeningsOf(Fact<EquatableArray<PrisonerFacts>> prisoners, RecipeFacts recipes)
+    {
+        var openings = new List<ModelPracticeSlot>();
+        foreach (var row in prisoners.TryGetValue(out var rows) ? rows.OrderBy(r => r.Pawn.Value, StringComparer.Ordinal) : Enumerable.Empty<PrisonerFacts>())
+        {
+            if (row.Prisoner != Known(true) || row.Dead != Known(false) || !row.Operations.TryGetValue(out var operations)
+                || operations.Any(o => recipes.PracticeCycleOf(o) is not null))
+            {
+                continue;
+            }
+
+            foreach (var install in operations.Select(recipes.PracticeSlotOf))
+            {
+                if (install is not null && openings.All(o => o.Recipe != install.Recipe) && SlotOf(row.Pawn.Value, install) is { } slot)
+                {
+                    openings.Add(slot);
+                }
+            }
+        }
+
+        return EquatableArray.From(openings);
+    }
+
+    /// <summary>The prisoner's practice slot of a material install: its work, learning, speed stat and medicine; null when its learning is unread.</summary>
+    private static ModelPracticeSlot? SlotOf(string prisoner, MaterialInstall install) => install.Learning is not { } learning ? null : new ModelPracticeSlot
+    {
+        Prisoner = prisoner, Recipe = install.Recipe, Skill = learning.Skill, Work = install.Work, RawXpPerWorkTick = learning.RawXpPerWorkTick,
+        SpeedStat = install.SpeedStat, Medicine = install.Medicine,
+    };
 
     private static Fact<EquatableArray<ModelPawn>> PawnsOf(ColonyProjection colony)
     {

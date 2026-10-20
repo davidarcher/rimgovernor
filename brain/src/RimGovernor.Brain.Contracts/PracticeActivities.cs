@@ -35,7 +35,14 @@ public sealed record PracticeSurgeryWorker(string Doctor, string Patient, string
     Fact<double> SuccessChance, string WorkGiver, Cell Location, Fact<double> ApproachTicks, Fact<double> WorkTicks)
 {
     public ProductiveSkillWork? SkillWork { get; init; }
+    /// <summary>The colonist memories the step raises when it removes a clean natural part (#3639): what the native history events
+    /// HarvestedOrgan and HarvestedOrganFromGuest give each spawned free colonist through its ideoligion's memory precepts (the doctor
+    /// its self-took ones), each an unattached native memory the colonist can get; empty when no such thought fires.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PracticeSurgeryMemory>))]
+    public EquatableArray<PracticeSurgeryMemory> Memories { get; init; }
 }
+/// <summary>One colonist memory a practice surgery raises (#3639).</summary>
+public sealed record PracticeSurgeryMemory(string Pawn, NeedMemory Memory);
 /// <summary>Fresh native requirement and skill observations for an admitted attempt.</summary>
 public sealed record PracticeMandateRead(string Task, Fact<bool> Assigned,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<PracticeFloorRead>))] EquatableArray<PracticeFloorRead> Alternatives);
