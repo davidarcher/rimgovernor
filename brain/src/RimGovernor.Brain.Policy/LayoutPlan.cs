@@ -41,7 +41,7 @@ public sealed partial record PlannedRoom
     /// <summary>The marker count of a sparring ring (RingSlot orders the slots); 0 for every other room.</summary>
     public int Markers { get; init; }
 
-    /// <summary>The Id of the room this one is attached to: an airlock or porch child; 0 for every room that stands on its own. A child owns no ring (Unfenced): its parent's ring takes its walls and doors.</summary>
+    /// <summary>The Id of the room this one is attached to: an airlock child; 0 for every room that stands on its own. A child owns no ring (Unfenced): its parent's ring takes its walls and doors.</summary>
     public int Parent { get; init; }
 
     /// <summary>Maps the definition of a worked bench of the room to the work chair the comfort pricing chose for it (ChooseComfort, #2978); the furnisher stands one on each such bench's interaction cell. Absent: no chair is chosen or priced.</summary>
@@ -50,11 +50,11 @@ public sealed partial record PlannedRoom
     /// <summary>The herd a pen belongs to: the race of its unit, empty for the misc unit and for every other room.</summary>
     public string Herd { get; init; } = "";
 
-    /// <summary>The ground an attached child occupies beyond its parent's ring: the airlock's vestibule, walls and outer door, or the porch strip.</summary>
-    internal Rectangle AttachedGround() => Role == PlannedRole.Airlock ? this.AirlockGround() : PorchGround();
+    /// <summary>The ground an attached child occupies beyond its parent's ring: the airlock's vestibule, walls and outer door.</summary>
+    internal Rectangle AttachedGround() => this.AirlockGround();
 
-    /// <summary>A child room that hangs off a parent: an airlock or porch.</summary>
-    internal bool Attached() => Role == PlannedRole.Airlock || Role == LayoutPorchRules.PlannedPorch;
+    /// <summary>A child room that hangs off a parent: an airlock.</summary>
+    internal bool Attached() => Role == PlannedRole.Airlock;
 
     /// <summary>Whether two rooms are identical, the comparison Region and Crossing rule out for value equality.</summary>
     public bool Same(PlannedRoom o) =>
@@ -162,7 +162,7 @@ public sealed partial record LayoutPlan
         return this with { Rooms = rooms, NextRoomId = next };
     }
 
-    /// <summary>Hands each room without an id the next from next, in place, and returns the counter. An attached child (airlock, porch) sited with no Parent is the parent's: the room listed just before it.</summary>
+    /// <summary>Hands each room without an id the next from next, in place, and returns the counter. An attached child (an airlock) sited with no Parent is the parent's: the room listed just before it.</summary>
     internal static int IdRooms(List<PlannedRoom> rooms, int next)
     {
         var last = 0;

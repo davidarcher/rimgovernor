@@ -16,7 +16,7 @@ public sealed class FirstRoomPlanTests
     private const string Smithy = "Smithy";
     private const string Knife = "MakeKnife";
 
-    private static StationFacts Facts(double[] curve, string climate, IReadOnlyList<OrderSpec>? orders = null, IReadOnlyDictionary<string, double>? hostBuild = null, bool treeless = false)
+    internal static StationFacts Facts(double[] curve, string climate, IReadOnlyList<OrderSpec>? orders = null, IReadOnlyDictionary<string, double>? hostBuild = null, bool treeless = false)
     {
         var s = FirstLayoutPlanTests.Survey(climate);
         var f = FirstLayoutPlanTests.Facts(s, 3);
@@ -46,7 +46,7 @@ public sealed class FirstRoomPlanTests
         };
     }
 
-    private static LayoutPlan Derive(StationFacts f)
+    internal static LayoutPlan Derive(StationFacts f)
     {
         var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(f.Survey, f, []);
         Assert.True(plan.IsKnown, "no first plan");

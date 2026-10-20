@@ -10,8 +10,7 @@ public sealed partial record PlannedRoom
         Role == LayoutRangeRules.PlannedTrainingRange
         || Role == LayoutRingRules.PlannedSparringRing
         || Role == LayoutYardRules.PlannedYard
-        || Role == PlannedRole.Airlock
-        || Role == LayoutPorchRules.PlannedPorch;
+        || Role == PlannedRole.Airlock;
 }
 
 public sealed partial record LayoutPlan

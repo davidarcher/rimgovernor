@@ -772,7 +772,7 @@ public sealed partial class RoundsBuildingPlanner
     internal async Task<RoundsBuildingResult> AdmitPreviewsAsync(RoundsAdmission a, CancellationToken call, CancellationToken epoch)
     {
         var p = Reviewer.Player;
-        var actions = new List<DomainAction>(a.Selected.Count + 1);
+        var actions = new List<DomainAction>(a.Selected.Count);
         // A shell goes out as one wave with its door first in dispatch order (the preview lists it first). The
         // walls are not gated on the door completing: a door blueprint or frame no more seals a room than a
         // wall's does, and gating held every wall until the door stood, or for ever when its observation came
@@ -780,11 +780,6 @@ public sealed partial class RoundsBuildingPlanner
         foreach (var v in a.Selected)
         {
             actions.Add(v.Action);
-        }
-        var (roof, roofed) = PorchRoofAction(a, actions.Count);
-        if (roofed)
-        {
-            actions.Add(roof);
         }
         var plan = new PlanSpec(a.Snapshot.Plan, a.Snapshot.Revision, actions);
         var decision = await AdmissionLog.AdmitMethodAsync(p.Journal, new Sto.BuildingMethodRequest

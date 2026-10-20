@@ -775,7 +775,15 @@ unknown heat on a cold or hot map, keeps every bed single with
 `cluster_bed_merge_unpriced:walls` or `:thermal`; an unknown heat on a mild map is
 zero. The plan's largest barracks (its bed slots) is the incumbent and holds
 unless beaten by more than `TieResolution`, and the replan key carries the chosen
-size (`barracks`), so a drifting loss does not replan. The k beds are one group
+size (`barracks`), so a drifting loss does not replan. A standing barracks splits
+by replan (#3661) and by the same price: the barracks keeps the beds that stay
+(the embedding holds it where it stands for the smaller group) and each bed taken
+out gets a new bedroom, so the switch costs that bedroom's shell and heat and is
+taken when the moved sleeper's loss over the horizon beats it; nothing is
+demolished. The reverse pays the rebuild too: the plan's barracks and bedrooms
+(`BedMergePrice.Bedrooms`, standing or planned) are committed, and a size that
+leaves fewer rooms pays one shell per room it gives up, so a merge back saves only
+the heat and a mood swinging about the switch line switches once. The k beds are one group
 planned `Barracks`, the rest stay single bedrooms; the decision is the advice's
 `bed_merge` attribute. The tiler keeps the cell past each barracks bed's end clear and
 reached from the doors, so no bed is boxed in by the others. The runtime (`reconcileBedroom`) picks the bed from the sleeping

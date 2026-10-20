@@ -116,7 +116,8 @@ public sealed record StationFacts
 
     /// <summary>
     /// The bed merge's price (#3658): the colony's facts, the outdoor curve and the map's cold or heat, the work-day's
-    /// watts, and the bed slots of the plan's largest barracks as the incumbent.
+    /// watts, the bed slots of the plan's largest barracks as the incumbent, and the plan's bedrooms (a superseded one
+    /// counted once, as its successor) as the rooms a merge gives up (#3661).
     /// </summary>
     public BedMergePrice BedMergePriceOf() => new()
     {
@@ -125,6 +126,7 @@ public sealed record StationFacts
         Harsh = Survey is { } s && (s.Cold || s.Hot),
         WorkDayW = LayoutRegroupRules.StationWorkPrice(this).WorkDayW,
         Incumbent = Furniture is null ? 0 : Plan.RoomsOf(PlannedRole.Barracks).Select(r => SleepingRules.BedSlotsOf(Plan, r, Furniture)?.Count ?? 0).DefaultIfEmpty(0).Max(),
+        Bedrooms = Plan.RoomsOf(PlannedRole.Bedroom).Count(r => !Plan.Rooms.Any(o => o.Replaces == r.Id)),
     };
 
     /// <summary>The standing rooms whose native role is not the one PredictRole gives their contents (GuardNativeRoles, #2898): a cost input and a split move of the regrouping.</summary>

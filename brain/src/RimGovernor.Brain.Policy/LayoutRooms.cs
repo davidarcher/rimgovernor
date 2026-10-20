@@ -19,7 +19,7 @@ public sealed partial record LayoutPlan
         return null;
     }
 
-    /// <summary>The rooms attached to room id (an airlock, a porch), in plan order; empty for a room with none.</summary>
+    /// <summary>The rooms attached to room id (an airlock), in plan order; empty for a room with none.</summary>
     public List<PlannedRoom> ChildrenOf(int id) => [.. Rooms.Where(r => id != 0 && r.Parent == id)];
 
     public List<PlannedRoom> RoomsOf(PlannedRole role) => [.. Rooms.Where(r => r.Role == role)];

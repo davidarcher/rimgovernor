@@ -2040,8 +2040,8 @@ public sealed record RemoveRoofIntent
 
 /// <summary>
 /// Mark cells in the vanilla build-roof (BuildRoof) area, the mirror of RemoveRoofIntent: pawns
-/// roof the designated cells that are unroofed, beside a wall or other roof support (the
-/// shelter porch holding the first batteries). Native refuses a fogged or out-of-bounds cell
+/// roof the designated cells that are unroofed, beside a wall or other roof support (a planned
+/// room's roofed set once its ring stands). Native refuses a fogged or out-of-bounds cell
 /// and a thick (overhead mountain) roof; a cell already roofed or designated applies again.
 /// </summary>
 public sealed record BuildRoofIntent

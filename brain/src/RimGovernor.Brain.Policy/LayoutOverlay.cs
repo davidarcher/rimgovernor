@@ -85,7 +85,6 @@ public static partial class LayoutOverlayRules
             [PlannedRole.Barracks] = St(PlanBlue, "barracks"),
             [LayoutTripsRules.PlannedSuite] = St(PlanBlue, "suite"),
             [PlannedRole.Airlock] = St(PlanLightBlue, "airlock"),
-            [LayoutPorchRules.PlannedPorch] = St(PlanLightBlue, "porch"),
             [LayoutSurveyRules.PlannedDining] = St(PlanAmber, "dining"),
             [LayoutSurveyRules.PlannedRec] = St(PlanPink, "rec room"),
             [LayoutSurveyRules.PlannedLab] = St(PlanViolet, "research"),

@@ -54,9 +54,6 @@ public enum PlannedRole
     [WireName("training_range")]
     TrainingRange,
 
-    [WireName("porch")]
-    Porch,
-
     [WireName("sparring_ring")]
     SparringRing,
 

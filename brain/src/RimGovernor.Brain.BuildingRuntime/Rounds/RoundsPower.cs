@@ -256,11 +256,6 @@ public sealed partial class RoundsBuildingPlanner
             }
         }
 
-        foreach (var c in RoundsBuildingPlanner.PorchCells(facts))
-        {
-            roofed.Add(c);
-        }
-
         var wallStuff = "";
         var style = RoundsTierStyle.ShellStyleOf(facts);
         if (style != "")
@@ -474,47 +469,6 @@ partial class RoundsBuildingPlanner
 
     internal static bool PowerDefinition(string name) =>
         name is "PowerConduit" or "HiddenConduit" or "WaterproofConduit" || PowerRules.PowerFamilyDefinitions().Contains(name);
-
-    internal static IReadOnlySet<Cell> PorchCells(ColonyProjection facts)
-    {
-        var output = new HashSet<Cell>();
-        if (facts.LayoutPlan.TryGetValue(out var plan))
-        {
-            foreach (var c in LayoutPlan.PorchRoofCells(plan))
-            {
-                output.Add(c);
-            }
-        }
-
-        return output;
-    }
-
-    internal static (DomainAction Action, bool Ok) PorchRoofAction(RoundsAdmission a, int ordinal)
-    {
-        if (!a.Facts.LayoutPlan.TryGetValue(out var plan))
-        {
-            return (default!, false);
-        }
-
-        var porch = PorchCells(a.Facts);
-        var onPorch = false;
-        foreach (var v in a.Selected)
-        {
-            if (v.Action.Building is { } b && b.Definition == PowerRules.BatteryDefinition && porch.Contains(b.Cell))
-            {
-                onPorch = true;
-            }
-        }
-
-        if (!onPorch)
-        {
-            return (default!, false);
-        }
-
-        var roof = new BuildRoof(LayoutPlan.PorchRoofCells(plan));
-        var action = DomainAction.NewBuildRoofAction(new ActionId($"{a.Snapshot.Plan}-{ordinal}"), roof);
-        return (action, true);
-    }
 
     internal static bool SameCells(IReadOnlyList<Cell> a, IReadOnlyList<Cell> b)
     {

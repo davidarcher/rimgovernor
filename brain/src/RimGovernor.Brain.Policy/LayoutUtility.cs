@@ -261,11 +261,6 @@ partial record LayoutPlan
         var output = new List<PlannedPowerSite>();
         if (definition == PowerRules.BatteryDefinition)
         {
-            // The shelter's porch holds the batteries until the battery room is planned.
-            if (plan.RoomsOf(LayoutUtilityRules.PlannedBattery).Count == 0)
-            {
-                output.AddRange(PorchSites(plan));
-            }
             foreach (var r in plan.Rooms)
             {
                 if (r.Role != LayoutUtilityRules.PlannedBattery)

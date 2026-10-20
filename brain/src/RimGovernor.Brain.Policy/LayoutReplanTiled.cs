@@ -143,7 +143,7 @@ partial record LayoutPlan
     /// Compares the tiled plan of advice with old, the plan the colony held, whose standing rooms are built. A
     /// standing room the embedding kept or superseded is claimed through its block (Built, Replaces); the unbuilt
     /// rooms are matched to the blocks left over by role, the identical interior first and the nearest after.
-    /// Attached rooms (airlocks, porches) are the tiler's own and not diffed.
+    /// Attached rooms (airlocks) are the tiler's own and not diffed.
     /// </summary>
     public static ReplanTileDiff DiffReplanTile(LayoutPlan old, IReadOnlySet<int> built, StationAdvice advice)
     {

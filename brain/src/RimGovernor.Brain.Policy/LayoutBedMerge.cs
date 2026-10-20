@@ -32,6 +32,12 @@ public sealed record BedMergePrice
 
     /// <summary>The bed slots of the barracks the plan holds (BedSlotsOf), 0 for none: the incumbent a new size must beat by more than the tie resolution.</summary>
     public int Incumbent { get; init; }
+
+    /// <summary>
+    /// The bedrooms the plan holds, standing or planned (#3661): a size that leaves fewer rooms than the plan's barracks
+    /// and bedrooms pays one bedroom's shell for each it gives up, so a planned split is not merged back by the next review.
+    /// </summary>
+    public int Bedrooms { get; init; }
 }
 
 /// <summary>The barracks size a free-bed pool takes; Finding names why the merge is unpriced.</summary>
@@ -104,16 +110,24 @@ internal sealed partial class Clusterer
     /// bedroom saved less the k cheapest sleepers' losses over the horizon (ColonyModelPolicy.HorizonDays), its spare beds
     /// losing nothing and a sleeper whose loss is unread never joining. A size whose room breaks the area limit is not
     /// taken. The incumbent (the plan's barracks, else every bed single) holds unless the best beats it by more than
-    /// ForecastValuePolicy.TieResolution, so the plan does not flap. An unpriced saving keeps every bed single.
+    /// ForecastValuePolicy.TieResolution. An unpriced saving keeps every bed single.
     /// </summary>
+    /// <remarks>
+    /// Switching (#3661). A split of a standing barracks keeps the barracks for the beds that stay (the embedding holds it
+    /// where it stands for the smaller group) and builds a bedroom per bed taken out, so its cost is that bedroom's shell
+    /// and heat, the saving the merge gave up; nothing is demolished. The reverse pays the rebuild too: the plan's rooms
+    /// (its barracks and Bedrooms) are committed, and a size that leaves fewer rooms pays one shell for each room it gives
+    /// up, so a merge back saves only the heat, and a mood swinging about the switch line switches once.
+    /// </remarks>
     internal BarracksChoice BarracksSize(int n, int count, BedMergePrice price)
     {
         var single = Eval([new ClusterUnit(n, 1)]);
-        var (saved, finding) = SavedPerRoom(single.Area, price);
+        var (saved, shell, finding) = SavedPerRoom(single.Area, price);
         if (saved is not { } room)
         {
             return new BarracksChoice(1, finding);
         }
+        var committed = price.Bedrooms + (price.Incumbent > 1 ? 1 : 0);
         var f = price.Facts;
         var horizon = new ColonyModelPolicy().HorizonDays;
         var losses = f.Losses.Where(double.IsFinite).ToList();
@@ -121,7 +135,10 @@ internal sealed partial class Clusterer
         List<double> costs = [.. Enumerable.Repeat(0.0, spare), .. losses];
         costs.Sort();
         var top = Math.Min(count, costs.Count);
-        var values = new double[top + 1];
+        // The plan's rooms a size gives up: a barracks of k beds and count - k bedrooms are count - (k - 1) rooms.
+        int GivenUp(int k) => Math.Max(0, committed - (count - (k - 1)));
+        var values = new double[Math.Max(top, 1) + 1];
+        values[1] = -GivenUp(1) * shell;
         var best = 1;
         for (var k = 2; k <= top; k++)
         {
@@ -130,7 +147,7 @@ internal sealed partial class Clusterer
                 top = k - 1;
                 break;
             }
-            values[k] = ((k - 1) * room) - (costs.Take(k).Sum() * horizon);
+            values[k] = ((k - 1) * room) - (costs.Take(k).Sum() * horizon) - (GivenUp(k) * shell);
             if (values[k] > values[best])
             {
                 best = k;
@@ -149,12 +166,13 @@ internal sealed partial class Clusterer
     /// rectangle holding it less its door cell in the wall's price, the door, and the room's climate load with a closed
     /// door to the outdoors (the living band) over the horizon at the work-day's watts. Null, with the finding, when the
     /// wall or door price is unknown, or the heat is unknown on a cold or hot map; an unknown heat on a mild map is zero.
+    /// Shell is the walls and door alone.
     /// </summary>
-    private (double? Saved, string Finding) SavedPerRoom(int area, BedMergePrice price)
+    private (double? Saved, double Shell, string Finding) SavedPerRoom(int area, BedMergePrice price)
     {
         if (!price.Facts.WallCell.TryGetValue(out var wall) || !price.Facts.Door.TryGetValue(out var door))
         {
-            return (null, LayoutClusterRules.ReasonClusterBedMergeUnpriced + ":walls");
+            return (null, 0, LayoutClusterRules.ReasonClusterBedMergeUnpriced + ":walls");
         }
         var w = (int)Math.Ceiling(Math.Sqrt(area));
         var h = (int)Math.Ceiling(area / (double)w);
@@ -162,9 +180,9 @@ internal sealed partial class Clusterer
         var shell = ((ring - 1) * wall) + door;
         if (HeatPerDay(area, price) is { } heat)
         {
-            return (shell + (heat * new ColonyModelPolicy().HorizonDays), "");
+            return (shell + (heat * new ColonyModelPolicy().HorizonDays), shell, "");
         }
-        return price.Harsh ? (null, LayoutClusterRules.ReasonClusterBedMergeUnpriced + ":thermal") : (shell, "");
+        return price.Harsh ? (null, 0, LayoutClusterRules.ReasonClusterBedMergeUnpriced + ":thermal") : (shell, shell, "");
     }
 
     /// <summary>The capability-days a day of holding one bedroom of area cells in the living band behind a closed door to the outdoors; null while the curve, the climate model or the work-day is unknown.</summary>

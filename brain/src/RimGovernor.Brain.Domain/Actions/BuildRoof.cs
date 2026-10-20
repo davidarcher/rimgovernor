@@ -2,8 +2,8 @@ namespace RimGovernor.Brain.Domain;
 
 /// <summary>
 /// Designates vanilla BuildRoof (the Build Roof area) over cells (a BuildRoofIntent on Actions/Apply), the
-/// mirror of <see cref="RemoveRoof"/>. The planner issues it over the shelter porch with the first battery
-/// placed there. Applied means designated; the roof read decides when pawns finished. Canonical cells
+/// mirror of <see cref="RemoveRoof"/>. The room reconcile issues it over a planned room's roofed set once
+/// its ring stands. Applied means designated; the roof read decides when pawns finished. Canonical cells
 /// (sorted, deduplicated), at least one.
 /// </summary>
 public sealed record BuildRoof : IActionPayload
