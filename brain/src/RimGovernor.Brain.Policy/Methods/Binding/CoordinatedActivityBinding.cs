@@ -162,15 +162,12 @@ internal static class CoordinatedActivityBinding
             // against the remaining work. Tasks others wait on stay, so no participant is stranded. A next task that is
             // itself a service is what that review selected: releasing it would only reselect it, every review (#3167).
             // So is a task that leads to the pawn's own remaining service, such as harvesting the rice it then eats (#3598).
-            // A sleep or recreation that native recovery ended before its planned end (the pawn woke rested) leaves the rest of
-            // the pawn's timeline early. As at the start (DeferDistantServices, #3047), it is not held for a next service departing
-            // far ahead, owned and unreviewable (#3598): released, the next review replans it from its observed needs. Nor is a
-            // participant whose next service waits only on other pawns' work, such as an eater held for the cook's last meal
-            // for most of a day (#3167).
-            var distant = row.State == "completed" && IsService(next) && next.DepartTick - tick > DistantServiceTicks
-                && (next.Prerequisites.Count == 0 && batch.Tasks.SingleOrDefault(t => t.Id == order.Task) is
-                        { Step.Kind: PawnActivityKind.Sleep or PawnActivityKind.Recreation } ended && ended.Step.Deadline > tick
-                    || next.Prerequisites.Count > 0 && next.Prerequisites.All(p => remaining.Any(t => t.Id == p && t.Pawn != order.Pawn)));
+            // As at the start (DeferDistantServices, #3047), a participant at a boundary is not held for a next service departing
+            // far ahead, owned and unreviewable: a pawn that woke early (#3598), finished its work or waits on other pawns' work,
+            // such as an eater held for the cook's last meal for most of a day (#3167), is released to standby, and a later review
+            // starts the service once it is due (#3649).
+            var distant = IsService(next) && next.DepartTick - tick > DistantServiceTicks
+                && next.Prerequisites.All(p => remaining.Any(t => t.Id == p && t.Pawn != order.Pawn));
             if ((distant || !IsService(next) && !FeedsOwnService(remaining, next) && NeedsService(read, order.Pawn))
                 && !remaining.Any(t => t.Pawn != order.Pawn && t.Prerequisites.Any(p => remaining.Any(r => r.Pawn == order.Pawn && r.Id == p))))
             {

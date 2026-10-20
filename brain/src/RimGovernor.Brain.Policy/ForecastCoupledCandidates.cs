@@ -226,8 +226,9 @@ public sealed partial record ForecastCoupledCandidates
                 if (first)
                 {
                     tasks.Add(original with { Id = id, Prerequisites = [.. original.Prerequisites, recovery.Task] });
-                    // Only the sleeper follows its own sleep: another pawn's work is not gated behind it (#3047).
-                    foreach (var option in options.Where(o => o.Activity == original.Id && (recovery.Kind != "rest" || o.Pawn == recovery.Pawn)).ToArray())
+                    // Only the recovering pawn follows its own recovery: another pawn's work is not gated behind it (#3047). A plant
+                    // cut gated behind another colonist's meal a day ahead held both colonists for the day (#3649).
+                    foreach (var option in options.Where(o => o.Activity == original.Id && o.Pawn == recovery.Pawn).ToArray())
                     {
                         options.Add(option with { Activity = id });
                         if (bindings.TryGetValue((original.Id, option.Pawn), out var binding))

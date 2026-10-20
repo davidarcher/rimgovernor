@@ -315,8 +315,11 @@ public sealed class CoordinatedConstructionTests
         Assert.True(floor is null || !floor.Context.Bindings.Values.Any(b => b.Target == "Thing_1"));
     }
 
-    [Fact]
-    public void WorkDelayedBehindARecoveryBelongsToTheRecoveringPawn()
+    /// <summary>#3047, #3649: in game a plant cut was gated behind another colonist's meal a day ahead and held both colonists.</summary>
+    [Theory]
+    [InlineData("rest")]
+    [InlineData("food")]
+    public void WorkDelayedBehindARecoveryBelongsToTheRecoveringPawn(string kind)
     {
         var facts = ForecastCoupledSelectionTests.Review();
         var roster = WorkResourceTestFacts.Create("pawn", "helper");
@@ -324,10 +327,11 @@ public sealed class CoordinatedConstructionTests
         {
             Location = new(1, 1),
             SleepThreshold = Known(.9), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(0d), SleepWhileStarving = Known(false),
-            Needs = [new("rest", Known(.8), Known(.0001), Known(.3))],
-            Targets = [new("bed-pawn", "rest", "", 1, Known(10d), default, default, Known(.001)) { Location = new(1, 1) }]
+            Needs = [new(kind, Known(.8), Known(.0001), Known(.3))],
+            Targets = [kind == "rest" ? new("target-pawn", "rest", "", 1, Known(10d), default, default, Known(.001)) { Location = new(1, 1) }
+                : new("target-pawn", "food", "MealSimple", 1, Known(10d), Known(10d), Known(.9), default) { Location = new(1, 1) }]
         };
-        var helper = pawn with { Pawn = "helper", Targets = [pawn.Targets[0] with { Id = "bed-helper" }] };
+        var helper = pawn with { Pawn = "helper", Targets = [pawn.Targets[0] with { Id = "target-helper" }] };
         facts = facts with { WorkResources = roster.WorkResources, Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 20)]),
             ForecastObserved = facts.ForecastObserved with
             {

@@ -105,7 +105,7 @@ public sealed class PortfolioSearchDiagnosisTests
         Assert.Equal(62, s.Roots.Length);
         Assert.False(s.Generated.Truncated);
         Assert.Equal(88, s.Generated.Context.Activities.Activities.Length);
-        Assert.Equal(194, s.Generated.Context.Activities.Options.Length);
+        Assert.Equal(158, s.Generated.Context.Activities.Options.Length);
         // The four ingestions are four roots with one completion each, so four is the smallest portfolio that serves four.
         Assert.Equal(["food/27/delivery/0/eat/diner/0/composition/19", "food/27/delivery/1/eat/pawn/0/composition/25",
             "food/27/delivery/2/eat/diner/1/composition/28", "food/27/delivery/3/eat/pawn/1/composition/34"], s.ReferenceRoots.Select(r => r.Id));
@@ -188,10 +188,10 @@ public sealed class PortfolioSearchDiagnosisTests
         Assert.Equal(single.SelectedVector.Value.UrgentZero, selection.SelectedVector.Value.UrgentZero);
         Assert.True(selection.SelectedVector.Value.Ledger.LossAgainst(single.SelectedVector.Value.Ledger).Value < -selection.SelectedVector.Value.Policy.TieResolution);
         Assert.Equal(2d, single.SelectedVector.Needs[4].Value);
-        Assert.Equal(198, single.Selected.Plan.LaborCost);
+        Assert.Equal(197, single.Selected.Plan.LaborCost);
         Assert.Equal(1d, selection.SelectedVector.Needs[4].Value);
-        // It costs more labor (354 vs 198) and the per-portfolio scheduler search is truncated at its bound, so it is not proven best.
-        Assert.Equal(354, selection.Selected.Plan.LaborCost);
+        // It costs more labor (329 vs 197) and the per-portfolio scheduler search is truncated at its bound, so it is not proven best.
+        Assert.Equal(329, selection.Selected.Plan.LaborCost);
         Assert.True(selection.Selection.SearchTruncated);
     }
 

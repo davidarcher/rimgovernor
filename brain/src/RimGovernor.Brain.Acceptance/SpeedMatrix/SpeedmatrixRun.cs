@@ -34,6 +34,9 @@ internal sealed partial class SpeedmatrixRun
     // Tolerance is the allowed spread of the healthy colonists across speeds.
     private const int Tolerance = 1;
 
+    // The tick wait's hang guard: an hour of game time between enabled reviews at Normal speed and reduced ticks per second.
+    private static readonly TimeSpan RowStall = TimeSpan.FromMinutes(3);
+
     // MaxPausedFraction and MinUltrafastTpsRatio are the clock-throughput expectations (0.5 and 2); at zero they are
     // reported, not enforced.
     private const double MaxPausedFraction = 0;
@@ -272,12 +275,13 @@ internal sealed partial class SpeedmatrixRun
 
             // The target is game time: the wait ends once the tick of the newest enabled review of the row's own load has
             // advanced by the target past the reload tick. The signature is the tick itself, so a clock that stops
-            // advancing stalls the wait.
+            // advancing stalls the wait. Enabled reviews are an hour (3000 ticks) apart when nothing else wakes one, which at
+            // Normal speed is a minute or more of wall time, so the hang guard is at least RowStall.
             ulong lastTick = 0;
             Exception? waitErr = null;
             try
             {
-                await new Wait { Stall = Wait.StallBudget(), Interval = TimeSpan.FromSeconds(2), Terminal = service.Exited }.WaitProgressAsync(
+                await new Wait { Stall = Wait.StallBudget() > RowStall ? Wait.StallBudget() : RowStall, Interval = TimeSpan.FromSeconds(2), Terminal = service.Exited }.WaitProgressAsync(
                     async ct =>
                     {
                         var review = await journal.LoadRoundsAsync(ct).ConfigureAwait(false);

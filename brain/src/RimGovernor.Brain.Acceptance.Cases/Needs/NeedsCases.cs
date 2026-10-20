@@ -10,5 +10,6 @@ public static class NeedsCases
         registry.Register(NeedsFreeze.Case());
         registry.Register(NeedsRecreationGain.Case());
         registry.Register(NeedsRecreationSharedSeat.Case());
+        registry.Register(NeedsFarMealStandby.Case());
     }
 }

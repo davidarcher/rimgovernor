@@ -22,7 +22,7 @@ public sealed class SharedStackRemainderTests
     { Resource = "Rice", Source = new(2, 2), Inputs = [new("Rice", Stack, count, new(2, 2), "observed need target") { Observed = true }] };
     /// <summary>The observed state: "pawn" eating one unit now and owing fifteen later.</summary>
     private static PawnActivities EatNowAndLater() => new(1, [new("pawn", "coupled/pawn", "coupled", 0, 1, false, [Eat(1)]) { Task = "eat-now" }])
-    { Tasks = [EatTask("eat-now", "pawn", 1, 100), EatTask("eat-later", "pawn", 15, 5000)] };
+    { Tasks = [EatTask("eat-now", "pawn", 1, 100), EatTask("eat-later", "pawn", 15, 700)] };
     private static PlanSpec Plan(string id, PawnActivities batch) => new(new(id), new(1), [DomainAction.NewPawnActivitiesAction(new(id + "-action"), batch)]);
     private static PlanSpec HelperEats(int count) => Plan("helper-" + count, new PawnActivities(1,
         [new("helper", "coupled-helper/helper", "coupled-helper", 0, 1, false, [Eat(count)]) { Task = "helper-eat" }])

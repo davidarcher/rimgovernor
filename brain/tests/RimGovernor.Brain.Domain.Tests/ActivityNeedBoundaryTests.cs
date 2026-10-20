@@ -72,7 +72,7 @@ public sealed class ActivityNeedBoundaryTests
     public void TiredParticipantWaitingToDepartForAServiceKeepsItsHold(PawnActivityKind kind)
     {
         // Releasing it would only have the next review reselect the same service, every review (#3167).
-        var batch = Service(kind, 1000);
+        var batch = Service(kind, 700);
         Assert.Null(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "holding", .08)));
     }
 
@@ -112,14 +112,40 @@ public sealed class ActivityNeedBoundaryTests
         return new(1, [new("pawn", "method/pawn", "method", 0, 1, false, [sleep.Step]) { Task = sleep.Id }]) { Tasks = [sleep, play] };
     }
 
-    [Fact]
-    public void ParticipantThatWokeEarlyIsReleasedRatherThanHeldForAFarService()
+    [Theory]
+    [InlineData(4000)]
+    [InlineData(150)]
+    public void ParticipantIsReleasedRatherThanHeldForAFarService(long sleepEnd)
     {
-        // The sleep ended at the wake threshold, long before the planned play: holding it would idle it, owned and unreviewable (#3598).
-        var batch = WokeBeforeItsNextService(5000);
+        // Woken early (#3598) or with its sleep run to its planned end (#3649), long before the planned play: holding it would
+        // idle it, owned and unreviewable.
+        var batch = WokeBeforeItsNextService(5000, sleepEnd);
         var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "completed", .95))!;
         Assert.True(Assert.Single(next.Orders).Release);
         Assert.Empty(next.Tasks);
+    }
+
+    [Theory]
+    [InlineData(5000, true)]
+    [InlineData(700, false)]
+    public void AWorkerWhoseOwnMealDepartsFarIsReleasedAndANearOneHeld(long eatDepart, bool released)
+    {
+        // #3649: a colonist that finished its work was held on "Waiting for the colony plan" for a meal most of a day ahead.
+        var cut = new SelectedActivityTask("cut", "pawn", [], new(PawnActivityKind.Work, "brambles", "PlantsCut", "CutPlant", 1, 9000), new(1, 1), 0);
+        var eat = new SelectedActivityTask("eat", "pawn", [], new(PawnActivityKind.Eat, "meal", "", "", 1, 9000), new(3, 3), eatDepart);
+        var batch = new PawnActivities(1, [new("pawn", "method/pawn", "method", 0, 1, false, [cut.Step]) { Task = cut.Id }]) { Tasks = [cut, eat] };
+        var order = Assert.Single(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "completed", .9))!.Orders);
+        Assert.Equal(released, order.Release);
+        Assert.Equal(!released, order.Preparing);
+    }
+
+    [Fact]
+    public void AColonistHoldingForAFarMealNoOneWaitsOnIsReleased()
+    {
+        // #3649: its meal was kept at the start because another colonist's work waited on it; that work is gone now.
+        var batch = Service(PawnActivityKind.Eat, 3000);
+        var order = Assert.Single(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "holding", .9))!.Orders);
+        Assert.True(order.Release);
     }
 
     [Theory]
@@ -144,8 +170,8 @@ public sealed class ActivityNeedBoundaryTests
 
     [Theory]
     [InlineData(500, 4000)]
-    [InlineData(5000, 150)]
-    public void ParticipantWhoseNextServiceIsNearOrWhoseSleepRanItsCoursePreparesForIt(long playDepart, long sleepEnd)
+    [InlineData(500, 150)]
+    public void ParticipantWhoseNextServiceIsNearPreparesForIt(long playDepart, long sleepEnd)
     {
         var batch = WokeBeforeItsNextService(playDepart, sleepEnd);
         var order = Assert.Single(CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "completed", .95))!.Orders);

@@ -194,7 +194,13 @@ ownership, revision, refusal, interruption and bounded delivery recovery apply.
 Existing Method ownership remains protected during continuation; its unassessed
 remaining duration is not credited as free future capacity. Disjoint new work
 may be admitted alongside installed Methods through the same shared claim guards;
-an active Method does not freeze unrelated participants. Independent
+an active Method does not freeze unrelated participants. A participant whose next
+service (sleep, recreation, a meal) departs more than `DistantServiceTicks` (600)
+ahead, with no other participant waiting on it, is not held for it: the start
+leaves it out and every later step boundary releases it to standby, and a later
+review selects the service again once it is due (#3047, #3598, #3649). Delayed
+variants that run work after a recovery are the recovering colonist's own: no
+colonist's work waits behind another colonist's meal, sleep or recreation (#3649). Independent
 maintenance, building placement, fixed production bills, gear replacement,
 hunting and legacy routine writers remain separate consumers. Hunting does not
 use unqualified prediction estimates. The live local food ratio winner and

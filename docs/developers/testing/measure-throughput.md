@@ -112,7 +112,7 @@ every Run at Hyperfast; the matrix's launch sets `RIMGOVERNOR_UNPIN_TEST_SPEED`
 so each row's Run asks for the speed the row posts. The command has its own driver
 (`brain/src/RimGovernor.Brain.Acceptance/SpeedMatrix`) outside the case runner and the catalog; per-row
 reports and `result.json` go to `-output` (default `<root>/acceptance/speedmatrix`), `-timeout`
-(30m, a hang guard) bounds the run, and exit 0 is a pass, 1 a failed matrix, 2 a usage error.
+(30m, a hang guard) bounds the run, a row whose newest enabled review tick stands still for 3 minutes stalls, and exit 0 is a pass, 1 a failed matrix, 2 a usage error.
 A row's timeline is its slice of the in-game brain's OTLP rings (`CaseEvidence`, as a cataloged
 case's evidence), written to `<row>/otlp/`; its tick-budget wait reads the newest enabled review of the row's own load
 (the kept journal's revision is no row marker: resuming writes a disabled review carrying the previous row's
