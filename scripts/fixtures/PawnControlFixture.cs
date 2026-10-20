@@ -92,6 +92,8 @@ namespace HomeBridge.BridgeTools
                     "fixture-idle-" + p.GetUniqueLoadID(), "food-method", 0, 1, false,
                     [new(PawnActivityKind.Standby, "", "", "", 0, long.MaxValue)]))).ToArray());
             var invalid=NativePawnActivities.Validate(batch,c); if(invalid!=null)throw new InvalidOperationException(invalid.Detail);
+            // Standby runs vanilla work (#3662): the idle colonists must not clean or harvest the staged targets themselves.
+            foreach(var p in worker.Map.mapPawns.FreeColonistsSpawned.Where(p=>p!=worker&&p!=helper)) p.workSettings?.DisableAll();
             NativePawnActivities.Apply(batch,c);
             NativePawnActivities.Apply(batch,c); // Idempotent reinstall must not restart work.
             var before=NativePawnActivities.Read(worker);

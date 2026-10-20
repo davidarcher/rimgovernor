@@ -78,7 +78,8 @@ tick, and the unassigned colonist is already in the census the review reads).
 The idle is not a resting state: a colonist that lost its activity Method makes
 the next review step run the rounds review (`freed`, #3599), which assigns every
 such pawn it selects nothing for an explicit `Standby`
-(colony wander, no work, no deadline; see [pawn activities](pawn-activities.md)).
+(vanilla job selection under the colonist's work priorities, no deadline; see
+[pawn activities](pawn-activities.md#voluntary-ownership-and-bounded-no-change)).
 A colonist on standby, or one the review gave nothing, may take standby work
 instead (#3624): a haul of a loose stack to the storage native chose for it,
 when the haul is worth more than its labor ([support work](support-work.md#store-hauls),
@@ -108,8 +109,11 @@ specific blockers. A scheduled drug produces either `scheduled_drug_due` or
 
 The bounded 600-tick `Idle` defer is gone (#3624): it freed its colonist every
 600 ticks and each expiry reran the rounds review. `Standby`
-is not a defer: it claims no capacity, authorizes no work and is replaced as soon
-as review selects anything, including eating or sleeping for a falling need. A completed or failed
+is not a defer: it claims no capacity and is replaced as soon as review selects
+anything, including eating or sleeping for a falling need. Under it the colonist
+runs vanilla job selection (#3662), so designations, bills and zones with no
+coupled binding are still worked; the coupled selection is the override, not the
+only source of work. A completed or failed
 assignment keeps its exact ownership pending continuation or release, but stops the existing
 Supervisor clock; readmitting time cannot turn that terminal assignment into indefinite idle.
 
@@ -120,7 +124,7 @@ Supervisor clock; readmitting time cannot turn that terminal assignment into ind
 | Cleaning and medical support | Shared support candidates; exact pending service identities and native conditional room factors. Critical medical protection remains with its existing emergency owner. No fabricated prognosis or retroactive post-tend infection benefit. |
 | Fire/combat/player protection | Existing protection and emergency paths retain authority; an ordinary Method cannot convert protected occupancy into free capacity. |
 | Drugs, addictions, genetic dependencies, hemogen, psyfocus, unsupported or modded needs | Native observations expose blockers; the pawn's supported needs and labor stay selectable. Ordinary safe-idle admission cannot cover them. A future Method must supply onset/effect observations and exact execution under the existing Concern owner before support can be claimed. |
-| Mining, tree cutting, research, general repair, non-supported production and colony services | Existing provisioning/Concern mechanisms can describe demand or configure the world; this alone does not establish planner-owned pawn execution. Each supported service needs an exact shared Method and observable completion. Do not silently restore vanilla work selection for these gaps. |
+| Mining, tree cutting, hunting, research, repair, refuel, firefighting, non-supported production and colony services | Concerns stand the demand (designations, bills, zones, work priorities); a colonist on standby works it through vanilla job selection (#3662). That is native execution, not a planner-owned choice: a service the brain must decide against the forecast (who, when, at what cost) gets an exact shared Method that preempts standby. |
 
 The boundary does not establish universal autonomous play across DLCs and mods.
 Hunting prediction/qualification and the hunting integration acceptance remain
@@ -203,7 +207,8 @@ of controlled execution.
 A native-only case runs no brain. The fixtures that need the brain's standby
 (pawn cooking, pawn delivery) install it themselves (`StandbyColonists` in
 `scripts/fixtures/FreezeNeedsFixture.cs`): each controlled colonist with no
-assignment and an idle job gets the same `Standby` order. Under
+assignment and an idle job gets the same `Standby` order, with its work
+priorities turned off so its vanilla job selection leaves the staged targets alone. Under
 `test/vanilla_colonists` no colonist is controlled and it installs nothing.
 
 Native disorientation and the native imposed-sleep/force-job ability effects retain

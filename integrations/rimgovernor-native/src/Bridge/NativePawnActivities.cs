@@ -50,6 +50,8 @@ namespace HomeBridge.BridgeTools
         [ThreadStatic] private static Pawn? imposedEffectPawn;
         internal static bool IsHold(Job job) => job.def == holdDef;
         internal static bool Owned(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release;
+        /// <summary>Holds standby (#3322, #3662): it runs vanilla job selection and is free to any coupled order.</summary>
+        internal static bool Standing(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release && PawnActivities.IsStandby(e.Order);
         /// <summary>Owned by an assignment other than standby (#3322): a standby colonist is free for new work.</summary>
         internal static bool Committed(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release && !PawnActivities.IsStandby(e.Order);
         internal static PawnActivityStep? ActiveStep(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && e.Step < e.Order.Steps.Length ? e.Order.Steps[e.Step] : null;
@@ -336,7 +338,8 @@ namespace HomeBridge.BridgeTools
                 var pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.First(p => p.GetUniqueLoadID() == order.Pawn);
                 Entries.TryGetValue(pawn, out var old);
                 if (old?.Order.Revision == order.Revision && Equivalent(old.Order, order)) continue;
-                oldJobs.Add((pawn, order.Release ? old?.Running : old?.Running ?? pawn.CurJob));
+                // A standby replacing a standby leaves the vanilla job running; any other new order interrupts it.
+                oldJobs.Add((pawn, order.Release ? old?.Running : old != null && PawnActivities.IsStandby(old.Order) && PawnActivities.IsStandby(order) ? null : old?.Running ?? pawn.CurJob));
                 var e = new Entry { Pawn = pawn, Order = order with { Steps = order.Steps.ToArray() }, Identity = identity, Generation = batch.AuthorityGeneration,
                     SelectedTask = batch.Tasks.FirstOrDefault(t => t.Id == order.Task), Tick = Find.TickManager.TicksGame, Dependencies = order.Steps.Select(s => s.WaitForFilth.Length == 0 ? null : Thing(s.WaitForFilth)).ToArray() };
                 Entries[pawn] = e;
@@ -423,6 +426,8 @@ namespace HomeBridge.BridgeTools
                 __result = ThinkResult.NoJob;
                 return false;
             }
+            // Standby runs vanilla job selection (#3662): the native think tree under the colonist's work priorities.
+            if (PawnActivities.IsStandby(e.Order)) return true;
             thinkTree = ___pawn.thinker.MainThinkTree;
             __result = ThinkResult.NoJob;
             if (e.Running != null && ReferenceEquals(e.Running, ___pawn.CurJob)) return false;
@@ -444,7 +449,6 @@ namespace HomeBridge.BridgeTools
             var step = e.Order.Steps[e.Step];
             if (Find.TickManager.TicksGame >= step.Deadline) { Fault(e, "deadline"); return JobMaker.MakeJob(holdDef); }
             var p = e.Pawn;
-            if (step.Kind == PawnActivityKind.Standby) return StandbyJob(p);
             if (!Ready(e) || step.Kind == PawnActivityKind.Hold) return JobMaker.MakeJob(holdDef);
             if (step.Kind == PawnActivityKind.Approach)
                 return JobMaker.MakeJob(JobDefOf.Goto, new IntVec3(step.Destination!.Value.X, 0, step.Destination.Value.Z));
@@ -566,17 +570,6 @@ namespace HomeBridge.BridgeTools
             job.playerForced = false;
             return job;
         }
-        private static readonly JobGiver_WanderColony StandbyWander = new();
-        /// <summary>Standby (#3322): the colony wander giver's own GotoWander/Wait_Wander, else a short Wait_Wander.
-        /// No work giver runs; needs are served only by the assignments that replace it.</summary>
-        private static Job StandbyJob(Pawn pawn)
-        {
-            var job = StandbyWander.TryIssueJobPackage(pawn, default).Job;
-            if (job != null) return job;
-            job = JobMaker.MakeJob(JobDefOf.Wait_Wander);
-            job.expiryInterval = 180;
-            return job;
-        }
         private static bool Ready(Entry e)
         {
             if (Find.TickManager.TicksGame < e.Order.Steps[e.Step].NotBefore) return false;
@@ -588,12 +581,12 @@ namespace HomeBridge.BridgeTools
             return false;
         }
         private static bool Constant(Pawn ___pawn, ref ThinkResult __result)
-        { if (!TryOwned(___pawn, out _) && !Controlled(___pawn)) return true; __result = ThinkResult.NoJob; return false; }
-        private static bool Override(Pawn ___pawn) => !TryOwned(___pawn, out _) && !Controlled(___pawn);
+        { if (Standing(___pawn)) return true; if (!TryOwned(___pawn, out _) && !Controlled(___pawn)) return true; __result = ThinkResult.NoJob; return false; }
+        private static bool Override(Pawn ___pawn) => Standing(___pawn) || !TryOwned(___pawn, out _) && !Controlled(___pawn);
         private static bool Opportunistic(Pawn ___pawn, ref Job? __result)
-        { if (!TryOwned(___pawn, out _) && !Controlled(___pawn)) return true; __result = null; return false; }
+        { if (Standing(___pawn)) return true; if (!TryOwned(___pawn, out _) && !Controlled(___pawn)) return true; __result = null; return false; }
         private static bool Finalizer(JobDriver __instance, ref Job? __result)
-        { if (!TryOwned(__instance.pawn, out _) && !Controlled(__instance.pawn)) return true; __result = null; return false; }
+        { if (Standing(__instance.pawn)) return true; if (!TryOwned(__instance.pawn, out _) && !Controlled(__instance.pawn)) return true; __result = null; return false; }
         private static void DisorientationStarting(HediffComp_Disorientation __instance, out Pawn? __state)
         { __state = imposedEffectPawn; imposedEffectPawn = __instance.Pawn; }
         private static void ImposedAbilityStarting(LocalTargetInfo target, out Pawn? __state)
@@ -631,6 +624,8 @@ namespace HomeBridge.BridgeTools
             // An admitted Hands-scope direct job (a hunt, an equip) takes a standby pawn as it took an unassigned one.
             if (!offered && PawnActivities.IsStandby(e.Order) && NativeControlAuthority.TryGetForGame(Current.Game, out var scope) && scope?.IsOwned == true)
             { Yield(e, "admitted_direct_job"); Entries.Remove(___pawn); return true; }
+            // A standby pawn's vanilla job starts and keeps the standby entry, so any coupled order still replaces it.
+            if (!offered && PawnActivities.IsStandby(e.Order)) return true;
             if (!offered)
             { Fault(e, "unauthorized_job_substitution"); return false; }
             if (e.Step < e.Order.Steps.Length && e.Order.Steps[e.Step].Kind == PawnActivityKind.Recipe && newJob.bill == null)
@@ -648,20 +643,17 @@ namespace HomeBridge.BridgeTools
             if (!Entries.TryGetValue(___pawn, out var e) || e.Running == null || !ReferenceEquals(___pawn.CurJob, e.Running)) return;
             if (e.State is "failed" or "completed") return;
             var state = e.Running.def == holdDef ? "holding" : "started";
-            if (state == e.State && PawnActivities.IsStandby(e.Order)) return; // One row per standby, not per wander leg.
             e.State = state; e.Tick = Find.TickManager.TicksGame; Emit(e);
         }
         private static void Ending(Pawn ___pawn, JobCondition condition, ref bool startNewJob, out bool __state)
         {
-            __state = !replacing && Owned(___pawn) && startNewJob;
+            __state = !replacing && Committed(___pawn) && startNewJob;
             if (__state) startNewJob = false;
             if (replacing || !Entries.TryGetValue(___pawn, out var e) || e.Running == null || !ReferenceEquals(e.Running, ___pawn.CurJob) || e.RunningId != ___pawn.CurJob.loadID) return;
             var hold = e.Running.def == holdDef;
             NativeActivityRecipe.Cleanup(e.Running.bill);
             e.Running = null;
             if (e.State == "failed") return;
-            // Standby never completes or fails on a job's end: Ended offers the next wander leg, and time keeps running.
-            if (PawnActivities.IsStandby(e.Order)) return;
             if (condition == JobCondition.Succeeded && !hold)
             {
                 // A Sow step stays current until its cell count is sown and a set step until its member count is done (#3613);
@@ -680,7 +672,7 @@ namespace HomeBridge.BridgeTools
         }
         private static void Ended(Pawn ___pawn, bool __state)
         {
-            if (!__state || !Owned(___pawn) || ___pawn.CurJob != null) return;
+            if (!__state || !Committed(___pawn) || ___pawn.CurJob != null) return;
             var result = ThinkResult.NoJob; ThinkTreeDef tree = ___pawn.thinker.MainThinkTree;
             Select(___pawn, ref result, ref tree);
             if (result.IsValid) ___pawn.jobs.StartJob(result.Job, JobCondition.None, result.SourceNode, thinkTree: tree, tag: result.Tag);

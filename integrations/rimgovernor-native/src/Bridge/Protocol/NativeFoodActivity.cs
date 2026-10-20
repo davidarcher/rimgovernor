@@ -21,7 +21,7 @@ internal static class NativeFoodActivity
         internal bool AllowCooking { get; init; }
     }
 
-    internal static bool Available(Pawn pawn) => pawn.CurJob == null || pawn.CurJob.def == JobDefOf.Wait || pawn.CurJob.def == JobDefOf.Wait_Wander || pawn.CurJob.def == JobDefOf.GotoWander;
+    internal static bool Available(Pawn pawn) => pawn.CurJob == null || NativePawnActivities.Standing(pawn) || pawn.CurJob.def == JobDefOf.Wait || pawn.CurJob.def == JobDefOf.Wait_Wander || pawn.CurJob.def == JobDefOf.GotoWander;
     /// <summary>
     /// Every free colonist's harvest and haul rows for the asked plants (or, executing, the one pawn's), one per
     /// accepting storage group: its cheapest flood-nearest exact cell (#3341). A source's route to a cell is searched once for every colonist (NativePathLegs).

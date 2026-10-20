@@ -219,7 +219,7 @@ before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
 The initial step families are exact thing-target work (Clean, Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused unless the order's earlier RemoveRoof steps take off the roof it leaves unsupported ([prior steps](#prior-steps), #3617); a designation the room reconcile stood by Designate is read back as a removal op and ordered the same way, and the order marks its record `Ordered`, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613; RemoveFloor is the cell set step, Work over a set of floored cells through `WorkGiver_ConstructRemoveFloor`, the order standing each member cell's RemoveFloor designation, #3615; Mine is the third, Work over a set of rock through `WorkGiver_Miner`, the order standing each member's Mine designation under the mine_safety guard, #3616; RemoveRoof is the second cell set step, Work over a set of roofed cells through `WorkGiver_RemoveRoof`, the order putting each member in the NoRoof area, #3617), selected food/count,
-selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold and Standby (explicit idle). Unsupported families are refused, not sent to a
+selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold and Standby (vanilla job selection, #3662). Unsupported families are refused, not sent to a
 native economic selector. Recreation without a building (walks, skygazing, social relaxing, drugs,
 reading) remains outside this initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,
 capabilities, native target checks and native reservations. They may still perform
@@ -445,14 +445,16 @@ After a round's coupled selection, the brain gives each available, unoccupied
 colonist that no admitted plan, in-flight activity action or native assignment
 takes an explicit `Standby`: one order whose single step has no target, count,
 workgiver, task or deadline (`standby-<id>` Method, revision zero). Native
-execution offers a colony wander (`JobGiver_WanderColony`, else `Wait_Wander`),
-never work. Standby claims no pawn or target, so selected work, eat or sleep
-acquires the pawn from revision zero and the standby Method ends; work candidacy
-and food/support availability treat a standby pawn as free. Standby never
-steps, completes or fails: a wander ending re-offers it, and drafting, an
-involuntary state, a player order or an admitted direct job (hunt, equip) yields
-it quietly (`released`) instead of faulting. Needs are met by the brain's ordinary
-selection replacing standby, not by standby itself.
+execution runs vanilla job selection for it (#3662): the think tree's work, needs
+and joy givers under the colonist's work priorities, so designations, bills and
+zones with no coupled binding are worked. Standby claims no pawn or target, so
+selected work, eat or sleep acquires the pawn from revision zero, interrupts the
+vanilla job and the standby Method ends; a new standby replacing a standby leaves
+the job running. Work candidacy and food/support availability treat a standby
+pawn as free, and the pawn read reports it with no job, whatever vanilla job it
+runs. Standby never steps, completes or fails, and drafting, an involuntary
+state, a player order or an admitted direct job (hunt, equip) yields it quietly
+(`released`) instead of faulting.
 
 An eligible pawn without an authorized activity returns no native voluntary job
 and publishes nothing (#3556; the `unassigned_voluntary_pawn` invalidation is gone): the brain's next rounds review

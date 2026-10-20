@@ -240,7 +240,7 @@ namespace HomeBridge.BridgeTools
             var lord = pawn.GetLord();
             if (lord?.LordJob != null) { row = row with { LordJobClass = Identifier(lord.LordJob.GetType().Name) }; if (lord.CurLordToil != null) row = row with { LordToilClass = Identifier(lord.CurLordToil.GetType().Name) }; }
             // A pawn without a job tracker (a corpse's) carries no job block.
-            if (pawn.jobs?.jobQueue != null) row = row with { Job = JobRow(pawn.CurJob, pawn.jobs.jobQueue.Count) };
+            if (pawn.jobs?.jobQueue != null) row = row with { Job = JobRow(NativePawnActivities.Standing(pawn) ? null : pawn.CurJob, pawn.jobs.jobQueue.Count) };
             row = row with { Biotech = NativeBiotechFacts.Pawn(pawn) };
             row = row with { Anomaly = NativeAnomalyFacts.Pawn(pawn) };
             row = NativePawnRoyalty.Apply(pawn, row);

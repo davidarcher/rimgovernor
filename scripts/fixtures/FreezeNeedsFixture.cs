@@ -67,7 +67,7 @@ namespace HomeBridge.BridgeTools
     // Disposable test setup only (#3322). Under brain authority every controlled colonist holds a Hands
     // assignment: the brain gives a colonist it selected nothing for an explicit standby. A native-only case runs
     // no brain, so a fixture that needs it (pawn cooking, pawn delivery) stands in for that one decision: this
-    // installs the same standby order (native wander, no work, no deadline) for each controlled colonist with no
+    // installs the same standby order (vanilla job selection, no deadline; #3662) for each controlled colonist with no
     // assignment and an idle job. It never replaces an assignment, so a fixture's own orders keep their pawns;
     // under VanillaColonists no colonist is controlled and nothing is installed.
     public static class StandbyColonists
@@ -96,6 +96,8 @@ namespace HomeBridge.BridgeTools
                 var invalid = NativePawnActivities.Validate(batch, context);
                 if (invalid != null) { refused.Add(id + ":" + invalid.Detail); continue; }
                 NativePawnActivities.Apply(batch, context);
+                // Standby runs vanilla work (#3662); a fixture's idle colonist must not work the staged targets itself.
+                pawn.workSettings?.DisableAll();
                 installed.Add(id);
             }
             return new { success = true, active = true, standby = installed.Count, pawns = installed, refused };
