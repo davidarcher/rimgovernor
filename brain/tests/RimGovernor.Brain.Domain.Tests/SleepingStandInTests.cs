@@ -47,29 +47,44 @@ public sealed class SleepingStandInTests
         Assert.Null(ShelterRules.StandInRoom(new LayoutPlan { Rooms = [Workshop] }, new PlannedSelection(), _ => true));
     }
 
+    private static readonly Cell Spot = new(1, 2);
+
     [Fact]
-    public void TheCellsAreTheFreeInteriorThenTheRingsNeighboursAndOnlyTheNeighboursWithNoTiledPieces()
+    public void TheAnchorsAreTheFreeInteriorThenTheRingsNeighboursAndOnlyTheNeighboursWithNoTiledPieces()
     {
         var bed = new InteriorPiece { Def = "Bed", Rect = new Rectangle { X = 10, Z = 0, Width = 1, Height = 2 } };
         var tiled = Plan with { Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [Bedroom.Id] = [bed] } };
+        var ring = Bedroom.WallRing().Cells().ToHashSet();
 
-        var cells = ShelterRules.StandInCells(tiled, Bedroom);
-        var interior = Bedroom.Region.Cells().Where(c => !(c.X == 10 && c.Z <= 1)).ToList();
-        Assert.Equal(interior, cells.Take(interior.Count));
-        Assert.DoesNotContain(new Cell(10, 0), cells);
-        Assert.All(cells.Skip(interior.Count), c => Assert.False(Bedroom.Region.Contains(c)));
+        var anchors = ShelterRules.StandInAnchors(tiled, Bedroom, Spot);
+        // A 1x2 spot at South covers its anchor and the cell below: (11,1), (11,2), (12,1), (12,2) fit beside the bed.
+        var inside = anchors.TakeWhile(a => Bedroom.Region.Contains(a.Anchor)).ToList();
+        Assert.Equal([new Cell(11, 1), new Cell(11, 2), new Cell(12, 1), new Cell(12, 2)], inside.Select(a => a.Anchor).Order(Comparer<Cell>.Create((l, r) => (l.X, l.Z).CompareTo((r.X, r.Z)))));
+        Assert.All(inside, a => Assert.All(a.Footprint, c => Assert.True(Bedroom.Region.Contains(c) && !(c.X == 10 && c.Z <= 1))));
+        // The south row's anchors would spill onto the ring (and its door): never offered, inside or out.
+        Assert.All(anchors, a => Assert.DoesNotContain(a.Footprint, ring.Contains));
+        Assert.All(anchors.Skip(inside.Count), a => Assert.All(a.Footprint, c => Assert.False(Bedroom.Region.Contains(c))));
 
-        var bare = ShelterRules.StandInCells(Plan, Bedroom);
+        var bare = ShelterRules.StandInAnchors(Plan, Bedroom, Spot);
         Assert.NotEmpty(bare);
-        Assert.All(bare, c => Assert.False(Bedroom.Region.Contains(c)));
-        // Next to the ring, never on it.
-        Assert.All(bare, c => Assert.False(Bedroom.WallRing().Contains(c)));
-        Assert.All(bare, c => Assert.Contains(Bedroom.WallRing().Cells(), w => Math.Abs(w.X - c.X) + Math.Abs(w.Z - c.Z) == 1));
+        Assert.All(bare, a => Assert.All(a.Footprint, c => Assert.False(Bedroom.Region.Contains(c) || ring.Contains(c))));
+        Assert.All(bare, a => Assert.Contains(a.Footprint, c => ring.Any(w => Math.Abs(w.X - c.X) + Math.Abs(w.Z - c.Z) == 1)));
 
         // A neighbour room's floor and ring are never offered.
         var crowded = new LayoutPlan { Rooms = [Bedroom, Planned(5, PlannedRole.Workshop, 14)] };
         var neighbour = crowded.Rooms[1];
-        Assert.DoesNotContain(ShelterRules.StandInCells(crowded, Bedroom), c => neighbour.Region.Contains(c) || neighbour.WallRing().Contains(c));
+        Assert.DoesNotContain(ShelterRules.StandInAnchors(crowded, Bedroom, Spot).SelectMany(a => a.Footprint), c => neighbour.Region.Contains(c) || neighbour.WallRing().Contains(c));
+    }
+
+    [Fact]
+    public void ThePickedStandInsNeverShareACell()
+    {
+        // (11,1) and (11,2) both preview placeable alone but share (11,1); a pending spot holds (12,0)..(12,1).
+        IReadOnlyList<Cell>[] footprints = [[new(11, 0), new(11, 1)], [new(11, 1), new(11, 2)], [new(12, 0), new(12, 1)], [new(12, 1), new(12, 2)], [new(13, 1), new(13, 2)]];
+        var blocked = new HashSet<Cell> { new(12, 0) };
+        Assert.Equal([0, 3], ShelterRules.PickStandIns(footprints, blocked, _ => true, 2));
+        // An unplaceable candidate is skipped and claims nothing.
+        Assert.Equal([1, 3, 4], ShelterRules.PickStandIns(footprints, blocked, i => i != 0, 3));
     }
 
     private static Room Standing(string id, PlannedRoom room, params string[] beds) => new()

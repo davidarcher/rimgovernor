@@ -2,15 +2,16 @@ using System.Globalization;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>layout/first-room-ice</c> (#3659): a colony of three on a pinned -30 C map with no roofed room. The injected plan
 /// holds a heated barracks (a campfire piece, nothing built; staged walls would be auto-roofed by the game at once) and a
-/// bedroom, as an ice-sheet first plan orders them (FirstRoomPlanTests). Under the served brain the first coupled selection that
-/// starts a planned room starts the barracks, and no colonist's hypothermia reaches HypothermiaSerious before the barracks
-/// stands roofed and closed. Deriving the barracks on a cold map is policy; this case owns the native survival to closure.
+/// bedroom, as an ice-sheet first plan orders them (FirstRoomPlanTests). The brain may replan them: under the served brain
+/// some sleeping room (a roofed proper Bedroom or Barracks, whichever plan it came from) stands closed before any colonist's
+/// hypothermia reaches HypothermiaSerious. Deriving the barracks on a cold map is policy; this case owns the native survival to closure.
 /// </summary>
 internal static class LayoutFirstRoomIce
 {
@@ -18,6 +19,7 @@ internal static class LayoutFirstRoomIce
     private const float Outdoor = -30f;
     private const int BarracksId = 1;
     private const int BedroomId = 2;
+    private static readonly HashSet<string> SleepingRoles = new(["Bedroom", "Barracks"], StringComparer.OrdinalIgnoreCase);
 
     // A 16x7 site: the barracks (5x3 interior, ring 7x5) at its west end with its door south, the bedroom's 3x3 interior at
     // (11..13, 1..3), the wood and meals between them.
@@ -48,8 +50,8 @@ internal static class LayoutFirstRoomIce
     {
         Name = "layout/first-room-ice",
         Scope = "Issue #3659: on a pinned -30 C map, three colonists with an injected plan holding a heated barracks (nothing built) "
-            + "and a bedroom: the first coupled selection starting a planned room starts the barracks, and no colonist's "
-            + "hypothermia reaches HypothermiaSerious (0.35) before the barracks stands roofed and closed.",
+            + "and a bedroom: a sleeping room (the injected ones or a replan's) stands roofed and closed before any colonist's "
+            + "hypothermia reaches HypothermiaSerious (0.35).",
         Ticks = 15_000, // a hang guard: the roof is a few game hours of work
         Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = Colonists },
@@ -65,6 +67,10 @@ internal static class LayoutFirstRoomIce
     {
         var site = s.Staged!.Site ?? throw new AcceptanceException("the ice stage found no site");
         var interior = new Rectangle { X = site.X + 1, Z = site.Z + 1, Width = 5, Height = 3 };
+        if (await FirstRoomReads.RoofedRoomsAsync(s, "rooms-before", cancellationToken).ConfigureAwait(false) is { Count: > 0 } standing)
+        {
+            throw new AcceptanceException($"the lab already holds roofed proper rooms ({string.Join(' ', standing.Select(r => r.Id))}): the precondition hides the shelter");
+        }
         await TypedLayoutPlan.InjectAsync(s, new LayoutPlan
         {
             NextRoomId = 3,
@@ -82,7 +88,7 @@ internal static class LayoutFirstRoomIce
         var before = CoupledSelections.Of(s, 0).Select(r => r.Sequence).DefaultIfEmpty(0UL).Max();
         CoupledSelectionRow? first = null;
         var worst = (Pawn: "", Severity: 0.0);
-        var closed = false;
+        Observations.RoomState? closed = null;
         _ = await s.ServeUntilAsync("barracks-closed", s.TicksLeft, async ct =>
         {
             first ??= CoupledSelections.Of(s, before).FirstOrDefault(r => r.SelectedIds.Any(id => id.StartsWith("planned/room", StringComparison.Ordinal)));
@@ -94,25 +100,21 @@ internal static class LayoutFirstRoomIce
                 }
             }
             var rooms = await FirstRoomReads.RoofedRoomsAsync(s, "rooms", ct).ConfigureAwait(false);
-            closed = rooms.Any(r => r.Center is { } c && RegionRules.RectRegion(interior).Contains(new Cell(c.X, c.Z)));
+            closed = rooms.FirstOrDefault(r => SleepingRoles.Contains(r.Role ?? ""));
             var serious = worst.Severity >= DashEstimateRules.HypothermiaSerious;
-            return (string.Create(CultureInfo.InvariantCulture, $"selected={first is not null} worst={worst.Pawn}:{worst.Severity:F3} closed={closed}"), closed || serious);
+            return (string.Create(CultureInfo.InvariantCulture, $"selected={first is not null} worst={worst.Pawn}:{worst.Severity:F3} closed={closed?.Id}"), closed is not null || serious);
         }, cancellationToken).ConfigureAwait(false);
 
         s.Record("first-selection", first is null ? "none" : string.Join(' ', first.SelectedIds));
+        s.Record("closed-room", closed is null ? "none" : string.Create(CultureInfo.InvariantCulture, $"{closed.Id}:{closed.Role}:{closed.CellCount}:{closed.TemperatureC:F1}C"));
         if (worst.Severity >= DashEstimateRules.HypothermiaSerious)
         {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{worst.Pawn} reached hypothermia {worst.Severity:F3} before the barracks closed"));
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{worst.Pawn} reached hypothermia {worst.Severity:F3} before a sleeping room closed"));
         }
-        if (!closed)
+        if (closed is null)
         {
-            throw new AcceptanceException("the barracks never stood roofed and closed");
+            throw new AcceptanceException("no sleeping room ever stood roofed and closed");
         }
-        var row = first ?? throw new AcceptanceException("no coupled selection started a planned room");
-        var barracks = string.Create(CultureInfo.InvariantCulture, $"planned/room{BarracksId}");
-        if (!row.SelectedIds.Any(id => id == barracks || id.StartsWith(barracks + "/", StringComparison.Ordinal)))
-        {
-            throw new AcceptanceException($"the first planned-room selection did not start the barracks: [{string.Join(' ', row.SelectedIds)}]");
-        }
+        _ = first ?? throw new AcceptanceException("no coupled selection started a planned room");
     }
 }

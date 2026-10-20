@@ -5,7 +5,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
     /// <summary>
     /// The day-one floor (#3659): while the foothold sleeping and indoor places are not both met, places the missing
     /// stand-in sleeping spots (ShelterRules.StandInsOwed) on the first selected sleeping room's free interior and the
-    /// cells next to its ring (ShelterRules.StandInCells), outdoors allowed, as one Survive-tier Method per shortfall.
+    /// cells next to its ring (ShelterRules.StandInAnchors, footprints apart: PickStandIns), outdoors allowed, as one Survive-tier Method per shortfall.
     /// Null when nothing is owed, no sleeping room is planned, a stand-in Method is still open, the shortfall's Method
     /// already ran, no candidate cell is placeable or the Method is refused: the sleeping ladder then goes on as usual.
     /// </summary>
@@ -45,7 +45,11 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             blocked.UnionWith(h.Footprint);
         }
-        var cells = ShelterRules.StandInCells(plan, room).Where(c => !blocked.Contains(c)).ToList();
+        if (!RoundsBuildingPlanner.DefinitionRow(facts, planner.Definition).Def.Size.TryGetValue(out var size) || size.Width <= 0 || size.Height <= 0)
+        {
+            return null;
+        }
+        var cells = ShelterRules.StandInAnchors(plan, room, new Cell(size.Width, size.Height)).Where(c => !c.Footprint.Any(blocked.Contains)).ToList();
         if (cells.Count == 0)
         {
             return null;
@@ -53,7 +57,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var actions = new List<DomainAction>(cells.Count);
         for (var i = 0; i < cells.Count; i++)
         {
-            var spot = new Domain.Building(planner.Definition, cells[i], Rotation.South, "");
+            var spot = new Domain.Building(planner.Definition, cells[i].Anchor, Rotation.South, "");
             actions.Add(DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{i}")), spot, ConstructionTierRules.PlannerTier(ShelterFamily.Sleeping.FilingKey, Pol.Phase.HousingShelter)));
         }
         void Check()
@@ -85,15 +89,13 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         }
         var stock = new Pol.StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
         var selected = new List<Pol.Preview>();
-        for (var i = 0; i < previews.Count && selected.Count < missing; i++)
+        // Each spot is previewed alone, so two whose footprints overlap both preview placeable: keep the picks apart.
+        var picks = ShelterRules.PickStandIns([.. cells.Select(c => c.Footprint)], blocked, i =>
+            previews[i].Preview.CanPlace.TryGetValue(out var can) && can && previews[i].Preview.SafeToPlace.TryGetValue(out var safe) && safe, missing);
+        foreach (var i in picks)
         {
-            var v = previews[i].Preview;
-            if (!v.CanPlace.TryGetValue(out var can) || !can || !v.SafeToPlace.TryGetValue(out var safe) || !safe)
-            {
-                continue;
-            }
             stock = RoundsBuildingPlanner.MergeRoundsStock(stock, previews[i].Stock, selected.Count == 0);
-            selected.Add(v);
+            selected.Add(previews[i].Preview);
         }
         if (selected.Count == 0)
         {

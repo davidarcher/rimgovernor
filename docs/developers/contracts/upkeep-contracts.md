@@ -314,7 +314,10 @@ under its Need. There is no starter shelter and no Construction labor hold.
   `shelter/sleeping` first places the missing sleeping places as stand-in
   `SleepingSpot`s (`ShelterRules.StandInsOwed`, one Survive-tier `stand-in-sleeping-*`
   Method per shortfall, none while one is open) in the first selected sleeping room:
-  its free interior, then the cells next to its ring, outdoors allowed. A spot houses
+  its free interior, then the cells next to its ring, outdoors allowed. Each spot's
+  whole footprint (1x2 at South) must lie on those cells, never on the ring or its
+  door, and the picked spots and pending blueprints never share a cell
+  (`ShelterRules.StandInAnchors`, `PickStandIns`). A spot houses
   no one in the bedroom census, so its sleeper is still walked into a bedroom, and a
   vacant spot is cleared once the beds in enclosed rooms take everyone.
 
