@@ -11,5 +11,7 @@ public static class LayoutCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(LayoutPowerSites.Case());
         registry.Register(LayoutFirstPlanHeld.Case());
+        registry.Register(LayoutFirstRoomTemperate.Case());
+        registry.Register(LayoutFirstRoomIce.Case());
     }
 }

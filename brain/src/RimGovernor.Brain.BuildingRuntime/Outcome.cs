@@ -199,7 +199,6 @@ partial record struct Verdict
     /// </summary>
     public static Verdict AdmissionRefused(Sto.AdmissionRefusal refusal) => refusal.Kind switch
     {
-        Sto.RefusalKind.ConstructionLabor => AwaitingPlan("construction_labor", "initial_shelter"),
         Sto.RefusalKind.ProductionMaterial => AwaitingPlan("production_material", "insufficient_unknown_or_bounded"),
         _ => Refuse(Cause.SharedAdmission, refusal.Message, ""),
     };
@@ -247,8 +246,6 @@ partial record struct Verdict
 
     /// <summary>Holds a site search that anchors on the layout plan until one exists: nothing is sited on where the colonists stand.</summary>
     public static readonly Verdict BuildingReasonNoLayoutPlan = Verdict.AwaitingPlan("layout_plan", "");
-
-    public static readonly Verdict BuildingReasonNoWeaponBench = Verdict.AwaitingPlan("weapon_bench", "");
 
     internal static readonly Verdict BuildingReasonStoneShellUnstocked = Verdict.AwaitingPlan("replacement_material", "");
     internal static readonly Verdict BuildingReasonDefensePerimeterNoStone = Verdict.AwaitingPlan("perimeter_stone", "");

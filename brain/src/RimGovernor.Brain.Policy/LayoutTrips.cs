@@ -50,21 +50,13 @@ public static partial class LayoutTripsRules
         return (bw, bd);
     }
 
-    /// <summary>Why the graph holds the shelter: a fresh plan owes the colonists a roof from day one.</summary>
-    public const string ReasonShelterRoom = "shelter_day_one_room";
-
     /// <summary>Why the graph holds a throne room: a title asks one.</summary>
     public const string ReasonThroneRoom = "throne_room_owed";
 
-    /// <summary>The shelter and throne nodes for s.</summary>
+    /// <summary>The throne node for s. A first plan seeds no shelter (#3659): its first rooms are the station graph's.</summary>
     public static List<RoomNode> SeedRoomNodes(SeedRooms s)
     {
         var nodes = new List<RoomNode>();
-        if (s.Shelter)
-        {
-            var area = LayoutShelterRules.ShelterInteriorArea(s.Colonists, LayoutShelterRules.ShelterCampfires(s.Cold), LayoutShelterRules.ShelterCoolers(s.Hot));
-            nodes.Add(new RoomNode { Id = Wire.Name(LayoutSurveyRules.PlannedShelter), Role = LayoutSurveyRules.PlannedShelter, Area = area, Reason = ReasonShelterRoom });
-        }
         if (s.ThroneArea > 0)
         {
             nodes.Add(new RoomNode { Id = Wire.Name(LayoutThroneRules.PlannedThrone), Role = LayoutThroneRules.PlannedThrone, Area = s.ThroneArea, Reason = ReasonThroneRoom });
@@ -114,13 +106,6 @@ partial record PlannedRoom
 /// <summary>The special rooms a plan is asked to hold beyond its stations.</summary>
 public sealed record SeedRooms
 {
-    /// <summary>Asks for the day-1 shelter for Colonists on a Cold or Hot map.</summary>
-    public bool Shelter { get; init; }
-
-    public int Colonists { get; init; }
-    public bool Cold { get; init; }
-    public bool Hot { get; init; }
-
     /// <summary>The interior cells of the throne room asked, 0 asks for none.</summary>
     public int ThroneArea { get; init; }
 }

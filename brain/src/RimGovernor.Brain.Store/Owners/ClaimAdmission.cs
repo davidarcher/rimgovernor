@@ -25,9 +25,6 @@ public enum RefusalKind
     /// <summary>The shared review refused it: a Safeguard, the shared work resources, an unsupported owner use, the review moved on or a census bound.</summary>
     SharedAdmission,
 
-    /// <summary>The initial shelter holds the Construction labor (<see cref="ConstructionLaborRules.ConstructionLaborHeld"/>).</summary>
-    ConstructionLabor,
-
     /// <summary>A fixed production batch cannot claim its material: insufficient, unknown or the claim bound is exhausted.</summary>
     ProductionMaterial,
 }

@@ -1,21 +1,14 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// The armory's work-ledger declarer and the crafting spot it asks for: the declaration prices the weapon and shell
-/// demand and notes whether the spot is wanted (an unarmed fighter with no weapon bench, or a spot owed down); the
-/// military/equipment Need's work step places or retires it (#3259).
+/// The armory's work-ledger declarer: the declaration prices the weapon and shell demand (#3259). With no bench
+/// standing its orders name a catalog recipe and no bench, and the plan hosts the station that works it (#3659).
 /// </summary>
 public sealed partial class RoundsArmoryPlanner
 {
     private readonly Rounder _reviewer;
     internal Rounder Reviewer => _reviewer;
     private readonly FacadeNativeClient _native;
-
-    /// <summary>Places the crafting spot under the equipment Need; null when the native source cannot build.</summary>
-    private readonly RoundsBuildingPlanner? _spot;
-
-    private readonly object _mu = new();
-    private bool _spotNeeded;
 
     public RoundsArmoryPlanner(Rounder reviewer, FacadeNativeClient native)
     {
@@ -25,7 +18,6 @@ public sealed partial class RoundsArmoryPlanner
         }
         _reviewer = reviewer;
         _native = native;
-        _spot = NewCraftingSpotPlanner(reviewer, native);
     }
 }
 
@@ -34,34 +26,6 @@ public sealed partial class Rounder
     private readonly object _equipmentMu = new();
     private (GenerationSnapshot World, bool Owed) _equipment;
 
-    /// <summary>Whether the crafting spot stands with a usable bench elsewhere, so the spot is owed its retirement.</summary>
-    internal async Task<Fact<bool>> CraftingSpotRetireOwedAsync(GenerationSnapshot snapshot, ColonyProjection facts, CancellationToken ct)
-    {
-        if (!facts.Facts.CurrentConstruction.TryGetValue(out var census))
-        {
-            return Unknown<bool>();
-        }
-        var standing = census.Buildings.Any(b => b.Building?.Definition == RoundsRules.CraftingSpotDefinition);
-        if (!standing)
-        {
-            return Known(false);
-        }
-        if (Native is not FacadeNativeClient source)
-        {
-            return Unknown<bool>();
-        }
-        var reads = (await source.ReadGearBenchesAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false));
-        foreach (var read in reads)
-        {
-            read.Bench.Usable.TryGetValue(out var usable);
-            if (usable && read.Bench.Def != RoundsRules.CraftingSpotDefinition && RoundsArmoryPlanner.WeaponBenchHosted([read.Bench]))
-            {
-                return Known(true);
-            }
-        }
-        return Known(false);
-    }
-
     /// <summary>
     /// Notes whether the review in <paramref name="world"/> found the composed military/equipment Need unmet: the
     /// workshop ladder's research rung for equipment is owed only then. Unknown is not owed.
@@ -69,7 +33,7 @@ public sealed partial class Rounder
     internal void NoteEquipment(GenerationSnapshot world, RoundsFacts facts)
     {
         var owed = Needs.Contains(MilitaryFamily.Equipment)
-            && MilitaryFamily.EquipmentMet(new MilitaryFacts { Gear = facts.Gear, CraftingSpotRetireOwed = facts.CraftingSpotRetireOwed, ShellsShort = facts.ShellsShort }).TryGetValue(out var met)
+            && MilitaryFamily.EquipmentMet(new MilitaryFacts { Gear = facts.Gear, ShellsShort = facts.ShellsShort }).TryGetValue(out var met)
             && !met;
         lock (_equipmentMu)
         {
@@ -84,17 +48,5 @@ public sealed partial class Rounder
         {
             return _equipment.World == world && _equipment.Owed;
         }
-    }
-}
-
-partial class RoundsArmoryPlanner
-{
-    internal static RoundsBuildingPlanner? NewCraftingSpotPlanner(Rounder reviewer, FacadeNativeClient native)
-    {
-        if (native is not IRoundsBuildingSource building)
-        {
-            return null;
-        }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = building, Concern = MilitaryFamily.Equipment.FilingKey, Need = MilitaryFamily.Equipment, Definition = RoundsBuildingPlanner.CraftingSpotDefinition, Environment = PlacementEnvironment.Anywhere, CraftingSpot = true };
     }
 }

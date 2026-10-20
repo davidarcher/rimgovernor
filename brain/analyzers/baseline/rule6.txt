@@ -73,7 +73,6 @@ BuildingRuntime/Rounds/RoundsResourceSupply.cs|Rounder.BuildResourceSupplyAsync|
 BuildingRuntime/RoundsShellInteriors.cs|RoundsShellInteriors.ShellInteriors|"Door"
 BuildingRuntime/RoundsShellInteriors.cs|RoundsShellInteriors.ShellInteriors|"Wall"
 BuildingRuntime/RoundsShelter.cs|RoundsBuildingPlanner.NewRoundsExpansionPlanner|"Wall"
-BuildingRuntime/RoundsShelter.cs|RoundsBuildingPlanner.NewRoundsShelterPlanner|"Wall"
 BuildingRuntime/RoundsShelterBunks.cs|RoundsBuildingPlanner.ShelterBedDefinition|"Bed"
 BuildingRuntime/RoundsShelterBunks.cs|RoundsBuildingPlanner.StepShelterBunksAsync|"SleepingSpot"
 BuildingRuntime/RoundsSleeping.cs|RoundsBuildingPlanner.PreviewSearchAsync|"Campfire"

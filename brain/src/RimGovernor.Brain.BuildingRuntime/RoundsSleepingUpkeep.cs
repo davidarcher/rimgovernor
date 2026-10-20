@@ -1,7 +1,8 @@
 namespace RimGovernor.Brain.BuildingRuntime;
 
 /// <summary>
-/// Answers the shelter family's sleeping Need (shelter/sleeping, #3257): it transfers ownership of a vacant suitable bed to a colonist
+/// Answers the shelter family's sleeping Need (shelter/sleeping, #3257). While the day-one floor is short it first places
+/// stand-in sleeping spots (StandInSpotsAsync, #3659). It transfers ownership of a vacant suitable bed to a colonist
 /// without one (a one-shot AssignIntent native checks for roof, access, allowed area and the pawn's
 /// comfortable band), and when no bed can be assigned it stages one through the same building ladder the
 /// hospital walks (furnish a Bedroom-hosting room warm enough for the waiting colonists, else a starter shell
@@ -74,6 +75,11 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         List<string> definitions = ["Wall", "Door", .. RoomQualityRules.RoomBeautyDefinitions(), .. Reviewer.RememberedThrones(), .. Reviewer.Census.RememberedWorship()];
         var reading = await Reviewer.ObserveRoomsAsync((Observation.IRoundsSource)Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), [.. definitions], call).ConfigureAwait(false);
         var facts = reading.Projection;
+        // The day-one floor's stand-in spots come before any bed change (#3659).
+        if (await StandInSpotsAsync(state, review, goal, facts, call, epoch).ConfigureAwait(false) is { } standIn)
+        {
+            return standIn;
+        }
         // One packed read per pass, shared by every owner of stored pieces.
         var stock = new PackedStock(Native, Boundary.Identity(state.Snapshot));
         var request = SleepingRequest(facts, review);

@@ -17,11 +17,11 @@ public sealed class BedMergePriceTests
     private const string Pool = "Bed/sleep";
 
     // Twelfths' outdoor means (C): a temperate map and an ice sheet.
-    private static readonly double[] Temperate = [6, 8, 11, 14, 17, 20, 22, 21, 18, 14, 10, 7];
-    private static readonly double[] IceSheet = [-40, -38, -34, -30, -26, -24, -23, -25, -28, -32, -36, -39];
+    internal static readonly double[] Temperate = [6, 8, 11, 14, 17, 20, 22, 21, 18, 14, 10, 7];
+    internal static readonly double[] IceSheet = [-40, -38, -34, -30, -26, -24, -23, -25, -28, -32, -36, -39];
 
     /// <summary>A free bed as the game scores it (a lone one a bedroom, several a barracks) and a climate model in the game's numbers.</summary>
-    private static readonly StationCatalog Catalog = new()
+    internal static readonly StationCatalog Catalog = new()
     {
         Stations = new Dictionary<string, Station>
         {
@@ -65,10 +65,10 @@ public sealed class BedMergePriceTests
         BedMerge = price,
     };
 
-    private static readonly BedMergeFacts Calm = new() { Losses = [0.004, 0.004, 0.004] };
+    internal static readonly BedMergeFacts Calm = new() { Losses = [0.004, 0.004, 0.004] };
 
     /// <summary>Wood walls: one wall cell's work and logs, and a door's.</summary>
-    private static BedMergeFacts Wood(BedMergeFacts f) => f with { WallCell = Known(0.004), Door = Known(0.02) };
+    internal static BedMergeFacts Wood(BedMergeFacts f) => f with { WallCell = Known(0.004), Door = Known(0.02) };
 
     private static BedMergePrice Price(BedMergeFacts facts, double[]? curve, bool harsh) => new()
     {
@@ -165,7 +165,7 @@ public sealed class BedMergePriceTests
     }
 
     // The crop that prices a colonist's work-day: the game's rice, six units of 0.05 nutrition a cell.
-    private static readonly CropChoice Rice = new()
+    internal static readonly CropChoice Rice = new()
     {
         Name = "Rice", Available = Known(true), Edible = Known(true), GrowDays = Known(6.0), FertilityMin = Known(0.5),
         FertilitySensitivity = Known(1.0), HarvestNutrition = Known(0.3), Demand = Known(1.6), DietAllowed = Known(true),

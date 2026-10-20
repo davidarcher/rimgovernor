@@ -293,6 +293,12 @@ public sealed record GearPlanningRequest
 
     /// <summary>The catalog's market values: the member a bill's filter picks in each slot (GearFilter).</summary>
     public ItemFacts Items { get; init; } = new();
+
+    /// <summary>
+    /// The catalog's craft recipes (RoundsFacts.Crafts): a need no standing bench's recipe makes is ordered from
+    /// one of these with no bench kind (#3659), and the station graph hosts it.
+    /// </summary>
+    public EquatableArray<GearRecipe> Crafts { get; init; }
 }
 
 /// <summary>One definition to produce, attributed to a pawn or to the armory's colony weapon batch.</summary>
@@ -528,8 +534,9 @@ public static class GearRules
 
     /// <summary>
     /// Resolves one need of count items against the benches: Wait with the standing bill (Bill) that already makes
-    /// it, Unknown while a bench's bills or a recipe's facts are unread, Produce with the first funded recipe.
-    /// Resolved is false when no recipe is funded, so the next need is judged.
+    /// it, Unknown while a bench's bills or a recipe's facts are unread, Produce with the first funded recipe, else
+    /// with the first funded catalog recipe no bench lists (CraftOf, #3659). Resolved is false when no recipe is
+    /// funded, so the next need is judged.
     /// </summary>
     internal static (GearMethod Method, bool Resolved) ProduceNeed(GearNeed n, int count, IReadOnlyList<GearBench> benches, GearPlanningRequest r)
     {
@@ -599,7 +606,49 @@ public static class GearRules
                 }
             }
         }
+        // No standing bench works a recipe making the need: the catalog's recipe is ordered with no bench (#3659).
+        if (CraftOf(r.Crafts, benches, n.Need.Definition, count, r.Items) is { } craft)
+        {
+            return (craft, true);
+        }
         return (new GearMethod(), false);
+    }
+
+    /// <summary>The bench id of a method a catalog recipe makes (CraftOf): no bench stands for it, so its order names no bench kind.</summary>
+    public const string CraftBench = "";
+
+    /// <summary>
+    /// The catalog recipes no standing bench lists, by definition: the recipes a declarer may order with no bench
+    /// (#3659). A recipe a standing bench lists is that bench's, whatever its availability there.
+    /// </summary>
+    public static IEnumerable<GearRecipe> UnhostedCrafts(EquatableArray<GearRecipe> crafts, IReadOnlyList<GearBench> benches)
+    {
+        var hosted = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var b in benches)
+        {
+            foreach (var recipe in b.Recipes.ValueOrDefault)
+            {
+                hosted.Add(recipe.Definition);
+            }
+        }
+        return crafts.Where(c => !hosted.Contains(c.Definition) && c.Available.TryGetValue(out var available) && available).OrderBy(c => c.Definition, StringComparer.Ordinal);
+    }
+
+    /// <summary>The Produce of the first funded available catalog recipe making product that no standing bench lists; null when there is none.</summary>
+    internal static GearMethod? CraftOf(EquatableArray<GearRecipe> crafts, IReadOnlyList<GearBench> benches, Resource product, int count, ItemFacts items)
+    {
+        foreach (var recipe in UnhostedCrafts(crafts, benches))
+        {
+            if (!ContainsResource(recipe.Products, product) || !recipe.Ingredients.TryGetValue(out var slots))
+            {
+                continue;
+            }
+            if (GearFilter(GearStockRules.GearBatchIngredients(slots, count), default, items) is { } filter)
+            {
+                return new GearMethod { Kind = GearMethodKind.Produce, Count = count, Bench = CraftBench, Recipe = recipe.Definition, Filter = EquatableArray.From(filter) };
+            }
+        }
+        return null;
     }
 
     internal static void ValidateGearProduction(IReadOnlyList<GearBench> benches)

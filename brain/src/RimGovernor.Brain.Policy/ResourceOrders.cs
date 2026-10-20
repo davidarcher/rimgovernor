@@ -26,6 +26,9 @@ public sealed record ResourceOrderRequest
     public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
 
     public Fact<EquatableArray<GearBench>> Benches { get; init; }
+
+    /// <summary>The catalog's craft recipes (RoundsFacts.Crafts), ordered with no bench kind when no standing bench makes a floor (#3659).</summary>
+    public EquatableArray<GearRecipe> Crafts { get; init; }
 }
 
 public static partial class ResourceRules
@@ -34,8 +37,9 @@ public static partial class ResourceRules
     /// the economy/resource Need's wanted bench orders. A floor below its target declares the first producing recipe's
     /// stock target (the dispatcher sizes how many benches carry it); a bill that already makes the resource
     /// is declared as it stands, which keeps it, so a floor whose stock recovered does not churn its bill.
-    /// Bench choice is the ledger's: the order names the bench kind only. A floor with no producing recipe
-    /// declares nothing (the planner's mining and sourcing methods take it). Abstain while the stock census,
+    /// Bench choice is the ledger's: the order names the bench kind only, none for a catalog recipe no bench
+    /// stands for (#3659). A floor with no producing recipe declares nothing (the planner's mining and sourcing
+    /// methods take it). Abstain while the stock census,
     /// the bench readback or a bill's identity is unread. Throws <see cref="DomainException"/> on an invalid floor.
     /// </summary>
     public static Declared DeclareResourceOrders(ResourceOrderRequest r)
@@ -70,7 +74,7 @@ public static partial class ResourceRules
                 orders.AddRange(standing);
                 continue;
             }
-            var method = SelectResourceMethod(new ResourceMethodRequest { Resource = f.Resource, Target = f.Target, Benches = r.Benches });
+            var method = SelectResourceMethod(new ResourceMethodRequest { Resource = f.Resource, Target = f.Target, Benches = r.Benches, Crafts = r.Crafts });
             if (method.Kind != ResourceMethodKind.Produce)
             {
                 // Nothing to place: an idle bill stands as it is.

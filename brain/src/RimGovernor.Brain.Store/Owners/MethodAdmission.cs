@@ -38,29 +38,12 @@ public sealed partial class Store
         AdmitAcquisitionMethod(tx, owner, plan);
         AdmitWorkMethod(tx, owner, plan);
         AdmitSupplyMethod(tx, owner, plan);
-        if ((WorkResourcesRefusalIn(tx, owner, plan) ?? ConstructionLaborRefusal(tx, owner, plan)) is { } refused)
+        if (WorkResourcesRefusalIn(tx, owner, plan) is { } refused)
         {
             return refused;
         }
         CreatePlanIn(tx, plan);
         return null;
-    }
-
-    // While the initial shelter is owed its builders are its own. An owner the review does not bind (a player
-    // goal) is outside the rule, as it is outside the routine Safeguards.
-    // A finishing-skill choice sets who may finish a standing site: a setting, which draws no labor (#3558).
-    private static AdmissionRefusal? ConstructionLaborRefusal(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
-    {
-        var kinds = plan.Actions.Where(a => !a.FinishingSkill.IsKnown).Select(a => a.Kind).ToList();
-        if (!kinds.Any(ConstructionLaborRules.DrawsConstructionLabor))
-        {
-            return null;
-        }
-        var review = LoadRounds(tx);
-        // A Need owner is checked by its NeedId: the shelter housing Needs keep their builders.
-        return ConstructionLaborRules.ConstructionLaborHeld(review.Latches, owner.Need.FilingKey, kinds)
-            ? new(RefusalKind.ConstructionLabor, "the initial shelter holds the construction labor")
-            : null;
     }
 
     /// <summary>

@@ -16,7 +16,6 @@ public static class OperationIntent
         [RoomsFamily.Flooring.FilingKey] = "Flooring",
         [RoomsFamily.Lighting.FilingKey] = "Lighting",
         [RoomsFamily.Art.FilingKey] = "Art",
-        [ShelterFamily.Starter.FilingKey] = "Starter shelter",
         [ShelterFamily.Sleeping.FilingKey] = "Housing",
         [ShelterFamily.Expansion.FilingKey] = "Housing expansion",
         [ShelterFamily.Temperature.FilingKey] = "Temperature",

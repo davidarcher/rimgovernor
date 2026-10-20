@@ -372,6 +372,87 @@ public sealed partial class DefinitionCatalog
         return result;
     }
 
+    /// <summary>
+    /// Every recipe a player-buildable bench hosts, as a bench recipe row with no bench (#3659): a declarer that finds
+    /// no standing bench listing a recipe for what it needs orders one of these, and the station graph hosts it. A row
+    /// is available when the recipe's research and some host's are finished, its skill gate and armory rung those of
+    /// the first such host by name; AvailableOn is known true, as no bench stands to refuse it. A recipe gated by
+    /// ideology, making nothing, or whose facts the catalog cannot read is left out.
+    /// </summary>
+    public EquatableArray<P.GearRecipe> CraftRecipes(IReadOnlySet<string> finished)
+    {
+        var output = new List<P.GearRecipe>();
+        foreach (var row in CraftRows())
+        {
+            if (!row.Research.All(finished.Contains) || row.Hosts.FirstOrDefault(h => h.Research.All(finished.Contains)) is not { } host)
+            {
+                output.Add(row.Recipe);
+                continue;
+            }
+            output.Add(row.Recipe with { Available = Known(true), RequiredWork = host.Work, Armory = host.Armory });
+        }
+        return Domain.EquatableArray.From(output);
+    }
+
+    private sealed record CraftHost(IReadOnlyList<string> Research, Fact<EquatableArray<P.WorkRequirement>> Work, P.ArmoryTier Armory);
+
+    private sealed record CraftRow(P.GearRecipe Recipe, IReadOnlyList<string> Research, IReadOnlyList<CraftHost> Hosts);
+
+    private IReadOnlyList<CraftRow>? _craftRows;
+
+    // The catalog's recipes do not change: the craft rows are read once per catalog, research judged per call.
+    private IReadOnlyList<CraftRow> CraftRows() => LazyInitializer.EnsureInitialized(ref _craftRows, () =>
+    {
+        var rows = new List<CraftRow>();
+        foreach (var row in Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal))
+        {
+            if (row.memePrerequisitesAny.Seq().Any() || row.factionPrerequisiteTags.Seq().Any() || row.fromIdeoBuildingPreceptOnly)
+            {
+                continue;
+            }
+            var benches = RecipeBenchesOf(row);
+            var products = RecipeProductDefs(row);
+            if (benches.Count == 0 || products.Count == 0)
+            {
+                continue;
+            }
+            if (CraftRowOf(row, benches, products) is { } craft)
+            {
+                rows.Add(craft);
+            }
+        }
+        return rows;
+    });
+
+    // A craft row of the recipe; null when the catalog cannot read its facts (a slot that allows nothing, an unread work gate).
+    private CraftRow? CraftRowOf(RecipeDef row, IReadOnlyList<string> benches, IReadOnlyList<P.Resource> products)
+    {
+        try
+        {
+            var hosts = benches.Select(b => new CraftHost([.. ThingRow(b).researchPrerequisites.Seq().Select(r => r.defName)], RecipeWork(row.defName, b), RecipeArmoryTier(row.defName, b))).ToList();
+            var mechKind = RecipeMechKind(row.defName);
+            var recipe = new P.GearRecipe
+            {
+                Definition = row.defName,
+                Role = RecipeRoleOf(row.defName),
+                Products = Domain.EquatableArray.From(products),
+                Available = Known(false),
+                AvailableOn = Known(true),
+                Ingredients = RecipeIngredients(row.defName),
+                RequiredWork = hosts[0].Work,
+                WorkAmount = RecipeWorkAmount(row.defName),
+                MechKind = mechKind,
+                Kind = RecipeLedgerKind(row.defName, mechKind),
+                Armory = hosts[0].Armory,
+            };
+            return new CraftRow(recipe, [.. RecipeResearch(row)], hosts);
+        }
+        catch (Exception e) when (e is DomainException or CatalogException)
+        {
+            return null;
+        }
+    }
+
     // RecipeResearch is the distinct research projects a recipe requires (researchPrerequisite and researchPrerequisites).
     private static IEnumerable<string> RecipeResearch(RecipeDef row)
     {

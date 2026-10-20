@@ -73,7 +73,7 @@ internal static class SleepingBedroomWaitsForValue
         Keep = ["Food", "Rest", "Joy"],
         QuietWorld = true,
         // Planned rooms become candidates only under a housing Need (ForecastCoupledCandidates.GenerateCoupledActivities);
-        // sleeping turns on shelter/starter and shelter/sleeping.
+        // sleeping turns on shelter/sleeping.
         Serve = new ServeSpec { Families = ["goals", "research", "work", "sleeping"], Prefix = "bedroom-waits" },
         Run = RunAsync,
     };

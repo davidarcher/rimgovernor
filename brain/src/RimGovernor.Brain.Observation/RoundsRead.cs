@@ -154,6 +154,7 @@ public static class RoundsReads
                     ThreatTable = catalog.ThreatSchedule(),
                     HarmCatalog = new() { Raid = catalog.RaidFactions(), Coverage = catalog.BodyCoverage(), Natural = catalog.NaturalArmor() },
                     MoodBreak = p.Stations.Mood.Break,
+                    Crafts = frame.Research is { } research ? catalog.CraftRecipes(new HashSet<string>(research.Finished, StringComparer.Ordinal)) : default,
                 },
             };
         }

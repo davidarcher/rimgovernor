@@ -162,8 +162,11 @@ public sealed record StationGraphInput
     /// <summary>The target-sized bedrooms colonists are owed (#2939): each takes one colonist's bed out of the ordinary sleepers' node.</summary>
     public IReadOnlyList<SuiteWish> Suites { get; init; } = [];
 
-    /// <summary>The special rooms asked beyond the stations: the shelter and the throne room (#2958).</summary>
+    /// <summary>The special rooms asked beyond the stations: the throne room (#2958).</summary>
     public SeedRooms Seed { get; init; } = new();
+
+    /// <summary>The capability-days of building each work station, by def (StationFacts.HostBuild); HostOf prices a recipe's hosts with it.</summary>
+    public IReadOnlyDictionary<string, double> HostBuild { get; init; } = new Dictionary<string, double>();
 
     /// <summary>The animal races' catalog rows: the products and hunger of the pen herds (#2996).</summary>
     public AnimalRaceCatalog Races { get; init; } = new();
@@ -272,20 +275,11 @@ public sealed record RoomNode
     /// <summary>The race of the herd whose pen this is (PlannedRoom.Herd); empty for the misc unit and for every other room.</summary>
     public string Herd { get; init; } = string.Empty;
 
-    /// <summary>
-    /// The trips a day between the room and station nodes, priced in the embedding as any link is (the walk the
-    /// trips cost). A room with none is not priced by distance: a flow that is not known is not guessed.
-    /// </summary>
-    public IReadOnlyList<RoomFlow> Flows { get; init; } = [];
-
     /// <summary>The marker count of a sparring ring.</summary>
     public int Markers { get; init; }
 
     public string Reason { get; init; } = string.Empty;
 }
-
-/// <summary>The trips a day (one way) between a room node and the station node With; </summary>
-public sealed record RoomFlow(string With, double Weight);
 
 /// <summary>The planner's input.</summary>
 public sealed partial class StationGraph
@@ -482,10 +476,13 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
     }
 
     /// <summary>
-    /// The station that works a recipe: the preferred def when it hosts the recipe, else the furniture rule's
-    /// bench for the role, else the first hosting station by name.
+    /// The station that works runs of a recipe a day and its work ticks a run there (the recipe's work over the
+    /// station's speed, StationCapacity.WorkSpeed). The preferred def hosts it when it can. Otherwise the hosts are
+    /// priced (#3659): what building one costs (StationFacts.HostBuild, labor plus material, capability-days) plus
+    /// the work-days its speed asks of the runs over the horizon (ColonyModelPolicy.HorizonDays). The cheapest
+    /// wins, ties by name; while a host's build is unread the first host by name stands, as before the price.
     /// </summary>
-    public (string Def, double Work) HostOf(string recipe, params string[] preferred)
+    public (string Def, double Work) HostOf(string recipe, double runs, params string[] preferred)
     {
         foreach (var def in preferred)
         {
@@ -495,10 +492,14 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
                 var w = LayoutGraphRules.HostWork(s, recipe);
                 if (w > 0)
                 {
-                    return (def, w);
+                    return (def, w / LayoutGraphRules.SpeedOf(s));
                 }
             }
         }
+        var horizon = new ColonyModelPolicy().HorizonDays;
+        string first = string.Empty, best = string.Empty;
+        double firstWork = 0, bestWork = 0, bestPrice = double.PositiveInfinity;
+        var priced = true;
         foreach (var def in In.Catalog.Defs())
         {
             var s = In.Catalog.Stations[def];
@@ -507,12 +508,47 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
                 continue;
             }
             var w = LayoutGraphRules.HostWork(s, recipe);
-            if (w > 0)
+            if (w <= 0)
             {
-                return (def, w);
+                continue;
+            }
+            w /= LayoutGraphRules.SpeedOf(s);
+            if (first == string.Empty)
+            {
+                (first, firstWork) = (def, w);
+            }
+            if (!In.HostBuild.TryGetValue(def, out var build))
+            {
+                priced = false;
+                continue;
+            }
+            var price = build + (Math.Max(runs, 0) * w / GameTime.TicksPerDay * horizon);
+            if (price < bestPrice)
+            {
+                (best, bestWork, bestPrice) = (def, w, price);
             }
         }
-        return (string.Empty, 0);
+        return priced && best != string.Empty ? (best, bestWork) : (first, firstWork);
+    }
+
+    /// <summary>
+    /// Adds the research bench (the furniture's Laboratory bench) when the catalog has one, one station (#3659): research
+    /// is a station the plan hosts as any other, not the shelter's. Its work is a worker's day
+    /// (LayoutGraphRules.ResearchDailyWork); no recipe sizes it.
+    /// </summary>
+    public void Research()
+    {
+        var def = In.Furniture.BenchFor(RoomRole.Laboratory);
+        if (def == string.Empty || !In.Catalog.Station(def).Ok)
+        {
+            return;
+        }
+        var id = LayoutGraphRules.NodeId(def, StationPurpose.Work);
+        if (!Nodes.TryGetValue(id, out var node))
+        {
+            node = Nodes[AddNode(def, StationPurpose.Work, 1, Station(def).Needs)];
+        }
+        node.DailyWork = Math.Max(node.DailyWork, LayoutGraphRules.ResearchDailyWork);
     }
 
     /// <summary>
@@ -551,16 +587,16 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             {
                 continue;
             }
-            var (station, work) = HostOf(o.Recipe, o.BenchKind);
-            if (station == string.Empty)
-            {
-                continue;
-            }
             double runs = o.Target;
             var per = Flow(o.Recipe).ProductCount();
             if (per > 0)
             {
                 runs /= per;
+            }
+            var (station, work) = HostOf(o.Recipe, runs, o.BenchKind);
+            if (station == string.Empty)
+            {
+                continue;
             }
             var key = (station, o.Recipe);
             orders[key] = orders.GetValueOrDefault(key) + runs;
@@ -923,35 +959,6 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
             }
         }
     }
-
-    /// <summary>
-    /// Gives the shelter the meal trips of the colonists it houses, as SleepEat gives a bed: meals a day times
-    /// the share of the colony sleeping in it, to the dining node. With no table, no meals or no colonists read
-    /// there is nothing to price and the shelter carries no flow.
-    /// </summary>
-    public void ShelterMeals(List<RoomNode> rooms, double meals)
-    {
-        var colonists = In.Population.Colonists;
-        if (meals <= 0 || colonists <= 0)
-        {
-            return;
-        }
-        for (var i = 0; i < rooms.Count; i++)
-        {
-            if (rooms[i].Role != PlannedRole.Shelter)
-            {
-                continue;
-            }
-            foreach (var n in Nodes.Values)
-            {
-                if (n.Purpose == StationPurpose.Dine)
-                {
-                    var share = (double)Math.Min(In.Seed.Colonists, colonists) / colonists;
-                    rooms[i] = rooms[i] with { Flows = [.. rooms[i].Flows, new RoomFlow(n.Id, meals * share)] };
-                }
-            }
-        }
-    }
 }
 
 public static partial class LayoutGraphRules
@@ -973,8 +980,6 @@ public static partial class LayoutGraphRules
 
     /// <summary>The id of the PurposeOutside pseudo-node in edges.</summary>
     public const string OutsideNode = "outside";
-
-    /// <summary>Why the shelter has a flow: the colonists sleeping in it walk to the table for each meal (sleepEat's bed-to-table trips).</summary>
 
     internal static (string, string) OrderedPair(string a, string b) => string.CompareOrdinal(b, a) < 0 ? (b, a) : (a, b);
 
@@ -1005,6 +1010,12 @@ public static partial class LayoutGraphRules
         }
         return string.Empty;
     }
+
+    /// <summary>The research bench's work a day (#3659): one worker's day. It prices the bench's trips and conflicts; no recipe sizes research.</summary>
+    public const double ResearchDailyWork = GameTime.TicksPerDay;
+
+    /// <summary>A station's work speed (StationCapacity.WorkSpeed), 1 when the catalog gives none.</summary>
+    internal static double SpeedOf(Station s) => s.Capacity.WorkSpeed > 0 && double.IsFinite(s.Capacity.WorkSpeed) ? s.Capacity.WorkSpeed : 1;
 
     /// <summary>The station's work for a recipe (0 when it does not host it).</summary>
     internal static double HostWork(Station s, string recipe)
@@ -1073,6 +1084,7 @@ partial class StationGraph
         var b = new GraphBuilder(input);
         b.Sleepers();
         var runs = b.WorkLoads();
+        b.Research();
         var meals = b.MealsPerDay();
         b.Dining(meals);
         b.Storage();
@@ -1088,7 +1100,6 @@ partial class StationGraph
         g.Pens = pens;
         g.Recreation = recreation;
         g.Rooms = LayoutGraphRules.StationRoomNodes(input);
-        b.ShelterMeals(g.Rooms, meals);
         foreach (var n in g.Nodes)
         {
             switch (n.Purpose)

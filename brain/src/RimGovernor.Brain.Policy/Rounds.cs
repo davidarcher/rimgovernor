@@ -116,6 +116,13 @@ public sealed record RoundsFacts
     /// <summary>The recipe rows' derived facts.</summary>
     public RecipeFacts Recipes { get; init; } = new();
 
+    /// <summary>
+    /// The catalog's craft recipes: every recipe a player-buildable bench hosts, as a bench recipe row with no bench,
+    /// available when its research and some host's are finished. A declarer orders one when no standing bench lists
+    /// a recipe making what it needs (#3659); empty without a catalog or a research read.
+    /// </summary>
+    public EquatableArray<GearRecipe> Crafts { get; init; }
+
     /// <summary>The game's capacity penalty tables of malnutrition and food poisoning (#3519), priced by the capability-days ledger (#3520); unknown without a catalog.</summary>
     public CapacityPenaltyTables CapacityPenalties { get; init; } = new();
 
@@ -227,9 +234,6 @@ public sealed record RoundsFacts
 
     /// <summary>A stove kitchen supersedes a cooking campfire; it keeps the food/cooking Need unmet.</summary>
     public Fact<bool> CampfireRetireOwed { get; init; }
-
-    /// <summary>A weapon bench stands beside the crafting spot that stood in for it; it keeps the military/equipment Need unmet for the deconstruction.</summary>
-    public Fact<bool> CraftingSpotRetireOwed { get; init; }
 
     /// <summary>A heat campfire's auto-refuel should switch, or a sleeping room sits unheated below its sleepers' comfort minimum (TemperatureOwed); it keeps the shelter/temperature Need unmet.</summary>
     public Fact<bool> TemperatureOwed { get; init; }
@@ -609,14 +613,6 @@ public sealed record RoundsLatches
 
     /// <summary>The planned outdoor dash window (#2765), held until its bound; zero when none is open.</summary>
     public DashWindow Dash { get; set; } = new();
-
-    /// <summary>
-    /// <see cref="Phase.HousingShelter"/> while this review finds the starter shelter not standing (a sleeping or an
-    /// indoor place short for everyone, or unread), else empty: the starter shelter then holds the colony's
-    /// Construction labor (<see cref="ConstructionLaborRules.ConstructionLaborHeld"/>). A per-review value, not a latch.
-    /// </summary>
-    public Phase Housing { get; set; }
-
 }
 
 /// <summary>One review's findings: the latches, the disaster history and the derived facts the families read.</summary>
@@ -875,7 +871,6 @@ public static partial class RoundsRules
         {
             MedicalReserve = medicine.Active,
             Dash = DashPlanRules.DashLatch(f.Dash),
-            Housing = ShelterRules.StarterShelterOwed(f) ? Phase.HousingShelter : Phase.None,
         };
         var demand = ResourceRules.ResourceDemandOf(f, p, latches);
         var r = new RoundsFindings { Latches = latches, ResourceDemand = demand };
@@ -939,9 +934,6 @@ public static partial class RoundsRules
         // Only the spot stands apart: with the stock to build the table, the goal stays open for it.
         return Known(!(f.ButcherTableAffordable.TryGetValue(out var affordable) && affordable));
     }
-
-    /// <summary>The free, instant bench that hosts the club and short bow recipes; the military/equipment Need stands one in the planned workshop until a real weapon bench is built.</summary>
-    public const string CraftingSpotDefinition = "CraftingSpot";
 
     /// <summary>The free, instant butcher bench that stands in the planned butchery until the table is built.</summary>
     public const string ButcherSpotDefinition = "ButcherSpot";

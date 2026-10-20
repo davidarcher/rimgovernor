@@ -25,8 +25,8 @@ is distinct from tier 0.
 
 | Tier | Contents |
 |---|---|
-| 0 Survive | Initial shelter shell (it hosts sleep, craft, research, cook and, on a cold map, heat as capabilities), sleeping spots and bunks, kitchen and cook station, essential sanitation, research bench |
-| 1 Sustain | Private bedrooms and barracks, hospital, butchery, food stores (storage rooms and shelves), lab (owed only when no standing room can host research; a solo colony keeps its bench in the shelter or a bedroom), cooler/freezer and its power, stonecutter |
+| 0 Survive | Stand-in sleeping spots (the day-one floor, #3659), kitchen and cook station, essential sanitation, research bench |
+| 1 Sustain | Private bedrooms and barracks, hospital, butchery, food stores (storage rooms and shelves), lab (owed only when no standing room can host research; a solo colony keeps its bench in a bedroom), cooler/freezer and its power, stonecutter |
 | 2 Comfort | Dining and rec rooms, throne/worship rooms, suites, animal shelter |
 | 3 Produce | Other workshops and their bench input stores |
 | 4 Expand | Graves, outskirts, anything unlisted |
@@ -47,7 +47,7 @@ through by orchestration:
   phase)`; a concern the ladder does not list is Expand by decision. Defense
   concerns and the defense admit paths are Expand until #2527 assigns Secure,
   and the generic power planner is Expand (the proposal names no consumer).
-  Sleeping bunks and stone-shell walls (Survive), bedroom upgrades, storage
+  Stand-in sleeping spots (`PlannerTier(shelter/sleeping, HousingShelter)`, Survive), bedroom upgrades, storage
   shelves and food-field infrastructure (Sustain) state their tier at the call.
   Rock steps and excavation preview the owning planner's buildings, so they take
   that planner's `PlannerTier`; the animal pen marker is a `PlannedPen`

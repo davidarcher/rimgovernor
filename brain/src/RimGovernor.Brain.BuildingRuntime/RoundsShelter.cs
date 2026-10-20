@@ -3,20 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsBuildingPlanner
 {
-    /// <summary>
-    /// Prefers furnishing verified indoor space. Only when that whole method has no space does it raise the
-    /// layout plan's shelter room: the bunk rungs, then the ring through one reconcile.
-    /// </summary>
-    public static RoundsBuildingPlanner NewRoundsShelterPlanner(Rounder? reviewer, IRoundsBuildingSource? native)
-    {
-        if (reviewer is null || native is null)
-        {
-            throw new ControlException("NewRoundsShelterPlanner: reviewer == nil || native == nil");
-        }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = ShelterFamily.Starter.FilingKey, Need = ShelterFamily.Starter, Phase = Pol.Phase.HousingShelter, Definition = "Wall", Shelter = true };
-    }
-
-    /// <summary>Reuses the same furnishing and ring path to keep one spare indoor sleeping place beyond the observed population.</summary>
+    /// <summary>Furnishes verified indoor space, else raises a room, to keep one spare indoor sleeping place beyond the observed population.</summary>
     public static RoundsBuildingPlanner NewRoundsExpansionPlanner(Rounder? reviewer, IRoundsBuildingSource? native)
     {
         if (reviewer is null || native is null)

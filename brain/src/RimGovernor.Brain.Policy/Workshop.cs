@@ -102,7 +102,8 @@ public static partial class WorkRules
         var output = new List<string>();
         foreach (var u in unmet)
         {
-            if (u.ShortPerDay <= 0 || (u.Reason != UnmetReason.NoBench && u.Reason != UnmetReason.BenchesExhausted))
+            // An order with no bench kind is a catalog recipe the station graph hosts (#3659): no kind to stage.
+            if (u.ShortPerDay <= 0 || u.BenchKind.Length == 0 || (u.Reason != UnmetReason.NoBench && u.Reason != UnmetReason.BenchesExhausted))
             {
                 continue;
             }

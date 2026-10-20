@@ -2064,12 +2064,14 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
             Latches = e.Get<RoundsLatches>("Latches", o),
             MedicalCare = e.Get<MedicalCareHistory>("MedicalCare", o),
             EventLoot = e.Get<EventLootHistory>("EventLoot", o),
-            Comfort = e.Get<ComfortHistory>("Comfort", o),            Combat = e.GetOr<RoundsCombat?>("Combat", null, o),
+            Comfort = e.Get<ComfortHistory>("Comfort", o),
+            Combat = e.GetOr<RoundsCombat?>("Combat", null, o),
             Roster = e.GetOr<WorkRosterReport?>("Roster", null, o),
             Progress = e.Get<EquatableArray<ConcernProgress>>("Progress", o),
             ReadyWork = e.GetOr<ReadyWorkReport?>("ReadyWork", null, o),
             Built = e.Get<EquatableArray<ActionId>>("Built", o),
-            WallCells = e.Get<EquatableArray<WallCell>>("WallCells", o),        };
+            WallCells = e.Get<EquatableArray<WallCell>>("WallCells", o),
+        };
 
     protected override void WriteFields(Utf8JsonWriter w, Rounds v, Codecs o)
     {
@@ -2106,7 +2108,8 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
         w.Put("Latches", v.Latches, o);
         w.Put("MedicalCare", v.MedicalCare, o);
         w.Put("EventLoot", v.EventLoot, o);
-        w.Put("Comfort", v.Comfort, o);        if (v.Combat is { } vCombat)
+        w.Put("Comfort", v.Comfort, o);
+        if (v.Combat is { } vCombat)
         {
             w.Put("Combat", vCombat, o);
         }
@@ -2120,7 +2123,8 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
             w.Put("ReadyWork", vReadyWork, o);
         }
         w.Put("Built", v.Built, o);
-        w.Put("WallCells", v.WallCells, o);    }
+        w.Put("WallCells", v.WallCells, o);
+    }
 }
 
 internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
@@ -2130,14 +2134,12 @@ internal sealed class RoundsLatchesConverter : ObjectCodec<RoundsLatches>
         {
             MedicalReserve = e.Bool("MedicalReserve"),
             Dash = e.Get<DashWindow>("Dash", o),
-            Housing = e.Get<Phase>("Housing", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, RoundsLatches v, Codecs o)
     {
         w.WriteBoolean("MedicalReserve", v.MedicalReserve);
         w.Put("Dash", v.Dash, o);
-        w.Put("Housing", v.Housing, o);
     }
 }
 

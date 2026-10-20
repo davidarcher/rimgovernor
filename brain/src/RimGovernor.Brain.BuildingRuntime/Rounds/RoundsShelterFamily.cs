@@ -4,40 +4,35 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// The runtime half of the shelter family (#3257). The read gives the housing facts (the foothold counts, the
 /// retained bed-use review with the bedroom steps the room census owes, the indoor capacity), the sleeping rooms'
 /// temperatures with the temperature work owed, and the safe area's pending edits; in the immediate pass only the
-/// safe area, which the immediate review measured. The work step runs one planner per ready Need: the starter
-/// shelter and its bunk rungs, the sleeping ladder (bed ownership, bedrooms and their upgrades), the spare room, the
+/// safe area, which the immediate review measured. The work step runs one planner per ready Need: the sleeping
+/// ladder (the stand-in sleeping spots, bed ownership, bedrooms and their upgrades), the spare room, the
 /// temperature planner and the safe-area edit. Every Method is committed under its Need and admitted by its claims.
 /// </summary>
 public sealed class ShelterRounds
 {
     private readonly Rounder _reviewer;
     private readonly bool _safeArea;
-    private readonly RoundsBuildingPlanner? _starter;
     private readonly RoundsSleepingUpkeepPlanner? _sleeping;
     private readonly RoundsBuildingPlanner? _expansion;
     private readonly RoundsBuildingPlanner? _temperature;
 
     /// <summary>Each toggle composes its Need and, for a building Need, its planner over <paramref name="native"/>.</summary>
-    public ShelterRounds(Rounder reviewer, IRoundsBuildingSource? native, bool starter, bool sleeping, bool expansion, bool temperature, bool safeArea)
+    public ShelterRounds(Rounder reviewer, IRoundsBuildingSource? native, bool sleeping, bool expansion, bool temperature, bool safeArea)
     {
         if (reviewer is null || reviewer.Native is null)
         {
             throw new ControlException("ShelterRounds: reviewer == nil || reviewer.native == nil");
         }
-        if ((starter || sleeping || expansion || temperature) && native is null)
+        if ((sleeping || expansion || temperature) && native is null)
         {
             throw new ControlException("ShelterRounds: a building Need is composed without a building source");
         }
-        if (!starter && !sleeping && !expansion && !temperature && !safeArea)
+        if (!sleeping && !expansion && !temperature && !safeArea)
         {
             throw new ControlException("ShelterRounds: no Need is composed");
         }
         _reviewer = reviewer;
         _safeArea = safeArea;
-        if (starter)
-        {
-            _starter = RoundsBuildingPlanner.NewRoundsShelterPlanner(reviewer, native);
-        }
         if (sleeping)
         {
             _sleeping = RoundsSleepingUpkeepPlanner.Create(reviewer, native);
@@ -57,7 +52,7 @@ public sealed class ShelterRounds
     /// planner's class) and wakes on its building, bed, assignment, door, draft and area outcomes.
     /// </summary>
     public FamilyRunner Runner() =>
-        new FamilyRunner<ShelterFacts>(new ShelterFamily(_starter is not null, _sleeping is not null, _expansion is not null, _temperature is not null, _safeArea), ReadAsync,
+        new FamilyRunner<ShelterFacts>(new ShelterFamily(_sleeping is not null, _expansion is not null, _temperature is not null, _safeArea), ReadAsync,
             _sleeping is not null ? Schedule with { Class = PlannerClass.Critical } : Schedule, WorkAsync);
 
     /// <summary>An optional entry woken by the outcomes of every kind its planners commit.</summary>
@@ -117,10 +112,6 @@ public sealed class ShelterRounds
         if (id == ShelterFamily.SafeArea && _safeArea)
         {
             return SafeAreaWork(work, call);
-        }
-        if (id == ShelterFamily.Starter && _starter is not null)
-        {
-            return Building(await _starter.Copy().StepAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false));
         }
         if (id == ShelterFamily.Sleeping && _sleeping is not null)
         {

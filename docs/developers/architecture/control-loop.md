@@ -610,20 +610,21 @@ record is read once at load when the blob is absent.
 **Shelter and power (#3257).** MaintainHousing, MaintainShelter and
 EnsureTemperatureSafety are the `shelter` family (`Shelter.cs`, runtime
 `ShelterRounds`), one entry (Critical while the sleeping toggle composes it) whose
-Needs are derived only for their composed toggles. `shelter/starter` (the starter
-shelter and its bunk rungs, `RoundsShelterBunks`) is met while a sleeping and an
-indoor place stand for everyone; `shelter/sleeping` (bed ownership, bedrooms and
-upgrades) waits on it, and `shelter/expansion` (one spare indoor place) waits on
-both: those preconditions replace the Housing phase latch, and the cold, hot and
-sleeping latches are deleted. `shelter/temperature` is a plain threshold at the
+Needs are derived only for their composed toggles. There is no starter shelter
+(#3659): the first room is a planned room. `shelter/sleeping` (bed ownership,
+bedrooms and upgrades) waits on nothing and, while a sleeping and an indoor place do
+not stand for everyone, first places the missing stand-in sleeping spots in the first
+selected sleeping room at Survive tier (`ShelterRules.StandInsOwed`,
+`RoundsSleepingStandIn`); `shelter/expansion` (one spare indoor place) waits on it:
+that precondition replaces the Housing phase latch, and the cold, hot and sleeping
+latches are deleted. `shelter/temperature` is a plain threshold at the
 season's exit bars, unmet too while a heat refuel switch or a venting door is
-owed. The three housing planners, the shelter rungs and temperature run their
+owed. The housing planners and temperature run their
 existing step bodies under the Need owner, admitted by claims; `ShelterSite` takes
 any work owner. `shelter/safe-area` (the Safe-area edit, SeriousHarm) keeps its
 own Need and runs in the immediate pass reading only the review's planned area
 edits (`SafeAreaMemory.Owed`), committing them as the `safe-area` Method; it left
-the immediate Concern set. The starter shelter still holds the Construction labor while
-it is owed (`ConstructionLaborHeld`, a per-review value, no latch). EnsureBasicPower
+the immediate Concern set. No housing Need holds the Construction labor. EnsureBasicPower
 is the `power` family (`PowerFamily.cs`, runtime `PowerRounds`): `power/basic` is
 met while the grid covers its draw; a solar flare holds it (`power_outage`) without
 a Method. Essential-service targets and forecast owners re-key to the Need filing
@@ -672,7 +673,7 @@ anomaly).
 | Home upkeep | `home-upkeep`: Needs `repairs`, `clearance` (#3253; MaintainFireSafety deleted) |
 | Rooms | `rooms`: Needs `lighting`, `flooring`, `art`, `comfort`, `hosting`, `party-spot`, `gatherings` (#3255; its five Concerns and the comfort phase latch deleted) |
 | Layout | `layout`: Needs `home-coverage`, `firebreak`, `stone-shell`, `climate-envelope` (#3256; MaintainHomeCoverage, MaintainFirebreak, MaintainStoneShell, MaintainClimateEnvelope deleted), `defense` (#3314; EnsureDefensiveLayout deleted) |
-| Shelter | `shelter`: Needs `starter`, `sleeping`, `expansion`, `temperature`, `safe-area` (#3257; MaintainHousing, MaintainShelter, EnsureTemperatureSafety deleted; the housing phase latch is the `sleeping` and `expansion` preconditions) |
+| Shelter | `shelter`: Needs `sleeping`, `expansion`, `temperature`, `safe-area` (#3257; MaintainHousing, MaintainShelter, EnsureTemperatureSafety deleted; the housing phase latch is the `sleeping` and `expansion` preconditions) |
 | Power | `power`: Need `basic` (#3257; EnsureBasicPower deleted) |
 | Medical | `medical`: Needs `critical/<pawn>`, `care`, `reserves`, `surgery` (#3258; CriticalMedical, MaintainMedicalReserves, MaintainSurgery deleted) |
 | Military | `military`: Needs `defense`, `pests`, `training`, `equipment` (#3259), `restore-workers` and `combat` (#3311; RestoreWorkers, the combat incident and the undraft planner deleted) |

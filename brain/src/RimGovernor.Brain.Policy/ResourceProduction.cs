@@ -142,6 +142,9 @@ public sealed record ResourceMethodRequest
     public EquatableArray<MethodId> Seen { get; init; }
 
     public Fact<EquatableArray<GearBench>> Benches { get; init; }
+
+    /// <summary>The catalog's craft recipes (RoundsFacts.Crafts): a resource no standing bench's recipe makes is produced by one with no bench (#3659).</summary>
+    public EquatableArray<GearRecipe> Crafts { get; init; }
 }
 
 public static partial class ResourceRules
@@ -414,7 +417,8 @@ public static partial class ResourceRules
     /// Proposes one repeat-count StockTarget bill that keeps at least Target units of Resource in stock,
     /// mirroring SelectMedicineMethod exactly but over whichever resource SelectResourceTarget dynamically
     /// chose rather than one hardcoded definition. It covers only the bench/recipe production path of the
-    /// resource method; a resource with no producing recipe and no covering bill is simply Blocked. It
+    /// resource method; a resource no standing bench makes is produced by a catalog recipe with no bench (Crafts,
+    /// #3659), and one with no producing recipe at all and no covering bill is simply Blocked. It
     /// issues no game orders and does not reserve resources. Throws <see cref="DomainException"/> on an invalid history.
     /// </summary>
     public static ResourceMethod SelectResourceMethod(ResourceMethodRequest r)
@@ -513,6 +517,18 @@ public static partial class ResourceRules
                     Ingredients = EquatableArray.From(RecipeDraws(recipe)),
                 };
             }
+        }
+        // No standing bench lists a recipe making it: the catalog's recipe is produced with no bench (#3659).
+        if (GearRules.UnhostedCrafts(r.Crafts, benches).FirstOrDefault(c => GearRules.ContainsResource(c.Products, r.Resource)) is { } craft)
+        {
+            return new ResourceMethod
+            {
+                Kind = ResourceMethodKind.Produce,
+                Bench = GearRules.CraftBench,
+                Recipe = craft.Definition,
+                Resource = r.Resource,
+                Ingredients = EquatableArray.From(RecipeDraws(craft)),
+            };
         }
         return new ResourceMethod { Kind = ResourceMethodKind.Blocked };
     }

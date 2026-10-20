@@ -470,8 +470,6 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { WarmRooms = RoundsBurialFacts.WarmCoolingRooms(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { MealClosetOwed = RoundsBurialFacts.MealClosetOwed(reading.Projection) });
         reading = reading.WithFacts(rf => rf with { CampfireRetireOwed = RoundsBuildingPlanner.CampfireRetireOwed(reading.Projection) });
-        var vCraftingSpotRetireOwed = await CraftingSpotRetireOwedAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
-        reading = reading.WithFacts(rf => rf with { CraftingSpotRetireOwed = vCraftingSpotRetireOwed });
         reading = reading.WithFacts(rf => rf with { TemperatureOwed = RoundsBuildingPlanner.TemperatureOwed(reading.Projection) });
         Lap("d_owed");
         var targets = await RoundsArmoryShells.ShellTargetsAsync(Native, p.Journal, state.Snapshot, reading.Projection, ct).ConfigureAwait(false);

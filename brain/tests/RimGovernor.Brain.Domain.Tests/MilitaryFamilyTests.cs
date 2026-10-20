@@ -108,7 +108,7 @@ public sealed class MilitaryFamilyTests
     }
 
     [Fact]
-    public void EquipmentIsUnmetByARetireOrShellShortageAndOtherwiseUnknownWithoutTheGearReview()
+    public void EquipmentIsUnmetByAShellShortageAndOtherwiseUnknownWithoutTheGearReview()
     {
         var unknown = Derive(new MilitaryFacts(), MilitaryFamily.Equipment);
         Assert.Equal((Satisfaction.Unknown, NeedTier.Wellbeing), (unknown.Satisfaction, unknown.Tier));
@@ -116,13 +116,10 @@ public sealed class MilitaryFamilyTests
         // A census with no pawns reviews nothing: still unknown, never met by default.
         Assert.Equal(Satisfaction.Unknown, Derive(new MilitaryFacts { Gear = Known(new GearObservation()) }, MilitaryFamily.Equipment).Satisfaction);
 
-        var retire = Derive(new MilitaryFacts { CraftingSpotRetireOwed = Known(true) }, MilitaryFamily.Equipment);
-        Assert.Equal((Satisfaction.Unmet, 1.0), (retire.Satisfaction, retire.Deficit.Value));
+        var shells = Derive(new MilitaryFacts { ShellsShort = Known(true) }, MilitaryFamily.Equipment);
+        Assert.Equal((Satisfaction.Unmet, 1.0), (shells.Satisfaction, shells.Deficit.Value));
 
-        var shells = Derive(new MilitaryFacts { ShellsShort = Known(true), CraftingSpotRetireOwed = Known(false) }, MilitaryFamily.Equipment);
-        Assert.Equal(Satisfaction.Unmet, shells.Satisfaction);
-
-        Assert.Equal(Satisfaction.Unknown, Derive(new MilitaryFacts { ShellsShort = Known(false), CraftingSpotRetireOwed = Known(false) }, MilitaryFamily.Equipment).Satisfaction);
+        Assert.Equal(Satisfaction.Unknown, Derive(new MilitaryFacts { ShellsShort = Known(false) }, MilitaryFamily.Equipment).Satisfaction);
     }
 
     [Fact]

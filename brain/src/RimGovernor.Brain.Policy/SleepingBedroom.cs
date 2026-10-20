@@ -21,7 +21,10 @@ public enum BedroomStepKind
     /// </summary>
     Reconcile,
 
-    /// <summary>Deconstruct Bed, a vacant sleeping spot left in the starter shell (the planned shelter) at Cells[0].</summary>
+    /// <summary>
+    /// Deconstruct Bed, a vacant sleeping spot at Cells[0]: one left in the starter shell (the planned shelter), or a
+    /// day-one stand-in anywhere else (#3659) once the beds in enclosed rooms take everyone without it.
+    /// </summary>
     Clear,
 }
 
@@ -135,8 +138,9 @@ public static partial class SleepingRules
         // A spot its owner left behind in the shell is taken down, so the shell ends with no bunks. Only a spare
         // one: a spot is never an owned bed, so a spot just built for the shelter reads vacant too, and clearing
         // it re-opened the shelter deficit until the epoch's bed cap ran out one spot short.
-        // The clear leaves an indoor bed for every colonist.
-        var indoor = 0;
+        // The clear leaves an indoor bed for every colonist. A vacant stand-in spot outside the shell (#3659) is
+        // taken down the same way once the indoor beds take everyone without it.
+        var indoorBeds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var room in rooms.Rooms)
         {
             if (room.Enclosed.TryGetValue(out var enclosed) && enclosed)
@@ -145,20 +149,21 @@ public static partial class SleepingRules
                 {
                     if (beds.TryGetValue(id, out var b) && b.Humanlike)
                     {
-                        indoor++;
+                        indoorBeds.Add(id);
                     }
                 }
             }
         }
         var left = new List<string>();
-        foreach (var id in shell)
+        foreach (var (id, b) in beds)
         {
-            if (beds.TryGetValue(id, out var b) && b.Definition.Value == SleepingSpotDefinition && b.Owners.Count == 0)
+            if (b.Definition.Value == SleepingSpotDefinition && b.Owners.Count == 0 && b.Humanlike && !b.Medical
+                && indoorBeds.Count - (indoorBeds.Contains(id) ? 1 : 0) >= people.Count)
             {
                 left.Add(id);
             }
         }
-        if (left.Count > 0 && indoor > people.Count)
+        if (left.Count > 0)
         {
             left.Sort(StringComparer.Ordinal);
             var b = beds[left[0]];
@@ -184,7 +189,7 @@ public static partial class SleepingRules
                 return new BedroomStep { Kind = BedroomStepKind.Move, Pawn = next.Pawn.Id, Bed = next.Bed, PreviousBed = previous ?? "", Unhoused = unhoused.Count };
             }
         }
-        var owed = OwedRoomsOf(plan, rooms);
+        var owed = OwedRoomsOf(plan, rooms, shell);
         if (owed.Count > 0)
         {
             // One room per step: the first owed in plan order.
@@ -245,7 +250,7 @@ public static partial class SleepingRules
             }
         }
         var couples = SleepingCouples(sleeping.People);
-        foreach (var (room, missing) in OwedRoomsOf(plan, rooms))
+        foreach (var (room, missing) in OwedRoomsOf(plan, rooms, census.Shell))
         {
             if (waiting.Count == 0)
             {
@@ -282,7 +287,11 @@ public static partial class SleepingRules
             return null;
         }
         // The starter shell is the planned shelter: the last spot left in it reads as a bedroom but is still the shell.
+        // Shell holds its beds and every sleeping spot.
         var shell = ShellBedIds(plan, rooms);
+        // A sleeping spot is a stand-in (#3659): it houses no one, wherever it stands, and no one is moved onto it.
+        var spots = sleeping.Beds.Where(b => b.Definition.Value == SleepingSpotDefinition).Select(b => b.Id).ToHashSet(StringComparer.Ordinal);
+        shell.UnionWith(spots);
         var bedroomBed = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var room in rooms.Rooms)
         {
@@ -368,8 +377,9 @@ public static partial class SleepingRules
     }
 
     /// <summary>The planned bedrooms and barracks still owed beds, in plan order, with how many: a bedroom its one bed, a
-    /// barracks a bed per tiled bed slot (BedSlotsOf). A Retiring wing is never built out further.</summary>
-    private static List<(PlannedRoom Room, int Missing)> OwedRoomsOf(LayoutPlan plan, RoomObservation rooms)
+    /// barracks a bed per tiled bed slot (BedSlotsOf). A Retiring wing is never built out further. A shell bed or a
+    /// stand-in spot (<paramref name="shell"/>) is no bed.</summary>
+    private static List<(PlannedRoom Room, int Missing)> OwedRoomsOf(LayoutPlan plan, RoomObservation rooms, HashSet<string> shell)
     {
         // Census: beds and roof, read off the room.
         var owed = new List<(PlannedRoom, int)>();
@@ -381,7 +391,7 @@ public static partial class SleepingRules
                 continue;
             }
             var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
-            var standing = ok ? room!.Beds.Count : 0;
+            var standing = ok ? room!.Beds.Count(b => !shell.Contains(b)) : 0;
             var slots = BedSlotsOf(plan, r, rooms.Shapes.Furniture)?.Count ?? 1;
             if (standing < slots)
             {

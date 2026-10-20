@@ -5,13 +5,14 @@ public sealed partial class RoundsArmoryPlanner
 {
     /// <summary>
     /// Reads the combat pawns and the map's loose weapons and prices the armory's weapon demand: fighters and
-    /// hunters short of a weapon, and the unarmed fighters.
+    /// hunters short of a weapon. The recipes are the benches' and the catalog's crafts no bench lists (#3659), so an
+    /// unarmed colonist with no bench standing still wants the weapon a craft makes.
     /// </summary>
-    internal async Task<(IReadOnlyList<Amount> Fighters, IReadOnlyList<Amount> Hunters, int Unarmed)> WeaponDemandAsync(GenerationSnapshot snapshot, IReadOnlyList<string> ids, long minTick, Fact<Bounds> mapBounds, IReadOnlyList<GearBench> benches, ArmoryTier tier, CancellationToken ct)
+    internal async Task<(IReadOnlyList<Amount> Fighters, IReadOnlyList<Amount> Hunters)> WeaponDemandAsync(GenerationSnapshot snapshot, IReadOnlyList<string> ids, long minTick, Fact<Bounds> mapBounds, IReadOnlyList<GearBench> benches, EquatableArray<GearRecipe> crafts, ArmoryTier tier, CancellationToken ct)
     {
         if (_native is not FacadeNativeClient source)
         {
-            return ([], [], 0);
+            return ([], []);
         }
         if (!mapBounds.TryGetValue(out var bounds) || bounds.Width <= 0 || bounds.Height <= 0)
         {
@@ -69,39 +70,22 @@ public sealed partial class RoundsArmoryPlanner
                 throw new ControlException("weaponDemand: !known");
             }
             recipes.AddRange(rows);
-            foreach (var recipe in rows)
+        }
+        recipes.AddRange(GearRules.UnhostedCrafts(crafts, benches));
+        foreach (var recipe in recipes)
+        {
+            if (!WeaponAssignmentRules.WeaponRecipe(recipe))
             {
-                if (!WeaponAssignmentRules.WeaponRecipe(recipe))
-                {
-                    continue;
-                }
-                foreach (var def in recipe.Products)
-                {
-                    products[def] = catalog.WeaponOf(def.Value);
-                }
+                continue;
+            }
+            foreach (var def in recipe.Products)
+            {
+                products[def] = catalog.WeaponOf(def.Value);
             }
         }
         var (fighters, hunters) = ArmoryRules.ArmoryWeaponDemand(tier, pawns, primaries, candidates, recipes, products);
         _reviewer.Exports.SetWeapons(snapshot, GearSurplusRules.SpareWeaponCounts(tier, pawns, primaries, candidates, recipes, products));
-        return (fighters, hunters, WeaponAssignmentRules.UnarmedFighters(pawns, candidates));
-    }
-
-    /// <summary>
-    /// Places or retires the crafting spot through the building planner under the equipment Need while the last
-    /// declaration wanted it; the verdict names a missing weapon bench, and nothing wanted is no deficit.
-    /// </summary>
-    internal async Task<Verdict> PlaceCraftingSpotAsync(StepArbiter arbiter, CancellationToken call, CancellationToken epoch)
-    {
-        if (!SpotWanted())
-        {
-            return BuildingReasonNoDeficit;
-        }
-        if (_spot is null)
-        {
-            return BuildingReasonNoWeaponBench;
-        }
-        var result = await _spot.Copy().StepAsync(arbiter, call, epoch).ConfigureAwait(false);
-        return result.Decision?.Admitted == true ? BuildingReasonAdmitted : result.Verdict;
+        return (fighters, hunters);
     }
 }
 
@@ -165,22 +149,5 @@ partial class RoundsArmoryPlanner
             return new ArmoryPrimary { Definition = def, Ranged = facts.Ranged, Quality = quality, Facts = facts };
         }
         return null;
-    }
-
-    /// <summary>Whether any bench's recipes make a weapon.</summary>
-    internal static bool WeaponBenchHosted(IReadOnlyList<GearBench> benches)
-    {
-        foreach (var b in benches)
-        {
-            b.Recipes.TryGetValue(out var rows);
-            foreach (var recipe in rows)
-            {
-                if (WeaponAssignmentRules.WeaponRecipe(recipe))
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 }

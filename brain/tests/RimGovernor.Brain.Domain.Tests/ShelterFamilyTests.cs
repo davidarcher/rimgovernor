@@ -14,8 +14,6 @@ public sealed class ShelterFamilyTests
 {
     private static readonly ShelterFacts Housed = new()
     {
-        Indoor = Known(true),
-        Beds = Known(true),
         SleepingRecovered = Known(true),
         Colonists = Known(3L),
         IndoorCapacity = Known(3L + LayoutGraphRules.HousingSparePlaces),
@@ -29,57 +27,47 @@ public sealed class ShelterFamilyTests
     };
 
     private static Need Of(ShelterFacts facts, NeedId id) =>
-        Assert.Single(new ShelterFamily(true, true, true, true, true).Derive(facts), n => n.Id == id);
+        Assert.Single(new ShelterFamily(true, true, true, true).Derive(facts), n => n.Id == id);
 
     [Fact]
     public void EveryComposedNeedIsDerivedAndMetForAHousedColony()
     {
-        var needs = new ShelterFamily(true, true, true, true, true).Derive(Housed);
-        Assert.Equal([ShelterFamily.SafeArea, ShelterFamily.Starter, ShelterFamily.Sleeping, ShelterFamily.Expansion, ShelterFamily.Temperature], needs.Select(n => n.Id));
+        var needs = new ShelterFamily(true, true, true, true).Derive(Housed);
+        Assert.Equal([ShelterFamily.SafeArea, ShelterFamily.Sleeping, ShelterFamily.Expansion, ShelterFamily.Temperature], needs.Select(n => n.Id));
         Assert.All(needs, n => Assert.Equal(Satisfaction.Met, n.Satisfaction));
         Assert.All(needs, n => Assert.Equal(Known(0.0), n.Deficit));
-        Assert.Empty(new ShelterFamily(false, false, false, false, false).Derive(Housed));
-        Assert.Equal([ShelterFamily.Temperature], new ShelterFamily(false, false, false, true, false).Derive(Housed).Select(n => n.Id));
+        Assert.Empty(new ShelterFamily(false, false, false, false).Derive(Housed));
+        Assert.Equal([ShelterFamily.Temperature], new ShelterFamily(false, false, true, false).Derive(Housed).Select(n => n.Id));
     }
 
     [Fact]
-    public void StarterShelterIsAPlainThresholdOnBothFootholdPlaces()
-    {
-        Assert.Equal(Satisfaction.Unmet, Of(Housed with { Beds = Known(false) }, ShelterFamily.Starter).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, Of(Housed with { Indoor = Known(false) }, ShelterFamily.Starter).Satisfaction);
-        Assert.Equal(Known(1.0), Of(Housed with { Indoor = Known(false) }, ShelterFamily.Starter).Deficit);
-        Assert.Equal(Satisfaction.Unknown, Of(Housed with { Indoor = Unknown<bool>() }, ShelterFamily.Starter).Satisfaction);
-        Assert.False(Of(Housed with { Indoor = Unknown<bool>() }, ShelterFamily.Starter).Deficit.IsKnown);
-    }
-
-    [Fact]
-    public void SleepingFollowsTheBedReviewAndWaitsOnTheStarter()
+    public void SleepingFollowsTheBedReviewAndWaitsOnNothing()
     {
         Assert.Equal(Satisfaction.Unmet, Of(Housed with { SleepingRecovered = Known(false) }, ShelterFamily.Sleeping).Satisfaction);
         Assert.Equal(Satisfaction.Unknown, Of(Housed with { SleepingRecovered = Unknown<bool>() }, ShelterFamily.Sleeping).Satisfaction);
-        Assert.Equal([ShelterFamily.Starter], Of(Housed, ShelterFamily.Sleeping).Preconditions);
-        Assert.Empty(Assert.Single(new ShelterFamily(false, true, false, false, false).Derive(Housed)).Preconditions);
+        Assert.Empty(Of(Housed, ShelterFamily.Sleeping).Preconditions);
     }
 
     [Fact]
-    public void ExpansionKeepsOneSparePlaceAndWaitsOnStarterAndSleeping()
+    public void ExpansionKeepsOneSparePlaceAndWaitsOnSleeping()
     {
         var short1 = Of(Housed with { IndoorCapacity = Known(3L) }, ShelterFamily.Expansion);
         Assert.Equal(Satisfaction.Unmet, short1.Satisfaction);
         Assert.True(short1.Deficit.TryGetValue(out var d) && d > 0 && d <= 1);
         Assert.Equal(Satisfaction.Unknown, Of(Housed with { IndoorCapacity = Unknown<long>() }, ShelterFamily.Expansion).Satisfaction);
         Assert.Equal(Satisfaction.Unknown, Of(Housed with { Colonists = Known(0L) }, ShelterFamily.Expansion).Satisfaction);
-        Assert.Equal([ShelterFamily.Starter, ShelterFamily.Sleeping], Of(Housed, ShelterFamily.Expansion).Preconditions);
+        Assert.Equal([ShelterFamily.Sleeping], Of(Housed, ShelterFamily.Expansion).Preconditions);
+        Assert.Empty(Assert.Single(new ShelterFamily(false, true, false, false).Derive(Housed)).Preconditions);
         Assert.Equal(NeedTier.Development, Of(Housed, ShelterFamily.Expansion).Tier);
     }
 
     [Fact]
-    public void PreconditionsHoldSleepingAndExpansionBehindAnUnmetStarter()
+    public void PreconditionsHoldExpansionBehindUnmetSleeping()
     {
-        var needs = new ShelterFamily(true, true, true, false, false).Derive(Housed with { Beds = Known(false), SleepingRecovered = Known(false), IndoorCapacity = Known(0L) });
+        var needs = new ShelterFamily(true, true, false, false).Derive(Housed with { SleepingRecovered = Known(false), IndoorCapacity = Known(0L) });
         var standings = NeedsRules.NeedStandings(ShelterFamily.FamilyId, needs);
-        Assert.Equal([NeedReadiness.Ready, NeedReadiness.Waiting, NeedReadiness.Waiting], standings.Select(s => s.Readiness));
-        Assert.Equal(ShelterFamily.Starter, standings[1].WaitingOn);
+        Assert.Equal([NeedReadiness.Ready, NeedReadiness.Waiting], standings.Select(s => s.Readiness));
+        Assert.Equal(ShelterFamily.Sleeping, standings[1].WaitingOn);
     }
 
     [Fact]
@@ -100,10 +88,10 @@ public sealed class ShelterFamilyTests
         Assert.Equal(NeedTier.SeriousHarm, need.Tier);
         Assert.Equal(Satisfaction.Unmet, need.Satisfaction);
         Assert.Equal(Satisfaction.Unknown, Of(Housed with { SafeAreaOwed = Unknown<bool>() }, ShelterFamily.SafeArea).Satisfaction);
-        Assert.NotEmpty(new ShelterFamily(false, false, false, false, true).SeriousHarmReads);
-        Assert.Empty(new ShelterFamily(true, true, true, true, false).SeriousHarmReads);
+        Assert.NotEmpty(new ShelterFamily(false, false, false, true).SeriousHarmReads);
+        Assert.Empty(new ShelterFamily(true, true, true, false).SeriousHarmReads);
         // Only the safe area is SeriousHarm: the immediate pass keeps it alone.
-        Assert.Equal([ShelterFamily.SafeArea], new ShelterFamily(true, true, true, true, true).Derive(Housed).Where(n => n.Tier == NeedTier.SeriousHarm).Select(n => n.Id));
+        Assert.Equal([ShelterFamily.SafeArea], new ShelterFamily(true, true, true, true).Derive(Housed).Where(n => n.Tier == NeedTier.SeriousHarm).Select(n => n.Id));
     }
 
     [Fact]
@@ -121,9 +109,8 @@ public sealed class ShelterFamilyTests
     }
 
     [Fact]
-    public void HousingNamesTheThreeHousingNeedsOnly()
+    public void HousingNamesTheTwoHousingNeedsOnly()
     {
-        Assert.True(ShelterFamily.Housing(ShelterFamily.Starter.FilingKey));
         Assert.True(ShelterFamily.Housing(ShelterFamily.Sleeping.FilingKey));
         Assert.True(ShelterFamily.Housing(ShelterFamily.Expansion.FilingKey));
         Assert.False(ShelterFamily.Housing(ShelterFamily.Temperature.FilingKey));

@@ -39,9 +39,6 @@ public sealed partial class RoundsBuildingPlanner
     /// </summary>
     internal NeedId Need { get; set; }
 
-    /// <summary>The military/equipment Need's stand-in planner: the spot goes in the planned workshop and leaves when a weapon bench stands.</summary>
-    internal bool CraftingSpot { get; set; }
-
     internal string Definition { get; set; } = "";
 
     internal double RecreationPowerW { get; set; }
@@ -180,18 +177,6 @@ public sealed partial class RoundsBuildingPlanner
         foreach (var m in goal.OpenMethods)
         {
             var plan = p.Journal.LoadPlan(m.Plan, call);
-            if (r.CraftingSpot)
-            {
-                // Bills share the goal and run for days: only a pending spot is the planner's own work.
-                foreach (var progress in plan.Progress)
-                {
-                    if (PendingFacility(progress, RoundsBuildingPlanner.CraftingSpotDefinition))
-                    {
-                        return new RoundsBuildingResult { Verdict = BuildingReasonExistingWork };
-                    }
-                }
-                continue;
-            }
             if (r.ButcherFacility())
             {
                 // Fields, foraging and hunts share the goal and run for days: only a pending bench is the planner's own work (the ring is its own wave).
@@ -515,15 +500,6 @@ public sealed partial class RoundsBuildingPlanner
                 }
                 break;
             }
-            case "crafting-spot-retire":
-            {
-                var (spot, owed) = StandingCraftingSpot(facts);
-                if (owed && spot.Building is { } spotBuilding)
-                {
-                    return await r.RetireBuildingAsync(state, review, goal, reading, spot.Id, spotBuilding.Definition, spot.Cells[0], "crafting-spot-retire", "stand-in_crafting_spot", call, epoch).ConfigureAwait(false);
-                }
-                break;
-            }
             case "butcher-spot":
             {
                 // The free spot stands in the planned butchery until the table is built.
@@ -612,20 +588,6 @@ public sealed partial class RoundsBuildingPlanner
                     r = kitchen;
                 }
             }
-        }
-        if (r.CraftingSpot && r.Cells is null && PlannedShelterRooms(facts).Count == 0)
-        {
-            // With no shelter planned the spot never falls back to a free search: it stands in the planned
-            // workshop, built or not, and waits for the plan to hold one.
-            var cells = PlannedRoomCells(facts, PlannedRole.Workshop) ?? PlannedRoomPlanCells(facts, PlannedRole.Workshop);
-            if (cells is null)
-            {
-                return new RoundsBuildingResult { Verdict = AwaitingPlan("workshop_room", "") };
-            }
-            var spot = r.Copy();
-            spot.Cells = cells;
-            spot.Environment = Pol.PlacementEnvironment.Anywhere;
-            r = spot;
         }
         if (r.ButcherFacility() && r.Cells is null)
         {
@@ -1065,8 +1027,7 @@ public sealed partial class RoundsBuildingPlanner
                 roomCells.Add(c);
             }
         }
-        // The crafting spot takes the standing shelter's template slot and moves to the planned workshop only once the shelter has left the plan.
-        var slotOnly = CraftingSpot && Facility is null && PlannedShelterRooms(facts).Count > 0;
+        var slotOnly = false;
         // On a cold map the campfires stand indoors on the shelter's template slots; a taken slot, or no shelter,
         // leaves the campfire to the search below.
         if (facts.LayoutPlan.TryGetValue(out var coldPlan) && coldPlan.Cold && Definition == "Campfire" && (cookingCampfire || (Temperature is { Method: Pol.TemperatureMethod.Heat })))

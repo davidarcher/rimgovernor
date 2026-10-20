@@ -34,8 +34,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 29 drops <c>Practice.Surgery</c> from journaled activity steps (#3344): practice surgery is gone.
     /// Version 30 drops the <c>Clean</c> action and <c>WaitForFilth</c> from journaled activity steps (#3667): coupled cleaning is gone.
     /// Version 31 drops the <c>Standby</c> activity kind from journaled activity steps (#3669): an unowned colonist runs vanilla work.
+    /// Version 32 drops the <c>Housing</c> phase latch from the rounds latches (#3659): the starter shelter is gone.
     /// </summary>
-    public const int SchemaVersion = 31;
+    public const int SchemaVersion = 32;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

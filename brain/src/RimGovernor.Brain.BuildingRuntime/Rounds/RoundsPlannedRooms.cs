@@ -80,11 +80,6 @@ public sealed partial class RoundsBuildingPlanner
             return Facility.Role == Pol.RoomRole.Laboratory && !AdvancedLab && LayoutCapabilityRules.ShelterHosts(Capability.Research);
         }
 
-        if (CraftingSpot)
-        {
-            return LayoutCapabilityRules.ShelterHosts(Capability.Craft);
-        }
-
         if (Definition == LayoutCapabilityRules.ShelterHeatDef)
         {
             var cooking = Concern == FoodRules.CookingNeed.FilingKey && Paste.Count == 0;
@@ -105,8 +100,6 @@ public sealed partial class RoundsBuildingPlanner
 
 partial class RoundsBuildingPlanner
 {
-    internal const string CraftingSpotDefinition = RoundsRules.CraftingSpotDefinition;
-
     internal static (LayoutPlan Plan, RoomObservation Rooms, bool Known) PlannedLayout(ColonyProjection facts)
     {
         var pk = facts.LayoutPlan.TryGetValue(out var plan);

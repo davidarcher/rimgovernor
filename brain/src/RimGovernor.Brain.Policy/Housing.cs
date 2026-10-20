@@ -1,9 +1,9 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// The step a building planner serves. The three housing values name the shelter family's housing planners
-/// (#3257): the starter shelter with its bunks, bed ownership and bedrooms, and the spare room; their order is the
-/// Needs' preconditions, not a latch. The comfort phases name which rooms Need a building planner serves
+/// The step a building planner serves. The three housing values name the shelter family's housing steps (#3257,
+/// #3659): the day-one stand-in spots, bed ownership and bedrooms, and the spare room; their order is the Needs'
+/// preconditions and the sleeping planner's own order, not a latch. The comfort phases name which rooms Need a building planner serves
 /// (rooms/comfort, rooms/hosting, rooms/party-spot, rooms/work-chairs), also ordered by Need preconditions. The empty phase is the
 /// default.
 /// </summary>
@@ -16,7 +16,10 @@ public readonly record struct Phase(string Value)
     /// <summary>The empty phase: no step owed.</summary>
     public static Phase None => default;
 
-    /// <summary>The foothold gates (a sleeping place and an indoor place for everyone) are not both met.</summary>
+    /// <summary>
+    /// The day-one floor (#3659): the foothold gates (a sleeping place and an indoor place for everyone) are not both
+    /// met, and the sleeping planner places stand-in sleeping spots (ShelterRules.StandInsOwed), Survive tier.
+    /// </summary>
     public static Phase HousingShelter => new("shelter");
 
     /// <summary>ReviewSleeping has a colonist without a suitable owned bed, an unused one or a bedroom step due.</summary>

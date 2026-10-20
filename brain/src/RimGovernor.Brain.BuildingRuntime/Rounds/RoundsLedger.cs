@@ -269,7 +269,7 @@ public sealed partial class Rounder
                 l.Unmet = [.. l.Dispatch.Unmet(dispatched, wanted, unplaced, benches)];
                 l.Colonists = pawns.Count;
                 l.View = WorkRules.BuildLedgerView(wanted);
-                var owed = WorkRules.LedgerDiffOwed(plan);
+                var owed = WorkRules.LedgerDiffOwed(plan, placed);
                 if (owed)
                 {
                     l.Pending = new LedgerPending { Snapshot = snapshot, Remove = plan.Remove, Place = placed, Unplaced = unplaced };

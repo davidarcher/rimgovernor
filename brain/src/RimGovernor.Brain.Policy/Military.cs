@@ -65,9 +65,6 @@ public sealed record MilitaryFacts
     /// <summary>The colonists' gear census (loadouts, apparel policies, outfits) the equipment Need is judged on.</summary>
     public Fact<GearObservation> Gear { get; init; }
 
-    /// <summary>A weapon bench stands beside the crafting spot that stood in for it: the spot is owed its deconstruction.</summary>
-    public Fact<bool> CraftingSpotRetireOwed { get; init; }
-
     /// <summary>A built mortar's shell stock is below half its target (<see cref="ArmoryShellsRules.ShellsShort"/>).</summary>
     public Fact<bool> ShellsShort { get; init; }
 
@@ -86,7 +83,6 @@ public sealed record MilitaryFacts
         Foothold = RoundsRules.FootholdCount(f),
         Training = TrainingRules.ReviewTraining(f),
         Gear = f.Gear,
-        CraftingSpotRetireOwed = f.CraftingSpotRetireOwed,
         ShellsShort = f.ShellsShort,
     };
 }
@@ -248,13 +244,12 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     }
 
     /// <summary>
-    /// The equipment predicate: the gear review recovered, no crafting spot owed down and no mortar short of
-    /// shells. A retire or a shell shortage is unmet whatever the gear census says; otherwise an unknown gear review
-    /// is unknown.
+    /// The equipment predicate: the gear review recovered and no mortar short of shells. A shell shortage is unmet
+    /// whatever the gear census says; otherwise an unknown gear review is unknown.
     /// </summary>
     public static Fact<bool> EquipmentMet(MilitaryFacts f)
     {
-        if (Positive(f.CraftingSpotRetireOwed) || Positive(f.ShellsShort))
+        if (Positive(f.ShellsShort))
         {
             return Known(false);
         }

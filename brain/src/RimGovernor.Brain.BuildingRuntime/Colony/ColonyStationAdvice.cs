@@ -10,11 +10,12 @@ public sealed partial class Rounder
     /// the facts' key parts and the load beside the survey. Pure and cheap; the chain itself runs once, inside the
     /// replan the inputs' drift starts (<c>StartLayoutReplan</c>), off the review's hold path.
     /// </summary>
-    internal (StationFacts Facts, LayoutInputs Inputs) StationInputsOf(GenerationSnapshot snapshot, ColonyProjection projection, LayoutPlan plan, RoomGrowth growth, MapSurvey survey, BedMergeFacts bedMerge)
+    internal (StationFacts Facts, LayoutInputs Inputs) StationInputsOf(GenerationSnapshot snapshot, ColonyProjection projection, LayoutPlan plan, RoomGrowth growth, MapSurvey survey, BedMergeFacts bedMerge, IReadOnlyDictionary<string, double>? hostBuild = null)
     {
         var f = StationFactsBuilder.StationFactsOf(projection, plan, survey, StationNeeds(snapshot), WorkLedgerView()) with
         {
             BedMerge = bedMerge,
+            HostBuild = hostBuild ?? new Dictionary<string, double>(),
             Pinned = LayoutPlan.TilePinned(plan, growth),
             ThroneArea = Known(growth.ThroneArea),
             RetireShelter = growth.RetireShelter,
@@ -47,6 +48,53 @@ public sealed partial class Rounder
         var materials = new[] { wall, door }.SelectMany(p => p?.Costs ?? []).Select(a => a.Resource);
         var values = await MaterialValuesAsync(snapshot, materials, projection.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
         return facts with { WallCell = LayoutClusterRules.ShellPiecePrice(wall, values), Door = LayoutClusterRules.ShellPiecePrice(door, values) };
+    }
+
+    /// <summary>
+    /// The capability-days of building each work station that hosts a recipe the ledger orders (#3659, StationFacts.HostBuild):
+    /// its WorkToBuild and cost list, a stuffed station's in its cheapest common stuff, priced by LayoutClusterRules.ShellPiecePrice.
+    /// A station the catalog shows no work or cost list for is left out, which leaves its recipe's hosts unpriced.
+    /// </summary>
+    internal async Task<IReadOnlyDictionary<string, double>> HostBuildAsync(GenerationSnapshot snapshot, ColonyProjection projection, StationFacts facts, CancellationToken ct)
+    {
+        var output = new Dictionary<string, double>(StringComparer.Ordinal);
+        if (!facts.Orders.TryGetValue(out var orders) || orders.Count == 0)
+        {
+            return output;
+        }
+        var recipes = orders.Select(o => o.Recipe).ToHashSet(StringComparer.Ordinal);
+        var pieces = new SortedDictionary<string, (double Work, IReadOnlyList<Amount> Costs)>(StringComparer.Ordinal);
+        foreach (var (def, s) in facts.Catalog.Stations)
+        {
+            if (s.Capacity.Kind == CapacityKind.Workers && s.Capacity.Recipes.Any(r => recipes.Contains(r.Recipe)) && HostPiece(projection, def) is { } piece)
+            {
+                pieces[def] = piece;
+            }
+        }
+        var values = await MaterialValuesAsync(snapshot, pieces.Values.SelectMany(p => p.Costs).Select(a => a.Resource), projection.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
+        foreach (var (def, piece) in pieces)
+        {
+            if (LayoutClusterRules.ShellPiecePrice(piece, values).TryGetValue(out var price))
+            {
+                output[def] = price;
+            }
+        }
+        return output;
+    }
+
+    /// <summary>A work station's work to build and cost list: its own for a def made from no stuff, else its cheapest common stuff's (by cost value).</summary>
+    private static (double Work, IReadOnlyList<Amount> Costs)? HostPiece(ColonyProjection colony, string name)
+    {
+        if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, name) is not { } def)
+        {
+            return null;
+        }
+        if (def.StuffOptions.Count == 0)
+        {
+            return ShellPiece(colony, name, "");
+        }
+        var cheapest = def.StuffOptions.Where(o => o.Common).OrderBy(o => o.Value).ThenBy(o => o.Stuff, StringComparer.Ordinal).FirstOrDefault();
+        return cheapest is null ? null : ShellPiece(colony, name, cheapest.Stuff);
     }
 
     /// <summary>A shell piece's work to build and cost list in <paramref name="stuff"/> (its own for a def made from no stuff); null where the catalog shows neither.</summary>

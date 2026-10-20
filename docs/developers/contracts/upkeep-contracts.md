@@ -304,13 +304,19 @@ cells or targets overlap an open Method is refused by claim (`claim_conflict`).
 
 ### Housing
 
-Housing is three Needs of the shelter family (#3257): `shelter/starter` (first sleeping
-places and roofed shell, foothold priority), `shelter/sleeping` (bed ownership and
-upgrades, precondition `shelter/starter`) and `shelter/expansion` (one spare indoor place,
-preconditions `shelter/starter` and `shelter/sleeping`). The preconditions replace the
-old phase latch: a Need waits while one it names is unmet, and each planner's Methods are
-admitted by claims under its Need. While the starter is owed it alone holds the
-Construction labor (`ConstructionLaborHeld`, read per review, no latch).
+Housing is two Needs of the shelter family (#3257, #3659): `shelter/sleeping` (bed
+ownership and upgrades, no precondition) and `shelter/expansion` (one spare indoor place,
+precondition `shelter/sleeping`). The precondition replaces the old phase latch: a Need
+waits while one it names is unmet, and each planner's Methods are admitted by claims
+under its Need. There is no starter shelter and no Construction labor hold.
+
+- Day-one floor: while a sleeping and an indoor place do not both stand for everyone,
+  `shelter/sleeping` first places the missing sleeping places as stand-in
+  `SleepingSpot`s (`ShelterRules.StandInsOwed`, one Survive-tier `stand-in-sleeping-*`
+  Method per shortfall, none while one is open) in the first selected sleeping room:
+  its free interior, then the cells next to its ring, outdoors allowed. A spot houses
+  no one in the bedroom census, so its sleeper is still walked into a bedroom, and a
+  vacant spot is cleared once the beds in enclosed rooms take everyone.
 
 - `shelter/sleeping` is composed by the `sleeping` toggle. Each review re-derives targets (colonists without an owned suitable bed or without
   observed use of one) from the upkeep census and retained use history.
@@ -323,8 +329,7 @@ Construction labor (`ConstructionLaborHeld`, read per review, no latch).
   evicts another owner.
 - Only when nobody can be assigned is one `Bed` staged through the shared building
   ladder in a Bedroom, Barracks or generic Room whose observed temperature lies in the
-  comfortable band of every unhoused colonist; with no such room the ladder falls to its
-  starter shell, which waits while initial shelter is owed. One bed per method; the
+  comfortable band of every unhoused colonist. One bed per method; the
   staged bed is assigned on a later review.
 - Bed rung: `Bed`, else a `Bedroll` whose stuff (first `stuff_options` entry the stock
   covers) is on hand. A bedroll is suitable only while `Bed` is unavailable, after which

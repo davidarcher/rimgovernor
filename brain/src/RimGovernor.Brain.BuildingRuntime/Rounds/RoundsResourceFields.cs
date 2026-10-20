@@ -17,7 +17,7 @@ public sealed partial class Rounder
         }
 
         var shells = new List<PlanState>();
-        foreach (var need in new[] { ShelterFamily.Starter, ShelterFamily.Sleeping, ShelterFamily.Expansion })
+        foreach (var need in new[] { ShelterFamily.Sleeping, ShelterFamily.Expansion })
         {
             if (!Needs.Contains(need))
             {

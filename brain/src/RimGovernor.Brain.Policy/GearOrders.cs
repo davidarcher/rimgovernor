@@ -106,7 +106,7 @@ public static class GearOrdersRules
                 }
             }
         }
-        var (stocked, shellUnknown) = ShellOrders(benches, shells);
+        var (stocked, shellUnknown) = ShellOrders(benches, r.Crafts, shells);
         Collect(stocked, shellUnknown);
         return @out;
     }
@@ -226,10 +226,10 @@ public static class GearOrdersRules
 
     /// <summary>
     /// The stock-target orders of the mortar shell targets, in priority order: a shell some bench bill already
-    /// makes is declared as that bill stands, else the first bench (by id) with an available recipe makes it. A
-    /// target no recipe makes is skipped.
+    /// makes is declared as that bill stands, else the first bench (by id) with an available recipe makes it, else
+    /// an available catalog recipe no bench lists, with no bench kind (#3659). A target no recipe makes is skipped.
     /// </summary>
-    private static (IReadOnlyList<OrderSpec> Orders, Cause? Unknown) ShellOrders(IReadOnlyList<GearBench> benches, IReadOnlyList<Amount> targets)
+    private static (IReadOnlyList<OrderSpec> Orders, Cause? Unknown) ShellOrders(IReadOnlyList<GearBench> benches, EquatableArray<GearRecipe> crafts, IReadOnlyList<Amount> targets)
     {
         var orders = new List<OrderSpec>();
         Cause? unknown = null;
@@ -289,6 +289,10 @@ public static class GearOrdersRules
                 {
                     break;
                 }
+            }
+            if (!placed && GearRules.UnhostedCrafts(crafts, sorted).FirstOrDefault(c => c.Products.Contains(t.Resource)) is { } craft)
+            {
+                orders.Add(new OrderSpec { Recipe = craft.Definition, Mode = BillMode.StockTarget, Target = (int)t.Count, BenchKind = GearRules.CraftBench });
             }
         }
         return (orders, unknown);

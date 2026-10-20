@@ -24,9 +24,9 @@ public sealed class ClaimAdmissionTests
         public NeedCommit Food(string method, params DomainAction[] actions) =>
             Journal.CommitClaimedMethod(FoodRules.FoodSupplyNeed, World, new(method), "",
                 new PlanSpec(new(method + "-plan-" + Guid.NewGuid().ToString("N")[..8]), new(1), EquatableArray.From(actions)), TestContext.Current.CancellationToken);
-        /// <summary>Commits under the shelter family's starter Need (#3257): its rungs are admitted by claims.</summary>
+        /// <summary>Commits under the shelter family's sleeping Need (#3257): its rungs are admitted by claims.</summary>
         public NeedCommit Shelter(string method, params DomainAction[] actions) =>
-            Journal.CommitClaimedMethod(ShelterFamily.Starter, World, new(method), "",
+            Journal.CommitClaimedMethod(ShelterFamily.Sleeping, World, new(method), "",
                 new PlanSpec(new(method + "-plan-" + Guid.NewGuid().ToString("N")[..8]), new(1), EquatableArray.From(actions)), TestContext.Current.CancellationToken);
         /// <summary>Commits under the generic test Need (admin/work-assignments).</summary>
         public NeedCommit Work(string method, params DomainAction[] actions) =>
@@ -47,7 +47,8 @@ public sealed class ClaimAdmissionTests
             {
                 Buildings = Known<EquatableArray<WorkBuildingCost>>([
                     new("TestWall", "Rice", Known<EquatableArray<Amount>>([new(new("Rice"), 1)])) { Size = Known(new Cell(1, 1)) },
-                    new("TestBed", "Rice", Known<EquatableArray<Amount>>([new(new("Rice"), 1)])) { Size = Known(new Cell(1, 2)) }]),
+                    new("TestBed", "Rice", Known<EquatableArray<Amount>>([new(new("Rice"), 1)])) { Size = Known(new Cell(1, 2)) },
+                    new("TestSpot", "", Known<EquatableArray<Amount>>([])) { Size = Known(new Cell(1, 1)) }]),
             },
         };
         var review = journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
@@ -69,6 +70,18 @@ public sealed class ClaimAdmissionTests
     private static DomainAction Delivery(string id, string pawn, string method) =>
         DomainAction.NewPawnActivitiesAction(new(id), new(1, [new(pawn, "assignment-" + id, method, 0, 1, false,
             [new(PawnActivityKind.Deliver, "stack-" + id, "", "", 1, 500) { Destination = new(id[^1] - '0' + (pawn[0] - 'a') * 10, 20) }])]));
+
+    /// <summary>
+    /// No labor hold (#3659): with no room standing and no sleeping or indoor place for the colonist, a crafting spot a
+    /// work Need places is admitted; the selection prices sleeping outside instead.
+    /// </summary>
+    [Fact]
+    public void ACraftingSpotIsAdmittedWithNoRoomStanding()
+    {
+        using var colony = Open();
+        var spot = DomainAction.NewBuildingAction(new("spot"), new("TestSpot", new(4, 4), Rotation.North, ""), ConstructionTier.Sustain);
+        Assert.Equal(ClaimOutcome.Admitted, colony.Work("crafting-spot", spot).Outcome);
+    }
 
     [Fact]
     public void SecondForageIsAdmittedOnOtherSourcesAndRefusedOnAnOpenOne()
@@ -215,7 +228,7 @@ public sealed class ClaimAdmissionTests
         // A Need's released MethodId is the planner's to issue again once its product is gone (decision 19): the store
         // admits a new attempt, and the history reads that latest attempt of the MethodId.
         Assert.Equal(ClaimOutcome.Admitted, colony.Shelter("bunk", Build("bed-3", "TestBed", 8, 8)).Outcome);
-        var owner = colony.Journal.LoadNeed(ShelterFamily.Starter, World, ct);
+        var owner = colony.Journal.LoadNeed(ShelterFamily.Sleeping, World, ct);
         var latest = Assert.Single(colony.Journal.OwnerMethodHistory(owner, ct), m => m.Method.Value == "bunk").Plan;
         Assert.NotEqual(plan, latest);
         Assert.Equal(latest, colony.Journal.OwnerMethodPlan(owner, new("bunk"), ct));

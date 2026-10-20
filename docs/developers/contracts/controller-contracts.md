@@ -68,14 +68,9 @@ same list ([Need progress](../architecture/control-loop.md)). Prerequisites rema
 orders without reserving a builder for a Concern.
 
 Inspection-specific prerequisite checks determine useful work.
-There is no stage and no generic development admission queue. Every planner runs; none is held by name. While the
-initial shelter is owed (the housing latch at `shelter`) the shelter owns the Construction
-labor, and method admission (`AdmitConstructionLabor`, over `ConstructionLaborRules.ConstructionLaborHeld`)
-refuses a plan holding an action that draws on it (`DrawsConstructionLabor`: building, roofing,
-deconstruction and floor, foundation and wall removal, moving or uninstalling a building, cover
-clearance) with `awaiting_plan:construction_labor`. The housing goal is exempt, and so is a plan of other kinds: gathering, growing, zoning, bills
-and settings never wait, so the supply the shelter's own demand asks for (`ConstructionDemand`,
-the `DependencyRecord`) is not held behind it (#3147). The defense layout's killbox digs (#2818)
+There is no stage and no generic development admission queue. Every planner runs; none is held by name, and no
+Need holds the Construction labor (#3659 deleted the starter shelter's hold): the tier of each action orders the
+builders' work. The defense layout's killbox digs (#2818)
 also wait on a raid: no `military/combat` fight in the journal files `awaiting_plan:raid`, and
 the first raid releases them. An item on a ring cell is never an obstruction (the
 builder hauls it aside when the wall goes over it), so a ring cell waits on no haul. The

@@ -8,6 +8,7 @@ partial class RoundsGearPlanner
         Observation = projection.Facts.Gear,
         Benches = Known(EquatableArray.From(benches)),
         Items = projection.Facts.Items,
+        Crafts = projection.Facts.Crafts,
     };
 
     /// <summary>A failed read abstains from declaring, but a cancelled one is the caller's cancellation and propagates.</summary>
@@ -38,7 +39,6 @@ public sealed partial class RoundsArmoryPlanner
 
     internal async Task<Declared> DeclareOrdersInnerAsync(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
-        SetSpotNeeded(false);
         var tier = ArmoryRules.AssessArmory(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.Facts.Research).Tier;
         var known = projection.Facts.Gear.TryGetValue(out var census);
         if (_native is not FacadeNativeClient)
@@ -54,10 +54,9 @@ public sealed partial class RoundsArmoryPlanner
         var ids = census!.Pawns.Select(p => p.Pawn.Value).ToList();
         IReadOnlyList<Amount> fighters;
         IReadOnlyList<Amount> hunters;
-        int unarmed;
         try
         {
-            (fighters, hunters, unarmed) = await WeaponDemandAsync(snapshot, ids, projection.Identity.Tick.Value, projection.Facts.MapBounds, benches, tier, ct).ConfigureAwait(false);
+            (fighters, hunters) = await WeaponDemandAsync(snapshot, ids, projection.Identity.Tick.Value, projection.Facts.MapBounds, benches, projection.Facts.Crafts, tier, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -70,23 +69,6 @@ public sealed partial class RoundsArmoryPlanner
             return WorkRules.Abstaining(Cause.UnreadShells);
         }
 
-        SetSpotNeeded((unarmed > 0 && !WeaponBenchHosted(benches)) || RoundsBuildingPlanner.PositiveFact(projection.Facts.CraftingSpotRetireOwed));
         return GearOrdersRules.DeclareArmoryOrders(RoundsGearPlanner.GearRequest(projection, benches), tier, MergeAmounts(fighters, hunters), shells);
-    }
-
-    internal void SetSpotNeeded(bool v)
-    {
-        lock (_mu)
-        {
-            _spotNeeded = v;
-        }
-    }
-
-    internal bool SpotWanted()
-    {
-        lock (_mu)
-        {
-            return _spotNeeded;
-        }
     }
 }

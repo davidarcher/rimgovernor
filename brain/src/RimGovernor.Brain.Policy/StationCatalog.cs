@@ -202,6 +202,9 @@ public sealed record StationCapacity
     public int Slots { get; init; }
 
     public IReadOnlyList<RecipeWorkAmount> Recipes { get; init; } = [];
+
+    /// <summary>A work table's base WorkTableWorkSpeedFactor (the crafting spot's 0.5): a run takes the recipe's work over it. 0 reads as 1.</summary>
+    public double WorkSpeed { get; init; }
 }
 
 /// <summary>The work one unit of a recipe takes at the station.</summary>

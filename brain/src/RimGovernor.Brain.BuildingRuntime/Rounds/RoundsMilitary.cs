@@ -26,24 +26,21 @@ public sealed class MilitaryRounds
     // Stages the training rooms; null for a source that cannot preview buildings.
     private readonly RoundsBuildingPlanner? _building;
 
-    // The armory's crafting spot, wanted by its ledger declaration; null without the armory.
-    private readonly RoundsArmoryPlanner? _armory;
-
     // The workshop ladder for replacement gear; null without the workshop or a workshop source.
     private readonly RoundsBuildingPlanner? _workshop;
 
     /// <summary>
     /// The defense, pests and training toggles compose those Needs; <paramref name="equipment"/> composes
-    /// military/equipment, whose work step places the <paramref name="armory"/>'s crafting spot and, with
-    /// <paramref name="workshop"/>, walks the replacement-gear workshop ladder.
+    /// military/equipment, whose work step, with <paramref name="workshop"/>, walks the replacement-gear workshop
+    /// ladder.
     /// </summary>
-    public MilitaryRounds(Rounder reviewer, bool defense, bool pests, bool training, bool equipment = false, RoundsArmoryPlanner? armory = null, bool workshop = false, bool restoreWorkers = true, bool combat = true)
+    public MilitaryRounds(Rounder reviewer, bool defense, bool pests, bool training, bool equipment = false, bool workshop = false, bool restoreWorkers = true, bool combat = true)
     {
         if (reviewer is null || reviewer.Native is null)
         {
             throw new ControlException("MilitaryRounds: reviewer == nil || reviewer.native == nil");
         }
-        if (!equipment && (armory is not null || workshop))
+        if (!equipment && workshop)
         {
             throw new ControlException("MilitaryRounds: equipment work is composed without the military/equipment Need");
         }
@@ -54,7 +51,6 @@ public sealed class MilitaryRounds
         _equipment = equipment;
         _restoreWorkers = restoreWorkers;
         _combat = combat;
-        _armory = armory;
         if (training && reviewer.Native is IRoundsBuildingSource source)
         {
             _building = new RoundsBuildingPlanner { Reviewer = reviewer, Native = source };
@@ -113,11 +109,10 @@ public sealed class MilitaryRounds
             var emergency = EmergencySnapshot.New(scope.World, expected.Tick, reading.Emergency);
             if (_equipment)
             {
-                // The crafting spot owed down and the shell review, as the review derives them.
+                // The shell review, as the review derives it.
                 using var armory = Tel.Phase("military.armory");
-                var retire = await _reviewer.CraftingSpotRetireOwedAsync(scope.World, reading.Projection, call).ConfigureAwait(false);
                 var shells = await RoundsArmoryShells.ShellTargetsAsync(_reviewer.Native, _reviewer.Player.Journal, scope.World, reading.Projection, call).ConfigureAwait(false);
-                f = f with { CraftingSpotRetireOwed = retire, ShellsShort = ArmoryShellsRules.ShellsShort(shells, reading.Projection.Resources) };
+                f = f with { ShellsShort = ArmoryShellsRules.ShellsShort(shells, reading.Projection.Resources) };
             }
             facts = MilitaryFacts.From(f with { Hostiles = EmergencyNeedsRules.EmergencyNeeds(emergency, scope.World, expected.Tick).Hostiles });
         }
@@ -251,18 +246,13 @@ public sealed class MilitaryRounds
     }
 
     /// <summary>
-    /// The equipment Need's buildings: the crafting spot its armory declaration wants, then the workshop ladder for
-    /// replacement gear, each held only by its claims and its own MethodIds. The Need reports the first admission,
+    /// The equipment Need's buildings: the workshop ladder for replacement gear, held only by its claims and its own
+    /// MethodIds. The first crafting station is the plan's, hosting the armory's orders (#3659). The Need reports the first admission,
     /// else the first step that names its reason; with neither, gear still short is the unsupported replacement.
     /// </summary>
     private async Task<Verdict> EquipmentWorkAsync(NeedWork work, MilitaryFacts facts, CancellationToken call)
     {
         var verdicts = new List<Verdict>();
-        if (_armory is not null)
-        {
-            using var armory = Tel.Phase("military.equipment.armory");
-            verdicts.Add(await _armory.PlaceCraftingSpotAsync(work.Arbiter!, call, work.Epoch).ConfigureAwait(false));
-        }
         if (_workshop is not null)
         {
             using var workshop = Tel.Phase("military.equipment.workshop");

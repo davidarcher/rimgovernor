@@ -309,6 +309,9 @@ internal sealed class GroupEval
     /// <summary>The group holds beds of the free-bed pool (the Sleep node that is no suite), whose merge the split prices (#3658).</summary>
     public bool FreeBeds { get; set; }
 
+    /// <summary>No station of the group adds to a native room role (Station.Contributions): a lone crafting spot (#3659).</summary>
+    public bool Roleless { get; set; }
+
     public IReadOnlyList<ConflictCost> Costs { get; set; } = [];
 
     public List<LostRoleEffect> Effects { get; } = [];
@@ -356,10 +359,15 @@ internal sealed class GroupEval
     /// <summary>
     /// The planned room a group's contents decide over what the game predicts: a closet of filth stations the
     /// game reads as a kitchen (the butcher table scores as one) is the butchery, and beds the game scores a barracks
-    /// are the planned barracks the priced bed merge chose (#3658). None when the prediction stands.
+    /// are the planned barracks the priced bed merge chose (#3658), and an indoor group whose stations state no room
+    /// role is a workshop, whatever generic room the game scores it (#3659). None when the prediction stands.
     /// </summary>
     public PlannedRole PlannedRole()
     {
+        if (Roleless && !OpenSky)
+        {
+            return Policy.PlannedRole.Workshop;
+        }
         if (Suite)
         {
             return Policy.PlannedRole.Suite;
@@ -794,16 +802,6 @@ public static partial class LayoutClusterRules
             c.AddRoom(all, decisions, r);
         }
         LinkRooms(all, first, graph.Rooms);
-        FlowRooms(all, first, graph.Rooms, (node, add) =>
-        {
-            if (index.TryGetValue(node, out var ia) && graph.Nodes[ia].Count > 0)
-            {
-                foreach (var u in Chunks(ia))
-                {
-                    add(rootGroup[Find(u)], units[u].Count / (double)graph.Nodes[ia].Count);
-                }
-            }
-        });
         foreach (var g in all)
         {
             g.HoldKept();
@@ -846,39 +844,6 @@ public static partial class LayoutClusterRules
                 groups[g].Clearance++;
                 groups[g].Area++;
             }
-        }
-    }
-
-    /// <summary>
-    /// Links the groups first.. of room nodes to the groups holding the station nodes of their flows, a wish
-    /// weighted by the trips (split over the groups in proportion to the node's stations in each, as the outside
-    /// node's edges are). holders calls add for each group holding a share of a node; a node the graph lacks
-    /// adds none, so a flow to nothing prices nothing.
-    /// </summary>
-    private static void FlowRooms(List<RoomGroup> groups, int first, IReadOnlyList<RoomNode> nodes, Action<string, Action<int, double>> holders)
-    {
-        var i = first;
-        foreach (var n in nodes)
-        {
-            if (n.Joins)
-            {
-                continue;
-            }
-            var room = i;
-            i++;
-            foreach (var f in n.Flows)
-            {
-                if (f.Weight <= 0)
-                {
-                    continue;
-                }
-                holders(f.With, (g, share) =>
-                {
-                    groups[room].AddLink(g, f.Weight * share);
-                    groups[g].AddLink(room, f.Weight * share);
-                });
-            }
-            groups[room].Links = [.. groups[room].Links.OrderBy(l => l.To)];
         }
     }
 
@@ -1062,7 +1027,7 @@ internal sealed partial class Clusterer
     {
         var pieces = Pieces(us);
         var pred = RoomRoleRules.PredictRole(_in.Catalog, pieces);
-        var e = new GroupEval { Role = pred.Role };
+        var e = new GroupEval { Role = pred.Role, Roleless = pieces.Count > 0 && pieces.All(p => _in.Catalog.Stations[p.Def].Contributions.Count == 0) };
         var intended = new List<RoomRole>();
         var sleepers = new Dictionary<RoomRole, int>(); // sleepers whose bed is for the role
         foreach (var p in pieces)

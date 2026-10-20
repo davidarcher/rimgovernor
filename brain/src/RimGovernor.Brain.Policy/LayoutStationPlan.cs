@@ -111,6 +111,9 @@ public sealed record StationFacts
     /// <summary>What the colony reads for the bed merge's price (#3658); its default prices no sleeper and no wall, which keeps every bed single.</summary>
     public BedMergeFacts BedMerge { get; init; } = new();
 
+    /// <summary>The capability-days of building each work station the catalog offers (labor plus material, LayoutClusterRules.ShellPiecePrice), by def; a station absent is unread (#3659, GraphBuilder.HostOf).</summary>
+    public IReadOnlyDictionary<string, double> HostBuild { get; init; } = new Dictionary<string, double>();
+
     /// <summary>
     /// The bed merge's price (#3658): the colony's facts, the outdoor curve and the map's cold or heat, the work-day's
     /// watts, and the bed slots of the plan's largest barracks as the incumbent.
@@ -149,14 +152,11 @@ public sealed record StationFacts
     public IReadOnlyList<ChildRoomShape> Child { get; init; } = [];
 
     /// <summary>
-    /// The special rooms the plan is owed or holds: the day-1 shelter while nothing stands and the plan holds none, or
-    /// while the plan's shelter is not retirable (RetireShelter), and the throne room the plan lacks, or the largest
-    /// it holds, so a standing one is a node to pin (#3003). The shelter needs the colonists; unknown, the advice
-    /// cannot size it.
+    /// The special rooms the plan is owed or holds: the throne room the plan lacks, or the largest it holds, so a
+    /// standing one is a node to pin (#3003). No shelter is seeded (#3659): a first plan's rooms are the station graph's.
     /// </summary>
     public SeedRooms SeedRoomsOf()
     {
-        var s = new SeedRooms();
         var held = 0;
         foreach (var r in Plan.Rooms)
         {
@@ -166,27 +166,7 @@ public sealed record StationFacts
                 held = Math.Max(held, b.Width * b.Height);
             }
         }
-        s = s with { ThroneArea = held };
-        if (ThroneArea.TryGetValue(out var area) && area > held)
-        {
-            s = s with { ThroneArea = area };
-        }
-        if (Plan.Rooms.Any(r => r.Role == LayoutSurveyRules.PlannedShelter))
-        {
-            if (RetireShelter)
-            {
-                return s;
-            }
-        }
-        else if (Built is not null && Built.Count > 0)
-        {
-            return s;
-        }
-        if (!Colonists.TryGetValue(out var colonists))
-        {
-            throw LayoutStationPlanRules.UnknownStationFact("colonists");
-        }
-        return s with { Shelter = true, Colonists = (int)colonists, Cold = Survey.Cold, Hot = Survey.Hot };
+        return new SeedRooms { ThroneArea = ThroneArea.TryGetValue(out var area) && area > held ? area : held };
     }
 
     /// <summary>
@@ -263,6 +243,7 @@ public sealed record StationFacts
             Rooms = RoomNodes(),
             Races = Races,
             Pasture = Pasture,
+            HostBuild = HostBuild,
         };
     }
 
@@ -304,6 +285,7 @@ public sealed record StationFacts
             new("pens", KeyText.Of(Pens)),
             new("child", KeyText.Of(Child)),
             new("plan", KeyText.Of(Plan)),
+            new("host_build", KeyText.Of(HostBuild)),
         };
         try
         {
@@ -660,7 +642,7 @@ public static partial class LayoutStationPlanRules
         nodes.AddRange(LayoutTrainingNodesRules.TrainingRoomNodes(1, 1));
         nodes.AddRange(LayoutPlan.YardRoomNodes(new LayoutPlan(), new RoomDemand()));
         nodes.Add(new RoomNode { Role = PlannedRole.Pen });
-        nodes.AddRange(LayoutTripsRules.SeedRoomNodes(new SeedRooms { Shelter = true, Colonists = 1, ThroneArea = 1 }));
+        nodes.AddRange(LayoutTripsRules.SeedRoomNodes(new SeedRooms { ThroneArea = 1 }));
         nodes.Add(new RoomNode { Role = PlannedRole.Circulation });
         var output = new HashSet<PlannedRole>(nodes.Select(n => n.Role));
         foreach (var role in LayoutChildRoomsRules.ChildNodeRoles)
@@ -672,7 +654,7 @@ public static partial class LayoutStationPlanRules
 
     /// <summary>
     /// The planned roles of the station-less room nodes of the graph (circulation, the outskirts rooms, the training
-    /// rooms, the shelter and the throne room): a standing room of one is matched to the group of its node by planned
+    /// rooms and the throne room): a standing room of one is matched to the group of its node by planned
     /// role, outdoor or without a native role as it may be (#3003). The set is read off the node constructors, so a
     /// new node kind joins it by being built there.
     /// </summary>
@@ -681,13 +663,21 @@ public static partial class LayoutStationPlanRules
     /// <summary>The key a planned role is matched under: a pen's carries its herd, so a unit's pens are matched to the unit's nodes.</summary>
     internal static string MatchKeyOf(PlannedRole planned, string herd) => planned == PlannedRole.Pen ? $"{Wire.Name(planned)}/{herd}" : Wire.Name(planned);
 
-    /// <summary>The key a group is matched to rooms under.</summary>
+    /// <summary>
+    /// The key a group is matched to rooms under: its predicted role, or the native role of the planned room its
+    /// contents decide (RoomGroup.Planned), so a lone crafting spot planned as a workshop keys as the standing
+    /// workshop does (BuiltRegion.MatchKey) though the game scores it a generic room (#3659).
+    /// </summary>
     internal static string MatchKeyOfGroup(RoomGroup g)
     {
         var (p, ok) = LayoutTileRules.PlannedRoleOfGroup(g);
         if (ok && (MatchedPlanned.ContainsKey(p) || RoomNodeRoles.Contains(p)))
         {
             return MatchKeyOf(p, g.Herd);
+        }
+        if (ok && g.Planned != PlannedRole.None && InteriorRules.ModuleRoomRoles.TryGetValue(p, out var native))
+        {
+            return native.ToString();
         }
         return g.Role.ToString();
     }

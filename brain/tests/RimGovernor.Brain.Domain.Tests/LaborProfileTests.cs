@@ -35,7 +35,6 @@ public sealed class LaborProfileTests
         { AdminFamily.Burial.Value, [WorkType.Construction] },
         { AdminFamily.Stockpiles.Value, [WorkType.Hauling] },
         { MedicalRules.MedicalReservesNeed.Value, [WorkType.Crafting, WorkType.PlantCutting] },
-        { ShelterFamily.Starter.Value, [WorkType.Construction] },
         { ShelterFamily.Sleeping.Value, [WorkType.Construction] },
         { ShelterFamily.Expansion.Value, [WorkType.Construction] },
     };

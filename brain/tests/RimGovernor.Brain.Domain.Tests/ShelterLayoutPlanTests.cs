@@ -6,10 +6,8 @@ using Xunit;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// The first layout plan's shelter (#3406, from the deleted shelter/climate-*, shelter/siting and shelter/solo-cold
-/// cases): the plan latches the map's climate from the outdoor curve, the shelter template holds the climate's
-/// campfire and cooler slots on the shelter's interior, the climate building goes to the room that owns it, and
-/// the one shelter is sized for the colony and overlaps no other room.
+/// The first layout plan (#3406, #3659): the plan latches the map's climate from the outdoor curve, seeds no shelter, and
+/// hosts research at the catalog's research bench.
 /// </summary>
 public sealed class ShelterLayoutPlanTests
 {
@@ -71,6 +69,11 @@ public sealed class ShelterLayoutPlanTests
                     Shape = new InteriorPieceDef("Table2x2c", new Cell(2, 2), RoomRole.None, null),
                     Contributions = [new RoleScore { Role = RoomRole.DiningRoom, Weight = 1 }],
                 },
+                ["ResearchBench"] = new Station
+                {
+                    Shape = new InteriorPieceDef("ResearchBench", new Cell(3, 1), RoomRole.None, null),
+                    Contributions = [new RoleScore { Role = RoomRole.Laboratory, Weight = 60, Additive = true }],
+                },
                 ["Shelf"] = new Station
                 {
                     Shape = new InteriorPieceDef("Shelf", new Cell(2, 1), RoomRole.None, null),
@@ -88,7 +91,7 @@ public sealed class ShelterLayoutPlanTests
                 Wall = 8,
             },
         },
-        Furniture = new RoomFurniture { Beds = [new FurnitureBed { Def = "Bed", Slots = 1 }] },
+        Furniture = new RoomFurniture { Beds = [new FurnitureBed { Def = "Bed", Slots = 1 }], Bench = new Dictionary<RoomRole, string> { [RoomRole.Laboratory] = "ResearchBench" } },
         Items = new ItemFacts
         {
             Market = new Dictionary<Resource, double> { [SiteRules.SiteSteelUnit] = 1.9 },
@@ -130,18 +133,6 @@ public sealed class ShelterLayoutPlanTests
         return plan.Value;
     }
 
-    private static PieceShapes Shapes => new()
-    {
-        Defs = new Dictionary<string, InteriorPieceDef>
-        {
-            [LayoutCapabilityRules.ShelterHeatDef] = new(LayoutCapabilityRules.ShelterHeatDef, new Cell(1, 1), RoomRole.None, null),
-            [LayoutCapabilityRules.ShelterCoolDef] = new(LayoutCapabilityRules.ShelterCoolDef, new Cell(1, 1), RoomRole.None, null),
-        },
-    };
-
-    private static bool Inside(Rectangle room, Rectangle piece) =>
-        piece.X >= room.X && piece.Z >= room.Z && piece.X + piece.Width <= room.X + room.Width && piece.Z + piece.Height <= room.Z + room.Height;
-
     [Theory]
     [MemberData(nameof(Climates))]
     public void TheFirstPlanLatchesTheMapsClimateFromTheOutdoorCurve(string climate)
@@ -152,59 +143,15 @@ public sealed class ShelterLayoutPlanTests
     }
 
     [Theory]
-    [MemberData(nameof(Climates))]
-    public void TheShelterTemplateHoldsTheClimatesSlotsOnTheShelterInterior(string climate)
-    {
-        var plan = FirstPlan(climate, 3);
-        var shelter = Assert.Single(plan.RoomsOf(LayoutSurveyRules.PlannedShelter));
-        var bounds = shelter.Region.Bounds();
-        var (room, ok) = ShelterRules.ShelterRoom(shelter, [], Shapes, 3, LayoutShelterRules.ShelterCampfires(plan.Cold), LayoutShelterRules.ShelterCoolers(plan.Hot), []);
-        Assert.True(ok);
-        var (pieces, planned) = InteriorRegionRules.PlanRoomInterior(room, new InteriorPieceDef());
-        Assert.True(planned);
-        var campfires = pieces.Pieces.Where(p => p.Def == LayoutCapabilityRules.ShelterHeatDef).ToList();
-        var coolers = pieces.Pieces.Where(p => p.Def == LayoutCapabilityRules.ShelterCoolDef).ToList();
-        Assert.Equal(climate == "cold" ? 2 : 0, campfires.Count);
-        Assert.Equal(climate == "hot" ? 1 : 0, coolers.Count);
-        Assert.All(campfires.Concat(coolers), p => Assert.True(Inside(bounds, p.Rect), $"{p.Def} at {p.Rect} outside the shelter {bounds}"));
-    }
-
-    [Theory]
-    [MemberData(nameof(Climates))]
-    public void TheClimateBuildingGoesToTheRoomThatOwnsIt(string climate)
-    {
-        var facts = new ColonyProjection { LayoutPlan = Fact.Known(FirstPlan(climate, 3)) };
-        var cooking = new RoundsBuildingPlanner { Concern = FoodRules.CookingNeed.FilingKey, Definition = LayoutCapabilityRules.ShelterHeatDef };
-        // A cold map's cooking campfire takes the shelter's slot; elsewhere it stands in the planned kitchen.
-        Assert.Equal(climate == "cold", cooking.TakesShelterSlot(facts));
-        Assert.Equal(climate != "cold", cooking.HostsInPlannedRoom(PlannedRole.Kitchen, facts));
-        var cooler = new RoundsBuildingPlanner
-        {
-            Concern = ShelterFamily.Temperature.FilingKey,
-            Definition = LayoutCapabilityRules.ShelterCoolDef,
-            Temperature = new TemperatureProposal { Method = TemperatureMethod.Cool },
-        };
-        Assert.Equal(climate == "hot", cooler.TakesShelterSlot(facts));
-    }
-
-    [Theory]
     [InlineData("cold", 1)]
     [InlineData("cold", 3)]
     [InlineData("hot", 3)]
     [InlineData("mild", 3)]
-    public void TheFirstPlanHoldsOneShelterSizedForTheColonyAndClearOfEveryOtherRoom(string climate, int colonists)
+    public void TheFirstPlanHoldsNoShelterAndHostsResearchInALaboratory(string climate, int colonists)
     {
         var plan = FirstPlan(climate, colonists);
-        var shelter = Assert.Single(plan.RoomsOf(LayoutSurveyRules.PlannedShelter));
-        var inner = shelter.Region.Bounds();
-        Assert.True(inner.Width * inner.Height >= LayoutShelterRules.ShelterInteriorArea(colonists, LayoutShelterRules.ShelterCampfires(plan.Cold), LayoutShelterRules.ShelterCoolers(plan.Hot)),
-            $"shelter interior {inner.Width}x{inner.Height} for {colonists} colonists on a {climate} map");
-        var floor = LayoutUtilityRules.RectangleCells(inner).ToHashSet();
-        foreach (var other in plan.Rooms.Where(r => r.Role != LayoutSurveyRules.PlannedShelter))
-        {
-            Assert.DoesNotContain(LayoutUtilityRules.RectangleCells(other.Region.Bounds()), floor.Contains);
-        }
-        // Research is the shelter's capability, so the first plan holds no laboratory, a colony of one's included.
-        Assert.Empty(plan.RoomsOf(LayoutSurveyRules.PlannedLab));
+        // #3659: a first plan's rooms are the station graph's; research is a station, hosted as any other.
+        Assert.Empty(plan.RoomsOf(LayoutSurveyRules.PlannedShelter));
+        Assert.NotEmpty(plan.RoomsOf(LayoutSurveyRules.PlannedLab));
     }
 }

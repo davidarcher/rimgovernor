@@ -138,14 +138,6 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (c == EconomyFamily.Resource.FilingKey || c == MilitaryFamily.Equipment.FilingKey)
         {
-            if (CraftingSpot)
-            {
-                if (StandingCraftingSpot(facts).Retire)
-                {
-                    return (1, new MethodId("crafting-spot-retire"), default);
-                }
-                return (1, new MethodId("crafting-spot"), default);
-            }
             if (Workshop is not null && Workshop.Ordinal > 0)
             {
                 return (1, new MethodId(string.Create(CultureInfo.InvariantCulture, $"workshop-{Definition}-{Workshop.Ordinal + 1}")), default);
@@ -254,7 +246,7 @@ public sealed partial class RoundsBuildingPlanner
 
     internal bool ButcherFacility() => Concern == FoodRules.FoodSupplyNeed.FilingKey;
 
-    internal bool WorkshopLadder() => (Concern == EconomyFamily.Resource.FilingKey || GearLadder()) && !CraftingSpot;
+    internal bool WorkshopLadder() => Concern == EconomyFamily.Resource.FilingKey || GearLadder();
 }
 
 partial class RoundsBuildingPlanner
@@ -381,20 +373,4 @@ partial class RoundsBuildingPlanner
 
     internal static bool ButcherBenchDefinition(string definition) =>
         definition == KitchenSeparationRules.ButcherTableDefinition || definition == RoundsRules.ButcherSpotDefinition;
-
-    internal static (CurrentBuilding Building, bool Retire) StandingCraftingSpot(ColonyProjection facts)
-    {
-        if (!facts.Facts.CurrentConstruction.TryGetValue(out var census) || !PositiveFact(facts.Facts.CraftingSpotRetireOwed))
-        {
-            return (new CurrentBuilding(), false);
-        }
-        foreach (var b in census.Buildings)
-        {
-            if (b.Building?.Definition == RoundsRules.CraftingSpotDefinition && b.Cells.Count > 0)
-            {
-                return (b, true);
-            }
-        }
-        return (new CurrentBuilding(), false);
-    }
 }

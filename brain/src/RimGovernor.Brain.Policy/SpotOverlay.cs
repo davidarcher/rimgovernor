@@ -6,13 +6,13 @@ public static partial class SpotOverlayRules
     public const string SpotLayer = "spots";
 
     /// <summary>
-    /// Names the stand-ins the layout plan does not hold: the butcher spot and the crafting spot are placed by a
-    /// search near the core, not planned ahead, so they are drawn from what stands or is blueprinted.
+    /// Names the stand-ins the layout plan does not hold: the butcher spot is placed by a search near the core, not
+    /// planned ahead, so it is drawn from what stands or is blueprinted. The crafting spot is a planned station
+    /// (#3659) and draws with the plan.
     /// </summary>
     private static readonly Dictionary<string, OverlayStyleOf> SpotLabels = new(StringComparer.Ordinal)
     {
         ["ButcherSpot"] = new(LayoutOverlayRules.PlanBrown, "butcher spot"),
-        ["CraftingSpot"] = new(LayoutOverlayRules.PlanTan, "crafting spot"),
     };
 
     /// <summary>

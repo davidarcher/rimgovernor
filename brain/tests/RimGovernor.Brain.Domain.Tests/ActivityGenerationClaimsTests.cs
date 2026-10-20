@@ -32,7 +32,7 @@ public sealed class ActivityGenerationClaimsTests
         var plan = new PlanSpec(new("plan"), new(1), [activity]);
         TestNeed.Commit(journal, world, new("method"), plan, ct);
         var construction = new PlanSpec(new("construction"), new(1), [building]);
-        Assert.Equal(RimGovernor.Brain.Store.ClaimOutcome.Admitted, journal.CommitClaimedMethod(ShelterFamily.Starter, world, new("shelter-method"), "", construction, ct).Outcome);
+        Assert.Equal(RimGovernor.Brain.Store.ClaimOutcome.Admitted, journal.CommitClaimedMethod(ShelterFamily.Sleeping, world, new("shelter-method"), "", construction, ct).Outcome);
         if (accepted)
         {
             var scope = world with { Plan = plan.Id };
@@ -99,7 +99,7 @@ public sealed class ActivityGenerationClaimsTests
         var building = DomainAction.NewBuildingAction(new("wall"),
             new("TestWall", new(3, 3), Rotation.North, "Rice"), ConstructionTier.Survive);
         TestNeed.Commit(journal, world, new("method"), new PlanSpec(new("plan"), new(1), [activity]), ct);
-        Assert.Equal(RimGovernor.Brain.Store.ClaimOutcome.Admitted, journal.CommitClaimedMethod(ShelterFamily.Starter, world, new("shelter-method"), "",
+        Assert.Equal(RimGovernor.Brain.Store.ClaimOutcome.Admitted, journal.CommitClaimedMethod(ShelterFamily.Sleeping, world, new("shelter-method"), "",
             new PlanSpec(new("construction"), new(1), [building]), ct).Outcome);
         return (journal, world, path);
     }

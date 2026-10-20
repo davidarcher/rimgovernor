@@ -323,8 +323,12 @@ public static partial class WorkRules
         return (output, true);
     }
 
-    /// <summary>The admin/work-ledger Need's finding (#3304): owed while the plan places or removes anything.</summary>
-    public static bool LedgerDiffOwed(LedgerPlan plan) => plan.Place.Count > 0 || plan.Remove.Count > 0;
+    /// <summary>
+    /// The admin/work-ledger Need's finding (#3304): owed while the plan removes a bill or a bench takes one of its
+    /// placements (PlaceLedgerOrders). A wanted order no bench can hold is accepted, not owed (#3659): dispatch reports
+    /// it unmet (NoBench), and the station graph hosts the bench.
+    /// </summary>
+    public static bool LedgerDiffOwed(LedgerPlan plan, IReadOnlyList<LedgerPlacement> placed) => placed.Count > 0 || plan.Remove.Count > 0;
 
     /// <summary>
     /// Assigns each order (one entry per wanted copy) to an eligible bench (EligibleBenches) that is not full and

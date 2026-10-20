@@ -283,7 +283,9 @@ public sealed partial class DefinitionCatalog
             }
         }
 
-        return new P.StationCapacity { Kind = P.CapacityKind.Workers, Slots = 1, Recipes = [.. work] };
+        // The def's own WorkTableWorkSpeedFactor, else the stat's default (the crafting spot states 0.5).
+        var speed = StatBaseEntry(row, StatWorkTableSpeed) ?? DefRow<StatDef>(StatWorkTableSpeed)?.defaultBaseValue ?? 1;
+        return new P.StationCapacity { Kind = P.CapacityKind.Workers, Slots = 1, Recipes = [.. work], WorkSpeed = speed };
     }
 
     // The environment needs the defs state: the room stats and work-table stat parts of the stats the building is subject

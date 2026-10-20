@@ -21,7 +21,6 @@ public sealed partial class BrainComposition
         var log = new HostLog(context.Telemetry, "clock-scheduler");
 
         // ClockSchedulerConfig is init-only, so the planners are built into locals and the config is made last.
-        RoundsArmoryPlanner? cfgArmory = null;
         RoundsBuildingPlanner? roomsComfort = null;
         RoundsBuildingPlanner? foodButcher = null;
         var families = new List<FamilyRunner>();
@@ -167,17 +166,16 @@ public sealed partial class BrainComposition
         }
         if (armory)
         {
-            cfgArmory = new RoundsArmoryPlanner(reviewer, client);
-            reviewer.AddOrderDeclarer(new RoundsArmoryDeclarer(cfgArmory));
+            reviewer.AddOrderDeclarer(new RoundsArmoryDeclarer(new RoundsArmoryPlanner(reviewer, client)));
         }
         if (gear)
         {
             reviewer.AddOrderDeclarer(new RoundsGearDeclarer());
         }
         // The equip, acquisition, training and gear toggles compose the military family's defense, pests, training
-        // and equipment Needs (#3259); the equipment Need places the armory's crafting spot and walks the workshop
-        // ladder for replacement gear. Restore-workers, the undraft sweep, is always composed (#3311).
-        families.Add(new MilitaryRounds(reviewer, equip, acquisition, training, gear, gear ? cfgArmory : null, gear && workshop).Runner());
+        // and equipment Needs (#3259); the equipment Need walks the workshop ladder for replacement gear.
+        // Restore-workers, the undraft sweep, is always composed (#3311).
+        families.Add(new MilitaryRounds(reviewer, equip, acquisition, training, gear, gear && workshop).Runner());
         if (repair || clearance)
         {
             // The repair and clearance toggles compose the home-upkeep family's two Needs (#3253).
@@ -260,10 +258,11 @@ public sealed partial class BrainComposition
         }
         if (sleeping || shelter || expansion || temperature || sc.Sheltering)
         {
-            // The housing, temperature and safe-area toggles compose the shelter family's Needs (#3257): the starter
-            // shelter with the shelter or sleeping toggle, then sleeping, the spare room, temperature and the safe area.
+            // The housing, temperature and safe-area toggles compose the shelter family's Needs (#3257): sleeping with
+            // the shelter or sleeping toggle (its stand-in spots are the day-one floor, #3659), the spare room,
+            // temperature and the safe area.
             families.Add(new ShelterRounds(reviewer, sleeping || shelter || expansion || temperature ? client : null,
-                sleeping || shelter, sleeping, expansion, temperature, sc.Sheltering).Runner());
+                sleeping || shelter, expansion, temperature, sc.Sheltering).Runner());
         }
         if (power)
         {
@@ -489,10 +488,6 @@ public sealed partial class BrainComposition
         }
         // The shelter family's Needs (#3257): the room census, sleeping review, temperature and safe-area reads.
         if (sc.Sleeping || sc.Shelter)
-        {
-            needs.Add(ShelterFamily.Starter);
-        }
-        if (sc.Sleeping)
         {
             needs.Add(ShelterFamily.Sleeping);
         }
