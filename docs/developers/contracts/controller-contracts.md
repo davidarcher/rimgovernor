@@ -482,7 +482,9 @@ set, today `Alphabeaver`). Pests arrive factionless, so no emergency census answ
 Wild-plant acquisition limits new orders by the remaining per-colonist nutrition target
 and already designated native harvest yield. Pending yield limits duplicates but never
 counts as stored food or clears food risk; plants are indivisible, so a batch may exceed
-its target by one plant. Food and wood methods issue `DesignateIntent` (`HARVEST_PLANT`)
+its target by one plant. The `food/supply` Need designates the forage and lone-hunt channels
+its food plan opened, forage first, so a colony with no armed hunter (no hunt slots) still
+forages; vanilla harvests the plants and colonists eat (#3668). Food and wood methods issue `DesignateIntent` (`HARVEST_PLANT`)
 on the exact observed plant, re-checked natively. A fresh regrowth observation can renew a
 confirmed completed designation under the same concern; pending, uncertain and cancelled
 orders block renewal at their location. A harvest completes once its output landed

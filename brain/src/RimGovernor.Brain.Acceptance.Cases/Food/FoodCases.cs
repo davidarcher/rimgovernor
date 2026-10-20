@@ -10,6 +10,7 @@ public static class FoodCases
     public static void Register(CaseRegistry registry)
     {
         ArgumentNullException.ThrowIfNull(registry);
+        registry.Register(FoodForageUnarmed.Case());
         registry.Register(FoodLedger.Case());
         registry.Register(FoodLedgerHunt.Case());
         registry.Register(FoodHuntRoster.Case());

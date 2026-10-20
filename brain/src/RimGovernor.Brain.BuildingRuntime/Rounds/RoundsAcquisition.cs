@@ -174,12 +174,7 @@ public sealed partial class RoundsAcquisitionPlanner
             }
             else
             {
-                var sources = projection.Acquisition;
-                if (huntOnly || food)
-                {
-                    sources = HuntRows(sources);
-                }
-                selected = AcquisitionRules.SelectAcquisition(sources, deficit, pending, food, held, slots);
+                selected = GoalSelection(projection.Acquisition, huntOnly, deficit, pending, food, held, slots);
             }
         }
         catch (DomainException)
@@ -407,14 +402,19 @@ partial class RoundsAcquisitionPlanner
         return [.. busyState.Where(kv => kv.Value).Select(kv => kv.Key)];
     }
 
-    /// <summary>Keeps the census's hunt rows.</summary>
-    internal static Fact<EquatableArray<AcquisitionSource>> HuntRows(Fact<EquatableArray<AcquisitionSource>> sources)
+    /// <summary>
+    /// The food and wood goals' census selection. For food the census is the food plan's open forage and lone-hunt
+    /// channels (FoodPlanAcquisition): forage goes first, so a colony with no armed hunter (no hunt slots) still
+    /// designates wild food plants for vanilla to harvest and eat (#3668). huntOnly (a forage batch already designated)
+    /// keeps only the hunt rows.
+    /// </summary>
+    internal static IReadOnlyList<AcquisitionSource> GoalSelection(Fact<EquatableArray<AcquisitionSource>> sources, bool huntOnly, Fact<double> deficit, Fact<double> pending, bool food, IReadOnlyDictionary<string, bool> held, Fact<int> slots)
     {
-        if (!sources.TryGetValue(out var rows))
+        if (huntOnly && sources.TryGetValue(out var rows))
         {
-            return sources;
+            sources = Known<EquatableArray<AcquisitionSource>>([.. rows.Where(row => row.Hunt)]);
         }
-        return Known<EquatableArray<AcquisitionSource>>([.. rows.Where(row => row.Hunt)]);
+        return AcquisitionRules.SelectAcquisition(sources, deficit, pending, food, held, slots);
     }
 
     /// <summary>
