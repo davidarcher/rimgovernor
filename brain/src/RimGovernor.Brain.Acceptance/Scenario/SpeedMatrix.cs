@@ -133,8 +133,8 @@ public static class SpeedMatrix
     /// <summary>
     /// The brain-selected tasks a governed row's colonists completed: native's <see cref="TelemetryKinds.PawnActivityExecution"/>
     /// rows in the row's timeline that reached <see cref="PawnActivityTelemetry.CompletedState"/>, one per installed
-    /// order (pawn, assignment, revision), whatever the Method's kind. Every such order is a brain Method's; standby never
-    /// completes, so a colony that only idled or wandered completes none.
+    /// order (pawn, assignment, revision), whatever the Method's kind. Every such order is a brain Method's; a colonist's
+    /// vanilla work installs none (#3669), so a colony that ran only vanilla work, idled or wandered completes none.
     /// </summary>
     public static int CompletedTasks(IEnumerable<TimelineRecord> records)
     {

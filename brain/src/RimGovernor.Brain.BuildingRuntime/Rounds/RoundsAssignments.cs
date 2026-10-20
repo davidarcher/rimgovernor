@@ -262,9 +262,9 @@ partial class RoundsWorkPlanner
     internal static bool IsWorkMethod(MethodId method) => method.Value.StartsWith("work-", StringComparison.Ordinal);
 
     /// <summary>
-    /// The planner's own open plans under the admin/work-assignments Need. The coupled and standby Methods share the
-    /// Need (#3304) and hold their pawns for whole reviews, so counting them as this planner's existing work left the
-    /// priorities and finishing-skill choices unwritten while the colony stood on standby (#3557).
+    /// The planner's own open plans under the admin/work-assignments Need. The coupled Methods share the Need (#3304)
+    /// and hold their pawns for whole reviews, so counting them as this planner's existing work left the priorities and
+    /// finishing-skill choices unwritten (#3557).
     /// </summary>
     internal static List<PlanState> OpenWorkPlans(JournalStore journal, NeedOwner owner, CancellationToken call)
     {

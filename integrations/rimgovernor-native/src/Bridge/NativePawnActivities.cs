@@ -48,11 +48,10 @@ namespace HomeBridge.BridgeTools
         // Ephemeral native call context, never assignment ownership or a retained permission.
         [ThreadStatic] private static Pawn? imposedEffectPawn;
         internal static bool IsHold(Job job) => job.def == holdDef;
+        /// <summary>Holds a committed coupled order: native offers it only that order's jobs.</summary>
         internal static bool Owned(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release;
-        /// <summary>Holds standby (#3322, #3662): it runs vanilla job selection and is free to any coupled order.</summary>
-        internal static bool Standing(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release && PawnActivities.IsStandby(e.Order);
-        /// <summary>Owned by an assignment other than standby (#3322): a standby colonist is free for new work.</summary>
-        internal static bool Committed(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release && !PawnActivities.IsStandby(e.Order);
+        /// <summary>Controlled with no committed order (#3669): it runs vanilla job selection and is free to any coupled order.</summary>
+        internal static bool Standing(Pawn pawn) => Controlled(pawn) && !Owned(pawn);
         internal static PawnActivityStep? ActiveStep(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && e.Step < e.Order.Steps.Length ? e.Order.Steps[e.Step] : null;
         internal static Operations.PawnActivityExecution? Read(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release ? Row(e) : null;
         private static Operations.PawnActivityExecution Row(Entry e) => new(e.Order.Assignment, e.Order.Method, e.Order.Revision,
@@ -125,19 +124,15 @@ namespace HomeBridge.BridgeTools
                 if (pawn == null || (!order.Release && (!pawn.IsColonistPlayerControlled || pawn.Downed || pawn.InMentalState || pawn.Drafted))) return Refuse("Activity pawn is unavailable.");
                 Entries.TryGetValue(pawn, out var old);
                 if (old?.Order.Revision == order.Revision && Equivalent(old.Order, order)) continue;
-                // Another assignment's standby is a vacancy: any assignment acquires it from revision zero (#3322).
-                var standby = old != null && PawnActivities.IsStandby(old.Order);
-                var vacant = old == null || old.Order.Release || standby && old.Order.Assignment != order.Assignment;
+                var vacant = old == null || old.Order.Release;
                 if ((vacant ? 0 : old!.Order.Revision) != order.ExpectedRevision) return Refuse("Stale activity revision.");
                 if (!vacant && (old!.Order.Assignment != order.Assignment || old.Order.Method != order.Method)) return Refuse("Activity ownership changed.");
                 if (vacant && (pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0)) return Refuse("Player/queued work must be explicitly resolved before control.");
-                if (vacant && !standby && (order.OutputDelivery != null || batch.Tasks.Count != 0) && !NativeFoodActivity.Available(pawn)) return Refuse("Activity pawn is no longer idle.");
-                // Standby never interrupts a running job it did not offer (an admitted direct job, a hold).
-                if (vacant && !standby && PawnActivities.IsStandby(order) && pawn.CurJob != null && !NativeFoodActivity.Available(pawn)) return Refuse("Standby pawn is not idle.");
+                if (vacant && (order.OutputDelivery != null || batch.Tasks.Count != 0) && !NativeFoodActivity.Available(pawn)) return Refuse("Activity pawn is no longer idle.");
                 foreach (var step in order.Steps)
                 {
                     if (step.Deadline <= Find.TickManager.TicksGame) return Refuse("Activity deadline already passed.");
-                    if (step.Kind is PawnActivityKind.Hold or PawnActivityKind.Standby) continue;
+                    if (step.Kind == PawnActivityKind.Hold) continue;
                     if (step.Kind == PawnActivityKind.Approach)
                     {
                         var destination = step.Destination!.Value;
@@ -336,8 +331,8 @@ namespace HomeBridge.BridgeTools
                 var pawn = Find.CurrentMap.mapPawns.AllPawnsSpawned.First(p => p.GetUniqueLoadID() == order.Pawn);
                 Entries.TryGetValue(pawn, out var old);
                 if (old?.Order.Revision == order.Revision && Equivalent(old.Order, order)) continue;
-                // A standby replacing a standby leaves the vanilla job running; any other new order interrupts it.
-                oldJobs.Add((pawn, order.Release ? old?.Running : old != null && PawnActivities.IsStandby(old.Order) && PawnActivities.IsStandby(order) ? null : old?.Running ?? pawn.CurJob));
+                // A new order interrupts the running job, a vanilla one included; a release ends only the job it offered.
+                oldJobs.Add((pawn, order.Release ? old?.Running : old?.Running ?? pawn.CurJob));
                 var e = new Entry { Pawn = pawn, Order = order with { Steps = order.Steps.ToArray() }, Identity = identity, Generation = batch.AuthorityGeneration,
                     SelectedTask = batch.Tasks.FirstOrDefault(t => t.Id == order.Task), Tick = Find.TickManager.TicksGame };
                 Entries[pawn] = e;
@@ -384,11 +379,7 @@ namespace HomeBridge.BridgeTools
         {
             if (!Entries.TryGetValue(pawn, out e!) || e.Order.Release) return false;
             if (pawn.Downed || pawn.InMentalState || pawn.Drafted || pawn.IsBurning())
-            {
-                // Standby held nothing: an involuntary or player state ends it quietly, as it would leave an unassigned pawn.
-                if (PawnActivities.IsStandby(e.Order)) { Yield(e, "involuntary_or_emergency_state"); Release(e); return false; }
-                Fault(e, "involuntary_or_emergency_state"); Release(e); return false;
-            }
+            { Fault(e, "involuntary_or_emergency_state"); Release(e); return false; }
             var s = NativeControlAuthority.ForGame(Current.Game).Status();
             if (!s.Active || s.Generation != e.Generation || !ReferenceEquals(e.Identity.Game, Current.Game) || pawn.Map != e.Identity.Map)
             { Release(e); return false; }
@@ -416,16 +407,8 @@ namespace HomeBridge.BridgeTools
         }
         private static bool Select(Pawn ___pawn, ref ThinkResult __result, ref ThinkTreeDef thinkTree)
         {
-            if (!TryOwned(___pawn, out var e))
-            {
-                if (!Controlled(___pawn)) return true;
-                // No authorized activity: no native job, no hold and no invalidation; the next rounds review assigns standby
-                // (voluntary-control.md).
-                __result = ThinkResult.NoJob;
-                return false;
-            }
-            // Standby runs vanilla job selection (#3662): the native think tree under the colonist's work priorities.
-            if (PawnActivities.IsStandby(e.Order)) return true;
+            // No committed order: vanilla job selection under the colonist's work priorities (#3669, voluntary-control.md).
+            if (!TryOwned(___pawn, out var e)) return true;
             thinkTree = ___pawn.thinker.MainThinkTree;
             __result = ThinkResult.NoJob;
             if (e.Running != null && ReferenceEquals(e.Running, ___pawn.CurJob)) return false;
@@ -569,13 +552,14 @@ namespace HomeBridge.BridgeTools
             return job;
         }
         private static bool Ready(Entry e) => Find.TickManager.TicksGame >= e.Order.Steps[e.Step].NotBefore;
+        // A pawn with no committed order runs every vanilla think path (#3669); a committed one runs only its order's jobs.
         private static bool Constant(Pawn ___pawn, ref ThinkResult __result)
-        { if (Standing(___pawn)) return true; if (!TryOwned(___pawn, out _) && !Controlled(___pawn)) return true; __result = ThinkResult.NoJob; return false; }
-        private static bool Override(Pawn ___pawn) => Standing(___pawn) || !TryOwned(___pawn, out _) && !Controlled(___pawn);
+        { if (!TryOwned(___pawn, out _)) return true; __result = ThinkResult.NoJob; return false; }
+        private static bool Override(Pawn ___pawn) => !TryOwned(___pawn, out _);
         private static bool Opportunistic(Pawn ___pawn, ref Job? __result)
-        { if (Standing(___pawn)) return true; if (!TryOwned(___pawn, out _) && !Controlled(___pawn)) return true; __result = null; return false; }
+        { if (!TryOwned(___pawn, out _)) return true; __result = null; return false; }
         private static bool Finalizer(JobDriver __instance, ref Job? __result)
-        { if (Standing(__instance.pawn)) return true; if (!TryOwned(__instance.pawn, out _) && !Controlled(__instance.pawn)) return true; __result = null; return false; }
+        { if (!TryOwned(__instance.pawn, out _)) return true; __result = null; return false; }
         private static void DisorientationStarting(HediffComp_Disorientation __instance, out Pawn? __state)
         { __state = imposedEffectPawn; imposedEffectPawn = __instance.Pawn; }
         private static void ImposedAbilityStarting(LocalTargetInfo target, out Pawn? __state)
@@ -590,9 +574,7 @@ namespace HomeBridge.BridgeTools
             // take ownership before TryTakeOrderedJob's authority-revocation postfix runs.
             if (newJob.startInvoluntarySleep || newJob.def == JobDefOf.Vomit || newJob.playerForced || ReferenceEquals(imposedEffectPawn, ___pawn))
             {
-                if (Entries.TryGetValue(___pawn, out var interrupted) && PawnActivities.IsStandby(interrupted.Order))
-                { Yield(interrupted, newJob.playerForced ? "player_order" : "involuntary_job"); Entries.Remove(___pawn); }
-                else if (Entries.TryGetValue(___pawn, out interrupted) && !interrupted.Order.Release)
+                if (Entries.TryGetValue(___pawn, out var interrupted) && !interrupted.Order.Release)
                 {
                     interrupted.State = "failed";
                     interrupted.Reason = newJob.startInvoluntarySleep ? "involuntary_sleep"
@@ -603,18 +585,9 @@ namespace HomeBridge.BridgeTools
                 }
                 return true;
             }
-            if (!TryOwned(___pawn, out var e))
-            {
-                if (!Controlled(___pawn) || NativeControlAuthority.TryGetForGame(Current.Game, out var authority) && authority?.IsOwned == true) return true;
-                return false;
-            }
+            if (!TryOwned(___pawn, out var e)) return true;
             if (___pawn.Downed || ___pawn.InMentalState || ___pawn.Drafted) { Fault(e, "involuntary_or_combat_state"); Release(e); return true; }
             var offered = Offers.TryGetValue(newJob, out var offer) && offer.Entry == e && offer.Step == e.Step && offer.JobId == newJob.loadID;
-            // An admitted Hands-scope direct job (a hunt, an equip) takes a standby pawn as it took an unassigned one.
-            if (!offered && PawnActivities.IsStandby(e.Order) && NativeControlAuthority.TryGetForGame(Current.Game, out var scope) && scope?.IsOwned == true)
-            { Yield(e, "admitted_direct_job"); Entries.Remove(___pawn); return true; }
-            // A standby pawn's vanilla job starts and keeps the standby entry, so any coupled order still replaces it.
-            if (!offered && PawnActivities.IsStandby(e.Order)) return true;
             if (!offered)
             { Fault(e, "unauthorized_job_substitution"); return false; }
             if (e.Step < e.Order.Steps.Length && e.Order.Steps[e.Step].Kind == PawnActivityKind.Recipe && newJob.bill == null)
@@ -636,7 +609,7 @@ namespace HomeBridge.BridgeTools
         }
         private static void Ending(Pawn ___pawn, JobCondition condition, ref bool startNewJob, out bool __state)
         {
-            __state = !replacing && Committed(___pawn) && startNewJob;
+            __state = !replacing && Owned(___pawn) && startNewJob;
             if (__state) startNewJob = false;
             if (replacing || !Entries.TryGetValue(___pawn, out var e) || e.Running == null || !ReferenceEquals(e.Running, ___pawn.CurJob) || e.RunningId != ___pawn.CurJob.loadID) return;
             var hold = e.Running.def == holdDef;
@@ -661,7 +634,7 @@ namespace HomeBridge.BridgeTools
         }
         private static void Ended(Pawn ___pawn, bool __state)
         {
-            if (!__state || !Committed(___pawn) || ___pawn.CurJob != null) return;
+            if (!__state || !Owned(___pawn) || ___pawn.CurJob != null) return;
             var result = ThinkResult.NoJob; ThinkTreeDef tree = ___pawn.thinker.MainThinkTree;
             Select(___pawn, ref result, ref tree);
             if (result.IsValid) ___pawn.jobs.StartJob(result.Job, JobCondition.None, result.SourceNode, thinkTree: tree, tag: result.Tag);
@@ -699,9 +672,6 @@ namespace HomeBridge.BridgeTools
             if (Find.TickManager.TicksGame < step.Deadline) return;
             p.jobs.EndCurrentJob(step.Practice != null || e.Order.Steps[e.Step].Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? JobCondition.Succeeded : JobCondition.Incompletable);
         }
-        /// <summary>Records a standby's end without a terminal state: nothing waits on it, so time keeps running.</summary>
-        private static void Yield(Entry e, string reason)
-        { e.State = "released"; e.Reason = reason; e.Tick = Find.TickManager.TicksGame; PawnActivityTracker.Execution(Row(e), e.Pawn); }
         private static void Fault(Entry e, string reason)
         { if (e.State != "failed") { e.State = "failed"; e.Reason = reason; e.Tick = Find.TickManager.TicksGame; Emit(e); } }
         private static void Release(Entry e)
@@ -714,11 +684,8 @@ namespace HomeBridge.BridgeTools
         }
         private static void AuthorityChanged(NativeControlAuthority authority, NativeControlSnapshot snapshot, ulong old)
         {
+            // An unowned pawn's vanilla job runs on under the new authority (#3669).
             foreach (var e in Entries.Values.ToArray()) if (!snapshot.Active || snapshot.Generation != e.Generation) Release(e);
-            if (snapshot.Active && snapshot.Identity?.Map is { } map)
-                foreach (var pawn in map.mapPawns.FreeColonistsSpawned.ToArray())
-                    if (Controlled(pawn) && !Owned(pawn) && pawn.CurJob != null)
-                        pawn.jobs.EndCurrentJob(JobCondition.InterruptForced, startNewJob: false);
         }
         private static void WorldChanging() { foreach (var e in Entries.Values.ToArray()) Release(e); }
         private static void Despawn(Pawn __instance) { if (Entries.TryGetValue(__instance, out var e)) Release(e); }

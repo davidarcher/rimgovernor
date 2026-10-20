@@ -95,3 +95,11 @@ public sealed record DeliveryRead
 
     public bool Forced { get; init; }
 }
+
+/// <summary><c>test/vanilla_chop_read</c>: the colonist's current JobDef and whether a Hands execution owns it.</summary>
+public sealed record VanillaJobRead
+{
+    public string Job { get; init; } = "";
+
+    public bool Owned { get; init; }
+}

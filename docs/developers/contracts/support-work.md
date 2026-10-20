@@ -69,7 +69,7 @@ that demand. Native storage filters, reservations and work legality still apply;
 global item definitions are not changed to make all chunks haulable.
 
 Carrying a loose stack to storage with no outstanding requirement is vanilla's:
-a colonist on standby hauls it under its Hauling work priority (#3662). The brain
+a colonist with no committed order hauls it under its Hauling work priority (#3662, #3669). The brain
 has no haul path of its own for it.
 
 ## Execution and evidence

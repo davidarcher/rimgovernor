@@ -61,11 +61,6 @@ public sealed partial class ClockScheduler
     private RoundsResult? _lastRounds;
     private ReadValidity? _validity;
 
-    // The colonists installed activity Methods held at the last step with those its rounds review assigned, and whether
-    // one has lost its Method since the last rounds review (#3599): the coupled selection and standby that assign it
-    // run only in that review.
-    private IReadOnlySet<string> _heldPawns = new HashSet<string>(StringComparer.Ordinal);
-    private bool _pawnsFreed;
     // A coupled Method's worker finished a task with bills left since the last review, and the last finished task the next
     // review covers (#3624): committing it lets those workers start their next tasks.
     private bool _taskFinished;
@@ -179,15 +174,14 @@ public sealed partial class ClockScheduler
     /// review instead (#3556): <c>all</c> when every planner runs (a full step, an authority change), <c>wake</c>
     /// on an early review (any hold but the review tick), <c>due</c> when no review has been committed since the
     /// scheduler started, the tick went back, or the last review at <paramref name="lastTick"/> has stood
-    /// <paramref name="every"/> ticks at <paramref name="tick"/>, and <c>freed</c> when a colonist lost its activity
-    /// Method since the last review (<paramref name="freed"/>, #3599): only the review assigns it work or standby, and
-    /// <c>task</c> when a coupled Method's worker finished a task with bills left (<paramref name="task"/>, #3624): the
+    /// <paramref name="every"/> ticks at <paramref name="tick"/>, and <c>task</c> when a coupled Method's worker finished a task with bills left (<paramref name="task"/>, #3624): the
     /// review reconsiders who takes that worker's next task, one event per finished task, and <c>first_plan</c> while the
     /// colony's first layout plan holds the clock (<paramref name="firstPlan"/>, #3652): the held clock advances no tick,
-    /// so only a review reads the fact it waits for. A
+    /// so only a review reads the fact it waits for. A colonist whose activity Method ended runs vanilla work until the
+    /// next review (#3669), so its release is no reason to review early. A
     /// review step between two due ticks that selects only dirty and due planners is the step the cadence makes cheap.
     /// </summary>
-    internal static string? RoundsSelection(StepCause cause, bool everyPlanner, long tick, bool reviewed, long lastTick, long every, bool freed, bool task = false, bool firstPlan = false)
+    internal static string? RoundsSelection(StepCause cause, bool everyPlanner, long tick, bool reviewed, long lastTick, long every, bool task = false, bool firstPlan = false)
     {
         if (everyPlanner)
         {
@@ -201,24 +195,8 @@ public sealed partial class ClockScheduler
         {
             return "due";
         }
-        return firstPlan ? "first_plan" : freed ? "freed" : task ? "task" : null;
+        return firstPlan ? "first_plan" : task ? "task" : null;
     }
-
-    /// <summary>
-    /// Whether a colonist an installed activity Method held at the last step (<paramref name="before"/>) holds none now
-    /// (<paramref name="now"/>, #3599): its order finished or was released, and it idles until a rounds review assigns it
-    /// again. Standby holds a colonist the review selected nothing for, so freed fires once per finished Method, not per
-    /// deferral (#3624).
-    /// </summary>
-    internal static bool PawnsFreed(IReadOnlySet<string> before, IReadOnlySet<string> now) => before.Any(p => !now.Contains(p));
-
-    /// <summary>
-    /// The colonists held after a rounds review: those the step read held and those the review assigned (#3599). A
-    /// Method installs after the step that admitted it read the journal; a short haul the review admitted (#3624) can be
-    /// installed and released before the next step reads, so only the review's own assignment remembers it.
-    /// </summary>
-    internal static IReadOnlySet<string> HeldAfterReview(IReadOnlySet<string> read, IReadOnlySet<string> assigned)
-        => read.Concat(assigned).ToHashSet(StringComparer.Ordinal);
 
     // The step's selection over the due queue at tick: a wake's evidence was folded when the step began. The waits
     // are checked against the journal only while any is held, so a dependency that settled without an outcome event
@@ -340,15 +318,11 @@ public sealed partial class ClockScheduler
             sel = await SelectPlannersAsync(reason, statusTick, call).ConfigureAwait(false);
             if (Config.Rounds is not null)
             {
-                var held = _player.Journal.ActivityMethods(state.Snapshot, call)
-                    .SelectMany(m => m.Batch.Orders.Where(o => !o.Release).Select(o => o.Pawn)).ToHashSet(StringComparer.Ordinal);
-                _pawnsFreed |= PawnsFreed(_heldPawns, held);
-                _heldPawns = held;
                 if (_player.TaskReviews.Pending() is { } through)
                 {
                     (_taskFinished, _taskReviewedThrough) = (true, through);
                 }
-                if ((_pawnsFreed || _taskFinished || FirstPlanHeld) && !sel.Planners)
+                if ((_taskFinished || FirstPlanHeld) && !sel.Planners)
                 {
                     // Nothing else is dirty or due: the step runs the rounder alone.
                     sel = sel with { Planners = true, Pick = static _ => false, Why = new Dictionary<string, string>(StringComparer.Ordinal) };
@@ -363,7 +337,7 @@ public sealed partial class ClockScheduler
             result.Waiting = [.. sel.Waiting];
             if (sel.Planners && Config.Rounds is not null)
             {
-                rounds = RoundsSelection(reason.Cause, sel.Pick is null, statusTick, _roundsReviewed, _lastRoundsTick, Config.RoundsEveryTicks, _pawnsFreed, _taskFinished, FirstPlanHeld);
+                rounds = RoundsSelection(reason.Cause, sel.Pick is null, statusTick, _roundsReviewed, _lastRoundsTick, Config.RoundsEveryTicks, _taskFinished, FirstPlanHeld);
                 try
                 {
                     result.Planners = await RunPlannerWaveAsync(result, sel, statusTick, false, rounds, call, epoch).ConfigureAwait(false);
@@ -613,8 +587,7 @@ public sealed partial class ClockScheduler
                 {
                     _player.TaskReviews.Reviewed(_taskReviewedThrough);
                 }
-                (_lastRoundsTick, _roundsReviewed, _lastRounds, _pawnsFreed, _taskFinished) = (tick, true, review, false, false);
-                _heldPawns = HeldAfterReview(_heldPawns, review.Assigned);
+                (_lastRoundsTick, _roundsReviewed, _lastRounds, _taskFinished) = (tick, true, review, false);
                 await EstablishExtentAsync(review.Review.Tick, call).ConfigureAwait(false);
                 output.Stages.Lap("extent");
             }

@@ -199,7 +199,7 @@ public sealed class ForecastCoupledSelectionTests
     [InlineData(1, 0, true)]
     [InlineData(.5, .001, true)]
     [InlineData(.2, 0, false)]
-    public void AColonistWithNoChangeDueIsDeferredToStandby(double level, double fall, bool deferred)
+    public void AColonistWithNoChangeDueIsDeferred(double level, double fall, bool deferred)
     {
         var facts = Review(level, fall);
         var candidates = facts.CoupledAlternatives!;
@@ -209,7 +209,7 @@ public sealed class ForecastCoupledSelectionTests
         facts = facts with { CoupledAlternatives = candidates };
         var choice = Select(facts);
         if (!deferred) { Assert.Empty(choice.Deferred); return; }
-        // #3624: the deferred colonist is named for standby admission; the coupled Method itself binds nothing for it.
+        // #3624: the deferred colonist is named and runs vanilla work (#3669); the coupled Method binds nothing for it.
         Assert.Equal("pawn", Assert.Single(choice.Deferred));
         Assert.Null(ForecastCoupledSelection.StartCoupledActivity(choice, candidates, 1, "method", 100));
     }

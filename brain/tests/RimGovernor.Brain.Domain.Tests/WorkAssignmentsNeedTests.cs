@@ -74,19 +74,20 @@ public sealed class WorkAssignmentsNeedTests
     }
 
     [Fact]
-    public void AStandbyMethodUnderTheNeedIsNotThePlannersExistingWork()
+    public void ACoupledMethodUnderTheNeedIsNotThePlannersExistingWork()
     {
-        // #3557: the coupled and standby Methods share the Need; counting their open plans as the Work planner's own
+        // #3557: the coupled Methods share the Need; counting their open plans as the Work planner's own
         // left it "already working" for whole reviews, so no priorities or finishing-skill choices were written.
         var ct = TestContext.Current.CancellationToken;
         IntentActionRules.RegisterIntentKinds();
-        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-work-standby-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-work-coupled-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkRules.ReviewWorkResources(WorkResourceTestFacts.Create("a", "b"), Known<EquatableArray<ProductionBatch>>([]), new([]));
         journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
-        var standby = PlanIds.MintPlanId();
-        var held = journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new MethodId("standby-" + standby.Value), "explicit idle: nothing selected",
-            new PlanSpec(standby, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId(standby.Value + "-0"),
-                StandbyAssignmentsRules.StandbyActivity("a", 1, "standby-" + standby.Value))]), ct);
+        var coupled = PlanIds.MintPlanId();
+        var method = "coupled-" + coupled.Value;
+        var held = journal.CommitClaimedMethod(AdminFamily.WorkAssignments, World, new MethodId(method), "shared colony consequence portfolio",
+            new PlanSpec(coupled, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId(coupled.Value + "-0"),
+                new PawnActivities(1, [new PawnActivityOrder("a", method + "/a", method, 0, 1, false, [new PawnActivityStep(PawnActivityKind.Hold, "", "", "", 0, long.MaxValue)])]))]), ct);
         Assert.Equal(ClaimOutcome.Admitted, held.Outcome);
         Assert.True(StorePackage.PlanOpen(journal.LoadPlan(held.Owner.Methods[0].Plan, ct)));
         Assert.Empty(BuildingRuntime.RoundsWorkPlanner.OpenWorkPlans(journal, held.Owner, ct));

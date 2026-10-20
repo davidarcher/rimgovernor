@@ -118,12 +118,6 @@ public sealed record RoundsResult
     public RoundsDetection? Detection { get; init; }
 
     /// <summary>
-    /// The colonists whose activity orders the review's admission committed or released: the coupled selection's and
-    /// standby's (#3599). Not journalled.
-    /// </summary>
-    public IReadOnlySet<string> Assigned { get; init; } = new HashSet<string>(StringComparer.Ordinal);
-
-    /// <summary>
     /// What the colony's first layout plan holds the clock for (#3652): the station fact its derive found unread, or the
     /// recorded plan no review has planned with yet; empty holds nothing. Not journalled.
     /// </summary>

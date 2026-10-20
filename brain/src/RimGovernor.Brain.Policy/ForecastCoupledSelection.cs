@@ -23,9 +23,9 @@ public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeCom
 {
     public int CompositionExpansions { get; init; }
     public EquatableArray<ForecastServiceInvestment> ServiceInvestments { get; init; }
-    /// <summary>The eligible colonists the selection left unassigned while their needs stand above every threshold: standby takes them
-    /// (#3624), and a later review reconsiders them. While any stands, the admin/work-assignments Need is
-    /// owed (<see cref="RoundsRules.WorkAssignmentsOwed"/>), so the standby Methods under it are not released as unneeded.</summary>
+    /// <summary>The eligible colonists the selection left unassigned while their needs stand above every threshold: they run vanilla work
+    /// (#3669), and a later review reconsiders them. While any stands, the admin/work-assignments Need is
+    /// owed (<see cref="RoundsRules.WorkAssignmentsOwed"/>).</summary>
     public EquatableArray<string> Deferred { get; init; }
     /// <summary>The search's expansions per phase it reached (#3563): baseline, warm, seed, unserved, extend, confirm, sweep.</summary>
     public EquatableArray<ForecastSearchPhase> SearchPhases { get; init; }
@@ -85,7 +85,7 @@ public sealed partial record ForecastCoupledSelection
     /// A chosen portfolio of unplaced planned sites alone starts no order (#3278), so the comparison is run again
     /// without the roots that reach a planned site, and that run's selected roots, allocations and unselected-pawn
     /// defers join the selection (#3557): the record places the planned sites, the orders start the startable work,
-    /// and standby is the fallback only when nothing startable is worth selecting.</summary>
+    /// and vanilla work is the fallback only when nothing startable is worth selecting (#3669).</summary>
     public static ForecastCoupledSelection CompareActivityOutcomes(ColonyForecastRequest request,
         ForecastCoupledCandidates candidates, int budget = 65536, IReadOnlyList<string>? warmStart = null, Func<double>? clockMs = null)
     {
@@ -764,7 +764,7 @@ public sealed partial record ForecastCoupledSelection
     }
 
     /// <summary>The unselected colonists whose observed needs stay above every supported threshold for at least a tick: the
-    /// no-change choice is safe for them. They are not held: standby takes them (#3624).</summary>
+    /// no-change choice is safe for them. They are not held: they run vanilla work (#3669).</summary>
     private static EquatableArray<string> DeferUnselectedPawns(ForecastCoupledContext context, ForecastActivityPlan plan)
     {
         if (context.Resources.Claims.Truncated

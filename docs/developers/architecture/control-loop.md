@@ -540,8 +540,8 @@ settings claim `settings/<pawn>` and each written policy
 `policy/{reading,food,drug}/<name>`. Coupled activities commit under the same
 Need, and their productive continuation is admitted only while the Need's latest
 progress row is unmet; a met Need permits release only. The step waits on its own
-open `work-` Methods alone: the coupled and standby Methods that share the Need are
-not its existing work (#3557). Only this Need may set
+open `work-` Methods alone: the coupled Methods that share the Need are not its
+existing work (#3557). Only this Need may set
 work priorities: other Needs' assignments are area-only.
 
 **People, mood (#3304).** EnsureMood and the mood relief planner are now the
@@ -813,14 +813,10 @@ cadence). A review step whose planners are dirty or due runs the rounder first o
 committed rounds review has stood an hour; otherwise its planners read the last committed review
 from the journal, as every family step already does, and the step reports `rounds` `last` on its
 `clock_step` row. An early review (any hold but the review tick) and a step that runs every
-planner (a full step, an authority change) review first regardless. So does the first review step
-after a colonist lost its activity Method (`freed`, #3599: its order finished or it was
-released), even with no planner dirty or due: only the review's coupled selection and
-standby assign it again, and until then it stands idle. The step compares the colonists the
-journal's installed activity Methods hold with the previous step's set, to which a rounds review
-adds the colonists its admission assigned: a Method installs after the step that admitted it read
-the journal, and a short order can install and end before the next step reads. Standby is a
-Method, so a colonist the review gave nothing is held, not freed again at every step (#3624).
+planner (a full step, an authority change) review first regardless. A colonist that lost its
+activity Method (its order finished or it was released) is no reason to review early: it runs
+vanilla work under its work priorities until the next review (#3669; the `freed` reason of #3599
+retired with standby).
 The first review step after a coupled Method's worker finished a task while the Method has a
 recipe left reviews too (`task`, #3624): the worker reads native `completed` at its order's
 revision, records the finished task once (`TaskReviews`) and wakes the step loop at once

@@ -46,6 +46,8 @@ public static class CaseCatalog
             registry.Register(c);
         }
 
+        registry.Register(ControlUnassignedVanilla.Case());
+
         registry.Register(ControlDelivery.Case());
         registry.Register(ControlCooking.Case());
         registry.Register(ProductionClothingActivity.Case());

@@ -120,8 +120,8 @@ namespace HomeBridge.BridgeTools
                 throw new InvalidOperationException("Wrong ingredient quantity was accepted or changed ownership.");
             NativePawnActivities.Apply(batch, Context());
             NativePawnActivities.Apply(batch, Context());
-            // The brain's standby for the idle colonists, so they do not hold the clock.
-            if (attempt == 1) StandbyColonists.Apply();
+            // The idle colonists run vanilla with their work priorities off (#3669).
+            if (attempt == 1) IdleColonists.Apply();
             if (attempt == 1) firstIngredient.Destroy();
             if (attempt == 2) fuel.ConsumeFuel(fuel.Fuel);
             beforeRaw = RawCount();

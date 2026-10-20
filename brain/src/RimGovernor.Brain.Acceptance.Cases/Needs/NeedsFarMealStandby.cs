@@ -1,5 +1,4 @@
 using System.Globalization;
-using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Telemetry;
 using Fx = RimGovernor.Fixtures.Contracts;
 
@@ -7,8 +6,8 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>needs/far-meal-standby</c> (#3649): under the served brain a colonist whose next meal departs well in the future is
-/// not held waiting for it. It is released to standby (vanilla job selection, #3662); once its hunger is near the meal's
-/// departure, standby gives it back to the meal and it eats before it turns hungry. The live hunger fall and the native
+/// not held waiting for it. It is left to vanilla job selection (#3669); once its hunger is near the meal's departure, a
+/// coupled meal order takes it and it eats before it turns hungry. The live hunger fall and the native
 /// meal are what a unit test cannot drive.
 /// </summary>
 internal static class NeedsFarMealStandby
@@ -60,8 +59,8 @@ internal static class NeedsFarMealStandby
     internal static TypedCase Case() => new()
     {
         Name = "needs/far-meal-standby",
-        Scope = "Issue #3649: under the served brain a colonist whose meal departs hours ahead is released to standby "
-            + "instead of being held, and once its hunger nears the meal's departure it eats before turning hungry. A unit test "
+        Scope = "Issue #3649: under the served brain a colonist whose meal departs hours ahead is left to vanilla "
+            + "job selection (#3669) instead of being held, and once its hunger nears the meal's departure it eats before turning hungry. A unit test "
             + "cannot drive the live hunger fall or the native meal.",
         Ticks = Budget,
         Tier = CaseTier.OnDemand,
@@ -90,8 +89,8 @@ internal static class NeedsFarMealStandby
             return food;
         }
 
-        // The meal is hours ahead: the colonist is released to standby rather than held for it.
-        _ = await s.ServeUntilAsync("standby", s.TicksLeft, async ct =>
+        // The meal is hours ahead: the colonist runs vanilla work rather than being held for it.
+        _ = await s.ServeUntilAsync("released", s.TicksLeft, async ct =>
         {
             var food = await FoodAsync(ct).ConfigureAwait(false);
             var released = Released(s, eater);
@@ -100,15 +99,15 @@ internal static class NeedsFarMealStandby
         s.Record("releasedBy", Budget - s.TicksLeft);
         if (ateFrom is { } early)
         {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the colonist ate at food {early:0.000} before its release to standby: its meal was not far ahead"));
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the colonist ate at food {early:0.000} before it ran vanilla work: its meal was not far ahead"));
         }
 
         if (!Released(s, eater))
         {
-            throw new AcceptanceException("the colonist was not released to standby while its meal was far ahead");
+            throw new AcceptanceException("the colonist ran no vanilla job after a review while its meal was far ahead");
         }
 
-        // Its meal is now due: standby gives the colonist back to it.
+        // Its meal is now due: a coupled meal order takes the colonist.
         _ = await s.StageAsync("due", Hungrier, cancellationToken).ConfigureAwait(false);
         last = null;
         lowest = double.MaxValue;
@@ -131,10 +130,19 @@ internal static class NeedsFarMealStandby
         }
     }
 
-    // Whether native ran a standby order for the colonist.
-    private static bool Released(TypedSession s, string pawn) => s.Telemetry(TelemetryKinds.PawnActivityExecution).Any(r =>
-        Text(r, PawnActivityTelemetry.PawnKey) == pawn
-        && Text(r, PawnActivityTelemetry.AssignmentKey).StartsWith(StandbyAssignmentsRules.StandbyMethodPrefix, StringComparison.Ordinal));
+    // Whether the colonist started a vanilla job (no Hands assignment, not the governor's hold) after the brain's first
+    // review: the review left it unheld (#3669).
+    private static bool Released(TypedSession s, string pawn)
+    {
+        var reviews = s.Telemetry(TelemetryKinds.RoundsReview).Where(r => r.HasTick).Select(r => r.Tick).ToList();
+        if (reviews.Count == 0) return false;
+        var first = reviews.Min();
+        return s.Telemetry(TelemetryKinds.PawnActivityInterval).Any(r =>
+            Text(r, PawnActivityTelemetry.PawnKey) == pawn && Text(r, PawnActivityTelemetry.AssignmentKey).Length == 0
+            && Text(r, "job") is { Length: > 0 } job && job != "RimGovernorWait"
+            && r.Payload.GetValueOrDefault(PawnActivityTelemetry.StartTickKey) is { } start
+            && Convert.ToInt64(start, CultureInfo.InvariantCulture) > first);
+    }
 
     private static string Text(LogRow row, string key) => row.Payload.GetValueOrDefault(key) as string ?? "";
 }

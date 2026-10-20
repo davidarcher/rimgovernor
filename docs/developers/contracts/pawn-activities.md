@@ -219,7 +219,7 @@ before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
 The initial step families are exact thing-target work (Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused unless the order's earlier RemoveRoof steps take off the roof it leaves unsupported ([prior steps](#prior-steps), #3617); a designation the room reconcile stood by Designate is read back as a removal op and ordered the same way, and the order marks its record `Ordered`, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613; RemoveFloor is the cell set step, Work over a set of floored cells through `WorkGiver_ConstructRemoveFloor`, the order standing each member cell's RemoveFloor designation, #3615; Mine is the third, Work over a set of rock through `WorkGiver_Miner`, the order standing each member's Mine designation under the mine_safety guard, #3616; RemoveRoof is the second cell set step, Work over a set of roofed cells through `WorkGiver_RemoveRoof`, the order putting each member in the NoRoof area, #3617), selected food/count,
-selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold and Standby (vanilla job selection, #3662). Unsupported families are refused, not sent to a
+selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach and Hold. Unsupported families are refused, not sent to a
 native economic selector. Recreation without a building (walks, skygazing, social relaxing, drugs,
 reading) remains outside this initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,
 capabilities, native target checks and native reservations. They may still perform
@@ -426,38 +426,26 @@ all rejected alternatives and forecast graphs are transient.
 
 ## Voluntary ownership and bounded no-change
 
-Active authority intercepts voluntary selection for eligible controlled colonists,
-including constant think-tree checks, opportunistic work and finalizers. Existing
-exact orders may finish; player work, drafted pawns, involuntary states and
-burning retain their native or protective owner. Changing authority interrupts
-unowned voluntary work so it cannot silently continue under the new policy.
+Active authority intercepts voluntary selection only for a controlled colonist
+that holds a committed order: its selection, constant think-tree checks,
+opportunistic work, finalizers and job starts are the order's. Existing exact
+orders may finish; player work, drafted pawns, involuntary states and burning
+retain their native or protective owner.
 
-When comparison retains no change for an available pawn, the review gives it
-`Standby`, not a timed idle: the
-bounded 600-tick Idle kind is gone. Hold remains solely an already-authorized
-task dependency.
-
-Under brain authority every controlled colonist holds a Hands assignment (#3322).
-After a round's coupled selection, the brain gives each available, unoccupied
-colonist that no admitted plan, in-flight activity action or native assignment
-takes an explicit `Standby`: one order whose single step has no target, count,
-workgiver, task or deadline (`standby-<id>` Method, revision zero). Native
-execution runs vanilla job selection for it (#3662): the think tree's work, needs
-and joy givers under the colonist's work priorities, so designations, bills and
-zones with no coupled binding are worked. Standby claims no pawn or target, so
-selected work, eat or sleep acquires the pawn from revision zero, interrupts the
-vanilla job and the standby Method ends; a new standby replacing a standby leaves
-the job running. Work candidacy and food/support availability treat a standby
-pawn as free, and the pawn read reports it with no job, whatever vanilla job it
-runs. Standby never steps, completes or fails, and drafting, an involuntary
-state, a player order or an admitted direct job (hunt, equip) yields it quietly
-(`released`) instead of faulting.
-
-An eligible pawn without an authorized activity returns no native voluntary job
-and publishes nothing (#3556; the `unassigned_voluntary_pawn` invalidation is gone): the brain's next rounds review
-sees the unassigned colonist and assigns standby. It does not
-silently start native work or represent an unsupported condition as a successful
-indefinite wait. See [supported scope and remaining owners](voluntary-control.md).
+A controlled colonist with no committed order runs vanilla job selection (#3669,
+replacing the explicit `Standby` order of #3662): every one of those entries
+passes through, so the think tree's work, needs and joy givers run under the
+colonist's work priorities, and designations, bills and zones with no coupled
+binding are worked. When comparison retains no change for an available pawn, the
+review installs nothing for it; there is no timed idle (the bounded 600-tick Idle
+kind is gone) and no standby order. Hold remains solely an already-authorized
+task dependency. An unowned colonist claims no pawn or target, so selected work,
+eat or sleep acquires it from revision zero and interrupts its vanilla job. Work
+candidacy and food/support availability treat it as free, and the pawn read
+reports it with no job, whatever vanilla job it runs. Changing authority leaves
+an unowned colonist's vanilla job running; it only releases stale orders. Native
+publishes nothing for an unowned colonist (#3556; the `unassigned_voluntary_pawn`
+invalidation is gone), and the next rounds review reads it in the census. See [supported scope and remaining owners](voluntary-control.md).
 Native disorientation and the native imposed-sleep/force-job ability effects retain
 their direct job authority through exact source-method scopes. The scope applies only
 to the affected pawn, restores on exceptions, and records interruption/release of any

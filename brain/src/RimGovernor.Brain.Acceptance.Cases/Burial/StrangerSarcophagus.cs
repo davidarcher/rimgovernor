@@ -28,19 +28,17 @@ internal static class StrangerSarcophagus
         staged => ServedOps.Args(("sarcophagus", staged.Sarcophagus), ("ids", "," + staged.Corpse)),
         ServedOps.Reply<Fx.TombRead>(ReadTool));
 
-    private static readonly FixtureOp<NoArgs, Fx.FixtureDone> VanillaColonists = ServedOps.Inject(Needs.VanillaColonistsTool);
-
     internal static TypedCase Case() => new()
     {
         Name = "burial/stranger-sarcophagus",
         Scope = "The KnowBuriedInSarcophagus probe (#3242, epic #3217): a colonist natively hauls a stranger corpse into a fresh "
             + "sarcophagus, and no colonist gains KnowBuriedInSarcophagus and the corpse's everBuriedInSarcophagus stays false. "
             + "Building_Sarcophagus.Notify_HauledTo returns unless thisIsFirstBodyEver, which only TryAcceptThing sets and no haul "
-            + "path calls. Mood stays live so a memory could land; colonists haul on their own (test/vanilla_colonists). Vanilla "
+            + "path calls. Mood stays live so a memory could land; unassigned colonists haul on their own (#3669). Vanilla "
             + "physics no unit test runs; it is the negative benchmark the mechanic-card gate cites.",
         Ticks = 10000,
         Tier = CaseTier.OnDemand,
-        Ops = [StageTool, ReadTool, Needs.VanillaColonistsTool],
+        Ops = [StageTool, ReadTool],
         QuietWorld = true,
         Keep = ["Mood"],
         Run = RunAsync,
@@ -49,7 +47,6 @@ internal static class StrangerSarcophagus
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var staged = await s.FixtureAsync("tomb-stage", Staged, NoArgs.Value, cancellationToken).ConfigureAwait(false);
-        _ = await s.FixtureAsync("vanilla-colonists", VanillaColonists, NoArgs.Value, cancellationToken).ConfigureAwait(false);
 
         Fx.TombCorpse? Corpse(Fx.TombRead read) => read.Corpses.FirstOrDefault(c => c.Id == staged.Corpse);
 

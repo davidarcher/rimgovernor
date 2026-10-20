@@ -26,18 +26,16 @@ internal static class GraveOverMorgue
 
     private static readonly FixtureOp<string, Fx.BurialRead> Read = new(ReadTool, ids => ServedOps.Args(("ids", ids)), ServedOps.Reply<Fx.BurialRead>(ReadTool));
 
-    private static readonly FixtureOp<NoArgs, Fx.FixtureDone> VanillaColonists = ServedOps.Inject(Needs.VanillaColonistsTool);
-
     internal static TypedCase Case() => new()
     {
         Name = "burial/grave-over-morgue",
         Scope = "Grave-versus-zone ranking (#2196): vanilla hauling carries a colonist corpse from a morgue zone at "
             + "policy.MorguePriority into a free grave, whose storage priority outranks the morgue, and leaves the stranger, "
-            + "whom the grave refuses, in the morgue. Vanilla stockpile ranking and an idle colonist's own haul "
-            + "(test/vanilla_colonists) are native physics no unit test runs.",
+            + "whom the grave refuses, in the morgue. Vanilla stockpile ranking and an unassigned colonist's own haul "
+            + "(#3669) are native physics no unit test runs.",
         Ticks = 10000,
         Tier = CaseTier.OnDemand,
-        Ops = [StageTool, ReadTool, Needs.VanillaColonistsTool],
+        Ops = [StageTool, ReadTool],
         QuietWorld = true,
         Run = RunAsync,
     };
@@ -45,7 +43,6 @@ internal static class GraveOverMorgue
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var staged = await s.FixtureAsync("burial-stage", Staged, NoArgs.Value, cancellationToken).ConfigureAwait(false);
-        _ = await s.FixtureAsync("vanilla-colonists", VanillaColonists, NoArgs.Value, cancellationToken).ConfigureAwait(false);
         var ids = staged.ColonistCorpse + "," + staged.StrangerCorpse;
 
         async Task<(bool ColonistInGrave, bool StrangerInMorgue)> ReadAsync(string label, CancellationToken ct)

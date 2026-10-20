@@ -32,7 +32,7 @@ namespace HomeBridge.BridgeTools
                 Identity=new Common.Identity { ColonyId=s.Identity!.ColonyId, LoadToken=s.Identity.LoadToken, MapId=s.Identity.MapId } };
         }
 
-        // Every colonist waits on a long job until an execution takes it; under authority an unowned job cannot start.
+        // Every colonist waits on a long job until an execution takes it.
         private static void Still(Map map)
         {
             foreach (var p in map.mapPawns.FreeColonistsSpawned.ToArray()) p.jobs.StartJob(JobMaker.MakeJob(JobDefOf.Wait,120000),JobCondition.InterruptForced);
@@ -69,7 +69,7 @@ namespace HomeBridge.BridgeTools
             return FixtureKit.Reply(new Fx.FixtureDone { Success=true });
         },ct).ConfigureAwait(false);
 
-        [Tool("test/pawn_control_install",Description="UNSAFE FOR MODEL EXECUTION. Validate and install the producer's harvest, meal and sleep, the helper's hold, and standby for every other colonist.")]
+        [Tool("test/pawn_control_install",Description="UNSAFE FOR MODEL EXECUTION. Validate and install the producer's harvest, meal and sleep and the helper's hold; every other colonist's work priorities go off.")]
         public async Task<object> Install(IRimBridgeContext ctx,CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(()=>
         {
             var c=Context();
@@ -80,12 +80,9 @@ namespace HomeBridge.BridgeTools
                 new PawnActivityStep(PawnActivityKind.Sleep,bed!.GetUniqueLoadID(),"","",0,deadline)});
             helperOrder=new PawnActivityOrder(helper!.GetUniqueLoadID(),"helper","food-method",0,1,false,new[]{
                 Hold(deadline)});
-            var batch=new PawnActivities(c.NativeGeneration!.Value,new[]{workerOrder,helperOrder}.Concat(worker.Map.mapPawns.FreeColonistsSpawned
-                .Where(p => p != worker && p != helper).Select(p => new PawnActivityOrder(p.GetUniqueLoadID(),
-                    "fixture-idle-" + p.GetUniqueLoadID(), "food-method", 0, 1, false,
-                    [new(PawnActivityKind.Standby, "", "", "", 0, long.MaxValue)]))).ToArray());
+            var batch=new PawnActivities(c.NativeGeneration!.Value,new[]{workerOrder,helperOrder});
             var invalid=NativePawnActivities.Validate(batch,c); if(invalid!=null)throw new InvalidOperationException(invalid.Detail);
-            // Standby runs vanilla work (#3662): the idle colonists must not harvest the staged crop themselves.
+            // An unassigned colonist runs vanilla work (#3669): the idle colonists must not harvest the staged crop themselves.
             foreach(var p in worker.Map.mapPawns.FreeColonistsSpawned.Where(p=>p!=worker&&p!=helper)) p.workSettings?.DisableAll();
             NativePawnActivities.Apply(batch,c);
             NativePawnActivities.Apply(batch,c); // Idempotent reinstall must not restart work.
@@ -191,8 +188,8 @@ namespace HomeBridge.BridgeTools
             if(worker.CurJob?.def!=JobDefOf.BeatFire || worker.CurJob.playerForced)throw new InvalidOperationException("Emergency did not preempt recreation.");
         }
 
-        // A repeated release drops ownership; the released pawn neither falls through to voluntary selection nor starts
-        // an unowned direct job; only an admitted Hands scope starts one; and an old release cannot erase a newer assignment.
+        // A repeated release drops ownership; the released pawn runs vanilla job selection and starts a direct job (#3669);
+        // and an old release cannot erase a newer assignment.
         private static void Release()
         {
             // One revision past the fresh assignment's, so the old release below differs from the colliding one.
@@ -201,15 +198,10 @@ namespace HomeBridge.BridgeTools
             Apply(release);
             Apply(release);
             if(NativePawnActivities.Owned(worker!)||NativePawnActivities.Read(worker!)!=null)throw new InvalidOperationException("Repeated release retained ownership.");
-            var withoutOwner=Offer();
-            if (withoutOwner.IsValid || !Find.TickManager.Paused)
-                throw new InvalidOperationException("Unassigned controlled pawn fell through to native voluntary selection.");
+            if (!Offer().IsValid) throw new InvalidOperationException("Released controlled pawn did not run vanilla job selection.");
             var direct = JobMaker.MakeJob(JobDefOf.Wait, 40);
             worker!.jobs.StartJob(direct, JobCondition.InterruptForced);
-            if (ReferenceEquals(worker.CurJob, direct)) throw new InvalidOperationException("Unowned direct StartJob bypassed voluntary control.");
-            var admitted = JobMaker.MakeJob(JobDefOf.Wait, 40);
-            using (NativeControlAuthority.ForGame(Current.Game).Owned()) worker.jobs.StartJob(admitted, JobCondition.InterruptForced);
-            if (!ReferenceEquals(worker.CurJob, admitted)) throw new InvalidOperationException("Admitted Hands scope could not start an exact job.");
+            if (!ReferenceEquals(worker.CurJob, direct)) throw new InvalidOperationException("Released controlled pawn could not start a direct job.");
             Install(Fresh());
             var collidingRelease=release with {ExpectedRevision=1,Revision=2};
             if(NativePawnActivities.Validate(new PawnActivities(Context().NativeGeneration!.Value,new[]{collidingRelease}),Context())==null)throw new InvalidOperationException("Release matched revision but ignored changed assignment.");
@@ -246,6 +238,8 @@ namespace HomeBridge.BridgeTools
             try { new CompAbilityEffect_PutToSleep().Apply(new LocalTargetInfo(worker),LocalTargetInfo.Invalid); }
             catch(NullReferenceException) { sourceThrew=true; }
             if(!sourceThrew)throw new InvalidOperationException("Imposed-effect exception probe did not reach its failing native source.");
+            // Only an owned pawn refuses a job its order did not offer: an unowned one runs vanilla (#3669).
+            Install(Fresh());
             var afterImposed=JobMaker.MakeJob(JobDefOf.Wait,40);
             worker.jobs.StartJob(afterImposed,JobCondition.InterruptForced);
             if(ReferenceEquals(worker.CurJob,afterImposed))

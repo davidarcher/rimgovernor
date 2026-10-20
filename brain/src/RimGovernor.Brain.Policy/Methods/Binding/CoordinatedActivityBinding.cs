@@ -32,7 +32,7 @@ internal static class CoordinatedActivityBinding
 
     /// <summary>An installed Method is protected from reselection, so holding a pawn for a service that departs far ahead would
     /// freeze the colony until the hold ends (#3047). A pawn whose first task is such a service, with nothing waiting on it,
-    /// is left out like any unselected pawn: standby takes it (#3624) and a later review starts the service once it is due. So
+    /// is left out like any unselected pawn: it runs vanilla work (#3669) and a later review starts the service once it is due. So
     /// is a meal waiting only on other pawns' work (#3167): holding the eater until the cook's last meal froze it for most of
     /// a day; left out, it eats from what the work has stocked by then.</summary>
     internal static PawnActivities? DeferDistantServices(PawnActivities? active, long tick, IReadOnlyDictionary<string, long>? leave = null)
@@ -151,7 +151,7 @@ internal static class CoordinatedActivityBinding
             // So is a task that leads to the pawn's own remaining service, such as harvesting the rice it then eats (#3598).
             // As at the start (DeferDistantServices, #3047), a participant at a boundary is not held for a next service departing
             // far ahead, owned and unreviewable: a pawn that woke early (#3598), finished its work or waits on other pawns' work,
-            // such as an eater held for the cook's last meal for most of a day (#3167), is released to standby, and a later review
+            // such as an eater held for the cook's last meal for most of a day (#3167), is released to vanilla work (#3669), and a later review
             // starts the service once it is due (#3649).
             var distant = IsService(next) && next.DepartTick - tick > DistantServiceTicks
                 && next.Prerequisites.All(p => remaining.Any(t => t.Id == p && t.Pawn != order.Pawn));

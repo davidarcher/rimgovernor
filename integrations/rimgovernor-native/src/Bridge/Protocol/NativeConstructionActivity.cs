@@ -503,7 +503,7 @@ internal static class NativeConstructionActivity
 
     // A colonist free to take new work: the same gate the site rows apply.
     private static bool Free(Pawn pawn) => !(pawn.Drafted || pawn.Downed || pawn.InMentalState || !NativeFoodActivity.Available(pawn)
-        || NativePawnActivities.Committed(pawn) || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0 || pawn.carryTracker.CarriedThing != null);
+        || NativePawnActivities.Owned(pawn) || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0 || pawn.carryTracker.CarriedThing != null);
 
     // Per pawn x whole-stack material source: site approach, first approach, delivery trips and finish work. The legs
     // are searched once each: colonist to site and to stack per (colonist cell, target), stack to site and back per

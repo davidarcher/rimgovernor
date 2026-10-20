@@ -59,7 +59,7 @@ internal static class NativeFoodActivity
             if (pawn.Downed || pawn.InMentalState || pawn.Drafted || !pawn.IsColonistPlayerControlled
                 || pawn.carryTracker.CarriedThing != null || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)
                 || pawn.WorkTagIsDisabled(WorkTags.ManualDumb) || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) continue;
-            if (existing is null && (NativePawnActivities.Committed(pawn) || !Available(pawn) || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0)) continue;
+            if (existing is null && (NativePawnActivities.Owned(pawn) || !Available(pawn) || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0)) continue;
             IEnumerable<Thing> sources = plants;
             if (existing?.OutputDelivery is { } output)
                 sources = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)

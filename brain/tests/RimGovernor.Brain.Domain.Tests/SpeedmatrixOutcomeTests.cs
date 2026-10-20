@@ -47,12 +47,12 @@ public sealed class SpeedmatrixOutcomeTests
     }
 
     [Fact]
-    public void FailedReleasedAndStandbyRowsAreNoCompletedTask()
+    public void FailedReleasedAndStartedRowsAreNoCompletedTask()
     {
         var timeline = new[]
         {
             Execution("pawn1", "coupled-a", 1, "failed"),
-            Execution("pawn2", "standby-b", 1, "started"),
+            Execution("pawn2", "coupled-b", 1, "started"),
             Execution("pawn3", "coupled-c", 1, "released"),
             new TimelineRecord { Kind = PawnActivityTelemetry.IntervalKind, Payload = new Dictionary<string, object?> { [PawnActivityTelemetry.StateKey] = PawnActivityTelemetry.CompletedState } },
         };

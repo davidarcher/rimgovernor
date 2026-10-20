@@ -70,21 +70,18 @@ legality, reservation checks and completion mechanics still run.
 
 The shared selector may retain no change only for an observed, finite safe
 interval. A missing estimate is not evidence that indefinite idleness is safe.
-An unassigned controlled pawn returns no job rather than silently borrowing
-vanilla job selection, and native publishes nothing for it: it never holds the
-clock (#3518), and the `unassigned_voluntary_pawn` Pawns invalidation it once
-raised is gone (#3556: it selected every pawn-reading planner at every review
-tick, and the unassigned colonist is already in the census the review reads).
-The idle is not a resting state: a colonist that lost its activity Method makes
-the next review step run the rounds review (`freed`, #3599), which assigns every
-such pawn it selects nothing for an explicit `Standby`
-(vanilla job selection under the colonist's work priorities, no deadline; see
-[pawn activities](pawn-activities.md#voluntary-ownership-and-bounded-no-change)).
-A colonist whose next service the comparison deferred gets standby the same
-way; there is no separate timed defer. When a coupled worker
+A controlled colonist with no committed coupled order runs vanilla job
+selection under its work priorities (#3669; see
+[pawn activities](pawn-activities.md#voluntary-ownership-and-bounded-no-change)):
+every think-tree entry (selection, constant, override, opportunistic, finalizer
+and job start) passes through for it, and native publishes nothing for it, so it
+never holds the clock (#3518). A colonist that lost its activity Method, or whose
+next service the comparison deferred, runs vanilla work until a review selects
+something for it; it is no reason to review early, and there is no separate timed
+defer and no explicit standby order. When a coupled worker
 finishes a task with bills left, the review its finished task raises decides who
-takes the next one before that worker starts it (#3624): the same worker, or a
-colonist on standby or free that does it faster
+takes the next one before that worker starts it (#3624): the same worker, or an
+unowned colonist that does it faster
 ([incumbent reconsideration](essential-services.md)); only that worker's next
 task is re-decided, and the Method's other participants keep working.
 An unsupported need/state blocker is a visible finding
@@ -101,13 +98,12 @@ specific blockers. A scheduled drug produces either `scheduled_drug_due` or
 `scheduled_drug_onset_unassessed`; a missing drug definition produces
 `unknown_scheduled_drug`. Supported ordinary needs do not cancel another blocker.
 
-The bounded 600-tick `Idle` defer is gone (#3624): it freed its colonist every
-600 ticks and each expiry reran the rounds review. `Standby`
-is not a defer: it claims no capacity and is replaced as soon as review selects
-anything, including eating or sleeping for a falling need. Under it the colonist
-runs vanilla job selection (#3662), so designations, bills and zones with no
-coupled binding are still worked; the coupled selection is the override, not the
-only source of work. A completed or failed
+The bounded 600-tick `Idle` defer is gone (#3624), and so is the explicit
+`Standby` order that followed it (#3669). Vanilla work claims no capacity and a
+coupled order preempts it as soon as review selects anything, including eating or
+sleeping for a falling need, so designations, bills and zones with no coupled
+binding are still worked; the coupled selection is the override, not the only
+source of work. A completed or failed
 assignment keeps its exact ownership pending continuation or release, but stops the existing
 Supervisor clock; readmitting time cannot turn that terminal assignment into indefinite idle.
 
@@ -118,7 +114,7 @@ Supervisor clock; readmitting time cannot turn that terminal assignment into ind
 | Medical support | Shared support candidates; exact pending service identities and native conditional room factors. Critical medical protection remains with its existing emergency owner. No fabricated prognosis. |
 | Fire/combat/player protection | Existing protection and emergency paths retain authority; an ordinary Method cannot convert protected occupancy into free capacity. |
 | Drugs, addictions, genetic dependencies, hemogen, psyfocus, unsupported or modded needs | Native observations expose blockers; the pawn's supported needs and labor stay selectable. Ordinary safe-idle admission cannot cover them. A future Method must supply onset/effect observations and exact execution under the existing Concern owner before support can be claimed. |
-| Mining, tree cutting, hunting, research, repair, refuel, cleaning, firefighting, non-supported production and colony services | Concerns stand the demand (designations, bills, zones, work priorities); a colonist on standby works it through vanilla job selection (#3662). That is native execution, not a planner-owned choice: a service the brain must decide against the forecast (who, when, at what cost) gets an exact shared Method that preempts standby. |
+| Mining, tree cutting, hunting, research, repair, refuel, cleaning, firefighting, non-supported production and colony services | Concerns stand the demand (designations, bills, zones, work priorities); a colonist with no committed order works it through vanilla job selection (#3662, #3669). That is native execution, not a planner-owned choice: a service the brain must decide against the forecast (who, when, at what cost) gets an exact shared Method that preempts it. |
 
 The boundary does not establish universal autonomous play across DLCs and mods.
 Hunting prediction/qualification and the hunting integration acceptance remain
@@ -188,19 +184,13 @@ claims with a supported shared Method or an explicit unsupported result. Do not
 delete physiological, involuntary, emergency or manual-player coverage merely
 because it does not belong to ordinary economic selection.
 
-A native-only case that probes a vanilla mechanic through a colonist's own job
-choice (`burial/stranger-sarcophagus`, `burial/grave-over-morgue`) lists the
-test-only `test/vanilla_colonists` fixture op (`Needs.VanillaColonistsTool`) in
-its `Ops` and says why in its `Scope`, so colonists choose voluntary jobs
-natively for that game. It is absent from production builds and is not evidence
-of controlled execution.
-
-A native-only case runs no brain. The fixtures that need the brain's standby
-(pawn cooking, pawn delivery) install it themselves (`StandbyColonists` in
-`scripts/fixtures/FreezeNeedsFixture.cs`): each controlled colonist with no
-assignment and an idle job gets the same `Standby` order, with its work
-priorities turned off so its vanilla job selection leaves the staged targets alone. Under
-`test/vanilla_colonists` no colonist is controlled and it installs nothing.
+A native-only case runs no brain, so its controlled colonists own no order and
+choose voluntary jobs natively (#3669): a case that probes a vanilla mechanic
+through a colonist's own job choice (`burial/stranger-sarcophagus`,
+`burial/grave-over-morgue`, `control/unassigned-runs-vanilla`) needs no opt-out.
+The fixtures whose staged targets an idle colonist must leave alone (pawn cooking,
+pawn delivery, sow) turn the unowned colonists' work priorities off
+(`IdleColonists` in `scripts/fixtures/FreezeNeedsFixture.cs`).
 
 Native disorientation and the native imposed-sleep/force-job ability effects retain
 their direct job authority through exact source-method scopes. The scope applies only

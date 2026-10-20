@@ -56,7 +56,7 @@ public static class ForecastNeeds
     /// <summary>
     /// Whether the pawn's time is the brain's to select: eligible, or eligible but for a voluntary-control blocker
     /// (<c>unsupported_voluntary_state</c>). A blocker is a visible finding, not a capacity exclusion: the pawn's
-    /// supported needs and labor stay selectable, so it is fed rather than held on standby (#3557).
+    /// supported needs and labor stay selectable, so it is fed rather than left idle (#3557).
     /// </summary>
     public static bool Voluntary(string state) => state is "eligible" or "unsupported_voluntary_state";
 

@@ -1,5 +1,4 @@
 using System.Globalization;
-using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -194,9 +193,9 @@ internal static class ProductionCookingDevelopment
 
             if (first is not { } owned)
             {
-                // The cook that produced the first meal, while a Method owns it, and an idle colonist that has not cooked. On standby counts as idle.
+                // The cook that produced the first meal, while a Method owns it, and an idle colonist that has not cooked.
                 var cook = read.CompletedBy.Keys.FirstOrDefault(read.Owners.ContainsKey);
-                var idle = cooks.Keys.FirstOrDefault(p => !Working(read, p) && !read.CompletedBy.ContainsKey(p) && !incapable.Contains(p));
+                var idle = cooks.Keys.FirstOrDefault(p => !read.Owners.ContainsKey(p) && !read.CompletedBy.ContainsKey(p) && !incapable.Contains(p));
                 if (cook is not null && idle is not null)
                 {
                     var joined = new Fx.StagePawn
@@ -233,11 +232,7 @@ internal static class ProductionCookingDevelopment
     }
 
     // The Method retired: the bill is gone and nobody cooks or is owned.
-    private static bool Retired(Fx.ProductiveCookingRead read) => !read.BillActive && read.Cooking == 0 && !read.Owners.Keys.Any(p => Working(read, p));
-
-    // Owned by a Method other than standby: a colonist on standby (#3624) is idle, waiting for work.
-    private static bool Working(Fx.ProductiveCookingRead read, string pawn) =>
-        read.Owners.TryGetValue(pawn, out var method) && !method.StartsWith(StandbyAssignmentsRules.StandbyMethodPrefix, StringComparison.Ordinal);
+    private static bool Retired(Fx.ProductiveCookingRead read) => !read.BillActive && read.Cooking == 0 && read.Owners.Count == 0;
 
     private static string Signature(Fx.ProductiveCookingRead read) => read.Tick.ToString(CultureInfo.InvariantCulture);
 

@@ -123,7 +123,7 @@ everyone idled: each row's colonists must complete at least one
 brain-selected task. `completed_tasks` counts the orders of installed brain
 Methods, of any kind, that native's `pawn_activity_execution` rows in the
 row's timeline report `completed` (one per pawn, assignment and revision;
-standby never completes). A row that completes none is a brain
+a colonist's vanilla work installs no order, #3669). A row that completes none is a brain
 regression, not a slow row.
 
 `result.json` carries per row `speed_metrics` (the keys are defined in

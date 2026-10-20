@@ -762,9 +762,8 @@ public sealed partial class Rounder
         // The first plan reads the ledger and the demand this review derived (#3652).
         await ReviewFirstPlanAsync(state.Snapshot, result.Review.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         stages.Lap("first_plan");
-        var taken = AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
-        taken.UnionWith(AdmitStandby(reading.Projection.Facts, workActions, taken, state.Snapshot, ct, epoch));
-        result = result with { Assigned = taken, FirstPlanUnread = FirstPlanUnread };
+        AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
+        result = result with { FirstPlanUnread = FirstPlanUnread };
         stages.Lap("admit");
         var attrs = new List<(string Key, object? Value)>
         {

@@ -590,7 +590,7 @@ family entry's read consumes, and why the two could not be narrowed against each
 
 **What the invalidations named.** The measured day above (session `d3ad27f7`) had 26 `clock_invalidation` rows:
 16 `pawn_activity:coupled-<id>:completed|failed` (an order the review assigned finishing), 8
-`pawn_activity:unassigned_voluntary_pawn` (a controlled colonist offered no job before standby was assigned) and 2
+`pawn_activity:unassigned_voluntary_pawn` (a controlled colonist offered no job before standby was assigned; standby retired with #3669) and 2
 `stockpile fill` (Colony, zone ids). The pawn rows came in pairs at the review tick after each `due` rounds step
 (600, 3600, 6600, 9600, 12600, 18600). Each named the Pawns family and a pawn id; no pawn section is an entity section
 (`Section.Entities()` is PlanningCells, Zones, Buildings, Bills), so `Invalidation.Sections` dirtied both Population
@@ -610,8 +610,8 @@ not the census. There was nothing to narrow on the brain side.
 
 **What changed.** The pawn-activity invalidation is gone from native (`Supervisor.ActivityChanged`, its `Reported`
 set and the three call sites). An order completing or failing is the brain's own attempt outcome, which the next
-review reads from the execution rows; a controlled colonist without an order is in the census the next rounds review
-reads, and that review assigns standby. Neither is an observed fact change. The medical invalidations
+review reads from the execution rows; a controlled colonist without an order runs vanilla work (#3669) and is in the census
+the next rounds review reads. Neither is an observed fact change. The medical invalidations
 (`InvalidateMedicalFacts`, Pawns and Emergency, rate-limited) and the Colony invalidations (zones, harvest, stockpile
 fill, game conditions) stay.
 

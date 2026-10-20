@@ -35,9 +35,6 @@ public static class Needs
             : throw new AcceptanceException($"{FreezeNeedsTool} refused: {reply.ToJson()}");
     }
 
-    /// <summary>Lets colonists choose voluntary jobs natively under the controller authority (FreezeNeedsFixture.cs, so every fixture build carries it).</summary>
-    public const string VanillaColonistsTool = "test/vanilla_colonists";
-
     /// <summary>
     /// Freezes every colonist need but <paramref name="keep"/> and records the reply under
     /// <c>report["frozen_needs"]</c>: the one call every service-driven harness makes once its save is loaded and

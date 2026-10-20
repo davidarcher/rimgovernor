@@ -218,8 +218,7 @@ step the case reads the pawn's situational thought rows once the cache is clean,
 do (`RoundsMoodReads.MoodThoughts`), and compares the thought's offset with `CardStageOffset` for the same pawn and
 outfit: none for n = 0, -5/-8/-11/-14 for n = 1-4 and none with Bloodlust at n = 2. For n = 5 it requires the thought
 and records the observed stage against the card's clamp. With Bloodlust the situational row stays in the cache at
-offset 0 (`ThoughtUtility.ThoughtNullified` zeroes `MoodOffset`), so the lifted mood thoughts omit it. It is a typed case, whose waits run the game through RunAt, so it
-declares no `VanillaColonists` opt-out.
+offset 0 (`ThoughtUtility.ThoughtNullified` zeroes `MoodOffset`), so the lifted mood thoughts omit it. It is a typed case, whose waits run the game through RunAt.
 
 The probes for `EnvironmentCold` and `EnvironmentHot` are `environment/cold` and `environment/hot` (#3328), typed
 cases on a one-colonist lab. The fixture op `test/environment_temperature` seals the colonist in a doorless roofed 3x3 room and

@@ -54,8 +54,8 @@ internal static class ControlActivities
         yield return Lifecycle(
             "release",
             "release",
-            "A repeated release drops ownership; the released pawn neither falls through to native voluntary selection nor starts an "
-                + "unowned direct job, an admitted Hands scope does, and an old or colliding release cannot erase a newer assignment.");
+            "A repeated release drops ownership; the released pawn runs vanilla job selection and starts a direct job (#3669), "
+                + "and an old or colliding release cannot erase a newer assignment.");
         yield return Lifecycle(
             "native-overrides",
             "overrides",

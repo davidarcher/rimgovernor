@@ -197,7 +197,7 @@ may be admitted alongside installed Methods through the same shared claim guards
 an active Method does not freeze unrelated participants. A participant whose next
 service (sleep, recreation, a meal) departs more than `DistantServiceTicks` (600)
 ahead, with no other participant waiting on it, is not held for it: the start
-leaves it out and every later step boundary releases it to standby, and a later
+leaves it out and every later step boundary releases it to vanilla work (#3669), and a later
 review selects the service again once it is due (#3047, #3598, #3649). Delayed
 variants that run work after a recovery are the recovering colonist's own: no
 colonist's work waits behind another colonist's meal, sleep or recreation (#3649). Independent
@@ -225,8 +225,8 @@ When the chosen portfolio is unplaced planned sites alone, the comparison runs
 again without the roots that reach a planned site, and that run's selected roots,
 allocations and unselected-pawn defers join the selection (finding
 `planned_unplaced_reselected`): the record places the planned sites while the
-orders start the startable work, and standby is the fallback only when nothing
-startable is worth selecting (#3557). Each review keeps the latest known comparison's planned-room selection
+orders start the startable work, and vanilla work is the fallback only when nothing
+startable is worth selecting (#3557, #3669). Each review keeps the latest known comparison's planned-room selection
 in memory (`Rounder.RoomSelection`, a `ReviewMemory<PlannedSelection>`): the
 rooms it assessed (a valued alternative in `Context.PlannedRooms`) and the
 selected sites with their op, def, stuff and cells. A review that compared

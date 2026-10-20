@@ -56,8 +56,8 @@ namespace HomeBridge.BridgeTools
             NativePawnActivities.Apply(new PawnActivities(Context().NativeGeneration!.Value,
                 new[] { new PawnActivityOrder(worker!.GetUniqueLoadID(), "food-delivery", "food-method", 0, 1, false,
                     new[] { new PawnActivityStep(PawnActivityKind.Work, crop!.GetUniqueLoadID(), giver, "Harvest", 0, deadline) }) }), Context());
-            // The brain's standby for the idle colonists, so they do not hold the clock.
-            StandbyColonists.Apply();
+            // The idle colonists run vanilla with their work priorities off (#3669).
+            IdleColonists.Apply();
             return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
 

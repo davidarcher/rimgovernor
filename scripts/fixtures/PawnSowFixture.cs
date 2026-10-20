@@ -44,7 +44,7 @@ namespace HomeBridge.BridgeTools
             var invalid = NativePawnActivities.Validate(batch, Context());
             if (invalid != null) throw new InvalidOperationException(invalid.Detail);
             NativePawnActivities.Apply(batch, Context());
-            StandbyColonists.Apply();
+            IdleColonists.Apply();
             return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
         }, ct).ConfigureAwait(false);
 

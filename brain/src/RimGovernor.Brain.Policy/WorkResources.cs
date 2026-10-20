@@ -312,8 +312,7 @@ public static partial class WorkRules
             foreach (var order in batch.Orders)
             {
                 // Accepted release ends ownership. A pending release must retain its predecessor's claim.
-                // Standby claims nothing: any selected work replaces it (#3322).
-                if (order.Release || PawnActivities.IsStandby(order)) continue;
+                if (order.Release) continue;
                 if (progress.Attempt.Value > 0 && !progress.Unresolved && progress.Tick < evidence.Tick
                     && evidence.WorkResources.TryGetValue(out var observedOwners)
                     && observedOwners.Any(n => n.Pawn == order.Pawn && (n.Assignment != order.Assignment || n.Revision != order.Revision))) continue;
