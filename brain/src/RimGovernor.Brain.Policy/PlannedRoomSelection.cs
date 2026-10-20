@@ -20,7 +20,7 @@ public sealed record PlannedSelection
 /// <summary>How the room reconcile treats a planned room (#3278).</summary>
 public enum PlannedRoomGate
 {
-    /// <summary>Started, or never assessed by the comparison: the reconcile places it as before.</summary>
+    /// <summary>Started, or assessed by no comparison the record keeps: the reconcile places it as before.</summary>
     Place = 0,
 
     /// <summary>Unstarted, assessed, and none of its sites selected: nothing is placed.</summary>
@@ -65,11 +65,24 @@ public static partial class PlannedRules
     /// The record after a review (#3278): the latest known selection replaces the previous one (a later selection that
     /// drops a site drops it), a review without one keeps the previous, and the sites of a room observed started
     /// (<paramref name="started"/>) clear: it is placed, and the reconcile continues it without the record. A wall swap
-    /// (WallUp, #3657) is a standing room's own and stays: it is what the reconcile swaps the room's walls to.
+    /// (WallUp, #3657) is a standing room's own and stays: it is what the reconcile swaps the room's walls to. An unstarted
+    /// room of the plan (<paramref name="planned"/>) the previous record assessed and the latest comparison did not keeps
+    /// its previous verdict and sites (#3676): a review whose free colonists could not reach it (a running method holds
+    /// them) has not reassessed it, and treating it as never assessed would place it whole in the default stuff.
     /// </summary>
-    public static PlannedSelection PlannedSelectionMemory(PlannedSelection previous, PlannedSelection? latest, Func<int, bool> started)
+    public static PlannedSelection PlannedSelectionMemory(PlannedSelection previous, PlannedSelection? latest, Func<int, bool> started,
+        Func<int, bool>? planned = null)
     {
         var next = latest ?? previous;
+        if (latest is not null)
+        {
+            var carried = previous.Assessed.Where(r => !latest.Assessed.Contains(r) && (planned?.Invoke(r) ?? true) && !started(r)).ToHashSet();
+            next = latest with
+            {
+                Assessed = EquatableArray.From(latest.Assessed.Concat(carried).Order()),
+                Sites = EquatableArray.From(latest.Sites.Concat(previous.Sites.Where(s => carried.Contains(s.Room)))),
+            };
+        }
         return next with { Sites = EquatableArray.From(next.Sites.Where(s => s.Op == OpKind.WallUp || !started(s.Room))) };
     }
 

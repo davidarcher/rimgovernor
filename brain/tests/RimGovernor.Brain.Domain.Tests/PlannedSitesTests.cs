@@ -258,6 +258,35 @@ public sealed class PlannedSitesTests
         Assert.DoesNotContain(probes, p => p.To == new Cell(10, 0) || p.From == new Cell(10, 0));
     }
 
+    /// <summary>
+    /// A pawn that eats between two pieces of a room's work (#3676): without a route from the room to its meal and back,
+    /// every schedule with the room and a meal inside the horizon is unknown and the room is never selected. The nearest
+    /// need-target cells are probed from each end and to each start; a need cell that already is a start or an end is not
+    /// probed twice, and only the <see cref="PlannedRules.PlannedNeedRouteTargets"/> nearest are.
+    /// </summary>
+    [Fact]
+    public void RouteProbesRunBetweenARoomAndTheNearestNeedTargets()
+    {
+        var wall = Answered("planned/room1/wall/WoodLog", OpKind.WallIn, [new(0, 0), new(0, 1)], new Cell(9, 9), 10);
+        var door = Answered("planned/room1/door/WoodLog", OpKind.DoorIn, [new(1, 0)], new Cell(1, 0), 0);
+        var meal = new Cell(5, 0);
+        var plain = PlannedRules.PlannedRouteProbes([wall, door]);
+        Assert.DoesNotContain(plain, p => p.From == meal || p.To == meal);
+        var probes = PlannedRules.PlannedRouteProbes([wall, door], [meal, new Cell(9, 9)]);
+        // Ends: door (1,0), wall (0,0). Starts: door (1,0), source (9,9), wall (0,0). The source cell is already a start.
+        Cell[] ends = [new(1, 0), new(0, 0)];
+        Cell[] starts = [new(1, 0), new(9, 9), new(0, 0)];
+        var added = probes.Select(p => (p.From, p.To)).Except(plain.Select(p => (p.From, p.To))).ToHashSet();
+        Assert.True(ends.Select(e => (e, meal)).Concat(starts.Select(s => (meal, s))).ToHashSet().SetEquals(added));
+        // Many need targets: only the nearest the room's ends are probed.
+        var far = Enumerable.Range(0, 20).Select(i => new Cell(40 + i, 40)).ToArray();
+        var bounded = PlannedRules.PlannedRouteProbes([wall, door], [.. far, meal]);
+        var reached = bounded.Select(p => p.To).Where(c => c.X >= 5 && c.Z != 9).Distinct().ToArray();
+        Assert.Equal(PlannedRules.PlannedNeedRouteTargets, reached.Length);
+        Assert.Contains(meal, reached);
+        Assert.DoesNotContain(new Cell(59, 40), reached);
+    }
+
     /// <summary>The join keeps the read's rows and findings; a missing read leaves every route unknown, with a finding.</summary>
     [Fact]
     public void JoinedRoutesKeepTheReadsRowsAndAMissingReadAddsNone()

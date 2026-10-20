@@ -230,7 +230,10 @@ startable is worth selecting (#3557, #3669). Each review keeps the latest known 
 in memory (`Rounder.RoomSelection`, a `ReviewMemory<PlannedSelection>`): the
 rooms it assessed (a valued alternative in `Context.PlannedRooms`) and the
 selected sites with their op, def, stuff and cells. A review that compared
-nothing keeps the record; a room observed started drops its sites.
+nothing keeps the record; a room observed started drops its sites. An unstarted
+room of the plan that the latest comparison did not assess (a running method held
+the colonists, so it was no candidate) keeps its previous verdict and sites (#3676):
+read as never assessed, it would be placed whole in the default stuff.
 
 The selected sites are the planned sites whose finish the selected plan
 completes inside the horizon (`ForecastCoupledOutcome.PlannedRooms`), whichever
@@ -245,7 +248,7 @@ horizon is not selected: it is placed once its room has started.
 `ReconcileRoomAsync` gates an unstarted planned room on that record
 (`PlannedRoomGateOf`):
 
-- **Place**: the room is started, or the latest comparison did not assess it.
+- **Place**: the room is started, or no comparison the record keeps assessed it.
   It reconciles as before.
 - **Hold**: assessed, none of its sites selected. The verdict is
   `AwaitingPlan`, subject `portfolio_selection`; nothing is placed, not even template

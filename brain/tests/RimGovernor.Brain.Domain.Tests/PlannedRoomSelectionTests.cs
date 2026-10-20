@@ -67,6 +67,28 @@ public sealed class PlannedRoomSelectionTests
         Assert.Equal(PlannedRoomGate.Place, PlannedRules.PlannedRoomGateOf(placed, 3, started: false).Gate);
     }
 
+    /// <summary>
+    /// A review whose comparison could not reach a room (#3676; a running method held every colonist, so no planned
+    /// room was a candidate) has not reassessed it: the room keeps its selected sites, in their stuff, rather than reading
+    /// as never assessed, which the reconcile places whole in the default stuff. A room it did reassess follows the latest;
+    /// a started room or one the plan dropped is not carried.
+    /// </summary>
+    [Fact]
+    public void ARoomTheLatestComparisonDidNotAssessKeepsItsPreviousSelection()
+    {
+        var previous = new PlannedSelection { Assessed = [1, 2, 3], Sites = [Wall(1, "WoodLog"), Wall(2, "WoodLog"), Wall(3, "WoodLog")] };
+        var none = new PlannedSelection();
+        var kept = PlannedRules.PlannedSelectionMemory(previous, none, _ => false);
+        Assert.Equal(previous, kept);
+        Assert.Equal(PlannedRoomGate.Selected, PlannedRules.PlannedRoomGateOf(kept, 2, started: false).Gate);
+        // Room 1 reassessed and held; room 2 started; room 3 left the plan.
+        var latest = new PlannedSelection { Assessed = [1] };
+        var next = PlannedRules.PlannedSelectionMemory(previous, latest, room => room == 2, room => room != 3);
+        Assert.Equal([1], next.Assessed);
+        Assert.Empty(next.Sites);
+        Assert.Equal(PlannedRoomGate.Hold, PlannedRules.PlannedRoomGateOf(next, 1, started: false).Gate);
+    }
+
     [Fact]
     public void ASelectionKeepsOnlyItsSitesCellsPiecesAndTheClearingOverThem()
     {

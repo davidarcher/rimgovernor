@@ -6,8 +6,8 @@ public sealed partial class Rounder
     /// <summary>
     /// The round's planned-site facts (#3275): the plan's owed operations as sites, one per op x ring stuff, and the
     /// unplaced shelf candidates as one-piece sites, each joined to the native planned-site read. Every site is asked in
-    /// one construction activity read, then every route between each room's answered sites in a second (PlannedRouteProbes,
-    /// #3313); each read covers every free colonist and caps nothing (#3341). Without a read its sites or routes stay
+    /// one construction activity read, then every route between each room's answered sites and between them and the
+    /// nearest need targets in a second (PlannedRouteProbes, #3313, #3676); each read covers every free colonist and caps nothing (#3341). Without a read its sites or routes stay
     /// unknown. Unknown while the plan or the construction census is.
     /// </summary>
     internal async Task<Fact<PlannedSiteFacts>> PlannedSitesAsync(GenerationSnapshot snapshot, ColonyProjection colony, PlannedOwed? owed,
@@ -27,8 +27,11 @@ public sealed partial class Rounder
         var read = asked.Count == 0 ? null
             : await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Planned = asked }, ct).ConfigureAwait(false);
         var joined = PlannedRules.JoinPlannedSites(sites, read);
-        // Routes between the answered sites (#3313): their sources and clearing are known only once the sites are.
-        var probes = PlannedRules.PlannedRouteProbes(joined.Sites);
+        // Routes between the answered sites (#3313): their sources and clearing are known only once the sites are;
+        // and between them and the need targets a pawn eats or sleeps at in between (#3676).
+        var needTargets = (colony.Facts.ForecastObserved.Needs?.Pawns ?? []).SelectMany(p => p.Targets)
+            .Where(t => t.Location is not null).Select(t => t.Location!.Value).ToHashSet();
+        var probes = PlannedRules.PlannedRouteProbes(joined.Sites, needTargets);
         var routes = probes.Count == 0 ? null
             : await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Routes = probes }, ct).ConfigureAwait(false);
         return Known(PlannedRules.JoinPlannedRoutes(joined, probes, routes) with

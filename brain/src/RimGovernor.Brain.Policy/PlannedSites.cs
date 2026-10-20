@@ -290,11 +290,14 @@ public static partial class PlannedRules
     /// where an activity of the room ends (a site's location, its first position; a clearing row's Location) to where
     /// another starts: a site's location (reaching its nearest position), a material source (a row's Origin), a
     /// clearing's start (a haul's Origin, a cut or mine row's Location). A roof is also probed from each pawn's start,
-    /// since no native row routes to it.
+    /// since no native row routes to it. A pawn that eats or sleeps between two pieces of the room's work leaves from or
+    /// goes to a need target (#3676): the <see cref="PlannedNeedRouteTargets"/> need-target cells
+    /// (<paramref name="needTargets"/>) nearest the room's ends are probed from each end and to each start.
     /// </summary>
-    public static EquatableArray<PlannedRouteProbe> PlannedRouteProbes(IReadOnlyList<PlannedBuildSite> sites)
+    public static EquatableArray<PlannedRouteProbe> PlannedRouteProbes(IReadOnlyList<PlannedBuildSite> sites, IReadOnlyCollection<Cell>? needTargets = null)
     {
         var probes = new List<PlannedRouteProbe>();
+        var needCells = (needTargets ?? []).Distinct().ToArray();
         foreach (var room in sites.Where(s => s.Room > 0 && s.Zone.Length == 0 && s.Positions.Count > 0).GroupBy(s => s.Room).OrderBy(g => g.Key))
         {
             var probed = room.Where(s => s.Op == OpKind.RoofIn || s.Options.Count > 0).OrderBy(s => s.Id, StringComparer.Ordinal).ToArray();
@@ -324,13 +327,27 @@ public static partial class PlannedRules
                 }
             }
             var targets = starts.DistinctBy(s => s.To).ToArray();
-            foreach (var from in ends.Distinct())
+            var froms = ends.Distinct().ToArray();
+            var reached = targets.Select(t => t.To).ToHashSet();
+            var near = needCells.Where(c => !reached.Contains(c) && !froms.Contains(c))
+                .OrderBy(c => froms.Min(e => Math.Abs(e.X - c.X) + Math.Abs(e.Z - c.Z))).ThenBy(c => c.X).ThenBy(c => c.Z)
+                .Take(PlannedNeedRouteTargets).ToArray();
+            foreach (var from in froms)
             {
                 probes.AddRange(targets.Where(t => t.To != from).Select(t => new PlannedRouteProbe(from, t.To, t.Reach)));
+                probes.AddRange(near.Select(n => new PlannedRouteProbe(from, n, default)));
+            }
+            foreach (var n in near)
+            {
+                probes.AddRange(targets.Select(t => new PlannedRouteProbe(n, t.To, t.Reach)));
             }
         }
         return EquatableArray.From(probes);
     }
+
+    /// <summary>The need-target cells a room's route probes reach per room (#3676): its nearest, so a colony with many
+    /// food stacks and beds asks a bounded read.</summary>
+    public const int PlannedNeedRouteTargets = 8;
 
     /// <summary>
     /// The facts with the route read's rows. A missing or unknown read (planned_route_read_unknown) contributes no

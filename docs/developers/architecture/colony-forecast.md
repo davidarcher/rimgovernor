@@ -574,7 +574,11 @@ starts:
 - ends: each probed site's location (its first position) and each clearing row's location;
 - starts: each probed site's location, reaching its nearest position (`Reach`), each material source (a row's
   `Origin`), and each clearing's start (a haul's origin; a cut, mine or deconstruct row's location);
-- the roof also from each pawn's own start (`FromStart`), since no native row routes to it.
+- the roof also from each pawn's own start (`FromStart`), since no native row routes to it;
+- the need targets a pawn eats or sleeps at between two pieces of the room's work (#3676): the
+  `PlannedNeedRouteTargets` (8) need-target cells of the needs read nearest the room's ends, each probed from every
+  end and to every start. Without them a schedule with a meal inside the horizon has no route back to the room, every
+  portfolio with the room is unscheduled, and the room is never selected.
 
 The probed sites are those with rows, plus the roof. Every probe goes to one construction activity read (#3341).
 Native answers a `CoupledRoute` per probe x free pawn, unknown where no path is found; a probe's path is searched
