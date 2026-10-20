@@ -734,10 +734,12 @@ public sealed partial class Rounder
             var model = RoundsColonyModel.Review(reading.Projection, coupled.Context, goalFacts);
             goalEtas = model.Etas;
             var materials = await MaterialValuesAsync(state.Snapshot, coupled.Context, reading.Projection.Stations, reading.Projection.Facts.Items, ct).ConfigureAwait(false);
+            var occupantFindings = new SortedSet<string>(coupled.Context.Findings, StringComparer.Ordinal);
+            var occupants = RoundsSleepingUpkeepPlanner.BedroomOccupantsOf(reading.Projection, occupantFindings);
             // A goal tier 2 priced is paid at its marginal value, not the flat share (#3505); the clothing runway demands the stuff it chose (#3623).
             reading = reading.WithFacts(rf => rf with
             {
-                CoupledAlternatives = coupled with { Context = coupled.Context with { Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = Known(model.HorizonDays), BedroomOccupants = RoundsSleepingUpkeepPlanner.BedroomOccupantsOf(reading.Projection), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
+                CoupledAlternatives = coupled with { Context = coupled.Context with { Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = Known(model.HorizonDays), BedroomOccupants = occupants, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
                 ClothingStuff = model.ClothingStuff,
             });
             ClockEvents.Event("routine", ColonyModelTelemetry.Kind, "colony model ran", [.. model.Attrs()]);

@@ -9,13 +9,54 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ForecastHousingDelta(string Pawn, Fact<double> Delta);
 
 /// <summary>
+/// The station facts a bedroom move's priced gain reads before the search (#3656): per pawn its needs-forecast row and
+/// observed thoughts (a pawn with two rows has neither), the break curve, the pace's wellbeing weight and each planned
+/// room's predicted Impressiveness stage. The bedroom step, the planned occupants and the clustering's bed merge read
+/// gains through it, with no coupled context.
+/// </summary>
+public sealed record BedroomGainFacts
+{
+    public IReadOnlyDictionary<string, NeedsForecastPawn> Pawns { get; init; } = new Dictionary<string, NeedsForecastPawn>();
+    public IReadOnlyDictionary<string, Fact<EquatableArray<MoodThought>>> Thoughts { get; init; } = new Dictionary<string, Fact<EquatableArray<MoodThought>>>();
+    public MoodBreakModel Breaks { get; init; } = new();
+    public double WellbeingWeight { get; init; }
+
+    /// <summary>Per planned room, its closed stage when every stuff's prediction reads the same one; unknown otherwise.</summary>
+    public IReadOnlyDictionary<int, Fact<int>> PlannedStages { get; init; } = new Dictionary<int, Fact<int>>();
+
+    public static BedroomGainFacts Of(RoundsFacts facts) => new()
+    {
+        Pawns = (facts.ForecastObserved.Needs?.Pawns ?? []).GroupBy(p => p.Pawn, StringComparer.Ordinal).Where(g => g.Count() == 1)
+            .ToDictionary(g => g.Key, g => g.Single(), StringComparer.Ordinal),
+        Thoughts = facts.MoodPawns.TryGetValue(out var moods)
+            ? moods.GroupBy(m => m.Id.Value, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count() == 1 ? g.Single().Thoughts : default, StringComparer.Ordinal)
+            : new Dictionary<string, Fact<EquatableArray<MoodThought>>>(),
+        Breaks = facts.MoodBreak,
+        WellbeingWeight = ForecastValuePolicy.For(facts.Preferences).WellbeingWeight,
+        PlannedStages = facts.PlannedRoomPredictions.TryGetValue(out var rows)
+            ? rows.Where(r => int.TryParse(r.Room, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
+                .GroupBy(r => int.Parse(r.Room, System.Globalization.CultureInfo.InvariantCulture))
+                .ToDictionary(g => g.Key, g => g.All(r => r.Stage.IsKnown) && g.Select(r => r.Stage.Value).Distinct().Count() == 1 ? g.First().Stage : default)
+            : new Dictionary<int, Fact<int>>(),
+    };
+
+    /// <summary>The <see cref="ForecastHousing.BedroomGain"/> of moving <paramref name="pawn"/> into a bedroom at <paramref name="stage"/>; null when unread.</summary>
+    public double? Gain(string pawn, Fact<int> stage) => Pawns.TryGetValue(pawn, out var row)
+        ? ForecastHousing.BedroomGain(row, stage, Thoughts.GetValueOrDefault(pawn), Breaks, WellbeingWeight) : null;
+
+    /// <summary>A standing bed's room stage now, as <paramref name="pawn"/>'s rest target for it reads it; unknown without one.</summary>
+    public Fact<int> BedStage(string pawn, string bed) => Pawns.TryGetValue(pawn, out var row)
+        && row.Targets.FirstOrDefault(t => t.Id == bed && t.Bed is not null) is { Bed: { } room } ? room.Stage : default;
+}
+
+/// <summary>
 /// The pricing of housing a colonist (#3655): the mood delta of a move, its capability-days gain per day, and the bedroom
 /// investment credit. The priced merge and priced moves reuse the delta and the gain.
 /// </summary>
 public static class ForecastHousing
 {
     /// <summary>A context's bedroom deltas and, per pawn, their break shifts; built once per context, as the search reads them per outcome.</summary>
-    private sealed record Moves(IReadOnlyDictionary<(int Room, string Stuff), ForecastHousingDelta> Deltas, IReadOnlyDictionary<string, double[]> Shifts);
+    private sealed record Moves(IReadOnlyDictionary<(int Room, string Stuff), ForecastHousingDelta[]> Deltas, IReadOnlyDictionary<string, double[]> Shifts);
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, Moves> Cache = new();
 
@@ -87,11 +128,57 @@ public static class ForecastHousing
     }
 
     /// <summary>
-    /// Per priced planned bedroom with an occupant (<see cref="ForecastCoupledContext.BedroomOccupants"/>, else the one
-    /// colonist owning a bed in the predicted room) and per stuff it closes in, the occupant's <see cref="BedroomMoodDelta"/>
-    /// at that closure's predicted stage; cached per context.
+    /// The priced gain a day of moving <paramref name="pawn"/> into a bedroom at <paramref name="stage"/>, before the search
+    /// (#3656): its <see cref="BedroomMoodDelta"/> through <see cref="GainPerDay"/>, over a flat mood that holds the observed
+    /// unclamped target and break threshold constant across tier 1's horizon. Null when the delta, the target, the threshold
+    /// or the break curve is unread.
     /// </summary>
-    internal static IReadOnlyDictionary<(int Room, string Stuff), ForecastHousingDelta> BedroomDeltas(ForecastCoupledContext context)
+    public static double? BedroomGain(NeedsForecastPawn pawn, Fact<int> stage, Fact<EquatableArray<MoodThought>> observed, MoodBreakModel breaks, double wellbeingWeight)
+    {
+        if (!BedroomMoodDelta(pawn, stage, observed).TryGetValue(out var delta)
+            || !pawn.MoodUnclampedTarget.TryGetValue(out var target) || !double.IsFinite(target)
+            || !pawn.BreakThreshold.TryGetValue(out var threshold) || !QuestCapacityForecast.FinitePositive(threshold)) return null;
+        var model = new MoodBreakModel { Threshold = threshold };
+        var horizon = ForecastCoupled.TierOneHorizonDays * GameTime.TicksPerDay;
+        double[] TierTicks(double level)
+        {
+            var ticks = new double[LayoutMoodRules.MoodTierCount];
+            level = Math.Clamp(level, 0, 1);
+            model.AddTierTicks(level, level, horizon, ticks);
+            return ticks;
+        }
+        var flat = TierTicks(target);
+        var mood = new ForecastMoodResult([], default, default, default, default, default, [])
+        {
+            BreakRisk = Known(MoodBreakModel.Breaks(flat)), BreakTierTicks = EquatableArray.From(flat),
+            ShiftedBreakTierTicks = [new(delta / 100, EquatableArray.From(TierTicks(target + delta / 100)))],
+        };
+        return GainPerDay(delta, mood, breaks, wellbeingWeight, ForecastCoupled.TierOneHorizonDays);
+    }
+
+    /// <summary>
+    /// <paramref name="pawns"/> (in id order) with the largest <paramref name="gain"/> first (#3656), a stable sort so ties keep
+    /// id order. When any pawn's gain is unread the order is kept and each such pawn is named bedroom_order_unpriced.
+    /// </summary>
+    public static List<T> LargestGainFirst<T>(IReadOnlyList<T> pawns, Func<T, string> pawn, Func<T, double?> gain, ISet<string>? findings)
+    {
+        if (pawns.Count < 2) return [.. pawns];
+        var gains = pawns.Select(gain).ToArray();
+        if (gains.Any(g => g is null))
+        {
+            for (var i = 0; i < pawns.Count; i++)
+                if (gains[i] is null) findings?.Add("bedroom_order_unpriced:" + pawn(pawns[i]));
+            return [.. pawns];
+        }
+        return [.. pawns.Select((p, i) => (p, i)).OrderByDescending(x => gains[x.i]!.Value).Select(x => x.p)];
+    }
+
+    /// <summary>
+    /// Per priced planned bedroom with occupants (<see cref="ForecastCoupledContext.BedroomOccupants"/>, else the one colonist
+    /// owning a bed in the predicted room) and per stuff it closes in, each occupant's <see cref="BedroomMoodDelta"/> at that
+    /// closure's predicted stage; cached per context.
+    /// </summary>
+    internal static IReadOnlyDictionary<(int Room, string Stuff), ForecastHousingDelta[]> BedroomDeltas(ForecastCoupledContext context)
         => Cache.GetValue(context, MovesOf).Deltas;
 
     /// <summary>Per pawn, the distinct known nonzero bedroom shifts (delta / 100) its mood timeline integrates breaks at.</summary>
@@ -99,29 +186,29 @@ public static class ForecastHousing
 
     private static Moves MovesOf(ForecastCoupledContext c)
     {
-        var deltas = new Dictionary<(int, string), ForecastHousingDelta>();
+        var deltas = new Dictionary<(int, string), ForecastHousingDelta[]>();
         if (c.PricedRoomRoles.Contains(PlannedRole.Bedroom))
         {
             var pawns = c.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
             foreach (var closure in c.Closures)
             {
                 if (!c.PlannedRoomRoles.TryGetValue(closure.Room, out var role) || role != PlannedRole.Bedroom) continue;
-                // The bedroom step's occupant, else the one colonist owning a bed in the room (a standing bedroom's wall
+                // The bedroom step's occupants, else the one colonist owning a bed in the room (a standing bedroom's wall
                 // upgrade, #3657: its delta is the stage the swap predicts against the stage its owner sleeps at now).
-                var occupant = c.BedroomOccupants.GetValueOrDefault(closure.Room)
-                    ?? (pawns.Values.Where(p => p.OwnedBed.Length != 0 && closure.Prediction.Beds.Contains(p.OwnedBed)).ToArray() is [var owner] ? owner.Pawn : null);
-                if (occupant is null) continue;
-                deltas[(closure.Room, closure.Stuff)] = new(occupant, pawns.TryGetValue(occupant, out var pawn)
-                    ? BedroomMoodDelta(pawn, closure.Prediction.Stage, c.ObservedThoughts.GetValueOrDefault(occupant)) : default);
+                string[] occupants = c.BedroomOccupants.TryGetValue(closure.Room, out var moved) && moved.Count != 0 ? [.. moved]
+                    : pawns.Values.Where(p => p.OwnedBed.Length != 0 && closure.Prediction.Beds.Contains(p.OwnedBed)).ToArray() is [var owner] ? [owner.Pawn] : [];
+                if (occupants.Length == 0) continue;
+                deltas[(closure.Room, closure.Stuff)] = [.. occupants.Select(occupant => new ForecastHousingDelta(occupant, pawns.TryGetValue(occupant, out var pawn)
+                    ? BedroomMoodDelta(pawn, closure.Prediction.Stage, c.ObservedThoughts.GetValueOrDefault(occupant)) : default))];
             }
         }
-        var shifts = deltas.Values.Where(d => d.Delta.TryGetValue(out var delta) && delta != 0).GroupBy(d => d.Pawn, StringComparer.Ordinal)
+        var shifts = deltas.Values.SelectMany(d => d).Where(d => d.Delta.TryGetValue(out var delta) && delta != 0).GroupBy(d => d.Pawn, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.Select(d => d.Delta.Value / 100).Distinct().Order().ToArray(), StringComparer.Ordinal);
         return new(deltas, shifts);
     }
 
     /// <summary>
-    /// The bedroom investment credit (#3655): per priced planned bedroom the outcome closes, its occupant's
+    /// The bedroom investment credit (#3655): per priced planned bedroom the outcome closes and per occupant, its
     /// <see cref="GainPerDay"/> times the days from closure to tier 2's horizon, a gain (negative) under
     /// <see cref="BedroomKey"/>. An occupant whose delta or mood is unknown is named bedroom_credit_unassessed and credited nothing.
     /// </summary>
@@ -133,12 +220,15 @@ public static class ForecastHousing
         var deltas = BedroomDeltas(context);
         foreach (var closed in outcome.ClosedRooms)
         {
-            if (!deltas.TryGetValue((closed.Room, closed.Stuff), out var move)) continue;
-            var gain = !move.Delta.TryGetValue(out var delta) ? null
-                : GainPerDay(delta, outcome.Needs.GetValueOrDefault(move.Pawn)?.Mood, context.MoodBreaks, context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay);
-            if (gain is not { } perDay) { findings.Add("bedroom_credit_unassessed:" + move.Pawn); continue; }
-            var units = days - closed.ClosedAt / GameTime.TicksPerDay;
-            if (units > 0) rows.Add(new("", move.Pawn, BedroomKey(closed.Room, move.Pawn), units, -perDay * units));
+            if (!deltas.TryGetValue((closed.Room, closed.Stuff), out var moves)) continue;
+            foreach (var move in moves)
+            {
+                var gain = !move.Delta.TryGetValue(out var delta) ? null
+                    : GainPerDay(delta, outcome.Needs.GetValueOrDefault(move.Pawn)?.Mood, context.MoodBreaks, context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay);
+                if (gain is not { } perDay) { findings.Add("bedroom_credit_unassessed:" + move.Pawn); continue; }
+                var units = days - closed.ClosedAt / GameTime.TicksPerDay;
+                if (units > 0) rows.Add(new("", move.Pawn, BedroomKey(closed.Room, move.Pawn), units, -perDay * units));
+            }
         }
     }
 }

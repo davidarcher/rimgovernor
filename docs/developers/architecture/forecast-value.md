@@ -375,10 +375,11 @@ either it is charged 0 with `material_value_unpriced:<def>`. The shipped `Priced
 
 *Bedroom credit (#3655, #3647).* A schedule that closes a planned bedroom (`ForecastRoofConsequences.PlannedClosedRooms`, logged
 on the outcome as `ClosedRooms`) is credited, in the Investment term under `bedroom/<room>/<pawn>`, the mood gain of the colonist
-the bedroom step would move into it (`SleepingRules.PlannedBedroomOccupants`, `ForecastCoupledContext.BedroomOccupants`: today's
-step order, the unhoused in id order taking the vacant bedroom beds, then the planned barracks' bunks, then the owed rooms in
-plan order), else the one colonist owning a bed in the predicted room: a standing bedroom's wall upgrade (#3657) credits its
-owner the swap's predicted stage against the stage it sleeps at now. The pricing is `ForecastHousing`, which the priced merge and priced moves reuse:
+the bedroom step would move into it (`SleepingRules.PlannedBedroomOccupants`, `ForecastCoupledContext.BedroomOccupants`, room →
+pawns: the step's order, the unhoused taking the vacant bedroom beds, then the planned barracks' bunks in id order, then the owed
+rooms in plan order, a bedroom its colonist and that colonist's waiting partner, a barracks one per missing bed slot), else the one
+colonist owning a bed in the predicted room: a standing bedroom's wall upgrade (#3657) credits its owner the swap's predicted stage
+against the stage it sleeps at now. The pricing is `ForecastHousing`, which the priced merge and priced moves reuse:
 
 - *Mood delta* (`BedroomMoodDelta`): for a non-ascetic, `slept_in_bedroom` at the prediction's Impressiveness stage less the
   current bed thought (`slept_in_bedroom` or `slept_in_barracks` at the owned bed's room stage, none for a prisoner bed, plus
@@ -392,6 +393,15 @@ owner the swap's predicted stage against the stage it sleeps at now. The pricing
 
 An occupant whose stage, bed, observed thoughts or mood is unread is named `bedroom_credit_unassessed:<pawn>` and earns nothing. A
 bedroom with no occupant, or one that does not close inside the tier-1 horizon, pays its material with no credit and waits.
+
+*Who moves first (#3656).* A vacant bedroom bed, standing or planned, goes to the unhoused colonist with the largest priced gain
+from it (`ForecastHousing.LargestGainFirst`, a stable sort, so ties keep id order). The gain is read before the search, from
+station facts alone (`BedroomGainFacts.Of`, which the clustering's bed merge also reads): `ForecastHousing.BedroomGain` runs the
+observed `MoodUnclampedTarget` and `BreakThreshold`, held flat over tier 1's horizon, through `MoodBreakModel.AddTierTicks` and
+then `GainPerDay` with `BedroomMoodDelta`. The stage is a standing bed's room stage now (the pawn's rest target), or a planned
+bedroom's predicted stage when every stuff predicts the same one. When any candidate's gain is unread the order stays id order and
+each such pawn is named `bedroom_order_unpriced:<pawn>` in the coupled findings. An ascetic is housed by its NeverUpgrade room only
+while it owns that room alone; in a shared barracks it is unhoused and ranked like anyone else.
 
 *Goal terminals (#3505).* `GoalPaths.Of` turns an unmet goal into a terminal of that graph: a research goal is the project's research
 chain, a `WornCount` goal the sow, grow, harvest and craft chain of its stuff (the crop's research gates, the garment's recipe, one

@@ -692,7 +692,7 @@ public sealed class PlannedRoomActivitiesTests
             {
                 Context = generated.Context with
                 {
-                    BedroomOccupants = inside ? new Dictionary<int, string>() : new Dictionary<int, string> { [1] = Pawn },
+                    BedroomOccupants = inside ? new Dictionary<int, EquatableArray<string>>() : new Dictionary<int, EquatableArray<string>> { [1] = [Pawn] },
                     InvestmentHorizonDays = Known(10d),
                     MaterialValues = material.ToDictionary(m => new Resource(m.Key), m => new ConstructionMaterialValue(MaterialValueBasis.Labor, m.Value)),
                 },

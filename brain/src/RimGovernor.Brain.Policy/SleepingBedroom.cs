@@ -112,9 +112,11 @@ public static partial class SleepingRules
     /// reconcile (the first in plan order that owes one: a bedroom with no bed, a barracks with fewer beds than
     /// its tiled bed slots), only while the standing rooms cannot take every colonist still outside one; a room
     /// dug into rock is a shell too, whose builder mines it first. A colonist owning a bed in a planned barracks
-    /// is housed. It reports BedroomStepKind.None whenever a fact it needs is unknown. A colonist whose current
+    /// is housed. It reports BedroomStepKind.None whenever a fact it needs is unknown. A colonist who owns alone a
     /// room RoomTargets marks NeverUpgrade (an ascetic) counts as housed: the move never takes them from the
-    /// plainest room.
+    /// plainest room. A vacant bedroom bed goes to the unhoused colonist with the largest priced gain from it
+    /// (#3656, ForecastHousing.LargestGainFirst over <paramref name="gains"/>, at its room's stage now); a barracks
+    /// bunk, and every move without gains, in id order.
     /// </summary>
     public static BedroomStep NextBedroomStep(
         LayoutPlan plan,
@@ -122,7 +124,8 @@ public static partial class SleepingRules
         SleepingObservation sleeping,
         IReadOnlyDictionary<string, RoomTarget>? targets,
         IReadOnlyDictionary<PawnId, TraitEffects>? traits,
-        IReadOnlyDictionary<PawnId, double>? pressure)
+        IReadOnlyDictionary<PawnId, double>? pressure,
+        BedroomGainFacts? gains = null)
     {
         if (CensusOf(plan, rooms, sleeping, targets) is not { } census)
         {
@@ -173,18 +176,12 @@ public static partial class SleepingRules
         }
         var (vacant, bunks) = FreeBedsOf(plan, rooms, census);
         // A barracks bed is taken only when no bedroom bed is vacant to the pawn.
-        foreach (var free in new[] { vacant, bunks })
+        foreach (var (free, priced) in new[] { (vacant, true), (bunks, false) })
         {
-            foreach (var p in unhoused)
+            if (NextOpenBed(unhoused, free, beds, priced ? gains : null, null) is { } next)
             {
-                foreach (var id in free)
-                {
-                    if (beds[id].AccessibleTo.Contains(p.Id))
-                    {
-                        p.OwnedBed.TryGetValue(out var previous);
-                        return new BedroomStep { Kind = BedroomStepKind.Move, Pawn = p.Id, Bed = id, PreviousBed = previous ?? "", Unhoused = unhoused.Count };
-                    }
-                }
+                next.Pawn.OwnedBed.TryGetValue(out var previous);
+                return new BedroomStep { Kind = BedroomStepKind.Move, Pawn = next.Pawn.Id, Bed = next.Bed, PreviousBed = previous ?? "", Unhoused = unhoused.Count };
             }
         }
         var owed = OwedRoomsOf(plan, rooms);
@@ -198,44 +195,72 @@ public static partial class SleepingRules
     }
 
     /// <summary>
-    /// Per planned bedroom the bedroom step will build, the colonist it would then move in (#3655), following
-    /// <see cref="NextBedroomStep"/>'s order: the unhoused, in id order, first take the vacant bedroom beds and then the
-    /// planned barracks' vacant bunks open to them; the rest fill the owed rooms in plan order, a bedroom its one
-    /// colonist, a barracks one per missing bed slot. Only bedrooms get a row; none when a census fact is unknown.
+    /// The move into <paramref name="free"/>: each waiting colonist's first open bed there, and the colonist taking it,
+    /// the first in id order, or with <paramref name="gains"/> the one with the largest priced gain at its bed's stage
+    /// (ForecastHousing.LargestGainFirst). Null when no free bed is open to anyone waiting.
     /// </summary>
-    public static IReadOnlyDictionary<int, string> PlannedBedroomOccupants(
+    private static (SleepingPerson Pawn, string Bed)? NextOpenBed(List<SleepingPerson> waiting, List<string> free, Dictionary<string, SleepingBed> beds,
+        BedroomGainFacts? gains, ISet<string>? findings)
+    {
+        List<(SleepingPerson Pawn, string Bed)> open = [.. waiting.Select(p => (Pawn: p, Bed: free.FirstOrDefault(id => beds[id].AccessibleTo.Contains(p.Id)) ?? "")).Where(c => c.Bed.Length != 0)];
+        if (open.Count == 0)
+        {
+            return null;
+        }
+        return gains is null ? open[0]
+            : ForecastHousing.LargestGainFirst(open, c => c.Pawn.Id.Value, c => gains.Gain(c.Pawn.Id.Value, gains.BedStage(c.Pawn.Id.Value, c.Bed)), findings)[0];
+    }
+
+    /// <summary>
+    /// Per planned bedroom the bedroom step will build, the colonists it would then move in (#3655), following
+    /// <see cref="NextBedroomStep"/>'s order: the unhoused first take the vacant bedroom beds, the largest priced gain first,
+    /// and then the planned barracks' vacant bunks open to them in id order; the rest fill the owed rooms in plan order, a
+    /// bedroom the colonist with the largest gain at its predicted stage (#3656, BedroomGainFacts.PlannedStages) and that
+    /// colonist's waiting partner, a barracks one per missing bed slot in id order. Without <paramref name="gains"/> every
+    /// choice is in id order; an unread gain keeps id order and is named in <paramref name="findings"/>. Only bedrooms get a
+    /// row; none when a census fact is unknown.
+    /// </summary>
+    public static IReadOnlyDictionary<int, EquatableArray<string>> PlannedBedroomOccupants(
         LayoutPlan plan,
         RoomObservation rooms,
         SleepingObservation sleeping,
-        IReadOnlyDictionary<string, RoomTarget>? targets)
+        IReadOnlyDictionary<string, RoomTarget>? targets,
+        BedroomGainFacts? gains = null,
+        ISet<string>? findings = null)
     {
-        var occupants = new Dictionary<int, string>();
+        var occupants = new Dictionary<int, EquatableArray<string>>();
         if (CensusOf(plan, rooms, sleeping, targets) is not { } census || census.Unhoused.Count == 0)
         {
             return occupants;
         }
         var waiting = census.Unhoused.ToList();
         var (vacant, bunks) = FreeBedsOf(plan, rooms, census);
-        foreach (var free in new[] { vacant, bunks })
+        foreach (var (free, priced) in new[] { (vacant, true), (bunks, false) })
         {
             var open = free.ToList();
-            while (waiting.FirstOrDefault(p => open.Any(id => census.Beds[id].AccessibleTo.Contains(p.Id))) is { } p)
+            while (NextOpenBed(waiting, open, census.Beds, priced ? gains : null, findings) is { } next)
             {
-                open.Remove(open.First(id => census.Beds[id].AccessibleTo.Contains(p.Id)));
-                waiting.Remove(p);
+                open.Remove(next.Bed);
+                waiting.Remove(next.Pawn);
             }
         }
+        var couples = SleepingCouples(sleeping.People);
         foreach (var (room, missing) in OwedRoomsOf(plan, rooms))
         {
             if (waiting.Count == 0)
             {
                 break;
             }
-            if (room.Role == PlannedRole.Bedroom)
+            if (room.Role != PlannedRole.Bedroom)
             {
-                occupants[room.Id] = waiting[0].Id.Value;
+                waiting.RemoveRange(0, Math.Min(missing, waiting.Count));
+                continue;
             }
-            waiting.RemoveRange(0, Math.Min(missing, waiting.Count));
+            var stage = gains?.PlannedStages.GetValueOrDefault(room.Id) ?? default;
+            var first = gains is null ? waiting[0] : ForecastHousing.LargestGainFirst(waiting, p => p.Id.Value, p => gains.Gain(p.Id.Value, stage), findings)[0];
+            List<SleepingPerson> housed = [first, .. waiting.Where(p => couples.TryGetValue(first.Id, out var partner) && p.Id == partner)];
+            occupants[room.Id] = EquatableArray.From(housed.Select(p => p.Id.Value).ToArray());
+            waiting.RemoveAll(housed.Contains);
         }
         return occupants;
     }
@@ -267,15 +292,23 @@ public static partial class SleepingRules
         // A barracks bed houses its owner, though a barracks of one bed reads as a bedroom.
         var barracksBed = BarracksBedIds(plan, rooms, shell);
         var beds = new Dictionary<string, SleepingBed>(StringComparer.Ordinal);
-        var kept = new HashSet<string>(StringComparer.Ordinal);
+        var owners = new Dictionary<string, HashSet<PawnId>>(StringComparer.Ordinal);
         foreach (var b in sleeping.Beds)
         {
             beds[b.Id] = b;
-            if (b.Room.TryGetValue(out var room) && NeverUpgradeOf(targets, room))
+            if (b.Room.TryGetValue(out var room))
             {
-                kept.Add(b.Id);
+                if (!owners.TryGetValue(room, out var set))
+                {
+                    owners[room] = set = [];
+                }
+                set.UnionWith(b.Owners);
             }
         }
+        // A NeverUpgrade room (an ascetic's) houses its owner only while they own it alone (#3656): a shared barracks
+        // gives an ascetic no room thought, so it is unhoused and ranked like anyone else.
+        bool Kept(SleepingPerson p, string bed) => beds.TryGetValue(bed, out var b) && b.Room.TryGetValue(out var room)
+            && NeverUpgradeOf(targets, room) && owners[room].All(o => o == p.Id);
         var people = sleeping.People.OrderBy(p => p.Id).ToList();
         var couples = SleepingCouples(sleeping.People);
         var unhoused = new List<SleepingPerson>();
@@ -292,7 +325,7 @@ public static partial class SleepingRules
                 continue;
             }
             // A couple is never split into single bedrooms: sleeping upkeep would reunite them at once.
-            if (!couples.ContainsKey(p.Id) && !(bedroomBed.TryGetValue(bed, out var housed) && housed) && !barracksBed.Contains(bed) && !kept.Contains(bed))
+            if (!couples.ContainsKey(p.Id) && !(bedroomBed.TryGetValue(bed, out var housed) && housed) && !barracksBed.Contains(bed) && !Kept(p, bed))
             {
                 unhoused.Add(p);
             }

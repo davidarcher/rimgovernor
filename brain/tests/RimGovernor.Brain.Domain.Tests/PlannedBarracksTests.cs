@@ -193,7 +193,7 @@ public sealed class PlannedBarracksTests
         var rooms = new RoomObservation { Rooms = [Standing("shelter", Shelter, RoomRole.Barracks, "s1", "s2")], Shapes = new PieceShapes { Furniture = Furniture } };
 
         var first = SleepingRules.PlannedBedroomOccupants(Plan with { Rooms = [Shelter, bedroom, Barracks] }, rooms, sleeping, null);
-        Assert.Equal(new Dictionary<int, string> { [3] = "a" }, first);
+        Assert.Equal(["a"], Assert.Single(first, r => r.Key == 3).Value.ToArray());
         Assert.Empty(SleepingRules.PlannedBedroomOccupants(Plan with { Rooms = [Shelter, Barracks, bedroom] }, rooms, sleeping, null));
     }
 

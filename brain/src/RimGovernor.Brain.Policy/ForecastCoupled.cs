@@ -73,9 +73,9 @@ public sealed record ForecastCoupledContext
     public IReadOnlySet<PlannedRole> PricedRoomRoles { get; init; } = ForecastPlannedSite.PricedRoomRoles;
     /// <summary>The closed-room predictions of the planned rooms (#3339): what each room is once its ring of one stuff stands.</summary>
     public EquatableArray<ForecastPlannedClosure> Closures { get; init; }
-    /// <summary>Per planned bedroom, the colonist the bedroom step would move into it (SleepingRules.PlannedBedroomOccupants,
-    /// #3655), by pawn id; a bedroom without a row houses nobody and earns no credit.</summary>
-    public IReadOnlyDictionary<int, string> BedroomOccupants { get; init; } = new Dictionary<int, string>();
+    /// <summary>Per planned bedroom, the colonists the bedroom step would move into it (SleepingRules.PlannedBedroomOccupants,
+    /// #3655, #3656: one, or a couple), by pawn id; a bedroom without a row houses nobody and earns no credit.</summary>
+    public IReadOnlyDictionary<int, EquatableArray<string>> BedroomOccupants { get; init; } = new Dictionary<int, EquatableArray<string>>();
     /// <summary>The days a closed bedroom's credit runs to (#3655): the horizon tier 2 ran over (ColonyModelPolicy.HorizonDays),
     /// set beside <see cref="Investment"/>; unknown before tier 2 ran, which credits nothing.</summary>
     public Fact<double> InvestmentHorizonDays { get; init; }

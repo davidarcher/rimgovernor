@@ -18,17 +18,20 @@ partial class RoundsSleepingUpkeepPlanner
         {
             return new Pol.BedroomStep();
         }
-        return SleepingRules.NextBedroomStep(plan!, rooms!, sleeping!, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts));
+        return SleepingRules.NextBedroomStep(plan!, rooms!, sleeping!, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts), Pol.BedroomGainFacts.Of(facts.Facts));
     }
 
-    /// <summary>Per planned bedroom, the colonist the bedroom step would move into it (#3655); none without the layout plan, the room census or the sleeping census.</summary>
-    internal static IReadOnlyDictionary<int, string> BedroomOccupantsOf(Observation.ColonyProjection facts)
+    /// <summary>
+    /// Per planned bedroom, the colonists the bedroom step would move into it (#3655), the largest priced gain first (#3656);
+    /// none without the layout plan, the room census or the sleeping census. An unread gain is named in <paramref name="findings"/>.
+    /// </summary>
+    internal static IReadOnlyDictionary<int, EquatableArray<string>> BedroomOccupantsOf(Observation.ColonyProjection facts, ISet<string> findings)
     {
         if (!facts.LayoutPlan.TryGetValue(out var plan) || !facts.Rooms.TryGetValue(out var rooms) || !facts.Facts.Sleeping.TryGetValue(out var sleeping))
         {
-            return new Dictionary<int, string>();
+            return new Dictionary<int, EquatableArray<string>>();
         }
-        return SleepingRules.PlannedBedroomOccupants(plan!, rooms!, sleeping!, BedroomTargets(facts));
+        return SleepingRules.PlannedBedroomOccupants(plan!, rooms!, sleeping!, BedroomTargets(facts), Pol.BedroomGainFacts.Of(facts.Facts), findings);
     }
 
     /// <summary>The projection's next wing migration step: none without the layout plan, the room census or the sleeping census.</summary>
