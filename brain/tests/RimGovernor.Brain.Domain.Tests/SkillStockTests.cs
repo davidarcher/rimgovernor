@@ -1,27 +1,21 @@
-using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
-using SurgeryKind = RimGovernor.Brain.Policy.SurgeryKind;
-using SurgeryOperation = RimGovernor.Brain.Policy.SurgeryOperation;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
-// #3634: the tier-2 skill stock, the practice node that trains it, the medicine stock by kind, and their per-unit marginals.
+// #3634: the tier-2 skill stock and the medicine stock by kind, and their per-unit marginals; #3344: one XP is worth the value of one
+// level more over the XP that level takes.
 public sealed class SkillStockTests
 {
     private const double Day = GameTime.TicksPerDay;
-
-    // The practice pawn's 14.1 free hours a day of surgery at 1.6 raw XP a tick (ProjectGraphTests): 56 400 raw XP a day, applied as
-    // 4000 unsaturated plus a fifth of the rest.
-    private const double AppliedPerDay = 4000 + ((14.1 * GameTime.TicksPerHour * 1.6) - 4000) * 0.2;
 
     private const double RequiredXp = 100_000;
 
     private const string Key = "skill/Anna/Medicine";
 
-    // Twenty-one levels of 100 000 XP without decay: a run of practice crosses about nine of them.
+    // Twenty-one levels of 100 000 XP without decay.
     internal static SkillLearning Mechanics(int stored, double xp) => new()
     {
         Disabled = Known(false), TrackerAllowsLearning = Known(true), StoredLevel = Known(stored), Aptitude = Known(0), Xp = Known(xp),
@@ -31,37 +25,20 @@ public sealed class SkillStockTests
         PracticeEligible = Known(true), PracticeCeiling = Known(2), RangeAppliedBudget = Known(30d),
     };
 
-    /// <summary>The pawn with only a Medicine skill on the mechanics, and a surgery speed of <paramref name="speed"/> at every level.</summary>
-    internal static ModelPawn Practitioner(ModelPawn pawn, SkillLearning mechanics, double speed = 1) => pawn with
+    /// <summary>The pawn with a Medicine skill on the mechanics, and each of <paramref name="others"/> on the same mechanics.</summary>
+    internal static ModelPawn WithMedicine(ModelPawn pawn, SkillLearning mechanics, params string[] others) => pawn with
     {
-        Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Medicine", Learning = mechanics } })),
-        SkillStatCurves = EquatableArray.From(new[]
-        {
-            new SkillStatCurve("MedicalOperationSpeed", "Medicine", EquatableArray.From(Enumerable.Range(0, 21).Select(l => new SkillStatLevel(l, speed))), "test"),
-        }),
+        Skills = Known(EquatableArray.From(others.Prepend("Medicine").Select(name => new WorkSkill { Name = name, Learning = mechanics }))),
     };
 
-    /// <summary>A peg leg practice slot on prisoner P1: 1500 work, 1.6 raw XP a tick, one medicine a surgery.</summary>
-    internal static ModelPracticeSlot Slot(string speedStat = "") => new()
-    {
-        Prisoner = "P1", Recipe = "InstallPegLeg", Skill = "Medicine", Work = 1500, RawXpPerWorkTick = Known(1.6), SpeedStat = speedStat, Medicine = 1,
-    };
-
-    /// <summary>Anna alone, practising on the slot, with plenty of medicine.</summary>
-    private static ColonyModelInput Practising(SkillLearning mechanics, double medicine = 100_000, string speedStat = "", double speed = 1)
+    /// <summary>Anna alone, with the skills of <see cref="WithMedicine"/>.</summary>
+    private static ColonyModelInput Anna(SkillLearning mechanics, params string[] others)
     {
         var input = ProjectGraphTests.Colony();
-        return input with
-        {
-            Pawns = Known(EquatableArray.From(new[] { Practitioner(ProjectGraphTests.Pawn("Anna", null, null), mechanics, speed) })),
-            Practice = Known(EquatableArray.From(new[] { Slot(speedStat) })),
-            Stocks = input.Stocks with { Medicine = Known(EquatableArray.From(new[] { new Amount(new Resource("MedicineHerbal"), (long)medicine) })) },
-        };
+        return input with { Pawns = Known(EquatableArray.From(new[] { WithMedicine(ProjectGraphTests.Pawn("Anna", null, null), mechanics, others) })) };
     }
 
     private static ColonyModelPolicy Policy(ProjectGraph graph) => new() { MedicineTendsPerDay = Known(0.0), Projects = graph };
-
-    private static SkillTrack Track(ColonyTrajectory trajectory) => trajectory.Skills.Single(t => t.Key == Key);
 
     private static SkillStock Stock(SkillLearning mechanics) =>
         SkillStock.Of(new ModelPawn { Pawn = "Anna", Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Medicine", Learning = mechanics } })) }, new SortedSet<string>()).Single();
@@ -85,29 +62,14 @@ public sealed class SkillStockTests
     }
 
     [Fact]
-    public void ALevelUpAndALevelDownInsideADayMatchForecastSkillOverTheSameXp()
+    public void ALevelDownInsideADayMatchesForecastSkill()
     {
-        // Up: 10 raw XP over 100 ticks, doubled, takes 190 XP at level 1 past its 200 to level 2 with 10 over, halfway through.
-        var up = Mechanics(1, 190) with
-        {
-            UnsaturatedFactor = Known(2d), SaturationThreshold = Known(40_000d), LossThreshold = Known(-100d),
-            Levels = [new(0, 100, 0), new(1, 200, 0), new(2, 300, 0)],
-        };
-        var expected = ForecastSkillPolicy.ForecastSkill(up, [new("work", 100, Known(10d), SkillXpPath.NormalTracker)], 100);
-        var stock = Stock(up);
-        stock.RawPerDay = 10 * Day / 100;
-        stock.Advance(0, 100 / Day);
-        var track = stock.Track();
-        Assert.Equal(expected.Level.Value, track.StoredLevelOn(1));
-        Assert.Equal(expected.Xp.Value, stock.Xp, 9);
-        Assert.Equal(50 / Day, Assert.Single(track.Dates).Day, 12);
-
-        // Down: level 1 decays 10 XP each 200 ticks, so -95 XP passes the -100 loss threshold and drops to level 0.
-        var down = up with { Xp = Known(-95d), DecayInterval = Known(200), Levels = [new(0, 100, 0), new(1, 200, 10), new(2, 300, 20)] };
-        expected = ForecastSkillPolicy.ForecastSkill(down, [], 200);
-        stock = Stock(down);
+        // Level 1 decays 10 XP each 200 ticks, so -95 XP passes the -100 loss threshold and drops to level 0.
+        var down = Mechanics(1, -95) with { LossThreshold = Known(-100d), Levels = [new(0, 100, 0), new(1, 200, 10), new(2, 300, 20)] };
+        var expected = ForecastSkillPolicy.ForecastSkill(down, [], 200);
+        var stock = Stock(down);
         stock.Advance(0, 200 / Day);
-        track = stock.Track();
+        var track = stock.Track();
         Assert.Equal(0, expected.Level.Value);
         Assert.Equal(expected.Level.Value, track.StoredLevelOn(1));
         Assert.Equal(expected.Xp.Value, stock.Xp, 9);
@@ -132,55 +94,46 @@ public sealed class SkillStockTests
         Assert.Equal(0, stock.Xp);
     }
 
+    private static double PerXp(ColonyModelInput input, string key = Key) =>
+        ProjectMarginalValue.Of(input, Policy(new ProjectGraph()), new LevelDays(CalendarRules.YearDays)).PerUnit[key];
+
     [Fact]
-    public void AStaffedPracticeNodeBringsTheLevelDatesEarlierAndUsesUpMedicineAtItsSurgeryRate()
+    public void AnXpIsWorthTheValueOfTheNextLevelOverTheXpItTakes()
     {
-        var input = Practising(Mechanics(0, 0), medicine: 1000, speedStat: "MedicalOperationSpeed", speed: 0.5);
-
-        var idle = ProjectGraphTests.Run(input, new ProjectGraph());
-        var practised = ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], Policy(ProjectGraph.Practice(input)));
-
-        Assert.Empty(Track(idle).Dates);
-        var dates = Track(practised).Dates;
-        Assert.True(dates.Count > 5);
-        Assert.Equal(RequiredXp / AppliedPerDay, dates[0].Day, 6);
-        Assert.Equal(1, dates[0].StoredLevel);
-        // Half speed: a surgery takes 3000 ticks of the 14.1 hours, one medicine each.
-        var perDay = 14.1 * GameTime.TicksPerHour * 0.5 / 1500;
-        var e = practised.Events.First(e => e.Day > 1);
-        Assert.Equal(1000 - (perDay * e.Day), e.Levels[(int)ModelStock.Medicine], 6);
-        Assert.Equal(e.Levels[(int)ModelStock.Medicine], Assert.Single(e.Medicine), 9);
+        // Without decay one level more stands the whole year: a year of level-days over the level's 100 000 XP, wherever the XP toward it is.
+        Assert.Equal(CalendarRules.YearDays / RequiredXp, PerXp(Anna(Mechanics(3, 0))), 12);
+        Assert.Equal(CalendarRules.YearDays / RequiredXp, PerXp(Anna(Mechanics(3, RequiredXp - 1))), 12);
+        Assert.Equal(CalendarRules.YearDays / RequiredXp, PerXp(Anna(Mechanics(3, -500))), 12);
     }
 
     [Fact]
-    public void WithoutMedicineNoSurgeryStartsAndTheStockStandsStill()
+    public void TheMarginalScalesInverselyWithTheXpTheLevelTakes()
     {
-        var input = Practising(Mechanics(0, 0), medicine: 0);
+        var cheap = Mechanics(3, 0);
+        var dear = cheap with { Levels = EquatableArray.From(cheap.Levels.Select(l => l.Level == 3 ? l with { RequiredXp = 4 * RequiredXp } : l)) };
 
-        var run = ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], Policy(ProjectGraph.Practice(input)));
-
-        Assert.Empty(Track(run).Dates);
+        Assert.Equal(PerXp(Anna(cheap)) / 4, PerXp(Anna(dear)), 12);
     }
 
     [Fact]
-    public void AnXpIsWorthALevelDependentValueFarFromAThresholdAndSmoothlyAcrossIt()
+    public void ASkillWhoseNextLevelChangesNothingAndATopLevelSkillAreWorthNothing()
     {
-        double PerXp(SkillLearning mechanics)
-        {
-            var input = Practising(mechanics);
-            var marginals = ProjectMarginalValue.Of(input, Policy(ProjectGraph.Practice(input)), new LevelDays(CalendarRules.YearDays));
-            return marginals.PerUnit[Key];
-        }
+        Assert.Equal(0, PerXp(Anna(Mechanics(3, 0), "Cooking"), "skill/Anna/Cooking"));
+        Assert.Equal(0, PerXp(Anna(Mechanics(20, 0))));
+    }
 
-        var far = PerXp(Mechanics(0, RequiredXp / 2));
-        var below = PerXp(Mechanics(0, RequiredXp - 1));
-        var above = PerXp(Mechanics(1, 1));
+    [Fact]
+    public void ARaisedStockStartsALevelHigherAndDecaysAtThatLevelsRate()
+    {
+        // Level 2 loses 200 XP a day from 0 to the -100 threshold in half a day; raised from level 1, the stock starts at level 2.
+        var mechanics = Mechanics(1, 0) with { DecayInterval = Known((int)Day), LossThreshold = Known(-100d), Levels = [new(0, 1000, 0), new(1, 1000, 100), new(2, 1000, 200)] };
 
-        // An hour of XP brings every later level date earlier by the days the practice takes to earn it, so each XP is worth about
-        // the levels still to come over the applied rate.
-        Assert.True(far > 0);
-        Assert.Equal(8 / AppliedPerDay, below, 0.1 / AppliedPerDay);
-        Assert.Equal(below, above, below * 0.02);
+        var stock = Stock(mechanics);
+        stock.Raise();
+        stock.Advance(0, 1);
+        Assert.Equal([new SkillLevelDate(0, 2), new SkillLevelDate(0.5, 1)], stock.Track().Dates);
+        Assert.Equal(1000, stock.Track().NextLevelXp);
+        Assert.Null(Stock(mechanics with { StoredLevel = Known(2) }).Track().NextLevelXp);
     }
 
     [Fact]
@@ -200,46 +153,5 @@ public sealed class SkillStockTests
         Assert.Equal(3, marginals.PerUnit["medicine/MedicineIndustrial"], 9);
         Assert.Equal(1, marginals.PerUnit["medicine/MedicineHerbal"], 9);
         Assert.DoesNotContain(marginals.PerUnit.Keys, k => k.StartsWith("skill/", StringComparison.Ordinal));
-    }
-
-    [Fact]
-    public void NoPracticeSlotMeansNoPracticeNode()
-    {
-        var input = Practising(Mechanics(0, 0));
-
-        Assert.Empty(ProjectGraph.Practice(input with { Practice = Known(EquatableArray.From(Array.Empty<ModelPracticeSlot>())) }).Nodes);
-        var unknown = ProjectGraph.Practice(input with { Practice = default });
-        Assert.Empty(unknown.Nodes);
-        Assert.Contains("practice_slots_unknown", unknown.Findings);
-        var unread = ProjectGraph.Practice(input with { Practice = Known(EquatableArray.From(new[] { Slot() with { RawXpPerWorkTick = default } })) });
-        Assert.Empty(unread.Nodes);
-        Assert.Contains("practice_learning_unknown:InstallPegLeg", unread.Findings);
-        Assert.Equal(ProjectKind.Practice, Assert.Single(ProjectGraph.Practice(input).Nodes).Kind);
-    }
-
-    [Fact]
-    public void APrisonerMissingALimbAPegLegFitsIsAPracticeSlotAndNoOtherPrisonerIs()
-    {
-        var recipes = new RecipeFacts
-        {
-            MaterialInstalls = [new MaterialInstall { Recipe = "InstallPegLeg", Part = "PegLeg", Work = 1500, Learning = new RecipeLearning("Medicine", Known(1.6), false), SpeedStat = "MedicalOperationSpeed", Medicine = 1 }],
-        };
-        PrisonerFacts Prisoner(string pawn, SurgeryOperation operation, bool prisoner = true, bool dead = false) => new()
-        {
-            Pawn = new PawnId(pawn), Prisoner = Known(prisoner), Dead = Known(dead), Operations = Known(EquatableArray.From(new[] { operation })),
-        };
-        var restore = new SurgeryOperation { Kind = SurgeryKind.Restore, Recipe = Known("InstallPegLeg") };
-        var removal = new SurgeryOperation { Kind = SurgeryKind.Amputate, AddedPart = Known("PegLeg") };
-
-        var slots = RoundsColonyModel.PracticeOf(Known(EquatableArray.From(new[]
-        {
-            Prisoner("P1", restore), Prisoner("P2", removal), Prisoner("P3", restore, prisoner: false), Prisoner("P4", restore, dead: true),
-            Prisoner("P5", new SurgeryOperation { Kind = SurgeryKind.Restore, Recipe = Known("InstallBionicLeg") }),
-        })), recipes).Value;
-
-        Assert.Equal(["P1", "P2"], slots.Select(s => s.Prisoner));
-        Assert.Equal(Slot("MedicalOperationSpeed") with { Prisoner = "P2" }, slots[1]);
-        Assert.False(RoundsColonyModel.PracticeOf(default, recipes).IsKnown);
-        Assert.False(RoundsColonyModel.PracticeOf(Known(EquatableArray.From(new[] { Prisoner("P1", restore) with { Operations = default } })), recipes).IsKnown);
     }
 }

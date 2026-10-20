@@ -85,16 +85,10 @@ public sealed partial class DefinitionCatalog
 
     private P.RecipeFacts BuildRecipeFacts()
     {
-        var installs = new List<P.MaterialInstall>();
         var billWork = new Dictionary<string, P.WorkType>(StringComparer.Ordinal);
         var added = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var recipe in Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal))
         {
-            if (MaterialInstallOf(recipe) is { } install)
-            {
-                installs.Add(install);
-            }
-
             if (recipe.addsHediff is { } hediff)
             {
                 added[recipe.defName] = hediff.defName;
@@ -111,44 +105,7 @@ public sealed partial class DefinitionCatalog
         }
 
         var (organs, vital) = BodyPartFacts();
-        return new P.RecipeFacts { MaterialInstalls = [.. installs], BillWork = billWork, AddedHediffs = added, HarvestOrgans = [.. organs], VitalParts = vital.ToDictionary(part => part, _ => true, StringComparer.Ordinal) };
-    }
-
-    // MaterialInstallOf reads a recipe as an install of a part made straight from a stuff: it adds a hediff, consumes
-    // one def that no body part category holds, and the hediff is what removing the part gives that same def back (a peg
-    // leg takes a log and a removed peg leg is a log). A body part item install, a denture that takes only medicine and
-    // every other recipe are not.
-    private P.MaterialInstall? MaterialInstallOf(RecipeDef recipe)
-    {
-        if (recipe.addsHediff is not { } hediff || hediff.spawnThingOnRemoved is not { } spawned)
-        {
-            return null;
-        }
-
-        if (InstallItem(recipe.defName) != default(P.Resource))
-        {
-            return null;
-        }
-
-        foreach (var slot in recipe.ingredients.Seq())
-        {
-            if (slot.filter.AllowedThingDefs.ToList() is not [var only] || only != spawned)
-            {
-                continue;
-            }
-
-            return new P.MaterialInstall
-            {
-                Recipe = recipe.defName,
-                Part = hediff.defName,
-                Work = recipe.workAmount,
-                Learning = ObserveRecipeLearning(recipe),
-                SpeedStat = recipe.workSpeedStat?.defName ?? "",
-                Medicine = recipe.ingredients.Seq().Where(s => s.filter.AllowedThingDefs.Any() && s.filter.AllowedThingDefs.All(t => t.IsMedicine)).Sum(s => (double)s.GetBaseCount()),
-            };
-        }
-
-        return null;
+        return new P.RecipeFacts { BillWork = billWork, AddedHediffs = added, HarvestOrgans = [.. organs], VitalParts = vital.ToDictionary(part => part, _ => true, StringComparer.Ordinal) };
     }
 
     /// <summary>

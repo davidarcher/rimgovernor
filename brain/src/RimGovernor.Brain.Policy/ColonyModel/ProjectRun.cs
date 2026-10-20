@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 // respected, a node taking all the hours of every pawn able to work on it. One pass per event interval; the rates it sets are
 // constant until the next event, so each node's finish time is exact and the engine fires its completion event there.
 // Growth needs no labor: its rate comes from CropGrowthModel for the twelfth. Each pawn's skills are stocks (SkillStock, #3634) the
-// practice nodes pay and the native decay drains; the practice nodes also set the medicine they use up a day.
+// native decay drains.
 
 /// <summary>The mutable state of the graph's nodes in one <see cref="ColonyModel.Run"/>.</summary>
 internal sealed class ProjectRun
@@ -64,7 +64,7 @@ internal sealed class ProjectRun
         }
         else if (injected is not null && stocks.FirstOrDefault(s => s.Key == injected.Node) is { } stock)
         {
-            stock.Add(injected.Work, 0);
+            stock.Raise();
         }
 
         foreach (var finding in graph.Findings)
@@ -81,24 +81,13 @@ internal sealed class ProjectRun
         }
     }
 
-    /// <summary>Medicine the practice nodes use up a day until the next event.</summary>
-    internal double MedicineRate { get; private set; }
-
     /// <summary>Each skill stock over the run, in pawn then skill order.</summary>
     internal EquatableArray<SkillTrack> Skills => EquatableArray.From(stocks.Select(s => s.Track()));
 
-    /// <summary>
-    /// Sets every node's rate for the twelfth now entered; <paramref name="boundary"/> is the day it ends and <paramref name="medicine"/>
-    /// the medicine on hand, which a practice surgery needs.
-    /// </summary>
-    internal void Allocate(double at, int twelfth, double boundary, double medicine)
+    /// <summary>Sets every node's rate for the twelfth now entered; <paramref name="boundary"/> is the day it ends.</summary>
+    internal void Allocate(double at, int twelfth, double boundary)
     {
         now = at;
-        MedicineRate = 0;
-        foreach (var stock in stocks)
-        {
-            stock.RawPerDay = 0;
-        }
         var indoor = new double[pawns.Length];
         var outdoor = new double[pawns.Length];
         for (var p = 0; p < pawns.Length; p++)
@@ -132,10 +121,6 @@ internal sealed class ProjectRun
             if (live.Node.Kind == ProjectKind.Grow)
             {
                 Grow(live, twelfth, boundary);
-            }
-            else if (live.Node.Kind == ProjectKind.Practice)
-            {
-                Practise(live.Node, indoor, outdoor, medicine);
             }
             else
             {
@@ -230,7 +215,7 @@ internal sealed class ProjectRun
     /// <summary>At the end of the run: each node that did not complete, and why where the allocation knows.</summary>
     internal void Finish()
     {
-        foreach (var live in nodes.Where(n => n.State != Status.Done && n.Node.Kind != ProjectKind.Practice))
+        foreach (var live in nodes.Where(n => n.State != Status.Done))
         {
             findings.Add($"project_incomplete:{live.Node.Id}");
         }
@@ -334,53 +319,6 @@ internal sealed class ProjectRun
                 indoor[p] = 0;
             }
         }
-    }
-
-    /// <summary>
-    /// One surgery at a time on the slot: the first pawn with free hours whose skill stock is read and enabled, and whose speed at its
-    /// stored level is read, takes all its free hours. Its stock is paid the recipe's raw XP per tick spent (the callback is per tick,
-    /// whatever the speed), and the surgeries its speed completes use up their medicine. Without medicine no surgery starts.
-    /// </summary>
-    private void Practise(ProjectNode node, double[] indoor, double[] outdoor, double medicine)
-    {
-        if (node.Medicine > 0 && !(medicine > 0))
-        {
-            materialsShort.Add(node.Id);
-            return;
-        }
-
-        for (var p = 0; p < pawns.Length; p++)
-        {
-            var hours = indoor[p] + outdoor[p];
-            if (!(hours > 0) || stocks.FirstOrDefault(s => s.Pawn == pawns[p].Pawn && s.Skill == node.Skill) is not { Disabled: false } stock)
-            {
-                continue;
-            }
-
-            var speed = 1.0;
-            if (node.SpeedStat.Length > 0)
-            {
-                var curve = pawns[p].SkillStatCurves.FirstOrDefault(c => c.Stat == node.SpeedStat && c.Skill == node.Skill);
-                if (curve?.Levels.FirstOrDefault(l => l.StoredLevel == stock.StoredLevel) is not { } at || !(at.Value > 0))
-                {
-                    findings.Add($"practice_speed_unknown:{pawns[p].Pawn}:{node.SpeedStat}");
-                    continue;
-                }
-
-                speed = at.Value;
-            }
-
-            var ticks = hours * GameTime.TicksPerHour;
-            stock.RawPerDay += ticks * node.RawXpPerWorkTick;
-            MedicineRate += ticks * speed / node.Work * node.Medicine;
-            indoor[p] = 0;
-            outdoor[p] = 0;
-            unstaffed.Remove(node.Id);
-            materialsShort.Remove(node.Id);
-            return;
-        }
-
-        unstaffed.Add(node.Id);
     }
 
     /// <summary>The pawn's work speed on the node, or null when it cannot work on it; every gap is named, never read as permission or as speed 1.</summary>

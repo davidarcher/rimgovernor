@@ -62,29 +62,6 @@ public sealed record ModelStocks
     public Fact<EquatableArray<Amount>> Medicine { get; init; }
 }
 
-/// <summary>
-/// A practice slot (#3634): a prisoner with a missing limb a material part can be installed on, or a material part that can be
-/// removed. Its surgery is the material install recipe's: the work, the raw XP per tick spent (the recipe's learning callback,
-/// #3632), the stat the work speed is and the medicine it uses up.
-/// </summary>
-public sealed record ModelPracticeSlot
-{
-    public string Prisoner { get; init; } = "";
-
-    public string Recipe { get; init; } = "";
-
-    public string Skill { get; init; } = "";
-
-    public double Work { get; init; }
-
-    /// <summary>Unknown for a recipe worker whose learning is not qualified.</summary>
-    public Fact<double> RawXpPerWorkTick { get; init; }
-
-    public string SpeedStat { get; init; } = "";
-
-    public double Medicine { get; init; }
-}
-
 /// <summary>One need's observed mechanics: it falls by Fall per tick, a service gives Gain per tick, and the pawn seeks service under Threshold.</summary>
 public sealed record ModelNeed
 {
@@ -201,9 +178,6 @@ public sealed record ColonyModelInput
     /// <summary>The huntable wildlife, one herd per race; empty when nothing on the map can be hunted for food.</summary>
     public Fact<EquatableArray<ModelHerd>> Wildlife { get; init; }
 
-    /// <summary>The practice slots, one per prisoner that has one; unknown without the prisoner census.</summary>
-    public Fact<EquatableArray<ModelPracticeSlot>> Practice { get; init; }
-
     /// <summary>Whether every section the model needs is known and well formed.</summary>
     public bool Valid() => Unknowns().Count == 0;
 
@@ -227,7 +201,6 @@ public sealed record ColonyModelInput
         RecipeGaps(gaps);
         SiteGaps(gaps);
         WildlifeGaps(gaps);
-        PracticeGaps(gaps);
         return gaps;
     }
 
@@ -515,19 +488,6 @@ public sealed record ColonyModelInput
         if (!PlannedSites.IsKnown)
         {
             gaps.Add("sites: the layout plan's sites are not assembled this review");
-        }
-    }
-
-    // Unknown practice slots leave the model valid: the practice graph names them (practice_slots_unknown) and has no node.
-    private void PracticeGaps(List<string> gaps)
-    {
-        foreach (var slot in Practice.TryGetValue(out var slots) ? slots : [])
-        {
-            if (slot.Prisoner.Length == 0 || slot.Recipe.Length == 0 || slot.Skill.Length == 0 || !Number(slot.Work) || slot.Work <= 0 || !Number(slot.Medicine) || slot.Medicine < 0
-                || !Nonnegative(slot.RawXpPerWorkTick))
-            {
-                gaps.Add($"practice: slot '{slot.Prisoner}' has no recipe, skill, positive work or non-negative medicine and learning");
-            }
         }
     }
 

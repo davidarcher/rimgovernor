@@ -71,8 +71,7 @@ internal static class RoundsColonyModel
             : [];
         // The colony's expected raid is the same on every pawn's loadout input; the first known one is the colony's.
         var threat = gear is null ? default : gear.Pawns.Where(p => p.LoadoutModel.IsKnown).Select(p => p.LoadoutModel.Value.Threat).FirstOrDefault(t => t.IsKnown);
-        // Practice never completes, so it goes last and takes the hours the finite nodes leave (#3634).
-        var policy = new ColonyModelPolicy { Projects = paths.Aggregate(ProjectGraph.Standing(input, options, threat), (graph, p) => graph.Then(p.Path.Graph)).Then(ProjectGraph.Practice(input)) };
+        var policy = new ColonyModelPolicy { Projects = paths.Aggregate(ProjectGraph.Standing(input, options, threat), (graph, p) => graph.Then(p.Path.Graph)) };
         var valuation = new ColonyValue(context, options, policy.HorizonDays, input.Pawns, colony.Facts.MedicalReserve.Catalog);
         policy = policy with { MedicineTendsPerDay = valuation.RaidTreatmentsPerDay() };
         var marginals = ProjectMarginalValue.Of(input, policy, valuation, [.. paths.Where(p => p.Path.Terminal is not null).Select(p => p.Path.Terminal!)]);
@@ -112,7 +111,6 @@ internal static class RoundsColonyModel
             Crops = CropsOf(colony),
             Research = ResearchOf(facts.Research, facts.NeedsAlternatives?.Observation),
             Stocks = new ModelStocks { Nutrition = NutritionOf(colony.CombinedFoodSupply), Materials = MaterialsOf(colony.Resources), Medicine = MedicineOf(facts.MedicalReserve) },
-            Practice = PracticeOf(facts.Prisoners, facts.Recipes),
             Pawns = PawnsOf(colony),
             Recipes = facts.WorkAdmission.Recipes,
             Sites = facts.CurrentConstruction.TryGetValue(out var construction) ? Known(construction.Sites) : Unknown<EquatableArray<ConstructionSite>>(),
@@ -298,53 +296,6 @@ internal static class RoundsColonyModel
         return Known(EquatableArray.From(items.Where(i => !i.Forbidden).GroupBy(i => i.Definition)
             .Select(g => new Amount(g.Key, g.Sum(i => i.Count)))
             .OrderByDescending(a => potency.TryGetValue(a.Resource, out var p) ? p : double.NegativeInfinity).ThenBy(a => a.Resource)));
-    }
-
-    /// <summary>
-    /// The practice slots (#3634): each living prisoner with a missing limb a material part installs on, or with a material part that can
-    /// be removed. The slot's surgery is that material install recipe's (work, learning, speed stat, medicine). Unknown without the
-    /// prisoner census, or while a row's status or a living prisoner's operations are unread.
-    /// </summary>
-    internal static Fact<EquatableArray<ModelPracticeSlot>> PracticeOf(Fact<EquatableArray<PrisonerFacts>> prisoners, RecipeFacts recipes)
-    {
-        if (!prisoners.TryGetValue(out var rows))
-        {
-            return Unknown<EquatableArray<ModelPracticeSlot>>();
-        }
-
-        var slots = new List<ModelPracticeSlot>();
-        foreach (var row in rows.OrderBy(r => r.Pawn.Value, StringComparer.Ordinal))
-        {
-            if (!row.Prisoner.TryGetValue(out var held) || !row.Dead.TryGetValue(out var dead))
-            {
-                return Unknown<EquatableArray<ModelPracticeSlot>>();
-            }
-
-            if (!held || dead)
-            {
-                continue;
-            }
-
-            if (!row.Operations.TryGetValue(out var operations))
-            {
-                return Unknown<EquatableArray<ModelPracticeSlot>>();
-            }
-
-            var install = operations.Where(o => o.Kind == Policy.SurgeryKind.Restore).Select(recipes.PracticeCycleOf).FirstOrDefault(m => m is not null)
-                ?? operations.Where(o => o.Kind == Policy.SurgeryKind.Amputate).Select(recipes.PracticeCycleOf).FirstOrDefault(m => m is not null);
-            if (install?.Learning is not { } learning)
-            {
-                continue;
-            }
-
-            slots.Add(new ModelPracticeSlot
-            {
-                Prisoner = row.Pawn.Value, Recipe = install.Recipe, Skill = learning.Skill, Work = install.Work, RawXpPerWorkTick = learning.RawXpPerWorkTick,
-                SpeedStat = install.SpeedStat, Medicine = install.Medicine,
-            });
-        }
-
-        return Known(EquatableArray.From(slots));
     }
 
     private static Fact<EquatableArray<ModelPawn>> PawnsOf(ColonyProjection colony)

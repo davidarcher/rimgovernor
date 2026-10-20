@@ -17,8 +17,10 @@ public sealed record ScheduledEffect
 
 /// <summary>
 /// Work already done on one node at time zero (#3531): the perturbation the marginal value is measured by. In the node's
-/// <see cref="ProjectNode.Work"/> units (research points; sow work). <see cref="Node"/> may instead be a skill stock's key
-/// (<see cref="ProjectGraph.SkillKey"/>, XP) or a medicine kind's (<see cref="ProjectGraph.MedicineKey"/>, units) (#3634).
+/// <see cref="ProjectNode.Work"/> units (research points; sow work). <see cref="Node"/> may instead be a medicine kind's key
+/// (<see cref="ProjectGraph.MedicineKey"/>, units; #3634) or a skill stock's (<see cref="ProjectGraph.SkillKey"/>): that stock starts
+/// one stored level higher, and <see cref="Work"/> is the XP the level takes (<see cref="SkillTrack.NextLevelXp"/>), which the run
+/// does not read and the marginal value is divided by (#3344).
 /// </summary>
 public sealed record InjectedProgress(string Node, double Work);
 

@@ -78,8 +78,6 @@ public static class ColonyModel
             findings.Add("medicine_tend_rate_unknown");
         }
 
-        var medicineNet = net[(int)ModelStock.Medicine];
-
         var lead = 0.0;
         if (CalendarRules.HarvestGapDays(input.Calendar, Known(EquatableArray.From(Array.Empty<DisasterCondition>()))).TryGetValue(out var gap))
         {
@@ -109,9 +107,8 @@ public static class ColonyModel
                 break;
             }
 
-            // One labor pass per event interval: the rates it sets hold until the next event; practice uses up medicine.
-            graph.Allocate(now, twelfth, boundary, levels[(int)ModelStock.Medicine]);
-            net[(int)ModelStock.Medicine] = medicineNet - graph.MedicineRate;
+            // One labor pass per event interval: the rates it sets hold until the next event.
+            graph.Allocate(now, twelfth, boundary);
 
             // The earliest candidate; ties go to the lower kind, then the lower id.
             var when = policy.HorizonDays;

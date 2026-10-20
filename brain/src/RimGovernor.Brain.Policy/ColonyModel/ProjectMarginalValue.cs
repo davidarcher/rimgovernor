@@ -8,9 +8,9 @@ namespace RimGovernor.Brain.Policy;
 // The same runs price the player's goals (#3505): a goal is a terminal of the graph (GoalPaths), its completion day is read off each
 // trajectory, and an hour of work is worth the goal's value at the day it completes less its value at the day it would have.
 //
-// Skills and medicine (#3634): each pawn's stock of a skill a practice node trains is run again with an hour of that practice's raw XP
-// injected; the practice keeps the stock moving, so the XP brings every later level date earlier and the value per XP is smooth. Each
-// medicine kind held is run again with one more unit.
+// Skills and medicine (#3634, #3344): each pawn's stock of each skill is run again one stored level higher, its XP toward the next level
+// kept; the value of that level divided by the native XP it takes is the value of one XP. A stock at the top level is worth nothing
+// more by XP. Each medicine kind held is run again with one more unit.
 
 /// <summary>What a tier-2 trajectory is worth (<see cref="ColonyValue"/>; a test may price it otherwise).</summary>
 public interface ITrajectoryValue
@@ -107,12 +107,16 @@ public static class ProjectMarginalValue
                 }
             }
 
-            // An hour of the practice's raw XP into each pawn's stock of the skill it trains.
-            foreach (var practice in policy.Projects.Nodes.Where(n => n.Kind == ProjectKind.Practice && n.RawXpPerWorkTick > 0).GroupBy(n => n.Skill).Select(g => g.First()))
+            // Each pawn's stock of each skill one level higher, over the XP that level takes; a stock at the top level gains nothing by XP.
+            foreach (var track in baseline.Skills)
             {
-                foreach (var track in baseline.Skills.Where(t => t.Skill == practice.Skill))
+                if (track.NextLevelXp is { } levelXp)
                 {
-                    Perturb(track.Key, practice.RawXpPerWorkTick * GameTime.TicksPerHour);
+                    Perturb(track.Key, levelXp);
+                }
+                else
+                {
+                    perUnit[track.Key] = 0;
                 }
             }
 

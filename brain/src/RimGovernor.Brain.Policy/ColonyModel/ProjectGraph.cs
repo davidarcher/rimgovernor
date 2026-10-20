@@ -42,40 +42,6 @@ public sealed record ProjectGraph
     /// <summary>The key of a medicine kind's stock (#3634): its marginal value is per unit under this key.</summary>
     public static string MedicineKey(Resource kind) => $"medicine/{kind}";
 
-    /// <summary>The id of the practice node of a slot.</summary>
-    public static string PracticeId(string prisoner) => $"practice:{prisoner}";
-
-    /// <summary>
-    /// One practice node per practice slot (#3634), in slot order: the slot's surgery work, the skill its recipe trains, the raw XP per
-    /// tick spent and the medicine a surgery uses up. A slot whose recipe learning is unqualified makes no node and is named. Practice
-    /// never completes, so the review puts it last: it takes the hours the finite nodes leave.
-    /// </summary>
-    public static ProjectGraph Practice(ColonyModelInput input)
-    {
-        if (!input.Practice.TryGetValue(out var slots))
-        {
-            return Gap("practice_slots_unknown");
-        }
-
-        var nodes = new List<ProjectNode>();
-        var findings = new SortedSet<string>(StringComparer.Ordinal);
-        foreach (var slot in slots)
-        {
-            if (!slot.RawXpPerWorkTick.TryGetValue(out var xp) || !(slot.Work > 0))
-            {
-                findings.Add($"practice_learning_unknown:{slot.Recipe}");
-                continue;
-            }
-
-            nodes.Add(new ProjectNode
-            {
-                Id = PracticeId(slot.Prisoner), Kind = ProjectKind.Practice, Work = slot.Work, Skill = slot.Skill, RawXpPerWorkTick = xp, SpeedStat = slot.SpeedStat, Medicine = slot.Medicine,
-            });
-        }
-
-        return new ProjectGraph { Nodes = EquatableArray.From(nodes), Findings = EquatableArray.From(findings) };
-    }
-
     /// <summary>
     /// What a review runs: the research chain of the project being researched, and each field with a crop set, from sowing to
     /// harvest, gated on the research the crop's sowing waits on (<see cref="CropChoice.Research"/>). Then each herd of huntable

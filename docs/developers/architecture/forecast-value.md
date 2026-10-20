@@ -329,22 +329,16 @@ stay, and the arrival-order walk above credits only the later one's upgrade. Wit
 a field of the same stuff adds nothing to it. No fibre stock is priced, and while the exposure table is a placeholder (#3543) the nodes
 exist, the harm is `apparel_harm_unassessed` and the chain's investment credit is 0.
 
-*Skills, practice and medicine (#3634).* Each pawn's skills are stocks keyed `skill/<pawn>/<skill>` (`SkillStock`), started from
-the observed `SkillLearning` (a skill whose mechanics are unread is `skill_stock_unknown:<key>:<gap>`). Between events XP moves at
-the practice it is paid (raw XP a day through the unsaturated factor, the excess over the saturation threshold at the saturated
-factor; coarsened to days, so each day starts unsaturated) less its level's native decay (`DecayXp` per `DecayInterval` while
-learning is allowed). Levels change at `RequiredXp` and the loss threshold by `ForecastSkill`'s level rule, and each change is dated
-inside the interval (`ColonyTrajectory.Skills`). A practice slot is a living prisoner with a missing limb a material part installs
-on, or with a material part to remove (`RoundsColonyModel.PracticeOf`); its surgery is that install recipe's work, learning callback
-(#3632), speed stat and medicine (the removal is priced as the install). `ProjectGraph.Practice` adds one `practice:<prisoner>`
-node per slot, last in the graph, so it takes the free hours the finite nodes leave: the first pawn with free hours and an enabled
-stock of the skill, at its speed at the stored level (#3633 curve; `practice_speed_unknown` otherwise), is paid the recipe's raw XP
-per tick and uses up a surgery's medicine per work it completes. No slot, no node; no medicine, no surgery. Medicine is held by kind,
-best potency first, and both the surgeries and raid tending (`ColonyModelPolicy.MedicineTendsPerDay`, set from
-`ColonyValue.RaidTreatmentsPerDay`: the harm model's raid wounds per pawn, batched at their mean severity under the native cap of 20
-per treatment) use up the best kind first. `ProjectMarginalValue` perturbs each pawn's stock of a practised skill by an hour of that
-practice's raw XP and each medicine kind by one unit, writing value per XP and per unit to `PerUnit` under the stock key and
-`medicine/<kind>`.
+*Skills and medicine (#3634, #3344).* Each pawn's skills are stocks keyed `skill/<pawn>/<skill>` (`SkillStock`), started from
+the observed `SkillLearning` (a skill whose mechanics are unread is `skill_stock_unknown:<key>:<gap>`). No tier-2 work pays XP: between
+events a stock falls by its level's native decay (`DecayXp` per `DecayInterval` while learning is allowed), and a level is lost at the
+loss threshold by `ForecastSkill`'s level rule, each change dated inside the interval (`ColonyTrajectory.Skills`). Medicine is held by
+kind, best potency first, and raid tending (`ColonyModelPolicy.MedicineTendsPerDay`, set from `ColonyValue.RaidTreatmentsPerDay`: the
+harm model's raid wounds per pawn, batched at their mean severity under the native cap of 20 per treatment) uses up the best kind
+first. `ProjectMarginalValue` values one XP as one level more over the XP that level takes: it runs each pawn's stock of each skill
+again one stored level higher, its XP toward the next level kept (`SkillStock.Raise`), and divides the value difference by the native
+`RequiredXp` of the observed level (`SkillTrack.NextLevelXp`). A stock at the top level is worth 0 per XP. Each medicine kind is
+perturbed by one unit. The values per XP and per unit go to `PerUnit` under the stock key and `medicine/<kind>`.
 
 *Raid tending (#3635).* `ColonyValue` subtracts the colony's raid harm over the run at the tending the run gives it. The run is cut
 at each doctor's level dates and at each medicine kind's run-out (between events the stock falls at a constant rate, best kind
@@ -358,14 +352,14 @@ who may tend but has no curve is `medicine_skill_value_unassessed:<pawn>` and it
 harm model has no number (for example `exposure_cell_uncalibrated`) or a medicine's numbers are unread, the term is left out and every
 skill and medicine stock is unpriced (`ColonyValueResult.Unpriced`): `ProjectMarginalValue` writes no `PerUnit` for an unpriced key,
 so its marginal is a finding, not 0. Unchanged spans cancel between the perturbation runs, so a skill's per-XP value is the harm its
-earlier levels avoid and a medicine unit's the harm of its later run-out.
+next level avoids over the XP that level takes, and a medicine unit's the harm of its later run-out.
 
 *Skill and medicine credit in tier 1 (#3636).* Skill progress is capability, valued through forecast demand only
 ([skill learning](../contracts/skill-learning.md#skill-progress-is-capability)). An allocation whose learning evidence (tend, surgery,
 cooking) moves a stock tier 2 valued gains `-(applied XP × value per XP)` under `skill/<pawn>/<skill>`: the XP is the gain
-`ForecastSkill` applies for that callback (after learning factors and saturation), the unit the perturbation adds to the stock. Each
+`ForecastSkill` applies for that callback (after learning factors and saturation), the unit of the level's `RequiredXp`. Each
 input an allocation consumes that tier 2 holds as a medicine kind is charged `+(units × value per unit)` under `medicine/<kind>`. Real
-work and practice earn the same credit per XP; a key without a marginal adds nothing, so with no marginals the term is unchanged.
+work of every kind earns the same credit per XP; a key without a marginal adds nothing, so with no marginals the term is unchanged.
 
 *Construction material (#3653, #3647 decision 2).* A delivery composed for a planned room whose role is in `PricedRoomRoles`
 consumes its material, and the Investment term charges `+(units × value per unit)` under `material/<def>`, one

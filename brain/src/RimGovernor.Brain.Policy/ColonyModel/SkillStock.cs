@@ -3,9 +3,9 @@ using RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 // The tier-2 skill stock (#3634 of #3344): one per pawn and skill, keyed skill/<pawn>/<skill>, started from the observed SkillLearning.
-// XP moves at piecewise-constant rates between the engine's events: the practice it is staffed on (raw XP a day, through the pawn's
-// learning factors and the daily saturation) less the native decay of its level, coarsened to days. Levels change at the native
-// RequiredXp thresholds by the level rule ForecastSkill uses (ForecastSkillPolicy.Settle); each change is dated inside the interval.
+// XP falls by the native decay of its level, coarsened to days; no tier-2 work pays it. Levels change at the native thresholds by the
+// level rule ForecastSkill uses (ForecastSkillPolicy.Settle); each change is dated inside the interval. The marginal value of XP is
+// the value of one level more (Raise) over the XP that level takes (ProjectMarginalValue).
 
 /// <summary>A level a skill stock reached and the day, from now, it reached it.</summary>
 public sealed record SkillLevelDate(double Day, int StoredLevel);
@@ -22,6 +22,9 @@ public sealed record SkillTrack
 
     /// <summary>The observed stored level (<c>levelInt</c>) at time zero; the pawn's native stat curves are indexed by it (#3633).</summary>
     public int StoredLevel { get; init; }
+
+    /// <summary>The native XP <see cref="StoredLevel"/> takes to the next level (<c>RequiredXp</c>); null at the top level.</summary>
+    public double? NextLevelXp { get; init; }
 
     public EquatableArray<SkillLevelDate> Dates { get; init; }
 
@@ -57,9 +60,6 @@ internal sealed class SkillStock
     /// <summary>XP toward the next level.</summary>
     internal double Xp => xp;
 
-    /// <summary>Raw XP a day the stock's practice pays until the next event (<see cref="ProjectRun"/> sets it per interval).</summary>
-    internal double RawPerDay { get; set; }
-
     internal bool Disabled => mechanics.Disabled.Value;
 
     /// <summary>A stock for each skill of the pawn whose mechanics are read; each other skill is named, never defaulted.</summary>
@@ -82,73 +82,48 @@ internal sealed class SkillStock
         }
     }
 
-    /// <summary>
-    /// Applied XP a day from <paramref name="raw"/> raw XP a day of practice callbacks: the unsaturated factor until the day's XP
-    /// passes the saturation threshold, the saturated factor on the rest (<c>SkillRecord.Learn</c>, reset at midnight). Coarsened
-    /// to days: each day starts unsaturated.
-    /// </summary>
-    private double Applied(double raw)
-    {
-        if (Disabled || !(raw > 0))
-        {
-            return 0;
-        }
-
-        var unsaturated = raw * mechanics.UnsaturatedFactor.Value;
-        var threshold = Math.Max(0, mechanics.SaturationThreshold.Value);
-        return unsaturated <= threshold ? unsaturated : threshold + ((unsaturated - threshold) * mechanics.SaturatedFactor.Value);
-    }
-
     /// <summary>The native decay of a level a day: its <c>DecayXp</c> once per decay interval while learning is allowed.</summary>
     private double Decay(int level) =>
         Disabled || !mechanics.TrackerAllowsLearning.Value ? 0 : mechanics.Levels[level].DecayXp * GameTime.TicksPerDay / mechanics.DecayInterval.Value;
 
-    /// <summary>Adds applied XP at <paramref name="day"/> (the perturbation of the marginal value).</summary>
-    internal void Add(double amount, double day)
+    /// <summary>
+    /// Starts the stock one stored level higher, its XP toward the next level kept (the perturbation of the marginal value, #3344);
+    /// a stock at the top level is left as it is.
+    /// </summary>
+    internal void Raise()
     {
-        xp += amount;
-        Settle(day);
+        var top = mechanics.Levels.Count - 1;
+        if (StoredLevel == top)
+        {
+            return;
+        }
+
+        StoredLevel++;
+        if (StoredLevel == top)
+        {
+            xp = Math.Min(xp, mechanics.Levels[top].RequiredXp - 1);
+        }
+
+        dates.Add(new SkillLevelDate(0, StoredLevel));
     }
 
-    /// <summary>Moves the stock over <paramref name="span"/> days from <paramref name="from"/> at the current practice less the decay of each level it passes through.</summary>
+    /// <summary>Moves the stock over <paramref name="span"/> days from <paramref name="from"/> by the decay of each level it passes through.</summary>
     internal void Advance(double from, double span)
     {
-        var gain = Applied(RawPerDay);
-        var top = mechanics.Levels.Count - 1;
         var elapsed = 0.0;
         while (elapsed < span)
         {
-            var rate = gain - Decay(StoredLevel);
+            var rate = Decay(StoredLevel);
             var left = span - elapsed;
-            double need;
-            if (rate > 0)
-            {
-                if (StoredLevel == top)
-                {
-                    xp = Math.Min(xp + (rate * left), mechanics.Levels[top].RequiredXp - 1);
-                    return;
-                }
-
-                need = (mechanics.Levels[StoredLevel].RequiredXp - xp) / rate;
-            }
-            else if (rate < 0 && StoredLevel > 0)
-            {
-                need = (xp - mechanics.LossThreshold.Value) / -rate;
-            }
-            else
-            {
-                xp += rate * left;
-                return;
-            }
-
+            var need = rate > 0 && StoredLevel > 0 ? (xp - mechanics.LossThreshold.Value) / rate : double.PositiveInfinity;
             if (need > left)
             {
-                xp += rate * left;
+                xp -= rate * left;
                 return;
             }
 
             elapsed += Math.Max(0, need);
-            xp = rate > 0 ? mechanics.Levels[StoredLevel].RequiredXp : mechanics.LossThreshold.Value;
+            xp = mechanics.LossThreshold.Value;
             Settle(from + elapsed);
         }
     }
@@ -170,6 +145,7 @@ internal sealed class SkillStock
         Pawn = Pawn,
         Skill = Skill,
         StoredLevel = startStored,
+        NextLevelXp = startStored < mechanics.Levels.Count - 1 ? mechanics.Levels[startStored].RequiredXp : null,
         Dates = EquatableArray.From(dates),
     };
 }

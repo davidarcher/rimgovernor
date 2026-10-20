@@ -62,17 +62,15 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public void APractisedSkillWithoutADoctorCensusIsUnpricedNotZero()
+    public void ASkillWithoutADoctorCensusIsUnpricedNotZero()
     {
         var input = ProjectGraphTests.Colony();
         input = input with
         {
-            Pawns = Known(EquatableArray.From(new[] { SkillStockTests.Practitioner(input.Pawns.Value[0], SkillStockTests.Mechanics(0, 0)), input.Pawns.Value[1] })),
-            Practice = Known(EquatableArray.From(new[] { SkillStockTests.Slot() })),
+            Pawns = Known(EquatableArray.From(new[] { SkillStockTests.WithMedicine(input.Pawns.Value[0], SkillStockTests.Mechanics(0, 0)), input.Pawns.Value[1] })),
         };
-        var marginals = Marginals(input, ProjectGraphTests.Chain(input).Then(ProjectGraph.Practice(input)));
+        var marginals = Marginals(input, ProjectGraphTests.Chain(input));
 
-        Assert.True(marginals.Trajectory.Events[^1].Levels[(int)ModelStock.Medicine] < 13);
         Assert.DoesNotContain("skill/Anna/Medicine", marginals.PerUnit.Keys);
         Assert.Contains(ColonyValue.MedicineSkillValueUnassessed + ":pawns_unknown", marginals.Findings);
         Assert.True(marginals.PerHour["research:Devilstrand"] > 0);

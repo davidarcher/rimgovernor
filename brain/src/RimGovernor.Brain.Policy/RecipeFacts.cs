@@ -6,9 +6,6 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record RecipeFacts
 {
-    /// <summary>The install recipes of parts made straight from a stuff (a peg leg from a log), by recipe.</summary>
-    public IReadOnlyList<MaterialInstall> MaterialInstalls { get; init; } = [];
-
     /// <summary>
     /// The work type a bill on the recipe puts a pawn to, by recipe: that of the first bench (by name) whose
     /// DoBill giver serves it. A recipe no bench hosts has none.
@@ -39,38 +36,5 @@ public sealed record RecipeFacts
     /// <summary>The work type of a bill on the recipe, false when no bench the catalog knows hosts the recipe.</summary>
     public (WorkType Work, bool Known) BillWorkOf(string recipe) =>
         BillWork.TryGetValue(recipe, out var work) ? (work, true) : (default, false);
-
-    /// <summary>The material install of the recipe.</summary>
-    public MaterialInstall? MaterialInstallByRecipe(string recipe) => MaterialInstalls.FirstOrDefault(m => m.Recipe == recipe);
-
-    /// <summary>The material install that adds the hediff.</summary>
-    public MaterialInstall? MaterialInstallOfPart(string hediff) => MaterialInstalls.FirstOrDefault(m => m.Part == hediff);
-
-    /// <summary>The material install a practice-cycle step belongs to (#3634): a restore by a material install recipe on a missing limb,
-    /// or the removal of an installed material part. Null for every other operation.</summary>
-    public MaterialInstall? PracticeCycleOf(SurgeryOperation op) =>
-        op.Kind == SurgeryKind.Restore && op.Recipe.TryGetValue(out var recipe) ? MaterialInstallByRecipe(recipe)
-        : op.Kind == SurgeryKind.Amputate && op.AddedPart.TryGetValue(out var part) ? MaterialInstallOfPart(part) : null;
 }
 
-/// <summary>
-/// A surgery recipe that installs a part made straight from a stuff: the recipe, the hediff it adds and the
-/// recipe's work.
-/// </summary>
-public sealed record MaterialInstall
-{
-    public string Recipe { get; init; } = "";
-
-    public string Part { get; init; } = "";
-
-    public double Work { get; init; }
-
-    /// <summary>The recipe's native learning callback (#3632); null when the catalog did not read it.</summary>
-    public RimGovernor.Contracts.Wire.Observations.RecipeLearning? Learning { get; init; }
-
-    /// <summary>The recipe's work speed stat (<c>RecipeDef.workSpeedStat</c>); empty for none, which works at speed 1.</summary>
-    public string SpeedStat { get; init; } = "";
-
-    /// <summary>The medicine the recipe uses up: the count of its ingredient slots that take only medicine.</summary>
-    public double Medicine { get; init; }
-}

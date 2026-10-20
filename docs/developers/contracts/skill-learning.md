@@ -142,12 +142,15 @@ callbacks against the projection.
 
 Skill progress is valued as capability, through forecast demand only, for every
 skill (#3344). There are no skill targets, floors or hand-set prices per XP. The
-tier-2 colony model keeps a stock per pawn and practised skill (`skill/<pawn>/<skill>`)
-and gives a value per XP: how much earlier level dates raise what the colony's demand
-for that skill is worth ([forecast value](../architecture/forecast-value.md#tier-2-event-driven-colony-model)).
+tier-2 colony model keeps a stock per pawn and skill (`skill/<pawn>/<skill>`) and
+values one XP as the value of one level more over the XP that level takes: the run
+with the pawn one stored level higher, less the run as it is, divided by the native
+`RequiredXp` of the observed level. The value is what that level raises the colony's
+demand for the skill to; a skill at the top level is worth nothing per XP
+([forecast value](../architecture/forecast-value.md#tier-2-event-driven-colony-model)).
 Tier 1 credits each allocation's learning evidence in the `Investment` term (#3636):
 the XP `ForecastSkill` applies (after learning factors and saturation, the gain the
-callback adds, not its raw amount) times that value. Real work and practice earn the
+callback adds, not its raw amount) times that value. Every kind of work earns the
 same credit per XP. A skill tier 2 gives no value (no stock or no demand) earns
 nothing, so XP never wins a comparison on its own. Medicine is the first skill with
 a demand (raid tending); medicine the work consumes is charged by kind in the same

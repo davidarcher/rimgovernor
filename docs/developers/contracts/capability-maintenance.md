@@ -59,4 +59,6 @@ Registration and compilation are distinct from executed native acceptance.
 Doctors are not trained by surgery on prisoners. Practice surgery (#3637), practice slots by amputation
 (#3639) and the peg-leg control and reinstall cycle were deleted: one practice surgery nets about 1e-4
 capability-days (its Medicine XP credit less the medicine it uses), while tending wounds without
-medicine builds the same skill for free. Medicine XP still comes from ordinary tending and surgery.
+medicine builds the same skill for free. Medicine XP still comes from ordinary tending and surgery. Tier 2 has no
+practice node: the value of an XP is that of one Medicine level more over the XP it takes
+([skill learning](skill-learning.md#skill-progress-is-capability)).
