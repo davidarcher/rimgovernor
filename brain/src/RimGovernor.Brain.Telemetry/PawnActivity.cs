@@ -83,8 +83,21 @@ public static class PawnActivityTelemetry
     public const string IntervalKind = "pawn_activity_interval";
     public const string OutputKind = "pawn_activity_output";
 
-    /// <summary>The pawn's load id, on an interval and an output row.</summary>
+    /// <summary>Native's row for each change of an installed order's execution (state, step, reason).</summary>
+    public const string ExecutionKind = "pawn_activity_execution";
+
+    /// <summary>The pawn's load id, on an interval, an output and an execution row.</summary>
     public const string PawnKey = "pawn";
+
+    /// <summary>An execution row's assignment, order revision and state.</summary>
+    public const string AssignmentKey = "assignment";
+
+    public const string RevisionKey = "revision";
+
+    public const string StateKey = "state";
+
+    /// <summary>The execution state of an order whose every step is done.</summary>
+    public const string CompletedState = "completed";
 
     /// <summary>An interval's activity class (travel, work, needs, ...).</summary>
     public const string ActivityKey = "activity";

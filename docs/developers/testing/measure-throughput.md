@@ -93,18 +93,17 @@ Traps in the numbers:
 The brain must make the same decisions per game tick and review at the same
 game ticks at every speed; only the wall per review changes.
 
-**Native (about 2 minutes per speed):**
+**Native (about 17-20 minutes for the seven rows; run nothing else on the machine meanwhile):**
 
 ```bash
 RimGovernor.cmd acceptance speedmatrix -root <abs root>
 ```
 
+The speed matrix is a throughput run only: it measures ticks per second at each
+speed, with the governor on and off. It is not a behaviour test; hauling is
+covered by `storage/valued-haul` and planned-room walls by their own case.
 Needs a `ThroughputFixture` build. One staged colony is reloaded per row and
-run with the `work` family to a 30000-tick target. The stage is brain-valued
-work only ([#3624](https://github.com/davidarcher/rimgovernor/issues/3624)): cloth
-stacks deteriorating outside a roofed stockpile, which the brain hauls as
-valued standby work, and the walls of rooms the brain plans. It places no
-blueprint, so a player blueprint is never counted.
+run with the `work` family to a 30000-tick target.
 Rows are `DefaultSpeedMatrix`
 (`Normal,Fast,Superfast,Ultrafast,Hyperfast,uncapped,governor-off`);
 `-speeds uncapped,governor-off` narrows a run. The command has its own driver
@@ -117,7 +116,15 @@ case's evidence), written to `<row>/otlp/`; its tick-budget wait reads the newes
 world and tick, and a new world restarts the count).
 `governor-off` plays the same save natively at the uncapped speed with no
 brain attached (the simulation ceiling): it reports only `ticks_advanced`,
-`wall_seconds`, `wall_tps` and is outside the outcome comparison.
+`wall_seconds`, `wall_tps` and is outside the outcome check.
+
+The outcome check exists only so a governed row cannot look fast because
+everyone idled: each governed row's colonists must complete at least one
+brain-selected task. `completed_tasks` counts the orders of installed brain
+Methods, of any kind, that native's `pawn_activity_execution` rows in the
+row's timeline report `completed` (one per pawn, assignment and revision;
+standby never completes). A governed row that completes none is a brain
+regression, not a slow row.
 
 `result.json` carries per row `speed_metrics` (the keys are defined in
 `brain/src/RimGovernor.Brain.Acceptance/Scenario/SpeedMatrix.cs`). Key rules:
@@ -148,8 +155,9 @@ brain attached (the simulation ceiling): it reports only `ticks_advanced`,
 
 The run fails when a required row has no metrics row or advanced no ticks, or
 a compared row has no outcome (`row_problems`; `SpeedRowProblems` is the
-boundary), on pawn outcomes differing by more than 1 across speeds, an
-unsuccessful plan stage, or no cloth stored and no wall built map-wide. `max_paused_fraction` and
+boundary), on a governed row with no completed task, healthy colonists
+differing by more than 1 across speeds, or an unsuccessful plan stage
+(`outcome_problems`; `SpeedMatrix.CheckOutcomes`). `max_paused_fraction` and
 `min_ultrafast_tps_ratio` are written to the report and checked at zero:
 reported, not enforced.
 

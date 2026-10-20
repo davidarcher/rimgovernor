@@ -7,21 +7,20 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using RimGovernor.Brain.Telemetry.Otlp;
 using Common = RimGovernor.Contracts.Wire.Common;
-using Fx = RimGovernor.Fixtures.Contracts;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// Runs identical staged work at each clock speed and checks equal game outcomes.
-/// Governor-off measures the simulation ceiling outside that outcome comparison. Governed rows report wall TPS
-/// including holds, native paused fraction, hold counts by reason, resume latency and effective speed; sampled pause ratios are diagnostic only. The throughput
-/// fixture provides construction and hauling work in a quiet colony with frozen needs.
+/// A throughput run: plays one staged colony at each clock speed, governed and not, and measures ticks per second.
+/// Governor-off measures the simulation ceiling. Governed rows report wall TPS including holds, native paused fraction,
+/// hold counts by reason, resume latency and effective speed; sampled pause ratios are diagnostic only. The outcome
+/// check exists only so a governed row cannot look fast because everyone idled: its colonists must complete brain-selected
+/// work (<see cref="SpeedMatrix.CheckOutcomes"/>). The throughput fixture's stage is a quiet colony with frozen needs.
 /// </summary>
 internal sealed partial class SpeedmatrixRun
 {
     internal const string PrepareTool = "test/throughput_prepare";
-    internal const string ControlTool = "test/throughput_control";
     internal const string StageSave = "RimGovernor-speedmatrix-stage";
 
     // Ticks is the game-tick target each speed runs to after resume (the serve-side tick must advance by this much) unless
@@ -32,7 +31,7 @@ internal sealed partial class SpeedmatrixRun
     // Items sizes the stage: the Cloth stacks spawned outside the roofed stockpile.
     internal const int Items = 4;
 
-    // Tolerance is the allowed spread of each pawn-outcome postcondition across speeds.
+    // Tolerance is the allowed spread of the healthy colonists across speeds.
     private const int Tolerance = 1;
 
     // MaxPausedFraction and MinUltrafastTpsRatio are the clock-throughput expectations (0.5 and 2); at zero they are
@@ -46,9 +45,6 @@ internal sealed partial class SpeedmatrixRun
     private readonly IReadOnlyList<SpeedCase> _cases;
     private readonly List<SpeedOutcome> _outcomes = [];
     private readonly List<JsonObject> _rows = [];
-
-    // The fixture's storage cells, in the "x:z" form test/throughput_control reads back.
-    private string _storage = "";
 
     private SpeedmatrixRun(Session session, Config config, Report report, IReadOnlyList<SpeedCase> cases)
     {
@@ -82,11 +78,6 @@ internal sealed partial class SpeedmatrixRun
         m._report["tolerance"] = Tolerance;
         m._report["max_paused_fraction"] = MaxPausedFraction;
         m._report["min_ultrafast_tps_ratio"] = MinUltrafastTpsRatio;
-        if (!Dyn.Contains(session.Names, ControlTool))
-        {
-            throw new AcceptanceException($"missing {ControlTool} in discovery; rebuild the native mod with -Fixture ThroughputFixture");
-        }
-
         try
         {
             await m.StageAsync(cancellationToken).ConfigureAwait(false);
@@ -125,7 +116,7 @@ internal sealed partial class SpeedmatrixRun
             m._report["outcomes"] = OutputJson.Array(m._outcomes, o => o.ToJson());
             Console.WriteLine(string.Create(
                 CultureInfo.InvariantCulture,
-                $"DONE {c.Name}: stored={outcome.StoredUnits}/{outcome.StoredUnits + outcome.LooseUnits} walls={outcome.WallsBuilt} colonists={outcome.HealthyColonists} unsuccessful={outcome.UnsuccessfulStages}"));
+                $"DONE {c.Name}: completed_tasks={outcome.CompletedTasks} colonists={outcome.HealthyColonists} unsuccessful={outcome.UnsuccessfulStages}"));
         }
 
         // Every required row is present and advanced the tick before any comparator, which accept an empty matrix, sees them.
@@ -143,21 +134,11 @@ internal sealed partial class SpeedmatrixRun
             m._report["ceiling_ratios"] = OutputJson.Array(ratios, r => r.ToJson());
         }
 
-        var outcomeProblems = SpeedMatrix.CompareOutcomes(m._outcomes, Tolerance);
+        var outcomeProblems = SpeedMatrix.CheckOutcomes(m._outcomes, Tolerance);
         if (outcomeProblems.Count > 0)
         {
             m._report["outcome_problems"] = Problems(outcomeProblems);
-            throw new AcceptanceException("pawn outcomes differ across speeds: " + string.Join("; ", outcomeProblems));
-        }
-
-        // The stage must have been reachable: a matrix where no brain-valued work was done agrees trivially and proves nothing.
-        // That work is a cloth haul the brain valued (#3624) or a wall of a room it planned (#3610); the stage places no blueprint.
-        foreach (var o in m._outcomes)
-        {
-            if (o.StoredUnits == 0 && o.WallsBuilt == 0)
-            {
-                throw new AcceptanceException($"{o.Case}: no cloth was hauled and no planned wall built within the tick target; check the stage");
-            }
+            throw new AcceptanceException("pawn outcomes: " + string.Join("; ", outcomeProblems));
         }
 
         var metricProblems = SpeedMatrix.CheckSpeedMetrics(metrics, MaxPausedFraction, MinUltrafastTpsRatio);
@@ -179,15 +160,12 @@ internal sealed partial class SpeedmatrixRun
         return new Harness(shared.Transport, output) { Tools = shared.Tools };
     }
 
-    /// <summary>Takes the fixture's layout from the prepared colony and saves it as the stage save for every case to reload.</summary>
+    /// <summary>Saves the prepared colony as the stage save for every case to reload.</summary>
     private async Task StageAsync(CancellationToken cancellationToken)
     {
-        var prepared = Harness.FixtureReply<Fx.ThroughputPrepared>(
-            PrepareTool, _session.Prepared ?? throw new AcceptanceException($"prepared: {PrepareTool} replied nothing"));
         var stageOutput = Path.Combine(_config.Output, "stage");
         _ = Directory.CreateDirectory(stageOutput);
         var h = HarnessFor(stageOutput);
-        _storage = CellList(prepared.StorageCells.Select(c => (c.X, c.Z)));
 
         // Frozen needs do not survive a reload (the op is per game), so the save carries the stage only; each case
         // freezes again after loading.
@@ -280,7 +258,7 @@ internal sealed partial class SpeedmatrixRun
             _ = await h.PauseClockAsync("pause", cancellationToken).ConfigureAwait(false);
             var identity = await ReadIdentityAsync(h, cancellationToken).ConfigureAwait(false);
             report["frozen_needs"] = (await Needs.FreezeNeedsAsync(h, null, [], cancellationToken).ConfigureAwait(false)).DeepClone();
-            var startTick = await FreshStageTickAsync(h, identity, report, cancellationToken).ConfigureAwait(false);
+            var startTick = await ReadTickAsync(h, "start-tick", cancellationToken).ConfigureAwait(false);
 
             // The brain runs in the game process, so the serve flag the case adds (--clock-test-acceleration)
             // cannot be applied; the launch records them under its env entries.
@@ -388,11 +366,11 @@ internal sealed partial class SpeedmatrixRun
                 report["authority_released"] = revoked.DeepClone();
             }
 
-            var after = await ControlAsync(h, identity, "control-after", cancellationToken).ConfigureAwait(false);
-            report["control_after"] = after.DeepClone();
             var healthy = await ClockFixture.RequireHealthyColonistsAsync(h, "pawns-after", identity, cancellationToken).ConfigureAwait(false);
-            var outcome = SpeedMatrix.OutcomeFromControl(c.Name, after) with
+            var outcome = new SpeedOutcome
             {
+                Case = c.Name,
+                CompletedTasks = SpeedMatrix.CompletedTasks(timeline),
                 HealthyColonists = healthy,
                 UnsuccessfulStages = unsuccessful,
             };
@@ -412,34 +390,6 @@ internal sealed partial class SpeedmatrixRun
                 _ = await service.StopAsync().ConfigureAwait(false);
             }
         }
-    }
-
-    // Reads the stage's counters through test/throughput_control: the reply as recorded (the report's control blocks and
-    // the outcome read it whole) and as its record.
-    private async Task<JsonObject> ControlAsync(Harness h, JsonObject identity, string label, CancellationToken cancellationToken) =>
-        (await ControlReadAsync(h, identity, label, cancellationToken).ConfigureAwait(false)).Raw;
-
-    private async Task<(JsonObject Raw, Fx.ThroughputControlRead Read)> ControlReadAsync(Harness h, JsonObject identity, string label, CancellationToken cancellationToken)
-    {
-        var id = Harness.IdentityOf(identity);
-        var request = new Fx.ThroughputControlRequest { ColonyId = id.ColonyId, LoadToken = id.LoadToken, MapId = id.MapId, StorageCells = _storage };
-        var reply = await h.CallAsync(label, ControlTool, FixtureRecordJson.Args(request), cancellationToken).ConfigureAwait(false);
-        var read = Harness.FixtureReply<Fx.ThroughputControlRead>(ControlTool, reply);
-        return read.Success ? (reply, read) : throw new AcceptanceException($"{ControlTool} refused: {reply.ToJson()}");
-    }
-
-    // Reads the reloaded stage's counters into the report (control_before), requires them fresh (nothing stored, built or
-    // laid out) and returns the reload's tick.
-    private async Task<ulong> FreshStageTickAsync(Harness h, JsonObject identity, Report report, CancellationToken cancellationToken)
-    {
-        var (before, read) = await ControlReadAsync(h, identity, "control-before", cancellationToken).ConfigureAwait(false);
-        report["control_before"] = before.DeepClone();
-        if (read.StoredUnits != 0 || read.WallsBuilt != 0)
-        {
-            throw new AcceptanceException("stage is not fresh after reload: " + before.ToJson());
-        }
-
-        return (ulong)read.Tick;
     }
 
     /// <summary>
@@ -624,10 +574,6 @@ internal sealed partial class SpeedmatrixRun
         _rows.Add(row);
         _report["speed_metrics"] = OutputJson.Array(_rows, r => r.DeepClone());
     }
-
-    // Renders fixture cells as the "x:z,x:z" list test/throughput_control parses.
-    private static string CellList(IEnumerable<(int X, int Z)> cells) =>
-        string.Join(',', cells.Select(cell => string.Create(CultureInfo.InvariantCulture, $"{cell.X}:{cell.Z}")));
 
     private static string RandomSuffix() => Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(4));
 }

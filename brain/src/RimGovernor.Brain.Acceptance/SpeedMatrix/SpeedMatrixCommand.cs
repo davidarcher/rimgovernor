@@ -25,7 +25,7 @@ public sealed record SpeedMatrixOptions
 /// colony with a crew of three, saves it, and per row reloads it, freezes needs and plays it to the same tick target at
 /// the row's clock speed, governed by a fresh in-game service or with none (governor-off). Each row writes its own report
 /// under <c>&lt;output&gt;/&lt;row&gt;</c>; <c>&lt;output&gt;/result.json</c> carries the speed metrics, the outcome
-/// comparison and the run's provenance.
+/// check (each governed row's colonists completed brain-selected work) and the run's provenance.
 /// </summary>
 public static class SpeedMatrixCommand
 {
@@ -37,7 +37,7 @@ public static class SpeedMatrixCommand
     public const string Usage = """
           acceptance speedmatrix -root <dir> [-speeds <rows> -output <dir> -timeout 30m -game <id>]
             plays the throughput stage to one tick target per clock speed row (-speeds narrows them, e.g. uncapped,governor-off) and
-            compares the outcomes; per-row reports and result.json in -output (default <root>/acceptance/speedmatrix)
+            checks each governed row's colonists completed brain work; per-row reports and result.json in -output (default <root>/acceptance/speedmatrix)
         """;
 
     /// <summary>Runs the subcommand with the arguments after <c>speedmatrix</c>; returns the exit code (2 refused, 1 a failed matrix).</summary>

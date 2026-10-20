@@ -48,15 +48,3 @@ public sealed record FixturePrepared
 
     public int? MapId { get; init; }
 }
-
-/// <summary><c>test/throughput_control</c>: the stockpile and wall counters a speed-matrix outcome compares; a missing counter is -1.</summary>
-public sealed record ThroughputControlCounters
-{
-    public int StoredStacks { get; init; } = -1;
-
-    public int StoredUnits { get; init; } = -1;
-
-    public int LooseUnits { get; init; } = -1;
-
-    public int WallsBuilt { get; init; } = -1;
-}

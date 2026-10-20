@@ -3,7 +3,6 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Telemetry;
 using RimGovernor.Brain.Telemetry.Otlp;
-using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -12,7 +11,7 @@ namespace RimGovernor.Brain.Acceptance;
 /// acceleration is on. Every Run runs under the one ceiling (Ultrafast is the game's 15x, Hyperfast the tick boost
 /// capped at 30x); test acceleration only adds the acceptance-only world patches (both acceptance profiles admit it, a player
 /// launch does not). "uncapped" is Hyperfast with them, the speed test acceleration pins. "governor-off" is uncapped native play with no controller attached, the simulation ceiling on the
-/// same save and renderer; it builds nothing, so it is outside the outcome comparison.
+/// same save and renderer; no brain selects its work, so it is outside the outcome check.
 /// </summary>
 public sealed record SpeedCase
 {
@@ -24,7 +23,7 @@ public sealed record SpeedCase
 
     public bool GovernorOff { get; init; }
 
-    /// <summary>Whether the case's pawn outcome takes part in the cross-speed comparison: every governed row does.</summary>
+    /// <summary>Whether the case has a pawn outcome for the outcome check: every governed row does.</summary>
     public bool Compared => !GovernorOff;
 
     /// <summary>
@@ -55,31 +54,25 @@ public sealed record SpeedCase
     }
 }
 
-/// <summary>What the pawns achieved in one case: the postconditions the matrix requires to agree within a tolerance across speeds.</summary>
+/// <summary>
+/// What one governed case's colonists did: the brain-selected tasks they completed (<see cref="SpeedMatrix.CompletedTasks"/>),
+/// which proves the row was not fast because everyone idled, and the colonists and plan stages the matrix requires to agree.
+/// </summary>
 public sealed record SpeedOutcome
 {
     public string Case { get; init; } = "";
 
-    public int StoredStacks { get; init; }
-
-    public int StoredUnits { get; init; }
-
-    public int LooseUnits { get; init; }
-
-    public int WallsBuilt { get; init; }
+    public int CompletedTasks { get; init; }
 
     public int HealthyColonists { get; init; }
 
     public int UnsuccessfulStages { get; init; }
 
-    /// <summary>The outcome as its report row (json tags case, stored_stacks, ...).</summary>
+    /// <summary>The outcome as its report row (json tags case, completed_tasks, healthy_colonists, unsuccessful_stages).</summary>
     public JsonObject ToJson() => new()
     {
         { "case", Case },
-        { "stored_stacks", StoredStacks },
-        { "stored_units", StoredUnits },
-        { "loose_units", LooseUnits },
-        { "walls_built", WallsBuilt },
+        { "completed_tasks", CompletedTasks },
         { "healthy_colonists", HealthyColonists },
         { "unsuccessful_stages", UnsuccessfulStages },
     };
@@ -171,61 +164,59 @@ public static class SpeedMatrix
         return fields;
     }
 
-    /// <summary>Reads the counters a test/throughput_control reply carries; colonists and plan stages are the harness's own reads.</summary>
-    public static SpeedOutcome OutcomeFromControl(string name, JsonObject control)
+    /// <summary>
+    /// The brain-selected tasks a governed row's colonists completed: native's <see cref="TelemetryKinds.PawnActivityExecution"/>
+    /// rows in the row's timeline that reached <see cref="PawnActivityTelemetry.CompletedState"/>, one per installed
+    /// order (pawn, assignment, revision), whatever the Method's kind. Every such order is a brain Method's; standby never
+    /// completes, so a colony that only idled or wandered completes none.
+    /// </summary>
+    public static int CompletedTasks(IEnumerable<TimelineRecord> records)
     {
-        ArgumentNullException.ThrowIfNull(control);
-        var counters = Fx.FixtureJson.Deserialize<Fx.ThroughputControlCounters>(control.ToJsonString());
-        return new SpeedOutcome
+        ArgumentNullException.ThrowIfNull(records);
+        var orders = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var row in records)
         {
-            Case = name,
-            StoredStacks = counters.StoredStacks,
-            StoredUnits = counters.StoredUnits,
-            LooseUnits = counters.LooseUnits,
-            WallsBuilt = counters.WallsBuilt,
-        };
+            if (row.Kind != TelemetryKinds.PawnActivityExecution.Name || Text(row, PawnActivityTelemetry.StateKey) != PawnActivityTelemetry.CompletedState)
+            {
+                continue;
+            }
+
+            _ = orders.Add(Text(row, PawnActivityTelemetry.PawnKey) + "|" + Text(row, PawnActivityTelemetry.AssignmentKey) + "|" + Text(row, PawnActivityTelemetry.RevisionKey));
+        }
+
+        return orders.Count;
     }
 
+    private static string Text(TimelineRecord row, string key) =>
+        row.Payload.TryGetValue(key, out var value) ? Convert.ToString(value, CultureInfo.InvariantCulture) ?? "" : "";
+
     /// <summary>
-    /// Lists every postcondition whose spread across the cases exceeds tolerance, plus any case that recorded an
-    /// unsuccessful plan stage. An empty result means the matrix agrees.
+    /// The outcome check: a governed row passes when its colonists completed at least one brain-selected task, so a row
+    /// cannot look fast because everyone idled; its colonists' count must agree across speeds within tolerance and no
+    /// row may record an unsuccessful plan stage. An empty result means the matrix passes.
     /// </summary>
-    public static IReadOnlyList<string> CompareOutcomes(IReadOnlyList<SpeedOutcome> outcomes, int tolerance)
+    public static IReadOnlyList<string> CheckOutcomes(IReadOnlyList<SpeedOutcome> outcomes, int tolerance)
     {
         ArgumentNullException.ThrowIfNull(outcomes);
         var problems = new List<string>();
-        var fields = new (string Name, Func<SpeedOutcome, int> Get)[]
+        if (outcomes.Count > 0)
         {
-            ("stored_units", o => o.StoredUnits),
-            ("stored_stacks", o => o.StoredStacks),
-            ("walls_built", o => o.WallsBuilt),
-            ("healthy_colonists", o => o.HealthyColonists),
-        };
-        foreach (var (name, get) in fields)
-        {
-            if (outcomes.Count == 0)
-            {
-                break;
-            }
-
-            var lo = get(outcomes[0]);
-            var hi = lo;
-            foreach (var o in outcomes.Skip(1))
-            {
-                var v = get(o);
-                lo = Math.Min(lo, v);
-                hi = Math.Max(hi, v);
-            }
-
+            var lo = outcomes.Min(o => o.HealthyColonists);
+            var hi = outcomes.Max(o => o.HealthyColonists);
             if (hi - lo > tolerance)
             {
-                var parts = outcomes.Select(o => string.Create(CultureInfo.InvariantCulture, $"{o.Case}={get(o)}"));
-                problems.Add(string.Create(CultureInfo.InvariantCulture, $"{name} differs by {hi - lo} (tolerance {tolerance}): {string.Join(' ', parts)}"));
+                var parts = outcomes.Select(o => string.Create(CultureInfo.InvariantCulture, $"{o.Case}={o.HealthyColonists}"));
+                problems.Add(string.Create(CultureInfo.InvariantCulture, $"healthy_colonists differs by {hi - lo} (tolerance {tolerance}): {string.Join(' ', parts)}"));
             }
         }
 
         foreach (var o in outcomes)
         {
+            if (o.CompletedTasks == 0)
+            {
+                problems.Add($"{o.Case}: its colonists completed no brain-selected task");
+            }
+
             if (o.UnsuccessfulStages > 0)
             {
                 problems.Add(string.Create(CultureInfo.InvariantCulture, $"{o.Case}: {o.UnsuccessfulStages} unsuccessful plan stage(s)"));

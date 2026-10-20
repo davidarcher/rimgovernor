@@ -163,9 +163,9 @@ namespace HomeBridge.BridgeTools
         }
         internal static void Execution(RimGovernor.Contracts.Wire.Operations.PawnActivityExecution row, Pawn pawn)
         {
-            emitter?.EmitRow("pawn_activity_execution", new RowContext { Component = "pawn-activity", Tick = row.Tick },
-                new Dictionary<string, object?> { ["pawn"] = pawn.GetUniqueLoadID(), ["assignment"] = row.Assignment,
-                    ["method"] = row.Method, ["revision"] = row.Revision, ["step"] = row.Step, ["state"] = row.State,
+            emitter?.EmitRow(PawnActivityTelemetry.ExecutionKind, new RowContext { Component = "pawn-activity", Tick = row.Tick },
+                new Dictionary<string, object?> { [PawnActivityTelemetry.PawnKey] = pawn.GetUniqueLoadID(), [PawnActivityTelemetry.AssignmentKey] = row.Assignment,
+                    ["method"] = row.Method, [PawnActivityTelemetry.RevisionKey] = row.Revision, ["step"] = row.Step, [PawnActivityTelemetry.StateKey] = row.State,
                     ["reason"] = row.Reason, ["job_id"] = row.JobId });
         }
         private static void Fail(Exception error)

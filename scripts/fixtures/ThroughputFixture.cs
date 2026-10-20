@@ -87,51 +87,9 @@ namespace HomeBridge.BridgeTools
                     tick = Find.TickManager.TicksGame, chunksCleared = chunks.Count,
                     pawns = people.Select(p => new { id = p.GetUniqueLoadID(), name = p.LabelShort, construction = p.skills.GetSkill(SkillDefOf.Construction).Level }).ToArray(),
                     resourceDefName = ThingDefOf.Cloth.defName, stackSize = 25,
-                    storageCells = storageCells.Select(c => new { x = c.x, z = c.z }).ToArray(),
                     items = items.ToArray(),
                 };
             }, cancellationToken).ConfigureAwait(false);
-        }
-
-        // Outcome read for the speed matrix. Cells are "x:z" lists so the same
-        // read works after a reload, which mints a new game object; identity
-        // is checked from the arguments instead of a prepared-game static.
-        [Tool("test/throughput_control", Description = "UNSAFE FOR MODEL EXECUTION. Private staged-fixture read: Cloth stacks and units on the given storage cells and elsewhere on the map, and the colony's built walls and wall frames map-wide (the stage places no blueprint, so every one is a room the brain planned). Never mutates.")]
-        public async Task<object> Control(IRimBridgeContext ctx, CancellationToken cancellationToken,
-            string colonyId, string loadToken, int mapId, string storageCells = "")
-        {
-            return await ctx.MainThread.InvokeAsync<object>(() => {
-                var map = Find.CurrentMap; var identity = Current.Game?.GetComponent<ColonyIdentity>();
-                if (map == null || identity == null || identity.ColonyId != colonyId || identity.LoadToken != loadToken || map.uniqueID != mapId)
-                    return Refuse("Colony/load/map identity changed.");
-                var storage = ParseCells(storageCells);
-                if (storage == null) return Refuse("Cells must be x:z lists.");
-                var stored = new HashSet<IntVec3>(storage);
-                var cloth = map.listerThings.ThingsOfDef(ThingDefOf.Cloth).Where(t => t.Spawned).ToList();
-                var inStorage = cloth.Where(t => stored.Contains(t.Position)).ToList();
-                var loose = cloth.Where(t => !stored.Contains(t.Position)).ToList();
-                var player = Faction.OfPlayerSilentFail;
-                var built = map.listerThings.ThingsOfDef(ThingDefOf.Wall).Count(t => t.Spawned && t.Faction == player);
-                var frames = map.listerThings.ThingsInGroup(ThingRequestGroup.BuildingFrame).OfType<Frame>()
-                    .Count(f => f.def.entityDefToBuild == ThingDefOf.Wall && f.Faction == player);
-                return new { success = true, tick = Find.TickManager.TicksGame, paused = Find.TickManager.Paused,
-                    storedStacks = inStorage.Count, storedUnits = inStorage.Sum(t => t.stackCount),
-                    looseStacks = loose.Count, looseUnits = loose.Sum(t => t.stackCount),
-                    carriedUnits = map.mapPawns.FreeColonistsSpawned.Sum(p => p.carryTracker?.CarriedThing?.def == ThingDefOf.Cloth ? p.carryTracker.CarriedThing.stackCount : 0),
-                    wallsBuilt = built, wallFrames = frames };
-            }, cancellationToken).ConfigureAwait(false);
-        }
-
-        private static List<IntVec3> ParseCells(string list)
-        {
-            var cells = new List<IntVec3>();
-            if (string.IsNullOrWhiteSpace(list)) return cells;
-            foreach (var part in list.Split(',')) {
-                var xz = part.Trim().Split(':');
-                if (xz.Length != 2 || !int.TryParse(xz[0], out var x) || !int.TryParse(xz[1], out var z)) return null;
-                cells.Add(new IntVec3(x, 0, z));
-            }
-            return cells;
         }
 
         private static object Refuse(string reason) => new { success = false, reason };

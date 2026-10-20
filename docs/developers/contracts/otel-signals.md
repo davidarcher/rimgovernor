@@ -309,7 +309,7 @@ The [pawn activity contract](../architecture/pawn-activity.md) owns these event 
 
 | Kind | Payload | Reader |
 | --- | --- | --- |
-| pawn_activity_execution | pawn, assignment, method, revision, step, state, reason, job_id; authorization/offer/start/termination are distinct | OTLP timeline; pawn observations ActivityExecution; control/pawn-activities |
+| pawn_activity_execution | pawn, assignment, method, revision, step, state, reason, job_id; authorization/offer/start/termination are distinct | OTLP timeline; pawn observations ActivityExecution; control/pawn-activities; speed matrix `completed_tasks` (`SpeedMatrix.CompletedTasks`) |
 | pawn_activity_interval | sequence, world (colony/load/map), pawn, start_tick, end_tick, job, job_id, phase, activity, purpose, targets, start_location, end_location, end_reason, nullable method/assignment | RimGovernor.cmd pawnactivity; observations/pawn-activity |
 | pawn_activity_output | colony, load, nullable map/pawn/job_id, source, output_kind, resource, units, tick; observed production-site output, not job success or storage delivery | OTLP timeline; observations/pawn-activity |
 | pawn_activity_fault | error; subsequent observations stop and report as missing time | OTLP timeline; pawnactivity gaps |

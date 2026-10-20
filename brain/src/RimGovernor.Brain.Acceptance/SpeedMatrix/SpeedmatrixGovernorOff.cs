@@ -9,8 +9,8 @@ internal sealed partial class SpeedmatrixRun
     // row's speed (Hyperfast, the boost native caps at 30x) with no controller attached, until the tick has
     // advanced by the budget. The harness's own tick reads pace the wait; there is nothing else to wait on. Its metrics
     // row carries wall TPS and the tick budget under the same keys as a governed row, zeros for the governor's counters,
-    // and governor_off so a reader tells the rows apart. Nothing submits plans, so the row records its native counters
-    // but takes no part in the outcome comparison; it still requires healthy colonists and a fresh stage.
+    // and governor_off so a reader tells the rows apart. Nothing selects its colonists' work, so it takes no part in the
+    // outcome check; it still requires healthy colonists.
     private async Task RunGovernorOffAsync(SpeedCase c, CancellationToken cancellationToken)
     {
         var output = Path.Combine(_config.Output, c.Name);
@@ -40,7 +40,7 @@ internal sealed partial class SpeedmatrixRun
         _ = await h.PauseClockAsync("pause", cancellationToken).ConfigureAwait(false);
         var identity = await ReadIdentityAsync(h, cancellationToken).ConfigureAwait(false);
         report["frozen_needs"] = (await Needs.FreezeNeedsAsync(h, null, [], cancellationToken).ConfigureAwait(false)).DeepClone();
-        var startTick = await FreshStageTickAsync(h, identity, report, cancellationToken).ConfigureAwait(false);
+        var startTick = await ReadTickAsync(h, "start-tick", cancellationToken).ConfigureAwait(false);
         var accountingStart = await ClockAccounting.ReadAsync(h, "clock-accounting-start", cancellationToken).ConfigureAwait(false);
         _ = await h.SetTimeSpeedAsync("play", new() { Speed = c.Speed }, cancellationToken).ConfigureAwait(false);
         var resumedAt = DateTimeOffset.UtcNow;
@@ -84,11 +84,7 @@ internal sealed partial class SpeedmatrixRun
         // No supervisor runs on this row, so native's pause account holds whatever its own transitions recorded (none).
         var clock = new ClockSample();
         clock.Account(accountingStart, await ClockAccounting.ReadAsync(h, "clock-accounting-end", cancellationToken).ConfigureAwait(false));
-        var after = await ControlAsync(h, identity, "control-after", cancellationToken).ConfigureAwait(false);
-        report["control_after"] = after.DeepClone();
-        var healthy = await ClockFixture.RequireHealthyColonistsAsync(h, "pawns-after", identity, cancellationToken).ConfigureAwait(false);
-        var outcome = SpeedMatrix.OutcomeFromControl(c.Name, after) with { HealthyColonists = healthy };
-        report["outcome"] = outcome.ToJson();
+        report["healthy_colonists"] = await ClockFixture.RequireHealthyColonistsAsync(h, "pawns-after", identity, cancellationToken).ConfigureAwait(false);
         var wallTps = wallSeconds > 0 && lastTick > startTick ? (lastTick - startTick) / wallSeconds : 0.0;
         var metrics = OutputJson.Fields(
             ("case", c.Name),

@@ -26,6 +26,9 @@ public static class TelemetryKinds
     /// <summary>One pawn activity interval (<see cref="PawnActivityTelemetry.IntervalKind"/>).</summary>
     public static readonly TelemetryKind PawnActivityInterval = new(PawnActivityTelemetry.IntervalKind);
 
+    /// <summary>One change of an installed order's execution (<see cref="PawnActivityTelemetry.ExecutionKind"/>).</summary>
+    public static readonly TelemetryKind PawnActivityExecution = new(PawnActivityTelemetry.ExecutionKind);
+
     /// <summary>One observed production-site output (<see cref="PawnActivityTelemetry.OutputKind"/>).</summary>
     public static readonly TelemetryKind PawnActivityOutput = new(PawnActivityTelemetry.OutputKind);
 
