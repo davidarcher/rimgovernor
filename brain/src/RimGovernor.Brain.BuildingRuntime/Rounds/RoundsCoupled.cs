@@ -238,7 +238,9 @@ public sealed partial class Rounder
         {
             ["raids_per_day"] = detail.RaidsPerDay, ["exposure_range"] = new[] { detail.ExposureLo, detail.ExposureHi },
             ["down_probability"] = detail.DownProbability, ["death_probability"] = detail.DeathProbability, ["cvar"] = detail.Cvar,
-        } : null, ["investment"] = Number(value.Ledger.Investment), ["goals"] = Number(value.Ledger.Goals),
+        } : null, ["investment"] = Number(value.Ledger.Investment),
+        ["investment_contributions"] = value.Ledger.InvestmentContributions.Select(c => new Dictionary<string, object?> { ["activity"] = c.Activity, ["pawn"] = c.Pawn, ["key"] = c.Key, ["units"] = c.Units, ["value"] = c.Value }).ToArray(),
+        ["goals"] = Number(value.Ledger.Goals),
         ["goal_contributions"] = value.Ledger.GoalContributions.Select(c => new Dictionary<string, object?> { ["goal"] = c.Goal, ["progress"] = c.Progress, ["worth"] = c.Worth, ["value"] = c.Value }).ToArray(),
         ["unknown"] = value.Ledger.Findings.ToArray(),
         ["floors"] = new Dictionary<string, object?>

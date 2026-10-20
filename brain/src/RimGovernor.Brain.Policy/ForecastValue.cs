@@ -125,8 +125,15 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
     /// <summary>What the harm term found unassessed or qualified (a subset of <see cref="Findings"/>).</summary>
     public EquatableArray<string> HarmFindings { get; init; }
 
-    /// <summary>Capability added after completion (#3531): negative (a gain) by the credit of the progress the outcome schedules on projects tier 2 valued, 0 with none.</summary>
+    /// <summary>
+    /// Capability added after completion, in tier 2's marginal values (#3531, #3636): negative (a gain) by the progress the outcome
+    /// schedules on projects and the skill XP its work applies, positive by the medicine it consumes; the sum of
+    /// <see cref="InvestmentContributions"/>, 0 with none.
+    /// </summary>
     public Fact<double> Investment { get; init; }
+
+    /// <summary>Each allocation's rows behind <see cref="Investment"/>: the tier-2 key, the units moved and their loss.</summary>
+    public EquatableArray<ForecastInvestmentContribution> InvestmentContributions { get; init; }
 
     /// <summary>The player's goals the outcome progresses inside the horizon, in capability-days: negative (a gain) by the goals' worth times their progress (#3503). Known, 0 with no goal progressed.</summary>
     public Fact<double> Goals { get; init; } = Known(0d);
@@ -153,6 +160,10 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
         return shared ? Known(delta) : default;
     }
 }
+
+/// <summary>One row of an outcome's Investment term (#3636): what an allocation moves of a tier-2 key (project progress, applied skill
+/// XP, medicine consumed) and its loss in capability-days, negative for a gain.</summary>
+public sealed record ForecastInvestmentContribution(string Activity, string Pawn, string Key, double Units, double Value);
 
 /// <summary>One safety floor of an outcome: whether it could be assessed, and by how much it is broken (0 when it holds).</summary>
 public readonly record struct ForecastFloor(bool Assessed, double Excess)
@@ -211,6 +222,8 @@ public static partial class ForecastValue
         public readonly Dictionary<(string, string), ForecastNeedTask> RawEats = context.NeedTasks
             .Where(n => n.Kind == "food" && context.CookedNutritionRatio.ContainsKey(n.Resource))
             .GroupBy(n => (n.Task, n.Pawn)).ToDictionary(g => g.Key, g => g.First());
+        public readonly Dictionary<string, ForecastActivity> Activities = context.Activities.Activities.GroupBy(a => a.Id, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         public readonly bool Malnutrition = context.CapacityPenalties.Malnutrition.Valid();
         public readonly bool FoodPoisoning = context.CapacityPenalties.FoodPoisoning.Valid();
         public readonly bool Thermal = context.CapacityPenalties.Hypothermia.Valid() && context.CapacityPenalties.Heatstroke.Valid();
@@ -325,21 +338,22 @@ public static partial class ForecastValue
         var harmTerm = HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments);
         findings.UnionWith(harmTerm.Findings);
         var harm = harmTerm.Loss;
-        var progress = ProgressOf(outcome, context);
+        var progress = ProgressOf(outcome, context, index);
         var contributions = GoalContributionsOf(progress, context, commitments ?? []);
         double earned = 0;
         foreach (var contribution in contributions) earned += contribution.Value;
         var goals = Known(-earned);
-        double credit = 0;
-        foreach (var (project, units) in progress) credit += units * context.Investment.GetValueOrDefault(project);
-        var investment = Known(-credit);
+        var investmentRows = InvestmentOf(outcome, context, index);
+        double invested = 0;
+        foreach (var row in investmentRows) invested += row.Value;
+        var investment = Known(invested);
         var total = hunger.IsKnown && rest.IsKnown && rawIngredients.IsKnown && poisoning.IsKnown && thermal.IsKnown && breaks.IsKnown && wellbeing.IsKnown && harm.IsKnown
             ? Known(hunger.Value + rest.Value + rawIngredients.Value + poisoning.Value + thermal.Value + breaks.Value + wellbeing.Value + harm.Value + goals.Value + investment.Value) : default;
         if (!total.IsKnown) findings.Add("capability_value_unassessed");
         return new(total, EquatableArray.From(findings))
         {
             Hunger = hunger, Rest = rest, RawIngredients = rawIngredients, FoodPoisoning = poisoning, Thermal = thermal, MoodBreaks = breaks, Wellbeing = wellbeing,
-            Harm = harm, HarmDetail = harmTerm.Detail, HarmFindings = EquatableArray.From(harmTerm.Findings), Investment = investment, Goals = goals, GoalContributions = EquatableArray.From(contributions),
+            Harm = harm, HarmDetail = harmTerm.Detail, HarmFindings = EquatableArray.From(harmTerm.Findings), Investment = investment, InvestmentContributions = EquatableArray.From(investmentRows), Goals = goals, GoalContributions = EquatableArray.From(contributions),
         };
     }
 
@@ -383,14 +397,44 @@ public static partial class ForecastValue
     }
 
     /// <summary>The progress the outcome's scheduled work makes on each project (research points, cells sown), by <see cref="ForecastProjectProgress.Project"/>.</summary>
-    private static Dictionary<string, double> ProgressOf(ForecastCoupledOutcome outcome, ForecastCoupledContext context)
+    private static Dictionary<string, double> ProgressOf(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index)
     {
         var progress = new Dictionary<string, double>(StringComparer.Ordinal);
-        if (context.GoalValues.Count == 0 && context.Investment.Count == 0) return progress;
+        if (context.GoalValues.Count == 0) return progress;
         foreach (var allocation in outcome.Plan.Allocations)
-            if (context.Activities.Activities.FirstOrDefault(a => a.Id == allocation.Activity)?.ProjectProgress is { } work)
+            if (index.Activities.GetValueOrDefault(allocation.Activity)?.ProjectProgress is { } work)
                 progress[work.Project] = progress.GetValueOrDefault(work.Project) + allocation.WorkTicks * work.PointsPerTick;
         return progress;
+    }
+
+    /// <summary>
+    /// The rows of the Investment term, per allocation and tier-2 key it moves (<see cref="ForecastCoupledContext.Investment"/>), as a
+    /// loss: project progress (research points, cells sown) and the XP its learning callback applies to the pawn's skill stock
+    /// (<see cref="ProjectGraph.SkillKey"/>; #3636) are gains, negative; each medicine kind it consumes (<see cref="ProjectGraph.MedicineKey"/>)
+    /// is charged, positive. XP is what <see cref="ForecastSkillPolicy.ForecastSkill"/> applies after the learning factors and saturation,
+    /// the unit tier 2 perturbs the stock by. A key tier 2 did not value adds no row.
+    /// </summary>
+    private static List<ForecastInvestmentContribution> InvestmentOf(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index)
+    {
+        var rows = new List<ForecastInvestmentContribution>();
+        if (context.Investment.Count == 0) return rows;
+        void Add(ForecastActivityAllocation allocation, string key, double units, double sign)
+        {
+            if (units > 0 && context.Investment.TryGetValue(key, out var perUnit)) rows.Add(new(allocation.Activity, allocation.Pawn, key, units, sign * units * perUnit));
+        }
+
+        foreach (var allocation in outcome.Plan.Allocations)
+        {
+            var activity = index.Activities.GetValueOrDefault(allocation.Activity);
+            if (activity?.ProjectProgress is { } work) Add(allocation, work.Project, allocation.WorkTicks * work.PointsPerTick, -1);
+            if (allocation.Learning is { } learning && learning.After.AppliedGain.TryGetValue(out var after) && learning.Before.AppliedGain.TryGetValue(out var before))
+                Add(allocation, ProjectGraph.SkillKey(allocation.Pawn, learning.Skill), after - before, -1);
+            if (activity is null) continue;
+            foreach (var input in activity.Inputs)
+                if (input.Units.TryGetValue(out var units)) Add(allocation, ProjectGraph.MedicineKey(input.Resource), units, 1);
+        }
+
+        return rows;
     }
 
     /// <summary>

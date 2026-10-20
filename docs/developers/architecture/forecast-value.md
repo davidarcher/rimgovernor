@@ -6,7 +6,7 @@
 Tier-1 selection ranks on the safety floors, then on capability-days ([Comparator](#comparator) describes what runs).
 `ForecastValue.Of` (#3520, #3521) prices hunger, rest, food poisoning, thermal exposure, mood breaks and
 wellbeing per outcome; `ForecastValue.Explain` (#3522) adds the floors; `coupled_selection` reports both ([policy constants](../contracts/kept-constants.md#policy-constants-3469),
-[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm (#3546, [harm model](#harm-model)) is priced when the harm inputs are observed and the exposure table has a calibrated cell for the colony, else unknown with a specific finding (three cells are calibrated today); investment is the tier-2 credit of research and sowing blocks ([Marginal value of progress](#tier-2-event-driven-colony-model)), 0 for any other outcome. The player's goals add a gain term ([Goal value](#goal-value), #3503).
+[tables](../contracts/forecast-contracts.md#capacity-penalty-tables-and-per-pawn-capacities)); harm (#3546, [harm model](#harm-model)) is priced when the harm inputs are observed and the exposure table has a calibrated cell for the colony, else unknown with a specific finding (three cells are calibrated today); investment is the tier-2 credit of research and sowing blocks and of the skill XP work applies, less the medicine it consumes ([Marginal value of progress](#tier-2-event-driven-colony-model)), 0 for any other outcome. The player's goals add a gain term ([Goal value](#goal-value), #3503).
 The tier-2 model's input (`ColonyModelInput`, assembled per review by `RoundsColonyModel.InputOf` from the review frame, #3523) exists and names
 each section the frame did not carry. The model runs once per review, before the comparison (`RoundsColonyModel.Review`): the engine, the project graph and the
 valuation are in `Policy/ColonyModel`, and the `colony_model` event reports each run.
@@ -96,7 +96,7 @@ exchange rates are mechanical, not chosen:
 | Mood | Break risk × expected days lost to the break, including the harm and labor of its kind. Mood changes no work speed directly. |
 | Death | Remaining capability-days to the horizon, plus `DeathTerminalValue`. |
 | Labor | Hours spent are hours not available for other work. This is already in the schedule. |
-| Investment | Capability added after completion, from tier 2: the work's progress times the project's marginal value. A gain, so a negative loss like the goals term. |
+| Investment | Capability added after completion, from tier 2: the work's progress (project progress, applied skill XP) times its marginal value, a gain, so a negative loss like the goals term; less the medicine the work consumes at its marginal value. |
 
 **Exhaustion collapse (#3598).** Rest changes no capacity and no work speed in 1.7; its mood thoughts are priced
 below. What exhaustion costs is the involuntary sleep (`Need_Rest.ShouldInvoluntarySleepFromMTB`): once a pawn has
@@ -312,7 +312,8 @@ so a later, stronger garment counts only its upgrade over the earlier one and a 
 and a pawn whose severity reaches lethal costs the rest of the horizon plus `DeathTerminalValue`. A crop that cannot mature
 changes nothing, so it is worth nothing. Tier 1 reads the value per progress unit (research point, cell sown) from
 `ForecastCoupledContext.Investment`, keyed by `ForecastProjectProgress.Project`, and `ForecastValue.Of` writes
-`-(work ticks × progress per tick × value per unit)` to the `Investment` term, which `coupled_selection.value.terms.investment` logs.
+`-(work ticks × progress per tick × value per unit)` to the `Investment` term, which `coupled_selection` logs as the value's `investment`,
+one `investment_contributions` row per allocation and key.
 In a real review (`ProjectGraph.Standing`, #3559) the graph is the current research chain and each standing field's crop from sowing to
 harvest. A crop's sowing waits on the research its plant def names (`CropChoice.Research`, the catalog's sowing prerequisites: Devilstrand,
 TreeSowing), so an unfinished one is a research node the sowing depends on. Then the herds are hunted (above), and last come the garment
@@ -344,6 +345,13 @@ best potency first, and both the surgeries and raid tending (`ColonyModelPolicy.
 per treatment) use up the best kind first. `ProjectMarginalValue` perturbs each pawn's stock of a practised skill by an hour of that
 practice's raw XP and each medicine kind by one unit, writing value per XP and per unit to `PerUnit` under the stock key and
 `medicine/<kind>`. `ColonyValue` prices neither skills nor medicine yet, so both marginals are 0 until a consumer reads them.
+
+*Skill and medicine credit in tier 1 (#3636).* Skill progress is capability, valued through forecast demand only
+([skill learning](../contracts/skill-learning.md#skill-progress-is-capability)). An allocation whose learning evidence (tend, surgery,
+cooking) moves a stock tier 2 valued gains `-(applied XP × value per XP)` under `skill/<pawn>/<skill>`: the XP is the gain
+`ForecastSkill` applies for that callback (after learning factors and saturation), the unit the perturbation adds to the stock. Each
+input an allocation consumes that tier 2 holds as a medicine kind is charged `+(units × value per unit)` under `medicine/<kind>`. Real
+work and practice earn the same credit per XP; a key without a marginal adds nothing, so with no marginals the term is unchanged.
 
 *Goal terminals (#3505).* `GoalPaths.Of` turns an unmet goal into a terminal of that graph: a research goal is the project's research
 chain, a `WornCount` goal the sow, grow, harvest and craft chain of its stuff (the crop's research gates, the garment's recipe, one

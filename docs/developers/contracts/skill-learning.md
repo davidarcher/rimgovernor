@@ -69,9 +69,10 @@ schedule interval: previous completed callbacks and native decay determine the
 stored level and the native work rate for subsequent work. Decay boundaries split
 work into segments. Completion-only recipe learning counts actual work ticks once;
 travel and waiting earn no XP. Changed durations therefore affect pawn and station
-occupancy, deadlines, ingredient use and the downstream needs trajectory. XP and
-terminal skill have no utility score. A small efficiency improvement can break a
-labor tie only after the existing higher-tier consequences are compared.
+occupancy, deadlines, ingredient use and the downstream needs trajectory. The XP
+itself is valued only as capability ([skill progress is capability](#skill-progress-is-capability)).
+A small efficiency improvement can break a labor tie only after the existing
+higher-tier consequences are compared.
 
 The recipe's work-speed stat at each stored level comes from the generic
 [stat-at-level read](#stat-at-level-read), times the observed station speed. Unsupported
@@ -88,8 +89,8 @@ capacity; later reviews refresh evidence.
 The supported investment demand is scheduled ingestion. Every preceding recipe
 whose learning is used to claim a later speedup must have output that actually
 supplies food gain in the shared needs trajectory. Unavoidable native batch remainder
-stays inventory. Ordinary production and terminal incidental learning need no separate
-mandate; speculative reserve learning receives no additional value. Each produced
+stays inventory. Ordinary production and incidental learning need no separate
+mandate; the XP they apply is valued as capability like any other. Each produced
 lot can serve bounded early/later hunger events, with shared conservation preventing
 double consumption. No recipe unlock or current essential-service failure is required.
 
@@ -127,12 +128,31 @@ stay unknown.
 
 Each tend allocation carries `TendLearning`: `Toils_Tend.FinalizeTend` pays raw XP
 once per completed treatment, before and whatever its quality, depending on the
-patient (humanlike or animal) and medicine, not on skill. Tend learning is evidence
-only: the observed tend duration is always kept, and an unprojectable callback
+patient (humanlike or animal) and medicine, not on skill. Tend learning never changes
+the schedule: the observed tend duration is always kept, and an unprojectable callback
 (outside the window, or after the work starts) yields no evidence with a finding.
 Neither medical allocation sets `ProductiveWorkTicks`, which stays a recipe-task
 bound. `lab/skill-learning-tend` and `lab/skill-learning-surgery` check both native
 callbacks against the projection.
+
+## Skill progress is capability
+
+Skill progress is valued as capability, through forecast demand only, for every
+skill (#3344). There are no skill targets, floors or hand-set prices per XP. The
+tier-2 colony model keeps a stock per pawn and practised skill (`skill/<pawn>/<skill>`)
+and gives a value per XP: how much earlier level dates raise what the colony's demand
+for that skill is worth ([forecast value](../architecture/forecast-value.md#tier-2-event-driven-colony-model)).
+Tier 1 credits each allocation's learning evidence in the `Investment` term (#3636):
+the XP `ForecastSkill` applies (after learning factors and saturation, the gain the
+callback adds, not its raw amount) times that value. Real work and practice earn the
+same credit per XP. A skill tier 2 gives no value (no stock or no demand) earns
+nothing, so XP never wins a comparison on its own. Medicine is the first skill with
+a demand (raid tending); medicine the work consumes is charged by kind in the same
+term.
+
+[Assigned capability maintenance](capability-maintenance.md) is a separate path:
+its `MissingXp` against a held role's requirement stays the requirement route for
+those roles and is not priced by this credit.
 
 ## Stat-at-level read
 
