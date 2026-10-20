@@ -344,7 +344,8 @@ public sealed partial class Rounder
     internal async Task<(LayoutInputs Inputs, RoomGrowth Growth, StationFacts Facts)> LayoutInputsOfAsync(GenerationSnapshot snapshot, ColonyProjection projection, HeldLayout layout, MapSurvey survey, string grown, int pawns, IReadOnlyList<PowerGeyser> geysers, CancellationToken ct)
     {
         var growth = await RoomGrowthAsync(snapshot, projection, layout.Plan, Stockpiles.LayoutDemand(RoundsStockpilePlanner.StockpileWorld(snapshot)), ct).ConfigureAwait(false);
-        var (facts, station) = StationInputsOf(snapshot, projection, layout.Plan, growth, survey);
+        var bedMerge = await BedMergeFactsAsync(snapshot, projection, ct).ConfigureAwait(false);
+        var (facts, station) = StationInputsOf(snapshot, projection, layout.Plan, growth, survey, bedMerge);
         var key = string.Create(CultureInfo.InvariantCulture, $"{grown} {pawns} {string.Join(",", geysers)} {growth} {station.Key}");
         var parts = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -486,7 +487,7 @@ public sealed partial class Rounder
         var colonists = (int)pawns;
         var start = DateTimeOffset.UtcNow;
         var f = StationFactsBuilder.FirstPlanFacts(projection, survey, StationNeeds(demandWorld), WorkLedgerView());
-        f = f with { Crops = FieldCrops.Of(projection), FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays };
+        f = f with { Crops = FieldCrops.Of(projection), FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays, BedMerge = await BedMergeFactsAsync(snapshot, projection, ct).ConfigureAwait(false) };
         Fact<LayoutPlan> fact = default;
         StationAdvice advice = new();
         Exception? error = null;

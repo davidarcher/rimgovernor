@@ -440,7 +440,7 @@ public static partial class LayoutRegroupRules
                 {
                     refused[PairKey(m.A, m.B)] = MoveDecision(m, cur, t, RegroupKept, ReasonRegroupFilthKept);
                 }
-                if (Unplaceable(t.Clustering.Groups) > Unplaceable(cur.Clustering.Groups) || t.Signature() == cur.Signature() || !t.Better(cur) || (best is not null && !t.Better(best)))
+                if (t.Signature() == cur.Signature() || !t.Better(cur) || (best is not null && !t.Better(best)))
                 {
                     continue;
                 }
@@ -474,9 +474,6 @@ public static partial class LayoutRegroupRules
         }
         return cur.Result(decisions);
     }
-
-    /// <summary>Counts the groups the clustering may not form (ClusterPlaceable: a barracks), so no move may add one.</summary>
-    private static int Unplaceable(IReadOnlyList<RoomGroup> groups) => groups.Count(g => !LayoutClusterRules.ClusterPlaceable(g));
 
     /// <summary>The move m taking the grouping from to to.</summary>
     private static RegroupDecision MoveDecision(RegroupProposal m, RegroupTrial from, RegroupTrial to, string verdict, string reason) =>

@@ -9,8 +9,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// A barracks the plan holds (#3654): a station group planned as one tiles to one room with a bed slot per bed, the
-/// bedroom step owes it a bed per slot and counts its sleepers housed, the clustering still never forms one, and the
-/// role saves under its wire name.
+/// bedroom step owes it a bed per slot and counts its sleepers housed, its planned occupants are the sleepers the step
+/// bunks there (#3658), and the role saves under its wire name.
 /// </summary>
 public sealed class PlannedBarracksTests
 {
@@ -40,11 +40,11 @@ public sealed class PlannedBarracksTests
         },
     };
 
-    private static RoomGroup BarracksGroup(PlannedRole planned) => new()
+    private static RoomGroup BarracksGroup => new()
     {
         Id = 0,
         Role = RoomRole.Barracks,
-        Planned = planned,
+        Planned = PlannedRole.Barracks,
         Stations = [new GroupStation("bed", Bed, StationPurpose.Sleep, 3)],
     };
 
@@ -57,7 +57,7 @@ public sealed class PlannedBarracksTests
     [Fact]
     public void AGroupOfThreeBedsPlannedAsABarracksTilesToOneBarracksWithEveryBedReachable()
     {
-        var group = BarracksGroup(PlannedRole.Barracks);
+        var group = BarracksGroup;
         Assert.Equal((PlannedRole.Barracks, true), LayoutTileRules.PlannedRoleOfGroup(group));
         var survey = OpenMap();
         var tiled = LayoutTileRules.TileEmbedding(new TileInput
@@ -106,13 +106,6 @@ public sealed class PlannedBarracksTests
     }
 
     private static IEnumerable<Cell> Neighbours(Cell c) => [new(c.X + 1, c.Z), new(c.X - 1, c.Z), new(c.X, c.Z + 1), new(c.X, c.Z - 1)];
-
-    [Fact]
-    public void TheClusteringStillNeverFormsABarracksItHasNotPlanned()
-    {
-        Assert.False(LayoutClusterRules.ClusterPlaceable(BarracksGroup(PlannedRole.None)));
-        Assert.True(LayoutClusterRules.ClusterPlaceable(BarracksGroup(PlannedRole.Barracks)));
-    }
 
     // A shelter for two and a 5x4 barracks whose three tiled bed slots stand along its north wall.
     private static readonly PlannedRoom Shelter = new() { Id = 1, Role = LayoutSurveyRules.PlannedShelter, Region = RegionRules.RectRegion(new Rectangle(0, 0, 5, 5)) };
@@ -184,7 +177,8 @@ public sealed class PlannedBarracksTests
     }
 
     /// <summary>#3655: the occupant walk follows the step's order, so a bedroom planned before the barracks gets the first
-    /// unhoused colonist, and one planned after a barracks that seats everyone gets nobody.</summary>
+    /// unhoused colonist, and one planned after a barracks that seats everyone gets nobody; the barracks' occupants are the
+    /// colonists it seats (#3658).</summary>
     [Fact]
     public void APlannedBedroomsOccupantIsTheUnhousedColonistTheStepWouldMoveIn()
     {
@@ -194,7 +188,9 @@ public sealed class PlannedBarracksTests
 
         var first = SleepingRules.PlannedBedroomOccupants(Plan with { Rooms = [Shelter, bedroom, Barracks] }, rooms, sleeping, null);
         Assert.Equal(["a"], Assert.Single(first, r => r.Key == 3).Value.ToArray());
-        Assert.Empty(SleepingRules.PlannedBedroomOccupants(Plan with { Rooms = [Shelter, Barracks, bedroom] }, rooms, sleeping, null));
+        Assert.Equal(["b"], Assert.Single(first, r => r.Key == Barracks.Id).Value.ToArray());
+        var seated = Assert.Single(SleepingRules.PlannedBedroomOccupants(Plan with { Rooms = [Shelter, Barracks, bedroom] }, rooms, sleeping, null));
+        Assert.Equal((Barracks.Id, "a,b"), (seated.Key, string.Join(",", seated.Value)));
     }
 
     [Fact]

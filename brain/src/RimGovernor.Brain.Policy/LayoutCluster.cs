@@ -70,6 +70,9 @@ public sealed record ClusterInput
 
     /// <summary>Per-pair overrides of the merge, set by the layout search (Regroup). The seed with none is the conservative clustering.</summary>
     public IReadOnlyList<NodePair> Pairs { get; init; } = [];
+
+    /// <summary>The bed merge's price (#3658): the free-bed pool's barracks size is chosen by it. Null keeps every bed single.</summary>
+    public BedMergePrice? BedMerge { get; init; }
 }
 
 /// <summary>A per-pair override of the merge.</summary>
@@ -303,6 +306,9 @@ internal sealed class GroupEval
     /// <summary>The floor of the standing suite (StationNode.Kept).</summary>
     public int Kept { get; set; }
 
+    /// <summary>The group holds beds of the free-bed pool (the Sleep node that is no suite), whose merge the split prices (#3658).</summary>
+    public bool FreeBeds { get; set; }
+
     public IReadOnlyList<ConflictCost> Costs { get; set; } = [];
 
     public List<LostRoleEffect> Effects { get; } = [];
@@ -349,7 +355,8 @@ internal sealed class GroupEval
 
     /// <summary>
     /// The planned room a group's contents decide over what the game predicts: a closet of filth stations the
-    /// game reads as a kitchen (the butcher table scores as one) is the butchery. None when the prediction stands.
+    /// game reads as a kitchen (the butcher table scores as one) is the butchery, and beds the game scores a barracks
+    /// are the planned barracks the priced bed merge chose (#3658). None when the prediction stands.
     /// </summary>
     public PlannedRole PlannedRole()
     {
@@ -361,11 +368,12 @@ internal sealed class GroupEval
         {
             return Policy.PlannedRole.Butchery;
         }
+        if (Role == RoomRole.Barracks)
+        {
+            return Policy.PlannedRole.Barracks;
+        }
         return Policy.PlannedRole.None;
     }
-
-    /// <summary>Reports a group the clustering may form (LayoutClusterRules.ClusterPlaceable).</summary>
-    public bool Placeable() => LayoutClusterRules.ClusterPlaceable(new RoomGroup { Role = Role, Planned = PlannedRole(), Requires = Requires() });
 }
 
 public static partial class LayoutClusterRules
@@ -400,16 +408,8 @@ public static partial class LayoutClusterRules
     /// <summary>A target-sized bedroom (StationNode.Floor) is its own room; no rule merges it with a barracks or another bedroom (#2939).</summary>
     public const string ReasonClusterSuite = "cluster_suite_own_room";
 
-    /// <summary>The merged room would be one the clustering may not form (ClusterPlaceable: several beds read as a barracks), which the tiler cannot place (#3017); no pair rule joins them.</summary>
-    public const string ReasonClusterNoRoom = "cluster_no_planned_room";
-
-    /// <summary>
-    /// Whether the clustering may form g: a planned room carries it (PlannedRoleOfGroup), and a group the game scores
-    /// a barracks only when it is planned as one. The clustering prices no bed merge (#3658), so beds it would join
-    /// into a barracks stay apart; a barracks reaches the plan only as a group whose Planned is Barracks.
-    /// </summary>
-    internal static bool ClusterPlaceable(RoomGroup g) =>
-        (g.Role != RoomRole.Barracks || g.Planned == PlannedRole.Barracks) && LayoutTileRules.PlannedRoleOfGroup(g).Ok;
+    /// <summary>Both rooms hold free beds: their merge is the barracks size the split priced (#3658, ReasonClusterBedMerge), so no pair joins them.</summary>
+    public const string ReasonClusterBedsApart = "cluster_beds_priced_apart";
 
     /// <summary>
     /// Recorded on a decision whose two parts are a cold group and a station that works in a temperature band:
@@ -643,9 +643,9 @@ public static partial class LayoutClusterRules
             {
                 d = d with { Reason = ReasonClusterFilthPriced };
             }
-            else if (!em.Placeable() && ea.Placeable() && eb.Placeable())
+            else if (ea.FreeBeds && eb.FreeBeds)
             {
-                d = d with { Reason = ReasonClusterNoRoom };
+                d = d with { Reason = ReasonClusterBedsApart };
             }
             else if (em.Area > c.MaxArea)
             {
@@ -989,7 +989,7 @@ public static partial class LayoutClusterRules
 /// <summary>A pair of units clustering may merge, by descending affinity.</summary>
 internal readonly record struct ClusterPair(int A, int B, double Weight, bool Required, string NodeA, string NodeB);
 
-internal sealed class Clusterer
+internal sealed partial class Clusterer
 {
     private readonly ClusterInput _in;
 
@@ -1097,6 +1097,7 @@ internal sealed class Clusterer
             var size = _in.Catalog.Stations[n.Def].Shape.Size;
             e.Filth = e.Filth || n.Filth;
             e.Suite = e.Suite || n.Floor > 0;
+            e.FreeBeds = e.FreeBeds || (n.Purpose == StationPurpose.Sleep && n.Floor == 0);
             e.Floor = Math.Max(e.Floor, n.Floor);
             e.Kept = Math.Max(e.Kept, n.Kept);
             e.Closet = e.Closet && n.Filth;
@@ -1221,9 +1222,16 @@ internal sealed class Clusterer
         return [.. output.OrderBy(x => x.Node, StringComparer.Ordinal).ThenBy(x => Wire.Name(x.Kind), StringComparer.Ordinal).ThenBy(x => Wire.Name(x.Role), StringComparer.Ordinal)];
     }
 
-    /// <summary>Divides a pool of count stations of node n by halves until every part is lossless and fits the area limit; a single station is never split.</summary>
+    /// <summary>
+    /// Divides a pool of count stations of node n by halves until every part is lossless and fits the area limit; a single
+    /// station is never split. The free-bed pool is split by its priced bed merge instead (#3658, BedMergeSplit).
+    /// </summary>
     public List<ClusterUnit> Split(int n, int count, List<ClusterDecision> decisions)
     {
+        if (BedMergeSplit(n, count, decisions) is { } beds)
+        {
+            return beds;
+        }
         var u = new ClusterUnit(n, count);
         var e = Eval([u]);
         var reason = string.Empty;

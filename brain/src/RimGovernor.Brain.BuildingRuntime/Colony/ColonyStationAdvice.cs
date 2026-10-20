@@ -10,10 +10,11 @@ public sealed partial class Rounder
     /// the facts' key parts and the load beside the survey. Pure and cheap; the chain itself runs once, inside the
     /// replan the inputs' drift starts (<c>StartLayoutReplan</c>), off the review's hold path.
     /// </summary>
-    internal (StationFacts Facts, LayoutInputs Inputs) StationInputsOf(GenerationSnapshot snapshot, ColonyProjection projection, LayoutPlan plan, RoomGrowth growth, MapSurvey survey)
+    internal (StationFacts Facts, LayoutInputs Inputs) StationInputsOf(GenerationSnapshot snapshot, ColonyProjection projection, LayoutPlan plan, RoomGrowth growth, MapSurvey survey, BedMergeFacts bedMerge)
     {
         var f = StationFactsBuilder.StationFactsOf(projection, plan, survey, StationNeeds(snapshot), WorkLedgerView()) with
         {
+            BedMerge = bedMerge,
             Pinned = LayoutPlan.TilePinned(plan, growth),
             ThroneArea = Known(growth.ThroneArea),
             RetireShelter = growth.RetireShelter,
@@ -29,6 +30,38 @@ public sealed partial class Rounder
             parts[name] = value;
         }
         return (f, new LayoutInputs(default, string.Create(CultureInfo.InvariantCulture, $"{snapshot.Load.Value}|{f.InputsKey()}"), survey.Bounds, [.. survey.Cells]) { Parts = parts });
+    }
+
+    /// <summary>
+    /// The bed merge's facts over the live colony (#3658): the sleepers' losses (BedroomGainFacts.BedMerge) and the
+    /// capability-days of one wall cell and one door of the shell style (ShellStyleOf), each priced by
+    /// LayoutClusterRules.ShellPiecePrice from its WorkToBuild for its stuff and cost list. A piece the catalog shows no work
+    /// or cost list for is unknown.
+    /// </summary>
+    internal async Task<BedMergeFacts> BedMergeFactsAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
+    {
+        var facts = BedroomGainFacts.Of(projection.Facts).BedMerge();
+        var style = RoundsTierStyle.ShellStyleOf(projection);
+        var wall = ShellPiece(projection, style.WallDef, style.WallStuff);
+        var door = ShellPiece(projection, style.DoorDef, style.DoorStuff);
+        var materials = new[] { wall, door }.SelectMany(p => p?.Costs ?? []).Select(a => a.Resource);
+        var values = await MaterialValuesAsync(snapshot, materials, projection.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
+        return facts with { WallCell = LayoutClusterRules.ShellPiecePrice(wall, values), Door = LayoutClusterRules.ShellPiecePrice(door, values) };
+    }
+
+    /// <summary>A shell piece's work to build and cost list in <paramref name="stuff"/> (its own for a def made from no stuff); null where the catalog shows neither.</summary>
+    private static (double Work, IReadOnlyList<Amount> Costs)? ShellPiece(ColonyProjection colony, string name, string stuff)
+    {
+        if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, name) is not { } def)
+        {
+            return null;
+        }
+        if (def.StuffOptions.Count == 0)
+        {
+            return def.WorkToBuild.TryGetValue(out var own) && def.Costs.TryGetValue(out var costs) ? (own, costs) : null;
+        }
+        return def.StuffOptions.FirstOrDefault(o => o.Stuff == stuff) is { } option && option.Stats.TryGetValue(Bridge.Contracts.StatDefNames.StatWorkToBuild, out var work)
+            ? (work, option.Costs) : null;
     }
 }
 
@@ -187,6 +220,7 @@ internal static class StationAdviceLog
             groups.Add(row);
         }
         var conflicts = new List<Dictionary<string, object?>>();
+        var bedMerge = new List<Dictionary<string, object?>>();
         var issues = new List<Dictionary<string, object?>>();
         var built = new List<Dictionary<string, object?>>();
         foreach (var d in a.Clustering.Decisions)
@@ -194,6 +228,10 @@ internal static class StationAdviceLog
             if (d.Conflict != "")
             {
                 conflicts.Add(new Dictionary<string, object?> { ["a"] = d.A, ["b"] = d.B, ["conflict"] = d.Conflict });
+            }
+            if (d.Reason.StartsWith("cluster_bed_merge", StringComparison.Ordinal))
+            {
+                bedMerge.Add(new Dictionary<string, object?> { ["node"] = d.A, ["verdict"] = d.Verdict, ["reason"] = d.Reason });
             }
         }
         foreach (var d in a.Embedding.Decisions)
@@ -270,6 +308,7 @@ internal static class StationAdviceLog
             ["edges"] = a.Graph.Edges.Count,
             ["groups"] = groups,
             ["conflicts"] = conflicts,
+            ["bed_merge"] = bedMerge,
             ["sites"] = sites,
             ["site_issues"] = siteIssues,
             ["vents"] = vents,

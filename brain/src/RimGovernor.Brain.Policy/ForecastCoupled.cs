@@ -37,9 +37,10 @@ public sealed record ForecastPlannedSite(string Site, int Room, string Stuff, Eq
     /// The planned room roles that carry a priced value of their own (#3651, #3647 decision 3): their completed units are
     /// still emitted and exempt, but no longer count as development in the ranking's late tiebreak, and their deliveries are
     /// charged the material they consume (ForecastValue.ChargedMaterialActivities, #3653). Each priced role is added here:
-    /// Bedroom, valued by the housed pawn's mood gain (ForecastValue.BedroomCredits, #3655); Barracks and the rest follow (#3650).
+    /// Bedroom, valued by the housed pawn's mood gain (ForecastValue.BedroomCredits, #3655), and Barracks, by each sleeper's
+    /// (#3658); the rest follow (#3650).
     /// </summary>
-    public static readonly IReadOnlySet<PlannedRole> PricedRoomRoles = new HashSet<PlannedRole> { PlannedRole.Bedroom };
+    public static readonly IReadOnlySet<PlannedRole> PricedRoomRoles = new HashSet<PlannedRole> { PlannedRole.Bedroom, PlannedRole.Barracks };
 }
 
 /// <summary>A planned room one schedule closes (#3655): the room, the ring stuff it closes in and the tick it closes at.</summary>

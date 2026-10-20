@@ -1059,6 +1059,14 @@ public static partial class LayoutGraphRules
 
 partial class StationGraph
 {
+    /// <summary>The graph's bed nodes alone (GraphBuilder.Sleepers): what the bed merge's price reads (#3658).</summary>
+    public static StationGraph SleepGraph(StationGraphInput input)
+    {
+        var b = new GraphBuilder(input);
+        b.Sleepers();
+        return b.Graph();
+    }
+
     /// <summary>Derives the graph from the models in input.</summary>
     public static StationGraph BuildStationGraph(StationGraphInput input)
     {

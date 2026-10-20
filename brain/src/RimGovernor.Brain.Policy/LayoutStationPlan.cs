@@ -108,6 +108,22 @@ public sealed record StationFacts
     /// </summary>
     public double? ExpectedMoodBand() => ExpectedMood.TryGetValue(out var mood) ? Math.Round(mood * 20) / 20 : null;
 
+    /// <summary>What the colony reads for the bed merge's price (#3658); its default prices no sleeper and no wall, which keeps every bed single.</summary>
+    public BedMergeFacts BedMerge { get; init; } = new();
+
+    /// <summary>
+    /// The bed merge's price (#3658): the colony's facts, the outdoor curve and the map's cold or heat, the work-day's
+    /// watts, and the bed slots of the plan's largest barracks as the incumbent.
+    /// </summary>
+    public BedMergePrice BedMergePriceOf() => new()
+    {
+        Facts = BedMerge,
+        OutdoorCurve = OutdoorCurve,
+        Harsh = Survey is { } s && (s.Cold || s.Hot),
+        WorkDayW = LayoutRegroupRules.StationWorkPrice(this).WorkDayW,
+        Incumbent = Furniture is null ? 0 : Plan.RoomsOf(PlannedRole.Barracks).Select(r => SleepingRules.BedSlotsOf(Plan, r, Furniture)?.Count ?? 0).DefaultIfEmpty(0).Max(),
+    };
+
     /// <summary>The standing rooms whose native role is not the one PredictRole gives their contents (GuardNativeRoles, #2898): a cost input and a split move of the regrouping.</summary>
     public IReadOnlyList<RoleMismatch> Mismatches { get; init; } = [];
 
@@ -300,12 +316,30 @@ public sealed record StationFacts
             parts.Add(new("crops", KeyText.Of(input.Crops)));
             parts.Add(new("suites", KeyText.Of(input.Suites)));
             parts.Add(new("pasture", KeyText.Of(input.Pasture)));
+            parts.Add(new("barracks", KeyText.Of(BarracksSize(input))));
         }
         catch (StationFactsException e)
         {
             parts.Add(new("graph", e.Message));
         }
         return parts;
+    }
+
+    /// <summary>
+    /// The barracks size the chain's clustering gives the free-bed pool (#3658, LayoutClusterRules.BarracksSizeOf over the
+    /// graph's bed nodes alone), so the replan key changes when the priced choice does and not with every drift of a loss;
+    /// null when no pool is priced or the beds cannot be clustered.
+    /// </summary>
+    private int? BarracksSize(StationGraphInput input)
+    {
+        try
+        {
+            return LayoutClusterRules.BarracksSizeOf(new ClusterInput { Graph = StationGraph.SleepGraph(input), Catalog = Catalog, RoofDistance = RoofDistance, BedMerge = BedMergePriceOf() })?.Size;
+        }
+        catch (DomainException)
+        {
+            return null;
+        }
     }
 
     /// <summary>Tiles the embedding of the advice: what the tiler reads of the advice and the facts.</summary>
@@ -570,7 +604,7 @@ public static partial class LayoutStationPlanRules
         var built = LayoutPlan.BuiltRegions(f.Plan, f.StandingIds()!).Select(b => b with { Pinned = f.Pinned.Contains(b.Room) }).ToList();
         var regrouped = LayoutRegroupRules.Regroup(new RegroupInput
         {
-            Cluster = new ClusterInput { Graph = graph, Catalog = f.Catalog, RoofDistance = f.RoofDistance },
+            Cluster = new ClusterInput { Graph = graph, Catalog = f.Catalog, RoofDistance = f.RoofDistance, BedMerge = f.BedMergePriceOf() },
             Embed = new EmbedInput
             {
                 Zones = f.Plan.Zones,

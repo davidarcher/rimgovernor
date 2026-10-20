@@ -371,7 +371,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped `PricedRoomRoles` holds `Bedroom` (#3655).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped `PricedRoomRoles` holds `Bedroom` (#3655) and `Barracks` (#3658).
 
 *Bedroom credit (#3655, #3647).* A schedule that closes a planned bedroom (`ForecastRoofConsequences.PlannedClosedRooms`, logged
 on the outcome as `ClosedRooms`) is credited, in the Investment term under `bedroom/<room>/<pawn>`, the mood gain of the colonist
@@ -379,7 +379,9 @@ the bedroom step would move into it (`SleepingRules.PlannedBedroomOccupants`, `F
 pawns: the step's order, the unhoused taking the vacant bedroom beds, then the planned barracks' bunks in id order, then the owed
 rooms in plan order, a bedroom its colonist and that colonist's waiting partner, a barracks one per missing bed slot), else the one
 colonist owning a bed in the predicted room: a standing bedroom's wall upgrade (#3657) credits its owner the swap's predicted stage
-against the stage it sleeps at now. The pricing is `ForecastHousing`, which the priced merge and priced moves reuse:
+against the stage it sleeps at now. A planned barracks credits each pawn in its beds under the same key, at the barracks
+thought (`slept_in_barracks` at the predicted stage against the current bed thought; an ascetic gains nothing and loses any
+Ascetic thought it has, #3658). The pricing is `ForecastHousing`, which the priced merge and priced moves reuse:
 
 - *Mood delta* (`BedroomMoodDelta`): for a non-ascetic, `slept_in_bedroom` at the prediction's Impressiveness stage less the
   current bed thought (`slept_in_bedroom` or `slept_in_barracks` at the owned bed's room stage, none for a prisoner bed, plus

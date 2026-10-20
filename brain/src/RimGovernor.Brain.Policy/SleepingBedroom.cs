@@ -212,13 +212,13 @@ public static partial class SleepingRules
     }
 
     /// <summary>
-    /// Per planned bedroom the bedroom step will build, the colonists it would then move in (#3655), following
+    /// Per planned bedroom or barracks the bedroom step will build, the colonists it would then move in (#3655, #3658), following
     /// <see cref="NextBedroomStep"/>'s order: the unhoused first take the vacant bedroom beds, the largest priced gain first,
     /// and then the planned barracks' vacant bunks open to them in id order; the rest fill the owed rooms in plan order, a
     /// bedroom the colonist with the largest gain at its predicted stage (#3656, BedroomGainFacts.PlannedStages) and that
     /// colonist's waiting partner, a barracks one per missing bed slot in id order. Without <paramref name="gains"/> every
-    /// choice is in id order; an unread gain keeps id order and is named in <paramref name="findings"/>. Only bedrooms get a
-    /// row; none when a census fact is unknown.
+    /// choice is in id order; an unread gain keeps id order and is named in <paramref name="findings"/>. Only bedrooms and
+    /// barracks get a row; none when a census fact is unknown.
     /// </summary>
     public static IReadOnlyDictionary<int, EquatableArray<string>> PlannedBedroomOccupants(
         LayoutPlan plan,
@@ -253,7 +253,12 @@ public static partial class SleepingRules
             }
             if (room.Role != PlannedRole.Bedroom)
             {
-                waiting.RemoveRange(0, Math.Min(missing, waiting.Count));
+                var bunked = waiting.GetRange(0, Math.Min(missing, waiting.Count));
+                if (room.Role == PlannedRole.Barracks)
+                {
+                    occupants[room.Id] = EquatableArray.From(bunked.Select(p => p.Id.Value).ToArray());
+                }
+                waiting.RemoveRange(0, bunked.Count);
                 continue;
             }
             var stage = gains?.PlannedStages.GetValueOrDefault(room.Id) ?? default;

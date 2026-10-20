@@ -88,11 +88,16 @@ public sealed partial class Rounder : IDisposable
     /// read once, in one frame, and priced by <see cref="ForecastValue.MaterialValueOf"/>. A failed read, or a native without
     /// the read, prices it at market value.
     /// </summary>
-    internal async Task<IReadOnlyDictionary<Resource, ConstructionMaterialValue>> MaterialValuesAsync(GenerationSnapshot snapshot, ForecastCoupledContext context,
+    internal Task<IReadOnlyDictionary<Resource, ConstructionMaterialValue>> MaterialValuesAsync(GenerationSnapshot snapshot, ForecastCoupledContext context,
+        StationCatalog stations, ItemFacts items, CancellationToken ct) =>
+        MaterialValuesAsync(snapshot, ForecastValue.ChargedMaterials(context), stations, items, ct);
+
+    /// <summary>The value per unit of each of <paramref name="materials"/>, read and priced as the charged materials are (#3653, #3658).</summary>
+    internal async Task<IReadOnlyDictionary<Resource, ConstructionMaterialValue>> MaterialValuesAsync(GenerationSnapshot snapshot, IEnumerable<Resource> materials,
         StationCatalog stations, ItemFacts items, CancellationToken ct)
     {
         var reader = Native as FacadeNativeClient;
-        var reads = ForecastValue.ChargedMaterials(context).Select(async Task<(Resource Key, ConstructionMaterialValue Value)> (resource) =>
+        var reads = materials.Distinct().Select(async Task<(Resource Key, ConstructionMaterialValue Value)> (resource) =>
         {
             if (reader is null) return (resource, ForecastValue.MaterialValueOf(resource, null, null, stations.Haul, items));
             try
