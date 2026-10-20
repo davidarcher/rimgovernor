@@ -44,8 +44,10 @@ Ideology is active. Execution and non-exclusive toggles are player-only.
   a care-only `WorkSettingsIntent` (native accepts it on a living colony prisoner) and never raises it.
   A harvest or part recovery blocked only by the limit is logged as refused and adds a `MedicineHerbal`
   want to economy/resource's targets.
-- **Peg legs.** A colony prisoner carries `withdrawal` (a drug addiction a prisoner cannot feed). A
-  legless prisoner is never released until the `medical/surgery` Need puts a peg leg back.
+- **Peg legs.** A colony prisoner carries `withdrawal` (a drug addiction a prisoner cannot feed), which
+  peg-leg control reads. A legless prisoner is never released until the `medical/surgery` Need puts a peg
+  leg back. Peg legs never train doctors: that is the selected practice surgery
+  ([capability maintenance](capability-maintenance.md#practice-surgery-3637)).
 
 ### Prisoner use (`prisoners/recruit`, `policy.prisonerUse`)
 

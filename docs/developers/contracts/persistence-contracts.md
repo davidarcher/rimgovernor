@@ -31,7 +31,7 @@ The save keeps only player intent and `family/*` records
 session cache of the `family/admin/creep_joiners` record (#3264), and version 17 the
 `economy_trade_missions` table, the session cache of the `family/economy/trade_missions` record (#3316).
 Version 19 dropped the Standard and Incident tables and the `plan_methods` view, and version 20 renamed
-`concern_transitions` to `need_transitions` (#3265). Version 24 added the `goals` table, the session cache of the `family/goals` record (#3489). Version 26 changed the pawn-activities action body (step `Targets` and `Cells`, task `PriorSteps` and `UseUntilTick`), and version 27 adds the practice-surgery variant `Practice.Surgery` (recipe, part index, medicine kind; #3637) to journaled activity steps; `StoreSchemaPinTests` pins the codec shape to the version. An older save's `trade-mission` Standard blobs
+`concern_transitions` to `need_transitions` (#3265). Version 24 added the `goals` table, the session cache of the `family/goals` record (#3489). Version 26 changed the pawn-activities action body (step `Targets` and `Cells`, task `PriorSteps` and `UseUntilTick`), and version 27 adds the practice-surgery variant `Practice.Surgery` (recipe, part index, medicine kind; #3637) to journaled activity steps, and version 28 drops `Surgeon` from the surgery action (#3638); `StoreSchemaPinTests` pins the codec shape to the version. An older save's `trade-mission` Standard blobs
 are dropped on load (decision 12).
 
 Every fact has exactly one home, chosen by what must happen to it when a save is reloaded. A second

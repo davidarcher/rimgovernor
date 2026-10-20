@@ -33,7 +33,6 @@ internal static class PopulationDecoder
         }
 
         var bestSkill = new Dictionary<string, int>(StringComparer.Ordinal);
-        var medicine = new Dictionary<Domain.PawnId, int>();
         var colonists = 0;
         var rows = new List<P.PrisonerFacts>(observed.Persons.Count);
         var guests = new List<P.CarePatient>();
@@ -103,10 +102,6 @@ internal static class PopulationDecoder
                     {
                         bestSkill[name] = level;
                     }
-                    if (name == "Medicine" && !s.Disabled)
-                    {
-                        medicine[new Domain.PawnId(id)] = level;
-                    }
                 }
             }
             if (!pawn.Prisoner)
@@ -120,7 +115,6 @@ internal static class PopulationDecoder
         {
             Colonists = colonists,
             BestSkill = bestSkill,
-            Medicine = medicine,
             IdeologyActive = observed.IdeologyActive.GetValueOrDefault(),
             ClassicIdeo = observed.ClassicIdeoMode.GetValueOrDefault(),
             Ideo = observed.ColonyIdeoId ?? "",

@@ -10,6 +10,10 @@ public static class MedicalCases
         registry.Register(PlagueReadback.Case());
         registry.Register(TendGates.Case());
         registry.Register(MedicalPracticeSurgery.Case());
+        foreach (var practice in MedicalPracticeSurgeryDemand.Cases())
+        {
+            registry.Register(practice);
+        }
         foreach (var surgery in MedicalSurgery.All())
         {
             registry.Register(surgery);

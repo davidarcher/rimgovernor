@@ -2093,8 +2093,7 @@ public sealed record HusbandryIntent
 /// part is refused. Evidence is the SurgeryEffect: QUEUED with the
 /// Bill_Medical id; the same recipe and part already queued applies again.
 /// Native doctor jobs choose the surgeon; applied means queued, and the
-/// health read decides success. surgeon, when set, restricts the bill to
-/// that colonist (Bill_Medical pawn restriction).
+/// health read decides success.
 /// </summary>
 public sealed record ProductionBillIntent
 {
@@ -2111,8 +2110,6 @@ public sealed record ProductionBillIntent
     public int? PartIndex { get; init; }
 
     public bool? AcknowledgeViolation { get; init; }
-
-    public Common.Ref? Surgeon { get; init; }
 }
 
 /// <summary>

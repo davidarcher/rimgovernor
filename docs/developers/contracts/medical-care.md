@@ -224,19 +224,11 @@ the trade-wide silver reserve.
 
 **Peg-leg cycling** takes the same one-surgery slot after harvest and part recovery.
 It installs and removes cheap wood parts (peg leg, wooden hand, wooden foot) on colony
-prisoners:
+prisoners for control and release. Doctor training is not part of it: the coupled
+selector's practice surgery ([capability maintenance](capability-maintenance.md#practice-surgery-3637))
+trains a doctor only when raid demand gives Medicine XP a value, with no skill floor
+or per-XP price (#3344). Surgery bills this slot queues never name a surgeon.
 
-- Doctor training: a surgery teaches 1.6 Medicine XP per work tick, 5600 for a
-  peg-leg cycle. While fewer doctors than wanted (one, two from eight colonists)
-  reach Medicine 10, a cycle is worth 280 silver; above that, 112 while a restore
-  waits on a doctor within the failure cap. It costs three medicine, the doctor's hour
-  and the removal's goodwill (-70 via `harvest_goodwill_change`, no mood), so it runs
-  on factionless, pirate or -100 prisoners. With no wood slot open a natural hand,
-  foot or leg (never a second leg) is amputated, its `HarvestCost` spread over the
-  cycles the slot supports until the doctor reaches 10. The bill is restricted
-  (`ProductionBillIntent` `surgeon`) to the lowest-Medicine doctor below 10 whose
-  `doctor_chances` entry clears the failure cap; with none, vanilla picks. Other
-  surgeries never name a surgeon.
 - Prisoner control: a legless prisoner is downed, so no mental, withdrawal or prison
   break. The last peg legs come off a HarvestEligible prisoner not due for release, or
   one in withdrawal, never one being recruited, converted or enslaved, when the risk

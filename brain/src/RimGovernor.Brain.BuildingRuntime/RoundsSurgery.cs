@@ -114,9 +114,9 @@ public sealed partial class RoundsSurgeryPlanner
         // Prisoners stay on herbal: a cut only better medicine could serve is refused; the review asks for herbal instead.
         if (harvest is null)
         {
-            // Peg-leg cycling: training, control or a reinstall.
+            // Peg-leg cycling: control or a reinstall.
             var facts = read.Projection.Facts;
-            harvest = DoctorTrainingRules.SelectPegCycle(facts.Prisoners, facts.PrisonerColony, facts.FoodDays, _reviewer.Policy.Prisoners(), selection.Wants, facts.Recipes, inFlight);
+            harvest = DoctorTrainingRules.SelectPegCycle(facts.Prisoners, facts.PrisonerColony, facts.FoodDays, _reviewer.Policy.Prisoners(), facts.Recipes, inFlight);
         }
         var harvesting = harvest is not null && arbiter.TryClaim([harvest.Prisoner]);
         result.Harvest = harvesting;
@@ -145,7 +145,7 @@ public sealed partial class RoundsSurgeryPlanner
         }
         if (harvest is not null && harvesting)
         {
-            text.Append(CultureInfo.InvariantCulture, $"harvest/{harvest.Prisoner}/{harvest.Recipe}/{harvest.Part}/{harvest.Surgeon}\n");
+            text.Append(CultureInfo.InvariantCulture, $"harvest/{harvest.Prisoner}/{harvest.Recipe}/{harvest.Part}\n");
         }
         var method2 = new MethodId("restore-" + RoundsAcquisitionPlanner.HashHex16(text.ToString()));
         if (p.Journal.OwnerMethodPlan(work.Owner, method2, call) is not null)
@@ -164,10 +164,6 @@ public sealed partial class RoundsSurgeryPlanner
         if (harvest is not null && harvesting)
         {
             var cut = new Surgery(harvest.Prisoner, harvest.Recipe, harvest.Part, harvest.Violation);
-            if (!harvest.Surgeon.IsEmpty)
-            {
-                cut = cut.WithSurgeon(harvest.Surgeon); // peg-leg training's doctor
-            }
             actions.Add(DomainAction.NewSurgeryAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{actions.Count}")), cut));
         }
         var spec = new PlanSpec(id, new PlanRevision(1), actions);

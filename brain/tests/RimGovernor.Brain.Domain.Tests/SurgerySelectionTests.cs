@@ -7,13 +7,12 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// The surgery planners' choices (#3402, from the deleted medical/surgery-* and medical/peg-training acceptance cases):
 /// restores and chronic replacements (SelectSurgery), life-saving amputation, organ harvest and artificial part recovery
-/// from an unrecruitable prisoner, the prisoner care limit's refusal and peg-leg doctor training, over hand-built reads.
+/// from an unrecruitable prisoner and the prisoner care limit's refusal, over hand-built reads.
 /// </summary>
 public sealed class SurgerySelectionTests
 {
     private static readonly PawnId Colonist = new("colonist");
     private static readonly PawnId Captive = new("captive");
-    private static readonly PawnId Doctor = new("doctor");
 
     private const int LegPart = 30;
     private const int EyePart = 12;
@@ -50,7 +49,7 @@ public sealed class SurgerySelectionTests
     private static Fact<EquatableArray<CarePawn>> Census(CarePawn pawn) => Known(EquatableArray.From([pawn]));
 
     /// <summary>A living prisoner the colony would not recruit, held under no interaction, with no faction goodwill at stake.</summary>
-    private static PrisonerFacts Prisoner(IReadOnlyList<SurgeryOperation> ops, IReadOnlyList<MissingPart>? missing = null) => new()
+    private static PrisonerFacts Prisoner(IReadOnlyList<SurgeryOperation> ops) => new()
     {
         Pawn = Captive,
         Dead = Known(false),
@@ -63,14 +62,14 @@ public sealed class SurgerySelectionTests
         QueuedSurgeries = Known(0),
         HarvestGoodwill = Known(0),
         Withdrawal = Known(false),
-        MissingParts = Known(EquatableArray.From(missing ?? [])),
+        MissingParts = Known(EquatableArray.From(new List<MissingPart>())),
         Operations = Known(EquatableArray.From(ops)),
     };
 
     private static Fact<EquatableArray<PrisonerFacts>> Prisoners(PrisonerFacts row) => Known(EquatableArray.From([row]));
 
-    /// <summary>A three-colonist colony without Ideology whose one doctor is at Medicine 8, below the training floor.</summary>
-    private static readonly PrisonerColony Colony = new() { Colonists = 3, Medicine = new Dictionary<PawnId, int> { [Doctor] = 8 } };
+    /// <summary>A three-colonist colony without Ideology.</summary>
+    private static readonly PrisonerColony Colony = new() { Colonists = 3 };
 
     private static readonly RecipeFacts Recipes = new()
     {
@@ -204,31 +203,5 @@ public sealed class SurgerySelectionTests
 
         Assert.NotNull(recovery);
         Assert.Equal((Captive, "RemoveBodyPart", ArmPart, Colonist), (recovery.Prisoner, recovery.Recipe, recovery.Part, recovery.For));
-    }
-
-    [Fact]
-    public void DoctorsBelowTheFloorTrainOnAPegLegInstallThenItsRemoval()
-    {
-        var policy = new PrisonerPolicy { ReleaseAfterDays = 10, FoodTargetDays = 5 };
-        var legless = Prisoner(
-            [Op(SurgeryKind.Restore, "InstallPegLeg", LegPart, "Leg", stocked: true, "PegLeg", tier: 0.6)],
-            [new MissingPart { PartIndex = Known(LegPart), PartDefName = Known("Leg") }]);
-
-        var install = DoctorTrainingRules.SelectPegCycle(Prisoners(legless), Known(Colony), Known(20.0), policy, [], Recipes, null);
-
-        Assert.NotNull(install);
-        Assert.Equal((Captive, "InstallPegLeg", LegPart, PegCycleStep.Training), (install.Prisoner, install.Recipe, install.Part, install.Step));
-
-        var pegged = legless with
-        {
-            MissingParts = Known(EquatableArray.From(new List<MissingPart>())),
-            Operations = Known(EquatableArray.From([Op(SurgeryKind.Amputate, "RemoveBodyPart", LegPart, "Leg", stocked: true) with { AddedPart = Known("PegLeg") }])),
-        };
-        var removal = DoctorTrainingRules.SelectPegCycle(Prisoners(pegged), Known(Colony), Known(20.0), policy, [], Recipes, null);
-
-        Assert.NotNull(removal);
-        Assert.Equal(("RemoveBodyPart", LegPart, PegCycleStep.Training), (removal.Recipe, removal.Part, removal.Step));
-        // A doctor at the floor trains nobody.
-        Assert.Null(DoctorTrainingRules.SelectPegCycle(Prisoners(legless), Known(Colony with { Medicine = new Dictionary<PawnId, int> { [Doctor] = 10 } }), Known(20.0), policy, [], Recipes, null));
     }
 }

@@ -649,7 +649,8 @@ Wellbeing Needs: the Medical phase latch (`RoundsLatches.Medical`, `Phase.Medica
 `Phase.MedicalReserves`, `Restocks`) is deleted with no precondition in its place,
 since the medicine stock never waited on the sick. `medical/surgery` (Wellbeing) is
 unmet while an owed restore, an actionable elective, an organ sale harvest, a part
-recovery or a peg-leg step stands; its surgeries claim
+recovery or a peg-leg control or reinstall step stands (doctor training is the coupled
+selector's practice surgery, not this Need); its surgeries claim
 `surgery/<patient>/<recipe>/<part>` and the part bill is declared while it is unmet.
 The forecast reads the critical census, surgery and reserves rows as Needs, and the
 pain and sickness thoughts are owned by `medical/care`. `CriticalMedical` left

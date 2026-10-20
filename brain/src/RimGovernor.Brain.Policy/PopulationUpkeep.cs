@@ -77,12 +77,6 @@ public sealed record PrisonerColony
     /// </summary>
     public Fact<Ideoligion> Ideology { get; init; }
 
-    /// <summary>
-    /// Each free colonist's Medicine level by pawn, doctors only (the skill not disabled): the doctor
-    /// training floor counts it and the training step names its surgeon from it.
-    /// </summary>
-    public IReadOnlyDictionary<PawnId, int> Medicine { get; init; } = new Dictionary<PawnId, int>();
-
     /// <summary>The prisoners the player's goals name (#3499): recruited whatever their worth.</summary>
     public IReadOnlyList<PawnId> NamedPrisoners { get; init; } = [];
 

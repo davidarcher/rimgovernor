@@ -45,7 +45,7 @@ internal static class MedicalSurgery
             "missingKidney",
             0,
             "A medical ProductionBillIntent queues InstallPegLeg on the missing leg (SURGERY_STATE_QUEUED, the patient's Bill_Medical); "
-                + "the same intent again, and twice more restricted to a surgeon, applies to the same bill; and RemoveBodyPart on a "
+                + "the same intent again applies to the same bill; and RemoveBodyPart on a "
                 + "non-player prisoner's kidney is refused as a violation without acknowledge_violation.",
             IntentAsync),
         new(
@@ -140,12 +140,11 @@ internal static class MedicalSurgery
         }
     }
 
-    private static Operations.ProductionBillIntent Bill(string patient, string recipe, int part, string? surgeon = null) => new()
+    private static Operations.ProductionBillIntent Bill(string patient, string recipe, int part) => new()
     {
         Patient = new Common.Ref { Id = patient },
         RecipeDef = recipe,
         PartIndex = part,
-        Surgeon = surgeon is null ? null : new Common.Ref { Id = surgeon },
     };
 
     private static async Task<string> QueuedAsync(TypedSession s, string key, Operations.ProductionBillIntent bill, CancellationToken cancellationToken)
@@ -163,18 +162,11 @@ internal static class MedicalSurgery
 
         // The fixture edits health outside authority, so authority is granted after it.
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
-        var colonists = await TypedPawns.ListAsync(s, "doctors", new Observations.PawnFilter { Colonist = true }, new Observations.PawnDetails { Settings = true, Work = true }, cancellationToken).ConfigureAwait(false);
-        var surgeon = colonists.Where(p => p.Pawn.Id != setup.Surgical).OrderBy(p => p.Pawn.Id, StringComparer.Ordinal)
-            .FirstOrDefault(p => p.Settings?.Work.Any(w => w.DefName == "Doctor" && !w.Disabled) == true)?.Pawn.Id
-            ?? throw new AcceptanceException("no second colonist who can doctor");
         var first = await QueuedAsync(s, "surgery-queue", Bill(setup.Surgical, "InstallPegLeg", setup.Part), cancellationToken).ConfigureAwait(false);
-        foreach (var (key, by) in new[] { ("surgery-requeue", (string?)null), ("surgery-surgeon", surgeon), ("surgery-surgeon-again", surgeon) })
+        var again = await QueuedAsync(s, "surgery-requeue", Bill(setup.Surgical, "InstallPegLeg", setup.Part), cancellationToken).ConfigureAwait(false);
+        if (again != first)
         {
-            var bill = await QueuedAsync(s, key, Bill(setup.Surgical, "InstallPegLeg", setup.Part, by), cancellationToken).ConfigureAwait(false);
-            if (bill != first)
-            {
-                throw new AcceptanceException($"{key}: queued bill {bill} beside {first}");
-            }
+            throw new AcceptanceException($"surgery-requeue: queued bill {again} beside {first}");
         }
 
         s.Record("bill", first);

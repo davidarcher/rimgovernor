@@ -29,8 +29,7 @@ public sealed record OrganNeed(string Organ, PawnId For, double Gain);
 /// <summary>
 /// One prisoner removal to queue as a medical ProductionBillIntent: an organ harvest, or an added part
 /// recovery. Violation sets acknowledge_violation. Step is a peg-leg cycling
-/// step (default otherwise); Surgeon restricts a training step's bill to the doctor who needs the XP (empty
-/// keeps vanilla's choice).
+/// step (control or reinstall; default otherwise).
 /// </summary>
 public sealed record OrganHarvest(
     Domain.PawnId Prisoner,
@@ -40,10 +39,9 @@ public sealed record OrganHarvest(
     double Gain,
     double Cost,
     bool Violation,
-    PegCycleStep Step,
-    Domain.PawnId Surgeon)
+    PegCycleStep Step)
 {
-    public OrganHarvest() : this(default, "", 0, default, 0, 0, false, default, default)
+    public OrganHarvest() : this(default, "", 0, default, 0, 0, false, default)
     {
     }
 }
@@ -254,7 +252,7 @@ public static partial class OrganHarvestRules
                         gain = value;
                     }
                     var (cost, ok) = HarvestCost(c, goodwill, need.For.Value.Length == 0);
-                    var h = new OrganHarvest((Domain.PawnId)row.Pawn, recipe ?? "", part, need.For, gain, cost, true, default, default);
+                    var h = new OrganHarvest((Domain.PawnId)row.Pawn, recipe ?? "", part, need.For, gain, cost, true, default);
                     if (ok && gain > cost && (best is null || BetterHarvest(h, best)))
                     {
                         best = h;
@@ -476,7 +474,7 @@ public static partial class OrganHarvestRules
                 op.Recipe.TryGetValue(out var recipe);
                 op.PartIndex.TryGetValue(out var part);
                 op.Violation.TryGetValue(out var violation);
-                var h = new OrganHarvest((Domain.PawnId)row.Pawn, recipe ?? "", part, default, value, cost, violation, default, default);
+                var h = new OrganHarvest((Domain.PawnId)row.Pawn, recipe ?? "", part, default, value, cost, violation, default);
                 foreach (var need in needs)
                 {
                     if (need.Organ == item && need.For.Value.Length != 0 && (h.For.Value.Length == 0 || need.Gain > h.Gain))

@@ -17,17 +17,15 @@ namespace HomeBridge.BridgeTools
     // patient needs acknowledge_violation. Other bills never block; a live
     // practice surgery on the patient does (#3637). The same
     // recipe already queued on the same part applies again. Native doctor
-    // jobs choose the surgeon unless surgeon names one: the bill's
-    // pawn restriction, set on an already queued bill too. Applied means queued.
+    // jobs choose the surgeon. Applied means queued.
     internal static class NativeSurgery
     {
         private static Common.Failure? Resolve(Operations.ProductionBillIntent? intent, Common.ObservationContext context,
-            out Pawn? pawn, out RecipeDef? recipe, out BodyPartRecord? part, out Pawn? surgeon)
+            out Pawn? pawn, out RecipeDef? recipe, out BodyPartRecord? part)
         {
-            pawn = null; recipe = null; part = null; surgeon = null;
+            pawn = null; recipe = null; part = null;
             if (intent == null || intent.BenchId is not null || intent.Settings != null || intent.ReplaceOwnedBill != null
                 || !ProtoBoundary.IsIdentifier(intent.Patient?.Id) || !ProtoBoundary.IsIdentifier(intent.RecipeDef)
-                || (intent.Surgeon != null && !ProtoBoundary.IsIdentifier(intent.Surgeon.Id))
                 || (intent.PartIndex is not null && intent.PartIndex.GetValueOrDefault() < 0))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Surgery requires an exact patient, an exact recipe and a whole-body or exact part index.");
             var map = ProtoBoundary.LoadedMap(context);
@@ -37,13 +35,6 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living humanlike colony patient is not spawned on this map.");
             if (NativePawnActivities.PracticeSurgeryOn(pawn))
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A selected practice surgery holds this patient.");
-            if (intent.Surgeon != null)
-            {
-                var id = (intent.Surgeon.Id ?? "");
-                surgeon = map.mapPawns.FreeColonistsSpawned.ById(id);
-                if (surgeon == null || surgeon == pawn || surgeon.WorkTypeIsDisabled(WorkTypeDefOf.Doctor))
-                    return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Surgeon " + id + " is not a spawned free colonist who can doctor.");
-            }
             recipe = pawn.def.AllRecipes?.FirstOrDefault(r => r.defName == (intent.RecipeDef ?? ""));
             if (recipe == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Recipe " + (intent.RecipeDef ?? "") + " is not offered for this patient.");
             var parts = pawn.RaceProps.body.AllParts;
@@ -73,11 +64,11 @@ namespace HomeBridge.BridgeTools
         private static Bill_Medical? Queued(Pawn pawn, RecipeDef recipe, BodyPartRecord? part) =>
             pawn.BillStack?.Bills.OfType<Bill_Medical>().FirstOrDefault(b => b.recipe == recipe && b.Part == part);
 
-        internal static Common.Failure? Validate(Operations.ProductionBillIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _, out _);
+        internal static Common.Failure? Validate(Operations.ProductionBillIntent? intent, Common.ObservationContext context) => Resolve(intent, context, out _, out _, out _);
 
         internal static Receipts.EffectEvidence Apply(Operations.ProductionBillIntent intent, Common.ObservationContext context)
         {
-            var failure = Resolve(intent, context, out var pawn, out var recipe, out var part, out var surgeon);
+            var failure = Resolve(intent, context, out var pawn, out var recipe, out var part);
             if (failure != null) throw new ApplyRefusedException(failure);
             var bill = Queued(pawn!, recipe!, part);
             if (bill == null)
@@ -86,7 +77,6 @@ namespace HomeBridge.BridgeTools
                 bill = Queued(pawn!, recipe!, part);
                 if (bill == null) throw new InvalidOperationException("Native surgery bill was not queued.");
             }
-            if (surgeon != null && bill.PawnRestriction != surgeon) bill.SetPawnRestriction(surgeon);
             var effect = new Receipts.SurgeryEffect
             {
                 PawnId = pawn!.GetUniqueLoadID(), Bill = NativeRef.Of(bill.GetUniqueLoadID()),

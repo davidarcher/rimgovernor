@@ -72,5 +72,8 @@ selection whose practice surgeries net no credit is refused (`practice_without_v
 marginals practice never wins. The part itself is a one-time cost and is not charged; its fetch is not in
 the approach (`practice_surgery_part_fetch_unassessed`). One practice surgery runs at a time. Binding and
 release are described in [pawn activities](pawn-activities.md); `medical/practice-surgery-binding` checks the
-applied step's doctor-restricted bill and its native Medicine callback. The legacy `DoctorTraining`
-peg-leg program stays until #3638.
+applied step's doctor-restricted bill and its native Medicine callback. Three served cases check the
+selection (#3638), each on a Medicine-3 doctor and a prisoner missing a leg: `medical/practice-surgery-demand`
+(a raid threat in a calibrated exposure cell selects practice and the native callback pays),
+`medical/practice-surgery-no-demand` (a quiet world refuses it) and `medical/practice-surgery-cheaper-learning`
+(a patient needing tending is selected and practice is not). Practice surgery is the only doctor-training path.

@@ -134,10 +134,6 @@ public static class Production
         {
             intent = intent with { PartIndex = v.Part };
         }
-        if (v.Surgeon is { } surgeon)
-        {
-            intent = intent with { Surgeon = IntentActionRules.NewRef(surgeon.Value) };
-        }
         return new Op.Action { Intent = intent };
     }
 }

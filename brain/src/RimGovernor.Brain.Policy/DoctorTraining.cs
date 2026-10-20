@@ -6,35 +6,26 @@ public enum PegCycleStep
     None = 0,
     Reinstall,
     Control,
-    Training,
 }
 
 // Peg-leg cycling: medical/surgery installs and removes cheap wood parts (peg leg, wooden hand, wooden foot: one
-// pool) on colony prisoners, one surgery at a time in the organ harvest's slot, for doctor training, prisoner
-// control and release. The constants below are its prices.
+// pool) on colony prisoners, one surgery at a time in the organ harvest's slot, for prisoner control and release.
+// Doctor training is not part of it: the coupled selector's practice surgery (PracticeSurgeryRules, #3637) is that
+// path. The constants below are its prices.
 public static class DoctorTrainingRules
 {
-    /// <summary>The Medicine level the colony trains doctors to.</summary>
-    public const int DoctorTrainingFloor = 10;
-
     /// <summary>One colonist hour (2500 ticks) of doctor or warden work.</summary>
     public const double SilverPerLaborHour = 10.0;
 
-    private const double SurgeryXPPerWork = 1.6;
     private const double WoodRemovalWork = 2000.0;
-    private const double TrainingXPValue = 0.05;
-    private const double TrainingCapXPValue = 0.02;
     private const double PrisonerControlValue = 200.0;
     private const double WithdrawalControlValue = 400.0;
     private const double WardenFeedCost = 25.0;
-    private const double MaxSlotCycles = 10.0;
     private const double LaborTicksPerHour = GameTime.TicksPerHour;
 
     private static MaterialInstall? LegInstall(RecipeFacts facts) => facts.MaterialInstallFor("Leg");
 
     private static bool IsMaterialPart(RecipeFacts facts, string hediff) => facts.MaterialInstallOfPart(hediff) is not null;
-
-    private static bool HasMaterialInstall(RecipeFacts facts, string body) => facts.MaterialInstallFor(body) is not null;
 
     /// <summary>Reports whether recipe is the material install that serves the body part.</summary>
     private static bool MaterialInstallRecipe(RecipeFacts facts, string body, string recipe) =>
@@ -44,69 +35,15 @@ public static class DoctorTrainingRules
     private static bool LegPart(RecipeFacts facts, string hediff) =>
         facts.MaterialInstallOfPart(hediff) is { } m && m.Bodies.Contains("Leg");
 
-    /// <summary>How many doctors should reach DoctorTrainingFloor: one, two from eight colonists.</summary>
-    public static int DoctorsWanted(int colonists) => colonists >= 8 ? 2 : 1;
-
-    /// <summary>Vanilla's XP from level to DoctorTrainingFloor, passion ignored.</summary>
-    private static double MedicineXPToFloor(int level)
-    {
-        var xp = 0.0;
-        for (var l = Math.Max(0, level); l < DoctorTrainingFloor; l++)
-        {
-            xp += 1000 * (l + 1);
-        }
-        return xp;
-    }
-
-    /// <summary>One install and removal cycle's XP for an install recipe of the given work.</summary>
-    private static double CycleXP(double installWork) => SurgeryXPPerWork * (installWork + WoodRemovalWork);
-
-    /// <summary>
-    /// What one Medicine XP is worth and how many cycles a newly opened slot is expected to support: below the
-    /// floor, until the best doctor under it reaches it; above it, while a restore waits on a doctor, MaxSlotCycles.
-    /// </summary>
-    public static (double PerXP, double Cycles) TrainingValue(PrisonerColony c, IReadOnlyList<SurgeryWant> wants, RecipeFacts facts)
-    {
-        if (LegInstall(facts) is not { } leg)
-        {
-            return (0, 0);
-        }
-        int at = 0, below = -1;
-        foreach (var level in c.Medicine.Values)
-        {
-            if (level >= DoctorTrainingFloor)
-            {
-                at++;
-            }
-            else
-            {
-                below = Math.Max(below, level);
-            }
-        }
-        if (at < DoctorsWanted(c.Colonists) && below >= 0)
-        {
-            return (TrainingXPValue, Math.Min(MaxSlotCycles, Math.Ceiling(MedicineXPToFloor(below) / CycleXP(leg.Work))));
-        }
-        foreach (var want in wants)
-        {
-            if (want.Reason == SurgeryWantReason.NoDoctor && c.Medicine.Count > 0)
-            {
-                return (TrainingCapXPValue, MaxSlotCycles);
-            }
-        }
-        return (0, 0);
-    }
-
     /// <summary>
     /// Picks at most one peg-leg step under the harvest's in-flight rule, ranked by BetterHarvest: a reinstall
-    /// first, then control, then training; then the best gain less cost, then prisoner id. Unknown facts refuse.
+    /// first, then control; then the best gain less cost, then prisoner id. Unknown facts refuse.
     /// </summary>
     public static OrganHarvest? SelectPegCycle(
         Fact<EquatableArray<PrisonerFacts>> prisoners,
         Fact<PrisonerColony> colony,
         Fact<double> food,
         PrisonerPolicy p,
-        IReadOnlyList<SurgeryWant> wants,
         RecipeFacts facts,
         IReadOnlyDictionary<PawnId, bool>? inFlight)
     {
@@ -114,11 +51,10 @@ public static class DoctorTrainingRules
         {
             return null;
         }
-        var (perXP, cycles) = TrainingValue(c, wants, facts);
         OrganHarvest? best = null;
         foreach (var row in rows)
         {
-            foreach (var step in PegCycleSteps(row, c, food, p, perXP, cycles, facts))
+            foreach (var step in PegCycleSteps(row, c, food, p, facts))
             {
                 if (best is null || OrganHarvestRules.BetterHarvest(step, best))
                 {
@@ -131,7 +67,7 @@ public static class DoctorTrainingRules
 
     /// <summary>Reports whether a peg-leg step would be queued now; it keeps the medical/surgery Need unmet.</summary>
     public static bool PegCycleWanted(RoundsFacts f, PrisonerPolicy p) =>
-        SelectPegCycle(f.Prisoners, f.PrisonerColony, f.FoodDays, p, SurgeryRules.SelectSurgery(f.MedicalPawns, null, new SurgeryContext()).Wants, f.Recipes, null) is not null;
+        SelectPegCycle(f.Prisoners, f.PrisonerColony, f.FoodDays, p, f.Recipes, null) is not null;
 
     /// <summary>Every leg of a human body (two) is missing.</summary>
     internal static bool Legless(this PrisonerFacts row)
@@ -153,8 +89,8 @@ public static class DoctorTrainingRules
         return n;
     }
 
-    /// <summary>The row's acceptable steps: a reinstall, a control removal and a training step, each only when it applies and pays off.</summary>
-    private static List<OrganHarvest> PegCycleSteps(PrisonerFacts row, PrisonerColony c, Fact<double> food, PrisonerPolicy p, double perXP, double cycles, RecipeFacts facts)
+    /// <summary>The row's acceptable steps: a reinstall and a control removal, each only when it applies and pays off.</summary>
+    private static List<OrganHarvest> PegCycleSteps(PrisonerFacts row, PrisonerColony c, Fact<double> food, PrisonerPolicy p, RecipeFacts facts)
     {
         var (intent, unknown) = PopulationRules.PrisonerIntent(row, c, food, p);
         var dk = row.Dead.TryGetValue(out var dead);
@@ -176,15 +112,13 @@ public static class DoctorTrainingRules
             }
         }
         row.HarvestEligible(c).TryGetValue(out var eligible);
-        var trainable = eligible && !planned && intent != PrisonerInteractionMode.Release;
         row.Withdrawal.TryGetValue(out var withdrawal);
-        var controlled = !planned && (trainable || withdrawal);
+        var controlled = !planned && ((eligible && intent != PrisonerInteractionMode.Release) || withdrawal);
         var goodwillCost = OrganHarvestRules.SilverPerGoodwillPoint * Math.Max(0, -goodwill);
         var legsMissing = CountMissing(missing!, "Leg");
 
         var removals = new List<SurgeryOperation>();
         var installs = new List<SurgeryOperation>();
-        var cuts = new List<SurgeryOperation>();
         var pegLegs = 0;
         foreach (var op in ops!)
         {
@@ -208,11 +142,6 @@ public static class DoctorTrainingRules
             {
                 installs.Add(op);
             }
-            else if ((op.Kind == SurgeryKind.Harvest || op.Kind == SurgeryKind.Amputate) && !ak && HasMaterialInstall(facts, body ?? "") && !(body == "Leg" && legsMissing > 0))
-            {
-                // Never remove the second leg.
-                cuts.Add(op);
-            }
         }
 
         void Step(PegCycleStep kind, SurgeryOperation op, double gain, double cost)
@@ -220,7 +149,6 @@ public static class DoctorTrainingRules
             op.Recipe.TryGetValue(out var recipe);
             op.PartIndex.TryGetValue(out var part);
             op.Violation.TryGetValue(out var violation);
-            var surgeon = kind == PegCycleStep.Training ? TrainingSurgeon(op, c) : default;
             output.Add(new OrganHarvest
             {
                 Prisoner = (Domain.PawnId)row.Pawn,
@@ -230,7 +158,6 @@ public static class DoctorTrainingRules
                 Cost = cost,
                 Violation = violation,
                 Step = kind,
-                Surgeon = (Domain.PawnId)surgeon,
             });
         }
 
@@ -255,7 +182,7 @@ public static class DoctorTrainingRules
                 {
                     continue;
                 }
-                var unit = MedicineUnit(op, false);
+                var unit = MedicineUnit(op);
                 var removal = unit + goodwillCost + LaborCost(WoodRemovalWork);
                 var leg = LegInstall(facts) ?? new MaterialInstall();
                 var reinstall = 2 * unit + leg.Value + LaborCost(leg.Work);
@@ -267,108 +194,12 @@ public static class DoctorTrainingRules
                 break;
             }
         }
-        if (!trainable || perXP <= 0)
-        {
-            return output;
-        }
-
-        (double Gain, double Cost) CycleCost(double installWork, double unit)
-        {
-            var work = installWork + WoodRemovalWork;
-            return (perXP * CycleXP(installWork), 3 * unit + LaborCost(work) + goodwillCost);
-        }
-
-        if (removals.Count > 0)
-        {
-            var op = removals[0];
-            op.AddedPart.TryGetValue(out var added);
-            var install = facts.MaterialInstallOfPart(added ?? "") ?? new MaterialInstall();
-            var (gain, cost) = CycleCost(install.Work, MedicineUnit(op, false));
-            if (gain > cost)
-            {
-                Step(PegCycleStep.Training, op, gain, cost);
-            }
-        }
-        else if (installs.Count > 0)
-        {
-            SurgeryOperation? pick = null;
-            var pickWork = -1.0;
-            foreach (var op in installs)
-            {
-                op.Recipe.TryGetValue(out var recipe);
-                var install = facts.MaterialInstallByRecipe(recipe ?? "") ?? new MaterialInstall();
-                if (install.Work > pickWork)
-                {
-                    pick = op;
-                    pickWork = install.Work;
-                }
-            }
-            var (gain, cost) = CycleCost(pickWork, MedicineUnit(pick!, true));
-            if (gain > cost)
-            {
-                Step(PegCycleStep.Training, pick!, gain, cost);
-            }
-        }
-        else
-        {
-            // No slot open: amputate a natural part, priced once as a harvest and spread over the slot's cycles.
-            foreach (var op in cuts)
-            {
-                op.PartDefName.TryGetValue(out var body);
-                var (harvestCost, harvestOk) = OrganHarvestRules.HarvestCost(c, goodwill, false);
-                if (!harvestOk || cycles <= 0)
-                {
-                    continue;
-                }
-                var install = facts.MaterialInstallFor(body ?? "") ?? new MaterialInstall();
-                var (gain, cost) = CycleCost(install.Work, MedicineUnit(op, false));
-                cost += (harvestCost + MedicineUnit(op, false) + LaborCost(WoodRemovalWork)) / cycles;
-                if (gain > cost)
-                {
-                    Step(PegCycleStep.Training, op, gain, cost);
-                }
-            }
-        }
         return output;
     }
 
-    /// <summary>
-    /// The doctor a training step's bill is restricted to: the lowest-Medicine doctor below DoctorTrainingFloor
-    /// whose chance on the operation clears RestoreFailureCap, then pawn id. Empty when none does, which keeps
-    /// vanilla's choice.
-    /// </summary>
-    private static PawnId TrainingSurgeon(SurgeryOperation op, PrisonerColony c)
-    {
-        PawnId pick = default;
-        var pickLevel = DoctorTrainingFloor;
-        if (op.DoctorChances is not { } chances)
-        {
-            return pick;
-        }
-        foreach (var (doctor, chance) in chances)
-        {
-            if (!c.Medicine.TryGetValue((PawnId)doctor, out var level) || level >= DoctorTrainingFloor || !double.IsFinite(chance) || 1 - chance > SurgeryRules.RestoreFailureCap + 1e-9)
-            {
-                continue;
-            }
-            if (level < pickLevel || (level == pickLevel && doctor.CompareTo((Domain.PawnId)pick) < 0))
-            {
-                pick = (PawnId)doctor;
-                pickLevel = level;
-            }
-        }
-        return pick;
-    }
-
-    /// <summary>One medicine's value from an operation's medicine value: a wood install uses two, a removal one. Unknown reads as none.</summary>
-    private static double MedicineUnit(SurgeryOperation op, bool install)
-    {
-        if (!op.MedicineValue.TryGetValue(out var v) || !double.IsFinite(v) || v < 0)
-        {
-            return 0;
-        }
-        return install ? v / 2 : v;
-    }
+    /// <summary>One medicine's value from a removal's medicine value. Unknown reads as none.</summary>
+    private static double MedicineUnit(SurgeryOperation op) =>
+        op.MedicineValue.TryGetValue(out var v) && double.IsFinite(v) && v >= 0 ? v : 0;
 
     private static double LaborCost(double work) => SilverPerLaborHour * work / LaborTicksPerHour;
 }

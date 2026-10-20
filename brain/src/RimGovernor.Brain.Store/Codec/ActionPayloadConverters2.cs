@@ -483,11 +483,8 @@ public sealed class SupplyAllowConverter : ObjectCodec<SupplyAllow>
 
 public sealed class SurgeryConverter : ObjectCodec<Surgery>
 {
-    protected override Surgery Read(JsonElement e, Codecs o)
-    {
-        var surgery = new Surgery(e.Get<PawnId>("Pawn", o), e.Str("Recipe"), e.I32("Part"), e.Bool("AcknowledgeViolation"));
-        return e.Has("Surgeon") ? surgery.WithSurgeon(e.Get<PawnId>("Surgeon", o)) : surgery;
-    }
+    protected override Surgery Read(JsonElement e, Codecs o) =>
+        new(e.Get<PawnId>("Pawn", o), e.Str("Recipe"), e.I32("Part"), e.Bool("AcknowledgeViolation"));
 
     protected override void WriteFields(Utf8JsonWriter w, Surgery v, Codecs o)
     {
@@ -495,10 +492,6 @@ public sealed class SurgeryConverter : ObjectCodec<Surgery>
         w.WriteString("Recipe", v.Recipe);
         w.WriteNum("Part", v.Part);
         w.WriteBoolean("AcknowledgeViolation", v.AcknowledgeViolation);
-        if (v.Surgeon is { } surgeon)
-        {
-            w.Put("Surgeon", surgeon, o);
-        }
     }
 }
 
