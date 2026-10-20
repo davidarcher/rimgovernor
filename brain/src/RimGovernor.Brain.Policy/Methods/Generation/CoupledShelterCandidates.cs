@@ -111,10 +111,10 @@ internal static class CoupledShelterCandidates
             var developmentRoom = made.Count != 0 ? plannedRoom : room.PlannedRoom;
             var roomLocation = "planned/room" + plannedRoom;
             // One demand per planned kind (wall, door, roof), met by the finish of whichever generated site of it the
-            // selection builds: the ring stuffs exclude each other, so any one realizes the shell.
-            void RequirePlanned(string kind, IEnumerable<PlannedBuildSite> sites)
+            // selection builds: the ring stuffs exclude each other, so any one realizes the shell. Each planned heat source is a
+            // demand of its own site, so it gates the shelter on its own finish (#3679).
+            void RequirePlanned(string id, IEnumerable<PlannedBuildSite> sites)
             {
-                var id = roomLocation + "/" + kind;
                 if (demands.Any(r => r.Id == id)) return;
                 var ends = sites.Where(s => made.ContainsKey(s.Id)).Select(s => made[s.Id]).Distinct().Order(StringComparer.Ordinal).ToArray();
                 groups.Add(EquatableArray.From(ends));
@@ -136,7 +136,7 @@ internal static class CoupledShelterCandidates
                 else
                 {
                     var op = covering.First(s => made.ContainsKey(s.Id)).Op;
-                    RequirePlanned(op == OpKind.DoorIn ? "door" : "wall", roomSites.Where(s => s.Op == op));
+                    RequirePlanned(roomLocation + (op == OpKind.DoorIn ? "/door" : "/wall"), roomSites.Where(s => s.Op == op));
                 }
             }
             var shell = EquatableArray.From(demands);
@@ -149,7 +149,7 @@ internal static class CoupledShelterCandidates
                 if (plannedRoof.Any(s => s.Positions.Contains(cell)))
                 {
                     if (row.Roof != "none" || bounds.Width > 10 || bounds.Height > 10) notes.Add("unsupported_roof_geometry_or_designation");
-                    else RequirePlanned("roof", plannedRoof);
+                    else RequirePlanned(roomLocation + "/roof", plannedRoof);
                     continue;
                 }
                 if (row.Roof != "none" || !row.BuildRoof || bounds.Width > 10 || bounds.Height > 10)
@@ -175,28 +175,25 @@ internal static class CoupledShelterCandidates
                 notes.Add("roof_per_cell_labor_conservative_native_jobs_may_cover_neighbors");
             }
             var sources = read?.Sources.Where(s => interior.Contains(s.Cell)).ToArray() ?? [];
-            var source = sources.Length == 1 ? sources[0] : null;
-            if (sources.Length > 1) notes.Add("unsupported_multiple_heat_sources");
-            else if (source is null) notes.Add("unknown_heat_source");
-            else if (!source.Complete && !RequireSite(source.Target))
-            {
-                // A planned heater (#3323) is its room's planned Build site: the shelter requires that site's finish.
-                if (made.ContainsKey(source.Target)) RequirePlanned("heater", roomSites.Where(s => s.Id == source.Target));
-                else if (roomSites.Any(s => s.Id == source.Target)) notes.Add("planned_heat_source_unvalued");
-                else notes.Add("unmodeled_heat_source_work");
-            }
+            // Every source in the room heats it (#3679); each one still to be built gates the shelter on its own finish.
+            if (sources.Length == 0) notes.Add("unknown_heat_source");
+            foreach (var source in sources)
+                if (!source.Complete && !RequireSite(source.Target))
+                {
+                    // A planned heater (#3323) is its room's planned Build site: the shelter requires that site's finish.
+                    if (made.ContainsKey(source.Target)) RequirePlanned("heater/" + source.Target, roomSites.Where(s => s.Id == source.Target));
+                    else if (roomSites.Any(s => s.Id == source.Target)) notes.Add("planned_heat_source_unvalued");
+                    else notes.Add("unmodeled_heat_source_work");
+                }
             var valid = notes.All(n => n == "roof_per_cell_labor_conservative_native_jobs_may_cover_neighbors");
             var cells = interior.Where(observed.ContainsKey).Select(c => observed[c]).ToArray();
             var temperature = valid && cells.Length != 0 && cells.All(c => c.Temperature.IsKnown) ? Known(cells.Average(c => c.Temperature.Value)) : default;
             var exchange = valid && read is { ThinRoofExchangePerTick.IsKnown: true, WallExchangePerTick.IsKnown: true }
                 ? Known(read.ThinRoofExchangePerTick.Value + (ring.Count * read.WallExchangePerTick.Value
                     + ring.Where(observed.ContainsKey).Sum(c => observed[c].DoorExchangePerTick * .5)) / interior.Count) : default;
-            plans.Add(new(room.Id, interior, [], temperature, read?.Outdoors ?? default, exchange, source?.HeatPerTick ?? default,
-                source?.TargetTemperature ?? default, source?.SupplyTicks ?? default, EquatableArray.From(notes.Distinct()))
+            plans.Add(new(room.Id, interior, [], temperature, read?.Outdoors ?? default, exchange, EquatableArray.From(sources), EquatableArray.From(notes.Distinct()))
                 { AlternativePrerequisites = EquatableArray.From(groups), PlannedRoom = developmentRoom,
-                    RoofCells = developmentRoom == 0 ? [] : EquatableArray.From(roofCells), PowerNetwork = source?.PowerNetwork ?? "", Source = source?.Target ?? "",
-                    AdditionalWatts = source?.AdditionalWatts ?? default, SurplusWatts = source?.SurplusWatts ?? default,
-                    Fuel = source?.Fuel ?? "", FuelPerTick = source?.FuelPerTick ?? default });
+                    RoofCells = developmentRoom == 0 ? [] : EquatableArray.From(roofCells) });
             if (demands.Count != 0) roots.Add("shelter/" + room.Id, EquatableArray.From(demands));
         }
         return new(options.ToArray(), routes.Values.ToArray(), bindings, operations.Values.ToArray(), [], roots, plans.ToArray(), geometry.Findings, geometry.Truncated);

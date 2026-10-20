@@ -227,9 +227,9 @@ public static partial class ForecastValue
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         /// <summary>The activities whose consumed inputs are charged as construction material (#3653).</summary>
         public readonly HashSet<string> MaterialCharged = ChargedMaterialActivities(context);
-        /// <summary>The shelters heated by a known fuel burn (#3673), by room.</summary>
-        public readonly Dictionary<ForecastShelterId, ForecastShelterPlan> Fueled = FueledShelters(context)
-            .GroupBy(s => s.Room).ToDictionary(g => g.Key, g => g.First());
+        /// <summary>The fueled sources with a known burn (#3673) of each shelter (#3679), by room.</summary>
+        public readonly Dictionary<ForecastShelterId, ThermalSource[]> Fueled = FueledShelters(context)
+            .GroupBy(s => s.Shelter.Room).ToDictionary(g => g.Key, g => g.Select(s => s.Source).DistinctBy(s => s.Target).ToArray());
         public readonly bool Malnutrition = context.CapacityPenalties.Malnutrition.Valid();
         public readonly bool FoodPoisoning = context.CapacityPenalties.FoodPoisoning.Valid();
         public readonly bool Thermal = context.CapacityPenalties.Hypothermia.Valid() && context.CapacityPenalties.Heatstroke.Valid();
@@ -422,9 +422,9 @@ public static partial class ForecastValue
     /// the unit tier 2 perturbs the stock by. A key tier 2 did not value adds no row. The construction material a charged
     /// activity consumes (<see cref="ChargedMaterialActivities"/>) is charged, positive, under <see cref="MaterialKey"/> at
     /// <see cref="ForecastCoupledContext.MaterialValues"/> (#3653): one priced at market value is named
-    /// material_value_market, one unpriced is named material_value_unpriced and adds no row. A fueled shelter whose shell the
-    /// outcome completes inside the horizon (<see cref="FueledShelters"/>, #3673) is charged its burn from then, FuelPerTick ×
-    /// (horizon − complete) units of its fuel, the same way, on a row of its source with no pawn. A closed planned bedroom's credit
+    /// material_value_market, one unpriced is named material_value_unpriced and adds no row. Each fueled source of a shelter whose
+    /// shell the outcome completes inside the horizon (<see cref="FueledShelters"/>, #3673, #3679) is charged its burn from then,
+    /// FuelPerTick × (horizon − complete) units of its fuel, the same way, on a row of that source with no pawn. A closed planned bedroom's credit
     /// (<see cref="ForecastHousing.BedroomCredits"/>, #3655) is added beside these rows.
     /// </summary>
     private static List<ForecastInvestmentContribution> InvestmentOf(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index,
@@ -446,8 +446,8 @@ public static partial class ForecastValue
 
         if (index.Fueled.Count != 0)
             foreach (var shelter in outcome.Shelters)
-                if (index.Fueled.TryGetValue(shelter.Room, out var plan) && shelter.CompleteAt.TryGetValue(out var complete))
-                    Material(plan.Source, "", new(plan.Fuel), plan.FuelPerTick.Value * (horizon - complete));
+                if (index.Fueled.TryGetValue(shelter.Room, out var fueled) && shelter.CompleteAt.TryGetValue(out var complete))
+                    foreach (var source in fueled) Material(source.Target, "", new(source.Fuel), source.FuelPerTick.Value * (horizon - complete));
 
         foreach (var allocation in outcome.Plan.Allocations)
         {

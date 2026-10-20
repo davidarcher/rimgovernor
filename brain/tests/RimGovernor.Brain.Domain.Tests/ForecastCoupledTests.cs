@@ -210,12 +210,44 @@ public sealed class ForecastCoupledTests
         var selected = facts.CoupledAlternatives!.Alternatives.Single(c => Original(c, "site-0-finish"));
         Assert.DoesNotContain(Evaluate(facts, selected).Proposed.Coupled!.Alternatives, p => p.Feasible == Known(true));
     }
+    /// <summary>A complete heat source in the shelter at (1, 1) with ample supply.</summary>
+    internal static ThermalSource Heater(double heatPerTick, double target) =>
+        new("heater", new(1, 1), true, Known(heatPerTick), Known(target), Known(1000.0));
+
+    /// <summary>
+    /// #3679: every source in a room pushes its heat while the room is below its own target, so a heater and a torch heat
+    /// the room together up to the torch's target, and only the heater heats it above.
+    /// </summary>
+    [Fact]
+    public void AHeaterAndATorchSumTheirHeatBelowTheTorchsTargetAndOnlyTheHeatersAbove()
+    {
+        const double loss = .001, outdoors = -10;
+        var heater = Heater(.025, 20) with { SupplyTicks = Known(1e6) };
+        var torch = new ThermalSource("torch", new(1, 1), true, Known(.01), Known(10.0), Known(double.PositiveInfinity)) { Fuel = "WoodLog", FuelPerTick = Known(.001) };
+        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(outdoors), Known(outdoors), Known(loss), [heater, torch], []);
+        var result = ForecastShelterPolicy.ForecastShelter(room, new([], 0, 0), 20000);
+        // Below 10 C both push: the room relaxes toward -10 + (.025 + .01) / .001 = 25 C.
+        var summed = 25 + (outdoors - 25) * Math.Exp(-loss * 840);
+        Assert.True(summed < 10);
+        Assert.Equal(summed, result.Trajectory.Single(p => p.Tick == 840).Temperature, 9);
+        // Above it only the heater pushes, toward -10 + .025 / .001 = 15 C, under its own 20 C target.
+        Assert.Equal(15, result.TemperatureAtHorizon.Value, 6);
+        Assert.All(result.Trajectory, p => Assert.True(p.Temperature <= 15 + 1e-9));
+        // Each unknown source makes the room unknown.
+        Assert.Contains("unknown_shelter_thermal_estimate", ForecastShelterPolicy.ForecastShelter(
+            room with { Sources = [heater, torch with { HeatPerTick = default }] }, new([], 0, 0), 20000).Findings);
+        // A weak heater above a strong torch's target: the room holds at the torch's target.
+        var held = ForecastShelterPolicy.ForecastShelter(room with { Sources = [heater with { HeatPerTick = Known(.015) }, torch with { HeatPerTick = Known(.02) }] },
+            new([], 0, 0), 20000);
+        Assert.Equal(10, held.TemperatureAtHorizon.Value, 9);
+    }
+
     [Theory]
     [InlineData(18, 17)]
     [InlineData(15, 18)]
     public void HeaterTargetNeverProvidesArtificialCooling(double initial, double outdoors)
     {
-        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(initial), Known(outdoors), Known(.001), Known(.35), Known(15.0), Known(1000.0), []);
+        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(initial), Known(outdoors), Known(.001), [Heater(.35, 15.0)], []);
         var result = ForecastShelterPolicy.ForecastShelter(room, new([], 0, 0), 300);
         Assert.True(result.TemperatureAtHorizon.Value >= Math.Min(initial, outdoors));
         Assert.True(result.TemperatureAtHorizon.Value > 15);
@@ -224,10 +256,10 @@ public sealed class ForecastCoupledTests
     [Fact]
     public void TwoHeatersCannotIndependentlySpendOneObservedNetworkSurplus()
     {
-        var first = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(-10.0), Known(-10.0), Known(.0001), Known(.35), Known(20.0), Known(1000.0), [])
-        { PowerNetwork = "net", Source = "heater1", AdditionalWatts = Known(100.0), SurplusWatts = Known(150.0) };
+        var heater = Heater(.35, 20.0) with { Target = "heater1", PowerNetwork = "net", AdditionalWatts = Known(100.0), SurplusWatts = Known(150.0) };
+        var first = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(-10.0), Known(-10.0), Known(.0001), [heater], []);
         Assert.True(ForecastShelterPolicy.ForecastShelters([first], new([], 0, 0), 300).Single().TemperatureAtHorizon.IsKnown);
-        var result = ForecastShelterPolicy.ForecastShelters([first, first with { Room = new(ForecastShelterSource.Planned, "2"), Source = "heater2" }], new([], 0, 0), 300);
+        var result = ForecastShelterPolicy.ForecastShelters([first, first with { Room = new(ForecastShelterSource.Planned, "2"), Sources = [heater with { Target = "heater2" }] }], new([], 0, 0), 300);
         Assert.All(result, r => Assert.False(r.TemperatureAtHorizon.IsKnown));
         Assert.All(result, r => Assert.Contains("shared_power_capacity_shortfall", r.Findings));
     }
@@ -235,7 +267,7 @@ public sealed class ForecastCoupledTests
     [Fact]
     public void ShelterProjectionsAreSharedOnlyAcrossSchedulesThatCompleteTheShellAtOneTick()
     {
-        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], ["wall"], Known(-10.0), Known(-10.0), Known(.0001), Known(.35), Known(20.0), Known(1000.0), []);
+        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], ["wall"], Known(-10.0), Known(-10.0), Known(.0001), [Heater(.35, 20.0)], []);
         static ForecastActivityPlan Wall(double end) => new([new("wall", "pawn", 0, 0, 0, end, 0, 0, end, end, 0)], end, end);
         var early = ForecastShelterPolicy.ForecastShelters([room], Wall(60), 300).Single();
         var late = ForecastShelterPolicy.ForecastShelters([room], Wall(120), 300).Single();
@@ -331,7 +363,7 @@ public sealed class ForecastCoupledTests
     {
         var facts = Review();
         var context = facts.CoupledAlternatives!.Context;
-        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(-10.0), Known(-10.0), Known(.0001), Known(.35), Known(20.0), Known(1000.0), []);
+        var room = new ForecastShelterPlan(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], [], Known(-10.0), Known(-10.0), Known(.0001), [Heater(.35, 20.0)], []);
         context = context with
         {
             Shelters = [room],

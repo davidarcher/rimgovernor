@@ -226,7 +226,7 @@ then joins the answer into the coupled thermal read. The coupled capture keeps e
 cell and source it has, and the planned rows fill only the gaps. The planned read
 comes from a later frame of the same round. A planned heater is a source whose
 `Target` is its planned site. The shelter requires that site's finish as one more
-`planned/room{R}/heater` demand, and notes `planned_heat_source_unvalued` when the
+`heater/<site>` demand per planned source, and notes `planned_heat_source_unvalued` when the
 site was not generated. Without the read, or past its bounds, the room stays
 explicitly unknown (`missing_shelter_geometry` or `unknown_heat_source`). A planned
 door's exchange is not read: a ring cell with nothing placed has no door definition.
@@ -241,9 +241,13 @@ holds that current network state constant for the horizon; future weather,
 generator fuel changes, outages and other heat-source mechanics are not predicted.
 A fueled source's supply is unlimited instead: its fuel is charged at material value
 in the Investment term from the shell's completion to the horizon
-([forecast value](forecast-value.md)), so refuelling is assumed. A room holding more
-than one source (a torch lamp beside a heater counts) stays
-`unsupported_multiple_heat_sources`. Missing geometry, unsupported roofing or insufficiently known energy supply keeps
+([forecast value](forecast-value.md)), so refuelling is assumed. Every source in the
+room heats it (#3679; a torch lamp beside a heater counts): each pushes its own heat
+while the room is below its own target, as `CompHeatPusher` does, so between
+consecutive targets the projection sums the sources still pushing, and the room holds
+at a target it cannot rise past. Each source carries its own supply, network draw,
+completion requirement and fuel charge; one unknown source leaves the room unknown.
+Missing geometry, unsupported roofing or insufficiently known energy supply keeps
 the affected shelter estimate unknown. Per-cell roof labor is conservative because
 native roof jobs may cover neighboring cells.
 

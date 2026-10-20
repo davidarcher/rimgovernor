@@ -1,3 +1,5 @@
+using RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>How a construction material's per-unit value was found (#3653).</summary>
@@ -40,16 +42,16 @@ public static partial class ForecastValue
         return charged;
     }
 
-    /// <summary>The shelters heated by a fueled source with a known burn (#3673), whose fuel the ledger charges.</summary>
-    internal static IEnumerable<ForecastShelterPlan> FueledShelters(ForecastCoupledContext context) =>
-        context.Shelters.Where(s => s.Fuel.Length != 0 && s.FuelPerTick.IsKnown);
+    /// <summary>Each shelter's fueled sources with a known burn (#3673), whose fuel the ledger charges per source (#3679).</summary>
+    internal static IEnumerable<(ForecastShelterPlan Shelter, ThermalSource Source)> FueledShelters(ForecastCoupledContext context) =>
+        context.Shelters.SelectMany(s => s.Sources.Where(f => f.Fuel.Length != 0 && f.FuelPerTick.IsKnown).Select(f => (s, f)));
 
     /// <summary>The materials the charged activities consume and the fueled shelters burn, each priced once per review (<see cref="MaterialValueOf"/>).</summary>
     public static IReadOnlyList<Resource> ChargedMaterials(ForecastCoupledContext context)
     {
         var charged = ChargedMaterialActivities(context);
         return [.. context.Activities.Activities.Where(a => charged.Contains(a.Id)).SelectMany(a => a.Inputs).Select(i => i.Resource)
-            .Concat(FueledShelters(context).Select(s => new Resource(s.Fuel)))
+            .Concat(FueledShelters(context).Select(s => new Resource(s.Source.Fuel)))
             .Distinct().OrderBy(r => r.Value, StringComparer.Ordinal)];
     }
 
