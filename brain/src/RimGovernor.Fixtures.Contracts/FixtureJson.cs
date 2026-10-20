@@ -80,6 +80,7 @@ public static class FixtureJson
 [JsonSerializable(typeof(SpoilagePickRead))]
 [JsonSerializable(typeof(FoodStorageRoutesRead))]
 [JsonSerializable(typeof(SkillLearningProbeRead))]
+[JsonSerializable(typeof(SkillStatCurvePrepared))]
 [JsonSerializable(typeof(SkillLearningVerifyRead))]
 [JsonSerializable(typeof(TrainingPrepared))]
 [JsonSerializable(typeof(TrainingRead))]

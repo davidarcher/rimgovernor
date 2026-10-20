@@ -76,6 +76,22 @@ public sealed record SkillLearningProbeRead
     public IReadOnlyList<string> Failures { get; init; } = [];
 }
 
+/// <summary><c>test/skill_stat_curve_prepare</c>: the biography's medical stat curves against live native stat calls.</summary>
+public sealed record SkillStatCurvePrepared
+{
+    /// <summary>The healthy colonist whose curves were compared.</summary>
+    public string Qualified { get; init; } = "";
+
+    /// <summary>The anesthetized colonist, whose pipeline no longer qualifies.</summary>
+    public string Disqualified { get; init; } = "";
+
+    /// <summary>Stat x level values compared.</summary>
+    public int Samples { get; init; }
+
+    /// <summary>Findings on the healthy colonist, "stat/level: curve vs live" disagreements and read_mutated_pawn.</summary>
+    public IReadOnlyList<string> Failures { get; init; } = [];
+}
+
 /// <summary><c>test/skill_learning_verify</c>: the native XP callbacks the verifier checked against the projection.</summary>
 public sealed record SkillLearningVerifyRead
 {

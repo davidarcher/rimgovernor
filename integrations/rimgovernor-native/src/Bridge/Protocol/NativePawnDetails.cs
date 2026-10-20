@@ -388,8 +388,11 @@ namespace HomeBridge.BridgeTools
             if(pawn.story?.traits!=null)
                 foreach(var trait in pawn.story.traits.allTraits) row = row with { Traits = [.. row.Traits, new Obs.Trait {DefName=Id(trait.def.defName),Degree=trait.Degree}] };
             if(pawn.skills!=null)
+            {
                 foreach(var skill in pawn.skills.skills)
                     row = row with { Skills = [.. row.Skills, new Obs.Skill {Learning=NativeSkillLearning.Read(pawn,skill),DefName=Id(skill.def.defName),Level=skill.Level,StoredLevel=skill.levelInt,Passion=NativeEnums.Passion(skill.passion),Disabled=skill.TotallyDisabled}] };
+                row = NativeSkillStat.Curves(pawn,row);
+            }
             var tags=pawn.CombinedDisabledWorkTags;
             foreach(var tag in SingleWorkTags) if((tags&tag)!=0) row = row with { DisabledWorkTags = [.. row.DisabledWorkTags, tag.ToString()] };
             foreach(var def in DefDatabase<WorkTypeDef>.AllDefsListForReading) if(pawn.WorkTypeIsDisabled(def)) row = row with { IncapableWorkTypes = [.. row.IncapableWorkTypes, Id(def.defName)] };

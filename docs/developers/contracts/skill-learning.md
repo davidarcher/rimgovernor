@@ -73,15 +73,10 @@ occupancy, deadlines, ingredient use and the downstream needs trajectory. XP and
 terminal skill have no utility score. A small efficiency improvement can break a
 labor tie only after the existing higher-tier consequences are compared.
 
-Native `CookSpeed` currently depends on a Cooking skill offset before a native
-postprocessing curve. The read substitutes native `SkillNeed_BaseBonus.ValueAtLevel`
-values and invokes native `StatWorker.FinalizeValue`; it copies neither curve nor
-skill-speed formula. It changes no pawn, definition or skill and does not populate
-counterfactual stat-cache entries. This qualification requires exact base worker and
-skill-need types, neutral prefinal multipliers and inspected skill-independent
-postprocessing parts. Hediffs, nonneutral multipliers, conditional modifier hooks,
-custom stat pipelines and unsupported recipes yield absent learning-dependent rates.
-Ordinary observed-rate options remain available, with explicit findings.
+The recipe's work-speed stat at each stored level comes from the generic
+[stat-at-level read](#stat-at-level-read), times the observed station speed. Unsupported
+pipelines and recipes yield absent learning-dependent rates. Ordinary observed-rate
+options remain available, with explicit findings.
 
 Rates hold observed health, equipment, station and environment fixed. In particular,
 observed pawn-cell lighting is not a forecast of future bench lighting. Poisoning,
@@ -117,6 +112,34 @@ fresh-demand retirement and journal/wire preservation. Native execution remains
 separate from registration and compilation.
 
 [Assigned capability maintenance](capability-maintenance.md) combines supported scheduled callbacks with decay against actual held-role requirements. Native practice cycle quotes are conditional execution estimates, not guaranteed completed learning or injury-free work.
+
+## Stat-at-level read
+
+`NativeSkillStat` reads a pawn's stat value at each stored level 0-20 without changing
+the pawn, a definition or a stat cache. Aptitude applies as native `GetLevel` does. It
+copies no curve or formula:
+
+- **Offset path:** a single `SkillNeed_BaseBonus` offset (Cooking's `CookSpeed`) with no
+  multiplier after it: the unfinalized value minus the current offset plus native
+  `ValueAtLevel`, then native `StatWorker.FinalizeValue`.
+- **Factor path:** a single `SkillNeed_BaseBonus` or `SkillNeed_Direct` factor (`valuesPerLevel`
+  covering every level): the unfinalized value times the native level value over the current
+  one, then `FinalizeValue`. This is exact because only linear multipliers follow the factor:
+  `capacityFactors` at observed capacities; inspiration disqualifies.
+
+Everything else must be skill-independent and neutral: exact base worker; nested
+`statFactors`/`postProcessStatFactors` with no dependence on the skill; stat parts on the
+inspected allowlist (glow, slave, age, overseer); no hediff, inspiration, pawn stuff,
+nonneutral trait, life-stage, precept, role or gene factor, stat-relevant conditional
+affecter or stat-modifying comp. A pipeline that does not qualify yields no values and a finding.
+
+The pawn biography carries `SkillStatCurves` for MedicalTendQuality, MedicalTendSpeed,
+MedicalOperationSpeed and MedicalSurgerySuccessChance against Medicine, and
+`SkillStatFindings` ("Stat: reason") for each that does not qualify. Curves hold observed
+health, equipment and environment fixed; they are not a forecast of those. Registered
+`lab/skill-stat-curve` compares each curve level with the live native stat at that level
+(set temporarily by the fixture only) and checks that an anesthetized colonist carries
+findings, not curves. Valuing the curves is #3635.
 
 ## Old writer and heuristic audit (#3167)
 

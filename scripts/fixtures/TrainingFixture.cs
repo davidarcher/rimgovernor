@@ -191,6 +191,52 @@ namespace HomeBridge.BridgeTools
                 return FixtureKit.Reply(new Fx.SkillLearningProbeRead { Samples = samples, Failures = failures });
             }, cancellationToken);
         }
+        [Tool("test/skill_stat_curve_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Clear two Medicine-capable colonists' hediffs and inspiration, compare the first's biography medical stat curves with live native stat calls at each level (temporarily set and restored), then anesthetize the second so its pipeline disqualifies. Test builds only.")]
+        public async Task<object> SkillStatCurvePrepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = FixtureKit.CurrentMap();
+                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => p.skills?.GetSkill(SkillDefOf.Medicine).TotallyDisabled == false).Take(2).ToArray();
+                if (pawns.Length < 2) throw new InvalidOperationException("Two Medicine-capable colonists are required.");
+                foreach (var pawn in pawns)
+                {
+                    foreach (var hediff in pawn.health.hediffSet.hediffs.ToList()) pawn.health.RemoveHediff(hediff);
+                    if (pawn.Inspired) pawn.mindState.inspirationHandler.EndInspiration(pawn.Inspiration);
+                }
+                var (qualified, disqualified) = (pawns[0], pawns[1]);
+                var skill = qualified.skills.GetSkill(SkillDefOf.Medicine);
+                var before = (skill.levelInt, skill.xpSinceLastLevel, skill.xpSinceMidnight);
+                var biography = NativePawnDetails.Biography(qualified);
+                var failures = biography.SkillStatFindings.ToList();
+                if (before != (skill.levelInt, skill.xpSinceLastLevel, skill.xpSinceMidnight)) failures.Add("read_mutated_pawn");
+                var samples = 0;
+                try
+                {
+                    foreach (var curve in biography.SkillStatCurves)
+                    {
+                        var stat = DefDatabase<StatDef>.GetNamed(curve.Stat); // the curve names its stat by defName across the wire
+                        foreach (var level in curve.Levels)
+                        {
+                            // Disposable fixture mutation only: evaluate the actual native level without stat caching.
+                            skill.levelInt = level.StoredLevel;
+                            var actual = stat.Worker.GetValue(StatRequest.For(qualified));
+                            samples++;
+                            if (Math.Abs(level.Value - actual) > 1e-4 * Math.Max(1, Math.Abs(actual)))
+                                failures.Add($"{curve.Stat}/{level.StoredLevel}: {level.Value} vs {actual}");
+                        }
+                    }
+                }
+                finally
+                {
+                    skill.levelInt = before.levelInt;
+                    skill.xpSinceLastLevel = before.xpSinceLastLevel;
+                    skill.xpSinceMidnight = before.xpSinceMidnight;
+                }
+                disqualified.health.AddHediff(HediffDefOf.Anesthetic);
+                return FixtureKit.Reply(new Fx.SkillStatCurvePrepared { Qualified = qualified.GetUniqueLoadID(), Disqualified = disqualified.GetUniqueLoadID(),
+                    Samples = samples, Failures = failures });
+            }, cancellationToken);
+        }
         [Tool("test/training_inspect", Description = "Read-only postcondition of the training fixture: the colonist's skills, hands, job and the range's hit points.")]
         public async Task<object> Inspect(IRimBridgeContext ctx, CancellationToken cancellationToken, string pawnId, string dummyId, string sentinels,
             string otherId = "", string bystanderId = "")

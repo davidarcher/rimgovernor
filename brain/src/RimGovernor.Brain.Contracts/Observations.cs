@@ -1017,6 +1017,19 @@ public sealed record PawnBiography
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> DisabledWorkTags { get; init; }
+
+    /// <summary>
+    /// Medical stats at each stored Medicine level (MedicalTendQuality, MedicalTendSpeed, MedicalOperationSpeed,
+    /// MedicalSurgerySuccessChance) for a pawn with skills whose stat pipeline qualifies.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<SkillStatCurve>))]
+    public EquatableArray<SkillStatCurve> SkillStatCurves { get; init; }
+
+    /// <summary>
+    /// "Stat: reason" for each of those stats that yields no curve.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> SkillStatFindings { get; init; }
 }
 
 /// <summary>

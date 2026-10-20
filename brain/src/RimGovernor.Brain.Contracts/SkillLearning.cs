@@ -38,3 +38,10 @@ public sealed record RecipeLearning(string Skill, Fact<double> RawXpPerWorkTick,
 public sealed record ProductiveSkillWork(SkillLearning Learning, RecipeLearning Recipe, Fact<double> WorkAmount,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<SkillWorkRate>))] EquatableArray<SkillWorkRate> Rates, string Provenance);
 public sealed record SkillWorkRate(int StoredLevel, Fact<double> WorkPerTick);
+
+/// <summary>A pawn's native stat value at each stored skill level (0-20) at one frame. Capacities and every other
+/// observed condition are held; the skill term alone is replaced. Pawns whose pipeline does not qualify carry a
+/// finding instead (<see cref="PawnBiography.SkillStatFindings"/>).</summary>
+public sealed record SkillStatCurve(string Stat, string Skill,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<SkillStatLevel>))] EquatableArray<SkillStatLevel> Levels, string Provenance);
+public sealed record SkillStatLevel(int StoredLevel, double Value);
