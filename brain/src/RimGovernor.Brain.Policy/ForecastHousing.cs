@@ -87,8 +87,9 @@ public static class ForecastHousing
     }
 
     /// <summary>
-    /// Per priced planned bedroom with an occupant (<see cref="ForecastCoupledContext.BedroomOccupants"/>) and per stuff it
-    /// closes in, the occupant's <see cref="BedroomMoodDelta"/> at that closure's predicted stage; cached per context.
+    /// Per priced planned bedroom with an occupant (<see cref="ForecastCoupledContext.BedroomOccupants"/>, else the one
+    /// colonist owning a bed in the predicted room) and per stuff it closes in, the occupant's <see cref="BedroomMoodDelta"/>
+    /// at that closure's predicted stage; cached per context.
     /// </summary>
     internal static IReadOnlyDictionary<(int Room, string Stuff), ForecastHousingDelta> BedroomDeltas(ForecastCoupledContext context)
         => Cache.GetValue(context, MovesOf).Deltas;
@@ -99,13 +100,17 @@ public static class ForecastHousing
     private static Moves MovesOf(ForecastCoupledContext c)
     {
         var deltas = new Dictionary<(int, string), ForecastHousingDelta>();
-        if (c.PricedRoomRoles.Contains(PlannedRole.Bedroom) && c.BedroomOccupants.Count != 0)
+        if (c.PricedRoomRoles.Contains(PlannedRole.Bedroom))
         {
             var pawns = c.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
             foreach (var closure in c.Closures)
             {
-                if (!c.PlannedRoomRoles.TryGetValue(closure.Room, out var role) || role != PlannedRole.Bedroom
-                    || !c.BedroomOccupants.TryGetValue(closure.Room, out var occupant)) continue;
+                if (!c.PlannedRoomRoles.TryGetValue(closure.Room, out var role) || role != PlannedRole.Bedroom) continue;
+                // The bedroom step's occupant, else the one colonist owning a bed in the room (a standing bedroom's wall
+                // upgrade, #3657: its delta is the stage the swap predicts against the stage its owner sleeps at now).
+                var occupant = c.BedroomOccupants.GetValueOrDefault(closure.Room)
+                    ?? (pawns.Values.Where(p => p.OwnedBed.Length != 0 && closure.Prediction.Beds.Contains(p.OwnedBed)).ToArray() is [var owner] ? owner.Pawn : null);
+                if (occupant is null) continue;
                 deltas[(closure.Room, closure.Stuff)] = new(occupant, pawns.TryGetValue(occupant, out var pawn)
                     ? BedroomMoodDelta(pawn, closure.Prediction.Stage, c.ObservedThoughts.GetValueOrDefault(occupant)) : default);
             }

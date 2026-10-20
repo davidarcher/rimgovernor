@@ -173,9 +173,10 @@ public sealed record ReconcileInput
     public Func<string, string, bool>? FloorKept { get; init; }
 
     /// <summary>
-    /// Says a standing wall of stuff have is replaced in place by the wanted stuff: the wanted stuff ranks
-    /// strictly above it in the ladder and is in stock. Null never swaps a wall. A wall whose stuff the census
-    /// does not name is left.
+    /// Says a standing ring wall of stuff have is owed swapped in place (#3657): the planned sites ask for every
+    /// standing wall, which they price per ring stuff, and the room reconcile for those not in the stuff of the
+    /// room's selected wall upgrade. Null never swaps a wall: a wall stands in the stuff it was built in. A wall
+    /// whose stuff the census does not name is left.
     /// </summary>
     public Func<string, bool>? WallUpgrade { get; init; }
 
@@ -392,18 +393,20 @@ public static partial class ReconcileRules
                 Add(new ReconcileItem { Kind = OpKind.WallIn, Cell = c });
             }
         }
-        // Wall stuff: one standing wall of a lower ranked stuff is swapped in place, only on a ring with no
-        // other work, so enclosure holds at that one cell and the swaps never open two cells (adjacent or
-        // not) at once. The placement preview reports a stuff swap safe, so the diff itself finds it.
+        // Wall stuff: on a ring with no other work, every standing wall WallUpgrade names is owed swapped in
+        // place (a planned vent's cell is left to the vent), and only the first is ready, so enclosure holds at
+        // that one cell and the swaps never open two cells (adjacent or not) at once. The placement preview
+        // reports a stuff swap safe, so the diff itself finds it.
         if (input.WallUpgrade is not null && !r.Outdoor && items.Count == ringStart)
         {
+            var first = true;
             foreach (var c in ring.Cells())
             {
                 var have = input.Ground.Stuff.GetValueOrDefault(c) ?? "";
-                if (!covered.Contains(c) && !doorWanted.Contains(c) && input.Ground.Walls.Contains(c) && have.Length != 0 && input.WallUpgrade(have))
+                if (!covered.Contains(c) && !doorWanted.Contains(c) && !vents.ContainsKey(c) && input.Ground.Walls.Contains(c) && have.Length != 0 && input.WallUpgrade(have))
                 {
-                    Add(new ReconcileItem { Kind = OpKind.WallUp, Cell = c, Ready = true });
-                    break;
+                    Add(new ReconcileItem { Kind = OpKind.WallUp, Cell = c, Ready = first });
+                    first = false;
                 }
             }
         }

@@ -247,6 +247,14 @@ horizon is not selected: it is placed once its room has started.
   stuff (`SelectedRingStuff`). The blueprints then start the room, and the rest
   of it is placed as before.
 
+A standing priced room (a `PricedRoomRoles` role) is offered its walls swapped to
+each other ring stuff (#3657): one `planned/room{id}/wallup/{stuff}` site per stuff
+over the walls not already in it, costed at that stuff's material and the swap's
+labor and valued by the stage the swap predicts (the bedroom credit). The record
+keeps a started room's selected `WallUp` site, and the room reconcile swaps its
+walls to that stuff (`SelectedWallUpgrade`); with none selected the walls stay as
+built. The tier style's wall stuff no longer swaps a room's walls.
+
 A room is started when a colony-built wall, door, fence or gate stands on a
 ring cell that belongs to it alone, a blueprint or frame stands on its ring or
 ground, or a template piece stands at its anchor (`PlannedRoomStarted`). Shared

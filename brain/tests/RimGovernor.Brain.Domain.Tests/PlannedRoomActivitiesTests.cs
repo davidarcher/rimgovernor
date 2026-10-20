@@ -651,6 +651,107 @@ public sealed class PlannedRoomActivitiesTests
             (c.Activity.StartsWith("planned/room1/wall/WoodLog/delivery/stack-WoodLog/composition/", StringComparison.Ordinal), c.Units, c.Value)));
     }
 
+    private static readonly NeedThoughtStage[] BedroomStages =
+    [
+        new("SleptInBedroom", "slept_in_bedroom", 0, -4, Known((double)GameTime.TicksPerDay), false),
+        new("SleptInBedroom", "slept_in_bedroom", 2, 2, Known((double)GameTime.TicksPerDay), false),
+        new("SleptInBarracks", "slept_in_barracks", 0, -7, Known((double)GameTime.TicksPerDay), false),
+    ];
+
+    /// <summary>
+    /// #3657: room 1 a priced bedroom, native's closed-room prediction per ring stuff at <paramref name="stages"/>, the
+    /// builder owning bed "bed" in a room of <paramref name="role"/> at <paramref name="stage"/>, its bed thoughts read,
+    /// tier 2's horizon 10 days and each stuff charged its per-unit <paramref name="material"/> value. With
+    /// <paramref name="inside"/> the room stands and the bed is in it, so the builder is its occupant as the bed's owner;
+    /// without, the builder is the bedroom step's occupant.
+    /// </summary>
+    private static RoundsFacts Bedroom(IEnumerable<PlannedBuildSite> planned, IReadOnlyDictionary<string, int> stages,
+        IReadOnlyDictionary<string, double> material, string role, int stage, bool inside)
+    {
+        var facts = Review(planned);
+        var indoors = new NeedCell(Known(true), Known(false), Known(false), Known(false), Known(false));
+        var pawns = facts.ForecastObserved.Needs!.Pawns.Select(p => p.Pawn != Pawn ? p : p with
+        {
+            ThoughtStages = EquatableArray.From(BedroomStages),
+            OwnedBed = "bed",
+            Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.00005)) { Bed = new(role, Known(stage), false), Cell = indoors, Location = Interior[4] }],
+        });
+        facts = facts with
+        {
+            PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Bedroom)] }),
+            PlannedShelters = [new PlannedRoom { Id = 1, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5, Z = 5, Width = 3, Height = 3 }) }],
+            PlannedRoomPredictions = Known(EquatableArray.From(stages.Select(s => new PlannedRoomPrediction("1", s.Key, "Bedroom", Known(30d), Known(s.Value), 9, 0, false)
+                { Beds = inside ? ["bed"] : [] }))),
+            MoodBreak = new() { Threshold = .3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
+            ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = EquatableArray.From(pawns) } },
+        };
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Priced();
+        return facts with
+        {
+            CoupledAlternatives = generated with
+            {
+                Context = generated.Context with
+                {
+                    BedroomOccupants = inside ? new Dictionary<int, string>() : new Dictionary<int, string> { [1] = Pawn },
+                    InvestmentHorizonDays = Known(10d),
+                    MaterialValues = material.ToDictionary(m => new Resource(m.Key), m => new ConstructionMaterialValue(MaterialValueBasis.Labor, m.Value)),
+                },
+            },
+        };
+    }
+
+    private static IEnumerable<ForecastInvestmentContribution> BedroomCredits(ForecastCoupledSelection result) =>
+        result.SelectedVector.Value.Ledger.InvestmentContributions.Where(c => c.Key.StartsWith("bedroom/", StringComparison.Ordinal));
+
+    /// <summary>
+    /// #3657: wood and stone rings both priced, wood cheaper and enough for the room's stage (both predict stage 2): wood is
+    /// selected and built in wood, and nothing swaps its walls afterwards, the style no longer naming a wall stuff. The
+    /// ring owes walls alone, so one site root closes the room in each stuff.
+    /// </summary>
+    [Fact]
+    public void ACheaperStuffThatReachesTheRoomsStageIsSelectedAndNoWallUpgradeFollows()
+    {
+        var facts = Bedroom([
+            Ring(OpKind.WallIn, "WoodLog", 60, count: 10, available: 50),
+            Ring(OpKind.WallIn, "BlocksGranite", 120, count: 10, available: 50)],
+            new Dictionary<string, int> { ["WoodLog"] = 2, ["BlocksGranite"] = 2 }, new Dictionary<string, double> { ["WoodLog"] = .001, ["BlocksGranite"] = .003 }, "Barracks", 0, inside: false);
+        var result = Select(facts);
+        Assert.True(PlannedSelected(result, "planned/room1/wall/WoodLog"), Why(facts, result));
+        Assert.False(PlannedSelected(result, "planned/room1/wall/BlocksGranite"));
+        Assert.Contains(BedroomCredits(result), c => c.Key == "bedroom/1/" + Pawn && c.Value < 0);
+
+        var record = PlannedRules.PlannedSelectionOf(facts.CoupledAlternatives, result, facts.PlannedSites)!;
+        Assert.Equal(("WoodLog", "WoodLog"), PlannedRules.SelectedRingStuff(PlannedRules.PlannedRoomGateOf(record, 1, started: false).Sites));
+        // Once it stands, the room was offered no swap and the record names none: its walls stay wood.
+        Assert.Null(PlannedRules.SelectedWallUpgrade(PlannedRules.PlannedSelectionMemory(new(), record, _ => true), 1));
+    }
+
+    /// <summary>
+    /// #3657: a standing wood bedroom at stage 0, its owner the builder. A swap to granite predicting stage 2 earns the
+    /// owner's mood (+2 against -4) to the horizon, beats the granite and the labor, and is selected; the record keeps it
+    /// for the started room and the reconcile swaps to granite. The same swap predicting the stage the room has gains
+    /// nothing and is left.
+    /// </summary>
+    [Theory]
+    [InlineData(2, true)]
+    [InlineData(0, false)]
+    public void AStandingBedroomsWallUpgradeIsSelectedWhenItsStageBeatsItsCost(int predicted, bool selected)
+    {
+        var swap = Site("planned/room1/wallup/BlocksGranite", OpKind.WallUp, "Wall", "BlocksGranite", WallCells, 120, 10,
+            [("stack-BlocksGranite", StackCell("BlocksGranite"), 50)]);
+        var facts = Bedroom([swap], new Dictionary<string, int> { ["BlocksGranite"] = predicted }, new Dictionary<string, double> { ["BlocksGranite"] = .003 }, "Bedroom", 0, inside: true);
+        Assert.Equal(["planned/room1/BlocksGranite/Shell"], facts.CoupledAlternatives!.Context.PlannedRooms.Select(r => r.Id));
+        var result = Select(facts);
+        Assert.Equal(selected, PlannedSelected(result, swap.Id));
+        if (!selected)
+        {
+            return;
+        }
+        Assert.Contains(BedroomCredits(result), c => c.Key == "bedroom/1/" + Pawn && c.Value < 0);
+        var record = PlannedRules.PlannedSelectionMemory(new(), PlannedRules.PlannedSelectionOf(facts.CoupledAlternatives, result, facts.PlannedSites), _ => true);
+        Assert.Equal("BlocksGranite", PlannedRules.SelectedWallUpgrade(record, 1));
+    }
+
     /// <summary>
     /// #3651: emission reads the selected portfolio, not the development count. A portfolio with no root of the room
     /// completes none of its sites, so the record emits none and the assessed room is held, as before.

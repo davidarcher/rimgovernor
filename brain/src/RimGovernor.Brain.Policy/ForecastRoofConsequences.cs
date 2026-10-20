@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// One closed-room prediction of a planned room (#3339): the room's interior cells, its ring sites in the prediction's
-/// stuff (WallIn and DoorIn, a stuff-less one in every stuff) and its RoofIn sites (planned site ids), and native's
+/// stuff (WallIn, DoorIn and a standing room's WallUp swaps, #3657; a stuff-less one in every stuff) and its RoofIn sites (planned site ids), and native's
 /// prediction of the room once those ring sites stand.
 /// </summary>
 public sealed record ForecastPlannedClosure(int Room, string Stuff, EquatableArray<Cell> Interior,
@@ -73,7 +73,7 @@ public static class ForecastRoofConsequences
         {
             if (!int.TryParse(row.Room, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out var id)
                 || !shapes.TryGetValue(id, out var room)) continue;
-            var ring = byRoom[id].Where(s => s.Op is OpKind.WallIn or OpKind.DoorIn && (s.Stuff.Length == 0 || s.Stuff == row.Stuff))
+            var ring = byRoom[id].Where(s => s.Op is OpKind.WallIn or OpKind.DoorIn or OpKind.WallUp && (s.Stuff.Length == 0 || s.Stuff == row.Stuff))
                 .Select(s => s.Id).Order(StringComparer.Ordinal);
             var roof = byRoom[id].Where(s => s.Op == OpKind.RoofIn).Select(s => s.Id).Order(StringComparer.Ordinal);
             result.Add(new(id, row.Stuff, EquatableArray.From(room.Region.Cells().OrderBy(c => c.X).ThenBy(c => c.Z)),

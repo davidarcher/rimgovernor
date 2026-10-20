@@ -377,7 +377,8 @@ either it is charged 0 with `material_value_unpriced:<def>`. The shipped `Priced
 on the outcome as `ClosedRooms`) is credited, in the Investment term under `bedroom/<room>/<pawn>`, the mood gain of the colonist
 the bedroom step would move into it (`SleepingRules.PlannedBedroomOccupants`, `ForecastCoupledContext.BedroomOccupants`: today's
 step order, the unhoused in id order taking the vacant bedroom beds, then the planned barracks' bunks, then the owed rooms in
-plan order). The pricing is `ForecastHousing`, which the priced merge and priced moves reuse:
+plan order), else the one colonist owning a bed in the predicted room: a standing bedroom's wall upgrade (#3657) credits its
+owner the swap's predicted stage against the stage it sleeps at now. The pricing is `ForecastHousing`, which the priced merge and priced moves reuse:
 
 - *Mood delta* (`BedroomMoodDelta`): for a non-ascetic, `slept_in_bedroom` at the prediction's Impressiveness stage less the
   current bed thought (`slept_in_bedroom` or `slept_in_barracks` at the owned bed's room stage, none for a prisoner bed, plus

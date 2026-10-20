@@ -27,8 +27,9 @@ public sealed class PlannedSitesTests
 
     private static IReadOnlyList<Amount>? Floor(string def) => [new Amount(Wood, 1)];
 
-    private static IReadOnlyList<PlannedBuildSite> Sites(IEnumerable<(PlannedRoom, IReadOnlyList<Operation>)> rooms, IReadOnlySet<(string, Cell)>? placed = null) =>
-        PlannedRules.PlannedSitesOf(rooms, _ => ["WoodLog", "Steel"], Ring, Piece, Floor, "Vent", placed ?? NonePlaced);
+    private static IReadOnlyList<PlannedBuildSite> Sites(IEnumerable<(PlannedRoom, IReadOnlyList<Operation>)> rooms, IReadOnlySet<(string, Cell)>? placed = null,
+        IReadOnlyDictionary<Cell, string>? standing = null) =>
+        PlannedRules.PlannedSitesOf(rooms, _ => ["WoodLog", "Steel"], Ring, Piece, Floor, "Vent", placed ?? NonePlaced, standing ?? new Dictionary<Cell, string>());
 
     private static readonly WantedPiece Bench = new()
     {
@@ -127,12 +128,44 @@ public sealed class PlannedSitesTests
         Assert.Contains(Sites([(room, sited)]), s => s.Id == "planned/room1/roof" && s.Positions.Count == 9);
     }
 
+    /// <summary>
+    /// #3657: a wall stands in the stuff it was built in. Asked for swaps, a standing ring owes every wall, one ready at a
+    /// time, and the sites offer each other ring stuff as one upgrade over the walls built in another.
+    /// </summary>
+    [Fact]
+    public void AStandingRingOwesSwapsOnlyWhenAskedAndEachOtherRingStuffIsOneUpgradeSite()
+    {
+        var room = Room(1, 0);
+        var input = new ReconcileInput { Plan = new LayoutPlan { Rooms = [room] }, Room = room, Ground = new GroundCensus(), Rows = [] };
+        var ground = PlannedRules.RingStandsGround(input.Ground, ReconcileRules.Reconcile(input).Owed);
+        foreach (var c in ground.Walls)
+        {
+            ground.Stuff[c] = "WoodLog";
+        }
+        var steel = ground.Walls.OrderBy(c => c.X).ThenBy(c => c.Z).First();
+        ground.Stuff[steel] = "Steel";
+        var standing = input with { Ground = ground };
+        Assert.DoesNotContain(ReconcileRules.Reconcile(standing).Owed, o => o.Kind == OpKind.WallUp);
+
+        var swaps = ReconcileRules.Reconcile(standing with { WallUpgrade = _ => true });
+        var owed = Assert.Single(swaps.Owed, o => o.Kind == OpKind.WallUp);
+        Assert.Equal(ground.Walls.Count, owed.Cells.Count);
+        Assert.Single(Assert.Single(swaps.Ready, o => o.Kind == OpKind.WallUp).Cells);
+
+        var sites = Sites([(room, [owed])], standing: ground.Stuff);
+        var toSteel = sites.Single(s => s.Id == "planned/room1/wallup/Steel");
+        Assert.Equal((OpKind.WallUp, ContainmentCellRules.ShellWallDefinition, ground.Walls.Count - 1), (toSteel.Op, toSteel.Definition, toSteel.Positions.Count));
+        Assert.DoesNotContain(steel, toSteel.Positions);
+        Assert.Equal([new Amount(Steel, 2 * (ground.Walls.Count - 1))], toSteel.Material);
+        Assert.Equal([steel], sites.Single(s => s.Id == "planned/room1/wallup/WoodLog").Positions);
+    }
+
     [Fact]
     public void ASharedWallBelongsToTheLowerRoomOnly()
     {
         var plan = new LayoutPlan { Rooms = [Room(2, 4), Room(1, 0)] };
         var owed = plan.Rooms.Select(room => (room, ReconcileRules.Reconcile(new ReconcileInput { Plan = plan, Room = room, Ground = new GroundCensus(), Rows = [] }).Owed));
-        var sites = PlannedRules.PlannedSitesOf(owed, _ => ["WoodLog"], Ring, Piece, Floor, "Vent", NonePlaced);
+        var sites = PlannedRules.PlannedSitesOf(owed, _ => ["WoodLog"], Ring, Piece, Floor, "Vent", NonePlaced, new Dictionary<Cell, string>());
         var ring = sites.Where(s => s.Op is OpKind.WallIn or OpKind.DoorIn).ToList();
         // Two 3x3 rooms with a wall between: 16 + 16 - 5 shared ring cells, as PlannedOwedCost counts them.
         Assert.Equal(27, ring.Sum(s => s.Positions.Count));

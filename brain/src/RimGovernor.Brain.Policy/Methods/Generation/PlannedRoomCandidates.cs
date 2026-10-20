@@ -77,7 +77,7 @@ internal static class PlannedRoomCandidates
         IEnumerable<ConstructionActivityOption> ClearingRows(PlannedSiteClearing clearing) => clearing.Options.Where(Free)
             .Where(r => (clearing.Kind == PlannedClearingKind.Haul ? r.DeliveryTicks : r.FinishTicks).IsKnown)
             .Where(r => clearing.Kind != PlannedClearingKind.Deconstruct || r.Input.Length > 0).GroupBy(r => r.Pawn).Select(p => p.First());
-        string RingKind(OpKind op) => op switch { OpKind.WallIn => "wall", OpKind.DoorIn => "door", _ => "vent" };
+        string RingKind(OpKind op) => op switch { OpKind.WallIn => "wall", OpKind.DoorIn => "door", OpKind.WallUp => "wallup", _ => "vent" };
         var assessed = new Dictionary<string, (Assessment Verdict, string Reason)>(StringComparer.Ordinal);
         foreach (var room in alternatives.GroupBy(a => a.Room).OrderBy(g => g.Key))
         {
@@ -203,7 +203,7 @@ internal static class PlannedRoomCandidates
                     requirements.Add(new(finish + "/" + RingKind(kind), completed, Known(1), roomLocation, ForecastRequirementKind.Reusable,
                         Known(EquatableArray.From(sources)), Known(0.0), Known(horizon)));
                 }
-                var ring = site.Op is OpKind.WallIn or OpKind.DoorIn or OpKind.VentIn;
+                var ring = site.Op is OpKind.WallIn or OpKind.DoorIn or OpKind.VentIn or OpKind.WallUp;
                 roomOperations.Add(new(new(finish, siteLocation, siteLocation, [])
                     { ChoiceIdentity = ring ? "planned/room" + site.Room + "/" + RingKind(site.Op) + "/finish" : "" },
                     EquatableArray.From(requirements),

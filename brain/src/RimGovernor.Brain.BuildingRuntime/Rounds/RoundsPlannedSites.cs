@@ -52,7 +52,7 @@ public sealed partial class Rounder
         owed is null ? null
             : PlannedRules.PlannedSitesOf(owed.Sited, room => PlannedRingStuffsOf(colony, room),
                 (def, stuff) => PlannedRingPrice(colony, def, stuff), def => PlannedPiecePrice(colony, def), owed.FloorPrice,
-                ClimateRules.ClimateDefs().VentDef, owed.Placed);
+                ClimateRules.ClimateDefs().VentDef, owed.Placed, owed.WallStuff);
 
     /// <summary>
     /// A planned site's catalog work per piece (WorkToBuild): its def's for its stuff, a floor's own; unknown where the

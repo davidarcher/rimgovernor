@@ -43,13 +43,14 @@ public static partial class PlannedRules
 
     /// <summary>
     /// The closed-room predictions one round asks native for (#3339): every enclosed planned room that still owes a wall or
-    /// door site, once per ring stuff (PlannedRoomAlternatives' stuffs), its interior the room's region and its pieces the
-    /// cells of its wall and door sites in that stuff (a stuff-less ring site in every stuff). Nothing is capped (#3341).
+    /// door site, or a standing one offered a wall swap (#3657), once per ring stuff (PlannedRoomAlternatives' stuffs), its
+    /// interior the room's region and its pieces the cells of its wall, door and swap sites in that stuff (a stuff-less ring
+    /// site in every stuff); native counts a piece in place of what stands on its cell. Nothing is capped (#3341).
     /// </summary>
     public static EquatableArray<PlannedRoomShape> PlannedRoomPredictionRequestOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites)
     {
         var shapes = new List<PlannedRoomShape>();
-        var closing = sites.Where(s => s.Room > 0 && s.Zone.Length == 0 && s.Op is OpKind.WallIn or OpKind.DoorIn).ToLookup(s => s.Room);
+        var closing = sites.Where(s => s.Room > 0 && s.Zone.Length == 0 && s.Op is OpKind.WallIn or OpKind.DoorIn or OpKind.WallUp).ToLookup(s => s.Room);
         foreach (var room in rooms.Where(r => !r.Outdoor && r.Id > 0 && closing.Contains(r.Id)).OrderBy(r => r.Id))
         {
             var ring = closing[room.Id].ToList();

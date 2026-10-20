@@ -552,8 +552,10 @@ holds the station-chain design.
 There is no separate tidy pass. A PlannedRoom is worked toward the plan by the room's owner
 (build side) and by planned-ground clearance (clear side), both over one per-cell diff
 (`policy.Reconcile`, `ReconcileRoom`): furniture off its template slot is packed and the
-slot filled from packed stock or built on site, a wall of a lower-ranked stuff is swapped
-in place, floors are replaced. Standing census rooms are reconciled too. The plan's
+slot filled from packed stock or built on site, floors are replaced. A wall stands in the
+stuff it was built in; it is swapped in place only to a priced upgrade the planned-room
+comparison selected (`SelectedWallUpgrade`, #3657), one wall at a time on a ring with no
+other work. Standing census rooms are reconciled too. The plan's
 `RetiredGround` (a retired shelter's footprint) is cleared with the rest: its ring, spots
 and furniture come down, a research table packed to stock for the laboratory to install,
 and the entry drops once nothing of ours stands on it.

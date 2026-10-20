@@ -28,13 +28,14 @@ public static partial class PlannedRules
         _ => true,
     };
 
-    private static bool RingOp(OpKind kind) => kind is OpKind.WallIn or OpKind.DoorIn or OpKind.VentIn;
+    private static bool RingOp(OpKind kind) => kind is OpKind.WallIn or OpKind.DoorIn or OpKind.VentIn or OpKind.WallUp;
 
     /// <summary>
     /// The alternatives of each planned room, from its planned sites (PlannedSitesOf; shelf candidates, Room 0, are not
     /// rooms): every scope in the room's first ring stuff, then each further stuff at Full, at most
     /// PlannedAlternativesPerRoom (finding planned_room_alternatives_truncated past it). A ring stuff is one the ring sites
-    /// were read in, in their order (cheapest first); a ring site belongs to its stuff's alternatives, a stuff-less
+    /// were read in, in their order (cheapest first), a standing room's wall swaps (WallUp, #3657) its upgrade stuffs, each
+    /// an alternative to leaving the walls as built; a ring site belongs to its stuff's alternatives, a stuff-less
     /// site (a vent made from no stuff, floors, pieces, the roof) to every alternative its scope covers. An alternative
     /// is named <c>planned/room{id}/{stuff}/{scope}</c> (<c>planned/room{id}/{scope}</c> for a stuff-less ring); one
     /// with no site, or the same sites as an earlier one of its room, is left out. Nothing here ranks or selects.

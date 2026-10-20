@@ -79,7 +79,9 @@ public static partial class PlannedRules
     /// The planned sites of the rooms' owed operations, one per op x stuff: the ring's walls, doors and vents in each
     /// of the room's ring stuffs (ringStuffs; ring gives the stuff a def is built from for a wanted stuff, "" for a def
     /// made from no stuff, and its cost list, or null where the def is unavailable), floors one site per floor def
-    /// (floor), each piece one site in its own stuff (piece), and the roof one site. A ring cell owed by two rooms
+    /// (floor), each piece one site in its own stuff (piece), the roof one site, and an owed wall swap (WallUp, #3657) one
+    /// site per ring stuff over the standing walls <paramref name="wallStuff"/> names in another stuff (<c>wallup/{stuff}</c>:
+    /// a wall upgrade, an alternative of the standing room the selection prices). A ring cell owed by two rooms
     /// belongs to the lower room id, and a ring cell or piece with a blueprint or frame placed is left out, as
     /// PlannedOwedCost counts them. Nothing is read: every site is unknown until JoinPlannedSites.
     /// </summary>
@@ -90,7 +92,8 @@ public static partial class PlannedRules
         Func<string, (string Stuff, IReadOnlyList<Amount> Costs)?> piece,
         Func<string, IReadOnlyList<Amount>?> floor,
         string ventDef,
-        IReadOnlySet<(string Def, Cell Cell)> placed)
+        IReadOnlySet<(string Def, Cell Cell)> placed,
+        IReadOnlyDictionary<Cell, string> wallStuff)
     {
         var claimed = new HashSet<(string Def, Cell Cell)>(placed);
         var roofed = new HashSet<Cell>();
@@ -123,6 +126,21 @@ public static partial class PlannedRules
                             {
                                 Add(new PlannedBuildSite(prefix + "/" + RingSiteKind(op.Kind) + (priced.Stuff.Length > 0 ? "/" + priced.Stuff : ""),
                                     room.Id, op.Kind, def, priced.Stuff, Rotation.North, cells) { Material = Priced(priced.Costs, cells.Count) });
+                            }
+                        }
+                        break;
+                    }
+                    case OpKind.WallUp:
+                    {
+                        // A standing wall swapped in place (#3657): per ring stuff, its walls built in another stuff.
+                        var cells = Sorted(op.Cells.Where(c => claimed.Add((wallDef, c))));
+                        foreach (var wanted in ringStuffs(room))
+                        {
+                            if (ring(wallDef, wanted) is { Stuff.Length: > 0 } priced)
+                            {
+                                var swapped = Sorted(cells.Where(c => wallStuff.TryGetValue(c, out var have) && have != priced.Stuff));
+                                Add(new PlannedBuildSite(prefix + "/" + RingSiteKind(op.Kind) + "/" + priced.Stuff, room.Id, op.Kind, wallDef, priced.Stuff,
+                                    Rotation.North, swapped) { Material = Priced(priced.Costs, swapped.Count) });
                             }
                         }
                         break;
@@ -340,6 +358,7 @@ public static partial class PlannedRules
     {
         OpKind.WallIn => "wall",
         OpKind.DoorIn => "door",
+        OpKind.WallUp => "wallup",
         _ => "vent",
     };
 

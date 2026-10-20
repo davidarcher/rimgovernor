@@ -64,13 +64,21 @@ public static partial class PlannedRules
     /// <summary>
     /// The record after a review (#3278): the latest known selection replaces the previous one (a later selection that
     /// drops a site drops it), a review without one keeps the previous, and the sites of a room observed started
-    /// (<paramref name="started"/>) clear: it is placed, and the reconcile continues it without the record.
+    /// (<paramref name="started"/>) clear: it is placed, and the reconcile continues it without the record. A wall swap
+    /// (WallUp, #3657) is a standing room's own and stays: it is what the reconcile swaps the room's walls to.
     /// </summary>
     public static PlannedSelection PlannedSelectionMemory(PlannedSelection previous, PlannedSelection? latest, Func<int, bool> started)
     {
         var next = latest ?? previous;
-        return next with { Sites = EquatableArray.From(next.Sites.Where(s => !started(s.Room))) };
+        return next with { Sites = EquatableArray.From(next.Sites.Where(s => s.Op == OpKind.WallUp || !started(s.Room))) };
     }
+
+    /// <summary>
+    /// The stuff the latest comparison selected a standing room's walls swapped to (#3657): its selected WallUp site's, null
+    /// when none is. A wall stands in the stuff it was built in unless a priced upgrade was selected.
+    /// </summary>
+    public static string? SelectedWallUpgrade(PlannedSelection record, int room) =>
+        record.Sites.FirstOrDefault(s => s.Room == room && s.Op == OpKind.WallUp)?.Stuff;
 
     /// <summary>
     /// Whether a planned room is started (#3278): a colony-built wall, door, fence or gate stands on a ring cell that is

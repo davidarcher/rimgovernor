@@ -476,10 +476,12 @@ public sealed partial class RoundsBuildingPlanner
             var (_, player) = ClearanceGroundRules.SplitGroundRows(census.Targets, facts.Facts.Preferences);
             var stamped = HomeUpkeepReader.StampPacking(player, facts);
             input = input with { Rows = ReconcileRules.OwnerRows(rr.Room, stamped, rr.Template, rr.Forbidden, CarriedOver(facts)), Floors = census.Floors, Furniture = rr.Template };
-            var want = RoundsTierStyle.ShellStyleOf(facts).WallStuff;
-            if (want != "" && !rr.Room.Outdoor)
+            // A wall stands in the stuff it was built in; it is swapped only to a priced upgrade the comparison selected (#3657).
+            if (PlannedRules.SelectedWallUpgrade(Reviewer.RoomSelection.Get(review.Snapshot), rr.Room.Id) is { Length: > 0 } upgrade && !rr.Room.Outdoor)
             {
-                input = input with { WallUpgrade = have => facts.StuffUpgrade(ContainmentCellRules.ShellWallDefinition, have, want) };
+                // A swap is owed only on a ring with no other work, so no door is built beside it.
+                input = input with { WallUpgrade = have => have != upgrade };
+                rr = rr with { Stuff = (_, _) => (upgrade, upgrade, default, true) };
             }
             if (!rr.Room.Outdoor)
             {

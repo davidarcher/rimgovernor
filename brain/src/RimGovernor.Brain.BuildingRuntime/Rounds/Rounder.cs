@@ -1063,12 +1063,15 @@ partial class Rounder
 
     /// <summary>
     /// The plan's owed operations per built room, the placed sites the census owes instead and the floor prices. Sited is
-    /// what the planned sites build per room (PlannedSitedOps): Rooms with the roof and vents owed once the ring stands.
+    /// what the planned sites build per room (PlannedSitedOps): Rooms with the roof and vents owed once the ring stands, and
+    /// a priced room's standing walls as owed swaps (#3657). WallStuff is the stuff each standing wall is built in.
     /// </summary>
     internal sealed record PlannedOwed(IReadOnlyList<(PlannedRoom Room, IReadOnlyList<Operation> Owed)> Rooms, IReadOnlySet<(string Def, Cell Cell)> Placed,
         Func<string, IReadOnlyList<Amount>?> FloorPrice)
     {
         public IReadOnlyList<(PlannedRoom Room, IReadOnlyList<Operation> Owed)> Sited { get; init; } = Rooms;
+
+        public IReadOnlyDictionary<Cell, string> WallStuff { get; init; } = new Dictionary<Cell, string>();
     }
 
     /// <summary>
@@ -1081,7 +1084,7 @@ partial class Rounder
         {
             return null;
         }
-        var (_, groundKnown) = RoundsBuildingPlanner.ColonyGround(colony);
+        var (colonyGround, groundKnown) = RoundsBuildingPlanner.ColonyGround(colony);
         if (!groundKnown)
         {
             return null;
@@ -1142,9 +1145,14 @@ partial class Rounder
             owed.Add((room, now));
             // The roof and vents the ring brings, owed once it stands (#3276): the sites build them, pricing does not.
             var stands = ReconcileRules.Reconcile(input with { Ground = PlannedRules.RingStandsGround(input.Ground, now) }).Owed;
-            sited.Add((room, PlannedRules.PlannedSitedOps(now, stands)));
+            // Once a priced room's ring stands, its walls are owed as swaps (#3657): the sites offer each other ring stuff
+            // as a wall upgrade, which the selection prices against the room's value. An unpriced room is offered none.
+            IReadOnlyList<Operation> swaps = ForecastPlannedSite.PricedRoomRoles.Contains(room.Role)
+                ? [.. ReconcileRules.Reconcile(input with { WallUpgrade = _ => true }).Owed.Where(o => o.Kind == OpKind.WallUp)]
+                : [];
+            sited.Add((room, [.. PlannedRules.PlannedSitedOps(now, stands), .. swaps]));
         }
-        return new PlannedOwed(owed, placed, FloorPrice) { Sited = sited };
+        return new PlannedOwed(owed, placed, FloorPrice) { Sited = sited, WallStuff = colonyGround.Stuff };
     }
 
     /// <summary>The stuff a planned piece is built from (the bulk chooser's, "" for a def made from no stuff) and its cost list; null where the def is unavailable.</summary>
