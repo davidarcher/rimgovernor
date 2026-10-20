@@ -358,6 +358,29 @@ public sealed class ForecastCoupledTests
     }
 
     [Fact]
+    public void UnlocatedTicksTakeTheLastLocatedTemperatureElseOutdoors()
+    {
+        var facts = Review();
+        var context = facts.CoupledAlternatives!.Context;
+        var thermal = new CoupledThermalRead { Cells = [new(new(5, 5), Known(0.0), "none", false, false, false, "", false, false, 0, false)], Outdoors = Known(-10.0) };
+        context = context with
+        {
+            Shelters = [], Thermal = thermal,
+            Needs = context.Needs with { Pawns = [context.Needs.Pawns[0] with { ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) }] }
+        };
+        ForecastActivityAllocation[] work = [new("work", "pawn", 100, 100, 100, 200, 0, 0, 100, 100, 0)];
+        var tasks = new Dictionary<string, ForecastActivity> { ["work"] = new("work", "cell/5/5", "cell/5/5", []) };
+        // Before the work the pawn is outdoors (-10), after it at the work cell's 0: 20*100 + 10*100 + 10*100.
+        var filled = ForecastThermalExposure.PawnExposureOf(context, tasks, context.Needs.Pawns[0], work, work, [], 300, [], []);
+        Assert.Equal(0, filled.UnknownTicks);
+        Assert.Equal(4000, filled.AssessedColdDegreeTicks, 6);
+        // With no outdoor temperature the ticks before any located one stay unknown.
+        var unread = ForecastThermalExposure.PawnExposureOf(context with { Thermal = thermal with { Outdoors = default } }, tasks, context.Needs.Pawns[0], work, work, [], 300, [], []);
+        Assert.Equal(100, unread.UnknownTicks);
+        Assert.Equal(2000, unread.AssessedColdDegreeTicks, 6);
+    }
+
+    [Fact]
     public void ComfortShiftLowersColdExposureOnlyAtAStationaryOutdoorTask()
     {
         var facts = Review();

@@ -62,7 +62,7 @@ internal static class PlannedRoomCandidates
             if (site.Verdict != PlannedSiteVerdict.Feasible) return (Assessment.Unvalued, "unknown");
             var rows = site.Options.Where(Free).ToArray();
             if (!rows.Any(r => r.FinishTicks.IsKnown)) return (Assessment.Unvalued, "no_finish_option");
-            if (site.Material.Count > 0 && !Deliveries(rows).Any()) return (Assessment.Unvalued, "no_delivery_option");
+            if (site.Material.Count > 0 && Sourcing(rows).Groups.Length == 0) return (Assessment.Unvalued, "no_delivery_option");
             foreach (var clearing in site.Clearing)
                 if (clearing.Kind == PlannedClearingKind.Unspecified || !ClearingRows(clearing).Any())
                     return (Assessment.Unvalued, "clearing_unrouted");
@@ -74,6 +74,16 @@ internal static class PlannedRoomCandidates
             .Where(g => g.Select(r => (r.Resource, r.Count, r.Origin)).Distinct().Count() == 1)
             .Select(g => g.Where(r => r.Capacity > 0 && r.DeliveryTicks.IsKnown).GroupBy(r => r.Pawn).Select(p => p.First()).ToArray())
             .Where(g => g.Length > 0);
+        // A site's deliveries (#3673): its whole-stack sources, alternatives (Shares null), or its multi-stack set, every
+        // stack delivered for its share, when each of them has a deliverable row and the set fits SourcesPerSite (else none).
+        (ConstructionActivityOption[][] Groups, IReadOnlyDictionary<string, int>? Shares) Sourcing(ConstructionActivityOption[] rows)
+        {
+            var groups = Deliveries(rows).ToArray();
+            var shares = ConstructionMethodCandidates.StackShares(rows);
+            if (shares is null) return (groups, null);
+            return shares.Count > 0 && shares.Count <= SourcesPerSite && groups.Length == shares.Count
+                && groups.All(g => shares.ContainsKey(g[0].Input)) ? (groups, shares) : ([], shares);
+        }
         IEnumerable<ConstructionActivityOption> ClearingRows(PlannedSiteClearing clearing) => clearing.Options.Where(Free)
             .Where(r => (clearing.Kind == PlannedClearingKind.Haul ? r.DeliveryTicks : r.FinishTicks).IsKnown)
             .Where(r => clearing.Kind != PlannedClearingKind.Deconstruct || r.Input.Length > 0).GroupBy(r => r.Pawn).Select(p => p.First());
@@ -129,10 +139,12 @@ internal static class PlannedRoomCandidates
                     else
                     {
                         var readies = new List<string>();
-                        foreach (var group in Deliveries(rows).Take(SourcesPerSite + 1).Select((g, i) => (Rows: g, Index: i)))
+                        var (sourced, shares) = Sourcing(rows);
+                        foreach (var group in sourced.Take(SourcesPerSite + 1).Select((g, i) => (Rows: g, Index: i)))
                         {
                             if (group.Index == SourcesPerSite) { findings.Add("planned_site_sources_truncated:" + site.Id); break; }
                             var first = group.Rows[0];
+                            var units = shares?[first.Input] ?? first.Count;
                             var delivery = site.Id + "/delivery/" + first.Input;
                             var ready = delivery + "/ready";
                             var source = "construction-source/" + first.Input;
@@ -142,8 +154,9 @@ internal static class PlannedRoomCandidates
                                 sourceLocation, Known(0.0), Known(horizon))
                             { Lot = first.Input, Provenance = "native-construction-source:" + site.Id + ":" + first.Input });
                             roomLots.Add(new(first.Input, sourceLocation, new(first.Resource), first.AvailableInput));
-                            roomOperations.Add(new(new(delivery, sourceLocation, siteLocation, []) { ChoiceIdentity = site.Id + "/delivery" },
-                                [new(delivery + "/material", new(first.Resource), Known(first.Count), sourceLocation,
+                            // A whole-stack source is one of the site's alternative deliveries; a set's stacks are each delivered.
+                            roomOperations.Add(new(new(delivery, sourceLocation, siteLocation, []) { ChoiceIdentity = shares is null ? site.Id + "/delivery" : delivery },
+                                [new(delivery + "/material", new(first.Resource), Known(units), sourceLocation,
                                     ForecastRequirementKind.Consumed, Known<EquatableArray<string>>([source]), Known(0.0), Known(horizon))],
                                 [new(ready, capability, Known(1), siteLocation, Known(0.0), Known(horizon))
                                 { Producer = delivery, Kind = ForecastRequirementKind.Reusable, Provenance = "native-planned-delivery:" + site.Id }]));
@@ -154,8 +167,11 @@ internal static class PlannedRoomCandidates
                             }
                             readies.Add(ready); ids.Add(delivery);
                         }
-                        requirements.Add(new(finish + "/ready", capability, Known(1), siteLocation, ForecastRequirementKind.Reusable,
-                            Known(EquatableArray.From(readies)), Known(0.0), Known(horizon)));
+                        if (shares is null)
+                            requirements.Add(new(finish + "/ready", capability, Known(1), siteLocation, ForecastRequirementKind.Reusable,
+                                Known(EquatableArray.From(readies)), Known(0.0), Known(horizon)));
+                        else requirements.AddRange(readies.Select((ready, k) => new ForecastCompositionRequirement(finish + "/ready/" + k, capability, Known(1),
+                            siteLocation, ForecastRequirementKind.Reusable, Known<EquatableArray<string>>([ready]), Known(0.0), Known(horizon))));
                     }
                     foreach (var row in rows.Where(r => r.FinishTicks.IsKnown).GroupBy(r => r.Pawn).Select(p => p.First()))
                     {

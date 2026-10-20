@@ -178,7 +178,9 @@ public sealed record ConstructionActivityRead
     public EquatableArray<PlannedSiteClearing> Removals { get; init; }
     /// <summary>
     /// The request's route probes, one row per probe x free colonist with <c>Ticks</c> unknown where no path is found;
-    /// a <see cref="PlannedRouteProbe.FromStart"/> row has <c>FromStart</c> set and <c>From</c> the pawn's cell.
+    /// a <see cref="PlannedRouteProbe.FromStart"/> row has <c>FromStart</c> set and <c>From</c> the pawn's cell. Unasked, a
+    /// placed site's multi-stack source set (#3673) adds per row the route from the site's <c>Location</c> back to the
+    /// stack's <c>Origin</c>: the leg between delivering one stack and fetching the next.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<CoupledRoute>))]
     public EquatableArray<CoupledRoute> Routes { get; init; }

@@ -18,14 +18,16 @@ public sealed class CoordinatedConstructionTests
         return WorkRules.WorkResourcesOf(ProductionRules.WorkAdmissionEvidenceOf(facts, Known(default(EquatableArray<ProductionBatch>))),
             Known(default(EquatableArray<ProductionBatch>)), []);
     }
-    private static PawnActivities? Start(out ForecastActivityOutcomeComparison? comparison, params ConstructionActivityOption[] options)
+    private static PawnActivities? Start(out ForecastActivityOutcomeComparison? comparison, params ConstructionActivityOption[] options) =>
+        Start(out comparison, [], options);
+    private static PawnActivities? Start(out ForecastActivityOutcomeComparison? comparison, CoupledRoute[] routes, params ConstructionActivityOption[] options)
     {
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
         var template = facts.ForecastObserved.Needs!.Pawns[0];
         facts = facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
-            Coupled = new() { Tick = 100, Construction = new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options) } }
+            Coupled = new() { Tick = 100, Construction = new() { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options), Routes = EquatableArray.From(routes) } }
         } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
@@ -368,6 +370,24 @@ public sealed class CoordinatedConstructionTests
         Assert.Single(Start(out _, builder, hauler with { ApproachTicks = Known(1500.0), SiteApproachTicks = Known(1500.0) })!.Orders);
         Assert.Null(Start(out var unknown, builder with { DeliveryTicks = default }));
         Assert.Contains(unknown!.Findings, f => f.Contains("unknown", StringComparison.Ordinal));
+    }
+
+    /// <summary>#3673: no one stack holds the site's 20 logs, so both are supplied, each its share, before the finish.</summary>
+    [Fact]
+    public void ASiteNoOneStackCoversIsSuppliedFromEveryStackOfItsSet()
+    {
+        var near = Option("producer", 0, 20, 20) with { AvailableInput = Known(12d) };
+        var far = Option("producer", 5, 30, 20) with { Input = "wood-b", Origin = new(12, 10), AvailableInput = Known(8d) };
+        // Native reads the leg back from the site to each stack of the set.
+        CoupledRoute[] back = [new("producer", near.Location, near.Origin, Known(20d)), new("producer", far.Location, far.Origin, Known(22d))];
+        var batch = Start(out _, back, near, far)!;
+        var supplies = batch.Tasks.Where(t => t.Step.Kind == PawnActivityKind.Supply).ToDictionary(t => t.Step.Target, t => t.Step.Count);
+        Assert.Equal(new Dictionary<string, int> { ["wood"] = 12, ["wood-b"] = 8 }, supplies);
+        Assert.Equal(2, batch.Tasks.Single(t => t.Step.Job == "FinishFrame").Prerequisites.Count);
+        // A set whose stacks do not cover the demand is no candidate.
+        Assert.Empty(RimGovernor.Brain.Policy.Methods.Generation.ConstructionMethodCandidates.StackShares([near, far with { AvailableInput = Known(7d) }])!);
+        // Without the legs back from the site one pawn cannot fetch the second stack.
+        Assert.Null(Start(out _, near, far));
     }
 
     [Fact]

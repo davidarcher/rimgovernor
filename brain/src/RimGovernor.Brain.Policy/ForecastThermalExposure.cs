@@ -2,7 +2,8 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Degree-ticks at modeled stationary work/need locations; idle and unobserved routes remain gaps.
+/// <summary>Degree-ticks at modeled stationary work/need locations; idle and unobserved ticks take the last located
+/// temperature, else outdoors (#3673), and remain gaps only with neither known.
 /// This is exposure, not injury probability or a physiological capacity estimate.</summary>
 public sealed partial record ForecastThermalExposure(string Pawn, double AssessedTicks, double UnknownTicks,
     double AssessedColdDegreeTicks, double AssessedHotDegreeTicks)
@@ -47,6 +48,7 @@ public sealed partial record ForecastThermalExposure
         double assessed = 0;
         spans.Clear();
         if (pawn.ComfortableMin.TryGetValue(out var min) && pawn.ComfortableMax.TryGetValue(out var max))
+        {
             foreach (var allocation in allocations)
             {
                 var task = tasks[allocation.Activity];
@@ -90,6 +92,21 @@ public sealed partial record ForecastThermalExposure
                     }
                 }
             }
+            // A tick at no located allocation (idle, transit, an unread cell) is at the last located temperature, else
+            // outdoors (#3673); with neither known it stays unknown.
+            if (spans.Count > 0 || context.Thermal is { Outdoors.IsKnown: true })
+            {
+                var located = spans.OrderBy(s => s.Start).ToArray();
+                double cursor = 0;
+                double? last = context.Thermal is { Outdoors.IsKnown: true } read ? read.Outdoors.Value : null;
+                foreach (var s in located)
+                {
+                    if (s.Start > cursor && last is { } before) Integrate(spans, ref assessed, cursor, Math.Min(s.Start, horizon), before, before, min, max, shifts);
+                    if (s.End > cursor) { cursor = s.End; last = s.Final; }
+                }
+                if (cursor < horizon && last is { } after) Integrate(spans, ref assessed, cursor, horizon, after, after, min, max, shifts);
+            }
+        }
         double cold = 0, hot = 0;
         foreach (var s in spans)
         {

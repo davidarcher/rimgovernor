@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Brain.Policy.Methods.Generation;
 using RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Contracts.Wire.Common;
 using Xunit;
@@ -239,6 +240,25 @@ public sealed class PlannedRoomActivitiesTests
         Assert.True(PlannedSelected(result, "planned/room1/wall/BlocksGranite"), Why(facts, result));
         Assert.False(PlannedSelected(result, "planned/room1/wall/WoodLog"));
         Assert.Contains(result.Selected.PlannedRooms.SelectMany(r => r.Complete), id => id.Contains("BlocksGranite", StringComparison.Ordinal));
+    }
+
+    /// <summary>
+    /// #3673: no one stack holds the wall's 75 logs, so native lists its two stacks as one set (each under the count owed)
+    /// and the wall is delivered from both: the smaller whole (40), the larger the remaining 35. The room completes.
+    /// </summary>
+    [Fact]
+    public void AWallNoOneStackCoversIsDeliveredFromBothStacks()
+    {
+        (string, Cell, double)[] set = [("wood-a", new(10, 2), 50), ("wood-b", new(10, 7), 40)];
+        var facts = Review([
+            Site("planned/room1/wall/WoodLog", OpKind.WallIn, "Wall", "WoodLog", WallCells, 60, 75, set),
+            Site("planned/room1/door/WoodLog", OpKind.DoorIn, "Door", "WoodLog", [DoorCell], 30, 25, [("wood-c", new(10, 4), 30)])]);
+        var result = Select(facts);
+        Assert.Equal(["planned/room1/WoodLog/Shell"], Assert.Single(result.Selected.PlannedRooms).Complete);
+        string[] deliveries = ["planned/room1/wall/WoodLog/delivery/wood-a", "planned/room1/wall/WoodLog/delivery/wood-b"];
+        Assert.All(deliveries, delivery => Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity.StartsWith(delivery + "/composition/", StringComparison.Ordinal)));
+        Assert.Equal((35, 40), (ConstructionMethodCandidates.StackShares(facts.PlannedSites.Value.Sites.Single(s => s.Op == OpKind.WallIn).Options)!["wood-a"],
+            ConstructionMethodCandidates.StackShares(facts.PlannedSites.Value.Sites.Single(s => s.Op == OpKind.WallIn).Options)!["wood-b"]));
     }
 
     [Fact]

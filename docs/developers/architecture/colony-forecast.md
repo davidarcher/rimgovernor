@@ -603,7 +603,9 @@ temperature safety is enabled (the placed-site gate; `planned_sites_unknown` whe
    the roof (else `roof_unrouted`). Nothing is emitted for an
    alternative that is not valued.
 3. Each site of a valued alternative is generated in the placed-site shape: a delivery per material source
-   (at most 4; `planned_site_sources_truncated:{site}`), one op per clearing prerequisite, and a finish.
+   (at most 4; `planned_site_sources_truncated:{site}`), one op per clearing prerequisite, and a finish. Whole-stack
+   sources are alternative deliveries; a multi-stack set's stacks (#3673) are each delivered for their share and the
+   finish requires all of them (a set over 4 stacks, or one not covered, leaves the site `no_delivery_option`).
    - A `Deconstruct` clearing binds (`Bindings`): its building stands now, so the op is the pawn's Work/Deconstruct
      task on it, at the planned deadline (#3557). A `Haul` clearing the pawn carries in one trip binds the same way
      as the pawn's Deliver of the stack to the row's storage cell (#3614); the op keeps its `/cleared` output. Every

@@ -54,71 +54,115 @@ internal static class ConstructionMethodCandidates
                 : new(id, row.Pawn, [], PawnActivityKind.Work, target, row.WorkGiver, RemovalJob(kind)!, targets.Count + cells.Count, deadline, row.Location)
                     { SiteDefinition = row.Definition, Targets = targets, Cells = cells };
 
+    /// <summary>
+    /// The shares of a multi-stack source set (#3673), by stack id: native lists a site's stacks that each hold less than
+    /// it owes (<c>AvailableInput</c> under <c>Count</c>) when no one stack covers the demand, and prices every stack taken
+    /// whole but the largest (ties: lowest id), which supplies the remainder. Null when <paramref name="rows"/> name no such
+    /// stack (each source is a whole alternative); empty when the set's known stacks do not cover the demand.
+    /// </summary>
+    internal static IReadOnlyDictionary<string, int>? StackShares(IEnumerable<ConstructionActivityOption> rows)
+    {
+        var stacks = rows.Where(r => r.Count > 0 && r.Input.Length != 0).GroupBy(r => r.Input).Select(g => g.First()).ToArray();
+        if (!stacks.Any(r => r.AvailableInput.TryGetValue(out var held) && held < r.Count)) return null;
+        var shares = new Dictionary<string, int>(StringComparer.Ordinal);
+        if (stacks.Select(r => (r.Resource, r.Count)).Distinct().Count() != 1
+            || stacks.Any(r => !r.AvailableInput.TryGetValue(out var held) || held < 1 || held >= r.Count || held != Math.Floor(held))) return shares;
+        var need = stacks[0].Count;
+        var held = stacks.Sum(r => (long)r.AvailableInput.Value);
+        if (held < need) return shares;
+        var remainder = stacks.OrderByDescending(r => r.AvailableInput.Value).ThenBy(r => r.Input, StringComparer.Ordinal).First();
+        foreach (var r in stacks) shares[r.Input] = r == remainder ? (int)(need - (held - (long)r.AvailableInput.Value)) : (int)r.AvailableInput.Value;
+        return shares;
+    }
+
     internal static CoordinatedMethodCandidates Generate(ConstructionActivityRead read, long deadline, WorkResourceView resources, IReadOnlySet<string> floors)
     {
         var bindings = new Dictionary<(string, string), ActivityTaskCandidate>();
         if (!read.Known || read.Context?.Tick is not { } tick || deadline <= tick || resources.Claims.Truncated)
             return new(null, [], bindings, resources.Claims.Truncated);
         var horizon = deadline - tick;
-        var groups = read.Options.Where(o => !resources.Claims.Pawns.Contains(o.Pawn) && !resources.Claims.Targets.Contains(o.Site)
-            && (o.Input.Length == 0 || !resources.Claims.Targets.Contains(o.Input))).GroupBy(o => (o.Site, o.Input))
-            .OrderBy(g => g.Key.Site, StringComparer.Ordinal).ThenBy(g => g.Key.Input, StringComparer.Ordinal).Take(17).ToArray();
+        // A site's candidates: one per whole-stack source, or one for its multi-stack set (#3673), whose every stack is delivered.
+        var groups = new List<(ConstructionActivityOption[][] Stacks, IReadOnlyDictionary<string, int>? Shares)>();
+        foreach (var site in read.Options.Where(o => !resources.Claims.Pawns.Contains(o.Pawn) && !resources.Claims.Targets.Contains(o.Site)
+            && (o.Input.Length == 0 || !resources.Claims.Targets.Contains(o.Input))).GroupBy(o => o.Site).OrderBy(g => g.Key, StringComparer.Ordinal))
+        {
+            var stacks = site.GroupBy(o => o.Input).OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => g.ToArray()).ToArray();
+            var shares = StackShares(site);
+            if (shares is null) groups.AddRange(stacks.Select(s => (new[] { s }, (IReadOnlyDictionary<string, int>?)null)));
+            else if (shares.Count == stacks.Length && stacks.All(s => shares.ContainsKey(s[0].Input))) groups.Add((stacks, shares));
+        }
+        var truncated = groups.Count > 16;
         var activities = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
         var routes = new List<ForecastActivityRoute>(); var outcomes = new List<ForecastActivityOutcome>();
         var workers = new HashSet<string>(StringComparer.Ordinal);
         var operations = new List<ForecastCompositionOperation>();
         var observed = new Dictionary<string, ForecastCompositionSupply>(StringComparer.Ordinal);
-        foreach (var group in groups.Take(16))
+        foreach (var (stacks, shares) in groups.Take(16))
         {
             var id = "site-" + outcomes.Count;
             var finish = id + "-finish";
-            var delivery = id + "-delivery";
-            var supplied = group.All(o => o.Count == 0);
+            var all = stacks.SelectMany(s => s).ToArray();
+            var supplied = all.All(o => o.Count == 0);
             // Every option describes the same single-resource site demand; unobserved/mixed demand cannot be guessed.
-            if (!supplied && group.Where(o => o.Count > 0).Select(o => (o.Resource, o.Count, o.Origin)).Distinct().Count() != 1) continue;
-            var first = group.First();
-            var sourceLocation = ForecastLocations.Of(first.Origin);
+            if (!supplied && stacks.Any(s => s.Where(o => o.Count > 0).Select(o => (o.Resource, o.Count, o.Origin)).Distinct().Count() != 1)) continue;
+            var first = all[0];
             var siteLocation = ForecastLocations.Of(first.Location);
-            if (!supplied) activities.Add(new(delivery, sourceLocation, siteLocation, [])
-            { Inputs = [new(new(first.Resource), Known((double)first.Count)) { Lot = first.Input }] });
-            activities.Add(new(finish, siteLocation, siteLocation, supplied ? [] : [delivery]));
-            var ready = "construction-ready/" + id;
             var capability = new Resource("ConstructionReady");
-            if (supplied)
-                observed[ready] = new(ready, capability, Known(1), siteLocation, Known(0.0), Known((double)horizon))
-                { Kind = ForecastRequirementKind.Reusable, Provenance = "observed-site:" + first.Site };
-            else
+            // One delivery per stack: a whole alternative's single stack carries the demand, a set's stacks their shares.
+            var deliveries = supplied ? [] : stacks.Select((s, k) => (Rows: s, Id: shares is null ? id + "-delivery" : id + "-delivery-" + k,
+                Units: shares?[s[0].Input] ?? s[0].Count)).ToArray();
+            var readies = new List<string>();
+            foreach (var (rows, delivery, units) in deliveries)
             {
-                var source = "construction-source/" + first.Input;
-                observed[source] = new(source, new(first.Resource), first.AvailableInput.TryGetValue(out var available)
+                var stack = rows[0];
+                var sourceLocation = ForecastLocations.Of(stack.Origin);
+                var ready = "construction-ready/" + delivery;
+                activities.Add(new(delivery, sourceLocation, siteLocation, []) { Inputs = [new(new(stack.Resource), Known((double)units)) { Lot = stack.Input }] });
+                var source = "construction-source/" + stack.Input;
+                observed[source] = new(source, new(stack.Resource), stack.AvailableInput.TryGetValue(out var available)
                     && available >= 0 && available <= int.MaxValue && available == Math.Floor(available) ? Known((int)available) : default,
                     sourceLocation, Known(0.0), Known((double)horizon))
-                { Lot = first.Input, Provenance = "native-construction-source:" + first.Site + ":" + first.Input };
-                operations.Add(new(activities.Single(a => a.Id == delivery) with { Inputs = [], ChoiceIdentity = "construction-delivery/" + first.Site },
-                    [new(delivery + "/material", new(first.Resource), Known(first.Count), sourceLocation,
+                { Lot = stack.Input, Provenance = "native-construction-source:" + stack.Site + ":" + stack.Input };
+                operations.Add(new(activities[^1] with { Inputs = [], ChoiceIdentity = "construction-delivery/" + stack.Site + (shares is null ? "" : "/" + stack.Input) },
+                    [new(delivery + "/material", new(stack.Resource), Known(units), sourceLocation,
                         ForecastRequirementKind.Consumed, Known<EquatableArray<string>>([source]), Known(0.0), Known((double)horizon))],
                     [new(ready, capability, Known(1), siteLocation, Known(0.0), Known((double)horizon))
-                    { Producer = delivery, Kind = ForecastRequirementKind.Reusable, Provenance = "native-site-delivery:" + first.Site }]));
-            }
-            operations.Add(new(activities.Single(a => a.Id == finish) with { Prerequisites = [], ChoiceIdentity = "construction-finish/" + first.Site },
-                [new(finish + "/ready", capability, Known(1), siteLocation, ForecastRequirementKind.Reusable,
-                    Known<EquatableArray<string>>([ready]), Known(0.0), Known((double)horizon))], []));
-            foreach (var row in group.GroupBy(o => o.Pawn).Select(g => g.First()))
-            {
-                workers.Add(row.Pawn);
-                if (row.Count > 0 && row.Capacity > 0)
+                    { Producer = delivery, Kind = ForecastRequirementKind.Reusable, Provenance = "native-site-delivery:" + stack.Site }]));
+                readies.Add(ready);
+                foreach (var row in rows.GroupBy(o => o.Pawn).Select(g => g.First()).Where(r => r.Count > 0 && r.Capacity > 0))
                 {
+                    workers.Add(row.Pawn);
                     options.Add(new(delivery, row.Pawn, row.DeliveryTicks, Known(0.0)));
                     routes.Add(new(row.Pawn, "start", sourceLocation, row.ApproachTicks));
+                    // A set's next stack is fetched from the site: native reads that leg for each of its stacks.
+                    if (shares is not null)
+                        foreach (var back in read.Routes.Where(r => r.Pawn == row.Pawn && r.From == row.Location && r.To == row.Origin && !r.FromStart))
+                            routes.Add(new(row.Pawn, siteLocation, sourceLocation, back.Ticks));
                     bindings[(delivery, row.Pawn)] = new(delivery, row.Pawn, [], PawnActivityKind.Supply,
-                        row.Input, "", "", row.Count, deadline, row.Location)
+                        row.Input, "", "", units, deadline, row.Location)
                     { Resource = row.Resource, Source = row.Origin, Container = row.Site, SiteDefinition = row.Definition, Capacity = row.Capacity };
                 }
+            }
+            var prerequisites = deliveries.Select(d => d.Id).ToArray();
+            activities.Add(new(finish, siteLocation, siteLocation, prerequisites));
+            if (supplied)
+            {
+                var ready = "construction-ready/" + id;
+                observed[ready] = new(ready, capability, Known(1), siteLocation, Known(0.0), Known((double)horizon))
+                { Kind = ForecastRequirementKind.Reusable, Provenance = "observed-site:" + first.Site };
+                readies.Add(ready);
+            }
+            operations.Add(new(activities[^1] with { Prerequisites = [], ChoiceIdentity = "construction-finish/" + first.Site },
+                EquatableArray.From(readies.Select((ready, k) => new ForecastCompositionRequirement(finish + "/ready" + (readies.Count == 1 ? "" : "/" + k), capability, Known(1),
+                    siteLocation, ForecastRequirementKind.Reusable, Known<EquatableArray<string>>([ready]), Known(0.0), Known((double)horizon)))), []));
+            foreach (var row in all.GroupBy(o => o.Pawn).Select(g => g.First()))
+            {
+                workers.Add(row.Pawn);
                 if (row.FinishTicks.IsKnown)
                 {
                     options.Add(new(finish, row.Pawn, row.FinishTicks, Known(0.0)));
                     routes.Add(new(row.Pawn, "start", siteLocation, row.SiteApproachTicks));
-                    bindings[(finish, row.Pawn)] = new(finish, row.Pawn, supplied ? [] : [delivery], PawnActivityKind.Work,
+                    bindings[(finish, row.Pawn)] = new(finish, row.Pawn, [.. prerequisites], PawnActivityKind.Work,
                         row.Site, row.WorkGiver, "FinishFrame", 0, deadline, row.Location)
                     { SiteDefinition = row.Definition, CompletionMustBeObserved = true };
                 }
@@ -186,7 +230,7 @@ internal static class ConstructionMethodCandidates
             Deadline = Known((double)horizon),
             AlternativeLaborCost = Known((double)horizon)
         }, outcomes.ToArray(), bindings,
-            groups.Length > 16 || removals.Length > 16)
+            truncated || removals.Length > 16)
         { Operations = EquatableArray.From(operations), Observed = EquatableArray.From(observed.Values) };
     }
 }

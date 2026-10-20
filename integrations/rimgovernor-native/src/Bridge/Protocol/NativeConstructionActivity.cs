@@ -73,9 +73,11 @@ internal static class NativeConstructionActivity
             // The collecting run's rows and findings are discarded with it; the real run's are the read's.
             var runFindings = new HashSet<string>(StringComparer.Ordinal);
             var runOptions = new List<Obs.ConstructionActivityOption>();
-            foreach (var site in placed) Rows(map, legs, roster, site, finishGiver, runFindings, runOptions);
+            var setRoutes = new List<Obs.CoupledRoute>();
+            foreach (var site in placed) Rows(map, legs, roster, site, finishGiver, runFindings, runOptions, setRoutes);
             var runAnswers = planned.Select(p => p.Site is { } site ? Answer(map, legs, roster, site, finishGiver, runFindings) : p.Unknown).ToArray();
             var runRoutes = Routes(map, legs, roster, request.Routes, runFindings);
+            runRoutes.AddRange(setRoutes);
             var free = roster.Where(Free).ToArray();
             var deconstructGiver = Giver<WorkGiver_Deconstruct>();
             var uninstallGiver = Giver<WorkGiver_Uninstall>();
@@ -505,17 +507,41 @@ internal static class NativeConstructionActivity
     private static bool Free(Pawn pawn) => !(pawn.Drafted || pawn.Downed || pawn.InMentalState || !NativeFoodActivity.Available(pawn)
         || NativePawnActivities.Owned(pawn) || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0 || pawn.carryTracker.CarriedThing != null);
 
-    // Per pawn x whole-stack material source: site approach, first approach, delivery trips and finish work. The legs
-    // are searched once each: colonist to site and to stack per (colonist cell, target), stack to site and back per
-    // (stack, site), then combined into the rows.
-    private static void Rows(Map map, NativePathLegs legs, Pawn[] roster, Site site, WorkGiverDef? finishGiver, HashSet<string> findings, List<Obs.ConstructionActivityOption> options)
+    // A site's material sources (#3673), each with the share of the owed count it supplies: every spawned stack that
+    // covers the demand alone, each a whole alternative (share the demand); else the stacks the player may use, nearest
+    // the site first, until their sum covers it, every one taken whole but the largest (ties: lowest id), which supplies
+    // the remainder (a share the rows price but do not name: the reader derives it by the same rule). Too little stock
+    // leaves none (source_stock_short).
+    private static (Thing? Source, int Share)[] Sources(Map map, Site site, HashSet<string> findings)
+    {
+        if (site.Owed.Length == 0) return [(null, 0)];
+        var (def, need) = site.Owed[0];
+        var spawned = map.listerThings.ThingsOfDef(def).Where(t => t.Spawned).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+        var whole = spawned.Where(t => t.stackCount >= need).Select(t => ((Thing?)t, need)).ToArray();
+        if (whole.Length > 0) return whole;
+        var set = new List<Thing>();
+        var sum = 0;
+        foreach (var stack in spawned.Where(t => !t.IsForbidden(Faction.OfPlayer)).OrderBy(t => t.Position.DistanceToSquared(site.Target(t.Position))))
+        {
+            if (sum >= need) break;
+            set.Add(stack); sum += stack.stackCount;
+        }
+        if (sum < need) { findings.Add("source_stock_short"); return []; }
+        var remainder = set.OrderByDescending(t => t.stackCount).ThenBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).First();
+        return set.Select(t => ((Thing?)t, t == remainder ? need - (sum - t.stackCount) : t.stackCount)).ToArray();
+    }
+
+    // Per pawn x material source (Sources): site approach, first approach, delivery trips for the source's share and
+    // finish work; Count stays the site's owed count and AvailableInput the stack's. The legs are searched once each:
+    // colonist to site and to stack per (colonist cell, target), stack to site and back per (stack, site), then combined
+    // into the rows. A placed site's multi-stack set also adds, per pawn and stack, the route from the site back to the
+    // stack (to setRoutes): the leg one pawn walks between delivering one stack and fetching the next.
+    private static void Rows(Map map, NativePathLegs legs, Pawn[] roster, Site site, WorkGiverDef? finishGiver, HashSet<string> findings,
+        List<Obs.ConstructionActivityOption> options, List<Obs.CoupledRoute>? setRoutes = null)
     {
         // Mixed-material sites need a complete multi-input observation; never pretend one material completes them.
         if (site.Owed.Length > 1) { findings.Add("mixed_material_demand_unsupported"); return; }
-        var sources = site.Owed.Length == 0 ? new Thing?[] { null }
-            : map.listerThings.ThingsOfDef(site.Owed[0].Def).Where(t => t.Spawned && t.stackCount >= site.Owed[0].Count)
-                .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Cast<Thing?>().ToArray();
-        if (sources.Length == 0) findings.Add("whole_source_stack_unavailable");
+        var sources = Sources(map, site, findings);
         LocalTargetInfo To(IntVec3 origin) => site.Thing != null ? new LocalTargetInfo(site.Thing) : new LocalTargetInfo(site.Target(origin));
         foreach (var pawn in roster)
         {
@@ -525,7 +551,7 @@ internal static class NativeConstructionActivity
                 && (pawn.skills?.GetSkill(SkillDefOf.Construction).Level ?? 0) >= site.Definition.constructionSkillPrerequisite;
             var speed = pawn.GetStatValue(StatDefOf.ConstructionSpeed);
             Fact<double> finishTicks = finish && speed > 0 ? Fact.Known((double)site.Work / speed) : default;
-            foreach (var source in sources)
+            foreach (var (source, share) in sources)
             {
                 var count = site.Owed.Length == 0 ? 0 : site.Owed[0].Count;
                 var capacity = source == null ? 0 : pawn.carryTracker.MaxStackSpaceEver(source.def);
@@ -540,7 +566,9 @@ internal static class NativeConstructionActivity
                         && legs.Cost(pawn, site.Target(source.Position), source, PathEndMode.Touch) is { } returning)
                     {
                         approach = Fact.Known((double)first);
-                        var trips = (count + capacity - 1) / capacity;
+                        if (share < count)
+                            setRoutes?.Add(new(pawn.GetUniqueLoadID(), new(site.Location.x, site.Location.z), new(source.Position.x, source.Position.z), Fact.Known((double)returning)));
+                        var trips = (share + capacity - 1) / capacity;
                         delivery = Fact.Known((double)loaded * trips + returning * (trips - 1));
                     }
                 }

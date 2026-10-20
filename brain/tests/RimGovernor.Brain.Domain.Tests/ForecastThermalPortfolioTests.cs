@@ -69,7 +69,8 @@ public sealed class ForecastThermalPortfolioTests
         Assert.Contains(result.Selected.Plan.Allocations, a => facts.CoupledAlternatives!.Context.NeedTasks.Any(n => n.Task == a.Activity && n.Kind == "rest"));
         Assert.Contains(result.Selected.CompletedDevelopmentSites, id => id.StartsWith("site/", StringComparison.Ordinal));
         Assert.Contains(result.Selected.CompletedDevelopmentSites, id => id.StartsWith("roof/", StringComparison.Ordinal));
-        Assert.True(result.Selected.ThermalExposure.Single().UnknownTicks > 0); // No blanket idle/travel protection.
+        // Idle and travel ticks take the last located temperature, else outdoors (#3673): none is left unassessed.
+        Assert.Equal(0, result.Selected.ThermalExposure.Single().UnknownTicks);
         // Without the bed the pawn's rest reaches zero; the bed (with the shelter's relief on top) does not.
         Assert.True(result.SelectedVector.Value.UrgentZero.Excess < result.BaselineVector.Value.UrgentZero.Excess);
         Assert.True(result.Selected.Shelters.Single().CompleteAt.Value < 200);
@@ -89,7 +90,9 @@ public sealed class ForecastThermalPortfolioTests
         Assert.Empty(noDemand.Selected.Plan.Allocations);
         var coldNoDemand = Select(Review(-10, demand: false, restDemand: false));
         Assert.Empty(coldNoDemand.Selection.Selected);
-        var onlyConstruction = Review(-10, restDemand: false);
+        // Without rest demand or cold no rest is scheduled. (In the cold a rest in the heated room may be: the ticks after
+        // it take its warm temperature, #3673.)
+        var onlyConstruction = Review(20, restDemand: false);
         var built = Select(onlyConstruction);
         Assert.DoesNotContain(built.Selected.Plan.Allocations, a => onlyConstruction.CoupledAlternatives!.Context.NeedTasks
             .Any(n => n.Task == a.Activity && n.Kind == "rest"));

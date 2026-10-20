@@ -230,7 +230,9 @@ hand-written temperature-mood constants, and mood is valued only as `BreakRisk`.
 - `ForecastThermalExposure.Spans` is the exposure integrator's per-span output:
   start, end, initial and final temperature, and the comfort range with the
   pawn's comfort shifts applied. The degree-ticks are integrated from the same
-  spans.
+  spans. A stationary allocation at a read cell is located; every other tick
+  (idle, transit, an unread cell) takes the last located temperature, else the
+  read's `Outdoors` (#3673), and stays in `UnknownTicks` only with neither known.
 - `MechanicCardGuards.CardStageOffset` prices a stage card at one moment from the
   comfort range, the ambient temperature, Ideology's state and the pawn's ideo
   precepts. A nullifier gives 0, as for count cards. An unknown fact the
@@ -616,7 +618,8 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   blueprint placement wipes, or something `CanPlaceBlueprintOver` allows that does
   not `BlocksConstruction` needs no clearing.
 - `Options`: the placed-site `ConstructionActivityOption` rows, one per pawn and
-  whole-stack material source. `FinishTicks` is `WorkToBuild(stuff)` summed over
+  material source (the multi-stack rule is in
+  [pawn activities](pawn-activities.md#live-material-delivery-and-building)). `FinishTicks` is `WorkToBuild(stuff)` summed over
   the pieces over the pawn's `ConstructionSpeed`. Routes end at the piece nearest
   the origin. Material owed is the piece cost times the pieces. A pawn with no route
   has no row. A quality definition has no stored finishing minimum before placement,

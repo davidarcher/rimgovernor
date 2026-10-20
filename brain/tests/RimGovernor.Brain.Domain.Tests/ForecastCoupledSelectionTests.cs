@@ -582,25 +582,23 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Contains(warm.Trajectory, p => Math.Abs(p.Target.Value - .40) < 1e-9);
         Assert.All(warm.Trajectory, p => Assert.True(p.Target.Value >= .28 - 1e-9));
         Assert.True(warm.BreakRisk.Value < cold.BreakRisk.Value);
-        // The work covers part of the horizon: the thought stays at the observed constant elsewhere, and says so.
-        Assert.Contains("situational_thought_constant_outside_exposure:EnvironmentCold", warm.Findings);
+        // Every tick after the work is at its temperature (#3673), so the exposure covers the horizon the card is read over.
+        Assert.DoesNotContain("situational_thought_constant_outside_exposure:EnvironmentCold", warm.Findings);
     }
 
+    // Near a break the outfit lowers break risk; content, it is still taken for the cold exposure it removes, every tick
+    // after the outdoor work assessed at the work's temperature (#3673).
     [Theory]
     [InlineData(.28, true)]
     [InlineData(.9, false)]
-    public void TheComparatorTakesTheWarmerOutfitOnlyNearABreak(double mood, bool wins)
+    public void TheComparatorTakesTheWarmerOutfitForTheColdAndNearABreakLowersBreakRisk(double mood, bool nearBreak)
     {
         var (facts, work, _) = ColdWorkReview(mood);
         var result = Select(facts, 16384, work);
         Assert.Contains(result.Selected.Plan.Allocations, a => work.ActivityCompletions.Contains(a.Activity));
-        if (!wins)
-        {
-            Assert.Empty(result.Selection.Selected);
-            return;
-        }
         Assert.Equal(["gear"], result.Selection.Selected);
-        Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
+        Assert.True(result.Selected.ThermalExposure.Single().AssessedColdDegreeTicks < result.Baseline.ThermalExposure.Single().AssessedColdDegreeTicks);
+        Assert.Equal(nearBreak, result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
     }
 
     // #3329 acceptance: gear warmth chosen by the comparator. A pawn in a shirt and pants with a parka (cold 30) loose: the

@@ -61,10 +61,18 @@ approaches the source; finishing preparation approaches the site. Native rebinds
 blueprints to frames and reads remaining demand before each bounded trip. Actual
 finished buildings, not accepted orders or successful supply, satisfy finishing.
 
-The live census supports one required material with a sufficient observed source
-stack, repeated capacity-bounded trips, or an already-supplied site. Mixed-material
-sites and missing whole source stacks produce explicit findings. Multi-source
-assembly and arbitrary construction recipes remain unimplemented. Reverse route
+The live census supports one required material, repeated capacity-bounded trips,
+or an already-supplied site. Every spawned stack that covers the site's demand
+alone is a source, each a whole alternative. When none does (#3673), native lists
+the player's usable stacks nearest the site first until their sum covers it, as one
+set: each row's `AvailableInput` is under its `Count`, every stack is taken whole
+but the largest (ties: lowest id), which supplies the remainder, and `DeliveryTicks`
+prices that share. Native also reads, per pawn and stack of a placed site's set, the
+route from the site back to the stack (`ConstructionActivityRead.Routes`). The brain
+derives the shares by the same rule and delivers every stack of the set before the
+finish. Too little usable stock leaves no row (`source_stock_short`); mixed-material
+sites produce `mixed_material_demand_unsupported`. Arbitrary construction recipes
+remain unimplemented. Reverse route
 costs are observed separately; pickup/setup time and route changes remain estimate
 limits. Native construction tiers, skill/capacity guards and reservations still
 veto exact work. Existing construction demand owns the material budget.
