@@ -21,20 +21,27 @@ public sealed record CoupledThermalRead
 public sealed record ThermalCell(Cell Cell, Fact<double> Temperature, string Roof,
     bool Solid, bool Door, bool DoorClosed, string Site,
     bool FutureSolid, bool FutureDoor, double DoorExchangePerTick, bool BuildRoof);
-/// <summary>Electric heater mechanics at current conditions. Missing supply is unknown, not free energy.</summary>
+/// <summary>
+/// Heater mechanics at current conditions: an electric heater, or a fueled heat pusher (#3673: a campfire) whose supply is
+/// unlimited and whose burn is <see cref="Fuel"/> at <see cref="FuelPerTick"/> items a tick. Missing supply is unknown, not free energy.
+/// </summary>
 public sealed record ThermalSource(string Target, Cell Cell, bool Complete, Fact<double> HeatPerTick,
     Fact<double> TargetTemperature, Fact<double> SupplyTicks)
 {
     public string PowerNetwork { get; init; } = "";
     public Fact<double> AdditionalWatts { get; init; }
     public Fact<double> SurplusWatts { get; init; }
+    /// <summary>The fuel item def a fueled source burns; empty for an electric heater.</summary>
+    public string Fuel { get; init; } = "";
+    /// <summary>The fuel items a fueled source burns a tick; unknown for an electric heater.</summary>
+    public Fact<double> FuelPerTick { get; init; }
 }
 public sealed record ThermalWorker(string Pawn, Fact<double> RoofCellWorkTicks);
 
 /// <summary>
 /// Unplaced planned shelters the construction activity read samples (#3323): each room's interior and ring cells as
 /// <see cref="ThermalCell"/> rows, and each planned heater as a <see cref="ThermalSource"/> of its definition at its
-/// planned cell (never complete; supply from the network that cell would join). Answered in
+/// planned cell (never complete; an electric heater's supply from the network that cell would join, a fueled one's unlimited). Answered in
 /// <see cref="ConstructionActivityRead.Thermal"/> with no roof routes. At most 4 rooms, 16 heaters and 1024 cells.
 /// </summary>
 public sealed record PlannedThermalRequest

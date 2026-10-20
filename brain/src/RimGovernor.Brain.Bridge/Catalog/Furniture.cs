@@ -38,6 +38,7 @@ public sealed partial class DefinitionCatalog
         {
             Beds = Domain.EquatableArray.From(beds.Sleeping.Select(b => new P.FurnitureBed { Def = b.Def, Slots = b.Slots, Free = b.Free })),
             Heater = CheapestHeater(),
+            FueledHeaters = Domain.EquatableArray.From(FueledHeaters()),
             Sarcophagus = CheapestOfClass<Building_Sarcophagus>(),
         };
         var (spot, bed) = AnimalBeds(beds);
@@ -217,6 +218,15 @@ public sealed partial class DefinitionCatalog
                 && row.GetCompProperties<CompProperties_Power>() is { } power && GameMembers.BasePowerConsumption(power) > 0)
             .Select(row => row.defName))
         ?? throw new CatalogException("catalog has no buildable heater (a temperature control that heats from a power draw)");
+
+    // The buildable defs that heat by burning fuel (#3673): a CompProperties_HeatPusher with a positive heatPerSecond and a
+    // CompProperties_Refuelable (a campfire), by name. The native thermal read prices the same defs.
+    private List<string> FueledHeaters() =>
+        [.. _thingDefs.Values
+            .Where(row => Buildable(row)
+                && row.GetCompProperties<CompProperties_HeatPusher>() is { heatPerSecond: > 0 }
+                && row.GetCompProperties<CompProperties_Refuelable>() is not null)
+            .Select(row => row.defName).Order(StringComparer.Ordinal)];
 
     // The cheapest buildable work table of a room role that a worker uses from the floor in front of it, by name when equal.
     private string CheapestBench(IReadOnlyDictionary<string, P.InteriorPieceDef> shapes, P.RoomRole role) =>

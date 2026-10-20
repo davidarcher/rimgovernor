@@ -22,7 +22,8 @@ internal static class NativeCoupledThermal
     {
         legs ??= new(map);
         var heaters = map.listerThings.AllThings.Where(t => t is Building_Heater
-            || t is IConstructible && t.def.entityDefToBuild is ThingDef d && d.thingClass == typeof(Building_Heater))
+            || t is IConstructible && t.def.entityDefToBuild is ThingDef d && d.thingClass == typeof(Building_Heater)
+            || Fueled(t is IConstructible ? t.def.entityDefToBuild as ThingDef : t.def))
             .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var cells = new SortedSet<(int X, int Z)>();
         foreach (var origin in sites.Concat(heaters).Select(t => t.Position).Distinct())
@@ -33,8 +34,9 @@ internal static class NativeCoupledThermal
         var sources = heaters.Select(t =>
         {
             var definition = t is IConstructible ? (ThingDef)t.def.entityDefToBuild : t.def;
-            return Source(map, t.GetUniqueLoadID(), t.Position, definition, t is Building_Heater, t.TryGetComp<CompPowerTrader>(),
-                t.TryGetComp<CompTempControl>()?.targetTemperature);
+            return Fueled(definition) ? FueledSource(t.GetUniqueLoadID(), t.Position, definition, t is not IConstructible)
+                : Source(map, t.GetUniqueLoadID(), t.Position, definition, t is Building_Heater, t.TryGetComp<CompPowerTrader>(),
+                    t.TryGetComp<CompTempControl>()?.targetTemperature);
         }).ToArray();
         var roofRoutes = new List<Obs.ThermalRoofRoute>();
         foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
@@ -49,8 +51,9 @@ internal static class NativeCoupledThermal
 
     /// <summary>
     /// An unplaced planned shelter (#3323): its interior and ring cells, and each planned heater as a source of its def at
-    /// its planned cell, never complete, supplied from the network a connector there would join. A def that is not a
-    /// native heater, or a cell off the map, gives no source. Every room and heater asked is read (#3341).
+    /// its planned cell, never complete: a native heater supplied from the network a connector there would join, a fueled
+    /// heat pusher (#3673) burning its fuel. Any other def, or a cell off the map, gives no source. Every room and heater
+    /// asked is read (#3341).
     /// </summary>
     internal static Obs.CoupledThermalRead ReadPlanned(Map map, Obs.PlannedThermalRequest request)
     {
@@ -66,9 +69,9 @@ internal static class NativeCoupledThermal
         foreach (var heater in request.Heaters)
         {
             var cell = new IntVec3(heater.Cell.X, 0, heater.Cell.Z);
-            if (!cell.InBounds(map) || DefDatabase<ThingDef>.GetNamedSilentFail(heater.Definition) is not { } definition
-                || !typeof(Building_Heater).IsAssignableFrom(definition.thingClass)) continue;
-            sources.Add(Source(map, heater.Site, cell, definition, false, null, null));
+            if (!cell.InBounds(map) || DefDatabase<ThingDef>.GetNamedSilentFail(heater.Definition) is not { } definition) continue;
+            if (Fueled(definition)) sources.Add(FueledSource(heater.Site, cell, definition, false));
+            else if (typeof(Building_Heater).IsAssignableFrom(definition.thingClass)) sources.Add(Source(map, heater.Site, cell, definition, false, null, null));
         }
         return Mechanics(map) with { Cells = EquatableArray.From(cells.Select(c => Row(map, c))), Sources = EquatableArray.From(sources) };
     }
@@ -112,6 +115,27 @@ internal static class NativeCoupledThermal
             Fact.Known((double)(targetTemperature ?? temperature?.defaultTargetTemperature ?? 20)), supply)
             { PowerNetwork = net == null ? "" : string.Join("/", net.powerComps.Select(p => p.parent.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal)),
                 AdditionalWatts = Fact.Known((double)additional), SurplusWatts = net == null ? default : Fact.Known((double)surplus) };
+    }
+
+    // A def that heats by burning fuel (#3673): a heat pusher with a positive push and a refuelable comp (a campfire).
+    private static bool Fueled(ThingDef? definition) =>
+        definition?.GetCompProperties<CompProperties_HeatPusher>() is { heatPerSecond: > 0 } && definition.GetCompProperties<CompProperties_Refuelable>() != null;
+
+    // A fueled heat pusher's mechanics (#3673): its push every 60 ticks spread over them, pushing below heatPushMaxTemperature,
+    // with unlimited supply. The burn is known when it is steady (not use-, power- or externally driven) and of one fuel def:
+    // fuelConsumptionRate fuel units a day, an item worth FuelMultiplierCurrentDifficulty units. Otherwise the burn and the
+    // supply are unknown.
+    private static Obs.ThermalSource FueledSource(string target, IntVec3 position, ThingDef definition, bool ready)
+    {
+        var push = definition.GetCompProperties<CompProperties_HeatPusher>();
+        var refuel = definition.GetCompProperties<CompProperties_Refuelable>();
+        var fuels = refuel.fuelFilter?.AllowedThingDefs.ToArray() ?? [];
+        var steady = !refuel.consumeFuelOnlyWhenUsed && !refuel.consumeFuelOnlyWhenPowered && !refuel.externalTicking
+            && fuels.Length == 1 && refuel.FuelMultiplierCurrentDifficulty > 0;
+        return new Obs.ThermalSource(target, new(position.x, position.z), ready, Fact.Known(push.heatPerSecond / 60.0),
+            Fact.Known((double)push.heatPushMaxTemperature), steady ? Fact.Known(double.PositiveInfinity) : default)
+            { Fuel = steady ? fuels[0].defName : "", FuelPerTick = steady
+                ? Fact.Known(refuel.fuelConsumptionRate / (double)RimGovernor.Brain.Domain.GameTime.TicksPerDay / refuel.FuelMultiplierCurrentDifficulty) : default };
     }
 
     // The map's builders and exchange constants, shared by both reads.

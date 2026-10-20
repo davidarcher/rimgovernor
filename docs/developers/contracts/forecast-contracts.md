@@ -703,17 +703,30 @@ site id, definition and cell. `ConstructionActivityRead.Thermal` answers with a
 
 - `Cells`: a row for every interior and ring cell, in the coupled capture's shape.
 - `Sources`: one `ThermalSource` per requested heater whose definition is a native
-  `Building_Heater`. `Target` is the planned site id and `Complete` is false. Heat per
-  tick, default target and power draw come from the definition. The network is the
-  one a connector at the planned cell would join (`BestTransmitterForConnector`).
-  Supply is known only when that network's current surplus covers the draw. Any other
-  definition, or a cell off the map, returns no source.
+  `Building_Heater` or a fueled heat pusher. `Target` is the planned site id and
+  `Complete` is false. Heat per tick, default target and power draw come from the
+  definition. The network is the one a connector at the planned cell would join
+  (`BestTransmitterForConnector`). Supply is known only when that network's current
+  surplus covers the draw. A fueled source is read as below.
+  Any other definition, or a cell off the map, returns no source.
 - `Workers`, `Outdoors` and the exchange constants are read as in the coupled capture.
   `RoofRoutes` is empty, because a planned roof is a planned site.
 
 The caps are 4 rooms, 16 heaters and 1,024 cells; anything past them sets `Truncated`.
 Rounds ask once per round
 ([planned shelter](../architecture/colony-forecast.md#planned-shelter-and-occupancy)).
+
+A fueled heat pusher (#3673) is a def with a `CompProperties_HeatPusher` of positive
+`heatPerSecond` and a `CompProperties_Refuelable` (a campfire); the coupled capture
+reads standing ones, blueprints and frames beside the electric heaters, and the
+planned read the requested ones. `HeatPerTick` is `heatPerSecond / 60`,
+`TargetTemperature` is `heatPushMaxTemperature`, and it has no power network. When
+the burn is steady (not `consumeFuelOnlyWhenUsed`, `consumeFuelOnlyWhenPowered` or
+`externalTicking`) and of one fuel def, `SupplyTicks` is unlimited (positive
+infinity), `Fuel` is that def and `FuelPerTick` is `fuelConsumptionRate / 60000 /
+FuelMultiplierCurrentDifficulty` items a tick; otherwise `Fuel` is empty and the burn
+and supply are unknown. The brain charges the fuel as material
+([forecast value](../architecture/forecast-value.md)).
 
 ### Planned room prediction read
 

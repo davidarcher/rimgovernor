@@ -13,10 +13,10 @@ public static partial class PlannedRules
     /// <summary>
     /// The native planned thermal read for unplaced planned shelters (#3323): the enclosed rectangular shelters that still
     /// owe a planned site (rooms, lowest id first, at most PlannedThermalRooms, sides at most PlannedThermalSide), and every planned heater site of
-    /// theirs, a Build site of the catalog heater def (heater). Native samples each room's interior and ring cells and
-    /// the heater def at its planned cell. Null when no room qualifies.
+    /// theirs, a Build site of one of the catalog heater defs (heaters: the electric heater and the fueled ones, #3673). Native
+    /// samples each room's interior and ring cells and the heater def at its planned cell. Null when no room qualifies.
     /// </summary>
-    public static PlannedThermalRequest? PlannedThermalRequestOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites, string heater)
+    public static PlannedThermalRequest? PlannedThermalRequestOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites, IReadOnlyCollection<string> heaters)
     {
         var owed = sites.Where(s => s.Zone.Length == 0).Select(s => s.Room).ToHashSet();
         var chosen = rooms.Where(r => !r.Outdoor && r.Id > 0 && owed.Contains(r.Id))
@@ -29,15 +29,15 @@ public static partial class PlannedRules
             return null;
         }
         var ids = chosen.Select(r => r.Room.Id).ToHashSet();
-        IEnumerable<PlannedThermalHeater> heaters = heater.Length == 0 ? [] : sites
-            .Where(s => ids.Contains(s.Room) && s.Zone.Length == 0 && s.Op == OpKind.Build && s.Definition == heater && s.Positions.Count == 1)
+        var planned = sites
+            .Where(s => ids.Contains(s.Room) && s.Zone.Length == 0 && s.Op == OpKind.Build && s.Definition.Length != 0 && heaters.Contains(s.Definition) && s.Positions.Count == 1)
             .OrderBy(s => s.Id, StringComparer.Ordinal)
             .Select(s => new PlannedThermalHeater(s.Id, s.Definition, s.Positions[0]));
         return new PlannedThermalRequest
         {
             Rooms = EquatableArray.From(chosen.Select(r => new PlannedThermalRoom(
                 new Cell(r.Bounds.X, r.Bounds.Z), r.Bounds.Width, r.Bounds.Height))),
-            Heaters = EquatableArray.From(heaters),
+            Heaters = EquatableArray.From(planned),
         };
     }
 

@@ -357,6 +357,10 @@ nearest reachable source's distance × `PathMoveCardinal` ticks, over its load o
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
 either it is charged 0 with `material_value_unpriced:<def>`. The shipped `PricedRoomRoles` holds `Bedroom` (#3655) and `Barracks` (#3658).
+A shelter heated by a fueled source with a known burn (#3673, a campfire: `ForecastShelterPlan.Fuel` and `FuelPerTick` from the
+native `ThermalSource`) is charged, whatever its role, `FuelPerTick × (horizon − complete)` units of its fuel under `material/<fuel>`
+when the outcome completes its shell inside the horizon, on a row of the source with no pawn; the fuel is one of
+`ForecastValue.ChargedMaterials` and priced the same way. The climate watts model does not charge fuel.
 
 *Bedroom credit (#3655, #3647).* A schedule that closes a planned bedroom (`ForecastRoofConsequences.PlannedClosedRooms`, logged
 on the outcome as `ClosedRooms`) is credited, in the Investment term under `bedroom/<room>/<pawn>`, the mood gain of the colonist

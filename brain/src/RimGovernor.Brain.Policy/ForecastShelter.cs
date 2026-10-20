@@ -21,6 +21,10 @@ public sealed record ForecastShelterPlan(ForecastShelterId Room, EquatableArray<
     public string Source { get; init; } = "";
     public Fact<double> AdditionalWatts { get; init; }
     public Fact<double> SurplusWatts { get; init; }
+    /// <summary>The fuel a fueled source burns (#3673), "" for an electric one; the Investment term charges its burn from the shell's completion.</summary>
+    public string Fuel { get; init; } = "";
+    /// <summary>The fuel items the source burns a tick; unknown for an electric source.</summary>
+    public Fact<double> FuelPerTick { get; init; }
     /// <summary>Each physical prerequisite needs one selected realization; distinct sites remain additive.</summary>
     public EquatableArray<EquatableArray<string>> AlternativePrerequisites { get; init; }
     /// <summary>The planned room whose roof this shelter's roof cells complete: a planned room generated as planned sites, or

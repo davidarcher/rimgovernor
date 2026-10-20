@@ -227,6 +227,9 @@ public static partial class ForecastValue
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         /// <summary>The activities whose consumed inputs are charged as construction material (#3653).</summary>
         public readonly HashSet<string> MaterialCharged = ChargedMaterialActivities(context);
+        /// <summary>The shelters heated by a known fuel burn (#3673), by room.</summary>
+        public readonly Dictionary<ForecastShelterId, ForecastShelterPlan> Fueled = FueledShelters(context)
+            .GroupBy(s => s.Room).ToDictionary(g => g.Key, g => g.First());
         public readonly bool Malnutrition = context.CapacityPenalties.Malnutrition.Valid();
         public readonly bool FoodPoisoning = context.CapacityPenalties.FoodPoisoning.Valid();
         public readonly bool Thermal = context.CapacityPenalties.Hypothermia.Valid() && context.CapacityPenalties.Heatstroke.Valid();
@@ -346,7 +349,7 @@ public static partial class ForecastValue
         double earned = 0;
         foreach (var contribution in contributions) earned += contribution.Value;
         var goals = Known(-earned);
-        var investmentRows = InvestmentOf(outcome, context, index, findings);
+        var investmentRows = InvestmentOf(outcome, context, index, horizon, findings);
         ForecastHousing.BedroomCredits(outcome, context, horizon, investmentRows, findings);
         double invested = 0;
         foreach (var row in investmentRows) invested += row.Value;
@@ -419,25 +422,32 @@ public static partial class ForecastValue
     /// the unit tier 2 perturbs the stock by. A key tier 2 did not value adds no row. The construction material a charged
     /// activity consumes (<see cref="ChargedMaterialActivities"/>) is charged, positive, under <see cref="MaterialKey"/> at
     /// <see cref="ForecastCoupledContext.MaterialValues"/> (#3653): one priced at market value is named
-    /// material_value_market, one unpriced is named material_value_unpriced and adds no row. A closed planned bedroom's credit
+    /// material_value_market, one unpriced is named material_value_unpriced and adds no row. A fueled shelter whose shell the
+    /// outcome completes inside the horizon (<see cref="FueledShelters"/>, #3673) is charged its burn from then, FuelPerTick ×
+    /// (horizon − complete) units of its fuel, the same way, on a row of its source with no pawn. A closed planned bedroom's credit
     /// (<see cref="ForecastHousing.BedroomCredits"/>, #3655) is added beside these rows.
     /// </summary>
     private static List<ForecastInvestmentContribution> InvestmentOf(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index,
-        SortedSet<string> findings)
+        double horizon, SortedSet<string> findings)
     {
         var rows = new List<ForecastInvestmentContribution>();
         void Add(ForecastActivityAllocation allocation, string key, double units, double sign)
         {
             if (units > 0 && context.Investment.TryGetValue(key, out var perUnit)) rows.Add(new(allocation.Activity, allocation.Pawn, key, units, sign * units * perUnit));
         }
-        void Material(ForecastActivityAllocation allocation, Resource def, double units)
+        void Material(string activity, string pawn, Resource def, double units)
         {
             if (units <= 0) return;
             var value = context.MaterialValues.GetValueOrDefault(def);
             if (value is null || value.Basis == MaterialValueBasis.Unpriced) { findings.Add("material_value_unpriced:" + def); return; }
             if (value.Basis == MaterialValueBasis.Market) findings.Add("material_value_market:" + def);
-            rows.Add(new(allocation.Activity, allocation.Pawn, MaterialKey(def), units, units * value.PerUnit));
+            rows.Add(new(activity, pawn, MaterialKey(def), units, units * value.PerUnit));
         }
+
+        if (index.Fueled.Count != 0)
+            foreach (var shelter in outcome.Shelters)
+                if (index.Fueled.TryGetValue(shelter.Room, out var plan) && shelter.CompleteAt.TryGetValue(out var complete))
+                    Material(plan.Source, "", new(plan.Fuel), plan.FuelPerTick.Value * (horizon - complete));
 
         foreach (var allocation in outcome.Plan.Allocations)
         {
@@ -451,7 +461,7 @@ public static partial class ForecastValue
             {
                 if (!input.Units.TryGetValue(out var units)) continue;
                 Add(allocation, ProjectGraph.MedicineKey(input.Resource), units, 1);
-                if (charged) Material(allocation, input.Resource, units);
+                if (charged) Material(allocation.Activity, allocation.Pawn, input.Resource, units);
             }
         }
 

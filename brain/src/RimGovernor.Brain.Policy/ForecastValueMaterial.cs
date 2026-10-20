@@ -40,11 +40,16 @@ public static partial class ForecastValue
         return charged;
     }
 
-    /// <summary>The materials the charged activities consume, each priced once per review (<see cref="MaterialValueOf"/>).</summary>
+    /// <summary>The shelters heated by a fueled source with a known burn (#3673), whose fuel the ledger charges.</summary>
+    internal static IEnumerable<ForecastShelterPlan> FueledShelters(ForecastCoupledContext context) =>
+        context.Shelters.Where(s => s.Fuel.Length != 0 && s.FuelPerTick.IsKnown);
+
+    /// <summary>The materials the charged activities consume and the fueled shelters burn, each priced once per review (<see cref="MaterialValueOf"/>).</summary>
     public static IReadOnlyList<Resource> ChargedMaterials(ForecastCoupledContext context)
     {
         var charged = ChargedMaterialActivities(context);
         return [.. context.Activities.Activities.Where(a => charged.Contains(a.Id)).SelectMany(a => a.Inputs).Select(i => i.Resource)
+            .Concat(FueledShelters(context).Select(s => new Resource(s.Fuel)))
             .Distinct().OrderBy(r => r.Value, StringComparer.Ordinal)];
     }
 

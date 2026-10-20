@@ -41,7 +41,8 @@ public sealed record FacilityLink
 /// Beds are the beds a colonist of any size may sleep in that count for a bedroom or barracks and are not
 /// medical by default, by sleeping slots, then the ones that cost something by Comfort per unit of cost at
 /// the best stuff, then the free ones by Comfort; Sarcophagus is the Building_Sarcophagus, the cheapest when
-/// several; Heater is the cheapest buildable def that heats from a power draw; AnimalSpot is the free bed of
+/// several; Heater is the cheapest buildable def that heats from a power draw and FueledHeaters every one that heats by
+/// burning fuel; AnimalSpot is the free bed of
 /// the kind animals use and AnimalBed the costed one with the most Comfort per cost; Bench is, per room role, the cheapest buildable work
 /// table of that role worked from the floor in front of it; EndTable and Dresser are the Comfort facilities a
 /// bed links; Cabinet is the work speed facility a workshop bench links and Monitor the tend quality facility
@@ -55,6 +56,9 @@ public sealed partial record RoomFurniture
     public string Sarcophagus { get; init; } = "";
 
     public string Heater { get; init; } = "";
+
+    /// <summary>The buildable defs that heat by burning fuel (#3673; a heat pusher with a refuelable comp, a campfire), by name: the planned thermal read samples them beside <see cref="Heater"/>.</summary>
+    public EquatableArray<string> FueledHeaters { get; init; }
 
     public string AnimalSpot { get; init; } = "";
 

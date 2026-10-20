@@ -195,7 +195,8 @@ internal static class CoupledShelterCandidates
                 source?.TargetTemperature ?? default, source?.SupplyTicks ?? default, EquatableArray.From(notes.Distinct()))
                 { AlternativePrerequisites = EquatableArray.From(groups), PlannedRoom = developmentRoom,
                     RoofCells = developmentRoom == 0 ? [] : EquatableArray.From(roofCells), PowerNetwork = source?.PowerNetwork ?? "", Source = source?.Target ?? "",
-                    AdditionalWatts = source?.AdditionalWatts ?? default, SurplusWatts = source?.SurplusWatts ?? default });
+                    AdditionalWatts = source?.AdditionalWatts ?? default, SurplusWatts = source?.SurplusWatts ?? default,
+                    Fuel = source?.Fuel ?? "", FuelPerTick = source?.FuelPerTick ?? default });
             if (demands.Count != 0) roots.Add("shelter/" + room.Id, EquatableArray.From(demands));
         }
         return new(options.ToArray(), routes.Values.ToArray(), bindings, operations.Values.ToArray(), [], roots, plans.ToArray(), geometry.Findings, geometry.Truncated);

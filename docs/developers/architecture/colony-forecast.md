@@ -187,7 +187,8 @@ still apply.
 ### Planned shelter and occupancy
 
 The concrete shelter alternative joins saved planned-room geometry to native
-shell, roof, standing construction and electric-heater facts. Missing shell or
+shell, roof, standing construction and heat-source facts (electric heaters and,
+since #3673, fueled heat pushers such as a campfire). Missing shell or
 source work uses the same construction prerequisites and shared materials.
 Protection starts only after enclosure, roof and heat-source prerequisites
 complete, followed by room warmup. A placed heater or roof alone earns no thermal
@@ -219,7 +220,8 @@ read it apart (#3323, the
 [planned shelter thermal read](../contracts/forecast-contracts.md#planned-shelter-thermal-read)).
 `PlannedThermalRequestOf` asks for up to four enclosed rectangular shelters that still
 owe a planned site, with sides of at most 10 cells, lowest id first. It also asks for
-each room's planned Build site of the catalog heater definition. `WithPlannedThermal`
+each room's planned Build site of a catalog heater definition: the electric
+`RoomFurniture.Heater` or one of `RoomFurniture.FueledHeaters` (#3673). `WithPlannedThermal`
 then joins the answer into the coupled thermal read. The coupled capture keeps every
 cell and source it has, and the planned rows fill only the gaps. The planned read
 comes from a later frame of the same round. A planned heater is a source whose
@@ -237,7 +239,11 @@ electric heater's full-efficiency regime at or below 20 C. Additional demand fro
 selected heaters shares each network's observed surplus. The supply assumption
 holds that current network state constant for the horizon; future weather,
 generator fuel changes, outages and other heat-source mechanics are not predicted.
-Missing geometry, unsupported roofing or insufficiently known energy supply keeps
+A fueled source's supply is unlimited instead: its fuel is charged at material value
+in the Investment term from the shell's completion to the horizon
+([forecast value](forecast-value.md)), so refuelling is assumed. A room holding more
+than one source (a torch lamp beside a heater counts) stays
+`unsupported_multiple_heat_sources`. Missing geometry, unsupported roofing or insufficiently known energy supply keeps
 the affected shelter estimate unknown. Per-cell roof labor is conservative because
 native roof jobs may cover neighboring cells.
 

@@ -16,7 +16,8 @@ public sealed partial class Rounder
             return (null, default);
         }
         var rooms = shelters.ToList();
-        var thermal = PlannedRules.PlannedThermalRequestOf(rooms, planned.Sites, colony.Shapes.Furniture.Heater);
+        var furniture = colony.Shapes.Furniture;
+        var thermal = PlannedRules.PlannedThermalRequestOf(rooms, planned.Sites, [furniture.Heater, .. furniture.FueledHeaters]);
         var predictions = PlannedRules.PlannedRoomPredictionRequestOf(rooms, planned.Sites);
         if (thermal is null && predictions.Count == 0)
         {

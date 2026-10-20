@@ -29,17 +29,21 @@ public sealed class PlannedShelterTests
 
     private const string HeaterSite = "planned/room1/build/Heater/1/1";
 
-    private static PlannedBuildSite Heater(double finish, PlannedSiteVerdict verdict = PlannedSiteVerdict.Feasible)
+    private const string CampfireSite = "planned/room1/build/Campfire/1/1";
+
+    private static PlannedBuildSite Heater(double finish, PlannedSiteVerdict verdict = PlannedSiteVerdict.Feasible, string def = "Heater")
     {
-        var row = new ConstructionActivityOption(HeaterSite, "Heater", Inside, "pawn", "", "", Inside, 0, 0, "Finish",
+        var id = def == "Heater" ? HeaterSite : CampfireSite;
+        var row = new ConstructionActivityOption(id, def, Inside, "pawn", "", "", Inside, 0, 0, "Finish",
             Known(0.0), default, Known(finish)) { SiteApproachTicks = Known(1.0) };
-        return new PlannedBuildSite(HeaterSite, 1, OpKind.Build, "Heater", "", Rotation.North, [Inside])
+        return new PlannedBuildSite(id, 1, OpKind.Build, def, "", Rotation.North, [Inside])
             { Verdict = verdict, Options = [row] };
     }
 
     // unplaced: nothing at all is placed, so the coupled capture holds no cell or source of the room (#3323); its cells
-    // and the planned heater come only from the round's planned thermal read.
-    private static RoundsFacts Review(IEnumerable<PlannedBuildSite> planned, double ambient = -10, bool buildRoof = false, bool unplaced = false)
+    // and the planned heater (plannedSource, else a powered heater) come only from the round's planned thermal read.
+    private static RoundsFacts Review(IEnumerable<PlannedBuildSite> planned, double ambient = -10, bool buildRoof = false, bool unplaced = false,
+        ThermalSource? plannedSource = null)
     {
         var facts = ForecastCoupledTests.ConstructionReview(stock: 100);
         var cells = Enumerable.Range(0, 3).SelectMany(x => Enumerable.Range(0, 3).Select(z => new Cell(x, z))).ToArray();
@@ -59,7 +63,7 @@ public sealed class PlannedShelterTests
             plannedThermal = thermal with
             {
                 Workers = [], RoofRoutes = [],
-                Sources = [new(HeaterSite, Inside, false, Known(.35), Known(20d), Known(60000d))
+                Sources = [plannedSource ?? new(HeaterSite, Inside, false, Known(.35), Known(20d), Known(60000d))
                     { PowerNetwork = "net", AdditionalWatts = Known(175d), SurplusWatts = Known(500d) }],
             };
             thermal = thermal with { Cells = [], Sources = [], RoofRoutes = [] };
@@ -170,6 +174,36 @@ public sealed class PlannedShelterTests
     }
 
     /// <summary>
+    /// #3673: a planned campfire is a fueled source with unlimited supply, so the shelter it heats has a known projection, and
+    /// the selected outcome is charged its burn from the shell's completion to the horizon at the fuel's material value.
+    /// </summary>
+    [Fact]
+    public void APlannedCampfireHeatsItsShelterAndIsChargedItsFuelFromTheShellsCompletion()
+    {
+        const double burn = 10d / GameTime.TicksPerDay, perLog = .01;
+        var campfire = new ThermalSource(CampfireSite, Inside, false, Known(21 / 60d), Known(23d), Known(double.PositiveInfinity))
+            { Fuel = "WoodLog", FuelPerTick = Known(burn) };
+        var facts = Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof(), Heater(50, def: "Campfire")], unplaced: true, plannedSource: campfire);
+        var plan = Assert.Single(facts.CoupledAlternatives!.Context.Shelters);
+        Assert.Empty(plan.Findings);
+        Assert.Equal(("WoodLog", "", burn), (plan.Fuel, plan.PowerNetwork, plan.FuelPerTick.Value));
+        Assert.Equal([new Resource("WoodLog")], ForecastValue.ChargedMaterials(facts.CoupledAlternatives.Context));
+        var alternatives = facts.CoupledAlternatives with { Context = facts.CoupledAlternatives.Context with
+            { MaterialValues = new Dictionary<Resource, ConstructionMaterialValue> { [new("WoodLog")] = new(MaterialValueBasis.Labor, perLog) } } };
+        facts = facts with { CoupledAlternatives = alternatives };
+
+        var result = Select(facts);
+        var shelter = Assert.Single(result.Selected.Shelters);
+        Assert.True(shelter.TemperatureAtHorizon.IsKnown, Why(facts, result));
+        Assert.True(result.Selected.StationaryThermalRelief is { IsKnown: true, Value: > 0 }, Why(facts, result));
+        var row = Assert.Single(ForecastValue.Of(result.Selected, alternatives.Context, Horizon).InvestmentContributions, r => r.Key == "material/WoodLog");
+        var units = burn * (Horizon - shelter.CompleteAt.Value);
+        Assert.Equal((CampfireSite, ""), (row.Activity, row.Pawn));
+        Assert.Equal(units, row.Units, 12);
+        Assert.Equal(units * perLog, row.Value, 12);
+    }
+
+    /// <summary>
     /// The handoff follows what the selected plan completes, not its root ids (#3342): the shelter root alone, or the
     /// site roots its schedule equals, record the room's wall, door, roof and heater, and the reconcile places all four.
     /// </summary>
@@ -224,17 +258,21 @@ public sealed class PlannedShelterTests
     {
         var sites = new[] { Ring(OpKind.WallIn, 40), Heater(50),
             new PlannedBuildSite("planned/room2/wall/WoodLog", 2, OpKind.WallIn, "Wall", "WoodLog", Rotation.North, [new(10, 9)]),
-            new PlannedBuildSite("planned/room1/build/Bed/1/1", 1, OpKind.Build, "Bed", "WoodLog", Rotation.North, [Inside]) };
+            new PlannedBuildSite("planned/room1/build/Bed/1/1", 1, OpKind.Build, "Bed", "WoodLog", Rotation.North, [Inside]),
+            new PlannedBuildSite("planned/room1/build/Campfire/1/1", 1, OpKind.Build, "Campfire", "", Rotation.North, [Inside]) };
         PlannedRoom[] rooms = [
             new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 1, 1)), Door = DoorCell },
             new() { Id = 2, Region = RegionRules.RectRegion(new(10, 10, 11, 3)) }, // wider than the shelter roof bound
             new() { Id = 3, Region = RegionRules.RectRegion(new(20, 20, 2, 2)) },  // nothing owed: already built
             new() { Id = 4, Region = RegionRules.RectRegion(new(30, 30, 2, 2)), Outdoor = true }];
-        var request = PlannedRules.PlannedThermalRequestOf(rooms, sites, "Heater")!;
+        var request = PlannedRules.PlannedThermalRequestOf(rooms, sites, ["Heater"])!;
         Assert.Equal([new PlannedThermalRoom(Inside, 1, 1)], request.Rooms);
         Assert.Equal([new PlannedThermalHeater(HeaterSite, "Heater", Inside)], request.Heaters);
-        Assert.Empty(PlannedRules.PlannedThermalRequestOf(rooms, sites, "")!.Heaters);
-        Assert.Null(PlannedRules.PlannedThermalRequestOf(rooms.Skip(1), sites, "Heater"));
+        // A fueled heater (#3673) is asked for beside the electric one.
+        Assert.Equal([new PlannedThermalHeater("planned/room1/build/Campfire/1/1", "Campfire", Inside), new PlannedThermalHeater(HeaterSite, "Heater", Inside)],
+            PlannedRules.PlannedThermalRequestOf(rooms, sites, ["Heater", "Campfire"])!.Heaters);
+        Assert.Empty(PlannedRules.PlannedThermalRequestOf(rooms, sites, [""])!.Heaters);
+        Assert.Null(PlannedRules.PlannedThermalRequestOf(rooms.Skip(1), sites, ["Heater"]));
     }
 
     [Fact]
