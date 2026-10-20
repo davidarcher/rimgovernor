@@ -54,7 +54,7 @@ internal static class ColonyPlanCut
             {
                 attrs[k] = v;
             }
-            Tel.Decide(new Decision { Kind = "layout_plan", Component = "layout", Verdict = d.Verdict, Reason = d.Reason, Target = "perimeter_cut", Attrs = attrs });
+            Tel.Decide(new Decision { Kind = TelemetryKinds.LayoutPlanKind, Component = "layout", Verdict = d.Verdict, Reason = d.Reason, Target = "perimeter_cut", Attrs = attrs });
         }
     }
 }

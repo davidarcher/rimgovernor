@@ -114,7 +114,7 @@ internal static class StationAdviceLog
     /// <summary>The layout_stations row of advice made (or <paramref name="error"/>, the chain's).</summary>
     public static (Decision Row, StationAdvice Advice, bool Ok) StationOutcome(StationAdvice advice, Exception? error)
     {
-        var decision = new Decision { Kind = "layout_stations", Component = "layout", Target = "plan" };
+        var decision = new Decision { Kind = TelemetryKinds.LayoutStationsKind, Component = "layout", Target = "plan" };
         switch (error)
         {
             case StationFactsException:
@@ -270,7 +270,6 @@ internal static class StationAdviceLog
             ["edges"] = a.Graph.Edges.Count,
             ["groups"] = groups,
             ["conflicts"] = conflicts,
-            ["seed_only"] = a.SeedOnly,
             ["sites"] = sites,
             ["site_issues"] = siteIssues,
             ["vents"] = vents,
@@ -310,9 +309,10 @@ internal static class StationFactsBuilder
 
     /// <summary>
     /// Every station fact the projection, the resource demand and the work ledger hold; the catalog rows (recipe
-    /// flows, stack limits, rot) are added by the caller.
+    /// flows, stack limits, rot) are added by the caller. A demand a review derived for this world is known even when
+    /// empty: it targets no stock.
     /// </summary>
-    public static StationFacts StationFactsOf(ColonyProjection projection, LayoutPlan plan, MapSurvey survey, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
+    public static StationFacts StationFactsOf(ColonyProjection projection, LayoutPlan plan, MapSurvey survey, Fact<IReadOnlyDictionary<Resource, long>> needs, LedgerView ledger)
     {
         var f = new StationFacts
         {
@@ -330,7 +330,7 @@ internal static class StationFactsBuilder
             WorkPawns = projection.WorkPawns,
             Food = projection.FoodSupply,
             Orders = Unknown<EquatableArray<OrderSpec>>(),
-            Stock = Unknown<IReadOnlyDictionary<Resource, long>>(),
+            Stock = needs,
             RoofDistance = projection.RoofSupport,
             Plan = plan,
             Survey = survey,
@@ -359,10 +359,6 @@ internal static class StationFactsBuilder
         {
             f = f with { Prisoners = Known(PrisonersRounds.HeldPrisoners(prisoners)) };
         }
-        if (needs.Count > 0)
-        {
-            f = f with { Stock = Known(needs) };
-        }
         // An inactive ledger (no planner declares into it) wants no order: a known empty list, where an
         // unreviewed or unread one is unknown.
         if (ledger.Status is WorkRules.LedgerViewReconciled or WorkRules.LedgerViewInactive)
@@ -375,10 +371,10 @@ internal static class StationFactsBuilder
     /// <summary>
     /// The station facts of a first plan over <paramref name="survey"/> (<c>DeriveLayoutPlan</c>): every fact the
     /// projection, the resource demand needs and the work ledger hold, nothing standing, the throne room a title
-    /// asks (ThroneArea) and what the colony has not read left unknown, which a first plan grows from the seed
-    /// rooms. The catalog rows are added by the caller (<see cref="StationFacts"/>).
+    /// asks (ThroneArea) and what the colony has not read left unknown, which the plan waits for. The catalog rows
+    /// are added by the caller (<see cref="StationFacts"/>).
     /// </summary>
-    public static StationFacts FirstPlanFacts(ColonyProjection projection, MapSurvey survey, IReadOnlyDictionary<Resource, long> needs, LedgerView ledger)
+    public static StationFacts FirstPlanFacts(ColonyProjection projection, MapSurvey survey, Fact<IReadOnlyDictionary<Resource, long>> needs, LedgerView ledger)
     {
         var f = StationFactsOf(projection, new LayoutPlan(), survey, needs, ledger) with { Derive = true };
         var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(projection);

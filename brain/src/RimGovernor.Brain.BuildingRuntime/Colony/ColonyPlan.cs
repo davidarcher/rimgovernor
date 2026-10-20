@@ -59,7 +59,11 @@ internal readonly record struct HeldLayout(LayoutPlan Plan, Tick Tick);
 
 internal static class LayoutPlanning
 {
-    /// <summary>The fewest ticks between survey reads for any layout trigger (one game hour): a colony the grown plan still cannot house waits an hour instead of re-reading the map every review.</summary>
+    /// <summary>
+    /// The fewest ticks between survey reads for any layout trigger (one game hour): a colony the grown plan still cannot
+    /// house waits an hour instead of re-reading the map every review. A first plan that waits for a fact with the
+    /// clock held retries every review (<see cref="Rounder.FirstPlanUnread"/>).
+    /// </summary>
     public static readonly Tick ReplanEvery = new(2500);
 
     /// <summary>The terrain check: every game hour a review re-reads the survey and replans the layout when it changed.</summary>
@@ -70,6 +74,9 @@ internal static class LayoutPlanning
 
     /// <summary>How often the traffic heat layers are redrawn (one game hour).</summary>
     public static readonly Tick HeatRedrawEvery = new(2500);
+
+    /// <summary>What a recorded first plan holds the clock for until a review starts with it in hand (#3652).</summary>
+    public const string FirstPlanPending = "layout plan";
 
     public const string OverlayLayer = "layout";
     public const string FieldLayer = "fields";
@@ -105,7 +112,7 @@ internal static class LayoutPlanning
                 attrs[k] = v;
             }
         }
-        return new Decision { Kind = "layout_plan", Component = "layout", Verdict = verdict, Reason = reason, Target = "plan", Attrs = attrs };
+        return new Decision { Kind = TelemetryKinds.LayoutPlanKind, Component = "layout", Verdict = verdict, Reason = reason, Target = "plan", Attrs = attrs };
     }
 
     /// <summary>Writes the layout_interior row of each interior search move the tiler kept.</summary>
@@ -184,9 +191,9 @@ public sealed partial class Rounder
     }
 
     /// <summary>
-    /// Serves the saved v2 layout plan on the projection. It derives one at once when none is saved (then at
-    /// most once an hour) and re-reads the survey every hour, replanning when a pawn, tier, research, need or
-    /// the terrain changed since the last replan. The replan is the station chain's tiled plan
+    /// Serves the saved v2 layout plan on the projection. A colony with none saved gets its first plan at the end of
+    /// the review (<see cref="ReviewFirstPlanAsync"/>). With one, it re-reads the survey every hour, replanning when a
+    /// pawn, tier, research, need or the terrain changed since the last replan. The replan is the station chain's tiled plan
     /// (<c>ReplanLayout</c>): the chain keeps the rooms that stand, the rooms a journal plan works on or a pawn
     /// sleeps in and the rooms it has a node for, and sites the rest again. It runs off the hold path
     /// (<see cref="PendingLayoutReplan"/>, #3565): the hourly check that finds the inputs drifted starts it and
@@ -229,7 +236,6 @@ public sealed partial class Rounder
             checkedAt = PlanChecked;
         }
         var hourly = !PlanSurveyed || tick.Value - checkedAt.Value >= LayoutPlanning.ReplanEvery.Value;
-        var missing = !haveLayout && hourly;
         // Every hour a review re-reads the survey and replans when its inputs (the chain's facts, the survey)
         // changed: a need, a pawn or a room that stands is among them, so no trigger of its own is needed.
         var terrain = haveLayout && tick.Value - checkedAt.Value >= LayoutPlanning.TerrainCheckEvery.Value;
@@ -237,53 +243,23 @@ public sealed partial class Rounder
         var grown = LayoutPlanning.GrownFor(projection);
         var research = haveLayout && grown != PlanGrownFor && hourly;
         // A pending replan is the hour's: the check waits for it.
-        if ((missing || terrain || research) && LayoutPending is null)
+        if ((terrain || research) && LayoutPending is null)
         {
-            (MapSurvey Survey, DefinitionCatalog Catalog)? read;
-            try
+            if (await CheckSurveyAsync(snapshot, projection, ct).ConfigureAwait(false) is var (survey, catalog))
             {
-                read = await LayoutSurveyAsync(snapshot, projection, ct).ConfigureAwait(false);
-            }
-            catch (Exception e) when (e is not OperationCanceledException)
-            {
-                // a failed survey retries on the next review
-                read = null;
-            }
-            if (read is { Catalog: { } catalog } surveyRead)
-            {
-                var survey = surveyRead.Survey;
-                PlanChecked = tick;
-                PlanSurveyed = true;
-                // A fresh plan latches the map's climate; unknown reads warm.
-                survey = survey with
-                {
-                    Cold = projection.ColdMap.TryGetValue(out var cold) && cold,
-                    Hot = projection.HotMap.TryGetValue(out var hot) && hot,
-                };
                 projection.PowerPlanning.TryGetValue(out var knownTopology);
                 var topology = knownTopology ?? new PowerTopology();
                 var colonists = (int)pawns;
-                if (!haveLayout)
+                var (inputs, growth, facts) = await LayoutInputsOfAsync(snapshot, projection, layout, survey, grown, colonists, topology.Geysers, ct).ConfigureAwait(false);
+                if (!inputs.Same(PlanInputs))
                 {
-                    await DeriveLayoutPlanAsync(snapshot, tick, projection, survey, catalog, topology.Geysers, ColonyPlanCut.PerimeterWallOf(projection), ct).ConfigureAwait(false);
-                    PlanGrownFor = grown;
-                    PlanPawns = colonists;
-                    PlanInputs = LayoutInputs.Empty;
-                    (layout, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
-                }
-                else
-                {
-                    var (inputs, growth, facts) = await LayoutInputsOfAsync(snapshot, projection, layout, survey, grown, colonists, topology.Geysers, ct).ConfigureAwait(false);
-                    if (!inputs.Same(PlanInputs))
+                    var reason = LayoutPlanning.LayoutReasons(new Dictionary<string, bool>
                     {
-                        var reason = LayoutPlanning.LayoutReasons(new Dictionary<string, bool>
-                        {
-                            ["terrain"] = inputs.Bounds != PlanInputs.Bounds || !inputs.Cells.Equals(PlanInputs.Cells),
-                            ["pawns"] = colonists != PlanPawns,
-                            ["research"] = research,
-                        });
-                        LayoutPending = StartLayoutReplan(snapshot, tick, layout, projection, survey, catalog, growth, facts, colonists, grown, reason, topology.Geysers, ColonyPlanCut.PerimeterWallOf(projection), inputs.Changed(PlanInputs));
-                    }
+                        ["terrain"] = inputs.Bounds != PlanInputs.Bounds || !inputs.Cells.Equals(PlanInputs.Cells),
+                        ["pawns"] = colonists != PlanPawns,
+                        ["research"] = research,
+                    });
+                    LayoutPending = StartLayoutReplan(snapshot, tick, layout, projection, survey, catalog, growth, facts, colonists, grown, reason, topology.Geysers, ColonyPlanCut.PerimeterWallOf(projection), inputs.Changed(PlanInputs));
                 }
             }
         }
@@ -293,6 +269,65 @@ public sealed partial class Rounder
         }
         await DrawLayoutOverlayAsync(snapshot, projection, layout, haveLayout, ct).ConfigureAwait(false);
         return projection;
+    }
+
+    /// <summary>
+    /// The survey read of a layout check, recorded as the last check, with the map's climate latched on it (unknown
+    /// reads warm); null when the read failed, which the next review retries.
+    /// </summary>
+    private async Task<(MapSurvey Survey, DefinitionCatalog Catalog)?> CheckSurveyAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
+    {
+        (MapSurvey Survey, DefinitionCatalog Catalog) read;
+        try
+        {
+            read = await LayoutSurveyAsync(snapshot, projection, ct).ConfigureAwait(false);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            return null;
+        }
+        PlanChecked = projection.Identity.Tick;
+        PlanSurveyed = true;
+        var survey = read.Survey with
+        {
+            Cold = projection.ColdMap.TryGetValue(out var cold) && cold,
+            Hot = projection.HotMap.TryGetValue(out var hot) && hot,
+        };
+        return (survey, read.Catalog);
+    }
+
+    /// <summary>
+    /// The first plan of a colony with none saved, at the end of the review (#3652): after the ledger and the resource
+    /// demand, so every station fact the review reads is read. It derives at once, then once an hour, and every review
+    /// while it holds the clock (<see cref="FirstPlanUnread"/>): named for the fact the derive found unread, or
+    /// <see cref="LayoutPlanning.FirstPlanPending"/> once it recorded the plan, until a review starts with the plan in
+    /// hand. A review with a saved plan, or a derive that fails for anything but an unread fact, holds nothing.
+    /// </summary>
+    internal async Task ReviewFirstPlanAsync(GenerationSnapshot snapshot, GenerationSnapshot demandWorld, ColonyProjection projection, CancellationToken ct)
+    {
+        var tick = projection.Identity.Tick;
+        var (_, haveLayout) = await LayoutPlanAsync(snapshot, tick, ct).ConfigureAwait(false);
+        if (haveLayout)
+        {
+            FirstPlanUnread = "";
+            return;
+        }
+        // A rewind past the last survey or a restart reads again.
+        var hourly = !PlanSurveyed || PlanChecked > tick || tick.Value - PlanChecked.Value >= LayoutPlanning.ReplanEvery.Value;
+        if ((!hourly && FirstPlanUnread.Length == 0) || LayoutPending is not null)
+        {
+            return;
+        }
+        if (await CheckSurveyAsync(snapshot, projection, ct).ConfigureAwait(false) is not var (survey, catalog))
+        {
+            return;
+        }
+        projection.PowerPlanning.TryGetValue(out var knownTopology);
+        FirstPlanUnread = await DeriveLayoutPlanAsync(snapshot, demandWorld, tick, projection, survey, catalog, (knownTopology ?? new PowerTopology()).Geysers, ColonyPlanCut.PerimeterWallOf(projection), ct).ConfigureAwait(false);
+        projection.Facts.Colonists.TryGetValue(out var pawns);
+        PlanGrownFor = LayoutPlanning.GrownFor(projection);
+        PlanPawns = (int)pawns;
+        PlanInputs = LayoutInputs.Empty;
     }
 
     /// <summary>
@@ -434,16 +469,18 @@ public sealed partial class Rounder
     }
 
     /// <summary>
-    /// Lays a fresh v2 plan over the survey and the reported geysers from the station chain and records it. A
-    /// fact the colony has not read leaves the plan at the seed rooms (the layout_stations row says which); a
-    /// chain that fails records nothing and the next hourly review derives again.
+    /// Lays a fresh v2 plan over the survey and the reported geysers from the station chain and records it,
+    /// reading the resource demand the review derived for <paramref name="demandWorld"/>. It returns what the first
+    /// plan holds the clock for: the fact the colony has not read (the layout_plan row is skipped/facts_unknown and
+    /// nothing is recorded), <see cref="LayoutPlanning.FirstPlanPending"/> when the plan was recorded, and empty when
+    /// the chain failed or the map holds no core (nothing is recorded and the next hourly review derives again).
     /// </summary>
-    internal async Task DeriveLayoutPlanAsync(GenerationSnapshot snapshot, Tick tick, ColonyProjection projection, MapSurvey survey, DefinitionCatalog catalog, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, CancellationToken ct)
+    internal async Task<string> DeriveLayoutPlanAsync(GenerationSnapshot snapshot, GenerationSnapshot demandWorld, Tick tick, ColonyProjection projection, MapSurvey survey, DefinitionCatalog catalog, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, CancellationToken ct)
     {
         projection.Facts.Colonists.TryGetValue(out var pawns);
         var colonists = (int)pawns;
         var start = DateTimeOffset.UtcNow;
-        var f = StationFactsBuilder.FirstPlanFacts(projection, survey, StationNeeds(snapshot), WorkLedgerView());
+        var f = StationFactsBuilder.FirstPlanFacts(projection, survey, StationNeeds(demandWorld), WorkLedgerView());
         f = f with { Crops = FieldCrops.Of(projection), FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays };
         Fact<LayoutPlan> fact = default;
         StationAdvice advice = new();
@@ -464,22 +501,23 @@ public sealed partial class Rounder
         LayoutPlanning.LogConduits(advice);
         switch (error)
         {
-            case StationFactsException:
+            case StationFactsException unread:
                 Tel.Decide(LayoutPlanning.LayoutPlanDecision("skipped", "facts_unknown", colonists, "", new Dictionary<string, object?> { ["fact"] = error.Message }));
-                return;
+                return unread.Fact;
             case not null:
                 Tel.Decide(LayoutPlanning.LayoutPlanDecision("failed", "chain_error", colonists, "", new Dictionary<string, object?> { ["error"] = error.ToString() }));
-                return;
+                return "";
         }
         if (!fact.TryGetValue(out var plan))
         {
             Tel.Decide(LayoutPlanning.LayoutPlanDecision("skipped", "no_core", colonists, "", null));
-            return;
+            return "";
         }
         await Player.Journal.RecordLayoutPlanAsync(snapshot, tick, plan, ct).ConfigureAwait(false);
         Tel.Decide(LayoutPlanning.LayoutPlanDecision("planned", "", colonists, plan.Summary(), null));
         LayoutPlanning.LogPerimeter(plan, colonists);
         ColonyPlanCut.LogPerimeterCut(plan, survey, wall, colonists);
+        return LayoutPlanning.FirstPlanPending;
     }
 
     /// <summary>Redraws a "heat.&lt;layer&gt;" overlay layer per traffic layer from the census's busiest cells, on its own hourly cadence; with the overlay off it removes them once. Output only, like the layout.</summary>

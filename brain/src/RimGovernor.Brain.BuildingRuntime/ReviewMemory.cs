@@ -12,6 +12,7 @@ internal sealed class ReviewMemory<T>(T empty)
     private readonly object _mu = new();
     private readonly T _empty = empty;
     private GenerationSnapshot _snapshot;
+    private bool _set;
     private T _value = empty;
 
     public void Set(GenerationSnapshot snapshot, T value)
@@ -20,6 +21,16 @@ internal sealed class ReviewMemory<T>(T empty)
         {
             _snapshot = snapshot;
             _value = value;
+            _set = true;
+        }
+    }
+
+    /// <summary>The value the review of <paramref name="snapshot"/>'s world derived; unknown before one did.</summary>
+    public Fact<T> Read(GenerationSnapshot snapshot)
+    {
+        lock (_mu)
+        {
+            return _set && _snapshot == snapshot ? Known(_value) : Unknown<T>();
         }
     }
 
@@ -146,20 +157,24 @@ public sealed partial class Rounder
     /// <summary>
     /// The stock the station chain sizes the colony's rooms for: the review's demand, each resource of the
     /// acceptance fault <c>Faults.StockDemand</c> raised to at least its count. It reaches the layout only; no
-    /// planner acquires it.
+    /// planner acquires it. Unknown until a review of this world derived the demand; an empty one is known.
     /// </summary>
-    internal IReadOnlyDictionary<Resource, long> StationNeeds(GenerationSnapshot snapshot)
+    internal Fact<IReadOnlyDictionary<Resource, long>> StationNeeds(GenerationSnapshot snapshot)
     {
-        var needs = Demand.Get(snapshot).Needs;
+        if (!Demand.Read(snapshot).TryGetValue(out var demand))
+        {
+            return Unknown<IReadOnlyDictionary<Resource, long>>();
+        }
+        var needs = demand.Needs;
         if (StockDemand is not { Count: > 0 } stockDemand)
         {
-            return needs;
+            return Known(needs);
         }
         var result = new Dictionary<Resource, long>(needs);
         foreach (var (resource, count) in stockDemand)
         {
             result[resource] = Math.Max(result.GetValueOrDefault(resource), count);
         }
-        return result;
+        return Known<IReadOnlyDictionary<Resource, long>>(result);
     }
 }

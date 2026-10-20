@@ -22,7 +22,7 @@ public sealed class LayoutReplanOffPathTests
         var run = Rounder.RunLayoutReplan(new LayoutPlan(), new StationFacts { Catalog = new StationCatalog() }, new MapSurvey(), catalog, [], new RoomGrowth());
 
         Assert.False(run.Advised);
-        Assert.Equal("layout_stations", run.StationRow.Kind);
+        Assert.Equal(RimGovernor.Brain.Telemetry.TelemetryKinds.LayoutStationsKind, run.StationRow.Kind);
         Assert.Equal("skipped", run.StationRow.Verdict);
         Assert.Equal("facts_unknown", run.StationRow.Reason);
         Assert.Null(run.Next);
@@ -34,7 +34,7 @@ public sealed class LayoutReplanOffPathTests
     {
         var held = new HeldLayout(new LayoutPlan(), new Tick(100));
         var pending = new PendingLayoutReplan(World, new Tick(120), held, new ColonyProjection(), new MapSurvey(), null!, new RoomGrowth(), 3, "", "terrain", [], new PerimeterWall(default, default), [],
-            Task.FromResult(new LayoutReplanRun { StationRow = new RimGovernor.Brain.Telemetry.Decision { Kind = "layout_stations" } }));
+            Task.FromResult(new LayoutReplanRun { StationRow = new RimGovernor.Brain.Telemetry.Decision { Kind = RimGovernor.Brain.Telemetry.TelemetryKinds.LayoutStationsKind } }));
 
         Assert.True(Rounder.LayoutReplanAdoptable(pending, World, new Tick(130), held, true));
         Assert.True(Rounder.LayoutReplanAdoptable(pending, World with { Revision = new(2), Native = new(3) }, new Tick(130), held, true));

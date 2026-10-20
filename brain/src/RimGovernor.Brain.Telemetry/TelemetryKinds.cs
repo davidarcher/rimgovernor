@@ -50,6 +50,18 @@ public static class TelemetryKinds
     /// <summary>One stockpile, field or building layout decision (<see cref="LayoutEditKind"/>).</summary>
     public static readonly TelemetryKind LayoutEdit = new(LayoutEditKind);
 
+    /// <summary>The kind the layout plan's derive, replan and cut decisions are emitted under.</summary>
+    public const string LayoutPlanKind = "layout_plan";
+
+    /// <summary>One layout plan decision (<see cref="LayoutPlanKind"/>).</summary>
+    public static readonly TelemetryKind LayoutPlan = new(LayoutPlanKind);
+
+    /// <summary>The kind the station chain's advice row is emitted under.</summary>
+    public const string LayoutStationsKind = "layout_stations";
+
+    /// <summary>One run of the station chain (<see cref="LayoutStationsKind"/>).</summary>
+    public static readonly TelemetryKind LayoutStations = new(LayoutStationsKind);
+
     /// <summary>One rounds review's summary row (<see cref="RoundsReviewTelemetry.Kind"/>): the food plan and the hunt comparison's note.</summary>
     public static readonly TelemetryKind RoundsReview = new(RoundsReviewTelemetry.Kind);
 
@@ -100,6 +112,9 @@ public static class TelemetryKinds
 
     /// <summary>A scheduler step that changed or refused the clock (<see cref="ClockRunKind"/>).</summary>
     public static readonly TelemetryKind ClockRun = new(ClockRunKind);
+
+    /// <summary>The clock_run attr naming the station fact a first_plan refusal waits for (#3652).</summary>
+    public const string ClockRunFirstPlanFactKey = "first_plan_fact";
 
     /// <summary>An action run's decision row's kind.</summary>
     public const string DispatchKind = "dispatch";

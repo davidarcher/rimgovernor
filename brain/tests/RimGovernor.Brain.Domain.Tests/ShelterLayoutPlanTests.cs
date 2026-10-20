@@ -28,7 +28,7 @@ public sealed class ShelterLayoutPlanTests
     };
 
     /// <summary>An open, firm, walkable map whose climate latches are read off the curve, as the colony review sets them.</summary>
-    private static MapSurvey Survey(string climate) => new()
+    internal static MapSurvey Survey(string climate) => new()
     {
         Bounds = new Bounds(80, 80),
         Cells = [.. Enumerable.Range(0, 80).SelectMany(x => Enumerable.Range(0, 80).Select(z => new SurveyCell
@@ -39,11 +39,45 @@ public sealed class ShelterLayoutPlanTests
         Hot = LayoutShelterRules.HotMapCurve(Curve(climate)),
     };
 
-    /// <summary>A first plan's facts (Derive, no ledger or census): the catalog prices only the lamp and the power sites the chain needs.</summary>
-    private static StationFacts Facts(MapSurvey s, long colonists) => new()
+    /// <summary>
+    /// A first plan's facts (Derive), every station fact read (#3652): the food census, an empty ledger and demand, no
+    /// patient, prisoner or baby, and the dining furniture. The catalog holds a bed, a stove cooking one meal, the
+    /// dining table and a shelf, and prices the lamp and the power sites the chain needs.
+    /// </summary>
+    private static readonly Resource Meal = new("TestMeal");
+    private static readonly Resource Raw = new("TestRaw");
+
+    internal static StationFacts Facts(MapSurvey s, long colonists) => new()
     {
         Catalog = new StationCatalog
         {
+            Stations = new Dictionary<string, Station>
+            {
+                ["Bed"] = new Station
+                {
+                    Shape = new InteriorPieceDef("Bed", new Cell(1, 2), RoomRole.None, null),
+                    Contributions = [new RoleScore { Role = RoomRole.Bedroom, Weight = 1 }],
+                    Capacity = new StationCapacity { Kind = CapacityKind.Sleepers, Slots = 1 },
+                    EmptyCountsForBarracks = true,
+                },
+                ["Stove"] = new Station
+                {
+                    Shape = new InteriorPieceDef("Stove", new Cell(3, 1), RoomRole.None, null),
+                    Contributions = [new RoleScore { Role = RoomRole.Kitchen, Weight = 1 }],
+                    Capacity = new StationCapacity { Kind = CapacityKind.Workers, Slots = 1, Recipes = [new RecipeWorkAmount("CookMeal", 300)] },
+                },
+                ["Table2x2c"] = new Station
+                {
+                    Shape = new InteriorPieceDef("Table2x2c", new Cell(2, 2), RoomRole.None, null),
+                    Contributions = [new RoleScore { Role = RoomRole.DiningRoom, Weight = 1 }],
+                },
+                ["Shelf"] = new Station
+                {
+                    Shape = new InteriorPieceDef("Shelf", new Cell(2, 1), RoomRole.None, null),
+                    Contributions = [new RoleScore { Role = RoomRole.Storeroom, Weight = 1 }],
+                    Capacity = new StationCapacity { Kind = CapacityKind.Items, Slots = 6 },
+                },
+            },
             Light = new LightModel { Standing = new LampModel(75, 30, 12, 217) },
             Power = new PowerModel
             {
@@ -54,17 +88,41 @@ public sealed class ShelterLayoutPlanTests
                 Wall = 8,
             },
         },
-        Furniture = new RoomFurniture(),
-        Items = new ItemFacts { Market = new Dictionary<Resource, double> { [SiteRules.SiteSteelUnit] = 1.9 } },
+        Furniture = new RoomFurniture { Beds = [new FurnitureBed { Def = "Bed", Slots = 1 }] },
+        Items = new ItemFacts
+        {
+            Market = new Dictionary<Resource, double> { [SiteRules.SiteSteelUnit] = 1.9 },
+            Nutrition = new Dictionary<Resource, double> { [Meal] = 0.9 },
+        },
+        Recipes = new Dictionary<string, RecipeFlow>
+        {
+            ["CookMeal"] = new RecipeFlow { Food = true, Ingredients = [[new Amount(Raw, 10)]], Products = [new Amount(Meal, 1)] },
+        },
         Races = new AnimalRaceCatalog(),
+        Dining = new DiningFurniture
+        {
+            Chair = new InteriorPieceDef("DiningChair", new Cell(1, 1), RoomRole.None, null),
+            Table = new InteriorPieceDef("Table2x2c", new Cell(2, 2), RoomRole.None, null),
+            Pin = new InteriorPieceDef("DiningPin", new Cell(1, 1), RoomRole.None, null),
+        },
         Colonists = Fact.Known(colonists),
+        Patients = Fact.Known(EquatableArray.From<CarePawn>([])),
+        Prisoners = Fact.Known(0),
+        WorkPawns = Fact.Known(EquatableArray.From<WorkPawn>([])),
+        Food = Fact.Known(new FoodSupply
+        {
+            Complete = Fact.Known(true),
+            Consumers = [.. Enumerable.Range(0, (int)colonists).Select(i => new FoodConsumer { Id = new PawnId("c" + i), NutritionPerDay = Fact.Known(1.6) })],
+        }),
+        Orders = Fact.Known(EquatableArray.From<OrderSpec>([])),
+        Stock = Fact.Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
         Survey = s,
         Built = new HashSet<int>(),
         RoofDistance = 6,
         Derive = true,
     };
 
-    private static LayoutPlan FirstPlan(string climate, long colonists)
+    internal static LayoutPlan FirstPlan(string climate, long colonists)
     {
         var s = Survey(climate);
         var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(s, Facts(s, colonists), []);

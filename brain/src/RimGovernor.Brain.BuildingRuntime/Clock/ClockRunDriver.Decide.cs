@@ -37,6 +37,9 @@ public sealed partial class ClockRunDriver
 
         public ClockWatchDecision? Decision { get; set; }
 
+        /// <summary>The fact the colony's first layout plan waits for; empty when it waits for none.</summary>
+        public string FirstPlanUnread { get; set; } = "";
+
         public PbClock.HoldReason? HeldFor { get; set; }
 
         /// <summary>The review tick the Run named; null when no Run was sent.</summary>
@@ -115,6 +118,10 @@ public sealed partial class ClockRunDriver
         {
             attrs["refused"] = note.Decision?.Refused.Select(r => Wire.Name(r)).ToList();
             decision = decision with { Verdict = "refused", Reason = note.Decision is { Refused.Count: > 0 } d ? Wire.Name(d.Refused[0]) : "run_refused" };
+            if (note.Decision?.Refused.Contains(ClockWatchReason.FirstPlan) == true)
+            {
+                attrs[TelemetryKinds.ClockRunFirstPlanFactKey] = note.FirstPlanUnread;
+            }
         }
         else
         {
@@ -312,6 +319,8 @@ public sealed partial class ClockRunDriver
         // A complete sheltering response lets the threat be waited out, watched like a fight's. A step between two
         // rounds reviews ran no rounder of its own (#3556); the scheduler's last review answers for it.
         var sheltered = ClockScheduler.ClockShelterHeld(step.Rounds ?? _scheduler.LastRounds);
+        // The first plan's hold is the last ordinary review's: an immediate review derives no plan.
+        note.FirstPlanUnread = _scheduler.LastRounds?.FirstPlanUnread ?? "";
         var facts = new ClockWatchFacts
         {
             Current = state.Snapshot,
@@ -332,6 +341,7 @@ public sealed partial class ClockRunDriver
             SquadUnanswered = squadUnanswered,
             Sheltered = sheltered,
             AcknowledgedHungry = _sentPolicy is { } sent ? [.. sent.AcknowledgedHungryColonistIds.Select(id => new PawnId(id))] : [],
+            FirstPlanUnread = note.FirstPlanUnread,
         };
         var decision = ClockWatchRules.EvaluateClockWatch(facts, new ClockWatchLimits { MaxAge = _scheduler.Config.MaxAge });
         note.Decision = decision;

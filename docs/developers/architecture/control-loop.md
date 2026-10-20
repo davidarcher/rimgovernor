@@ -830,6 +830,9 @@ and the Method binds that worker no next task until a rounds review has committe
 may hand that worker's next task to a faster free cook while the Method's other participants
 keep working ([incumbent reconsideration](../contracts/essential-services.md)). A scheduler
 without a rounder clears the wait at its next step.
+While the colony's first layout plan holds the clock (`first_plan`, #3652) every step reviews
+again: a held clock advances no tick to make the review due, and only a review reads the station
+fact the plan waits for ([clock recovery](../contracts/clock-recovery.md)).
 It is an event, not a timer: a Method whose workers finish nothing raises none. The rounds review derives
 the colony model, the stock, the planned sites and the coupled search from facts that rarely
 change in 600 ticks, and it was the cost of the common review; a need that first appears

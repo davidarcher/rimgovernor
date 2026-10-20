@@ -129,6 +129,9 @@ public sealed partial class ClockScheduler
     /// <summary>The last rounds review a step of this scheduler ran; null before the first. A step that ran no rounder reports none of its own, and the run driver reads this one.</summary>
     internal RoundsResult? LastRounds => _lastRounds;
 
+    /// <summary>Whether the last rounds review left the colony's first layout plan holding the clock (#3652).</summary>
+    private bool FirstPlanHeld => _lastRounds is { FirstPlanUnread.Length: > 0 };
+
     /// <summary>Whether the latest step found the clock running.</summary>
     public bool ClockRunning => _running;
 
@@ -179,10 +182,12 @@ public sealed partial class ClockScheduler
     /// <paramref name="every"/> ticks at <paramref name="tick"/>, and <c>freed</c> when a colonist lost its activity
     /// Method since the last review (<paramref name="freed"/>, #3599): only the review assigns it work or standby, and
     /// <c>task</c> when a coupled Method's worker finished a task with bills left (<paramref name="task"/>, #3624): the
-    /// review reconsiders who takes that worker's next task, one event per finished task. A
+    /// review reconsiders who takes that worker's next task, one event per finished task, and <c>first_plan</c> while the
+    /// colony's first layout plan holds the clock (<paramref name="firstPlan"/>, #3652): the held clock advances no tick,
+    /// so only a review reads the fact it waits for. A
     /// review step between two due ticks that selects only dirty and due planners is the step the cadence makes cheap.
     /// </summary>
-    internal static string? RoundsSelection(StepCause cause, bool everyPlanner, long tick, bool reviewed, long lastTick, long every, bool freed, bool task = false)
+    internal static string? RoundsSelection(StepCause cause, bool everyPlanner, long tick, bool reviewed, long lastTick, long every, bool freed, bool task = false, bool firstPlan = false)
     {
         if (everyPlanner)
         {
@@ -196,7 +201,7 @@ public sealed partial class ClockScheduler
         {
             return "due";
         }
-        return freed ? "freed" : task ? "task" : null;
+        return firstPlan ? "first_plan" : freed ? "freed" : task ? "task" : null;
     }
 
     /// <summary>
@@ -343,7 +348,7 @@ public sealed partial class ClockScheduler
                 {
                     (_taskFinished, _taskReviewedThrough) = (true, through);
                 }
-                if ((_pawnsFreed || _taskFinished) && !sel.Planners)
+                if ((_pawnsFreed || _taskFinished || FirstPlanHeld) && !sel.Planners)
                 {
                     // Nothing else is dirty or due: the step runs the rounder alone.
                     sel = sel with { Planners = true, Pick = static _ => false, Why = new Dictionary<string, string>(StringComparer.Ordinal) };
@@ -358,7 +363,7 @@ public sealed partial class ClockScheduler
             result.Waiting = [.. sel.Waiting];
             if (sel.Planners && Config.Rounds is not null)
             {
-                rounds = RoundsSelection(reason.Cause, sel.Pick is null, statusTick, _roundsReviewed, _lastRoundsTick, Config.RoundsEveryTicks, _pawnsFreed, _taskFinished);
+                rounds = RoundsSelection(reason.Cause, sel.Pick is null, statusTick, _roundsReviewed, _lastRoundsTick, Config.RoundsEveryTicks, _pawnsFreed, _taskFinished, FirstPlanHeld);
                 try
                 {
                     result.Planners = await RunPlannerWaveAsync(result, sel, statusTick, false, rounds, call, epoch).ConfigureAwait(false);

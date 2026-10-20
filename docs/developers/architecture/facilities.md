@@ -313,11 +313,11 @@ each group (stations, footprint, clearance, area, predicted role, costs,
 block), the clustering's conflicts and the embedding report; `skipped`
 (`facts_unknown`, naming the fact); or `failed`. The chain runs at most once per change of its inputs (`StationFacts.InputsKey` and the survey; a review with them unchanged reads the last advice and writes no row). Cost on the 250x250 baseline map with a 30-colonist plan and 10 recipes ordered: about 85 ms a run, 0.5 ms for the key (`BenchmarkAdviseStationsLarge`).
 
-A fresh plan (`policy.DeriveLayoutPlan`, #2959) is this chain run through the tiler (`TileStations`, `StationFacts.Derive`); the `layout_stations` row carries `derive: true`, and the `layout_plan` row is `skipped` (`facts_unknown` on an unread fact, `no_core` when the map holds no shelter) or `failed` (`chain_error`). Facts the live ledger has not read leave the plan at the seed rooms (`StationAdvice.SeedOnly`). The chain places the power sites (`EmbedSites`); a replan is the tiled plan too (below).
+A fresh plan (`policy.DeriveLayoutPlan`, #2959) is this chain run through the tiler (`TileStations`, `StationFacts.Derive`); the `layout_stations` row carries `derive: true`, and the `layout_plan` row is `skipped` (`facts_unknown` on an unread fact, `no_core` when the map holds no shelter) or `failed` (`chain_error`). A fact the colony has not read fails the derive like any advice: the colony's first plan waits for it with the clock held (`first_plan`, #3652). The chain places the power sites (`EmbedSites`); a replan is the tiled plan too (below).
 
 The replan is the tiled plan of the chain (`policy.ReplanLayout`, #3005, J4 of #2965; the diff rows are #3002). `policy.ReplanTileFacts` gives the tiler the review's facts (Built, Pinned, the plan's retired ground) over a fresh survey's zones with the core, as the derive lays them, and only the geothermal reservations; the chain places the power sites again, and the perimeter is laid over the tiled plan after it. `policy.DiffReplanTile` compares the tiled rooms with the plan the colony held and writes the `layout_replan_tiled` row. A standing room the embedding keeps is claimed through its block (`Built`); the rest are matched by role. The standing rooms with no node (`unmatched_built`) are what J2 (#3003) turns into nodes. A room node's room (`roomNodeRoles`: circulation, tomb, morgue, the training range and ring, the shelter and the throne room) is a `BuiltRegion` matched to its group by planned role, outdoor or with no native role as it may be, so the embedding keeps it as the block of its node: a plan that holds a shelter keeps a shelter node until the review's `ShelterRetirable` (`StationFacts.RetireShelter`), and one that holds a throne room keeps a throne node at the size it stands or the title asks. The training range and ring take the larger of the demand's stands and markers (`StationFacts.Demand`, the review's `RoomDemand`) and what the plan's range and ring stand at,. On the replay fixtures with every room built none of those is unmatched. The tomb and morgue (`OutskirtsRoomNodes`, from the burial's `RoomDemand`) are nodes while the dead ask for them or the plan holds one. The playroom, classroom, deathrest chamber, worship room, containment cell and isolation room (`ChildRoomNodes`, from `StationFacts.Child`, the review's `ChildRoomShapes`) are nodes while the demand or a need asks for them or the plan holds one, a standing one at no less than the floor it has. Storage and the core demand rooms (hospital, lab, rec, butchery, prison) are the station groups' own (stock, patients, orders, prisoners); the pens and yards are room nodes of the chain (`HerdRoomNodes`, keyed to their herd by `RoomNode.Herd`, a standing one pinned at the floor it has; `YardRoomNodes`); a standing pen is a node of the floor it has and the tiler keeps it like any room. Still unmatched are the outdoor rooms with no node (yard, pen) and any other room with no group of its role; the diff shows a room the tiler builds of its own as a rebuild (`tile_unpinned_built`) or a drop. Bedrooms and suites are nodes of the tiled replan too (#3004, J3): the sleepers' node, one node per suite wish (`StationFacts.Suites`, #2939), each standing bedroom or suite pinned as the block of its node. More colonists show as new bedrooms, a new wish as a new suite that takes a bed off the sleepers, fewer colonists as standing bedrooms with no node (`tile_no_node`, retirement-eligible), and a raised suite target as the row's `short` cells (the embedding keeps a standing room where it stands and does not grow it). The tile pins only `policy.TilePinned` (rooms an open plan works on, superseded bedrooms a pawn still owns a bed in, rooms of an ended role in use, a rebuild's pair). A pinned standing room that no group carries (a surplus bedroom still slept in, a role with no group left, an outdoor room) is held (#3019): `EmbedInput.Standing` makes it an obstacle no block or field overlaps and `Embedding.Held` returns it, `TileStations` tiles it as a stationless group at its own bounds so it stays a room of the tiled plan until it stops being pinned; no group the tiler cannot place is made (#3017): the clustering refuses a merge into a room no planned room carries (several beds read as a barracks) even under a pair rule, and the regrouping adds no such group; the old growing replanner is deleted, and the tiler is the only replan. The tile costs 0.3 to 2 s on a 3-colonist map and about 1.7 s at 100 colonists (#3009, #3010, #3012) and runs inside the review.
 
-#### Derive-time facts and the seed rooms (#2958)
+#### Derive-time facts and the seed rooms (#2958, #3652)
 
 The day-1 shelter and the throne room are kept as special rooms: station-less
 room nodes (`SeedRoomNodes`) that the graph holds beside
@@ -332,13 +332,15 @@ battery porch is not planned. The shelter is owed only to a plan that holds none
 has nothing standing; the throne room only when `StationFacts.ThroneArea` is
 read, positive and not already held.
 
-`StationFacts.Derive` marks a first plan's facts (survey, colonists, tier, roof
-distance; no projection). The census, orders and stock it has not read leave the
-graph at `SeedGraph` (the seed rooms and the facts' room nodes) instead of failing the
-advice; `StationAdvice.SeedOnly` names the fact and the rest grows on replan.
-Nothing is guessed for an unread fact: an unread colony size or roof distance
-still fails with `ErrStationFacts`. The runtime sets `Derive` and `ThroneArea` for a first
-plan (`FirstPlanFacts`, `ColonyStationAdvice.cs`).
+`StationFacts.Derive` marks a first plan's facts; the chain then places the power
+sites its planned demand needs (`PowerSites`). Nothing is guessed for an unread fact:
+the census, the orders, the stock, the dining furniture, the colony size or the roof
+distance left unread fails the advice with `StationFactsException`, which names it
+(`Fact`). The runtime derives the first plan at the end of the review, after the work
+ledger and the resource demand (a demand the review derived is known even when
+empty), reads the rooms census while no plan exists, and holds the clock under
+`first_plan` until the plan is recorded and a review has planned with it
+(`Rounder.ReviewFirstPlanAsync`, `FirstPlanFacts`, `ColonyStationAdvice.cs`).
 
 #### Climate model
 

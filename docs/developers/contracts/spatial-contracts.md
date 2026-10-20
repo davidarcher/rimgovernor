@@ -205,8 +205,8 @@ from the plan.
 
 The plan is made by the station chain (`brain/src/RimGovernor.Brain.Policy/Layout*.cs`; design in
 [facilities](../architecture/facilities.md)): `StationCatalog` (the defs) and
-`StationFacts` (the colony) give `StationGraph` (`BuildStationGraph`, or `SeedGraph` while
-a fact is unread on a derive); `ClusterStations` groups it into rooms; `Embed` places the
+`StationFacts` (the colony) give `StationGraph` (`BuildStationGraph`; a fact still unread fails the
+advice, on a derive too); `ClusterStations` groups it into rooms; `Embed` places the
 groups and the power sites; `TileEmbedding` turns the embedding into the plan;
 `AdviseStations` returns the `StationAdvice` (graph, groups, embedding, comfort, matched
 rooms) that `TileStations` hands to the tiler. `CheckRoutes` proves the plan routes.

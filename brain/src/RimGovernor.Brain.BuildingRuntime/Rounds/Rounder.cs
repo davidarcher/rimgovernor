@@ -113,6 +113,13 @@ public sealed partial class Rounder
 
     internal bool PlanSurveyed;
 
+    /// <summary>
+    /// What the colony's first plan holds the clock for (#3652; <see cref="ReviewFirstPlanAsync"/>): the station fact
+    /// its last derive found unread, or <see cref="LayoutPlanning.FirstPlanPending"/> while the recorded plan waits for a
+    /// review that starts with it. Empty holds nothing. In memory only: a restart derives again.
+    /// </summary>
+    internal string FirstPlanUnread = "";
+
     /// <summary>The tier and finished research the saved plan was last grown for, in memory only: a restart replans once.</summary>
     internal string PlanGrownFor = "";
 
@@ -398,10 +405,13 @@ public sealed partial class Rounder
         // acquisition readings do; the starter set alone leaves a devilstrand or healroot zone without a crop row (#3567).
         readDefinitions = [.. readDefinitions, .. await SowableCropsAsync(state.Snapshot, ct).ConfigureAwait(false)];
         var claims = await p.Journal.ConstructionClaimsAsync(state.Snapshot, expected.Tick, ct).ConfigureAwait(false);
+        // A colony with no layout plan reads what its first plan needs (#3652): the rooms census carries the dining furniture.
+        var (_, haveLayout) = await LayoutPlanAsync(state.Snapshot, expected.Tick, ct).ConfigureAwait(false);
+        var roomsCensus = RoomsEnabled() || !haveLayout;
         stages.Lap("journal");
         LapInputs.Begin(state.Snapshot);
         using var window = ClockPlanning.StandaloneWindow(Native);
-        var reading = await ObserveRoundsAsync(Native, expected, RoomsEnabled(), claims, readDefinitions, ct).ConfigureAwait(false);
+        var reading = await ObserveRoundsAsync(Native, expected, roomsCensus, claims, readDefinitions, ct).ConfigureAwait(false);
         // Each lap through derive leaves its reading with LapInputs, so the row can name the laps whose inputs changed (#3564).
         void Lap(string name)
         {
@@ -550,7 +560,7 @@ public sealed partial class Rounder
             reading = reading.WithFacts(rf => rf with { AnimalUpkeep = rf.AnimalUpkeep with { Forecast = Known(foodPlan.Forecast) } });
         }
         reading = reading.WithColonySection(c => c with { Facts = c.Facts with { FoodPlan = reading.Projection.Facts.FoodPlan, FoodReserve = reading.Projection.Facts.FoodReserve } });
-        Census.Retain(reading, RoomsEnabled(), claims);
+        Census.Retain(reading, roomsCensus, claims);
         var filedScope = new FactScope(expected.Load.Value, expected.Map.Value, native.Value);
         reading.Sections.File(Store, filedScope);
         // A served native section may have gained a fresh derived food review.
@@ -730,7 +740,7 @@ public sealed partial class Rounder
         }
         fine.Lap("derive/model");
         // Acquisition uses the review's completed home staffing and defense facts.
-        Census.Retain(reading, RoomsEnabled(), claims);
+        Census.Retain(reading, roomsCensus, claims);
         Lap("derive");
         await PlanFoodAcquisitionAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         stages.Lap("acquisition");
@@ -744,11 +754,14 @@ public sealed partial class Rounder
         RoomSelection.Set(result.Review.Snapshot, PlannedSelectionReviewed(RoomSelection.Get(result.Review.Snapshot), reading.Projection, result.Needs.CoupledSelection));
         GoalEta.Set(result.Review.Snapshot, goalEtas);
         if (result.Needs.CoupledSelection is { } compared) GoalInfeasible.Set(result.Review.Snapshot, GoalRules.InfeasibleOf(compared));
+        // The first plan reads the ledger and the demand this review derived (#3652).
+        await ReviewFirstPlanAsync(state.Snapshot, result.Review.Snapshot, reading.Projection, ct).ConfigureAwait(false);
+        stages.Lap("first_plan");
         var taken = AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
         // Standby work first (#3624): a valued store haul, then the plain standby for whoever is left.
         taken.UnionWith(await AdmitStoreHaulsAsync(result, reading.Projection.Facts, workActions, taken, state.Snapshot, ct, epoch).ConfigureAwait(false));
         taken.UnionWith(AdmitStandby(reading.Projection.Facts, workActions, taken, state.Snapshot, ct, epoch));
-        result = result with { Assigned = taken };
+        result = result with { Assigned = taken, FirstPlanUnread = FirstPlanUnread };
         stages.Lap("admit");
         var attrs = new List<(string Key, object? Value)>
         {

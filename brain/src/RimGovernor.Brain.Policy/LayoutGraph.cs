@@ -1097,10 +1097,4 @@ partial class StationGraph
         }
         return g;
     }
-
-    /// <summary>
-    /// The graph of the rooms that need no live fact: no station and no edge, only the station-less rooms. A
-    /// first plan derived before the colony is read grows from it, and the rest grows on replan.
-    /// </summary>
-    public static StationGraph SeedGraph(StationGraphInput input) => new() { Rooms = LayoutGraphRules.StationRoomNodes(input) };
 }

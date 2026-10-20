@@ -87,8 +87,15 @@ consumer must have opened the queue. Events that arrive after the step read a he
 hold serial the Run quotes is the one stale-read guard, so a hold the step did not read is refused at native and
 any other event is planned against by the next step while the clock runs. Native
 tick boundaries must be known (a never-run clock reports `HOLD_REASON_NEVER_RUN`). The decision names the watch mode
-and the acknowledgements the next `Run` carries. A refusal (`stale_facts`, `unknown_facts`, `unsafe_colony` or
-`unreviewed_events`) only keeps a held clock held; it never stops a running one.
+and the acknowledgements the next `Run` carries. A refusal (`stale_facts`, `unknown_facts`, `unsafe_colony`,
+`unreviewed_events` or `first_plan`) only keeps a held clock held; it never stops a running one.
+
+A colony with no layout plan holds the clock under `first_plan` (#3652, a brain-only hold: no native hold reason)
+until its first plan exists and a review has planned with it. The review derives the plan at its end, after the ledger
+and the resource demand, and reads the rooms census while no plan exists; a station fact still unread names the hold
+(`RoundsResult.FirstPlanUnread`, the `clock_run` row's `first_plan_fact`), and the scheduler retries the review
+(rounds selection `first_plan`) while the clock is held, since a held clock advances no tick to make one due. A derive
+that fails for anything but an unread fact (`chain_error`, `no_core`) holds nothing and retries hourly.
 
 ### Threat and stock rules
 

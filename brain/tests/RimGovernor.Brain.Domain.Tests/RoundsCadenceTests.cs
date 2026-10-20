@@ -69,6 +69,16 @@ public sealed class RoundsCadenceTests
         Assert.Equal("due", ClockScheduler.RoundsSelection(StepCause.Review, false, Reviewed + Every, true, Reviewed, Every, false, true));
     }
 
+    /// <summary>#3652: while the first layout plan holds the clock no tick advances, so a retry step between due ticks
+    /// reviews again to read the fact the plan waits for; due still names its own reason.</summary>
+    [Fact]
+    public void AHeldFirstPlanRetriesTheReviewWhileTheClockIsHeld()
+    {
+        Assert.Equal("first_plan", ClockScheduler.RoundsSelection(StepCause.Retry, false, Reviewed, true, Reviewed, Every, false, false, true));
+        Assert.Equal("first_plan", ClockScheduler.RoundsSelection(StepCause.Review, false, Reviewed + 600, true, Reviewed, Every, true, true, true));
+        Assert.Equal("due", ClockScheduler.RoundsSelection(StepCause.Review, false, Reviewed + Every, true, Reviewed, Every, false, false, true));
+    }
+
     /// <summary>
     /// #3599, the speedmatrix run: the review at +1200 deferred the colonists for 600 ticks; the deferral installed after
     /// that step read the journal and was released before the +1800 step read it, so neither read saw it held. The

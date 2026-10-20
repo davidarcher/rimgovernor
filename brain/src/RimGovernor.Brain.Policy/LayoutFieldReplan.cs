@@ -32,25 +32,6 @@ public static partial class LayoutFieldReplanRules
         return (null, false);
     }
 
-    /// <summary>
-    /// The field nodes of a first plan's seed graph: the crops chosen (Crops) sized for the colonists read,
-    /// with no flow edge (no station is known yet). A colony not counted gets none.
-    /// </summary>
-    internal static IReadOnlyList<FieldNode> SeedFields(this StationFacts f)
-    {
-        if (!f.Colonists.TryGetValue(out var colonists))
-        {
-            return [];
-        }
-        var b = new GraphBuilder(new StationGraphInput
-        {
-            Crops = f.Crops,
-            FoodReserveDays = f.FoodReserveDays,
-            Population = new StationPopulation { Colonists = (int)colonists },
-        });
-        return b.FieldNodes([]);
-    }
-
     /// <summary>The zones less the survey's field patches, then fields.</summary>
     internal static List<LayoutZone> WithFieldZones(IReadOnlyList<LayoutZone> zones, IReadOnlyList<LayoutZone>? fields)
     {

@@ -6,7 +6,11 @@ using System.Text;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>ErrStationFacts: advice that could not be assembled because a fact it reads is unknown; the message names the fact.</summary>
-public sealed class StationFactsException(string name) : DomainException("station facts unknown: " + name);
+public sealed class StationFactsException(string name) : DomainException("station facts unknown: " + name)
+{
+    /// <summary>The unknown fact, by name ("resource demand", "dining furniture"): what a held first plan waits for.</summary>
+    public string Fact { get; } = name;
+}
 
 /// <summary>
 /// What the advice reads, each part from the model that owns it: the catalog rows (Catalog, Furniture, Dining, Items,
@@ -19,7 +23,7 @@ public sealed record StationFacts
     public StationCatalog Catalog { get; init; } = default!;
     public RoomFurniture Furniture { get; init; } = default!;
 
-    /// <summary>The catalog's dining furniture, carried by the rooms census; while that is unread it stays empty, which a first plan treats as an unknown fact (the seed rooms).</summary>
+    /// <summary>The catalog's dining furniture, carried by the rooms census; while that is unread it stays empty, an unknown fact that fails the advice.</summary>
     public DiningFurniture Dining { get; init; } = new();
 
     public ItemFacts Items { get; init; } = default!;
@@ -108,9 +112,9 @@ public sealed record StationFacts
     public IReadOnlyList<RoleMismatch> Mismatches { get; init; } = [];
 
     /// <summary>
-    /// Marks the facts of a first plan, read from a survey, the colonists and the tier before the colony is: a station
-    /// fact the colony has not read (the census, the orders, the stock) then leaves the graph at the seed rooms
-    /// instead of failing the advice, and the rest grows on replan (#2958).
+    /// Marks the facts of a first plan (DeriveLayoutPlan): the power sites its planned demand needs are placed beside
+    /// its rooms (PowerSites). A station fact the colony has not read fails the advice as on a replan; the first plan
+    /// then waits for it with the clock held (#3652).
     /// </summary>
     public bool Derive { get; init; }
 
@@ -408,9 +412,6 @@ public sealed record StationAdvice
 
     /// <summary>The priced comfort tier of the bed and each worked bench (#2975), advisory; empty while the model or a fact is unknown.</summary>
     public IReadOnlyList<ComfortChoice> Comfort { get; init; } = [];
-
-    /// <summary>Names the unknown fact that left a derive-time graph at the seed rooms (StationFacts.Derive); empty when the full graph was built.</summary>
-    public string SeedOnly { get; init; } = "";
 }
 
 /// <summary>A planned room that stands as planned, with the role the game gives its furniture. Planned is the planned role of a room the native role does not tell apart (MatchedPlanned): the freezer and the butchery; empty otherwise. Pinned: the colony holds the room (TilePinned); the embedding keeps it where it stands. Set by the caller, never by BuiltRegions.</summary>
@@ -555,43 +556,17 @@ public static partial class LayoutStationPlanRules
         {
             throw UnknownStationFact("construction census");
         }
-        StationGraph graph;
-        var seedOnly = "";
-        StationGraphInput? input = null;
-        StationFactsException? err = null;
-        try
-        {
-            input = f.GraphInput();
-        }
-        catch (StationFactsException e)
-        {
-            err = e;
-        }
+        // Nothing is guessed for a fact left unread: the advice fails naming it.
+        var input = f.GraphInput();
         if (string.IsNullOrEmpty(f.Dining.Table.Def))
         {
-            err = UnknownStationFact("dining furniture");
+            throw UnknownStationFact("dining furniture");
         }
-        if (err is null)
+        if (f.Derive && f.RoofDistance <= 0)
         {
-            graph = StationGraph.BuildStationGraph(input!);
+            throw UnknownStationFact("roof support distance");
         }
-        else if (f.Derive)
-        {
-            // A first plan has no census, orders or stock: the graph keeps the rooms that need none and the rest grows
-            // on replan. Nothing is guessed for the facts left unread.
-            seedOnly = err.Message;
-            var seed = f.SeedRoomsOf();
-            if (f.RoofDistance <= 0)
-            {
-                throw UnknownStationFact("roof support distance");
-            }
-            graph = StationGraph.SeedGraph(new StationGraphInput { Catalog = f.Catalog, Seed = seed, Rooms = f.RoomNodes() });
-            graph.Fields = [.. f.SeedFields()];
-        }
-        else
-        {
-            throw err;
-        }
+        var graph = StationGraph.BuildStationGraph(input);
         var built = LayoutPlan.BuiltRegions(f.Plan, f.StandingIds()!).Select(b => b with { Pinned = f.Pinned.Contains(b.Room) }).ToList();
         var regrouped = LayoutRegroupRules.Regroup(new RegroupInput
         {
@@ -620,7 +595,6 @@ public static partial class LayoutStationPlanRules
             Clustering = clustering,
             Embedding = embedding,
             Regroup = regrouped.Decisions,
-            SeedOnly = seedOnly,
             Sites = placed,
             Comfort = LayoutComfortChooseRules.AdviseComfort(f, graph, SteelValueOrZero(f)),
         };

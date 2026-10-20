@@ -122,6 +122,12 @@ public sealed record RoundsResult
     /// standby's (#3599). Not journalled.
     /// </summary>
     public IReadOnlySet<string> Assigned { get; init; } = new HashSet<string>(StringComparer.Ordinal);
+
+    /// <summary>
+    /// What the colony's first layout plan holds the clock for (#3652): the station fact its derive found unread, or the
+    /// recorded plan no review has planned with yet; empty holds nothing. Not journalled.
+    /// </summary>
+    public string FirstPlanUnread { get; init; } = "";
 }
 
 /// <summary>One <c>InspectRounds</c> call's input.</summary>

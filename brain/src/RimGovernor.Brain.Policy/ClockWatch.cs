@@ -180,6 +180,12 @@ public static class ClockWatchRules
             Hold(ClockWatchReason.Unreviewed);
         }
 
+        if (f.FirstPlanUnread.Length > 0)
+        {
+            // A colony with no layout plan waits for every fact its first plan reads, and for a review that plans with it.
+            Hold(ClockWatchReason.FirstPlan);
+        }
+
         if (refused.Count != 0)
         {
             return new ClockWatchDecision { Refused = EquatableArray.From(refused) };

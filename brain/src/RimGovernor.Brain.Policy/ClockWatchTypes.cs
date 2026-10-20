@@ -70,6 +70,12 @@ public sealed record ClockWatchFacts
 
     /// <summary>The hungry colonists the last Run sent acknowledged (WatchPolicy.acknowledged_hungry_colonist_ids).</summary>
     public EquatableArray<PawnId> AcknowledgedHungry { get; init; }
+
+    /// <summary>
+    /// The fact the colony's first layout plan waits for (the last review's RoundsResult.FirstPlanUnread, #3652): the
+    /// clock stays held while it is not empty, so no game time passes before the plan exists.
+    /// </summary>
+    public string FirstPlanUnread { get; init; } = "";
 }
 
 /// <summary>The bound the decision's facts must be fresh within.</summary>
@@ -104,6 +110,10 @@ public enum ClockWatchReason
 
     [WireName("unreviewed_events")]
     Unreviewed,
+
+    /// <summary>The colony's first layout plan waits for a station fact the review has not read (#3652).</summary>
+    [WireName("first_plan")]
+    FirstPlan,
 }
 
 /// <summary>

@@ -10,5 +10,6 @@ public static class LayoutCases
     {
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(LayoutPowerSites.Case());
+        registry.Register(LayoutFirstPlanHeld.Case());
     }
 }

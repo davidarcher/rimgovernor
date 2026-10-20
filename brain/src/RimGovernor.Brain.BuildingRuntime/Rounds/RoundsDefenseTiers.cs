@@ -195,7 +195,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             Tel.Decide(new Decision
             {
-                Kind = "layout_plan",
+                Kind = TelemetryKinds.LayoutPlanKind,
                 Component = "layout",
                 Level = TelemetryLevel.Info,
                 Verdict = d.Verdict,
@@ -257,7 +257,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             Tel.Decide(new Decision
             {
-                Kind = "layout_plan",
+                Kind = TelemetryKinds.LayoutPlanKind,
                 Component = "layout",
                 Level = TelemetryLevel.Info,
                 Verdict = Wire.Name(d.Choice),
