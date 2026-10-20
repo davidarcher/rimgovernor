@@ -48,6 +48,12 @@ public sealed record RecipeFacts
 
     /// <summary>The material install that adds the hediff.</summary>
     public MaterialInstall? MaterialInstallOfPart(string hediff) => MaterialInstalls.FirstOrDefault(m => m.Part == hediff);
+
+    /// <summary>The material install a practice-cycle step belongs to (#3634, #3637): a restore by a material install recipe on a missing limb,
+    /// or the removal of an installed material part. Null for every other operation.</summary>
+    public MaterialInstall? PracticeCycleOf(SurgeryOperation op) =>
+        op.Kind == SurgeryKind.Restore && op.Recipe.TryGetValue(out var recipe) ? MaterialInstallByRecipe(recipe)
+        : op.Kind == SurgeryKind.Amputate && op.AddedPart.TryGetValue(out var part) ? MaterialInstallOfPart(part) : null;
 }
 
 /// <summary>

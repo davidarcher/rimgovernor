@@ -7,7 +7,11 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
     EquatableArray<ForecastPracticeTask> Practice, EquatableArray<ForecastMaintenanceRequirement> Requirements,
     EquatableArray<string> Findings)
 {
-    internal static PracticeMethodCandidates Generate(RoundsFacts facts, PracticeActivityRead read, double horizon, EquatableArray<AssignedCapability> assigned, bool admitted)
+    /// <summary>The practice-surgery task ids (#3637): valued only by the Investment term, never by a maintenance requirement.</summary>
+    public EquatableArray<string> Surgeries { get; init; }
+
+    internal static PracticeMethodCandidates Generate(RoundsFacts facts, PracticeActivityRead read, double horizon, EquatableArray<AssignedCapability> assigned, bool admitted,
+        IReadOnlyList<PracticeSurgeryWorker> surgeries)
     {
         var tasks = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
         var routes = new List<ForecastActivityRoute>(); var roots = new List<ForecastCommitment>();
@@ -54,8 +58,26 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
             Add(id + "/b", first.Requirement, second, first.Worker, start);
             roots.Add(new(id, []) { ActivityCompletions = [id + "/a", id + "/b"] });
         }
+        var surgeryIds = new List<string>();
+        foreach (var row in surgeries)
+        {
+            var id = "practice/surgery/" + row.Doctor + "/" + row.Patient + "/" + row.Recipe + "/"
+                + row.Part.ToString(System.Globalization.CultureInfo.InvariantCulture) + "/" + row.Medicine;
+            var location = ForecastLocations.Of(row.Location);
+            // Medicine is consumed and charged through its medicine/<kind> key; the material part comes back on removal (#3344), so it is not.
+            tasks.Add(new(id, location, location, []) { ChoiceIdentity = "practice/" + row.Doctor, Inputs = [new(new(row.Medicine), Known((double)row.MedicineCount))] });
+            options.Add(new(id, row.Doctor, row.WorkTicks, Known(0d)) { SkillWork = row.SkillWork });
+            routes.Add(new(row.Doctor, "start", location, row.ApproachTicks));
+            var duration = (int)Math.Clamp(Math.Ceiling(row.ApproachTicks.Value + row.WorkTicks.Value), 1, GameTime.TicksPerDay);
+            bindings[(id, row.Doctor)] = new(id, row.Doctor, [], PawnActivityKind.Work, row.Patient, row.WorkGiver, "DoBill", 0,
+                checked(facts.Tick.Value + (long)horizon), row.Location)
+            { Practice = new("Medicine", "", 0, "", "", duration) { Surgery = new(row.Recipe, row.Part, row.Medicine) } };
+            // One practice surgery at a time, as the in-flight rule holds every other prisoner surgery.
+            roots.Add(new(id, []) { ActivityCompletions = [id], ExclusiveOutcome = "practice/surgery" });
+            surgeryIds.Add(id);
+        }
         return new(tasks.ToArray(), options.ToArray(), routes.ToArray(), roots.ToArray(), bindings,
-            EquatableArray.From(practice), EquatableArray.From(requirements), EquatableArray.From(findings));
+            EquatableArray.From(practice), EquatableArray.From(requirements), EquatableArray.From(findings)) { Surgeries = EquatableArray.From(surgeryIds) };
 
         void Add(string id, AssignedCapability requirement, PracticeWorker worker, PracticeWorker? partner, double start)
         {

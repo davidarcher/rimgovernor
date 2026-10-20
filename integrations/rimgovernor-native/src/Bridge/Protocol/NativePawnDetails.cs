@@ -333,7 +333,7 @@ namespace HomeBridge.BridgeTools
         // in bed is scored in the best colony medical bed it will lie in.
         // bedFactor, when set, replaces the bed and room factor (the best
         // medical bed's, or the ideal one's); null keeps vanilla's.
-        private static double Chance(RecipeDef def,Pawn surgeon,Pawn patient,BodyPartRecord? part,ThingDef? medicine,float? bedFactor)
+        internal static double Chance(RecipeDef def,Pawn surgeon,Pawn patient,BodyPartRecord? part,ThingDef? medicine,float? bedFactor)
         {
             var bill=new Bill_Medical {recipe=def};
             if(medicine!=null) bill.consumedMedicine[medicine]=1;
@@ -349,7 +349,7 @@ namespace HomeBridge.BridgeTools
             return quality;
         }
 
-        private static Obs.SurgeryKind Kind(Pawn pawn,RecipeDef def,BodyPartRecord? part)
+        internal static Obs.SurgeryKind Kind(Pawn pawn,RecipeDef def,BodyPartRecord? part)
         {
             var worker=def.Worker;
             if(worker is Recipe_RemoveBodyPart)

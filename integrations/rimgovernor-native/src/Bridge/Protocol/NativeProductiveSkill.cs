@@ -27,17 +27,19 @@ internal static class NativeProductiveSkill
             NativeSkillStat.Provenance + "; observed recipe/table");
     }
 
-    /// <summary>Surgery (#3632): the recipe's native work amount and learning, and the doctor's observed operation speed at the
-    /// current stored level only. A surgery's bill giver is the patient, so no table factor applies; other levels are absent.</summary>
+    /// <summary>Surgery (#3632): the recipe's native work amount and learning, and the doctor's operation speed per stored level
+    /// from <see cref="NativeSkillStat"/> (#3637), so a forecast level-up keeps a rate. A stat it cannot curve keeps the observed
+    /// speed at the current level only. A surgery's bill giver is the patient, so no table factor applies.</summary>
     internal static Obs.ProductiveSkillWork? ReadSurgery(Pawn pawn, RecipeDef recipe)
     {
         var learning = RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveRecipeLearning(recipe);
         var skill = recipe.workSkill == null ? null : pawn.skills?.GetSkill(recipe.workSkill);
         if (skill == null || skill.TotallyDisabled || learning.DuringWork || !learning.RawXpPerWorkTick.IsKnown) return null;
-        var speed = recipe.workSpeedStat == null ? 1f : pawn.GetStatValue(recipe.workSpeedStat);
-        var rate = speed > 0 && !float.IsNaN(speed) && !float.IsInfinity(speed) ? Fact.Known((double)speed) : default;
-        return new(NativeSkillLearning.Read(pawn, skill), learning, Fact.Known((double)recipe.WorkAmountTotal(null)),
-            EquatableArray.From(new[] { new Obs.SkillWorkRate(skill.levelInt, rate) }),
-            "native RecipeDef.WorkAmountTotal; observed workSpeedStat at the current stored level");
+        static Fact<double> Rate(float speed) => speed > 0 && !float.IsNaN(speed) && !float.IsInfinity(speed) ? Fact.Known((double)speed) : default;
+        var values = recipe.workSpeedStat == null ? null : NativeSkillStat.Levels(pawn, recipe.workSpeedStat, recipe.workSkill!, out _);
+        var rates = values != null ? values.Select((value, level) => new Obs.SkillWorkRate(level, Rate(value))).ToArray()
+            : new[] { new Obs.SkillWorkRate(skill.levelInt, Rate(recipe.workSpeedStat == null ? 1f : pawn.GetStatValue(recipe.workSpeedStat))) };
+        return new(NativeSkillLearning.Read(pawn, skill), learning, Fact.Known((double)recipe.WorkAmountTotal(null)), EquatableArray.From(rates),
+            values != null ? NativeSkillStat.Provenance + "; native RecipeDef.WorkAmountTotal" : "native RecipeDef.WorkAmountTotal; observed workSpeedStat at the current stored level");
     }
 }

@@ -330,8 +330,8 @@ internal static class RoundsColonyModel
                 return Unknown<EquatableArray<ModelPracticeSlot>>();
             }
 
-            var install = operations.Where(o => o.Kind == Policy.SurgeryKind.Restore && o.Recipe.IsKnown).Select(o => recipes.MaterialInstallByRecipe(o.Recipe.Value)).FirstOrDefault(m => m is not null)
-                ?? operations.Where(o => o.Kind == Policy.SurgeryKind.Amputate && o.AddedPart.IsKnown).Select(o => recipes.MaterialInstallOfPart(o.AddedPart.Value)).FirstOrDefault(m => m is not null);
+            var install = operations.Where(o => o.Kind == Policy.SurgeryKind.Restore).Select(recipes.PracticeCycleOf).FirstOrDefault(m => m is not null)
+                ?? operations.Where(o => o.Kind == Policy.SurgeryKind.Amputate).Select(recipes.PracticeCycleOf).FirstOrDefault(m => m is not null);
             if (install?.Learning is not { } learning)
             {
                 continue;

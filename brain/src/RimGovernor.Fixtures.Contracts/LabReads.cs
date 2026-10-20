@@ -114,6 +114,21 @@ public sealed record MedicalLearningRead
     public bool InBed { get; init; }
 
     public bool Started { get; init; }
+
+    /// <summary>Practice (#3637): the staged doctor, the held prisoner, its missing leg's part index and the DoBill work giver.</summary>
+    public string Doctor { get; init; } = "";
+
+    public string Patient { get; init; } = "";
+
+    public int Part { get; init; } = -1;
+
+    public string WorkGiver { get; init; } = "";
+
+    /// <summary>Practice: a medical bill restricted to the doctor was seen on the prisoner.</summary>
+    public bool Restricted { get; init; }
+
+    /// <summary>Practice: any other medical bill was seen on the prisoner.</summary>
+    public bool Other { get; init; }
 }
 
 /// <summary><c>test/training_prepare</c>: the staged range column(s) and their shooters.</summary>

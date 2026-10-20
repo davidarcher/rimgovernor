@@ -57,10 +57,70 @@ internal static class NativePracticeActivities
                 }
             }
         }
-        return new() { Known = true, Workers = EquatableArray.From(workers) };
+        var findings = new List<string>();
+        return new() { Known = true, Workers = EquatableArray.From(workers), Surgeries = EquatableArray.From(Surgeries(map, legs, findings)), Findings = EquatableArray.From(findings) };
     }
 
-    internal static bool Assigned(Pawn pawn, PawnActivityPractice practice)
+    private const int SurgeryRows = 64;
+
+    /// <summary>Practice surgeries (#3637): per colony prisoner, each restore on a missing part and each removal of an added part the
+    /// native recipe offers now with every other ingredient on the map, per eligible free doctor, per stocked medicine kind the recipe
+    /// and the prisoner's care allow. The chance is the vanilla outcome quality with that medicine; the brain picks the legal steps.</summary>
+    private static List<Obs.PracticeSurgeryWorker> Surgeries(Map map, NativePathLegs legs, List<string> findings)
+    {
+        var rows = new List<Obs.PracticeSurgeryWorker>();
+        using var scope = new NativePawnDetails.SurgeryScope();
+        var facts = NativePawnDetails.SurgeryScope.Facts(map);
+        var stock = map.listerThings.ThingsInGroup(ThingRequestGroup.Medicine).Where(t => !t.IsForbidden(Faction.OfPlayer) && !t.Position.Fogged(map)).ToList();
+        foreach (var patient in map.mapPawns.PrisonersOfColonySpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
+        {
+            var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(patient));
+            if (giver == null || patient.Dead) continue;
+            var parts = patient.RaceProps.body.AllParts;
+            float? bed = patient.InBed() ? null : facts.BestBed?.GetStatValue(StatDefOf.SurgerySuccessChanceFactor) ?? 1f;
+            foreach (var def in patient.def.AllRecipes.OrderBy(d => d.defName, StringComparer.Ordinal))
+            {
+                if (!def.AvailableNow || def.Worker == null || !def.targetsBodyPart || def.surgeryOutcomeEffect == null || !def.Worker.AvailableReport(patient).Accepted) continue;
+                var recipe = facts.Recipe(def, map);
+                if (!recipe.Others) continue;
+                var kinds = stock.Where(t => patient.playerSettings?.medCare.AllowsMedicine(t.def) == true && def.ingredients.Any(i => i.filter.Allows(t)))
+                    .Select(t => t.def).Distinct().OrderBy(d => d.defName, StringComparer.Ordinal).ToArray();
+                foreach (var part in def.Worker.GetPartsToApplyOn(patient, def).Where(p => def.AvailableOnNow(patient, p)))
+                {
+                    var kind = NativePawnDetails.Kind(patient, def, part);
+                    if (!(kind == Obs.SurgeryKind.Restore || kind == Obs.SurgeryKind.Amputate && def.Worker is Recipe_RemoveBodyPart
+                        && patient.health.hediffSet.hediffs.OfType<Hediff_AddedPart>().Any(h => h.Part == part))) continue;
+                    foreach (var doctor in recipe.Doctors.Where(d => NativeFoodActivity.Available(d) && d.CanReach(patient, PathEndMode.Touch, Danger.Deadly)))
+                    {
+                        var work = NativeProductiveSkill.ReadSurgery(doctor, def);
+                        var speed = def.workSpeedStat == null ? 1f : doctor.GetStatValue(def.workSpeedStat);
+                        foreach (var medicine in kinds)
+                        {
+                            if (rows.Count >= SurgeryRows) { findings.Add("practice_surgery_read_truncated"); return rows; }
+                            var count = def.ingredients.Where(i => i.filter.Allows(medicine)).Sum(i => (int)i.CountRequiredOfFor(medicine, def));
+                            var source = stock.Where(t => t.def == medicine && doctor.CanReach(t, PathEndMode.ClosestTouch, Danger.Deadly))
+                                .OrderBy(t => t.Position.DistanceToSquared(doctor.Position)).FirstOrDefault();
+                            if (count <= 0 || source == null) continue;
+                            var approach = legs.Cost(doctor, doctor.Position, source.Position, PathEndMode.ClosestTouch) is { } fetch
+                                && legs.Cost(doctor, source.Position, patient.Position, PathEndMode.Touch) is { } carry ? Fact.Known((double)fetch + carry) : default;
+                            rows.Add(new(doctor.GetUniqueLoadID(), patient.GetUniqueLoadID(), def.defName, parts.IndexOf(part), medicine.defName, count,
+                                Fact.Known(NativePawnDetails.Chance(def, doctor, patient, part, medicine, bed)), giver.defName, new(patient.Position.x, patient.Position.z),
+                                approach, speed > 0 ? Fact.Known((double)def.WorkAmountTotal(null) / speed) : default) { SkillWork = work });
+                        }
+                    }
+                }
+            }
+        }
+        if (rows.Count > 0) findings.Add("practice_surgery_part_fetch_unassessed");
+        return rows;
+    }
+
+    /// <summary>A practice step is still assigned: a maintenance practice while its role requirement stands, a practice surgery (#3637)
+    /// while a fresh read supports its step.</summary>
+    internal static bool Assigned(Pawn pawn, PawnActivityStep step) => step.Practice is { Surgery: not null }
+        ? NativePracticeSurgery.Supported(pawn.Map, step) : step.Practice is { } practice && RoleAssigned(pawn, practice);
+
+    private static bool RoleAssigned(Pawn pawn, PawnActivityPractice practice)
     {
         var beneficiary = pawn.Map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == practice.Beneficiary);
         var role = beneficiary?.Ideo?.GetRole(beneficiary);
@@ -73,9 +133,10 @@ internal static class NativePracticeActivities
     internal static Obs.PracticeMandateRead Mandate(Map map, SelectedActivityTask task)
     {
         var practice = task.Step.Practice!;
+        if (practice.Surgery != null) return new(task.Id, Fact.Known(NativePracticeSurgery.Supported(map, task.Step)), []);
         var beneficiary = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == practice.Beneficiary);
         if (beneficiary == null) return new(task.Id, default, []);
-        if (!Assigned(beneficiary, practice)) return new(task.Id, Fact.Known(false), []);
+        if (!RoleAssigned(beneficiary, practice)) return new(task.Id, Fact.Known(false), []);
         var role = beneficiary.Ideo.GetRole(beneficiary);
         var requirement = (RoleRequirement_MinSkillAny)role.def.roleRequirements[practice.RequirementIndex];
         return new(task.Id, Fact.Known(true), EquatableArray.From(requirement.skills.Select(s =>
@@ -84,7 +145,8 @@ internal static class NativePracticeActivities
 
     internal static bool Legal(Pawn pawn, Thing target, PawnActivityStep step)
     {
-        if (step.Practice is not { } practice || !Assigned(pawn, practice) || target.IsForbidden(pawn)) return false;
+        if (step.Practice is { Surgery: not null }) return NativePracticeSurgery.Legal(pawn, target, step);
+        if (step.Practice is not { } practice || !RoleAssigned(pawn, practice) || target.IsForbidden(pawn)) return false;
         if (practice.Skill == "Shooting") return RangeTraining.Eligible(pawn, SkillDefOf.Shooting)
             && target.def == RangeTraining.StandDef && RangeTraining.DummyFor(target) is { } dummy
             && !dummy.IsForbidden(pawn) && pawn.CanReserve(target) && pawn.CanReserve(dummy);

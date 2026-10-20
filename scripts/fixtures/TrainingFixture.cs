@@ -164,12 +164,25 @@ namespace HomeBridge.BridgeTools
         private static Bill_Medical medicalBill;
         private static List<Thing> medicalInputs = new List<Thing>();
         private static bool medicalStarted;
+        // #3637 "practice": a held prisoner missing a leg in a prison bed with a peg leg and herbal medicine beside it and no
+        // bill; the case applies the practice-surgery step itself. Poll records whether a medical bill restricted to the doctor,
+        // or any other medical bill, was ever on the prisoner, and whether the doctor ran DoBill on it.
+        private static bool medicalPractice, medicalRestricted, medicalOther;
+        private static int medicalPart = -1;
+        private static string medicalGiver = "";
 
-        [Tool("test/medical_learning", Description = "UNSAFE FOR MODEL EXECUTION. Stage a doctor and a patient in bed for one native tend or surgery; poll hands the doctor the staged surgery once the patient lies in bed. Test builds only.")]
+        [Tool("test/medical_learning", Description = "UNSAFE FOR MODEL EXECUTION. Stage a doctor and a patient in bed for one native tend or surgery (practice: a held prisoner missing a leg, no bill); poll hands the doctor the staged surgery once the patient lies in bed. Test builds only.")]
         public async Task<object> MedicalLearning(IRimBridgeContext ctx, CancellationToken cancellationToken, string action)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
+                if (action == "poll" && medicalPractice)
+                {
+                    foreach (var bill in medicalPatient.BillStack.Bills.OfType<Bill_Medical>())
+                        if (bill.PawnRestriction == medicalDoctor) medicalRestricted = true; else medicalOther = true;
+                    medicalStarted |= medicalDoctor.CurJobDef == JobDefOf.DoBill && medicalDoctor.CurJob.targetA.Thing == medicalPatient;
+                    return MedicalRead();
+                }
                 if (action == "poll")
                 {
                     if (medicalBill != null && !medicalStarted && medicalPatient.InBed())
@@ -184,13 +197,24 @@ namespace HomeBridge.BridgeTools
                     }
                     return MedicalRead();
                 }
-                if (action != "tend" && action != "surgery") throw new ArgumentException("Expected tend, surgery or poll.");
+                if (action != "tend" && action != "surgery" && action != "practice") throw new ArgumentException("Expected tend, surgery, practice or poll.");
                 if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
                 var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor)
                     && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)).OrderBy(p => p.thingIDNumber).ToList();
-                if (pawns.Count < 2) throw new InvalidOperationException("Need two colonists able to doctor.");
-                medicalDoctor = pawns[0]; medicalPatient = pawns[1]; medicalBill = null; medicalInputs = new List<Thing>(); medicalStarted = false;
-                foreach (var p in new[] { medicalDoctor, medicalPatient })
+                medicalPractice = action == "practice"; medicalRestricted = false; medicalOther = false; medicalPart = -1; medicalGiver = "";
+                if (pawns.Count < (medicalPractice ? 1 : 2)) throw new InvalidOperationException("Need colonists able to doctor.");
+                Pawn prisoner = null;
+                if (medicalPractice)
+                {
+                    var faction = Find.FactionManager.AllFactionsListForReading.First(f => !f.IsPlayer && !f.Hidden && f.def.humanlikeFaction && !f.HostileTo(Faction.OfPlayer));
+                    prisoner = PawnGenerator.GeneratePawn(new PawnGenerationRequest(PawnKindDefOf.Villager, faction, forceGenerateNewPawn: true,
+                        canGeneratePawnRelations: false, developmentalStages: DevelopmentalStage.Adult));
+                    GenSpawn.Spawn(prisoner, pawns[0].Position, map);
+                    prisoner.guest.SetGuestStatus(Faction.OfPlayer, GuestStatus.Prisoner);
+                    prisoner.guest.Recruitable = false;
+                }
+                medicalDoctor = pawns[0]; medicalPatient = prisoner ?? pawns[1]; medicalBill = null; medicalInputs = new List<Thing>(); medicalStarted = false;
+                foreach (var p in new[] { medicalDoctor, medicalPatient }.Where(p => p.IsColonist))
                 {
                     p.drafter.Drafted = false;
                     p.jobs.EndCurrentJob(JobCondition.InterruptForced);
@@ -206,8 +230,16 @@ namespace HomeBridge.BridgeTools
                 var bed = (Building_Bed)ThingMaker.MakeThing(ThingDefOf.Bed, ThingDefOf.WoodLog);
                 bed.SetFaction(Faction.OfPlayer);
                 GenSpawn.Spawn(bed, new IntVec3(origin.x + 2, 0, origin.z), map);
+                if (medicalPractice)
+                {
+                    bed.ForPrisoners = true;
+                    // Setting the flag alone leaves a paused room outside native prison custody (as StageFixture does).
+                    bed.GetDistrict()?.Notify_RoomShapeOrContainedBedsChanged();
+                    bed.GetRoom()?.Notify_RoomShapeChanged();
+                }
                 bed.Medical = true;
-                medicalPatient.playerSettings.medCare = MedicalCareCategory.Best;
+                // A prisoner keeps its default care, which allows herbal medicine.
+                if (!medicalPractice) medicalPatient.playerSettings.medCare = MedicalCareCategory.Best;
                 medicalPatient.Position = bed.Position;
                 medicalPatient.Notify_Teleported(true, true);
                 if (action == "tend")
@@ -215,6 +247,18 @@ namespace HomeBridge.BridgeTools
                     var torso = medicalPatient.health.hediffSet.GetNotMissingParts().First(p => p.def == BodyPartDefOf.Torso);
                     medicalPatient.TakeDamage(new DamageInfo(DamageDefOf.Cut, 5f, 999f, -1, null, torso));
                     if (!medicalPatient.health.HasHediffsNeedingTend()) throw new InvalidOperationException("Fixture cut requires tending.");
+                }
+                else if (medicalPractice)
+                {
+                    var leg = medicalPatient.health.hediffSet.GetNotMissingParts().First(p => p.def == BodyPartDefOf.Leg);
+                    medicalPatient.health.AddHediff(HediffMaker.MakeHediff(HediffDefOf.MissingBodyPart, medicalPatient, leg), leg);
+                    medicalPart = medicalPatient.RaceProps.body.AllParts.IndexOf(leg);
+                    medicalGiver = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(d => d.Worker is WorkGiver_DoBill g && g.ThingIsUsableBillGiver(medicalPatient)).defName;
+                    // The peg leg (no typed route to a def not in a DefOf) and herbal medicine.
+                    medicalInputs.Add(GenSpawn.Spawn(ThingMaker.MakeThing(ThingDef.Named("PegLeg")), new IntVec3(origin.x + 1, 0, origin.z), map));
+                    var herbal = ThingMaker.MakeThing(ThingDefOf.MedicineHerbal);
+                    herbal.stackCount = 5;
+                    medicalInputs.Add(GenSpawn.Spawn(herbal, new IntVec3(origin.x + 1, 0, origin.z + 1), map));
                 }
                 else
                 {
@@ -243,6 +287,8 @@ namespace HomeBridge.BridgeTools
         private static object MedicalRead() => FixtureKit.Reply(new Fx.MedicalLearningRead
         {
             InBed = medicalPatient?.InBed() ?? false, Started = medicalStarted,
+            Doctor = medicalDoctor?.GetUniqueLoadID() ?? "", Patient = medicalPatient?.GetUniqueLoadID() ?? "", Part = medicalPart,
+            WorkGiver = medicalGiver, Restricted = medicalRestricted, Other = medicalOther,
         });
 
         [Tool("test/skill_learning_probe", Description = "UNSAFE FOR MODEL EXECUTION. Compare bounded learning projections against native SkillRecord methods on detached records. Test builds only.")]

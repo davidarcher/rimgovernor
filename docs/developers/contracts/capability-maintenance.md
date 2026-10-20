@@ -53,3 +53,24 @@ conditional `missing_xp` and findings. Existing OTLP timeline readers display th
 journal attribution, observed recovery, draft/real-weapon restoration, and release after role
 removal. They complement the native budget, ceiling, damage and bystander laboratory cases.
 Registration and compilation are distinct from executed native acceptance.
+
+## Practice surgery (#3637)
+
+A doctor can practice Medicine on a held prisoner through a practice-cycle step: installing a
+material part on a missing limb, or removing an installed material part (`RecipeFacts.PracticeCycleOf`,
+the same slot `RoundsColonyModel.PracticeOf` models). `PracticeMethodCandidates` proposes one candidate
+per doctor × prisoner × step × medicine kind the prisoner's care allows. Each carries the native
+Medicine callback (`ProductiveSkillWork` at each skill level), the walk and fetch, the work duration
+and its medicine consumption as a task input. The gates are legality only
+(`PracticeSurgeryRules.LegalSurgeries`): the admission practice uses; the player not forbidding organ
+harvest; no prisoner surgery queued or in flight (`OrganHarvestRules.SurgeryInFlight`, so RoundsSurgery's
+harvest and recovery go first and the two never queue on one prisoner); the ingredients on the map and no
+violation; and the doctor's native failure chance with that medicine at most `SurgeryRules.RestoreFailureCap`.
+Whether the practice is worth the doctor's time and the medicine is the Investment term's alone: the
+Medicine XP credit (`skill/<pawn>/Medicine`) against the medicine charge (`medicine/<kind>`). A
+selection whose practice surgeries net no credit is refused (`practice_without_value` evidence), so with zero
+marginals practice never wins. The part itself is a one-time cost and is not charged; its fetch is not in
+the approach (`practice_surgery_part_fetch_unassessed`). One practice surgery runs at a time. Binding and
+release are described in [pawn activities](pawn-activities.md); `medical/practice-surgery-binding` checks the
+applied step's doctor-restricted bill and its native Medicine callback. The legacy `DoctorTraining`
+peg-leg program stays until #3638.

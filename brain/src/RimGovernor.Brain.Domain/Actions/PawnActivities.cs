@@ -6,7 +6,16 @@ namespace RimGovernor.Brain.Domain;
 public enum PawnActivityKind { Work, Eat, Sleep, Hold, Recreation, Deliver, Recipe, Approach, Supply, Standby }
 
 public sealed record PawnActivityPractice(string Skill, string Role, int RequirementIndex, string Partner, string PartnerTarget, int DurationTicks)
-{ public string Beneficiary { get; init; } = ""; }
+{
+    public string Beneficiary { get; init; } = "";
+    /// <summary>The surgery variant (#3637): a Medicine practice step that queues this surgeon-restricted bill on the step's
+    /// <c>Target</c> prisoner and runs the doctor's native DoBill on it, with that medicine kind.</summary>
+    public PawnActivitySurgery? Surgery { get; init; }
+}
+
+/// <summary>A practice surgery's exact bill: the native recipe, the body-part index it operates on and the medicine kind (thing def) its
+/// ingredient filter allows.</summary>
+public sealed record PawnActivitySurgery(string Recipe, int Part, string Medicine);
 
 public sealed record PawnActivityIngredient(string Thing, int Count);
 public sealed record PawnActivityRecipe(string Bill, string Recipe, EquatableArray<PawnActivityIngredient> Ingredients)
@@ -106,7 +115,12 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
     private static void ValidatePractice(PawnActivityStep step)
     {
         DomainException.Require(step.Practice != null || step.Job is not ("RimGovernor_TrainShooting" or "RimGovernor_Spar"), "practice requires an assigned mandate");
-        if (step.Practice is { } practice)
+        if (step.Practice is { Surgery: { } surgery } cut)
+            DomainException.Require(step.Kind == PawnActivityKind.Work && cut.Skill == "Medicine" && step.Job == "DoBill" && IdText.IsValidText(step.WorkGiver)
+                && IdText.IsValidText(surgery.Recipe) && surgery.Part >= 0 && IdText.IsValidText(surgery.Medicine) && step.Medicine.Length == 0 && step.Recipe == null
+                && cut.Role.Length == 0 && cut.Beneficiary.Length == 0 && cut.RequirementIndex == 0 && cut.Partner.Length == 0 && cut.PartnerTarget.Length == 0
+                && cut.DurationTicks > 0 && cut.DurationTicks <= GameTime.TicksPerDay && !step.IsSet, "invalid selected practice surgery");
+        else if (step.Practice is { } practice)
             DomainException.Require(step.Kind == PawnActivityKind.Work && IdText.IsValidText(practice.Role) && IdText.IsValidText(practice.Beneficiary)
                 && practice.RequirementIndex >= 0 && practice.DurationTicks > 0 && practice.DurationTicks <= GameTime.TicksPerDay
                 && (practice.Skill == "Shooting" && step.Job == "RimGovernor_TrainShooting" && practice.Partner.Length == 0 && practice.PartnerTarget.Length == 0
@@ -142,7 +156,7 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                     && (step.Medicine.Length == 0 || step.Kind == PawnActivityKind.Work && (step.Job is "TendPatient" or "DoBill") && IdText.IsValidText(step.Medicine)), "invalid activity step");
                 ValidateSet(step);
                 ValidatePractice(step);
-                if (step.Kind == PawnActivityKind.Recipe || step.Kind == PawnActivityKind.Work && step.Job == "DoBill")
+                if (step.Kind == PawnActivityKind.Recipe || step.Kind == PawnActivityKind.Work && step.Job == "DoBill" && step.Practice?.Surgery == null)
                 {
                     var cooking = step.Recipe;
                     DomainException.Require(cooking != null && (IdText.IsValidText(cooking.Bill) || IdText.IsValidText(cooking.Stuff)) && IdText.IsValidText(cooking.Recipe)

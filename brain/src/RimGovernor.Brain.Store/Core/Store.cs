@@ -29,8 +29,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 25 drops the <c>ledger_rows</c> table (#3566): the derived ledger copy every review rewrote had no reader.
     /// Version 26 is the pawn-activities action body with the step's <c>Targets</c> and <c>Cells</c> (#3613), the task's
     /// <c>PriorSteps</c> (#3617) and <c>UseUntilTick</c> (#3167): a version-25 plan row no longer decodes.
+    /// Version 27 adds the practice surgery variant to journaled activity steps (#3637): <c>Practice.Surgery</c> (recipe, part, medicine).
     /// </summary>
-    public const int SchemaVersion = 26;
+    public const int SchemaVersion = 27;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

@@ -120,9 +120,12 @@ Real medical work learns through the same callbacks. A surgery bill's DoBill
 allocation carries `ProductiveSkillWork`: the recipe callback pays 0.1 ×
 `workSkillLearnFactor` per tick spent (not per work amount) once on completion,
 before `Bill_Medical.Notify_IterationCompleted` applies the outcome, so a failed
-surgery pays the same. The surgery rate is the doctor's observed `workSpeedStat` at
-its current level only; a level change inside the forecast or work past the learning
-window leaves the duration unknown and drops that slot's option, as for cooking.
+surgery pays the same. The surgery rate is the doctor's native `workSpeedStat` at
+each skill level (`NativeSkillStat.Levels`, #3633), so a level-up inside the work
+changes its speed as it would natively; without the per-level curve it falls back to
+the observed rate at the current level, where a level change inside the forecast or
+work past the learning window leaves the duration unknown and drops that slot's option,
+as for cooking.
 Game `Recipe_Surgery` workers qualify; mod surgery workers and `Recipe_ExecuteByCut`
 stay unknown.
 
@@ -196,6 +199,6 @@ selected Method exists yet; documented, not shadowed).
 | Selected install: `NativePracticeActivities.Job` / `Legal`, `SparringBouts.SelectPair` | keep | Hands-owned exact roster and stand/marker; native drivers keep attacks, budget, stop rules and real-weapon restoration. |
 | Native `WorkGiver_TrainRange` / `WorkGiver_Spar` initiation on a map the brain does not control (`RangeTraining.MigratedScope` `:22`; `TrainRangeWorkGiver.cs:20,38`; `SparringWorkGiver.cs:17,27`; `SparringBouts.PlanFor` `:135`, `Free` `:146`, `Form` `:184`) | unsupported-owner | Skipped for every controlled colonist, so no second writer runs under the brain. Uncontrolled maps keep the mod's own player-enabled work type. The prepared `lab/training-*` and `lab/sparring-*` cases drive native mechanics through it; removal first needs those cases moved to selected installs. |
 | `RangeTraining.TryChoose` (`:131`) via `BelowTarget` (`:151`), uncontrolled branch | unsupported-owner | Higher-level/passion skill heuristic; never reached for a controlled pawn, where `CanTrain` checks legality only. Leaves with the row above. |
-| Doctor training by peg-leg cycling: `SelectPegCycle` (`Policy/DoctorTraining.cs:104`, `RoundsSurgery.cs:118`), `DoctorTrainingFloor` | unsupported-owner | Surgical prisoner program with a local `TrainingValue` winner and a role-free floor. No Method or forecast for surgery learning exists; migration is its own owner. |
+| Doctor training by peg-leg cycling: `SelectPegCycle` (`Policy/DoctorTraining.cs:104`, `RoundsSurgery.cs:118`), `DoctorTrainingFloor` | unsupported-owner | Surgical prisoner program with a local `TrainingValue` winner and a role-free floor. The selected practice-surgery step (#3637, [capability maintenance](capability-maintenance.md#practice-surgery-3637)) now exists beside it; the legacy program leaves in #3638. |
 | Productive cooking, food/shelter investment, recipe and bill selection | keep | Selected through `CompareActivityPlans` / `ForecastServiceInvestments`; no local cook or skill winner remains. |
 | Training to a ceiling, saved skill target | none found | Ceilings are native feasibility limits only (`RangeTraining.CeilingFor`); nothing is stored. |
