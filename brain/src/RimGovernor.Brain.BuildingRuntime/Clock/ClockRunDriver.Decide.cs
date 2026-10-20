@@ -21,7 +21,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class ClockRunDriver
 {
     // What one pass found, for the row it files.
-    private sealed class RunNote
+    internal sealed class RunNote
     {
         public string Action { get; set; } = "";
 
@@ -73,15 +73,23 @@ public sealed partial class ClockRunDriver
         }
         finally
         {
-            Finish(step, note, failure, Stopwatch.GetElapsedTime(began));
+            if (RunRow(step, note, failure, Stopwatch.GetElapsedTime(began)) is { } row)
+            {
+                Tel.Decide(row);
+            }
         }
     }
 
-    private static void Finish(ClockSchedulerResult step, RunNote note, Exception? failure, TimeSpan elapsed)
+    /// <summary>
+    /// The clock_run row one pass files; null when it changed and refused nothing. A refused decision is a refused row
+    /// even when the refusal held the clock by throwing its <see cref="HeldException"/>: only another failure is a
+    /// run_error.
+    /// </summary>
+    internal static Decision? RunRow(ClockSchedulerResult step, RunNote note, Exception? failure, TimeSpan elapsed)
     {
         if (note.Action.Length == 0 && failure is null)
         {
-            return;
+            return null;
         }
         var attrs = new Dictionary<string, object?>(StringComparer.Ordinal) { ["running"] = step.Running };
         if (note.Live != 0)
@@ -109,12 +117,7 @@ public sealed partial class ClockRunDriver
             attrs["combat_fallback_speed"] = true;
         }
         var decision = new Decision { Kind = TelemetryKinds.ClockRunKind, Component = "clock-scheduler", Target = "clock", Dur = elapsed, Attrs = attrs };
-        if (failure is not null)
-        {
-            attrs["error"] = failure.Message;
-            decision = decision with { Verdict = "failed", Reason = "run_error" };
-        }
-        else if (note.Action == "refused")
+        if (note.Action == "refused")
         {
             attrs["refused"] = note.Decision?.Refused.Select(r => Wire.Name(r)).ToList();
             decision = decision with { Verdict = "refused", Reason = note.Decision is { Refused.Count: > 0 } d ? Wire.Name(d.Refused[0]) : "run_refused" };
@@ -123,11 +126,16 @@ public sealed partial class ClockRunDriver
                 attrs[TelemetryKinds.ClockRunFirstPlanFactKey] = note.FirstPlanUnread;
             }
         }
+        else if (failure is not null)
+        {
+            attrs["error"] = failure.Message;
+            decision = decision with { Verdict = "failed", Reason = "run_error" };
+        }
         else
         {
             decision = decision with { Verdict = note.Action, Reason = note.Reason };
         }
-        Tel.Decide(decision);
+        return decision;
     }
 
     // Drops authority and joins the failure with the drop's own.

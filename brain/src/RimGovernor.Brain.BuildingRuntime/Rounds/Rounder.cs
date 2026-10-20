@@ -111,7 +111,11 @@ public sealed partial class Rounder
     /// <summary>The tick of the last layout survey this process read; see reviewLayoutPlan.</summary>
     internal Tick PlanChecked;
 
-    internal bool PlanSurveyed;
+    /// <summary>
+    /// The world the last layout survey was read in; null before the first. The rounder outlives a load, so a survey of
+    /// another colony, map or load is no survey of this one (<see cref="Surveyed"/>).
+    /// </summary>
+    internal GenerationSnapshot? PlanSurveyedIn;
 
     /// <summary>
     /// What the colony's first plan holds the clock for (#3652; <see cref="ReviewFirstPlanAsync"/>): the station fact

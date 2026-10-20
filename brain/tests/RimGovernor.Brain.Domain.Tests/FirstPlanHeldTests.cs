@@ -75,6 +75,22 @@ public sealed class FirstPlanHeldTests
     }
 
     [Fact]
+    public void AHeldClocksFirstPlanRefusalIsARefusedRowNamingTheFactNotARunError()
+    {
+        // The refusal of a held clock throws its HeldException; the row is still the refusal's (layout/first-plan-held
+        // found it filed as failed/run_error, with neither refused nor first_plan_fact).
+        var note = new BuildingRuntime.ClockRunDriver.RunNote { Action = "refused", Decision = Decide("resource demand"), FirstPlanUnread = "resource demand" };
+        var row = BuildingRuntime.ClockRunDriver.RunRow(new BuildingRuntime.ClockSchedulerResult(), note, new Executor.HeldException("clock run refused: FirstPlan"), TimeSpan.Zero);
+
+        Assert.NotNull(row);
+        Assert.Equal("refused", row.Verdict);
+        Assert.Equal("first_plan", row.Reason);
+        Assert.Equal(["first_plan"], Assert.IsType<List<string>>(row.Attrs["refused"]));
+        Assert.Equal("resource demand", row.Attrs[Telemetry.TelemetryKinds.ClockRunFirstPlanFactKey]);
+        Assert.False(row.Attrs.ContainsKey("error"));
+    }
+
+    [Fact]
     public void AnEmptyFirstPlanFactHoldsNothing()
     {
         var decision = Decide("");

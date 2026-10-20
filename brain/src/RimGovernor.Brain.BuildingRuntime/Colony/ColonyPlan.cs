@@ -231,11 +231,12 @@ public sealed partial class Rounder
         // The last check is the newer of the saved plan's tick and the last survey this process read; a rewind
         // past it or a restart falls back to the plan's tick.
         var checkedAt = layout.Tick;
-        if (PlanChecked > checkedAt && PlanChecked <= tick)
+        var surveyed = Surveyed(snapshot);
+        if (surveyed && PlanChecked > checkedAt && PlanChecked <= tick)
         {
             checkedAt = PlanChecked;
         }
-        var hourly = !PlanSurveyed || tick.Value - checkedAt.Value >= LayoutPlanning.ReplanEvery.Value;
+        var hourly = !surveyed || tick.Value - checkedAt.Value >= LayoutPlanning.ReplanEvery.Value;
         // Every hour a review re-reads the survey and replans when its inputs (the chain's facts, the survey)
         // changed: a need, a pawn or a room that stands is among them, so no trigger of its own is needed.
         var terrain = haveLayout && tick.Value - checkedAt.Value >= LayoutPlanning.TerrainCheckEvery.Value;
@@ -271,6 +272,10 @@ public sealed partial class Rounder
         return projection;
     }
 
+    /// <summary>Whether the last layout survey was read in <paramref name="world"/>'s colony, map and load (#3652: a load in the same process surveys again).</summary>
+    private bool Surveyed(GenerationSnapshot world) =>
+        PlanSurveyedIn is { } at && at.Colony == world.Colony && at.Map == world.Map && at.Load == world.Load;
+
     /// <summary>
     /// The survey read of a layout check, recorded as the last check, with the map's climate latched on it (unknown
     /// reads warm); null when the read failed, which the next review retries.
@@ -287,7 +292,7 @@ public sealed partial class Rounder
             return null;
         }
         PlanChecked = projection.Identity.Tick;
-        PlanSurveyed = true;
+        PlanSurveyedIn = snapshot;
         var survey = read.Survey with
         {
             Cold = projection.ColdMap.TryGetValue(out var cold) && cold,
@@ -313,7 +318,7 @@ public sealed partial class Rounder
             return;
         }
         // A rewind past the last survey or a restart reads again.
-        var hourly = !PlanSurveyed || PlanChecked > tick || tick.Value - PlanChecked.Value >= LayoutPlanning.ReplanEvery.Value;
+        var hourly = !Surveyed(snapshot) || PlanChecked > tick || tick.Value - PlanChecked.Value >= LayoutPlanning.ReplanEvery.Value;
         if ((!hourly && FirstPlanUnread.Length == 0) || LayoutPending is not null)
         {
             return;

@@ -4,8 +4,9 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>layout/first-plan-held</c> (#3652): a new colony's first layout plan waits for every station fact with the clock
-/// held. The first clock_run row is refused under first_plan, no clock_run row before the layout_plan row that records the
-/// plan lets the clock run, and the derive's layout_stations row is the full graph's (no seed_only attr).
+/// held. The serve's first clock_run row is refused under first_plan, no clock_run row before the layout_plan row that
+/// records the plan lets the clock run, and the derive's layout_stations row is the full graph's (no seed_only attr). The
+/// game's log ring outlives the game, so only rows written after the serve began are this colony's.
 /// </summary>
 internal static class LayoutFirstPlanHeld
 {
@@ -23,25 +24,31 @@ internal static class LayoutFirstPlanHeld
         Run = RunAsync,
     };
 
+    private static readonly TelemetryKind[] Read = [TelemetryKinds.ClockRun, TelemetryKinds.LayoutPlan, TelemetryKinds.LayoutStations];
+
     private static string Text(IReadOnlyDictionary<string, object?> fields, string key) => fields.GetValueOrDefault(key) as string ?? "";
 
     // A row that let the clock run: a Run that resumed it or adjusted a running one.
     private static bool Ran(LogRow row) => Text(row.Fields(), Decision.VerdictKey) is "run" or "adjust";
 
-    private static LogRow? Planned(TypedSession s) =>
-        s.Telemetry(TelemetryKinds.LayoutPlan).FirstOrDefault(r => Text(r.Fields(), Decision.VerdictKey) == "planned" && Text(r.Fields(), Decision.TargetKey) == "plan");
+    // The rows of kind the serve wrote: those past the last row of a read kind before it began (earlier games' rows stay).
+    private static IEnumerable<LogRow> Since(TypedSession s, TelemetryKind kind, ulong floor) => s.Telemetry(kind).Where(r => r.Sequence > floor);
+
+    private static LogRow? Planned(TypedSession s, ulong floor) =>
+        Since(s, TelemetryKinds.LayoutPlan, floor).FirstOrDefault(r => Text(r.Fields(), Decision.VerdictKey) == "planned" && Text(r.Fields(), Decision.TargetKey) == "plan");
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
+        var floor = Read.SelectMany(s.Telemetry).Select(r => r.Sequence).DefaultIfEmpty(0UL).Max();
         _ = await s.ServeUntilAsync("first-plan", s.TicksLeft, _ =>
         {
-            var plan = Planned(s);
-            var ran = plan is not null && s.Telemetry(TelemetryKinds.ClockRun).Any(r => r.Sequence > plan.Sequence && Ran(r));
+            var plan = Planned(s, floor);
+            var ran = plan is not null && Since(s, TelemetryKinds.ClockRun, floor).Any(r => r.Sequence > plan.Sequence && Ran(r));
             return Task.FromResult((plan is null ? "no plan" : $"planned at {plan.Sequence}", ran));
         }, cancellationToken).ConfigureAwait(false);
 
-        var planned = Planned(s) ?? throw new AcceptanceException("no layout_plan row recorded the first plan");
-        var runs = s.Telemetry(TelemetryKinds.ClockRun).OrderBy(r => r.Sequence).ToList();
+        var planned = Planned(s, floor) ?? throw new AcceptanceException("no layout_plan row recorded the first plan");
+        var runs = Since(s, TelemetryKinds.ClockRun, floor).OrderBy(r => r.Sequence).ToList();
         if (runs is not [var first, ..])
         {
             throw new AcceptanceException("no clock_run row");
@@ -58,7 +65,7 @@ internal static class LayoutFirstPlanHeld
             throw new AcceptanceException($"the clock ran (clock_run seq {early.Sequence}, {Text(early.Fields(), Decision.VerdictKey)}) before the first plan was recorded (seq {planned.Sequence})");
         }
 
-        var derive = s.Telemetry(TelemetryKinds.LayoutStations).LastOrDefault(r => r.Sequence < planned.Sequence && r.Fields().GetValueOrDefault("derive") is true)
+        var derive = Since(s, TelemetryKinds.LayoutStations, floor).LastOrDefault(r => r.Sequence < planned.Sequence && r.Fields().GetValueOrDefault("derive") is true)
             ?? throw new AcceptanceException("no derive layout_stations row before the first plan");
         if (derive.Fields().ContainsKey("seed_only"))
         {
