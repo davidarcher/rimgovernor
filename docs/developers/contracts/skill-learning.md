@@ -113,6 +113,27 @@ separate from registration and compilation.
 
 [Assigned capability maintenance](capability-maintenance.md) combines supported scheduled callbacks with decay against actual held-role requirements. Native practice cycle quotes are conditional execution estimates, not guaranteed completed learning or injury-free work.
 
+## Medical work learning (#3632)
+
+Real medical work learns through the same callbacks. A surgery bill's DoBill
+allocation carries `ProductiveSkillWork`: the recipe callback pays 0.1 ×
+`workSkillLearnFactor` per tick spent (not per work amount) once on completion,
+before `Bill_Medical.Notify_IterationCompleted` applies the outcome, so a failed
+surgery pays the same. The surgery rate is the doctor's observed `workSpeedStat` at
+its current level only; a level change inside the forecast or work past the learning
+window leaves the duration unknown and drops that slot's option, as for cooking.
+Game `Recipe_Surgery` workers qualify; mod surgery workers and `Recipe_ExecuteByCut`
+stay unknown.
+
+Each tend allocation carries `TendLearning`: `Toils_Tend.FinalizeTend` pays raw XP
+once per completed treatment, before and whatever its quality, depending on the
+patient (humanlike or animal) and medicine, not on skill. Tend learning is evidence
+only: the observed tend duration is always kept, and an unprojectable callback
+(outside the window, or after the work starts) yields no evidence with a finding.
+Neither medical allocation sets `ProductiveWorkTicks`, which stays a recipe-task
+bound. `lab/skill-learning-tend` and `lab/skill-learning-surgery` check both native
+callbacks against the projection.
+
 ## Stat-at-level read
 
 `NativeSkillStat` reads a pawn's stat value at each stored level 0-20 without changing

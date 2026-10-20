@@ -144,17 +144,107 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken);
         }
 
-        [Tool("test/skill_learning_verify", Description = "Test-only read observer of recipe/sparring XP callbacks; start or stop verification, never issue pawn work.")]
+        [Tool("test/skill_learning_verify", Description = "Test-only read observer of recipe, surgery, tend and sparring XP callbacks; start, read or stop verification, never issue pawn work.")]
         public async Task<object> VerifyLearning(IRimBridgeContext ctx, CancellationToken cancellationToken, string action)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 if (action == "start") SkillLearningVerifier.Start();
                 else if (action == "stop") SkillLearningVerifier.Stop();
-                else throw new ArgumentException("Expected start or stop.");
+                else if (action != "read") throw new ArgumentException("Expected start, read or stop.");
                 return FixtureKit.Reply(new Fx.SkillLearningVerifyRead { Recipe = SkillLearningVerifier.Recipes, Sparring = SkillLearningVerifier.Sparring,
-                    Failures = SkillLearningVerifier.Failures.ToArray() });
+                    Surgery = SkillLearningVerifier.Surgery, Tend = SkillLearningVerifier.Tend, Failures = SkillLearningVerifier.Failures.ToArray() });
             }, cancellationToken);
         }
+
+        // #3632: one doctor and one patient lying in a medical bed. "tend" cuts the patient and hands the doctor the native
+        // TendPatient job without medicine. "surgery" takes a leg and adds the native peg-leg bill with its ingredients beside
+        // the bed; "poll" hands the doctor the native DoBill job (built as WorkGiver_DoBill builds it) once the patient lies in bed.
+        // Whoever then does the work, the verifier checks each Medicine callback.
+        private static Pawn medicalDoctor, medicalPatient;
+        private static Bill_Medical medicalBill;
+        private static List<Thing> medicalInputs = new List<Thing>();
+        private static bool medicalStarted;
+
+        [Tool("test/medical_learning", Description = "UNSAFE FOR MODEL EXECUTION. Stage a doctor and a patient in bed for one native tend or surgery; poll hands the doctor the staged surgery once the patient lies in bed. Test builds only.")]
+        public async Task<object> MedicalLearning(IRimBridgeContext ctx, CancellationToken cancellationToken, string action)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var map = Find.CurrentMap;
+                if (action == "poll")
+                {
+                    if (medicalBill != null && !medicalStarted && medicalPatient.InBed())
+                    {
+                        var job = JobMaker.MakeJob(JobDefOf.DoBill, medicalPatient);
+                        job.bill = medicalBill;
+                        job.targetQueueB = medicalInputs.Select(t => new LocalTargetInfo(t)).ToList();
+                        job.countQueue = medicalInputs.Select(t => t.stackCount).ToList();
+                        job.haulMode = HaulMode.ToCellNonStorage;
+                        job.workGiverDef = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is WorkGiver_DoBill g && g.ThingIsUsableBillGiver(medicalPatient));
+                        medicalStarted = medicalDoctor.jobs.TryTakeOrderedJob(job);
+                    }
+                    return MedicalRead();
+                }
+                if (action != "tend" && action != "surgery") throw new ArgumentException("Expected tend, surgery or poll.");
+                if (map == null || !Find.TickManager.Paused) throw new InvalidOperationException("Paused disposable colony required.");
+                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Doctor)
+                    && p.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)).OrderBy(p => p.thingIDNumber).ToList();
+                if (pawns.Count < 2) throw new InvalidOperationException("Need two colonists able to doctor.");
+                medicalDoctor = pawns[0]; medicalPatient = pawns[1]; medicalBill = null; medicalInputs = new List<Thing>(); medicalStarted = false;
+                foreach (var p in new[] { medicalDoctor, medicalPatient })
+                {
+                    p.drafter.Drafted = false;
+                    p.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                    foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(w => !p.WorkTypeIsDisabled(w))) p.workSettings.SetPriority(work, 0);
+                }
+                var origin = medicalDoctor.Position;
+                var area = new CellRect(origin.x + 1, origin.z - 1, 3, 4);
+                foreach (var cell in area.Cells)
+                {
+                    foreach (var thing in cell.GetThingList(map).Where(t => !(t is Pawn)).ToList()) thing.Destroy();
+                    map.terrainGrid.SetTerrain(cell, TerrainDefOf.Concrete);
+                }
+                var bed = (Building_Bed)ThingMaker.MakeThing(ThingDefOf.Bed, ThingDefOf.WoodLog);
+                bed.SetFaction(Faction.OfPlayer);
+                GenSpawn.Spawn(bed, new IntVec3(origin.x + 2, 0, origin.z), map);
+                bed.Medical = true;
+                medicalPatient.playerSettings.medCare = MedicalCareCategory.Best;
+                medicalPatient.Position = bed.Position;
+                medicalPatient.Notify_Teleported(true, true);
+                if (action == "tend")
+                {
+                    var torso = medicalPatient.health.hediffSet.GetNotMissingParts().First(p => p.def == BodyPartDefOf.Torso);
+                    medicalPatient.TakeDamage(new DamageInfo(DamageDefOf.Cut, 5f, 999f, -1, null, torso));
+                    if (!medicalPatient.health.HasHediffsNeedingTend()) throw new InvalidOperationException("Fixture cut requires tending.");
+                }
+                else
+                {
+                    var leg = medicalPatient.health.hediffSet.GetNotMissingParts().First(p => p.def == BodyPartDefOf.Leg);
+                    medicalPatient.health.AddHediff(HediffMaker.MakeHediff(HediffDefOf.MissingBodyPart, medicalPatient, leg), leg);
+                    // The epic's practice surgery; no typed route to a recipe def that is not in a DefOf.
+                    var recipe = DefDatabase<RecipeDef>.GetNamed("InstallPegLeg");
+                    medicalBill = HealthCardUtility.CreateSurgeryBill(medicalPatient, recipe, leg, null, false);
+                    var spot = new IntVec3(origin.x + 1, 0, origin.z);
+                    foreach (var ingredient in recipe.ingredients)
+                    {
+                        var allowed = ingredient.filter.AllowedThingDefs.Where(d => medicalBill.IsFixedOrAllowedIngredient(d)).ToList();
+                        var def = allowed.Contains(ThingDefOf.MedicineHerbal) ? ThingDefOf.MedicineHerbal : allowed.First();
+                        var input = ThingMaker.MakeThing(def);
+                        input.stackCount = ingredient.CountRequiredOfFor(def, recipe, medicalBill);
+                        medicalInputs.Add(GenSpawn.Spawn(input, spot, map));
+                        spot += IntVec3.North;
+                    }
+                }
+                medicalPatient.jobs.StartJob(JobMaker.MakeJob(JobDefOf.LayDown, bed), JobCondition.InterruptForced);
+                if (action == "tend") medicalStarted = medicalDoctor.jobs.TryTakeOrderedJob(JobMaker.MakeJob(JobDefOf.TendPatient, medicalPatient));
+                return MedicalRead();
+            }, cancellationToken);
+        }
+
+        private static object MedicalRead() => FixtureKit.Reply(new Fx.MedicalLearningRead
+        {
+            InBed = medicalPatient?.InBed() ?? false, Started = medicalStarted,
+        });
+
         [Tool("test/skill_learning_probe", Description = "UNSAFE FOR MODEL EXECUTION. Compare bounded learning projections against native SkillRecord methods on detached records. Test builds only.")]
         public async Task<object> LearningProbe(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
@@ -300,7 +390,7 @@ namespace HomeBridge.BridgeTools
     {
         private static readonly Harmony Harmony = new Harmony("rimgovernor.test.learning-verifier");
         private static bool installed, enabled, busy;
-        internal static int Recipes, Sparring;
+        internal static int Recipes, Sparring, Surgery, Tend;
         internal static readonly List<string> Failures = new List<string>();
         internal sealed class Check
         {
@@ -309,7 +399,7 @@ namespace HomeBridge.BridgeTools
         }
         internal static void Start()
         {
-            Recipes = Sparring = 0; Failures.Clear(); enabled = true;
+            Recipes = Sparring = Surgery = Tend = 0; Failures.Clear(); enabled = true;
             if (installed) return;
             Harmony.Patch(AccessTools.Method(typeof(SkillRecord), nameof(SkillRecord.Learn)),
                 prefix: new HarmonyMethod(typeof(SkillLearningVerifier), nameof(Before)),
@@ -325,7 +415,16 @@ namespace HomeBridge.BridgeTools
             var recipe = pawn.CurJob?.bill?.recipe;
             var kind = "";
             double raw = 0;
-            if (pawn.CurJob?.def.defName == SparringBouts.JobName && __instance.def == SkillDefOf.Melee)
+            var path = RimGovernor.Brain.Policy.SkillXpPath.NormalRecord;
+            if (__instance.def == SkillDefOf.Medicine && pawn.CurJob?.targetA.Pawn is Pawn patient
+                && (pawn.CurJob.def == JobDefOf.TendPatient || pawn.jobs.curDriver is JobDriver_GovernorTend))
+            {
+                // Toils_Tend.FinalizeTend learns through Pawn_SkillTracker.Learn with the job's medicine, before the treatment.
+                raw = RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveTendLearning(patient.RaceProps.Animal, pawn.CurJob.targetB.Thing?.def);
+                kind = "tend";
+                path = RimGovernor.Brain.Policy.SkillXpPath.NormalTracker;
+            }
+            else if (pawn.CurJob?.def.defName == SparringBouts.JobName && __instance.def == SkillDefOf.Melee)
             {
                 var verb = pawn.equipment.PrimaryEq?.PrimaryVerb;
                 if (verb == null) { Failures.Add("missing_sparring_verb"); return; }
@@ -340,7 +439,7 @@ namespace HomeBridge.BridgeTools
                 var quote = RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveRecipeLearning(recipe);
                 if (!quote.RawXpPerWorkTick.IsKnown) return;
                 raw = quote.RawXpPerWorkTick.Value * driver.ticksSpentDoingRecipeWork;
-                kind = "recipe";
+                kind = recipe.IsSurgery ? "surgery" : "recipe";
             }
             else return;
             busy = true;
@@ -350,7 +449,7 @@ namespace HomeBridge.BridgeTools
                     ValidForTicks = RimGovernor.Brain.Domain.Fact.Known(2), NextDecay = RimGovernor.Brain.Domain.Fact.Known(200) };
                 var predicted = RimGovernor.Brain.Policy.ForecastSkillPolicy.ForecastSkill(evidence,
                     new[] { new RimGovernor.Brain.Policy.SkillXpEvent("native-callback", 0,
-                        RimGovernor.Brain.Domain.Fact.Known(raw), RimGovernor.Brain.Policy.SkillXpPath.NormalRecord) }, 0);
+                        RimGovernor.Brain.Domain.Fact.Known(raw), path) }, 0);
                 if (Math.Abs(raw - xp) > .01) Failures.Add(kind + "_raw_xp_quote");
                 __state = new Check { Prediction = predicted, Kind = kind };
             }
@@ -359,7 +458,13 @@ namespace HomeBridge.BridgeTools
         private static void After(SkillRecord __instance, Check __state)
         {
             if (__state == null) return;
-            if (__state.Kind == "recipe") Recipes++; else Sparring++;
+            switch (__state.Kind)
+            {
+                case "recipe": Recipes++; break;
+                case "surgery": Surgery++; break;
+                case "tend": Tend++; break;
+                default: Sparring++; break;
+            }
             var predicted = __state.Prediction;
             if (!predicted.Xp.IsKnown || predicted.StoredLevel.Value != __instance.levelInt
                 || Math.Abs(predicted.Xp.Value - __instance.xpSinceLastLevel) > .1)

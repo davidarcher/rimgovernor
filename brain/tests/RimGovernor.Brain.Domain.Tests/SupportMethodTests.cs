@@ -188,6 +188,32 @@ public sealed class SupportMethodTests
         Assert.Equal(Known(1d), result.SelectedVector.Support.SurgeryRoomFactor);
     }
 
+    [Theory]
+    [InlineData(.1)]
+    [InlineData(1)]
+    public void TendAndSurgeryAllocationsCarryMedicineLearningWhateverTheSurgeryOutcome(double success)
+    {
+        var read = new SupportActivityRead
+        {
+            Known = true,
+            Demands = [new("care", "care", "patient", new(1, 1), default, Known(.1)),
+                new("surgery", "surgery", "other", new(1, 1), default, Known(0d)) { SurgerySuccessFactor = Known(success), SurgerySuccessFactorClean = Known(success) }],
+            Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d)) { TendLearning = ProductiveLearningTests.Tend() },
+                new("surgery", "helper", "other", "DoBill", "Doctor", new(1, 1), Known(0d), Known(20d))
+                { Recipe = new("selected-medical-bill", "selected-operation", []), SkillWork = ProductiveLearningTests.Surgery(15) }],
+        };
+        var facts = Facts(read); var result = Select(facts); var tasks = Tasks(facts, result);
+        Assert.Contains(tasks, t => t.Step.Job == "TendPatient");
+        Assert.Contains(tasks, t => t.Step.Job == "DoBill");
+        Assert.All(tasks, t => Assert.False(t.ProductiveWorkTicks.IsKnown));
+        var allocations = result.Selected.Plan.Allocations;
+        var tend = Assert.Single(allocations, a => a.Pawn == "pawn").Learning!;
+        Assert.Equal(("Medicine", Known(250d), SkillXpPath.NormalTracker), (tend.Skill, tend.Callback.RawXp, tend.Callback.Path));
+        // A failed surgery still pays: native learning precedes the outcome, which the callback does not read.
+        var surgery = Assert.Single(allocations, a => a.Pawn == "helper").Learning!;
+        Assert.Equal(("Medicine", Known(32d), SkillXpPath.NormalRecord), (surgery.Skill, surgery.Callback.RawXp, surgery.Callback.Path));
+    }
+
     [Fact]
     public void SameBillMaterialOptionsCannotBothEarnSupplyRelief()
     {

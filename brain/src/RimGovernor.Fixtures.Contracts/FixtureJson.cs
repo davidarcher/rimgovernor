@@ -82,6 +82,7 @@ public static class FixtureJson
 [JsonSerializable(typeof(SkillLearningProbeRead))]
 [JsonSerializable(typeof(SkillStatCurvePrepared))]
 [JsonSerializable(typeof(SkillLearningVerifyRead))]
+[JsonSerializable(typeof(MedicalLearningRead))]
 [JsonSerializable(typeof(TrainingPrepared))]
 [JsonSerializable(typeof(TrainingRead))]
 [JsonSerializable(typeof(TrainingChat))]

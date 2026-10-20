@@ -80,7 +80,8 @@ internal static class CoordinatedActivityBinding
                 task.Location, checked(tick + (long)Math.Ceiling(a.Depart)))
                     { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition, ProductStuff = task.ProductStuff,
                         Inputs = task.SelectedInputs, CompletionMustBeObserved = task.CompletionMustBeObserved, SupportDemand = task.SupportDemand,
-                        ProductiveWorkTicks = a.Learning is null ? default : Known(a.WorkTicks), PriorSteps = PriorSteps(task),
+                        // The native binding checks a recipe step's learning-dependent duration; support work keeps its own bound.
+                        ProductiveWorkTicks = a.Learning is null || task.Kind != PawnActivityKind.Recipe ? default : Known(a.WorkTicks), PriorSteps = PriorSteps(task),
                         UseUntilTick = SelectedActivityTask.UseUntil(tick, a.Depart, a.End) } : null).ToArray();
         if (tasks.Any(t => t is null)) return null;
         var selected = tasks.Select(t => t!).ToArray();

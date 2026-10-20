@@ -73,6 +73,8 @@ internal static class NativeSupportActivities
                         && !t.IsForbidden(pawn) && pawn.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.None))
                     .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Cast<Thing?>().Append(null).ToArray();
                 var speed = pawn.GetStatValue(StatDefOf.MedicalTendSpeed);
+                var medicineSkill = pawn.skills?.GetSkill(SkillDefOf.Medicine);
+                var learning = medicineSkill == null ? null : NativeSkillLearning.Read(pawn, medicineSkill);
                 // One selected native treatment batch. Remaining wounds need fresh observation and selection.
                 var count = patient.health.hediffSet.hediffs.Count(h => h.TendableNow());
                 foreach (var medicine in medicines)
@@ -83,7 +85,9 @@ internal static class NativeSupportActivities
                         : Add(Route(pawn, pawn.Position, medicine.Position, PathEndMode.Touch), Route(pawn, medicine.Position, patient.Position, PathEndMode.Touch)),
                     speed > 0 && count > 0 ? Fact.Known(Math.Ceiling(600d / speed)) : default) { Medicine = medicine?.GetUniqueLoadID() ?? "", MedicineResource = medicine?.def.defName ?? "", MedicineCount = medicine == null ? 0 : 1, MedicineLocation = medicine == null ? null : At(medicine.Position), MedicineAvailable = medicine?.stackCount ?? 0,
                         TendQuality = Fact.Known((double)TendUtility.CalculateBaseTendQuality(pawn, patient, medicine?.def)),
-                        InfectionRoomEffectApplies = infection.Applies, InfectionCheckTicks = infection.Ticks });
+                        InfectionRoomEffectApplies = infection.Applies, InfectionCheckTicks = infection.Ticks,
+                        TendLearning = learning == null ? null : new(learning, SkillDefOf.Medicine.defName,
+                            Fact.Known(RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveTendLearning(patient.RaceProps.Animal, medicine?.def)), "native Toils_Tend.FinalizeTend") });
                 }
             }
         }
@@ -99,6 +103,7 @@ internal static class NativeSupportActivities
             {
                 var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(patient));
                 if (giver == null) continue;
+                var skillWork = NativeProductiveSkill.ReadSurgery(pawn, bill.recipe);
                 var sources = map.listerThings.AllThings.Where(t => t.Spawned && t.def.category == ThingCategory.Item
                     && bill.IsFixedOrAllowedIngredient(t) && bill.recipe.ingredients.Count > 0 && bill.recipe.ingredients.All(i => i.filter.Allows(t))).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
                 foreach (var source in sources)
@@ -113,7 +118,7 @@ internal static class NativeSupportActivities
                     workers.Add(new(id, pawn.GetUniqueLoadID(), patient.GetUniqueLoadID(), "DoBill", giver.defName, At(patient.Position),
                         Add(Route(pawn, pawn.Position, source.Position, PathEndMode.Touch), Route(pawn, source.Position, patient.Position, PathEndMode.Touch)),
                         speed > 0 ? Fact.Known((double)bill.recipe.WorkAmountTotal(null) / speed) : default) { Recipe = recipe,
-                            Medicine = source.GetUniqueLoadID(), MedicineResource = source.def.defName, MedicineCount = count, MedicineLocation = At(source.Position), MedicineAvailable = source.stackCount });
+                            Medicine = source.GetUniqueLoadID(), MedicineResource = source.def.defName, MedicineCount = count, MedicineLocation = At(source.Position), MedicineAvailable = source.stackCount, SkillWork = skillWork });
                 }
             }
         }

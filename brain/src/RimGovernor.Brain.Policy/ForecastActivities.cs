@@ -46,6 +46,8 @@ public sealed record ForecastProjectProgress(string Project, double PointsPerTic
 public sealed record ForecastActivityOption(string Activity, string Pawn, Fact<double> WorkTicks, Fact<double> RecoveryLaborTicks)
 {
     public RimGovernor.Contracts.Wire.Observations.ProductiveSkillWork? SkillWork { get; init; }
+    /// <summary>A tend's learning, paid once at completion; the observed WorkTicks stay the duration (#3632).</summary>
+    public RimGovernor.Contracts.Wire.Observations.TendLearning? TendLearning { get; init; }
     /// <summary>Exclusive equipment needed throughout service; travel does not transport this equipment.</summary>
     public EquatableArray<string> Equipment { get; init; }
 }

@@ -38,6 +38,10 @@ public sealed record SupportWorker(string Demand, string Pawn, string Target, st
     /// <summary>Earliest pending native infection check in the selected treatment batch, relative to this observation.</summary>
     public Fact<double> InfectionCheckTicks { get; init; }
     public PawnActivityRecipe? Recipe { get; init; }
+    /// <summary>Surgery: the recipe's native work, learning and the doctor's operation speed at the current level (#3632).</summary>
+    public ProductiveSkillWork? SkillWork { get; init; }
+    /// <summary>Tend: the native learning the completed treatment pays (#3632).</summary>
+    public TendLearning? TendLearning { get; init; }
 }
 public sealed record SupportDelivery(string Demand, string Pawn, string Target, string Resource, string Container, string Bill,
     Cell Source, Cell Destination, int Required, int Available, int Capacity, Fact<double> ApproachTicks, Fact<double> DeliveryTicks);

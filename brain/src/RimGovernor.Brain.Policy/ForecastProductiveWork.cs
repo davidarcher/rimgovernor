@@ -14,7 +14,8 @@ public static class ForecastProductiveWorkPolicy
     public static ForecastProductiveDuration ForecastProductiveWork(ForecastActivityOption option,
         IReadOnlyList<ForecastActivityAllocation> assigned, double start)
     {
-        if (option.SkillWork is not { } work) return new(option.WorkTicks, null, "learning_effect_unassessed");
+        if (option.SkillWork is not { } work)
+            return option.TendLearning is { } tend ? Tend(option, tend, assigned, start) : new(option.WorkTicks, null, "learning_effect_unassessed");
         ForecastProductiveDuration Unknown(string reason) => new(default, null, reason);
         var mechanics = work.Learning;
         if (!double.IsFinite(start) || start < 0 || start > GameTime.TicksPerDay
@@ -23,8 +24,7 @@ public static class ForecastProductiveWorkPolicy
             || !mechanics.ValidForTicks.IsKnown || !mechanics.DecayInterval.IsKnown || mechanics.DecayInterval.Value <= 0
             || work.Rates.Select(r => r.StoredLevel).Distinct().Count() != work.Rates.Count)
             return Unknown("productive_mechanics_unknown");
-        var events = assigned.Where(a => a.Pawn == option.Pawn && a.Learning?.Skill == work.Recipe.Skill)
-            .Select(a => a.Learning!.Callback).OrderBy(e => e.Tick).ThenBy(e => e.Id, StringComparer.Ordinal).ToList();
+        var events = Prior(assigned, option.Pawn, work.Recipe.Skill);
         var tick = (int)Math.Ceiling(start);
         if (events.Any(e => e.Tick > tick)) return Unknown("learning_callback_after_work_start");
         var before = ForecastSkillPolicy.ForecastSkill(mechanics, events, tick);
@@ -54,4 +54,29 @@ public static class ForecastProductiveWorkPolicy
         return new(Known(duration), new(work.Recipe.Skill, callback, before, after,
             option.WorkTicks.IsKnown ? option.WorkTicks.Value : duration, duration, work.Provenance), "conditional_productive_learning");
     }
+
+    /// <summary>A tend's duration is observed and its learning never changes it: the callback is paid once at completion.
+    /// Learning that cannot be projected leaves the observed duration without evidence, never removes the treatment.</summary>
+    private static ForecastProductiveDuration Tend(ForecastActivityOption option, TendLearning tend,
+        IReadOnlyList<ForecastActivityAllocation> assigned, double start)
+    {
+        if (!option.WorkTicks.TryGetValue(out var work) || !double.IsFinite(work) || work < 0
+            || !double.IsFinite(start) || start < 0 || start + work > GameTime.TicksPerDay)
+            return new(option.WorkTicks, null, "tend_learning_outside_window");
+        var tick = (int)Math.Ceiling(start);
+        var events = Prior(assigned, option.Pawn, tend.Skill);
+        if (events.Any(e => e.Tick > tick)) return new(option.WorkTicks, null, "learning_callback_after_work_start");
+        var before = ForecastSkillPolicy.ForecastSkill(tend.Learning, events, tick);
+        var end = (int)Math.Ceiling(start + work);
+        var callback = ForecastSkillPolicy.TendCompletionLearning(tend, option.Activity, end);
+        events.Add(callback);
+        var after = ForecastSkillPolicy.ForecastSkill(tend.Learning, events, end);
+        if (!before.StoredLevel.IsKnown || !after.StoredLevel.IsKnown)
+            return new(option.WorkTicks, null, string.Join(",", before.Findings.Concat(after.Findings).Distinct()));
+        return new(option.WorkTicks, new(tend.Skill, callback, before, after, work, work, tend.Provenance), "conditional_tend_learning");
+    }
+
+    private static List<SkillXpEvent> Prior(IReadOnlyList<ForecastActivityAllocation> assigned, string pawn, string skill)
+        => assigned.Where(a => a.Pawn == pawn && a.Learning?.Skill == skill)
+            .Select(a => a.Learning!.Callback).OrderBy(e => e.Tick).ThenBy(e => e.Id, StringComparer.Ordinal).ToList();
 }

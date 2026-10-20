@@ -172,6 +172,17 @@ The tier-2 colony model integrates crop growth per twelfth and needs the fractio
 | --- | --- | --- |
 | A plant does not grow while the local day fraction is under 0.25 or over 0.8 | resting 0.45 of a day, growing 0.55 (22.5 grow days take about 41 calendar days) | `Plant.Resting`, used by `Plant.GrowthPerTick` |
 
+## Mirrored game literals: Medicine learning (#3632)
+
+`DefinitionCatalog.ObserveRecipeLearning` and `ObserveTendLearning` (`brain/src/RimGovernor.Brain.Bridge/Catalog/RecipeLearning.cs`)
+mirror method-body literals no def carries. The productive-learning forecast quotes the XP a completed recipe, surgery or tend pays.
+Read with ilspycmd (1.7).
+
+| Literal | Value | 1.7 member |
+| --- | --- | --- |
+| Recipe and surgery XP per tick spent on the work | `0.1 × workSkillLearnFactor`, paid once on completion (surgery before its outcome, so a failed surgery pays) | `Toils_Recipe.FinishRecipeAndStartStoringProduct` |
+| Tend XP per completed treatment | `500` for a humanlike patient, `175` for an animal, × the medicine's `MedicineTendXpGainFactor` (`0.5` without medicine) | `Toils_Tend.FinalizeTend` |
+
 ## Mirrored game formulas: crop growth and research (#3530)
 
 `CropGrowthModel` (`brain/src/RimGovernor.Brain.Policy/ColonyModel/CropGrowthModel.cs`) mirrors two static formulas and

@@ -101,9 +101,14 @@ public static class ForecastSkillPolicy
         }
     }
 
-    /// <summary>One supported recipe completion callback. UFT work must supply individual native work callbacks
-    /// so saturation is applied at the same granularity; no second completion credit is allowed.</summary>
+    /// <summary>One supported recipe completion callback, surgery included (a failed surgery pays too). workTicks are the
+    /// ticks spent on recipe work, as native <c>ticksSpentDoingRecipeWork</c>, not the work amount. UFT work must supply
+    /// individual native work callbacks so saturation is applied at the same granularity; no second completion credit is allowed.</summary>
     public static SkillXpEvent RecipeCompletionLearning(RecipeLearning recipe, string id, int tick, double workTicks, bool completed)
         => new(id, tick, recipe.DuringWork || !recipe.RawXpPerWorkTick.IsKnown || !double.IsFinite(workTicks) || workTicks < 0
             ? default : Known(completed ? recipe.RawXpPerWorkTick.Value * workTicks : 0), SkillXpPath.NormalRecord);
+
+    /// <summary>One completed tend's callback: the native raw XP once, through the skill tracker, at the treatment's completion.</summary>
+    public static SkillXpEvent TendCompletionLearning(TendLearning tend, string id, int tick)
+        => new(id, tick, tend.RawXp, SkillXpPath.NormalTracker);
 }

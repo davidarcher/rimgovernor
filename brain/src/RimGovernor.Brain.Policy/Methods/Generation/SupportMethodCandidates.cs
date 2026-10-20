@@ -27,7 +27,8 @@ internal sealed record SupportMethodCandidates(ForecastCompositionOperation[] Op
         void Worker(string id, SupportWorker worker, string demand)
         {
             if (!Free(worker.Pawn, worker.Target) || worker.Medicine.Length != 0 && resources.Claims.Targets.Contains(worker.Medicine)) return;
-            options.Add(new(id, worker.Pawn, worker.WorkTicks, Known(0d)));
+            // Real medical work learns (#3344): surgery through its recipe work, a tend once at completion.
+            options.Add(new(id, worker.Pawn, worker.WorkTicks, Known(0d)) { SkillWork = worker.SkillWork, TendLearning = worker.TendLearning });
             routes.Add(new(worker.Pawn, "start", Location(worker.Location), worker.ApproachTicks));
             bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work, worker.Target,
                 worker.WorkGiver, worker.Job, 0, deadline, worker.Location) { SupportDemand = demand, Medicine = worker.Medicine, Recipe = worker.Recipe, Source = worker.MedicineLocation };

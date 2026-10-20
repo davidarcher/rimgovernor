@@ -99,7 +99,21 @@ public sealed record SkillLearningVerifyRead
 
     public int Sparring { get; init; }
 
+    /// <summary>Surgery completions: the recipe callback of a medical bill (#3632).</summary>
+    public int Surgery { get; init; }
+
+    /// <summary>Completed tends (#3632).</summary>
+    public int Tend { get; init; }
+
     public IReadOnlyList<string> Failures { get; init; } = [];
+}
+
+/// <summary><c>test/medical_learning</c>: whether the staged patient lies in bed and the doctor's native job was handed over.</summary>
+public sealed record MedicalLearningRead
+{
+    public bool InBed { get; init; }
+
+    public bool Started { get; init; }
 }
 
 /// <summary><c>test/training_prepare</c>: the staged range column(s) and their shooters.</summary>

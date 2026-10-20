@@ -665,6 +665,7 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Observations.SkillLevelMechanics))]
 [JsonSerializable(typeof(Observations.ProductiveSkillWork))]
 [JsonSerializable(typeof(Observations.SkillWorkRate))]
+[JsonSerializable(typeof(Observations.TendLearning))]
 [JsonSerializable(typeof(Observations.SkillStatCurve))]
 [JsonSerializable(typeof(Observations.SkillStatLevel))]
 [JsonSerializable(typeof(Observations.NeedRate))]

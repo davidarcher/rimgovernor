@@ -26,4 +26,18 @@ internal static class NativeProductiveSkill
         return new(observed, learning, Fact.Known((double)recipe.WorkAmountTotal(null)), EquatableArray.From(rates),
             NativeSkillStat.Provenance + "; observed recipe/table");
     }
+
+    /// <summary>Surgery (#3632): the recipe's native work amount and learning, and the doctor's observed operation speed at the
+    /// current stored level only. A surgery's bill giver is the patient, so no table factor applies; other levels are absent.</summary>
+    internal static Obs.ProductiveSkillWork? ReadSurgery(Pawn pawn, RecipeDef recipe)
+    {
+        var learning = RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveRecipeLearning(recipe);
+        var skill = recipe.workSkill == null ? null : pawn.skills?.GetSkill(recipe.workSkill);
+        if (skill == null || skill.TotallyDisabled || learning.DuringWork || !learning.RawXpPerWorkTick.IsKnown) return null;
+        var speed = recipe.workSpeedStat == null ? 1f : pawn.GetStatValue(recipe.workSpeedStat);
+        var rate = speed > 0 && !float.IsNaN(speed) && !float.IsInfinity(speed) ? Fact.Known((double)speed) : default;
+        return new(NativeSkillLearning.Read(pawn, skill), learning, Fact.Known((double)recipe.WorkAmountTotal(null)),
+            EquatableArray.From(new[] { new Obs.SkillWorkRate(skill.levelInt, rate) }),
+            "native RecipeDef.WorkAmountTotal; observed workSpeedStat at the current stored level");
+    }
 }

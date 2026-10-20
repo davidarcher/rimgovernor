@@ -106,6 +106,63 @@ public sealed class ProductiveLearningTests
         Assert.All(recipes, t => Assert.True(generated.Context.Activities.Activities.Single(a => a.Id == t.Id).RequiresFoodUse));
         if (learning > 0 && speed == 1) Assert.Equal(2, selection.Selected.Plan.Allocations.Count(a => a.Learning is not null));
     }
+    /// <summary>A doctor's Medicine mechanics with a surgery at the native 0.1 × 16 raw XP per recipe work tick (#3632).</summary>
+    internal static ProductiveSkillWork Surgery(double workAmount = 150, double speed = .75) => new(Work().Learning,
+        new("Medicine", Known(1.6), false), Known(workAmount), [new(1, Known(speed))], "native-test");
+    internal static TendLearning Tend(double rawXp = 250) => new(Work().Learning, "Medicine", Known(rawXp), "native-test");
+
+    [Fact]
+    public void SurgeryCallbackPaysForTheTicksSpentOnRecipeWork()
+    {
+        var option = new ForecastActivityOption("surgery", "doctor", Known(200d), Known(0d)) { SkillWork = Surgery() };
+        var duration = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0);
+        // 150 work at 0.75 a tick is 200 ticks; native pays per tick spent (ticksSpentDoingRecipeWork), not per unit of work.
+        Assert.Equal(200, duration.WorkTicks.Value);
+        Assert.Equal(320, duration.Evidence!.Callback.RawXp.Value);
+        Assert.Equal(SkillXpPath.NormalRecord, duration.Evidence.Callback.Path);
+        Assert.Equal("Medicine", duration.Evidence.Skill);
+        // Only the current level's rate is read (#3633 adds the others): a level reached before the work has no rate.
+        var promoted = option with { SkillWork = Surgery() with { Learning = Work().Learning with { Xp = Known(99.5d) } } };
+        Assert.False(ForecastProductiveWorkPolicy.ForecastProductiveWork(promoted, [new("tend", "doctor", 0, 0, 0, 10, 0, 0, 10, 10, 0)
+            { Learning = new("Medicine", new("tend", 10, Known(5d), SkillXpPath.NormalTracker), Projection(), Projection(), 10, 10, "native-test") }], 10).WorkTicks.IsKnown);
+    }
+
+    [Fact]
+    public void EachCompletedTendPaysOnceAtCompletionAndKeepsTheObservedDuration()
+    {
+        var option = new ForecastActivityOption("tend/1", "doctor", Known(400d), Known(0d)) { TendLearning = Tend() };
+        var first = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0);
+        Assert.Equal(400, first.WorkTicks.Value);
+        Assert.Equal(new SkillXpEvent("tend/1", 400, Known(250d), SkillXpPath.NormalTracker), first.Evidence!.Callback);
+        Assert.Equal(250, first.Evidence.After.AppliedGain.Value);
+        var allocation = new ForecastActivityAllocation("tend/1", "doctor", 0, 0, 0, 400, 0, 0, 400, 400, 0) { Learning = first.Evidence };
+        var second = ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { Activity = "tend/2" }, [allocation], 400);
+        Assert.Equal(250, second.Evidence!.Before.AppliedGain.Value);
+        Assert.Equal(500, second.Evidence.After.AppliedGain.Value);
+        // Learning that cannot be projected never removes the treatment: the observed duration stays, without evidence.
+        var expired = ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { TendLearning = Tend() with
+            { Learning = Work().Learning with { ValidForTicks = Known(100) } } }, [], 0);
+        Assert.Equal(400, expired.WorkTicks.Value);
+        Assert.Null(expired.Evidence);
+    }
+
+    [Fact]
+    public void TheGameSurgeryWorkersAreQualifiedAndUnknownWorkersStayUnknown()
+    {
+        var medicine = new RimWorld.SkillDef { defName = "Medicine" };
+        RecipeLearning Observe(Type worker) => RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveRecipeLearning(
+            new Verse.RecipeDef { defName = worker.Name, workerClass = worker, workSkill = medicine, workSkillLearnFactor = 16 });
+        foreach (var worker in new[] { typeof(Verse.RecipeWorker), typeof(RimWorld.Recipe_InstallArtificialBodyPart),
+            typeof(RimWorld.Recipe_RemoveBodyPart), typeof(RimWorld.Recipe_Surgery) })
+            Assert.Equal(Known(1.6), Observe(worker).RawXpPerWorkTick);
+        Assert.False(Observe(typeof(ModSurgery)).RawXpPerWorkTick.IsKnown);
+        Assert.False(Observe(typeof(RimWorld.Recipe_ExecuteByCut)).RawXpPerWorkTick.IsKnown);
+    }
+
+    private sealed class ModSurgery : RimWorld.Recipe_Surgery;
+
+    private static SkillProjection Projection() => new(Known(1), Known(1), Known(0d), Known(0d), Known(0d), []);
+
     internal static RoundsFacts NormalFoodFacts(double learning = .1, double speed = 1)
     {
         var novice = ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "SimpleMeal", 100 / speed) with

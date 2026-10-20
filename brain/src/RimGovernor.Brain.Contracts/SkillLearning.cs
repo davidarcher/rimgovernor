@@ -30,8 +30,13 @@ public sealed record SkillLearning
 
 public sealed record SkillLevelMechanics(int Level, double RequiredXp, double DecayXp);
 
-/// <summary>Ordinary Toils_Recipe learning: unfinished recipes pay during work; others pay at completion.</summary>
+/// <summary>Ordinary Toils_Recipe learning: unfinished recipes pay during work; others pay at completion.
+/// RawXpPerWorkTick is paid per tick spent on recipe work (<c>ticksSpentDoingRecipeWork</c>), not per unit of work amount.</summary>
 public sealed record RecipeLearning(string Skill, Fact<double> RawXpPerWorkTick, bool DuringWork);
+
+/// <summary>Native learning one completed tend pays (#3632): <c>Toils_Tend.FinalizeTend</c> calls <c>Pawn_SkillTracker.Learn</c>
+/// once per treatment batch, before the treatment and whatever its quality. RawXp depends on the patient and medicine, not on skill.</summary>
+public sealed record TendLearning(SkillLearning Learning, string Skill, Fact<double> RawXp, string Provenance);
 
 /// <summary>Native work amounts and per-stored-level rates for this pawn, recipe and station at one frame.
 /// Rates retain other observed conditions; no prediction of future health, equipment or facility changes.</summary>
