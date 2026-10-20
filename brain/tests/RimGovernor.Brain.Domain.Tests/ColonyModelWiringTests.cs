@@ -48,9 +48,11 @@ public sealed class ColonyModelWiringTests
         var ids = review.Marginals.Trajectory.Events.Where(e => e.Kind is ModelEventKind.ProjectCompletion or ModelEventKind.Harvest).Select(e => e.Id).ToArray();
 
         Assert.Equal(["research:Devilstrand", "sow:zone1", "grow:zone1", "harvest:zone1", Garment], ids);
-        // The raid wounds' treatments use up the four herbal medicine (#3634); nothing the value prices uses medicine yet.
+        // The raid wounds' treatments use up the four herbal medicine (#3634); the frame's pawns carry no tend quality curve, so the
+        // tending that medicine buys is unpriced: a finding, not a zero (#3635).
         Assert.Contains(review.Marginals.Trajectory.Events, e => e.Kind == ModelEventKind.StockZero && e.Id == nameof(ModelStock.Medicine));
-        Assert.Equal(0, review.Marginals.PerUnit["medicine/MedicineHerbal"]);
+        Assert.DoesNotContain("medicine/MedicineHerbal", review.Marginals.PerUnit.Keys);
+        Assert.Contains(review.Marginals.Findings, f => f.StartsWith(ColonyValue.MedicineSkillValueUnassessed, StringComparison.Ordinal));
         Assert.DoesNotContain(ColonyValue.ApparelHarmUnassessed, review.Marginals.Findings);
         Assert.True(review.Marginals.PerHour["research:Devilstrand"] > 0);
         Assert.True(review.Marginals.PerHour["sow:zone1"] > 0);

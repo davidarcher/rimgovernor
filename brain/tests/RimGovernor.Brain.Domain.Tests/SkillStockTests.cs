@@ -70,7 +70,7 @@ public sealed class SkillStockTests
     private sealed class LevelDays(double horizon) : ITrajectoryValue
     {
         public ColonyValueResult Price(ColonyTrajectory trajectory) => new(Known(trajectory.Skills.Where(t => t.Skill == "Medicine").Sum(t =>
-            (t.Level * horizon) + t.Dates.Select((d, i) => (d.Level - (i == 0 ? t.Level : t.Dates[i - 1].Level)) * (horizon - d.Day)).Sum())), []);
+            (t.StoredLevel * horizon) + t.Dates.Select((d, i) => (d.StoredLevel - (i == 0 ? t.StoredLevel : t.Dates[i - 1].StoredLevel)) * (horizon - d.Day)).Sum())), []);
 
         public double GoalValue(GoalTerminal goal, double? completionDay) => 0;
     }
@@ -98,7 +98,7 @@ public sealed class SkillStockTests
         stock.RawPerDay = 10 * Day / 100;
         stock.Advance(0, 100 / Day);
         var track = stock.Track();
-        Assert.Equal(expected.Level.Value, track.LevelOn(1));
+        Assert.Equal(expected.Level.Value, track.StoredLevelOn(1));
         Assert.Equal(expected.Xp.Value, stock.Xp, 9);
         Assert.Equal(50 / Day, Assert.Single(track.Dates).Day, 12);
 
@@ -109,7 +109,7 @@ public sealed class SkillStockTests
         stock.Advance(0, 200 / Day);
         track = stock.Track();
         Assert.Equal(0, expected.Level.Value);
-        Assert.Equal(expected.Level.Value, track.LevelOn(1));
+        Assert.Equal(expected.Level.Value, track.StoredLevelOn(1));
         Assert.Equal(expected.Xp.Value, stock.Xp, 9);
     }
 
@@ -122,13 +122,13 @@ public sealed class SkillStockTests
         var stock = Stock(mechanics);
         stock.Advance(0, 3);
         // Half a day to -100 at level 2, down to level 1 at 900, then 2.5 days at 100 a day.
-        Assert.Equal([new SkillLevelDate(0.5, 1, 1)], stock.Track().Dates);
+        Assert.Equal([new SkillLevelDate(0.5, 1)], stock.Track().Dates);
         Assert.Equal(650, stock.Xp, 9);
 
         stock = Stock(mechanics);
         stock.Advance(0, 12);
         // Level 1 takes 10 days from 900 to -100; level 0 does not decay.
-        Assert.Equal([new SkillLevelDate(0.5, 1, 1), new SkillLevelDate(10.5, 0, 0)], stock.Track().Dates);
+        Assert.Equal([new SkillLevelDate(0.5, 1), new SkillLevelDate(10.5, 0)], stock.Track().Dates);
         Assert.Equal(0, stock.Xp);
     }
 
@@ -144,7 +144,7 @@ public sealed class SkillStockTests
         var dates = Track(practised).Dates;
         Assert.True(dates.Count > 5);
         Assert.Equal(RequiredXp / AppliedPerDay, dates[0].Day, 6);
-        Assert.Equal(1, dates[0].Level);
+        Assert.Equal(1, dates[0].StoredLevel);
         // Half speed: a surgery takes 3000 ticks of the 14.1 hours, one medicine each.
         var perDay = 14.1 * GameTime.TicksPerHour * 0.5 / 1500;
         var e = practised.Events.First(e => e.Day > 1);

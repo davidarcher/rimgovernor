@@ -344,7 +344,21 @@ best potency first, and both the surgeries and raid tending (`ColonyModelPolicy.
 `ColonyValue.RaidTreatmentsPerDay`: the harm model's raid wounds per pawn, batched at their mean severity under the native cap of 20
 per treatment) use up the best kind first. `ProjectMarginalValue` perturbs each pawn's stock of a practised skill by an hour of that
 practice's raw XP and each medicine kind by one unit, writing value per XP and per unit to `PerUnit` under the stock key and
-`medicine/<kind>`. `ColonyValue` prices neither skills nor medicine yet, so both marginals are 0 until a consumer reads them.
+`medicine/<kind>`.
+
+*Raid tending (#3635).* `ColonyValue` subtracts the colony's raid harm over the run at the tending the run gives it. The run is cut
+at each doctor's level dates and at each medicine kind's run-out (between events the stock falls at a constant rate, best kind
+first, from `ColonyTrajectory.StartMedicine`); each span costs its days × raids a day × each raid's loss through `HarmLedger`
+(bleeding, healing and infection, every raid priced over the whole horizon as the ledger counts it) with the wounds tended at once
+(`raid_first_care_delay_unmodelled`) at the span's tend quality. That quality is `TendUtility.CalculateBaseTendQuality`: the best
+doctor's MedicalTendQuality curve (#3633) at its stored Medicine level then × the medicine's `MedicalPotency`, clamped to its
+`MedicalQualityMax` (without medicine the native `NoMedicinePotency` and `NoMedicineQualityMax`, read by the catalog); the bed's
+offset and self-tending are not modelled. No pawn able to tend leaves the wounds untended; no raid to expect makes the term 0. A pawn
+who may tend but has no curve is `medicine_skill_value_unassessed:<pawn>` and its stock is unpriced; when no pawn qualifies, the
+harm model has no number (for example `exposure_cell_uncalibrated`) or a medicine's numbers are unread, the term is left out and every
+skill and medicine stock is unpriced (`ColonyValueResult.Unpriced`): `ProjectMarginalValue` writes no `PerUnit` for an unpriced key,
+so its marginal is a finding, not 0. Unchanged spans cancel between the perturbation runs, so a skill's per-XP value is the harm its
+earlier levels avoid and a medicine unit's the harm of its later run-out.
 
 *Skill and medicine credit in tier 1 (#3636).* Skill progress is capability, valued through forecast demand only
 ([skill learning](../contracts/skill-learning.md#skill-progress-is-capability)). An allocation whose learning evidence (tend, surgery,

@@ -73,7 +73,7 @@ internal static class RoundsColonyModel
         var threat = gear is null ? default : gear.Pawns.Where(p => p.LoadoutModel.IsKnown).Select(p => p.LoadoutModel.Value.Threat).FirstOrDefault(t => t.IsKnown);
         // Practice never completes, so it goes last and takes the hours the finite nodes leave (#3634).
         var policy = new ColonyModelPolicy { Projects = paths.Aggregate(ProjectGraph.Standing(input, options, threat), (graph, p) => graph.Then(p.Path.Graph)).Then(ProjectGraph.Practice(input)) };
-        var valuation = new ColonyValue(context, options, policy.HorizonDays);
+        var valuation = new ColonyValue(context, options, policy.HorizonDays, input.Pawns, colony.Facts.MedicalReserve.Catalog);
         policy = policy with { MedicineTendsPerDay = valuation.RaidTreatmentsPerDay() };
         var marginals = ProjectMarginalValue.Of(input, policy, valuation, [.. paths.Where(p => p.Path.Terminal is not null).Select(p => p.Path.Terminal!)]);
         var etas = new Dictionary<string, int>(StringComparer.Ordinal);

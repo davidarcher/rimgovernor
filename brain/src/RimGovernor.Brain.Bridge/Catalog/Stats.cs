@@ -74,6 +74,9 @@ public static class CatalogStats
     public static readonly CatalogStat BedRestEffectiveness = Declare("BedRestEffectiveness", readHidden: true);
     public static readonly CatalogStat WorkToBuild = Declare(StatNames.WorkToBuild, readHidden: true);
 
+    // Read for every medicine: a def that does not set it has the stat's default (#3635).
+    public static readonly CatalogStat MedicalQualityMax = Declare(nameof(RimWorld.StatDefOf.MedicalQualityMax), readHidden: true);
+
     /// <summary>Every declared stat, in declaration order.</summary>
     public static IReadOnlyList<CatalogStat> All => Declared;
 

@@ -45,6 +45,7 @@ public static class ColonyModel
         }
 
         levels[(int)ModelStock.Medicine] = held.Sum();
+        var startMedicine = EquatableArray.From(held);
 
         var fallPerDay = new double[pawns.Count];
         for (var i = 0; i < pawns.Count; i++)
@@ -225,6 +226,7 @@ public static class ColonyModel
             Arrivals = graph.Arrivals,
             Skills = graph.Skills,
             MedicineKinds = EquatableArray.From(kinds),
+            StartMedicine = startMedicine,
             FoodRunwayDay = runway,
             Findings = EquatableArray.From(findings),
         };

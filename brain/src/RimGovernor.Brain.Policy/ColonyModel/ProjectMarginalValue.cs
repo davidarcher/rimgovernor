@@ -98,9 +98,10 @@ public static class ProjectMarginalValue
 
         if (value.Value.TryGetValue(out var asIs))
         {
+            // A stock the value cannot price (ColonyValueResult.Unpriced) is left out with its findings: its marginal is not a number.
             void Perturb(string key, double amount)
             {
-                if (valuation.Price(ColonyModel.Run(input, cycles, policy with { Injected = new InjectedProgress(key, amount) })).Value.TryGetValue(out var after))
+                if (!value.Unpriced.Contains(key) && valuation.Price(ColonyModel.Run(input, cycles, policy with { Injected = new InjectedProgress(key, amount) })).Value.TryGetValue(out var after))
                 {
                     perUnit[key] = (Math.Abs(after - asIs) < Negligible ? 0 : after - asIs) / amount;
                 }

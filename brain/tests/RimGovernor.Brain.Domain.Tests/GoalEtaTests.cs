@@ -41,7 +41,7 @@ public sealed class GoalEtaTests
 
     private static ProjectMarginals Run(ColonyModelInput input, GoalPath path) => ProjectMarginalValue.Of(
         input, new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = path.Graph },
-        new ColonyValue(Context(), [BillDuster()], CalendarRules.YearDays), [path.Terminal!]);
+        new ColonyValue(Context(), [BillDuster()], CalendarRules.YearDays, default, new ItemFacts()), [path.Terminal!]);
 
     // The completion day of the ProjectGraphTests hand calculation: 600 research points left, 12 cells of 400 sow work, growth to 0.65 of
     // 22.5 days through the 12 C and 8 C twelfths, 12 cells of 200 harvest work in 9.5 daylight hours, 10,000 work of tailoring by two pawns.

@@ -192,7 +192,6 @@ Policy|MechanicCardField.Follows
 Policy|MechanicCardField.Writers
 Policy|MechanicCardSite.Writers
 Policy|MechanicCardWriter.Guards
-Policy|ModelEvent.Medicine
 Policy|PawnBody.CellTemperatureC
 Policy|PawnBody.ComfortableMaxC
 Policy|PrisonerMedicineRules.CareOp.Part
@@ -216,13 +215,6 @@ Policy|ServiceStressAssessment.MissingEvidence
 Policy|ServiceStressAssessment.Unavailable
 Policy|ServiceTarget.HorizonDays
 Policy|ServiceTarget.OwnerNeed
-Policy|SkillLevelDate.Day
-Policy|SkillLevelDate.Level
-Policy|SkillLevelDate.StoredLevel
-Policy|SkillTrack.Dates
-Policy|SkillTrack.Level
-Policy|SkillTrack.Pawn
-Policy|SkillTrack.StoredLevel
 Policy|StockpileReview.Options
 Policy|StockpileShelf.Capacity
 Policy|StorageOption.CellsLost

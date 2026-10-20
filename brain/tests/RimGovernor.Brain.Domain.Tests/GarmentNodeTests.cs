@@ -51,7 +51,7 @@ public sealed class GarmentNodeTests
         {
             Needs = new() { Pawns = [.. pawns] },
         };
-        return new ColonyValue(context, options, horizon);
+        return new ColonyValue(context, options, horizon, default, new ItemFacts());
     }
 
     private static ApparelMade Made(string def, Resource stuff, double day) =>

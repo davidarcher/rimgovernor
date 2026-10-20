@@ -35,7 +35,7 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
     private static ColonyModelPolicy Policy(ProjectGraph graph) => new() { MedicineTendsPerDay = Known(0.0), Projects = graph };
 
     private static ProjectMarginals Marginals(ColonyModelInput input, ProjectGraph graph, ForecastCoupledContext? context = null) =>
-        ProjectMarginalValue.Of(input, Policy(graph), new ColonyValue(context ?? Context(), [BillDuster()], CalendarRules.YearDays));
+        ProjectMarginalValue.Of(input, Policy(graph), new ColonyValue(context ?? Context(), [BillDuster()], CalendarRules.YearDays, default, new ItemFacts()));
 
     [Fact]
     public void AnHourOfResearchOrSowingIsWorthTheDustersDailyHarmAvoidedForTheHourTheChainShiftsEarlier()
@@ -54,15 +54,15 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         Assert.Equal(expected, marginals.PerHour["research:Devilstrand"], expected * 0.02);
         Assert.Equal(expected, marginals.PerHour["sow:zone1"], expected * 0.02);
         Assert.Equal(marginals.PerHour["research:Devilstrand"] / (ProjectGraph.ResearchPointsPerWorkTick * Hour), marginals.PerUnit["Devilstrand"], 12);
-        Assert.Equal(["Devilstrand", "medicine/MedicineHerbal", "sow:zone1"], marginals.PerUnit.Keys.Order());
-        // Nothing the colony value prices uses medicine yet (#3634).
-        Assert.Equal(0, marginals.PerUnit["medicine/MedicineHerbal"]);
+        // No doctor census is given, so the raid tending medicine buys is unpriced: a finding, not a zero (#3635).
+        Assert.Equal(["Devilstrand", "sow:zone1"], marginals.PerUnit.Keys.Order());
+        Assert.Contains(ColonyValue.MedicineSkillValueUnassessed + ":pawns_unknown", marginals.Findings);
         // Growth, harvest and crafting take no tier-1 task, so they are not valued.
         Assert.DoesNotContain(marginals.PerHour.Keys, id => id.StartsWith("grow:", StringComparison.Ordinal) || id.StartsWith("harvest:", StringComparison.Ordinal) || id.StartsWith("craft:", StringComparison.Ordinal));
     }
 
     [Fact]
-    public void ThePracticedSkillHasAMarginalTheColonyValueDoesNotYetPrice()
+    public void APractisedSkillWithoutADoctorCensusIsUnpricedNotZero()
     {
         var input = ProjectGraphTests.Colony();
         input = input with
@@ -73,7 +73,8 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         var marginals = Marginals(input, ProjectGraphTests.Chain(input).Then(ProjectGraph.Practice(input)));
 
         Assert.True(marginals.Trajectory.Events[^1].Levels[(int)ModelStock.Medicine] < 13);
-        Assert.Equal(0, marginals.PerUnit["skill/Anna/Medicine"]);
+        Assert.DoesNotContain("skill/Anna/Medicine", marginals.PerUnit.Keys);
+        Assert.Contains(ColonyValue.MedicineSkillValueUnassessed + ":pawns_unknown", marginals.Findings);
         Assert.True(marginals.PerHour["research:Devilstrand"] > 0);
     }
 
@@ -104,8 +105,8 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         // 4.8 nutrition against two pawns eating 1.2 a day each is gone in two days; the hunger after rises past the lethal severity in about 2.2.
         var input = ProjectGraphTests.Colony() with { Stocks = ProjectGraphTests.Colony().Stocks with { Nutrition = Known(4.8) } };
         var context = Context();
-        var starving = ProjectMarginalValue.Of(input, Policy(new ProjectGraph()), new ColonyValue(context, [], CalendarRules.YearDays));
-        var fed = ProjectMarginalValue.Of(ProjectGraphTests.Colony(), Policy(new ProjectGraph()), new ColonyValue(context, [], CalendarRules.YearDays));
+        var starving = ProjectMarginalValue.Of(input, Policy(new ProjectGraph()), new ColonyValue(context, [], CalendarRules.YearDays, default, new ItemFacts()));
+        var fed = ProjectMarginalValue.Of(ProjectGraphTests.Colony(), Policy(new ProjectGraph()), new ColonyValue(context, [], CalendarRules.YearDays, default, new ItemFacts()));
 
         Assert.Equal(0, fed.Value.Value);
         var died = 2 + (1 / ForecastValue.MalnutritionSeverityPerDay);

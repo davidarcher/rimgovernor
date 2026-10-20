@@ -20,6 +20,7 @@ public sealed partial class DefinitionCatalog
         var market = new Dictionary<P.Resource, double>();
         var nutrition = new Dictionary<P.Resource, double>();
         var medicalPotency = new Dictionary<P.Resource, double>();
+        var medicalQualityMax = new Dictionary<P.Resource, double>();
         var deteriorationRate = new Dictionary<P.Resource, double>();
         var stuffBeauty = new Dictionary<P.Resource, double>();
         var stuffCategories = new Dictionary<P.Resource, IReadOnlyList<string>>();
@@ -74,6 +75,7 @@ public sealed partial class DefinitionCatalog
             foreach (var mod in def.statBases.Seq().Where(m => m.stat.defName == StatNames.MedicalPotency))
             {
                 medicalPotency[resource] = mod.value;
+                medicalQualityMax[resource] = PlannerStatValue(def.defName, string.Empty, CatalogStats.MedicalQualityMax);
             }
 
             if (def.stuffProps is { } props)
@@ -92,6 +94,9 @@ public sealed partial class DefinitionCatalog
             Market = market,
             Nutrition = nutrition,
             MedicalPotency = medicalPotency,
+            MedicalQualityMax = medicalQualityMax,
+            NoMedicinePotency = Known((double)TendUtility.NoMedicinePotency),
+            NoMedicineQualityMax = Known((double)TendUtility.NoMedicineQualityMax),
             DeteriorationRate = deteriorationRate,
             StuffBeauty = stuffBeauty,
             StuffCategories = stuffCategories,

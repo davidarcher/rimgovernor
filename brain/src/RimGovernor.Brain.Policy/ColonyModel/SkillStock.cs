@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Policy;
 // RequiredXp thresholds by the level rule ForecastSkill uses (ForecastSkillPolicy.Settle); each change is dated inside the interval.
 
 /// <summary>A level a skill stock reached and the day, from now, it reached it.</summary>
-public sealed record SkillLevelDate(double Day, int StoredLevel, int Level);
+public sealed record SkillLevelDate(double Day, int StoredLevel);
 
 /// <summary>One skill stock over a run: where it started and each level change in order.</summary>
 public sealed record SkillTrack
@@ -20,15 +20,13 @@ public sealed record SkillTrack
 
     public string Skill { get; init; } = "";
 
-    /// <summary>The observed stored level (<c>levelInt</c>) and the level with aptitude, at time zero.</summary>
+    /// <summary>The observed stored level (<c>levelInt</c>) at time zero; the pawn's native stat curves are indexed by it (#3633).</summary>
     public int StoredLevel { get; init; }
-
-    public int Level { get; init; }
 
     public EquatableArray<SkillLevelDate> Dates { get; init; }
 
-    /// <summary>The level with aptitude on <paramref name="day"/>: the last change at or before it.</summary>
-    public int LevelOn(double day) => Dates.LastOrDefault(d => d.Day <= day)?.Level ?? Level;
+    /// <summary>The stored level on <paramref name="day"/>: the last change at or before it.</summary>
+    public int StoredLevelOn(double day) => Dates.LastOrDefault(d => d.Day <= day)?.StoredLevel ?? StoredLevel;
 }
 
 /// <summary>The mutable state of one skill stock in a run.</summary>
@@ -83,9 +81,6 @@ internal sealed class SkillStock
             yield return new SkillStock(pawn.Pawn, skill.Name, skill.Learning!);
         }
     }
-
-    /// <summary>The level with aptitude at <paramref name="stored"/>: zero while disabled, else clamped to the native range.</summary>
-    private int Effective(int stored) => Disabled ? 0 : (int)Math.Clamp((long)stored + mechanics.Aptitude.Value, 0, mechanics.Levels.Count - 1);
 
     /// <summary>
     /// Applied XP a day from <paramref name="raw"/> raw XP a day of practice callbacks: the unsaturated factor until the day's XP
@@ -165,7 +160,7 @@ internal sealed class SkillStock
         if (level != StoredLevel)
         {
             StoredLevel = level;
-            dates.Add(new SkillLevelDate(day, level, Effective(level)));
+            dates.Add(new SkillLevelDate(day, level));
         }
     }
 
@@ -175,7 +170,6 @@ internal sealed class SkillStock
         Pawn = Pawn,
         Skill = Skill,
         StoredLevel = startStored,
-        Level = Effective(startStored),
         Dates = EquatableArray.From(dates),
     };
 }
