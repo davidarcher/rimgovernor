@@ -6,8 +6,6 @@ public sealed record SupportActivityRead
     public bool Known { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<SupportDemand>))]
     public EquatableArray<SupportDemand> Demands { get; init; }
-    [JsonConverter(typeof(EquatableArrayJsonConverter<SupportFilth>))]
-    public EquatableArray<SupportFilth> Filth { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<SupportWorker>))]
     public EquatableArray<SupportWorker> Workers { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<SupportDelivery>))]
@@ -18,13 +16,9 @@ public sealed record SupportActivityRead
 public sealed record SupportDemand(string Id, string Kind, string Target, Cell Location,
     Fact<double> FoodPoisonChance, Fact<double> BleedRate)
 {
-    public Fact<double> FoodPoisonChanceClean { get; init; }
     public Fact<double> InfectionChanceFactor { get; init; }
-    public Fact<double> InfectionChanceFactorClean { get; init; }
     public Fact<double> SurgerySuccessFactor { get; init; }
-    public Fact<double> SurgerySuccessFactorClean { get; init; }
 }
-public sealed record SupportFilth(string Demand, string Target, Cell Location);
 public sealed record SupportWorker(string Demand, string Pawn, string Target, string Job, string WorkGiver,
     Cell Location, Fact<double> ApproachTicks, Fact<double> WorkTicks)
 {

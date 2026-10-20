@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class PawnActivitiesTests
 {
     private static PawnActivities Batch() => new(1, [new("pawn", "assignment", "method", 0, 1, false,
-        [new(PawnActivityKind.Hold, "", "", "", 0, 1234, "filth"), new(PawnActivityKind.Eat, "meal", "", "", 1, 2345),
+        [new(PawnActivityKind.Hold, "", "", "", 0, 1234), new(PawnActivityKind.Eat, "meal", "", "", 1, 2345),
          new(PawnActivityKind.Deliver, "harvest", "", "", 3, 3456) { Destination = new Cell(12, 34) },
          new(PawnActivityKind.Recipe, "bench", "cooking", "", 0, 4567)
          { Recipe = new("bill", "recipe", [new("stack-a", 4), new("stack-b", 6)]) }])]);

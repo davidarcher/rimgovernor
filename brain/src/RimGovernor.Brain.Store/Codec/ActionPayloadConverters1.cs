@@ -258,18 +258,6 @@ public sealed class ClaimBuildingConverter : ObjectCodec<ClaimBuilding>
     protected override void WriteFields(Utf8JsonWriter w, ClaimBuilding v, Codecs o) => w.WriteString("Thing", v.Thing);
 }
 
-public sealed class CleanConverter : ObjectCodec<Clean>
-{
-    protected override Clean Read(JsonElement e, Codecs o) => new(e.Get<PawnId>("Pawn", o), e.Str("Filth"), e.Get<Cell>("Cell", o));
-
-    protected override void WriteFields(Utf8JsonWriter w, Clean v, Codecs o)
-    {
-        w.Put("Pawn", v.Pawn, o);
-        w.WriteString("Filth", v.Filth);
-        w.Put("Cell", v.Cell, o);
-    }
-}
-
 public sealed class CombatCommandConverter : ObjectCodec<CombatCommand>
 {
     protected override CombatCommand Read(JsonElement e, Codecs o) =>

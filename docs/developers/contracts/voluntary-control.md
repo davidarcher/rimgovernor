@@ -9,7 +9,7 @@ may choose a competing ordinary job for a controlled pawn.
 The [pawn activity contract](pawn-activities.md) owns exact execution and the
 [continuation contract](method-continuation.md) owns release after the originating
 Concern completes. [Portfolio selection](../architecture/portfolio-selection.md) owns comparison;
-[support work](support-work.md) owns useful cleaning and demand-driven deliveries.
+[support work](support-work.md) owns medical support and demand-driven deliveries.
 No additional scheduler, material ledger or persistence owner is introduced.
 
 Selected input obligations retain their producer task identities in the Method
@@ -115,10 +115,10 @@ Supervisor clock; readmitting time cannot turn that terminal assignment into ind
 | --- | --- |
 | Food, rest, recreation | Shared candidates and forecast; exact ingestion, bed and recreation-building execution through Hands. Recreation without a building needs observed candidates and exact adapters before it becomes a planner choice. |
 | Harvest, food conversion, material delivery, construction, roof work, clothing | Shared task composition and selection, with observed input/output rebinding. A delivered garment is not evidence it was worn or that physiological cold exposure improved. |
-| Cleaning and medical support | Shared support candidates; exact pending service identities and native conditional room factors. Critical medical protection remains with its existing emergency owner. No fabricated prognosis or retroactive post-tend infection benefit. |
+| Medical support | Shared support candidates; exact pending service identities and native conditional room factors. Critical medical protection remains with its existing emergency owner. No fabricated prognosis. |
 | Fire/combat/player protection | Existing protection and emergency paths retain authority; an ordinary Method cannot convert protected occupancy into free capacity. |
 | Drugs, addictions, genetic dependencies, hemogen, psyfocus, unsupported or modded needs | Native observations expose blockers; the pawn's supported needs and labor stay selectable. Ordinary safe-idle admission cannot cover them. A future Method must supply onset/effect observations and exact execution under the existing Concern owner before support can be claimed. |
-| Mining, tree cutting, hunting, research, repair, refuel, firefighting, non-supported production and colony services | Concerns stand the demand (designations, bills, zones, work priorities); a colonist on standby works it through vanilla job selection (#3662). That is native execution, not a planner-owned choice: a service the brain must decide against the forecast (who, when, at what cost) gets an exact shared Method that preempts standby. |
+| Mining, tree cutting, hunting, research, repair, refuel, cleaning, firefighting, non-supported production and colony services | Concerns stand the demand (designations, bills, zones, work priorities); a colonist on standby works it through vanilla job selection (#3662). That is native execution, not a planner-owned choice: a service the brain must decide against the forecast (who, when, at what cost) gets an exact shared Method that preempts standby. |
 
 The boundary does not establish universal autonomous play across DLCs and mods.
 Hunting prediction/qualification and the hunting integration acceptance remain
@@ -165,9 +165,6 @@ epic (#3124).
 | `coordination/construction-delegated` | Keep actual material transfer, frame rebinding and building completion. Thermal benefit requires separate observed exposure evidence. |
 | `production/clothing-activity` | Keep normal selected-stuff production and input conservation; do not equate production with wearing. |
 | `production/clothing-activity-unfinished` | Keep observed unfinished-item resumption and conservation, without spending loose inputs twice. |
-| `clean/bench` | Keep shared useful cleaning plus real production and native room improvement. |
-| `clean/care` | Keep urgent treatment under the critical owner, with separately useful shared cleanup; cleaning must not delay urgent care. |
-| `clean/care-routine` | Keep routine shared exact tend and useful cleaning; no legacy direct-tend substitution. |
 | `control/pawn-activities` | Keep exact job execution, supported needs mechanics, preemption and refusal checks. It is an execution contract, not normal-planner economic evidence. |
 | `control/activity-*` | Keep save/load, ownership, revision, continuation and release mechanics. |
 | `control/pawn-activity-cooking` | Keep exact recipe/input execution and unavailable/reserved-target refusal. |
@@ -217,7 +214,7 @@ alone does not grant a parallel execution permission.
 
 ## Audited routine labor admission boundary
 
-A controlled Standard Method cannot directly admit repair, clean, haul,
+A controlled Standard Method cannot directly admit repair, haul,
 recovery_service, ritual, equip, gear_replace, gathering, use_item, drop_equipment, movement, capture, rescue, tend, give_item or comms_trade_request. The journal rejects these with
 unsupported_voluntary_method:<action-kind> before creating the plan or binding
 its Method. This protects existing coupled pawn/resource claims; naming a

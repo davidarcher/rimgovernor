@@ -13,7 +13,7 @@ namespace HomeBridge.BridgeTools
 {
     // The single-target jobs a GiveJobIntent names, each validated and built
     // by its own operations class against live state.
-    internal enum JobOrderKind { Repair, Clean, Tend, Equip, DropWeapon, Wear, Rescue, Capture, Arrest, Subdue, FixBreakdown, Refuel, InvestigateMonolith, ActivateMonolith, InteractThing, InspectGravEngine, OfferHelp }
+    internal enum JobOrderKind { Repair, Tend, Equip, DropWeapon, Wear, Rescue, Capture, Arrest, Subdue, FixBreakdown, Refuel, InvestigateMonolith, ActivateMonolith, InteractThing, InspectGravEngine, OfferHelp }
 
     // One pawn, one target (and Arrest's bed) for a JobOrderKind.
     internal sealed class JobOrder
@@ -31,7 +31,7 @@ namespace HomeBridge.BridgeTools
     {
         private static readonly Dictionary<string, JobOrderKind> Kinds = new Dictionary<string, JobOrderKind>
         {
-            ["Repair"] = JobOrderKind.Repair, ["Clean"] = JobOrderKind.Clean,
+            ["Repair"] = JobOrderKind.Repair,
             ["TendPatient"] = JobOrderKind.Tend, ["Equip"] = JobOrderKind.Equip, [DropWeapon] = JobOrderKind.DropWeapon, ["Wear"] = JobOrderKind.Wear,
             ["Rescue"] = JobOrderKind.Rescue, ["Capture"] = JobOrderKind.Capture, ["Arrest"] = JobOrderKind.Arrest,
             ["AttackMelee"] = JobOrderKind.Subdue, ["FixBrokenDownBuilding"] = JobOrderKind.FixBreakdown,
@@ -110,7 +110,6 @@ namespace HomeBridge.BridgeTools
             switch (order.Kind)
             {
                 case JobOrderKind.Repair: return NativeRepairOperations.Validate(order, context);
-                case JobOrderKind.Clean: return NativeCleanOperations.Validate(order, context);
                 case JobOrderKind.Tend: return NativeTendOperations.Validate(order, context);
                 case JobOrderKind.Equip: return NativeEquipOperations.Validate(order, context);
                 case JobOrderKind.DropWeapon: return NativeDropOperations.Validate(order, context);
@@ -132,7 +131,6 @@ namespace HomeBridge.BridgeTools
             switch (order.Kind)
             {
                 case JobOrderKind.Repair: return NativeRepairOperations.Apply(order, context);
-                case JobOrderKind.Clean: return NativeCleanOperations.Apply(order, context);
                 case JobOrderKind.Tend: return NativeTendOperations.Apply(order, context);
                 case JobOrderKind.Equip: return NativeEquipOperations.Apply(order, context);
                 case JobOrderKind.DropWeapon: return NativeDropOperations.Apply(order, context);

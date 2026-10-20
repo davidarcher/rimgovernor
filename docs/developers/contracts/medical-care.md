@@ -72,11 +72,11 @@ Neither the prisoners nor the anomaly family dispatches a parallel rescue or ten
 
 ## Maintained care
 
-[Support work](support-work.md#cleaning-consequences) compares optional cleaning
-and exact treatment work using native eligibility and existing medical demand.
-It does not choose surgical indications or invent an infection prognosis. Urgent
-care need not wait for cleaning; post-care cleaning cannot change a room factor
-already sampled by native treatment. There is no automatic cleaning finalizer.
+[Support work](support-work.md#room-consequences) compares exact treatment work
+using native eligibility, existing medical demand and the room as it stands.
+It does not choose surgical indications or invent an infection prognosis. Vanilla
+cleans the room under the Cleaning priority; there is no coupled cleaning and no
+automatic cleaning finalizer.
 
 The `medical/care` Need (Wellbeing, unmet while a sick colonist rests or is in bad
 condition, unknown while a tracked pawn is unread) retains native visible condition

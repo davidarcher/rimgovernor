@@ -31,9 +31,6 @@ public sealed record ControlRead
 
     public float Rest { get; init; }
 
-    /// <summary>The dependency filth was cleaned.</summary>
-    public bool FilthGone { get; init; }
-
     public bool CropHarvested { get; init; }
 
     /// <summary>The producer's job became player-forced.</summary>

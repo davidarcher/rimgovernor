@@ -96,20 +96,6 @@ internal static class NativeCoupledForecast
                     Row(i, from, to, false, leg);
                 }
             }
-            // Service dependencies: each demand's filth cells to and from the demand, and between each other.
-            foreach (var demand in support.Demands)
-            {
-                var cells = support.Filth.Where(f => f.Demand == demand.Id).Select(f => f.Location).Distinct().OrderBy(c => c.X).ThenBy(c => c.Z).ToArray();
-                foreach (var cell in cells)
-                for (var i = 0; i < pawns.Length; i++)
-                {
-                    One(i, cell, demand.Location);
-                    One(i, demand.Location, cell);
-                }
-                foreach (var from in cells)
-                foreach (var to in cells.Where(c => c != from))
-                    Everyone(from, to);
-            }
             foreach (var to in locations)
             for (var i = 0; i < pawns.Length; i++)
                 FromStart(i, to);

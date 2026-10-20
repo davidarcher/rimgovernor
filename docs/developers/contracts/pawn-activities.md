@@ -6,9 +6,9 @@ windows and remaining obligations. It has no separate scheduler or workflow stor
 Food acquisition and material delivery/building use the same ColonyForecast search,
 binding, journal continuation and native ownership contract.
 
-[Evaluated support work](support-work.md) uses these same contracts for cleaning,
-care preparation and demand-driven delivery. It replaces native automatic
-bench-cleaning, refill withholding and global chunk hauling. Supported voluntary needs
+[Evaluated support work](support-work.md) uses these same contracts for
+care, surgery and demand-driven delivery. It replaces native automatic
+refill withholding and global chunk hauling. Supported voluntary needs
 share this same owner; legacy timetable and mood need-giver writers are removed.
 
 ## Live harvest and delivery
@@ -218,7 +218,7 @@ may share one atomic batch. These checks run in the existing owner transaction,
 before plan creation or Method binding; refusal leaves both unchanged. They do
 not reserve pawns across different owners or prove current native availability.
 
-The initial step families are exact thing-target work (Clean, Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused unless the order's earlier RemoveRoof steps take off the roof it leaves unsupported ([prior steps](#prior-steps), #3617); a designation the room reconcile stood by Designate is read back as a removal op and ordered the same way, and the order marks its record `Ordered`, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613; RemoveFloor is the cell set step, Work over a set of floored cells through `WorkGiver_ConstructRemoveFloor`, the order standing each member cell's RemoveFloor designation, #3615; Mine is the third, Work over a set of rock through `WorkGiver_Miner`, the order standing each member's Mine designation under the mine_safety guard, #3616; RemoveRoof is the second cell set step, Work over a set of roofed cells through `WorkGiver_RemoveRoof`, the order putting each member in the NoRoof area, #3617), selected food/count,
+The initial step families are exact thing-target work (Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused unless the order's earlier RemoveRoof steps take off the roof it leaves unsupported ([prior steps](#prior-steps), #3617); a designation the room reconcile stood by Designate is read back as a removal op and ordered the same way, and the order marks its record `Ordered`, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613; RemoveFloor is the cell set step, Work over a set of floored cells through `WorkGiver_ConstructRemoveFloor`, the order standing each member cell's RemoveFloor designation, #3615; Mine is the third, Work over a set of rock through `WorkGiver_Miner`, the order standing each member's Mine designation under the mine_safety guard, #3616; RemoveRoof is the second cell set step, Work over a set of roofed cells through `WorkGiver_RemoveRoof`, the order putting each member in the NoRoof area, #3617), selected food/count,
 selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach, Hold and Standby (vanilla job selection, #3662). Unsupported families are refused, not sent to a
 native economic selector. Recreation without a building (walks, skygazing, social relaxing, drugs,
 reading) remains outside this initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,
@@ -295,10 +295,9 @@ expired installed assignments. Productive continuation requires terminal native
 readback and current exact input binding by its owning planner.
 
 GovernorWait has no opportunistic prefix or player-forced flag. Absolute game-tick
-deadlines never reset when revisited. The first dependency adapter holds on an
-exact known filth reference: its destruction makes the authorized continuation
-eligible; a missing/unspawned dependency is not guessed complete. More complex
-dependencies require policy revisions. A deadline without release fails visibly.
+deadlines never reset when revisited. A Hold step waits until its deadline or a
+new revision; dependencies between steps require policy revisions. A deadline
+without release fails visibly.
 Sleep and recreation are bounded by their deadlines and may finish earlier through native recovery:
 a sleep step succeeds once its pawn is awake at the native wake threshold, as the forecast's sleep ends.
 An exact admitted recreation job ignores the legacy timetable's joy permission:
@@ -340,16 +339,14 @@ known assignment/Method attribution; neither job success nor installation is
 physical output evidence. No additional durable history is created.
 
 `control/pawn-activities` uses a staged hungry/tired producer and helper to
-verify cleaning dependency, harvest, selected meal and selected bed. Each
+verify harvest, selected meal and selected bed. Each
 `control/activity-*` case makes one lifecycle claim over the same installed
 executions: batch atomicity, hold deadline, native work refusal, emergency
 preemption of selected recreation, release, native overrides, idle completion,
 player takeover and real save/load invalidation (`control/activity-reload`).
 `control/work-resources` reads the installed ownership back through colony facts. Pure tests round-trip the
 Hands action through the session codec and intent builder and reject malformed
-batches. `clean/bench`, `clean/care` and `clean/care-routine` prove the evaluated
-[support Methods](support-work.md) that replaced the automatic cleaning and
-hauling helpers (#3149). The activity observation case remains
+batches. The activity observation case remains
 independent native lifecycle/output coverage.
 
 `PawnActivityMethodTests` commits coordinated assignments through a real SQLite

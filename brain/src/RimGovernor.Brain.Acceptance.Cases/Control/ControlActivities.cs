@@ -7,9 +7,8 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// The control cases over Hands executions installed straight into the native execution table (#3398). A staged
-/// producer, helper, ripe crop, meal and bed; test/pawn_control_prepare binds them and spawns the aged dependency filth
-/// the primitives cannot express, and test/pawn_control_install, under Auto authority, installs the producer's
-/// dependency hold, harvest, meal and sleep and the helper's cleaning. <c>control/pawn-activities</c> runs that sequence;
+/// producer, helper, ripe crop, meal and bed; test/pawn_control_prepare binds them, and test/pawn_control_install, under
+/// Auto authority, installs the producer's harvest, meal and sleep and the helper's hold. <c>control/pawn-activities</c> runs that sequence;
 /// each other case makes one native lifecycle claim over the installed executions.
 /// </summary>
 internal static class ControlActivities
@@ -43,9 +42,8 @@ internal static class ControlActivities
     {
         yield return Case(
             "pawn-activities",
-            "Installed Hands executions bypass hunger and rest arbitration and native overrides: the producer holds on the "
-                + "helper's cleaning, then harvests, eats and sleeps, never player-forced. A unit test cannot prove the native "
-                + "selection boundary.",
+            "Installed Hands executions bypass hunger and rest arbitration and native overrides: the producer harvests, then "
+                + "eats and sleeps, never player-forced. A unit test cannot prove the native selection boundary.",
             SettleTicks + SequenceTicks,
             [ReadTool],
             RunSequenceAsync);
@@ -84,8 +82,8 @@ internal static class ControlActivities
             ReadWorkResourcesAsync);
     }
 
-    // The staged precondition: the producer on the meal's cell, hungry and tired, the helper, a ripe rice crop in the Home
-    // area and a bed, on cleared ground near the colonists.
+    // The staged precondition: the producer on the meal's cell, hungry and tired, the helper, a ripe rice crop and a bed,
+    // on cleared ground near the colonists.
     private static Fx.StageSpec Stage() => new()
     {
         Paused = true,
@@ -99,7 +97,6 @@ internal static class ControlActivities
             Require = [Fx.StageGround.Standable, Fx.StageGround.Unzoned, Fx.StageGround.Unfogged],
         },
         Clear = [new Fx.StageClear { Rect = new Fx.StageRect(0, 0, 8, 3), Kinds = [Fx.StageClearKind.Things] }],
-        Cells = [new Fx.StageCells { Rect = new Fx.StageRect(0, 1, 1, 1), Home = true }],
         Buildings = [new Fx.StageBuilding { Name = "bed", Def = "Bed", Cells = [new(6, 0)] }],
         Things = [new Fx.StageThing { Name = "meal", Def = "MealSimple", Cell = new(3, 1) }],
         Plants = [new Fx.StagePlant { Name = "crop", Def = "Plant_Rice", Cells = [new(0, 1)] }],
@@ -139,7 +136,6 @@ internal static class ControlActivities
     private static async Task RunSequenceAsync(TypedSession s, CancellationToken cancellationToken)
     {
         await s.RunTicksAsync("settle", SettleTicks, cancellationToken).ConfigureAwait(false);
-        var held = false;
         var slept = false;
         _ = await s.RunUntilAsync("sequence", SequenceTicks, async ct =>
         {
@@ -150,23 +146,14 @@ internal static class ControlActivities
                 throw new AcceptanceException($"the producer's execution failed or became player-forced: {ServedOps.Json(read)}");
             }
 
-            if (!read.FilthGone)
-            {
-                held = true;
-                if (read.Job != "RimGovernorWait")
-                {
-                    throw new AcceptanceException($"the producer escaped the dependency hold: {ServedOps.Json(read)}");
-                }
-            }
-
             var asleep = read is { Job: "LayDown", Food: > .3f, Rest: > .12f };
-            if (asleep && !(held && read.FilthGone && read.CropHarvested))
+            if (asleep && !read.CropHarvested)
             {
-                throw new AcceptanceException($"the producer slept without the held, cleaned and harvested sequence: {ServedOps.Json(read)}");
+                throw new AcceptanceException($"the producer slept without the harvested sequence: {ServedOps.Json(read)}");
             }
 
             slept = asleep;
-            return (string.Create(CultureInfo.InvariantCulture, $"{read.Job} {read.Worker?.State} {read.FilthGone} {read.CropHarvested}"), asleep);
+            return (string.Create(CultureInfo.InvariantCulture, $"{read.Job} {read.Worker?.State} {read.CropHarvested}"), asleep);
         }, cancellationToken).ConfigureAwait(false);
         if (!slept)
         {

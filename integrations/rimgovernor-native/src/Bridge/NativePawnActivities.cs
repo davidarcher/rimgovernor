@@ -29,7 +29,6 @@ namespace HomeBridge.BridgeTools
             internal Job? Running;
             internal int RunningId;
             internal long Tick;
-            internal Thing?[] Dependencies = [];
             /// <summary>Jobs done under the repeating step <see cref="DoneStep"/>: cells sown by a Sow step (#3528), members worked by a set step (#3613).
             /// In memory only: a load restarts the count.</summary>
             internal int Done, DoneStep = -1;
@@ -138,7 +137,6 @@ namespace HomeBridge.BridgeTools
                 foreach (var step in order.Steps)
                 {
                     if (step.Deadline <= Find.TickManager.TicksGame) return Refuse("Activity deadline already passed.");
-                    if (step.WaitForFilth.Length != 0 && !(Thing(step.WaitForFilth) is Filth)) return Refuse("Unknown filth dependency.");
                     if (step.Kind is PawnActivityKind.Hold or PawnActivityKind.Standby) continue;
                     if (step.Kind == PawnActivityKind.Approach)
                     {
@@ -209,7 +207,7 @@ namespace HomeBridge.BridgeTools
         private static bool Supported(WorkGiverDef giver, string job) =>
             (job == "RimGovernor_TrainShooting" && giver.Worker is RimGovernor.Runtime.WorkGiver_TrainRange)
             || (job == "RimGovernor_Spar" && giver.Worker is RimGovernor.Runtime.WorkGiver_Spar)
-            || (job == "DoBill" && giver.Worker is WorkGiver_DoBill) || (job == "TendPatient" && giver.Worker is WorkGiver_Tend) || (job == "Clean" && giver.Worker is WorkGiver_CleanFilth) || (job == "Repair" && giver.Worker is WorkGiver_Repair)
+            || (job == "DoBill" && giver.Worker is WorkGiver_DoBill) || (job == "TendPatient" && giver.Worker is WorkGiver_Tend) || (job == "Repair" && giver.Worker is WorkGiver_Repair)
             || (job == "Harvest" && giver.Worker is WorkGiver_GrowerHarvest)
             || (job == "Research" && giver.Worker is WorkGiver_Researcher)
             || (job == "FinishFrame" && giver.Worker is WorkGiver_ConstructFinishFrames)
@@ -341,7 +339,7 @@ namespace HomeBridge.BridgeTools
                 // A standby replacing a standby leaves the vanilla job running; any other new order interrupts it.
                 oldJobs.Add((pawn, order.Release ? old?.Running : old != null && PawnActivities.IsStandby(old.Order) && PawnActivities.IsStandby(order) ? null : old?.Running ?? pawn.CurJob));
                 var e = new Entry { Pawn = pawn, Order = order with { Steps = order.Steps.ToArray() }, Identity = identity, Generation = batch.AuthorityGeneration,
-                    SelectedTask = batch.Tasks.FirstOrDefault(t => t.Id == order.Task), Tick = Find.TickManager.TicksGame, Dependencies = order.Steps.Select(s => s.WaitForFilth.Length == 0 ? null : Thing(s.WaitForFilth)).ToArray() };
+                    SelectedTask = batch.Tasks.FirstOrDefault(t => t.Id == order.Task), Tick = Find.TickManager.TicksGame };
                 Entries[pawn] = e;
                 changed.Add(e);
             }
@@ -519,7 +517,7 @@ namespace HomeBridge.BridgeTools
                         throw new InvalidOperationException("selected_medicine_unavailable");
                     job = JobMaker.MakeJob(tendDef, patient, medicine); job.count = 1;
                 }
-                else if (step.Job is "Clean" or "Harvest") { job = JobMaker.MakeJob(DefDatabase<JobDef>.GetNamed(step.Job)); job.AddQueuedTarget(TargetIndex.A, target); }
+                else if (step.Job == "Harvest") { job = JobMaker.MakeJob(JobDefOf.Harvest); job.AddQueuedTarget(TargetIndex.A, target); }
                 else job = giver.JobOnThing(p, target, false);
                 if (job != null && job.def != tendDef && job.def.defName != step.Job) { JobMaker.ReturnToPool(job); job = null; }
                 if (job != null) job.workGiverDef = giver.def;
@@ -570,16 +568,7 @@ namespace HomeBridge.BridgeTools
             job.playerForced = false;
             return job;
         }
-        private static bool Ready(Entry e)
-        {
-            if (Find.TickManager.TicksGame < e.Order.Steps[e.Step].NotBefore) return false;
-            var dep = e.Dependencies[e.Step];
-            if (dep == null) return true;
-            // Exact known filth destroyed by cleaning is observed completion, not job success.
-            if (dep.Destroyed) return true;
-            if (!dep.Spawned || dep.Map != e.Pawn.Map) { Fault(e, "dependency_unavailable"); return false; }
-            return false;
-        }
+        private static bool Ready(Entry e) => Find.TickManager.TicksGame >= e.Order.Steps[e.Step].NotBefore;
         private static bool Constant(Pawn ___pawn, ref ThinkResult __result)
         { if (Standing(___pawn)) return true; if (!TryOwned(___pawn, out _) && !Controlled(___pawn)) return true; __result = ThinkResult.NoJob; return false; }
         private static bool Override(Pawn ___pawn) => Standing(___pawn) || !TryOwned(___pawn, out _) && !Controlled(___pawn);
@@ -688,10 +677,8 @@ namespace HomeBridge.BridgeTools
             if (e.State == "failed" || e.Step >= e.Order.Steps.Length) return;
             var step = e.Order.Steps[e.Step];
             if (Find.TickManager.TicksGame >= step.Deadline) { Fault(e, "hold_deadline"); return; }
-            if (!Ready(e)) return;
-            if (step.Kind == PawnActivityKind.Hold && step.WaitForFilth.Length == 0) return;
-            if (step.Kind == PawnActivityKind.Hold) e.Step++;
-            e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed";
+            if (!Ready(e) || step.Kind == PawnActivityKind.Hold) return;
+            e.State = "installed";
             pawn.jobs.EndCurrentJob(JobCondition.Succeeded);
         }
         private static void DriverTick(JobDriver __instance)

@@ -106,7 +106,7 @@ priorities are off (enabled or not, never the rank).
 
 ## Ongoing work and shared occupancy
 
-For supported [cleaning and deliveries](support-work.md), the shared portfolio
+For supported [care and deliveries](support-work.md), the shared portfolio
 chooses exact self-service or helper work before admission through the existing
 WorkAssignments Concern. It uses the same pawn and resource claims as production;
 the priority matrix is not a second support-work selector. Legacy bench-cleaning,

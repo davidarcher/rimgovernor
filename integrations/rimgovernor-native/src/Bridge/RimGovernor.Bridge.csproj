@@ -67,7 +67,6 @@
     <Compile Include="../../../../scripts/fixtures/EmergencyDevelopmentFixture.cs" Condition="'$(EmergencyDevelopmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RuntimeFaultFixture.cs" Condition="'$(RuntimeFaultFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MapScopeFixture.cs" Condition="'$(MapScopeFixture)' == 'true'" />
-    <Compile Include="../../../../scripts/fixtures/SupportPortfolioFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PortfolioNeedsFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ServiceInvestmentFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ProductiveCookingFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />

@@ -2,7 +2,7 @@ using RimGovernor.Brain.Policy.Methods;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Physical support consequences retain their units. Cleanliness is not a health guarantee.</summary>
+/// <summary>Physical support consequences retain their units.</summary>
 public sealed record ForecastSupportConsequences
 {
     public Fact<double> UrgentFirstCareTicks { get; init; } = Known(0d);
@@ -48,20 +48,16 @@ public static class ForecastSupport
             foreach (var task in service)
             {
                 careServices.Add(demand.Id + "/" + (task.Binding.Recipe?.Bill ?? "tend"));
-                var cleaned = read.Filth.Where(f => f.Demand == demand.Id).All(f =>
-                    tasks.Any(t => t.Binding.Job == "Clean" && t.Binding.Target == f.Target && t.Allocation.End <= task.Allocation.Start));
-                var factor = cleaned ? demand.InfectionChanceFactorClean : demand.InfectionChanceFactor;
                 var worker = read.Workers.FirstOrDefault(w => w.Demand == demand.Id && w.Pawn == task.Binding.Pawn && w.Medicine == task.Binding.Medicine);
                 if (demand.Kind == "surgery")
                 {
-                    var success = cleaned ? demand.SurgerySuccessFactorClean : demand.SurgerySuccessFactor;
-                    if (success.TryGetValue(out var multiplier)) surgery += multiplier;
+                    if (demand.SurgerySuccessFactor.TryGetValue(out var multiplier)) surgery += multiplier;
                     else { surgeryKnown = false; findings.Add("surgery_room_effect_unknown:" + demand.Id); }
                 }
                 else if (worker?.InfectionRoomEffectApplies == Known(false)) { }
                 else if (worker?.InfectionRoomEffectApplies == Known(true)
                     && worker.InfectionCheckTicks.TryGetValue(out var check) && double.IsFinite(check) && check > task.Allocation.End
-                    && factor.TryGetValue(out var value)) careFactor += value;
+                    && demand.InfectionChanceFactor.TryGetValue(out var value)) careFactor += value;
                 else { careKnown = false; findings.Add("care_room_effect_unknown:" + demand.Id); }
                 if (worker?.TendQuality.TryGetValue(out var tendQuality) == true) quality += tendQuality;
                 else qualityKnown = false;
@@ -90,11 +86,7 @@ public static class ForecastSupport
             var demand = read.Demands.FirstOrDefault(d => d.Kind == "bench" && d.Target == task.Binding.Target);
             if (demand is null) continue;
             production.Add(task.Binding.Target + "/" + (task.Binding.Recipe?.Recipe ?? task.Binding.Cooking?.Continuation.Recipe ?? ""));
-            var filth = read.Filth.Where(f => f.Demand == demand.Id).ToArray();
-            var cleaned = filth.All(f => tasks.Any(t => t.Binding.Job == "Clean"
-                && t.Binding.Target == f.Target && t.Allocation.End <= task.Allocation.Start));
-            var risk = cleaned ? demand.FoodPoisonChanceClean : demand.FoodPoisonChance;
-            if (risk.TryGetValue(out var value)) poison += value;
+            if (demand.FoodPoisonChance.TryGetValue(out var value)) poison += value;
             else { poisonKnown = false; findings.Add("food_poison_effect_unknown:" + demand.Id); }
         }
         return new()

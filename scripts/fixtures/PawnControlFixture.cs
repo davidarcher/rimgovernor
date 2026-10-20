@@ -14,13 +14,12 @@ using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
 namespace HomeBridge.BridgeTools
 {
-    // The control cases (#3398): a staged producer, helper, crop, meal and bed; the dependency filth, which the stage
-    // primitives cannot express; Hands executions installed straight into the native execution table; and one native
-    // lifecycle probe per case.
+    // The control cases (#3398): a staged producer, helper, crop, meal and bed; Hands executions installed straight into
+    // the native execution table; and one native lifecycle probe per case.
     public sealed partial class PawnControlFixture
     {
         private static Pawn? worker, helper;
-        private static Thing? crop, filth, food, bed;
+        private static Thing? crop, food, bed;
         private static long deadline;
         private static PawnActivityOrder? workerOrder, helperOrder;
         private static readonly MethodInfo Choose = AccessTools.Method(typeof(Pawn_JobTracker), "DetermineNextJob")
@@ -51,7 +50,7 @@ namespace HomeBridge.BridgeTools
 
         private static PawnActivityStep Hold(long until) => new PawnActivityStep(PawnActivityKind.Hold,"","","",0,until);
 
-        [Tool("test/pawn_control_prepare", Description="UNSAFE FOR MODEL EXECUTION. Bind the staged producer, helper, crop, meal and bed; spawn aged dependency filth on the crop cell; stand every colonist still.")]
+        [Tool("test/pawn_control_prepare", Description="UNSAFE FOR MODEL EXECUTION. Bind the staged producer, helper, crop, meal and bed; stand every colonist still.")]
         public async Task<object> Prepare(IRimBridgeContext ctx, CancellationToken ct,
             [ToolParameter(Description="The producer's load id.")] string worker = "",
             [ToolParameter(Description="The helper's load id.")] string helper = "",
@@ -66,33 +65,27 @@ namespace HomeBridge.BridgeTools
             food=FixtureKit.Spawned<Thing>(map,meal);
             PawnControlFixture.bed=FixtureKit.Spawned<Building_Bed>(map,bed);
             Still(map);
-            filth=GenSpawn.Spawn(ThingDefOf.Filth_Dirt,PawnControlFixture.crop!.Position,map);
-            // Native clean eligibility uses the filth age, not merely its existence.
-            (AccessTools.Field(typeof(Filth),"growTick") ?? throw new MissingFieldException("Filth.growTick")).SetValue(filth, -10000);
             deadline=Find.TickManager.TicksGame+10000;
             return FixtureKit.Reply(new Fx.FixtureDone { Success=true });
         },ct).ConfigureAwait(false);
 
-        [Tool("test/pawn_control_install",Description="UNSAFE FOR MODEL EXECUTION. Validate and install the producer's dependency hold, harvest, meal and sleep, the helper's cleaning, and standby for every other colonist.")]
+        [Tool("test/pawn_control_install",Description="UNSAFE FOR MODEL EXECUTION. Validate and install the producer's harvest, meal and sleep, the helper's hold, and standby for every other colonist.")]
         public async Task<object> Install(IRimBridgeContext ctx,CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(()=>
         {
             var c=Context();
-            var clean=DefDatabase<WorkGiverDef>.AllDefsListForReading.First(d=>d.Worker is WorkGiver_CleanFilth).defName;
             var harvest=DefDatabase<WorkGiverDef>.AllDefsListForReading.First(d=>d.Worker is WorkGiver_GrowerHarvest).defName;
             workerOrder=new PawnActivityOrder(worker!.GetUniqueLoadID(),"producer","food-method",0,1,false,new[]{
-                new PawnActivityStep(PawnActivityKind.Hold,"","","",0,deadline,filth!.GetUniqueLoadID()),
                 new PawnActivityStep(PawnActivityKind.Work,crop!.GetUniqueLoadID(),harvest,"Harvest",0,deadline),
                 new PawnActivityStep(PawnActivityKind.Eat,food!.GetUniqueLoadID(),"","",1,deadline),
                 new PawnActivityStep(PawnActivityKind.Sleep,bed!.GetUniqueLoadID(),"","",0,deadline)});
             helperOrder=new PawnActivityOrder(helper!.GetUniqueLoadID(),"helper","food-method",0,1,false,new[]{
-                new PawnActivityStep(PawnActivityKind.Work,filth!.GetUniqueLoadID(),clean,"Clean",0,deadline),
                 Hold(deadline)});
             var batch=new PawnActivities(c.NativeGeneration!.Value,new[]{workerOrder,helperOrder}.Concat(worker.Map.mapPawns.FreeColonistsSpawned
                 .Where(p => p != worker && p != helper).Select(p => new PawnActivityOrder(p.GetUniqueLoadID(),
                     "fixture-idle-" + p.GetUniqueLoadID(), "food-method", 0, 1, false,
                     [new(PawnActivityKind.Standby, "", "", "", 0, long.MaxValue)]))).ToArray());
             var invalid=NativePawnActivities.Validate(batch,c); if(invalid!=null)throw new InvalidOperationException(invalid.Detail);
-            // Standby runs vanilla work (#3662): the idle colonists must not clean or harvest the staged targets themselves.
+            // Standby runs vanilla work (#3662): the idle colonists must not harvest the staged crop themselves.
             foreach(var p in worker.Map.mapPawns.FreeColonistsSpawned.Where(p=>p!=worker&&p!=helper)) p.workSettings?.DisableAll();
             NativePawnActivities.Apply(batch,c);
             NativePawnActivities.Apply(batch,c); // Idempotent reinstall must not restart work.
@@ -104,11 +97,11 @@ namespace HomeBridge.BridgeTools
             return FixtureKit.Reply(new Fx.FixtureDone { Success=true });
         },ct).ConfigureAwait(false);
 
-        [Tool("test/pawn_control_read",Description="UNSAFE FOR MODEL EXECUTION. Read the producer's execution, job and needs, and whether the filth is cleaned and the crop harvested.")]
+        [Tool("test/pawn_control_read",Description="UNSAFE FOR MODEL EXECUTION. Read the producer's execution, job and needs, and whether the crop is harvested.")]
         public async Task<object> Read(IRimBridgeContext ctx,CancellationToken ct) => await ctx.MainThread.InvokeAsync<object>(()=>FixtureKit.Reply(new Fx.ControlRead {
             Worker=Execution(NativePawnActivities.Read(worker!)),
             Job=worker!.CurJob?.def.defName, Food=worker.needs.food.CurLevelPercentage, Rest=worker.needs.rest.CurLevelPercentage,
-            FilthGone=filth!.Destroyed, CropHarvested=((Plant)crop!).Growth<1 || crop.Destroyed,
+            CropHarvested=((Plant)crop!).Growth<1 || crop.Destroyed,
             Forced=worker.CurJob?.playerForced==true,
         }),ct).ConfigureAwait(false);
 

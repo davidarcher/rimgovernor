@@ -10,18 +10,17 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 using Cell = RimGovernor.Brain.Domain.Cell;
 namespace HomeBridge.BridgeTools;
 
-// One native census of every free colonist against every bench bill, patient, surgery and room filth (#3341). These are
+// One native census of every free colonist against every bench bill, patient and surgery (#3341). These are
 // conditional mechanics and current bill deficits, never new demand. A path is searched once for every colonist (NativePathLegs).
 internal static class NativeSupportActivities
 {
     internal static Obs.SupportActivityRead Read(Map map, NativePathLegs? legs = null)
     {
         legs ??= new(map);
-        var demands = new List<Obs.SupportDemand>(); var filthRows = new List<Obs.SupportFilth>();
+        var demands = new List<Obs.SupportDemand>();
         var workers = new List<Obs.SupportWorker>(); var deliveries = new List<Obs.SupportDelivery>();
         var findings = new HashSet<string>(StringComparer.Ordinal);
         var roster = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
-        var clean = NativeCleanOperations.Giver();
         var benches = map.listerThings.AllThings.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer
             && b.BillStack.Bills.OfType<Bill_Production>().Any(bill => bill.ShouldDoNow())).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         foreach (var bench in benches)
@@ -91,7 +90,7 @@ internal static class NativeSupportActivities
                 }
             }
         }
-        findings.Add("routes_and_cleaning_are_conditional_duration_estimates");
+        findings.Add("routes_are_conditional_duration_estimates");
         findings.Add("surgery_mixed_or_unique_ingredients_unassessed");
         findings.Add("care_one_native_tend_batch_remaining_wounds_require_observed_reconsideration");
         foreach (var patient in map.mapPawns.FreeColonistsSpawned.Where(p => p.BillStack?.Bills.OfType<Bill_Medical>().Any(b => b.ShouldDoNow()) == true).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
@@ -123,7 +122,7 @@ internal static class NativeSupportActivities
             }
         }
         }
-        return new() { Known = true, Demands = EquatableArray.From(demands), Filth = EquatableArray.From(filthRows),
+        return new() { Known = true, Demands = EquatableArray.From(demands),
             Workers = EquatableArray.From(workers), Deliveries = EquatableArray.From(deliveries), Findings = EquatableArray.From(findings.OrderBy(x => x, StringComparer.Ordinal)) };
 
         Fact<double> Route(Pawn pawn, IntVec3 from, IntVec3 to, PathEndMode mode) =>
@@ -131,39 +130,14 @@ internal static class NativeSupportActivities
         string AddRoom(Thing target, IntVec3 location, string kind, string suffix = "")
         {
             var id = kind + ":" + target.GetUniqueLoadID() + (suffix.Length == 0 ? "" : ":" + suffix); var room = location.GetRoom(map);
-            var all = room?.ContainedAndAdjacentThings.OfType<Filth>().Where(f => f.Spawned).OrderBy(f => f.GetUniqueLoadID(), StringComparer.Ordinal).ToArray() ?? [];
-            var cleanliness = room == null ? default : Fact.Known((double)room.GetStat(RoomStatDefOf.Cleanliness));
             var poison = room == null ? Fact.Known((double)RoomStatDefOf.FoodPoisonChance.roomlessScore) : Fact.Known((double)room.GetStat(RoomStatDefOf.FoodPoisonChance));
-            var delta = 0d;
-            foreach (var filth in all)
-            {
-                var change = room?.CellCount > 0 ? Fact.Known(-(double)filth.stackCount * filth.GetStatValue(StatDefOf.Cleanliness) / room.CellCount) : default;
-                if (change.IsKnown) delta += change.Value;
-                filthRows.Add(new(id, filth.GetUniqueLoadID(), At(filth.Position)));
-                foreach (var pawn in roster)
-                {
-                    if (!Available(pawn) || clean == null || !CanWork(pawn, clean) || !clean.HasJobOnThing(pawn, filth, false)
-                        || !pawn.CanReserveAndReach(filth, PathEndMode.Touch, Danger.None)) continue;
-                    var speed = pawn.GetStatValue(StatDefOf.CleaningSpeed);
-                    var factor = filth.Position.GetTerrain(map).GetStatValueAbstract(StatDefOf.CleaningTimeFactor);
-                    workers.Add(new(id, pawn.GetUniqueLoadID(), filth.GetUniqueLoadID(), "Clean", clean.def.defName, At(filth.Position),
-                        Route(pawn, pawn.Position, filth.Position, PathEndMode.Touch), speed > 0
-                            ? Fact.Known((Math.Floor(filth.def.filth.cleaningWorkToReduceThickness * (factor == 0 ? 1 : factor) / speed) + 1) * filth.thickness) : default));
-                }
-            }
-            var definition = RoomStatDefOf.FoodPoisonChance;
             var surgeryFactor = DefDatabase<RoomStatDef>.GetNamedSilentFail("SurgerySuccessChanceCleanlinessFactor");
-            Fact<double> after = cleanliness.IsKnown && definition.inputStat == RoomStatDefOf.Cleanliness && definition.curve != null
-                ? Fact.Known((double)definition.curve.Evaluate((float)(cleanliness.Value + delta))) : default;
             demands.Add(new(id, kind, target.GetUniqueLoadID(), At(location), poison,
                 target is Pawn patient ? Fact.Known((double)patient.health.hediffSet.BleedRateTotal) : default)
-                { FoodPoisonChanceClean = after,
+                {
                     SurgerySuccessFactor = room != null && surgeryFactor != null ? Fact.Known((double)room.GetStat(surgeryFactor)) : default,
-                    SurgerySuccessFactorClean = cleanliness.IsKnown && surgeryFactor?.inputStat == RoomStatDefOf.Cleanliness && surgeryFactor.curve != null
-                        ? Fact.Known((double)surgeryFactor.curve.Evaluate((float)(cleanliness.Value + delta))) : default,
                     InfectionChanceFactor = room == null ? default : Fact.Known((double)room.GetStat(RoomStatDefOf.InfectionChanceFactor)),
-                    InfectionChanceFactorClean = cleanliness.IsKnown && RoomStatDefOf.InfectionChanceFactor.inputStat == RoomStatDefOf.Cleanliness && RoomStatDefOf.InfectionChanceFactor.curve != null
-                        ? Fact.Known((double)RoomStatDefOf.InfectionChanceFactor.curve.Evaluate((float)(cleanliness.Value + delta))) : default });
+                });
             return id;
         }
     }

@@ -18,7 +18,7 @@ public sealed record PawnActivityRecipe(string Bill, string Recipe, EquatableArr
 
 /// <summary>An authorized step, not a native-priority request. Deadlines are absolute game ticks.</summary>
 public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, string WorkGiver,
-    string Job, int Count, long Deadline, string WaitForFilth = "")
+    string Job, int Count, long Deadline)
 {
     public Cell? Destination { get; init; }
     public PawnActivityRecipe? Recipe { get; init; }
@@ -128,7 +128,7 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                 DomainException.Require(step != null && Enum.IsDefined(step.Kind) && step.Deadline > 0
                     && (step.Kind is PawnActivityKind.Hold or PawnActivityKind.Standby or PawnActivityKind.Approach || IdText.IsValidText(step.Target))
                     && (step.Kind != PawnActivityKind.Standby || order.Steps.Length == 1 && step.Target.Length == 0 && step.Count == 0
-                        && step.WorkGiver.Length == 0 && step.Job.Length == 0 && step.WaitForFilth.Length == 0 && order.OutputDelivery == null && order.Task.Length == 0)
+                        && step.WorkGiver.Length == 0 && step.Job.Length == 0 && order.OutputDelivery == null && order.Task.Length == 0)
                     && (step.Kind != PawnActivityKind.Work || IdText.IsValidText(step.WorkGiver) && IdText.IsValidText(step.Job))
                     && (step.Kind is not (PawnActivityKind.Eat or PawnActivityKind.Deliver or PawnActivityKind.Supply) || step.Count > 0)
                     && (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Approach

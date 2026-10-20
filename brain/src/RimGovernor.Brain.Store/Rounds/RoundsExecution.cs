@@ -36,7 +36,6 @@ public sealed partial class Store
         ActionKind.Husbandry,
         ActionKind.PrisonerInteraction,
         ActionKind.Repair,
-        ActionKind.Clean,
         ActionKind.MineAcquisition,
         ActionKind.BuildingTemperature,
         ActionKind.BedUse,

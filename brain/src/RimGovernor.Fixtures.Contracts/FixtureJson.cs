@@ -115,7 +115,6 @@ public static class FixtureJson
 [JsonSerializable(typeof(BurialRead))]
 [JsonSerializable(typeof(TombStaged))]
 [JsonSerializable(typeof(TombRead))]
-[JsonSerializable(typeof(SupportRead))]
 [JsonSerializable(typeof(PlayerDesignateReply))]
 [JsonSerializable(typeof(WallLayersReply))]
 [JsonSerializable(typeof(WallReplacementReply))]

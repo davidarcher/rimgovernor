@@ -40,51 +40,26 @@ public sealed class SupportMethodTests
     private static ForecastCoupledSelection Select(RoundsFacts facts, int budget = 16384) => ForecastCoupledSelection.CompareActivityOutcomes(
         ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!, budget);
-    private static SupportActivityRead Cleaning(double self = 30, double helper = 5, bool known = true) => new()
-    {
-        Known = true,
-        Demands = [new("bench", "bench", "bench", new(1, 1), known ? Known(.15) : default, Known(0d))
-            { FoodPoisonChanceClean = known ? Known(.01) : default }],
-        Filth = [new("bench", "filth", new(1, 1))],
-        Workers = [new("bench", "pawn", "filth", "Clean", "Clean", new(1, 1), Known(0d), Known(self)),
-            new("bench", "helper", "filth", "Clean", "Clean", new(1, 1), Known(0d), Known(helper))]
-    };
     private static SelectedActivityTask[] Tasks(RoundsFacts facts, ForecastCoupledSelection selection) =>
         ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "method", 100)?.Tasks.ToArray() ?? [];
 
     [Fact]
-    public void NormalReviewProposesAndSelectsHelperSelfOrNoCleaningForSameProducer()
+    public void UnknownBenchFoodPoisonRiskStaysUnknown()
     {
-        foreach (var (self, helper, expected) in new[] { (30d, 5d, "helper"), (5d, 30d, "pawn"), (290d, 290d, "") })
-        {
-            var facts = Facts(Cleaning(self, helper), true); var selection = Select(facts); var tasks = Tasks(facts, selection);
-            Assert.Contains(tasks, t => t.Step.Kind == PawnActivityKind.Recipe);
-            var clean = tasks.Where(t => t.Step.Job == "Clean").ToArray();
-            if (expected.Length == 0) Assert.Empty(clean); else Assert.Equal(expected, Assert.Single(clean).Pawn);
-            Assert.True(selection.Selected.Plan.Allocations.Sum(a => a.TravelTicks + a.WaitTicks + a.WorkTicks) > 0);
-        }
-    }
-
-    [Fact]
-    public void UnknownCleanlinessBenefitDoesNotBecomeMandatoryCleaning()
-    {
-        var facts = Facts(Cleaning(known: false), true); var result = Select(facts);
-        Assert.DoesNotContain(Tasks(facts, result), t => t.Step.Job == "Clean");
+        var read = new SupportActivityRead { Known = true, Demands = [new("bench", "bench", "bench", new(1, 1), default, Known(0d))] };
+        var facts = Facts(read, true); var result = Select(facts);
+        Assert.Contains(Tasks(facts, result), t => t.Step.Kind == PawnActivityKind.Recipe);
         Assert.Contains(result.SelectedVector.Unknown, f => f.StartsWith("food_poison_effect_unknown:"));
     }
 
     [Fact]
-    public void UrgentCareBeatsCleaningAndPostcareDoesNotInventHealthBenefit()
+    public void UrgentCareIsTendedAndPricedByItsFirstCareTicks()
     {
-        var read = Cleaning() with { Demands = [new("care", "care", "patient", new(1, 1), default, Known(.1))],
-            Filth = [new("care", "filth", new(1, 1))], Workers =
-            [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d)),
-                new("care", "helper", "filth", "Clean", "Clean", new(1, 1), Known(0d), Known(10d))] };
-        var facts = Facts(read); var result = Select(facts); var tasks = Tasks(facts, result);
-        Assert.Contains(tasks, t => t.Step.Job == "TendPatient");
-        Assert.DoesNotContain(tasks, t => t.Step.Job == "Clean");
+        var read = new SupportActivityRead { Known = true, Demands = [new("care", "care", "patient", new(1, 1), default, Known(.1))],
+            Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))] };
+        var facts = Facts(read); var result = Select(facts);
+        Assert.Contains(Tasks(facts, result), t => t.Step.Job == "TendPatient");
         Assert.Equal(Known(20d), result.SelectedVector.Support.UrgentFirstCareTicks);
-        Assert.Contains(facts.CoupledAlternatives!.Alternatives, c => c.Id.Contains("post-clean"));
     }
 
     private static SupportActivityRead Delivery(int required, double duration = 10) => new()
@@ -117,27 +92,11 @@ public sealed class SupportMethodTests
     }
 
     [Fact]
-    public void TravelReversesHelperChoiceAndUnknownRouteCannotWin()
-    {
-        foreach (var approach in new[] { Known(200d), default(Fact<double>) })
-        {
-            var support = Cleaning() with { Filth = [new("bench", "filth", new(2, 2))], Workers =
-                [new("bench", "pawn", "filth", "Clean", "Clean", new(2, 2), Known(0d), Known(5d)),
-                 new("bench", "helper", "filth", "Clean", "Clean", new(2, 2), approach, Known(1d))] };
-            var facts = Facts(support, true);
-            facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
-                { Routes = [.. facts.ForecastObserved.Coupled!.Routes, new("pawn", new(2, 2), new(1, 1), Known(0d)), new("helper", new(2, 2), new(1, 1), Known(0d))] } } };
-            facts = facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
-            Assert.Equal("pawn", Assert.Single(Tasks(facts, Select(facts)), t => t.Step.Job == "Clean").Pawn);
-        }
-    }
-
-    [Fact]
     public void ExactMedicineChoiceConsumesOneObservedLotAndPreservesIntent()
     {
         var read = new SupportActivityRead { Known = true,
             Demands = [new("care", "care", "patient", new(1, 1), default, Known(0d))
-                { InfectionChanceFactor = Known(1d), InfectionChanceFactorClean = Known(1d) }],
+                { InfectionChanceFactor = Known(1d) }],
             Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))
                 { TendQuality = Known(.2) },
                 new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))
@@ -149,43 +108,38 @@ public sealed class SupportMethodTests
     }
 
     [Theory]
-    [InlineData(false, 100, false)]
-    [InlineData(null, 100, false)]
-    [InlineData(true, 10, false)]
-    [InlineData(true, 100, true)]
-    public void CleaningCareBenefitRequiresApplicableNativeBatchAndAnUnexpiredCheck(bool? applicable, double checkTicks, bool clean)
+    [InlineData(false, 100)]
+    [InlineData(null, 100)]
+    [InlineData(true, 10)]
+    [InlineData(true, 100)]
+    public void CareRoomFactorRequiresApplicableNativeBatchAndAnUnexpiredCheck(bool? applicable, double checkTicks)
     {
-        var read = Cleaning() with
+        var read = new SupportActivityRead
         {
-            Demands = [new("care", "care", "patient", new(1, 1), default, Known(0d))
-                { InfectionChanceFactor = Known(2d), InfectionChanceFactorClean = Known(.5) }],
-            Filth = [new("care", "filth", new(1, 1))],
+            Known = true,
+            Demands = [new("care", "care", "patient", new(1, 1), default, Known(0d)) { InfectionChanceFactor = Known(2d) }],
             Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))
                 { InfectionRoomEffectApplies = applicable is { } value ? Known(value) : default,
-                    InfectionCheckTicks = Known(checkTicks), TendQuality = Known(.5) },
-                new("care", "helper", "filth", "Clean", "Clean", new(1, 1), Known(0d), Known(5d))]
+                    InfectionCheckTicks = Known(checkTicks), TendQuality = Known(.5) }]
         };
-        var facts = Facts(read); var selection = Select(facts); var tasks = Tasks(facts, selection);
-        Assert.Contains(tasks, t => t.Step.Job == "TendPatient");
-        Assert.Equal(clean, tasks.Any(t => t.Step.Job == "Clean"));
-        if (applicable == false) Assert.Equal(Known(0d), selection.SelectedVector.Support.CareRoomFactor);
-        else if (!clean) Assert.False(selection.SelectedVector.Support.CareRoomFactor.IsKnown);
-        else Assert.Equal(Known(.5), selection.SelectedVector.Support.CareRoomFactor);
+        var facts = Facts(read); var selection = Select(facts);
+        Assert.Contains(Tasks(facts, selection), t => t.Step.Job == "TendPatient");
+        var factor = selection.SelectedVector.Support.CareRoomFactor;
+        if (applicable == false) Assert.Equal(Known(0d), factor);
+        else if (applicable == true && checkTicks == 100) Assert.Equal(Known(2d), factor);
+        else Assert.False(factor.IsKnown);
     }
 
     [Fact]
     public void SurgeryUsesItsOwnQueuedServiceAndNativeRoomMultiplier()
     {
-        var read = Cleaning() with { Demands = [new("surgery", "surgery", "patient", new(1, 1), default, Known(0d))
-                { SurgerySuccessFactor = Known(.6), SurgerySuccessFactorClean = Known(1d) }],
-            Filth = [new("surgery", "filth", new(1, 1))], Workers =
+        var read = new SupportActivityRead { Known = true, Demands = [new("surgery", "surgery", "patient", new(1, 1), default, Known(0d))
+                { SurgerySuccessFactor = Known(.6) }], Workers =
             [new("surgery", "pawn", "patient", "DoBill", "Doctor", new(1, 1), Known(0d), Known(20d))
-                { Recipe = new("selected-medical-bill", "selected-operation", []) },
-                new("surgery", "helper", "filth", "Clean", "Clean", new(1, 1), Known(0d), Known(5d))] };
+                { Recipe = new("selected-medical-bill", "selected-operation", []) }] };
         var facts = Facts(read); var result = Select(facts); var tasks = Tasks(facts, result);
-        Assert.Contains(tasks, t => t.Step.Job == "Clean");
         Assert.Equal("selected-medical-bill", Assert.Single(tasks, t => t.Step.Job == "DoBill").Step.Recipe!.Bill);
-        Assert.Equal(Known(1d), result.SelectedVector.Support.SurgeryRoomFactor);
+        Assert.Equal(Known(.6), result.SelectedVector.Support.SurgeryRoomFactor);
     }
 
     [Theory]
@@ -197,7 +151,7 @@ public sealed class SupportMethodTests
         {
             Known = true,
             Demands = [new("care", "care", "patient", new(1, 1), default, Known(.1)),
-                new("surgery", "surgery", "other", new(1, 1), default, Known(0d)) { SurgerySuccessFactor = Known(success), SurgerySuccessFactorClean = Known(success) }],
+                new("surgery", "surgery", "other", new(1, 1), default, Known(0d)) { SurgerySuccessFactor = Known(success) }],
             Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d)) { TendLearning = ProductiveLearningTests.Tend() },
                 new("surgery", "helper", "other", "DoBill", "Doctor", new(1, 1), Known(0d), Known(20d))
                 { Recipe = new("selected-medical-bill", "selected-operation", []), SkillWork = ProductiveLearningTests.Surgery(15) }],
@@ -223,22 +177,5 @@ public sealed class SupportMethodTests
         var facts = Facts(read); var result = Select(facts);
         Assert.Single(Tasks(facts, result)); Assert.Equal(0d, result.SelectedVector.Support.UnsuppliedDemand);
         Assert.Equal(1d, result.BaselineVector.Support.UnsuppliedDemand);
-    }
-
-    [Fact]
-    public void PostcareCleanupCanServeLaterActualProducerThroughSharedCondition()
-    {
-        var clean = Cleaning(5, 500);
-        var read = clean with { Demands = [.. clean.Demands, new("care", "care", "patient", new(1, 1), default, Known(.1))],
-            Filth = [.. clean.Filth, new("care", "filth", new(1, 1))],
-            Workers = [clean.Workers[0], new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))] };
-        var facts = Facts(read, true); var result = Select(facts); var tasks = Tasks(facts, result);
-        var care = Assert.Single(tasks, t => t.Step.Job == "TendPatient");
-        var cleanup = Assert.Single(tasks, t => t.Step.Job == "Clean");
-        var recipe = Assert.Single(tasks, t => t.Step.Kind == PawnActivityKind.Recipe);
-        var allocations = result.Selected.Plan.Allocations.ToDictionary(a => a.Activity);
-        Assert.True(allocations[care.Id].End <= allocations[cleanup.Id].Start);
-        Assert.True(allocations[cleanup.Id].End <= allocations[recipe.Id].Start);
-        Assert.Equal(Known(.01), result.SelectedVector.Support.FoodPoisonExposure);
     }
 }

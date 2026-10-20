@@ -42,7 +42,6 @@ internal static class ActionSites
             Equip p => Site(p.Pawn, p.Thing, p.Cell),
             GearReplace p => Site(p.Pawn, p.Thing, null),
             Repair p => Site(p.Pawn, p.Structure, p.Cell),
-            Clean p => Site(p.Pawn, p.Filth, p.Cell),
             RecoveryService p => Site(p.Pawn, p.Thing, null),
             Husbandry p => Site(default, p.Animal.Value, null),
             PrisonerInteraction p => Site(default, p.Pawn.Value, null),

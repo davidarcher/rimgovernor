@@ -385,9 +385,9 @@ public static partial class ForecastCoupled
             return delivery;
         }
 
-        /// <summary>A binding the support consequences read: a demand's service or delivery, a cleaning, or bench work.</summary>
+        /// <summary>A binding the support consequences read: a demand's service or delivery, or bench work.</summary>
         private static bool Serves(Methods.ActivityTaskCandidate binding)
-            => binding.SupportDemand.Length != 0 || binding.Job == "Clean" || binding.Kind is PawnActivityKind.Recipe or PawnActivityKind.Deliver;
+            => binding.SupportDemand.Length != 0 || binding.Kind is PawnActivityKind.Recipe or PawnActivityKind.Deliver;
 
         /// <summary>One pawn's exposure over its given allocations against the shelters the given prerequisites raise, with its comfort shifts.</summary>
         private Cached<ForecastThermalExposure> ExposureAt(int p, int allocationsId, int sheltersId, int comfortId, Dictionary<string, ForecastActivity> tasks,

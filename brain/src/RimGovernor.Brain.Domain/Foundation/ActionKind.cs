@@ -20,7 +20,6 @@ public enum ActionKind
     Capture,
     CaravanDeparture,
     ClaimBuilding,
-    Clean,
     CombatBatch,
     CommsTradeRequest,
     Conversion,

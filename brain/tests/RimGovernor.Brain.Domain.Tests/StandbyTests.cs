@@ -28,7 +28,7 @@ public sealed class StandbyTests
             new ProgressView { Action = new(plan + "-0"), Stage = stage, Attempt = new AttemptId(attempt), Tick = Now });
 
     private static PawnActivities Work(string pawn, string method) =>
-        new(7, [new(pawn, method + "/" + pawn, method, 0, 1, false, [new(PawnActivityKind.Work, "filth", "Clean", "Clean", 0, 5000)])]);
+        new(7, [new(pawn, method + "/" + pawn, method, 0, 1, false, [new(PawnActivityKind.Work, "wall", "Repair", "Repair", 0, 5000)])]);
 
     [Fact]
     public void AnIdleUnassignedColonistGetsStandbyAndNoOtherDoes()

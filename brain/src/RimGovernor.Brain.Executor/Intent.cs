@@ -82,7 +82,6 @@ public sealed partial class Executor
         ActionKind.PawnActivities,
         ActionKind.AutoHomeArea,
         ActionKind.Repair,
-        ActionKind.Clean,
         ActionKind.Tend,
         ActionKind.OwnedDraft,
         ActionKind.Subdue,

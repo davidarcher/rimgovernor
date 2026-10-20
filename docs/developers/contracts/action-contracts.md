@@ -124,7 +124,7 @@ The worker journals the failure code, reason and class beside `ReceiptRefused`
 world)`, `Allowed(subject, world)`) is the one reason-aware retry budget: a permanent refusal
 gives its subject up with `retry_budget_spent` carrying the real reason, a transient one waits
 (`retry_budget_waiting`) and re-arms when the world's `GenerationSnapshot` changes, an unknown
-one stays allowed and visible (`refusal_unknown`). The tend, rescue, repair, clean, equip,
+one stays allowed and visible (`refusal_unknown`). The tend, rescue, repair, equip,
 mood relief and cast, exhausted-drill removal, ash cleaning, clearance, husbandry,
 population (custody, containment, joiner, lance, monolith, prisoner interaction),
 quest, ideology, ritual, permit, defense layout (tier, rearm and cover), firebreak, mine, sleeping and throne assignment, trade open and psylink planners use it: they derive the ledger each step

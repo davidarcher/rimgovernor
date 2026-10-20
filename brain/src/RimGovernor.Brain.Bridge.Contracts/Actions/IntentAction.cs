@@ -84,7 +84,6 @@ public static class IntentActionRules
         [ActionKind.AutoHomeArea] = BuildingsRules.AutoHomeAreaAction,
         [ActionKind.Repair] = GiveJobRules.RepairAction,
         [ActionKind.PawnActivities] = a => new Op.Action { Intent = new Op.PawnActivitiesIntent { Batch = a.PawnActivities } },
-        [ActionKind.Clean] = GiveJobRules.CleanAction,
         [ActionKind.Tend] = GiveJobRules.TendAction,
         [ActionKind.Equip] = GiveJobRules.EquipAction,
         [ActionKind.DropEquipment] = GiveJobRules.DropEquipmentAction,

@@ -20,7 +20,7 @@ non-damageable markers such as sleeping spots are never repair targets.
 | Storage | Slot cells, roof, occupancy and item-specific filtered capacity. Cell count alone is not usable capacity; native hauling decides worker access and delivery. |
 | Sleeping | Bed definition, slots, owners, current users, pawn-specific access, roof, temperature. Capacity does not establish use or suitable worn protection. |
 | Home and structures | Occupied/protected cells with home coverage; building condition, material, roof, native construction lineage. The brain's `RoofSupport` rules check roof connectivity with one wall excluded; they do not prove enclosure, escape routes or replacement admission. |
-| Fire, cleaning, repair | `GiveJobIntent` Repair/Clean use the installed WorkGivers and their normal eligibility, and need home coverage and enabled work; the reach check uses the forced-order danger (`NativeOrderDanger`, Deadly, as vanilla's float menu), and a pawn needing tending is not refused. Firefighting is not directly orderable and the brain does not plan it: pawns fight fires natively, and work assignments keep Firefighter pinned at priority 1 for every pawn that can do it. |
+| Fire, cleaning, repair | `GiveJobIntent` Repair uses the installed WorkGiver and its normal eligibility, and needs home coverage and enabled work; the reach check uses the forced-order danger (`NativeOrderDanger`, Deadly, as vanilla's float menu), and a pawn needing tending is not refused. Firefighting is not directly orderable and the brain does not plan it: pawns fight fires natively, and work assignments keep Firefighter pinned at priority 1 for every pawn that can do it. |
 | Pawns, animals, medicine | `observations_list_pawns` supplies medical, work, settings and schedule reads. Animal feed counts only reachable stored feed under native eating eligibility and allowed-area access (no pasture or future harvest); pets have no pen-containment predicate. Medicine is identified by native item definitions; no future production or season is credited as stock. |
 
 ## Maintained jobs
@@ -229,7 +229,7 @@ cells or targets overlap an open Method is refused by claim (`claim_conflict`).
   removal is selected per fresh census; dispatch revalidates the census and emergency
   read and resumes without a duplicate designation. Selection never adds Home cells.
 
-### Repairs, bench cleaning
+### Repairs, cleaning
 
 - The `home-upkeep/repairs` Need (Wellbeing; composed by the `repair` toggle) is met
   when no player building inside Home is damaged; its deficit is the missing hit points.
@@ -241,12 +241,9 @@ cells or targets overlap an open Method is refused by claim (`claim_conflict`).
   review; stable IDs break ties. Medicine and rot deadlines rank hauling; native medical
   beds, temperature controls and generators lead repairs, then roof holders, beds and
   worktables; relative damage ranks within a category before cosmetic repairs.
-- Bench and care cleaning are [evaluated support work](support-work.md#cleaning-consequences).
-  Native observations expose eligible filth, workers, durations and supported room
-  effects; shared policy compares cleaning against immediate service and no support.
-  No bill hook substitutes cleaning, and no tend finalizer selects cleanup. Native
-  legality and player ownership still veto exact orders. Post-care cleaning needs
-  remaining demand; it cannot retroactively improve completed treatment.
+- No concern owns cleaning. Vanilla cleans the home area under each colonist's Cleaning
+  priority while no coupled order holds it (#3662); no bill hook or tend finalizer selects
+  cleanup.
 - Butcher placements never share a room with a cooking bench. The `food/supply` Need owns the
   butcher facility and owes it whatever the food runway: the planned butchery (beside the
   freezer) takes a `ButcherSpot` first, so hunts have a bench at once, then the real
@@ -263,7 +260,7 @@ cells or targets overlap an open Method is refused by claim (`claim_conflict`).
   receipts and watchdog holds stay authoritative.
 - An `upkeep_target` action waits after the native job receipt: hauling needs the same
   item identity and at least its original quantity in roofed valid storage; repair needs
-  full observed health; cleaning needs target absence from a complete census. Disappearing hauled items (including merges) and partial
+  full observed health. Disappearing hauled items (including merges) and partial
   delivery stay blockers. Load or player-direction changes invalidate ownership;
   uncertain writes are not replayed; the no-progress watchdog bounds waiting. Verified
   completed orders may be retired through the action archive when the target needs

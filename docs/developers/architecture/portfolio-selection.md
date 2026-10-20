@@ -17,7 +17,7 @@ work once and the comparator values changed consequences, never XP itself. See
 [productive learning](../contracts/skill-learning.md#productive-cooking-in-normal-selection)
 for qualified native mechanics, demand limits and observed continuation.
 
-[Support providers](../contracts/support-work.md) add cleaning and exact
+[Support providers](../contracts/support-work.md) add exact care and
 demand-driven delivery to that same composition and comparison. Native room
 effects and care timing stay separate from labor, with unknown effects explicit.
 They do not restore a local helper selector underneath the chosen portfolio.

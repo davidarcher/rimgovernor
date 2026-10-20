@@ -59,7 +59,6 @@ public sealed class DomainActionConverter : ObjectCodec<DomainAction>
             ActionKind.CaravanDeparture => DomainAction.NewCaravanDepartureAction(id, Payload<CaravanDeparture>()),
             ActionKind.ClaimBuilding => DomainAction.NewClaimBuildingAction(id, Payload<ClaimBuilding>()),
             ActionKind.PawnActivities => DomainAction.NewPawnActivitiesAction(id, Payload<PawnActivities>()),
-            ActionKind.Clean => DomainAction.NewCleanAction(id, Payload<Clean>()),
             ActionKind.CombatBatch => DomainAction.NewCombatBatchAction(id, Payload<CombatBatch>()),
             ActionKind.CommsTradeRequest => DomainAction.NewCommsTradeRequestAction(id, Payload<CommsTradeRequest>()),
             ActionKind.CoverClearance => DomainAction.NewCoverClearanceAction(id, Payload<CoverClearance>()),

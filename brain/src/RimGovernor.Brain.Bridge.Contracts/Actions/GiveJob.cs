@@ -9,7 +9,6 @@ public static class GiveJobRules
     // Vanilla JobDef names a GiveJobIntent orders.
     public const string JobInspectGravEngine = "InspectGravEngine";
     public const string JobRepair = "Repair";
-    public const string JobClean = "Clean";
     public const string JobTendPatient = "TendPatient";
     public const string JobEquip = "Equip";
 
@@ -96,12 +95,6 @@ public static class GiveJobRules
     {
         var v = action.Repair ?? throw BridgeContractException.Contract("not a repair action");
         return GiveJob(v.Pawn, JobRepair, v.Structure);
-    }
-
-    internal static Op.Action CleanAction(DomainAction action)
-    {
-        var v = action.Clean ?? throw BridgeContractException.Contract("not a clean action");
-        return GiveJob(v.Pawn, JobClean, v.Filth);
     }
 
     internal static Op.Action TendAction(DomainAction action)

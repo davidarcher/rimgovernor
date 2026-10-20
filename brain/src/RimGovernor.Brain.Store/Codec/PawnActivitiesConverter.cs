@@ -30,7 +30,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
     }
     private static PawnActivityStep ReadStep(JsonElement s) => new(
         (PawnActivityKind)s.GetProperty("Kind").GetInt32(), s.Str("Target"), s.Str("WorkGiver"), s.Str("Job"),
-        s.GetProperty("Count").GetInt32(), s.GetProperty("Deadline").GetInt64(), s.Str("WaitForFilth"))
+        s.GetProperty("Count").GetInt32(), s.GetProperty("Deadline").GetInt64())
         { Destination = s.GetProperty("Destination") is var d && d.ValueKind != JsonValueKind.Null
             ? new Cell(d.GetProperty("X").GetInt32(), d.GetProperty("Z").GetInt32()) : null,
           Practice = ReadPractice(s.GetProperty("Practice")), Recipe = ReadRecipe(s.GetProperty("Recipe")), NotBefore = s.GetProperty("NotBefore").GetInt64(), Container = s.Str("Container"),
@@ -117,7 +117,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
     private static void WriteStep(Utf8JsonWriter w, PawnActivityStep s)
     {
         w.WriteStartObject(); w.WriteNum("Kind", (int)s.Kind); w.WriteString("Target", s.Target); w.WriteString("WorkGiver", s.WorkGiver);
-        w.WriteString("Job", s.Job); w.WriteNum("Count", s.Count); w.WriteNum("Deadline", s.Deadline); w.WriteString("WaitForFilth", s.WaitForFilth);
+        w.WriteString("Job", s.Job); w.WriteNum("Count", s.Count); w.WriteNum("Deadline", s.Deadline);
         w.WriteNum("NotBefore", s.NotBefore); w.WriteString("Container", s.Container);
         w.WriteString("SupportDemand", s.SupportDemand); w.WriteString("Medicine", s.Medicine);
         w.WriteStartArray("Targets"); foreach (var target in s.Targets) w.WriteStringValue(target); w.WriteEndArray();

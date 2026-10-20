@@ -154,7 +154,6 @@ internal static class NativeActivityTasks
                         : map.thingGrid.ThingsListAt(new(task.Location.X, 0, task.Location.Z))
                             .FirstOrDefault(t => t is Frame && t.def.entityDefToBuild?.defName == task.SiteDefinition);
                     if (step.Job == "TendPatient" && target is Pawn patient && !patient.health.HasHediffsNeedingTend()) { satisfied.Add(task.Id); continue; }
-                    if (step.Job == "Clean" && target == null) { satisfied.Add(task.Id); continue; }
                     if (target == null || target.IsForbidden(pawn) || !pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.None)) continue;
                     if (DefDatabase<WorkGiverDef>.GetNamedSilentFail(step.WorkGiver)?.Worker is not WorkGiver_Scanner giver
                         || giver.MissingRequiredCapacity(pawn) != null || pawn.WorkTagIsDisabled(giver.def.workTags)
