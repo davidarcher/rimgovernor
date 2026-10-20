@@ -67,10 +67,7 @@ public static class StoreHaulRules
     public static IReadOnlyList<StoreHaulProposal> Propose(StoreHaulRead read, IReadOnlyCollection<string> pawns,
         IReadOnlySet<string> reserved, IReadOnlySet<Cell> reservedCells, double horizonDays)
     {
-        var offers = StoreHaulCandidates.Offers(read, pawns, reserved, reservedCells)
-            .Select(o => new StoreHaulProposal(o.Haul, o.Row, ForecastValue.StoreHaulValueOf(o.Haul, o.Row, read.ValuePerWork, horizonDays)))
-            .Where(p => p.Value.Total > 0)
-            .OrderByDescending(p => p.Value.Total).ThenBy(p => p.Row.Pawn, StringComparer.Ordinal).ThenBy(p => p.Haul.Thing, StringComparer.Ordinal);
+        var offers = Valued(read, pawns, reserved, reservedCells, horizonDays).Where(p => p.Value.Total > 0);
         var taken = new HashSet<string>(StringComparer.Ordinal);
         var stacks = new HashSet<string>(StringComparer.Ordinal);
         var chosen = new List<StoreHaulProposal>();
@@ -79,6 +76,18 @@ public static class StoreHaulRules
                 chosen.Add(offer);
         return chosen;
     }
+
+    /// <summary>
+    /// Every offer of <paramref name="pawns"/> for a stack not reserved, valued and ordered best first, whatever its sign.
+    /// A haul's value depends on where its colonist stands: for a stack no rot or deterioration threatens it is at most the
+    /// stack's distance to storage less the colonist's approach (#3642), so only a colonist nearer the stack than the stack
+    /// is to storage finds it worth carrying.
+    /// </summary>
+    public static IEnumerable<StoreHaulProposal> Valued(StoreHaulRead read, IReadOnlyCollection<string> pawns,
+        IReadOnlySet<string> reserved, IReadOnlySet<Cell> reservedCells, double horizonDays) =>
+        StoreHaulCandidates.Offers(read, pawns, reserved, reservedCells)
+            .Select(o => new StoreHaulProposal(o.Haul, o.Row, ForecastValue.StoreHaulValueOf(o.Haul, o.Row, read.ValuePerWork, horizonDays)))
+            .OrderByDescending(p => p.Value.Total).ThenBy(p => p.Row.Pawn, StringComparer.Ordinal).ThenBy(p => p.Haul.Thing, StringComparer.Ordinal);
 
     /// <summary>The haul's activity: one order, the Deliver step of the stack to its storage cell, until it is done or the comparison horizon (<paramref name="deadline"/>) ends.</summary>
     public static PawnActivities Activity(StoreHaulProposal proposal, ulong authority, string method, long tick, long deadline) =>

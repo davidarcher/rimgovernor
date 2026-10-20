@@ -108,7 +108,13 @@ stack another Method claims, a stack a pending service names (an eater's food, a
 cook's or a supply's inputs and source cell, a treatment's medicine), or a stack
 on such a cell, so a haul cannot starve a meal or a cook. Each stack is hauled by
 one colonist; the best-valued haul goes first. A `standby` decision with reason
-`store_haul` records it. A colonist on a haul is not yet free to the review a
+`store_haul` records it; a review whose standby colonists found no haul worth its
+labor files one `no_valued_haul` row with the best offer's terms. Every review
+with a colonist on standby reads and values the stacks again, so a haul is
+reselected as soon as one is worth it. A haul's value depends on where its
+colonist stands: a stack nothing threatens saves at most its distance to storage,
+so it is worth carrying only for a colonist nearer the stack than the stack is to
+storage (#3642), and a colonist that has just stored one stack is rarely that. A colonist on a haul is not yet free to the review a
 coupled worker's finished task raises (#3624): it can take that worker's next task
 only once its haul ends, at a later review.
 

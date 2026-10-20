@@ -82,8 +82,21 @@ public sealed partial class Rounder
             { Store = new() { Pawns = pawns, Uses = uses } }, call).ConfigureAwait(false);
         if (read is not { Known: true, Store: { } store } || read.Context?.Tick is not { } tick) return hauled;
         var (things, cells) = StoreHaulRules.Reserved(facts);
-        var proposals = StoreHaulRules.Propose(store, pawns, things, cells, new ColonyModelPolicy().HorizonDays);
-        if (proposals.Count == 0) return hauled;
+        var horizon = new ColonyModelPolicy().HorizonDays;
+        var proposals = StoreHaulRules.Propose(store, pawns, things, cells, horizon);
+        if (proposals.Count == 0)
+        {
+            // Standby colonists and no haul worth its labor (#3642): the best offer says why, so an idle colony with loose
+            // stacks is explained in the timeline instead of by the absence of a store_haul row.
+            var attrs = new Dictionary<string, object?> { ["pawns"] = pawns.Count, ["hauls"] = store.Hauls.Count };
+            if (StoreHaulRules.Valued(store, pawns, things, cells, horizon).FirstOrDefault() is { } best)
+            {
+                attrs["thing"] = best.Haul.Thing; attrs["resource"] = best.Haul.Resource; attrs["value"] = best.Value.Total;
+                attrs["travel_saved"] = best.Value.TravelSaved; attrs["loss_avoided"] = best.Value.LossAvoided; attrs["labor"] = best.Value.Labor;
+            }
+            Tel.Decide(new Decision { Kind = "standby", Component = "rounds", Target = "", Verdict = "skipped", Reason = "no_valued_haul", Attrs = attrs });
+            return hauled;
+        }
         Player.Current(call, epoch);
         if (Player.Session.State().Snapshot != snapshot) throw new ControlException("store haul scope changed");
         var deadline = checked(tick + (long)compared.Horizon);

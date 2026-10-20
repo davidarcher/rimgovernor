@@ -81,6 +81,30 @@ public sealed class StoreHaulTests
     }
 
     [Fact]
+    public void AStackNothingThreatensIsWorthCarryingOnlyForAColonistNearerItThanStorage()
+    {
+        // #3642: storage on the way from the stack (600 ticks out) to the site, so each use saves the 600-tick leg twice.
+        const double toStore = 600, storeToSite = 300;
+        var steel = Haul("Steel", fromOrigin: toStore + storeToSite, fromStore: storeToSite, use: true);
+        ConstructionActivityOption At(string pawn, double approach) =>
+            new("haul/stack", "", Store, pawn, "Steel", "", Outside, 75, 75, "", Known(approach), Known(toStore), default);
+        // Beside the stack the haul pays; standing at storage (back from carrying another stack) it walks the leg a third time and does not.
+        Assert.True(ForecastValue.StoreHaulValueOf(steel, At("beside", 30), ValuePerWork, Horizon).Total > 0);
+        var stored = ForecastValue.StoreHaulValueOf(steel, At("stored", toStore), ValuePerWork, Horizon);
+        Assert.True(stored.Total <= 0);
+        // The cloth goes to one colonist and the steel to the other beside it; the colonist at storage alone gets nothing, and
+        // Valued says why: the steel's best offer, at no gain.
+        var cloth = Haul("Cloth", perDay: 2, thing: "cloth") with { Options = [At("beside", 30), At("other", 40)] };
+        var both = Read(cloth, Haul("Steel", fromOrigin: toStore + storeToSite, fromStore: storeToSite, use: true, thing: "steel")
+            with { Options = [At("beside", 30), At("other", 40)] });
+        Assert.Equal(new[] { ("cloth", "beside"), ("steel", "other") },
+            StoreHaulRules.Propose(both, ["beside", "other"], new HashSet<string>(), new HashSet<Cell>(), Horizon).Select(p => (p.Haul.Thing, p.Row.Pawn)));
+        var after = Read(steel with { Options = [At("stored", toStore)] });
+        Assert.Empty(StoreHaulRules.Propose(after, ["stored"], new HashSet<string>(), new HashSet<Cell>(), Horizon));
+        Assert.Equal(stored, Assert.Single(StoreHaulRules.Valued(after, ["stored"], new HashSet<string>(), new HashSet<Cell>(), Horizon)).Value);
+    }
+
+    [Fact]
     public void ADeferredColonistIsAdmittedToStandbyAndIsNotFreedAgain()
     {
         // The review deferred "pawn" (no change due): standby admits it instead of a bounded idle that finished every 600 ticks.

@@ -29,12 +29,13 @@ public sealed record SpeedMatrixOptions
 /// </summary>
 public static class SpeedMatrixCommand
 {
-    /// <summary>The default hang guard: the case budget the matrix ran under.</summary>
-    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(15);
+    /// <summary>The default hang guard. The seven default rows play for about 15 wall-clock minutes between them (the Normal row
+    /// alone plays 30000 ticks at 60 a second) before reloads and launches, so a tighter guard cut the last row short (#3599).</summary>
+    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(30);
 
     /// <summary>The usage lines for the command's help text.</summary>
     public const string Usage = """
-          acceptance speedmatrix -root <dir> [-speeds <rows> -output <dir> -timeout 15m -game <id>]
+          acceptance speedmatrix -root <dir> [-speeds <rows> -output <dir> -timeout 30m -game <id>]
             plays the throughput stage to one tick target per clock speed row (-speeds narrows them, e.g. uncapped,governor-off) and
             compares the outcomes; per-row reports and result.json in -output (default <root>/acceptance/speedmatrix)
         """;

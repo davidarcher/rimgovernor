@@ -8,17 +8,22 @@ using Observations = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>storage/valued-haul</c> (#3624): under the served brain an idle colonist with nothing else due carries a cloth stack
+/// <c>storage/valued-haul</c> (#3624): under the served brain idle colonists with nothing else due carry a cloth stack
 /// lying outside into a roofed storeroom, since cloth deteriorates in the open, and a steel stack the injected plan's
-/// planned room will use, since storage lies nearer the site. Hauling is valued, never for its own sake: the native carry,
-/// the storage cell native chose and the live deterioration read are what a unit test cannot drive.
+/// planned room will use, since storage lies on the way to the site. Hauling is valued, never for its own sake: the native
+/// carry, the storage cell native chose and the live deterioration read are what a unit test cannot drive.
 /// </summary>
 internal static class StorageValuedHaul
 {
     private const int Budget = 4000;
 
-    // A 30x7 site: the 5x5 storeroom (walls, door, roof) at its west end with a stockpile on its 3x3 interior, the
-    // planned room beside it (a lane apart) and the cloth, the steel and the worker 20 cells east, so storage lies nearer the site.
+    // A 30x7 site: the planned room at its west end, the 5x5 storeroom (walls, a door each side, roof) a lane east of it
+    // with a stockpile on its 3x3 interior, and the cloth, the steel and three workers 18 cells further east, so storage
+    // lies on the walk from the stacks to the site. Steel saves at most its distance to storage, so it is worth carrying
+    // only for a colonist standing nearer it than that (#3642): the workers stand by the stacks, since a worker back from
+    // storing the cloth stands as far from the steel as storage does. The third covers the colonist the first review's
+    // ideology plan makes a specialist: that role disables hauling after the haul was chosen, and the next review gives
+    // the stack to a colonist still beside it.
     private static readonly Fx.StageSpec Spec = new()
     {
         Paused = true,
@@ -33,13 +38,13 @@ internal static class StorageValuedHaul
             Require = [Fx.StageGround.Standable, Fx.StageGround.Unzoned, Fx.StageGround.Unfogged, Fx.StageGround.Heavy],
         },
         Clear = [new Fx.StageClear { Rect = new Fx.StageRect(0, 0, 30, 7), Kinds = [Fx.StageClearKind.Things, Fx.StageClearKind.Zones, Fx.StageClearKind.Roofs] }],
-        Rooms = [new Fx.StageRoom { Name = "store", Rect = new Fx.StageRect(0, 1, 5, 5), Stuff = "WoodLog", Doors = [new(4, 3)], Roof = true }],
+        Rooms = [new Fx.StageRoom { Name = "store", Rect = new Fx.StageRect(6, 1, 5, 5), Stuff = "WoodLog", Doors = [new(6, 3), new(10, 3)], Roof = true }],
         Zones =
         [
             new Fx.StageZone
             {
                 Name = "store", Kind = Fx.StageZoneKind.Stockpile, Priority = Fx.StageStoragePriority.Important, Allow = ["Cloth", "Steel"],
-                Cells = [.. from z in Enumerable.Range(2, 3) from x in Enumerable.Range(1, 3) select new Fx.StageCell(x, z)],
+                Cells = [.. from z in Enumerable.Range(2, 3) from x in Enumerable.Range(7, 3) select new Fx.StageCell(x, z)],
             },
         ],
         Things =
@@ -47,19 +52,24 @@ internal static class StorageValuedHaul
             new Fx.StageThing { Name = "cloth", Def = "Cloth", Count = 75, Cell = new(28, 1) },
             new Fx.StageThing { Name = "steel", Def = "Steel", Count = 75, Cell = new(28, 5) },
         ],
-        Pawns = [new Fx.StagePawn { Name = "worker", Colonist = 0, Cell = new(26, 3) }],
+        Pawns =
+        [
+            new Fx.StagePawn { Name = "worker", Colonist = 0, Cell = new(26, 2) },
+            new Fx.StagePawn { Name = "helper", Colonist = 1, Cell = new(26, 4) },
+            new Fx.StagePawn { Name = "spare", Colonist = 2, Cell = new(26, 3) },
+        ],
     };
 
     internal static TypedCase Case() => new()
     {
         Name = "storage/valued-haul",
-        Scope = "Issue #3624: under the served brain an idle colonist carries a cloth stack lying outside into a roofed storeroom "
+        Scope = "Issues #3624, #3642: under the served brain idle colonists carry a cloth stack lying outside into a roofed storeroom "
             + "stockpile (cloth deteriorates in the open) and a steel stack the injected plan's planned room will use (storage "
-            + "lies nearer the site) within the budget. A unit test cannot drive the native carry, native's storage cell or the "
-            + "live deterioration read.",
+            + "lies on the way to the site) within the budget. A unit test cannot drive the native carry, native's storage cell or "
+            + "the live deterioration read.",
         Ticks = Budget,
         Tier = CaseTier.OnDemand,
-        Start = new LabStart { Colonists = 1 },
+        Start = new LabStart { Colonists = 3 },
         Stage = Spec,
         Ops = [FixtureStage.Tool],
         Keep = ["Food", "Rest", "Joy"],
@@ -75,7 +85,7 @@ internal static class StorageValuedHaul
         var store = Spec.Zones[0].Cells.Select(c => new Cell(site.X + c.X, site.Z + c.Z)).ToHashSet();
         var stacks = new Dictionary<string, string> { ["cloth"] = staged.Things["cloth"].Ids.Single(), ["steel"] = staged.Things["steel"].Ids.Single() };
 
-        // The planned room beside the storeroom: a 3x3 interior (its ring one lane east of the storeroom's), its door east.
+        // The planned room west of the storeroom: a 3x3 interior (its ring one lane west of the storeroom's), its door east.
         await TypedLayoutPlan.InjectAsync(s, new LayoutPlan
         {
             NextRoomId = 2,
@@ -85,8 +95,8 @@ internal static class StorageValuedHaul
                 {
                     Id = 1,
                     Role = PlannedRole.Bedroom,
-                    Region = RegionRules.RectRegion(new(site.X + 7, site.Z + 2, 3, 3)),
-                    Door = new(site.X + 10, site.Z + 3),
+                    Region = RegionRules.RectRegion(new(site.X + 1, site.Z + 2, 3, 3)),
+                    Door = new(site.X + 4, site.Z + 3),
                     DoorRot = Rotation.East,
                 },
             ],
@@ -103,7 +113,7 @@ internal static class StorageValuedHaul
         var left = at.Where(a => a.Value is not { } cell || !store.Contains(cell)).Select(a => $"{a.Key} at {a.Value?.ToString() ?? "no cell"}").ToList();
         if (left.Count > 0)
         {
-            throw new AcceptanceException($"the idle colonist left {string.Join(", ", left)} outside the storeroom stockpile after {Budget} ticks");
+            throw new AcceptanceException($"the idle colonists left {string.Join(", ", left)} outside the storeroom stockpile after {Budget} ticks");
         }
     }
 
