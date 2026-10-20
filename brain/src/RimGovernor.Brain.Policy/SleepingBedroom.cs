@@ -8,16 +8,16 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>The next bedroom step.</summary>
 public enum BedroomStepKind
 {
-    /// <summary>Every colonist owns a bed in a Bedroom-role room, or no planned bedroom is left to build.</summary>
+    /// <summary>Every colonist owns a bed in a Bedroom-role room or a planned barracks, or no planned bedroom is left to build.</summary>
     None,
 
-    /// <summary>Assign Bed, a vacant bed in a Bedroom-role room, to Pawn.</summary>
+    /// <summary>Assign Bed, a vacant bed in a Bedroom-role room (or, with none, in a planned barracks), to Pawn.</summary>
     Move,
 
     /// <summary>
-    /// Room, a planned bedroom with no bed (not standing, or standing empty), is reconciled by the build side
-    /// (ReconcileRoom) to the plan and a bed template (BedroomTemplate). Its state is whatever the diff
-    /// leaves: no shell or furnish step.
+    /// Room, a planned bedroom with no bed (not standing, or standing empty) or a planned barracks with fewer beds
+    /// than its tiled bed slots, is reconciled by the build side (ReconcileRoom) to the plan and the bed template
+    /// (BedroomFurnishing). Its state is whatever the diff leaves: no shell or furnish step.
     /// </summary>
     Reconcile,
 
@@ -70,16 +70,51 @@ public static partial class SleepingRules
         return shell;
     }
 
+    /// <summary>
+    /// The bed slots a planned barracks is furnished to: the beds the tiler placed in it (LayoutPlan.Pieces), one bed
+    /// each. Null for every other role, which takes the bedroom template's one bed slot.
+    /// </summary>
+    public static IReadOnlyList<InteriorPiece>? BedSlotsOf(LayoutPlan plan, PlannedRoom room, RoomFurniture furniture)
+    {
+        if (room.Role != PlannedRole.Barracks)
+        {
+            return null;
+        }
+        return plan.Pieces.TryGetValue(room.Id, out var pieces) ? [.. pieces.Where(p => furniture.IsBed(p.Def))] : [];
+    }
+
+    /// <summary>The beds standing in the planned barracks, the starter shell's left out.</summary>
+    private static HashSet<string> BarracksBedIds(LayoutPlan plan, RoomObservation rooms, HashSet<string> shell)
+    {
+        var output = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var r in plan.Rooms)
+        {
+            if (r.Role != PlannedRole.Barracks)
+            {
+                continue;
+            }
+            // Census: the barracks' beds are read off its room, whatever the game scores it.
+            var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
+            if (ok)
+            {
+                output.UnionWith(room!.Beds.Where(b => !shell.Contains(b)));
+            }
+        }
+        return output;
+    }
+
     private static bool NeverUpgradeOf(IReadOnlyDictionary<string, RoomTarget>? targets, string room) =>
         targets is not null && targets.TryGetValue(room, out var t) && t.NeverUpgrade;
 
     /// <summary>
     /// Picks the next bedroom step from the plan, the room census and the sleeping census. Move comes first
-    /// (it costs nothing), then a room with no bed to reconcile (the first in plan order that owes one), only
-    /// while the standing bedrooms cannot take every colonist still outside one; a room dug into rock is a
-    /// shell too, whose builder mines it first. It reports BedroomStepKind.None whenever a fact it needs is
-    /// unknown. A colonist whose current room RoomTargets marks NeverUpgrade (an ascetic) counts as housed:
-    /// the move never takes them from the plainest room.
+    /// (it costs nothing), into a vacant bedroom bed, else a vacant bed of a planned barracks; then a room to
+    /// reconcile (the first in plan order that owes one: a bedroom with no bed, a barracks with fewer beds than
+    /// its tiled bed slots), only while the standing rooms cannot take every colonist still outside one; a room
+    /// dug into rock is a shell too, whose builder mines it first. A colonist owning a bed in a planned barracks
+    /// is housed. It reports BedroomStepKind.None whenever a fact it needs is unknown. A colonist whose current
+    /// room RoomTargets marks NeverUpgrade (an ascetic) counts as housed: the move never takes them from the
+    /// plainest room.
     /// </summary>
     public static BedroomStep NextBedroomStep(
         LayoutPlan plan,
@@ -106,6 +141,8 @@ public static partial class SleepingRules
                 }
             }
         }
+        // A barracks bed houses its owner, though a barracks of one bed reads as a bedroom.
+        var barracksBed = BarracksBedIds(plan, rooms, shell);
         var beds = new Dictionary<string, SleepingBed>(StringComparer.Ordinal);
         var kept = new HashSet<string>(StringComparer.Ordinal);
         foreach (var b in sleeping.Beds)
@@ -132,7 +169,7 @@ public static partial class SleepingRules
                 continue;
             }
             // A couple is never split into single bedrooms: sleeping upkeep would reunite them at once.
-            if (!couples.ContainsKey(p.Id) && !(bedroomBed.TryGetValue(bed, out var housed) && housed) && !kept.Contains(bed))
+            if (!couples.ContainsKey(p.Id) && !(bedroomBed.TryGetValue(bed, out var housed) && housed) && !barracksBed.Contains(bed) && !kept.Contains(bed))
             {
                 unhoused.Add(p);
             }
@@ -198,24 +235,22 @@ public static partial class SleepingRules
             }
         }
         var retiringBed = RetiringBeds(plan, rooms);
-        var vacant = new List<string>();
-        foreach (var (id, housed) in bedroomBed)
+        // A Retiring room's bed takes no one new.
+        bool Vacant(string id) => beds.TryGetValue(id, out var b) && VacantColonistBed(b) && !retiringBed.Contains(id);
+        var vacant = bedroomBed.Where(e => e.Value && !barracksBed.Contains(e.Key) && !suiteBed.Contains(e.Key) && Vacant(e.Key)).Select(e => e.Key).Order(StringComparer.Ordinal).ToList();
+        var bunks = barracksBed.Where(Vacant).Order(StringComparer.Ordinal).ToList();
+        // A barracks bed is taken only when no bedroom bed is vacant to the pawn.
+        foreach (var free in new[] { vacant, bunks })
         {
-            // A Retiring room's bed takes no one new.
-            if (housed && beds.TryGetValue(id, out var b) && !suiteBed.Contains(id) && VacantColonistBed(b) && !retiringBed.Contains(id))
+            foreach (var p in unhoused)
             {
-                vacant.Add(id);
-            }
-        }
-        vacant.Sort(StringComparer.Ordinal);
-        foreach (var p in unhoused)
-        {
-            foreach (var id in vacant)
-            {
-                if (beds[id].AccessibleTo.Contains(p.Id))
+                foreach (var id in free)
                 {
-                    p.OwnedBed.TryGetValue(out var previous);
-                    return new BedroomStep { Kind = BedroomStepKind.Move, Pawn = p.Id, Bed = id, PreviousBed = previous ?? "", Unhoused = unhoused.Count };
+                    if (beds[id].AccessibleTo.Contains(p.Id))
+                    {
+                        p.OwnedBed.TryGetValue(out var previous);
+                        return new BedroomStep { Kind = BedroomStepKind.Move, Pawn = p.Id, Bed = id, PreviousBed = previous ?? "", Unhoused = unhoused.Count };
+                    }
                 }
             }
         }
@@ -225,24 +260,21 @@ public static partial class SleepingRules
         foreach (var r in plan.Rooms)
         {
             // A Retiring wing is never built out further.
-            if (r.Role != PlannedRole.Bedroom || retiring.Contains(r.Region.Bounds()))
+            if ((r.Role != PlannedRole.Bedroom && r.Role != PlannedRole.Barracks) || retiring.Contains(r.Region.Bounds()))
             {
                 continue;
             }
             var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
-            if (!ok)
-            {
-                owed.Add(r);
-                continue;
-            }
-            if (room!.Beds.Count == 0)
+            var standing = ok ? room!.Beds.Count : 0;
+            // A bedroom owes its one bed, a barracks a bed per tiled bed slot.
+            if (standing < (BedSlotsOf(plan, r, rooms.Shapes.Furniture)?.Count ?? 1))
             {
                 owed.Add(r);
             }
         }
         if (owed.Count > 0)
         {
-            // One bedroom per step: the first owed in plan order.
+            // One room per step: the first owed in plan order.
             return new BedroomStep { Kind = BedroomStepKind.Reconcile, Room = owed[0], Unhoused = unhoused.Count };
         }
         // No slot left: Unhoused still counts who stays outside a bedroom.
@@ -255,12 +287,14 @@ public static partial class SleepingRules
     /// the room (end table, dresser, lamp, plant pot, animal bed) where it stands, so the one reconcile never
     /// repacks it. add is the piece a lever asks for this round (title furniture, companion bed, room upgrade,
     /// beauty); it is listed beside the standing ones of its definition and is the only entry still to build.
-    /// Suites and the shelter take the bedroom's slot too. The list has no bed when the template does not fit the room.
+    /// Suites and the shelter take the bedroom's slot too; a barracks takes bedSlots (BedSlotsOf), one bed at each
+    /// slot whose footprint bed fits. The list has no bed when the template does not fit the room.
     /// </summary>
-    public static Furnishing BedroomFurnishing(PlannedRoom room, PieceShapes shapes, string bed, IReadOnlyList<CurrentBuilding> built, RoomUpgrade? add)
+    public static Furnishing BedroomFurnishing(PlannedRoom room, PieceShapes shapes, string bed, IReadOnlyList<CurrentBuilding> built, RoomUpgrade? add, IReadOnlyList<InteriorPiece>? bedSlots = null)
     {
         var wants = new List<FurnishingWant>();
         InteriorRoom? interior = null;
+        var bedCount = 0;
         if (bed.Length > 0)
         {
             var (room0, ok) = InteriorRules.InteriorRoomFromLayout(room, shapes);
@@ -274,7 +308,17 @@ public static partial class SleepingRules
             {
                 return new Furnishing();
             }
-            wants.Add(new FurnishingWant { Key = "bed", Things = [bed], Count = 1, Piece = piece });
+            if (bedSlots is null)
+            {
+                bedCount = 1;
+                wants.Add(new FurnishingWant { Key = "bed", Things = [bed], Count = bedCount, Piece = piece });
+            }
+            else
+            {
+                List<InteriorPiece> slots = [.. bedSlots.Where(s => s.Size == piece.Size).Select(s => s with { Def = bed, InteractionOffset = piece.Interaction })];
+                bedCount = slots.Count;
+                wants.Add(new FurnishingWant { Things = [bed], Count = bedCount, Piece = piece, Slots = slots });
+            }
         }
         var bounds = room.Region.Bounds();
         var furniture = shapes.Furniture;
@@ -288,9 +332,9 @@ public static partial class SleepingRules
         foreach (var def in levers.Where(d => d.Length > 0).Distinct())
         {
             var standing = built.Count(b => b.Cells.Count > 0 && b.Building!.Definition == def && FurnitureRoomsRules.RectInside(bounds, PlacementSearchRules.CellsRectangle(b.Cells.Items)));
-            if (def == bed && standing > 0)
+            if (def == bed)
             {
-                standing--; // the bed want above lists one of them
+                standing -= Math.Min(standing, bedCount); // the bed want above lists these
             }
             var asked = add is not null && add.Def == def;
             wants.Add(new FurnishingWant { Things = [def], Count = standing + (asked ? 1 : 0), Slots = asked ? [add!.Slotted()] : [], Piece = new InteriorPieceDef { Def = def } });

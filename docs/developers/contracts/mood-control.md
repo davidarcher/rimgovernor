@@ -68,7 +68,8 @@ unreadable social block keeps the previous provisioning; a readable one with no 
 pressure clears it.
 
 `SleptInBarracks` is answered by the existing bedroom builders (`NextBedroomStep`):
-barracks sleepers are unhoused, so the planned private bedrooms are built within the
+sleepers in a room the game scores a barracks are unhoused unless the plan holds that
+room as a barracks (`PlannedRole.Barracks`), so the planned private bedrooms are built within the
 housing budget and research gates; the thought only names `shelter/sleeping` as the
 owner a mood waits on, and adds no new builder.
 

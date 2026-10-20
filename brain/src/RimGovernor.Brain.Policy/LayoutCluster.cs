@@ -364,12 +364,8 @@ internal sealed class GroupEval
         return Policy.PlannedRole.None;
     }
 
-    /// <summary>Reports a group some planned room carries (PlannedRoleOfGroup); a barracks, which the game scores a room of several beds, is none.</summary>
-    public bool Placeable()
-    {
-        var group = new RoomGroup { Role = Role, Planned = PlannedRole(), Requires = Requires() };
-        return LayoutTileRules.PlannedRoleOfGroup(group).Ok;
-    }
+    /// <summary>Reports a group the clustering may form (LayoutClusterRules.ClusterPlaceable).</summary>
+    public bool Placeable() => LayoutClusterRules.ClusterPlaceable(new RoomGroup { Role = Role, Planned = PlannedRole(), Requires = Requires() });
 }
 
 public static partial class LayoutClusterRules
@@ -404,8 +400,16 @@ public static partial class LayoutClusterRules
     /// <summary>A target-sized bedroom (StationNode.Floor) is its own room; no rule merges it with a barracks or another bedroom (#2939).</summary>
     public const string ReasonClusterSuite = "cluster_suite_own_room";
 
-    /// <summary>The merged room would be one no planned room carries (several beds read as a barracks), which the tiler cannot place (#3017); no pair rule joins them.</summary>
+    /// <summary>The merged room would be one the clustering may not form (ClusterPlaceable: several beds read as a barracks), which the tiler cannot place (#3017); no pair rule joins them.</summary>
     public const string ReasonClusterNoRoom = "cluster_no_planned_room";
+
+    /// <summary>
+    /// Whether the clustering may form g: a planned room carries it (PlannedRoleOfGroup), and a group the game scores
+    /// a barracks only when it is planned as one. The clustering prices no bed merge (#3658), so beds it would join
+    /// into a barracks stay apart; a barracks reaches the plan only as a group whose Planned is Barracks.
+    /// </summary>
+    internal static bool ClusterPlaceable(RoomGroup g) =>
+        (g.Role != RoomRole.Barracks || g.Planned == PlannedRole.Barracks) && LayoutTileRules.PlannedRoleOfGroup(g).Ok;
 
     /// <summary>
     /// Recorded on a decision whose two parts are a cold group and a station that works in a temperature band:

@@ -475,8 +475,8 @@ public static partial class LayoutRegroupRules
         return cur.Result(decisions);
     }
 
-    /// <summary>Counts the groups no planned room carries (a barracks): the tiler cannot place them, so no move may add one.</summary>
-    private static int Unplaceable(IReadOnlyList<RoomGroup> groups) => groups.Count(g => !LayoutTileRules.PlannedRoleOfGroup(g).Ok);
+    /// <summary>Counts the groups the clustering may not form (ClusterPlaceable: a barracks), so no move may add one.</summary>
+    private static int Unplaceable(IReadOnlyList<RoomGroup> groups) => groups.Count(g => !LayoutClusterRules.ClusterPlaceable(g));
 
     /// <summary>The move m taking the grouping from to to.</summary>
     private static RegroupDecision MoveDecision(RegroupProposal m, RegroupTrial from, RegroupTrial to, string verdict, string reason) =>

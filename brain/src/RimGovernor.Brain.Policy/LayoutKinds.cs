@@ -107,6 +107,10 @@ public enum PlannedRole
 
     [WireName("deathrest-chamber")]
     DeathrestChamber,
+
+    /// <summary>A room of several colonist beds the game scores a barracks: the bedroom step fills one bed per tiled bed slot.</summary>
+    [WireName("barracks")]
+    Barracks,
 }
 
 /// <summary>A site node's kind.</summary>

@@ -6,6 +6,9 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class SleepingRules
 {
+    /// <summary>The planned rooms a colonist owns a bed in for good, whose pawns migrate when the room retires: a bedroom, a barracks or a suite.</summary>
+    internal static bool MigratesPawns(PlannedRole role) => role is PlannedRole.Bedroom or PlannedRole.Barracks or PlannedRole.Suite;
+
     /// <summary>The bedrooms whose pawns migrate: those a successor replaces.</summary>
     internal static List<PlannedRoom> RetiringBedrooms(LayoutPlan plan)
     {
@@ -13,7 +16,7 @@ public static partial class SleepingRules
         var output = new List<PlannedRoom>();
         foreach (var r in plan.Rooms)
         {
-            if ((r.Role == PlannedRole.Bedroom || r.Role == PlannedRole.Suite) && gone.Contains(r.Id))
+            if (MigratesPawns(r.Role) && gone.Contains(r.Id))
             {
                 output.Add(r);
             }
@@ -78,7 +81,7 @@ public static partial class SleepingRules
         var output = new HashSet<int>();
         foreach (var r in plan.Rooms)
         {
-            if ((r.Role != PlannedRole.Bedroom && r.Role != PlannedRole.Suite) || !gone.Contains(r.Id))
+            if (!MigratesPawns(r.Role) || !gone.Contains(r.Id))
             {
                 continue;
             }
@@ -149,7 +152,7 @@ public static partial class SleepingRules
         var retiring = RetiringRooms(plan);
         foreach (var r in plan.Rooms)
         {
-            if ((r.Role != PlannedRole.Bedroom && r.Role != PlannedRole.Suite) || retiring.Contains(r.Region.Bounds()))
+            if (!MigratesPawns(r.Role) || retiring.Contains(r.Region.Bounds()))
             {
                 continue;
             }

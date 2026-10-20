@@ -1703,7 +1703,7 @@ partial class RoundsBuildingPlanner
         return cells;
     }
 
-    /// <summary>The interior cells of the layout plan's rooms a colonist sleeps in: the shelter, the bedrooms and the suites. Loose sleeping spots stand in these and nowhere else.</summary>
+    /// <summary>The interior cells of the layout plan's rooms a colonist sleeps in: the shelter, the bedrooms, the barracks and the suites. Loose sleeping spots stand in these and nowhere else.</summary>
     internal static List<Cell> SleepingPlannedCells(Observation.ColonyProjection facts)
     {
         var cells = new List<Cell>();
@@ -1713,7 +1713,7 @@ partial class RoundsBuildingPlanner
         }
         foreach (var room in plan.Rooms)
         {
-            if (room.Role is Pol.PlannedRole.Shelter or Pol.PlannedRole.Bedroom or Pol.PlannedRole.Suite)
+            if (room.Role is Pol.PlannedRole.Shelter or Pol.PlannedRole.Bedroom or Pol.PlannedRole.Barracks or Pol.PlannedRole.Suite)
             {
                 cells.AddRange(PlannedRoomInterior(room));
             }

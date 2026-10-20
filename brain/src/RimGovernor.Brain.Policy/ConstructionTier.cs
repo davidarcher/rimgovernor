@@ -15,6 +15,7 @@ public static class ConstructionTierRules
         [PlannedRole.Kitchen] = ConstructionTier.Survive,
 
         [PlannedRole.Bedroom] = ConstructionTier.Sustain,
+        [PlannedRole.Barracks] = ConstructionTier.Sustain,
         [PlannedRole.Hospital] = ConstructionTier.Sustain,
         [PlannedRole.Butchery] = ConstructionTier.Sustain,
         [PlannedRole.Storage] = ConstructionTier.Sustain,

@@ -82,6 +82,7 @@ public static partial class LayoutOverlayRules
         public static readonly Dictionary<PlannedRole, OverlayStyleOf> Room = new()
         {
             [LayoutSurveyRules.PlannedBedroom] = St(PlanBlue, "bedroom"),
+            [PlannedRole.Barracks] = St(PlanBlue, "barracks"),
             [LayoutTripsRules.PlannedSuite] = St(PlanBlue, "suite"),
             [LayoutSurveyRules.PlannedShelter] = St(PlanLightBlue, "shelter"),
             [PlannedRole.Airlock] = St(PlanLightBlue, "airlock"),

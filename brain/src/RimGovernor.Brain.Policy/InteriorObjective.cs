@@ -211,12 +211,12 @@ public sealed record InteriorScore
 public static class InteriorObjectiveRules
 {
     /// <summary>
-    /// The sleep purpose of the beds a room role holds: the bedroom's are the colonists', the hospital's
-    /// medical, the prison cell's the prisoners'. Other roles hold no bed worth a flow.
+    /// The sleep purpose of the beds a room role holds: the bedroom's and the barracks' are the colonists', the
+    /// hospital's medical, the prison cell's the prisoners'. Other roles hold no bed worth a flow.
     /// </summary>
     public static StationPurpose SleepPurposeOf(RoomRole role) => role switch
     {
-        RoomRole.Bedroom => StationPurpose.Sleep,
+        RoomRole.Bedroom or RoomRole.Barracks => StationPurpose.Sleep,
         RoomRole.Hospital => StationPurpose.SleepMed,
         RoomRole.PrisonCell => StationPurpose.SleepPrison,
         _ => StationPurpose.None,

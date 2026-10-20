@@ -753,10 +753,17 @@ stays refused for good (that questline ends here).
 ### Bedrooms and sleeping upkeep
 
 A bedroom step (`NextBedroomStep`, `NextMigrateStep`, the suite claims) owes
-a planned room with no bed a `BedroomReconcile`; there is no shell or furnish
-step. The runtime (`reconcileBedroom`) picks the bed from the sleeping
-ladder, takes its slot from `policy.BedroomFurnishing` (the bedroom template's
-bed slot, for suites and the shelter too) and hands the room to the shared
+a planned room with no bed a `BedroomReconcile`, and a planned barracks
+(`PlannedRole.Barracks`) one while it holds fewer beds than the tiler placed
+in it; there is no shell or furnish step. A colonist owning a bed in a planned
+barracks is housed, and an unhoused one moves into a vacant barracks bed only
+when no bedroom bed is vacant to them. The clustering never forms a barracks
+yet (`ClusterPlaceable`: several beds stay apart until the bed merge is priced,
+#3658). The tiler keeps the cell past each barracks bed's end clear and
+reached from the doors, so no bed is boxed in by the others. The runtime (`reconcileBedroom`) picks the bed from the sleeping
+ladder, takes its slots from `policy.BedroomFurnishing` (the bedroom template's
+bed slot, for suites and the shelter too; a barracks's tiled bed slots,
+`BedSlotsOf`, one bed each) and hands the room to the shared
 build side (`reconcileRoom`, see Throne room below): ring, doors, floor and
 the bed, the bed installed from packed stock first. Once the room stands, a
 vacant `Bed` left in the starter shell is packed (`packShellBed`) so the next

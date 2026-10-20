@@ -176,7 +176,12 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_census") };
         }
-        var furnishing = SleepingRules.BedroomFurnishing(step.Room, rooms.Shapes, bed, StandingBuildings(facts), null);
+        if (!facts.LayoutPlan.TryGetValue(out var plan))
+        {
+            return new RoundsBuildingResult { Verdict = FieldUnavailable("layout_plan") };
+        }
+        // A barracks is furnished to its tiled bed slots, a bed each.
+        var furnishing = SleepingRules.BedroomFurnishing(step.Room, rooms.Shapes, bed, StandingBuildings(facts), null, SleepingRules.BedSlotsOf(plan, step.Room, rooms.Shapes.Furniture));
         if (!furnishing.Absent)
         {
             return new RoundsBuildingResult { Verdict = NoSpace("bedroom_template") };

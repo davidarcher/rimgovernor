@@ -301,7 +301,7 @@ public static partial class LayoutRouteRules
 
     /// <summary>The roles nobody walks through in a room with no RoomCrossing (one that is not a station group); a station group's room carries its own RoomCrossing instead.</summary>
     internal static bool NoThroughfare(PlannedRole role) =>
-        role == LayoutSurveyRules.PlannedBedroom || role == LayoutTripsRules.PlannedSuite || role == LayoutSurveyRules.PlannedShelter || role == LayoutSurveyRules.PlannedPrison
+        role == LayoutSurveyRules.PlannedBedroom || role == PlannedRole.Barracks || role == LayoutTripsRules.PlannedSuite || role == LayoutSurveyRules.PlannedShelter || role == LayoutSurveyRules.PlannedPrison
         || role == LayoutSurveyRules.PlannedKitchen || role == LayoutSurveyRules.PlannedHospital || role == LayoutSurveyRules.PlannedLab || role == LayoutThroneRules.PlannedThrone;
 
     /// <summary>The crossing facts of a group: whether it is kept cold (GroupCold), its player-faction beds and whether it needs cleanliness.</summary>

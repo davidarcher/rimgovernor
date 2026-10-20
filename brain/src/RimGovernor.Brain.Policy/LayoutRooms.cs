@@ -61,6 +61,10 @@ public static partial class LayoutRoomsRules
         {
             return LayoutSurveyRules.PlannedBedroom;
         }
+        if (role == RoomRole.Barracks)
+        {
+            return PlannedRole.Barracks;
+        }
         if (role == LayoutTripsRules.RoomRoleSuite)
         {
             return LayoutTripsRules.PlannedSuite;

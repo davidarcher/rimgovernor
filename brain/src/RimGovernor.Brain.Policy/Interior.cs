@@ -214,6 +214,7 @@ public static class InteriorRules
     internal static readonly IReadOnlyDictionary<PlannedRole, RoomRole> ModuleRoomRoles = new Dictionary<PlannedRole, RoomRole>
     {
         [PlannedRole.Bedroom] = RoomRole.Bedroom,
+        [PlannedRole.Barracks] = RoomRole.Barracks,
         [PlannedRole.Suite] = RoomRole.Suite,
         [PlannedRole.Shelter] = RoomRole.Shelter,
         [PlannedRole.Dining] = RoomRole.DiningRoom,

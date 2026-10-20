@@ -643,12 +643,13 @@ internal sealed partial class Tiler(TileInput input)
         return output;
     }
 
-    /// <summary>The floor pieces of room i's group; a wall building stands in the wall ring and is left out (walls is set).</summary>
+    /// <summary>The floor pieces of room i's group; a wall building stands in the wall ring and is left out (walls is set). A barracks bed keeps its end cell clear.</summary>
     internal (List<RegionWant> Wants, bool Walls) Wants(int i)
     {
         var wants = new List<RegionWant>();
         var walls = false;
-        foreach (var s in In.Groups[Rooms[i].Group].Stations)
+        var g = In.Groups[Rooms[i].Group];
+        foreach (var s in g.Stations)
         {
             var (st, _) = In.Catalog.Station(s.Def); // TileEmbedding checked every def
             if (st.Access == StationAccess.Wall)
@@ -656,7 +657,9 @@ internal sealed partial class Tiler(TileInput input)
                 walls = true;
                 continue;
             }
-            wants.Add(new RegionWant { Slot = s.Node, Def = s.Def, Size = st.Shape.Size, Interaction = st.Shape.Interaction, Count = s.Count, Min = s.Count });
+            // A barracks bed keeps the cell past its end open and reached from the doors, so no bed is boxed in by the others.
+            var clear = g.Planned == PlannedRole.Barracks && In.Furniture.IsBed(s.Def) ? 1 : 0;
+            wants.Add(new RegionWant { Slot = s.Node, Def = s.Def, Size = st.Shape.Size, Interaction = st.Shape.Interaction, Count = s.Count, Min = s.Count, Clear = clear });
         }
         return (wants, walls);
     }
