@@ -22,7 +22,7 @@ public sealed class PlannedShelterTests
         var row = new ConstructionActivityOption(id, kind == "wall" ? "Wall" : "Door", cell, "pawn", "", "", cell, 0, 0, "Finish",
             Known(0.0), default, Known(finish)) { SiteApproachTicks = Known(1.0) };
         return new PlannedBuildSite(id, 1, op, kind == "wall" ? "Wall" : "Door", "WoodLog", Rotation.North, [cell])
-            { Verdict = verdict, CanPlace = Known(true), Options = [row] };
+            { Verdict = verdict, Options = [row] };
     }
 
     private static PlannedBuildSite Roof() => new("planned/room1/roof", 1, OpKind.RoofIn, "", "", Rotation.North, [Inside]);
@@ -34,7 +34,7 @@ public sealed class PlannedShelterTests
         var row = new ConstructionActivityOption(HeaterSite, "Heater", Inside, "pawn", "", "", Inside, 0, 0, "Finish",
             Known(0.0), default, Known(finish)) { SiteApproachTicks = Known(1.0) };
         return new PlannedBuildSite(HeaterSite, 1, OpKind.Build, "Heater", "", Rotation.North, [Inside])
-            { Verdict = verdict, CanPlace = Known(true), Options = [row] };
+            { Verdict = verdict, Options = [row] };
     }
 
     // unplaced: nothing at all is placed, so the coupled capture holds no cell or source of the room (#3323); its cells

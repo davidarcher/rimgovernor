@@ -100,8 +100,8 @@ RimGovernor.cmd acceptance speedmatrix -root <abs root>
 ```
 
 The speed matrix is a throughput run only: it measures governed ticks per second
-at each speed. It is not a behaviour test; hauling is
-covered by `storage/valued-haul` and planned-room walls by their own case.
+at each speed. It is not a behaviour test; planned-room walls
+are covered by their own case.
 Needs a `ThroughputFixture` build. One staged colony is reloaded per row and
 run with the `work` family to a 30000-tick target.
 Rows are `DefaultSpeedMatrix`

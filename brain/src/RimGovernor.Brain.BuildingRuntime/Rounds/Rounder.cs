@@ -583,8 +583,7 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { CoupledWorkActive = plans.Any(plan => !plan.Retired
             && plan.SupersededBy.IsEmpty
             && plan.Progress.Any(a => a.Action.PawnActivities is { Tasks.Count: > 0 } batch
-                && batch.Orders.Any(o => !o.Release && (o.Method.StartsWith("coupled-", StringComparison.Ordinal)
-                    || o.Method.StartsWith(StandbyAssignmentsRules.StoreHaulMethodPrefix, StringComparison.Ordinal)))
+                && batch.Orders.Any(o => !o.Release && o.Method.StartsWith("coupled-", StringComparison.Ordinal))
                 && a.View.Stage is not (Stage.Unsuccessful or Stage.Cancelled))) });
         reading = reading.WithFacts(rf => rf with { Dash = DashPlanRules.ReviewDash(previous.Latches.Dash, reading.Projection.Facts, reading.Projection.WorkPawns, expected.Tick, DashEstimateRules.PublishedHypothermiaTuning) });
         reading = reading.WithFacts(rf => rf with { UrgentPatients = EmergencyNeedsRules.UrgentPatients(emergency, state.Snapshot, expected.Tick) });
@@ -764,8 +763,6 @@ public sealed partial class Rounder
         await ReviewFirstPlanAsync(state.Snapshot, result.Review.Snapshot, reading.Projection, ct).ConfigureAwait(false);
         stages.Lap("first_plan");
         var taken = AdmitCoupledSelection(result, reading.Projection.Facts, reconsideration.Incumbents, state.Snapshot, ct, epoch);
-        // Standby work first (#3624): a valued store haul, then the plain standby for whoever is left.
-        taken.UnionWith(await AdmitStoreHaulsAsync(result, reading.Projection.Facts, workActions, taken, state.Snapshot, ct, epoch).ConfigureAwait(false));
         taken.UnionWith(AdmitStandby(reading.Projection.Facts, workActions, taken, state.Snapshot, ct, epoch));
         result = result with { Assigned = taken, FirstPlanUnread = FirstPlanUnread };
         stages.Lap("admit");

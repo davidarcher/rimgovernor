@@ -7,9 +7,9 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>needs/far-meal-standby</c> (#3649): under the served brain a colonist whose next meal departs well in the future is
-/// not held waiting for it. It is released to standby and carries a cloth stack lying outside into a roofed storeroom (a
-/// valued haul); once its hunger is near the meal's departure, standby gives it back to the meal and it eats before it
-/// turns hungry. The live hunger fall, the native carry and the native meal are what a unit test cannot drive.
+/// not held waiting for it. It is released to standby (vanilla job selection, #3662); once its hunger is near the meal's
+/// departure, standby gives it back to the meal and it eats before it turns hungry. The live hunger fall and the native
+/// meal are what a unit test cannot drive.
 /// </summary>
 internal static class NeedsFarMealStandby
 {
@@ -25,8 +25,7 @@ internal static class NeedsFarMealStandby
     // Eaten on time: before the colonist turned hungry (RimWorld's Hungry band starts at 0.25).
     private const double Late = .25;
 
-    // A 16x5 site: the 5x5 storeroom (walls, a door east, roof) at its west end with a stockpile on its 3x3 interior, and
-    // the cloth stack, a meal and the colonist at its east end, so the colonist stands nearest the stack.
+    // A 16x5 site with a meal and the colonist at its east end.
     private static readonly Fx.StageSpec Spec = new()
     {
         Paused = true,
@@ -41,18 +40,8 @@ internal static class NeedsFarMealStandby
             Require = [Fx.StageGround.Standable, Fx.StageGround.Unzoned, Fx.StageGround.Unfogged, Fx.StageGround.Heavy],
         },
         Clear = [new Fx.StageClear { Rect = new Fx.StageRect(0, 0, 16, 5), Kinds = [Fx.StageClearKind.Things, Fx.StageClearKind.Zones, Fx.StageClearKind.Roofs] }],
-        Rooms = [new Fx.StageRoom { Name = "store", Rect = new Fx.StageRect(0, 0, 5, 5), Stuff = "WoodLog", Doors = [new(4, 2)], Roof = true }],
-        Zones =
-        [
-            new Fx.StageZone
-            {
-                Name = "store", Kind = Fx.StageZoneKind.Stockpile, Priority = Fx.StageStoragePriority.Important, Allow = ["Cloth"],
-                Cells = [.. from z in Enumerable.Range(1, 3) from x in Enumerable.Range(1, 3) select new Fx.StageCell(x, z)],
-            },
-        ],
         Things =
         [
-            new Fx.StageThing { Name = "cloth", Def = "Cloth", Count = 75, Cell = new(14, 1) },
             new Fx.StageThing { Name = "meal", Def = "MealSimple", Count = 1, Cell = new(12, 3) },
         ],
         Pawns = [new Fx.StagePawn { Name = "eater", Colonist = 0, Cell = new(13, 2), Needs = new Dictionary<string, float> { ["Food"] = Fed } }],
@@ -71,9 +60,9 @@ internal static class NeedsFarMealStandby
     internal static TypedCase Case() => new()
     {
         Name = "needs/far-meal-standby",
-        Scope = "Issue #3649: under the served brain a colonist whose meal departs hours ahead carries a cloth stack into a "
-            + "roofed storeroom on standby instead of being held, and once its hunger nears the meal's departure it eats before "
-            + "turning hungry. A unit test cannot drive the live hunger fall, the native carry or the native meal.",
+        Scope = "Issue #3649: under the served brain a colonist whose meal departs hours ahead is released to standby "
+            + "instead of being held, and once its hunger nears the meal's departure it eats before turning hungry. A unit test "
+            + "cannot drive the live hunger fall or the native meal.",
         Ticks = Budget,
         Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = 1 },
@@ -101,22 +90,22 @@ internal static class NeedsFarMealStandby
             return food;
         }
 
-        // The meal is hours ahead: the colonist carries the stack rather than waiting for it.
-        _ = await s.ServeUntilAsync("haul", s.TicksLeft, async ct =>
+        // The meal is hours ahead: the colonist is released to standby rather than held for it.
+        _ = await s.ServeUntilAsync("standby", s.TicksLeft, async ct =>
         {
             var food = await FoodAsync(ct).ConfigureAwait(false);
-            var hauled = Hauled(s, eater);
-            return (string.Create(CultureInfo.InvariantCulture, $"food={food:0.000} hauled={hauled} ate={ateFrom is not null}"), hauled || ateFrom is not null);
+            var released = Released(s, eater);
+            return (string.Create(CultureInfo.InvariantCulture, $"food={food:0.000} released={released} ate={ateFrom is not null}"), released || ateFrom is not null);
         }, cancellationToken).ConfigureAwait(false);
-        s.Record("hauledBy", Budget - s.TicksLeft);
+        s.Record("releasedBy", Budget - s.TicksLeft);
         if (ateFrom is { } early)
         {
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the colonist ate at food {early:0.000} before any haul: its meal was not far ahead"));
+            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the colonist ate at food {early:0.000} before its release to standby: its meal was not far ahead"));
         }
 
-        if (!Hauled(s, eater))
+        if (!Released(s, eater))
         {
-            throw new AcceptanceException("the colonist completed no valued haul while its meal was far ahead");
+            throw new AcceptanceException("the colonist was not released to standby while its meal was far ahead");
         }
 
         // Its meal is now due: standby gives the colonist back to it.
@@ -142,10 +131,10 @@ internal static class NeedsFarMealStandby
         }
     }
 
-    // Whether native completed a valued-haul order for the colonist.
-    private static bool Hauled(TypedSession s, string pawn) => s.Telemetry(TelemetryKinds.PawnActivityExecution).Any(r =>
-        Text(r, PawnActivityTelemetry.PawnKey) == pawn && Text(r, PawnActivityTelemetry.StateKey) == PawnActivityTelemetry.CompletedState
-        && Text(r, PawnActivityTelemetry.AssignmentKey).StartsWith(StandbyAssignmentsRules.StoreHaulMethodPrefix, StringComparison.Ordinal));
+    // Whether native ran a standby order for the colonist.
+    private static bool Released(TypedSession s, string pawn) => s.Telemetry(TelemetryKinds.PawnActivityExecution).Any(r =>
+        Text(r, PawnActivityTelemetry.PawnKey) == pawn
+        && Text(r, PawnActivityTelemetry.AssignmentKey).StartsWith(StandbyAssignmentsRules.StandbyMethodPrefix, StringComparison.Ordinal));
 
     private static string Text(LogRow row, string key) => row.Payload.GetValueOrDefault(key) as string ?? "";
 }

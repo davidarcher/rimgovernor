@@ -5,7 +5,7 @@ public static partial class RoundsRules
     internal static Fact<bool> NotFact(Fact<bool> f) => Measured(f, v => !v);
 
     /// <summary>
-    /// The admin/work-assignments Need's measure (#3304): owed while a coupled activity or store haul runs, or a coupled activity is selected or deferred,
+    /// The admin/work-assignments Need's measure (#3304): owed while a coupled activity runs or is selected or deferred,
     /// a hostility, nickname, medicine carry or medical care setting is owed, a work type is uncovered or a cleanup pawn
     /// is idle; unknown while the coverage or cleanup census is unread.
     /// </summary>

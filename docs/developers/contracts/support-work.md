@@ -79,44 +79,9 @@ not merely because a stockpile accepts chunks. Unrelated chunks remain outside
 that demand. Native storage filters, reservations and work legality still apply;
 global item definitions are not changed to make all chunks haulable.
 
-## Store hauls
-
-Carrying a loose stack to storage is standby work (#3624): after the coupled
-admission, each colonist on standby or given nothing (`StandbyWorkPawnsOf`) may
-take one haul, when its [value](../architecture/forecast-value.md#store-haul-value)
-is positive. Hauling is never valued for its own sake: a stack earns only the
-travel its future uses save and the market value it would lose where it lies.
-
-One native store read (`ConstructionActivityRequest.Store`) gives the stacks: the
-haulables lister's loose stacks outside storage, unforbidden and seen, whose
-resource has a use or which deteriorate or rot where they lie, nearest the asked
-colonists first, at most `StoreHaulLimit` (32, finding `store_haul_limit`). Native
-chooses each stack's storage cell (the best storage accepting it on the map; none
-is finding `store_haul_destination_unknown`), and returns the haul rows of the
-asked colonists, the walk from the stack and from the storage cell to each use,
-the game's deterioration rate at either cell and the ticks to rot at either cell's
-temperature. The uses are the planned sites' materials (the stuff the room
-selection chose, at the site's first cell) and the open bills' fixed ingredients
-at the bench's interaction cell (repeat-count bills by their remaining repeats,
-others one batch), at most `StoreUseLimit` (8) per resource. Tier-2 material use
-has no location and is not a use ([#3627](https://github.com/davidarcher/rimgovernor/issues/3627)).
-
-A haul binds as the planned-clearing haul does (#3614): one Deliver step of the
-whole stack in one carry, one claimed `haul-` Method per colonist under the
-admin/work-assignments Need, until the comparison's horizon. It never takes a
-stack another Method claims, a stack a pending service names (an eater's food, a
-cook's or a supply's inputs and source cell, a treatment's medicine), or a stack
-on such a cell, so a haul cannot starve a meal or a cook. Each stack is hauled by
-one colonist; the best-valued haul goes first. A `standby` decision with reason
-`store_haul` records it; a review whose standby colonists found no haul worth its
-labor files one `no_valued_haul` row with the best offer's terms. Every review
-with a colonist on standby reads and values the stacks again, so a haul is
-reselected as soon as one is worth it. A haul's value depends on where its
-colonist stands: a stack nothing threatens saves at most its distance to storage,
-so it is worth carrying only for a colonist nearer the stack than the stack is to
-storage (#3642), and a colonist that has just stored one stack is rarely that. A colonist on a haul is not yet free to the review a
-coupled worker's finished task raises (#3624): it can take that worker's next task
-only once its haul ends, at a later review.
+Carrying a loose stack to storage with no outstanding requirement is vanilla's:
+a colonist on standby hauls it under its Hauling work priority (#3662). The brain
+has no haul path of its own for it.
 
 ## Execution and evidence
 

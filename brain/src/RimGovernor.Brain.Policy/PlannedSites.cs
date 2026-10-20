@@ -6,8 +6,8 @@ namespace RimGovernor.Brain.Policy;
 /// One hypothetical construction site: one owed operation of one planned room (Room, Op) in one stuff, or one
 /// unplaced shelf candidate (Zone, Op Build, Room 0). Positions are its placement anchors, one per piece (every cell
 /// of a wall run or floor op, a piece's one anchor). Material is the piece cost times the pieces, priced the way
-/// PlannedOwedCost prices the op. The rest is the native planned-site answer (#3273) joined back by Id: CanPlace is
-/// unknown while native has not answered (no read, an unknown read, an unresolved def) and Options are the
+/// PlannedOwedCost prices the op. The rest is the native planned-site answer (#3273) joined back by Id: Verdict is
+/// unspecified while native has not answered (no read, an unknown read, an unresolved def) and Options are the
 /// per pawn x material source rows.
 /// A RoofIn site has no native placement: its work per cell is the coupled read's ThermalWorker.RoofCellWorkTicks,
 /// so it is never requested and stays unknown here.
@@ -18,8 +18,6 @@ public sealed record PlannedBuildSite(string Id, int Room, OpKind Op, string Def
     public string Zone { get; init; } = "";
 
     public EquatableArray<Amount> Material { get; init; }
-
-    public Fact<bool> CanPlace { get; init; }
 
     public EquatableArray<ConstructionActivityOption> Options { get; init; }
 
@@ -278,7 +276,6 @@ public static partial class PlannedRules
         var joined = sites.Select(site => answers.TryGetValue(site.Id, out var a)
             ? site with
             {
-                CanPlace = a.CanPlace,
                 Options = EquatableArray.From(a.Options.Where(o => o.Site == site.Id)),
                 Verdict = a.Verdict,
                 Clearing = a.Clearing,

@@ -52,19 +52,6 @@ internal static class CoordinatedActivityBinding
     }
     private const long DistantServiceTicks = 600;
 
-    /// <summary>One task started now outside a schedule (#3624, a store haul): its pawn's one order runs the task's step at
-    /// once, and its stack claim holds for the task's <paramref name="ticks"/>. The selected task is kept, so continuation
-    /// releases the pawn when the step completes.</summary>
-    internal static PawnActivities StartAlone(ActivityTaskCandidate task, ulong authority, string method, long tick, double ticks)
-    {
-        var selected = new SelectedActivityTask(task.Id, task.Pawn, [],
-            new(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count, task.Deadline) { Destination = task.Destination }, task.Location, tick)
-            { Resource = task.Resource, Source = task.Source, UseUntilTick = SelectedActivityTask.UseUntil(tick, 0, ticks) };
-        var order = new PawnActivityOrder(task.Pawn, method + "/" + task.Pawn, method, 0, 1, false, [selected.Step])
-        { Task = selected.Id, OutputDelivery = task.Resource.Length != 0 && task.Count > 0
-            ? new(task.Resource, task.Source ?? task.Location, task.Destination ?? task.Location, task.Count, task.Deadline, selected.AttemptsLeft) : null };
-        return new(authority, [order]) { Tasks = [selected] };
-    }
     internal static PawnActivities? Start(ForecastActivityOutcomeComparison? selection,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, ulong authority, string method, long tick,
         IReadOnlySet<string>? unplaced = null)

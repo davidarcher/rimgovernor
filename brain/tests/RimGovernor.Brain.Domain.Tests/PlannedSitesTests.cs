@@ -64,7 +64,7 @@ public sealed class PlannedSitesTests
         var roof = sites.Single(s => s.Op == OpKind.RoofIn);
         Assert.Equal(3, roof.Positions.Count);
         Assert.Empty(roof.Material);
-        Assert.All(sites, s => Assert.False(s.CanPlace.IsKnown));
+        Assert.All(sites, s => Assert.Equal(O.PlannedSiteVerdict.Unspecified, s.Verdict));
 
         // The roof has no native placement: everything else is asked, in one read.
         var asked = PlannedRules.PlannedSiteRequest(sites);
@@ -86,7 +86,7 @@ public sealed class PlannedSitesTests
             Findings = ["planned_quality_minimum_unset"],
             Planned =
             [
-                new O.PlannedSiteAnswer("planned/room1/wall/Steel", Known(false))
+                new O.PlannedSiteAnswer("planned/room1/wall/Steel")
                 {
                     Options = [row],
                     Verdict = O.PlannedSiteVerdict.Feasible, Clearing = [clearing],
@@ -95,17 +95,16 @@ public sealed class PlannedSitesTests
         };
         var facts = PlannedRules.JoinPlannedSites(sites, answered);
         var wall = facts.Sites.Single(s => s.Id == "planned/room1/wall/Steel");
-        Assert.Equal(Known(false), wall.CanPlace);
         Assert.Equal([row], wall.Options);
         // Feasibility once cleared, and the clearing it owes, come through the join (#3276).
         Assert.Equal(O.PlannedSiteVerdict.Feasible, wall.Verdict);
         Assert.Equal([clearing], wall.Clearing);
         // A site no answer names stays unknown.
-        Assert.False(facts.Sites.Single(s => s.Id == "planned/room1/wall/WoodLog").CanPlace.IsKnown);
+        Assert.Equal(O.PlannedSiteVerdict.Unspecified, facts.Sites.Single(s => s.Id == "planned/room1/wall/WoodLog").Verdict);
         Assert.Equal(["planned_quality_minimum_unset"], facts.Findings);
         // A read that never came leaves every site unknown, saying so.
         var missing = PlannedRules.JoinPlannedSites(sites, null);
-        Assert.All(missing.Sites, s => Assert.False(s.CanPlace.IsKnown));
+        Assert.All(missing.Sites, s => Assert.Equal(O.PlannedSiteVerdict.Unspecified, s.Verdict));
         Assert.Equal(["planned_site_read_unknown"], missing.Findings);
     }
 

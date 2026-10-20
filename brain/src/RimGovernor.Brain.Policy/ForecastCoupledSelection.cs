@@ -24,8 +24,8 @@ public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeCom
     public int CompositionExpansions { get; init; }
     public EquatableArray<ForecastServiceInvestment> ServiceInvestments { get; init; }
     /// <summary>The eligible colonists the selection left unassigned while their needs stand above every threshold: standby takes them
-    /// (#3624), with its valued hauls, and a later review reconsiders them. While any stands, the admin/work-assignments Need is
-    /// owed (<see cref="RoundsRules.WorkAssignmentsOwed"/>), so the standby and haul Methods under it are not released as unneeded.</summary>
+    /// (#3624), and a later review reconsiders them. While any stands, the admin/work-assignments Need is
+    /// owed (<see cref="RoundsRules.WorkAssignmentsOwed"/>), so the standby Methods under it are not released as unneeded.</summary>
     public EquatableArray<string> Deferred { get; init; }
     /// <summary>The search's expansions per phase it reached (#3563): baseline, warm, seed, unserved, extend, confirm, sweep.</summary>
     public EquatableArray<ForecastSearchPhase> SearchPhases { get; init; }
@@ -764,7 +764,7 @@ public sealed partial record ForecastCoupledSelection
     }
 
     /// <summary>The unselected colonists whose observed needs stay above every supported threshold for at least a tick: the
-    /// no-change choice is safe for them. They are not held: standby takes them, with its valued hauls (#3624).</summary>
+    /// no-change choice is safe for them. They are not held: standby takes them (#3624).</summary>
     private static EquatableArray<string> DeferUnselectedPawns(ForecastCoupledContext context, ForecastActivityPlan plan)
     {
         if (context.Resources.Claims.Truncated

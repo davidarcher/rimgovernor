@@ -24,7 +24,6 @@ not a silent exemption.
 | Placement candidates | `PlacementProtocol.cs` | 1..64 | Input bound on one placement preview/apply request, a main-thread budget. |
 | Request id lists | room and supplies observation tools (256), zone observation `MaxIds` (16), quest shuttle explicit pawns (256) | 256 / 16 | The caller names exact ids; an input bound; larger sets are several requests. |
 | `CombatGeometryTools` `MaxCells`, `MaxHostiles`, `MaxRadius` | `NativeCombatGeometryTools.cs` | 64, 16, 12 | Measured on `lab-ranged`: 64 cells x 8 pawns took 1.3-6.6 ms, about 13 ms at the caps. |
-| `StoreHaulLimit`, `StoreUseLimit` | `NativeConstructionActivity.cs` | 32, 8 | The store-haul read (#3624): stacks per read, nearest the asked colonists first, and uses per resource, most units first. A main-thread bound on standby work, which runs every review a colonist idles; a cut is the finding `store_haul_limit`. Unlike the forecast reads below, the standby haul is one of many and the nearest serve best. See [store hauls](support-work.md#store-hauls). |
 | Door and mortar frame caps | `SnapshotFrames.cs` | 64, 16 | Transport caps on a frame section; census #2641 kept them. |
 
 ## Forecast native reads: no cap, measured (#3341)
@@ -68,7 +67,7 @@ native ones `NativeRoomPrediction.cs`.
 | `OutdoorsFree` .. `OutdoorsTrapped` | 0.8, 0.6, 0.4, 0.2, 0.05 | `Need_Outdoors.CurCategory` |
 | `SteadyCellsFractionPerTick` | 0.0006 | `SteadyEnvironmentEffects.MapFractionCheckPerTick` |
 | `DeteriorationMinimumRate`, `DeteriorationChanceDivisor` | 0.001, 36 | `SteadyEnvironmentEffects.TryDoDeteriorate` |
-| `DeteriorationRainLow`, `DeteriorationRainHigh`; native `StoredRate` (the store haul's rate at its storage cell, #3624) | 1, 5 | `StatPart_EnvironmentalEffects.TransformValue` (rain lerp) |
+| `DeteriorationRainLow`, `DeteriorationRainHigh` | 1, 5 | `StatPart_EnvironmentalEffects.TransformValue` (rain lerp) |
 | `WorkTableOutdoorsFactor` | 0.8 | `StatPart_WorkTableOutdoors.WorkRateFactor` |
 | native `MaxRegionsForRole` | 60 | `Room.UpdateRoomStatsAndRole` |
 | native `SpaceStandable`, `SpaceWalkable`, `SpaceCap` | 1.4, 0.5, 350 | `RoomStatWorker_Space.GetScore` |

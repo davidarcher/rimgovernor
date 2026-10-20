@@ -157,21 +157,6 @@ development, unsupplied demand and first-care time; then the incumbent, then les
 reports each term's contribution in capability-days, the floors it passed, and which constants it used (the nested
 `value` attributes of `coupled_selection`).
 
-### Store-haul value
-
-A haul to storage ([store hauls](../contracts/support-work.md#store-hauls), #3624) is priced in the same currency, as
-labor saved plus loss avoided, less its own labor (`ForecastValue.StoreHaulValueOf`). Travel saved: each future use of
-the stack, the most saved first, takes what is left of it; its trips (units over the row's carry, rounded up) walk to
-the consumer and back from the storage cell instead of where the stack lies, so storage farther from the work saves
-less, or costs. A use with unknown travel saves nothing. Loss avoided: the market value the stack loses where it lies
-less what it loses stored, over tier 2's horizon (`ColonyModelPolicy.HorizonDays`): all of it if it rots inside the
-horizon, otherwise its deterioration over the horizon as a share of its hit points. Market value converts to work at
-the game's `StatWorker_MarketValue.ValuePerWork`. Labor: the row's approach and delivery ticks. Every input is a native
-read: the rates come from the game (`SteadyEnvironmentEffects.FinalDeteriorationRate`, rescaled to the storage cell by
-`StatPart_EnvironmentalEffects`'s factor there, and `CompRottable.TicksUntilRotAtTemp`), so steel, wood, stone blocks
-and plasteel earn nothing here. A haul is admitted only with a positive total, and only as standby work: it never
-competes with the coupled selection's tasks.
-
 ### Goal value
 
 The player's goals ([player goals](player-goals.md)) enter the currency as a ledger term, `Goals`, a gain (a negative loss)

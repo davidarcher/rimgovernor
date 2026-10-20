@@ -48,7 +48,7 @@ public sealed class PlannedRoomActivitiesTests
                 Known(Ticks(s.At, Nearest(cells, s.At))), Known(finish)) { SiteApproachTicks = Known(reach), AvailableInput = Known(s.Available) }).ToArray();
         return new PlannedBuildSite(id, 1, op, def, op == OpKind.FloorIn ? "" : stuff, Rotation.North, EquatableArray.From(cells))
         {
-            Verdict = verdict, CanPlace = Known(true), Options = EquatableArray.From(rows),
+            Verdict = verdict, Options = EquatableArray.From(rows),
             Material = count > 0 ? [new RimGovernor.Brain.Policy.Amount(new Resource(stuff), count)] : [],
         };
     }

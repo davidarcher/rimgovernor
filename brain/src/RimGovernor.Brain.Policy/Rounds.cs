@@ -481,7 +481,7 @@ public sealed record RoundsFacts
     public ForecastNeedsReview? NeedsAlternatives { get; init; }
     public ForecastCoupledCandidates? CoupledAlternatives { get; init; }
     public EquatableArray<PlannedRoom> PlannedShelters { get; init; }
-    /// <summary>Existing journal ownership, not forecast progress: a coupled activity or a store haul (#3624) is installed.</summary>
+    /// <summary>Existing journal ownership, not forecast progress: a coupled activity is installed.</summary>
     public bool CoupledWorkActive { get; init; }
     /// <summary>The ids the latest coupled comparison selected (#3563): the warm start of this review's search; empty before the first selection after a restart.</summary>
     public EquatableArray<string> PreviousCoupledSelection { get; init; }

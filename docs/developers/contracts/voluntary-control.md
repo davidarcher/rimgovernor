@@ -80,14 +80,8 @@ the next review step run the rounds review (`freed`, #3599), which assigns every
 such pawn it selects nothing for an explicit `Standby`
 (vanilla job selection under the colonist's work priorities, no deadline; see
 [pawn activities](pawn-activities.md#voluntary-ownership-and-bounded-no-change)).
-A colonist on standby, or one the review gave nothing, may take standby work
-instead (#3624): a haul of a loose stack to the storage native chose for it,
-when the haul is worth more than its labor ([support work](support-work.md#store-hauls),
-[store-haul value](../architecture/forecast-value.md#store-haul-value)). Standby
-work is what nothing more valuable left: the coupled selection runs first and
-the standby colonists are free to it, so a haul never displaces a selected task.
-A colonist whose next service the comparison deferred gets standby or standby
-work the same way; there is no separate timed defer. When a coupled worker
+A colonist whose next service the comparison deferred gets standby the same
+way; there is no separate timed defer. When a coupled worker
 finishes a task with bills left, the review its finished task raises decides who
 takes the next one before that worker starts it (#3624): the same worker, or a
 colonist on standby or free that does it faster

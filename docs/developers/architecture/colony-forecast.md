@@ -555,7 +555,7 @@ every free colonist, since any may build, cut, mine or haul; native gives a pawn
 sites, rows, sources or positions. It searches each path once (`NativePathLegs`): a colonist's
 leg to a stack or site once per (colonist cell, target), a stack's legs to a site and back once per (stack, site),
 re-priced at each colonist's move ticks, since free colonists share the cell grid. `JoinPlannedSites` takes each
-site's answer by id: per pawn x source `Options`, `CanPlace`, `Verdict` (feasibility once cleared) and `Clearing` (its cut, haul, mine and deconstruct prerequisites). A site
+site's answer by id: per pawn x source `Options`, `Verdict` (feasibility once cleared) and `Clearing` (its cut, haul, mine and deconstruct prerequisites). A site
 stays unknown when no answer names it, or when the read is missing or unknown (`planned_site_read_unknown`).
 
 The roof has no native placement and is never asked. Its work per cell is the coupled read's

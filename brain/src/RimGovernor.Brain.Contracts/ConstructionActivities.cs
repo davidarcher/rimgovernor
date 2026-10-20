@@ -22,49 +22,6 @@ public sealed record ConstructionActivityRequest(Identity Identity,
     /// <summary>Planned rooms whose closed role and impressiveness the read predicts (#3339); empty asks nothing.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomShape>))]
     public EquatableArray<PlannedRoomShape> RoomPredictions { get; init; }
-    /// <summary>The store hauls to read (#3624); null asks nothing. A request that asks it reads nothing else.</summary>
-    public StoreHaulRequest? Store { get; init; }
-}
-/// <summary>
-/// The store-haul read (#3624): which of <see cref="Pawns"/> could carry which loose stack to the storage native would
-/// choose for it, with what the stack is worth to keep and how far it sits from where it will be used. <see cref="Uses"/>
-/// are the brain's planned-site uses; native adds its open bills' ingredient uses at their benches.
-/// </summary>
-public sealed record StoreHaulRequest
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Pawns { get; init; }
-    [JsonConverter(typeof(EquatableArrayJsonConverter<StoreHaulUse>))]
-    public EquatableArray<StoreHaulUse> Uses { get; init; }
-}
-/// <summary>A future use of <see cref="Units"/> of a resource at <see cref="Consumer"/>: a planned site's material, or an open bill's ingredients at its bench.</summary>
-public sealed record StoreHaulUse(string Resource, Cell Consumer, int Units);
-/// <summary>
-/// One loose stack native's storage read would move (ListerHaulables, outside any storage): to <see cref="Destination"/>,
-/// the nearest cell of the best storage accepting it. <see cref="UnitValue"/> is its market value per unit now;
-/// <see cref="DeteriorationPerDay"/> the hit points it loses per day where it lies (SteadyEnvironmentEffects) and
-/// <see cref="StoredDeteriorationPerDay"/> at the destination; <see cref="RotTicks"/> and <see cref="StoredRotTicks"/> the
-/// ticks until it rots at either cell's temperature (CompRottable.TicksUntilRotAtTemp; unknown when it does not rot).
-/// <see cref="Options"/> are the haul rows of the pawns that could carry it (the planned-clearing haul row shape), and
-/// <see cref="Uses"/> the travel to each of its resource's uses from either cell, by the first row's pawn.
-/// </summary>
-public sealed record StoreHaul(string Thing, string Resource, Cell Origin, Cell Destination, int Count, double UnitValue,
-    int HitPoints, double DeteriorationPerDay, double StoredDeteriorationPerDay)
-{
-    public Fact<double> RotTicks { get; init; }
-    public Fact<double> StoredRotTicks { get; init; }
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ConstructionActivityOption>))]
-    public EquatableArray<ConstructionActivityOption> Options { get; init; }
-    [JsonConverter(typeof(EquatableArrayJsonConverter<StoreHaulTravel>))]
-    public EquatableArray<StoreHaulTravel> Uses { get; init; }
-}
-/// <summary>A use of a stack's resource and the ticks to walk to its consumer from where the stack lies and from its destination.</summary>
-public sealed record StoreHaulTravel(StoreHaulUse Use, Fact<double> FromOrigin, Fact<double> FromDestination);
-/// <summary>The answer to <see cref="StoreHaulRequest"/>: the stacks, nearest-first capped, and the game's silver per work tick (StatWorker_MarketValue.ValuePerWork).</summary>
-public sealed record StoreHaulRead(double ValuePerWork)
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<StoreHaul>))]
-    public EquatableArray<StoreHaul> Hauls { get; init; }
 }
 /// <summary>
 /// One planned room closed in one ring stuff (#3339): its interior cells and the unbuilt ring pieces (walls, doors) its
@@ -181,12 +138,11 @@ public sealed record PlannedSiteClearing(string Id, PlannedClearingKind Kind)
     public EquatableArray<Cell> Cells { get; init; }
 }
 /// <summary>
-/// A planned site's legality and per pawn x material source estimates in the placed-site option shape. An unknown
-/// <see cref="CanPlace"/> (unresolved definition or stuff, or the site was not read) leaves the site unknown; a pawn
-/// with no route has no row. <see cref="CanPlace"/> is native legality as the footprint stands;
-/// <see cref="Verdict"/> is feasibility once <see cref="Clearing"/> has run.
+/// A planned site's feasibility and per pawn x material source estimates in the placed-site option shape. A site native
+/// cannot resolve (unresolved definition or stuff) has an unspecified <see cref="Verdict"/> and no rows; a pawn with no
+/// route has no row. <see cref="Verdict"/> is feasibility once <see cref="Clearing"/> has run.
 /// </summary>
-public sealed record PlannedSiteAnswer(string Site, Fact<bool> CanPlace)
+public sealed record PlannedSiteAnswer(string Site)
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<ConstructionActivityOption>))]
     public EquatableArray<ConstructionActivityOption> Options { get; init; }
@@ -231,6 +187,4 @@ public sealed record ConstructionActivityRead
     /// <summary>The answer to <see cref="ConstructionActivityRequest.RoomPredictions"/>, one row per asked room and stuff.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomPrediction>))]
     public EquatableArray<PlannedRoomPrediction> RoomPredictions { get; init; }
-    /// <summary>The answer to <see cref="ConstructionActivityRequest.Store"/>; null when nothing was asked.</summary>
-    public StoreHaulRead? Store { get; init; }
 }

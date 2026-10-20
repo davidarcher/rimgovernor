@@ -436,7 +436,7 @@ burning retain their native or protective owner. Changing authority interrupts
 unowned voluntary work so it cannot silently continue under the new policy.
 
 When comparison retains no change for an available pawn, the review gives it
-`Standby` or standby work (a valued store haul, #3624), not a timed idle: the
+`Standby`, not a timed idle: the
 bounded 600-tick Idle kind is gone. Hold remains solely an already-authorized
 task dependency.
 

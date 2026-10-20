@@ -556,10 +556,9 @@ hypothetical, unplaced sites. A `PlannedConstructionSite` is an id, a definition
 piece (every cell of a wall run; the one anchor of a 2x1 shelf). Each comes back as
 a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
 
-- `CanPlace`: native `CanPlaceBlueprintAt` for every piece, plus finished research.
-  Unknown when native cannot resolve the definition or stuff, the site is empty,
-  out of bounds or over the position cap; the reason is a read finding
-  (`planned_site_*`).
+- A site native cannot resolve (definition or stuff unresolved, empty, out of
+  bounds or over the position cap) comes back with no rows and an `Unspecified`
+  `Verdict`; the reason is a read finding (`planned_site_*`).
 - `Clearing`: the clearing prerequisites, each an id, a `Kind` (`Cut`, `Haul`,
   `Mine`, `Deconstruct`) and per-pawn `ConstructionActivityOption` rows with `Site` set
   to the op id and `Definition` to the planned site's. One `Cut` op (`<site>/cut`)
@@ -615,9 +614,7 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   `planned_clearing_haul_destination_unknown`) or a deconstructible roof-holder's
   support is unknown (`planned_clearing_roof_support`); else `Feasible`. A pawn, something
   blueprint placement wipes, or something `CanPlaceBlueprintOver` allows that does
-  not `BlocksConstruction` needs no clearing. `CanPlace` stays native legality as the
-  footprint stands, so a site needing only clearing reads `CanPlace` false and
-  `Verdict` `Feasible`.
+  not `BlocksConstruction` needs no clearing.
 - `Options`: the placed-site `ConstructionActivityOption` rows, one per pawn and
   whole-stack material source. `FinishTicks` is `WorkToBuild(stuff)` summed over
   the pieces over the pawn's `ConstructionSpeed`. Routes end at the piece nearest

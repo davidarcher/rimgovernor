@@ -54,7 +54,7 @@ public static partial class ForecastValue
     /// trip (the nearest reachable source's distance at <see cref="DefenseCorridorRoutes.PathMoveCardinal"/> ticks a cell)
     /// over its load, min(stack limit, max(1, yield)). Otherwise its market value over
     /// <see cref="SilverGapRules.ValuePerWorkTick"/>; a block is always priced so. Unpriced with neither. Null
-    /// <paramref name="sources"/> is a failed read. One work tick is one capability-tick, as the store-haul term counts it.
+    /// <paramref name="sources"/> is a failed read. One work tick is one capability-tick.
     /// </summary>
     public static ConstructionMaterialValue MaterialValueOf(Resource def, IReadOnlyList<ResourceSource>? sources, ResourceStorage? storage,
         HaulModel haul, ItemFacts items)

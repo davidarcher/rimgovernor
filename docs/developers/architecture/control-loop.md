@@ -819,7 +819,7 @@ released), even with no planner dirty or due: only the review's coupled selectio
 standby assign it again, and until then it stands idle. The step compares the colonists the
 journal's installed activity Methods hold with the previous step's set, to which a rounds review
 adds the colonists its admission assigned: a Method installs after the step that admitted it read
-the journal, and a short store haul can install and end before the next step reads. Standby is a
+the journal, and a short order can install and end before the next step reads. Standby is a
 Method, so a colonist the review gave nothing is held, not freed again at every step (#3624).
 The first review step after a coupled Method's worker finished a task while the Method has a
 recipe left reviews too (`task`, #3624): the worker reads native `completed` at its order's
