@@ -63,7 +63,7 @@ public sealed class SpeedmatrixOutcomeTests
     [Fact]
     public void ARowWhoseColonistsCompletedBrainWorkPasses()
     {
-        Assert.Empty(SpeedMatrix.CheckOutcomes([Row("Normal", 1), Row("uncapped", 40)], tolerance: 1));
+        Assert.Empty(SpeedMatrix.CheckOutcomes([Row("Normal", 1), Row("Hyperfast", 40)], tolerance: 1));
     }
 
     [Fact]

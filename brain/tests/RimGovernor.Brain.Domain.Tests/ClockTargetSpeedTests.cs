@@ -1,4 +1,5 @@
 using System.Text;
+using RimGovernor.Brain.Acceptance;
 using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Host;
 using RimGovernor.Brain.PlayerApi;
@@ -51,6 +52,24 @@ public sealed class ClockTargetSpeedTests
         var composition = new BrainComposition(new() { ClockTestAcceleration = inputs!.PinsHyperfast(testAccelerationLaunch: true), TargetSpeed = Speed.Fast });
         Assert.Equal(expected, composition.RunTargetSpeed().Speed);
         Assert.False(inputs.PinsHyperfast(testAccelerationLaunch: false));
+    }
+
+    // #3648: the speed matrix's game launches with test acceleration like every acceptance game, so without the unpin in
+    // its launch environment the brain ran every row at Hyperfast whatever speed the row posted.
+    [Theory]
+    [InlineData(Speed.Normal)]
+    [InlineData(Speed.Fast)]
+    [InlineData(Speed.Superfast)]
+    [InlineData(Speed.Ultrafast)]
+    public void TheSpeedMatrixGameRunsEachRowAtTheSpeedItPosts(Speed row)
+    {
+        var root = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "rg-speedmatrix-root"));
+        var env = SpeedMatrixCommand.Configure(SpeedMatrixCommand.Parse(["-root", root])).LaunchEnv;
+        var saveData = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "rg-save-data"));
+        Assert.True(InProcEnvironment.TryResolve(env.GetValueOrDefault, saveData, DateTimeOffset.UnixEpoch, out var inputs, out var error), error);
+        var composition = new BrainComposition(new() { ClockTestAcceleration = inputs!.PinsHyperfast(testAccelerationLaunch: true) });
+        composition.TargetSpeed.Set(row);
+        Assert.Equal(row, composition.RunTargetSpeed().Speed);
     }
 
     [Fact]

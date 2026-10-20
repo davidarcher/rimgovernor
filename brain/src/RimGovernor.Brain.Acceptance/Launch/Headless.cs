@@ -57,6 +57,12 @@ public static partial class HeadlessProfile
     public const string ObserveVariable = "RIMGOVERNOR_OBSERVE";
 
     /// <summary>
+    /// The variable that keeps a test-acceleration launch's brain at the player's speed instead of pinning Hyperfast
+    /// (<c>InProcEnvironment.UnpinTestSpeed</c>): the speed matrix sets it so each row's Run asks for the row's speed.
+    /// </summary>
+    public const string UnpinTestSpeedVariable = "RIMGOVERNOR_UNPIN_TEST_SPEED";
+
+    /// <summary>
     /// Makes a harness-launched game quit after 20 minutes without a call (native IdleExit), so a warm game kept at the
     /// main menu that no run comes back to does not linger. Only acceptance launches carry it (root/config-headless and
     /// root/config-rendered); the player's root/config, which the launcher's Play reads, never does.

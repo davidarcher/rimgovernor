@@ -12,8 +12,8 @@ using Journal = RimGovernor.Brain.Store.Store;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// A throughput run: plays one staged colony at each clock speed, governed and not, and measures ticks per second.
-/// Governor-off measures the simulation ceiling. Governed rows report wall TPS including holds, native paused fraction,
+/// A throughput run: plays one staged colony at each clock speed, governed, and measures ticks per second. Rows
+/// report wall TPS including holds, native paused fraction,
 /// hold counts by reason, resume latency and effective speed; sampled pause ratios are diagnostic only. The outcome
 /// check exists only so a governed row cannot look fast because everyone idled: its colonists must complete brain-selected
 /// work (<see cref="SpeedMatrix.CheckOutcomes"/>). The throughput fixture's stage is a quiet colony with frozen needs.
@@ -89,27 +89,14 @@ internal sealed partial class SpeedmatrixRun
 
         foreach (var c in m._cases)
         {
-            SpeedOutcome? outcome = null;
+            SpeedOutcome outcome;
             try
             {
-                if (c.GovernorOff)
-                {
-                    await m.RunGovernorOffAsync(c, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    outcome = await m.RunCaseAsync(c, cancellationToken).ConfigureAwait(false);
-                }
+                outcome = await m.RunCaseAsync(c, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e) when (e is AcceptanceException or IOException)
             {
                 throw new AcceptanceException($"{c.Name}: {e.Message}", e);
-            }
-
-            if (!c.Compared || outcome is null)
-            {
-                Console.WriteLine(string.Create(CultureInfo.InvariantCulture, $"DONE {c.Name}: no controller"));
-                continue;
             }
 
             m._outcomes.Add(outcome);
@@ -126,12 +113,6 @@ internal sealed partial class SpeedmatrixRun
         {
             m._report["row_problems"] = Problems(rowProblems);
             throw new AcceptanceException("speed rows missing or empty: " + string.Join("; ", rowProblems));
-        }
-
-        var ratios = SpeedMatrix.CeilingRatios(metrics);
-        if (ratios.Count > 0)
-        {
-            m._report["ceiling_ratios"] = OutputJson.Array(ratios, r => r.ToJson());
         }
 
         var outcomeProblems = SpeedMatrix.CheckOutcomes(m._outcomes, Tolerance);
@@ -260,15 +241,11 @@ internal sealed partial class SpeedmatrixRun
             report["frozen_needs"] = (await Needs.FreezeNeedsAsync(h, null, [], cancellationToken).ConfigureAwait(false)).DeepClone();
             var startTick = await ReadTickAsync(h, "start-tick", cancellationToken).ConfigureAwait(false);
 
-            // The brain runs in the game process, so the serve flag the case adds (--clock-test-acceleration)
-            // cannot be applied; the launch records them under its env entries.
-            var serveArgs = c.ServeArgs();
             service = await ServiceProcess.LaunchServiceAsync(
                 _config,
                 new ServiceLaunch
                 {
                     Families = ["work"],
-                    Env = serveArgs.Count == 0 ? [] : ["serve_args=" + string.Join(' ', serveArgs)],
                     ClockSpeed = c.Speed,
                     Output = output,
                     Report = report,
@@ -468,7 +445,7 @@ internal sealed partial class SpeedmatrixRun
             gateWaitMean = steps.GateWaitMs / steps.Steps;
         }
 
-        // Wall TPS from the row's own tick reads, as the governor-off row computes it; holds count as wall time.
+        // Wall TPS from the row's reviewed ticks; holds count as wall time.
         var wallTps = wallSeconds > 0 && lastTick > startTick ? (lastTick - startTick) / wallSeconds : 0.0;
 
         // Holds per 6000 ticks: how often the clock was held, however the row's length differs across speeds.
@@ -490,7 +467,6 @@ internal sealed partial class SpeedmatrixRun
         return OutputJson.Fields(
             ("case", c.Name),
             ("speed", c.Speed),
-            ("test_acceleration", c.TestAcceleration),
 
             // The one ceiling's frame account: frames paced, those over the frame budget and the widest frame's tick work.
             ("paced_frames", clock.NativePacedFrames),
@@ -576,4 +552,13 @@ internal sealed partial class SpeedmatrixRun
     }
 
     private static string RandomSuffix() => Convert.ToHexStringLower(RandomNumberGenerator.GetBytes(4));
+
+    // Reads the loaded identity the stage reload produced.
+    private static Task<JsonObject> ReadIdentityAsync(Harness h, CancellationToken cancellationToken) =>
+        Session.ReadIdentityAsync(h, "identity", cancellationToken);
+
+    // The loaded tick.
+    private static async Task<ulong> ReadTickAsync(Harness h, string label, CancellationToken cancellationToken) =>
+        (ulong)((await h.LoadedTickAsync(label, cancellationToken).ConfigureAwait(false)).Context?.Tick
+            ?? throw new AcceptanceException($"{label}: lifecycle_read_tick loaded without a context"));
 }

@@ -43,7 +43,7 @@ public sealed record InProcInputs
 /// <item>The launcher's settings: <c>RIMGOVERNOR_OBSERVE</c> (observe only: no auto-resume, no layout overlay),
 /// <c>RIMGOVERNOR_CONTINUE_STATE</c> (default on) and <c>RIMGOVERNOR_LAYOUT_OVERLAY</c> (default on). Booleans are
 /// 1/0, true/false or yes/no.</item>
-/// <item><c>RIMGOVERNOR_UNPIN_TEST_SPEED</c> (default off): an acceptance case's override that keeps a
+/// <item><c>RIMGOVERNOR_UNPIN_TEST_SPEED</c> (default off): an acceptance case's or the speed matrix's override that keeps a
 /// <c>-rimgovernor-test-acceleration</c> launch's brain at the player's speed instead of pinning Hyperfast.</item>
 /// </list>
 /// Paths must be absolute; a bad value is an error, never a silent default.

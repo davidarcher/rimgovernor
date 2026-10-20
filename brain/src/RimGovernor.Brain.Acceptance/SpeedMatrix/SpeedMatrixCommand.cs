@@ -23,20 +23,20 @@ public sealed record SpeedMatrixOptions
 /// <c>acceptance speedmatrix</c>: the clock-speed measurement (#111), outside the case runner and the case catalog.
 /// It opens the throughput fixture's stage (<see cref="SpeedmatrixRun.PrepareTool"/>) on a quiet flat headless debug
 /// colony with a crew of three, saves it, and per row reloads it, freezes needs and plays it to the same tick target at
-/// the row's clock speed, governed by a fresh in-game service or with none (governor-off). Each row writes its own report
+/// the row's clock speed, governed by a fresh in-game service. Each row writes its own report
 /// under <c>&lt;output&gt;/&lt;row&gt;</c>; <c>&lt;output&gt;/result.json</c> carries the speed metrics, the outcome
 /// check (each governed row's colonists completed brain-selected work) and the run's provenance.
 /// </summary>
 public static class SpeedMatrixCommand
 {
-    /// <summary>The default hang guard. The seven default rows play for about 15 wall-clock minutes between them (the Normal row
-    /// alone plays 30000 ticks at 60 a second) before reloads and launches, so a tighter guard cut the last row short (#3599).</summary>
+    /// <summary>The default hang guard. The five default rows play for about 14 wall-clock minutes between them (the Normal row
+    /// alone plays 30000 ticks at 60 a second, over 8 minutes) before reloads and launches.</summary>
     public static readonly TimeSpan DefaultTimeout = TimeSpan.FromMinutes(30);
 
     /// <summary>The usage lines for the command's help text.</summary>
     public const string Usage = """
           acceptance speedmatrix -root <dir> [-speeds <rows> -output <dir> -timeout 30m -game <id>]
-            plays the throughput stage to one tick target per clock speed row (-speeds narrows them, e.g. uncapped,governor-off) and
+            plays the throughput stage to one tick target per clock speed row (-speeds narrows them, e.g. Normal,Hyperfast) and
             checks each governed row's colonists completed brain work; per-row reports and result.json in -output (default <root>/acceptance/speedmatrix)
         """;
 
@@ -125,13 +125,15 @@ public static class SpeedMatrixCommand
         On = new DebugStart { Size = new DebugStartSize { Flat = true } },
     };
 
-    // Opens the game on the stage, runs the matrix and writes result.json; returns the failure instead of throwing it.
-    private static async Task<AcceptanceException?> MeasureAsync(SpeedMatrixOptions opts, CancellationToken cancellationToken)
+    /// <summary>
+    /// The matrix's game: headless and quiet-world, with the brain's state beside the run's output. Its launch unpins the
+    /// brain's speed (<see cref="HeadlessProfile.UnpinTestSpeedVariable"/>): every acceptance game launches with test
+    /// acceleration, under which the brain otherwise pins every Run at Hyperfast whatever a row posts, so all rows ran at
+    /// one speed (#3648).
+    /// </summary>
+    internal static Config Configure(SpeedMatrixOptions opts)
     {
-        Directory.CreateDirectory(opts.Output);
-        var report = Report.Create(
-            "Speed matrix (#111): one staged colony reloaded per clock speed under the in-game service with an identical tick target; wall TPS, paused fraction, steps, reads/step, hold counts by reason, resume latency and effective speed per speed; pawn outcomes equal within a tolerance.",
-            headless: true);
+        ArgumentNullException.ThrowIfNull(opts);
         var cfg = new Config
         {
             Root = opts.Root,
@@ -143,6 +145,18 @@ public static class SpeedMatrixCommand
             GameId = opts.GameId,
         };
         cfg.LaunchEnv[HeadlessProfile.StateVariable] = Path.Combine(opts.Output, Checkpoints.CheckpointStoreFile);
+        cfg.LaunchEnv[HeadlessProfile.UnpinTestSpeedVariable] = "1";
+        return cfg;
+    }
+
+    // Opens the game on the stage, runs the matrix and writes result.json; returns the failure instead of throwing it.
+    private static async Task<AcceptanceException?> MeasureAsync(SpeedMatrixOptions opts, CancellationToken cancellationToken)
+    {
+        Directory.CreateDirectory(opts.Output);
+        var report = Report.Create(
+            "Speed matrix (#111): one staged colony reloaded per clock speed under the in-game service with an identical tick target; wall TPS, paused fraction, steps, reads/step, hold counts by reason, resume latency and effective speed per speed; pawn outcomes equal within a tolerance.",
+            headless: true);
+        var cfg = Configure(opts);
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(opts.Timeout);
         AcceptanceException? error = null;

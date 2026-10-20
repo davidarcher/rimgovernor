@@ -7,11 +7,10 @@ using RimGovernor.Brain.Telemetry.Otlp;
 namespace RimGovernor.Brain.Acceptance;
 
 /// <summary>
-/// One column of the speed matrix: the serve speed it runs at (the player's choice serve follows) and whether the test
-/// acceleration is on. Every Run runs under the one ceiling (Ultrafast is the game's 15x, Hyperfast the tick boost
-/// capped at 30x); test acceleration only adds the acceptance-only world patches (both acceptance profiles admit it, a player
-/// launch does not). "uncapped" is Hyperfast with them, the speed test acceleration pins. "governor-off" is uncapped native play with no controller attached, the simulation ceiling on the
-/// same save and renderer; no brain selects its work, so it is outside the outcome check.
+/// One column of the speed matrix: the speed the governed row's brain asks for (the player's choice, posted before the
+/// row resumes). Every Run runs under the one ceiling (Ultrafast is the game's 15x, Hyperfast the tick boost capped at
+/// 30x). The matrix's game unpins the test-acceleration launch's Hyperfast (<see cref="SpeedMatrixCommand.Configure"/>),
+/// so each row's Run really asks for its own speed.
 /// </summary>
 public sealed record SpeedCase
 {
@@ -19,39 +18,8 @@ public sealed record SpeedCase
 
     public string Speed { get; init; } = "";
 
-    public bool TestAcceleration { get; init; }
-
-    public bool GovernorOff { get; init; }
-
-    /// <summary>Whether the case has a pawn outcome for the outcome check: every governed row does.</summary>
-    public bool Compared => !GovernorOff;
-
-    /// <summary>
-    /// The serve flags a case adds (its speed is the player's choice, <see cref="Speed"/>, written before serve
-    /// starts): for uncapped the test-acceleration opt-in.
-    /// </summary>
-    public IReadOnlyList<string> ServeArgs()
-    {
-        var args = new List<string>();
-        if (TestAcceleration)
-        {
-            args.Add("--clock-test-acceleration");
-        }
-
-        return args;
-    }
-
-    /// <summary>The case as its report row (json tags name, speed, test_acceleration, governor_off).</summary>
-    public JsonObject ToJson()
-    {
-        var row = new JsonObject { { "name", Name }, { "speed", Speed }, { "test_acceleration", TestAcceleration } };
-        if (GovernorOff)
-        {
-            row.Set("governor_off", true);
-        }
-
-        return row;
-    }
+    /// <summary>The case as its report row (json tags name, speed).</summary>
+    public JsonObject ToJson() => new() { { "name", Name }, { "speed", Speed } };
 }
 
 /// <summary>
@@ -81,8 +49,8 @@ public sealed record SpeedOutcome
 /// <summary>The speed matrix's cases, bounds and cross-case comparisons.</summary>
 public static class SpeedMatrix
 {
-    /// <summary>The -speeds default: every native speed plus uncapped and governor-off.</summary>
-    public const string DefaultSpeedMatrix = "Normal,Fast,Superfast,Ultrafast,Hyperfast,uncapped,governor-off";
+    /// <summary>The -speeds default: every clock speed.</summary>
+    public const string DefaultSpeedMatrix = "Normal,Fast,Superfast,Ultrafast,Hyperfast";
 
     /// <summary>Turns a comma-separated -speeds value into cases, in order, refusing unknown names and repeats.</summary>
     public static IReadOnlyList<SpeedCase> ParseSpeedCases(string spec)
@@ -95,8 +63,6 @@ public static class SpeedMatrix
             ["superfast"] = new() { Name = "Superfast", Speed = "Superfast" },
             ["ultrafast"] = new() { Name = "Ultrafast", Speed = "Ultrafast" },
             ["hyperfast"] = new() { Name = "Hyperfast", Speed = "Hyperfast" },
-            ["uncapped"] = new() { Name = "uncapped", Speed = "Hyperfast", TestAcceleration = true },
-            ["governor-off"] = new() { Name = "governor-off", Speed = "Hyperfast", TestAcceleration = true, GovernorOff = true },
         };
         var cases = new List<SpeedCase>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -110,7 +76,7 @@ public static class SpeedMatrix
 
             if (!known.TryGetValue(key, out var speedCase))
             {
-                throw new AcceptanceException($"unknown speed \"{part.Trim()}\" (want Normal, Fast, Superfast, Ultrafast, Hyperfast, uncapped or governor-off)");
+                throw new AcceptanceException($"unknown speed \"{part.Trim()}\" (want Normal, Fast, Superfast, Ultrafast or Hyperfast)");
             }
 
             if (!seen.Add(key))
@@ -228,8 +194,7 @@ public static class SpeedMatrix
 
     /// <summary>
     /// The runner-boundary check the outcome and metric comparators cannot make, since both accept an empty matrix:
-    /// every required case must have a metrics row that advanced the tick and, when the case is compared, an outcome
-    /// row. Each problem names the row. An empty result means every required row is present and non-empty.
+    /// every required case must have a metrics row that advanced the tick and an outcome row. Each problem names the row. An empty result means every required row is present and non-empty.
     /// </summary>
     public static IReadOnlyList<string> SpeedRowProblems(IReadOnlyList<SpeedCase> required, IReadOnlyList<SpeedOutcome> outcomes, IReadOnlyList<SpeedMetrics> metrics)
     {
@@ -255,7 +220,7 @@ public static class SpeedMatrix
                 problems.Add(string.Create(CultureInfo.InvariantCulture, $"{c.Name}: empty metrics row (ticks_advanced={m.TicksAdvanced:F0} wall_tps={m.WallTps:F1})"));
             }
 
-            if (c.Compared && !outcomeByCase.Contains(c.Name))
+            if (!outcomeByCase.Contains(c.Name))
             {
                 problems.Add($"{c.Name}: no outcome row");
             }
@@ -302,75 +267,6 @@ public static class SpeedMatrix
 
         return problems;
     }
-
-    /// <summary>
-    /// Reports achieved_tps / ceiling_tps for every governed row that advanced, the ceiling being the run's own
-    /// "governor-off" wall TPS. Empty when the run has no such row.
-    /// </summary>
-    public static IReadOnlyList<CeilingRatio> CeilingRatios(IReadOnlyList<SpeedMetrics> rows)
-    {
-        ArgumentNullException.ThrowIfNull(rows);
-        double ceiling = 0;
-        foreach (var row in rows)
-        {
-            if (row.Case == "governor-off" && row.WallTps > 0)
-            {
-                ceiling = row.WallTps;
-            }
-        }
-
-        var output = new List<CeilingRatio>();
-        if (ceiling <= 0)
-        {
-            return output;
-        }
-
-        foreach (var row in rows)
-        {
-            if (row.Case == "governor-off" || row.WallTps <= 0)
-            {
-                continue;
-            }
-
-            output.Add(new CeilingRatio
-            {
-                Case = row.Case,
-                AchievedTps = row.WallTps,
-                CeilingTps = ceiling,
-                Ratio = row.WallTps / ceiling,
-                PausedFractionNative = row.PausedFractionNative,
-            });
-        }
-
-        return output;
-    }
-}
-
-/// <summary>
-/// One governed row's achieved wall TPS against the governor-off ceiling of the same fixture: the number that judges how
-/// close governed play runs to the simulation's own speed, reported beside paused_fraction_native.
-/// </summary>
-public sealed record CeilingRatio
-{
-    public string Case { get; init; } = "";
-
-    public double AchievedTps { get; init; }
-
-    public double CeilingTps { get; init; }
-
-    public double Ratio { get; init; }
-
-    public double PausedFractionNative { get; init; }
-
-    /// <summary>The ratio as its report row (json tags case, achieved_tps, ceiling_tps, ratio, paused_fraction_native).</summary>
-    public JsonObject ToJson() => new()
-    {
-        { "case", Case },
-        { "achieved_tps", AchievedTps },
-        { "ceiling_tps", CeilingTps },
-        { "ratio", Ratio },
-        { "paused_fraction_native", PausedFractionNative },
-    };
 }
 
 /// <summary>
