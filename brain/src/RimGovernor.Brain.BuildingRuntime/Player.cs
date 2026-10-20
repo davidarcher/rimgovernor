@@ -61,13 +61,9 @@ public sealed partial class Player : IDisposable
 
     internal JournalStore Journal => _journal;
 
-    // Set by the worker when a coupled Method's worker finished a task with bills left; taken by the next scheduler step,
-    // whose rounds review then reconsiders who takes that worker's next task (#3624).
-    private int _taskFinished;
-
-    internal void SignalTaskFinished() => Interlocked.Exchange(ref _taskFinished, 1);
-
-    internal bool TakeTaskFinished() => Interlocked.Exchange(ref _taskFinished, 0) != 0;
+    /// <summary>The finished tasks whose workers wait for the rounds review that decides who takes their next task (#3624): the
+    /// worker records them, the scheduler's next review clears them.</summary>
+    internal TaskReviews TaskReviews { get; } = new();
 
     private Player(PlayerConfig config, JournalStore journal, IPlayerSession session, IWorldSource worlds, CancellationToken lifetime)
     {

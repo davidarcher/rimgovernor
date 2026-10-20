@@ -108,7 +108,9 @@ stack another Method claims, a stack a pending service names (an eater's food, a
 cook's or a supply's inputs and source cell, a treatment's medicine), or a stack
 on such a cell, so a haul cannot starve a meal or a cook. Each stack is hauled by
 one colonist; the best-valued haul goes first. A `standby` decision with reason
-`store_haul` records it.
+`store_haul` records it. A colonist on a haul is not yet free to the review a
+coupled worker's finished task raises (#3624): it can take that worker's next task
+only once its haul ends, at a later review.
 
 ## Execution and evidence
 

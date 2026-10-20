@@ -153,4 +153,54 @@ public sealed class FoodActivityContinuationTests
         }
         finally { await worker.Close(CancellationToken.None); }
     }
+
+    [Fact]
+    public async Task AFinishedCoupledTaskWaitsForTheReviewBeforeItsWorkerStartsTheNext()
+    {
+        // #3624: the worker's next task waits for the review its finished task raised: the step is woken as a quiet review with
+        // the clock running, and the Method binds nothing for that worker until the review has run.
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var ct = lifetime.Token;
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-task-review-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        IntentActionRules.RegisterIntentKinds();
+        journal.ReviewRounds(new RoundsRequest { Current = Root, Tick = new(100), Enabled = true,
+            Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("pawn", "producer", "helper") }, ct);
+        var step = new PawnActivityStep(PawnActivityKind.Work, "crop", "Harvest", "Harvest", 0, 2000);
+        var first = new SelectedActivityTask("harvest", "pawn", [], step, new(2, 1), 0);
+        var cook = new SelectedActivityTask("cook", "pawn", [first.Id], new(PawnActivityKind.Recipe, "bench", "Cook", "", 0, 2000)
+            { Recipe = new("bill/CookRice", "CookRice", [new("raw", 10)]) }, new(2, 1), 0);
+        var order = new PawnActivityOrder("pawn", "coupled-cook/pawn", "coupled-cook", 0, 1, false, [step]) { Task = first.Id };
+        var batch = new PawnActivities(1, [order]) { Tasks = [first, cook] };
+        var plan = new PlanSpec(new("cook"), new(1), [DomainAction.NewPawnActivitiesAction(new("cook-action"), batch)]);
+        TestNeed.Commit(journal, Root, new("coupled-cook"), plan, ct);
+        TestNeed.File(journal, met: false, new("coupled-cook"), ct);
+        var scope = Root with { Plan = plan.Id };
+        journal.Prepare(plan.Id, plan.Actions[0].Id, scope, new(100), ct);
+        var dispatched = journal.Dispatch(plan.Id, plan.Actions[0].Id, scope, new(100), ct);
+        journal.RecordReceipt(plan.Id, plan.Actions[0].Id, dispatched.View.Attempt, Receipt.Accepted, ct);
+        var session = new DispatchSession(journal);
+        using var player = Player.Create(new(TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(10)), journal, session, new Worlds(), ct);
+        var read = new Observed(Read(), new(order.Assignment, order.Method, 1, 0, "completed", "", null, 200),
+            new() { Identity = Boundary.Identity(Root), NativeGeneration = 1, Tick = 200 });
+        var wake = new WakeSignal();
+        var worker = Worker.CreateInternal(new() { RoundsMethods = true, Pawns = new Reads(read), Wake = wake,
+            StepInterval = TimeSpan.FromMinutes(1), MaxBackoff = TimeSpan.FromMinutes(1), StepTimeout = TimeSpan.FromSeconds(5) }, player, session, ct);
+        try
+        {
+            await WakeSignal.WaitStep(wake, ct).WaitAsync(TimeSpan.FromSeconds(10), ct);
+            Assert.Equal(StepCause.Review, wake.TakeInvalidated().Cause);
+            Assert.True(player.TaskReviews.Waiting("coupled-cook/pawn/1"));
+            var held = Assert.Single(journal.ActivityMethods(Root, ct)).Batch;
+            Assert.Equal((1L, "harvest"), (Assert.Single(held.Orders).Revision, held.Orders[0].Task));
+            Assert.Equal(batch.Tasks, held.Tasks);
+            Assert.False(session.Sent.Task.IsCompleted);
+            // The review ran: the worker goes on with the Method's next transition for that worker.
+            player.TaskReviews.Reviewed(player.TaskReviews.Pending()!.Value);
+            Assert.False(player.TaskReviews.Waiting("coupled-cook/pawn/1"));
+            wake.NotifyPlanner("review");
+            var next = await session.Sent.Task.WaitAsync(TimeSpan.FromSeconds(10), ct);
+            Assert.Equal((1L, 2L), (Assert.Single(next.Orders).ExpectedRevision, next.Orders[0].Revision));
+        }
+        finally { await worker.Close(CancellationToken.None); }
+    }
 }

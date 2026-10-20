@@ -86,7 +86,12 @@ when the haul is worth more than its labor ([support work](support-work.md#store
 work is what nothing more valuable left: the coupled selection runs first and
 the standby colonists are free to it, so a haul never displaces a selected task.
 A colonist whose next service the comparison deferred gets standby or standby
-work the same way; there is no separate timed defer.
+work the same way; there is no separate timed defer. When a coupled worker
+finishes a task with bills left, the review its finished task raises decides who
+takes the next one before that worker starts it (#3624): the same worker, or a
+colonist on standby or free that does it faster
+([incumbent reconsideration](essential-services.md)); only that worker's next
+task is re-decided, and the Method's other participants keep working.
 An unsupported need/state blocker is a visible finding
 (`unsupported_voluntary_state:<pawn>:<blocker>`), not a capacity exclusion: the
 pawn's supported needs and labor stay selectable, so it is fed and worked like any

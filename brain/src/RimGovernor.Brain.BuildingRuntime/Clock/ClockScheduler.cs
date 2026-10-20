@@ -66,8 +66,10 @@ public sealed partial class ClockScheduler
     // run only in that review.
     private IReadOnlySet<string> _heldPawns = new HashSet<string>(StringComparer.Ordinal);
     private bool _pawnsFreed;
-    // A coupled Method's worker finished a task with bills left since the last review (#3624).
+    // A coupled Method's worker finished a task with bills left since the last review, and the last finished task the next
+    // review covers (#3624): committing it lets those workers start their next tasks.
     private bool _taskFinished;
+    private long _taskReviewedThrough;
 
     // The latest step's clock-status context: its identity and scope are what the planner wave's section refreshes read under.
     private PbCommon.ObservationContext? _stepContext;
@@ -337,12 +339,20 @@ public sealed partial class ClockScheduler
                     .SelectMany(m => m.Batch.Orders.Where(o => !o.Release).Select(o => o.Pawn)).ToHashSet(StringComparer.Ordinal);
                 _pawnsFreed |= PawnsFreed(_heldPawns, held);
                 _heldPawns = held;
-                _taskFinished |= _player.TakeTaskFinished();
+                if (_player.TaskReviews.Pending() is { } through)
+                {
+                    (_taskFinished, _taskReviewedThrough) = (true, through);
+                }
                 if ((_pawnsFreed || _taskFinished) && !sel.Planners)
                 {
                     // Nothing else is dirty or due: the step runs the rounder alone.
                     sel = sel with { Planners = true, Pick = static _ => false, Why = new Dictionary<string, string>(StringComparer.Ordinal) };
                 }
+            }
+            else if (_player.TaskReviews.Pending() is { } unreviewed)
+            {
+                // No rounder reviews a finished task here: its worker goes on as it would after a review that kept it.
+                _player.TaskReviews.Reviewed(unreviewed);
             }
             result.Stages.Lap("select");
             result.Waiting = [.. sel.Waiting];
@@ -594,6 +604,10 @@ public sealed partial class ClockScheduler
             output.Stages.Lap("rounds");
             if (!immediate)
             {
+                if (_taskFinished)
+                {
+                    _player.TaskReviews.Reviewed(_taskReviewedThrough);
+                }
                 (_lastRoundsTick, _roundsReviewed, _lastRounds, _pawnsFreed, _taskFinished) = (tick, true, review, false, false);
                 _heldPawns = HeldAfterReview(_heldPawns, review.Assigned);
                 await EstablishExtentAsync(review.Review.Tick, call).ConfigureAwait(false);

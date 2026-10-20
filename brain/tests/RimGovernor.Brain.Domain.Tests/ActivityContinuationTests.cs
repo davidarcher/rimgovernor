@@ -48,6 +48,13 @@ public sealed class ActivityContinuationTests
         Assert.Empty(ActivityContinuationRules.FinishedTasks(batch, [completed with { State = "started" }]));
         Assert.Empty(ActivityContinuationRules.FinishedTasks(batch with { Tasks = [first] }, [completed]));
         Assert.Empty(ActivityContinuationRules.FinishedTasks(batch, [completed with { Revision = 2 }]));
+        // Any one worker counts while another participant works on; one whose remaining recipes are another pawn's does not.
+        var busy = new PawnActivityOrder("busy", "busy-assignment", "coupled-cook", 0, 1, false, [recipe]) { Task = "busy-1" };
+        var both = batch with { Orders = [order, busy], Tasks = [.. batch.Tasks, first with { Id = "busy-1", Pawn = "busy" }] };
+        var started = new ActivityOwnership("busy", "busy-assignment", "coupled-cook", 1, "started");
+        Assert.Equal(["coupled-cook/pawn/1"], ActivityContinuationRules.FinishedTasks(both, [completed, started]));
+        var handed = both with { Tasks = [first, first with { Id = "cook-2", Pawn = "busy" }, first with { Id = "busy-1", Pawn = "busy" }] };
+        Assert.Empty(ActivityContinuationRules.FinishedTasks(handed, [completed, started]));
     }
 
     [Fact]

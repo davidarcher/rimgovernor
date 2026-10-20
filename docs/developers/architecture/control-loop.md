@@ -823,9 +823,12 @@ the journal, and a short store haul can install and end before the next step rea
 Method, so a colonist the review gave nothing is held, not freed again at every step (#3624).
 The first review step after a coupled Method's worker finished a task while the Method has a
 recipe left reviews too (`task`, #3624): the worker reads native `completed` at its order's
-revision (the continuation binds its next task, or defers it), the worker loop signals the
-scheduler once per finished task, and the review may hand that worker's next task to a faster
-free cook ([incumbent reconsideration](../contracts/essential-services.md)).
+revision, records the finished task once (`TaskReviews`) and wakes the step loop at once
+(`WakeSignal.NotifyTaskReview`, a quiet Review step with the clock running, like a speed request),
+and the Method binds that worker no next task until a rounds review has committed. The review
+may hand that worker's next task to a faster free cook while the Method's other participants
+keep working ([incumbent reconsideration](../contracts/essential-services.md)). A scheduler
+without a rounder clears the wait at its next step.
 It is an event, not a timer: a Method whose workers finish nothing raises none. The rounds review derives
 the colony model, the stock, the planned sites and the coupled search from facts that rarely
 change in 600 ticks, and it was the cost of the common review; a need that first appears

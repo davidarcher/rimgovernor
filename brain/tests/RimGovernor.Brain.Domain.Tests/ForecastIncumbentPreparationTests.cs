@@ -201,9 +201,11 @@ public sealed class ForecastIncumbentPreparationTests
 
     /// <summary>"pawn" owns a coupled cooking Method holding for its next recipe; "helper" is free and cooks in
     /// <paramref name="helperTicks"/> against pawn's 100, walking <paramref name="helperApproach"/> ticks to the rice against
-    /// pawn's 0; the poisoning chances are unknown when NaN.</summary>
+    /// pawn's 0; the poisoning chances are unknown when NaN. <paramref name="finished"/>: pawn finished its recipe and another
+    /// is left. <paramref name="busy"/>: a second participant "busy" is mid-task on a recipe that is independent of pawn's,
+    /// "depends" on pawn's next recipe, or "shares" its bill.</summary>
     private static (RoundsFacts Facts, WorkActionCensus Actions) BoundaryCooking(double helperTicks, string state = "holding",
-        double helperApproach = 0, double pawnPoison = double.NaN, double helperPoison = double.NaN, bool continued = false)
+        double helperApproach = 0, double pawnPoison = double.NaN, double helperPoison = double.NaN, bool finished = false, string busy = "")
     {
         static Fact<double> Chance(double p) => double.IsNaN(p) ? default : Known(p);
         var conversion = ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "CookRice", 100)
@@ -219,18 +221,28 @@ public sealed class ForecastIncumbentPreparationTests
         var order = new PawnActivityOrder("pawn", "cook-assignment", "coupled-cook", 0, 1, false,
             [new(PawnActivityKind.Approach, "", "", "", 0, 2000) { Destination = task.Location, NotBefore = 400 }, new(PawnActivityKind.Hold, "", "", "", 0, 2000)])
             { Task = task.Id, Preparing = true };
-        SelectedActivityTask[] tasks = [task];
-        if (continued)
+        List<SelectedActivityTask> tasks = [task];
+        if (finished)
         {
-            // The Method bound pawn's next recipe when it finished one (revision 1 to 2), and another recipe is left after it.
-            order = new PawnActivityOrder("pawn", "cook-assignment", "coupled-cook", 1, 2, false, [task.Step]) { Task = task.Id };
+            // pawn's order is the recipe it just finished; its next recipe waits for the review.
+            order = new PawnActivityOrder("pawn", "cook-assignment", "coupled-cook", 0, 1, false, [task.Step]) { Task = task.Id };
             tasks = [task, task with { Id = "cook-task-2", DepartTick = 900 }];
         }
-        var action = DomainAction.NewPawnActivitiesAction(new("cook-action"), new PawnActivities(1, [order]) { Tasks = EquatableArray.From(tasks) });
+        List<PawnActivityOrder> orders = [order];
+        if (busy.Length != 0)
+        {
+            var other = new PawnActivityRecipe(busy == "shares" ? recipe.Bill : "bill/Other", "Other", [new("other-output", 1)]);
+            var work = new SelectedActivityTask("busy-task", "busy", busy == "depends" ? ["cook-task-2"] : [],
+                new(PawnActivityKind.Recipe, "bench-2", "Cook", "", 0, 2000) { Recipe = other }, new(4, 1), 100);
+            tasks.Add(work);
+            orders.Add(new PawnActivityOrder("busy", "busy-assignment", "coupled-cook", 0, 1, false, [work.Step]) { Task = work.Id });
+        }
+        var action = DomainAction.NewPawnActivitiesAction(new("cook-action"), new PawnActivities(1, orders.ToArray()) { Tasks = EquatableArray.From(tasks) });
         var row = new WorkAction(new("cook-plan"), action, new() { Action = action.Id, Stage = Stage.Completed,
             Attempt = new(1), Receipt = Known(Receipt.Accepted), Tick = new(100) });
         WorkAction[] rows = [row];
-        var native = facts.WorkView!.Evidence.WorkResources.Value.Select(p => p.Pawn == "pawn" ? p with { Assignment = order.Assignment, Revision = order.Revision, State = state } : p).ToArray();
+        var native = facts.WorkView!.Evidence.WorkResources.Value.Select(p => p.Pawn == "pawn" ? p with { Assignment = order.Assignment, Revision = order.Revision, State = state } : p).ToList();
+        if (busy.Length != 0) native.Add(new("busy", "busy-assignment", 1, "started", "", "", 0) { Bill = busy == "shares" ? recipe.Bill : "bill/Other" });
         var evidence = facts.WorkView.Evidence with { WorkResources = Known(EquatableArray.From(native)) };
         var view = WorkRules.WorkResourcesOf(evidence, NoBatches, rows);
         return (facts with { WorkView = view, WorkClaims = view.Claims, WorkResources = evidence.WorkResources }, new(EquatableArray.From(rows)));
@@ -276,22 +288,52 @@ public sealed class ForecastIncumbentPreparationTests
     }
 
     [Theory]
-    // #3624: a worker that finished a recipe and was bound its next one, not yet started, is at the boundary that finished
-    // task raised a review for: a faster free cook can take it. Started, it is mid-task and protected.
-    [InlineData("installed", true)]    [InlineData("started", false)]
-    public void AWorkerBoundItsNextTaskIsReconsideredUntilItStarts(string state, bool reconsidered)
+    // #3624: a worker that finished a recipe with another left is at a boundary (its next recipe waits for the review), so a
+    // faster free cook can take it. Started, it is mid-task and protected.
+    [InlineData("completed", true)]    [InlineData("started", false)]
+    public void AWorkerThatFinishedATaskIsReconsideredUntilItStartsTheNext(string state, bool reconsidered)
     {
-        var (facts, actions) = BoundaryCooking(10, state, continued: true);
+        var (facts, actions) = BoundaryCooking(10, state, finished: true);
         var (_, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
         Assert.Equal(reconsidered, incumbents.Count == 1);
     }
 
-    [Fact]
-    public void AMethodsFirstOrderIsNotAContinuation()
+    [Theory]
+    // #3624: any one worker at a boundary is reconsidered while another participant keeps working, unless that participant
+    // waits on the worker's next task or holds the same bill: releasing the worker would strand it.
+    [InlineData("independent", true)]    [InlineData("depends", false)]    [InlineData("shares", false)]
+    public void AnyFinishedWorkerIsReconsideredWhileAnIndependentParticipantWorks(string busy, bool reconsidered)
     {
-        var first = new PawnActivityOrder("pawn", "a", "coupled-cook", 0, 1, false, []);
-        Assert.False(ForecastIncumbentPreparation.Continued(first, "installed"));
-        Assert.True(ForecastIncumbentPreparation.Continued(first with { ExpectedRevision = 1, Revision = 2 }, "installed"));
+        var (facts, actions) = BoundaryCooking(10, "completed", finished: true, busy: busy);
+        var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
+        Assert.Equal(reconsidered, incumbents.Count == 1);
+        var claims = prepared.CoupledAlternatives!.Context.Resources.Claims.Pawns;
+        Assert.Contains("busy", claims);
+        if (!reconsidered) return;
+        Assert.Equal(["pawn"], incumbents[0].Reconsidered.ToArray());
+        Assert.Equal("busy", Assert.Single(incumbents[0].Working).Pawn);
+        Assert.DoesNotContain("pawn", claims);
+    }
+
+    [Fact]
+    public void AReconsideredWorkerAloneIsReleasedAndTheWorkingParticipantKeepsItsOrderAndTasks()
+    {
+        // #3624: the review re-decides only the finished worker's next task; the Method is not released as a whole.
+        var (facts, actions) = BoundaryCooking(10, "completed", finished: true, busy: "independent");
+        var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
+        var candidates = prepared.CoupledAlternatives!.Priced();
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 300d / GameTime.TicksPerDay,
+            prepared, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(prepared) }, [], new());
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+        Assert.Contains(selected.Selected.Plan.Allocations, a => a.Pawn == "helper" && candidates.Context.Bindings.TryGetValue((a.Activity, a.Pawn), out var b) && b.Kind == PawnActivityKind.Recipe);
+        var execution = ForecastCoupledExecution.ReviewCoupledExecution(selected, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities, candidates);
+        var release = Assert.Single(execution.Releases).Batch;
+        var pawn = Assert.Single(release.Orders, o => o.Pawn == "pawn");
+        Assert.True(pawn.Release);
+        Assert.Equal((1L, 2L), (pawn.ExpectedRevision, pawn.Revision));
+        var before = actions.Actions[0].Action.PawnActivities!;
+        Assert.Equal(Assert.Single(before.Orders, o => o.Pawn == "busy"), Assert.Single(release.Orders, o => o.Pawn == "busy"));
+        Assert.Equal(["busy-task"], release.Tasks.Select(t => t.Id).ToArray());
     }
 
     [Theory]

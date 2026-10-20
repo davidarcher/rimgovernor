@@ -139,21 +139,7 @@ internal static class CoordinatedActivityBinding
         // A temporarily claimed output stack must not strand an unrelated terminal pawn.
         var cleanup = batch.Orders.Where(o => !o.Release && rows[o.Pawn].State is "completed" or "failed"
             && !remaining.Any(t => t.Pawn == o.Pawn)).ToArray();
-        if (cleanup.Length != 0)
-        {
-            if (cleanup.Any(o => o.Revision == long.MaxValue)) return new(null, false);
-            var releasedPawns = cleanup.Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal);
-            var removed = batch.Tasks.Where(t => releasedPawns.Contains(t.Pawn)).Select(t => t.Id).ToHashSet(StringComparer.Ordinal);
-            return new(new(batch.AuthorityGeneration, batch.Orders.Where(o => !o.Release).Select(o =>
-                releasedPawns.Contains(o.Pawn)
-                    ? o with { ExpectedRevision = o.Revision, Revision = o.Revision + 1, Release = true,
-                        Steps = [], Task = "", Preparing = false, OutputDelivery = null }
-                    : o).ToArray())
-            {
-                Tasks = EquatableArray.From(batch.Tasks.Where(t => !removed.Contains(t.Id)).Select(t =>
-                    t with { Prerequisites = EquatableArray.From(t.Prerequisites.Where(p => !removed.Contains(p))) }))
-            }, false);
-        }
+        if (cleanup.Length != 0) return new(Release(batch, cleanup.Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal)), false);
         remaining = remaining.Select(t => t with { Prerequisites = EquatableArray.From(t.Prerequisites.Where(p => !completed.Contains(p))) }).ToList();
         var orders = new List<PawnActivityOrder>();
         var changed = completed.Count > 0;
@@ -225,6 +211,23 @@ internal static class CoordinatedActivityBinding
         }
         if (!changed) return new(null, false);
         return new(new(batch.AuthorityGeneration, orders.ToArray()) { Tasks = EquatableArray.From(remaining) }, false);
+    }
+
+    /// <summary>The batch that releases <paramref name="pawns"/> and keeps every other order exactly as it is, so no other
+    /// participant is interrupted: the released pawns' tasks leave and no remaining task waits on one (the journal's cleanup
+    /// delta). Null when a released order's revision cannot advance.</summary>
+    internal static PawnActivities? Release(PawnActivities batch, IReadOnlySet<string> pawns)
+    {
+        var orders = batch.Orders.Where(o => !o.Release).ToArray();
+        if (orders.Any(o => pawns.Contains(o.Pawn) && o.Revision == long.MaxValue)) return null;
+        var removed = batch.Tasks.Where(t => pawns.Contains(t.Pawn)).Select(t => t.Id).ToHashSet(StringComparer.Ordinal);
+        return new(batch.AuthorityGeneration, orders.Select(o => pawns.Contains(o.Pawn)
+            ? o with { ExpectedRevision = o.Revision, Revision = o.Revision + 1, Release = true, Steps = [], Task = "", Preparing = false, OutputDelivery = null }
+            : o).ToArray())
+        {
+            Tasks = EquatableArray.From(batch.Tasks.Where(t => !removed.Contains(t.Id)).Select(t =>
+                t with { Prerequisites = EquatableArray.From(t.Prerequisites.Where(p => !removed.Contains(p))) }))
+        };
     }
 
     private static bool IsService(SelectedActivityTask task) =>

@@ -14,8 +14,8 @@ public readonly record struct WakeOutcome(ActionId Action, AttemptId Attempt, bo
 /// consumer has read against the current world wake anyone; a wake is a hint to act now, never a fact by itself. A
 /// caller that has no signal holds null and uses <see cref="Wait"/>, which never completes for it.
 /// The step loop and the Worker wait on separate channels: the Worker is hinted by everything, the step loop only by
-/// a hold entry, an authority change, a player speed request or lost events (<see cref="WaitStep"/>). Invalidations and planner marks only
-/// accumulate for the step that the next hold wakes: nothing wakes a step while the clock runs (#3556).
+/// a hold entry, an authority change, a player speed request, a finished task's review (#3624) or lost events (<see cref="WaitStep"/>).
+/// Invalidations and planner marks only accumulate for the step that the next hold wakes: they wake no step while the clock runs (#3556).
 /// </summary>
 public sealed class WakeSignal
 {
@@ -31,6 +31,9 @@ public sealed class WakeSignal
 
     // Set when the player asked for a speed in game: the step and the Run that follows it adopt the request.
     private bool _speed;
+
+    // Set when a coupled Method's worker finished a task and waits for the review of its next task (#3624).
+    private bool _task;
 
     // The planners marked due by name (NotifyPlanner), until the step loop takes them.
     private readonly HashSet<string> _planners = [];
@@ -96,6 +99,19 @@ public sealed class WakeSignal
         _hint.Writer.TryWrite(true);
     }
 
+    /// <summary>
+    /// Wakes the step loop for the rounds review a finished task waits on (#3624): its worker starts no next task until the
+    /// review has run. Like a speed request it holds nothing: the step is a quiet one (cause Review) with the clock running.
+    /// </summary>
+    public void NotifyTaskReview()
+    {
+        lock (_mu)
+        {
+            _task = true;
+        }
+        _step.Writer.TryWrite(true);
+    }
+
     /// <summary>Signals that colony events were lost: what they would have invalidated is unknown, so the next step plans Full.</summary>
     public void NotifyLost()
     {
@@ -121,7 +137,7 @@ public sealed class WakeSignal
         await signal._hint.Reader.ReadAsync(ct).ConfigureAwait(false);
     }
 
-    /// <summary>Completes when a hold entry, an authority change, a player speed request or a loss is signalled (the step loop's wake) or <paramref name="ct"/> is cancelled.</summary>
+    /// <summary>Completes when a hold entry, an authority change, a player speed request, a task review or a loss is signalled (the step loop's wake) or <paramref name="ct"/> is cancelled.</summary>
     public static async Task WaitStep(WakeSignal? signal, CancellationToken ct)
     {
         if (signal is null)
@@ -146,7 +162,7 @@ public sealed class WakeSignal
         {
             var reason = new StepReason
             {
-                Cause = _full ? StepCause.Full : (_stopped ? _onlyReview : _speed) && !_authority ? StepCause.Review : StepCause.Wake,
+                Cause = _full ? StepCause.Full : (_stopped ? _onlyReview : _speed || _task) && !_authority ? StepCause.Review : StepCause.Wake,
                 Families = [.. _families.Order()],
                 Sections = [.. _sections.Order()],
                 Planners = [.. _planners.Order(StringComparer.Ordinal)],
@@ -159,6 +175,7 @@ public sealed class WakeSignal
             _planners.Clear();
             _authority = false;
             _speed = false;
+            _task = false;
             _full = false;
             _stopped = false;
             _onlyReview = true;

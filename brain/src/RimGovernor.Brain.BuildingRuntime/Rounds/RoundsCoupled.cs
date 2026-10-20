@@ -18,7 +18,7 @@ public sealed partial class Rounder
             foreach (var release in execution.Releases)
             {
                 var next = PlanIds.MintPlanId();
-                taken.UnionWith(release.Batch.Orders.Select(o => o.Pawn));
+                taken.UnionWith(release.Batch.Orders.Where(o => o.Release).Select(o => o.Pawn));
                 Player.Journal.ContinueActivityMethod(release.Incumbent.Plan, snapshot, facts.Tick,
                     release.Incumbent.Owned, new PlanSpec(next, new PlanRevision(1),
                         [DomainAction.NewPawnActivitiesAction(new ActionId($"{next}-0"), release.Batch)]), call);

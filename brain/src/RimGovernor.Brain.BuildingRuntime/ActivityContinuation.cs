@@ -34,10 +34,24 @@ public sealed partial class Worker
                     _advanced = true;
                     continue;
                 }
-                // A worker finished a task and bills are left: the next scheduler step reviews who takes its next task (#3624).
-                var finished = false;
-                foreach (var key in ActivityContinuationRules.FinishedTasks(method.Batch, participants)) finished |= _finishedTasks.Add(key);
-                if (finished) _player.SignalTaskFinished();
+                // A worker finished a task and bills are left: the scheduler's next step reviews who takes its next task, and
+                // that worker starts no next task until the review has run (#3624); participants still working are not touched, and
+                // the Method's other transitions wait the same short while. The step is woken now, with the clock running.
+                // Without a step loop to wake (no Wake signal) nothing reviews, and the worker goes on.
+                var finished = _config.Wake is null ? [] : ActivityContinuationRules.FinishedTasks(method.Batch, participants);
+                var signalled = false;
+                foreach (var key in finished.Where(_finishedTasks.Add))
+                {
+                    _player.TaskReviews.Await(key);
+                    signalled = true;
+                }
+                if (signalled)
+                {
+                    _config.Wake?.NotifyTaskReview();
+                    Tel.Decide(new Decision { Kind = "coupled_observed", Component = "worker", Target = method.Method.Value, Verdict = "deferred",
+                        Reason = "awaiting_task_review", Attrs = new Dictionary<string, object?> { ["observed_tick"] = taskTick, ["finished"] = finished.ToArray() } });
+                }
+                if (finished.Any(_player.TaskReviews.Waiting)) continue;
                 var needed = ForecastServiceInvestments.ReviewServiceActivityNeed(method.Batch, method.Needed, read);
                 var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(method.Batch, needed, read);
                 ActivityContinuationAdmission? admission = null;

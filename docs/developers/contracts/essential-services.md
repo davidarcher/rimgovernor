@@ -168,17 +168,22 @@ lost-participant unit test above. The brain's own reassignment is `production/de
 once the cook of the first meal is owned, a far better cook joins (another colonist's Cooking level is
 raised to 15). It passes when the first cook's Method no longer owns that cook, the better cook completes
 a meal under a coupled Method, and every completed repeat is exactly one Method-owned completion. A
-Cooking work priority is not an input: activity cooking ignores work priorities. A coupled Method with bills
-left is reconsidered only at a boundary (every participant completed, holding, or bound its next task and
-not yet started it, nothing carried) and only
-while a colonist outside it is offered one of its bills faster than its own cooks (#3167): in total ticks, the
+Cooking work priority is not an input: activity cooking ignores work priorities. A worker of a coupled Method
+with bills left is reconsidered at its own boundary (its task completed or holding for the next, nothing
+carried, observed exactly at its order), whatever the Method's other participants are doing (#3624), and only
+while a colonist outside the Method is offered one of its bills faster than its own cooks (#3167): in total ticks, the
 walk to the ingredients (the cheapest delivery of them to the bench, else the walk to the bench) plus the
 work, or equally fast with a lower known chance of poisoning the meal (the game's rule: room chance r plus
-(1 − r) times the cook's `FoodPoisonChance`, on `CoupledFoodConversion.FoodPoisonChance`). It then has no
-retain commitment: the comparison sees its pawns free, and it is released only when the selection gives one
-of its bills to that colonist. A worker finishing a task while bills are left raises that review at the
-next scheduler step (`task`, #3624), one event per finished task and no timer; the colonists on standby
-are free to the comparison. The move releases the whole Method and never happens mid-recipe.
+(1 − r) times the cook's `FoodPoisonChance`, on `CoupledFoodConversion.FoodPoisonChance`). The reconsidered
+workers then have no retain commitment: the comparison sees them free and the participants still working
+keep their claims, and only the reconsidered workers are released, when the selection gives one of their bills
+to that colonist; the other participants keep their orders and tasks uninterrupted. A worker some working
+participant's task waits on (a prerequisite, an input it produces, or a bill both hold) is not reconsidered
+alone: releasing it would strand that participant, so it waits for the participant's boundary. A worker
+finishing a task while it has bills left raises that review (`task`, #3624), one event per finished task and
+no timer: the worker loop wakes the scheduler step at once, with the clock running (no hold), and the
+Method binds that worker no next task until a rounds review has committed, so the review decides before the
+worker starts. The colonists on standby are free to the comparison. A move never happens mid-recipe.
 The assignment search tries for each task the pawns its placed prerequisites went to, then the cheapest
 (its work plus its walk to the task, at its opportunity cost, #3624):
 a truncated search reaches only the plans its first choices lead to, and trying pawns in id order gave

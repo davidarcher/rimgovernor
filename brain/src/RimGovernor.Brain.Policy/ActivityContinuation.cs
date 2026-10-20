@@ -33,16 +33,17 @@ public static class ActivityContinuationRules
     }
 
     /// <summary>
-    /// The tasks a coupled Method's workers read finished while the Method has bills left (#3624), one key per order
+    /// The tasks a coupled Method's workers read finished while the worker has bills left (#3624), one key per order
     /// (Method, pawn and revision), so each finished task is one event however often it is read. The rounds review
-    /// then reconsiders who takes that worker's next task; no timer does.
+    /// then reconsiders who takes that worker's next task; no timer does. Any one worker's finished task counts, whatever
+    /// the other participants are doing.
     /// </summary>
     public static IReadOnlyList<string> FinishedTasks(PawnActivities batch, IReadOnlyList<ActivityOwnership> observed)
     {
         var orders = batch.Orders.Where(o => !o.Release && !o.Preparing && o.Method.StartsWith("coupled-", StringComparison.Ordinal)).ToArray();
         var current = orders.Select(o => o.Task).ToHashSet(StringComparer.Ordinal);
-        if (!batch.Tasks.Any(t => !current.Contains(t.Id) && t.Step.Recipe?.Bill is { Length: > 0 })) return [];
-        return orders.Where(o => observed.Any(r => r.State == "completed" && MatchesActivityOwner(o, r)))
+        return orders.Where(o => batch.Tasks.Any(t => t.Pawn == o.Pawn && !current.Contains(t.Id) && t.Step.Recipe?.Bill is { Length: > 0 })
+                && observed.Any(r => r.State == "completed" && MatchesActivityOwner(o, r)))
             .Select(o => o.Method + "/" + o.Pawn + "/" + o.Revision.ToString(System.Globalization.CultureInfo.InvariantCulture)).ToArray();
     }
 }

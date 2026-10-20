@@ -11,8 +11,9 @@ public sealed partial record ForecastCoupledExecution
     /// release receipt. The rest of the selection is dispatched in the same review (#3598): every allocation except an
     /// incumbent's own tasks, any task of an incumbent's pawn (retained: it has an owner; released: its release is not yet
     /// observed) and any task waiting on one of those, which would never start. A reconsidered productive Method (one with
-    /// bills, #3167) has no retain commitment: it is released only when the selection gives one of its bills to a pawn other
-    /// than its cooks, and otherwise keeps its owners like any retained incumbent.</summary>
+    /// bills, #3167) has no retain commitment: when the selection gives one of its reconsidered workers' bills to a pawn other
+    /// than its cooks, those workers alone are released and its other participants keep working (#3624); otherwise it keeps its
+    /// owners like any retained incumbent.</summary>
     public static ForecastCoupledExecution ReviewCoupledExecution(ForecastCoupledSelection selection,
         EquatableArray<ForecastObservedIncumbent> incumbents, long tick, IReadOnlyList<ForecastActivity>? activities = null,
         ForecastCoupledCandidates? candidates = null)
@@ -30,8 +31,11 @@ public sealed partial record ForecastCoupledExecution
         var releases = new List<ForecastIncumbentRelease>();
         foreach (var incumbent in incumbents.Where(i => i.Bills.Count > 0 ? Moved(i) : !retained.Contains(i.Commitment)))
         {
-            var decision = ActivityContinuationRules.ReviewActivityOwnership(incumbent.Batch, Known(false), tick, incumbent.Owned);
-            if (decision.Release is not { } release) return new([], null);
+            // A reconsidered Method releases only the workers its review decided for; the rest keep working (#3624).
+            var release = incumbent.Bills.Count > 0
+                ? Methods.Binding.CoordinatedActivityBinding.Release(incumbent.Batch, incumbent.Reconsidered)
+                : ActivityContinuationRules.ReviewActivityOwnership(incumbent.Batch, Known(false), tick, incumbent.Owned).Release;
+            if (release is null) return new([], null);
             releases.Add(new(incumbent, release));
         }
         if (selection.Selection.Plan is not { } plan) return new(EquatableArray.From(releases), null);
