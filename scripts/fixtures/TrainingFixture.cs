@@ -220,6 +220,15 @@ namespace HomeBridge.BridgeTools
                     p.jobs.EndCurrentJob(JobCondition.InterruptForced);
                     foreach (var work in DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(w => !p.WorkTypeIsDisabled(w))) p.workSettings.SetPriority(work, 0);
                 }
+                // A surgery patient keeps to its bed only through its Patient work (WorkGiver_PatientGoToBedTreatment), which
+                // also needs a doctor with Doctor work active (AnyAvailableDoctorFor); without both, the patient's next job check
+                // gets it up and the doctor's DoBill job fails on Pawn.CurrentlyUsableForBills.
+                if (action == "surgery")
+                {
+                    medicalDoctor.workSettings.SetPriority(WorkTypeDefOf.Doctor, 1);
+                    medicalPatient.workSettings.SetPriority(DefDatabase<WorkGiverDef>.AllDefsListForReading
+                        .First(d => d.giverClass == typeof(WorkGiver_PatientGoToBedTreatment)).workType, 1);
+                }
                 var origin = medicalDoctor.Position;
                 var area = new CellRect(origin.x + 1, origin.z - 1, 3, 4);
                 foreach (var cell in area.Cells)
