@@ -21,6 +21,16 @@ partial class RoundsSleepingUpkeepPlanner
         return SleepingRules.NextBedroomStep(plan!, rooms!, sleeping!, BedroomTargets(facts), SleepingTraits(facts), SuitePressure(facts));
     }
 
+    /// <summary>Per planned bedroom, the colonist the bedroom step would move into it (#3655); none without the layout plan, the room census or the sleeping census.</summary>
+    internal static IReadOnlyDictionary<int, string> BedroomOccupantsOf(Observation.ColonyProjection facts)
+    {
+        if (!facts.LayoutPlan.TryGetValue(out var plan) || !facts.Rooms.TryGetValue(out var rooms) || !facts.Facts.Sleeping.TryGetValue(out var sleeping))
+        {
+            return new Dictionary<int, string>();
+        }
+        return SleepingRules.PlannedBedroomOccupants(plan!, rooms!, sleeping!, BedroomTargets(facts));
+    }
+
     /// <summary>The projection's next wing migration step: none without the layout plan, the room census or the sleeping census.</summary>
     internal static Pol.BedroomStep MigrateStep(Observation.ColonyProjection facts)
     {

@@ -43,8 +43,9 @@ public sealed record NeedDeterioration(double HitPoints, Fact<double> RatePerDay
 /// <summary>
 /// A thought this pawn can get (ThoughtUtility.CanGetThought) at one stage, priced by the game's own MoodOffset for this
 /// pawn (#3339). Role names why it is read: slept_outside, slept_in_bedroom, slept_in_barracks, weather, need_outdoors,
-/// undergrounder_indoors (constructed roof), undergrounder_underground (natural roof), undergrounder_outdoors. A stage the
-/// game cannot price is left out. Memories carry their duration; situational thoughts none.
+/// undergrounder_indoors (constructed roof), undergrounder_underground (natural roof), undergrounder_outdoors, ascetic
+/// (ThoughtWorker_Ascetic's own-room thought by Impressiveness stage, #3655; a null stage, where the worker leaves it
+/// inactive, is a row at 0). A stage the game cannot price is left out. Memories carry their duration; situational thoughts none.
 /// </summary>
 public sealed record NeedThoughtStage(string Thought, string Role, int Stage, double Offset,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> DurationTicks, bool Fades);

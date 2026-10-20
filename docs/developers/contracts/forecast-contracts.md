@@ -263,7 +263,10 @@ Every field is unknown, or null, when unread; nothing is capped.
   by the game's `MoodOffset` for this pawn, with its duration. `Role` names why the
   row was read: `slept_outside`, `slept_in_bedroom`, `slept_in_barracks`, `weather`,
   `need_outdoors`, `undergrounder_indoors`, `undergrounder_underground`,
-  `undergrounder_outdoors`. A stage the game cannot price is left out.
+  `undergrounder_outdoors`, and `ascetic` (#3655): the thought `ThoughtWorker_Ascetic`
+  gives in a room the pawn owns alone, staged by the room's Impressiveness, read
+  from every def with that worker. Its null stages, where the worker leaves the
+  thought inactive, are rows at 0. A stage the game cannot price is left out.
 - `NeedTarget.Cell`: the target cell's roof (roofed, thick, natural) and its room's
   UsesOutdoorTemperature and PsychologicallyOutdoors (no room reads as outdoors).
 - `NeedTarget.Bed`: a rest target's room role, impressiveness stage, ForPrisoners and

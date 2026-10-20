@@ -11,7 +11,7 @@ public sealed record ForecastPlannedClosure(int Room, string Stuff, EquatableArr
     EquatableArray<string> Ring, EquatableArray<string> Roof, PlannedRoomPrediction Prediction);
 
 /// <summary>A planned room closed inside one schedule: the earliest of its stuffs' closures, and when its roof is done (infinity: not).</summary>
-internal sealed record ForecastClosedRoom(EquatableArray<Cell> Interior, PlannedRoomPrediction Prediction, double ClosedAt, double RoofedAt);
+internal sealed record ForecastClosedRoom(int Room, string Stuff, EquatableArray<Cell> Interior, PlannedRoomPrediction Prediction, double ClosedAt, double RoofedAt);
 
 /// <summary>A cell's roof and room state at one tick: the observed NeedCell, changed where a planned room closes or is roofed over it.</summary>
 internal readonly record struct ForecastCellState(Fact<bool> Roofed, Fact<bool> ThickRoof, Fact<bool> NaturalRoof,
@@ -55,7 +55,7 @@ public static class ForecastRoofConsequences
     /// <summary>StatPart_WorkTableOutdoors.WorkRateFactor: a bench in a psychologically outdoors room works at 0.8.</summary>
     public const double WorkTableOutdoorsFactor = 0.8;
 
-    private const string BedroomRole = "Bedroom", BarracksRole = "Barracks";
+    internal const string BedroomRole = "Bedroom", BarracksRole = "Barracks";
 
     /// <summary>
     /// The closed-room predictions of a round's planned rooms (#3339): one per prediction row, with the room's region
@@ -104,7 +104,7 @@ public static class ForecastRoofConsequences
             foreach (var shelter in context.Shelters.Where(s => s.PlannedRoom == room.Key && s.RoofCells.Count > 0))
                 roofed = Math.Min(roofed, shelter.RoofCells.Select(cell => cell.Where(finishedAt.ContainsKey).Select(f => finishedAt[f])
                     .DefaultIfEmpty(double.PositiveInfinity).Min()).Max());
-            closed.Add(new(best.Closure.Interior, best.Closure.Prediction, best.At, roofed));
+            closed.Add(new(room.Key, best.Closure.Stuff, best.Closure.Interior, best.Closure.Prediction, best.At, roofed));
         }
         return closed;
     }

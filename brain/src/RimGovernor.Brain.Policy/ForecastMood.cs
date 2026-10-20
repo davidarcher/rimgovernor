@@ -12,7 +12,13 @@ public sealed record ForecastMoodResult(EquatableArray<ForecastMoodPoint> Trajec
     public Fact<double> BreakRisk { get; init; }
     /// <summary>The ticks the target mood spends in each break tier, mildest first, that <see cref="BreakRisk"/> sums; empty when BreakRisk is unknown. The capability-days ledger prices each tier's breaks by the mean days they last (#3520).</summary>
     public EquatableArray<double> BreakTierTicks { get; init; }
+    /// <summary>Per break shift the timeline was given (#3655), the <see cref="BreakTierTicks"/> of the target shifted by it (a housing
+    /// move's mood delta over 100), clamped at 0 and 1 on its own; empty without shifts or when BreakRisk is unknown.</summary>
+    public EquatableArray<ForecastShiftedBreaks> ShiftedBreakTierTicks { get; init; }
 }
+
+/// <summary>The break tier ticks of a mood target shifted by <paramref name="Shift"/> (#3655).</summary>
+public sealed record ForecastShiftedBreaks(double Shift, EquatableArray<double> TierTicks);
 
 /// <summary>
 /// A memory renewal at one tick (#3339), as ApplyBedThoughts or the weather check makes one: every memory of the ended
@@ -101,7 +107,7 @@ public static class ForecastMood
         IReadOnlyList<(NeedMemory Thought, double Start)>? granted = null,
         IReadOnlyList<(string Thought, double OffsetDelta, double Start)>? situational = null,
         IReadOnlyList<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)>? banded = null,
-        IReadOnlyList<ForecastMemoryRenewal>? renewals = null, bool trajectory = true)
+        IReadOnlyList<ForecastMemoryRenewal>? renewals = null, bool trajectory = true, IReadOnlyList<double>? breakShifts = null)
     {
         ForecastNeeds.NeedHorizon(horizon);
         situational ??= [];
@@ -170,6 +176,8 @@ public static class ForecastMood
         // The observed threshold is the pawn's minor-break level, the model's base for every tier.
         var breakModel = new MoodBreakModel { Threshold = threshold };
         Span<double> tierTicks = stackalloc double[LayoutMoodRules.MoodTierCount];
+        var shifts = breakKnown && breakShifts is { Count: > 0 } ? breakShifts : [];
+        var shiftedTicks = shifts.Count == 0 ? [] : new double[shifts.Count * LayoutMoodRules.MoodTierCount];
         // Actual mood chases the target continuously, in exact segments (#3468); native's discrete updates, whose phase
         // is not observed, are the held approximation.
         if (!pawn.MoodIntervalTicks.TryGetValue(out var interval) || !double.IsFinite(interval) || interval <= 0)
@@ -265,6 +273,24 @@ public static class ForecastMood
                 if (breakKnown) breakModel.AddTierTicks(a, b, piece, tierTicks);
                 if (actualKnown) Chase(a, b, piece, asleep && pawn.MoodFreezesWhileAsleep.Value);
             }
+            // Each shifted target (#3655) has its own clamp cuts.
+            for (var k = 0; k < shifts.Count; k++)
+            {
+                var (sFrom, sTo) = (rawFrom + shifts[k], rawTo + shifts[k]);
+                count = 0;
+                cuts[count++] = 0;
+                if (sFrom != sTo)
+                    foreach (var bound in (ReadOnlySpan<double>)[0.0, 1.0])
+                        if ((bound - sFrom) / (sTo - sFrom) is var cut and > 0 and < 1) cuts[count++] = cut;
+                cuts[count++] = 1;
+                cuts[..count].Sort();
+                for (var c = 0; c < count - 1; c++)
+                {
+                    var piece = duration * (cuts[c + 1] - cuts[c]);
+                    if (piece <= 0) continue;
+                    breakModel.AddTierTicks(Math.Clamp(sFrom + (sTo - sFrom) * cuts[c], 0, 1), Math.Clamp(sFrom + (sTo - sFrom) * cuts[c + 1], 0, 1), piece, shiftedTicks.AsSpan(k * LayoutMoodRules.MoodTierCount, LayoutMoodRules.MoodTierCount));
+                }
+            }
         }
         unknown.Add("mood_response_interval_phase_unassessed");
         return new(EquatableArray.From(points), thresholdKnown ? Known(targetExposure) : default,
@@ -274,6 +300,8 @@ public static class ForecastMood
             PressureTicks = Known(pressure),
             BreakRisk = breakKnown ? Known(MoodBreakModel.Breaks(tierTicks)) : default,
             BreakTierTicks = breakKnown ? EquatableArray.From(tierTicks.ToArray()) : default,
+            ShiftedBreakTierTicks = EquatableArray.From(shifts.Select((shift, k) => new ForecastShiftedBreaks(shift,
+                EquatableArray.From(shiftedTicks.AsSpan(k * LayoutMoodRules.MoodTierCount, LayoutMoodRules.MoodTierCount).ToArray())))),
         };
     }
 

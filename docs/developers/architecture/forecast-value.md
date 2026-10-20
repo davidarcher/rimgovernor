@@ -96,7 +96,7 @@ exchange rates are mechanical, not chosen:
 | Mood | Break risk × expected days lost to the break, including the harm and labor of its kind. Mood changes no work speed directly. |
 | Death | Remaining capability-days to the horizon, plus `DeathTerminalValue`. |
 | Labor | Hours spent are hours not available for other work. This is already in the schedule. |
-| Investment | Capability added after completion, from tier 2: the work's progress (project progress, applied skill XP) times its marginal value, a gain, so a negative loss like the goals term; less the medicine the work consumes at its marginal value and the construction material a priced planned room's deliveries consume, at replacement labor (*Construction material* below). |
+| Investment | Capability added after completion, from tier 2: the work's progress (project progress, applied skill XP) times its marginal value, a gain, so a negative loss like the goals term; less the medicine the work consumes at its marginal value and the construction material a priced planned room's deliveries consume, at replacement labor (*Construction material* below); plus a closed planned bedroom's occupant mood gain to tier 2's horizon (*Bedroom credit* below, #3655). |
 
 **Exhaustion collapse (#3598).** Rest changes no capacity and no work speed in 1.7; its mood thoughts are priced
 below. What exhaustion costs is the involuntary sleep (`Need_Rest.ShouldInvoluntarySleepFromMTB`): once a pawn has
@@ -380,7 +380,26 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped `PricedRoomRoles` is empty, so nothing is charged yet.
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped `PricedRoomRoles` holds `Bedroom` (#3655).
+
+*Bedroom credit (#3655, #3647).* A schedule that closes a planned bedroom (`ForecastRoofConsequences.PlannedClosedRooms`, logged
+on the outcome as `ClosedRooms`) is credited, in the Investment term under `bedroom/<room>/<pawn>`, the mood gain of the colonist
+the bedroom step would move into it (`SleepingRules.PlannedBedroomOccupants`, `ForecastCoupledContext.BedroomOccupants`: today's
+step order, the unhoused in id order taking the vacant bedroom beds, then the planned barracks' bunks, then the owed rooms in
+plan order). The pricing is `ForecastHousing`, which the priced merge and priced moves reuse:
+
+- *Mood delta* (`BedroomMoodDelta`): for a non-ascetic, `slept_in_bedroom` at the prediction's Impressiveness stage less the
+  current bed thought (`slept_in_bedroom` or `slept_in_barracks` at the owned bed's room stage, none for a prisoner bed, plus
+  `slept_outside` when that room is psychologically outdoors; none without a bed). For an ascetic, the `ascetic` thought at the
+  predicted stage less the one observed now (the stage of a room it owns alone; nothing in a shared barracks). Every offset is the
+  game's own `NeedsForecast` thought-stage read.
+- *Gain per day* (`GainPerDay`): `WellbeingWeight × delta / 100`, plus the break days a day the tier-1 target mood shifted by
+  `delta / 100` saves against the unshifted one (`MoodBreaks.DaysLost` on `BreakTierTicks` and `ShiftedBreakTierTicks`, the
+  timeline integrating each shift with its own clamp at 0 and 1).
+- *Credit*: the gain × (H − closure day), H tier 2's `HorizonDays` (`ForecastCoupledContext.InvestmentHorizonDays`); a gain, so negative.
+
+An occupant whose stage, bed, observed thoughts or mood is unread is named `bedroom_credit_unassessed:<pawn>` and earns nothing. A
+bedroom with no occupant, or one that does not close inside the tier-1 horizon, pays its material with no credit and waits.
 
 *Goal terminals (#3505).* `GoalPaths.Of` turns an unmet goal into a terminal of that graph: a research goal is the project's research
 chain, a `WornCount` goal the sow, grow, harvest and craft chain of its stuff (the crop's research gates, the garment's recipe, one

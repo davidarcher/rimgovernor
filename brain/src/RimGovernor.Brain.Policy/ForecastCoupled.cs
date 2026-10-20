@@ -36,11 +36,14 @@ public sealed record ForecastPlannedSite(string Site, int Room, string Stuff, Eq
     /// <summary>
     /// The planned room roles that carry a priced value of their own (#3651, #3647 decision 3): their completed units are
     /// still emitted and exempt, but no longer count as development in the ranking's late tiebreak, and their deliveries are
-    /// charged the material they consume (ForecastValue.ChargedMaterialActivities, #3653). Empty until a role is
-    /// priced; each priced role is added here (Bedroom, Barracks, then the rest in #3650).
+    /// charged the material they consume (ForecastValue.ChargedMaterialActivities, #3653). Each priced role is added here:
+    /// Bedroom, valued by the housed pawn's mood gain (ForecastValue.BedroomCredits, #3655); Barracks and the rest follow (#3650).
     /// </summary>
-    public static readonly IReadOnlySet<PlannedRole> PricedRoomRoles = new HashSet<PlannedRole>();
+    public static readonly IReadOnlySet<PlannedRole> PricedRoomRoles = new HashSet<PlannedRole> { PlannedRole.Bedroom };
 }
+
+/// <summary>A planned room one schedule closes (#3655): the room, the ring stuff it closes in and the tick it closes at.</summary>
+public sealed record ForecastRoomClosure(int Room, string Stuff, double ClosedAt);
 
 /// <summary>
 /// What one schedule completes of a planned room: the planned sites (ids) whose finish completes inside the horizon,
@@ -70,6 +73,12 @@ public sealed record ForecastCoupledContext
     public IReadOnlySet<PlannedRole> PricedRoomRoles { get; init; } = ForecastPlannedSite.PricedRoomRoles;
     /// <summary>The closed-room predictions of the planned rooms (#3339): what each room is once its ring of one stuff stands.</summary>
     public EquatableArray<ForecastPlannedClosure> Closures { get; init; }
+    /// <summary>Per planned bedroom, the colonist the bedroom step would move into it (SleepingRules.PlannedBedroomOccupants,
+    /// #3655), by pawn id; a bedroom without a row houses nobody and earns no credit.</summary>
+    public IReadOnlyDictionary<int, string> BedroomOccupants { get; init; } = new Dictionary<int, string>();
+    /// <summary>The days a closed bedroom's credit runs to (#3655): the horizon tier 2 ran over (ColonyModelPolicy.HorizonDays),
+    /// set beside <see cref="Investment"/>; unknown before tier 2 ran, which credits nothing.</summary>
+    public Fact<double> InvestmentHorizonDays { get; init; }
     public EquatableArray<ForecastMaterialLot> InitialLots { get; init; }
     public EquatableArray<ForecastNeedTask> NeedTasks { get; init; }
     /// <summary>Observed retained waiting occupies time but is not productive labor or a need service.</summary>
@@ -116,6 +125,8 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
     public EquatableArray<string> CompletedDevelopmentSites { get; init; }
     /// <summary>Per planned room with a site completed inside the horizon: its completed sites and complete alternatives.</summary>
     public EquatableArray<ForecastPlannedRoomOutcome> PlannedRooms { get; init; }
+    /// <summary>The planned rooms the schedule closes inside the horizon (ForecastRoofConsequences.PlannedClosedRooms, #3655).</summary>
+    public EquatableArray<ForecastRoomClosure> ClosedRooms { get; init; }
     /// <summary>The planned development units completed inside the horizon (#3334): each planned site once, and a planned
     /// room's per-cell roof as its <c>planned/room{R}/roof</c> unit. One unit each of requested development, except a unit
     /// of a room whose role is priced (ForecastCoupledContext.PricedRoomRoles, #3651), which the ranking does not count.</summary>

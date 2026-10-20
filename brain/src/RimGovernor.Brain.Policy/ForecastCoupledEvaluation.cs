@@ -721,6 +721,8 @@ public static partial class ForecastCoupled
             var temperatureCards = TemperatureCards(context);
             var needsByPawn = new Dictionary<string, ForecastNeedsResult>(pawns.Pawns.Length, StringComparer.Ordinal);
             var closedRooms = ForecastRoofConsequences.PlannedClosedRooms(context, finishedAt);
+            // A bedroom occupant's mood also integrates breaks at its move's shift (#3655); constant per pawn, so the mood key holds.
+            var breakShifts = ForecastHousing.BreakShifts(context);
             HashSet<string>? rejectedWork = null;
             // Per pawn, the cached timelines are looked up by their inputs; a timeline's capacity input is built only on a miss (#3468).
             for (var p = 0; p < pawns.Pawns.Length; p++)
@@ -774,7 +776,7 @@ public static partial class ForecastCoupled
                 if (!moods.TryGetValue(moodKey, out var mood))
                     moods.Add(moodKey, mood = Next(ForecastMood.ForecastMoodTimeline(pawn, horizon, choiceKeys.Array(choicesId), null,
                         grantedId == 0 ? null : grantedKeys.Array(grantedId), situationalId == 0 ? null : situationalKeys.Array(situationalId),
-                        bandedThoughts.Value, roofMood.Renewals, context.MoodTrajectory)));
+                        bandedThoughts.Value, roofMood.Renewals, context.MoodTrajectory, breakShifts.GetValueOrDefault(pawn.Pawn))));
                 needsByPawn[pawn.Pawn] = Projected(projectedNeeds, mood, roof, mealsUnknown, pawns.GrantUnknown[p]);
             }
             // Removing impossible work may invalidate its meals and therefore later work. Each pass removes at least one task.
@@ -867,7 +869,8 @@ public static partial class ForecastCoupled
                 StationaryThermalRelief = relief.Relief,
                 PlannedRooms = EquatableArray.Wrap(planned.Rooms),
                 RequestedDevelopment = EquatableArray.Wrap(planned.Development),
-                CompletedDevelopmentSites = EquatableArray.Wrap(planned.Sites)
+                CompletedDevelopmentSites = EquatableArray.Wrap(planned.Sites),
+                ClosedRooms = EquatableArray.From(closedRooms.Select(r => new ForecastRoomClosure(r.Room, r.Stuff, r.ClosedAt))),
             };
             return outcome;
         }

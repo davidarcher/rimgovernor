@@ -347,6 +347,7 @@ public static partial class ForecastValue
         foreach (var contribution in contributions) earned += contribution.Value;
         var goals = Known(-earned);
         var investmentRows = InvestmentOf(outcome, context, index, findings);
+        ForecastHousing.BedroomCredits(outcome, context, horizon, investmentRows, findings);
         double invested = 0;
         foreach (var row in investmentRows) invested += row.Value;
         var investment = Known(invested);
@@ -418,7 +419,8 @@ public static partial class ForecastValue
     /// the unit tier 2 perturbs the stock by. A key tier 2 did not value adds no row. The construction material a charged
     /// activity consumes (<see cref="ChargedMaterialActivities"/>) is charged, positive, under <see cref="MaterialKey"/> at
     /// <see cref="ForecastCoupledContext.MaterialValues"/> (#3653): one priced at market value is named
-    /// material_value_market, one unpriced is named material_value_unpriced and adds no row.
+    /// material_value_market, one unpriced is named material_value_unpriced and adds no row. A closed planned bedroom's credit
+    /// (<see cref="ForecastHousing.BedroomCredits"/>, #3655) is added beside these rows.
     /// </summary>
     private static List<ForecastInvestmentContribution> InvestmentOf(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index,
         SortedSet<string> findings)

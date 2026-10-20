@@ -102,6 +102,7 @@ public static class CaseCatalog
         ResearchCases.Register(registry);
         RoomsCases.Register(registry);
         ShelterCases.Register(registry);
+        SleepingCases.Register(registry);
         RouteCases.Register(registry);
         ServiceCases.Register(registry);
         SmokeCases.Register(registry);

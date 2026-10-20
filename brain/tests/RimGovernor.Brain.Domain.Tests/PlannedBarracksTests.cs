@@ -183,6 +183,20 @@ public sealed class PlannedBarracksTests
         Assert.NotEqual(BedroomStepKind.Move, none.Kind);
     }
 
+    /// <summary>#3655: the occupant walk follows the step's order, so a bedroom planned before the barracks gets the first
+    /// unhoused colonist, and one planned after a barracks that seats everyone gets nobody.</summary>
+    [Fact]
+    public void APlannedBedroomsOccupantIsTheUnhousedColonistTheStepWouldMoveIn()
+    {
+        var bedroom = new PlannedRoom { Id = 3, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new Rectangle(20, 0, 4, 4)) };
+        var sleeping = new SleepingObservation { Colonists = 2, People = [Person(A, "s1"), Person(B, "s2")], Beds = [SleepingBed("s1", "shelter", A), SleepingBed("s2", "shelter", B)] };
+        var rooms = new RoomObservation { Rooms = [Standing("shelter", Shelter, RoomRole.Barracks, "s1", "s2")], Shapes = new PieceShapes { Furniture = Furniture } };
+
+        var first = SleepingRules.PlannedBedroomOccupants(Plan with { Rooms = [Shelter, bedroom, Barracks] }, rooms, sleeping, null);
+        Assert.Equal(new Dictionary<int, string> { [3] = "a" }, first);
+        Assert.Empty(SleepingRules.PlannedBedroomOccupants(Plan with { Rooms = [Shelter, Barracks, bedroom] }, rooms, sleeping, null));
+    }
+
     [Fact]
     public void ABarracksReconcileListsABedAtEveryTiledBedSlot()
     {

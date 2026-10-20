@@ -594,7 +594,7 @@ public sealed class PlannedRoomActivitiesTests
     /// <summary>
     /// #3651: a room whose role carries a priced value leaves the development tiebreak. Its completed sites add nothing to
     /// the count, yet the selection still exempts its site roots from the thermal-relief gate and the record still places
-    /// its sites when they are selected.
+    /// its sites when they are selected. #3655: a bedroom is priced in production.
     /// </summary>
     [Fact]
     public void APricedRoomsSitesCountNoDevelopmentYetAreEmittedAndNotRefused()
@@ -605,7 +605,8 @@ public sealed class PlannedRoomActivitiesTests
         var bedroom = facts with { PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Bedroom)] }) };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced();
         Assert.Equal(PlannedRole.Bedroom, generated.Context.PlannedRoomRoles[1]);
-        var priced = bedroom with { CoupledAlternatives = generated with { Context = generated.Context with { PricedRoomRoles = new HashSet<PlannedRole> { PlannedRole.Bedroom } } } };
+        Assert.Contains(PlannedRole.Bedroom, generated.Context.PricedRoomRoles);
+        var priced = bedroom with { CoupledAlternatives = generated };
         var result = Select(priced);
         string[] roomSites = ["planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"];
         var planned = result.Rejected.Where(e => e.Commitments.Count > 0 && e.Commitments.All(id => roomSites.Any(s => id.StartsWith(s + "/composition/", StringComparison.Ordinal)))).ToArray();
@@ -624,7 +625,7 @@ public sealed class PlannedRoomActivitiesTests
 
     /// <summary>
     /// #3653: the composed delivery of a priced room's wall consumes its logs, and every evaluated outcome that schedules
-    /// it is charged them under material/WoodLog. The same room unpriced is charged nothing.
+    /// it is charged them under material/WoodLog. The same room with no priced role is charged nothing.
     /// </summary>
     [Fact]
     public void APricedRoomsComposedDeliveryIsChargedItsMaterial()
@@ -637,10 +638,10 @@ public sealed class PlannedRoomActivitiesTests
             result.Rejected.Where(e => e.Consequences is not null).Select(e => e.Consequences!).Append(result.SelectedVector);
         var values = new Dictionary<Resource, ConstructionMaterialValue> { [new("WoodLog")] = new(MaterialValueBasis.Labor, perUnit) };
 
-        var unpriced = Select(bedroom with { CoupledAlternatives = generated with { Context = generated.Context with { MaterialValues = values } } });
+        var unpriced = Select(bedroom with { CoupledAlternatives = generated with { Context = generated.Context with { PricedRoomRoles = new HashSet<PlannedRole>(), MaterialValues = values } } });
         Assert.All(Vectors(unpriced), v => Assert.DoesNotContain(v.Value.Ledger.InvestmentContributions, c => c.Key.StartsWith("material/", StringComparison.Ordinal)));
 
-        var context = generated.Context with { PricedRoomRoles = new HashSet<PlannedRole> { PlannedRole.Bedroom }, MaterialValues = values };
+        var context = generated.Context with { MaterialValues = values };
         Assert.Equal([new Resource("WoodLog")], ForecastValue.ChargedMaterials(context));
         var priced = Select(bedroom with { CoupledAlternatives = generated with { Context = context } });
         var rows = Vectors(priced).SelectMany(v => v.Value.Ledger.InvestmentContributions).Where(c => c.Key == "material/WoodLog").ToArray();

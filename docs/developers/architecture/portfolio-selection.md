@@ -57,8 +57,8 @@ A planned site finished inside the horizon is one unit of requested development,
 the lowest tier, whichever root built it: its own site root, a room alternative or a
 shelter. A planned room's per-cell native roof cells are together that room's one
 roof unit, earned when every cell completes. A whole planned room carries no value
-of its own. A room whose role carries a priced value (`PricedRoomRoles`, empty
-until a role is priced, #3651, #3650) leaves this count; its sites are still
+of its own. A room whose role carries a priced value (`PricedRoomRoles`: a
+bedroom, credited its occupant's mood, #3651, #3655) leaves this count; its sites are still
 emitted and exempt. Work in the closure of a selected planned site root, or of
 a commitment that carries relief, is exempt from the thermal-relief gate on
 construction allocations.

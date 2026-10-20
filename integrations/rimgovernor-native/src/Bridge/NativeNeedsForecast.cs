@@ -168,19 +168,24 @@ internal static class NativeNeedsForecast
             thing.Position.GetTerrain(map)?.extraDeteriorationFactor ?? 0, SteadyEnvironmentEffects.ProtectedByEdifice(thing.Position, map));
     }
     /// <summary>
-    /// The stage rows of the thoughts #3339 values, each priced by the game's MoodOffset for this pawn on an unattached thought
-    /// (zero when ThoughtUtility.CanGetThought refuses it, as the game would never give it).
+    /// The stage rows of the thoughts #3339 and the bedroom credit (#3655) value, each priced by the game's MoodOffset for this
+    /// pawn on an unattached thought (zero when ThoughtUtility.CanGetThought refuses it, as the game would never give it). The
+    /// ascetic rows also carry each null stage at 0: ThoughtWorker_Ascetic leaves the thought inactive at those room stages.
     /// </summary>
     private static EquatableArray<Obs.NeedThoughtStage> ThoughtStagesOf(Pawn pawn, Map map)
     {
         var rows = new List<Obs.NeedThoughtStage>();
-        void Rows(ThoughtDef? def, string role)
+        void Rows(ThoughtDef? def, string role, bool nullStagesInactive = false)
         {
             if (def?.stages == null) return;
             var can = ThoughtUtility.CanGetThought(pawn, def);
             for (var stage = 0; stage < def.stages.Count; stage++)
             {
-                if (def.stages[stage] == null) continue;
+                if (def.stages[stage] == null)
+                {
+                    if (nullStagesInactive) rows.Add(new(def.defName, role, stage, 0, default, false));
+                    continue;
+                }
                 var offset = can ? StageOffset(pawn, def, stage) : 0;
                 if (!double.IsFinite(offset)) continue;
                 rows.Add(new(def.defName, role, stage, offset,
@@ -199,6 +204,9 @@ internal static class NativeNeedsForecast
             Rows(def, "undergrounder_underground");
         foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_IsOutdoorsForUndergrounder)))
             Rows(def, "undergrounder_outdoors");
+        // No ThoughtDefOf field names the Ascetic thought; its worker class is the typed route (#3655).
+        foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_Ascetic)))
+            Rows(def, "ascetic", nullStagesInactive: true);
         return EquatableArray.From(rows);
     }
     private static readonly FieldInfo? SituationalStage = BridgeCommon.PrivateInstanceField(typeof(Thought_Situational), "curStageIndex");
