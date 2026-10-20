@@ -231,7 +231,8 @@ cell. The custom delivery driver uses native pathing, reservations, stack splitt
 and carrying, but does not ask the hauling WorkGiver to select storage. It never
 collects nearby duplicates or substitutes a nearby drop location. Admission and
 execution require a capable hauler, sufficient source quantity and carrying capacity,
-an empty carry tracker or the exact selected carried stack, and a reachable, unreserved destination without loose items.
+an empty carry tracker or the exact selected carried stack, and a reachable destination without loose items that is
+unreserved or held only by preemptible colonists (see the offer rules below).
 This initial adapter deliberately refuses stack merging and multi-trip deliveries.
 The planner must split larger transfers into bounded attempts and observe each result.
 A delivered stack that carried a Haul designation (the room reconcile's HaulOut, read
@@ -285,7 +286,12 @@ select activities inside this boundary. Uncontrolled pawns keep native behavior.
 
 A selected native Job is identified by both reference and load ID, so pooling
 cannot transfer ownership. Actual StartJob and EndCurrentJob hooks distinguish an
-offer from execution. Native reservation failures terminate the attempt visibly.
+offer from execution. A coupled order outranks vanilla work (#3671): when a step's target, a
+`Deliver` destination cell or a `Supply` site is reserved only by preemptible colonists (controlled, no committed
+order), admission counts it reservable and the offer ends their jobs (`InterruptForced`, no new job started, so none
+re-reserves it first) before reserving it. A committed order, a player-forced or queued job, or a holder that is not a
+controlled colonist is never interrupted. Any other native reservation failure terminates the attempt visibly
+(`target_unreachable_or_reserved`).
 Successful work advances only to an explicitly authorized next step; failed or
 interrupted work never silently restarts. A new revision is required to retry.
 The longer-lived Method can survive interruption and submit a new attempt through

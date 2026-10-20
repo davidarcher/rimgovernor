@@ -103,3 +103,11 @@ public sealed record VanillaJobRead
 
     public bool Owned { get; init; }
 }
+
+/// <summary><c>test/preempt_haul_start</c> and <c>test/preempt_haul_read</c>: the holder's current job's load id (null for none) and whether it targets and reserves the stack.</summary>
+public sealed record PreemptHaulRead
+{
+    public int? JobId { get; init; }
+
+    public bool Holds { get; init; }
+}

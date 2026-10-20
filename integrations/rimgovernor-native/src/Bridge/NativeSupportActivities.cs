@@ -201,7 +201,7 @@ internal static class NativeSupportActivities
     internal static string? DestinationRefusal(Pawn pawn, Thing source, IntVec3 cell, int count)
     {
         if (!cell.InBounds(pawn.Map) || !cell.Standable(pawn.Map) || cell.Fogged(pawn.Map) || cell.IsForbidden(pawn)) return "cell not standable, fogged or forbidden";
-        if (!pawn.CanReserveAndReach(cell, PathEndMode.OnCell, Danger.None))
+        if (!NativePawnActivities.Reservable(pawn, cell, PathEndMode.OnCell, Danger.None))
             return pawn.Map.reservationManager.FirstRespectedReserver(cell, pawn) is { } holder ? "cell reserved by " + holder.GetUniqueLoadID() : "cell unreachable";
         var group = pawn.Map.haulDestinationManager.SlotGroupAt(cell);
         if (group != null && !StoreUtility.IsGoodStoreCell(cell, pawn.Map, source, pawn, pawn.Faction)) return "stockpile cell not accepting";
