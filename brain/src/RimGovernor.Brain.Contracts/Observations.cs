@@ -6939,7 +6939,7 @@ public sealed record ColonyFactsSnapshot
     public uint? PendingHunts { get; init; }
 
     /// <summary>
-    /// Player faction TechLevel; shapes the starter shelter.
+    /// Player faction TechLevel; the floor of the construction tier.
     /// </summary>
     public Defs.TechLevel PlayerTechLevel { get; init; }
 

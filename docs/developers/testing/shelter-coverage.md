@@ -10,21 +10,25 @@ one honest end-to-end path, and staged fixtures for recovery.
 
 The shelter planners are pure policy functions over recorded or built facts
 (`brain/src/RimGovernor.Brain.Policy`, `brain/src/RimGovernor.Brain.BuildingRuntime`). xUnit in
-`brain/tests/RimGovernor.Brain.Domain.Tests` holds the plan-level claims: `ShelterLayoutPlanTests` (the first plan
-latches Cold or Hot from the outdoor curve, holds one shelter sized for the colony and clear of every other room and
-no laboratory, and the shelter template holds the climate's campfires or cooler on its interior, the building going
-to the room that owns it) and `SleepingPlannerTests` (bedroom-wing moves once everyone owns a shelter bed; a Greedy
-or titled colonist's suite and its larger successor). A one-colonist cold start's later replans and the sixty-day
-solo year have no native case: a year cannot be staged inside the acceptance tick cap.
+`brain/tests/RimGovernor.Brain.Domain.Tests` holds the plan-level claims: `FirstLayoutPlanTests` (the first plan
+latches Cold or Hot from the outdoor curve and hosts research at the catalog's research bench), `FirstRoomPlanTests`
+(a first plan's rooms are the station graph's: bedrooms on a temperate map, one barracks on an ice sheet),
+`SleepingStandInTests` (the day-one stand-in spots and their clearing) and `SleepingPlannerTests` (bedroom-wing moves
+once everyone owns a bed outside a bedroom; a Greedy or titled colonist's suite and its larger successor). A
+one-colonist cold start's later replans and the sixty-day solo year have no native case: a year cannot be staged
+inside the acceptance tick cap.
 
 ## Native acceptance (`acceptance run shelter/<case>`)
 
 | Case | What only a real game proves | Staged |
 | --- | --- | --- |
-| `shelter/bunks-first` | The complete path: on a lab that houses nobody (asserted), with ComplexFurniture finished and wood beside the colonists, the served brain raises the shelter by ordinary pawn work, the game roofs it, and the native room census then holds a built Bed per colonist inside a roofed proper room. | research, wood |
-| `shelter/retirement` | A retired shelter hut (its footprint the injected plan's `RetiredGround`) with its spots is cleared by pawns: walls, door and spots deconstructed until nothing of the colony's stands there. | the hut, its spots and the plan |
+| `layout/first-room-temperate` | A new temperate colony records its first plan and a built sleeping spot stands for every colonist before any roofed proper room. | wood |
 | `shelter/manhunter_waitout`, `shelter/toxic_fallout` | A real threat beside a roofed hut: the served brain restricts every colonist (and, under fallout, a tame dog) to the Safe area, where they stand unhurt in the hut; once the threat ends the restrictions are lifted. | the hut, the pawns and the threat |
 | `shelter/service-investment` | A cold occupied room's partly funded heater frame is finished, powered and warms the room while a competing lower-tier wall frame stays unbuilt. | the room, frames and plan |
+
+A built room a replan drops leaves its ground to clearance; `clearance/retired-ground` owns that native clearance
+(its footprint the injected plan's `RetiredGround`, walls, door and spots deconstructed until nothing of the colony's
+stands there).
 
 ## Composition
 

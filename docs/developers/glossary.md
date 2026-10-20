@@ -17,7 +17,6 @@
 | Claim | What a Method holds (pawns, cells and footprints, things, zones and sources, materials), derived from its actions by `WorkClaimsOf`. A Method is refused only on overlap (`ClaimConflict`). See [claim admission](architecture/control-loop.md#method-journal-claim-admission). |
 | Concern | Retired (#3265): the registry row a Need replaced. `ConcernId` survives as the filing key type of planner reasons and progress rows (`NeedId.FilingKey`). |
 | Safeguard | An admission veto; it rejects proposals and pursues nothing. |
-| Capability | A coarse function a planned room can host (sleep, craft, research, cook, store, heat), derived from the facility catalog (`policy.CapabilitiesOf`) and never persisted. The shelter hosts sleep, craft, research, cook and heat, and retires once each has a better home. See [room capabilities](architecture/facilities.md#room-capabilities). |
 | Method | A selected way to pursue a Need, retaining its attempts and step associations. |
 | Candidate Method alternative | A temporary policy proposal evaluated before journal admission; it has no independent lifecycle or persisted ownership. |
 | ColonyForecast | Pure forecast accounting and comparison used to evaluate proposed work. It supplies evidence for Method selection, not admission or execution ownership. See [scope](architecture/colony-forecast.md). |

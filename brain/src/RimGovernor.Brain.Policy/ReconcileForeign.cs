@@ -36,61 +36,6 @@ internal sealed class ForeignWork
 
 public static partial class ReconcileRules
 {
-    /// <summary>
-    /// The cut wave of a furniture slot the native preview refused naming a plant: every plant, passable or
-    /// not, on the slot's footprint or interaction cell that the refusal names by def (or any plant when it
-    /// names only a category). A slot has no outdoor stand-in, so the plant is a foreign obstruction like an
-    /// impassable one on a room's ground. The preview stays the legality authority: nothing is cut unless it
-    /// refused on a plant.
-    /// </summary>
-    public static IReadOnlyList<ClearanceTarget> SlotPlantCuts(IReadOnlyList<SiteCell> cells, InteriorPiece piece, IReadOnlyList<PlacementBlocker> blockers)
-    {
-        var named = new HashSet<string>(StringComparer.Ordinal);
-        var anyPlant = false;
-        foreach (var b in blockers)
-        {
-            if (b.DefName.Length != 0)
-            {
-                named.Add(b.DefName);
-            }
-            else if (string.Equals(b.Category, "plant", StringComparison.OrdinalIgnoreCase))
-            {
-                anyPlant = true;
-            }
-        }
-        var slot = new HashSet<Cell>(PlannedRules.RectCells(piece.Rect));
-        var (interaction, ok) = piece.Interaction();
-        if (ok)
-        {
-            slot.Add(interaction);
-        }
-        var output = new List<ClearanceTarget>();
-        foreach (var sc in cells)
-        {
-            if (!slot.Contains(sc.Cell))
-            {
-                continue;
-            }
-            foreach (var t in sc.Things)
-            {
-                if (t.Category != ThingCategory.Plant || t.Id == 0 || (!named.Contains(t.Def) && !anyPlant))
-                {
-                    continue;
-                }
-                output.Add(new ClearanceTarget
-                {
-                    EntityId = t.LoadId(),
-                    DefName = t.Def,
-                    Minimum = sc.Cell,
-                    Maximum = sc.Cell,
-                    Class = "foreign",
-                    Designated = t.Has(ThingMarks.Designated),
-                });
-            }
-        }
-        return output.OrderBy(t => t.Minimum.Z).ThenBy(t => t.Minimum.X).ThenBy(t => t.EntityId, StringComparer.Ordinal).ToList();
-    }
-
     private static ForeignWork ForeignThings(ReconcileInput input, Region ring, string wallDef, HashSet<Cell> doorWanted)
     {
         var w = new ForeignWork();

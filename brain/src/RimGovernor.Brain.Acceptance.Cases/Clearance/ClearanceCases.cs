@@ -9,5 +9,6 @@ public static class ClearanceCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(ClearancePackReinstall.Case());
         registry.Register(ClearanceForeignIds.Case());
+        registry.Register(ClearanceRetiredGround.Case());
     }
 }

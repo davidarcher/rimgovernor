@@ -339,7 +339,7 @@ under its Need. There is no starter shelter and no Construction labor hold.
   its owners are upgrade targets. A sleeping spot is never suitable. While every
   colonist owns some bed the bedroom ladder (shell with door, furnish, move) runs ahead
   of any barracks bed at every tier. Furnishing falls back to a `SleepingSpot` the owner
-  moves into; the vacated shelter-shell spot is deconstructed.
+  moves into; a vacant stand-in spot is deconstructed once the indoor beds take everyone.
 - Assignment and construction receipts do not complete the deficit. Recovery requires
   observed use by the assigned pawn in a suitable bed, kept for that bed and load.
   Missing reads, changed assignments, access loss and unsafe temperature reopen it.

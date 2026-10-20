@@ -95,9 +95,6 @@ public static partial class LayoutSurveyRules
 
     public static PlannedRole PlannedBedroom => PlannedRole.Bedroom;
 
-    /// <summary>The temporary starter room, sited apart from the core so its ground frees cleanly once it is demolished.</summary>
-    public static PlannedRole PlannedShelter => PlannedRole.Shelter;
-
     public static PlannedRole PlannedDining => PlannedRole.Dining;
     public static PlannedRole PlannedRec => PlannedRole.Rec;
     public static PlannedRole PlannedLab => PlannedRole.Lab;

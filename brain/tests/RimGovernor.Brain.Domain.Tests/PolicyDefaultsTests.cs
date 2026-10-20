@@ -11,12 +11,6 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class PolicyDefaultsTests
 {
     [Fact]
-    public void ShelterInteriorAreaCountsOnlyTheCapabilitiesWithACellFootprint()
-    {
-        Assert.True(LayoutShelterRules.ShelterInteriorArea(3, 0, 0) > 0);
-    }
-
-    [Fact]
     public void ResourceDemandOfDefaultFactsHasEmptyNeeds()
     {
         var f = new RoundsFacts();

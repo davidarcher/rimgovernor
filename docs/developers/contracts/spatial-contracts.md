@@ -145,41 +145,11 @@ columns, which the planner does not place.
 ### Where a shell stands
 
 No routine searches for a site. Every shell is a room of the layout plan, placed by the
-tiler (see Layout planner below), and a routine raises the planned room of its role. The
-shelter is the plan's `PlannedShelter` room: a station-less `RoomNode` sized by
-`ShelterInteriorArea` (`LayoutShelter.cs`), so the first plan, which is derived
-before any station is built, already holds it. A shell is buildable when the native
+tiler (see Layout planner below), and a routine raises the planned room of its role. A
+first plan seeds no shelter (#3659): its rooms are the station graph's, and the
+day-one sleeping floor is the stand-in sleeping spots. A shell is buildable when the native
 preview accepts its cells; a planned room whose interior holds rock is dug first (see
 Digging planned rooms). There are no starter templates or per-routine search tiers.
-
-### Initial shelter rungs
-
-`stepShelterRoom` (`RoundsShelterBunks.cs`) raises the shelter room. On a fresh site
-the initial shelter runs three rungs under one Episode:
-
-1. Sleeping spots at the first review, one per colonist owed, on the room's bunk slots
-   (`shelterBunkSlots`, `policy.BunkCells`).
-2. Wooden beds (`Bed`, north-facing 1x2; bedrolls in stocked fabric or leather while
-   `Bed` is locked) on the same slots. The native refuses a bed over a standing spot, so
-   the bed rung first deletes the standing spots (`shelter-clear-beds`; a bedroll being
-   upgraded is packed to storage instead, never deleted), and places the beds once none
-   stands. The rung waits while the spots are unbuilt or the deletion is open.
-3. The ring around them, one `reconcileRoom` of the planned room with `ringOnly`.
-
-Each rung is one plan (methods `shelter-spots`, `shelter-bedrolls`, `shelter-beds` and
-`shelter-clear-*`), admitted one per review, and the ring methods are named
-`shelter-shell-<x>-<z>` (`plannedRoomMethod`) with `-build-` waves. The bunk rungs and the
-ring are admitted in the same review when each is admissible: the walls stand on cells
-the bunks never take, so neither waits on the other, and an open ring wave is existing
-work that does not stop the ladder. The bunks wait only for the room's rock to be dug.
-Once the ring stands the ladder still goes up its rungs while the ring waits on its roof.
-
-- A bed rung the native previews refuse whole falls through to the ring in the same
-  review.
-- Partial stock pays for the enclosure first: the bed rung admits only the beds the
-  stock pays for, and the ring follows.
-- A restart rereads the bound rungs from the journal (`shelterBunks`) rather than
-  placing new bunks.
 
 ### Planned-room reconcile after a world change
 
@@ -262,7 +232,7 @@ Hot and NextRoomID.
   than greedy on a gated term; the tiler has no built input, so nothing is pinned or moved free.
   **Live furnishing (#2956).** The runtime reads a room's furniture slots from
   `PlanRoomInterior` (`InteriorRegion.cs`). A role in `regionRoles` (workshop, laboratory,
-  kitchen, tomb, prison cell, hospital, bedroom, suite, throne room, the child rooms, dining, rec room and shelter: every role) states what its floor should hold as
+  kitchen, tomb, prison cell, hospital, bedroom, suite, throne room, the child rooms, dining and rec room: every role) states what its floor should hold as
   `RegionWant`s (`InteriorRegionRoles.cs`: the capacity its template had along the entrance
   wall or aisle, the pieces named as the reconcilers and consumers read them) and the placer
   seats them on `InteriorRoom.Floor()`, the planned room's region, so an L or notched room is
@@ -438,8 +408,8 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   planner's bed, no chair); nothing is vetoed. Output: `StationAdvice.Comfort`, journaled in
   `layout_stations`. The tiler stores a priced work choice on its room
   (`PlannedRoom.WorkChairs`, bench def to chair def; `TileInput.Comfort`), the room input
-  carries it (`InteriorRoom.WorkChairs`) and the workshop, laboratory, kitchen and shelter
-  research wants add a `RegionWant{OnInteraction}` seat: one single-cell chair on each placed
+  carries it (`InteriorRoom.WorkChairs`) and the workshop, laboratory and kitchen
+  wants add a `RegionWant{OnInteraction}` seat: one single-cell chair on each placed
   bench's interaction cell, named `<bench slot>_chair`. The seats are added after the
   placement and the interior search, so the layout is the one without them (the cell was open
   floor already, and a chair is walked over); a bench without an interaction cell, a catalog
@@ -492,7 +462,7 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   beside the range. Nothing behind the dummies is kept free: a practice shot is cast with
   non-target pawns excluded, so it cannot hit a pawn (#2938). The tiler writes `Facing`
   (the dummies point to the end farther from the bounds of the rooms that are part of the
-  base, not the outskirts, training or shelter rooms: `apartFromBase`, `dummyFacing`) and
+  base, not the outskirts or training rooms: `apartFromBase`, `dummyFacing`) and
   `Markers` onto the room. Both are rooms of the tiled plan.
   **Power sites (#2919).** `AdviseStations` asks `EmbedSites` for a site node per
   planned turbine, solar plot and geothermal enclosure (`PowerSiteNodes`,
@@ -556,7 +526,7 @@ slot filled from packed stock or built on site, floors are replaced. A wall stan
 stuff it was built in; it is swapped in place only to a priced upgrade the planned-room
 comparison selected (`SelectedWallUpgrade`, #3657), one wall at a time on a ring with no
 other work. Standing census rooms are reconciled too. The plan's
-`RetiredGround` (a retired shelter's footprint) is cleared with the rest: its ring, spots
+`RetiredGround` (the footprint of a built room a replan dropped) is cleared with the rest: its ring, spots
 and furniture come down, a research table packed to stock for the laboratory to install,
 and the entry drops once nothing of ours stands on it.
 
@@ -566,14 +536,6 @@ but not ready, and brings no roof off, until the new ring stands (no wall or doo
 owed). A retired wall that still bounds an enclosed census room reaching outside the
 retired ground (a row shrunk away) waits until the new ring has split that room off.
 No new OpKind; the native ClearanceTargets request stays rectangles.
-
-The shelter retires (`policy.ShelterRetirable`, re-read every review, no latch) when every
-capability it hosts has a better home: every colonist owns a bed in a built bedroom, a
-planned workshop stands, a research bench stands in a built room outside the shelter (or a
-planned laboratory stands to take the packed table; research is a capability of whichever
-room holds the bench, so a solo colony needs no laboratory) and, on a cold map, those
-bedrooms hold temperature. Unknown facts never retire it, and a colony with nothing else
-built keeps the shelter as its permanent home.
 
 ### Stockpile maintenance
 
@@ -661,7 +623,7 @@ The staged machinery is now corridor-only. `policy.CorridorExcavationSites`
 (`TunnelSite.cs`) proposes a one-wide corridor from a known walkable access cell into a
 visible rock face toward an ore cell, and `RoundsResourceTunnel.cs` drives it; the
 code states that dug rooms are the layout plan's and this only reaches ore. The
-shelter is not a staged excavation. The rules that still hold:
+planned rooms are not staged excavations. The rules that still hold:
 
 - Fogged cells are unknown, never assumed empty or safe, and nothing outside the
   observed planning window is planned. Native `ReadExcavationSite` is the authority for

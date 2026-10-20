@@ -6,10 +6,10 @@ using Xunit;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// The first layout plan (#3406, #3659): the plan latches the map's climate from the outdoor curve, seeds no shelter, and
+/// The first layout plan (#3406, #3659): the plan latches the map's climate from the outdoor curve and
 /// hosts research at the catalog's research bench.
 /// </summary>
-public sealed class ShelterLayoutPlanTests
+public sealed class FirstLayoutPlanTests
 {
     // Twelfths' outdoor means (C): a tundra dips below freezing, a desert peaks past HotEnter, a temperate map does neither.
     private static readonly double[] ColdCurve = [-22, -18, -10, -2, 4, 9, 12, 10, 3, -6, -14, -20];
@@ -33,8 +33,8 @@ public sealed class ShelterLayoutPlanTests
         {
             Cell = new Cell(x, z), Walkable = true, Footing = Footing.Firm, Fertility = 1,
         }))],
-        Cold = LayoutShelterRules.ColdMapCurve(Curve(climate)),
-        Hot = LayoutShelterRules.HotMapCurve(Curve(climate)),
+        Cold = LayoutRoofRules.ColdMapCurve(Curve(climate)),
+        Hot = LayoutRoofRules.HotMapCurve(Curve(climate)),
     };
 
     /// <summary>
@@ -147,11 +147,10 @@ public sealed class ShelterLayoutPlanTests
     [InlineData("cold", 3)]
     [InlineData("hot", 3)]
     [InlineData("mild", 3)]
-    public void TheFirstPlanHoldsNoShelterAndHostsResearchInALaboratory(string climate, int colonists)
+    public void TheFirstPlanHostsResearchInALaboratory(string climate, int colonists)
     {
         var plan = FirstPlan(climate, colonists);
         // #3659: a first plan's rooms are the station graph's; research is a station, hosted as any other.
-        Assert.Empty(plan.RoomsOf(LayoutSurveyRules.PlannedShelter));
         Assert.NotEmpty(plan.RoomsOf(LayoutSurveyRules.PlannedLab));
     }
 }

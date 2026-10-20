@@ -107,8 +107,9 @@ public sealed class PlannedBarracksTests
 
     private static IEnumerable<Cell> Neighbours(Cell c) => [new(c.X + 1, c.Z), new(c.X - 1, c.Z), new(c.X, c.Z + 1), new(c.X, c.Z - 1)];
 
-    // A shelter for two and a 5x4 barracks whose three tiled bed slots stand along its north wall.
-    private static readonly PlannedRoom Shelter = new() { Id = 1, Role = LayoutSurveyRules.PlannedShelter, Region = RegionRules.RectRegion(new Rectangle(0, 0, 5, 5)) };
+    // An unplanned hall the game scores a Barracks (its beds house no one) and a 5x4 planned barracks whose three tiled
+    // bed slots stand along its north wall.
+    private static readonly PlannedRoom Hall = new() { Id = 1, Region = RegionRules.RectRegion(new Rectangle(0, 0, 5, 5)) };
 
     private static readonly PlannedRoom Barracks = new()
     {
@@ -119,7 +120,7 @@ public sealed class PlannedBarracksTests
 
     private static readonly LayoutPlan Plan = new()
     {
-        Rooms = [Shelter, Barracks],
+        Rooms = [Barracks],
         NextRoomId = 3,
         Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [Barracks.Id] = [Slot(10), Slot(12), Slot(14)] },
     };
@@ -142,34 +143,34 @@ public sealed class PlannedBarracksTests
     [Fact]
     public void AnEmptyPlannedBarracksIsOwedItsReconcile()
     {
-        var sleeping = new SleepingObservation { Colonists = 2, People = [Person(A, "s1"), Person(B, "s2")], Beds = [SleepingBed("s1", "shelter", A), SleepingBed("s2", "shelter", B)] };
+        var sleeping = new SleepingObservation { Colonists = 2, People = [Person(A, "s1"), Person(B, "s2")], Beds = [SleepingBed("s1", "hall", A), SleepingBed("s2", "hall", B)] };
 
-        var unbuilt = Step([Standing("shelter", Shelter, RoomRole.Barracks, "s1", "s2")], sleeping);
+        var unbuilt = Step([Standing("hall", Hall, RoomRole.Barracks, "s1", "s2")], sleeping);
         Assert.Equal((BedroomStepKind.Reconcile, Barracks.Id, 2), (unbuilt.Kind, unbuilt.Room.Id, unbuilt.Unhoused));
 
         // Standing with one of its three beds, and that one taken: the barracks is still owed the other two.
         var one = sleeping with { Beds = [.. sleeping.Beds, SleepingBed("k1", "barracks", A)], People = [Person(A, "k1"), Person(B, "s2")] };
-        var partial = Step([Standing("shelter", Shelter, RoomRole.Barracks, "s1", "s2"), Standing("barracks", Barracks, RoomRole.Bedroom, "k1")], one);
+        var partial = Step([Standing("hall", Hall, RoomRole.Barracks, "s1", "s2"), Standing("barracks", Barracks, RoomRole.Bedroom, "k1")], one);
         Assert.Equal((BedroomStepKind.Reconcile, Barracks.Id, 1), (partial.Kind, partial.Room.Id, partial.Unhoused));
     }
 
     [Fact]
     public void APawnInABarracksBedIsHousedAndAnUnhousedOneMovesIntoAVacantBarracksBed()
     {
-        var rooms = new[] { Standing("shelter", Shelter, RoomRole.Barracks, "s1", "s2"), Standing("barracks", Barracks, RoomRole.Barracks, "k1", "k2", "k3") };
+        var rooms = new[] { Standing("hall", Hall, RoomRole.Barracks, "s1", "s2"), Standing("barracks", Barracks, RoomRole.Barracks, "k1", "k2", "k3") };
         var sleeping = new SleepingObservation
         {
             Colonists = 2,
             People = [Person(A, "k1"), Person(B, "s2")],
-            Beds = [SleepingBed("s1", "shelter"), SleepingBed("s2", "shelter", B), SleepingBed("k1", "barracks", A), SleepingBed("k2", "barracks"), SleepingBed("k3", "barracks")],
+            Beds = [SleepingBed("s1", "hall"), SleepingBed("s2", "hall", B), SleepingBed("k1", "barracks", A), SleepingBed("k2", "barracks"), SleepingBed("k3", "barracks")],
         };
 
-        // Only the shelter sleeper is unhoused, and with no bedroom bed vacant they take a barracks bed.
+        // Only the hall sleeper is unhoused, and with no bedroom bed vacant they take a barracks bed.
         var move = Step(rooms, sleeping);
         Assert.Equal((BedroomStepKind.Move, B, "k2", "s2", 1), (move.Kind, move.Pawn, move.Bed, move.PreviousBed, move.Unhoused));
 
         // Both in the barracks: nobody is unhoused and nothing is owed (the third slot stands vacant).
-        var both = sleeping with { People = [Person(A, "k1"), Person(B, "k2")], Beds = [SleepingBed("s1", "shelter"), SleepingBed("s2", "shelter"), SleepingBed("k1", "barracks", A), SleepingBed("k2", "barracks", B), SleepingBed("k3", "barracks")] };
+        var both = sleeping with { People = [Person(A, "k1"), Person(B, "k2")], Beds = [SleepingBed("s1", "hall"), SleepingBed("s2", "hall"), SleepingBed("k1", "barracks", A), SleepingBed("k2", "barracks", B), SleepingBed("k3", "barracks")] };
         var none = Step(rooms, both);
         Assert.Equal(0, none.Unhoused);
         Assert.NotEqual(BedroomStepKind.Reconcile, none.Kind);
@@ -183,13 +184,13 @@ public sealed class PlannedBarracksTests
     public void APlannedBedroomsOccupantIsTheUnhousedColonistTheStepWouldMoveIn()
     {
         var bedroom = new PlannedRoom { Id = 3, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new Rectangle(20, 0, 4, 4)) };
-        var sleeping = new SleepingObservation { Colonists = 2, People = [Person(A, "s1"), Person(B, "s2")], Beds = [SleepingBed("s1", "shelter", A), SleepingBed("s2", "shelter", B)] };
-        var rooms = new RoomObservation { Rooms = [Standing("shelter", Shelter, RoomRole.Barracks, "s1", "s2")], Shapes = new PieceShapes { Furniture = Furniture } };
+        var sleeping = new SleepingObservation { Colonists = 2, People = [Person(A, "s1"), Person(B, "s2")], Beds = [SleepingBed("s1", "hall", A), SleepingBed("s2", "hall", B)] };
+        var rooms = new RoomObservation { Rooms = [Standing("hall", Hall, RoomRole.Barracks, "s1", "s2")], Shapes = new PieceShapes { Furniture = Furniture } };
 
-        var first = SleepingRules.PlannedBedroomOccupants(Plan with { Rooms = [Shelter, bedroom, Barracks] }, rooms, sleeping, null);
+        var first = SleepingRules.PlannedBedroomOccupants(Plan with { Rooms = [bedroom, Barracks] }, rooms, sleeping, null);
         Assert.Equal(["a"], Assert.Single(first, r => r.Key == 3).Value.ToArray());
         Assert.Equal(["b"], Assert.Single(first, r => r.Key == Barracks.Id).Value.ToArray());
-        var seated = Assert.Single(SleepingRules.PlannedBedroomOccupants(Plan with { Rooms = [Shelter, Barracks, bedroom] }, rooms, sleeping, null));
+        var seated = Assert.Single(SleepingRules.PlannedBedroomOccupants(Plan with { Rooms = [Barracks, bedroom] }, rooms, sleeping, null));
         Assert.Equal((Barracks.Id, "a,b"), (seated.Key, string.Join(",", seated.Value)));
     }
 
@@ -199,7 +200,7 @@ public sealed class PlannedBarracksTests
         var shapes = new PieceShapes { Defs = new Dictionary<string, InteriorPieceDef> { [Bed] = BedShape }, Furniture = Furniture };
         var slots = SleepingRules.BedSlotsOf(Plan, Barracks, Furniture);
         Assert.NotNull(slots);
-        Assert.Null(SleepingRules.BedSlotsOf(Plan, Shelter, Furniture));
+        Assert.Null(SleepingRules.BedSlotsOf(Plan, Hall, Furniture));
 
         var furnishing = SleepingRules.BedroomFurnishing(Barracks, shapes, Bed, [], null, slots);
 
@@ -220,6 +221,6 @@ public sealed class PlannedBarracksTests
 
         using var doc = JsonDocument.Parse(json);
         var back = Codecs.Default.Read<LayoutPlan>(doc.RootElement);
-        Assert.Equal([LayoutSurveyRules.PlannedShelter, PlannedRole.Barracks], back.Rooms.Select(r => r.Role));
+        Assert.Equal([PlannedRole.Barracks], back.Rooms.Select(r => r.Role));
     }
 }

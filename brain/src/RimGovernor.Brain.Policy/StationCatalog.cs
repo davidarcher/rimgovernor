@@ -3,8 +3,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// Every buildable station the game offers, read from its definitions and room-role code (bridge builds it). A
 /// station is a building that adds to a native room role, has a capacity, or needs something of the room it
-/// stands in. The planner reasons about stations; rooms emerge from clustering them, and a capability is only a
-/// derived grouping of station classes (Hosting).
+/// stands in. The planner reasons about stations; rooms emerge from clustering them.
 /// </summary>
 public sealed record StationCatalog
 {
@@ -59,19 +58,6 @@ public sealed record StationCatalog
     /// <summary>Lists, sorted, the stations that add to a role.</summary>
     public List<string> Contributors(RoomRole role) =>
         [.. Defs().Where(def => Stations[def].Contributions.Any(c => c.Role == role))];
-
-    /// <summary>
-    /// Lists, sorted, the stations of the classes that provide a capability: the capability is the grouping,
-    /// the station family its census role (capabilityHomes).
-    /// </summary>
-    public List<string> Hosting(Capability capability)
-    {
-        if (!LayoutCapabilityRules.CapabilityHomes.TryGetValue(capability, out var home))
-        {
-            return [];
-        }
-        return [.. Defs().Where(def => Stations[def].Shape.Family == home)];
-    }
 
     /// <summary>Lists, sorted, the stations that cool their room.</summary>
     public List<string> Coolers() => [.. Defs().Where(def => Stations[def].Cooling.Cools())];

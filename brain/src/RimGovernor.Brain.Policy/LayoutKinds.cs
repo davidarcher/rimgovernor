@@ -36,9 +36,6 @@ public enum PlannedRole
     [WireName("bedroom")]
     Bedroom,
 
-    [WireName("shelter")]
-    Shelter,
-
     [WireName("dining")]
     Dining,
 

@@ -46,7 +46,7 @@ internal static class ClearancePackReinstall
             Cells = [new Fx.StageCells { Rect = new Fx.StageRect(0, 0, 13, 7), Home = true }],
             Rooms =
             [
-                new Fx.StageRoom { Name = "shelter", Rect = new Fx.StageRect(1, 1, 5, 5), Stuff = "WoodLog", Doors = [new(3, 1)], Roof = true },
+                new Fx.StageRoom { Name = "origin", Rect = new Fx.StageRect(1, 1, 5, 5), Stuff = "WoodLog", Doors = [new(3, 1)], Roof = true },
                 new Fx.StageRoom { Name = "bedroom", Rect = new Fx.StageRect(7, 1, 5, 5), Stuff = "WoodLog", Doors = [new(9, 1)], Roof = true },
             ],
             Buildings = [new Fx.StageBuilding { Name = "bed", Def = "Bed", Stuff = "WoodLog", Cells = [From], HitPoints = HitPoints }],

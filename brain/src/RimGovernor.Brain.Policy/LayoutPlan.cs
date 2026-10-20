@@ -137,10 +137,10 @@ public sealed partial record LayoutPlan
     /// <summary>The stations the tiler placed in each room by room id (def, cell, rotation): what the plan expects the room to hold before any colony-driven addition. The demand side prices what is not yet standing; owners read it where they furnish. Only a tiled plan holds it.</summary>
     public IReadOnlyDictionary<int, IReadOnlyList<InteriorPiece>> Pieces { get; init; } = new Dictionary<int, IReadOnlyList<InteriorPiece>>();
 
-    /// <summary>Latches the map's climate when the plan is derived: the seasonal curve dips below ColdMapBelowC. The shelter is sized for it, so a replan never resizes or re-sites the room.</summary>
+    /// <summary>Latches the map's climate when the plan is derived: the seasonal curve dips below ColdMapBelowC, so a replan reads the climate the plan was derived for.</summary>
     public bool Cold { get; init; }
 
-    /// <summary>Latches the other end of the climate the same way: the seasonal curve peaks above HotEnter, so the shelter holds a floor slot for a passive cooler.</summary>
+    /// <summary>Latches the other end of the climate the same way: the seasonal curve peaks above HotEnter.</summary>
     public bool Hot { get; init; }
 
     /// <summary>The counter room ids come from: the next id handed out, latched in the plan so an id is never reused after its room leaves.</summary>

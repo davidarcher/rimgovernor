@@ -292,60 +292,6 @@ public static class InteriorRegionRolesRules
     }
 
     /// <summary>
-    /// The research table, a crafting spot, the campfires and coolers the climate asks for, then one bunk per
-    /// occupant (every bunk that fits for 0). A piece is planned only for a capability the room hosts, and
-    /// only the bunks matter: a cramped room, or a catalog without a row for a piece, gets the bunks alone
-    /// rather than no plan. A bunk is a 1x2 whatever it is made of (a sleeping spot, a bed, a bedroll), the
-    /// slot a spot and its bed share.
-    /// </summary>
-    internal static (IReadOnlyList<RegionWant> Wants, bool Ok) ShelterWants(InteriorRoom room, InteriorPieceDef piece, RegionFrame f)
-    {
-        bool Hosts(Capability c) => room.Capabilities.Contains(c);
-        var wants = new List<RegionWant>();
-        var (bench, bok) = room.BenchDef(piece, RoomRole.Laboratory);
-        if (bok && Hosts(Capability.Research) && InteriorRegionRules.BenchRowCapacity(f, bench, 1) >= 1)
-        {
-            var research = NamedPiece("research", bench, 0) with { AgainstWall = true };
-            wants.Add(research);
-            wants.AddRange(room.WorkChair(research, bench));
-        }
-        void Single(string slot, string def, int count, Func<int, string> name)
-        {
-            var (shape, ok) = room.Shapes.Get(def);
-            if (ok && shape!.Size == new Cell(1, 1) && count > 0)
-            {
-                wants.Add(InteriorRegionRules.ShapeWant(slot, shape, count, 0, name));
-            }
-        }
-        if (Hosts(Capability.Craft))
-        {
-            Single("craft", InteriorShelterRules.ShelterCraftingDef, 1, _ => "craft");
-        }
-        if (Hosts(Capability.Heat))
-        {
-            Single("campfire", LayoutCapabilityRules.ShelterHeatDef, room.Campfires, InteriorRegionRules.Numbered("campfire", 1));
-        }
-        Single("cooler", LayoutCapabilityRules.ShelterCoolDef, room.Coolers, InteriorRegionRules.Numbered(InteriorShelterRules.ShelterCoolerSlotPrefix[..^1], 1));
-        var bunkDef = room.Shapes.Furniture.PrimaryBed();
-        if (piece.Family == RoomRole.Bedroom && piece.Size == InteriorShelterRules.ShelterBunkSize)
-        {
-            bunkDef = piece.Def;
-        }
-        if (bunkDef == string.Empty)
-        {
-            bunkDef = SleepingRules.SleepingSpotDefinition;
-        }
-        var n = room.Occupants;
-        if (n <= 0)
-        {
-            n = room.Floor().Area() / 2;
-        }
-        var bunk = new InteriorPieceDef(bunkDef, InteriorShelterRules.ShelterBunkSize, default, null);
-        wants.Add(InteriorRegionRules.ShapeWant("bunk", bunk, n, 0, InteriorRegionRules.Numbered(InteriorShelterRules.ShelterBunkSlotPrefix[..^1], 1)));
-        return (wants, true);
-    }
-
-    /// <summary>
     /// The throw pin with its clear lane, then tables each ringed by six chairs that face them, then a lamp.
     /// The counts are the template's: a table unit is end chair, 1x2 table, end chair along a line with a side
     /// chair each side of the table, one cell between units, row 0 left for the entrance. A dining room drops

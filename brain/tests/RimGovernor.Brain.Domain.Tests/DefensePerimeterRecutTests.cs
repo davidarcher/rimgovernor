@@ -33,7 +33,7 @@ public sealed class DefensePerimeterRecutTests
         ? new SurveyCell { Walkable = true, Footing = Footing.Light, Bridgeable = true, Dries = true, Fertility = 1 }
         : new SurveyCell { Walkable = true, Fertility = 1 });
 
-    /// <summary>A small hand-placed core (shelter, workshop, kitchen in a row at the middle) with the perimeter laid over it.</summary>
+    /// <summary>A small hand-placed core (barracks, workshop, kitchen in a row at the middle) with the perimeter laid over it.</summary>
     private static LayoutPlan RingedPlan(MapSurvey s)
     {
         PlannedRoom Room(PlannedRole role, int x, int z, int w, int h) => new()
@@ -47,7 +47,7 @@ public sealed class DefensePerimeterRecutTests
         var plan = new LayoutPlan
         {
             Zones = LayoutZoningRules.Zone(s),
-            Rooms = [Room(PlannedRole.Shelter, cx, cz, 6, 5), Room(PlannedRole.Workshop, cx + 9, cz, 6, 5), Room(PlannedRole.Kitchen, cx + 18, cz, 6, 5)],
+            Rooms = [Room(PlannedRole.Barracks, cx, cz, 6, 5), Room(PlannedRole.Workshop, cx + 9, cz, 6, 5), Room(PlannedRole.Kitchen, cx + 18, cz, 6, 5)],
         };
         plan = LayoutPlan.PlanPerimeter(plan.WithRoomIDs(), s).WithRoomIDs();
         Assert.True(plan.Ring().Ok, "no ring");

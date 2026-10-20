@@ -30,6 +30,19 @@ public sealed partial record LayoutPlan
 /// <summary>On a map whose outdoor temperature is not good for pawns, every room except the outdoor roles is roofed.</summary>
 public static partial class LayoutRoofRules
 {
+    /// <summary>The seasonal minimum below which a map is cold: a pinned constant, not the room latches' ColdEnter.</summary>
+    public const double ColdMapBelowC = 0.0;
+
+    /// <summary>Whether a seasonal outdoor temperature curve (the twelfths' means, C) dips below ColdMapBelowC. An empty curve is not cold.</summary>
+    public static bool ColdMapCurve(IEnumerable<double> curve) => curve.Any(t => t < ColdMapBelowC);
+
+    /// <summary>Whether a seasonal outdoor temperature curve peaks above the temperature planner's HotEnter. An empty curve is not hot.</summary>
+    public static bool HotMapCurve(IEnumerable<double> curve)
+    {
+        var hot = RoundsRules.DefaultRoundsPolicy().HotEnter;
+        return curve.Any(t => t > hot);
+    }
+
     /// <summary>The temperature range pawns are comfortable in: the temperature planner's cold and hot limits.</summary>
     public static Band ComfortBand()
     {
@@ -41,7 +54,7 @@ public static partial class LayoutRoofRules
     public static bool BadClimate(RoofInput input)
     {
         var known = input.Curve.TryGetValue(out var curve);
-        return input.Cold || input.Hot || (known && (LayoutShelterRules.ColdMapCurve(curve!) || LayoutShelterRules.HotMapCurve(curve!)));
+        return input.Cold || input.Hot || (known && (ColdMapCurve(curve!) || HotMapCurve(curve!)));
     }
 }
 

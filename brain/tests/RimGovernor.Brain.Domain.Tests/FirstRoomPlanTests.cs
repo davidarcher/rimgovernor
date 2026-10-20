@@ -5,8 +5,8 @@ using static RimGovernor.Brain.Domain.Fact;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// The shelter-free first room (#3659): a first plan's rooms are the station graph's. Three colonists on a temperate map
-/// with cheap wood get bedrooms, on an ice sheet one barracks; neither holds a shelter. A craft order the colony has no
+/// The first room (#3659): a first plan's rooms are the station graph's. Three colonists on a temperate map
+/// with cheap wood get bedrooms, on an ice sheet one barracks. A craft order the colony has no
 /// bench for still gets a host node, the one its price chooses, and the plan places it.
 /// </summary>
 public sealed class FirstRoomPlanTests
@@ -17,8 +17,8 @@ public sealed class FirstRoomPlanTests
 
     private static StationFacts Facts(double[] curve, string climate, IReadOnlyList<OrderSpec>? orders = null, IReadOnlyDictionary<string, double>? hostBuild = null)
     {
-        var s = ShelterLayoutPlanTests.Survey(climate);
-        var f = ShelterLayoutPlanTests.Facts(s, 3);
+        var s = FirstLayoutPlanTests.Survey(climate);
+        var f = FirstLayoutPlanTests.Facts(s, 3);
         var stations = new Dictionary<string, Station>(f.Catalog.Stations) { ["Bed"] = BedMergePriceTests.Catalog.Stations["Bed"] };
         // The game's crafting spot: no room role, half speed, free to build. The smithy is a workshop bench at full speed.
         stations[Spot] = new Station
@@ -53,22 +53,20 @@ public sealed class FirstRoomPlanTests
     }
 
     [Fact]
-    public void ATemperateFirstPlanGivesThreeColonistsBedroomsAndNoShelter()
+    public void ATemperateFirstPlanGivesThreeColonistsBedrooms()
     {
         var plan = Derive(Facts(BedMergePriceTests.Temperate, "mild"));
 
-        Assert.Empty(plan.RoomsOf(PlannedRole.Shelter));
         Assert.Empty(plan.RoomsOf(PlannedRole.Barracks));
         Assert.True(plan.RoomsOf(PlannedRole.Bedroom).Count >= 3, $"bedrooms {plan.RoomsOf(PlannedRole.Bedroom).Count}");
     }
 
     [Fact]
-    public void AnIceSheetFirstPlanHousesThreeColonistsInOneRoofedBarracksAndNoShelter()
+    public void AnIceSheetFirstPlanHousesThreeColonistsInOneRoofedBarracks()
     {
         var f = Facts(BedMergePriceTests.IceSheet, "cold");
         var plan = Derive(f);
 
-        Assert.Empty(plan.RoomsOf(PlannedRole.Shelter));
         var barracks = Assert.Single(plan.RoomsOf(PlannedRole.Barracks));
         Assert.Empty(plan.RoomsOf(PlannedRole.Bedroom));
         // Roofed: every interior cell is within the roof support distance of the room's walls.

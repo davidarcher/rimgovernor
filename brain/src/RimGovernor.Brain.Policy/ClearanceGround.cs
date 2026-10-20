@@ -194,8 +194,8 @@ public static class ClearanceGroundRules
     }
 
     /// <summary>
-    /// A shelter sleeping spot: the colony's only bed until the room stands, so planned-ground clearance
-    /// leaves it. Clearing it first left the pawns sleeping outside (shelter unmet, the comfort planners held)
+    /// A stand-in sleeping spot (#3659): the colony's only bed until the room stands, so planned-ground clearance
+    /// leaves it. Clearing it first left the pawns sleeping outside (sleeping unmet, the comfort planners held)
     /// while the room was still being dug.
     /// </summary>
     internal static bool StandInBed(ClearanceTarget row) => row.DefName == "SleepingSpot";

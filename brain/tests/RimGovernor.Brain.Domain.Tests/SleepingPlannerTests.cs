@@ -6,8 +6,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// The sleeping planner's bedroom and suite steps (NextBedroomStep), formerly proven only by the native
-/// sleeping/bedrooms and sleeping/suites cases (#3406): the first bedroom-wing room is shelled and a shelter sleeper is
-/// moved into it, leaving the shelter bed; a Greedy colonist outgrowing a standard room gets a suite, and a title that
+/// sleeping/bedrooms and sleeping/suites cases (#3406): the first bedroom-wing room is shelled and a hall sleeper is
+/// moved into it, leaving the hall bed; a Greedy colonist outgrowing a standard room gets a suite, and a title that
 /// outgrows that suite gets a new, larger one while the first stays held.
 /// </summary>
 public sealed class SleepingPlannerTests
@@ -35,44 +35,44 @@ public sealed class SleepingPlannerTests
     private static BedroomStep Step(LayoutPlan plan, Room[] rooms, SleepingObservation sleeping, Dictionary<string, RoomTarget>? targets = null) =>
         SleepingRules.NextBedroomStep(plan, new RoomObservation { Rooms = [.. rooms] }, sleeping, targets ?? [], new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
 
-    // sleeping/bedrooms: a shelter for two, then two bedroom-wing rooms in plan order.
-    private static readonly PlannedRoom Shelter = Planned(1, LayoutSurveyRules.PlannedShelter, Rect(0, 5, 5));
+    // sleeping/bedrooms: an unplanned hall for two the game scores a Barracks, then two bedroom-wing rooms in plan order.
+    private static readonly PlannedRoom Hall = new() { Id = 1, Region = RegionRules.RectRegion(Rect(0, 5, 5)) };
     private static readonly PlannedRoom Wing1 = Planned(2, LayoutSurveyRules.PlannedBedroom, Rect(10, 3, 4));
     private static readonly PlannedRoom Wing2 = Planned(3, LayoutSurveyRules.PlannedBedroom, Rect(14, 3, 4));
-    private static readonly LayoutPlan Wing = new() { Rooms = [Shelter, Wing1, Wing2], NextRoomId = 4 };
+    private static readonly LayoutPlan Wing = new() { Rooms = [Wing1, Wing2], NextRoomId = 4 };
 
     [Fact]
-    public void OnceEveryoneOwnsAShelterBedTheFirstWingRoomIsShelledThenASleeperMovesInLeavingTheShelterBed()
+    public void OnceEveryoneOwnsAHallBedTheFirstWingRoomIsShelledThenASleeperMovesInLeavingTheHallBed()
     {
-        var shelter = Standing("shelter", Shelter, "s1", "s2");
+        var hall = Standing("hall", Hall, "s1", "s2") with { Role = Known(RoomRole.Barracks) };
         var housed = new SleepingObservation
         {
             Colonists = 2,
             People = [Person(A, "s1"), Person(B, "s2")],
-            Beds = [Bed("s1", "shelter", A), Bed("s2", "shelter", B)],
+            Beds = [Bed("s1", "hall", A), Bed("s2", "hall", B)],
         };
 
-        // Every colonist owns a bed, but only in the shelter: the plan's first bedroom-wing room is reconciled.
-        var shell = Step(Wing, [shelter], housed);
+        // Every colonist owns a bed, but only in the hall: the plan's first bedroom-wing room is reconciled.
+        var shell = Step(Wing, [hall], housed);
         Assert.Equal(BedroomStepKind.Reconcile, shell.Kind);
         Assert.Equal(Wing1.Id, shell.Room.Id);
         Assert.Equal(2, shell.Unhoused);
 
-        // Enclosed with a vacant bed in it: a shelter sleeper's ownership moves there, out of the shelter bed.
+        // Enclosed with a vacant bed in it: a hall sleeper's ownership moves there, out of the hall bed.
         var furnished = housed with { Beds = [.. housed.Beds, Bed("w1", "wing1")] };
-        var move = Step(Wing, [shelter, Standing("wing1", Wing1, "w1")], furnished);
+        var move = Step(Wing, [hall, Standing("wing1", Wing1, "w1")], furnished);
         Assert.Equal(BedroomStepKind.Move, move.Kind);
         Assert.Equal((A, "w1", "s1"), (move.Pawn, move.Bed, move.PreviousBed));
 
-        // After the move the shelter bed stays standing: the next step builds the next room for the other sleeper,
+        // After the move the hall bed stays standing: the next step builds the next room for the other sleeper,
         // and nothing clears the bed the colonist left.
         var moved = new SleepingObservation
         {
             Colonists = 2,
             People = [Person(A, "w1"), Person(B, "s2")],
-            Beds = [Bed("s1", "shelter"), Bed("s2", "shelter", B), Bed("w1", "wing1", A)],
+            Beds = [Bed("s1", "hall"), Bed("s2", "hall", B), Bed("w1", "wing1", A)],
         };
-        var next = Step(Wing, [shelter, Standing("wing1", Wing1, "w1")], moved);
+        var next = Step(Wing, [hall, Standing("wing1", Wing1, "w1")], moved);
         Assert.Equal(BedroomStepKind.Reconcile, next.Kind);
         Assert.Equal(Wing2.Id, next.Room.Id);
         Assert.NotEqual(BedroomStepKind.Clear, next.Kind);

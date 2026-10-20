@@ -120,8 +120,8 @@ public sealed partial class Store
                         or ActionKind.ClaimBuilding
                         or ActionKind.RemoveRoof
                         or ActionKind.BuildRoof:
-                            // Guarded demolition, staged excavation and a shell ring's ruin clearance and claims, and the
-                            // shelter bunks' packed bedrolls, carry no cost/footprint preview; they are admitted as part
+                            // Guarded demolition, staged excavation, a shell ring's ruin clearance and claims, and packed
+                            // furniture carry no cost/footprint preview; they are admitted as part
                             // of the bundle's dependency graph, excluded from the admission candidates, and re-checked at
                             // dispatch, not here.
                             DomainException.Require(!previews.ContainsKey(a.Id), "guarded action must not carry a preview");

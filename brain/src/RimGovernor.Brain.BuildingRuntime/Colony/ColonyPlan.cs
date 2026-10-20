@@ -364,7 +364,7 @@ public sealed partial class Rounder
 
     /// <summary>
     /// What the review holds of the colony for the replan beyond the chain's facts: the throne room the title
-    /// asks, the shelter's retirement, the rooms with something of ours on them (read here, with the journal's
+    /// asks, the rooms with something of ours on them (read here, with the journal's
     /// open plans, only once a replan is due), the rooms a journal plan works on, the rooms of an ended role in
     /// use, the bedrooms a pawn still sleeps in, the herd and the ring's hold. Fixed stays null while the census
     /// or the plan catalog is unknown, which pins every room.
@@ -385,9 +385,6 @@ public sealed partial class Rounder
                 growth = growth with { InUse = LayoutPlan.RoomsInUse(plan, construction.Buildings, RoundsSleepingUpkeepPlanner.FurnitureDefinitions(projection)) };
             }
         }
-        // Bedrooms, workshop and laboratory stand and every colonist is housed: the shelter leaves the plan.
-        // Re-read every review, no latch.
-        growth = growth with { RetireShelter = projection.Rooms.TryGetValue(out var census) && projection.Facts.Sleeping.TryGetValue(out var sleeping) && projection.Facts.CurrentConstruction.TryGetValue(out var built) && built.Colony && LayoutPlan.ShelterRetirable(plan, census, sleeping, built.Buildings) };
         var occupancy = await LayoutOccupiedAsync(projection, plan, ct).ConfigureAwait(false);
         if (occupancy is { } found)
         {
@@ -397,11 +394,6 @@ public sealed partial class Rounder
                 Fixed = LayoutPlan.FixedRooms(plan, ground, found.Cells),
                 InFlight = LayoutPlan.InFlightRooms(plan, found.Origins, found.Rooms),
             };
-        }
-        else
-        {
-            // Open plans unknown: no shelter is dropped over work in flight.
-            growth = growth with { RetireShelter = false };
         }
         growth = growth with { Slept = SleepingRules.SleptBedrooms(plan, projection.Rooms, projection.Facts.Sleeping) };
         // The ring is laid around what the defense record holds of it.

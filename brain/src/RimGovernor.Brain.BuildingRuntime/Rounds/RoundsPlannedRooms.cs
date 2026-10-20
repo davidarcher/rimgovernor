@@ -33,11 +33,6 @@ public sealed partial class RoundsBuildingPlanner
             return (this, new RoundsBuildingResult(), false);
         }
 
-        if (Facility.Role == Pol.RoomRole.Laboratory && !AdvancedLab && RoundsBuildingPlanner.ResearchHostRooms(facts).Count > 0)
-        {
-            return (this, new RoundsBuildingResult(), false);
-        }
-
         var (module, ok) = RoomModule();
         if (!ok)
         {
@@ -72,30 +67,8 @@ public sealed partial class RoundsBuildingPlanner
         return (placed, new RoundsBuildingResult(), false);
     }
 
-    internal bool TakesShelterSlot(ColonyProjection facts)
-    {
-        var known = facts.LayoutPlan.TryGetValue(out var plan);
-        if (Facility is not null)
-        {
-            return Facility.Role == Pol.RoomRole.Laboratory && !AdvancedLab && LayoutCapabilityRules.ShelterHosts(Capability.Research);
-        }
-
-        if (Definition == LayoutCapabilityRules.ShelterHeatDef)
-        {
-            var cooking = Concern == FoodRules.CookingNeed.FilingKey && Paste.Count == 0;
-            return known && plan!.Cold && LayoutCapabilityRules.ShelterHosts(Capability.Heat) && (cooking || (Temperature is not null && Temperature.Method == TemperatureMethod.Heat));
-        }
-
-        if (Definition == LayoutCapabilityRules.ShelterCoolDef)
-        {
-            return known && plan!.Hot && Temperature is not null && Temperature.Method == TemperatureMethod.Cool;
-        }
-
-        return false;
-    }
-
-    internal bool HostsInPlannedRoom(PlannedRole module, ColonyProjection facts) =>
-        (module == PlannedRole.Kitchen || module == PlannedRole.Butchery) && !TakesShelterSlot(facts);
+    /// <summary>Whether the planner's furniture stands on the planned room's interior: the kitchen's stove or campfire and the butchery's bench.</summary>
+    internal static bool HostsInPlannedRoom(PlannedRole module) => module == PlannedRole.Kitchen || module == PlannedRole.Butchery;
 }
 
 partial class RoundsBuildingPlanner
@@ -172,43 +145,8 @@ partial class RoundsBuildingPlanner
         return cells;
     }
 
-    internal static IReadOnlyList<SiteCell> PlannedInteriorSiteCells(ColonyProjection facts, IReadOnlyList<InteriorRoom> rooms)
-    {
-        var output = new List<SiteCell>();
-        foreach (var c in facts.Cells)
-        {
-            foreach (var room in rooms)
-            {
-                var inner = room.Interior;
-                if (c.Cell.X >= inner.X && c.Cell.X < inner.X + inner.Width && c.Cell.Z >= inner.Z && c.Cell.Z < inner.Z + inner.Height)
-                {
-                    output.Add(c);
-                    break;
-                }
-            }
-        }
-
-        return output;
-    }
-
     internal static MethodId PlannedRoomMethod(PlannedRoom room) =>
         new($"{Wire.Name(room.Role)}-shell-room{room.Id}");
-
-    internal static int ShelterCampfires(ColonyProjection facts) => LayoutShelterRules.ShelterCampfires(facts.LayoutPlan.TryGetValue(out var plan) && plan.Cold);
-
-    internal static int ShelterCoolers(ColonyProjection facts) => LayoutShelterRules.ShelterCoolers(facts.LayoutPlan.TryGetValue(out var plan) && plan.Hot);
-
-    internal static IReadOnlyList<InteriorRoom> PlannedShelterRooms(ColonyProjection facts)
-    {
-        var known = facts.LayoutPlan.TryGetValue(out var plan);
-        var rooms = PlannedInteriorRooms(facts, planned => planned.Role == PlannedRole.Shelter).ToList();
-        for (var i = 0; i < rooms.Count; i++)
-        {
-            rooms[i] = rooms[i] with { Campfires = LayoutShelterRules.ShelterCampfires(known && plan!.Cold), Coolers = LayoutShelterRules.ShelterCoolers(known && plan!.Hot) };
-        }
-
-        return rooms;
-    }
 
     internal static IReadOnlyList<InteriorRoom> PlannedInteriorRooms(ColonyProjection facts, Func<PlannedRoom, bool> keep)
     {
@@ -275,9 +213,6 @@ partial class RoundsBuildingPlanner
 
         return null;
     }
-
-    internal static IReadOnlyList<InteriorRoom> ResearchHostRooms(ColonyProjection facts) =>
-        LayoutCapabilityRules.CapabilitiesOf(PlannedRole.Shelter).Contains(Capability.Research) ? PlannedShelterRooms(facts) : [];
 
     internal static IReadOnlyList<RoleMismatch> RoleMismatches(ColonyProjection facts)
     {

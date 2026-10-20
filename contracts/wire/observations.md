@@ -164,7 +164,7 @@ a depleted drill for removal from the deep drill step's recorded read.
   butcher bench: usability and bills) that policy decides hunts from,
   food corpses, Boolean qualifying food storage,
   forbidden supply cells, the player faction's tech level (`player_tech_level`,
-  which selects the starter shelter's shape), and planning definitions/cells
+  the floor of the construction tier), and planning definitions/cells
   including per-cell `doorway` (a door, door blueprint or door frame) so indoor
   furnishing keeps entrance aisles clear. Planning definitions are explicit
   requested open definition names.

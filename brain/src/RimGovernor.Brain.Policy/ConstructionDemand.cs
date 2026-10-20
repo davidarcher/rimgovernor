@@ -54,7 +54,7 @@ public readonly record struct StockReader(Fact<EquatableArray<Amount>> Resources
 }
 
 /// <summary>
-/// One still-open action of an admitted method (a shelter shell is admitted without a stock check) and the
+/// One still-open action of an admitted method and the
 /// units of Resource its preview costs.
 /// </summary>
 public sealed record AdmittedCost

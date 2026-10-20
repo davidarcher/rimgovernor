@@ -491,7 +491,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
             throw new ControlException($"need {candidate.Need} method {candidate.Method.Value} built a plan under another id");
         }
         step.Fence();
-        // A refused commit (a Safeguard, the shared work resources, the initial shelter's builders) is this Need's
+        // A refused commit (a Safeguard, the shared work resources) is this Need's
         // verdict; its siblings still run.
         var commit = step.Journal.CommitClaimedMethod(candidate.Need, step.World, candidate.Method, candidate.Reason, plan, call);
         switch (commit.Outcome)

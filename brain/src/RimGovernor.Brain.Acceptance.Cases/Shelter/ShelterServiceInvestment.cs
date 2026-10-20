@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// The native game finishes the heater frame, powers it and warms the room, while an unrelated lower-tier wall frame
 /// competing for the same five steel stays unbuilt. test/service_shelter_prepare builds the room, frames, steel and
 /// generator (no task or assignment) and records the frame work, which the primitives cannot express; the governor's
-/// layout plan is staged to describe that standing room.
+/// layout plan is staged to describe that standing room as a planned barracks.
 /// </summary>
 internal static class ShelterServiceInvestment
 {
@@ -55,7 +55,7 @@ internal static class ShelterServiceInvestment
                 new PlannedRoom
                 {
                     Id = 1,
-                    Role = PlannedRole.Shelter,
+                    Role = PlannedRole.Barracks,
                     Region = RegionRules.RectRegion(new(room.X, room.Z, 3, 3)),
                     Door = new(room.DoorX, room.DoorZ),
                     DoorRot = Rotation.East,

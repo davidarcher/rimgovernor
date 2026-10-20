@@ -48,10 +48,10 @@ public static partial class LayoutTrainingNodesRules
         return output;
     }
 
-    /// <summary>The roles of the rooms the graph sites by their own terms, not as part of the base: the outskirts rooms, the training rooms and the shelter.</summary>
+    /// <summary>The roles of the rooms the graph sites by their own terms, not as part of the base: the outskirts rooms and the training rooms.</summary>
     private static bool ApartFromBase(PlannedRole role) =>
         role == LayoutSurveyRules.PlannedTomb || role == LayoutSurveyRules.PlannedMorgue
-        || role == LayoutRangeRules.PlannedTrainingRange || role == LayoutRingRules.PlannedSparringRing || role == LayoutSurveyRules.PlannedShelter;
+        || role == LayoutRangeRules.PlannedTrainingRange || role == LayoutRingRules.PlannedSparringRing;
 
     /// <summary>The bounding box of the placed blocks of the groups outside the rooms that stand apart: the base a facing group points away from. Null while none is placed.</summary>
     internal static Rectangle? AwayReference(IReadOnlyList<RoomGroup> groups, IReadOnlyList<Rectangle> blocks)

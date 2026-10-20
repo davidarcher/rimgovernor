@@ -140,9 +140,6 @@ public sealed record StationFacts
     /// <summary>The interior cells of the throne room a title asks (the growth's ThroneArea); 0 is none owed, unknown asks for none and says so.</summary>
     public Fact<int> ThroneArea { get; init; }
 
-    /// <summary>The review's ShelterRetirable: the plan's shelter is no longer owed a node and leaves with the next plan.</summary>
-    public bool RetireShelter { get; init; }
-
     /// <summary>The departments' room demand (the training range's stands and the ring's markers, #3003); its default asks for none.</summary>
     public RoomDemand Demand { get; init; } = new();
 
@@ -280,7 +277,6 @@ public sealed record StationFacts
             new("mismatches", KeyText.Of(Mismatches)),
             new("derive", KeyText.Of(Derive)),
             new("throne_area", KeyText.Of(ThroneArea)),
-            new("retire_shelter", KeyText.Of(RetireShelter)),
             new("demand", KeyText.Of(Demand)),
             new("pens", KeyText.Of(Pens)),
             new("child", KeyText.Of(Child)),

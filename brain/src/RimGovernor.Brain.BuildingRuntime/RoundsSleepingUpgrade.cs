@@ -144,7 +144,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "old_bed_removal") };
         }
-        // A real bed is packed, not deconstructed: the stored bed furnishes the next bedroom or bed spot (PackShellBed, ReinstallStoredBed).
+        // A real bed is packed, not deconstructed: the stored bed furnishes the next bedroom or bed spot (ReinstallStoredBed).
         if (rep.Def == "Bed" || rep.Def == SleepingRules.SleepingCoupleBedDefinition)
         {
             var value = new MoveBuilding(rep.Bed, rep.Def, rep.Cell, Rotation.South);

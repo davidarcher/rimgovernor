@@ -65,7 +65,6 @@ public static class InteriorRegionRules
             [RoomRole.Bedroom] = InteriorRegionRolesRules.BedroomWants,
             [RoomRole.Suite] = InteriorRegionRolesRules.BedroomWants,
             [RoomRole.ThroneRoom] = InteriorRegionRolesRules.ThroneWants,
-            [RoomRole.Shelter] = InteriorRegionRolesRules.ShelterWants,
             [RoomRole.DiningRoom] = InteriorRegionRolesRules.DiningWants(false),
             [RoomRole.RecRoom] = InteriorRegionRolesRules.DiningWants(true),
             [RoomRole.Nursery] = child,
@@ -95,7 +94,7 @@ public static class InteriorRegionRules
         {
             return (default!, false);
         }
-        var reserved = new List<Cell>(room.Reserved);
+        var reserved = new List<Cell>();
         foreach (var p in room.Built)
         {
             reserved.AddRange(PlannedRules.RectCells(p.Rect));

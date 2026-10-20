@@ -3,26 +3,22 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsBuildingPlanner
 {
-    /// <summary>Furnishes verified indoor space, else raises a room, to keep one spare indoor sleeping place beyond the observed population.</summary>
+    /// <summary>Furnishes a sleeping spot in a planned sleeping room to keep one spare indoor sleeping place beyond the observed population.</summary>
     public static RoundsBuildingPlanner NewRoundsExpansionPlanner(Rounder? reviewer, IRoundsBuildingSource? native)
     {
         if (reviewer is null || native is null)
         {
             throw new ControlException("NewRoundsExpansionPlanner: reviewer == nil || native == nil");
         }
-        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = ShelterFamily.Expansion.FilingKey, Need = ShelterFamily.Expansion, Phase = Pol.Phase.HousingExpansion, Definition = "Wall", Shelter = true };
+        return new RoundsBuildingPlanner { Reviewer = reviewer, Native = native, Concern = ShelterFamily.Expansion.FilingKey, Need = ShelterFamily.Expansion, Phase = Pol.Phase.HousingExpansion, Definition = SleepingRules.SleepingSpotDefinition };
     }
 
-    /// <summary>The layout module this planner furnishes: a facility ladder's room role names it, the shelter and expansion planners raise the shelter.</summary>
-    internal (Pol.PlannedRole Role, bool Ok) RoomModule() => InteriorRules.PlannedRoleOf(RoomRole());
-
-    /// <summary>The room role a planner sites for: a facility ladder's own role, and Shelter for the shelter and expansion planners, which raise the colony's temporary starter room.</summary>
-    internal Pol.RoomRole RoomRole() => Facility is not null ? Facility.Role : Pol.RoomRole.Shelter;
+    /// <summary>The layout module a facility ladder furnishes, named by its room role; none without a facility.</summary>
+    internal (Pol.PlannedRole Role, bool Ok) RoomModule() => Facility is not null ? InteriorRules.PlannedRoleOf(Facility.Role) : (default, false);
 
     /// <summary>
     /// Whether the planner walks a facility ladder whose furniture stands in a planned room (comfort, workshop,
-    /// hospital, sleeping, laboratory), as opposed to the initial shelter and expansion, whose ring is the
-    /// deficit itself.
+    /// hospital, sleeping, laboratory).
     /// </summary>
     internal bool FacilityLadder()
     {

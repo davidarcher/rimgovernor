@@ -6,9 +6,6 @@ public static class StockpileRolesConstants
 
     /// <summary>The warehouse: the roofed general store.</summary>
     public const string GeneralRole = "general";
-
-    /// <summary>The starter shelter's floor: a general store at Low priority until a real storage room stands.</summary>
-    public const string ShelterRole = "shelter";
     public const string IngredientsPrefix = "ingredients:";
     public const string MealsRolePrefix = "meals:";
     public const string RawFoodRolePrefix = "rawfood:";

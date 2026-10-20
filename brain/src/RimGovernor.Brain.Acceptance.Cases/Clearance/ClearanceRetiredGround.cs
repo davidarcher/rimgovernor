@@ -7,20 +7,21 @@ using Observations = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>shelter/retirement</c>: the shelter lifecycle's last act on a real game. A retired shelter hut stands on the lab with
-/// a sleeping spot, a crafting spot and a butcher spot inside, and the injected layout plan holds its footprint as
-/// <c>LayoutPlan.RetiredGround</c>; under the served clearance family pawns deconstruct the hut's walls and door and remove
-/// its spots until nothing of ours stands on that ground (the production buildings read). Deciding to retire the shelter
-/// is policy (ClearanceGround's RetiredGroundOf and RetiredGroundDone); this case owns the native clearance.
+/// <c>clearance/retired-ground</c>: a built room a replan drops leaves its ground to clearance (LayoutDerive's
+/// RetiredGround). A retired hut stands on the lab with a sleeping spot, a crafting spot and a butcher spot inside, and
+/// the injected layout plan holds its footprint as <c>LayoutPlan.RetiredGround</c>; under the served clearance family
+/// pawns deconstruct the hut's walls and door and remove its spots until nothing of ours stands on that ground (the
+/// production buildings read). Retiring a room is policy (LayoutDerive's RetiredGround, ClearanceGround's
+/// RetiredGroundDone); this case owns the native clearance.
 /// </summary>
-internal static class ShelterRetirement
+internal static class ClearanceRetiredGround
 {
     private static readonly string[] Spots = ["SleepingSpot", "CraftingSpot", "ButcherSpot"];
 
     internal static TypedCase Case() => new()
     {
-        Name = "shelter/retirement",
-        Scope = "Issue #2076: a retired shelter hut (its footprint the injected plan's RetiredGround) with a sleeping, crafting and "
+        Name = "clearance/retired-ground",
+        Scope = "Issue #2076: a retired hut (its footprint the injected plan's RetiredGround) with a sleeping, crafting and "
             + "butcher spot inside is cleared by the served clearance family: pawns deconstruct its walls and door and remove its "
             + "spots until nothing of the colony's stands on the retired ground, read through the production buildings read.",
         Ticks = TypedCase.StagedTickCap,
@@ -44,7 +45,7 @@ internal static class ShelterRetirement
             Rooms = [new Fx.StageRoom { Name = "hut", Rect = new(0, 0, 7, 7), Stuff = "WoodLog", Doors = [new(3, 0)], Roof = true }],
             Buildings = [.. Spots.Select((def, i) => new Fx.StageBuilding { Name = def, Def = def, Cells = [new(1 + (2 * i), 4)] })],
         },
-        Serve = new ServeSpec { Families = ["clearance"], NativeTimeout = TimeSpan.FromSeconds(60), Prefix = "shelter-retirement" },
+        Serve = new ServeSpec { Families = ["clearance"], NativeTimeout = TimeSpan.FromSeconds(60), Prefix = "clearance-retired-ground" },
         Run = RunAsync,
     };
 

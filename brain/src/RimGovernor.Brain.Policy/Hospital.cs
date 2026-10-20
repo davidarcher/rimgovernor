@@ -44,7 +44,7 @@ public sealed record HospitalRequest
 
     /// <summary>
     /// The routine counts a conversion must not drop below: the native indoor sleeping capacity excludes medical
-    /// beds, so converting a needed shelter spot fails the shelter gate.
+    /// beds, so converting a needed bed fails the sleeping gate.
     /// </summary>
     public Fact<long> Colonists { get; init; }
 
@@ -291,7 +291,7 @@ public static class HospitalRules
     /// <summary>
     /// Reports whether one regular bed can turn medical without dropping bed or indoor sleeping capacity below
     /// max(colonists, housing target). Native IndoorSleepingCapacity excludes medical beds, so converting a needed
-    /// shelter spot deadlocks the shelter gate; a new bed is staged instead (and converted once it stands, when
+    /// bed deadlocks the sleeping gate; a new bed is staged instead (and converted once it stands, when
     /// the surplus it adds allows).
     /// </summary>
     private static bool HospitalConversionSpare(HospitalRequest r, SleepingObservation sleeping)

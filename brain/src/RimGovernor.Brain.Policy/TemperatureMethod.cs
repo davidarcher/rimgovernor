@@ -116,12 +116,6 @@ public sealed record TemperatureCooling
     public bool HeatFuelFinite { get; init; }
 
     /// <summary>
-    /// The layout plan's shelter rooms, read from the planned interior alone: a shelter template holds the
-    /// sleeping places (spots, bedrolls, beds), so it is the room people will sleep in before any bed stands.
-    /// </summary>
-    public IReadOnlyList<ThermalShelter> PlannedShelters { get; init; } = [];
-
-    /// <summary>
     /// Whether room holds a working climate piece: a powered heater of the catalog's heater definition standing
     /// on its floor, or a wall cooler beside it. A room that holds one needs no
     /// second.
@@ -196,19 +190,6 @@ public sealed record TemperatureCooling
         }
         return topology.SpareW().TryGetValue(out var spare) && spare >= draw;
     }
-}
-
-/// <summary>One planned shelter room as the temperature method sees it.</summary>
-public sealed record ThermalShelter
-{
-    /// <summary>The planned interior.</summary>
-    public IReadOnlyList<Cell> Cells { get; init; } = [];
-
-    /// <summary>The definitions of the player buildings already on it.</summary>
-    public IReadOnlyList<string> Standing { get; init; } = [];
-
-    /// <summary>The plan's latched hot climate (the template's cooler slot).</summary>
-    public bool Hot { get; init; }
 }
 
 public static partial class TemperatureMethodRules
@@ -531,7 +512,7 @@ public static partial class TemperatureMethodRules
         }
         if (eligible.Count == 0)
         {
-            return PlannedShelterCooler(cooling);
+            return new TemperatureProposal { Method = TemperatureMethod.ShelterNeeded };
         }
         var wanted = new HashSet<string>(eligible, StringComparer.Ordinal);
         var choices = new List<ThermalChoice>();
@@ -708,38 +689,5 @@ public static partial class TemperatureMethodRules
             return new TemperatureProposal { Method = TemperatureMethod.Wait };
         }
         return new TemperatureProposal { Method = TemperatureMethod.NoMethod };
-    }
-
-    /// <summary>
-    /// Keys the hot map's cooler on the planned shelter instead of a standing bed room: a tribal start sleeps on
-    /// spots and bedrolls first, so waiting for a bed would serialize the cooler behind the housing. The shelter
-    /// template always holds sleeping places, which is why the rule reads the shelter role and no other planned
-    /// room. Once the cooler stands the method waits; the proof of temperature stays with the roofed, enclosed
-    /// room (ProvesTemperature) once beds make it a census room.
-    /// </summary>
-    private static TemperatureProposal PlannedShelterCooler(TemperatureCooling cooling)
-    {
-        foreach (var shelter in cooling.PlannedShelters)
-        {
-            if (!shelter.Hot || shelter.Cells.Count == 0)
-            {
-                continue;
-            }
-            var cells = shelter.Cells.OrderBy(c => c.X).ThenBy(c => c.Z).ToList();
-            foreach (var d in shelter.Standing)
-            {
-                if (d == "PassiveCooler" || d == "Cooler")
-                {
-                    return new TemperatureProposal { Method = TemperatureMethod.Wait };
-                }
-            }
-            return new TemperatureProposal
-            {
-                Method = TemperatureMethod.Cool,
-                Key = ThermalKey(FormattableString.Invariant($"planned-shelter/{cells[0].X}/{cells[0].Z}/{Wire.Name(TemperatureMethod.Cool)}")),
-                Cells = cells,
-            };
-        }
-        return new TemperatureProposal { Method = TemperatureMethod.ShelterNeeded };
     }
 }

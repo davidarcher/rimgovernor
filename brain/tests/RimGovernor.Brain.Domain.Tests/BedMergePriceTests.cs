@@ -176,10 +176,10 @@ public sealed class BedMergePriceTests
     {
         var barracks = new PlannedRoom { Id = 2, Role = PlannedRole.Barracks, Region = RegionRules.RectRegion(new Policy.Rectangle(10, 0, 5, 4)) };
         InteriorPiece Slot(int x) => new() { Slot = "bed", Def = Bed, Size = new Cell(1, 2), Rot = Rotation.South, Rect = new Policy.Rectangle(x, 2, 1, 2) };
-        var s = ShelterLayoutPlanTests.Survey("cold");
-        var f = ShelterLayoutPlanTests.Facts(s, 3) with
+        var s = FirstLayoutPlanTests.Survey("cold");
+        var f = FirstLayoutPlanTests.Facts(s, 3) with
         {
-            Catalog = ShelterLayoutPlanTests.Facts(s, 3).Catalog with { Stations = new Dictionary<string, Station>(ShelterLayoutPlanTests.Facts(s, 3).Catalog.Stations) { [Bed] = Catalog.Stations[Bed] }, Climate = Catalog.Climate },
+            Catalog = FirstLayoutPlanTests.Facts(s, 3).Catalog with { Stations = new Dictionary<string, Station>(FirstLayoutPlanTests.Facts(s, 3).Catalog.Stations) { [Bed] = Catalog.Stations[Bed] }, Climate = Catalog.Climate },
             Plan = new LayoutPlan { Rooms = [barracks], NextRoomId = 3, Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [2] = [Slot(10), Slot(12), Slot(14)] } },
             OutdoorCurve = Known(EquatableArray.From(IceSheet)),
             BedMerge = Wood(Calm),

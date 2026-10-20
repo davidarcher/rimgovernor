@@ -93,8 +93,6 @@ public sealed record PieceShapes
     [
         new(InteriorHelpersRules.StandingLampDef, RoomRole.None, false),
         new(InteriorRegionRolesRules.WorkshopShelfDef, RoomRole.None, false),
-        new(LayoutCapabilityRules.ShelterHeatDef, RoomRole.None, false),
-        new(InteriorShelterRules.ShelterCraftingDef, RoomRole.None, false),
     ];
 }
 

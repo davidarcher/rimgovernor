@@ -10,21 +10,19 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>layout/first-room-temperate</c> (#3659): a new temperate colony of three with wood beside it and no room standing.
-/// Under the served work, shelter and sleeping families the first layout_plan row records a plan with no shelter room,
-/// and a sleeping spot stands for every colonist (the day-one stand-ins, ShelterRules.StandInsOwed) while no roofed
+/// Under the served work, shelter and sleeping families the first layout_plan row records a plan, and a sleeping spot stands for every colonist (the day-one stand-ins, ShelterRules.StandInsOwed) while no roofed
 /// proper room stands yet. The stand-ins' cells and their clearing once indoor beds take everyone are policy
 /// (SleepingStandInTests); this case owns the native floor.
 /// </summary>
 internal static class LayoutFirstRoomTemperate
 {
     private const int Colonists = 3;
-    private const string ShelterRoom = "shelter:";
 
     internal static TypedCase Case() => new()
     {
         Name = "layout/first-room-temperate",
         Scope = "Issue #3659: a served new temperate colony of three (wood beside it, no room standing, asserted) records a first "
-            + "layout_plan row whose rooms hold no shelter, and a built SleepingSpot stands for every colonist while no roofed "
+            + "layout_plan row, and a built SleepingSpot stands for every colonist while no roofed "
             + "proper room stands: the stand-in floor until the first room stands.",
         Ticks = 6_000, // a hang guard: the plan and the spots land within the first game hours
         Tier = CaseTier.OnDemand,
@@ -71,10 +69,6 @@ internal static class LayoutFirstRoomTemperate
         var plan = planned ?? throw new AcceptanceException("no layout_plan row recorded the first plan");
         var summary = Text(plan.Fields(), "summary");
         s.Record("first-plan", summary);
-        if (summary.Contains(ShelterRoom, StringComparison.Ordinal))
-        {
-            throw new AcceptanceException($"the first plan holds a shelter room: {summary}");
-        }
         if (spots < Colonists)
         {
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{spots} built sleeping spots for {Colonists} colonists"));

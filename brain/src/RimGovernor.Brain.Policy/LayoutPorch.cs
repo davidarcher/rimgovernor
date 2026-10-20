@@ -33,9 +33,6 @@ public sealed partial record PlannedRoom
 /// <summary>A cold-map shelter's open lean-to child room.</summary>
 public static partial class LayoutPorchRules
 {
-    /// <summary>The porch's long side in cells: two batteries end to end.</summary>
-    internal const int PorchLength = 4;
-
     /// <summary>
     /// A cold-map shelter's open lean-to child room: a one-cell strip on the exterior face of the wall opposite the
     /// parent's door, roofed and holding the first batteries until the battery room stands. It has no walls and no door,
@@ -43,23 +40,6 @@ public static partial class LayoutPorchRules
     /// 1x2 batteries turned east, one longer along z batteries facing north.
     /// </summary>
     public static PlannedRole PlannedPorch => PlannedRole.Porch;
-}
-
-partial record PlannedRoom
-{
-    /// <summary>The porch for a shelter on interior in whose door faces rot: against the wall opposite the door, from the interior's near corner.</summary>
-    internal static PlannedRoom AttachPorch(Rectangle ins, Rotation rot)
-    {
-        var strip = rot switch
-        {
-            // door on the north wall: the porch is outside the south wall
-            Rotation.North => new Rectangle { X = ins.X, Z = ins.Z - 2, Width = LayoutPorchRules.PorchLength, Height = 1 },
-            Rotation.South => new Rectangle { X = ins.X, Z = ins.Z + ins.Height + 1, Width = LayoutPorchRules.PorchLength, Height = 1 },
-            Rotation.East => new Rectangle { X = ins.X - 2, Z = ins.Z, Width = 1, Height = LayoutPorchRules.PorchLength },
-            _ => new Rectangle { X = ins.X + ins.Width + 1, Z = ins.Z, Width = 1, Height = LayoutPorchRules.PorchLength },
-        };
-        return new PlannedRoom { Role = LayoutPorchRules.PlannedPorch, Region = RegionRules.RectRegion(strip), DoorRot = rot };
-    }
 }
 
 partial record LayoutPlan

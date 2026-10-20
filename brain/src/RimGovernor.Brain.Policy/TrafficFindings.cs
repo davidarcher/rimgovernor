@@ -44,7 +44,6 @@ public static partial class TrafficRules
     [
         RoomRole.Bedroom,
         RoomRole.Barracks,
-        RoomRole.Shelter,
         RoomRole.Kitchen,
         RoomRole.Hospital,
         RoomRole.Laboratory,

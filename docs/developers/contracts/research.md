@@ -86,7 +86,7 @@ row plus one reserved analyzer slot (2x2) on the room's centre line, clear of ev
 analyzer's link distance (8 cells) of each bench. `policy.RoomFurniture.AdvancedLab` and `Analyzer` are
 derived from the catalog (the other laboratory bench that links a research-speed facility, and that
 facility), never named; both are optional. The research Need builds them ahead of need: once the census lists
-the hi-tech bench buildable, it builds one in the planned laboratory (never the shelter's research slot),
+the hi-tech bench buildable, it builds one in the planned laboratory,
 then the analyzer once the `MultiAnalyzer` project is done. Only an admitted building plan preempts the
 research step; every other outcome of the build-ahead (nothing owed, no space, a funding or placement hold)
 falls through to the ordinary selection or wait, so research is never blocked behind it. An owed buildable

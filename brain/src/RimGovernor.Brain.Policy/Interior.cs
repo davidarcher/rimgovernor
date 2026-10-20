@@ -42,24 +42,6 @@ public sealed record InteriorRoom
     /// </summary>
     public IReadOnlyList<RequiredPiece> Required { get; init; } = [];
 
-    /// <summary>How many sleepers a template that packs bunks plans for (the shelter); 0 fills every bunk that fits. Derived and never persisted.</summary>
-    public int Occupants { get; init; }
-
-    /// <summary>How many campfire slots the shelter template plans: two on a cold map, none elsewhere. Derived from the layout plan's latched climate, never persisted.</summary>
-    public int Campfires { get; init; }
-
-    /// <summary>How many passive cooler floor slots the shelter template plans: one on a hot map, none elsewhere, from the plan's latch.</summary>
-    public int Coolers { get; init; }
-
-    /// <summary>
-    /// What the room hosts; the shelter template plans a piece (research bench, crafting spot, campfires)
-    /// only for a capability the room hosts. Derived from the planned role, never persisted.
-    /// </summary>
-    public IReadOnlyList<Capability> Capabilities { get; init; } = [];
-
-    /// <summary>Floor cells (world) a template must keep clear: ground another plan holds, like the starter stockpile patch or rock yet to be mined. Cells outside the interior are ignored.</summary>
-    public IReadOnlyList<Cell> Reserved { get; init; } = [];
-
     /// <summary>
     /// The pieces standing on the floor, as world footprints. The region placer leaves them where they
     /// stand: they block their cells, count toward a want of their definition and link to what is placed
@@ -216,7 +198,6 @@ public static class InteriorRules
         [PlannedRole.Bedroom] = RoomRole.Bedroom,
         [PlannedRole.Barracks] = RoomRole.Barracks,
         [PlannedRole.Suite] = RoomRole.Suite,
-        [PlannedRole.Shelter] = RoomRole.Shelter,
         [PlannedRole.Dining] = RoomRole.DiningRoom,
         [PlannedRole.Rec] = RoomRole.RecRoom,
         [PlannedRole.Lab] = RoomRole.Laboratory,
@@ -254,7 +235,6 @@ public static class InteriorRules
             Interior = bounds,
             Doors = [r.Door],
             Shapes = shapes,
-            Capabilities = LayoutCapabilityRules.CapabilitiesOf(r.Role),
             WorkChairs = r.WorkChairs,
             Region = r.Region.IsRect() ? null : r.Region,
         }, true);

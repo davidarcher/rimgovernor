@@ -35,8 +35,8 @@ public sealed class FirstPlanHeldTests
     [Fact]
     public void AFirstPlanWithTheStockUnreadFailsNamingItAndHoldsTheClock()
     {
-        var s = ShelterLayoutPlanTests.Survey("mild");
-        var f = ShelterLayoutPlanTests.Facts(s, 3) with { Stock = Unknown<IReadOnlyDictionary<Resource, long>>() };
+        var s = FirstLayoutPlanTests.Survey("mild");
+        var f = FirstLayoutPlanTests.Facts(s, 3) with { Stock = Unknown<IReadOnlyDictionary<Resource, long>>() };
 
         var e = Assert.Throws<StationFactsException>(() => LayoutDeriveRules.DeriveLayoutPlan(s, f, []));
         Assert.Equal("resource demand", e.Fact);
@@ -50,8 +50,8 @@ public sealed class FirstPlanHeldTests
     public void AFirstPlanWithoutTheRoomsCensusFailsNamingTheDiningFurniture()
     {
         // The rooms census carries the dining furniture; a first plan read without it waits for it (#3340, #3652).
-        var s = ShelterLayoutPlanTests.Survey("mild");
-        var f = ShelterLayoutPlanTests.Facts(s, 3) with { Dining = new DiningFurniture() };
+        var s = FirstLayoutPlanTests.Survey("mild");
+        var f = FirstLayoutPlanTests.Facts(s, 3) with { Dining = new DiningFurniture() };
 
         var e = Assert.Throws<StationFactsException>(() => LayoutStationPlanRules.AdviseStations(f));
         Assert.Equal("dining furniture", e.Fact);
@@ -60,8 +60,8 @@ public sealed class FirstPlanHeldTests
     [Fact]
     public void AFirstPlanWithEveryFactReadIsDerivedFromTheFullGraph()
     {
-        var s = ShelterLayoutPlanTests.Survey("mild");
-        var f = ShelterLayoutPlanTests.Facts(s, 3);
+        var s = FirstLayoutPlanTests.Survey("mild");
+        var f = FirstLayoutPlanTests.Facts(s, 3);
         var full = StationGraph.BuildStationGraph(f.GraphInput());
 
         var advice = LayoutStationPlanRules.AdviseStations(f);
@@ -69,7 +69,7 @@ public sealed class FirstPlanHeldTests
         Assert.Equal(full.Nodes.Count, advice.Graph.Nodes.Count);
         Assert.Contains(full.Nodes, n => n.Purpose == StationPurpose.Dine);
 
-        var plan = ShelterLayoutPlanTests.FirstPlan("mild", 3);
+        var plan = FirstLayoutPlanTests.FirstPlan("mild", 3);
         // The seed rooms held no station: the full graph's beds give the plan its bedroom.
         Assert.NotEmpty(plan.RoomsOf(LayoutSurveyRules.PlannedBedroom));
     }

@@ -62,14 +62,15 @@ Each rung reports an explicit reason when it cannot proceed
 Laboratory row: when the research ladder's next rung is locked only for lack
 of a bench, the economy family walks the same furnish-or-shell ladder
 under `economy/research` for a `SimpleResearchBench` (`laboratory-*`
-plans) and selects the rung once it stands. A table still standing in a retiring
-shelter is packed with the rest of the retired ground and installed in the
-laboratory from stock; no separate pass relocates it.
+plans) and selects the rung once it stands. A table still standing on retired
+ground is packed with the rest of it and installed in the laboratory from
+stock; no separate pass relocates it.
 
-On a cold map (`ColdMapCurve`) the starter shelter carries an airlock: a child room
-(`PlannedAirlock`, `Parent` = the shelter's id; its Region is the vestibule cell
-outside the shelter door, its Door the outer door beyond it, with walls either
-side of the vestibule) and a porch child (`PlannedPorch`). Children are
+On a bad-climate map the tiler gives a room's exterior door an airlock when it
+prices cheaper than the open door (`LayoutTileAirlock`, #2916): a child room
+(`PlannedAirlock`, `Parent` = the room's id; its Region is the vestibule cell
+outside the door, its Door the outer door beyond it, with walls either side of
+the vestibule). Children are
 `Unfenced` (no ring of their own), excluded from missing-room and trip scoring,
 and leave with their parent; `LayoutPlan.ChildrenOf(id)` lists them. The airlock
 is entrance-generic: `attachAirlock` takes any parent door and rotation. The
@@ -313,24 +314,18 @@ each group (stations, footprint, clearance, area, predicted role, costs,
 block), the clustering's conflicts and the embedding report; `skipped`
 (`facts_unknown`, naming the fact); or `failed`. The chain runs at most once per change of its inputs (`StationFacts.InputsKey` and the survey; a review with them unchanged reads the last advice and writes no row). Cost on the 250x250 baseline map with a 30-colonist plan and 10 recipes ordered: about 85 ms a run, 0.5 ms for the key (`BenchmarkAdviseStationsLarge`).
 
-A fresh plan (`policy.DeriveLayoutPlan`, #2959) is this chain run through the tiler (`TileStations`, `StationFacts.Derive`); the `layout_stations` row carries `derive: true`, and the `layout_plan` row is `skipped` (`facts_unknown` on an unread fact, `no_core` when the map holds no shelter) or `failed` (`chain_error`). A fact the colony has not read fails the derive like any advice: the colony's first plan waits for it with the clock held (`first_plan`, #3652). The chain places the power sites (`EmbedSites`); a replan is the tiled plan too (below).
+A fresh plan (`policy.DeriveLayoutPlan`, #2959) is this chain run through the tiler (`TileStations`, `StationFacts.Derive`); the `layout_stations` row carries `derive: true`, and the `layout_plan` row is `skipped` (`facts_unknown` on an unread fact, `no_core` when the survey finds no core) or `failed` (`chain_error`). A fact the colony has not read fails the derive like any advice: the colony's first plan waits for it with the clock held (`first_plan`, #3652). The chain places the power sites (`EmbedSites`); a replan is the tiled plan too (below).
 
-The replan is the tiled plan of the chain (`policy.ReplanLayout`, #3005, J4 of #2965; the diff rows are #3002). `policy.ReplanTileFacts` gives the tiler the review's facts (Built, Pinned, the plan's retired ground) over a fresh survey's zones with the core, as the derive lays them, and only the geothermal reservations; the chain places the power sites again, and the perimeter is laid over the tiled plan after it. `policy.DiffReplanTile` compares the tiled rooms with the plan the colony held and writes the `layout_replan_tiled` row. A standing room the embedding keeps is claimed through its block (`Built`); the rest are matched by role. The standing rooms with no node (`unmatched_built`) are what J2 (#3003) turns into nodes. A room node's room (`roomNodeRoles`: circulation, tomb, morgue, the training range and ring, the shelter and the throne room) is a `BuiltRegion` matched to its group by planned role, outdoor or with no native role as it may be, so the embedding keeps it as the block of its node: a plan that holds a shelter keeps a shelter node until the review's `ShelterRetirable` (`StationFacts.RetireShelter`), and one that holds a throne room keeps a throne node at the size it stands or the title asks. The training range and ring take the larger of the demand's stands and markers (`StationFacts.Demand`, the review's `RoomDemand`) and what the plan's range and ring stand at,. On the replay fixtures with every room built none of those is unmatched. The tomb and morgue (`OutskirtsRoomNodes`, from the burial's `RoomDemand`) are nodes while the dead ask for them or the plan holds one. The playroom, classroom, deathrest chamber, worship room, containment cell and isolation room (`ChildRoomNodes`, from `StationFacts.Child`, the review's `ChildRoomShapes`) are nodes while the demand or a need asks for them or the plan holds one, a standing one at no less than the floor it has. Storage and the core demand rooms (hospital, lab, rec, butchery, prison) are the station groups' own (stock, patients, orders, prisoners); the pens and yards are room nodes of the chain (`HerdRoomNodes`, keyed to their herd by `RoomNode.Herd`, a standing one pinned at the floor it has; `YardRoomNodes`); a standing pen is a node of the floor it has and the tiler keeps it like any room. Still unmatched are the outdoor rooms with no node (yard, pen) and any other room with no group of its role; the diff shows a room the tiler builds of its own as a rebuild (`tile_unpinned_built`) or a drop. Bedrooms and suites are nodes of the tiled replan too (#3004, J3): the sleepers' node, one node per suite wish (`StationFacts.Suites`, #2939), each standing bedroom or suite pinned as the block of its node. More colonists show as new bedrooms, a new wish as a new suite that takes a bed off the sleepers, fewer colonists as standing bedrooms with no node (`tile_no_node`, retirement-eligible), and a raised suite target as the row's `short` cells (the embedding keeps a standing room where it stands and does not grow it). The tile pins only `policy.TilePinned` (rooms an open plan works on, superseded bedrooms a pawn still owns a bed in, rooms of an ended role in use, a rebuild's pair). A pinned standing room that no group carries (a surplus bedroom still slept in, a role with no group left, an outdoor room) is held (#3019): `EmbedInput.Standing` makes it an obstacle no block or field overlaps and `Embedding.Held` returns it, `TileStations` tiles it as a stationless group at its own bounds so it stays a room of the tiled plan until it stops being pinned; no group the tiler cannot place is made (#3017); several free beds become a planned barracks only by the priced bed merge (#3658, Bedrooms and sleeping upkeep below); the old growing replanner is deleted, and the tiler is the only replan. The tile costs 0.3 to 2 s on a 3-colonist map and about 1.7 s at 100 colonists (#3009, #3010, #3012) and runs inside the review.
+The replan is the tiled plan of the chain (`policy.ReplanLayout`, #3005, J4 of #2965; the diff rows are #3002). `policy.ReplanTileFacts` gives the tiler the review's facts (Built, Pinned, the plan's retired ground) over a fresh survey's zones with the core, as the derive lays them, and only the geothermal reservations; the chain places the power sites again, and the perimeter is laid over the tiled plan after it. `policy.DiffReplanTile` compares the tiled rooms with the plan the colony held and writes the `layout_replan_tiled` row. A standing room the embedding keeps is claimed through its block (`Built`); the rest are matched by role. The standing rooms with no node (`unmatched_built`) are what J2 (#3003) turns into nodes. A room node's room (`roomNodeRoles`: circulation, tomb, morgue, the training range and ring, the pen, the yard and the throne room) is a `BuiltRegion` matched to its group by planned role, outdoor or with no native role as it may be, so the embedding keeps it as the block of its node: a plan that holds a throne room keeps a throne node at the size it stands or the title asks. The training range and ring take the larger of the demand's stands and markers (`StationFacts.Demand`, the review's `RoomDemand`) and what the plan's range and ring stand at,. On the replay fixtures with every room built none of those is unmatched. The tomb and morgue (`OutskirtsRoomNodes`, from the burial's `RoomDemand`) are nodes while the dead ask for them or the plan holds one. The playroom, classroom, deathrest chamber, worship room, containment cell and isolation room (`ChildRoomNodes`, from `StationFacts.Child`, the review's `ChildRoomShapes`) are nodes while the demand or a need asks for them or the plan holds one, a standing one at no less than the floor it has. Storage and the core demand rooms (hospital, lab, rec, butchery, prison) are the station groups' own (stock, patients, orders, prisoners); the pens and yards are room nodes of the chain (`HerdRoomNodes`, keyed to their herd by `RoomNode.Herd`, a standing one pinned at the floor it has; `YardRoomNodes`); a standing pen is a node of the floor it has and the tiler keeps it like any room. Still unmatched are the outdoor rooms with no node (yard, pen) and any other room with no group of its role; the diff shows a room the tiler builds of its own as a rebuild (`tile_unpinned_built`) or a drop. Bedrooms and suites are nodes of the tiled replan too (#3004, J3): the sleepers' node, one node per suite wish (`StationFacts.Suites`, #2939), each standing bedroom or suite pinned as the block of its node. More colonists show as new bedrooms, a new wish as a new suite that takes a bed off the sleepers, fewer colonists as standing bedrooms with no node (`tile_no_node`, retirement-eligible), and a raised suite target as the row's `short` cells (the embedding keeps a standing room where it stands and does not grow it). The tile pins only `policy.TilePinned` (rooms an open plan works on, superseded bedrooms a pawn still owns a bed in, rooms of an ended role in use, a rebuild's pair). A pinned standing room that no group carries (a surplus bedroom still slept in, a role with no group left, an outdoor room) is held (#3019): `EmbedInput.Standing` makes it an obstacle no block or field overlaps and `Embedding.Held` returns it, `TileStations` tiles it as a stationless group at its own bounds so it stays a room of the tiled plan until it stops being pinned; no group the tiler cannot place is made (#3017); several free beds become a planned barracks only by the priced bed merge (#3658, Bedrooms and sleeping upkeep below); the old growing replanner is deleted, and the tiler is the only replan. The tile costs 0.3 to 2 s on a 3-colonist map and about 1.7 s at 100 colonists (#3009, #3010, #3012) and runs inside the review.
 
 #### Derive-time facts and the seed rooms (#2958, #3652)
 
-The day-1 shelter and the throne room are kept as special rooms: station-less
-room nodes (`SeedRoomNodes`) that the graph holds beside
-the training rooms and the facts' room nodes. The node asks the floor the old siting sized
-(`ShelterInteriorArea`; the throne's requested area), the shelter has no distance
-band (#2987): it carries the meal flow of the colonists sleeping in it to the dining node
-(`shelterMeals`: meals a day times their share of the colony, `RoomNode.Flows`), which
-is the walk that pulls it near the table, and with no table, no meals or no colonists
-read it carries none and is unpriced. The tiler gives both walls, a
-door and, on a bad-climate map, the airlock decision like any room. The old
-battery porch is not planned. The shelter is owed only to a plan that holds none and
-has nothing standing; the throne room only when `StationFacts.ThroneArea` is
-read, positive and not already held.
+The throne room is the one seed room: a station-less room node (`SeedRoomNodes`)
+that the graph holds beside the training rooms and the facts' room nodes, asking
+the throne's requested area. No shelter is seeded (#3659): a first plan's rooms are
+the station graph's. The tiler gives the throne room walls, a door and, on a
+bad-climate map, the airlock decision like any room. It is owed only when
+`StationFacts.ThroneArea` is read, positive and not already held.
 
 `StationFacts.Derive` marks a first plan's facts; the chain then places the power
 sites its planned demand needs (`PowerSites`). Nothing is guessed for an unread fact:
@@ -782,12 +777,10 @@ planned `Barracks`, the rest stay single bedrooms; the decision is the advice's
 `bed_merge` attribute. The tiler keeps the cell past each barracks bed's end clear and
 reached from the doors, so no bed is boxed in by the others. The runtime (`reconcileBedroom`) picks the bed from the sleeping
 ladder, takes its slots from `policy.BedroomFurnishing` (the bedroom template's
-bed slot, for suites and the shelter too; a barracks's tiled bed slots,
+bed slot, for suites too; a barracks's tiled bed slots,
 `BedSlotsOf`, one bed each) and hands the room to the shared
 build side (`reconcileRoom`, see Throne room below): ring, doors, floor and
-the bed, the bed installed from packed stock first. Once the room stands, a
-vacant `Bed` left in the starter shell is packed (`packShellBed`) so the next
-pass installs it instead of building another. The room-quality levers that
+the bed, the bed installed from packed stock first. The room-quality levers that
 furnish a room (title furniture, companion bed, the end table, dresser and
 lamp upgrade, the beauty plant pot) keep their own demand logic and each
 yields one piece; the same `BedroomFurnishing` lists every lever piece
@@ -812,9 +805,8 @@ plan order (a Retiring wing is never carried); bedrooms are not batched by
 wing, and the native tier gate orders delivery across them (see
 [construction tiers](../contracts/construction-tiers.md)). Suites keep their own ring-stock
 gate. Move, clear and the bed replacement, sculpture and upgrade levers
-are unchanged. The starter shelter's bunk rungs (`RoundsShelterBunks.cs`)
-and the stand-in `SleepingSpot` keep their own guard (`standInBed`): the
-reconciler leaves a spot alone and the bunks are sited before a ring exists.
+are unchanged. The stand-in `SleepingSpot` (#3659) keeps its own guard
+(`standInBed`): the reconciler leaves a spot alone.
 
 #### Stale furniture
 
@@ -832,7 +824,7 @@ stand-in beds, what the owner forbids, anything on a ring cell or outside the
 interior, and the pieces other lanes stand in owned rooms (`CarriedOver`: every
 sculpture, the party spot, lamps, the beauty plant pot, the dining and
 recreation comfort pieces and the power and climate infrastructure: conduits,
-generators, batteries, vents, the shelter's campfire and cooler). The pen marker, range, ring and morgue reconcile
+generators, batteries, vents, the temperature planner's heater and cooler). The pen marker, range, ring and morgue reconcile
 against their own templates (the morgue's is empty, so all its interior
 furniture is stale). The facility rooms (dining, recreation, lab, workshop,
 kitchen, butchery) reconcile `RingOnly`, read no census and are exempt from

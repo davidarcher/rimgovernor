@@ -54,7 +54,6 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
     // Wait kinds.
     public static readonly Cause MethodUsed = new("method_already_used");
     public static readonly Cause ExistingWork = new("already_working_on_it");
-    public static readonly Cause BunksOpen = new("shelter_bunks_open");
     public static readonly Cause ComfortUse = new("waiting_for_native_comfort_use");
     public static readonly Cause Facility = new("existing_facility_needs_bill_or_upkeep");
     public static readonly Cause HospitalConvert = new("hospital_bed_convert_pending");
@@ -138,7 +137,7 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
         CollapsePending, NoWorker, AwaitingPlan, FieldUnavailable, NoSpace, SharedAdmission,
         RetriesSpent, RockNotDug, SiteBlocked, NativeIneligible, ReconcileWrite, Cooldown,
         NoMethod, HeldUnavailable, HeldOptIn, HeldNoSource,
-        MethodUsed, ExistingWork, BunksOpen, ComfortUse, Facility, HospitalConvert,
+        MethodUsed, ExistingWork, ComfortUse, Facility, HospitalConvert,
         SleepingUse, Separation, Dialog, Claim, FacilityAccess, RoomTemperature, RetryBudgetWait, WaitingOnNeed,
         CombatOrders, HoldFallback,
         NotReady, AlreadyReserved, UnknownFacts, StaleFacts, UnsafePlacement, UnsafeThreat,
@@ -157,7 +156,7 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
     /// <summary>The causes an OutcomeWaiting verdict may carry: the goal waits on something that is not a failure.</summary>
     public static readonly IReadOnlyList<Cause> WaitCauses =
     [
-        MethodUsed, ExistingWork, BunksOpen, ComfortUse, Facility, HospitalConvert,
+        MethodUsed, ExistingWork, ComfortUse, Facility, HospitalConvert,
         SleepingUse, Separation, Dialog, Claim, FacilityAccess, RoomTemperature, RetryBudgetWait, WaitingOnNeed,
     ];
 
@@ -250,7 +249,6 @@ public static class CauseRules
 
         [Cause.MethodUsed] = "The bot already did its part and is waiting for the work to finish.",
         [Cause.ExistingWork] = "Earlier work is still standing and the goal moves with it.",
-        [Cause.BunksOpen] = "The shelter's furnishing waits on its open bunks.",
         [Cause.ComfortUse] = "The colonists have to use the comfort first.",
         [Cause.Facility] = "An existing facility needs a bill or upkeep, not a build.",
         [Cause.HospitalConvert] = "A bed is being converted to a hospital bed.",

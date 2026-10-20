@@ -152,7 +152,7 @@ public static partial class ReconcileRules
     /// removes them as stale: the lamps, the party spot, the plant pot, the dining and recreation comfort pieces
     /// (<paramref name="comfort"/>, when read), every sculpture the catalog makes, and the power and climate
     /// infrastructure the power and climate planners run through rooms (conduits, generators, batteries, vents,
-    /// the shelter's heat and cooling pieces), which is no furniture.
+    /// the temperature planner's campfire and passive cooler), which is no furniture.
     /// </summary>
     public static Func<string, bool> CarriedOver(IEnumerable<string> lamps, ComfortObservation? comfort, ItemFacts items)
     {
@@ -162,8 +162,8 @@ public static partial class ReconcileRules
             RoomQualityRules.PlantPotDefinition,
             LayoutPowerDeriveRules.PowerConduitDefinition,
             ClimateRules.ClimateDefs().VentDef,
-            LayoutCapabilityRules.ShelterHeatDef,
-            LayoutCapabilityRules.ShelterCoolDef,
+            Wire.Name(TemperatureMethod.Heat),
+            Wire.Name(TemperatureMethod.Cool),
         };
         defs.UnionWith(PowerRules.PowerFamilyDefinitions());
         if (comfort is not null)

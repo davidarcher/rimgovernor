@@ -5,7 +5,7 @@ public sealed partial class Rounder
 {
     internal bool TemperatureEnabled() => Needs.Contains(ShelterFamily.Temperature);
 
-    /// <summary>Whether the shelter family composes any housing Need (starter, sleeping, expansion).</summary>
+    /// <summary>Whether the shelter family composes any housing Need (sleeping, expansion).</summary>
     internal bool HousingEnabled() => Needs.Contains(ShelterFamily.Sleeping) || Needs.Contains(ShelterFamily.Expansion);
 
     /// <summary>
@@ -105,13 +105,6 @@ partial class RoundsBuildingPlanner
         {
             cooling = cooling with { Sleepers = [.. sleeping.People, .. sleeping.Slaves] };
         }
-        var planKnown = facts.LayoutPlan.TryGetValue(out var plan);
-        var shelters = new List<Pol.ThermalShelter>();
-        foreach (var shelter in PlannedInteriorRooms(facts, planned => planned.Role == Pol.PlannedRole.Shelter))
-        {
-            shelters.Add(new Pol.ThermalShelter { Cells = RectCells(shelter.Interior), Standing = shelter.Standing, Hot = planKnown && plan!.Hot });
-        }
-        cooling = cooling with { PlannedShelters = [.. shelters] };
         foreach (var d in facts.Definitions)
         {
             if (d.Name == "Cooler")

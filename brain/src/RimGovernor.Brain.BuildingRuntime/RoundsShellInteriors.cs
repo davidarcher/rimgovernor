@@ -7,8 +7,8 @@ internal static class RoundsShellInteriors
     /// encloses (or will enclose once its walls stand) belongs to the room's own furniture, and a planner that
     /// only avoids the walls' footprints would site over it (the first field patch was laid across the hut's
     /// interior while the shell still waited for wood, and the stockpile and sleeping spots then found the room
-    /// already zoned). Completed claims alone are too late for that, so the rings come from the shelter goal's
-    /// plans while it is open, and from the completed claims once it is served (the goal then leaves the review,
+    /// already zoned). Completed claims alone are too late for that, so the rings come from the open plans
+    /// while they are open, and from the completed claims once they are served (the goal then leaves the review,
     /// and the next field batch was drawn inside the finished hut).
     /// </summary>
     internal static IReadOnlyList<Cell> ShellInteriors(IReadOnlyList<Store.PlanState> plans, IReadOnlyList<Pol.ConstructionClaim> claims)

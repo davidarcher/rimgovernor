@@ -193,10 +193,6 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (0, default, NoSpace("housing_bound"));
             }
-            if (Shelter)
-            {
-                return (missing, default, default);
-            }
             return (missing, new MethodId(string.Create(CultureInfo.InvariantCulture, $"{prefix}indoor-sleeping-{count}-{missing}")), default);
         }
         if (c == FoodRules.CookingNeed.FilingKey)

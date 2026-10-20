@@ -105,37 +105,6 @@ public static partial class PlannedRules
     internal static Comparer<T> LessComparer<T>(Func<T, T, bool> less) =>
         Comparer<T>.Create((a, b) => less(a, b) ? -1 : less(b, a) ? 1 : 0);
 
-    /// <summary>
-    /// The 3x3 indoor stockpile: the rectangle's upper-middle patch, or for any other shape the 3x3 nearest
-    /// that position whose cells all lie in the interior. Default when no 3x3 fits.
-    /// </summary>
-    internal static Rectangle StarterStorage(RoomFootprint shell)
-    {
-        var b = shell.Bounds;
-        var inside = new HashSet<Cell>(shell.Interior);
-        bool Fits(Rectangle r) => RectCells(r).All(inside.Contains);
-        var want = new Rectangle(b.X + (b.Width / 2) - 1, b.Z + (b.Height / 2) + 1, 3, 3);
-        if (Fits(want))
-        {
-            return want;
-        }
-        var best = default(Rectangle);
-        var found = false;
-        foreach (var c in shell.Interior)
-        {
-            var r = new Rectangle(c.X, c.Z, 3, 3);
-            if (!Fits(r))
-            {
-                continue;
-            }
-            if (!found || SquaredDistance(new Cell(r.X, r.Z), new Cell(want.X, want.Z)) < SquaredDistance(new Cell(best.X, best.Z), new Cell(want.X, want.Z)))
-            {
-                (best, found) = (r, true);
-            }
-        }
-        return best;
-    }
-
     internal static List<Cell> RectCells(Rectangle r)
     {
         var cells = new List<Cell>(r.Width * r.Height);

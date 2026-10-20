@@ -26,9 +26,6 @@ public sealed record RoomGrowth
     /// </summary>
     public HashSet<int>? Fixed { get; init; }
 
-    /// <summary>ShelterRetirable at this review.</summary>
-    public bool RetireShelter { get; init; }
-
     /// <summary>The planned rooms an open journal plan works on, which a retirement leaves in the plan.</summary>
     public HashSet<int> InFlight { get; init; } = [];
 

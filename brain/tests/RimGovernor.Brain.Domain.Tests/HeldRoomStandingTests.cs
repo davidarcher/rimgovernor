@@ -14,7 +14,7 @@ public sealed class HeldRoomStandingTests
         {
             Rooms =
             [
-                new PlannedRoom { Id = 6, Role = LayoutSurveyRules.PlannedShelter },
+                new PlannedRoom { Id = 6, Role = LayoutSurveyRules.PlannedBedroom },
                 new PlannedRoom { Id = 7, Role = LayoutSurveyRules.PlannedKitchen },
                 new PlannedRoom { Id = 8, Role = LayoutSurveyRules.PlannedKitchen, Replaces = 7 },
             ],
@@ -26,7 +26,7 @@ public sealed class HeldRoomStandingTests
     [Fact]
     public void RoomsUnderConstructionStandForTheEmbeddingSoNoSecondOneIsSited()
     {
-        // A replan re-sited the room being built beside it while the held one stayed: 3 shelters for 5 colonists.
+        // A replan re-sited the room being built beside it while the held one stayed: 3 bedrooms for 5 colonists.
         var ids = Facts(new HashSet<int> { 7 }, 6, 7).StandingIds()!;
         Assert.Contains(6, ids);
         Assert.Contains(7, ids);

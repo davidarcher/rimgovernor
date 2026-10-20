@@ -2,32 +2,6 @@ namespace RimGovernor.Brain.Policy;
 
 public sealed partial record LayoutPlan
 {
-    /// <summary>The plan's rooms for role as shells, in plan order; a room whose shell is invalid is skipped.</summary>
-    public List<RoomFootprint> PlannedShells(RoomRole role)
-    {
-        var shells = new List<RoomFootprint>();
-        if (LayoutRoomsRules.PlannedRoleFor(role) is not { } want)
-        {
-            return shells;
-        }
-        foreach (var r in Rooms)
-        {
-            if (r.Role != want)
-            {
-                continue;
-            }
-            try
-            {
-                shells.Add(r.Footprint());
-            }
-            catch (DomainException)
-            {
-                // a room whose shell is invalid is skipped
-            }
-        }
-        return shells;
-    }
-
     /// <summary>The plan's first open-ground room of role with no ring standing yet: the kitchen, freezer or jail its owning goal shells before furnishing. A dug room is mined out first. Null when none.</summary>
     public PlannedRoom? NextPlannedRoom(PlannedRole role, GroundCensus ground)
     {
@@ -54,96 +28,6 @@ public sealed partial record LayoutPlan
 /// <summary>Room construction to plan shapes and room queries over a LayoutPlan.</summary>
 public static partial class LayoutRoomsRules
 {
-    /// <summary>The v2 plan role a builder's room role fills; null for a role the core plans no room for.</summary>
-    public static PlannedRole? PlannedRoleFor(RoomRole role)
-    {
-        if (role == RoomRole.Bedroom)
-        {
-            return LayoutSurveyRules.PlannedBedroom;
-        }
-        if (role == RoomRole.Barracks)
-        {
-            return PlannedRole.Barracks;
-        }
-        if (role == LayoutTripsRules.RoomRoleSuite)
-        {
-            return LayoutTripsRules.PlannedSuite;
-        }
-        if (role == RoomRole.Shelter)
-        {
-            return LayoutSurveyRules.PlannedShelter;
-        }
-        if (role == RoomRole.Kitchen)
-        {
-            return LayoutSurveyRules.PlannedKitchen;
-        }
-        if (role == RoomRole.DiningRoom)
-        {
-            return LayoutSurveyRules.PlannedDining;
-        }
-        if (role == RoomRole.RecRoom)
-        {
-            return LayoutSurveyRules.PlannedRec;
-        }
-        if (role == RoomRole.Hospital)
-        {
-            return LayoutSurveyRules.PlannedHospital;
-        }
-        if (role == RoomRole.PrisonCell || role == RoomRole.PrisonBarracks)
-        {
-            return LayoutSurveyRules.PlannedPrison;
-        }
-        if (role == RoomRole.Workshop)
-        {
-            return LayoutSurveyRules.PlannedWorkshop;
-        }
-        if (role == RoomRole.Storeroom)
-        {
-            return LayoutSurveyRules.PlannedStorage;
-        }
-        if (role == RoomRole.Laboratory)
-        {
-            return LayoutSurveyRules.PlannedLab;
-        }
-        if (role == RoomRole.Tomb)
-        {
-            return LayoutSurveyRules.PlannedTomb;
-        }
-        if (role == RoomRole.ThroneRoom)
-        {
-            return LayoutThroneRules.PlannedThrone;
-        }
-        if (role == RoomRole.Nursery)
-        {
-            return PlannedRole.Nursery;
-        }
-        if (role == RoomRole.Playroom)
-        {
-            return PlannedRole.Playroom;
-        }
-        if (role == RoomRole.Classroom)
-        {
-            return PlannedRole.Classroom;
-        }
-        if (role == RoomRole.WorshipRoom)
-        {
-            return PlannedRole.Worship;
-        }
-        if (role == RoomRole.DeathrestChamber)
-        {
-            return PlannedRole.DeathrestChamber;
-        }
-        if (role == RoomRole.ContainmentCell)
-        {
-            return PlannedRole.ContainmentCell;
-        }
-        if (role == RoomRole.IsolationRoom)
-        {
-            return PlannedRole.IsolationRoom;
-        }
-        return null;
-    }
-
     internal static List<PlannedRoom> WithoutRooms(IEnumerable<PlannedRoom> rooms, ISet<int> drop) => [.. rooms.Where(r => !drop.Contains(r.Id))];
 
     /// <summary>

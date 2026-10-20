@@ -9,7 +9,6 @@ public static class ConstructionTierRules
     /// </summary>
     internal static readonly Dictionary<PlannedRole, ConstructionTier> PlannedRoleTier = new()
     {
-        [PlannedRole.Shelter] = ConstructionTier.Survive,
         [PlannedRole.Airlock] = ConstructionTier.Survive,
         [PlannedRole.Porch] = ConstructionTier.Survive,
         [PlannedRole.Kitchen] = ConstructionTier.Survive,

@@ -375,8 +375,8 @@ public static class ColonyDecodeReads
             }
             r = r with
             {
-                ColdMap = Known(LayoutShelterRules.ColdMapCurve(temps)),
-                HotMap = Known(LayoutShelterRules.HotMapCurve(temps)),
+                ColdMap = Known(LayoutRoofRules.ColdMapCurve(temps)),
+                HotMap = Known(LayoutRoofRules.HotMapCurve(temps)),
                 OutdoorCurve = Known(EquatableArray.From(temps)),
                 FullRotRateC = RequireCatalog(catalog).Derived.FullRotRateC,
             };

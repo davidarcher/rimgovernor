@@ -58,9 +58,9 @@ not, and the reason is structural: the contents of a room are decided in four pl
    rotation). Its only readers are the conduit and lamp routing (`LayoutConduit.cs:379`, `LayoutLight.cs:504`)
    inside the same tile pass. Nothing persists it: `LayoutPlan` keeps the rooms, links, conduits and
    lamps.
-2. **Role owners re-derive a template.** Bedroom, couple bedroom, shelter, throne, jail, tomb, hospital
-   and the child rooms each call `InteriorRoomFromLayout` (role to `RoomRole`, door side, capabilities)
-   and plan their own pieces (`BedroomFurnishing`, the shelter bunks, `ThroneTemplate`...). They do not
+2. **Role owners re-derive a template.** Bedroom, couple bedroom, throne, jail, tomb, hospital
+   and the child rooms each call `InteriorRoomFromLayout` (role to `RoomRole`, door side)
+   and plan their own pieces (`BedroomFurnishing`, `ThroneTemplate`...). They do not
    read the tiler's pieces for the same room.
 3. **Benches are demand-driven and placed natively.** `RoundsWorkshop` follows the facility ladder
    (`facilities.md`): a bench kind is staged when throughput is short, one `workshop-<def>-<n>` method at a time,

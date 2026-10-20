@@ -533,7 +533,7 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
 
     /// <summary>
     /// Adds the research bench (the furniture's Laboratory bench) when the catalog has one, one station (#3659): research
-    /// is a station the plan hosts as any other, not the shelter's. Its work is a worker's day
+    /// is a station the plan hosts as any other. Its work is a worker's day
     /// (LayoutGraphRules.ResearchDailyWork); no recipe sizes it.
     /// </summary>
     public void Research()

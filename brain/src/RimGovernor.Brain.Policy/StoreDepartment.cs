@@ -69,7 +69,6 @@ public static partial class StoreRules
     private static readonly IReadOnlyList<IStoreOwner> StoreOwners =
     [
         new StorageOwner(),
-        new ShelterOwner(),
         new MilitaryOwner(),
         new IndustryOwner(),
         new BurialOwner(),

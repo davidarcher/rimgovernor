@@ -2,8 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // Individual bedrooms. The sleeping planner walks each colonist, a bedless joiner included, into a room of
 // their own in the bedroom wing, in the wing's slot order: raise the room's shell, stage one bed in it, then
-// move the colonist's ownership there. The shelter bed left behind stays as a spare for joiners
-// (shelter/expansion keeps one beyond the population).
+// move the colonist's ownership there.
 
 /// <summary>The next bedroom step.</summary>
 public enum BedroomStepKind
@@ -22,8 +21,8 @@ public enum BedroomStepKind
     Reconcile,
 
     /// <summary>
-    /// Deconstruct Bed, a vacant sleeping spot at Cells[0]: one left in the starter shell (the planned shelter), or a
-    /// day-one stand-in anywhere else (#3659) once the beds in enclosed rooms take everyone without it.
+    /// Deconstruct Bed, a vacant day-one stand-in sleeping spot (#3659) at Cells[0], once the beds in enclosed rooms
+    /// take everyone without it.
     /// </summary>
     Clear,
 }
@@ -50,29 +49,6 @@ public sealed record BedroomStep
 
 public static partial class SleepingRules
 {
-    /// <summary>The beds standing in the starter shell, the planned shelter.</summary>
-    public static HashSet<string> ShellBedIds(LayoutPlan plan, RoomObservation rooms)
-    {
-        var shell = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var r in plan.Rooms)
-        {
-            if (r.Role != PlannedRole.Shelter)
-            {
-                continue;
-            }
-            // Census: the shelter's beds are read off its room.
-            var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
-            if (ok)
-            {
-                foreach (var b in room!.Beds)
-                {
-                    shell.Add(b);
-                }
-            }
-        }
-        return shell;
-    }
-
     /// <summary>
     /// The bed slots a planned barracks is furnished to: the beds the tiler placed in it (LayoutPlan.Pieces), one bed
     /// each. Null for every other role, which takes the bedroom template's one bed slot.
@@ -86,8 +62,8 @@ public static partial class SleepingRules
         return plan.Pieces.TryGetValue(room.Id, out var pieces) ? [.. pieces.Where(p => furniture.IsBed(p.Def))] : [];
     }
 
-    /// <summary>The beds standing in the planned barracks, the starter shell's left out.</summary>
-    private static HashSet<string> BarracksBedIds(LayoutPlan plan, RoomObservation rooms, HashSet<string> shell)
+    /// <summary>The beds standing in the planned barracks, the stand-in spots left out.</summary>
+    private static HashSet<string> BarracksBedIds(LayoutPlan plan, RoomObservation rooms, HashSet<string> spots)
     {
         var output = new HashSet<string>(StringComparer.Ordinal);
         foreach (var r in plan.Rooms)
@@ -100,7 +76,7 @@ public static partial class SleepingRules
             var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
             if (ok)
             {
-                output.UnionWith(room!.Beds.Where(b => !shell.Contains(b)));
+                output.UnionWith(room!.Beds.Where(b => !spots.Contains(b)));
             }
         }
         return output;
@@ -134,12 +110,9 @@ public static partial class SleepingRules
         {
             return new BedroomStep();
         }
-        var (shell, beds, people, unhoused) = (census.Shell, census.Beds, census.People, census.Unhoused);
-        // A spot its owner left behind in the shell is taken down, so the shell ends with no bunks. Only a spare
-        // one: a spot is never an owned bed, so a spot just built for the shelter reads vacant too, and clearing
-        // it re-opened the shelter deficit until the epoch's bed cap ran out one spot short.
-        // The clear leaves an indoor bed for every colonist. A vacant stand-in spot outside the shell (#3659) is
-        // taken down the same way once the indoor beds take everyone without it.
+        var (beds, people, unhoused) = (census.Beds, census.People, census.Unhoused);
+        // A vacant stand-in spot (#3659) is taken down once the indoor beds take everyone without it: the clear
+        // leaves an indoor bed for every colonist.
         var indoorBeds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var room in rooms.Rooms)
         {
@@ -189,7 +162,7 @@ public static partial class SleepingRules
                 return new BedroomStep { Kind = BedroomStepKind.Move, Pawn = next.Pawn.Id, Bed = next.Bed, PreviousBed = previous ?? "", Unhoused = unhoused.Count };
             }
         }
-        var owed = OwedRoomsOf(plan, rooms, shell);
+        var owed = OwedRoomsOf(plan, rooms, census.Spots);
         if (owed.Count > 0)
         {
             // One room per step: the first owed in plan order.
@@ -250,7 +223,7 @@ public static partial class SleepingRules
             }
         }
         var couples = SleepingCouples(sleeping.People);
-        foreach (var (room, missing) in OwedRoomsOf(plan, rooms, census.Shell))
+        foreach (var (room, missing) in OwedRoomsOf(plan, rooms, census.Spots))
         {
             if (waiting.Count == 0)
             {
@@ -275,9 +248,9 @@ public static partial class SleepingRules
         return occupants;
     }
 
-    /// <summary>The bedroom step's census: the shell, bedroom and barracks beds, every bed by id, the colonists in id order
-    /// and those still outside a bedroom. Null when the census is empty or a colonist's owned bed is unknown.</summary>
-    private sealed record BedroomCensus(HashSet<string> Shell, Dictionary<string, bool> BedroomBed, HashSet<string> BarracksBed,
+    /// <summary>The bedroom step's census: the stand-in spots, bedroom and barracks beds, every bed by id, the colonists in id
+    /// order and those still outside a bedroom. Null when the census is empty or a colonist's owned bed is unknown.</summary>
+    private sealed record BedroomCensus(HashSet<string> Spots, Dictionary<string, bool> BedroomBed, HashSet<string> BarracksBed,
         Dictionary<string, SleepingBed> Beds, List<SleepingPerson> People, List<SleepingPerson> Unhoused);
 
     private static BedroomCensus? CensusOf(LayoutPlan plan, RoomObservation rooms, SleepingObservation sleeping, IReadOnlyDictionary<string, RoomTarget>? targets)
@@ -286,12 +259,8 @@ public static partial class SleepingRules
         {
             return null;
         }
-        // The starter shell is the planned shelter: the last spot left in it reads as a bedroom but is still the shell.
-        // Shell holds its beds and every sleeping spot.
-        var shell = ShellBedIds(plan, rooms);
         // A sleeping spot is a stand-in (#3659): it houses no one, wherever it stands, and no one is moved onto it.
         var spots = sleeping.Beds.Where(b => b.Definition.Value == SleepingSpotDefinition).Select(b => b.Id).ToHashSet(StringComparer.Ordinal);
-        shell.UnionWith(spots);
         var bedroomBed = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var room in rooms.Rooms)
         {
@@ -299,12 +268,12 @@ public static partial class SleepingRules
             {
                 foreach (var b in room.Beds)
                 {
-                    bedroomBed[b] = !shell.Contains(b);
+                    bedroomBed[b] = !spots.Contains(b);
                 }
             }
         }
         // A barracks bed houses its owner, though a barracks of one bed reads as a bedroom.
-        var barracksBed = BarracksBedIds(plan, rooms, shell);
+        var barracksBed = BarracksBedIds(plan, rooms, spots);
         var beds = new Dictionary<string, SleepingBed>(StringComparer.Ordinal);
         var owners = new Dictionary<string, HashSet<PawnId>>(StringComparer.Ordinal);
         foreach (var b in sleeping.Beds)
@@ -344,7 +313,7 @@ public static partial class SleepingRules
                 unhoused.Add(p);
             }
         }
-        return new(shell, bedroomBed, barracksBed, beds, people, unhoused);
+        return new(spots, bedroomBed, barracksBed, beds, people, unhoused);
     }
 
     /// <summary>The vacant beds an unhoused colonist can be moved into, in order: bedroom beds (no suite's, no barracks'),
@@ -377,9 +346,9 @@ public static partial class SleepingRules
     }
 
     /// <summary>The planned bedrooms and barracks still owed beds, in plan order, with how many: a bedroom its one bed, a
-    /// barracks a bed per tiled bed slot (BedSlotsOf). A Retiring wing is never built out further. A shell bed or a
-    /// stand-in spot (<paramref name="shell"/>) is no bed.</summary>
-    private static List<(PlannedRoom Room, int Missing)> OwedRoomsOf(LayoutPlan plan, RoomObservation rooms, HashSet<string> shell)
+    /// barracks a bed per tiled bed slot (BedSlotsOf). A Retiring wing is never built out further. A
+    /// stand-in spot (<paramref name="spots"/>) is no bed.</summary>
+    private static List<(PlannedRoom Room, int Missing)> OwedRoomsOf(LayoutPlan plan, RoomObservation rooms, HashSet<string> spots)
     {
         // Census: beds and roof, read off the room.
         var owed = new List<(PlannedRoom, int)>();
@@ -391,7 +360,7 @@ public static partial class SleepingRules
                 continue;
             }
             var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
-            var standing = ok ? room!.Beds.Count(b => !shell.Contains(b)) : 0;
+            var standing = ok ? room!.Beds.Count(b => !spots.Contains(b)) : 0;
             var slots = BedSlotsOf(plan, r, rooms.Shapes.Furniture)?.Count ?? 1;
             if (standing < slots)
             {
@@ -407,7 +376,7 @@ public static partial class SleepingRules
     /// the room (end table, dresser, lamp, plant pot, animal bed) where it stands, so the one reconcile never
     /// repacks it. add is the piece a lever asks for this round (title furniture, companion bed, room upgrade,
     /// beauty); it is listed beside the standing ones of its definition and is the only entry still to build.
-    /// Suites and the shelter take the bedroom's slot too; a barracks takes bedSlots (BedSlotsOf), one bed at each
+    /// Suites take the bedroom's slot too; a barracks takes bedSlots (BedSlotsOf), one bed at each
     /// slot whose footprint bed fits. The list has no bed when the template does not fit the room.
     /// </summary>
     public static Furnishing BedroomFurnishing(PlannedRoom room, PieceShapes shapes, string bed, IReadOnlyList<CurrentBuilding> built, RoomUpgrade? add, IReadOnlyList<InteriorPiece>? bedSlots = null)

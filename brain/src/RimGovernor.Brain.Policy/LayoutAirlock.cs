@@ -4,8 +4,8 @@ namespace RimGovernor.Brain.Policy;
 // door with a second door beyond it, so the parent never opens straight onto the cold. The room's Region is the
 // vestibule cell, its Door the outer door on the far side and DoorRot the way both doors face; the cells to the
 // vestibule's left and right are walls. The parent's wall ring owns the walls and the outer door
-// (AirlockCells), so the child owes no ring of its own (Unfenced). Nothing here is specific to a shelter: any
-// parent door takes one (AttachAirlock).
+// (AirlockCells), so the child owes no ring of its own (Unfenced). Any parent door takes one (AttachAirlock,
+// where the tiler prices one, LayoutTileAirlock).
 public static partial class LayoutAirlockRules
 {
     /// <summary>The cell beyond door d, away from the room whose wall side it faces.</summary>

@@ -3,7 +3,6 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class RoundsBuildingPlanner
 {
     internal const int DigWaves = 64;
-    internal const string RoomDigMethodPrefix = "plan-dig-room-";
 
     internal async Task<(RoundsBuildingResult Result, bool Handled)> AdmitRockStepAsync(ExcavationStep s, IReadOnlyList<RoleCell> planned, Cell access, MethodId method, IReadOnlyList<Building> buildings, Action check, CancellationToken call, CancellationToken epoch)
     {
@@ -190,8 +189,6 @@ public sealed partial class RoundsBuildingPlanner
         var result = await dig.AdmitExcavationAsync(s, snapshot, admitted, plan, previews, stock, check, call, epoch).ConfigureAwait(false);
         return (result, true);
     }
-
-    internal static bool IsRoomDigMethod(MethodId method) => method.Value.StartsWith(RoomDigMethodPrefix, StringComparison.Ordinal);
 
     internal async Task<(RoundsBuildingResult Result, bool Handled)> DigPlannedRoomAsync(ExcavationStep s, LayoutPlan plan, PlannedRoom room, Action check, CancellationToken call, CancellationToken epoch)
     {

@@ -14,7 +14,7 @@ public sealed class PlannedShellDemandTests
     {
         Rooms =
         [
-            new PlannedRoom { Id = 1, Role = LayoutSurveyRules.PlannedShelter, Region = RegionRules.RectRegion(Rect(0, 0)) },
+            new PlannedRoom { Id = 1, Role = LayoutSurveyRules.PlannedWorkshop, Region = RegionRules.RectRegion(Rect(0, 0)) },
             new PlannedRoom { Id = 2, Role = LayoutSurveyRules.PlannedKitchen, Region = RegionRules.RectRegion(Rect(4, 0)) },
         ],
     };

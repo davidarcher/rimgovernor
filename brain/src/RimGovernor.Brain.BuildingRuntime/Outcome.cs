@@ -190,12 +190,9 @@ partial record struct Verdict
     public static readonly Verdict BuildingReasonNoDeficit = new(Outcome.NothingToDo);
     public static readonly Verdict BuildingReasonExistingWork = Verdict.WaitOn(Cause.ExistingWork);
 
-    /// <summary>The initial shelter's indoor furnishing waits on its open bunk rungs, which do not hold the ring itself.</summary>
-    public static readonly Verdict BuildingReasonBunksOpen = Verdict.WaitOn(Cause.BunksOpen);
-
     /// <summary>
-    /// The verdict an admission refusal files: the initial shelter's held builders and short production material
-    /// wait on a plan, anything else is a shared-admission refusal naming its reason.
+    /// The verdict an admission refusal files: short production material waits on a plan, anything else is a
+    /// shared-admission refusal naming its reason.
     /// </summary>
     public static Verdict AdmissionRefused(Sto.AdmissionRefusal refusal) => refusal.Kind switch
     {

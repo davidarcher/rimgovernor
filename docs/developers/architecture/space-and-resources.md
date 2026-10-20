@@ -219,11 +219,11 @@ unavailable and a spot never, so spot owners walk into bedrooms first; neither t
 assignment nor the construction receipt clears the deficit, only the
 colonist's observed sleep in the owned bed does.
 
-Every colony's first shelter is a room of the layout plan: the station-less
-`PlannedShelter` node of the first plan, sized for the colonists and placed by the
-tiler like any other room (see [facilities](facilities.md#the-tiled-plan) and the
-[layout planner contract](../contracts/spatial-contracts.md#layout-planner)). The
-shelter routine builds that room's ring; it does not search for a site.
+Every colony's first rooms are rooms of the layout plan, the station graph's, placed
+by the tiler like any other room (see [facilities](facilities.md#the-tiled-plan) and the
+[layout planner contract](../contracts/spatial-contracts.md#layout-planner)); no
+shelter is seeded (#3659), and stand-in sleeping spots are the day-one floor. A
+routine builds a room's ring; it does not search for a site.
 A shell whose materials run out mid-build simply holds: dispatched wall
 orders wait for stock with no attempt timeout, and the review neither sites
 a second shell nor reissues an order while the plan is live.

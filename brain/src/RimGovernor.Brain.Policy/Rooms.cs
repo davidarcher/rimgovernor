@@ -44,10 +44,6 @@ public enum RoomRole
     [WireName("Barracks")]
     Barracks,
 
-    /// <summary>A plan role only: the temporary starter room, scored by the game as whatever its furniture makes it.</summary>
-    [WireName("Shelter")]
-    Shelter,
-
     [WireName("PrisonBarracks")]
     PrisonBarracks,
 
@@ -273,7 +269,6 @@ public static partial class RoomsRules
             // colonists or in a generic room, then assigns it; the game scores the room Bedroom or Barracks by count.
             new() { Role = RoomRole.Bedroom, Compatible = Hosts(RoomRole.Barracks) },
             new() { Role = RoomRole.Barracks },
-            new() { Role = RoomRole.Shelter },
             // A jail is its own planned room: prisoners/recruit shells it while a prisoner is held and keeps a
             // prisoner bed per prisoner.
             new() { Role = RoomRole.PrisonCell },
@@ -283,12 +278,9 @@ public static partial class RoomsRules
             // doctors and the room's cleanliness into tending. Doctor coverage is AssignWork's standing
             // requirement; medicine is medical/reserves.
             new() { Role = RoomRole.Hospital, Compatible = Hosts(RoomRole.Bedroom, RoomRole.Barracks) },
-            // A laboratory is a hosted research bench: the economy/research Need stages the simple bench in the shelter
-            // (scored a Barracks once the bunks stand) when a ladder rung waits on it.
+            // A laboratory is a hosted research bench: a workshop, or a room the game scores a Barracks, hosts it.
             new() { Role = RoomRole.Laboratory, Compatible = Hosts(RoomRole.Workshop, RoomRole.Barracks) },
-            // A workshop shares the shelter: the ladder furnishes the first enclosed room rather than siting a
-            // second ring, and once the sleeping spots move indoors the game scores that
-            // room a Barracks while the bench keeps working.
+            // A workshop's bench keeps working in a room whose beds the game scores a Barracks.
             new() { Role = RoomRole.Workshop, Compatible = Hosts(RoomRole.Barracks) },
             new() { Role = RoomRole.Storeroom },
             // A kitchen is its own planned room: the food/cooking Need shells it at Masonry and above and holds the

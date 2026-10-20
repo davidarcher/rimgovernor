@@ -199,15 +199,6 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = NoSpace("bedroom_template") };
         }
-        // Only once the room stands: until then the shelter's bed keeps its sleeper.
-        if (PlannedRoom.CensusRoomIn(step.Room, rooms).Ok)
-        {
-            var (packed, due) = await PackShellBedAsync(stock, state, goal, reading, bed, call, epoch).ConfigureAwait(false);
-            if (due)
-            {
-                return packed;
-            }
-        }
         return await Building.ReconcileRoomAsync(state, review, goal, reading, stock, new RoomReconcile { Room = step.Room, Template = furnishing.Pieces, Name = BedroomReconcileName(step.Room), Reason = BedroomShellReason(step) }, call, epoch).ConfigureAwait(false);
     }
 }

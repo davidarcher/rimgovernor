@@ -23,9 +23,6 @@ public sealed partial class RoundsBuildingPlanner
 {
     internal IReadOnlyList<Pol.SiteBuilding> Paste { get; set; } = [];
 
-    /// <summary>The plants a refused shelter slot names on its footprint or interaction cell; the step commits their cut wave and the slot is retried.</summary>
-    internal IReadOnlyList<Pol.ClearanceTarget> SlotCuts { get; set; } = [];
-
     internal Rounder Reviewer { get; set; } = null!;
 
     internal IRoundsBuildingSource Native { get; set; } = null!;
@@ -49,8 +46,6 @@ public sealed partial class RoundsBuildingPlanner
 
     internal IReadOnlyList<Cell> Adjacent { get; set; } = [];
 
-    internal bool Shelter { get; set; }
-
     internal FacadeNativeClient? Excavation { get; set; }
 
     internal Pol.PowerProposal? Power { get; set; }
@@ -69,8 +64,8 @@ public sealed partial class RoundsBuildingPlanner
     internal Pol.RoutesProposal? Routes { get; set; }
 
     /// <summary>
-    /// Restricts furnishing to rooms whose native role can host the function; with none observed, furnishing has
-    /// no verified space and the same planner falls back to staging a starter shell for it.
+    /// Restricts furnishing to rooms whose native role can host the function: the facility furnishes through its
+    /// planned room.
     /// </summary>
     internal Pol.FacilityRequirement? Facility { get; set; }
 
@@ -84,15 +79,14 @@ public sealed partial class RoundsBuildingPlanner
     internal Pol.SleepingChoice? Sleeping { get; set; }
 
     /// <summary>
-    /// The step this planner serves: a shelter housing planner (starter, sleeping, expansion), which its Need's
+    /// The step this planner serves: a shelter housing planner (sleeping, expansion, the stand-in spots), which its Need's
     /// preconditions order, or, for a rooms comfort Need, which of its planners this is. Empty for every other goal.
     /// </summary>
     internal Pol.Phase Phase { get; set; }
 
     /// <summary>
-    /// Marks the research step that builds the high-tech bench and then its analyzer in the planned laboratory
-    /// (never the shelter's research slot, which holds only the simple bench): whichever of the two is buildable
-    /// and not yet standing is the one placed.
+    /// Marks the research step that builds the high-tech bench and then its analyzer in the planned laboratory:
+    /// whichever of the two is buildable and not yet standing is the one placed.
     /// </summary>
     internal bool AdvancedLab { get; set; }
 
@@ -133,20 +127,6 @@ public sealed partial class RoundsBuildingPlanner
     private async Task<RoundsBuildingResult> StepBodyAsync(StepArbiter arbiter, Action<IDisposable> hold, CancellationToken call, CancellationToken epoch)
     {
         var r = this;
-        var roofingOnly = false;
-        if (r.Shelter)
-        {
-            // The initial shelter and expansion furnish verified indoor space first; only without any do they raise the planned shelter room.
-            var indoor = r.Copy();
-            indoor.Shelter = false;
-            indoor.Definition = "SleepingSpot";
-            var result = await indoor.StepAsync(arbiter, call, epoch).ConfigureAwait(false);
-            if (!result.Verdict.Is(Pol.Cause.NoSpace) && !result.Verdict.Is(Pol.Cause.MethodUsed) && !result.Verdict.Is(Pol.Cause.BunksOpen))
-            {
-                return result;
-            }
-            roofingOnly = result.Verdict.Is(Pol.Cause.MethodUsed);
-        }
         var p = r.Reviewer.Player;
         var state = p.Session.State();
         if (!state.Enabled)
@@ -172,8 +152,6 @@ public sealed partial class RoundsBuildingPlanner
         {
             return new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit };
         }
-        var bunksOpen = false;
-        var ringOpen = false;
         foreach (var m in goal.OpenMethods)
         {
             var plan = p.Journal.LoadPlan(m.Plan, call);
@@ -189,31 +167,7 @@ public sealed partial class RoundsBuildingPlanner
                 }
                 continue;
             }
-            if (r.Phase == Pol.Phase.HousingShelter && IsShelterBunkMethod(m.Method))
-            {
-                // An open bunk rung does not hold the ring: the walls and door stand on cells the bunks never take
-                // (the ring is sited around them), and a stalled bed must not keep the colony outdoors. The rungs
-                // and the shell each stay idempotent on their own method binding. The indoor furnishing step still
-                // waits for the bunks, and says so, so the shell step runs.
-                if (!r.Shelter && StorePackage.PlanOpen(plan))
-                {
-                    bunksOpen = true;
-                }
-                continue;
-            }
-            if (r.Shelter && r.Phase == Pol.Phase.HousingShelter && IsShellMethod(m.Method))
-            {
-                // The ring's open wave does not hold the bunk ladder: the shelter room is one continuous
-                // reconcile (StepShelterRoom), which leaves the open wave alone and goes on up the rungs.
-                ringOpen = ringOpen || StorePackage.PlanOpen(plan);
-                continue;
-            }
-            if (r.Shelter && IsRoomDigMethod(m.Method))
-            {
-                // Mining is separate work from the ring: PrepareShell reads the dig's own state and the ring goes up beside it.
-                continue;
-            }
-            if (!r.Shelter && IsShellMethod(m.Method))
+            if (StorePackage.IsRoomShellMethod(m.Method))
             {
                 // A planned room's open ring wave does not hold the furniture raised on its interior with it: the
                 // ring and the slot are admitted together, and ReconcileRoom leaves the ring alone while its wave is open.
@@ -229,10 +183,6 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return new RoundsBuildingResult { Verdict = BuildingReasonExistingWork };
             }
-        }
-        if (bunksOpen)
-        {
-            return new RoundsBuildingResult { Verdict = BuildingReasonBunksOpen };
         }
         var identity = await r.Native.IdentityAsync(call).ConfigureAwait(false);
         var expected = DecodeReads.DecodeIdentity(identity);
@@ -319,26 +269,12 @@ public sealed partial class RoundsBuildingPlanner
         {
             definitions = r.RoutesDefinitions();
         }
-        if (r.Shelter)
-        {
-            definitions = ["Wall", "Door"];
-        }
-        // The read names the definitions the step may place; the initial shelter also places its bunks before the
-        // ring, and their availability is judged from the same read.
+        // The read names the definitions the step may place.
         IReadOnlyList<string> observed = definitions;
-        if (r.Shelter && r.Phase == Pol.Phase.HousingShelter)
-        {
-            observed = [.. definitions, "SleepingSpot", ShelterBedDefinition, SleepingRules.SleepingBedrollDefinition];
-        }
         if (r.Concern == FoodRules.CookingNeed.FilingKey || r.ButcherFacility())
         {
             // The planned kitchen or butchery is shelled first.
             observed = [.. observed, "Wall", "Door"];
-        }
-        if (r.Shelter)
-        {
-            // The door ladder proposes an Autodoor only once the read shows it available; the ring never waits on it.
-            observed = [.. observed, "Autodoor"];
         }
         Observation.ColonyReading reading;
         var roundsSource = r.Native is Observation.IRoundsSource;
@@ -350,9 +286,8 @@ public sealed partial class RoundsBuildingPlanner
             var full = await r.Reviewer.ObserveRoomsAsync((Observation.IRoundsSource)r.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), [.. observed], call).ConfigureAwait(false);
             reading = full.Reading;
         }
-        else if (r.Concern == PowerFamily.Basic.FilingKey || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortWorkChair || r.Shelter)
+        else if (r.Concern == PowerFamily.Basic.FilingKey || r.Phase == Pol.Phase.ComfortBasic || r.Phase == Pol.Phase.ComfortWorkChair)
         {
-            // The shelter ring reconciles against the construction census, which only the rounds read carries.
             var full = await r.Reviewer.ObserveOwnedAsync((Observation.IRoundsSource)r.Native, expected, Unknown<EquatableArray<Pol.ConstructionClaim>>(), [.. observed], call).ConfigureAwait(false);
             reading = full.Reading;
         }
@@ -541,21 +476,6 @@ public sealed partial class RoundsBuildingPlanner
         {
             return new RoundsBuildingResult { Verdict = selectionReason };
         }
-        // The shelter's template slots are keyed on its planned interior, so the slot is previewed and admitted
-        // first and the ring wave goes in right after it, around the placed slot: a ring blueprint on the slot's
-        // interaction spot makes the native refuse the slot.
-        RoomReconcile? ringAfter = null;
-        if (r.TakesShelterSlot(facts))
-        {
-            var (shelterRoom, shelterOwed) = PlannedRoomOwed(facts, PlannedRole.Shelter);
-            if (shelterOwed)
-            {
-                ringAfter = new RoomReconcile { RingOnly = true, Room = shelterRoom, Name = PlannedRoomMethod(shelterRoom).Value };
-            }
-        }
-        var planner = r;
-        async Task<RoundsBuildingResult> AdmitRingAsync(Sto.NeedOwner owner, RoomReconcile ring) =>
-            await planner.ReconcileRoomAsync(state, review, owner, new Observation.RoundsReading { Reading = reading, Frame = new BridgeRoundsFrame(), Emergency = new EmergencyFacts() }, null, ring, call, epoch).ConfigureAwait(false);
         var (plannedModule, plannedModuleOk) = r.PlannedRoomModule();
         if (plannedModuleOk)
         {
@@ -570,7 +490,7 @@ public sealed partial class RoundsBuildingPlanner
                 {
                     return ring;
                 }
-                if (r.HostsInPlannedRoom(plannedModule, facts))
+                if (HostsInPlannedRoom(plannedModule))
                 {
                     var kitchen = r.Copy();
                     kitchen.Cells = PlannedRoomInterior(room);
@@ -578,7 +498,7 @@ public sealed partial class RoundsBuildingPlanner
                     r = kitchen;
                 }
             }
-            else if (r.HostsInPlannedRoom(plannedModule, facts))
+            else if (HostsInPlannedRoom(plannedModule))
             {
                 var cells = PlannedRoomCells(facts, plannedModule);
                 if (cells is not null)
@@ -603,7 +523,7 @@ public sealed partial class RoundsBuildingPlanner
             bench.Environment = Pol.PlacementEnvironment.Anywhere;
             r = bench;
         }
-        if (r.Concern == FoodRules.CookingNeed.FilingKey && r.Definition == "Campfire" && r.Cells is null && r.Paste.Count == 0 && !r.TakesShelterSlot(facts))
+        if (r.Concern == FoodRules.CookingNeed.FilingKey && r.Definition == "Campfire" && r.Cells is null && r.Paste.Count == 0)
         {
             // The cooking campfire goes in the planned kitchen once it stands.
             var cells = PlannedRoomCells(facts, PlannedRole.Kitchen);
@@ -627,7 +547,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             definitions = list;
         }
-        var gate = DefinitionsGate(facts, definitions, r.Shelter);
+        var gate = DefinitionsGate(facts, definitions, false);
         if (r.Paste.Count > 0)
         {
             gate = default;
@@ -669,37 +589,14 @@ public sealed partial class RoundsBuildingPlanner
                 throw new ControlException("step: p.session.State() != state");
             }
         }
-        if (r.Shelter)
-        {
-            var site = new ShelterSite { State = state, Review = review, Owner = goal, Facts = facts, Read = reading, Check = Check };
-            var shelterResult = await r.StepShelterRoomAsync(site, roofingOnly, call, epoch).ConfigureAwait(false);
-            if (ringOpen && shelterResult.Verdict != BuildingReasonAdmitted)
-            {
-                // An open ring wave is existing work unless a rung was admitted.
-                return new RoundsBuildingResult { Verdict = BuildingReasonExistingWork };
-            }
-            return shelterResult;
-        }
         // A campfire the pawns let burn out leaves the cooking census empty again in the same epoch; the completed
-        // method yields to a numbered successor the same way a staged bed's does. Indoor shelter spots do too once
-        // the census shows fewer regular beds than the colony needs: a spot converted to medical (which native
-        // indoor capacity excludes) or lost must not leave a spent method holding the shelter gate failed. Spots
-        // that stand but are not yet counted (an open roof) keep the method used.
-        if (r.Phase == Pol.Phase.HousingSleeping || r.Concern == FoodRules.CookingNeed.FilingKey || (r.Phase == Pol.Phase.HousingShelter && RegularBedsShort(facts.Facts)))
+        // method yields to a numbered successor the same way a staged bed's does.
+        if (r.Phase == Pol.Phase.HousingSleeping || r.Concern == FoodRules.CookingNeed.FilingKey)
         {
             method = r.NextSleepingBedMethod(goal, method, facts.Facts.CurrentConstruction, call);
         }
         if (!r.MethodOnce(goal, method, call, facts.Facts.CurrentConstruction))
         {
-            if (ringAfter is not null)
-            {
-                // The slot is placed already: the ring goes up around it.
-                var again = await AdmitRingAsync(goal, ringAfter).ConfigureAwait(false);
-                if (!again.Verdict.SkipsToPlacement)
-                {
-                    return again;
-                }
-            }
             return new RoundsBuildingResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "sleeping_method") };
         }
         var planId = PlanIds.MintPlanId();
@@ -801,16 +698,6 @@ public sealed partial class RoundsBuildingPlanner
                 return breach;
             }
         }
-        if (!previewReason.IsZero && r.SlotCuts.Count > 0)
-        {
-            // A plant on the only accepted slot is a foreign obstruction: cut it, and the slot is retried once the
-            // order is done. A wave already committed keeps the wait.
-            var (cut, cutDone) = r.CommitObstructionWave(state, goal, r.Concern.Value + "-slot", Pol.OpKind.Cut, r.SlotCuts, call, epoch);
-            if (cutDone)
-            {
-                return cut;
-            }
-        }
         if (!previewReason.IsZero)
         {
             return new RoundsBuildingResult { Verdict = previewReason };
@@ -822,20 +709,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             purpose = Pol.Purpose.Shelter;
         }
-        var admitted = await r.AdmitPreviewsAsync(new RoundsAdmission { State = state, Review = review, Owner = goal, Facts = facts, Method = method, Snapshot = snapshot, Selected = selected!, Stock = stock, Purpose = purpose }, call, epoch).ConfigureAwait(false);
-        if (ringAfter is null || admitted.Verdict != BuildingReasonAdmitted)
-        {
-            return admitted;
-        }
-        // The slot is admitted: the shelter's ring wave goes in around it. The slot's admission moved the owner
-        // on, so the ring commits against the fresh owner; a ring that is not ready now is tried again next step.
-        var (owner, ownerWorkable) = r.WorkOwner(review, call);
-        if (!ownerWorkable || owner is null)
-        {
-            return admitted;
-        }
-        await AdmitRingAsync(owner, ringAfter).ConfigureAwait(false);
-        return admitted;
+        return await r.AdmitPreviewsAsync(new RoundsAdmission { State = state, Review = review, Owner = goal, Facts = facts, Method = method, Snapshot = snapshot, Selected = selected!, Stock = stock, Purpose = purpose }, call, epoch).ConfigureAwait(false);
     }
 }
 
@@ -995,25 +869,17 @@ public sealed partial class RoundsBuildingPlanner
         IReadOnlyList<Cell> protectedSet = protectedCells;
         if (!looseSpot && (ShelterFamily.Housing(Concern) || ((Phase == Pol.Phase.ComfortBasic || Phase == Pol.Phase.ComfortSpot) && Cells is null)) && Facility is null)
         {
-            // Loose sleeping spots and the basic-comfort table and seat go to the starter shell or a bedroom, not
-            // into a standing kitchen, lab, storage or other planned room: beds there make it a sleeping room and
-            // block the room's own furnishing, and furniture there carves up its warehouse zone.
+            // Housing furniture and the basic-comfort table and seat stay out of a standing kitchen, lab, storage
+            // or other planned room: beds there make it a sleeping room and block the room's own furnishing, and
+            // furniture there carves up its warehouse zone.
             protectedSet = [.. protectedSet, .. NonSleepingPlannedCells(facts)];
-        }
-        if (looseSpot)
-        {
-            // A loose spot off the template's bed slots must not take the shelter's campfire, cooler, crafting or
-            // bench slot: a cold map's cooking campfire then finds its slot taken and falls through to the kitchen.
-            protectedSet = [.. protectedSet, .. ShelterFurnitureCells(facts)];
         }
         if (ButcherBenchDefinition(Definition) || Concern == FoodRules.CookingNeed.FilingKey)
         {
             protectedSet = [.. protectedSet, .. KitchenSeparationRules.SeparationProtectedCells(facts.Rooms, ButcherBenchDefinition(Definition))];
         }
-        // The cooking campfire stands in the planned kitchen; on a cold map it takes the shelter's template slot.
-        // It has no outdoor stand-in.
+        // The cooking campfire stands in the planned kitchen. It has no outdoor stand-in.
         var cookingCampfire = Concern == FoodRules.CookingNeed.FilingKey && Definition == "Campfire" && Facility is null && Paste.Count == 0;
-        var slotProtected = protectedSet;
         var cells = new List<Pol.SiteCell>();
         var adjacent = new HashSet<Cell>(Adjacent);
         var roomCells = new HashSet<Cell>();
@@ -1027,41 +893,11 @@ public sealed partial class RoundsBuildingPlanner
                 roomCells.Add(c);
             }
         }
-        var slotOnly = false;
-        // On a cold map the campfires stand indoors on the shelter's template slots; a taken slot, or no shelter,
-        // leaves the campfire to the search below.
-        if (facts.LayoutPlan.TryGetValue(out var coldPlan) && coldPlan.Cold && Definition == "Campfire" && (cookingCampfire || (Temperature is { Method: Pol.TemperatureMethod.Heat })))
-        {
-            slotOnly = PlannedShelterRooms(facts).Count > 0;
-        }
-        // A hot map's passive cooler for the shelter stands on the template's cooler slot; the powered wall cooler path is unchanged.
-        if (facts.LayoutPlan.TryGetValue(out var hotPlan) && hotPlan.Hot && Definition == "PassiveCooler" && Temperature is { Method: Pol.TemperatureMethod.Cool })
-        {
-            foreach (var shelter in PlannedShelterRooms(facts))
-            {
-                foreach (var c in Temperature.Cells)
-                {
-                    var interior = shelter.Interior;
-                    slotOnly = slotOnly || (c.X >= interior.X && c.X < interior.X + interior.Width && c.Z >= interior.Z && c.Z < interior.Z + interior.Height);
-                }
-            }
-        }
-        if (cookingCampfire && Cells is null && !slotOnly)
+        if (cookingCampfire && Cells is null)
         {
             // Cooking waits for the planned kitchen.
             return (null, new Pol.StockObservation(), BuildingReasonNoLayoutPlan);
         }
-        // The slots come from the planned interior, not a standing census room, so they place before any wall does.
-        var plannedInterior = slotOnly;
-        if (slotOnly)
-        {
-            interiorRooms = [.. PlannedShelterRooms(facts)];
-        }
-        // A campfire or cooler for a planned shelter has no outdoor stand-in: a slot the native refuses waits,
-        // named by its blocker, instead of the search below placing one outside the room.
-        var strictSlot = slotOnly && interiorRooms.Count > 0;
-        RefusedPlacement? refusedSlot = null;
-        Pol.Preview? lastPreview = null;
         if (Temperature is not null)
         {
             foreach (var c in Temperature.Cells)
@@ -1071,21 +907,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (Facility is not null)
         {
-            var planned = ResearchHostRooms(facts);
-            if (Facility.Role == Pol.RoomRole.Laboratory && !AdvancedLab && planned.Count > 0)
-            {
-                // The research bench takes the planned shelter's bench row.
-                interiorRooms = [.. planned];
-                plannedInterior = true;
-                foreach (var room in planned)
-                {
-                    foreach (var c in RectCells(room.Interior))
-                    {
-                        roomCells.Add(c);
-                    }
-                }
-            }
-            else if (Cells is not null)
+            if (Cells is not null)
             {
                 // A bed's cells are the planned bedroom's; its interior slots come from the plan room they lie in.
                 foreach (var c in Cells)
@@ -1239,7 +1061,6 @@ public sealed partial class RoundsBuildingPlanner
             var b = new Building(Definition, c, rotation, Stuff);
             var a = DomainAction.NewBuildingAction(new ActionId(id), b, ConstructionTierRules.PlannerTier(Concern, Phase));
             var preview = await Native.PreviewBuildingAsync(a, snapshot, call).ConfigureAwait(false);
-            lastPreview = preview.Preview;
             var madeKnown = preview.Preview.MadeFromStuff.TryGetValue(out var made);
             if ((Phase == Pol.Phase.ComfortRanked || Phase == Pol.Phase.ComfortBasic) && watchBuildings.Contains(Definition))
             {
@@ -1387,15 +1208,10 @@ public sealed partial class RoundsBuildingPlanner
                 var slotAnchors = slots.Select(s => s.Anchor()).ToList();
                 var request = searchRequest with
                 {
-                    Protected = [.. slotProtected, .. PlacementSearchRules.DoorwayAisles(facts.Bounds, facts.Cells)],
+                    Protected = [.. protectedSet, .. PlacementSearchRules.DoorwayAisles(facts.Bounds, facts.Cells)],
                     Anchors = slotAnchors,
                     Limit = Math.Min(slots.Count, 64),
                 };
-                if (plannedInterior)
-                {
-                    // The slots are keyed on the planned footprint, walled or not: the interior's cells stand in whatever their roof.
-                    request = request with { Environment = Pol.PlacementEnvironment.Anywhere, Cells = PlannedInteriorSiteCells(facts, interiorRooms) };
-                }
                 var slotSearch = new Pol.PlacementSearch(request);
                 // The search drops anchors that are protected, occupied or off the site cells; previewing one anyway fails the whole step.
                 var proposed = new HashSet<Cell>(slotSearch.Candidates());
@@ -1415,11 +1231,6 @@ public sealed partial class RoundsBuildingPlanner
                     {
                         return (null, new Pol.StockObservation(), reason);
                     }
-                    if (!ok && strictSlot && refusedSlot is null && lastPreview is { } shown)
-                    {
-                        refusedSlot = ReportRefused(new RoomBuild { Def = Definition, Cell = slot.Anchor() }, shown, call);
-                        SlotCuts = ReconcileRules.SlotPlantCuts(facts.Cells, slot, shown.Blockers);
-                    }
                     if (ok && !Overlaps(choice!.Choice))
                     {
                         pending = choice;
@@ -1427,7 +1238,7 @@ public sealed partial class RoundsBuildingPlanner
                     }
                 }
             }
-            if (selected.Count < missing && !slotOnly)
+            if (selected.Count < missing)
             {
                 var snapSearch = new Pol.PlacementSearch(searchRequest with { Anchors = anchors });
                 var snapReason = await PassAsync(snapSearch, "-s").ConfigureAwait(false);
@@ -1436,15 +1247,6 @@ public sealed partial class RoundsBuildingPlanner
                     return (null, new Pol.StockObservation(), snapReason);
                 }
             }
-        }
-        if (selected.Count < missing && strictSlot)
-        {
-            var subject = "shelter_slot:none_free";
-            if (refusedSlot is not null)
-            {
-                subject = "shelter_slot:blocked:" + refusedSlot.Key();
-            }
-            return (null, new Pol.StockObservation(), WaitFor(Pol.Cause.ExistingWork, subject));
         }
         if (selected.Count < missing)
         {
@@ -1573,37 +1375,8 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>
-    /// Whether the sleeping census holds fewer regular (humanlike, non-medical, non-prisoner) beds than
-    /// max(colonists, housing target) plus the colony's slaves, whose beds count as regular: the shelter's spots
-    /// were lost or converted, not merely uncounted.
-    /// </summary>
-    internal static bool RegularBedsShort(Pol.RoundsFacts f)
-    {
-        var known = f.Sleeping.TryGetValue(out var sleeping);
-        var ck = f.Colonists.TryGetValue(out var count);
-        if (!known || !ck)
-        {
-            return false;
-        }
-        if (f.HousingTarget.TryGetValue(out var target))
-        {
-            count = Math.Max(count, target);
-        }
-        count += sleeping!.Slaves.Count;
-        long regular = 0;
-        foreach (var bed in sleeping.Beds)
-        {
-            if (bed.Humanlike && !bed.Medical && !bed.Prisoners)
-            {
-                regular++;
-            }
-        }
-        return regular < count;
-    }
-
-    /// <summary>
-    /// The interior cells of the layout plan's rooms built for another use than sleeping. Only the shelter (the
-    /// starter room) and unbuilt reserve ground stay open to loose spots and furniture.
+    /// The interior cells of the layout plan's rooms built for another use than sleeping. The sleeping rooms and
+    /// unbuilt reserve ground stay open to furniture.
     /// </summary>
     internal static List<Cell> NonSleepingPlannedCells(Observation.ColonyProjection facts)
     {
@@ -1642,29 +1415,7 @@ partial class RoundsBuildingPlanner
         return cells;
     }
 
-    /// <summary>The cells of the planned shelter template's pieces that are not bunks: its campfire, cooler, crafting spot and research bench.</summary>
-    internal static List<Cell> ShelterFurnitureCells(Observation.ColonyProjection facts)
-    {
-        var cells = new List<Cell>();
-        foreach (var room in PlannedShelterRooms(facts))
-        {
-            var (full, ok) = InteriorRegionRules.PlanRoomInterior(room, new Pol.InteriorPieceDef());
-            if (!ok)
-            {
-                continue;
-            }
-            foreach (var p in full.Pieces)
-            {
-                if (!p.IsBunk())
-                {
-                    cells.AddRange(RectCells(p.Rect));
-                }
-            }
-        }
-        return cells;
-    }
-
-    /// <summary>The interior cells of the layout plan's rooms a colonist sleeps in: the shelter, the bedrooms, the barracks and the suites. Loose sleeping spots stand in these and nowhere else.</summary>
+    /// <summary>The interior cells of the layout plan's rooms a colonist sleeps in: the bedrooms, the barracks and the suites. Loose sleeping spots stand in these and nowhere else.</summary>
     internal static List<Cell> SleepingPlannedCells(Observation.ColonyProjection facts)
     {
         var cells = new List<Cell>();
@@ -1674,7 +1425,7 @@ partial class RoundsBuildingPlanner
         }
         foreach (var room in plan.Rooms)
         {
-            if (room.Role is Pol.PlannedRole.Shelter or Pol.PlannedRole.Bedroom or Pol.PlannedRole.Barracks or Pol.PlannedRole.Suite)
+            if (room.Role is Pol.PlannedRole.Bedroom or Pol.PlannedRole.Barracks or Pol.PlannedRole.Suite)
             {
                 cells.AddRange(PlannedRoomInterior(room));
             }
