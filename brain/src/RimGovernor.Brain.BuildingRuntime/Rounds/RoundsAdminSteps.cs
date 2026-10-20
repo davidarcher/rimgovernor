@@ -142,7 +142,7 @@ public sealed partial class AdminRounds
                 var (morgue, owed) = RoundsBurialFacts.PlannedMorgue(reading.Projection);
                 if (!owed)
                 {
-                    return BuildingReasonNoDeficit;
+                    return RoundsBurialFacts.MorgueAwaitingRoom(reading.Projection) ? WaitFor(Cause.MethodUsed, "morgue_room") : BuildingReasonNoDeficit;
                 }
                 return (await _building.ReconcileRoomAsync(state, review, work.Owner, reading, stock, new RoomReconcile { Room = morgue, Name = RoundsBurialFacts.RoomName("morgue", morgue), Reason = "morgue" }, call, work.Epoch).ConfigureAwait(false)).Verdict;
             case TombStepKind.Reconcile:

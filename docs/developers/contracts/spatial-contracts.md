@@ -461,7 +461,9 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   private rooms do not outnumber the public ones get no corridor.
   **Outskirts rooms (#2882).** The tomb and morgue
   are station-less room nodes of the same graph (`OutskirtsRoomNodes`,
-  `LayoutOutskirts.cs`): each asks the floor its slot gives and keeps its role's
+  `LayoutOutskirts.cs`) while the burial demand asks for them (`RoomDemand.Tomb`,
+  `RoomDemand.Morgue`) or the plan holds one; a plan with no dead holds neither.
+  Each asks the floor its slot gives and keeps its role's
   interior template, and clustering makes a `Planned` group of it. No distance band sits on
   the nodes (#2987): no minimum clear ground (once walls stand, line of sight to a corpse
   pile is blocked, so no corpse-sight radius is a standing rule) and no maximum reach. The

@@ -81,4 +81,13 @@ public sealed record RoomDemand
     /// <summary>The materials yards the plan should hold, 0 for no demand (a further yard; see YardRoomsWanted).</summary>
     public int Yard { get; init; }
 
+    /// <summary>
+    /// The tombs the plan should hold, 0 for no demand: one more than it holds while a dead colonist is owed a
+    /// sarcophagus no planned tomb has room for (TombStepKind.Full). A plan with a sarcophagus out of reach owes a
+    /// plain grave, never a tomb.
+    /// </summary>
+    public int Tomb { get; init; }
+
+    /// <summary>The morgues the plan should hold, 0 for no demand: one while a human corpse waits unburied (MorgueWaiting).</summary>
+    public int Morgue { get; init; }
 }

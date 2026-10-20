@@ -1047,11 +1047,10 @@ public static partial class LayoutGraphRules
         return output;
     }
 
-    /// <summary>The station-less rooms the graph holds: the outskirts, the training rooms and the seed rooms.</summary>
+    /// <summary>The station-less rooms the graph holds: the training rooms, the facts' rooms (input.Rooms) and the seed rooms.</summary>
     internal static List<RoomNode> StationRoomNodes(StationGraphInput input)
     {
-        var nodes = new List<RoomNode>(LayoutOutskirtsRules.OutskirtsRoomNodes());
-        nodes.AddRange(LayoutTrainingNodesRules.TrainingRoomNodes(input.TrainingStands, input.TrainingMarkers));
+        var nodes = new List<RoomNode>(LayoutTrainingNodesRules.TrainingRoomNodes(input.TrainingStands, input.TrainingMarkers));
         nodes.AddRange(input.Rooms);
         nodes.AddRange(LayoutTripsRules.SeedRoomNodes(input.Seed));
         return nodes;

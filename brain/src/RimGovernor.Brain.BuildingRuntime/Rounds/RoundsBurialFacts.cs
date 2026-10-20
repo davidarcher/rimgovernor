@@ -54,10 +54,29 @@ internal static class RoundsBurialFacts
         return room is null ? (new PlannedRoom(), false) : (room, true);
     }
 
+    /// <summary>
+    /// A human corpse waits and the plan holds no morgue yet: the burial demand asks layout for one
+    /// (RoomDemand.Morgue) and the burial waits for the replan to plan it.
+    /// </summary>
+    internal static bool MorgueAwaitingRoom(ColonyProjection facts) =>
+        facts.Facts.Waste.TryGetValue(out var waste) && MorgueRules.MorgueWaiting(waste)
+        && facts.LayoutPlan.TryGetValue(out var plan) && plan.RoomsOf(PlannedRole.Morgue).Count == 0;
+
+    /// <summary>
+    /// The burial's asks of the layout plan (RoomDemand.Tomb, RoomDemand.Morgue): another tomb while a dead
+    /// colonist is owed a sarcophagus no planned tomb has room for, a morgue while a human corpse waits.
+    /// </summary>
+    internal static RoomDemand BurialDemand(ColonyProjection facts, LayoutPlan plan)
+    {
+        var tomb = TombStep(facts).Kind == TombStepKind.Full ? plan.TombRooms() + 1 : 0;
+        var morgue = facts.Facts.Waste.TryGetValue(out var waste) && MorgueRules.MorgueWaiting(waste) ? 1 : 0;
+        return new RoomDemand { Tomb = tomb, Morgue = morgue };
+    }
+
     internal static Fact<bool> BurialOwed(ColonyProjection facts)
     {
         var tk = TombOwed(facts).TryGetValue(out var tomb);
-        if (PlannedMorgue(facts).Owed || (tk && tomb))
+        if (PlannedMorgue(facts).Owed || MorgueAwaitingRoom(facts) || (tk && tomb))
         {
             return Known(true);
         }

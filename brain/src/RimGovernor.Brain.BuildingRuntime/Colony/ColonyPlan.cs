@@ -329,7 +329,9 @@ public sealed partial class Rounder
     /// </summary>
     internal async Task<RoomGrowth> RoomGrowthAsync(GenerationSnapshot snapshot, ColonyProjection projection, LayoutPlan plan, RoomDemand demand, CancellationToken ct)
     {
-        var growth = new RoomGrowth { Pens = projection.Facts.PenWants(), Demand = demand };
+        // The stores' demand, plus the burial's: a tomb or morgue joins the plan only once the dead ask for it.
+        var burial = RoundsBurialFacts.BurialDemand(projection, plan);
+        var growth = new RoomGrowth { Pens = projection.Facts.PenWants(), Demand = demand with { Tomb = burial.Tomb, Morgue = burial.Morgue } };
         var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(projection);
         growth = growth with { ThroneArea = ThroneRules.ThroneAreaOwed(plan, need, owed) };
         // A room whose need has ended and that is in use stays.
