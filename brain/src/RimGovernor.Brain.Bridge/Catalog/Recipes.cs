@@ -151,6 +151,9 @@ public sealed partial class DefinitionCatalog
                 Part = hediff.defName,
                 Work = recipe.workAmount,
                 Value = (double)price * slot.GetBaseCount(),
+                Learning = ObserveRecipeLearning(recipe),
+                SpeedStat = recipe.workSpeedStat?.defName ?? "",
+                Medicine = recipe.ingredients.Seq().Where(s => s.filter.AllowedThingDefs.Any() && s.filter.AllowedThingDefs.All(t => t.IsMedicine)).Sum(s => (double)s.GetBaseCount()),
             };
         }
 

@@ -209,6 +209,48 @@ internal static class HarmLedger
         return new(Known(raidsPerDay * days * risked), new HarmDetail(raidsPerDay, lo, hi, down, death, cvar), [.. findings]);
     }
 
+    /// <summary>
+    /// The medicine treatments the colony's raid wounds take a day (#3634): raids per day × Σ over the pawns of the treatments one raid's
+    /// wounds take (<see cref="HarmConsequences.Treatments"/>) at the pawn's exposure and worn outfit. Zero when no raid is expected;
+    /// unknown when the schedule, composition, ratio, a pawn's outfit or the exposure cell is.
+    /// </summary>
+    internal static Fact<double> TreatmentsPerDay(ForecastCoupledContext context, IReadOnlyDictionary<string, NeedsForecastPawn> pawns)
+    {
+        var inputs = context.Harm;
+        if (!inputs.Schedule.MajorThreatsPerDay.TryGetValue(out var threats) || !inputs.Schedule.RaidFraction.TryGetValue(out var raidShare))
+        {
+            return default;
+        }
+
+        var raidsPerDay = threats * raidShare;
+        if (raidsPerDay == 0)
+        {
+            return Known(0d);
+        }
+
+        var bins = inputs.Composition.Bins.ToArray();
+        if (!inputs.Composition.Pawns.IsKnown || bins.Length == 0 || !inputs.RaidPoints.TryGetValue(out var points)
+            || !inputs.DefenseCapacity.TryGetValue(out var defense) || !(defense > 0) || pawns.Count == 0)
+        {
+            return default;
+        }
+
+        var treatments = 0.0;
+        foreach (var (pawn, row) in pawns.OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            if (!context.Outfits.TryGetValue(pawn, out var wearing)
+                || !RaidExposure.HitsPerColonist(inputs.Exposure, points / defense, RoleOf(wearing)).Hits.TryGetValue(out var hits)
+                || !HarmConsequences.Treatments(hits, bins, ArmorResponseRules.OfOutfit(wearing, inputs.Natural, inputs.Coverage, bins), row).TryGetValue(out var one))
+            {
+                return default;
+            }
+
+            treatments += one;
+        }
+
+        return Known(raidsPerDay * treatments);
+    }
+
     /// <summary>The risk transform of one raid's loss: (1 − w) × mean + w × CVaR.</summary>
     internal static double Risk(double mean, double cvar, double weight) => (1 - weight) * mean + weight * cvar;
 

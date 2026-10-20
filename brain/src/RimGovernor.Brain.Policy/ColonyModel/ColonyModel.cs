@@ -36,7 +36,15 @@ public static class ColonyModel
         var levels = new double[StockNames.Length];
         levels[(int)ModelStock.Nutrition] = nutrition;
         levels[(int)ModelStock.Materials] = input.Stocks.Materials.TryGetValue(out var materials) ? materials.Sum(a => a.Count) : 0;
-        levels[(int)ModelStock.Medicine] = input.Stocks.Medicine.TryGetValue(out var medicine) ? medicine : 0;
+        // Medicine is held by kind, used up best first; the stock is their sum.
+        var kinds = input.Stocks.Medicine.TryGetValue(out var medicine) ? medicine.Select(a => a.Resource).ToArray() : [];
+        var held = input.Stocks.Medicine.TryGetValue(out medicine) ? medicine.Select(a => (double)a.Count).ToArray() : [];
+        if (policy.Injected is { } injected && Array.FindIndex(kinds, k => ProjectGraph.MedicineKey(k) == injected.Node) is var bumped and >= 0)
+        {
+            held[bumped] += injected.Work;
+        }
+
+        levels[(int)ModelStock.Medicine] = held.Sum();
 
         var fallPerDay = new double[pawns.Count];
         for (var i = 0; i < pawns.Count; i++)
@@ -69,6 +77,8 @@ public static class ColonyModel
             findings.Add("medicine_tend_rate_unknown");
         }
 
+        var medicineNet = net[(int)ModelStock.Medicine];
+
         var lead = 0.0;
         if (CalendarRules.HarvestGapDays(input.Calendar, Known(EquatableArray.From(Array.Empty<DisasterCondition>()))).TryGetValue(out var gap))
         {
@@ -98,8 +108,9 @@ public static class ColonyModel
                 break;
             }
 
-            // One labor pass per event interval: the rates it sets hold until the next event.
-            graph.Allocate(now, twelfth, boundary);
+            // One labor pass per event interval: the rates it sets hold until the next event; practice uses up medicine.
+            graph.Allocate(now, twelfth, boundary, levels[(int)ModelStock.Medicine]);
+            net[(int)ModelStock.Medicine] = medicineNet - graph.MedicineRate;
 
             // The earliest candidate; ties go to the lower kind, then the lower id.
             var when = policy.HorizonDays;
@@ -167,6 +178,7 @@ public static class ColonyModel
                 levels[s] = Math.Max(0, levels[s] + net[s] * span);
             }
 
+            UseMedicine(held, levels[(int)ModelStock.Medicine]);
             graph.Advance(span);
 
             now = when;
@@ -190,13 +202,14 @@ public static class ColonyModel
                     break;
                 case ModelEventKind.StockZero:
                     levels[Array.IndexOf(StockNames, id)] = 0;
+                    UseMedicine(held, levels[(int)ModelStock.Medicine]);
                     break;
                 case ModelEventKind.FoodRunway:
                     runway = now;
                     break;
             }
 
-            events.Add(new ModelEvent { Day = now, Kind = kind, Id = id, Levels = EquatableArray.From(levels) });
+            events.Add(new ModelEvent { Day = now, Kind = kind, Id = id, Levels = EquatableArray.From(levels), Medicine = EquatableArray.From(held) });
             if (kind == ModelEventKind.HorizonEnd)
             {
                 break;
@@ -210,9 +223,34 @@ public static class ColonyModel
             Starvation = EquatableArray.From(starved),
             Apparel = graph.Apparel,
             Arrivals = graph.Arrivals,
+            Skills = graph.Skills,
+            MedicineKinds = EquatableArray.From(kinds),
             FoodRunwayDay = runway,
             Findings = EquatableArray.From(findings),
         };
+    }
+
+    /// <summary>Brings the kinds to <paramref name="total"/>: what was used up comes off the best kind first; a gain joins the best kind.</summary>
+    private static void UseMedicine(double[] held, double total)
+    {
+        if (held.Length == 0)
+        {
+            return;
+        }
+
+        var used = held.Sum() - total;
+        if (used < 0)
+        {
+            held[0] -= used;
+            return;
+        }
+
+        for (var k = 0; k < held.Length && used > 0; k++)
+        {
+            var take = Math.Min(held[k], used);
+            held[k] -= take;
+            used -= take;
+        }
     }
 
     private static void AddCycleFindings(PawnCycle[][] cycles, int twelfth, SortedSet<string> findings)

@@ -32,7 +32,7 @@ public sealed record ResourceArrival
     public double Count { get; init; }
 }
 
-/// <summary>The tier-2 run's output: the events in order, the starvation spans, the apparel made, the resource arrivals and the food runway.</summary>
+/// <summary>The tier-2 run's output: the events in order, the starvation spans, the apparel made, the resource arrivals, the skill stocks and the food runway.</summary>
 public sealed record ColonyTrajectory
 {
     /// <summary>The finding of a run that reached <see cref="ColonyModelPolicy.MaxEvents"/> before the horizon; the trajectory is the partial run.</summary>
@@ -49,6 +49,12 @@ public sealed record ColonyTrajectory
 
     /// <summary>Each addition to the per-resource ledger, in completion order: the day each stuff arrives and how much.</summary>
     public EquatableArray<ResourceArrival> Arrivals { get; init; }
+
+    /// <summary>Each pawn's skill stocks whose mechanics are read (#3634): the levels they reach and when.</summary>
+    public EquatableArray<SkillTrack> Skills { get; init; }
+
+    /// <summary>The medicine kinds in the order they are used up (<see cref="ModelStocks.Medicine"/>); <see cref="ModelEvent.Medicine"/> is indexed by it.</summary>
+    public EquatableArray<Resource> MedicineKinds { get; init; }
 
     /// <summary>The day nutrition falls to the stock that bridges the lead days at the consumption then (stock over consumption, less the lead); null when it does not within the run.</summary>
     public double? FoodRunwayDay { get; init; }

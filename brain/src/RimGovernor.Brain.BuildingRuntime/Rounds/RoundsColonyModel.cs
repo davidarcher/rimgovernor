@@ -71,8 +71,10 @@ internal static class RoundsColonyModel
             : [];
         // The colony's expected raid is the same on every pawn's loadout input; the first known one is the colony's.
         var threat = gear is null ? default : gear.Pawns.Where(p => p.LoadoutModel.IsKnown).Select(p => p.LoadoutModel.Value.Threat).FirstOrDefault(t => t.IsKnown);
-        var policy = new ColonyModelPolicy { Projects = paths.Aggregate(ProjectGraph.Standing(input, options, threat), (graph, p) => graph.Then(p.Path.Graph)) };
+        // Practice never completes, so it goes last and takes the hours the finite nodes leave (#3634).
+        var policy = new ColonyModelPolicy { Projects = paths.Aggregate(ProjectGraph.Standing(input, options, threat), (graph, p) => graph.Then(p.Path.Graph)).Then(ProjectGraph.Practice(input)) };
         var valuation = new ColonyValue(context, options, policy.HorizonDays);
+        policy = policy with { MedicineTendsPerDay = valuation.RaidTreatmentsPerDay() };
         var marginals = ProjectMarginalValue.Of(input, policy, valuation, [.. paths.Where(p => p.Path.Terminal is not null).Select(p => p.Path.Terminal!)]);
         var etas = new Dictionary<string, int>(StringComparer.Ordinal);
         var notes = new List<string>();
@@ -110,6 +112,7 @@ internal static class RoundsColonyModel
             Crops = CropsOf(colony),
             Research = ResearchOf(facts.Research, facts.NeedsAlternatives?.Observation),
             Stocks = new ModelStocks { Nutrition = NutritionOf(colony.CombinedFoodSupply), Materials = MaterialsOf(colony.Resources), Medicine = MedicineOf(facts.MedicalReserve) },
+            Practice = PracticeOf(facts.Prisoners, facts.Recipes),
             Pawns = PawnsOf(colony),
             Recipes = facts.WorkAdmission.Recipes,
             Sites = facts.CurrentConstruction.TryGetValue(out var construction) ? Known(construction.Sites) : Unknown<EquatableArray<ConstructionSite>>(),
@@ -280,9 +283,69 @@ internal static class RoundsColonyModel
             ? Known(EquatableArray.From(held.OrderBy(p => p.Key).Select(p => new Amount(p.Key, p.Value))))
             : Unknown<EquatableArray<Amount>>();
 
-    /// <summary>The medicine on hand: the unforbidden stacks of the medical reserve census.</summary>
-    private static Fact<long> MedicineOf(MedicalReserveObservation reserve) =>
-        reserve.Items.TryGetValue(out var items) ? Known(items.Where(i => !i.Forbidden).Sum(i => i.Count)) : Unknown<long>();
+    /// <summary>
+    /// The medicine on hand by kind: the unforbidden stacks of the medical reserve census, highest potency first (the catalog's
+    /// potency order, a kind it does not rank last), then by name.
+    /// </summary>
+    internal static Fact<EquatableArray<Amount>> MedicineOf(MedicalReserveObservation reserve)
+    {
+        if (!reserve.Items.TryGetValue(out var items))
+        {
+            return Unknown<EquatableArray<Amount>>();
+        }
+
+        var potency = reserve.Catalog.MedicalPotency;
+        return Known(EquatableArray.From(items.Where(i => !i.Forbidden).GroupBy(i => i.Definition)
+            .Select(g => new Amount(g.Key, g.Sum(i => i.Count)))
+            .OrderByDescending(a => potency.TryGetValue(a.Resource, out var p) ? p : double.NegativeInfinity).ThenBy(a => a.Resource)));
+    }
+
+    /// <summary>
+    /// The practice slots (#3634): each living prisoner with a missing limb a material part installs on, or with a material part that can
+    /// be removed. The slot's surgery is that material install recipe's (work, learning, speed stat, medicine). Unknown without the
+    /// prisoner census, or while a row's status or a living prisoner's operations are unread.
+    /// </summary>
+    internal static Fact<EquatableArray<ModelPracticeSlot>> PracticeOf(Fact<EquatableArray<PrisonerFacts>> prisoners, RecipeFacts recipes)
+    {
+        if (!prisoners.TryGetValue(out var rows))
+        {
+            return Unknown<EquatableArray<ModelPracticeSlot>>();
+        }
+
+        var slots = new List<ModelPracticeSlot>();
+        foreach (var row in rows.OrderBy(r => r.Pawn.Value, StringComparer.Ordinal))
+        {
+            if (!row.Prisoner.TryGetValue(out var held) || !row.Dead.TryGetValue(out var dead))
+            {
+                return Unknown<EquatableArray<ModelPracticeSlot>>();
+            }
+
+            if (!held || dead)
+            {
+                continue;
+            }
+
+            if (!row.Operations.TryGetValue(out var operations))
+            {
+                return Unknown<EquatableArray<ModelPracticeSlot>>();
+            }
+
+            var install = operations.Where(o => o.Kind == Policy.SurgeryKind.Restore && o.Recipe.IsKnown).Select(o => recipes.MaterialInstallByRecipe(o.Recipe.Value)).FirstOrDefault(m => m is not null)
+                ?? operations.Where(o => o.Kind == Policy.SurgeryKind.Amputate && o.AddedPart.IsKnown).Select(o => recipes.MaterialInstallOfPart(o.AddedPart.Value)).FirstOrDefault(m => m is not null);
+            if (install?.Learning is not { } learning)
+            {
+                continue;
+            }
+
+            slots.Add(new ModelPracticeSlot
+            {
+                Prisoner = row.Pawn.Value, Recipe = install.Recipe, Skill = learning.Skill, Work = install.Work, RawXpPerWorkTick = learning.RawXpPerWorkTick,
+                SpeedStat = install.SpeedStat, Medicine = install.Medicine,
+            });
+        }
+
+        return Known(EquatableArray.From(slots));
+    }
 
     private static Fact<EquatableArray<ModelPawn>> PawnsOf(ColonyProjection colony)
     {
@@ -293,11 +356,13 @@ internal static class RoundsColonyModel
 
         var skills = new Dictionary<string, Fact<EquatableArray<WorkSkill>>>(StringComparer.Ordinal);
         var hunters = new Dictionary<string, Fact<bool>>(StringComparer.Ordinal);
+        var curves = new Dictionary<string, EquatableArray<SkillStatCurve>>(StringComparer.Ordinal);
         if (colony.WorkPawns.TryGetValue(out var workers))
         {
             foreach (var worker in workers)
             {
                 skills[worker.Id.Value] = worker.Skills;
+                curves[worker.Id.Value] = worker.SkillStatCurves;
             }
 
             // The hunt planner's armed hunter: a hunting weapon and the Hunting work; an unread weapon leaves it unknown.
@@ -372,6 +437,7 @@ internal static class RoundsColonyModel
                 ResearchSpeed = pawn.ResearchSpeed.TryGetValue(out var researching) && bestBench.TryGetValue(out var factor) ? Known(researching * factor) : Unknown<double>(),
                 PlantWorkSpeed = pawn.PlantWorkSpeed,
                 Hunts = hunters.GetValueOrDefault(pawn.Pawn),
+                SkillStatCurves = curves.GetValueOrDefault(pawn.Pawn),
             });
         }
 

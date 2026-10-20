@@ -54,9 +54,27 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         Assert.Equal(expected, marginals.PerHour["research:Devilstrand"], expected * 0.02);
         Assert.Equal(expected, marginals.PerHour["sow:zone1"], expected * 0.02);
         Assert.Equal(marginals.PerHour["research:Devilstrand"] / (ProjectGraph.ResearchPointsPerWorkTick * Hour), marginals.PerUnit["Devilstrand"], 12);
-        Assert.Equal(["Devilstrand", "sow:zone1"], marginals.PerUnit.Keys.Order());
+        Assert.Equal(["Devilstrand", "medicine/MedicineHerbal", "sow:zone1"], marginals.PerUnit.Keys.Order());
+        // Nothing the colony value prices uses medicine yet (#3634).
+        Assert.Equal(0, marginals.PerUnit["medicine/MedicineHerbal"]);
         // Growth, harvest and crafting take no tier-1 task, so they are not valued.
         Assert.DoesNotContain(marginals.PerHour.Keys, id => id.StartsWith("grow:", StringComparison.Ordinal) || id.StartsWith("harvest:", StringComparison.Ordinal) || id.StartsWith("craft:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void ThePracticedSkillHasAMarginalTheColonyValueDoesNotYetPrice()
+    {
+        var input = ProjectGraphTests.Colony();
+        input = input with
+        {
+            Pawns = Known(EquatableArray.From(new[] { SkillStockTests.Practitioner(input.Pawns.Value[0], SkillStockTests.Mechanics(0, 0)), input.Pawns.Value[1] })),
+            Practice = Known(EquatableArray.From(new[] { SkillStockTests.Slot() })),
+        };
+        var marginals = Marginals(input, ProjectGraphTests.Chain(input).Then(ProjectGraph.Practice(input)));
+
+        Assert.True(marginals.Trajectory.Events[^1].Levels[(int)ModelStock.Medicine] < 13);
+        Assert.Equal(0, marginals.PerUnit["skill/Anna/Medicine"]);
+        Assert.True(marginals.PerHour["research:Devilstrand"] > 0);
     }
 
     [Fact]

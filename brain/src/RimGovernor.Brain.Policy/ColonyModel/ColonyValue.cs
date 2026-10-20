@@ -18,7 +18,7 @@ public sealed record ColonyValueResult(Fact<double> Value, EquatableArray<string
 /// observed severity, and a pawn whose severity reaches lethal costs the rest of the horizon plus
 /// <see cref="ForecastValuePolicy.DeathTerminalValue"/>, as the ledger's thermal term does.
 /// </summary>
-public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<GearOption> options, double horizonDays)
+public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<GearOption> options, double horizonDays) : ITrajectoryValue
 {
     /// <summary>The finding of apparel the model cannot price: the harm model gave no number, or no gear option matches the product.</summary>
     public const string ApparelHarmUnassessed = "apparel_harm_unassessed";
@@ -33,7 +33,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     // The perturbation runs walk the same outfits: one review's losses are priced once.
     private readonly Dictionary<(string, EquatableArray<GearOption>), Fact<double>> losses = [];
 
-    public ColonyValueResult Of(ColonyTrajectory trajectory)
+    public ColonyValueResult Price(ColonyTrajectory trajectory)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var hunger = HungerLoss(trajectory, findings);
@@ -56,6 +56,12 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         var gameDay = ((double)context.Needs.Tick / GameTime.TicksPerDay) + day;
         return context.Value.GoalWorthOn(goal.Importance, goal.DeadlineDay, gameDay) * (horizonDays - day) / horizonDays;
     }
+
+    /// <summary>
+    /// The medicine raid tending uses up a day (#3634): the treatments the harm model's raid wounds take at each pawn's worn outfit
+    /// (<see cref="ColonyModelPolicy.MedicineTendsPerDay"/>). Unknown when the harm model cannot say.
+    /// </summary>
+    public Fact<double> RaidTreatmentsPerDay() => HarmLedger.TreatmentsPerDay(context, rows);
 
     /// <summary>The colony's capability-days lost to malnutrition over the horizon; null when a table or a pawn's capacities are unobserved.</summary>
     private double? HungerLoss(ColonyTrajectory trajectory, SortedSet<string> findings)

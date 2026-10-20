@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// The tier-2 colony model's project graph nodes (#3530 of #3470): research, sowing, growth, harvest, crafting, construction and hunting (#3620).
+// The tier-2 colony model's project graph nodes (#3530 of #3470): research, sowing, growth, harvest, crafting, construction, hunting (#3620) and practice (#3634).
 
 /// <summary>The kinds of project node.</summary>
 public enum ProjectKind
@@ -25,6 +25,13 @@ public enum ProjectKind
 
     /// <summary>Hunting and butchering one race's animals of the wildlife census; the work is the hunt planner's pursuit work, the yields its meat and butchery products.</summary>
     Hunt,
+
+    /// <summary>
+    /// Practising a skill on a practice slot (#3634): one surgery at a time on a prisoner with a missing or material limb. It never
+    /// completes; while the slot and its medicine last, the first free pawn able to do it works it with all its free hours and the
+    /// recipe's learning callback pays that pawn's skill stock, as research keeps running in the baseline.
+    /// </summary>
+    Practice,
 }
 
 /// <summary>
@@ -41,7 +48,7 @@ public sealed record ProjectNode
     /// <summary>Ids of the nodes that must complete first.</summary>
     public EquatableArray<string> Prerequisites { get; init; }
 
-    /// <summary>Research: points remaining. Sow, Harvest, Craft, Construction, Hunt: work units. Grow: unused.</summary>
+    /// <summary>Research: points remaining. Sow, Harvest, Craft, Construction, Hunt: work units. Practice: the work of one surgery. Grow: unused.</summary>
     public double Work { get; init; }
 
     /// <summary>Hunt: the meat's nutrition, which joins the nutrition stock at completion.</summary>
@@ -64,4 +71,16 @@ public sealed record ProjectNode
 
     /// <summary>Craft: true when the products go to the materials stock; false when they are apparel or another item the model holds no stock for.</summary>
     public bool ProductsToStock { get; init; }
+
+    /// <summary>Practice: the skill the recipe trains.</summary>
+    public string Skill { get; init; } = "";
+
+    /// <summary>Practice: the recipe's raw XP per tick spent on it (<see cref="RimGovernor.Contracts.Wire.Observations.RecipeLearning"/>).</summary>
+    public double RawXpPerWorkTick { get; init; }
+
+    /// <summary>Practice: the stat the recipe's work speed is (empty for speed 1), read off the worker's <see cref="ModelPawn.SkillStatCurves"/> at its level.</summary>
+    public string SpeedStat { get; init; } = "";
+
+    /// <summary>Practice: the medicine one surgery uses up.</summary>
+    public double Medicine { get; init; }
 }

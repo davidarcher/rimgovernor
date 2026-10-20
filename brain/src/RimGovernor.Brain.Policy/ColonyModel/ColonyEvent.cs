@@ -38,4 +38,7 @@ public sealed record ModelEvent
 
     /// <summary>Indexed by <see cref="ModelStock"/>.</summary>
     public EquatableArray<double> Levels { get; init; }
+
+    /// <summary>The medicine on hand by kind, indexed by <see cref="ColonyTrajectory.MedicineKinds"/>; they sum to the medicine level.</summary>
+    public EquatableArray<double> Medicine { get; init; }
 }

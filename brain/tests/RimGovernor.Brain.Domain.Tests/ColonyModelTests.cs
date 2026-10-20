@@ -34,7 +34,7 @@ public sealed class ColonyModelTests
         return input with
         {
             Pawns = Known(pawns),
-            Stocks = new ModelStocks { Nutrition = Known(nutrition), Materials = Known(EquatableArray.From(new[] { new Amount(new Resource("Steel"), 120) })), Medicine = Known(13L) },
+            Stocks = new ModelStocks { Nutrition = Known(nutrition), Materials = Known(EquatableArray.From(new[] { new Amount(new Resource("Steel"), 120) })), Medicine = Known(EquatableArray.From(new[] { new Amount(new Resource("MedicineHerbal"), 13) })) },
         };
     }
 

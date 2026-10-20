@@ -53,7 +53,7 @@ public sealed class ProjectGraphTests
             {
                 Nutrition = Known(10_000.0),
                 Materials = Known(EquatableArray.From(new[] { new Amount(new Resource("Steel"), 120), new Amount(new Resource(ColonyModelFixtures.Cloth), 8) })),
-                Medicine = Known(13L),
+                Medicine = Known(EquatableArray.From(new[] { new Amount(new Resource("MedicineHerbal"), 13) })),
             },
         };
     }

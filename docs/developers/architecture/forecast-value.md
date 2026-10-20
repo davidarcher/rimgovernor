@@ -328,6 +328,23 @@ stay, and the arrival-order walk above credits only the later one's upgrade. Wit
 a field of the same stuff adds nothing to it. No fibre stock is priced, and while the exposure table is a placeholder (#3543) the nodes
 exist, the harm is `apparel_harm_unassessed` and the chain's investment credit is 0.
 
+*Skills, practice and medicine (#3634).* Each pawn's skills are stocks keyed `skill/<pawn>/<skill>` (`SkillStock`), started from
+the observed `SkillLearning` (a skill whose mechanics are unread is `skill_stock_unknown:<key>:<gap>`). Between events XP moves at
+the practice it is paid (raw XP a day through the unsaturated factor, the excess over the saturation threshold at the saturated
+factor; coarsened to days, so each day starts unsaturated) less its level's native decay (`DecayXp` per `DecayInterval` while
+learning is allowed). Levels change at `RequiredXp` and the loss threshold by `ForecastSkill`'s level rule, and each change is dated
+inside the interval (`ColonyTrajectory.Skills`). A practice slot is a living prisoner with a missing limb a material part installs
+on, or with a material part to remove (`RoundsColonyModel.PracticeOf`); its surgery is that install recipe's work, learning callback
+(#3632), speed stat and medicine (the removal is priced as the install). `ProjectGraph.Practice` adds one `practice:<prisoner>`
+node per slot, last in the graph, so it takes the free hours the finite nodes leave: the first pawn with free hours and an enabled
+stock of the skill, at its speed at the stored level (#3633 curve; `practice_speed_unknown` otherwise), is paid the recipe's raw XP
+per tick and uses up a surgery's medicine per work it completes. No slot, no node; no medicine, no surgery. Medicine is held by kind,
+best potency first, and both the surgeries and raid tending (`ColonyModelPolicy.MedicineTendsPerDay`, set from
+`ColonyValue.RaidTreatmentsPerDay`: the harm model's raid wounds per pawn, batched at their mean severity under the native cap of 20
+per treatment) use up the best kind first. `ProjectMarginalValue` perturbs each pawn's stock of a practised skill by an hour of that
+practice's raw XP and each medicine kind by one unit, writing value per XP and per unit to `PerUnit` under the stock key and
+`medicine/<kind>`. `ColonyValue` prices neither skills nor medicine yet, so both marginals are 0 until a consumer reads them.
+
 *Goal terminals (#3505).* `GoalPaths.Of` turns an unmet goal into a terminal of that graph: a research goal is the project's research
 chain, a `WornCount` goal the sow, grow, harvest and craft chain of its stuff (the crop's research gates, the garment's recipe, one
 craft per garment still missing). `ProjectMarginalValue` finds each goal's completion day (the last event of its terminal nodes) in

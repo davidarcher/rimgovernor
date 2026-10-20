@@ -7,6 +7,19 @@ namespace RimGovernor.Brain.Policy;
 //
 // The same runs price the player's goals (#3505): a goal is a terminal of the graph (GoalPaths), its completion day is read off each
 // trajectory, and an hour of work is worth the goal's value at the day it completes less its value at the day it would have.
+//
+// Skills and medicine (#3634): each pawn's stock of a skill a practice node trains is run again with an hour of that practice's raw XP
+// injected; the practice keeps the stock moving, so the XP brings every later level date earlier and the value per XP is smooth. Each
+// medicine kind held is run again with one more unit.
+
+/// <summary>What a tier-2 trajectory is worth (<see cref="ColonyValue"/>; a test may price it otherwise).</summary>
+public interface ITrajectoryValue
+{
+    ColonyValueResult Price(ColonyTrajectory trajectory);
+
+    /// <summary>A goal's worth completed on <paramref name="completionDay"/> (null: not inside the horizon).</summary>
+    double GoalValue(GoalTerminal goal, double? completionDay);
+}
 
 /// <summary>The tier-2 run of a review and what an hour of each valued project is worth in it.</summary>
 public sealed record ProjectMarginals
@@ -25,7 +38,8 @@ public sealed record ProjectMarginals
 
     /// <summary>
     /// Capability-days a unit of the project's progress adds, by <see cref="ProjectGraph.ProgressKey"/>: per research point, per
-    /// cell sown. This is what tier 1 multiplies the progress of a task by (<see cref="ForecastCoupledContext.Investment"/>).
+    /// cell sown; per XP of a skill stock (<see cref="ProjectGraph.SkillKey"/>) and per unit of a medicine kind
+    /// (<see cref="ProjectGraph.MedicineKey"/>). This is what tier 1 multiplies the progress of a task by (<see cref="ForecastCoupledContext.Investment"/>).
     /// </summary>
     public IReadOnlyDictionary<string, double> PerUnit { get; init; } = new Dictionary<string, double>();
 
@@ -43,14 +57,14 @@ public static class ProjectMarginalValue
     /// The run of <paramref name="policy"/> over <paramref name="input"/>, the marginal value of each valued node of its project graph
     /// and, for each of <paramref name="goals"/>, its completion day and what a unit of each node's progress adds to it.
     /// </summary>
-    public static ProjectMarginals Of(ColonyModelInput input, ColonyModelPolicy policy, ColonyValue valuation, IReadOnlyList<GoalTerminal>? goals = null)
+    public static ProjectMarginals Of(ColonyModelInput input, ColonyModelPolicy policy, ITrajectoryValue valuation, IReadOnlyList<GoalTerminal>? goals = null)
     {
         goals ??= [];
         var cycles = input.Pawns.TryGetValue(out var pawns)
             ? pawns.Select(p => PawnCycle.Year(input, p).ToArray()).ToArray()
             : [];
         var baseline = ColonyModel.Run(input, cycles, policy);
-        var value = valuation.Of(baseline);
+        var value = valuation.Price(baseline);
         var findings = new SortedSet<string>(baseline.Findings.Concat(value.Findings), StringComparer.Ordinal);
         var perHour = new SortedDictionary<string, double>(StringComparer.Ordinal);
         var perUnit = new SortedDictionary<string, double>(StringComparer.Ordinal);
@@ -65,7 +79,7 @@ public static class ProjectMarginalValue
                 var hour = node.Kind == ProjectKind.Research ? ProjectGraph.ResearchPointsPerWorkTick * GameTime.TicksPerHour : GameTime.TicksPerHour;
                 var units = node.Kind == ProjectKind.Research ? hour : hour * node.Cells / node.Work;
                 var run = ColonyModel.Run(input, cycles, policy with { Injected = new InjectedProgress(node.Id, hour) });
-                if (value.Value.TryGetValue(out var baseValue) && valuation.Of(run).Value.TryGetValue(out var after))
+                if (value.Value.TryGetValue(out var baseValue) && valuation.Price(run).Value.TryGetValue(out var after))
                 {
                     var gain = Math.Abs(after - baseValue) < Negligible ? 0 : after - baseValue;
                     perHour[node.Id] = gain;
@@ -79,6 +93,31 @@ public static class ProjectMarginalValue
                     var gain = valuation.GoalValue(goal, day) - valuation.GoalValue(goal, before[goal.Goal]);
                     goalUnits[goal.Goal][ProjectGraph.ProgressKey(node)] = (Math.Abs(gain) < Negligible ? 0 : gain) / units;
                 }
+            }
+        }
+
+        if (value.Value.TryGetValue(out var asIs))
+        {
+            void Perturb(string key, double amount)
+            {
+                if (valuation.Price(ColonyModel.Run(input, cycles, policy with { Injected = new InjectedProgress(key, amount) })).Value.TryGetValue(out var after))
+                {
+                    perUnit[key] = (Math.Abs(after - asIs) < Negligible ? 0 : after - asIs) / amount;
+                }
+            }
+
+            // An hour of the practice's raw XP into each pawn's stock of the skill it trains.
+            foreach (var practice in policy.Projects.Nodes.Where(n => n.Kind == ProjectKind.Practice && n.RawXpPerWorkTick > 0).GroupBy(n => n.Skill).Select(g => g.First()))
+            {
+                foreach (var track in baseline.Skills.Where(t => t.Skill == practice.Skill))
+                {
+                    Perturb(track.Key, practice.RawXpPerWorkTick * GameTime.TicksPerHour);
+                }
+            }
+
+            foreach (var kind in baseline.MedicineKinds)
+            {
+                Perturb(ProjectGraph.MedicineKey(kind), 1);
             }
         }
 

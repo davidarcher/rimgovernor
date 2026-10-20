@@ -141,6 +141,33 @@ public static class HarmConsequences
 
     private static HarmDistribution Unknown(SortedSet<string> findings) => new() { Findings = [.. findings] };
 
+    // TendUtility.GetOptimalHediffsToTendWithSingleTreatment: with medicine, one treatment tends the first injury and each further
+    // injury while their summed severity stays at or under 20 (TendUtility.DoTend uses up one medicine per treatment). Kept: see
+    // docs/developers/contracts/kept-constants.md (raid health consequences).
+    private const double TendBatchSeverity = 20;
+
+    /// <summary>
+    /// The treatments one raid's wounds on the pawn take with medicine (#3634): the expected wounds (the mean hits less those a layer
+    /// deflects), batched as the game batches injuries into one treatment by their mean severity (damage per wound after armor, times
+    /// the pawn's incoming damage factor). Unknown when the weapon mix or the factor is.
+    /// </summary>
+    public static Fact<double> Treatments(HitRange hits, IReadOnlyList<WeaponBin> bins, IReadOnlyList<ArmorResponse> response, NeedsForecastPawn pawn)
+    {
+        if (Mix.Of(bins, response) is not { } mix || !pawn.IncomingDamageFactor.TryGetValue(out var incoming))
+        {
+            return default;
+        }
+
+        var wounds = Math.Max(0, hits.Mean) * mix.Wounds;
+        var severity = Math.Max(0, incoming) * mix.MeanDamage / mix.Wounds;
+        if (!(wounds > 0) || !(severity > 0))
+        {
+            return Known(0d);
+        }
+
+        return Known(wounds / Math.Max(1, Math.Floor(TendBatchSeverity / severity)));
+    }
+
     // The sum of the hits' damage on the grid: Poisson hits at the range's low, mean and high, weighted three-point.
     private static (double[] Mass, double Step) Mass(HitRange hits, Mix mix)
     {

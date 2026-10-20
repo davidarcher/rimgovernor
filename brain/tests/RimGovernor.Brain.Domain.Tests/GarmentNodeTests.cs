@@ -57,7 +57,7 @@ public sealed class GarmentNodeTests
     private static ApparelMade Made(string def, Resource stuff, double day) =>
         new() { Day = day, Node = ProjectGraph.GarmentId(stuff, GearSlot.Outer), Products = [new Amount(new Resource(def), 1)], Ingredients = [new Amount(stuff, 80)] };
 
-    private static double Of(ColonyValue value, params ApparelMade[] made) => value.Of(new ColonyTrajectory { Apparel = EquatableArray.From(made) }).Value.Value;
+    private static double Of(ColonyValue value, params ApparelMade[] made) => value.Price(new ColonyTrajectory { Apparel = EquatableArray.From(made) }).Value.Value;
 
     [Fact]
     public void AGrowingFieldWithNoClothInStockValuesTheClothGarmentOnlyFromItsHarvest()
@@ -79,9 +79,9 @@ public sealed class GarmentNodeTests
         Assert.True(made.Day > harvest.Day);
 
         // The value is a daily gain times the days from the craft: two horizons give the same gain a day.
-        var value = Value([option]).Of(trajectory).Value.Value - Value([option]).Of(new ColonyTrajectory()).Value.Value;
+        var value = Value([option]).Price(trajectory).Value.Value - Value([option]).Price(new ColonyTrajectory()).Value.Value;
         var midway = (made.Day + Horizon) / 2;
-        var shorter = Value([option], midway).Of(trajectory).Value.Value - Value([option], midway).Of(new ColonyTrajectory()).Value.Value;
+        var shorter = Value([option], midway).Price(trajectory).Value.Value - Value([option], midway).Price(new ColonyTrajectory()).Value.Value;
         Assert.True(value > 0);
         Assert.Equal(value / (Horizon - made.Day), shorter / (midway - made.Day), 9);
     }
@@ -106,7 +106,7 @@ public sealed class GarmentNodeTests
         var made = Assert.Single(trajectory.Apparel);
         Assert.Equal(ProjectGraph.GarmentId(Leather, GearSlot.Outer), made.Node);
         Assert.True(made.Day > hunt.Day);
-        Assert.True(Value([option]).Of(trajectory).Value.Value > Value([option]).Of(new ColonyTrajectory()).Value.Value);
+        Assert.True(Value([option]).Price(trajectory).Value.Value > Value([option]).Price(new ColonyTrajectory()).Value.Value);
     }
 
     [Fact]

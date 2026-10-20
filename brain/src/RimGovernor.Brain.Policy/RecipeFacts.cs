@@ -66,4 +66,13 @@ public sealed record MaterialInstall
 
     /// <summary>The consumed stuff's market value times the count the recipe takes.</summary>
     public double Value { get; init; }
+
+    /// <summary>The recipe's native learning callback (#3632); null when the catalog did not read it.</summary>
+    public RimGovernor.Contracts.Wire.Observations.RecipeLearning? Learning { get; init; }
+
+    /// <summary>The recipe's work speed stat (<c>RecipeDef.workSpeedStat</c>); empty for none, which works at speed 1.</summary>
+    public string SpeedStat { get; init; } = "";
+
+    /// <summary>The medicine the recipe uses up: the count of its ingredient slots that take only medicine.</summary>
+    public double Medicine { get; init; }
 }

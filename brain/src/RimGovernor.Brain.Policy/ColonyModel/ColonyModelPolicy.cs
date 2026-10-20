@@ -15,7 +15,11 @@ public sealed record ScheduledEffect
     public double Amount { get; init; }
 }
 
-/// <summary>Work already done on one node at time zero (#3531): the perturbation the marginal value is measured by. In the node's <see cref="ProjectNode.Work"/> units (research points; sow work).</summary>
+/// <summary>
+/// Work already done on one node at time zero (#3531): the perturbation the marginal value is measured by. In the node's
+/// <see cref="ProjectNode.Work"/> units (research points; sow work). <see cref="Node"/> may instead be a skill stock's key
+/// (<see cref="ProjectGraph.SkillKey"/>, XP) or a medicine kind's (<see cref="ProjectGraph.MedicineKey"/>, units) (#3634).
+/// </summary>
 public sealed record InjectedProgress(string Node, double Work);
 
 /// <summary>The tier-2 engine's constants and hooks (#3529 of #3470).</summary>
@@ -28,7 +32,8 @@ public sealed record ColonyModelPolicy
     public int MaxEvents { get; init; } = 4_096;
 
     /// <summary>
-    /// Medicine tended a day, as the colony is observed to tend. Unknown leaves medicine unconsumed and is reported, never defaulted.
+    /// Medicine tended a day: the treatments the harm model's raid wounds imply (<see cref="ColonyValue.RaidTreatmentsPerDay"/>, #3634).
+    /// Unknown leaves medicine unconsumed by tending and is reported, never defaulted.
     /// </summary>
     public Fact<double> MedicineTendsPerDay { get; init; }
 

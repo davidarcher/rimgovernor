@@ -18,23 +18,9 @@ public static class ForecastSkillPolicy
         SkillProjection Unknown(string why) => new(default, default, default, default, default, [why]);
         if (horizon < 0 || horizon > GameTime.TicksPerDay || events.Count > 4096)
             return Unknown("learning_horizon_or_event_bound");
-        if (observed is not { } s || !s.Disabled.IsKnown || !s.TrackerAllowsLearning.IsKnown
-            || !s.StoredLevel.IsKnown || !s.Aptitude.IsKnown || !s.Xp.IsKnown || !s.XpSinceMidnight.IsKnown
-            || !s.DirectFactor.IsKnown || !s.UnsaturatedFactor.IsKnown || !s.SaturationThreshold.IsKnown
-            || !s.SaturatedFactor.IsKnown || !s.LossThreshold.IsKnown || !s.DecayInterval.IsKnown
-            || !s.NextDecay.IsKnown || !s.ValidForTicks.IsKnown)
-            return Unknown("learning_mechanics_unknown");
-        if (horizon >= s.ValidForTicks.Value || s.DecayInterval.Value <= 0 || s.DecayInterval.Value > GameTime.TicksPerDay
-            || s.NextDecay.Value <= 0 || s.NextDecay.Value > s.DecayInterval.Value
-            || s.Levels.Count == 0 || s.StoredLevel.Value < 0 || s.StoredLevel.Value >= s.Levels.Count
-            || s.Levels.Where((l, i) => l.Level != i || !double.IsFinite(l.RequiredXp) || l.RequiredXp <= 0
-                || !double.IsFinite(l.DecayXp) || l.DecayXp < 0).Any()
-            || !double.IsFinite(s.Xp.Value) || !double.IsFinite(s.XpSinceMidnight.Value)
-            || !double.IsFinite(s.DirectFactor.Value) || s.DirectFactor.Value < 0
-            || !double.IsFinite(s.UnsaturatedFactor.Value) || s.UnsaturatedFactor.Value < 0
-            || !double.IsFinite(s.SaturatedFactor.Value) || s.SaturatedFactor.Value < 0
-            || !double.IsFinite(s.SaturationThreshold.Value) || !double.IsFinite(s.LossThreshold.Value) || s.LossThreshold.Value >= 0)
-            return Unknown("learning_mechanics_outside_supported_window");
+        if (MechanicsGap(observed) is { } gap) return Unknown(gap);
+        var s = observed!;
+        if (horizon >= s.ValidForTicks.Value) return Unknown("learning_mechanics_outside_supported_window");
         if (events.Any(e => string.IsNullOrEmpty(e.Id) || e.Tick < 0 || e.Tick > horizon || !e.RawXp.IsKnown
                 || !double.IsFinite(e.RawXp.Value) || e.RawXp.Value < 0 || !Enum.IsDefined(e.Path))
             || events.Select(e => e.Id).Distinct(StringComparer.Ordinal).Count() != events.Count
@@ -93,12 +79,43 @@ public static class ForecastSkillPolicy
             xp += amount;
             if (!direct) midnight += amount;
             if (!double.IsFinite(xp) || !double.IsFinite(midnight)) arithmeticInvalid = true;
-            while (xp >= s.Levels[level].RequiredXp && level < s.Levels.Count - 1)
-            { xp -= s.Levels[level].RequiredXp; level++; }
-            if (level == s.Levels.Count - 1) xp = Math.Min(xp, s.Levels[level].RequiredXp - 1);
-            while (xp <= s.LossThreshold.Value && level > 0)
-            { level--; xp += s.Levels[level].RequiredXp; if (level == 0) xp = 0; }
+            Settle(s, ref level, ref xp);
         }
+    }
+
+    /// <summary>The first reason the mechanics cannot be projected at all, or null: an unread fact
+    /// (<c>learning_mechanics_unknown</c>) or a value outside the supported window. The horizon bound is the caller's.</summary>
+    internal static string? MechanicsGap(SkillLearning? observed)
+    {
+        if (observed is not { } s || !s.Disabled.IsKnown || !s.TrackerAllowsLearning.IsKnown
+            || !s.StoredLevel.IsKnown || !s.Aptitude.IsKnown || !s.Xp.IsKnown || !s.XpSinceMidnight.IsKnown
+            || !s.DirectFactor.IsKnown || !s.UnsaturatedFactor.IsKnown || !s.SaturationThreshold.IsKnown
+            || !s.SaturatedFactor.IsKnown || !s.LossThreshold.IsKnown || !s.DecayInterval.IsKnown
+            || !s.NextDecay.IsKnown || !s.ValidForTicks.IsKnown)
+            return "learning_mechanics_unknown";
+        if (s.DecayInterval.Value <= 0 || s.DecayInterval.Value > GameTime.TicksPerDay
+            || s.NextDecay.Value <= 0 || s.NextDecay.Value > s.DecayInterval.Value
+            || s.Levels.Count == 0 || s.StoredLevel.Value < 0 || s.StoredLevel.Value >= s.Levels.Count
+            || s.Levels.Where((l, i) => l.Level != i || !double.IsFinite(l.RequiredXp) || l.RequiredXp <= 0
+                || !double.IsFinite(l.DecayXp) || l.DecayXp < 0).Any()
+            || !double.IsFinite(s.Xp.Value) || !double.IsFinite(s.XpSinceMidnight.Value)
+            || !double.IsFinite(s.DirectFactor.Value) || s.DirectFactor.Value < 0
+            || !double.IsFinite(s.UnsaturatedFactor.Value) || s.UnsaturatedFactor.Value < 0
+            || !double.IsFinite(s.SaturatedFactor.Value) || s.SaturatedFactor.Value < 0
+            || !double.IsFinite(s.SaturationThreshold.Value) || !double.IsFinite(s.LossThreshold.Value) || s.LossThreshold.Value >= 0)
+            return "learning_mechanics_outside_supported_window";
+        return null;
+    }
+
+    /// <summary>The native level rule after XP moved (<c>SkillRecord.Learn</c>): level up at each <c>RequiredXp</c>, the top level
+    /// capped below its own; level down at or under the loss threshold, XP reset at level 0. The tier-2 skill stock (#3634) shares it.</summary>
+    internal static void Settle(SkillLearning s, ref int level, ref double xp)
+    {
+        while (xp >= s.Levels[level].RequiredXp && level < s.Levels.Count - 1)
+        { xp -= s.Levels[level].RequiredXp; level++; }
+        if (level == s.Levels.Count - 1) xp = Math.Min(xp, s.Levels[level].RequiredXp - 1);
+        while (xp <= s.LossThreshold.Value && level > 0)
+        { level--; xp += s.Levels[level].RequiredXp; if (level == 0) xp = 0; }
     }
 
     /// <summary>One supported recipe completion callback, surgery included (a failed surgery pays too). workTicks are the
