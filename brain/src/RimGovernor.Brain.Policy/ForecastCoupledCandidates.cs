@@ -287,6 +287,7 @@ public sealed partial record ForecastCoupledCandidates
             Shelters = EquatableArray.From(shelters),
             PlannedSites = plannedRealized,
             PlannedRooms = EquatableArray.From(planned.Rooms),
+            PlannedRoomRoles = facts.PlannedSites.TryGetValue(out var plannedRoles) ? plannedRoles.Roles.ToDictionary(r => r.Room, r => r.Role) : new Dictionary<int, PlannedRole>(),
             Closures = closures,
             InitialLots = EquatableArray.From(lots),
             Bindings = bindings,

@@ -29,9 +29,16 @@ public sealed record ForecastMaterialLot(string Lot, string Location, Resource R
 /// </summary>
 public sealed record ForecastPlannedSite(string Site, int Room, string Stuff, EquatableArray<string> Activities, EquatableArray<string> Finishes)
 {
-    /// <summary>The Need of a planned site root's outcome. Its relief marks requested development for the thermal-relief gate;
-    /// the units themselves are counted from the evaluated outcome (ForecastCoupledOutcome.RequestedDevelopment).</summary>
+    /// <summary>The Need of a planned site root's outcome, which marks the root as one: the selection exempts its closure
+    /// from the thermal-relief gate (#3651). The units are counted from the evaluated outcome (ForecastCoupledOutcome.RequestedDevelopment).</summary>
     public const string DevelopmentNeed = "requested-development";
+
+    /// <summary>
+    /// The planned room roles that carry a priced value of their own (#3651, #3647 decision 3): their completed units are
+    /// still emitted and exempt, but no longer count as development in the ranking's late tiebreak. Empty until a role is
+    /// priced; each priced role is added here (Bedroom, Barracks, then the rest in #3650).
+    /// </summary>
+    public static readonly IReadOnlySet<PlannedRole> PricedRoomRoles = new HashSet<PlannedRole>();
 }
 
 /// <summary>
@@ -56,6 +63,10 @@ public sealed record ForecastCoupledContext
     /// <summary>The planned sites generated as construction activities (#3276), and the room alternatives they make up.</summary>
     public EquatableArray<ForecastPlannedSite> PlannedSites { get; init; }
     public EquatableArray<PlannedRoomAlternative> PlannedRooms { get; init; }
+    /// <summary>Each planned room's role, from the layout plan (#3651); a room without a row counts as development.</summary>
+    public IReadOnlyDictionary<int, PlannedRole> PlannedRoomRoles { get; init; } = new Dictionary<int, PlannedRole>();
+    /// <summary>The roles whose units the development count skips (#3651); the shipped set by default, tests inject one.</summary>
+    public IReadOnlySet<PlannedRole> PricedRoomRoles { get; init; } = ForecastPlannedSite.PricedRoomRoles;
     /// <summary>The closed-room predictions of the planned rooms (#3339): what each room is once its ring of one stuff stands.</summary>
     public EquatableArray<ForecastPlannedClosure> Closures { get; init; }
     public EquatableArray<ForecastMaterialLot> InitialLots { get; init; }
@@ -102,7 +113,8 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
     /// <summary>Per planned room with a site completed inside the horizon: its completed sites and complete alternatives.</summary>
     public EquatableArray<ForecastPlannedRoomOutcome> PlannedRooms { get; init; }
     /// <summary>The planned development units completed inside the horizon (#3334): each planned site once, and a planned
-    /// room's per-cell roof as its <c>planned/room{R}/roof</c> unit. One unit each of requested development.</summary>
+    /// room's per-cell roof as its <c>planned/room{R}/roof</c> unit. One unit each of requested development, except a unit
+    /// of a room whose role is priced (ForecastCoupledContext.PricedRoomRoles, #3651), which the ranking does not count.</summary>
     public EquatableArray<string> RequestedDevelopment { get; init; }
     /// <summary>Known stationary-location exposure avoided relative to the same occupancy without proposed room changes.
     /// Unobserved transit/idle receive no benefit.</summary>

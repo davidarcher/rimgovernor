@@ -616,12 +616,14 @@ temperature safety is enabled (the placed-site gate; `planned_sites_unknown` whe
    - The roof is worked at its own location, its first interior cell.
    - The planned-site routes of the free pawns join the generated routes, a `FromStart` row as the pawn's start.
 4. Roots. Each site is its own comparison root, named by its site id and shared by every alternative that
-   contains it. A site root carries one requested-development relief entry (the Need is its site id), which
-   marks its work for the thermal-relief gate. Development itself is counted from the evaluated outcome
-   (`RequestedDevelopment`): each planned site whose finish completes is one unit, the lowest tier, whichever
-   root built it, and a planned shelter's per-cell native roof cells together are the room's one
-   `planned/room{id}/roof` unit. Each alternative is also a root,
-   `planned/room{id}[/{stuff}]/{scope}`, which requires all its sites' finishes and carries no relief of its own;
+   contains it. A site root's outcome Need (`ForecastPlannedSite.DevelopmentNeed`) marks it a planned site
+   root, whose closure the thermal-relief gate exempts; it carries no relief. Development itself is counted from
+   the evaluated outcome (`RequestedDevelopment`): each planned site whose finish completes is one unit, the
+   lowest tier, whichever root built it, and a planned shelter's per-cell native roof cells together are the
+   room's one `planned/room{id}/roof` unit. The count skips the units of a room whose role
+   (`Context.PlannedRoomRoles`, from `PlannedSiteFacts.Roles`) is in `Context.PricedRoomRoles`
+   (`ForecastPlannedSite.PricedRoomRoles`, empty until a role is priced, #3651). Each alternative is also a root,
+   `planned/room{id}[/{stuff}]/{scope}`, which requires all its sites' finishes and is not exempt;
    alternatives of a room exclude each other. Ring site roots of different stuffs, and the other stuffs'
    alternatives, are excluded from each other (`Outcome.Excludes`). Planned roots get no after-production
    variants.
@@ -638,13 +640,12 @@ finishes) and `Context.PlannedRooms` keep the mapping back. The evaluated outcom
 with a site finished in the horizon, the completed sites and the alternatives completed whole. A room left
 partial names `planned_room_effect_unassessed` instead of a whole-room value.
 
-Selection treats planned allocations as requested development: the thermal-relief gate exempts allocations in
-the closure of selected commitments that carry requested-development relief. Binding skips unplaced planned
+The thermal-relief gate exempts allocations in the closure of a selected planned site root (#3651). Binding skips unplaced planned
 allocations (`CoordinatedActivityBinding.Start`): a planned site has no action template until placed, except its
 bound `Deconstruct` clearings, which start as orders (#3557). A selection whose
 only work is planned is compared again without the planned roots for the review's orders (#3557); one that then
 starts no order records `coupled_selection` with target `planned_unplaced`. The room
-reconcile then places exactly the sites the selected plan completes (`RequestedDevelopment`) of an unstarted
+reconcile then places exactly the sites the selected plan completes (`PlannedRooms`, not the development count) of an unstarted
 assessed room, in their stuff, and holds an assessed room with none completed ([portfolio selection](portfolio-selection.md#planned-rooms)).
 
 ## Review inputs and pawn windows

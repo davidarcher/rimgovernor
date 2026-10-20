@@ -590,4 +590,54 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Equal(PlannedRoomGate.Selected, gate);
         Assert.Equal([OpKind.WallIn], sites.Select(s => s.Op));
     }
+
+    /// <summary>
+    /// #3651: a room whose role carries a priced value leaves the development tiebreak. Its completed sites add nothing to
+    /// the count, yet the selection still exempts its site roots from the thermal-relief gate and the record still places
+    /// its sites when they are selected.
+    /// </summary>
+    [Fact]
+    public void APricedRoomsSitesCountNoDevelopmentYetAreEmittedAndNotRefused()
+    {
+        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var counted = Select(facts);
+        Assert.Equal(2, counted.SelectedVector.Development);
+        var bedroom = facts with { PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Bedroom)] }) };
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced();
+        Assert.Equal(PlannedRole.Bedroom, generated.Context.PlannedRoomRoles[1]);
+        var priced = bedroom with { CoupledAlternatives = generated with { Context = generated.Context with { PricedRoomRoles = new HashSet<PlannedRole> { PlannedRole.Bedroom } } } };
+        var result = Select(priced);
+        string[] roomSites = ["planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"];
+        var planned = result.Rejected.Where(e => e.Commitments.Count > 0 && e.Commitments.All(id => roomSites.Any(s => id.StartsWith(s + "/composition/", StringComparison.Ordinal)))).ToArray();
+        Assert.NotEmpty(planned);
+        Assert.DoesNotContain(planned, e => e.Reason.StartsWith("construction_without_supported_service_relief", StringComparison.Ordinal));
+        Assert.All(planned, e => Assert.Equal(0, e.Consequences!.Development));
+
+        var roots = counted.Selection.Selected.Where(id => roomSites.Any(s => id.StartsWith(s + "/composition/", StringComparison.Ordinal))).ToArray();
+        Assert.Equal(2, roots.Length);
+        var record = PlannedRules.PlannedSelectionOf(priced.CoupledAlternatives, result with
+            { Selection = result.Selection with { Selected = roots }, Selected = counted.Selected }, priced.PlannedSites)!;
+        var (gate, sites) = PlannedRules.PlannedRoomGateOf(record, 1, started: false);
+        Assert.Equal(PlannedRoomGate.Selected, gate);
+        Assert.Equal([OpKind.DoorIn, OpKind.WallIn], sites.Select(s => s.Op));
+    }
+
+    /// <summary>
+    /// #3651: emission reads the selected portfolio, not the development count. A portfolio with no root of the room
+    /// completes none of its sites, so the record emits none and the assessed room is held, as before.
+    /// </summary>
+    [Fact]
+    public void APortfolioThatSelectsNoRootOfTheRoomEmitsNoneOfItsSites()
+    {
+        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var candidates = facts.CoupledAlternatives!;
+        var without = facts with { CoupledAlternatives = candidates with
+            { Alternatives = EquatableArray.From(candidates.Alternatives.Where(c => !c.Id.StartsWith("planned/", StringComparison.Ordinal))) } };
+        var result = Select(without);
+        Assert.DoesNotContain(result.Selection.Selected, id => id.StartsWith("planned/", StringComparison.Ordinal));
+        var record = PlannedRules.PlannedSelectionOf(candidates, result, facts.PlannedSites)!;
+        Assert.Equal([1], record.Assessed);
+        Assert.Empty(record.Sites);
+        Assert.Equal(PlannedRoomGate.Hold, PlannedRules.PlannedRoomGateOf(record, 1, started: false).Gate);
+    }
 }

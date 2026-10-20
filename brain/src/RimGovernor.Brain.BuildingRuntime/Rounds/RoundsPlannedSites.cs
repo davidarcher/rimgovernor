@@ -31,7 +31,10 @@ public sealed partial class Rounder
         var probes = PlannedRules.PlannedRouteProbes(joined.Sites);
         var routes = probes.Count == 0 ? null
             : await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Routes = probes }, ct).ConfigureAwait(false);
-        return Known(PlannedRules.JoinPlannedRoutes(joined, probes, routes));
+        return Known(PlannedRules.JoinPlannedRoutes(joined, probes, routes) with
+        {
+            Roles = EquatableArray.From(owed!.Sited.Select(r => (Room: r.Room.Id, r.Room.Role)).Distinct().OrderBy(r => r.Room)),
+        });
     }
 
     /// <summary>One construction activity read of planned sites or routes; null without the read.</summary>

@@ -57,9 +57,11 @@ A planned site finished inside the horizon is one unit of requested development,
 the lowest tier, whichever root built it: its own site root, a room alternative or a
 shelter. A planned room's per-cell native roof cells are together that room's one
 roof unit, earned when every cell completes. A whole planned room carries no value
-of its own. Work in the
-closure of a commitment that carries requested-development relief is exempt
-from the thermal-relief gate on construction allocations.
+of its own. A room whose role carries a priced value (`PricedRoomRoles`, empty
+until a role is priced, #3651, #3650) leaves this count; its sites are still
+emitted and exempt. Work in the closure of a selected planned site root, or of
+a commitment that carries relief, is exempt from the thermal-relief gate on
+construction allocations.
 
 Unknown dimensions are compared only when both alternatives assess them.
 Unknown meal thoughts cannot veto known urgent hunger relief. Unknown routes,
@@ -140,8 +142,8 @@ closure. Roots with direct consequences or claims retain separate evaluation.
 Subsets with the same task closure and the same such roots (a retained incumbent
 by id) share one schedule search: a shelter, a room alternative and a room's site
 roots that complete the same sites are scheduled once. A planned site root differs
-only in marking its closure as requested development, so the relief gate is applied
-to each subset over the shared schedule; a subset whose marked closure also matches
+only in exempting its closure from the relief gate, so the gate is applied
+to each subset over the shared schedule; a subset whose exempt closure also matches
 is skipped.
 An optimistic physical-lot quantity check rejects impossible bundles before
 assignment search; timed consumption, expiry and reservations still use the
@@ -221,9 +223,10 @@ selected sites with their op, def, stuff and cells. A review that compared
 nothing keeps the record; a room observed started drops its sites.
 
 The selected sites are the planned sites whose finish the selected plan
-completes inside the horizon, as its evaluated outcome counts them
-(`ForecastCoupledOutcome.RequestedDevelopment`), whichever roots carried them
-(`PlannedSelectionOf`). A shelter root therefore selects its room's wall,
+completes inside the horizon (`ForecastCoupledOutcome.PlannedRooms`), whichever
+roots carried them (`PlannedSelectionOf`). They are read from the completed
+sites, not the development count, so a priced room's sites are placed too
+(#3651). A shelter root therefore selects its room's wall,
 door, roof and heater; a room alternative selects its scope's sites; and the
 equivalent root sets that share one schedule give one record, whichever the
 search reached first. A site the plan names but does not finish inside the

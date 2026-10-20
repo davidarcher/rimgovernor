@@ -43,6 +43,9 @@ public sealed record PlannedSiteFacts
     public EquatableArray<CoupledRoute> Routes { get; init; }
 
     public EquatableArray<string> Findings { get; init; }
+
+    /// <summary>The layout plan's role of each room with sites (PlannedRoom.Role, #3651): the development count skips a priced role's sites.</summary>
+    public EquatableArray<(int Room, PlannedRole Role)> Roles { get; init; }
 }
 
 /// <summary>A stuff a planned ring may be built from: its price (the cost list's market value) and whether the colony holds any.</summary>

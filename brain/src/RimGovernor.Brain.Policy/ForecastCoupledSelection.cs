@@ -234,13 +234,15 @@ public sealed partial record ForecastCoupledSelection
             && c.SituationalChanges.Count == 0 && c.ComfortShifts.Count == 0 && c.OutfitChanges.Count == 0;
         static bool PlannedSiteRoot(ForecastCommitment c) => c.Outcome?.Need == ForecastPlannedSite.DevelopmentNeed && GraphOnly(c with { Outcome = null });
         var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
-        // Per root: whether it is graph-only, keys a schedule by id (direct effects or claims; a retained incumbent) and requests relief.
-        var graphOnly = new bool[alternatives.Length]; var keyed = new bool[alternatives.Length]; var relieving = new bool[alternatives.Length];
+        // Per root: whether it is graph-only, keys a schedule by id (direct effects or claims; a retained incumbent) and exempts
+        // its closure from the relief gate: a planned site root (#3651), or a root that requests relief.
+        var graphOnly = new bool[alternatives.Length]; var keyed = new bool[alternatives.Length]; var exempting = new bool[alternatives.Length];
         for (var i = 0; i < alternatives.Length; i++)
         {
             graphOnly[i] = GraphOnly(alternatives[i]);
-            keyed[i] = !graphOnly[i] && !PlannedSiteRoot(alternatives[i]) || incumbentIds.Contains(alternatives[i].Id);
-            relieving[i] = alternatives[i].Outcome?.Requirements is { Relief.Count: > 0 };
+            var plannedSite = PlannedSiteRoot(alternatives[i]);
+            keyed[i] = !graphOnly[i] && !plannedSite || incumbentIds.Contains(alternatives[i].Id);
+            exempting[i] = plannedSite || alternatives[i].Outcome?.Requirements is { Relief.Count: > 0 };
         }
         // Per root, the roots redundant with it (a graph-only one's closure inside the other's) and the roots it cannot share a portfolio with.
         var redundant = new ulong[alternatives.Length][]; var incompatible = new ulong[alternatives.Length][];
@@ -274,12 +276,12 @@ public sealed partial record ForecastCoupledSelection
         // The traversal reaches a subset by more than one phase, and different root sets schedule the same work (a
         // shelter, a room alternative or the room's site roots completing the same sites). Subsets whose task closure
         // and non-graph roots (direct effects or claims; a retained incumbent by id) are equal share one schedule
-        // (#3334). A planned site root's only non-graph effect is marking its closure as requested development, which
-        // the relief gate below reads per subset; an equal marked closure too is the same evaluation, skipped. A
+        // (#3334). A planned site root's only non-graph effect is exempting its closure from the relief gate (#3651), which
+        // the gate below reads per subset; an equal exempt closure too is the same evaluation, skipped. A
         // schedule search that finished within its bound is complete at any larger bound; a truncated one is redone
         // at a larger bound.
         // A subset's schedule key is its closure union over the tasks then its keyed roots; its evaluation key adds the
-        // closure union of its relieving roots. The words are built in one scratch and copied only when first seen.
+        // closure union of its exempting roots. The words are built in one scratch and copied only when first seen.
         var scheduleWords = taskWords + rootWords; var keyWords = scheduleWords + taskWords;
         var keyScratch = new ulong[keyWords]; var memberScratch = new ulong[rootWords];
         var evaluatedByKey = new Dictionary<ulong[], int>(WordsComparer.Instance);
@@ -298,7 +300,7 @@ public sealed partial record ForecastCoupledSelection
                 Bits.Set(memberScratch, at);
                 Bits.Or(keyScratch.AsSpan(0, taskWords), closures[at]);
                 if (keyed[at]) Bits.Set(keyScratch.AsSpan(taskWords, rootWords), at);
-                if (relieving[at]) Bits.Or(keyScratch.AsSpan(scheduleWords, taskWords), closures[at]);
+                if (exempting[at]) Bits.Or(keyScratch.AsSpan(scheduleWords, taskWords), closures[at]);
             }
             ReadOnlySpan<ulong> key = keyScratch, schedule = keyScratch.AsSpan(0, scheduleWords);
             if (evaluated.TryGetValue(key, out var done) && done >= bound) return true;
@@ -343,8 +345,8 @@ public sealed partial record ForecastCoupledSelection
                 NoteGoalRoutes(vector, baselineVector);
                 // Physical feasibility does not certify optional investment. Partial shells retain
                 // unknown exposure; they cannot win by hiding it. Keep expanding complementary roots.
-                // Construction a selected commitment values as requested development carries its own relief (#3276), and so
-                // does a planned room's roof cell when the schedule finishes that room's roof.
+                // Construction in the closure of a selected planned site root (#3651) or of a root with its own relief is
+                // exempt, and so is a planned room's roof cell when the schedule finishes that room's roof.
                 var roofed = candidates.Context.Shelters.Where(r => r.PlannedRoom != 0 && r.RoofCells.Count != 0
                         && outcome.RequestedDevelopment.Contains(FormattableString.Invariant($"planned/room{r.PlannedRoom}/roof")))
                     .SelectMany(r => r.RoofCells.SelectMany(cell => cell)).ToHashSet(StringComparer.Ordinal);
@@ -634,17 +636,17 @@ public sealed partial record ForecastCoupledSelection
             Metric(rows, unknown, "food", Term.ZeroAtHorizon), Metric(rows, unknown, "rest", Term.ZeroAtHorizon)
         };
         // Delivered clothing is development, not wearing or physiological thermal protection. Planned development counts
-        // what the schedule completes, whichever root built it, each physical site once (#3334).
+        // what the schedule completes, whichever root built it, each physical site once (#3334), but not a priced room's (#3651).
         Dictionary<string, double>? relief = null;
         foreach (var c in commitments)
         {
-            if (c.Outcome?.Requirements is not { } requirements || c.Outcome.Need == ForecastPlannedSite.DevelopmentNeed) continue;
+            if (c.Outcome?.Requirements is not { } requirements) continue;
             foreach (var r in requirements.Relief)
                 if (goalRelief?.Contains(r.Need) != true) (relief ??= new(StringComparer.Ordinal))[r.Need] = relief.GetValueOrDefault(r.Need) + r.Fraction;
         }
         double delivered = 0;
         if (relief is not null) foreach (var fraction in relief.Values) delivered += Math.Min(1, fraction);
-        var development = delivered + outcome.RequestedDevelopment.Count;
+        var development = delivered + UnpricedDevelopment(outcome.RequestedDevelopment, context);
         var moodKnown = rows.Count > 0; var breakKnown = true;
         double exposure = 0, pressure = 0, breaks = 0;
         foreach (var needs in rows.Values)
@@ -669,6 +671,23 @@ public sealed partial record ForecastCoupledSelection
             BreakRisk = breakKnown ? Known(breaks) : default, ThermalOccupancy = outcome.ThermalOccupancy, Support = outcome.Support, Maintenance = outcome.Maintenance,
             Value = context is null ? ForecastValueExplanation.Empty : ForecastValue.Explain(outcome, urgent[0], context, horizonTicks, reference!, commitments)
         };
+    }
+
+    /// <summary>
+    /// The completed planned units the development tiebreak counts (#3651, #3647 decision 3): every unit except a site, or the
+    /// <c>planned/room{R}/roof</c> unit, of a room whose role (ForecastCoupledContext.PlannedRoomRoles) is priced
+    /// (ForecastCoupledContext.PricedRoomRoles). Every unit counts without a context or a priced role.
+    /// </summary>
+    private static int UnpricedDevelopment(EquatableArray<string> units, ForecastCoupledContext? context)
+    {
+        if (context is null || context.PricedRoomRoles.Count == 0 || units.Count == 0) return units.Count;
+        var priced = context.PlannedRoomRoles.Where(r => context.PricedRoomRoles.Contains(r.Value)).Select(r => r.Key).ToHashSet();
+        if (priced.Count == 0) return units.Count;
+        var skipped = context.PlannedSites.Where(s => priced.Contains(s.Room)).Select(s => s.Site)
+            .Concat(priced.Select(room => FormattableString.Invariant($"planned/room{room}/roof"))).ToHashSet(StringComparer.Ordinal);
+        var count = 0;
+        foreach (var unit in units) if (!skipped.Contains(unit)) count++;
+        return count;
     }
 
     /// <summary>
