@@ -727,6 +727,26 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     /// <summary>
+    /// #3647: a new bedroom whose ring owes a wall run and a door, neither closing the room alone, so each site root alone
+    /// carries its labor and material and no credit. With the credit (barracks -7 to the bedroom's +2 to tier 2's horizon)
+    /// above the cost, both sites are selected together and the room closes; with the wood priced past the credit,
+    /// neither is.
+    /// </summary>
+    [Theory]
+    [InlineData(.001, true)]
+    [InlineData(1000, false)]
+    public void ANewBedroomsWallAndDoorAreSelectedTogetherWhenItsCreditBeatsTheirCost(double wood, bool selected)
+    {
+        var facts = Bedroom([
+            Ring(OpKind.WallIn, "WoodLog", 60, count: 10, available: 50),
+            Ring(OpKind.DoorIn, "WoodLog", 30, count: 2, available: 50)],
+            new Dictionary<string, int> { ["WoodLog"] = 2 }, new Dictionary<string, double> { ["WoodLog"] = wood }, "Barracks", 0, inside: false);
+        var result = Select(facts);
+        Assert.True((selected, selected) == (PlannedSelected(result, "planned/room1/wall/WoodLog"), PlannedSelected(result, "planned/room1/door/WoodLog")), Why(facts, result));
+        Assert.Equal(selected, BedroomCredits(result).Any(c => c.Key == "bedroom/1/" + Pawn && c.Value < 0));
+    }
+
+    /// <summary>
     /// #3657: a standing wood bedroom at stage 0, its owner the builder. A swap to granite predicting stage 2 earns the
     /// owner's mood (+2 against -4) to the horizon, beats the granite and the labor, and is selected; the record keeps it
     /// for the started room and the reconcile swaps to granite. The same swap predicting the stage the room has gains

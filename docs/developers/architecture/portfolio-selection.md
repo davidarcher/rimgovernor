@@ -111,11 +111,15 @@ like a seed, so the extension below starts from last review's leader when it sti
 the baseline. Single roots come next, only until a
 quarter of the budget is spent, each evaluated at a screening bound of 64 scheduler
 expansions (the depth-first search finds its first complete plans within a few
-expansions per activity). The best portfolio found is then extended with each other
+expansions per activity). Each planned room alternative's site roots (the first variant
+per site) are then evaluated together as one unit (#3647): a room closes only once every
+ring site of one stuff is built, so a wall or door root alone carries its labor and
+material and none of a priced room's credit, and one-root steps never reach the pair.
+The best portfolio found is then extended with each other
 root in root order, again screened, and the extension repeats from every new leader
 until no root improves it, so a set of any cardinality is built one root at a time. A
 root exclusive with a leader member (another rest choice) swaps that member out, after
-the plain additions are tried. The
+the plain additions are tried; each room unit is then added whole. The
 final leader is confirmed at the full 4,096 bound. The full cardinality sweep (singles,
 pairs, ...) then resumes at that bound, skipping every subset already evaluated at it,
 but only when the budget left can finish it (the subsets not yet evaluated, at the mean

@@ -77,8 +77,8 @@ public sealed partial record ForecastCoupledSelection
 
     /// <summary>One bounded subset search, evaluated by the same ColonyForecast trajectory as its baseline.
     /// Empty/continue is evaluated first. Partial portfolios remain expandable regardless of isolated value.
-    /// Order: single roots, screened, for up to a quarter of the budget; the leader plus each other root,
-    /// screened, repeated from each new leader until none improves it; the final leader at the full
+    /// Order: single roots, screened, for up to a quarter of the budget, then each planned room alternative's site roots
+    /// as one unit (#3647); the leader plus each other root, then plus each such unit, screened, repeated from each new leader until none improves it; the final leader at the full
     /// per-portfolio bound; then the full cardinality sweep (singles, pairs, ...) at that bound, skipping
     /// subsets already evaluated at it. <paramref name="warmStart"/>, the previous review's selected ids, is screened
     /// before the seed pass (#3563) so the extension starts from last review's leader when it still stands.
@@ -243,6 +243,15 @@ public sealed partial record ForecastCoupledSelection
             var plannedSite = PlannedSiteRoot(alternatives[i]);
             keyed[i] = !graphOnly[i] && !plannedSite || incumbentIds.Contains(alternatives[i].Id);
             exempting[i] = plannedSite || alternatives[i].Outcome?.Requirements is { Relief.Count: > 0 };
+        }
+        // A planned room closes only once every ring site of one stuff is built, so one site root alone carries its labor and
+        // material and none of the room's value (a bedroom's credit, #3655): adding roots one at a time never reaches the
+        // pair. Each room alternative's site roots (the first variant per site, by id) are also tried as one unit (#3647).
+        var units = new List<int[]>();
+        foreach (var room in candidates.Context.PlannedRooms)
+        {
+            var members = room.Sites.Select(site => Array.FindIndex(alternatives, c => c.ExclusiveOutcome == site && PlannedSiteRoot(c))).ToArray();
+            if (members.Length > 1 && members.All(m => m >= 0) && !units.Any(u => u.SequenceEqual(members))) units.Add(members);
         }
         // Per root, the roots redundant with it (a graph-only one's closure inside the other's) and the roots it cannot share a portfolio with.
         var redundant = new ulong[alternatives.Length][]; var incompatible = new ulong[alternatives.Length][];
@@ -422,6 +431,15 @@ public sealed partial record ForecastCoupledSelection
                 if (!Bits.Disjoint(incompatible[root], seed)) phaseSwaps++;
                 if (!Evaluate(Members(portfolioBits), ScreenBound)) return false;
             }
+            foreach (var unit in units)
+            {
+                if (unit.All(i => Bits.Has(seed, i))) continue;
+                Array.Copy(seed, portfolioBits, rootWords);
+                foreach (var i in unit) for (var w = 0; w < rootWords; w++) portfolioBits[w] &= ~incompatible[i][w];
+                foreach (var i in unit) Bits.Set(portfolioBits, i);
+                if (!CompatibleSet(portfolioBits) || unit.Any(i => !Bits.Disjoint(redundant[i], portfolioBits))) continue;
+                if (!Evaluate(Members(portfolioBits), ScreenBound)) return false;
+            }
             return true;
         }
         var continueSearch = candidates.Incumbents.Count == 0 || Evaluate([]);
@@ -447,6 +465,8 @@ public sealed partial record ForecastCoupledSelection
             seedLimit = budget / SeedShare; leafBound = ScreenBound;
             continueSearch = Search(0, 1, []) || seedSpent;
             seedLimit = int.MaxValue; leafBound = PortfolioBound;
+            for (var u = 0; continueSearch && u < units.Count; u++)
+                continueSearch = Evaluate(units[u].Select(i => alternatives[i]).ToArray(), ScreenBound);
             if (!continueSearch) truncated = true;
         }
         // Pair each unserved construction root with the other roots (service, rest, food) so the investment is judged with its use.
