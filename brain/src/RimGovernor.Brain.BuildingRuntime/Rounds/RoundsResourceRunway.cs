@@ -82,4 +82,30 @@ public sealed partial class Rounder : IDisposable
 
         return output;
     }
+
+    /// <summary>
+    /// The value per unit of each construction material the priced planned rooms consume (#3653): each material's sources
+    /// read once, in one frame, and priced by <see cref="ForecastValue.MaterialValueOf"/>. A failed read, or a native without
+    /// the read, prices it at market value.
+    /// </summary>
+    internal async Task<IReadOnlyDictionary<Resource, ConstructionMaterialValue>> MaterialValuesAsync(GenerationSnapshot snapshot, ForecastCoupledContext context,
+        StationCatalog stations, ItemFacts items, CancellationToken ct)
+    {
+        var reader = Native as FacadeNativeClient;
+        var reads = ForecastValue.ChargedMaterials(context).Select(async Task<(Resource Key, ConstructionMaterialValue Value)> (resource) =>
+        {
+            if (reader is null) return (resource, ForecastValue.MaterialValueOf(resource, null, null, stations.Haul, items));
+            try
+            {
+                var (rows, storage) = await reader.ReadResourceSourcesAsync(Boundary.Identity(snapshot), resource.Value, ct).ConfigureAwait(false);
+                return (resource, ForecastValue.MaterialValueOf(resource, rows, storage, stations.Haul, items));
+            }
+            catch (Exception e) when (e is not OperationCanceledException)
+            {
+                // an unreadable source leaves the material at market value
+                return (resource, ForecastValue.MaterialValueOf(resource, null, null, stations.Haul, items));
+            }
+        }).ToList();
+        return (await Task.WhenAll(reads).ConfigureAwait(false)).ToDictionary(r => r.Key, r => r.Value);
+    }
 }

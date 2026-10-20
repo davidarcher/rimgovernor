@@ -623,6 +623,34 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     /// <summary>
+    /// #3653: the composed delivery of a priced room's wall consumes its logs, and every evaluated outcome that schedules
+    /// it is charged them under material/WoodLog. The same room unpriced is charged nothing.
+    /// </summary>
+    [Fact]
+    public void APricedRoomsComposedDeliveryIsChargedItsMaterial()
+    {
+        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200, count: 20, available: 20)]);
+        var bedroom = facts with { PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Bedroom)] }) };
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced();
+        const double perUnit = 0.001;
+        IEnumerable<ForecastConsequenceVector> Vectors(ForecastCoupledSelection result) =>
+            result.Rejected.Where(e => e.Consequences is not null).Select(e => e.Consequences!).Append(result.SelectedVector);
+        var values = new Dictionary<Resource, ConstructionMaterialValue> { [new("WoodLog")] = new(MaterialValueBasis.Labor, perUnit) };
+
+        var unpriced = Select(bedroom with { CoupledAlternatives = generated with { Context = generated.Context with { MaterialValues = values } } });
+        Assert.All(Vectors(unpriced), v => Assert.DoesNotContain(v.Value.Ledger.InvestmentContributions, c => c.Key.StartsWith("material/", StringComparison.Ordinal)));
+
+        var context = generated.Context with { PricedRoomRoles = new HashSet<PlannedRole> { PlannedRole.Bedroom }, MaterialValues = values };
+        Assert.Equal([new Resource("WoodLog")], ForecastValue.ChargedMaterials(context));
+        var priced = Select(bedroom with { CoupledAlternatives = generated with { Context = context } });
+        var rows = Vectors(priced).SelectMany(v => v.Value.Ledger.InvestmentContributions).Where(c => c.Key == "material/WoodLog").ToArray();
+        Assert.NotEmpty(rows);
+        // The delivery's composed realization, as the planned site carries it.
+        Assert.All(rows, c => Assert.Equal((true, 20d, 20 * perUnit),
+            (c.Activity.StartsWith("planned/room1/wall/WoodLog/delivery/stack-WoodLog/composition/", StringComparison.Ordinal), c.Units, c.Value)));
+    }
+
+    /// <summary>
     /// #3651: emission reads the selected portfolio, not the development count. A portfolio with no root of the room
     /// completes none of its sites, so the record emits none and the assessed room is held, as before.
     /// </summary>

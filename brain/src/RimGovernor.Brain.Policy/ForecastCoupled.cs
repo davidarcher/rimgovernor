@@ -35,7 +35,8 @@ public sealed record ForecastPlannedSite(string Site, int Room, string Stuff, Eq
 
     /// <summary>
     /// The planned room roles that carry a priced value of their own (#3651, #3647 decision 3): their completed units are
-    /// still emitted and exempt, but no longer count as development in the ranking's late tiebreak. Empty until a role is
+    /// still emitted and exempt, but no longer count as development in the ranking's late tiebreak, and their deliveries are
+    /// charged the material they consume (ForecastValue.ChargedMaterialActivities, #3653). Empty until a role is
     /// priced; each priced role is added here (Bedroom, Barracks, then the rest in #3650).
     /// </summary>
     public static readonly IReadOnlySet<PlannedRole> PricedRoomRoles = new HashSet<PlannedRole>();
@@ -93,6 +94,9 @@ public sealed record ForecastCoupledContext
     public IReadOnlyDictionary<string, EquatableArray<GearOption>> Outfits { get; init; } = new Dictionary<string, EquatableArray<GearOption>>();
     /// <summary>Capability-days a unit of progress adds on each project tier 2 valued (#3531), by <see cref="ForecastProjectProgress.Project"/>: per research point, per cell sown. Empty before tier 2 ran.</summary>
     public IReadOnlyDictionary<string, double> Investment { get; init; } = new Dictionary<string, double>();
+    /// <summary>Per construction material a priced planned room consumes, its value per unit (#3653), priced once per review
+    /// (ForecastValue.MaterialValueOf). A material without a row is unpriced and charged nothing.</summary>
+    public IReadOnlyDictionary<Resource, ConstructionMaterialValue> MaterialValues { get; init; } = new Dictionary<Resource, ConstructionMaterialValue>();
     /// <summary>Per cookable ingredient, the nutrition a unit gives cooked over what it gives raw (#3626): the best observed
     /// conversion's product Nutrition stat times its count over the ingredient count, divided by the ingredient's own Nutrition
     /// stat. Only ratios above 1 are kept; an ingredient without one costs nothing eaten raw.</summary>

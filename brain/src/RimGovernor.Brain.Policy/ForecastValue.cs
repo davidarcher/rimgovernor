@@ -127,7 +127,8 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
 
     /// <summary>
     /// Capability added after completion, in tier 2's marginal values (#3531, #3636): negative (a gain) by the progress the outcome
-    /// schedules on projects and the skill XP its work applies, positive by the medicine it consumes; the sum of
+    /// schedules on projects and the skill XP its work applies, positive by the medicine and the priced rooms' construction
+    /// material it consumes (#3653); the sum of
     /// <see cref="InvestmentContributions"/>, 0 with none.
     /// </summary>
     public Fact<double> Investment { get; init; }
@@ -162,7 +163,7 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
 }
 
 /// <summary>One row of an outcome's Investment term (#3636): what an allocation moves of a tier-2 key (project progress, applied skill
-/// XP, medicine consumed) and its loss in capability-days, negative for a gain.</summary>
+/// XP, medicine consumed) or of a construction material (#3653) and its loss in capability-days, negative for a gain.</summary>
 public sealed record ForecastInvestmentContribution(string Activity, string Pawn, string Key, double Units, double Value);
 
 /// <summary>One safety floor of an outcome: whether it could be assessed, and by how much it is broken (0 when it holds).</summary>
@@ -224,6 +225,8 @@ public static partial class ForecastValue
             .GroupBy(n => (n.Task, n.Pawn)).ToDictionary(g => g.Key, g => g.First());
         public readonly Dictionary<string, ForecastActivity> Activities = context.Activities.Activities.GroupBy(a => a.Id, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
+        /// <summary>The activities whose consumed inputs are charged as construction material (#3653).</summary>
+        public readonly HashSet<string> MaterialCharged = ChargedMaterialActivities(context);
         public readonly bool Malnutrition = context.CapacityPenalties.Malnutrition.Valid();
         public readonly bool FoodPoisoning = context.CapacityPenalties.FoodPoisoning.Valid();
         public readonly bool Thermal = context.CapacityPenalties.Hypothermia.Valid() && context.CapacityPenalties.Heatstroke.Valid();
@@ -343,7 +346,7 @@ public static partial class ForecastValue
         double earned = 0;
         foreach (var contribution in contributions) earned += contribution.Value;
         var goals = Known(-earned);
-        var investmentRows = InvestmentOf(outcome, context, index);
+        var investmentRows = InvestmentOf(outcome, context, index, findings);
         double invested = 0;
         foreach (var row in investmentRows) invested += row.Value;
         var investment = Known(invested);
@@ -412,15 +415,26 @@ public static partial class ForecastValue
     /// loss: project progress (research points, cells sown) and the XP its learning callback applies to the pawn's skill stock
     /// (<see cref="ProjectGraph.SkillKey"/>; #3636) are gains, negative; each medicine kind it consumes (<see cref="ProjectGraph.MedicineKey"/>)
     /// is charged, positive. XP is what <see cref="ForecastSkillPolicy.ForecastSkill"/> applies after the learning factors and saturation,
-    /// the unit tier 2 perturbs the stock by. A key tier 2 did not value adds no row.
+    /// the unit tier 2 perturbs the stock by. A key tier 2 did not value adds no row. The construction material a charged
+    /// activity consumes (<see cref="ChargedMaterialActivities"/>) is charged, positive, under <see cref="MaterialKey"/> at
+    /// <see cref="ForecastCoupledContext.MaterialValues"/> (#3653): one priced at market value is named
+    /// material_value_market, one unpriced is named material_value_unpriced and adds no row.
     /// </summary>
-    private static List<ForecastInvestmentContribution> InvestmentOf(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index)
+    private static List<ForecastInvestmentContribution> InvestmentOf(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index,
+        SortedSet<string> findings)
     {
         var rows = new List<ForecastInvestmentContribution>();
-        if (context.Investment.Count == 0) return rows;
         void Add(ForecastActivityAllocation allocation, string key, double units, double sign)
         {
             if (units > 0 && context.Investment.TryGetValue(key, out var perUnit)) rows.Add(new(allocation.Activity, allocation.Pawn, key, units, sign * units * perUnit));
+        }
+        void Material(ForecastActivityAllocation allocation, Resource def, double units)
+        {
+            if (units <= 0) return;
+            var value = context.MaterialValues.GetValueOrDefault(def);
+            if (value is null || value.Basis == MaterialValueBasis.Unpriced) { findings.Add("material_value_unpriced:" + def); return; }
+            if (value.Basis == MaterialValueBasis.Market) findings.Add("material_value_market:" + def);
+            rows.Add(new(allocation.Activity, allocation.Pawn, MaterialKey(def), units, units * value.PerUnit));
         }
 
         foreach (var allocation in outcome.Plan.Allocations)
@@ -430,8 +444,13 @@ public static partial class ForecastValue
             if (allocation.Learning is { } learning && learning.After.AppliedGain.TryGetValue(out var after) && learning.Before.AppliedGain.TryGetValue(out var before))
                 Add(allocation, ProjectGraph.SkillKey(allocation.Pawn, learning.Skill), after - before, -1);
             if (activity is null) continue;
+            var charged = index.MaterialCharged.Contains(allocation.Activity);
             foreach (var input in activity.Inputs)
-                if (input.Units.TryGetValue(out var units)) Add(allocation, ProjectGraph.MedicineKey(input.Resource), units, 1);
+            {
+                if (!input.Units.TryGetValue(out var units)) continue;
+                Add(allocation, ProjectGraph.MedicineKey(input.Resource), units, 1);
+                if (charged) Material(allocation, input.Resource, units);
+            }
         }
 
         return rows;

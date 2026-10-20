@@ -96,7 +96,7 @@ exchange rates are mechanical, not chosen:
 | Mood | Break risk × expected days lost to the break, including the harm and labor of its kind. Mood changes no work speed directly. |
 | Death | Remaining capability-days to the horizon, plus `DeathTerminalValue`. |
 | Labor | Hours spent are hours not available for other work. This is already in the schedule. |
-| Investment | Capability added after completion, from tier 2: the work's progress (project progress, applied skill XP) times its marginal value, a gain, so a negative loss like the goals term; less the medicine the work consumes at its marginal value. |
+| Investment | Capability added after completion, from tier 2: the work's progress (project progress, applied skill XP) times its marginal value, a gain, so a negative loss like the goals term; less the medicine the work consumes at its marginal value and the construction material a priced planned room's deliveries consume, at replacement labor (*Construction material* below). |
 
 **Exhaustion collapse (#3598).** Rest changes no capacity and no work speed in 1.7; its mood thoughts are priced
 below. What exhaustion costs is the involuntary sleep (`Need_Rest.ShouldInvoluntarySleepFromMTB`): once a pawn has
@@ -369,6 +369,18 @@ cooking) moves a stock tier 2 valued gains `-(applied XP × value per XP)` under
 `ForecastSkill` applies for that callback (after learning factors and saturation), the unit the perturbation adds to the stock. Each
 input an allocation consumes that tier 2 holds as a medicine kind is charged `+(units × value per unit)` under `medicine/<kind>`. Real
 work and practice earn the same credit per XP; a key without a marginal adds nothing, so with no marginals the term is unchanged.
+
+*Construction material (#3653, #3647 decision 2).* A delivery composed for a planned room whose role is in `PricedRoomRoles`
+consumes its material, and the Investment term charges `+(units × value per unit)` under `material/<def>`, one
+`investment_contributions` row each. Every other construction root, placed sites included, stays free until its role is priced
+(#3650): a cost with no credit would stop it. Refuel and support draws on the same stack are other activities and are not
+charged. The value per unit is the work to replace one unit (`ForecastValue.MaterialValueOf`), priced once per review before the
+comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per charged material, held in
+`ForecastCoupledContext.MaterialValues`): the catalog's chop or mine work over its yield (`HaulModel`), plus one haul trip, the
+nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
+is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
+`MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped `PricedRoomRoles` is empty, so nothing is charged yet.
 
 *Goal terminals (#3505).* `GoalPaths.Of` turns an unmet goal into a terminal of that graph: a research goal is the project's research
 chain, a `WornCount` goal the sow, grow, harvest and craft chain of its stuff (the crop's research gates, the garment's recipe, one
