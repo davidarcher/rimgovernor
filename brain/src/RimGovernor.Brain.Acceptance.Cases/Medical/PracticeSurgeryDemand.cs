@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>
 /// <c>medical/practice-surgery-*</c> (#3638): whether the served brain trains its doctor by practice surgery is decided by raid
 /// demand alone (#3344). Each case stages one colonist, a Medicine-3 doctor with every other skill at 0 and a short bow, then
-/// test/medical_learning "practice" puts a held prisoner missing a leg in a prison bed with a peg leg and five herbal medicine
+/// test/medical_learning "practice" puts a held prisoner missing a leg in a prison bed with wood for a peg leg and five herbal medicine
 /// beside it and no bill. The practice slot and the medicine are the same in all three; the threat and the patients differ.
 /// <para>
 /// Demand reaches a calibrated exposure cell as apparel/harm_armor_direction does: Cassandra on day 25 gives the threat schedule
@@ -29,7 +29,7 @@ internal static class MedicalPracticeSurgeryDemand
     [
         Case("demand", true, false,
             "Under the served brain, a colony under Cassandra past day 20 whose one doctor is at Medicine 3 (a gunner in a calibrated "
-                + "exposure cell), with a held prisoner missing a leg, a peg leg and herbal medicine, selects a practice surgery and the "
+                + "exposure cell), with a held prisoner missing a leg, wood for a peg leg and herbal medicine, selects a practice surgery and the "
                 + "doctor's native surgery pays a Medicine XP callback equal to the projection: raid harm at the projected tend quality "
                 + "values the XP (#3635), and the Investment credit selects the practice (#3637).",
             DemandAsync),

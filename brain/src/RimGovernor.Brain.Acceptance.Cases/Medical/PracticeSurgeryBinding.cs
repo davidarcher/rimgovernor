@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>
 /// <c>medical/practice-surgery-binding</c> (#3637): the practice-surgery step the coupled selector binds (PracticeSurgeryTests
 /// prove the selection) applied as the selected order. test/medical_learning "practice" stages a held prisoner missing a leg in
-/// a prison bed with a peg leg and herbal medicine beside it and no bill; the controlled doctor queues the bill restricted to
+/// a prison bed with wood for a peg leg and herbal medicine beside it and no bill; the controlled doctor queues the bill restricted to
 /// itself and completes the native surgery, whose Medicine callback the learning verifier checks.
 /// </summary>
 internal static class MedicalPracticeSurgery

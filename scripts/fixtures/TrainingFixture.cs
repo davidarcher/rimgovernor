@@ -164,14 +164,14 @@ namespace HomeBridge.BridgeTools
         private static Bill_Medical medicalBill;
         private static List<Thing> medicalInputs = new List<Thing>();
         private static bool medicalStarted;
-        // #3637 "practice": a held prisoner missing a leg in a prison bed with a peg leg and herbal medicine beside it and no
+        // #3637 "practice": a held prisoner missing a leg in a walled prison cell with wood for a peg leg and herbal medicine beside it and no
         // bill; the case applies the practice-surgery step itself. Poll records whether a medical bill restricted to the doctor,
         // or any other medical bill, was ever on the prisoner, and whether the doctor ran DoBill on it.
         private static bool medicalPractice, medicalRestricted, medicalOther;
         private static int medicalPart = -1;
         private static string medicalGiver = "";
 
-        [Tool("test/medical_learning", Description = "UNSAFE FOR MODEL EXECUTION. Stage a doctor and a patient in bed for one native tend or surgery (practice: a held prisoner missing a leg, no bill); poll hands the doctor the staged surgery once the patient lies in bed. Test builds only.")]
+        [Tool("test/medical_learning", Description = "UNSAFE FOR MODEL EXECUTION. Stage a doctor and a patient in bed for one native tend or surgery (practice: a held prisoner missing a leg in a walled prison cell, no bill); poll hands the doctor the staged surgery once the patient lies in bed. Test builds only.")]
         public async Task<object> MedicalLearning(IRimBridgeContext ctx, CancellationToken cancellationToken, string action)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -223,7 +223,7 @@ namespace HomeBridge.BridgeTools
                 // A surgery patient keeps to its bed only through its Patient work (WorkGiver_PatientGoToBedTreatment), which
                 // also needs a doctor with Doctor work active (AnyAvailableDoctorFor); without both, the patient's next job check
                 // gets it up and the doctor's DoBill job fails on Pawn.CurrentlyUsableForBills.
-                if (action == "surgery")
+                if (action != "tend") // surgery, and practice on its prisoner
                 {
                     medicalDoctor.workSettings.SetPriority(WorkTypeDefOf.Doctor, 1);
                     medicalPatient.workSettings.SetPriority(DefDatabase<WorkGiverDef>.AllDefsListForReading
@@ -231,11 +231,15 @@ namespace HomeBridge.BridgeTools
                 }
                 var origin = medicalDoctor.Position;
                 var area = new CellRect(origin.x + 1, origin.z - 1, 3, 4);
-                foreach (var cell in area.Cells)
+                // A prison bed is valid only in a prison cell, which must be a proper room (Building_Bed.RoomCanBePrisonCell): the
+                // practice area is walled, with its door on the doctor's cell.
+                var room = area.ExpandedBy(1);
+                foreach (var cell in (medicalPractice ? room : area).Cells)
                 {
                     foreach (var thing in cell.GetThingList(map).Where(t => !(t is Pawn)).ToList()) thing.Destroy();
                     map.terrainGrid.SetTerrain(cell, TerrainDefOf.Concrete);
                 }
+                if (medicalPractice) FixtureKit.BuildRoom(map, room, ThingDefOf.WoodLog, new[] { origin }, false);
                 var bed = (Building_Bed)ThingMaker.MakeThing(ThingDefOf.Bed, ThingDefOf.WoodLog);
                 bed.SetFaction(Faction.OfPlayer);
                 GenSpawn.Spawn(bed, new IntVec3(origin.x + 2, 0, origin.z), map);
@@ -263,8 +267,8 @@ namespace HomeBridge.BridgeTools
                     medicalPatient.health.AddHediff(HediffMaker.MakeHediff(HediffDefOf.MissingBodyPart, medicalPatient, leg), leg);
                     medicalPart = medicalPatient.RaceProps.body.AllParts.IndexOf(leg);
                     medicalGiver = DefDatabase<WorkGiverDef>.AllDefsListForReading.First(d => d.Worker is WorkGiver_DoBill g && g.ThingIsUsableBillGiver(medicalPatient)).defName;
-                    // The peg leg (no typed route to a def not in a DefOf) and herbal medicine.
-                    medicalInputs.Add(GenSpawn.Spawn(ThingMaker.MakeThing(ThingDef.Named("PegLeg")), new IntVec3(origin.x + 1, 0, origin.z), map));
+                    // A peg leg is made of one wood log (InstallPegLeg has no part item), with herbal medicine.
+                    medicalInputs.Add(GenSpawn.Spawn(ThingMaker.MakeThing(ThingDefOf.WoodLog), new IntVec3(origin.x + 1, 0, origin.z), map));
                     var herbal = ThingMaker.MakeThing(ThingDefOf.MedicineHerbal);
                     herbal.stackCount = 5;
                     medicalInputs.Add(GenSpawn.Spawn(herbal, new IntVec3(origin.x + 1, 0, origin.z + 1), map));
