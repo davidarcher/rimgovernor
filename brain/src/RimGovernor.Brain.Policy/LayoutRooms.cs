@@ -81,10 +81,45 @@ public static partial class LayoutRoomsRules
     }
 }
 
+/// <summary>The walls and doors of a room's shell, by count: what of it stands, priced at the bed merge's wall cell and door (#3675).</summary>
+public readonly record struct ShellPieces(int Walls, int Doors);
+
 partial record LayoutPlan
 {
     /// <summary>The ids of the plan's rooms whose ring stands as planned (GroundMatches).</summary>
     public static HashSet<int> BuiltRooms(LayoutPlan plan, GroundCensus ground) => [.. plan.Rooms.Where(r => plan.GroundMatches(r, ground)).Select(r => r.Id)];
+
+    /// <summary>
+    /// The shell pieces of each planned built room (PlannedBuiltRooms) that stand on its own ring (#3675): a colony wall
+    /// on a ring cell that takes a wall, a door on one that takes a door (ShellDoors). A ring cell another such room
+    /// rings too is not its own, as in PlannedRoomStarted: it stands for the neighbour whatever becomes of this room.
+    /// A room with nothing standing is absent.
+    /// </summary>
+    public static Dictionary<int, ShellPieces> ShellStanding(LayoutPlan plan, GroundCensus ground)
+    {
+        var rooms = PlannedRules.PlannedBuiltRooms(plan);
+        var rings = new Dictionary<Cell, int>();
+        foreach (var c in rooms.SelectMany(r => r.WallRing().Cells()))
+        {
+            rings[c] = rings.GetValueOrDefault(c) + 1;
+        }
+        var output = new Dictionary<int, ShellPieces>();
+        foreach (var r in rooms)
+        {
+            var doors = plan.ShellDoors(r).ToHashSet();
+            int walls = 0, doorCount = 0;
+            foreach (var c in r.WallRing().Cells().Where(c => rings[c] == 1))
+            {
+                walls += !doors.Contains(c) && ground.Walls.Contains(c) ? 1 : 0;
+                doorCount += doors.Contains(c) && ground.Doors.Contains(c) ? 1 : 0;
+            }
+            if (walls + doorCount > 0)
+            {
+                output[r.Id] = new ShellPieces(walls, doorCount);
+            }
+        }
+        return output;
+    }
 
     /// <summary>
     /// The ids of the plan's rooms with anything of ours on them: its ring standing as planned, or a cell of occupied (a

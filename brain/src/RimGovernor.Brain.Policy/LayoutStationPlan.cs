@@ -75,6 +75,9 @@ public sealed record StationFacts
     /// <summary>The ids of the plan's rooms that stand as planned (BuiltRooms); null while the construction census is unknown.</summary>
     public IReadOnlySet<int>? Built { get; init; }
 
+    /// <summary>What of each planned room's own shell stands (LayoutPlan.ShellStanding), read with Built: the spend a bed merge charges for a committed room it gives up (#3675).</summary>
+    public IReadOnlyDictionary<int, ShellPieces> ShellStanding { get; init; } = new Dictionary<int, ShellPieces>();
+
     /// <summary>The rooms the replan holds where they stand (TilePinned): a pinned room stands where it is in the embedding, and one not yet built is a rebuild in flight, which holds every built room.</summary>
     public IReadOnlySet<int> Pinned { get; init; } = new HashSet<int>();
 
@@ -116,18 +119,25 @@ public sealed record StationFacts
 
     /// <summary>
     /// The bed merge's price (#3658): the colony's facts, the outdoor curve and the map's cold or heat, the work-day's
-    /// watts, the bed slots of the plan's largest barracks as the incumbent, and the plan's bedrooms (a superseded one
-    /// counted once, as its successor) as the rooms a merge gives up (#3661).
+    /// watts, the bed slots of the plan's largest barracks as the incumbent, and the plan's committed barracks and
+    /// bedrooms with what of each shell stands (#3661, #3675): a room standing or under construction (StandingIds), a
+    /// superseded one counted once, as its successor. A room on paper alone is not committed.
     /// </summary>
-    public BedMergePrice BedMergePriceOf() => new()
+    public BedMergePrice BedMergePriceOf()
     {
-        Facts = BedMerge,
-        OutdoorCurve = OutdoorCurve,
-        Harsh = Survey is { } s && (s.Cold || s.Hot),
-        WorkDayW = LayoutRegroupRules.StationWorkPrice(this).WorkDayW,
-        Incumbent = Furniture is null ? 0 : Plan.RoomsOf(PlannedRole.Barracks).Select(r => SleepingRules.BedSlotsOf(Plan, r, Furniture)?.Count ?? 0).DefaultIfEmpty(0).Max(),
-        Bedrooms = Plan.RoomsOf(PlannedRole.Bedroom).Count(r => !Plan.Rooms.Any(o => o.Replaces == r.Id)),
-    };
+        var standing = StandingIds() ?? new HashSet<int>();
+        return new()
+        {
+            Facts = BedMerge,
+            OutdoorCurve = OutdoorCurve,
+            Harsh = Survey is { } s && (s.Cold || s.Hot),
+            WorkDayW = LayoutRegroupRules.StationWorkPrice(this).WorkDayW,
+            Incumbent = Furniture is null ? 0 : Plan.RoomsOf(PlannedRole.Barracks).Select(r => SleepingRules.BedSlotsOf(Plan, r, Furniture)?.Count ?? 0).DefaultIfEmpty(0).Max(),
+            Committed = EquatableArray.From(Plan.RoomsOf(PlannedRole.Barracks).Concat(Plan.RoomsOf(PlannedRole.Bedroom))
+                .Where(r => standing.Contains(r.Id) && !Plan.Rooms.Any(o => o.Replaces == r.Id && standing.Contains(o.Id)))
+                .Select(r => ShellStanding.GetValueOrDefault(r.Id))),
+        };
+    }
 
     /// <summary>The standing rooms whose native role is not the one PredictRole gives their contents (GuardNativeRoles, #2898): a cost input and a split move of the regrouping.</summary>
     public IReadOnlyList<RoleMismatch> Mismatches { get; init; } = [];

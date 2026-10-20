@@ -182,6 +182,27 @@ public sealed class BedMergePriceTests
         Assert.Equal(3, LayoutClusterRules.BarracksSizeOf(Input(4, Near(1.05 / 60, 4)))!.Value.Size);
     }
 
+    [Fact]
+    public void AMergeBackPaysWhatWasSpentOnTheBedroomItGivesUp()
+    {
+        // Walls alone, three calm sleepers: the plan's three-bed barracks is worth 2 - 0.48 = 1.52, four beds 3 - 0.72 =
+        // 2.28 less the spend on the one committed room four beds give up (#3675). The barracks stands whole.
+        var barracks = new ShellPieces(17, 1);
+        int Size(params ShellPieces[] bedroom) => LayoutClusterRules.BarracksSizeOf(Input(4, Price(new BedMergeFacts { Losses = [0.004, 0.004, 0.004], WallCell = Known(0.08), Door = Known(0.12) }, null, harsh: false) with
+        {
+            Incumbent = 3,
+            Committed = EquatableArray.From(bedroom.Prepend(barracks)),
+        }))!.Value.Size;
+
+        // A bedroom on paper is not committed: it is free to drop, and the beds merge.
+        Assert.Equal(4, Size());
+        // A built bedroom charges its shell (eleven walls and the door, 1.0): the merge back is worth 1.28 and the split holds.
+        Assert.Equal(3, Size(new ShellPieces(11, 1)));
+        // A bedroom under construction charges the walls standing: three (0.24) do not hold the split, ten (0.8) do.
+        Assert.Equal(4, Size(new ShellPieces(3, 0)));
+        Assert.Equal(3, Size(new ShellPieces(10, 0)));
+    }
+
     // The crop that prices a colonist's work-day: the game's rice, six units of 0.05 nutrition a cell.
     internal static readonly CropChoice Rice = new()
     {
@@ -209,6 +230,27 @@ public sealed class BedMergePriceTests
         string Key(StationFacts facts) => facts.InputsKeyParts().Single(p => p.Key == "barracks").Value;
         Assert.Equal("4;", Key(f));
         Assert.Equal("1;", Key(f with { OutdoorCurve = default }));
+    }
+
+    [Fact]
+    public void OnlyTheRoomsStandingOrUnderConstructionAreCommittedWithWhatOfThemStands()
+    {
+        PlannedRoom Room(int id, PlannedRole role, int x) => new() { Id = id, Role = role, Region = RegionRules.RectRegion(new Policy.Rectangle(x, 0, 3, 3)) };
+        var plan = new LayoutPlan { Rooms = [Room(2, PlannedRole.Barracks, 10), Room(3, PlannedRole.Bedroom, 20), Room(4, PlannedRole.Bedroom, 30)], NextRoomId = 5 };
+        // The barracks stands whole; bedroom 3 is on paper; bedroom 4 is being built (pinned by its journal plan) with two walls up.
+        var ground = new GroundCensus();
+        var barracksRing = plan.Rooms[0].WallRing().Cells().Except(plan.ShellDoors(plan.Rooms[0])).ToList();
+        ground.Walls.UnionWith(barracksRing);
+        ground.Walls.UnionWith(plan.Rooms[2].WallRing().Cells().Except(plan.ShellDoors(plan.Rooms[2])).Take(2));
+        var f = FirstLayoutPlanTests.Facts(FirstLayoutPlanTests.Survey("cold"), 3) with
+        {
+            Plan = plan,
+            Built = new HashSet<int> { 2 },
+            Pinned = new HashSet<int> { 4 },
+            ShellStanding = LayoutPlan.ShellStanding(plan, ground),
+        };
+
+        Assert.Equal([new ShellPieces(barracksRing.Count, 0), new ShellPieces(2, 0)], f.BedMergePriceOf().Committed);
     }
 
     [Fact]

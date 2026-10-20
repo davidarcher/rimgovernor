@@ -780,10 +780,14 @@ by replan (#3661) and by the same price: the barracks keeps the beds that stay
 (the embedding holds it where it stands for the smaller group) and each bed taken
 out gets a new bedroom, so the switch costs that bedroom's shell and heat and is
 taken when the moved sleeper's loss over the horizon beats it; nothing is
-demolished. The reverse pays the rebuild too: the plan's barracks and bedrooms
-(`BedMergePrice.Bedrooms`, standing or planned) are committed, and a size that
-leaves fewer rooms pays one shell per room it gives up, so a merge back saves only
-the heat and a mood swinging about the switch line switches once. The k beds are one group
+demolished. The reverse pays what was spent (#3675): the plan's barracks and
+bedrooms that stand or are under construction (`StandingIds`) are committed
+(`BedMergePrice.Committed`), each with the walls and doors standing on its own ring
+(`LayoutPlan.ShellStanding`; a ring cell another room shares is the neighbour's),
+and a size that leaves fewer rooms gives up the least spent of them and pays those
+pieces at the wall and door price. A built bedroom merged back saves only its heat,
+so a mood swinging about the switch line switches once; a bedroom on paper is free
+to drop, its flapping held by `TieResolution` and the replan key's mood band. The k beds are one group
 planned `Barracks`, the rest stay single bedrooms; the decision is the advice's
 `bed_merge` attribute. The tiler keeps the cell past each barracks bed's end clear and
 reached from the doors, so no bed is boxed in by the others. The runtime (`reconcileBedroom`) picks the bed from the sleeping

@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// A standing barracks splits by replan (#3661): three calm colonists on a treeless temperate map (logs at market, so the
 /// first plan is one four-bed barracks) keep it when it stands; one pawn near its break gets a bedroom while the barracks
 /// keeps the other beds where it stands; and that pawn's mood swinging about the switch line across six replans switches
-/// once, since a merge back pays for the planned bedroom it gives up.
+/// once, since a merge back pays for the built bedroom it gives up (#3675), where a bedroom still on paper merges back.
 /// </summary>
 public sealed class BarracksSwitchTests
 {
@@ -20,8 +20,23 @@ public sealed class BarracksSwitchTests
         var plan = FirstRoomPlanTests.Derive(f);
         Assert.Single(plan.RoomsOf(PlannedRole.Barracks));
         Assert.Empty(plan.RoomsOf(PlannedRole.Bedroom));
+        return (plan, Stand(plan, f with { Derive = false }));
+    }
+
+    /// <summary>Every room of the plan standing: a wall on each ring cell and a door on each of its doors.</summary>
+    private static StationFacts Stand(LayoutPlan plan, StationFacts f)
+    {
+        var ground = new GroundCensus();
+        foreach (var r in PlannedRules.PlannedBuiltRooms(plan))
+        {
+            var doors = plan.ShellDoors(r).ToHashSet();
+            foreach (var c in r.WallRing().Cells())
+            {
+                (doors.Contains(c) ? ground.Doors : ground.Walls).Add(c);
+            }
+        }
         var built = plan.Rooms.Where(r => !r.Attached()).Select(r => r.Id).ToHashSet();
-        return (plan, f with { Derive = false, Built = built });
+        return f with { Built = built, ShellStanding = LayoutPlan.ShellStanding(plan, ground) };
     }
 
     private static StationFacts WithLosses(StationFacts f, double c) => f with { BedMerge = f.BedMerge with { Losses = [Calm[0], Calm[1], c] } };
@@ -85,15 +100,34 @@ public sealed class BarracksSwitchTests
         double above = hi * 1.1, below = hi * 0.9;
         Assert.NotEqual(Key(plan, WithLosses(f, below)), Key(plan, WithLosses(f, above)));
 
+        // Each review's plan is built before the next: the bedroom the switch plans stands when the mood swings back.
         var bedrooms = new List<int>();
         var cur = plan;
+        var standing = f;
         for (var review = 0; review < 6; review++)
         {
-            cur = Replan(cur, WithLosses(f, review % 2 == 0 ? above : below));
+            cur = Replan(cur, WithLosses(standing, review % 2 == 0 ? above : below));
+            standing = Stand(cur, standing);
             bedrooms.Add(cur.RoomsOf(PlannedRole.Bedroom).Count);
         }
 
         var switches = bedrooms.Prepend(0).Zip(bedrooms, (a, b) => a != b).Count(s => s);
         Assert.True(switches == 1, $"bedrooms per replan {string.Join(",", bedrooms)}");
+    }
+
+    [Fact]
+    public void ABedroomStillOnPaperMergesBackWhenTheMoodCalms()
+    {
+        var (plan, f) = Standing();
+        var barracks = plan.RoomsOf(PlannedRole.Barracks).Single();
+        var split = Replan(plan, WithLosses(f, 0.06));
+        Assert.Single(split.RoomsOf(PlannedRole.Bedroom));
+
+        // Nothing of the bedroom stands: merging back gives up no spend, and the calm sleeper's loss is less than the room saved.
+        var next = Replan(split, WithLosses(f, Calm[2]));
+
+        Assert.Empty(next.RoomsOf(PlannedRole.Bedroom));
+        var kept = Assert.Single(next.RoomsOf(PlannedRole.Barracks));
+        Assert.Equal(Slots(plan, f, barracks), Slots(next, f, kept));
     }
 }

@@ -449,7 +449,7 @@ internal static class StationFactsBuilder
         }
         if (RoundsBuildingPlanner.ColonyGround(projection) is (var ground, true))
         {
-            f = f with { Built = LayoutPlan.BuiltRooms(plan, ground) };
+            f = f with { Built = LayoutPlan.BuiltRooms(plan, ground), ShellStanding = LayoutPlan.ShellStanding(plan, ground) };
         }
         if (projection.Facts.Prisoners.TryGetValue(out var prisoners))
         {
