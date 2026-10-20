@@ -3624,13 +3624,6 @@ public sealed record PopulationPerson
     public Operations.MedicalCare? MedicalCare { get; init; }
 
     /// <summary>
-    /// Peg-leg control, for a prisoner of the colony only: it carries a
-    /// drug addiction (Hediff_Addiction). A prisoner gets no drugs, so an
-    /// addiction is withdrawal now or soon, until the addiction clears.
-    /// </summary>
-    public bool? Withdrawal { get; init; }
-
-    /// <summary>
     /// Medical care cap inputs, for a colony prisoner or guest.
     /// </summary>
     public PawnConditions? Conditions { get; init; }

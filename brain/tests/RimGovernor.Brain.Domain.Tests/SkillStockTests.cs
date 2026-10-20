@@ -222,7 +222,7 @@ public sealed class SkillStockTests
     {
         var recipes = new RecipeFacts
         {
-            MaterialInstalls = [new MaterialInstall { Recipe = "InstallPegLeg", Part = "PegLeg", Bodies = ["Leg"], Work = 1500, Learning = new RecipeLearning("Medicine", Known(1.6), false), SpeedStat = "MedicalOperationSpeed", Medicine = 1 }],
+            MaterialInstalls = [new MaterialInstall { Recipe = "InstallPegLeg", Part = "PegLeg", Work = 1500, Learning = new RecipeLearning("Medicine", Known(1.6), false), SpeedStat = "MedicalOperationSpeed", Medicine = 1 }],
         };
         PrisonerFacts Prisoner(string pawn, SurgeryOperation operation, bool prisoner = true, bool dead = false) => new()
         {

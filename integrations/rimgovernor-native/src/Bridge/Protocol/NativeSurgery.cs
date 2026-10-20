@@ -14,8 +14,7 @@ namespace HomeBridge.BridgeTools
     // HealthCardUtility.CreateSurgeryBill, the bill a player's operations tab
     // queues. Native re-checks the patient, the recipe on the part and the
     // part's current hediffs live; a recipe that is a violation on the
-    // patient needs acknowledge_violation. Other bills never block; a live
-    // practice surgery on the patient does (#3637). The same
+    // patient needs acknowledge_violation. Other bills never block. The same
     // recipe already queued on the same part applies again. Native doctor
     // jobs choose the surgeon. Applied means queued.
     internal static class NativeSurgery
@@ -33,8 +32,6 @@ namespace HomeBridge.BridgeTools
             if (pawn == null || pawn.Dead || !pawn.RaceProps.Humanlike
                 || !(pawn.Faction == Faction.OfPlayer || pawn.IsPrisonerOfColony))
                 return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Living humanlike colony patient is not spawned on this map.");
-            if (NativePawnActivities.PracticeSurgeryOn(pawn))
-                return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A selected practice surgery holds this patient.");
             recipe = pawn.def.AllRecipes?.FirstOrDefault(r => r.defName == (intent.RecipeDef ?? ""));
             if (recipe == null) return ProtoBoundary.Fail(Common.FailureCode.NotFound, "Recipe " + (intent.RecipeDef ?? "") + " is not offered for this patient.");
             var parts = pawn.RaceProps.body.AllParts;

@@ -9,12 +9,6 @@ public static class MedicalCases
         ArgumentNullException.ThrowIfNull(registry);
         registry.Register(PlagueReadback.Case());
         registry.Register(TendGates.Case());
-        registry.Register(MedicalPracticeSurgery.Case());
-        registry.Register(PracticeAmputation.Case());
-        foreach (var practice in MedicalPracticeSurgeryDemand.Cases())
-        {
-            registry.Register(practice);
-        }
         foreach (var surgery in MedicalSurgery.All())
         {
             registry.Register(surgery);

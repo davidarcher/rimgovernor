@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// life-saving amputation;</item>
 /// <item>care's hospital bed, built through the shared building planner or converted;</item>
 /// <item>reserves' stalled-source withdrawals and herb harvest (its medicine bill is the work ledger's);</item>
-/// <item>surgery's restore, harvest and peg-leg plans.</item>
+/// <item>surgery's restore and harvest plans.</item>
 /// </list>
 /// </summary>
 public sealed class MedicalRounds

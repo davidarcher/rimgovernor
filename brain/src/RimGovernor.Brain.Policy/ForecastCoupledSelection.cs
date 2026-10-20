@@ -365,11 +365,6 @@ public sealed partial record ForecastCoupledSelection
                         + (outcome.StationaryThermalRelief.IsKnown ? ":relief=" + outcome.StationaryThermalRelief.Value : "")));
                     continue;
                 }
-                if (PracticeWithoutValue(outcome, vector, candidates.Context.Bindings))
-                {
-                    evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector, "practice_without_value"));
-                    continue;
-                }
                 var rank = CompareConsequences(vector, bestVector);
                 // Consequence ties never release a retained incumbent to save nominal labor.
                 var retainsSelectedIncumbents = selected.Where(incumbentIds.Contains).All(id => additions.Any(c => c.Id == id));
@@ -697,24 +692,6 @@ public sealed partial record ForecastCoupledSelection
     /// winning over the terms both sides assess, a difference within <see cref="ForecastValuePolicy.TieResolution"/> being a tie;
     /// then the terms with no mechanical conversion yet, in the order below. Zero leaves the incumbent rule and labor to the caller.
     /// </summary>
-    /// <summary>
-    /// Practice surgery earns only the Investment term's credit (#3637): an outcome with a practice surgery whose net Investment (its
-    /// skill credit, negative, plus its medicine charge, positive) is not a gain is refused, so zero marginals never select one.
-    /// </summary>
-    internal static bool PracticeWithoutValue(ForecastCoupledOutcome outcome, ForecastConsequenceVector vector,
-        IReadOnlyDictionary<(string Task, string Pawn), Methods.ActivityTaskCandidate> bindings)
-    {
-        foreach (var allocation in outcome.Plan.Allocations)
-        {
-            if (!bindings.TryGetValue((allocation.Activity, allocation.Pawn), out var binding) || binding.Practice?.Surgery is null) continue;
-            var net = 0d;
-            foreach (var row in vector.Value.Ledger.InvestmentContributions)
-                if (row.Activity == allocation.Activity && row.Pawn == allocation.Pawn) net += row.Value;
-            if (!(net < 0)) return true;
-        }
-        return false;
-    }
-
     internal static int CompareConsequences(ForecastConsequenceVector a, ForecastConsequenceVector b)
     {
         var zero = a.Value.UrgentZero.Excess - b.Value.UrgentZero.Excess;

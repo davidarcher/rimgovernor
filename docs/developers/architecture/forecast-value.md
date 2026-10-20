@@ -344,10 +344,7 @@ best potency first, and both the surgeries and raid tending (`ColonyModelPolicy.
 `ColonyValue.RaidTreatmentsPerDay`: the harm model's raid wounds per pawn, batched at their mean severity under the native cap of 20
 per treatment) use up the best kind first. `ProjectMarginalValue` perturbs each pawn's stock of a practised skill by an hour of that
 practice's raw XP and each medicine kind by one unit, writing value per XP and per unit to `PerUnit` under the stock key and
-`medicine/<kind>`. A slot a surgery could open (#3639, `ColonyModelInput.Openings`, one per material install recipe on a held
-prisoner without a slot) is run again with its practice node added; the difference is written per slot under `practice_slot/<recipe>`,
-and a value that leaves any stock unpriced writes `practice_slot_unpriced:<recipe>` instead. Tier 1 credits a slot-opening step that
-key as project progress at its native success chance ([capability maintenance](../contracts/capability-maintenance.md#practice-slots-3639)).
+`medicine/<kind>`.
 
 *Raid tending (#3635).* `ColonyValue` subtracts the colony's raid harm over the run at the tending the run gives it. The run is cut
 at each doctor's level dates and at each medicine kind's run-out (between events the stock falls at a constant rate, best kind

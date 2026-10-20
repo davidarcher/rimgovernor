@@ -8,9 +8,6 @@ public sealed record PracticeActivityRead
     public bool Known { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PracticeWorker>))]
     public EquatableArray<PracticeWorker> Workers { get; init; }
-    /// <summary>The practice surgeries doctors can run now on colony prisoners (#3637).</summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<PracticeSurgeryWorker>))]
-    public EquatableArray<PracticeSurgeryWorker> Surgeries { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Findings { get; init; }
 }
@@ -28,21 +25,6 @@ public sealed record PracticeWorker(string Pawn, string Skill, string Target, Ce
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Findings { get; init; }
 }
-/// <summary>One doctor's practice surgery on a colony prisoner (#3637): a native recipe on a part (-1 for none) with one stocked medicine
-/// kind (thing def) the recipe and the patient's care allow. <see cref="SuccessChance"/> is that doctor's native chance with that medicine in the
-/// patient's bed (the best medical bed while out of one); <see cref="ApproachTicks"/> walks via the nearest stack of that medicine.</summary>
-public sealed record PracticeSurgeryWorker(string Doctor, string Patient, string Recipe, int Part, string Medicine, int MedicineCount,
-    Fact<double> SuccessChance, string WorkGiver, Cell Location, Fact<double> ApproachTicks, Fact<double> WorkTicks)
-{
-    public ProductiveSkillWork? SkillWork { get; init; }
-    /// <summary>The colonist memories the step raises when it removes a clean natural part (#3639): what the native history events
-    /// HarvestedOrgan and HarvestedOrganFromGuest give each spawned free colonist through its ideoligion's memory precepts (the doctor
-    /// its self-took ones), each an unattached native memory the colonist can get; empty when no such thought fires.</summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<PracticeSurgeryMemory>))]
-    public EquatableArray<PracticeSurgeryMemory> Memories { get; init; }
-}
-/// <summary>One colonist memory a practice surgery raises (#3639).</summary>
-public sealed record PracticeSurgeryMemory(string Pawn, NeedMemory Memory);
 /// <summary>Fresh native requirement and skill observations for an admitted attempt.</summary>
 public sealed record PracticeMandateRead(string Task, Fact<bool> Assigned,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<PracticeFloorRead>))] EquatableArray<PracticeFloorRead> Alternatives);

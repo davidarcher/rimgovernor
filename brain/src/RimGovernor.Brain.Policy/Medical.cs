@@ -28,7 +28,7 @@ public sealed record CriticalCare
 /// (downed, bleeding or needing a tend, and a colonist a life-saving amputation would save) and, while there are
 /// any, the doctors and rescuers observed for them. For care: whether the sick are resting and in care
 /// (<see cref="MedicalCareHistory.Recovered"/>). For reserves: the medicine stock against the target bar. For
-/// surgery: whether an owed operation, an elective upgrade, an organ harvest, a part recovery or a peg-leg step
+/// surgery: whether an owed operation, an elective upgrade, an organ harvest or a part recovery
 /// stands.
 /// </summary>
 public sealed record MedicalFacts
@@ -93,7 +93,7 @@ public sealed record MedicalFacts
 /// <item><c>medical/reserves</c> is met while the medicine stock reaches the target bar. Its medicine bill is the
 /// work ledger's; its stalled-source withdrawals and herb harvests are the runtime's.</item>
 /// <item><c>medical/surgery</c> is met while no operation the surgery work serves stands. Its work is the restore,
-/// harvest and peg-leg plans; the surgery part bill is the work ledger's.</item>
+/// and harvest plans; the surgery part bill is the work ledger's.</item>
 /// </list>
 /// Care and reserves are independent: the medicine stock never waited on the sick resting, and the hospital is
 /// care's own work, so no precondition orders them.
@@ -243,12 +243,12 @@ public static partial class MedicalRules
 
     /// <summary>
     /// Whether no operation the surgery work serves stands: no owed restore, no actionable elective upgrade, and no
-    /// organ sale harvest (while the silver runway is short), part recovery or peg-leg step wanted.
+    /// organ sale harvest (while the silver runway is short) or part recovery wanted.
     /// </summary>
     public static Fact<bool> SurgeryNeedRecovered(RoundsFacts f, RoundsPolicy p, bool medicineActive)
     {
         var recovered = RoundsRules.AllFacts(SurgeryRules.SurgeryRecovered(f.MedicalPawns), RoundsRules.Measured(SurgeryRules.ElectiveSurgeryOwed(f.MedicalPawns, f.SurgeryContextOf(), f.FabricableParts), owed => !owed));
-        if (OrganHarvestRules.SaleHarvestWanted(f, SilverGapRules.RoundsSilverShort(f, p, medicineActive)) || OrganHarvestRules.PartRecoveryWanted(f) || DoctorTrainingRules.PegCycleWanted(f, p.Prisoners()))
+        if (OrganHarvestRules.SaleHarvestWanted(f, SilverGapRules.RoundsSilverShort(f, p, medicineActive)) || OrganHarvestRules.PartRecoveryWanted(f))
         {
             return Known(false);
         }

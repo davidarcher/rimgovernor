@@ -202,7 +202,6 @@ Policy/DefTables.cs|DefTablesRules.ScenarioThingChoices|"Uranium"
 Policy/DefTables.cs|DefTablesRules.ScenarioThingChoices|"WoodLog"
 Policy/DefenseCover.cs|DefenseCoverStock.DefenseSandbags|"Sandbags"
 Policy/DefenseTurrets.cs|DefenseTurretsPolicy.TurretMini|"Turret_MiniTurret"
-Policy/DoctorTraining.cs|DoctorTrainingRules.WoodRemovalWork|2000
 Policy/FacilityUpkeep.cs|FacilityUpkeepRules.ReviewStoneShell|"Wall"
 Policy/FishingFacts.cs|FishingFactsRules.FishingWorkTicksPerDay|2500
 Policy/Flooring.cs|FlooringRules.DefaultFlooringPolicy|"Concrete"

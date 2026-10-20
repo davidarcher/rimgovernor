@@ -45,9 +45,6 @@ public sealed record ProjectGraph
     /// <summary>The id of the practice node of a slot.</summary>
     public static string PracticeId(string prisoner) => $"practice:{prisoner}";
 
-    /// <summary>The key of opening one practice slot of a material install recipe (#3639): its marginal value is per slot under this key.</summary>
-    public static string SlotKey(string recipe) => ForecastProjectProgress.PracticeSlotPrefix + recipe;
-
     /// <summary>
     /// One practice node per practice slot (#3634), in slot order: the slot's surgery work, the skill its recipe trains, the raw XP per
     /// tick spent and the medicine a surgery uses up. A slot whose recipe learning is unqualified makes no node and is named. Practice

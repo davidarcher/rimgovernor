@@ -137,20 +137,11 @@ public sealed partial class DefinitionCatalog
                 continue;
             }
 
-            var price = StatValue(spawned.defName, string.Empty, CatalogStats.MarketValue);
-            var bodies = recipe.appliedOnFixedBodyParts.Seq().Select(b => b.defName).ToList();
-            if (bodies.Count == 0)
-            {
-                throw new CatalogException($"recipe {recipe.defName} installs {hediff.defName} on no fixed body part");
-            }
-
             return new P.MaterialInstall
             {
                 Recipe = recipe.defName,
-                Bodies = [.. bodies],
                 Part = hediff.defName,
                 Work = recipe.workAmount,
-                Value = (double)price * slot.GetBaseCount(),
                 Learning = ObserveRecipeLearning(recipe),
                 SpeedStat = recipe.workSpeedStat?.defName ?? "",
                 Medicine = recipe.ingredients.Seq().Where(s => s.filter.AllowedThingDefs.Any() && s.filter.AllowedThingDefs.All(t => t.IsMedicine)).Sum(s => (double)s.GetBaseCount()),

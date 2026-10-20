@@ -11,9 +11,6 @@ namespace RimGovernor.Brain.Policy;
 // Skills and medicine (#3634): each pawn's stock of a skill a practice node trains is run again with an hour of that practice's raw XP
 // injected; the practice keeps the stock moving, so the XP brings every later level date earlier and the value per XP is smooth. Each
 // medicine kind held is run again with one more unit.
-//
-// Practice slots (#3639): each slot a surgery could open (ColonyModelInput.Openings) is run again with its practice node; the difference
-// is what one slot is worth, the counterfactual the tier-1 slot-opening step is credited by.
 
 /// <summary>What a tier-2 trajectory is worth (<see cref="ColonyValue"/>; a test may price it otherwise).</summary>
 public interface ITrajectoryValue
@@ -42,7 +39,7 @@ public sealed record ProjectMarginals
     /// <summary>
     /// Capability-days a unit of the project's progress adds, by <see cref="ProjectGraph.ProgressKey"/>: per research point, per
     /// cell sown; per XP of a skill stock (<see cref="ProjectGraph.SkillKey"/>) and per unit of a medicine kind
-    /// (<see cref="ProjectGraph.MedicineKey"/>); per practice slot opened (<see cref="ProjectGraph.SlotKey"/>). This is what tier 1 multiplies the progress of a task by (<see cref="ForecastCoupledContext.Investment"/>).
+    /// (<see cref="ProjectGraph.MedicineKey"/>). This is what tier 1 multiplies the progress of a task by (<see cref="ForecastCoupledContext.Investment"/>).
     /// </summary>
     public IReadOnlyDictionary<string, double> PerUnit { get; init; } = new Dictionary<string, double>();
 
@@ -122,25 +119,6 @@ public static class ProjectMarginalValue
             foreach (var kind in baseline.MedicineKinds)
             {
                 Perturb(ProjectGraph.MedicineKey(kind), 1);
-            }
-
-            // A slot a practice surgery would open (#3639): the run again with that slot's practice node after the others, less the run
-            // as it is. A value that leaves a skill or medicine stock unpriced cannot say what the slot's practice is worth.
-            if (input.Practice.TryGetValue(out var slots))
-            {
-                foreach (var opening in input.Openings.DistinctBy(s => s.Recipe))
-                {
-                    var slotted = input with { Practice = Known(EquatableArray.From(slots.Append(opening))) };
-                    var node = ProjectGraph.Practice(input with { Practice = Known(EquatableArray.From(new[] { opening })) });
-                    var priced = valuation.Price(ColonyModel.Run(slotted, cycles, policy with { Projects = policy.Projects.Then(node) }));
-                    if (value.Unpriced.Count > 0 || priced.Unpriced.Count > 0 || node.Nodes.Count == 0 || !priced.Value.TryGetValue(out var after))
-                    {
-                        findings.Add($"practice_slot_unpriced:{opening.Recipe}");
-                        continue;
-                    }
-
-                    perUnit[ProjectGraph.SlotKey(opening.Recipe)] = Math.Abs(after - asIs) < Negligible ? 0 : after - asIs;
-                }
             }
         }
 

@@ -10,7 +10,7 @@ public sealed class RoundsSurgeryResult : IPlannerMethod
     public PlanId Plan { get; set; }
     public IReadOnlyList<Pol.SurgeryWant> Wants { get; set; } = [];
 
-    /// <summary>Set when the plan carries an organ harvest or an artificial part recovery, or a peg-leg step.</summary>
+    /// <summary>Set when the plan carries an organ harvest or an artificial part recovery.</summary>
     public bool Harvest { get; set; }
 }
 
@@ -112,12 +112,6 @@ public sealed partial class RoundsSurgeryPlanner
             harvest = OrganHarvestRules.SelectPartRecovery(read.Projection.Facts.Prisoners, read.Projection.Facts.PrisonerColony, parts, inFlight, read.Projection.Facts.Recipes);
         }
         // Prisoners stay on herbal: a cut only better medicine could serve is refused; the review asks for herbal instead.
-        if (harvest is null)
-        {
-            // Peg-leg cycling: control or a reinstall.
-            var facts = read.Projection.Facts;
-            harvest = DoctorTrainingRules.SelectPegCycle(facts.Prisoners, facts.PrisonerColony, facts.FoodDays, _reviewer.Policy.Prisoners(), facts.Recipes, inFlight);
-        }
         var harvesting = harvest is not null && arbiter.TryClaim([harvest.Prisoner]);
         result.Harvest = harvesting;
         if (queue.Count == 0 && !harvesting)

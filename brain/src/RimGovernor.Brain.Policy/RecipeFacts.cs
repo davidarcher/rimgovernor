@@ -40,44 +40,30 @@ public sealed record RecipeFacts
     public (WorkType Work, bool Known) BillWorkOf(string recipe) =>
         BillWork.TryGetValue(recipe, out var work) ? (work, true) : (default, false);
 
-    /// <summary>The material install recipe that serves the body part, null when no stuff-made part fits it.</summary>
-    public MaterialInstall? MaterialInstallFor(string body) => MaterialInstalls.FirstOrDefault(m => m.Bodies.Contains(body));
-
     /// <summary>The material install of the recipe.</summary>
     public MaterialInstall? MaterialInstallByRecipe(string recipe) => MaterialInstalls.FirstOrDefault(m => m.Recipe == recipe);
 
     /// <summary>The material install that adds the hediff.</summary>
     public MaterialInstall? MaterialInstallOfPart(string hediff) => MaterialInstalls.FirstOrDefault(m => m.Part == hediff);
 
-    /// <summary>The material install a practice-cycle step belongs to (#3634, #3637): a restore by a material install recipe on a missing limb,
+    /// <summary>The material install a practice-cycle step belongs to (#3634): a restore by a material install recipe on a missing limb,
     /// or the removal of an installed material part. Null for every other operation.</summary>
     public MaterialInstall? PracticeCycleOf(SurgeryOperation op) =>
         op.Kind == SurgeryKind.Restore && op.Recipe.TryGetValue(out var recipe) ? MaterialInstallByRecipe(recipe)
         : op.Kind == SurgeryKind.Amputate && op.AddedPart.TryGetValue(out var part) ? MaterialInstallOfPart(part) : null;
-
-    /// <summary>The material install whose practice cycle a step opens (#3639): the removal of a natural part (no added part on it) a material
-    /// install serves, or a material install over a present natural part. Null for every other operation.</summary>
-    public MaterialInstall? PracticeSlotOf(SurgeryOperation op) =>
-        op.Kind is SurgeryKind.Harvest or SurgeryKind.Amputate && !op.AddedPart.IsKnown && op.PartDefName.TryGetValue(out var body) ? MaterialInstallFor(body)
-        : op.Kind == SurgeryKind.Install && op.Recipe.TryGetValue(out var recipe) ? MaterialInstallByRecipe(recipe) : null;
 }
 
 /// <summary>
-/// A surgery recipe that installs a part made straight from a stuff: the recipe, the body parts it applies
-/// to, the hediff it adds, the recipe's work and the market value of the stuff it consumes.
+/// A surgery recipe that installs a part made straight from a stuff: the recipe, the hediff it adds and the
+/// recipe's work.
 /// </summary>
 public sealed record MaterialInstall
 {
     public string Recipe { get; init; } = "";
 
-    public IReadOnlyList<string> Bodies { get; init; } = [];
-
     public string Part { get; init; } = "";
 
     public double Work { get; init; }
-
-    /// <summary>The consumed stuff's market value times the count the recipe takes.</summary>
-    public double Value { get; init; }
 
     /// <summary>The recipe's native learning callback (#3632); null when the catalog did not read it.</summary>
     public RimGovernor.Contracts.Wire.Observations.RecipeLearning? Learning { get; init; }

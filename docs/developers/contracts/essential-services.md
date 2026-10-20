@@ -188,5 +188,5 @@ The assignment search tries for each task the pawns its placed prerequisites wen
 (its work plus its walk to the task, at its opportunity cost, #3624):
 a truncated search reaches only the plans its first choices lead to, and trying pawns in id order gave
 the first meals to whichever cook sorted first, a level-6 cook beside a level-15 one. A meal that waits on another
-colonist's cooking defers its eater by its planned start, not its immediate departure. Doctor training is
-the selected practice surgery ([capability maintenance](capability-maintenance.md#practice-surgery-3637)).
+colonist's cooking defers its eater by its planned start, not its immediate departure. Doctors are not
+trained by surgery on prisoners ([capability maintenance](capability-maintenance.md#no-practice-surgery-3344)).

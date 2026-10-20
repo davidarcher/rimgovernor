@@ -204,10 +204,6 @@ public sealed record ColonyModelInput
     /// <summary>The practice slots, one per prisoner that has one; unknown without the prisoner census.</summary>
     public Fact<EquatableArray<ModelPracticeSlot>> Practice { get; init; }
 
-    /// <summary>The practice slots a surgery could open (#3639), one per material install recipe, each on a held prisoner without one;
-    /// <see cref="ProjectMarginalValue"/> prices each as the run with it less the run without.</summary>
-    public EquatableArray<ModelPracticeSlot> Openings { get; init; }
-
     /// <summary>Whether every section the model needs is known and well formed.</summary>
     public bool Valid() => Unknowns().Count == 0;
 

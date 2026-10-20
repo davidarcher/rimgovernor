@@ -38,8 +38,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
           Targets = EquatableArray.From(s.GetProperty("Targets").EnumerateArray().Select(t => t.GetString()!)),
           Cells = EquatableArray.From(s.GetProperty("Cells").EnumerateArray().Select(c => new Cell(c.GetProperty("X").GetInt32(), c.GetProperty("Z").GetInt32()))) };
     private static PawnActivityPractice? ReadPractice(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
-        : new(e.Str("Skill"), e.Str("Role"), e.GetProperty("RequirementIndex").GetInt32(), e.Str("Partner"), e.Str("PartnerTarget"), e.GetProperty("DurationTicks").GetInt32())
-        { Beneficiary = e.Str("Beneficiary"), Surgery = e.GetProperty("Surgery") is { ValueKind: not JsonValueKind.Null } cut ? new(cut.Str("Recipe"), cut.GetProperty("Part").GetInt32(), cut.Str("Medicine")) : null };
+        : new(e.Str("Skill"), e.Str("Role"), e.GetProperty("RequirementIndex").GetInt32(), e.Str("Partner"), e.Str("PartnerTarget"), e.GetProperty("DurationTicks").GetInt32()) { Beneficiary = e.Str("Beneficiary") };
     private static PawnActivityRecipe? ReadRecipe(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
         : new(e.Str("Bill"), e.Str("Recipe"), EquatableArray.From(e.GetProperty("Ingredients").EnumerateArray()
             .Select(i => new PawnActivityIngredient(i.Str("Thing"), i.GetProperty("Count").GetInt32())))) { Resource = e.Str("Resource"), Stuff = e.Str("Stuff"), Unfinished = e.Str("Unfinished") };
@@ -129,10 +128,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
         {
             w.WriteStartObject("Practice"); w.WriteString("Beneficiary", practice.Beneficiary); w.WriteString("Skill", practice.Skill); w.WriteString("Role", practice.Role);
             w.WriteNum("RequirementIndex", practice.RequirementIndex); w.WriteString("Partner", practice.Partner);
-            w.WriteString("PartnerTarget", practice.PartnerTarget); w.WriteNum("DurationTicks", practice.DurationTicks);
-            if (practice.Surgery is { } cut) { w.WriteStartObject("Surgery"); w.WriteString("Recipe", cut.Recipe); w.WriteNum("Part", cut.Part); w.WriteString("Medicine", cut.Medicine); w.WriteEndObject(); }
-            else w.WriteNull("Surgery");
-            w.WriteEndObject();
+            w.WriteString("PartnerTarget", practice.PartnerTarget); w.WriteNum("DurationTicks", practice.DurationTicks); w.WriteEndObject();
         }
         else w.WriteNull("Practice");
         if (s.Destination is { } d)

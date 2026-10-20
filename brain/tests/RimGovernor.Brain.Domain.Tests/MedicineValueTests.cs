@@ -86,19 +86,6 @@ public sealed class MedicineValueTests
     }
 
     [Fact]
-    public void ASlotIsWorthTheRunWithItsPracticeLessTheRunWithout()
-    {
-        // #3639: no slot yet; one a surgery could open on P2. Its practice lifts a level-3 doctor's tend quality, not a capped one's.
-        var key = ProjectGraph.SlotKey("InstallPegLeg");
-        ColonyModelInput Opening(int stored) => Colony(stored, 100_000) with { Openings = EquatableArray.From(new[] { SkillStockTests.Slot() with { Prisoner = "P2" } }) };
-
-        Assert.True(Marginals(Opening(3), practice: false).PerUnit[key] > 0);
-        Assert.Equal(0, Marginals(Opening(12), practice: false).PerUnit[key]);
-        Assert.Equal(0, Marginals(Opening(3), ForecastValueTests.RaidDay(raidsPerDay: 0), practice: false).PerUnit[key]);
-        Assert.DoesNotContain(key, Marginals(Colony(3, 100_000), practice: false).PerUnit.Keys);
-    }
-
-    [Fact]
     public void NoThreatGivesAZeroMarginal()
     {
         var marginals = Marginals(Colony(3, 100_000, practice: true), ForecastValueTests.RaidDay(raidsPerDay: 0));

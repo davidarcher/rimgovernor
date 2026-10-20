@@ -139,10 +139,9 @@ public sealed partial record ForecastCoupledCandidates
             alternatives.AddRange(effects.Roots); findings.UnionWith(effects.Findings); truncated |= effects.Truncated;
         }
         else findings.Add("unknown_clothing_requirements");
-        var practiceAdmitted = facts.Hostiles.IsKnown && facts.Hostiles.Value == 0 && facts.CriticalPatients.IsKnown && facts.CriticalPatients.Value == 0
-            && !needs.Pawns.SelectMany(p => p.Needs).Any(n => n.Kind is "food" or "rest" && n.Level.IsKnown && n.Level.Value <= 0);
         var practice = Methods.Generation.PracticeMethodCandidates.Generate(facts, read.Practice, horizon, CapabilityMaintenanceRules.AssignedCombatCapabilities(facts.Ideology),
-            practiceAdmitted, PracticeSurgeryRules.LegalSurgeries(facts, read.Practice, practiceAdmitted, findings));
+            facts.Hostiles.IsKnown && facts.Hostiles.Value == 0 && facts.CriticalPatients.IsKnown && facts.CriticalPatients.Value == 0
+            && !needs.Pawns.SelectMany(p => p.Needs).Any(n => n.Kind is "food" or "rest" && n.Level.IsKnown && n.Level.Value <= 0));
         tasks.AddRange(practice.Tasks); options.AddRange(practice.Options); alternatives.AddRange(practice.Roots);
         foreach (var binding in practice.Bindings) bindings.Add(binding.Key, binding.Value);
         foreach (var route in practice.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
@@ -211,7 +210,7 @@ public sealed partial record ForecastCoupledCandidates
         // Planned work has no action template to delay (#3278).
         var productiveRoots = alternatives.Where(c => c.ActivityCompletions.Count == 1 && !unplaced.Contains(c.ActivityCompletions[0])
             && needTasks.All(n => n.Task != c.ActivityCompletions[0])
-            && practice.Practice.All(p => p.Task != c.ActivityCompletions[0]) && !practice.Surgeries.Contains(c.ActivityCompletions[0])
+            && practice.Practice.All(p => p.Task != c.ActivityCompletions[0])
             && sowing.Roots.All(r => r.Id != c.Id)).ToArray(); // Unvalued sowing would only spend the delayed-variant budget.
         var delayed = 0; var delayedTasks = new HashSet<string>(StringComparer.Ordinal); var delayedRoots = new HashSet<string>(StringComparer.Ordinal);
         foreach (var root in productiveRoots)

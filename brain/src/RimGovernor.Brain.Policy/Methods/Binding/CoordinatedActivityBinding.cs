@@ -73,8 +73,7 @@ internal static class CoordinatedActivityBinding
         var tasks = plan.Allocations.Where(a => unplaced?.Contains(a.Activity) != true).Select(a => bindings.TryGetValue((a.Activity, a.Pawn), out var task)
             ? new SelectedActivityTask(task.Id, task.Pawn, task.Prerequisites,
                 new(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count,
-                    // A practice surgery keeps its horizon deadline: the native bill also waits on the patient and the part (#3637).
-                    task.Practice is { Surgery: null } || task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? checked(tick + (long)Math.Ceiling(a.End)) : task.Deadline)
+                    task.Practice != null || task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? checked(tick + (long)Math.Ceiling(a.End)) : task.Deadline)
                     { Practice = task.Practice, Destination = task.Destination, Container = task.Container, SupportDemand = task.SupportDemand, Medicine = task.Medicine,
                         Targets = task.Targets, Cells = task.Cells, Recipe = task.Recipe ?? (task.Cooking is { } cooking
                         ? new(cooking.Continuation.Bill, cooking.Continuation.Recipe, [new(task.Ingredient, cooking.IngredientCount)]) { Resource = task.Resource } : null) },

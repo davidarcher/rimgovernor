@@ -61,7 +61,6 @@ public sealed class SurgerySelectionTests
         Prospect = Known(new PrisonerProspect { Age = 30, Health = 1 }),
         QueuedSurgeries = Known(0),
         HarvestGoodwill = Known(0),
-        Withdrawal = Known(false),
         MissingParts = Known(EquatableArray.From(new List<MissingPart>())),
         Operations = Known(EquatableArray.From(ops)),
     };
@@ -74,7 +73,6 @@ public sealed class SurgerySelectionTests
     private static readonly RecipeFacts Recipes = new()
     {
         HarvestOrgans = ["Kidney", "Lung"],
-        MaterialInstalls = [new MaterialInstall { Recipe = "InstallPegLeg", Bodies = ["Leg"], Part = "PegLeg", Work = 1000, Value = 5 }],
     };
 
     [Fact]

@@ -54,53 +54,9 @@ journal attribution, observed recovery, draft/real-weapon restoration, and relea
 removal. They complement the native budget, ceiling, damage and bystander laboratory cases.
 Registration and compilation are distinct from executed native acceptance.
 
-## Practice surgery (#3637)
+## No practice surgery (#3344)
 
-A doctor can practice Medicine on a held prisoner through a practice-cycle step: installing a
-material part on a missing limb, or removing an installed material part (`RecipeFacts.PracticeCycleOf`,
-the same slot `RoundsColonyModel.PracticeOf` models). `PracticeMethodCandidates` proposes one candidate
-per doctor × prisoner × step × medicine kind the prisoner's care allows. Each carries the native
-Medicine callback (`ProductiveSkillWork` at each skill level), the walk and fetch, the work duration
-and its medicine consumption as a task input. The gates are legality only
-(`PracticeSurgeryRules.LegalSurgeries`): the admission practice uses; the player not forbidding organ
-harvest; no prisoner surgery queued or in flight (`OrganHarvestRules.SurgeryInFlight`, so RoundsSurgery's
-harvest and recovery go first and the two never queue on one prisoner); the ingredients on the map and no
-violation; and the doctor's native failure chance with that medicine at most `SurgeryRules.RestoreFailureCap`.
-Whether the practice is worth the doctor's time and the medicine is the Investment term's alone: the
-Medicine XP credit (`skill/<pawn>/Medicine`) against the medicine charge (`medicine/<kind>`). A
-selection whose practice surgeries net no credit is refused (`practice_without_value` evidence), so with zero
-marginals practice never wins. The part itself is a one-time cost and is not charged; its fetch is not in
-the approach (`practice_surgery_part_fetch_unassessed`). One practice surgery runs at a time. Binding and
-release are described in [pawn activities](pawn-activities.md); `medical/practice-surgery-binding` checks the
-applied step's doctor-restricted bill and its native Medicine callback. Three served cases check the
-selection (#3638), each on a Medicine-3 doctor and a prisoner missing a leg: `medical/practice-surgery-demand`
-(a raid threat in a calibrated exposure cell selects practice and the native callback pays),
-`medical/practice-surgery-no-demand` (a quiet world refuses it) and `medical/practice-surgery-cheaper-learning`
-(a patient needing tending is selected and practice is not). Practice surgery is the only doctor-training path.
-
-## Practice slots (#3639)
-
-A held prisoner with no practice-cycle step can be given one: removing a natural limb, or installing a
-material part over it (`RecipeFacts.PracticeSlotOf`), is a practice-surgery step on the same Surgery variant.
-The native read offers these only for a prisoner with no cycle step, on the first present natural part of
-each part def a stocked artificial-part install applies to. Beyond the practice-surgery gates the step is
-legal only when it is not lethal, the part is not one a prisoner keeps (`RecipeFacts.KeptPart`), the
-install's learning is read, and the population policy is not recruiting the prisoner
-(`PopulationRules.Recruiting`, the Recruit/Convert intent the Recruit need and `PrisonerRecruitDeficit`
-drive; unknown holds it with `practice_slot_recruiting_unknown`). A goodwill violation is allowed.
-Once one limb is gone the prisoner has a slot and cycles it, so a second limb is never taken; feeding a
-legless prisoner is the warden's work in the forecast, not a rule here.
-
-The step is valued by the slot's tier-2 counterfactual: `ColonyModelInput.Openings` lists one slot per
-material install recipe a surgery could open, and `ProjectMarginalValue` prices `practice_slot/<recipe>`
-(`ProjectGraph.SlotKey`) as the run with that slot's practice node less the run without, once per review;
-a value that leaves a skill or medicine stock unpriced names `practice_slot_unpriced:<recipe>` instead.
-The task carries that key as project progress at the native success chance per work tick, so a completed
-step credits the chance times the slot's worth: a failed surgery opens nothing, and the prisoner a fatal
-failure loses is worth only what `recruit_option_value_unassessed`, `prisoner_goodwill_unassessed` and
-`prisoner_sale_value_unassessed` leave out. The colonists' mood is priced through the mood forecast only:
-the native read lists, per row that removes a clean natural part, the unattached memories the native
-harvest events (HarvestedOrganFromGuest, and HarvestedOrgan with Ideology) give each spawned free colonist
-through its ideoligion's self-took and knows precepts, after their own conditions and `CanGetThought`
-(none for a psychopath or a precept that approves); the commitment grants them as mood memories.
-`medical/practice-amputation` checks a limb taken and a cycle step on that part following.
+Doctors are not trained by surgery on prisoners. Practice surgery (#3637), practice slots by amputation
+(#3639) and the peg-leg control and reinstall cycle were deleted: one practice surgery nets about 1e-4
+capability-days (its Medicine XP credit less the medicine it uses), while tending wounds without
+medicine builds the same skill for free. Medicine XP still comes from ordinary tending and surgery.

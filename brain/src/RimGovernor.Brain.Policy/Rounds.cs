@@ -113,7 +113,7 @@ public sealed record RoundsFacts
     /// <summary>The catalog's item numbers (market value, nutrition, medical potency, stuff factors); the zero value without a catalog.</summary>
     public ItemFacts Items { get; init; } = new();
 
-    /// <summary>The recipe rows' derived facts: the stuff-made part installs peg-leg cycling plans around.</summary>
+    /// <summary>The recipe rows' derived facts.</summary>
     public RecipeFacts Recipes { get; init; } = new();
 
     /// <summary>The game's capacity penalty tables of malnutrition and food poisoning (#3519), priced by the capability-days ledger (#3520); unknown without a catalog.</summary>

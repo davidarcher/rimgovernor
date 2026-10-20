@@ -1356,10 +1356,6 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Defs.TechLevel), TypeInfoPropertyName = "DefsTechLevel")]
 [JsonSerializable(typeof(Defs.TradeCurrency), TypeInfoPropertyName = "DefsTradeCurrency")]
 [JsonSerializable(typeof(EquatableArray<Observations.PracticeWorker>))]
-[JsonSerializable(typeof(EquatableArray<Observations.PracticeSurgeryWorker>))]
-[JsonSerializable(typeof(Observations.PracticeSurgeryWorker))]
-[JsonSerializable(typeof(EquatableArray<Observations.PracticeSurgeryMemory>))]
-[JsonSerializable(typeof(Observations.PracticeSurgeryMemory))]
 [JsonSerializable(typeof(Observations.PracticeActivityRead))]
 [JsonSerializable(typeof(EquatableArray<Observations.ResearchWorker>))]
 [JsonSerializable(typeof(Observations.ResearchActivityRead))]
@@ -1375,7 +1371,6 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(EquatableArray<Observations.HuntGroundRead>))]
 [JsonSerializable(typeof(EquatableArray<Observations.HuntObstacleRead>))]
 [JsonSerializable(typeof(RimGovernor.Brain.Domain.PawnActivityPractice))]
-[JsonSerializable(typeof(RimGovernor.Brain.Domain.PawnActivitySurgery))]
 [JsonSerializable(typeof(EquatableArray<Observations.PracticeMandateRead>))]
 [JsonSerializable(typeof(EquatableArray<Observations.PracticeFloorRead>))]
 public sealed partial class WireJsonContext : JsonSerializerContext;

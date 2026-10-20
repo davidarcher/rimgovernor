@@ -52,12 +52,6 @@ namespace HomeBridge.BridgeTools
         internal static bool Owned(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release;
         /// <summary>Owned by an assignment other than standby (#3322): a standby colonist is free for new work.</summary>
         internal static bool Committed(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release && !PawnActivities.IsStandby(e.Order);
-        /// <summary>A live practice surgery (#3637) targets the patient: no other surgery may be queued on it.</summary>
-        internal static bool PracticeSurgeryOn(Pawn patient)
-        {
-            var id = patient.GetUniqueLoadID();
-            return Entries.Values.Any(e => !e.Order.Release && e.Order.Steps.Any(s => s.Practice?.Surgery != null && s.Target == id));
-        }
         internal static PawnActivityStep? ActiveStep(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && e.Step < e.Order.Steps.Length ? e.Order.Steps[e.Step] : null;
         internal static Operations.PawnActivityExecution? Read(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release ? Row(e) : null;
         private static Operations.PawnActivityExecution Row(Entry e) => new(e.Order.Assignment, e.Order.Method, e.Order.Revision,
@@ -343,10 +337,6 @@ namespace HomeBridge.BridgeTools
                 Entries.TryGetValue(pawn, out var old);
                 if (old?.Order.Revision == order.Revision && Equivalent(old.Order, order)) continue;
                 oldJobs.Add((pawn, order.Release ? old?.Running : old?.Running ?? pawn.CurJob));
-                // A practice surgery the new order no longer runs leaves no bill behind (#3637).
-                foreach (var cut in old?.Order.Steps.Where(s => s.Practice?.Surgery != null
-                    && !order.Steps.Any(n => n.Practice?.Surgery == s.Practice.Surgery && n.Target == s.Target)) ?? [])
-                    NativePracticeSurgery.Cancel(pawn, cut);
                 var e = new Entry { Pawn = pawn, Order = order with { Steps = order.Steps.ToArray() }, Identity = identity, Generation = batch.AuthorityGeneration,
                     SelectedTask = batch.Tasks.FirstOrDefault(t => t.Id == order.Task), Tick = Find.TickManager.TicksGame, Dependencies = order.Steps.Select(s => s.WaitForFilth.Length == 0 ? null : Thing(s.WaitForFilth)).ToArray() };
                 Entries[pawn] = e;
@@ -503,12 +493,6 @@ namespace HomeBridge.BridgeTools
             }
             var target = Thing(step.Target) ?? (p.carryTracker.CarriedThing?.GetUniqueLoadID() == step.Target ? p.carryTracker.CarriedThing : null)
                 ?? throw new InvalidOperationException("target_missing");
-            if (step.Practice is { Surgery: not null })
-            {
-                // The doctor holds while the prisoner gets into bed and native DoBill finds the bill's ingredients (#3637).
-                if (target is not Pawn patient || !NativePracticeActivities.Legal(p, patient, step)) throw new InvalidOperationException("selected_practice_surgery_unavailable");
-                return NativePracticeSurgery.Job(p, patient, step) ?? JobMaker.MakeJob(holdDef);
-            }
             var (maxPawns, stackCount) = NativeNeedsForecast.ServiceReservation(step.Kind, target, step.Count);
             if (p.carryTracker.CarriedThing != target && (target.IsForbidden(p) || !p.CanReserveAndReach(target, PathEndMode.Touch, Danger.Some, maxPawns, stackCount))) throw new InvalidOperationException("target_unreachable_or_reserved");
             Job? job = null;
@@ -714,8 +698,6 @@ namespace HomeBridge.BridgeTools
             if (Find.TickManager.TicksGame >= step.Deadline) { Fault(e, "hold_deadline"); return; }
             if (!Ready(e)) return;
             if (step.Kind == PawnActivityKind.Hold && step.WaitForFilth.Length == 0) return;
-            // A practice surgery holds until its prisoner lies in bed, checked once a second (#3637).
-            if (step.Practice is { Surgery: not null } && (!pawn.IsHashIntervalTick(60) || !NativePracticeSurgery.PatientReady(pawn.Map, step))) return;
             if (step.Kind == PawnActivityKind.Hold) e.Step++;
             e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed";
             pawn.jobs.EndCurrentJob(JobCondition.Succeeded);
@@ -729,15 +711,14 @@ namespace HomeBridge.BridgeTools
                 && (__instance.job.targetA.Thing ?? p.carryTracker.CarriedThing) is { } source
                 && NativeSupportActivities.Remaining(p.Map, step, source.def) < step.Count)
             { p.jobs.EndCurrentJob(JobCondition.Incompletable); return; }
-            // A practice surgery runs to its bill's end; the native DoBill ends with it (#3637).
-            if (step.Practice is { Surgery: null } && !NativePracticeActivities.Assigned(p, step))
+            if (step.Practice is { } practice && !NativePracticeActivities.Assigned(p, practice))
             { p.jobs.EndCurrentJob(JobCondition.Succeeded); return; }
             // The forecast's sleep ends at the wake threshold; the native LayDown toil wakes there but never completes, so a
             // rested pawn would lie awake in bed, still owned, until the planned end (#3598).
             if (step.Kind == PawnActivityKind.Sleep && !__instance.asleep && p.needs.rest != null && RestUtility.ShouldWakeUp(p))
             { p.jobs.EndCurrentJob(JobCondition.Succeeded); return; }
             if (Find.TickManager.TicksGame < step.Deadline) return;
-            p.jobs.EndCurrentJob(step.Practice is { Surgery: null } || e.Order.Steps[e.Step].Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? JobCondition.Succeeded : JobCondition.Incompletable);
+            p.jobs.EndCurrentJob(step.Practice != null || e.Order.Steps[e.Step].Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? JobCondition.Succeeded : JobCondition.Incompletable);
         }
         /// <summary>Records a standby's end without a terminal state: nothing waits on it, so time keeps running.</summary>
         private static void Yield(Entry e, string reason)
@@ -747,7 +728,6 @@ namespace HomeBridge.BridgeTools
         private static void Release(Entry e)
         {
             Entries.Remove(e.Pawn);
-            foreach (var step in e.Order.Steps) NativePracticeSurgery.Cancel(e.Pawn, step);
             if (e.Pawn.Map != null && RimGovernor.Runtime.SparringBouts.For(e.Pawn.Map).BoutOf(e.Pawn)?.Selected == true)
                 RimGovernor.Runtime.SparringBouts.For(e.Pawn.Map).Leave(e.Pawn);
             if (e.Running != null && ReferenceEquals(e.Pawn.CurJob, e.Running) && e.Pawn.CurJob.loadID == e.RunningId)

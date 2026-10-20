@@ -177,10 +177,6 @@ internal static class PopulationDecoder
         }
         var (conditions, life) = CareConditionsRules.CareConditions(person.Conditions);
         f = f with { Conditions = conditions, LifeThreatening = life, Executing = person.Interaction == "Execution" };
-        if (person.Withdrawal is { } withdrawal)
-        {
-            f = f with { Withdrawal = Known(withdrawal) };
-        }
         if (person.Interaction is { } interaction && PrisonerCensusRules.TryPrisonerInteractionMode(interaction, out var mode))
         {
             f = f with { CurrentInteraction = Known(mode) };

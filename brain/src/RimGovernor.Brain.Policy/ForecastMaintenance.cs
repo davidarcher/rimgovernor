@@ -14,8 +14,7 @@ public static class ForecastMaintenancePolicy
             var current = read.Practice.FirstOrDefault(p => p.Task == task.Id);
             if (current is null) continue;
             if (current.Assigned == Known(false)) return true;
-            // A practice surgery is still assigned while a fresh read supports its step (#3637); no maintenance requirement owns it.
-            if (current.Assigned != Known(true) || task.Step.Practice!.Surgery != null) continue;
+            if (current.Assigned != Known(true)) continue;
             var practice = task.Step.Practice!;
             var requirement = new AssignedCapability(task.Id, ServiceTarget.ForNeed(IdeologyFamily.Roles, practice.Role, "assigned_role_min_skill_any/" + practice.RequirementIndex),
                 new(practice.Beneficiary), EquatableArray.From(current.Alternatives.Select(a => new SkillRequirement(a.Skill, a.Minimum))));

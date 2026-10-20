@@ -222,22 +222,6 @@ stocked, installed or queued. The trade side
 parts. `surgeryPartTargets` buys one unit (MaxBuy 1) with no unit price ceiling, under
 the trade-wide silver reserve.
 
-**Peg-leg cycling** takes the same one-surgery slot after harvest and part recovery.
-It installs and removes cheap wood parts (peg leg, wooden hand, wooden foot) on colony
-prisoners for control and release. Doctor training is not part of it: the coupled
-selector's practice surgery ([capability maintenance](capability-maintenance.md#practice-surgery-3637))
-trains a doctor only when raid demand gives Medicine XP a value, with no skill floor
-or per-XP price (#3344). Surgery bills this slot queues never name a surgeon.
-
-- Prisoner control: a legless prisoner is downed, so no mental, withdrawal or prison
-  break. The last peg legs come off a HarvestEligible prisoner not due for release, or
-  one in withdrawal, never one being recruited, converted or enslaved, when the risk
-  avoided (200, 400 in withdrawal) outweighs the removals, hand-feeding (25) and
-  putting both pegs back later.
-- Release: a legless prisoner no longer controlled gets a peg leg back first;
-  the prisoners family holds Release until then, since vanilla cannot release a downed
-  pawn.
-
 ### Clock allowances
 
 The supervised clock accepts short-lived surgical recovery IDs only from confirmed,

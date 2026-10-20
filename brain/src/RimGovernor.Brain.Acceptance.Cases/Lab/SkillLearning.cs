@@ -11,7 +11,7 @@ internal static class LabSkillLearning
 {
     private const string ProbeTool = "test/skill_learning_probe";
     internal const string VerifyTool = "test/skill_learning_verify";
-    internal const string MedicalTool = "test/medical_learning";
+    private const string MedicalTool = "test/medical_learning";
 
     // Cooking, Melee and Shooting x three passions x saturated or not.
     private const int Samples = 18;
@@ -23,7 +23,7 @@ internal static class LabSkillLearning
 
     private static readonly string[] MedicalKinds = ["tend", "surgery"];
 
-    internal static readonly FixtureOp<string, Fx.MedicalLearningRead> Medical =
+    private static readonly FixtureOp<string, Fx.MedicalLearningRead> Medical =
         new(MedicalTool, action => ServedOps.Args(("action", action)), ServedOps.Reply<Fx.MedicalLearningRead>(MedicalTool));
 
     internal static TypedCase Case() => new()

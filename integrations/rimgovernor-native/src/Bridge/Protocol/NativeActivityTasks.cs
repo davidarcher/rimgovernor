@@ -111,7 +111,7 @@ internal static class NativeActivityTasks
                 }
                 else if (step.Practice != null)
                 {
-                    if (!NativePracticeActivities.Assigned(pawn, step)) { satisfied.Add(task.Id); continue; }
+                    if (!NativePracticeActivities.Assigned(pawn, step.Practice)) { satisfied.Add(task.Id); continue; }
                     var target = RefIndex.Thing(map, step.Target);
                     if (target != null && NativePracticeActivities.Legal(pawn, target, step)) bindings.Add(new(task.Id, step));
                 }

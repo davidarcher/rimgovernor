@@ -28,8 +28,7 @@ public sealed record OrganNeed(string Organ, PawnId For, double Gain);
 
 /// <summary>
 /// One prisoner removal to queue as a medical ProductionBillIntent: an organ harvest, or an added part
-/// recovery. Violation sets acknowledge_violation. Step is a peg-leg cycling
-/// step (control or reinstall; default otherwise).
+/// recovery. Violation sets acknowledge_violation.
 /// </summary>
 public sealed record OrganHarvest(
     Domain.PawnId Prisoner,
@@ -38,10 +37,9 @@ public sealed record OrganHarvest(
     PawnId For,
     double Gain,
     double Cost,
-    bool Violation,
-    PegCycleStep Step)
+    bool Violation)
 {
-    public OrganHarvest() : this(default, "", 0, default, 0, 0, false, default)
+    public OrganHarvest() : this(default, "", 0, default, 0, 0, false)
     {
     }
 }
@@ -252,7 +250,7 @@ public static partial class OrganHarvestRules
                         gain = value;
                     }
                     var (cost, ok) = HarvestCost(c, goodwill, need.For.Value.Length == 0);
-                    var h = new OrganHarvest((Domain.PawnId)row.Pawn, recipe ?? "", part, need.For, gain, cost, true, default);
+                    var h = new OrganHarvest((Domain.PawnId)row.Pawn, recipe ?? "", part, need.For, gain, cost, true);
                     if (ok && gain > cost && (best is null || BetterHarvest(h, best)))
                     {
                         best = h;
@@ -284,16 +282,12 @@ public static partial class OrganHarvestRules
         return false;
     }
 
-    /// <summary>A colonist's need before a sale, then the earlier peg step, then gain less cost, then prisoner id.</summary>
+    /// <summary>A colonist's need before a sale, then gain less cost, then prisoner id.</summary>
     internal static bool BetterHarvest(OrganHarvest h, OrganHarvest best)
     {
         if ((h.For.Value.Length != 0) != (best.For.Value.Length != 0))
         {
             return h.For.Value.Length != 0;
-        }
-        if (h.Step != best.Step)
-        {
-            return h.Step < best.Step;
         }
         if (h.Gain - h.Cost != best.Gain - best.Cost)
         {
@@ -474,7 +468,7 @@ public static partial class OrganHarvestRules
                 op.Recipe.TryGetValue(out var recipe);
                 op.PartIndex.TryGetValue(out var part);
                 op.Violation.TryGetValue(out var violation);
-                var h = new OrganHarvest((Domain.PawnId)row.Pawn, recipe ?? "", part, default, value, cost, violation, default);
+                var h = new OrganHarvest((Domain.PawnId)row.Pawn, recipe ?? "", part, default, value, cost, violation);
                 foreach (var need in needs)
                 {
                     if (need.Organ == item && need.For.Value.Length != 0 && (h.For.Value.Length == 0 || need.Gain > h.Gain))
