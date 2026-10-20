@@ -221,7 +221,7 @@ not reserve pawns across different owners or prove current native availability.
 The initial step families are exact thing-target work (Repair, Harvest, Research, Deconstruct and BeatFire through a named native WorkGiver; Research targets a research bench and works the current project, which the research Concern owns; Deconstruct targets a building the player may deconstruct, and the order stands its Deconstruct designation itself under the enclosure guard as an `Ordered` record, which the controlled pawn works under control authority alone where a Designate-stood record waits for supervised play; a roof-holder the guard would wait on is refused unless the order's earlier RemoveRoof steps take off the roof it leaves unsupported ([prior steps](#prior-steps), #3617); a designation the room reconcile stood by Designate is read back as a removal op and ordered the same way, and the order marks its record `Ordered`, #3557; Uninstall targets a minifiable building of the colony's own through `WorkGiver_Uninstall`, the order stands its Uninstall designation itself (the plain designation the reconcile's Pack stands) under an `Ordered` enclosure-guard record, and a roof-holder, a building designated for deconstruction or one with a reinstall blueprint is refused, #3612; CutPlant is the first [set step](#the-set-step), Work over a set of plants through `WorkGiver_PlantsCut`, the order standing each member's CutPlant designation, #3613; RemoveFloor is the cell set step, Work over a set of floored cells through `WorkGiver_ConstructRemoveFloor`, the order standing each member cell's RemoveFloor designation, #3615; Mine is the third, Work over a set of rock through `WorkGiver_Miner`, the order standing each member's Mine designation under the mine_safety guard, #3616; RemoveRoof is the second cell set step, Work over a set of roofed cells through `WorkGiver_RemoveRoof`, the order putting each member in the NoRoof area, #3617), selected food/count,
 selected bed/rest, selected recreation building, exact delivery, exact cooking, material Supply, FinishFrame, Approach and Hold. Unsupported families are refused, not sent to a
 native economic selector. Recreation without a building (walks, skygazing, social relaxing, drugs,
-reading) remains outside this initial execution slice. Firefighting is an explicit policy-selected emergency revision, not an automatic native fallback. Work givers use forced:false, required capacities,
+reading) remains outside this initial execution slice. No brain policy selects firefighting: vanilla fights home-area fires, and native releases committed orders for them ([home-area fire](#home-area-fire)). Work givers use forced:false, required capacities,
 capabilities, native target checks and native reservations. They may still perform
 the normal internal mechanics of their chosen job; this does not model every toil
 as a separate economic decision.
@@ -325,6 +325,26 @@ Downing, mental state or drafting encountered at selection/start
 fails and releases this voluntary-work owner; native involuntary behavior and
 the existing combat owner are not replaced. This is not a complete autonomous
 emergency-response policy; full-control production cutover requires that coverage.
+
+### Home-area fire
+
+Vanilla fights fires (#3662): a colonist with no committed order answers through
+its Firefighter work priority, which the admin planner pins at 1. A committed
+order would keep its colonist away until the order ends, so every 60 ticks
+(a `TickManager.DoSingleTick` postfix) native checks the authority's map for
+fires in the home area that are not attached to a pawn. It releases the order of
+each committed colonist that is controlled, has Firefighting enabled and
+active (the Pyromaniac trait disables it), is not already on `BeatFire`, is
+not on an Eat or Sleep step, and stands within 15 cells of one. The reach is
+vanilla's own firefighting radius (`WorkGiver_FightFires.NearbyPawnRadius`
+and its reservation-check distance). When no committed colonist is in reach and no colonist is
+beating a fire, native releases the nearest eligible colonist that can reach
+one, so at least one answers. The release emits a `pawn_activity_execution` row
+with state `released` and reason `home_fire`. The colonist then falls to
+vanilla job selection like any unowned one. The brain reads the missing order at its next
+review, and it may select work for the colonist again. The next check releases
+the colonist again while the fire burns within reach. Fires outside
+the home area and firebreaks are out of scope.
 
 Authority generation changes, game changes and despawn invalidate the transient
 table and end matching owned jobs without clearing unrelated jobs. Assignments

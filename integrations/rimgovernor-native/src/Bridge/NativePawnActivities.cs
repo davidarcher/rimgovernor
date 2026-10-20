@@ -8,6 +8,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Telemetry;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Operations = RimGovernor.Contracts.Wire.Operations;
 using Receipts = RimGovernor.Contracts.Wire.Receipts;
@@ -93,6 +94,7 @@ namespace HomeBridge.BridgeTools
             Patch(typeof(JobDriver), "DriverTick", after: nameof(DriverTick));
             Patch(typeof(JobDriver), "GetFinalizerJob", nameof(Finalizer));
             Patch(typeof(Pawn), "DeSpawn", nameof(Despawn));
+            Patch(typeof(TickManager), nameof(TickManager.DoSingleTick), after: nameof(HomeFireTick));
             h.Patch(AccessTools.PropertySetter(typeof(Current), "Game"), prefix: new HarmonyMethod(typeof(NativePawnActivities), nameof(WorldChanging)));
             h.Patch(AccessTools.Method(typeof(HediffComp_Disorientation), nameof(HediffComp_Disorientation.CompPostTickInterval),
                     new[] { typeof(float).MakeByRefType(), typeof(int) }),
@@ -387,7 +389,7 @@ namespace HomeBridge.BridgeTools
                     }
                 // Retain only the last release receipt in the same row so an uncertain Hands retry is
                 // idempotent. This row owns no job; a fresh assignment may acquire from revision zero.
-                if (e.Order.Release) { e.State = "released"; Emit(e); }
+                if (e.Order.Release) { e.State = PawnActivityTelemetry.ReleasedState; Emit(e); }
                 else Emit(e);
             }
             return new Receipts.EffectEvidence { Effect = new Receipts.EffectEvidenceEffect.PawnActivitiesCase() };
@@ -707,6 +709,39 @@ namespace HomeBridge.BridgeTools
             // An unowned pawn's vanilla job runs on under the new authority (#3669).
             foreach (var e in Entries.Values.ToArray()) if (!snapshot.Active || snapshot.Generation != e.Generation) Release(e);
         }
+        // Vanilla fights home-area fires (#3662, #3672): a colonist with no committed order answers through the Firefighter work
+        // priority the planner pins at 1, so a fire releases the committed orders of the capable colonists near it. The reach is
+        // vanilla's own firefighting radius (WorkGiver_FightFires.NearbyPawnRadius and its reservation-check distance, both 15,
+        // on an internal class); when nobody is in it and nobody already beats a fire, the nearest capable colonist that can reach one goes.
+        private const int HomeFireCheckTicks = 60;
+        private const int HomeFireReach = 15;
+        private static void HomeFireTick()
+        {
+            if (Entries.Count == 0 || Find.TickManager.TicksGame % HomeFireCheckTicks != 0) return;
+            if (!NativeControlAuthority.TryGetForGame(Current.Game, out var authority) || authority == null) return;
+            var status = authority.Status();
+            if (!status.Active || status.Identity?.Map is not { } map) return;
+            var fires = map.listerThings.ThingsOfDef(ThingDefOf.Fire).Where(f => ((Fire)f).parent is not Pawn && map.areaManager.Home[f.Position]).ToList();
+            if (fires.Count == 0) return;
+            Thing Nearest(Pawn p) => fires.MinBy(f => p.Position.DistanceToSquared(f.Position))!;
+            var eligible = Entries.Values.Where(e => e.Pawn.Map == map && HomeFireReleasable(e)).ToArray();
+            var near = eligible.Where(e => e.Pawn.Position.InHorDistOf(Nearest(e.Pawn).Position, HomeFireReach)).ToList();
+            if (near.Count == 0 && !map.mapPawns.FreeColonistsSpawned.Any(p => p.CurJobDef == JobDefOf.BeatFire)
+                && eligible.Where(e => e.Pawn.CanReach(Nearest(e.Pawn), PathEndMode.Touch, Danger.Deadly))
+                    .MinBy(e => e.Pawn.Position.DistanceToSquared(Nearest(e.Pawn).Position)) is { } nearest)
+                near.Add(nearest);
+            foreach (var e in near)
+            {
+                e.State = PawnActivityTelemetry.ReleasedState; e.Reason = PawnActivityTelemetry.HomeFireReason; e.Tick = Find.TickManager.TicksGame; Emit(e);
+                Release(e);
+            }
+        }
+        // Committed, controlled and able to answer: Firefighting enabled (a Pyromaniac's trait disables it) and active, not
+        // already beating a fire, and not on an eat or sleep step, which a fire does not interrupt.
+        private static bool HomeFireReleasable(Entry e) => !e.Order.Release && Controlled(e.Pawn)
+            && !e.Pawn.WorkTagIsDisabled(WorkTags.Firefighting) && e.Pawn.workSettings?.WorkIsActive(WorkTypeDefOf.Firefighter) == true
+            && e.Pawn.CurJobDef != JobDefOf.BeatFire
+            && (e.Step >= e.Order.Steps.Length || e.Order.Steps[e.Step].Kind is not (PawnActivityKind.Eat or PawnActivityKind.Sleep));
         private static void WorldChanging() { foreach (var e in Entries.Values.ToArray()) Release(e); }
         private static void Despawn(Pawn __instance) { if (Entries.TryGetValue(__instance, out var e)) Release(e); }
         private static void Emit(Entry e) { PawnActivityTracker.Execution(Row(e), e.Pawn); }

@@ -47,6 +47,7 @@ public static class CaseCatalog
         }
 
         registry.Register(ControlUnassignedVanilla.Case());
+        registry.Register(ControlHomeFire.Case());
         registry.Register(ControlPreemptHolder.Case());
 
         registry.Register(ControlDelivery.Case());

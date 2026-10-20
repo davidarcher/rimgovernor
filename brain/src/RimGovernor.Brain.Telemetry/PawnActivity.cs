@@ -99,6 +99,15 @@ public static class PawnActivityTelemetry
     /// <summary>The execution state of an order whose every step is done.</summary>
     public const string CompletedState = "completed";
 
+    /// <summary>The execution state of an order native no longer owns: a Hands release, or native's own with its reason.</summary>
+    public const string ReleasedState = "released";
+
+    /// <summary>Why an execution stopped or was released.</summary>
+    public const string ReasonKey = "reason";
+
+    /// <summary>The release reason of a committed order native dropped for a home-area fire (#3672): vanilla fights it.</summary>
+    public const string HomeFireReason = "home_fire";
+
     /// <summary>An interval's activity class (travel, work, needs, ...).</summary>
     public const string ActivityKey = "activity";
 

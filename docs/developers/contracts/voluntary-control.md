@@ -112,7 +112,7 @@ Supervisor clock; readmitting time cannot turn that terminal assignment into ind
 | Food, rest, recreation | Shared candidates and forecast; exact ingestion, bed and recreation-building execution through Hands. Recreation without a building needs observed candidates and exact adapters before it becomes a planner choice. |
 | Harvest, food conversion, material delivery, construction, roof work, clothing | Shared task composition and selection, with observed input/output rebinding. A delivered garment is not evidence it was worn or that physiological cold exposure improved. |
 | Medical support | Shared support candidates; exact pending service identities and native conditional room factors. Critical medical protection remains with its existing emergency owner. No fabricated prognosis. |
-| Fire/combat/player protection | Existing protection and emergency paths retain authority; an ordinary Method cannot convert protected occupancy into free capacity. |
+| Fire/combat/player protection | Existing protection and emergency paths retain authority; an ordinary Method cannot convert protected occupancy into free capacity. Vanilla fights home-area fires; the brain has no fire Method. Native releases the committed orders of capable colonists near a home-area fire, so they fight it through vanilla job selection ([home fire](pawn-activities.md#home-area-fire), #3672). |
 | Drugs, addictions, genetic dependencies, hemogen, psyfocus, unsupported or modded needs | Native observations expose blockers; the pawn's supported needs and labor stay selectable. Ordinary safe-idle admission cannot cover them. A future Method must supply onset/effect observations and exact execution under the existing Concern owner before support can be claimed. |
 | Mining, tree cutting, hunting, research, repair, refuel, cleaning, firefighting, non-supported production and colony services | Concerns stand the demand (designations, bills, zones, work priorities); a colonist with no committed order works it through vanilla job selection (#3662, #3669). That is native execution, not a planner-owned choice: a service the brain must decide against the forecast (who, when, at what cost) gets an exact shared Method that preempts it. |
 
@@ -187,7 +187,7 @@ because it does not belong to ordinary economic selection.
 A native-only case runs no brain, so its controlled colonists own no order and
 choose voluntary jobs natively (#3669): a case that probes a vanilla mechanic
 through a colonist's own job choice (`burial/stranger-sarcophagus`,
-`burial/grave-over-morgue`, `control/unassigned-runs-vanilla`) needs no opt-out.
+`burial/grave-over-morgue`, `control/unassigned-runs-vanilla`, `control/home-fire-release`) needs no opt-out.
 The fixtures whose staged targets an idle colonist must leave alone (pawn cooking,
 pawn delivery, sow) turn the unowned colonists' work priorities off
 (`IdleColonists` in `scripts/fixtures/FreezeNeedsFixture.cs`).
