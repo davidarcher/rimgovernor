@@ -522,7 +522,14 @@ public static partial class WorkRules
             .Select(a => new ProductionBatch(a.ProductionBill!, new ProgressView { Action = a.Id, Stage = Stage.Pending }));
         var production = ProductionRules.ProductionPromisesOf(ProductionRules.PriceProductionBatches(Known(EquatableArray.From(bills)), view.Evidence.Recipes), default);
         if (!production.TryGetValue(out var promises)) return "production_promises_unknown";
-        var needed = candidate.Materials.Concat(promises).SelectMany(c => c.MaterialClaims).GroupBy(c => c.Resource);
+        // A blueprint spends nothing until delivery: it is placed whatever the stock, and its admitted cost is held
+        // against the budget as construction the colony gathers toward. Other work in the same plan cannot spend it.
+        var placements = proposed.Actions.Where(a => a.Building is not null && a.ConstructionTarget.Length == 0)
+            .Select(a => "work/" + a.Id.Value).ToHashSet(StringComparer.Ordinal);
+        if (placements.Count != 0 && view.Claims.Truncated) return "work_census_truncated";
+        var placed = candidate.Materials.Where(c => placements.Contains(c.Id)).SelectMany(c => c.MaterialClaims)
+            .GroupBy(c => c.Resource).ToDictionary(g => g.Key, g => g.Sum(c => c.Units.Value));
+        var needed = candidate.Materials.Where(c => !placements.Contains(c.Id)).Concat(promises).SelectMany(c => c.MaterialClaims).GroupBy(c => c.Resource);
         foreach (var group in needed)
         {
             var credits = group.Where(c => c.ReservationBill.TryGetValue(out var id) && id.Length != 0)
@@ -533,6 +540,7 @@ public static partial class WorkRules
                 return "materials_short:" + group.Key.Value;
             var need = group.Sum(c => c.Units.Value);
             var credit = credits.Sum(c => c.Value);
+            free -= placed.GetValueOrDefault(group.Key);
             if (need > free + credit) return $"materials_short:{group.Key.Value} (need {need}, free {free}, credit {credit})";
         }
         return null;

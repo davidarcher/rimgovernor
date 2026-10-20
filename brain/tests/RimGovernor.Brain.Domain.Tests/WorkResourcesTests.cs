@@ -173,6 +173,20 @@ public sealed class WorkResourcesTests
     }
 
     [Fact]
+    public void BlueprintShortOfStockIsPlacedAndHoldsItsCostAgainstOtherWork()
+    {
+        // A naked start owns no wood: the shelter and the storage room blueprints were refused materials_short, so
+        // nothing was ever placed for the colony to gather toward. A blueprint spends nothing until delivery.
+        var facts = WorkResourceTestFacts.Create("cook-builder") with { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 0)]) };
+        Assert.Null(WorkRules.WorkResourcesRefusal(View(facts), Plan("build", Building("wall"))));
+        var held = View(facts, Pending(Building("wall")));
+        var other = DomainAction.NewBuildingAction(new("other"), new("TestWall", new(7, 7), Rotation.North, "Rice"), ConstructionTier.Survive);
+        Assert.Null(WorkRules.WorkResourcesRefusal(held, Plan("other", other)));
+        Assert.StartsWith("materials_short:Rice", WorkRules.WorkResourcesRefusal(
+            View(facts with { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 6)]) }, Pending(Building("wall"))), Plan("craft", Craft("bill"))));
+    }
+
+    [Fact]
     public void MixedFamiliesShareOneBudgetIncludingWithinOneAtomicBundle()
     {
         var facts = WorkResourceTestFacts.Create("cook-builder", "helper");
@@ -182,7 +196,7 @@ public sealed class WorkResourcesTests
         Assert.True(WorkRules.WorkResourcesFit(view, Plan("food", Delivery("food"))));
         Assert.False(WorkRules.WorkResourcesFit(view, Plan("mixed", Building("wall"), Craft("bill"))));
         var held = View(facts, Pending(Delivery("food")));
-        Assert.False(WorkRules.WorkResourcesFit(held, Plan("build", Building("wall"))));
+        Assert.True(WorkRules.WorkResourcesFit(held, Plan("build", Building("wall"))));
         Assert.False(WorkRules.WorkResourcesFit(held, Plan("craft", Craft("bill"))));
         Assert.Equal(4, held.Materials.Value[new("Rice")].Value);
         Assert.Equal(10, held.Evidence.Stock.Value.Single().Count);

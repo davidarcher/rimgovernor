@@ -1354,8 +1354,12 @@ consume this projection. Admission reconstructs it inside the journal transactio
 
 The projection includes loose stock, native bill holds, outstanding construction,
 exact building costs, remaining fixed batches, pawn timetables/current work and
-native activity ownership/carried inputs. Pending placements hold exact costs;
-a matching observed site transfers ownership to the construction deficit. Food
+native activity ownership/carried inputs. A placement is admitted whatever the
+stock, since a blueprint spends nothing until delivery: once admitted it holds
+its exact cost against the budget, so other work cannot spend it and its shortfall
+is construction demand. Other work in the same plan is checked after the plan's
+own placements; a truncated work census refuses placements. A matching observed
+site transfers ownership to the construction deficit. Food
 delivery protects its declared stock without consuming it in the forecast.
 Carried units are outside loose stock and reduce the outstanding claim. Cooking
 binds the ingredient definition as well as concrete stack IDs, and native checks
