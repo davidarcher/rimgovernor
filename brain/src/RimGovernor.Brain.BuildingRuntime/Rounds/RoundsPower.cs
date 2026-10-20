@@ -262,7 +262,7 @@ public sealed partial class RoundsBuildingPlanner
         }
 
         var wallStuff = "";
-        var style = RoundsTierStyle.ShellStyleOf(facts).WallStuff;
+        var style = RoundsTierStyle.ShellStyleOf(facts);
         if (style != "")
         {
             wallStuff = style;

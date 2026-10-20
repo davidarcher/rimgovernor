@@ -30,39 +30,15 @@ internal static class RoundsTierStyle
     }
 
     /// <summary>
-    /// The wall and door style a shell planner expands a ring with: the walls' stuff ranked by the Wall def's
-    /// stats among the stuffs the stock covers a whole shell of (BulkBuildStuff), and the door from the door
-    /// def's stats, an Autodoor once Autodoors is finished, a source generates and the stock covers one. A wood
-    /// Door and wall stand where the catalog names none, which the placement preview then refuses on stock as
-    /// it always has.
+    /// The wall stuff a pen's fence and a power room's walls are styled in: ranked by the Wall def's stats among the
+    /// stuffs the stock covers a whole shell of (BulkBuildStuff), steel only while it is resupplied. Wood where the
+    /// catalog names none, which the placement preview then refuses on stock as it always has.
     /// </summary>
-    internal static ShellStyle ShellStyleOf(Observation.ColonyProjection facts)
+    internal static string ShellStyleOf(Observation.ColonyProjection facts)
     {
-        var style = new ShellStyle { WallDef = "Wall", DoorDef = "Door", DoorStuff = "WoodLog" };
-        if (PoweredSource(facts).TryGetValue(out var powered) && powered && StyleResearchFinished(facts, "Autodoors") && RoundsBuildingPlanner.RoundsDefinitionsAvailable(facts, ["Autodoor"], true))
-        {
-            var ok = facts.TryStockedBuildStuff("Autodoor", out var stuff);
-            if (ok)
-            {
-                style = style with { DoorDef = "Autodoor", DoorStuff = stuff };
-            }
-        }
-        if (style.DoorDef == "Door")
-        {
-            var stuff = facts.BuildStuff("Door");
-            if (stuff != "")
-            {
-                style = style with { DoorStuff = stuff };
-            }
-        }
-        var wall = "WoodLog";
         bool Guarded(string stuff) => stuff == TierStyleRules.GuardedWallStuff && !SteelResupplied(facts);
-        var bulk = facts.BulkBuildStuffExcept(style.WallDef, TierStyleRules.ShellWallBudget, Guarded);
-        if (bulk != "")
-        {
-            wall = bulk;
-        }
-        return style with { WallStuff = wall };
+        var bulk = facts.BulkBuildStuffExcept(ContainmentCellRules.ShellWallDefinition, TierStyleRules.ShellWallBudget, Guarded);
+        return bulk != "" ? bulk : "WoodLog";
     }
 
     /// <summary>An observed source of steel (a deposit or salvage); an unread acquisition census reads as none, so steel stays guarded.</summary>

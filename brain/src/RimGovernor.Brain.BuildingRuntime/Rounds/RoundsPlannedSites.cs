@@ -83,6 +83,12 @@ public sealed partial class Rounder
     private static IReadOnlyList<string> PlannedRingStuffsOf(ColonyProjection colony, PlannedRoom room)
     {
         var (wallDef, doorDef) = room.RingDefs();
+        return PlannedRingStuffsOf(colony, wallDef, doorDef);
+    }
+
+    /// <summary>The stuffs a ring of <paramref name="wallDef"/> and <paramref name="doorDef"/> is read in (PlannedRingStuffs); the first is its base sites' stuff.</summary>
+    internal static IReadOnlyList<string> PlannedRingStuffsOf(ColonyProjection colony, string wallDef, string doorDef)
+    {
         if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, wallDef) is not { } wall)
         {
             return [];

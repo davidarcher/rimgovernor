@@ -34,19 +34,29 @@ public sealed partial class Rounder
 
     /// <summary>
     /// The bed merge's facts over the live colony (#3658): the sleepers' losses (BedroomGainFacts.BedMerge) and the
-    /// capability-days of one wall cell and one door of the shell style (ShellStyleOf), each priced by
+    /// capability-days of one wall cell and one door of a bedroom's ring (BedMergeShell), each priced by
     /// LayoutClusterRules.ShellPiecePrice from its WorkToBuild for its stuff and cost list. A piece the catalog shows no work
     /// or cost list for is unknown.
     /// </summary>
     internal async Task<BedMergeFacts> BedMergeFactsAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
     {
         var facts = BedroomGainFacts.Of(projection.Facts).BedMerge();
-        var style = RoundsTierStyle.ShellStyleOf(projection);
-        var wall = ShellPiece(projection, style.WallDef, style.WallStuff);
-        var door = ShellPiece(projection, style.DoorDef, style.DoorStuff);
+        var (wall, door) = BedMergeShell(projection);
         var materials = new[] { wall, door }.SelectMany(p => p?.Costs ?? []).Select(a => a.Resource);
         var values = await MaterialValuesAsync(snapshot, materials, projection.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
         return facts with { WallCell = LayoutClusterRules.ShellPiecePrice(wall, values), Door = LayoutClusterRules.ShellPiecePrice(door, values) };
+    }
+
+    /// <summary>
+    /// One wall cell and one door of a bedroom's ring (#3674): the Wall and the Door in the stuff a planned room's base ring
+    /// sites are read in (the first of PlannedRingStuffsOf, the cheapest stocked), the door in the wall's stuff as the
+    /// planned sites build it. Either is null where the catalog shows no work or cost list for it.
+    /// </summary>
+    internal static ((double Work, IReadOnlyList<Amount> Costs)? Wall, (double Work, IReadOnlyList<Amount> Costs)? Door) BedMergeShell(ColonyProjection projection)
+    {
+        var (wallDef, doorDef) = (ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition);
+        var stuffs = PlannedRingStuffsOf(projection, wallDef, doorDef);
+        return stuffs.Count == 0 ? (null, null) : (ShellPiece(projection, wallDef, stuffs[0]), ShellPiece(projection, doorDef, stuffs[0]));
     }
 
     /// <summary>

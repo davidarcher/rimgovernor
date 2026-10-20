@@ -5,8 +5,9 @@ using static RimGovernor.Brain.Domain.Fact;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// The first room (#3659): a first plan's rooms are the station graph's. Three colonists on a temperate map
-/// with cheap wood get bedrooms, on an ice sheet one barracks. A craft order the colony has no
+/// The first room (#3659): a first plan's rooms are the station graph's. Three calm colonists on a temperate map
+/// with trees in reach (logs at chop labor) get bedrooms; with no tree in reach (logs at market) or on an ice sheet,
+/// one barracks. A craft order the colony has no
 /// bench for still gets a host node, the one its price chooses, and the plan places it.
 /// </summary>
 public sealed class FirstRoomPlanTests
@@ -15,7 +16,7 @@ public sealed class FirstRoomPlanTests
     private const string Smithy = "Smithy";
     private const string Knife = "MakeKnife";
 
-    private static StationFacts Facts(double[] curve, string climate, IReadOnlyList<OrderSpec>? orders = null, IReadOnlyDictionary<string, double>? hostBuild = null)
+    private static StationFacts Facts(double[] curve, string climate, IReadOnlyList<OrderSpec>? orders = null, IReadOnlyDictionary<string, double>? hostBuild = null, bool treeless = false)
     {
         var s = FirstLayoutPlanTests.Survey(climate);
         var f = FirstLayoutPlanTests.Facts(s, 3);
@@ -38,7 +39,7 @@ public sealed class FirstRoomPlanTests
             Catalog = f.Catalog with { Stations = stations, Climate = BedMergePriceTests.Catalog.Climate },
             Recipes = recipes,
             OutdoorCurve = Known(EquatableArray.From(curve)),
-            BedMerge = BedMergePriceTests.Wood(BedMergePriceTests.Calm),
+            BedMerge = treeless ? BedMergePriceTests.MarketWood(BedMergePriceTests.Calm) : BedMergePriceTests.Wood(BedMergePriceTests.Calm),
             Crops = [BedMergePriceTests.Rice],
             Orders = Known(EquatableArray.From(orders ?? [])),
             HostBuild = hostBuild ?? new Dictionary<string, double>(),
@@ -59,6 +60,15 @@ public sealed class FirstRoomPlanTests
 
         Assert.Empty(plan.RoomsOf(PlannedRole.Barracks));
         Assert.True(plan.RoomsOf(PlannedRole.Bedroom).Count >= 3, $"bedrooms {plan.RoomsOf(PlannedRole.Bedroom).Count}");
+    }
+
+    [Fact]
+    public void ATreelessTemperateFirstPlanHousesThreeCalmColonistsInOneBarracks()
+    {
+        var plan = Derive(Facts(BedMergePriceTests.Temperate, "mild", treeless: true));
+
+        Assert.Single(plan.RoomsOf(PlannedRole.Barracks));
+        Assert.Empty(plan.RoomsOf(PlannedRole.Bedroom));
     }
 
     [Fact]

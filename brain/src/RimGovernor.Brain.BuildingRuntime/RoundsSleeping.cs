@@ -547,7 +547,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             definitions = list;
         }
-        var gate = DefinitionsGate(facts, definitions, false);
+        var gate = DefinitionsGate(facts, definitions);
         if (r.Paste.Count > 0)
         {
             gate = default;

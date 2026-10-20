@@ -35,7 +35,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         planner.Phase = Pol.Phase.HousingShelter;
         planner.Definition = SleepingRules.SleepingSpotDefinition;
         planner.Environment = Pol.PlacementEnvironment.Anywhere;
-        if (!planner.MethodOnce(goal, method, call, facts.Facts.CurrentConstruction) || !RoundsBuildingPlanner.DefinitionsGate(facts, [planner.Definition], false).IsZero)
+        if (!planner.MethodOnce(goal, method, call, facts.Facts.CurrentConstruction) || !RoundsBuildingPlanner.DefinitionsGate(facts, [planner.Definition]).IsZero)
         {
             return null;
         }

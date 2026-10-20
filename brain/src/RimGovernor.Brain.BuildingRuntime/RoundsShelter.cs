@@ -32,12 +32,8 @@ public sealed partial class RoundsBuildingPlanner
 
 partial class RoundsBuildingPlanner
 {
-    /// <summary>Whether every named definition can be raised by any colonist now (no construction skill needed); a shell piece also has to be a single cell.</summary>
-    internal static bool RoundsDefinitionsAvailable(Observation.ColonyProjection facts, IReadOnlyList<string> names, bool shell) =>
-        DefinitionsGate(facts, names, shell).IsZero;
-
-    /// <summary>The verdict RoundsDefinitionsAvailable reads: the zero Verdict when every named definition is buildable, else the first thing missing, named.</summary>
-    internal static Verdict DefinitionsGate(Observation.ColonyProjection facts, IReadOnlyList<string> names, bool shell)
+    /// <summary>Whether any colonist can raise every named definition now (no construction skill needed): the zero Verdict when so, else the first thing missing, named.</summary>
+    internal static Verdict DefinitionsGate(Observation.ColonyProjection facts, IReadOnlyList<string> names)
     {
         foreach (var name in names)
         {
@@ -58,17 +54,6 @@ partial class RoundsBuildingPlanner
             if (skill != 0)
             {
                 return Refuse(Pol.Cause.NoWorker, "builder_for_" + name, string.Create(CultureInfo.InvariantCulture, $"construction_skill_{skill}"));
-            }
-            if (shell)
-            {
-                if (!def.Size.TryGetValue(out var size))
-                {
-                    return FieldUnavailable(name + "_size");
-                }
-                if (size.Width != 1 || size.Height != 1)
-                {
-                    return NoSpace(name + "_footprint");
-                }
             }
         }
         return new Verdict();

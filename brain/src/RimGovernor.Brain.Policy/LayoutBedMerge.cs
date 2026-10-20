@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// What the colony reads for the bed merge's price (#3658): each pool sleeper's capability-days lost a day sleeping in a
 /// barracks over a bedroom (BedroomGain at the planned stage minus the barracks gain there), the sleepers whose loss is
-/// unread, and the capability-days one wall cell and one door of the current shell style cost to build (labor plus
+/// unread, and the capability-days one wall cell and one door of a planned bedroom's base ring cost to build (labor plus
 /// material). An unknown wall or door leaves the merge unpriced.
 /// </summary>
 public sealed record BedMergeFacts

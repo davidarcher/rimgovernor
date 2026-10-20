@@ -98,8 +98,6 @@ BuildingRuntime/RoundsTemperature.cs|RoundsBuildingPlanner.TemperatureDefinition
 BuildingRuntime/RoundsTemperature.cs|RoundsBuildingPlanner.TemperatureDefinitions|"Cooler"
 BuildingRuntime/RoundsTemperature.cs|RoundsBuildingPlanner.TemperatureDefinitions|"PassiveCooler"
 BuildingRuntime/RoundsTemperature.cs|RoundsBuildingPlanner.SelectTemperature|"Campfire"
-BuildingRuntime/RoundsTierStyle.cs|RoundsTierStyle.ShellStyleOf|"Door"
-BuildingRuntime/RoundsTierStyle.cs|RoundsTierStyle.ShellStyleOf|"Wall"
 BuildingRuntime/RoundsTierStyle.cs|RoundsTierStyle.ShellStyleOf|"WoodLog"
 BuildingRuntime/RoundsWorkProjects.cs|RoundsProjectBill.RoundsDeficitWork|"Beer"
 BuildingRuntime/RoundsWorkshop.cs|RoundsBuildingPlanner.PrepareWorkshopAsync|"Beer"

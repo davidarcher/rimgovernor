@@ -1,6 +1,9 @@
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
+using Obs = RimGovernor.Brain.Observation;
 using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -67,8 +70,14 @@ public sealed class BedMergePriceTests
 
     internal static readonly BedMergeFacts Calm = new() { Losses = [0.004, 0.004, 0.004] };
 
-    /// <summary>Wood walls: one wall cell's work and logs, and a door's.</summary>
-    internal static BedMergeFacts Wood(BedMergeFacts f) => f with { WallCell = Known(0.004), Door = Known(0.02) };
+    // Wood walls at the game's numbers: a wall cell is 135 x 0.7 work and 5 logs, a door 850 x 0.7 work and 25 logs; the
+    // work alone is 0.0016 and 0.0099 capability-days.
+
+    /// <summary>Trees in reach: logs at chop labor (about 0.0005 a log) price a wall cell at 0.0042 and a door at 0.023.</summary>
+    internal static BedMergeFacts Wood(BedMergeFacts f) => f with { WallCell = Known(0.0042), Door = Known(0.023) };
+
+    /// <summary>No tree in reach (the lab map is bare soil): logs at the market fallback (about 0.0055 a log) price a wall cell at 0.029 and a door at 0.149.</summary>
+    internal static BedMergeFacts MarketWood(BedMergeFacts f) => f with { WallCell = Known(0.029), Door = Known(0.149) };
 
     private static BedMergePrice Price(BedMergeFacts facts, double[]? curve, bool harsh) => new()
     {
@@ -89,6 +98,15 @@ public sealed class BedMergePriceTests
         Assert.All(c.Groups, g => Assert.Equal(RoomRole.Bedroom, g.Role));
         var d = Assert.Single(c.Decisions, d => d.A == Pool);
         Assert.Equal((LayoutClusterRules.ClusterSplit, LayoutClusterRules.ReasonClusterBedMerge), (d.Verdict, d.Reason));
+    }
+
+    [Fact]
+    public void ATemperateMapsMarketWoodMergesCalmColonistsIntoOneBarracks()
+    {
+        var c = LayoutClusterRules.ClusterStations(Input(4, Price(MarketWood(Calm), Temperate, harsh: false)));
+
+        var g = Assert.Single(c.Groups);
+        Assert.Equal((RoomRole.Barracks, 4), (g.Role, g.Stations.Single().Count));
     }
 
     [Fact]
@@ -205,6 +223,39 @@ public sealed class BedMergePriceTests
         var observed = Known(EquatableArray.From(new[] { new MoodThought("Ascetic", 3) }));
         Assert.Equal(Known(-3.0), ForecastHousing.BedroomMoodDelta(ascetic, Known(0), observed, barracks: true));
         Assert.Contains(PlannedRole.Barracks, ForecastPlannedSite.PricedRoomRoles);
+    }
+
+    // The game's wall and door: 135 and 850 work, five and 25 stuff; wood builds them at 0.7 work, granite blocks at 2.
+    private static Obs.StuffOption Option(Resource stuff, double value, double work, long count) => new()
+    {
+        Stuff = stuff.Value, Value = value, Common = true, Costs = [new Amount(stuff, count)],
+        Stats = new Dictionary<string, double> { [StatDefNames.StatWorkToBuild] = work },
+    };
+
+    [Fact]
+    public void TheShellIsPricedInTheStuffAPlannedRoomsBaseRingIsReadIn()
+    {
+        var wood = new Resource("WoodLog");
+        var granite = new Resource("BlocksGranite");
+        Obs.PlanningDefinition Def(string name, double work, long count) => new()
+        {
+            Name = name, Available = Known(true),
+            StuffOptions = [Option(granite, count * 0.9, work * 2, count), Option(wood, count * 1.2, work * 0.7, count)],
+        };
+        var colony = new Obs.ColonyProjection
+        {
+            Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
+            Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [wood] = 600 }),
+        };
+
+        // The blocks are cheaper but the colony holds none: the planned ring is read in wood, and the merge prices wood.
+        var (wall, door) = Rounder.BedMergeShell(colony);
+        Assert.Equal((135 * 0.7, wood, 5L), (wall!.Value.Work, wall.Value.Costs.Single().Resource, wall.Value.Costs.Single().Count));
+        Assert.Equal((850 * 0.7, wood, 25L), (door!.Value.Work, door.Value.Costs.Single().Resource, door.Value.Costs.Single().Count));
+
+        // With blocks in stock too, the cheaper blocks are the base ring's stuff.
+        var stocked = colony with { Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [wood] = 600, [granite] = 300 }) };
+        Assert.Equal(granite, Rounder.BedMergeShell(stocked).Wall!.Value.Costs.Single().Resource);
     }
 
     [Fact]

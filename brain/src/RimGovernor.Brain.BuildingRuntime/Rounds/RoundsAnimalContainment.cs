@@ -52,10 +52,10 @@ internal static class RoundsAnimalContainment
 
     internal static string? AnimalContainmentStuff(PlanningDefinition a, PlanningDefinition b) => StuffChoiceReads.SharedStuff(a, b, out var stuff) ? stuff : null;
 
-    /// <summary>The stuff both shell definitions are made of: the shell style's wall stuff, then the cheapest in stock, then any shared.</summary>
+    /// <summary>The stuff both shell definitions are made of: the styled wall stuff (ShellStyleOf), then the cheapest in stock, then any shared.</summary>
     internal static string? ShellSharedStuff(ColonyProjection facts, PlanningDefinition a, PlanningDefinition b)
     {
-        var want = RoundsTierStyle.ShellStyleOf(facts).WallStuff;
+        var want = RoundsTierStyle.ShellStyleOf(facts);
         if (want != "" && a.StuffOptions.Count > 0 && a.MakeableFrom(want) && b.MakeableFrom(want))
         {
             return want;

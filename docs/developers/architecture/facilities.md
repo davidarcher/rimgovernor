@@ -764,8 +764,11 @@ its barracks gain, `slept_in_barracks` at the planned stage, an ascetic gaining
 nothing), the spare beds losing nothing and an unread sleeper never joining, and
 takes the k beds that maximise (k − 1) × one bedroom saved less the k cheapest
 losses over `ColonyModelPolicy.HorizonDays`. One bedroom saved is its ring of the
-squarest rectangle (less the door cell) at the shell style's wall stuff, its door
-(work plus `MaterialValueOf`), and its heat over the horizon: the `ClimateLoad`
+squarest rectangle (less the door cell) and its door in the stuff a planned
+room's base ring sites are read in (`BedMergeShell`: the first of
+`PlannedRingStuffs`, the cheapest stocked; work plus `MaterialValueOf`, which
+charges logs at chop labor only where a tree is in reach and at market value
+otherwise), and its heat over the horizon: the `ClimateLoad`
 of the room in the living band behind a closed door to the outdoors, at the
 work-day's watts (`StationWorkPrice`). An unknown wall or door price, or an
 unknown heat on a cold or hot map, keeps every bed single with
