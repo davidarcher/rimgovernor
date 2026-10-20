@@ -44,19 +44,12 @@ public sealed partial class Rounder
         }
         Player.Current(call, epoch);
         if (Player.Session.State().Snapshot != snapshot) throw new ControlException("coupled activity scope changed");
-        try
-        {
-            var commit = Player.Journal.CommitClaimedMethod(AdminFamily.WorkAssignments, snapshot, method, "shared colony consequence portfolio",
-                new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), activity)]), call);
-            RecordCoupledSelection(selection, facts.Tick.Value, method.Value, admissionFailure: commit.Conflict?.Reason);
-            if (commit.Outcome != ClaimOutcome.Conflict) taken.UnionWith(activity.Orders.Select(o => o.Pawn));
-        }
-        catch (NotAdmittedException refusal)
-        {
-            // A proposal owns nothing until admitted. Refusal must not revoke authority
-            // or interrupt the useful Methods whose current claims prevented it.
-            RecordCoupledSelection(selection, facts.Tick.Value, method.Value, admissionFailure: refusal.Message);
-        }
+        // A proposal owns nothing until admitted. Refusal must not revoke authority
+        // or interrupt the useful Methods whose current claims prevented it.
+        var commit = Player.Journal.CommitClaimedMethod(AdminFamily.WorkAssignments, snapshot, method, "shared colony consequence portfolio",
+            new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), activity)]), call);
+        RecordCoupledSelection(selection, facts.Tick.Value, method.Value, admissionFailure: commit.Conflict?.Reason ?? commit.Refusal?.Message);
+        if (commit.Outcome is ClaimOutcome.Admitted or ClaimOutcome.Continued) taken.UnionWith(activity.Orders.Select(o => o.Pawn));
         return taken;
     }
 
@@ -111,22 +104,20 @@ public sealed partial class Rounder
                 ["destination"] = $"{proposal.Haul.Destination.X},{proposal.Haul.Destination.Z}", ["value"] = proposal.Value.Total,
                 ["travel_saved"] = proposal.Value.TravelSaved, ["loss_avoided"] = proposal.Value.LossAvoided, ["labor"] = proposal.Value.Labor,
             };
-            try
-            {
-                var commit = Player.Journal.CommitClaimedMethod(AdminFamily.WorkAssignments, snapshot, method, "standby work: valued store haul",
-                    new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"),
-                        StoreHaulRules.Activity(proposal, snapshot.Native.Value, method.Value, tick, deadline))]), call);
-                Tel.Decide(new Decision { Kind = "standby", Component = "rounds", Target = pawn,
-                    Verdict = commit.Outcome == ClaimOutcome.Conflict ? "deferred" : "selected",
-                    Reason = commit.Conflict?.Reason ?? "store_haul", Attrs = attrs });
-                if (commit.Outcome != ClaimOutcome.Conflict) hauled.Add(pawn);
-            }
-            catch (NotAdmittedException refusal)
+            var commit = Player.Journal.CommitClaimedMethod(AdminFamily.WorkAssignments, snapshot, method, "standby work: valued store haul",
+                new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"),
+                    StoreHaulRules.Activity(proposal, snapshot.Native.Value, method.Value, tick, deadline))]), call);
+            if (commit.Refusal is { } refusal)
             {
                 attrs["refusal"] = refusal.Message;
                 Tel.Decide(new Decision { Kind = "standby", Component = "rounds", Target = pawn, Verdict = "deferred",
                     Reason = "method_not_admitted", Attrs = attrs });
+                continue;
             }
+            Tel.Decide(new Decision { Kind = "standby", Component = "rounds", Target = pawn,
+                Verdict = commit.Outcome == ClaimOutcome.Conflict ? "deferred" : "selected",
+                Reason = commit.Conflict?.Reason ?? "store_haul", Attrs = attrs });
+            if (commit.Outcome != ClaimOutcome.Conflict) hauled.Add(pawn);
         }
         return hauled;
     }
@@ -150,21 +141,19 @@ public sealed partial class Rounder
         {
             var id = PlanIds.MintPlanId();
             var method = new MethodId($"{StandbyAssignmentsRules.StandbyMethodPrefix}{id}");
-            try
-            {
-                var commit = Player.Journal.CommitClaimedMethod(AdminFamily.WorkAssignments, snapshot, method, "explicit idle: nothing selected",
-                    new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"),
-                        StandbyAssignmentsRules.StandbyActivity(pawn, snapshot.Native.Value, method.Value))]), call);
-                Tel.Decide(new Decision { Kind = "standby", Component = "rounds", Target = pawn,
-                    Verdict = commit.Outcome == ClaimOutcome.Conflict ? "deferred" : "selected",
-                    Reason = commit.Conflict?.Reason ?? "nothing_selected", Attrs = new Dictionary<string, object?> { ["method"] = method.Value } });
-                if (commit.Outcome != ClaimOutcome.Conflict) standby.Add(pawn);
-            }
-            catch (NotAdmittedException refusal)
+            var commit = Player.Journal.CommitClaimedMethod(AdminFamily.WorkAssignments, snapshot, method, "explicit idle: nothing selected",
+                new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"),
+                    StandbyAssignmentsRules.StandbyActivity(pawn, snapshot.Native.Value, method.Value))]), call);
+            if (commit.Refusal is { } refusal)
             {
                 Tel.Decide(new Decision { Kind = "standby", Component = "rounds", Target = pawn, Verdict = "deferred",
                     Reason = "method_not_admitted", Attrs = new Dictionary<string, object?> { ["method"] = method.Value, ["refusal"] = refusal.Message } });
+                continue;
             }
+            Tel.Decide(new Decision { Kind = "standby", Component = "rounds", Target = pawn,
+                Verdict = commit.Outcome == ClaimOutcome.Conflict ? "deferred" : "selected",
+                Reason = commit.Conflict?.Reason ?? "nothing_selected", Attrs = new Dictionary<string, object?> { ["method"] = method.Value } });
+            if (commit.Outcome != ClaimOutcome.Conflict) standby.Add(pawn);
         }
         return standby;
     }

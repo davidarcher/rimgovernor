@@ -14,58 +14,61 @@ public sealed partial class Store
 
     /// <summary>
     /// The per-family admission checks every owner shares, then the plan itself; the caller then writes the
-    /// methods row.
+    /// methods row. A refusal on the current evidence is returned, with nothing written; a malformed plan throws.
     /// </summary>
-    internal static void AdmitOwnerMethod(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
+    internal static AdmissionRefusal? AdmitOwnerMethod(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
     {
         // Self-treatment is an observed permission, not a local assignment winner.
         if (owner.Need == AdminFamily.WorkAssignments
             && plan.Actions.Any(a => a.PawnSettings is { Kind: SettingKind.SelfTend }))
-            throw new NotAdmittedException("unsupported_assignment_self_tend_policy");
+            return new(RefusalKind.SharedAdmission, "unsupported_assignment_self_tend_policy");
         // A visiting trader's session draws a negotiator off the shared forecast; only a mission's settlement trade is ours.
         if (owner.Need == EconomyFamily.Caravan && plan.Actions.Any(a => a.Trade is
             { Kind: TradeOperationKind.Open, Participant.Kind: not TradeParticipantKind.Settlement }))
-            throw new NotAdmittedException("unsupported_shared_trade_labor");
+            return new(RefusalKind.SharedAdmission, "unsupported_shared_trade_labor");
         // A people/mood Need casts nothing: a preventative cast needs shared caster time and psyfocus (#3304).
         if (PeopleFamily.IsMood(owner.Need) && plan.Actions.Any(a => a.Kind == ActionKind.Ability))
-            throw new NotAdmittedException("unsupported_forecast_mood_cast");
+            return new(RefusalKind.SharedAdmission, "unsupported_forecast_mood_cast");
         // A window answer is the people/dialog Need's alone (#3304); another Need answers only its own letters.
         if (owner.Need != PeopleFamily.Dialog
             && plan.Actions.Any(a => a.DialogAnswer is { LetterToken.Length: 0 }))
-            throw new NotAdmittedException("dialog_answer_not_owned");
+            return new(RefusalKind.SharedAdmission, "dialog_answer_not_owned");
         AdmitBillMethod(tx, owner, plan);
         AdmitZoneMethod(tx, owner, plan);
         AdmitAcquisitionMethod(tx, owner, plan);
         AdmitWorkMethod(tx, owner, plan);
         AdmitSupplyMethod(tx, owner, plan);
-        AdmitWorkResources(tx, owner, plan);
-        AdmitConstructionLabor(tx, owner, plan);
+        if ((WorkResourcesRefusalIn(tx, owner, plan) ?? ConstructionLaborRefusal(tx, owner, plan)) is { } refused)
+        {
+            return refused;
+        }
         CreatePlanIn(tx, plan);
+        return null;
     }
 
     // While the initial shelter is owed its builders are its own. An owner the review does not bind (a player
     // goal) is outside the rule, as it is outside the routine Safeguards.
     // A finishing-skill choice sets who may finish a standing site: a setting, which draws no labor (#3558).
-    private static void AdmitConstructionLabor(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
+    private static AdmissionRefusal? ConstructionLaborRefusal(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
     {
         var kinds = plan.Actions.Where(a => !a.FinishingSkill.IsKnown).Select(a => a.Kind).ToList();
         if (!kinds.Any(ConstructionLaborRules.DrawsConstructionLabor))
         {
-            return;
+            return null;
         }
         var review = LoadRounds(tx);
         // A Need owner is checked by its NeedId: the shelter housing Needs keep their builders.
-        if (ConstructionLaborRules.ConstructionLaborHeld(review.Latches, owner.Need.FilingKey, kinds))
-        {
-            throw new ConstructionLaborException();
-        }
+        return ConstructionLaborRules.ConstructionLaborHeld(review.Latches, owner.Need.FilingKey, kinds)
+            ? new(RefusalKind.ConstructionLabor, "the initial shelter holds the construction labor")
+            : null;
     }
 
     /// <summary>
     /// The tail every owner's commit shares: refuse a method the owner already binds in its epoch, run the family
-    /// admission and store the plan, then write the methods row and name the plan's method.
+    /// admission and store the plan, then write the methods row and name the plan's method. An admission refusal is
+    /// returned with nothing written.
     /// </summary>
-    internal static void BindOwnerMethod(StoreTransaction tx, NeedOwner owner, MethodId method, string reason, PlanSpec plan)
+    internal static AdmissionRefusal? BindOwnerMethod(StoreTransaction tx, NeedOwner owner, MethodId method, string reason, PlanSpec plan)
     {
         // Plan ids are minted; the real double-admission key is the owner table's primary key (owner, [episode,] method).
         if (owner.BoundPlan(tx, method) is { } bound)
@@ -87,23 +90,44 @@ public sealed partial class Store
                     throw new ConflictException("method repeats a pawn across activity actions");
             }
         }
-        AdmitOwnerMethod(tx, owner, plan);
+        if (AdmitOwnerMethod(tx, owner, plan) is { } refused)
+        {
+            return refused;
+        }
         owner.BindMethod(tx, method, plan.Id, reason);
         _ = tx.Execute("UPDATE plans SET method_id=$method WHERE id=$id", ("$method", method), ("$id", plan.Id));
+        return null;
     }
 
     /// <summary>
-    /// Method admission's backstop for the Safeguards the planner already asked: a vetoed proposal is
-    /// <see cref="NotAdmittedException"/> with the Safeguard's reason. An owner the review does not bind (a player
-    /// goal) is outside the routine Safeguards.
+    /// Method admission's backstop for the Safeguards the planner already asked: a vetoed proposal is refused with
+    /// the Safeguard's reason. An owner the review does not bind (a player goal) is outside the routine Safeguards.
     /// </summary>
-    internal static void AdmitRoundsSafeguards(StoreTransaction tx, NeedOwner owner)
+    internal static AdmissionRefusal? RoundsSafeguardRefusal(StoreTransaction tx, NeedOwner owner)
     {
         var review = LoadRounds(tx);
         var (refusal, vetoed) = review.Refuse(new SafeguardProposal());
-        if (vetoed)
+        return vetoed ? new(RefusalKind.SharedAdmission, $"{owner.OwnerLabel}: {refusal.Safeguard}: {refusal.Reason}") : null;
+    }
+
+    /// <summary>
+    /// The Safeguard backstop of the paths outside claimed commits (combat commits, dispatch, activity continuation),
+    /// which still report a veto as <see cref="NotAdmittedException"/>.
+    /// </summary>
+    internal static void AdmitRoundsSafeguards(StoreTransaction tx, NeedOwner owner)
+    {
+        if (RoundsSafeguardRefusal(tx, owner) is { } refused)
         {
-            throw new NotAdmittedException($"{owner.OwnerLabel}: {refusal.Safeguard}: {refusal.Reason}");
+            throw new NotAdmittedException(refused.Reason);
+        }
+    }
+
+    /// <summary><see cref="BindOwnerMethod"/> for the combat commits outside claimed commits: a refusal is <see cref="NotAdmittedException"/>.</summary>
+    internal static void BindOwnerMethodOrThrow(StoreTransaction tx, NeedOwner owner, MethodId method, string reason, PlanSpec plan)
+    {
+        if (BindOwnerMethod(tx, owner, method, reason, plan) is { } refused)
+        {
+            throw new NotAdmittedException(refused.Reason);
         }
     }
 

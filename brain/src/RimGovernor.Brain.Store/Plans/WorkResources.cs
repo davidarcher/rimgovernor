@@ -62,20 +62,23 @@ public sealed partial class Store
     public WorkActionCensus WorkActions(GenerationSnapshot current, CancellationToken ct) =>
         Run(tx => WorkActionsIn(tx, current), ct);
 
-    private static void AdmitWorkResources(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
+    private static AdmissionRefusal? WorkResourcesRefusalIn(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
     {
         if (!plan.Actions.Any(a => a.Building is not null && a.ConstructionTarget.Length == 0
             || a.PawnActivities is { } batch && batch.Orders.Any(o => !o.Release)
-            || a.ProductionBill is { Mode: BillMode.GearBatch })) return;
+            || a.ProductionBill is { Mode: BillMode.GearBatch })) return null;
         var view = WorkResourcesIn(tx, owner.Snapshot);
         var proposed = plan.Actions.Where(a => a.ProductionBill is { Mode: BillMode.GearBatch })
             .Select(a => new ProductionBatch(a.ProductionBill!, new ProgressView { Action = a.Id, Stage = Stage.Pending })).ToArray();
         var committed = ProductionBatchesIn(tx, owner.Snapshot, null);
+        AdmissionRefusal production = new(RefusalKind.ProductionMaterial, "fixed production batch material is insufficient or unknown, or the claim bound is exhausted");
         if (proposed.Length != 0 && (!committed.TryGetValue(out var batches) || batches.Count + proposed.Length > MaxProductionClaims))
-            throw new ProductionMaterialException();
+            return production;
         if (proposed.Length != 0 && !ProductionRules.ProductionAdmissionFits(view.Evidence,
             committed, EquatableArray.From(proposed), view.Claims.Materials))
-            throw new ProductionMaterialException();
-        if (WorkRules.WorkResourcesRefusal(view, plan) is { } refusal) throw new NotAdmittedException("work_resource_conflict_or_unknown: " + refusal);
+            return production;
+        return WorkRules.WorkResourcesRefusal(view, plan) is { } refusal
+            ? new(RefusalKind.SharedAdmission, "work_resource_conflict_or_unknown: " + refusal)
+            : null;
     }
 }

@@ -60,7 +60,9 @@ public sealed class PeopleFamilyTests
         Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(PeopleFamily.Dialog, World, new MethodId("dialog-c"), "", Answer(new DialogAnswer(8, 0, "OK")), ct).Outcome);
 
         // No other Need answers a window; a joiner letter stays its own Need's.
-        Assert.ThrowsAny<Exception>(() => journal.CommitClaimedMethod(AdminFamily.Burial, World, new MethodId("window"), "", Answer(new DialogAnswer(9, 0, "OK")), ct));
+        var stray = journal.CommitClaimedMethod(AdminFamily.Burial, World, new MethodId("window"), "", Answer(new DialogAnswer(9, 0, "OK")), ct);
+        Assert.Equal(ClaimOutcome.Refused, stray.Outcome);
+        Assert.Contains("dialog_answer_not_owned", stray.Refusal!.Message);
         Assert.Equal(ClaimOutcome.Admitted,
             journal.CommitClaimedMethod(JoinersFamily.Quests, World, new MethodId("letter"), "", Answer(DialogAnswer.NewJoinerLetterAnswer(7, "Accept", "token")), ct).Outcome);
     }

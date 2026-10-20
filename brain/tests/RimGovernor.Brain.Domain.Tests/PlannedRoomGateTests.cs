@@ -110,6 +110,9 @@ public sealed class PlannedRoomGateTests
         /// <summary>The construction census the reconcile reads: an empty colony census until a test places something.</summary>
         public Fact<CurrentConstruction> Census { get; set; } = Known(new CurrentConstruction { Colony = true });
 
+        /// <summary>The verdict the reconcile itself returned to its step, unset when it threw past the step.</summary>
+        public Verdict? Reconciled { get; set; }
+
         public void Dispose() => Journal.Dispose();
 
         public async Task<FamilyRun> RunAsync()
@@ -135,7 +138,7 @@ public sealed class PlannedRoomGateTests
             .Select(p => p.Action.Building).OfType<Building>()];
     }
 
-    private static Colony Open()
+    private static Colony Open(Func<RoundsFacts, RoundsFacts>? review = null)
     {
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-planned-gate-" + Guid.NewGuid().ToString("N") + ".db"), ct);
@@ -153,7 +156,7 @@ public sealed class PlannedRoomGateTests
                     new(ContainmentCellRules.ShellDoorDefinition, "BlocksGranite", Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("BlocksGranite"), 25)])) { Size = Known(new Cell(1, 1)) }]),
             },
         };
-        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
+        journal.ReviewRounds(new() { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = review is null ? facts : review(facts) }, ct);
         var timeout = TimeSpan.FromSeconds(10);
         var player = Player.Create(new PlayerConfig(timeout, timeout), journal, new Session(), new Worlds(), ct);
         var native = DispatchProxy.Create<ITestNative, Native>();
@@ -186,7 +189,9 @@ public sealed class PlannedRoomGateTests
             };
             // A department room step's ring call: the room's own stuff is wood until the selection says otherwise.
             var rr = new RoomReconcile { RingOnly = true, Room = Room, Name = "test-bedroom", Reason = "test room", Stuff = (_, _) => ("WoodLog", "WoodLog", default, true) };
-            return (await planner.ReconcileRoomAsync(work.State, review, work.Owner, read, null, rr, call, work.Epoch)).Verdict;
+            var verdict = (await planner.ReconcileRoomAsync(work.State, review, work.Owner, read, null, rr, call, work.Epoch)).Verdict;
+            colony.Reconciled = verdict;
+            return verdict;
         });
         colony = new Colony { Journal = journal, Player = player, Planner = planner, Runner = runner, Blueprints = ((Native)(object)native).Blueprints };
         return colony;
@@ -261,5 +266,18 @@ public sealed class PlannedRoomGateTests
         var run = await colony.RunAsync();
         Assert.Equal(Outcome.Admitted, Colony.Report(run).Outcome);
         Assert.Equal(15, colony.Placed(run).Count);
+    }
+
+    [Fact]
+    public async Task ARingTheSharedAdmissionRefusesIsTheStepsVerdictNotAThrow()
+    {
+        // Shared admission refused the storage room's ring by throwing past the stockpile step, so the step never reached
+        // its zone edits. A refusal is an outcome: the reconcile returns it, and the step decides what goes on.
+        using var colony = Open(f => f with { WorkAdmission = f.WorkAdmission with { Buildings = Known<EquatableArray<WorkBuildingCost>>([]) } });
+        var run = await colony.RunAsync();
+        Assert.Empty(run.Methods);
+        var verdict = Assert.IsType<Verdict>(colony.Reconciled);
+        Assert.True(verdict.Is(Cause.SharedAdmission), verdict.ToString());
+        Assert.Contains("unknown_building_materials", verdict.ToString(), StringComparison.Ordinal);
     }
 }

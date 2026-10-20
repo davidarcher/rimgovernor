@@ -612,7 +612,7 @@ internal sealed partial class RoundsStockpilePlanner
         var commit = p.Journal.CommitClaimedMethod(work.Need.Id, work.Owner.Snapshot, EditsMethod, "stockpile edits", plan, call);
         if (commit.Outcome != ClaimOutcome.Admitted)
         {
-            return AdminRounds.OutcomeVerdict([(commit.Outcome, commit.Conflict)]) ?? BuildingReasonExistingWork;
+            return AdminRounds.OutcomeVerdict([commit]) ?? BuildingReasonExistingWork;
         }
         foreach (var e in proposal.Edits)
         {

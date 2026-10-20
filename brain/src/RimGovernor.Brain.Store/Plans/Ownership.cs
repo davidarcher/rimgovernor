@@ -42,6 +42,9 @@ public sealed record BuildingMethodDecision(bool Admitted, NeedOwner Owner, IRea
     public bool Continued { get; init; }
 
     public ClaimConflict? Conflict { get; init; }
+
+    /// <summary>The claimed commit's admission refusal (<see cref="ClaimOutcome.Refused"/>): nothing was written.</summary>
+    public AdmissionRefusal? Refusal { get; init; }
 }
 
 /// <summary>
@@ -152,7 +155,7 @@ public sealed partial class Store
                 var claimed = CommitClaimedNeedMethodIn(tx, need.Need, need.Snapshot, r.Method, r.Reason, r.Plan);
                 if (claimed.Outcome != ClaimOutcome.Admitted)
                 {
-                    return new BuildingMethodDecision(false, claimed.Owner, []) { Continued = claimed.Outcome == ClaimOutcome.Continued, Conflict = claimed.Conflict };
+                    return new BuildingMethodDecision(false, claimed.Owner, []) { Continued = claimed.Outcome == ClaimOutcome.Continued, Conflict = claimed.Conflict, Refusal = claimed.Refusal };
                 }
                 NeedOwner committed = claimed.Owner;
                 foreach (var h in decision.Admitted)

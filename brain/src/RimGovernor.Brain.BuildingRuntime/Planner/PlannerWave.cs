@@ -94,14 +94,6 @@ internal sealed class PlannerWave : IDisposable
             {
                 reason = BuildingReasonExistingWork;
             }
-            catch (ConstructionLaborException)
-            {
-                reason = Verdict.AwaitingPlan("construction_labor", "initial_shelter");
-            }
-            catch (ProductionMaterialException)
-            {
-                reason = Verdict.AwaitingPlan("production_material", "insufficient_unknown_or_bounded");
-            }
             catch (Exception e)
             {
                 error = e;

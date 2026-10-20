@@ -95,7 +95,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
             }
 
             var withdraw = p.Journal.CommitOwnerWork(owner, stallMethod, "withdraw stalled " + row.Resource, stallPlan, call);
-            return new RoundsMedicalResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(withdraw), Plan = withdraw.Outcome == ClaimOutcome.Conflict ? default : stallPlan.Id };
+            return new RoundsMedicalResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(withdraw), Plan = withdraw.Outcome is ClaimOutcome.Conflict or ClaimOutcome.Refused ? default : stallPlan.Id };
         }
 
         var facts = ColonyFramesReads.ColonyMedicalReserve(observed, tables, await CatalogAsync(identity, call).ConfigureAwait(false)) with { Catalog = items };
@@ -280,7 +280,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
         }
 
         var commit = p.Journal.CommitOwnerWork(work.Owner, method, "", plan, call);
-        return new RoundsMedicalResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Plan = commit.Outcome == ClaimOutcome.Conflict ? default : id };
+        return new RoundsMedicalResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Plan = commit.Outcome is ClaimOutcome.Conflict or ClaimOutcome.Refused ? default : id };
     }
 
     /// <summary>

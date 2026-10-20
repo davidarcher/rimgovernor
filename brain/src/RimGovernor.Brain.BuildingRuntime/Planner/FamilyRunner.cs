@@ -491,25 +491,9 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
             throw new ControlException($"need {candidate.Need} method {candidate.Method.Value} built a plan under another id");
         }
         step.Fence();
-        NeedCommit commit;
-        try
-        {
-            commit = step.Journal.CommitClaimedMethod(candidate.Need, step.World, candidate.Method, candidate.Reason, plan, call);
-        }
-        catch (NotAdmittedException e)
-        {
-            // A Safeguard vetoes routine work: the Need waits on nothing it can do.
-            return (Verdict.Refuse(Cause.SharedAdmission, e.Message, ""), null);
-        }
-        catch (ConstructionLaborException)
-        {
-            // The initial shelter holds the builders: this Need waits, its siblings still run.
-            return (Verdict.AwaitingPlan("construction_labor", "initial_shelter"), null);
-        }
-        catch (ProductionMaterialException)
-        {
-            return (Verdict.AwaitingPlan("production_material", "insufficient_unknown_or_bounded"), null);
-        }
+        // A refused commit (a Safeguard, the shared work resources, the initial shelter's builders) is this Need's
+        // verdict; its siblings still run.
+        var commit = step.Journal.CommitClaimedMethod(candidate.Need, step.World, candidate.Method, candidate.Reason, plan, call);
         switch (commit.Outcome)
         {
             case ClaimOutcome.Admitted:
@@ -519,7 +503,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
                 return (Verdict.BuildingReasonExistingWork,
                     open is null ? null : new FamilyMethod(candidate.Need, candidate.Method, open.Plan, ClaimOutcome.Continued));
             default:
-                return (Verdict.ClaimHeld(commit.Conflict!.Claim), null);
+                return (Verdict.Committed(commit), null);
         }
     }
 
@@ -528,6 +512,8 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
     {
         var before = await Task.Run(() => step.Journal.LoadNeed(need.Id, step.World, call), call).ConfigureAwait(false);
         step.Fence();
+        // The work files its claimed commits' refusals itself (Verdict.Committed). A combat commit still reports a
+        // Safeguard veto as NotAdmittedException: the Need waits on nothing it can do.
         Verdict verdict;
         try
         {
@@ -535,13 +521,7 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
         }
         catch (NotAdmittedException e)
         {
-            // A Safeguard vetoes routine work: the Need waits on nothing it can do.
             return (Verdict.Refuse(Cause.SharedAdmission, e.Message, ""), []);
-        }
-        catch (ConstructionLaborException)
-        {
-            // The starter shelter holds the builders: this Need waits, its siblings still run.
-            return (Verdict.AwaitingPlan("construction_labor", "initial_shelter"), []);
         }
         var after = await Task.Run(() => step.Journal.LoadNeed(need.Id, step.World, call), call).ConfigureAwait(false);
         var seen = before.Methods.Select(m => m.Plan).ToHashSet();

@@ -412,7 +412,7 @@ public sealed partial class AdminRounds
         var commit = p.Journal.CommitClaimedMethod(work.Need.Id, work.Owner.Snapshot, LedgerMethod(key), selectionReason, plan, call);
         if (commit.Outcome != ClaimOutcome.Admitted)
         {
-            return Task.FromResult(OutcomeVerdict([(commit.Outcome, commit.Conflict)]) ?? BuildingReasonExistingWork);
+            return Task.FromResult(OutcomeVerdict([commit]) ?? BuildingReasonExistingWork);
         }
 
         lock (r.Ledger.Mu)

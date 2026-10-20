@@ -252,7 +252,7 @@ public sealed partial class RoundsWorkPlanner
         {
             return WaitFor(Cause.MethodUsed, "work_method");
         }
-        return AdminRounds.OutcomeVerdict([(commit.Outcome, commit.Conflict)]) ?? BuildingReasonAdmitted;
+        return AdminRounds.OutcomeVerdict([commit]) ?? BuildingReasonAdmitted;
     }
 }
 

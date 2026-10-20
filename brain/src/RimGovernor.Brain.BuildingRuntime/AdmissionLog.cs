@@ -58,6 +58,11 @@ internal static class AdmissionLog
         {
             d = d with { Verdict = "held", Reason = "method_continued" };
         }
+        else if (decision.Refusal is { } refusal)
+        {
+            attrs["refused"] = refusal.Reason;
+            d = d with { Verdict = "refused", Reason = refusal.Kind.ToString() };
+        }
         else if (!decision.Admitted)
         {
             attrs["refused"] = RefusalSummary(decision.Refused);
@@ -108,6 +113,10 @@ internal static class AdmissionLog
         if (decision.Continued)
         {
             return Verdict.BuildingReasonExistingWork;
+        }
+        if (decision.Refusal is { } refusal)
+        {
+            return Verdict.AdmissionRefused(refusal);
         }
         if (decision.Refused.Count == 0)
         {

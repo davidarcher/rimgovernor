@@ -97,7 +97,8 @@ public sealed class ProductionAdmissionTests
         var immediate = journal.ReviewRounds(request with { Revision = full.Review.Revision, Immediate = true, Tick = new Tick(101), Facts = new() }, ct);
         Assert.Equal(60, journal.LoadRounds(ct).WorkEvidence!.Stock.Value[0].Count);
         var unread = journal.ReviewRounds(request with { Revision = immediate.Review.Revision, Tick = new Tick(102), Facts = Facts with { Resources = default } }, ct);
-        Assert.Throws<ProductionMaterialException>(() => journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, new MethodId("unread"), "", Plan("unread"), ct));
+        var refused = journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, new MethodId("unread"), "", Plan("unread"), ct);
+        Assert.Equal(RefusalKind.ProductionMaterial, refused.Refusal!.Kind);
         var changed = journal.ReviewRounds(request with { Revision = unread.Review.Revision, Immediate = true, Current = World with { Load = new LoadId("new-load") }, Tick = new Tick(103), Facts = new() }, ct);
         Assert.Null(changed.Review.WorkEvidence);
     }
@@ -110,16 +111,15 @@ public sealed class ProductionAdmissionTests
         using var first = Journal.Open(path, ct);
         first.ReviewRounds(new() { Current = World, Tick = Facts.Tick, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = Facts }, ct);
         // Two admin/work-ledger Methods, one per connection, compete for the same material.
-        void Commit(Journal store, int i) =>
-            store.CommitClaimedMethod(AdminFamily.WorkLedger, World, new MethodId("batch-" + i), "", Plan("candidate-" + i), ct);
+        bool Commit(Journal store, int i) =>
+            store.CommitClaimedMethod(AdminFamily.WorkLedger, World, new MethodId("batch-" + i), "", Plan("candidate-" + i), ct).Outcome == ClaimOutcome.Admitted;
         using var second = Journal.Open(path, ct);
         using var start = new ManualResetEventSlim();
         var stores = new[] { first, second };
         var tasks = Enumerable.Range(0, 2).Select(i => Task.Run(() =>
         {
             start.Wait(ct);
-            try { Commit(stores[i], i); return true; }
-            catch (ProductionMaterialException) { return false; }
+            return Commit(stores[i], i);
         }, ct)).ToArray();
         start.Set();
         var accepted = await Task.WhenAll(tasks);

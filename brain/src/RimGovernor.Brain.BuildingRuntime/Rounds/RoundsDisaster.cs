@@ -104,7 +104,7 @@ public sealed partial class DisasterRounds
         {
             throw new ControlException("sheltering: the session moved");
         }
-        var outcomes = new List<(ClaimOutcome Outcome, ClaimConflict? Conflict)>();
+        var outcomes = new List<Sto.NeedCommit>();
         Verdict? blocked = null;
         foreach (var change in changes)
         {
@@ -125,7 +125,7 @@ public sealed partial class DisasterRounds
                 : DomainAction.NewWorkAssignmentAction(actionId, WorkAssignment.NewAreaAssignment(change.Pawn, change.Area == "", change.Area));
             var reason = "shelter: " + change.Pawn.Value + " to " + (change.Area.Length == 0 ? "unrestricted" : change.Area);
             var commit = p.Journal.CommitClaimedMethod(work.Need.Id, work.Owner.Snapshot, DisasterFamily.AreaMethod(change), reason, new PlanSpec(id, new PlanRevision(1), [action]), call);
-            outcomes.Add((commit.Outcome, commit.Conflict));
+            outcomes.Add(commit);
         }
         return AdminRounds.OutcomeVerdict(outcomes) ?? blocked ?? BuildingReasonNoDeficit;
     }
@@ -190,7 +190,7 @@ public sealed partial class DisasterRounds
         }
         var reason = "recovery: " + Wire.Name(chosen.Method) + " " + chosen.Building;
         var commit = p.Journal.CommitClaimedMethod(work.Need.Id, work.Owner.Snapshot, chosen.ID, reason, new PlanSpec(id, new PlanRevision(1), [action]), call);
-        return AdminRounds.OutcomeVerdict([(commit.Outcome, commit.Conflict)]) ?? BuildingReasonAdmitted;
+        return AdminRounds.OutcomeVerdict([commit]) ?? BuildingReasonAdmitted;
     }
 
     /// <summary>Why no service was selected, as the Need's verdict.</summary>

@@ -174,14 +174,14 @@ public sealed partial class AdminRounds
         var need = work.Need.Id;
         var world = work.Owner.Snapshot;
         bool Claim(PawnId pawn) => work.Arbiter?.TryClaim([pawn]) ?? true;
-        var outcomes = new List<(ClaimOutcome Outcome, ClaimConflict? Conflict)>();
+        var outcomes = new List<Sto.NeedCommit>();
 
         void Commit(string method, string reason, Func<ActionId, DomainAction> action)
         {
             var id = PlanIds.MintPlanId();
             var spec = new PlanSpec(id, new PlanRevision(1), [action(new ActionId(id.Value + "-0"))]);
             var commit = journal.CommitClaimedMethod(need, world, new MethodId(method), reason, spec, ct);
-            outcomes.Add((commit.Outcome, commit.Conflict));
+            outcomes.Add(commit);
         }
 
         foreach (var move in creep.Isolation)
@@ -210,8 +210,8 @@ public sealed partial class AdminRounds
             var spec = new PlanSpec(id, new PlanRevision(1), [DomainAction.NewSurgeryAction(new ActionId(id.Value + "-0"), new Surgery(order.Pawn, order.Recipe, order.Part, false))]);
             var commit = journal.CommitCreepJoinerMethod(need, world, new MethodId("creepjoiner-inspect-" + order.Pawn.Value),
                 $"creepjoiner: {order.Pawn.Value} gets a surgical inspection while its downside is hidden", spec, new CreepJoinerRecord { Inspections = next }, ct);
-            outcomes.Add((commit.Outcome, commit.Conflict));
-            if (commit.Outcome != ClaimOutcome.Conflict)
+            outcomes.Add(commit);
+            if (commit.Outcome is ClaimOutcome.Admitted or ClaimOutcome.Continued)
             {
                 record = next;
             }
@@ -250,8 +250,11 @@ public sealed partial class AdminRounds
         return WaitFor(Cause.MethodUsed, "creepjoiner_order");
     }
 
-    /// <summary>What a run's claimed commits came to: admitted if any was, else open work if any continued, else the first held claim; null when nothing was committed.</summary>
-    internal static Verdict? OutcomeVerdict(IReadOnlyList<(ClaimOutcome Outcome, ClaimConflict? Conflict)> outcomes)
+    /// <summary>
+    /// What a run's claimed commits came to: admitted if any was, else open work if any continued, else the first held
+    /// claim, else the first admission refusal; null when nothing was committed.
+    /// </summary>
+    internal static Verdict? OutcomeVerdict(IReadOnlyList<Sto.NeedCommit> outcomes)
     {
         if (outcomes.Any(o => o.Outcome == ClaimOutcome.Admitted))
         {
@@ -261,10 +264,8 @@ public sealed partial class AdminRounds
         {
             return BuildingReasonExistingWork;
         }
-        if (outcomes.FirstOrDefault(o => o.Conflict is not null).Conflict is { } conflict)
-        {
-            return Verdict.ClaimHeld(conflict.Claim);
-        }
-        return null;
+        return (outcomes.FirstOrDefault(o => o.Outcome == ClaimOutcome.Conflict) ?? (outcomes.Count > 0 ? outcomes[0] : null)) is { } first
+            ? Verdict.Committed(first)
+            : null;
     }
 }

@@ -492,6 +492,11 @@ public sealed partial class RoundsResourcePlanner
                 // Another Method holds the source: the next source is tried.
                 continue;
             }
+            if (commit.Outcome == Sto.ClaimOutcome.Refused)
+            {
+                // The shared admission turned the Method down: nothing was written, so no plan is named.
+                return (new RoundsResourceResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit) }, true);
+            }
 
             return (new RoundsResourceResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Plan = id }, true);
         }

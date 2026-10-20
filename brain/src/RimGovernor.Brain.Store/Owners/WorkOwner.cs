@@ -6,8 +6,8 @@ namespace RimGovernor.Brain.Store;
 /// <summary>One Method an owner binds: its MethodId and the plan that executes it.</summary>
 public sealed record OwnedMethod(MethodId Method, PlanId Plan);
 
-/// <summary>How an owner commit ended: admitted, continued (the MethodId is open work already) or held on another Method's claim.</summary>
-public sealed record WorkCommit(ClaimOutcome Outcome, ClaimConflict? Conflict = null);
+/// <summary>How an owner commit ended: admitted, continued (the MethodId is open work already), held on another Method's claim or refused by admission.</summary>
+public sealed record WorkCommit(ClaimOutcome Outcome, ClaimConflict? Conflict = null, AdmissionRefusal? Refusal = null);
 
 public sealed partial class Store
 {
@@ -62,6 +62,6 @@ public sealed partial class Store
     public WorkCommit CommitOwnerWork(NeedOwner owner, MethodId method, string reason, PlanSpec plan, CancellationToken cancellationToken)
     {
         var commit = CommitClaimedMethod(owner.Need, owner.Snapshot, method, reason, plan, cancellationToken);
-        return new(commit.Outcome, commit.Conflict);
+        return new(commit.Outcome, commit.Conflict, commit.Refusal);
     }
 }

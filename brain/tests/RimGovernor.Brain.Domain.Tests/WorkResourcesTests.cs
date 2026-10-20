@@ -266,8 +266,8 @@ public sealed class WorkResourcesTests
             Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("cook-builder", "helper") }, ct);
         TestNeed.Commit(journal, World, new("method"), Plan("food", Delivery("food")), ct);
         // The craft bill is the admin/work-ledger Need's.
-        Assert.Throws<ProductionMaterialException>(() => journal.CommitClaimedMethod(AdminFamily.WorkLedger, World,
-            new("craft"), "", Plan("craft", Craft("bill")), ct));
+        var refused = journal.CommitClaimedMethod(AdminFamily.WorkLedger, World, new("craft"), "", Plan("craft", Craft("bill")), ct);
+        Assert.Equal(RefusalKind.ProductionMaterial, refused.Refusal!.Kind);
         Assert.Empty(journal.LoadNeed(AdminFamily.WorkLedger, World, ct).Methods);
         Assert.Equal(4, journal.ProductionMaterials(World, ct).Availability.Value[new("Rice")].Value);
         journal.Cancel(new("food"), new("food"), ct);
@@ -283,9 +283,10 @@ public sealed class WorkResourcesTests
         Assert.Equal(ClaimOutcome.Admitted, journal.CommitClaimedMethod(FoodRules.FoodSupplyNeed, World, new("method"), "", Plan("held", Delivery("held")), ct).Outcome);
         var proposed = Delivery("proposed", "helper").PawnActivities!;
         proposed = proposed with { Orders = proposed.Orders.Select(o => o with { Method = "proposal" }).ToArray() };
-        var refusal = Assert.Throws<NotAdmittedException>(() => journal.CommitClaimedMethod(TestNeed.Id, World,
-            new("proposal"), "", Plan("proposed", DomainAction.NewPawnActivitiesAction(new("proposed"), proposed)), ct));
-        Assert.Contains("work_resource_conflict_or_unknown", refusal.Message);
+        var commit = journal.CommitClaimedMethod(TestNeed.Id, World,
+            new("proposal"), "", Plan("proposed", DomainAction.NewPawnActivitiesAction(new("proposed"), proposed)), ct);
+        Assert.Equal(ClaimOutcome.Refused, commit.Outcome);
+        Assert.Contains("work_resource_conflict_or_unknown", commit.Refusal!.Message);
         Assert.Empty(journal.LoadNeed(TestNeed.Id, World, ct).Methods);
         Assert.False(journal.LoadPlan(new("held"), ct).Retired);
         Assert.Equal(4, journal.WorkResources(World, ct).Materials.Value[new("Rice")].Value);

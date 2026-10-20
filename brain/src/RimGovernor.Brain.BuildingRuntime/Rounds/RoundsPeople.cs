@@ -128,7 +128,7 @@ public sealed class PeopleRounds
             throw new ControlException("dialog: the session moved or the read took too long");
         }
         var commit = p.Journal.CommitClaimedMethod(work.Need.Id, work.Owner.Snapshot, method, "dialog: answer " + chosen.Label, new PlanSpec(id, new PlanRevision(1), [action]), call);
-        return AdminRounds.OutcomeVerdict([(commit.Outcome, commit.Conflict)]) ?? BuildingReasonAdmitted;
+        return AdminRounds.OutcomeVerdict([commit]) ?? BuildingReasonAdmitted;
     }
 
     /// <summary>

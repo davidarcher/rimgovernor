@@ -125,7 +125,7 @@ public sealed partial class RoundsAcquisitionPlanner
                     throw new ControlException("step: p.session.State() != state");
                 }
                 var withdraw = p.Journal.CommitOwnerWork(owner, method, "withdraw stalled " + row.Resource, plan, call);
-                return new RoundsAcquisitionResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(withdraw), Plan = withdraw.Outcome == ClaimOutcome.Conflict ? default : plan.Id };
+                return new RoundsAcquisitionResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(withdraw), Plan = withdraw.Outcome is ClaimOutcome.Conflict or ClaimOutcome.Refused ? default : plan.Id };
             }
         }
         var held = CooledSources(projection.Acquisition, _reviewer.ChopMinGrowth(projection), id => cooled.Contains(id) || AcquisitionCooled(progress, _reviewer.Policy, id, expected.Tick));
@@ -224,7 +224,7 @@ public sealed partial class RoundsAcquisitionPlanner
             throw new ControlException("step: p.session.State() != state");
         }
         var commit = p.Journal.CommitOwnerWork(owner, methodId, AcquisitionReason(food, runway, selected), spec, call);
-        return new RoundsAcquisitionResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Plan = commit.Outcome == ClaimOutcome.Conflict ? default : id };
+        return new RoundsAcquisitionResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Plan = commit.Outcome is ClaimOutcome.Conflict or ClaimOutcome.Refused ? default : id };
     }
 }
 

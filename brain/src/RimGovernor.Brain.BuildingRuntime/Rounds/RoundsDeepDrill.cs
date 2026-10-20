@@ -77,6 +77,10 @@ public sealed partial class RoundsResourcePlanner
             {
                 continue;
             }
+            if (commit.Outcome == Sto.ClaimOutcome.Refused)
+            {
+                return (new RoundsResourceResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit) }, true);
+            }
             return (new RoundsResourceResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(commit), Plan = planId }, true);
         }
         return (new RoundsResourceResult(), false);

@@ -626,13 +626,8 @@ public sealed partial class RoundsBuildingPlanner
         return new RoundsBuildingResult { Verdict = OwnerCommitVerdict(p.Journal.CommitOwnerWork(goal, method, "", plan, call)) };
     }
 
-    /// <summary>The verdict an owner commit files: admitted, open work for a continued MethodId, or the held claim.</summary>
-    internal static Verdict OwnerCommitVerdict(Sto.WorkCommit commit) => commit.Outcome switch
-    {
-        Sto.ClaimOutcome.Admitted => BuildingReasonAdmitted,
-        Sto.ClaimOutcome.Continued => BuildingReasonExistingWork,
-        _ => Verdict.ClaimHeld(commit.Conflict!.Claim),
-    };
+    /// <summary>The verdict an owner commit files: admitted, open work for a continued MethodId, the held claim or the admission refusal.</summary>
+    internal static Verdict OwnerCommitVerdict(Sto.WorkCommit commit) => Verdict.Committed(commit);
 
     /// <summary>
     /// Takes down what the room holds that it should not: packable buildings are packed (uninstalled), the

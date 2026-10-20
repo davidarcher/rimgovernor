@@ -264,7 +264,7 @@ public sealed partial class RoundsTradePlanner
         var commit = Reviewer.Player.Journal.CommitTradeMissionMethod(step.Owner.Need, state.Snapshot, step.Method(phase), "", plan, step.Record.With(step.Id, m), call);
         return commit.Outcome == Sto.ClaimOutcome.Admitted
             ? new RoundsTradeResult { Verdict = BuildingReasonAdmitted, Plan = id }
-            : new RoundsTradeResult { Verdict = RoundsBuildingPlanner.OwnerCommitVerdict(new Sto.WorkCommit(commit.Outcome, commit.Conflict)) };
+            : new RoundsTradeResult { Verdict = Verdict.Committed(commit) };
     }
 
     internal RoundsTradeResult MissionTradeCommit(ControlState state, MissionStep step, TradeMission m, Trade value, CancellationToken call, CancellationToken epoch)

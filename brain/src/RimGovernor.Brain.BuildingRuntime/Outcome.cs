@@ -193,6 +193,33 @@ partial record struct Verdict
     /// <summary>The initial shelter's indoor furnishing waits on its open bunk rungs, which do not hold the ring itself.</summary>
     public static readonly Verdict BuildingReasonBunksOpen = Verdict.WaitOn(Cause.BunksOpen);
 
+    /// <summary>
+    /// The verdict an admission refusal files: the initial shelter's held builders and short production material
+    /// wait on a plan, anything else is a shared-admission refusal naming its reason.
+    /// </summary>
+    public static Verdict AdmissionRefused(Sto.AdmissionRefusal refusal) => refusal.Kind switch
+    {
+        Sto.RefusalKind.ConstructionLabor => AwaitingPlan("construction_labor", "initial_shelter"),
+        Sto.RefusalKind.ProductionMaterial => AwaitingPlan("production_material", "insufficient_unknown_or_bounded"),
+        _ => Refuse(Cause.SharedAdmission, refusal.Message, ""),
+    };
+
+    /// <summary>The verdict a claimed commit files: admitted, open work for a continued MethodId, the held claim or the admission refusal.</summary>
+    public static Verdict Committed(Sto.ClaimOutcome outcome, Sto.ClaimConflict? conflict, Sto.AdmissionRefusal? refusal) => outcome switch
+    {
+        Sto.ClaimOutcome.Admitted => BuildingReasonAdmitted,
+        Sto.ClaimOutcome.Continued => BuildingReasonExistingWork,
+        Sto.ClaimOutcome.Conflict => ClaimHeld((conflict ?? throw new DomainException("a held commit names its claim")).Claim),
+        Sto.ClaimOutcome.Refused => AdmissionRefused(refusal ?? throw new DomainException("a refused commit names its refusal")),
+        _ => throw new DomainException($"unknown claim outcome {outcome}"),
+    };
+
+    /// <inheritdoc cref="Committed(Sto.ClaimOutcome, Sto.ClaimConflict?, Sto.AdmissionRefusal?)"/>
+    public static Verdict Committed(Sto.NeedCommit commit) => Committed(commit.Outcome, commit.Conflict, commit.Refusal);
+
+    /// <inheritdoc cref="Committed(Sto.ClaimOutcome, Sto.ClaimConflict?, Sto.AdmissionRefusal?)"/>
+    public static Verdict Committed(Sto.WorkCommit commit) => Committed(commit.Outcome, commit.Conflict, commit.Refusal);
+
     public static readonly Verdict BuildingReasonHoldFallback = new(Outcome.HoldFallback);
     public static readonly Verdict BuildingReasonCombatOrders = new(Outcome.OrdersSent);
 

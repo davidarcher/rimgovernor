@@ -48,8 +48,9 @@ public sealed class IncidentVoluntaryAdmissionTests
         var mood = PeopleFamily.Mood(new("pawn"));
         var ability = new Ability(new("pawn"), AbilitySource.PsycastSource("WordOfJoy"), AbilityTarget.AbilityPawnTarget(new("target")));
         var plan = new PlanSpec(new("plan"), new(1), [DomainAction.NewAbilityAction(new("action"), ability)]);
-        var error = Assert.Throws<NotAdmittedException>(() => journal.CommitClaimedMethod(mood, World, new("mood-cast"), "", plan, ct));
-        Assert.Contains("unsupported_forecast_mood_cast", error.Message);
+        var commit = journal.CommitClaimedMethod(mood, World, new("mood-cast"), "", plan, ct);
+        Assert.Equal(ClaimOutcome.Refused, commit.Outcome);
+        Assert.Contains("unsupported_forecast_mood_cast", commit.Refusal!.Message);
         Assert.Empty(journal.LoadNeed(mood, World, ct).Methods);
     }
 
@@ -85,9 +86,9 @@ public sealed class IncidentVoluntaryAdmissionTests
         }
         else
         {
-            var error = Assert.Throws<NotAdmittedException>(() =>
-                journal.CommitClaimedMethod(EconomyFamily.Caravan, World, new("method"), "", plan, ct));
-            Assert.Contains(reason, error.Message);
+            var commit = journal.CommitClaimedMethod(EconomyFamily.Caravan, World, new("method"), "", plan, ct);
+            Assert.Equal(ClaimOutcome.Refused, commit.Outcome);
+            Assert.Contains(reason, commit.Refusal!.Message);
             Assert.Empty(journal.LoadNeed(EconomyFamily.Caravan, World, ct).Methods);
         }
     }

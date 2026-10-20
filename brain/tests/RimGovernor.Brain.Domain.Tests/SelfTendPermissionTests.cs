@@ -24,9 +24,9 @@ public sealed class SelfTendPermissionTests
         var plan = new PlanSpec(new("obsolete-setting"), new(1),
             [DomainAction.NewPawnSettingsAction(new("setting"), PawnSettings.NewSelfTendSetting(new("patient"), proposed))]);
         // The admin/work-assignments Need's Method is refused: self-treatment is an observed permission (#3304).
-        var error = Assert.Throws<NotAdmittedException>(() => journal.CommitClaimedMethod(AdminFamily.WorkAssignments, world,
-            new("obsolete-self-tend-selector"), "", plan, ct));
-        Assert.Contains("unsupported_assignment_self_tend_policy", error.Message);
+        var commit = journal.CommitClaimedMethod(AdminFamily.WorkAssignments, world, new("obsolete-self-tend-selector"), "", plan, ct);
+        Assert.Equal(ClaimOutcome.Refused, commit.Outcome);
+        Assert.Contains("unsupported_assignment_self_tend_policy", commit.Refusal!.Message);
         Assert.Empty(journal.LoadNeed(AdminFamily.WorkAssignments, world, ct).Methods);
     }
 }

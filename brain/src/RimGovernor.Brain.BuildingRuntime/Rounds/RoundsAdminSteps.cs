@@ -111,7 +111,7 @@ public sealed partial class AdminRounds
         }
         var commit = p.Journal.CommitClaimedMethod(work.Need.Id, work.Owner.Snapshot, methodId,
             forbidBatch ? "supply safety: forbid unsafe event loot" : "supply safety: allow safe event loot", new PlanSpec(id, new PlanRevision(1), actions), call);
-        return OutcomeVerdict([(commit.Outcome, commit.Conflict)]) ?? BuildingReasonAdmitted;
+        return OutcomeVerdict([commit]) ?? BuildingReasonAdmitted;
     }
 
     /// <summary>

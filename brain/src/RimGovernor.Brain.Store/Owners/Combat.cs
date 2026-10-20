@@ -135,7 +135,7 @@ public sealed partial class Store
         {
             throw new CombatWorkOpenException();
         }
-        BindOwnerMethod(tx, owner, method, "", plan);
+        BindOwnerMethodOrThrow(tx, owner, method, "", plan);
         return LoadNeedIn(tx, MilitaryFamily.Combat, current);
     }
 
@@ -284,7 +284,7 @@ public sealed partial class Store
                 }
                 var owner = LoadNeedIn(tx, MilitaryFamily.Combat, current);
                 AdmitRoundsSafeguards(tx, owner);
-                BindOwnerMethod(tx, owner, new MethodId("batch-" + plan.Id.Value), "", plan);
+                BindOwnerMethodOrThrow(tx, owner, new MethodId("batch-" + plan.Id.Value), "", plan);
                 return LoadIn(tx, plan.Id);
             },
             cancellationToken
@@ -506,7 +506,7 @@ public sealed partial class Store
                     priorIds.Add(prior.Spec.Id);
                     _ = tx.Execute("UPDATE plans SET retired=1 WHERE id=$id", ("$id", prior.Spec.Id));
                 }
-                BindOwnerMethod(tx, state, new MethodId("restore-" + plan.Id.Value), "", plan);
+                BindOwnerMethodOrThrow(tx, state, new MethodId("restore-" + plan.Id.Value), "", plan);
                 foreach (var prior in priorIds)
                 {
                     _ = tx.Execute("UPDATE plans SET superseded_by=$next WHERE id=$id", ("$next", plan.Id), ("$id", prior));

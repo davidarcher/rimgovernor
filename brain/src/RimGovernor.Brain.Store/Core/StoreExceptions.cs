@@ -3,18 +3,6 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Store;
 
-/// <summary>A fixed batch cannot claim material from the current review and committed journal work.</summary>
-public sealed class ProductionMaterialException : DomainException
-{
-    public ProductionMaterialException() : base("fixed production batch material is insufficient or unknown, or the claim bound is exhausted") { }
-}
-
-/// <summary>A plan draws on Construction labor while the initial shelter owns it (<see cref="ConstructionLaborRules.ConstructionLaborHeld"/>).</summary>
-public sealed class ConstructionLaborException : DomainException
-{
-    public ConstructionLaborException() : base("the initial shelter holds the construction labor") { }
-}
-
 /// <summary>A plan or action identity already exists, or a compare-and-swap lost.</summary>
 public class ConflictException : DomainException
 {
@@ -31,7 +19,10 @@ public class ConflictException : DomainException
 /// <summary>A commit refused because the owner already binds that method id.</summary>
 public sealed class MethodBoundException(string detail) : ConflictException("method already bound: " + detail);
 
-/// <summary>A Need's method without a current enabled review.</summary>
+/// <summary>
+/// A combat commit, a Need plan's dispatch or an activity continuation the Safeguards or shared admission refuse. A
+/// claimed commit returns its refusal (<see cref="ClaimOutcome.Refused"/>) instead.
+/// </summary>
 public sealed class NotAdmittedException : DomainException
 {
     public NotAdmittedException()
