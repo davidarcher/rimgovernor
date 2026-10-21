@@ -4,7 +4,7 @@ namespace RimGovernor.Brain.Policy.Methods.Generation;
 
 internal static class ClothingMethodCandidates
 {
-    /// <summary>The finding when the 16-outcome cap drops alternatives; the dropped are the lowest-scored (#3621).</summary>
+    /// <summary>The finding when the 16-outcome cap drops alternatives; it takes stuffs round-robin, so the dropped are each stuff's weakest (#3621, #3640).</summary>
     internal const string GenerationTruncated = "clothing_generation_truncated";
 
     internal static CoordinatedMethodCandidates Generate(RecipeActivityRead read,
@@ -38,13 +38,20 @@ internal static class ClothingMethodCandidates
             truncated |= bounded;
             allocations.AddRange(variants);
         }
+        // Within a stuff, every requirement's first allocation before any second one, the highest-scored garment first among
+        // them (#3621). The cap then takes the stuffs round-robin, each stuff's best first and the highest-scored stuff first in
+        // a round, so one stuff's products and allocations cannot fill it before another stuff competes (#3640).
         var alternatives = requirements.SelectMany(need => allocations.Where(o => o.Product == need.Product && o.Stuff == need.Stuff)
             .OrderBy(o => o.Unfinished.Length == 0).ThenBy(o => o.Id, StringComparer.Ordinal).Select((row, index) => (need, row, index)))
-            // Every requirement's first allocation before any second one, and the highest-scored garment first among them, so
-            // the cap drops the weakest stuffs (#3621).
-            .OrderBy(x => x.index).ThenByDescending(x => x.need.Score).ThenBy(x => x.need.Wearer, StringComparer.Ordinal)
-            .ThenBy(x => x.need.Product, StringComparer.Ordinal).ThenBy(x => x.need.Stuff, StringComparer.Ordinal);
-        foreach (var (need, row, _) in alternatives)
+            .GroupBy(x => x.need.Stuff, StringComparer.Ordinal)
+            .SelectMany(stuff =>
+            {
+                var best = stuff.Max(x => x.need.Score);
+                return stuff.OrderBy(x => x.index).ThenByDescending(x => x.need.Score).ThenBy(x => x.need.Wearer, StringComparer.Ordinal)
+                    .ThenBy(x => x.need.Product, StringComparer.Ordinal).Select((x, round) => (x.need, x.row, round, best));
+            })
+            .OrderBy(x => x.round).ThenByDescending(x => x.best).ThenBy(x => x.need.Stuff, StringComparer.Ordinal);
+        foreach (var (need, row, _, _) in alternatives)
         {
             if (resources.Claims.Pawns.Contains(row.Pawn) || resources.Claims.Targets.Contains(row.Bench)
                 || resources.Claims.Targets.Contains("cell/" + row.Destination.X + "/" + row.Destination.Z)

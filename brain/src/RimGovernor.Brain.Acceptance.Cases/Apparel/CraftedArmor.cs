@@ -5,8 +5,8 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>apparel/crafted_armor</c> (#3621 of #2467): the forecast picks a crafted garment's stuff by the armor the harm ledger
-/// prices. One soldier wears a cloth duster and a short bow beside a hand tailoring bench with cloth and devilstrand cloth stocked,
-/// under Cassandra on day 25 (the stage of <c>apparel/harm_armor_direction</c>, which reaches a calibrated exposure cell). The
+/// prices. One soldier wears a cloth duster and a short bow beside a hand tailoring bench with cloth and devilstrand cloth stocked
+/// and a stockpile that accepts dusters (the recipe read offers a bill only with storage for its product, #3640), under Cassandra on day 25 (the stage of <c>apparel/harm_armor_direction</c>, which reaches a calibrated exposure cell). The
 /// soldier already wears a garment, so the clothing family competes with swaps; a coupled selection crafts the devilstrand duster
 /// (the selected commitment's id names the stuff), and its harm term is below the baseline's: the armor gain is priced from the
 /// delivery.
@@ -53,6 +53,14 @@ internal static class CraftedArmor
                     Kind = Fx.StageZoneKind.Stockpile,
                     Allow = [Cloth, Devilstrand],
                     Cells = [new(0, 0), new(1, 0), new(2, 0), new(3, 0)],
+                },
+                // The crafted duster's delivery cells.
+                new Fx.StageZone
+                {
+                    Name = "wardrobe",
+                    Kind = Fx.StageZoneKind.Stockpile,
+                    Allow = [Duster],
+                    Cells = [new(4, 0), new(5, 0)],
                 },
             ],
             // A duster takes 80 stuff; two stacks of each.

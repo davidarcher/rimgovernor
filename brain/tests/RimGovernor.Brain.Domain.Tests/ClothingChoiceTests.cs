@@ -266,6 +266,30 @@ public sealed class ClothingChoiceTests
     }
 
     [Fact]
+    public void TheCapTakesStuffsRoundRobinSoTwoStuffsBothAppear()
+    {
+        // #3640: seventeen products in two stuffs, every devilstrand garment scored above every cloth one; before the round-robin
+        // the devilstrand products alone filled the 16-outcome cap and cloth was never offered.
+        var products = Enumerable.Range(0, 17).Select(i => "Product" + i.ToString("00", System.Globalization.CultureInfo.InvariantCulture)).ToArray();
+        var census = Census(20, [.. products.SelectMany((p, i) => new[]
+        {
+            Garment(p, "Cloth") with { Sharp = 0.2 + 0.001 * i },
+            Garment(p, "DevilstrandCloth") with { Sharp = 0.9 + 0.001 * i },
+        })]);
+        var needs = ClothingActivitiesRules.ClothingActivityRequirements(census);
+        Assert.True(needs.Where(n => n.Stuff == "DevilstrandCloth").Min(n => n.Score) > needs.Where(n => n.Stuff == "Cloth").Max(n => n.Score));
+        var read = Read([.. products.SelectMany(p => new[] { Option("Cloth", p), Option("DevilstrandCloth", p) })]);
+        var family = RimGovernor.Brain.Policy.Methods.Generation.ClothingMethodCandidates.Generate(read, needs, 2000, Resources());
+        Assert.True(family.Truncated);
+        Assert.Equal(16, family.Outcomes.Length);
+        Assert.Equal(8, family.Outcomes.Count(o => o.Id.EndsWith("-DevilstrandCloth", StringComparison.Ordinal)));
+        Assert.Equal(8, family.Outcomes.Count(o => o.Id.EndsWith("-Cloth", StringComparison.Ordinal)));
+        // Each stuff's best garment opens the first round, the higher-scored stuff first.
+        Assert.EndsWith("-DevilstrandCloth", family.Outcomes[0].Id, StringComparison.Ordinal);
+        Assert.EndsWith("-Cloth", family.Outcomes[1].Id, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void NormalDemandComparisonJournalAndHandsPreserveExactRecipeAndObservedOutput()
     {
         var ct = TestContext.Current.CancellationToken;

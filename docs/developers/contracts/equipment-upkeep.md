@@ -373,9 +373,12 @@ effect-source swap (`gear/<pawn>`) whose outfit changes the garment's slot
 composes with it. Two crafts for one wearer exclude each other by the same
 conflict rule.
 
-Generation offers every bill stuff `StuffArrival` admits, each wearer's garments
-ordered by `GearItemScore` (highest first), so the family's 16-outcome cap drops
-the weakest alternatives; a truncation records `clothing_generation_truncated`.
+Generation offers every bill stuff `StuffArrival` admits. Within a stuff, its
+garments are ordered by `GearItemScore` (highest first), each garment's first
+ingredient allocation before any second one. The family's 16-outcome cap takes
+the stuffs round-robin, the highest-scored stuff first in each round, so every
+stuff's best garment competes before any stuff's second; it drops each stuff's
+weakest alternatives, and a truncation records `clothing_generation_truncated`.
 The acceptance case `apparel/crafted_armor` shows a worn cloth duster replaced by a
 crafted devilstrand one.
 
