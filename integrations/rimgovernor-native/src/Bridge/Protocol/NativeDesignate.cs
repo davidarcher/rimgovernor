@@ -19,6 +19,10 @@ namespace HomeBridge.BridgeTools
     // again. A Deconstruct may swap a door for a wall; one under the
     // wall_upgrade guard resolves its site in NativeWallRemovalOperations,
     // and the acquisition guard's designations resolve in NativeAcquire.
+    // An unguarded Haul on an ordinary (alwaysHaulable) stack, which the
+    // haul designator refuses (it takes only designateHaulable chunks),
+    // stands no designation: it opens the stack's haul-out record, the
+    // removal the construction read lists (#3625).
     internal static class NativeDesignate
     {
         private const string Kind = "Designate";
@@ -35,7 +39,7 @@ namespace HomeBridge.BridgeTools
             internal string ExpectedDef = "";
             internal string? Guard;
             internal ThingDef? WallStuff;
-            internal bool Present, Cleared;
+            internal bool Present, Cleared, HaulOut;
         }
 
         private static DesignationDef? DefOf(Operations.ThingDesignation d)
@@ -63,6 +67,7 @@ namespace HomeBridge.BridgeTools
 
         private static bool Standing(Plan p)
         {
+            if (p.HaulOut) return NativeDesignationGuards.HaulOut(p.Map, p.Target!) != null;
             var manager = p.Map.designationManager;
             if (p.Designation == Operations.ThingDesignation.Mine) return manager.DesignationAt(p.Cell, DesignationDefOf.Mine) != null;
             if (p.Designation == Operations.ThingDesignation.RemoveFoundation) return manager.DesignationAt(p.Cell, DesignationDefOf.RemoveFoundation) != null;
@@ -148,6 +153,7 @@ namespace HomeBridge.BridgeTools
                 if (plan.WallStuff == null) return "only a 1x1 player door of a wall stuff swaps for a wall";
             }
             if (plan.Target != null && plan.Target.IsForbidden(Faction.OfPlayer)) return "the target is forbidden";
+            plan.HaulOut = plan.Designation == Operations.ThingDesignation.Haul && plan.Guard == null && NativeDesignationGuards.HaulOutStack(plan.Target!);
             if (plan.Guard != null)
             {
                 var blocker = NativeDesignationGuards.Registry.Admit(plan.Guard, new GuardSubject { Map = map, Cell = plan.Cell, Target = plan.Target });
@@ -159,7 +165,7 @@ namespace HomeBridge.BridgeTools
             if (plan.Designation == Operations.ThingDesignation.Haul
                 && !StoreUtility.TryFindBestBetterStoreCellFor(plan.Target!, null, map, StoreUtility.CurrentStoragePriorityOf(plan.Target!), Faction.OfPlayer, out _))
                 return "no stockpile accepts the thing";
-            return DesignatorRefusal(plan);
+            return plan.HaulOut ? null : DesignatorRefusal(plan);
         }
 
         private static bool WallUpgrade(Operations.DesignateIntent intent) => intent.Guard is not null && intent.Guard.GetValueOrDefault() == Operations.DesignationGuard.WallUpgrade;
@@ -196,6 +202,11 @@ namespace HomeBridge.BridgeTools
             var refusal = Resolve(intent, context, out var plan, out _);
             if (refusal != null) throw new InvalidOperationException("Designate prerequisites changed before apply: " + refusal);
             if (plan.Cleared) return Evidence(plan, null);
+            if (plan.HaulOut)
+            {
+                if (!plan.Present) NativeDesignationGuards.StandHaulOut(plan.Map, plan.Target!);
+                return Evidence(plan, null);
+            }
             var record = plan.Guard == null ? null : NativeDesignationGuards.Open(plan.Map, plan.Def, plan.Cell, plan.Target);
             if (record != null) return Evidence(plan, record);
             if (plan.Guard != null)

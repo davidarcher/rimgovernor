@@ -67,5 +67,7 @@ namespace HomeBridge.BridgeTools
     internal static class GuardNames
     {
         internal const string Enclosure = "enclosure", MineSafety = "mine_safety", WallUpgrade = "wall_upgrade", Acquisition = "acquisition", Wastepack = "wastepack";
+        // Not a registered guard: the ledger name of an ordinary stack's haul-out record (#3625, NativeDesignationGuards).
+        internal const string HaulOut = "haul_out";
     }
 }

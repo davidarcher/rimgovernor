@@ -50,6 +50,47 @@ namespace HomeBridge.BridgeTools
             return dissolution.IsFrozen ? "The wastepack is already frozen." : null;
         }
 
+        // ---- haul_out ----
+        // The room reconcile's HaulOut of an ordinary stack (#3625). Designator_Haul accepts only designateHaulable things
+        // (chunks), so a Haul Designate on an alwaysHaulable stack stands no designation: its open record, the stack at its
+        // cell, is the standing removal the construction read lists as a Haul op. It is done when the stack's last carry
+        // lands (JobDriver_GovernorDeliver); one whose stack left its cell otherwise (vanilla hauling, destruction) stands no
+        // more and is cancelled when the next is stood, so the save drops it. It is no tick guard: nothing re-checks it.
+        internal static bool HaulOutStack(Thing thing) => thing.def.category == ThingCategory.Item && thing.def.EverHaulable && !thing.def.designateHaulable;
+
+        internal static GuardedDesignation? HaulOut(Map map, Thing thing) => Current.Game == null ? null
+            : State().Records.LastOrDefault(r => r.Open && r.Guard == GuardNames.HaulOut && r.MapId == map.uniqueID && r.ThingId == thing.GetUniqueLoadID()
+                && thing.Spawned && thing.Position.x == r.X && thing.Position.z == r.Z);
+
+        internal static GuardedDesignation StandHaulOut(Map map, Thing thing)
+        {
+            foreach (var r in State().Records.Where(r => r.Open && Stale(r))) r.Cancelled = true;
+            return Add(new GuardedDesignation
+            {
+                Id = "haulout-" + Guid.NewGuid().ToString("N"), Guard = GuardNames.HaulOut, Designation = DesignationDefOf.Haul.defName,
+                ExpectedDef = thing.def.defName, MapId = map.uniqueID, X = thing.Position.x, Z = thing.Position.z, ThingId = thing.GetUniqueLoadID(),
+            });
+        }
+
+        // The stacks under an open haul-out record on the map, each still at its recorded cell.
+        internal static IEnumerable<Thing> HaulOuts(Map map) => Current.Game == null ? Enumerable.Empty<Thing>()
+            : State().Records.Where(r => r.Open && r.Guard == GuardNames.HaulOut && r.MapId == map.uniqueID)
+                .Select(r => (Record: r, Thing: RefIndex.Thing(map, r.ThingId)))
+                .Where(h => h.Thing is { Spawned: true } t && t.Position.x == h.Record.X && t.Position.z == h.Record.Z)
+                .Select(h => h.Thing!).ToList();
+
+        internal static void FinishHaulOut(Map map, Thing thing)
+        {
+            if (Current.Game == null) return;
+            foreach (var r in State().Records.Where(r => r.Open && r.Guard == GuardNames.HaulOut && r.MapId == map.uniqueID && r.ThingId == thing.GetUniqueLoadID()))
+                r.Finished = Find.TickManager.TicksGame;
+        }
+
+        // A haul-out record whose stack is gone from its cell.
+        private static bool Stale(GuardedDesignation r) => r.Guard == GuardNames.HaulOut
+            && !(Find.Maps.FirstOrDefault(m => m.uniqueID == r.MapId) is Map map && RefIndex.Thing(map, r.ThingId) is { Spawned: true } t
+                && t.Position.x == r.X && t.Position.z == r.Z);
+
         internal static string? Name(Operations.DesignationGuard guard)
         {
             switch (guard)

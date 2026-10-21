@@ -77,9 +77,12 @@ internal static class CoordinatedActivityBinding
         {
             var task = group.OrderBy(t => t.DepartTick).ThenBy(t => t.Id, StringComparer.Ordinal).First();
             var preparing = task.Prerequisites.Count != 0 || task.DepartTick > tick;
-            var steps = preparing
-                ? PreparationSteps(task)
-                : [.. task.PriorSteps, task.Step.Kind == PawnActivityKind.Supply ? task.Step with { Count = Math.Min(task.Step.Count, bindings[(task.Id, task.Pawn)].Capacity) } : task.Step];
+            // A supply, and a delivery whose carry is known, start with one carry: the continuation repeats the step over the
+            // rest (a stack larger than one carry, #3625).
+            var capacity = bindings[(task.Id, task.Pawn)].Capacity;
+            var own = task.Step.Kind == PawnActivityKind.Supply || task.Step.Kind == PawnActivityKind.Deliver && capacity > 0
+                ? task.Step with { Count = Math.Min(task.Step.Count, capacity) } : task.Step;
+            var steps = preparing ? PreparationSteps(task) : [.. task.PriorSteps, own];
             return new PawnActivityOrder(task.Pawn, method + "/" + task.Pawn, method, 0, 1, false, steps)
             { Task = task.Id, Preparing = preparing, OutputDelivery = !preparing && task.Resource.Length != 0 && task.Step.Count > 0
                 ? new(task.Resource, task.Source ?? task.Location, task.Step.Destination ?? task.Location, task.Step.Count, task.Step.Deadline, task.AttemptsLeft) : null };

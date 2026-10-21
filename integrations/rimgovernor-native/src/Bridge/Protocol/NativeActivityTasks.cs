@@ -75,7 +75,7 @@ internal static class NativeActivityTasks
                         {
                             var destination = step.Destination!.Value;
                             if (!(step.SupportDemand.Length != 0 ? NativeSupportActivities.DestinationAllowed(pawn, item, new(destination.X, 0, destination.Z), count)
-                                : JobDriver_GovernorDeliver.DestinationAvailable(pawn, new(destination.X, 0, destination.Z)))
+                                : JobDriver_GovernorDeliver.DestinationAvailable(pawn, new(destination.X, 0, destination.Z), item, count))
                                 || !pawn.CanReserveAndReach(new IntVec3(destination.X, 0, destination.Z), PathEndMode.OnCell, Danger.None)) continue;
                         }
                         bindings.Add(new(task.Id, bound) { RemainingCount = step.Kind == PawnActivityKind.Supply && site is IConstructible current

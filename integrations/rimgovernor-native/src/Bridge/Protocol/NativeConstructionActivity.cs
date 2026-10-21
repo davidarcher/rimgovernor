@@ -52,9 +52,10 @@ internal static class NativeConstructionActivity
         var planned = request.Planned.Select(s => Prepare(map, s, findings)).ToArray();
         // The standing removal designations (#3557, #3612, #3614): the Deconstruct the room reconcile stood over an interior
         // ruin or a stale piece (or the player's own), the Uninstall it stood over a piece it packs and the Haul it stood over
-        // a stack it moves out. Under voluntary control nothing else works them; the brain binds each building as its kind's
-        // work and each stack as a delivery to storage outside its planned room's footprint (the whole map's best storage
-        // when no planned site covers it). The Cut and RemoveFloor waves below are read as set ops (#3613, #3615).
+        // a chunk it moves out, with the ordinary stacks it moves out under a haul-out record, no designation (#3625). Under
+        // voluntary control nothing else works them; the brain binds each building as its kind's work and each stack as a
+        // delivery to storage outside its planned room's footprint (the whole map's best storage when no planned site covers
+        // it). The Cut and RemoveFloor waves below are read as set ops (#3613, #3615).
         var removals = map.designationManager.AllDesignations
             .Select(d => (Kind: d.def == DesignationDefOf.Deconstruct ? Obs.PlannedClearingKind.Deconstruct
                 : d.def == DesignationDefOf.Uninstall ? Obs.PlannedClearingKind.Uninstall
@@ -62,7 +63,8 @@ internal static class NativeConstructionActivity
             .Where(d => d.Thing != null && d.Thing.Spawned && (d.Kind == Obs.PlannedClearingKind.Deconstruct ? d.Thing is Verse.Building deconstructible && deconstructible.DeconstructibleBy(Faction.OfPlayer).Accepted
                 : d.Kind == Obs.PlannedClearingKind.Uninstall ? d.Thing is Verse.Building packable && Uninstallable(packable)
                 : d.Kind == Obs.PlannedClearingKind.Haul && Haulable(d.Thing)))
-            .Select(d => (d.Kind, Thing: d.Thing!)).Distinct().OrderBy(d => d.Thing.thingIDNumber).ThenBy(d => d.Kind).ToArray();
+            .Select(d => (d.Kind, Thing: d.Thing!))
+            .Concat(NativeDesignationGuards.HaulOuts(map).Where(Haulable).Select(t => (Kind: Obs.PlannedClearingKind.Haul, Thing: t))).Distinct().OrderBy(d => d.Thing.thingIDNumber).ThenBy(d => d.Kind).ToArray();
         // The standing CutPlant designations, one Cut op per contiguous wave of plants (#3613), and the standing RemoveFloor
         // designations, one RemoveFloor op per contiguous wave of cells (#3615).
         var cutWaves = CutWaves(map);

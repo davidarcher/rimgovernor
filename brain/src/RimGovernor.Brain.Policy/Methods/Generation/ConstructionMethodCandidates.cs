@@ -28,12 +28,16 @@ internal static class ConstructionMethodCandidates
         _ => true,
     };
 
-    /// <summary>A standing removal row a pawn can work: a Haul's delivery is known and one trip (#3614), another kind's finish.</summary>
+    /// <summary>A standing removal row a pawn can work: a Haul's delivery is known and carriable (#3614, #3625), another kind's finish.</summary>
     private static bool Workable(PlannedClearingKind kind, ConstructionActivityOption row) =>
-        kind == PlannedClearingKind.Haul ? OneTrip(row) && row.DeliveryTicks.IsKnown : row.FinishTicks.IsKnown;
+        kind == PlannedClearingKind.Haul ? Carriable(row) && row.DeliveryTicks.IsKnown : row.FinishTicks.IsKnown;
 
-    /// <summary>A haul row the Deliver step can work: the whole stack in one carry (the step refuses multi-trip deliveries).</summary>
-    internal static bool OneTrip(ConstructionActivityOption row) => row.Count > 0 && row.Capacity >= row.Count;
+    /// <summary>
+    /// A haul row the Deliver task can work: a stack and a carry. A stack larger than one carry is still one task, its
+    /// order a Deliver of one carry at a time (CoordinatedActivityBinding clamps the step to Capacity) repeated over the
+    /// remainder until the stack is delivered (#3625); the row's DeliveryTicks price every trip.
+    /// </summary>
+    internal static bool Carriable(ConstructionActivityOption row) => row.Count > 0 && row.Capacity > 0;
 
     /// <summary>
     /// The task a standing removal row binds (#3557, #3612, #3614): a Haul is the pawn's Deliver of the stack (Count the
@@ -176,7 +180,8 @@ internal static class ConstructionMethodCandidates
             });
         }
         // A standing removal designation (#3557, #3612, #3613, #3614, #3615): the room reconcile stood a Deconstruct over an
-        // interior ruin or a stale piece, an Uninstall over a piece it packs, a Haul over a stack it moves out, CutPlant over a
+        // interior ruin or a stale piece, an Uninstall over a piece it packs, a Haul over a stack it moves out (on an ordinary
+        // stack a haul-out record, no designation, #3625), CutPlant over a
         // wave of plants or RemoveFloor over a wave of wrong-floor cells, and under voluntary control only an order works it.
         // Each building is the pawn's Work task of the op's kind on it, each stack the pawn's Deliver of it to the row's
         // storage cell, and each Cut or RemoveFloor wave one Work set step over its members, one unit of requested development

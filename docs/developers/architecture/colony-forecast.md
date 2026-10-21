@@ -515,9 +515,10 @@ over its `Cells` (Count the cells), exclusive outcome `construction/{op}`, with 
 and its work is exempt from the thermal-relief gate like a floor's. The order's
 claim is the op (the thing, the wave's lowest plant or the floor wave's
 `removefloor/{x}/{z}/x{n}` id); an op whose thing or pawn another Method claims,
-whose finish (a Haul's delivery) is unknown, whose stack is more than one carry
-(the Deliver step is one trip), or a Cut, Mine or RemoveFloor op naming no members
-binds nothing. A planned site's Cut clearing binds the same way before placement
+whose finish (a Haul's delivery) is unknown, or a Cut, Mine or RemoveFloor op naming
+no members binds nothing. A stack larger than one carry is one Deliver task whose
+order carries one `Capacity` at a time, the continuation repeating it over the rest
+(#3625). A planned site's Cut clearing binds the same way before placement
 (`PlannedRoomCandidates`, beside its Deconstruct and Haul clearings), and so does
 its Mine clearing, one Work/Mine set step over the op's named rocks (#3616); a
 planned room whose footprint holds a roof-holder is valued, not unknown, its
@@ -657,8 +658,9 @@ temperature safety is enabled (the placed-site gate; `planned_sites_unknown` whe
    sources are alternative deliveries; a multi-stack set's stacks (#3673) are each delivered for their share and the
    finish requires all of them (a set over 4 stacks, or one not covered, leaves the site `no_delivery_option`).
    - A `Deconstruct` clearing binds (`Bindings`): its building stands now, so the op is the pawn's Work/Deconstruct
-     task on it, at the planned deadline (#3557). A `Haul` clearing the pawn carries in one trip binds the same way
-     as the pawn's Deliver of the stack to the row's storage cell (#3614); the op keeps its `/cleared` output. Every
+     task on it, at the planned deadline (#3557). A `Haul` clearing binds the same way as the pawn's Deliver of the
+     stack to the row's storage cell (#3614), one carry at a time over a larger stack (#3625); the op keeps its
+     `/cleared` output. Every
      other planned operation has no action template until placement (#3278), and a bound clearing is left out of
      the site's unplaced activities.
    - Ring finishes share one `ChoiceIdentity` per room and kind, so two stuffs of one wall cannot both be built.

@@ -449,10 +449,13 @@ public sealed class PlannedRoomActivitiesTests
 
     /// <summary>
     /// #3614: a stack under the ring is a Haul clearing whose rows carry it to storage; it binds before placement as the
-    /// pawn's Deliver of the stack (Count the stack) to the row's destination, and the op keeps its /cleared output.
+    /// pawn's Deliver of the stack (Count the stack) to the row's destination, and the op keeps its /cleared output. A
+    /// stack larger than one carry binds the same way, its order one carry at a time (#3625).
     /// </summary>
-    [Fact]
-    public void AStackUnderTheRingIsAHaulClearingBoundAsADeliverToStorage()
+    [Theory]
+    [InlineData(40)]
+    [InlineData(120)]
+    public void AStackUnderTheRingIsAHaulClearingBoundAsADeliverToStorage(int count)
     {
         const string stack = "Thing_Steel1";
         const string site = "planned/room1/wall/WoodLog";
@@ -461,14 +464,14 @@ public sealed class PlannedRoomActivitiesTests
         var store = new Cell(2, 2);
         var clearing = new PlannedSiteClearing(clearingId, PlannedClearingKind.Haul)
         {
-            Options = [new ConstructionActivityOption(clearingId, "Wall", store, Pawn, "Steel", stack, at, 40, 75, "HaulGeneral", Known(Ticks(Start, at)),
-                Known(Ticks(at, store)), Known(0d)) { SiteApproachTicks = Known(Ticks(Start, at)), AvailableInput = Known(40d) }],
+            Options = [new ConstructionActivityOption(clearingId, "Wall", store, Pawn, "Steel", stack, at, count, 75, "HaulGeneral", Known(Ticks(Start, at)),
+                Known(Ticks(at, store)), Known(0d)) { SiteApproachTicks = Known(Ticks(Start, at)), AvailableInput = Known((double)count) }],
         };
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 120) with { Clearing = [clearing] }, Ring(OpKind.DoorIn, "WoodLog", 60)]);
         var candidates = facts.CoupledAlternatives!;
         Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_alternative_", StringComparison.Ordinal));
         var binding = Assert.Single(candidates.Context.Bindings.Values, b => b.Target == stack);
-        Assert.Equal((Pawn, PawnActivityKind.Deliver, 40, "Steel", 75, ""), (binding.Pawn, binding.Kind, binding.Count, binding.Resource, binding.Capacity, binding.SupportDemand));
+        Assert.Equal((Pawn, PawnActivityKind.Deliver, count, "Steel", 75, ""), (binding.Pawn, binding.Kind, binding.Count, binding.Resource, binding.Capacity, binding.SupportDemand));
         Assert.Equal(store, binding.Destination);
         Assert.Equal(at, binding.Source);
         Assert.StartsWith(clearingId + "/composition/", binding.Id, StringComparison.Ordinal);
@@ -480,9 +483,10 @@ public sealed class PlannedRoomActivitiesTests
         var batch = ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "planned-test", 100);
         Assert.NotNull(batch);
         var task = Assert.Single(batch.Tasks, t => t.Pawn == Pawn);
-        Assert.Equal((binding.Id, PawnActivityKind.Deliver, stack, 40), (task.Id, task.Step.Kind, task.Step.Target, task.Step.Count));
+        Assert.Equal((binding.Id, PawnActivityKind.Deliver, stack, count), (task.Id, task.Step.Kind, task.Step.Target, task.Step.Count));
         Assert.Equal(store, task.Step.Destination);
-        Assert.Contains(batch.Orders, o => o.Pawn == Pawn && !o.Release && o.Task == task.Id);
+        var order = Assert.Single(batch.Orders, o => o.Pawn == Pawn && !o.Release && o.Task == task.Id);
+        Assert.Equal(Math.Min(count, 75), order.Steps[^1].Count);
     }
 
     /// <summary>

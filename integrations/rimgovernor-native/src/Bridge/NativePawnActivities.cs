@@ -303,7 +303,7 @@ namespace HomeBridge.BridgeTools
             if (pawn.carryTracker.MaxStackSpaceEver(target.def) < step.Count) return "count exceeds carry capacity";
             var cell = new IntVec3(destination.X, 0, destination.Z);
             if (NativeSupportActivities.Remaining(pawn.Map, step, target.def) < step.Count) return "bill needs fewer than count";
-            if ((step.SupportDemand.Length != 0 ? NativeSupportActivities.DestinationRefusal(pawn, target, cell, step.Count) : JobDriver_GovernorDeliver.DestinationRefusal(pawn, cell)) is { } destinationWhy) return "destination (" + cell.x + "," + cell.z + ") not available for " + target.def.defName + " x" + step.Count + ": " + destinationWhy;
+            if ((step.SupportDemand.Length != 0 ? NativeSupportActivities.DestinationRefusal(pawn, target, cell, step.Count) : JobDriver_GovernorDeliver.DestinationRefusal(pawn, cell, target, step.Count)) is { } destinationWhy) return "destination (" + cell.x + "," + cell.z + ") not available for " + target.def.defName + " x" + step.Count + ": " + destinationWhy;
             return Reservable(pawn, cell, PathEndMode.OnCell, Danger.Some) ? null : "destination cannot be reserved or reached";
         }
 
@@ -760,12 +760,16 @@ namespace HomeBridge.BridgeTools
     /// <summary>Native walking/reservation/carrying mechanics, with no storage search or nearby-drop fallback.</summary>
     public sealed class JobDriver_GovernorDeliver : JobDriver
     {
-        internal static bool DestinationAvailable(Pawn pawn, IntVec3 cell) => DestinationRefusal(pawn, cell) == null;
-        internal static string? DestinationRefusal(Pawn pawn, IntVec3 cell)
+        // An empty cell; with a delivered thing and count, also a cell whose one item is a stack that thing joins with room
+        // for the count (a stack delivered one carry at a time, #3625: each trip after the first lands on the earlier ones).
+        internal static bool DestinationAvailable(Pawn pawn, IntVec3 cell, Thing? delivered = null, int count = 0) => DestinationRefusal(pawn, cell, delivered, count) == null;
+        internal static string? DestinationRefusal(Pawn pawn, IntVec3 cell, Thing? delivered = null, int count = 0)
         {
             if (!cell.InBounds(pawn.Map) || !cell.Standable(pawn.Map) || cell.Fogged(pawn.Map) || cell.IsForbidden(pawn)) return "cell not standable, fogged or forbidden";
-            var item = cell.GetThingList(pawn.Map).FirstOrDefault(t => t.def.category == ThingCategory.Item);
-            return item == null ? null : "cell holds " + item.def.defName + " x" + item.stackCount;
+            var items = cell.GetThingList(pawn.Map).Where(t => t.def.category == ThingCategory.Item).ToList();
+            if (items.Count == 0 || delivered != null && items.Count == 1 && items[0] != delivered && items[0].CanStackWith(delivered)
+                && items[0].stackCount + count <= items[0].def.stackLimit) return null;
+            return "cell holds " + items[0].def.defName + " x" + items[0].stackCount;
         }
 
         public override bool TryMakePreToilReservations(bool errorOnFailed) =>
@@ -779,7 +783,7 @@ namespace HomeBridge.BridgeTools
             this.FailOnBurningImmobile(TargetIndex.B);
             bool DestinationValid() => NativePawnActivities.ActiveStep(pawn)?.SupportDemand.Length > 0
                 ? NativeSupportActivities.DestinationAllowed(pawn, pawn.carryTracker.CarriedThing ?? job.targetA.Thing, job.targetB.Cell, job.count)
-                : DestinationAvailable(pawn, job.targetB.Cell);
+                : DestinationAvailable(pawn, job.targetB.Cell, pawn.carryTracker.CarriedThing ?? job.targetA.Thing, job.count);
             this.FailOn(() => !DestinationValid());
             if (pawn.carryTracker.CarriedThing != job.targetA.Thing)
             {
@@ -804,6 +808,9 @@ namespace HomeBridge.BridgeTools
                 // it): the delivered stack has been hauled, as the vanilla haul clears it on placing (#3614).
                 pawn.Map.designationManager.TryRemoveDesignationOn(carried, DesignationDefOf.Haul);
                 pawn.Map.designationManager.TryRemoveDesignationOn(delivered, DesignationDefOf.Haul);
+                // The reconcile's haul-out of an ordinary stack (#3625) is done once its last carry lands: the carried thing is
+                // the stack itself (an earlier carry splits a new thing off and leaves the stack on its cell).
+                NativeDesignationGuards.FinishHaulOut(pawn.Map, carried);
             });
         }
     }

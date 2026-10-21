@@ -330,7 +330,11 @@ partial class RoundsBuildingPlanner
     /// <summary>The foreign-thing waves in the order they are committed.</summary>
     internal static readonly Pol.OpKind[] ObstructionKinds = [Pol.OpKind.Claim, Pol.OpKind.Cut, Pol.OpKind.HaulOut];
 
-    /// <summary>Maps a foreign-thing target to an existing action: a claim, or a cover clearance in the cut-plant or haul mode.</summary>
+    /// <summary>
+    /// Maps a foreign-thing target to an existing action: a claim, or a cover clearance in the cut-plant or haul mode. A haul
+    /// stands the Haul designation on a chunk and, on an ordinary stack the haul designator refuses, a haul-out removal with
+    /// no designation (#3625); either is the Haul removal the forecast binds as a Deliver of the stack.
+    /// </summary>
     internal static DomainAction ObstructionAction(ActionId id, Pol.OpKind kind, Pol.ClearanceTarget t)
     {
         if (kind == Pol.OpKind.Claim)

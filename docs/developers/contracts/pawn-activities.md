@@ -239,14 +239,18 @@ cell. The custom delivery driver uses native pathing, reservations, stack splitt
 and carrying, but does not ask the hauling WorkGiver to select storage. It never
 collects nearby duplicates or substitutes a nearby drop location. Admission and
 execution require a capable hauler, sufficient source quantity and carrying capacity,
-an empty carry tracker or the exact selected carried stack, and a reachable destination without loose items that is
-unreserved or held only by preemptible colonists (see the offer rules below).
-This initial adapter deliberately refuses stack merging and multi-trip deliveries.
-The planner must split larger transfers into bounded attempts and observe each result.
+an empty carry tracker or the exact selected carried stack, and a reachable destination that is
+unreserved or held only by preemptible colonists (see the offer rules below) and holds no loose item but one stack
+the delivered thing joins with room for the count. One step is one trip: a count over the pawn's carry is refused.
+A larger transfer is one task whose orders each carry one load (the coupled start clamps a Deliver to the binding's
+`Capacity`); the continuation observes each result and repeats the step over the remainder, each later carry
+landing on the earlier ones (#3625).
 A delivered stack that carried a Haul designation (the room reconcile's HaulOut, read
 back as a Haul removal op and ordered as this step, #3614) loses the designation on
 the drop, as the native haul does on placing; the order marks any guarded record of
-the designation `Ordered`.
+the designation `Ordered`. An ordinary stack's HaulOut stands no designation (the haul
+designator takes only chunks) but a haul-out record, read back the same way; the drop
+of the stack's last carry finishes the record (#3625).
 
 Destination availability is rechecked during execution. A changed destination,
 lost source, capacity shortfall or deadline fails the assignment visibly. Completion

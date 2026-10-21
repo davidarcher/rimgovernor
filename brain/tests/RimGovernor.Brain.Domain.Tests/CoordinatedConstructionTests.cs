@@ -301,6 +301,46 @@ public sealed class CoordinatedConstructionTests
             b => b.Kind == PawnActivityKind.Deliver);
     }
 
+    /// <summary>
+    /// #3625: an ordinary stack the HaulOut moves stands no designation, only a haul-out record the read lists as the same
+    /// Haul removal op, and a stack larger than one carry binds too: one Deliver task of the whole stack whose first order
+    /// carries one Capacity, the continuation a second Deliver of the remainder to the same storage cell, then done.
+    /// </summary>
+    [Fact]
+    public void AStackLargerThanOneCarryIsOneDeliverTaskWorkedInTwoCarries()
+    {
+        const string item = "Thing_Silver1";
+        var store = new Cell(40, 30);
+        var origin = new Cell(30, 30);
+        var row = new ConstructionActivityOption(item, "Silver", store, "producer", "Silver", item, origin, 100, 75, "HaulGeneral",
+            Known(10d), Known(50d), Known(0d)) { SiteApproachTicks = Known(10d), AvailableInput = Known(100d) };
+        var facts = RemovalFacts(new PlannedSiteClearing(item, PlannedClearingKind.Haul) { Options = [row] });
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        var binding = Assert.Single(generated.Context.Bindings.Values, b => b.Kind == PawnActivityKind.Deliver);
+        Assert.Equal((item, 100, 75), (binding.Target, binding.Count, binding.Capacity));
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var batch = ForecastCoupledSelection.StartCoupledActivity(ForecastCoupledSelection.CompareActivityOutcomes(request, generated), generated, 1, "construction", 100)!;
+        var task = Assert.Single(batch.Tasks);
+        Assert.Equal(100, task.Step.Count);
+        var first = Assert.Single(Assert.Single(batch.Orders, o => !o.Release).Steps);
+        Assert.Equal((PawnActivityKind.Deliver, item, 75, (Cell?)store), (first.Kind, first.Target, first.Count, first.Destination));
+
+        ActivityTaskRead Read(PawnActivities current, string state, params ActivityTaskBinding[] bindings) => new()
+        {
+            Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 300 }, Bindings = EquatableArray.From(bindings),
+            Pawns = EquatableArray.From(current.Orders.Select(o => new ActivityTaskObservation(o.Pawn, new(o.Assignment, o.Method, o.Revision, 0, state, "", null, 300))))
+        };
+        var next = CoordinatedActivitiesRules.ContinueCoordinatedActivity(batch, Known(true), Read(batch, "completed",
+            new ActivityTaskBinding(task.Id, task.Step with { Count = 25 })))!;
+        Assert.Equal(25, Assert.Single(next.Tasks).Step.Count);
+        var second = Assert.Single(Assert.Single(next.Orders, o => !o.Release).Steps);
+        Assert.Equal((PawnActivityKind.Deliver, item, 25, (Cell?)store), (second.Kind, second.Target, second.Count, second.Destination));
+        var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Read(next, "completed"))!;
+        Assert.Empty(done.Tasks);
+        Assert.True(done.Orders.Single().Release);
+    }
+
     /// <summary>#3612: the 16-op cap is shared across removal kinds, and a kind no order works yet (RemoveFloor) binds nothing.</summary>
     [Fact]
     public void RemovalOpsShareOneCapAcrossKindsAndAnUnworkedKindBindsNothing()

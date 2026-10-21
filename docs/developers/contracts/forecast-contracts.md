@@ -580,8 +580,9 @@ a `PlannedSiteAnswer` in `ConstructionActivityRead.Planned`:
   outside the footprint, `ApproachTicks` (and `SiteApproachTicks`) the pickup route,
   `DeliveryTicks` the loaded carries plus returns over `Capacity`, and `FinishTicks`
   is a known 0. Native's own blocking haul moves the stack aside; the forecast
-  charges a carry to storage instead (#3241), and binds a stack the pawn carries in
-  one trip as its Deliver to `Location` before placement (#3614). One `Deconstruct` op per building the
+  charges a carry to storage instead (#3241), and binds the stack as its Deliver to
+  `Location` before placement (#3614), one carry at a time over a stack larger than
+  `Capacity` (#3625). One `Deconstruct` op per building the
   player may deconstruct (`<site>/deconstruct/<thing>`: a ruin wall, door or piece
   of furniture, or the colony's own; #3557): `Input` is the building's id,
   `Resource` its def and `Location` its cell; `FinishTicks` is `JobDriver_Deconstruct`'s
