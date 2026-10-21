@@ -12,7 +12,9 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// the injected layout plan holds its footprint as <c>LayoutPlan.RetiredGround</c>; under the served clearance family
 /// pawns deconstruct the hut's walls and door and remove its spots until nothing of ours stands on that ground (the
 /// production buildings read). Retiring a room is policy (LayoutDerive's RetiredGround, ClearanceGround's
-/// RetiredGroundDone); this case owns the native clearance.
+/// RetiredGroundDone, RetiredGroundReplanTests); this case owns the native clearance. The plan also holds one unbuilt
+/// storage room east of the hut: a plan with no room does not validate, reads as none and is derived afresh without
+/// the retired ground (#3681).
 /// </summary>
 internal static class ClearanceRetiredGround
 {
@@ -36,7 +38,7 @@ internal static class ClearanceRetiredGround
             World = new Fx.StageWorld { Hour = 7 },
             Site = new Fx.StageSite
             {
-                Width = 7,
+                Width = 13,
                 Height = 7,
                 OffsetX = 6,
                 Radius = 12,
@@ -57,7 +59,18 @@ internal static class ClearanceRetiredGround
         List<string> ours = [.. hut.Walls, .. hut.Doors, .. Spots.SelectMany(def => staged.Buildings[def].Ids)];
         await TypedLayoutPlan.InjectAsync(s, new LayoutPlan
         {
-            NextRoomId = 1,
+            NextRoomId = 2,
+            Rooms =
+            [
+                new PlannedRoom
+                {
+                    Id = 1,
+                    Role = PlannedRole.Storage,
+                    Region = RegionRules.RectRegion(new Rectangle { X = site.X + 9, Z = site.Z + 2, Width = 3, Height = 3 }),
+                    Door = new Cell(site.X + 8, site.Z + 3),
+                    DoorRot = Rotation.West,
+                },
+            ],
             RetiredGround = [RegionRules.RectRegion(new Rectangle { X = site.X, Z = site.Z, Width = 7, Height = 7 })],
         }, cancellationToken).ConfigureAwait(false);
         _ = await s.ServeUntilAsync("retired-ground", s.TicksLeft, async ct =>

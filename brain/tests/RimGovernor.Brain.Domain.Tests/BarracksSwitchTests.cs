@@ -24,7 +24,7 @@ public sealed class BarracksSwitchTests
     }
 
     /// <summary>Every room of the plan standing: a wall on each ring cell and a door on each of its doors.</summary>
-    private static StationFacts Stand(LayoutPlan plan, StationFacts f)
+    internal static StationFacts Stand(LayoutPlan plan, StationFacts f)
     {
         var ground = new GroundCensus();
         foreach (var r in PlannedRules.PlannedBuiltRooms(plan))
