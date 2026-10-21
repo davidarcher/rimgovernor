@@ -34,7 +34,7 @@ public sealed partial class Rounder
     {
         var chosen = h.Selection?.Selected.Roster?.Key ?? "none";
         var why = h.Selection is { } sel ? string.Join(",", sel.Alternatives.Where(a => a.Roster is not null).GroupBy(a => a.Refusal.Length == 0 ? "usable" : a.Refusal).OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => g.Key + "=" + g.Count())) : "";
-        return $"chosen={chosen} rosters=[{why}] unestimated={h.Unestimated.Count} findings=[{string.Join(";", h.Findings)}]" + (released.Length == 0 ? "" : " released:" + released);
+        return $"chosen={chosen} rosters=[{why}] findings=[{string.Join(";", h.Findings)}]" + (released.Length == 0 ? "" : " released:" + released);
     }
 
     /// <summary>
@@ -49,20 +49,14 @@ public sealed partial class Rounder
             var seasonal = Seasonal(p.Facts);
             var trade = FoodTradeOf(p);
             var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
-            var huntView = huntRead is not null && HuntEstimates is { } known ? known.Current(p.Identity.Tick.Value) : HuntEstimateView.None;
             if (s.FoodPlanFact.IsKnown && s.FoodGeneration == s.Generation && s.FoodOffers == trade.Revision
-                && s.FoodHunt == huntView.Revision && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && RoundsCensus.SameObservedIdentity(s.FoodIdentity, p.Identity)
+                && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && RoundsCensus.SameObservedIdentity(s.FoodIdentity, p.Identity)
                 && (!p.Acquisition.TryGetValue(out var sources) || HuntAdmission.Release(huntRead, sources).Length == 0))
             {
                 return s.FoodPlanFact;
             }
 
-            var plan = ReviewFoodPlan(p, Policy, FoodCredit, HuntAdmission, trade, HuntEstimates, huntView, (h, released) =>
-            {
-                s.HuntNote = DescribeHuntPlan(h, released);
-                // A restart that re-asks; a stale anchor with nothing to compare yet is only a finding of the note.
-                if (h.Unestimated.Count > 0 && h.Findings.FirstOrDefault(f => f.StartsWith("hunt_anchor_drift:", StringComparison.Ordinal)) is { } drift) s.HuntRestart = "tick=" + p.Identity.Tick.Value + " " + drift;
-            });
+            var plan = ReviewFoodPlan(p, Policy, FoodCredit, HuntAdmission, trade, (h, released) => s.HuntNote = DescribeHuntPlan(h, released));
             if (plan.TryGetValue(out var v))
             {
                 HuntAdmission.Admit(HuntSquadRules.HuntRequest(Known(v)).Select(id => (Domain.PawnId)id));
@@ -82,7 +76,6 @@ public sealed partial class Rounder
                 s.FoodMin = seasonal.FoodMinDays;
                 s.FoodTarget = seasonal.FoodTargetDays;
                 s.FoodOffers = trade.Revision;
-                s.FoodHunt = huntView.Revision;
             }
 
             return plan;
@@ -141,7 +134,7 @@ public sealed partial class Rounder
 
 partial class Rounder
 {
-    internal static Fact<FoodPlan> ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, IHuntEstimates? estimates, HuntEstimateView huntView, Action<HuntPlan, string>? onHunt = null)
+    internal static Fact<FoodPlan> ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, Action<HuntPlan, string>? onHunt = null)
     {
         if (!p.CombinedFoodSupply.TryGetValue(out var supply) || !p.Acquisition.TryGetValue(out var sources))
         {
@@ -188,17 +181,11 @@ partial class Rounder
         // The hunt alternatives: nutrition the colony still needs to reach its target runway, compared over roster estimates.
         var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
         var needed = Math.Max(0, (forecast.Consumers.Sum(c => c.NutritionPerDay) * thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays) - forecast.UsableNutrition);
-        var huntPlan = HuntPlanningRules.PlanHunt(huntRead, sources, p.Facts.ForecastObserved.Coupled?.Routes ?? [], huntView, needed);
-        // The held formation stands until a release trigger; released, the plan's own choice is offered and the service re-asks what went stale.
+        var huntPlan = HuntPlanningRules.PlanHunt(huntRead, sources, p.Facts.ForecastObserved.Coupled?.Routes ?? [], needed);
+        // The held formation stands until a release trigger; released, the plan's own choice is offered.
         var (formation, released) = hunt.Formation(huntPlan.Channel(sources), huntPlan, sources, huntRead);
         onHunt?.Invoke(huntPlan, released);
-        if (huntPlan.Unestimated.Count > 0 && huntPlan.Anchor is { } anchor)
-        {
-            // The scenes are built from the comparison's anchor, not this round's read: the plan judged the anchor still describes it.
-            _ = estimates?.Request(anchor, huntPlan.Unestimated, p.Identity.Tick.Value);
-        }
-
-        channels.AddRange(HuntSquadRules.HuntCandidates(sources, gunners, formation, huntPlan.Awaiting));
+        channels.AddRange(HuntSquadRules.HuntCandidates(sources, gunners, formation));
         channels.AddRange(HuntPrerequisiteRules.HuntPrerequisiteCandidates(p.HuntHolds));
         var hunting = FoodHuntInput(p);
         channels = HuntCreditRules.HuntThroughput(channels, hunters, HuntCreditRules.HuntCadence(hunting.Kills, hunters, p.Identity.Tick.Value)).ToList();

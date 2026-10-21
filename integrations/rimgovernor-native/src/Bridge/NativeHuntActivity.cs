@@ -10,13 +10,14 @@ using Obs = RimGovernor.Contracts.Wire.Observations;
 namespace HomeBridge.BridgeTools;
 
 /// <summary>
-/// Hunt encounter inputs: the colonists who could join a hunt and the huntable animals, each stated as the
-/// encounter predictor's actor, plus the map window around them. Every hunter, every prey and the whole window
-/// are read (#3341). Observation only: no roster, target or estimate.
+/// Hunt estimate inputs: the colonists who could join a hunt and the huntable animals, each with the game's own combat
+/// inputs (the gun's shot, the body damage meets, the prey's melee and its revenge odds against each hunter), plus the
+/// weather's accuracy factor. Every hunter and every prey are read (#3341). Observation only: no roster, target or estimate.
 /// </summary>
 internal static class NativeHuntActivity
 {
-    const int Margin = 12;
+    /// <summary>The band edges ShotReport lerps accuracy between: touch, short, medium and long range.</summary>
+    const float Touch = 3f, Short = 12f, Medium = 25f, Long = 40f;
 
     internal static Obs.HuntActivityRead Read(Map map)
     {
@@ -28,12 +29,13 @@ internal static class NativeHuntActivity
             && p.RaceProps.meatDef?.IsNutritionGivingIngestible == true && !p.Position.Fogged(map))
             .OrderBy(p => p.Position.DistanceToSquared(center)).ThenBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
         var hunterReads = hunters.Select(h => Actor(h, true, prey)).ToArray();
-        var preyReads = prey.Select(p => Actor(p, false, prey) with { CorpseStore = CorpseStore(map, p) }).ToArray();
-        // Until the content identity is hashed the scene is unobserved; a roster is then refused, never predicted against a guess.
-        var identity = NativeEncounterIdentity.Current;
-        var scene = hunterReads.Length == 0 || preyReads.Length == 0 || identity is null ? null : Scene(map, identity, hunters.Concat(prey).ToArray());
-        return new() { Known = true, Hunters = EquatableArray.From(hunterReads), Prey = EquatableArray.From(preyReads), Scene = scene,
-            Findings = identity is null ? ["engine_identity_pending", "needs_genes_and_effects_are_not_observed_here"] : ["needs_genes_and_effects_are_not_observed_here"] };
+        var preyReads = prey.Select(p => Actor(p, false, prey) with { CorpseStore = CorpseStore(map, p), Melee = Melee(p), Revenge = Revenge(p, hunters) }).ToArray();
+        return new()
+        {
+            Known = true, Hunters = EquatableArray.From(hunterReads), Prey = EquatableArray.From(preyReads),
+            WeatherAccuracy = Fact.Known((double)map.weatherManager.CurWeatherAccuracyMultiplier),
+            Findings = ["needs_genes_and_effects_are_not_observed_here"],
+        };
     }
 
     static Obs.HuntActorRead Actor(Pawn p, bool hunter, List<Pawn> prey)
@@ -47,11 +49,13 @@ internal static class NativeHuntActivity
             Xenotype = p.genes?.Xenotype?.defName ?? "",
             Weapon = Gear(weapon),
             WeaponRange = verb == null ? default : Fact.Known((double)verb.verbProps.range),
+            Gun = hunter && verb != null && weapon != null ? Gun(p, weapon, verb) : null,
+            Body = Body(p),
             Apparel = EquatableArray.From((p.apparel?.WornApparel ?? []).Select(a => Gear(a)!).Where(g => g != null)),
             Skills = EquatableArray.From((p.skills?.skills ?? []).Select(s => new Obs.HuntSkillRead(s.def.defName, s.Level))),
             Traits = EquatableArray.From((p.story?.traits.allTraits ?? []).Select(t => new Obs.HuntTraitRead(t.def.defName, t.Degree))),
             Health = EquatableArray.From(p.health.hediffSet.hediffs.Where(h => h is not Hediff_MissingPart)
-                .Select(h => new Obs.HuntHediffRead(h.def.defName, h.Part?.Label ?? "", h.Severity))),
+                .Select(h => new Obs.HuntHediffRead(h.def.defName, h.Part?.Label ?? ""))),
             MissingParts = EquatableArray.From(p.health.hediffSet.hediffs.OfType<Hediff_MissingPart>().Select(h => h.Part?.Label ?? "")),
             Available = hunter && !p.Downed && !p.InMentalState && !p.Drafted,
             Hauls = hunter && p.workSettings?.WorkIsActive(WorkTypeDefOf.Hauling) == true,
@@ -65,6 +69,63 @@ internal static class NativeHuntActivity
             MeatNutrition = meat == null ? default : Fact.Known((double)meat.GetStatValueAbstract(StatDefOf.Nutrition)),
         };
     }
+
+    /// <summary>The verb's shot as ShotReport.HitReportFor and Verb.TryStartCastOn resolve it; null when it launches no damaging projectile.</summary>
+    static Obs.HuntGunRead? Gun(Pawn p, ThingWithComps weapon, Verb verb)
+    {
+        var projectile = verb.GetProjectile()?.projectile;
+        if (projectile?.damageDef == null) return null;
+        var unique = weapon.TryGetComp<CompUniqueWeapon>(out var comp) && comp.IgnoreAccuracyMaluses;
+        var props = verb.verbProps;
+        return new(p.GetStatValue(StatDefOf.ShootingAccuracyPawn),
+            p.GetStatValue(StatDefOf.ShootingAccuracyFactor_Touch), p.GetStatValue(StatDefOf.ShootingAccuracyFactor_Short),
+            p.GetStatValue(StatDefOf.ShootingAccuracyFactor_Medium), p.GetStatValue(StatDefOf.ShootingAccuracyFactor_Long),
+            props.GetHitChanceFactor(weapon, Touch), props.GetHitChanceFactor(weapon, Short), props.GetHitChanceFactor(weapon, Medium), props.GetHitChanceFactor(weapon, Long),
+            props.canGoWild, unique,
+            (verb.WarmupTime * p.GetStatValue(StatDefOf.AimingDelayFactor)).SecondsToTicks(), props.AdjustedCooldownTicks(verb, p), verb.BurstShotCount, verb.TicksBetweenBurstShots,
+            projectile.GetDamageAmount(weapon), projectile.GetArmorPenetration(weapon), projectile.damageDef.armorCategory == DamageArmorCategoryDefOf.Sharp,
+            projectile.damageDef.hediff?.injuryProps?.painPerSeverity ?? 0);
+    }
+
+    static Obs.HuntBodyRead? Body(Pawn p)
+    {
+        if (p.health?.hediffSet is not { } set) return null;
+        return new(p.BodySize, p.HealthScale, p.GetStatValue(StatDefOf.PainShockThreshold), p.kindDef.ignoresPainShock, set.PainTotal,
+            set.hediffs.OfType<Hediff_Injury>().Sum(h => (double)h.Severity), OverallArmor(p, StatDefOf.ArmorRating_Sharp), OverallArmor(p, StatDefOf.ArmorRating_Blunt),
+            p.TicksPerMoveCardinal, p.GetStatValue(StatDefOf.MeleeDodgeChance));
+    }
+
+    /// <summary>The overall armour the gear tab shows (ITab_Pawn_Gear.TryDrawOverallArmor): body-part coverage of the natural and worn ratings.</summary>
+    static double OverallArmor(Pawn p, StatDef stat)
+    {
+        var natural = Math.Clamp(p.GetStatValue(stat) / 2f, 0f, 1f);
+        var worn = p.apparel?.WornApparel ?? [];
+        var total = 0f;
+        foreach (var part in p.RaceProps.body.AllParts)
+        {
+            var through = 1f - natural;
+            foreach (var a in worn)
+                if (a.def.apparel.CoversBodyPart(part)) through *= 1f - Math.Clamp(a.GetStatValue(stat) / 2f, 0f, 1f);
+            total += part.coverageAbs * (1f - through);
+        }
+        return Math.Clamp(total * 2f, 0f, 2f);
+    }
+
+    /// <summary>The prey's melee attack averaged by selection weight over its available melee verbs that deal damage (StatWorker_MeleeDPS); null without one.</summary>
+    static Obs.HuntMeleeRead? Melee(Pawn p)
+    {
+        var verbs = (p.meleeVerbs?.GetUpdatedAvailableVerbsList(false) ?? []).Where(v => v.IsMeleeAttack && v.verb.verbProps.meleeDamageDef != null).ToList();
+        var weight = verbs.Sum(v => v.GetSelectionWeight(null));
+        if (weight <= 0) return null;
+        double Mean(Func<Verb, double> of) => verbs.Sum(v => v.GetSelectionWeight(null) / weight * of(v.verb));
+        return new(Mean(v => v.verbProps.AdjustedMeleeDamageAmount(v, p)), Mean(v => v.verbProps.AdjustedCooldownTicks(v, p)), p.GetStatValue(StatDefOf.MeleeHitChance),
+            Mean(v => v.verbProps.AdjustedArmorPenetration(v, p)), Mean(v => v.verbProps.meleeDamageDef.armorCategory == DamageArmorCategoryDefOf.Sharp ? 1 : 0),
+            Mean(v => v.verbProps.meleeDamageDef.hediff?.injuryProps?.painPerSeverity ?? 0));
+    }
+
+    /// <summary>Per hunter, the game's revenge chance for one damage instance he deals and the pack's chance to join (Pawn_MindState.StartManhunterBecauseOfPawnAction).</summary>
+    static EquatableArray<Obs.HuntRevengeRead> Revenge(Pawn prey, List<Pawn> hunters) => EquatableArray.From(hunters.Select(h => new Obs.HuntRevengeRead(h.GetUniqueLoadID(),
+        PawnUtility.GetManhunterOnDamageChance(prey, h), Find.Storyteller.difficulty.allowBigThreats ? 0.5 * PawnUtility.GetManhunterChanceFactorForInstigator(h) : 0)));
 
     /// <summary>
     /// Where native would haul the prey's corpse: the store of highest priority whose settings accept its corpse def,
@@ -88,38 +149,6 @@ internal static class NativeHuntActivity
     {
         if (thing == null) return null;
         thing.TryGetQuality(out var quality);
-        return new(thing.def.defName, thing.Stuff?.defName ?? "", quality.ToString(), thing.HitPoints);
+        return new(thing.def.defName, thing.Stuff?.defName ?? "", quality.ToString());
     }
-
-    static Obs.HuntSceneRead Scene(Map map, NativeEncounterIdentity.Identity identity, Pawn[] actors)
-    {
-        var minX = Math.Max(0, actors.Min(a => a.Position.x) - Margin); var maxX = Math.Min(map.Size.x - 1, actors.Max(a => a.Position.x) + Margin);
-        var minZ = Math.Max(0, actors.Min(a => a.Position.z) - Margin); var maxZ = Math.Min(map.Size.z - 1, actors.Max(a => a.Position.z) + Margin);
-        // Row runs of terrain/roof; the most common terrain is the scene's base and only departures from it are listed.
-        var cells = (from x in Enumerable.Range(minX, maxX - minX + 1) from z in Enumerable.Range(minZ, maxZ - minZ + 1)
-                     select (x, z, terrain: map.terrainGrid.TerrainAt(new IntVec3(x, 0, z)).defName, roof: map.roofGrid.RoofAt(x, z)?.defName ?? "")).ToArray();
-        var terrain = cells.GroupBy(c => c.terrain).OrderByDescending(g => g.Count()).ThenBy(g => g.Key, StringComparer.Ordinal).First().Key;
-        var ground = new List<Obs.HuntGroundRead>();
-        foreach (var row in cells.Where(c => c.terrain != terrain || c.roof != "").GroupBy(c => c.z).OrderBy(g => g.Key))
-        {
-            var ordered = row.OrderBy(c => c.x).ToArray();
-            for (var i = 0; i < ordered.Length;)
-            {
-                var j = i;
-                while (j + 1 < ordered.Length && ordered[j + 1].x == ordered[j].x + 1 && ordered[j + 1].terrain == ordered[i].terrain && ordered[j + 1].roof == ordered[i].roof) j++;
-                ground.Add(new(ordered[i].x, row.Key, ordered[j].x, row.Key, ordered[i].terrain, ordered[i].roof));
-                i = j + 1;
-            }
-        }
-        var obstacles = new List<Obs.HuntObstacleRead>();
-        foreach (var thing in map.listerThings.AllThings.Where(t => t.Spawned && t.def.passability == Traversability.Impassable && t.Position.x >= minX && t.Position.x <= maxX
-                     && t.Position.z >= minZ && t.Position.z <= maxZ).OrderBy(t => t.Position.x).ThenBy(t => t.Position.z).ThenBy(t => t.def.defName, StringComparer.Ordinal))
-        {
-            obstacles.Add(new(thing.def.defName, thing.Stuff?.defName ?? "", thing.Position.x, thing.Position.z));
-        }
-        return new(Find.World.info.name + "/" + Find.World.info.seedString, identity.GameBuild, identity.Mods, map.weatherManager.curWeather.defName,
-            terrain, minX, minZ, maxX - minX + 1, maxZ - minZ + 1, map.mapTemperature.OutdoorTemp, map.skyManager.CurSkyGlow)
-        { Ground = EquatableArray.From(ground), Obstacles = EquatableArray.From(obstacles) };
-    }
-
 }

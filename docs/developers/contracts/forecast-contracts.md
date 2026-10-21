@@ -392,14 +392,17 @@ reports its actual native observation tick. Decoding does not relabel an older
 census with the caller's requested tick. Policy requires agreement with needs,
 shared work-resource evidence and demand before constructing a coupled request.
 
-`HuntActivityRead` is the hunting part of that frame (#3130): up to 16 free colonists
-who could hunt and 16 wild edible animals, each stated as the encounter predictor's
-actor (kind, cell, age, xenotype, weapon and range, apparel, skills, traits, health,
-missing parts; for prey also sleeping/downed/mental, herd, and meat, leather and
-nutrition if killed), plus the map window around them (weather, temperature, sky glow,
-terrain/roof runs, impassable obstacles) and a file-manifest mod identity. It holds no
-roster, target or estimate; policy proposes rosters and the runtime asks the
-prediction service. Truncation is reported, never silent.
+`HuntActivityRead` is the hunting part of that frame (#3130, #3533): up to 16 free colonists
+who could hunt and 16 wild edible animals (kind, cell, age, xenotype, weapon by def, stuff and quality and its range,
+apparel, skills, traits, the hediff set by definition and part, missing parts; for prey also downed/mental, herd,
+meat and its nutrition if killed, and the corpse store), each with the game's own combat inputs: a hunter's
+`HuntGunRead` (ShotReport's accuracy and range-band factors, the weapon's hit chance factor at the band edges, warmup
+with its aiming delay, cooldown, burst, the projectile's damage, armour penetration, sharpness and pain per damage),
+every pawn's `HuntBodyRead` (body size, health scale, pain shock threshold, current pain and injury, overall sharp and
+blunt armour, ticks per cell, dodge), and a prey's `HuntMeleeRead` (MeleeDPS's selection-weighted average attack and
+its hit chance) and per-hunter `HuntRevengeRead` (`PawnUtility.GetManhunterOnDamageChance` and the pack's join
+chance); plus the weather's accuracy multiplier. It holds no roster, target or estimate; policy proposes rosters and
+estimates them. Truncation is reported, never silent.
 
 `ResearchActivityRead` is the research part of that frame (#3527): for the current project (`ResearchManager.GetProject()`;
 none is Known with no workers and the finding `research_no_current_project`), every free colonist who has a job on
@@ -418,111 +421,89 @@ pairs and a third gunner from the six best-shooting available hunters, for each 
 (herd-mates within 12 cells are one group, a search aid only); no roster size is required. Each roster is also
 proposed with a retriever (#3513): a hauler, an available colonist outside the gunner pool whose hauling work is
 active (`HuntActorRead.Hauls`), the two fastest by their walk to the prey and hauls to the corpse store. A hauler's
-roster shares its gunners' predicted scene (`HuntRoster.SceneKey`), so it costs no prediction. Once the plain rosters
-are answered, a second stage (`ProposeRetrieverStage`) restates the three best usable rosters of two or more gunners
-per prey group with their least-skilled shooter as a gunner-retriever: stated to the predictor as a timed `Leave` at
-the plain roster's median encounter ticks (`HuntRoster.DepartureTick`); outside the horizon it is refused
-`departure_outside_horizon`. The runtime asks the prediction service for each scene and hands back a `HuntEstimate`
-(per-sample counts of serious harm, death and downed prey, expected nutrition net of the chance the prey is not
-downed, encounter ticks). `Choose` ranks usable rosters by hunter deaths, then any serious harm (each by its 95%
-Wilson upper bound, so a small sample cannot look safer), then nutrition still missing, then total participant labor.
+roster shares its gunners' encounter (`HuntRoster.SceneKey`), so it shares their estimate. Once the plain rosters
+are estimated, a second stage (`ProposeRetrieverStage`) restates the three best usable rosters of two or more gunners
+per prey group with their least-skilled shooter as a gunner-retriever who stops shooting at the plain roster's
+estimated encounter ticks (`HuntRoster.DepartureTick`). Each encounter is estimated by `HuntEstimator` and the
+estimate is a `HuntEstimate`: whether risk was estimated at all, the chance a gunner suffers serious harm and that
+one dies, the chance every prey ends downed within the 2.4-hour horizon, the nutrition net of that chance, and the
+expected encounter ticks. `Choose` ranks usable rosters by the death chance, then the harm chance, then nutrition
+still missing, then total participant labor.
 Labor is every gunner's walk to the prey and its encounter ticks (the gunner-retriever's ending at its departure),
 plus retrieval from the coupled routes: each corpse's haul to the store (`HuntActorRead.CorpseStore`, native's own
 store choice: the nearest cell of the highest-priority store accepting the corpse) by the retriever, or without one by
 the cheapest gunner, and the empty walk home of every gunner that hauled nothing; a hauler's walk out counts as haul.
-Retrieval enters the labor term only, never the ordering above it. A roster with no estimate, a non-evidence
-prediction, unknown prey yield or no known walk is refused with its reason (`route_unknown`); a missing haul or
-return row, including no store that accepts the corpse, refuses it `return_route_unknown`. Nothing is priced at
-zero. With no nutrition needed, or no usable roster, the choice is not to hunt.
+Retrieval enters the labor term only, never the ordering above it. A roster the estimator refuses, or with no known
+walk, is refused with its reason (`route_unknown`); a missing haul or return row, including no store that accepts the
+corpse, refuses it `return_route_unknown`. Nothing is priced at zero. With no nutrition needed, or no usable roster,
+the choice is not to hunt.
 
-The runtime side is `IHuntEstimates` (`HuntEstimateService` in the host). `HuntEncounterRequests.Build` states each
-roster as an `EncounterRequest`: the observed window as the map, the roster gunners each aimed at the nearest
-prey, 16 fixed seeds, a 2.4-hour horizon. The service asks the prediction service one request at a time in the
-background, never from the planner step, and keeps each answer as a `HuntEstimate` or a refusal, keyed by scene.
+`HuntEstimator` (policy, pure and synchronous, #3533) is the analytic estimate from the game's formulas: no
+simulation, no worker, no clock hold, so the food plan estimates every roster inside its review. Every input is a
+read; a missing one refuses the roster (`prey_unobserved`, `hunter_unobserved`, `gunner_unarmed:<pawn>`,
+`body_unobserved:<pawn>`, `prey_yield_unknown`, `revenge_unobserved:<prey>`, `weather_unobserved`), never a default.
+The gunners take the prey one at a time, nearest first. Each walks into 95% of his range (the hunt job's cast
+position) and fires casts of warmup, burst and cooldown at ShotReport's hit chance (the shooter's per-cell accuracy to
+the distance times his range-band factor, floored at 0.0201 when the shot can go wild; the weapon's banded factor; the
+weather unless the weapon ignores accuracy maluses; floored, then times the body size clamped to 0.5-2). A hit does
+the projectile's damage after ApplyArmor's odds (with a = max(armour - penetration, 0), deflected below a/2, halved
+below a). The prey goes down at the hits whose pooled damage reaches pain shock (injury pain is damage times pain per
+damage over the health scale, from its current pain) or the lethal threshold (150 per health scale, less its current
+injury), so hits are a Poisson process and downing is its tail; the gunners turn to the next prey at the mean tick the
+last one went down. A gunner-retriever's shots stop at his departure tick. Prey that cannot fight back skip risk
+estimation (`RiskEstimated` false, harm and death zero): no damaging melee attack with a hit chance, or a zero revenge
+chance against every rostered gunner (a hare). A prey that can turns manhunter on each hit with that gunner's revenge
+chance, at most once, while it stands; it closes on the nearest gunner at its own ticks per cell and attacks him until
+it goes down, its herd-mates joining at the pack chance. Its landed hits (melee hit chance, the target's dodge, his
+overall armour) are his harm, and reaching his lethal threshold before his pain shock is death; across prey, harm and
+death combine as independent. Not modelled: cover and darkness, posture, fleeing prey, the hit chance rising as a
+manhunter closes, vital-part and bleeding deaths, and a downed gunner leaving the shooting. The RealCombat simulator is
+its offline check (`docs/developers/testing/hunting-prediction-qualification.md` records the comparison).
 
-A comparison is anchored to one read (#3525): the service holds the hunt read the plan first asked with (the
-anchor, `HuntEstimateView.Anchor`, returned to the runtime as `HuntPlan.Anchor` with the rosters to ask: the read
-with the prey the plan could hunt then, standing and not designated or taken) and builds every scene of the
-comparison from it, both stages, whatever read the later rounds ask from. Policy judges the anchor, never the
-service. While scenes are pending, `PlanHunt` gathers the answers without regard to how far the pawns drift between
-the reads in between: the worker answers scenes one at a time, seconds each, and judging each answer against the
-newest read staled the early ones before the late ones arrived. The comparison compares the prey its anchor saw: an
-animal that wanders into the window meanwhile is proposed by the next comparison, after a choice or a restart, and
-never restarts this one. The anchor is judged two ways. Every round, its prey (`HuntEncounterRequests.PreyDrift`):
-one the read no longer shows, downed, in a mental state or no longer huntable, or a prey group whose members stand
-grouped otherwise now (`HuntAlternatives.PreyGroups`, the group radius); where an animal grazed to is never judged.
-When a stage is fully answered, at choice time, its gunners (`HuntEncounterRequests.StillAnchored`): each rostered
-gunner within `MoveTolerance`, 8 cells, of where the anchor saw it and otherwise the gunner it saw (kind, xenotype,
-weapon, apparel, traits, missing parts, the hediff set by definition and part; not his skill levels or a hediff's
-severity, which move with every shot and every hour of healing), in the same scene identity and weather. A hunter
-the anchor never saw in a proposed roster is judged at any round. Then the plan asks the whole comparison again from
-the current read, with the findings `hunt_anchor_stale` and `hunt_anchor_drift:<what>` (`<pawn>=unobserved`,
-`downed`, `mental`, `gone`, `group:<members>`, `<gunner>=unseen`, `moved:<cells>`, `changed:<fields>` or `scene`);
-the service takes that read as the new anchor, forgets the old comparison's answers, queues the scenes again at
-once, and skips an old comparison's scene unasked when the worker reaches it. A stale anchor with no prey left to
-compare is only the finding; the next huntable prey starts the next comparison. Rosters, labor and the choice itself
-always come from the current read and its routes, and a chosen formation's release triggers judge it against each
-later read, never the anchor. The estimate carries the skills and health the anchor stated. An answer lives a day; a
-hauler is not in the scene, and its trip is re-priced from each round's routes.
-A busy, cancelled, timed-out or unavailable service is retried after an hour of game time; an unsupported roster
-stays refused. Policy sees only the view (anchor, estimates, refusals, rosters pending), so a roster that is pending,
-refused or unanswered is never ranked as safe.
-
-In production the Bridge hashes the engine identity once at start (`NativeEncounterIdentity`: the game assembly, every
-running mod's xml/dll content, and the official mods the worker boots with — RealCombat's `EngineIdentity` algorithm),
-off the game thread; until it finishes the hunt scene is unobserved and every roster is refused. When
-`RIMGOVERNOR_ENCOUNTER_WORKER` names the built `RimGovernor.RealCombat.Host.dll` (`RIMGOVERNOR_ENCOUNTER_DOTNET`
-overrides `dotnet`), `BrainBootstrap` starts a `HuntEstimateService` over it and hands it to the Rounds
-(`BrainCompositionOptions.HuntEstimates`); unset, rosters stay unestimated and no formation hunt is offered.
-
-The food plan compares the alternatives (`HuntPlanningRules.PlanHunt`, from the coupled read's hunt observation and routes)
-for the nutrition the colony still needs to reach its target runway. It asks for every unanswered roster and offers no
-formation hunt until each has an estimate or a refusal, so the first answer back never beats a better one still
-pending, and it waits again for the second stage. The chosen roster becomes one formation channel
-(`HuntRosterChannel`) naming its gunners, retrievers and prey (`SupplyCandidate.Hunters`, `Retrievers`, `Prey`), with
-the estimate's nutrition, labor (and its `hunt_return_ticks` and `hunt_haul_ticks` parts) and harm rate and the sample
-counts as terms; every other animal stays a lone channel. The plan's open formation channel files the prey and the
-selected gunners on the `military/combat` standing (`RoundsCombat.Prey`, `RoundsCombat.Hunters`), and `HuntFormation`
-sends exactly those defenders, however many. A hauler is not sent: `WorkRules.ReviewWorkResources` adds the open
-channels' retrievers (`HuntRequestRetrievers`) to the shared pawn claims, so no other voluntary work takes them for
-the trip, and the corpse is hauled as native hauling work with the existing delivery credit. For this the coupled
-read's routes hold, for each available hunter, a leg from each prey to its corpse store and a leg back to the
-hunter's start.
+The food plan compares the alternatives (`HuntPlanningRules.PlanHunt`, from the coupled read's hunt observation and
+routes) for the nutrition the colony still needs to reach its target runway, both stages in the one review. The chosen
+roster becomes one formation channel (`HuntRosterChannel`) naming its gunners, retrievers and prey
+(`SupplyCandidate.Hunters`, `Retrievers`, `Prey`), with the estimate's nutrition, labor (and its `hunt_return_ticks`
+and `hunt_haul_ticks` parts) and harm chance as its risk, and `hunt_risk_estimated`, `hunt_harm_chance`,
+`hunt_death_chance` and `hunt_downed_chance` as terms; every other animal stays a lone channel. The plan's open
+formation channel files the prey and the selected gunners on the `military/combat` standing (`RoundsCombat.Prey`,
+`RoundsCombat.Hunters`), and `HuntFormation` sends exactly those defenders, however many. A hauler is not sent:
+`WorkRules.ReviewWorkResources` adds the open channels' retrievers (`HuntRequestRetrievers`) to the shared pawn claims,
+so no other voluntary work takes them for the trip, and the corpse is hauled as native hauling work with the existing
+delivery credit. For this the coupled read's routes hold, for each available hunter, a leg from each prey to its
+corpse store and a leg back to the hunter's start.
 
 An opened formation is held, not re-compared (`HuntAdmission`, pure policy in memory; a restart forgets it): the hunt
-walks and drafts its gunners and startles its prey, and none of that may stale the estimate it was chosen on. It is
-released only on an explicit trigger (#3514), and the same review then compares again from the current read, asking
-the service for every roster whose estimate went stale, so nothing extends a hunt without a comparison. The triggers,
-in the order they are checked and as the `hunt_choice` note's `released:<reason>` names them: an admitted animal gone
-from the hunt sources (`prey_gone`, the kill the delivery credit observes) or downed (`prey_downed`); with the hunt
-read known, an admitted animal out of the observed window (`prey_unobserved`), a live animal of the group that joined
-within the group radius (`prey_joined`), a rostered gunner absent from the read (`gunner_unobserved`), downed
-(`gunner_downed`) or in a mental state (`gunner_mental`), or a gunner the read the roster was chosen from no longer
-describes (`gunner_changed:<pawn>:<what>`, `HuntEncounterRequests.StillDescribesGunner`: kind, xenotype, weapon, apparel,
-traits, the hediff set by definition and part, missing parts and the scene identity; not his position, draft state, skill
-levels or a hediff's severity, which the hunt itself moves). An unknown hunt read decides
-nothing about the gunners. A drafted gunner is not a trigger: the hunt's own draft and the player's read the same in
-`HuntActorRead.Available`. A released hunt whose prey still stands may be chosen again, by the comparison only.
+walks and drafts its gunners and startles its prey, and none of that may change the estimate it was chosen on. It is
+released only on an explicit trigger (#3514), and the same review then compares again from the current read, so
+nothing extends a hunt without a comparison. The triggers, in the order they are checked and as the `hunt_choice`
+note's `released:<reason>` names them: an admitted animal gone from the hunt sources (`prey_gone`, the kill the
+delivery credit observes) or downed (`prey_downed`); with the hunt read known, an admitted animal out of the observed
+window (`prey_unobserved`), a live animal of the group that joined within the group radius (`prey_joined`), a
+rostered gunner absent from the read (`gunner_unobserved`), downed (`gunner_downed`) or in a mental state
+(`gunner_mental`), or a gunner the read the roster was chosen from no longer describes (`gunner_changed:<pawn>:<what>`,
+`HuntAdmission.StillDescribesGunner`: kind, xenotype, weapon and apparel by def, stuff and quality, traits, the hediff
+set by definition and part, missing parts and the weather's accuracy (`weather`); not his position, draft state, skill
+levels, current pain or injury, or the shot and body numbers derived from them, which the hunt itself moves). An
+unknown hunt read decides nothing about the gunners. A drafted gunner is not a trigger: the hunt's own draft and the
+player's read the same in `HuntActorRead.Available`. A released hunt whose prey still stands may be chosen again, by
+the comparison only.
 
-The execution evidence is the on-demand `food/hunt-roster` acceptance case (#3515): a lab colony of two riflemen
-short of food, with a butcher table, its bill and a corpse stockpile, and a wild rhinoceros and boar inside the hunt
-read's window, served with the Release RealCombat worker as the predictor (at the harness's pinned Hyperfast: every
-acceptance game launches with `-rimgovernor-test-acceleration`, so `ServeSpec.ClockSpeed` is a no-op; the anchored
-comparison, #3525, keeps its scenes usable there and the `hunt_restart` attribute names what staled an anchor that
-re-asked; the crew is exactly the two staged riflemen, since the runner's default crew of three adds an unarmed third
-hunter to the read. The case has not passed: the uncapped test-acceleration clock runs the 30,000-tick window in
-seconds, fewer than the worker needs for one comparison, #3533). Native reads no hunt
-route: the former `HuntingSafety.RouteSafe` verdict (a route within a margin of any wild predator was unsafe, the
-prey included, so a grizzly was never a hunt source and a wandering wolf held every hunt) went with #3515. It asserts in order: the comparison
-answered (the `rounds_review` row's `hunt_choice` names a chosen roster with no `hunt_estimates_pending`) and the
-drafted colonists exactly the chosen roster's gunners (`RoundsCombat.Hunters`); a kill of an admitted prey in the
-delivery ledger; the release afterwards (no standing hunters, `military/combat` cleared, nobody drafted); and the
-corpse butchered into meat in stock. It records the roster, the chosen channel's `hunt_*` terms, the kill tick and
-the meat tally. Roster size is the comparison's: a lone-gunner roster passes on the same evidence. The lab's quiet
-storyteller zeroes revenge, so the case proves the hunt's execution, not revenge frequency (the qualification sweep
-does). `food/ledger-hunt` keeps the delivery ledger's own kill-and-butcher claim on a lone native hunt; the former
-`combatlab/hunt-squad` and `combatlab/hunt-door` cases went with #3399. The remote workflows run neither the case
-nor the sweep: both need the worker built and run locally by name.
+The execution evidence is the `food/hunt-roster` acceptance case (#3515): a lab colony of two riflemen short of food,
+with a butcher table, its bill and a corpse stockpile, and a wild rhinoceros and boar inside the hunt read's window;
+the crew is exactly the two staged riflemen, since the runner's default crew of three adds an unarmed third hunter to
+the read. It runs locally and on remote CI like any case: the estimate needs no worker. Native reads no hunt route:
+the former `HuntingSafety.RouteSafe` verdict (a route within a margin of any wild predator was unsafe, the prey
+included, so a grizzly was never a hunt source and a wandering wolf held every hunt) went with #3515. It asserts in
+order: the comparison made (the `rounds_review` row's `hunt_choice` names a chosen roster) and the drafted colonists
+exactly the chosen roster's gunners (`RoundsCombat.Hunters`); a kill of an admitted prey in the delivery ledger; the
+release afterwards (no standing hunters, `military/combat` cleared, nobody drafted); and the corpse butchered into
+meat in stock. It records the roster, the chosen channel's `hunt_*` terms, the kill tick and the meat tally. Roster
+size is the comparison's: a lone-gunner roster passes on the same evidence. The lab's quiet storyteller zeroes
+revenge, so the case proves the hunt's execution, not revenge frequency (the qualification sweep does).
+`food/ledger-hunt` keeps the delivery ledger's own kill-and-butcher claim on a lone native hunt; the former
+`combatlab/hunt-squad` and `combatlab/hunt-door` cases went with #3399. The hunting sweep still needs the RealCombat
+worker built and runs locally by name.
 
 These are mechanics and current observations, not selected colony policy. Native
 does not spawn hypothetical food to estimate a future meal. Definition-based

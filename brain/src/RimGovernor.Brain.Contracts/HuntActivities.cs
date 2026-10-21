@@ -4,9 +4,10 @@ using RimGovernor.Brain.Domain;
 namespace RimGovernor.Contracts.Wire.Observations;
 
 /// <summary>
-/// The game state a hunt encounter prediction is built from: every colonist who could join a hunt and every
-/// huntable animal, each stated as the encounter predictor's actor. It carries no chosen roster, no target and
-/// no estimate; policy proposes rosters and the runtime asks the prediction service about them.
+/// The game state the analytic hunt estimate is built from: every colonist who could join a hunt and every huntable
+/// animal, each with the game's own combat inputs (<see cref="HuntActorRead.Gun"/>, <see cref="HuntActorRead.Body"/>,
+/// <see cref="HuntActorRead.Melee"/>, <see cref="HuntActorRead.Revenge"/>), and the weather's accuracy factor. It carries
+/// no chosen roster, no target and no estimate; policy proposes rosters and estimates them from this read.
 /// </summary>
 public sealed record HuntActivityRead
 {
@@ -15,18 +16,28 @@ public sealed record HuntActivityRead
     public EquatableArray<HuntActorRead> Hunters { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<HuntActorRead>))]
     public EquatableArray<HuntActorRead> Prey { get; init; }
-    public HuntSceneRead? Scene { get; init; }
+    /// <summary>The current weather's shot accuracy multiplier (WeatherManager.CurWeatherAccuracyMultiplier).</summary>
+    public Fact<double> WeatherAccuracy { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Findings { get; init; }
 }
 
-/// <summary>A pawn as the predictor's actor: Pawn is the game's unique load id, Kind the race (prey) or pawn kind (hunter).</summary>
+/// <summary>A pawn of the hunt read: Pawn is the game's unique load id, Kind the race (prey) or pawn kind (hunter).</summary>
 public sealed record HuntActorRead(string Pawn, string Kind, Cell Location, double Age)
 {
     public string Xenotype { get; init; } = "";
     public HuntGearRead? Weapon { get; init; }
     /// <summary>The weapon's longest attack range in cells, unknown when it has no ranged attack verb.</summary>
     public Fact<double> WeaponRange { get; init; }
+    /// <summary>Hunters: that ranged attack verb's shot as the game resolves it; null without one.</summary>
+    public HuntGunRead? Gun { get; init; }
+    /// <summary>The pawn's body as damage meets it; null when native cannot state it (no health tracker).</summary>
+    public HuntBodyRead? Body { get; init; }
+    /// <summary>Prey: its melee attack averaged over its verbs as the game's MeleeDPS stat does; null when it has no melee verb.</summary>
+    public HuntMeleeRead? Melee { get; init; }
+    /// <summary>Prey: per hunter, the chance one damage instance from him turns it manhunter, and its pack's chance to join.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<HuntRevengeRead>))]
+    public EquatableArray<HuntRevengeRead> Revenge { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<HuntGearRead>))]
     public EquatableArray<HuntGearRead> Apparel { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<HuntSkillRead>))]
@@ -46,7 +57,7 @@ public sealed record HuntActorRead(string Pawn, string Kind, Cell Location, doub
     /// the corpse (native's own store choice); null when no store accepts it, which leaves every return trip unknown.
     /// </summary>
     public Cell? CorpseStore { get; init; }
-    /// <summary>Downed or in a mental state: such a prey stays out of the request; such a rostered gunner releases the formation.</summary>
+    /// <summary>Downed or in a mental state: such a prey is not proposed; such a rostered gunner releases the formation.</summary>
     public bool Downed { get; init; }
     public bool Mental { get; init; }
     /// <summary>Prey: the game's herd of this animal group, empty when it is alone.</summary>
@@ -57,19 +68,45 @@ public sealed record HuntActorRead(string Pawn, string Kind, Cell Location, doub
     public Fact<double> MeatNutrition { get; init; }
 }
 
-public sealed record HuntGearRead(string Definition, string Stuff, string Quality, int HitPoints);
+/// <summary>A worn or held item as the release judges it: its def, stuff and quality (not its wear).</summary>
+public sealed record HuntGearRead(string Definition, string Stuff, string Quality);
 public sealed record HuntSkillRead(string Skill, int Level);
 public sealed record HuntTraitRead(string Definition, int Degree);
-public sealed record HuntHediffRead(string Definition, string Part, double Severity);
+/// <summary>A hediff by definition and body part; its severity reaches the estimate through <see cref="HuntBodyRead"/>.</summary>
+public sealed record HuntHediffRead(string Definition, string Part);
 
-/// <summary>The map window around the actors, as the predictor's scene identity and ground.</summary>
-public sealed record HuntSceneRead(string World, string GameBuild, string Mods, string Weather, string Terrain,
-    int MinX, int MinZ, int Width, int Height, double OutdoorTemperature, double SkyGlow)
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<HuntGroundRead>))]
-    public EquatableArray<HuntGroundRead> Ground { get; init; }
-    [JsonConverter(typeof(EquatableArrayJsonConverter<HuntObstacleRead>))]
-    public EquatableArray<HuntObstacleRead> Obstacles { get; init; }
-}
-public sealed record HuntGroundRead(int MinX, int MinZ, int MaxX, int MaxZ, string Terrain, string Roof);
-public sealed record HuntObstacleRead(string Definition, string Stuff, int X, int Z);
+/// <summary>
+/// A ranged shot as ShotReport.HitReportFor and Verb resolve it. Accuracy is the shooter's per-cell ShootingAccuracyPawn
+/// and Factor* his ShootingAccuracyFactor_Touch/Short/Medium/Long stats; Weapon* the weapon's hit chance factor at the
+/// band edges (3, 12, 25 and 40 cells). GoesWild is verbProps.canGoWild (without it the shooter's factor is 1),
+/// IgnoresWeather a unique weapon's IgnoreAccuracyMaluses. WarmupTicks already carries AimingDelayFactor; CooldownTicks
+/// is AdjustedCooldownTicks, Burst the burst shot count, BurstGapTicks the ticks between burst shots. Damage and
+/// ArmorPenetration are the projectile's per hit, Sharp whether its damage meets sharp armour, PainPerDamage its
+/// injury's pain per severity.
+/// </summary>
+public sealed record HuntGunRead(double Accuracy, double FactorTouch, double FactorShort, double FactorMedium, double FactorLong,
+    double WeaponTouch, double WeaponShort, double WeaponMedium, double WeaponLong, bool GoesWild, bool IgnoresWeather,
+    int WarmupTicks, int CooldownTicks, int Burst, int BurstGapTicks, double Damage, double ArmorPenetration, bool Sharp, double PainPerDamage);
+
+/// <summary>
+/// A body as damage meets it. BodySize is the shot's target size, HealthScale the race's health scale, PainShock the
+/// PainShockThreshold stat (IgnoresPainShock: the pawn kind never goes down from pain), Pain the current pain total and
+/// Injury the summed severity of current injuries. ArmorSharp and ArmorBlunt are the overall armour the gear tab shows
+/// (body-part coverage of natural and worn armour). TicksPerCell is TicksPerMoveCardinal, Dodge the MeleeDodgeChance stat.
+/// </summary>
+public sealed record HuntBodyRead(double BodySize, double HealthScale, double PainShock, bool IgnoresPainShock, double Pain, double Injury,
+    double ArmorSharp, double ArmorBlunt, double TicksPerCell, double Dodge);
+
+/// <summary>
+/// A melee attack averaged over the pawn's available melee verbs by selection weight (the MeleeDPS stat's average): its
+/// damage, cooldown ticks and armour penetration, the share of sharp damage, and its injuries' pain per severity.
+/// HitChance is the MeleeHitChance stat.
+/// </summary>
+public sealed record HuntMeleeRead(double Damage, double CooldownTicks, double HitChance, double ArmorPenetration, double SharpShare, double PainPerDamage);
+
+/// <summary>
+/// One hunter's revenge odds against the prey: Chance is PawnUtility.GetManhunterOnDamageChance for a damage instance he
+/// deals (race, difficulty, scaria, his hunting stealth and role); PackChance the chance its packmates within 24 cells
+/// join once it turns, 0 when the storyteller allows no big threats.
+/// </summary>
+public sealed record HuntRevengeRead(string Hunter, double Chance, double PackChance);

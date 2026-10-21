@@ -70,5 +70,6 @@ The report retains every cell prediction, trial and missing artifact. `AccuracyP
 accepted qualification: reconstruction, runtime, scope and independent review remain required. The run of
 2026-10-17 was accepted with its known limits recorded in
 [encounter prediction](../contracts/encounter-prediction.md#accepted-evidence-and-known-limits) (#3124); the
-hunt comparison (#3130) consumes the service's estimates under them. A cell is re-run on demand, by name and
-locally; the remote workflows do not run it (#3515).
+served hunt comparison no longer runs the predictor: it estimates analytically (`HuntEstimator`, #3533), and
+the sweep is that estimate's offline check. A cell is re-run on demand, by name and locally; the remote
+workflows do not run it (#3515).

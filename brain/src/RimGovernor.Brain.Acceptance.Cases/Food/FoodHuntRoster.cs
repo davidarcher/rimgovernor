@@ -1,7 +1,6 @@
 using System.Globalization;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using RimGovernor.Brain.Host;
 using MilitaryFamily = RimGovernor.Brain.Policy.MilitaryFamily;
 using RimGovernor.Brain.Telemetry;
 using Fx = RimGovernor.Fixtures.Contracts;
@@ -12,21 +11,15 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>
 /// <c>food/hunt-roster</c> (#3515): the formation hunt end to end on a prepared colony. Two riflemen short of food, a
 /// butcher table with its bill and a corpse stockpile; a wild rhinoceros (revenge big game) and a boar twelve cells
-/// north of them, inside the hunt read's window. The served brain, with the Release RealCombat worker as its encounter
-/// predictor, answers the roster comparison and drafts exactly the chosen roster's gunners; an admitted prey is killed
+/// north of them, inside the hunt read's window. The served brain estimates every roster analytically inside its review
+/// (#3533: no worker, no clock hold) and drafts exactly the chosen roster's gunners; an admitted prey is killed
 /// (the delivery ledger's kill record); the formation is released after the kill (standing hunters empty, the
 /// military/combat Need cleared, nobody drafted); and the corpse is butchered into meat in stock. No roster size is
 /// prescribed: a lone-gunner roster passes on the same evidence. One served window carries every phase, because the
 /// admitted formation lives in the brain's memory and a restart would forget it.
 /// <para>
-/// Two hunters keep the comparison to three plain scenes per prey group (16 worker samples each). The served clock is
-/// the harness's: every acceptance game launches with <c>-rimgovernor-test-acceleration</c>, which pins the brain's
-/// target speed at Hyperfast whatever <see cref="ServeSpec.ClockSpeed"/> asks, so the comparison's worker seconds are
-/// thousands of ticks of pawn movement. The comparison is anchored to the read it was first asked from (#3525): its
-/// answers are gathered whatever the pawns do meanwhile, and the anchor is judged at choice time, when it starts over
-/// if a rostered gunner is past the move tolerance from it (the prey may graze anywhere, and an animal that wanders in
-/// waits for the next comparison). Whether the worker answers a whole comparison inside the window at the uncapped
-/// rate is the harness's problem, #3533. The big game is a rhinoceros: revenge big game that is not a predator, so the lone
+/// The lab's quiet storyteller zeroes revenge, so neither animal can fight back: the comparison ranks the rosters by
+/// yield and labor alone. The big game is a rhinoceros: revenge big game that is not a predator, so the lone
 /// designation channel may also take it. The crew is exactly the two staged colonists: the runner's default crew of
 /// three would add an unarmed third hunter to the read, and its staffing sets every colonist's skills to the crew level.
 /// </para>
@@ -44,7 +37,7 @@ internal static class FoodHuntRoster
     private const string Larder = "larder";
     private const string MeatPrefix = "Meat_";
 
-    /// <summary>The charter's lab ceiling: the comparison (worker cold start plus one request per roster), the hunt, the release and the butchering all come out of it.</summary>
+    /// <summary>The charter's lab ceiling: the comparison, the hunt, the release and the butchering all come out of it.</summary>
     private const int Ticks = 30_000;
 
     // Absolute lab cells (LabWorld.LabMapSize = 100): hunters on a row south of the centre, prey twelve cells north of them
@@ -98,9 +91,9 @@ internal static class FoodHuntRoster
     {
         Name = "food/hunt-roster",
         Scope = "The formation hunt end to end (#3515) on a prepared lab colony: two bolt-action riflemen short of food, a butcher "
-            + "table with a butcher bill and a corpse stockpile, a wild rhinoceros and a boar twelve cells north. The served brain, with "
-            + "the Release RealCombat worker as its encounter predictor, answers the roster comparison (hunt_choice names a chosen roster "
-            + "with no hunt_estimates_pending) and the drafted colonists are exactly that roster's gunners; the delivery ledger records a "
+            + "table with a butcher bill and a corpse stockpile, a wild rhinoceros and a boar twelve cells north. The served brain "
+            + "estimates the rosters analytically in its review and chooses one (hunt_choice names a chosen roster) and the drafted "
+            + "colonists are exactly that roster's gunners; the delivery ledger records a "
             + "kill of an admitted prey; the formation is then released (no standing hunters, military/combat cleared, nobody drafted); "
             + "the corpse is butchered and meat is in stock. Roster size is the comparison's; the lab's quiet storyteller zeroes revenge.",
         Ticks = Ticks,
@@ -110,34 +103,14 @@ internal static class FoodHuntRoster
         Stage = Camp,
         Keep = ["Food"],
         // No ClockSpeed: the test-acceleration launch pins Hyperfast, so a request here would be a no-op.
-        Serve = new ServeSpec { Families = Families, Env = WorkerEnv(), Prefix = "food-hunt-roster" },
+        Serve = new ServeSpec { Families = Families, Prefix = "food-hunt-roster" },
         Run = RunAsync,
     };
 
     private static string Hunter(int i) => "hunter" + i.ToString(CultureInfo.InvariantCulture);
 
-    /// <summary>The Release RealCombat worker, located as the hunting sweep locates it (<see cref="CombatLabHuntingPredictor"/>); null when it is not built.</summary>
-    private static string? WorkerPath()
-    {
-        var repo = NativeSourceInputs.FindRepo(Directory.GetCurrentDirectory());
-        if (repo is null)
-        {
-            return null;
-        }
-
-        var worker = Path.Combine(repo, "integrations", "rimgovernor-realcombat", "src", "RealCombat.Host", "bin", "Release", "RimGovernor.RealCombat.Host.dll");
-        return File.Exists(worker) ? worker : null;
-    }
-
-    /// <summary>The served brain's encounter worker (<see cref="HuntEstimateService.WorkerVariable"/>); empty when it is not built, which the body refuses.</summary>
-    private static IReadOnlyList<string> WorkerEnv() => WorkerPath() is { } worker ? [HuntEstimateService.WorkerVariable + "=" + worker] : [];
-
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var worker = WorkerPath() ?? throw new AcceptanceException(
-            "Build the existing RealCombat.Host Release worker (dotnet build -c Release in integrations/rimgovernor-realcombat/src/RealCombat.Host) before food/hunt-roster: "
-            + "the served brain needs it as " + HuntEstimateService.WorkerVariable + ".");
-        s.Record("worker", worker);
         var staged = s.Staged ?? throw new AcceptanceException("food/hunt-roster stages its colony through Stage");
         var hunters = new HashSet<string>(Enumerable.Range(0, Colonists).Select(i => staged.Pawns[Hunter(i)].Id), StringComparer.Ordinal);
         var prey = new Dictionary<string, string>(StringComparer.Ordinal) { [staged.Pawns["rhino"].Id] = BigGame, [staged.Pawns["boar"].Id] = SmallGame };
@@ -222,20 +195,19 @@ internal static class FoodHuntRoster
         /// <summary>This window's rounds_review rows with a hunt note, oldest first; empty before the first review that saw the hunt read.</summary>
         private IEnumerable<LogRow> Choices() => s.Telemetry(TelemetryKinds.RoundsReview).Where(r => r.Sequence > before && r.Payload.ContainsKey(RoundsReviewTelemetry.HuntChoiceKey));
 
-        /// <summary>Reads the row's chosen roster key; empty until the comparison has chosen a roster with every roster answered.</summary>
+        /// <summary>Reads the row's chosen roster key; empty until the comparison has chosen a roster.</summary>
         private static string Chosen(LogRow row)
         {
-            var note = Text(row, RoundsReviewTelemetry.HuntChoiceKey);
-            var chosen = Field(note, "chosen=");
-            return chosen is "" or "none" || note.Contains("hunt_estimates_pending", StringComparison.Ordinal) ? "" : chosen;
+            var chosen = Field(Text(row, RoundsReviewTelemetry.HuntChoiceKey), "chosen=");
+            return chosen is "" or "none" ? "" : chosen;
         }
 
         /// <summary>The roster of the food plan's hunt/roster channel in the row: the admitted formation's once one stands (the comparison then goes on among the free hunters), the chosen roster's before.</summary>
         private static string Channel(LogRow row) =>
             Text(row, RoundsReviewTelemetry.FoodPlanKey).Split('\n').Select(l => Field(l.Trim(), "hunt/roster:")).FirstOrDefault(k => k.Length > 0) ?? "";
 
-        // Comparison answered: the first review whose note names a chosen roster with no roster still pending. The first
-        // one, not the probe's latest: once the formation stands, the review compares the free hunters again.
+        // Comparison made: the first review whose note names a chosen roster. The first one, not the probe's latest: once
+        // the formation stands, the review compares the free hunters again.
         private void Compare(long tick)
         {
             if (Choices().FirstOrDefault(r => Chosen(r).Length > 0) is not { } row)
@@ -249,9 +221,8 @@ internal static class FoodHuntRoster
                 ("tick", tick),
                 ("review_tick", row.Tick),
                 (RoundsReviewTelemetry.HuntChoiceKey, _note),
-                (RoundsReviewTelemetry.HuntEstimatesKey, Text(row, RoundsReviewTelemetry.HuntEstimatesKey)),
                 (RoundsReviewTelemetry.HuntReadKey, Text(row, RoundsReviewTelemetry.HuntReadKey))));
-            // The chosen roster's estimate terms (hunt_* samples and upper bounds): its hunt/roster line of the food plan.
+            // The chosen roster's estimate terms (hunt_* chances): its hunt/roster line of the food plan.
             var terms = Text(row, RoundsReviewTelemetry.FoodPlanKey).Split('\n').FirstOrDefault(l => l.Contains("hunt/roster:" + _chosen, StringComparison.Ordinal)) ?? "";
             s.Record("estimate_terms", terms.Trim());
             _phase = Phase.Draft;

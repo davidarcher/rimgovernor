@@ -105,9 +105,6 @@ public sealed partial class Rounder
     /// <summary>The formation hunts the plan opened, in memory only.</summary>
     internal HuntAdmission HuntAdmission = new();
 
-    /// <summary>The asynchronous hunt roster estimates (#3130); null means no roster has an estimate.</summary>
-    internal IHuntEstimates? HuntEstimates;
-
     /// <summary>The tick of the last layout survey this process read; see reviewLayoutPlan.</summary>
     internal Tick PlanChecked;
 
@@ -799,15 +796,6 @@ public sealed partial class Rounder
         {
             attrs.Add((RoundsReviewTelemetry.HuntReadKey, $"known={huntRead.Known} hunters={huntRead.Hunters.Count} prey={huntRead.Prey.Count} findings=[{string.Join(";", huntRead.Findings)}]"));
             attrs.Add((RoundsReviewTelemetry.HuntChoiceKey, Census.HuntNote));
-            if (Census.HuntRestart.Length > 0)
-            {
-                attrs.Add((RoundsReviewTelemetry.HuntRestartKey, Census.HuntRestart));
-            }
-            if (HuntEstimates is { } estimates)
-            {
-                var view = estimates.Current(reading.Projection.Identity.Tick.Value);
-                attrs.Add((RoundsReviewTelemetry.HuntEstimatesKey, $"answered={view.Estimates.Count} pending={view.Pending.Count} refused=[{string.Join(";", view.Refusals.Select(r => r.Key + "=" + r.Value))}]"));
-            }
         }
         ClockEvents.Event("routine", RoundsReviewTelemetry.Kind, "rounds ran", [.. attrs]);
         if (Needs.Contains(MilitaryFamily.Equipment))

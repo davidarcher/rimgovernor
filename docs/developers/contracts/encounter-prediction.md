@@ -168,11 +168,11 @@ accuracy against an independently evolving live colony. Root xUnit tests use an
 independent fake predictor for cancellation, changed availability, malformed
 consequences, unsupported/unavailable replies and qualification scope.
 
-The implementation was qualified at bounded runtime under the limits above (#3129),
-and the hunt comparison consumes its estimates through the background
-`HuntEstimateService` (#3130), every scene of a comparison built from the one hunt read the
-comparison is anchored to and usable while that anchor still describes the colony (#3525,
-[forecast contracts](forecast-contracts.md#coherent-coupled-observation-frame)). Engine startup or
+The implementation was qualified at bounded runtime under the limits above (#3129).
+The served brain does not run it: the hunt comparison estimates its rosters analytically from the game's
+formulas (`HuntEstimator`, #3533, [forecast contracts](forecast-contracts.md#coherent-coupled-observation-frame)),
+and this predictor is that estimate's offline check (the hunting sweep,
+[hunting prediction qualification](../testing/hunting-prediction-qualification.md)). Engine startup or
 interface compilation alone was never that bar.
 
 The local engine owns one arena map and settlement per request and disposes them
@@ -183,6 +183,4 @@ requires four identical native hunting outcomes and terrain/readback results in
 each process, plus byte-identical results across two processes. It covers the
 reported repeated-arena defect, not qualification of prediction error or runtime.
 The earlier 1.903-second first request missed the proposed one-second research
-gate; this fix does not remeasure or relax that gate. The accepted runtime is the
-service's bounded background request, asked off the planner step, not the
-one-second research gate.
+gate; this fix does not remeasure or relax that gate.

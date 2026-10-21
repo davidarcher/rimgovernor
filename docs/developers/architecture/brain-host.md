@@ -7,12 +7,11 @@ share a process, so a link cannot drop under it.
 The optional [encounter predictor](../contracts/encounter-prediction.md) is an
 isolated hypothetical worker behind a typed replaceable interface. Host owns its
 bounded process lifecycle (`LocalEncounterPredictor`); it has no live colony
-facade or order authority. This is not another brain/controller. When
-`RIMGOVERNOR_ENCOUNTER_WORKER` names the built worker, `BrainBootstrap` starts a
-`HuntEstimateService` over it and the food plan's
+facade or order authority. This is not another brain/controller. The served brain
+does not run it: the food plan's
 [hunt comparison](../contracts/forecast-contracts.md#coherent-coupled-observation-frame)
-prices its rosters from the service's estimates; unset, rosters stay unestimated
-and no formation hunt is offered.
+estimates its rosters analytically (`HuntEstimator`, #3533), and the predictor is
+the offline check the hunting sweep runs.
 
 ## Lifecycle
 
@@ -933,7 +932,6 @@ Decided (user, 2026-10-13):
   | `RIMGOVERNOR_OBSERVE` | launcher Observe: no auto-resume, no layout overlay | off |
   | `RIMGOVERNOR_CONTINUE_STATE` | launcher Continue: reuse the default database | on |
   | `RIMGOVERNOR_LAYOUT_OVERLAY` | launcher Layout overlay | on |
-  | `RIMGOVERNOR_ENCOUNTER_WORKER`, `RIMGOVERNOR_ENCOUNTER_DOTNET` | the built prediction worker (`RimGovernor.RealCombat.Host.dll`) and the dotnet that runs it, for hunt roster estimates | unset (no estimates), `dotnet` |
   | `RIMGOVERNOR_UNPIN_TEST_SPEED` | acceptance case override: a `-rimgovernor-test-acceleration` launch keeps the player's speed instead of pinning Hyperfast | off |
 
   The launcher sets the last three from its saved settings. The default database is shared by every save, so an

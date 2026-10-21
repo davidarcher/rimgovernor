@@ -73,14 +73,14 @@ need reaches its observed threshold. Native timetable templates do not override
 these choices.
 
 Hunting is part of that comparison. A lone hunter is sent by designation. A
-drafted hunting party (two or three shooters, sometimes a hauler) is chosen only
-when the prediction worker is configured in the launcher's settings
-(`RIMGOVERNOR_ENCOUNTER_WORKER`): each party is simulated in a separate process
-before it is sent, ranked by the chance of a hunter dying or being seriously
-hurt, then by the meat it brings home and the time it costs. The simulation's
-estimates are coarse (sixteen samples per party) and a party is released as soon
-as a shooter is downed, the prey changes or the scene no longer matches; without
-the worker no party is ever formed.
+drafted hunting party (one to three shooters, sometimes a hauler) is estimated from
+the game's own combat numbers (each shooter's hit chance, damage and the prey's
+armour, how fast it closes, how hard it bites and how likely it is to turn on the
+hunters) and ranked by the chance of a hunter dying or being seriously hurt, then by
+the meat it brings home and the time it costs. Animals that cannot fight back, such
+as hares, carry no risk. The estimate leaves out cover, darkness and fleeing prey;
+a party is released as soon as a shooter is downed, the prey changes or a shooter's
+gear, health or the weather no longer match.
 
 A controlled colonist with no supported assignment stops supervised play with
 an explicit unavailable-control reason. This can indicate unsupported needs or

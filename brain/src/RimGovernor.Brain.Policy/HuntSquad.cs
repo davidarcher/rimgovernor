@@ -25,13 +25,11 @@ public static class HuntSquadRules
 
     /// <summary>
     /// The hunt channels of the offered food prey: the chosen roster's formation channel (when there is one), then a lone
-    /// channel per animal the formation does not take and no pending roster is still being predicted for. A hunt yields the animal's meat and its Products.
+    /// channel per animal the formation does not take. A hunt yields the animal's meat and its Products.
     /// </summary>
-    public static IReadOnlyList<SupplyCandidate> HuntCandidates(IReadOnlyList<AcquisitionSource> sources, int hunters, SupplyCandidate? formation, IReadOnlySet<string>? awaiting = null)
+    public static IReadOnlyList<SupplyCandidate> HuntCandidates(IReadOnlyList<AcquisitionSource> sources, int hunters, SupplyCandidate? formation)
     {
-        // Prey whose rosters are still being predicted wait: a lone hunt would designate them and take them out of the comparison.
         var grouped = new HashSet<string>(formation?.Prey ?? [], StringComparer.Ordinal);
-        grouped.UnionWith(awaiting ?? new HashSet<string>());
         var output = new List<SupplyCandidate>();
         if (formation is not null)
         {

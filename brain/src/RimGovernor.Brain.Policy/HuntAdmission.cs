@@ -16,7 +16,7 @@ public sealed class HuntAdmission
     private Held? _committed;
     private Held? _offered;
 
-    /// <summary>A chosen formation and the hunt read it was chosen from: the scene its estimate still described then.</summary>
+    /// <summary>A chosen formation and the hunt read it was chosen from: the gunners its estimate described then.</summary>
     private sealed record Held(HuntAssessment Assessment, HuntRoster Roster, HuntActivityRead Read);
 
     /// <summary>
@@ -45,7 +45,7 @@ public sealed class HuntAdmission
     /// Why the held formation is released now, or empty while it stands (or nothing is held). The triggers: a rostered
     /// gunner left the hunt read, is downed or in a mental state; an admitted animal is gone from the sources, downed,
     /// out of the observed window, or a new animal joined its group; or a gunner is no longer the pawn his estimate was
-    /// made from (<see cref="HuntEncounterRequests.StillDescribesGunner"/>). An unknown hunt read decides nothing about
+    /// made from (<see cref="StillDescribesGunner"/>). An unknown hunt read decides nothing about
     /// the gunners: the prey rules still apply. A drafted gunner is not a trigger: the hunt's own draft and the player's
     /// read the same.
     /// </summary>
@@ -101,13 +101,86 @@ public sealed class HuntAdmission
             {
                 return "gunner_mental:" + id;
             }
-            if (!HuntEncounterRequests.StillDescribesGunner(held.Read, read, id))
+            if (!StillDescribesGunner(held.Read, read, id))
             {
-                return "gunner_changed:" + id + ":" + HuntEncounterRequests.GunnerDifferences(held.Read, read, id);
+                return "gunner_changed:" + id + ":" + GunnerDifferences(held.Read, read, id);
             }
         }
         return "";
     }
+
+    /// <summary>Biological age grows every tick, so a read still describes a gunner while he has aged less than this many years.</summary>
+    internal const double AgeTolerance = 0.25;
+
+    /// <summary>
+    /// Whether the gunner is still the pawn the estimate described, apart from where the hunt has walked him and that it
+    /// drafted him: his kind, xenotype, weapon and apparel (by def, stuff and quality, not wear), traits, health set (each hediff by definition and part, not its
+    /// severity) and missing parts, under the same weather. His skill levels are not judged either: they move with every
+    /// shot and would release the hunt that moved them (#3525); nor are the shot and body numbers derived from skill,
+    /// pain and injury severity. An executing formation moves and drafts its gunners, so neither stales it; a downed or
+    /// breaking gunner is the formation's own release.
+    /// </summary>
+    internal static bool StillDescribesGunner(HuntActivityRead made, HuntActivityRead now, string gunner) =>
+        made.WeatherAccuracy == now.WeatherAccuracy && SameGunner(Unplaced(made.Hunters.FirstOrDefault(h => h.Pawn == gunner)), Unplaced(now.Hunters.FirstOrDefault(h => h.Pawn == gunner)));
+
+    /// <summary>What no longer describes the gunner (<see cref="StillDescribesGunner"/>): the weather, or the fields of <see cref="Differences"/>.</summary>
+    internal static string GunnerDifferences(HuntActivityRead made, HuntActivityRead now, string gunner)
+    {
+        if (made.WeatherAccuracy != now.WeatherAccuracy) return "weather";
+        var a = Unplaced(made.Hunters.FirstOrDefault(h => h.Pawn == gunner));
+        var n = Unplaced(now.Hunters.FirstOrDefault(h => h.Pawn == gunner));
+        return a is null || n is null ? "unobserved" : Differences(a, n);
+    }
+
+    /// <summary>
+    /// What differs between two reads of one gunner, apart from where he stands, for the release reason that names a
+    /// changed gunner: the field names, and for health each hediff gained (<c>+</c>) or lost (<c>-</c>), by definition
+    /// and part. Skill levels and hediff severities are not differences (<see cref="StillDescribesGunner"/>).
+    /// </summary>
+    internal static string Differences(HuntActorRead a, HuntActorRead n)
+    {
+        var fields = new List<string>();
+        if (a.Kind != n.Kind) fields.Add("kind");
+        if (a.Xenotype != n.Xenotype) fields.Add("xenotype");
+        if (Math.Abs(a.Age - n.Age) >= AgeTolerance) fields.Add("age");
+        if (Gear(a.Weapon) != Gear(n.Weapon)) fields.Add("weapon");
+        if (a.WeaponRange != n.WeaponRange) fields.Add("weapon_range");
+        if (Outfit(a) != Outfit(n)) fields.Add("apparel");
+        if (Character(a) != Character(n)) fields.Add("traits");
+        var before = HealthSet(a);
+        var after = HealthSet(n);
+        if (!before.SetEquals(after))
+        {
+            fields.Add("health(" + string.Join(",", before.Union(after).Order(StringComparer.Ordinal).Select(h => before.Contains(h) ? after.Contains(h) ? "" : "-" + h : "+" + h).Where(s => s.Length > 0)) + ")");
+        }
+        if (a.MissingParts != n.MissingParts) fields.Add("missing_parts");
+        if (a.Available != n.Available) fields.Add("available");
+        if (a.Hauls != n.Hauls) fields.Add("hauls");
+        if (a.Downed != n.Downed) fields.Add("downed");
+        if (a.Mental != n.Mental) fields.Add("mental");
+        return string.Join(",", fields);
+    }
+
+    private static HuntActorRead? Unplaced(HuntActorRead? a) => a is null ? null : a with { Available = false, Downed = false, Mental = false };
+
+    // His age is judged against its own tolerance; his skill levels, his hediffs' severities and the shot and body numbers
+    // derived from them move with every shot and every hour of healing, so none is a change: the health set is compared by hediff and part.
+    private static bool SameGunner(HuntActorRead? x, HuntActorRead? y) => x is not null && y is not null
+        && Math.Abs(x.Age - y.Age) < AgeTolerance
+        && HealthSet(x).SetEquals(HealthSet(y))
+        && Gear(x.Weapon) == Gear(y.Weapon) && Outfit(x) == Outfit(y) && Character(x) == Character(y)
+        && Judged(x) == Judged(y);
+
+    private static HuntActorRead Judged(HuntActorRead a) => a with { Location = default, Age = 0, Skills = [], Health = [], Gun = null, Body = null, Weapon = null, Apparel = [], Traits = [] };
+
+    private static string Gear(HuntGearRead? g) => g is null ? "" : g.Definition + "/" + g.Stuff + "/" + g.Quality;
+
+    private static string Outfit(HuntActorRead a) => string.Join(",", a.Apparel.Select(Gear).Order(StringComparer.Ordinal));
+
+    private static string Character(HuntActorRead a) => string.Join(",", a.Traits.Select(t => t.Definition + ":" + t.Degree).Order(StringComparer.Ordinal));
+
+    private static HashSet<string> HealthSet(HuntActorRead a) =>
+        a.Health.Select(h => h.Definition + (h.Part.Length == 0 ? "" : "/" + h.Part)).ToHashSet(StringComparer.Ordinal);
 
     /// <summary>Records the prey the plan opened; call it with HuntRequest of each plan.</summary>
     public void Admit(IEnumerable<Domain.PawnId> prey)

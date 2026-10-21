@@ -106,7 +106,6 @@ public sealed partial class BrainComposition
         // The undraft sweep releases drafts no live plan needs.
         capabilities = capabilities with { Undraft = writer };
         var reviewer = new Rounder(context.Player, client, SystemClock.Instance, thresholds, StepTimeout, capabilities);
-        reviewer.HuntEstimates = _options.HuntEstimates;
         cfgRounds = reviewer;
         // Any toggle that declares production orders composes the admin family's work-ledger Need (#3304).
         var workLedger = bills || gear || armory || sc.Art || sc.PopulationJoiner || foodStorageUpkeep || refrigeration || medical || sc.Mechs || resourceTargets;

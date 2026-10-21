@@ -15,7 +15,7 @@ public sealed record HuntRoster(EquatableArray<string> Gunners, EquatableArray<s
     /// </summary>
     public EquatableArray<string> Retrievers { get; init; }
 
-    /// <summary>The encounter tick a gunner-retriever leaves at: the plain roster's median encounter ticks. 0 without one.</summary>
+    /// <summary>The encounter tick a gunner-retriever leaves at: the plain roster's estimated encounter ticks. 0 without one.</summary>
     public int DepartureTick { get; init; }
 
     public string? Retriever => Retrievers.Count > 0 ? Retrievers[0] : null;
@@ -23,24 +23,24 @@ public sealed record HuntRoster(EquatableArray<string> Gunners, EquatableArray<s
     public bool GunnerRetriever => Retriever is { } r && Gunners.Contains(r);
 
     /// <summary>
-    /// The scene the predictor is asked about: the same pawns and prey are the same encounter whatever order they were
+    /// The encounter the estimate is about: the same pawns and prey are the same encounter whatever order they were
     /// listed in, plus a gunner-retriever's departure. A hauler is outside the encounter, so its roster shares the
-    /// plain roster's scene and estimate.
+    /// plain roster's encounter and estimate.
     /// </summary>
     public string SceneKey => string.Join('+', Gunners.Order(StringComparer.Ordinal)) + ">" + string.Join('+', Prey.Order(StringComparer.Ordinal))
         + (GunnerRetriever ? "<" + Retriever + "@" + DepartureTick : "");
 
-    /// <summary>The roster's identity: its scene and, for a hauler, who hauls.</summary>
+    /// <summary>The roster's identity: its encounter and, for a hauler, who hauls.</summary>
     public string Key => SceneKey + (Retriever is { } r && !GunnerRetriever ? "<" + r : "");
 }
 
 /// <summary>
-/// The prediction service's answer for one roster, reduced to counts over its independent samples. An observed fact
-/// the runtime supplies; policy never calls the service. Counts are per sample: a sample is harmful when any
-/// gunner suffers serious harm, deadly when any gunner dies, downed when every prey ends dead or downed.
+/// The analytic estimate of one roster's encounter (<see cref="HuntEstimator"/>): the chance any gunner suffers serious
+/// harm, that one dies, that every prey ends downed within the horizon, the nutrition the downed prey bring and the
+/// encounter's expected ticks. RiskEstimated is false when no prey of the roster can fight back, so its harm and death
+/// are zero by the game's rules rather than estimated.
 /// </summary>
-public sealed record HuntEstimate(int Samples, int HarmSamples, int DeathSamples,
-    int DownedSamples, double ExpectedNutrition, double EncounterTicks);
+public sealed record HuntEstimate(bool RiskEstimated, double HarmChance, double DeathChance, double DownedChance, double ExpectedNutrition, double EncounterTicks);
 
 /// <summary>
 /// One alternative the comparison saw. A refused alternative names why and is never ranked as zero risk. LaborTicks is
@@ -88,8 +88,8 @@ public static class HuntAlternatives
     /// Bounded roster options: solos, pairs and a third gunner from the best-shooting available hunters, for each
     /// nearby prey group, each also with a hauler (an available colonist outside the gunner pool whose hauling is
     /// active, the <see cref="MaxHaulers"/> fastest by their walk and haul trips) when there is one. No hunter is
-    /// required; the no-hunt alternative is added by <see cref="Choose"/>. <see cref="MaxRosters"/> bounds the scenes
-    /// asked of the predictor; a hauler's roster shares its gunners' scene, so it adds none.
+    /// required; the no-hunt alternative is added by <see cref="Choose"/>. <see cref="MaxRosters"/> bounds the encounters
+    /// estimated; a hauler's roster shares its gunners' encounter, so it adds none.
     /// </summary>
     public static (EquatableArray<HuntRoster> Rosters, EquatableArray<string> Findings) Propose(HuntActivityRead read, IReadOnlySet<string> busy, IReadOnlyList<CoupledRoute> routes)
     {
@@ -126,9 +126,9 @@ public static class HuntAlternatives
     }
 
     /// <summary>
-    /// The second stage, once the plain rosters are answered: the <see cref="MaxRetrieverStage"/> best-ranked usable
+    /// The second stage, once the plain rosters are estimated: the <see cref="MaxRetrieverStage"/> best-ranked usable
     /// plain rosters of each prey group with two or more gunners, each again with its least-skilled shooter leaving the
-    /// encounter at the roster's median encounter ticks to haul. A lone gunner leaving would only stop shooting, so solos
+    /// encounter at the roster's estimated encounter ticks to haul. A lone gunner leaving would only stop shooting, so solos
     /// are not restated; its own haul is the plain roster's.
     /// </summary>
     public static EquatableArray<HuntRoster> ProposeRetrieverStage(HuntActivityRead read, HuntSelection first)
@@ -171,65 +171,27 @@ public static class HuntAlternatives
         to is { } t && routes.FirstOrDefault(r => !r.FromStart && r.Pawn == pawn && r.From == from && r.To == t) is { Ticks.IsKnown: true } r ? r.Ticks.Value : null;
 
     /// <summary>
-    /// Reduces a prediction to a roster estimate. Anything but evidence with samples, a stated meat yield per prey, or
-    /// a prediction for a different scene is a refusal, never zero risk.
+    /// Chooses among the proposed rosters and no hunt, in the epic's order: serious harm first (the chance of a death,
+    /// then of any serious harm, from <see cref="HuntEstimator"/>), then the nutrition still missing after the chance
+    /// prey is not downed, then total participant labor (<see cref="Labor"/>). A roster without an estimate, an
+    /// approach route or a return route is refused, not ranked. With no nutrition needed, or no usable roster, the
+    /// choice is not to hunt.
     /// </summary>
-    public static (HuntEstimate? Estimate, string Refusal) EstimateOf(HuntActivityRead read, HuntRoster roster, EncounterRequest request, EncounterPrediction prediction)
-    {
-        if (prediction.Status != EncounterStatus.Evidence) return (null, "prediction_" + prediction.Status.ToString().ToLowerInvariant() + (prediction.Reason.Length == 0 ? "" : ":" + prediction.Reason));
-        if (prediction.Samples.Count == 0) return (null, "prediction_without_samples");
-        // The request's actor ids are the observed pawn ids, so the estimate is for exactly this roster, its departure included.
-        var gunnerIds = request.Actors.Where(a => !a.Wild).Select(a => a.Id).ToArray();
-        var wild = request.Actors.Where(a => a.Wild).ToArray();
-        if (!gunnerIds.Order(StringComparer.Ordinal).SequenceEqual(roster.Gunners.Order(StringComparer.Ordinal), StringComparer.Ordinal)
-            || !wild.Select(a => a.Id).Order(StringComparer.Ordinal).SequenceEqual(roster.Prey.Order(StringComparer.Ordinal), StringComparer.Ordinal)) return (null, "request_roster_mismatch");
-        var leavers = request.Actors.Where(a => !a.Wild && a.Departure is not null).ToArray();
-        var leaver = roster.GunnerRetriever ? roster.Retriever : null;
-        if (leavers.Length > 1 || (leavers.Length == 1) != (leaver is not null)
-            || leavers.Length == 1 && (leavers[0].Id != leaver || leavers[0].Departure!.Tick != roster.DepartureTick)) return (null, "request_roster_mismatch");
-        var yields = wild.ToDictionary(a => a.Id, a => read.Prey.FirstOrDefault(p => p.Pawn == a.Id), StringComparer.Ordinal);
-        if (yields.Values.Any(p => p is null || !p.Meat.IsKnown || !p.MeatNutrition.IsKnown)) return (null, "prey_yield_unknown");
-        var harm = 0; var death = 0; var downed = 0; var nutrition = 0.0;
-        foreach (var sample in prediction.Samples)
-        {
-            var outcomes = sample.Actors.ToDictionary(a => a.Id, StringComparer.Ordinal);
-            if (gunnerIds.Any(id => !outcomes.ContainsKey(id)) || wild.Any(a => !outcomes.ContainsKey(a.Id))) return (null, "sample_missing_actor");
-            if (gunnerIds.Any(id => SeriousHarm(request.Actors.Single(a => a.Id == id), outcomes[id]))) harm++;
-            if (gunnerIds.Any(id => outcomes[id].Dead)) death++;
-            if (!sample.HorizonReached && wild.All(a => outcomes[a.Id] is { } o && (o.Dead || o.Downed))) downed++;
-            foreach (var a in wild)
-                if (outcomes[a.Id] is { } o && (o.Dead || o.Downed)) nutrition += yields[a.Id]!.Meat.Value * yields[a.Id]!.MeatNutrition.Value;
-        }
-        var ticks = prediction.Samples.Select(s => (double)s.DurationTicks).Order().ToArray();
-        var n = prediction.Samples.Count;
-        return (new(n, harm, death, downed, nutrition / n, ticks[ticks.Length / 2]), "");
-    }
+    public static HuntSelection Choose(HuntActivityRead read, EquatableArray<HuntRoster> rosters, IReadOnlyList<CoupledRoute> routes, double nutritionNeeded) =>
+        Choose(read, rosters, r => HuntEstimator.Estimate(read, r), routes, nutritionNeeded);
 
-    /// <summary>Any new injury needing treatment, missing part, permanent injury, downing or death; an existing injury counts only if worsened.</summary>
-    public static bool SeriousHarm(EncounterActor before, EncounterActorOutcome after) =>
-        after.Dead || after.Downed || after.MissingParts.Except(before.MissingParts, StringComparer.Ordinal).Any()
-        || after.Injuries.GroupBy(i => (i.Definition, i.Part)).Any(group =>
-        {
-            var baseline = before.Health.Where(h => h.Definition == group.Key.Definition && h.Part == group.Key.Part).ToArray();
-            return group.Any(i => i.Tendable || i.Permanent || i.BleedRate > 0)
-                && (group.Count() > baseline.Length || group.Sum(i => i.Severity) > baseline.Sum(h => h.Severity) + 0.0001);
-        });
-
-    /// <summary>
-    /// Chooses among the proposed rosters and no hunt, in the epic's order: serious harm first (deaths, then any serious
-    /// harm, each by its 95% Wilson upper bound so a small sample cannot look safer than it is), then the
-    /// nutrition still missing after the chance prey is not downed, then total participant labor (<see cref="Labor"/>).
-    /// A roster without a usable estimate, an approach route or a return route is refused, not ranked. With no
-    /// nutrition needed, or no usable roster, the choice is not to hunt.
-    /// </summary>
-    public static HuntSelection Choose(HuntActivityRead read, EquatableArray<HuntRoster> rosters, IReadOnlyDictionary<string, HuntEstimate> estimates,
+    /// <summary><see cref="Choose(HuntActivityRead, EquatableArray{HuntRoster}, IReadOnlyList{CoupledRoute}, double)"/> with the estimate stated per roster.</summary>
+    internal static HuntSelection Choose(HuntActivityRead read, EquatableArray<HuntRoster> rosters, Func<HuntRoster, (HuntEstimate? Estimate, string Refusal)> estimateOf,
         IReadOnlyList<CoupledRoute> routes, double nutritionNeeded)
     {
-        var findings = new SortedSet<string> { "estimate_rates_carry_sampling_uncertainty" };
+        var findings = new SortedSet<string>();
         var rows = new List<HuntAssessment>();
+        // A hauler's roster shares its gunners' encounter, so one estimate serves both.
+        var estimates = new Dictionary<string, (HuntEstimate? Estimate, string Refusal)>(StringComparer.Ordinal);
         foreach (var roster in rosters)
         {
-            if (!estimates.TryGetValue(roster.SceneKey, out var estimate)) { rows.Add(new(roster, "estimate_missing", null, 0, 0, 0)); continue; }
+            if (!estimates.TryGetValue(roster.SceneKey, out var stated)) estimates[roster.SceneKey] = stated = estimateOf(roster);
+            if (stated.Estimate is not { } estimate) { rows.Add(new(roster, stated.Refusal, null, 0, 0, 0)); continue; }
             var (labor, refusal) = Labor(read, roster, estimate, routes);
             rows.Add(labor is { } l ? new(roster, "", estimate, l.Total, l.Return, l.Haul) : new(roster, refusal, estimate, 0, 0, 0));
         }
@@ -243,7 +205,7 @@ public static class HuntAlternatives
 
     /// <summary>
     /// The roster's participant labor from the coupled routes. Each gunner walks to its nearest prey and stays the
-    /// encounter's median ticks (a gunner-retriever until it leaves). Then one load per corpse goes to the corpse store
+    /// encounter's estimated ticks (a gunner-retriever until it leaves). Then one load per corpse goes to the corpse store
     /// native would haul it to: by the retriever (a hauler first walks to the prey), else by the gunner whose trip is
     /// shortest. A gunner who carries nothing walks back empty to where it stood. A missing approach is
     /// <c>route_unknown</c>; a missing haul, walk or return is <c>return_route_unknown</c>; neither is priced at zero.
@@ -285,19 +247,9 @@ public static class HuntAlternatives
     private static int Compare(HuntAssessment a, HuntAssessment b, double needed)
     {
         var x = a.Estimate!; var y = b.Estimate!;
-        var rank = WilsonUpper(x.DeathSamples, x.Samples).CompareTo(WilsonUpper(y.DeathSamples, y.Samples)); if (rank != 0) return rank;
-        rank = WilsonUpper(x.HarmSamples, x.Samples).CompareTo(WilsonUpper(y.HarmSamples, y.Samples)); if (rank != 0) return rank;
+        var rank = x.DeathChance.CompareTo(y.DeathChance); if (rank != 0) return rank;
+        rank = x.HarmChance.CompareTo(y.HarmChance); if (rank != 0) return rank;
         rank = Math.Max(0, needed - x.ExpectedNutrition).CompareTo(Math.Max(0, needed - y.ExpectedNutrition)); if (rank != 0) return rank;
         return a.LaborTicks.CompareTo(b.LaborTicks);
-    }
-
-    /// <summary>Upper end of the 95% Wilson interval for k events in n samples.</summary>
-    public static double WilsonUpper(int k, int n)
-    {
-        if (n <= 0) return 1;
-        const double z = 1.96;
-        var p = (double)k / n;
-        var denominator = 1 + z * z / n;
-        return Math.Min(1, (p + z * z / (2 * n) + z * Math.Sqrt(p * (1 - p) / n + z * z / (4.0 * n * n))) / denominator);
     }
 }
