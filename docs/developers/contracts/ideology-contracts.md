@@ -98,7 +98,8 @@ state without reforming again. Completion requires an observed target and that
 counter increment; a receipt alone does not settle the Standard. Pending intent
 uses its existing save Record; there is no second current-design store.
 
-Native coverage: `lifecycle/ideoligion-design`, `lifecycle/theme-colony` and `ideology/legal-reform`.
+Native coverage: `lifecycle/ideoligion-design`, `lifecycle/theme-colony`, `lifecycle/ideoligion-shared`
+(the shared-ideoligion branch, staged in a lab rather than left to the seed) and `ideology/legal-reform`.
 These prove game creation and write/progression contracts; policy decisions
 remain tests, including the recorded full catalog fixture.
 

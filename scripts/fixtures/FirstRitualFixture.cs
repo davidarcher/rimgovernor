@@ -46,7 +46,30 @@ namespace HomeBridge.BridgeTools
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("test/theme_preset_read", Description = "Read one shipped theme preset's meme and precept goal targets as they resolve over the installed game.")]
+        // A world faction takes the player's primary ideo (the 20% reuse branch of FactionIdeosTracker.ChooseOrGenerateIdeo,
+        // #3595), then colony creation's design step runs with that ideo's own design as a fixed one. The reply holds the
+        // faction's precepts, by def and load id, before and after the design.
+        [Tool("test/ideoligion_shared_design", Description = "UNSAFE FOR MODEL EXECUTION. Make a world faction share the player's primary ideoligion, then apply colony creation's ideoligion design.")]
+        public async Task<object> DesignShared(IRimBridgeContext ctx, CancellationToken cancellationToken)
+        {
+            return await ctx.MainThread.InvokeAsync<object>(() => {
+                var player = Faction.OfPlayerSilentFail; var ideo = player?.ideos?.PrimaryIdeo;
+                if (!ModsConfig.IdeologyActive || ideo == null || !Find.TickManager.Paused)
+                    return new { success = false, reason = "A paused Ideology lab is required." };
+                var faction = Find.FactionManager.AllFactions.Where(f => !f.IsPlayer && f.def.humanlikeFaction && f.ideos != null)
+                    .OrderBy(f => f.loadID).FirstOrDefault();
+                if (faction == null) return new { success = false, reason = "No humanlike world faction holds ideoligions." };
+                faction.ideos.SetPrimary(ideo);
+                string[] Precepts() => faction.ideos.PrimaryIdeo.PreceptsListForReading.Select(p => p.def.defName + "/" + p.GetUniqueLoadID()).OrderBy(n => n, StringComparer.Ordinal).ToArray();
+                var before = Precepts();
+                var design = IdeoligionReformActionHandler.ReadDesign(ideo) with { Fluid = false };
+                try { NativeIdeoligionDesign.Create(design); }
+                catch (InvalidOperationException e) { return new { success = false, reason = "The design was refused: " + e.Message }; }
+                return new { success = true, faction = faction.def.defName, design = RimGovernor.Contracts.Wire.WireJson.Serialize(design), before, after = Precepts() };
+            }, cancellationToken).ConfigureAwait(false);
+        }
+
+        [Tool("test/theme_preset_read",Description = "Read one shipped theme preset's meme and precept goal targets as they resolve over the installed game.")]
         public Task<object> ReadThemePreset(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "The preset id.")] string preset = "")
         {

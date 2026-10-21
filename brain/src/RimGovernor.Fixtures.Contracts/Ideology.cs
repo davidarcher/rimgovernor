@@ -4,7 +4,7 @@ using System.Collections.Generic;
 
 namespace RimGovernor.Fixtures.Contracts;
 
-// The replies of the ideoligion design prepare and first-ritual fixtures (#3404); the design inspect read is in
+// The replies of the ideoligion design prepare, shared-design (#3595) and first-ritual fixtures (#3404); the design inspect read is in
 // StartReads.cs. Designs and the explicit ritual intent travel as wire JSON text the case decodes through the wire
 // contracts. A record carries only what a case reads.
 
@@ -20,6 +20,23 @@ public sealed record IdeoligionDesignPrepared
     public string Design { get; init; } = "";
 
     public int Count { get; init; }
+}
+
+/// <summary>
+/// <c>test/ideoligion_shared_design</c>: the world faction made to share the player's primary ideoligion, the design
+/// colony creation applied, and that faction's precepts (def/load id) before and after it.
+/// </summary>
+public sealed record IdeoligionSharedDesign
+{
+    public bool Success { get; init; }
+
+    public string Faction { get; init; } = "";
+
+    public string Design { get; init; } = "";
+
+    public IReadOnlyList<string> Before { get; init; } = [];
+
+    public IReadOnlyList<string> After { get; init; } = [];
 }
 
 /// <summary><c>test/first_ritual_prepare</c>: the staged ritual precept, its building and its aged last finished tick.</summary>

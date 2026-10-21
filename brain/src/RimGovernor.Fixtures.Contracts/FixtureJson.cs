@@ -62,6 +62,7 @@ public static class FixtureJson
 [JsonSerializable(typeof(HorrorIncidentFired))]
 [JsonSerializable(typeof(HorrorInspectRead))]
 [JsonSerializable(typeof(IdeoligionDesignPrepared))]
+[JsonSerializable(typeof(IdeoligionSharedDesign))]
 [JsonSerializable(typeof(FirstRitualPrepared))]
 [JsonSerializable(typeof(FirstRitualRead))]
 [JsonSerializable(typeof(ConvertColonistPrepared))]
