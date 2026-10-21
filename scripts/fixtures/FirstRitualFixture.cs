@@ -47,8 +47,9 @@ namespace HomeBridge.BridgeTools
         }
 
         // A world faction takes the player's primary ideo (the 20% reuse branch of FactionIdeosTracker.ChooseOrGenerateIdeo,
-        // #3595), then colony creation's design step runs with that ideo's own design as a fixed one. The reply holds the
-        // faction's precepts, by def and load id, before and after the design.
+        // #3595), then colony creation's design step runs with a fixed design. The design is read off a freshly generated,
+        // unregistered ideo: vanilla generation meets its memes' required precepts, which the lab's own ideo need not.
+        // The reply holds the faction's precepts, by def and load id, before and after the design.
         [Tool("test/ideoligion_shared_design", Description = "UNSAFE FOR MODEL EXECUTION. Make a world faction share the player's primary ideoligion, then apply colony creation's ideoligion design.")]
         public async Task<object> DesignShared(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
@@ -62,14 +63,14 @@ namespace HomeBridge.BridgeTools
                 faction.ideos.SetPrimary(ideo);
                 string[] Precepts() => faction.ideos.PrimaryIdeo.PreceptsListForReading.Select(p => p.def.defName + "/" + p.GetUniqueLoadID()).OrderBy(n => n, StringComparer.Ordinal).ToArray();
                 var before = Precepts();
-                var design = IdeoligionReformActionHandler.ReadDesign(ideo) with { Fluid = false };
+                var design = IdeoligionReformActionHandler.ReadDesign(IdeoGenerator.GenerateIdeo(new IdeoGenerationParms(player.def))) with { Fluid = false };
                 try { NativeIdeoligionDesign.Create(design); }
                 catch (InvalidOperationException e) { return new { success = false, reason = "The design was refused: " + e.Message }; }
                 return new { success = true, faction = faction.def.defName, design = RimGovernor.Contracts.Wire.WireJson.Serialize(design), before, after = Precepts() };
             }, cancellationToken).ConfigureAwait(false);
         }
 
-        [Tool("test/theme_preset_read",Description = "Read one shipped theme preset's meme and precept goal targets as they resolve over the installed game.")]
+        [Tool("test/theme_preset_read", Description = "Read one shipped theme preset's meme and precept goal targets as they resolve over the installed game.")]
         public Task<object> ReadThemePreset(IRimBridgeContext ctx, CancellationToken cancellationToken,
             [ToolParameter(Description = "The preset id.")] string preset = "")
         {
