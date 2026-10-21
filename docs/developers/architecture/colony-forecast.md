@@ -198,7 +198,8 @@ A planned shelter is the planned room of the same id (`planned/room{R}`), so its
 unbuilt shell and roof are that room's [planned sites](#planned-rooms) (#3277), not
 a second construction path. Each open ring cell resolves in order:
 
-- a solid cell needs nothing;
+- a solid cell needs nothing; a door counts as solid unless it is held open, since
+  the door a pawn passes through shuts behind it (#3682);
 - a cell with a placed native site requires that site's finish, as before;
 - a cell inside a generated planned wall or door site requires one shared
   `CompletedPhysicalSite` demand per kind at `planned/room{R}`, met by the finish of

@@ -124,7 +124,8 @@ internal static class CoupledShelterCandidates
             foreach (var cell in ring)
             {
                 if (!observed.TryGetValue(cell, out var row)) { notes.Add("missing_shelter_geometry"); continue; }
-                if (row.Solid && (!row.Door || row.DoorClosed)) continue;
+                // A door shuts behind whoever passes (#3682): only one held open leaves the ring open.
+                if (row.Solid && !row.DoorHeldOpen) continue;
                 if (row.FutureSolid)
                 {
                     if (row.FutureDoor && cell != room.Door || !RequireSite(row.Site)) notes.Add("unmodeled_shell_work");

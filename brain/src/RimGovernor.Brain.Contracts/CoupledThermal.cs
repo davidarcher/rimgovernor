@@ -18,8 +18,9 @@ public sealed record CoupledThermalRead
     public Fact<double> ThinRoofExchangePerTick { get; init; }
     public Fact<double> WallExchangePerTick { get; init; }
 }
+/// <summary>A cell's sample. <see cref="DoorHeldOpen"/> is a door's hold-open toggle, not whether it stands open this tick.</summary>
 public sealed record ThermalCell(Cell Cell, Fact<double> Temperature, string Roof,
-    bool Solid, bool Door, bool DoorClosed, string Site,
+    bool Solid, bool DoorHeldOpen, string Site,
     bool FutureSolid, bool FutureDoor, double DoorExchangePerTick, bool BuildRoof);
 /// <summary>
 /// Heater mechanics at current conditions: an electric heater, or a fueled heat pusher (#3673: a campfire) whose supply is

@@ -290,7 +290,7 @@ public sealed class ForecastCoupledTests
             Outdoors = Known(-10.0),
             ThinRoofExchangePerTick = Known(.00005),
             WallExchangePerTick = Known(.000017),
-            Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", !inside.Contains(c) && c != wall.Location, false, false,
+            Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", !inside.Contains(c) && c != wall.Location, false,
                 c == wall.Location ? wall.Site : "", c == wall.Location, false, 0, inside.Contains(c)))),
             Workers = [new("pawn", Known(5.0))],
             RoofRoutes = EquatableArray.From(inside.Select(c => new ThermalRoofRoute("pawn", c, Known(1.0)))),
@@ -370,8 +370,8 @@ public sealed class ForecastCoupledTests
             Thermal = new()
             {
                 Cells = [
-            new(new(1,1),Known(-10.0),"thin",false,false,false,"",false,false,0,false),
-            new(new(5,5),Known(-10.0),"none",false,false,false,"",false,false,0,false)]
+            new(new(1,1),Known(-10.0),"thin",false,false,"",false,false,0,false),
+            new(new(5,5),Known(-10.0),"none",false,false,"",false,false,0,false)]
             },
             Needs = context.Needs with { Pawns = [context.Needs.Pawns[0] with { ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) }] }
         };
@@ -394,7 +394,7 @@ public sealed class ForecastCoupledTests
     {
         var facts = Review();
         var context = facts.CoupledAlternatives!.Context;
-        var thermal = new CoupledThermalRead { Cells = [new(new(5, 5), Known(0.0), "none", false, false, false, "", false, false, 0, false)], Outdoors = Known(-10.0) };
+        var thermal = new CoupledThermalRead { Cells = [new(new(5, 5), Known(0.0), "none", false, false, "", false, false, 0, false)], Outdoors = Known(-10.0) };
         context = context with
         {
             Shelters = [], Thermal = thermal,
@@ -425,7 +425,7 @@ public sealed class ForecastCoupledTests
             Context = generated.Context with
             {
                 Shelters = [],
-                Thermal = new() { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", false, false, false, "", false, false, 0, false))) },
+                Thermal = new() { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(-10.0), "none", false, false, "", false, false, 0, false))) },
                 Needs = generated.Context.Needs with { Pawns = [generated.Context.Needs.Pawns[0] with { ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) }] }
             }
         };

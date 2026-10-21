@@ -56,7 +56,7 @@ public sealed class PlannedShelterTests
         {
             Outdoors = Known(ambient), ThinRoofExchangePerTick = Known(.00005), WallExchangePerTick = Known(.000017),
             Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, Known(ambient), "none",
-                !open.Contains(c), false, false, "", false, false, 0, buildRoof && c == Inside))),
+                !open.Contains(c), false, "", false, false, 0, buildRoof && c == Inside))),
             Workers = [new("pawn", Known(5d))], RoofRoutes = [new("pawn", Inside, Known(1d))],
             Sources = [new("heater", Inside, true, Known(.35), Known(20d), Known(60000d))],
         };
@@ -346,7 +346,7 @@ public sealed class PlannedShelterTests
     [Fact]
     public void TheCoupledCaptureKeepsItsCellsAndSourcesOverThePlannedRead()
     {
-        ThermalCell Row(Cell cell, double temperature) => new(cell, Known(temperature), "none", false, false, false, "", false, false, 0, false);
+        ThermalCell Row(Cell cell, double temperature) => new(cell, Known(temperature), "none", false, false, "", false, false, 0, false);
         var observed = new CoupledThermalRead { Cells = [Row(Inside, 5)], Sources = [new("heater", Inside, true, Known(.35), Known(20d), Known(60000d))] };
         var planned = new CoupledThermalRead
         {
