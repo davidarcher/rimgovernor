@@ -1,0 +1,68 @@
+using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Policy;
+using Xunit;
+using static RimGovernor.Brain.Domain.Fact;
+
+namespace RimGovernor.Brain.Domain.Tests;
+
+/// <summary>
+/// A retired hut's walls come down once its furniture is gone (#3681): the clearance step reads the room census to
+/// tell a wall that still bounds a standing room (it waits) from the retired room's own ring. The home-upkeep
+/// reader's colony read carries that census; an unread one is no step, not a crash.
+/// </summary>
+public sealed class RetiredWallsTests
+{
+    // A 5x5 hut ring at (10,10), its 3x3 interior enclosed and roofed.
+    private static readonly Rectangle Hut = new() { X = 10, Z = 10, Width = 5, Height = 5 };
+
+    private static readonly LayoutPlan Plan = new()
+    {
+        NextRoomId = 2,
+        Rooms = [new PlannedRoom { Id = 1, Role = PlannedRole.Storage, Region = RegionRules.RectRegion(new Rectangle(30, 30, 3, 3)), Door = new Cell(29, 31), DoorRot = Rotation.West }],
+        RetiredGround = [RegionRules.RectRegion(Hut)],
+    };
+
+    private static List<ClearanceTarget> Walls() =>
+    [
+        .. PlannedRules.RectCells(Hut)
+            .Where(c => c.X == Hut.X || c.Z == Hut.Z || c.X == Hut.X + Hut.Width - 1 || c.Z == Hut.Z + Hut.Height - 1)
+            .Select(c => new ClearanceTarget { EntityId = $"Thing_Wall{c.X}_{c.Z}", DefName = "Wall", Minimum = c, Maximum = c, Player = true, Deconstructible = true, EnclosesRoom = true }),
+    ];
+
+    private static RoomObservation Rooms() => new()
+    {
+        Rooms = [new Room { Id = "hut", Enclosed = Known(true), Cells = [.. PlannedRules.RectCells(new Rectangle(Hut.X + 1, Hut.Z + 1, 3, 3))] }],
+    };
+
+    private static ColonyProjection Colony(Fact<RoomObservation> rooms) => new()
+    {
+        LayoutPlan = Known(Plan),
+        Rooms = rooms,
+        Facts = new() { CurrentConstruction = Known(new CurrentConstruction { Colony = true }) },
+    };
+
+    [Fact]
+    public void TheRetiredHutsRingComesDownWithItsRoof()
+    {
+        var walls = Walls();
+
+        var (step, ok) = HomeUpkeepReader.PlannedGroundStep(Colony(Known(Rooms())), walls, [], null!);
+
+        Assert.True(ok);
+        Assert.Equal(GroundPhase.Walls, step.Phase);
+        Assert.Equal(walls.Select(w => w.EntityId).Order(StringComparer.Ordinal), step.Targets.Items.Select(t => t.EntityId).Order(StringComparer.Ordinal));
+        Assert.Equal(9, step.Roof.Count);
+    }
+
+    [Fact]
+    public void AnUnreadRoomCensusIsNoStep()
+    {
+        var walls = Walls();
+
+        var (_, ok) = HomeUpkeepReader.PlannedGroundStep(Colony(Unknown<RoomObservation>()), walls, [], null!);
+
+        Assert.False(ok);
+        Assert.Empty(HomeUpkeepReader.PlannedGroundWork(Colony(Unknown<RoomObservation>()), walls, [], null!));
+    }
+}

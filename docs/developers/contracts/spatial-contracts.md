@@ -535,6 +535,7 @@ lay on region cells only). A standing wall now inside the region (a column added
 but not ready, and brings no roof off, until the new ring stands (no wall or door in
 owed). A retired wall that still bounds an enclosed census room reaching outside the
 retired ground (a row shrunk away) waits until the new ring has split that room off.
+The home-upkeep clearance read takes the room census for that check; with it unread there is no step.
 No new OpKind; the native ClearanceTargets request stays rectangles.
 
 ### Stockpile maintenance

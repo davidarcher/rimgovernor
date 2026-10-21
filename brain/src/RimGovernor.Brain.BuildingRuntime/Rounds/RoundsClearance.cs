@@ -54,7 +54,10 @@ public sealed partial class HomeUpkeepReader
         {
             throw new ControlException("home upkeep: the native boundary moved");
         }
-        var colony = await _reviewer.ObserveColonyAsync(_native, expected, null, call).ConfigureAwait(false);
+        // Clearance reads the room census: retired walls wait while they still bound a standing room (#3681).
+        var colony = _clearance
+            ? (await _reviewer.ObserveRoomsAsync(_native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false)).Reading
+            : await _reviewer.ObserveColonyAsync(_native, expected, null, call).ConfigureAwait(false);
         var facts = new HomeUpkeepFacts();
         if (_repairs)
         {
@@ -132,11 +135,11 @@ partial class HomeUpkeepReader
             return (new GroundStep(), false);
         }
         var (ground, known) = RoundsBuildingPlanner.ColonyGround(colony);
-        if (!known)
+        if (!known || !colony.Rooms.TryGetValue(out var rooms))
         {
             return (new GroundStep(), false);
         }
-        var planned = ClearanceReconcileRules.PlannedGroundStep(plan, ground, player, floors, ColonyRooms(colony), Rounder.RetiredGroundOfColony(colony), wants);
+        var planned = ClearanceReconcileRules.PlannedGroundStep(plan, ground, player, floors, rooms, Rounder.RetiredGroundOfColony(colony), wants);
         return planned is null ? (new GroundStep(), false) : (planned, true);
     }
 
@@ -147,11 +150,11 @@ partial class HomeUpkeepReader
             return [];
         }
         var (ground, known) = RoundsBuildingPlanner.ColonyGround(colony);
-        if (!known)
+        if (!known || !colony.Rooms.TryGetValue(out var rooms))
         {
             return [];
         }
-        return ClearanceReconcileRules.PlannedGroundWork(plan, ground, player, floors, ColonyRooms(colony), Rounder.RetiredGroundOfColony(colony), wants);
+        return ClearanceReconcileRules.PlannedGroundWork(plan, ground, player, floors, rooms, Rounder.RetiredGroundOfColony(colony), wants);
     }
 
     /// <summary>Stamps the packable flag and the in-use flag (a bed with owners or a bench with an active bill) onto the rows.</summary>
