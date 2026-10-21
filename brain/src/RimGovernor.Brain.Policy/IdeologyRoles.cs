@@ -42,20 +42,100 @@ public static class IdeologyRolesRules
     }
 
     /// <summary>
+    /// The work each pawn is committed to outside its live work rows (#3644): the work types of its live coupled orders
+    /// (a step's work giver's type, Hauling for a delivery, a supply or an output delivery) and of the nonzero rows of a
+    /// pending work-priority write. <paramref name="giverWork"/> gives a work giver's work type (None for a giver with
+    /// none), null when it is unread: the pawn's work is then unknown. A released order and an absent action
+    /// (<see cref="WorkRules.ActionAbsent"/>) own nothing; a truncated census is unknown for every pawn.
+    /// </summary>
+    public static Fact<IReadOnlyDictionary<PawnId, Fact<EquatableArray<WorkType>>>> SelectedWork(WorkActionCensus activities,
+        IEnumerable<WorkAssignment> pending, Func<string, WorkType?> giverWork)
+    {
+        if (activities.Truncated)
+        {
+            return Unknown<IReadOnlyDictionary<PawnId, Fact<EquatableArray<WorkType>>>>();
+        }
+        var work = new Dictionary<PawnId, SortedSet<WorkType>>();
+        var unknown = new HashSet<PawnId>();
+        SortedSet<WorkType> Of(PawnId pawn) => work.TryGetValue(pawn, out var set) ? set : work[pawn] = [];
+        void Step(PawnId pawn, PawnActivityStep step)
+        {
+            if (step.Kind is PawnActivityKind.Deliver or PawnActivityKind.Supply)
+            {
+                Of(pawn).Add(WorkType.Hauling);
+            }
+            if (step.WorkGiver.Length == 0)
+            {
+                return;
+            }
+            if (giverWork(step.WorkGiver) is { } type)
+            {
+                if (type != WorkType.None)
+                {
+                    Of(pawn).Add(type);
+                }
+            }
+            else
+            {
+                unknown.Add(pawn);
+            }
+        }
+        foreach (var row in activities.Actions)
+        {
+            if (row.Action.PawnActivities is not { } batch || WorkRules.ActionAbsent(row.Progress))
+            {
+                continue;
+            }
+            foreach (var order in batch.Orders.Where(o => !o.Release))
+            {
+                var pawn = new PawnId(order.Pawn);
+                foreach (var step in order.Steps)
+                {
+                    Step(pawn, step);
+                }
+                if (order.OutputDelivery is not null)
+                {
+                    Of(pawn).Add(WorkType.Hauling);
+                }
+            }
+            foreach (var task in batch.Tasks)
+            {
+                var pawn = new PawnId(task.Pawn);
+                foreach (var step in task.PriorSteps.Append(task.Step))
+                {
+                    Step(pawn, step);
+                }
+            }
+        }
+        foreach (var assignment in pending)
+        {
+            foreach (var setting in assignment.Settings.Where(s => s.Priority > 0))
+            {
+                Of(assignment.Pawn).Add(Wire.TryParse<WorkType>(setting.Definition, out var type) ? type : WorkType.Unrecognized);
+            }
+        }
+        return Known<IReadOnlyDictionary<PawnId, Fact<EquatableArray<WorkType>>>>(work.Keys.Concat(unknown).Distinct().ToDictionary(pawn => pawn,
+            pawn => unknown.Contains(pawn) ? Unknown<EquatableArray<WorkType>>() : Known(EquatableArray.From(work[pawn].ToArray()))));
+    }
+
+    /// <summary>
     /// The assignments the ideoligion owes now: for each active role with fewer holders than its def's
     /// MaxCount, the best-fitting available believer who holds no role, by fit, then certainty, then id.
-    /// The pawn row must show the ideoligion's id and no role; its skills must be read. Unknown without the
-    /// ideoligion or the pawn rows; a role whose def is missing from the catalog fails the decode, so none
-    /// reaches here. At most one pawn is chosen per role and per call, so a role with several places fills
-    /// over successive calls as the section shows each holder. Sorted by role id.
+    /// The pawn row must show the ideoligion's id and no role; its skills must be read. A role that disables
+    /// work (<see cref="RoleDef.DisabledWork"/>) skips a pawn whose enabled priority-1 rows or
+    /// <paramref name="selected"/> work (<see cref="SelectedWork"/>) it would disable, or whose either is unread (#3644).
+    /// Unknown without the ideoligion or the pawn rows; a role whose def is missing from the catalog fails the
+    /// decode, so none reaches here. At most one pawn is chosen per role and per call, so a role with several
+    /// places fills over successive calls as the section shows each holder. Sorted by role id.
     /// </summary>
-    public static Fact<EquatableArray<RoleAssignment>> RoleAssignments(Fact<Ideoligion> ideology, Fact<EquatableArray<WorkPawn>> pawns)
+    public static Fact<EquatableArray<RoleAssignment>> RoleAssignments(Fact<Ideoligion> ideology, Fact<EquatableArray<WorkPawn>> pawns,
+        Fact<IReadOnlyDictionary<PawnId, Fact<EquatableArray<WorkType>>>> selected)
     {
         if (!ideology.TryGetValue(out var ideo) || !pawns.TryGetValue(out var rows))
         {
             return Unknown<EquatableArray<RoleAssignment>>();
         }
-        var pool = new List<(PawnId Id, IReadOnlyList<WorkSkill> Skills, double Certainty)>();
+        var pool = new List<(PawnId Id, IReadOnlyList<WorkSkill> Skills, double Certainty, HashSet<WorkType>? Work)>();
         foreach (var row in rows)
         {
             if (row.Available.TryGetValue(out var available) && available
@@ -64,7 +144,14 @@ public static class IdeologyRolesRules
                 && inputs.Ideo == ideo.Facts.IdeoId && inputs.IdeoRole == string.Empty)
             {
                 inputs.IdeoCertainty.TryGetValue(out var certainty);
-                pool.Add((row.Id, skills, certainty));
+                HashSet<WorkType>? work = null;
+                var chosen = !selected.TryGetValue(out var committedWork) ? Unknown<EquatableArray<WorkType>>()
+                    : committedWork.TryGetValue(row.Id, out var fact) ? fact : Known<EquatableArray<WorkType>>([]);
+                if (row.Work.TryGetValue(out var priorities) && chosen.TryGetValue(out var committed))
+                {
+                    work = [.. priorities.Where(p => p.Priority == 1 && !p.Disabled).Select(p => p.Work), .. committed];
+                }
+                pool.Add((row.Id, skills, certainty, work));
             }
         }
         var roles = ideo.Facts.Roles.OrderBy(r => r.Id, StringComparer.Ordinal).ToList();
@@ -76,12 +163,12 @@ public static class IdeologyRolesRules
             {
                 continue;
             }
-            (PawnId Id, IReadOnlyList<WorkSkill> Skills, double Certainty) best = default;
+            (PawnId Id, IReadOnlyList<WorkSkill> Skills, double Certainty, HashSet<WorkType>? Work) best = default;
             var bestScore = 0;
             var found = false;
             foreach (var c in pool)
             {
-                if (taken.Contains(c.Id))
+                if (taken.Contains(c.Id) || def.DisabledWork.Count > 0 && (c.Work is null || c.Work.Overlaps(def.DisabledWork)))
                 {
                     continue;
                 }

@@ -190,6 +190,12 @@ public static partial class WorkRules
     /// claims its anchor cell, or with <paramref name="footprint"/> every cell of its footprint
     /// (<see cref="BuildingClaimTargets"/>).
     /// </summary>
+    /// <summary>A committed work action that owns nothing: cancelled or unsuccessful before any attempt, observed absent, or refused.</summary>
+    public static bool ActionAbsent(ProgressView progress) =>
+        !progress.Unresolved && (progress.Attempt.Value == 0 && progress.Stage is Stage.Cancelled or Stage.Unsuccessful
+            || progress.Effect.TryGetValue(out var effect) && effect == Effect.Absent
+            || progress.Receipt.TryGetValue(out var receipt) && receipt == Receipt.Refused);
+
     public static WorkResourceClaims WorkClaimsOf(WorkAdmissionEvidence evidence, IEnumerable<WorkAction> actions, bool footprint = false,
         bool ordersOnly = false)
     {
@@ -221,10 +227,7 @@ public static partial class WorkRules
         foreach (var row in actions.OrderBy(a => a.Action.Id.Value, StringComparer.Ordinal))
         {
             var progress = row.Progress;
-            var absent = !progress.Unresolved && (progress.Attempt.Value == 0 && progress.Stage is Stage.Cancelled or Stage.Unsuccessful
-                || progress.Effect.TryGetValue(out var effect) && effect == Effect.Absent
-                || progress.Receipt.TryGetValue(out var receipt) && receipt == Receipt.Refused);
-            if (absent) continue;
+            if (ActionAbsent(progress)) continue;
             if (row.Action.ProductionBill is { Mode: BillMode.GearBatch } bill
                 && evidence.ForecastPromises.TryGetValue(out var promises)
                 && (progress.Attempt.Value == 0 || progress.Tick > evidence.Tick || promises.Any(p => p.Id == "production/" + row.Action.Id.Value)))

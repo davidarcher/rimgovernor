@@ -119,9 +119,10 @@ public sealed partial class DefinitionCatalog
         }
     }
 
-    // A role precept def: how many pawns hold it and the skills each requirement asks for (a RoleRequirement_MinSkillAny
-    // lists the skills of which one must meet its minimum; other requirements have none).
-    private static P.RoleDef RoleDef(PreceptDef row) =>
+    // A role precept def: how many pawns hold it, the skills each requirement asks for (a RoleRequirement_MinSkillAny
+    // lists the skills of which one must meet its minimum; other requirements have none) and the work types its
+    // roleDisabledWorkTags disable, as Precept_Role.DisabledWorkTypes reads them (a type this build does not name is left out).
+    private P.RoleDef RoleDef(PreceptDef row) =>
         new(
             row.maxCount,
             [.. row.roleRequirements.Seq().Select(requirement =>
@@ -130,7 +131,13 @@ public sealed partial class DefinitionCatalog
                     null => throw new CatalogException($"role {row.defName} has a null requirement"),
                     RoleRequirement_MinSkillAny any => new P.RoleRequirement([.. any.skills.Seq().Select(s => new P.SkillRequirement(s.skill.defName, s.minLevel))]),
                     _ => new P.RoleRequirement([]),
-                })]);
+                })])
+        {
+            DisabledWork = row.roleDisabledWorkTags == WorkTags.None ? [] :
+                [.. Rows<WorkTypeDef>().Values.Where(w => (row.roleDisabledWorkTags & w.workTags) != WorkTags.None)
+                    .Select(w => Wire.TryParse<P.WorkType>(w.defName, out var type) ? type : P.WorkType.None)
+                    .Where(t => t != P.WorkType.None).Distinct().Order()],
+        };
 
     // A ritual pattern: its cadence, whether it may start freely, the buildings its obligation target filter accepts and
     // its behavior's role slots.

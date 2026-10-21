@@ -148,8 +148,10 @@ per load, and a row a def names that the catalog lacks is an error.
   `IdeologyDefs.Gate(issues)` answers which memes require or rule out the
   precepts of the named game issues (nudity, cannibalism, insect meat), so a
   reform planner can pick memes for a precept.
-- `policy.RoleDef` is a role precept def: `maxCount` and the skills of each
-  `RoleRequirement_MinSkillAny`.
+- `policy.RoleDef` is a role precept def: `maxCount`, the skills of each
+  `RoleRequirement_MinSkillAny` and `DisabledWork`, the work types whose
+  `workTags` meet its `roleDisabledWorkTags` (the game's
+  `Precept_Role.DisabledWorkTypes`).
 - `policy.RitualDef` is a `RitualPatternDef`: cadence
   (`ritualFreeStartIntervalDaysRange`), when it may start, the obligation
   target filter's `thingDefs` (`RequiredBuildings`) and the role slots of its
@@ -227,7 +229,15 @@ read) who best fits it: a pawn must meet, for every role requirement that
 lists skills, one listed skill at its minimum level and enabled; the score is
 the sum of the best matching skill levels, ties go to higher certainty, then
 the lower pawn id. Requirements without skills are the game's to judge at
-apply. A pawn that holds a role is never moved. Each owed role is its own Method, `ideorole-<pawn>-<role>`, with the role as its
+apply. A role that disables work skips a pawn whose selected work it would
+disable (#3644): an enabled priority-1 row, a step of a live coupled order
+(any non-retired activity Method of the current authority: its work giver's
+type, Hauling for a delivery or supply) or a nonzero row of an open
+admin/work-assignments priority write; a pawn whose rows or order givers are
+unread is skipped too. The rounds review admits its coupled selection before
+the planner wave, so the role read sees it; a priority write the same wave
+commits after the read is not seen (#3678).
+Weighing a role's mood against the lost work is not done yet (#3693). A pawn that holds a role is never moved. Each owed role is its own Method, `ideorole-<pawn>-<role>`, with the role as its
 claim, so independent roles run side by side; it commits one Assign
 whose `thing_id` is the role precept id and whose expected previous is none;
 the write is the shared Assign intent ([action contracts](action-contracts.md)),

@@ -81,8 +81,14 @@ public readonly record struct SkillRequirement(string Skill, int MinLevel);
 /// <summary>One condition on a role's holder: for a skill requirement, the skills of which one must meet its minimum.</summary>
 public sealed record RoleRequirement(IReadOnlyList<SkillRequirement> Skills);
 
-/// <summary>One role precept def: how many pawns hold it and what it asks of them.</summary>
-public sealed record RoleDef(int MaxCount,IReadOnlyList<RoleRequirement> Requirements);
+/// <summary>
+/// One role precept def: how many pawns hold it, what it asks of them and the work types it disables for its holder
+/// (those whose work tags meet the def's roleDisabledWorkTags, as the game's Precept_Role.DisabledWorkTypes reads them).
+/// </summary>
+public sealed record RoleDef(int MaxCount, IReadOnlyList<RoleRequirement> Requirements)
+{
+    public IReadOnlyList<WorkType> DisabledWork { get; init; } = [];
+}
 
 /// <summary>A ritual behavior's role slot.</summary>
 public sealed record RitualRoleSlot(string Precept, int MaxCount, bool Required);

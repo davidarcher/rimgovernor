@@ -60,7 +60,7 @@ public sealed class IdeologyReader
         var facts = new IdeologyFacts();
         if (_roles)
         {
-            facts = facts with { Roles = IdeologyRolesRules.RoleAssignments(projection.Facts.Ideology, projection.WorkPawns) };
+            facts = facts with { Roles = IdeologyRolesRules.RoleAssignments(projection.Facts.Ideology, projection.WorkPawns, SelectedWork(read, scope.World, call)) };
         }
         if (_rituals)
         {
@@ -84,6 +84,27 @@ public sealed class IdeologyReader
             throw new ControlException("ideology read: the read took too long");
         }
         return facts;
+    }
+
+    /// <summary>
+    /// The work the journal commits each pawn to (#3644): its live coupled orders (every non-retired activity Method of the
+    /// current authority) and the open rows of the admin/work-assignments Need's priority writes, so a role assigned now
+    /// does not disable work a review selected. The rounds review admits its coupled selection before the planner wave
+    /// reads this; a priority write the same wave commits after this read is not seen.
+    /// </summary>
+    private Fact<IReadOnlyDictionary<PawnId, Fact<EquatableArray<WorkType>>>> SelectedWork(RoundsReading read, GenerationSnapshot world, CancellationToken call)
+    {
+        var journal = _reviewer.Player.Journal;
+        var pending = journal.LoadNeed(AdminFamily.WorkAssignments, world, call).Methods
+            .Where(m => RoundsWorkPlanner.IsWorkMethod(m.Method))
+            .SelectMany(m => journal.LoadPlan(m.Plan, call).Progress)
+            .Where(p => WorkProgress.Open([p]))
+            .Select(p => p.Action.WorkAssignment)
+            .OfType<WorkAssignment>();
+        WorkType? Giver(string name) => read.Catalog?.DefRow<RimWorld.WorkGiverDef>(name) is not { } giver ? null
+            : giver.workType is not { } type ? WorkType.None
+            : Wire.TryParse<WorkType>(type.defName, out var work) ? work : WorkType.Unrecognized;
+        return IdeologyRolesRules.SelectedWork(journal.WorkActions(world, call), [.. pending], Giver);
     }
 
     /// <summary>
