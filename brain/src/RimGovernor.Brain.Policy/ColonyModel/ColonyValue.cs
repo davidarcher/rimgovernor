@@ -70,6 +70,17 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     }
 
     /// <summary>
+    /// The one skill price is the raid tending's (<see cref="RaidHarm"/>): it reads a doctor's stock of its tend quality curve's skill,
+    /// and none while no raid is to be expected.
+    /// </summary>
+    public bool Reads(SkillTrack track) => RaidsExpected && doctors.TryGetValue(out var pawns)
+        && pawns.Any(p => p.Pawn == track.Pawn && p.SkillStatCurves.FirstOrDefault(c => c.Stat == TendQualityStat)?.Skill == track.Skill);
+
+    /// <summary>False when the schedule says no raid comes (the raid harm is then 0); true otherwise, unread included.</summary>
+    private bool RaidsExpected =>
+        !(context.Harm.Schedule.MajorThreatsPerDay.TryGetValue(out var threats) && context.Harm.Schedule.RaidFraction.TryGetValue(out var share) && threats * share == 0);
+
+    /// <summary>
     /// Capability-days the colony loses to raid injuries over the horizon at the tending the trajectory gives them (#3635): for each span
     /// of days, raids a day × each raid's loss through the harm model (bleeding, healing and infection over the horizon, as the
     /// ledger counts a raid) at the span's tend quality. That quality is the best doctor's native MedicalTendQuality at the stored
@@ -79,8 +90,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     /// </summary>
     private double? RaidHarm(ColonyTrajectory trajectory, SortedSet<string> findings, SortedSet<string> unpriced)
     {
-        var schedule = context.Harm.Schedule;
-        if (schedule.MajorThreatsPerDay.TryGetValue(out var threats) && schedule.RaidFraction.TryGetValue(out var share) && threats * share == 0)
+        if (!RaidsExpected)
         {
             return 0;
         }

@@ -44,9 +44,21 @@ public sealed class SkillStockTests
         SkillStock.Of(new ModelPawn { Pawn = "Anna", Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Medicine", Learning = mechanics } })) }, new SortedSet<string>()).Single();
 
     // A value that rises with the Medicine level: the level-days it stands over the horizon.
-    private sealed class LevelDays(double horizon) : ITrajectoryValue
+    internal sealed class LevelDays(double horizon) : ITrajectoryValue
     {
-        public ColonyValueResult Price(ColonyTrajectory trajectory) => new(Known(trajectory.Skills.Where(t => t.Skill == "Medicine").Sum(t =>
+        /// <summary>The runs priced.</summary>
+        internal int Priced { get; private set; }
+
+        public bool Reads(SkillTrack track) => track.Skill == "Medicine";
+
+        public ColonyValueResult Price(ColonyTrajectory trajectory)
+        {
+            Priced++;
+            return Value(trajectory);
+        }
+
+
+        private ColonyValueResult Value(ColonyTrajectory trajectory) => new(Known(trajectory.Skills.Where(t => t.Skill == "Medicine").Sum(t =>
             (t.StoredLevel * horizon) + t.Dates.Select((d, i) => (d.StoredLevel - (i == 0 ? t.StoredLevel : t.Dates[i - 1].StoredLevel)) * (horizon - d.Day)).Sum())), []);
 
         public double GoalValue(GoalTerminal goal, double? completionDay) => 0;
@@ -55,6 +67,8 @@ public sealed class SkillStockTests
     // A value of the medicine left at the horizon, each kind at its own weight.
     private sealed class MedicineLeft(IReadOnlyDictionary<string, double> weights) : ITrajectoryValue
     {
+        public bool Reads(SkillTrack track) => false;
+
         public ColonyValueResult Price(ColonyTrajectory trajectory) =>
             new(Known(trajectory.MedicineKinds.Select((k, i) => weights[k.Value] * trajectory.Events[^1].Medicine[i]).Sum()), []);
 

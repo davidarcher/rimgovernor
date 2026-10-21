@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using RimGovernor.Brain.Policy;
+using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
 
@@ -74,6 +75,41 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         Assert.DoesNotContain("skill/Anna/Medicine", marginals.PerUnit.Keys);
         Assert.Contains(ColonyValue.MedicineSkillValueUnassessed + ":pawns_unknown", marginals.Findings);
         Assert.True(marginals.PerHour["research:Devilstrand"] > 0);
+    }
+
+    [Fact]
+    public void ASkillNoPriceReadsIsWorthNothingWithoutARun()
+    {
+        // #3664: a run per stock cost a tenth of a review; only a stock the value reads is run one level higher.
+        var input = ProjectGraphTests.Colony();
+        input = input with
+        {
+            Pawns = Known(EquatableArray.From(new[] { SkillStockTests.WithMedicine(ProjectGraphTests.Pawn("Anna", null, null), SkillStockTests.Mechanics(3, 0), "Cooking", "Plants") })),
+        };
+        var valuation = new SkillStockTests.LevelDays(CalendarRules.YearDays);
+
+        var marginals = ProjectMarginalValue.Of(input, Policy(new ProjectGraph()), valuation);
+
+        Assert.True(marginals.PerUnit["skill/Anna/Medicine"] > 0);
+        Assert.Equal(0, marginals.PerUnit["skill/Anna/Cooking"]);
+        Assert.Equal(0, marginals.PerUnit["skill/Anna/Plants"]);
+        // The baseline, Medicine one level higher and the colony's one medicine kind one unit more: Cooking and Plants are not run.
+        Assert.Equal(3, valuation.Priced);
+    }
+
+    [Fact]
+    public void ColonyValueReadsADoctorsTendSkillOnlyWhileRaidsAreExpected()
+    {
+        var curve = new SkillStatCurve(ColonyValue.TendQualityStat, "Medicine", EquatableArray.From(new[] { new SkillStatLevel(0, 0.2) }), "test");
+        var anna = ProjectGraphTests.Pawn("Anna", null, null) with { SkillStatCurves = EquatableArray.From(new[] { curve }) };
+        ColonyValue Value(HarmInputs harm) => new(Context(harm, wearers: 1), [], CalendarRules.YearDays, Known(EquatableArray.From(new[] { anna })), new ItemFacts());
+        SkillTrack Track(string pawn, string skill) => new() { Key = ProjectGraph.SkillKey(pawn, skill), Pawn = pawn, Skill = skill };
+
+        var raids = Value(ForecastValueTests.RaidDay());
+        Assert.True(raids.Reads(Track("Anna", "Medicine")));
+        Assert.False(raids.Reads(Track("Anna", "Cooking")));
+        Assert.False(raids.Reads(Track("Bo", "Medicine")));
+        Assert.False(Value(ForecastValueTests.RaidDay(raidsPerDay: 0)).Reads(Track("Anna", "Medicine")));
     }
 
     [Fact]

@@ -9,8 +9,9 @@ namespace RimGovernor.Brain.Policy;
 // trajectory, and an hour of work is worth the goal's value at the day it completes less its value at the day it would have.
 //
 // Skills and medicine (#3634, #3344): each pawn's stock of each skill is run again one stored level higher, its XP toward the next level
-// kept; the value of that level divided by the native XP it takes is the value of one XP. A stock at the top level is worth nothing
-// more by XP. Each medicine kind held is run again with one more unit.
+// kept; the value of that level divided by the native XP it takes is the value of one XP. A stock at the top level, or one the value
+// does not read (ITrajectoryValue.Reads, #3664), is worth nothing more by XP and is not run. Each medicine kind held is run again
+// with one more unit.
 
 /// <summary>What a tier-2 trajectory is worth (<see cref="ColonyValue"/>; a test may price it otherwise).</summary>
 public interface ITrajectoryValue
@@ -19,6 +20,12 @@ public interface ITrajectoryValue
 
     /// <summary>A goal's worth completed on <paramref name="completionDay"/> (null: not inside the horizon).</summary>
     double GoalValue(GoalTerminal goal, double? completionDay);
+
+    /// <summary>
+    /// Whether <see cref="Price"/> reads the stock's level (#3664). A stock no price reads is worth 0 per XP by construction, so
+    /// <see cref="ProjectMarginalValue.Of"/> writes 0 for it without a run.
+    /// </summary>
+    bool Reads(SkillTrack track);
 }
 
 /// <summary>The tier-2 run of a review and what an hour of each valued project is worth in it.</summary>
@@ -107,14 +114,19 @@ public static class ProjectMarginalValue
                 }
             }
 
-            // Each pawn's stock of each skill one level higher, over the XP that level takes; a stock at the top level gains nothing by XP.
+            // Each pawn's stock of each skill the value reads one level higher, over the XP that level takes; a stock at the top level
+            // gains nothing by XP, nor does a priced stock the value does not read (#3664: its run would change nothing).
             foreach (var track in baseline.Skills)
             {
-                if (track.NextLevelXp is { } levelXp)
+                if (track.NextLevelXp is not { } levelXp)
+                {
+                    perUnit[track.Key] = 0;
+                }
+                else if (valuation.Reads(track))
                 {
                     Perturb(track.Key, levelXp);
                 }
-                else
+                else if (!value.Unpriced.Contains(track.Key))
                 {
                     perUnit[track.Key] = 0;
                 }

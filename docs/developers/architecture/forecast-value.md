@@ -323,7 +323,9 @@ kind, best potency first, and raid tending (`ColonyModelPolicy.MedicineTendsPerD
 harm model's raid wounds per pawn, batched at their mean severity under the native cap of 20 per treatment) uses up the best kind
 first. `ProjectMarginalValue` values one XP as one level more over the XP that level takes: it runs each pawn's stock of each skill
 again one stored level higher, its XP toward the next level kept (`SkillStock.Raise`), and divides the value difference by the native
-`RequiredXp` of the observed level (`SkillTrack.NextLevelXp`). A stock at the top level is worth 0 per XP. Each medicine kind is
+`RequiredXp` of the observed level (`SkillTrack.NextLevelXp`). A stock at the top level is worth 0 per XP. Only a stock the value
+reads is run (`ITrajectoryValue.Reads`, #3664): for `ColonyValue` that is each doctor's stock of its tend quality curve's skill
+(Medicine) while raids are expected; any other priced stock is worth 0 per XP by construction and is written without a run. Each medicine kind is
 perturbed by one unit. The values per XP and per unit go to `PerUnit` under the stock key and `medicine/<kind>`; the `colony_model` event logs each stock's
 value per XP (`skill_per_xp`), and `production/skill-marginal` (#3663) proves a live review prices the staged colonist's Medicine stock.
 
