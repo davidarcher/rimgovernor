@@ -500,6 +500,13 @@ public sealed record SettingsEffect
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<FieldResult>))]
     public EquatableArray<FieldResult> Fields { get; init; }
+
+    /// <summary>
+    /// The requested work types a work settings write skipped because the pawn can no longer do them at apply (the
+    /// game holds them at 0), in request order; empty for any other write.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> SkippedWork { get; init; }
 }
 
 /// <summary>

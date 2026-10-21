@@ -414,6 +414,7 @@ public sealed partial class Executor
                     stockpiles[j] = receipts[j].Stockpiles;
                     combat[j] = receipts[j].Combat;
                     refusals[j] = receipts[j].Refusal;
+                    results[sent[j]] = results[sent[j]] with { SkippedWork = receipts[j].SkippedWork };
                 }
                 Exception? check = null;
                 try

@@ -74,11 +74,18 @@ namespace HomeBridge.BridgeTools
             return area != null && NativeWorkSettings.AreaReachable(pawn, area);
         }
 
-        // Holds says whether every requested field already reads as asked.
+        // The game's work type disabling for the pawn, by def name; an undefined type is not disabled (Resolve refuses it).
+        private static Func<string, bool> Disabled(Pawn pawn) =>
+            name => DefDatabase<WorkTypeDef>.GetNamedSilentFail(name) is { } def && pawn.WorkTypeIsDisabled(def);
+
+        // Holds says whether every requested field already reads as asked. A row
+        // for a type the pawn can no longer do counts as met (DisabledWorkRows).
         private static bool Holds(Pawn pawn, Operations.WorkSettingsIntent intent)
         {
             if (intent.Work.Count > 0 && pawn.workSettings?.Initialized != true) return false;
+            var disabled = Disabled(pawn);
             if (!intent.Work.All(row => {
+                if (DisabledWorkRows.Skipped(row, disabled)) return true;
                 var def = DefDatabase<WorkTypeDef>.GetNamedSilentFail((row.WorkTypeDef ?? ""));
                 return def != null && pawn.workSettings.GetPriority(def) == row.Priority.GetValueOrDefault();
             })) return false;
@@ -111,7 +118,6 @@ namespace HomeBridge.BridgeTools
                     .Require(() => found!.workSettings?.Initialized == true && found.workSettings.EverWork, "the pawn has no work settings")
                     .Require(() => manual.HasValue, "the game's manual-priorities setting is unreadable")
                     .Require(() => intent.Work.All(row => DefDatabase<WorkTypeDef>.GetNamedSilentFail((row.WorkTypeDef ?? "")) != null), "a requested work type is not defined")
-                    .Require(() => intent.Work.All(row => row.Priority.GetValueOrDefault() == 0 || !found!.WorkTypeIsDisabled(DefDatabase<WorkTypeDef>.GetNamed((row.WorkTypeDef ?? "")))), "a requested work type is disabled for the pawn")
                     .Require(() => manual.GetValueOrDefault() || intent.Work.All(row => row.Priority.GetValueOrDefault() == 0 || row.Priority.GetValueOrDefault() == 3), "manual priorities are off, so only 0 or 3 can be set")
                     .Require(() => AreaResolves(intent, found!, out _), "the requested allowed area is missing or unreachable")
                     .Require(() => intent.Schedule == null || intent.Schedule.AssignmentDefs.All(name => DefDatabase<TimeAssignmentDef>.GetNamedSilentFail(name) != null), "a requested timetable assignment is not defined")
@@ -128,9 +134,10 @@ namespace HomeBridge.BridgeTools
             var intent = action.Intent?.WorkSettings;
             var failure = Resolve(intent, context, out var pawn, out var holds);
             if (failure != null || intent is null) throw new InvalidOperationException("Work settings prerequisites changed before apply: " + (failure?.Detail ?? ""));
+            var disabled = Disabled(pawn);
             if (!holds)
             {
-                foreach (var row in intent.Work) pawn.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef ?? ""), row.Priority.GetValueOrDefault());
+                foreach (var row in intent.Work.Where(row => !DisabledWorkRows.Skipped(row, disabled))) pawn.workSettings.SetPriority(DefDatabase<WorkTypeDef>.GetNamed(row.WorkTypeDef ?? ""), row.Priority.GetValueOrDefault());
                 if (intent.AllowedArea != null)
                 {
                     if (!AreaResolves(intent, pawn, out var area)) throw new InvalidOperationException("Requested allowed area is no longer resolvable.");
@@ -141,16 +148,16 @@ namespace HomeBridge.BridgeTools
                         pawn.timetable.SetAssignment(hour, DefDatabase<TimeAssignmentDef>.GetNamed(intent.Schedule.AssignmentDefs[hour]));
                 if (!Holds(pawn, intent)) throw new InvalidOperationException("Native work settings did not take effect.");
             }
-            return new Receipts.EffectEvidence { Effect = Evidence(intent) };
+            return new Receipts.EffectEvidence { Effect = Evidence(intent, DisabledWorkRows.SkippedNames(intent.Work, disabled)) };
         }
 
-        private static Receipts.SettingsEffect Evidence(Operations.WorkSettingsIntent intent)
+        private static Receipts.SettingsEffect Evidence(Operations.WorkSettingsIntent intent, System.Collections.Generic.List<string> skipped)
         {
             var fields = new System.Collections.Generic.List<Receipts.FieldResult>();
             if (intent.Work.Count > 0) fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Work, Outcome = Receipts.FieldOutcome.Applied });
             if (intent.AllowedArea != null) fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.AllowedArea, Outcome = Receipts.FieldOutcome.Applied });
             if (intent.Schedule != null) fields.Add(new Receipts.FieldResult { Field = Receipts.SettingsField.Schedule, Outcome = Receipts.FieldOutcome.Applied });
-            return new Receipts.SettingsEffect { Fields = [.. fields] };
+            return new Receipts.SettingsEffect { Fields = [.. fields], SkippedWork = [.. skipped] };
         }
     }
 }

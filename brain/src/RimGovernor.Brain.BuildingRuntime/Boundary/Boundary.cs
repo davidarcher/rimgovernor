@@ -297,6 +297,10 @@ public static class Boundary
                 {
                     output[i].Bill = AppliedBill(applied.Observed);
                 }
+                if (kind == ActionKind.WorkAssignment)
+                {
+                    output[i].SkippedWork.AddRange(applied.Observed?.Effect?.Settings?.SkippedWork ?? []);
+                }
             }
             else if (result.Outcome?.Refused is { } refused)
             {

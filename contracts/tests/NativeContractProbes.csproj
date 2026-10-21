@@ -42,6 +42,8 @@
     <Compile Include="NativeContractProbes/native-home-coverage/Program.cs" />
     <Compile Include="NativeContractProbes/native-daylight-hours/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/DaylightHours.cs" Link="Production/DaylightHours.cs" />
+    <Compile Include="NativeContractProbes/native-work-rows/Program.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/DisabledWorkRows.cs" Link="Production/DisabledWorkRows.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/HomeCoverageGeometry.cs" Link="Production/HomeCoverageGeometry.cs" />
     <Compile Include="NativeContractProbes/native-time-controls/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/TimeControlsPolicy.cs" Link="Production/TimeControlsPolicy.cs" />

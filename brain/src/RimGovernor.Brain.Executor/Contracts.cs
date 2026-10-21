@@ -151,6 +151,9 @@ public sealed class Receipt
     /// <summary>The native bill an applied production_bill's or surgery's evidence names.</summary>
     public string Bill { get; set; } = "";
 
+    /// <summary>The work types an applied work_assignment skipped because the pawn could no longer do them.</summary>
+    public List<string> SkippedWork { get; } = [];
+
     /// <summary>Native's own account of a refused write; null when the receipt is not a native refusal.</summary>
     public NativeRefusal? Refusal { get; set; }
 }
@@ -184,6 +187,9 @@ public sealed record ExecutorResult
     public IReadOnlyList<Refusal> Refused { get; init; } = [];
 
     public bool NativeCalled { get; init; }
+
+    /// <summary>The work types the applied write skipped as no longer doable (the dispatch row's skipped_work); empty otherwise.</summary>
+    public IReadOnlyList<string> SkippedWork { get; init; } = [];
 }
 
 /// <summary>One action's outcome of <see cref="Executor.RunBatchAsync"/>: its dispatch result and the error it ended with, if any.</summary>

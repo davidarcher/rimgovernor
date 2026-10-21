@@ -948,6 +948,10 @@ public sealed partial class Worker
         }
         attrs["receipt"] = receipt;
         attrs["running"] = running;
+        if (result.SkippedWork.Count > 0)
+        {
+            attrs["skipped_work"] = string.Join(",", result.SkippedWork);
+        }
         if (after.Refusal.TryGetValue(out var refusal) && receipt == Wire.Name(Domain.Receipt.Refused))
         {
             attrs["refusal_class"] = Wire.Name(refusal.Class);

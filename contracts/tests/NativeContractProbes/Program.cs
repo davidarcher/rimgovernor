@@ -40,6 +40,7 @@ internal static class NativeContractProbesDispatcher
                 case "native-authority-control": NativeAuthorityControlProbe.Invoke(); return 0;
                 case "native-authority-status": NativeAuthorityStatusProbe.Invoke(); return 0;
                 case "native-observation-work": NativeObservationWorkProbe.Invoke(); return 0;
+                case "native-work-rows": NativeWorkRowsProbe.Invoke(); return 0;
                 case "native-threat-classifier": NativeThreatClassifierProbe.Invoke(); return 0;
                 case "native-acquisition-token": NativeAcquisitionTokenProbe.Invoke(); return 0;
                 case "native-construction-causality": NativeConstructionCausalityProbe.Invoke(); return 0;
