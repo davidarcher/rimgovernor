@@ -38,7 +38,7 @@ namespace HomeBridge.BridgeTools
                 var second = GetOrGenerateMapUtility.GetOrGenerateMap(tile, new IntVec3(75, 1, 75), null);
                 if (second == null || ReferenceEquals(second, home)) throw new InvalidOperationException("Second map was not generated");
                 if (!ReferenceEquals(Find.CurrentMap, home)) Current.Game.CurrentMap = home;
-                return new MapScopeReply { Success = true, HomeMapId = home.uniqueID, SecondMapId = second.uniqueID, ViewedMapId = Find.CurrentMap.uniqueID };
+                return FixtureKit.Reply(new MapScopeReply { Success = true, HomeMapId = home.uniqueID, SecondMapId = second.uniqueID, ViewedMapId = Find.CurrentMap.uniqueID });
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -52,7 +52,7 @@ namespace HomeBridge.BridgeTools
                 var map = Find.Maps.FirstOrDefault(m => m.uniqueID == mapId);
                 if (map == null) throw new ArgumentException("No loaded map with id " + mapId);
                 Current.Game.CurrentMap = map;
-                return new MapScopeReply { Success = true, ViewedMapId = Find.CurrentMap.uniqueID };
+                return FixtureKit.Reply(new MapScopeReply { Success = true, ViewedMapId = Find.CurrentMap.uniqueID });
             }, cancellationToken).ConfigureAwait(false);
         }
     }

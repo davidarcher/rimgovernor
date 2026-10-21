@@ -54,7 +54,7 @@ namespace HomeBridge.BridgeTools
                     var drill = (Building)GenSpawn.Spawn(ThingMaker.MakeThing(drillDef), cell, map);
                     drill.SetFaction(Faction.OfPlayer);
                 }
-                return new DeepResourcesReply { Success = true, X = centre.x, Z = centre.z };
+                return FixtureKit.Reply(new DeepResourcesReply { Success = true, X = centre.x, Z = centre.z });
             }, cancellationToken).ConfigureAwait(false);
         }
     }

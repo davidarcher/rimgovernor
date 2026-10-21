@@ -33,7 +33,7 @@ namespace HomeBridge.BridgeTools
                 new Harmony(NativeAuthorityHooks.Owner).Unpatch(status.Method, HarmonyPatchType.All, NativeAuthorityHooks.Owner);
                 var removed = !NativeAuthorityHooks.Statuses.First(h => h.Name == hook).Installed;
                 if (!removed) throw new InvalidOperationException("Hook is still installed after Unpatch");
-                return new RuntimeFaultReply { Success = true, Removed = true, Health = NativeAuthorityHooks.Health.VerifiedTargets, Required = NativeAuthorityHooks.Health.RequiredTargets };
+                return FixtureKit.Reply(new RuntimeFaultReply { Success = true, Removed = true, Health = NativeAuthorityHooks.Health.VerifiedTargets, Required = NativeAuthorityHooks.Health.RequiredTargets });
             }, cancellationToken).ConfigureAwait(false);
         }
     }

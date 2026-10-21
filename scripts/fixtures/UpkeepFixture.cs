@@ -69,11 +69,11 @@ namespace HomeBridge.BridgeTools
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = Find.CurrentMap;
                 var thing = map == null ? null : RefIndex.Thing(map, target);
-                if (thing == null || !thing.Spawned) return new PlayerDesignateReply { Success = false };
+                if (thing == null || !thing.Spawned) return FixtureKit.Reply(new PlayerDesignateReply { Success = false });
                 var prior = map.designationManager.DesignationOn(thing, DesignationDefOf.Deconstruct);
                 if (prior != null) map.designationManager.RemoveDesignation(prior);
                 map.designationManager.AddDesignation(new Designation(thing, DesignationDefOf.Deconstruct));
-                return new PlayerDesignateReply { Success = true, Designated = map.designationManager.DesignationOn(thing, DesignationDefOf.Deconstruct) != null };
+                return FixtureKit.Reply(new PlayerDesignateReply { Success = true, Designated = map.designationManager.DesignationOn(thing, DesignationDefOf.Deconstruct) != null });
             }, cancellationToken);
         }
 

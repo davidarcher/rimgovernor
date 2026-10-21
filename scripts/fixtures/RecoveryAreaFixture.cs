@@ -73,7 +73,7 @@ namespace HomeBridge.BridgeTools
                 var toxic = GameConditionMaker.MakeCondition(DefDatabase<GameConditionDef>.GetNamed("ToxicFallout"), 1200);
                 map.gameConditionManager.RegisterCondition(toxic);
 
-                return new RecoveryAreaReply { Success = true, Pawn = pawn.GetUniqueLoadID(), Refuge = refuge.GetUniqueLoadID(), Outdoor = outdoor.GetUniqueLoadID() };
+                return FixtureKit.Reply(new RecoveryAreaReply { Success = true, Pawn = pawn.GetUniqueLoadID(), Refuge = refuge.GetUniqueLoadID(), Outdoor = outdoor.GetUniqueLoadID() });
             }, cancellationToken).ConfigureAwait(false);
         }
 
