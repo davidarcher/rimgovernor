@@ -805,7 +805,10 @@ standing in the room where it stands plus the asked one, and
 bed is never repacked. A replacement bed is one more asked piece of the same
 list: the new bed is built to the stuff the lever chose (`WantedPiece.Stuff`;
 a piece with a stuff is built, never installed from stock), the old bed stays
-listed until `RemoveOldBedAsync` takes it down. A sculpture is installed from
+listed until `RemoveOldBedAsync` takes it down. While a colonist owns no bed,
+no spare bed is removed (#3592): a barracks of one owned bed reads as its
+owner's solo bedroom, and the spot or bunk beside it is the bedless
+colonist's. A sculpture is installed from
 stock by its own op (`SculptBedroomAsync`) and, like the replaced bed, is not a
 template piece; the owner's reconcile carries every sculpture over (see Stale
 furniture below), so it never packs one. A beauty floor is
