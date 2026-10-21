@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
+using RimGovernor.Fixtures.Contracts;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
@@ -19,7 +20,7 @@ namespace HomeBridge.BridgeTools
     {
         private static Map tracked;
         private static readonly HashSet<string> corpses = new HashSet<string>();
-        private static double meatUnits, leatherUnits;
+        private static int meatUnits, leatherUnits;
         private static bool patched;
         private static Thing table;
         private static WorkTypeDef CookingWork => ExtraWorkTypeDefOf.Cooking;
@@ -75,7 +76,7 @@ namespace HomeBridge.BridgeTools
                     harmony.Patch(AccessTools.Method(typeof(Corpse), nameof(Corpse.ButcherProducts)), postfix: new HarmonyMethod(typeof(HuntLedgerFixture), nameof(Products)));
                     patched = true;
                 }
-                return Audit(map);
+                return FixtureKit.Reply(new FixtureDone { Success = true });
             }, cancellationToken);
         }
 
@@ -113,21 +114,15 @@ namespace HomeBridge.BridgeTools
                 var bill = (Bill_Production)DefDatabase<RecipeDef>.GetNamed("ButcherCorpseFlesh").MakeNewBill();
                 bill.repeatMode = BillRepeatModeDefOf.Forever;
                 ((IBillGiver)table).BillStack.AddBill(bill);
-                return new { success = true, corpse = id, hauls = 2 };
+                return FixtureKit.Reply(new HuntButchered { Success = true, Corpse = id });
             }, cancellationToken);
         }
 
         [Tool("test/ledger_hunt_observe", Description = "Read the fixture's independent deer corpse and butchered product tallies; no mutations.")]
         public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
-            return await ctx.MainThread.InvokeAsync<object>(() => Audit(tracked ?? Find.CurrentMap), cancellationToken);
-        }
-
-        private static object Audit(Map map)
-        {
-            var remaining = map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).OfType<Corpse>().Count(c => c.InnerPawn.RaceProps.Animal);
-            return new { success = true, tick = Find.TickManager.TicksGame, kills = corpses.Count, corpseIds = corpses.OrderBy(c => c, StringComparer.Ordinal).ToList(),
-                butcherMeat = meatUnits, butcherLeather = leatherUnits, corpsesLeft = remaining };
+            return await ctx.MainThread.InvokeAsync<object>(() => FixtureKit.Reply(new HuntTally { Tick = Find.TickManager.TicksGame, Kills = corpses.Count,
+                ButcherMeat = meatUnits, ButcherLeather = leatherUnits }), cancellationToken);
         }
     }
 }
