@@ -73,8 +73,9 @@ The open drops whatever was queued and clears the loss counter, so a started or 
 its first step plans Full. Each batch is read against the current world's context: another world's event is ignored,
 and a context that does not match the held authority ends it. A batch wakes the step loop with its invalidated families
 and sections, an authority change, or a native hold (a hold the brain requested is not a wake). A change in the loss
-counter, or a batch that could not be read against a context, writes a `colony_events_lost` row and makes the next step
-Full. Reading an event acknowledges nothing and never resumes time.
+counter writes a `colony_events_lost` row and makes the next step Full. A batch whose context read failed (a game thread
+busy past the call bound) is held and read again with backoff, writing a `colony_events_delayed` row per failed read: it
+is late, not lost, so it makes no step Full. Reading an event acknowledges nothing and never resumes time.
 
 Nothing reviews or acknowledges holds. A held clock resumes only through a `Run` whose `planned_hold_serial` is the
 serial the step read (#3414): a hold native took after that read bumps the serial, native refuses the stale `Run`, and

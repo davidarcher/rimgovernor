@@ -88,6 +88,8 @@ public sealed class ClockRunDriverTests
         private int _appended;
         private long _pushed;
         private int _blockedContextReads;
+        private int _contextTimeouts;
+        private int _timedOutContextReads;
         private ulong _generation = StartGeneration;
         private bool _active;
         private bool _held = true;
@@ -148,6 +150,12 @@ public sealed class ClockRunDriverTests
 
         /// <summary>The bare context reads waiting on <see cref="ContextGate"/>.</summary>
         public int BlockedContextReads => Volatile.Read(ref _blockedContextReads);
+
+        /// <summary>How many of the next bare context reads time out, as a read the call bound cancelled does.</summary>
+        public int ContextTimeouts { get => Volatile.Read(ref _contextTimeouts); set => Volatile.Write(ref _contextTimeouts, value); }
+
+        /// <summary>The bare context reads that timed out.</summary>
+        public int TimedOutContextReads => Volatile.Read(ref _timedOutContextReads);
 
         /// <summary>
         /// The player asks for a speed in game, as native's RequestSpeed: the speed and a bumped serial go on Status,
@@ -321,8 +329,28 @@ public sealed class ClockRunDriverTests
         private PbClock.StatusReply Failure(PbCommon.FailureCode code) =>
             new() { Outcome = new PbClock.StatusReplyOutcome.FailureCase(new PbCommon.Failure { Code = code, Detail = "refused by the fake native", ObservedContext = Context() }) };
 
+        private bool TakeContextTimeout()
+        {
+            int left;
+            do
+            {
+                left = Volatile.Read(ref _contextTimeouts);
+                if (left <= 0)
+                {
+                    return false;
+                }
+            }
+            while (Interlocked.CompareExchange(ref _contextTimeouts, left - 1, left) != left);
+            return true;
+        }
+
         public async Task<PbObservations.BundleSnapshot?> ReadStepAsync(StepRequest request, CancellationToken ct)
         {
+            if (!request.ClockStatus && TakeContextTimeout())
+            {
+                Interlocked.Increment(ref _timedOutContextReads);
+                throw new TaskCanceledException("the fake context read timed out");
+            }
             if (!request.ClockStatus && ContextGate is { } gate)
             {
                 Interlocked.Increment(ref _blockedContextReads);
@@ -1351,6 +1379,28 @@ public sealed class ClockRunDriverTests
         await UntilAsync(() => rig.Driver.EventsSeen >= before + 1 + ColonyEventChannel.Capacity + 1);
         Assert.Equal(StepCause.Full, wake.TakeInvalidated().Cause);
         Assert.Equal(StepCause.Wake, wake.TakeInvalidated().Cause);
+    }
+
+    [Fact]
+    public async Task AContextReadThatTimesOutDelaysTheBatchAndPlansNoFullStep()
+    {
+        var wake = new WakeSignal();
+        using var rig = await Rig.StartAsync(new RigOptions { Wake = wake });
+        await rig.DeliveredAsync();
+        _ = wake.TakeInvalidated();
+        var before = rig.Driver.EventsSeen;
+
+        // The game thread is busy past the call bound for the batch's first two context reads: the batch is
+        // held and read again, so its event arrives late, once, and wakes the step it names rather than a Full one.
+        rig.Game.ContextTimeouts = 2;
+        rig.Game.Invalidate(PbClock.FactFamily.Pawns);
+        await UntilAsync(() => rig.Driver.EventsSeen > before);
+
+        Assert.Equal(2, rig.Game.TimedOutContextReads);
+        Assert.Equal(before + 1, rig.Driver.EventsSeen);
+        var reason = wake.TakeInvalidated();
+        Assert.Equal(StepCause.Wake, reason.Cause);
+        Assert.Equal(new[] { FactFamily.Pawns }, reason.Families);
     }
 
     [Fact]

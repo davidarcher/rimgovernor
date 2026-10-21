@@ -69,7 +69,8 @@ the first native protective effect.
 | `clock_stop` | event row, one per combat hold the brain resumed from while a fight was open. `event` (the armed combat event), `tick`, `resume_latency_ms` (hold to the resuming `Run`), `over_budget` and `resume_budget_ms` when the resume-latency gate tripped, `ticks_since_stop` |
 | `combat_summary` | event row at combat end. `stops`, `by_event`, `resume_latency_p50_ms`, `resume_latency_p95_ms`, `resume_budget_ms`, `gate_tripped`, `ticks_between_stops_p50`, `ticks_between_stops_p95` |
 | `authority` | event row, the brain's view of its grant: `change` (`lost`, `retaken`; absent when the colony event consumer saw authority change under it), `reason` and the detail attrs; `WARN` for `lost`. Native's own generation moves are `clock_authority` rows ([below](#clock-and-colony-events)) |
-| `colony_events_lost` | event row, component `clock-scheduler`: the brain did not receive some colony events and its next step plans Full. `lost` (native's loss counter since the open: writes that found the queue full), or `events` and `err` (a batch the consumer could not read against the current context). Read in the OTLP timeline. |
+| `colony_events_lost` | event row, component `clock-scheduler`: the brain did not receive some colony events and its next step plans Full. `lost` (native's loss counter since the open: writes that found the queue full). Read in the OTLP timeline. |
+| `colony_events_delayed` | event row, component `clock-scheduler`: the consumer's context read for a batch failed; the batch is held and read again after `retry_ms`, and no step plans Full for it. `events`, `err`, `retry_ms`. Read in the OTLP timeline. |
 
 ### Clock and colony events
 

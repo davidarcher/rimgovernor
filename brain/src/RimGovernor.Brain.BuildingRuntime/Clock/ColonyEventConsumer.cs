@@ -25,7 +25,7 @@ public interface IColonyEventNative
 /// Reads the colony events native pushes, from an open that drops what was queued before it: a started or restarted
 /// brain replays no backlog, and its first step plans Full. Each batch is read against the current world's context:
 /// an event from another world is ignored, and a context that does not match the held authority ends it. A change in
-/// native's loss counter, or a batch that could not be read against a context, wakes a Full step. It never takes the
+/// native's loss counter wakes a Full step; a batch whose context read failed is held and read again. It never takes the
 /// player gate.
 /// </summary>
 internal sealed partial class ColonyEventConsumer(Session session, IColonyEventNative native, WakeSignal? wake, ClockRunConfig config)
@@ -33,8 +33,11 @@ internal sealed partial class ColonyEventConsumer(Session session, IColonyEventN
     // One native queue's worth (ColonyEventChannel.Capacity): a batch never grows past what native can hold.
     private const int BatchLimit = 1024;
 
-    /// <summary>The event row a loss writes (otel-signals.md): native dropped events, or a batch could not be read.</summary>
+    /// <summary>The event row a loss writes (otel-signals.md): native dropped events.</summary>
     internal const string ColonyEventsLostKind = "colony_events_lost";
+
+    /// <summary>The event row a failed context read writes (otel-signals.md): the batch is held and read again.</summary>
+    internal const string ColonyEventsDelayedKind = "colony_events_delayed";
 
     private static readonly TimeSpan BackoffMin = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan BackoffMax = TimeSpan.FromSeconds(2);
@@ -106,8 +109,8 @@ internal sealed partial class ColonyEventConsumer(Session session, IColonyEventN
             }
             catch (Exception)
             {
-                // A failed open or context read backs off from 250 ms to 2 s; a lost batch has already woken Full.
-                backoff = TimeSpan.FromTicks(Math.Min(BackoffMax.Ticks, Math.Max(BackoffMin.Ticks, backoff.Ticks * 2)));
+                // A failed open backs off from 250 ms to 2 s.
+                backoff = Backoff(backoff);
                 try
                 {
                     await Task.Delay(backoff, ct).ConfigureAwait(false);
@@ -119,6 +122,9 @@ internal sealed partial class ColonyEventConsumer(Session session, IColonyEventN
             }
         }
     }
+
+    private static TimeSpan Backoff(TimeSpan previous) =>
+        TimeSpan.FromTicks(Math.Min(BackoffMax.Ticks, Math.Max(BackoffMin.Ticks, previous.Ticks * 2)));
 
     private async Task<PbCommon.ObservationContext> CurrentContextAsync(CancellationToken ct)
     {
@@ -136,19 +142,28 @@ internal sealed partial class ColonyEventConsumer(Session session, IColonyEventN
         !state.Enabled
         || (state.ObservationKnown && Equals(observed.Identity, Boundary.Identity(state.Snapshot)) && observed.NativeGeneration is not null && observed.NativeGeneration.GetValueOrDefault() == (ulong)state.Snapshot.Native.Value);
 
-    // Delivers one batch against the current context. A batch that cannot be read against one is lost: it wakes Full.
+    // Delivers one batch against the current context. A context read that fails (a game thread busy past the call bound)
+    // is retried with the batch held: the batch is delayed, not lost, so it wakes no Full step. Native counts what the
+    // queue drops meanwhile, and that loss still does.
     private async Task DeliverAsync(List<NativeEvents.ColonyEvent> batch, bool lossChanged, CancellationToken ct)
     {
         PbCommon.ObservationContext current;
-        try
+        var backoff = TimeSpan.Zero;
+        while (true)
         {
-            current = await CurrentContextAsync(ct).ConfigureAwait(false);
-        }
-        catch (Exception e) when (e is not OperationCanceledException || !ct.IsCancellationRequested)
-        {
-            ForgetIdentity();
-            Lost(("events", batch.Count), ("err", e.Message));
-            throw;
+            try
+            {
+                current = await CurrentContextAsync(ct).ConfigureAwait(false);
+                break;
+            }
+            catch (Exception e) when (e is not OperationCanceledException || !ct.IsCancellationRequested)
+            {
+                ForgetIdentity();
+                backoff = Backoff(backoff);
+                ClockEvents.Event("clock-scheduler", ColonyEventsDelayedKind, "colony events context read failed; the batch is read again",
+                    ("events", batch.Count), ("err", e.Message), ("retry_ms", backoff.TotalMilliseconds));
+                await Task.Delay(backoff, ct).ConfigureAwait(false);
+            }
         }
         var state = session.State();
         if (!MatchesAuthority(current, state))
