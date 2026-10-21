@@ -174,13 +174,15 @@ public sealed partial class DefinitionCatalog
         def.modContentPack?.PackageId.StartsWith(CorePackagePrefix, StringComparison.OrdinalIgnoreCase) == true;
 
     /// <summary>
-    /// Whether a non-plain precept that needs <paramref name="meme"/> carries a cost the design cannot value: a role (its
-    /// starting skill/ability feasibility is not a plain-precept cost), a ritual with an obligation trigger, or any other
-    /// precept class. A ritual the meme only unlocks and nothing obliges (Cannibal's anytime gladiator duel, #3511) asks
-    /// nothing of the colony.
+    /// Whether a non-plain precept that needs <paramref name="meme"/> carries a cost the design cannot value: a ritual with
+    /// an obligation trigger, or any precept class other than a role. A ritual the meme only unlocks and nothing obliges
+    /// (Cannibal's anytime gladiator duel, #3511) asks nothing of the colony. A role (a specialist's, #3602) is filled by
+    /// skill fit (<c>IdeologyRolesRules.RoleAssignments</c>); its abilities, stat offsets and work restrictions are not
+    /// priced, so the design values the meme on its other precepts.
     /// </summary>
     internal static bool UnlocksUnvaluedPrecept(MemeDef meme, IEnumerable<PreceptDef> precepts) =>
         precepts.Any(p => p.preceptClass != typeof(Precept) && p.requiredMemes.Seq().Contains(meme)
+            && !typeof(Precept_Role).IsAssignableFrom(p.preceptClass)
             && !(p.preceptClass == typeof(Precept_Ritual) && p.ritualPatternBase is { } pattern && !pattern.ritualObligationTriggers.Seq().Any()));
 
     /// <summary>

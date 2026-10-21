@@ -49,6 +49,11 @@ equal costs. Search stops unavailable at 100,000 visited candidates. Unvalued st
 ability, apparel, mental-break and mod effects are unavailable; mandatory ritual
 and other specialized meme choices are excluded when their feasibility cannot
 be established. The selector does not assume unknown obligations cost nothing.
+A meme that unlocks a role (a specialist or leader `Precept_Role`; Rancher,
+Transhumanist, AnimalPersonhood, NaturePrimacy) stays designable: it is scored
+on its other precepts and the role is filled by skill fit
+(`IdeologyRolesRules.RoleAssignments`). The role's abilities, stat offsets and
+work restrictions are not priced yet (#3693).
 
 `ideoligion-reform` composes the `ideology/reform` Need (#3260). It uses the same
 evaluator and a current emergency census; Manual follows the shared suspension

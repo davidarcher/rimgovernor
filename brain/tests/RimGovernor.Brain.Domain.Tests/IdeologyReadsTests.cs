@@ -94,24 +94,33 @@ public sealed class IdeologyReadsTests
     }
 
     [Fact]
-    public void AMemeIsDesignableWhenWhatItUnlocksIsOnlyARitualNothingObliges()
+    public void AMemeIsDesignableWhenWhatItUnlocksIsARoleOrARitualNothingObliges()
     {
-        // #3511: Cannibal unlocks the anytime gladiator duel; a role or an obliged ritual needing the meme has a cost the
-        // design cannot value.
-        var duel = new PreceptDef { defName = "GladiatorDuel", preceptClass = typeof(Precept_Ritual), requiredMemes = [Cannibal], ritualPatternBase = new RitualPatternDef { defName = "GladiatorDuel" } };
-        var blinding = new PreceptDef
-        {
-            defName = "BlindingCeremony", preceptClass = typeof(Precept_Ritual), requiredMemes = [Pure],
-            ritualPatternBase = new RitualPatternDef { defName = "BlindingCeremony", ritualObligationTriggers = [new RitualObligationTrigger_BlindingProperties()] },
-        };
-        var specialist = new PreceptDef { defName = "IdeoRole_PlantSpecialist", preceptClass = typeof(Precept_RoleMulti), requiredMemes = [Nudist] };
-        var plain = new PreceptDef { defName = "Nudity_Male_Required", requiredMemes = [Nudist] };
-        PreceptDef[] precepts = [duel, blinding, specialist, plain];
+        // #3511: Cannibal unlocks the anytime gladiator duel. #3602: Rancher and a leader meme unlock roles, which skill-fit
+        // assignment fills. An obliged ritual or a building precept needing the meme has a cost the design cannot value.
+        // IdeoligionOptions marks a meme Supported only when this rule passes; it is tested here because the options also
+        // need core-content packs and the venerated-animal DefOf, which a unit test cannot build.
+        MemeDef rancher = new() { defName = "Rancher" }, leader = new() { defName = "Leader" }, shrine = new() { defName = "Shrine" };
+        PreceptDef[] precepts =
+        [
+            new() { defName = "GladiatorDuel", preceptClass = typeof(Precept_Ritual), requiredMemes = [Cannibal], ritualPatternBase = new RitualPatternDef { defName = "GladiatorDuel" } },
+            new() { defName = "IdeoRole_AnimalsSpecialist", preceptClass = typeof(Precept_RoleMulti), requiredMemes = [rancher] },
+            new() { defName = "IdeoRole_Leader", preceptClass = typeof(Precept_RoleSingle), requiredMemes = [leader] },
+            new()
+            {
+                defName = "BlindingCeremony", preceptClass = typeof(Precept_Ritual), requiredMemes = [Pure],
+                ritualPatternBase = new RitualPatternDef { defName = "BlindingCeremony", ritualObligationTriggers = [new RitualObligationTrigger_BlindingProperties()] },
+            },
+            new() { defName = "Altar", preceptClass = typeof(Precept_Building), requiredMemes = [shrine] },
+            new() { defName = "Nudity_Male_Required", requiredMemes = [Nudist] },
+        ];
 
         Assert.False(DefinitionCatalog.UnlocksUnvaluedPrecept(Cannibal, precepts));
+        Assert.False(DefinitionCatalog.UnlocksUnvaluedPrecept(rancher, precepts));
+        Assert.False(DefinitionCatalog.UnlocksUnvaluedPrecept(leader, precepts));
+        Assert.False(DefinitionCatalog.UnlocksUnvaluedPrecept(Nudist, precepts));
         Assert.True(DefinitionCatalog.UnlocksUnvaluedPrecept(Pure, precepts));
-        Assert.True(DefinitionCatalog.UnlocksUnvaluedPrecept(Nudist, precepts));
-        Assert.False(DefinitionCatalog.UnlocksUnvaluedPrecept(Nudist, [plain]));
+        Assert.True(DefinitionCatalog.UnlocksUnvaluedPrecept(shrine, precepts));
     }
 
     private static WorkPawn Pawn(string id, string ideo, Fact<double> certainty) =>

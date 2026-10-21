@@ -62,11 +62,12 @@ public sealed class ThemePresetHoldableTests
         Assert.Empty(faults);
     }
 
-    // #3511: the catalog marks a meme unsupported when a role or an obliged ritual needs it, so no starting design could
-    // hold a preset naming it. Over the installed defs, Cannibal unlocks only the anytime gladiator duel; Transhumanist,
-    // AnimalPersonhood, NaturePrimacy and Rancher unlock specialist roles, so this checks the naked-cannibals preset.
+    // #3511, #3602: the catalog marks a meme unsupported when an obliged ritual or another unvalued precept class needs
+    // it, so no starting design could hold a preset naming it. Over the installed defs, Cannibal unlocks only the anytime
+    // gladiator duel and Transhumanist, AnimalPersonhood, NaturePrimacy and Rancher unlock specialist roles, which the
+    // design leaves to skill-fit assignment.
     [Fact]
-    public void TheNakedCannibalsMemesUnlockNoPreceptTheDesignCannotValue()
+    public void NoPresetMemeUnlocksAPreceptTheDesignCannotValue()
     {
         var data = Path.Combine(
             typeof(ThemePresetHoldableTests).Assembly.GetCustomAttributes<AssemblyMetadataAttribute>().Single(a => a.Key == "RimWorldDir").Value!,
@@ -92,14 +93,15 @@ public sealed class ThemePresetHoldableTests
             ritualPatternBase = patterns.GetValueOrDefault(Text(d.Value, "ritualPatternBase")),
         }).ToList();
 
-        var preset = ThemePresetCatalog.All.Single(p => p.Id == "naked-cannibals");
-        var named = preset.Members.Select(m => m.Goal).OfType<GoalRecord>().Where(g => g.Kind == GoalKind.Meme).Select(g => g.Target).ToList();
+        var named = ThemePresetCatalog.All.SelectMany(p => p.Members).Select(m => m.Goal).OfType<GoalRecord>()
+            .Where(g => g.Kind == GoalKind.Meme).Select(g => g.Target).Distinct().ToList();
 
-        Assert.Equal(["Nudism", "Cannibal"], named);
+        Assert.Contains("Rancher", named);
+        Assert.Contains("Transhumanist", named);
+        Assert.Contains(precepts, p => typeof(RimWorld.Precept_Role).IsAssignableFrom(p.preceptClass) && p.requiredMemes.Any(m => m.defName == "Rancher"));
         Assert.DoesNotContain(named, m => DefinitionCatalog.UnlocksUnvaluedPrecept(Meme(m), precepts));
-        // The rule still bites on the installed defs: a specialist role needs Rancher, an obliged blinding ceremony Blindsight.
-        Assert.True(DefinitionCatalog.UnlocksUnvaluedPrecept(Meme("Rancher"), precepts));
-        Assert.Contains(precepts, p => p.defName == "BlindingCeremony" && p.ritualPatternBase?.ritualObligationTriggers.Count > 0);
+        // The rule still bites on the installed defs: an obliged blinding ceremony needs Blindsight.
+        Assert.True(DefinitionCatalog.UnlocksUnvaluedPrecept(Meme("Blindsight"), precepts));
     }
 
     // Every non-abstract def of the element type under data/<pack>/Defs, with its ParentName chain (by the Name attribute).
