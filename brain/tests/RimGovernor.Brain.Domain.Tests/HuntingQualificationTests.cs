@@ -113,6 +113,22 @@ public sealed class HuntingQualificationTests
         Assert.False(HuntingQualification.PreyDowned(request, Sample(1) with { Actors = [Actor("h0"), Actor("p0") with { Downed = false }] }));
     }
 
+    [Fact]
+    public void TheComparisonSetsTheAnalyticEstimateBesideTheSimulatorAndWhateverNativeTrialsRan()
+    {
+        var (predictions, trials) = Grid(harmed: cell => cell == "boar-h1", trialsPerCell: 2);
+        var analytic = predictions.Select(p => p.Cell == "boar-h1" ? p with { Analytic = new(true, 0.4, 0.01, 0.9, 700, 900) }
+            : p.Cell == "boar-h2" ? p with { AnalyticRefusal = "hunt_read_missing" } : p).ToArray();
+        var rows = HuntingQualification.Compare(analytic, trials.Where(t => t.Cell != "boar-h3").ToArray());
+        var boar = rows.Single(c => c.Cell == "boar-h1");
+        Assert.Equal((1.0, 1.0, 400), (boar.SimulatorHarm, boar.SimulatorDowned, boar.SimulatorMedianTicks));
+        Assert.Equal((true, 0.4, 0.01, 0.9, 900.0), (boar.AnalyticRiskEstimated, boar.AnalyticHarm!.Value, boar.AnalyticDeath!.Value, boar.AnalyticDowned!.Value, boar.AnalyticTicks!.Value));
+        Assert.Equal((2, 1.0, 1.0, 400), (boar.NativeTrials, boar.NativeHarm!.Value, boar.NativeDowned!.Value, boar.NativeMedianTicks!.Value));
+        Assert.Equal("hunt_read_missing", rows.Single(c => c.Cell == "boar-h2").AnalyticRefusal);
+        var untried = rows.Single(c => c.Cell == "boar-h3");
+        Assert.Equal((0, (double?)null, (int?)null), (untried.NativeTrials, untried.NativeHarm, untried.NativeMedianTicks));
+    }
+
     private static EncounterActorOutcome Actor(string id) => new(id, id == "p0", false, 1, 0, false, [], [], [], null, null, null, null, null);
     private static EncounterSample Sample(int seed, bool harm = false) => new(seed, 400, false,
         [Actor("h0") with { Downed = harm }, Actor("p0")]);

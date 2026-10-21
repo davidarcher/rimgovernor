@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -75,6 +76,23 @@ public static class HuntingQualification
         c.Request.Seeds.Count == PredictionSamples && c.Prediction.Status == EncounterStatus.Evidence &&
         c.Prediction.EngineFingerprint.Length != 0 && c.Prediction.Samples.Select(s => s.Seed).SequenceEqual(c.Request.Seeds) &&
         c.Request.Environment is not null;
+
+    /// <summary>Each predicted cell's analytic estimate against the simulator and the native trials of that cell (<see cref="HuntingComparison"/>).</summary>
+    public static IReadOnlyList<HuntingComparison> Compare(IReadOnlyList<HuntingCellPrediction> predictions, IReadOnlyList<HuntingTrial> trials) =>
+        predictions.OrderBy(p => p.Cell, StringComparer.Ordinal).Select(p =>
+        {
+            var samples = p.Prediction.Samples;
+            var native = trials.Where(t => t.Cell == p.Cell && t.Observed is not null).ToArray();
+            double? Rate(Func<HuntingTrial, bool> f) => native.Length == 0 ? null : native.Count(f) / (double)native.Length;
+            var ticks = native.Select(t => t.Observed!.DurationTicks).Order().ToArray();
+            return new HuntingComparison(p.Cell,
+                samples.Count == 0 ? 0 : samples.Count(s => SeriousHarm(p.Request, s)) / (double)samples.Count,
+                samples.Count == 0 ? 0 : samples.Count(s => PreyDowned(p.Request, s)) / (double)samples.Count,
+                PredictedDuration(samples)?.Median ?? 0,
+                p.Analytic?.RiskEstimated ?? false, p.Analytic?.HarmChance, p.Analytic?.DeathChance, p.Analytic?.DownedChance, p.Analytic?.EncounterTicks, p.AnalyticRefusal,
+                native.Length, Rate(t => SeriousHarm(t.Request, t.Observed!)), Rate(t => PreyDowned(t.Request, t.Observed!)),
+                ticks.Length == 0 ? null : ticks[(ticks.Length - 1) / 2]);
+        }).ToArray();
 
     public static HuntingQualificationReport Score(IReadOnlyList<HuntingCellPrediction> predictions, IReadOnlyList<HuntingTrial> trials)
     {
@@ -155,9 +173,26 @@ public sealed record HuntingCellScore(string Cell, int Trials, double PredictedH
     double ObservedDowned, HuntingInterval? PredictedDuration, int NativeMedianDuration, bool HarmCalibrated, bool DownedCalibrated,
     bool DurationWithinTolerance);
 
-/// <summary>One predictor request per cell: 16 independent seeds, with cold/warm/cancel measurements.</summary>
+/// <summary>
+/// One predictor request per cell: 16 independent seeds, with cold/warm/cancel measurements, and the served analytic
+/// estimate of the same scene (<see cref="HuntEstimator"/> over the native hunt read, every hunter at every prey) or
+/// why it refused.
+/// </summary>
 public sealed record HuntingCellPrediction(string Cell, EncounterRequest Request, EncounterPrediction Prediction,
-    double? ColdStartMilliseconds, double? WarmMilliseconds, double? CancellationMilliseconds);
+    double? ColdStartMilliseconds, double? WarmMilliseconds, double? CancellationMilliseconds)
+{
+    public HuntEstimate? Analytic { get; init; }
+    public string AnalyticRefusal { get; init; } = "";
+}
+
+/// <summary>
+/// A cell's analytic estimate beside the simulator's 16 samples and whatever native trials were run (#3533): harm is
+/// <see cref="HuntingQualification.SeriousHarm"/> for the simulator and native, the analytic harm chance for the estimate;
+/// downed is every prey down before the horizon. Never a pass criterion.
+/// </summary>
+public sealed record HuntingComparison(string Cell, double SimulatorHarm, double SimulatorDowned, int SimulatorMedianTicks,
+    bool AnalyticRiskEstimated, double? AnalyticHarm, double? AnalyticDeath, double? AnalyticDowned, double? AnalyticTicks, string AnalyticRefusal,
+    int NativeTrials, double? NativeHarm, double? NativeDowned, int? NativeMedianTicks);
 
 /// <summary>One independent native encounter of a cell.</summary>
 public sealed record HuntingTrial(string TrialId, string Protocol, string Cell, string NativeRunId, int NativeSeed,

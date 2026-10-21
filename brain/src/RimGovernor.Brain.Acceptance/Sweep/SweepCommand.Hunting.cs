@@ -2,7 +2,9 @@ using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Simulation.CombatDispatch;
+using RimGovernor.Contracts.Wire;
 
 namespace RimGovernor.Brain.Acceptance;
 
@@ -147,11 +149,12 @@ public static class SweepHunting
 
     private static async Task PredictAsync(Harness h, string output, Report report, HuntingPredictor predictor, string cell, (string Prey, string Animal, int Count) prey, int hunters, CancellationToken ct)
     {
-        // The scene is observed once natively (seed 1, not collected); only its request is used.
+        // The scene is observed once natively (seed 1, not collected); only its request and its hunt read are used.
         var native = ReadNative(await NativeAsync(h, prey, hunters, 1, ct).ConfigureAwait(false));
         var observed = native.Request ?? throw new AcceptanceException("missing native request");
         var run = await predictor(new HuntingPredictionInput(cell, observed, native.PredictorMods ?? "", output), ct).ConfigureAwait(false);
-        var record = run.Record;
+        var (analytic, refusal) = Analytic(native.HuntRead);
+        var record = run.Record with { Analytic = analytic, AnalyticRefusal = refusal };
         await File.WriteAllTextAsync(Path.Combine(output, HuntingPredictionFile), JsonSerializer.Serialize(record, HuntingJson), ct).ConfigureAwait(false);
         report["cancelled_prediction"] = JsonSerializer.SerializeToNode(run.Cancelled, HuntingJson);
         report["qualified"] = false;
@@ -169,6 +172,15 @@ public static class SweepHunting
         {
             throw new AcceptanceException("Prediction cold/warm runtime gate failed; diagnostic timings retained.");
         }
+    }
+
+    // The served estimate of the scene: every hunter of the read at every prey, as the cell sends them.
+    private static (HuntEstimate? Estimate, string Refusal) Analytic(string? huntRead)
+    {
+        if (string.IsNullOrEmpty(huntRead)) return (null, "hunt_read_missing");
+        var read = JsonSerializer.Deserialize(huntRead, WireJsonContext.Default.HuntActivityRead) ?? throw new AcceptanceException("the hunt read does not decode");
+        var roster = new HuntRoster(EquatableArray.From(read.Hunters.Select(a => a.Pawn)), EquatableArray.From(read.Prey.Select(a => a.Pawn)));
+        return HuntEstimator.Estimate(read, roster);
     }
 
     internal static int HuntingReport(string[] args, TextWriter stdout, TextWriter stderr)
@@ -211,9 +223,11 @@ public static class SweepHunting
             score = score with { Failures = [.. score.Failures, "missing_trial_artifacts:" + missing.Count.ToString(CultureInfo.InvariantCulture)] };
         }
 
+        var comparison = HuntingQualification.Compare(predictions, trials);
         var report = new
         {
             score,
+            comparison,
             missingTrials = missing,
             predictions,
             trials,
@@ -221,6 +235,12 @@ public static class SweepHunting
             review = "Accuracy alone does not pass runtime, reconstruction or scope review. No provider self-certification.",
         };
         File.WriteAllText(Path.GetFullPath(args[1]), JsonSerializer.Serialize(report, HuntingJson));
+        foreach (var c in comparison)
+        {
+            stdout.WriteLine(string.Create(CultureInfo.InvariantCulture,
+                $"{c.Cell}: harm sim={c.SimulatorHarm:0.00} analytic={c.AnalyticHarm:0.00} native={c.NativeHarm:0.00}; downed sim={c.SimulatorDowned:0.00} analytic={c.AnalyticDowned:0.00} native={c.NativeDowned:0.00}; ticks sim={c.SimulatorMedianTicks} analytic={c.AnalyticTicks:0} native={c.NativeMedianTicks}; death analytic={c.AnalyticDeath:0.000}; native trials={c.NativeTrials}{(c.AnalyticRefusal.Length == 0 ? "" : "; refused " + c.AnalyticRefusal)}"));
+        }
+
         stdout.WriteLine(string.Create(CultureInfo.InvariantCulture, $"hunting trials={score.Trials}, cells={score.Cells.Count}, safe={score.SafeObservations}, false-safe={score.FalseSafe}, inversions={score.RankingInversions}; accuracy={score.AccuracyPassed}"));
         return score.AccuracyPassed ? 0 : 1;
     }
@@ -240,6 +260,9 @@ internal sealed record HuntingNativeTrial
     public string? NativeMods { get; init; }
 
     public string? PredictorMods { get; init; }
+
+    /// <summary>The served hunt read of the scene before a shot, as wire JSON (<c>WireJsonContext</c>).</summary>
+    public string? HuntRead { get; init; }
 
     public bool InitialStateMatched { get; init; }
 

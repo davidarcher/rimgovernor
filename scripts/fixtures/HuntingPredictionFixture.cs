@@ -94,6 +94,8 @@ public sealed class HuntingPredictionFixture
             map.roofGrid.RoofAt(c) != null || map.snowGrid.GetDepth(c) != 0 ||
             map.terrainGrid.TerrainAt(c).defName != (stratum == "terrain" && c.z is >= 44 and <= 48 ? "Sand" : "Soil")))
             throw new InvalidOperationException("Native lab environment differs from the observed request.");
+        // The served hunt read of the same scene, before a shot, for the analytic estimate's comparison (#3533).
+        var huntRead = System.Text.Json.JsonSerializer.Serialize(NativeHuntActivity.Read(map), RimGovernor.Contracts.Wire.WireJsonContext.Default.HuntActivityRead);
         var first = new Dictionary<Pawn, int>();
         var last = new Dictionary<Pawn, int>();
         var left = new Dictionary<Pawn, int>();
@@ -162,7 +164,7 @@ public sealed class HuntingPredictionFixture
             stratum == "departure" && p == actors[1] && left.ContainsKey(p) ? 300 : null,
             left.TryGetValue(p, out var exit) ? exit : null)).ToArray());
         return new { request, observed = outcome, nativeRunId = Guid.NewGuid().ToString("N"), nativeBuild = build, nativeMods = mods,
-            predictorMods = Mods(true), revengeFactor = revenge, retaliation = retaliation.Order().ToArray(), initialStateMatched = true,
+            predictorMods = Mods(true), huntRead, revengeFactor = revenge, retaliation = retaliation.Order().ToArray(), initialStateMatched = true,
             note = "Live-game observation; no hypothetical Arena execution or future-RNG read." };
     }
 

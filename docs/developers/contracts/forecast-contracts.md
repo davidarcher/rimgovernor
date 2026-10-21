@@ -392,8 +392,8 @@ reports its actual native observation tick. Decoding does not relabel an older
 census with the caller's requested tick. Policy requires agreement with needs,
 shared work-resource evidence and demand before constructing a coupled request.
 
-`HuntActivityRead` is the hunting part of that frame (#3130, #3533): up to 16 free colonists
-who could hunt and 16 wild edible animals (kind, cell, age, xenotype, weapon by def, stuff and quality and its range,
+`HuntActivityRead` is the hunting part of that frame (#3130, #3533): every free colonist
+who could hunt and every unfogged wild edible animal (kind, cell, age, xenotype, weapon by def, stuff and quality and its range,
 apparel, skills, traits, the hediff set by definition and part, missing parts; for prey also downed/mental, herd,
 meat and its nutrition if killed, and the corpse store), each with the game's own combat inputs: a hunter's
 `HuntGunRead` (ShotReport's accuracy and range-band factors, the weapon's hit chance factor at the band edges, warmup
@@ -402,7 +402,7 @@ every pawn's `HuntBodyRead` (body size, health scale, pain shock threshold, curr
 blunt armour, ticks per cell, dodge), and a prey's `HuntMeleeRead` (MeleeDPS's selection-weighted average attack and
 its hit chance) and per-hunter `HuntRevengeRead` (`PawnUtility.GetManhunterOnDamageChance` and the pack's join
 chance); plus the weather's accuracy multiplier. It holds no roster, target or estimate; policy proposes rosters and
-estimates them. Truncation is reported, never silent.
+estimates them.
 
 `ResearchActivityRead` is the research part of that frame (#3527): for the current project (`ResearchManager.GetProject()`;
 none is Known with no workers and the finding `research_no_current_project`), every free colonist who has a job on

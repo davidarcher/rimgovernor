@@ -60,7 +60,6 @@ Build the existing RealCombat Host in Release and install the native fixture wit
 Run a cell with `acceptance sweep hunting-grid-<cell> -workers 1 -seeds a,b,c -root <abs> -output <abs fresh dir>`
 (one cell per call, fresh output directory each). The cell directory holds `prediction/hunting_cell_prediction.json`
 and, per seed, `seed-<n>/native_trial.json` and `seed-<n>/hunting_trial.json`. Aggregate with:
-Aggregate with:
 
 ```text
 RimGovernor.cmd acceptance sweep -hunting-report <absolute-output-directory> <absolute-report.json>
@@ -73,3 +72,25 @@ accepted qualification: reconstruction, runtime, scope and independent review re
 served hunt comparison no longer runs the predictor: it estimates analytically (`HuntEstimator`, #3533), and
 the sweep is that estimate's offline check. A cell is re-run on demand, by name and locally; the remote
 workflows do not run it (#3515).
+
+The report's `comparison` sets, per cell, the simulator's harm, downed and median ticks beside
+`HuntEstimator` on the same scene (every hunter against every prey, decoded from the fixture's native
+`HuntActivityRead`) and whatever native trials ran.
+
+## Analytic against simulator (2026-10-21, #3533)
+
+Seeds 10000-10002 per cell; simulator 16 samples; native 3 trials.
+
+| Cell | Harm sim / analytic / native | Downed sim / analytic / native | Ticks sim / analytic / native |
+| --- | --- | --- | --- |
+| boar-h1 | 0.00 / 0.00 / 0.00 | 0.75 / 1.00 / 0.67 | 2007 / 1489 / 3275 |
+| boar-h2 | 0.00 / 0.00 / 0.00 | 0.81 / 1.00 / 0.67 | 335 / 800 / 324 |
+| grizzly-h2 | 0.56 / 0.89 / 0.67 | 1.00 / 1.00 / 1.00 | 905 / 991 / 905 |
+| herd-h2 | 0.00 / 0.00 / 0.00 | 0.00 / 1.00 / 0.00 | 340 / 4041 / 1154 |
+
+Harm agrees in rank and errs high on the grizzly (no false safe). The boar's observed revenge chance read
+zero in these scenes, so the analytic estimate skipped risk there, as the simulator and the game agreed.
+Downed is optimistic: the estimate does not model prey fleeing out of range, and in herd-h2 it counts the
+whole herd downed within the horizon while the simulator and the game never downed every member. Ticks are
+of the right order except herd-h2. These gaps are recorded, not tuned; harm and death drive the roster
+choice and downed only scales expected nutrition.
