@@ -28,6 +28,9 @@ public sealed record ForecastShelterPlan(ForecastShelterId Room, EquatableArray<
     /// designated roof is finished even where the room already holds its heat, since thermal relief misses the open cells'
     /// heat loss and margin. A planned room still raised by placed construction is not requested development.</summary>
     public EquatableArray<EquatableArray<string>> RoofCells { get; init; }
+    /// <summary>The exchange of the room as it stands now, open roof cells at the game's no-roof rate (#3534): it holds the
+    /// room until its prerequisites finish. Unknown when the ring is open or unread; the room is then open air.</summary>
+    public Fact<double> StandingExchangePerTick { get; init; }
 }
 public sealed record ForecastShelterOutcome(ForecastShelterId Room, Fact<double> CompleteAt,
     Fact<double> TemperatureAtHorizon, EquatableArray<ForecastTemperaturePoint> Trajectory,
@@ -168,17 +171,63 @@ public static class ForecastShelterPolicy
             return new(room.Room, Known(complete), default, [], [.. findings, "unsupported_shelter_temperature_regime"]);
         if (room.Sources.Any(s => s.SupplyTicks.Value < horizon - complete))
             return new(room.Room, Known(complete), default, [], [.. findings, "unknown_shelter_energy_duration"]);
-        // Until the shell completes, open-air equilibrium is the observed current outdoor temperature.
-        if (complete > 0) temperature = outside;
-        var points = new List<ForecastTemperaturePoint> { new(complete, temperature) };
+        // Until the shell completes the room is as it stands, else open air at the observed current outdoor temperature.
+        if (complete > 0) temperature = Standing(room, horizon) is { Count: > 0 } standing ? TemperatureAt(standing, complete) : outside;
+        var points = Project(temperature, complete, horizon, outside, loss, heats);
+        return new(room.Room, Known(complete), Known(points[^1].Temperature), EquatableArray.From(points), EquatableArray.From(findings));
+    }
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastShelterPlan,
+        System.Collections.Concurrent.ConcurrentDictionary<double, EquatableArray<ForecastTemperaturePoint>>> Standings = new();
+
+    /// <summary>
+    /// The room as it stands from tick 0 to <paramref name="horizon"/> (#3534): its observed temperature relaxing to
+    /// outdoors at its <see cref="ForecastShelterPlan.StandingExchangePerTick"/>, heated by its complete sources. Empty when
+    /// the standing exchange, a complete source's mechanics or its supply over the horizon is unknown, or outside the
+    /// heater's full-efficiency regime.
+    /// </summary>
+    internal static EquatableArray<ForecastTemperaturePoint> Standing(ForecastShelterPlan room, double horizon) =>
+        Standings.GetValue(room, static _ => new()).GetOrAdd(horizon, h =>
+        {
+            if (!room.InitialTemperature.TryGetValue(out var temperature) || !room.Outdoors.TryGetValue(out var outside)
+                || !room.StandingExchangePerTick.TryGetValue(out var loss) || !double.IsFinite(loss) || loss <= 0 || room.Interior.Count == 0
+                || temperature > 20 || outside > 20 || Math.Abs(outside - temperature) > 100) return [];
+            var heats = new List<(double Heat, double Target)>();
+            foreach (var s in room.Sources)
+            {
+                if (!s.Complete) continue;
+                if (!s.HeatPerTick.TryGetValue(out var heat) || !s.TargetTemperature.TryGetValue(out var target) || !s.SupplyTicks.TryGetValue(out var supply)
+                    || supply < h || !double.IsFinite(heat) || heat < 0 || !double.IsFinite(target)) return [];
+                heats.Add((heat / room.Interior.Count, Math.Min(20, target)));
+            }
+            return EquatableArray.From(Project(temperature, 0, h, outside, loss, heats.ToArray()));
+        });
+
+    /// <summary>The trajectory's temperature at <paramref name="tick"/>, linear between its points as exposure integrates it.</summary>
+    internal static double TemperatureAt(EquatableArray<ForecastTemperaturePoint> points, double tick)
+    {
+        for (var i = 1; i < points.Count; i++)
+            if (tick <= points[i].Tick)
+            {
+                var a = points[i - 1]; var b = points[i];
+                return a.Temperature + (b.Temperature - a.Temperature) * (tick - a.Tick) / (b.Tick - a.Tick);
+            }
+        return points[^1].Temperature;
+    }
+
+    // The room's mean temperature every equalization interval (120 ticks) from start to horizon.
+    private static List<ForecastTemperaturePoint> Project(double temperature, double start, double horizon, double outside, double loss,
+        (double Heat, double Target)[] heats)
+    {
+        var points = new List<ForecastTemperaturePoint> { new(start, temperature) };
         var targets = heats.Select(h => h.Target).Distinct().Order().ToArray();
-        for (var time = complete; time < horizon;)
+        for (var time = start; time < horizon;)
         {
             var next = Math.Min(horizon, time + 120);
             temperature = Advance(temperature, next - time, outside, loss, heats, targets);
             points.Add(new(next, temperature)); time = next;
         }
-        return new(room.Room, Known(complete), Known(temperature), EquatableArray.From(points), EquatableArray.From(findings));
+        return points;
     }
 
     /// <summary>

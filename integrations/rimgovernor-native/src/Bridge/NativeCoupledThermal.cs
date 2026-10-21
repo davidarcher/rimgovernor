@@ -146,9 +146,12 @@ internal static class NativeCoupledThermal
                 p.GetStatValue(StatDefOf.ConstructionSpeed) > 0
                     ? Fact.Known(65.0 / (p.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7)) : default)).ToArray();
         // Constants are read from this game's mechanics; unsupported versions produce unknown observations.
+        // The roof rates are private consts, so no typed route reaches them: they are read by name.
         var thin = typeof(RoomTempTracker).GetField("ThinRoofEqualizeRate", BindingFlags.Static | BindingFlags.NonPublic);
+        var open = typeof(RoomTempTracker).GetField("NoRoofEqualizeRate", BindingFlags.Static | BindingFlags.NonPublic);
         return new() { Workers = EquatableArray.From(workers), Outdoors = Fact.Known((double)map.mapTemperature.OutdoorTemp),
             ThinRoofExchangePerTick = thin?.GetRawConstantValue() is float rate ? Fact.Known((double)rate) : default,
+            NoRoofExchangePerTick = open?.GetRawConstantValue() is float none ? Fact.Known((double)none) : default,
             WallExchangePerTick = Fact.Known((double)RoomTempTracker.WallEqualizeFactor * RoomTempTracker.FractionWallEqualizeCells * RoomTempTracker.EqualizationPowerOfFilledCells) };
     }
 }

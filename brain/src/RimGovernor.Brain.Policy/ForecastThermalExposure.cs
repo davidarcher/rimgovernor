@@ -2,7 +2,7 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Degree-ticks at modeled stationary work/need locations; idle and unobserved ticks take the last located
+/// <summary>Degree-ticks at modeled stationary work/need locations; a room still to be finished is as it stands (#3534); idle and unobserved ticks take the last located
 /// temperature, else outdoors (#3673), and remain gaps only with neither known.
 /// This is exposure, not injury probability or a physiological capacity estimate.</summary>
 public sealed partial record ForecastThermalExposure(string Pawn, double AssessedTicks, double UnknownTicks,
@@ -76,20 +76,17 @@ public sealed partial record ForecastThermalExposure
                         if (touches) { untouched = false; break; }
                     }
                 }
-                if ((room is null || untouched) && cell.Temperature.TryGetValue(out var ambient)) Integrate(spans, ref assessed, from, end, ambient, ambient, min, max, shifts);
+                // A room still to be finished is as it stands (#3534): it trends to outdoors at its open cells' rate.
+                EquatableArray<ForecastTemperaturePoint> standing = room is null ? [] : ForecastShelterPolicy.Standing(room, horizon);
+                if (untouched && standing.Count > 0) Trajectory(spans, ref assessed, standing, from, end, min, max, shifts);
+                else if ((room is null || untouched) && cell.Temperature.TryGetValue(out var ambient)) Integrate(spans, ref assessed, from, end, ambient, ambient, min, max, shifts);
                 else if (projection is { TemperatureAtHorizon.IsKnown: true, CompleteAt.IsKnown: true })
                 {
-                    if (from < projection.CompleteAt.Value && room!.Outdoors.TryGetValue(out var before))
+                    if (from < projection.CompleteAt.Value && standing.Count > 0)
+                        Trajectory(spans, ref assessed, standing, from, Math.Min(end, projection.CompleteAt.Value), min, max, shifts);
+                    else if (from < projection.CompleteAt.Value && room!.Outdoors.TryGetValue(out var before))
                         Integrate(spans, ref assessed, from, Math.Min(end, projection.CompleteAt.Value), before, before, min, max, shifts);
-                    var points = projection.Trajectory;
-                    for (var index = 1; index < points.Count; index++)
-                    {
-                        var a = points[index - 1]; var b = points[index];
-                        var start = Math.Max(from, a.Tick); var stop = Math.Min(end, b.Tick);
-                        if (stop <= start) continue;
-                        var slope = (b.Temperature - a.Temperature) / (b.Tick - a.Tick);
-                        Integrate(spans, ref assessed, start, stop, a.Temperature + slope * (start - a.Tick), a.Temperature + slope * (stop - a.Tick), min, max, shifts);
-                    }
+                    Trajectory(spans, ref assessed, projection.Trajectory, from, end, min, max, shifts);
                 }
             }
             // A tick at no located allocation (idle, transit, an unread cell) is at the last located temperature, else
@@ -115,6 +112,20 @@ public sealed partial record ForecastThermalExposure
         }
         return new(pawn.Pawn, assessed, Math.Max(0, horizon - assessed), cold, hot)
         { Spans = EquatableArray.Create<ForecastThermalSpan>(System.Runtime.InteropServices.CollectionsMarshal.AsSpan(spans)) };
+    }
+
+    // The part of a piecewise-linear trajectory inside [from, end).
+    private static void Trajectory(List<ForecastThermalSpan> spans, ref double assessed, EquatableArray<ForecastTemperaturePoint> points,
+        double from, double end, double min, double max, (double MinDelta, double MaxDelta, double Start)[] shifts)
+    {
+        for (var index = 1; index < points.Count; index++)
+        {
+            var a = points[index - 1]; var b = points[index];
+            var start = Math.Max(from, a.Tick); var stop = Math.Min(end, b.Tick);
+            if (stop <= start) continue;
+            var slope = (b.Temperature - a.Temperature) / (b.Tick - a.Tick);
+            Integrate(spans, ref assessed, start, stop, a.Temperature + slope * (start - a.Tick), a.Temperature + slope * (stop - a.Tick), min, max, shifts);
+        }
     }
 
     private static void Integrate(List<ForecastThermalSpan> spans, ref double assessed, double from, double to, double initial, double final,

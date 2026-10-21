@@ -97,6 +97,35 @@ public sealed class ObservedShelterTests
     }
 
     [Fact]
+    public void AnOpenRoofRoomAsItStandsTrendsToOutdoorsAtTheGamesNoRoofRate()
+    {
+        // A 20° room at -10° outdoors with an idle heater; two of its six cells are open, or every cell is roofed.
+        static ForecastShelterPlan Standing(bool open)
+        {
+            var facts = Facts() with { PlannedShelters = [] };
+            var thermal = facts.ForecastObserved.Coupled!.Thermal! with
+            {
+                NoRoofExchangePerTick = Known(.0007),
+                Cells = EquatableArray.From(facts.ForecastObserved.Coupled!.Thermal!.Cells.Select(c => Interior.Contains(c.Cell)
+                    ? c with { Temperature = Known(20d), Roof = open && c.Cell.Z == 1 ? "none" : "thin", BuildRoof = open && c.Cell.Z == 1 } : c)),
+                Sources = [new("heater", new(1, 2), true, Known(0d), Known(20d), Known(1e6))],
+            };
+            facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with { Thermal = thermal } } };
+            return ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300)!.Context.Shelters.Single(r => r.Room.Source == ForecastShelterSource.Observed);
+        }
+        var leaky = Standing(true); var roofed = Standing(false);
+        // RoomTempTracker's roof coverage terms: an open cell exchanges at 0.0007 a tick against 0.00005 under thin roof.
+        Assert.Equal(2d / 6 * (.0007 - .00005), leaky.StandingExchangePerTick.Value - roofed.StandingExchangePerTick.Value, 12);
+        // The finished shelter is thin-roofed either way.
+        Assert.Equal(roofed.ExchangePerTick.Value, leaky.ExchangePerTick.Value, 12);
+        var horizon = 2400d;
+        foreach (var room in new[] { leaky, roofed })
+            Assert.Equal(-10 + 30 * Math.Exp(-room.StandingExchangePerTick.Value * horizon),
+                ForecastShelterPolicy.Standing(room, horizon)[^1].Temperature, 9);
+        Assert.True(ForecastShelterPolicy.Standing(leaky, horizon)[^1].Temperature < ForecastShelterPolicy.Standing(roofed, horizon)[^1].Temperature - 1);
+    }
+
+    [Fact]
     public void MissingObservedGeometryOrHeatSourceRemainsExplicit()
     {
         var facts = Facts();

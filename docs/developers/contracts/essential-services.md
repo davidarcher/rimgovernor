@@ -114,7 +114,8 @@ second goal store. Existing ownership-loss and authority cleanup still apply.
 
 The supported shelter estimate remains conditional on observed weather/power and
 modeled stationary use. An untouched planned room retains the observed location's
-baseline temperature; absent future prerequisites do not erase present exposure.
+baseline: the room as it stands, open roof cells at the native no-roof rate (#3534),
+else its observed temperature; absent future prerequisites do not erase present exposure.
 A partially changed or unsupported shell remains unknown. `CompletedDevelopmentSites`
 is physical forecast evidence only, never utility. Clothing delivery retains its
 independently used coverage diagnostic; food runway, building placement/layout,

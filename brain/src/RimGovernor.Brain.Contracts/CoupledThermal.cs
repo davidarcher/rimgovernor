@@ -16,6 +16,8 @@ public sealed record CoupledThermalRead
     public EquatableArray<ThermalRoofRoute> RoofRoutes { get; init; }
     public Fact<double> Outdoors { get; init; }
     public Fact<double> ThinRoofExchangePerTick { get; init; }
+    /// <summary>An unroofed cell's share of the room's exchange with outdoors a tick (RoomTempTracker.NoRoofEqualizeRate, #3534).</summary>
+    public Fact<double> NoRoofExchangePerTick { get; init; }
     public Fact<double> WallExchangePerTick { get; init; }
 }
 /// <summary>A cell's sample. <see cref="DoorHeldOpen"/> is a door's hold-open toggle, not whether it stands open this tick.</summary>

@@ -252,6 +252,17 @@ Missing geometry, unsupported roofing or insufficiently known energy supply keep
 the affected shelter estimate unknown. Per-cell roof labor is conservative because
 native roof jobs may cover neighboring cells.
 
+Until its prerequisites finish, a room behind a closed ring is projected as it stands
+(#3534): from its observed mean temperature, heated by its complete sources, with
+`RoomTempTracker`'s coverage terms as its roof exchange. Each open cell exchanges at
+the native no-roof rate (`NoRoofEqualizeRate`, 0.0007 a tick, against 0.00005 under
+thin roof), so an open-roof room trends to outdoors at the game's rate. That standing
+projection is an untouched room's baseline, the room before its shell completes, and
+the temperature the finished projection starts from. A room with an open or unread
+ring, or with an unknown standing estimate, keeps the earlier constants: the observed
+cell temperature for the baseline, outdoors before completion. Heater duty and outage
+margin are not yet priced.
+
 A room's capability is separate from a pawn's exposure. Only modeled stationary
 work/need occupancy at observed physical cells receives the corresponding ambient
 or completed-room temperature. An outdoor worker gains no protection merely
