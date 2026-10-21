@@ -139,16 +139,6 @@ partial class RoundsSleepingUpkeepPlanner
     internal static string BedroomShellReason(Pol.BedroomStep step) =>
         step.Unhoused <= 0 ? "" : string.Create(CultureInfo.InvariantCulture, $"room for {step.Unhoused} unhoused");
 
-    /// <summary>Builds both from the one stuff the colony can raise a shell from (ShellSharedStuff).</summary>
-    internal static (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) SharedShellStuff(Observation.ColonyProjection facts, Observation.PlanningDefinition wall, Observation.PlanningDefinition door)
-    {
-        if (RoundsAnimalContainment.ShellSharedStuff(facts, wall, door) is not { } stuff)
-        {
-            return ("", "", FieldUnavailable("wall_door_stuff"), false);
-        }
-        return (stuff, stuff, new Verdict(), true);
-    }
-
     /// <summary>Orders the suite queue by the pawns' current bedroom, space and jealousy thoughts; null (pawn-id order) while the mood census is unknown.</summary>
     internal static Dictionary<PawnId, double>? SuitePressure(Observation.ColonyProjection facts) =>
         facts.Facts.MoodPawns.TryGetValue(out var pawns) ? SuitePriorityRules.SuitePressure(pawns) : null;

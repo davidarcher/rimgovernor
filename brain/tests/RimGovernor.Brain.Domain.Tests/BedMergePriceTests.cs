@@ -301,6 +301,29 @@ public sealed class BedMergePriceTests
     }
 
     [Fact]
+    public void AnUnassessedPlannedRoomIsPlacedInTheStuffItsRingIsPricedIn()
+    {
+        // Only a little wood stocked and no trees in reach (#3677): the unselected ring is placed in wood, not in the blocks the colony lacks.
+        var wood = new Resource("WoodLog");
+        var granite = new Resource("BlocksGranite");
+        Obs.PlanningDefinition Def(string name, double work, long count) => new()
+        {
+            Name = name, Available = Known(true),
+            StuffOptions = [Option(granite, count * 0.9, work * 2, count), Option(wood, count * 1.2, work * 0.7, count)],
+        };
+        var colony = new Obs.ColonyProjection
+        {
+            Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
+            Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [wood] = 30 }),
+            Acquisition = Known(default(EquatableArray<AcquisitionSource>)),
+        };
+
+        var (wall, door, _, ok) = RoundsBuildingPlanner.ShellMaterials(colony, ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition, null);
+        Assert.True(ok);
+        Assert.Equal((wood.Value, wood.Value), (wall, door));
+    }
+
+    [Fact]
     public void AShellPieceCostsItsWorkOverADayAndItsMaterialAtItsValue()
     {
         var wood = new Resource("WoodLog");

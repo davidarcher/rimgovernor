@@ -249,7 +249,8 @@ horizon is not selected: it is placed once its room has started.
 (`PlannedRoomGateOf`):
 
 - **Place**: the room is started, or no comparison the record keeps assessed it.
-  It reconciles as before.
+  It reconciles as before, its ring placed in the base ring stuff its planned
+  sites are priced in (the first ring stuff, the cheapest stocked; #3677).
 - **Hold**: assessed, none of its sites selected. The verdict is
   `AwaitingPlan`, subject `portfolio_selection`; nothing is placed, not even template
   pieces, until a later comparison selects it. Planned sites rank as requested

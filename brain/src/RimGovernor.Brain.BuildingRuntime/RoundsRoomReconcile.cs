@@ -43,7 +43,7 @@ internal sealed record RoomReconcile
     /// </summary>
     public bool ClimateOnly { get; init; }
 
-    /// <summary>Overrides the wall's and door's stuff; null builds both from the one shared shell stuff.</summary>
+    /// <summary>Overrides the wall's and door's stuff; null builds both from the ring's base stuff (ShellMaterials).</summary>
     public ShellStuff? Stuff { get; init; }
 }
 
@@ -342,8 +342,9 @@ partial class RoundsBuildingPlanner
     }
 
     /// <summary>
-    /// Chooses the wall's and the door's stuff from the one stuff the colony can raise a shell from; refusal
-    /// names what is unavailable.
+    /// Chooses the wall's and the door's stuff; refusal names what is unavailable. A ring no selection chose stuff for
+    /// is placed in its base ring stuff (the first of PlannedRingStuffsOf: the cheapest stocked stuff the door can also
+    /// be made from), the stuff its planned sites are priced in (#3677).
     /// </summary>
     internal static (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) ShellMaterials(Observation.ColonyProjection facts, string wall, string door, ShellStuff? choose)
     {
@@ -359,13 +360,19 @@ partial class RoundsBuildingPlanner
         {
             return ("", "", FieldUnavailable("wall_door_availability"), false);
         }
-        var (wallStuff, doorStuff, refusal, ok) = choose is not null ? choose(wallDef, doorDef) : RoundsSleepingUpkeepPlanner.SharedShellStuff(facts, wallDef, doorDef);
+        var (wallStuff, doorStuff, refusal, ok) = choose is not null ? choose(wallDef, doorDef) : BaseRingStuff(facts, wall, door);
         if (ok && UnstockedUntilKitAllowed(facts, wallStuff, doorStuff))
         {
             return ("", "", AwaitingPlan("start_kit", "forbidden"), false);
         }
         return (wallStuff, doorStuff, refusal, ok);
     }
+
+    /// <summary>Builds both from the ring's base stuff (PlannedRingStuffsOf); refused when the wall and door share no stuff.</summary>
+    private static (string WallStuff, string DoorStuff, Verdict Refusal, bool Ok) BaseRingStuff(Observation.ColonyProjection facts, string wall, string door) =>
+        Rounder.PlannedRingStuffsOf(facts, wall, door) is [{ Length: > 0 } stuff, ..]
+            ? (stuff, stuff, new Verdict(), true)
+            : ("", "", FieldUnavailable("wall_door_stuff"), false);
 
     /// <summary>
     /// Whether a stuff the ring would be placed in has no accessible stock while the start kit is still
