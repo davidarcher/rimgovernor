@@ -639,8 +639,24 @@ namespace HomeBridge.BridgeTools
             }
             return string.Join(",", parts);
         }
+        /// Why the colony is lost (#2819), null while it is not: the game's
+        /// own GameEnder is ending the game (set on the death or departure
+        /// that left nobody, its game-over letter 400 ticks later), or no
+        /// free colonist is left on the clock's map nor on any other map,
+        /// caravan or travelling transporter. The letter itself never
+        /// force-pauses; this hold is what stops the clock, and nothing opens
+        /// the letter or creates new wanderers.
+        internal static string? ColonyLostDetail(Map map)
+        {
+            if (Find.GameEnder is { gameEnding: true }) return "RimWorld is ending the game: everyone is dead or gone.";
+            if (map.mapPawns.AnyFreeColonistSpawned || PawnsFinder.AllMapsCaravansAndTravellingTransporters_Alive_FreeColonists.Count > 0) return null;
+            return "No free colonist is left on the map, another map, a caravan or a travelling transporter.";
+        }
         private static HoldCause? Probe(State s)
         {
+            // A lost colony outranks every hazard: the last colonist's death
+            // is a colonist_downed hit too, but there is nobody left to review.
+            if (ColonyLostDetail(s.Map) is { } lost) return new HoldCause(Clock.HoldReason.ColonyLost, lost);
             var newLetters = new List<EventLetter>();
             var names = new List<string>();
             var arrived = new List<long>();

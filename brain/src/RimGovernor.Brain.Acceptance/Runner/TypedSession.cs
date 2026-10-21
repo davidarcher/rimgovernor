@@ -331,13 +331,15 @@ public sealed class TypedSession
             service.KeepAuthority(cancellationToken);
 
             // The served clock runs thousands of ticks a second, so the default 2 s poll overshoots a probe's outcome by
-            // thousands of ticks of the budget (#3598); poll as often as a harness-run clock does.
+            // thousands of ticks of the budget (#3598); poll as often as a harness-run clock does. A lost colony ends the
+            // wait at once as colony_lost: the brain never resumes that hold, so waiting on would only stall.
+            var holds = LogTail.Create(LogsPath());
             var ran = await ServedWait.UntilAsync(
                 label,
                 ticks,
                 H.TickAsync,
                 probe,
-                ClockWait(RunAt.RunInterval) with { Terminal = service.Exited },
+                ClockWait(RunAt.RunInterval) with { Terminal = () => service.Exited() ?? ColonyLost(holds) },
                 cancellationToken).ConfigureAwait(false);
             _spent += ran;
             return ran;
@@ -356,6 +358,17 @@ public sealed class TypedSession
             }
         }
     }
+
+    /// <summary>The failure a served wait ends on once native holds the clock for a lost colony (#2819); null until then.</summary>
+    private static AcceptanceException? ColonyLost(LogTail holds)
+    {
+        ArgumentNullException.ThrowIfNull(holds);
+        var lost = holds.Next().FirstOrDefault(row => row.Kind == TelemetryKinds.ClockHold.Name && ClockRows.Reason(row) == ColonyLostReason);
+        return lost is null ? null : new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"{ColonyLostReason}: the colony was lost at tick {ClockRows.Tick(lost)}"));
+    }
+
+    // The failure a served case ends on when its colony is lost: the clock_hold row's reason in its scenario form.
+    private const string ColonyLostReason = "colony_lost";
 
     /// <summary>
     /// The review the brain last persisted in the run's durable journal (its world, cursor tick, enabled flag and

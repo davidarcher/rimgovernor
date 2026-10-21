@@ -96,6 +96,61 @@ public static class HazardCases
             Ops = [InjectTool, PauseModeTool],
             Run = (s, cancellationToken) => RunAsync(s, RunCombatDownedAsync, cancellationToken),
         });
+
+        registry.Register(new TypedCase
+        {
+            Name = "hazard/colony-lost",
+            Scope = "Every colonist killed mid-run at Hyperfast holds the clock as colony_lost, not colonist_downed (#2819): the native game-over check a unit test cannot run.",
+            Ticks = ColonyLostTicks,
+            Tier = CaseTier.OnDemand,
+            QuietWorld = true,
+            // The colony is dead: nothing heals it for the next case.
+            NoKeep = true,
+            Ops = [InjectTool, PauseModeTool],
+            Run = (s, cancellationToken) => RunAsync(s, RunColonyLostAsync, cancellationToken),
+        });
+    }
+
+    // The settle and the hooked detection with room to spare: the kill's own hook lands the hold at the next tick.
+    private const int ColonyLostTicks = 6_000;
+
+    private static async Task RunColonyLostAsync(TypedSession s, CancellationToken cancellationToken)
+    {
+        var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
+        var request = new Clock.RunRequest { ExpectedGeneration = generation, Speed = Clock.Speed.Hyperfast, Policy = Policy };
+        long? startTick = null;
+        Injection? killed = null;
+        var held = await s.RunClockUntilHeldAsync(
+            "hyperfast",
+            s.TicksLeft,
+            request,
+            async (running, token) =>
+            {
+                var tick = running.Context?.Tick ?? 0;
+                startTick ??= tick;
+                if (killed is null && tick >= startTick + SettleTicks)
+                {
+                    killed = await InjectOp("kill_all")(s, token).ConfigureAwait(false);
+                }
+
+                return false;
+            },
+            cancellationToken).ConfigureAwait(false);
+        s.Record("colony_lost", CombatLabKit.Obj(
+            ("kill_tick", killed?.Tick),
+            ("hold_reason", held.Reason?.ToString()),
+            ("hold_tick", held.Context?.Tick),
+            ("detail", held.Detail),
+            ("killed", killed?.Evidence?.DeepClone())));
+        if (killed is null)
+        {
+            throw new AcceptanceException($"the clock held before the kill ({held.Reason}): {held.Detail}");
+        }
+
+        if (held.State != Clock.ClockState.Held || held.Reason != Clock.HoldReason.ColonyLost)
+        {
+            throw new AcceptanceException($"clock {held.State} {held.Reason} after the kill, expected held for ColonyLost: {held.Detail}");
+        }
     }
 
     // The colony policy as a fight's combat watch, armed with the down: no hostile to acknowledge in a quiet world.

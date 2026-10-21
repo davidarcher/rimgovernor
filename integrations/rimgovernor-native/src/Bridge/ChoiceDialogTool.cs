@@ -13,8 +13,12 @@ namespace HomeBridge.BridgeTools
     // IncidentWorker_CaravanMeeting (a player caravan on the world map),
     // QuestPart_Dialog (a quest's own dialog signal), ResearchManager's
     // finished-project completion dialog, ScenPart_GameStartDialog and
-    // GenGameEnd. Every one of them holds TickManager.ForcePaused until an
-    // option is chosen, and headless play has no UI to choose with.
+    // GenGameEnd.EndGameDialogMessage. Every one of them holds
+    // TickManager.ForcePaused until an option is chosen, and headless play
+    // has no UI to choose with. The everyone-dead game over is none of them:
+    // GameEnder sends a ChoiceLetter_GameEnded, which pauses at most as any
+    // letter does and opens no dialog until a player opens it; the clock's
+    // ColonyLost hold stops play there instead (#2819).
     // This is the exact native lookup the colony facts census, the clock's
     // dialog_pause stop and Operations.AnswerDialog share. The one other window
     // it answers is the void awakening confirmation, a force-pausing

@@ -755,6 +755,31 @@ public sealed class ClockRunDriverTests
     }
 
     [Fact]
+    public async Task AColonyLostHoldIsFiledAndNeverRun()
+    {
+        using var rig = await Rig.StartAsync();
+        await rig.DeliveredAsync();
+        Assert.True(await rig.StepAsync());
+
+        rig.Game.Hazard(PbClock.HoldReason.ColonyLost, new NativeEvents.PauseEvidence(true, true, null, null));
+        await rig.DeliveredAsync();
+
+        // A lost colony is terminal (#2819): no step resumes it, and nothing is a fault.
+        Assert.False(await rig.StepAsync());
+        Assert.False(await rig.StepAsync());
+        Assert.True(rig.Game.Held);
+        Assert.Equal(PbClock.HoldReason.ColonyLost, rig.Game.Reason);
+        Assert.Equal(1, rig.Game.Runs);
+
+        var note = new ClockRunDriver.RunNote { Action = "lost", Reason = "colony_lost", HeldFor = PbClock.HoldReason.ColonyLost };
+        var row = ClockRunDriver.RunRow(new ClockSchedulerResult(), note, null, TimeSpan.Zero);
+        Assert.NotNull(row);
+        Assert.Equal("lost", row.Verdict);
+        Assert.Equal("colony_lost", row.Reason);
+        Assert.Equal("HOLD_REASON_COLONY_LOST", row.Attrs["held_for"]);
+    }
+
+    [Fact]
     public async Task ARefusedRunIsRetriedAtTheNextStepNotAFault()
     {
         using var rig = await Rig.StartAsync();

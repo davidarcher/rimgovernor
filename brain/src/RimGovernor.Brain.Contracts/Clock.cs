@@ -138,6 +138,13 @@ public enum HoldReason
     /// </summary>
     [WireName("HOLD_REASON_COLONIST_NEED")]
     ColonistNeed = 26,
+    /// <summary>
+    /// The colony is lost: no free colonist is left on the clock's map or anywhere else the player has one (another map,
+    /// a caravan, a travelling transporter), or the game's own GameEnder is ending the game. Terminal: the brain never
+    /// sends Run on it, never opens the game-over letter and never creates new wanderers (#2819).
+    /// </summary>
+    [WireName("HOLD_REASON_COLONY_LOST")]
+    ColonyLost = 27,
 }
 
 /// <summary>

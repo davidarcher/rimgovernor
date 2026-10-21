@@ -13,7 +13,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 //            order newly ready, or an autosave that is due, takes a brain hold. A refused decision never stops a
 //            running clock: native holds on what it sees.
 //   Held     the autosave runs when one is due, and Run resumes the clock when the decision allows it. The Run quotes
-//            the hold serial the step read, so native refuses it when a hold entered after that read.
+//            the hold serial the step read, so native refuses it when a hold entered after that read. A ColonyLost
+//            hold is terminal: it is filed (verdict lost) and never resumed.
 //
 // Because the step only plans, the status and the emergency census are read
 // again here, and the step publishes its own clock_step row while this driver files its own "clock_run" row.
@@ -270,6 +271,14 @@ public sealed partial class ClockRunDriver
         if (!running)
         {
             note.HeldFor = status.Reason;
+            // A lost colony is a result, not a hazard to answer (#2819): the driver files it and never sends Run, so the
+            // clock stays held; nothing opens the game-over letter or creates new wanderers.
+            if (status.Reason == PbClock.HoldReason.ColonyLost)
+            {
+                note.Action = "lost";
+                note.Reason = "colony_lost";
+                return false;
+            }
             // The stop on an armed combat event is the open fight's next decision: the defense planner runs once more
             // against the held world before the clock resumes.
             if (status.Reason == PbClock.HoldReason.CombatEvent && _combatStops.Active && _combatMarkedFor != status.HeldAtUnixMs.GetValueOrDefault())

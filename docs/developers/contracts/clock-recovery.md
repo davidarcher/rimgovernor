@@ -87,7 +87,10 @@ the next step re-plans against the held world.
 consumer must have opened the queue. Events that arrive after the step read a held clock do not refuse the Run: the
 hold serial the Run quotes is the one stale-read guard, so a hold the step did not read is refused at native and
 any other event is planned against by the next step while the clock runs. Native
-tick boundaries must be known (a never-run clock reports `HOLD_REASON_NEVER_RUN`). The decision names the watch mode
+tick boundaries must be known (a never-run clock reports `HOLD_REASON_NEVER_RUN`). A `HOLD_REASON_COLONY_LOST` hold
+is answered before any decision: the driver files a `clock_run` row (verdict `lost`, reason `colony_lost`) and sends no
+`Run`, so the clock stays held; a served acceptance case ends at once with `colony_lost` (#2819). The session journal
+records no clock events, so that row is the loss's record. The decision names the watch mode
 and the acknowledgements the next `Run` carries. A refusal (`stale_facts`, `unknown_facts`, `unsafe_colony`,
 `unreviewed_events` or `first_plan`) only keeps a held clock held; it never stops a running one.
 

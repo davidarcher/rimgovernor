@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
     {
         private static readonly List<Thing> spawned = new List<Thing>();
 
-        [Tool("test/hazard_inject", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: inject one supervisor hazard class into the running colony: op=hostile|downed|injury|predator|cleanup.")]
+        [Tool("test/hazard_inject", Description = "UNSAFE FOR MODEL EXECUTION. Disposable test setup: inject one supervisor hazard class into the running colony: op=hostile|downed|injury|predator|kill_all|cleanup.")]
         public async Task<object> Run(IRimBridgeContext ctx, CancellationToken cancellationToken, string op, string kind = "")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -36,6 +36,7 @@ namespace HomeBridge.BridgeTools
                     case "downed": return Downed(colonists);
                     case "injury": return Injury(colonists);
                     case "predator": return Predator(map, colonists, kind == "" ? "Cougar" : kind);
+                    case "kill_all": return KillAll(map);
                     case "cleanup": return Cleanup(map);
                     default: return Refuse("Unknown op " + op + ".");
                 }
@@ -124,6 +125,19 @@ namespace HomeBridge.BridgeTools
             spawned.Add(predator);
             return new { success = true, predator = predator.GetUniqueLoadID(), pawnId = predator.thingIDNumber, kind = kindDef.defName,
                 prey = prey.GetUniqueLoadID(), x = cell.x, z = cell.z, jobStartTick = predator.CurJob.startTick, tick = Find.TickManager.TicksGame };
+        }
+
+        // Kills every free colonist on the map, so the colony is lost
+        // (#2819): Pawn.Kill is the hook that requests the probe. Nothing
+        // heals this; a case that calls it leaves its game unkept.
+        private static object KillAll(Map map)
+        {
+            var colonists = map.mapPawns.FreeColonists.Where(p => !p.Dead).ToList();
+            if (colonists.Count == 0) return Refuse("No colonist to kill.");
+            foreach (var pawn in colonists) pawn.Kill(null);
+            var left = map.mapPawns.FreeColonists.Count(p => !p.Dead);
+            if (left > 0) return Refuse(left + " colonist(s) survived the kill.");
+            return new { success = true, killed = colonists.Count, tick = Find.TickManager.TicksGame };
         }
 
         // Vanish what the ops spawned, heal every colonist (injuries and the

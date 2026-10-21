@@ -52,6 +52,12 @@ require fresh actual-paused facts for the same identity. An uncertain transport 
 never a blind replay of anything but the idempotent `Run`. Clearing a modal does not resume the clock. Acknowledgement
 belongs to brain inspected-event handling; there is no native acknowledge/delete/resume alias.
 
+`HOLD_REASON_COLONY_LOST` is terminal (#2819). Native raises it, ahead of every hazard, when no free colonist is left
+on the clock's map or anywhere else the player has one (another map, a caravan, a travelling transporter), or when the
+game's `GameEnder.gameEnding` is set. The brain never sends `Run` on it, never opens the game-over letter (a
+`ChoiceLetter_GameEnded`, which does not force-pause) and never creates new wanderers; a lone wanderer who joins later
+is an ordinary arrival.
+
 The journal is read with `ReadEvents`: limits 1–128, rows strictly after the requested cursor, never held. An invalid
 or regressed cursor is an explicit failure; missing history reports loss. A complete page never silently drops rows.
 Typed payloads are `HoldEntered` (reason, evidence, detected tick, occurrence tick) and `Resumed` (speed, from), plus
