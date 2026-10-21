@@ -152,11 +152,7 @@ public static partial class SiteRules
         {
             return c with { Reason = "no free roofed floor for a lamp and a basin" };
         }
-        var cold = false;
-        if (env.OutdoorTemperatureC.TryGetValue(out var outdoor) && outdoor < SiteColdC)
-        {
-            cold = true;
-        }
+        var cold = env.OutdoorTemperatureC < SiteColdC;
         foreach (var room in env.Rooms)
         {
             if (room.TemperatureC.TryGetValue(out var t) && room.GridRoom.TryGetValue(out var gridRoom) && gridRoom.ToString(System.Globalization.CultureInfo.InvariantCulture) == RoomAt(center) && t < SiteColdC)

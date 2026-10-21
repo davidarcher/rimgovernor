@@ -48,7 +48,7 @@ public sealed partial class FacadeNativeClient
         output = output with { Present = true, Type = row.Type ?? "" };
         if (row.Farm is not null)
         {
-            output = output with { Planted = row.Farm.PlantedCells.GetValueOrDefault() };
+            output = output with { Planted = row.Farm.PlantedCells };
         }
         return output;
     }

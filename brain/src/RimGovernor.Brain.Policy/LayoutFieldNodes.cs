@@ -45,12 +45,13 @@ internal sealed partial class GraphBuilder
     /// </summary>
     public List<FieldNode> FieldNodes(IReadOnlyList<RecipeLoad> loads)
     {
-        var colonists = Unknown<long>();
-        if (In.Population.Colonists > 0)
-        {
-            colonists = Known((long)In.Population.Colonists);
-        }
         var output = new List<FieldNode>();
+        // A colony with no colonist sizes no field.
+        long colonists = In.Population.Colonists;
+        if (colonists <= 0)
+        {
+            return output;
+        }
         foreach (var crop in In.Crops)
         {
             if (!crop.Edible.TryGetValue(out var edible) || !edible)

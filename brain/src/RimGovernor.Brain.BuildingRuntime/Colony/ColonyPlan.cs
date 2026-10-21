@@ -227,7 +227,7 @@ public sealed partial class Rounder
                 Tel.Decide(new Decision { Kind = "layout_replan_tiled", Component = "layout", Target = "plan", Verdict = "skipped", Reason = "superseded", Attrs = new Dictionary<string, object?> { ["started_tick"] = pending.Started.Value, ["adopted"] = tick.Value - pending.Started.Value } });
             }
         }
-        projection.Facts.Colonists.TryGetValue(out var pawns);
+        var pawns = projection.Facts.Colonists;
         // The last check is the newer of the saved plan's tick and the last survey this process read; a rewind
         // past it or a restart falls back to the plan's tick.
         var checkedAt = layout.Tick;
@@ -329,7 +329,7 @@ public sealed partial class Rounder
         }
         projection.PowerPlanning.TryGetValue(out var knownTopology);
         FirstPlanUnread = await DeriveLayoutPlanAsync(snapshot, demandWorld, tick, projection, survey, catalog, (knownTopology ?? new PowerTopology()).Geysers, ColonyPlanCut.PerimeterWallOf(projection), ct).ConfigureAwait(false);
-        projection.Facts.Colonists.TryGetValue(out var pawns);
+        var pawns = projection.Facts.Colonists;
         PlanGrownFor = LayoutPlanning.GrownFor(projection);
         PlanPawns = (int)pawns;
         PlanInputs = LayoutInputs.Empty;
@@ -476,8 +476,7 @@ public sealed partial class Rounder
     /// </summary>
     internal async Task<string> DeriveLayoutPlanAsync(GenerationSnapshot snapshot, GenerationSnapshot demandWorld, Tick tick, ColonyProjection projection, MapSurvey survey, DefinitionCatalog catalog, IReadOnlyList<PowerGeyser> geysers, PerimeterWall wall, CancellationToken ct)
     {
-        projection.Facts.Colonists.TryGetValue(out var pawns);
-        var colonists = (int)pawns;
+        var colonists = (int)projection.Facts.Colonists;
         var start = DateTimeOffset.UtcNow;
         var f = StationFactsBuilder.FirstPlanFacts(projection, survey, StationNeeds(demandWorld), WorkLedgerView());
         f = f with { Crops = FieldCrops.Of(projection), FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays, BedMerge = await BedMergeFactsAsync(snapshot, projection, ct).ConfigureAwait(false) };

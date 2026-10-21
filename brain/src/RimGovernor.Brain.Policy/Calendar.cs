@@ -48,9 +48,9 @@ public sealed record Calendar
 /// </summary>
 public sealed record CropGrowth
 {
-    public Fact<long> Planted { get; init; }
+    public long Planted { get; init; }
 
-    public Fact<long> FertilePlanted { get; init; }
+    public long FertilePlanted { get; init; }
 
     public Fact<double> GrowthMean { get; init; }
 
@@ -104,14 +104,12 @@ public sealed record CropGrowth
     /// <summary>The planted cells that grow right now: fertile and inside the crop's growth temperature range. Unknown while a fact is missing.</summary>
     public Fact<long> GrowingCells()
     {
-        var fk = FertilePlanted.TryGetValue(out var fertile);
-        var tk = TemperatureFactor().TryGetValue(out var factor);
-        if (!fk || !tk)
+        if (!TemperatureFactor().TryGetValue(out var factor))
         {
             return Unknown<long>();
         }
 
-        return factor <= 0 ? Known(0L) : Known(fertile);
+        return factor <= 0 ? Known(0L) : Known(FertilePlanted);
     }
 }
 
@@ -212,15 +210,14 @@ public static class CalendarRules
     /// </summary>
     public static Fact<double> HarvestLeadDays(CropGrowth g, Fact<double> growDays, Fact<Calendar> calendar)
     {
-        var pk = g.Planted.TryGetValue(out var planted);
+        var planted = g.Planted;
         var gk = g.GrowthMean.TryGetValue(out var growth);
         var fk = g.FertilityMean.TryGetValue(out var fertility);
         var dk = growDays.TryGetValue(out var days);
         var tk = g.TemperatureFactor().TryGetValue(out var factor);
         var ck = calendar.TryGetValue(out var c);
         if (
-            !pk
-            || planted <= 0
+            planted <= 0
             || !gk
             || !fk
             || !dk

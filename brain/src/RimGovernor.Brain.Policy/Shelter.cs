@@ -12,9 +12,9 @@ public sealed record ShelterFacts
     /// <summary>Whether every colonist owns, and was seen using, a suitable bed and no bedroom step is due.</summary>
     public Fact<bool> SleepingRecovered { get; init; }
 
-    public Fact<long> Colonists { get; init; }
+    public long Colonists { get; init; }
 
-    public Fact<long> IndoorCapacity { get; init; }
+    public long IndoorCapacity { get; init; }
 
     /// <summary>The coldest and warmest sleeping room, each read as the outdoor temperature when no sleeping room is measured.</summary>
     public Fact<double> SleepingMin { get; init; }
@@ -141,7 +141,9 @@ public static partial class ShelterRules
     {
         var met = Unknown<bool>();
         var deficit = Unknown<double>();
-        if (f.Colonists.TryGetValue(out var n) && n > 0 && n < long.MaxValue - LayoutGraphRules.HousingSparePlaces && f.IndoorCapacity.TryGetValue(out var capacity) && capacity >= 0)
+        var n = f.Colonists;
+        var capacity = f.IndoorCapacity;
+        if (n > 0 && n < long.MaxValue - LayoutGraphRules.HousingSparePlaces && capacity >= 0)
         {
             var target = n + LayoutGraphRules.HousingSparePlaces;
             met = Known(capacity >= target);

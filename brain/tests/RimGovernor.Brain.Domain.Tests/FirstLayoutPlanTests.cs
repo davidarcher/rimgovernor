@@ -108,7 +108,7 @@ public sealed class FirstLayoutPlanTests
             Table = new InteriorPieceDef("Table2x2c", new Cell(2, 2), RoomRole.None, null),
             Pin = new InteriorPieceDef("DiningPin", new Cell(1, 1), RoomRole.None, null),
         },
-        Colonists = Fact.Known(colonists),
+        Colonists = colonists,
         Patients = Fact.Known(EquatableArray.From<CarePawn>([])),
         Prisoners = Fact.Known(0),
         WorkPawns = Fact.Known(EquatableArray.From<WorkPawn>([])),

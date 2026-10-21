@@ -73,7 +73,7 @@ internal static class GoalsResearch
             throw new AcceptanceException($"{Project} is not staged unfinished and idle: {row}");
         }
 
-        if (before.Slots.Any(slot => !string.IsNullOrEmpty(slot.CurrentProject)))
+        if (before.Slots.Any(slot => slot.CurrentProject.Length != 0))
         {
             throw new AcceptanceException($"a project is already current: {string.Join(' ', before.Slots.Select(slot => slot.CurrentProject))}");
         }

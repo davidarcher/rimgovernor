@@ -65,7 +65,7 @@ public static partial class SilverGapRules
     /// The silver the colony lacks: the need's rough purchase price plus TradeSilverReserve less the silver on
     /// hand, zero when the need has no purchase or the silver covers it. Unknown while any input is.
     /// </summary>
-    public static Fact<double> SilverGap(ItemFacts items, Fact<TradeNeed> need, Fact<long> silver, Fact<long> colonists)
+    public static Fact<double> SilverGap(ItemFacts items, Fact<TradeNeed> need, Fact<long> silver, long colonists)
     {
         var nk = need.TryGetValue(out var n);
         var sk = silver.TryGetValue(out var s);
@@ -96,7 +96,7 @@ public static partial class SilverGapRules
     /// TradeSilverReserve (a positive SilverGap). The economy/trade Need's exports and sale organ harvests answer it;
     /// unknown while any input is.
     /// </summary>
-    public static Fact<bool> SilverShort(ItemFacts items, Fact<TradeNeed> need, Fact<long> silver, Fact<long> colonists)
+    public static Fact<bool> SilverShort(ItemFacts items, Fact<TradeNeed> need, Fact<long> silver, long colonists)
     {
         if (!SilverGap(items, need, silver, colonists).TryGetValue(out var gap))
         {

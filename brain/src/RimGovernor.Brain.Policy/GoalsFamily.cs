@@ -135,7 +135,7 @@ public sealed record GoalsFacts
 
     public Fact<EquatableArray<Amount>> Stock { get; init; }
 
-    public Fact<long> Colonists { get; init; }
+    public long Colonists { get; init; }
 
     public Fact<EquatableArray<UpkeepAnimal>> Animals { get; init; }
 
@@ -294,7 +294,7 @@ public static partial class GoalRules
                 owner = EconomyFamily.Resource;
                 break;
             case GoalKind.Colonists:
-                (met, deficit) = Shortfall(goal.Count, f.Colonists);
+                (met, deficit) = Shortfall(goal.Count, Fact.Known(f.Colonists));
                 owner = JoinersFamily.Offers;
                 break;
             case GoalKind.Animals:

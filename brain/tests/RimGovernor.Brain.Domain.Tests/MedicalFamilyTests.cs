@@ -220,7 +220,7 @@ public sealed class MedicalFamilyTests
     [Fact]
     public void TheForecastMedicalRowsAreTheFamilysNeeds()
     {
-        var facts = new RoundsFacts { Tick = new(100), Colonists = Known(2L), Fuel = Known<EquatableArray<FuelConsumer>>([]), CriticalPatients = Known(1L) };
+        var facts = new RoundsFacts { Tick = new(100), Colonists = 2L, Fuel = Known<EquatableArray<FuelConsumer>>([]), CriticalPatients = Known(1L) };
         var review = EssentialServicesRules.ReviewEssentialServices(facts, RoundsRules.DefaultRoundsPolicy(), new() { Work = new() { Tick = facts.Tick } });
         var medical = review.Coverage.Where(c => c.Service == EssentialService.Medical).ToArray();
         Assert.Contains(medical, c => c.Target.Owner == MedicalRules.CriticalCensusNeed.FilingKey && c.Coverage == ServiceCoverage.Shortfall);

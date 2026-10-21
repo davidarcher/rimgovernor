@@ -356,7 +356,7 @@ public static partial class MealRules
 
     internal static (BillSelection Selection, bool Ok) SelectMealBill(
         Fact<EquatableArray<ProductionBench>> benches,
-        Fact<long> colonists,
+        long colonists,
         MealTierRequest request,
         IReadOnlyList<string> ingredients
     )
@@ -398,11 +398,7 @@ public static partial class MealRules
         // A standing bill of a chosen recipe that already does the work ends the review; a suspended or undersized
         // one is replaced. Whoever wrote the bill, Auto plans the tier fresh: an older-tier meal bill on any
         // cooking bench is retired by the same replacement, ownership or not.
-        if (!colonists.TryGetValue(out var count))
-        {
-            return (new BillSelection(), false);
-        }
-        var wanted = new BillSelection { Ingredients = ingredients, Mode = BillMode.FoodTarget, Target = (int)(count * 3) };
+        var wanted = new BillSelection { Ingredients = ingredients, Mode = BillMode.FoodTarget, Target = (int)(colonists * 3) };
         // Correct drift even when another matching bill already covers the target.
         foreach (var choice in review.Recipes)
         {

@@ -69,7 +69,7 @@ public static class ZonesReads
             if (row.Farm is { } farm)
             {
                 farms.Add(farm);
-                zoneFacts.Add(new FarmZoneFact { Id = row.Id ?? "", Crop = farm.Crop ?? "", UsableCells = ColonyDecodeReads.Optional(farm.UsableCells is not null, farm.UsableCells.GetValueOrDefault()) });
+                zoneFacts.Add(new FarmZoneFact { Id = row.Id ?? "", Crop = farm.Crop ?? "", UsableCells = farm.UsableCells });
             }
         }
         p = p with { Farms = zoneFacts };

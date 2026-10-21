@@ -35,7 +35,7 @@ public sealed record StationFacts
     public IReadOnlyDictionary<Resource, bool> Perishable { get; init; } = new Dictionary<Resource, bool>();
 
     /// <summary>The colony's people.</summary>
-    public Fact<long> Colonists { get; init; }
+    public long Colonists { get; init; }
 
     /// <summary>Patients and Surgical size the hospital ward as SelectHospitalBed does.</summary>
     public Fact<EquatableArray<CarePawn>> Patients { get; init; }
@@ -483,10 +483,7 @@ public static partial class LayoutStationPlanRules
     /// <summary>The people the graph sizes beds for. Babies sleep in cribs, so they leave the colonists; the injured are colonists who need a medical bed now (IllPatients).</summary>
     public static StationPopulation StationPopulationOf(StationFacts f)
     {
-        if (!f.Colonists.TryGetValue(out var colonists))
-        {
-            throw UnknownStationFact("colonists");
-        }
+        var colonists = f.Colonists;
         var (ill, ok) = HospitalRules.IllPatients(f.Patients, f.Surgical);
         if (!ok)
         {

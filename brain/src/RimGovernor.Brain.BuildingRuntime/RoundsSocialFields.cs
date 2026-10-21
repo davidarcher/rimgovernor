@@ -50,11 +50,7 @@ internal static class RoundsSocialFields
             {
                 if (farm.Crop == crop.Name)
                 {
-                    if (!farm.UsableCells.TryGetValue(out var n))
-                    {
-                        return ([], false);
-                    }
-                    cells += (int)n;
+                    cells += (int)farm.UsableCells;
                 }
             }
             var needed = SocialCropsRules.PlanSocialCrop(crop, projection.CropClimate, cells);

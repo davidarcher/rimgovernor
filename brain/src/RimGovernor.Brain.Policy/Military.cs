@@ -40,7 +40,7 @@ public sealed record MilitaryFacts
     public Fact<long> Unarmed { get; init; }
 
     /// <summary>The colonist count the foothold sizes for (<see cref="RoundsRules.FootholdCount"/>).</summary>
-    public Fact<long> Foothold { get; init; }
+    public long Foothold { get; init; }
 
     /// <summary>The pests in the wild-animal census (<see cref="PestRules.PestCensus"/>).</summary>
     public Fact<int> Pests { get; init; }
@@ -314,7 +314,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     /// </summary>
     public static Fact<bool> DefenseMet(MilitaryFacts f)
     {
-        var armed = f.Foothold.TryGetValue(out var n) ? RoundsRules.Measured(f.Armed, v => v >= Math.Min(2, n)) : Unknown<bool>();
+        var armed = RoundsRules.Measured(f.Armed, v => v >= Math.Min(2, f.Foothold));
         return BasicDefenseRules.BasicDefenseRecovered(RoundsRules.AllFacts(armed, RoundsRules.Measured(f.Hostiles, v => v == 0)), f.Unarmed);
     }
 
@@ -326,7 +326,8 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
             return new Need { Id = Defense, Tier = NeedTier.Wellbeing };
         }
         var deficit = ok ? Known(0.0) : Unknown<double>();
-        if (!ok && f.Foothold.TryGetValue(out var n) && f.Armed.TryGetValue(out var stock) && n > 0)
+        var n = f.Foothold;
+        if (!ok && f.Armed.TryGetValue(out var stock) && n > 0)
         {
             // The armed shortfall's share of the target; with the target armed, the unarmed share of the fighters.
             var target = RoundsRules.ArmedTarget(n);

@@ -158,7 +158,8 @@ public static partial class LayoutComfortChooseRules
     /// </summary>
     internal static IReadOnlyList<ComfortChoice> AdviseComfort(StationFacts f, StationGraph graph, double steel)
     {
-        if (!f.Colonists.TryGetValue(out var colonists) || !f.ExpectedMood.TryGetValue(out var mood) || colonists <= 0 || !f.Catalog.Mood.Break.Valid())
+        var colonists = f.Colonists;
+        if (!f.ExpectedMood.TryGetValue(out var mood) || colonists <= 0 || !f.Catalog.Mood.Break.Valid())
         {
             return [];
         }

@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class EssentialServicesTests
 {
-    private static RoundsFacts Facts() => new() { Tick = new(100), Colonists = Known(2L), Fuel = Known<EquatableArray<FuelConsumer>>([]) };
+    private static RoundsFacts Facts() => new() { Tick = new(100), Colonists = 2L, Fuel = Known<EquatableArray<FuelConsumer>>([]) };
 
     /// <summary>Sleeping rooms inside the comfort band: the shelter/temperature Need is met (#3257).</summary>
     private static RoundsFacts Warm() => Facts() with { SleepingMin = Known(20.0), SleepingMax = Known(22.0) };
@@ -44,7 +44,7 @@ public sealed class EssentialServicesTests
     [Fact]
     public void InactiveColonyNeedsNoFictionalBackupAndBudgetIsVisibleDeterministic()
     {
-        var inactive = Review(Facts() with { Colonists = Known(0L) });
+        var inactive = Review(Facts() with { Colonists = 0L });
         Assert.Empty(inactive.Proposals);
         Assert.Empty(inactive.Stress);
         var limited = Review(Facts(), 1);

@@ -250,7 +250,7 @@ public static partial class ProductionRules
     public static (BillSelection Selection, bool Ok) SelectProductionBill(
         BillPurpose purpose,
         Fact<EquatableArray<ProductionBench>> benches,
-        Fact<long> colonists,
+        long colonists,
         Fact<double> runway,
         Fact<double> atRisk,
         double targetDays,
@@ -258,8 +258,7 @@ public static partial class ProductionRules
     {
         var none = (new BillSelection(), false);
         var known = benches.TryGetValue(out var rows);
-        var ck = colonists.TryGetValue(out var count);
-        if (!known || !ck || count <= 0 || count > 256 || !FieldCapacityRules.FieldPositive(targetDays) || targetDays > 60)
+        if (!known || colonists <= 0 || colonists > 256 || !FieldCapacityRules.FieldPositive(targetDays) || targetDays > 60)
         {
             return none;
         }
@@ -362,7 +361,7 @@ public static partial class ProductionRules
                     Bench = bench.Id,
                     Recipe = recipe.Name,
                     Mode = BillMode.FoodTarget,
-                    Target = (int)(count * 3),
+                    Target = (int)(colonists * 3),
                 };
                 if (context.Length == 1)
                 {

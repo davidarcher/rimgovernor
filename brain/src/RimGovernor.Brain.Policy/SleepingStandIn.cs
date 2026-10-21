@@ -16,8 +16,8 @@ public static partial class ShelterRules
 
     /// <summary>
     /// The stand-in sleeping spots owed this review: the foothold count less the standing sleeping places, while the
-    /// foothold sleeping and indoor places are not both known met; no Missing once they are, or while a count is
-    /// unknown. Count is the foothold count the shortfall is of.
+    /// foothold sleeping and indoor places are not both met; no Missing once they are. Count is the foothold count
+    /// the shortfall is of.
     /// </summary>
     public static (long Count, int Missing) StandInsOwed(RoundsFacts f)
     {
@@ -25,11 +25,8 @@ public static partial class ShelterRules
         {
             return (0, 0);
         }
-        if (!RoundsRules.FootholdCount(f).TryGetValue(out var count) || !f.BedCapacity.TryGetValue(out var beds))
-        {
-            return (0, 0);
-        }
-        return (count, (int)Math.Max(0, count - beds));
+        var count = RoundsRules.FootholdCount(f);
+        return (count, (int)Math.Max(0, count - f.BedCapacity));
     }
 
     /// <summary>

@@ -46,11 +46,11 @@ public sealed record HospitalRequest
     /// The routine counts a conversion must not drop below: the native indoor sleeping capacity excludes medical
     /// beds, so converting a needed bed fails the sleeping gate.
     /// </summary>
-    public Fact<long> Colonists { get; init; }
+    public long Colonists { get; init; }
 
     public Fact<long> HousingTarget { get; init; }
-    public Fact<long> BedCapacity { get; init; }
-    public Fact<long> IndoorCapacity { get; init; }
+    public long BedCapacity { get; init; }
+    public long IndoorCapacity { get; init; }
 
     /// <summary>The count of Doctor-capable colonists; a known zero means nobody could treat a patient in the ward, so no hospital work runs.</summary>
     public Fact<int> Doctors { get; init; }
@@ -296,37 +296,11 @@ public static class HospitalRules
     /// </summary>
     private static bool HospitalConversionSpare(HospitalRequest r, SleepingObservation sleeping)
     {
-        long required = sleeping.Colonists;
-        foreach (var f in new[] { r.Colonists, r.HousingTarget })
+        var required = Math.Max(sleeping.Colonists, r.Colonists);
+        if (r.HousingTarget.TryGetValue(out var target))
         {
-            if (f.TryGetValue(out var v))
-            {
-                required = Math.Max(required, v);
-            }
+            required = Math.Max(required, target);
         }
-        long capacity = 0;
-        var measured = false;
-        foreach (var f in new[] { r.BedCapacity, r.IndoorCapacity })
-        {
-            if (f.TryGetValue(out var v))
-            {
-                if (!measured || v < capacity)
-                {
-                    capacity = v;
-                }
-                measured = true;
-            }
-        }
-        if (!measured)
-        {
-            foreach (var bed in sleeping.Beds)
-            {
-                if (bed.Humanlike && !bed.Medical && !bed.Prisoners)
-                {
-                    capacity++;
-                }
-            }
-        }
-        return capacity - 1 >= required;
+        return Math.Min(r.BedCapacity, r.IndoorCapacity) - 1 >= required;
     }
 }

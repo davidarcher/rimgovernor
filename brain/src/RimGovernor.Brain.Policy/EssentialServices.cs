@@ -93,7 +93,7 @@ public static class EssentialServicesRules
         var spent = 0;
         var beneficiaries = facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)
             ? EquatableArray.From(pawns.Select(p => p.Id.Value).Order(StringComparer.Ordinal)) : default;
-        var inactive = facts.Colonists.TryGetValue(out var count) && count == 0;
+        var inactive = facts.Colonists == 0;
         void NeedOwner(EssentialService service, Need need)
         {
             var target = ServiceTarget.ForNeed(need.Id);

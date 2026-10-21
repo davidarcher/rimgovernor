@@ -25,12 +25,11 @@ public sealed class SleepingStandInTests
     [Fact]
     public void TheShortfallIsOwedUntilBothFootholdPlacesStand()
     {
-        var bare = new RoundsFacts { Colonists = Known(3L), BedCapacity = Known(1L), IndoorCapacity = Known(0L) };
+        var bare = new RoundsFacts { Colonists = 3L, BedCapacity = 1L, IndoorCapacity = 0L };
         Assert.Equal((3L, 2), ShelterRules.StandInsOwed(bare));
         // Every colonist has a spot but no roof yet: nothing more is owed.
-        Assert.Equal(0, ShelterRules.StandInsOwed(bare with { BedCapacity = Known(3L) }).Missing);
-        Assert.Equal(0, ShelterRules.StandInsOwed(bare with { BedCapacity = Known(3L), IndoorCapacity = Known(3L) }).Missing);
-        Assert.Equal(0, ShelterRules.StandInsOwed(bare with { BedCapacity = Unknown<long>() }).Missing);
+        Assert.Equal(0, ShelterRules.StandInsOwed(bare with { BedCapacity = 3L }).Missing);
+        Assert.Equal(0, ShelterRules.StandInsOwed(bare with { BedCapacity = 3L, IndoorCapacity = 3L }).Missing);
         Assert.Equal("stand-in-sleeping-3-2", ShelterRules.StandInMethod(3, 2));
         // The stand-ins are the floor, Survive tier; bed ownership and bedrooms stay Sustain.
         Assert.Equal(ConstructionTier.Survive, ConstructionTierRules.PlannerTier(ShelterFamily.Sleeping.FilingKey, Phase.HousingShelter));

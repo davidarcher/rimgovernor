@@ -20,14 +20,14 @@ public sealed class MilitaryFamilyTests
     [Fact]
     public void DefenseIsMetUnmetOrUnknownByTheArmedFootholdHostilesAndUnarmed()
     {
-        var met = Derive(new MilitaryFacts { Hostiles = Known(0L), Armed = Known(3L), Unarmed = Known(0L), Foothold = Known(3L) }, MilitaryFamily.Defense);
+        var met = Derive(new MilitaryFacts { Hostiles = Known(0L), Armed = Known(3L), Unarmed = Known(0L), Foothold = 3L }, MilitaryFamily.Defense);
         Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing), (met.Satisfaction, met.Deficit.Value, met.Tier));
 
-        var unarmed = Derive(new MilitaryFacts { Hostiles = Known(0L), Armed = Known(3L), Unarmed = Known(1L), Foothold = Known(3L) }, MilitaryFamily.Defense);
+        var unarmed = Derive(new MilitaryFacts { Hostiles = Known(0L), Armed = Known(3L), Unarmed = Known(1L), Foothold = 3L }, MilitaryFamily.Defense);
         Assert.Equal(Satisfaction.Unmet, unarmed.Satisfaction);
         Assert.True(unarmed.Deficit.Value > 0);
 
-        var hostile = Derive(new MilitaryFacts { Hostiles = Known(2L), Armed = Known(3L), Unarmed = Known(0L), Foothold = Known(3L) }, MilitaryFamily.Defense);
+        var hostile = Derive(new MilitaryFacts { Hostiles = Known(2L), Armed = Known(3L), Unarmed = Known(0L), Foothold = 3L }, MilitaryFamily.Defense);
         Assert.Equal(Satisfaction.Unmet, hostile.Satisfaction);
 
         var unknown = Derive(new MilitaryFacts(), MilitaryFamily.Defense);
@@ -213,7 +213,7 @@ public sealed class MilitaryFamilyTests
         var ct = TestContext.Current.CancellationToken;
         var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-military-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        facts = facts with { Colonists = Known(3L), IndoorCapacity = Known(3L), BedCapacity = Known(3L), FieldCoverage = Known(1.0) };
+        facts = facts with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = Known(1.0) };
         journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         Colony? colony = null;
         var runner = new FamilyRunner<MilitaryFacts>(new MilitaryFamily(), (_, _) => Task.FromResult(colony!.Facts), MilitaryRounds.Schedule);
@@ -226,7 +226,7 @@ public sealed class MilitaryFamilyTests
         Hostiles = Known(0L),
         Armed = Known(0L),
         Unarmed = Known(3L),
-        Foothold = Known(3L),
+        Foothold = 3L,
         Pests = Known(2),
         Hunt = hunt,
         Training = Known(new TrainingReview { Capable = 3 }),

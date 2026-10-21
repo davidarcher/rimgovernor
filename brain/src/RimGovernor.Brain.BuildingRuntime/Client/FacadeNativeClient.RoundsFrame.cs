@@ -180,7 +180,7 @@ public sealed partial class FacadeNativeClient
     private static PbObservations.BundleSnapshot CombatFrame(FrameView view, PbObservations.PawnSnapshot? pawns, PbObservations.ThingsSnapshot? things)
     {
         var v = view.Snapshot;
-        var frame = new PbObservations.BundleSnapshot
+        return new PbObservations.BundleSnapshot
         {
             Context = v.Context,
             Emergency = v.Emergency,
@@ -193,12 +193,8 @@ public sealed partial class FacadeNativeClient
             CombatMortars = v.CombatMortars,
             CombatHiveTemperatureC = v.CombatHiveTemperatureC,
             WorldProgression = v.WorldProgression,
+            Things = things,
         };
-        if (v.ColonyFacts is { } colony)
-        {
-            frame = frame with { ColonyFacts = new PbObservations.ColonyFactsSnapshot { OutdoorTemperatureC = colony.OutdoorTemperatureC } };
-        }
-        return frame with { Things = things };
     }
 
     /// <summary>
@@ -296,7 +292,7 @@ public sealed partial class FacadeNativeClient
     /// Decodes a frame's combat part. The census pawns and weapons are keyed from
     /// the frame's held tables and the emergency census is the frame's, decoded once (<see cref="FrameView.Prepared"/>).
     /// </summary>
-    private static Combat DecodeCombat(FrameView view)
+    internal static Combat DecodeCombat(FrameView view)
     {
         var (pawnRows, pawns) = CensusPawns(view);
         var (thingRows, things) = PrimaryWeaponThings(view, pawnRows);
@@ -338,7 +334,8 @@ public sealed partial class FacadeNativeClient
             });
         }
         output = output with { Mortars = mortars };
-        if (v.ColonyFacts is { } colony)
+        // The cut frame carries no colony facts: the temperature is read off the whole frame, unknown when it has none.
+        if (view.Snapshot.ColonyFacts is { } colony)
         {
             output = output with { OutdoorTemperatureC = Fact.Known(colony.OutdoorTemperatureC) };
         }

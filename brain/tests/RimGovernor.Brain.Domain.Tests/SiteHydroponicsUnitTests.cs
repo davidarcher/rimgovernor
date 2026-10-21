@@ -51,14 +51,14 @@ public sealed class SiteHydroponicsUnitTests
             {
                 Choices = EquatableArray.From([crop]),
                 Climate = new CropClimate { Sowing = Known(false), OutdoorsDark = Known(false) },
-                Colonists = Known(3L),
+                Colonists = 3L,
                 ReserveDays = 5,
                 Coverage = Known(0.0),
                 Site = new FarmSiteRequest { Cells = cells },
             },
             Environment = Known(new ControlledEnvironment
             {
-                OutdoorTemperatureC = Known(20.0),
+                OutdoorTemperatureC = 20.0,
                 // The native room id differs from the grid key the cells carry.
                 Rooms = EquatableArray.From([new GrowRoom { Id = "native-9", GridRoom = Known(GridKey), TemperatureC = Known(-5.0) }]),
             }),

@@ -98,12 +98,12 @@ public static partial class ResourceRules
     /// whichever it holds, so a better medicine in use is counted too), the lowest-potency one (herbal)
     /// reserved at the medical reserve's TargetPerColonist doses per colonist so a colony never tended still
     /// stocks it; once doses are used the observed tend rate takes over. Without the catalog's medicines it
-    /// adds nothing; an unread colonist count leaves the reserve zero. Every other resource the consumption
+    /// adds nothing. Every other resource the consumption
     /// ring shows recurring spend on (MaterialRunwayKeys) is a row with no reserve: its protected line is the
     /// observed rate over the horizon.
     /// </summary>
     public static Dictionary<Resource, long> RunwayReserves(
-        this RoundsPolicy p, ItemFacts items, Fact<long> colonists, Fact<ResourceConsumption> consumption)
+        this RoundsPolicy p, ItemFacts items, long colonists, Fact<ResourceConsumption> consumption)
     {
         var materials = MaterialRunwayKeys(items, consumption);
         var output = new Dictionary<Resource, long>();
@@ -113,8 +113,7 @@ public static partial class ResourceRules
             output[medicine] = 0;
             if (rank == 0)
             {
-                colonists.TryGetValue(out var n);
-                output[medicine] = Math.Max(0, n) * p.MedicalReserve.TargetPerColonist;
+                output[medicine] = Math.Max(0, colonists) * p.MedicalReserve.TargetPerColonist;
             }
             rank++;
         }

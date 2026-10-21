@@ -17,7 +17,7 @@ public sealed record ControlledEnvironment
 
     public EquatableArray<PowerHeadroom> Networks { get; init; }
 
-    public Fact<double> OutdoorTemperatureC { get; init; }
+    public double OutdoorTemperatureC { get; init; }
 
     /// <summary>The headroom row for a native network id.</summary>
     public PowerHeadroom? Network(string id)

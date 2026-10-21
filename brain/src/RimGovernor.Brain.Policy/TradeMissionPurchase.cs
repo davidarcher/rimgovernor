@@ -122,7 +122,7 @@ public static partial class TradePolicyRules
     }
 
     /// <summary>Retains the shared colony silver floor before departure.</summary>
-    public static Fact<long> TradeMissionBudget(Fact<long> silver, Fact<long> colonists)
+    public static Fact<long> TradeMissionBudget(Fact<long> silver, long colonists)
     {
         var known = silver.TryGetValue(out var amount);
         var (reserve, rk) = TradeSilverReserve(colonists);

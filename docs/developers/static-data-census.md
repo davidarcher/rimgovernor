@@ -758,11 +758,11 @@ Kept, reason recorded:
 | ObservationBatchReply | message | 2225 | 3 | state | Outcome oneof of batch read |  |  |
 | SnapshotStreamRequest | message | 2247 | 5 | state | Stream subscription: resource sources, budgets |  |  |
 | ClassChain | message | 2299 | 2 | static | CLR class and its bases for def class matching | name,bases | none in defs.proto; reflection over assemblies; keep as Go ClassIsA index |
-| ThingDefFacts | message | 2310 | 4 | code | Game-computed ThingDef flags (food kind, meal ingredients; raw meat, medicine and room roles are Go, #2632) |  |  |
-| RaceFacts | message | 2329 | 5 | code | Edible foods, tameness decay, tame-chance factor, adult feed (game code; the rest is Go, #2632) |  |  |
-| StatEnv | message | 2377 | 6 | code | Mods, classic mode, scenario stat factors and difficulty the Go stat evaluator reads beyond the rows |  |  |
-| StatFactor | message | 2385 | 2 | code | A scenario stat factor |  |  |
-| CatalogDerived | message | 2392 | 3 | code | Facts the game names or computes in code | currency_def,full_rot_rate_c,wort_def |  |
+| ThingDefFacts | message | 2310 | 4 | code | Deleted: the food kind and meal ingredients are brain rules over the game's ThingDefs (`FoodRules.cs`) |  |  |
+| RaceFacts | message | 2329 | 5 | code | Moved into the native mod: `NativeRaceFacts` publishes the game-code race facts in process as `RaceGameFacts` (#3080) |  |  |
+| StatEnv | message | 2377 | 6 | code | Deleted: the game's own `StatWorker` computes every catalog stat in process (`NativeStatTable`, `DefStatTable`), scenario and difficulty included |  |  |
+| StatFactor | message | 2385 | 2 | code | Deleted with StatEnv |  |  |
+| CatalogDerived | message | 2392 | 3 | code | Moved into the native mod: `NativeDefinitionCatalogTool.BrainDerived` computes the currency def, wort def and full rot rate in process as the in-memory `CatalogDerived` record (#3100) |  |  |
 | IdeologySnapshot | message | 2434 | 17 | state | Primary ideoligion: memes, precepts, roles, rituals, believers, reform state, styles, venerated animals |  |  |
 | IdeoPrecept | message | 2443 | 2 | state | Precept in force id and def name |  |  |
 | IdeoRole | message | 2446 | 4 | state | Role precept active flag and holder pawns |  |  |

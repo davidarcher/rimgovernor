@@ -78,7 +78,7 @@ public sealed class FamilyKeptWaitsTests
     {
         var ct = TestContext.Current.CancellationToken;
         var facts = WorkResourceTestFacts.Create("a", "b", "c");
-        facts = facts with { Colonists = Known(3L), IndoorCapacity = Known(3L), BedCapacity = Known(3L), FieldCoverage = Known(1.0) };
+        facts = facts with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = Known(1.0) };
         journal.ReviewRounds(new() { Current = world, Tick = new(100), Revision = journal.LoadRounds(ct).Revision, Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
     }
 

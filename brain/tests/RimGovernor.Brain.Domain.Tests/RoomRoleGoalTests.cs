@@ -126,6 +126,9 @@ public sealed class RoomRoleGoalTests
         Furniture = new RoomFurniture { Beds = [new FurnitureBed { Def = "Bed", Slots = 1 }] },
         Definitions = [new BenchDefinition { Name = "Bed", Available = Known(true) }],
         MinBeds = floor,
+        // Native's sleeping capacities leave the medical beds out.
+        BedCapacity = beds.Count(b => !b.Medical),
+        IndoorCapacity = beds.Count(b => !b.Medical),
     };
 
     [Fact]
@@ -172,7 +175,7 @@ public sealed class RoomRoleGoalTests
         StationFacts Base(GoalBuildDemand build, StationCatalog catalog) => new()
         {
             Catalog = catalog,
-            Colonists = Known(4L),
+            Colonists = 4L,
             Patients = Known<EquatableArray<CarePawn>>([]),
             Prisoners = Known(0),
             WorkPawns = Known<EquatableArray<WorkPawn>>([]),

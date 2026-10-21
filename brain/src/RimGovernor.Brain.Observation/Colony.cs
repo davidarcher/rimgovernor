@@ -419,7 +419,7 @@ public sealed record FarmZoneFact
 
     public string Crop { get; init; } = "";
 
-    public Fact<uint> UsableCells { get; init; }
+    public uint UsableCells { get; init; }
 }
 
 public sealed record CookingBench

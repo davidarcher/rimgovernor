@@ -75,12 +75,12 @@ public sealed partial class FacadeNativeClient
         var knowledge = new List<Policy.KnowledgeSlot>();
         foreach (var slot in v.Slots)
         {
-            if (slot.Category is null)
+            if (slot.Category.Length == 0)
             {
                 continue;
             }
 
-            knowledge.Add(new Policy.KnowledgeSlot { Category = slot.Category, Current = new Policy.ResearchProjectId(slot.CurrentProject ?? "") });
+            knowledge.Add(new Policy.KnowledgeSlot { Category = slot.Category, Current = new Policy.ResearchProjectId(slot.CurrentProject) });
         }
 
         knowledge.Sort((a, b) => string.CompareOrdinal(a.Category, b.Category));

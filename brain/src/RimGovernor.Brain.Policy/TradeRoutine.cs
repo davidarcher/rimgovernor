@@ -105,16 +105,16 @@ public static partial class TradePolicyRules
     public const double TradeItemWealthShare = 0.6;
 
     /// <summary>
-    /// The silver a purchase never spends below: 100 per colonist, at least 200. An unknown or empty count
+    /// The silver a purchase never spends below: 100 per colonist, at least 200. An empty count
     /// reports false and the routine buys nothing (fail closed).
     /// </summary>
-    public static (long Reserve, bool Ok) TradeSilverReserve(Fact<long> colonists)
+    public static (long Reserve, bool Ok) TradeSilverReserve(long colonists)
     {
-        if (!colonists.TryGetValue(out var n) || n <= 0)
+        if (colonists <= 0)
         {
             return (200, false);
         }
-        return (Math.Max(200, Math.Min(100 * n, 100000)), true);
+        return (Math.Max(200, Math.Min(100 * colonists, 100000)), true);
     }
 
     /// <summary>
@@ -346,7 +346,7 @@ public static partial class TradePolicyRules
     /// bounded only by the silver above the reserve; sales take any positive price, since the alternative is the
     /// surplus sitting unsold.
     /// </summary>
-    public static TradeEconomicPolicy RoundsTradeTargets(ItemFacts items, TradeNeed need, IReadOnlyList<TradeSheetRowFact> rows, IReadOnlyDictionary<Resource, long> targets, Fact<long> colonists)
+    public static TradeEconomicPolicy RoundsTradeTargets(ItemFacts items, TradeNeed need, IReadOnlyList<TradeSheetRowFact> rows, IReadOnlyDictionary<Resource, long> targets, long colonists)
     {
         var (reserve, buy) = TradeSilverReserve(colonists);
         var built = BuildRoundsTradeTargets(items, need, rows, targets);

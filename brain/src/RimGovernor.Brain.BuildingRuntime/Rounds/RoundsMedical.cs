@@ -354,11 +354,6 @@ partial class RoundsMedicalPlanner
 
     internal static string UnreadMedicalFact(MedicalReserveObservation facts)
     {
-        if (!facts.Colonists.IsKnown)
-        {
-            return "colonists";
-        }
-
         if (!facts.Items.IsKnown)
         {
             return "medicine_items";

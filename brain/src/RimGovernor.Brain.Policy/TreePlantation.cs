@@ -34,7 +34,7 @@ public static partial class TreePlantationRules
 
     // Why crop cannot be sown as a plantation here, empty when it can: not researched, no colonist at the sow
     // skill (the best Plants level among those who sow), or wild-only and not native to the biome.
-    internal static string TreeSowable(CropChoice crop, Fact<string> biome, Fact<int> skill)
+    internal static string TreeSowable(CropChoice crop, string biome, Fact<int> skill)
     {
         var reason = CropSowable(crop, skill);
         if (reason.Length != 0)
@@ -43,9 +43,7 @@ public static partial class TreePlantationRules
         }
         if (!crop.MustBeWildToSow.TryGetValue(out var wild) || wild)
         {
-            var bk = biome.TryGetValue(out var name);
-            var nk = crop.WildBiomes.TryGetValue(out var native);
-            if (!bk || !nk || !native!.Contains(name!))
+            if (!crop.WildBiomes.TryGetValue(out var native) || !native.Contains(biome))
             {
                 return "not native to the biome";
             }
@@ -75,7 +73,7 @@ public static partial class TreePlantationRules
     /// the condition under which the supply plan can open a field candidate with a rate for it. A resource nothing
     /// sows is a finite stock: wild trees and chemfuel run out.
     /// </summary>
-    public static bool ResourceGrowable(IReadOnlyList<CropChoice> choices, Resource resource, Fact<string> biome, Fact<int> skill)
+    public static bool ResourceGrowable(IReadOnlyList<CropChoice> choices, Resource resource, string biome, Fact<int> skill)
     {
         foreach (var crop in choices)
         {
@@ -97,7 +95,7 @@ public static partial class TreePlantationRules
     /// best-priced tree species harvesting resource that can be sown now. False when no species can, so nothing
     /// gates the chop. It is a pure function of the catalog and the colony, recomputed each review.
     /// </summary>
-    public static (double Fraction, bool Ok) TreeFellFraction(IReadOnlyList<CropChoice> choices, Resource resource, Fact<string> biome, Fact<int> skill)
+    public static (double Fraction, bool Ok) TreeFellFraction(IReadOnlyList<CropChoice> choices, Resource resource, string biome, Fact<int> skill)
     {
         var best = 0.0;
         var fraction = 0.0;

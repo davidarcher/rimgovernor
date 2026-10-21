@@ -48,8 +48,6 @@ public static class ColonyDecodeReads
     /// <summary>A reference's id, unknown without a reference.</summary>
     internal static Fact<string> OptionalRef(C.Ref? r) => r is null ? Unknown<string>() : Optional(r.Id is not null, (r.Id ?? ""));
 
-    internal static Fact<long> CountFact(bool has, uint value) => has ? Known((long)value) : Unknown<long>();
-
     internal static bool HasIssue(IEnumerable<O.ReadIssue> issues, string field)
     {
         foreach (var issue in issues)
@@ -186,9 +184,9 @@ public static class ColonyDecodeReads
         {
             Tick = identity.Tick,
             WorkResources = v.WorkResources is { } workResources ? Known(workResources) : default,
-            Colonists = Known((long)v.ColonistCount),
-            BedCapacity = Known((long)v.BedCapacity),
-            IndoorCapacity = Known((long)v.IndoorSleepingCapacity),
+            Colonists = v.ColonistCount,
+            BedCapacity = v.BedCapacity,
+            IndoorCapacity = v.IndoorSleepingCapacity,
             SleepingMin = Optional(v.SleepingTemperatureMinC is not null, v.SleepingTemperatureMinC.GetValueOrDefault()),
             SleepingMax = Optional(v.SleepingTemperatureMaxC is not null, v.SleepingTemperatureMaxC.GetValueOrDefault()),
             OutdoorTemperature = Known(v.OutdoorTemperatureC),
@@ -350,17 +348,18 @@ public static class ColonyDecodeReads
                 f = f with { ShortCircuitTick = Known(new Tick((long)development.ShortCircuitTick)) };
             }
         }
+        // The biome is read on every frame; the season facts only with a clean food climate read.
+        r = r with { CropClimate = new CropClimate { Biome = v.Biome } };
         if (v.FoodClimate is { } climate && !HasIssue(v.Issues, "food_climate"))
         {
             outdoorsDark = ColonyFramesReads.ColonyOutdoorsDark(v, catalog);
             r = r with
             {
-                CropClimate = new CropClimate
+                CropClimate = r.CropClimate with
                 {
                     Sowing = Optional(climate.SowingNow is not null, climate.SowingNow.GetValueOrDefault()),
                     DaysRemaining = Optional(climate.GrowingDaysRemaining is not null, climate.GrowingDaysRemaining.GetValueOrDefault()),
                     OutdoorsDark = outdoorsDark,
-                    Biome = Known(v.Biome),
                 },
             };
             f = f with { Calendar = ColonyProductionReads.ColonyCalendar(climate) };
@@ -579,7 +578,7 @@ public static class ColonyDecodeReads
     {
         var e = new ControlledEnvironment
         {
-            OutdoorTemperatureC = Known(outdoor),
+            OutdoorTemperatureC = outdoor,
         };
         var lights = new List<GrowLight>();
         foreach (var row in v.Lights)

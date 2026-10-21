@@ -475,7 +475,7 @@ public static partial class SiteRules
         {
             rooms[room.Id] = room;
         }
-        var outdoorCold = env.OutdoorTemperatureC.TryGetValue(out var outdoor) && outdoor < SiteColdC;
+        var outdoorCold = env.OutdoorTemperatureC < SiteColdC;
         var terms = new List<FarmSiteTerm>();
         var reason = "";
 

@@ -149,20 +149,19 @@ public static class FieldResourceRules
 
     /// <summary>
     /// The units one standing field of crop on cells usable cells delivers per
-    /// harvest toward resource: zero when the crop harvests something else or a fact is unknown. A tree zone
+    /// harvest toward resource: zero when the crop harvests something else or a crop fact is unknown. A tree zone
     /// counts its lattice trees at the wood each gives at the fell point.
     /// </summary>
-    public static double StandingFieldYield(CropChoice crop, Resource resource, Fact<uint> cells)
+    public static double StandingFieldYield(CropChoice crop, Resource resource, uint n)
     {
         var hk = crop.Harvests.TryGetValue(out var harvests);
         var uk = crop.UnitsPerCell.TryGetValue(out var units);
-        var nk = cells.TryGetValue(out var n);
-        if (TreePlantationRules.IsTreeCrop(crop) && hk && harvests == resource && nk)
+        if (TreePlantationRules.IsTreeCrop(crop) && hk && harvests == resource)
         {
             var (_, wood, _, ok) = TreePlantationRules.TreePricing(crop);
             return ok ? wood * (n / (uint)ZoneCreateConstants.TreeCellsPerTree) : 0;
         }
-        if (!hk || !uk || !nk || harvests != resource || !FieldCapacityRules.FieldPositive(units))
+        if (!hk || !uk || harvests != resource || !FieldCapacityRules.FieldPositive(units))
         {
             return 0;
         }

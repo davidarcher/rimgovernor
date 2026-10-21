@@ -84,7 +84,7 @@ public static class ArtRules
     /// <summary>One pinned sculpture bill for every artist that lacks an active one, in artist order, each through SelectProductionBill.</summary>
     public static IReadOnlyList<BillSelection> SelectArtBills(
         Fact<EquatableArray<ProductionBench>> benches,
-        Fact<long> colonists,
+        long colonists,
         IEnumerable<PawnId> artists,
         ArtDemand demand
     )

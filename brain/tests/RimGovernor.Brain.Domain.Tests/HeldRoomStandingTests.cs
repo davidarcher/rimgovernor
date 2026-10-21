@@ -8,7 +8,7 @@ public sealed class HeldRoomStandingTests
 {
     private static StationFacts Facts(IReadOnlySet<int>? built, params int[] pinned) => new()
     {
-        Colonists = Fact.Known(5L),
+        Colonists = 5L,
         Survey = new MapSurvey(),
         Plan = new LayoutPlan
         {

@@ -14,7 +14,7 @@ public sealed record ArtOrderRequest
 
     public Fact<EquatableArray<PawnProfile>> Profiles { get; init; }
 
-    public Fact<long> Colonists { get; init; }
+    public long Colonists { get; init; }
 
     public required ItemFacts Items { get; init; }
 

@@ -35,7 +35,8 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>The count the concern wants built, the method that builds it, or the verdict that explains why none is wanted.</summary>
     internal (long Count, MethodId Method, Verdict Verdict) Selection(ColonyProjection facts)
     {
-        if (!facts.Facts.Colonists.TryGetValue(out var count) || count <= 0)
+        var count = facts.Facts.Colonists;
+        if (count <= 0)
         {
             return (0, default, FieldUnavailable("colonists"));
         }
@@ -162,10 +163,7 @@ public sealed partial class RoundsBuildingPlanner
                 }
                 return (1, new MethodId(string.Create(CultureInfo.InvariantCulture, $"sleeping-{Definition}-{Sleeping.Unhoused}")), default);
             }
-            if (!facts.Facts.IndoorCapacity.TryGetValue(out var capacity))
-            {
-                return (0, default, FieldUnavailable("indoor_capacity"));
-            }
+            var capacity = facts.Facts.IndoorCapacity;
             var prefix = "";
             if (Phase == Phase.HousingExpansion)
             {

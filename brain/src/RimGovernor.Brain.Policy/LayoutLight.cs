@@ -270,8 +270,8 @@ public static partial class LayoutLightRules
 
     /// <summary>
     /// Prices the colony's darkness from its station facts: a colonist's upkeep is the food census's nutrition
-    /// over the colonists, a unit the best crop's nutrition a day on normal soil. Invalid while the census, the
-    /// colonists, a crop or the lamp is unknown.
+    /// over the colonists, a unit the best crop's nutrition a day on normal soil. Invalid while the census, a crop
+    /// or the lamp is unknown, or the colony has no colonist.
     /// </summary>
     internal static LightPrice StationLightPrice(StationFacts f, double steel)
     {
@@ -285,15 +285,16 @@ public static partial class LayoutLightRules
 
     /// <summary>
     /// A colonist's nutrition a day (the food census over the colonists) and a site-type unit's nutrition a day
-    /// (the best crop on normal soil); false while the census or the colonists are unknown. A unit of 0 is a
+    /// (the best crop on normal soil); false while the census is unknown or the colony has no colonist. A unit of 0 is a
     /// colony with no crop: the caller's price stays invalid.
     /// </summary>
     internal static (double Upkeep, double Unit, bool Ok) StationUpkeep(StationFacts f)
     {
-        if (!f.Food.TryGetValue(out var supply) || !f.Colonists.TryGetValue(out var colonists))
+        if (!f.Food.TryGetValue(out var supply))
         {
             return (0, 0, false);
         }
+        var colonists = f.Colonists;
         var (nutrition, nk) = LayoutStationPlanRules.HumanNutritionPerDay(supply);
         if (colonists <= 0 || !nk)
         {

@@ -52,8 +52,8 @@ public static class ColonyProductionReads
         }
         return new CropGrowth
         {
-            Planted = ColonyDecodeReads.CountFact(farm.PlantedCells is not null, farm.PlantedCells.GetValueOrDefault()),
-            FertilePlanted = ColonyDecodeReads.CountFact(farm.FertilePlantedCells is not null, farm.FertilePlantedCells.GetValueOrDefault()),
+            Planted = farm.PlantedCells,
+            FertilePlanted = farm.FertilePlantedCells,
             GrowthMean = ColonyDecodeReads.Optional(farm.GrowthMean is not null, farm.GrowthMean.GetValueOrDefault()),
             FertilityMean = ColonyDecodeReads.Optional(farm.FertilityFactorMean is not null, farm.FertilityFactorMean.GetValueOrDefault()),
             Temperature = ColonyDecodeReads.Optional(farm.Temperature is not null, farm.Temperature.GetValueOrDefault()),
@@ -117,8 +117,8 @@ public static class ColonyProductionReads
                 {
                     ZoneCells = roof.Cells,
                     UnroofedCells = roof.Unroofed,
-                    Planted = ColonyDecodeReads.CountFact(farm.PlantedCells is not null, farm.PlantedCells.GetValueOrDefault()),
-                    Blighted = ColonyDecodeReads.CountFact(farm.BlightedPlants is not null, farm.BlightedPlants.GetValueOrDefault()),
+                    Planted = farm.PlantedCells,
+                    Blighted = farm.BlightedPlants,
                 },
             });
         }
@@ -181,7 +181,7 @@ public static class ColonyProductionReads
             var row = new FieldCrop { Edible = ColonyDecodeReads.Optional(farm.EdibleCrop is not null, farm.EdibleCrop.GetValueOrDefault()), GrowingCells = FarmGrowth(farm, definitions).GrowingCells() };
             if (usable)
             {
-                row = row with { GrowingCells = ColonyDecodeReads.CountFact(farm.UsableCells is not null, farm.UsableCells.GetValueOrDefault()) };
+                row = row with { GrowingCells = Known((long)farm.UsableCells) };
             }
             foreach (var definition in definitions)
             {

@@ -31,7 +31,7 @@ public sealed class GoalsFamilyTests
         Research = Known(Research()),
         Tier = Known(TechTier.Camp),
         Stock = Known<EquatableArray<Amount>>([new Amount(new Resource("Steel"), 40)]),
-        Colonists = Known(5L),
+        Colonists = 5L,
         Animals = Known<EquatableArray<UpkeepAnimal>>([new UpkeepAnimal { Definition = new Resource("Muffalo") }]),
     };
 

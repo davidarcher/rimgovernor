@@ -13,7 +13,7 @@ public sealed record CropSeason
 
 /// <summary>
 /// What a planted field's risks derive from: the held cells of its zone and the share under open sky, and its
-/// planted cells and the blighted plants standing in them. Each fact is unknown until observed.
+/// planted cells and the blighted plants standing in them. The zone cell counts are unknown until observed.
 /// </summary>
 public sealed record FieldExposure
 {
@@ -21,9 +21,9 @@ public sealed record FieldExposure
 
     public Fact<long> UnroofedCells { get; init; }
 
-    public Fact<long> Planted { get; init; }
+    public long Planted { get; init; }
 
-    public Fact<long> Blighted { get; init; }
+    public long Blighted { get; init; }
 }
 
 public static class CropRiskRules
@@ -78,8 +78,8 @@ public static class CropRiskRules
         return active ? Share(e.UnroofedCells, e.ZoneCells) : Known(0.0);
     }
 
-    /// <summary>The expected fraction of a field's delivery blight takes: the blighted share of its planted cells. Unknown while a count is.</summary>
-    public static Fact<double> BlightRisk(FieldExposure e) => Share(e.Blighted, e.Planted);
+    /// <summary>The expected fraction of a field's delivery blight takes: the blighted share of its planted cells. Unknown with nothing planted.</summary>
+    public static Fact<double> BlightRisk(FieldExposure e) => Share(Known(e.Blighted), Known(e.Planted));
 
     /// <summary>
     /// The expected fraction of a field's delivery frost takes: when the harvest lead outlasts the growing

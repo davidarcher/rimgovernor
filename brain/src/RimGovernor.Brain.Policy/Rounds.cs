@@ -443,13 +443,13 @@ public sealed record RoundsFacts
     /// <summary>Every work pawn's typed profile (Profiles); a presentation fact the review records, never a planner input.</summary>
     public Fact<EquatableArray<PawnProfile>> WorkProfiles { get; init; }
 
-    public Fact<long> Colonists { get; init; }
+    public long Colonists { get; init; }
 
     public Fact<long> HousingTarget { get; init; }
 
-    public Fact<long> BedCapacity { get; init; }
+    public long BedCapacity { get; init; }
 
-    public Fact<long> IndoorCapacity { get; init; }
+    public long IndoorCapacity { get; init; }
 
     public Fact<long> GrowingCells { get; init; }
 
@@ -673,22 +673,12 @@ public static partial class RoundsRules
     // and the food ladder (FoodProgress) read the ones they need.
 
     /// <summary>The colonist count the foothold sizes for: the housing target when it is larger.</summary>
-    internal static Fact<long> FootholdCount(RoundsFacts f)
-    {
-        var count = f.Colonists;
-        if (f.HousingTarget.TryGetValue(out var target))
-        {
-            if (count.TryGetValue(out var n))
-            {
-                count = Known(Math.Max(n, target));
-            }
-        }
-        return count;
-    }
+    internal static long FootholdCount(RoundsFacts f) =>
+        f.HousingTarget.TryGetValue(out var target) ? Math.Max(f.Colonists, target) : f.Colonists;
 
-    internal static Fact<bool> FootholdSleeping(RoundsFacts f) => CountCapacity(f.BedCapacity, FootholdCount(f), 1);
+    internal static Fact<bool> FootholdSleeping(RoundsFacts f) => CountCapacity(Known(f.BedCapacity), FootholdCount(f), 1);
 
-    internal static Fact<bool> FootholdShelter(RoundsFacts f) => CountCapacity(f.IndoorCapacity, FootholdCount(f), 1);
+    internal static Fact<bool> FootholdShelter(RoundsFacts f) => CountCapacity(Known(f.IndoorCapacity), FootholdCount(f), 1);
 
     internal static Fact<bool> FootholdProduction(RoundsFacts f) => CountCapacity(f.GrowingCells, FootholdCount(f), 10);
 
@@ -792,16 +782,8 @@ public static partial class RoundsRules
     /// <summary>f when measured, else other: an unmeasured sleeping-room temperature reads as the outdoor temperature (sleeping outdoors).</summary>
     internal static Fact<T> Fallback<T>(Fact<T> f, Fact<T> other) => f.TryGetValue(out _) ? f : other;
 
-    internal static Fact<bool> CountCapacity(Fact<long> capacity, Fact<long> count, long multiplier)
-    {
-        var k = count.TryGetValue(out var c);
-        var vk = capacity.TryGetValue(out var v);
-        if (!k || !vk)
-        {
-            return Unknown<bool>();
-        }
-        return Known(c > 0 && v >= c * multiplier);
-    }
+    internal static Fact<bool> CountCapacity(Fact<long> capacity, long count, long multiplier) =>
+        capacity.TryGetValue(out var v) ? Known(count > 0 && v >= count * multiplier) : Unknown<bool>();
 
     /// <summary>
     /// The full review: it validates the facts and derives once what the families read (the latches, the resource
@@ -846,7 +828,8 @@ public static partial class RoundsRules
         p = p.Seasonal(f.Calendar, f.DisasterConditions);
         var medicine = MedicalRules.ReviewMedicalReserve(f.MedicalReserve with { Colonists = f.Colonists }, previous.MedicalReserve, p.MedicalReserve);
         p.Validate();
-        foreach (var fact in new[] { f.Colonists, f.HousingTarget, f.BedCapacity, f.IndoorCapacity, f.GrowingCells, f.Armed, f.Unarmed, f.Wood, f.Hostiles, f.CriticalPatients, f.UrgentPatients })
+        // The colonist and capacity counts are native unsigned counts and need no check.
+        foreach (var fact in new[] { f.HousingTarget, f.GrowingCells, f.Armed, f.Unarmed, f.Wood, f.Hostiles, f.CriticalPatients, f.UrgentPatients })
         {
             if (fact.TryGetValue(out var v) && (v < 0 || v > long.MaxValue / 10))
             {

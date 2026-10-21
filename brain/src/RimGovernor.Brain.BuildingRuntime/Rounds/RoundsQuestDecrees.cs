@@ -60,9 +60,9 @@ public sealed partial class JoinersRounds
                     long standing = 0;
                     foreach (var farm in read.Projection.Farms)
                     {
-                        if (farm.Crop == objective.Def && farm.UsableCells.TryGetValue(out var cellCount))
+                        if (farm.Crop == objective.Def)
                         {
-                            standing += cellCount;
+                            standing += farm.UsableCells;
                         }
                     }
 

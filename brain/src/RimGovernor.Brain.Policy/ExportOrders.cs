@@ -264,7 +264,7 @@ public static class ExportOrdersRules
         ItemFacts items,
         Fact<TradeNeed> need,
         Fact<EquatableArray<Amount>> resources,
-        Fact<long> colonists,
+        long colonists,
         IReadOnlyList<Resource> products
     )
     {

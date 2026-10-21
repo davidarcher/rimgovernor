@@ -216,7 +216,7 @@ public sealed class RoomsFamilyTests
         facts = facts with
         {
             Resources = Known<EquatableArray<Amount>>([new(new("WoodLog"), 1000)]),
-            Colonists = Known(3L), IndoorCapacity = Known(3L), BedCapacity = Known(3L), FieldCoverage = Known(1.0),
+            Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = Known(1.0),
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = Known<EquatableArray<WorkBuildingCost>>([

@@ -42,7 +42,7 @@ public sealed class ClaimAdmissionTests
         facts = facts with
         {
             Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 100)]),
-            Colonists = Known(1L), IndoorCapacity = Known(0L), BedCapacity = Known(0L), FieldCoverage = Known(0.0),
+            Colonists = 1L, IndoorCapacity = 0L, BedCapacity = 0L, FieldCoverage = Known(0.0),
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = Known<EquatableArray<WorkBuildingCost>>([

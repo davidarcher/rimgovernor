@@ -69,12 +69,7 @@ internal static class RoundsHay
         {
             if (zone.Crop == crop.Name)
             {
-                if (!zone.UsableCells.TryGetValue(out var cells))
-                {
-                    return (default!, false);
-                }
-
-                need = Math.Max(0, need - (cells * yield));
+                need = Math.Max(0, need - (zone.UsableCells * yield));
             }
         }
 

@@ -2652,11 +2652,12 @@ public sealed record ResearchProject
     public EquatableArray<string> LockReasons { get; init; }
 }
 
+/// <summary>A research slot: Category is empty on the ordinary slot and names the knowledge category otherwise; CurrentProject is empty while the slot has none.</summary>
 public sealed record ResearchSlot
 {
-    public string? Category { get; init; }
+    public string Category { get; init; } = "";
 
-    public string? CurrentProject { get; init; }
+    public string CurrentProject { get; init; } = "";
 }
 
 /// <summary>
@@ -5697,9 +5698,9 @@ public sealed record FarmFacts
 
     public string? Crop { get; init; }
 
-    public uint? UsableCells { get; init; }
+    public uint UsableCells { get; init; }
 
-    public uint? PlantedCells { get; init; }
+    public uint PlantedCells { get; init; }
 
     public bool? EdibleCrop { get; init; }
 
@@ -5708,9 +5709,9 @@ public sealed record FarmFacts
 
     public double? FertilityFactorMean { get; init; }
 
-    public uint? FertilePlantedCells { get; init; }
+    public uint FertilePlantedCells { get; init; }
 
-    public uint? BlightedPlants { get; init; }
+    public uint BlightedPlants { get; init; }
 
     public double? Temperature { get; init; }
 }

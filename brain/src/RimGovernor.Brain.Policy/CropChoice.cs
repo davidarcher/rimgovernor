@@ -21,7 +21,7 @@ public sealed record CropClimate
     public Fact<bool> OutdoorsDark { get; init; }
 
     /// <summary>The colony map's biome defName: a species the game only lets a player sow wild (MustBeWildToSow) is planted only where it is native.</summary>
-    public Fact<string> Biome { get; init; }
+    public string Biome { get; init; } = "";
 
     /// <summary>
     /// Whether a crop that needs light can be sown outdoors now: the native season read, false in a
@@ -124,7 +124,7 @@ public sealed record FieldRequest
 
     public Fact<double> Runway { get; init; }
 
-    public Fact<long> Colonists { get; init; }
+    public long Colonists { get; init; }
 
     public Fact<int> Growers { get; init; }
 
@@ -445,13 +445,12 @@ public static class CropChoiceRules
     /// demand*days/yield cells, and the reserve stock is spread over the harvests left in the season (one
     /// harvest when the season is unknown or shorter than a cycle).
     /// </summary>
-    public static Fact<int> FieldTarget(Fact<long> colonists, CropChoice crop, double reserve, Fact<double> season)
+    public static Fact<int> FieldTarget(long colonists, CropChoice crop, double reserve, Fact<double> season)
     {
-        var ck = colonists.TryGetValue(out var count);
         var dk = crop.Demand.TryGetValue(out var demand);
         var gk = crop.GrowDays.TryGetValue(out var days);
         var yk = crop.HarvestNutrition.TryGetValue(out var yield);
-        if (!ck || count < 0 || !dk || !gk || !yk || !FieldCapacityRules.FieldPositive(demand) || !FieldCapacityRules.FieldPositive(days) || !FieldCapacityRules.FieldPositive(yield) || !FieldCapacityRules.FieldPositive(reserve))
+        if (colonists < 0 || !dk || !gk || !yk || !FieldCapacityRules.FieldPositive(demand) || !FieldCapacityRules.FieldPositive(days) || !FieldCapacityRules.FieldPositive(yield) || !FieldCapacityRules.FieldPositive(reserve))
         {
             return Unknown<int>();
         }
@@ -460,7 +459,7 @@ public static class CropChoiceRules
         {
             harvests = Math.Max(1, Math.Floor(left / days));
         }
-        var target = Math.Max(count * 10.0, Math.Ceiling(demand * (days + (reserve / harvests)) / yield));
+        var target = Math.Max(colonists * 10.0, Math.Ceiling(demand * (days + (reserve / harvests)) / yield));
         if (!FieldCapacityRules.FieldPositive(target) || target > 65536)
         {
             return Unknown<int>();

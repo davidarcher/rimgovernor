@@ -266,7 +266,7 @@ public static class ColonyFramesReads
     /// </summary>
     public static MedicalReserveObservation ColonyMedicalReserve(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? catalog)
     {
-        var r = new MedicalReserveObservation { Colonists = Known((long)v.ColonistCount) };
+        var r = new MedicalReserveObservation { Colonists = v.ColonistCount };
         if (!ColonyDecodeReads.HasIssue(v.Issues, "resources"))
         {
             var rows = new List<Amount>();

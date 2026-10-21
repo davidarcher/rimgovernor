@@ -20,7 +20,7 @@ public sealed class ActivityGenerationClaimsTests
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-generation-claims-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         var facts = WorkResourceTestFacts.Create("pawn") with
         { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 20)]),
-            Colonists = Known(1L), IndoorCapacity = Known(0L), BedCapacity = Known(0L) };
+            Colonists = 1L, IndoorCapacity = 0L, BedCapacity = 0L };
         var review = journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
             Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var activity = DomainAction.NewPawnActivitiesAction(new("delivery"), new(1,
@@ -89,7 +89,7 @@ public sealed class ActivityGenerationClaimsTests
         var journal = Journal.Open(path, ct);
         var facts = WorkResourceTestFacts.Create("pawn") with
         { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 20)]),
-            Colonists = Known(1L), IndoorCapacity = Known(0L), BedCapacity = Known(0L) };
+            Colonists = 1L, IndoorCapacity = 0L, BedCapacity = 0L };
         journal.ReviewRounds(new() { Current = world, Tick = new(100), Enabled = true,
             Policy = RoundsRules.DefaultRoundsPolicy(), Facts = facts }, ct);
         var activity = DomainAction.NewPawnActivitiesAction(new("delivery"), new(1,

@@ -120,11 +120,7 @@ public static class QuestRewards
             }
         }
         var titles = QuestWantsTitles(f);
-        long hosted = 1;
-        if (f.Colonists.TryGetValue(out var colonists))
-        {
-            hosted = Math.Max(1L, colonists);
-        }
+        var hosted = Math.Max(1L, f.Colonists);
         var royaltyKnown = f.Royalty.TryGetValue(out var royalty);
         var best = new QuestRewardChoice();
         for (var ordinal = 0; ordinal < indices.Count; ordinal++)

@@ -15,8 +15,8 @@ public sealed class ShelterFamilyTests
     private static readonly ShelterFacts Housed = new()
     {
         SleepingRecovered = Known(true),
-        Colonists = Known(3L),
-        IndoorCapacity = Known(3L + LayoutGraphRules.HousingSparePlaces),
+        Colonists = 3L,
+        IndoorCapacity = 3L + LayoutGraphRules.HousingSparePlaces,
         SleepingMin = Known(20.0),
         SleepingMax = Known(22.0),
         TemperatureOwed = Known(false),
@@ -51,11 +51,10 @@ public sealed class ShelterFamilyTests
     [Fact]
     public void ExpansionKeepsOneSparePlaceAndWaitsOnSleeping()
     {
-        var short1 = Of(Housed with { IndoorCapacity = Known(3L) }, ShelterFamily.Expansion);
+        var short1 = Of(Housed with { IndoorCapacity = 3L }, ShelterFamily.Expansion);
         Assert.Equal(Satisfaction.Unmet, short1.Satisfaction);
         Assert.True(short1.Deficit.TryGetValue(out var d) && d > 0 && d <= 1);
-        Assert.Equal(Satisfaction.Unknown, Of(Housed with { IndoorCapacity = Unknown<long>() }, ShelterFamily.Expansion).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Of(Housed with { Colonists = Known(0L) }, ShelterFamily.Expansion).Satisfaction);
+        Assert.Equal(Satisfaction.Unknown, Of(Housed with { Colonists = 0L }, ShelterFamily.Expansion).Satisfaction);
         Assert.Equal([ShelterFamily.Sleeping], Of(Housed, ShelterFamily.Expansion).Preconditions);
         Assert.Empty(Assert.Single(new ShelterFamily(false, true, false, false).Derive(Housed)).Preconditions);
         Assert.Equal(NeedTier.Development, Of(Housed, ShelterFamily.Expansion).Tier);
@@ -64,7 +63,7 @@ public sealed class ShelterFamilyTests
     [Fact]
     public void PreconditionsHoldExpansionBehindUnmetSleeping()
     {
-        var needs = new ShelterFamily(true, true, false, false).Derive(Housed with { SleepingRecovered = Known(false), IndoorCapacity = Known(0L) });
+        var needs = new ShelterFamily(true, true, false, false).Derive(Housed with { SleepingRecovered = Known(false), IndoorCapacity = 0L });
         var standings = NeedsRules.NeedStandings(ShelterFamily.FamilyId, needs);
         Assert.Equal([NeedReadiness.Ready, NeedReadiness.Waiting], standings.Select(s => s.Readiness));
         Assert.Equal(ShelterFamily.Sleeping, standings[1].WaitingOn);

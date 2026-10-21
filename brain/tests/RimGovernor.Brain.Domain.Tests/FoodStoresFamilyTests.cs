@@ -165,7 +165,7 @@ public sealed class FoodStoresFamilyTests
         var census = larder ? Census(Stock("pem-1", 10, roofed: true, "Pemmican"), Corpse()) : Census(Stock("pem-1", 10, roofed: true, "Pemmican"));
         var facts = WorkResourceTestFacts.Create("a", "b", "c") with
         {
-            Colonists = Known(3L), IndoorCapacity = Known(3L), BedCapacity = Known(3L), FieldCoverage = Known(1.0),
+            Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = Known(1.0),
             FoodStorageUpkeep = census,
             FoodReserve = Known(Reserve("pem-1")),
         };
@@ -221,7 +221,7 @@ public sealed class FoodStoresFamilyTests
 
         // The review rebuild keeps the row; a complete run that no longer derives the Need prunes it.
         colony.Journal.ReviewRounds(new() { Current = World, Tick = new(200), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Revision = colony.Journal.LoadRounds(ct).Revision,
-            Facts = WorkResourceTestFacts.Create("a", "b", "c") with { Colonists = Known(3L), IndoorCapacity = Known(3L), BedCapacity = Known(3L), FieldCoverage = Known(1.0) } }, ct);
+            Facts = WorkResourceTestFacts.Create("a", "b", "c") with { Colonists = 3L, IndoorCapacity = 3L, BedCapacity = 3L, FieldCoverage = Known(1.0) } }, ct);
         Assert.Equal(row, Row(colony));
         colony.Journal.RecordPlannerReasons(new Dictionary<ConcernId, PlannerNote>(), [new FamilyProgress("food-stores", true, [])], ct);
         Assert.Null(Row(colony));

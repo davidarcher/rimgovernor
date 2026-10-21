@@ -105,7 +105,7 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
                 report = report with { Order = BuildingReasonNoDeficit };
                 return report;
             case FoodOrderGap.NoBill:
-                report = report with { Order = NoBill(projection.ProductionBenches, projection.Facts.Colonists) };
+                report = report with { Order = NoBill(projection.ProductionBenches) };
                 break;
             default:
                 report = report with { Order = WaitFor(Cause.MethodUsed, "ledger_bill") };
@@ -168,15 +168,11 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
         return FoodOrdersRules.DeclareFoodOrders(request, benches);
     }
 
-    internal Verdict NoBill(Fact<EquatableArray<ProductionBench>> benches, Fact<long> colonists)
+    internal Verdict NoBill(Fact<EquatableArray<ProductionBench>> benches)
     {
         if (!benches.TryGetValue(out var rows))
         {
             return FieldUnavailable("production_benches");
-        }
-        if (!colonists.IsKnown)
-        {
-            return FieldUnavailable("colonists");
         }
         var butcher = _purpose == ProductionRules.ButcherFood;
         foreach (var bench in rows)

@@ -340,7 +340,7 @@ public static partial class OrganHarvestRules
         ItemFacts items,
         Fact<TradeNeed> need,
         Fact<EquatableArray<Amount>> resources,
-        Fact<long> colonists,
+        long colonists,
         RecipeFacts facts)
     {
         if (!need.TryGetValue(out var n) || !resources.TryGetValue(out var rows)

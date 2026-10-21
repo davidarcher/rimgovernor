@@ -13,7 +13,7 @@ public sealed record MedicineStackRow
 
 public sealed record MedicalReserveObservation
 {
-    public Fact<long> Colonists { get; init; }
+    public long Colonists { get; init; }
     public Fact<EquatableArray<MedicineStackRow>> Items { get; init; }
 
     /// <summary>The complete usable native stock census, excluding inaccessible and forbidden stock. It is capped again against the actual medicine stacks.</summary>
@@ -87,10 +87,10 @@ public static partial class MedicalRules
         {
             throw new DomainException(Invalid);
         }
-        var pk = v.Colonists.TryGetValue(out var people);
+        var people = v.Colonists;
         var ik = v.Items.TryGetValue(out var items);
         var rk = v.Resources.TryGetValue(out var resources);
-        if (pk && (people < 0 || (people > 0 && p.TargetPerColonist > long.MaxValue / people)))
+        if (people < 0 || (people > 0 && p.TargetPerColonist > long.MaxValue / people))
         {
             throw new DomainException(Invalid);
         }
@@ -104,7 +104,7 @@ public static partial class MedicalRules
         {
             return r;
         }
-        if (!pk || !ik || !rk)
+        if (!ik || !rk)
         {
             return r;
         }

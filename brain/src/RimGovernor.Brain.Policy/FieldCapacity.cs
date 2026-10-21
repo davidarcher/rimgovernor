@@ -19,7 +19,7 @@ public sealed record FieldCrop
 
 public static class FieldCapacityRules
 {
-    public static Fact<double> FieldCoverage(Fact<long> colonists, Fact<EquatableArray<FieldCrop>> crops, double reserveDays)
+    public static Fact<double> FieldCoverage(long colonists, Fact<EquatableArray<FieldCrop>> crops, double reserveDays)
     {
         if (!crops.TryGetValue(out var rows) || !FieldPositive(reserveDays))
         {
@@ -36,16 +36,15 @@ public static class FieldCapacityRules
             {
                 continue;
             }
-            var ck = colonists.TryGetValue(out var count);
             var sk = crop.GrowingCells.TryGetValue(out var cells);
             var dk = crop.Demand.TryGetValue(out var demand);
             var gk = crop.GrowDays.TryGetValue(out var days);
             var yk = crop.HarvestNutrition.TryGetValue(out var yield);
-            if (!ck || count < 0 || !sk || cells < 0 || !dk || !gk || !yk || !FieldPositive(demand) || !FieldPositive(days) || !FieldPositive(yield))
+            if (colonists < 0 || !sk || cells < 0 || !dk || !gk || !yk || !FieldPositive(demand) || !FieldPositive(days) || !FieldPositive(yield))
             {
                 return Unknown<double>();
             }
-            var target = FieldCoverageTarget(count, demand, days, yield, reserveDays);
+            var target = FieldCoverageTarget(colonists, demand, days, yield, reserveDays);
             if (!FieldPositive(target))
             {
                 return Unknown<double>();
@@ -68,17 +67,16 @@ public static class FieldCapacityRules
     /// The cell count at which <see cref="FieldCoverage"/> reads 1 for the crop:
     /// growth stops there, so a shrink target below it would trim cells the planner keeps adding.
     /// </summary>
-    public static Fact<int> FieldCapacityTarget(Fact<long> colonists, CropChoice crop, double reserve)
+    public static Fact<int> FieldCapacityTarget(long colonists, CropChoice crop, double reserve)
     {
-        var ck = colonists.TryGetValue(out var count);
         var dk = crop.Demand.TryGetValue(out var demand);
         var gk = crop.GrowDays.TryGetValue(out var days);
         var yk = crop.HarvestNutrition.TryGetValue(out var yield);
-        if (!ck || count < 0 || !dk || !gk || !yk || !FieldPositive(demand) || !FieldPositive(days) || !FieldPositive(yield) || !FieldPositive(reserve))
+        if (colonists < 0 || !dk || !gk || !yk || !FieldPositive(demand) || !FieldPositive(days) || !FieldPositive(yield) || !FieldPositive(reserve))
         {
             return Unknown<int>();
         }
-        var target = FieldCoverageTarget(count, demand, days, yield, reserve);
+        var target = FieldCoverageTarget(colonists, demand, days, yield, reserve);
         if (!FieldPositive(target) || target > 65536)
         {
             return Unknown<int>();

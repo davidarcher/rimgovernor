@@ -63,8 +63,8 @@ public static class CropResilienceRules
         var yk = crop.HarvestNutrition.TryGetValue(out var yield);
         var dk = crop.GrowDays.TryGetValue(out var days);
         var gk = r.Growers.TryGetValue(out var growers);
-        var pk = r.Colonists.TryGetValue(out var people);
-        if (wk && yk && dk && gk && pk && FoodForecastRules.FoodNumber(work) && work >= 0 && FieldCapacityRules.FieldPositive(yield) && FieldCapacityRules.FieldPositive(days) && growers >= 0 && people > 0)
+        var people = r.Colonists;
+        if (wk && yk && dk && gk && FoodForecastRules.FoodNumber(work) && work >= 0 && FieldCapacityRules.FieldPositive(yield) && FieldCapacityRules.FieldPositive(days) && growers >= 0 && people > 0)
         {
             terms.Add(new FarmSiteTerm("labor", -unit * .0002 * work / yield * people / Math.Max(1, growers)));
             terms.Add(new FarmSiteTerm("harvest-delay", -unit * .03 * days));

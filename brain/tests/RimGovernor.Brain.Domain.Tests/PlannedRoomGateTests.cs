@@ -146,7 +146,7 @@ public sealed class PlannedRoomGateTests
         facts = facts with
         {
             Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 1000), new(new("BlocksGranite"), 1000)]),
-            Colonists = Known(1L), IndoorCapacity = Known(1L), BedCapacity = Known(1L), FieldCoverage = Known(1.0),
+            Colonists = 1L, IndoorCapacity = 1L, BedCapacity = 1L, FieldCoverage = Known(1.0),
             WorkAdmission = facts.WorkAdmission with
             {
                 Buildings = Known<EquatableArray<WorkBuildingCost>>([
