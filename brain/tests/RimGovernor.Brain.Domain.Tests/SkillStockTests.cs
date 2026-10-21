@@ -62,6 +62,15 @@ public sealed class SkillStockTests
     }
 
     [Fact]
+    public void APawnWhoseSkillsAreUnreadIsNamedNotSilent()
+    {
+        // #3663: a review read without the biography left every stock out with no finding.
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        Assert.Empty(SkillStock.Of(new ModelPawn { Pawn = "Anna" }, findings));
+        Assert.Equal(["skill_stock_unknown:Anna:skills_unread"], findings);
+    }
+
+    [Fact]
     public void ALevelDownInsideADayMatchesForecastSkill()
     {
         // Level 1 decays 10 XP each 200 ticks, so -95 XP passes the -100 loss threshold and drops to level 0.

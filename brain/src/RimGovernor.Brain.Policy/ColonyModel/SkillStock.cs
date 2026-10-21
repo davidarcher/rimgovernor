@@ -35,6 +35,9 @@ public sealed record SkillTrack
 /// <summary>The mutable state of one skill stock in a run.</summary>
 internal sealed class SkillStock
 {
+    /// <summary>The finding gap of a pawn whose review read carries no skills.</summary>
+    internal const string SkillsUnread = "skills_unread";
+
     private readonly SkillLearning mechanics;
     private readonly List<SkillLevelDate> dates = [];
     private readonly int startStored;
@@ -62,11 +65,15 @@ internal sealed class SkillStock
 
     internal bool Disabled => mechanics.Disabled.Value;
 
-    /// <summary>A stock for each skill of the pawn whose mechanics are read; each other skill is named, never defaulted.</summary>
+    /// <summary>
+    /// A stock for each skill of the pawn whose mechanics are read; each other skill is named, never defaulted, and a pawn whose skills
+    /// are unread is named (<see cref="SkillsUnread"/>).
+    /// </summary>
     internal static IEnumerable<SkillStock> Of(ModelPawn pawn, SortedSet<string> findings)
     {
         if (!pawn.Skills.TryGetValue(out var skills))
         {
+            findings.Add($"skill_stock_unknown:{pawn.Pawn}:{SkillsUnread}");
             yield break;
         }
 

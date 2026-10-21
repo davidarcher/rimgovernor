@@ -315,7 +315,8 @@ a field of the same stuff adds nothing to it. No fibre stock is priced, and whil
 exist, the harm is `apparel_harm_unassessed` and the chain's investment credit is 0.
 
 *Skills and medicine (#3634, #3344).* Each pawn's skills are stocks keyed `skill/<pawn>/<skill>` (`SkillStock`), started from
-the observed `SkillLearning` (a skill whose mechanics are unread is `skill_stock_unknown:<key>:<gap>`). No tier-2 work pays XP: between
+the observed `SkillLearning` (a skill whose mechanics are unread is `skill_stock_unknown:<key>:<gap>`, a pawn whose skills are
+unread `skill_stock_unknown:<pawn>:skills_unread`). No tier-2 work pays XP: between
 events a stock falls by its level's native decay (`DecayXp` per `DecayInterval` while learning is allowed), and a level is lost at the
 loss threshold by `ForecastSkill`'s level rule, each change dated inside the interval (`ColonyTrajectory.Skills`). Medicine is held by
 kind, best potency first, and raid tending (`ColonyModelPolicy.MedicineTendsPerDay`, set from `ColonyValue.RaidTreatmentsPerDay`: the
@@ -323,7 +324,8 @@ harm model's raid wounds per pawn, batched at their mean severity under the nati
 first. `ProjectMarginalValue` values one XP as one level more over the XP that level takes: it runs each pawn's stock of each skill
 again one stored level higher, its XP toward the next level kept (`SkillStock.Raise`), and divides the value difference by the native
 `RequiredXp` of the observed level (`SkillTrack.NextLevelXp`). A stock at the top level is worth 0 per XP. Each medicine kind is
-perturbed by one unit. The values per XP and per unit go to `PerUnit` under the stock key and `medicine/<kind>`.
+perturbed by one unit. The values per XP and per unit go to `PerUnit` under the stock key and `medicine/<kind>`; the `colony_model` event logs each stock's
+value per XP (`skill_per_xp`), and `production/skill-marginal` (#3663) proves a live review prices the staged colonist's Medicine stock.
 
 *Raid tending (#3635).* `ColonyValue` subtracts the colony's raid harm over the run at the tending the run gives it. The run is cut
 at each doctor's level dates and at each medicine kind's run-out (between events the stock falls at a constant rate, best kind

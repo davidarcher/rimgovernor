@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Telemetry;
 
 /// <summary>
 /// The tier-2 colony model's per-review row (the Rounder's <c>colony_model</c> event; docs/developers/contracts/otel-signals.md#kinds):
-/// its kind and the attrs a reader selects. Reader: the <c>goals/research-goal</c> acceptance case.
+/// its kind and the attrs a reader selects. Readers: the <c>goals/research-goal</c> and <c>production/skill-marginal</c> acceptance cases.
 /// </summary>
 public static class ColonyModelTelemetry
 {
@@ -34,6 +34,9 @@ public static class ColonyModelTelemetry
 
     /// <summary>Capability-days an hour of each valued project's work adds (dV/dt), each as <c>node=value</c>, joined by <c>;</c>.</summary>
     public const string ProjectsKey = "dvdt";
+
+    /// <summary>Capability-days one XP of each priced skill stock adds (#3344, #3663), each as <c>skill/&lt;pawn&gt;/&lt;skill&gt;=value</c>.</summary>
+    public const string SkillsKey = "skill_per_xp";
 
     /// <summary>Each unmet goal tier 2 was asked about (#3505): <c>need=day:&lt;game day&gt;</c> when it completes inside the horizon, <c>need=open</c> when it does not, <c>need=unmodelled:&lt;reason&gt;</c> when no path reaches it.</summary>
     public const string GoalsKey = "goals";

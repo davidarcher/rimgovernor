@@ -40,6 +40,7 @@ public static class CaseCatalog
         registry.Register(ProductionDevilstrandInvestment.Case());
         registry.Register(ProductionResearchBlock.Case());
         registry.Register(ProductionSowBlock.Case());
+        registry.Register(ProductionSkillMarginal.Case());
         registry.Register(ShelterServiceInvestment.Case());
         foreach (var c in ControlActivities.Cases())
         {

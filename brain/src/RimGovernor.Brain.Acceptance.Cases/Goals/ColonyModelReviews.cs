@@ -3,8 +3,8 @@ using RimGovernor.Brain.Telemetry;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
-/// <summary>One <c>colony_model</c> row: a review's tier-2 run (#3531).</summary>
-internal sealed record ColonyModelRow(double HorizonDays, double Events, bool Truncated, double? RunwayDay, string Dvdt, string Findings);
+/// <summary>One <c>colony_model</c> row: a review's tier-2 run (#3531), with each priced skill stock's value per XP (#3663).</summary>
+internal sealed record ColonyModelRow(double HorizonDays, double Events, bool Truncated, double? RunwayDay, string Dvdt, string Findings, IReadOnlyList<string> SkillPerXp);
 
 /// <summary>The acceptance reader of the <see cref="TelemetryKinds.ColonyModel"/> kind.</summary>
 internal static class ColonyModelReviews
@@ -22,6 +22,7 @@ internal static class ColonyModelReviews
             fields.GetValueOrDefault(ColonyModelTelemetry.TruncatedKey) is true,
             Number(ColonyModelTelemetry.RunwayKey),
             fields.GetValueOrDefault(ColonyModelTelemetry.ProjectsKey) as string ?? "",
-            fields.GetValueOrDefault(ColonyModelTelemetry.FindingsKey) is List<object?> findings ? string.Join(';', findings) : "");
+            fields.GetValueOrDefault(ColonyModelTelemetry.FindingsKey) is List<object?> findings ? string.Join(';', findings) : "",
+            fields.GetValueOrDefault(ColonyModelTelemetry.SkillsKey) is List<object?> skills ? [.. skills.OfType<string>()] : []);
     }
 }
