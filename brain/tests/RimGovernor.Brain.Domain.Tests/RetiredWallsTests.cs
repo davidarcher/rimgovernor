@@ -56,6 +56,23 @@ public sealed class RetiredWallsTests
     }
 
     [Fact]
+    public void ALastRoofHolderTakesTheGroundsRoofOff()
+    {
+        // The ring is down but for its door, which encloses nothing now and still holds the roof auto-roof laid
+        // over the ring: its step is the walls step, with the roof of the whole hut ground (#3681).
+        var door = new ClearanceTarget { EntityId = "Thing_Door12_10", DefName = "Door", Minimum = new Cell(12, 10), Maximum = new Cell(12, 10), Player = true, Deconstructible = true, Designated = true, RoofBlocker = "roof would collapse" };
+
+        var (step, ok) = HomeUpkeepReader.PlannedGroundStep(Colony(Known(new RoomObservation())), [door], [], null!);
+
+        Assert.True(ok);
+        Assert.Equal(GroundPhase.Walls, step.Phase);
+        Assert.Equal(25, step.Roof.Count);
+        var pending = HomeUpkeepReader.PendingClearanceStep(step);
+        Assert.Empty(pending.Targets);
+        Assert.Equal(25, pending.Roof.Count);
+    }
+
+    [Fact]
     public void AnUnreadRoomCensusIsNoStep()
     {
         var walls = Walls();

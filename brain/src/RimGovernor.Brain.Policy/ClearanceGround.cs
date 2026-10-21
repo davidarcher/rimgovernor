@@ -202,8 +202,8 @@ public static class ClearanceGroundRules
 
     /// <summary>
     /// Picks the first retired ground, in plan order, with work left and its earliest phase: furniture,
-    /// packs, then walls with their roof, then floors. Rows are the census's player rows on the ground
-    /// (SplitGroundRows). Null when the ground is clear. Planned rooms go through Reconcile
+    /// packs, then walls (and every roof-holder) with their roof, then floors. Rows are the census's player
+    /// rows on the ground (SplitGroundRows). Null when the ground is clear. Planned rooms go through Reconcile
     /// (PlannedGroundStep).
     /// </summary>
     internal static GroundStep? RetiredGroundStep(
@@ -231,7 +231,8 @@ public static class ClearanceGroundRules
                 }
 
                 claimed.Add(row.EntityId);
-                if (row.EnclosesRoom)
+                // A roof-holder goes with the walls and their roof, whatever it still encloses (#3681).
+                if (row.EnclosesRoom || row.RoofBlocker.Length != 0)
                 {
                     walls.Add(row);
                 }
@@ -271,7 +272,7 @@ public static class ClearanceGroundRules
                     Ground = g,
                     Phase = GroundPhase.Walls,
                     Targets = EquatableArray.From(walls),
-                    Roof = EquatableArray.From(EnclosedRoof(walls, ground.Items, rooms)),
+                    Roof = EquatableArray.From(RetiredRoof(walls, g, ground.Items, rooms, rg)),
                 };
             }
 
@@ -357,6 +358,24 @@ public static class ClearanceGroundRules
         }
 
         return [.. output.OrderBy(c => c.X).ThenBy(c => c.Z)];
+    }
+
+    /// <summary>
+    /// The roof a retired room's walls step takes off: its enclosed interior, and once a wall cannot come down
+    /// without collapsing roof (the census's roof blocker), every cell of the ground but a kept room's. Vanilla
+    /// auto-roof roofs a room's walls too, so the interior alone left roof over the ring, and its last
+    /// roof-holder was held by the roof-collapse guard for good (#3681: the hut's door stood all run). An
+    /// unroofed cell joins the no-roof area too, so nothing roofs it again.
+    /// </summary>
+    private static List<Cell> RetiredRoof(IReadOnlyList<ClearanceTarget> walls, Region g, IReadOnlyList<Region> ground, RoomObservation rooms, RetiredGround rg)
+    {
+        var roof = EnclosedRoof(walls, ground, rooms);
+        if (walls.Any(w => w.RoofBlocker.Length != 0))
+        {
+            roof = [.. roof.Union(g.Cells().Where(c => !rg.IsKept(c))).OrderBy(c => c.X).ThenBy(c => c.Z)];
+        }
+
+        return roof;
     }
 
     /// <summary>

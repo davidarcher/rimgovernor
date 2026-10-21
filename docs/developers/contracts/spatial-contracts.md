@@ -536,6 +536,9 @@ but not ready, and brings no roof off, until the new ring stands (no wall or doo
 owed). A retired wall that still bounds an enclosed census room reaching outside the
 retired ground (a row shrunk away) waits until the new ring has split that room off.
 The home-upkeep clearance read takes the room census for that check; with it unread there is no step.
+A retired roof-holder (a wall, or a door that encloses nothing any more) goes with the walls step; once one carries
+a roof blocker, that step takes the roof off the whole retired ground but a kept room's cells, since auto-roof
+roofs the ring too.
 No new OpKind; the native ClearanceTargets request stays rectangles.
 
 ### Stockpile maintenance
