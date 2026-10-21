@@ -67,7 +67,9 @@ player may use (#3046), each row with its `AvailableInput` and `StorageDistance`
 and `DeliveryTicks` priced for the share the stack can supply (the demand, or the
 whole stack under it). Every stack that covers the demand alone is a source, each a
 whole alternative; a remote one is a full-load Supply that collects nearby stacks
-([remote construction pickup](spatial-contracts.md#remote-construction-pickup)).
+([remote construction pickup](spatial-contracts.md#remote-construction-pickup)),
+by the rule native also applies to vanilla's delivery for a colonist with no
+committed order.
 When none does (#3673), the brain takes the stacks nearest the site first until
 their sum covers it, as one set: every stack is taken whole but the largest (ties:
 lowest id), which supplies the remainder. Native also reads, per pawn and placed

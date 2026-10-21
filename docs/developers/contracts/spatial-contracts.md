@@ -64,29 +64,39 @@ actual pawn labor remain simulation outcomes.
 
 ### Remote construction pickup
 
-The brain's Supply step sizes a remote placed-site delivery (#3046,
-`ConstructionMethodCandidates.RemoteLoad`). Native lists every usable stack of a
-site's material, each row with its `StorageDistance`: the straight-line distance
-from the stack to the nearest cell of storage that accepts it (zero when already
-stored, unknown when no storage accepts it). All distances are straight-line,
-with no path or region search.
+A remote construction delivery takes a full carry load, by one rule
+(`RemotePickup` in the domain assembly, #2517, #3046) on both delivery paths:
 
-- A whole-stack delivery is remote when its stack is farther from the site (D)
-  than its storage distance. Its step is `FullLoad`: native's `HaulToContainer`
-  takes a full carry load (`MaxStackSpaceEver`) instead of the site's need; the
-  site takes its need and vanilla drops the surplus beside the frame, where it
-  stays the nearest stack for the next delivery.
-- A remote step also names the site's other stacks to `Collect` (at most 16),
-  nearest its stack first. A stack at distance d is worth the detour when
+- the brain's Supply step (`ConstructionMethodCandidates.RemoteLoad`) for a
+  committed order; native lists every usable stack of a site's material, each
+  row with its `StorageDistance`;
+- vanilla's own delivery job, which a controlled colonist with no committed order
+  takes under supervised play (#3669): `RemotePickupGuard`, a postfix on
+  `WorkGiver_ConstructDeliverResources.ResourceDeliverJobFor` (frames and
+  blueprints), enlarges the finished `HaulToContainer` job.
+
+A stack's storage distance is the straight-line distance to the nearest cell of
+storage that accepts it (zero when already stored, unknown when no storage
+accepts it). All distances are straight-line, with no path or region search.
+
+- A delivery is remote when its first stack is farther from the site (D) than
+  its storage distance. It takes a full carry load (`MaxStackSpaceEver`) instead
+  of the site's need; the site takes its need and vanilla drops the surplus
+  beside the frame, where it stays the nearest stack for the next delivery.
+- A remote delivery also collects other stacks of the material (at most 16),
+  nearest its first stack first. A stack at distance d is worth the detour when
   `d < n * D / capacity`, with n the items of that stack that fit in the
-  remaining capacity, and `d <= D / 2`. Native queues those still usable and
-  reachable when it offers the job.
+  remaining capacity, and `d <= D / 2`. The brain names them in the step's
+  `Collect` and native queues those still usable and reachable when it offers
+  the job; the guard queues the usable, reachable ones after the stacks vanilla
+  already queued (5 cells).
 - A local delivery, a multi-stack set's delivery and one with no accepting
-  storage take the exact need. Vanilla's own delivery (mechanoids, player-forced
-  orders, colonists with no committed order) is unchanged.
+  storage take the exact need. Mechanoids, player-forced jobs, a carried
+  resource and play outside a clock run keep vanilla's exact-need pickup; bill
+  ingredients never pass through either path.
 
 `wall/remote_pickup` covers the full-load trip, the radius, local behaviour and
-that every item is counted once.
+that every item is counted once, whichever path delivers.
 
 ## Room footprints
 

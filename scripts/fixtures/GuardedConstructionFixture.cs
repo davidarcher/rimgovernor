@@ -172,7 +172,7 @@ namespace HomeBridge.BridgeTools
         // The site the last remote_pickup stage framed; audit reads it.
         private static IntVec3? pickupSite;
 
-        [Tool("test/remote_pickup",Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab (#2517, #3046). remote stages a cold 5x5 wooden hut (3x3 roofed interior, door mid south, a lit campfire, no bed) whose mid east wall is an unfunded wood wall frame at the map centre, and three WoodLog stacks 40 cells east of the frame inside a stockpile strip (15, then 20 at 8 cells and 20 at 14 cells from the first); local stages the same hut 30 cells west, with two loose stacks 4 cells east of its frame, and removes the stockpile; audit reads the last staged frame's delivered wood, the loose stacks and the carriers. Every work type is off for every colonist, so only the brain's orders deliver; all other wood is forbidden.")]
+        [Tool("test/remote_pickup",Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab (#2517, #3046). remote stages a cold 5x5 wooden hut (3x3 roofed interior, door mid south, a lit campfire, no bed) whose mid east wall is an unfunded wood wall frame at the map centre, and three WoodLog stacks 40 cells east of the frame, each in its own one-cell stockpile (15, then 20 at 8 cells and 20 at 14 cells from the first), with a stockpile on the 3x7 cells east of the frame for the surplus, so vanilla hauling moves no stack; local stages the same hut 30 cells west, with two loose stacks 4 cells east of its frame, and removes the stockpiles; audit reads the last staged frame's delivered wood, the loose stacks and the carriers. A brain order or vanilla delivery may deliver; each stage destroys all other wood.")]
         public async Task<object> RemotePickup(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "audit")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -189,7 +189,8 @@ namespace HomeBridge.BridgeTools
                 // The hut's south-west corner: the frame is the middle of its east wall.
                 var origin = site - new IntVec3(4, 0, 2);
                 if (action != "audit") {
-                    foreach (var wood in map.listerThings.ThingsOfDef(ThingDefOf.WoodLog).ToList()) wood.SetForbidden(true, false);
+                    // Every other log goes, the last phase's included: the brain unforbids stock it may use.
+                    foreach (var wood in map.listerThings.ThingsOfDef(ThingDefOf.WoodLog).ToList()) wood.Destroy(DestroyMode.Vanish);
                     foreach (var zone in map.zoneManager.AllZones.OfType<Zone_Stockpile>().ToList()) zone.Delete();
                     FixtureHut.Build(map, 5, origin, origin + new IntVec3(2, 0, 0), 0);
                     site.GetEdifice(map)?.Destroy(DestroyMode.Vanish);
@@ -203,7 +204,6 @@ namespace HomeBridge.BridgeTools
                         pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
                         pawn.Position = site + new IntVec3(2, 0, 0);
                         pawn.Notify_Teleported(true, true);
-                        foreach (var type in DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(t => !pawn.WorkTypeIsDisabled(t))) pawn.workSettings.SetPriority(type, 0);
                         pawn.needs.food.CurLevelPercentage = 1;
                         pawn.needs.rest.CurLevelPercentage = 1;
                         if (pawn.needs.joy != null) pawn.needs.joy.CurLevelPercentage = 1;
@@ -220,16 +220,24 @@ namespace HomeBridge.BridgeTools
                         map.areaManager.Home[cell] = true;
                     }
                     if (action == "remote") {
-                        var strip = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
-                        map.zoneManager.RegisterZone(strip);
-                        for (var z = -14; z <= 8; z++) strip.AddCell(site + new IntVec3(40, 0, z));
+                        // One stockpile per stack and one beside the frame, all of one priority: vanilla hauls no stack
+                        // between them, and the surplus lands in (or is hauled to) the frame's own.
+                        void Stockpile(IEnumerable<IntVec3> cells) {
+                            var zone = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
+                            map.zoneManager.RegisterZone(zone);
+                            foreach (var cell in cells) zone.AddCell(cell);
+                        }
+                        foreach (var (cell, _) in stacks) Stockpile(new[] { cell });
+                        var beside = CellRect.FromLimits(site.x + 1, site.z - 3, site.x + 3, site.z + 3).Cells.ToList();
+                        foreach (var cell in beside) ClearWallCell(map, cell);
+                        Stockpile(beside);
                     }
                 }
                 var built = site.GetThingList(map).OfType<Frame>().FirstOrDefault();
                 var cost = ThingDefOf.Wall.CostStuffCount;
                 var delivered = built != null ? built.resourceContainer.TotalStackCountOfDef(ThingDefOf.WoodLog)
                     : site.GetEdifice(map)?.def == ThingDefOf.Wall ? cost : 0;
-                var loose = map.listerThings.ThingsOfDef(ThingDefOf.WoodLog).Where(t => t.Spawned && !t.IsForbidden(Faction.OfPlayer))
+                var loose = map.listerThings.ThingsOfDef(ThingDefOf.WoodLog).Where(t => t.Spawned)
                     .Select(t => new { x = t.Position.x, z = t.Position.z, count = t.stackCount }).ToList();
                 return new { success = true, delivered, cost, loose,
                     carrying = map.mapPawns.FreeColonistsSpawned.Count(p => p.carryTracker?.CarriedThing?.def == ThingDefOf.WoodLog),

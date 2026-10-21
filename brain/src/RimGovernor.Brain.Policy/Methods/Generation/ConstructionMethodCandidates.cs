@@ -93,31 +93,20 @@ internal static class ConstructionMethodCandidates
     private static double Distance(Cell a, Cell b) => Math.Sqrt(((double)a.X - b.X) * (a.X - b.X) + ((double)a.Z - b.Z) * (a.Z - b.Z));
 
     /// <summary>
-    /// Remote pickup (#2517, #3046): a whole-stack delivery whose stack is farther from the site (D, straight line) than from
-    /// the nearest storage that accepts it takes a full carry load instead of the site's need, the surplus dropped beside the
-    /// site for its next delivery. On the way it collects the site's other stacks of the material, nearest its stack first
-    /// (at most 16), each while worth the detour: d &lt;= D / 2 and d &lt; n * D / capacity, with d the straight-line detour
-    /// and n the stack's items that still fit. A local delivery, or one whose storage distance is unknown (no storage accepts
+    /// Remote pickup (#2517, #3046, <see cref="RemotePickup"/>): a whole-stack delivery whose stack is remote takes a full
+    /// carry load instead of the site's need, the surplus dropped beside the site for its next delivery, and collects the
+    /// site's other stacks worth the detour. A local delivery, or one whose storage distance is unknown (no storage accepts
     /// it), takes the need alone.
     /// </summary>
     internal static (bool FullLoad, EquatableArray<string> Collect) RemoteLoad(ConstructionActivityOption row, IEnumerable<ConstructionActivityOption> stacks)
     {
         if (!row.StorageDistance.TryGetValue(out var storage) || !row.AvailableInput.TryGetValue(out var held) || row.Capacity <= 0) return (false, default);
         var site = Distance(row.Origin, row.Location);
-        if (!(site > storage)) return (false, default);
-        var remaining = row.Capacity - held;
-        var collect = new List<string>();
-        foreach (var (stack, detour) in stacks.Where(s => s.Input.Length != 0 && s.Input != row.Input && s.Resource == row.Resource && s.AvailableInput.IsKnown)
-            .GroupBy(s => s.Input).Select(g => (Stack: g.First(), Detour: Distance(row.Origin, g.First().Origin)))
-            .Where(c => c.Detour <= site / 2).OrderBy(c => c.Detour).ThenBy(c => c.Stack.Input, StringComparer.Ordinal))
-        {
-            if (remaining <= 0 || collect.Count == 16) break;
-            var fits = Math.Min(stack.AvailableInput.Value, remaining);
-            if (!(fits > 0 && detour < fits * site / row.Capacity)) continue;
-            collect.Add(stack.Input);
-            remaining -= fits;
-        }
-        return (true, EquatableArray.From(collect));
+        if (!RemotePickup.IsRemote(site, storage)) return (false, default);
+        var candidates = stacks.Where(s => s.Input.Length != 0 && s.Input != row.Input && s.Resource == row.Resource && s.AvailableInput.IsKnown)
+            .GroupBy(s => s.Input).Select(g => g.First()).OrderBy(s => s.Input, StringComparer.Ordinal)
+            .Select(s => (s.Input, Distance(row.Origin, s.Origin), s.AvailableInput.Value));
+        return (true, EquatableArray.From(RemotePickup.Collect(site, row.Capacity, held, candidates)));
     }
 
     internal static CoordinatedMethodCandidates Generate(ConstructionActivityRead read, long deadline, WorkResourceView resources, IReadOnlySet<string> floors)

@@ -9,10 +9,12 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <c>wall/remote_pickup</c> (#2517, #3046): under the served brain, a construction delivery whose source stack is remote
 /// (in storage nearer than the site) takes one full carry load, collecting a same-def stack inside the n*D/capacity
 /// radius but not one outside it; the surplus lands beside the frame and every item is counted once. A local delivery
-/// with no storage takes exactly the frame's need. The brain sizes the Supply step (ConstructionMethodCandidates.RemoteLoad)
-/// and native carries it with vanilla HaulToContainer; <c>test/remote_pickup</c> stages and reads it in the lab. Each
-/// frame closes a cold hut the injected layout plan names a planned barracks, so the shelter values its finish; a
-/// free-standing frame is held by the thermal-relief gate. Every work type is off, so vanilla never delivers itself.
+/// with no storage takes exactly the frame's need. Either path may deliver, both by one rule (<see cref="RemotePickup"/>): the
+/// brain's Supply step (ConstructionMethodCandidates.RemoteLoad) or, for a colonist with no committed order, vanilla's own
+/// delivery sized by native's RemotePickupGuard. <c>test/remote_pickup</c> stages and reads it in the lab; each remote stack
+/// sits in its own stockpile and the frame has one beside it, so vanilla hauling moves no stack. Each frame closes a cold hut
+/// the injected layout plan names a planned barracks, so the shelter values its finish; a free-standing frame is held by the
+/// thermal-relief gate.
 /// </summary>
 internal static class WallRemotePickup
 {
@@ -68,10 +70,10 @@ internal static class WallRemotePickup
                 Pieces = rooms.ToDictionary(r => r.Id, r => (IReadOnlyList<InteriorPiece>)
                     [new InteriorPiece { Def = "Campfire", Rect = new Rectangle { X = r.Region.Bounds().X + 2, Z = r.Region.Bounds().Z + 2, Width = 1, Height = 1 } }]),
             }, cancellationToken).ConfigureAwait(false);
-            if (phase == "remote" && staged.Capacity is < 58 or > 99)
+            // The staged geometry separates the stacks only for some carry capacities: the second stack (20 items, 8 cells
+            // from the first 15, D=40) must be worth the detour and the third (14 cells) not.
+            if (phase == "remote" && RemotePickup.Collect(40, staged.Capacity, 15, [("near", 8.0, 20.0), ("far", 14.0, 20.0)]) is not ["near"])
             {
-                // The second stack (20 items, 8 cells from the first, D=40) is worth the detour while 8 < 20*40/capacity; the
-                // third (14 cells) is not. The geometry only separates them for a capacity between 58 and 99.
                 throw new AcceptanceException($"lab carry capacity {staged.Capacity} does not separate the staged stacks");
             }
 

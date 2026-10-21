@@ -569,7 +569,7 @@ namespace HomeBridge.BridgeTools
                     var queue = step.Collect.Select(Thing).Where(t => t != null && t.Spawned && t != target && t.def == target.def
                         && GenAI.CanUseItemForWork(p, t) && p.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.None)).Select(t => t!).ToList();
                     job.targetQueueA = queue.Select(t => new LocalTargetInfo(t)).ToList();
-                    job.count = Math.Max(step.Count, Math.Min(p.carryTracker.MaxStackSpaceEver(target.def), target.stackCount + queue.Sum(t => t.stackCount)));
+                    job.count = RemotePickup.Load(step.Count, p.carryTracker.MaxStackSpaceEver(target.def), target.stackCount + queue.Sum(t => t.stackCount));
                 }
             }
             if (step.Kind == PawnActivityKind.Recreation)

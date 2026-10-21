@@ -525,7 +525,7 @@ internal static class NativeConstructionActivity
 
     // Straight-line distance from the stack to the nearest cell of any storage that accepts it: zero when it already
     // sits in storage, unknown when none accepts it.
-    private static Fact<double> StorageDistance(Map map, Thing thing)
+    internal static Fact<double> StorageDistance(Map map, Thing thing)
     {
         if (thing.GetSlotGroup() != null) return Fact.Known(0.0);
         var best = double.PositiveInfinity;
