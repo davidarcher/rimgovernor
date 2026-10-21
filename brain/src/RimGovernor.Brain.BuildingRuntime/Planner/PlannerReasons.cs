@@ -154,8 +154,8 @@ internal static class PlannerReasons
 
     /// <summary>
     /// Turns transitions into need_transitions rows: need the filing key, verdict the filing verdict's outcome,
-    /// cause the new cause (empty when it cleared), subject, method (the goal's current method on its progress
-    /// record), and previous cause and held ticks only when known.
+    /// cause the new cause (empty when it cleared), subject, method (the full MethodId the goal works, as
+    /// <c>Store.RecordPlannerReasons</c> reports it), and previous cause and held ticks only when known.
     /// </summary>
     public static List<NeedTransition> TransitionRows(IReadOnlyList<NeedTransitionEvent> transitions, IReadOnlyDictionary<ConcernId, string> methods, long tick, DateTimeOffset now)
     {

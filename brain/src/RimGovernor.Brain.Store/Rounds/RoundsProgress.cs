@@ -137,8 +137,8 @@ public sealed partial class Store
     /// in place), a met Need's row is pruned, and a complete run prunes its family's rows for Needs it no longer
     /// reported. Rows of families that did not run, or ran partially (the immediate pass), stand.
     /// </para>
-    /// Reports whether anything changed and each filed goal's and reported Need's current method (its record's
-    /// Method, empty when it has none).
+    /// Reports whether anything changed and each filed goal's and reported Need's current method: a reported Need's
+    /// full <see cref="MethodId"/> (empty when it works none), a filed goal's record Method.
     /// </summary>
     public (bool Changed, IReadOnlyDictionary<ConcernId, string> Methods) RecordPlannerReasons(
         IReadOnlyDictionary<ConcernId, PlannerNote> reasons,
@@ -170,7 +170,9 @@ public sealed partial class Store
             {
                 var review = LoadRounds(tx);
                 var changed = false;
-                var methods = new Dictionary<ConcernId, string>();
+                // A reported Need names the full MethodId it works, the one need_methods binds (#3593): its row keeps
+                // only the label. Met, refused and unmethoded Needs work none.
+                var methods = reported.ToDictionary(kv => kv.Key, kv => kv.Value.Method.Value);
                 var progress = new List<ConcernProgress>(review.Progress.Count + reported.Count);
                 var pending = new Dictionary<ConcernId, NeedProgress>(reported);
                 foreach (var record in review.Progress)
@@ -180,14 +182,12 @@ public sealed partial class Store
                     {
                         if (pending.Remove(p.Concern, out var need))
                         {
-                            methods[p.Concern] = "";
                             if (need.Met)
                             {
                                 changed = true;
                                 continue;
                             }
                             p = NeedProgressRow(record, need, review.Tick);
-                            methods[p.Concern] = p.Method;
                             changed = changed || p != record;
                         }
                         else if (complete.Contains(new NeedId(p.Concern.Value).Family))
@@ -226,13 +226,11 @@ public sealed partial class Store
                 }
                 foreach (var need in pending.Values.OrderBy(n => n.Need))
                 {
-                    methods[need.Need.FilingKey] = "";
                     if (need.Met || progress.Count >= MaxRoundsProgress)
                     {
                         continue;
                     }
                     var row = NeedProgressRow(null, need, review.Tick);
-                    methods[row.Concern] = row.Method;
                     progress.Add(row);
                     changed = true;
                 }

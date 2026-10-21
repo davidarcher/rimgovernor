@@ -109,7 +109,7 @@ another version is moved aside, never migrated):
 | `need` | the Need's filing key (`NeedId.FilingKey`), or the own name of a family or planner that files beside its Needs (no progress record, so `method` is empty), or for a bill purpose the ledger reports on (`food/cooking/bills`, `food-stores/storage/bills`, `food/supply/bills`, `food-stores/refrigeration/bills`) that purpose's subject key |
 | `verdict` | the winning planner verdict's outcome (`refused`, `waiting`, `admitted`, `nothing_to_do`, `disabled`, `combat_orders`, `hold_fallback`) |
 | `cause` | the new `policy.Cause` wire value, `''` when the note cleared (`admitted`, `nothing_to_do`); anything outside the vocabulary is refused on write |
-| `subject`, `method` | bounded subject (may be empty); the Need's current method on its progress record when filed (empty when none) |
+| `subject`, `method` | bounded subject (may be empty); the full MethodId the Need works when filed, the `method_id` its `need_methods` row binds (empty when it works none: met, refused or unmethoded) |
 | `previous_cause` | the cause replaced; `''` when it was a clear; `NULL` when unknown |
 | `held_ticks` | game ticks the previous cause stood (whole across a subject-only change); `NULL` when unknown |
 
