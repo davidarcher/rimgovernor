@@ -2049,6 +2049,7 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
             ResourceRunways = e.Get<EquatableArray<ResourceRunwayRecord>>("ResourceRunways", o),
             ReserveSupplies = e.Get<EquatableArray<ReserveSupply>>("ReserveSupplies", o),
             LarderSupplies = e.Get<EquatableArray<StartingSupply>>("LarderSupplies", o),
+            PollutionSupplies = e.Get<EquatableArray<StartingSupply>>("PollutionSupplies", o),
             RecoveryQueue = e.GetOr<RecoveryQueue?>("RecoveryQueue", null, o),
             Recovery = e.GetOr<RoundsRecovery?>("Recovery", null, o),
             Disaster = e.GetOr<DisasterHistory?>("Disaster", null, o),
@@ -2081,6 +2082,7 @@ internal sealed class RoundsConverter : ObjectCodec<Rounds>
         w.Put("ResourceRunways", v.ResourceRunways, o);
         w.Put("ReserveSupplies", v.ReserveSupplies, o);
         w.Put("LarderSupplies", v.LarderSupplies, o);
+        w.Put("PollutionSupplies", v.PollutionSupplies, o);
         if (v.RecoveryQueue is { } vRecoveryQueue)
         {
             w.Put("RecoveryQueue", vRecoveryQueue, o);

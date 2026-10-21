@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// The biotech and royalty families (#3261): Needs with pure met, unmet and unknown predicates; the charger as the
-/// mechs Need's precondition; the pollution batch and its allow hold; permit Methods admitted side by side for two
+/// mechs Need's precondition; the pollution batch and its wastepack allows admitted from the review's cohort; permit Methods admitted side by side for two
 /// holders and refused on one holder's settings; the psylink hold; the families as one due-queue entry each.
 /// </summary>
 public sealed class BiotechRoyaltyFamilyTests
@@ -95,10 +95,46 @@ public sealed class BiotechRoyaltyFamilyTests
         Assert.NotEqual(method.Method, rest.Method);
         Assert.Equal([ActionKind.Area], rest.Plan(new PlanId("p")).Actions.Select(a => a.Kind));
 
-        // A forbidden pack's allow is not admitted for the Need: it is held, not committed.
+        // A forbidden pack is allowed first (named in the Method's hash), not hauled in the same batch.
         var forbidden = Polluted(0, Pack("w2", forbidden: true));
-        var held = Assert.Single(new BiotechFamily(AllBiotech).Propose([Biotech(forbidden, BiotechFamily.Pollution)], forbidden));
-        Assert.Equal(BiotechFamily.UnsupportedWastepackAllow, held.Hold!.Subject);
+        var allow = Assert.Single(new BiotechFamily(AllBiotech).Propose([Biotech(forbidden, BiotechFamily.Pollution)], forbidden));
+        Assert.Null(allow.Hold);
+        var supply = Assert.Single(allow.Plan(new PlanId("p")).Actions).SupplyAllow!;
+        Assert.Equal(("w2", "Wastepack", new Cell(1, 2), false), (supply.Thing, supply.Definition, supply.Cell, supply.Forbidden));
+        Assert.NotEqual(allow.Method, Assert.Single(new BiotechFamily(AllBiotech).Propose([need], Polluted(0, Pack("w3", forbidden: true)))).Method);
+    }
+
+    [Fact]
+    public void AForbiddenWastepacksAllowIsAdmittedFromTheReviewCohortAndItsClaimRefusesAnOverlap()
+    {
+        var ct = TestContext.Current.CancellationToken;
+        var forbidden = Polluted(0, Pack("w2", forbidden: true));
+        using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-pollution-" + Guid.NewGuid().ToString("N") + ".db"), ct);
+        var review = journal.ReviewRounds(new RoundsRequest
+        {
+            Current = World,
+            Tick = new(100),
+            Enabled = true,
+            Policy = RoundsRules.DefaultRoundsPolicy(),
+            Facts = WorkResourceTestFacts.Create("a", "b") with { Pollution = forbidden.Pollution },
+        }, ct).Review;
+        Assert.Equal("w2", Assert.Single(review.PollutionSupplies).Thing);
+
+        var facts = forbidden;
+        var runner = new FamilyRunner<BiotechFacts>(new BiotechFamily(new BiotechNeeds { Pollution = true }), (_, _) => Task.FromResult(facts), BiotechRounds.Schedule);
+        FamilyRun Run() => runner.RunAsync(new FamilyStep { Journal = journal, World = World }, ct).GetAwaiter().GetResult();
+        var first = Run();
+        Assert.Equal(Outcome.Admitted, Assert.Single(first.Reports, r => r.Need == BiotechFamily.Pollution).Verdict.Outcome);
+        var plan = journal.LoadPlan(Assert.Single(first.Methods).Plan, ct);
+        Assert.Equal(ActionKind.SupplyAllow, Assert.Single(plan.Progress).Action.Kind);
+        Assert.Contains(ActionKind.SupplyAllow, BiotechRounds.Schedule.Kinds);
+
+        // New work that allows the same pack again overlaps the open Method's claim on it and is refused.
+        facts = Polluted(2, Pack("w2", forbidden: true));
+        var held = Assert.Single(Run().Reports, r => r.Need == BiotechFamily.Pollution).Verdict;
+        Assert.True(held.Is(Cause.Claim));
+        Assert.Equal("w2", held.Refusal.Subject);
+        Assert.Single(journal.LoadNeed(BiotechFamily.Pollution, World, ct).Methods);
     }
 
     private static RoyaltyFacts Titled(params string[] holders) => TitledWith("CallAid", PermitChoiceRules.PermitWorkerCallAid, holders);

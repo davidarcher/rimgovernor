@@ -289,7 +289,8 @@ public sealed partial class Store
 
     /// <summary>
     /// Admits only stacks the review's cohort still lists, each at the cell the census last reported: the event loot
-    /// for the admin/supply-safety Need, and the larder corpse and reserve stacks for the food-stores/storage Need.
+    /// for the admin/supply-safety Need, the larder corpse and reserve stacks for the food-stores/storage Need, and the
+    /// forbidden wastepacks for the biotech/pollution Need, whose Method also carries its clear-area edit and hauls.
     /// </summary>
     private static void AdmitSupplyMethod(StoreTransaction tx, NeedOwner owner, PlanSpec plan)
     {
@@ -320,6 +321,12 @@ public sealed partial class Store
             bound = true;
             cohort = review.EventLoot.Pending;
         }
+        var pollution = held == BiotechFamily.Pollution;
+        if (pollution)
+        {
+            bound = true;
+            cohort = review.PollutionSupplies;
+        }
         if (!bound)
         {
             throw new ConflictException($"{owner.OwnerLabel} does not admit supply batches");
@@ -331,6 +338,10 @@ public sealed partial class Store
         }
         foreach (var action in plan.Actions)
         {
+            if (pollution && action.Kind is ActionKind.Area or ActionKind.WastepackHaul)
+            {
+                continue;
+            }
             if (action.SupplyAllow is not { } supply)
             {
                 throw new ConflictException($"supply method mixes action kinds at {action.Id.Value}");

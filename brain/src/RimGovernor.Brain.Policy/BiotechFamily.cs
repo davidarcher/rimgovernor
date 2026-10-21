@@ -51,9 +51,8 @@ public sealed record BiotechNeeds
 /// <item><c>biotech/gene-bank</c> (Development): the standing gene banks hold every loose genepack (GeneBankNeed).
 /// Its work step builds one, <c>gene-bank-&lt;def&gt;-&lt;banks standing&gt;</c>.</item>
 /// <item><c>biotech/pollution</c> (Wellbeing): no wastepack lies exposed or forbidden and no polluted cell is outside
-/// the pollution-clear area (PollutionDeficit). Its pure Method, <c>pollution-&lt;hash of the work&gt;</c>, sets the
-/// clear area and hauls the exposed packs. A forbidden pack's allow is not admitted for this Need, so the Need is
-/// held as <see cref="UnsupportedWastepackAllow"/> while one is owed.</item>
+/// the pollution-clear area (PollutionDeficit). Its pure Method, <c>pollution-&lt;hash of the work&gt;</c>, allows the
+/// forbidden packs (admitted against the review's pollution cohort), sets the clear area and hauls the exposed packs.</item>
 /// </list>
 /// </summary>
 public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
@@ -67,12 +66,6 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
     public static readonly NeedId GeneBank = NeedId.Of(FamilyId, "gene-bank");
 
     public static readonly NeedId Pollution = NeedId.Of(FamilyId, "pollution");
-
-    /// <summary>
-    /// The hold of a pollution Need that owes a forbidden wastepack's allow. Supply allows are admitted only for the
-    /// cohorts the review lists (food storage, event loot), so the old pollution planner's batches with one were always refused.
-    /// </summary>
-    public const string UnsupportedWastepackAllow = "unsupported_wastepack_allow";
 
     private readonly BiotechNeeds _needs = needs ?? throw new ArgumentNullException(nameof(needs));
 
@@ -121,23 +114,22 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
     }
 
     /// <summary>
-    /// The pollution Need's one Method for this read: the clear-area edit and the hauls SelectPollutionWork orders,
-    /// named by a hash of that work so the same work continues its open Method. Null when nothing is to be ordered;
-    /// a hold while a forbidden pack is owed its allow.
+    /// The pollution Need's one Method for this read: the allows, the clear-area edit and the hauls SelectPollutionWork
+    /// orders, named by a hash of that work so the same work continues its open Method. Null when nothing is to be ordered.
     /// </summary>
     internal static NeedMethod? PollutionMethod(PollutionFacts pollution, BiotechFacts facts)
     {
         var refused = facts.PollutionRefused.ToDictionary(id => id, _ => true, StringComparer.Ordinal);
         var work = PollutionRules.SelectPollutionWork(pollution, refused, [.. facts.PollutedCells]);
-        if (work.Allow.Count > 0)
-        {
-            return NeedMethod.Held(Pollution, UnsupportedWastepackAllow, "A forbidden wastepack's allow is not admitted for the pollution Need.");
-        }
         if (work.Empty)
         {
             return null;
         }
         var text = new StringBuilder();
+        foreach (var w in work.Allow)
+        {
+            text.Append(CultureInfo.InvariantCulture, $"allow/{w.Id}\n");
+        }
         foreach (var w in work.Haul)
         {
             text.Append(CultureInfo.InvariantCulture, $"haul/{w.Id}\n");
@@ -147,11 +139,15 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
             text.Append(CultureInfo.InvariantCulture, $"cell/{c.X}/{c.Z}\n");
         }
         var method = new MethodId("pollution-" + Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(text.ToString()))[..16]));
-        var reason = string.Create(CultureInfo.InvariantCulture, $"pollution: {work.Area.Count} cells to the clear area, {work.Haul.Count} wastepacks to haul");
+        var reason = string.Create(CultureInfo.InvariantCulture, $"pollution: {work.Allow.Count} wastepacks to allow, {work.Area.Count} cells to the clear area, {work.Haul.Count} wastepacks to haul");
         return new NeedMethod(Pollution, method, reason, id =>
         {
             var actions = new List<DomainAction>();
             ActionId Next() => new(string.Create(CultureInfo.InvariantCulture, $"{id.Value}-{actions.Count}"));
+            foreach (var w in work.Allow)
+            {
+                actions.Add(DomainAction.NewSupplyAllowAction(Next(), new SupplyAllow(w.Id, w.Definition, w.Cell)));
+            }
             if (work.Area.Count > 0)
             {
                 actions.Add(DomainAction.NewAreaAction(Next(), Area.NewPollutionClearArea(AreaOperation.SetCells, work.Area)));

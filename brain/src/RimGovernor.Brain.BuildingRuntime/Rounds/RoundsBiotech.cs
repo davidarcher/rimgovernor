@@ -32,10 +32,10 @@ public sealed partial class BiotechRounds
         }
     }
 
-    /// <summary>An optional entry woken by its charger and gene bank buildings, clear-area edits and wastepack hauls.</summary>
+    /// <summary>An optional entry woken by its charger and gene bank buildings, wastepack allows, clear-area edits and wastepack hauls.</summary>
     public static FamilySchedule Schedule { get; } = new()
     {
-        Kinds = [ActionKind.Building, ActionKind.Area, ActionKind.WastepackHaul],
+        Kinds = [ActionKind.Building, ActionKind.SupplyAllow, ActionKind.Area, ActionKind.WastepackHaul],
     };
 
     /// <summary>The family's scheduler entry; each toggle derives its Need.</summary>

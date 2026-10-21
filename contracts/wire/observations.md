@@ -579,10 +579,11 @@ those outside the pollution-clear area (`polluted_uncovered_cells`).
 `RoundsFacts.Pollution` (`policy.PollutionFacts`) projects the wastepack
 verdicts and that count; it is unknown without Biotech, and so is the
 `biotech/pollution` Need (Wellbeing, labor Hauling, #3261). Its Method is the
-pollution-clear `AreaIntent` edit (polluted cells of the planning window) with
-the wastepack-guarded HAUL (`wastepack_haul`); a forbidden pack's `supply_allow`
-is not admitted for the Need, which is held (`unsupported_wastepack_allow`)
-while one is owed. Siting freezer storage is not planned yet (open on #1683).
+forbidden packs' `supply_allow`, the pollution-clear `AreaIntent` edit
+(polluted cells of the planning window) and the wastepack-guarded HAUL
+(`wastepack_haul`); an allowed pack is hauled on a later Method. Admission
+takes only the allows the review's `PollutionSupplies` cohort lists (#3317).
+Siting freezer storage is not planned yet (open on #1683).
 
 ## Polluting-building flag
 

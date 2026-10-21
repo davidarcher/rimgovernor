@@ -12,6 +12,8 @@ public sealed partial class Store
 
     private const int MaxRoundsProgress = 306;
 
+    private const int MaxPollutionSupplies = 4096;
+
     /// <summary>Reads and validates the stored review; an empty journal has the zero review.</summary>
     internal static Rounds LoadRounds(StoreTransaction tx)
     {
@@ -79,6 +81,18 @@ public sealed partial class Store
         foreach (var row in r.LarderSupplies)
         {
             row.Validate();
+        }
+        if (r.PollutionSupplies.Count > MaxPollutionSupplies || (!r.Enabled && r.PollutionSupplies.Count != 0))
+        {
+            throw new StoreCorruptException("invalid pollution method history");
+        }
+        foreach (var row in r.PollutionSupplies)
+        {
+            row.Validate();
+            if (row.Forbid)
+            {
+                throw new StoreCorruptException("invalid pollution supply");
+            }
         }
         r.Sleeping.Validate();
         if (r.Sleeping.Uses.Any(use => use.Tick > r.Tick))
@@ -316,6 +330,8 @@ public sealed partial class Store
                 }
             }
             r = r with { ReserveSupplies = EquatableArray.From(reserveSupplies) };
+            // The biotech/pollution Need's allows are admitted against this cohort (AdmitSupplyMethod).
+            r = r with { PollutionSupplies = EquatableArray.From(PollutionRules.PollutionAllowSupplies(request.Facts.Pollution).Take(MaxPollutionSupplies)) };
             var choice = CorpseLarderRules.SelectCorpseLarder(request.Facts.FoodStorageUpkeep);
             if (choice is { Kind: "allow" or "forbid", Stock: { } stock, Handling: { } handling })
             {

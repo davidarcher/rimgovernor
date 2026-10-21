@@ -135,7 +135,11 @@ public static partial class PollutionRules
             }
             if (w.Held())
             {
-                allow.Add(w);
+                // A pack's allow names it by id, definition and cell (SupplyAllow); a pack without them cannot be allowed.
+                if (IdText.IsValidText(w.Id) && IdText.IsValidText(w.Definition) && w.Cell.X >= 0 && w.Cell.Z >= 0)
+                {
+                    allow.Add(w);
+                }
                 continue;
             }
             var (exposed, known) = w.Exposure();
@@ -154,6 +158,15 @@ public static partial class PollutionRules
         }
         return new PollutionWork { Allow = allow, Haul = haul, Area = area };
     }
+
+    /// <summary>
+    /// The review's pollution cohort: the allow of every forbidden pack SelectPollutionWork would order, the only
+    /// supply allows method admission takes from the biotech/pollution Need. Empty while the read is unknown.
+    /// </summary>
+    public static IReadOnlyList<StartingSupply> PollutionAllowSupplies(Fact<PollutionFacts> facts) =>
+        facts.TryGetValue(out var f)
+            ? [.. SelectPollutionWork(f, null, []).Allow.Select(w => new StartingSupply { Thing = w.Id, Definition = w.Definition, Cell = w.Cell })]
+            : [];
 
     /// <summary>
     /// The polluted cells the planning window shows, sorted. Cells without a polluted verdict (fogged) are not

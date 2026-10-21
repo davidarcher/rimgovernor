@@ -36,6 +36,9 @@ public sealed record Rounds
 
     public EquatableArray<StartingSupply> LarderSupplies { get; init; }
 
+    /// <summary>The forbidden wastepacks the biotech/pollution Need may allow (PollutionAllowSupplies over this enabled review's read).</summary>
+    public EquatableArray<StartingSupply> PollutionSupplies { get; init; }
+
     /// <summary>The one recovery queue: the clearance planner executes its removals against a fresh native census; its held entries are the journalled hold reasons.</summary>
     public RecoveryQueue? RecoveryQueue { get; init; }
 
