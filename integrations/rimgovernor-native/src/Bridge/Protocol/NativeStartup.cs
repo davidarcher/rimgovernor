@@ -43,7 +43,6 @@ namespace HomeBridge.BridgeTools
             TreeLatticeSowing.Install();
             WallLayerGuard.Install();
             ConstructionTierGate.Install();
-            RemotePickupGuard.Install();
             ConstructionSkillGuard.Install();
             ConsumptionHooks.Install();
             SpoilagePreference.Install();

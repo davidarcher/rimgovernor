@@ -169,7 +169,10 @@ namespace HomeBridge.BridgeTools
             GenSpawn.Spawn(wall, cell, map);
         }
 
-        [Tool("test/remote_pickup",Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab (#2517). remote stages an unfunded wall frame at the map centre and three WoodLog stacks 40 cells east inside a stockpile strip (15, then 20 at 8 cells and 20 at 14 cells from the first); local stages a frame 30 cells west with two loose stacks near it and removes the stockpile; audit reads the delivered wood, loose stacks and carriers. Construction priority 1 and Hauling off for every colonist; all other wood is forbidden.")]
+        // The site the last remote_pickup stage framed; audit reads it.
+        private static IntVec3? pickupSite;
+
+        [Tool("test/remote_pickup",Description = "UNSAFE FOR MODEL EXECUTION. Paused 100x100 lab (#2517, #3046). remote stages a cold 5x5 wooden hut (3x3 roofed interior, door mid south, a lit campfire, no bed) whose mid east wall is an unfunded wood wall frame at the map centre, and three WoodLog stacks 40 cells east of the frame inside a stockpile strip (15, then 20 at 8 cells and 20 at 14 cells from the first); local stages the same hut 30 cells west, with two loose stacks 4 cells east of its frame, and removes the stockpile; audit reads the last staged frame's delivered wood, the loose stacks and the carriers. Every work type is off for every colonist, so only the brain's orders deliver; all other wood is forbidden.")]
         public async Task<object> RemotePickup(IRimBridgeContext ctx, CancellationToken cancellationToken, string action = "audit")
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
@@ -180,25 +183,34 @@ namespace HomeBridge.BridgeTools
                 var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed
                     && !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction) && p.workSettings != null).ToList();
                 if (pawns.Count == 0) return Refuse("No capable lab builder.");
-                var site = action == "local" ? centre + new IntVec3(-30, 0, 0) : centre;
-                if (action == "remote" || action == "local") {
+                if (action == "remote" || action == "local") pickupSite = action == "local" ? centre + new IntVec3(-30, 0, 0) : centre;
+                else if (action != "audit") return Refuse("Unknown remote_pickup action.");
+                if (pickupSite is not { } site) return Refuse("Stage remote or local first.");
+                // The hut's south-west corner: the frame is the middle of its east wall.
+                var origin = site - new IntVec3(4, 0, 2);
+                if (action != "audit") {
                     foreach (var wood in map.listerThings.ThingsOfDef(ThingDefOf.WoodLog).ToList()) wood.SetForbidden(true, false);
                     foreach (var zone in map.zoneManager.AllZones.OfType<Zone_Stockpile>().ToList()) zone.Delete();
-                    foreach (var pawn in pawns) {
-                        pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
-                        pawn.Position = site + new IntVec3(0, 0, -2);
-                        pawn.Notify_Teleported(true, true);
-                        pawn.workSettings.SetPriority(WorkTypeDefOf.Construction, 1);
-                        pawn.workSettings.SetPriority(WorkTypeDefOf.Hauling, 0);
-                        for (var hour = 0; hour < 24; hour++) pawn.timetable.SetAssignment(hour, TimeAssignmentDefOf.Work);
-                    }
-                    ClearWallCell(map, site);
+                    FixtureHut.Build(map, 5, origin, origin + new IntVec3(2, 0, 0), 0);
+                    site.GetEdifice(map)?.Destroy(DestroyMode.Vanish);
                     var frame = (Frame)ThingMaker.MakeThing(ThingDefOf.Wall.frameDef, ThingDefOf.WoodLog);
                     frame.SetFaction(Faction.OfPlayer);
                     GenSpawn.Spawn(frame, site, map);
-                    map.areaManager.Home[site] = true;
+                    var fire = FixtureKit.Spawn(map, ThingDefOf.Campfire, null, origin + new IntVec3(3, 0, 3), Faction.OfPlayer, Rot4.North);
+                    var fuel = fire.TryGetComp<CompRefuelable>(); fuel.Refuel(fuel.Props.fuelCapacity);
+                    foreach (var cell in CellRect.CenteredOn(site, 6).ClipInsideMap(map).Cells) map.areaManager.Home[cell] = true;
+                    foreach (var pawn in pawns) {
+                        pawn.jobs.EndCurrentJob(JobCondition.InterruptForced);
+                        pawn.Position = site + new IntVec3(2, 0, 0);
+                        pawn.Notify_Teleported(true, true);
+                        foreach (var type in DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(t => !pawn.WorkTypeIsDisabled(t))) pawn.workSettings.SetPriority(type, 0);
+                        pawn.needs.food.CurLevelPercentage = 1;
+                        pawn.needs.rest.CurLevelPercentage = 1;
+                        if (pawn.needs.joy != null) pawn.needs.joy.CurLevelPercentage = 1;
+                        for (var hour = 0; hour < 24; hour++) pawn.timetable.SetAssignment(hour, TimeAssignmentDefOf.Work);
+                    }
                     var stacks = action == "remote"
-                        ? new[] { (centre + new IntVec3(40, 0, 0), 15), (centre + new IntVec3(40, 0, 8), 20), (centre + new IntVec3(40, 0, -14), 20) }
+                        ? new[] { (site + new IntVec3(40, 0, 0), 15), (site + new IntVec3(40, 0, 8), 20), (site + new IntVec3(40, 0, -14), 20) }
                         : new[] { (site + new IntVec3(4, 0, 0), 30), (site + new IntVec3(4, 0, 4), 20) };
                     foreach (var (cell, count) in stacks) {
                         ClearWallCell(map, cell);
@@ -210,9 +222,9 @@ namespace HomeBridge.BridgeTools
                     if (action == "remote") {
                         var strip = new Zone_Stockpile(StorageSettingsPreset.DefaultStockpile, map.zoneManager);
                         map.zoneManager.RegisterZone(strip);
-                        for (var z = -14; z <= 8; z++) strip.AddCell(centre + new IntVec3(40, 0, z));
+                        for (var z = -14; z <= 8; z++) strip.AddCell(site + new IntVec3(40, 0, z));
                     }
-                } else if (action != "audit") return Refuse("Unknown remote_pickup action.");
+                }
                 var built = site.GetThingList(map).OfType<Frame>().FirstOrDefault();
                 var cost = ThingDefOf.Wall.CostStuffCount;
                 var delivered = built != null ? built.resourceContainer.TotalStackCountOfDef(ThingDefOf.WoodLog)
@@ -222,7 +234,8 @@ namespace HomeBridge.BridgeTools
                 return new { success = true, delivered, cost, loose,
                     carrying = map.mapPawns.FreeColonistsSpawned.Count(p => p.carryTracker?.CarriedThing?.def == ThingDefOf.WoodLog),
                     capacity = pawns[0].carryTracker.MaxStackSpaceEver(ThingDefOf.WoodLog),
-                    site = new { x = site.x, z = site.z }, centre = new { x = centre.x, z = centre.z } };
+                    site = new { x = site.x, z = site.z }, interior = new { x = origin.x + 1, z = origin.z + 1 },
+                    door = new { x = origin.x + 2, z = origin.z } };
             }, cancellationToken).ConfigureAwait(false);
         }
 

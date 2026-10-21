@@ -425,7 +425,7 @@ public sealed class CoordinatedConstructionTests
         Assert.Equal(new Dictionary<string, int> { ["wood"] = 12, ["wood-b"] = 8 }, supplies);
         Assert.Equal(2, batch.Tasks.Single(t => t.Step.Job == "FinishFrame").Prerequisites.Count);
         // A set whose stacks do not cover the demand is no candidate.
-        Assert.Empty(RimGovernor.Brain.Policy.Methods.Generation.ConstructionMethodCandidates.StackShares([near, far with { AvailableInput = Known(7d) }])!);
+        Assert.Empty(RimGovernor.Brain.Policy.Methods.Generation.ConstructionMethodCandidates.StackShares([near, far with { AvailableInput = Known(7d) }], _ => 0)!);
         // Without the legs back from the site one pawn cannot fetch the second stack.
         Assert.Null(Start(out _, near, far));
     }
@@ -452,5 +452,43 @@ public sealed class CoordinatedConstructionTests
         var done = CoordinatedActivitiesRules.ContinueCoordinatedActivity(next, Known(true), Read(next, "completed") with { SatisfiedTasks = [finish.Id] })!;
         Assert.Empty(done.Tasks);
         Assert.True(done.Orders.Single().Release);
+    }
+
+    /// <summary>
+    /// #3046: wall/remote_pickup's geometry. A frame owes 5 logs; three stored stacks stand 40 cells east (15, then 20 at 8
+    /// cells and 20 at 14 cells from the first). Native lists all three; delivering from the first is remote (40 cells from
+    /// the frame, 0 from storage), so it is a full load that collects the stack 8 cells away (8 &lt; 20 * 40 / 75) and not the
+    /// one 14 cells away. With no storage accepting the stack, or storage farther than the frame, it takes the need alone.
+    /// </summary>
+    [Fact]
+    public void ARemoteDeliveryTakesAFullLoadAndCollectsTheStackWorthItsDetour()
+    {
+        ConstructionActivityOption Stack(string id, Cell origin, double held, double delivery) => Option("producer", 0, delivery, 20) with
+        { Location = new(50, 50), Input = id, Origin = origin, Count = 5, Capacity = 75, AvailableInput = Known(held), StorageDistance = Known(0.0) };
+        ConstructionActivityOption[] rows = [Stack("wood", new(90, 50), 15, 20), Stack("wood-near", new(90, 58), 20, 30), Stack("wood-far", new(90, 36), 20, 30)];
+        var (fullLoad, collect) = RimGovernor.Brain.Policy.Methods.Generation.ConstructionMethodCandidates.RemoteLoad(rows[0], rows);
+        Assert.True(fullLoad);
+        Assert.Equal(["wood-near"], collect);
+        Assert.False(RimGovernor.Brain.Policy.Methods.Generation.ConstructionMethodCandidates.RemoteLoad(rows[0] with { StorageDistance = default }, rows).FullLoad);
+        Assert.False(RimGovernor.Brain.Policy.Methods.Generation.ConstructionMethodCandidates.RemoteLoad(rows[0] with { StorageDistance = Known(41.0) }, rows).FullLoad);
+        // The selected step carries the full load to native, collecting a stack under the need a cell away (1 < 4 * 40 / 75);
+        // the site still takes its need.
+        var supply = Start(out _, rows[0], Stack("wood-small", new(90, 51), 4, 30))!.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Supply).Step;
+        Assert.Equal("wood", supply.Target);
+        Assert.True(supply.FullLoad);
+        Assert.Equal(5, supply.Count);
+        Assert.Equal(["wood-small"], supply.Collect);
+    }
+
+    /// <summary>#3046: native lists a stack under the site's need beside one that covers it; only the whole stack is a delivery.</summary>
+    [Fact]
+    public void AStackUnderTheNeedIsNoAlternativeBesideAWholeOne()
+    {
+        var whole = Option("producer", 0, 20, 20);
+        var small = Option("producer", 0, 5, 20) with { Input = "wood-small", AvailableInput = Known(3d) };
+        Assert.Null(RimGovernor.Brain.Policy.Methods.Generation.ConstructionMethodCandidates.StackShares([whole, small], _ => 0));
+        var supply = Start(out _, whole, small)!.Tasks.Single(t => t.Step.Kind == PawnActivityKind.Supply);
+        Assert.Equal("wood", supply.Step.Target);
+        Assert.False(supply.Step.FullLoad);
     }
 }

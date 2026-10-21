@@ -36,8 +36,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 31 drops the <c>Standby</c> activity kind from journaled activity steps (#3669): an unowned colonist runs vanilla work.
     /// Version 32 drops the <c>Housing</c> phase latch from the rounds latches (#3659): the starter shelter is gone.
     /// Version 33 adds the <c>PollutionSupplies</c> cohort to the rounds review (#3317): the forbidden wastepacks the biotech/pollution Need may allow.
+    /// Version 34 adds the step's <c>FullLoad</c> and <c>Collect</c> to journaled activity steps (#3046): a remote Supply's full carry.
     /// </summary>
-    public const int SchemaVersion = 33;
+    public const int SchemaVersion = 34;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

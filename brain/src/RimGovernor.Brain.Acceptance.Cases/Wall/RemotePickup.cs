@@ -1,18 +1,18 @@
 using System.Globalization;
-using System.Text.Json.Nodes;
-using RimGovernor.Brain.Bridge.Contracts;
-using Clock = RimGovernor.Contracts.Wire.Clock;
+using RimGovernor.Brain.Domain;
+using RimGovernor.Brain.Policy;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>wall/remote_pickup</c> (#2517): a construction delivery whose source stack is remote (in storage nearer the
-/// stockpile than the site) takes one full carry load, collecting a same-def stack inside the n*D/capacity radius but not
-/// one outside it; the surplus lands beside the frame and every item is counted once. A local delivery with no storage
-/// keeps vanilla's exact-need pickup. Native: the Harmony postfix on
-/// WorkGiver_ConstructDeliverResources.ResourceDeliverJobFor, pawn carrying and vanilla's surplus drop, which
-/// <c>test/remote_pickup</c> stages and reads in the lab.
+/// <c>wall/remote_pickup</c> (#2517, #3046): under the served brain, a construction delivery whose source stack is remote
+/// (in storage nearer than the site) takes one full carry load, collecting a same-def stack inside the n*D/capacity
+/// radius but not one outside it; the surplus lands beside the frame and every item is counted once. A local delivery
+/// with no storage takes exactly the frame's need. The brain sizes the Supply step (ConstructionMethodCandidates.RemoteLoad)
+/// and native carries it with vanilla HaulToContainer; <c>test/remote_pickup</c> stages and reads it in the lab. Each
+/// frame closes a cold hut the injected layout plan names a planned barracks, so the shelter values its finish; a
+/// free-standing frame is held by the thermal-relief gate. Every work type is off, so vanilla never delivers itself.
 /// </summary>
 internal static class WallRemotePickup
 {
@@ -23,67 +23,73 @@ internal static class WallRemotePickup
     private static readonly FixtureOp<string, Fx.RemotePickupReply> Pickup = new(
         Tool,
         action => WallKit.Args(("action", action)),
-        (label, reply) => reply is not null && Fx.FixtureJson.Deserialize<Fx.RemotePickupReply>(reply.ToJsonString()) is { Success: true, Site: not null, Centre: not null } read
+        (label, reply) => reply is not null && Fx.FixtureJson.Deserialize<Fx.RemotePickupReply>(reply.ToJsonString()) is { Success: true, Site: not null, Interior: not null, Door: not null } read
             ? read
             : throw new AcceptanceException($"{label}: {Tool} refused: {reply?.ToJsonString()}"));
 
     internal static TypedCase Case() => new()
     {
         Name = "wall/remote_pickup",
-        Scope = "A remote construction delivery takes one full load, collecting the in-radius stack and leaving the out-of-radius one, "
-            + "drops the surplus beside the frame and counts every item once (#2517); a local delivery takes exactly the frame's need.",
+        Scope = "Under the served brain a remote construction delivery takes one full load, collecting the in-radius stack and "
+            + "leaving the out-of-radius one, drops the surplus beside the frame and counts every item once (#2517, #3046); a "
+            + "local delivery takes exactly the frame's need. Native carrying and vanilla's surplus drop are the signal.",
         Ticks = 2 * Settle,
         Tier = CaseTier.OnDemand,
+        Stage = new Fx.StageSpec { World = new Fx.StageWorld { OutdoorTemperature = -10 } },
         QuietWorld = true,
         Ops = [Tool],
         Crew = new Crew { Size = 1 },
+        Serve = new ServeSpec { Prefix = "remote-pickup" },
         Run = RunAsync,
     };
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        // The pickup guard is armed only while the supervisor runs the clock (#3046), so each phase settles under a native
-        // clock run. Staging edits work settings and zones, which revokes the grant, so each phase grants after its stage
-        // and runs at that generation; the run ends once an audit reads the frame funded and nothing carried.
-        async Task<Fx.RemotePickupReply> SettleAsync(string phase)
+        var rooms = new List<PlannedRoom>();
+
+        // Each staged hut is a planned barracks around its campfire; the plan keeps the rooms staged before it.
+        async Task<Fx.RemotePickupReply> ServeAsync(string phase)
         {
-            var run = new Clock.RunRequest
+            var staged = await s.FixtureAsync("stage-" + phase, Pickup, phase, cancellationToken).ConfigureAwait(false);
+            var (ix, iz) = (staged.Interior!.X, staged.Interior.Z);
+            rooms.Add(new PlannedRoom
             {
-                ExpectedGeneration = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false),
-                Speed = Clock.Speed.Hyperfast,
-                Policy = ClockExpectation.WithHazardThresholds(new Clock.WatchPolicy
-                {
-                    Mode = Clock.WatchMode.Colony,
-                    HealthDropFraction = .1f,
-                    MinHealthFraction = .5f,
-                    HostileWithin = 20f,
-                    InjuryStopCooldownMs = 0,
-                }),
-            };
-            _ = await s.RunClockUntilHeldAsync(
-                phase,
-                Settle,
-                run,
-                async (_, ct) => Settled(await s.FixtureAsync(phase + "-audit", Pickup, "audit", ct).ConfigureAwait(false)),
-                cancellationToken).ConfigureAwait(false);
-            var row = await s.FixtureAsync(phase + "-held", Pickup, "audit", cancellationToken).ConfigureAwait(false);
+                Id = rooms.Count + 1,
+                Role = PlannedRole.Barracks,
+                Region = RegionRules.RectRegion(new(ix, iz, 3, 3)),
+                Door = new(staged.Door!.X, staged.Door.Z),
+                DoorRot = Rotation.South,
+            });
+            await TypedLayoutPlan.InjectAsync(s, new LayoutPlan
+            {
+                Cold = true,
+                NextRoomId = rooms.Count + 1,
+                Rooms = [.. rooms],
+                Pieces = rooms.ToDictionary(r => r.Id, r => (IReadOnlyList<InteriorPiece>)
+                    [new InteriorPiece { Def = "Campfire", Rect = new Rectangle { X = r.Region.Bounds().X + 2, Z = r.Region.Bounds().Z + 2, Width = 1, Height = 1 } }]),
+            }, cancellationToken).ConfigureAwait(false);
+            if (phase == "remote" && staged.Capacity is < 58 or > 99)
+            {
+                // The second stack (20 items, 8 cells from the first, D=40) is worth the detour while 8 < 20*40/capacity; the
+                // third (14 cells) is not. The geometry only separates them for a capacity between 58 and 99.
+                throw new AcceptanceException($"lab carry capacity {staged.Capacity} does not separate the staged stacks");
+            }
+
+            Fx.RemotePickupReply? row = null;
+            _ = await s.ServeUntilAsync(phase, Settle, async ct =>
+            {
+                row = await s.FixtureAsync(phase + "-audit", Pickup, "audit", ct).ConfigureAwait(false);
+                return (string.Create(CultureInfo.InvariantCulture, $"{row.Delivered}/{row.Carrying}/{Describe(row)}"), Settled(row));
+            }, cancellationToken).ConfigureAwait(false);
+            row = await s.FixtureAsync(phase + "-held", Pickup, "audit", cancellationToken).ConfigureAwait(false);
             s.RecordFixture(phase, row);
             return Settled(row)
                 ? row
                 : throw new AcceptanceException($"{phase}: delivered {row.Delivered} of {row.Cost} with {row.Carrying} carrying after {Settle} ticks: {Describe(row)}");
         }
 
-        var staged = await s.FixtureAsync("stage-remote", Pickup, "remote", cancellationToken).ConfigureAwait(false);
-
-        // The second stack (20 items, 8 cells from the first, D=40) is worth the detour while 8 < 20*40/capacity; the third (14 cells) is not.
-        // The geometry only separates them for a capacity between 58 and 99.
-        if (staged.Capacity is < 58 or > 99)
-        {
-            throw new AcceptanceException($"lab carry capacity {staged.Capacity} does not separate the staged stacks");
-        }
-
-        var remote = await SettleAsync("remote").ConfigureAwait(false);
-        var (cx, cz) = (remote.Centre!.X, remote.Centre.Z);
+        var remote = await ServeAsync("remote").ConfigureAwait(false);
+        var (cx, cz) = (remote.Site!.X, remote.Site.Z);
         var surplus = remote.Loose.Where(st => Math.Abs(st.X - cx) <= 3 && Math.Abs(st.Z - cz) <= 3).Sum(st => st.Count);
         if (At(remote, cx + 40, cz) != 0 || At(remote, cx + 40, cz + 8) != 0)
         {
@@ -106,8 +112,7 @@ internal static class WallRemotePickup
             throw new AcceptanceException($"items are not counted exactly once (want 55): {Describe(remote)} delivered {remote.Delivered}");
         }
 
-        _ = await s.FixtureAsync("stage-local", Pickup, "local", cancellationToken).ConfigureAwait(false);
-        var local = await SettleAsync("local").ConfigureAwait(false);
+        var local = await ServeAsync("local").ConfigureAwait(false);
         var (sx, sz) = (local.Site!.X, local.Site.Z);
         if (At(local, sx + 4, sz) != 30 - local.Cost || At(local, sx + 4, sz + 4) != 20 || local.Loose.Sum(st => st.Count) != 50 - local.Cost)
         {

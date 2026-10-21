@@ -31,6 +31,11 @@ public sealed record PawnActivityStep(PawnActivityKind Kind, string Target, stri
     /// over the roofed cells a roof-holder leaves unsupported, #3617).</summary>
     public EquatableArray<Cell> Cells { get; init; }
     public bool IsSet => Targets.Count > 0 || Cells.Count > 0;
+    /// <summary>A remote Supply step (#3046): native carries a full load, <see cref="Target"/> then the <see cref="Collect"/>
+    /// stacks up to the pawn's carry capacity; the site takes <see cref="Count"/> and vanilla drops the surplus beside it.</summary>
+    public bool FullLoad { get; init; }
+    /// <summary>The further same-def stacks a <see cref="FullLoad"/> Supply step picks up after <see cref="Target"/>, in order (#3046).</summary>
+    public EquatableArray<string> Collect { get; init; }
 }
 
 /// <summary>Selected remaining intent owned by this Method. No forecast or mutable progress flags.</summary>
@@ -135,6 +140,9 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
                     && (step.Medicine.Length == 0 || step.Kind == PawnActivityKind.Work && (step.Job is "TendPatient" or "DoBill") && IdText.IsValidText(step.Medicine)), "invalid activity step");
                 ValidateSet(step);
                 ValidatePractice(step);
+                DomainException.Require((!step.FullLoad || step.Kind == PawnActivityKind.Supply)
+                    && (step.Collect.Count == 0 || step.FullLoad && step.Collect.Count <= 16 && step.Collect.All(IdText.IsValidText)
+                        && step.Collect.Distinct(StringComparer.Ordinal).Count() == step.Collect.Count && !step.Collect.Contains(step.Target)), "invalid full-load supply step");
                 if (step.Kind == PawnActivityKind.Recipe || step.Kind == PawnActivityKind.Work && step.Job == "DoBill")
                 {
                     var cooking = step.Recipe;

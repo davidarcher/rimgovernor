@@ -35,4 +35,7 @@ internal sealed record ActivityTaskCandidate(string Id, string Pawn, EquatableAr
     /// <summary>A roof-holder's Deconstruct (#3617): the roofed cells it leaves unsupported, which the binding removes the roof from
     /// first (a Work/RemoveRoof cell set step before the task's own step, in the same order).</summary>
     public EquatableArray<Cell> RoofCells { get; init; }
+    /// <summary>A remote Supply (#3046): the step carries a full load, its stack then the <see cref="Collect"/> stacks.</summary>
+    public bool FullLoad { get; init; }
+    public EquatableArray<string> Collect { get; init; }
 }

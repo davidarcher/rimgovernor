@@ -68,7 +68,9 @@ internal static class NativeActivityTasks
                         {
                             if (site is not IConstructible constructible) continue;
                             count = Math.Min(count, constructible.ThingCountNeeded(item.def));
-                            bound = bound with { Container = site.GetUniqueLoadID(), Count = count };
+                            // A full load (#3046) keeps its collected stacks, less the one it now starts from.
+                            bound = bound with { Container = site.GetUniqueLoadID(), Count = count,
+                                Collect = EquatableArray.From(step.Collect.Where(id => id != bound.Target)) };
                             if (count <= 0 || !NativePawnActivities.SupplyAllowed(pawn, item, bound)) continue;
                         }
                         else

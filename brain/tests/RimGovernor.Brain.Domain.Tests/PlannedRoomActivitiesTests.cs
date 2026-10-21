@@ -257,8 +257,8 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Equal(["planned/room1/WoodLog/Shell"], Assert.Single(result.Selected.PlannedRooms).Complete);
         string[] deliveries = ["planned/room1/wall/WoodLog/delivery/wood-a", "planned/room1/wall/WoodLog/delivery/wood-b"];
         Assert.All(deliveries, delivery => Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity.StartsWith(delivery + "/composition/", StringComparison.Ordinal)));
-        Assert.Equal((35, 40), (ConstructionMethodCandidates.StackShares(facts.PlannedSites.Value.Sites.Single(s => s.Op == OpKind.WallIn).Options)!["wood-a"],
-            ConstructionMethodCandidates.StackShares(facts.PlannedSites.Value.Sites.Single(s => s.Op == OpKind.WallIn).Options)!["wood-b"]));
+        Assert.Equal((35, 40), (ConstructionMethodCandidates.StackShares(facts.PlannedSites.Value.Sites.Single(s => s.Op == OpKind.WallIn).Options, _ => 0)!["wood-a"],
+            ConstructionMethodCandidates.StackShares(facts.PlannedSites.Value.Sites.Single(s => s.Op == OpKind.WallIn).Options, _ => 0)!["wood-b"]));
     }
 
     [Fact]

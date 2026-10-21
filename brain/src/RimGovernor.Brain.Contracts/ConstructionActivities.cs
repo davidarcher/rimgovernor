@@ -63,6 +63,9 @@ public sealed record ConstructionActivityOption(string Site, string Definition, 
 {
     public Fact<double> SiteApproachTicks { get; init; }
     public Fact<double> AvailableInput { get; init; }
+    /// <summary>A site row's straight-line distance from its source stack (<see cref="Origin"/>) to the nearest cell of
+    /// storage that accepts it (#3046): zero when the stack is stored; unknown when no storage accepts it or the row has no source.</summary>
+    public Fact<double> StorageDistance { get; init; }
 }
 
 /// <summary>

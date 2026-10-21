@@ -97,9 +97,13 @@ public sealed record RemotePickupReply
 
     public int Capacity { get; init; }
 
+    /// <summary>The last staged wall frame.</summary>
     public FixtureCell? Site { get; init; }
 
-    public FixtureCell? Centre { get; init; }
+    /// <summary>The south-west cell of the hut's 3x3 interior.</summary>
+    public FixtureCell? Interior { get; init; }
+
+    public FixtureCell? Door { get; init; }
 }
 
 /// <summary>

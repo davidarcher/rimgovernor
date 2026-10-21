@@ -509,35 +509,39 @@ internal static class NativeConstructionActivity
     private static bool Free(Pawn pawn) => !(pawn.Drafted || pawn.Downed || pawn.InMentalState || !NativeFoodActivity.Available(pawn)
         || NativePawnActivities.Owned(pawn) || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0 || pawn.carryTracker.CarriedThing != null);
 
-    // A site's material sources (#3673), each with the share of the owed count it supplies: every spawned stack that
-    // covers the demand alone, each a whole alternative (share the demand); else the stacks the player may use, nearest
-    // the site first, until their sum covers it, every one taken whole but the largest (ties: lowest id), which supplies
-    // the remainder (a share the rows price but do not name: the reader derives it by the same rule). Too little stock
-    // leaves none (source_stock_short).
-    private static (Thing? Source, int Share)[] Sources(Map map, Site site, HashSet<string> findings)
+    // A site's material sources (#3673, #3046): every spawned stack of its material the player may use, lowest id first,
+    // each with the share it can supply (the demand, or the whole stack under it) and its storage distance
+    // (StorageDistance). The reader picks the whole alternatives, or the set nearest the site that covers the demand, and
+    // the stacks a remote delivery collects. Too little stock leaves none (source_stock_short).
+    private static (Thing? Source, int Share, Fact<double> Storage)[] Sources(Map map, Site site, HashSet<string> findings)
     {
-        if (site.Owed.Length == 0) return [(null, 0)];
+        if (site.Owed.Length == 0) return [(null, 0, default)];
         var (def, need) = site.Owed[0];
-        var spawned = map.listerThings.ThingsOfDef(def).Where(t => t.Spawned).OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
-        var whole = spawned.Where(t => t.stackCount >= need).Select(t => ((Thing?)t, need)).ToArray();
-        if (whole.Length > 0) return whole;
-        var set = new List<Thing>();
-        var sum = 0;
-        foreach (var stack in spawned.Where(t => !t.IsForbidden(Faction.OfPlayer)).OrderBy(t => t.Position.DistanceToSquared(site.Target(t.Position))))
+        var stacks = map.listerThings.ThingsOfDef(def).Where(t => t.Spawned && !t.IsForbidden(Faction.OfPlayer))
+            .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+        if (!stacks.Any(t => t.stackCount >= need) && stacks.Sum(t => (long)t.stackCount) < need) { findings.Add("source_stock_short"); return []; }
+        return stacks.Select(t => ((Thing?)t, Math.Min(t.stackCount, need), StorageDistance(map, t))).ToArray();
+    }
+
+    // Straight-line distance from the stack to the nearest cell of any storage that accepts it: zero when it already
+    // sits in storage, unknown when none accepts it.
+    private static Fact<double> StorageDistance(Map map, Thing thing)
+    {
+        if (thing.GetSlotGroup() != null) return Fact.Known(0.0);
+        var best = double.PositiveInfinity;
+        foreach (var group in map.haulDestinationManager.AllGroupsListInPriorityOrder)
         {
-            if (sum >= need) break;
-            set.Add(stack); sum += stack.stackCount;
+            if (!group.Settings.AllowedToAccept(thing)) continue;
+            foreach (var cell in group.CellsList) best = Math.Min(best, (cell - thing.Position).LengthHorizontal);
         }
-        if (sum < need) { findings.Add("source_stock_short"); return []; }
-        var remainder = set.OrderByDescending(t => t.stackCount).ThenBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).First();
-        return set.Select(t => ((Thing?)t, t == remainder ? need - (sum - t.stackCount) : t.stackCount)).ToArray();
+        return double.IsPositiveInfinity(best) ? default : Fact.Known(best);
     }
 
     // Per pawn x material source (Sources): site approach, first approach, delivery trips for the source's share and
     // finish work; Count stays the site's owed count and AvailableInput the stack's. The legs are searched once each:
     // colonist to site and to stack per (colonist cell, target), stack to site and back per (stack, site), then combined
-    // into the rows. A placed site's multi-stack set also adds, per pawn and stack, the route from the site back to the
-    // stack (to setRoutes): the leg one pawn walks between delivering one stack and fetching the next.
+    // into the rows. A placed site also adds, per pawn and stack under its demand, the route from the site back to the
+    // stack (to setRoutes): the leg one pawn walks between delivering one stack of a set and fetching the next.
     private static void Rows(Map map, NativePathLegs legs, Pawn[] roster, Site site, WorkGiverDef? finishGiver, HashSet<string> findings,
         List<Obs.ConstructionActivityOption> options, List<Obs.CoupledRoute>? setRoutes = null)
     {
@@ -553,7 +557,7 @@ internal static class NativeConstructionActivity
                 && (pawn.skills?.GetSkill(SkillDefOf.Construction).Level ?? 0) >= site.Definition.constructionSkillPrerequisite;
             var speed = pawn.GetStatValue(StatDefOf.ConstructionSpeed);
             Fact<double> finishTicks = finish && speed > 0 ? Fact.Known((double)site.Work / speed) : default;
-            foreach (var (source, share) in sources)
+            foreach (var (source, share, storage) in sources)
             {
                 var count = site.Owed.Length == 0 ? 0 : site.Owed[0].Count;
                 var capacity = source == null ? 0 : pawn.carryTracker.MaxStackSpaceEver(source.def);
@@ -576,7 +580,7 @@ internal static class NativeConstructionActivity
                 }
                 options.Add(new(site.Id, site.Definition.defName, new(site.Location.x, site.Location.z), pawn.GetUniqueLoadID(),
                     source?.def.defName ?? "", source?.GetUniqueLoadID() ?? "", new(source?.Position.x ?? site.Location.x, source?.Position.z ?? site.Location.z),
-                    count, capacity, finishGiver?.defName ?? "", approach, delivery, finishTicks) { SiteApproachTicks = Fact.Known((double)siteRoute), AvailableInput = Fact.Known((double)(source?.stackCount ?? 0)) });
+                    count, capacity, finishGiver?.defName ?? "", approach, delivery, finishTicks) { SiteApproachTicks = Fact.Known((double)siteRoute), AvailableInput = Fact.Known((double)(source?.stackCount ?? 0)), StorageDistance = storage });
             }
         }
     }

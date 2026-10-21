@@ -561,6 +561,16 @@ namespace HomeBridge.BridgeTools
                 Preempt(p, site, PathEndMode.Touch, Danger.None);
                 job = JobMaker.MakeJob(JobDefOf.HaulToContainer, target, site, site);
                 job.count = step.Count; job.haulOpportunisticDuplicates = false;
+                if (step.FullLoad)
+                {
+                    // A remote full load (#3046): the driver collects the queued stacks after the target, up to a full carry;
+                    // the site takes its need and the surplus drops beside it when the job ends. A stack gone or not usable now
+                    // is left out (the driver ends the job on a queued stack it cannot use).
+                    var queue = step.Collect.Select(Thing).Where(t => t != null && t.Spawned && t != target && t.def == target.def
+                        && GenAI.CanUseItemForWork(p, t) && p.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.None)).Select(t => t!).ToList();
+                    job.targetQueueA = queue.Select(t => new LocalTargetInfo(t)).ToList();
+                    job.count = Math.Max(step.Count, Math.Min(p.carryTracker.MaxStackSpaceEver(target.def), target.stackCount + queue.Sum(t => t.stackCount)));
+                }
             }
             if (step.Kind == PawnActivityKind.Recreation)
             {

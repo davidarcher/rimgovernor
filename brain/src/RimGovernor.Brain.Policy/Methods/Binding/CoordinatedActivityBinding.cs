@@ -62,7 +62,7 @@ internal static class CoordinatedActivityBinding
                 new(task.Kind, task.Target, task.WorkGiver, task.Job, task.Count,
                     task.Practice != null || task.Kind is PawnActivityKind.Sleep or PawnActivityKind.Recreation ? checked(tick + (long)Math.Ceiling(a.End)) : task.Deadline)
                     { Practice = task.Practice, Destination = task.Destination, Container = task.Container, SupportDemand = task.SupportDemand, Medicine = task.Medicine,
-                        Targets = task.Targets, Cells = task.Cells, Recipe = task.Recipe ?? (task.Cooking is { } cooking
+                        Targets = task.Targets, Cells = task.Cells, FullLoad = task.FullLoad, Collect = task.Collect, Recipe = task.Recipe ?? (task.Cooking is { } cooking
                         ? new(cooking.Continuation.Bill, cooking.Continuation.Recipe, [new(task.Ingredient, cooking.IngredientCount)]) { Resource = task.Resource } : null) },
                 task.Location, checked(tick + (long)Math.Ceiling(a.Depart)))
                     { Resource = task.Resource, Source = task.Source, SiteDefinition = task.SiteDefinition, ProductStuff = task.ProductStuff,
@@ -259,6 +259,7 @@ internal static class CoordinatedActivityBinding
         && (bound.Kind != PawnActivityKind.Eat || bound.Count == task.Step.Count)
         && bound.Job == task.Step.Job && (bound.Kind is not (PawnActivityKind.Deliver or PawnActivityKind.Supply)
             || bound.Count > 0 && bound.Count <= task.Step.Count)
+        && bound.FullLoad == task.Step.FullLoad && bound.Collect.All(task.Step.Collect.Contains)
         && (task.Step.Recipe is not { } recipe || bound.Recipe is { } cooking && cooking.Bill == recipe.Bill
             && cooking.Recipe == recipe.Recipe && cooking.Resource == recipe.Resource && cooking.Stuff == recipe.Stuff && cooking.Unfinished == recipe.Unfinished
             && cooking.Ingredients.Sum(i => i.Count) == recipe.Ingredients.Sum(i => i.Count));

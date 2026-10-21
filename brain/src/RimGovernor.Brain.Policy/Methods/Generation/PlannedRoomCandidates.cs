@@ -62,7 +62,7 @@ internal static class PlannedRoomCandidates
             if (site.Verdict != PlannedSiteVerdict.Feasible) return (Assessment.Unvalued, "unknown");
             var rows = site.Options.Where(Free).ToArray();
             if (!rows.Any(r => r.FinishTicks.IsKnown)) return (Assessment.Unvalued, "no_finish_option");
-            if (site.Material.Count > 0 && Sourcing(rows).Groups.Length == 0) return (Assessment.Unvalued, "no_delivery_option");
+            if (site.Material.Count > 0 && Sourcing(site, rows).Groups.Length == 0) return (Assessment.Unvalued, "no_delivery_option");
             foreach (var clearing in site.Clearing)
                 if (clearing.Kind == PlannedClearingKind.Unspecified || !ClearingRows(clearing).Any())
                     return (Assessment.Unvalued, "clearing_unrouted");
@@ -76,13 +76,14 @@ internal static class PlannedRoomCandidates
             .Where(g => g.Length > 0);
         // A site's deliveries (#3673): its whole-stack sources, alternatives (Shares null), or its multi-stack set, every
         // stack delivered for its share, when each of them has a deliverable row and the set fits SourcesPerSite (else none).
-        (ConstructionActivityOption[][] Groups, IReadOnlyDictionary<string, int>? Shares) Sourcing(ConstructionActivityOption[] rows)
+        (ConstructionActivityOption[][] Groups, IReadOnlyDictionary<string, int>? Shares) Sourcing(PlannedBuildSite site, ConstructionActivityOption[] rows)
         {
             var groups = Deliveries(rows).ToArray();
-            var shares = ConstructionMethodCandidates.StackShares(rows);
-            if (shares is null) return (groups, null);
-            return shares.Count > 0 && shares.Count <= SourcesPerSite && groups.Length == shares.Count
-                && groups.All(g => shares.ContainsKey(g[0].Input)) ? (groups, shares) : ([], shares);
+            // Native lists every usable stack (#3046); a set is the stacks nearest the site's pieces.
+            var shares = ConstructionMethodCandidates.StackShares(rows, r => site.Positions.Count == 0 ? 0 : site.Positions.Min(p => ((double)p.X - r.Origin.X) * (p.X - r.Origin.X) + ((double)p.Z - r.Origin.Z) * (p.Z - r.Origin.Z)));
+            if (shares is null) return (groups.Where(g => ConstructionMethodCandidates.Whole(g[0])).ToArray(), null);
+            var set = groups.Where(g => shares.ContainsKey(g[0].Input)).ToArray();
+            return shares.Count > 0 && shares.Count <= SourcesPerSite && set.Length == shares.Count ? (set, shares) : ([], shares);
         }
         IEnumerable<ConstructionActivityOption> ClearingRows(PlannedSiteClearing clearing) => clearing.Options.Where(Free)
             .Where(r => (clearing.Kind == PlannedClearingKind.Haul ? r.DeliveryTicks : r.FinishTicks).IsKnown)
@@ -139,7 +140,7 @@ internal static class PlannedRoomCandidates
                     else
                     {
                         var readies = new List<string>();
-                        var (sourced, shares) = Sourcing(rows);
+                        var (sourced, shares) = Sourcing(site, rows);
                         foreach (var group in sourced.Take(SourcesPerSite + 1).Select((g, i) => (Rows: g, Index: i)))
                         {
                             if (group.Index == SourcesPerSite) { findings.Add("planned_site_sources_truncated:" + site.Id); break; }
