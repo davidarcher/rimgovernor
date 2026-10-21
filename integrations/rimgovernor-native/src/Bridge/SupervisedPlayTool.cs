@@ -204,6 +204,11 @@ namespace HomeBridge.BridgeTools
                         return;
                     }
                     if (tm.CurTimeSpeed != s.RequestedSpeed) { Stop(s, Clock.HoldReason.ExternalSpeedChanged, "Speed changed outside the supervisor.", true); return; }
+                    // An armed combat event is the stop, not the hazard probe's
+                    // view of the same down: the down hook also requests a probe,
+                    // and a Hyperfast tick runs this before TickBody's own
+                    // combat check (#3551).
+                    if (StopOnCombatEvent(s)) return;
                     if (!RunProbeIfDue(s, tm)) return;
                     RunDigestIfDue(s, tm);
                 }

@@ -152,7 +152,11 @@ A `WATCH_MODE_COMBAT` run also holds on the armed events in
 lands on the boundary of the tick the event happened on
 (`STOP_REASON_COMBAT_EVENT`, `occurrence_tick` = the stop tick). A game hook
 records the event and `TickBody` stops right after the watch checks
-(`SupervisedPlayCombatStops.cs`):
+(`SupervisedPlayCombatStops.cs`). The frame watcher (`OnUpdate`, which a
+Hyperfast tick runs before `TickBody`'s own checks) also takes a recorded
+event before the hazard probe, so a down, whose hook also requests a probe,
+holds as the combat event rather than as `colonist_downed` (#3551,
+`hazard/combat-downed`):
 
 | Event | Source |
 | --- | --- |

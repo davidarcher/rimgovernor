@@ -81,8 +81,70 @@ public static class HazardCases
                 Tier = CaseTier.OnDemand,
                 QuietWorld = true,
                 Ops = [InjectTool, DeliverTool, PauseModeTool],
-                Run = (s, cancellationToken) => RunAsync(s, hc, cancellationToken),
+                Run = (s, cancellationToken) => RunAsync(s, (session, token) => RunHazardAsync(session, hc, token), cancellationToken),
             });
+        }
+
+        registry.Register(new TypedCase
+        {
+            Name = "hazard/combat-downed",
+            Scope = "A colonist downed mid-run at Hyperfast under a combat watch armed with Downed holds the clock as the Downed combat event within the "
+                + "hooked 1-tick bound, not as the colonist_downed hazard the down hook also probes for (#3551).",
+            Ticks = RunTicks,
+            Tier = CaseTier.OnDemand,
+            QuietWorld = true,
+            Ops = [InjectTool, PauseModeTool],
+            Run = (s, cancellationToken) => RunAsync(s, RunCombatDownedAsync, cancellationToken),
+        });
+    }
+
+    // The colony policy as a fight's combat watch, armed with the down: no hostile to acknowledge in a quiet world.
+    private static readonly Clock.WatchPolicy CombatPolicy = Policy with { Mode = Clock.WatchMode.Combat, CombatStopEvents = [Clock.CombatEvent.Downed] };
+
+    private static async Task RunCombatDownedAsync(TypedSession s, CancellationToken cancellationToken)
+    {
+        var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
+        var request = new Clock.RunRequest { ExpectedGeneration = generation, Speed = Clock.Speed.Hyperfast, Policy = CombatPolicy };
+        long? startTick = null;
+        Injection? injected = null;
+        var held = await s.RunClockUntilHeldAsync(
+            "hyperfast-combat",
+            s.TicksLeft,
+            request,
+            async (running, token) =>
+            {
+                var tick = running.Context?.Tick ?? 0;
+                startTick ??= tick;
+                if (injected is null && tick >= startTick + SettleTicks)
+                {
+                    injected = await InjectOp("downed")(s, token).ConfigureAwait(false);
+                }
+
+                return false;
+            },
+            cancellationToken).ConfigureAwait(false);
+        if (injected is null)
+        {
+            throw new AcceptanceException($"the clock held before the injection ({held.Reason}): {held.Detail}");
+        }
+
+        var row = await s.HoldRowAsync("hold", held, cancellationToken).ConfigureAwait(false);
+        var detected = ClockRows.Whole(row, ColonyEventTelemetry.DetectedTickKey);
+        s.Record("hazard", CombatLabKit.Obj(
+            ("hold_reason", held.Reason?.ToString()),
+            ("combat_event", held.CombatEvent?.ToString()),
+            ("inject_tick", injected.Tick),
+            ("detected_tick", detected),
+            ("injected", injected.Evidence?.DeepClone())));
+        if (held.Reason != Clock.HoldReason.CombatEvent || held.CombatEvent != Clock.CombatEvent.Downed)
+        {
+            throw new AcceptanceException($"hold {held.Reason} ({held.CombatEvent}), expected the Downed combat event: {held.Detail}");
+        }
+
+        var gap = detected - injected.Tick;
+        if (gap is null or < 0 or > HookedBoundTicks)
+        {
+            throw new AcceptanceException($"the Downed combat event was detected {gap} ticks after the injection, bound {HookedBoundTicks}");
         }
     }
 
@@ -135,7 +197,7 @@ public static class HazardCases
         }
     }
 
-    private static async Task RunAsync(TypedSession s, HazardCase hc, CancellationToken cancellationToken)
+    private static async Task RunAsync(TypedSession s, Func<TypedSession, CancellationToken, Task> body, CancellationToken cancellationToken)
     {
         // No letter pauses the clock on its own: the hold under test is the supervisor's, not LetterPauseHook's. Prefs are
         // process-wide; put the mode back for the next case.
@@ -143,7 +205,7 @@ public static class HazardCases
         await SetPauseModeAsync(s, "Never", cancellationToken).ConfigureAwait(false);
         try
         {
-            await RunHazardAsync(s, hc, cancellationToken).ConfigureAwait(false);
+            await body(s, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
