@@ -65,34 +65,38 @@ table (`outside`). `RaidExposure.DownRate` answers the down rate the same way. E
 
 ## Calibration result (H5)
 
-`exposure.json` is built from sweep 1 (seeds 1..20) of the five plain-raid fixtures; sweep 2 (seeds 21..40) checked it.
-The rows, command, revision, game hash, per-cell trials and ranges, and the stability result are in
+`exposure.json` is built from sweep 1 (seeds 1..20) of the eight plain-raid fixtures below; sweep 2 (seeds 21..40)
+checked it. The rows were recorded in two batches (#3543, #3561). The rows, commands, revisions, game hashes, per-cell
+trials and ranges, and the stability result are in
 [`Sweep/calibration/exposure/README.md`](../../../brain/src/RimGovernor.Brain.Acceptance/Sweep/calibration/exposure/README.md).
 
 | Cell | Trials | Mean hits | 90% range |
 | --- | --- | --- | --- |
+| 0.5-1 / gunner | 80 | 1.25 | 0.94 to 1.55 |
 | 1-2 / gunner | 140 | 2.61 | 2.30 to 2.94 |
 | 2-4 / gunner | 200 | 3.34 | 3.05 to 3.65 |
 | 2-4 / melee | 100 | 2.78 | 2.34 to 3.21 |
+| 4+ / gunner | 40 | 5.40 | 5.10 to 5.72 |
 
-All three cells are stable (sweep 2's mean is inside sweep 1's range). Every other cell is absent and reads uncalibrated.
-A fixture stages one raid, so it reaches one ratio: lab-ranged 1.20, lab-open 1.98, lab-split-ranged 2.41, lab-base 2.48,
-lab-choke 3.67. No fixture reaches the `0.5-1` bin (the gunner cell there stays uncalibrated until a plain-raid fixture
-with a ratio in 0.5 to 1 exists), nor `0-0.5` or `4+`.
-Uncalibrated: the `0-0.5`, `0.5-1` and `4+` bins for every role, and the 1-2 and 2-4 bins for roles other than the three
-cells above. New fixtures that reach those bins are tracked in #3561.
+These five cells are stable (sweep 2's mean is inside sweep 1's range). A fixture stages one raid, so it reaches one
+ratio: lab-ranged-lone 0.30, lab-ranged-light 0.90, lab-ranged 1.20, lab-open 1.98, lab-split-ranged 2.41, lab-base 2.48,
+lab-choke 3.67, lab-ranged-overrun 4.21. lab-ranged-lone reaches `0-0.5` / gunner, but that cell failed stability (sweep
+2's mean 0.075 against sweep 1's 0.0875 to 0.25; hits are rare at that ratio), so it is absent from the table.
+Uncalibrated: the `0-0.5` bin for every role, and every bin for roles other than the cells above. Cells are not
+extrapolated across bins.
 
 ### Re-running the calibration
 
-Run both sweeps one after the other with `-workers 1` (about 17 minutes each on the dev box), detached, into fresh output
+Run both sweeps one after the other with `-workers 1` (about 30 minutes each on the dev box), detached, into fresh output
 directories and fresh rows files:
 
 ```
-RimGovernor.cmd acceptance sweep lab-ranged lab-open lab-choke lab-split-ranged lab-base -root <bridge root> -output <fresh dir> -workers 1 -exposure <rows1.jsonl>
-RimGovernor.cmd acceptance sweep lab-ranged lab-open lab-choke lab-split-ranged lab-base -root <bridge root> -output <fresh dir> -workers 1 -seeds 21,22,...,40 -exposure <rows2.jsonl>
+RimGovernor.cmd acceptance sweep lab-ranged lab-open lab-choke lab-split-ranged lab-base lab-ranged-light lab-ranged-lone lab-ranged-overrun -root <bridge root> -output <fresh dir> -workers 1 -exposure <rows1.jsonl>
+RimGovernor.cmd acceptance sweep lab-ranged lab-open lab-choke lab-split-ranged lab-base lab-ranged-light lab-ranged-lone lab-ranged-overrun -root <bridge root> -output <fresh dir> -workers 1 -seeds 21,22,...,40 -exposure <rows2.jsonl>
 RimGovernor.cmd acceptance sweep -exposure-table <rows1.jsonl> Policy/Harm/exposure.json
 ```
 
 Build a table from the second rows file as well and check that each cell's mean lies inside the first table's
 `hitsLo`..`hitsHi`. A cell that fails stays uncalibrated in the committed table (remove its cell, or set trials to 0), and
-the README lists it. Commit the rows, the table and the README together.
+the README lists it. Commit the rows, the table and the README together. To add fixtures without re-running the others,
+sweep only the new ones, append their rows to both committed rows files and rebuild the table from the first.

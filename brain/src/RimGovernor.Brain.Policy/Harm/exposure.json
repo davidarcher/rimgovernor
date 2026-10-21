@@ -2,6 +2,17 @@
   "schema": 1,
   "cells": [
     {
+      "bin": "0.5-1",
+      "role": "gunner",
+      "trials": 80,
+      "meanHits": 1.25,
+      "hitsLo": 0.9375,
+      "hitsHi": 1.55,
+      "downRate": 0.15,
+      "downLo": 0.0879,
+      "downHi": 0.2441
+    },
+    {
       "bin": "1-2",
       "role": "gunner",
       "trials": 140,
@@ -33,6 +44,17 @@
       "downRate": 0.32,
       "downLo": 0.2367,
       "downHi": 0.4166
+    },
+    {
+      "bin": "4\u002B",
+      "role": "gunner",
+      "trials": 40,
+      "meanHits": 5.4,
+      "hitsLo": 5.1,
+      "hitsHi": 5.725,
+      "downRate": 0.975,
+      "downLo": 0.8712,
+      "downHi": 0.9956
     }
   ]
 }

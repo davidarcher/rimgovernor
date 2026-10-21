@@ -263,7 +263,8 @@ public static class CombatFixtures
     public static readonly IReadOnlyList<string> Names =
     [
         "lab-open", "lab-choke", "lab-ranged", "lab-pods", "lab-breach", "lab-siege", "lab-manhunter", "lab-mech",
-        "lab-ranged-shield", "lab-mech-line", "lab-base", "lab-split-ranged",
+        "lab-ranged-shield", "lab-mech-line", "lab-base", "lab-split-ranged", "lab-ranged-light", "lab-ranged-lone",
+        "lab-ranged-overrun",
     ];
 
     public const int MechStunTicks = 600;
@@ -289,6 +290,9 @@ public static class CombatFixtures
         "lab-split-ranged" => SplitRanged(cx, cz),
         "lab-ranged" => Ranged(cx, cz),
         "lab-ranged-shield" => RangedShield(cx, cz),
+        "lab-ranged-light" => RangedLine("lab-ranged-light", cx, cz, [-3, -1, 1, 3], [-2, 0, 2]),
+        "lab-ranged-lone" => RangedLine("lab-ranged-lone", cx, cz, [-3, -1, 1, 3], [0]),
+        "lab-ranged-overrun" => RangedLine("lab-ranged-overrun", cx, cz, [-1, 1], [-6, -4, -2, 0, 2, 4, 6]),
         "lab-pods" => Pods(cx, cz),
         "lab-siege" => Siege(cx, cz),
         "lab-manhunter" => ManhunterFixture(cx, cz),
@@ -598,6 +602,33 @@ public static class CombatFixtures
             f.Layout.Firing.Add(new LabCell(cx + dx, cz - 9));
             f.Layout.Retreat.Add(new LabCell(cx + dx, cz - 14));
             i++;
+        }
+
+        return f;
+    }
+
+    // rangedLine: lab-ranged's sandbag line and held layout with a rifleman at each defender offset and a rifle raider 25
+    // cells north at each raider offset. The exposure calibration's fixtures (#3561) vary the counts to move the raid
+    // points over defense capacity ratio: light (4 on 3) 0.90, lone (4 on 1) 0.30, overrun (2 on 7) 4.21.
+    private static LabFixture RangedLine(string name, int cx, int cz, int[] defenders, int[] raiders)
+    {
+        var f = new LabFixture { Name = name, Colonists = defenders.Length, Layout = new LabLayout { Toward = "south" } };
+        for (var dx = -3; dx <= 3; dx++)
+        {
+            f.Things.Add(T("Sandbags", cx + dx, cz - 8));
+        }
+
+        for (var i = 0; i < defenders.Length; i++)
+        {
+            var x = cx + defenders[i];
+            f.Pawns.Add(P(Colonist, x, cz - 9, index: i, weapon: Rifle));
+            f.Layout.Firing.Add(new LabCell(x, cz - 9));
+            f.Layout.Retreat.Add(new LabCell(x, cz - 14));
+        }
+
+        foreach (var dx in raiders)
+        {
+            f.Pawns.Add(P(Hostile, cx + dx, cz + 16, kind: Gunner, weapon: Rifle));
         }
 
         return f;

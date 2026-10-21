@@ -470,13 +470,13 @@ raid harm per day. The output feeds the currency and the death floor.
    stays explicit. The harm model reads the committed table (`RaidExposure`)
    and duplicates no constants; see
    [raid exposure calibration](../testing/harm-exposure-calibration.md).
-   **Calibrated today:** three cells, ratio 1 to 2 for gunners and ratio 2 to 4
-   for gunners and melee fighters, from 20-seed sweeps whose means held in a
-   second sweep. Every other cell (ratio under 1 or over 4, noncombatants, and
-   melee at 1 to 2) is uncalibrated: the harm term is unknown with
+   **Calibrated today:** five cells, gunners at every ratio from 0.5 up (0.5 to
+   1, 1 to 2, 2 to 4 and over 4) and melee fighters at 2 to 4, from 20-seed
+   sweeps whose means held in a second sweep. Every other cell (ratio under
+   0.5, whose gunner cell failed that check; noncombatants; melee outside 2 to
+   4) is uncalibrated: the harm term is unknown with
    `exposure_cell_uncalibrated:<bin>/<role>` and the death floor is unassessed,
-   so a colony outside those cells compares on the other terms only. Fixtures
-   for the missing cells are #3561.
+   so a colony outside those cells compares on the other terms only.
 4. **Armor response, per pawn and weapon bin.** For each layer covering the
    part hit (`ArmorUtility.GetPostArmorDamage`, outermost first), effective
    armor = max(rating − penetration, 0). The hit is deflected with chance
@@ -573,9 +573,9 @@ Native does not yet observe:
 
 ## Open questions
 
-- Exposure calibration: which fixtures reach the uncalibrated bins (raid points
-  ÷ defense capacity under 1 or over 4, and melee at 1 to 2) so their cells can
-  be filled ([#3561](https://github.com/davidarcher/rimgovernor/issues/3561))?
+- Exposure calibration: how can the under-0.5 gunner cell, where hits are rare,
+  pass the two-sweep stability check, and which raids fill the melee and
+  noncombatant cells outside 2 to 4?
 - The tier-2 pawn cycle: is one derived day per pawn accurate enough, or does
   it need per-season variants (temperature, daylight)?
 - Initial values for the policy constants.
