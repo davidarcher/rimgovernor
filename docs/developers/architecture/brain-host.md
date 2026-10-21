@@ -725,7 +725,8 @@ and only admin/work-assignments (admitted 11 of 17) and shelter/starter (4 of 17
 selected `due` alone, on a step whose rounds word is `last` or `due`, runs for its cadence (`FamilyStep.Cadence`): a
 ready Need whose last ordinary run ended in a wait or a refusal keeps that verdict and Method and skips propose, commit
 and work. Open work, a held claim, an unread field and an admission are never kept; a `dirty`, `wake`, `full` or `all`
-selection, a Need that was not ready last time, the immediate pass and another world run the work again. Kept Needs
+selection, a Need that was not ready last time or derives differently now (a live read changed: clearance's census once
+the pawns finish a designated step, #3681), the immediate pass and another world run the work again. Kept Needs
 are counted on the `clock_step` row (`kept`) and marked on their `planner_step` rows (`kept`). Landed 9adcf3d36.
 
 Measured 2026-10-18, same colony and machine, brain session `949d4fe485dc46faabaab1e5b3898289`, one passing

@@ -20,7 +20,7 @@ public sealed class FamilyKeptWaitsTests
 
     private static readonly NeedId Fix = NeedId.Of("test-keep", "fix");
 
-    private sealed record KeepFacts(Fact<bool> Fixed);
+    private sealed record KeepFacts(Fact<bool> Fixed, Fact<double> Deficit = default);
 
     /// <summary>One Need, ready while the colony is not fixed; its work is the test's, counted and scripted.</summary>
     private sealed class KeepFamily : IFamily<KeepFacts>
@@ -34,7 +34,7 @@ public sealed class FamilyKeptWaitsTests
         public NeedTier Tier { get; set; } = NeedTier.Development;
 
         public IReadOnlyList<Need> Derive(KeepFacts facts) =>
-            [new Need { Id = Fix, Tier = Tier, Satisfaction = !facts.Fixed.TryGetValue(out var v) ? Satisfaction.Unknown : v ? Satisfaction.Met : Satisfaction.Unmet }];
+            [new Need { Id = Fix, Tier = Tier, Satisfaction = !facts.Fixed.TryGetValue(out var v) ? Satisfaction.Unknown : v ? Satisfaction.Met : Satisfaction.Unmet, Deficit = facts.Deficit }];
 
         public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, KeepFacts facts) => [];
     }
@@ -142,6 +142,23 @@ public sealed class FamilyKeptWaitsTests
         // Ready again on the cadence: it was not ready last time, so its work runs.
         colony.Facts = new(Known(false));
         Assert.Empty(colony.Run(cadence: true).Kept);
+        Assert.Equal(2, colony.Worked);
+    }
+
+    [Fact]
+    public void ANeedDerivedDifferentlyWorksAgain()
+    {
+        // The live clearance census (#3681): the pawns cleared what the last step designated, so the Need's
+        // deficit fell while it stayed ready; the refusal filed while the work was in flight is not kept.
+        using var colony = Open();
+        colony.Run(cadence: false);
+        Assert.Equal([Fix], colony.Run(cadence: true).Kept);
+        Assert.Equal(1, colony.Worked);
+
+        colony.Facts = colony.Facts with { Deficit = Known(1.0) };
+        Assert.Empty(colony.Run(cadence: true).Kept);
+        Assert.Equal(2, colony.Worked);
+        Assert.Equal([Fix], colony.Run(cadence: true).Kept);
         Assert.Equal(2, colony.Worked);
     }
 

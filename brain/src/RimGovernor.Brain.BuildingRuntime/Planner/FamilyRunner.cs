@@ -70,8 +70,8 @@ public sealed record FamilyRun : IPlannerMethod
     /// The ready Needs whose verdict and Method the run kept from the family's last ordinary run instead of
     /// proposing and working them (#3556): a cadence run (<see cref="FamilyStep.Cadence"/>) keeps a wait or a
     /// refusal, since nothing the family is woken for has changed; its work runs again on evidence (a dirty mark,
-    /// a wake, a full step), when the Need's standing changes, or when the kept verdict was an admission, open
-    /// work, a held claim or an unavailable field.
+    /// a wake, a full step), when the Need's standing or its derived Need changes, or when the kept verdict was an
+    /// admission, open work, a held claim or an unavailable field.
     /// </summary>
     public IReadOnlyList<NeedId> Kept { get; init; } = [];
 }
@@ -145,9 +145,9 @@ public abstract class FamilyRunner
     private readonly Lock _mu = new();
     private IReadOnlyList<PlanId> _seriousHarmPlans = [];
 
-    // The reports of the ready Needs of the last ordinary run, keyed by NeedId, and the world it ran in: what a
-    // cadence run keeps (#3556). The immediate pass neither reads nor writes them.
-    private Dictionary<NeedId, NeedReport> _lastReady = [];
+    // The reports of the ready Needs of the last ordinary run, keyed by NeedId, with each Need as derived, and the
+    // world it ran in: what a cadence run keeps (#3556). The immediate pass neither reads nor writes them.
+    private Dictionary<NeedId, (NeedReport Report, Need Need)> _lastReady = [];
     private GenerationSnapshot _lastWorld;
 
     private protected FamilyRunner(IFamily family, FamilySchedule schedule)
@@ -205,10 +205,10 @@ public abstract class FamilyRunner
         }
         else if (run.Complete)
         {
-            var ready = run.Standings.Where(s => s.Readiness == NeedReadiness.Ready).Select(s => s.Need.Id).ToHashSet();
+            var ready = run.Standings.Where(s => s.Readiness == NeedReadiness.Ready).ToDictionary(s => s.Need.Id, s => s.Need);
             lock (_mu)
             {
-                _lastReady = run.Reports.Where(r => ready.Contains(r.Need)).ToDictionary(r => r.Need);
+                _lastReady = run.Reports.Where(r => ready.ContainsKey(r.Need)).ToDictionary(r => r.Need, r => (r, ready[r.Need]));
                 _lastWorld = step.World;
             }
         }
@@ -217,12 +217,12 @@ public abstract class FamilyRunner
 
     private protected abstract Task<FamilyRun> StepAsync(FamilyStep step, CancellationToken call);
 
-    /// <summary>The ready Needs' reports of the last ordinary run in <paramref name="world"/>; empty for another world or before any run.</summary>
-    private protected IReadOnlyDictionary<NeedId, NeedReport> LastReady(GenerationSnapshot world)
+    /// <summary>The ready Needs' reports and derived Needs of the last ordinary run in <paramref name="world"/>; empty for another world or before any run.</summary>
+    private protected IReadOnlyDictionary<NeedId, (NeedReport Report, Need Need)> LastReady(GenerationSnapshot world)
     {
         lock (_mu)
         {
-            return _lastWorld == world ? _lastReady : new Dictionary<NeedId, NeedReport>();
+            return _lastWorld == world ? _lastReady : new Dictionary<NeedId, (NeedReport Report, Need Need)>();
         }
     }
 
@@ -336,10 +336,12 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
         {
             // A cadence run keeps the wait or refusal a ready Need ended on last time (#3556): the facts it derives
             // from are the committed review's and nothing has marked the entry, so its work would return the same.
+            // A Need derived differently read changed facts (a live census: the pawns cleared what was designated,
+            // #3681), so its work runs again.
             var last = LastReady(step.World);
-            foreach (var need in ready.Where(n => last.TryGetValue(n.Id, out var r) && Keepable(r.Verdict)).ToList())
+            foreach (var need in ready.Where(n => last.TryGetValue(n.Id, out var r) && r.Need == n && Keepable(r.Report.Verdict)).ToList())
             {
-                var report = last[need.Id];
+                var report = last[need.Id].Report;
                 reports[need.Id] = report.Verdict;
                 if (!report.Method.IsEmpty)
                 {
