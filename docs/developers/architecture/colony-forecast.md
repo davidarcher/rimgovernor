@@ -617,6 +617,16 @@ warning names #3683 and the matrix is searched batched. `lab/route-floods` holds
 (200 origins each to every other: 167 ms of game thread, at most 10 ticks under A* on 250 sampled pairs, 2026-10-20).
 The `cf.fc.routes.floods` span carries the floods' time and count.
 
+The legs stay in the map's leg store across reads, each with the cells it crosses, and a map change drops only the
+legs it could alter (#3686), applied at the next read. A fog change or a game condition drops every leg. A region or
+room change drops the no-path legs, which it can connect. A building, a path-relevant thing, a terrain or path-cost
+change, a reservation or a haul en route dirties its cells; a dirty cell drops the no-path legs, the legs crossing it
+(a wall or cost added on the path) and the legs a path through it could beat (a wall removed or a cell made cheaper):
+those whose octile distance from the origin through the cell to the end, priced at the leg's own move ticks with no
+cell cost, is under the leg's cost. A touch end counts any cell touching the target. More than 256 dirty cells in one
+settle drop every leg. Legs have no time-to-live, and door open states are not watched (a leg is priced at the door's
+state when searched). `lab/leg-invalidation` holds this on an open lab patch.
+
 ### Planned room activities
 
 `GenerateCoupledActivities` turns the planned-site facts into construction activities when housing, shelter or

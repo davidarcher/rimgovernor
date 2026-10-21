@@ -469,32 +469,42 @@ internal sealed class NativePathLegs
 
     /// <summary>
     /// The map's legs kept across reads, with the cells each crosses, dropped when the map changes under them the way
-    /// the finder's own map data is (PathFinderMapData's map events): a region, room or fog change and a game condition
-    /// drop every leg (passability, danger); a building, a path-relevant thing, a terrain or path-cost change, a
-    /// reservation or a haul en route drops the legs crossing its cells. A leg with no path has no cells and lasts until
-    /// the next full drop. Door open states are not watched: a leg through a door was priced at the door's state when
-    /// searched, as every leg of one read is. Changes are noted as they happen and applied at the next read
+    /// the finder's own map data is (PathFinderMapData's map events), each change dropping only the legs it could alter
+    /// (#3686). A fog change and a game condition drop every leg (passability, danger). A region or room change drops the
+    /// no-path legs, which it can connect. A building, a path-relevant thing, a terrain or path-cost change, a
+    /// reservation or a haul en route dirties its cells, and a dirty cell drops the no-path legs, the legs crossing it
+    /// (an obstacle or cost added on the path), and the legs a path through it could beat (an obstacle removed or a cell
+    /// made cheaper): those whose octile lower bound from the origin through the cell to the end, priced at the leg's own
+    /// move ticks with no cell cost, is under the leg's cost. More than <see cref="MaxDirtyCells"/> dirty cells in one
+    /// settle drop every leg instead. Door open states are not watched: a leg through a door was priced at the door's
+    /// state when searched, as every leg of one read is. Changes are noted as they happen and applied at the next read
     /// (<see cref="Settle"/>).
     /// </summary>
     private sealed class Store
     {
+        /// <summary>The most dirty cells one settle tests each leg against; more drop every leg.</summary>
+        internal const int MaxDirtyCells = 256;
+
         private static readonly ConditionalWeakTable<Map, Store> Stores = new();
 
         internal static Store For(Map map) => Stores.GetValue(map, m => new Store(m));
 
         private readonly Map map;
         private readonly Dictionary<Key, Leg?> legs = new();
-        private readonly List<Key>?[] crossing;
+        // Per cell, the legs stored crossing it. An entry whose key now holds another leg (or none) is stale and skipped;
+        // the index is rebuilt from the live legs once stale entries outnumber them.
+        private readonly List<(Key Key, Leg Leg)>?[] crossing;
+        private long indexed, live;
         private readonly HashSet<int> dirtyCells = new();
         private readonly List<CellRect> dirtyRects = new();
-        private bool dropAll;
+        private bool dropAll, dropNoPath;
 
         private Store(Map map)
         {
             this.map = map;
-            crossing = new List<Key>?[map.cellIndices.NumGridCells];
+            crossing = new List<(Key, Leg)>?[map.cellIndices.NumGridCells];
             var events = map.events;
-            events.RegionsRoomsChanged += DropAll;
+            events.RegionsRoomsChanged += () => dropNoPath = true;
             events.MapFogged += DropAll;
             events.CellFogChanged += (_, _) => DropAll();
             events.GameConditionAdded += _ => DropAll();
@@ -521,35 +531,110 @@ internal sealed class NativePathLegs
 
         internal Leg? Put(Key key, Leg? leg)
         {
+            if (legs.TryGetValue(key, out var old) && old != null) live -= old.Cells.Length;
             legs[key] = leg;
-            if (leg != null) foreach (var cell in leg.Cells) (crossing[cell] ??= new()).Add(key);
+            if (leg == null) return leg;
+            foreach (var cell in leg.Cells) (crossing[cell] ??= new()).Add((key, leg));
+            indexed += leg.Cells.Length;
+            live += leg.Cells.Length;
             return leg;
         }
 
-        /// <summary>Applies the changes noted since the last read: every leg, or the legs crossing the changed cells.</summary>
+        /// <summary>
+        /// Applies the changes noted since the last read: every leg, or the no-path legs and, per dirty cell, the legs
+        /// crossing it and the legs a path through it could beat.
+        /// </summary>
         internal void Settle()
         {
-            if (dropAll)
+            var area = dirtyCells.Count;
+            foreach (var rect in dirtyRects) area += rect.Area;
+            if (dropAll || area > MaxDirtyCells)
             {
-                legs.Clear();
-                Array.Clear(crossing, 0, crossing.Length);
-                dropAll = false;
-                dirtyCells.Clear();
-                dirtyRects.Clear();
+                Clear();
                 return;
             }
             foreach (var rect in dirtyRects)
                 foreach (var cell in rect.Cells)
                     if (cell.InBounds(map)) dirtyCells.Add(map.cellIndices.CellToIndex(cell));
             dirtyRects.Clear();
+            if (!dropNoPath && dirtyCells.Count == 0) return;
+            dropNoPath = false;
+            var drop = new List<Key>();
+            foreach (var pair in legs)
+                if (pair.Value == null) drop.Add(pair.Key);
+            foreach (var key in drop) legs.Remove(key);
+            if (dirtyCells.Count == 0) return;
             foreach (var index in dirtyCells)
             {
-                var keys = crossing[index];
-                if (keys == null) continue;
-                foreach (var key in keys) legs.Remove(key);
+                var entries = crossing[index];
+                if (entries == null) continue;
+                foreach (var (key, leg) in entries)
+                    if (legs.TryGetValue(key, out var held) && ReferenceEquals(held, leg)) Remove(key, leg);
+                indexed -= entries.Count;
                 crossing[index] = null;
             }
+            var dirty = new IntVec3[dirtyCells.Count];
+            var d = 0;
+            foreach (var index in dirtyCells) dirty[d++] = map.cellIndices.IndexToCell(index);
             dirtyCells.Clear();
+            var beaten = new List<(Key, Leg)>();
+            foreach (var pair in legs)
+                if (pair.Value is { } leg && Beatable(pair.Key, leg, dirty)) beaten.Add((pair.Key, leg));
+            foreach (var (key, leg) in beaten) Remove(key, leg);
+            if (indexed > 2 * live + 4096) Reindex();
+        }
+
+        // Whether a path through any of the cells could cost less than the leg: from the origin to the cell and on to the
+        // leg's end, each octile distance priced at the leg's move ticks and no cell cost, a cost no such path goes under.
+        // The end is the leg's last cell (its destination, or a thing's interaction cell), except a touch end, which any
+        // cell touching the target can be.
+        private bool Beatable(Key key, Leg leg, IntVec3[] cells)
+        {
+            var end = key.Mode is PathEndMode.Touch or PathEndMode.ClosestTouch
+                ? (key.Thing is { } thing ? GenAdj.OccupiedRect(key.To, thing.Rotation, thing.def.size) : CellRect.SingleCell(key.To)).ExpandedBy(1)
+                : CellRect.SingleCell(map.cellIndices.IndexToCell(leg.Cells[0]));
+            var cardinal = leg.CardinalTicks;
+            var diagonal = Math.Min(leg.DiagonalTicks, 2 * cardinal);
+            foreach (var cell in cells)
+            {
+                var bound = Octile(Math.Abs(cell.x - key.From.x), Math.Abs(cell.z - key.From.z), cardinal, diagonal)
+                    + Octile(Gap(cell.x, end.minX, end.maxX), Gap(cell.z, end.minZ, end.maxZ), cardinal, diagonal);
+                if (bound < leg.Cost) return true;
+            }
+            return false;
+        }
+
+        private static int Gap(int at, int min, int max) => at < min ? min - at : at > max ? at - max : 0;
+
+        private static int Octile(int dx, int dz, int cardinal, int diagonal) =>
+            dx < dz ? diagonal * dx + cardinal * (dz - dx) : diagonal * dz + cardinal * (dx - dz);
+
+        private void Remove(Key key, Leg leg)
+        {
+            legs.Remove(key);
+            live -= leg.Cells.Length;
+        }
+
+        private void Reindex()
+        {
+            Array.Clear(crossing, 0, crossing.Length);
+            indexed = 0;
+            foreach (var pair in legs)
+            {
+                if (pair.Value is not { } leg) continue;
+                foreach (var cell in leg.Cells) (crossing[cell] ??= new()).Add((pair.Key, leg));
+                indexed += leg.Cells.Length;
+            }
+        }
+
+        private void Clear()
+        {
+            legs.Clear();
+            Array.Clear(crossing, 0, crossing.Length);
+            indexed = live = 0;
+            dropAll = dropNoPath = false;
+            dirtyCells.Clear();
+            dirtyRects.Clear();
         }
 
         private void DropAll() => dropAll = true;

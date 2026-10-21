@@ -96,6 +96,30 @@ public sealed record RouteFloodsRead
     public IReadOnlyList<RouteFloodPair> Pairs { get; init; } = [];
 }
 
+/// <summary>One read of a stored leg after a map change, and the game's A* search of it.</summary>
+public sealed record LegInvalidationStep
+{
+    public string Step { get; init; } = "";
+
+    /// <summary>The read's searches: 0 when the store held the leg, 1 when the change dropped it.</summary>
+    public int Searches { get; init; }
+
+    /// <summary>The read's cost, or null for no path.</summary>
+    public double? Cost { get; init; }
+
+    /// <summary>FindPathNow's cost, or null for no path.</summary>
+    public double? Search { get; init; }
+
+    /// <summary>The region and room changes since the previous read.</summary>
+    public int RegionChanges { get; init; }
+}
+
+/// <summary><c>test/leg_invalidation</c>: a stored leg read after each wall built or removed.</summary>
+public sealed record LegInvalidationRead
+{
+    public IReadOnlyList<LegInvalidationStep> Steps { get; init; } = [];
+}
+
 /// <summary><c>test/skill_learning_probe</c>: the learning projection against native SkillRecord learning on detached records.</summary>
 public sealed record SkillLearningProbeRead
 {

@@ -21,6 +21,7 @@ public static class LabCases
         registry.Register(LabCaptureProfile.Case());
         registry.Register(LabFoodStorageRoutes.Case());
         registry.Register(LabRouteFloods.Case());
+        registry.Register(LabLegInvalidation.Case());
         foreach (var c in LabTrainingRange.Cases().Concat(LabSparring.Cases()).Concat(LabSparringWatch.Cases()).Concat(LabSkillLearning.MedicalCases()))
         {
             registry.Register(c);
