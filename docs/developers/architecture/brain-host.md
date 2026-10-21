@@ -497,6 +497,20 @@ The colony-facts read cut (#3556; one colony-review day each of the same colony,
   stall, and the leg searches now mark the breadcrumb per batched round, per direct search and per synchronous search,
   so a repeat names its phase.
 
+The route matrix cut (#3683, #3685): a colony review run held the game thread about 9 s every 25 s in the routes'
+batched search (`legs batched search: round from leg 21840 of 44659`), one A* search per ordered pair of about 210
+locations whenever a region change dropped the store.
+
+- **What changed.** `NativePathLegs.Floods` prices the matrix by one Dijkstra flood per origin (each location and
+  each colonist's start, about 216 instead of about 45 k searches): the game's `PathFinderJob` with heuristic 0 and a
+  destination off the map, all floods scheduled together on the job workers inside the capture, each worker's chain
+  reusing one calc grid and frontier, and each wanted leg read off the flood's calc grid on the worker. The rows are
+  built from the store as before; the other sub-reads keep the batched search. The floods mark the breadcrumb at
+  scheduling and completion, and `cf.fc.routes.floods` carries their time and count.
+- **Lab.** `lab/route-floods` (100x100 lab, three wall lines): 200 floods each to the other 199 cells in 167 ms of game
+  thread; on 250 sampled pairs the same reachability as A*, never dearer, at most 10 ticks under (mean 0.2), equal
+  on the 57 pairs with no diagonal step.
+
 ### Clock cadence (#3556 item 3)
 
 Measured 2026-10-18 on the same colony and machine, revision b9ce35c15 (the 600-tick review hold, the wall cadence

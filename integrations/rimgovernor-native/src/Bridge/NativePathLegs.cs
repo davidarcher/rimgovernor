@@ -1,9 +1,16 @@
 #nullable enable
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using Gilzoide.ManagedJobs;
+using HarmonyLib;
+using LudeonTK;
 using RimWorld;
+using Unity.Collections;
+using Unity.Jobs;
 using Verse;
 using Verse.AI;
 
@@ -17,7 +24,9 @@ namespace HomeBridge.BridgeTools;
 /// A read that asks many legs runs <see cref="Batched{T}"/>, which searches them together on the game's path job
 /// workers instead of one at a time on the game thread (#3556). A batched request that resolves with no path is not
 /// believed: the leg is searched again on its own, and a map whose batched search misses a path the direct search
-/// finds searches directly from then on (the live game's batched requests all resolved empty, #3556). The legs are
+/// finds searches directly from then on (the live game's batched requests all resolved empty, #3556). A read that asks
+/// every leg from many origins to many cells fills them first by <see cref="Floods"/>, one Dijkstra flood per origin
+/// on the job workers instead of one search per leg (the coupled forecast's route matrix, #3685). The legs are
 /// kept across reads by the map's <see cref="Store"/> until the map changes under them, so a read finds the legs an
 /// earlier read searched.
 /// </summary>
@@ -181,6 +190,261 @@ internal sealed class NativePathLegs
         wanted.Clear();
         wantedKeys.Clear();
         SearchTicks += Stopwatch.GetTimestamp() - started;
+    }
+
+    /// <summary>The floods this read ran (<see cref="Floods"/>): one per origin with a wanted leg the store lacked.</summary>
+    internal int FloodCount { get; private set; }
+
+    /// <summary>The stopwatch ticks the floods took so far; also counted in <see cref="SearchTicks"/>.</summary>
+    internal long FloodTicks { get; private set; }
+
+    /// <summary>
+    /// Fills the store with every origin's OnCell legs to its targets by one Dijkstra flood per origin (#3685): the
+    /// game's own <see cref="PathFinderJob"/> with heuristic strength 0 and a destination off the map, so it closes every
+    /// cell it can reach and its calc grid holds the cheapest cost and parent from the origin to each. The inputs are
+    /// those <see cref="PathFinder.FindPathNow(IntVec3, LocalTargetInfo, TraverseParms, PathFinderCostTuning?, PathEndMode, PathRequest.IPathGridCustomizer)"/>
+    /// builds for the origin's pawn (TraverseParms at <see cref="Danger.None"/>): the grid job's cost grid for the
+    /// request, its doors, providers and blocking pawns (start side only, there being no destination), and the map
+    /// data's connectivity, fences and buildings. All floods run on the job workers, one chain of calc grid and
+    /// frontier per worker reused across its floods; the game thread waits for them. A leg's cost is the target's
+    /// gCost, which can be a few ticks under the A* search's (its heuristic overestimates a diagonal step); its steps
+    /// and cells come from walking the parents back to the origin, and an unreached target is a no-path leg. An origin
+    /// whose wanted legs the store holds is not flooded. When the pathfinder's private members cannot be reached the
+    /// floods are skipped, once warned, and the legs are left to the caller's search.
+    /// </summary>
+    internal void Floods(IReadOnlyList<(Pawn Pawn, IntVec3 From, IReadOnlyList<IntVec3> To)> origins)
+    {
+        var floods = new List<(Pawn Pawn, IntVec3 From, int[] To)>();
+        var seen = new HashSet<int>();
+        foreach (var (pawn, from, to) in origins)
+        {
+            seen.Clear();
+            var missing = new List<int>();
+            foreach (var cell in to)
+            {
+                if (!cell.InBounds(map)) continue;
+                var index = map.cellIndices.CellToIndex(cell);
+                if (seen.Add(index) && !store.TryGet(new Key(from, cell, null, PathEndMode.OnCell), out _)) missing.Add(index);
+            }
+            if (missing.Count > 0 && from.InBounds(map)) floods.Add((pawn, from, missing.ToArray()));
+        }
+        if (floods.Count == 0 || FinderAccess.Instance is not { } access) return;
+        var started = Stopwatch.GetTimestamp();
+        var finder = map.pathFinder;
+        var cells = map.cellIndices.NumGridCells;
+        var grids = new Dictionary<PathFinder.MapGridRequest, NativeArray<int>.ReadOnly>();
+        var chains = new FloodChain[Math.Max(1, Math.Min(UnityData.MaxJobWorkerCount, floods.Count))];
+        var results = new FloodLegs[floods.Count];
+        var ends = new NativeArray<JobHandle>(chains.Length, Allocator.Persistent);
+        try
+        {
+            for (var c = 0; c < chains.Length; c++) chains[c] = new FloodChain(cells);
+            GameThreadTrace.Mark("legs floods: scheduling " + floods.Count + " floods on " + chains.Length + " workers");
+            for (var f = 0; f < floods.Count; f++)
+            {
+                var (pawn, from, to) = floods[f];
+                var parms = TraverseParms.For(pawn, Danger.None);
+                // A destination off the map: the job never finalizes a path and expands every reachable cell.
+                var request = finder.CreateRequest(from, IntVec3.Invalid, null, parms, null, PathEndMode.OnCell, pawn);
+                var gridRequest = PathFinder.MapGridRequest.For(request);
+                if (!grids.TryGetValue(gridRequest, out var grid)) grids[gridRequest] = grid = access.Grid(finder, request);
+                ref var chain = ref chains[f % chains.Length];
+                var doors = new PathGridDoorsBlockedJob();
+                access.ParameterizeDoors(finder, doors, request, chain.Providers, chain.Blocked);
+                var (cardinalTicks, diagonalTicks) = MoveTicks(pawn);
+                var job = new PathFinderJob
+                {
+                    indices = map.cellIndices,
+                    heuristicStrength = 0f,
+                    moveTicksCardinal = cardinalTicks,
+                    moveTicksDiagonal = diagonalTicks,
+                    start = from,
+                    destCell = IntVec3.Invalid,
+                    destRect = CellRect.SingleCell(IntVec3.Invalid),
+                    traverseParams = gridRequest.traverseParams,
+                    calcGrid = chain.CalcGrid,
+                    frontier = chain.Frontier,
+                    path = chain.Path,
+                    result = chain.Result,
+                    grid = grid,
+                    providerCost = chain.Providers.AsReadOnly(),
+                    blocked = chain.Blocked.AsReadOnly(),
+                    excludedRectIndices = chain.Excluded,
+                };
+                finder.MapData.ParameterizePathJob(ref job);
+                results[f] = new FloodLegs(map.cellIndices, chain.CalcGrid, to, cardinalTicks, diagonalTicks);
+                chain.End = new ManagedJob(results[f]).Schedule(job.Schedule(new ManagedJob(doors).Schedule(chain.End)));
+            }
+            for (var c = 0; c < chains.Length; c++) ends[c] = chains[c].End;
+            JobHandle.CombineDependencies(ends).Complete();
+            GameThreadTrace.Mark("legs floods: " + floods.Count + " floods complete");
+        }
+        finally
+        {
+            // Every chain completes before its buffers go: a throw while scheduling leaves the scheduled jobs running.
+            foreach (var chain in chains) chain.End.Complete();
+            foreach (var chain in chains) chain.Dispose();
+            ends.Dispose();
+        }
+        var legs = 0;
+        for (var f = 0; f < floods.Count; f++)
+        {
+            var (_, from, to) = floods[f];
+            for (var t = 0; t < to.Length; t++) store.Put(new Key(from, map.cellIndices.IndexToCell(to[t]), null, PathEndMode.OnCell), results[f].Legs[t]);
+            legs += to.Length;
+        }
+        var elapsed = Stopwatch.GetTimestamp() - started;
+        FloodCount += floods.Count;
+        FloodTicks += elapsed;
+        Searches += legs;
+        SearchTicks += elapsed;
+    }
+
+    /// <summary>
+    /// One job worker's flood buffers, reused by each flood of its chain in turn (PathFinder.JobBatchState and
+    /// PathUniqueState): the calc grid, the frontier, the doors job's provider and blocked grids, and the job's unused
+    /// path, result and excluded-cell outputs. The frontier holds every enqueue not yet dequeued; a cell is enqueued
+    /// only when a closing neighbour improves it, so at most eight times, and the frontier is sized for that.
+    /// </summary>
+    private struct FloodChain : IDisposable
+    {
+        internal NativeArray<PathFinderJob.CalcNode> CalcGrid;
+        internal NativePriorityQueue<int, float, FloatMinComparer> Frontier;
+        internal NativeArray<ushort> Providers;
+        internal NativeArray<bool> Blocked;
+        internal NativeList<IntVec3> Path;
+        internal NativeReference<PathFinderJob.ResultData> Result;
+        internal NativeList<int> Excluded;
+        internal JobHandle End;
+
+        internal FloodChain(int cells)
+        {
+            CalcGrid = new NativeArray<PathFinderJob.CalcNode>(cells, Allocator.Persistent);
+            Frontier = new NativePriorityQueue<int, float, FloatMinComparer>(cells * 8 + 1, default, Allocator.Persistent);
+            Providers = new NativeArray<ushort>(cells, Allocator.Persistent);
+            Blocked = new NativeArray<bool>(cells, Allocator.Persistent);
+            Path = new NativeList<IntVec3>(1, Allocator.Persistent);
+            Result = new NativeReference<PathFinderJob.ResultData>(default, Allocator.Persistent);
+            Excluded = new NativeList<int>(1, Allocator.Persistent);
+            End = default;
+        }
+
+        public void Dispose()
+        {
+            if (CalcGrid.IsCreated) CalcGrid.Dispose();
+            if (Frontier.IsCreated) Frontier.Dispose();
+            if (Providers.IsCreated) Providers.Dispose();
+            if (Blocked.IsCreated) Blocked.Dispose();
+            if (Path.IsCreated) Path.Dispose();
+            if (Result.IsCreated) Result.Dispose();
+            if (Excluded.IsCreated) Excluded.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Reads one flood's legs from its calc grid on the job worker, before the chain's next flood clears it: per target,
+    /// the closed cell's gCost, and its cardinal and diagonal steps and crossed cells walking the parents to the origin
+    /// (the origin is its own parent). A target the flood never closed has no path.
+    /// </summary>
+    private sealed class FloodLegs(CellIndices indices, NativeArray<PathFinderJob.CalcNode> calcGrid, int[] targets, int cardinalTicks, int diagonalTicks) : IJob
+    {
+        internal readonly Leg?[] Legs = new Leg?[targets.Length];
+
+        public void Execute()
+        {
+            var cells = new List<int>();
+            for (var t = 0; t < targets.Length; t++)
+            {
+                var node = calcGrid[targets[t]];
+                if (node.status != PathFinderJob.CalcNode.Status.Closed) continue;
+                cells.Clear();
+                int cardinal = 0, diagonal = 0;
+                var at = targets[t];
+                cells.Add(at);
+                // A parent chain is at most the map's cells long; the bound only guards a corrupt grid.
+                for (var guard = 0; guard < indices.NumGridCells; guard++)
+                {
+                    var parent = calcGrid[at].parentIndex;
+                    if (parent == at) break;
+                    var a = indices.IndexToCell(at);
+                    var b = indices.IndexToCell(parent);
+                    if (a.x != b.x && a.z != b.z) diagonal++;
+                    else cardinal++;
+                    cells.Add(parent);
+                    at = parent;
+                }
+                Legs[t] = new Leg(node.gCost, cardinal, diagonal, cardinalTicks, diagonalTicks, cells.ToArray());
+            }
+        }
+    }
+
+    /// <summary>
+    /// The pathfinder's private members a flood needs, found once (#3685): its grid-job lookup and scheduling with the
+    /// completion and recycling around them (PathFinder.FindPathNow's sequence), and its doors-job parameterization.
+    /// They are reached by name, there being no public route; when a game update renames any of them, the floods are
+    /// skipped with one warning and the legs are searched as before.
+    /// </summary>
+    private sealed class FinderAccess
+    {
+        internal static readonly FinderAccess? Instance = Find();
+
+        private readonly MethodInfo forceComplete, recycleGrids, scheduleGrid, parameterizeDoors;
+        private readonly FieldInfo gridLookup, gridHandle, gridOutput, stateProviders, stateBlocked;
+        private readonly Type stateType;
+
+        private FinderAccess(MethodInfo forceComplete, MethodInfo recycleGrids, MethodInfo scheduleGrid, MethodInfo parameterizeDoors,
+            FieldInfo gridLookup, FieldInfo gridHandle, FieldInfo gridOutput, Type stateType, FieldInfo stateProviders, FieldInfo stateBlocked)
+        {
+            this.forceComplete = forceComplete; this.recycleGrids = recycleGrids; this.scheduleGrid = scheduleGrid;
+            this.parameterizeDoors = parameterizeDoors; this.gridLookup = gridLookup; this.gridHandle = gridHandle;
+            this.gridOutput = gridOutput; this.stateType = stateType; this.stateProviders = stateProviders; this.stateBlocked = stateBlocked;
+        }
+
+        private static FinderAccess? Find()
+        {
+            var finder = typeof(PathFinder);
+            var gridJob = AccessTools.Inner(finder, "ScheduledGridJob");
+            var state = AccessTools.Inner(finder, "PathUniqueState");
+            var access = gridJob == null || state == null ? null : Make(
+                AccessTools.Method(finder, "ForceCompleteScheduledJobs", Type.EmptyTypes),
+                AccessTools.Method(finder, "RecycleGridJobData", Type.EmptyTypes),
+                AccessTools.Method(finder, "ScheduleGridJob", new[] { typeof(PathRequest), typeof(JobHandle) }),
+                AccessTools.Method(finder, "ParameterizeDoorBlockedJob", new[] { typeof(PathGridDoorsBlockedJob), typeof(PathRequest), state.MakeByRefType() }),
+                AccessTools.Field(finder, "gridJobLookup"), AccessTools.Field(gridJob, "handle"), AccessTools.Field(gridJob, "output"),
+                state, AccessTools.Field(state, "providers"), AccessTools.Field(state, "blocked"));
+            if (access == null) Log.Warning("[RimGovernor] The path finder's private grid and doors members were not found; the coupled forecast's route matrix is searched pair by pair, not flooded (#3683).");
+            return access;
+        }
+
+        private static FinderAccess? Make(MethodInfo? forceComplete, MethodInfo? recycleGrids, MethodInfo? scheduleGrid, MethodInfo? parameterizeDoors,
+            FieldInfo? gridLookup, FieldInfo? gridHandle, FieldInfo? gridOutput, Type state, FieldInfo? stateProviders, FieldInfo? stateBlocked) =>
+            forceComplete != null && recycleGrids != null && scheduleGrid != null && parameterizeDoors != null && gridLookup != null
+                && typeof(IDictionary).IsAssignableFrom(gridLookup.FieldType)
+                && gridHandle?.FieldType == typeof(JobHandle) && gridOutput?.FieldType == typeof(PathFinder.GridJobOutput)
+                && stateProviders?.FieldType == typeof(NativeArray<ushort>) && stateBlocked?.FieldType == typeof(NativeArray<bool>)
+                ? new(forceComplete, recycleGrids, scheduleGrid, parameterizeDoors, gridLookup, gridHandle, gridOutput, state, stateProviders, stateBlocked)
+                : null;
+
+        /// <summary>The request's completed cost grid, as FindPathNow gets it: the finder's grid for the request's MapGridRequest, scheduled when missing.</summary>
+        internal NativeArray<int>.ReadOnly Grid(PathFinder finder, PathRequest request)
+        {
+            forceComplete.Invoke(finder, null);
+            if (finder.MapData.GatherData(new[] { request })) recycleGrids.Invoke(finder, null);
+            var key = PathFinder.MapGridRequest.For(request);
+            var lookup = (IDictionary)gridLookup.GetValue(finder)!;
+            var scheduled = lookup.Contains(key) ? lookup[key]! : scheduleGrid.Invoke(finder, new object[] { request, default(JobHandle) })!;
+            ((JobHandle)gridHandle.GetValue(scheduled)!).Complete();
+            return ((PathFinder.GridJobOutput)gridOutput.GetValue(scheduled)!).grid.AsReadOnly();
+        }
+
+        /// <summary>The finder's own doors-job parameterization, writing the job's providers and blocked cells into the arrays given.</summary>
+        internal void ParameterizeDoors(PathFinder finder, PathGridDoorsBlockedJob job, PathRequest request, NativeArray<ushort> providers, NativeArray<bool> blocked)
+        {
+            var state = Activator.CreateInstance(stateType)!;
+            stateProviders.SetValue(state, providers);
+            stateBlocked.SetValue(state, blocked);
+            parameterizeDoors.Invoke(finder, new[] { job, request, state });
+        }
     }
 
     private static Leg Measure(Map map, PawnPath path, Pawn pawn)

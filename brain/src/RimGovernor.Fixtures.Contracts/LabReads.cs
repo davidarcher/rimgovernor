@@ -67,6 +67,35 @@ public sealed record FoodStorageRoutesRead
     public IReadOnlyList<FoodRouteRow> Rows { get; init; } = [];
 }
 
+/// <summary>One sampled leg priced by its origin's flood and by the game's A* search, with the same pawn.</summary>
+public sealed record RouteFloodPair
+{
+    /// <summary>"(x, z) -> (x, z)".</summary>
+    public string Leg { get; init; } = "";
+
+    /// <summary>The flood's cost, or null when the flood did not reach the target.</summary>
+    public double? Flood { get; init; }
+
+    /// <summary>The A* search's cost, or null when it found no path.</summary>
+    public double? Search { get; init; }
+
+    /// <summary>The A* path's diagonal steps.</summary>
+    public int Diagonal { get; init; }
+}
+
+/// <summary><c>test/route_floods</c>: a route matrix by per-origin floods against A* on sampled pairs.</summary>
+public sealed record RouteFloodsRead
+{
+    public int Origins { get; init; }
+
+    public int Floods { get; init; }
+
+    /// <summary>The game-thread ms of the whole matrix (reported, never gated).</summary>
+    public double MatrixMs { get; init; }
+
+    public IReadOnlyList<RouteFloodPair> Pairs { get; init; } = [];
+}
+
 /// <summary><c>test/skill_learning_probe</c>: the learning projection against native SkillRecord learning on detached records.</summary>
 public sealed record SkillLearningProbeRead
 {

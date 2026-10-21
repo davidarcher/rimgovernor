@@ -67,14 +67,34 @@ internal static class NativeCoupledForecast
         var locations = families.SelectMany(f => f).Distinct().OrderBy(c => c.X).ThenBy(c => c.Z).ToArray(); Lap("locations");
         var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         // Each pawn's id, cell and move ticks once: a route between two cells is one leg, found once and priced per
-        // pawn (NativePathLegs.Found), not a lookup per pawn (#3556). The routes are built batched: the first run notes
-        // the legs the store lacks, one batched search finds them, the second run prices them.
+        // pawn (NativePathLegs.Found), not a lookup per pawn (#3556). The routes are built batched after the floods: the
+        // first run notes the legs the store still lacks, one batched search finds them, the second run prices them.
         var ids = pawns.Select(p => p.GetUniqueLoadID()).ToArray();
         var starts = pawns.Select(p => new Cell(p.Position.x, p.Position.z)).ToArray();
         var moves = pawns.Select(NativePathLegs.MoveTicks).ToArray();
         var huntIds = hunt.Hunters.Where(h => h.Available).Select(h => h.Pawn).ToHashSet(StringComparer.Ordinal);
         var hunters = Enumerable.Range(0, pawns.Length).Where(i => huntIds.Contains(ids[i])).ToArray();
-        var routes = legs.Batched(() =>
+        // The route matrix by one flood per origin (#3685): each pawn's start to every location and its prey, and every
+        // location to every other, each origin flooded for the first pawn that asks its legs, as the batched read would
+        // search them. The rows below then find these legs in the store; the hunt's legs from the prey are searched.
+        var origins = new Dictionary<IntVec3, (Pawn Pawn, List<IntVec3> To)>();
+        void Want(int i, Cell from, Cell to)
+        {
+            var cell = new IntVec3(from.X, 0, from.Z);
+            if (!origins.TryGetValue(cell, out var origin)) origins[cell] = origin = (pawns[i], new());
+            origin.To.Add(new IntVec3(to.X, 0, to.Z));
+        }
+        for (var i = 0; i < pawns.Length; i++)
+            foreach (var to in locations) Want(i, starts[i], to);
+        foreach (var prey in hunt.Prey)
+            foreach (var i in hunters) Want(i, starts[i], prey.Location);
+        if (pawns.Length > 0)
+            foreach (var from in locations)
+                foreach (var to in locations)
+                    if (to != from) Want(0, from, to);
+        var flooded = legs.FloodCount; var floodTicks = legs.FloodTicks;
+        legs.Floods(origins.Select(o => (o.Value.Pawn, o.Key, (IReadOnlyList<IntVec3>)o.Value.To)).ToList());
+        ObservationWork.Detail("cf.fc.routes.floods", legs.FloodTicks - floodTicks, legs.FloodCount - flooded);        var routes = legs.Batched(() =>
         {
             var rows = new List<Obs.CoupledRoute>();
             var observed = new HashSet<(int Pawn, Cell From, Cell To, bool Initial)>();

@@ -80,6 +80,7 @@
     <Compile Include="../../../../scripts/fixtures/CoordinatedWorkFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PawnCookingFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/FoodStorageRoutesFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/RouteFloodsFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/ClothingActivityFixture.cs" Condition="'$(PawnControlFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EnvironmentTemperatureFixture.cs" Condition="'$(EnvironmentTemperatureFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/QuestAcceptFixture.cs" Condition="'$(QuestAcceptFixture)' == 'true'" />

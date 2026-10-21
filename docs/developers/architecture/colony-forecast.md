@@ -603,6 +603,20 @@ a lab with 32 free colonists (2026-10-16; main-thread ms per call, one call each
 A round stalls the main thread about half a second there; no limit is set from it
 ([kept constants](../contracts/kept-constants.md#forecast-native-reads-no-cap-measured-3341)).
 
+The coupled read's route matrix (each free colonist's start to every location and its prey, and every location to
+every other) is not searched pair by pair: `NativePathLegs.Floods` runs one Dijkstra flood per origin (#3685), the
+game's own `PathFinderJob` with heuristic strength 0 and a destination off the map, fed the inputs `FindPathNow` builds
+for the first colonist asking the origin's legs (its grid job's cost grid, doors, providers and blocking pawns, and the
+map data's connectivity). The floods run together on the job workers, one calc grid and frontier per worker, and the
+game thread waits for them; each wanted leg is read from the flood's calc grid (cost, steps and crossed cells) into
+the same leg store, so the rows are built as before. A flood's cost is the shortest walk under the game's cost model,
+at most a few ticks under the game's A* (whose heuristic overestimates a diagonal step); blocking pawns count on the
+start side only. An origin whose legs the store holds is not flooded. The other sub-reads keep the batched A*
+search (touch ends and thing targets). If a game update renames the pathfinder's private grid or doors members, one
+warning names #3683 and the matrix is searched batched. `lab/route-floods` holds the floods to A* on a walled lab
+(200 origins each to every other: 167 ms of game thread, at most 10 ticks under A* on 250 sampled pairs, 2026-10-20).
+The `cf.fc.routes.floods` span carries the floods' time and count.
+
 ### Planned room activities
 
 `GenerateCoupledActivities` turns the planned-site facts into construction activities when housing, shelter or
