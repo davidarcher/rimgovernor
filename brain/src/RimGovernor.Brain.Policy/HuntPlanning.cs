@@ -16,27 +16,36 @@ public static class HuntPlanningRules
     /// Compares the hunt alternatives for the observed colony in two stages, each estimated analytically in the review
     /// (<see cref="HuntEstimator"/>). The plain rosters are chosen among first; the best of them are then restated with a
     /// gunner-retriever leaving at the encounter ticks the first stage estimated, and the choice is made over both
-    /// stages. Rosters, labor and the choice all come from the current read and its routes.
+    /// stages. Rosters, labor and the choice all come from the current read and its routes. A colonist in
+    /// <paramref name="busy"/> (one whose hunger takes him off a hunt) is no gunner or hauler of any roster.
     /// </summary>
-    public static HuntPlan PlanHunt(HuntActivityRead? read, IReadOnlyList<AcquisitionSource> sources, IReadOnlyList<CoupledRoute> routes, double nutritionNeeded) =>
-        PlanHunt(read, sources, routes, nutritionNeeded, HuntEstimator.Estimate);
+    public static HuntPlan PlanHunt(HuntActivityRead? read, IReadOnlyList<AcquisitionSource> sources, IReadOnlyList<CoupledRoute> routes, double nutritionNeeded, IReadOnlySet<string> busy) =>
+        PlanHunt(read, sources, routes, nutritionNeeded, HuntEstimator.Estimate, busy);
 
-    /// <summary><see cref="PlanHunt(HuntActivityRead?, IReadOnlyList{AcquisitionSource}, IReadOnlyList{CoupledRoute}, double)"/> with the estimate stated per roster over the filtered read.</summary>
+    /// <summary><see cref="PlanHunt(HuntActivityRead?, IReadOnlyList{AcquisitionSource}, IReadOnlyList{CoupledRoute}, double, IReadOnlySet{string})"/> with the estimate stated per roster over the filtered read.</summary>
     internal static HuntPlan PlanHunt(HuntActivityRead? read, IReadOnlyList<AcquisitionSource> sources, IReadOnlyList<CoupledRoute> routes, double nutritionNeeded,
-        Func<HuntActivityRead, HuntRoster, (HuntEstimate? Estimate, string Refusal)> estimateOf)
+        Func<HuntActivityRead, HuntRoster, (HuntEstimate? Estimate, string Refusal)> estimateOf, IReadOnlySet<string>? busy = null)
     {
         if (read is null || !read.Known) return new(null, ["hunt_observation_unknown"]);
         if (nutritionNeeded <= 0) return new(null, ["no_nutrition_needed"]);
         // Only prey the food plan may send a hunt at: not designated or taken, still standing and food-yielding.
         var allowed = sources.Where(s => s.SquadPrey() && s.Food && !s.Downed).Select(s => s.Id).ToHashSet(StringComparer.Ordinal);
         var observed = read with { Prey = EquatableArray.From(read.Prey.Where(p => allowed.Contains(p.Pawn) && !p.Downed && !p.Mental)) };
-        var (rosters, findings) = HuntAlternatives.Propose(observed, new HashSet<string>(StringComparer.Ordinal), routes);
+        var (rosters, findings) = HuntAlternatives.Propose(observed, busy ?? new HashSet<string>(StringComparer.Ordinal), routes);
         if (rosters.Count == 0) return new(null, findings);
         var first = HuntAlternatives.Choose(observed, rosters, r => estimateOf(observed, r), routes, nutritionNeeded);
         var second = HuntAlternatives.ProposeRetrieverStage(observed, first);
         var selection = second.Count == 0 ? first : HuntAlternatives.Choose(observed, EquatableArray.From(rosters.Concat(second)), r => estimateOf(observed, r), routes, nutritionNeeded);
         return new(selection, EquatableArray.From(findings.Concat(selection.Findings).Distinct(StringComparer.Ordinal)));
     }
+
+    /// <summary>
+    /// The colonists whose hunger takes them off a hunt: at the hunger the clock holds for
+    /// (<see cref="HazardThresholdsRules.HungerHoldCategory"/>) or past it. A drafted gunner does not eat, so a hunt that
+    /// keeps him starves him; one whose hunger is unread is not counted.
+    /// </summary>
+    public static IReadOnlySet<string> Hungry(IEnumerable<WorkPawn> pawns) =>
+        pawns.Where(p => p.Hunger.TryGetValue(out var hunger) && hunger >= HazardThresholdsRules.HungerHoldCategory).Select(p => p.Id.Value).ToHashSet(StringComparer.Ordinal);
 
     /// <summary>
     /// The formation channel of the chosen roster: its estimated meat (already net of the chance the prey is not

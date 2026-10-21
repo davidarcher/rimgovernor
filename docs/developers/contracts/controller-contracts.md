@@ -645,13 +645,16 @@ hostile stands and the food plan opens the formation `Hunt` candidate the compar
 deficit with the channel's prey and selected gunners on the review's combat standing (`RoundsCombat.Prey`,
 `RoundsCombat.Hunters`). The fight runs through
 `admitFight` with `CombatView.Hunt` and `CombatView.HuntHunters` set and the prey as its threats; `huntFormation`
-sends only the selected hunters that are eligible defenders with a hunting weapon, however many that is. The frame's
-detail rows cover the open hunt census rows. A hostile in the frame, or the plan no
+sends only the selected hunters that are eligible defenders with a hunting weapon, however many that is, each staged
+within the distance the estimate priced and re-formed when the prey walks off (the execution rules are in
+[forecast-contracts](forecast-contracts.md#coherent-coupled-observation-frame)). The frame's detail rows cover every
+hunt census row, taken ones included: the squad's own attack marks its prey taken. A hostile in the frame, or the plan no
 longer opening the hunt (its formation released, [forecast-contracts](forecast-contracts.md)), ends the origin: the
 standing then names no prey or hunters and the Need is met until the next comparison opens a formation; the tactic
 never drafts a replacement or extends the hunt on its own. An open hunt fight runs a combat watch
 with the live prey as the watch's acknowledged ids (`ClockWatchFacts.HuntPrey`);
-no hostile exists to make the watch a combat one otherwise.
+no hostile exists to make the watch a combat one otherwise. It arms no decision event, so each review hold re-runs the
+defense planner while it is open (`ClockCombatStops.HuntReview`).
 
 **Royal permits** (`CombatPermit.cs`). An outmatched fight calls the permits its
 colonists hold. With the royalty read known (`CombatView.Royalty`, the review's

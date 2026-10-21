@@ -175,6 +175,37 @@ public sealed class HuntPlanningTests
     }
 
     [Fact]
+    public void AHungryGunnerReleasesTheFormationAndIsNoGunnerOfTheFreshComparison()
+    {
+        var sources = new[] { Source("boar") };
+        var (admission, _, _) = Opened(sources);
+        // A drafted gunner does not eat: his hunger breaks the hunt, whatever the hunt read says of him.
+        Assert.Equal("gunner_hungry:b", admission.Release(Read(), sources, new HashSet<string> { "b" }));
+        Assert.Equal("gunner_hungry:b", admission.Release(null, sources, new HashSet<string> { "b" }));
+        Assert.Equal("", admission.Release(Read(), sources, new HashSet<string> { "c" }));
+
+        var asked = new List<HuntRoster>();
+        HuntPlanningRules.PlanHunt(Read(), sources, Routes, 5, (_, r) => { asked.Add(r); return (Estimate(r), ""); }, new HashSet<string> { "b" });
+        Assert.NotEmpty(asked);
+        Assert.All(asked, r => Assert.DoesNotContain("b", r.Gunners));
+    }
+
+    [Fact]
+    public void AColonistIsTooHungryToHuntFromTheClocksHungerHold()
+    {
+        static WorkPawn Pawn(string id, Fact<RimGovernor.Contracts.Wire.Defs.HungerCategory> hunger) => new() { Id = new PawnId(id), Hunger = hunger };
+        var hungry = HuntPlanningRules.Hungry(
+        [
+            Pawn("fed", Known(RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed)),
+            Pawn("peckish", Known(RimGovernor.Contracts.Wire.Defs.HungerCategory.Hungry)),
+            Pawn("urgent", Known(HazardThresholdsRules.HungerHoldCategory)),
+            Pawn("starving", Known(RimGovernor.Contracts.Wire.Defs.HungerCategory.Starving)),
+            Pawn("unread", Unknown<RimGovernor.Contracts.Wire.Defs.HungerCategory>()),
+        ]);
+        Assert.Equal(["starving", "urgent"], hungry.Order(StringComparer.Ordinal));
+    }
+
+    [Fact]
     public void PreyTheFoodPlanMayNotSendAHuntAtIsNeverProposed()
     {
         var asked = new List<HuntRoster>();

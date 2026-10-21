@@ -33,6 +33,15 @@ internal static class ClockCombatStops
     /// </summary>
     public const PbClock.Speed FallbackSpeed = PbClock.Speed.Normal;
 
+    /// <summary>
+    /// Whether a held clock is an open hunt's next decision: a quiet hunt arms no decision event, so its review hold
+    /// (every <see cref="ClockRunConfig.ReviewEveryTicks"/>) is where the defense planner re-reads the prey and orders
+    /// the formation again. Only a review hold this driver has not yet marked (<paramref name="heldAt"/> against
+    /// <paramref name="marked"/>), and only when the step did not already run the defense planner.
+    /// </summary>
+    public static bool HuntReview(PbClock.HoldReason? reason, bool fightOpen, int prey, bool defenseRan, long heldAt, long marked) =>
+        reason == PbClock.HoldReason.Review && fightOpen && prey > 0 && !defenseRan && heldAt != marked;
+
     /// <summary>The speed to ask for: <paramref name="target"/>, lowered to <paramref name="fallback"/> while the gate is <paramref name="tripped"/> in an open fight; never raised above the target.</summary>
     public static PbClock.Speed SpeedFor(PbClock.Speed target, PbClock.Speed fallback, bool tripped) =>
         tripped && fallback < target ? fallback : target;

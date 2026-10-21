@@ -2,8 +2,8 @@ namespace RimGovernor.Brain.Policy;
 
 //
 // CombatTactic.Hunt is a roster hunt: the view's threats are wild prey the threat census does not call hostile,
-// and the selected roster stages in a half circle at weapon range and focus-fires them down. Once the prey are all
-// manhunter the fight is the manhunter tactic's.
+// and the selected roster stages within the distance the hunt estimate priced, follows the prey when it walks off, and
+// focus-fires them down. Once the prey are all manhunter the fight is the manhunter tactic's.
 
 public static partial class CombatHuntRules
 {
@@ -11,11 +11,12 @@ public static partial class CombatHuntRules
     internal const int HuntDefaultRange = 20;
 
     /// <summary>
-    /// Puts the selected roster's armed ranged defenders on a half circle around the prey's centre, at the shortest gunner's
-    /// weapon range so each can reach the group, on the squad's side of it so no one shoots across a friend.
-    /// Targets are focus fire's. Melee defenders take no part.
+    /// Stages the selected roster's armed ranged defenders where each can hit the prey: a gunner already within his
+    /// stage distance (<see cref="StageDistance"/>) of the prey's centre stays where he stands, and one beyond it walks
+    /// straight in to it, so the formation is the one the hunt estimate priced. A gunner whose stage cell native refused
+    /// as unreachable (<paramref name="unreachable"/>) is left out. Targets are focus fire's. Melee defenders take no part.
     /// </summary>
-    internal static List<CombatRole> HuntFormation(CombatView view)
+    internal static List<CombatRole> HuntFormation(CombatView view, IReadOnlyCollection<Cell> unreachable)
     {
         var prey = CombatThreatRules.RankThreats(view);
         var state = new Dictionary<PawnId, CombatPawnState>();
@@ -78,84 +79,77 @@ public static partial class CombatHuntRules
         }
 
         var centre = new Cell(sumX / known, sumZ / known);
-        var reach = double.MaxValue;
+        var spread = PreySpread(prey, centre);
         foreach (var g in gunners)
         {
-            var r = S(g.Id).WeaponRange;
-            if (r > 0)
+            if (!S(g.Id).Cell.TryGetValue(out var at))
             {
-                reach = Math.Min(reach, r);
+                roles.Add(new CombatRole { Pawn = g.Id, Target = top, Ranged = true });
+                continue;
             }
+
+            var cell = StageCell(at, centre, StageDistance(S(g.Id).WeaponRange, spread));
+            if (unreachable.Contains(cell))
+            {
+                continue;
+            }
+
+            roles.Add(new CombatRole { Pawn = g.Id, Cell = cell, Target = top, Ranged = true });
         }
 
-        if (reach == double.MaxValue)
+        return CombatDecideRules.SortRoles(roles);
+    }
+
+    /// <summary>
+    /// The farthest a gunner of weapon range <paramref name="range"/> stages from the prey's centre: the hunt estimate's
+    /// engage distance (<see cref="HuntEstimator.EngageRangeFactor"/> of the range, the hunt job's cast position), less
+    /// the group's <paramref name="spread"/> so every prey stays within it, and less half a diagonal because rounding the
+    /// stage point to a cell moves it up to that far outward. At least one cell.
+    /// </summary>
+    internal static double StageDistance(double range, double spread)
+    {
+        var reach = range > 0 ? range : HuntDefaultRange;
+        return Math.Max(1, Math.Floor((HuntEstimator.EngageRangeFactor * reach) - spread - Math.Sqrt(0.5)));
+    }
+
+    /// <summary>
+    /// Where a gunner standing at <paramref name="at"/> stages against prey centred on <paramref name="centre"/>: his own
+    /// cell while it is within <paramref name="distance"/>, else the cell that far from the centre on the line to him.
+    /// </summary>
+    internal static Cell StageCell(Cell at, Cell centre, double distance)
+    {
+        var d = Distance(at, centre);
+        if (d <= distance)
         {
-            reach = HuntDefaultRange;
+            return at;
         }
 
-        // Every prey stays within reach of every cell: the radius gives up the group's own spread.
+        return new Cell(
+            centre.X + (int)Math.Round(distance * (at.X - centre.X) / d, MidpointRounding.AwayFromZero),
+            centre.Z + (int)Math.Round(distance * (at.Z - centre.Z) / d, MidpointRounding.AwayFromZero)
+        );
+    }
+
+    /// <summary>The farthest any placed prey stands from the group's centre.</summary>
+    private static double PreySpread(IReadOnlyList<CombatPawnState> prey, Cell centre)
+    {
         var spread = 0.0;
         foreach (var p in prey)
         {
             if (p.Cell.TryGetValue(out var c))
             {
-                var dx = (double)(c.X - centre.X);
-                var dz = (double)(c.Z - centre.Z);
-                spread = Math.Max(spread, Math.Sqrt((dx * dx) + (dz * dz)));
+                spread = Math.Max(spread, Distance(c, centre));
             }
         }
 
-        // Rounding the arc point to a cell moves it up to half a diagonal outward, and the game's range check is the
-        // cells' Euclidean distance, so the radius gives that up too.
-        var radius = Math.Max(1, Math.Floor(reach - spread - Math.Sqrt(0.5)));
+        return spread;
+    }
 
-        // The axis points from the prey to the squad's side.
-        double sx = 0, sz = 0;
-        foreach (var g in gunners)
-        {
-            if (S(g.Id).Cell.TryGetValue(out var c))
-            {
-                sx += c.X - centre.X;
-                sz += c.Z - centre.Z;
-            }
-        }
-
-        var axis = Math.Atan2(sz, sx);
-        if (sx == 0 && sz == 0)
-        {
-            axis = Math.PI / 2;
-        }
-
-        // Gunners sorted by where they stand around the axis take the arc's cells in order, so their walks do not cross.
-        double Rel(PawnId id)
-        {
-            if (!S(id).Cell.TryGetValue(out var c))
-            {
-                return 0;
-            }
-
-            var a = Math.Atan2(c.Z - centre.Z, c.X - centre.X) - axis;
-            return Math.Atan2(Math.Sin(a), Math.Cos(a));
-        }
-
-        gunners = PolicySort.ByLess(gunners, (a, b) => Rel(a.Id) < Rel(b.Id));
-        for (var i = 0; i < gunners.Count; i++)
-        {
-            var offset = 0.0;
-            if (gunners.Count > 1)
-            {
-                offset = (-Math.PI / 2) + (Math.PI * i / (gunners.Count - 1));
-            }
-
-            var a = axis + offset;
-            var cell = new Cell(
-                centre.X + (int)Math.Round(radius * Math.Cos(a), MidpointRounding.AwayFromZero),
-                centre.Z + (int)Math.Round(radius * Math.Sin(a), MidpointRounding.AwayFromZero)
-            );
-            roles.Add(new CombatRole { Pawn = gunners[i].Id, Cell = cell, Target = top, Ranged = true });
-        }
-
-        return CombatDecideRules.SortRoles(roles);
+    private static double Distance(Cell a, Cell b)
+    {
+        double dx = a.X - b.X;
+        double dz = a.Z - b.Z;
+        return Math.Sqrt((dx * dx) + (dz * dz));
     }
 
     /// <summary>Why each rostered hunter is left out of the formation, or why there is no prey: what an empty squad reports.</summary>
@@ -209,8 +203,57 @@ public static partial class CombatHuntRules
 
     /// <summary>
     /// The hunt's re-formation row: a role's target is down, or the prey turned into a manhunter pack, or some
-    /// prey turned on the squad and the hunt has no potshot door yet.
+    /// prey turned on the squad and the hunt has no potshot door yet, or the prey walked off a role (<see cref="PreyOutOfReach"/>).
     /// </summary>
     internal static bool ReformHunt(CombatView view, CombatMemory m) =>
-        CombatDecideRules.SquadTargetDown(view, m) || CombatManhunterRules.ManhunterPack(view) || (m.PotshotDoor is null && CombatDoorRules.ProvokedPrey(view));
+        CombatDecideRules.SquadTargetDown(view, m) || CombatManhunterRules.ManhunterPack(view) || (m.PotshotDoor is null && CombatDoorRules.ProvokedPrey(view)) || PreyOutOfReach(view, m);
+
+    /// <summary>
+    /// The hunt fight's roster pawns its formation gives no role, sorted: the review took them off the hunt (a released
+    /// or re-compared roster), their stage cell is unreachable, or they can no longer hunt. The fight lets them go, so
+    /// the undraft sweep undrafts them instead of leaving them standing drafted; a roster left with none ends the fight.
+    /// </summary>
+    public static List<PawnId> IdleHunters(IEnumerable<PawnId> roster, IEnumerable<CombatRole> roles)
+    {
+        var held = roles.Select(r => r.Pawn).ToHashSet();
+        return [.. roster.Where(p => !held.Contains(p)).OrderBy(p => p.Value, StringComparer.Ordinal)];
+    }
+
+    /// <summary>
+    /// Whether a ranged role's target is no longer among the prey, or stands beyond the gunner's weapon range from the
+    /// role's stage cell (his own cell when the role names none): the prey moved, and the formation follows it.
+    /// </summary>
+    internal static bool PreyOutOfReach(CombatView view, CombatMemory m)
+    {
+        var cells = new Dictionary<PawnId, Fact<Cell>>();
+        var ranges = new Dictionary<PawnId, double>();
+        foreach (var p in view.Pawns.Items)
+        {
+            cells[p.Id] = p.Cell;
+            ranges[p.Id] = p.WeaponRange;
+        }
+
+        var prey = CombatThreatRules.RankThreats(view).Select(p => p.Id).ToHashSet();
+        foreach (var r in m.Roles)
+        {
+            if (!r.Ranged || r.Target == default)
+            {
+                continue;
+            }
+
+            if (!prey.Contains(r.Target))
+            {
+                return true;
+            }
+
+            var from = r.Cell is { } c ? Known(c) : cells.GetValueOrDefault(r.Pawn);
+            var range = ranges.GetValueOrDefault(r.Pawn);
+            if (range > 0 && from.TryGetValue(out var at) && cells.GetValueOrDefault(r.Target).TryGetValue(out var target) && Distance(at, target) > range)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }

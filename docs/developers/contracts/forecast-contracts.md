@@ -478,7 +478,9 @@ walks and drafts its gunners and startles its prey, and none of that may change 
 released only on an explicit trigger (#3514), and the same review then compares again from the current read, so
 nothing extends a hunt without a comparison. The triggers, in the order they are checked and as the `hunt_choice`
 note's `released:<reason>` names them: an admitted animal gone from the hunt sources (`prey_gone`, the kill the
-delivery credit observes) or downed (`prey_downed`); with the hunt read known, an admitted animal out of the observed
+delivery credit observes) or downed (`prey_downed`); a rostered gunner at or past the hunger the clock holds for
+(`gunner_hungry`, `HuntPlanningRules.Hungry` over the work census's hunger category: a drafted pawn does not eat, so
+the hunt would starve him; the comparison that follows proposes no hungry colonist as gunner or hauler); with the hunt read known, an admitted animal out of the observed
 window (`prey_unobserved`), a live animal of the group that joined within the group radius (`prey_joined`), a
 rostered gunner absent from the read (`gunner_unobserved`), downed (`gunner_downed`) or in a mental state
 (`gunner_mental`), or a gunner the read the roster was chosen from no longer describes (`gunner_changed:<pawn>:<what>`,
@@ -488,6 +490,20 @@ levels, current pain or injury, or the shot and body numbers derived from them, 
 unknown hunt read decides nothing about the gunners. A drafted gunner is not a trigger: the hunt's own draft and the
 player's read the same in `HuntActorRead.Available`. A released hunt whose prey still stands may be chosen again, by
 the comparison only.
+
+The formation is executed by the defense planner's hunt tactic (#3702). An open hunt fight arms no combat decision
+event, so each review hold of the clock (`ClockRunConfig.ReviewEveryTicks`) re-runs the defense planner while one is
+open (`ClockCombatStops.HuntReview`, the `hunt_review` clock_run reason), and the formation is read and ordered at
+that cadence rather than the planner's own. `CombatHuntRules.HuntFormation` stages each gunner where the estimate
+priced him: a gunner within his stage distance of the prey's centre (`StageDistance`: `EngageRangeFactor` of his weapon
+range, less the group's spread and half a diagonal) shoots from where he stands, and one beyond it walks straight in
+to it. A ranged role whose target left the prey or stands beyond his weapon range from his stage cell re-forms the hunt
+(`PreyOutOfReach`), so the gunners follow a prey that walks off; an attack native refuses `cannot_hit` takes the
+fight's line-of-fire move as in any fight. The prey stays in the combat read while the squad shoots it: the combat
+census carries every hunt row, the ones the gunners' own jobs mark taken included. A roster pawn the formation gives
+no role (released by the review, a stage cell refused unreachable, no longer able to hunt) is dropped from the fight's
+roster and undrafted (`IdleHunters`); a formation with no role left, or a prey gone from the combat read, closes the
+fight (`hunt_formation_empty`, `hunt_prey_gone`), so a hunt is never left drafted.
 
 The execution evidence is the `food/hunt-roster` acceptance case (#3515): a lab colony of two riflemen short of food,
 with a butcher table, its bill and a corpse stockpile, and a wild rhinoceros and boar inside the hunt read's window;

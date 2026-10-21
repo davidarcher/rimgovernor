@@ -51,7 +51,7 @@ public sealed partial class Rounder
             var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
             if (s.FoodPlanFact.IsKnown && s.FoodGeneration == s.Generation && s.FoodOffers == trade.Revision
                 && s.FoodMin == seasonal.FoodMinDays && s.FoodTarget == seasonal.FoodTargetDays && RoundsCensus.SameObservedIdentity(s.FoodIdentity, p.Identity)
-                && (!p.Acquisition.TryGetValue(out var sources) || HuntAdmission.Release(huntRead, sources).Length == 0))
+                && (!p.Acquisition.TryGetValue(out var sources) || HuntAdmission.Release(huntRead, sources, HuntHungry(p)).Length == 0))
             {
                 return s.FoodPlanFact;
             }
@@ -134,6 +134,10 @@ public sealed partial class Rounder
 
 partial class Rounder
 {
+    /// <summary>The colonists the projection reads too hungry to hunt (<see cref="HuntPlanningRules.Hungry"/>); none when the work census is unread.</summary>
+    private static IReadOnlySet<string> HuntHungry(ColonyProjection p) =>
+        HuntPlanningRules.Hungry(p.WorkPawns.TryGetValue(out var pawns) ? pawns.Items : []);
+
     internal static Fact<FoodPlan> ReviewFoodPlan(ColonyProjection p, RoundsPolicy thresholds, DeliveryCredit credit, HuntAdmission hunt, FoodTrade trade, Action<HuntPlan, string>? onHunt = null)
     {
         if (!p.CombinedFoodSupply.TryGetValue(out var supply) || !p.Acquisition.TryGetValue(out var sources))
@@ -181,9 +185,10 @@ partial class Rounder
         // The hunt alternatives: nutrition the colony still needs to reach its target runway, compared over roster estimates.
         var huntRead = p.Facts.ForecastObserved.Coupled?.Hunt;
         var needed = Math.Max(0, (forecast.Consumers.Sum(c => c.NutritionPerDay) * thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions).FoodTargetDays) - forecast.UsableNutrition);
-        var huntPlan = HuntPlanningRules.PlanHunt(huntRead, sources, p.Facts.ForecastObserved.Coupled?.Routes ?? [], needed);
+        var hungry = HuntHungry(p);
+        var huntPlan = HuntPlanningRules.PlanHunt(huntRead, sources, p.Facts.ForecastObserved.Coupled?.Routes ?? [], needed, hungry);
         // The held formation stands until a release trigger; released, the plan's own choice is offered.
-        var (formation, released) = hunt.Formation(huntPlan.Channel(sources), huntPlan, sources, huntRead);
+        var (formation, released) = hunt.Formation(huntPlan.Channel(sources), huntPlan, sources, huntRead, hungry);
         onHunt?.Invoke(huntPlan, released);
         channels.AddRange(HuntSquadRules.HuntCandidates(sources, gunners, formation));
         channels.AddRange(HuntPrerequisiteRules.HuntPrerequisiteCandidates(p.HuntHolds));

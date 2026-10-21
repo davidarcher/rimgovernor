@@ -246,12 +246,13 @@ public sealed partial class FacadeNativeClient
                 ids.Add(row.Pawn?.Id ?? "");
             }
         }
-        // A squad hunt's prey: the open hunt rows of the colony census.
+        // A squad hunt's prey: every hunt row of the colony census. A prey the squad already shoots at is taken (its
+        // gunners' jobs target it), and it must stay in the read the hunt is ordered from.
         if (v.ColonyFacts is { } colony)
         {
             foreach (var row in colony.Acquisition)
             {
-                if (row.Hunt.GetValueOrDefault() && !row.Designated.GetValueOrDefault() && !row.Taken.GetValueOrDefault())
+                if (row.Hunt.GetValueOrDefault())
                 {
                     ids.Add(row.Source?.Id ?? "");
                 }

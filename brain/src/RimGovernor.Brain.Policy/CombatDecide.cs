@@ -1012,7 +1012,7 @@ public static partial class CombatDecideRules
             {
                 // A squad hunt picks its own tactic.
                 next.Tactic = CombatTactic.Hunt;
-                next.Roles = EquatableArray.From(CombatHuntRules.HuntFormation(view));
+                next.Roles = EquatableArray.From(CombatHuntRules.HuntFormation(view, next.Unreachable));
                 next.Refusal = "";
             }
             else if (CombatSiegeRules.SiegeModeOf(view, next) is var mode && mode != default)

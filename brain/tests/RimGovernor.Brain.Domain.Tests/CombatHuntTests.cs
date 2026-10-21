@@ -8,7 +8,9 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// The roster hunt's formation (#3515, <see cref="CombatHuntRules.HuntFormation"/>): only the view's HuntHunters are
 /// sent, a rostered melee or outranged gunner is left out for the reason <see cref="CombatHuntRules.HuntFormationRefusals"/>
 /// names, an armed defender outside the roster is never sent, an empty roster or no prey gives no roles with the
-/// right refusal, and the arc's cells keep every prey within the shortest gunner's reach.
+/// right refusal. A gunner stages within the estimate's engage distance (#3702): where he stands when already inside
+/// it, else straight in to it; an unreachable stage cell leaves him out, the prey walking off a role re-forms the hunt,
+/// and a roster pawn with no role is let go.
 /// </summary>
 public sealed class CombatHuntTests
 {
@@ -85,7 +87,7 @@ public sealed class CombatHuntTests
     [Fact]
     public void OnlyTheRosteredHuntersAreSent()
     {
-        var roles = CombatHuntRules.HuntFormation(TwoGunners(Rifleman, Marksman));
+        var roles = CombatHuntRules.HuntFormation(TwoGunners(Rifleman, Marksman), []);
 
         Assert.Equal(new[] { Marksman, Rifleman }, roles.Select(r => r.Pawn).Order().ToArray());
         Assert.All(roles, r =>
@@ -101,7 +103,7 @@ public sealed class CombatHuntTests
     {
         var view = TwoGunners(Rifleman);
 
-        var roles = CombatHuntRules.HuntFormation(view);
+        var roles = CombatHuntRules.HuntFormation(view, []);
 
         var role = Assert.Single(roles);
         Assert.Equal(Rifleman, role.Pawn);
@@ -124,7 +126,7 @@ public sealed class CombatHuntTests
             [Elk],
             [Rifleman, Swordsman, Pistoleer]);
 
-        var roles = CombatHuntRules.HuntFormation(view);
+        var roles = CombatHuntRules.HuntFormation(view, []);
         var refusals = CombatHuntRules.HuntFormationRefusals(view);
 
         var role = Assert.Single(roles);
@@ -139,7 +141,7 @@ public sealed class CombatHuntTests
     {
         var view = TwoGunners();
 
-        Assert.Empty(CombatHuntRules.HuntFormation(view));
+        Assert.Empty(CombatHuntRules.HuntFormation(view, []));
         var refusals = CombatHuntRules.HuntFormationRefusals(view);
         Assert.Contains("no_roster", refusals);
         Assert.DoesNotContain("no_prey", refusals);
@@ -154,7 +156,7 @@ public sealed class CombatHuntTests
             [],
             [Rifleman, Marksman]);
 
-        Assert.Empty(CombatHuntRules.HuntFormation(view));
+        Assert.Empty(CombatHuntRules.HuntFormation(view, []));
         var refusals = CombatHuntRules.HuntFormationRefusals(view);
         Assert.Contains("no_prey", refusals);
         Assert.Contains(Rifleman.Value + ":eligible", refusals);
@@ -169,36 +171,84 @@ public sealed class CombatHuntTests
             Threats = EquatableArray.From(new[] { Prey(Deer) with { Downed = Known(true) } }),
         };
 
-        Assert.Empty(CombatHuntRules.HuntFormation(view));
+        Assert.Empty(CombatHuntRules.HuntFormation(view, []));
         Assert.Contains("no_prey", CombatHuntRules.HuntFormationRefusals(view));
     }
 
     [Fact]
-    public void ArcCellsKeepEveryPreyWithinTheShortestGunnersReach()
+    public void GunnersAlreadyWithinTheirStageDistanceShootFromWhereTheyStand()
     {
-        // A 37-cell rifle and a 25-cell one against a deer and an elk six cells apart: the arc is drawn at the shorter reach less the group's spread.
+        // The riflemen stand twenty cells from the deer, inside the 37-cell rifle's stage distance: nobody walks out to range (#3702).
+        var view = TwoGunners(Rifleman, Marksman);
+
+        var roles = CombatHuntRules.HuntFormation(view, []);
+
+        Assert.Equal(new Cell(48, 50), roles.Single(r => r.Pawn == Rifleman).Cell);
+        Assert.Equal(new Cell(52, 50), roles.Single(r => r.Pawn == Marksman).Cell);
+    }
+
+    [Fact]
+    public void AGunnerBeyondHisStageDistanceWalksStraightInToItWithEveryPreyInReach()
+    {
+        // A 25-cell rifle sixty cells south of a deer and an elk six cells apart (centre 53,70, spread 3): he stops on the
+        // line to the centre at the estimate's engage distance less the spread and half a diagonal, floor(23.75-3-0.71)=20.
         var preyCells = new[] { new Cell(50, 70), new Cell(56, 70) };
         var view = View(
-            [
-                Gunner(Rifleman, new Cell(48, 50), RifleDef, Rifle),
-                Gunner(Marksman, new Cell(56, 48), RifleDef, ShortRifle),
-                Animal(Deer, preyCells[0]),
-                Animal(Elk, preyCells[1]),
-            ],
-            [Rifleman, Marksman],
+            [Gunner(Marksman, new Cell(53, 10), RifleDef, ShortRifle), Animal(Deer, preyCells[0]), Animal(Elk, preyCells[1])],
+            [Marksman],
             [Deer, Elk],
+            [Marksman]);
+
+        var role = Assert.Single(CombatHuntRules.HuntFormation(view, []));
+
+        Assert.Equal(20, CombatHuntRules.StageDistance(ShortRifle.Range, 3));
+        Assert.Equal(new Cell(53, 50), role.Cell);
+        Assert.All(preyCells, p => Assert.True(Distance(role.Cell!.Value, p) <= HuntEstimator.EngageRangeFactor * ShortRifle.Range, $"prey at {p} is beyond the engage distance"));
+    }
+
+    [Fact]
+    public void AGunnerWhoseStageCellIsUnreachableIsLeftOut()
+    {
+        var view = View(
+            [Gunner(Rifleman, new Cell(50, 0), RifleDef, Rifle), Gunner(Marksman, new Cell(52, 50), RifleDef, Rifle), Animal(Deer, new Cell(50, 70))],
+            [Rifleman, Marksman],
+            [Deer],
             [Rifleman, Marksman]);
+        var stage = CombatHuntRules.StageCell(new Cell(50, 0), new Cell(50, 70), CombatHuntRules.StageDistance(Rifle.Range, 0));
 
-        var roles = CombatHuntRules.HuntFormation(view);
+        var role = Assert.Single(CombatHuntRules.HuntFormation(view, [stage]));
 
-        Assert.Equal(2, roles.Count);
-        Assert.All(roles, r =>
+        Assert.Equal(new Cell(50, 36), stage);
+        Assert.Equal(Marksman, role.Pawn);
+    }
+
+    [Fact]
+    public void ThePreyWalkingBeyondARolesRangeOrOutOfTheViewReformsTheHunt()
+    {
+        var memory = new CombatMemory
         {
-            Assert.True(r.Cell.HasValue, $"{r.Pawn} has no arc cell");
-            var cell = r.Cell!.Value;
-            Assert.All(preyCells, p => Assert.True(Distance(cell, p) <= ShortRifle.Range, $"{r.Pawn} at {cell} is {Distance(cell, p):F1} cells from prey at {p}, beyond the {ShortRifle.Range}-cell reach"));
-            // The arc stands off the prey, on the gunners' side of it: no cell is on top of the group.
-            Assert.True(Distance(cell, new Cell(53, 70)) >= 10, $"{r.Pawn} at {cell} stands on the prey");
-        });
+            Tactic = CombatTactic.Hunt,
+            Roles = EquatableArray.From(new[] { new CombatRole { Pawn = Rifleman, Cell = new Cell(50, 50), Target = Deer, Ranged = true } }),
+        };
+        CombatView At(Cell deer) => View([Gunner(Rifleman, new Cell(50, 50), RifleDef, Rifle), Animal(Deer, deer)], [Rifleman], [Deer], [Rifleman]);
+
+        // Within the rifle's 37 cells the formation stands; at 40 the deer has walked off it.
+        Assert.False(CombatHuntRules.PreyOutOfReach(At(new Cell(50, 85)), memory));
+        Assert.False(CombatHuntRules.ReformHunt(At(new Cell(50, 85)), memory));
+        Assert.True(CombatHuntRules.PreyOutOfReach(At(new Cell(50, 90)), memory));
+        Assert.True(CombatHuntRules.ReformHunt(At(new Cell(50, 90)), memory));
+
+        // A target gone from the prey (another animal now hunted) re-forms too.
+        var other = View([Gunner(Rifleman, new Cell(50, 50), RifleDef, Rifle), Animal(Elk, new Cell(50, 60))], [Rifleman], [Elk], [Rifleman]);
+        Assert.True(CombatHuntRules.PreyOutOfReach(other, memory));
+    }
+
+    [Fact]
+    public void RosterPawnsTheFormationGivesNoRoleAreLetGo()
+    {
+        var roles = new[] { new CombatRole { Pawn = Rifleman, Target = Deer, Ranged = true } };
+
+        Assert.Equal(new[] { Guard, Marksman }, CombatHuntRules.IdleHunters([Rifleman, Marksman, Guard], roles));
+        Assert.Empty(CombatHuntRules.IdleHunters([Rifleman], roles));
     }
 }

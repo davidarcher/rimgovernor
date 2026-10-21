@@ -50,8 +50,9 @@ internal static class FoodHuntRoster
     private static readonly Fx.StageCell[] LarderCells = [.. Enumerable.Range(42, 4).SelectMany(x => Enumerable.Range(33, 3).Select(z => new Fx.StageCell(x, z)))];
 
     // The families the hunt needs: acquisition compares and opens it, defense drafts and stands the formation down, work
-    // keeps the hunters' priorities, bill and stockpiles butcher and haul, tend and rescue answer a mauling.
-    private static readonly IReadOnlyList<string> Families = ["acquisition", "defense", "work", "bill", "stockpiles", "tend", "rescue"];
+    // keeps the hunters' priorities, bill and stockpiles butcher and haul, food-storage-upkeep allows the kill's corpse (a
+    // drafted kill outside the home area drops it forbidden), tend and rescue answer a mauling.
+    private static readonly IReadOnlyList<string> Families = ["acquisition", "defense", "work", "bill", "stockpiles", "food-storage-upkeep", "tend", "rescue"];
 
     private static readonly Fx.StageSpec Camp = new()
     {

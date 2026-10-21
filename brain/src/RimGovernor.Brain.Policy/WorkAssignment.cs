@@ -202,6 +202,9 @@ public sealed record WorkPawn
 
     public Fact<double> Mood { get; init; }
 
+    /// <summary>The food need's hunger category from the needs block; unknown when the read carried none.</summary>
+    public Fact<RimGovernor.Contracts.Wire.Defs.HungerCategory> Hunger { get; init; }
+
     /// <summary>The minor mental break threshold from the needs block.</summary>
     public Fact<double> BreakThreshold { get; init; }
 

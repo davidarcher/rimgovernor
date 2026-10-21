@@ -244,6 +244,7 @@ public static class RoundsWorkReads
             {
                 Rest = ColonyDecodeReads.Optional(n.Rest is not null, n.Rest.GetValueOrDefault()),
                 Mood = ColonyDecodeReads.Optional(n.Mood is not null, n.Mood.GetValueOrDefault()),
+                Hunger = ColonyDecodeReads.Optional(n.HungerCategory is not null, n.HungerCategory.GetValueOrDefault()),
                 BreakThreshold = Known(n.BreakThresholdMinor),
                 PsylinkLevel = ColonyDecodeReads.Optional(n.Psyfocus is not null, n.Psyfocus?.PsylinkLevel ?? 0),
             };

@@ -268,6 +268,7 @@ public sealed partial class ClockRunDriver
                 }
             }
         }
+        var (combatPlan, fightOpen, huntPrey) = await ClockRunWork.CombatPlanAsync(journal, state.Snapshot, call).ConfigureAwait(false);
         if (!running)
         {
             note.HeldFor = status.Reason;
@@ -287,6 +288,16 @@ public sealed partial class ClockRunDriver
                 _scheduler.Queue.CombatStopped();
                 note.Action = "hold";
                 note.Reason = "combat_event";
+                return true;
+            }
+            // An open hunt's review hold is its next decision too: the hunt arms no event, so without it the formation
+            // would be ordered only on the defense planner's own cadence.
+            if (ClockCombatStops.HuntReview(status.Reason, fightOpen, huntPrey.Count, step.Defense is not null, status.HeldAtUnixMs.GetValueOrDefault(), _combatMarkedFor))
+            {
+                _combatMarkedFor = status.HeldAtUnixMs.GetValueOrDefault();
+                _scheduler.Queue.CombatStopped();
+                note.Action = "hold";
+                note.Reason = "hunt_review";
                 return true;
             }
             if (_autosaveDue && _config.Autosave is { } autosave && status.ActualPaused is not null && status.ActualPaused.GetValueOrDefault())
@@ -325,7 +336,6 @@ public sealed partial class ClockRunDriver
             FactSection.Emergency,
             new Held<EmergencyFacts> { Value = emergency.Facts, AsOf = (long)emergency.Context.Tick, Complete = colonistsKnown && colonistsComplete && emergency.Facts.DependentPatients.IsKnown, Source = "rimgovernor/observations_read_status" });
 
-        var (combatPlan, fightOpen, huntPrey) = await ClockRunWork.CombatPlanAsync(journal, state.Snapshot, call).ConfigureAwait(false);
         // The defense planner's verdict at this step: only a reported no-squad answer lets a hostile building be
         // watched instead of held; any other outcome, or no planner, keeps the hold.
         var squadUnanswered = Unknown<bool>();

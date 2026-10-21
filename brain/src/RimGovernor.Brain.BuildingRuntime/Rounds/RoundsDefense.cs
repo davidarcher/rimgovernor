@@ -175,6 +175,11 @@ public sealed partial class RoundsDefensePlanner
         var (inputs, reason) = CombatFrameInputs(combat, [.. standing.Prey], [.. standing.Hunters]);
         if (inputs is null || !reason.IsZero)
         {
+            if (fight is { Memory.Tactic: CombatTactic.Hunt } && reason == NoFight)
+            {
+                // The prey left the combat read: the hunt has nothing to shoot at, and its gunners are let go.
+                await ReleaseHuntAsync(state, owner, fightPlan, "hunt_prey_gone", call).ConfigureAwait(false);
+            }
             return new RoundsDefenseResult { Verdict = reason };
         }
         var inp = inputs;
@@ -282,6 +287,20 @@ public sealed partial class RoundsDefensePlanner
             }
             recorded.MemoryOut = next;
         }
+        if (next.Tactic == CombatTactic.Hunt)
+        {
+            // A hunt's roster is its formation: a gunner it gives no role is let go, and with none left the hunt ends.
+            if (next.Roles.Count == 0)
+            {
+                await ReleaseHuntAsync(state, owner, id, "hunt_formation_empty", call).ConfigureAwait(false);
+                return new RoundsDefenseResult { Verdict = WaitFor(Cause.MethodUsed, "hunt_formation_empty") };
+            }
+            var idle = CombatHuntRules.IdleHunters(fight.Roster, next.Roles.Items);
+            if (idle.Count > 0)
+            {
+                p.Journal.UpdateCombatRoster(id, [], idle, call);
+            }
+        }
         var (rest, permits) = SplitPermitCalls(orders);
         CommitPermitCalls(state.Snapshot, permits, call, epoch);
         var guards = RoundsMech.CombatMechGuards(combat, inp.HostileIds, inp.Rows);
@@ -313,6 +332,28 @@ public sealed partial class RoundsDefensePlanner
         recorded.Evidence = true;
         RecordCombatStop(combat, recorded, call);
         return new RoundsDefenseResult { Verdict = BuildingReasonCombatOrders, Plan = id };
+    }
+
+    /// <summary>The verdict of a combat read with nothing to fight.</summary>
+    private static readonly Verdict NoFight = WaitFor(Cause.MethodUsed, "no_fight");
+
+    /// <summary>
+    /// Ends an open hunt fight that can no longer hunt: its doors are restored and it closes, so the undraft sweep
+    /// undrafts its roster. The review's hunt standing is untouched; its own release triggers re-compare the hunt.
+    /// </summary>
+    private async Task ReleaseHuntAsync(ControlState state, NeedOwner owner, PlanId plan, string reason, CancellationToken call)
+    {
+        await ClearFightDoorsAsync(state, plan, call).ConfigureAwait(false);
+        _reviewer.Player.Journal.CloseCombatFight(plan, call);
+        Tel.Decide(new Decision
+        {
+            Kind = "admission",
+            Component = "routine-defense",
+            Verdict = "released",
+            Reason = reason,
+            Target = owner.Need.Value,
+            Attrs = new Dictionary<string, object?> { ["combat_plan"] = plan },
+        });
     }
 
     /// <summary>The roster pawns whose observation row says they are drafted, ordinal sorted.</summary>

@@ -21,14 +21,15 @@ public sealed class HuntAdmission
 
     /// <summary>
     /// The formation channel to offer and why a held one was released (empty when none was): the one the plan opened
-    /// while no release trigger holds, else the plan's own choice. <paramref name="read"/> is the current hunt read.
+    /// while no release trigger holds, else the plan's own choice. <paramref name="read"/> is the current hunt read and
+    /// <paramref name="hungry"/> the colonists whose hunger takes them off a hunt (<see cref="Release"/>).
     /// </summary>
-    public (SupplyCandidate? Channel, string Released) Formation(SupplyCandidate? chosen, HuntPlan plan, IReadOnlyList<AcquisitionSource> sources, HuntActivityRead? read)
+    public (SupplyCandidate? Channel, string Released) Formation(SupplyCandidate? chosen, HuntPlan plan, IReadOnlyList<AcquisitionSource> sources, HuntActivityRead? read, IReadOnlyCollection<string>? hungry = null)
     {
         var released = "";
         if (_committed is { } held)
         {
-            released = Release(read, sources);
+            released = Release(read, sources, hungry);
             if (released.Length == 0)
             {
                 _offered = null;
@@ -43,13 +44,13 @@ public sealed class HuntAdmission
 
     /// <summary>
     /// Why the held formation is released now, or empty while it stands (or nothing is held). The triggers: a rostered
-    /// gunner left the hunt read, is downed or in a mental state; an admitted animal is gone from the sources, downed,
-    /// out of the observed window, or a new animal joined its group; or a gunner is no longer the pawn his estimate was
-    /// made from (<see cref="StillDescribesGunner"/>). An unknown hunt read decides nothing about
-    /// the gunners: the prey rules still apply. A drafted gunner is not a trigger: the hunt's own draft and the player's
-    /// read the same.
+    /// gunner left the hunt read, is downed or in a mental state, or is among <paramref name="hungry"/> (a drafted pawn
+    /// does not eat, so his hunger breaks the hunt); an admitted animal is gone from the sources, downed, out of the
+    /// observed window, or a new animal joined its group; or a gunner is no longer the pawn his estimate was made from
+    /// (<see cref="StillDescribesGunner"/>). An unknown hunt read decides nothing about the gunners but their hunger: the
+    /// prey rules still apply. A drafted gunner is not a trigger: the hunt's own draft and the player's read the same.
     /// </summary>
-    public string Release(HuntActivityRead? read, IReadOnlyList<AcquisitionSource> sources)
+    public string Release(HuntActivityRead? read, IReadOnlyList<AcquisitionSource> sources, IReadOnlyCollection<string>? hungry = null)
     {
         if (_committed is not { } held)
         {
@@ -65,6 +66,13 @@ public sealed class HuntAdmission
             if (source.Downed)
             {
                 return "prey_downed:" + id;
+            }
+        }
+        foreach (var id in held.Roster.Gunners)
+        {
+            if (hungry?.Contains(id) == true)
+            {
+                return "gunner_hungry:" + id;
             }
         }
         if (read is not { Known: true })

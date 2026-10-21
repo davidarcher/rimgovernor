@@ -1218,6 +1218,19 @@ public sealed class ClockRunDriverTests
     }
 
     [Fact]
+    public void AnOpenHuntsReviewHoldIsItsNextDecisionOnce()
+    {
+        // A quiet hunt arms no decision event: each review hold of an open hunt re-runs the defense planner, once per hold.
+        Assert.True(ClockCombatStops.HuntReview(PbClock.HoldReason.Review, fightOpen: true, prey: 1, defenseRan: false, heldAt: 7, marked: 6));
+        Assert.False(ClockCombatStops.HuntReview(PbClock.HoldReason.Review, fightOpen: true, prey: 1, defenseRan: false, heldAt: 7, marked: 7));
+        // The step already ran it, the fight is no hunt, no fight is open, or the hold is another's.
+        Assert.False(ClockCombatStops.HuntReview(PbClock.HoldReason.Review, fightOpen: true, prey: 1, defenseRan: true, heldAt: 7, marked: 6));
+        Assert.False(ClockCombatStops.HuntReview(PbClock.HoldReason.Review, fightOpen: true, prey: 0, defenseRan: false, heldAt: 7, marked: 6));
+        Assert.False(ClockCombatStops.HuntReview(PbClock.HoldReason.Review, fightOpen: false, prey: 1, defenseRan: false, heldAt: 7, marked: 6));
+        Assert.False(ClockCombatStops.HuntReview(PbClock.HoldReason.Autosave, fightOpen: true, prey: 1, defenseRan: false, heldAt: 7, marked: 6));
+    }
+
+    [Fact]
     public void AnOpenFightArmsOnlyTheDecisionEvents()
     {
         Assert.Equivalent(
