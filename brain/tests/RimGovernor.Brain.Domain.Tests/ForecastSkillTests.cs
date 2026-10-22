@@ -148,4 +148,20 @@ public sealed class ForecastSkillTests
         Assert.Equal(continuous.Xp, resumed.Xp);
         Assert.Equal(continuous.TerminalLearning, resumed.TerminalLearning);
         Assert.Equal(30, continuous.DecayLoss.Value);
+    }    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public void RebasePreservesPendingDecayWithRetainedCounterAfterCadenceChange(int split)
+    {
+        var observed = Evidence() with
+        {
+            TrackerIntervalTicks = 15, TrackerPhase = 7, TrackerElapsedTicks = 13,
+            NextDecay = Known(1), NextMidnightReset = Known(1000), Xp = Known(100d)
+        };
+        var continuous = ForecastSkillPolicy.ForecastSkill(observed, [], 415);
+        var first = ForecastSkillPolicy.ForecastSkill(observed, [], split);
+        var resumed = ForecastSkillPolicy.ForecastSkill(first.TerminalLearning, [], 415 - split);
+        Assert.True(resumed.Xp.IsKnown);
+        Assert.Equal(continuous.TerminalLearning, resumed.TerminalLearning);
+        Assert.Equal(30, continuous.DecayLoss.Value);
     }}

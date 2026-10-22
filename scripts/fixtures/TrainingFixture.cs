@@ -271,7 +271,7 @@ namespace HomeBridge.BridgeTools
                     var original = (before.levelInt, before.xpSinceLastLevel, before.xpSinceMidnight);
                     var evidence = NativeSkillLearning.Read(pawn, actual) with {
                         ValidForTicks = RimGovernor.Brain.Domain.Fact.Known(1000),
-                        TrackerIntervalTicks = 1, TrackerPhase = 0, NextMidnightReset = default,
+                        TrackerIntervalTicks = 1, TrackerPhase = 0, TrackerElapsedTicks = 0, NextMidnightReset = default,
                         NextDecay = RimGovernor.Brain.Domain.Fact.Known(200),
                         PracticeEligible = RimGovernor.Brain.Domain.Fact.Known(true),
                         PracticeCeiling = RimGovernor.Brain.Domain.Fact.Known(SkillRecord.MaxLevel),

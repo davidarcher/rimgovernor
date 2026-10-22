@@ -74,7 +74,7 @@ public sealed class ProductiveDuringWorkTests
     [Fact]
     public void CallbackCadenceIsPreservedAndCompressedRunsEqualIndividualCallbacks()
     {
-        var work = Work("Plants", 1, .01, before: true) with { CallbackIntervalTicks = 15, CallbackPhase = 7 };
+        var work = Work("Plants", 1, .01, before: true) with { CallbackIntervalTicks = 15, CallbackPhase = 7, CallbackElapsedTicks = 8 };
         var result = ForecastProductiveWorkPolicy.ForecastProductiveWork(new("sow", "pawn", Known(100d), Known(0d)) { SkillWork = work }, [], 0);
         var learning = Assert.IsType<ForecastProductiveLearning>(result.Evidence);
         var expanded = learning.Callbacks.SelectMany(e => Enumerable.Range(0, e.Count).Select(i => e with
@@ -174,5 +174,23 @@ public sealed class ProductiveDuringWorkTests
         Assert.Equal(.1, result.Allocations.Single(a => a.Pawn == "one").Learning!.After.AppliedGain.Value, 8);
         Assert.Equal(secondXp, result.Allocations.Single(a => a.Pawn == "two").Learning!.After.AppliedGain.Value, 8);
         Assert.Equal(remaining, result.Allocations.SelectMany(a => a.Learning!.WorkSegments).Sum(s => (s.End - s.Start) * s.WorkPerTick));
+    }
+    [Fact]
+    public void RetainedNativeCounterPaysExactFirstAndSecondCallbackDeltasAfterCadenceChange()
+    {
+        var work = Work("Plants", 20, 1, before: true) with
+        {
+            CallbackIntervalTicks = 15, CallbackPhase = 7, CallbackElapsedTicks = 13,
+            Learning = Work("Plants", 20, 1).Learning with { Xp = Known(0d) }
+        };
+        var result = ForecastProductiveWorkPolicy.ForecastProductiveWork(
+            new("sow", "pawn", Known(20d), Known(0d)) { SkillWork = work }, [], 0);
+        Assert.Equal(7, result.WorkTicks.Value);
+        Assert.Equal(20, result.Evidence!.WorkAmount);
+        Assert.Collection(result.Evidence.Callbacks,
+            e => { Assert.Equal(2, e.Tick); Assert.Equal(1.5, e.RawXp.Value); },
+            e => { Assert.Equal(7, e.Tick); Assert.Equal(.5, e.RawXp.Value); });
+
+        Assert.Equal(2, result.Evidence.After.AppliedGain.Value);
     }
 }

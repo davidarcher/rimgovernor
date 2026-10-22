@@ -23,7 +23,7 @@ internal static class NativeProductiveSkill
             : new[] { new Obs.SkillWorkRate(record.levelInt, Fact.Known(pawn.GetStatValue(stat) * rateFactor)) };
         return new(NativeSkillLearning.Read(pawn, record), new(skill.defName, Fact.Known(rawXp), true), Fact.Known(amount),
             EquatableArray.From(rates), provenance + "; " + (values != null ? NativeSkillStat.Provenance : finding))
-        { CallbackIntervalTicks = NativeSkillLearning.Cadence(pawn), CallbackPhase = NativeSkillLearning.Phase(pawn),
+        { CallbackIntervalTicks = NativeSkillLearning.Cadence(pawn), CallbackPhase = NativeSkillLearning.Phase(pawn), CallbackElapsedTicks = NativeSkillLearning.Elapsed(pawn),
             LearnBeforeWork = beforeWork, FixedDuration = fixedDuration };
     }
     internal static Obs.ProductiveSkillWork? Read(Pawn pawn, RecipeDef recipe, Building_WorkTable bench, double? remaining = null)
@@ -39,7 +39,7 @@ internal static class NativeProductiveSkill
             : new[] { new Obs.SkillWorkRate(record.levelInt, Fact.Known((double)pawn.GetStatValue(recipe.workSpeedStat) * table)) };
         return new(NativeSkillLearning.Read(pawn, record), learning, Fact.Known(remaining ?? recipe.WorkAmountTotal(null)), EquatableArray.From(rates),
             NativeSkillStat.Provenance + "; Toils_Recipe callback; observed recipe/table")
-        { CallbackIntervalTicks = NativeSkillLearning.Cadence(pawn), CallbackPhase = NativeSkillLearning.Phase(pawn), LearnBeforeWork = true };
+        { CallbackIntervalTicks = NativeSkillLearning.Cadence(pawn), CallbackPhase = NativeSkillLearning.Phase(pawn), CallbackElapsedTicks = NativeSkillLearning.Elapsed(pawn), LearnBeforeWork = true };
     }
     /// <summary>Surgery (#3632): the recipe's native work amount and learning, and the doctor's operation speed per stored level
     /// from <see cref="NativeSkillStat"/> (#3637), so a forecast level-up keeps a rate. A stat it cannot curve keeps the observed
@@ -55,6 +55,6 @@ internal static class NativeProductiveSkill
             : new[] { new Obs.SkillWorkRate(skill.levelInt, Rate(recipe.workSpeedStat == null ? 1f : pawn.GetStatValue(recipe.workSpeedStat))) };
         return new(NativeSkillLearning.Read(pawn, skill), learning, Fact.Known((double)recipe.WorkAmountTotal(null)), EquatableArray.From(rates),
             values != null ? NativeSkillStat.Provenance + "; native RecipeDef.WorkAmountTotal" : "native RecipeDef.WorkAmountTotal; observed workSpeedStat at the current stored level")
-        { CallbackIntervalTicks = NativeSkillLearning.Cadence(pawn), CallbackPhase = NativeSkillLearning.Phase(pawn), LearnBeforeWork = true };
+        { CallbackIntervalTicks = NativeSkillLearning.Cadence(pawn), CallbackPhase = NativeSkillLearning.Phase(pawn), CallbackElapsedTicks = NativeSkillLearning.Elapsed(pawn), LearnBeforeWork = true };
     }
 }

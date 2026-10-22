@@ -25,6 +25,7 @@ public sealed record SkillLearning
     public Fact<int> NextMidnightReset { get; init; }
     public int TrackerIntervalTicks { get; init; } = 1;
     public int TrackerPhase { get; init; }
+    public int TrackerElapsedTicks { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<SkillLevelMechanics>))]
     public EquatableArray<SkillLevelMechanics> Levels { get; init; }
     public Fact<bool> PracticeEligible { get; init; }
@@ -49,6 +50,7 @@ public sealed record ProductiveSkillWork(SkillLearning Learning, RecipeLearning 
 {
     public int CallbackIntervalTicks { get; init; } = 1;
     public int CallbackPhase { get; init; }
+    public int CallbackElapsedTicks { get; init; }
     public Fact<int> CallbackOrder { get; init; }
     public bool LearnBeforeWork { get; init; }
     public bool FixedDuration { get; init; }

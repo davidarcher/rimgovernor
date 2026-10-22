@@ -18,6 +18,10 @@ internal static class NativeSkillLearning
     private static readonly AccessTools.FieldRef<Pawn_SkillTracker, int> LastReset =
         AccessTools.FieldRefAccess<Pawn_SkillTracker, int>("lastXpSinceMidnightResetTimestamp");
 
+    // Thing exposes no accessor for the retained interval counter; camera-rate changes can leave it off phase.
+    private static readonly AccessTools.FieldRef<Thing, int> TickDelta = AccessTools.FieldRefAccess<Thing, int>("tickDelta");
+    internal static int Elapsed(Pawn pawn) => TickDelta(pawn);
+
     internal static int Cadence(Pawn pawn) => Math.Max(1, Math.Min(15, pawn.UpdateRateTicks));
     internal static int Phase(Pawn pawn) => (Cadence(pawn) - pawn.HashOffsetTicks() % Cadence(pawn)) % Cadence(pawn);
 
@@ -39,14 +43,15 @@ internal static class NativeSkillLearning
         var cadence = Cadence(pawn);
         var phase = Phase(pawn);
         // A hash boundary since the last tracker callback is still pending, even if it is in the past.
-        var elapsed = (cadence - phase) % cadence;
+        var elapsed = Elapsed(pawn);
+        var clock = new TickIntervalClock(cadence, phase, elapsed);
         if (next - interval > -elapsed) next -= interval;
         var reset = LastReset(pawn.skills);
         var now = Find.TickManager.TicksGame;
         var midnightReset = 0;
         for (var hashTick = next; hashTick <= GenDate.TicksPerDay + interval; hashTick += interval)
         {
-            var at = hashTick + (phase - hashTick % cadence + cadence) % cadence;
+            var at = clock.AtOrAfter(hashTick);
             if (GenDate.HourInteger(GenTicks.TicksAbs + at, (pawn.Tile.Valid ? Find.WorldGrid.LongLatOf(pawn.Tile).x : 0f)) == 0
                 && (reset < 0 || now + at - reset >= GenDate.TicksPerDay / 2))
             { midnightReset = at; break; }
@@ -65,7 +70,7 @@ internal static class NativeSkillLearning
             SaturationThreshold = Known((double)SkillRecord.MaxFullRateXpPerDay), SaturatedFactor = Known(saturatedFactor),
             LossThreshold = Known((double)SkillRecord.MinXPAmount), DecayInterval = Known(interval), NextDecay = Known(next),
             ValidForTicks = Known(Math.Min(localRemaining, globalRemaining)), NextMidnightReset = midnightReset > 0 ? Known(midnightReset) : default,
-            TrackerIntervalTicks = cadence, TrackerPhase = phase, Levels = EquatableArray.From(levels),
+            TrackerIntervalTicks = cadence, TrackerPhase = phase, TrackerElapsedTicks = elapsed, Levels = EquatableArray.From(levels),
             PracticeEligible = practice ? Known(skill.def == SkillDefOf.Shooting ? RangeTraining.Eligible(pawn, skill.def) : SparringBouts.Eligible(pawn)) : default,
             PracticeCeiling = practice ? Known(RangeTraining.CeilingFor(skill.def)) : default,
             RangeAppliedBudget = skill.def == SkillDefOf.Shooting ? Known((double)RangeTraining.Remaining(pawn)) : default,

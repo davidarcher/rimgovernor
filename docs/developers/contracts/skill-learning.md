@@ -250,3 +250,8 @@ the four existing medical curves.
 Terminal learning retains the nominal hash boundary for decay, separately from the tracker
 callback phase. A boundary can be just before the handoff while its callback is still pending;
 rebasing preserves that pending boundary and subsequent 200-tick spacing.
+
+The retained native interval counter is read alongside cadence and hash phase. If the observed
+camera cadence just changed, its first callback can precede hash alignment; the following
+callback can pay a shorter delta. Work, learning, passive decay and terminal rebasing use the
+same callback clock, including both transient callbacks.

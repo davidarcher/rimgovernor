@@ -16,7 +16,8 @@ internal sealed class ForecastSkillCursor
     }
     internal int StoredLevel => level;
     internal int Effective => mechanics.Disabled.Value ? 0 : (int)Math.Clamp((long)level + mechanics.Aptitude.Value, 0, mechanics.Levels.Count - 1);
-    private int DecayTick => nextDecay + (mechanics.TrackerPhase - nextDecay % mechanics.TrackerIntervalTicks + mechanics.TrackerIntervalTicks) % mechanics.TrackerIntervalTicks;
+    private TickIntervalClock Clock => new(mechanics.TrackerIntervalTicks, mechanics.TrackerPhase, mechanics.TrackerElapsedTicks);
+    private int DecayTick => Clock.AtOrAfter(nextDecay);
     internal void Advance(int tick)
     {
         while (Math.Min(DecayTick, nextReset) <= tick)
@@ -50,6 +51,7 @@ internal sealed class ForecastSkillCursor
     {
         StoredLevel = Known(level), Xp = Known(xp), XpSinceMidnight = Known(midnight),
         NextDecay = Known(nextDecay - tick),
+        TrackerElapsedTicks = Clock.ElapsedAt(tick),
         NextMidnightReset = nextReset == int.MaxValue ? default : Known(nextReset - tick),
         TrackerPhase = (mechanics.TrackerPhase - tick % mechanics.TrackerIntervalTicks + mechanics.TrackerIntervalTicks) % mechanics.TrackerIntervalTicks,
         ValidForTicks = Known(Math.Max(0, mechanics.ValidForTicks.Value - tick)),

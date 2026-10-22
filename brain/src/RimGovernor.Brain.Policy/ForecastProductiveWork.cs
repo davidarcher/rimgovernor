@@ -25,6 +25,7 @@ public static class ForecastProductiveWorkPolicy
             || !work.WorkAmount.TryGetValue(out var requested) || !double.IsFinite(requested) || requested <= 0
             || ForecastSkillPolicy.MechanicsGap(mechanics) is not null
             || work.CallbackIntervalTicks <= 0 || work.CallbackIntervalTicks > 15
+            || work.CallbackElapsedTicks < 0 || work.CallbackElapsedTicks >= 15
             || work.CallbackPhase < 0 || work.CallbackPhase >= work.CallbackIntervalTicks
             || work.Rates.Select(r => r.StoredLevel).Distinct().Count() != work.Rates.Count)
             return Unknown("productive_mechanics_unknown");
@@ -51,6 +52,7 @@ public static class ForecastProductiveWorkPolicy
         cursor.Advance(tick);
         var callbacks = new List<SkillXpEvent>(); var segments = new List<ForecastWorkSegment>();
         var creditedTicks = 0; var amount = 0d;
+        var clock = new TickIntervalClock(work.CallbackIntervalTicks, work.CallbackPhase, work.CallbackElapsedTicks);
         var runFirst = 0; var runLast = 0; var runCount = 0; var runInterval = 0; var runRaw = 0d;
         var segmentStart = tick; var segmentEnd = tick; var segmentRate = 0d; var segmentCadence = 0;
         var limit = mechanics.NextMidnightReset.IsKnown ? GameTime.TicksPerDay : Math.Min(GameTime.TicksPerDay, mechanics.ValidForTicks.Value - 1);
@@ -69,11 +71,10 @@ public static class ForecastProductiveWorkPolicy
             var heldRate = Rate(stage);
             while (stage.WorkAmount - done > 1e-9 && (!work.FixedDuration || tick - workStart < fixedTicks))
             {
-                var elapsed = work.CallbackIntervalTicks - (tick - work.CallbackPhase + work.CallbackIntervalTicks) % work.CallbackIntervalTicks;
-                var at = tick + elapsed;
+                var (at, delta) = clock.Next(tick);
+                var elapsed = at - tick;
                 if (stopAt is { } cutoff && at > cutoff) break;
                 if (at > limit) return Unknown("productive_learning_window_expired");
-                var delta = work.CallbackIntervalTicks;
                 cursor.Advance(at - 1);
                 var raw = stage.RawXpPerWorkTick.Value * delta;
                 if (work.Recipe.DuringWork && work.LearnBeforeWork) cursor.Learn(raw, SkillXpPath.NormalTracker);
