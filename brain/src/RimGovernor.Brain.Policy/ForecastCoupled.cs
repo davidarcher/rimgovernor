@@ -56,6 +56,7 @@ public sealed record ForecastPlannedRoomOutcome(int Room, EquatableArray<string>
 public sealed record ForecastCoupledContext
 {
     public required ForecastActivityProblem Activities { get; init; }
+    public ForecastModelBasis? ModelBasis { get; init; }
     public bool Truncated { get; init; }
     public required NeedsForecastRead Needs { get; init; }
     public EquatableArray<ForecastMaintenanceRequirement> MaintenanceRequirements { get; init; }
@@ -120,6 +121,7 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
     IReadOnlyDictionary<string, ForecastNeedsResult> Needs,
     EquatableArray<ForecastFinding> Findings)
 {
+    public ForecastTerminalAccounting? Terminal { get; init; }
     public EquatableArray<ForecastShelterOutcome> Shelters { get; init; }
     public EquatableArray<ForecastMaintenanceConsequence> Maintenance { get; init; }
     public EquatableArray<ForecastThermalExposure> ThermalExposure { get; init; }

@@ -14,13 +14,23 @@ public static class ForecastSkillPolicy
     /// <summary>Bounded conditional projection of supplied learning callbacks. It predicts neither job success,
     /// attack cadence nor training safety. Native observations alone establish attained capability.</summary>
     public static SkillProjection ForecastSkill(SkillLearning? observed, IReadOnlyList<SkillXpEvent> events, int horizon)
+        => Project(observed, events, horizon, false);
+
+    /// <summary>Terminal stock only: after the callback validity cut, native passive decay/settlement can continue.
+    /// Local/global midnight resets callback saturation/range budgets, not stored XP or the native decay table.
+    /// No callback at or after the cut is accepted, and the ordinary learning API retains its original bound.</summary>
+    internal static SkillProjection ForecastTerminalSkill(SkillLearning? observed, IReadOnlyList<SkillXpEvent> events, int horizon)
+        => Project(observed, events, horizon, true);
+
+    private static SkillProjection Project(SkillLearning? observed, IReadOnlyList<SkillXpEvent> events, int horizon, bool passiveTail)
     {
         SkillProjection Unknown(string why) => new(default, default, default, default, default, [why]);
         if (horizon < 0 || horizon > GameTime.TicksPerDay || events.Count > 4096)
             return Unknown("learning_horizon_or_event_bound");
         if (MechanicsGap(observed) is { } gap) return Unknown(gap);
         var s = observed!;
-        if (horizon >= s.ValidForTicks.Value) return Unknown("learning_mechanics_outside_supported_window");
+        if (horizon >= s.ValidForTicks.Value && (!passiveTail || events.Any(e => e.Tick >= s.ValidForTicks.Value)))
+            return Unknown("learning_mechanics_outside_supported_window");
         if (events.Any(e => string.IsNullOrEmpty(e.Id) || e.Tick < 0 || e.Tick > horizon || !e.RawXp.IsKnown
                 || !double.IsFinite(e.RawXp.Value) || e.RawXp.Value < 0 || !Enum.IsDefined(e.Path))
             || events.Select(e => e.Id).Distinct(StringComparer.Ordinal).Count() != events.Count

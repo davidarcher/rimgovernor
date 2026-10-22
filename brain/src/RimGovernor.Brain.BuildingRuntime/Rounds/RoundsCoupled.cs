@@ -75,6 +75,7 @@ public sealed partial class Rounder
             Reason = admissionFailure is not null ? "method_not_admitted" : protectedContinuation ? "protected_method_ownership" : selection.Selection.SearchTruncated ? "best_found_bounded" : "shared_consequences",
             Attrs = new Dictionary<string, object?>
             {
+                [RimGovernor.Brain.Telemetry.Otlp.ForecastHandoffReader.Key] = RimGovernor.Brain.Telemetry.Otlp.ForecastHandoffReader.Fields(ForecastHandoffPolicy.Project(selection.Selected)),
                 ["observed_tick"] = tick, ["horizon_ticks"] = selection.Horizon,
                 ["protected_continuation"] = protectedContinuation, ["admission_failure"] = admissionFailure,
                 ["selected_ids"] = selection.Selection.Selected,

@@ -55,9 +55,7 @@ public static class ForecastMaintenancePolicy
                     if (!task.Worker.CallbackIntervalTicks.TryGetValue(out var interval) || interval <= 0
                         || !task.Worker.RawXpPerCallback.IsKnown)
                     { unknown = true; findings.Add("practice_callback_cadence_unknown"); continue; }
-                    for (var number = 1; number <= 128 && allocation.Start + task.Worker.PreparationTicks + interval * number <= Math.Min(bound, allocation.End); number++)
-                        callbacks.Add(new(task.Task + "/callback/" + number, (int)Math.Ceiling(allocation.Start + task.Worker.PreparationTicks + interval * number),
-                            task.Worker.RawXpPerCallback, alternative.Skill == "Shooting" ? SkillXpPath.Range : SkillXpPath.NormalTracker, true));
+                    callbacks.AddRange(PracticeCallbacks(task, allocation, bound));
                 }
                 var projected = ForecastSkillPolicy.ForecastSkill(learning, callbacks.OrderBy(e => e.Tick).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray(), bound);
                 findings.UnionWith(projected.Findings);
@@ -74,4 +72,11 @@ public static class ForecastMaintenancePolicy
         }
         return EquatableArray.From(result);
     }
-}
+    /// <summary>The same bounded native practice callbacks used by maintenance and terminal skill stock.</summary>
+    internal static IEnumerable<SkillXpEvent> PracticeCallbacks(ForecastPracticeTask task, ForecastActivityAllocation allocation, int bound)
+    {
+        if (!task.Worker.CallbackIntervalTicks.TryGetValue(out var interval) || interval <= 0 || !task.Worker.RawXpPerCallback.IsKnown) yield break;
+        for (var number = 1; number <= 128 && allocation.Start + task.Worker.PreparationTicks + interval * number <= Math.Min(bound, allocation.End); number++)
+            yield return new(task.Task + "/callback/" + number, (int)Math.Ceiling(allocation.Start + task.Worker.PreparationTicks + interval * number),
+                task.Worker.RawXpPerCallback, task.Worker.Skill == "Shooting" ? SkillXpPath.Range : SkillXpPath.NormalTracker, true);
+    }}

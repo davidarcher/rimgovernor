@@ -31,8 +31,6 @@ Policy|ColonyForecast.Unsupported
 Policy|ColonyForecastDelta.Add
 Policy|ColonyForecastDelta.Remove
 Policy|ColonyForecastFacts.Construction
-Policy|ColonyForecastFacts.Food
-Policy|ColonyForecastFacts.Items
 Policy|ColonyForecastFacts.Power
 Policy|ColonyForecastOrigin.World
 Policy|ColonyForecastRequest.Construction

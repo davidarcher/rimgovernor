@@ -13,6 +13,7 @@ public static class ForecastResidualReport
         {
             History = "retained_log_window_only",
             evidence.Gaps,
+            Handoffs = evidence.Handoffs.Select(h => new { h.Day, h.EndDay, h.Available, h.Gaps }),
             Summary = ForecastResiduals.Summarize(rows).Select(s => new
             {
                 Metric = s.Metric.ToString(), s.Unit, s.Resource, s.Scope, Cohort = s.Cohort.ToString(),

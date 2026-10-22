@@ -5,7 +5,8 @@ using RimGovernor.Brain.Domain;
 namespace RimGovernor.Brain.Telemetry.Otlp;
 
 public sealed record ForecastEvidenceRead(IReadOnlyList<ForecastPrediction> Predictions,
-    IReadOnlyList<ForecastObservation> Observations, IReadOnlyList<string> Gaps);
+    IReadOnlyList<ForecastObservation> Observations, IReadOnlyList<string> Gaps)
+{ public IReadOnlyList<ForecastHandoffRead> Handoffs { get; init; } = []; }
 
 /// <summary>Typed residual evidence decoder. Read gaps never turn into zero-valued samples.</summary>
 public static class ForecastEvidenceReader
@@ -44,7 +45,7 @@ public static class ForecastEvidenceReader
                     }
                     var log = OtlpReader.DecodeLog(Encoding.UTF8.GetBytes(line));
                     if (log is null) gaps.Add($"invalid_record:{Path.GetFileName(segment)}:{number}");
-                    else if (OtlpTimeline.FromLog(log) is { } row && (row.Kind == PredictionKind || row.Kind == ObservationKind)) rows.Add(row);
+                    else if (OtlpTimeline.FromLog(log) is { } row && (row.Kind == PredictionKind || row.Kind == ObservationKind || row.Kind == TelemetryKinds.CoupledSelection.Name)) rows.Add(row);
                 }
 
             }
@@ -59,9 +60,11 @@ public static class ForecastEvidenceReader
         ArgumentNullException.ThrowIfNull(rows);
         var predictions = new List<ForecastPrediction>();
         var observations = new List<ForecastObservation>();
+        var handoffs = new List<ForecastHandoffRead>();
         var gaps = new List<string>();
         foreach (var row in rows)
         {
+            if (ForecastHandoffReader.Decode(row) is { } handoff) handoffs.Add(handoff);
             if (row.Kind != TelemetryKinds.ForecastPrediction.Name && row.Kind != TelemetryKinds.ForecastObservation.Name) continue;
             if (row.Payload.GetValueOrDefault("truncated") is true) { gaps.Add("truncated_record"); continue; }
             try
@@ -107,7 +110,7 @@ public static class ForecastEvidenceReader
         var duplicates = observations.Count - observations.Distinct().Count();
         if (duplicates > 0) gaps.Add($"duplicate_observations:{duplicates}");
         if (unique.Count == 0) gaps.Add("no_predictions");
-        return new(unique, observations, gaps);
+        return new(unique, observations, gaps) { Handoffs = handoffs };
     }
 
     private static (string Run, string Load, string Map, string Review, string Sample) Correlation(ForecastEvidenceKey k) =>

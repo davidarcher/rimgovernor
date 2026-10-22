@@ -116,4 +116,19 @@ public sealed class ForecastSkillTests
         Assert.False(copy.Learning.RangeAppliedBudget.IsKnown);
         Assert.Equal(skill.Learning.Levels, copy.Learning.Levels);
     }
-}
+    [Fact]
+    public void TerminalStockCanDecayPastMidnightWithoutAcceptingExpiredCallbacks()
+    {
+        var mechanics = Evidence() with { ValidForTicks = Known(100), NextDecay = Known(200) };
+        SkillXpEvent[] callbacks = [new("work", 50, Known(10d), SkillXpPath.NormalTracker)];
+        Assert.False(ForecastSkillPolicy.ForecastSkill(mechanics, callbacks, 400).Xp.IsKnown);
+        var terminal = ForecastSkillPolicy.ForecastTerminalSkill(mechanics, callbacks, 400);
+        var sameDecay = ForecastSkillPolicy.ForecastSkill(mechanics with { ValidForTicks = Known(1000) }, callbacks, 400);
+        Assert.Equal(sameDecay.Xp, terminal.Xp);
+        Assert.Equal(sameDecay.StoredLevel, terminal.StoredLevel);
+        Assert.True(terminal.DecayLoss.Value > 0);
+        Assert.False(ForecastSkillPolicy.ForecastTerminalSkill(mechanics,
+            [new("expired", 100, Known(10d), SkillXpPath.NormalTracker)], 400).Xp.IsKnown);
+        Assert.False(ForecastSkillPolicy.ForecastTerminalSkill(mechanics,
+            [new("late", 101, Known(10d), SkillXpPath.NormalTracker)], 400).Xp.IsKnown);
+    }}

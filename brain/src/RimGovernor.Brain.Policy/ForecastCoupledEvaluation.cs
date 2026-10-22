@@ -874,7 +874,7 @@ public static partial class ForecastCoupled
                 CompletedDevelopmentSites = EquatableArray.Wrap(planned.Sites),
                 ClosedRooms = EquatableArray.From(closedRooms.Select(r => new ForecastRoomClosure(r.Room, r.Stuff, r.ClosedAt))),
             };
-            return outcome;
+            return context.ModelBasis is null ? outcome : outcome with { Terminal = new(request, commitments, new Dictionary<Resource, Fact<double>>(inventoryWalk.Terminal), new Dictionary<string, double>(finishedAt, StringComparer.Ordinal), holds) };
         }
 
         /// <summary>A planned site counts once it finishes inside the horizon; a room only when a whole alternative does (#3276).

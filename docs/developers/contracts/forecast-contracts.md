@@ -1259,3 +1259,44 @@ outfit, shelter, capacities or needs changed. Supported handoff extraction must
 supply those consequences in its valuation context or declare them uncovered;
 pre-handoff output must not be paid again. Initial recovery and coverage-aware
 valuation are owned by #3719, with partial-room continuation in #3709.
+
+### Detailed terminal handoff
+
+The detailed evaluator retains only its final physical resource balances and
+successful completion times, from the same inventory walk that produces its
+findings. `ForecastHandoffPolicy.Project` projects a selected outcome into
+`ColonyModelState`; search does not run model, growth or skill projections for
+every candidate. The immutable review input/policy travels with that compact
+accounting. No extra native read, persistent state or second inventory forecast
+is involved. The current consumer is selected-plan coverage telemetry; ranking
+still uses the existing marginal comparison.
+
+Physical stock includes holds and excludes consumption. Shared-owner budget
+projection releases only linked bill/debit holds; unrelated holds remain.
+Construction delivery removes paid construction demand rather than charging it
+again. Medicine and edible nutrition are carried only when their census scopes
+match the resource census; edible stocks also require complete lot/expiry
+coverage. Unknown quantities remain unknown, never zero. Project work is taken
+only from successfully evaluated allocations. Research completion integrates
+concurrent work; whole-field sow completion initializes growth at its actual
+completion date and integrates the existing climate/growth model to the handoff.
+Partial-field work is preserved, but its separate cell-age cohorts are outside
+the aggregate field model and produce an explicit coverage gap.
+
+Pawn terminal need levels retain the detailed result, including unknowns.
+Skills reuse the completed productive/practice callbacks and native passive
+decay. Callback validity still ends before local/global midnight. Terminal-stock
+projection may continue passive decay and level settlement after that cut,
+because those midnight resets affect callback saturation/range budgets, not
+stored XP or decay; it rejects every callback at or after the cut. It does not
+create a fresh learning-validity window. Research/sowing XP without observed
+callback mechanics remains outside both existing forecast tiers.
+
+The positive supported lane is research plus ordinary food/rest servicing and
+whole-field sowing with known compatible stocks, terminal needs and skill
+mechanics. Outfit/shelter effects, partial-field growth, and detailed
+craft/build/hunt/harvest work whose graph identity cannot be established are
+named gaps rather than a repeated payoff or paid ingredient. Practice injury
+recovery remains unassessed. These gaps constrain later continuation valuation;
+they do not discard known stocks, project work or terminal needs. Initial
+recovery and continuation ranking remain separate stages.

@@ -237,6 +237,7 @@ public static class ColonyForecastRules
     /// the stock findings in projection order.</summary>
     internal sealed class InventoryWalk
     {
+        internal readonly Dictionary<Resource, Fact<double>> Terminal = [];
         private readonly List<InventoryEffect> merged = [];
         private readonly List<Resource> resources = [];
         private readonly HashSet<Resource> extra = [];
@@ -246,7 +247,7 @@ public static class ColonyForecastRules
             List<ForecastFinding> findings)
         {
             foreach (var finding in stock.Constant) findings.Add(finding);
-            merged.Clear(); resources.Clear(); extra.Clear();
+            merged.Clear(); resources.Clear(); extra.Clear(); Terminal.Clear();
             foreach (var e in stock.Before) merged.Add(e);
             foreach (var e in own) merged.Add(new(TimedEffects, e.Resource, e.Day, e.Units, null));
             foreach (var e in stock.After) merged.Add(e);
@@ -307,6 +308,7 @@ public static class ColonyForecastRules
                     }
                     start = end;
                 }
+                Terminal[resource] = balance;
             }
         }
 

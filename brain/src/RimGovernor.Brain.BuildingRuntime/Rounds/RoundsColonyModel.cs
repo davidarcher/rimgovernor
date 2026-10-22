@@ -12,6 +12,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal sealed record ColonyModelReview(ProjectMarginals Marginals, IReadOnlyList<string> Unknowns, double HorizonDays, double ElapsedMs, IReadOnlyDictionary<string, int> Etas, IReadOnlyList<string> GoalNotes,
     IReadOnlyDictionary<(PawnId Pawn, GearSlot Slot), Resource> ClothingStuff)
 {
+    internal required ForecastModelBasis Basis { get; init; }
     /// <summary>The <see cref="ColonyModelTelemetry.Kind"/> row's attrs.</summary>
     internal IReadOnlyList<(string Key, object? Value)> Attrs()
     {
@@ -98,7 +99,7 @@ internal static class RoundsColonyModel
         }
 
         return new(marginals, unknowns, policy.HorizonDays, clock.Elapsed.TotalMilliseconds, etas, notes,
-            valuation.ClothingStuff(marginals.Trajectory, ClothingDemandRules.ClothingHorizonDays));
+            valuation.ClothingStuff(marginals.Trajectory, ClothingDemandRules.ClothingHorizonDays)) { Basis = new(input, policy) };
     }
 
     /// <summary>The input and the sections it cannot start from, each named with its reason (<see cref="ColonyModelInput.Unknowns"/>).</summary>
