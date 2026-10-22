@@ -29,14 +29,25 @@ namespace HomeBridge.BridgeTools
         // reply its tool encodes, and the section the bundle carries.
         internal static Obs.ListBuildingsReply Read(Map map, Obs.ListBuildingsRequest parsed, Common.ObservationContext context)
         {
+            Thing? reading = null;
             try
             {
                 if (!parsed.AnyFaction && Faction.OfPlayerSilentFail == null)
                     return new Obs.ListBuildingsReply { Outcome = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction unavailable.") };
-                var matched = Source(map).Where(t => Matches(t, parsed)).OrderBy(t => t.thingIDNumber);
-                return new Obs.ListBuildingsReply { Outcome = new Obs.BuildingsSnapshot { Context = context, Buildings = [.. matched.Select(t => Row(t, context))] } };
+                var rows = new List<Obs.BuildingState>();
+                foreach (var thing in Source(map).OrderBy(t => t.thingIDNumber))
+                {
+                    reading = thing;
+                    if (Matches(thing, parsed)) rows.Add(Row(thing, context));
+                }
+                return new Obs.ListBuildingsReply { Outcome = new Obs.BuildingsSnapshot { Context = context, Buildings = [.. rows] } };
             }
-            catch (Exception) { return new Obs.ListBuildingsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Building facts could not be read completely.") }; }
+            catch (Exception error)
+            {
+                var target = reading == null ? "building census" : $"building {reading.thingIDNumber} ({reading.def?.defName})";
+                return new Obs.ListBuildingsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed,
+                    PlacementPreviewOperation.Diagnostic($"{target}: {error.GetType().Name}: {error.Message}")) };
+            }
         }
 
         // Row is one listed building as the read emits it: the projection

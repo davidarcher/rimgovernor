@@ -22,6 +22,7 @@ internal static class NativeObservationWorkProbe
     {
         Spans();
         FailedSectionIsLogged();
+        RequiredBuildingsDoNotDisappear();
         SectionsAreBounded();
         Console.WriteLine("native-observation-work: " + checks + " checks passed");
     }
@@ -63,6 +64,29 @@ internal static class NativeObservationWorkProbe
         Check(rows.Count == 1 && rows[0].Level == ModLogLevel.Error, "one error row");
         var line = rows[0].Message;
         Check(line.Contains("traders") && line.Contains("forced traders failure") && line.Contains("FailedSectionIsLogged"), "log line names the section and carries the stack");
+    }
+
+    private static void RequiredBuildingsDoNotDisappear()
+    {
+        var complete = new RimGovernor.Contracts.Wire.Observations.BuildingsSnapshot();
+        Check(ReferenceEquals(complete, SnapshotFrames.RequiredBuildings(complete)), "known empty buildings stay observed");
+        RimGovernor.Contracts.Wire.Observations.ListBuildingsReplyOutcome[] refused =
+        {
+            new RimGovernor.Contracts.Wire.Common.Unavailable { Reason = RimGovernor.Contracts.Wire.Common.UnavailableReason.ReadFailed, Detail = "building 42: Invalid native amount." },
+            new RimGovernor.Contracts.Wire.Common.Failure { Code = RimGovernor.Contracts.Wire.Common.FailureCode.NativeFailure, Detail = "building 42: bad state" },
+            null,
+        };
+        foreach (var outcome in refused)
+        {
+            try { SnapshotFrames.RequiredBuildings(outcome); throw new Exception("missing building outcome was accepted"); }
+            catch (SnapshotFrames.SnapshotSectionException error)
+            {
+                var frame = error.Frame();
+                Check(frame.Buildings == null && frame.Failure != null, "failure frame never invents an empty census");
+                Check(frame.Failure.Detail.Contains("Buildings"), "failure names the required section");
+                Check(frame.Failure.Detail.Contains(outcome == null ? "no outcome" : "building 42"), "failure retains native detail");
+            }
+        }
     }
 
     // The section list is bounded: a shape cannot grow the account past

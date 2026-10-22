@@ -97,3 +97,5 @@ and [persistence](developers/contracts/persistence-contracts.md) define its cons
 - [Assigned capability maintenance](developers/contracts/capability-maintenance.md): actual role requirements, native skill decay and selected practice.
 
 Food/shelter investment and unified construction adoption: [essential-service contract](developers/contracts/essential-services.md#autonomous-food-and-shelter-investment).
+
+- [Failed snapshot reads](developers/contracts/clock-recovery.md#failed-snapshot-reads): explicit building-read failures, preserved diagnostics and same-tick recovery.

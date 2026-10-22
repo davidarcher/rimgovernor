@@ -11,36 +11,13 @@ namespace HomeBridge.BridgeTools
     /// One snapshot stream frame: every state family, plus the
     /// subscription's parameterized ones, each read exactly as its dedicated tool answers
     /// the request shape the controller issues, all in one game-thread hop
-    /// so they describe one tick. A family that fails to read is omitted
-    /// and the controller waits for a frame that carries it. Each section's
+    /// so they describe one tick. Required census failures (including buildings)
+    /// fail the frame explicitly; optional sections may be absent. Each section's
     /// read is timed into the observation account under its
     /// BundleSnapshot name.
     /// </summary>
-    internal static class SnapshotFrames
+    internal static partial class SnapshotFrames
     {
-        /// A frame section's read threw. The stream publishes a frame
-        /// carrying only the Failure, never the frame with the section omitted.
-        internal sealed class SnapshotSectionException : System.Exception
-        {
-            internal readonly string Section;
-            private SnapshotSectionException(string section, System.Exception inner) : base(section + ": " + inner.GetType().Name + ": " + inner.Message, inner) { Section = section; }
-
-            internal static T Read<T>(string section, System.Func<T> read)
-            {
-                try { return read(); }
-                catch (System.Exception ex)
-                {
-                    ObservationWork.Failed(section, ex);
-                    throw new SnapshotSectionException(section, ex);
-                }
-            }
-
-            internal Obs.BundleSnapshot Frame() => new Obs.BundleSnapshot
-            {
-                Failure = new Common.Failure { Code = Common.FailureCode.NativeFailure, Detail = "snapshot section " + Message },
-            };
-        }
-
         private static long Now() { return System.Diagnostics.Stopwatch.GetTimestamp(); }
 
         // On the main thread: one snapshot stream frame, every state
@@ -222,9 +199,9 @@ namespace HomeBridge.BridgeTools
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity };
             {
                 var began = Now();
-                var buildings = NativeBuildingObservationTools.Read(map, new Obs.ListBuildingsRequest { Scope = Scope() }, context).Outcome?.Observed;
+                var buildings = RequiredBuildings(NativeBuildingObservationTools.Read(map, new Obs.ListBuildingsRequest { Scope = Scope() }, context).Outcome);
                 ObservationWork.Captured("buildings", Now() - began, buildings != null ? buildings.Buildings.Count : 0);
-                if (buildings != null) { observed = observed with { Buildings = buildings }; }
+                observed = observed with { Buildings = buildings };
             }
             {
                 var began = Now();

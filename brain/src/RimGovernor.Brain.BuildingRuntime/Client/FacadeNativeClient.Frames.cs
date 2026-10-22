@@ -43,7 +43,7 @@ internal sealed class FrameView
 
 /// <summary>
 /// What is derived from one frame before any read looked in it: a failure frame's
-/// refusal, a frame that cannot be served at all (it is skipped until a newer one arrives), the world it describes,
+/// refusal (including an undecodable census), the world it describes,
 /// the held keyed tables and the emergency census.
 /// </summary>
 internal sealed class FramePrepared
@@ -54,9 +54,6 @@ internal sealed class FramePrepared
 
     /// <summary>The detail of a Failure the frame carried: a refusal naming the section, never a frame without it.</summary>
     internal string? FailureDetail { get; private init; }
-
-    /// <summary>Why the frame is skipped (an invalid pawn row under an emergency census, an undecodable census).</summary>
-    internal Exception? Problem { get; private init; }
 
     /// <summary>A refusal the emergency decoder raised: surfaced to the reader.</summary>
     internal Bridge.Contracts.ReadRefusedException? DecodeRefusal { get; private init; }
@@ -92,7 +89,7 @@ internal sealed class FramePrepared
             }
             catch (BridgeContractException problem)
             {
-                return new FramePrepared { Problem = problem, World = context.Identity };
+                return new FramePrepared { FailureDetail = problem.Message, World = context.Identity };
             }
         }
         return new FramePrepared { World = context.Identity, Held = held, Emergency = emergency };
@@ -443,21 +440,18 @@ public sealed partial class FacadeNativeClient : IDisposable
                     {
                         throw new Bridge.Contracts.ReadRefusedException(decoded.Tool, decoded.Cause, NoReceipt);
                     }
-                    if (prepared.Problem is null)
+                    var found = lookup(frame);
+                    if (found.Found)
                     {
-                        var found = lookup(frame);
-                        if (found.Found)
-                        {
-                            return new FrameServed<T>(true, found.Value);
-                        }
-                        if (prepared.World is not null && !WireValidation.SameIdentity(prepared.World, identity))
-                        {
-                            throw new BridgeRefusedException($"{name} asked for another world than the snapshot frames describe");
-                        }
-                        if (prepared.World is not null && fallback && found.Carries && !pending)
-                        {
-                            return new FrameServed<T>(false, default);
-                        }
+                        return new FrameServed<T>(true, found.Value);
+                    }
+                    if (prepared.World is not null && !WireValidation.SameIdentity(prepared.World, identity))
+                    {
+                        throw new BridgeRefusedException($"{name} asked for another world than the snapshot frames describe");
+                    }
+                    if (prepared.World is not null && fallback && found.Carries && !pending)
+                    {
+                        return new FrameServed<T>(false, default);
                     }
                 }
                 if (!await Feed.WaitNewerAsync(after, FrameWriteWait, token).ConfigureAwait(false) && Feed.Completed)

@@ -37,6 +37,22 @@ Hazard reports separately identify native-supervisor detection. Missing phases
 remain null; an accepted order does not fill the native-effect field. These
 records supply evidence for later calibration, without numeric latency gates.
 
+## Failed snapshot reads
+
+The building census is a required snapshot section. A native unavailable or
+failure outcome produces an explicit failure frame; it is never silently
+converted into an absent building section or a successful empty census.
+Building-read failures include the current native building number and definition
+when a row was being read, plus the exception type and message, bounded by the
+native diagnostic formatter. A census-wide failure has no invented building ID.
+
+The frame consumer refuses explicit failures and census preparation errors
+immediately. It does not wait for the frame-read timeout to hide a known failure.
+The existing held-evidence rules still apply: a failed refresh does not refresh
+stale facts or authorize writes. A valid newer frame can recover at the same
+game tick and write watermark. No timeout, capture cadence or fallback reader
+is changed by this behavior.
+
 ## Session lifecycle
 
 The optional complete clock capability shares Session authority. Startup stays disabled and
