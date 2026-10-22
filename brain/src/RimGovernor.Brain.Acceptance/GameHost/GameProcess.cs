@@ -157,7 +157,10 @@ public sealed class GameProcess
     /// controller never takes the game down) with stdout and stderr in <see cref="LogPath"/>, and records its endpoint.
     /// Throws <see cref="GameAlreadyRunningException"/> while a live endpoint exists for the game id.
     /// </summary>
-    public static GameProcess StartDetached(GameLaunchSpec spec)
+    public static GameProcess StartDetached(GameLaunchSpec spec) => StartDetached(spec, null);
+
+    // The callback forces exit before bookkeeping in the deterministic regression.
+    internal static GameProcess StartDetached(GameLaunchSpec spec, Action<IntPtr>? beforeIdentity)
     {
         ArgumentNullException.ThrowIfNull(spec);
         if (spec.GameId.Length == 0 || spec.Executable.Length == 0 || spec.StateDir.Length == 0)
@@ -187,6 +190,27 @@ public sealed class GameProcess
         var pid = info.ProcessId;
         var processHandle = info.Process;
 
+        GameHostRecord record;
+        try
+        {
+            beforeIdentity?.Invoke(processHandle);
+            // The creation handle identifies this child even after exit; reopening its PID would race the exit.
+            if (GameHostNative.GetProcessTimes(processHandle, out var start, out _, out _, out _) == 0)
+            {
+                throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"gamehost: read start time of pid {pid}"), new Win32Exception(Marshal.GetLastWin32Error()));
+            }
+
+            record = new GameHostRecord(spec.GameId, pid, start, DateTimeOffset.UtcNow, generation);
+            WriteFileAtomic(EndpointPath(spec.StateDir, spec.GameId), record.ToJson());
+        }
+        catch
+        {
+            // Ownership has not reached the reaper. Terminate only the child this handle names, never a reused PID.
+            _ = GameHostNative.TerminateProcess(processHandle, 1);
+            _ = GameHostNative.CloseHandle(processHandle);
+            throw;
+        }
+
         // Reap in the background so a child that dies early is not left a zombie; the endpoint names the process by pid,
         // not by this handle. The exit code is recorded for LastExit: a player closing the game exits 0, a crash or a
         // kill does not.
@@ -211,23 +235,6 @@ public sealed class GameProcess
             CancellationToken.None,
             TaskCreationOptions.LongRunning,
             TaskScheduler.Default);
-
-        if (!TryProcessStartTime(pid, out var start))
-        {
-            KillTree(pid);
-            throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"gamehost: read start time of pid {pid}"));
-        }
-
-        var record = new GameHostRecord(spec.GameId, pid, start, DateTimeOffset.UtcNow, generation);
-        try
-        {
-            WriteFileAtomic(EndpointPath(spec.StateDir, spec.GameId), record.ToJson());
-        }
-        catch (IOException)
-        {
-            KillTree(pid);
-            throw;
-        }
 
         return new GameProcess(spec.StateDir, record, reaped);
     }

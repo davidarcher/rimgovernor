@@ -79,6 +79,33 @@ public sealed class AcceptanceFailFastTests : IDisposable
     }
 
     [Fact]
+    public async Task ExitBeforeIdentityBookkeepingRetainsIdentityExitCodeAndLogTail()
+    {
+        long creation = 0;
+        var game = GameProcess.StartDetached(new GameLaunchSpec
+        {
+            GameId = GameId,
+            Executable = "cmd.exe",
+            Args = ["/c", "echo boom& exit 7"],
+            StateDir = root,
+        }, handle =>
+        {
+            Assert.Equal(0u, GameHostNative.WaitForSingleObject(handle, (uint)HangGuard.TotalMilliseconds));
+            Assert.NotEqual(0, GameHostNative.GetExitCodeProcess(handle, out var code));
+            Assert.Equal(7u, code);
+            Assert.NotEqual(0, GameHostNative.GetProcessTimes(handle, out creation, out _, out _, out _));
+        });
+
+        Assert.Equal(creation, game.Record.PidStartTime);
+        Assert.False(game.Alive);
+        // Stop waits for the reaper, so exit evidence is complete without polling or a timing assertion.
+        await game.StopAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(7, GameProcess.LastExit(root, GameId));
+        Assert.Contains("boom", File.ReadAllText(GameProcess.LogPath(root, GameId)), StringComparison.Ordinal);
+        Assert.False(File.Exists(GameProcess.EndpointPath(root, GameId)));
+    }
+
+    [Fact]
     public async Task RunningGameIsNotGone()
     {
         _ = Start("ping -n 60 127.0.0.1 >nul");
