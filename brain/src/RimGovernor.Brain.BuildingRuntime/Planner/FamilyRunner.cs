@@ -228,16 +228,18 @@ public abstract class FamilyRunner
 
     /// <summary>
     /// Whether a ready Need's report is one a cadence run keeps (#3556): a wait or a refusal other than open work
-    /// (the entry's own wait covers it), a claim held within one step's arbiter or a field the work could not read.
-    /// An admission is never kept: the next run finds its Method open or its outcome has marked the entry.
+    /// (the entry's own wait covers it), a claim held within one step's arbiter, a field the work could not read or
+    /// a wait only wall-clock time ends (<see cref="Verdict.WaitsOnRealTime"/>). An admission is never kept: the next
+    /// run finds its Method open or its outcome has marked the entry.
     /// </summary>
     internal static bool Keepable(Verdict verdict) =>
         verdict.Outcome is Outcome.Waiting or Outcome.Refused
-        && verdict != Verdict.BuildingReasonExistingWork && !verdict.Is(Cause.Claim) && !verdict.Is(Cause.FieldUnavailable);
+        && verdict != Verdict.BuildingReasonExistingWork && !verdict.Is(Cause.Claim) && !verdict.Is(Cause.FieldUnavailable) && !verdict.WaitsOnRealTime;
 
     /// <summary>
     /// The verdict a family entry reports for itself (the due queue reads it): admitted when any Method was, open
-    /// work when one continued, otherwise the highest-ranked NeedId report, or nothing to do.
+    /// work when one continued, a wait only wall-clock time ends (the due queue keeps the entry marked for it),
+    /// otherwise the highest-ranked NeedId report, or nothing to do.
     /// </summary>
     internal static Verdict EntryVerdict(IReadOnlyList<NeedReport> reports)
     {
@@ -248,6 +250,10 @@ public abstract class FamilyRunner
         if (reports.Any(r => r.Verdict == Verdict.BuildingReasonExistingWork))
         {
             return Verdict.BuildingReasonExistingWork;
+        }
+        if (reports.Any(r => r.Verdict.WaitsOnRealTime))
+        {
+            return reports.First(r => r.Verdict.WaitsOnRealTime).Verdict;
         }
         var best = Verdict.BuildingReasonNoDeficit;
         var rank = 1;

@@ -176,6 +176,13 @@ public readonly partial record struct Verdict(Outcome Outcome, Refusal Refusal =
 
     /// <summary>A shell attempt that leaves the usual placement to go on: its method already used, no verified space, or a fact it needs unknown.</summary>
     internal bool SkipsToPlacement => Is(Cause.MethodUsed) || Is(Cause.NoSpace) || Is(Cause.FieldUnavailable);
+
+    /// <summary>
+    /// A wait only wall-clock time ends: a choice dialog's interactivity grace (#3697). No tick, event or invalidation
+    /// signals its end and the dialog force-pauses the clock, so the due queue keeps the entry marked and a cadence run
+    /// never keeps the wait: the next step, the held clock's retry included, reads the dialog again.
+    /// </summary>
+    internal bool WaitsOnRealTime => Is(Cause.Dialog);
 }
 
 /// <summary>
@@ -222,7 +229,7 @@ partial record struct Verdict
     /// <summary>Defers a butcher bill while the separated butcher spot build still owns the food-supply goal.</summary>
     public static readonly Verdict BuildingReasonSeparation = Verdict.WaitOn(Cause.Separation);
 
-    /// <summary>The choice dialog's own interactivity delay has not elapsed; the next review re-reads it.</summary>
+    /// <summary>The choice dialog's own interactivity delay has not elapsed; the next step re-reads it (<see cref="Verdict.WaitsOnRealTime"/>).</summary>
     public static readonly Verdict BuildingReasonNotInteractive = Verdict.WaitOn(Cause.Dialog);
 
     public static readonly Verdict BuildingReasonComfortWait = Verdict.WaitOn(Cause.ComfortUse);

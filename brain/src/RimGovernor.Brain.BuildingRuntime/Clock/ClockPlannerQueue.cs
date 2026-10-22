@@ -207,7 +207,9 @@ internal sealed class PlannerQueue
 
     /// <summary>
     /// Records a wave: each planner that returned (<paramref name="names"/>) gets its next review tick and its
-    /// marks up to the selection's began sequence cleared; one that reported existing work of its kinds
+    /// marks up to the selection's began sequence cleared, unless it reported a wait only wall-clock time ends
+    /// (<see cref="Verdict.WaitsOnRealTime"/>: a force-pausing dialog's grace, which no tick or event ends, #3697),
+    /// which stays marked so the next step runs it again; one that reported existing work of its kinds
     /// (<paramref name="reasonOf"/>, the wave's per-planner reason) waits on those attempts
     /// (<paramref name="openWork"/> names them) until their outcome or its deadline; a full wave (pick null) also
     /// clears the all-evidence flag and every wait. A planner that missed the wave keeps its marks. An entry on the
@@ -248,11 +250,11 @@ internal sealed class PlannerQueue
         {
             var entry = entries[name];
             _due[name] = entry.RoundsCadence && roundsDue is { } due ? due : tick + entry.ReviewEvery().Value;
-            if (_dirty.TryGetValue(name, out var mark) && mark <= sel.Began)
+            var reason = reasonOf(name);
+            if (_dirty.TryGetValue(name, out var mark) && mark <= sel.Began && reason?.WaitsOnRealTime != true)
             {
                 _dirty.Remove(name);
             }
-            var reason = reasonOf(name);
             if (reason is { } finished && finished.Is(Cause.SharedAdmission))
             {
                 _refused.Add(name);
