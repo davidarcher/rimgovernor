@@ -197,7 +197,8 @@ namespace HomeBridge.BridgeTools
                 return row with { ResourcesComplete = true };
             }
             if (!(thing is IConstructible construction)) throw new InvalidOperationException("Constructible unavailable.");
-            row = row with { WorkLeft = Nonnegative(thing is Frame frame ? frame.WorkLeft : definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff)) };
+            row = row with { WorkLeft = thing is Frame frame ? NativeConstructionWork.Remaining(frame.WorkLeft)
+                : Nonnegative(definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff)) };
             var costs = construction.TotalMaterialCost() ?? throw new InvalidOperationException("Cost list unavailable.");
             var seen = new HashSet<string>(StringComparer.Ordinal);
             var complete = true;

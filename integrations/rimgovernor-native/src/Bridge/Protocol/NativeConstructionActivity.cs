@@ -45,7 +45,7 @@ internal static class NativeConstructionActivity
             var owed = constructible.TotalMaterialCost().Select(c => (c.thingDef, Count: constructible.ThingCountNeeded(c.thingDef)))
                 .Where(c => c.Count > 0).ToArray();
             var floorKnown = !ConstructionSkillGuard.Quality(thing) || ConstructionSkillGuard.Setting(thing)?.Minimum >= 0;
-            var work = thing is Frame frame ? frame.WorkLeft : definition.GetStatValueAbstract(StatDefOf.WorkToBuild, thing.Stuff);
+            var work = thing is Frame frame ? NativeConstructionWork.Remaining(frame.WorkLeft) : definition.GetStatValueAbstract(StatDefOf.WorkToBuild, thing.Stuff);
             placed.Add(new Site(thing.GetUniqueLoadID(), definition, thing.Position, _ => thing.Position, thing, owed, work,
                 p => !thing.IsForbidden(p), p => floorKnown && ConstructionSkillGuard.Allows(thing, p)));
         }

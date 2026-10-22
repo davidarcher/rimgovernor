@@ -23,6 +23,7 @@ internal static class NativeObservationWorkProbe
         Spans();
         FailedSectionIsLogged();
         RequiredBuildingsDoNotDisappear();
+        CompletedFrameWork();
         SectionsAreBounded();
         Console.WriteLine("native-observation-work: " + checks + " checks passed");
     }
@@ -64,6 +65,25 @@ internal static class NativeObservationWorkProbe
         Check(rows.Count == 1 && rows[0].Level == ModLogLevel.Error, "one error row");
         var line = rows[0].Message;
         Check(line.Contains("traders") && line.Contains("forced traders failure") && line.Contains("FailedSectionIsLogged"), "log line names the section and carries the stack");
+    }
+
+    private static void CompletedFrameWork()
+    {
+        // Vanilla adds a complete work tick before checking completion. A guard
+        // can refuse completion without undoing that last increment (#3714).
+        const float total = 135f;
+        var done = 134.5f;
+        Check(NativeConstructionWork.Remaining(total - done) == 0.5f, "unfinished frame retains its work");
+        done += 2f;
+        Check(NativeConstructionWork.Remaining(total - done) == 0f, "guarded overshoot has no labor left");
+        Check(NativeConstructionWork.Remaining(0f) == 0f, "exact completion has no labor left");
+        foreach (var invalid in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+        {
+            var refused = false;
+            try { NativeConstructionWork.Remaining(invalid); }
+            catch (InvalidOperationException) { refused = true; }
+            Check(refused, "nonfinite construction work remains unavailable");
+        }
     }
 
     private static void RequiredBuildingsDoNotDisappear()

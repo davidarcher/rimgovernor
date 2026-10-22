@@ -39,6 +39,12 @@ records supply evidence for later calibration, without numeric latency gates.
 
 ## Failed snapshot reads
 
+Construction frames can remain spawned after their final work increment when a
+completion guard refuses to finish them. Vanilla's `Frame.WorkLeft` can then be
+negative. The building census and construction activity read report zero remaining
+labor for finite values at or below zero; this neither marks the frame built nor
+bypasses completion guards. Nonfinite work remains an explicit read failure.
+
 The building census is a required snapshot section. A native unavailable or
 failure outcome produces an explicit failure frame; it is never silently
 converted into an absent building section or a successful empty census.

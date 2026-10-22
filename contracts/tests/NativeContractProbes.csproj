@@ -100,6 +100,7 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/MainThreadAdmission.cs" Link="Production/MainThreadAdmission.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/ObservationWorkAccounting.cs" Link="Production/ObservationWorkAccounting.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/SnapshotSections.cs" Link="Production/SnapshotSections.cs" />
+    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeConstructionWork.cs" Link="Production/NativeConstructionWork.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeThreatClassifier.cs" Link="Production/NativeThreatClassifier.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeProductionBillSettings.cs" Link="Production/NativeProductionBillSettings.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeRecipeRoles.cs" Link="Production/NativeRecipeRoles.cs" />
