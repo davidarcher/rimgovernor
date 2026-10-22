@@ -66,7 +66,7 @@ public static class ForecastEvidenceReader
             if (row.Payload.GetValueOrDefault("truncated") is true) { gaps.Add("truncated_record"); continue; }
             try
             {
-                var p = row.Payload;
+                var p = row.Payload.TryGetValue(Decision.AttrsKey, out var attrs) && attrs is IReadOnlyDictionary<string, object?> fields ? fields : throw new FormatException(Decision.AttrsKey);
                 string Text(string key) => p.TryGetValue(key, out var value) && value is string text ? text : throw new FormatException(key);
                 string Required(string key) => Text(key) is { Length: > 0 } text ? text : throw new FormatException(key);
                 long Tick(string key) => p.TryGetValue(key, out var value)

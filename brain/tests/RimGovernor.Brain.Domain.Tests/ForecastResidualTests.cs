@@ -168,8 +168,8 @@ public sealed class ForecastResidualTests
                 foreach (var (review, error) in new[] { ("1", -2d), ("2", 4d) })
                 {
                     var p = Prediction(review: review) with { Key = Prediction(review: review).Key with { Revision = long.MaxValue } };
-                    emitter.Event(TelemetryLevel.Info, "fixture", ForecastEvidenceReader.PredictionKind, "", ForecastEvidenceReader.Fields(p));
-                    emitter.Event(TelemetryLevel.Info, "fixture", ForecastEvidenceReader.ObservationKind, "", ForecastEvidenceReader.Fields(Observation(p, p.Value.Value + error)));
+                    emitter.Decide(new() { Kind = TelemetryKinds.ForecastPrediction.Name, Component = "rounds", Verdict = "captured", Reason = "selected_forecast", Target = p.Key.Sample, Attrs = ForecastEvidenceReader.Fields(p) });
+                    emitter.Decide(new() { Kind = TelemetryKinds.ForecastObservation.Name, Component = "rounds", Verdict = "observed", Reason = "native_observation", Target = p.Key.Sample, Attrs = ForecastEvidenceReader.Fields(Observation(p, p.Value.Value + error)) });
                 }
             }
             var path = Path.Combine(directory, "logs.jsonl");
@@ -201,8 +201,8 @@ public sealed class ForecastResidualTests
     public void DecoderFlagsTruncationMissingPredictionsAndDuplicateEvidence()
     {
         var p = Prediction();
-        var prediction = new TimelineRecord { Kind = ForecastEvidenceReader.PredictionKind, Payload = ForecastEvidenceReader.Fields(p) };
-        var observation = new TimelineRecord { Kind = ForecastEvidenceReader.ObservationKind, Payload = ForecastEvidenceReader.Fields(Observation(p)) };
+        var prediction = new TimelineRecord { Kind = ForecastEvidenceReader.PredictionKind, Payload = new Dictionary<string, object?> { [RimGovernor.Brain.Telemetry.Decision.AttrsKey] = ForecastEvidenceReader.Fields(p) } };
+        var observation = new TimelineRecord { Kind = ForecastEvidenceReader.ObservationKind, Payload = new Dictionary<string, object?> { [RimGovernor.Brain.Telemetry.Decision.AttrsKey] = ForecastEvidenceReader.Fields(Observation(p)) } };
         var truncated = new TimelineRecord { Kind = ForecastEvidenceReader.PredictionKind, Payload = new Dictionary<string, object?> { ["truncated"] = true } };
         var orphan = ForecastEvidenceReader.Decode([observation, truncated]);
         Assert.Contains("truncated_record", orphan.Gaps);
@@ -213,8 +213,8 @@ public sealed class ForecastResidualTests
         Assert.Contains("duplicate_observations:1", duplicate.Gaps);
         Assert.Single(ForecastResiduals.Compare(duplicate.Predictions, duplicate.Observations));
         var unknown = ForecastEvidenceReader.Fields(p with { Value = default, UnknownReason = "not_supported" });
-        Assert.False(Assert.Single(ForecastEvidenceReader.Decode([prediction with { Payload = unknown }]).Predictions).Value.IsKnown);
+        Assert.False(Assert.Single(ForecastEvidenceReader.Decode([prediction with { Payload = new Dictionary<string, object?> { [RimGovernor.Brain.Telemetry.Decision.AttrsKey] = unknown } }]).Predictions).Value.IsKnown);
         unknown["unknown_reason"] = "";
-        Assert.Contains("invalid_evidence:unknown_reason", ForecastEvidenceReader.Decode([prediction with { Payload = unknown }]).Gaps);
+        Assert.Contains("invalid_evidence:unknown_reason", ForecastEvidenceReader.Decode([prediction with { Payload = new Dictionary<string, object?> { [RimGovernor.Brain.Telemetry.Decision.AttrsKey] = unknown } }]).Gaps);
     }
 }

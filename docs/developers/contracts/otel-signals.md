@@ -333,6 +333,8 @@ planning. Historical evidence belongs to OTLP, with no save or journal additions
 | `forecast_prediction` | `ForecastEvidenceReader`: one selected forecast sample, common keys below plus `origin_tick`, `target_tick`, `value`, `unknown_reason`, `admission`. |
 | `forecast_observation` | `ForecastEvidenceReader`: later native evidence correlated to a sample, common keys plus `observation_tick`, `value`, `unknown_reason`, `execution`, `completion`, `lower_tick`, `upper_tick`, `provenance`. |
 
+Both kinds are decision rows emitted through `TelemetryEmitter.Decide`; the following fields live in the decision `attrs` object. The reader rejects rows without that envelope.
+
 Common keys are `run`, `load`, `map`, `review`, `sample`, `metric`, `subject`,
 `scope`, `unit`, `method`, `task`, `revision`. The first five identify a sample.
 Run/load/map must identify the actual observed timeline. `sample` is unique within

@@ -941,3 +941,87 @@ rows above and the findings the sweep's extra evaluations added. It is the first
 re-recording since the consequence vectors changed, so the recorded vectors and findings
 moved with it. The phase test asserts the skipped sweep at the default budget and the
 finished one at 2^20; the diagnosis test asserts the budget left unspent.
+
+## Forecast evidence instrumentation (#3713)
+
+`ForecastEvidenceMeasurementTests.MeasureForecastEvidenceOverhead` reuses the
+original and four-worker fixtures at the 60,000-tick production horizon and the
+production selector budget. Set `RIMGOVERNOR_PORTFOLIO_OUTPUT` as above and run:
+
+```powershell
+& brain/tests/RimGovernor.Brain.Domain.Tests/bin/Release/RimGovernor.Brain.Domain.Tests.exe -method '*MeasureForecastEvidenceOverhead' -parallel none
+```
+
+The emitted `*.evidence.measurements.json` records the measured assembly,
+all three warmed samples, output path and pending row count. Raw files stay
+uncommitted. With a gate build, the same executable lives under
+`.rimgovernor/gate/artifacts/bin/RimGovernor.Brain.Domain.Tests/release/`.
+
+Measurements separate selection from the pending owner's capture/retirement and
+from offline reader/report work. Capture includes the production `Decide` envelope
+and enqueue into the real OTLP file writer. The asynchronous writer's allocations
+are outside the calling thread's allocation counter; file size is measured after
+disposal flushes it. Retirement resolves four accumulated reviews at the endpoint.
+The portfolio fixture supplies no admitted task bindings, so task observations are
+explicit identity gaps. It is not native task-completion evidence. Endpoint needs
+are fixture observations, not gameplay results.
+
+One unrecorded warmup precedes three recorded samples. Capture retains the four
+reviews in one owner; retirement prepares a fresh owner with four captures before
+each sample, excluding that setup from the measured interval. The resulting log
+contains twenty captures and sixteen retired reviews. The offline reader and JSON
+report each use the same one-warmup/three-sample protocol over that file. The
+capacity experiment disables telemetry callbacks, fills the owner to its 4096-row
+bound and reports a process-wide forced-GC retained-byte estimate. Those
+collections are outside every timed sample. Retained bytes are descriptive,
+including runtime noise, not an allocation or memory-budget assertion.
+
+These measurements cover the incremental synchronous evidence path, not full
+Rounds review latency, native read costs, task polling, or asynchronous sink CPU.
+A full review comparison and a real native task/endpoint report remain separate
+evidence requirements. No test threshold or forecast behavior changes follow
+from these samples.
+
+Recorded on DAVID-PC, .NET 10.0.12 x64 Release, 2026-10-21. The before build is a
+`git archive d6085f76c` extraction (before live capture); the candidate is
+`276c9b99a` plus this reader-envelope fix and measurement harness. An archive
+built below another checkout can inherit its assembly Git version; the archive
+SHA, not that inherited version string, identifies this baseline. The unchanged
+`MeasureWarmedAllocationMatrix` protocol was run on both builds in the same
+sitting. All one-day quality fields agree exactly. Rows below give three samples,
+bytes in decimal MB and elapsed time in milliseconds:
+
+| Fixture | Selector MB before | Selector MB after | Selector ms before | Selector ms after |
+| --- | --- | --- | --- | --- |
+| Original | 14.3285 / 14.3289 / 14.3280 | 14.3142 / 14.3133 / 14.3133 | 28.14 / 17.76 / 17.65 | 18.24 / 17.80 / 17.62 |
+| Four-worker | 29.1204 / 29.1200 / 29.1204 | 29.1260 / 29.1256 / 29.1260 | 36.23 / 41.06 / 35.26 | 32.74 / 40.46 / 33.49 |
+
+The selector does not call the new evidence path; these are control measurements,
+not a claimed speedup. The separate evidence benchmark starts selection earlier
+in a fresh process and runs colder (61.7–75.3 ms / 125.1–153.9 ms); do not compare
+those figures to the warmed matrix as a regression. No selector change explains
+the small byte/time variation above.
+
+| Incremental stage | Original bytes, three samples | Original ms, three samples | Four-worker bytes, three samples | Four-worker ms, three samples |
+| --- | --- | --- | --- | --- |
+| One capture and enqueue | 303048 / 302520 / 303608 | .817 / .592 / .551 | 156392 / 155304 / 157848 | .329 / .380 / .338 |
+| Retire four reviews and enqueue | 259696 / 259696 / 259696 | .462 / .459 / .444 | 622024 / 622024 / 622024 | 1.298 / 1.301 / 1.281 |
+| Offline reader | 12046272 / 12048608 / 12046496 | 36.314 / 37.511 / 34.582 | 9640952 / 9638968 / 9638744 | 30.814 / 26.632 / 26.540 |
+| Offline report and JSON | 1932848 / 1932848 / 1932848 | 3.003 / 2.564 / 2.509 | 1477008 / 1477008 / 1477008 | 2.226 / 2.392 / 2.298 |
+
+These additional evidence operations and telemetry did not exist at the baseline,
+so their measured costs are incremental to it. They are not the entire runtime
+review delta. Original/four-worker logs contain respectively 300/260 predictions
+and 280/212 observations, occupying 1,324,564/1,024,060 bytes. Original has more
+selected unbound tasks and immediate gaps; worker count alone does not predict
+log volume. Pending rows after four captures are 20/48; populated capacity is 4096
+in both, with estimated retained bytes 1,477,992/1,448,552. Capture does not retain
+the candidate graph. Three samples do not establish a general latency bound.
+
+The production-shaped measurement also caught an integration defect: the reader
+looked for evidence directly in the row payload while `Decide` stores it under
+`attrs`. Before correction the same emitted workload decoded zero predictions or
+observations. The serialized roundtrip regression now uses `Decide`, and the
+reader accepts its canonical envelope; there is no fallback for the former
+test-only event layout. These fixture records demonstrate serialization and
+matching only, not native residual accuracy or completion.
