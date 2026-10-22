@@ -97,7 +97,7 @@ internal sealed class SkillStock
     /// Starts the stock one stored level higher, its XP toward the next level kept (the perturbation of the marginal value, #3344);
     /// a stock at the top level is left as it is.
     /// </summary>
-    internal void Raise()
+    internal void Raise(double day = 0)
     {
         var top = mechanics.Levels.Count - 1;
         if (StoredLevel == top)
@@ -111,7 +111,7 @@ internal sealed class SkillStock
             xp = Math.Min(xp, mechanics.Levels[top].RequiredXp - 1);
         }
 
-        dates.Add(new SkillLevelDate(0, StoredLevel));
+        dates.Add(new SkillLevelDate(day, StoredLevel));
     }
 
     /// <summary>Moves the stock over <paramref name="span"/> days from <paramref name="from"/> by the decay of each level it passes through.</summary>

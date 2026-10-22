@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 // The tier-2 colony model's engine (#3529 of #3470): an event-driven stock-flow simulation. Stocks move at piecewise-constant
 // rates; the clock jumps from event to event (twelfth boundary, scheduled project completion or harvest, a stock reaching zero,
 // the food runway, the horizon). Pure and deterministic: the same input gives the same events, simultaneous events firing by
-// kind then id. Time is days from now. The budget counts events, never wall-clock. Production comes from the project graph (T4);
+// kind then id. Time is days from the review origin, including on continuation. The budget counts events, never wall-clock. Production comes from the project graph (T4);
 // until then the only production is ColonyModelPolicy.FixedProduction.
 
 /// <summary>The tier-2 engine.</summary>
@@ -22,23 +22,37 @@ public static class ColonyModel
     /// per pawn of the input, in the input's order; each twelfth entered contributes its findings. An input without pawns, nutrition or
     /// a climate runs nothing and says so.
     /// </summary>
-    public static ColonyTrajectory Run(ColonyModelInput input, PawnCycle[][] cycles, ColonyModelPolicy policy)
+    public static ColonyTrajectory Run(ColonyModelInput input, PawnCycle[][] cycles, ColonyModelPolicy policy) =>
+        Run(input, ColonyModelState.Observed(input, policy), cycles, policy);
+
+    /// <summary>Runs the same engine from carried state to its common final date. Input calendar and scheduled dates stay review-relative.</summary>
+    public static ColonyTrajectory Run(ColonyModelInput input, ColonyModelState start, PawnCycle[][] cycles, ColonyModelPolicy policy)
     {
         DomainException.Require(policy.HorizonDays > 0 && policy.MaxEvents > 0, "invalid colony model policy");
         var findings = new SortedSet<string>(StringComparer.Ordinal) { ColonyTrajectory.MoodUnassessedFinding };
-        if (!input.Pawns.TryGetValue(out var pawns) || !input.Stocks.Nutrition.TryGetValue(out var nutrition) || !input.Climate.TryGetValue(out var climate))
+        if (!start.Pawns.TryGetValue(out var pawns) || !start.Nutrition.TryGetValue(out var nutrition) || !input.Climate.TryGetValue(out var climate))
         {
             findings.Add("colony_model_input_unknown");
             return new ColonyTrajectory { Findings = EquatableArray.From(findings) };
         }
 
+        if (start.Gap(policy.Projects) is { } stateGap)
+        {
+            findings.Add(stateGap);
+            return new ColonyTrajectory { Findings = EquatableArray.From(findings) };
+        }
+
+        // Preserve the observed-origin model's partial trajectories. Carried runs require these stocks; origin gaps remain
+        // explicit findings, so callers must not treat an unobserved stock's placeholder aggregate as measured zero.
+        if (!start.Materials.IsKnown) findings.Add("colony_model_materials_unknown");
+        if (!start.Medicine.IsKnown) findings.Add("colony_model_medicine_unknown");
         DomainException.Require(cycles.Length == pawns.Count && cycles.All(c => c.Length == Twelfths), "one twelve-entry cycle per pawn");
         var levels = new double[StockNames.Length];
         levels[(int)ModelStock.Nutrition] = nutrition;
-        levels[(int)ModelStock.Materials] = input.Stocks.Materials.TryGetValue(out var materials) ? materials.Sum(a => a.Count) : 0;
+        levels[(int)ModelStock.Materials] = start.Materials.TryGetValue(out var materials) ? materials.Sum(a => a.Count) : 0;
         // Medicine is held by kind, used up best first; the stock is their sum.
-        var kinds = input.Stocks.Medicine.TryGetValue(out var medicine) ? medicine.Select(a => a.Resource).ToArray() : [];
-        var held = input.Stocks.Medicine.TryGetValue(out medicine) ? medicine.Select(a => (double)a.Count).ToArray() : [];
+        var kinds = start.Medicine.TryGetValue(out var medicine) ? medicine.Select(a => a.Resource).ToArray() : [];
+        var held = start.Medicine.TryGetValue(out medicine) ? medicine.Select(a => (double)a.Count).ToArray() : [];
         if (policy.Injected is { } injected && Array.FindIndex(kinds, k => ProjectGraph.MedicineKey(k) == injected.Node) is var bumped and >= 0)
         {
             held[bumped] += injected.Work;
@@ -88,20 +102,27 @@ public static class ColonyModel
             findings.Add("food_lead_unknown");
         }
 
-        var graph = new ProjectRun(input, [.. pawns], cycles, policy.Projects, policy.Injected, policy.HorizonDays, findings);
-        var scheduled = policy.Scheduled.OrderBy(e => e.Day).ThenBy(e => e.Kind).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray();
+        var graph = new ProjectRun(input, start, [.. pawns], cycles, policy.Projects, policy.Injected, start.EndDay, findings);
+        var scheduled = policy.Scheduled.Where(e => start.Day == 0 ? e.Day >= 0 : e.Day > start.Day).OrderBy(e => e.Day).ThenBy(e => e.Kind).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray();
         var starved = new List<StarvationSpan>();
         var events = new List<ModelEvent>(Math.Min(policy.MaxEvents, 64));
-        var now = 0.0;
+        var now = start.Day;
         var twelfth = climate.CurrentTwelfth;
         var boundary = Math.Max(climate.TicksToNextTwelfth, 1) / (double)GameTime.TicksPerDay;
+        // The carried snapshot is after events at its time. Advance the origin climate without replaying those events.
+        while (boundary <= now)
+        {
+            twelfth = (twelfth + 1) % Twelfths;
+            boundary += TwelfthDays;
+        }
+
         var next = 0;
         var runway = default(double?);
         AddCycleFindings(cycles, twelfth, findings);
 
         while (true)
         {
-            if (events.Count >= policy.MaxEvents)
+            if (events.Count >= Math.Min(policy.MaxEvents, 4_096))
             {
                 findings.Add(ColonyTrajectory.TruncatedFinding);
                 break;
@@ -111,7 +132,7 @@ public static class ColonyModel
             graph.Allocate(now, twelfth, boundary);
 
             // The earliest candidate; ties go to the lower kind, then the lower id.
-            var when = policy.HorizonDays;
+            var when = start.EndDay;
             var kind = ModelEventKind.HorizonEnd;
             var id = "";
             var fromGraph = false;

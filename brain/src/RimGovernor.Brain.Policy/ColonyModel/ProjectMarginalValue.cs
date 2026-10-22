@@ -70,7 +70,8 @@ public static class ProjectMarginalValue
         var cycles = input.Pawns.TryGetValue(out var pawns)
             ? pawns.Select(p => PawnCycle.Year(input, p).ToArray()).ToArray()
             : [];
-        var baseline = ColonyModel.Run(input, cycles, policy);
+        var start = ColonyModelState.Observed(input, policy);
+        var baseline = ColonyModel.Run(input, start, cycles, policy);
         var value = valuation.Price(baseline);
         var findings = new SortedSet<string>(baseline.Findings.Concat(value.Findings), StringComparer.Ordinal);
         var perHour = new SortedDictionary<string, double>(StringComparer.Ordinal);
@@ -85,7 +86,7 @@ public static class ProjectMarginalValue
                 // One hour of one pawn at work speed 1: research points for research, work units for sowing.
                 var hour = node.Kind == ProjectKind.Research ? ProjectGraph.ResearchPointsPerWorkTick * GameTime.TicksPerHour : GameTime.TicksPerHour;
                 var units = node.Kind == ProjectKind.Research ? hour : hour * node.Cells / node.Work;
-                var run = ColonyModel.Run(input, cycles, policy with { Injected = new InjectedProgress(node.Id, hour) });
+                var run = ColonyModel.Run(input, start, cycles, policy with { Injected = new InjectedProgress(node.Id, hour) });
                 if (value.Value.TryGetValue(out var baseValue) && valuation.Price(run).Value.TryGetValue(out var after))
                 {
                     var gain = Math.Abs(after - baseValue) < Negligible ? 0 : after - baseValue;
@@ -108,7 +109,7 @@ public static class ProjectMarginalValue
             // A stock the value cannot price (ColonyValueResult.Unpriced) is left out with its findings: its marginal is not a number.
             void Perturb(string key, double amount)
             {
-                if (!value.Unpriced.Contains(key) && valuation.Price(ColonyModel.Run(input, cycles, policy with { Injected = new InjectedProgress(key, amount) })).Value.TryGetValue(out var after))
+                if (!value.Unpriced.Contains(key) && valuation.Price(ColonyModel.Run(input, start, cycles, policy with { Injected = new InjectedProgress(key, amount) })).Value.TryGetValue(out var after))
                 {
                     perUnit[key] = (Math.Abs(after - asIs) < Negligible ? 0 : after - asIs) / amount;
                 }

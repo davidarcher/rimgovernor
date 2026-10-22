@@ -1217,3 +1217,45 @@ completion interval is sufficient). Its result retains identity, origin/target/r
 execution cohorts, timing mismatches and named unknowns. Food-stock prediction coverage remains unavailable;
 when no shelter prediction exists, the report names that gap. This proves correlation, not prediction accuracy.
 The full retained-window report can also be generated with `RimGovernor.cmd forecastresiduals -logs <logs.jsonl>`.
+
+### Carried long-term model state
+
+`ColonyModelState` is disposable state owned by one pure forecast invocation.
+`Observed` builds the baseline and marginal entry from the review; the same
+`ColonyModel.Run` engine also accepts carried state. `Day` is elapsed days from
+that review, and `EndDay` is the common final date on that axis (normally day
+60), so a day-one continuation runs 59 days. Original climate and scheduled
+input stay tied to the review. A carried snapshot includes **all** events at
+or before its day; the day-zero observed entry precedes its time-zero events.
+The engine skips earlier scheduled effects and advances the twelfth before
+allocating labor. Completion, harvest and skill-level dates remain relative
+to the original review. It preserves kind/id ordering and the 4,096-event cap.
+
+Material and medicine quantities are fractional per-resource stocks. Physical
+material stock includes held inputs and excludes consumed inputs. External
+shared-owner holds exclude graph-owned holds; both subtract from available
+material. Each graph node carries remaining work, waiting/done/failed status,
+growth-initialization state and unpaid/held/consumed input status. Completion
+never reruns a done prerequisite and never charges consumed inputs again.
+The state is a complete graph census, not the single-node marginal perturbation.
+Carried pawns supply skill mechanics, stored levels and XP; continuous daily
+skill decay keeps fractional progress and dates its level changes on the same
+axis. The existing model's steady-cycle labor and coarse skill-decay mechanics
+remain unchanged.
+
+Unavailable material/medicine stocks reject a carried run, as do invalid dates,
+project identities or overcommitted holds. At the ordinary observed origin,
+legacy partial trajectories remain available with explicit stock-unknown
+findings; their aggregate placeholders do not establish known zero stock.
+A budget-limited trajectory retains its truncation finding, never a horizon-end
+claim. The food-runway diagnostic continues to use the review's harvest-gap
+proxy; it reports the first crossing within this invocation, not a newly
+observed calendar or a second persistent runway owner.
+
+This engine entry does not yet provide continuation **valuation**: the bridge
+must account for initial needs and restrict pricing to the remaining interval.
+A done craft/construction node is not evidence that the original review's
+outfit, shelter, capacities or needs changed. Supported handoff extraction must
+supply those consequences in its valuation context or declare them uncovered;
+pre-handoff output must not be paid again. Initial recovery and coverage-aware
+valuation are owned by #3719, with partial-room continuation in #3709.

@@ -10,13 +10,6 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>The mutable state of the graph's nodes in one <see cref="ColonyModel.Run"/>.</summary>
 internal sealed class ProjectRun
 {
-    private enum Status
-    {
-        Waiting,
-        Done,
-        Failed,
-    }
-
     private sealed class Live(ProjectNode node)
     {
         internal ProjectNode Node { get; } = node;
@@ -24,9 +17,9 @@ internal sealed class ProjectRun
         /// <summary>Work (or, for growth, growth fraction) still to do.</summary>
         internal double Remaining { get; set; } = node.Work;
 
-        internal Status State { get; set; }
+        internal ModelProjectStatus State { get; set; }
 
-        internal bool Started { get; set; }
+        internal ModelProjectInputs Inputs { get; set; }
 
         internal bool Forecast { get; set; }
 
@@ -48,7 +41,7 @@ internal sealed class ProjectRun
     private readonly SkillStock[] stocks;
     private double now;
 
-    internal ProjectRun(ColonyModelInput input, ModelPawn[] pawns, PawnCycle[][] cycles, ProjectGraph graph, InjectedProgress? injected, double horizon, SortedSet<string> findings)
+    internal ProjectRun(ColonyModelInput input, ColonyModelState start, ModelPawn[] pawns, PawnCycle[][] cycles, ProjectGraph graph, InjectedProgress? injected, double horizon, SortedSet<string> findings)
     {
         DomainException.Require(graph.Nodes.Select(n => n.Id).Distinct().Count() == graph.Nodes.Count && graph.Nodes.All(n => n.Id.Length > 0), "project ids must be unique and named");
         this.input = input;
@@ -57,6 +50,15 @@ internal sealed class ProjectRun
         this.horizon = horizon;
         this.findings = findings;
         nodes = [.. graph.Nodes.Select(n => new Live(n))];
+        foreach (var carried in start.Projects.Value)
+        {
+            var live = nodes.Single(n => n.Node.Id == carried.Id);
+            live.Remaining = carried.Remaining;
+            live.State = carried.Status;
+            live.Inputs = carried.Inputs;
+            live.Forecast = carried.GrowthInitialized;
+        }
+
         stocks = [.. pawns.SelectMany(p => SkillStock.Of(p, findings))];
         if (injected is not null && nodes.FirstOrDefault(n => n.Node.Id == injected.Node) is { } head)
         {
@@ -64,7 +66,7 @@ internal sealed class ProjectRun
         }
         else if (injected is not null && stocks.FirstOrDefault(s => s.Key == injected.Node) is { } stock)
         {
-            stock.Raise();
+            stock.Raise(start.Day);
         }
 
         foreach (var finding in graph.Findings)
@@ -72,11 +74,24 @@ internal sealed class ProjectRun
             findings.Add(finding);
         }
 
-        if (input.Stocks.Materials.TryGetValue(out var held))
+        if (start.Materials.TryGetValue(out var held))
         {
             foreach (var amount in held)
             {
                 ledger[amount.Resource] = ledger.GetValueOrDefault(amount.Resource) + amount.Count;
+            }
+        }
+
+        // Both kinds of holds stay in the physical aggregate but are unavailable to new reservations.
+        foreach (var hold in start.ExternalHolds.Value)
+        {
+            ledger[hold.Resource] = ledger.GetValueOrDefault(hold.Resource) - hold.Count;
+        }
+        foreach (var live in nodes.Where(n => n.Inputs == ModelProjectInputs.Held))
+        {
+            foreach (var amount in live.Node.Ingredients)
+            {
+                ledger[amount.Resource] = ledger.GetValueOrDefault(amount.Resource) - amount.Count;
             }
         }
     }
@@ -100,20 +115,20 @@ internal sealed class ProjectRun
         foreach (var live in nodes)
         {
             live.Rate = 0;
-            if (live.State != Status.Waiting)
+            if (live.State != ModelProjectStatus.Waiting)
             {
                 continue;
             }
 
             var prerequisites = live.Node.Prerequisites.Select(id => byId.GetValueOrDefault(id)).ToList();
-            if (prerequisites.Any(p => p is null || p.State == Status.Failed))
+            if (prerequisites.Any(p => p is null || p.State == ModelProjectStatus.Failed))
             {
-                live.State = Status.Failed;
+                live.State = ModelProjectStatus.Failed;
                 findings.Add($"project_blocked:{live.Node.Id}");
                 continue;
             }
 
-            if (prerequisites.Any(p => p!.State != Status.Done))
+            if (prerequisites.Any(p => p!.State != ModelProjectStatus.Done))
             {
                 continue;
             }
@@ -134,7 +149,7 @@ internal sealed class ProjectRun
     {
         foreach (var live in nodes)
         {
-            if (live.State == Status.Waiting && live.Rate > 0)
+            if (live.State == ModelProjectStatus.Waiting && live.Rate > 0)
             {
                 yield return (now + (live.Remaining / live.Rate), live.Node.Kind == ProjectKind.Harvest ? ModelEventKind.Harvest : ModelEventKind.ProjectCompletion, live.Node.Id);
             }
@@ -145,7 +160,7 @@ internal sealed class ProjectRun
     {
         foreach (var live in nodes)
         {
-            if (live.State == Status.Waiting && live.Rate > 0)
+            if (live.State == ModelProjectStatus.Waiting && live.Rate > 0)
             {
                 live.Remaining = Math.Max(0, live.Remaining - (live.Rate * span));
             }
@@ -167,7 +182,7 @@ internal sealed class ProjectRun
     internal void Complete(string id, double day, double[] levels)
     {
         var live = nodes.First(n => n.Node.Id == id);
-        live.State = Status.Done;
+        live.State = ModelProjectStatus.Done;
         live.Remaining = 0;
         var node = live.Node;
         switch (node.Kind)
@@ -176,7 +191,7 @@ internal sealed class ProjectRun
                 Harvest(node, day, levels);
                 break;
             case ProjectKind.Craft:
-                levels[(int)ModelStock.Materials] -= node.Ingredients.Sum(a => a.Count);
+                Consume(live, levels);
                 foreach (var product in node.Products)
                 {
                     Arrive(node, day, product.Resource, product.Count);
@@ -193,7 +208,7 @@ internal sealed class ProjectRun
 
                 break;
             case ProjectKind.Construction:
-                levels[(int)ModelStock.Materials] -= node.Ingredients.Sum(a => a.Count);
+                Consume(live, levels);
                 break;
             case ProjectKind.Hunt:
                 levels[(int)ModelStock.Nutrition] += node.Nutrition;
@@ -215,17 +230,26 @@ internal sealed class ProjectRun
     /// <summary>At the end of the run: each node that did not complete, and why where the allocation knows.</summary>
     internal void Finish()
     {
-        foreach (var live in nodes.Where(n => n.State != Status.Done))
+        foreach (var live in nodes.Where(n => n.State != ModelProjectStatus.Done))
         {
             findings.Add($"project_incomplete:{live.Node.Id}");
         }
 
         foreach (var id in unstaffed.Concat(materialsShort))
         {
-            if (nodes.First(n => n.Node.Id == id).State == Status.Waiting)
+            if (nodes.First(n => n.Node.Id == id).State == ModelProjectStatus.Waiting)
             {
                 findings.Add(unstaffed.Contains(id) ? $"project_unstaffed:{id}" : $"project_materials_short:{id}");
             }
+        }
+    }
+
+    private static void Consume(Live live, double[] levels)
+    {
+        if (live.Inputs != ModelProjectInputs.Consumed)
+        {
+            levels[(int)ModelStock.Materials] -= live.Node.Ingredients.Sum(a => a.Count);
+            live.Inputs = ModelProjectInputs.Consumed;
         }
     }
 
@@ -262,7 +286,7 @@ internal sealed class ProjectRun
             live.Remaining = target;
             if (!CropGrowthModel.Matures(daily, twelfth, boundary - now, target, horizon - now))
             {
-                live.State = Status.Failed;
+                live.State = ModelProjectStatus.Failed;
                 findings.Add($"crop_will_not_mature:{node.Id}");
                 return;
             }
@@ -295,7 +319,7 @@ internal sealed class ProjectRun
             return;
         }
 
-        if (!live.Started)
+        if (live.Inputs == ModelProjectInputs.Unpaid)
         {
             if (!Reserve(node))
             {
@@ -303,7 +327,7 @@ internal sealed class ProjectRun
                 return;
             }
 
-            live.Started = true;
+            live.Inputs = ModelProjectInputs.Held;
         }
 
         unstaffed.Remove(node.Id);

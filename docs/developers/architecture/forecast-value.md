@@ -279,6 +279,18 @@ Its cost grows with the number of events, not with ticks.
 - **Food runway.** It is a floor in tier 2 as well, so a fiber field cannot
   starve the colony.
 
+#### Restarting the long-term engine
+
+The ordinary baseline and all marginal perturbations now enter through
+`ColonyModelState.Observed`; carried invocations use the same engine with an
+explicit start day and common final day. Project remaining work, prerequisite
+status, paid versus held inputs, fractional resource stocks and skill XP are
+independent state, rather than a collection of marginal perturbations.
+See the [carried-state contract](../contracts/forecast-contracts.md#carried-long-term-model-state)
+for the post-event boundary convention and unavailable-state behavior.
+This is the engine boundary; candidate extraction, initial recovery and
+remaining-interval valuation must be composed before candidate ranking changes.
+
 **Marginal value of progress.** Tier 2 gives each project the value of moving
 its completion earlier:
 `value of one hour today = d(value) / d(completion date) × days that hour advances completion`.
