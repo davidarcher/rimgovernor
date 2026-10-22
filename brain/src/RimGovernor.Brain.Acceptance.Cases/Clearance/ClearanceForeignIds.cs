@@ -10,20 +10,20 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>
 /// <c>clearance/recovery-foreign-ids</c> (#2293): the recovery planners address foreign things by the id they rebuild
 /// from the cell mirror (<see cref="Thing.LoadId"/>, <c>Thing_&lt;Def&gt;&lt;n&gt;</c>), and native must resolve that id
-/// through <c>RefIndex.Thing</c>. A staged unowned Battery is claimed and a staged ripe crop designated for harvest by
-/// the rebuilt ids; the battery then reads as the colony's and the crop as designated.
+/// through <c>RefIndex.Thing</c>. A staged unowned Battery is claimed and a staged wild bush designated for cutting by
+/// the rebuilt ids; the battery then reads as the colony's and the bush as designated.
 /// </summary>
 internal static class ClearanceForeignIds
 {
     private const string Ruin = "Battery";
-    private const string Crop = "Plant_Potato";
+    private const string Bush = "Plant_Bush";
 
     internal static TypedCase Case() => new()
     {
         Name = "clearance/recovery-foreign-ids",
-        Scope = "A staged unowned Battery and a ripe potato: the ids rebuilt as Thing_<Def><n> equal native's, a building claim and "
-            + "a harvest designation applied by them resolve through native RefIndex.Thing, and the battery then reads the colony's "
-            + "faction and the potato designated (#2293).",
+        Scope = "A staged unowned Battery and a wild bush: the ids rebuilt as Thing_<Def><n> equal native's, a building claim and "
+            + "a CutPlant designation applied by them resolve through native RefIndex.Thing, and the battery then reads the colony's "
+            + "faction and the bush designated (#2293).",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
         QuietWorld = true,
@@ -46,7 +46,7 @@ internal static class ClearanceForeignIds
                 new Fx.StageBuilding { Name = "ruin", Def = Ruin, Cells = [new(1, 1)], Faction = Fx.StageFaction.None },
                 new Fx.StageBuilding { Name = "own", Def = "Wall", Stuff = "WoodLog", Cells = [new(5, 3)] },
             ],
-            Plants = [new Fx.StagePlant { Name = "crop", Def = Crop, Cells = [new(4, 1)] }],
+            Plants = [new Fx.StagePlant { Name = "bush", Def = Bush, Cells = [new(4, 1)] }],
         },
         Run = RunAsync,
     };
@@ -56,7 +56,7 @@ internal static class ClearanceForeignIds
         var staged = s.Staged!;
         var site = staged.Site ?? throw new AcceptanceException("stage: no site");
         var ruin = Rebuilt(staged.Buildings["ruin"].Ids.Single(), Ruin);
-        var crop = Rebuilt(staged.Plants["crop"].Ids.Single(), Crop);
+        var bush = Rebuilt(staged.Plants["bush"].Ids.Single(), Bush);
         var own = staged.Buildings["own"].Ids.Single();
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
@@ -65,10 +65,10 @@ internal static class ClearanceForeignIds
             ThingId = ruin,
             Change = new Operations.BuildingPatchIntentChange.ClaimCase(),
         }, cancellationToken).ConfigureAwait(false);
-        _ = await TypedApply.AppliedAsync(s, "foreign-harvest", new Operations.DesignateIntent
+        _ = await TypedApply.AppliedAsync(s, "foreign-cut", new Operations.DesignateIntent
         {
-            Designation = Operations.ThingDesignation.HarvestPlant,
-            Target = new() { Id = crop },
+            Designation = Operations.ThingDesignation.CutPlant,
+            Target = new() { Id = bush },
         }, cancellationToken).ConfigureAwait(false);
 
         var rows = await s.BuildingsAsync("claimed", new Observations.ListBuildingsRequest { Ids = [ruin, own], AnyFaction = true }, cancellationToken).ConfigureAwait(false);
@@ -79,12 +79,12 @@ internal static class ClearanceForeignIds
             throw new AcceptanceException($"claimed: want the battery in the colony's faction {faction}, got {claimed}");
         }
 
-        var cell = staged.Plants["crop"].Cells.Single();
-        var grid = await TypedApply.CellsAsync(s, "harvest", site, cancellationToken).ConfigureAwait(false);
+        var cell = staged.Plants["bush"].Cells.Single();
+        var grid = await TypedApply.CellsAsync(s, "cut", site, cancellationToken).ConfigureAwait(false);
         var things = grid.ThingsAt(new Cell(cell.X, cell.Z));
-        if (!things.Any(t => t.Def == Crop && t.Has(ThingMarks.Designated)))
+        if (!things.Any(t => t.Def == Bush && t.Has(ThingMarks.Designated)))
         {
-            throw new AcceptanceException($"harvest: want the potato at {cell} designated, got [{string.Join("; ", things)}]");
+            throw new AcceptanceException($"cut: want the bush at {cell} designated, got [{string.Join("; ", things)}]");
         }
     }
 
