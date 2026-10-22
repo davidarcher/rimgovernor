@@ -159,13 +159,20 @@ public sealed partial class ClockScheduler
     /// <summary>Makes the next review or retry step a full one after a planner wave failed with its selection spent.</summary>
     internal void ReplanAfterFailure() => _lastFull = default;
 
-    // A review or retry step is promoted to a full one once the safety-net interval has passed since the last full wave.
-    private static bool Promotable(StepCause cause) => cause is StepCause.Review or StepCause.Retry;
-
-    private bool FullStepDue()
+    /// <summary>
+    /// The cause a step runs under: a review or retry step is promoted to a full one once <paramref name="every"/>
+    /// (zero: <see cref="DefaultFullStepEvery"/>) has passed in wall time since the last full wave at
+    /// <paramref name="lastFull"/> (default: none yet). It is what re-runs a planner on a held clock that no tick,
+    /// mark or invalidation reaches, such as one refused admission (#3706).
+    /// </summary>
+    internal static StepCause Promoted(StepCause cause, DateTimeOffset lastFull, DateTimeOffset now, TimeSpan every)
     {
-        var every = Config.FullStepEvery <= TimeSpan.Zero ? DefaultFullStepEvery : Config.FullStepEvery;
-        return _lastFull == default || _clock.Now() - _lastFull >= every;
+        if (cause is not (StepCause.Review or StepCause.Retry))
+        {
+            return cause;
+        }
+        var interval = every <= TimeSpan.Zero ? DefaultFullStepEvery : every;
+        return lastFull == default || now - lastFull >= interval ? StepCause.Full : cause;
     }
 
     /// <summary>The store scope an observation context establishes: the load token, map and native generation.</summary>
@@ -323,10 +330,7 @@ public sealed partial class ClockScheduler
             // the run this step may start, judge their facts against this validity.
             using var validity = ReadValidityScope.With(FixValidity(state.Snapshot, statusTick));
             Tel.ObserveTick(statusTick);
-            if (Promotable(reason.Cause) && FullStepDue())
-            {
-                reason = reason with { Cause = StepCause.Full };
-            }
+            reason = reason with { Cause = Promoted(reason.Cause, _lastFull, _clock.Now(), Config.FullStepEvery) };
             result.Reason = reason;
             if (!state.Enabled)
             {

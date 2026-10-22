@@ -60,10 +60,6 @@ internal sealed class PlannerQueue
     // one of the attempts it waits on reaches its outcome row, its tick deadline passes, or a full step runs.
     private Dictionary<string, PlannerWait> _waits = new(StringComparer.Ordinal);
 
-    // The planners whose last run was refused admission: they are due again at a tick, which a stopped clock
-    // never reaches, so Stalled re-marks them.
-    private HashSet<string> _refused = new(StringComparer.Ordinal);
-
     /// <summary>Filters the catalog to the planners the scheduler runs; null admits every entry. An unconfigured planner is never marked or due.</summary>
     public Func<PlannerEntry, bool>? Configured { get; set; }
 
@@ -255,14 +251,6 @@ internal sealed class PlannerQueue
             {
                 _dirty.Remove(name);
             }
-            if (reason is { } finished && finished.Is(Cause.SharedAdmission))
-            {
-                _refused.Add(name);
-            }
-            else
-            {
-                _refused.Remove(name);
-            }
             if (reason is not { } done || done != BuildingReasonExistingWork || openWork is null)
             {
                 _waits.Remove(name);
@@ -275,20 +263,6 @@ internal sealed class PlannerQueue
                 continue;
             }
             _waits[name] = new PlannerWait(on, _due[name]);
-        }
-    }
-
-    /// <summary>
-    /// The step on a stopped clock (the last Run refused no_work and the tick did not move): no tick
-    /// deadline or cadence can pass, so the waits are dropped and the refused planners marked, each
-    /// re-examining its own work instead of parking the colony for good.
-    /// </summary>
-    public void Stalled()
-    {
-        _waits = new Dictionary<string, PlannerWait>(StringComparer.Ordinal);
-        foreach (var name in _refused)
-        {
-            Mark(name);
         }
     }
 
