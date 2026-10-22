@@ -23,7 +23,7 @@ namespace HomeBridge.BridgeTools
     /// a JSON object of named arguments. The channel itself (listener, guard, routes, endpoint file) is the game-free
     /// RimGovernor.Brain.HttpChannel; this file only adapts the mod to it and starts it.
     /// </summary>
-    internal sealed class NativeOpTable : INativeOpInvoker
+    internal sealed partial class NativeOpTable : INativeOpInvoker
     {
         private const string Prefix = NativeOp.ToolPrefix;
         private static readonly Dictionary<string, Func<string, CancellationToken, Task<string>>> Ops = Build();
@@ -63,9 +63,6 @@ namespace HomeBridge.BridgeTools
         /// <summary>The route name of a canonical tool name: <c>rimgovernor/x</c> is <c>x</c>, any other name keeps its path.</summary>
         private static string RouteName(string canonical) =>
             canonical.StartsWith(Prefix, StringComparison.Ordinal) ? canonical.Substring(Prefix.Length) : canonical;
-
-        public Task<string> InvokeAsync(string op, string body, CancellationToken cancellationToken) =>
-            Ops.TryGetValue(op, out var run) ? run(body, cancellationToken) : InvokeRegisteredAsync(op, body, cancellationToken);
 
         /// <summary>
         /// A host registry tool: the body is a JSON object of its arguments, the registry runs it as a wire call would,

@@ -82,17 +82,7 @@ internal static class RimBridgeCapabilities
             {
                 [TimeoutArgument] = (int)Math.Min(timeout.TotalMilliseconds, int.MaxValue),
             };
-            // A tool call is activity: the idle-exit harness feature must not count a busy bridge as idle.
-            IdleExit.Begin();
-            OperationEnvelope envelope;
-            try
-            {
-                envelope = await registry.InvokeAsync(tool, named, cancellationToken).ConfigureAwait(false);
-            }
-            finally
-            {
-                IdleExit.End();
-            }
+            var envelope = await registry.InvokeAsync(tool, named, cancellationToken).ConfigureAwait(false);
             if (!envelope.Success)
             {
                 var error = envelope.Error;

@@ -100,3 +100,4 @@ and [persistence](developers/contracts/persistence-contracts.md) define its cons
 Food/shelter investment and unified construction adoption: [essential-service contract](developers/contracts/essential-services.md#autonomous-food-and-shelter-investment).
 
 - [Failed snapshot reads](developers/contracts/clock-recovery.md#failed-snapshot-reads): explicit building-read failures, preserved diagnostics, finished frame labor and same-tick recovery.
+- [Acceptance harness lifecycle](developers/testing/acceptance-guide.md): warm games and request-based idle cleanup.
