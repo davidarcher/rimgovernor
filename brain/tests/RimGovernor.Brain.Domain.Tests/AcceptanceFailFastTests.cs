@@ -101,7 +101,11 @@ public sealed class AcceptanceFailFastTests : IDisposable
         // Stop waits for the reaper, so exit evidence is complete without polling or a timing assertion.
         await game.StopAsync(TestContext.Current.CancellationToken);
         Assert.Equal(7, GameProcess.LastExit(root, GameId));
-        Assert.Contains("boom", File.ReadAllText(GameProcess.LogPath(root, GameId)), StringComparison.Ordinal);
+        var logPath = GameProcess.LogPath(root, GameId);
+        // A concurrent process can retain an inherited writer after this child exits. Exercise the production
+        // diagnostic reader with that sharing condition held explicitly, rather than relying on suite timing.
+        using var retainedWriter = new FileStream(logPath, FileMode.Open, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+        Assert.Contains("boom", GameSessions.LogTailText(logPath, 2048), StringComparison.Ordinal);
         Assert.False(File.Exists(GameProcess.EndpointPath(root, GameId)));
     }
 
