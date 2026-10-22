@@ -1,6 +1,4 @@
 using System.Text.Json.Nodes;
-using RimGovernor.Brain.Bridge.Contracts;
-using Clock = RimGovernor.Contracts.Wire.Clock;
 using Fx = RimGovernor.Fixtures.Contracts;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -55,19 +53,7 @@ internal static class WallLayers
         // The completion guard is armed only while the supervisor runs the clock (#3596): a plain unpaused game builds
         // the ring unguarded and seals a builder standing on a frame. So the ring builds under native clock runs with the
         // brain's own watch policy, and the fixture, which reads only a paused game, audits it at each Step hold.
-        var run = new Clock.RunRequest
-        {
-            ExpectedGeneration = generation,
-            Speed = Clock.Speed.Ultrafast,
-            Policy = ClockExpectation.WithHazardThresholds(new Clock.WatchPolicy
-            {
-                Mode = Clock.WatchMode.Colony,
-                HealthDropFraction = .1f,
-                MinHealthFraction = .5f,
-                HostileWithin = 20f,
-                InjuryStopCooldownMs = 0,
-            }),
-        };
+        var run = WallKit.ClockRun(generation);
         var ticks = 0;
         for (var row = before; row.Standing != RingCells || row.Frames != 0; ticks += Step)
         {

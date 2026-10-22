@@ -105,7 +105,7 @@ internal static class WallRemoval
             throw new AcceptanceException($"reapply: a second apply must apply again on the pending removal {removalId}, got {again}");
         }
 
-        await GoneAsync(s, "demolished", target, 10000, cancellationToken).ConfigureAwait(false);
+        await WallKit.DemolishedAsync(s, "demolished", target, 10000, cancellationToken).ConfigureAwait(false);
         _ = await TypedApply.AppliedAsync(s, "wall-demolish-cleared", Guarded(cell, target), cancellationToken).ConfigureAwait(false);
 
         // A standing permanent granite wall turns the backups into cleanup sites.
@@ -119,7 +119,7 @@ internal static class WallRemoval
 
         var backupCell = await CellAsync(s, "backup-cell", first, cancellationToken).ConfigureAwait(false);
         _ = await ExecuteAsync(s, "wall-cleanup", first, Guarded(backupCell, first), cancellationToken).ConfigureAwait(false);
-        await GoneAsync(s, "cleaned", first, s.TicksLeft, cancellationToken).ConfigureAwait(false);
+        await WallKit.DemolishedAsync(s, "cleaned", first, s.TicksLeft, cancellationToken).ConfigureAwait(false);
         var after = await RowAsync("after-cleanup-census", null).ConfigureAwait(false);
         var next = after.Target?.Id ?? "";
         if (after.CompletedBackups.Count != 2 || next == first || !backups.Contains(next))
@@ -140,17 +140,6 @@ internal static class WallRemoval
         }
 
         return outcome;
-    }
-
-    /// <summary>Runs until the building census no longer lists <paramref name="wall"/>.</summary>
-    private static async Task GoneAsync(TypedSession s, string label, string wall, int ticks, CancellationToken cancellationToken)
-    {
-        var spent = await s.RunUntilAsync(label, ticks, async ct =>
-        {
-            var gone = !(await WallKit.PresentAsync(s, label + "-probe", [wall], ct).ConfigureAwait(false)).Contains(wall);
-            return (Wait.Signature(gone), gone);
-        }, cancellationToken).ConfigureAwait(false);
-        s.Record(label + "_after_ticks", spent);
     }
 
     /// <summary>The cell a building stands on, from the building census.</summary>

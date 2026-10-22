@@ -110,11 +110,7 @@ internal static class WallDeconstruct
             throw new AcceptanceException($"adopt-and-finish: a resent key changed its result: {first} then {again}");
         }
 
-        var ticks = await s.RunUntilAsync("demolished", s.TicksLeft, async ct =>
-        {
-            var gone = !(await WallKit.PresentAsync(s, "demolished-probe", [ids[5]], ct).ConfigureAwait(false)).Contains(ids[5]);
-            return (Wait.Signature(gone), gone);
-        }, cancellationToken).ConfigureAwait(false);
-        s.Record("demolished_after_ticks", ticks);
+        // The adopted record is the supervisor's, so a builder takes it only while the supervisor runs the clock.
+        await WallKit.DemolishedAsync(s, "demolished", ids[5], s.TicksLeft, cancellationToken).ConfigureAwait(false);
     }
 }

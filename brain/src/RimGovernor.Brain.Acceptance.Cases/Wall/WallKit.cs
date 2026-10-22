@@ -1,5 +1,7 @@
 using System.Text.Json.Nodes;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
+using Clock = RimGovernor.Contracts.Wire.Clock;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 using Operations = RimGovernor.Contracts.Wire.Operations;
@@ -70,6 +72,52 @@ internal static class WallKit
     {
         var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest { Ids = [.. ids], AnyFaction = true }, cancellationToken).ConfigureAwait(false);
         return [.. rows.Select(r => r.Building.Id).Where(ids.Contains)];
+    }
+
+    /// <summary>
+    /// The native clock run a wall case's builders work under: the supervisor runs the clock at <paramref name="generation"/>
+    /// with the brain's colony watch policy, so the guards that act only under supervised play are armed.
+    /// </summary>
+    internal static Clock.RunRequest ClockRun(ulong generation) => new()
+    {
+        ExpectedGeneration = generation,
+        Speed = Clock.Speed.Ultrafast,
+        Policy = ClockExpectation.WithHazardThresholds(new Clock.WatchPolicy
+        {
+            Mode = Clock.WatchMode.Colony,
+            HealthDropFraction = .1f,
+            MinHealthFraction = .5f,
+            HostileWithin = 20f,
+            InjuryStopCooldownMs = 0,
+        }),
+    };
+
+    /// <summary>
+    /// Runs the native clock under the Auto grant standing now until the building census no longer lists
+    /// <paramref name="id"/>, at most <paramref name="ticks"/> ticks, and records the ticks it took as
+    /// <c>&lt;label&gt;_after_ticks</c>. A builder works a supervisor-stood guarded designation only under supervised play
+    /// (the guard's work-giver hold), so a plain unpaused game never demolishes it.
+    /// </summary>
+    internal static async Task DemolishedAsync(TypedSession s, string label, string id, int ticks, CancellationToken cancellationToken)
+    {
+        var authority = await TypedAuthority.StatusAsync(s, label + "-authority", s.Identity, cancellationToken).ConfigureAwait(false);
+        var generation = authority.Context?.NativeGeneration ?? throw new AcceptanceException($"{label}: no native generation: {authority}");
+        long? start = null;
+        long tick = 0;
+        var gone = false;
+        var status = await s.RunClockUntilHeldAsync(label, ticks, ClockRun(generation), async (running, ct) =>
+        {
+            tick = running.Context?.Tick ?? 0;
+            start ??= tick;
+            gone = !(await PresentAsync(s, label + "-probe", [id], ct).ConfigureAwait(false)).Contains(id);
+            return gone;
+        }, cancellationToken).ConfigureAwait(false);
+        if (!gone)
+        {
+            throw new AcceptanceException($"{label}: {id} still stands when the clock held ({status.Reason}): {status.Detail}");
+        }
+
+        s.Record(label + "_after_ticks", tick - (start ?? tick));
     }
 
     /// <summary>How many of <paramref name="cells"/> one cells read over the site reports roofed.</summary>
