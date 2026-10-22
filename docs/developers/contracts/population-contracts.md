@@ -175,9 +175,10 @@ otherwise. A pawn no longer observable anywhere stays unknown.
 - A `GiveJobIntent` Capture uses the installed game's capture eligibility, manipulation, reservation
   and bed checks, then its ordinary Capture job. Non-hostile capture is unsupported because it changes
   faction relations.
-- A Capture whose patient is an Anomaly entity (a pawn with `CompHoldingPlatformTarget`) is the game's
+- A Capture whose patient has `CompHoldingPlatformTarget.StudiedAtHoldingPlatform` true is the game's
   holding-platform order: native sets the entity's `targetHolder` to the available platform of highest
-  containment strength and gives the carrier `CarryToEntityHolder`. The deciding rule is in
+  containment strength and gives the carrier `CarryToEntityHolder`. Ordinary humans can also carry this
+  component; its presence alone never selects entity capture. The deciding rule is in
   [facilities](../architecture/facilities.md).
 - Rescue is the ordinary rescue path. Unknown prerequisites block new commitments.
 

@@ -56,7 +56,7 @@ namespace HomeBridge.BridgeTools
 
         private static bool Running(JobOrderKind kind, Pawn pawn, Pawn patient) => pawn.CurJob != null && pawn.CurJob.def == Def(kind) && pawn.CurJob.targetA.Thing == patient;
 
-        // An entity (a pawn with CompHoldingPlatformTarget) is captured to a
+        // A pawn studied at a holding platform is captured to a
         // holding platform, not a prisoner bed: the game's own order
         // (StudyUtility.TargetHoldingPlatformForEntity with a carrier) sets the
         // entity's targetHolder and gives the carrier CarryToEntityHolder, the
@@ -64,7 +64,10 @@ namespace HomeBridge.BridgeTools
         // available one with the highest containment strength the carrier can
         // reserve and reach, ties by thing id; the brain decided the rule's margin
         // against these same native strengths.
-        private static CompHoldingPlatformTarget? EntityTarget(Pawn patient) => patient.GetComp<CompHoldingPlatformTarget>();
+        internal static CompHoldingPlatformTarget? EntityTarget(Pawn patient) =>
+            // Ordinary humans also carry this comp with Anomaly enabled. Use the
+            // same classification as FloatMenuOptionProvider_CaptureEntity.
+            patient.GetComp<CompHoldingPlatformTarget>() is { StudiedAtHoldingPlatform: true } target ? target : null;
 
         private static bool EntityRunning(Pawn pawn, Pawn patient) => pawn.CurJob != null && pawn.CurJob.def == JobDefOf.CarryToEntityHolder && pawn.CurJob.targetB.Thing == patient;
 

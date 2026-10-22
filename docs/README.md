@@ -49,6 +49,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Research predictive combat and tactical epics | [Combat predictability paper](developers/architecture/combat-predictability-research.md) |
 | Understand how player goals become Needs and how the in-game window reads them | [Player goals](developers/architecture/player-goals.md), [goals window](developers/architecture/in-game-panel.md), [goals contracts](developers/contracts/goals-contracts.md) |
 | Plan colony rooms and containment | [Facilities](developers/architecture/facilities.md) |
+| Capture, rescue and admit population | [Population commitments](developers/contracts/population-contracts.md) |
 | Understand territory and Home margins | [Colony extent](developers/contracts/colony-extent.md), [Home coverage](developers/contracts/upkeep-contracts.md#home-coverage) |
 | Change a subsystem | [Behavior contracts](developers/contracts/README.md) |
 | Assess autonomous development shortfalls and bounded resilience | [Essential services](developers/contracts/essential-services.md) |

@@ -79,6 +79,23 @@ namespace HomeBridge.BridgeTools
                 candidate.health.AddHediff(HediffDefOf.Anesthetic);
                 candidate.health.AddHediff(DefDatabase<HediffDef>.GetNamed("Bruise"), candidate.RaceProps.body.corePart).Severity = 3;
                 candidate.needs.food.CurLevelPercentage = .2f;
+                if (!candidate.Downed || !candidate.CanBeCaptured() || !candidate.HostileTo(Faction.OfPlayer))
+                    throw new InvalidOperationException("The candidate must satisfy ordinary downed hostile capture eligibility");
+                if (ModsConfig.AnomalyActive)
+                {
+                    // Regression: humans have the holding comp too; only the
+                    // game's platform-study targets take the entity route.
+                    if (candidate.GetComp<CompHoldingPlatformTarget>() == null || NativeCustodyOperations.EntityTarget(candidate) != null)
+                        throw new InvalidOperationException("Ordinary human capture must use a prisoner bed despite its holding comp");
+                    var entity = PawnGenerator.GeneratePawn(PawnKindDefOf.Sightstealer, Faction.OfEntities);
+                    try
+                    {
+                        var holding = entity.GetComp<CompHoldingPlatformTarget>();
+                        if (holding == null || !ReferenceEquals(NativeCustodyOperations.EntityTarget(entity), holding))
+                            throw new InvalidOperationException("A platform-study entity must retain the holding-platform capture route");
+                    }
+                    finally { entity.Destroy(DestroyMode.Vanish); }
+                }
                 var friendly = Find.FactionManager.AllFactions.First(f => !f.IsPlayer && !f.HostileTo(Faction.OfPlayer) && f.def.humanlikeFaction);
                 var visitor = PawnGenerator.GeneratePawn(PawnKindDefOf.Villager, friendly);
                 GenSpawn.Spawn(visitor, origin + new IntVec3(7, 0, 5), map);

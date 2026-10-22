@@ -640,7 +640,7 @@ that strong, is killed (the post-fight finish, `postFightEntities`); an entity
 with any needed fact unread (dead, downed, held, capturable, needed strength,
 platform census, door hit points) is neither captured nor killed and is
 logged at warn (`defense_action` reason `entity_capture_refused`). Capture is a `GiveJobIntent`
-Capture whose native side, for a pawn with `CompHoldingPlatformTarget`, sets
+Capture whose native side, for a pawn with `CompHoldingPlatformTarget.StudiedAtHoldingPlatform` true, sets
 the entity's `targetHolder` and gives the carrier `CarryToEntityHolder` to the
 available platform of highest strength (the game's own order); the anomaly family's
 `anomaly/capture` Need owns it and holds it as `unsupported_forecast_population_capture`
