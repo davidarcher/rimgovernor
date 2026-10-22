@@ -58,8 +58,18 @@ minute the full gate costs under the landing lock), since both sides passed the 
 to catch is the two not compiling together; a test-level interaction surfaces at the next landing's gate and
 the nightly. A merge that brings only docs or notes lands without a rebuild. A failed build lands nothing and
 resets the branch to before the merge, so the next `land` merges and builds again rather than finding nothing
-new. The lane closes the issue named by an `issue-<n>-...` branch or `-issue <n>`; `-no-close` suppresses
-that close.
+new. The lane comments on an `issue-<n>-...` branch's issue with the landing hash.
+It closes only issues named by closing keywords in the final squash message
+(`Fixes #N`, `Closes #N`, or `Resolves #N`, including their verb forms), or an explicit
+`-issue <n>` override. A branch number alone or "part of #N" does not close an issue.
+`-no-close` suppresses the lane's GitHub comments and closes; GitHub itself can still
+close issues from keywords in pushed commits, so omit those keywords to leave an issue open.
+
+Use a closing keyword only when the commit meets the issue's whole acceptance.
+If a required remote-acceptance run remains, land without the keyword, then close
+the issue with the landing hash and run evidence after it passes. The lane reads
+the final squash message, so use `-m` or `-F` when its default multi-commit summary
+does not carry the intended completion statement.
 
 - Run the lane once per ready milestone. `land -test` replaces a final `test`;
   one gate per landing, never both.

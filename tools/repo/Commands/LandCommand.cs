@@ -27,8 +27,8 @@ namespace RimGovernor.Tools.Workflow.Commands;
 /// meanwhile the push is rejected and the lane fetches, merges and squashes again, up to <see cref="Attempts"/> times;
 /// a worktree that has main checked out must be clean and is brought along after the move;</item>
 /// <item>resets the branch to the new main when its tree is identical;</item>
-/// <item>closes the GitHub issue the branch is for (the number in a branch name like claude/github-issue-128-abc, or
-/// -issue N) with a comment naming the landing commit; -no-close skips it, and a missing gh or a failed close is
+/// <item>comments on the branch issue with the landing commit, closing only issues named by a closing keyword
+/// in the landed message or -issue N; -no-close skips issue updates, and a missing gh or failed update is
 /// reported, never fatal.</item>
 /// </list>
 /// </summary>
@@ -43,6 +43,9 @@ internal static partial class LandCommand
 
     [GeneratedRegex(@"(?:^|[/-])issue-(\d+)(?:-|$)", RegexOptions.CultureInvariant)]
     private static partial Regex IssueInBranch();
+
+    [GeneratedRegex(@"\b(?:close[sd]?|fix(?:es|ed)?|resolve[sd]?)\s+#(\d+)\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+    private static partial Regex ClosingIssue();
 
     /// <summary>One landing's inputs.</summary>
     internal sealed record Options
@@ -63,8 +66,12 @@ internal static partial class LandCommand
 
         public bool RunTests { get; init; }
 
-        /// <summary>Called with the worktree, branch and short landing hash once the landing is on origin.</summary>
-        public Func<string, string, string, Task>? Close { get; init; }
+        public int Issue { get; init; }
+
+        public bool NoClose { get; init; }
+
+        /// <summary>Runs the GitHub issue command; null uses gh (tests capture commands).</summary>
+        public Func<string[], Task>? IssueCommand { get; init; }
 
         /// <summary>Builds the merged tree in the worktree; null runs the gate's real builds (tests substitute a probe).</summary>
         public Func<string, Task>? Build { get; init; }
@@ -86,8 +93,8 @@ internal static partial class LandCommand
             Log.Info("  -F           file holding the squash commit subject and body");
             Log.Info("  -lock-timeout how long to wait for another landing to finish (default 15m)");
             Log.Info("  -test        run the gate once on the merged tree before landing (the landing's one check)");
-            Log.Info("  -issue       GitHub issue to close with the landing commit (default: the number in the branch name)");
-            Log.Info("  -no-close    do not close a GitHub issue");
+            Log.Info("  -issue       GitHub issue to close explicitly (default: closing keywords in the landed message)");
+            Log.Info("  -no-close    skip GitHub issue comments and closes");
             return 0;
         }
         if (flags.Positional.Count > 1)
@@ -104,7 +111,8 @@ internal static partial class LandCommand
                     MessageFile = flags.String("F"),
                     LockTimeout = flags.Duration("lock-timeout", TimeSpan.FromMinutes(15)),
                     RunTests = flags.Bool("test"),
-                    Close = flags.Bool("no-close") ? null : (worktree, branch, landed) => CloseIssueAsync(issue, worktree, branch, landed, ct),
+                    Issue = issue,
+                    NoClose = flags.Bool("no-close"),
                 },
                 ct)
             .ConfigureAwait(false);
@@ -233,9 +241,9 @@ internal static partial class LandCommand
         {
             Log.Info($"{branch} left as is: its tree differs from the landed main");
         }
-        if (options.Close is { } close)
+        if (!options.NoClose)
         {
-            await close(worktree, branch, landed).ConfigureAwait(false);
+            await UpdateIssuesAsync(options, worktree, branch, landed, ct).ConfigureAwait(false);
         }
     }
 
@@ -308,30 +316,45 @@ internal static partial class LandCommand
         throw new ToolException($"pushing to origin's main failed; nothing landed: git push exited {push.ExitCode}: {(push.Stdout + push.Stderr).Trim()}");
     }
 
-    /// <summary>Closes the GitHub issue a landed branch was for, or does nothing; it never fails the landing.</summary>
-    private static async Task CloseIssueAsync(int issue, string worktree, string branch, string landed, CancellationToken ct)
+    /// <summary>Records landing evidence; only explicit completion intent closes an issue.</summary>
+    private static async Task UpdateIssuesAsync(Options options, string worktree, string branch, string landed, CancellationToken ct)
     {
-        var number = issue;
-        if (number == 0)
+        var message = await Git.RunAsync(worktree, ct, "log", "-1", "--format=%B", landed).ConfigureAwait(false);
+        var closes = ClosingIssue().Matches(message)
+            .Select(m => int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture)).ToHashSet();
+        if (options.Issue != 0)
         {
-            var m = IssueInBranch().Match(branch);
-            if (!m.Success)
+            closes = [options.Issue];
+        }
+        var issues = new HashSet<int>(closes);
+        var branchIssue = IssueInBranch().Match(branch);
+        if (options.Issue == 0 && branchIssue.Success)
+        {
+            issues.Add(int.Parse(branchIssue.Groups[1].Value, CultureInfo.InvariantCulture));
+        }
+        foreach (var number in issues.Order())
+        {
+            var close = closes.Contains(number);
+            var numberText = number.ToString(CultureInfo.InvariantCulture);
+            string[] args = ["issue", close ? "close" : "comment", numberText, close ? "--comment" : "--body", $"Landed on main as {landed}."];
+            try
             {
-                return;
+                if (options.IssueCommand is { } command)
+                {
+                    await command(args).ConfigureAwait(false);
+                }
+                else
+                {
+                    await Git.GhAsync(worktree, ct, args).ConfigureAwait(false);
+                }
             }
-            number = int.Parse(m.Groups[1].Value, CultureInfo.InvariantCulture);
+            catch (ToolException e)
+            {
+                Log.Info($"issue #{number} not {(close ? "closed" : "commented")} ({e.Message}); record the landing commit by hand");
+                continue;
+            }
+            Log.Info($"{(close ? "closed" : "commented on")} issue #{number}");
         }
-        var numberText = number.ToString(CultureInfo.InvariantCulture);
-        try
-        {
-            await Git.GhAsync(worktree, ct, "issue", "close", numberText, "--comment", $"Landed on main as {landed}.").ConfigureAwait(false);
-        }
-        catch (ToolException e)
-        {
-            Log.Info($"issue #{number} not closed ({e.Message}); close it by hand with the landing commit");
-            return;
-        }
-        Log.Info($"closed issue #{number}");
     }
 
     private static async Task RequireCleanAsync(string dir, string what, CancellationToken ct)

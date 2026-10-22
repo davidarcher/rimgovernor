@@ -31,7 +31,10 @@
    nothing and undoes the merge); a docs-only merge lands without a rebuild.
 5. Continue authorized milestones. Close an issue when its stated acceptance
    is met; a registered, compiling acceptance case satisfies a case-writing
-   task. Later nightly failures are separate issues.
+   task. Write a closing keyword (for example, `Fixes #N`) only when the commit
+   meets the whole acceptance and no required remote-acceptance verification remains.
+   For partial work or pending required remote verification, omit the keyword; close
+   the issue after that verification passes. Later nightly failures are separate issues.
 
 Never open a PR, force-push, push a task branch, push to main yourself (the lane
 pushes), or edit the main checkout. Details: [landing](docs/developers/development-process.md#landing).
