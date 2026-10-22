@@ -215,6 +215,11 @@ Hot and NextRoomID.
   rock, hazard or prop) joins the areas either side of it. A pocket the rooms close in
   and a bank past deep water are no open ground; rooms the embedding packs onto either
   get no exterior door.
+  A standing room (the embedding keeps it where it stands) keeps the exterior door
+  its shell holds while that door's outside is open ground, and no flow link door
+  cuts its ring where its shell holds no door (#3680, `TileInput.StandingDoors`): a
+  new door there would leave the room unbuilt until the wall came down, so the next
+  replan would re-site it.
   A room packed in with no door onto the ground is joined through a neighbour. Each
   tiled room carries `PlannedRoom.Crossing` (`RoomCrossing`), read from its station
   group, not its role: `Cold` (a cooled room: door temperature equalization leaks the

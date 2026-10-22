@@ -215,6 +215,7 @@ namespace HomeBridge.BridgeTools
                     Equip(pawn, p);
                     Set(pawn, p);
                     if (p.Bed != null) Claim(pawn, p, tables);
+                    if (p.MoodTarget is float target) HeldMood.Hold(pawn, target);
                     if (staged.Any(x => x.Name == p.Name)) throw new ArgumentException($"Two pawns are named {p.Name}.");
                     staged.Add((p.Name, pawn));
                     if (arrival != null && pawn.Faction != Faction.OfPlayer && arrivalCenter == null) arrivalCenter = cell;

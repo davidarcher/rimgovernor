@@ -360,6 +360,7 @@ public sealed record StationFacts
             Comfort = advice.Comfort,
             NextRoomId = Plan.NextRoomId,
             Conduits = Plan.Conduits,
+            StandingDoors = [.. emb.Blocks.Concat(blocks).Where(b => b.Built != 0).SelectMany(b => Plan.Rooms.Where(r => r.Id == b.Built)).SelectMany(Plan.ShellDoors)],
         };
     }
 

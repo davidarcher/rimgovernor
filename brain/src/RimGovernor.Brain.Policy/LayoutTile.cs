@@ -34,6 +34,9 @@ public sealed record TileInput
     public IReadOnlyList<ComfortChoice> Comfort { get; init; } = [];
     public int NextRoomId { get; init; }
     public IReadOnlyList<ConduitLink> Conduits { get; init; } = [];
+
+    /// <summary>The cells of the doors the standing rooms' shells hold in the plan (ShellDoors, #3680): a flow door cuts no other cell of a standing room's ring.</summary>
+    public IReadOnlyList<Cell> StandingDoors { get; init; } = [];
 }
 
 /// <summary>
@@ -288,6 +291,9 @@ internal sealed partial class Tiler(TileInput input)
     internal Dictionary<(int, int), List<Cell>> Adj { get; } = [];
     internal Dictionary<(int, int), Cell> Links { get; } = [];
     internal Dictionary<int, bool> Through { get; } = [];
+
+    /// <summary>The rooms the embedding keeps where they stand (EmbeddedBlock.Built).</summary>
+    internal HashSet<int> Standing { get; } = [];
     internal List<Cell?> ExtDoor { get; set; } = [];
     internal List<Cell> ExtOut { get; set; } = [];
 
@@ -373,6 +379,7 @@ internal sealed partial class Tiler(TileInput input)
             var b = blocks[blocks.FindIndex(x => x.Group == r.Group)];
             if (b.Built != 0)
             {
+                Standing.Add(i);
                 reason = LayoutTileRules.ReasonTileRoomBuilt; // the standing room, kept as it stands
             }
             else if (b.Replaces != 0)
@@ -532,7 +539,7 @@ internal sealed partial class Tiler(TileInput input)
                 continue;
             }
             var (cell, fits) = PickLink(k);
-            if (!required && (Weight.GetValueOrDefault(k) <= 0 || Find(k.Item1) == Find(k.Item2) || !fits || SleepersUseCirculation(k)))
+            if (!required && (Weight.GetValueOrDefault(k) <= 0 || Find(k.Item1) == Find(k.Item2) || !fits || SleepersUseCirculation(k) || CutsStanding(k, cell)))
             {
                 continue;
             }
@@ -541,6 +548,13 @@ internal sealed partial class Tiler(TileInput input)
             Note(Rooms[k.Item1].Group, Rooms[k.Item2].Group, LayoutTileRules.TilePlace, LayoutTileRules.ReasonTileLinkDoor);
         }
     }
+
+    /// <summary>
+    /// A flow door at cell of pair k would cut a standing room's wall where its shell holds no door (#3680): the room
+    /// would no longer stand as planned until the wall came down, so the next replan re-sites it as unbuilt.
+    /// </summary>
+    internal bool CutsStanding((int, int) k, Cell cell) =>
+        (Standing.Contains(k.Item1) || Standing.Contains(k.Item2)) && !In.StandingDoors.Contains(cell);
 
     /// <summary>A flow door between a room with beds and a room that is not circulation, while the plan has circulation: the sleepers' way to the hubs is the corridor, so no hub carries a bedroom door.</summary>
     internal bool SleepersUseCirculation((int, int) k)
@@ -611,15 +625,24 @@ internal sealed partial class Tiler(TileInput input)
             }
 
             // The placer is the judge of a door: each door keeps its threshold clear, so the first door, nearest the
-            // middle, that leaves the group's stations a place is taken, else the nearest.
+            // middle, that leaves the group's stations a place is taken, else the nearest. A standing room keeps the
+            // door it stands with while its outside is open (#3680): a door moved off the plan's cell unbuilds the room.
             var pick = cands[0];
             var links = LinkCells(i);
-            foreach (var c in cands)
+            var held = Standing.Contains(i) ? cands.FindIndex(c => In.StandingDoors.Contains(c.Door)) : -1;
+            if (held >= 0)
             {
-                if (Furnishes(i, [c.Door, .. links]))
+                pick = cands[held];
+            }
+            else
+            {
+                foreach (var c in cands)
                 {
-                    pick = c;
-                    break;
+                    if (Furnishes(i, [c.Door, .. links]))
+                    {
+                        pick = c;
+                        break;
+                    }
                 }
             }
             ExtDoor[i] = pick.Door;

@@ -91,7 +91,7 @@ public static partial class SleepingRules
     /// reconcile (the first in plan order that owes one: a bedroom with no bed, a barracks with fewer beds than
     /// its tiled bed slots), only while the standing rooms cannot take every colonist still outside one; a room
     /// dug into rock is a shell too, whose builder mines it first. A colonist owning a bed in a planned barracks
-    /// is housed. It reports BedroomStepKind.None whenever a fact it needs is unknown. A colonist who owns alone a
+    /// is housed, but for the owners past its seats (CrowdedOut). It reports BedroomStepKind.None whenever a fact it needs is unknown. A colonist who owns alone a
     /// room RoomTargets marks NeverUpgrade (an ascetic) counts as housed: the move never takes them from the
     /// plainest room. A vacant bedroom bed goes to the unhoused colonist with the largest priced gain from it
     /// (#3656, ForecastHousing.LargestGainFirst over <paramref name="gains"/>, at its room's stage now); a barracks
@@ -106,7 +106,7 @@ public static partial class SleepingRules
         IReadOnlyDictionary<PawnId, double>? pressure,
         BedroomGainFacts? gains = null)
     {
-        if (CensusOf(plan, rooms, sleeping, targets) is not { } census)
+        if (CensusOf(plan, rooms, sleeping, targets, gains, null) is not { } census)
         {
             return new BedroomStep();
         }
@@ -207,7 +207,7 @@ public static partial class SleepingRules
         ISet<string>? findings = null)
     {
         var occupants = new Dictionary<int, EquatableArray<string>>();
-        if (CensusOf(plan, rooms, sleeping, targets) is not { } census || census.Unhoused.Count == 0)
+        if (CensusOf(plan, rooms, sleeping, targets, gains, findings) is not { } census || census.Unhoused.Count == 0)
         {
             return occupants;
         }
@@ -253,7 +253,8 @@ public static partial class SleepingRules
     private sealed record BedroomCensus(HashSet<string> Spots, Dictionary<string, bool> BedroomBed, HashSet<string> BarracksBed,
         Dictionary<string, SleepingBed> Beds, List<SleepingPerson> People, List<SleepingPerson> Unhoused);
 
-    private static BedroomCensus? CensusOf(LayoutPlan plan, RoomObservation rooms, SleepingObservation sleeping, IReadOnlyDictionary<string, RoomTarget>? targets)
+    private static BedroomCensus? CensusOf(LayoutPlan plan, RoomObservation rooms, SleepingObservation sleeping, IReadOnlyDictionary<string, RoomTarget>? targets,
+        BedroomGainFacts? gains, ISet<string>? findings)
     {
         if (sleeping.People.Count == 0 || sleeping.People.Count != sleeping.Colonists)
         {
@@ -294,6 +295,7 @@ public static partial class SleepingRules
             && NeverUpgradeOf(targets, room) && owners[room].All(o => o == p.Id);
         var people = sleeping.People.OrderBy(p => p.Id).ToList();
         var couples = SleepingCouples(sleeping.People);
+        var crowded = CrowdedOut(plan, rooms, spots, sleeping, couples, gains, findings);
         var unhoused = new List<SleepingPerson>();
         foreach (var p in people)
         {
@@ -308,12 +310,57 @@ public static partial class SleepingRules
                 continue;
             }
             // A couple is never split into single bedrooms: sleeping upkeep would reunite them at once.
-            if (!couples.ContainsKey(p.Id) && !(bedroomBed.TryGetValue(bed, out var housed) && housed) && !barracksBed.Contains(bed) && !Kept(p, bed))
+            if (!couples.ContainsKey(p.Id) && !(bedroomBed.TryGetValue(bed, out var housed) && housed) && !(barracksBed.Contains(bed) && !crowded.Contains(p.Id)) && !Kept(p, bed))
             {
                 unhoused.Add(p);
             }
         }
         return new(spots, bedroomBed, barracksBed, beds, people, unhoused);
+    }
+
+    /// <summary>
+    /// The owners a planned barracks holds more of than it seats (#3680). The plan's free beds (each barracks' bed slots and
+    /// each bedroom's bed, a Retiring room's left out) less the colonists are the spare places, which the bed merge seats
+    /// in the barracks first at no loss, so a barracks seats its slots less the spare it holds. A split (#3661) keeps the
+    /// standing barracks with every bed it stands with while it seats one fewer, so the owners past its seats are owed a
+    /// bedroom: the largest loss a day sleeping in a barracks over a bedroom first (the bed merge's loss,
+    /// BedroomGainFacts.BedMerge, at the planned stage), as the merge left them out. Id order without gains or with one
+    /// unread (named in <paramref name="findings"/>); a couple stays housed.
+    /// </summary>
+    private static HashSet<PawnId> CrowdedOut(LayoutPlan plan, RoomObservation rooms, HashSet<string> spots, SleepingObservation sleeping,
+        Dictionary<PawnId, PawnId> couples, BedroomGainFacts? gains, ISet<string>? findings)
+    {
+        var output = new HashSet<PawnId>();
+        var retiring = RetiringRooms(plan);
+        var pool = plan.Rooms.Where(r => !retiring.Contains(r.Region.Bounds())).ToList();
+        var spare = Math.Max(0, pool.Sum(r => r.Role == PlannedRole.Bedroom ? 1 : BedSlotsOf(plan, r, rooms.Shapes.Furniture)?.Count ?? 0) - sleeping.Colonists);
+        var stage = Known(LayoutMoodRules.MoodJudgment.PlannedStage);
+        foreach (var r in pool)
+        {
+            if (BedSlotsOf(plan, r, rooms.Shapes.Furniture) is not { } slots)
+            {
+                continue;
+            }
+            var held = Math.Min(spare, slots.Count);
+            spare -= held;
+            var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
+            if (!ok)
+            {
+                continue;
+            }
+            var standing = room!.Beds.Where(b => !spots.Contains(b)).ToHashSet(StringComparer.Ordinal);
+            var owners = sleeping.Beds.Where(b => standing.Contains(b.Id)).SelectMany(b => b.Owners).Distinct().Order().ToList();
+            var over = owners.Count - (slots.Count - held);
+            if (over <= 0)
+            {
+                continue;
+            }
+            var single = owners.Where(p => !couples.ContainsKey(p)).ToList();
+            var ranked = gains is null ? single
+                : ForecastHousing.LargestGainFirst(single, p => p.Value, p => gains.Gain(p.Value, stage) - gains.Gain(p.Value, stage, barracks: true), findings);
+            output.UnionWith(ranked.Take(over));
+        }
+        return output;
     }
 
     /// <summary>The vacant beds an unhoused colonist can be moved into, in order: bedroom beds (no suite's, no barracks'),

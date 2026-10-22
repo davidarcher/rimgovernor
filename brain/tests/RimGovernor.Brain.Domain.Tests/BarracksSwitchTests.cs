@@ -79,6 +79,45 @@ public sealed class BarracksSwitchTests
     }
 
     [Fact]
+    public void TheSplitLeavesTheStandingBarracksBuilt()
+    {
+        var (plan, f) = Standing();
+        var barracks = plan.RoomsOf(PlannedRole.Barracks).Single();
+        var ground = new GroundCensus();
+        foreach (var c in barracks.WallRing().Cells())
+        {
+            (plan.ShellDoors(barracks).Contains(c) ? ground.Doors : ground.Walls).Add(c);
+        }
+
+        var next = Replan(plan, WithLosses(f, 0.06));
+
+        Assert.Single(next.RoomsOf(PlannedRole.Bedroom));
+        Assert.Contains(barracks.Id, LayoutPlan.BuiltRooms(next, ground));
+    }
+
+    [Fact]
+    public void TheSplitKeepsTheStandingBarracksDoorAwayFromTheNewRooms()
+    {
+        var (first, f) = Standing();
+        var b = first.RoomsOf(PlannedRole.Barracks).Single();
+        var bounds = b.Region.Bounds();
+        var door = new Cell(bounds.X + bounds.Width, bounds.Z + (bounds.Height / 2));
+        var plan = first with { Rooms = [.. first.Rooms.Select(r => r.Id == b.Id ? r with { Door = door, DoorRot = InteriorRules.DoorSide(bounds, door).Item1 } : r)] };
+        var ground = new GroundCensus();
+        var barracks = plan.RoomsOf(PlannedRole.Barracks).Single();
+        foreach (var c in barracks.WallRing().Cells())
+        {
+            (plan.ShellDoors(barracks).Contains(c) ? ground.Doors : ground.Walls).Add(c);
+        }
+
+        var next = Replan(plan, WithLosses(Stand(plan, f), 0.06));
+
+        Assert.Single(next.RoomsOf(PlannedRole.Bedroom));
+        Assert.Equal(door, next.Rooms.Single(r => r.Id == barracks.Id).Door);
+        Assert.Contains(barracks.Id, LayoutPlan.BuiltRooms(next, ground));
+    }
+
+    [Fact]
     public void AMoodSwingingAboutTheSwitchLineSwitchesAtMostOnceInSixReplans()
     {
         var (plan, f) = Standing();

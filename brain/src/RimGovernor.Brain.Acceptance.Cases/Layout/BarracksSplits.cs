@@ -7,16 +7,26 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>layout/barracks-splits</c> (#3661): three colonists sleep in a staged, roofed three-bed barracks the injected plan holds
-/// as its Barracks, and one of them is held near its break (recreation frozen empty). Under the served brain the replan
-/// splits that pawn's bed out (BarracksSwitchTests owns the price and the hysteresis): a coupled selection starts a planned
-/// bedroom credited to its sleeper, and that pawn ends up owning a bed outside the barracks. A unit test cannot prove the
-/// native mood read, the bedroom build or the bed move.
+/// as its Barracks, and one of them is held near its break. Under the served brain the replan splits that pawn's bed out
+/// (BarracksSwitchTests owns the price and the hysteresis): a coupled selection starts a planned bedroom credited to its
+/// sleeper, and that pawn ends up owning a bed outside the barracks. A unit test cannot prove the native mood read, the
+/// bedroom build or the bed move.
 /// </summary>
+/// <remarks>
+/// Near its break (#3680): the bed merge prices a sleeper's barracks loss at a flat mood target, and a break tier's cost
+/// is the same anywhere inside the tier, so the loss pays for a bedroom only when the bedroom's bed thought lifts the
+/// target over the minor threshold (0.35) and the barracks' does not. The staged mood target (StagePawn.MoodTarget) holds
+/// the pawn's target at <see cref="NearBreak"/> while expectations, the room it stands in and its meals move its other
+/// thoughts: under the threshold by less than the bedroom's bed-thought lift over the barracks' (5 to 8 points at the
+/// planned stage). Mood is frozen with the other needs, so the pawn never breaks; food and rest stay live, so the coupled
+/// schedule fits the bedroom's work between meals rather than after a frozen stomach's far one.
+/// </remarks>
 internal static class LayoutBarracksSplits
 {
     private const int Colonists = 3;
     private const string BedroomKey = "bedroom/";
     private static readonly string[] Beds = ["bed-a", "bed-b", "bed-c"];
+    private const float NearBreak = 0.32f;
 
     // A 16x8 site: the roofed 8x5 barracks (6x3 interior) at its west end with its door east and the three beds along its
     // south wall, the logs and meals east of it, where the split bedroom is sited.
@@ -52,8 +62,7 @@ internal static class LayoutBarracksSplits
         [
             new Fx.StagePawn { Name = "a", Colonist = 0, Cell = new(2, 3), Bed = Beds[0] },
             new Fx.StagePawn { Name = "b", Colonist = 1, Cell = new(4, 3), Bed = Beds[1] },
-            // Recreation frozen empty: the Joy thought holds this pawn's mood target near its break threshold.
-            new Fx.StagePawn { Name = "c", Colonist = 2, Cell = new(6, 3), Bed = Beds[2], Needs = new Dictionary<string, float> { ["Joy"] = 0f } },
+            new Fx.StagePawn { Name = "c", Colonist = 2, Cell = new(6, 3), Bed = Beds[2], MoodTarget = NearBreak },
         ],
     };
 
@@ -61,8 +70,8 @@ internal static class LayoutBarracksSplits
     {
         Name = "layout/barracks-splits",
         Scope = "Issue #3661: three colonists in a staged roofed three-bed barracks the injected plan holds, one held near its break "
-            + "(Joy frozen empty): under the served brain a coupled selection starts a planned bedroom credited to its sleeper, and "
-            + "the near-break pawn ends up owning a bed outside the barracks.",
+            + "(its mood target held just under the minor threshold): under the served brain a coupled selection starts a planned "
+            + "bedroom credited to its sleeper, and the near-break pawn ends up owning a bed outside the barracks.",
         Ticks = 20_000, // a hang guard: the replan is hourly and the bedroom a few game hours of work
         Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = Colonists },

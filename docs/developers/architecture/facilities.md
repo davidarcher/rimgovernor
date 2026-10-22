@@ -754,7 +754,12 @@ a planned room with no bed a `BedroomReconcile`, and a planned barracks
 (`PlannedRole.Barracks`) one while it holds fewer beds than the tiler placed
 in it; there is no shell or furnish step. A colonist owning a bed in a planned
 barracks is housed, and an unhoused one moves into a vacant barracks bed only
-when no bedroom bed is vacant to them.
+when no bedroom bed is vacant to them. A barracks seats its bed slots less the
+spare places it holds (the plan's free beds less the colonists, which the bed
+merge seats there first): after a split (#3661, #3680) the standing barracks
+keeps every bed it stands with while it seats one fewer, so the owner past its
+seats with the largest bed-merge loss (`CrowdedOut`) is unhoused, owed the
+split's bedroom and credited as its occupant.
 
 The clustering prices the bed merge (#3658, `LayoutBedMerge.cs`): no pair rule
 joins two rooms of free beds (`cluster_beds_priced_apart`); the split

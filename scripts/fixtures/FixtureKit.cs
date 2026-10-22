@@ -12,7 +12,8 @@ namespace HomeBridge.BridgeTools
     // guards, "x,z;x,z" cell lists, site search, area clearing, cell writes, wall rooms, pawn generation, work and
     // timetable loops, the lab hostiles' faction and arming, and the staging digest. test/stage (StageFixture)
     // composes them from a typed spec; the older single-purpose fixtures call them directly. Also here: the blank lab
-    // (LabStart), the starter hut (FixtureHut) and the frozen needs (FrozenNeeds) other fixtures share.
+    // (LabStart), the starter hut (FixtureHut), the frozen needs (FrozenNeeds) other fixtures share and the held mood
+    // target (HeldMood) test/stage holds.
     public static class FixtureKit
     {
         public static Map CurrentMap() => Find.CurrentMap ?? throw new InvalidOperationException("A loaded game with a current map is required.");
@@ -631,6 +632,57 @@ namespace HomeBridge.BridgeTools
         {
             if (!Active || ___pawn == null || ___pawn.needs == null || !___pawn.IsColonist || ___pawn.Faction != Faction.OfPlayer) return;
             Pin(___pawn);
+        }
+    }
+
+    // A staged mood target (StagePawn.MoodTarget, #3680): one permanent DebugBad memory carries the whole mood points
+    // that bring the pawn's native baseline (as NativeConditionalMood reads MoodUnclampedTarget) to the target, and after
+    // each needs tick its offset is recomputed, so the target holds while expectations, the room the pawn stands in or a
+    // meal's memory move the other thoughts. For the test game only, like FrozenNeeds.
+    public static class HeldMood
+    {
+        private static bool patched;
+        private static Game game;
+        private static readonly Dictionary<Pawn, (Thought_Memory Memory, float Target)> held = new Dictionary<Pawn, (Thought_Memory, float)>();
+
+        public static void Hold(Pawn pawn, float target)
+        {
+            var mood = pawn.needs?.mood ?? throw new ArgumentException($"{pawn.LabelShort} has no mood.");
+            if (!ReferenceEquals(game, Current.Game)) { held.Clear(); game = Current.Game; }
+            EnsurePatched();
+            var memory = (Thought_Memory)ThoughtMaker.MakeThought(ThoughtDefOf.DebugBad);
+            memory.permanent = true;
+            memory.moodPowerFactor = 0f;
+            mood.thoughts.memories.TryGainMemory(memory);
+            if (!mood.thoughts.memories.Memories.Contains(memory)) throw new InvalidOperationException($"{pawn.LabelShort} did not gain the mood target's memory.");
+            held[pawn] = (memory, target);
+            mood.thoughts.situational.SituationalThoughtInterval();
+            Adjust(pawn, memory, target);
+        }
+
+        private static void Adjust(Pawn pawn, Thought_Memory memory, float target)
+        {
+            var mood = pawn.needs.mood;
+            var colonist = pawn.IsColonist || pawn.IsPrisonerOfColony ? Find.Storyteller.difficulty.colonistMoodOffset : 0f;
+            var others = mood.thoughts.TotalMoodOffset() - memory.MoodOffset();
+            var baseline = (pawn.health.hediffSet.OverrideMoodBase ?? mood.def.baseLevel) + (others + colonist) / 100f;
+            memory.moodOffset = (int)Math.Round((target - baseline) * 100f);
+        }
+
+        private static void EnsurePatched()
+        {
+            if (patched) return;
+            new Harmony("rimgovernor.test.held-mood").Patch(
+                AccessTools.Method(typeof(Pawn_NeedsTracker), nameof(Pawn_NeedsTracker.NeedsTrackerTickInterval)),
+                postfix: new HarmonyMethod(typeof(HeldMood), nameof(AfterTick)));
+            patched = true;
+        }
+
+        private static void AfterTick(Pawn ___pawn)
+        {
+            if (___pawn == null || !ReferenceEquals(game, Current.Game) || !held.TryGetValue(___pawn, out var h) || ___pawn.needs?.mood == null) return;
+            if (!___pawn.needs.mood.thoughts.memories.Memories.Contains(h.Memory)) { held.Remove(___pawn); return; }
+            Adjust(___pawn, h.Memory, h.Target);
         }
     }
 }

@@ -194,6 +194,23 @@ public sealed class PlannedBarracksTests
         Assert.Equal((Barracks.Id, "a,b"), (seated.Key, string.Join(",", seated.Value)));
     }
 
+    /// <summary>#3680: the split keeps the standing barracks with its spare bunk and one sleeper fewer, two slots and a
+    /// bedroom for two colonists, so the owner past its one seat is owed the bedroom (id order without gains) and is its
+    /// planned occupant.</summary>
+    [Fact]
+    public void AnOwnerPastTheBarracksSlotsIsOwedTheSplitBedroom()
+    {
+        var bedroom = new PlannedRoom { Id = 3, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new Rectangle(20, 0, 4, 4)) };
+        var split = Plan with { Rooms = [Barracks, bedroom], Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [Barracks.Id] = [Slot(10), Slot(12)] } };
+        var rooms = new RoomObservation { Rooms = [Standing("barracks", Barracks, RoomRole.Barracks, "k1", "k2")], Shapes = new PieceShapes { Furniture = Furniture } };
+        var sleeping = new SleepingObservation { Colonists = 2, People = [Person(A, "k1"), Person(B, "k2")], Beds = [SleepingBed("k1", "barracks", A), SleepingBed("k2", "barracks", B)] };
+
+        var step = SleepingRules.NextBedroomStep(split, rooms, sleeping, new Dictionary<string, RoomTarget>(), new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
+        Assert.Equal((BedroomStepKind.Reconcile, bedroom.Id, 1), (step.Kind, step.Room.Id, step.Unhoused));
+        var occupant = Assert.Single(SleepingRules.PlannedBedroomOccupants(split, rooms, sleeping, null));
+        Assert.Equal((bedroom.Id, "a"), (occupant.Key, string.Join(",", occupant.Value)));
+    }
+
     [Fact]
     public void ABarracksReconcileListsABedAtEveryTiledBedSlot()
     {
