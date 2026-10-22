@@ -62,7 +62,7 @@ internal static class CustodyPopulation
         await RefusedAsync(s, "capture-guest", TypedPawnOps.GiveJob(capturer, "Capture", setup.Visitor), r => r.Reason?.Contains("Capture refused", StringComparison.Ordinal) == true, cancellationToken).ConfigureAwait(false);
         await RefusedAsync(s, "capture-missing", TypedPawnOps.GiveJob(capturer, "Capture", "Thing_NoSuchPatient"), r => r.Code == Common.FailureCode.NotFound, cancellationToken).ConfigureAwait(false);
         await OrderedAsync(s, "custody-capture", capturer, setup.Candidate, "Capture", cancellationToken).ConfigureAwait(false);
-        _ = await s.RunUntilAsync("observe-capture", CaptureTicks, Until(s, setup.Candidate, p => p.Prisoner), cancellationToken).ConfigureAwait(false);
+        _ = await s.RunUntilAsync("observe-capture", CaptureTicks, Until(s, setup.Candidate, p => p.Prisoner && p.InBed), cancellationToken).ConfigureAwait(false);
 
         // Prisoner interaction: the captured candidate.
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
@@ -146,7 +146,13 @@ internal static class CustodyPopulation
 
     private static Probe Until(TypedSession s, string pawn, Func<Observations.PawnState, bool> done) => async ct =>
     {
-        var row = await PawnAsync(s, "custody-" + pawn, pawn, ct).ConfigureAwait(false);
+        // The spawned-pawn census omits a patient while the carrier holds it.
+        // Absence is pending, never successful custody; the tick budget still
+        // fails a patient that does not reappear with the required outcome.
+        var rows = await TypedPawns.ListAsync(s, "custody-" + pawn,
+            new Observations.PawnFilter { Ids = [pawn] }, null, ct).ConfigureAwait(false);
+        var row = rows.FirstOrDefault(p => p.Pawn.Id == pawn);
+        if (row is null) return ("patient unobserved; awaiting spawned custody outcome", false);
         return ($"{row.Prisoner} {row.InBed} {row.Downed}", done(row));
     };
 

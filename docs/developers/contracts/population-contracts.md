@@ -199,4 +199,6 @@ after rescue remains RimWorld's decision.
 
 The optional `PopulationFixture` build prepares test-only starting conditions and is excluded from
 production and model execution. Acceptance evidence distinguishes its prerequisites from the ordinary
-pawn outcomes asserted afterward.
+pawn outcomes asserted afterward. Its custody progress probes treat an absent spawned-pawn row
+as unobserved while a carrier may hold the patient, and continue only within the case tick budget.
+Capture requires the patient to reappear as a prisoner in bed; rescue requires observed bed occupancy.
