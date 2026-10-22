@@ -14,7 +14,7 @@ namespace HomeBridge.BridgeTools;
 /// A pipeline that is not exact for the substitution yields no values and a finding.</summary>
 internal static class NativeSkillStat
 {
-    internal const string Provenance = "native SkillNeed level value substituted -> StatWorker.FinalizeValue; observed capacities and neutral modifiers";
+    internal const string Provenance = "native stat dependency graph at each stored skill level -> StatWorker.FinalizeValue; observed conditions held";
 
     /// <summary>The per-pawn curves the biography carries (#3633). MedicalOperationSpeed has no StatDefOf field;
     /// the surgery recipes' shared base names it.</summary>
@@ -124,6 +124,7 @@ internal static class NativeSkillStat
     // Inspected parts that never read a skill: their observed value is held like capacities and lighting.
     private static bool AllowedPart(Pawn pawn, StatPart part) => part.GetType() == typeof(StatPart_Glow)
         || part.GetType() == typeof(StatPart_Slave) || part.GetType() == typeof(StatPart_Age)
+        || part.GetType() == typeof(StatPart_Trainable) // Native Dig training multiplier, independent of skill level.
         || part.GetType() == typeof(StatPart_OverseerStatOffset) && !pawn.RaceProps.IsMechanoid;
 
     // A nested stat (CookSpeed's postfactor and the medical speeds' factor are native WorkSpeedGlobal) may depend on
