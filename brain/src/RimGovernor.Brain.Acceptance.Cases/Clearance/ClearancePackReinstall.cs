@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <c>clearance/pack-reinstall</c> (#2118): the round trip a bedroom reconcile drives, over its native half. A damaged
 /// Bed in one staged room is designated for uninstall (relocate, uninstall), vanilla minifies it, and the packed piece is
 /// installed by its inner building's id into another staged room (relocate, destination); the same building stands
-/// there with its hit points kept. Native: the uninstall and install orders, their blueprints and the pawns' jobs. The
+/// there with its hit points kept. The site is kept off Home so vanilla repair leaves the bed alone. Native: the uninstall and install orders, their blueprints and the pawns' jobs. The
 /// planner's reconcile choice is covered by its policy tests.
 /// </summary>
 internal static class ClearancePackReinstall
@@ -43,7 +43,6 @@ internal static class ClearancePackReinstall
                 Require = [Fx.StageGround.Standable, Fx.StageGround.Empty, Fx.StageGround.Unfogged, Fx.StageGround.Unroofed, Fx.StageGround.Unzoned],
             },
             Clear = [new Fx.StageClear { Rect = new Fx.StageRect(0, 0, 13, 7), Kinds = [Fx.StageClearKind.Things, Fx.StageClearKind.Pawns, Fx.StageClearKind.Roofs, Fx.StageClearKind.Zones] }],
-            Cells = [new Fx.StageCells { Rect = new Fx.StageRect(0, 0, 13, 7), Home = true }],
             Rooms =
             [
                 new Fx.StageRoom { Name = "origin", Rect = new Fx.StageRect(1, 1, 5, 5), Stuff = "WoodLog", Doors = [new(3, 1)], Roof = true },
@@ -73,6 +72,17 @@ internal static class ClearancePackReinstall
         }
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+
+        // Vanilla repairs a damaged player building only on Home cells (WorkGiver_Repair), and a spawned building marks
+        // Home around itself while auto-expand is on (AutoHomeAreaMaker), so the staged walls and the reinstalled bed
+        // would put it in reach of the crew's Repair job (#3694). Off and cleared, only the round trip touches its hit points.
+        _ = await TypedApply.AppliedAsync(s, "auto-home-off", new Operations.AutoHomeAreaIntent { Enabled = false }, cancellationToken).ConfigureAwait(false);
+        _ = await TypedApply.AppliedAsync(s, "home-clear", new Operations.AreaIntent
+        {
+            Operation = Operations.AreaOperation.ClearCells,
+            Home = true,
+            Rects = [new Operations.AreaRect { MinX = site.X, MinZ = site.Z, MaxX = site.X + site.Width - 1, MaxZ = site.Z + site.Height - 1 }],
+        }, cancellationToken).ConfigureAwait(false);
         _ = await TypedApply.AppliedAsync(s, "uninstall", new Operations.RelocateIntent { ThingId = bed, Uninstall = true }, cancellationToken).ConfigureAwait(false);
         _ = await s.RunUntilAsync("packed", 3000, async ct =>
         {
