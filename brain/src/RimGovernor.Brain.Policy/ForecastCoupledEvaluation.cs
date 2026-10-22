@@ -77,6 +77,8 @@ public static partial class ForecastCoupled
     /// </summary>
     internal sealed class CoupledSearchCache
     {
+        internal ForecastActivities.RouteIndex Routes { get; } = new();
+
         /// <summary>One schedule's events; evaluation recurses only after it is done with them.</summary>
         internal List<ScheduleEvent> Events { get; } = [];
         private readonly Dictionary<ForecastActivityProblem, Dictionary<string, ForecastActivity>> tasks = new(ReferenceEqualityComparer.Instance);

@@ -170,6 +170,54 @@ public sealed class ForecastActivitiesTests
     }
 
     [Fact]
+    public void SharedRoutesPreserveCompleteSchedulesAcrossPortfolioChanges()
+    {
+        var p = Hunt();
+        var index = new ForecastActivities.RouteIndex();
+        var prepared = index.Get(p);
+        foreach (var bound in new[] { 1, 16, 64, 512 })
+        foreach (var deadline in new[] { 10.0, 5000.0 })
+        foreach (var options in new[] { p.Options, p.Options.Where(o => o.Pawn == "specialist").ToArray() })
+        {
+            var variant = p with { ExpansionBudget = bound, Deadline = Known(deadline), Options = options };
+            var expected = ForecastActivities.CompareActivityPlans(variant);
+            var reused = ForecastActivities.CompareActivityPlans(variant, index);
+            Assert.Equal(System.Text.Json.JsonSerializer.Serialize(expected), System.Text.Json.JsonSerializer.Serialize(reused));
+            Assert.Same(prepared, index.Get(variant));
+        }
+        // Reusing routes must not skip validation of the changing portfolio.
+        Assert.Throws<DomainException>(() => ForecastActivities.CompareActivityPlans(p with { Options = [.. p.Options, p.Options[0]] }, index));
+        Assert.Throws<DomainException>(() => ForecastActivities.CompareActivityPlans(p with { Activities = [new("produce", "field", "field", ["retrieve"]), p.Activities[1]] }, index));
+    }
+
+    [Fact]
+    public void SharedRoutesRevalidateNewObservationsAndPreserveUnknowns()
+    {
+        var p = Hunt();
+        var index = new ForecastActivities.RouteIndex();
+        var original = index.Get(p);
+        var far = p with { Routes = p.Routes.Select(r => r with { Ticks = Known(10000.0) }).ToArray() };
+        Assert.Empty(ForecastActivities.CompareActivityPlans(far, index).Alternatives);
+        Assert.NotSame(original, index.Get(far));
+        var unknown = p with { Routes = p.Routes.Select(r => r with { Ticks = Unknown<double>() }).ToArray() };
+        Assert.Empty(ForecastActivities.CompareActivityPlans(unknown, index).Alternatives);
+        Assert.Contains(ForecastActivities.CompareActivityPlans(unknown, index).Findings, f => f.StartsWith("unknown_route:", StringComparison.Ordinal));
+        foreach (var bad in new[]
+        {
+            p with { Routes = [.. p.Routes, p.Routes[0]] },
+            p with { Routes = [p.Routes[0] with { Ticks = Known(double.NaN) }] },
+            p with { Routes = [p.Routes[0] with { From = "invalid:location" }] },
+            p with { Pawns = [Pawn("replacement")] , Options = [] },
+        })
+        {
+            // Prime with the same routes before changing the pawn set, too.
+            _ = ForecastActivities.CompareActivityPlans(p, index);
+            Assert.Throws<DomainException>(() => ForecastActivities.CompareActivityPlans(bad, index));
+            Assert.NotEmpty(ForecastActivities.CompareActivityPlans(p, index).Alternatives);
+        }
+    }
+
+    [Fact]
     public void TruncatedSearchReachesTheFasterPawnWhateverItsId()
     {
         // #3624: six meals, a level-6 cook whose id sorts first and a level-15 cook beside it (the case's native work ticks).

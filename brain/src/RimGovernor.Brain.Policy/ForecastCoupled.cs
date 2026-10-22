@@ -199,7 +199,7 @@ public static partial class ForecastCoupled
         if (horizon > GameTime.TicksPerDay || context.Needs.Tick != request.Origin.ObservedTick
             || context.Resources.Evidence.Tick.Value != request.Origin.ObservedTick)
             throw new DomainException("coupled forecast needs one observed tick and at most one day");
-        var all = context.Activities.Activities.ToDictionary(t => t.Id, StringComparer.Ordinal);
+        var all = cache.Tasks(context.Activities);
         foreach (var id in context.NonproductiveOccupancy)
             if (!all.TryGetValue(id, out var wait) || wait.Inputs.Count != 0 || wait.Outputs.Count != 0
                 || wait.Location != wait.EndLocation || wait.NotBefore != 0 || wait.LatestStart != 0
@@ -248,7 +248,7 @@ public static partial class ForecastCoupled
                 return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
                 { Coupled = new([], [.. findings, "physical_lot_quantity_shortfall:" + input.Key.Lot], false) };
         }
-        var compared = included.Count == 0 ? null : ForecastActivities.CompareActivityPlans(problem);
+        var compared = included.Count == 0 ? null : ForecastActivities.CompareActivityPlans(problem, cache.Routes);
         if (compared is not null)
         {
             findings.UnionWith(compared.Findings);
@@ -267,7 +267,7 @@ public static partial class ForecastCoupled
                 || !retried.Options.Any(other => other.Activity == o.Activity && !barred.Contains((other.Activity, other.Pawn)))).ToArray();
             if (options.Length == retried.Options.Length) break;
             retried = retried with { Options = options };
-            var again = ForecastActivities.CompareActivityPlans(retried);
+            var again = ForecastActivities.CompareActivityPlans(retried, cache.Routes);
             findings.UnionWith(again.Findings);
             results = [.. results, .. again.Alternatives.Select(plan => cache.Evaluate(request, commitments, retried, plan))];
         }

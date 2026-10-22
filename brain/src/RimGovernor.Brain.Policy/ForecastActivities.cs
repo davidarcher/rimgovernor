@@ -107,12 +107,14 @@ public static class ForecastActivities
     private static readonly string[] PairRejections = ["unknown_capacity_or_cost", "unknown_equipment", "equipment_location_mismatch", "capacity_or_deadline", "equipment_occupied"];
 
     /// <summary>Bounded joint assignment/list scheduling over a dependency DAG. No activity-name policy.</summary>
-    public static ForecastActivityComparison CompareActivityPlans(ForecastActivityProblem problem)
+    public static ForecastActivityComparison CompareActivityPlans(ForecastActivityProblem problem) => CompareActivityPlans(problem, new RouteIndex());
+
+    internal static ForecastActivityComparison CompareActivityPlans(ForecastActivityProblem problem, RouteIndex routeIndex)
     {
-        ValidateActivityProblem(problem);
+        ValidateActivityProblem(problem, routeIndex: routeIndex);
         var tasks = problem.Activities.OrderBy(t => t.Id, StringComparer.Ordinal).ToArray();
         var pawns = problem.Pawns.ToDictionary(p => p.Pawn, StringComparer.Ordinal);
-        var routes = problem.Routes.ToDictionary(r => (r.Pawn, r.From, r.To));
+        var routes = routeIndex.Get(problem);
         var equipment = problem.Equipment.ToDictionary(e => e.Id, StringComparer.Ordinal);
         var options = problem.Options.ToDictionary(o => (o.Activity, o.Pawn));
         var findings = new SortedSet<string>(StringComparer.Ordinal);
@@ -434,7 +436,7 @@ public static class ForecastActivities
         return x ^ x >> 31;
     }
 
-    internal static void ValidateActivityProblem(ForecastActivityProblem p, bool allowEmpty = false)
+    internal static void ValidateActivityProblem(ForecastActivityProblem p, bool allowEmpty = false, RouteIndex? routeIndex = null)
     {
         static bool Id(string id) => !string.IsNullOrWhiteSpace(id) && !id.Contains(':') && !id.Contains(';');
         static void Number(Fact<double> fact)
@@ -502,8 +504,7 @@ public static class ForecastActivities
                 }
             }
         }
-        if (p.Options.Select(o => (o.Activity, o.Pawn)).Distinct().Count() != p.Options.Length
-            || p.Routes.Select(r => (r.Pawn, r.From, r.To)).Distinct().Count() != p.Routes.Length)
+        if (p.Options.Select(o => (o.Activity, o.Pawn)).Distinct().Count() != p.Options.Length)
             throw new DomainException("duplicate activity option or route");
         foreach (var option in p.Options)
         {
@@ -512,10 +513,39 @@ public static class ForecastActivities
             if (!tasks.ContainsKey(option.Activity) || !pawns.Contains(option.Pawn)) throw new DomainException("unknown activity option identity");
             Number(option.WorkTicks); Number(option.RecoveryLaborTicks);
         }
+        if (routeIndex is null) ValidateRoutes(p);
+        else _ = routeIndex.Get(p);
+    }
+
+    private static void ValidateRoutes(ForecastActivityProblem p)
+    {
+        static bool Id(string id) => !string.IsNullOrWhiteSpace(id) && !id.Contains(':') && !id.Contains(';');
+        if (p.Routes.Select(r => (r.Pawn, r.From, r.To)).Distinct().Count() != p.Routes.Length)
+            throw new DomainException("duplicate activity option or route");
+        var pawns = p.Pawns.Select(a => a.Pawn).ToHashSet(StringComparer.Ordinal);
         foreach (var route in p.Routes)
         {
             if (!pawns.Contains(route.Pawn) || !Id(route.From) || !Id(route.To)) throw new DomainException("invalid route identity");
-            Number(route.Ticks);
+            if (route.Ticks.TryGetValue(out var ticks) && (!double.IsFinite(ticks) || ticks < 0))
+                throw new DomainException("invalid activity estimate");
+        }
+    }
+
+    /// <summary>Routes validated against one search's pawn array. Observed arrays are immutable during a search;
+    /// replacing either array invalidates the index. No state survives the owning coupled search.</summary>
+    internal sealed class RouteIndex
+    {
+        private ForecastActivityRoute[]? source;
+        private ForecastPawnCapacity[]? pawns;
+        private Dictionary<(string Pawn, string From, string To), ForecastActivityRoute> routes = [];
+
+        internal Dictionary<(string Pawn, string From, string To), ForecastActivityRoute> Get(ForecastActivityProblem problem)
+        {
+            if (ReferenceEquals(source, problem.Routes) && ReferenceEquals(pawns, problem.Pawns)) return routes;
+            ValidateRoutes(problem);
+            var prepared = problem.Routes.ToDictionary(r => (r.Pawn, r.From, r.To));
+            (source, pawns, routes) = (problem.Routes, problem.Pawns, prepared);
+            return routes;
         }
     }
 }

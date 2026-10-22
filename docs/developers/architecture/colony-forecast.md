@@ -373,6 +373,14 @@ serial occupancy timeline across all work types; different pawns can overlap.
 Protected obligations bound availability, while optional baseline work supplies
 an explicit displaced-labor rate. Tasks must fit wholly inside one free window; they cannot span a protected obligation. Unknown positions after protected time cannot reuse an earlier location.
 
+The coupled portfolio search validates and indexes its observed routes once per
+search, sharing that lookup across candidate schedules and capacity-recovery
+retries. The existing search cache also owns the full activity index. Route and
+pawn arrays are immutable during selection; replacing either array rebuilds and
+revalidates the route lookup. Each candidate still validates its own tasks,
+options and dependencies. Standalone scheduling calls validate fresh inputs,
+and unknown routes remain unknown. No index persists into the next search.
+
 The search enumerates dependency-ready tasks and eligible pawn assignments,
 including self-service and delegation, with earliest and just-in-time approach
 travel. Prerequisites gate service, not travel. Thus a builder can approach a
