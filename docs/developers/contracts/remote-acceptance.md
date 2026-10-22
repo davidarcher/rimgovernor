@@ -162,7 +162,11 @@ A CoreCLR crash minidump a case launch leaves (`coreclr-<pid>.dmp`, see the
 `scripts/analyze_dumps_remote.ps1` installs a pinned `dotnet-dump` (only when a dump exists)
 and writes its threads, managed stacks with native frames (`clrstack -all -f`), exception and
 module list to `coreclr-<pid>.analysis.txt` beside the dump, runner paths reduced to file
-names. The exporter carries that text like any `.txt` diagnostic. The step is bounded and
+names. Before each command, `setclrpath` selects the runtime beside the absolute game target
+in the bootstrap root's `config/config.json`; the analysis records the CoreCLR and DAC file
+versions and SHA-256 identities. If that runtime is unavailable, it records the selection failure
+and retains native threads/modules without choosing another runtime. The exporter carries that
+text like any `.txt` diagnostic. The step is bounded and
 non-fatal: a failed analysis is logged and does not change the shard result.
 Missing required diagnostics cannot be hidden by redaction: report incomplete
 until the importer can retrieve them. The initial evidence fixtures require no

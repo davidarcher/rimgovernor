@@ -23,9 +23,13 @@ $commands = @('eeversion', 'threads', 'clrthreads', 'clrstack -all -f', 'pe -nes
 function Get-Leaf([string]$s) { [regex]::Replace($s, '(?i)[a-z]:[\\/][^"<>\]]*?(?=\s+@\s|[\]"<>]|\s*$)', { param($m) ($m.Value -split '[\\/]')[-1] }) }
 
 try {
-    $outputs = @((Get-Content -LiteralPath $Jobs -Raw | ConvertFrom-Json) | ForEach-Object output)
-    $dumps = @($outputs | Where-Object { $_ -and (Test-Path -LiteralPath $_) } |
-        ForEach-Object { Get-ChildItem -LiteralPath $_ -Recurse -File -Filter 'coreclr-*.dmp' -ErrorAction SilentlyContinue })
+    $dumps = @((Get-Content -LiteralPath $Jobs -Raw | ConvertFrom-Json) | ForEach-Object {
+        $job = $_
+        if ($job.output -and (Test-Path -LiteralPath $job.output)) {
+            Get-ChildItem -LiteralPath $job.output -Recurse -File -Filter 'coreclr-*.dmp' -ErrorAction SilentlyContinue |
+                ForEach-Object { @{ dump = $_; bootstrap = $job.bootstrap } }
+        }
+    })
     if (-not $dumps) { 'No CoreCLR crash dump in this shard.'; return }
 
     $tool = Join-Path $Tools 'dotnet-dump.exe'
@@ -34,12 +38,36 @@ try {
         if (-not (Test-Path -LiteralPath $tool)) { "dotnet-dump $version did not install; $($dumps.Count) dump(s) left unanalyzed."; return }
     }
 
-    foreach ($dump in $dumps) {
+    foreach ($item in $dumps) {
+        $dump = $item.dump
         $lines = @("dotnet-dump $version analyze of $($dump.Name) ($($dump.Length) bytes, written $($dump.LastWriteTimeUtc.ToString('o')))")
-        foreach ($c in $commands) {
+        $target = Join-Path $dump.DirectoryName ($dump.BaseName + '.analysis.txt')
+        $clrPath = $null
+        try {
+            $boot = Get-Content -LiteralPath $item.bootstrap -Raw -ErrorAction Stop | ConvertFrom-Json
+            $config = Get-Content -LiteralPath (Join-Path $boot.root 'config/config.json') -Raw -ErrorAction Stop | ConvertFrom-Json
+            $game = $config.games.'rimgovernor-trial'
+            if ($game.launchMode -ne 'DirectPath' -or -not [IO.Path]::IsPathFullyQualified($game.target)) {
+                throw 'Bootstrap game must have an absolute DirectPath target'
+            }
+            $clrPath = Split-Path -Parent $game.target
+            foreach ($name in @('coreclr.dll', 'mscordaccore.dll')) {
+                $file = Get-Item -LiteralPath (Join-Path $clrPath $name) -ErrorAction Stop
+                $lines += "$name file_version=$($file.VersionInfo.FileVersion) product_version=$($file.VersionInfo.ProductVersion) sha256=$((Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant())"
+            }
+            $lines += 'DAC selection: bootstrap game target directory (setclrpath before every command)'
+        } catch {
+            $lines += "DAC selection failed: $(Get-Leaf $_.Exception.Message)", 'Managed analysis unavailable; retaining native threads and modules.'
+            $clrPath = $null
+        }
+        $selectedCommands = if ($clrPath) { $commands } else { @('threads', 'modules') }
+        foreach ($c in $selectedCommands) {
             $lines += '', "=== $c"
             $log = Join-Path ([IO.Path]::GetTempPath()) "dump-analyze-$([guid]::NewGuid().ToString('N')).txt"
-            $p = Start-Process -FilePath $tool -ArgumentList @('analyze', "`"$($dump.FullName)`"", '-c', "`"$c`"", '-c', 'exit') `
+            $arguments = @('analyze', "`"$($dump.FullName)`"")
+            if ($clrPath) { $arguments += @('-c', "`"setclrpath \`"$clrPath\`"`"") }
+            $arguments += @('-c', "`"$c`"", '-c', 'exit')
+            $p = Start-Process -FilePath $tool -ArgumentList $arguments `
                 -RedirectStandardOutput $log -RedirectStandardError "$log.err" -WindowStyle Hidden -PassThru
             if (-not $p.WaitForExit($CommandSeconds * 1000)) {
                 Stop-Process -Id $p.Id -Force -ErrorAction SilentlyContinue
@@ -52,7 +80,6 @@ try {
             $lines += @($out | ForEach-Object { Get-Leaf $_ })
             Remove-Item -LiteralPath $log, "$log.err" -ErrorAction SilentlyContinue
         }
-        $target = Join-Path $dump.DirectoryName ($dump.BaseName + '.analysis.txt')
         Set-Content -LiteralPath $target -Value $lines -Encoding utf8
         "Analyzed $($dump.Name) into $($dump.BaseName).analysis.txt"
     }
