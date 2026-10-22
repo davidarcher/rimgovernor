@@ -1282,10 +1282,15 @@ again. Medicine and edible nutrition are carried only when their census scopes
 match the resource census; edible stocks also require complete lot/expiry
 coverage. Unknown quantities remain unknown, never zero. Project work is taken
 only from successfully evaluated allocations. Research completion integrates
-concurrent work; whole-field sow completion initializes growth at its actual
-completion date and integrates the existing climate/growth model to the handoff.
-Partial-field work is preserved, but its separate cell-age cohorts are outside
-the aggregate field model and produce an explicit coverage gap.
+concurrent work. Each completed sown cell retains its native callback completion
+date. The handoff's `Graph` expands the field into age cohorts and its remaining
+unsown area; each cohort grows and harvests independently in the same engine.
+Payoff-free milestones retain the original aggregate graph identities. A
+continuation must use this graph with the handoff state, not the review graph.
+Maturity crossings before the boundary retain their actual climate-integrated
+dates. Recipe and construction target identities join detailed work to graph
+nodes, whose remaining inputs and products exclude work already paid and made.
+An unrelated output sharing a resource never consumes another project or herd.
 
 Pawn terminal need levels retain the detailed result, including unknowns.
 Skills reuse the completed productive/practice callbacks and native passive
@@ -1296,11 +1301,15 @@ stored XP or decay; it rejects every callback at or after the cut. It does not
 create a fresh learning-validity window. Research/sowing XP without observed
 callback mechanics remains outside both existing forecast tiers.
 
-The positive supported lane is research plus ordinary food/rest servicing and
-whole-field sowing with known compatible stocks, terminal needs and skill
-mechanics. Outfit/shelter effects, partial-field growth, and detailed
-craft/build/hunt/harvest work whose graph identity cannot be established are
-named gaps rather than a repeated payoff or paid ingredient. Practice injury
-recovery remains unassessed. These gaps constrain later continuation valuation;
-they do not discard known stocks, project work or terminal needs. Initial
-recovery and continuation ranking remain separate stages.
+Completed outfit changes and their ordering, room closures and shelter endpoints
+travel with the handoff. Active effects retain their original start dates for
+memory aging and strip already-paid stock changes and claims. Completed shelter
+plans restart at their endpoint temperature with their remaining source supply,
+without redoing construction. Completed insulation changes update carried pawn
+temperature ranges. Continuation valuation consumes these effects; retaining
+them does not create a benefit for unfinished rooms. Standing construction's
+exact remaining owed inputs transfer from external shared-owner protection to
+graph-owned holds; unrelated bill holds stay external even when they use the
+same resource. Unassessed detailed terms do not invalidate unrelated covered
+continuation inputs. Missing terminal needs and unavailable native mechanics
+remain explicit. Initial recovery and continuation ranking are separate stages.

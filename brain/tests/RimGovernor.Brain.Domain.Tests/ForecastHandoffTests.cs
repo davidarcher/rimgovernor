@@ -83,6 +83,33 @@ public sealed class ForecastHandoffTests
     }
 
     [Fact]
+    public void CompletedComfortAndShelterEffectsCarryWithoutRejectingUnrelatedAssessmentLimits()
+    {
+        var request = Request();
+        var basis = request.Coupled!.ModelBasis!;
+        request = request with { Coupled = request.Coupled with { ModelBasis = basis with { Input = basis.Input with
+        { Pawns = Known<EquatableArray<ModelPawn>>([new() { Pawn = "pawn", Skills = Known<EquatableArray<WorkSkill>>([]), ComfortableMin = Known(10d), ComfortableMax = Known(30d) }]) } },
+            Shelters = [new(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], ["research"], Known(0d), Known(5d), Known(.01),
+                [new("heater", new(1, 1), false, Known(.1), Known(20d), Known(90000d))], [])] } };
+        var commitment = new ForecastCommitment("warm", []) { ActivityCompletions = ["research"], ComfortShifts = [new("pawn", -5, 2)] };
+        var outcome = Outcome() with { Findings = [new("thermal_relief_unassessed", "", default, default, default)],
+            ClosedRooms = [new(1, "Wood", 50)], Shelters = [new(new(ForecastShelterSource.Planned, "1"), Known(50d), Known(20d), [], [])] };
+        var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(10d), [Medicine] = Known(3d) }, outcome,
+            new Dictionary<string, ForecastCommitment> { [commitment.Id] = commitment });
+        Assert.Empty(handoff.Gaps);
+        Assert.Equal(5, Assert.Single(handoff.State.Pawns.Value).ComfortableMin.Value);
+        Assert.Equal(32, Assert.Single(handoff.State.Pawns.Value).ComfortableMax.Value);
+        Assert.Equal(50d / GameTime.TicksPerDay, Assert.Single(handoff.ActiveEffects).Day);
+        Assert.Empty(Assert.Single(handoff.ActiveEffects).Effect.ActivityCompletions);
+        Assert.Single(handoff.ClosedRooms);
+        Assert.Single(handoff.Shelters);
+        var shelter = Assert.Single(handoff.ShelterPlans);
+        Assert.Equal(20, shelter.InitialTemperature.Value);
+        Assert.Equal(30050, Assert.Single(shelter.Sources).SupplyTicks.Value);
+        Assert.Empty(shelter.Prerequisites);
+    }
+
+    [Fact]
     public void IncompatibleFoodCensusDoesNotBorrowMaterialCensusNutrition()
     {
         var request = Request();
@@ -108,6 +135,27 @@ public sealed class ForecastHandoffTests
         Assert.Equal(15, Assert.Single(handoff.State.Materials.Value, s => s.Resource == Steel).Count);
     }
 
+    [Fact]
+    public void NativeSupplyBindingTransfersOnlyItsSitesRemainingHoldToTheGraph()
+    {
+        var request = Request();
+        var basis = request.Coupled!.ModelBasis!;
+        var input = basis.Input with { Sites = Known<EquatableArray<ConstructionSite>>([new() { Id = "site", WorkLeft = Known(100d), MaterialsOwed = Known<EquatableArray<Amount>>([new(Steel, 8)]) }]) };
+        var graph = ProjectGraph.Construction(input, "site", []);
+        var binding = new RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate("research", "pawn", [], PawnActivityKind.Supply, "steel-stack", "", "", 5, 60000, new(2, 2)) { Container = "site" };
+        request = request with { Coupled = request.Coupled with { ModelBasis = new(input, basis.Policy with { Projects = graph }),
+            Activities = new() { Activities = [new("research", "stock", "site", []) { Inputs = [new(Steel, Known(5d))] }] },
+            Bindings = new Dictionary<(string, string), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate> { [("research", "pawn")] = binding },
+            Resources = request.Coupled.Resources with { Evidence = request.Coupled.Resources.Evidence with
+            { Construction = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [Steel] = 8 }),
+              Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("other-owner", [new(Steel, Known(2d), Known(""))])]) } } } };
+        var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(15d), [Food] = Known(10d), [Medicine] = Known(3d) });
+        Assert.Empty(handoff.Gaps);
+        Assert.Equal(2, Assert.Single(handoff.State.ExternalHolds.Value).Count);
+        Assert.Equal(ModelProjectInputs.Held, Assert.Single(handoff.State.Projects.Value).Inputs);
+        Assert.Equal(3, Assert.Single(Assert.Single(handoff.Graph.Nodes).Ingredients).Count);
+        Assert.Equal(15, Assert.Single(handoff.State.Materials.Value, s => s.Resource == Steel).Count);
+    }
     [Theory]
     [InlineData(.1)]
     [InlineData(.4)]
@@ -125,13 +173,13 @@ public sealed class ForecastHandoffTests
         Assert.Empty(handoff.Gaps);
         Assert.Equal(ModelProjectStatus.Done, Assert.Single(handoff.State.Projects.Value, p => p.Id == "sow:zone1").Status);
         Assert.Equal(completion, Assert.Single(handoff.Completed).Day, 8);
-        var growth = Assert.Single(handoff.State.Projects.Value, p => p.Id == "grow");
+        var growth = Assert.Single(handoff.State.Projects.Value, p => p.Id == "grow/cohort/0");
         Assert.True(growth.GrowthInitialized);
         Assert.True(growth.Remaining < input.Crops.Value[0].HarvestMinGrowth.Value);
     }
 
     [Fact]
-    public void OutputOnlyHuntCannotLeaveAReusableGraphPayoff()
+    public void UnrelatedFoodOutputDoesNotPretendToConsumeAHerd()
     {
         var request = Request();
         var basis = request.Coupled!.ModelBasis!;
@@ -139,7 +187,8 @@ public sealed class ForecastHandoffTests
         { Projects = new() { Nodes = [new() { Id = "hunt", Kind = ProjectKind.Hunt, Work = 100, Nutrition = 5 }] } } },
             Activities = new() { Activities = [new("research", "", "", []) { Outputs = [new(Food, Known(4d))] }] } } };
         var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(14d), [Medicine] = Known(3d) });
-        Assert.Contains("terminal_paid_project_identity_unmapped", handoff.Gaps);
+        Assert.Empty(handoff.Gaps);
+        Assert.Equal(100, Assert.Single(handoff.State.Projects.Value).Remaining);
     }
 
     [Fact]

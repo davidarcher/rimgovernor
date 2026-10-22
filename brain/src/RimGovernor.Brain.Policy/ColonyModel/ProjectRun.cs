@@ -133,7 +133,12 @@ internal sealed class ProjectRun
                 continue;
             }
 
-            if (live.Node.Kind == ProjectKind.Grow)
+            if (live.Node.Kind == ProjectKind.Milestone)
+            {
+                live.Remaining = 0;
+                live.Rate = 1;
+            }
+            else if (live.Node.Kind == ProjectKind.Grow)
             {
                 Grow(live, twelfth, boundary);
             }

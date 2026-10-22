@@ -15,6 +15,11 @@ public static class ForecastHandoffReader
         ["nutrition"] = handoff.State.Nutrition.IsKnown ? handoff.State.Nutrition.Value : null,
         ["materials_known"] = handoff.State.Materials.IsKnown, ["holds_known"] = handoff.State.ExternalHolds.IsKnown,
         ["medicine_known"] = handoff.State.Medicine.IsKnown,
+        ["graph_nodes"] = handoff.Graph.Nodes.Count,
+        ["active_outfits"] = handoff.ActiveEffects.Sum(c => c.Effect.OutfitChanges.Count),
+        ["shelters"] = handoff.Shelters.Count(s => s.CompleteAt.IsKnown),
+        ["shelter_mechanics"] = handoff.ShelterPlans.Count,
+        ["closed_rooms"] = handoff.ClosedRooms.Count,
         ["needs_known"] = handoff.Needs.Count(n => n.Level.IsKnown), ["needs"] = handoff.Needs.Count,
         ["completed"] = handoff.Completed.Select(c => string.Create(CultureInfo.InvariantCulture, $"{c.Project}@{c.Day:R}")).ToArray(),
     };

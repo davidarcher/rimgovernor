@@ -179,7 +179,8 @@ internal static class RoundsColonyModel
         var fields = new List<ModelField>();
         foreach (var farm in colony.Farms)
         {
-            fields.Add(new ModelField { Id = farm.Id, Crop = farm.Crop, Fertility = [.. zoned[farm.Id]] });
+            fields.Add(new ModelField { Id = farm.Id, Crop = farm.Crop, Fertility = [.. zoned[farm.Id]],
+                Cells = [.. colony.Cells.Where(c => c.ZoneId == Known(farm.Id) && c.Zone == Known(true)).Select(c => c.Cell)] });
         }
 
         if (colony.LayoutPlan.TryGetValue(out var plan))

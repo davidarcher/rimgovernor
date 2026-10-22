@@ -17,6 +17,8 @@ public sealed record ModelField
     public bool Planned { get; init; }
 
     public EquatableArray<double> Fertility { get; init; }
+    /// <summary>Native cells in the same order as fertility, used to join a detailed harvest to its field.</summary>
+    public EquatableArray<Cell> Cells { get; init; }
 }
 
 /// <summary>One unfinished research project the model may spend points on.</summary>

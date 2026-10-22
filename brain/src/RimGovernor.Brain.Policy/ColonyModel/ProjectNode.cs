@@ -25,6 +25,9 @@ public enum ProjectKind
 
     /// <summary>Hunting and butchering one race's animals of the wildlife census; the work is the hunt planner's pursuit work, the yields its meat and butchery products.</summary>
     Hunt,
+
+    /// <summary>An aggregate boundary: completes when every constituent cohort completes, without labor or payoff.</summary>
+    Milestone,
 }
 
 /// <summary>
@@ -33,6 +36,9 @@ public enum ProjectKind
 /// </summary>
 public sealed record ProjectNode
 {
+    /// <summary>Native recipe/site identity retained independently of display/event ids.</summary>
+    public string Recipe { get; init; } = "";
+    public string Target { get; init; } = "";
     /// <summary>Unique within the graph; the id of the node's completion event.</summary>
     public string Id { get; init; } = "";
 
