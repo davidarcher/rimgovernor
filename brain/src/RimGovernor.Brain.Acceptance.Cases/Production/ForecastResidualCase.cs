@@ -42,7 +42,7 @@ internal static class ForecastResidualCase
             Cells = [new Fx.StageCells { Rect = new(0, 0, 12, 8), Home = true }],
             Rooms = [new Fx.StageRoom { Name = "bedroom", Rect = new(0, 0, 6, 6), Stuff = "WoodLog", Doors = [new(5, 3)], Roof = true }],
             Buildings = [new Fx.StageBuilding { Name = "bed", Def = "Bed", Cells = [new(2, 2)] }, new Fx.StageBuilding { Name = "pin", Def = "HorseshoesPin", Cells = [new(9, 3)] }],
-            Things = [new Fx.StageThing { Name = "meals", Def = "MealSurvivalPack", Count = 30, Cell = new(3, 4) }],
+            Things = [new Fx.StageThing { Name = "meals", Def = "MealSurvivalPack", Count = 30, Cell = new(3, 4), Near = true }],
             Pawns = [new Fx.StagePawn { Name = "worker", Colonist = 0, Cell = new(3, 2), AllWork = 0, Timetable = Fx.StageTimeAssignment.Work,
                 Needs = new Dictionary<string, float> { ["Food"] = .35f, ["Rest"] = .15f, ["Joy"] = .6f } }],
         },

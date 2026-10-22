@@ -1025,3 +1025,47 @@ observations. The serialized roundtrip regression now uses `Decide`, and the
 reader accepts its canonical envelope; there is no fallback for the former
 test-only event layout. These fixture records demonstrate serialization and
 matching only, not native residual accuracy or completion.
+
+### Native horizon correlation evidence (#3713)
+
+The focused `production/forecast-residuals` run on 2026-10-21 passed in 104 seconds
+against native package `c21ae6cd6347`, with the case's meal staging corrected to
+split thirty meals into legal stacks (`StageThing.Near`). No fixture mutation or
+extra scheduler wake occurred after service start. Seed `rimgovernor-lab`, save
+SHA256 `a4edfb4cd68d55ebce70dee16914087c13840c9f3c84c30af14249ca12259e41`, fixture
+hash `62909b3739019f84`; all installed DLC were active. The lab retained three
+colonists (Crew.Size is a minimum); one was staged tired beside the bed.
+
+The registered offline reader decoded 478 predictions with zero reader gaps.
+The first ordinary endpoint read was tick 60,990 against target 60,000: nine known
+food-level, nine rest-level and nine actual-mood rows, across three initial
+reviews and three pawns. All 27 are timing mismatches with 990 ticks of lag,
+so none enters aligned scalar statistics. Nine endpoint rows are Replaced and
+18 Unknown; absence of a detected change does not establish consistency.
+There are 24 genuine task-completion intervals across 15 task identities:
+14 Consistent and 10 Unknown. For example, the first sleeping task was predicted
+to finish at 11,213.249 ticks and observed complete in (10,997, 11,400], giving
+an observed-minus-predicted interval (-216.249, 186.751]. Another 14 bound task
+rows have detected replacement/divergence, not completion evidence.
+
+The report retains all 478 prediction rows: 24 intervals, 27 timing mismatches,
+82 missing completion evidence (68 selected tasks without execution identities
+and 14 diverged), 175 missing observations (later targets had not elapsed), and
+170 unknown predictions. Explicit reasons include `food_stock_prediction_unavailable`,
+`temperature_prediction_unavailable` and `mood_prediction_unavailable`; known
+mood observations above are actual native mood, not an inferred thought total.
+No scalar error or accuracy threshold was manufactured for a pass.
+
+Candidate-only context from the existing `planner_step` rows: 27 Rounds steps,
+235–4,413 ms total duration, median 508 ms, mean 836 ms. Summed `stage_alloc_kb`
+ranged 56,933–3,458,016 KB per step (mean 731,701 KB); these are process-wide
+allocation deltas that include concurrent runtime work. They are not an
+attributable instrumentation delta or a before/after native comparison. The
+captured full OTLP log was 15,782,660 bytes, including unrelated runtime kinds;
+use the fixture measurements above for incremental evidence-path costs.
+
+The passing `result.json` embeds correlated raw rows, cohorts, provenance and
+coverage gaps. Reproduce its complete retained-window report with
+`RimGovernor.cmd forecastresiduals -logs <case-output>/otlp/logs.jsonl`.
+The initial attempt failed before service start because thirty meals exceeded
+a single native stack; no gameplay evidence came from that attempt.
