@@ -10,8 +10,8 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <c>wall/removal</c>: the wall_upgrade-guarded Designate over the staged upgrade room (<see cref="WallUpgrade"/>).
 /// NativeWallRemovalOperations resolves the guarded demolition site from the wall at the named cell, refuses it before
 /// any stone backup stands (and a different expected wall as stale), adopts the player's standing designation once
-/// same-stuff granite backups are staged in its backup cells, returns its first result for a resent key and the same
-/// removal for a new one, and a builder's deconstruct job clears the wall; the cleared cell applies again. A staged
+/// same-stuff granite backups are staged in its backup cells, applies a second apply again on the same open removal
+/// (re-validated; native keeps no receipt replay), and a builder's deconstruct job clears the wall; the cleared cell applies again. A staged
 /// granite permanent wall then makes the backups cleanup sites and one backup is demolished the same way, leaving two.
 /// </summary>
 internal static class WallRemoval
@@ -23,7 +23,7 @@ internal static class WallRemoval
         Name = "wall/removal",
         Scope = "Native wall_upgrade-guarded Designate over a staged roofed room: refused before backups (INVALID_REQUEST) and for a "
             + "different expected wall (STALE_IDENTITY); with staged granite backups it adopts a standing player designation with site "
-            + "evidence, replays and reapplies on the same removal, a builder demolishes the wall and the cleared cell applies again; a "
+            + "evidence, applies again on the same removal, a builder demolishes the wall and the cleared cell applies again; a "
             + "staged permanent granite wall turns the backups into cleanup sites and one is demolished, two remaining.",
         Ticks = 20000,
         Tier = CaseTier.OnDemand,
@@ -98,16 +98,11 @@ internal static class WallRemoval
             throw new AcceptanceException($"designated-census: want the ledger's removal {removalId}, got {designated}");
         }
 
-        var replay = await TypedApply.AppliedAsync(s, "wall-demolish", Guarded(cell, target), cancellationToken).ConfigureAwait(false);
-        if (replay != demolish)
-        {
-            throw new AcceptanceException($"replay: a resent key returned a different result: {demolish} then {replay}");
-        }
-
+        // Native keeps no receipt replay: a second apply is re-validated and applies again on the open removal.
         var again = await TypedApply.AppliedAsync(s, "wall-demolish-again", Guarded(cell, target), cancellationToken).ConfigureAwait(false);
-        if (again.Effect()?.Wall?.RemovalId != removalId)
+        if (again.Effect()?.Wall is not { } reapplied || reapplied.RemovalId != removalId || reapplied.TargetId != target || reapplied.DemolitionObserved == true)
         {
-            throw new AcceptanceException($"reapply: a new key must apply again on the pending removal {removalId}, got {again}");
+            throw new AcceptanceException($"reapply: a second apply must apply again on the pending removal {removalId}, got {again}");
         }
 
         await GoneAsync(s, "demolished", target, 10000, cancellationToken).ConfigureAwait(false);

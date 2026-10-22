@@ -144,23 +144,17 @@ namespace HomeBridge.BridgeTools
             if (wall == null)
                 return new Receipts.EffectEvidence { Effect = new Receipts.WallEffect { TargetId = intent.Target?.Id ?? "", DemolitionObserved = false } };
             var id = wall.GetUniqueLoadID();
-            // An open removal applies again with the result its admitting apply returned.
-            if (pending != null) return Evidence(id, pending.Id, pending.Wall);
+            if (pending != null)
+                return new Receipts.EffectEvidence { Effect = new Receipts.WallEffect { TargetId = id, RemovalId = pending.Id, DemolitionObserved = false } };
             var chosen = candidate!;
-            chosen.Record.SiteBefore = NativeWallUpgradeObservationTools.SiteToken(chosen.Site, context);
+            var before = NativeWallUpgradeObservationTools.SiteToken(chosen.Site, context);
             if (WallUpgradeSafety.Prepare(chosen.Record) != null) throw new InvalidOperationException("Wall removal site changed before designation.");
             var blocker = WallUpgradeSafety.Commit(chosen.Record);
             if (blocker != null) throw new InvalidOperationException(blocker);
             var after = chosen.Reread();
-            chosen.Record.SiteAfter = after != null ? NativeWallUpgradeObservationTools.SiteToken(after, context) : null;
-            return Evidence(id, chosen.Record.Id, chosen.Record);
+            var effect = new Receipts.WallEffect { TargetId = id, RemovalId = chosen.Record.Id, DemolitionObserved = false,
+                Site = new Receipts.SnapshotEvidence { EntityId = id, BeforeToken = before, AfterToken = after != null ? NativeWallUpgradeObservationTools.SiteToken(after, context) : null } };
+            return new Receipts.EffectEvidence { Effect = effect };
         }
-
-        // The receipt of one guarded removal, read from its ledger record alone.
-        private static Receipts.EffectEvidence Evidence(string id, string removalId, WallRemovalRecord? site) => new Receipts.EffectEvidence
-        {
-            Effect = new Receipts.WallEffect { TargetId = id, RemovalId = removalId, DemolitionObserved = false,
-                Site = site == null ? null : new Receipts.SnapshotEvidence { EntityId = id, BeforeToken = site.SiteBefore, AfterToken = site.SiteAfter } },
-        };
     }
 }

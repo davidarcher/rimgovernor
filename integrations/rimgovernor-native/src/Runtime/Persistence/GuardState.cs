@@ -54,12 +54,10 @@ namespace HomeBridge.BridgeTools
 
     // A wall-upgrade site: target, the original wall, its left and right
     // supports, the completed backups or the permanent wall, and the material.
-    // SiteBefore/SiteAfter are the site tokens around the admitting apply, so
-    // an apply on the open removal returns that first result again (#3707).
     public sealed class WallRemovalRecord : IExposable
     {
         public string Id = "", Target = "", Original = "", Left = "", Right = "";
-        public string? Permanent, Material, Load, Blocker, SiteBefore, SiteAfter;
+        public string? Permanent, Material, Load, Blocker;
         public List<string> Backup = new List<string>();
         public int MapId, X, Z, Nx, Nz;
         public long UiRevision;
@@ -73,7 +71,6 @@ namespace HomeBridge.BridgeTools
             Scribe_Values.Look(ref MapId, "mapId"); Scribe_Values.Look(ref X, "x"); Scribe_Values.Look(ref Z, "z");
             Scribe_Values.Look(ref Nx, "nx"); Scribe_Values.Look(ref Nz, "nz");
             Scribe_Values.Look(ref UiRevision, "uiRevision");
-            Scribe_Values.Look(ref SiteBefore, "siteBefore"); Scribe_Values.Look(ref SiteAfter, "siteAfter");
             Scribe_Collections.Look(ref Backup, "backup", LookMode.Value);
             if (Scribe.mode == LoadSaveMode.PostLoadInit && Backup == null) Backup = new List<string>();
         }
