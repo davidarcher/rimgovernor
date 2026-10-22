@@ -18,13 +18,15 @@ internal static class FoodLedger
     internal static TypedCase Case() => new()
     {
         Name = "food/ledger",
-        Scope = "On an Odyssey coast (150-tile TropicalRainforest debug start) test/ledger_prepare stages fishers, a mature rice field "
+        Scope = "On an Odyssey coast (150-tile TropicalRainforest debug start on 30% planet coverage) test/ledger_prepare stages fishers, a mature rice field "
             + "and a full-milk cow; observations_read_colony_facts' delivery ledger then counts FISH and CROP RawRice units within the "
             + "fixture's own Notify_Fished and harvest tallies taken before and after the read, counts ANIMAL_PRODUCT Milk, and a "
             + "second read keeps the epoch with no counter lower.",
         Ticks = 10000,
         Tier = CaseTier.Nightly,
-        Start = new DebugStart { Size = new DebugStartSize { MapSize = 150, PlanetCoverage = 0.05, Biomes = "TropicalRainforest", Seed = "fishing-426" } },
+        // Five percent coverage only samples mid-latitudes; 30% reaches the tropical rainfall band.
+        // Keep the biome: the staged ocean must support the fixture's native fish population.
+        Start = new DebugStart { Size = new DebugStartSize { MapSize = 150, PlanetCoverage = 0.3, Biomes = "TropicalRainforest", Seed = "fishing-426" } },
         Ops = [Prepare.Tool, Observe.Tool],
         Run = RunAsync,
     };
