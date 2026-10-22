@@ -92,16 +92,9 @@ public static class ColonyModel
             findings.Add("medicine_tend_rate_unknown");
         }
 
-        var lead = 0.0;
-        if (CalendarRules.HarvestGapDays(input.Calendar, Known(EquatableArray.From(Array.Empty<DisasterCondition>()))).TryGetValue(out var gap))
-        {
-            lead = gap;
-        }
-        else
-        {
-            findings.Add("food_lead_unknown");
-        }
-
+        var calendarKnown = input.Calendar.TryGetValue(out var calendar)
+            && calendar.Valid() && calendar.GrowingYear.Count == CalendarRules.YearDays;
+        if (!calendarKnown) findings.Add("food_lead_unknown");
         var graph = new ProjectRun(input, start, [.. pawns], cycles, policy.Projects, policy.Injected, start.EndDay, findings);
         var scheduled = policy.Scheduled.Where(e => start.Day == 0 ? e.Day >= 0 : e.Day > start.Day).OrderBy(e => e.Day).ThenBy(e => e.Kind).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray();
         var starved = new List<StarvationSpan>();
@@ -164,21 +157,13 @@ public static class ColonyModel
                 }
             }
 
-            // The runway is the stock that bridges the lead days at today's consumption.
-            var floor = consumption * lead;
-            if (runway is null && consumption > 0)
+            // Stocks and the seasonal reserve both move. Scan its native daily segments up to the next
+            // physical event, including phase-in knees; a restart uses the same review-relative calendar.
+            if (runway is null && calendarKnown && CalendarRunway.Crossing(calendar!, now, when,
+                levels[(int)ModelStock.Nutrition], net[(int)ModelStock.Nutrition], consumption) is { } crossing)
             {
-                var level = levels[(int)ModelStock.Nutrition];
-                if (level <= floor)
-                {
-                    Consider(now, ModelEventKind.FoodRunway, "");
-                }
-                else if (net[(int)ModelStock.Nutrition] < 0)
-                {
-                    Consider(now + (level - floor) / -net[(int)ModelStock.Nutrition], ModelEventKind.FoodRunway, "");
-                }
+                Consider(crossing, ModelEventKind.FoodRunway, "");
             }
-
             var span = when - now;
             if (levels[(int)ModelStock.Nutrition] == 0 && net[(int)ModelStock.Nutrition] < 0 && span > 0)
             {

@@ -1248,9 +1248,13 @@ project identities or overcommitted holds. At the ordinary observed origin,
 legacy partial trajectories remain available with explicit stock-unknown
 findings; their aggregate placeholders do not establish known zero stock.
 A budget-limited trajectory retains its truncation finding, never a horizon-end
-claim. The food-runway diagnostic continues to use the review's harvest-gap
-proxy; it reports the first crossing within this invocation, not a newly
-observed calendar or a second persistent runway owner.
+claim. The existing food-climate observation carries the native daily growing
+pattern for a full year from the review instant, including multiple growing
+windows. The food-runway diagnostic advances that periodic calendar on the
+same review-relative axis as climate and scheduled events. It solves crossings
+against the changing seasonal reserve, including phase-in knees between engine
+events. Restarting neither freezes the original harvest gap nor starts another
+year. Missing annual observations are named unknowns, never a zero reserve.
 
 This engine entry does not yet provide continuation **valuation**: the bridge
 must account for initial needs and restrict pricing to the remaining interval.

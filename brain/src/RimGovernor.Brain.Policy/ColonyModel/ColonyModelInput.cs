@@ -236,6 +236,10 @@ public sealed record ColonyModelInput
         {
             gaps.Add("calendar: a day count is outside the year");
         }
+        else if (calendar.GrowingYear.Count != CalendarRules.YearDays)
+        {
+            gaps.Add("calendar: the native daily growing year is unavailable");
+        }
     }
 
     private void LandGaps(List<string> gaps)

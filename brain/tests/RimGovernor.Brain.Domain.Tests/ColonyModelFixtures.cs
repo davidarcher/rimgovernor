@@ -58,7 +58,7 @@ internal static class ColonyModelFixtures
         Facts = new RoundsFacts
         {
             Gear = Known(new GearObservation { Pawns = [new GearPawn { Climate = Climate() }] }),
-            Calendar = Known(new Calendar { Season = "Spring", DayOfYear = 12, GrowingDays = 40, GrowingDaysRemaining = 25, GrowingDaysUntil = 0, NonGrowingDays = 0 }),
+            Calendar = Known(new Calendar { GrowingYear = EquatableArray.From(Enumerable.Repeat(true, CalendarRules.YearDays)), Season = "Spring", DayOfYear = 12, GrowingDays = 40, GrowingDaysRemaining = 25, GrowingDaysUntil = 0, NonGrowingDays = 0 }),
             Research = Known(new ResearchFacts
             {
                 Current = new ResearchProjectId(Project),

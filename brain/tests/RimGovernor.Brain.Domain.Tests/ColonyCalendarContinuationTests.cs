@@ -1,0 +1,140 @@
+using RimGovernor.Contracts.Wire;
+using RimGovernor.Brain.Observation;
+using RimGovernor.Brain.Policy;
+using Xunit;
+using static RimGovernor.Brain.Domain.Fact;
+
+namespace RimGovernor.Brain.Domain.Tests;
+
+public sealed class ColonyCalendarContinuationTests
+{
+    private static ColonyModelInput Input(bool[] year, double nutrition) => ColonyModelFixtures.Devilstrand() with
+    {
+        Calendar = Known(new Calendar { DayOfYear = 58, GrowingYear = EquatableArray.From(year) }),
+        Climate = Known(ColonyModelFixtures.Climate() with { CurrentTwelfth = 11, TicksToNextTwelfth = 2 * GameTime.TicksPerDay }),
+        Pawns = Known(EquatableArray.From(new[] { new ModelPawn
+        {
+            Pawn = "Anna", Needs = EquatableArray.From(new[] { new ModelNeed { Kind = "food", Fall = Known(1d / GameTime.TicksPerDay) } }),
+            Skills = Known(EquatableArray.From<WorkSkill>([])),
+        } })),
+        Stocks = new ModelStocks { Nutrition = Known(nutrition), Materials = Known(EquatableArray.From<Amount>([])), Medicine = Known(EquatableArray.From<Amount>([])) },
+    };
+
+    private static PawnCycle[][] Cycles() => [Enumerable.Range(0, 12).Select(t => new PawnCycle
+    {
+        Pawn = "Anna", Twelfth = t, IndoorHours = Known(0d), OutdoorHours = Known(0d),
+    }).ToArray()];
+
+    private static ColonyModelPolicy Policy(double production, double end = 60) => new()
+    {
+        HorizonDays = end, MedicineTendsPerDay = Known(0d), FixedProduction = EquatableArray.From(new[] { production }),
+    };
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    [InlineData(4.5)]
+    [InlineData(5)]
+    public void GrowingSeasonReserveRisesAcrossHandoffWithoutWaitingForAnotherModelEvent(double cut)
+    {
+        var input = Input(Enumerable.Range(0, 60).Select(d => d < 10 || d >= 30).ToArray(), 20);
+        var policy = Policy(1);
+        var whole = ColonyModel.Run(input, Cycles(), policy);
+        var carried = ColonyModelState.Observed(input, policy) with { Day = cut };
+        var resumed = ColonyModel.Run(input, carried, Cycles(), policy);
+        // Twenty stored days meet the rising 23-day winter reserve after 5.021739 days.
+        var expected = 9 - 30.5 * (1 - 20d / 23);
+        Assert.Equal(expected, whole.FoodRunwayDay!.Value, 9);
+        Assert.Equal(expected, resumed.FoodRunwayDay!.Value, 9);
+        Assert.Equal(whole.Events.Where(e => e.Day > cut), resumed.Events);
+        Assert.Equal(60, resumed.Events[^1].Day);
+    }
+
+    [Theory]
+    [InlineData(.25)]
+    [InlineData(.9)]
+    public void DormantSeasonWaitShrinksWhileStocksFall(double cut)
+    {
+        var input = Input(Enumerable.Range(0, 60).Select(d => d >= 20).ToArray(), 24);
+        var policy = Policy(-1);
+        var whole = ColonyModel.Run(input, Cycles(), policy);
+        var carried = ColonyModelState.Observed(input, policy) with { Day = cut, Nutrition = Known(24 - 2 * cut) };
+        var resumed = ColonyModel.Run(input, carried, Cycles(), policy);
+        Assert.Equal(1, whole.FoodRunwayDay!.Value, 9);
+        Assert.Equal(whole.FoodRunwayDay!.Value, resumed.FoodRunwayDay!.Value, 9);
+        var expected = whole.Events.Where(e => e.Day > cut).ToArray();
+        Assert.Equal(expected.Length, resumed.Events.Count);
+        foreach (var pair in expected.Zip(resumed.Events))
+        {
+            Assert.Equal(pair.First.Kind, pair.Second.Kind);
+            Assert.Equal(pair.First.Day, pair.Second.Day, 9);
+            Assert.Equal(pair.First.Levels[0], pair.Second.Levels[0], 9);
+        }
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(35)]
+    [InlineData(59.5)]
+    [InlineData(60)]
+    [InlineData(60.5)]
+    public void AnnualPatternAndTwelfthWrapKeepTheSameFutureCrossingAndEndDate(double cut)
+    {
+        var input = Input(Enumerable.Range(0, 60).Select(d => d < 35).ToArray(), 45);
+        var policy = Policy(.7, 120);
+        var whole = ColonyModel.Run(input, Cycles(), policy);
+        var carried = ColonyModelState.Observed(input, policy) with { Day = cut, Nutrition = Known(45 - .3 * cut) };
+        var resumed = ColonyModel.Run(input, carried, Cycles(), policy);
+        Assert.InRange(whole.FoodRunwayDay!.Value, 60.5, 95);
+        Assert.Equal(whole.FoodRunwayDay.Value, resumed.FoodRunwayDay!.Value, 9);
+        var expected = whole.Events.Where(e => e.Day > cut).ToArray();
+        Assert.Equal(expected.Select(e => (e.Kind, e.Id)), resumed.Events.Select(e => (e.Kind, e.Id)));
+        foreach (var pair in expected.Zip(resumed.Events))
+        {
+            Assert.Equal(pair.First.Day, pair.Second.Day, 9);
+            Assert.Equal(pair.First.Levels[0], pair.Second.Levels[0], 9);
+        }
+        Assert.Equal(120, resumed.Events[^1].Day);
+    }
+
+    [Fact]
+    public void TwoGrowingWindowsSurviveWireDecodeAndASecondSeasonHandoff()
+    {
+        var year = Enumerable.Range(0, 60).Select(d => d < 10 || d >= 20 && d < 30).ToArray();
+        var wire = new RimGovernor.Contracts.Wire.Observations.FoodClimate
+        {
+            GrowingYear = EquatableArray.From(year), GrowingDays = 20, GrowingDaysRemaining = 10,
+            GrowingDaysUntil = 0, NonGrowingDays = 10, DayOfYear = 58,
+        };
+        var decoded = WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.FoodClimate>(WireJson.Serialize(wire));
+        var calendar = ColonyProductionReads.ColonyCalendar(decoded);
+        Assert.Equal(year, calendar.Value.GrowingYear);
+        var input = Input(year, 25) with { Calendar = calendar };
+        var policy = Policy(1);
+        var whole = ColonyModel.Run(input, Cycles(), policy);
+        var resumed = ColonyModel.Run(input, ColonyModelState.Observed(input, policy) with { Day = 20 }, Cycles(), policy);
+        Assert.InRange(whole.FoodRunwayDay!.Value, 20, 30);
+        Assert.Equal(whole.FoodRunwayDay, resumed.FoodRunwayDay);
+    }
+
+    [Fact]
+    public void PhaseInStartsBetweenEngineEventsAndCrossesBeforeTheNextTwelfth()
+    {
+        var input = Input(Enumerable.Range(0, 60).Select(d => d < 50).ToArray(), 1);
+        var policy = Policy(1);
+        var run = ColonyModel.Run(input, Cycles(), policy);
+        Assert.Equal(28.5 + 20.5 / 13, run.FoodRunwayDay!.Value, 9);
+        var resumed = ColonyModel.Run(input, ColonyModelState.Observed(input, policy) with { Day = 28.5 }, Cycles(), policy);
+        Assert.Equal(run.FoodRunwayDay!.Value, resumed.FoodRunwayDay!.Value, 9);
+    }
+
+    [Fact]
+    public void MissingAnnualReadIsUnknownRatherThanAnOriginBasedCrossing()
+    {
+        var input = Input([], 20);
+        Assert.Contains(input.Unknowns(), gap => gap.Contains("daily growing year", StringComparison.Ordinal));
+        var run = ColonyModel.Run(input, Cycles(), Policy(0));
+        Assert.Contains("food_lead_unknown", run.Findings);
+        Assert.Null(run.FoodRunwayDay);
+    }
+}

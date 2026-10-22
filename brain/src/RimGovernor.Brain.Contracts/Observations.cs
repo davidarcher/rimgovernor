@@ -5667,6 +5667,10 @@ public sealed record EnvironmentCondition
 /// </summary>
 public sealed record FoodClimate
 {
+    /// <summary>Native seasonal growth eligibility at the observation instant and each following day for one 60-day year.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<bool>))]
+    public EquatableArray<bool> GrowingYear { get; init; }
+
     public double? GrowingDays { get; init; }
 
     public double? GrowingDaysRemaining { get; init; }

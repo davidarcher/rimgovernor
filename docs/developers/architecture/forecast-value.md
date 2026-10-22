@@ -604,3 +604,8 @@ Each milestone has a GitHub issue.
 5. [#3471](https://github.com/davidarcher/rimgovernor/issues/3471) Harm model v1: threat schedule, composition, armor response,
    consequences, with exposure calibrated from real-game sweeps (implemented, #3539 to #3547; three exposure cells are calibrated).
 6. [#3472](https://github.com/davidarcher/rimgovernor/issues/3472) Search stage 3 and a larger budget.
+
+The food-runway diagnostic uses the native annual daily growing pattern at the
+forecast's current review-relative day. Seasonal reserve phase-in and shrinking
+non-growing waits are piecewise linear; crossings include changes between stock
+and project events. A carried run shares this calendar and the original end date.

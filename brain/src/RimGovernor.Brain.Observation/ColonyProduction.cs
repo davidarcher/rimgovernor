@@ -394,6 +394,7 @@ public static class ColonyProductionReads
         }
         var c = new Calendar
         {
+            GrowingYear = climate.GrowingYear,
             Season = climate.Season ?? "",
             DayOfYear = climate.DayOfYear.GetValueOrDefault(),
             GrowingDays = climate.GrowingDays.GetValueOrDefault(),

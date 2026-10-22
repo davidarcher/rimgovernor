@@ -12,6 +12,9 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record Calendar
 {
+    /// <summary>Native growing eligibility sampled daily from this review origin; preserves every seasonal window.</summary>
+    public EquatableArray<bool> GrowingYear { get; init; }
+
     public string Season { get; init; } = "";
 
     public long DayOfYear { get; init; }

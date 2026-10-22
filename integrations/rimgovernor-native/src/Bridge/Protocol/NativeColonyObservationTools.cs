@@ -161,8 +161,10 @@ namespace HomeBridge.BridgeTools
                 result = result with { Issues = [.. result.Issues, Issue(field, Common.UnavailableReason.Unsupported, "Section is not yet projected.")] };
             try {
                 var (season, dayOfYear) = GrowingCalendar.Calendar(map);
-                result = result with { FoodClimate = new Obs.FoodClimate { GrowingDaysRemaining = GrowingCalendar.GrowingDaysRemaining(map),
-                GrowingDaysUntil = GrowingCalendar.GrowingDaysUntil(map), NonGrowingDays = GrowingCalendar.NonGrowingDays(map), Season = season, DayOfYear = dayOfYear,
+                var year = GrowingCalendar.GrowingYear(map);
+                var remaining = GrowingCalendar.Until(year, 0, false);
+                result = result with { FoodClimate = new Obs.FoodClimate { GrowingYear = [.. year], GrowingDaysRemaining = remaining,
+                GrowingDaysUntil = GrowingCalendar.Until(year, 0, true), NonGrowingDays = remaining == year.Length ? 0 : GrowingCalendar.Until(year, remaining, true), Season = season, DayOfYear = dayOfYear,
                 SowingNow = !OutdoorsPermanentlyDark(map) && DefDatabase<ThingDef>.AllDefsListForReading.Any(d => d.plant != null && d.plant.Sowable && d.plant.harvestedThingDef?.IsNutritionGivingIngestible == true
                     && (d.plant.sowResearchPrerequisites == null || d.plant.sowResearchPrerequisites.All(r => r.IsFinished)) && PlantUtility.GrowthSeasonNow(map, d)),
                 GrowingDays = GenTemperature.TwelfthsInAverageTemperatureRange(map.Tile,Plant.DefaultMinOptimalGrowthTemperature,Plant.DefaultMaxOptimalGrowthTemperature).Count * GenDate.DaysPerTwelfth } }; }
