@@ -22,7 +22,7 @@ internal sealed class ForecastSkillCursor
         while (Math.Min(DecayTick, nextReset) <= tick)
         {
             // SkillsTickInterval resets today's XP before calling each SkillRecord.Interval.
-            if (nextReset <= DecayTick) { midnight = 0; nextReset += GameTime.TicksPerDay; }
+            if (nextReset <= DecayTick) { if (mechanics.TrackerAllowsLearning.Value) midnight = 0; nextReset += GameTime.TicksPerDay; }
             else
             {
                 if (!mechanics.Disabled.Value && mechanics.TrackerAllowsLearning.Value)
@@ -35,12 +35,26 @@ internal sealed class ForecastSkillCursor
     {
         if (mechanics.Disabled.Value || callback.Path == SkillXpPath.NormalTracker && !mechanics.TrackerAllowsLearning.Value) return;
         if ((callback.Practice || callback.Path == SkillXpPath.Range) && (!mechanics.PracticeEligible.Value || Effective >= mechanics.PracticeCeiling.Value)) return;
-        var direct = callback.Path == SkillXpPath.Range;
-        var amount = callback.RawXp.Value * (direct ? mechanics.DirectFactor.Value : mechanics.UnsaturatedFactor.Value
+        Learn(callback.RawXp.Value, callback.Path);
+    }
+    internal void Learn(double raw, SkillXpPath path)
+    {
+        if (mechanics.Disabled.Value || path == SkillXpPath.NormalTracker && !mechanics.TrackerAllowsLearning.Value) return;
+        var direct = path == SkillXpPath.Range;
+        var amount = raw * (direct ? mechanics.DirectFactor.Value : mechanics.UnsaturatedFactor.Value
             * (midnight > mechanics.SaturationThreshold.Value ? mechanics.SaturatedFactor.Value : 1));
         if (direct) { amount = Math.Min(amount, budget); budget -= amount; }
         gain += amount; Apply(amount, direct);
     }
+    internal SkillLearning Rebase(int tick) => mechanics with
+    {
+        StoredLevel = Known(level), Xp = Known(xp), XpSinceMidnight = Known(midnight),
+        NextDecay = Known(DecayTick - tick),
+        NextMidnightReset = nextReset == int.MaxValue ? default : Known(nextReset - tick),
+        TrackerPhase = (mechanics.TrackerPhase - tick % mechanics.TrackerIntervalTicks + mechanics.TrackerIntervalTicks) % mechanics.TrackerIntervalTicks,
+        ValidForTicks = Known(Math.Max(0, mechanics.ValidForTicks.Value - tick)),
+        RangeAppliedBudget = mechanics.RangeAppliedBudget.IsKnown ? Known(budget) : default
+    };
     private void Apply(double amount, bool direct)
     {
         xp += amount; if (!direct) midnight += amount;

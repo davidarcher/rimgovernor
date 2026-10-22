@@ -17,6 +17,7 @@ internal static class LabSkillStatCurve
     // MedicalTendQuality, MedicalTendSpeed, MedicalOperationSpeed, MedicalSurgerySuccessChance x stored levels 0-20.
     private const int Stats = 4;
     private const int Levels = 21;
+    private const int ProductiveStats = 5;
 
     private static readonly FixtureOp<NoArgs, Fx.SkillStatCurvePrepared> Prepare = ServedOps.Read<Fx.SkillStatCurvePrepared>(PrepareTool);
 
@@ -24,7 +25,7 @@ internal static class LabSkillStatCurve
     {
         Name = "lab/skill-stat-curve",
         Scope = "Native read differential: each medical stat curve on a healthy colonist's biography equals the live native "
-            + "stat at every stored Medicine level, and an anesthetized colonist carries no curve and a finding per stat. "
+            + "stat at every stored Medicine level; five productive stat curves also match every native level, including skill-independent tailoring. An anesthetized colonist carries no medical curve and a finding per stat. "
             + "A unit test cannot run the game's stat pipeline; using the curves for value is #3635.",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
@@ -35,9 +36,9 @@ internal static class LabSkillStatCurve
         {
             var prepared = await s.FixtureAsync("curve-prepare", Prepare, NoArgs.Value, ct).ConfigureAwait(false);
             s.Record("prepare", ServedOps.Json(prepared));
-            if (prepared.Samples != Stats * Levels || prepared.Failures.Count != 0)
+            if (prepared.Samples != (Stats + ProductiveStats) * Levels || prepared.Failures.Count != 0)
             {
-                throw new AcceptanceException($"native stat curves: {prepared.Samples} samples (want {Stats * Levels}), disagreeing: {string.Join(", ", prepared.Failures)}");
+                throw new AcceptanceException($"native stat curves: {prepared.Samples} samples (want {(Stats + ProductiveStats) * Levels}), disagreeing: {string.Join(", ", prepared.Failures)}");
             }
 
             var reply = await s.CallAsync("curve-pawns", NativeOps.ListPawns, new ListPawnsRequest

@@ -164,7 +164,7 @@ internal static class CoupledShelterCandidates
                 foreach (var worker in read!.Workers)
                 {
                     var approach = read.RoofRoutes.SingleOrDefault(r => r.Pawn == worker.Pawn && r.Cell == cell)?.ApproachTicks ?? default;
-                    options.Add(new(id, worker.Pawn, worker.RoofCellWorkTicks, Known(0d)));
+                    options.Add(new(id, worker.Pawn, worker.RoofCellWorkTicks, Known(0d)) { SkillWork = worker.SkillWork });
                     routes.TryAdd((worker.Pawn, "start", location), new(worker.Pawn, "start", location, approach));
                     bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work,
                         // One claim target per cell: a shared "roof" target made two pawns on different cells refuse each other at admission.

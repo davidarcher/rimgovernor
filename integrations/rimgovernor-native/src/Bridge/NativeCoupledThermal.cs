@@ -144,7 +144,9 @@ internal static class NativeCoupledThermal
         var workers = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)
             .Where(p => !p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)).Select(p => new Obs.ThermalWorker(p.GetUniqueLoadID(),
                 p.GetStatValue(StatDefOf.ConstructionSpeed) > 0
-                    ? Fact.Known(65.0 / (p.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7)) : default)).ToArray();
+                    ? Fact.Known(65.0 / (p.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7)) : default)
+                { SkillWork = NativeProductiveSkill.ReadWork(p, SkillDefOf.Construction, StatDefOf.ConstructionSpeed,
+                    65, 1.7, 0, false, false, "JobDriver_AffectRoof: construction speed, no learning") }).ToArray();
         // Constants are read from this game's mechanics; unsupported versions produce unknown observations.
         // The roof rates are private consts, so no typed route reaches them: they are read by name.
         var thin = typeof(RoomTempTracker).GetField("ThinRoofEqualizeRate", BindingFlags.Static | BindingFlags.NonPublic);

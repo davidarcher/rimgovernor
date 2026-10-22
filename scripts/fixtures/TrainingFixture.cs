@@ -343,6 +343,27 @@ namespace HomeBridge.BridgeTools
                     skill.xpSinceLastLevel = before.xpSinceLastLevel;
                     skill.xpSinceMidnight = before.xpSinceMidnight;
                 }
+                foreach (var pair in new[] { (StatDefOf.ConstructionSpeed, SkillDefOf.Construction),
+                    (StatDefOf.PlantWorkSpeed, SkillDefOf.Plants), (StatDefOf.MiningSpeed, SkillDefOf.Mining),
+                    (StatDefOf.ResearchSpeed, SkillDefOf.Intellectual), (StatDefOf.GeneralLaborSpeed, SkillDefOf.Crafting) })
+                {
+                    var record = qualified.skills.GetSkill(pair.Item2);
+                    var saved = record.levelInt;
+                    var curve = NativeSkillStat.Levels(qualified, pair.Item1, pair.Item2, out var finding);
+                    if (curve == null) { failures.Add(pair.Item1.defName + ": " + finding); continue; }
+                    try
+                    {
+                        for (var level = 0; level < curve.Length; level++)
+                        {
+                            record.levelInt = level;
+                            var actual = pair.Item1.Worker.GetValue(StatRequest.For(qualified));
+                            samples++;
+                            if (Math.Abs(curve[level] - actual) > 1e-4 * Math.Max(1, Math.Abs(actual)))
+                                failures.Add($"{pair.Item1.defName}/{level}: {curve[level]} vs {actual}");
+                        }
+                    }
+                    finally { record.levelInt = saved; }
+                }
                 disqualified.health.AddHediff(HediffDefOf.Anesthetic);
                 return FixtureKit.Reply(new Fx.SkillStatCurvePrepared { Qualified = qualified.GetUniqueLoadID(), Disqualified = disqualified.GetUniqueLoadID(),
                     Samples = samples, Failures = failures });

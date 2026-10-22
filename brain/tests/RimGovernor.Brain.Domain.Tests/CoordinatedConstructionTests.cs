@@ -491,4 +491,17 @@ public sealed class CoordinatedConstructionTests
         Assert.Equal("wood", supply.Step.Target);
         Assert.False(supply.Step.FullLoad);
     }
+    [Fact]
+    public void GeneratedConstructionChoiceCarriesLearningThroughTheSelectedPhysicalPlan()
+    {
+        var work = ProductiveLearningTests.Work() with
+        { Recipe = new("Construction", Known(.25), true), LearnBeforeWork = true };
+        var batch = Start(out var comparison, Option("producer", 0, 20, 100) with { SkillWork = work });
+        Assert.NotNull(batch);
+        var learned = Assert.Single(comparison!.Plan!.Allocations, a => a.Learning != null).Learning!;
+        Assert.Equal("Construction", learned.Skill);
+        Assert.True(learned.After.StoredLevel.Value > learned.Before.StoredLevel.Value);
+        Assert.True(learned.WorkTicks < learned.ObservedWorkTicks);
+        Assert.True(learned.After.AppliedGain.Value > 0);
+    }
 }

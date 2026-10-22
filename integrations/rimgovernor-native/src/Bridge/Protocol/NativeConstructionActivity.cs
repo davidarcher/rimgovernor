@@ -18,7 +18,7 @@ internal static class NativeConstructionActivity
     // A site the rows estimate. Placed: a blueprint or frame (Thing set). Planned: unplaced cells, where a route
     // from an origin ends at the piece nearest it (Target).
     private sealed record Site(string Id, BuildableDef Definition, IntVec3 Location, Func<IntVec3, IntVec3> Target,
-        Thing? Thing, (ThingDef Def, int Count)[] Owed, float Work, Func<Pawn, bool> Eligible, Func<Pawn, bool> Finishes);
+        Thing? Thing, (ThingDef Def, int Count)[] Owed, float Work, Func<Pawn, bool> Eligible, Func<Pawn, bool> Finishes, ThingDef? Stuff = null, double WorkQuantum = 0, bool PaysXp = true);
 
     // Every site, probe and free spawned colonist asked (#3341): nothing is capped. Each path is searched once per read
     // (NativePathLegs) and shared by every row that walks it, and the rows are built batched (NativePathLegs.Batched,
@@ -47,7 +47,8 @@ internal static class NativeConstructionActivity
             var floorKnown = !ConstructionSkillGuard.Quality(thing) || ConstructionSkillGuard.Setting(thing)?.Minimum >= 0;
             var work = thing is Frame frame ? NativeConstructionWork.Remaining(frame.WorkLeft) : definition.GetStatValueAbstract(StatDefOf.WorkToBuild, thing.Stuff);
             placed.Add(new Site(thing.GetUniqueLoadID(), definition, thing.Position, _ => thing.Position, thing, owed, work,
-                p => !thing.IsForbidden(p), p => floorKnown && ConstructionSkillGuard.Allows(thing, p)));
+                p => !thing.IsForbidden(p), p => floorKnown && ConstructionSkillGuard.Allows(thing, p), thing.Stuff, work,
+                constructible.TotalMaterialCost().Any(c => c.count > 0)));
         }
         var planned = request.Planned.Select(s => Prepare(map, s, findings)).ToArray();
         // The standing removal designations (#3557, #3612, #3614): the Deconstruct the room reconcile stood over an interior
@@ -164,7 +165,7 @@ internal static class NativeConstructionActivity
     // The leg-free half of a hypothetical site (Prepare): its resolved definition and cells, native blueprint legality
     // over every piece, the footprint things with their clearing kinds, what it owes and its work.
     private sealed record Prepared(string Id, BuildableDef Definition, IntVec3[] Cells, bool Illegal, bool Fogged,
-        (Thing Thing, Clear Kind)[] Things, HashSet<IntVec3> Footprint, (ThingDef Def, int Count)[] Owed, float Work);
+        (Thing Thing, Clear Kind)[] Things, HashSet<IntVec3> Footprint, (ThingDef Def, int Count)[] Owed, float Work, ThingDef? Stuff);
 
     // A hypothetical site's leg-free half: native blueprint legality for every piece and its footprint. Anything native
     // cannot resolve leaves the site unknown (no verdict, no rows; Site null with the unknown answer), never a default.
@@ -217,7 +218,7 @@ internal static class NativeConstructionActivity
         if (definition is ThingDef built && built.HasComp(typeof(CompQuality))) findings.Add("planned_quality_minimum_unset");
         var work = definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff) * cells.Length;
         return (unknown, new Prepared(request.Id, definition, cells, illegal, fogged,
-            things.Select(b => (b.Thing, Kind: Kind(b.Thing))).ToArray(), footprint, owed, work));
+            things.Select(b => (b.Thing, Kind: Kind(b.Thing))).ToArray(), footprint, owed, work, stuff));
     }
 
     // A prepared site's answer: its clearing ops, then the placed-site rows against its cells, and the verdict.
@@ -230,7 +231,7 @@ internal static class NativeConstructionActivity
         var cells = site.Cells;
         IntVec3 Nearest(IntVec3 origin) => cells.OrderBy(c => c.DistanceToSquared(origin)).ThenBy(c => c.x).ThenBy(c => c.z).First();
         var options = new List<Obs.ConstructionActivityOption>();
-        Rows(map, legs, roster, new Site(site.Id, site.Definition, cells[0], Nearest, null, site.Owed, site.Work, _ => true, _ => true), finishGiver, findings, options);
+        Rows(map, legs, roster, new Site(site.Id, site.Definition, cells[0], Nearest, null, site.Owed, site.Work, _ => true, _ => true, site.Stuff, site.Work / cells.Length, site.Owed.Length > 0), finishGiver, findings, options);
         return new(site.Id)
         {
             Options = EquatableArray.From(options),
@@ -282,7 +283,7 @@ internal static class NativeConstructionActivity
                     var speed = pawn.GetStatValue(StatDefOf.MiningSpeed);
                     return speed > 0 ? Fact.Known(rock.Sum(r => Math.Ceiling(r.HitPoints / (double)NaturalRockDamagePerPickHit))
                         * Math.Round(JobDriver_Mine.BaseTicksBetweenPickHits / speed)) : default;
-                });
+                }, pawn => MiningLearning(pawn, rock));
             result.Add(new(mineId, Obs.PlannedClearingKind.Mine) { Options = EquatableArray.From(rows), Targets = EquatableArray.From(rock.Select(r => r.GetUniqueLoadID())) });
         }
         // One Deconstruct op per building, its rows naming it: the brain binds the op to it before placement (#3557). A
@@ -308,9 +309,25 @@ internal static class NativeConstructionActivity
         return result;
     }
 
+    private static Obs.ProductiveSkillWork? MiningLearning(Pawn pawn, Thing[] rocks)
+    {
+        var learning = NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Mining, StatDefOf.MiningSpeed,
+            rocks.Sum(r => Math.Ceiling(r.HitPoints / (double)NaturalRockDamagePerPickHit)), 1, 0.07, true, false,
+            "JobDriver_Mine: learning each callback; rate changes at pick timer reset");
+        if (learning == null) return null;
+        return learning with
+        {
+            Rates = EquatableArray.From(learning.Rates.Select(r => new Obs.SkillWorkRate(r.StoredLevel,
+                r.WorkPerTick.IsKnown && r.WorkPerTick.Value > 0
+                    ? Fact.Known(1.0 / Math.Max(1, Math.Round(JobDriver_Mine.BaseTicksBetweenPickHits / r.WorkPerTick.Value))) : default))),
+            Stages = EquatableArray.From(rocks.Select(r => new Obs.ProductiveWorkStage(
+                Math.Ceiling(r.HitPoints / (double)NaturalRockDamagePerPickHit), 1,
+                Fact.Known(pawn.Faction == null || r.Faction != pawn.Faction ? 0.07 : 0), 1, true)))
+        };
+    }
     // A set op's rows: one per able pawn, routed to the member nearest it (Location that member's cell); finish is the summed native work.
     private static List<Obs.ConstructionActivityOption> WorkRows(NativePathLegs legs, Pawn[] pawns, Thing[] targets, string id, string definition, string giver,
-        Func<Pawn, bool> able, Func<Pawn, Fact<double>> finish)
+        Func<Pawn, bool> able, Func<Pawn, Fact<double>> finish, Func<Pawn, Obs.ProductiveSkillWork?>? learning = null)
     {
         var rows = new List<Obs.ConstructionActivityOption>();
         foreach (var pawn in pawns.Where(able))
@@ -319,7 +336,7 @@ internal static class NativeConstructionActivity
             if (legs.Cost(pawn, pawn.Position, nearest, PathEndMode.Touch) is not { } route) continue;
             var cell = new Cell(nearest.Position.x, nearest.Position.z);
             rows.Add(new(id, definition, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, default, default, finish(pawn))
-                { SiteApproachTicks = Fact.Known((double)route) });
+                { SiteApproachTicks = Fact.Known((double)route), SkillWork = learning?.Invoke(pawn) });
         }
         return rows;
     }
@@ -332,7 +349,12 @@ internal static class NativeConstructionActivity
         var rows = WorkRows(legs, pawns, plants, id, definition, giver,
             pawn => !pawn.WorkTypeIsDisabled(WorkTypeDefOf.PlantCutting) && plants.All(p => PlantUtility.PawnWillingToCutPlant_Job(p, pawn)),
             pawn => plants.Select(p => (double)JobDriver_PlantWork.WorkDonePerTick(pawn, p)).All(r => r > 0)
-                ? Fact.Known(plants.Sum(p => (double)p.def.plant.harvestWork / JobDriver_PlantWork.WorkDonePerTick(pawn, p))) : default);
+                ? Fact.Known(plants.Sum(p => (double)p.def.plant.harvestWork / JobDriver_PlantWork.WorkDonePerTick(pawn, p))) : default,
+            pawn => NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Plants, StatDefOf.PlantWorkSpeed,
+                plants.Sum(p => (double)p.def.plant.harvestWork), 1, 0.085, true, false,
+                "JobDriver_PlantCut: yielding plants learn before work") is { } learning ? learning with
+                { Stages = EquatableArray.From(plants.Select(p => new Obs.ProductiveWorkStage(p.def.plant.harvestWork,
+                    UnityEngine.Mathf.Lerp(3.3f, 1f, p.Growth), Fact.Known(p.def.plant.harvestedThingDef != null && p.CanYieldNow() ? 0.085 : 0)))) } : null);
         return new(id, Obs.PlannedClearingKind.Cut) { Options = EquatableArray.From(rows), Targets = EquatableArray.From(plants.Select(p => p.GetUniqueLoadID())) };
     }
 
@@ -385,7 +407,11 @@ internal static class NativeConstructionActivity
             var rate = pawn.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7;
             var cell = new Cell(nearest.x, nearest.z);
             rows.Add(new(id, definition, cell, pawn.GetUniqueLoadID(), "", "", cell, 0, 0, giver, default, default,
-                rate > 0 ? Fact.Known(Math.Ceiling(RemoveFloorWork * cells.Length / rate)) : default) { SiteApproachTicks = Fact.Known((double)route) });
+                rate > 0 ? Fact.Known(Math.Ceiling(RemoveFloorWork * cells.Length / rate)) : default)
+                { SiteApproachTicks = Fact.Known((double)route), SkillWork = NativeProductiveSkill.ReadWork(pawn,
+                    SkillDefOf.Construction, StatDefOf.ConstructionSpeed, RemoveFloorWork * cells.Length, 1.7, 0.1,
+                    false, false, "JobDriver_AffectFloor: work then learning") is { } learning
+                    ? learning with { WorkQuantum = RemoveFloorWork } : null });
         }
         return new(id, Obs.PlannedClearingKind.RemoveFloor) { Options = EquatableArray.From(rows), Cells = EquatableArray.From(cells.Select(c => new Cell(c.x, c.z))) };
     }
@@ -449,7 +475,12 @@ internal static class NativeConstructionActivity
             var rate = pawn.GetStatValue(StatDefOf.ConstructionSpeed) * 1.7;
             var total = work + RemoveRoofWorkPerCell * (roofCells?.Count ?? 0);
             rows.Add(new(site, definition, cell, pawn.GetUniqueLoadID(), building.def.defName, building.GetUniqueLoadID(), cell, 0, 0, giver,
-                default, default, rate > 0 ? Fact.Known(Math.Ceiling(total / rate)) : default) { SiteApproachTicks = Fact.Known((double)route) });
+                default, default, rate > 0 ? Fact.Known(Math.Ceiling(total / rate)) : default)
+                { SiteApproachTicks = Fact.Known((double)route), SkillWork = NativeProductiveSkill.ReadWork(pawn,
+                    SkillDefOf.Construction, StatDefOf.ConstructionSpeed, total, 1.7, 0, false, false,
+                    "JobDriver_RemoveBuilding: construction speed, no learning") is { } learning ? learning with
+                    { Stages = EquatableArray.From(Enumerable.Repeat(new Obs.ProductiveWorkStage(RemoveRoofWorkPerCell, 1, Fact.Known(0d)), roofCells?.Count ?? 0)
+                        .Append(new(work, 1, Fact.Known(0d)))) } : null });
         }
         return rows;
     }
@@ -556,7 +587,11 @@ internal static class NativeConstructionActivity
             if (legs.Cost(pawn, pawn.Position, To(pawn.Position), PathEndMode.Touch) is not { } siteRoute) continue;
             var finish = finishGiver != null && ConstructionSkillGuard.Capability(pawn) == true && site.Finishes(pawn)
                 && (pawn.skills?.GetSkill(SkillDefOf.Construction).Level ?? 0) >= site.Definition.constructionSkillPrerequisite;
-            var speed = pawn.GetStatValue(StatDefOf.ConstructionSpeed);
+            var factor = 1.7 * (site.Stuff?.GetStatValueAbstract(StatDefOf.ConstructionSpeedFactor) ?? 1f);
+            var speed = pawn.GetStatValue(StatDefOf.ConstructionSpeed) * factor;
+            var skillWork = finish ? NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Construction, StatDefOf.ConstructionSpeed,
+                site.Work, factor, site.PaysXp ? 0.25 : 0, true, false, "JobDriver_ConstructFinishFrame: learning before construction work") : null;
+            if (skillWork != null) skillWork = skillWork with { WorkQuantum = site.WorkQuantum };
             Fact<double> finishTicks = finish && speed > 0 ? Fact.Known((double)site.Work / speed) : default;
             foreach (var (source, share, storage) in sources)
             {
@@ -581,7 +616,7 @@ internal static class NativeConstructionActivity
                 }
                 options.Add(new(site.Id, site.Definition.defName, new(site.Location.x, site.Location.z), pawn.GetUniqueLoadID(),
                     source?.def.defName ?? "", source?.GetUniqueLoadID() ?? "", new(source?.Position.x ?? site.Location.x, source?.Position.z ?? site.Location.z),
-                    count, capacity, finishGiver?.defName ?? "", approach, delivery, finishTicks) { SiteApproachTicks = Fact.Known((double)siteRoute), AvailableInput = Fact.Known((double)(source?.stackCount ?? 0)), StorageDistance = storage });
+                    count, capacity, finishGiver?.defName ?? "", approach, delivery, finishTicks) { SiteApproachTicks = Fact.Known((double)siteRoute), AvailableInput = Fact.Known((double)(source?.stackCount ?? 0)), StorageDistance = storage, SkillWork = skillWork });
             }
         }
     }

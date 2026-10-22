@@ -52,7 +52,7 @@ internal static class FoodMethodCandidates
                 Route(pawn.Pawn, "start", Location(pawn.Origin), pawn.ApproachTicks);
                 if (pawn.HarvestAllowed == Known(true))
                 {
-                    Option(id, pawn.Pawn, Known(pawn.WorkTicks));
+                    options.Add(new(id, pawn.Pawn, Known(pawn.WorkTicks), Known(0d)) { SkillWork = pawn.SkillWork });
                     bindings[(id, pawn.Pawn)] = new(id, pawn.Pawn, [], PawnActivityKind.Work, pawn.Target, pawn.WorkGiver, "Harvest", 0, deadline, pawn.Origin);
                 }
             }

@@ -133,7 +133,7 @@ public sealed class ProductiveLearningTests
         var option = new ForecastActivityOption("tend/1", "doctor", Known(400d), Known(0d)) { TendLearning = Tend() };
         var first = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0);
         Assert.Equal(400, first.WorkTicks.Value);
-        Assert.Equal(new SkillXpEvent("tend/1", 400, Known(250d), SkillXpPath.NormalTracker), first.Evidence!.Callbacks.Single());
+        Assert.Equal(new SkillXpEvent("tend/1", 400, Known(250d), SkillXpPath.NormalTracker, BeforeDecay: true), first.Evidence!.Callbacks.Single());
         Assert.Equal(250, first.Evidence.After.AppliedGain.Value);
         var allocation = new ForecastActivityAllocation("tend/1", "doctor", 0, 0, 0, 400, 0, 0, 400, 400, 0) { Learning = first.Evidence };
         var second = ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { Activity = "tend/2" }, [allocation], 400);

@@ -47,6 +47,13 @@ internal static class NativeSkillStat
     /// (index = stored level, aptitude applied as native GetLevel does), or null with the disqualifying <paramref name="finding"/>.</summary>
     internal static float[]? Levels(Pawn pawn, StatDef stat, SkillDef skill, out string finding)
     {
+        // GeneralLaborSpeed is independent of Crafting: native quality changes, native duration does not.
+        // Follow the actual stat dependency graph instead of turning a known constant rate into an unknown at level-up.
+        if (Independent(pawn, stat, skill))
+        {
+            finding = "";
+            return Enumerable.Repeat(pawn.GetStatValue(stat), SkillRecord.MaxLevel + 1).ToArray();
+        }
         finding = Disqualified(pawn, stat, skill) ?? "";
         if (finding.Length > 0) return null;
         var record = pawn.skills!.GetSkill(skill);
@@ -122,9 +129,20 @@ internal static class NativeSkillStat
     // A nested stat (CookSpeed's postfactor and the medical speeds' factor are native WorkSpeedGlobal) may depend on
     // current condition, but no supported nested pipeline may depend on the skill itself.
     private static bool Independent(Pawn pawn, StatDef factor, SkillDef skill) =>
-        factor.skillNeedOffsets?.Any(s => s.skill == skill) != true
-        && factor.skillNeedFactors?.Any(s => s.skill == skill) != true
-        && factor.statFactors?.Count is not > 0 && factor.postProcessStatFactors?.Count is not > 0
-        && factor.Worker.GetType() == typeof(StatWorker)
-        && factor.parts?.Any(p => !AllowedPart(pawn, p)) != true;
+        Independent(pawn, factor, skill, new System.Collections.Generic.HashSet<StatDef>());
+
+    private static bool Independent(Pawn pawn, StatDef factor, SkillDef skill, System.Collections.Generic.HashSet<StatDef> path)
+    {
+        if (!path.Add(factor)) return false;
+        var independent = factor.skillNeedOffsets?.Any(s => s.skill == skill) != true
+            && factor.skillNeedFactors?.Any(s => s.skill == skill) != true
+            && factor.Worker.GetType() == typeof(StatWorker)
+            && factor.parts?.Any(p => !AllowedPart(pawn, p)) != true
+            && factor.statFactors?.All(f => Independent(pawn, f, skill, path)) != false
+            && factor.postProcessStatFactors?.All(f => Independent(pawn, f, skill, path)) != false
+            && pawn.AllComps.All(c => c.GetType().GetMethod(nameof(ThingComp.GetStatOffset))?.DeclaringType == typeof(ThingComp)
+                && c.GetType().GetMethod(nameof(ThingComp.GetStatFactor))?.DeclaringType == typeof(ThingComp));
+        path.Remove(factor);
+        return independent;
+    }
 }

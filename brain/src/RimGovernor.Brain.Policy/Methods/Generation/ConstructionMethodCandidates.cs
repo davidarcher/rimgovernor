@@ -203,7 +203,7 @@ internal static class ConstructionMethodCandidates
                 workers.Add(row.Pawn);
                 if (row.FinishTicks.IsKnown)
                 {
-                    options.Add(new(finish, row.Pawn, row.FinishTicks, Known(0.0)));
+                    options.Add(new(finish, row.Pawn, row.FinishTicks, Known(0.0)) { SkillWork = row.SkillWork });
                     routes.Add(new(row.Pawn, "start", siteLocation, row.SiteApproachTicks));
                     bindings[(finish, row.Pawn)] = new(finish, row.Pawn, [.. prerequisites], PawnActivityKind.Work,
                         row.Site, row.WorkGiver, "FinishFrame", 0, deadline, row.Location)
@@ -248,7 +248,7 @@ internal static class ConstructionMethodCandidates
             foreach (var row in op.Rows)
             {
                 workers.Add(row.Pawn);
-                options.Add(new(id, row.Pawn, haul ? row.DeliveryTicks : row.FinishTicks, Known(0.0)));
+                options.Add(new(id, row.Pawn, haul ? row.DeliveryTicks : row.FinishTicks, Known(0.0)) { SkillWork = row.SkillWork });
                 routes.Add(new(row.Pawn, "start", location, haul ? row.ApproachTicks : row.SiteApproachTicks));
                 bindings[(id, row.Pawn)] = RemovalBinding(id, op.Kind, row, op.Id, deadline, op.Targets, op.Cells);
             }

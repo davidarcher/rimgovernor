@@ -202,7 +202,7 @@ public static class ForecastHandoffPolicy
                 if (!result.StoredLevel.IsKnown || !result.Level.IsKnown || !result.Xp.IsKnown)
                 { gaps.Add($"terminal_skill_unknown:{p.Pawn}:{s.Name}"); return s with { Learning = null }; }
                 return s with { Level = result.Level.Value, Stored = result.StoredLevel.Value,
-                    Learning = s.Learning! with { StoredLevel = result.StoredLevel, Xp = result.Xp } };
+                    Learning = result.TerminalLearning };
             });
             return p with { Skills = Known(EquatableArray.From(projected)) };
         })));

@@ -212,7 +212,7 @@ Research and sowing carry native learning mechanics and per-level rates through 
 Research pays Intellectual XP after computing work; sowing pays Plants XP before its work-rate lookup.
 The evaluator preserves this ordering, native callback delta and phase, saturation at each callback,
 and skill tracker decay after work. Callback runs are compressed for evidence only; arithmetic still
-applies each callback separately. Research keeps its fixed work block and integrates actual points;
+applies each callback separately. Research integrates actual points until its block or the shared project completes;
 sowing completes integral cells and discards excess work at each cell just as the native driver does.
 The resulting work segments provide threshold dates and per-cell completion dates to continuation.
 
@@ -225,3 +225,24 @@ existing daily-budget validity bound. No save state or XP ledger is introduced.
 Generated research/sowing tests exercise learning, changed work output, conserved cells and carried
 terminal XP, including midnight, saturation and callback ordering. Unknown native stat pipelines retain
 current-level rates and provenance; crossing into an unobserved rate remains explicit uncertainty.
+
+Construction finishing, floor removal, harvesting, plant cutting, mining and unfinished tailoring
+carry their native callbacks through the existing activity reads. Per-target stages preserve differing
+plant yields and XP eligibility, discard excess target work, and hold mining speed for each pick timer.
+Preparation and ingredient carrying pay no productive XP. Construction uses the native 1.7 factor and
+stuff construction-speed multiplier. Roof work, deconstruction, uninstalling and hauling pay no native
+skill XP. Recipe and tend completion callbacks precede that tick's skill decay.
+
+Parallel researchers share the remaining project work. Their first common completion callback bounds
+all research learning; finalized candidate plans reproject following work from those earned callbacks,
+validate the resulting schedule, and price its actual labor. Full terminal learning mechanics carry
+stored XP, since-midnight XP, next decay/reset offsets and callback phase into continuation. The range
+practice budget keeps its original expiry; rebasing does not manufacture a refreshed budget.
+
+The final research tick follows observed native pawn tick-list order. Once a worker completes the
+project, later workers fail that research toil before earning another callback; the final useful work
+is capped to the project's remaining points. The read observes pending tick-list registration changes
+without writing them. Tailoring's GeneralLaborSpeed is a constant per-level curve when the native stat
+dependency graph is skill-independent: Crafting XP does not fabricate a production-speed increase.
+The native stat differential checks the five productive speed families at every stored level beside
+the four existing medical curves.

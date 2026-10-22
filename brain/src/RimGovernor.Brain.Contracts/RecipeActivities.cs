@@ -19,6 +19,7 @@ public sealed record RecipeActivityOption(string Id, string Pawn, string Bench, 
     Fact<double> OutputTravelTicks, Cell Destination)
 {
     public int RequiredCount { get; init; }
+    public ProductiveSkillWork? SkillWork { get; init; }
 }
 public sealed record RecipeActivityRead
 {

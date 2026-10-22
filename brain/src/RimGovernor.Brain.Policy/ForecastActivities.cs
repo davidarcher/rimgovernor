@@ -120,6 +120,8 @@ public static class ForecastActivities
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         // The visited prefixes already keep one plan per assignment and time, so plans need no key until ranking ties.
         var plans = new List<ForecastActivityPlan>();
+        var sharedResearch = tasks.Where(t => t.ProjectProgress is { } p && !p.Project.StartsWith(ForecastProjectProgress.SowPrefix, StringComparison.Ordinal))
+            .GroupBy(t => t.ProjectProgress!.Project).Any(g => g.Count() > 1);
         var visited = new HashSet<(ulong, ulong)>();
         ulong prefixLow = 0, prefixHigh = 0;
         var taskIndex = tasks.Select((t, i) => (t.Id, i)).ToDictionary(p => p.Id, p => p.i, StringComparer.Ordinal);
@@ -162,7 +164,8 @@ public static class ForecastActivities
                     if (index == 0 || a.End > completedAt) completedAt = a.End;
                 }
                 if (!double.IsFinite(total)) throw new DomainException("activity plan cost overflow");
-                plans.Add(new(rows, completedAt, total));
+                if (!sharedResearch) plans.Add(new(rows, completedAt, total));
+                else if (ForecastResearchWork.Complete(problem, rows, findings) is { } completed) plans.Add(completed);
                 return;
             }
             for (var taskAt = 0; taskAt < tasks.Length; taskAt++)

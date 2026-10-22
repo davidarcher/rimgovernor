@@ -61,6 +61,7 @@ public sealed record ConstructionActivityOption(string Site, string Definition, 
     string Resource, string Input, Cell Origin, int Count, int Capacity, string WorkGiver,
     Fact<double> ApproachTicks, Fact<double> DeliveryTicks, Fact<double> FinishTicks)
 {
+    public ProductiveSkillWork? SkillWork { get; init; }
     public Fact<double> SiteApproachTicks { get; init; }
     public Fact<double> AvailableInput { get; init; }
     /// <summary>A site row's straight-line distance from its source stack (<see cref="Origin"/>) to the nearest cell of

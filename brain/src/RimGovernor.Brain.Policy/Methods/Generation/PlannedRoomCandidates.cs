@@ -51,7 +51,9 @@ internal static class PlannedRoomCandidates
         ForecastActivityOption[] RoofOptions(PlannedBuildSite site, string id) => thermal is null ? [] : thermal.Workers
             .Where(w => w.RoofCellWorkTicks.IsKnown && pawns.Contains(w.Pawn) && !resources.Claims.Pawns.Contains(w.Pawn)
                 && Routed(w.Pawn, site.Positions[0]))
-            .Select(w => new ForecastActivityOption(id, w.Pawn, Known(w.RoofCellWorkTicks.Value * site.Positions.Count), Known(0.0))).ToArray();
+            .Select(w => new ForecastActivityOption(id, w.Pawn, Known(w.RoofCellWorkTicks.Value * site.Positions.Count), Known(0.0))
+            { SkillWork = w.SkillWork is { WorkAmount.IsKnown: true } learning
+                ? learning with { WorkAmount = Known(learning.WorkAmount.Value * site.Positions.Count), WorkQuantum = learning.WorkAmount.Value } : null }).ToArray();
         (Assessment Verdict, string Reason) Assess(PlannedBuildSite site)
         {
             if (site.Op == OpKind.RoofIn)
@@ -176,7 +178,7 @@ internal static class PlannedRoomCandidates
                     }
                     foreach (var row in rows.Where(r => r.FinishTicks.IsKnown).GroupBy(r => r.Pawn).Select(p => p.First()))
                     {
-                        roomOptions.Add(new(finish, row.Pawn, row.FinishTicks, Known(0.0)));
+                        roomOptions.Add(new(finish, row.Pawn, row.FinishTicks, Known(0.0)) { SkillWork = row.SkillWork });
                         roomRoutes.Add(new(row.Pawn, "start", siteLocation, row.SiteApproachTicks));
                     }
                     foreach (var clearing in site.Clearing.OrderBy(c => c.Id, StringComparer.Ordinal))
@@ -191,7 +193,7 @@ internal static class PlannedRoomCandidates
                             { Producer = clearing.Id, Kind = ForecastRequirementKind.Reusable, Provenance = "native-planned-clearing:" + site.Id }]));
                         foreach (var row in clearingRows)
                         {
-                            roomOptions.Add(new(clearing.Id, row.Pawn, haul ? row.DeliveryTicks : row.FinishTicks, Known(0.0)));
+                            roomOptions.Add(new(clearing.Id, row.Pawn, haul ? row.DeliveryTicks : row.FinishTicks, Known(0.0)) { SkillWork = row.SkillWork });
                             roomRoutes.Add(new(row.Pawn, "start", from, haul ? row.ApproachTicks : row.SiteApproachTicks));
                             // The building, stack or plants under the footprint stand now: their removal binds before placement, a
                             // building as Work/Deconstruct on it (#3557; a roof-holder's order removes the roof over the op's

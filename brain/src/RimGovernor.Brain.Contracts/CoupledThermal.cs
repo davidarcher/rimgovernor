@@ -39,7 +39,10 @@ public sealed record ThermalSource(string Target, Cell Cell, bool Complete, Fact
     /// <summary>The fuel items a fueled source burns a tick; unknown for an electric heater.</summary>
     public Fact<double> FuelPerTick { get; init; }
 }
-public sealed record ThermalWorker(string Pawn, Fact<double> RoofCellWorkTicks);
+public sealed record ThermalWorker(string Pawn, Fact<double> RoofCellWorkTicks)
+{
+    public ProductiveSkillWork? SkillWork { get; init; }
+}
 
 /// <summary>
 /// Unplaced planned shelters the construction activity read samples (#3323): each room's interior and ring cells as

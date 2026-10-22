@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using HarmonyLib;
 using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
@@ -11,6 +12,20 @@ namespace HomeBridge.BridgeTools;
 
 internal static class NativeResearchActivities
 {
+    // TickManager/TickList expose no public tick-order view. The shared-project final callback must
+    // use native order: later pawns fail the research toil once the earlier pawn finishes its project.
+    private static readonly AccessTools.FieldRef<TickManager, TickList> NormalTicks = AccessTools.FieldRefAccess<TickManager, TickList>("tickListNormal");
+    private static readonly AccessTools.FieldRef<TickList, List<List<Thing>>> TickBuckets = AccessTools.FieldRefAccess<TickList, List<List<Thing>>>("thingLists");
+    private static readonly AccessTools.FieldRef<TickList, List<Thing>> Registering = AccessTools.FieldRefAccess<TickList, List<Thing>>("thingsToRegister");
+    private static readonly AccessTools.FieldRef<TickList, List<Thing>> Deregistering = AccessTools.FieldRefAccess<TickList, List<Thing>>("thingsToDeregister");
+    private static Dictionary<Pawn, int> CallbackOrder()
+    {
+        var ticks = NormalTicks(Find.TickManager);
+        var things = new List<Thing>(TickBuckets(ticks)[0]);
+        things.AddRange(Registering(ticks));
+        foreach (var removed in Deregistering(ticks)) things.Remove(removed);
+        return things.Select((thing, index) => (thing, index)).Where(x => x.thing is Pawn).ToDictionary(x => (Pawn)x.thing, x => x.index);
+    }
     /// <summary>
     /// ResearchManager.ResearchPerformed scales the work amount by this literal before the difficulty and cost factors
     /// (1.7 Assembly-CSharp; no named constant).
@@ -33,6 +48,7 @@ internal static class NativeResearchActivities
             .OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var difficulty = Find.Storyteller.difficulty.researchSpeedFactor;
         var workers = new List<Obs.ResearchWorker>();
+        var order = CallbackOrder();
         foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
         {
             if (pawn.Downed || pawn.Drafted || pawn.InMentalState || !NativeFoodActivity.Available(pawn) || pawn.WorkTagIsDisabled(giver.workTags)
@@ -47,9 +63,10 @@ internal static class NativeResearchActivities
                     / project.CostFactor(pawn.Faction.def.techLevel);
                 workers.Add(new(pawn.GetUniqueLoadID(), bench.GetUniqueLoadID(), new(cell.x, cell.z), project.defName,
                     giver.defName, JobDefOf.Research.defName, Fact.Known((double)perTick))
-                { SkillWork = NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Intellectual, StatDefOf.ResearchSpeed, 1,
+                { SkillWork = NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Intellectual, StatDefOf.ResearchSpeed, project.Cost - project.ProgressReal,
                     bench.GetStatValue(StatDefOf.ResearchSpeedFactor) * PointsPerSpeedTick * difficulty / project.CostFactor(pawn.Faction.def.techLevel),
-                    0.1, false, true, "JobDriver_Research: points then Intellectual 0.1 XP per callback tick") });
+                    0.1, false, true, "JobDriver_Research: points then Intellectual 0.1 XP per callback tick") is { } learning
+                    ? learning with { CallbackOrder = order.TryGetValue(pawn, out var at) ? Fact.Known(at) : default } : null });
             }
         }
         return new() { Known = true, Workers = EquatableArray.From(workers) };

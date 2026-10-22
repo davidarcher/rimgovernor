@@ -19,7 +19,7 @@ public sealed class ProductiveDuringWorkTests
     public void GeneratedResearchBlockKeepsRealLearningAndIncreasedPointsAcrossMidnight()
     {
         var worker = new ResearchWorker("pawn", "bench", new(1, 1), "research", "giver", "job", Known(.5))
-            { SkillWork = Work("Intellectual", 1, .5, fixedDuration: true) };
+            { SkillWork = Work("Intellectual", 10000, .5, fixedDuration: true) };
         var read = new ResearchActivityRead { Known = true, Workers = [worker] };
         Assert.Equal(read, WireJson.Deserialize<ResearchActivityRead>(WireJson.Serialize(read)));
         var generated = ResearchMethodCandidates.Generate(read, GameTime.TicksPerDay, new([], [], [], []), GameTime.TicksPerDay);
@@ -84,5 +84,95 @@ public sealed class ProductiveDuringWorkTests
         Assert.All(expanded, e => Assert.Equal(7, e.Tick % 15));
         Assert.All(expanded, e => Assert.Equal(1.5, e.RawXp.Value, 8));
         Assert.Equal(7, expanded[0].Tick);
+    }
+    [Fact]
+    public void ResearchStopsLearningAtProjectCompletionInsideItsBlock()
+    {
+        var option = new ForecastActivityOption("research", "pawn", Known(2500d), Known(0d))
+            { SkillWork = Work("Intellectual", 10, 1, fixedDuration: true) };
+        var result = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0);
+        Assert.Equal(10, result.WorkTicks.Value);
+        Assert.Equal(10, result.Evidence!.WorkAmount);
+        Assert.Equal(1, result.Evidence.After.AppliedGain.Value, 8);
+    }
+
+    [Fact]
+    public void PerTargetStagesPreserveCutLearningAndMiningPickTimer()
+    {
+        var work = Work("Mining", 2, .01, before: true) with
+        {
+            Stages = [new(1, 1, Known(1d), 1, true), new(1, 1, Known(0d), 1, true)]
+        };
+        var result = ForecastProductiveWorkPolicy.ForecastProductiveWork(
+            new("mine", "pawn", Known(200d), Known(0d)) { SkillWork = work }, [], 0);
+        // XP raises the first pick's skill; its timer remains the original100ticks. The next target uses the new rate.
+        Assert.Equal(100, ForecastProductiveWorkPolicy.CompletionTick(result.Evidence!, 1).Value);
+        Assert.Equal(150, result.WorkTicks.Value);
+        Assert.Equal(100, result.Evidence!.After.AppliedGain.Value);
+        Assert.Equal(0, result.Evidence.Callbacks[^1].RawXp.Value);
+    }
+
+    [Fact]
+    public void PreparationPaysNoXpAndTerminalCountersResumeIdentically()
+    {
+        var work = Work("Crafting", 10, 1, before: true) with { PreparationTicks = 20 };
+        var result = ForecastProductiveWorkPolicy.ForecastProductiveWork(
+            new("tailor", "pawn", Known(30d), Known(0d)) { SkillWork = work }, [], 0);
+        Assert.Equal(30, result.WorkTicks.Value);
+        Assert.Equal(1, result.Evidence!.After.AppliedGain.Value, 8);
+        var first = ForecastSkillPolicy.ForecastSkill(work.Learning, result.Evidence.Callbacks, 30);
+        var resumed = ForecastSkillPolicy.ForecastSkill(first.TerminalLearning!, [], 600);
+        var continuous = ForecastSkillPolicy.ForecastSkill(work.Learning, result.Evidence.Callbacks, 630);
+        Assert.Equal(continuous.StoredLevel, resumed.StoredLevel);
+        Assert.Equal(continuous.Xp, resumed.Xp);
+        Assert.Equal(continuous.TerminalLearning, resumed.TerminalLearning);
+    }
+    [Fact]
+    public void TwoResearchersStopTogetherAndCarryOnlyEarnedXpIntoFollowingWork()
+    {
+        var work = Work("Intellectual", 100, 1, fixedDuration: true) with
+        { Rates = [new(0, Known(1d)), new(1, Known(1d)), new(2, Known(1d))] };
+        var problem = new ForecastActivityProblem
+        {
+            Activities = [new("a", "lab", "lab", []) { ProjectProgress = new("project", 1) },
+                new("b", "lab", "lab", []) { ProjectProgress = new("project", 1) }],
+            Options = [new("a", "one", Known(2500d), Known(0d)) { SkillWork = work with { CallbackOrder = Known(1) } },
+                new("b", "two", Known(2500d), Known(0d)) { SkillWork = work with { CallbackOrder = Known(2) } }],
+            Pawns = [new("one", "lab", Known<EquatableArray<ForecastTimeWindow>>([new(0, 3000)]), Known(1d)),
+                new("two", "lab", Known<EquatableArray<ForecastTimeWindow>>([new(0, 3000)]), Known(1d))],
+            Deadline = Known(3000d), AlternativeLaborCost = Known(10000d)
+        };
+        var result = ForecastActivities.CompareActivityPlans(problem).Selected!;
+        Assert.Equal(50, result.CompletedAt);
+        Assert.Equal(100, result.LaborCost);
+        Assert.All(result.Allocations, a =>
+        {
+            Assert.Equal(50, a.Learning!.WorkAmount);
+            Assert.Equal(5, a.Learning.After.AppliedGain.Value, 8);
+            Assert.All(a.Learning.Callbacks, e => Assert.True(e.LastTick <= 50));
+        });
+    }
+    [Theory]
+    [InlineData(1d, 0d)]
+    [InlineData(3d, .1)]
+    public void NativeResearchOrderSuppressesCallbacksAfterCompletionAndConservesOvershoot(double remaining, double secondXp)
+    {
+        var work = Work("Intellectual", remaining, 2, fixedDuration: true);
+        var problem = new ForecastActivityProblem
+        {
+            Activities = [new("a", "lab", "lab", []) { ProjectProgress = new("project", 2) },
+                new("b", "lab", "lab", []) { ProjectProgress = new("project", 2) }],
+            Options = [new("a", "one", Known(2500d), Known(0d)) { SkillWork = work with { CallbackOrder = Known(1) } },
+                new("b", "two", Known(2500d), Known(0d)) { SkillWork = work with { CallbackOrder = Known(2) } }],
+            Pawns = [new("one", "lab", Known<EquatableArray<ForecastTimeWindow>>([new(0, 3000)]), Known(1d)),
+                new("two", "lab", Known<EquatableArray<ForecastTimeWindow>>([new(0, 3000)]), Known(1d))],
+            Deadline = Known(3000d), AlternativeLaborCost = Known(10000d)
+        };
+        var result = ForecastActivities.CompareActivityPlans(problem).Selected!;
+        Assert.Equal(1, result.CompletedAt);
+        Assert.Equal(remaining, result.Allocations.Sum(a => a.Learning!.WorkAmount));
+        Assert.Equal(.1, result.Allocations.Single(a => a.Pawn == "one").Learning!.After.AppliedGain.Value, 8);
+        Assert.Equal(secondXp, result.Allocations.Single(a => a.Pawn == "two").Learning!.After.AppliedGain.Value, 8);
+        Assert.Equal(remaining, result.Allocations.SelectMany(a => a.Learning!.WorkSegments).Sum(s => (s.End - s.Start) * s.WorkPerTick));
     }
 }

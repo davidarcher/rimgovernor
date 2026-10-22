@@ -79,7 +79,7 @@ internal static class NativeFoodActivity
                 var count = Math.Min(sourceCount, pawn.carryTracker.MaxStackSpaceEver(product));
                 if (existing?.OutputDelivery is { } obligation) count = Math.Min(count, obligation.Count);
                 if (count <= 0) continue;
-                var work = plant is null ? 0 : plant.def.plant.harvestWork / Math.Max(0.01f, pawn.GetStatValue(StatDefOf.PlantWorkSpeed));
+                var work = plant is null ? 0 : plant.def.plant.harvestWork / Math.Max(0.01f, JobDriver_PlantWork.WorkDonePerTick(pawn, plant));
                 if (legs.Cost(pawn, pawn.Position, source, PathEndMode.Touch) is not { } approach) continue;
                 if (existing?.OutputDelivery?.Recipe is not null)
                 {
@@ -107,6 +107,8 @@ internal static class NativeFoodActivity
                     var (cell, route) = chosen;
                     options.Add(new(pawn.GetUniqueLoadID(), source.GetUniqueLoadID(), product.defName,
                         new(source.Position.x, source.Position.z), new(cell.x, cell.z), giver?.defName ?? "", count, work) {
+                            SkillWork = plant == null ? null : NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Plants, StatDefOf.PlantWorkSpeed,
+                                plant.def.plant.harvestWork, UnityEngine.Mathf.Lerp(3.3f, 1f, plant.Growth), .085, true, false, "JobDriver_PlantHarvest: learning before work"),
                             ApproachTicks = Fact.Known((double)approach), DeliveryTicks = Fact.Known((double)route), HarvestAllowed = Fact.Known(harvestAllowed), SourceCount = Fact.Known((double)sourceCount) });
                 }
                 if (plant is null && existing is not null && (request.AllowCooking || existing.Steps[0].Kind == PawnActivityKind.Work))

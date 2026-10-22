@@ -10,7 +10,10 @@ public sealed record SkillXpEvent(string Id, int Tick, Fact<double> RawXp, Skill
     public long LastTick => (long)Tick + (long)(Count - 1) * Interval;
 }
 public sealed record SkillProjection(Fact<int> Level, Fact<int> StoredLevel, Fact<double> Xp,
-    Fact<double> AppliedGain, Fact<double> DecayLoss, EquatableArray<string> Findings);
+    Fact<double> AppliedGain, Fact<double> DecayLoss, EquatableArray<string> Findings)
+{
+    public SkillLearning? TerminalLearning { get; init; }
+}
 
 public static class ForecastSkillPolicy
 {
@@ -59,7 +62,7 @@ public static class ForecastSkillPolicy
                 cursor.Advance(tick);
             }
         cursor.Advance(horizon);
-        return cursor.Snapshot();
+        return cursor.Snapshot() with { TerminalLearning = cursor.Rebase(horizon) };
     }
     /// <summary>The first reason the mechanics cannot be projected at all, or null: an unread fact
     /// (<c>learning_mechanics_unknown</c>) or a value outside the supported window. The horizon bound is the caller's.</summary>
@@ -72,7 +75,7 @@ public static class ForecastSkillPolicy
             || !s.NextDecay.IsKnown || !s.ValidForTicks.IsKnown)
             return "learning_mechanics_unknown";
         if (s.TrackerIntervalTicks <= 0 || s.TrackerIntervalTicks > 15 || s.TrackerPhase < 0 || s.TrackerPhase >= s.TrackerIntervalTicks || s.NextMidnightReset.IsKnown && (s.NextMidnightReset.Value <= 0 || s.NextMidnightReset.Value > GameTime.TicksPerDay + s.DecayInterval.Value) || s.DecayInterval.Value <= 0 || s.DecayInterval.Value > GameTime.TicksPerDay
-            || s.NextDecay.Value <= 0 || s.NextDecay.Value > s.DecayInterval.Value
+            || s.NextDecay.Value <= 0 || s.NextDecay.Value > s.DecayInterval.Value + s.TrackerIntervalTicks
             || s.Levels.Count == 0 || s.StoredLevel.Value < 0 || s.StoredLevel.Value >= s.Levels.Count
             || s.Levels.Where((l, i) => l.Level != i || !double.IsFinite(l.RequiredXp) || l.RequiredXp <= 0
                 || !double.IsFinite(l.DecayXp) || l.DecayXp < 0).Any()

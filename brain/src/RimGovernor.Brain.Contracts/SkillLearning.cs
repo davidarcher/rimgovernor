@@ -49,11 +49,17 @@ public sealed record ProductiveSkillWork(SkillLearning Learning, RecipeLearning 
 {
     public int CallbackIntervalTicks { get; init; } = 1;
     public int CallbackPhase { get; init; }
+    public Fact<int> CallbackOrder { get; init; }
     public bool LearnBeforeWork { get; init; }
     public bool FixedDuration { get; init; }
     /// <summary>Each completed native target discards excess work (one cell for sowing).</summary>
     public double WorkQuantum { get; init; }
+    public double PreparationTicks { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<ProductiveWorkStage>))]
+    public EquatableArray<ProductiveWorkStage> Stages { get; init; }
 }
+public sealed record ProductiveWorkStage(double WorkAmount, double RateFactor, Fact<double> RawXpPerWorkTick,
+    double WorkQuantum = 0, bool HoldRateUntilQuantum = false);
 public sealed record SkillWorkRate(int StoredLevel, Fact<double> WorkPerTick);
 
 /// <summary>A pawn's native stat value at each stored skill level (0-20) at one frame. Capacities and every other

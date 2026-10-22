@@ -77,7 +77,8 @@ internal static class ClothingMethodCandidates
             activities.Add(new(id, benchLocation, ForecastLocations.Of(row.Destination), [make])
             { Inputs = [new(new(row.Product), Known(1.0)) { Lot = make }], Outputs = [new(new(row.Product), Known(1.0)) { Lot = make }] });
             options.Add(new(make, row.Pawn, approach.IsKnown ? Known(travel - approach.Value + work) : default, Known(0.0))
-            { Equipment = [row.Bench] });
+            { Equipment = [row.Bench], SkillWork = row.SkillWork is { } skill && approach.IsKnown
+                ? skill with { PreparationTicks = travel - approach.Value } : null });
             options.Add(new(id, row.Pawn, row.OutputTravelTicks, Known(0.0)));
             routes.Add(new(row.Pawn, "start", sourceLocation, approach));
             workers.Add(row.Pawn);

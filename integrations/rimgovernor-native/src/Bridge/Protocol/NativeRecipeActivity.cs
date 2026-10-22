@@ -98,7 +98,7 @@ internal static class NativeRecipeActivity
                     options.Add(new(options.Count.ToString(System.Globalization.CultureInfo.InvariantCulture), pawn.GetUniqueLoadID(), bench.GetUniqueLoadID(), giver.defName,
                         recipe.defName, product.defName, stuff.defName, selectedBill?.GetUniqueLoadID() ?? "", uft?.GetUniqueLoadID() ?? "",
                         new(bench.InteractionCell.x, bench.InteractionCell.z), EquatableArray.From(inputs), Fact.Known(travel), Fact.Known((double)work / speed),
-                        Fact.Known((double)output), new(destination.x, destination.z)) { RequiredCount = (int)required });
+                        Fact.Known((double)output), new(destination.x, destination.z)) { RequiredCount = (int)required, SkillWork = NativeProductiveSkill.Read(pawn, recipe, bench, work) });
                 }
                 }
             }
