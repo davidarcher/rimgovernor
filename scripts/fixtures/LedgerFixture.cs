@@ -57,7 +57,15 @@ namespace HomeBridge.BridgeTools
                 }
                 map.waterBodyTracker.ConstructBodies();
                 var body = map.waterBodyTracker.Bodies.OrderByDescending(b => b.Size).First();
-                if (!body.HasFish || body.MaxPopulation < 500) throw new InvalidOperationException("Fixture needs a productive tropical coast.");
+                // Terrain edits initialize a one-cell body with no fish. ConstructBodies only
+                // rebuilds existing bodies; initialize the completed coast at its native capacity.
+                body.Initialize();
+                if (!body.HasFish || body.MaxPopulation < 500) throw new InvalidOperationException($"Fixture needs a productive tropical coast: fish={body.HasFish}, population={body.Population}, max={body.MaxPopulation}, cells={body.Size}.");
+                // Native fishing requires a zone. Finish one catch, then let the same crew
+                // take its lower-priority harvesting and milking jobs without harness intervention.
+                var fishing = new Zone_Fishing(map.zoneManager) { repeatMode = FishRepeatMode.RepeatCount, repeatCount = 1 };
+                map.zoneManager.RegisterZone(fishing);
+                for (int z = mid - 2; z <= mid + 2; z++) fishing.AddCell(new IntVec3(15, 0, z));
                 Find.ResearchManager.FinishProject(DefDatabase<ResearchProjectDef>.GetNamed("Fishing"), false);
                 var food = ThingMaker.MakeThing(ThingDefOf.MealSurvivalPack); food.stackCount = 8;
                 GenSpawn.Spawn(food, new IntVec3(12, 0, mid), map); food.SetForbidden(false, false);

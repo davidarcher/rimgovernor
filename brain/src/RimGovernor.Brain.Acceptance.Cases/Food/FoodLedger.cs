@@ -18,7 +18,7 @@ internal static class FoodLedger
     internal static TypedCase Case() => new()
     {
         Name = "food/ledger",
-        Scope = "On an Odyssey coast (150-tile TropicalRainforest debug start on 30% planet coverage) test/ledger_prepare stages fishers, a mature rice field "
+        Scope = "On an Odyssey coast (150-tile TropicalRainforest debug start on 30% planet coverage) test/ledger_prepare initializes the native fish population and stages a finite fishing zone, fishers, a mature rice field "
             + "and a full-milk cow; observations_read_colony_facts' delivery ledger then counts FISH and CROP RawRice units within the "
             + "fixture's own Notify_Fished and harvest tallies taken before and after the read, counts ANIMAL_PRODUCT Milk, and a "
             + "second read keeps the epoch with no counter lower.",
