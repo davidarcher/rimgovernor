@@ -1148,3 +1148,31 @@ Needs observations and the conditional projection are described in
 The routine `Forecast.Needs` census carries native rates, target eligibility and
 memory expiry. Missing census/targets/rates remain unknown or explicitly absent;
 truncation is not completeness. No save intent or journal schema is added.
+
+## Residual matching
+
+Forecast residual diagnostics compare each selected prediction with later native
+evidence without changing the forecast, selection or schedule. The
+[OTLP schema and report](otel-signals.md#forecast-residual-evidence) specify
+identity, timing, execution cohorts and incomplete-history handling.
+
+`FoodStock` subjects are resource definitions; scope includes the precise census
+area and eligibility used by the forecast. Available stock must not be compared
+with a total-food census. Preserve the forecast's quantity unit (for example
+items versus nutrition); resource definitions and units never merge in a summary.
+`FoodLevel` and `RestLevel` compare native need levels, not exposure integrals or
+malnutrition severity. `Mood` compares actual mood, never its target. Their unit
+is a level fraction, and scope describes the native measurement definition.
+`ShelterTemperature` uses degrees Celsius on matching physical geometry; scope
+must change when that geometry changes, even if a room ID is reused.
+`TaskCompletion` uses absolute game ticks on the existing Method/task/revision,
+with native exact timestamp or interval-censored evidence, never an accepted-order
+receipt. Unknown geometry, food census, temperature coverage or completion time
+must remain named gaps when the existing native reads cannot establish them.
+
+Origin is the observation tick on which the prediction was based; target is the
+supported forecast endpoint. No state prediction is extrapolated past that
+endpoint. Observation lag remains visible even when it prevents aligned scalar
+statistics. Timing and execution divergence are separate: a matched operational
+outcome under interrupted or replaced work is not execution-consistent model
+error. Normal replanning alone does not establish that the relevant work changed.

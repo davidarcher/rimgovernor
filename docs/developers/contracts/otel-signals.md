@@ -319,3 +319,72 @@ These events use the existing bounded telemetry queue and rotating logs. Interva
 boundaries are non-overlapping and captured by native transition hooks; there is no periodic phase sampling. Open intervals export only when changed or closed. Lost or rotated records are unknown time, not zero work.
 
 The existing `coupled_selection` vectors also carry `maintenance` rows: actual requirement identity, conditional native XP shortfall and findings. The OTLP timeline reads these attrs; native `production/maintenance-range` and `production/maintenance-sparring` correlate the selected Method with real skills and restoration.
+
+## Forecast residual evidence
+
+`RimGovernor.cmd forecastresiduals -logs <absolute-path-to-logs.jsonl>` reads
+retained prediction/observation records (including rotated segments) and emits
+JSON with raw pairs, gaps and grouped residual summaries. The command is usable
+with synthetic OTLP evidence; it does not require live instrumentation or change
+planning. Historical evidence belongs to OTLP, with no save or journal additions.
+
+| Kind | Reader and payload |
+| --- | --- |
+| `forecast_prediction` | `ForecastEvidenceReader`: one selected forecast sample, common keys below plus `origin_tick`, `target_tick`, `value`, `unknown_reason`, `admission`. |
+| `forecast_observation` | `ForecastEvidenceReader`: later native evidence correlated to a sample, common keys plus `observation_tick`, `value`, `unknown_reason`, `execution`, `completion`, `lower_tick`, `upper_tick`, `provenance`. |
+
+Common keys are `run`, `load`, `map`, `review`, `sample`, `metric`, `subject`,
+`scope`, `unit`, `method`, `task`, `revision`. The first five identify a sample.
+Run/load/map must identify the actual observed timeline. `sample` is unique within
+its review, not a new Method identity. Method/task/revision reuse execution
+identities; empty method/task and revision zero denote an inapplicable execution
+identity. Revision is encoded as decimal text to retain the entire native long
+identity through generic JSON-number readers. The enum spelling below is exact.
+
+- `metric`: `FoodStock`, `FoodLevel`, `RestLevel`, `Mood`,
+  `ShelterTemperature`, `TaskCompletion`.
+- `admission`: `Selected`, `Admitted`, `Continued`, `Refused`, `Counterfactual`.
+- `execution`: `Unknown`, `Consistent`, `Interrupted`, `Replaced`, `NotExecuted`.
+- `completion`: `NotApplicable` for state metrics; `Exact`, `Interval`,
+  `Unfinished`, or `Unknown` for tasks.
+
+`value` is a finite number or absent/null with a nonempty `unknown_reason`.
+Unknown never means zero. For a task, predicted/exact observed values are absolute
+completion game ticks; `observation_tick` remains the tick of the read. Interval
+completion uses `(lower_tick, upper_tick]`, not a midpoint. `provenance` names the
+native evidence source; an admission receipt alone cannot establish completion.
+Other metrics compare matching units and physical scope as specified in
+[forecast contracts](forecast-contracts.md#residual-matching).
+
+`ForecastResiduals` in Policy computes observed minus predicted. Endpoint state
+values at different ticks retain the raw pair and lag, with `tick_mismatch` and no
+scalar error. Exact native completion timestamps may be learned later; their
+scalar error uses the timestamp, never the read tick. Interval residual bounds
+remain intervals. A task prediction outside its supported origin/target horizon
+is refused. Rejected counterfactuals never receive a score.
+
+Summaries group by metric, unit, scope, food-resource identity, admission and
+execution cohort. They include sample/matched/scalar/interval counts, signed mean,
+MAE, population standard deviation, mean observation lag and reason counts.
+Empty scalar groups have null statistics; one scalar has zero population
+standard deviation. Refused admission always belongs to `NotExecuted`, even if
+contradictory observation evidence claims consistency. Other divergence cohorts
+retain operational residuals separately. `Consistent` means sufficient execution
+evidence with no detected inconsistency, not causal isolation. Unchanged work
+across a new review can remain consistent. Overlapping reviews are forecast
+samples, not independent experiments.
+
+The reader deduplicates identical predictions and observations; conflicting
+predictions are gaps. Matching is independent of arrival order, chooses the
+closest read (earlier on a tie), and prefers exact, then interval completion over
+unfinished task reads. Conflicting observations at the chosen tick do not enter
+statistics. Wrong timeline, geometry/census/unit, or execution identity remains
+an explicit unmatched reason. Raw paired values and their unknown reasons are
+always retained in the report.
+
+The report identifies itself as `retained_log_window_only`. Missing files,
+missing predictions/observations, truncated payloads, malformed records, torn
+final lines and rotation races are visible gaps; duplicate records are reported.
+A fully evicted prediction/observation pair cannot be reconstructed or counted.
+An empty ring yields `no_predictions`, never an accuracy claim. Capture complete
+measurement logs before rotation when a complete experimental sample is needed.

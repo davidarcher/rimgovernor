@@ -63,7 +63,10 @@
         }
       },
       "rimgovernor.brain.telemetry": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
+        }
       },
       "Microsoft.Data.Sqlite.Core": {
         "type": "CentralTransitive",

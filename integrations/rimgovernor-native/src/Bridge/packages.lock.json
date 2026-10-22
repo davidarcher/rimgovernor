@@ -161,7 +161,10 @@
         }
       },
       "rimgovernor.brain.telemetry": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
+        }
       },
       "rimgovernor.host.sdk": {
         "type": "Project"

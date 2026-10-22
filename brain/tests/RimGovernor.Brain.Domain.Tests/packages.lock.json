@@ -323,7 +323,10 @@
         }
       },
       "rimgovernor.brain.telemetry": {
-        "type": "Project"
+        "type": "Project",
+        "dependencies": {
+          "RimGovernor.Brain.Policy": "[1.0.0, )"
+        }
       },
       "rimgovernor.fixtures.contracts": {
         "type": "Project"

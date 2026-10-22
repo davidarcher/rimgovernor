@@ -38,6 +38,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Trace a hunt from the native read through the roster comparison, the drafted formation and its release | [Hunt comparison](developers/contracts/forecast-contracts.md#coherent-coupled-observation-frame), [lone hunts and the hunt gate](developers/contracts/controller-contracts.md), [on-demand hunting evidence](developers/testing/acceptance-guide.md#tiers) |
 | Reach the mod over local HTTP (endpoint file, host/origin checks, `/native/<tool>`, player routes) | [HTTP channel](developers/architecture/http-channel.md) |
 
+| Compare selected forecasts with native outcomes | [Residual matching](developers/contracts/forecast-contracts.md#residual-matching), [OTLP evidence and report](developers/contracts/otel-signals.md#forecast-residual-evidence) |
 | Measure performance | [Throughput](developers/testing/measure-throughput.md), [hazard bounds](developers/architecture/hazard-detection-bounds.md) |
 | Improve expert play | [Architecture roadmap](developers/architecture/expert-play-assessment.md) |
 | Understand how policy chooses and advances a Method | [Domain flow](developers/architecture/overview.md#from-a-concern-to-work), [normal portfolio selection](developers/architecture/portfolio-selection.md), [selection and binding](developers/architecture/plans-and-hands.md#method-selection-and-binding), [live policy stages and enforcement](developers/architecture/colony-forecast.md#live-activity-policy-stages), [continuation](developers/contracts/method-continuation.md) |

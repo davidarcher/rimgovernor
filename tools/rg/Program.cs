@@ -24,6 +24,7 @@ internal static class Program
           thoughtaudit  regenerate the thought-to-trigger table from the installed game
           colonyreview  render a colony review recording into an HTML report or a site index
           pawnactivity  report pawn time and gaps from the OTLP ring
+          forecastresiduals  compare forecast evidence from the OTLP ring
           launch-phases  print a run's launch waterfall (or two runs' per-phase delta) from its traces
           native-build  build the native mod package from this checkout
 
@@ -52,6 +53,7 @@ internal static class Program
         {
             return tool switch
             {
+                "forecastresiduals" => await ForecastResidualsCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "pawnactivity" => await PawnActivityCommand.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "acceptance" => await AcceptanceTool.RunAsync(rest, cts.Token).ConfigureAwait(false),
                 "remoteaccept" => await RemoteAcceptTool.RunAsync(rest, cts.Token).ConfigureAwait(false),
