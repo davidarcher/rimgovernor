@@ -80,6 +80,7 @@ public sealed partial class Rounder
                 ["selected_ids"] = selection.Selection.Selected,
                 ["deferred_pawns"] = selection.Deferred.ToArray(),
                 ["baseline"] = ConsequenceAttrs(selection.BaselineVector), ["selected"] = ConsequenceAttrs(selection.SelectedVector),
+                ["baseline_thermal_exposure"] = ThermalAttrs(selection.Baseline), ["selected_thermal_exposure"] = ThermalAttrs(selection.Selected),
                 ["rejected"] = selection.Rejected.Take(16).Select(r => new Dictionary<string, object?>
                 { ["ids"] = r.Commitments.ToArray(), ["reason"] = r.Reason, ["vector"] = r.Consequences is { } v ? ConsequenceAttrs(v) : null }).ToArray(),
                 ["explanation_truncated"] = selection.Rejected.Count > 16,
@@ -122,6 +123,15 @@ public sealed partial class Rounder
                     } : null }).ToArray()
             }
         });
+
+    private static object[] ThermalAttrs(ForecastCoupledOutcome outcome) => outcome.ThermalExposure.Select(e => (object)new Dictionary<string, object?>
+    {
+        ["pawn"] = e.Pawn, ["assessed_ticks"] = e.AssessedTicks, ["unknown_ticks"] = e.UnknownTicks,
+        ["cold_degree_ticks"] = e.AssessedColdDegreeTicks,
+        ["initial_temperature"] = e.Spans.MinBy(s => s.Start)?.Initial,
+        ["initial_comfortable_min"] = e.Spans.MinBy(s => s.Start)?.ComfortableMin,
+        ["final_temperature"] = e.Spans.MaxBy(s => s.End)?.Final
+    }).ToArray();
 
     private static double? Number(Fact<double> value) => value.IsKnown ? value.Value : null;
 

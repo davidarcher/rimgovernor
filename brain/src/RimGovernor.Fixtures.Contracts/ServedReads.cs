@@ -28,7 +28,14 @@ public sealed record CoordinationPrepared
     public int DoorX { get; init; }
 
     public int DoorZ { get; init; }
+
+    public float OutdoorTemperature { get; init; }
+
+    public IReadOnlyList<CoordinationComfort> Comfort { get; init; } = [];
 }
+
+/// <summary>The native comfort and hypothermia-onset minimum for a prepared pawn, including its worn apparel.</summary>
+public sealed record CoordinationComfort(string Pawn, float ComfortableMin, float SafeMin);
 
 /// <summary><c>test/coordinated_work_read</c>: a coordinated food or construction chain as the native game ran it.</summary>
 public sealed record CoordinationRead
@@ -168,6 +175,7 @@ public sealed record ServiceShelterPrepared
     public int DoorX { get; init; }
 
     public int DoorZ { get; init; }
+
 }
 
 /// <summary><c>test/service_shelter_read</c>: the heater frame's native work, power and the room's temperature.</summary>

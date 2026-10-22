@@ -107,7 +107,9 @@ public sealed partial class PawnControlFixture
                 coordinationPatched = true;
             }
             coordinationActive = true;
-            return FixtureKit.Reply(new Fx.CoordinationPrepared { Success = true, X = barracks.x, Z = barracks.z, DoorX = barracksDoor.x, DoorZ = barracksDoor.z });
+            return FixtureKit.Reply(new Fx.CoordinationPrepared { Success = true, X = barracks.x, Z = barracks.z, DoorX = barracksDoor.x, DoorZ = barracksDoor.z,
+                OutdoorTemperature = map.mapTemperature.OutdoorTemp,
+                Comfort = people.Select(p => new Fx.CoordinationComfort(p.GetUniqueLoadID(), p.ComfortableTemperatureRange().min, p.SafeTemperatureRange().min)).ToArray() });
         }, ct).ConfigureAwait(false);
 
     private static void CoordinationApplied(PawnActivities batch)

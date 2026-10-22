@@ -104,7 +104,6 @@ Policy|ForecastConstructionWorker.Capacity
 Policy|ForecastConstructionWorker.Observed
 Policy|ForecastConstructionWorker.WorkPerTick
 Policy|ForecastCoupledContext.Construction
-Policy|ForecastCoupledSelection.Baseline
 Policy|ForecastEquipmentClaim.End
 Policy|ForecastEquipmentClaim.Equipment
 Policy|ForecastEquipmentClaim.Start

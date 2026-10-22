@@ -49,7 +49,8 @@ internal static class CoordinatedWork
         Scope = "A bedless colony's urgent build is brain-directed (#3537): the normal rounds place the sleeping shelter, "
             + "bind its sites as coupled work before deferred vanilla builders take them, actually transfer material, rebind "
             + "a frame's Supply to the stack its ended carrying job dropped, keep vanilla builders off the held site, finish "
-            + "the building and release every participant. A unit "
+            + "the building and release every participant. The selected shell reduces nonzero forecast hypothermia capability loss, "
+            + "with native comfort limits compared to its exposure inputs. A unit "
             + "test cannot prove native carry conservation, frame rebinding or actual completion.",
         Ticks = 6000,
         Tier = CaseTier.Nightly,
@@ -62,11 +63,14 @@ internal static class CoordinatedWork
 
     private static async Task RunAsync(TypedSession s, string mode, bool interrupted, CancellationToken cancellationToken)
     {
+        var before = CoupledSelections.Of(s, 0).Select(r => r.Sequence).DefaultIfEmpty(0UL).Max();
+        CoupledSelectionRow? thermalSelection = null;
         var prepared = await s.FixtureAsync("coordination-prepare", Prepared, (mode, interrupted), cancellationToken).ConfigureAwait(false);
         if (mode == "construction")
         {
+            s.Record("thermal-native", ServedOps.Json(prepared));
             // The staged site is the colony's one planned barracks, heated by its standing campfire: the normal rounds place its
-            // shell and value it by the warmth it gives at -10 C (#3537). Its bed slot is what the sleeping step reconciles the
+            // shell and value its reduced hypothermia capability loss at -10 C (#3705). Its bed slot is what the sleeping step reconciles the
             // stand-in sleeping spots' barracks against.
             await TypedLayoutPlan.InjectAsync(s, new LayoutPlan
             {
@@ -96,6 +100,8 @@ internal static class CoordinatedWork
 
         _ = await s.ServeUntilAsync("coordination", s.TicksLeft, async ct =>
         {
+            if (mode == "construction")
+                thermalSelection ??= CoupledSelections.Of(s, before).FirstOrDefault(r => r.Verdict == "selected" && r.PlannedRooms.Contains(1));
             var read = await s.FixtureAsync("coordination-observe", Read, NoArgs.Value, ct).ConfigureAwait(false);
             s.Record("coordination", ServedOps.Json(read));
             if (read.Forced)
@@ -111,5 +117,32 @@ internal static class CoordinatedWork
                 && read.Released.Count == read.Participants.Count && (!interrupted || read.Interrupted && read.Recovered);
             return (string.Create(CultureInfo.InvariantCulture, $"{read.Tick}"), done);
         }, cancellationToken).ConfigureAwait(false);
+        if (mode == "construction") AssertThermal(s, prepared, thermalSelection);
+    }
+
+    private static void AssertThermal(TypedSession s, Fx.CoordinationPrepared prepared, CoupledSelectionRow? selection)
+    {
+        if (selection is null) throw new AcceptanceException("no selected planned shell thermal comparison was observed");
+        s.Record("thermal-selection", string.Create(CultureInfo.InvariantCulture,
+            $"sequence={selection.Sequence} baseline_capability_days={selection.Baseline.Thermal} selected_capability_days={selection.Selected.Thermal}"));
+        s.Record("thermal-baseline-inputs", string.Join("; ", selection.BaselineExposure));
+        s.Record("thermal-selected-inputs", string.Join("; ", selection.SelectedExposure));
+        if (selection.Baseline.Thermal is not > 0 || selection.Selected.Thermal is not { } reduced || reduced < 0 || reduced >= selection.Baseline.Thermal)
+            throw new AcceptanceException("selected shell must reduce known, nonzero baseline thermal capability loss");
+
+        if (prepared.Comfort.Count == 0 || !prepared.Comfort.Any(p => prepared.OutdoorTemperature < p.SafeMin))
+            throw new AcceptanceException("staged outdoors does not cross any native pawn's hypothermia-onset minimum");
+        foreach (var pawn in prepared.Comfort)
+        {
+            var baseline = selection.BaselineExposure.SingleOrDefault(p => p.Pawn == pawn.Pawn);
+            var selected = selection.SelectedExposure.SingleOrDefault(p => p.Pawn == pawn.Pawn);
+            foreach (var exposure in new[] { baseline, selected })
+            {
+                if (exposure is null || exposure.AssessedTicks is not > 0 || exposure.UnknownTicks != 0
+                    || exposure.InitialTemperature is null || exposure.FinalTemperature is null || exposure.ColdDegreeTicks is null
+                    || exposure.InitialComfortableMin is not { } minimum || Math.Abs(minimum - pawn.ComfortableMin) > .001)
+                    throw new AcceptanceException($"{pawn.Pawn}: missing exposure or forecast comfort minimum differs from native {pawn.ComfortableMin}");
+            }
+        }
     }
 }

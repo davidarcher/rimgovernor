@@ -219,7 +219,7 @@ The registered `coordination/food-delegated`, `coordination/food-carried-recover
 and `coordination/construction-delegated` prepared cases use normal Rounds and
 Hands. Their fixture establishes facts, captures exact installed ownership and
 injects one carrying failure; it installs no chosen tasks. They assert native
-completion, physical output and observed cleanup. Registration/compilation does
+completion, physical output and observed cleanup. The construction case also compares native pawn comfort and safe-temperature minima with the selected shell comparison: both exposure inputs must be assessed, and the shell must reduce positive baseline `value.thermal` capability-days lost to hypothermia/heatstroke. `value.harm` is raid loss, so zero there does not imply absent cold injury. The staged -10 C temperature and worn apparel remain unchanged. Registration/compilation does
 not establish that these game scenarios have passed; nightly execution supplies
 that evidence. Pure and journal tests cover choice reversals, partial progress,
 rebinding, unknowns, deadlines, refusal and stale atomic revisions.
