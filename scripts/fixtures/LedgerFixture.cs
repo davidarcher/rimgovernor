@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
+using RimGovernor.Fixtures.Contracts;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
@@ -17,7 +18,8 @@ namespace HomeBridge.BridgeTools
     public sealed class LedgerFixture
     {
         private static Map tracked;
-        private static double catches, riceYield, gathers;
+        private static double catches, riceYield;
+        private static int gathers;
         private static bool patched;
         private static ThingDef Rice => DefDatabase<ThingDef>.GetNamed("Plant_Rice");
 
@@ -95,7 +97,7 @@ namespace HomeBridge.BridgeTools
                     harmony.Patch(AccessTools.Method(typeof(CompHasGatherableBodyResource), "Gathered"), prefix: new HarmonyMethod(typeof(LedgerFixture), nameof(Gathering)));
                     patched = true;
                 }
-                return Audit();
+                return FixtureKit.Reply(new FixtureDone { Success = true });
             }, cancellationToken);
         }
 
@@ -118,9 +120,7 @@ namespace HomeBridge.BridgeTools
         [Tool("test/ledger_observe", Description = "Read the fixture's independent catch, rice yield and milk gather tallies; no mutations.")]
         public async Task<object> Observe(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
-            return await ctx.MainThread.InvokeAsync<object>(() => Audit(), cancellationToken);
+            return await ctx.MainThread.InvokeAsync<object>(() => FixtureKit.Reply(new LedgerTally { Catches = catches, RiceYield = riceYield, Gathers = gathers }), cancellationToken);
         }
-
-        private static object Audit() => new { success = true, tick = Find.TickManager.TicksGame, catches, riceYield, gathers };
     }
 }
