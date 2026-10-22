@@ -186,6 +186,12 @@ public static class ClockWatchRules
             Hold(ClockWatchReason.FirstPlan);
         }
 
+        if (f.UrgentBuilds)
+        {
+            // An urgent build is brain-directed: no game time passes before a review compares its placed sites.
+            Hold(ClockWatchReason.UrgentBuild);
+        }
+
         if (refused.Count != 0)
         {
             return new ClockWatchDecision { Refused = EquatableArray.From(refused) };

@@ -13,6 +13,23 @@ public sealed record FixtureDone
     public bool Success { get; init; }
 }
 
+/// <summary>
+/// <c>test/coordinated_work_prepare</c>: whether it ran and, for construction, the staged barracks site (#3537): the
+/// south-west cell of its 3x3 interior, whose centre is a lit campfire, and its door cell mid south.
+/// </summary>
+public sealed record CoordinationPrepared
+{
+    public bool Success { get; init; }
+
+    public int X { get; init; }
+
+    public int Z { get; init; }
+
+    public int DoorX { get; init; }
+
+    public int DoorZ { get; init; }
+}
+
 /// <summary><c>test/coordinated_work_read</c>: a coordinated food or construction chain as the native game ran it.</summary>
 public sealed record CoordinationRead
 {

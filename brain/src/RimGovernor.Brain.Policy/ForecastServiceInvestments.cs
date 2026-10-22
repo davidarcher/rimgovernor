@@ -85,7 +85,9 @@ public static class ForecastServiceInvestments
 
     /// <summary>Construction investment is conditional on the remaining physical chain. At a safe
     /// completed-work boundary, release and let ordinary review compare fresh service consequences.
-    /// This is reconsideration, never an assertion that shelter is satisfied or permission to cancel it.</summary>
+    /// This is reconsideration, never an assertion that shelter is satisfied or permission to cancel it. The boundary is a
+    /// finished site (its FinishFrame or BuildRoof ended): a frame's ended Supply is not one, since the material is in the frame
+    /// and its finish, or the carry's retry, is the only use of it, so the binding goes on (#3537).</summary>
     private static bool ServiceConstructionBoundary(PawnActivities batch, ActivityTaskRead read)
         => batch.Orders.Any(o => o.Method.StartsWith("coupled-", StringComparison.Ordinal))
             && batch.Tasks.Any(t => t.SiteDefinition.Length != 0 || t.Step.Job == "BuildRoof")
@@ -93,5 +95,7 @@ public static class ForecastServiceInvestments
             && batch.Orders.Where(o => !o.Release).All(o => read.Pawns.SingleOrDefault(p => p.Pawn == o.Pawn)?.Execution?.State
                 is "completed" or "failed" || o.Preparing && read.Pawns.SingleOrDefault(p => p.Pawn == o.Pawn)?.Execution?.State == "holding")
             && batch.Orders.Any(o => !o.Release && !o.Preparing
-                && read.Pawns.SingleOrDefault(p => p.Pawn == o.Pawn)?.Execution?.State is "completed" or "failed");
+                && read.Pawns.SingleOrDefault(p => p.Pawn == o.Pawn)?.Execution?.State is "completed" or "failed")
+            && batch.Orders.Where(o => !o.Release && !o.Preparing && read.Pawns.SingleOrDefault(p => p.Pawn == o.Pawn)?.Execution?.State is "completed" or "failed")
+                .All(o => batch.Tasks.FirstOrDefault(t => t.Id == o.Task) is not { Step.Kind: PawnActivityKind.Supply });
 }

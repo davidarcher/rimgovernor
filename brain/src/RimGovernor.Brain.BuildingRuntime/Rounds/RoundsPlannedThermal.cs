@@ -5,7 +5,7 @@ public sealed partial class Rounder
     /// <summary>
     /// The native reads of the round's unplaced planned shelters, in one construction activity read: the thermal read
     /// (#3323; PlannedThermalRequestOf, null when no shelter qualifies) and the closed-room predictions (#3339;
-    /// PlannedRoomPredictionRequestOf, unknown when nothing was asked). Both stay unknown when the planned sites are unknown
+    /// PlannedRoomPredictionRequestOf over the planned sites and the placed ones on a ring, #3537, unknown when nothing was asked). Both stay unknown when the planned sites are unknown
     /// or native does not answer.
     /// </summary>
     internal async Task<(O.CoupledThermalRead? Thermal, Fact<EquatableArray<O.PlannedRoomPrediction>> Predictions)> PlannedShelterReadsAsync(
@@ -18,7 +18,8 @@ public sealed partial class Rounder
         var rooms = shelters.ToList();
         var furniture = colony.Shapes.Furniture;
         var thermal = PlannedRules.PlannedThermalRequestOf(rooms, planned.Sites, [furniture.Heater, .. furniture.FueledHeaters]);
-        var predictions = PlannedRules.PlannedRoomPredictionRequestOf(rooms, planned.Sites);
+        var predictions = PlannedRules.PlannedRoomPredictionRequestOf(rooms, planned.Sites,
+            colony.Facts.CurrentConstruction.TryGetValue(out var construction) ? construction.Sites : []);
         if (thermal is null && predictions.Count == 0)
         {
             return (null, default);

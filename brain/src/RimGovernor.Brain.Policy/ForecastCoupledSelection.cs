@@ -63,6 +63,9 @@ public sealed partial record ForecastCoupledSelection
     /// <summary>A selection finding <c>goal_infeasible:&lt;goal need id&gt;:&lt;floor&gt;</c> (#3503): every evaluated route that progresses the goal breaks that floor where the baseline holds it.</summary>
     public const string GoalInfeasiblePrefix = "goal_infeasible:";
 
+    /// <summary>The ExclusiveOutcome prefix of a placed site's construction root, before the site's thing id.</summary>
+    internal const string ConstructionOutcome = "construction/";
+
     private const int SeedShare = 4;
     /// <summary>The urgent-zero floor is time at zero in game ticks, and needs advance in whole ticks: two excesses less than
     /// a tick apart are the same floor. Summed rates leave sub-tick residue that differs by plan (review 0 of
@@ -234,15 +237,22 @@ public sealed partial record ForecastCoupledSelection
             && c.SituationalChanges.Count == 0 && c.ComfortShifts.Count == 0 && c.OutfitChanges.Count == 0;
         static bool PlannedSiteRoot(ForecastCommitment c) => c.Outcome?.Need == ForecastPlannedSite.DevelopmentNeed && GraphOnly(c with { Outcome = null });
         var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
+        // A placed shell (#3537): the placed ring sites of a priced planned room close it as its planned ring sites do, so their
+        // construction roots are the room's as a planned site root is, by ExclusiveOutcome.
+        var pricedRooms = candidates.Context.PlannedRoomRoles.Where(r => candidates.Context.PricedRoomRoles.Contains(r.Value)).Select(r => r.Key).ToHashSet();
+        var placedRings = candidates.Context.Closures.Where(c => pricedRooms.Contains(c.Room) && c.Placed.Count != 0)
+            .Select(c => (c.Ring, Placed: c.Placed.Select(p => ConstructionOutcome + p.Site).ToArray())).ToArray();
+        var placedRing = placedRings.SelectMany(c => c.Placed).ToHashSet(StringComparer.Ordinal);
         // Per root: whether it is graph-only, keys a schedule by id (direct effects or claims; a retained incumbent) and exempts
-        // its closure from the relief gate: a planned site root (#3651), or a root that requests relief.
+        // its closure from the relief gate: a planned site root (#3651), a priced room's placed ring site (#3537), or a root that requests relief.
         var graphOnly = new bool[alternatives.Length]; var keyed = new bool[alternatives.Length]; var exempting = new bool[alternatives.Length];
         for (var i = 0; i < alternatives.Length; i++)
         {
             graphOnly[i] = GraphOnly(alternatives[i]);
             var plannedSite = PlannedSiteRoot(alternatives[i]);
             keyed[i] = !graphOnly[i] && !plannedSite || incumbentIds.Contains(alternatives[i].Id);
-            exempting[i] = plannedSite || alternatives[i].Outcome?.Requirements is { Relief.Count: > 0 };
+            exempting[i] = plannedSite || alternatives[i].Outcome?.Requirements is { Relief.Count: > 0 }
+                || alternatives[i].ExclusiveOutcome is { } exclusive && placedRing.Contains(exclusive);
         }
         // A planned room closes only once every ring site of one stuff is built, so one site root alone carries its labor and
         // material and none of the room's value (a bedroom's credit, #3655): adding roots one at a time never reaches the
@@ -251,6 +261,13 @@ public sealed partial record ForecastCoupledSelection
         foreach (var room in candidates.Context.PlannedRooms)
         {
             var members = room.Sites.Select(site => Array.FindIndex(alternatives, c => c.ExclusiveOutcome == site && PlannedSiteRoot(c))).ToArray();
+            if (members.Length > 1 && members.All(m => m >= 0) && !units.Any(u => u.SequenceEqual(members))) units.Add(members);
+        }
+        // A placed shell's room closes only once all its ring sites, placed and planned, are finished (#3537): one unit too.
+        foreach (var (ring, placed) in placedRings)
+        {
+            var members = ring.Select(site => Array.FindIndex(alternatives, c => c.ExclusiveOutcome == site && PlannedSiteRoot(c)))
+                .Concat(placed.Select(site => Array.FindIndex(alternatives, c => c.ExclusiveOutcome == site))).ToArray();
             if (members.Length > 1 && members.All(m => m >= 0) && !units.Any(u => u.SequenceEqual(members))) units.Add(members);
         }
         // Per root, the roots redundant with it (a graph-only one's closure inside the other's) and the roots it cannot share a portfolio with.

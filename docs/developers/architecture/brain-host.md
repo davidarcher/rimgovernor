@@ -307,7 +307,9 @@ of the same colony):
   chain) and, when they drifted, starts the replan on a worker (`Rounder.LayoutPending`: the catalog rows onto the
   facts, `ReplanFacts`, the chain once, the tiler over its advice). The review that finds the run complete adopts it
   when the loaded world and the held plan are still the ones it started from (`layout_replan_tiled` attr `adopted`,
-  the ticks since the start), else drops it (`skipped/superseded`); no second replan starts while one is pending.
+  the ticks since the start), else drops it (`skipped/superseded`), and drops it too when an open journal plan has
+  since taken up a room the run did not hold (`skipped/room_held`, #3537: a shell admitted by the review that started
+  the run would otherwise be sited again elsewhere); no second replan starts while one is pending.
 - **After.** `layout` 45 ms p50 over every review (before: 1029 ms at the hourly check, 8 of 15 reviews, 5 ms
   otherwise); the hourly checks and the adoptions take 25 to 160 ms. 10 replans were adopted, 0 to 6037 ticks after
   they started (median about 2400: the next review is usually the next hour's). Rounds 1559 ms p50 (2253 after the

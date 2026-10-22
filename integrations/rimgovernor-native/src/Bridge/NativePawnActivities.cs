@@ -33,6 +33,9 @@ namespace HomeBridge.BridgeTools
             /// <summary>Jobs done under the repeating step <see cref="DoneStep"/>: cells sown by a Sow step (#3528), members worked by a set step (#3613).
             /// In memory only: a load restarts the count.</summary>
             internal int Done, DoneStep = -1;
+            /// <summary>The stack a failed carrying step left on the ground (the job's cleanup drops what it carried): the
+            /// continuation's read rebinds the carry to it (#3537). In memory only, like <see cref="Done"/>.</summary>
+            internal string Dropped = "";
         }
         private sealed record Offer(Entry Entry, int Step, int JobId);
         private static readonly Dictionary<Pawn, Entry> Entries = new();
@@ -49,10 +52,27 @@ namespace HomeBridge.BridgeTools
         // Ephemeral native call context, never assignment ownership or a retained permission.
         [ThreadStatic] private static Pawn? imposedEffectPawn;
         internal static bool IsHold(Job job) => job.def == holdDef;
+        /// <summary>
+        /// Whether <paramref name="site"/> is a committed coupled order's construction site (#3537): the blueprint or frame of
+        /// its selected task's definition at the task's cell, whatever stage it has reached, while the order is not released.
+        /// A pawn without an order of its own takes no vanilla job on it, so a carry the order fails is rebound to the site
+        /// rather than finding it finished by another; ordered pawns run only the jobs their order offers.
+        /// </summary>
+        internal static bool SiteHeld(Pawn pawn, Thing? site) => site is IConstructible && site.def.entityDefToBuild is { } built && !Owned(pawn)
+            && Entries.Values.Any(e => e.Pawn != pawn && !e.Order.Release && e.Pawn.Map == site.Map && e.SelectedTask is { } task
+                && task.SiteDefinition == built.defName && task.Location.X == site.Position.x && task.Location.Z == site.Position.z);
+        /// <summary>The stack the pawn's failed carrying step dropped (Entry.Dropped), "" for none.</summary>
+        internal static string Dropped(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && e.State == "failed" ? e.Dropped : "";
         /// <summary>Holds a committed coupled order: native offers it only that order's jobs.</summary>
         internal static bool Owned(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release;
         /// <summary>Controlled with no committed order (#3669): it runs vanilla job selection and is free to any coupled order.</summary>
         internal static bool Standing(Pawn pawn) => Controlled(pawn) && !Owned(pawn);
+        /// <summary>
+        /// Whether the colonist's carry would outlast a new order (#3537): a standing colonist's vanilla job that drops its carry
+        /// when it ends (not carryThingAfterJob, not player-forced) is ended by the order (Apply), and the carry with it.
+        /// </summary>
+        internal static bool CarryHeld(Pawn pawn) => pawn.carryTracker.CarriedThing != null
+            && !(Standing(pawn) && pawn.CurJob is { playerForced: false } job && !job.def.carryThingAfterJob);
         internal static PawnActivityStep? ActiveStep(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && e.Step < e.Order.Steps.Length ? e.Order.Steps[e.Step] : null;
         internal static Operations.PawnActivityExecution? Read(Pawn pawn) => Entries.TryGetValue(pawn, out var e) && !e.Order.Release ? Row(e) : null;
         private static Operations.PawnActivityExecution Row(Entry e) => new(e.Order.Assignment, e.Order.Method, e.Order.Revision,
@@ -332,7 +352,7 @@ namespace HomeBridge.BridgeTools
                 && construction.ThingCountNeeded(target.def) >= step.Count
                 && !pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling) && !pawn.WorkTagIsDisabled(WorkTags.ManualDumb)
                 && pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
-                && (pawn.carryTracker.CarriedThing == null || pawn.carryTracker.CarriedThing == target && target.stackCount == step.Count)
+                && (!CarryHeld(pawn) || pawn.carryTracker.CarriedThing == target && target.stackCount == step.Count)
                 && pawn.carryTracker.MaxStackSpaceEver(target.def) >= step.Count
                 && Reservable(pawn, site, PathEndMode.Touch, Danger.None);
         }
@@ -661,7 +681,11 @@ namespace HomeBridge.BridgeTools
                 if (repeating == null || e.Done >= repeating.Count) e.Step++;
                 e.State = e.Step == e.Order.Steps.Length ? "completed" : "installed"; e.Reason = "Succeeded";
             }
-            else if (condition != JobCondition.Succeeded) { e.State = "failed"; e.Reason = condition.ToString(); }
+            else if (condition != JobCondition.Succeeded)
+            {
+                e.State = "failed"; e.Reason = condition.ToString();
+                e.Dropped = ___pawn.carryTracker.CarriedThing?.GetUniqueLoadID() ?? "";
+            }
             e.Tick = Find.TickManager.TicksGame; Emit(e);
         }
         private static void Ended(Pawn ___pawn, bool __state)

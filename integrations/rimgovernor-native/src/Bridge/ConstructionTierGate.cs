@@ -38,8 +38,10 @@ namespace HomeBridge.BridgeTools
             if (Blocked(pawn, job.targetC.Thing, material)) { __result = null; JobFailReason.Is("a lower construction tier still needs this material"); return; }
             var targets = new List<LocalTargetInfo> { job.targetB };
             if (job.targetQueueB != null) targets.AddRange(job.targetQueueB);
-            var kept = targets.Where(t => !Blocked(pawn, t.Thing, material)).ToList();
+            // A coupled order's site is its own (NativePawnActivities.SiteHeld, #3537).
+            var kept = targets.Where(t => !Blocked(pawn, t.Thing, material) && !NativePawnActivities.SiteHeld(pawn, t.Thing)).ToList();
             if (kept.Count == targets.Count) return;
+            if (kept.Count == 0) { __result = null; JobFailReason.Is("a coupled order holds this site"); return; }
             job.targetB = kept[0];
             job.targetQueueB = kept.Count > 1 ? kept.Skip(1).ToList() : null;
         }

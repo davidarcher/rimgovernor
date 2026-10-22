@@ -485,6 +485,13 @@ public sealed record RoundsFacts
     public ForecastNeedsReview? NeedsAlternatives { get; init; }
     public ForecastCoupledCandidates? CoupledAlternatives { get; init; }
     public EquatableArray<PlannedRoom> PlannedShelters { get; init; }
+    /// <summary>
+    /// The urgent build this review compares (#3537): the buildings of the sleeping shelter or bed placements whose blueprints
+    /// stand since the last review, which the clock was held for. While it is set the coupled comparison leaves routine
+    /// construction out (planned sites and every other placed site are vanilla's) and compares these sites and the planned
+    /// shelters they ring. Empty in every other review.
+    /// </summary>
+    public EquatableArray<Building> UrgentSites { get; init; }
     /// <summary>Existing journal ownership, not forecast progress: a coupled activity is installed.</summary>
     public bool CoupledWorkActive { get; init; }
     /// <summary>The ids the latest coupled comparison selected (#3563): the warm start of this review's search; empty before the first selection after a restart.</summary>

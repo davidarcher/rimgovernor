@@ -52,15 +52,24 @@ public sealed class ServiceInvestmentTests
     }
 
     [Theory]
-    [InlineData("started", false, true)]
-    [InlineData("completed", false, false)]
-    [InlineData("completed", true, true)]
-    [InlineData("unowned", false, true)]
-    public void ConstructionRecomparesAtSafeObservedBoundaryWithoutClaimingSatisfaction(string state, bool truncated, bool needed)
+    [InlineData("started", false, true, true)]
+    [InlineData("completed", false, true, false)]
+    [InlineData("completed", true, true, true)]
+    [InlineData("unowned", false, true, true)]
+    // A frame's ended Supply is no boundary: the finish, or the carry's retry, goes on in the same binding (#3537).
+    [InlineData("completed", false, false, true)]
+    [InlineData("failed", false, false, true)]
+    public void ConstructionRecomparesAtSafeObservedBoundaryWithoutClaimingSatisfaction(string state, bool truncated, bool finished, bool needed)
     {
         var facts = ForecastThermalPortfolioTests.Review(-10);
         var selection = ForecastThermalPortfolioTests.Select(facts);
         var batch = ForecastCoupledSelection.StartCoupledActivity(selection, facts.CoupledAlternatives!, 1, "coupled-test", 100)!;
+        Assert.All(batch.Orders.Where(o => o.Task.Length != 0), o => Assert.Equal(PawnActivityKind.Supply, batch.Tasks.Single(t => t.Id == o.Task).Step.Kind));
+        if (finished)
+        {
+            batch = batch with { Orders = [.. batch.Orders.Select(o => o.Task.Length == 0 ? o
+                : o with { Task = batch.Tasks.First(t => t.Pawn == o.Pawn && t.Step.Kind != PawnActivityKind.Supply).Id })] };
+        }
         var read = new ActivityTaskRead { Known = true, Context = new() { Tick = 110, Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 } }, Truncated = truncated,
             Pawns = EquatableArray.From(batch.Orders.Select(o => new ActivityTaskObservation(o.Pawn,
                 new(o.Assignment, o.Method, o.Revision, 0, state, "", null, 110)))) };

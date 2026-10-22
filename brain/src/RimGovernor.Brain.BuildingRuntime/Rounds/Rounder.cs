@@ -67,6 +67,9 @@ public sealed partial class Rounder
     /// </summary>
     internal ReviewMemory<PlannedSelection> RoomSelection = new(new());
 
+    /// <summary>The urgent placements that wait for a review to compare their sites (#3537); the clock stays held meanwhile.</summary>
+    internal UrgentBuilds UrgentBuilds { get; } = new();
+
     /// <summary>The ids the latest coupled comparison that selected anything chose (#3563) and the planned rooms of that review (#3556): the next search's warm start; derived state, empty until the first such review after a restart.</summary>
     internal ReviewMemory<(EquatableArray<string> Selected, EquatableArray<PlannedRoom> Rooms)> CoupledMemory = new(([], []));
 
@@ -718,6 +721,7 @@ public sealed partial class Rounder
         var vOpenBills = await OpenBillsAsync(state.Snapshot, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills] });
         fine.Lap("derive/bills");
+        reading = reading.WithFacts(rf => rf with { UrgentSites = UrgentBuilds.Covered });
         var reconsideration = ForecastIncumbentPreparation.PrepareCoupledIncumbents(reading.Projection.Facts, batches, workActions);
         reading = reading.WithFacts(_ => reconsideration.Facts with { PreviousCoupledSelection = CoupledMemory.Get(state.Snapshot).Selected, PreviousPlannedShelters = CoupledMemory.Get(state.Snapshot).Rooms });
         fine.Lap("derive/incumbents");

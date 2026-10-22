@@ -109,7 +109,11 @@ internal static class ConstructionMethodCandidates
         return (true, EquatableArray.From(RemotePickup.Collect(site, row.Capacity, held, candidates)));
     }
 
-    internal static CoordinatedMethodCandidates Generate(ConstructionActivityRead read, long deadline, WorkResourceView resources, IReadOnlySet<string> floors)
+    /// <summary>The placed-site candidates one comparison generates, in site id order; an urgent build's review compares all of its own (#3537).</summary>
+    internal const int SiteBound = 16;
+
+    internal static CoordinatedMethodCandidates Generate(ConstructionActivityRead read, long deadline, WorkResourceView resources, IReadOnlySet<string> floors,
+        int siteBound = SiteBound)
     {
         var bindings = new Dictionary<(string, string), ActivityTaskCandidate>();
         if (!read.Known || read.Context?.Tick is not { } tick || deadline <= tick || resources.Claims.Truncated)
@@ -128,13 +132,13 @@ internal static class ConstructionMethodCandidates
             else if (shares.Count > 0 && shares.Keys.All(k => stacks.Any(s => s[0].Input == k)))
                 groups.Add((stacks.Where(s => shares.ContainsKey(s[0].Input)).ToArray(), shares, rows));
         }
-        var truncated = groups.Count > 16;
+        var truncated = groups.Count > siteBound;
         var activities = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
         var routes = new List<ForecastActivityRoute>(); var outcomes = new List<ForecastActivityOutcome>();
         var workers = new HashSet<string>(StringComparer.Ordinal);
         var operations = new List<ForecastCompositionOperation>();
         var observed = new Dictionary<string, ForecastCompositionSupply>(StringComparer.Ordinal);
-        foreach (var (stacks, shares, siteRows) in groups.Take(16))
+        foreach (var (stacks, shares, siteRows) in groups.Take(siteBound))
         {
             var id = "site-" + outcomes.Count;
             var finish = id + "-finish";

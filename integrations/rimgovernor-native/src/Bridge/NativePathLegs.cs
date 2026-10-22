@@ -48,8 +48,39 @@ internal sealed class NativePathLegs
     internal NativePathLegs(Map map)
     {
         this.map = map;
+        Gathered.Refresh(map.pathFinder.MapData);
         store = Store.For(map);
         store.Settle();
+    }
+
+    /// <summary>
+    /// The finder's map data gathers its cell changes once per game tick (PathFinderMapData.GatherData), so a map
+    /// changed after this tick's gather is searched on the data from before the change until the clock moves: a paused
+    /// or held tick-0 read that follows a staged or player change finds no path from a cell the change touched (#3537),
+    /// and the store would keep that no-path leg. A read whose map data holds changes not yet gathered on this tick has
+    /// them gathered at its first search: the gather tick is set back one tick (to -1 at tick 0, a full recompute).
+    /// When a game update renames the members it is skipped, once warned.
+    /// </summary>
+    private static class Gathered
+    {
+        private static readonly FieldInfo? Tick = AccessTools.Field(typeof(PathFinderMapData), "lastGatherTick");
+        private static readonly FieldInfo? Cells = AccessTools.Field(typeof(PathFinderMapData), "cellDeltas");
+        private static readonly FieldInfo? Rects = AccessTools.Field(typeof(PathFinderMapData), "cellRectDeltas");
+        private static readonly bool Found = Tick?.FieldType == typeof(int) && Cells?.FieldType == typeof(List<IntVec3>)
+            && Rects?.FieldType == typeof(List<CellRect>) || Warn();
+
+        private static bool Warn()
+        {
+            Log.Warning("[RimGovernor] The path finder map data's gather members were not found; a read on the tick of a map change may search the data from before it (#3537).");
+            return false;
+        }
+
+        internal static void Refresh(PathFinderMapData data)
+        {
+            if (!Found || Tick!.GetValue(data) is not int tick || tick != GenTicks.TicksGame) return;
+            if (((List<IntVec3>)Cells!.GetValue(data)!).Count == 0 && ((List<CellRect>)Rects!.GetValue(data)!).Count == 0) return;
+            Tick.SetValue(data, GenTicks.TicksGame - 1);
+        }
     }
 
     /// <summary>The searches this read ran: one per leg it asked that the store did not hold.</summary>

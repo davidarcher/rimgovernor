@@ -66,6 +66,9 @@ public sealed partial class ClockScheduler
     private bool _taskFinished;
     private long _taskReviewedThrough;
 
+    // The urgent placements whose dispatch had settled when this step began (#3537): its rounds review covers them.
+    private IReadOnlyList<PlanId> _urgentCovered = [];
+
     // The latest step's clock-status context: its identity and scope are what the planner wave's section refreshes read under.
     private PbCommon.ObservationContext? _stepContext;
 
@@ -177,11 +180,12 @@ public sealed partial class ClockScheduler
     /// <paramref name="every"/> ticks at <paramref name="tick"/>, and <c>task</c> when a coupled Method's worker finished a task with bills left (<paramref name="task"/>, #3624): the
     /// review reconsiders who takes that worker's next task, one event per finished task, and <c>first_plan</c> while the
     /// colony's first layout plan holds the clock (<paramref name="firstPlan"/>, #3652): the held clock advances no tick,
-    /// so only a review reads the fact it waits for. A colonist whose activity Method ended runs vanilla work until the
-    /// next review (#3669), so its release is no reason to review early. A
+    /// so only a review reads the fact it waits for, and <c>urgent_build</c> while an urgent placement waits for a review
+    /// to compare its sites (<paramref name="urgent"/>, #3537): the clock is held until one does. A colonist whose activity
+    /// Method ended runs vanilla work until the next review (#3669), so its release is no reason to review early. A
     /// review step between two due ticks that selects only dirty and due planners is the step the cadence makes cheap.
     /// </summary>
-    internal static string? RoundsSelection(StepCause cause, bool everyPlanner, long tick, bool reviewed, long lastTick, long every, bool task = false, bool firstPlan = false)
+    internal static string? RoundsSelection(StepCause cause, bool everyPlanner, long tick, bool reviewed, long lastTick, long every, bool task = false, bool firstPlan = false, bool urgent = false)
     {
         if (everyPlanner)
         {
@@ -195,8 +199,11 @@ public sealed partial class ClockScheduler
         {
             return "due";
         }
-        return firstPlan ? "first_plan" : task ? "task" : null;
+        return firstPlan ? "first_plan" : urgent ? "urgent_build" : task ? "task" : null;
     }
+
+    /// <summary>Whether an urgent placement waits for a rounds review to compare its sites (#3537): the run driver holds the clock meanwhile.</summary>
+    internal bool UrgentBuildsWaiting => Config.Rounds?.UrgentBuilds.Waiting == true;
 
     // The step's selection over the due queue at tick: a wake's evidence was folded when the step began. The waits
     // are checked against the journal only while any is held, so a dependency that settled without an outcome event
@@ -252,6 +259,18 @@ public sealed partial class ClockScheduler
             var window = new PlanningWindow(_native, _facts.Store);
             using var windowScope = PlanningWindowReads.WithPlanningWindow(window);
             var started = _clock.Now();
+            // Before the read: a placement settled now stands in what this step's review reads.
+            _urgentCovered = Config.Rounds?.UrgentBuilds.Settled(id =>
+            {
+                try
+                {
+                    return UrgentBuilds.PlacementSettled(_player.Journal.LoadPlan(id, call));
+                }
+                catch (NotFoundException)
+                {
+                    return true;
+                }
+            }) ?? [];
             var loaded = await _native.ReadStepAsync(new StepRequest { ClockStatus = true }, call).ConfigureAwait(false)
                 ?? throw new HeldException("step read returned nothing");
             var loadedContext = loaded.Context ?? throw new BridgeContractException("step read carried no context");
@@ -322,7 +341,7 @@ public sealed partial class ClockScheduler
                 {
                     (_taskFinished, _taskReviewedThrough) = (true, through);
                 }
-                if ((_taskFinished || FirstPlanHeld) && !sel.Planners)
+                if ((_taskFinished || FirstPlanHeld || UrgentBuildsWaiting) && !sel.Planners)
                 {
                     // Nothing else is dirty or due: the step runs the rounder alone.
                     sel = sel with { Planners = true, Pick = static _ => false, Why = new Dictionary<string, string>(StringComparer.Ordinal) };
@@ -337,7 +356,7 @@ public sealed partial class ClockScheduler
             result.Waiting = [.. sel.Waiting];
             if (sel.Planners && Config.Rounds is not null)
             {
-                rounds = RoundsSelection(reason.Cause, sel.Pick is null, statusTick, _roundsReviewed, _lastRoundsTick, Config.RoundsEveryTicks, _taskFinished, FirstPlanHeld);
+                rounds = RoundsSelection(reason.Cause, sel.Pick is null, statusTick, _roundsReviewed, _lastRoundsTick, Config.RoundsEveryTicks, _taskFinished, FirstPlanHeld, UrgentBuildsWaiting);
                 try
                 {
                     result.Planners = await RunPlannerWaveAsync(result, sel, statusTick, false, rounds, call, epoch).ConfigureAwait(false);
@@ -587,6 +606,7 @@ public sealed partial class ClockScheduler
                 {
                     _player.TaskReviews.Reviewed(_taskReviewedThrough);
                 }
+                rounder.UrgentBuilds.Reviewed(_urgentCovered);
                 (_lastRoundsTick, _roundsReviewed, _lastRounds, _taskFinished) = (tick, true, review, false);
                 await EstablishExtentAsync(review.Review.Tick, call).ConfigureAwait(false);
                 output.Stages.Lap("extent");

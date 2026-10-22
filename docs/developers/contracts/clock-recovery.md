@@ -92,7 +92,7 @@ is answered before any decision: the driver files a `clock_run` row (verdict `lo
 `Run`, so the clock stays held; a served acceptance case ends at once with `colony_lost` (#2819). The session journal
 records no clock events, so that row is the loss's record. The decision names the watch mode
 and the acknowledgements the next `Run` carries. A refusal (`stale_facts`, `unknown_facts`, `unsafe_colony`,
-`unreviewed_events` or `first_plan`) only keeps a held clock held; it never stops a running one.
+`unreviewed_events`, `first_plan` or `urgent_build`) only keeps a held clock held; it never stops a running one.
 
 A colony with no layout plan holds the clock under `first_plan` (#3652, a brain-only hold: no native hold reason)
 until its first plan exists and a review has planned with it. The review derives the plan at its end, after the ledger
@@ -100,6 +100,13 @@ and the resource demand, and reads the rooms census while no plan exists; a stat
 (`RoundsResult.FirstPlanUnread`, the `clock_run` row's `first_plan_fact`), and the scheduler retries the review
 (rounds selection `first_plan`) while the clock is held, since a held clock advances no tick to make one due. A derive
 that fails for anything but an unread fact (`chain_error`, `no_core`) holds nothing and retries hourly.
+
+An urgent build holds the clock under `urgent_build` (#3537, brain-only, watch fact `UrgentBuilds`): the sleeping
+shelter's step admits a shell or a bedless colonist's bed (`UrgentBuilds.Placing`), the clock is held until its plan's
+placement settles, and the scheduler then runs a rounds review (rounds selection `urgent_build`) that compares those
+placed sites alone (`RoundsFacts.UrgentSites`, [voluntary control](voluntary-control.md)) so its coupled work binds
+them before a vanilla builder can take them; the review that commits releases the plans it covered (`Reviewed`). The
+tracking is in memory only: a restart has no urgent plan to wait for, and the next hourly review compares the sites.
 
 ### Threat and stock rules
 

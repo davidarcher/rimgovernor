@@ -109,6 +109,24 @@ public sealed partial class Rounder
         haveLayout && snapshot.SameWorld(pending.Snapshot) && layout.Tick == pending.Layout.Tick && tick >= pending.Started;
 
     /// <summary>
+    /// The rooms of the saved plan an open journal plan works on now that the run did not hold when it started (#3537):
+    /// a shell admitted in the review that started the run, whose blueprints the run may have sited elsewhere. Empty when
+    /// the run held every room (the census was unknown) or the occupancy is unknown now.
+    /// </summary>
+    internal async Task<IReadOnlyCollection<int>> NewlyHeldRoomsAsync(PendingLayoutReplan pending, ColonyProjection projection, CancellationToken ct)
+    {
+        if (pending.Growth.Fixed is null || await LayoutOccupiedAsync(projection, pending.Layout.Plan, ct).ConfigureAwait(false) is not { } found)
+        {
+            return [];
+        }
+        return NewlyHeldRooms(pending.Growth, LayoutPlan.InFlightRooms(pending.Layout.Plan, found.Origins, found.Rooms));
+    }
+
+    /// <summary>The rooms in flight now that the run's growth did not hold: outside its fixed, in-flight, slept and in-use rooms (#3537).</summary>
+    internal static IReadOnlyCollection<int> NewlyHeldRooms(RoomGrowth growth, IEnumerable<int> inFlight) =>
+        [.. inFlight.Where(id => growth.Fixed?.Contains(id) == false && !growth.InFlight.Contains(id) && !growth.Slept.Contains(id) && !growth.InUse.Contains(id)).Order()];
+
+    /// <summary>
     /// Adopts a finished replan at this review: the layout_stations row (and the regroup rows) of its chain run,
     /// the layout_replan_tiled row (<c>adopted</c> the ticks since the run started), the recorded plan when it
     /// changed and the layout_plan row. The advice becomes the held one the overlay draws. Reports whether the

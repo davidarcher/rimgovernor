@@ -15,6 +15,17 @@ public sealed partial record ForecastCoupledCandidates
 {
     private static readonly System.Diagnostics.ActivitySource Spans = new("github.com/davidarcher/RimGovernor/policy");
 
+    /// <summary>
+    /// Per planned room, its role: the planned sites' (#3651), and a planned shelter's for a room that owes no planned site
+    /// (a placed shell, #3537).
+    /// </summary>
+    private static Dictionary<int, PlannedRole> PlannedRoomRolesOf(RoundsFacts facts)
+    {
+        var roles = facts.PlannedSites.TryGetValue(out var planned) ? planned.Roles.ToDictionary(r => r.Room, r => r.Role) : new Dictionary<int, PlannedRole>();
+        foreach (var room in facts.PlannedShelters) roles.TryAdd(room.Id, room.Role);
+        return roles;
+    }
+
     public static RoundsFacts ReviewCoupledActivities(RoundsFacts facts) => facts with { CoupledAlternatives = GenerateCoupledActivities(facts) };
 
     public static ForecastCoupledCandidates? GenerateCoupledActivities(RoundsFacts facts, double horizon = GameTime.TicksPerDay)
@@ -44,13 +55,21 @@ public sealed partial record ForecastCoupledCandidates
         if (!shelterEnabled)
             read = read with { Construction = read.Construction with { Options = [] },
                 Thermal = read.Thermal is { } thermal ? thermal with { Cells = EquatableArray.From(thermal.Cells.Select(c => c with { BuildRoof = false })) } : null };
+        // An urgent build's review (#3537) compares its placed sites alone of the construction: the planned sites, every other
+        // placed site and the standing removals are routine, vanilla's. Its shelters are the planned rooms it rings, and all
+        // of its sites are compared, so a shell's whole ring can close.
+        var urgent = facts.UrgentSites.Select(b => (b.Definition, b.Cell)).ToHashSet();
+        if (urgent.Count != 0)
+            read = read with { Construction = read.Construction with { Removals = [],
+                Options = EquatableArray.From(read.Construction.Options.Where(o => urgent.Contains((o.Definition, o.Location)))) } };
         var bindings = new Dictionary<(string, string), Methods.ActivityTaskCandidate>();
         var deadline = checked(read.Tick + (long)horizon);
         var tasks = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
         var routes = new Dictionary<(string, string, string), ForecastActivityRoute>();
         // Planned rooms are construction (#3276): the same gate as placed sites, from the round's planned-site facts.
         var plannedFindings = new List<string>();
-        var plannedSites = shelterEnabled && facts.PlannedSites.TryGetValue(out var plannedFacts) ? plannedFacts.Sites : [];
+        var allPlannedSites = shelterEnabled && facts.PlannedSites.TryGetValue(out var plannedFacts) ? plannedFacts.Sites : [];
+        var plannedSites = urgent.Count == 0 ? allPlannedSites : [];
         if (shelterEnabled && !facts.PlannedSites.IsKnown) plannedFindings.Add("planned_sites_unknown");
         var plannedAlternatives = PlannedRules.PlannedRoomAlternatives(plannedSites);
         plannedFindings.AddRange(plannedAlternatives.Findings);
@@ -87,10 +106,15 @@ public sealed partial record ForecastCoupledCandidates
         foreach (var route in read.Routes) Route(route.Pawn, route.FromStart ? "start" : Location(route.From), Location(route.To), route.Ticks);
         var food = Methods.Generation.FoodMethodCandidates.GenerateCoupled(read, needs, deadline);
         var construction = Methods.Generation.ConstructionMethodCandidates.Generate(read.Construction, deadline, resources,
-            FlooringRules.DefaultFlooringPolicy().Floors.ToHashSet(StringComparer.Ordinal));
-        var shelter = Methods.Generation.CoupledShelterCandidates.Generate((shelterEnabled ? facts.PlannedShelters : []).OrderBy(r => r.Id).Select(r =>
+            FlooringRules.DefaultFlooringPolicy().Floors.ToHashSet(StringComparer.Ordinal),
+            urgent.Count == 0 ? Methods.Generation.ConstructionMethodCandidates.SiteBound : int.MaxValue);
+        var shelterRooms = (shelterEnabled ? facts.PlannedShelters : [])
+            .Where(r => urgent.Count == 0 || PlannedRules.RectCells(PlannedRoom.RoomWalls(r)).Any(c => urgent.Any(u => u.Cell == c)));
+        var physicalRooms = urgent.Count != 0 && facts.Upkeep.Rooms.TryGetValue(out var observedRooms)
+            ? Known(observedRooms with { Rooms = [] }) : facts.Upkeep.Rooms;
+        var shelter = Methods.Generation.CoupledShelterCandidates.Generate(shelterRooms.OrderBy(r => r.Id).Select(r =>
             new ForecastShelterGeometry(new(ForecastShelterSource.Planned, r.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)), EquatableArray.From(r.Region.Cells()), r.Region.Bounds(), r.Door, r.Outdoor)),
-            facts.Upkeep.Rooms, read.Thermal, construction.Operations, construction.Bindings, plannedSites, planned.Sites, deadline, horizon);
+            physicalRooms, read.Thermal, construction.Operations, construction.Bindings, plannedSites, planned.Sites, deadline, horizon);
         findings.UnionWith(shelter.Findings); truncated |= shelter.Truncated;
         foreach (var outcome in construction.Outcomes.Where(o => !construction.Bindings.Values.Any(b => b.Id == o.Completion)))
             findings.Add("construction_outcome_unbound:" + outcome.Id);
@@ -98,7 +122,7 @@ public sealed partial record ForecastCoupledCandidates
             .Select(outcome => new ForecastCommitment(outcome.Id, [])
         {
             ActivityCompletions = [outcome.Completion], Outcome = outcome,
-            ExclusiveOutcome = "construction/" + construction.Bindings.Values.First(b => b.Id == outcome.Completion).Target
+            ExclusiveOutcome = ForecastCoupledSelection.ConstructionOutcome + construction.Bindings.Values.First(b => b.Id == outcome.Completion).Target
         });
         var templates = food.Bindings.Concat(construction.Bindings).Concat(shelter.Bindings).Concat(planned.Bindings).ToDictionary(b => b.Key, b => b.Value);
         var shelterRoots = shelter.Roots.Keys.Select(id => new ForecastCommitment(id, []) { ExclusiveOutcome = id });
@@ -246,7 +270,11 @@ public sealed partial record ForecastCoupledCandidates
             return tasks.Single(t => t.Id == task).Prerequisites.Any(p => Ancestor(p, ancestor));
         }
         // A bench in an unclosed planned room works faster once the room closes (#3339): closure-conditional variants.
-        var closures = shelterEnabled ? ForecastRoofConsequences.PlannedClosuresOf(plannedSites, facts.PlannedShelters, facts.PlannedRoomPredictions) : [];
+        // A placed ring site's finishes are its FinishFrame tasks, any one of them (#3537).
+        var placedFinishes = bindings.Values.Where(b => b.Kind == PawnActivityKind.Work && b.Job == "FinishFrame").GroupBy(b => b.Target, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => EquatableArray.From(g.Select(b => b.Id).Distinct().Order(StringComparer.Ordinal)), StringComparer.Ordinal);
+        var closures = shelterEnabled ? ForecastRoofConsequences.PlannedClosuresOf(allPlannedSites, facts.PlannedShelters, facts.PlannedRoomPredictions,
+            facts.CurrentConstruction.TryGetValue(out var placedSites) ? placedSites.Sites : [], placedFinishes) : [];
         ForecastRoofConsequences.AddClosedBenchVariants(closures, productiveRoots, plannedRealized, tasks, options, bindings, alternatives,
             planned.Sites.Where(s => s.Stuff.Length != 0).Select(s => (Id: s.Site, s.Room, s.Stuff))
                 .Concat(planned.Rooms.Where(a => a.Stuff.Length != 0).Select(a => (a.Id, a.Room, a.Stuff)))
@@ -287,7 +315,7 @@ public sealed partial record ForecastCoupledCandidates
             Shelters = EquatableArray.From(shelters),
             PlannedSites = plannedRealized,
             PlannedRooms = EquatableArray.From(planned.Rooms),
-            PlannedRoomRoles = facts.PlannedSites.TryGetValue(out var plannedRoles) ? plannedRoles.Roles.ToDictionary(r => r.Room, r => r.Role) : new Dictionary<int, PlannedRole>(),
+            PlannedRoomRoles = PlannedRoomRolesOf(facts),
             Closures = closures,
             InitialLots = EquatableArray.From(lots),
             Bindings = bindings,

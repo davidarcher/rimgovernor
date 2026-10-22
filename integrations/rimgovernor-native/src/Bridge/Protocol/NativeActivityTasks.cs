@@ -47,11 +47,12 @@ internal static class NativeActivityTasks
                 {
                     var source = task.Source ?? task.Location;
                     var carried = pawn.carryTracker.CarriedThing;
+                    var dropped = NativePawnActivities.Dropped(pawn);
                     var candidates = carried is not null ? new[] { carried }
                         : map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
                             .Where(t => t.Spawned && t.def.defName == task.Resource
                                 && (t.Position.DistanceToSquared(new(source.X, 0, source.Z)) <= 4
-                                    || order.Steps.Any(s => s.Target == t.GetUniqueLoadID())))
+                                    || order.Steps.Any(s => s.Target == t.GetUniqueLoadID()) || dropped.Length != 0 && t.GetUniqueLoadID() == dropped))
                             .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Take(17).ToArray();
                     if (candidates.Length > 16) truncated = true;
                     foreach (var item in candidates.Take(16))

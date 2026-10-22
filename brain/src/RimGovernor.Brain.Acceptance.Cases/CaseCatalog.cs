@@ -56,9 +56,9 @@ public static class CaseCatalog
         registry.Register(ControlCooking.Case());
         registry.Register(ProductionClothingActivity.Case());
         registry.Register(ProductionClothingActivity.Case(interrupted: true));
-        registry.Register(CoordinatedWork.Case("food"));
-        registry.Register(CoordinatedWork.Case("food", interrupted: true));
-        registry.Register(CoordinatedWork.Case("construction"));
+        registry.Register(CoordinatedWork.Food());
+        registry.Register(CoordinatedWork.Food(interrupted: true));
+        registry.Register(CoordinatedWork.Construction());
 
         // The case areas land with #3090 and #3093; each area adds one line below (sorted by area).
         ApparelCases.Register(registry);

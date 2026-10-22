@@ -206,7 +206,9 @@ public sealed partial class Rounder
         if (LayoutPending is { Work.IsCompleted: true } pending)
         {
             LayoutPending = null;
-            if (LayoutReplanAdoptable(pending, snapshot, tick, layout, haveLayout))
+            var adoptable = LayoutReplanAdoptable(pending, snapshot, tick, layout, haveLayout);
+            var held = adoptable ? await NewlyHeldRoomsAsync(pending, projection, ct).ConfigureAwait(false) : [];
+            if (adoptable && held.Count == 0)
             {
                 if (await AdoptLayoutReplanAsync(pending, snapshot, tick, ct).ConfigureAwait(false))
                 {
@@ -224,7 +226,13 @@ public sealed partial class Rounder
             else
             {
                 // The world or the saved plan moved on under the run: its plan is dropped, the next hourly check reads again.
-                Tel.Decide(new Decision { Kind = "layout_replan_tiled", Component = "layout", Target = "plan", Verdict = "skipped", Reason = "superseded", Attrs = new Dictionary<string, object?> { ["started_tick"] = pending.Started.Value, ["adopted"] = tick.Value - pending.Started.Value } });
+                // A room a journal plan took up since the run started (#3537) is one the run did not hold: it may have moved it.
+                var attrs = new Dictionary<string, object?> { ["started_tick"] = pending.Started.Value, ["adopted"] = tick.Value - pending.Started.Value };
+                if (held.Count != 0)
+                {
+                    attrs["held"] = held.Order().ToArray();
+                }
+                Tel.Decide(new Decision { Kind = "layout_replan_tiled", Component = "layout", Target = "plan", Verdict = "skipped", Reason = held.Count != 0 ? "room_held" : "superseded", Attrs = attrs });
             }
         }
         var pawns = projection.Facts.Colonists;

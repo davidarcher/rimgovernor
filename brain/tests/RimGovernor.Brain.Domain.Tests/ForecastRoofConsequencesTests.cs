@@ -217,6 +217,44 @@ public sealed class ForecastRoofConsequencesTests
     }
 
     [Fact]
+    public void APlacedShellIsPredictedFromItsPlacedRingSites()
+    {
+        // The wall's blueprint stands on the ring and the bed's inside it (#3537): the room is asked with the wall in its own
+        // stuff although it owes no planned site, and only the ring site is the room's.
+        PlannedRoom room = new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 1, 1)), Door = DoorCell };
+        ConstructionSite[] placed =
+        [
+            new() { Id = "Thing_Blueprint_Wall1", Building = new("Wall", WallCell, Rotation.North, "WoodLog") },
+            new() { Id = "Thing_Blueprint_Bed2", Building = new("Bed", Inside, Rotation.North, "WoodLog") },
+        ];
+        Assert.Equal(["Thing_Blueprint_Wall1"], PlannedRules.PlacedRing(room, placed).Select(s => s.Id));
+        var shape = Assert.Single(PlannedRules.PlannedRoomPredictionRequestOf([room], [], placed));
+        Assert.Equal([new PlannedRoomPiece(WallCell, "Wall", "WoodLog")], shape.Pieces);
+        Assert.Empty(PlannedRules.PlannedRoomPredictionRequestOf([room], [], placed.Skip(1)));
+    }
+
+    [Fact]
+    public void APlacedShellClosesOnceEachPlacedRingSiteIsFinished()
+    {
+        // Placed ring sites close the room as planned ones do (#3537): at the latest of their earliest finishes, any finish
+        // variant counting; one unfinished keeps it open.
+        var context = Review(Closed("Bedroom", 2)).CoupledAlternatives!.Context;
+        var closure = new ForecastPlannedClosure(1, "", [Inside], [], [], Closed("Bedroom", 2))
+            { Placed = [new("wall", ["wall/finish", "wall/finish/after/eat"]), new("door", ["door/finish"])] };
+        context = context with { Closures = [closure] };
+        var closed = Assert.Single(ForecastRoofConsequences.PlannedClosedRooms(context,
+            new Dictionary<string, double> { ["wall/finish/after/eat"] = 50, ["door/finish"] = 30 }));
+        Assert.Equal(50, closed.ClosedAt);
+        Assert.Empty(ForecastRoofConsequences.PlannedClosedRooms(context, new Dictionary<string, double> { ["wall/finish"] = 50 }));
+        // With a planned ring site too, the room waits for it.
+        context = context with { Closures = [closure with { Ring = [Wall] }] };
+        Assert.Equal(60, Assert.Single(ForecastRoofConsequences.PlannedClosedRooms(context, new Dictionary<string, double>
+        {
+            ["wall/finish"] = 50, ["door/finish"] = 30, [context.PlannedSites.Single(s => s.Site == Wall).Finishes[0]] = 60,
+        })).ClosedAt);
+    }
+
+    [Fact]
     public void ABenchInAnUnclosedPlannedRoomGetsAFasterClosureConditionalVariant()
     {
         var closure = new ForecastPlannedClosure(1, "WoodLog", [Inside], [Wall, Door], [],

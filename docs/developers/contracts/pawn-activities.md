@@ -60,6 +60,16 @@ and uses the same selected-task binding/continuation as food. Supply preparation
 approaches the source; finishing preparation approaches the site. Native rebinds
 blueprints to frames and reads remaining demand before each bounded trip. Actual
 finished buildings, not accepted orders or successful supply, satisfy finishing.
+A failed carrying step's job cleanup drops what it carried as a new stack; native
+remembers that stack's id on the failed order and lists it as a Supply candidate, so
+the continuation rebinds the carry to it (#3537). A frame's ended Supply is not the
+shelter release boundary: the binding goes on to its finish or the carry's retry, and
+only a finished site (FinishFrame or BuildRoof ended) releases the Method for review.
+While a coupled order holds a site, an unowned colonist gets no vanilla delivery to it
+(`ConstructionTierGate`) and no vanilla FinishFrame on it (`ConstructionSkillGuard`):
+a blueprint carries no container reservation, so vanilla could otherwise turn it into
+a frame under the order (#3537). The finisher read skips a colonist only while it
+carries for a vanilla job that holds the stack (`CarryHeld`).
 
 The live census supports one required material, repeated capacity-bounded trips,
 or an already-supplied site. Native lists every spawned stack of the material the

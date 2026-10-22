@@ -89,7 +89,8 @@ restores as no plan the same way. The runtime records a plan only
 when it derives one, a replan succeeds (`reviewLayoutPlan`, `ColonyPlan.cs`; a replan keeps the defense tier nodes over the same killbox), the census finds retired ground cleared, or the defense round sites new defense tier nodes into it (`SiteTiersAsync`, #3583); a failed
 replan keeps the saved plan. The `StationAdvice` that produced it (graph, groups, embedding,
 comfort and matched rooms) is not persisted: the Rounder holds it in memory and recomputes it
-at each layout review.
+at each layout review. The urgent builds waiting for a review (`UrgentBuilds`, #3537) and a failed carry's dropped
+stack (native `Entry.Dropped`) are in memory only: a restart empties them, and the next review reads the placed sites afresh.
 
 ### need_transitions
 

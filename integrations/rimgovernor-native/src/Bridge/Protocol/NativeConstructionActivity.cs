@@ -505,9 +505,10 @@ internal static class NativeConstructionActivity
         return best;
     }
 
-    // A colonist free to take new work: the same gate the site rows apply.
+    // A colonist free to take new work: the same gate the site rows apply. A vanilla job's carry is put down when an order
+    // preempts that job (NativePawnActivities.CarryHeld, #3537), so it does not hold the colonist.
     private static bool Free(Pawn pawn) => !(pawn.Drafted || pawn.Downed || pawn.InMentalState || !NativeFoodActivity.Available(pawn)
-        || NativePawnActivities.Owned(pawn) || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0 || pawn.carryTracker.CarriedThing != null);
+        || NativePawnActivities.Owned(pawn) || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0 || NativePawnActivities.CarryHeld(pawn));
 
     // A site's material sources (#3673, #3046): every spawned stack of its material the player may use, lowest id first,
     // each with the share it can supply (the demand, or the whole stack under it) and its storage distance

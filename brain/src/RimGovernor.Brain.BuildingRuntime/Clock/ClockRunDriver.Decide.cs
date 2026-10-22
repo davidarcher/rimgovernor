@@ -249,6 +249,12 @@ public sealed partial class ClockRunDriver
             _coupledHeld.UnionWith(coupled);
             return await HoldAsync(note, PbClock.HoldReason.CoupledOrder, "coupled_order", call).ConfigureAwait(false);
         }
+        var urgentBuilds = _scheduler.UrgentBuildsWaiting;
+        if (running && urgentBuilds)
+        {
+            // An urgent build's sites are compared before game time passes, or vanilla builds them first (#3537).
+            return await HoldAsync(note, PbClock.HoldReason.Review, "urgent_build", call).ConfigureAwait(false);
+        }
         if (_config.Autosave is not null)
         {
             // The interval is counted on the game clock from the previous due point. A review that finds the save due
@@ -369,6 +375,7 @@ public sealed partial class ClockRunDriver
             Sheltered = sheltered,
             AcknowledgedHungry = _sentPolicy is { } sent ? [.. sent.AcknowledgedHungryColonistIds.Select(id => new PawnId(id))] : [],
             FirstPlanUnread = note.FirstPlanUnread,
+            UrgentBuilds = urgentBuilds,
         };
         var decision = ClockWatchRules.EvaluateClockWatch(facts, new ClockWatchLimits { MaxAge = _scheduler.Config.MaxAge });
         note.Decision = decision;

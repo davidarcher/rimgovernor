@@ -5,10 +5,20 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// One closed-room prediction of a planned room (#3339): the room's interior cells, its ring sites in the prediction's
 /// stuff (WallIn, DoorIn and a standing room's WallUp swaps, #3657; a stuff-less one in every stuff) and its RoofIn sites (planned site ids), and native's
-/// prediction of the room once those ring sites stand.
+/// prediction of the room once those ring sites and its placed ring sites (<see cref="Placed"/>) stand.
 /// </summary>
 public sealed record ForecastPlannedClosure(int Room, string Stuff, EquatableArray<Cell> Interior,
-    EquatableArray<string> Ring, EquatableArray<string> Roof, PlannedRoomPrediction Prediction);
+    EquatableArray<string> Ring, EquatableArray<string> Roof, PlannedRoomPrediction Prediction)
+{
+    /// <summary>
+    /// The placed blueprints and frames on the room's ring (PlannedRules.PlacedRing, #3537): a placed shell closes the room as
+    /// its planned ring sites do, once each of these is finished.
+    /// </summary>
+    public EquatableArray<ForecastPlacedPiece> Placed { get; init; }
+}
+
+/// <summary>A placed site on a planned room's ring (#3537): its thing id and the finish activities that complete it (any one does; none: unbound).</summary>
+public sealed record ForecastPlacedPiece(string Site, EquatableArray<string> Finishes);
 
 /// <summary>A planned room closed inside one schedule: the earliest of its stuffs' closures, and when its roof is done (infinity: not).</summary>
 internal sealed record ForecastClosedRoom(int Room, string Stuff, EquatableArray<Cell> Interior, PlannedRoomPrediction Prediction, double ClosedAt, double RoofedAt);
@@ -59,13 +69,14 @@ public static class ForecastRoofConsequences
 
     /// <summary>
     /// The closed-room predictions of a round's planned rooms (#3339): one per prediction row, with the room's region
-    /// cells and its ring (WallIn and DoorIn in the row's stuff, or stuff-less) and RoofIn site ids. None when the
-    /// predictions are unknown.
+    /// cells and its ring (WallIn and DoorIn in the row's stuff, or stuff-less) and RoofIn site ids, and its placed ring
+    /// sites with their finishes (<paramref name="finishes"/>, by site id, #3537). None when the predictions are unknown.
     /// </summary>
     internal static EquatableArray<ForecastPlannedClosure> PlannedClosuresOf(IEnumerable<PlannedBuildSite> sites, IEnumerable<PlannedRoom> rooms,
-        Fact<EquatableArray<PlannedRoomPrediction>> predictions)
+        Fact<EquatableArray<PlannedRoomPrediction>> predictions, IEnumerable<ConstructionSite> placed, IReadOnlyDictionary<string, EquatableArray<string>> finishes)
     {
         if (!predictions.TryGetValue(out var rows)) return [];
+        var standing = placed.ToList();
         var byRoom = sites.Where(s => s.Room > 0 && s.Zone.Length == 0).ToLookup(s => s.Room);
         var shapes = rooms.Where(r => r.Id > 0).GroupBy(r => r.Id).ToDictionary(g => g.Key, g => g.First());
         var result = new List<ForecastPlannedClosure>();
@@ -76,16 +87,17 @@ public static class ForecastRoofConsequences
             var ring = byRoom[id].Where(s => s.Op is OpKind.WallIn or OpKind.DoorIn or OpKind.WallUp && (s.Stuff.Length == 0 || s.Stuff == row.Stuff))
                 .Select(s => s.Id).Order(StringComparer.Ordinal);
             var roof = byRoom[id].Where(s => s.Op == OpKind.RoofIn).Select(s => s.Id).Order(StringComparer.Ordinal);
+            var pieces = PlannedRules.PlacedRing(room, standing).Select(s => new ForecastPlacedPiece(s.Id, finishes.GetValueOrDefault(s.Id)));
             result.Add(new(id, row.Stuff, EquatableArray.From(room.Region.Cells().OrderBy(c => c.X).ThenBy(c => c.Z)),
-                EquatableArray.From(ring), EquatableArray.From(roof), row));
+                EquatableArray.From(ring), EquatableArray.From(roof), row) { Placed = EquatableArray.From(pieces) });
         }
         return EquatableArray.From(result);
     }
 
     /// <summary>
     /// The planned rooms one schedule closes (#3339), from the activities completed so far (id to completion tick): a
-    /// room closes when every ring site of one stuff has a completed finish, at the latest of them, the earliest stuff
-    /// winning. Its roof is done when every RoofIn site has, or every per-cell roof of its planned shelter has.
+    /// room closes when every ring site of one stuff and every placed ring site (#3537) has a completed finish, at the
+    /// latest of them, the earliest stuff winning. Its roof is done when every RoofIn site has, or every per-cell roof of its planned shelter has.
     /// </summary>
     internal static IReadOnlyList<ForecastClosedRoom> PlannedClosedRooms(ForecastCoupledContext context, IReadOnlyDictionary<string, double> finishedAt)
     {
@@ -98,7 +110,10 @@ public static class ForecastRoofConsequences
         var closed = new List<ForecastClosedRoom>();
         foreach (var room in context.Closures.GroupBy(c => c.Room).OrderBy(g => g.Key))
         {
-            var best = room.Where(c => c.Ring.Count > 0).Select(c => (Closure: c, At: AllAt(c.Ring))).OrderBy(c => c.At).FirstOrDefault();
+            double PlacedAt(ForecastPlacedPiece piece) => piece.Finishes.Where(finishedAt.ContainsKey).Select(f => finishedAt[f]).DefaultIfEmpty(double.PositiveInfinity).Min();
+            var best = room.Where(c => c.Ring.Count + c.Placed.Count > 0)
+                .Select(c => (Closure: c, At: Math.Max(c.Ring.Count == 0 ? double.NegativeInfinity : AllAt(c.Ring), c.Placed.Select(PlacedAt).DefaultIfEmpty(double.NegativeInfinity).Max())))
+                .OrderBy(c => c.At).FirstOrDefault();
             if (best.Closure is null || !double.IsFinite(best.At)) continue;
             var roofed = best.Closure.Roof.Count > 0 ? AllAt(best.Closure.Roof) : double.PositiveInfinity;
             foreach (var shelter in context.Shelters.Where(s => s.PlannedRoom == room.Key && s.RoofCells.Count > 0))

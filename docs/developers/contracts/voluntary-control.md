@@ -158,7 +158,7 @@ epic (#3124).
 | `production/coupled-needs` | Rewrite/extend for normal shared selection through real ingestion, rest/wake and recreation, revision and release; preserve a legacy Work timetable as an adversarial fixture, not an expected policy. |
 | `coordination/food-delegated` | Keep real harvest/output/delivery and participant ownership; compare alternatives in pure tests rather than asserting a mandatory helper tactic for every world. |
 | `coordination/food-carried-recovery` | Keep interrupted carry, exact remaining quantity and observed recovery/release. |
-| `coordination/construction-delegated` | Keep actual material transfer, frame rebinding and building completion. Thermal benefit requires separate observed exposure evidence. |
+| `coordination/construction-delegated` | Keep the urgent sleeping shelter bound before vanilla builders take it (#3537), actual material transfer, frame rebinding to the dropped stack and building completion. Thermal benefit requires separate observed exposure evidence. |
 | `production/clothing-activity` | Keep normal selected-stuff production and input conservation; do not equate production with wearing. |
 | `production/clothing-activity-unfinished` | Keep observed unfinished-item resumption and conservation, without spending loose inputs twice. |
 | `control/pawn-activities` | Keep exact job execution, supported needs mechanics, preemption and refusal checks. It is an execution contract, not normal-planner economic evidence. |

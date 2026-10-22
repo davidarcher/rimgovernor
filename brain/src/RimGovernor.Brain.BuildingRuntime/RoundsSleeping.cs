@@ -799,6 +799,11 @@ public sealed partial class RoundsBuildingPlanner
         if (decision.Admitted)
         {
             reason = BuildingReasonAdmitted;
+            if (Need == ShelterFamily.Sleeping)
+            {
+                // The sleeping shelter and a bedless colonist's bed are urgent: a review binds them before vanilla work can (#3537).
+                Reviewer.UrgentBuilds.Placing(plan.Id, actions.Select(x => x.Building).OfType<Building>());
+            }
         }
         return new RoundsBuildingResult { Verdict = reason, Decision = decision };
     }

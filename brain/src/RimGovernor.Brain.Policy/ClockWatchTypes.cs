@@ -76,6 +76,12 @@ public sealed record ClockWatchFacts
     /// clock stays held while it is not empty, so no game time passes before the plan exists.
     /// </summary>
     public string FirstPlanUnread { get; init; } = "";
+
+    /// <summary>
+    /// Whether an urgent build placed since the last rounds review waits for a review to compare its sites (#3537): the
+    /// clock stays held meanwhile, so the review binds them before deferred colonists build them by vanilla work.
+    /// </summary>
+    public bool UrgentBuilds { get; init; }
 }
 
 /// <summary>The bound the decision's facts must be fresh within.</summary>
@@ -114,6 +120,10 @@ public enum ClockWatchReason
     /// <summary>The colony's first layout plan waits for a station fact the review has not read (#3652).</summary>
     [WireName("first_plan")]
     FirstPlan,
+
+    /// <summary>An urgent build's placed sites wait for a rounds review to compare them (#3537).</summary>
+    [WireName("urgent_build")]
+    UrgentBuild,
 }
 
 /// <summary>

@@ -43,4 +43,14 @@ public sealed class LayoutReplanOffPathTests
         Assert.False(Rounder.LayoutReplanAdoptable(pending, World, new Tick(110), held, true));
         Assert.False(Rounder.LayoutReplanAdoptable(pending, World, new Tick(130), held, false));
     }
+
+    [Fact]
+    public void ARoomAJournalPlanTookUpAfterTheRunStartedIsOneTheRunDidNotHold()
+    {
+        // The shell admitted in the review that started the run (#3537): room 5 is in flight now and the run held only
+        // the rooms it had fixed, in flight, slept in or in use. Without a census every room was held.
+        var growth = new RoomGrowth { Fixed = [1], InFlight = [2], Slept = [3], InUse = [4] };
+        Assert.Equal([5], Rounder.NewlyHeldRooms(growth, [5, 4, 3, 2, 1]));
+        Assert.Empty(Rounder.NewlyHeldRooms(growth with { Fixed = null }, [5]));
+    }
 }

@@ -43,27 +43,45 @@ public static partial class PlannedRules
 
     /// <summary>
     /// The closed-room predictions one round asks native for (#3339): every enclosed planned room that still owes a wall or
-    /// door site, or a standing one offered a wall swap (#3657), once per ring stuff (PlannedRoomAlternatives' stuffs), its
-    /// interior the room's region and its pieces the cells of its wall, door and swap sites in that stuff (a stuff-less ring
-    /// site in every stuff); native counts a piece in place of what stands on its cell. Nothing is capped (#3341).
+    /// door site, or a standing one offered a wall swap (#3657), or whose ring a placed blueprint or frame stands on (#3537),
+    /// once per ring stuff (PlannedRoomAlternatives' stuffs), its interior the room's region and its pieces the cells of its
+    /// wall, door and swap sites in that stuff (a stuff-less ring site in every stuff) and of its placed ring sites
+    /// (<see cref="PlacedRing"/>, in their own stuff); native counts a piece in place of what stands on its cell. Nothing is
+    /// capped (#3341).
     /// </summary>
-    public static EquatableArray<PlannedRoomShape> PlannedRoomPredictionRequestOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites)
+    public static EquatableArray<PlannedRoomShape> PlannedRoomPredictionRequestOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites,
+        IEnumerable<ConstructionSite> placed)
     {
         var shapes = new List<PlannedRoomShape>();
         var closing = sites.Where(s => s.Room > 0 && s.Zone.Length == 0 && s.Op is OpKind.WallIn or OpKind.DoorIn or OpKind.WallUp).ToLookup(s => s.Room);
-        foreach (var room in rooms.Where(r => !r.Outdoor && r.Id > 0 && closing.Contains(r.Id)).OrderBy(r => r.Id))
+        var standing = placed.ToList();
+        foreach (var room in rooms.Where(r => !r.Outdoor && r.Id > 0).OrderBy(r => r.Id))
         {
             var ring = closing[room.Id].ToList();
+            var placedRing = PlacedRing(room, standing);
+            if (ring.Count == 0 && placedRing.Count == 0) continue;
             var interior = EquatableArray.From(room.Region.Cells().OrderBy(c => c.X).ThenBy(c => c.Z));
             foreach (var stuff in RingStuffs(ring))
             {
                 var pieces = ring.Where(s => s.Stuff.Length == 0 || s.Stuff == stuff)
                     .SelectMany(s => s.Positions.Select(p => new PlannedRoomPiece(p, s.Definition, s.Stuff)))
+                    .Concat(placedRing.Select(s => new PlannedRoomPiece(s.Building!.Cell, s.Building.Definition, s.Building.Stuff)))
                     .OrderBy(p => p.Cell.X).ThenBy(p => p.Cell.Z);
                 shapes.Add(new PlannedRoomShape(room.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), stuff, interior, EquatableArray.From(pieces)));
             }
         }
         return EquatableArray.From(shapes);
+    }
+
+    /// <summary>
+    /// The placed blueprints and frames on a planned room's ring (#3537): the sites whose anchor is a cell of its walls block
+    /// outside its interior, by site id. A placed shell's walls and door are these until they stand.
+    /// </summary>
+    public static IReadOnlyList<ConstructionSite> PlacedRing(PlannedRoom room, IEnumerable<ConstructionSite> placed)
+    {
+        var interior = room.Region.Cells().ToHashSet();
+        var ring = RectCells(PlannedRoom.RoomWalls(room)).Where(c => !interior.Contains(c)).ToHashSet();
+        return [.. placed.Where(s => s.Id.Length != 0 && s.Building is { } b && ring.Contains(b.Cell)).OrderBy(s => s.Id, StringComparer.Ordinal)];
     }
 
     /// <summary>A planned room's ring stuffs in read order; one "" when its ring sites name none.</summary>

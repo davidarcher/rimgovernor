@@ -29,6 +29,7 @@ public static class FixtureJson
 [JsonSerializable(typeof(MapScopeReply))]
 [JsonSerializable(typeof(DeepResourcesReply))]
 [JsonSerializable(typeof(FixtureDone))]
+[JsonSerializable(typeof(CoordinationPrepared))]
 [JsonSerializable(typeof(CoordinationRead))]
 [JsonSerializable(typeof(ClothingActivityRead))]
 [JsonSerializable(typeof(NeedCapacityRead))]

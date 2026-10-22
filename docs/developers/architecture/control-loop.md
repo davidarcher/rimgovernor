@@ -828,7 +828,10 @@ keep working ([incumbent reconsideration](../contracts/essential-services.md)). 
 without a rounder clears the wait at its next step.
 While the colony's first layout plan holds the clock (`first_plan`, #3652) every step reviews
 again: a held clock advances no tick to make the review due, and only a review reads the station
-fact the plan waits for ([clock recovery](../contracts/clock-recovery.md)).
+fact the plan waits for ([clock recovery](../contracts/clock-recovery.md)). An urgent build
+(`urgent_build`, #3537) does the same: once the placement the sleeping shelter's step admitted has
+settled, the held clock waits for the review that compares its placed sites, and that review leaves
+routine construction out of the comparison.
 It is an event, not a timer: a Method whose workers finish nothing raises none. The rounds review derives
 the colony model, the stock, the planned sites and the coupled search from facts that rarely
 change in 600 ticks, and it was the cost of the common review; a need that first appears
