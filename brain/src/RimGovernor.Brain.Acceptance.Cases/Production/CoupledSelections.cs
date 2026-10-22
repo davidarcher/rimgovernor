@@ -11,7 +11,7 @@ internal sealed record CoupledOutcome(double? UrgentZeroExcess, bool InvestmentL
 /// <summary>One <c>coupled_selection</c> row: a review's shared portfolio comparison (#3532), with the logged rejected vectors (#3655).</summary>
 internal sealed record CoupledSelectionRow(ulong Sequence, string Verdict, IReadOnlyList<string> Tasks, IReadOnlyList<string> RejectedIds, CoupledOutcome Baseline, CoupledOutcome Selected,
     IReadOnlyList<string> SelectedIds, IReadOnlyList<CoupledOutcome> Rejected,
-    IReadOnlyList<long> PlannedRooms, IReadOnlyList<CoupledThermalExposure> BaselineExposure, IReadOnlyList<CoupledThermalExposure> SelectedExposure);
+    IReadOnlyList<double> PlannedRooms, IReadOnlyList<CoupledThermalExposure> BaselineExposure, IReadOnlyList<CoupledThermalExposure> SelectedExposure);
 
 /// <summary>Compact physiological input evidence; endpoint temperatures do not describe intermediate spans.</summary>
 internal sealed record CoupledThermalExposure(string Pawn, double? AssessedTicks, double? UnknownTicks, double? ColdDegreeTicks,
@@ -23,7 +23,7 @@ internal static class CoupledSelections
     /// <summary>The rows the log ring holds after sequence <paramref name="after"/> (a kept game still holds an earlier case's), oldest first.</summary>
     public static IReadOnlyList<CoupledSelectionRow> Of(TypedSession s, ulong after) => [.. s.Telemetry(TelemetryKinds.CoupledSelection).Where(r => r.Sequence > after).Select(Row)];
 
-    private static CoupledSelectionRow Row(LogRow row)
+    internal static CoupledSelectionRow Row(LogRow row)
     {
         var fields = row.Fields();
         var tasks = fields.GetValueOrDefault("predicted_tasks") is List<object?> predicted
@@ -43,7 +43,7 @@ internal static class CoupledSelections
                 ? vectors.OfType<Dictionary<string, object?>>().Select(r => r.GetValueOrDefault("vector") as Dictionary<string, object?>).Where(v => v is not null).Select(Outcome).ToList()
                 : [],
             fields.GetValueOrDefault("planned_rooms") is List<object?> rooms
-                ? rooms.OfType<Dictionary<string, object?>>().Select(r => r.GetValueOrDefault("room")).OfType<long>().ToList() : [],
+                ? rooms.OfType<Dictionary<string, object?>>().Select(r => Number(r.GetValueOrDefault("room"))).OfType<double>().ToList() : [],
             Exposure(fields.GetValueOrDefault("baseline_thermal_exposure")), Exposure(fields.GetValueOrDefault("selected_thermal_exposure")));
     }
 
