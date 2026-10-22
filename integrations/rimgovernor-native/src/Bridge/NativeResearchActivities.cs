@@ -46,7 +46,10 @@ internal static class NativeResearchActivities
                 var perTick = speed * bench.GetStatValue(StatDefOf.ResearchSpeedFactor) * PointsPerSpeedTick * difficulty
                     / project.CostFactor(pawn.Faction.def.techLevel);
                 workers.Add(new(pawn.GetUniqueLoadID(), bench.GetUniqueLoadID(), new(cell.x, cell.z), project.defName,
-                    giver.defName, JobDefOf.Research.defName, Fact.Known((double)perTick)));
+                    giver.defName, JobDefOf.Research.defName, Fact.Known((double)perTick))
+                { SkillWork = NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Intellectual, StatDefOf.ResearchSpeed, 1,
+                    bench.GetStatValue(StatDefOf.ResearchSpeedFactor) * PointsPerSpeedTick * difficulty / project.CostFactor(pawn.Faction.def.techLevel),
+                    0.1, false, true, "JobDriver_Research: points then Intellectual 0.1 XP per callback tick") });
             }
         }
         return new() { Known = true, Workers = EquatableArray.From(workers) };

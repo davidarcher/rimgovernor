@@ -24,6 +24,7 @@ internal sealed record SowingMethodCandidates(ForecastActivity[] Tasks, Forecast
         {
             if (!worker.ApproachTicks.IsKnown || !worker.TicksPerCell.TryGetValue(out var perCell) || !double.IsFinite(perCell) || perCell <= 0)
             { findings.Add("sowing_mechanics_unknown:" + worker.Pawn + ":" + worker.Zone); continue; }
+            if (worker.SkillWork is null) findings.Add("productive_learning_unknown:sowing:" + worker.Pawn);
             var fitting = (int)Math.Min(worker.Cells.Count, Math.Floor(horizon / perCell));
             if (fitting == 0) { findings.Add("sowing_cells_truncated"); continue; }
             if (fitting < worker.Cells.Count) findings.Add("sowing_cells_truncated");
@@ -31,7 +32,7 @@ internal sealed record SowingMethodCandidates(ForecastActivity[] Tasks, Forecast
             var location = ForecastLocations.Of(first);
             var id = "sow/" + worker.Zone + "/" + worker.Pawn;
             tasks.Add(new(id, location, location, []) { ProjectProgress = new(ForecastProjectProgress.SowPrefix + worker.Zone, 1 / perCell) });
-            options.Add(new(id, worker.Pawn, Known(Math.Min(fitting * perCell, horizon)), Known(0d)));
+            options.Add(new(id, worker.Pawn, Known(Math.Min(fitting * perCell, horizon)), Known(0d)) { SkillWork = worker.SkillWork is { } learning ? learning with { WorkAmount = Known((double)fitting), WorkQuantum = 1 } : null });
             routes.Add(new(worker.Pawn, "start", location, worker.ApproachTicks));
             bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work, worker.Zone, worker.WorkGiver, "Sow",
                 fitting, deadline, first) { Destination = first };

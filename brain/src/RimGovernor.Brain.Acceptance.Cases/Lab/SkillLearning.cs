@@ -13,8 +13,8 @@ internal static class LabSkillLearning
     internal const string VerifyTool = "test/skill_learning_verify";
     private const string MedicalTool = "test/medical_learning";
 
-    // Cooking, Melee and Shooting x three passions x saturated or not.
-    private const int Samples = 18;
+    // Cooking, Melee, Shooting, Intellectual and Plants x three passions x saturated or not.
+    private const int Samples = 30;
 
     private static readonly FixtureOp<NoArgs, Fx.SkillLearningProbeRead> Probe = ServedOps.Read<Fx.SkillLearningProbeRead>(ProbeTool);
 

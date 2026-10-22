@@ -1,6 +1,7 @@
 #nullable enable
 using System;
 using System.Linq;
+using HarmonyLib;
 using RimWorld;
 using Verse;
 using RimGovernor.Runtime;
@@ -12,6 +13,14 @@ namespace HomeBridge.BridgeTools;
 
 internal static class NativeSkillLearning
 {
+    // Pawn_SkillTracker exposes no typed accessor for its serialized reset timestamp. This private field is
+    // required to distinguish an already-reset midnight hour from one awaiting its first tracker callback.
+    private static readonly AccessTools.FieldRef<Pawn_SkillTracker, int> LastReset =
+        AccessTools.FieldRefAccess<Pawn_SkillTracker, int>("lastXpSinceMidnightResetTimestamp");
+
+    internal static int Cadence(Pawn pawn) => Math.Max(1, Math.Min(15, pawn.UpdateRateTicks));
+    internal static int Phase(Pawn pawn) => (Cadence(pawn) - pawn.HashOffsetTicks() % Cadence(pawn)) % Cadence(pawn);
+
     internal static Obs.SkillLearning Read(Pawn pawn, SkillRecord skill)
     {
         if (pawn.story?.traits == null) return new();
@@ -27,6 +36,18 @@ internal static class NativeSkillLearning
         });
         var interval = SkillRecord.IntervalTicks;
         var next = interval - ((pawn.HashOffsetTicks() % interval + interval) % interval);
+        var cadence = Cadence(pawn);
+        var phase = Phase(pawn);
+        var reset = LastReset(pawn.skills);
+        var now = Find.TickManager.TicksGame;
+        var midnightReset = 0;
+        for (var hashTick = next; hashTick <= GenDate.TicksPerDay + interval; hashTick += interval)
+        {
+            var at = hashTick + (phase - hashTick % cadence + cadence) % cadence;
+            if (GenDate.HourInteger(GenTicks.TicksAbs + at, (pawn.Tile.Valid ? Find.WorldGrid.LongLatOf(pawn.Tile).x : 0f)) == 0
+                && (reset < 0 || now + at - reset >= GenDate.TicksPerDay / 2))
+            { midnightReset = at; break; }
+        }
         var localDay = GenLocalDate.DayPercent(pawn);
         // No extrapolation through either the tracker local midnight or range's global daily reset.
         var localRemaining = GenLocalDate.HourInteger(pawn) == 0 ? 0 : Math.Max(0, (int)((1d - localDay) * GenDate.TicksPerDay) - 1);
@@ -40,7 +61,8 @@ internal static class NativeSkillLearning
             UnsaturatedFactor = Known(skill.LearnRateFactor() / (skill.LearningSaturatedToday ? saturatedFactor : 1)),
             SaturationThreshold = Known((double)SkillRecord.MaxFullRateXpPerDay), SaturatedFactor = Known(saturatedFactor),
             LossThreshold = Known((double)SkillRecord.MinXPAmount), DecayInterval = Known(interval), NextDecay = Known(next),
-            ValidForTicks = Known(Math.Min(localRemaining, globalRemaining)), Levels = EquatableArray.From(levels),
+            ValidForTicks = Known(Math.Min(localRemaining, globalRemaining)), NextMidnightReset = midnightReset > 0 ? Known(midnightReset) : default,
+            TrackerIntervalTicks = cadence, TrackerPhase = phase, Levels = EquatableArray.From(levels),
             PracticeEligible = practice ? Known(skill.def == SkillDefOf.Shooting ? RangeTraining.Eligible(pawn, skill.def) : SparringBouts.Eligible(pawn)) : default,
             PracticeCeiling = practice ? Known(RangeTraining.CeilingFor(skill.def)) : default,
             RangeAppliedBudget = skill.def == SkillDefOf.Shooting ? Known((double)RangeTraining.Remaining(pawn)) : default,

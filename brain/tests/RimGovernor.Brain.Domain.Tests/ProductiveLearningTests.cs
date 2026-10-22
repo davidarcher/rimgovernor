@@ -118,13 +118,13 @@ public sealed class ProductiveLearningTests
         var duration = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0);
         // 150 work at 0.75 a tick is 200 ticks; native pays per tick spent (ticksSpentDoingRecipeWork), not per unit of work.
         Assert.Equal(200, duration.WorkTicks.Value);
-        Assert.Equal(320, duration.Evidence!.Callback.RawXp.Value);
-        Assert.Equal(SkillXpPath.NormalRecord, duration.Evidence.Callback.Path);
+        Assert.Equal(320, duration.Evidence!.Callbacks.Single().RawXp.Value);
+        Assert.Equal(SkillXpPath.NormalRecord, duration.Evidence.Callbacks.Single().Path);
         Assert.Equal("Medicine", duration.Evidence.Skill);
         // Only the current level's rate is read (#3633 adds the others): a level reached before the work has no rate.
         var promoted = option with { SkillWork = Surgery() with { Learning = Work().Learning with { Xp = Known(99.5d) } } };
         Assert.False(ForecastProductiveWorkPolicy.ForecastProductiveWork(promoted, [new("tend", "doctor", 0, 0, 0, 10, 0, 0, 10, 10, 0)
-            { Learning = new("Medicine", new("tend", 10, Known(5d), SkillXpPath.NormalTracker), Projection(), Projection(), 10, 10, "native-test") }], 10).WorkTicks.IsKnown);
+            { Learning = new("Medicine", [new("tend", 10, Known(5d), SkillXpPath.NormalTracker)], Projection(), Projection(), 10, 10, "native-test") }], 10).WorkTicks.IsKnown);
     }
 
     [Fact]
@@ -133,7 +133,7 @@ public sealed class ProductiveLearningTests
         var option = new ForecastActivityOption("tend/1", "doctor", Known(400d), Known(0d)) { TendLearning = Tend() };
         var first = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0);
         Assert.Equal(400, first.WorkTicks.Value);
-        Assert.Equal(new SkillXpEvent("tend/1", 400, Known(250d), SkillXpPath.NormalTracker), first.Evidence!.Callback);
+        Assert.Equal(new SkillXpEvent("tend/1", 400, Known(250d), SkillXpPath.NormalTracker), first.Evidence!.Callbacks.Single());
         Assert.Equal(250, first.Evidence.After.AppliedGain.Value);
         var allocation = new ForecastActivityAllocation("tend/1", "doctor", 0, 0, 0, 400, 0, 0, 400, 400, 0) { Learning = first.Evidence };
         var second = ForecastProductiveWorkPolicy.ForecastProductiveWork(option with { Activity = "tend/2" }, [allocation], 400);

@@ -45,7 +45,7 @@ public static class ForecastMaintenancePolicy
                 if (bound < 0) { unknown = true; findings.Add("maintenance_window_expired"); continue; }
                 var callbacks = plan.Allocations.Where(a => a.Pawn == requirement.Requirement.Pawn.Value
                     && completed.GetValueOrDefault(a.Activity) == Known(true) && a.End <= bound
-                    && a.Learning?.Skill == alternative.Skill).Select(a => a.Learning!.Callback).ToList();
+                    && a.Learning?.Skill == alternative.Skill).SelectMany(a => a.Learning!.Callbacks).ToList();
                 foreach (var task in practice.Where(p => p.Worker.Pawn == requirement.Requirement.Pawn.Value && p.Worker.Skill == alternative.Skill))
                 {
                     var allocation = plan.Allocations.FirstOrDefault(a => a.Activity == task.Task);

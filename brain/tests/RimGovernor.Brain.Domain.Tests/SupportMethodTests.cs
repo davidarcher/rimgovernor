@@ -162,10 +162,10 @@ public sealed class SupportMethodTests
         Assert.All(tasks, t => Assert.False(t.ProductiveWorkTicks.IsKnown));
         var allocations = result.Selected.Plan.Allocations;
         var tend = Assert.Single(allocations, a => a.Pawn == "pawn").Learning!;
-        Assert.Equal(("Medicine", Known(250d), SkillXpPath.NormalTracker), (tend.Skill, tend.Callback.RawXp, tend.Callback.Path));
+        Assert.Equal(("Medicine", Known(250d), SkillXpPath.NormalTracker), (tend.Skill, tend.Callbacks.Single().RawXp, tend.Callbacks.Single().Path));
         // A failed surgery still pays: native learning precedes the outcome, which the callback does not read.
         var surgery = Assert.Single(allocations, a => a.Pawn == "helper").Learning!;
-        Assert.Equal(("Medicine", Known(32d), SkillXpPath.NormalRecord), (surgery.Skill, surgery.Callback.RawXp, surgery.Callback.Path));
+        Assert.Equal(("Medicine", Known(32d), SkillXpPath.NormalRecord), (surgery.Skill, surgery.Callbacks.Single().RawXp, surgery.Callbacks.Single().Path));
     }
 
     [Fact]

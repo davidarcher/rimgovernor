@@ -5,7 +5,10 @@ namespace RimGovernor.Brain.Policy;
 public enum SkillXpPath { NormalRecord, NormalTracker, Range }
 /// <summary>One actual learning callback, not an additional reward for output or skill thresholds.
 /// Events must be supplied once, in native order. An interrupted completion-only recipe has no event.</summary>
-public sealed record SkillXpEvent(string Id, int Tick, Fact<double> RawXp, SkillXpPath Path, bool Practice = false);
+public sealed record SkillXpEvent(string Id, int Tick, Fact<double> RawXp, SkillXpPath Path, bool Practice = false, bool BeforeDecay = false, int Count = 1, int Interval = 0)
+{
+    public long LastTick => (long)Tick + (long)(Count - 1) * Interval;
+}
 public sealed record SkillProjection(Fact<int> Level, Fact<int> StoredLevel, Fact<double> Xp,
     Fact<double> AppliedGain, Fact<double> DecayLoss, EquatableArray<string> Findings);
 
@@ -29,70 +32,35 @@ public static class ForecastSkillPolicy
             return Unknown("learning_horizon_or_event_bound");
         if (MechanicsGap(observed) is { } gap) return Unknown(gap);
         var s = observed!;
-        if (horizon >= s.ValidForTicks.Value && (!passiveTail || events.Any(e => e.Tick >= s.ValidForTicks.Value)))
+        if (horizon >= s.ValidForTicks.Value && !s.NextMidnightReset.IsKnown && (!passiveTail || events.Any(e => e.LastTick >= s.ValidForTicks.Value)))
             return Unknown("learning_mechanics_outside_supported_window");
-        if (events.Any(e => string.IsNullOrEmpty(e.Id) || e.Tick < 0 || e.Tick > horizon || !e.RawXp.IsKnown
+        if (events.Any(e => string.IsNullOrEmpty(e.Id) || e.Tick < 0 || e.LastTick > horizon || e.Count <= 0 || e.Count > GameTime.TicksPerDay || e.Interval < 0 || e.Count > 1 && e.Interval == 0 || !e.RawXp.IsKnown
                 || !double.IsFinite(e.RawXp.Value) || e.RawXp.Value < 0 || !Enum.IsDefined(e.Path))
             || events.Select(e => e.Id).Distinct(StringComparer.Ordinal).Count() != events.Count
-            || events.Zip(events.Skip(1)).Any(pair => pair.First.Tick > pair.Second.Tick))
+            || events.Zip(events.Skip(1)).Any(pair => pair.First.LastTick > pair.Second.Tick))
             return Unknown("learning_events_unknown_duplicate_or_unordered");
+        if (events.Any(e => e.Path == SkillXpPath.Range && e.LastTick >= s.ValidForTicks.Value)) return Unknown("learning_mechanics_outside_supported_window");
         if (events.Any(e => e.Path == SkillXpPath.Range) && (!s.RangeAppliedBudget.IsKnown
             || !double.IsFinite(s.RangeAppliedBudget.Value) || s.RangeAppliedBudget.Value < 0))
             return Unknown("range_budget_unknown");
         if (events.Any(e => e.Practice || e.Path == SkillXpPath.Range)
             && (!s.PracticeEligible.IsKnown || !s.PracticeCeiling.IsKnown))
             return Unknown("practice_eligibility_unknown");
-        var level = s.StoredLevel.Value;
-        var xp = s.Xp.Value;
-        var midnight = s.XpSinceMidnight.Value;
-        var budget = s.RangeAppliedBudget;
-        double gain = 0, loss = 0;
-        var arithmeticInvalid = false;
-        var nextDecay = s.NextDecay.Value;
+        var cursor = new ForecastSkillCursor(s);
         foreach (var e in events)
-        {
-            DecayUntil(e.Tick);
-            if (s.Disabled.Value || e.Path == SkillXpPath.NormalTracker && !s.TrackerAllowsLearning.Value) continue;
-            if ((e.Practice || e.Path == SkillXpPath.Range) && !s.PracticeEligible.Value
-                && Math.Clamp((long)s.StoredLevel.Value + s.Aptitude.Value, 0, s.Levels.Count - 1) >= s.PracticeCeiling.Value
-                && Effective() < s.PracticeCeiling.Value) return Unknown("practice_eligibility_requires_refresh");
-            if ((e.Practice || e.Path == SkillXpPath.Range)
-                && (!s.PracticeEligible.Value || Effective() >= s.PracticeCeiling.Value)) continue;
-            var direct = e.Path == SkillXpPath.Range;
-            var amount = e.RawXp.Value * (direct ? s.DirectFactor.Value
-                : s.UnsaturatedFactor.Value * (midnight > s.SaturationThreshold.Value ? s.SaturatedFactor.Value : 1));
-            if (!double.IsFinite(amount)) return Unknown("learning_arithmetic_overflow");
-            if (direct) { amount = Math.Min(amount, budget.Value); budget = Known(budget.Value - amount); }
-            gain += amount;
-            Apply(amount, direct);
-        }
-        DecayUntil(horizon);
-        if (arithmeticInvalid || !double.IsFinite(gain) || !double.IsFinite(loss)) return Unknown("learning_arithmetic_overflow");
-        return new(Known(Effective()), Known(level), Known(xp), Known(gain), Known(loss), []);
-
-        int Effective() => s.Disabled.Value ? 0 : (int)Math.Clamp((long)level + s.Aptitude.Value, 0, s.Levels.Count - 1);
-        void DecayUntil(int tick)
-        {
-            while (nextDecay <= tick)
+            for (var i = 0; i < e.Count; i++)
             {
-                if (!s.Disabled.Value && s.TrackerAllowsLearning.Value)
-                {
-                    var decay = s.Levels[level].DecayXp;
-                    loss += decay;
-                    Apply(-decay, false);
-                }
-                nextDecay += s.DecayInterval.Value;
+                var tick = e.Tick + i * e.Interval;
+                cursor.Advance(e.BeforeDecay ? tick - 1 : tick);
+                if ((e.Practice || e.Path == SkillXpPath.Range) && !s.PracticeEligible.Value
+                    && Math.Clamp((long)s.StoredLevel.Value + s.Aptitude.Value, 0, s.Levels.Count - 1) >= s.PracticeCeiling.Value
+                    && cursor.Effective < s.PracticeCeiling.Value) return Unknown("practice_eligibility_requires_refresh");
+                cursor.Learn(e);
+                cursor.Advance(tick);
             }
-        }
-        void Apply(double amount, bool direct)
-        {
-            xp += amount;
-            if (!direct) midnight += amount;
-            if (!double.IsFinite(xp) || !double.IsFinite(midnight)) arithmeticInvalid = true;
-            Settle(s, ref level, ref xp);
-        }
+        cursor.Advance(horizon);
+        return cursor.Snapshot();
     }
-
     /// <summary>The first reason the mechanics cannot be projected at all, or null: an unread fact
     /// (<c>learning_mechanics_unknown</c>) or a value outside the supported window. The horizon bound is the caller's.</summary>
     internal static string? MechanicsGap(SkillLearning? observed)
@@ -103,7 +71,7 @@ public static class ForecastSkillPolicy
             || !s.SaturatedFactor.IsKnown || !s.LossThreshold.IsKnown || !s.DecayInterval.IsKnown
             || !s.NextDecay.IsKnown || !s.ValidForTicks.IsKnown)
             return "learning_mechanics_unknown";
-        if (s.DecayInterval.Value <= 0 || s.DecayInterval.Value > GameTime.TicksPerDay
+        if (s.TrackerIntervalTicks <= 0 || s.TrackerIntervalTicks > 15 || s.TrackerPhase < 0 || s.TrackerPhase >= s.TrackerIntervalTicks || s.NextMidnightReset.IsKnown && (s.NextMidnightReset.Value <= 0 || s.NextMidnightReset.Value > GameTime.TicksPerDay + s.DecayInterval.Value) || s.DecayInterval.Value <= 0 || s.DecayInterval.Value > GameTime.TicksPerDay
             || s.NextDecay.Value <= 0 || s.NextDecay.Value > s.DecayInterval.Value
             || s.Levels.Count == 0 || s.StoredLevel.Value < 0 || s.StoredLevel.Value >= s.Levels.Count
             || s.Levels.Where((l, i) => l.Level != i || !double.IsFinite(l.RequiredXp) || l.RequiredXp <= 0

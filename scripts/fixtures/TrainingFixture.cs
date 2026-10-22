@@ -261,7 +261,7 @@ namespace HomeBridge.BridgeTools
                 var pawn = Find.CurrentMap.mapPawns.FreeColonistsSpawned.First(p => p.skills != null);
                 var failures = new List<string>();
                 var samples = 0;
-                foreach (var def in new[] { SkillDefOf.Cooking, SkillDefOf.Melee, SkillDefOf.Shooting })
+                foreach (var def in new[] { SkillDefOf.Cooking, SkillDefOf.Melee, SkillDefOf.Shooting, SkillDefOf.Intellectual, SkillDefOf.Plants })
                 foreach (var passion in new[] { Passion.None, Passion.Minor, Passion.Major })
                 foreach (var saturated in new[] { false, true })
                 {
@@ -271,16 +271,28 @@ namespace HomeBridge.BridgeTools
                     var original = (before.levelInt, before.xpSinceLastLevel, before.xpSinceMidnight);
                     var evidence = NativeSkillLearning.Read(pawn, actual) with {
                         ValidForTicks = RimGovernor.Brain.Domain.Fact.Known(1000),
+                        TrackerIntervalTicks = 1, TrackerPhase = 0, NextMidnightReset = default,
                         NextDecay = RimGovernor.Brain.Domain.Fact.Known(200),
                         PracticeEligible = RimGovernor.Brain.Domain.Fact.Known(true),
                         PracticeCeiling = RimGovernor.Brain.Domain.Fact.Known(SkillRecord.MaxLevel),
                     };
                     var direct = def == SkillDefOf.Shooting;
                     var path = direct ? RimGovernor.Brain.Policy.SkillXpPath.Range : RimGovernor.Brain.Policy.SkillXpPath.NormalRecord;
-                    var prediction = RimGovernor.Brain.Policy.ForecastSkillPolicy.ForecastSkill(evidence,
-                        new[] { new RimGovernor.Brain.Policy.SkillXpEvent("callback", 1, RimGovernor.Brain.Domain.Fact.Known(10d), path) }, 200);
-                    actual.Learn(10, direct);
-                    actual.Interval();
+                    var during = def == SkillDefOf.Intellectual || def == SkillDefOf.Plants;
+                    var raw = def == SkillDefOf.Plants ? .085f : .1f;
+                    if (during) evidence = evidence with { NextMidnightReset = RimGovernor.Brain.Domain.Fact.Known(100) };
+                    var callback = during
+                        ? new RimGovernor.Brain.Policy.SkillXpEvent("callback", 1, RimGovernor.Brain.Domain.Fact.Known((double)raw), path, BeforeDecay: true, Count: 200, Interval: 1)
+                        : new RimGovernor.Brain.Policy.SkillXpEvent("callback", 1, RimGovernor.Brain.Domain.Fact.Known(10d), path);
+                    var prediction = RimGovernor.Brain.Policy.ForecastSkillPolicy.ForecastSkill(evidence, new[] { callback }, 200);
+                    if (during)
+                        for (var tick = 1; tick <= 200; tick++)
+                        {
+                            actual.Learn(raw);
+                            if (tick == 100) actual.xpSinceMidnight = 0;
+                            if (tick == 200) actual.Interval();
+                        }
+                    else { actual.Learn(10, direct); actual.Interval(); }
                     samples++;
                     if (!prediction.Xp.IsKnown || Math.Abs(prediction.Xp.Value - actual.xpSinceLastLevel) > .01
                         || prediction.StoredLevel.Value != actual.levelInt)

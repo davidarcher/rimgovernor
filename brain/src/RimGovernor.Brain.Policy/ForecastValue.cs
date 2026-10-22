@@ -410,7 +410,7 @@ public static partial class ForecastValue
         if (context.GoalValues.Count == 0) return progress;
         foreach (var allocation in outcome.Plan.Allocations)
             if (index.Activities.GetValueOrDefault(allocation.Activity)?.ProjectProgress is { } work)
-                progress[work.Project] = progress.GetValueOrDefault(work.Project) + allocation.WorkTicks * work.PointsPerTick;
+                progress[work.Project] = progress.GetValueOrDefault(work.Project) + (allocation.Learning?.WorkAmount ?? allocation.WorkTicks * work.PointsPerTick);
         return progress;
     }
 
@@ -452,7 +452,7 @@ public static partial class ForecastValue
         foreach (var allocation in outcome.Plan.Allocations)
         {
             var activity = index.Activities.GetValueOrDefault(allocation.Activity);
-            if (activity?.ProjectProgress is { } work) Add(allocation, work.Project, allocation.WorkTicks * work.PointsPerTick, -1);
+            if (activity?.ProjectProgress is { } work) Add(allocation, work.Project, (allocation.Learning?.WorkAmount ?? allocation.WorkTicks * work.PointsPerTick), -1);
             if (allocation.Learning is { } learning && learning.After.AppliedGain.TryGetValue(out var after) && learning.Before.AppliedGain.TryGetValue(out var before))
                 Add(allocation, ProjectGraph.SkillKey(allocation.Pawn, learning.Skill), after - before, -1);
             if (activity is null) continue;

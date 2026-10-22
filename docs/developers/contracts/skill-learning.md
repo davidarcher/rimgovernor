@@ -37,7 +37,7 @@ the positive-level-gain tale/mote path. The prepared differential checks that
 reading mechanics leaves the pawn's real skill unchanged. Arbitrary mod patches
 that add side effects or replace these mechanics are not qualified by this contract.
 
-The projection is bounded to at most one day and strictly before either native
+Practice projection is bounded to at most one day and strictly before either native
 local midnight or the range global-day reset. Reads during the local reset hour
 have no supported forward window. Native fractional local time and a one-tick
 margin bound validity. Refresh at the bound, after equipment/trait/health changes,
@@ -205,3 +205,23 @@ selected Method exists yet; documented, not shadowed).
 | Doctor training by surgery on prisoners (peg-leg cycling, practice surgery, practice slots, `SelectPegCycle`) | removed | Peg-leg training deleted in #3638; practice surgery (#3637), practice slots (#3639) and peg-leg control and reinstall deleted in #3344 ([capability maintenance](capability-maintenance.md#no-practice-surgery-3344)). |
 | Productive cooking, food/shelter investment, recipe and bill selection | keep | Selected through `CompareActivityPlans` / `ForecastServiceInvestments`; no local cook or skill winner remains. |
 | Training to a ceiling, saved skill target | none found | Ceilings are native feasibility limits only (`RangeTraining.CeilingFor`); nothing is stored. |
+
+## Productive work across the detailed horizon
+
+Research and sowing carry native learning mechanics and per-level rates through their ordinary activity reads.
+Research pays Intellectual XP after computing work; sowing pays Plants XP before its work-rate lookup.
+The evaluator preserves this ordering, native callback delta and phase, saturation at each callback,
+and skill tracker decay after work. Callback runs are compressed for evidence only; arithmetic still
+applies each callback separately. Research keeps its fixed work block and integrates actual points;
+sowing completes integral cells and discards excess work at each cell just as the native driver does.
+The resulting work segments provide threshold dates and per-cell completion dates to continuation.
+
+Normal productive callbacks can cross midnight when the observation includes the next actual tracker
+reset. The native read combines the pawn's hash interval, observed update cadence and the tracker's
+last reset timestamp; reset precedes decay and follows that tick's work. Observed camera cadence,
+health and equipment are held fixed, as other forecast rates are. Range practice retains its separate
+existing daily-budget validity bound. No save state or XP ledger is introduced.
+
+Generated research/sowing tests exercise learning, changed work output, conserved cells and carried
+terminal XP, including midnight, saturation and callback ordering. Unknown native stat pipelines retain
+current-level rates and provenance; crossing into an unobserved rate remains explicit uncertainty.

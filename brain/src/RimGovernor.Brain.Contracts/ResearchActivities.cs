@@ -20,4 +20,7 @@ public sealed record ResearchActivityRead
 /// ResearchSpeed, the bench's ResearchSpeedFactor, the difficulty's research speed and the project's cost factor).
 /// </summary>
 public sealed record ResearchWorker(string Pawn, string Bench, Cell Location, string Project,
-    string WorkGiver, string Job, Fact<double> PointsPerTick);
+    string WorkGiver, string Job, Fact<double> PointsPerTick)
+{
+    public ProductiveSkillWork? SkillWork { get; init; }
+}

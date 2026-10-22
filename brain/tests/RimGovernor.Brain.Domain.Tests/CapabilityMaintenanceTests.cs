@@ -42,7 +42,7 @@ public sealed class CapabilityMaintenanceTests
         Assert.True(Forecast(EquatableArray.From(skills), new([], 0, 0)).MissingXp.Value > 0);
         var projection = ForecastSkillPolicy.ForecastSkill(Learning(), [], 0);
         var work = new ForecastActivityPlan([new("work", "pawn", 0, 0, 0, 1, 0, 0, 1, 1, 0)
-        { Learning = new("Shooting", new("work", 1, Known(20d), SkillXpPath.NormalTracker), projection, projection, 1, 1, "native") }], 1, 1);
+        { Learning = new("Shooting", [new("work", 1, Known(20d), SkillXpPath.NormalTracker)], projection, projection, 1, 1, "native") }], 1, 1);
         Assert.Equal(Known(0d), Forecast(EquatableArray.From(skills), work).MissingXp);
         Assert.False(Forecast([skills[0]], new([], 0, 0)).MissingXp.IsKnown);
     }

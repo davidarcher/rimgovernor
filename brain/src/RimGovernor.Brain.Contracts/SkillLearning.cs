@@ -21,6 +21,10 @@ public sealed record SkillLearning
     public Fact<int> NextDecay { get; init; }
     /// <summary>Exclusive bound: refresh at either native midnight reset; at most one game day.</summary>
     public Fact<int> ValidForTicks { get; init; }
+    /// <summary>Next actual SkillsTickInterval local-day reset, relative to this observation.</summary>
+    public Fact<int> NextMidnightReset { get; init; }
+    public int TrackerIntervalTicks { get; init; } = 1;
+    public int TrackerPhase { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<SkillLevelMechanics>))]
     public EquatableArray<SkillLevelMechanics> Levels { get; init; }
     public Fact<bool> PracticeEligible { get; init; }
@@ -41,7 +45,15 @@ public sealed record TendLearning(SkillLearning Learning, string Skill, Fact<dou
 /// <summary>Native work amounts and per-stored-level rates for this pawn, recipe and station at one frame.
 /// Rates retain other observed conditions; no prediction of future health, equipment or facility changes.</summary>
 public sealed record ProductiveSkillWork(SkillLearning Learning, RecipeLearning Recipe, Fact<double> WorkAmount,
-    [property: JsonConverter(typeof(EquatableArrayJsonConverter<SkillWorkRate>))] EquatableArray<SkillWorkRate> Rates, string Provenance);
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<SkillWorkRate>))] EquatableArray<SkillWorkRate> Rates, string Provenance)
+{
+    public int CallbackIntervalTicks { get; init; } = 1;
+    public int CallbackPhase { get; init; }
+    public bool LearnBeforeWork { get; init; }
+    public bool FixedDuration { get; init; }
+    /// <summary>Each completed native target discards excess work (one cell for sowing).</summary>
+    public double WorkQuantum { get; init; }
+}
 public sealed record SkillWorkRate(int StoredLevel, Fact<double> WorkPerTick);
 
 /// <summary>A pawn's native stat value at each stored skill level (0-20) at one frame. Capacities and every other

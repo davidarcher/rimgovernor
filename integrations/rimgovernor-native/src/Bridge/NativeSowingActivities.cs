@@ -129,7 +129,9 @@ internal static class NativeSowingActivities
                 if (cells.Count == 0 || legs.Cost(pawn, pawn.Position, cells[0], PathEndMode.OnCell) is not { } path) continue;
                 workers.Add(new(pawn.GetUniqueLoadID(), IdOf(grower), giverName, Fact.Known((double)path),
                     speed > 0 ? Fact.Known((double)crop.plant.sowWork / speed) : default,
-                    EquatableArray.From(cells.Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z)))));
+                    EquatableArray.From(cells.Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z))))
+                { SkillWork = NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Plants, StatDefOf.PlantWorkSpeed, cells.Count,
+                    1d / crop.plant.sowWork, 0.085, true, false, "JobDriver_PlantSow: Plants 0.085 XP per callback tick before sow work") });
             }
         }
         return new() { Known = true, Workers = EquatableArray.From(workers), Findings = EquatableArray.From(findings) };

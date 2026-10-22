@@ -25,12 +25,13 @@ internal sealed record ResearchMethodCandidates(ForecastActivity[] Tasks, Foreca
             if (horizon < ResearchBlockTicks) { findings.Add("research_block_exceeds_horizon"); break; }
             if (claims.Pawns.Contains(worker.Pawn) || claims.Targets.Contains(worker.Bench)) continue;
             if (!worker.PointsPerTick.IsKnown || worker.PointsPerTick.Value <= 0) { findings.Add("research_speed_unknown:" + worker.Pawn); continue; }
+            if (worker.SkillWork is null) findings.Add("productive_learning_unknown:research:" + worker.Pawn);
             if (tasks.Count >= MaxTasks) { truncated = true; break; }
             var id = "research/" + worker.Pawn + "/" + worker.Bench;
             var location = ForecastLocations.Of(worker.Location);
             tasks.Add(new(id, location, location, []) { ChoiceIdentity = "research/" + worker.Pawn,
                 ProjectProgress = new(worker.Project, worker.PointsPerTick.Value) });
-            options.Add(new(id, worker.Pawn, Known(ResearchBlockTicks), Known(0d)) { Equipment = [worker.Bench] });
+            options.Add(new(id, worker.Pawn, Known(ResearchBlockTicks), Known(0d)) { Equipment = [worker.Bench], SkillWork = worker.SkillWork });
             bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work, worker.Bench, worker.WorkGiver, worker.Job,
                 0, deadline, worker.Location);
             roots.Add(new(id, []) { ActivityCompletions = [id], ExclusiveOutcome = "research/" + worker.Pawn });

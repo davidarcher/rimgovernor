@@ -22,4 +22,7 @@ public sealed record SowingActivityRead
 /// </summary>
 public sealed record SowingWorker(string Pawn, string Zone, string WorkGiver, Fact<double> ApproachTicks,
     Fact<double> TicksPerCell,
-    [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Cells);
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Cells)
+{
+    public ProductiveSkillWork? SkillWork { get; init; }
+}

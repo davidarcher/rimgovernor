@@ -90,7 +90,7 @@ public static class ForecastHandoffPolicy
             if (node is null) { gaps.Add("terminal_project_unmapped:" + progress.Project); continue; }
             var old = projects[node.Id];
             var perUnit = node.Kind == ProjectKind.Sow ? node.Work / node.Cells : 1;
-            var work = allocation.WorkTicks * progress.PointsPerTick * perUnit;
+            var work = (allocation.Learning?.WorkAmount ?? allocation.WorkTicks * progress.PointsPerTick) * perUnit;
             var remaining = Math.Max(0, old.Remaining - work);
             projects[node.Id] = old with { Remaining = remaining, Status = remaining == 0 ? ModelProjectStatus.Done : ModelProjectStatus.Waiting };
             if (remaining == 0 && old.Status != ModelProjectStatus.Done)
@@ -205,7 +205,7 @@ public static class ForecastHandoffPolicy
             var projected = skills.Select(s =>
             {
                 var events = outcome.Plan.Allocations.Where(a => a.Pawn == p.Pawn && finished.ContainsKey(a.Activity) && a.Learning?.Skill == s.Name)
-                    .Select(a => a.Learning!.Callback).ToList();
+                    .SelectMany(a => a.Learning!.Callbacks).ToList();
                 foreach (var task in practice.Where(t => t.Worker.Pawn == p.Pawn && t.Worker.Skill == s.Name))
                 {
                     var allocation = outcome.Plan.Allocations.FirstOrDefault(a => a.Activity == task.Task && finished.ContainsKey(a.Activity));
@@ -230,17 +230,20 @@ public static class ForecastHandoffPolicy
     {
         var rows = plan.Allocations.Where(a => finished.ContainsKey(a.Activity) && tasks.TryGetValue(a.Activity, out var t)
             && t.ProjectProgress?.Project == ProjectGraph.ProgressKey(node)).ToArray();
-        var points = rows.SelectMany(a => new[] { a.Start, a.End }).Distinct().Order().ToArray();
-        var left = node.Work;
-        for (var i = 1; i < points.Length; i++)
+        if (rows.Length == 1 && rows[0].Learning is { } learning
+            && ForecastProductiveWorkPolicy.CompletionTick(learning, node.Work).TryGetValue(out var exact)) return exact;
+        double Progress(int tick) => rows.Sum(a => a.Learning is { } learned
+            ? learned.WorkSegments.Sum(segment => Math.Floor(Math.Clamp(tick - segment.Start, 0, segment.End - segment.Start)
+                / (double)segment.CallbackInterval) * segment.CallbackInterval * segment.WorkPerTick)
+            : Math.Clamp(tick - a.Start, 0, a.End - a.Start) * tasks[a.Activity].ProjectProgress!.PointsPerTick * a.WorkTicks / (a.End - a.Start));
+        var low = (int)Math.Floor(rows.Min(a => a.Start));
+        var high = (int)Math.Ceiling(rows.Max(a => a.End));
+        while (low < high)
         {
-            var from = points[i - 1]; var to = points[i];
-            var rate = rows.Where(a => a.Start <= from && a.End >= to && a.End > a.Start)
-                .Sum(a => tasks[a.Activity].ProjectProgress!.PointsPerTick * a.WorkTicks / (a.End - a.Start));
-            if (rate > 0 && left <= rate * (to - from)) return from + left / rate;
-            left -= rate * (to - from);
+            var middle = low + (high - low) / 2;
+            if (Progress(middle) >= node.Work) high = middle; else low = middle + 1;
         }
-        return rows.Max(a => a.End);
+        return high;
     }
     private static Fact<double> Growth(ColonyModelInput input, ProjectNode node, double from, double until)
     {
