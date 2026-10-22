@@ -59,7 +59,8 @@ identity), `Staged` and `TicksLeft`. Its members:
   declares it in `Ops`).
 - **Reads:** `BuildingsAsync`, `ZonesAsync` and `GrowingZonesAsync` run over `TypedReads`, and
   `TypedReads.Observed` unwraps a read's `observed` arm.
-- **Waits:** `RunTicksAsync`, `RunUntilAsync` (a `Probe` signature) and `RunUntilEventAsync` (a telemetry row).
+- **Waits:** `RunTicksAsync` and `RunUntilAsync` (a `Probe` signature) run vanilla time, not the native clock, so
+  the supervisor's rows (`clock_invalidation`, `clock_hold`) never come from them; a claim about those uses `RunClockUntilHeldAsync`.
   Each spends from `Ticks`, and a wait past what is left fails before the game runs.
 - **Clock-rate floor:** every wait that spends ticks (the waits above, `RunClockUntilHeldAsync`, `ServeUntilAsync`)
   and the serve-driven watch (`SustainedFood`) fail once the game advanced slower than the case's `MinTicksPerSecond`
@@ -166,7 +167,7 @@ JSON-looking values decode as JSON; other values are strings.
 - Keep needs the case tests unfrozen; freeze the rest. Use `QuietWorld` only when wild-map
   simulation is irrelevant, not for farm, hunting or husbandry claims.
 - Service-driven waits use a progress signature that ends on service exit: `ServeUntilAsync`.
-- Advance gameplay by ticks with `RunTicksAsync`, `RunUntilAsync` and `RunUntilEventAsync`. The speed matrix
+- Advance gameplay by ticks with `RunTicksAsync` and `RunUntilAsync`, or the native clock with `RunClockUntilHeldAsync`. The speed matrix
   reports hold counts by reason, resume latency and effective speed instead of window counts
   ([measure-throughput](measure-throughput.md#across-clock-speeds)).
   Fail immediately on terminal refusals or service exit.

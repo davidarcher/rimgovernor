@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Bridge;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Telemetry;
 using Clock = RimGovernor.Contracts.Wire.Clock;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -19,6 +20,16 @@ internal static class ZoneDelete
 {
     // Game ticks the re-add runs for native to emit the zone's clock_invalidation row.
     private const int ProbeTicks = 300;
+
+    // The colony watch policy with the brain's hazard thresholds, which native requires of every clock run.
+    private static readonly Clock.WatchPolicy Policy = ClockExpectation.WithHazardThresholds(new Clock.WatchPolicy
+    {
+        Mode = Clock.WatchMode.Colony,
+        HealthDropFraction = .1f,
+        MinHealthFraction = .5f,
+        HostileWithin = 20f,
+        InjuryStopCooldownMs = 0,
+    });
 
     internal static TypedCase Case() => new()
     {
@@ -55,7 +66,7 @@ internal static class ZoneDelete
         var interior = s.Staged!.Rooms["hut"].Interior;
         var corner = new Common.Cell { X = interior.Min(c => c.X), Z = interior.Min(c => c.Z) };
         var footprint = new Fx.StageRect(corner.X, corner.Z, 2, 2);
-        await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
+        var generation = await TypedAuthority.GrantAutoGenerationAsync(s, cancellationToken).ConfigureAwait(false);
 
         async Task<Observations.ZoneState?> RowAsync(string label, string zoneId)
         {
@@ -231,19 +242,40 @@ internal static class ZoneDelete
             throw new AcceptanceException("zone-edit-remove-resend: a cell already out of the zone was edited again");
         }
 
-        // The re-add, then a ticking window in which native emits the zone's clock_invalidation row.
-        var added = await AppliedAsync("zone-edit-add", Edit(zone, remove: false)).ConfigureAwait(false);
-        if (added.ListedCellCount != interior.Count)
+        // The re-add lands under a running native clock: only the supervised run digests zones, and its first digest
+        // baselines, so an edit made while paused never reaches a row. The run ends on the zone's clock_invalidation row.
+        var request = new Clock.RunRequest { ExpectedGeneration = generation, Speed = Clock.Speed.Normal, Policy = Policy };
+        Receipts.ZoneEffect? added = null;
+        long addedSince = 0;
+        LogRow? invalidated = null;
+        var status = await s.RunClockUntilHeldAsync(
+            "probe",
+            s.TicksLeft,
+            request,
+            async (_, _) =>
+            {
+                if (added is null)
+                {
+                    addedSince = ClockRows.NowUnixMs();
+                    added = await AppliedAsync("zone-edit-add", Edit(zone, remove: false)).ConfigureAwait(false);
+                    if (added.ListedCellCount != interior.Count)
+                    {
+                        throw new AcceptanceException($"zone-edit-add: want {interior.Count} listed cells, got {added}");
+                    }
+                }
+
+                invalidated = s.Telemetry(TelemetryKinds.ClockInvalidation).FirstOrDefault(row =>
+                    ClockRows.ObservedSince(row, addedSince) && ClockRows.Strings(row, "entity_ids").Contains(zoneId, StringComparer.Ordinal));
+                return invalidated is not null;
+            },
+            cancellationToken).ConfigureAwait(false);
+        if (invalidated is null)
         {
-            throw new AcceptanceException($"zone-edit-add: want {interior.Count} listed cells, got {added}");
+            throw new AcceptanceException(added is null
+                ? $"probe: the clock held before the re-add ({status.Reason}): {status.Detail}"
+                : $"probe: the clock held ({status.Reason}) before native named zone {zoneId}: {status.Detail}");
         }
 
-        var invalidated = await s.RunUntilEventAsync(
-            "probe",
-            ProbeTicks,
-            TelemetryKinds.ClockInvalidation,
-            row => ClockRows.Strings(row, "entity_ids").Contains(zoneId, StringComparer.Ordinal),
-            cancellationToken).ConfigureAwait(false);
         var families = ClockRows.Strings(invalidated, "families");
         var ids = ClockRows.Strings(invalidated, "entity_ids");
         var rect = ClockRows.Map(invalidated, "cells");

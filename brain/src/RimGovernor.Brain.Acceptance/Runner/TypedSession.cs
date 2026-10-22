@@ -143,40 +143,6 @@ public sealed class TypedSession
     }
 
     /// <summary>
-    /// Runs the game until a row of <paramref name="kind"/> written after the call satisfies <paramref name="match"/>, at
-    /// most <paramref name="ticks"/> ticks from <see cref="TicksLeft"/>, then pauses; returns the matching row.
-    /// </summary>
-    public async Task<LogRow> RunUntilEventAsync(string label, int ticks, TelemetryKind kind, Func<LogRow, bool> match, CancellationToken cancellationToken)
-    {
-        ArgumentNullException.ThrowIfNull(kind);
-        ArgumentNullException.ThrowIfNull(match);
-        var tail = LogTail.Create(LogsPath());
-        LogRow? found = null;
-        var seen = 0;
-        _ = await RunAsync(
-            label,
-            ticks,
-            ct =>
-            {
-                foreach (var row in tail.Next())
-                {
-                    if (row.Kind == kind.Name)
-                    {
-                        seen++;
-                        if (found is null && match(row))
-                        {
-                            found = row;
-                        }
-                    }
-                }
-
-                return Task.FromResult((string.Create(CultureInfo.InvariantCulture, $"{kind.Name}={seen}"), found is not null));
-            },
-            cancellationToken).ConfigureAwait(false);
-        return found ?? throw new AcceptanceException($"{label}: no matching {kind.Name} row");
-    }
-
-    /// <summary>
     /// Runs the native clock under <paramref name="request"/> (its watch policy decides what holds it) until the clock
     /// holds itself, at most <paramref name="ticks"/> ticks from <see cref="TicksLeft"/>, beating while it runs; returns
     /// the held status. A wait that ends otherwise holds the clock before it throws.
