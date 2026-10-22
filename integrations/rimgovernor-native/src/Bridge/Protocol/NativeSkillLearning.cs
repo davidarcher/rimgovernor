@@ -38,6 +38,9 @@ internal static class NativeSkillLearning
         var next = interval - ((pawn.HashOffsetTicks() % interval + interval) % interval);
         var cadence = Cadence(pawn);
         var phase = Phase(pawn);
+        // A hash boundary since the last tracker callback is still pending, even if it is in the past.
+        var elapsed = (cadence - phase) % cadence;
+        if (next - interval > -elapsed) next -= interval;
         var reset = LastReset(pawn.skills);
         var now = Find.TickManager.TicksGame;
         var midnightReset = 0;

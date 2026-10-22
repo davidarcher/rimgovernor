@@ -131,4 +131,21 @@ public sealed class ForecastSkillTests
             [new("expired", 100, Known(10d), SkillXpPath.NormalTracker)], 400).Xp.IsKnown);
         Assert.False(ForecastSkillPolicy.ForecastTerminalSkill(mechanics,
             [new("late", 101, Known(10d), SkillXpPath.NormalTracker)], 400).Xp.IsKnown);
+    }    [Theory]
+    [InlineData(205)]
+    [InlineData(250)]
+    public void RebasedLearningPreservesNominalHashPhaseBetweenTrackerCallbacks(int split)
+    {
+        var observed = Evidence() with
+        {
+            TrackerIntervalTicks = 15, TrackerPhase = 0, NextDecay = Known(200),
+            NextMidnightReset = Known(1000), Xp = Known(100d)
+        };
+        var continuous = ForecastSkillPolicy.ForecastSkill(observed, [], 605);
+        var first = ForecastSkillPolicy.ForecastSkill(observed, [], split);
+        var resumed = ForecastSkillPolicy.ForecastSkill(first.TerminalLearning, [], 605 - split);
+        Assert.True(resumed.Xp.IsKnown);
+        Assert.Equal(continuous.Xp, resumed.Xp);
+        Assert.Equal(continuous.TerminalLearning, resumed.TerminalLearning);
+        Assert.Equal(30, continuous.DecayLoss.Value);
     }}

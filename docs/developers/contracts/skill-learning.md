@@ -246,3 +246,7 @@ without writing them. Tailoring's GeneralLaborSpeed is a constant per-level curv
 dependency graph is skill-independent: Crafting XP does not fabricate a production-speed increase.
 The native stat differential checks the five productive speed families at every stored level beside
 the four existing medical curves.
+
+Terminal learning retains the nominal hash boundary for decay, separately from the tracker
+callback phase. A boundary can be just before the handoff while its callback is still pending;
+rebasing preserves that pending boundary and subsequent 200-tick spacing.

@@ -75,7 +75,8 @@ public static class ForecastSkillPolicy
             || !s.NextDecay.IsKnown || !s.ValidForTicks.IsKnown)
             return "learning_mechanics_unknown";
         if (s.TrackerIntervalTicks <= 0 || s.TrackerIntervalTicks > 15 || s.TrackerPhase < 0 || s.TrackerPhase >= s.TrackerIntervalTicks || s.NextMidnightReset.IsKnown && (s.NextMidnightReset.Value <= 0 || s.NextMidnightReset.Value > GameTime.TicksPerDay + s.DecayInterval.Value) || s.DecayInterval.Value <= 0 || s.DecayInterval.Value > GameTime.TicksPerDay
-            || s.NextDecay.Value <= 0 || s.NextDecay.Value > s.DecayInterval.Value + s.TrackerIntervalTicks
+            || s.NextDecay.Value <= -s.TrackerIntervalTicks || s.NextDecay.Value > s.DecayInterval.Value
+            || s.NextDecay.Value + (s.TrackerPhase - s.NextDecay.Value % s.TrackerIntervalTicks + s.TrackerIntervalTicks) % s.TrackerIntervalTicks <= 0
             || s.Levels.Count == 0 || s.StoredLevel.Value < 0 || s.StoredLevel.Value >= s.Levels.Count
             || s.Levels.Where((l, i) => l.Level != i || !double.IsFinite(l.RequiredXp) || l.RequiredXp <= 0
                 || !double.IsFinite(l.DecayXp) || l.DecayXp < 0).Any()

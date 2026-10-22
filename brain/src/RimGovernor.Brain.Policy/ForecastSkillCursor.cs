@@ -49,7 +49,7 @@ internal sealed class ForecastSkillCursor
     internal SkillLearning Rebase(int tick) => mechanics with
     {
         StoredLevel = Known(level), Xp = Known(xp), XpSinceMidnight = Known(midnight),
-        NextDecay = Known(DecayTick - tick),
+        NextDecay = Known(nextDecay - tick),
         NextMidnightReset = nextReset == int.MaxValue ? default : Known(nextReset - tick),
         TrackerPhase = (mechanics.TrackerPhase - tick % mechanics.TrackerIntervalTicks + mechanics.TrackerIntervalTicks) % mechanics.TrackerIntervalTicks,
         ValidForTicks = Known(Math.Max(0, mechanics.ValidForTicks.Value - tick)),
