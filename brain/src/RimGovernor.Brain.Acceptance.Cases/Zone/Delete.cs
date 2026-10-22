@@ -24,7 +24,7 @@ internal static class ZoneDelete
     {
         Name = "zone/delete",
         Scope = "ZoneIntents on operations_apply over a staged 2x2 hut interior: an allow-list stockpile with hit-point and "
-            + "quality ranges is created (its resend recovers the same receipt), patched (an unresolvable selector refused "
+            + "quality ranges is created (a second create over it refuses INVALID_REQUEST without adopting it), patched (an unresolvable selector refused "
             + "INVALID_REQUEST without a change), switched through the presets (indoor_only and outdoor_safe partition the "
             + "nonperishables; outdoor_safe_waste takes rotten corpses, not Cloth), loses and regains one corner (a missing "
             + "zone refused NOT_FOUND) and is deleted, each read back from observations_list_zones and the cell grid. The "
@@ -131,15 +131,12 @@ internal static class ZoneDelete
 
         await FilterAsync("filter-after-create", zoneId, "Important", ["Steel", "WoodLog"], 0.5, 1).ConfigureAwait(false);
 
-        // A lost reply resends the immutable placement key and recovers the receipt.
-        if (await AppliedAsync("zone-create", create).ConfigureAwait(false) != created)
+        // Native keeps no receipt replay (the in-process hop loses no reply): a second create over the zoned
+        // rectangle finds no free cell, refuses, and does not adopt the standing zone.
+        await RefusedAsync("zone-create-again", create, Common.FailureCode.InvalidRequest).ConfigureAwait(false);
+        if (await StateAsync("after-create-again", zoneId).ConfigureAwait(false) != afterCreate)
         {
-            throw new AcceptanceException("resend-create: the resent key returned a different receipt");
-        }
-
-        if (await StateAsync("after-create-resend", zoneId).ConfigureAwait(false) != afterCreate)
-        {
-            throw new AcceptanceException("resend-create: a standing create changed the zone");
+            throw new AcceptanceException("zone-create-again: a refused create changed the zone");
         }
 
         // --- settings ---
