@@ -74,7 +74,15 @@ pushes), or edit the main checkout. Details: [landing](docs/developers/developme
   the OTLP files.
 - Wire changes edit the records in `brain/src/RimGovernor.Brain.Contracts` (the C# source of truth since #3100);
   Delete removed fields outright:
-  no `reserved` fields/names and no compatibility shims.
+  no `reserved` fields/names and no compatibility shims. Shims kept only for older
+  saves are deletable without asking; regenerate the affected saves and fixtures.
+  Nothing outside the repo consumes PlayerApi/HTTP output: a field no in-repo code,
+  test or doc reads is dead even when a route serializes it.
+- The autopilot has full control of the colony. Never detect, exempt or preserve
+  player-made zones, buildings or edits; every room is a planned room in
+  `LayoutPlan`, so planned-rooms-only scope is correct. CAS tokens are stale-read
+  guards (re-read and retry), never ownership marks. Prefer frequent adjustment
+  over set-once geometry.
 - Use current vocabulary: Rounds inspect Concerns in Departments; Types are
   Standard, Project and Incident. Safeguards veto admission. See the
   [glossary](docs/developers/glossary.md).
@@ -85,6 +93,22 @@ pushes), or edit the main checkout. Details: [landing](docs/developers/developme
   needed. Native acceptance cases follow the
   [acceptance charter](docs/developers/testing/acceptance-guide.md#charter): one native
   claim, a staged precondition, a tick budget, typed reads and telemetry by kind constant.
+- Every game run (case, experiment, A/B, colony-review, speedmatrix) is the cheapest
+  run that answers its one claim: about a minute of wall time per case, under two
+  with startup. Inject state (needs, one- or two-repeat bills, staged designations)
+  instead of waiting out game time, and stop when the claim is observable. Never
+  raise a budget, stall or tick limit to get a pass; a run past its expected time
+  means stop and diagnose from the logs. Before a rerun, check build staleness,
+  current main and the existing result and logs. A run that cannot be redesigned
+  under about three minutes needs its cost stated and the user's OK first.
+- Run game checks yourself on this machine with `RimGovernor.cmd acceptance`; never
+  hand a run to the user. Dispatch `remote-acceptance.yml` only when the user asks
+  or the check needs a clean CI runner. Perf runs do not share the machine with
+  other game runs.
+- A rebuild-plus-run cycle costs 20+ minutes. Check compile-facing facts (ilspycmd
+  on `Assembly-CSharp.dll`, existing patterns) before rebuilding, never chain
+  rebuilds on guessed def names, and check a background run at its stated
+  expected duration.
 - Whole-module race/stress runs belong to the nightly. Concurrency fixes use
   focused race tests. Deadlines guard hangs, not latency; use synchronized
   events/game ticks for behavioral assertions. Do not rerun a full suite for a
@@ -113,6 +137,24 @@ pushes), or edit the main checkout. Details: [landing](docs/developers/developme
 - Use absolute harness paths. Detached Windows processes use
   `Start-Process -WindowStyle Hidden`; do not use sleep/poll shell loops.
   Remote setup and game-free checks are in the [runbook](docs/developers/agent-runbook.md#remote-agents).
+- Worktrees can vanish mid-run when another session cleans up; that is not a repo
+  bug. Commit early and often, and recover with `git worktree prune` then
+  `git worktree add` on the branch. When delegating, start a fresh agent per round
+  from a session branch synced to current main; do not resume a finished agent in
+  its stale worktree.
+- Write long issue bodies to a file and pass `gh ... --body-file`; inline shell
+  quoting breaks on apostrophes.
+
+## Working with the user
+
+- If any answer in a batch asks for discussion, nothing starts until an explicit
+  go: no edits, runs or agents. Approvals of the other items do not count.
+- For a design question, check each option against the code first (its readers,
+  how many model runs it costs), then write out in prose what each option changes,
+  costs and gets wrong, with a recommendation and reasons. Do not reduce major
+  design choices to one-line multiple-choice labels.
+- Issue comments are status: a sentence on what landed and what remains, plus the
+  commit. No file-by-file narratives.
 
 ## Leave a maintainable result
 
