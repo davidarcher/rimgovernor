@@ -87,7 +87,7 @@ public sealed class TypedSession
     public Task<TReply> FixtureAsync<TRequest, TReply>(string label, FixtureOp<TRequest, TReply> op, TRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(op);
-        if (!_case.Ops.Contains(op.Tool, StringComparer.Ordinal))
+        if (!_case.Declares(op.Tool))
         {
             throw new AcceptanceException($"{label}: case {_case.Name} calls {op.Tool} without declaring it in Ops");
         }

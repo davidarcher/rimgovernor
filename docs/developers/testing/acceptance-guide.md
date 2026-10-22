@@ -55,7 +55,8 @@ identity), `Staged` and `TicksLeft`. Its members:
 
 - **Calls:** `CallAsync(label, NativeOps.<Op>, request)` takes a Contracts request record and returns the reply
   record. `FixtureAsync(label, FixtureOp<,>, request)` calls a bespoke op declared in `Ops`, and `StageAsync(label,
-  spec)` re-stages mid-case.
+  spec)` re-stages mid-case (a case with a `Stage` already requires `test/stage`; one without
+  declares it in `Ops`).
 - **Reads:** `BuildingsAsync`, `ZonesAsync` and `GrowingZonesAsync` run over `TypedReads`, and
   `TypedReads.Observed` unwraps a read's `observed` arm.
 - **Waits:** `RunTicksAsync`, `RunUntilAsync` (a `Probe` signature) and `RunUntilEventAsync` (a telemetry row).

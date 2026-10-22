@@ -95,6 +95,19 @@ public sealed class TypedCaseTests
     }
 
     [Fact]
+    public void AStagedCaseMayRestageWithoutListingTestStage()
+    {
+        // #3699: wall/removal and wall/deconstruct stage a precondition and re-stage mid-case without listing test/stage.
+        var staged = Lab(600) with { Stage = new Fx.StageSpec(), Ops = ["test/other"] };
+
+        Assert.True(staged.Declares(FixtureStage.Tool));
+        Assert.Contains(FixtureStage.Tool, staged.ToCase().FixtureOps());
+        Assert.True(staged.Declares("test/other"));
+        Assert.False(staged.Declares("test/undeclared"));
+        Assert.False(Lab(600).Declares(FixtureStage.Tool));
+    }
+
+    [Fact]
     public void TiersAreWhatTheCasesDeclare()
     {
         var registry = new CaseRegistry();

@@ -50,7 +50,10 @@ public sealed record TypedCase
     /// <summary>The precondition (rule 2), applied by <c>test/stage</c> on the opened <see cref="Start"/>; its reply is <see cref="TypedSession.Staged"/>.</summary>
     public Fx.StageSpec? Stage { get; init; }
 
-    /// <summary>The fixture ops the body calls (<see cref="TypedSession.FixtureAsync"/>, or <c>test/stage</c> for <see cref="TypedSession.StageAsync"/>).</summary>
+    /// <summary>
+    /// The fixture ops the body calls (<see cref="TypedSession.FixtureAsync"/>, or <c>test/stage</c> for
+    /// <see cref="TypedSession.StageAsync"/>); a case with a <see cref="Stage"/> already requires <c>test/stage</c> for its start.
+    /// </summary>
     public IReadOnlyList<string> Ops { get; init; } = [];
 
     /// <summary>The colonists the case runs with: superpawns unless Ordinary, which the Scope's claim must need.</summary>
@@ -93,6 +96,13 @@ public sealed record TypedCase
     /// A passing claim never fails on wall time.
     /// </summary>
     public TimeSpan HangGuard => TimeSpan.FromSeconds((double)Ticks / HangGuardTicksPerSecond) + HangGuardMargin + (LaunchAllowance * (ClaimsStart?.Launches ?? 0));
+
+    /// <summary>
+    /// Whether the body may call the fixture op <paramref name="tool"/>: it is in <see cref="Ops"/>, or it is <c>test/stage</c>
+    /// and the case declares a <see cref="Stage"/>, whose start makes the installed build register it before the body runs.
+    /// </summary>
+    public bool Declares(string tool) =>
+        Ops.Contains(tool, StringComparer.Ordinal) || (Stage is not null && string.Equals(tool, FixtureStage.Tool, StringComparison.Ordinal));
 
     /// <summary>The shape check registration applies; throws <see cref="AcceptanceException"/> on the first violation.</summary>
     public void Validate()
