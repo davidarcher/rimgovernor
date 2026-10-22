@@ -77,6 +77,11 @@ public static class ForecastResiduals
                 : result;
         }).ToArray();
     }
+    private static string EvidenceReason(ForecastResidual row) =>
+        row.Reason == "unknown_prediction" && row.Prediction.UnknownReason.Length > 0 ? row.Reason + ":" + row.Prediction.UnknownReason
+        : row.Reason is "unknown_observation" or "missing_completion_evidence" && row.Observation is { UnknownReason.Length: > 0 } observation
+            ? row.Reason + ":" + observation.UnknownReason : row.Reason;
+
     public static IReadOnlyList<ForecastResidualSummary> Summarize(IEnumerable<ForecastResidual> rows)
     {
         ArgumentNullException.ThrowIfNull(rows);
@@ -94,9 +99,7 @@ public static class ForecastResiduals
                     scalar.Length == 0 ? null : scalar.Average(Math.Abs),
                     mean is null ? null : Math.Sqrt(scalar.Average(v => (v - mean.Value) * (v - mean.Value))),
                     lag.Length == 0 ? null : lag.Average(),
-                    g.GroupBy(r => r.Reason).ToDictionary(r => r.Key, r => r.Count(), StringComparer.Ordinal));
+                    g.GroupBy(EvidenceReason).ToDictionary(r => r.Key, r => r.Count(), StringComparer.Ordinal));
             }).ToArray();
     }
 }
-
-

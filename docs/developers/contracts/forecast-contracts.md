@@ -1176,3 +1176,32 @@ endpoint. Observation lag remains visible even when it prevents aligned scalar
 statistics. Timing and execution divergence are separate: a matched operational
 outcome under interrupted or replaced work is not execution-consistent model
 error. Normal replanning alone does not establish that the relevant work changed.
+
+Live capture runs after the existing coupled admission decision, retaining the
+original selected portfolio even when dispatch filters protected incumbents.
+Each Rounds revision is captured once; review identity includes a reset epoch so
+rewinds cannot reuse an old correlation key. Task rows carry the actual Method and
+revision when a binding exists. Deferred/unplaced tasks without that binding
+report `task_execution_identity_unavailable`. Refused proposal tasks remain
+not executed; incumbent tasks retain continued admission independently.
+
+Fresh review reads resolve food/rest levels and actual mood at the first review
+on or after the target tick. Lag is retained, with no interpolation. Shelter
+samples require the same canonical interior-cell geometry and complete, uniform
+native temperature coverage; geometry changes and missing coverage are gaps.
+The outcome currently has no terminal resource balance, so food-stock predictions
+report `food_stock_prediction_unavailable`; current stock is never substituted.
+
+The Player's pending owner keeps at most 4096 compact rows, expiring one game day
+after their target. Capacity evicts oldest origin first, ties by review/sample;
+retirement emits `pending_capacity`, `pending_expired`, `world_changed`, or
+`tick_rewind`. No contexts, candidate graphs, native reads or scheduler wakes are
+added. OTLP retains history; disposal or ring rotation can leave unmatched rows.
+
+Existing native task reads supply completion intervals only after a positively
+observed unfinished task, never from admission or a generic poll/state-transition
+timestamp. A first completed read without that bound is an explicit gap. Same
+Method/revision task execution with both endpoints can enter the consistent task
+cohort; global needs/mood/thermal rows remain unknown absent sufficient execution
+evidence. Detected interruption or replacement is propagated to affected pawn
+rows. Unchanged reviews alone neither prove consistency nor mark replacement.

@@ -8,6 +8,9 @@ public sealed partial class Rounder
         CancellationToken call, CancellationToken epoch)
     {
         if (review.Needs.CoupledSelection is not { } selection || facts.CoupledAlternatives is not { } candidates) return;
+        var forecast = selection;
+        void Capture(ForecastAdmission admission, PawnActivities? batch = null) => Player.ForecastEvidence.Capture(snapshot, facts.Tick.Value, review.Review.Revision, forecast,
+            candidates.Context, admission, batch is null ? incumbents.Select(i => i.Batch).ToArray() : [batch, .. incumbents.Select(i => i.Batch)], batch?.Orders.FirstOrDefault()?.Method ?? "");
         var execution = ForecastCoupledExecution.ReviewCoupledExecution(selection, incumbents, facts.Tick.Value, candidates.Context.Activities.Activities, candidates);
         if (execution.Releases.Count > 0)
         {
@@ -21,20 +24,21 @@ public sealed partial class Rounder
                         [DomainAction.NewPawnActivitiesAction(new ActionId($"{next}-0"), release.Batch)]), call);
             }
             // The released pawn waits for fresh native ownership evidence; the rest of the selection is admitted now (#3598).
-            if (execution.Dispatch is null) { RecordCoupledSelection(selection, facts.Tick.Value, "release_for_reconsideration"); return; }
+            if (execution.Dispatch is null) { Capture(ForecastAdmission.Selected); RecordCoupledSelection(selection, facts.Tick.Value, "release_for_reconsideration"); return; }
         }
         if (execution.Dispatch is not { } dispatch)
-        { RecordCoupledSelection(selection, facts.Tick.Value, "retained_method_future_work", true); return; }
+        { Capture(ForecastAdmission.Continued); RecordCoupledSelection(selection, facts.Tick.Value, "retained_method_future_work", true); return; }
         selection = dispatch;
         if (selection.Selection.Selected.Length == 0)
-        { RecordCoupledSelection(selection, facts.Tick.Value, "continue", facts.CoupledWorkActive); return; }
+        { Capture(ForecastAdmission.Continued); RecordCoupledSelection(selection, facts.Tick.Value, "continue", facts.CoupledWorkActive); return; }
         // The activity is the admin/work-assignments Need's Method (#3304); a runtime without the Need starts none.
-        if (!Needs.Contains(AdminFamily.WorkAssignments)) return;
+        if (!Needs.Contains(AdminFamily.WorkAssignments)) { Capture(ForecastAdmission.Selected); return; }
         var id = PlanIds.MintPlanId();
         var method = new MethodId($"coupled-{id}");
         var activity = ForecastCoupledSelection.StartCoupledActivity(selection, candidates, snapshot.Native.Value, method.Value, facts.Tick.Value);
         if (activity is null)
         {
+            Capture(ForecastAdmission.Selected);
             // Selected planned sites start no order: the room reconcile places them from the review's RoomSelection (#3278).
             if (selection.Selected.PlannedRooms.Count > 0) RecordCoupledSelection(selection, facts.Tick.Value, "planned_unplaced");
             return;
@@ -45,6 +49,7 @@ public sealed partial class Rounder
         // or interrupt the useful Methods whose current claims prevented it.
         var commit = Player.Journal.CommitClaimedMethod(AdminFamily.WorkAssignments, snapshot, method, "shared colony consequence portfolio",
             new PlanSpec(id, new PlanRevision(1), [DomainAction.NewPawnActivitiesAction(new ActionId($"{id}-0"), activity)]), call);
+        Capture(commit.Conflict is not null || commit.Refusal is not null ? ForecastAdmission.Refused : ForecastAdmission.Admitted, activity);
         RecordCoupledSelection(selection, facts.Tick.Value, method.Value, admissionFailure: commit.Conflict?.Reason ?? commit.Refusal?.Message);
     }
 

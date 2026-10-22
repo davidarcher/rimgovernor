@@ -388,3 +388,11 @@ final lines and rotation races are visible gaps; duplicate records are reported.
 A fully evicted prediction/observation pair cannot be reconstructed or counted.
 An empty ring yields `no_predictions`, never an accuracy claim. Capture complete
 measurement logs before rotation when a complete experimental sample is needed.
+
+Live capture emits the registered prediction/observation kinds from Rounds and
+existing task readback. Each sample resolves once, with lifecycle/capacity/expiry
+loss represented as an unknown observation. Summary reason counts retain the
+specific `unknown_reason` suffix for unknown prediction, observation and task
+completion rows, making coverage/retention gaps countable. See
+[residual matching](forecast-contracts.md#residual-matching) for current coverage,
+execution evidence and deterministic pending bounds.
