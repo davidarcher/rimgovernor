@@ -27,6 +27,7 @@ public static class FixtureJson
 [JsonSerializable(typeof(GearPruneReply))]
 [JsonSerializable(typeof(ApplyRefusalPrepared))]
 [JsonSerializable(typeof(RuntimeFaultReply))]
+[JsonSerializable(typeof(ShutdownCleanupReply))]
 [JsonSerializable(typeof(RecoveryAreaReply))]
 [JsonSerializable(typeof(MapScopeReply))]
 [JsonSerializable(typeof(DeepResourcesReply))]

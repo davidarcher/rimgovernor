@@ -67,6 +67,7 @@
     <Compile Include="../../../../scripts/fixtures/TradeFixture.cs" Condition="'$(TradeFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/EmergencyDevelopmentFixture.cs" Condition="'$(EmergencyDevelopmentFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/RuntimeFaultFixture.cs" Condition="'$(RuntimeFaultFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/ShutdownCleanupFixture.cs" Condition="'$(ShutdownCleanupFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/MapScopeFixture.cs" Condition="'$(MapScopeFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/VanillaChopFixture.cs" Condition="'$(VanillaChopFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/PreemptHaulFixture.cs" Condition="'$(PreemptHaulFixture)' == 'true'" />

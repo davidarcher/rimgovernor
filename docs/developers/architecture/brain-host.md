@@ -904,12 +904,17 @@ Decided (user, 2026-10-13):
 
 - **Who starts it.** `BrainBootstrap.Start` (Bridge, `Protocol/`), called once by the mod's one startup,
   `NativeStartup` ([native facade](native-facade.md)). Without `-rimgovernor-inproc`
-  (`InProcLaunch.Requested(Environment.GetCommandLineArgs())`) it does nothing: no thread, database or file. With it,
+  (`InProcLaunch.Requested(Environment.GetCommandLineArgs())`) it creates no brain thread, database or file; the engine-quit cleanup hook still runs. With it,
   one task polls the game thread (a facade hop, so it is also "not yet" until the host has set up game-thread access)
   until `PlayDataLoader.Loaded` and the Defs exist, for up to 20 minutes; resolves the environment; takes the route
   table; and calls `BrainHost.StartAsync`. Every failure is logged and none reaches the loading host. The brain lives
-  per process, not per save. `ProcessExit` stops it within 15 s (one drain attempt of 8 s instead of the host's
-  3 x 10 s, which would hold the game's exit hostage).
+  per process, not per save. The engine's `ShuttingDown` callback cancels and joins startup, then stops the brain
+  off-thread while the game thread drains the existing native request queue (15 s hang guard, one 8 s drain attempt).
+  Only after a successful stop does it call `Game.Dispose` and clear `Current.Game`, before engine jobs and native
+  allocations are torn down. Menu/load disposal remains the game's normal path and does not stop the process-wide brain.
+  `lifecycle/shutdown-cleanup` invokes the installed engine quit delegates on a loaded lab and verifies the brain is
+  stopped, the map is disposed, `Current.Game` is cleared, and native allocation bytes fall before the engine sweep.
+  A second notification verifies idempotency; `native-shutdown` covers the final-hop deadlock and failed/hung stops.
 - **Routes.** `HttpChannelBootstrap.Routes` completes with the one `RouteTable` the running channel serves (null when
   it will not run: `RIMGOVERNOR_OTLP_DIR` unset, or the start failed). The brain passes it as
   `BrainHostOptions.Routes`, so `/player/*` shares the endpoint file and request guard with `/native/*`. With no

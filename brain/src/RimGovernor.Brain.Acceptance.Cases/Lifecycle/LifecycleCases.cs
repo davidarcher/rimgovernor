@@ -15,6 +15,7 @@ public static class LifecycleCases
         registry.Register(LifecycleIdeoligionShared.Case());
         registry.Register(LifecycleThemeColony.Case());
         registry.Register(LifecycleShutdown.Case());
+        registry.Register(LifecycleShutdownCleanup.Case());
         registry.Register(LifecycleRuntimeFault.Case());
         registry.Register(LifecycleLoad.Case());
         registry.Register(LifecycleNewColony.Case());
