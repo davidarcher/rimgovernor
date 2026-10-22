@@ -82,6 +82,7 @@ public sealed record ForecastCoupledContext
     /// set beside <see cref="Investment"/>; unknown before tier 2 ran, which credits nothing.</summary>
     public Fact<double> InvestmentHorizonDays { get; init; }
     public EquatableArray<ForecastMaterialLot> InitialLots { get; init; }
+    public EquatableArray<CoupledFoodUse> FoodUses { get; init; }
     public EquatableArray<ForecastNeedTask> NeedTasks { get; init; }
     /// <summary>Observed retained waiting occupies time but is not productive labor or a need service.</summary>
     public EquatableArray<string> NonproductiveOccupancy { get; init; }

@@ -16,8 +16,17 @@ public static class ForecastLiveEvidence
             string reason, string method = "", string task = "", long revision = 0, ForecastAdmission? status = null) =>
             new(new(run, load, map, review, $"{metric}/{subject}/{task}", metric, subject, scope, unit, method, task, revision),
                 tick, target, value, value.IsKnown ? "" : reason, status ?? admission);
-        // The selected outcome exposes no terminal resource balance. A census or another forecast is not that prediction.
-        yield return Row(ForecastMetric.FoodStock, "unavailable", "terminal_resource_balance_unavailable", "items", default, "food_stock_prediction_unavailable");
+        if (selection.Selected.Terminal is { } terminal)
+        {
+            var resources = terminal.Request.Facts.Food.Stocks.Select(s => s.DefName)
+                .Concat(terminal.Lots.Where(l => l.FoodEligible != Known(false)).Select(l => l.Resource)).Where(r => !string.IsNullOrEmpty(r.Value)).Distinct().OrderBy(r => r.Value, StringComparer.Ordinal).ToArray();
+            if (resources.Length == 0 && terminal.FoodComplete != Known(true))
+                yield return Row(ForecastMetric.FoodStock, "unavailable", ForecastStockScope.Food, "items", default, "food_stock_census_unknown");
+            foreach (var resource in resources)
+                yield return Row(ForecastMetric.FoodStock, resource.Value, ForecastStockScope.Food, "items",
+                    terminal.FoodComplete == Known(true) ? ForecastStockScope.Count(terminal.Lots, resource) : default, "food_stock_census_or_lot_unknown");
+        }
+        else yield return Row(ForecastMetric.FoodStock, "unavailable", ForecastStockScope.Food, "items", default, "food_stock_prediction_unavailable");
         foreach (var pawn in context.Needs.Pawns)
         {
             selection.Selected.Needs.TryGetValue(pawn.Pawn, out var needs);
@@ -46,7 +55,7 @@ public static class ForecastLiveEvidence
         string.Join(";", cells.OrderBy(c => c.X).ThenBy(c => c.Z).Select(c => $"{c.X},{c.Z}")))));
 
     public static ForecastObservation Observe(ForecastPrediction prediction, long tick, NeedsForecastRead? needs,
-        ForecastCoupledContext? context, ForecastExecution execution)
+        ForecastCoupledContext? context, ForecastExecution execution, FoodSupply? food = null)
     {
         var key = prediction.Key;
         Fact<double> value = default;
@@ -69,7 +78,12 @@ public static class ForecastLiveEvidence
                     value = temperatures[0];
             }
         }
-        else if (key.Metric == ForecastMetric.FoodStock) reason = "food_stock_prediction_unavailable";
+        else if (key.Metric == ForecastMetric.FoodStock)
+        {
+            reason = key.Scope != ForecastStockScope.Food ? "food_stock_scope_mismatch" : "fresh_food_census_unavailable";
+            if (key.Scope == ForecastStockScope.Food && food is not null)
+            { value = ForecastStockScope.Count(food, new(key.Subject)); reason = "food_stock_census_or_eligibility_unknown"; }
+        }
         return new(key, tick, value, value.IsKnown ? "" : reason, execution, ForecastCompletion.NotApplicable,
             default, default, "rounds_native_observation");
     }

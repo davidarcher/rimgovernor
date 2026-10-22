@@ -35,7 +35,7 @@ internal sealed class ForecastEvidencePending
     }
     internal int Count { get { lock (_gate) return _pending.Count; } }
 
-    internal void Review(GenerationSnapshot scope, long tick, O.NeedsForecastRead? needs, ForecastCoupledContext? context)
+    internal void Review(GenerationSnapshot scope, long tick, O.NeedsForecastRead? needs, ForecastCoupledContext? context, FoodSupply? food = null)
     {
         var emit = new List<ForecastObservation>();
         lock (_gate)
@@ -53,7 +53,7 @@ internal sealed class ForecastEvidencePending
                 if (tick > row.Prediction.TargetTick + ExpiryTicks)
                     emit.Add(ForecastLiveEvidence.Gap(row.Prediction, tick, "pending_expired", row.Execution));
                 else if (key.Metric != ForecastMetric.TaskCompletion && tick >= row.Prediction.TargetTick)
-                    emit.Add(ForecastLiveEvidence.Observe(row.Prediction, tick, needs, context, row.Execution));
+                    emit.Add(ForecastLiveEvidence.Observe(row.Prediction, tick, needs, context, row.Execution, food));
                 else continue;
                 _pending.Remove(key);
             }

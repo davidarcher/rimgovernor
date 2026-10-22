@@ -318,6 +318,7 @@ public sealed partial record ForecastCoupledCandidates
             PlannedRoomRoles = PlannedRoomRolesOf(facts),
             Closures = closures,
             InitialLots = EquatableArray.From(lots),
+            FoodUses = read.FoodUses,
             Bindings = bindings,
             CapacityPenalties = facts.CapacityPenalties,
             Value = ForecastValuePolicy.For(facts.Preferences),

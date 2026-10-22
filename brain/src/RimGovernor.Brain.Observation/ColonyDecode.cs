@@ -513,7 +513,7 @@ public static class ColonyDecodeReads
             }
             if (complete)
             {
-                f = f with { Resources = Known(EquatableArray.From(rows)) };
+                f = f with { Resources = Known(EquatableArray.From(rows)), ResourceThings = v.ResourceThings is { } identities ? Known(identities) : default };
             }
         }
         r = r with { Resources = StockCensus(v) };

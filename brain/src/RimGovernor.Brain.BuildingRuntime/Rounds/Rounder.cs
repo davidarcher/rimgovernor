@@ -750,7 +750,8 @@ public sealed partial class Rounder
         stages.Lap("acquisition");
         var result = await p.Journal.ReviewRoundsAsync(new RoundsRequest { Revision = previous.Revision, Current = state.Snapshot, Tick = reading.Projection.Identity.Tick, Enabled = true, Policy = Policy, Facts = reading.Projection.Facts }, ct).ConfigureAwait(false);
         stages.Lap("review");
-        p.ForecastEvidence.Review(state.Snapshot, reading.Projection.Facts.Tick.Value, reading.Projection.Facts.ForecastObserved.Needs, reading.Projection.Facts.CoupledAlternatives?.Context);
+        p.ForecastEvidence.Review(state.Snapshot, reading.Projection.Facts.Tick.Value, reading.Projection.Facts.ForecastObserved.Needs, reading.Projection.Facts.CoupledAlternatives?.Context,
+            reading.Projection.CombinedFoodSupply.TryGetValue(out var observedFood) ? observedFood : null);
         Demand.Set(result.Review.Snapshot, result.Needs.ResourceDemand);
         TradeMemory.Set(result.Review.Snapshot, result.Needs.Trade);
         WorkAssignments.Set(result.Review.Snapshot, result.Needs.WorkAssignments);

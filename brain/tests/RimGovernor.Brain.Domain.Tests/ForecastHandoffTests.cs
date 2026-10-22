@@ -35,7 +35,7 @@ public sealed class ForecastHandoffTests
     {
         commitments ??= new Dictionary<string, ForecastCommitment>();
         return ForecastHandoffPolicy.Project(request, commitments, outcome ?? Outcome(), stock,
-            new Dictionary<string, double> { ["research"] = 50 }, ForecastCoupledMaterials.MaterialHoldsOf(request, commitments));
+            new Dictionary<string, double> { ["research"] = 50 }, ForecastCoupledMaterials.MaterialHoldsOf(request, commitments), new(request, commitments, stock, new Dictionary<string, double>(), null) { FoodComplete = Known(true), MedicineComplete = true, PhysicalCensusComplete = true, Lots = EquatableArray.From(stock.Select(p => new ForecastTerminalLot(p.Key.Value, p.Key, p.Value, Known(double.PositiveInfinity), Known(p.Key == Food), Known(p.Key == Food ? .5 : 0), [], p.Key == Medicine))) });
     }
 
     [Fact]
@@ -110,14 +110,14 @@ public sealed class ForecastHandoffTests
     }
 
     [Fact]
-    public void IncompatibleFoodCensusDoesNotBorrowMaterialCensusNutrition()
+    public void EligibleTerminalLotsDoNotDependOnAnAggregateCensusEquality()
     {
         var request = Request();
         request = request with { Coupled = request.Coupled! with { ModelBasis = request.Coupled.ModelBasis! with
         { Input = request.Coupled.ModelBasis.Input with { Stocks = request.Coupled.ModelBasis.Input.Stocks with { Nutrition = Known(4d) } } } } };
         var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(10d), [Medicine] = Known(3d) });
-        Assert.False(handoff.State.Nutrition.IsKnown);
-        Assert.Contains("terminal_food_census_scope_mismatch", handoff.Gaps);
+        Assert.Equal(5d, handoff.State.Nutrition.Value);
+        Assert.DoesNotContain("terminal_food_census_scope_mismatch", handoff.Gaps);
     }
     [Fact]
     public void LinkedOwnerDebitReleasesOnlyItsHold()

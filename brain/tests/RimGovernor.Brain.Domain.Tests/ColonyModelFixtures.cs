@@ -57,6 +57,7 @@ internal static class ColonyModelFixtures
     {
         Facts = new RoundsFacts
         {
+            ResourceThings = Known<EquatableArray<string>>(["m1"]),
             Gear = Known(new GearObservation { Pawns = [new GearPawn { Climate = Climate() }] }),
             Calendar = Known(new Calendar { GrowingYear = EquatableArray.From(Enumerable.Repeat(true, CalendarRules.YearDays)), Season = "Spring", DayOfYear = 12, GrowingDays = 40, GrowingDaysRemaining = 25, GrowingDaysUntil = 0, NonGrowingDays = 0 }),
             Research = Known(new ResearchFacts
@@ -97,7 +98,7 @@ internal static class ColonyModelFixtures
             CurrentConstruction = Known(new CurrentConstruction()),
             PlannedSites = Known(new PlannedSiteFacts()),
         },
-        CombinedFoodSupply = Known(new FoodSupply { Complete = Known(true), Stocks = [new RimGovernor.Brain.Policy.FoodStock { Id = "meal", Nutrition = Known(12.5) }] }),
+        CombinedFoodSupply = Known(new FoodSupply { Complete = Known(true), Consumers = [new() { Id = new("Anna"), NutritionPerDay = Known(1d) }], Stocks = [new RimGovernor.Brain.Policy.FoodStock { Id = "meal", Nutrition = Known(12.5), Holder = Known(new PawnId("")), Perishable = Known(false), Eaters = [new("Anna")] }] }),
         Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new Resource("Steel")] = 120, [new Resource(Cloth)] = 0 }),
         Definitions = [CropRow()],
         Farms = [new FarmZoneFact { Id = "zone1", Crop = Crop }],

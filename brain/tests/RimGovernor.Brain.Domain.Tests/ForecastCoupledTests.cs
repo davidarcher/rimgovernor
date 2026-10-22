@@ -650,7 +650,7 @@ public sealed class ForecastCoupledTests
     }
 
     [Fact]
-    public void UnboundExternalOutputCannotFinanceKnownPhysicalInputs()
+    public void ExternalOutputCarriesStockButDoesNotInventBindingsForUnavailableInputs()
     {
         var facts = ConstructionReview(stock: 0);
         Assert.DoesNotContain(facts.CoupledAlternatives!.Alternatives, c => Original(c, "site-0-finish"));
@@ -658,7 +658,7 @@ public sealed class ForecastCoupledTests
             [new("external", [new(new("Rice"), Known(0.0), Known(100.0))])], new());
         var result = ColonyForecastRules.ForecastColony(request).Proposed.Coupled!.Alternatives;
         Assert.All(result, p => Assert.Empty(p.Plan.Allocations));
-        Assert.All(result, p => Assert.Contains(p.Findings, f => f.Reason == "unbound_external_output"));
+        Assert.All(result, p => Assert.Equal(100, Assert.Single(p.Terminal!.Lots, l => l.Resource == new Resource("Rice")).Count.Value));
     }
     [Fact]
     public void OmittedSheltersRemainVisibleAsGenerationAndScenarioTruncation()

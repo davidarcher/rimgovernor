@@ -90,6 +90,7 @@ namespace HomeBridge.BridgeTools
             var demand = people.Sum(p => p.needs?.food == null ? 0.0 : GameTime.PerDay((double)p.needs.food.FoodFallPerTickAssumingCategory(HungerCategory.Fed, true)));
             Span("cf.nutrition");
             var result = new Obs.ColonyFactsSnapshot { Context = context, ColonistCount = (uint)people.Count,
+                ResourceThings = RimGovernor.Brain.Domain.EquatableArray.From(items.Select(t => t.GetUniqueLoadID()).OrderBy(id => id, StringComparer.Ordinal)),
                 WorkerCount = (uint)workers.Count, MapSize = Size(map), Biome = map.Biome.defName,
                 PlayerTechLevel = (Defs.TechLevel)(int)player.def.techLevel,
                 FermentingBarrels = (uint)things.OfType<Building_FermentingBarrel>().Count(b => b.Faction == player && !b.IsForbidden(player) && reachable(b)),

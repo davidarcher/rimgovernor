@@ -5,8 +5,10 @@ public sealed record ColonyForecastFacts
 {
     /// <summary>Complete observed resource census. Known empty means zero stock, not unavailable.</summary>
     public Fact<EquatableArray<Amount>> Stock { get; init; }
+    public Fact<EquatableArray<string>> ResourceThings { get; init; }
 
     public FoodSupply Food { get; init; } = new();
+    public MedicalReserveObservation Medicine { get; init; } = new();
 
     public IReadOnlyList<PowerNetworkFact> Power { get; init; } = [];
 

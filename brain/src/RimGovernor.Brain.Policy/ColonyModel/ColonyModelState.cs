@@ -24,6 +24,8 @@ public sealed record ColonyModelState
     public double Day { get; init; }
     public double EndDay { get; init; }
     public Fact<double> Nutrition { get; init; }
+    /// <summary>Research produced since the original review, separate from each project's remaining work.</summary>
+    public double ResearchPoints { get; init; }
     public Fact<EquatableArray<ModelResourceStock>> Materials { get; init; }
     public Fact<EquatableArray<ModelResourceStock>> Medicine { get; init; }
     public Fact<EquatableArray<ModelResourceStock>> ExternalHolds { get; init; }
@@ -62,7 +64,7 @@ public sealed record ColonyModelState
 
         var materialRows = materialKnown ? materials : EquatableArray.From<ModelResourceStock>([]);
         var medicineRows = medicineKnown ? medicine : EquatableArray.From<ModelResourceStock>([]);
-        if (!double.IsFinite(nutrition) || nutrition < 0 || materialRows.Concat(medicineRows).Concat(holds).Any(a => !double.IsFinite(a.Count) || a.Count < 0))
+        if (!double.IsFinite(nutrition) || nutrition < 0 || !double.IsFinite(ResearchPoints) || ResearchPoints < 0 || materialRows.Concat(medicineRows).Concat(holds).Any(a => !double.IsFinite(a.Count) || a.Count < 0))
         {
             return "colony_model_stock_invalid";
         }

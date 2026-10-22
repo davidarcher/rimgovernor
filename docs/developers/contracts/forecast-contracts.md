@@ -1189,8 +1189,9 @@ Fresh review reads resolve food/rest levels and actual mood at the first review
 on or after the target tick. Lag is retained, with no interpolation. Shelter
 samples require the same canonical interior-cell geometry and complete, uniform
 native temperature coverage; geometry changes and missing coverage are gaps.
-The outcome currently has no terminal resource balance, so food-stock predictions
-report `food_stock_prediction_unavailable`; current stock is never substituted.
+Food-stock predictions use the selected evaluator's retained eligible per-resource lots.
+Later reviews count the same map food-supply scope: nonreserve, native diet and holder eligibility.
+Incomplete census, unknown eligibility, expiry or quantities remain named gaps. Current stock is never substituted for a prediction.
 
 The Player's pending owner keeps at most 4096 compact rows, expiring one game day
 after their target. Capacity evicts oldest origin first, ties by review/sample;
@@ -1214,7 +1215,7 @@ It uses the acceptance charter's typed horizon observation declaration and never
 completion, or extra review wakes. `ForecastEvidenceReader` decodes the registered prediction and observation
 kinds; the case requires known native food/rest/mood values and a genuinely completed task (a bounded
 completion interval is sufficient). Its result retains identity, origin/target/read ticks, provenance,
-execution cohorts, timing mismatches and named unknowns. Food-stock prediction coverage remains unavailable;
+execution cohorts, timing mismatches and named unknowns. The case also requires a known per-resource food-stock prediction and native observation;
 when no shelter prediction exists, the report names that gap. This proves correlation, not prediction accuracy.
 The full retained-window report can also be generated with `RimGovernor.cmd forecastresiduals -logs <logs.jsonl>`.
 
@@ -1266,7 +1267,7 @@ valuation are owned by #3719, with partial-room continuation in #3709.
 
 ### Detailed terminal handoff
 
-The detailed evaluator retains only its final physical resource balances and
+The detailed evaluator retains its final physical resource balances, eligible food and medicine lots, and
 successful completion times, from the same inventory walk that produces its
 findings. `ForecastHandoffPolicy.Project` projects a selected outcome into
 `ColonyModelState`; search does not run model, growth or skill projections for
@@ -1278,9 +1279,12 @@ still uses the existing marginal comparison.
 Physical stock includes holds and excludes consumption. Shared-owner budget
 projection releases only linked bill/debit holds; unrelated holds remain.
 Construction delivery removes paid construction demand rather than charging it
-again. Medicine and edible nutrition are carried only when their census scopes
-match the resource census; edible stocks also require complete lot/expiry
-coverage. Unknown quantities remain unknown, never zero. Project work is taken
+again. Food and medicine retain their own eligible lot census instead of requiring equality with all material stock.
+The existing native resource census also carries its exact thing identities, so unreachable medicine and held/forbidden food cannot debit loose material stock.
+The same detailed ledger applies production, oldest-first unbound debits, spoilage and continuous native demand from consumers without a pawn timeline.
+Their observed daily demand continues in the long-term engine; it does not disappear at handoff.
+Held food and forbidden reserves are not loose material debits. New output carries observed dietary eligibility and shelf life; deliveries retain the original lot expiry.
+Scheduled physical effects retain resource identity and apply once before handoff, converting nutrition to item units through observed catalog nutrition. Aggregate research points retain their original-review accumulation alongside project remaining work. Unknown native quantities, eligibility and expiry remain unknown, never zero. Project work is taken
 only from successfully evaluated allocations. Research completion integrates
 concurrent work. Each completed sown cell retains its native callback completion
 date. The handoff's `Graph` expands the field into age cohorts and its remaining

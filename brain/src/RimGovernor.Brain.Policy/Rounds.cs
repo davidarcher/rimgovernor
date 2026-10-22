@@ -513,6 +513,7 @@ public sealed record RoundsFacts
 
     /// <summary>The generic reachable, unforbidden player item census (the same colony facts rows Wood is taken from), so the economy/resource Need's deficit is measured at review time instead of assumed from config.</summary>
     public Fact<EquatableArray<Amount>> Resources { get; init; }
+    public Fact<EquatableArray<string>> ResourceThings { get; init; }
 
     public IReadOnlyDictionary<Resource, Fact<long>>? ResourceSurfaceOre { get; init; }
 

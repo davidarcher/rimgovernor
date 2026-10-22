@@ -75,7 +75,7 @@ public static partial class ForecastCoupled
     /// integer key. Each memo is keyed by exactly the completed rows its result reads (the shelter prerequisites, the
     /// development tasks by pawn, the support services), so schedules that differ elsewhere share it.
     /// </summary>
-    internal sealed class CoupledSearchCache
+    internal sealed partial class CoupledSearchCache
     {
         internal ForecastActivities.RouteIndex Routes { get; } = new();
 
@@ -280,7 +280,7 @@ public static partial class ForecastCoupled
         private readonly List<(Resource Resource, Fact<double> Day, Fact<double> Units)> effects = [];
         private readonly Dictionary<string, double> finishedAt = new(StringComparer.Ordinal);
         private readonly HashSet<string> decayed = new(StringComparer.Ordinal);
-        private readonly List<(string Lot, string Location, Resource Resource)> externalKeys = [], expiredKeys = [], decayKeys = [];
+        private readonly List<(string Lot, string Location, Resource Resource)> expiredKeys = [], decayKeys = [];
         private readonly List<Claim> claims = [];
         private readonly List<TargetUse> uses = [];
         private readonly List<SupportDelivery> deliveries = [];
@@ -311,17 +311,17 @@ public static partial class ForecastCoupled
             {
                 var item = timedExternal[nextExternal++]; var change = item.Change; var at = change.Day.Value * GameTime.TicksPerDay;
                 Expire(at);
+                if (string.IsNullOrEmpty(change.Resource.Value)) { ApplyNutrition(item.Owner + "/" + nextExternal, change.Units.Value, at); continue; }
                 if (change.Units.Value > 0)
-                { balance[change.Resource] = default; Uncertain("unbound_external_output", item.Owner, at); continue; }
-                externalKeys.Clear();
-                foreach (var k in lots.Keys) if (k.Resource == change.Resource && lots[k] != Known(0.0)) externalKeys.Add(k);
-                if (externalKeys.Count == 1 && lots[externalKeys[0]].TryGetValue(out var units))
-                    lots[externalKeys[0]] = Known(Math.Max(0, units + change.Units.Value));
-                else if (externalKeys.Count > 0)
                 {
-                    foreach (var lot in externalKeys) lots[lot] = default;
-                    Uncertain("unbound_external_consumption", item.Owner, at);
+                    var id = item.Owner + "/output/" + change.Resource + "/" + nextExternal;
+                    var uses = context.FoodUses.Where(u => u.Resource == change.Resource.Value).ToArray();
+                    var edible = items.Nutrition.GetValueOrDefault(change.Resource) > 0;
+                    var fresh = uses.Length > 0 && uses.All(u => u.FreshTicks.IsKnown) ? Known(uses.Min(u => u.FreshTicks.Value)) : default;
+                    RegisterOutput(id, change.Resource, edible, fresh, at);
+                    lots[(id, "external", change.Resource)] = change.Units;
                 }
+                else DebitLots(change.Resource, -change.Units.Value);
                 var before = balance.GetValueOrDefault(change.Resource, Known(0.0));
                 balance[change.Resource] = before.IsKnown ? Known(before.Value + change.Units.Value) : default;
                 if (before.IsKnown && before.Value + change.Units.Value < 0)
@@ -333,14 +333,18 @@ public static partial class ForecastCoupled
         {
             if (!lots[lot].TryGetValue(out var count) || count <= 0) return;
             lots[lot] = Known(0.0);
-            var before = balance.GetValueOrDefault(lot.Resource, Known(0.0));
-            balance[lot.Resource] = before.IsKnown ? Known(before.Value - count) : default;
-            effects.Add((lot.Resource, Known(at / GameTime.TicksPerDay), Known(-count)));
+            if (!outsidePhysical.Contains(lot.Lot))
+            {
+                var before = balance.GetValueOrDefault(lot.Resource, Known(0.0));
+                balance[lot.Resource] = before.IsKnown ? Known(before.Value - count) : default;
+                effects.Add((lot.Resource, Known(at / GameTime.TicksPerDay), Known(-count)));
+            }
             Finding(reason, lot.Lot, at, lot.Resource, Known(count));
         }
 
         private void Expire(double time)
         {
+            ConsumeOthers(time);
             expiredKeys.Clear();
             foreach (var k in lots.Keys)
                 if (expiry.TryGetValue(k.Lot, out var until) && until.IsKnown && until.Value <= time) expiredKeys.Add(k);
@@ -435,6 +439,7 @@ public static partial class ForecastCoupled
                 lots.Add((l.Lot, l.Location, l.Resource), l.Count);
                 if (l.Perishable) expiry.TryAdd(l.Lot, l.FreshTicks);
             }
+            InitializeCensus(request);
             var holds = Materials(request, commitments);
             billRows.Clear();
             foreach (var a in plan.Allocations)
@@ -530,6 +535,14 @@ public static partial class ForecastCoupled
                 if (resources > 1) Refuse("conflicting_bill_material_choices", bill, 0);
             }
             var (external, timed) = External(commitments, request.HorizonDays);
+            var scheduled = context.ModelBasis?.Policy.Scheduled.Where(e => e.Day <= request.HorizonDays && (e.Stock == ModelStock.Nutrition || !string.IsNullOrEmpty(e.Resource.Value)))
+                .Select(e => (Owner: "scheduled/" + e.Id, Change: new ForecastStockChange(e.Resource, Known(e.Day), ScheduledUnits(e)))).ToArray() ?? [];
+            if (scheduled.Length > 0)
+            {
+                external = external.Concat(scheduled).ToArray();
+                timed = timed.Concat(scheduled.Where(e => e.Change.Units.IsKnown)).OrderBy(e => e.Change.Day.Value).ThenBy(e => e.Owner, StringComparer.Ordinal).ToArray();
+                effects.AddRange(scheduled.Where(e => !string.IsNullOrEmpty(e.Change.Resource.Value)).Select(e => (e.Change.Resource, e.Change.Day, e.Change.Units)));
+            }
             foreach (var item in external)
                 if (!item.Change.Day.IsKnown || !item.Change.Units.IsKnown)
                 { balance[item.Change.Resource] = default; Uncertain("unknown_external_stock_effect", item.Owner, 0); }
@@ -550,10 +563,10 @@ public static partial class ForecastCoupled
                 : string.CompareOrdinal(x.Allocation.Activity, y.Allocation.Activity));
             foreach (var e in events)
             {
+                if (e.Time > horizon) { Finding("beyond_horizon", e.Allocation.Activity, e.Time); continue; }
                 ApplyExternal(e.Time);
                 Expire(e.Time);
                 var task = tasks[e.Allocation.Activity];
-                if (e.Time > horizon) { Finding("beyond_horizon", task.Id, e.Time); continue; }
                 if (e.Start)
                 {
                     if (unavailableWork is not null && unavailableWork.Contains(task.Id))
@@ -620,6 +633,11 @@ public static partial class ForecastCoupled
                     if (lotShortfall)
                     { completed[task.Id] = Known(false); Refuse("source_lot_shortfall", task.Id, e.Time); continue; }
                     foreach (var input in shape.LotInputs) lots[input.Key] = Known(lots.GetValueOrDefault(input.Key, Known(0.0)).Value - input.Units);
+                    foreach (var input in shape.Inputs)
+                    {
+                        var unnamed = input.Units - shape.LotInputs.Where(l => l.Key.Resource == input.Resource).Sum(l => l.Units);
+                        if (unnamed > 0) DebitLots(input.Resource, unnamed);
+                    }
                     completed[task.Id] = Known(true);
                     foreach (var input in shape.Inputs)
                     {
@@ -632,6 +650,14 @@ public static partial class ForecastCoupled
                     finishedAt[task.Id] = e.Time;
                     foreach (var output in task.Outputs)
                     {
+                        var outputId = output.Lot.Length == 0 ? task.Id + "/output/" + output.Resource : output.Lot;
+                        RegisterOutput(outputId, output.Resource, output.Perishable, output.FreshTicks, e.Time);
+                        if (output.Lot.Length == 0)
+                        {
+                            var key = (outputId, task.EndLocation, output.Resource);
+                            var beforeLot = lots.GetValueOrDefault(key, Known(0d));
+                            lots[key] = beforeLot.IsKnown && output.Units.IsKnown ? Known(beforeLot.Value + output.Units.Value) : default;
+                        }
                         if (output.Lot.Length != 0)
                         {
                             if (output.Perishable && !expiry.ContainsKey(output.Lot)) expiry[output.Lot] = output.FreshTicks.IsKnown ? Known(e.Time + output.FreshTicks.Value) : default;
@@ -874,7 +900,9 @@ public static partial class ForecastCoupled
                 CompletedDevelopmentSites = EquatableArray.Wrap(planned.Sites),
                 ClosedRooms = EquatableArray.From(closedRooms.Select(r => new ForecastRoomClosure(r.Room, r.Stuff, r.ClosedAt))),
             };
-            return context.ModelBasis is null ? outcome : outcome with { Terminal = new(request, commitments, new Dictionary<Resource, Fact<double>>(inventoryWalk.Terminal), new Dictionary<string, double>(finishedAt, StringComparer.Ordinal), holds) };
+            return outcome with { Terminal = new(request, commitments, new Dictionary<Resource, Fact<double>>(inventoryWalk.Terminal), new Dictionary<string, double>(finishedAt, StringComparer.Ordinal), holds)
+                { Lots = TerminalLots(), FoodComplete = request.Facts.Food.Complete, MedicineComplete = request.Facts.Medicine.Items.IsKnown && physicalCensusComplete,
+                    PhysicalCensusComplete = physicalCensusComplete } };
         }
 
         /// <summary>A planned site counts once it finishes inside the horizon; a room only when a whole alternative does (#3276).

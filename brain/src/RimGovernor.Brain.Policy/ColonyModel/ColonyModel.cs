@@ -30,7 +30,8 @@ public static class ColonyModel
     {
         DomainException.Require(policy.HorizonDays > 0 && policy.MaxEvents > 0, "invalid colony model policy");
         var findings = new SortedSet<string>(StringComparer.Ordinal) { ColonyTrajectory.MoodUnassessedFinding };
-        if (!start.Pawns.TryGetValue(out var pawns) || !start.Nutrition.TryGetValue(out var nutrition) || !input.Climate.TryGetValue(out var climate))
+        if (!start.Pawns.TryGetValue(out var pawns) || !start.Nutrition.TryGetValue(out var nutrition) || !input.Climate.TryGetValue(out var climate)
+            || !input.OtherNutritionPerDay.TryGetValue(out var otherNutrition) || !double.IsFinite(otherNutrition) || otherNutrition < 0)
         {
             findings.Add("colony_model_input_unknown");
             return new ColonyTrajectory { Findings = EquatableArray.From(findings) };
@@ -49,6 +50,7 @@ public static class ColonyModel
         DomainException.Require(cycles.Length == pawns.Count && cycles.All(c => c.Length == Twelfths), "one twelve-entry cycle per pawn");
         var levels = new double[StockNames.Length];
         levels[(int)ModelStock.Nutrition] = nutrition;
+        levels[(int)ModelStock.ResearchPoints] = start.ResearchPoints;
         levels[(int)ModelStock.Materials] = start.Materials.TryGetValue(out var materials) ? materials.Sum(a => a.Count) : 0;
         // Medicine is held by kind, used up best first; the stock is their sum.
         var kinds = start.Medicine.TryGetValue(out var medicine) ? medicine.Select(a => a.Resource).ToArray() : [];
@@ -75,7 +77,7 @@ public static class ColonyModel
             }
         }
 
-        var consumption = fallPerDay.Sum();
+        var consumption = fallPerDay.Sum() + otherNutrition;
         var net = new double[StockNames.Length];
         for (var s = 0; s < net.Length; s++)
         {

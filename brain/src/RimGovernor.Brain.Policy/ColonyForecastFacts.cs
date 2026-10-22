@@ -19,9 +19,11 @@ public static class ColonyForecastFactsRules
         var input = new ColonyForecastFacts
         {
             Stock = f.Resources,
+            ResourceThings = f.ResourceThings,
             Power = f.ForecastObserved.Power,
             Construction = new ConstructionInputs { Deficit = f.ConstructionDeficit, Admitted = f.Admitted },
             Items = f.Items,
+            Medicine = f.MedicalReserve,
         };
         return f.AnimalUpkeep.Food.TryGetValue(out var supply) ? input with { Food = supply } : input;
     }

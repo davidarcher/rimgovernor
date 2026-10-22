@@ -13,6 +13,8 @@ public sealed record ScheduledEffect
     public ModelStock Stock { get; init; }
 
     public double Amount { get; init; }
+    /// <summary>Physical resource for detailed handoff. Nutrition without a resource remains an aggregate model effect.</summary>
+    public Resource Resource { get; init; }
 }
 
 /// <summary>

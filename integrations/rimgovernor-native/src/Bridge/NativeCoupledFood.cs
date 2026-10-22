@@ -27,6 +27,10 @@ internal static class NativeCoupledFood
         var sourceRows = new List<Obs.CoupledFoodSource>();
         var benches = map.listerThings.AllThings.OfType<Building_WorkTable>().Where(b => b.Faction == Faction.OfPlayer).OrderBy(b => b.GetUniqueLoadID(),StringComparer.Ordinal).ToArray();
         var roster = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+        var consumers = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == Faction.OfPlayer && p.needs?.food != null)
+            .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
+        foreach (var hunt in food.Options)
+            if (RefIndex.Thing(map, hunt.Target) is Pawn prey && prey.RaceProps.meatDef is { } meat) AddUses(meat, hunt.Destination);
         var plants = food.Options.Select(o => o.Target).Distinct().Select(id => RefIndex.Thing(map, id)).OfType<Plant>().Cast<Thing>().ToArray();
         var loose = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).Where(t => t.Spawned && t.def.IsNutritionGivingIngestible)
             .OrderBy(t => t.GetUniqueLoadID(),StringComparer.Ordinal).ToArray();
@@ -37,7 +41,7 @@ internal static class NativeCoupledFood
             var availableInput = plant == null ? source.stackCount : food.Options.Where(o => o.Target == source.GetUniqueLoadID())
                 .Select(o => o.SourceCount.IsKnown ? (int)o.SourceCount.Value : 0).DefaultIfEmpty(0).Min();
             if (plant == null) sourceRows.Add(new(source.GetUniqueLoadID(),raw.defName,new(source.Position.x,source.Position.z),source.stackCount,
-                Fact.Known((double)(source.TryGetComp<CompRottable>()?.TicksUntilRotAtCurrentTemp ?? RimGovernor.Brain.Domain.GameTime.TicksPerDay))));
+                Fact.Known(source.TryGetComp<CompRottable>() is { } rottable ? (double)rottable.TicksUntilRotAtCurrentTemp : (double)long.MaxValue)));
             foreach (var target in food.Options.Where(o => o.Target == source.GetUniqueLoadID()).Select(o => o.Destination).Distinct()) AddUses(raw, target);
             foreach (var bench in benches)
             foreach (var bill in bench.BillStack.Bills.OfType<Bill_Production>().OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
@@ -112,7 +116,7 @@ internal static class NativeCoupledFood
             Thing? unit = null;
             if (!resource.HasComp(typeof(CompIngredients)) && !FreshUnits.TryGetValue(resource, out unit))
                 FreshUnits[resource] = unit = ThingMaker.MakeThing(resource);
-            foreach (var pawn in roster)
+            foreach (var pawn in consumers)
             {
                 if (pawn.needs?.food == null) continue;
                 var thoughts = unit == null || pawn.story == null ? default
@@ -121,10 +125,10 @@ internal static class NativeCoupledFood
                 if (ModsConfig.BiotechActive && resource.IsRawHumanFood()) nutrition *= pawn.GetStatValue(StatDefOf.RawNutritionFactor);
                 var rot = resource.GetCompProperties<CompProperties_Rottable>();
                 // Conditional fresh-output shelf life at this observed destination temperature; future weather is unassessed.
-                Fact<double> fresh = rot == null ? Fact.Known((double)RimGovernor.Brain.Domain.GameTime.TicksPerDay) : default;
+                Fact<double> fresh = rot == null ? Fact.Known((double)long.MaxValue) : default;
                 var temperature = new IntVec3(location.X, 0, location.Z).GetTemperature(map);
                 if (rot != null) fresh = Fact.Known<double>(GenTemperature.RotRateAtTemperature(temperature) > 0
-                    ? rot.daysToRotStart * RimGovernor.Brain.Domain.GameTime.TicksPerDay / GenTemperature.RotRateAtTemperature(temperature) : RimGovernor.Brain.Domain.GameTime.TicksPerDay);
+                    ? rot.daysToRotStart * RimGovernor.Brain.Domain.GameTime.TicksPerDay / GenTemperature.RotRateAtTemperature(temperature) : (double)long.MaxValue);
                 uses.Add(new(pawn.GetUniqueLoadID(), resource.defName, location,
                     Fact.Known(pawn.WillEat(resource) && pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(resource) != false),
                     Fact.Known((double)nutrition / pawn.needs.food.MaxLevel),

@@ -29,17 +29,21 @@ public sealed class ForecastTerminalAccounting
     internal IReadOnlyDictionary<Resource, Fact<double>> Stocks { get; }
     internal IReadOnlyDictionary<string, double> Finished { get; }
     internal ForecastCoupledMaterials.MaterialHolds? Holds { get; }
+    public EquatableArray<ForecastTerminalLot> Lots { get; init; }
+    public Fact<bool> FoodComplete { get; init; }
+    public bool MedicineComplete { get; init; }
+    public bool PhysicalCensusComplete { get; init; }
 }
 
 public static class ForecastHandoffPolicy
 {
     /// <summary>Project a selected outcome (or bounded finalist), without reevaluating its schedule or reading another census.</summary>
-    public static ForecastHandoff? Project(ForecastCoupledOutcome outcome) => outcome.Terminal is { } t
-        ? Project(t.Request, t.Commitments, outcome, t.Stocks, t.Finished, t.Holds) : null;
+    public static ForecastHandoff? Project(ForecastCoupledOutcome outcome) => outcome.Terminal is { Request.Coupled.ModelBasis: not null } t
+        ? Project(t.Request, t.Commitments, outcome, t.Stocks, t.Finished, t.Holds, t) : null;
 
     internal static ForecastHandoff Project(ColonyForecastRequest request, IReadOnlyDictionary<string, ForecastCommitment> commitments,
         ForecastCoupledOutcome outcome, IReadOnlyDictionary<Resource, Fact<double>> physical,
-        IReadOnlyDictionary<string, double> finished, ForecastCoupledMaterials.MaterialHolds? holds)
+        IReadOnlyDictionary<string, double> finished, ForecastCoupledMaterials.MaterialHolds? holds, ForecastTerminalAccounting terminal)
     {
         var context = request.Coupled!;
         var basis = context.ModelBasis!;
@@ -49,7 +53,8 @@ public static class ForecastHandoffPolicy
         var dates = new List<ForecastProjectDate>();
         var needs = outcome.Needs.SelectMany(p => p.Value.Needs.Select(n => new ForecastTerminalNeed(p.Key, n.Kind, n.FinalLevel))).ToArray();
         foreach (var n in needs.Where(n => !n.Level.IsKnown)) gaps.Add($"terminal_need_unknown:{n.Pawn}:{n.Kind}");
-        if (basis.Policy.Scheduled.Any(e => e.Day <= day)) gaps.Add("terminal_scheduled_effect_unrepresented");
+        foreach (var e in basis.Policy.Scheduled.Where(e => e.Day <= day && e.Stock is ModelStock.Materials or ModelStock.Medicine && string.IsNullOrEmpty(e.Resource.Value)))
+            gaps.Add("terminal_scheduled_resource_unknown:" + e.Id);
         foreach (var pawn in basis.Input.Pawns.IsKnown ? basis.Input.Pawns.Value : EquatableArray.From<ModelPawn>([]))
             foreach (var need in pawn.Needs)
                 if (!needs.Any(n => n.Pawn == pawn.Pawn && n.Kind == need.Kind)) gaps.Add($"terminal_need_missing:{pawn.Pawn}:{need.Kind}");
@@ -60,25 +65,22 @@ public static class ForecastHandoffPolicy
         }
 
         var stocks = physical.Where(p => p.Value.IsKnown).Select(p => new ModelResourceStock(p.Key, p.Value.Value)).ToArray();
-        var stockKnown = request.Facts.Stock.IsKnown && physical.All(p => p.Value.IsKnown && p.Value.Value >= 0);
+        var stockKnown = terminal.PhysicalCensusComplete && request.Facts.Stock.IsKnown && physical.All(p => p.Value.IsKnown && p.Value.Value >= 0);
         if (!SameStocks(request.Facts.Stock, basis.Input.Stocks.Materials))
         { stockKnown = false; gaps.Add("terminal_material_census_scope_mismatch"); }
         if (!stockKnown) gaps.Add("terminal_stock_unknown");
-        var nutrition = Nutrition(request, basis.Input, physical, gaps);
-        foreach (var consumer in request.Facts.Food.Consumers.Where(c => !outcome.Needs.ContainsKey(c.Id.Value)))
-            if (consumer.NutritionPerDay != Known(0d)) gaps.Add("terminal_food_consumer_unmodelled:" + consumer.Id);
+        var nutrition = Nutrition(terminal, gaps);
         Fact<EquatableArray<ModelResourceStock>> medicine = default;
-        if (start.Medicine.TryGetValue(out var originalMedicine))
+        if (terminal.MedicineComplete)
         {
             var result = new List<ModelResourceStock>();
-            foreach (var m in originalMedicine)
+            var medicineLots = terminal.Lots.Where(l => l.Medicine).ToArray();
+            foreach (var group in medicineLots.GroupBy(l => l.Resource).OrderByDescending(g => request.Facts.Items.MedicalPotency.GetValueOrDefault(g.Key)).ThenBy(g => g.Key))
             {
-                var observed = request.Facts.Stock.IsKnown ? request.Facts.Stock.Value.Where(s => s.Resource == m.Resource).Sum(s => (double)s.Count) : double.NaN;
-                if (observed != m.Count) { gaps.Add("terminal_medicine_census_scope_mismatch:" + m.Resource); break; }
-                if (!physical.GetValueOrDefault(m.Resource, Known(0.0)).TryGetValue(out var count)) break;
-                result.Add(new(m.Resource, count));
+                if (group.Any(l => !l.Count.IsKnown || !l.FreshUntil.IsKnown)) break;
+                result.Add(new(group.Key, group.Sum(l => l.Count.Value)));
             }
-            if (result.Count == originalMedicine.Count) medicine = Known(EquatableArray.From(result));
+            if (result.Count == medicineLots.Select(l => l.Resource).Distinct().Count()) medicine = Known(EquatableArray.From(result));
         }
         if (!medicine.IsKnown) gaps.Add("terminal_medicine_unknown");
 
@@ -133,6 +135,8 @@ public static class ForecastHandoffPolicy
                     ComfortableMax = p.ComfortableMax.IsKnown ? Known(p.ComfortableMax.Value + shifts.Sum(s => s.MaxDelta)) : default };
             })));
         var state = start with { Day = day, Nutrition = nutrition, Materials = stockKnown ? Known(EquatableArray.From(stocks)) : default,
+            ResearchPoints = basis.Policy.Projects.Nodes.Where(n => n.Kind == ProjectKind.Research).Sum(n => n.Work - projects[n.Id].Remaining)
+                + basis.Policy.Scheduled.Where(e => e.Day <= day && e.Stock == ModelStock.ResearchPoints).Sum(e => e.Amount),
             Medicine = medicine, ExternalHolds = external, Projects = Known(EquatableArray.From(nodes.Select(n => projects[n.Id]))), Pawns = pawns };
         if (state.Gap(projected.Graph) is { } gap) gaps.Add(gap);
         var shelterPlans = EquatableArray.From(context.Shelters.Where(p => outcome.Shelters.Any(s => s.Room == p.Room && s.CompleteAt.IsKnown))
@@ -148,36 +152,20 @@ public static class ForecastHandoffPolicy
     private static bool SameStocks(Fact<EquatableArray<Amount>> a, Fact<EquatableArray<Amount>> b) => a.IsKnown && b.IsKnown
         && a.Value.Concat(b.Value).Select(s => s.Resource).Distinct().All(r => a.Value.Where(s => s.Resource == r).Sum(s => s.Count) == b.Value.Where(s => s.Resource == r).Sum(s => s.Count));
 
-    private static Fact<double> Nutrition(ColonyForecastRequest request, ColonyModelInput input,
-        IReadOnlyDictionary<Resource, Fact<double>> terminal, SortedSet<string> gaps)
+    private static Fact<double> Nutrition(ForecastTerminalAccounting terminal, SortedSet<string> gaps)
     {
-        var context = request.Coupled!;
-        if (!request.Facts.Stock.IsKnown || !input.Stocks.Nutrition.IsKnown) { gaps.Add("terminal_nutrition_unknown"); return default; }
-        double initial = 0, final = 0;
-        if (request.Facts.Food.Complete != Known(true)) { gaps.Add("terminal_food_census_unknown"); return default; }
-        foreach (var row in request.Facts.Stock.Value.GroupBy(s => s.Resource))
+        if (terminal.FoodComplete != Known(true)) { gaps.Add("terminal_food_census_unknown"); return default; }
+        double total = 0;
+        foreach (var lot in terminal.Lots)
         {
-            if (!request.Facts.Items.Nutrition.TryGetValue(row.Key, out var perUnit) || perUnit <= 0) continue;
-            var count = row.Sum(s => (double)s.Count);
-            var food = request.Facts.Food.Stocks.Where(s => s.DefName == row.Key).ToArray();
-            if (food.Any(s => !s.Count.IsKnown) || food.Sum(s => (double)s.Count.Value) != count)
-            { gaps.Add("terminal_food_census_scope_mismatch:" + row.Key); return default; }
-            initial += count * perUnit;
-            var lots = context.InitialLots.Where(l => l.Resource == row.Key).ToArray();
-            if (lots.Any(l => !l.Count.IsKnown || l.Perishable && !l.FreshTicks.IsKnown) || Math.Abs(lots.Sum(l => l.Count.Value) - count) > 1e-8)
-            { gaps.Add("terminal_food_lot_scope_mismatch:" + row.Key); return default; }
+            if (!lot.FoodEligible.IsKnown) { gaps.Add("terminal_food_eligibility_unknown:" + lot.Id); return default; }
+            if (!lot.FoodEligible.Value) continue;
+            if (!lot.Count.IsKnown || !lot.NutritionPerUnit.IsKnown || !lot.FreshUntil.IsKnown)
+            { gaps.Add("terminal_food_lot_unknown:" + lot.Id); return default; }
+            total += lot.Count.Value * lot.NutritionPerUnit.Value;
         }
-        if (Math.Abs(initial - input.Stocks.Nutrition.Value) > 1e-8)
-        { gaps.Add("terminal_food_census_scope_mismatch"); return default; }
-        foreach (var row in terminal)
-        {
-            if (!request.Facts.Items.Nutrition.TryGetValue(row.Key, out var perUnit) || perUnit <= 0) continue;
-            if (!row.Value.IsKnown) { gaps.Add("terminal_nutrition_unknown"); return default; }
-            final += row.Value.Value * perUnit;
-        }
-        return Known(final);
+        return Known(total);
     }
-
     private static Fact<EquatableArray<ModelPawn>> Pawns(Fact<EquatableArray<ModelPawn>> original, EquatableArray<ForecastPracticeTask> practice, ForecastCoupledOutcome outcome,
         IReadOnlyDictionary<string, double> finished, double day, SortedSet<string> gaps)
     {

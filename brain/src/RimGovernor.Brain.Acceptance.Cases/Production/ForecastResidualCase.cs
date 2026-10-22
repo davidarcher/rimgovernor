@@ -24,7 +24,7 @@ internal static class ForecastResidualCase
     internal static TypedCase Case() => new()
     {
         Name = "production/forecast-residuals",
-        Scope = "A live selected forecast and later native food, rest, actual mood and completed-task reads correlate through the registered residual reader. "
+        Scope = "A live selected forecast and later native eligible food stock, food/rest needs, actual mood and completed-task reads correlate through the registered residual reader. "
             + "A unit test cannot prove native evolution or served task completion. These needs remain unfrozen for the full production horizon; quiet-world removes irrelevant wildlife.",
         Ticks = Horizon.Budget,
         ObservesHorizon = Horizon,
@@ -86,7 +86,7 @@ internal static class ForecastResidualCase
     }
 
     internal static bool Complete(IReadOnlyList<ForecastResidual> rows) =>
-        new[] { ForecastMetric.FoodLevel, ForecastMetric.RestLevel, ForecastMetric.Mood }.All(metric =>
+        new[] { ForecastMetric.FoodStock, ForecastMetric.FoodLevel, ForecastMetric.RestLevel, ForecastMetric.Mood }.All(metric =>
             rows.Any(r => r.Prediction.Key.Metric == metric && r.Observation is { Value.IsKnown: true, Provenance: "rounds_native_observation" }
                 && r.Reason is "aligned" or "tick_mismatch"))
         && rows.Any(r => r.Prediction.Key.Metric == ForecastMetric.TaskCompletion

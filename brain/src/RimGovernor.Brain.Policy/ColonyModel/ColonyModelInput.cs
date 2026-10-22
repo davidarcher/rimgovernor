@@ -150,6 +150,8 @@ public sealed record ModelPawn
 /// </summary>
 public sealed record ColonyModelInput
 {
+    /// <summary>Observed daily food demand from consumers without a modeled pawn cycle, such as colony animals.</summary>
+    public Fact<double> OtherNutritionPerDay { get; init; } = Known(0d);
     /// <summary>The twelve twelfth temperatures, the current twelfth and the ticks to the next.</summary>
     public Fact<GearClimate> Climate { get; init; }
 
@@ -198,6 +200,7 @@ public sealed record ColonyModelInput
         CropGaps(gaps);
         ResearchGaps(gaps);
         StockGaps(gaps);
+        if (!OtherNutritionPerDay.IsKnown || !Nonnegative(OtherNutritionPerDay)) gaps.Add("stocks: other food-consumer demand is unknown or invalid");
         PawnGaps(gaps);
         CycleGaps(gaps);
         RecipeGaps(gaps);

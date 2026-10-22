@@ -61,7 +61,7 @@ public sealed class HorizonObservationTests
                 Fact.Known(90d), Fact.Known(120d), metric == ForecastMetric.TaskCompletion ? "native_task_read" : "rounds_native_observation");
             return ForecastResiduals.Match(prediction, observation);
         }
-        var rows = new[] { ForecastMetric.FoodLevel, ForecastMetric.RestLevel, ForecastMetric.Mood, ForecastMetric.TaskCompletion }.Select(Row).ToArray();
+        var rows = new[] { ForecastMetric.FoodStock, ForecastMetric.FoodLevel, ForecastMetric.RestLevel, ForecastMetric.Mood, ForecastMetric.TaskCompletion }.Select(Row).ToArray();
         Assert.True(ForecastResidualCase.Complete(rows));
         Assert.False(ForecastResidualCase.Complete(rows.Take(3).ToArray()));
         Assert.False(ForecastResidualCase.Complete(rows.Select(r => r with { Observation = null }).ToArray()));

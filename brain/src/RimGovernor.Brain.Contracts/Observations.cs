@@ -6875,6 +6875,8 @@ public sealed record DeliveryLedgerSection
 
 public sealed record ColonyFactsSnapshot
 {
+    /// <summary>Exact thing identities contributing to Resources; null means the resource census was not read.</summary>
+    public EquatableArray<string>? ResourceThings { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<WorkResourcePawn>))]
     public EquatableArray<WorkResourcePawn>? WorkResources { get; init; }
     public Common.ObservationContext? Context { get; init; }

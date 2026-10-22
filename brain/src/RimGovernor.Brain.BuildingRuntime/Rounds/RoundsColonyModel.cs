@@ -113,8 +113,10 @@ internal static class RoundsColonyModel
             Land = LandOf(colony),
             Crops = CropsOf(colony),
             Research = ResearchOf(facts.Research, facts.NeedsAlternatives?.Observation),
-            Stocks = new ModelStocks { Nutrition = NutritionOf(colony.CombinedFoodSupply), Materials = MaterialsOf(colony.Resources), Medicine = MedicineOf(facts.MedicalReserve) },
+            Stocks = new ModelStocks { Nutrition = NutritionOf(colony.CombinedFoodSupply), Materials = MaterialsOf(colony.Resources), Medicine = MedicineOf(facts.MedicalReserve, facts.ResourceThings) },
             Pawns = PawnsOf(colony),
+            OtherNutritionPerDay = ForecastStockScope.OtherDemand(colony.CombinedFoodSupply,
+                facts.NeedsAlternatives?.Observation.Pawns.Select(p => p.Pawn) ?? []),
             Recipes = facts.WorkAdmission.Recipes,
             Sites = facts.CurrentConstruction.TryGetValue(out var construction) ? Known(construction.Sites) : Unknown<EquatableArray<ConstructionSite>>(),
             PlannedSites = facts.PlannedSites.TryGetValue(out var planned) ? Known(planned.Sites) : Unknown<EquatableArray<PlannedBuildSite>>(),
@@ -259,26 +261,7 @@ internal static class RoundsColonyModel
     private static Fact<int> BenchesOf(NeedsForecastRead? read) => read is null ? Unknown<int>() : Known(read.ResearchBenchFactors.Count);
 
     /// <summary>The nutrition of the food stacks the colony can eat; unknown while the food census is incomplete or a stack's nutrition is.</summary>
-    private static Fact<double> NutritionOf(Fact<FoodSupply> supply)
-    {
-        if (!supply.TryGetValue(out var food) || !food.Complete.TryGetValue(out var complete) || !complete)
-        {
-            return Unknown<double>();
-        }
-
-        var total = 0.0;
-        foreach (var stock in food.Stocks)
-        {
-            if (!stock.Nutrition.TryGetValue(out var nutrition))
-            {
-                return Unknown<double>();
-            }
-
-            total += nutrition;
-        }
-
-        return Known(total);
-    }
+    private static Fact<double> NutritionOf(Fact<FoodSupply> supply) => supply.TryGetValue(out var food) ? ForecastStockScope.Nutrition(food) : default;
 
     private static Fact<EquatableArray<Amount>> MaterialsOf(Fact<IReadOnlyDictionary<Resource, long>> resources) =>
         resources.TryGetValue(out var held)
@@ -289,15 +272,15 @@ internal static class RoundsColonyModel
     /// The medicine on hand by kind: the unforbidden stacks of the medical reserve census, highest potency first (the catalog's
     /// potency order, a kind it does not rank last), then by name.
     /// </summary>
-    internal static Fact<EquatableArray<Amount>> MedicineOf(MedicalReserveObservation reserve)
+    private static Fact<EquatableArray<Amount>> MedicineOf(MedicalReserveObservation reserve, Fact<EquatableArray<string>> resourceThings)
     {
-        if (!reserve.Items.TryGetValue(out var items))
+        if (!reserve.Items.TryGetValue(out var items) || !resourceThings.TryGetValue(out var identities))
         {
             return Unknown<EquatableArray<Amount>>();
         }
 
         var potency = reserve.Catalog.MedicalPotency;
-        return Known(EquatableArray.From(items.Where(i => !i.Forbidden).GroupBy(i => i.Definition)
+        return Known(EquatableArray.From(items.Where(i => !i.Forbidden && identities.Contains(i.Id)).GroupBy(i => i.Definition)
             .Select(g => new Amount(g.Key, g.Sum(i => i.Count)))
             .OrderByDescending(a => potency.TryGetValue(a.Resource, out var p) ? p : double.NegativeInfinity).ThenBy(a => a.Resource)));
     }
