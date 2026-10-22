@@ -67,6 +67,11 @@ public sealed class AcceptanceCatalogTests
                 findings.Add(string.Create(CultureInfo.InvariantCulture, $"case {typed.Name} declares {typed.Ticks} ticks; its start's cap is {typed.Cap}"));
             }
 
+            if (typed.HorizonProblem() is { } horizonProblem)
+            {
+                findings.Add($"case {typed.Name}: {horizonProblem}");
+            }
+
             if (typed.StartProblem() is { } startProblem)
             {
                 findings.Add($"case {typed.Name}: {startProblem}");

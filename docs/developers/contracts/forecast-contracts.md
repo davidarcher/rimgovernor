@@ -1205,3 +1205,15 @@ Method/revision task execution with both endpoints can enter the consistent task
 cohort; global needs/mood/thermal rows remain unknown absent sufficient execution
 evidence. Detected interruption or replacement is propagated to affected pawn
 rows. Unchanged reviews alone neither prove consistency nor mark replacement.
+
+### Native residual evidence
+
+`production/forecast-residuals` stages one tired colonist, a bed, meals and recreation in a quiet world,
+then leaves Food, Rest, Joy and actual Mood unfrozen through the ordinary served production horizon.
+It uses the acceptance charter's typed horizon observation declaration and never injects endpoint values,
+completion, or extra review wakes. `ForecastEvidenceReader` decodes the registered prediction and observation
+kinds; the case requires known native food/rest/mood values and a genuinely completed task (a bounded
+completion interval is sufficient). Its result retains identity, origin/target/read ticks, provenance,
+execution cohorts, timing mismatches and named unknowns. Food-stock prediction coverage remains unavailable;
+when no shelter prediction exists, the report names that gap. This proves correlation, not prediction accuracy.
+The full retained-window report can also be generated with `RimGovernor.cmd forecastresiduals -logs <logs.jsonl>`.

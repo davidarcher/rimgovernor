@@ -29,6 +29,7 @@ public static class CaseCatalog
         registry.Register(RemovalDesignationRowsCase.Case());
         registry.Register(ConstructionRouteLegsCase.Case());
         registry.Register(ProductionCoupledNeeds.Case());
+        registry.Register(ForecastResidualCase.Case());
         registry.Register(NeedsTargetCapacity.Case());
         registry.Register(NeedsSharedStack.Case());
         registry.Register(ProductionCoupledThermal.Case());

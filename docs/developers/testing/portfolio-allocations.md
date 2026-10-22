@@ -978,8 +978,8 @@ including runtime noise, not an allocation or memory-budget assertion.
 
 These measurements cover the incremental synchronous evidence path, not full
 Rounds review latency, native read costs, task polling, or asynchronous sink CPU.
-A full review comparison and a real native task/endpoint report remain separate
-evidence requirements. No test threshold or forecast behavior changes follow
+A full review comparison and real native task/endpoint behavior are not established
+by these fixture measurements. No test threshold or forecast behavior changes follow
 from these samples.
 
 Recorded on DAVID-PC, .NET 10.0.12 x64 Release, 2026-10-21. The before build is a

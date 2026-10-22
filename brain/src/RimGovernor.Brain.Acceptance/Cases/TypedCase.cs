@@ -35,6 +35,9 @@ public sealed record TypedCase
     /// <summary>The game ticks the claim needs, at most <see cref="Cap"/>; every wait spends from it, and the hang guard derives from it.</summary>
     public required int Ticks { get; init; }
 
+    /// <summary>Explicit production-horizon observation, with bounded slack; no post-start fixture mutations.</summary>
+    public HorizonObservation? ObservesHorizon { get; init; }
+
     /// <summary>The pass that runs the case (rule 8).</summary>
     public required CaseTier Tier { get; init; }
 
@@ -88,7 +91,7 @@ public sealed record TypedCase
     public Func<TypedSession, CancellationToken, Task>? Postmortem { get; init; }
 
     /// <summary>The tick cap for this case's start: <see cref="StagedTickCap"/> on the lab or a staged start, <see cref="TickCap"/> otherwise.</summary>
-    public int Cap => Start is LabStart || Stage is not null ? StagedTickCap : TickCap;
+    public int Cap => ObservesHorizon is { } horizon && horizon.Problem() is null ? horizon.Budget : Start is LabStart || Stage is not null ? StagedTickCap : TickCap;
 
     /// <summary>
     /// The wall time after which the body is cut as hung: Ticks at <see cref="HangGuardTicksPerSecond"/> plus
@@ -102,7 +105,7 @@ public sealed record TypedCase
     /// and the case declares a <see cref="Stage"/>, whose start makes the installed build register it before the body runs.
     /// </summary>
     public bool Declares(string tool) =>
-        Ops.Contains(tool, StringComparer.Ordinal) || (Stage is not null && string.Equals(tool, FixtureStage.Tool, StringComparison.Ordinal));
+        ObservesHorizon is null && (Ops.Contains(tool, StringComparer.Ordinal) || (Stage is not null && string.Equals(tool, FixtureStage.Tool, StringComparison.Ordinal)));
 
     /// <summary>The shape check registration applies; throws <see cref="AcceptanceException"/> on the first violation.</summary>
     public void Validate()
@@ -115,6 +118,11 @@ public sealed record TypedCase
         if (string.IsNullOrWhiteSpace(Scope))
         {
             throw new AcceptanceException($"case {Name}: Scope must name the one native claim");
+        }
+
+        if (HorizonProblem() is { } horizonProblem)
+        {
+            throw new AcceptanceException($"case {Name}: {horizonProblem}");
         }
 
         if (Ticks < 0 || Ticks > Cap)
@@ -130,6 +138,15 @@ public sealed record TypedCase
         }
     }
 
+    /// <summary>The catalog also validates declarations when registration bypasses Validate.</summary>
+    public string? HorizonProblem() => ObservesHorizon is not { } horizon ? null
+        : horizon.Problem() is { } problem ? problem
+        : Stage is null ? "a horizon observation requires a declared staged precondition"
+        : Serve is null ? "a horizon observation uses the ordinary served scheduler"
+        : ClaimsStart is not null ? "a horizon observation cannot also claim process startup"
+        : Ops.Count != 0 ? "a horizon observation declares no body fixture ops"
+        : Ticks != horizon.Budget ? "a horizon observation budget must equal production horizon plus declared slack"
+        : null;
     /// <summary>Why <see cref="Start"/> and <see cref="ClaimsStart"/> do not fit together, null when they do (the catalog test reads it too).</summary>
     public string? StartProblem() => (Start, ClaimsStart) switch
     {

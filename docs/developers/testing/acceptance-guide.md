@@ -12,7 +12,7 @@ Every case follows these rules. Each one can be checked from the case declaratio
 2. **Stage, don't play.** The precondition comes from the typed stage spec. The behavior under test runs through
    production ops and production observation reads. No case advances the game to create its precondition.
 3. **Tick budget.** The case declares its budget in game ticks: at most 30,000 for a lab or fixture start and
-   60,000 for any other start. There is no waiver. A case that does not fit is re-staged with an injected
+   60,000 for any other start. A declared production-horizon observation uses its production horizon plus bounded, justified observation slack (see below). Every other case that does not fit is re-staged with an injected
    precondition or deleted; long-horizon play belongs to the colony review (#2351). Wall time is only a hang
    guard: budget ÷ 300 ticks/s + 1 minute.
 4. **Wait on the game.** Every wait ends on a tick, a progress signature or an event. No `Task.Delay`,
@@ -27,7 +27,23 @@ Every case follows these rules. Each one can be checked from the case declaratio
    storyteller. A case that departs from a default declares the departure and the claim that needs it.
 8. **Tier on the case.** The case declares its tier: smoke, nightly or on demand ([tiers](#tiers)).
 
-A case that cannot satisfy rules 1–3 is deleted, not given an exception.
+A case that cannot satisfy rules 1–3 is deleted, not given an arbitrary tick-cap override.
+
+### Production-horizon observations
+
+`ObservesHorizon` permits a staged case whose native claim requires observing a production-defined horizon:
+staging a later precondition would invalidate that claim. `ProductionObservationHorizon` is a closed list;
+`CoupledForecast` resolves directly from `ForecastCoupled.TierOneHorizonDays`. Adding a horizon requires
+its production definition and a charter review, not an integer cap override. The declaration explains why
+later staging is invalid, names `ObservationSlackTicks`, and justifies that slack for a subsequent ordinary
+observation. Slack is positive and at most the ordinary 30,000-tick staged cap. `Ticks` must equal the
+production horizon plus slack. Registration and the catalog gate reject missing/invalid declarations.
+
+These cases declare a `Stage` and `Serve`, use the ordinary scheduler, and declare no body fixture ops.
+`TypedSession` refuses fixture calls (including re-staging) in their bodies. They add no scheduler wakes or
+post-start state injections. Other typed reads, registered telemetry kinds and the existing hang guard
+remain mandatory. `production/forecast-residuals` uses a one-day forecast plus a quarter day for the
+initial review and the first ordinary endpoint observation; missing evidence fails within that budget.
 
 ## Writing a case
 
@@ -39,7 +55,7 @@ Every case uses the typed case API, and the compiler enforces the charter. A cas
 | --- | --- |
 | `Name` | Required. Stable `<area>/<case>` identifier. |
 | `Scope` | Required. The one native claim (rule 1) and why a unit test cannot prove it. It also justifies any departure from a default (rule 7). |
-| `Ticks` | Required. At most `StagedTickCap` (30,000) on a lab start or with a `Stage`, `TickCap` (60,000) otherwise (rule 3). Registration fails past the cap. `HangGuard` is `Ticks` ÷ 300 + 1 minute, measured from the body's start, plus `LaunchAllowance` (5 minutes) per game a `ClaimsStart` body launches. It cuts a hung body, and wall time never fails a passing claim. |
+| `Ticks` | Required. At most `StagedTickCap` (30,000) on a lab start or with a `Stage`, `TickCap` (60,000) otherwise (rule 3). `ObservesHorizon` instead declares the production horizon plus bounded observation slack. Registration fails past the cap. `HangGuard` is `Ticks` ÷ 300 + 1 minute, measured from the body's start, plus `LaunchAllowance` (5 minutes) per game a `ClaimsStart` body launches. It cuts a hung body, and wall time never fails a passing claim. |
 | `Tier` | Required. A `CaseTier`: `Smoke`, `Nightly`, `OnDemand` or `Off` (rule 8). |
 | `Start` | `LabStart` (the default), `DebugStart`, `SaveStart` or `ScenarioStart`; `OwnedStart` only with `ClaimsStart`. |
 | `ClaimsStart` | A `StartClaim`, set only when the start itself is the claim (a new colony from the main menu, a reused game's lifecycle). On an `OwnedStart` it declares `Launches`, the fresh games the body opens through `LaunchAsync` (at least 1), and implies `NoKeep`; the tick cap stays `TickCap`. On a `ScenarioStart` it declares `KeepsStoryteller`, so the runner keeps the scenario's storyteller instead of requiring the quiet one. Registration and the catalog test reject any other combination. |
