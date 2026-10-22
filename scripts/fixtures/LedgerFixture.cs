@@ -1,6 +1,5 @@
 using System;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using HarmonyLib;
@@ -93,7 +92,11 @@ namespace HomeBridge.BridgeTools
                 {
                     var harmony = new Harmony("rimgovernor.test.ledger-tally");
                     harmony.Patch(AccessTools.Method(typeof(WaterBodyTracker), "Notify_Fished"), postfix: new HarmonyMethod(typeof(LedgerFixture), nameof(Caught)));
-                    harmony.Patch(AccessTools.Method(typeof(Plant), "PlantCollected"), prefix: new HarmonyMethod(typeof(LedgerFixture), nameof(Collecting)));
+                    harmony.Patch(AccessTools.Method(typeof(GenPlace), nameof(GenPlace.TryPlaceThing), new[] {
+                        typeof(Thing), typeof(IntVec3), typeof(Map), typeof(ThingPlaceMode), typeof(Thing).MakeByRefType(),
+                        typeof(Action<Thing, int>), typeof(Predicate<IntVec3>), typeof(Rot4?), typeof(int) }),
+                        prefix: new HarmonyMethod(typeof(LedgerFixture), nameof(HarvestPlacing)),
+                        postfix: new HarmonyMethod(typeof(LedgerFixture), nameof(HarvestPlaced)));
                     harmony.Patch(AccessTools.Method(typeof(CompHasGatherableBodyResource), "Gathered"), prefix: new HarmonyMethod(typeof(LedgerFixture), nameof(Gathering)));
                     patched = true;
                 }
@@ -106,10 +109,21 @@ namespace HomeBridge.BridgeTools
             if (tracked != null && tracked.waterBodyTracker == __instance) catches += amount;
         }
 
-        // The rice a harvest is about to yield, read from the plant before it is collected.
-        private static void Collecting(Plant __instance)
+        // PlantWork applies the pawn's harvest stat and random rounding after YieldNow.
+        // Observe its actual stack at placement, independently of the ledger's quest hook.
+        // Hook only the out-result overload: the other overload delegates to it.
+        private static void HarvestPlacing(Thing thing, IntVec3 center, Map map, out int __state)
         {
-            if (tracked != null && __instance.Map == tracked && __instance.def == Rice) riceYield += __instance.YieldNow();
+            __state = 0;
+            if (tracked == null || map != tracked || thing.def != Rice.plant.harvestedThingDef) return;
+            if (!map.mapPawns.FreeColonistsSpawned.Any(p => p.Position == center
+                && p.jobs.curDriver is JobDriver_PlantWork && p.CurJob.targetA.Thing is Plant plant && plant.def == Rice)) return;
+            __state = thing.stackCount;
+        }
+
+        private static void HarvestPlaced(bool __result, int __state)
+        {
+            if (__result) riceYield += __state;
         }
 
         private static void Gathering(CompHasGatherableBodyResource __instance)
