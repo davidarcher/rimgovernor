@@ -64,7 +64,7 @@ public static class NativeRoutes
                 }
 
                 return Task.FromResult(ChannelResponse.Json(200, Encoding.UTF8.GetString(stream.ToArray())));
-            });
+            }, new RouteOptions { CountsAsActivity = false });
     }
 
     /// <summary>Registers <c>GET /api/health</c>: the channel is up and which process answers.</summary>
@@ -86,7 +86,7 @@ public static class NativeRoutes
                 }
 
                 return Task.FromResult(ChannelResponse.Json(200, Encoding.UTF8.GetString(stream.ToArray())));
-            });
+            }, new RouteOptions { CountsAsActivity = false });
     }
 
     private static async Task<ChannelResponse> HandleAsync(INativeOpInvoker invoker, ChannelRequest request, CancellationToken cancellationToken)

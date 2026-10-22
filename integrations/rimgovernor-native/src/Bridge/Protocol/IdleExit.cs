@@ -11,8 +11,8 @@ namespace HomeBridge.BridgeTools
     /// main thread) once no bridge call has been in flight or finished for
     /// that long, at the main menu or in a loaded game alike. The acceptance
     /// harness keeps games warm between runs; this ends the ones nobody comes
-    /// back to. Activity is every native HTTP request through
-    /// NativeOpTable; a call in flight (a
+    /// back to. Activity is every native or player HTTP request through
+    /// the shared dispatcher; a call in flight (a
     /// long poll included) counts as activity until it returns. Without the
     /// flag nothing happens.
     /// </summary>
@@ -47,18 +47,21 @@ namespace HomeBridge.BridgeTools
 
         internal static TimeSpan SinceActivity => TimeSpan.FromSeconds((Timestamp() - Interlocked.Read(ref lastActivity)) / (double)Stopwatch.Frequency);
 
-        /// <summary>A bridge call started; pair with <see cref="End"/>.</summary>
-        internal static void Begin()
+        /// <summary>One matched external request, owned until the handler finishes.</summary>
+        internal static IDisposable Request()
         {
             Interlocked.Increment(ref inFlight);
             Interlocked.Exchange(ref lastActivity, Timestamp());
+            return new Activity();
         }
 
-        /// <summary>A bridge call returned (or faulted).</summary>
-        internal static void End()
+        private sealed class Activity : IDisposable
         {
-            Interlocked.Exchange(ref lastActivity, Timestamp());
-            Interlocked.Decrement(ref inFlight);
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref lastActivity, Timestamp());
+                Interlocked.Decrement(ref inFlight);
+            }
         }
 
     }

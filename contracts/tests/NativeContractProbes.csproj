@@ -9,6 +9,7 @@
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <NativeSourceRoot Condition="'$(NativeSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../integrations/rimgovernor-native/src</NativeSourceRoot>
     <BrainBinDir Condition="'$(BrainBinDir)' == ''">$(MSBuildThisFileDirectory)../../brain/src/RimGovernor.Brain.Contracts/bin/Release</BrainBinDir>
+    <ChannelBinDir Condition="'$(ChannelBinDir)' == ''">$(MSBuildThisFileDirectory)../../brain/src/RimGovernor.Brain.HttpChannel/bin/Release</ChannelBinDir>
     <HostSourceRoot Condition="'$(HostSourceRoot)' == ''">$(MSBuildThisFileDirectory)../../integrations/rimgovernor-host/src</HostSourceRoot>
   </PropertyGroup>
   <!-- Windows infers RuntimeIdentifier win7-x86 for a net472 Exe; pin it on every OS so the
@@ -30,6 +31,7 @@
          build's BaseIntermediateOutputPath and overwrite its project.assets.json. The gate (tools/repo/Commands/Gate.cs) builds them first. -->
     <Reference Include="RimGovernor.Brain.Contracts"><HintPath>$(BrainBinDir)/RimGovernor.Brain.Contracts.dll</HintPath></Reference>
     <Reference Include="RimGovernor.Brain.Domain"><HintPath>$(BrainBinDir)/RimGovernor.Brain.Domain.dll</HintPath></Reference>
+    <Reference Include="RimGovernor.Brain.HttpChannel"><HintPath>$(ChannelBinDir)/RimGovernor.Brain.HttpChannel.dll</HintPath></Reference>
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
   </ItemGroup>
 
@@ -102,7 +104,6 @@
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/SnapshotSections.cs" Link="Production/SnapshotSections.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeConstructionWork.cs" Link="Production/NativeConstructionWork.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/IdleExit.cs" Link="Production/IdleExit.cs" />
-    <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeOpInvocation.cs" Link="Production/NativeOpInvocation.cs" />
     <Compile Include="NativeContractProbes/native-idle-exit/Program.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeThreatClassifier.cs" Link="Production/NativeThreatClassifier.cs" />
     <Compile Include="$(NativeSourceRoot)/Bridge/Protocol/NativeProductionBillSettings.cs" Link="Production/NativeProductionBillSettings.cs" />

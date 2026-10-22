@@ -1,10 +1,12 @@
 # Harness idle exit probe
 
-Compiles the production `NativeOpTable.InvokeAsync` boundary and `IdleExit`
-accounting with fake typed and registry operation bodies. A controlled monotonic
-clock checks typed/fixture activity, overlapping requests, completion, synchronous
-failure, cancellation and expiry after the harness stops calling. The gate runs it
-as `native-idle-exit`.
+Uses the real shared HTTP `Dispatcher`, `RouteTable`, native route registrations
+and production `IdleExit` account with fake operation bodies. A player census
+route registers after native startup on the same table, matching live hosting.
+A controlled clock checks player/native/fixture requests, overlapping requests,
+completion, failure, cancellation and expiry. Health, discovery, unknown paths
+and requests rejected by the access guard must not extend the idle interval.
+The gate runs it as `native-idle-exit`.
 
-No game is launched. The native build checks the actual HTTP table and shutdown
-hook; a colony review beyond the prior idle cutoff supplies gameplay evidence.
+No game is launched. Native builds verify the timer hook and HTTP startup wiring;
+a colony review beyond the old cutoff supplies gameplay evidence.

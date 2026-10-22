@@ -85,7 +85,7 @@ internal static class Gate
             probes,
             "build native contract probes",
             ["build", "NativeContractProbes.csproj", .. Strict, $"-p:OutputPath={p.Probes}/bin/", $"-p:BaseIntermediateOutputPath={p.Probes}/obj/",
-                $"-p:BrainBinDir={p.Bin("RimGovernor.Brain.Contracts")}"],
+                $"-p:BrainBinDir={p.Bin("RimGovernor.Brain.Contracts")}", $"-p:ChannelBinDir={p.Bin("RimGovernor.Brain.HttpChannel")}"],
             ct).ConfigureAwait(false);
         if (!File.Exists(p.Harmony))
         {

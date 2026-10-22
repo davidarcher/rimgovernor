@@ -3,6 +3,8 @@ namespace RimGovernor.Brain.HttpChannel;
 /// <summary>The limits of one route.</summary>
 public sealed record RouteOptions
 {
+    /// <summary>Whether a matched request counts toward harness activity; passive discovery/health checks do not.</summary>
+    public bool CountsAsActivity { get; init; } = true;
     /// <summary>The largest request body accepted; a bigger declared length is answered 413 without reading it.</summary>
     public int MaxBodyBytes { get; init; } = 8192;
 
@@ -15,8 +17,9 @@ public sealed record RouteOptions
 /// table is shared by the channel's own routes and by the route modules the brain host publishes, and a module can
 /// remove its routes again (the brain host reloads its assembly context, #3084), so registrations are disposable.
 /// </summary>
-public sealed class RouteTable
+public sealed class RouteTable(Func<IDisposable>? beginRequest = null)
 {
+    internal IDisposable? BeginRequest() => beginRequest?.Invoke();
     private readonly object _gate = new();
     private List<Entry> _entries = [];
 

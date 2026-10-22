@@ -354,11 +354,11 @@ analysis instead (see [remote acceptance](../contracts/remote-acceptance.md)).
 `acceptance warm -root <root>` prepares the menu before a run.
 
 Harness-launched games use `-rimgovernor-idle-exit=20` to clean up abandoned warm
-processes. Every recognized native HTTP request counts as activity, including typed
+processes. Every matched player or native HTTP request counts as activity, including typed
 reads and fixture tools. An outstanding request prevents idle exit; completion,
 failure or cancellation starts a fresh idle interval. Autonomous brain work and
-health checks do not keep an abandoned harness game alive. The native HTTP adapter
-owns the single timer, and logs a warning before an idle-triggered shutdown.
+health checks do not keep an abandoned harness game alive. The shared HTTP dispatcher
+updates the single native idle account; the timer logs a warning before shutdown.
 Use the suite runner for worker isolation and parallel cases rather than
 sharing one profile between independent runners.
 

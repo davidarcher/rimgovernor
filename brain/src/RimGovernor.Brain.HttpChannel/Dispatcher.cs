@@ -54,6 +54,7 @@ public sealed class Dispatcher(RouteTable routes, int maxResponseBytes)
             return ChannelResponse.Failure(400, "bad_request", "This route takes no request body");
         }
 
+        using var activity = entry.Options.CountsAsActivity ? routes.BeginRequest() : null;
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(entry.Options.Timeout);
         ChannelResponse response;
