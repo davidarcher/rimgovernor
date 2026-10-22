@@ -199,10 +199,18 @@ public sealed class Game
 
             try
             {
-                var stopped = await GameProcess.StopAsync(HeadlessProfile.MustAbs(_config.Configuration), GameIdOf(_config), cancellationToken).ConfigureAwait(false);
+                var stateDir = HeadlessProfile.MustAbs(_config.Configuration);
+                var gameId = GameIdOf(_config);
+                var record = GameProcess.PeekRecord(stateDir, gameId);
+                var lost = GameSessions.GoneReason(stateDir, gameId);
+                var stopped = await GameProcess.StopAsync(stateDir, gameId, cancellationToken).ConfigureAwait(false);
                 if (report is not null)
                 {
                     report["stop"] = stopped ? "stopped" : "not running";
+                    // A socket can close before the exit becomes observable to the transport. Attach in StopAsync
+                    // may then retire its record. Capture that identity first; never label our own kill a game loss.
+                    if (lost is not null || (!stopped && record is not null))
+                        report["process_exit"] = lost ?? GameSessions.ExitedMessage(stateDir, gameId, $"the game (pid {record!.Pid}) exited");
                 }
             }
             catch (AcceptanceException e)

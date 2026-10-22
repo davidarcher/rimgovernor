@@ -135,6 +135,9 @@ public sealed class CaseRunner
                 : e;
         }
 
+        if (error is NativeTransportException or NativeRefusedException && report.ProcessExit.Length > 0)
+            error = new RunLostException(report.ProcessExit + "\n" + ErrorText(error));
+
         if (report.SoftFailure() is { } soft)
         {
             error = error is null ? soft : new AcceptanceException(ErrorText(error) + "\n" + ErrorText(soft));

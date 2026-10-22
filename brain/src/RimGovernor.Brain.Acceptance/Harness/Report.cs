@@ -49,6 +49,9 @@ public sealed partial class Report
     /// <summary>The error recorded when the game failed to stop; empty when none.</summary>
     public string StopError => Raw("stop_error").AsString();
 
+    /// <summary>A process loss observed before cleanup, including a socket-close/exit race.</summary>
+    public string ProcessExit => Raw("process_exit").AsString();
+
     /// <summary>The recorded <c>world</c> block; null when none.</summary>
     public JsonObject? World => Raw("world") as JsonObject;
 

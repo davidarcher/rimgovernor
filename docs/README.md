@@ -26,6 +26,7 @@ links the component guides; the [glossary](developers/glossary.md) defines terms
 | Choose evidence for a change | [Choose tests](developers/testing/choose-tests.md) |
 | Rules every native case follows | [Acceptance charter](developers/testing/acceptance-guide.md#charter) |
 | Write or iterate on a native case | [Acceptance guide](developers/testing/acceptance-guide.md) |
+| Run the in-process acceptance pilot and its failure exercises | [Rectangle pilot](developers/testing/acceptance-guide.md#in-process-rectangle-pilot) |
 | Replay planner decisions | [Colony snapshots](developers/testing/colony-snapshots.md) |
 
 | History: which native reads copied def data | [Static-data census (history)](developers/static-data-census.md) |

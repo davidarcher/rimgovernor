@@ -19,6 +19,8 @@ public static class FixtureJson
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     UseStringEnumConverter = true,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+[JsonSerializable(typeof(RectangleCaseRequest))]
+[JsonSerializable(typeof(RectangleCaseResult))]
 [JsonSerializable(typeof(StageSpec))]
 [JsonSerializable(typeof(StageReply))]
 [JsonSerializable(typeof(GearPolicyReply))]

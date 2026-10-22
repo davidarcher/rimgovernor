@@ -20,6 +20,7 @@ public sealed class TelemetryKind
 /// </summary>
 public static class TelemetryKinds
 {
+    public static readonly TelemetryKind AcceptanceCase = new("acceptance_case");
     public static readonly TelemetryKind ForecastPrediction = new(Otlp.ForecastEvidenceReader.PredictionKind);
     public static readonly TelemetryKind ForecastObservation = new(Otlp.ForecastEvidenceReader.ObservationKind);
     /// <summary>A planner's or the rounds review's step verdict (<see cref="Decision.PlannerStepKind"/>).</summary>

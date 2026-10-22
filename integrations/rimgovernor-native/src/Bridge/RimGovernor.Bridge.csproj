@@ -55,6 +55,7 @@
          references), so a reference present in fixture builds only would break the production build's restore. The
          production build carries none of them, which NativeModBuild checks on the built assembly. -->
     <Compile Include="../../../../scripts/fixtures/FixtureKit.cs" Condition="'$(DebugStartFixture)' == 'true'" />
+    <Compile Include="../../../../scripts/fixtures/ZoneRectangleFixture.cs" Condition="'$(DebugStartFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/StageFixture.cs" Condition="'$(DebugStartFixture)' == 'true'" />
     <Compile Include="../../../../brain/src/RimGovernor.Fixtures.Contracts/*.cs" Condition="'$(DebugStartFixture)' == 'true'" />
     <Compile Include="../../../../scripts/fixtures/HuntingPredictionFixture.cs" Condition="'$(DebugStartFixture)' == 'true'" />

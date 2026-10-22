@@ -195,7 +195,7 @@ public sealed partial class Harness : IAsyncDisposable
             result = e.Result;
             callError = e;
         }
-        catch (NativeTransportException e)
+        catch (Exception e) when (e is NativeTransportException or OperationCanceledException)
         {
             callError = e;
         }
@@ -207,7 +207,7 @@ public sealed partial class Harness : IAsyncDisposable
             {
                 callError = Refine(tool, callError, result);
                 row.Set("error", callError.Message);
-                throw callError is NativeRefusedException or NativeTransportException ? callError : new AcceptanceException(callError.Message, callError);
+                throw callError is NativeRefusedException or NativeTransportException or OperationCanceledException ? callError : new AcceptanceException(callError.Message, callError);
             }
 
             var structured = result?.Structured;

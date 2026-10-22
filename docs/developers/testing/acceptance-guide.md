@@ -45,6 +45,33 @@ post-start state injections. Other typed reads, registered telemetry kinds and t
 remain mandatory. `production/forecast-residuals` uses a one-day forecast plus a quarter day for the
 initial review and the first ordinary endpoint observation; missing evidence fails within that budget.
 
+## In-process rectangle pilot
+
+`zone/rectangle` keeps launch, colony preparation and its typed `StageSpec` in the external runner.
+Its action-and-assertion body is compiled only into the fixture mod (`ZoneRectangleFixture`, under
+`DebugStartFixture`). One awaited `test/zone_rectangle_case` call passes the prepared identity, site,
+player-zone reference and a unique run ID. The body runs on a worker thread and uses the same
+`INativeFacade` calls as the brain; native main-thread admission still owns every game access.
+No external harness assembly is loaded into the game, and there is no second assertion implementation.
+
+The reply is a `RectangleCaseResult`: run ID, phase, success, optional error and captured evidence.
+Success requires the matching run, completed phase and no error. Durable `acceptance_case` rows retain
+evidence before failure or process loss; `RectanglePilotResults` selects only this attempt's rows.
+The outside runner owns the ordinary body hang guard, records partial evidence even after cancellation,
+and always retires this pilot's private game (`NoKeep`). Neither a lost reply nor timeout retries writes.
+The production mod contains neither the pilot entry point nor its fault controls.
+
+For the pilot's failure exercises, set `RIMGOVERNOR_RECTANGLE_PILOT_FAULT` on the external command to
+`Assertion`, `Exit` or `Hang`, then run `zone/rectangle` with a fresh absolute output directory. Unset it
+for the ordinary case. These modes act immediately after the first creation receipt is durably recorded:
+an assertion failure, exit of that private game, or a body that never completes on its own.
+Each command must fail, preserve `rectangle_partial`, and retire the game. `Hang` tests the external
+guard, not a wedged game thread. Fault controls are test-only and never change gameplay behavior.
+
+This pilot does not exercise simulation waits or migrate staging. Setup, final results and diagnostic
+observations still use JSON. Changing its body rebuilds the fixture mod and restarts the private game;
+there is no collectible-code reload. Broader migration requires separate evidence from a ticking case.
+
 ## Writing a case
 
 Every case uses the typed case API, and the compiler enforces the charter. A case is a `TypedCase` record

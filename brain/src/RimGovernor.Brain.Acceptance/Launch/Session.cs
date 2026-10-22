@@ -311,7 +311,7 @@ public static class GameSessions
             : ExitedMessage(stateDir, gameId, string.Create(CultureInfo.InvariantCulture, $"the game (pid {record.Pid}) exited"));
     }
 
-    private static string ExitedMessage(string stateDir, string gameId, string headline)
+    internal static string ExitedMessage(string stateDir, string gameId, string headline)
     {
         var message = new StringBuilder(headline);
         if (GameProcess.LastExit(stateDir, gameId) is { } code)

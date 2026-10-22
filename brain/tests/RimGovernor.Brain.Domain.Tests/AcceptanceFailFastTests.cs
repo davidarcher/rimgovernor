@@ -262,6 +262,35 @@ public sealed class AcceptanceFailFastTests : IDisposable
         return new HttpNativeTransport(root, TimeSpan.FromSeconds(5), new HttpClient(new Handler(respond))) { Gone = gone };
     }
 
+    [Fact]
+    public async Task CancellationDuringAnAwaitedCaseRecordsEvidenceAndNeverRetries()
+    {
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        EndpointFile.Write(root, "http://127.0.0.1:1", Environment.ProcessId, "run");
+        using var client = new HttpClient(new AwaitedHandler(async ct =>
+        {
+            Interlocked.Increment(ref calls);
+            entered.SetResult();
+            await new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously).Task.WaitAsync(ct);
+            return Reply(HttpStatusCode.OK);
+        }));
+        await using var harness = new Harness(new HttpNativeTransport(root, TimeSpan.FromMinutes(5), client), root);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var call = harness.CallAsync("awaited-case", "test/zone_rectangle_case", new JsonObject(), cancellation.Token);
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+        cancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => call);
+        Assert.Equal(1, calls);
+        var evidence = Assert.Single(Directory.GetFiles(root, "*-awaited-case.json"));
+        Assert.Contains("error", File.ReadAllText(evidence), StringComparison.Ordinal);
+    }
+
+    private sealed class AwaitedHandler(Func<CancellationToken, Task<HttpResponseMessage>> respond) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => respond(cancellationToken);
+    }
+
     private static Task<NativeResult> Call(HttpNativeTransport transport) =>
         transport.CallAsync("rimgovernor/lifecycle_read_identity", new JsonObject { ["request"] = "{}" }, new NativeCallOptions(), CancellationToken.None);
 
