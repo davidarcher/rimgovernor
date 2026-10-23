@@ -52,9 +52,11 @@ method names by reflection. General framework types do not supply call stacks.
 Without the environment variable, measurement/profile methods do no work. The
 recorded [original](../../../brain/tests/RimGovernor.Brain.Domain.Tests/Baselines/productive.quality.json)
 and [larger](../../../brain/tests/RimGovernor.Brain.Domain.Tests/Baselines/four-workers.quality.json)
-six-budget snapshots hold physical identities, participants, travel/wait/work/timing,
-learning, complete baseline/selected consequence vectors, findings, expansions
-and truncation. JSON `null` means unknown, never zero. The gate no longer compares
+seven-budget snapshots (outcome-evaluation budgets since #3722,
+[below](#outcome-evaluation-budget-3722)) hold physical identities, participants,
+travel/wait/work/timing, learning, complete baseline/selected consequence vectors,
+findings, the search's outcome evaluations and expansions with the baseline's share and
+each phase's spend, and truncation. JSON `null` means unknown, never zero. The gate no longer compares
 them with a fresh selection: that test cost 23–40 s per run and was deleted. Only
 `ReferenceIsNeverWorseThanAnyRecordedIncumbent` still reads the larger snapshot, so
 treat both as records of their last re-recording, not as current output. The
@@ -1115,3 +1117,141 @@ reports no gap. Treat the reader output, not the probe's snapshot, as the
 run's count. Artifacts (passing `result.json`, `otlp/logs.jsonl`,
 `native-residual-report.json`) stay under the worktree's
 `.rimgovernor/forecast-evidence-3475/`, uncommitted.
+
+## Outcome-evaluation budget (#3722)
+
+The selector's allowance is `ForecastSearchBudget(Evaluations, Traversal)`
+([portfolio selection](../architecture/portfolio-selection.md)). `Evaluations` counts
+outcome evaluations: one unit per complete plan a schedule search hands to the evaluator
+(`CoupledSearchCache.Evaluate`), none for a schedule or outcome reused from the search's
+cache. `Traversal` bounds the scheduler expansions of the same comparison, so refused,
+duplicate, infeasible and unknown-heavy branches stay finite when they evaluate nothing.
+The baseline is mandatory: counted and reported apart (`BaselineEvaluations`,
+`BaselineExpansions`), charged to neither allowance. The warm start, the seed share, the
+extension, the confirmation, the schedule search's capacity-recovery retries and the
+planned-unplaced reselection draw from one ledger, and each allowance's end is its own
+finding (`outcome_evaluations_exhausted`, `traversal_bound_exhausted`). Both counts bound
+algorithmic work, never wall time.
+
+The matrix (`PortfolioAllocationTests.Budgets`) is in evaluation budgets, each with the
+default traversal bound of 65,536: 256, 1,024, 2,048, 4,096, 8,192 (the production
+default), 16,384 and 65,536. Both snapshots were re-pinned in that unit on 2026-10-23
+(DAVID-PC, Release, .NET 10.0.12, the gate's build of this change; `EvaluationBudget` and
+`Traversal` key each row, and `Quality` carries `OutcomeEvaluations`, `BaselineEvaluations`,
+`BaselineExpansions` and `SearchPhases` with each phase's expansions, schedule searches and
+outcome evaluations). A former expansion budget is not an evaluation budget: the two are
+comparable only through what the former code spent in evaluations, which was measured on
+the parent commit (`739274879`) with a temporary probe before the change and is quoted
+below as "former".
+
+### Derivation of the default
+
+The grooming rule: the outcome evaluations the former 65,536-expansion default spent on the
+four-worker fixture at the one-day horizon, rounded up to a power of two. The former code
+spent **1,728** outcome evaluations there (the mandatory baseline and 1,727 screened plans
+over all 91 single roots; the extension then found nothing that served) and 5,723
+expansions, so **2,048** by the rule. 2,048 keeps both fixtures' default selection (below),
+but the former budget bought a different number of evaluations on every graph: 1,728 on the
+four-worker fixture at one day (3.3 expansions per evaluation), 3,138 at 700 ticks (4.1),
+7,833 on the original fixture at 700 ticks, where the sweep runs (5.2), and about 13,000 on
+the ten-root planned-shelter fixtures, whose schedule searches cost a few expansions each.
+At 2,048 four default-budget tests regressed: the three `PlannedShelterTests` fixtures find
+the complete shelter only in the cardinality sweep, which the affordability gate (the
+subsets left, at the mean cost so far, now in evaluations as well as expansions) skipped at
+2,048 where the former default afforded it, and two of them selected an incomplete shelter;
+and `ScreenedFixpointExtensionServesAllFourDemandedIngestionsAtTheDefaultBudget` was cut at
+exactly 2,048 inside the confirm phase (the four-worker 2,048 row below: 300 of the
+confirm's 742 plans evaluated, `outcome_evaluations_exhausted`).
+
+Decision (David, 2026-10-23): `DefaultEvaluations = 8192`, the smallest power of two at
+which every existing default-budget test keeps its selection and the sweep runs where the
+former default ran it, with `DefaultTraversal = 65536` keeping scheduler work at the former
+ceiling. The four tests were not rewritten to accept the regression and the affordability
+estimate was not changed; tuning the default on measured quality and cost is #3725.
+
+### Measured at the default
+
+Phases are expansions / schedule searches / outcome evaluations; the baseline phase is
+0 / 0 / 1 in every row (the baseline portfolio has no schedule to search, so its mandatory
+work is one evaluation). Medians of three samples; MB and ms are descriptive.
+
+| Fixture | Horizon | Outcome evaluations | Expansions | Seed | Extend | Confirm | Selection | MB | ms |
+| --- | ---: | ---: | ---: | --- | --- | --- | --- | ---: | ---: |
+| Original | 700 | 763 | 4,551 | 327 / 8 / 95 | 128 / 11 / 19 | 4,096 / 1 / 648 | `composition/1` + `/4`, 2 ingestions, labor 206, tick 260 | 19.7 | 52 |
+| Original | one day | 1,081 | 4,739 | 451 / 11 / 133 | 192 / 17 / 31 | 4,096 / 1 / 916 | `composition/1` + `/6`, labor 206, tick 500 | 26.7 | 22 |
+| Four-worker | 700 | 3,138 | 12,736 | 3,968 / 62 / 1,174 | 4,672 / 228 / 1,221 | 4,096 / 1 / 742 | `/3`, `/6`, `/10`, `/16`, 4 ingestions, labor 721, tick 459 | 103.2 | 99 |
+| Four-worker | one day | 1,728 | 5,888 | 5,888 / 91 / 1,727 | (unserved: nothing to extend) | — | baseline; nothing selected | 49.1 | 46 |
+
+Every default selection is the one the former default produced, and the evaluation counts
+match the former code's (1,081 and 1,728 at one day, 763 and 3,138 at 700 ticks). The
+expansions differ from the former counts for two accounting reasons, not a search change:
+the former count added one unit per evaluated subset (the one-day original fixture's former
+4,768 were 4,739 scheduler expansions plus 29 schedule searches), and a capacity-recovery
+retry's expansions are now counted (the four-worker one-day search's 5,888 are the former
+5,723 less 91 subset units plus the 256 expansions of the screened searches' retries, which
+the former count omitted; the 700-tick row's 12,736 against the former 12,899 is the same
+arithmetic, 291 subset units out and 128 retry expansions in).
+
+### Row mapping and changed constrained-budget selections
+
+Former rows are the parent commit's output at an expansion budget with the evaluations it
+spent; the new row is the evaluation budget nearest that spend. Ids are `composition/N`.
+
+Four-worker fixture, 700 ticks:
+
+| Former expansion budget | Evaluations it spent | Former selection | Evaluation budget | Outcome evaluations | Selection |
+| ---: | ---: | --- | ---: | ---: | --- |
+| 1,024 | 257 | `/16` + `/12`, 2 ingestions, labor 370, tick 370 | 256 | 257 | same, allowance spent in the extension |
+| 4,096 | 929 | `/16`, `/12`, `/14`, 3 ingestions, labor 848, tick 478 | 1,024 | 1,025 | **`/1`, `/8`, `/10`, 3 ingestions, labor 844, tick 476**, allowance spent in the extension |
+| 8,192 | 2,069 | `/3`, `/6`, `/10`, `/16`, 4 ingestions, labor 721, tick 459 | 2,048 | 2,049 | same, allowance spent in the confirm (300 of 742 plans) |
+| 16,384 and up | 3,138 | same | 4,096 | 3,002 | same, converged (56 of 62 roots screened, confirm complete) |
+| | | | 8,192 and up | 3,138 | same, converged (every root screened) |
+
+Original fixture, 700 ticks:
+
+| Former expansion budget | Evaluations it spent | Former selection | Evaluation budget | Outcome evaluations | Selection |
+| ---: | ---: | --- | ---: | ---: | --- |
+| 1,024 | 196 | `/1` + `/4`, 2 ingestions, labor 207 (pinned before #3624), tick 260 | 256 | 257 | `/1` + `/4`, labor 206, tick 260, allowance spent in the confirm (160 of 648 plans) |
+| 4,096 | 689 | `/1` + `/4`, labor 206 | 1,024 | 763 | same, converged |
+| 8,192 and 16,384 | 763 | same | 2,048 to 8,192 | 763 | same |
+| 65,536 and 262,144 | 7,833 | same, sweep finished | 16,384 and 65,536 | 7,833 | same, sweep finished (35,780 / 99 / 7,070) |
+
+The one changed constrained-budget selection is the four-worker 1,024-evaluation row
+against the former 4,096-expansion row: both serve three ingestions, but the seed share is
+now a quarter of the evaluations left (256, which screens 21 roots) where it was a quarter
+of the expansions (1,024, 18 roots), so the extension starts from a different leader and
+ends at `/1`, `/8`, `/10` with labor 844 instead of `/16`, `/12`, `/14` with labor 848. The
+original 256-evaluation row records labor 206 where the former 1,024-expansion pin recorded
+207; that pin predates #3624 and the parent commit's labor at 1,024 expansions was not
+re-measured, so whether the difference is the cut confirm or the scheduler order is not
+established. Every other row keeps its selection, labor and completion tick.
+
+### Baseline diffs
+
+Both snapshots were re-recorded (`RIMGOVERNOR_PORTFOLIO_OUTPUT`). Rows are keyed by
+`EvaluationBudget` and `Traversal` rather than `Budget`; `Quality` gains
+`OutcomeEvaluations`, `BaselineEvaluations`, `BaselineExpansions` and `SearchPhases`;
+`Findings` carry `outcome_evaluations_exhausted` on the rows the allowance ended (original
+256; four-worker 256, 1,024 and 2,048). The previous pins predated #3624: their four-worker
+rows at 8,192 expansions and up still showed `/1`, `/8`, `/10`, `/16` at labor 947, while
+the parent commit's output at those budgets was already `/3`, `/6`, `/10`, `/16` at labor
+721 (the probe above), which the new pins carry. That difference is the stale pin, not this
+change. The full matrix, medians of three samples:
+
+| Fixture | Evaluation budget | Outcome evaluations | Expansions | Ingestions | Labor | End tick | MB | ms |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| Original | 256 | 257 | 4,487 | 2 | 206 | 260 | 10.3 | 25 |
+| Original | 1,024 to 8,192 | 763 | 4,551 | 2 | 206 | 260 | 19.7 | 52 to 68 |
+| Original | 16,384 and 65,536 | 7,833 | 40,331 | 2 | 206 | 260 | 177 | 200 to 396 |
+| Four-worker | 256 | 257 | 1,024 | 2 | 370 | 370 | 9.4 | 9 |
+| Four-worker | 1,024 | 1,025 | 4,096 | 3 | 844 | 476 | 36.4 | 38 |
+| Four-worker | 2,048 | 2,049 | 10,816 | 4 | 721 | 459 | 74.8 | 83 |
+| Four-worker | 4,096 | 3,002 | 12,352 | 4 | 721 | 459 | 100.3 | 121 |
+| Four-worker | 8,192 to 65,536 | 3,138 | 12,736 | 4 | 721 | 459 | 103.2 | 96 to 99 |
+
+### Unverified
+
+The roughly 13,000 evaluations the former default was worth on the planned-shelter fixtures
+is the estimate from the 2,048 attempt, not a pinned measurement. No native run was made;
+in game the allowance is reported on every `rounds_review` and `coupled_selection` row
+([signals](../contracts/otel-signals.md#kinds)), and the nightly supplies that evidence.

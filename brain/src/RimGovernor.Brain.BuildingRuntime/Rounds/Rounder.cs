@@ -772,18 +772,11 @@ public sealed partial class Rounder
             // The policy inspection inside the review stage (the coupled search dominates it): its wall and the
             // search's expansions against the search bound (#3556).
             ("inspect_ms", result.Needs.InspectMs),
-            ("coupled_search_expansions", result.Needs.CoupledSelection?.Selection.Expansions ?? -1),
-            // The search's expansions per phase, the phase that found the chosen subset and whether the previous selection seeded it (#3563).
-            ("search_phases", result.Needs.CoupledSelection is { } searched ? searched.SearchPhases.ToDictionary(p => p.Phase, p => (object?)p.Expansions) : null),
-            // Per phase, what it cost and what its evaluations found (#3556): the wall, the schedule searches run and their
-            // wall, and the evaluations that ended infeasible or without supported relief.
-            ("search_profile", result.Needs.CoupledSelection is { } profiled ? profiled.SearchPhases.ToDictionary(p => p.Phase, p => (object?)new Dictionary<string, object?>
-            {
-                ["ms"] = p.Ms, ["evaluations"] = p.Evaluations, ["schedule_ms"] = p.ScheduleMs, ["infeasible"] = p.Infeasible, ["unsupported"] = p.Unsupported,
-                ["swaps"] = p.Swaps, ["improved"] = p.Improved,
-            }) : null),
+            // The phase that found the chosen subset and whether the previous selection seeded it (#3563).
             ("selected_phase", result.Needs.CoupledSelection?.SelectedPhase), ("warm_start", result.Needs.CoupledSelection?.WarmStart), ("warm_translated", result.Needs.CoupledWarmStartTranslated),
         };
+        // The search's accounting (#3722) and per-phase expansions and profile (#3563, #3556).
+        attrs.AddRange(ReviewSearchAttrs(result.Needs.CoupledSelection));
         // Per lap, the properties of the reading it entered on that differ from the previous review's; the laps
         // that entered on the same reading; what the comparison cost (#3564).
         if (LapInputs.Changed() is { } lapsChanged)

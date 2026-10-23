@@ -37,7 +37,7 @@ public sealed class SupportMethodTests
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
     }
-    private static ForecastCoupledSelection Select(RoundsFacts facts, int budget = 16384) => ForecastCoupledSelection.CompareActivityOutcomes(
+    private static ForecastCoupledSelection Select(RoundsFacts facts, ForecastSearchBudget? budget = null) => ForecastCoupledSelection.CompareActivityOutcomes(
         ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!, budget);
     private static SelectedActivityTask[] Tasks(RoundsFacts facts, ForecastCoupledSelection selection) =>
@@ -86,9 +86,14 @@ public sealed class SupportMethodTests
     [Fact]
     public void BoundedSearchExposesIncompleteComparison()
     {
-        var result = Select(Facts(Delivery(8)), 1);
+        var result = Select(Facts(Delivery(8)), new(1));
         Assert.True(result.Selection.SearchTruncated);
-        Assert.Empty(result.Selection.Selected);
+        // One discretionary evaluation was started and no more (#3722): the first root screened was evaluated once, led, and nothing else was
+        // compared with it.
+        Assert.Equal(1, result.OutcomeEvaluations - result.BaselineEvaluations);
+        Assert.Contains(ForecastCoupledSelection.OutcomeEvaluationsExhausted, result.Selection.Findings);
+        Assert.Single(result.Selection.Selected);
+        Assert.Equal("seed", result.SelectedPhase);
     }
 
     [Fact]

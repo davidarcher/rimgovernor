@@ -16,4 +16,28 @@ public static class RoundsReviewTelemetry
 
     /// <summary>The native hunt read: known, hunter and prey counts, findings.</summary>
     public const string HuntReadKey = "hunt_read";
+
+    /// <summary>The coupled search's scheduler expansions, against <see cref="CoupledTraversalBoundKey"/>; -1 when nothing was compared.</summary>
+    public const string CoupledSearchExpansionsKey = "coupled_search_expansions";
+
+    /// <summary>The coupled search's outcome evaluations (#3722), the baseline's included, against <see cref="CoupledEvaluationBudgetKey"/>; -1 when nothing was compared.</summary>
+    public const string CoupledSearchEvaluationsKey = "coupled_search_evaluations";
+
+    /// <summary>The mandatory baseline's outcome evaluations, counted in <see cref="CoupledSearchEvaluationsKey"/> and charged to no allowance.</summary>
+    public const string CoupledBaselineEvaluationsKey = "coupled_baseline_evaluations";
+
+    /// <summary>The mandatory baseline's scheduler expansions, counted in <see cref="CoupledSearchExpansionsKey"/> and charged to no allowance.</summary>
+    public const string CoupledBaselineExpansionsKey = "coupled_baseline_expansions";
+
+    /// <summary>The outcome-evaluation budget the comparison spent against.</summary>
+    public const string CoupledEvaluationBudgetKey = "coupled_evaluation_budget";
+
+    /// <summary>The traversal bound on scheduler expansions the comparison spent against.</summary>
+    public const string CoupledTraversalBoundKey = "coupled_traversal_bound";
+
+    /// <summary>Per search phase reached, its scheduler expansions (#3563).</summary>
+    public const string SearchPhasesKey = "search_phases";
+
+    /// <summary>Per search phase reached, its profile (#3556): <c>ms</c>, <c>schedule_searches</c>, <c>outcome_evaluations</c>, <c>schedule_ms</c>, <c>infeasible</c>, <c>unsupported</c>, <c>swaps</c>, <c>improved</c>.</summary>
+    public const string SearchProfileKey = "search_profile";
 }

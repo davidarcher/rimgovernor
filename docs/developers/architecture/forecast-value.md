@@ -564,10 +564,23 @@ baselines, and benchmarked at a one-day horizon in .NET
    schedule search knows a prefix by an incremental 128-bit hash. What
    remains per evaluated plan is the schedule search's own output (its
    allocation and plan records) and the memo misses.
-3. **Evaluate lazily, budget by evaluations.**
+3. **Evaluate lazily, budget by evaluations** ([#3472](https://github.com/davidarcher/rimgovernor/issues/3472)).
+   - **The budget counts outcome evaluations** ([#3722](https://github.com/davidarcher/rimgovernor/issues/3722), shipped).
+     `ForecastSearchBudget(Evaluations, Traversal)`: one unit per complete plan a
+     schedule search hands to the evaluator (a cached schedule or outcome spends
+     none), and a separate bound on scheduler expansions so refused, duplicate and
+     unknown-heavy branches terminate without evaluating anything. One ledger
+     spans the baseline (mandatory, reported apart and charged to neither), the
+     warm start, the seed share, every extension and confirmation, the schedule
+     search's capacity-recovery retries and the planned-unplaced reselection;
+     nothing nested resets or extends it. Each allowance's end is its own
+     finding (`outcome_evaluations_exhausted`, `traversal_bound_exhausted`). The
+     default is 8,192 evaluations and 65,536 expansions
+     ([derivation](../testing/portfolio-allocations.md#outcome-evaluation-budget-3722));
+     the tuning on measured quality and cost is #3725.
    - Floors and cheap terms are computed first; a candidate that cannot beat
-     the best on its bound stops early (branch and bound on capability-days).
-   - The budget counts evaluations, deterministically, then is raised.
+     the best on its bound stops early (branch and bound on capability-days;
+     #3723, #3724).
 
 ## Observation gaps
 
@@ -603,7 +616,7 @@ Each milestone has a GitHub issue.
 4. [#3470](https://github.com/davidarcher/rimgovernor/issues/3470) Tier 2: pawn cycle, stocks and flows, project graph, crop growth by twelfth (implemented: `Policy/ColonyModel/` with `RoundsColonyModel.Review`, the research and sowing providers `ResearchMethodCandidates` and `SowingMethodCandidates`, the `colony_model` event; the devilstrand payoff chain is wired by [#3559](https://github.com/davidarcher/rimgovernor/issues/3559) (its apparel value waits on the calibrated exposure table, #3543) and proven in play by `production/devilstrand-investment` ([#3560](https://github.com/davidarcher/rimgovernor/issues/3560)); `production/devilstrand-investment-starving` proves that investment never outranks the urgent floor).
 5. [#3471](https://github.com/davidarcher/rimgovernor/issues/3471) Harm model v1: threat schedule, composition, armor response,
    consequences, with exposure calibrated from real-game sweeps (implemented, #3539 to #3547; three exposure cells are calibrated).
-6. [#3472](https://github.com/davidarcher/rimgovernor/issues/3472) Search stage 3 and a larger budget.
+6. [#3472](https://github.com/davidarcher/rimgovernor/issues/3472) Search stage 3: the outcome-evaluation budget (#3722, shipped), lazy evaluation, proven pruning and the tuned default.
 
 The food-runway diagnostic uses the native annual daily growing pattern at the
 forecast's current review-relative day. Seasonal reserve phase-in and shrinking

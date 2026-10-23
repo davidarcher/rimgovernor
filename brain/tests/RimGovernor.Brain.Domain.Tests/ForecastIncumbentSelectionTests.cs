@@ -249,11 +249,17 @@ public sealed class ForecastIncumbentSelectionTests
     public void ExhaustedOptionalSearchKeepsBaselineAndReportsItsBoundDeterministically()
     {
         var (request, candidates) = Problem(.1, .001);
-        var first = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates, 0);
-        var second = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates, 0);
+        var first = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates, new(0));
+        var second = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates, new(0));
         Assert.Equal("current-joy", Assert.Single(first.Selection.Selected));
         Assert.True(first.Selection.SearchTruncated);
         Assert.Contains("portfolio_search_truncated", first.Selection.Findings);
+        // A zero budget evaluates the mandatory baseline, which is reported but charged to no allowance, and nothing else (#3722).
+        Assert.Contains(ForecastCoupledSelection.OutcomeEvaluationsExhausted, first.Selection.Findings);
+        Assert.True(first.BaselineEvaluations > 0);
+        Assert.Equal(first.BaselineEvaluations, first.OutcomeEvaluations);
+        Assert.Equal(first.BaselineExpansions, first.Selection.Expansions);
+        Assert.Equal(first.OutcomeEvaluations, second.OutcomeEvaluations);
         Assert.Equal(first.Selection.Selected, second.Selection.Selected);
         Assert.Equal(first.Selection.Expansions, second.Selection.Expansions);
         Assert.Equal(first.SelectedVector, second.SelectedVector);
@@ -275,5 +281,96 @@ public sealed class ForecastIncumbentSelectionTests
             Context = candidates.Context with { NonproductiveOccupancy = ["ongoing-joy"] }
         };
         Assert.Throws<DomainException>(() => ForecastCoupledSelection.CompareActivityOutcomes(request, candidates));
+    }
+
+    /// <summary>A chore two pawns can do: the scheduler tries the cheaper one first, whom the needs timeline then shows unavailable all day
+    /// (<c>work_outside_recovered_capacity</c>), so the schedule search runs again without that pawn's choice (the capacity-recovery retry).</summary>
+    private static (ColonyForecastRequest Request, IReadOnlyDictionary<string, ForecastCommitment> Commitments) Chore()
+    {
+        var (request, candidates) = Problem(1, 0, meal: false);
+        var facts = WorkResourceTestFacts.Create("pawn", "helper");
+        facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From(facts.ForecastObserved.WorkPawns.Value
+            .Select(p => p.Id.Value == "helper" ? p with { Available = Known(false) } : p))) } };
+        var roster = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        var context = candidates.Context;
+        context = context with
+        {
+            Resources = roster.WorkView!,
+            Needs = context.Needs with { Pawns = [context.Needs.Pawns[0], context.Needs.Pawns[0] with { Pawn = "helper" }] },
+            NeedTasks = [],
+            Activities = context.Activities with
+            {
+                Activities = [new("chore", "start", "start", [])],
+                Options = [new("chore", "helper", Known(20d), Known(0d)), new("chore", "pawn", Known(20d), Known(0d))],
+                Pawns = [new("helper", "start", Known<EquatableArray<ForecastTimeWindow>>([new(0, 300)]), Known(.5)),
+                    new("pawn", "start", Known<EquatableArray<ForecastTimeWindow>>([new(0, 300)]), Known(1d))],
+            },
+        };
+        return (request with { Coupled = context }, ColonyForecastRules.ForecastCommitmentsById([new ForecastCommitment("chore", []) { ActivityCompletions = ["chore"] }]));
+    }
+
+    /// <summary>#3722: the capacity-recovery retries of one schedule search draw on the comparison's ledger as its first search does: every
+    /// retry's expansions and evaluations are counted, and no retry starts once an allowance is spent.</summary>
+    [Fact]
+    public void TheCapacityRecoveryRetryIsAccountedAndStopsWhenAnAllowanceEnds()
+    {
+        // Two expansions reach the cheaper helper's plan and no other; the helper's capacity window is empty, so the plan is infeasible
+        // and the retry without the helper reaches the pawn's.
+        var (request, commitments) = Chore();
+        const int bound = 2;
+        var ledger = new ForecastSearchLedger(new(8, Traversal: 8));
+        var free = ForecastCoupled.ForecastCoupledScenarioOf(request, commitments, new(), ledger, bound).Coupled!;
+        var why = string.Join(";", free.Findings) + " | " + string.Join(";", free.Alternatives.Select(a => string.Join(",", a.Plan.Allocations.Select(x => x.Pawn)) + ":" + a.Feasible + ":" + string.Join("+", a.Findings.Select(f => f.Reason))));
+        Assert.True(free.Alternatives.Count == 2, why);
+        var retried = Assert.Single(free.Alternatives, a => a.Findings.Any(f => f.Reason == "work_outside_recovered_capacity"));
+        Assert.True(retried.Plan.Allocations.Length == 1 && retried.Plan.Allocations[0].Pawn == "helper", why);
+        var served = Assert.Single(free.Alternatives, a => a.Feasible == Known(true));
+        Assert.True(served.Plan.Allocations.Length == 1 && served.Plan.Allocations[0].Pawn == "pawn", why);
+        // Both schedule searches' expansions and both plans' evaluations are on the ledger, none of them as baseline work; the same
+        // search spends the same units again. The two-expansion schedule searches are cut by their own bound; neither allowance ended.
+        Assert.True(ledger.Expansions == 2 * bound, why + " expansions=" + ledger.Expansions);
+        Assert.Equal((2, 0, 0), (ledger.Evaluations, ledger.BaselineEvaluations, ledger.BaselineExpansions));
+        var again = new ForecastSearchLedger(new(8, Traversal: 8));
+        var counted = ForecastCoupled.ForecastCoupledScenarioOf(request, commitments, new(), again, bound).Coupled!;
+        Assert.Equal(free.Alternatives.Select(a => (a.Feasible, a.Plan.Allocations[0].Pawn)), counted.Alternatives.Select(a => (a.Feasible, a.Plan.Allocations[0].Pawn)));
+        Assert.Equal((ledger.Expansions, ledger.Evaluations), (again.Expansions, again.Evaluations));
+        Assert.True(counted.Truncated && free.Truncated);
+        Assert.DoesNotContain(ForecastCoupledSelection.OutcomeEvaluationsExhausted, counted.Findings);
+        Assert.DoesNotContain(ForecastCoupledSelection.TraversalBoundExhausted, counted.Findings);
+
+        // One evaluation: the first search's plan is evaluated, the retry's schedule search does not start, and the scenario says why
+        // it is incomplete.
+        var one = new ForecastSearchLedger(new(1, Traversal: 8));
+        var starved = ForecastCoupled.ForecastCoupledScenarioOf(request, commitments, new(), one, bound).Coupled!;
+        Assert.Equal("helper", Assert.Single(starved.Alternatives).Plan.Allocations[0].Pawn);
+        Assert.Equal((1, bound), (one.Evaluations, one.Expansions));
+        Assert.True(starved.Truncated);
+        Assert.Contains(ForecastCoupledSelection.OutcomeEvaluationsExhausted, starved.Findings);
+        Assert.DoesNotContain(starved.Alternatives, a => a.Feasible == Known(true));
+
+        // A traversal bound the first search spends: its plan is evaluated, the retry's schedule search gets no expansions and is not run.
+        var cut = new ForecastSearchLedger(new(8, Traversal: bound));
+        var stopped = ForecastCoupled.ForecastCoupledScenarioOf(request, commitments, new(), cut, bound).Coupled!;
+        Assert.Equal("helper", Assert.Single(stopped.Alternatives).Plan.Allocations[0].Pawn);
+        Assert.Equal((1, bound), (cut.Evaluations, cut.Expansions));
+        Assert.True(stopped.Truncated);
+        Assert.Contains(ForecastCoupledSelection.TraversalBoundExhausted, stopped.Findings);
+
+        // A traversal bound below the first search's: the search is cut before any plan, nothing is evaluated, and the bound's end is
+        // reported.
+        var below = new ForecastSearchLedger(new(8, Traversal: 1));
+        var none = ForecastCoupled.ForecastCoupledScenarioOf(request, commitments, new(), below, bound).Coupled!;
+        Assert.Empty(none.Alternatives);
+        Assert.Equal((0, 1), (below.Evaluations, below.Expansions));
+        Assert.True(none.Truncated);
+        Assert.Contains(ForecastCoupledSelection.TraversalBoundExhausted, none.Findings);
+
+        // Mandatory work ignores both allowances and is charged to the baseline.
+        var mandatory = new ForecastSearchLedger(new(0, Traversal: 0)) { Mandatory = true };
+        var baseline = ForecastCoupled.ForecastCoupledScenarioOf(request, commitments, new(), mandatory, bound).Coupled!;
+        Assert.Equal(2, baseline.Alternatives.Count);
+        Assert.Equal((2, ledger.Expansions, 2, ledger.Expansions), (mandatory.Evaluations, mandatory.Expansions, mandatory.BaselineEvaluations, mandatory.BaselineExpansions));
+        Assert.DoesNotContain(ForecastCoupledSelection.OutcomeEvaluationsExhausted, baseline.Findings);
+        Assert.DoesNotContain(ForecastCoupledSelection.TraversalBoundExhausted, baseline.Findings);
     }
 }

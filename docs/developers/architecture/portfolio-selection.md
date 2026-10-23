@@ -97,11 +97,25 @@ Composition spends a shared 16,384-expansion generation budget, at most 2,048
 per root, with 32 realizations per root. Provider input limits are 512 operations
 and 2,048 observed supplies. At most 192 composed activities reserve room for
 current needs in the overall 256-activity generation bound. Omitted work is
-reported, never certified infeasible. Portfolio subset search spends at most 65,536
-expansions including scheduled evaluations, with at most 4,096 per schedule
-search and 32 selected activities; the budget was 16,384 until the sweep below
-stopped running when it cannot finish (#3563), which made the budget a ceiling the
-converged search rarely reaches rather than the amount every review spends. Stable ordering makes replay deterministic;
+reported, never certified infeasible. Portfolio subset search spends a deterministic
+allowance of outcome evaluations (`ForecastSearchBudget`, #3722): 8,192 by default, one
+unit per complete plan a schedule search hands to the evaluator, none for a schedule or
+outcome reused from the search's cache. A separate traversal bound of 65,536 scheduler
+expansions over the same comparison keeps refused, duplicate, infeasible and unknown-heavy
+branches finite when they evaluate nothing; each schedule search runs within 4,096 of it
+and the traversal left, and a portfolio has at most 32 selected activities. One ledger
+owns both counts for the whole comparison: the baseline is mandatory, evaluated at the full
+bound whatever the allowance, counted and reported apart (`coupled_baseline_evaluations`,
+`coupled_baseline_expansions`) but charged to neither; the warm start, the seed pass, the
+extension, the confirmation, the schedule search's capacity-recovery retries and the
+planned-unplaced reselection (#3557) all draw from the one allowance, and nothing nested
+resets or extends it. A spent allowance starts nothing more: the search ends at the leader
+found so far (the baseline when nothing was evaluated, never a fabricated winner), truncated,
+with the spent limit's finding (`outcome_evaluations_exhausted`, `traversal_bound_exhausted`).
+Both counts bound algorithmic work, never wall time. The default allowance was derived from
+the four-worker fixture and the four default-budget tests
+([derivation](../testing/portfolio-allocations.md#outcome-evaluation-budget-3722)); #3725
+tunes it. Stable ordering makes replay deterministic;
 the result is best found within bounds. Partial bundles remain expandable even
 when neither constituent has isolated benefit.
 
@@ -109,7 +123,8 @@ Traversal is incumbent-seeded and screened. The previous review's selected ids c
 by exact match, else the first variant of the same root before `/composition/`, screened
 like a seed, so the extension below starts from last review's leader when it still beats
 the baseline. Single roots come next, only until a
-quarter of the budget is spent, each evaluated at a screening bound of 64 scheduler
+quarter of the allowance left to this comparison (in evaluations or in expansions) is spent,
+at least one unit of each, each evaluated at a screening bound of 64 scheduler
 expansions (the depth-first search finds its first complete plans within a few
 expansions per activity). Each planned room alternative's site roots (the first variant
 per site) are then evaluated together as one unit (#3647): a room closes only once every
@@ -122,18 +137,22 @@ root exclusive with a leader member (another rest choice) swaps that member out,
 the plain additions are tried; each room unit is then added whole. The
 final leader is confirmed at the full 4,096 bound. The full cardinality sweep (singles,
 pairs, ...) then resumes at that bound, skipping every subset already evaluated at it,
-but only when the budget left can finish it (the subsets not yet evaluated, at the mean
-cost of an evaluation so far): a sweep the budget cuts short has seen the subsets in root
-order up to some cardinality, a lottery rather than a search, and in game it chose the
-selection in none of 43 reviews while spending 13,000 of the 16,384 expansions per review
-(#3563). When it cannot finish, the search ends converged at the confirmed leader with
-the budget unspent, still reported truncated. A schedule search that finished within the screening bound is complete at any bound;
+but only when the allowance left can finish it (the subsets not yet evaluated, at this
+comparison's mean cost per evaluated subset, in outcome evaluations and in expansions): a
+sweep the budget cuts short has seen the subsets in root order up to some cardinality, a
+lottery rather than a search, and in game it chose the selection in none of 43 reviews while
+spending 13,000 of the then 16,384 expansions per review (#3563). When it cannot finish, the
+search ends converged at the confirmed leader with the allowance unspent, still reported
+truncated. A schedule search that finished within the screening bound is complete at any bound;
 a truncated one is searched again at the larger bound. A budget that cannot finish
 the single roots still reaches further contributions, and truncation stays explicit
 (`portfolio_search_truncated`). A screened search's truncation is reported only when no
 full-bound search of the same schedule follows. The `rounds_review` and `coupled_selection` rows report
-the expansions per phase reached (`search_phases`), the phase in which the chosen subset first
-led (`selected_phase`) and whether the previous selection seeded the search (`warm_start`). A tiled replan
+the outcome evaluations and expansions spent against each limit, the baseline's share of each,
+the expansions per phase reached (`search_phases`; a reselection's phases as `reselect/<phase>`)
+and per phase the schedule searches and outcome evaluations (`search_profile`), the phase in
+which the chosen subset first led (`selected_phase`) and whether the previous selection seeded
+the search (`warm_start`) ([signals](../contracts/otel-signals.md#kinds)). A tiled replan
 hands an unbuilt planned room a new id, so a previous id naming a room no longer in the plan is pointed at the
 current room of the same role whose floor overlaps the remembered one before the search
 (`RoundsRules.WarmStartOf`, the rooms remembered with the selection; `warm_translated` counts them, #3556). See

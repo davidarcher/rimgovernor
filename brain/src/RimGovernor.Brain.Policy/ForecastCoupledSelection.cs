@@ -27,23 +27,35 @@ public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeCom
     /// (#3669), and a later review reconsiders them. While any stands, the admin/work-assignments Need is
     /// owed (<see cref="RoundsRules.WorkAssignmentsOwed"/>).</summary>
     public EquatableArray<string> Deferred { get; init; }
-    /// <summary>The search's expansions per phase it reached (#3563): baseline, warm, seed, unserved, extend, confirm, sweep.</summary>
+    /// <summary>The search's spend per phase it reached (#3563): baseline, warm, seed, unserved, extend, confirm, sweep; after a
+    /// planned-unplaced reselection (#3557) the second comparison's phases follow as <c>reselect/&lt;phase&gt;</c>. The phases'
+    /// expansions and outcome evaluations sum to <see cref="ForecastActivityOutcomeComparison.Expansions"/> and <see cref="OutcomeEvaluations"/>.</summary>
     public EquatableArray<ForecastSearchPhase> SearchPhases { get; init; }
     /// <summary>The phase in which the chosen portfolio first became the leader; "baseline" when nothing beat it.</summary>
     public string SelectedPhase { get; init; } = "";
     /// <summary>"" without a previous selection; "seeded" when the previous selection resolved to current roots and was evaluated first; "missing" when none of its ids resolved.</summary>
     public string WarmStart { get; init; } = "";
+    /// <summary>The allowance the comparison spent against (#3722).</summary>
+    public ForecastSearchBudget Budget { get; init; } = ForecastSearchBudget.Default;
+    /// <summary>Outcome evaluations the whole comparison started (#3722), the baseline's included; the discretionary ones,
+    /// <see cref="OutcomeEvaluations"/> less <see cref="BaselineEvaluations"/>, never exceed <see cref="ForecastSearchBudget.Evaluations"/>.</summary>
+    public int OutcomeEvaluations { get; init; }
+    /// <summary>The mandatory baseline's outcome evaluations (#3722): counted in <see cref="OutcomeEvaluations"/>, charged to no allowance.</summary>
+    public int BaselineEvaluations { get; init; }
+    /// <summary>The mandatory baseline's scheduler expansions (#3722): counted in <see cref="ForecastActivityOutcomeComparison.Expansions"/>, charged to no allowance.</summary>
+    public int BaselineExpansions { get; init; }
 }
 /// <summary>
 /// One phase the search reached: its scheduler expansions and, for the profile (#3556), its wall, the schedule
-/// searches it ran (<see cref="Evaluations"/>; a subset whose schedule was already searched at the bound runs none) with
-/// their wall (<see cref="ScheduleMs"/>; the rest of <see cref="Ms"/> is keying, feasibility and ranking), and the
-/// evaluations whose every outcome was infeasible or unassessed (<see cref="Infeasible"/>) or whose construction
-/// lacked supported service relief (<see cref="Unsupported"/>).
+/// searches it ran (<see cref="ScheduleSearches"/>; a subset whose schedule was already searched at the bound runs none) with
+/// their wall (<see cref="ScheduleMs"/>; the rest of <see cref="Ms"/> is keying, feasibility and ranking), the outcome
+/// evaluations it started (<see cref="OutcomeEvaluations"/>, #3722), and the evaluations whose every outcome was infeasible or
+/// unassessed (<see cref="Infeasible"/>) or whose construction lacked supported service relief (<see cref="Unsupported"/>).
 /// </summary>
 public sealed record ForecastSearchPhase(string Phase, int Expansions)
 {
-    public int Evaluations { get; init; }
+    public int ScheduleSearches { get; init; }
+    public int OutcomeEvaluations { get; init; }
     public double Ms { get; init; }
     public double ScheduleMs { get; init; }
     public int Infeasible { get; init; }
@@ -55,6 +67,63 @@ public sealed record ForecastSearchPhase(string Phase, int Expansions)
 }
 public sealed record ForecastPortfolioEvidence(EquatableArray<string> Commitments,
     ForecastConsequenceVector? Consequences, string Reason);
+
+/// <summary>
+/// The deterministic allowance of one portfolio comparison (#3722). <see cref="Evaluations"/> is the budget: outcome evaluations,
+/// one per complete plan a schedule search hands to <c>CoupledSearchCache.Evaluate</c> (starting one spends the unit even when a
+/// later stage stops early; a schedule or outcome reused from the search's cache spends none). <see cref="Traversal"/> is the bound
+/// on scheduler expansions over the same comparison, so refused, duplicate, infeasible and unknown-heavy branches cannot do
+/// unbounded work without evaluating an outcome. Both count algorithmic work, never wall-clock. The baseline is mandatory work,
+/// counted and reported but charged to neither; every nested search and the planned-unplaced reselection draw from one allowance.
+/// </summary>
+public sealed record ForecastSearchBudget(int Evaluations, int Traversal = ForecastSearchBudget.DefaultTraversal)
+{
+    /// <summary>The production allowance (#3722; docs/developers/testing/portfolio-allocations.md; tuned by #3725). The former
+    /// 65,536-expansion default spent 1,728 outcome evaluations on the four-worker fixture at the one-day horizon, 2,048 rounded up to a
+    /// power of two; 8,192 is the smallest power of two at which every default-budget test keeps its selection and the cardinality
+    /// sweep still runs on the cheap ten-root shelter graphs where the former default ran it (there it was worth about 13,000 evaluations).</summary>
+    public const int DefaultEvaluations = 8192;
+    /// <summary>The traversal bound: the former expansion default, which the converged search rarely reached.</summary>
+    public const int DefaultTraversal = 65536;
+    public static readonly ForecastSearchBudget Default = new(DefaultEvaluations);
+}
+
+/// <summary>One comparison's spending against its <see cref="ForecastSearchBudget"/> (#3722), shared by every nested schedule search
+/// and both comparisons of a planned-unplaced reselection; nothing resets or extends it. While <see cref="Mandatory"/>, the spend is
+/// the baseline's: counted and reported, charged to neither allowance.</summary>
+internal sealed class ForecastSearchLedger(ForecastSearchBudget budget)
+{
+    public ForecastSearchBudget Budget { get; } = budget;
+    /// <summary>Outcome evaluations started, the mandatory ones included.</summary>
+    public int Evaluations { get; private set; }
+    /// <summary>Scheduler expansions spent, the mandatory ones included.</summary>
+    public int Expansions { get; private set; }
+    public int BaselineEvaluations { get; private set; }
+    public int BaselineExpansions { get; private set; }
+    public bool Mandatory { get; set; }
+    public int DiscretionaryEvaluations => Evaluations - BaselineEvaluations;
+    public int DiscretionaryExpansions => Expansions - BaselineExpansions;
+    public int EvaluationsLeft => Math.Max(0, Budget.Evaluations - DiscretionaryEvaluations);
+    public int TraversalLeft => Math.Max(0, Budget.Traversal - DiscretionaryExpansions);
+    public bool EvaluationsExhausted => EvaluationsLeft == 0;
+    public bool TraversalExhausted => TraversalLeft == 0;
+    public bool Exhausted => EvaluationsExhausted || TraversalExhausted;
+    /// <summary>The scheduler bound of the next schedule search: <paramref name="bound"/> within the traversal left; 0 when none is left.</summary>
+    public int SchedulerBound(int bound) => Mandatory ? bound : Math.Min(bound, TraversalLeft);
+    /// <summary>Starts one outcome evaluation; false, spending nothing, when the allowance is spent.</summary>
+    public bool TryStartEvaluation()
+    {
+        if (!Mandatory && EvaluationsExhausted) return false;
+        Evaluations++;
+        if (Mandatory) BaselineEvaluations++;
+        return true;
+    }
+    public void SpendExpansions(int count)
+    {
+        Expansions += count;
+        if (Mandatory) BaselineExpansions += count;
+    }
+}
 
 public sealed partial record ForecastCoupledSelection
 {
@@ -88,18 +157,22 @@ public sealed partial record ForecastCoupledSelection
     /// A chosen portfolio of unplaced planned sites alone starts no order (#3278), so the comparison is run again
     /// without the roots that reach a planned site, and that run's selected roots, allocations and unselected-pawn
     /// defers join the selection (#3557): the record places the planned sites, the orders start the startable work,
-    /// and vanilla work is the fallback only when nothing startable is worth selecting (#3669).</summary>
+    /// and vanilla work is the fallback only when nothing startable is worth selecting (#3669). Both comparisons spend one
+    /// <paramref name="budget"/> (#3722; <see cref="ForecastSearchBudget.Default"/> when null) through one ledger.</summary>
     public static ForecastCoupledSelection CompareActivityOutcomes(ColonyForecastRequest request,
-        ForecastCoupledCandidates candidates, int budget = 65536, IReadOnlyList<string>? warmStart = null, Func<double>? clockMs = null)
+        ForecastCoupledCandidates candidates, ForecastSearchBudget? budget = null, IReadOnlyList<string>? warmStart = null, Func<double>? clockMs = null)
     {
-        var selection = CompareOnce(request, candidates, budget, warmStart, clockMs);
+        budget ??= ForecastSearchBudget.Default;
+        if (budget.Evaluations < 0 || budget.Traversal < 0) throw new DomainException("negative portfolio budget");
+        var ledger = new ForecastSearchLedger(budget);
+        var selection = CompareOnce(request, candidates, ledger, warmStart, clockMs);
         var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         var allocations = selection.Selected.Plan.Allocations;
         if (unplaced.Count == 0 || allocations.Length == 0 || !allocations.All(a => unplaced.Contains(a.Activity))) return selection;
         var reaching = ReachingActivities(candidates.Context.Activities.Activities, unplaced);
         var placed = candidates with { Alternatives = EquatableArray.From(candidates.Alternatives.Where(c => !c.ActivityCompletions.Any(reaching.Contains))) };
         if (placed.Alternatives.Count == candidates.Alternatives.Count) return selection;
-        var orders = CompareOnce(request, placed, budget, warmStart: null, clockMs);
+        var orders = CompareOnce(request, placed, ledger, warmStart: null, clockMs);
         var findings = new SortedSet<string>(selection.Selection.Findings, StringComparer.Ordinal) { PlannedUnplacedReselected };
         findings.UnionWith(orders.Selection.Findings);
         return selection with
@@ -109,13 +182,22 @@ public sealed partial record ForecastCoupledSelection
                 Selected = [.. selection.Selection.Selected, .. orders.Selection.Selected],
                 Plan = selection.Selection.Plan! with { Allocations = [.. allocations, .. orders.Selection.Plan?.Allocations ?? []] },
                 Findings = findings.ToArray(),
+                Expansions = ledger.Expansions, SearchTruncated = selection.Selection.SearchTruncated || orders.Selection.SearchTruncated,
             },
             Deferred = orders.Deferred,
+            OutcomeEvaluations = ledger.Evaluations, BaselineEvaluations = ledger.BaselineEvaluations, BaselineExpansions = ledger.BaselineExpansions,
+            SearchPhases = EquatableArray.From(selection.SearchPhases.Concat(orders.SearchPhases.Select(p => p with { Phase = ReselectPhasePrefix + p.Phase }))),
         };
     }
 
     /// <summary>A selection finding: the chosen portfolio was unplaced planned sites alone, so the comparison without them adds the review's orders (#3557).</summary>
     public const string PlannedUnplacedReselected = "planned_unplaced_reselected";
+    /// <summary>The phase prefix of the reselection's search phases in <see cref="SearchPhases"/>.</summary>
+    public const string ReselectPhasePrefix = "reselect/";
+    /// <summary>A selection finding (#3722): the comparison spent its outcome-evaluation budget; what it did not evaluate stays unseen.</summary>
+    public const string OutcomeEvaluationsExhausted = "outcome_evaluations_exhausted";
+    /// <summary>A selection finding (#3722): the comparison reached its traversal bound on scheduler expansions.</summary>
+    public const string TraversalBoundExhausted = "traversal_bound_exhausted";
 
     /// <summary>The activities in <paramref name="seeds"/> and every activity whose prerequisites reach one.</summary>
     private static HashSet<string> ReachingActivities(IReadOnlyList<ForecastActivity> activities, HashSet<string> seeds)
@@ -131,19 +213,25 @@ public sealed partial record ForecastCoupledSelection
     }
 
     private static ForecastCoupledSelection CompareOnce(ColonyForecastRequest request,
-        ForecastCoupledCandidates candidates, int budget, IReadOnlyList<string>? warmStart, Func<double>? clockMs)
+        ForecastCoupledCandidates candidates, ForecastSearchLedger ledger, IReadOnlyList<string>? warmStart, Func<double>? clockMs)
     {
-        if (budget < 0) throw new DomainException("negative portfolio budget");
         // The in-game cost of the comparator: the review runs its planners in parallel, so only this span times it.
         using var span = Spans.StartActivity("coupled.select");
         span?.SetTag("rimgovernor.roots", candidates.Alternatives.Count + candidates.Incumbents.Count);
-        span?.SetTag("rimgovernor.budget", budget);
+        span?.SetTag("rimgovernor.budget.evaluations", ledger.Budget.Evaluations);
+        span?.SetTag("rimgovernor.budget.traversal", ledger.Budget.Traversal);
         request = request with { Coupled = candidates.Context, Proposed = new() };
         var baselineCommitments = request.Commitments.Concat(candidates.Incumbents).ToArray();
         var incumbentIds = candidates.Incumbents.Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
         // One cache for the whole search (#3468): the context's indexes and every pawn's timelines are shared across portfolios.
         var cache = new ForecastCoupled.CoupledSearchCache();
-        var baselineScenario = ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById(baselineCommitments), cache).Coupled!;
+        // What this comparison had spent when this run started (#3722): the reselection run's shares and means are of what was left to it.
+        var runEvaluations = ledger.DiscretionaryEvaluations; var runExpansions = ledger.DiscretionaryExpansions;
+        var phaseStart = ledger.Expansions; var phaseEvaluationStart = ledger.Evaluations;
+        // The baseline is mandatory: evaluated at the full per-search bound whatever the allowance, counted and reported, charged to neither.
+        ledger.Mandatory = true;
+        var baselineScenario = ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById(baselineCommitments), cache, ledger).Coupled!;
+        ledger.Mandatory = false;
         var baseline = baselineScenario.Alternatives.Count > 0 ? baselineScenario.Alternatives[0]
             : new ForecastCoupledOutcome(new([], 0, 0), default, new Dictionary<string, ForecastNeedsResult>(), []);
         // Every outcome's wellbeing is priced against this one outcome, so the deltas between outcomes do not depend on which is the baseline.
@@ -185,22 +273,23 @@ public sealed partial record ForecastCoupledSelection
         // A construction root rejected only for lacking supported service relief is not a leader, yet it is the one a service root completes.
         var unserved = new List<string[]>();
         // Establish the incumbent before spending optional search; report that mandatory work as well.
-        var expansions = baselineScenario.Expansions; var truncated = baselineScenario.Truncated;
-        // Expansions per phase and the phase that found the chosen subset (#3563).
-        var phases = new List<ForecastSearchPhase>(); var phase = "baseline"; var phaseStart = 0; var selectedPhase = "baseline";
+        var truncated = baselineScenario.Truncated;
+        // Spend per phase and the phase that found the chosen subset (#3563).
+        var phases = new List<ForecastSearchPhase>(); var phase = "baseline"; var selectedPhase = "baseline";
         // The phase's profile (#3556): wall, schedule searches and their wall, infeasible and unsupported evaluations.
-        double Now() => clockMs?.Invoke() ?? 0; var phaseAt = Now(); var phaseEvaluations = 0; var phaseScheduleMs = 0.0; var phaseInfeasible = 0; var phaseUnsupported = 0;
+        double Now() => clockMs?.Invoke() ?? 0; var phaseAt = Now(); var phaseScheduleSearches = 0; var phaseScheduleMs = 0.0; var phaseInfeasible = 0; var phaseUnsupported = 0;
         var phaseSwaps = 0; var phaseImproved = 0;
         void Phase(string next)
         {
             var now = Now();
-            phases.Add(new(phase, expansions - phaseStart)
+            phases.Add(new(phase, ledger.Expansions - phaseStart)
             {
-                Evaluations = phaseEvaluations, Ms = now - phaseAt,
+                ScheduleSearches = phaseScheduleSearches, OutcomeEvaluations = ledger.Evaluations - phaseEvaluationStart, Ms = now - phaseAt,
                 ScheduleMs = phaseScheduleMs, Infeasible = phaseInfeasible, Unsupported = phaseUnsupported,
                 Swaps = phaseSwaps, Improved = phaseImproved,
             });
-            (phaseStart, phase, phaseAt, phaseEvaluations, phaseScheduleMs, phaseInfeasible, phaseUnsupported, phaseSwaps, phaseImproved) = (expansions, next, now, 0, 0.0, 0, 0, 0, 0);
+            (phaseStart, phaseEvaluationStart, phase, phaseAt, phaseScheduleSearches, phaseScheduleMs, phaseInfeasible, phaseUnsupported, phaseSwaps, phaseImproved)
+                = (ledger.Expansions, ledger.Evaluations, next, now, 0, 0.0, 0, 0, 0, 0);
         }
         // Need roots come in dozens of time variants per pawn; ordered by id they would spend the budget before any investment root is reached.
         var alternatives = candidates.Alternatives.Concat(candidates.Incumbents).OrderBy(c => c.ExclusiveOutcome.StartsWith("need/", StringComparison.Ordinal) ? 1 : 0)
@@ -335,17 +424,13 @@ public sealed partial record ForecastCoupledSelection
             foreach (var c in additions) compatible &= !fixedIncompatible[rootIndex[c.Id]];
             if (!compatible) return true;
             evaluated[key] = bound;
-            if (expansions >= budget) { truncated = true; return false; }
-            expansions++;
+            // A spent allowance starts nothing more, a cached schedule included (#3722).
+            if (ledger.Exhausted) { truncated = true; return false; }
             if (!schedules.TryGetValue(schedule, out var known) || known.Bound < bound)
             {
-                var remaining = budget - expansions;
-                if (remaining == 0) { truncated = true; return false; }
                 var searchAt = Now();
-                var searched = ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById(commitments), cache,
-                    expansionBudget: Math.Min(bound, remaining)).Coupled!;
-                phaseScheduleMs += Now() - searchAt; phaseEvaluations++;
-                expansions += searched.Expansions;
+                var searched = ForecastCoupled.ForecastCoupledScenarioOf(request, ColonyForecastRules.ForecastCommitmentsById(commitments), cache, ledger, bound).Coupled!;
+                phaseScheduleMs += Now() - searchAt; phaseScheduleSearches++;
                 known = (searched.Truncated ? bound : PortfolioBound, searched);
                 schedules[schedule] = known;
                 if (known.Bound < PortfolioBound) screened[schedule] = (searched.Findings.ToArray(), searched.Truncated);
@@ -402,18 +487,19 @@ public sealed partial record ForecastCoupledSelection
                 }
                 else evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector, "consequence_or_incumbent"));
             }
-            return expansions < budget;
+            return !ledger.Exhausted;
         }
         // Breadth by cardinality prevents one deep branch from hiding every independent source.
         // No value-based pruning: two individually useless contributions can remain complementary.
-        // The seed pass may stop starting evaluations once it has spent its share; that is a hand-off, not truncation.
-        var seedLimit = int.MaxValue; var seedSpent = false; var leafBound = PortfolioBound;
+        // The seed pass may stop starting evaluations once it has spent its share of either allowance left to this run; that is a
+        // hand-off, not truncation.
+        var seedEvaluationLimit = int.MaxValue; var seedExpansionLimit = int.MaxValue; var seedSpent = false; var leafBound = PortfolioBound;
         var partialBits = new ulong[rootWords];
         bool Search(int start, int left, List<ForecastCommitment> partial)
         {
             if (left == 0)
             {
-                if (expansions >= seedLimit) { seedSpent = true; return false; }
+                if (ledger.DiscretionaryEvaluations >= seedEvaluationLimit || ledger.DiscretionaryExpansions >= seedExpansionLimit) { seedSpent = true; return false; }
                 return Evaluate(partial.ToArray(), leafBound);
             }
             for (var i = start; i <= alternatives.Length - left; i++)
@@ -478,10 +564,13 @@ public sealed partial record ForecastCoupledSelection
         if (continueSearch)
         {
             Phase("seed");
-            // Seed pass: screened single roots until a quarter of the budget is spent (every root if that is cheaper).
-            seedLimit = budget / SeedShare; leafBound = ScreenBound;
+            // Seed pass: screened single roots until a quarter of the allowance left to this run is spent (every root if that is
+            // cheaper), at least one unit of each so that a tiny allowance still screens a root.
+            seedEvaluationLimit = runEvaluations + Math.Max(1, (ledger.Budget.Evaluations - runEvaluations) / SeedShare);
+            seedExpansionLimit = runExpansions + Math.Max(1, (ledger.Budget.Traversal - runExpansions) / SeedShare);
+            leafBound = ScreenBound;
             continueSearch = Search(0, 1, []) || seedSpent;
-            seedLimit = int.MaxValue; leafBound = PortfolioBound;
+            seedEvaluationLimit = int.MaxValue; seedExpansionLimit = int.MaxValue; leafBound = PortfolioBound;
             for (var u = 0; continueSearch && u < units.Count; u++)
                 continueSearch = Evaluate(units[u].Select(i => alternatives[i]).ToArray(), ScreenBound);
             if (!continueSearch) truncated = true;
@@ -517,13 +606,15 @@ public sealed partial record ForecastCoupledSelection
         // The cardinality sweep is complete only when it finishes: a sweep the budget cuts short has evaluated the subsets
         // in root order up to some cardinality, a lottery over the root order rather than a search (in game, 0 of 43
         // selections came from it while it spent 13,000 of the 16,384 expansions per review, #3563). So it runs only when
-        // the budget left can finish it: the subsets not yet evaluated at the mean cost of an evaluation so far. Otherwise
-        // the search ends converged at the confirmed leader, truncated as before (the sweep was never finishing either).
+        // the allowance left can finish it: the subsets not yet evaluated at this run's mean cost per evaluated subset, in outcome
+        // evaluations and in expansions (#3722). Otherwise the search ends converged at the confirmed leader, truncated as before
+        // (the sweep was never finishing either).
         if (continueSearch)
         {
-            var evaluations = Math.Max(1, evaluatedByKey.Count);
-            var affordable = (budget - expansions) / Math.Max(1, expansions / evaluations);
-            var subsets = alternatives.Length >= 62 ? long.MaxValue : (1L << alternatives.Length) - 1 - evaluations;
+            var subsetsSeen = Math.Max(1, evaluatedByKey.Count);
+            var affordable = Math.Min(ledger.EvaluationsLeft / Math.Max(1, (ledger.DiscretionaryEvaluations - runEvaluations) / subsetsSeen),
+                ledger.TraversalLeft / Math.Max(1, (ledger.DiscretionaryExpansions - runExpansions) / subsetsSeen));
+            var subsets = alternatives.Length >= 62 ? long.MaxValue : (1L << alternatives.Length) - 1 - subsetsSeen;
             if (subsets > affordable) { continueSearch = false; truncated = true; }
         }
         if (continueSearch) Phase("sweep");
@@ -531,6 +622,8 @@ public sealed partial record ForecastCoupledSelection
             if (!Search(0, size, [])) { truncated = true; break; }
         Phase("end");
         foreach (var (reasons, cut) in screenedByKey.Values) { findings.UnionWith(reasons); truncated |= cut; }
+        if (ledger.EvaluationsExhausted) findings.Add(OutcomeEvaluationsExhausted);
+        if (ledger.TraversalExhausted) findings.Add(TraversalBoundExhausted);
         if (truncated) findings.Add("portfolio_search_truncated");
         if (candidates.Truncated) findings.Add("portfolio_generation_truncated");
         foreach (var (goal, route) in goalRoutes)
@@ -546,15 +639,17 @@ public sealed partial record ForecastCoupledSelection
         if (!bestVector.Value.Death.Assessed) findings.Add("death_floor_unassessed");
         if (!bestVector.Value.BreakRisk.Assessed) findings.Add("break_floor_unassessed");
         var deferred = DeferUnselectedPawns(candidates.Context, best.Plan);
-        span?.SetTag("rimgovernor.expansions", expansions);
+        span?.SetTag("rimgovernor.expansions", ledger.Expansions);
+        span?.SetTag("rimgovernor.evaluations", ledger.Evaluations);
         span?.SetTag("rimgovernor.schedules", schedulesByKey.Count);
         span?.SetTag("rimgovernor.truncated", truncated);
-        return new(new(selected, best.Plan, default, findings.ToArray(), expansions, truncated), baseline, best,
+        return new(new(selected, best.Plan, default, findings.ToArray(), ledger.Expansions, truncated), baseline, best,
             baselineVector, bestVector, EquatableArray.From(evidence), request.HorizonDays * GameTime.TicksPerDay, candidates.Truncated)
         { CompositionExpansions = candidates.CompositionExpansions,
             ServiceInvestments = ForecastServiceInvestments.ServiceInvestmentsOf(baseline, best, candidates.Context, request.HorizonDays * GameTime.TicksPerDay),
             Deferred = deferred,
-            SearchPhases = EquatableArray.From(phases), SelectedPhase = selectedPhase, WarmStart = warmStartState };
+            SearchPhases = EquatableArray.From(phases), SelectedPhase = selectedPhase, WarmStart = warmStartState,
+            Budget = ledger.Budget, OutcomeEvaluations = ledger.Evaluations, BaselineEvaluations = ledger.BaselineEvaluations, BaselineExpansions = ledger.BaselineExpansions };
     }
 
     /// <summary>A root's id before its per-review composition number (#3563).</summary>

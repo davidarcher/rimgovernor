@@ -14,7 +14,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class PortfolioSearchDiagnosisTests
 {
-    private static readonly int[] Budgets = [1024, 4096, 8192, 16384, 65536, 262144];
+    private static readonly int[] Budgets = PortfolioAllocationTests.Budgets;
+    private const int Default = ForecastSearchBudget.DefaultEvaluations;
     private const string IncumbentRoot = "food/0/delivery/0/composition/2/after/food/14/delivery/0/eat/diner/0/composition/16";
     private static readonly JsonSerializerOptions Indented = new() { WriteIndented = true };
     private static readonly Lazy<Subject> Shared = new(() => new Subject());
@@ -36,8 +37,8 @@ public sealed class PortfolioSearchDiagnosisTests
             ReferenceRoots = [.. Roots.Where(r => r.ActivityCompletions.Any(eats.Contains))];
         }
 
-        public ForecastCoupledSelection Select(ForecastCommitment[] universe, int budget) =>
-            ForecastCoupledSelection.CompareActivityOutcomes(Request, Generated with { Alternatives = EquatableArray.From(universe) }, budget);
+        public ForecastCoupledSelection Select(ForecastCommitment[] universe, int evaluations) =>
+            ForecastCoupledSelection.CompareActivityOutcomes(Request, Generated with { Alternatives = EquatableArray.From(universe) }, new(evaluations));
     }
 
     /// <summary>Subset order and pruning of the production search, rebuilt from public data for counting only.</summary>
@@ -149,7 +150,7 @@ public sealed class PortfolioSearchDiagnosisTests
             Mixed = Describe(mixed, [s.ReferenceRoots[0], s.ReferenceRoots[1]]), Diner = Describe(diner, [s.ReferenceRoots[0], s.ReferenceRoots[2]])
         });
         // Both consumers' ingestions share one delivered stack (capacity 10, the batch quantity): #3210 accepts them.
-        Assert.Equal(4096, production.Expansions);
+        Assert.True(production.Truncated);
         Assert.Equal(1023, production.Alternatives.Count);
         Assert.All(production.Alternatives, a => Assert.Equal(Known(true), a.Feasible));
         Assert.DoesNotContain(production.Alternatives.SelectMany(a => a.Findings),
@@ -173,7 +174,7 @@ public sealed class PortfolioSearchDiagnosisTests
 
         // The same search, scheduler and ranking restricted to two roots: the incumbent and one more ingestion root.
         var universe = new[] { incumbentRoot, s.ReferenceRoots[0] };
-        var selection = s.Select(universe, 16384);
+        var selection = s.Select(universe, Default);
         MaybeWrite("pair", new
         {
             selection.Selection.Selected, selection.Selection.Expansions, selection.Selection.SearchTruncated,
@@ -184,7 +185,7 @@ public sealed class PortfolioSearchDiagnosisTests
         var food = s.Generated.Context.NeedTasks.Where(n => n.Kind == "food").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
         Assert.Equal(2, selection.Selected.Plan.Allocations.Count(a => food.Contains(a.Activity)));
         // Strictly fewer hunger capability-days and one fewer need left at zero than the incumbent; the zero-time floor is equal.
-        var single = s.Select([incumbentRoot], 16384);
+        var single = s.Select([incumbentRoot], Default);
         Assert.Equal(single.SelectedVector.Value.UrgentZero, selection.SelectedVector.Value.UrgentZero);
         Assert.True(selection.SelectedVector.Value.Ledger.LossAgainst(single.SelectedVector.Value.Ledger).Value < -selection.SelectedVector.Value.Policy.TieResolution);
         Assert.Equal(2d, single.SelectedVector.Needs[4].Value);
@@ -199,7 +200,7 @@ public sealed class PortfolioSearchDiagnosisTests
     public void ScreenedFixpointExtensionServesAllFourDemandedIngestionsAtTheDefaultBudget()
     {
         var s = Shared.Value;
-        var selection = s.Select(s.Roots, 16384);
+        var selection = s.Select(s.Roots, Default);
         var food = s.Generated.Context.NeedTasks.Where(n => n.Kind == "food").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
         var eats = selection.Selected.Plan.Allocations.Where(a => food.Contains(a.Activity) && a.Activity.Contains("/eat/", StringComparison.Ordinal)).ToArray();
 
@@ -221,14 +222,14 @@ public sealed class PortfolioSearchDiagnosisTests
         // Cost stays under the default budget: cardinalities 3 and 4 were entered through one-root extension steps from the
         // leader, not a subset sweep (which would need 28,580 / 339,189 subsets), and the sweep the budget left could not
         // finish is skipped (#3563), so the search ends converged with budget unspent and still says it is bounded.
-        Assert.True(selection.Selection.Expansions < 16384);
+        Assert.True(selection.OutcomeEvaluations - selection.BaselineEvaluations < Default);
         Assert.True(selection.Selection.SearchTruncated);
         Assert.Contains("portfolio_search_truncated", selection.Selection.Findings);
         Assert.Contains(selection.Rejected, r => r.Commitments.Count == 4);
         Assert.Contains(selection.Rejected, r => r.Commitments.Count == 3);
 
         // Deterministic: a second run is identical.
-        var again = s.Select(s.Roots, 16384);
+        var again = s.Select(s.Roots, Default);
         Assert.Equal(selection.Selection.Selected, again.Selection.Selected);
         Assert.Equal(selection.Selection.Expansions, again.Selection.Expansions);
         Assert.Equal(selection.Selected.Plan.Allocations.Select(a => (a.Activity, a.Pawn, a.Start, a.End)),
@@ -241,8 +242,8 @@ public sealed class PortfolioSearchDiagnosisTests
     {
         var s = Shared.Value;
         var food = s.Generated.Context.NeedTasks.Where(n => n.Kind == "food").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
-        // Before #3215 these were 1, 1, 1, 2 (one at 8,192 and below). Screening lets even 1,024 reach a second ingestion.
-        Assert.Equal([2, 3, 4, 4], Budgets.Where(b => b <= 16384).Select(budget => s.Select(s.Roots, budget).Selected.Plan.Allocations
+        // Before #3215 these were 1, 1, 1, 2 (one at 8,192 expansions and below). Screening lets even 256 evaluations reach a second ingestion.
+        Assert.Equal([2, 3, 4, 4, 4], Budgets.Where(b => b <= Default).Select(budget => s.Select(s.Roots, budget).Selected.Plan.Allocations
             .Count(a => food.Contains(a.Activity) && a.Activity.Contains("/eat/", StringComparison.Ordinal))));
     }
 
@@ -250,11 +251,11 @@ public sealed class PortfolioSearchDiagnosisTests
     public void ExtensionIsNeverWorseThanTheOneIngestionIncumbentAtAnyMatrixBudget()
     {
         var s = Shared.Value;
-        foreach (var budget in Budgets.Where(b => b <= 16384))
+        foreach (var budget in Budgets.Where(b => b <= Default))
         {
             var selection = s.Select(s.Roots, budget);
             // The zero-time floor, then capability-days; labor is not part of the comparison here.
-            var incumbent = s.Select([s.Roots.Single(r => r.Id == IncumbentRoot)], 16384).SelectedVector.Value;
+            var incumbent = s.Select([s.Roots.Single(r => r.Id == IncumbentRoot)], Default).SelectedVector.Value;
             var value = selection.SelectedVector.Value;
             Assert.True(value.UrgentZero.Excess <= incumbent.UrgentZero.Excess, "budget " + budget + " is worse than the one-ingestion incumbent");
             if (value.UrgentZero.Excess == incumbent.UrgentZero.Excess)
@@ -273,7 +274,7 @@ public sealed class PortfolioSearchDiagnosisTests
         var ids = s.Roots.Select(r => r.Id).ToList();
         // The three budgets beyond the matrix are diagnostic only: they show where the search starts to improve, not a proposal.
         var food = s.Generated.Context.NeedTasks.Where(n => n.Kind == "food").Select(n => n.Task).ToHashSet(StringComparer.Ordinal);
-        var rows = Budgets.Concat([393216, 524288, 1048576]).Select(budget =>
+        var rows = Budgets.Concat([131072, 262144, 524288]).Select(budget =>
         {
             var selection = s.Select(s.Roots, budget);
             var last = LastSubset(selection);
@@ -295,7 +296,7 @@ public sealed class PortfolioSearchDiagnosisTests
         // without the incumbent, shows whether cardinality 4 is reachable when the other roots do not spend the budget.
         var incumbentRoot = s.Roots.Single(r => r.Id == IncumbentRoot);
         var narrow = new (string Name, ForecastCommitment[] Universe)[] { ("reference-4", s.ReferenceRoots), ("incumbent+reference-4", [incumbentRoot, .. s.ReferenceRoots]) }
-            .SelectMany(u => Budgets.Where(b => b >= 16384).Select(budget =>
+            .SelectMany(u => Budgets.Where(b => b >= Default).Select(budget =>
             {
                 var selection = s.Select(u.Universe, budget);
                 return new
@@ -318,7 +319,7 @@ public sealed class PortfolioSearchDiagnosisTests
 
     private static object Describe(ForecastCoupledScenario scenario, ForecastCommitment[] roots) => new
     {
-        scenario.Expansions, scenario.Truncated, Alternatives = scenario.Alternatives.Count,
+        scenario.Truncated, Alternatives = scenario.Alternatives.Count,
         Feasible = scenario.Alternatives.Count(a => a.Feasible == Known(true)),
         Reasons = scenario.Alternatives.SelectMany(a => a.Findings.Select(f => f.Reason)).GroupBy(x => x).OrderBy(g => g.Key, StringComparer.Ordinal)
             .Select(g => g.Key + "=" + g.Count()).ToArray(),

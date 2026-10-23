@@ -417,6 +417,9 @@ public static partial class ForecastCoupled
             return exposure;
         }
 
+        /// <summary>One plan's outcome: the unit of the comparison's evaluation budget (#3722). The caller draws the unit before calling
+        /// (<see cref="ForecastSearchLedger.TryStartEvaluation"/>); the recursion that retries the plan without rejected work
+        /// (<paramref name="unavailableWork"/>) is part of the same unit.</summary>
         internal ForecastCoupledOutcome Evaluate(ColonyForecastRequest request, IReadOnlyDictionary<string, ForecastCommitment> commitments,
             ForecastActivityProblem problem, ForecastActivityPlan plan, HashSet<string>? unavailableWork = null)
         {

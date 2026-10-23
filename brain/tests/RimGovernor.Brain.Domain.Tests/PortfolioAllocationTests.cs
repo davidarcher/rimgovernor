@@ -16,7 +16,11 @@ namespace RimGovernor.Brain.Domain.Tests;
 // Measurement runs alone through its own -method/-parallel none command: see docs/developers/testing/portfolio-allocations.md.
 public sealed class PortfolioAllocationTests
 {
-    private static readonly int[] Budgets = [1024, 4096, 8192, 16384, 65536, 262144];
+    /// <summary>The matrix's outcome-evaluation budgets (#3722), each with the default traversal bound: a seed-constrained row, two
+    /// extension-constrained rows, the 2,048 the one-day four-worker derivation gave, the 8,192 production default, the row that
+    /// converges the four-worker fixture and finishes the eight-root fixture's sweep, and a ceiling nothing reaches. They are not the
+    /// former expansion rows restated: see portfolio-allocations.md.</summary>
+    internal static readonly int[] Budgets = [256, 1024, 2048, 4096, 8192, 16384, 65536];
     private static readonly JsonSerializerOptions Json = new()
     {
         WriteIndented = true,
@@ -66,6 +70,8 @@ public sealed class PortfolioAllocationTests
         Roots = generated.Alternatives.Count,
         selection.CompositionExpansions, selection.GenerationTruncated,
         selection.Selection.Expansions, selection.Selection.SearchTruncated,
+        selection.OutcomeEvaluations, selection.BaselineEvaluations, selection.BaselineExpansions,
+        SearchPhases = selection.SearchPhases.Select(p => new { p.Phase, p.Expansions, p.ScheduleSearches, p.OutcomeEvaluations }).ToArray(),
         selection.Selection.Selected,
         selection.Selected.Feasible,
         selection.Selected.Plan.CompletedAt,
@@ -101,17 +107,18 @@ public sealed class PortfolioAllocationTests
             var generation = Measure(() => ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700)!);
             var generated = generation.Result.Priced(700);
             var request = Request(facts, generated);
-            var rows = new List<object>();
-            foreach (var budget in Budgets)
+            var rows = Budgets.Select(budget =>
             {
-                var measured = Measure(() => ForecastCoupledSelection.CompareActivityOutcomes(request, generated, budget));
-                rows.Add(new { Budget = budget, measured.Bytes, measured.Milliseconds, Quality = Quality(generated, measured.Result) });
-            }
+                var measured = Measure(() => ForecastCoupledSelection.CompareActivityOutcomes(request, generated, new(budget)));
+                return new { EvaluationBudget = budget, Traversal = ForecastSearchBudget.DefaultTraversal, measured.Bytes, measured.Milliseconds, Quality = Quality(generated, measured.Result) };
+            }).ToArray();
             File.WriteAllText(Path.Combine(output, name + ".measurements.json"), JsonSerializer.Serialize(new
             {
                 DemandedMeals = larger ? 4 : 2,
                 GenerationBytes = generation.Bytes, GenerationMilliseconds = generation.Milliseconds, Rows = rows
             }, Json));
+            // The pinned baseline (Baselines/<fixture>.quality.json): the rows without their timings, ready to copy in when re-pinning.
+            File.WriteAllText(Path.Combine(output, name + ".quality.json"), JsonSerializer.Serialize(rows.Select(r => new { r.EvaluationBudget, r.Traversal, r.Quality }).ToArray(), Json));
             // One-day horizon (#3467): the production review horizon, at the default budget only.
             var day = Measure(() => ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)!);
             var dayCandidates = day.Result.Priced(GameTime.TicksPerDay);

@@ -134,11 +134,11 @@ public sealed class PlannedRoomActivitiesTests
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced() };
     }
 
-    private static ForecastCoupledSelection Select(RoundsFacts facts, double horizon = Horizon)
+    private static ForecastCoupledSelection Select(RoundsFacts facts, double horizon = Horizon, ForecastSearchBudget? budget = null)
     {
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
-        return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, 16384);
+        return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget);
     }
 
     private static string Why(RoundsFacts facts, ForecastCoupledSelection result) =>
@@ -569,6 +569,32 @@ public sealed class PlannedRoomActivitiesTests
         var why = Why(facts, result) + " selected=" + string.Join(",", result.Selection.Selected);
         Assert.True(PlannedSelected(result, "planned/room1/wall/WoodLog"), why);
         Assert.True(result.Selection.Findings.Contains(ForecastCoupledSelection.PlannedUnplacedReselected), why);
+        // #3722: both comparisons spent one allowance. The second's phases are reported under "reselect/", each run's baseline is
+        // mandatory, and the phases sum to the totals.
+        var reselect = ForecastCoupledSelection.ReselectPhasePrefix;
+        Assert.Equal("baseline", result.SearchPhases[0].Phase);
+        Assert.Contains(result.SearchPhases, p => p.Phase == reselect + "baseline");
+        Assert.Equal(result.OutcomeEvaluations, result.SearchPhases.Sum(p => p.OutcomeEvaluations));
+        Assert.Equal(result.Selection.Expansions, result.SearchPhases.Sum(p => p.Expansions));
+        Assert.Equal(result.BaselineEvaluations, result.SearchPhases.Where(p => p.Phase is "baseline" || p.Phase == reselect + "baseline").Sum(p => p.OutcomeEvaluations));
+        Assert.Equal(result.BaselineExpansions, result.SearchPhases.Where(p => p.Phase is "baseline" || p.Phase == reselect + "baseline").Sum(p => p.Expansions));
+        Assert.True(result.OutcomeEvaluations - result.BaselineEvaluations <= result.Budget.Evaluations);
+        Assert.DoesNotContain(ForecastCoupledSelection.OutcomeEvaluationsExhausted, result.Selection.Findings);
+        // An allowance of three evaluations: the first comparison screens two planned roots, extends from the review-local cache to
+        // their pair and so selects planned work only; the comparison without the planned roots gets the one unit left, not a fresh
+        // allowance, spends it on its first screened root, and the search ends there, reporting the spent allowance.
+        var starved = Select(facts, Horizon, new(3));
+        var starvedWhy = "selected=" + string.Join(",", starved.Selection.Selected) + " phases=" + string.Join(",", starved.SearchPhases.Select(p => p.Phase + ":" + p.OutcomeEvaluations))
+            + " findings=" + string.Join(";", starved.Selection.Findings);
+        Assert.True(starved.OutcomeEvaluations - starved.BaselineEvaluations == 3, starvedWhy);
+        Assert.True(starved.Selection.Findings.Contains(ForecastCoupledSelection.OutcomeEvaluationsExhausted), starvedWhy);
+        Assert.Equal(starved.OutcomeEvaluations, starved.SearchPhases.Sum(p => p.OutcomeEvaluations));
+        Assert.True(starved.Selection.Findings.Contains(ForecastCoupledSelection.PlannedUnplacedReselected), starvedWhy);
+        var firstRun = starved.SearchPhases.TakeWhile(p => !p.Phase.StartsWith(reselect, StringComparison.Ordinal)).ToArray();
+        var secondRun = starved.SearchPhases.Skip(firstRun.Length).ToArray();
+        Assert.True(firstRun.Sum(p => p.OutcomeEvaluations) == 3 && firstRun[0].Phase == "baseline", starvedWhy);
+        Assert.True(secondRun.Sum(p => p.OutcomeEvaluations) == 2 && secondRun[0].Phase == reselect + "baseline" && secondRun[1].Phase == reselect + "seed", starvedWhy);
+        Assert.True(starved.Selection.Selected.Length != 0 && starved.Selection.Selected.All(id => id.StartsWith("planned/", StringComparison.Ordinal)), starvedWhy);
         Assert.Equal(["planned/room1/WoodLog/Shell"], Assert.Single(result.Selected.PlannedRooms).Complete);
         var record = PlannedRules.PlannedSelectionOf(candidates, result, facts.PlannedSites)!;
         Assert.Equal(PlannedRoomGate.Selected, PlannedRules.PlannedRoomGateOf(record, 1, started: false).Gate);

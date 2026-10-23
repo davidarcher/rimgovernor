@@ -73,7 +73,32 @@ public sealed partial class Rounder
             Kind = TelemetryKinds.CoupledSelectionKind, Component = "rounds", Target = method,
             Verdict = admissionFailure is not null ? "deferred" : protectedContinuation || selection.Selection.Selected.Length == 0 ? "continue" : "selected",
             Reason = admissionFailure is not null ? "method_not_admitted" : protectedContinuation ? "protected_method_ownership" : selection.Selection.SearchTruncated ? "best_found_bounded" : "shared_consequences",
-            Attrs = new Dictionary<string, object?>
+            Attrs = CoupledSelectionAttrs(selection, tick, protectedContinuation, admissionFailure)
+        });
+
+    /// <summary>The search's accounting on the <c>rounds_review</c> row (#3722; keys in <see cref="RoundsReviewTelemetry"/>): scheduler
+    /// expansions against the traversal bound, outcome evaluations against their budget, the mandatory baseline's share of each, both
+    /// limits, and per phase the expansions (<c>search_phases</c>) and the profile (<c>search_profile</c>: wall, schedule searches,
+    /// outcome evaluations, schedule wall, infeasible, unsupported, swaps, improved). -1 and null when nothing was compared.</summary>
+    internal static IEnumerable<(string Key, object? Value)> ReviewSearchAttrs(ForecastCoupledSelection? selection)
+    {
+        yield return (RoundsReviewTelemetry.CoupledSearchExpansionsKey, selection?.Selection.Expansions ?? -1);
+        yield return (RoundsReviewTelemetry.CoupledSearchEvaluationsKey, selection?.OutcomeEvaluations ?? -1);
+        yield return (RoundsReviewTelemetry.CoupledBaselineEvaluationsKey, selection?.BaselineEvaluations ?? -1);
+        yield return (RoundsReviewTelemetry.CoupledBaselineExpansionsKey, selection?.BaselineExpansions ?? -1);
+        yield return (RoundsReviewTelemetry.CoupledEvaluationBudgetKey, selection?.Budget.Evaluations ?? -1);
+        yield return (RoundsReviewTelemetry.CoupledTraversalBoundKey, selection?.Budget.Traversal ?? -1);
+        yield return (RoundsReviewTelemetry.SearchPhasesKey, selection?.SearchPhases.ToDictionary(p => p.Phase, p => (object?)p.Expansions));
+        yield return (RoundsReviewTelemetry.SearchProfileKey, selection?.SearchPhases.ToDictionary(p => p.Phase, p => (object?)new Dictionary<string, object?>
+        {
+            ["ms"] = p.Ms, ["schedule_searches"] = p.ScheduleSearches, ["outcome_evaluations"] = p.OutcomeEvaluations, ["schedule_ms"] = p.ScheduleMs,
+            ["infeasible"] = p.Infeasible, ["unsupported"] = p.Unsupported, ["swaps"] = p.Swaps, ["improved"] = p.Improved,
+        }));
+    }
+
+    /// <summary>The <c>coupled_selection</c> row's attrs (docs/developers/contracts/otel-signals.md); the acceptance reader
+    /// <c>CoupledSelections.Row</c> reads them back, the search accounting (#3722) included.</summary>
+    internal static Dictionary<string, object?> CoupledSelectionAttrs(ForecastCoupledSelection selection, long tick, bool protectedContinuation, string? admissionFailure) => new()
             {
                 [RimGovernor.Brain.Telemetry.Otlp.ForecastHandoffReader.Key] = RimGovernor.Brain.Telemetry.Otlp.ForecastHandoffReader.Fields(ForecastHandoffPolicy.Project(selection.Selected)),
                 ["observed_tick"] = tick, ["horizon_ticks"] = selection.Horizon,
@@ -87,6 +112,9 @@ public sealed partial class Rounder
                 ["explanation_truncated"] = selection.Rejected.Count > 16,
                 ["generation_truncated"] = selection.GenerationTruncated, ["search_truncated"] = selection.Selection.SearchTruncated,
                 ["composition_expansions"] = selection.CompositionExpansions, ["search_expansions"] = selection.Selection.Expansions,
+                // The outcome-evaluation accounting (#3722): the evaluations against their budget, the mandatory baseline's share, the traversal bound.
+                ["search_evaluations"] = selection.OutcomeEvaluations, ["baseline_evaluations"] = selection.BaselineEvaluations, ["baseline_expansions"] = selection.BaselineExpansions,
+                ["evaluation_budget"] = selection.Budget.Evaluations, ["traversal_bound"] = selection.Budget.Traversal,
                 ["search_phases"] = selection.SearchPhases.ToDictionary(p => p.Phase, p => (object?)p.Expansions),
                 ["selected_phase"] = selection.SelectedPhase, ["warm_start"] = selection.WarmStart,
                 ["uncertainty"] = selection.Selection.Findings,
@@ -122,8 +150,7 @@ public sealed partial class Rounder
                         ["applied_gain"] = Number(learning.After.AppliedGain), ["decay_loss"] = Number(learning.After.DecayLoss),
                         ["provenance"] = learning.Provenance
                     } : null }).ToArray()
-            }
-        });
+            };
 
     private static object[] ThermalAttrs(ForecastCoupledOutcome outcome) => outcome.ThermalExposure.Select(e => (object)new Dictionary<string, object?>
     {

@@ -8,10 +8,17 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 internal sealed record CoupledOutcome(double? UrgentZeroExcess, bool InvestmentLogged, double? Investment = null, IReadOnlyList<string>? Unknown = null, double? Harm = null,
     IReadOnlyList<(string Key, double Value)>? Contributions = null, double? Goals = null, double? Thermal = null);
 
-/// <summary>One <c>coupled_selection</c> row: a review's shared portfolio comparison (#3532), with the logged rejected vectors (#3655).</summary>
+/// <summary>One <c>coupled_selection</c> row: a review's shared portfolio comparison (#3532), with the logged rejected vectors (#3655)
+/// and the search's accounting (#3722).</summary>
 internal sealed record CoupledSelectionRow(ulong Sequence, string Verdict, IReadOnlyList<string> Tasks, IReadOnlyList<string> RejectedIds, CoupledOutcome Baseline, CoupledOutcome Selected,
     IReadOnlyList<string> SelectedIds, IReadOnlyList<CoupledOutcome> Rejected,
-    IReadOnlyList<double> PlannedRooms, IReadOnlyList<CoupledThermalExposure> BaselineExposure, IReadOnlyList<CoupledThermalExposure> SelectedExposure);
+    IReadOnlyList<double> PlannedRooms, IReadOnlyList<CoupledThermalExposure> BaselineExposure, IReadOnlyList<CoupledThermalExposure> SelectedExposure,
+    CoupledSearchAccounting Search);
+
+/// <summary>What a <c>coupled_selection</c> comparison spent (#3722): scheduler expansions against the traversal bound, outcome evaluations
+/// against their budget, and the mandatory baseline's share of each. Null when the row did not carry the field.</summary>
+internal sealed record CoupledSearchAccounting(double? Expansions, double? Evaluations, double? BaselineEvaluations, double? BaselineExpansions,
+    double? EvaluationBudget, double? TraversalBound);
 
 /// <summary>Compact physiological input evidence; endpoint temperatures do not describe intermediate spans.</summary>
 internal sealed record CoupledThermalExposure(string Pawn, double? AssessedTicks, double? UnknownTicks, double? ColdDegreeTicks,
@@ -44,10 +51,13 @@ internal static class CoupledSelections
                 : [],
             fields.GetValueOrDefault("planned_rooms") is List<object?> rooms
                 ? rooms.OfType<Dictionary<string, object?>>().Select(r => Number(r.GetValueOrDefault("room"))).OfType<double>().ToList() : [],
-            Exposure(fields.GetValueOrDefault("baseline_thermal_exposure")), Exposure(fields.GetValueOrDefault("selected_thermal_exposure")));
+            Exposure(fields.GetValueOrDefault("baseline_thermal_exposure")), Exposure(fields.GetValueOrDefault("selected_thermal_exposure")),
+            new CoupledSearchAccounting(Number(fields.GetValueOrDefault("search_expansions")), Number(fields.GetValueOrDefault("search_evaluations")),
+                Number(fields.GetValueOrDefault("baseline_evaluations")), Number(fields.GetValueOrDefault("baseline_expansions")),
+                Number(fields.GetValueOrDefault("evaluation_budget")), Number(fields.GetValueOrDefault("traversal_bound"))));
     }
 
-    private static double? Number(object? value) => value switch { double d => d, long l => l, _ => null };
+    private static double? Number(object? value) => value switch { double d => d, long l => l, int i => i, _ => null };
 
     private static List<CoupledThermalExposure> Exposure(object? value) => value is List<object?> rows
         ? rows.OfType<Dictionary<string, object?>>().Select(r => new CoupledThermalExposure(

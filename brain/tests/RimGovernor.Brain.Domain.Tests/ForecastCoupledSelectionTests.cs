@@ -94,18 +94,18 @@ public sealed class ForecastCoupledSelectionTests
         Assert.True(WorkRules.WorkResourcesFit(facts.WorkView!, new(new("selected-service"), new(1),
             [DomainAction.NewPawnActivitiesAction(new("service-action"), batch)])));
     }
-    private static ForecastCoupledSelection Select(RoundsFacts facts, int budget = 16384, params ForecastCommitment[] incumbent)
+    private static ForecastCoupledSelection Select(RoundsFacts facts, ForecastSearchBudget? budget = null, params ForecastCommitment[] incumbent)
     {
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), Horizon / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, EquatableArray.From(incumbent), new());
         return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget);
     }
     private static readonly string[] NoSuchRoot = ["no/such/root"];
-    private static ForecastCoupledSelection SelectWarm(RoundsFacts facts, IReadOnlyList<string> warmStart)
+    private static ForecastCoupledSelection SelectWarm(RoundsFacts facts, IReadOnlyList<string> warmStart, ForecastSearchBudget? budget = null)
     {
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), Horizon / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
-        return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, warmStart: warmStart);
+        return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget, warmStart);
     }
 
     // #3563: the search reports its expansions per phase and the phase that found the chosen subset; the previous selection seeds the next search.
@@ -119,17 +119,25 @@ public sealed class ForecastCoupledSelectionTests
         // The cardinality sweep is skipped when the budget left cannot finish it (#3563): the search ends converged at the
         // confirmed leader with budget unspent, truncated since the subsets were not all seen.
         Assert.Equal("baseline seed extend confirm", string.Join(" ", cold.SearchPhases.Select(p => p.Phase)));
-        Assert.True(cold.Selection.Expansions < 65536);
+        Assert.True(cold.OutcomeEvaluations - cold.BaselineEvaluations < ForecastSearchBudget.DefaultEvaluations);
+        Assert.True(cold.Selection.Expansions < ForecastSearchBudget.DefaultTraversal);
         Assert.True(cold.Selection.SearchTruncated);
+        Assert.DoesNotContain(ForecastCoupledSelection.OutcomeEvaluationsExhausted, cold.Selection.Findings);
         Assert.Contains(cold.SelectedPhase, cold.SearchPhases.Select(p => p.Phase));
         Assert.Equal("", cold.WarmStart);
-        // A budget the sweep can finish in runs it to the end: the eight-root productive fixture exhausts its subsets at
-        // 65,536 with budget left (the review fixture above has too many roots for any budget to finish its sweep).
+        // The phases' outcome evaluations sum to the comparison's too (#3722), and the baseline phase holds exactly the mandatory share.
+        Assert.Equal(cold.OutcomeEvaluations, cold.SearchPhases.Sum(p => p.OutcomeEvaluations));
+        Assert.Equal(cold.BaselineEvaluations, cold.SearchPhases[0].OutcomeEvaluations);
+        Assert.Equal(cold.BaselineExpansions, cold.SearchPhases[0].Expansions);
+        Assert.Equal(ForecastSearchBudget.Default, cold.Budget);
+        // A budget the sweep can finish in runs it to the end: the eight-root productive fixture exhausts its subsets within
+        // 16,384 evaluations with budget left (the review fixture above has too many roots for any budget to finish its sweep).
         var original = ProductiveLearningTests.NormalFoodFacts();
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(original, 700)!.Priced(700);
-        var exhaustive = ForecastCoupledSelection.CompareActivityOutcomes(PortfolioAllocationTests.Request(original, generated), generated, 65536);
+        var exhaustive = ForecastCoupledSelection.CompareActivityOutcomes(PortfolioAllocationTests.Request(original, generated), generated, new(16384));
         Assert.Equal("sweep", exhaustive.SearchPhases[^1].Phase);
-        Assert.True(exhaustive.Selection.Expansions < 65536);
+        Assert.True(exhaustive.OutcomeEvaluations - exhaustive.BaselineEvaluations < 16384);
+        Assert.True(exhaustive.Selection.Expansions < ForecastSearchBudget.DefaultTraversal);
 
         var warm = SelectWarm(facts, cold.Selection.Selected);
         Assert.Equal("seeded", warm.WarmStart);
@@ -594,7 +602,7 @@ public sealed class ForecastCoupledSelectionTests
     public void TheComparatorTakesTheWarmerOutfitForTheColdAndNearABreakLowersBreakRisk(double mood, bool nearBreak)
     {
         var (facts, work, _) = ColdWorkReview(mood);
-        var result = Select(facts, 16384, work);
+        var result = Select(facts, null, work);
         Assert.Contains(result.Selected.Plan.Allocations, a => work.ActivityCompletions.Contains(a.Activity));
         Assert.Equal(["gear"], result.Selection.Selected);
         Assert.True(result.Selected.ThermalExposure.Single().AssessedColdDegreeTicks < result.Baseline.ThermalExposure.Single().AssessedColdDegreeTicks);
@@ -644,7 +652,7 @@ public sealed class ForecastCoupledSelectionTests
         RimGovernor.Brain.Policy.Methods.Generation.EffectSourcePawn pawn, ForecastCommitment root, double mood, bool mild)
     {
         var (facts, work, _) = ColdWorkReview(mood, generated: root, mild: mild);
-        var result = Select(facts, 16384, work);
+        var result = Select(facts, null, work);
         Assert.Contains(result.Selected.Plan.Allocations, a => work.ActivityCompletions.Contains(a.Activity));
         var choices = EffectSourcesRules.GearChoices(facts.CoupledAlternatives, result);
         var census = RimGovernor.Brain.BuildingRuntime.Rounder.WithGearChoices(new RoundsFacts { Gear = Known(EffectSourceCandidatesTests.Census(pawn)) }, choices).Gear;
@@ -677,7 +685,7 @@ public sealed class ForecastCoupledSelectionTests
         MechanicCardStatus status = MechanicCardStatus.Verified, bool shirt = true)
     {
         var (facts, parkas, work) = ColdParkaReview(mood, status, shirt);
-        return (Select(facts, 16384, work), parkas);
+        return (Select(facts, null, work), parkas);
     }
 
     private static (RoundsFacts Facts, ForecastCommitment[] Parkas, ForecastCommitment Work) ColdParkaReview(double mood,
@@ -832,12 +840,144 @@ public sealed class ForecastCoupledSelectionTests
     {
         var facts = Review(level: 1, fall: 0);
         var current = facts.CoupledAlternatives!.Alternatives.Single(c => c.ExclusiveOutcome == "raw/0" && !c.Id.Contains("/after/", StringComparison.Ordinal));
-        var result = Select(facts, 0, current);
+        var result = Select(facts, new(0), current);
         Assert.True(result.Selection.SearchTruncated);
         Assert.Contains("portfolio_search_truncated", result.Selection.Findings);
         Assert.Empty(result.Selection.Selected);
         Assert.Equal(Known(true), result.Selected.Feasible);
         Assert.Equal(result.Baseline.Plan, result.Selected.Plan);
         Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity == SourceTask(facts, "plant-a"));
+    }
+
+    private static (string Phase, int Expansions, int ScheduleSearches, int OutcomeEvaluations)[] Spend(ForecastCoupledSelection selection) =>
+        selection.SearchPhases.Select(p => (p.Phase, p.Expansions, p.ScheduleSearches, p.OutcomeEvaluations)).ToArray();
+
+    // #3722: the allowance is a count of outcome evaluations, a unit per evaluation started and none for a cached schedule or outcome.
+    // The search never exceeds it, reports its end exactly when it reached it (a search that converged first ends with units unspent),
+    // and the same input spends the same units. A zero allowance evaluates the mandatory baseline alone; one evaluates one outcome.
+    [Theory]
+    [InlineData(0)] [InlineData(1)] [InlineData(2)] [InlineData(7)] [InlineData(40)]
+    public void TheEvaluationBudgetIsNeverExceededAndItsEndIsReported(int evaluations)
+    {
+        var facts = Review();
+        var first = Select(facts, new(evaluations));
+        var again = Select(facts, new(evaluations));
+        var why = string.Join(",", Spend(first).Select(p => p.ToString())) + " findings=" + string.Join(";", first.Selection.Findings);
+        Assert.Equal(new ForecastSearchBudget(evaluations), first.Budget);
+        var spent = first.OutcomeEvaluations - first.BaselineEvaluations;
+        Assert.True(spent <= evaluations, why);
+        Assert.True((spent == evaluations) == first.Selection.Findings.Contains(ForecastCoupledSelection.OutcomeEvaluationsExhausted), why);
+        if (evaluations <= 1) Assert.True(spent == evaluations, why);
+        Assert.DoesNotContain(ForecastCoupledSelection.TraversalBoundExhausted, first.Selection.Findings);
+        Assert.True(first.Selection.SearchTruncated);
+        // The mandatory baseline is counted, reported as its own phase and charged to no allowance.
+        Assert.True(first.BaselineEvaluations > 0);
+        Assert.Equal(first.BaselineEvaluations, first.SearchPhases[0].OutcomeEvaluations);
+        Assert.Equal(first.BaselineExpansions, first.SearchPhases[0].Expansions);
+        Assert.Equal(first.OutcomeEvaluations, first.SearchPhases.Sum(p => p.OutcomeEvaluations));
+        Assert.Equal(first.Selection.Expansions, first.SearchPhases.Sum(p => p.Expansions));
+        Assert.True(first.Selection.Expansions - first.BaselineExpansions <= ForecastSearchBudget.DefaultTraversal);
+        Assert.Equal(Spend(first), Spend(again));
+        Assert.Equal(first.Selection.Selected, again.Selection.Selected);
+        Assert.Equal(first.SelectedVector, again.SelectedVector);
+    }
+
+    [Fact]
+    public void ANegativeBudgetIsRefused()
+    {
+        var facts = Review();
+        Assert.Throws<DomainException>(() => Select(facts, new(-1)));
+        Assert.Throws<DomainException>(() => Select(facts, new(1, Traversal: -1)));
+    }
+
+    // #3722: the traversal bound on scheduler expansions is never exceeded and ends the search on its own when it is reached, on a
+    // plain graph and on one whose harvest is unknown, so a search of duplicate, refused or unknown-heavy roots terminates whatever
+    // its evaluation allowance. A bound of zero runs the mandatory baseline alone.
+    [Theory]
+    [InlineData(false, 0)] [InlineData(false, 1)] [InlineData(false, 24)] [InlineData(false, 700)] [InlineData(true, 24)]
+    public void TheTraversalBoundIsNeverExceededAndItsEndIsReported(bool unknownHarvest, int traversal)
+    {
+        var facts = Review(unknownHarvest: unknownHarvest);
+        var budget = new ForecastSearchBudget(ForecastSearchBudget.DefaultEvaluations, Traversal: traversal);
+        var first = Select(facts, budget);
+        var again = Select(facts, budget);
+        var why = string.Join(",", Spend(first).Select(p => p.ToString())) + " findings=" + string.Join(";", first.Selection.Findings);
+        Assert.Equal(budget, first.Budget);
+        var spent = first.Selection.Expansions - first.BaselineExpansions;
+        Assert.True(spent <= traversal, why);
+        Assert.True((spent == traversal) == first.Selection.Findings.Contains(ForecastCoupledSelection.TraversalBoundExhausted), why);
+        if (traversal <= 1 && !unknownHarvest) Assert.True(spent == traversal, why);
+        Assert.DoesNotContain(ForecastCoupledSelection.OutcomeEvaluationsExhausted, first.Selection.Findings);
+        Assert.True(first.Selection.SearchTruncated);
+        Assert.True(first.OutcomeEvaluations - first.BaselineEvaluations < ForecastSearchBudget.DefaultEvaluations);
+        // The baseline was still evaluated, at its full bound.
+        Assert.True(first.BaselineEvaluations > 0);
+        Assert.Equal(first.Selection.Expansions, first.SearchPhases.Sum(p => p.Expansions));
+        Assert.Equal(first.OutcomeEvaluations, first.SearchPhases.Sum(p => p.OutcomeEvaluations));
+        Assert.Equal(Spend(first), Spend(again));
+        Assert.Equal(first.Selection.Selected, again.Selection.Selected);
+    }
+
+    // #3722: the warm start's screen draws on the same allowance as every later phase; a unit it spends is not spent again.
+    [Fact]
+    public void TheWarmStartSpendsFromTheOneAllowance()
+    {
+        var facts = Review();
+        var cold = Select(facts);
+        var warm = SelectWarm(facts, cold.Selection.Selected, new(1));
+        Assert.Equal("seeded", warm.WarmStart);
+        Assert.Equal("baseline warm", string.Join(" ", warm.SearchPhases.Select(p => p.Phase)));
+        Assert.Equal(1, Assert.Single(warm.SearchPhases, p => p.Phase == "warm").OutcomeEvaluations);
+        Assert.Equal(1, warm.OutcomeEvaluations - warm.BaselineEvaluations);
+        Assert.Contains(ForecastCoupledSelection.OutcomeEvaluationsExhausted, warm.Selection.Findings);
+        // With the allowance the cold search had, the warm start leads, its screen is counted in the warm phase, and the phases still
+        // sum to the totals.
+        var afforded = SelectWarm(facts, cold.Selection.Selected, cold.Budget);
+        Assert.Equal("warm", afforded.SelectedPhase);
+        Assert.Equal(cold.Selection.Selected, afforded.Selection.Selected);
+        Assert.True(Assert.Single(afforded.SearchPhases, p => p.Phase == "warm").OutcomeEvaluations > 0);
+        Assert.Equal(afforded.OutcomeEvaluations, afforded.SearchPhases.Sum(p => p.OutcomeEvaluations));
+        Assert.Equal(afforded.Selection.Expansions, afforded.SearchPhases.Sum(p => p.Expansions));
+        Assert.DoesNotContain(ForecastCoupledSelection.OutcomeEvaluationsExhausted, afforded.Selection.Findings);
+    }
+
+    // #3722: the ledger every nested search draws on. Mandatory work is counted and reported but charged to no allowance; the
+    // discretionary allowances are spent exactly and nothing a nested call does extends them.
+    [Fact]
+    public void TheLedgerChargesDiscretionaryWorkOnlyAndNeverExtendsItself()
+    {
+        var ledger = new ForecastSearchLedger(new(2, Traversal: 10));
+        ledger.Mandatory = true;
+        Assert.True(ledger.TryStartEvaluation());
+        ledger.SpendExpansions(7);
+        Assert.Equal(4096, ledger.SchedulerBound(4096));
+        ledger.Mandatory = false;
+        Assert.Equal((1, 7, 1, 7), (ledger.Evaluations, ledger.Expansions, ledger.BaselineEvaluations, ledger.BaselineExpansions));
+        Assert.Equal((2, 10), (ledger.EvaluationsLeft, ledger.TraversalLeft));
+        Assert.False(ledger.Exhausted);
+        Assert.True(ledger.TryStartEvaluation());
+        Assert.True(ledger.TryStartEvaluation());
+        Assert.False(ledger.TryStartEvaluation());
+        Assert.False(ledger.TryStartEvaluation());
+        Assert.Equal(3, ledger.Evaluations);
+        Assert.Equal(2, ledger.DiscretionaryEvaluations);
+        Assert.True(ledger.EvaluationsExhausted);
+        Assert.True(ledger.Exhausted);
+        Assert.False(ledger.TraversalExhausted);
+        Assert.Equal(10, ledger.SchedulerBound(64));
+        ledger.SpendExpansions(6);
+        Assert.Equal(4, ledger.SchedulerBound(64));
+        ledger.SpendExpansions(4);
+        Assert.Equal(0, ledger.SchedulerBound(64));
+        Assert.True(ledger.TraversalExhausted);
+        Assert.Equal((17, 10), (ledger.Expansions, ledger.DiscretionaryExpansions));
+        // Mandatory work still runs once the allowances are spent, charged to the baseline, not to them.
+        ledger.Mandatory = true;
+        Assert.True(ledger.TryStartEvaluation());
+        Assert.Equal(64, ledger.SchedulerBound(64));
+        ledger.SpendExpansions(3);
+        Assert.Equal((2, 10), (ledger.BaselineEvaluations, ledger.BaselineExpansions));
+        Assert.Equal((2, 10), (ledger.DiscretionaryEvaluations, ledger.DiscretionaryExpansions));
+        Assert.Equal((4, 20), (ledger.Evaluations, ledger.Expansions));
     }
 }

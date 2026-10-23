@@ -145,8 +145,7 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
 
 }
 public sealed record ForecastCoupledScenario(EquatableArray<ForecastCoupledOutcome> Alternatives,
-    EquatableArray<string> Findings, bool Truncated)
-{ public int Expansions { get; init; } }
+    EquatableArray<string> Findings, bool Truncated);
 
 public static partial class ForecastCoupled
 {
@@ -189,10 +188,13 @@ public static partial class ForecastCoupled
     }
 
     /// <summary>One portfolio's schedule search and evaluation. A search passes its one <paramref name="cache"/> (#3468), so a
-    /// pawn's timelines and the context's indexes are shared by every portfolio; <paramref name="expansionBudget"/> bounds this
-    /// search's schedule search without copying the context.</summary>
+    /// pawn's timelines and the context's indexes are shared by every portfolio, and its <paramref name="ledger"/> (#3722): every
+    /// schedule search, the capacity-recovery retries included, runs within <paramref name="bound"/> (the context's when null) and
+    /// the traversal left, and every plan's outcome evaluation draws one unit before it starts. When an allowance ends, the plans
+    /// left are not evaluated, no retry starts, and the scenario is truncated with the spent limit's finding. Without a ledger
+    /// nothing but <paramref name="bound"/> limits the search.</summary>
     internal static ColonyForecastScenario ForecastCoupledScenarioOf(ColonyForecastRequest request,
-        IReadOnlyDictionary<string, ForecastCommitment> commitments, CoupledSearchCache? cache = null, int? expansionBudget = null)
+        IReadOnlyDictionary<string, ForecastCommitment> commitments, CoupledSearchCache? cache = null, ForecastSearchLedger? ledger = null, int? bound = null)
     {
         var context = request.Coupled!;
         cache ??= new();
@@ -228,12 +230,13 @@ public static partial class ForecastCoupled
         && (o.Excludes.Contains(other.Id) || o.ExclusiveOutput.Length != 0 && o.ExclusiveOutput == other.Outcome?.ExclusiveOutput))))
             return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
             { Coupled = new([], ["exclusive_outcome_conflict"], false) };
+        var perSearch = bound ?? context.Activities.ExpansionBudget;
         var problem = context.Activities with
         {
             Activities = all.Values.Where(t => included.Contains(t.Id)).ToArray(),
             Options = context.Activities.Options.Where(o => included.Contains(o.Activity)).ToArray(),
             Deadline = Known(horizon),
-            ExpansionBudget = expansionBudget ?? context.Activities.ExpansionBudget
+            ExpansionBudget = perSearch
         };
         if (problem.Activities.Where(t => t.ChoiceIdentity.Length != 0).GroupBy(t => t.ChoiceIdentity).Any(g => g.Count() > 1))
             return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
@@ -251,34 +254,53 @@ public static partial class ForecastCoupled
                 return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
                 { Coupled = new([], [.. findings, "physical_lot_quantity_shortfall:" + input.Key.Lot], false) };
         }
-        var compared = included.Count == 0 ? null : ForecastActivities.CompareActivityPlans(problem, cache.Routes);
-        if (compared is not null)
+        // Every schedule search and every outcome evaluation of this scenario, the retries' included, is charged to the ledger (#3722).
+        var truncated = context.Truncated; var exhausted = false;
+        var results = new List<ForecastCoupledOutcome>();
+        ForecastActivityComparison? Compare(ForecastActivityProblem p)
         {
+            var limit = ledger?.SchedulerBound(perSearch) ?? perSearch;
+            if (limit <= 0) { findings.Add(ForecastCoupledSelection.TraversalBoundExhausted); truncated = exhausted = true; return null; }
+            var compared = ForecastActivities.CompareActivityPlans(p with { ExpansionBudget = limit }, cache.Routes);
+            ledger?.SpendExpansions(compared.Expansions);
             findings.UnionWith(compared.Findings);
-            if (compared.Alternatives.Length == 0) findings.Add("unassessed_no_schedule_within_horizon");
+            truncated |= compared.SearchTruncated;
+            if (compared.SearchTruncated && ledger is { Mandatory: false, TraversalExhausted: true }) { findings.Add(ForecastCoupledSelection.TraversalBoundExhausted); exhausted = true; }
+            return compared;
         }
-        var alternatives = compared?.Alternatives ?? [new ForecastActivityPlan([], 0, 0)];
-        var results = alternatives.Select(plan => cache.Evaluate(request, commitments, problem, plan)).ToArray();
-        // The assignment search is bounded and tries the cheapest pawn first, so every plan it reaches can hand the same work to a pawn the
-        // needs timeline then shows cannot do it. When that leaves nothing feasible, search again without those pawn choices.
-        var retried = problem;
-        for (var round = 0; round < 2 && compared is not null && results.All(r => r.Feasible != Known(true)); round++)
+        void Evaluate(ForecastActivityProblem p, IEnumerable<ForecastActivityPlan> plans)
         {
-            var barred = results.SelectMany(r => r.Findings.Where(f => f.Reason == "work_outside_recovered_capacity")
-                .SelectMany(f => r.Plan.Allocations.Where(a => a.Activity == f.Commitment).Select(a => (a.Activity, a.Pawn)))).ToHashSet();
-            var options = retried.Options.Where(o => !barred.Contains((o.Activity, o.Pawn))
-                || !retried.Options.Any(other => other.Activity == o.Activity && !barred.Contains((other.Activity, other.Pawn)))).ToArray();
-            if (options.Length == retried.Options.Length) break;
-            retried = retried with { Options = options };
-            var again = ForecastActivities.CompareActivityPlans(retried, cache.Routes);
-            findings.UnionWith(again.Findings);
-            results = [.. results, .. again.Alternatives.Select(plan => cache.Evaluate(request, commitments, retried, plan))];
+            foreach (var plan in plans)
+            {
+                if (ledger is not null && !ledger.TryStartEvaluation()) { findings.Add(ForecastCoupledSelection.OutcomeEvaluationsExhausted); truncated = exhausted = true; return; }
+                results.Add(cache.Evaluate(request, commitments, p, plan));
+            }
+        }
+        if (included.Count == 0) Evaluate(problem, [new ForecastActivityPlan([], 0, 0)]);
+        else if (Compare(problem) is { } compared)
+        {
+            if (compared.Alternatives.Length == 0) findings.Add("unassessed_no_schedule_within_horizon");
+            Evaluate(problem, compared.Alternatives);
+            // The assignment search is bounded and tries the cheapest pawn first, so every plan it reaches can hand the same work to a pawn the
+            // needs timeline then shows cannot do it. When that leaves nothing feasible, search again without those pawn choices.
+            var retried = problem;
+            for (var round = 0; round < 2 && !exhausted && results.All(r => r.Feasible != Known(true)); round++)
+            {
+                var barred = results.SelectMany(r => r.Findings.Where(f => f.Reason == "work_outside_recovered_capacity")
+                    .SelectMany(f => r.Plan.Allocations.Where(a => a.Activity == f.Commitment).Select(a => (a.Activity, a.Pawn)))).ToHashSet();
+                var options = retried.Options.Where(o => !barred.Contains((o.Activity, o.Pawn))
+                    || !retried.Options.Any(other => other.Activity == o.Activity && !barred.Contains((other.Activity, other.Pawn)))).ToArray();
+                if (options.Length == retried.Options.Length) break;
+                if (ledger is { Mandatory: false, EvaluationsExhausted: true }) { findings.Add(ForecastCoupledSelection.OutcomeEvaluationsExhausted); truncated = exhausted = true; break; }
+                retried = retried with { Options = options };
+                if (Compare(retried) is { } again) Evaluate(retried, again.Alternatives);
+            }
         }
         // Inventory-only clients keep their conditional diagnostics; migrated consumers inspect each coupled alternative.
         return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
         {
             MaterialAvailability = context.Resources.Materials,
-            Coupled = new(EquatableArray.From(results), EquatableArray.From(findings), context.Truncated || (compared?.SearchTruncated ?? false)) { Expansions = compared?.Expansions ?? 0 },
+            Coupled = new(EquatableArray.From(results), EquatableArray.From(findings), truncated),
         };
     }
 }

@@ -328,7 +328,9 @@ of the same colony):
   cardinality sweep spent whatever was left (11,330 expansions mean over the 17 reviews that reached it) and chose
   the selection in none. The sweep now runs only when the budget left can finish it, else the search ends at the
   confirmed leader; with the budget a ceiling the converged search rarely reaches, the default rose to 65,536 (the
-  seed pass, a quarter of it, screened about 64 of up to 99 roots before, every root now).
+  seed pass, a quarter of it, screened about 64 of up to 99 roots before, every root now). Since #3722 the allowance
+  counts outcome evaluations (8,192 by default) and the 65,536 is the traversal bound on expansions
+  ([portfolio selection](portfolio-selection.md)); the counts below are expansions.
 - **After.** 0 of 22 reviews reached the bound (max 34,932 expansions); 13,893 p50, 15,740 mean (16,384 and 15,902
   before), so the raised budget spent in the extension what the sweep used to burn: the extension 15,659 expansions
   mean (10,734) and every extension reached the confirm pass (6 of 20 before; the other 14 ran out of budget in the
@@ -833,8 +835,9 @@ The first cut at the rounds stage (44.5 s a day over 25 reviews on the shared-sc
 profile: the stage's `review` lap (26 to 28 s a day, p50 900 to 1000 ms) is the policy inspection, and the
 inspection is the coupled portfolio search (`inspect_ms`); the other laps are `layout` 5 to 6 s, `d_planned` 3.5 to
 4 s (its planned-site reads), `derive`, `acquisition` and `d_stock` 1.5 to 2.5 s each. The `rounds_review` row now
-carries `search_profile`, per search phase: its wall, the schedule searches it ran and their wall, and the evaluations
-that ended infeasible, without supported relief, as a swap, or as a new leader. On the profile day (session
+carries `search_profile`, per search phase: its wall, the schedule searches it ran and their wall, the outcome
+evaluations it started (#3722), and the subset evaluations that ended infeasible, without supported relief, as a swap,
+or as a new leader. On the profile day (session
 `a53f4706ced4430998dc04d97f243679`, 26 reviews, review lap 27.6 s, search 26.0 s):
 
 | Phase | Reviews | Expansions | Wall | Schedule searches | Infeasible | New leader |
