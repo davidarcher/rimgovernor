@@ -836,8 +836,8 @@ profile: the stage's `review` lap (26 to 28 s a day, p50 900 to 1000 ms) is the 
 inspection is the coupled portfolio search (`inspect_ms`); the other laps are `layout` 5 to 6 s, `d_planned` 3.5 to
 4 s (its planned-site reads), `derive`, `acquisition` and `d_stock` 1.5 to 2.5 s each. The `rounds_review` row now
 carries `search_profile`, per search phase: its wall, the schedule searches it ran and their wall, the outcome
-evaluations it started (#3722), and the subset evaluations that ended infeasible, without supported relief, as a swap,
-or as a new leader. On the profile day (session
+evaluations it started (#3722), the subset evaluations that ended infeasible, without supported relief, as a swap,
+or as a new leader, and the subsets a proven bound skipped or no bound covered (#3724). On the profile day (session
 `a53f4706ced4430998dc04d97f243679`, 26 reviews, review lap 27.6 s, search 26.0 s):
 
 | Phase | Reviews | Expansions | Wall | Schedule searches | Infeasible | New leader |

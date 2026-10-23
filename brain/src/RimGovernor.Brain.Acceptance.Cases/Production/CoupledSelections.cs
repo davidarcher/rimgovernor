@@ -16,9 +16,11 @@ internal sealed record CoupledSelectionRow(ulong Sequence, string Verdict, IRead
     CoupledSearchAccounting Search);
 
 /// <summary>What a <c>coupled_selection</c> comparison spent (#3722): scheduler expansions against the traversal bound, outcome evaluations
-/// against their budget, and the mandatory baseline's share of each. Null when the row did not carry the field.</summary>
+/// against their budget, and the mandatory baseline's share of each; and what it skipped (#3724): the subsets and sweep prefixes a proven
+/// bound pruned (<see cref="Pruned"/>) and why a bound was unavailable where it was (<see cref="BoundsUnavailable"/>, as
+/// <c>&lt;bound&gt;:&lt;reason&gt;</c>). Null when the row did not carry the field.</summary>
 internal sealed record CoupledSearchAccounting(double? Expansions, double? Evaluations, double? BaselineEvaluations, double? BaselineExpansions,
-    double? EvaluationBudget, double? TraversalBound);
+    double? EvaluationBudget, double? TraversalBound, double? Pruned = null, IReadOnlyList<string>? BoundsUnavailable = null);
 
 /// <summary>Compact physiological input evidence; endpoint temperatures do not describe intermediate spans.</summary>
 internal sealed record CoupledThermalExposure(string Pawn, double? AssessedTicks, double? UnknownTicks, double? ColdDegreeTicks,
@@ -54,7 +56,9 @@ internal static class CoupledSelections
             Exposure(fields.GetValueOrDefault("baseline_thermal_exposure")), Exposure(fields.GetValueOrDefault("selected_thermal_exposure")),
             new CoupledSearchAccounting(Number(fields.GetValueOrDefault("search_expansions")), Number(fields.GetValueOrDefault("search_evaluations")),
                 Number(fields.GetValueOrDefault("baseline_evaluations")), Number(fields.GetValueOrDefault("baseline_expansions")),
-                Number(fields.GetValueOrDefault("evaluation_budget")), Number(fields.GetValueOrDefault("traversal_bound"))));
+                Number(fields.GetValueOrDefault("evaluation_budget")), Number(fields.GetValueOrDefault("traversal_bound")),
+                Number(fields.GetValueOrDefault("search_pruned")),
+                fields.GetValueOrDefault("bounds_unavailable") is IEnumerable<object?> bounds ? bounds.OfType<string>().ToList() : null));
     }
 
     private static double? Number(object? value) => value switch { double d => d, long l => l, int i => i, _ => null };

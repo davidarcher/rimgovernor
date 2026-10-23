@@ -374,6 +374,18 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
   evidence (`ForecastPortfolioEvidence.Reason`) is `infeasible_or_unassessed`, `construction_without_supported_service_relief:<ids>`
   or `lost_to_leader:<stage>`; `StageOf` reads the stage (`urgent_zero`, `death_risk_floor`, `break_risk_cap`, `ledger`, an
   unconverted term, `incumbent`, `labor`), and a subset decided at a floor has no `Consequences` (`Assessed` is still true).
+- The search skips a subset without evaluating it only on a proven bound (#3724): the urgent-zero unserved-pawn bound
+  (`ForecastCoupledSelection.UrgentZeroUnservedBound`), sound because a pawn none of whose need tasks lies in the subset's task
+  closure keeps its baseline `ZeroTicks` in every plan (`ForecastNeeds.NeedsCoreOf` reads the pawn's own allocated need choices
+  only) and `CompareConsequences` decides at the urgent-zero stage whenever the excesses differ by `UrgentZeroResolutionTicks`.
+  The evidence reason is `pruned:urgent_zero_unserved:<pawn>` for a subset and `pruned_branch:urgent_zero_unserved:<pawn>` for a
+  cardinality-sweep prefix with every completion; `BoundOf` reads the bound, `Consequences` is null and `Assessed` true. Where
+  the bound is unavailable (a rest need task in the closure, an unknown baseline zero time, an infeasible or unassessed leader,
+  goal values in the context, the relief gate's collection order) the subset is evaluated, `ForecastSearchPhase.Unbounded`
+  counts it and `ForecastCoupledSelection.BoundsUnavailable` names the reason as `urgent_zero_unserved:<reason>`;
+  `ForecastSearchPhase.Pruned` counts the skipped subsets. A partial portfolio's own value is never a bound on its completions,
+  and no bound exists for the death and break-risk floors, the ledger or the tiebreaks. The unpruned search is the test control
+  `CompareActivityOutcomesUnpruned`; it ranks the same selection, vectors and findings.
 - `ForecastValueResult.HarmDetail` (`raids_per_day`, `exposure_range`, `down_probability`, `death_probability`, `cvar`) is reported
   as `harm_detail` ([otel-signals](otel-signals.md)). Until the exposure table is calibrated (#3543) every cell is uncalibrated, so
   a served review reports `exposure_cell_uncalibrated:…` and `harm` null.

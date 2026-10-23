@@ -19,25 +19,29 @@
           "Phase": "baseline",
           "Expansions": 0,
           "ScheduleSearches": 0,
-          "OutcomeEvaluations": 1
+          "OutcomeEvaluations": 1,
+          "Pruned": 0
         },
         {
           "Phase": "seed",
           "Expansions": 263,
           "ScheduleSearches": 7,
-          "OutcomeEvaluations": 77
+          "OutcomeEvaluations": 81,
+          "Pruned": 1
         },
         {
           "Phase": "extend",
           "Expansions": 128,
           "ScheduleSearches": 11,
-          "OutcomeEvaluations": 19
+          "OutcomeEvaluations": 19,
+          "Pruned": 0
         },
         {
           "Phase": "confirm",
           "Expansions": 4096,
           "ScheduleSearches": 1,
-          "OutcomeEvaluations": 160
+          "OutcomeEvaluations": 156,
+          "Pruned": 0
         }
       ],
       "Selected": [
@@ -679,9 +683,9 @@
       "Roots": 8,
       "CompositionExpansions": 501,
       "GenerationTruncated": false,
-      "Expansions": 4551,
+      "Expansions": 4487,
       "SearchTruncated": true,
-      "OutcomeEvaluations": 763,
+      "OutcomeEvaluations": 749,
       "BaselineEvaluations": 1,
       "BaselineExpansions": 0,
       "SearchPhases": [
@@ -689,25 +693,29 @@
           "Phase": "baseline",
           "Expansions": 0,
           "ScheduleSearches": 0,
-          "OutcomeEvaluations": 1
+          "OutcomeEvaluations": 1,
+          "Pruned": 0
         },
         {
           "Phase": "seed",
-          "Expansions": 327,
-          "ScheduleSearches": 8,
-          "OutcomeEvaluations": 95
+          "Expansions": 263,
+          "ScheduleSearches": 7,
+          "OutcomeEvaluations": 81,
+          "Pruned": 1
         },
         {
           "Phase": "extend",
           "Expansions": 128,
           "ScheduleSearches": 11,
-          "OutcomeEvaluations": 19
+          "OutcomeEvaluations": 19,
+          "Pruned": 0
         },
         {
           "Phase": "confirm",
           "Expansions": 4096,
           "ScheduleSearches": 1,
-          "OutcomeEvaluations": 648
+          "OutcomeEvaluations": 648,
+          "Pruned": 0
         }
       ],
       "Selected": [
@@ -1348,9 +1356,9 @@
       "Roots": 8,
       "CompositionExpansions": 501,
       "GenerationTruncated": false,
-      "Expansions": 4551,
+      "Expansions": 4487,
       "SearchTruncated": true,
-      "OutcomeEvaluations": 763,
+      "OutcomeEvaluations": 749,
       "BaselineEvaluations": 1,
       "BaselineExpansions": 0,
       "SearchPhases": [
@@ -1358,25 +1366,29 @@
           "Phase": "baseline",
           "Expansions": 0,
           "ScheduleSearches": 0,
-          "OutcomeEvaluations": 1
+          "OutcomeEvaluations": 1,
+          "Pruned": 0
         },
         {
           "Phase": "seed",
-          "Expansions": 327,
-          "ScheduleSearches": 8,
-          "OutcomeEvaluations": 95
+          "Expansions": 263,
+          "ScheduleSearches": 7,
+          "OutcomeEvaluations": 81,
+          "Pruned": 1
         },
         {
           "Phase": "extend",
           "Expansions": 128,
           "ScheduleSearches": 11,
-          "OutcomeEvaluations": 19
+          "OutcomeEvaluations": 19,
+          "Pruned": 0
         },
         {
           "Phase": "confirm",
           "Expansions": 4096,
           "ScheduleSearches": 1,
-          "OutcomeEvaluations": 648
+          "OutcomeEvaluations": 648,
+          "Pruned": 0
         }
       ],
       "Selected": [
@@ -2017,9 +2029,9 @@
       "Roots": 8,
       "CompositionExpansions": 501,
       "GenerationTruncated": false,
-      "Expansions": 4551,
+      "Expansions": 4487,
       "SearchTruncated": true,
-      "OutcomeEvaluations": 763,
+      "OutcomeEvaluations": 749,
       "BaselineEvaluations": 1,
       "BaselineExpansions": 0,
       "SearchPhases": [
@@ -2027,25 +2039,29 @@
           "Phase": "baseline",
           "Expansions": 0,
           "ScheduleSearches": 0,
-          "OutcomeEvaluations": 1
+          "OutcomeEvaluations": 1,
+          "Pruned": 0
         },
         {
           "Phase": "seed",
-          "Expansions": 327,
-          "ScheduleSearches": 8,
-          "OutcomeEvaluations": 95
+          "Expansions": 263,
+          "ScheduleSearches": 7,
+          "OutcomeEvaluations": 81,
+          "Pruned": 1
         },
         {
           "Phase": "extend",
           "Expansions": 128,
           "ScheduleSearches": 11,
-          "OutcomeEvaluations": 19
+          "OutcomeEvaluations": 19,
+          "Pruned": 0
         },
         {
           "Phase": "confirm",
           "Expansions": 4096,
           "ScheduleSearches": 1,
-          "OutcomeEvaluations": 648
+          "OutcomeEvaluations": 648,
+          "Pruned": 0
         }
       ],
       "Selected": [
@@ -2686,9 +2702,9 @@
       "Roots": 8,
       "CompositionExpansions": 501,
       "GenerationTruncated": false,
-      "Expansions": 4551,
+      "Expansions": 4487,
       "SearchTruncated": true,
-      "OutcomeEvaluations": 763,
+      "OutcomeEvaluations": 749,
       "BaselineEvaluations": 1,
       "BaselineExpansions": 0,
       "SearchPhases": [
@@ -2696,25 +2712,29 @@
           "Phase": "baseline",
           "Expansions": 0,
           "ScheduleSearches": 0,
-          "OutcomeEvaluations": 1
+          "OutcomeEvaluations": 1,
+          "Pruned": 0
         },
         {
           "Phase": "seed",
-          "Expansions": 327,
-          "ScheduleSearches": 8,
-          "OutcomeEvaluations": 95
+          "Expansions": 263,
+          "ScheduleSearches": 7,
+          "OutcomeEvaluations": 81,
+          "Pruned": 1
         },
         {
           "Phase": "extend",
           "Expansions": 128,
           "ScheduleSearches": 11,
-          "OutcomeEvaluations": 19
+          "OutcomeEvaluations": 19,
+          "Pruned": 0
         },
         {
           "Phase": "confirm",
           "Expansions": 4096,
           "ScheduleSearches": 1,
-          "OutcomeEvaluations": 648
+          "OutcomeEvaluations": 648,
+          "Pruned": 0
         }
       ],
       "Selected": [
@@ -3355,9 +3375,9 @@
       "Roots": 8,
       "CompositionExpansions": 501,
       "GenerationTruncated": false,
-      "Expansions": 40331,
+      "Expansions": 39809,
       "SearchTruncated": true,
-      "OutcomeEvaluations": 7833,
+      "OutcomeEvaluations": 7713,
       "BaselineEvaluations": 1,
       "BaselineExpansions": 0,
       "SearchPhases": [
@@ -3365,31 +3385,36 @@
           "Phase": "baseline",
           "Expansions": 0,
           "ScheduleSearches": 0,
-          "OutcomeEvaluations": 1
+          "OutcomeEvaluations": 1,
+          "Pruned": 0
         },
         {
           "Phase": "seed",
-          "Expansions": 327,
-          "ScheduleSearches": 8,
-          "OutcomeEvaluations": 95
+          "Expansions": 263,
+          "ScheduleSearches": 7,
+          "OutcomeEvaluations": 81,
+          "Pruned": 1
         },
         {
           "Phase": "extend",
           "Expansions": 128,
           "ScheduleSearches": 11,
-          "OutcomeEvaluations": 19
+          "OutcomeEvaluations": 19,
+          "Pruned": 0
         },
         {
           "Phase": "confirm",
           "Expansions": 4096,
           "ScheduleSearches": 1,
-          "OutcomeEvaluations": 648
+          "OutcomeEvaluations": 648,
+          "Pruned": 0
         },
         {
           "Phase": "sweep",
-          "Expansions": 35780,
-          "ScheduleSearches": 99,
-          "OutcomeEvaluations": 7070
+          "Expansions": 35322,
+          "ScheduleSearches": 97,
+          "OutcomeEvaluations": 6964,
+          "Pruned": 2
         }
       ],
       "Selected": [
@@ -4031,9 +4056,9 @@
       "Roots": 8,
       "CompositionExpansions": 501,
       "GenerationTruncated": false,
-      "Expansions": 40331,
+      "Expansions": 39809,
       "SearchTruncated": true,
-      "OutcomeEvaluations": 7833,
+      "OutcomeEvaluations": 7713,
       "BaselineEvaluations": 1,
       "BaselineExpansions": 0,
       "SearchPhases": [
@@ -4041,31 +4066,36 @@
           "Phase": "baseline",
           "Expansions": 0,
           "ScheduleSearches": 0,
-          "OutcomeEvaluations": 1
+          "OutcomeEvaluations": 1,
+          "Pruned": 0
         },
         {
           "Phase": "seed",
-          "Expansions": 327,
-          "ScheduleSearches": 8,
-          "OutcomeEvaluations": 95
+          "Expansions": 263,
+          "ScheduleSearches": 7,
+          "OutcomeEvaluations": 81,
+          "Pruned": 1
         },
         {
           "Phase": "extend",
           "Expansions": 128,
           "ScheduleSearches": 11,
-          "OutcomeEvaluations": 19
+          "OutcomeEvaluations": 19,
+          "Pruned": 0
         },
         {
           "Phase": "confirm",
           "Expansions": 4096,
           "ScheduleSearches": 1,
-          "OutcomeEvaluations": 648
+          "OutcomeEvaluations": 648,
+          "Pruned": 0
         },
         {
           "Phase": "sweep",
-          "Expansions": 35780,
-          "ScheduleSearches": 99,
-          "OutcomeEvaluations": 7070
+          "Expansions": 35322,
+          "ScheduleSearches": 97,
+          "OutcomeEvaluations": 6964,
+          "Pruned": 2
         }
       ],
       "Selected": [

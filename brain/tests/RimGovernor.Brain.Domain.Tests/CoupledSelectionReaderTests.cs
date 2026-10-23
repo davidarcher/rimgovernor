@@ -77,7 +77,15 @@ public sealed class CoupledSelectionReaderTests
         Assert.Equal(selection.BaselineExpansions, row.Search.BaselineExpansions);
         Assert.Equal(1, row.Search.EvaluationBudget);
         Assert.Equal(500, row.Search.TraversalBound);
-        Assert.Null(CoupledSelections.Row(new LogRow { Payload = new Dictionary<string, object?>() }).Search.Evaluations);
+        // The pruning (#3724): the pruned count and the unavailable bounds travel and read back under their own names.
+        Assert.Equal(selection.SearchPhases.Sum(p => p.Pruned), row.Search.Pruned);
+        Assert.Equal(selection.BoundsUnavailable, row.Search.BoundsUnavailable);
+        var empty = CoupledSelections.Row(new LogRow { Payload = new Dictionary<string, object?>() }).Search;
+        Assert.Null(empty.Evaluations);
+        Assert.Null(empty.Pruned);
+        Assert.Null(empty.BoundsUnavailable);
+        var withBounds = Rounder.CoupledSelectionAttrs(selection with { BoundsUnavailable = ["urgent_zero_unserved:goal_routes"] }, 100, false, null);
+        Assert.Equal(["urgent_zero_unserved:goal_routes"], CoupledSelections.Row(new LogRow { Payload = withBounds }).Search.BoundsUnavailable);
 
         var review = Rounder.ReviewSearchAttrs(selection).ToDictionary(a => a.Key, a => a.Value);
         Assert.Equal(selection.Selection.Expansions, review[RoundsReviewTelemetry.CoupledSearchExpansionsKey]);
@@ -96,6 +104,8 @@ public sealed class CoupledSelectionReaderTests
             var profiled = Assert.IsType<Dictionary<string, object?>>(profile[phase.Phase]);
             Assert.Equal(phase.ScheduleSearches, profiled["schedule_searches"]);
             Assert.Equal(phase.OutcomeEvaluations, profiled["outcome_evaluations"]);
+            Assert.Equal(phase.Pruned, profiled["pruned"]);
+            Assert.Equal(phase.Unbounded, profiled["unbounded"]);
             Assert.False(profiled.ContainsKey("evaluations"));
         }
         Assert.Equal(selection.BaselineEvaluations, Assert.IsType<Dictionary<string, object?>>(profile["baseline"])["outcome_evaluations"]);

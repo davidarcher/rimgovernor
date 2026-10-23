@@ -24,13 +24,14 @@ public sealed class ForecastCoupledSelectionTests
     }
 
     private const double Horizon = 300;
+    private static readonly string[] Plants = ["plant-a", "plant-b"];
     private static readonly ObservationContext Context = new()
         { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
     internal static RoundsFacts Review(double level = .2, double fall = .003, double harvest = 10, double expiry = 1000,
-        bool reverse = false, bool unknownHarvest = false)
+        bool reverse = false, bool unknownHarvest = false, int sourceCount = 2, double horizon = Horizon)
     {
         var facts = WorkResourceTestFacts.Create("pawn");
-        var sources = new[] { "plant-a", "plant-b" };
+        var sources = Plants.Take(sourceCount).ToArray();
         if (reverse) Array.Reverse(sources);
         facts = facts with
         {
@@ -60,7 +61,7 @@ public sealed class ForecastCoupledSelectionTests
             },
         };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
-        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced() };
     }
     private static string SourceTask(RoundsFacts facts, string target) => facts.CoupledAlternatives!.Context.Activities.Activities
         .Single(t => t.Inputs.Count == 0 && t.Outputs.Any(o => o.Lot == "harvest/" + target)).Id;
@@ -133,8 +134,267 @@ public sealed class ForecastCoupledSelectionTests
         LazyEvaluationTests.AssertPaired(ForecastCoupledSelection.CompareActivityOutcomesEagerly(RequestOf(Review()), Review().CoupledAlternatives!), result);
     }
 
-    private static ColonyForecastRequest RequestOf(RoundsFacts facts) => ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), Horizon / GameTime.TicksPerDay,
+    private static ColonyForecastRequest RequestOf(RoundsFacts facts, double horizon = Horizon) => ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
         facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+
+    /// <summary>Two pawns with their own food needs and, each, a harvest-and-eat root per plant (#3724): "pawn" starves at
+    /// <paramref name="pawnLevel"/> and "worker" at <paramref name="workerLevel"/>, both falling .003 a tick against the .3 threshold,
+    /// so a portfolio feeding only one of them keeps the other's baseline zero time. <paramref name="workerRest"/> gives the worker a
+    /// bed and a falling rest need; <paramref name="workerFallUnknown"/> leaves the worker's food fall unobserved.</summary>
+    internal static RoundsFacts TwoPawnReview(double pawnLevel = .2, double workerLevel = .5, bool workerRest = false, bool workerFallUnknown = false,
+        double harvest = 10, int sourceCount = 2, double horizon = Horizon)
+    {
+        var facts = Review(level: pawnLevel, harvest: harvest, sourceCount: sourceCount, horizon: horizon);
+        var roster = WorkResourceTestFacts.Create("pawn", "worker");
+        var pawn = facts.ForecastObserved.Needs!.Pawns[0] with { Location = new(1, 1) };
+        var worker = pawn with
+        {
+            Pawn = "worker",
+            Needs = [new("food", Known(workerLevel), workerFallUnknown ? default : Known(.003), Known(.3)),
+                new("rest", Known(workerRest ? .2 : 1d), Known(workerRest ? .0004 : 0d), Known(.3))],
+            SleepThreshold = Known(.75), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(0d),
+            Targets = workerRest ? [new("bed", "rest", "", 1, Known(0d), default, default, Known(.0005)) { Location = new(1, 1) }] : [],
+        };
+        var coupled = facts.ForecastObserved.Coupled!;
+        facts = facts with
+        {
+            WorkResources = roster.WorkResources,
+            ForecastObserved = facts.ForecastObserved with
+            {
+                WorkPawns = roster.ForecastObserved.WorkPawns,
+                Needs = facts.ForecastObserved.Needs with { Pawns = [pawn, worker] },
+                Coupled = coupled with
+                {
+                    Food = coupled.Food with { Options = EquatableArray.From(coupled.Food.Options.Concat(coupled.Food.Options.Select(o => o with { Pawn = "worker" }))) },
+                    FoodUses = [.. coupled.FoodUses, coupled.FoodUses[0] with { Pawn = "worker" }],
+                },
+            },
+        };
+        facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
+        return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced() };
+    }
+
+    /// <summary>The pruned search returns the unpruned search's selection, plan, vectors and findings, and visits the same subsets: every
+    /// subset the unpruned search ranked or refused is either reported the same way or covered by a pruned row (its own, or a sweep
+    /// prefix it extends), and a subset the bound skipped lost at the urgent-zero stage, or was infeasible, in the unpruned search.</summary>
+    internal static void AssertPrunedEquivalent(ForecastCoupledSelection unpruned, ForecastCoupledSelection pruned)
+    {
+        Assert.Equal(unpruned.Selection.Selected, pruned.Selection.Selected);
+        Assert.Equal(unpruned.Selection.Plan!.Allocations, pruned.Selection.Plan!.Allocations);
+        // A skipped subset's plans were never scheduled, so their per-commitment findings are absent; the search's own findings are the same.
+        Assert.Subset(unpruned.Selection.Findings.ToHashSet(StringComparer.Ordinal), pruned.Selection.Findings.ToHashSet(StringComparer.Ordinal));
+        Assert.Equal(unpruned.Selection.Findings.Where(f => !f.Contains(':')), pruned.Selection.Findings.Where(f => !f.Contains(':')));
+        Assert.Equal(unpruned.SelectedVector, pruned.SelectedVector);
+        Assert.Equal(unpruned.BaselineVector, pruned.BaselineVector);
+        Assert.Equal(unpruned.Selected.Plan.Allocations, pruned.Selected.Plan.Allocations);
+        Assert.Equal(unpruned.Deferred, pruned.Deferred);
+        Assert.Equal(unpruned.ServiceInvestments, pruned.ServiceInvestments);
+        Assert.Equal(unpruned.SearchPhases.Select(p => p.Phase), pruned.SearchPhases.Select(p => p.Phase));
+        Assert.Empty(unpruned.BoundsUnavailable);
+        Assert.All(unpruned.SearchPhases, p => Assert.Equal((0, 0), (p.Pruned, p.Unbounded)));
+        Assert.True(pruned.OutcomeEvaluations <= unpruned.OutcomeEvaluations);
+        Assert.True(pruned.Selection.Expansions <= unpruned.Selection.Expansions);
+        Assert.Equal(pruned.SearchPhases.Sum(p => p.Pruned), pruned.Rejected.Count(r => ForecastPortfolioEvidence.BoundOf(r.Reason) is not null));
+
+        // The two searches traverse the subsets in the same order: walked together, a pruned row stands for the unpruned rows of its
+        // subset (one per feasible plan) or, for a sweep prefix, of the completions that follow it, each of which lost at the urgent-zero
+        // stage, was infeasible or was held by the relief gate (none could have led); every other row is the same row. A subset skipped
+        // at the screening bound is skipped again at the full bound (the unpruned search had cached its finished schedule at the full
+        // bound and does not revisit it), so a second pruned row of the same subset stands for no unpruned row.
+        static bool Covered(string reason) => reason == ForecastPortfolioEvidence.LostToLeaderPrefix + ForecastCoupledSelection.UrgentZeroStage
+            || reason == ForecastPortfolioEvidence.InfeasibleOrUnassessed
+            || reason.StartsWith("construction_without_supported_service_relief", StringComparison.Ordinal);
+        var i = 0;
+        for (var j = 0; j < pruned.Rejected.Count; j++)
+        {
+            var row = pruned.Rejected[j];
+            var bound = ForecastPortfolioEvidence.BoundOf(row.Reason);
+            if (bound is null)
+            {
+                Assert.True(i < unpruned.Rejected.Count, "a row the unpruned search did not report: " + string.Join(" ", row.Commitments) + " " + row.Reason);
+                var same = unpruned.Rejected[i++];
+                Assert.Equal(same.Commitments, row.Commitments);
+                Assert.Equal(same.Reason, row.Reason);
+                Assert.Equal(same.Consequences, row.Consequences);
+                continue;
+            }
+            Assert.Equal(ForecastCoupledSelection.UrgentZeroUnservedBound, bound);
+            Assert.Null(row.Consequences);
+            Assert.True(row.Assessed);
+            var branch = row.Reason.StartsWith(ForecastPortfolioEvidence.PrunedBranchPrefix, StringComparison.Ordinal);
+            var covered = 0;
+            while (i < unpruned.Rejected.Count && (branch
+                ? unpruned.Rejected[i].Commitments.Count > row.Commitments.Count && row.Commitments.All(unpruned.Rejected[i].Commitments.Contains)
+                : unpruned.Rejected[i].Commitments.SequenceEqual(row.Commitments)))
+            {
+                Assert.True(Covered(unpruned.Rejected[i].Reason), string.Join(" ", unpruned.Rejected[i].Commitments) + " " + unpruned.Rejected[i].Reason);
+                i++; covered++;
+            }
+            if (!branch && covered == 0)
+                Assert.True(pruned.Rejected.Take(j).Any(earlier => ForecastPortfolioEvidence.BoundOf(earlier.Reason) is not null && earlier.Commitments.SequenceEqual(row.Commitments)),
+                    "a pruned subset the unpruned search did not visit: " + string.Join(" ", row.Commitments));
+        }
+        Assert.Equal(unpruned.Rejected.Count, i);
+    }
+
+    private static (ForecastCoupledSelection Unpruned, ForecastCoupledSelection Pruned) Both(RoundsFacts facts, ForecastSearchBudget? budget = null, double horizon = Horizon) =>
+        (ForecastCoupledSelection.CompareActivityOutcomesUnpruned(RequestOf(facts, horizon), facts.CoupledAlternatives!, budget),
+            ForecastCoupledSelection.CompareActivityOutcomes(RequestOf(facts, horizon), facts.CoupledAlternatives!, budget));
+
+    // #3724: the urgent-zero unserved-pawn bound skips the subsets that leave a pawn starving longer than the leader's worst, without
+    // changing the selection, and the search spends fewer evaluations and expansions for it.
+    [Fact]
+    public void TheBoundSkipsSubsetsLeavingAPawnStarvingPastTheLeaderAndReturnsTheUnprunedSelection()
+    {
+        var facts = TwoPawnReview();
+        var roots = facts.CoupledAlternatives!.Alternatives;
+        Assert.Contains(roots, r => r.Id.Contains("/eat/pawn/", StringComparison.Ordinal));
+        Assert.Contains(roots, r => r.Id.Contains("/eat/worker/", StringComparison.Ordinal));
+        var (unpruned, pruned) = Both(facts);
+        AssertPrunedEquivalent(unpruned, pruned);
+        // A partial portfolio that breaks the floor (feeding the worker alone) is not discarded on that: the selection feeds both pawns.
+        Assert.Contains(pruned.Selection.Selected, id => id.Contains("/eat/pawn/", StringComparison.Ordinal));
+        Assert.Contains(pruned.Selection.Selected, id => id.Contains("/eat/worker/", StringComparison.Ordinal));
+        Assert.Equal(Known(true), pruned.Selected.Feasible);
+        // Subsets were pruned (the ones feeding the worker alone, or nobody, named after the pawn left starving) in the seed pass and in the
+        // extension; the 52-root graph affords no sweep at the default budget (the sweep's prefix pruning is shown on the eight-root fixture below).
+        var prunedRows = pruned.Rejected.Where(r => ForecastPortfolioEvidence.BoundOf(r.Reason) is not null).ToArray();
+        Assert.NotEmpty(prunedRows);
+        Assert.All(prunedRows, r => Assert.Equal(ForecastCoupledSelection.UrgentZeroUnservedBound, ForecastPortfolioEvidence.BoundOf(r.Reason)));
+        // Each names the pawn left starving (the pawn while the leader feeds the worker alone or nobody, the worker once it feeds the pawn),
+        // and holds no root whose closure feeds that pawn.
+        Assert.All(prunedRows, r => Assert.True(r.Reason[(r.Reason.LastIndexOf(':') + 1)..] is "pawn" or "worker", r.Reason));
+        Assert.Contains(prunedRows, r => r.Reason.EndsWith(":pawn", StringComparison.Ordinal));
+        Assert.All(prunedRows, r => Assert.All(r.Commitments, id => Assert.DoesNotContain("/eat/" + r.Reason[(r.Reason.LastIndexOf(':') + 1)..] + "/", id)));
+        Assert.All(prunedRows, r => Assert.StartsWith(ForecastPortfolioEvidence.PrunedPrefix, r.Reason));
+        Assert.Equal("baseline seed extend confirm", string.Join(" ", pruned.SearchPhases.Select(p => p.Phase)));
+        Assert.True(pruned.SearchPhases.Single(p => p.Phase == "seed").Pruned > 0);
+        Assert.True(pruned.SearchPhases.Single(p => p.Phase == "extend").Pruned > 0);
+        Assert.Empty(pruned.BoundsUnavailable);
+        Assert.True(pruned.OutcomeEvaluations < unpruned.OutcomeEvaluations, pruned.OutcomeEvaluations + " of " + unpruned.OutcomeEvaluations);
+        Assert.True(pruned.Selection.Expansions < unpruned.Selection.Expansions, pruned.Selection.Expansions + " of " + unpruned.Selection.Expansions);
+        Assert.Equal(pruned.BaselineEvaluations, unpruned.BaselineEvaluations);
+        Assert.Equal(pruned.OutcomeEvaluations, pruned.SearchPhases.Sum(p => p.OutcomeEvaluations));
+        // Repeating the comparison yields the same counts (#3722).
+        var again = ForecastCoupledSelection.CompareActivityOutcomes(RequestOf(facts), facts.CoupledAlternatives!);
+        Assert.Equal((pruned.OutcomeEvaluations, pruned.Selection.Expansions, pruned.SearchPhases), (again.OutcomeEvaluations, again.Selection.Expansions, again.SearchPhases));
+    }
+
+    // #3724: in the cardinality sweep a prefix none of whose completions can feed the starving pawn is skipped whole, with every completion.
+    // One plant, a 150-tick horizon and a worker who gets hungry but never starves within it make a small graph (the harvest and a few
+    // meals of each pawn, each in two compositions) whose sweep the default budget affords and finishes; the worker's roots sort last, so
+    // the sweep's prefixes of them have only worker roots for completions. The pruned sweep is the exhaustive one: the same selection, the
+    // same ranked rows, fewer evaluations and expansions.
+    [Fact]
+    public void TheSweepSkipsAPrefixWhoseEveryCompletionLeavesThePawnStarving()
+    {
+        var facts = TwoPawnReview(workerLevel: .5, sourceCount: 1, horizon: 150);
+        var roots = facts.CoupledAlternatives!.Alternatives;
+        Assert.True(roots.Count <= 12, string.Join(" ", roots.Select(r => r.Id)));
+        Assert.True(roots.Count(r => r.Id.Contains("/eat/worker/", StringComparison.Ordinal)) >= 2, string.Join(" ", roots.Select(r => r.Id)));
+        var (unpruned, pruned) = Both(facts, horizon: 150);
+        AssertPrunedEquivalent(unpruned, pruned);
+        Assert.Equal("sweep", pruned.SearchPhases[^1].Phase);
+        Assert.False(pruned.Selection.SearchTruncated);
+        Assert.False(unpruned.Selection.SearchTruncated);
+        Assert.Empty(pruned.BoundsUnavailable);
+        var branches = pruned.Rejected.Where(r => r.Reason.StartsWith(ForecastPortfolioEvidence.PrunedBranchPrefix, StringComparison.Ordinal)).ToArray();
+        Assert.NotEmpty(branches);
+        Assert.All(branches, r => Assert.Equal(ForecastPortfolioEvidence.PrunedBranchPrefix + ForecastCoupledSelection.UrgentZeroUnservedBound + ":pawn", r.Reason));
+        Assert.All(branches, r => Assert.All(r.Commitments, id => Assert.DoesNotContain("/eat/pawn/", id)));
+        Assert.True(pruned.SearchPhases[^1].Pruned > 0);
+        Assert.True(pruned.OutcomeEvaluations < unpruned.OutcomeEvaluations, pruned.OutcomeEvaluations + " of " + unpruned.OutcomeEvaluations);
+        Assert.True(pruned.Selection.Expansions < unpruned.Selection.Expansions, pruned.Selection.Expansions + " of " + unpruned.Selection.Expansions);
+    }
+
+    // #3724: the pruned search is the unpruned search on graphs where the bound holds nothing, where every choice breaks the floor, where
+    // the two pawns' starvation is reversed, with unknown harvest legality, and under a budget that truncates the search.
+    [Theory]
+    [InlineData("one-pawn")]
+    [InlineData("one-pawn-unknown-harvest")]
+    [InlineData("all-violate")]
+    [InlineData("reversed")]
+    [InlineData("worker-safe")]
+    [InlineData("tiny-budget")]
+    [InlineData("seed-budget")]
+    public void ThePrunedSearchIsTheUnprunedSearchOnAdversarialGraphs(string graph)
+    {
+        (RoundsFacts facts, ForecastSearchBudget? budget) = graph switch
+        {
+            "one-pawn" => (Review(), null),
+            "one-pawn-unknown-harvest" => (Review(unknownHarvest: true), null),
+            // Harvests too slow for either pawn to eat before starving: every choice breaks the floor and the least excess wins.
+            "all-violate" => (TwoPawnReview(harvest: 400), null),
+            "reversed" => (TwoPawnReview(pawnLevel: .5, workerLevel: .2), null),
+            // The worker never starves within the horizon: its roots serve a pawn whose baseline zero time is 0.
+            "worker-safe" => (TwoPawnReview(workerLevel: 1), null),
+            "tiny-budget" => (TwoPawnReview(), new ForecastSearchBudget(2)),
+            "seed-budget" => (TwoPawnReview(), new ForecastSearchBudget(6)),
+            _ => throw new ArgumentOutOfRangeException(nameof(graph)),
+        };
+        var (unpruned, pruned) = Both(facts, budget);
+        AssertPrunedEquivalent(unpruned, pruned);
+        Assert.Equal(unpruned.Selection.SearchTruncated, pruned.Selection.SearchTruncated);
+        Assert.Empty(pruned.BoundsUnavailable);
+        // Only a root feeding nobody (a harvest without its meal) can be skipped on a one-pawn graph; every root feeding the pawn is evaluated.
+        if (graph == "one-pawn" || graph == "one-pawn-unknown-harvest")
+            Assert.All(pruned.Rejected.Where(r => ForecastPortfolioEvidence.BoundOf(r.Reason) is not null),
+                r => Assert.All(r.Commitments, id => Assert.DoesNotContain("/eat/", id)));
+        if (graph == "all-violate") Assert.True(pruned.SelectedVector.Value.UrgentZero.Excess > 0);
+    }
+
+    // #3724: where no sound bound exists the search evaluates within the #3722 allowance and names why: a rest service in the closure
+    // (the plan's sleep can leave rest unassessed), a baseline zero time unknown, goal values (every evaluated outcome reports its routes).
+    [Theory]
+    [InlineData("rest", "rest_service_in_closure")]
+    [InlineData("unknown-fall", "baseline_zero_unassessed")]
+    [InlineData("goals", "goal_routes")]
+    public void AnUnavailableBoundIsReportedAndPrunesNothing(string graph, string reason)
+    {
+        var facts = graph switch
+        {
+            "rest" => TwoPawnReview(workerRest: true),
+            "unknown-fall" => TwoPawnReview(workerFallUnknown: true),
+            "goals" => TwoPawnReview(),
+            _ => throw new ArgumentOutOfRangeException(nameof(graph)),
+        };
+        if (graph == "goals")
+            facts = facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives!.Context with
+                { GoalValues = [new("goals/worn-count/2", Importance.Normal, null)] } } };
+        if (graph == "rest") Assert.Contains(facts.CoupledAlternatives!.Context.NeedTasks, t => t.Kind == "rest" && t.Pawn == "worker");
+        var (unpruned, pruned) = Both(facts);
+        AssertPrunedEquivalent(unpruned, pruned);
+        Assert.Contains(ForecastCoupledSelection.UrgentZeroUnservedBound + ":" + reason, pruned.BoundsUnavailable);
+        Assert.True(pruned.SearchPhases.Sum(p => p.Unbounded) > 0);
+        if (graph != "rest")
+        {
+            // Unavailable for every subset: the pruned search is the unpruned search to the count.
+            Assert.Equal(0, pruned.SearchPhases.Sum(p => p.Pruned));
+            Assert.Equal((unpruned.OutcomeEvaluations, unpruned.Selection.Expansions, unpruned.Rejected.Count), (pruned.OutcomeEvaluations, pruned.Selection.Expansions, pruned.Rejected.Count));
+        }
+        else
+        {
+            // Unavailable for the subsets whose closure sleeps the worker, which are evaluated; the others are bounded as before.
+            var restRoots = facts.CoupledAlternatives!.Alternatives.Where(c => c.ExclusiveOutcome.Contains("/rest", StringComparison.Ordinal)).Select(c => c.Id).ToHashSet(StringComparer.Ordinal);
+            Assert.NotEmpty(restRoots);
+            Assert.All(pruned.Rejected.Where(r => ForecastPortfolioEvidence.BoundOf(r.Reason) is not null), r => Assert.DoesNotContain(r.Commitments, restRoots.Contains));
+            Assert.True(pruned.SearchPhases.Sum(p => p.Pruned) > 0);
+        }
+    }
+
+    // #3724: a pruned row names its bound and the pawn left starving, carries no vector, and counts as assessed (it was ranked, by proof).
+    [Fact]
+    public void EvidenceNamesTheBoundThatSkippedASubsetOrABranch()
+    {
+        var subset = new ForecastPortfolioEvidence(["a"], null, ForecastPortfolioEvidence.PrunedPrefix + ForecastCoupledSelection.UrgentZeroUnservedBound + ":pawn");
+        Assert.Equal(ForecastCoupledSelection.UrgentZeroUnservedBound, ForecastPortfolioEvidence.BoundOf(subset.Reason));
+        Assert.Null(ForecastPortfolioEvidence.StageOf(subset.Reason));
+        Assert.True(subset.Assessed);
+        var branch = new ForecastPortfolioEvidence(["a"], null, ForecastPortfolioEvidence.PrunedBranchPrefix + ForecastCoupledSelection.UrgentZeroUnservedBound + ":pawn");
+        Assert.Equal(ForecastCoupledSelection.UrgentZeroUnservedBound, ForecastPortfolioEvidence.BoundOf(branch.Reason));
+        Assert.Null(ForecastPortfolioEvidence.BoundOf(ForecastPortfolioEvidence.LostToLeaderPrefix + ForecastCoupledSelection.UrgentZeroStage));
+        Assert.Null(ForecastPortfolioEvidence.BoundOf(ForecastPortfolioEvidence.InfeasibleOrUnassessed));
+    }
 
     // #3563: the search reports its expansions per phase and the phase that found the chosen subset; the previous selection seeds the next search.
     [Fact]

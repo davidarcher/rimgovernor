@@ -1204,7 +1204,9 @@ the avoided work on the four-worker fixture at 700 ticks and the default budget:
 (15%) lost at a floor (`lost_to_leader:urgent_zero`, `death_risk_floor` or `break_risk_cap`)
 and never priced their ledger, reported without a vector; the other 2,488 reached the ledger
 or a later stage and carry the complete vector. The evaluation count is #3722's, since a
-started evaluation costs one unit wherever its comparison stops.
+started evaluation costs one unit wherever its comparison stops. Since #3724 the same pin
+reads 2,823 evaluations, 176 floor losers and the same 2,488 ledger rows: the 315 evaluations
+the proven bound now skips were all floor-decided losers.
 
 ### Row mapping and changed constrained-budget selections
 
@@ -1263,9 +1265,55 @@ change. The full matrix, medians of three samples:
 | Four-worker | 4,096 | 3,002 | 12,352 | 4 | 721 | 459 | 100.3 | 121 |
 | Four-worker | 8,192 to 65,536 | 3,138 | 12,736 | 4 | 721 | 459 | 103.2 | 96 to 99 |
 
+### Proven pruning (#3724)
+
+The search now skips a subset before its schedule is searched when the urgent-zero
+unserved-pawn bound proves that no completion of it can beat the current leader
+([proven bounds](../architecture/forecast-value.md#safety-floors)), and skips a
+cardinality-sweep prefix with every completion when the roots that may still join it leave
+the pawn unserved. Both snapshots were re-recorded with the gate build
+(`RIMGOVERNOR_PORTFOLIO_OUTPUT`) and compared row by row with the pinned #3723 files: every
+budget keeps its selection, Physical plan, selected vector, labor, completion tick and
+findings; only the counts and phases move. `Quality.SearchPhases` rows gain `Pruned`, the
+subsets the phase skipped. The unpruned search remains as the test control
+`CompareActivityOutcomesUnpruned`, and `ForecastCoupledSelectionTests` and
+`LazyEvaluationTests` check the two against each other row for row.
+
+| Fixture | Evaluation budget | Outcome evaluations | Expansions | Phases skipped | Selection |
+| --- | ---: | ---: | ---: | --- | --- |
+| Four-worker | 256 | 257 → 257 | 1,024 → 1,024 | extend 14 (schedule searches 20 → 23) | same |
+| Four-worker | 1,024 | 1,025 → 1,025 | 4,096 → 4,160 | extend 18 (2,752 / 93 → 2,816 / 100) | same |
+| Four-worker | 2,048 | 2,049 → 2,049 | 10,816 → 9,728 | extend 20 (4,672 / 228 / 1,221 → 3,584 / 208 / 906); the confirm evaluates 615 of 742 plans instead of 300 | same |
+| Four-worker | 4,096 | 3,002 → 2,687 | 12,352 → 11,264 | extend 20 | same |
+| Four-worker | 8,192 to 65,536 | 3,138 → 2,823 | 12,736 → 11,648 | extend 20 (1,088 expansions, 315 evaluations) | same |
+| Original | 256 | 257 → 257 | 4,487 → 4,487 | seed 1 (263 / 7 / 77 → 263 / 7 / 81); the confirm evaluates 156 plans instead of 160 | same |
+| Original | 1,024 to 8,192 | 763 → 749 | 4,551 → 4,487 | seed 1 (327 / 8 / 95 → 263 / 7 / 81) | same |
+| Original | 16,384 and 65,536 | 7,833 → 7,713 | 40,331 → 39,809 | seed 1, sweep 2 prefixes (35,780 / 99 / 7,070 → 35,322 / 97 / 6,964) | same |
+
+The one-day rows: four-worker 1,728 evaluations and 5,888 expansions, unchanged (nothing is
+served and nothing pruned); original 1,081 and 4,739 → 1,067 and 4,675 (one seed subset).
+On the budget-cut four-worker rows a skipped subset frees allowance the extension or the
+confirm spends on other plans (the 1,024 row's 64 extra expansions, the 2,048 row's confirm),
+and the selection stays the same; the pruned search never spends more than its allowance and
+ends where the unpruned one does. Medians of three samples at the default budget: four-worker
+94.4 MB and 94 ms (103.2 MB, 96 to 99 ms before), original 19.5 MB and 52 ms (19.7 MB, 52 to
+68 ms), original with the sweep 168.5 MB and 194 ms (177 MB, 200 to 396 ms).
+
+The test fixtures measure the bound where the pinned ones barely exercise it
+(`ForecastCoupledSelectionTests.TwoPawnReview`, two pawns with their own food needs, the
+unpruned and pruned searches compared row for row): two pawns at .2 and .5 with two plants,
+708 → 489 evaluations and 3,944 → 2,966 expansions (15 seed and 26 extension subsets skipped);
+the same with a worker who never starves, 416 → 328 and 2,044 → 1,672; with a rest need in the
+worker's closure, 767 → 538 and 4,720 → 3,678 with `urgent_zero_unserved:rest_service_in_closure`
+reported (9 seed and 15 extension subsets evaluated unbounded, the rest subsets); the one-plant
+sweep at 150 ticks, 104 → 72 and 344 → 246 (2 seed subsets, 6 sweep rows of which 2 are
+prefixes). Every alternative breaking the floor, an unknown fall (`baseline_zero_unassessed`)
+and goal values (`goal_routes`) prune nothing and report the bound unavailable where it is.
+
 ### Unverified
 
 The roughly 13,000 evaluations the former default was worth on the planned-shelter fixtures
-is the estimate from the 2,048 attempt, not a pinned measurement. No native run was made;
-in game the allowance is reported on every `rounds_review` and `coupled_selection` row
+is the estimate from the 2,048 attempt, not a pinned measurement. No native run was made for
+#3722 or #3724; in game the allowance, the skipped subsets and the unavailable bounds are
+reported on every `rounds_review` and `coupled_selection` row
 ([signals](../contracts/otel-signals.md#kinds)), and the nightly supplies that evidence.

@@ -71,7 +71,7 @@ public sealed class PortfolioAllocationTests
         selection.CompositionExpansions, selection.GenerationTruncated,
         selection.Selection.Expansions, selection.Selection.SearchTruncated,
         selection.OutcomeEvaluations, selection.BaselineEvaluations, selection.BaselineExpansions,
-        SearchPhases = selection.SearchPhases.Select(p => new { p.Phase, p.Expansions, p.ScheduleSearches, p.OutcomeEvaluations }).ToArray(),
+        SearchPhases = selection.SearchPhases.Select(p => new { p.Phase, p.Expansions, p.ScheduleSearches, p.OutcomeEvaluations, p.Pruned }).ToArray(),
         selection.Selection.Selected,
         selection.Selected.Feasible,
         selection.Selected.Plan.CompletedAt,

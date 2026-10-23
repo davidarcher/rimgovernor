@@ -79,7 +79,8 @@ public sealed partial class Rounder
     /// <summary>The search's accounting on the <c>rounds_review</c> row (#3722; keys in <see cref="RoundsReviewTelemetry"/>): scheduler
     /// expansions against the traversal bound, outcome evaluations against their budget, the mandatory baseline's share of each, both
     /// limits, and per phase the expansions (<c>search_phases</c>) and the profile (<c>search_profile</c>: wall, schedule searches,
-    /// outcome evaluations, schedule wall, infeasible, unsupported, swaps, improved). -1 and null when nothing was compared.</summary>
+    /// outcome evaluations, schedule wall, infeasible, unsupported, swaps, improved, and the pruning of #3724: pruned, unbounded).
+    /// -1 and null when nothing was compared.</summary>
     internal static IEnumerable<(string Key, object? Value)> ReviewSearchAttrs(ForecastCoupledSelection? selection)
     {
         yield return (RoundsReviewTelemetry.CoupledSearchExpansionsKey, selection?.Selection.Expansions ?? -1);
@@ -93,6 +94,7 @@ public sealed partial class Rounder
         {
             ["ms"] = p.Ms, ["schedule_searches"] = p.ScheduleSearches, ["outcome_evaluations"] = p.OutcomeEvaluations, ["schedule_ms"] = p.ScheduleMs,
             ["infeasible"] = p.Infeasible, ["unsupported"] = p.Unsupported, ["swaps"] = p.Swaps, ["improved"] = p.Improved,
+            ["pruned"] = p.Pruned, ["unbounded"] = p.Unbounded,
         }));
     }
 
@@ -115,6 +117,8 @@ public sealed partial class Rounder
                 // The outcome-evaluation accounting (#3722): the evaluations against their budget, the mandatory baseline's share, the traversal bound.
                 ["search_evaluations"] = selection.OutcomeEvaluations, ["baseline_evaluations"] = selection.BaselineEvaluations, ["baseline_expansions"] = selection.BaselineExpansions,
                 ["evaluation_budget"] = selection.Budget.Evaluations, ["traversal_bound"] = selection.Budget.Traversal,
+                // The pruning (#3724): the subsets and sweep prefixes a proven bound skipped, and why a bound was unavailable where it was.
+                ["search_pruned"] = selection.SearchPhases.Sum(p => p.Pruned), ["bounds_unavailable"] = selection.BoundsUnavailable.ToArray(),
                 ["search_phases"] = selection.SearchPhases.ToDictionary(p => p.Phase, p => (object?)p.Expansions),
                 ["selected_phase"] = selection.SelectedPhase, ["warm_start"] = selection.WarmStart,
                 ["uncertainty"] = selection.Selection.Findings,

@@ -134,7 +134,16 @@ subset's evidence (`ForecastPortfolioEvidence`) names why it lost: `infeasible_o
 or `care_batches`, `incumbent`, `labor`); `ForecastPortfolioEvidence.StageOf` reads the
 stage. A subset whose ledger was never priced (decided at a floor, or held by the relief gate
 before any comparison) carries no consequence vector; one decided at or after the ledger
-carries the complete vector.
+carries the complete vector. A subset skipped on a proven bound before its schedule was
+searched (#3724, [proven bounds](forecast-value.md#safety-floors)) is reported as
+`pruned:<bound>:<pawn>` (a subset in the seed, extension or confirm) or
+`pruned_branch:<bound>:<pawn>` (a cardinality-sweep prefix, standing for every completion),
+with no vector; `ForecastPortfolioEvidence.BoundOf` reads the bound (`urgent_zero_unserved`),
+and `Assessed` is true as for a `lost_to_leader:urgent_zero` row, since both were decided by
+the same comparison. The bound is taken against the current leader; the #3720 shortlist plugs
+in at that comparison with the weakest retained finalist. Where no bound is available the
+subset is evaluated, and the selection's `BoundsUnavailable` names why
+(`urgent_zero_unserved:<reason>`).
 
 Traversal is incumbent-seeded and screened. The previous review's selected ids come first (#3563): each
 by exact match, else the first variant of the same root before `/composition/`, screened
@@ -246,7 +255,9 @@ work; they are not an additional normal production selector.
 
 `coupled_selection` records baseline, selected and rejected vectors (a rejected row
 whose ledger was never priced has a reason and no vector; #3723), horizon,
-unknowns and generation/search counts. `coupled_observed` correlates the same
+unknowns and generation/search counts, with the subsets a proven bound skipped
+(`search_pruned`, and `pruned` per phase on `rounds_review`) and the reasons a bound
+was unavailable (`bounds_unavailable`; #3724). `coupled_observed` correlates the same
 Method with observed task completion and native states. The OTLP log reader and
 prepared `production/coupled-needs` case consume these signals.
 Registered cases require nightly execution for observed gameplay evidence;

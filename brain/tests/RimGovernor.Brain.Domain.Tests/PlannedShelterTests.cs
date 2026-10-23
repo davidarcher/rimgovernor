@@ -108,6 +108,26 @@ public sealed class PlannedShelterTests
         ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
 
+    // #3724: the shelter's room-closure bundles sleep the pawn, so the urgent-zero bound is unavailable for them (a plan's sleep can leave
+    // rest unassessed), the reason reported, and the pruned search returns the unpruned selection.
+    [Fact]
+    public void APlannedRoomsSearchReportsTheBoundUnavailableAndPrunesNothing()
+    {
+        var facts = Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof()]);
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts,
+            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var pruned = ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!);
+        var unpruned = ForecastCoupledSelection.CompareActivityOutcomesUnpruned(request, facts.CoupledAlternatives!);
+        ForecastCoupledSelectionTests.AssertPrunedEquivalent(unpruned, pruned);
+        Assert.Contains(ForecastCoupledSelection.UrgentZeroUnservedBound + ":rest_service_in_closure", pruned.BoundsUnavailable);
+        Assert.True(pruned.SearchPhases.Sum(p => p.Unbounded) > 0);
+        // A subset the bound did skip holds no sleep of the pawn's: the shelter bundles, which do, were all evaluated.
+        var sleeps = facts.CoupledAlternatives!.Context.NeedTasks.Where(t => t.Kind == "rest").Select(t => t.Task).ToHashSet(StringComparer.Ordinal);
+        Assert.All(pruned.Rejected.Where(r => ForecastPortfolioEvidence.BoundOf(r.Reason) is not null),
+            r => Assert.All(r.Commitments, id => Assert.DoesNotContain(facts.CoupledAlternatives!.Alternatives.Single(c => c.Id == id).ActivityCompletions, sleeps.Contains)));
+        Assert.Single(pruned.Selected.Shelters);
+    }
+
     private static string Why(RoundsFacts facts, ForecastCoupledSelection result) =>
         string.Join(";", facts.CoupledAlternatives!.Findings.Concat(result.Selection.Findings.Select(f => f.ToString()))
             .Concat(facts.CoupledAlternatives.Context.Shelters.SelectMany(s => s.Findings)));

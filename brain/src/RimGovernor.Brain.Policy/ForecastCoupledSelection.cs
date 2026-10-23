@@ -44,13 +44,22 @@ public sealed partial record ForecastCoupledSelection(ForecastActivityOutcomeCom
     public int BaselineEvaluations { get; init; }
     /// <summary>The mandatory baseline's scheduler expansions (#3722): counted in <see cref="ForecastActivityOutcomeComparison.Expansions"/>, charged to no allowance.</summary>
     public int BaselineExpansions { get; init; }
+    /// <summary>Why a bound was unavailable for some evaluated subset (#3724), as <c>&lt;bound&gt;:&lt;reason&gt;</c>, distinct and sorted: for
+    /// <see cref="UrgentZeroUnservedBound"/>, <c>goal_routes</c> (the context values goals, whose routes every evaluated outcome
+    /// reports), <c>baseline_zero_unassessed</c> (a pawn's baseline food or rest zero time is unknown), <c>leader_unassessed</c> (the
+    /// leader is infeasible or its urgent-zero floor unassessed), <c>rest_service_in_closure</c> (a rest service in the subset's
+    /// work could leave a pawn's rest unassessed in some plan) or <c>relief_gate_order</c> (a single construction root the relief
+    /// gate must see). The evaluations so started are the phases' <see cref="ForecastSearchPhase.Unbounded"/>.</summary>
+    public EquatableArray<string> BoundsUnavailable { get; init; }
 }
 /// <summary>
 /// One phase the search reached: its scheduler expansions and, for the profile (#3556), its wall, the schedule
 /// searches it ran (<see cref="ScheduleSearches"/>; a subset whose schedule was already searched at the bound runs none) with
 /// their wall (<see cref="ScheduleMs"/>; the rest of <see cref="Ms"/> is keying, feasibility and ranking), the outcome
 /// evaluations it started (<see cref="OutcomeEvaluations"/>, #3722), and the evaluations whose every outcome was infeasible or
-/// unassessed (<see cref="Infeasible"/>) or whose construction lacked supported service relief (<see cref="Unsupported"/>).
+/// unassessed (<see cref="Infeasible"/>) or whose construction lacked supported service relief (<see cref="Unsupported"/>), and
+/// the pruning (#3724): the subsets and prefixes a proven bound skipped (<see cref="Pruned"/>) and the evaluations started
+/// without a bound available (<see cref="Unbounded"/>).
 /// </summary>
 public sealed record ForecastSearchPhase(string Phase, int Expansions)
 {
@@ -64,26 +73,45 @@ public sealed record ForecastSearchPhase(string Phase, int Expansions)
     public int Swaps { get; init; }
     /// <summary>Evaluations that made a new leader.</summary>
     public int Improved { get; init; }
+    /// <summary>Subsets, and in the sweep prefixes with every completion, a proven bound skipped without scheduling or evaluating (#3724).</summary>
+    public int Pruned { get; init; }
+    /// <summary>Evaluations started while no bound was available for the subset (<see cref="ForecastCoupledSelection.BoundsUnavailable"/> names why; #3724).</summary>
+    public int Unbounded { get; init; }
 }
 /// <summary>
 /// Why an evaluated subset is not the selection. <see cref="Reason"/> is <see cref="InfeasibleOrUnassessed"/> when none of its
 /// outcomes was feasible, a <c>construction_without_supported_service_relief</c> finding when the thermal-relief gate held it
-/// back, or <see cref="LostToLeaderPrefix"/> followed by the comparator stage that proved it loses to the leader of its time
+/// back, <see cref="LostToLeaderPrefix"/> followed by the comparator stage that proved it loses to the leader of its time
 /// (#3723): <c>urgent_zero</c>, <c>death_risk_floor</c>, <c>break_risk_cap</c>, <c>ledger</c>, one of the unconverted terms, or
-/// the caller's <c>incumbent</c> or <c>labor</c> rule. <see cref="Consequences"/> is the outcome's complete vector when its
-/// ledger was priced, and null when the subset was never ranked or when a floor decided before the ledger was needed: a
-/// skipped evaluation is reported as unevaluated, never as a zero-valued vector.
+/// the caller's <c>incumbent</c> or <c>labor</c> rule, or <see cref="PrunedPrefix"/> (a subset) or <see cref="PrunedBranchPrefix"/>
+/// (a sweep prefix, every completion of it) followed by the bound that proved every plan of it loses to the leader of its time
+/// without scheduling it, and the pawn that proves it (#3724): <c>urgent_zero_unserved:&lt;pawn&gt;</c>. <see cref="Consequences"/>
+/// is the outcome's complete vector when its ledger was priced, and null when the subset was never ranked, when a floor decided
+/// before the ledger was needed or when a bound skipped it: a skipped evaluation is reported as unevaluated, never as a zero-valued vector.
 /// </summary>
 public sealed record ForecastPortfolioEvidence(EquatableArray<string> Commitments,
     ForecastConsequenceVector? Consequences, string Reason)
 {
     public const string InfeasibleOrUnassessed = "infeasible_or_unassessed";
     public const string LostToLeaderPrefix = "lost_to_leader:";
+    public const string PrunedPrefix = "pruned:";
+    public const string PrunedBranchPrefix = "pruned_branch:";
     /// <summary>The comparator stage at which a subset's outcome was proven to lose to the leader, read from its <see cref="Reason"/>
     /// (#3723); null for a reason that is not a leader loss. The hook for a finalist collector (#3720): a candidate losing at a late
     /// stage may still be close. The <c>coupled_selection</c> row's <c>rejected[].reason</c> carries the same string.</summary>
     public static string? StageOf(string reason) => reason.StartsWith(LostToLeaderPrefix, StringComparison.Ordinal) ? reason[LostToLeaderPrefix.Length..] : null;
-    /// <summary>Whether the subset's outcome was evaluated: feasible and either ranked against the leader or held by the relief gate.</summary>
+    /// <summary>The bound that skipped the subset (<see cref="PrunedPrefix"/>) or every completion of the prefix (<see cref="PrunedBranchPrefix"/>)
+    /// without evaluating it (#3724), <see cref="ForecastCoupledSelection.UrgentZeroUnservedBound"/>; null for a reason that is not a pruning.</summary>
+    public static string? BoundOf(string reason)
+    {
+        var start = reason.StartsWith(PrunedPrefix, StringComparison.Ordinal) ? PrunedPrefix.Length
+            : reason.StartsWith(PrunedBranchPrefix, StringComparison.Ordinal) ? PrunedBranchPrefix.Length : -1;
+        if (start < 0) return null;
+        var end = reason.IndexOf(':', start);
+        return end < 0 ? reason[start..] : reason[start..end];
+    }
+    /// <summary>Whether the subset was ranked on its consequences: feasible and either compared with the leader or held by the relief gate,
+    /// or proven by a bound to lose to the leader (#3724). False only when none of its outcomes was feasible or assessed.</summary>
     public bool Assessed => Reason != InfeasibleOrUnassessed;
 }
 
@@ -180,29 +208,35 @@ public sealed partial record ForecastCoupledSelection
     /// <paramref name="budget"/> (#3722; <see cref="ForecastSearchBudget.Default"/> when null) through one ledger.</summary>
     public static ForecastCoupledSelection CompareActivityOutcomes(ColonyForecastRequest request,
         ForecastCoupledCandidates candidates, ForecastSearchBudget? budget = null, IReadOnlyList<string>? warmStart = null, Func<double>? clockMs = null)
-        => CompareActivityOutcomes(request, candidates, budget, warmStart, clockMs, eager: false);
+        => CompareActivityOutcomes(request, candidates, budget, warmStart, clockMs, eager: false, prune: true);
 
     /// <summary>The test control of lazy evaluation (#3723): <see cref="CompareActivityOutcomes(ColonyForecastRequest, ForecastCoupledCandidates, ForecastSearchBudget?, IReadOnlyList{string}?, Func{double}?)"/>
     /// with every evaluated outcome's ledger priced as soon as the outcome is, so a paired test can prove the lazy search returns the same
     /// selection and evidence. Production always runs lazily.</summary>
     internal static ForecastCoupledSelection CompareActivityOutcomesEagerly(ColonyForecastRequest request,
         ForecastCoupledCandidates candidates, ForecastSearchBudget? budget = null, IReadOnlyList<string>? warmStart = null)
-        => CompareActivityOutcomes(request, candidates, budget, warmStart, null, eager: true);
+        => CompareActivityOutcomes(request, candidates, budget, warmStart, null, eager: true, prune: true);
+
+    /// <summary>The test control of pruning (#3724): the same search with every subset scheduled and evaluated, no bound applied, so a
+    /// paired test can prove the pruned search selects what the exhaustive one selects while scheduling less. Production always prunes.</summary>
+    internal static ForecastCoupledSelection CompareActivityOutcomesUnpruned(ColonyForecastRequest request,
+        ForecastCoupledCandidates candidates, ForecastSearchBudget? budget = null, IReadOnlyList<string>? warmStart = null)
+        => CompareActivityOutcomes(request, candidates, budget, warmStart, null, eager: false, prune: false);
 
     private static ForecastCoupledSelection CompareActivityOutcomes(ColonyForecastRequest request,
-        ForecastCoupledCandidates candidates, ForecastSearchBudget? budget, IReadOnlyList<string>? warmStart, Func<double>? clockMs, bool eager)
+        ForecastCoupledCandidates candidates, ForecastSearchBudget? budget, IReadOnlyList<string>? warmStart, Func<double>? clockMs, bool eager, bool prune)
     {
         budget ??= ForecastSearchBudget.Default;
         if (budget.Evaluations < 0 || budget.Traversal < 0) throw new DomainException("negative portfolio budget");
         var ledger = new ForecastSearchLedger(budget);
-        var selection = CompareOnce(request, candidates, ledger, warmStart, clockMs, eager);
+        var selection = CompareOnce(request, candidates, ledger, warmStart, clockMs, eager, prune);
         var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         var allocations = selection.Selected.Plan.Allocations;
         if (unplaced.Count == 0 || allocations.Length == 0 || !allocations.All(a => unplaced.Contains(a.Activity))) return selection;
         var reaching = ReachingActivities(candidates.Context.Activities.Activities, unplaced);
         var placed = candidates with { Alternatives = EquatableArray.From(candidates.Alternatives.Where(c => !c.ActivityCompletions.Any(reaching.Contains))) };
         if (placed.Alternatives.Count == candidates.Alternatives.Count) return selection;
-        var orders = CompareOnce(request, placed, ledger, warmStart: null, clockMs, eager);
+        var orders = CompareOnce(request, placed, ledger, warmStart: null, clockMs, eager, prune);
         var findings = new SortedSet<string>(selection.Selection.Findings, StringComparer.Ordinal) { PlannedUnplacedReselected };
         findings.UnionWith(orders.Selection.Findings);
         return selection with
@@ -217,6 +251,7 @@ public sealed partial record ForecastCoupledSelection
             Deferred = orders.Deferred,
             OutcomeEvaluations = ledger.Evaluations, BaselineEvaluations = ledger.BaselineEvaluations, BaselineExpansions = ledger.BaselineExpansions,
             SearchPhases = EquatableArray.From(selection.SearchPhases.Concat(orders.SearchPhases.Select(p => p with { Phase = ReselectPhasePrefix + p.Phase }))),
+            BoundsUnavailable = EquatableArray.From(selection.BoundsUnavailable.Concat(orders.BoundsUnavailable).Distinct().Order(StringComparer.Ordinal)),
         };
     }
 
@@ -243,7 +278,7 @@ public sealed partial record ForecastCoupledSelection
     }
 
     private static ForecastCoupledSelection CompareOnce(ColonyForecastRequest request,
-        ForecastCoupledCandidates candidates, ForecastSearchLedger ledger, IReadOnlyList<string>? warmStart, Func<double>? clockMs, bool eager)
+        ForecastCoupledCandidates candidates, ForecastSearchLedger ledger, IReadOnlyList<string>? warmStart, Func<double>? clockMs, bool eager, bool prune)
     {
         // The in-game cost of the comparator: the review runs its planners in parallel, so only this span times it.
         using var span = Spans.StartActivity("coupled.select");
@@ -317,7 +352,7 @@ public sealed partial record ForecastCoupledSelection
         var phases = new List<ForecastSearchPhase>(); var phase = "baseline"; var selectedPhase = "baseline";
         // The phase's profile (#3556): wall, schedule searches and their wall, infeasible and unsupported evaluations.
         double Now() => clockMs?.Invoke() ?? 0; var phaseAt = Now(); var phaseScheduleSearches = 0; var phaseScheduleMs = 0.0; var phaseInfeasible = 0; var phaseUnsupported = 0;
-        var phaseSwaps = 0; var phaseImproved = 0;
+        var phaseSwaps = 0; var phaseImproved = 0; var phasePruned = 0; var phaseUnbounded = 0;
         void Phase(string next)
         {
             var now = Now();
@@ -325,10 +360,10 @@ public sealed partial record ForecastCoupledSelection
             {
                 ScheduleSearches = phaseScheduleSearches, OutcomeEvaluations = ledger.Evaluations - phaseEvaluationStart, Ms = now - phaseAt,
                 ScheduleMs = phaseScheduleMs, Infeasible = phaseInfeasible, Unsupported = phaseUnsupported,
-                Swaps = phaseSwaps, Improved = phaseImproved,
+                Swaps = phaseSwaps, Improved = phaseImproved, Pruned = phasePruned, Unbounded = phaseUnbounded,
             });
-            (phaseStart, phaseEvaluationStart, phase, phaseAt, phaseScheduleSearches, phaseScheduleMs, phaseInfeasible, phaseUnsupported, phaseSwaps, phaseImproved)
-                = (ledger.Expansions, ledger.Evaluations, next, now, 0, 0.0, 0, 0, 0, 0);
+            (phaseStart, phaseEvaluationStart, phase, phaseAt, phaseScheduleSearches, phaseScheduleMs, phaseInfeasible, phaseUnsupported, phaseSwaps, phaseImproved, phasePruned, phaseUnbounded)
+                = (ledger.Expansions, ledger.Evaluations, next, now, 0, 0.0, 0, 0, 0, 0, 0, 0);
         }
         // Need roots come in dozens of time variants per pawn; ordered by id they would spend the budget before any investment root is reached.
         var alternatives = candidates.Alternatives.Concat(candidates.Incumbents).OrderBy(c => c.ExclusiveOutcome.StartsWith("need/", StringComparison.Ordinal) ? 1 : 0)
@@ -347,18 +382,21 @@ public sealed partial record ForecastCoupledSelection
         // physical work. Drop that redundant subset before scheduling; keep all provider tasks
         // in the containing root's prerequisite closure. Roots with direct effects/claims stay.
         var closures = new ulong[alternatives.Length][];
+        void Close(ulong[] closure, string id)
+        {
+            if (!taskIndex.TryGetValue(id, out var at)) throw new DomainException("unknown commitment activity: " + id);
+            if (Bits.Has(closure, at)) return;
+            Bits.Set(closure, at);
+            foreach (var prerequisite in tasks[at].Prerequisites) Close(closure, prerequisite);
+        }
         for (var i = 0; i < alternatives.Length; i++)
         {
-            var closure = closures[i] = new ulong[taskWords];
-            void Include(string id)
-            {
-                if (!taskIndex.TryGetValue(id, out var at)) throw new DomainException("unknown commitment activity: " + id);
-                if (Bits.Has(closure, at)) return;
-                Bits.Set(closure, at);
-                foreach (var prerequisite in tasks[at].Prerequisites) Include(prerequisite);
-            }
-            foreach (var completion in alternatives[i].ActivityCompletions) Include(completion);
+            closures[i] = new ulong[taskWords];
+            foreach (var completion in alternatives[i].ActivityCompletions) Close(closures[i], completion);
         }
+        // The request's own commitments are in every evaluated portfolio (the baseline scenario has already validated their activities).
+        var fixedClosure = new ulong[taskWords];
+        foreach (var commitment in request.Commitments) foreach (var completion in commitment.ActivityCompletions) Close(fixedClosure, completion);
         static bool GraphOnly(ForecastCommitment c) => c.ActivityCompletions.Count > 0 && c.Outcome is null
             && c.StockChanges.Count == 0 && c.MaterialClaims.Count == 0 && c.EquipmentClaims.Count == 0
             && c.UnsupportedEffects.Count == 0 && c.Construction is null && !c.AlternativeLaborCost.IsKnown && c.MoodMemories.Count == 0
@@ -427,6 +465,98 @@ public sealed partial record ForecastCoupledSelection
             for (var i = 0; i < alternatives.Length; i++) if (Bits.Has(members, i)) rows.Add(alternatives[i]);
             return rows.ToArray();
         }
+        // The urgent-zero unserved-pawn bound (#3724), the one bound proven sound under the comparator; the others are unavailable.
+        //
+        // Claim. Let S be a portfolio (the request's commitments plus a subset of roots) and p a pawn none of whose need tasks
+        // (context.NeedTasks rows with Pawn p) lies in the task closure of S. Then in every plan of S, p's food and rest zero
+        // times equal the baseline's, and the plan's urgent-zero excess is at least max(p's food zero time, p's rest zero time).
+        // Proof. A plan allocates exactly the tasks in the closure, so none of p's need tasks is allocated. The evaluator builds
+        // p's need choices only from p's own allocated need tasks (CoupledSearchCache.Evaluate), so p's choices are empty in every
+        // plan of S, as in the baseline, whose closure is a subset of S's. The needs core (ForecastNeeds.NeedsCoreOf) derives the
+        // food and rest timelines from the pawn's observed level, fall and threshold and its own choices alone; the grants, renewals
+        // and occupancy a plan adds reach only the mood and the capacity, never ZeroTicks. The urgent-zero time of an outcome is the
+        // maximum over all pawns of max(food, rest) ZeroTicks (ConsequenceTerms.Urgent[0]) and its excess is that time floored at 0,
+        // so it is at least p's. The comparator decides at the urgent-zero stage whenever the excesses differ by at least
+        // UrgentZeroResolutionTicks (CompareConsequences), the worse excess losing; so when some unserved pawn's baseline zero time
+        // exceeds the leader's excess by that much, every feasible plan of S loses to the leader of this moment at that stage, and an
+        // infeasible plan is never ranked. S is skipped and cached at the bound it was skipped at, like an evaluated subset whose
+        // schedule stopped there: the leader evolves as it would have, and the confirm and the sweep meet S again at their higher
+        // bound, where it is skipped again or, if the leader's excess has since grown (ties within the tick resolution can move it by
+        // less than a tick), evaluated. A skipped subset counts in the sweep's mean cost per subset, so the pruned search affords
+        // the sweep whenever the unpruned one does.
+        // Domain. The claim needs every plan of S to carry an assessed urgent-zero floor, since an unassessed floor reads as excess 0
+        // and would pass: food is assessed iff the pawn's mechanics are observed (plan-independent), and rest likewise while no plan
+        // sleeps the pawn (SleepServiceEnds reads the sleep choices' times and nutrition, so a rest service in the closure can leave rest
+        // unassessed in some plans), hence the bound is unavailable when the closure holds a rest need task, or when any pawn's
+        // baseline zero time is unknown. It also needs a feasible leader with an assessed floor, and a context without goal values,
+        // since every evaluated outcome reports its goal routes (NoteGoalRoutes) and a skipped one would not. A single root whose
+        // closure holds construction is evaluated while the relief gate still collects unserved roots, so that the extension order
+        // the gate feeds (unserved) stays the same. Served pawns are never bounded: their zero time can only improve with the plan.
+        // No sound bound exists before evaluation for the death and break-risk floors (both read the plan's mood and harm), the ledger
+        // (gain terms, the shared-assessed-term comparison and its tolerance) or the tiebreaks; those subsets are evaluated within the
+        // #3722 allowance and the phase counts them as Unbounded with the reason in BoundsUnavailable.
+        // #3720 plugs in here: a finalist shortlist compares the unserved pawns' zero time with the weakest retained finalist's
+        // urgent-zero excess in place of the leader's (bestVector.UrgentZero.Excess below), so a subset that cannot enter the
+        // shortlist is skipped and one that could is evaluated; the claim and domain are unchanged.
+        var pawnRows = candidates.Context.Needs.Pawns;
+        var pawnWords = Bits.Words(pawnRows.Count);
+        var pawnIndex = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var p = 0; p < pawnRows.Count; p++) pawnIndex.TryAdd(pawnRows[p].Pawn, p);
+        // Per task: the pawns whose need it serves, whether it is a rest service, and whether the relief gate reads it as construction.
+        var taskServes = new ulong[tasks.Length][]; var taskRest = new bool[tasks.Length]; var taskConstruction = new bool[tasks.Length];
+        foreach (var need in candidates.Context.NeedTasks)
+        {
+            if (!taskIndex.TryGetValue(need.Task, out var at) || !pawnIndex.TryGetValue(need.Pawn, out var p)) continue;
+            Bits.Set(taskServes[at] ??= new ulong[pawnWords], p);
+            taskRest[at] |= need.Kind == "rest";
+        }
+        foreach (var id in unplaced) if (taskIndex.TryGetValue(id, out var at)) taskConstruction[at] = true;
+        foreach (var (binding, task) in candidates.Context.Bindings)
+            if ((task.SiteDefinition.Length != 0 || task.Job == "BuildRoof") && taskIndex.TryGetValue(binding.Task, out var at)) taskConstruction[at] = true;
+        void Summarize(ReadOnlySpan<ulong> closure, Span<ulong> served, ref bool rest, ref bool construction)
+        {
+            for (var t = 0; t < tasks.Length; t++)
+            {
+                if (!Bits.Has(closure, t)) continue;
+                if (taskServes[t] is { } pawns) Bits.Or(served, pawns);
+                rest |= taskRest[t]; construction |= taskConstruction[t];
+            }
+        }
+        var servedBy = new ulong[alternatives.Length][]; var restIn = new bool[alternatives.Length]; var constructionIn = new bool[alternatives.Length];
+        for (var i = 0; i < alternatives.Length; i++)
+        { servedBy[i] = new ulong[pawnWords]; Summarize(closures[i], servedBy[i], ref restIn[i], ref constructionIn[i]); }
+        var fixedServed = new ulong[pawnWords]; var fixedRest = false; var fixedConstruction = false;
+        Summarize(fixedClosure, fixedServed, ref fixedRest, ref fixedConstruction);
+        var servedScratch = new ulong[pawnWords];
+        // Each pawn's zero time in the baseline, the larger of food and rest; the bound is unavailable while any is unknown.
+        var baselineZero = new double[pawnRows.Count]; var baselineZeroKnown = pawnRows.Count > 0;
+        for (var p = 0; p < pawnRows.Count && baselineZeroKnown; p++)
+        {
+            if (!baseline.Needs.TryGetValue(pawnRows[p].Pawn, out var row)) { baselineZeroKnown = false; break; }
+            foreach (var metric in row.Needs)
+            {
+                if (metric.Kind is not ("food" or "rest")) continue;
+                if (!metric.ZeroTicks.TryGetValue(out var zero)) { baselineZeroKnown = false; break; }
+                baselineZero[p] = Math.Max(baselineZero[p], zero);
+            }
+        }
+        var boundsUnavailable = new SortedSet<string>(StringComparer.Ordinal);
+        // Why the bound cannot be formed for a portfolio whose closure's rest services are as given, against the leader of this moment; null when it can.
+        string? UrgentZeroBoundUnavailable(bool restInClosure)
+        {
+            if (candidates.Context.GoalValues.Count > 0) return "goal_routes";
+            if (!baselineZeroKnown) return "baseline_zero_unassessed";
+            if (best.Feasible != Known(true) || !bestVector.UrgentZero.Assessed) return "leader_unassessed";
+            return restInClosure ? "rest_service_in_closure" : null;
+        }
+        // The pawn whose baseline zero time proves every plan serving only the pawns in `served` loses at the urgent-zero stage; null when none does.
+        string? UrgentZeroLoser(ReadOnlySpan<ulong> served)
+        {
+            var worst = -1;
+            for (var p = 0; p < pawnRows.Count; p++)
+                if (!Bits.Has(served, p) && (worst < 0 || baselineZero[p] > baselineZero[worst])) worst = p;
+            return worst >= 0 && baselineZero[worst] - bestVector.UrgentZero.Excess >= UrgentZeroResolutionTicks ? pawnRows[worst].Pawn : null;
+        }
         // The traversal reaches a subset by more than one phase, and different root sets schedule the same work (a
         // shelter, a room alternative or the room's site roots completing the same sites). Subsets whose task closure
         // and non-graph roots (direct effects or claims; a retained incumbent by id) are equal share one schedule
@@ -462,9 +592,28 @@ public sealed partial record ForecastCoupledSelection
             var compatible = fixedCompatible && CompatibleSet(memberScratch);
             foreach (var c in additions) compatible &= !fixedIncompatible[rootIndex[c.Id]];
             if (!compatible) return true;
-            evaluated[key] = bound;
-            // A spent allowance starts nothing more, a cached schedule included (#3722).
+            // A spent allowance starts nothing more, a cached schedule included (#3722), and skips nothing on a bound either, so the
+            // pruned search ends where the unpruned one does.
             if (ledger.Exhausted) { truncated = true; return false; }
+            if (prune)
+            {
+                // The bound (#3724, above): the pawns the portfolio's closure serves, then the pawn none of its plans can keep from starving.
+                Array.Clear(servedScratch); Bits.Or(servedScratch, fixedServed);
+                var restInClosure = fixedRest; var constructionInClosure = fixedConstruction;
+                foreach (var c in additions)
+                { var at = rootIndex[c.Id]; Bits.Or(servedScratch, servedBy[at]); restInClosure |= restIn[at]; constructionInClosure |= constructionIn[at]; }
+                var unavailable = UrgentZeroBoundUnavailable(restInClosure);
+                if (unavailable is null && additions.Length == 1 && unserved.Count < 4 && constructionInClosure) unavailable = "relief_gate_order";
+                if (unavailable is not null) { boundsUnavailable.Add(UrgentZeroUnservedBound + ":" + unavailable); phaseUnbounded++; }
+                else if (UrgentZeroLoser(servedScratch) is { } starving)
+                {
+                    evaluated[key] = bound;
+                    phasePruned++;
+                    evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), null, ForecastPortfolioEvidence.PrunedPrefix + UrgentZeroUnservedBound + ":" + starving));
+                    return true;
+                }
+            }
+            evaluated[key] = bound;
             if (!schedules.TryGetValue(schedule, out var known) || known.Bound < bound)
             {
                 var searchAt = Now();
@@ -533,8 +682,9 @@ public sealed partial record ForecastCoupledSelection
             }
             return !ledger.Exhausted;
         }
-        // Breadth by cardinality prevents one deep branch from hiding every independent source.
-        // No value-based pruning: two individually useless contributions can remain complementary.
+        // Breadth by cardinality prevents one deep branch from hiding every independent source. A subset's present value never
+        // stands for its completions (two individually useless contributions can remain complementary): the only pruning is the
+        // proven bound above, applied per subset and, in the sweep, to a prefix whose every completion it covers.
         // The seed pass may stop starting evaluations once it has spent its share of either allowance left to this run; that is a
         // hand-off, not truncation.
         var seedEvaluationLimit = int.MaxValue; var seedExpansionLimit = int.MaxValue; var seedSpent = false; var leafBound = PortfolioBound;
@@ -545,6 +695,21 @@ public sealed partial record ForecastCoupledSelection
             {
                 if (ledger.DiscretionaryEvaluations >= seedEvaluationLimit || ledger.DiscretionaryExpansions >= seedExpansionLimit) { seedSpent = true; return false; }
                 return Evaluate(partial.ToArray(), leafBound);
+            }
+            if (prune && partial.Count > 0 && start <= alternatives.Length - left)
+            {
+                // Every completion of this prefix adds roots from `start` on, so a pawn served by neither the prefix nor any of those
+                // starves as in the baseline in every leaf below (#3724): the whole branch is skipped when that alone loses to the leader.
+                Array.Clear(servedScratch); Bits.Or(servedScratch, fixedServed);
+                var restInClosure = fixedRest;
+                foreach (var c in partial) { var at = rootIndex[c.Id]; Bits.Or(servedScratch, servedBy[at]); restInClosure |= restIn[at]; }
+                for (var j = start; j < alternatives.Length; j++) { Bits.Or(servedScratch, servedBy[j]); restInClosure |= restIn[j]; }
+                if (UrgentZeroBoundUnavailable(restInClosure) is null && UrgentZeroLoser(servedScratch) is { } starving)
+                {
+                    phasePruned++;
+                    evidence.Add(new(EquatableArray.From(partial.Select(c => c.Id)), null, ForecastPortfolioEvidence.PrunedBranchPrefix + UrgentZeroUnservedBound + ":" + starving));
+                    return true;
+                }
             }
             for (var i = start; i <= alternatives.Length - left; i++)
             {
@@ -695,8 +860,14 @@ public sealed partial record ForecastCoupledSelection
             ServiceInvestments = ForecastServiceInvestments.ServiceInvestmentsOf(baseline, best, candidates.Context, request.HorizonDays * GameTime.TicksPerDay),
             Deferred = deferred,
             SearchPhases = EquatableArray.From(phases), SelectedPhase = selectedPhase, WarmStart = warmStartState,
-            Budget = ledger.Budget, OutcomeEvaluations = ledger.Evaluations, BaselineEvaluations = ledger.BaselineEvaluations, BaselineExpansions = ledger.BaselineExpansions };
+            Budget = ledger.Budget, OutcomeEvaluations = ledger.Evaluations, BaselineEvaluations = ledger.BaselineEvaluations, BaselineExpansions = ledger.BaselineExpansions,
+            BoundsUnavailable = EquatableArray.From(boundsUnavailable) };
     }
+
+    /// <summary>The urgent-zero unserved-pawn bound (#3724), as pruning evidence and <see cref="BoundsUnavailable"/> name it: a pawn none of
+    /// a portfolio's need tasks serve starves as in the baseline in every plan of it, so the portfolio loses at the urgent-zero stage when
+    /// that alone exceeds the leader's excess by <see cref="UrgentZeroResolutionTicks"/>. The proof and domain are at the bound in <c>CompareOnce</c>.</summary>
+    internal const string UrgentZeroUnservedBound = "urgent_zero_unserved";
 
     /// <summary>A root's id before its per-review composition number (#3563).</summary>
     private static string RootPrefix(string id)

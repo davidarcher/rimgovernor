@@ -42,7 +42,7 @@ public sealed class LazyEvaluationTests
         {
             Assert.Equal(first.Commitments, second.Commitments);
             Assert.Equal(first.Reason, second.Reason);
-            Assert.Equal(first.Consequences is not null, second.Assessed);
+            Assert.Equal(first.Consequences is not null, second.Assessed && ForecastPortfolioEvidence.BoundOf(second.Reason) is null);
             if (second.Consequences is not null) Assert.Equal(first.Consequences, second.Consequences);
         }
     }
@@ -73,7 +73,25 @@ public sealed class LazyEvaluationTests
         Assert.Contains(beyond, r => ForecastPortfolioEvidence.StageOf(r.Reason) == ForecastCoupledSelection.LaborStage);
         Assert.Contains(beyond, r => ForecastPortfolioEvidence.StageOf(r.Reason) == ForecastCoupledSelection.LedgerStage);
         // The measured avoided work on the fixture at 700 ticks (docs/developers/testing/portfolio-allocations.md): of the ranked losers,
-        // those whose ledger a floor made unnecessary against those a comparison priced; the evaluations are #3722's recorded 3,138.
-        Assert.Equal((3138, 435, 2488), (lazy.OutcomeEvaluations, atFloor.Length, beyond.Length));
+        // those whose ledger a floor made unnecessary against those a comparison priced. The evaluations are #3724's recorded 2,823 (#3722
+        // recorded 3,138 before the bound skipped 20 subsets, 315 of them plan evaluations that would have lost at the urgent-zero floor).
+        Assert.Equal((2823, 176, 2488), (lazy.OutcomeEvaluations, atFloor.Length, beyond.Length));
+    }
+
+    /// <summary>The urgent-zero unserved-pawn bound (#3724) on the four-worker fixture at the default budget: the pruned production search
+    /// is the unpruned control's selection and evidence with the bound available throughout, and it skipped 20 extension subsets (those
+    /// feeding neither starving pawn after the leader fed one) for 315 fewer plan evaluations and 1,088 fewer expansions
+    /// (docs/developers/testing/portfolio-allocations.md).</summary>
+    [Fact]
+    public void ThePrunedSearchIsTheUnprunedSearchOnTheFourWorkerFixture()
+    {
+        var (request, generated) = FourWorkers.Value;
+        var pruned = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
+        var unpruned = ForecastCoupledSelection.CompareActivityOutcomesUnpruned(request, generated);
+        ForecastCoupledSelectionTests.AssertPrunedEquivalent(unpruned, pruned);
+        Assert.Empty(pruned.BoundsUnavailable);
+        Assert.Equal((3138, 12736), (unpruned.OutcomeEvaluations, unpruned.Selection.Expansions));
+        Assert.Equal((2823, 11648, 20), (pruned.OutcomeEvaluations, pruned.Selection.Expansions, pruned.SearchPhases.Sum(p => p.Pruned)));
+        Assert.Equal(20, pruned.SearchPhases.Single(p => p.Phase == "extend").Pruned);
     }
 }

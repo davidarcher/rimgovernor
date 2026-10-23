@@ -66,8 +66,7 @@ evaluated outcome, and first: the search prices an outcome's floors, harm and go
 complete vector (`ForecastValue.Explain` is the eager form, the same ledger assembled at once; #3723). An outcome that
 breaks a floor loses to any outcome that does not, and when both break one the smaller excess wins. A floor that cannot
 be checked is not treated as passed: the review reports `break_floor_unassessed` (a mood break risk with no observed
-threshold) and `death_floor_unassessed` (the harm term is unknown), and the outcome is ranked on what remains. Pruning
-partial portfolios on a floor waits for the search stage 3 ([#3724](https://github.com/davidarcher/rimgovernor/issues/3724)).
+threshold) and `death_floor_unassessed` (the harm term is unknown), and the outcome is ranked on what remains.
 
 - No pawn's food or rest reaches zero, unless every feasible portfolio does.
   Then the least zero-time wins, as today. Zero-times less than a tick apart are the same
@@ -77,8 +76,45 @@ partial portfolios on a floor waits for the search stage 3 ([#3724](https://gith
 - Each pawn's break risk stays under `BreakRiskCap`. The risk is the expected breaks over the horizon, per pawn-day.
 
 The floors replaced the top tiers of the old lexicographic order (urgent
-exhaustion, depth, exposure). They are meant to prune the search cheaply too: a partial
-portfolio that already breaks a floor is not extended (not yet; see above).
+exhaustion, depth, exposure). The urgent-zero floor also prunes the search, through the one
+optimistic bound proven sound under this comparator ([#3724](https://github.com/davidarcher/rimgovernor/issues/3724),
+`ForecastCoupledSelection`, the urgent-zero unserved-pawn bound `urgent_zero_unserved`).
+
+Claim: a pawn none of whose need tasks lies in a portfolio's task closure keeps the baseline's
+food and rest zero times in every plan of that portfolio, so every plan's urgent-zero excess is
+at least that pawn's baseline zero time. Proof sketch: a plan allocates exactly the closure's
+tasks; the evaluator builds a pawn's need choices from its own allocated need tasks alone, so
+the unserved pawn's choices are empty, as in the baseline; the needs core
+(`ForecastNeeds.NeedsCoreOf`) derives the food and rest timelines (`ZeroTicks`) from the
+observed level, fall and threshold and those choices, and the grants, renewals and occupancy a
+plan adds reach the mood and capacity terms, never the zero time; the urgent-zero time is the
+maximum over the pawns, and the comparator decides at that stage whenever two excesses differ
+by at least `UrgentZeroResolutionTicks`. So when some unserved pawn's baseline zero time exceeds
+the current leader's excess by a tick, every feasible completion of the subset loses to that
+leader at the first stage, and the subset is skipped before its schedule is searched (an
+infeasible plan is never ranked). The search prunes against the current leader only; the
+retained-finalist bound of #3720 plugs in at that comparison, with the weakest retained
+finalist's excess in place of the leader's.
+
+Domain: every plan of the subset must carry an assessed urgent-zero floor, since an unassessed
+floor reads as excess 0 and would pass. The bound is therefore unavailable, the subset
+evaluated within the #3722 allowance, the phase counting it `unbounded` and the selection
+naming the reason in `BoundsUnavailable` as `urgent_zero_unserved:<reason>`, when the closure
+holds a rest need task (`rest_service_in_closure`: sleeping a pawn can leave rest unassessed in
+some plans), when a pawn's baseline zero time is unknown (`baseline_zero_unassessed`), when the
+leader is infeasible or its floor unassessed (`leader_unassessed`), when the context values
+goals (`goal_routes`: every evaluated outcome reports its goal routes, a skipped one would
+not), and for a single construction root while the relief gate still collects unserved roots
+(`relief_gate_order`). A served pawn is never bounded: its zero time can only improve with the
+plan. No sound bound exists before evaluation for the death and break-risk floors (both read the
+plan's mood and harm), for the ledger (gain terms, the shared-assessed-term comparison and its
+tolerance) or for the tiebreaks, so those subsets are evaluated; a partial portfolio's own
+value is never taken as a bound on its completions, and nothing is pruned on a heuristic. A
+skipped subset is cached at the bound it was skipped at, so the confirm and the sweep meet it
+again at theirs; in the cardinality sweep a prefix whose every completion leaves a pawn
+unserved is skipped whole. The pruned search ranks what the unpruned one ranks, the same
+selection, vectors and findings, reporting the skipped losers as `pruned:` and
+`pruned_branch:` evidence rows ([portfolio selection](portfolio-selection.md#dependencies-and-search)).
 
 ### Capability-days
 
@@ -601,8 +637,26 @@ baselines, and benchmarked at a one-day horizon in .NET
      price their ledger; the other 2,488 reach it. Both pinned allocation
      baselines are unchanged
      ([portfolio allocations](../testing/portfolio-allocations.md#lazy-outcome-evaluation-3723)).
-   - A partial portfolio that cannot beat the best on its bound stops early
-     (branch and bound on capability-days; #3724).
+   - **Proven optimistic bounds and safe pruning** ([#3724](https://github.com/davidarcher/rimgovernor/issues/3724),
+     shipped). A subset is skipped before its schedule is searched only when a
+     proven bound says no completion of it can beat the current leader: the
+     urgent-zero unserved-pawn bound ([safety floors](#safety-floors)), applied to
+     a subset in the seed, extension and confirm, and to a prefix with every
+     completion in the cardinality sweep. Where the bound is unavailable (a rest
+     need task in the closure, an unknown baseline zero time, an unassessed
+     leader, goal values in the context, the relief gate's order) the subset is
+     evaluated within the #3722 allowance; each phase reports `pruned` and
+     `unbounded`, the selection `search_pruned` and `bounds_unavailable`. No bound
+     exists for the death and break-risk floors, the ledger or the tiebreaks, and
+     none is heuristic. Against the unpruned control
+     (`CompareActivityOutcomesUnpruned`) the pruned search selects the same
+     portfolio with the same vectors and findings at every budget on both pinned
+     fixtures; at the default budget the four-worker fixture at 700 ticks spends
+     2,823 outcome evaluations and 11,648 expansions instead of 3,138 and 12,736
+     (20 extension subsets skipped), the original fixture 749 and 4,487 instead of
+     763 and 4,551 (one seed subset), and its finished sweep 7,713 and 39,809
+     instead of 7,833 and 40,331 (two prefixes)
+     ([portfolio allocations](../testing/portfolio-allocations.md#proven-pruning-3724)).
 
 ## Observation gaps
 
