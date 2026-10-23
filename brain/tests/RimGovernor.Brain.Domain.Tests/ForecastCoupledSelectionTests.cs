@@ -108,6 +108,34 @@ public sealed class ForecastCoupledSelectionTests
         return ForecastCoupledSelection.CompareActivityOutcomes(request, facts.CoupledAlternatives!, budget, warmStart);
     }
 
+    // #3723: the losing-stage hook. Evidence names the comparator stage a subset lost at; a floor loss carries no vector.
+    [Fact]
+    public void EvidenceNamesTheStageASubsetLostAtAndWhetherItWasAssessed()
+    {
+        var floor = new ForecastPortfolioEvidence(["a"], null, ForecastPortfolioEvidence.LostToLeaderPrefix + ForecastCoupledSelection.UrgentZeroStage);
+        Assert.Equal(ForecastCoupledSelection.UrgentZeroStage, ForecastPortfolioEvidence.StageOf(floor.Reason));
+        Assert.True(floor.Assessed);
+        var infeasible = new ForecastPortfolioEvidence(["a"], null, ForecastPortfolioEvidence.InfeasibleOrUnassessed);
+        Assert.Null(ForecastPortfolioEvidence.StageOf(infeasible.Reason));
+        Assert.False(infeasible.Assessed);
+        var unsupported = new ForecastPortfolioEvidence(["a"], null, "construction_without_supported_service_relief:relief=0");
+        Assert.Null(ForecastPortfolioEvidence.StageOf(unsupported.Reason));
+        Assert.True(unsupported.Assessed);
+
+        // On a review: every ranked loser names its stage, a loser decided at a floor carries no vector, one decided at or after the ledger carries the complete one.
+        var result = Select(Review());
+        Assert.NotEmpty(result.Rejected);
+        foreach (var rejected in result.Rejected.Where(r => ForecastPortfolioEvidence.StageOf(r.Reason) is not null))
+        {
+            var atFloor = ForecastPortfolioEvidence.StageOf(rejected.Reason) is ForecastCoupledSelection.UrgentZeroStage or ForecastCoupledSelection.DeathFloorStage or ForecastCoupledSelection.BreakRiskStage;
+            Assert.Equal(!atFloor, rejected.Consequences is not null);
+        }
+        LazyEvaluationTests.AssertPaired(ForecastCoupledSelection.CompareActivityOutcomesEagerly(RequestOf(Review()), Review().CoupledAlternatives!), result);
+    }
+
+    private static ColonyForecastRequest RequestOf(RoundsFacts facts) => ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), Horizon / GameTime.TicksPerDay,
+        facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+
     // #3563: the search reports its expansions per phase and the phase that found the chosen subset; the previous selection seeds the next search.
     [Fact]
     public void SearchPhasesSumToExpansionsAndThePreviousSelectionSeedsTheNextSearch()

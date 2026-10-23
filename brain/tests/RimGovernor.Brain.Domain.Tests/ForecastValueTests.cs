@@ -659,4 +659,132 @@ public sealed class ForecastValueTests
         Assert.False(explained.Death.Assessed);
         Assert.True(explained.Death.Passed);
     }
+
+    // ----- lazy evaluation (#3723): the staged value and comparison price the floors first and the ledger only when a comparison reaches it.
+
+    private static ForecastCoupledSelection.StagedConsequences Staged(ForecastCoupledOutcome outcome, ForecastCoupledContext context, ForecastCoupledOutcome reference,
+        params ForecastCommitment[] commitments)
+        => ForecastCoupledSelection.StagedConsequences.Of(outcome, commitments, context, Day, reference, ForecastValue.ReferenceHarm(reference, context, Day), null);
+
+    private static ForecastNeedMetric Hungry(double zero) => Calm().Needs.Single(n => n.Kind == "food") with { ZeroTicks = Known(zero), ZeroSpans = [new(Day - zero, Day)] };
+
+    private static ForecastNeedsResult Starving(double zero) => Calm() with { Needs = [Calm().Needs.Single(n => n.Kind == "rest"), Hungry(zero)] };
+
+    [Fact]
+    public void AStagedValuePricesTheFloorsFirstAndExplainsTheSameAsTheEagerLedger()
+    {
+        var context = Context(Pawn());
+        var reference = Outcome(Calm());
+        var staged = ForecastValue.Stage(Outcome(Starving(4000)), Known(4000d), context, Day, reference, ForecastValue.ReferenceHarm(reference, context, Day), null);
+
+        Assert.False(staged.LedgerPriced);
+        Assert.Equal(new ForecastFloor(true, 4000), staged.UrgentZero);
+        Assert.True(staged.BreakRisk.Assessed);
+        Assert.True(staged.Death.Assessed);
+        Assert.Empty(staged.GoalContributions);
+
+        Assert.Equal(ForecastValue.Explain(Outcome(Starving(4000)), Known(4000d), context, Day, reference), staged.Explanation);
+        Assert.True(staged.LedgerPriced);
+        Assert.Equal(ForecastValue.Of(Outcome(Starving(4000)), context, Day, reference), staged.Explanation.Ledger);
+    }
+
+    [Fact]
+    public void TheUrgentZeroFloorDecidesAStagedComparisonWithoutPricingEitherLedgerAndTheLeastExcessWinsWhenBothBreakIt()
+    {
+        var context = Context(Pawn());
+        var reference = Outcome(Calm());
+        var calm = Staged(reference, context, reference);
+        var starving = Staged(Outcome(Starving(4000)), context, reference);
+        var starved = Staged(Outcome(Starving(6000)), context, reference);
+
+        Assert.True(ForecastCoupledSelection.CompareConsequences(starving, calm, out var stage) > 0);
+        Assert.Equal(ForecastCoupledSelection.UrgentZeroStage, stage);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(starving, starved, out stage) < 0);
+        Assert.Equal(ForecastCoupledSelection.UrgentZeroStage, stage);
+        Assert.All(new[] { calm, starving, starved }, s => Assert.False(s.LedgerPriced));
+        // The same answers as the eager comparator over complete vectors, which prices every ledger.
+        Assert.True(ForecastCoupledSelection.CompareConsequences(starving.Vector, calm.Vector) > 0);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(starving.Vector, starved.Vector) < 0);
+        Assert.All(new[] { calm, starving, starved }, s => Assert.True(s.LedgerPriced));
+        // Evidence of a loss at the floor carries no vector until the ledger is priced.
+        Assert.Null(Staged(Outcome(Starving(4000)), context, reference).VectorIfPriced);
+        Assert.NotNull(starving.VectorIfPriced);
+    }
+
+    [Fact]
+    public void TheDeathAndBreakRiskFloorsDecideBeforeTheLedgerIsPriced()
+    {
+        // The death floor: the pawn stripped of its devilstrand duster dies more often than the reference wearing it (#3546).
+        var harmContext = HarmContext(Devilstrand);
+        var reference = Outcome(Calm());
+        var worn = Staged(reference, harmContext, reference);
+        var stripped = Staged(reference, harmContext, reference, Wears([]));
+        Assert.Equal(ForecastValue.Explain(reference, Known(0d), harmContext, Day, reference, [Wears([])]).Death, stripped.Death);
+        Assert.True(stripped.Death.Excess > 0, "stripped death excess " + stripped.Death);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(stripped, worn, out var stage) > 0, "stripped against worn at " + stage);
+        Assert.Equal(ForecastCoupledSelection.DeathFloorStage, stage);
+        Assert.False(stripped.LedgerPriced);
+        Assert.False(worn.LedgerPriced);
+
+        // The break-risk cap: five expected breaks a day against the calm pawn's none.
+        var context = Context(Pawn());
+        var calm = Staged(reference, context, reference);
+        var breaking = Staged(Outcome(Calm() with { Mood = Mood(0, [0, 0, 0]) with { BreakRisk = Known(5d) } }), context, reference);
+        Assert.True(breaking.BreakRisk.Excess > 0, "break excess " + breaking.BreakRisk);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(breaking, calm, out stage) > 0, "breaking against calm at " + stage);
+        Assert.Equal(ForecastCoupledSelection.BreakRiskStage, stage);
+        Assert.False(breaking.LedgerPriced);
+        Assert.False(calm.LedgerPriced);
+    }
+
+    [Fact]
+    public void ASubTickUrgentZeroTieReachesTheLedgerAndPricesBothSides()
+    {
+        // The #3598 residues: the floors tie within a tick, so the rest loss decides, and deciding it prices both ledgers.
+        var exhausted = Exhausted(new ForecastNeedSpan(Day - 33068, Day)).Needs.Single(n => n.Kind == "rest");
+        var rested = Calm().Needs.Single(n => n.Kind == "rest");
+        var working = Outcome(Calm() with { Needs = [exhausted, Hungry(39374.99978028881)] });
+        var sleeping = Outcome(Calm() with { Needs = [rested, Hungry(39374.99978028882)] });
+        var context = Context(Pawn());
+        var work = Staged(working, context, sleeping);
+        var sleep = Staged(sleeping, context, sleeping);
+
+        Assert.True(ForecastCoupledSelection.CompareConsequences(sleep, work, out var stage) < 0);
+        Assert.Equal(ForecastCoupledSelection.LedgerStage, stage);
+        Assert.True(work.LedgerPriced);
+        Assert.True(sleep.LedgerPriced);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(work, sleep, out _) > 0);
+        Assert.True(ForecastCoupledSelection.CompareConsequences(sleep.Vector, work.Vector) < 0);
+    }
+
+    [Fact]
+    public void ATermOnlyOneSidePricesIsLeftOutOfTheLazyLedgerComparisonExactlyAsTheEagerOne()
+    {
+        // The wellbeing term is unknown for the outcome whose mood pressure is, and known for the other: the lazy comparison prices
+        // both ledgers and compares the terms both assess, so the poisoning difference decides and the skipped term is never read as 0.
+        var context = Context(Pawn());
+        var reference = Outcome(Calm());
+        var unpressured = Outcome(Calm() with { Mood = Mood(0, [0, 0, 0]) with { PressureTicks = default } }, poisonCases: 0);
+        var poisoned = Outcome(Calm(), poisonCases: 2);
+        var a = Staged(unpressured, context, reference);
+        var b = Staged(poisoned, context, reference);
+
+        var rank = ForecastCoupledSelection.CompareConsequences(a, b, out var stage);
+        Assert.Equal(ForecastCoupledSelection.LedgerStage, stage);
+        Assert.True(rank < 0);
+        Assert.True(a.LedgerPriced);
+        Assert.True(b.LedgerPriced);
+        Assert.False(a.Vector.Value.Ledger.Wellbeing.IsKnown);
+        Assert.True(b.Vector.Value.Ledger.Wellbeing.IsKnown);
+        Assert.True(b.Vector.Value.Ledger.FoodPoisoning.Value > a.Vector.Value.Ledger.FoodPoisoning.Value);
+        Assert.Equal(a.Vector.Value.Ledger.FoodPoisoning.Value - b.Vector.Value.Ledger.FoodPoisoning.Value, a.Vector.Value.Ledger.LossAgainst(b.Vector.Value.Ledger).Value, 9);
+        Assert.Equal(rank, ForecastCoupledSelection.CompareConsequences(a.Vector, b.Vector));
+        // Ledgers whose shared terms cannot separate the sides fall through to the later stages, still priced on both sides.
+        var blind = Context(Pawn(), Tables() with { Malnutrition = new(), FoodPoisoning = new(), Hypothermia = new(), Heatstroke = new() });
+        var x = Staged(Outcome(Calm() with { Mood = null }), blind, reference);
+        var y = Staged(Outcome(Calm() with { Mood = null }), blind, reference);
+        Assert.Equal(0, ForecastCoupledSelection.CompareConsequences(x, y, out stage));
+        Assert.NotEqual(ForecastCoupledSelection.LedgerStage, stage);
+        Assert.True(x.LedgerPriced && y.LedgerPriced);
+    }
 }

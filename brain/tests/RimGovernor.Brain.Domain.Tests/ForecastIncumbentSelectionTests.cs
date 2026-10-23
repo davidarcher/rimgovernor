@@ -242,7 +242,22 @@ public sealed class ForecastIncumbentSelectionTests
         var empty = Assert.Single(result.Rejected, p => p.Commitments.Count == 0);
         Assert.NotNull(empty.Consequences);
         Assert.True(empty.Consequences.Labor < result.BaselineVector.Labor);
+        // The tie reached the ledger, so the loser's vector is complete, and the incumbent rule is the stage it lost at (#3723).
+        Assert.Equal(ForecastCoupledSelection.IncumbentStage, ForecastPortfolioEvidence.StageOf(empty.Reason));
         Assert.Throws<DomainException>(() => ForecastCoupledSelection.StartCoupledActivity(result, candidates, 1, "replacement", 100));
+    }
+
+    [Theory]
+    [InlineData(1, 0, false)]
+    [InlineData(.1, .001, true)]
+    public void TheLazySearchRetainsOrReleasesTheIncumbentExactlyAsTheEagerOne(double food, double fall, bool meal)
+    {
+        // #3723: the incumbent tiebreak and the floor that releases the incumbent decide the same under lazy and eager evaluation.
+        var (request, candidates) = Problem(food, fall, meal);
+        var lazy = ForecastCoupledSelection.CompareActivityOutcomes(request, candidates);
+        var eager = ForecastCoupledSelection.CompareActivityOutcomesEagerly(request, candidates);
+        LazyEvaluationTests.AssertPaired(eager, lazy);
+        Assert.Contains(lazy.Rejected, r => ForecastPortfolioEvidence.StageOf(r.Reason) == ForecastCoupledSelection.IncumbentStage && r.Consequences is not null);
     }
 
     [Fact]

@@ -1192,6 +1192,20 @@ retry's expansions are now counted (the four-worker one-day search's 5,888 are t
 the former count omitted; the 700-tick row's 12,736 against the former 12,899 is the same
 arithmetic, 291 subset units out and 128 retry expansions in).
 
+### Lazy outcome evaluation (#3723)
+
+The search now prices an evaluated outcome's floors, harm and goal terms at evaluation and
+the rest of its ledger only when a comparison reaches the ledger or a consumer needs the
+complete vector ([lazy outcome evaluation](../architecture/forecast-value.md#search-engine)).
+Both snapshots are unchanged by it: the same selections, counts and phases at every budget
+(checked by regenerating both JSONs against the pinned files). `LazyEvaluationTests` pins
+the avoided work on the four-worker fixture at 700 ticks and the default budget: of the
+3,138 outcome evaluations, 2,923 are rejected subsets ranked against a leader, 435 of which
+(15%) lost at a floor (`lost_to_leader:urgent_zero`, `death_risk_floor` or `break_risk_cap`)
+and never priced their ledger, reported without a vector; the other 2,488 reached the ledger
+or a later stage and carry the complete vector. The evaluation count is #3722's, since a
+started evaluation costs one unit wherever its comparison stops.
+
 ### Row mapping and changed constrained-budget selections
 
 Former rows are the parent commit's output at an expansion budget with the evaluations it

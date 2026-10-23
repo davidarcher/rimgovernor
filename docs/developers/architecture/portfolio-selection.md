@@ -119,6 +119,23 @@ tunes it. Stable ordering makes replay deterministic;
 the result is best found within bounds. Partial bundles remain expandable even
 when neither constituent has isolated benefit.
 
+An evaluated outcome is priced lazily (#3723, [lazy outcome
+evaluation](forecast-value.md#search-engine)): its floors, harm and goal terms at
+evaluation, the rest of its value ledger only when its comparison against the leader
+reaches the ledger or a consumer needs the complete vector. The ranking is the one
+comparator in its one order (`CompareConsequences`: urgent zero, death, break risk, the
+ledger over the terms both sides assess, the unconverted terms, then the caller's incumbent
+and labor rule), so the selection, the vectors of the baseline and the selected outcome,
+the findings and the evaluation counts are those of an eager evaluation. Each rejected
+subset's evidence (`ForecastPortfolioEvidence`) names why it lost: `infeasible_or_unassessed`
+(no outcome; not assessed), `construction_without_supported_service_relief:<ids>`, or
+`lost_to_leader:<stage>` with the comparator stage that decided it (`urgent_zero`,
+`death_risk_floor`, `break_risk_cap`, `ledger`, an unconverted term such as `thermal_relief`
+or `care_batches`, `incumbent`, `labor`); `ForecastPortfolioEvidence.StageOf` reads the
+stage. A subset whose ledger was never priced (decided at a floor, or held by the relief gate
+before any comparison) carries no consequence vector; one decided at or after the ledger
+carries the complete vector.
+
 Traversal is incumbent-seeded and screened. The previous review's selected ids come first (#3563): each
 by exact match, else the first variant of the same root before `/composition/`, screened
 like a seed, so the extension below starts from last review's leader when it still beats
@@ -227,7 +244,8 @@ local construction/clothing activity dispatch paths are removed. Historical
 family helper APIs remain for their tests and the separate helper-retirement
 work; they are not an additional normal production selector.
 
-`coupled_selection` records baseline, selected and rejected vectors, horizon,
+`coupled_selection` records baseline, selected and rejected vectors (a rejected row
+whose ledger was never priced has a reason and no vector; #3723), horizon,
 unknowns and generation/search counts. `coupled_observed` correlates the same
 Method with observed task completion and native states. The OTLP log reader and
 prepared `production/coupled-needs` case consume these signals.

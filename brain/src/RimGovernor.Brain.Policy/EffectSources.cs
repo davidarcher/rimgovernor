@@ -121,7 +121,7 @@ public static class EffectSourcesRules
         {
             return [];
         }
-        var assessed = selection.Rejected.Where(r => r.Consequences is not null).SelectMany(r => r.Commitments).ToHashSet(StringComparer.Ordinal);
+        var assessed = selection.Rejected.Where(r => r.Assessed).SelectMany(r => r.Commitments).ToHashSet(StringComparer.Ordinal);
         var choices = new List<GearChoice>();
         foreach (var pawn in candidates.Alternatives.Where(c => c.ExclusiveOutcome.StartsWith(EffectSourceCandidates.GearOutcome, StringComparison.Ordinal))
             .GroupBy(c => c.ExclusiveOutcome[EffectSourceCandidates.GearOutcome.Length..], StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal))

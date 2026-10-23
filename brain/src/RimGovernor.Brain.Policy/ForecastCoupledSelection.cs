@@ -65,8 +65,27 @@ public sealed record ForecastSearchPhase(string Phase, int Expansions)
     /// <summary>Evaluations that made a new leader.</summary>
     public int Improved { get; init; }
 }
+/// <summary>
+/// Why an evaluated subset is not the selection. <see cref="Reason"/> is <see cref="InfeasibleOrUnassessed"/> when none of its
+/// outcomes was feasible, a <c>construction_without_supported_service_relief</c> finding when the thermal-relief gate held it
+/// back, or <see cref="LostToLeaderPrefix"/> followed by the comparator stage that proved it loses to the leader of its time
+/// (#3723): <c>urgent_zero</c>, <c>death_risk_floor</c>, <c>break_risk_cap</c>, <c>ledger</c>, one of the unconverted terms, or
+/// the caller's <c>incumbent</c> or <c>labor</c> rule. <see cref="Consequences"/> is the outcome's complete vector when its
+/// ledger was priced, and null when the subset was never ranked or when a floor decided before the ledger was needed: a
+/// skipped evaluation is reported as unevaluated, never as a zero-valued vector.
+/// </summary>
 public sealed record ForecastPortfolioEvidence(EquatableArray<string> Commitments,
-    ForecastConsequenceVector? Consequences, string Reason);
+    ForecastConsequenceVector? Consequences, string Reason)
+{
+    public const string InfeasibleOrUnassessed = "infeasible_or_unassessed";
+    public const string LostToLeaderPrefix = "lost_to_leader:";
+    /// <summary>The comparator stage at which a subset's outcome was proven to lose to the leader, read from its <see cref="Reason"/>
+    /// (#3723); null for a reason that is not a leader loss. The hook for a finalist collector (#3720): a candidate losing at a late
+    /// stage may still be close. The <c>coupled_selection</c> row's <c>rejected[].reason</c> carries the same string.</summary>
+    public static string? StageOf(string reason) => reason.StartsWith(LostToLeaderPrefix, StringComparison.Ordinal) ? reason[LostToLeaderPrefix.Length..] : null;
+    /// <summary>Whether the subset's outcome was evaluated: feasible and either ranked against the leader or held by the relief gate.</summary>
+    public bool Assessed => Reason != InfeasibleOrUnassessed;
+}
 
 /// <summary>
 /// The deterministic allowance of one portfolio comparison (#3722). <see cref="Evaluations"/> is the budget: outcome evaluations,
@@ -161,18 +180,29 @@ public sealed partial record ForecastCoupledSelection
     /// <paramref name="budget"/> (#3722; <see cref="ForecastSearchBudget.Default"/> when null) through one ledger.</summary>
     public static ForecastCoupledSelection CompareActivityOutcomes(ColonyForecastRequest request,
         ForecastCoupledCandidates candidates, ForecastSearchBudget? budget = null, IReadOnlyList<string>? warmStart = null, Func<double>? clockMs = null)
+        => CompareActivityOutcomes(request, candidates, budget, warmStart, clockMs, eager: false);
+
+    /// <summary>The test control of lazy evaluation (#3723): <see cref="CompareActivityOutcomes(ColonyForecastRequest, ForecastCoupledCandidates, ForecastSearchBudget?, IReadOnlyList{string}?, Func{double}?)"/>
+    /// with every evaluated outcome's ledger priced as soon as the outcome is, so a paired test can prove the lazy search returns the same
+    /// selection and evidence. Production always runs lazily.</summary>
+    internal static ForecastCoupledSelection CompareActivityOutcomesEagerly(ColonyForecastRequest request,
+        ForecastCoupledCandidates candidates, ForecastSearchBudget? budget = null, IReadOnlyList<string>? warmStart = null)
+        => CompareActivityOutcomes(request, candidates, budget, warmStart, null, eager: true);
+
+    private static ForecastCoupledSelection CompareActivityOutcomes(ColonyForecastRequest request,
+        ForecastCoupledCandidates candidates, ForecastSearchBudget? budget, IReadOnlyList<string>? warmStart, Func<double>? clockMs, bool eager)
     {
         budget ??= ForecastSearchBudget.Default;
         if (budget.Evaluations < 0 || budget.Traversal < 0) throw new DomainException("negative portfolio budget");
         var ledger = new ForecastSearchLedger(budget);
-        var selection = CompareOnce(request, candidates, ledger, warmStart, clockMs);
+        var selection = CompareOnce(request, candidates, ledger, warmStart, clockMs, eager);
         var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         var allocations = selection.Selected.Plan.Allocations;
         if (unplaced.Count == 0 || allocations.Length == 0 || !allocations.All(a => unplaced.Contains(a.Activity))) return selection;
         var reaching = ReachingActivities(candidates.Context.Activities.Activities, unplaced);
         var placed = candidates with { Alternatives = EquatableArray.From(candidates.Alternatives.Where(c => !c.ActivityCompletions.Any(reaching.Contains))) };
         if (placed.Alternatives.Count == candidates.Alternatives.Count) return selection;
-        var orders = CompareOnce(request, placed, ledger, warmStart: null, clockMs);
+        var orders = CompareOnce(request, placed, ledger, warmStart: null, clockMs, eager);
         var findings = new SortedSet<string>(selection.Selection.Findings, StringComparer.Ordinal) { PlannedUnplacedReselected };
         findings.UnionWith(orders.Selection.Findings);
         return selection with
@@ -213,7 +243,7 @@ public sealed partial record ForecastCoupledSelection
     }
 
     private static ForecastCoupledSelection CompareOnce(ColonyForecastRequest request,
-        ForecastCoupledCandidates candidates, ForecastSearchLedger ledger, IReadOnlyList<string>? warmStart, Func<double>? clockMs)
+        ForecastCoupledCandidates candidates, ForecastSearchLedger ledger, IReadOnlyList<string>? warmStart, Func<double>? clockMs, bool eager)
     {
         // The in-game cost of the comparator: the review runs its planners in parallel, so only this span times it.
         using var span = Spans.StartActivity("coupled.select");
@@ -239,30 +269,39 @@ public sealed partial record ForecastCoupledSelection
         var horizonTicks = request.HorizonDays * GameTime.TicksPerDay;
         // Relief a goal injected is valued by the goal's ledger term, not as a unit of development (#3503).
         var goalRelief = candidates.Context.GoalValues.SelectMany(g => g.Relief.Select(r => r.Need)).ToHashSet(StringComparer.Ordinal);
-        ForecastConsequenceVector Consequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments)
-            => CoupledConsequences(outcome, commitments, candidates.Context, horizonTicks, reference, goalRelief);
+        // The death floor of every outcome is measured from this one reference (#3723): priced once, not per outcome.
+        var referenceHarm = ForecastValue.ReferenceHarm(reference, candidates.Context, horizonTicks);
+        // An outcome's consequences are staged (#3723): the floors and the cheap terms at once, the ledger when a comparison reaches
+        // it or a consumer needs the complete vector. The eager test control prices the ledger here instead.
+        StagedConsequences Consequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments)
+        {
+            var staged = StagedConsequences.Of(outcome, commitments, candidates.Context, horizonTicks, reference, referenceHarm, goalRelief);
+            if (eager) _ = staged.Vector;
+            return staged;
+        }
         // Per goal, the least-broken floor over the evaluated outcomes that progress it, while no such outcome holds every floor the baseline holds (#3503).
         var goalRoutes = new Dictionary<string, (bool Open, string Floor, double Excess)>(StringComparer.Ordinal);
-        void NoteGoalRoutes(ForecastConsequenceVector vector, ForecastConsequenceVector against)
+        void NoteGoalRoutes(StagedConsequences vector, StagedConsequences against)
         {
-            var zero = vector.Value.UrgentZero.Excess - against.Value.UrgentZero.Excess;
-            var cap = vector.Value.BreakRisk.Excess - against.Value.BreakRisk.Excess;
-            var death = vector.Value.Death.Excess - against.Value.Death.Excess;
-            foreach (var contribution in vector.Value.Ledger.GoalContributions)
+            var zero = vector.UrgentZero.Excess - against.UrgentZero.Excess;
+            var cap = vector.BreakRisk.Excess - against.BreakRisk.Excess;
+            var death = vector.Death.Excess - against.Death.Excess;
+            foreach (var contribution in vector.GoalContributions)
             {
-                var route = zero >= UrgentZeroResolutionTicks ? ("urgent_zero", zero) : death > 0 ? ("death_risk_floor", death) : cap > 0 ? ("break_risk_cap", cap) : ("", 0d);
+                var route = zero >= UrgentZeroResolutionTicks ? (UrgentZeroStage, zero) : death > 0 ? (DeathFloorStage, death) : cap > 0 ? (BreakRiskStage, cap) : ("", 0d);
                 if (!goalRoutes.TryGetValue(contribution.Goal, out var seen) || route.Item1 == "" || !seen.Open && route.Item2 < seen.Excess)
                     goalRoutes[contribution.Goal] = (route.Item1 == "" || seen.Open, route.Item1, route.Item2);
             }
         }
+        var baselineVector = Consequences(baseline, baselineCommitments);
         foreach (var candidate in baselineScenario.Alternatives.Where(a => a.Feasible == Known(true)))
         {
-            var rank = CompareConsequences(Consequences(candidate, baselineCommitments), Consequences(baseline, baselineCommitments));
+            var staged = Consequences(candidate, baselineCommitments);
+            var rank = CompareConsequences(staged, baselineVector, out _);
             if (baseline.Feasible != Known(true) || rank < 0 || rank == 0 && candidate.Plan.LaborCost < baseline.Plan.LaborCost)
-                baseline = candidate;
+                (baseline, baselineVector) = (candidate, staged);
         }
         var best = baseline;
-        var baselineVector = Consequences(baseline, baselineCommitments);
         var bestVector = baselineVector;
         var selected = incumbentIds.Order(StringComparer.Ordinal).ToArray();
         var bestIsBaseline = true;
@@ -447,7 +486,7 @@ public sealed partial record ForecastCoupledSelection
             if (feasible.Length == 0)
             {
                 phaseInfeasible++;
-                evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), null, "infeasible_or_unassessed"));
+                evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), null, ForecastPortfolioEvidence.InfeasibleOrUnassessed));
                 foreach (var reason in scenario.Alternatives.SelectMany(a => a.Findings)) findings.Add(reason.Reason + ":" + reason.Commitment);
             }
             foreach (var outcome in feasible)
@@ -472,11 +511,11 @@ public sealed partial record ForecastCoupledSelection
                 {
                     phaseUnsupported++;
                     if (unserved.Count < 4 && additions.Length == 1) unserved.Add([additions[0].Id]);
-                    evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector, "construction_without_supported_service_relief" + string.Concat(outcome.Findings.Where(f => f.Reason.StartsWith("thermal_relief_unassessed", StringComparison.Ordinal)).Select(f => ":" + f.Reason))
+                    evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector.VectorIfPriced, "construction_without_supported_service_relief" + string.Concat(outcome.Findings.Where(f => f.Reason.StartsWith("thermal_relief_unassessed", StringComparison.Ordinal)).Select(f => ":" + f.Reason))
                         + (outcome.StationaryThermalRelief.IsKnown ? ":relief=" + outcome.StationaryThermalRelief.Value : "")));
                     continue;
                 }
-                var rank = CompareConsequences(vector, bestVector);
+                var rank = CompareConsequences(vector, bestVector, out var stage);
                 // Consequence ties never release a retained incumbent to save nominal labor.
                 var retainsSelectedIncumbents = selected.Where(incumbentIds.Contains).All(id => additions.Any(c => c.Id == id));
                 if (best.Feasible != Known(true) || rank < 0 || rank == 0 && !bestIsBaseline && retainsSelectedIncumbents && vector.Labor < bestVector.Labor)
@@ -485,7 +524,12 @@ public sealed partial record ForecastCoupledSelection
                     if (!ids.SequenceEqual(selected, StringComparer.Ordinal)) { selectedPhase = phase; phaseImproved++; }
                     best = outcome; bestVector = vector; selected = ids; bestIsBaseline = false;
                 }
-                else evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector, "consequence_or_incumbent"));
+                else
+                {
+                    // A tie leaves the caller's rule to decide: the incumbent (the baseline, or a retained incumbent the subset drops) or labor.
+                    if (rank == 0) stage = bestIsBaseline || !retainsSelectedIncumbents ? IncumbentStage : LaborStage;
+                    evidence.Add(new(EquatableArray.From(additions.Select(c => c.Id)), vector.VectorIfPriced, ForecastPortfolioEvidence.LostToLeaderPrefix + stage));
+                }
             }
             return !ledger.Exhausted;
         }
@@ -629,22 +673,24 @@ public sealed partial record ForecastCoupledSelection
         foreach (var (goal, route) in goalRoutes)
             if (!route.Open) findings.Add(GoalInfeasiblePrefix + goal + ":" + route.Floor);
         findings.Add("beyond_horizon_unassessed");
+        // The selected and baseline vectors are public and complete (#3723): priced here when no comparison reached their ledgers.
+        var selectedVector = bestVector.Vector;
         // The harm term and the death floor are reported unassessed, with the specific finding, when the chosen outcome could not price
         // them (#3546); a break risk no mood threshold supports leaves that floor unchecked.
-        if (!bestVector.Value.Ledger.Harm.IsKnown)
+        if (!selectedVector.Value.Ledger.Harm.IsKnown)
         {
             findings.Add("harm_capability_unassessed");
-            findings.UnionWith(bestVector.Value.Ledger.HarmFindings);
+            findings.UnionWith(selectedVector.Value.Ledger.HarmFindings);
         }
-        if (!bestVector.Value.Death.Assessed) findings.Add("death_floor_unassessed");
-        if (!bestVector.Value.BreakRisk.Assessed) findings.Add("break_floor_unassessed");
+        if (!selectedVector.Value.Death.Assessed) findings.Add("death_floor_unassessed");
+        if (!selectedVector.Value.BreakRisk.Assessed) findings.Add("break_floor_unassessed");
         var deferred = DeferUnselectedPawns(candidates.Context, best.Plan);
         span?.SetTag("rimgovernor.expansions", ledger.Expansions);
         span?.SetTag("rimgovernor.evaluations", ledger.Evaluations);
         span?.SetTag("rimgovernor.schedules", schedulesByKey.Count);
         span?.SetTag("rimgovernor.truncated", truncated);
         return new(new(selected, best.Plan, default, findings.ToArray(), ledger.Expansions, truncated), baseline, best,
-            baselineVector, bestVector, EquatableArray.From(evidence), request.HorizonDays * GameTime.TicksPerDay, candidates.Truncated)
+            baselineVector.Vector, selectedVector, EquatableArray.From(evidence), request.HorizonDays * GameTime.TicksPerDay, candidates.Truncated)
         { CompositionExpansions = candidates.CompositionExpansions,
             ServiceInvestments = ForecastServiceInvestments.ServiceInvestmentsOf(baseline, best, candidates.Context, request.HorizonDays * GameTime.TicksPerDay),
             Deferred = deferred,
@@ -737,10 +783,17 @@ public sealed partial record ForecastCoupledSelection
 
     private static Fact<double> Worst(Fact<double> a, Fact<double> b) => a.IsKnown && b.IsKnown ? Known(Math.Max(a.Value, b.Value)) : default;
 
-    /// <summary>The vector, priced by the ledger against <paramref name="reference"/> when a <paramref name="context"/> is given (#3522).
+    /// <summary>The complete vector, priced by the ledger against <paramref name="reference"/> when a <paramref name="context"/> is given (#3522).
     /// Relief in <paramref name="goalRelief"/> is a goal's, valued by the ledger's goal term, not as development (#3503).</summary>
     internal static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments,
         ForecastCoupledContext? context, double horizonTicks, ForecastCoupledOutcome? reference, IReadOnlySet<string>? goalRelief)
+        => context is null ? ConsequenceTerms(outcome, commitments, null, goalRelief)
+        : StagedConsequences.Of(outcome, commitments, context, horizonTicks, reference!, ForecastValue.ReferenceHarm(reference!, context, horizonTicks), goalRelief).Vector;
+
+    /// <summary>The terms of the vector read from the outcome alone (urgency, needs, mood, development, labor, support, maintenance,
+    /// unknowns), with an empty <see cref="ForecastConsequenceVector.Value"/>: what a staged comparison has before the ledger (#3723).</summary>
+    private static ForecastConsequenceVector ConsequenceTerms(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments,
+        ForecastCoupledContext? context, IReadOnlySet<string>? goalRelief)
     {
         var rows = outcome.Needs as Dictionary<string, ForecastNeedsResult> ?? new Dictionary<string, ForecastNeedsResult>(outcome.Needs, StringComparer.Ordinal);
         var unknown = new List<string>();
@@ -796,8 +849,52 @@ public sealed partial record ForecastCoupledSelection
             moodKnown ? Known(pressure) : default, development, outcome.Plan.LaborCost, EquatableArray.Wrap(unknownRows))
         {
             BreakRisk = breakKnown ? Known(breaks) : default, ThermalOccupancy = outcome.ThermalOccupancy, Support = outcome.Support, Maintenance = outcome.Maintenance,
-            Value = context is null ? ForecastValueExplanation.Empty : ForecastValue.Explain(outcome, urgent[0], context, horizonTicks, reference!, commitments)
         };
+    }
+
+    /// <summary>
+    /// One feasible outcome as the search ranks it (#3723): the terms read from the outcome and the value's floors at construction, the
+    /// ledger and so the complete <see cref="Vector"/> only when a comparison reaches the ledger or a consumer needs the vector. A
+    /// complete vector wraps as one already priced, so <see cref="CompareConsequences(ForecastConsequenceVector, ForecastConsequenceVector)"/>
+    /// and the search share one comparator.
+    /// </summary>
+    internal sealed class StagedConsequences
+    {
+        private readonly ForecastValue.Staged? staged;
+        private ForecastConsequenceVector vector;
+
+        private StagedConsequences(ForecastConsequenceVector vector, ForecastValue.Staged? staged) { this.vector = vector; this.staged = staged; }
+
+        internal static StagedConsequences Of(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments, ForecastCoupledContext context,
+            double horizonTicks, ForecastCoupledOutcome reference, HarmDetail? referenceHarm, IReadOnlySet<string>? goalRelief)
+        {
+            var terms = ConsequenceTerms(outcome, commitments, context, goalRelief);
+            return new(terms, ForecastValue.Stage(outcome, terms.Urgent[0], context, horizonTicks, reference, referenceHarm, commitments));
+        }
+
+        /// <summary>A vector already priced, as the comparator reads it.</summary>
+        internal static StagedConsequences Complete(ForecastConsequenceVector vector) => new(vector, null);
+
+        public ForecastFloor UrgentZero => staged?.UrgentZero ?? vector.Value.UrgentZero;
+        public ForecastFloor Death => staged?.Death ?? vector.Value.Death;
+        public ForecastFloor BreakRisk => staged?.BreakRisk ?? vector.Value.BreakRisk;
+        public ForecastValuePolicy Policy => staged?.Policy ?? vector.Value.Policy;
+        public IReadOnlyList<ForecastGoalContribution> GoalContributions => staged?.GoalContributions ?? vector.Value.Ledger.GoalContributions;
+        public double Labor => vector.Labor;
+        /// <summary>The terms read from the outcome alone, valid before the ledger is priced; the complete vector once it is.</summary>
+        public ForecastConsequenceVector Terms => vector;
+        public bool LedgerPriced => staged is null || staged.LedgerPriced;
+        /// <summary>The complete vector, pricing the ledger on the first read.</summary>
+        public ForecastConsequenceVector Vector
+        {
+            get
+            {
+                if (staged is { LedgerPriced: false } s) vector = vector with { Value = s.Explanation };
+                return vector;
+            }
+        }
+        /// <summary>The complete vector when the ledger has been priced, else null: what evidence reports without pricing more.</summary>
+        public ForecastConsequenceVector? VectorIfPriced => LedgerPriced ? Vector : null;
     }
 
     /// <summary>
@@ -825,32 +922,60 @@ public sealed partial record ForecastCoupledSelection
     /// then the terms with no mechanical conversion yet, in the order below. Zero leaves the incumbent rule and labor to the caller.
     /// </summary>
     internal static int CompareConsequences(ForecastConsequenceVector a, ForecastConsequenceVector b)
+        => CompareConsequences(StagedConsequences.Complete(a), StagedConsequences.Complete(b), out _);
+
+    // The comparator's stages, as evidence names them (ForecastPortfolioEvidence.StageOf, #3723); the floors' names are the goal routes' (#3503).
+    internal const string UrgentZeroStage = "urgent_zero";
+    internal const string DeathFloorStage = "death_risk_floor";
+    internal const string BreakRiskStage = "break_risk_cap";
+    internal const string LedgerStage = "ledger";
+    internal const string IncumbentStage = "incumbent";
+    internal const string LaborStage = "labor";
+
+    /// <summary>
+    /// The comparator over staged consequences (#3723): the same order, pricing both sides' ledgers only when the floors tie, so a
+    /// comparison that needs a term evaluates it and the ledger compares the terms both sides assess. <paramref name="stage"/> names
+    /// the stage that decided, or the last stage when the result is 0 (the caller's incumbent and labor rule then decide).
+    /// </summary>
+    internal static int CompareConsequences(StagedConsequences a, StagedConsequences b, out string stage)
     {
-        var zero = a.Value.UrgentZero.Excess - b.Value.UrgentZero.Excess;
+        stage = UrgentZeroStage;
+        var zero = a.UrgentZero.Excess - b.UrgentZero.Excess;
         if (Math.Abs(zero) >= UrgentZeroResolutionTicks) return zero.CompareTo(0);
-        var floor = a.Value.Death.Excess.CompareTo(b.Value.Death.Excess); if (floor != 0) return floor;
-        floor = a.Value.BreakRisk.Excess.CompareTo(b.Value.BreakRisk.Excess); if (floor != 0) return floor;
-        if (a.Value.Ledger.LossAgainst(b.Value.Ledger).TryGetValue(out var delta) && Math.Abs(delta) > a.Value.Policy.TieResolution)
+        stage = DeathFloorStage;
+        var floor = a.Death.Excess.CompareTo(b.Death.Excess); if (floor != 0) return floor;
+        stage = BreakRiskStage;
+        floor = a.BreakRisk.Excess.CompareTo(b.BreakRisk.Excess); if (floor != 0) return floor;
+        stage = LedgerStage;
+        if (a.Vector.Value.Ledger.LossAgainst(b.Vector.Value.Ledger).TryGetValue(out var delta) && Math.Abs(delta) > a.Policy.TieResolution)
             return delta.CompareTo(0);
-        if (a.Support.UrgentFirstCareTicks.IsKnown && b.Support.UrgentFirstCareTicks.IsKnown)
-        { var rank = a.Support.UrgentFirstCareTicks.Value.CompareTo(b.Support.UrgentFirstCareTicks.Value); if (rank != 0) return rank; }
+        var (x, y) = (a.Terms, b.Terms);
+        stage = "urgent_first_care";
+        if (x.Support.UrgentFirstCareTicks.IsKnown && y.Support.UrgentFirstCareTicks.IsKnown)
+        { var rank = x.Support.UrgentFirstCareTicks.Value.CompareTo(y.Support.UrgentFirstCareTicks.Value); if (rank != 0) return rank; }
         // Relief is measured against each outcome's own unimproved rooms, so it ranks even when the sleeps differ in time.
-        if (a.Needs[0].IsKnown && b.Needs[0].IsKnown)
-        { var rank = a.Needs[0].Value.CompareTo(b.Needs[0].Value); if (rank != 0) return rank; }
-        var care = a.Support.PendingCareBatches.CompareTo(b.Support.PendingCareBatches); if (care != 0) return care;
-        if (a.Support.CareServices.Length != 0 && a.Support.CareServices == b.Support.CareServices)
+        stage = "thermal_relief";
+        if (x.Needs[0].IsKnown && y.Needs[0].IsKnown)
+        { var rank = x.Needs[0].Value.CompareTo(y.Needs[0].Value); if (rank != 0) return rank; }
+        stage = "care_batches";
+        var care = x.Support.PendingCareBatches.CompareTo(y.Support.PendingCareBatches); if (care != 0) return care;
+        if (x.Support.CareServices.Length != 0 && x.Support.CareServices == y.Support.CareServices)
         {
-            if (a.Support.TendQuality.IsKnown && b.Support.TendQuality.IsKnown)
-            { var rank = b.Support.TendQuality.Value.CompareTo(a.Support.TendQuality.Value); if (rank != 0) return rank; }
-            if (a.Support.CareRoomFactor.IsKnown && b.Support.CareRoomFactor.IsKnown)
-            { var rank = a.Support.CareRoomFactor.Value.CompareTo(b.Support.CareRoomFactor.Value); if (rank != 0) return rank; }
-            if (a.Support.SurgeryRoomFactor.IsKnown && b.Support.SurgeryRoomFactor.IsKnown)
-            { var rank = b.Support.SurgeryRoomFactor.Value.CompareTo(a.Support.SurgeryRoomFactor.Value); if (rank != 0) return rank; }
+            stage = "tend_quality";
+            if (x.Support.TendQuality.IsKnown && y.Support.TendQuality.IsKnown)
+            { var rank = y.Support.TendQuality.Value.CompareTo(x.Support.TendQuality.Value); if (rank != 0) return rank; }
+            stage = "care_room";
+            if (x.Support.CareRoomFactor.IsKnown && y.Support.CareRoomFactor.IsKnown)
+            { var rank = x.Support.CareRoomFactor.Value.CompareTo(y.Support.CareRoomFactor.Value); if (rank != 0) return rank; }
+            stage = "surgery_room";
+            if (x.Support.SurgeryRoomFactor.IsKnown && y.Support.SurgeryRoomFactor.IsKnown)
+            { var rank = y.Support.SurgeryRoomFactor.Value.CompareTo(x.Support.SurgeryRoomFactor.Value); if (rank != 0) return rank; }
         }
+        stage = "maintenance_xp";
         double missing = 0, missingOther = 0;
-        for (var i = 0; i < a.Maintenance.Count && i < b.Maintenance.Count; i++)
+        for (var i = 0; i < x.Maintenance.Count && i < y.Maintenance.Count; i++)
         {
-            var (first, second) = (a.Maintenance[i], b.Maintenance[i]);
+            var (first, second) = (x.Maintenance[i], y.Maintenance[i]);
             if (first.Requirement != second.Requirement || !first.MissingXp.IsKnown || !second.MissingXp.IsKnown) continue;
             missing += first.MissingXp.Value; missingOther += second.MissingXp.Value;
         }
@@ -859,12 +984,16 @@ public sealed partial record ForecastCoupledSelection
         // Joy threshold exposure (the longest, then the total) stays here until the mood model prices the recreation thought.
         for (var index = 2; index <= 3; index++)
         {
-            if (!a.Needs[index].IsKnown || !b.Needs[index].IsKnown) continue;
-            var rank = a.Needs[index].Value.CompareTo(b.Needs[index].Value); if (rank != 0) return rank;
+            stage = index == 2 ? "joy_exposure" : "joy_total";
+            if (!x.Needs[index].IsKnown || !y.Needs[index].IsKnown) continue;
+            var rank = x.Needs[index].Value.CompareTo(y.Needs[index].Value); if (rank != 0) return rank;
         }
-        var development = b.Development.CompareTo(a.Development); if (development != 0) return development;
-        var supply = a.Support.UnsuppliedDemand.CompareTo(b.Support.UnsuppliedDemand); if (supply != 0) return supply;
-        return a.Support.FirstCareTicks.CompareTo(b.Support.FirstCareTicks);
+        stage = "development";
+        var development = y.Development.CompareTo(x.Development); if (development != 0) return development;
+        stage = "unsupplied_demand";
+        var supply = x.Support.UnsuppliedDemand.CompareTo(y.Support.UnsuppliedDemand); if (supply != 0) return supply;
+        stage = "first_care";
+        return x.Support.FirstCareTicks.CompareTo(y.Support.FirstCareTicks);
     }
 
     public static PawnActivities? StartCoupledActivity(ForecastCoupledSelection selection,

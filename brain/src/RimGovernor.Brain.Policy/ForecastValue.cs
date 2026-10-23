@@ -244,10 +244,23 @@ public static partial class ForecastValue
     public static ForecastValueResult Of(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
         ForecastCoupledOutcome? baseline = null, IEnumerable<ForecastCommitment>? commitments = null)
     {
+        var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
+        return Ledger(outcome, context, index, horizon, baseline, HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments),
+            GoalContributionsOf(ProgressOf(outcome, context, index), context, commitments ?? []));
+    }
+
+    /// <summary>
+    /// The ledger's remaining terms around a harm term and goal contributions already priced (#3723): the comparison reads the
+    /// harm term's death floor and the goals' routes before it needs these, so a staged value (<see cref="Stage"/>) prices them
+    /// only when a comparison reaches the ledger. <see cref="Of"/> prices everything at once through this same assembly, so the
+    /// two paths produce one ledger.
+    /// </summary>
+    private static ForecastValueResult Ledger(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index, double horizon,
+        ForecastCoupledOutcome? baseline, HarmTerm harmTerm, List<ForecastGoalContribution> contributions)
+    {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var pawns = outcome.Needs.ToArray();
         Array.Sort(pawns, static (a, b) => string.CompareOrdinal(a.Key, b.Key));
-        var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
         var observed = index.Pawns;
         var tables = context.CapacityPenalties;
 
@@ -341,11 +354,8 @@ public static partial class ForecastValue
             wellbeing = known ? Known(sum) : default;
         }
 
-        var harmTerm = HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments);
         findings.UnionWith(harmTerm.Findings);
         var harm = harmTerm.Loss;
-        var progress = ProgressOf(outcome, context, index);
-        var contributions = GoalContributionsOf(progress, context, commitments ?? []);
         double earned = 0;
         foreach (var contribution in contributions) earned += contribution.Value;
         var goals = Known(-earned);
@@ -496,34 +506,77 @@ public static partial class ForecastValue
         return result;
     }
 
-    /// <summary>The ledger and the floors of one outcome, as the comparison reads them (#3522). Wellbeing is against <paramref name="reference"/>, the same for every outcome of a search.</summary>
+    /// <summary>The ledger and the floors of one outcome, as the comparison reads them (#3522), priced at once. Wellbeing is against <paramref name="reference"/>, the same for every outcome of a search.</summary>
     public static ForecastValueExplanation Explain(ForecastCoupledOutcome outcome, Fact<double> urgentZeroTicks, ForecastCoupledContext context,
         double horizon, ForecastCoupledOutcome reference, IEnumerable<ForecastCommitment>? commitments = null)
+        => Stage(outcome, urgentZeroTicks, context, horizon, reference, ReferenceHarm(reference, context, horizon), commitments).Explanation;
+
+    /// <summary>The reference outcome's harm detail the death floor is measured from (worn outfits, its own care; #3546); null when its
+    /// harm is unknown. A search prices every outcome against one reference, so it reads this once (#3723).</summary>
+    internal static HarmDetail? ReferenceHarm(ForecastCoupledOutcome reference, ForecastCoupledContext context, double horizon)
     {
-        var policy = context.Value;
-        var days = horizon / GameTime.TicksPerDay;
-        var worst = 0d;
-        var assessed = days > 0 && outcome.Needs.Count > 0;
-        foreach (var result in outcome.Needs.Values)
+        var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
+        return HarmLedger.Of(reference, context, horizon, index.Harm, index.Rows, null).Detail;
+    }
+
+    /// <summary>One outcome's value in the comparison's order (#3723): the floors and what they need now, the rest of the ledger when it is read.</summary>
+    internal static Staged Stage(ForecastCoupledOutcome outcome, Fact<double> urgentZeroTicks, ForecastCoupledContext context, double horizon,
+        ForecastCoupledOutcome reference, HarmDetail? referenceHarm, IEnumerable<ForecastCommitment>? commitments)
+        => new(outcome, urgentZeroTicks, context, horizon, reference, referenceHarm, commitments);
+
+    /// <summary>
+    /// One outcome's value as a lazy comparison reads it (#3723). Construction prices what the comparison's first stages read: the
+    /// urgent-zero floor from the timelines' zero time, the break-risk floor from the pawns' mood, the harm term and from it the
+    /// death floor against the reference's harm, and the goal contributions the goal routes read. The remaining ledger terms
+    /// (hunger, rest, raw ingredients, poisoning, thermal, breaks, wellbeing, investment) are priced once, on the first read of
+    /// <see cref="Explanation"/>, through the same assembly as <see cref="Of"/>; a comparison the floors do not decide reads it on
+    /// both sides, so a skipped term never shrinks the set of terms the ledger compares.
+    /// </summary>
+    internal sealed class Staged
+    {
+        private readonly ForecastCoupledOutcome outcome;
+        private readonly ForecastCoupledContext context;
+        private readonly LedgerIndex index;
+        private readonly double horizon;
+        private readonly ForecastCoupledOutcome reference;
+        private readonly HarmTerm harm;
+        private readonly List<ForecastGoalContribution> contributions;
+        private ForecastValueExplanation? explanation;
+
+        internal Staged(ForecastCoupledOutcome outcome, Fact<double> urgentZeroTicks, ForecastCoupledContext context, double horizon,
+            ForecastCoupledOutcome reference, HarmDetail? referenceHarm, IEnumerable<ForecastCommitment>? commitments)
         {
-            if (result.Mood is { BreakRisk: { IsKnown: true } risk } && days > 0) worst = Math.Max(worst, risk.Value / days - policy.BreakRiskCap);
-            else assessed = false;
+            this.outcome = outcome; this.context = context; this.horizon = horizon; this.reference = reference;
+            index = Indexes.GetValue(context, static c => new LedgerIndex(c));
+            var policy = context.Value;
+            var days = horizon / GameTime.TicksPerDay;
+            var worst = 0d;
+            var assessed = days > 0 && outcome.Needs.Count > 0;
+            foreach (var result in outcome.Needs.Values)
+            {
+                if (result.Mood is { BreakRisk: { IsKnown: true } risk } && days > 0) worst = Math.Max(worst, risk.Value / days - policy.BreakRiskCap);
+                else assessed = false;
+            }
+            harm = HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments);
+            contributions = GoalContributionsOf(ProgressOf(outcome, context, index), context, commitments ?? []);
+            UrgentZero = new(urgentZeroTicks.IsKnown, urgentZeroTicks.IsKnown ? Math.Max(0, urgentZeroTicks.Value) : 0);
+            BreakRisk = new(assessed, worst);
+            // The death floor: expected deaths a day above the reference's (worn outfits, its own care), beyond what the policy allows.
+            Death = harm.Detail is { } detail && referenceHarm is { } before
+                ? new(true, Math.Max(0, detail.DeathsPerDay - before.DeathsPerDay - policy.DeathRiskFloor)) : new(false, 0);
         }
-        var ledger = Of(outcome, context, horizon, reference, commitments);
-        // The death floor: expected deaths a day above the reference's (worn outfits, its own care), beyond what the policy allows.
-        var death = new ForecastFloor(false, 0);
-        if (ledger.HarmDetail is { } harm)
-        {
-            var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
-            if (HarmLedger.Of(reference, context, horizon, index.Harm, index.Rows, null).Detail is { } before)
-                death = new(true, Math.Max(0, harm.DeathsPerDay - before.DeathsPerDay - policy.DeathRiskFloor));
-        }
-        return new(ledger, policy)
-        {
-            UrgentZero = new(urgentZeroTicks.IsKnown, urgentZeroTicks.IsKnown ? Math.Max(0, urgentZeroTicks.Value) : 0),
-            BreakRisk = new(assessed, worst),
-            Death = death,
-        };
+
+        public ForecastValuePolicy Policy => context.Value;
+        public ForecastFloor UrgentZero { get; }
+        public ForecastFloor BreakRisk { get; }
+        public ForecastFloor Death { get; }
+        /// <summary>The goals the outcome progresses, as <see cref="ForecastValueResult.GoalContributions"/> will carry them.</summary>
+        public IReadOnlyList<ForecastGoalContribution> GoalContributions => contributions;
+        /// <summary>Whether the remaining ledger terms have been priced.</summary>
+        public bool LedgerPriced => explanation is not null;
+        /// <summary>The complete explanation, pricing the remaining ledger terms on the first read.</summary>
+        public ForecastValueExplanation Explanation => explanation ??= new(Ledger(outcome, context, index, horizon, reference, harm, contributions), Policy)
+            { UrgentZero = UrgentZero, BreakRisk = BreakRisk, Death = Death };
     }
 
     private static ForecastNeedMetric? Need(ForecastNeedsResult result, string kind)

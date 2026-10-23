@@ -61,11 +61,13 @@ search took 5–29 s per review in game while the clock ran.
 ### Safety floors
 
 These are hard constraints on the tier-1 schedule and the tier-2 trajectory. Tier 1 checks them on every
-evaluated outcome (`ForecastValue.Explain`); an outcome that breaks one loses to any outcome that does not, and
-when both break one the smaller excess wins. A floor that cannot be checked is not treated as passed: the review
-reports `break_floor_unassessed` (a mood break risk with no observed threshold) and `death_floor_unassessed` (the harm
-term is unknown), and the outcome is ranked on what remains. Pruning partial portfolios on a floor waits for the search
-stage 3 ([#3472](https://github.com/davidarcher/rimgovernor/issues/3472)).
+evaluated outcome, and first: the search prices an outcome's floors, harm and goal terms when it evaluates it
+(`ForecastValue.Stage`) and the rest of the ledger only when a comparison reaches the ledger or a consumer needs the
+complete vector (`ForecastValue.Explain` is the eager form, the same ledger assembled at once; #3723). An outcome that
+breaks a floor loses to any outcome that does not, and when both break one the smaller excess wins. A floor that cannot
+be checked is not treated as passed: the review reports `break_floor_unassessed` (a mood break risk with no observed
+threshold) and `death_floor_unassessed` (the harm term is unknown), and the outcome is ranked on what remains. Pruning
+partial portfolios on a floor waits for the search stage 3 ([#3724](https://github.com/davidarcher/rimgovernor/issues/3724)).
 
 - No pawn's food or rest reaches zero, unless every feasible portfolio does.
   Then the least zero-time wins, as today. Zero-times less than a tick apart are the same
@@ -578,9 +580,29 @@ baselines, and benchmarked at a one-day horizon in .NET
      default is 8,192 evaluations and 65,536 expansions
      ([derivation](../testing/portfolio-allocations.md#outcome-evaluation-budget-3722));
      the tuning on measured quality and cost is #3725.
-   - Floors and cheap terms are computed first; a candidate that cannot beat
-     the best on its bound stops early (branch and bound on capability-days;
-     #3723, #3724).
+   - **Lazy outcome evaluation** ([#3723](https://github.com/davidarcher/rimgovernor/issues/3723), shipped).
+     An evaluated outcome is priced in the comparator's order: the urgent-zero
+     time, the harm term with the death excess, the break-risk excess and the
+     goal terms at evaluation; the remaining ledger terms (hunger, rest, raw
+     ingredients, poisoning, thermal, breaks, wellbeing, investment) only when a
+     comparison against the leader reaches the ledger, or when a consumer needs
+     the complete vector (the selected and baseline outcomes, every
+     `coupled_selection` vector, `ForecastServiceInvestments`,
+     `DeferUnselectedPawns`, residual evidence). The reference's harm is priced
+     once per search. One comparator decides both forms, so the lazy search
+     selects what the eager control selects, with the same evidence rows,
+     findings and #3722 counts (a started evaluation costs one unit wherever its
+     comparison stops); the eager form exists only as a test control
+     (`CompareActivityOutcomesEagerly`). A loser decided at a floor is reported
+     with `lost_to_leader:<stage>` and no vector rather than a complete
+     zero-valued one; `ForecastPortfolioEvidence.StageOf` reads the stage, the
+     hook for a finalist collector (#3720). Measured on the four-worker fixture
+     at 700 ticks: 435 of the 2,923 ranked losers (15%) stop at a floor and never
+     price their ledger; the other 2,488 reach it. Both pinned allocation
+     baselines are unchanged
+     ([portfolio allocations](../testing/portfolio-allocations.md#lazy-outcome-evaluation-3723)).
+   - A partial portfolio that cannot beat the best on its bound stops early
+     (branch and bound on capability-days; #3724).
 
 ## Observation gaps
 

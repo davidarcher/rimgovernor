@@ -365,6 +365,15 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
 - `ForecastValueExplanation.Death` is assessed when the outcome's and the reference's `Harm` are: its excess is the expected deaths per
   day (raids per day × Σ death probability) above the reference's, minus `DeathRiskFloor`, floored at 0. The reference wears the
   worn outfits. `CompareConsequences` ranks the floors urgent zero, death, break risk, in that order, before the ledger.
+- The search evaluates an outcome in that order (#3723): `ForecastValue.Stage` prices the urgent-zero time, the harm term and death
+  excess, the break-risk excess and the goal terms at evaluation, and the remaining ledger terms on the first read of the
+  explanation, which a comparison forces only when it reaches the ledger (`LossAgainst` over the terms both sides assess, with
+  `TieResolution`) and a consumer forces when it needs the complete vector. The reference's harm (`ForecastValue.ReferenceHarm`)
+  is priced once per search and shared by every outcome's death floor. A missing term or an unknown floor is never a failed floor
+  or a zero loss, and a comparison that needs a term evaluates it; a skipped term never shrinks the assessed set. Rejected-subset
+  evidence (`ForecastPortfolioEvidence.Reason`) is `infeasible_or_unassessed`, `construction_without_supported_service_relief:<ids>`
+  or `lost_to_leader:<stage>`; `StageOf` reads the stage (`urgent_zero`, `death_risk_floor`, `break_risk_cap`, `ledger`, an
+  unconverted term, `incumbent`, `labor`), and a subset decided at a floor has no `Consequences` (`Assessed` is still true).
 - `ForecastValueResult.HarmDetail` (`raids_per_day`, `exposure_range`, `down_probability`, `death_probability`, `cvar`) is reported
   as `harm_detail` ([otel-signals](otel-signals.md)). Until the exposure table is calibrated (#3543) every cell is uncalibrated, so
   a served review reports `exposure_cell_uncalibrated:…` and `harm` null.
