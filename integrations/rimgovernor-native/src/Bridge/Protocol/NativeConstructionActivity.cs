@@ -588,7 +588,8 @@ internal static class NativeConstructionActivity
             var finish = finishGiver != null && ConstructionSkillGuard.Capability(pawn) == true && site.Finishes(pawn)
                 && (pawn.skills?.GetSkill(SkillDefOf.Construction).Level ?? 0) >= site.Definition.constructionSkillPrerequisite;
             var factor = 1.7 * (site.Stuff?.GetStatValueAbstract(StatDefOf.ConstructionSpeedFactor) ?? 1f);
-            var speed = pawn.GetStatValue(StatDefOf.ConstructionSpeed) * factor;
+            // Only a finisher reads ConstructionSpeed: a hauling-only pawn (Construction disabled) has the stat disabled.
+            var speed = finish ? pawn.GetStatValue(StatDefOf.ConstructionSpeed) * factor : 0;
             var skillWork = finish ? NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Construction, StatDefOf.ConstructionSpeed,
                 site.Work, factor, site.PaysXp ? 0.25 : 0, true, false, "JobDriver_ConstructFinishFrame: learning before construction work") : null;
             if (skillWork != null) skillWork = skillWork with { WorkQuantum = site.WorkQuantum };
