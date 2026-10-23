@@ -1069,3 +1069,49 @@ coverage gaps. Reproduce its complete retained-window report with
 `RimGovernor.cmd forecastresiduals -logs <case-output>/otlp/logs.jsonl`.
 The initial attempt failed before service start because thirty meals exceeded
 a single native stack; no gameplay evidence came from that attempt.
+
+### Native food-stock correlation rerun (#3475)
+
+The run above predates live food-stock evidence: its FoodStock rows were all
+`food_stock_prediction_unavailable`. After `ea9f42eff` made the detailed
+evaluator export eligible per-resource lots, the same case was rerun once on
+2026-10-22 and passed in 107 seconds against a native package built from a
+clean `739274879` source tree (current main). Same staging: seed
+`rimgovernor-lab`, fixture hash `62909b3739019f84`, save SHA256
+`6c889715a93d8de0306f49a3e53e7ecfe482537330a7012c8fbf20fccb7d676d` (the lab
+save regenerated for the rebuilt package), all installed DLC active, three
+colonists, one staged tired. No fixture mutation or extra scheduler wake after
+service start; the game log carries no error.
+
+The registered offline reader over the retained `otlp/logs.jsonl` (15,235,238
+bytes) decoded 469 predictions and 273 observations across 27 reviews with
+zero reader gaps; every observation matched a prediction. FoodStock has 27
+prediction rows, all known, for the one eligible resource (`MealSurvivalPack`,
+unit `items`, scope `map_food_supply/eligible_nonreserve/holder_and_diet/v1`);
+no FoodStock row reports a prediction, census or eligibility unknown. The three
+initial reviews (origin tick 0) predicted 25, 30 and 30 items at target 60,000
+and the first ordinary read observed 17 items at tick 60,990 through the same
+scope, provenance `rounds_native_observation`. These three are timing
+mismatches with 990 ticks of lag, so no aligned scalar FoodStock statistic
+exists; the other 24 FoodStock targets (63,000 and later) had not elapsed.
+The eligible count fell from 30 staged packs to 17; the run records that
+count, not its cause. The same read supplied nine known food-level, nine
+rest-level and nine actual-mood rows at the same lag (nine Replaced, 18
+Unknown). Task completion has 26 genuine intervals across 20 task identities
+(16 Consistent, 10 Unknown); the first sleeping task was predicted at
+11,213.249 and observed complete in (10,966, 11,400], an observed-minus-predicted
+interval (-247.249, 186.751]. 74 bound task rows lack completion evidence (55
+without an execution identity, 19 diverged), 196 later targets had no
+observation, and 143 predictions remain unknown (`mood_prediction_unavailable`
+50, `temperature_prediction_unavailable` 93). Shelter temperature is still
+predicted for no room. No scalar error or accuracy threshold was manufactured.
+
+The embedded `forecast_residuals` block in `result.json` reports 450
+predictions and eleven `missing_prediction` gaps, all for the final review
+`1/27`. The case probe reads the prediction and observation kinds as two ring
+snapshots, and the second snapshot saw review 27's immediate gap observations
+before the first had its 19 predictions; the whole-log reader has them and
+reports no gap. Treat the reader output, not the probe's snapshot, as the
+run's count. Artifacts (passing `result.json`, `otlp/logs.jsonl`,
+`native-residual-report.json`) stay under the worktree's
+`.rimgovernor/forecast-evidence-3475/`, uncommitted.
