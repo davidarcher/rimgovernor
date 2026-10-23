@@ -21,6 +21,10 @@ public sealed class PortfolioAllocationTests
     /// converges the four-worker fixture and finishes the eight-root fixture's sweep, and a ceiling nothing reaches. They are not the
     /// former expansion rows restated: see portfolio-allocations.md.</summary>
     internal static readonly int[] Budgets = [256, 1024, 2048, 4096, 8192, 16384, 65536];
+    /// <summary>The traversal bounds the production-horizon and planned-shelter matrices cross with <see cref="Budgets"/> (#3725): one
+    /// full-bound schedule search (4,096, the per-portfolio scheduler bound), the expansion default before #3563 (16,384) and the
+    /// production bound (65,536).</summary>
+    internal static readonly int[] Traversals = [4096, 16384, ForecastSearchBudget.DefaultTraversal];
     private static readonly JsonSerializerOptions Json = new()
     {
         WriteIndented = true,
@@ -119,17 +123,34 @@ public sealed class PortfolioAllocationTests
             }, Json));
             // The pinned baseline (Baselines/<fixture>.quality.json): the rows without their timings, ready to copy in when re-pinning.
             File.WriteAllText(Path.Combine(output, name + ".quality.json"), JsonSerializer.Serialize(rows.Select(r => new { r.EvaluationBudget, r.Traversal, r.Quality }).ToArray(), Json));
-            // One-day horizon (#3467): the production review horizon, at the default budget only.
+            // One-day horizon (#3467): the production review horizon, over the budgets and traversal bounds (#3725); the production
+            // default is the 8,192 x 65,536 row.
             var day = Measure(() => ForecastCoupledCandidates.GenerateCoupledActivities(facts, GameTime.TicksPerDay)!);
-            var dayCandidates = day.Result.Priced(GameTime.TicksPerDay);
-            var dayRequest = Request(facts, dayCandidates, GameTime.TicksPerDay);
-            var daySelection = Measure(() => ForecastCoupledSelection.CompareActivityOutcomes(dayRequest, dayCandidates));
-            File.WriteAllText(Path.Combine(output, name + ".one-day.measurements.json"), JsonSerializer.Serialize(new
-            {
-                GenerationBytes = day.Bytes, GenerationMilliseconds = day.Milliseconds,
-                daySelection.Bytes, daySelection.Milliseconds, Quality = Quality(dayCandidates, daySelection.Result)
-            }, Json));
+            WriteMatrix(Path.Combine(output, name + ".one-day.measurements.json"), facts, day.Result.Priced(GameTime.TicksPerDay), GameTime.TicksPerDay, day);
         }
+        // The third workload (#3725): the planned-shelter fixture as its tests build it, at its own horizon. Its ten roots' schedule
+        // searches cost a few expansions each, so the cardinality sweep is affordable and the budget decides whether it runs (the
+        // fixture family #3722's 2,048 attempt regressed). Generation is measured apart; the matrix uses the fixture's own candidates.
+        var shelter = PlannedShelterTests.UnplacedHeatedRoom();
+        var shelterGeneration = Measure(() => ForecastCoupledCandidates.GenerateCoupledActivities(shelter, PlannedShelterTests.Horizon)!);
+        WriteMatrix(Path.Combine(output, "planned-shelter.measurements.json"), shelter, shelter.CoupledAlternatives!, PlannedShelterTests.Horizon, shelterGeneration);
+    }
+
+    /// <summary>Selection over <see cref="Budgets"/> x <see cref="Traversals"/> on one generated workload: each row's budget in both units, its
+    /// three allocation and time samples and the complete selected quality, after the generation's own samples.</summary>
+    private static void WriteMatrix(string path, RoundsFacts facts, ForecastCoupledCandidates generated, double horizon,
+        (ForecastCoupledCandidates Result, long[] Bytes, double[] Milliseconds) generation)
+    {
+        var request = Request(facts, generated, horizon);
+        var rows = Traversals.SelectMany(traversal => Budgets.Select(budget =>
+        {
+            var measured = Measure(() => ForecastCoupledSelection.CompareActivityOutcomes(request, generated, new(budget, traversal)));
+            return new { EvaluationBudget = budget, Traversal = traversal, measured.Bytes, measured.Milliseconds, Quality = Quality(generated, measured.Result) };
+        })).ToArray();
+        File.WriteAllText(path, JsonSerializer.Serialize(new
+        {
+            Horizon = horizon, GenerationBytes = generation.Bytes, GenerationMilliseconds = generation.Milliseconds, Rows = rows
+        }, Json));
     }
 
     [Fact]

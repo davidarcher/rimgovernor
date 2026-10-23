@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>A planned shelter built from its planned sites (#3277): no placed shell blueprint, a heater standing inside.</summary>
 public sealed class PlannedShelterTests
 {
-    private const double Horizon = 1000;
+    internal const double Horizon = 1000;
     private static readonly Cell Inside = new(1, 1);
     private static readonly Cell WallCell = new(0, 1);
     private static readonly Cell DoorCell = new(2, 1);
@@ -104,6 +104,11 @@ public sealed class PlannedShelterTests
         return facts with { CoupledAlternatives = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)?.Priced() };
     }
 
+    /// <summary>The unplaced planned room with its planned heater (#3323): wall, door, roof and heater sites, the room alternative and the
+    /// pawn's rest, ten roots whose schedule searches cost a few expansions each, so the cardinality sweep is affordable and the budget
+    /// decides whether it runs. The third workload of the allocation measurements (<see cref="PortfolioAllocationTests"/>, #3725).</summary>
+    internal static RoundsFacts UnplacedHeatedRoom() => Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof(), Heater(50)], unplaced: true);
+
     private static ForecastCoupledSelection Select(RoundsFacts facts) => ForecastCoupledSelection.CompareActivityOutcomes(
         ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new()), facts.CoupledAlternatives!);
@@ -162,7 +167,7 @@ public sealed class PlannedShelterTests
     public void AnUnplacedPlannedRoomWithAPlannedHeaterIsAValuedShelterBuiltByOneBuilder()
     {
         // #3323: no blueprint, frame or heater stands; the planned thermal read gives the cells and the planned heater.
-        var facts = Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30), Roof(), Heater(50)], unplaced: true);
+        var facts = UnplacedHeatedRoom();
         var candidates = facts.CoupledAlternatives!;
         var plan = Assert.Single(candidates.Context.Shelters);
         Assert.Equal("planned/1", plan.Room.ToString());

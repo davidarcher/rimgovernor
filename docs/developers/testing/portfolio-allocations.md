@@ -722,7 +722,9 @@ only differences above that resolution decide.
 ## Wasted needs work removed (#3467)
 
 `MeasureWarmedAllocationMatrix` also writes `<fixture>.one-day.measurements.json`: generation
-and default-budget selection at the production one-day horizon, with the same quality row.
+and selection at the production one-day horizon, with the same quality row (since #3725 over
+the budget and traversal matrix, [below](#default-budget-tuning-3725); the production default
+is the 8,192 × 65,536 row).
 
 Stage 1 of the [forecast value search engine](../architecture/forecast-value.md#search-engine)
 stops three kinds of wasted work:
@@ -1316,4 +1318,233 @@ The roughly 13,000 evaluations the former default was worth on the planned-shelt
 is the estimate from the 2,048 attempt, not a pinned measurement. No native run was made for
 #3722 or #3724; in game the allowance, the skipped subsets and the unavailable bounds are
 reported on every `rounds_review` and `coupled_selection` row
-([signals](../contracts/otel-signals.md#kinds)), and the nightly supplies that evidence.
+([signals](../contracts/otel-signals.md#kinds)); the #3725 run below observed them on one
+case, and the nightly supplies the rest.
+
+## Default budget tuning (#3725)
+
+Measured on 2026-10-23 on DAVID-PC (Release, .NET 10.0.12, 32 logical processors, no other
+game or test run on the machine) with the gate's Release build of this change
+(`environment.json`: measured assembly `b8807e155` plus the uncommitted measurement edits;
+the policy assembly is `b8807e155`'s, unchanged by #3725). The baseline is `739274879`, the
+parent of #3722 with the 65,536-expansion default: its recorded counts are expansions, with
+the outcome evaluations its code spent where the #3722 probe measured them; both units are
+shown side by side and never equated. Every row is one warmup and three samples under the
+[Reproduce](#reproduce) protocol; MB is the median of three, ms the range of three. Raw
+outputs stay under the worktree's `.rimgovernor/portfolio-3725/` and
+`.rimgovernor/acceptance-3725/`, uncommitted.
+
+### Workloads and budgets
+
+| Workload | Horizon (ticks) | Roots | Tasks | Options | Workers | Composition expansions | Generation MB / ms |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| Original fixture | 60,000 (one day) | 11 | 18 | 21 | 2 | 686 | 2.0 / 1.2 to 1.3 |
+| Four-worker fixture | 60,000 (one day) | 91 | 117 | 187 | 4 | 5,654 | 19.2 / 7.4 to 11.3 |
+| Planned shelter | 1,000 | 10 | 7 | 7 | 1 | 132 | 0.5 / 0.4 |
+
+The third workload is `PlannedShelterTests.UnplacedHeatedRoom` (the #3323 fixture: wall,
+door, roof and heater sites, the room alternative, the pawn's rest), chosen because it is a
+different family from the food fixtures (construction and rest, one builder), it is the one
+measured workload whose cardinality sweep is affordable, so the budget decides whether the
+sweep runs rather than how far the extension gets, and it is the fixture family whose
+default-budget tests regressed in #3722's 2,048 attempt. It is measured at its tests'
+1,000-tick horizon with the candidates its tests build (priced at the generation default),
+not at one day.
+
+`MeasureWarmedAllocationMatrix` crosses `PortfolioAllocationTests.Budgets` (256, 1,024,
+2,048, 4,096, 8,192, 16,384, 65,536 evaluations) with `Traversals` (4,096, one full-bound
+schedule search; 16,384, the expansion default before #3563; 65,536, the production bound)
+on the two one-day workloads and the shelter: 21 rows each, written to
+`<fixture>.one-day.measurements.json` and `planned-shelter.measurements.json`. The 700-tick
+pinned matrices keep the default traversal. Phases below are expansions / schedule searches /
+outcome evaluations.
+
+### Original fixture, one day
+
+Every one of the 21 rows selects `composition/1` + `composition/6` (2 ingestions, labor 206,
+completed at tick 500) with the same selected vector; one seed subset is pruned in every row.
+
+| Traversal | Evaluation budget | Outcome evaluations | Expansions | Seed | Extend | Confirm | Findings | MB | ms |
+| ---: | ---: | ---: | ---: | --- | --- | --- | --- | ---: | --- |
+| 4,096 | 256 | 257 | 4,096 | 195 / 7 / 65 | 192 / 17 / 31 | 3,709 / 1 / 160 | evaluations and traversal exhausted | 9.5 | 6.6 to 11.5 |
+| 4,096 | 1,024 to 65,536 | 938 | 4,096 | 387 / 10 / 119 | 192 / 17 / 31 | 3,517 / 1 / 787 | traversal exhausted (the confirm cut) | 22.5 | 16.5 to 29.1 |
+| 16,384 or 65,536 | 256 | 257 | 4,483 | 195 / 7 / 65 | 192 / 17 / 31 | 4,096 / 1 / 160 | evaluations exhausted | 10.0 | 6.4 to 14.6 |
+| 16,384 or 65,536 | 1,024 | 1,025 | 4,675 | 387 / 10 / 119 | 192 / 17 / 31 | 4,096 / 1 / 874 | evaluations exhausted | 24.6 | 19.3 to 37.9 |
+| 16,384 or 65,536 | 2,048 to 65,536 | 1,067 | 4,675 | 387 / 10 / 119 | 192 / 17 / 31 | 4,096 / 1 / 916 | truncated (sweep unaffordable), neither exhausted | 25.4 | 18.8 to 31.4 |
+
+The search converges by 2,048 evaluations and 4,675 expansions; nothing above changes any
+count. The 4,096 traversal cuts the confirm's schedule search (3,517 of its 4,096
+expansions) without moving the selection.
+
+### Four-worker fixture, one day
+
+Nothing is served in any row, as under the former default: the selection is empty, labor 0,
+and the selected vector is the baseline's (`[59,625, 14,921.875, 59,750, 119,500, 0]`). The
+seed pass screens single roots until its share of the allowance ends (a quarter of the
+evaluations left and a quarter of the traversal left, whichever ends first) and the unserved
+pass finds nothing to extend. Nothing is pruned. The budget decides how many roots are
+screened, not the result:
+
+| Traversal | Evaluation budget | Roots screened | Outcome evaluations | Expansions | MB | ms |
+| ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| 4,096 | 256 | 4 | 69 | 256 | 2.0 | 1.5 to 1.6 |
+| 4,096 | 1,024 to 65,536 | 14 | 193 | 1,024 | 7.6 | 5.8 to 6.2 |
+| 16,384 or 65,536 | 256 | 4 | 69 | 256 | 2.0 | 1.5 to 13.1 |
+| 16,384 or 65,536 | 1,024 | 19 | 263 | 1,472 | 11.1 | 8.6 to 12.3 |
+| 16,384 or 65,536 | 2,048 | 36 | 525 | 2,368 | 17.8 | 13.7 to 27.6 |
+| 16,384 or 65,536 | 4,096 | 59 | 1,036 | 3,840 | 29.7 | 24.0 to 29.4 |
+| 16,384 | 8,192 to 65,536 | 63 | 1,126 | 4,096 | 31.9 | 25.3 to 31.0 |
+| 65,536 | 8,192 to 65,536 | 91 (all) | 1,728 | 5,888 | 47.4 | 39.4 to 58.3 |
+
+Every row reports `portfolio_search_truncated` and no exhaustion finding (the seed share is
+a share, not the allowance's end). Only the production pair, 8,192 evaluations at the 65,536
+traversal, screens every root (the former default's 1,728 evaluations); the 16,384 traversal
+stops at 63 roots and 4,096 at 14.
+
+### Planned shelter
+
+Every row selects the complete shelter (`planned/room1` heater, door, roof and wall, and
+`need/pawn/bed/1`; labor 450, completed at tick 450) with the same vector, through seed
+77 / 8 / 19, extend 292 / 7 / 43 and confirm 412 / 1 / 80. The budget decides only whether
+the cardinality sweep runs:
+
+| Traversal | Evaluation budget | Outcome evaluations | Expansions | Sweep | Findings | MB | ms |
+| ---: | ---: | ---: | ---: | --- | --- | ---: | --- |
+| 4,096 or 16,384 | any | 143 | 781 | skipped | truncated | 4.0 | 2.5 to 5.6 |
+| 65,536 | 256 to 4,096 | 143 | 781 | skipped | truncated | 4.0 | 3.9 to 6.3 |
+| 65,536 | 8,192 to 65,536 | 485 | 2,669 | finished: 1,888 / 23 / 342, 17 subsets and prefixes pruned | none (search complete) | 17.3 | 8.5 to 14.5 |
+
+The sweep confirms the extension's selection here at 3.4 times the evaluations and three
+to four times the time. The affordability gate prices the subsets not yet evaluated at the
+mean cost per evaluated subset so far, in evaluations and in expansions; on this fixture
+that estimate is several times the sweep's actual cost (342 evaluations and 1,888
+expansions, most subsets pruned or cached), so at 4,096 evaluations or the 16,384 traversal
+the gate refuses a sweep both allowances could pay for. The estimate is unchanged by #3725
+(changing it changes which reviews sweep and needs its own evidence); the production pair
+runs the sweep where the former default did, as the #3722 decision requires.
+
+### 700-tick rows (default traversal)
+
+The pinned matrices regenerated in the same run match the #3724 pins row for row (same
+selections, counts and phases: original 749 / 4,487 at 1,024 to 8,192 and 7,713 / 39,809 at
+16,384 and 65,536; four-worker 257 / 1,024, 1,025 / 4,160, 2,049 / 9,728, 2,687 / 11,264 and
+2,823 / 11,648 from 8,192 up), so neither JSON was re-pinned. Times in this run: original
+25 to 27 ms at 256, 48 to 78 ms from 1,024 to 8,192 (18.6 MB), 181 to 387 ms with the sweep
+(161 to 163 MB); four-worker 7.5 to 9.7 ms at 256, 29 to 35 ms at 1,024, 68 to 81 ms at
+2,048, 86 to 110 ms at 4,096 and 85 to 99 ms from 8,192 up (90.1 MB).
+
+### Against the baseline `739274879`
+
+The baseline's expansions and the evaluations its code spent are the #3722 probe's; its MB
+and ms are the #3563 record at one day (an earlier commit of the same expansion-budgeted
+search; `739274879`'s own timings were not recorded). The candidate is this change at the
+production pair.
+
+| Workload | Baseline: expansions (evaluations spent) | Baseline MB / ms | Candidate: evaluations / expansions | Candidate MB / ms | Selection |
+| --- | --- | --- | --- | --- | --- |
+| Original, one day | 4,768 (1,081) | 13.0 / 33 (#3563 record) | 1,067 / 4,675 | 25.4 / 19 to 24 | same (`/1` + `/6`) |
+| Four-worker, one day | 5,723 (1,728) | 30.7 / 87 (#3563 record) | 1,728 / 5,888 | 47.4 / 39 to 45 | same (nothing served) |
+| Original, 700 | not recorded (763) | not recorded | 749 / 4,487 | 18.6 / 64 to 72 | same |
+| Four-worker, 700 | 12,899 (3,138) | not recorded | 2,823 / 11,648 | 90.1 / 88 to 95 | same |
+| Planned shelter | not recorded | not recorded | 485 / 2,669 | 17.3 / 9 to 15 | the complete shelter, as its tests pin |
+
+The baseline has no evaluation counter and was not built for the shelter workload; its
+expansion default (65,536) afforded that sweep by construction (2,669 expansions). The
+one-day allocation rose between the #3563 and #3722 records (13.0 → 26.7 MB on the original
+fixture), not in #3724 or here.
+
+### In game: `production/coupled-needs`, candidate only
+
+The case: the one production case whose selection reader is `CoupledSelections`
+(`coupled_selection` rows, [signals](../contracts/otel-signals.md#kinds)) and whose brain
+runs a coupled review on every review with Food, Rest and Joy kept. One run on 2026-10-23
+12:39Z from this worktree's private root (`acceptance setup -rebuild`, fixture build
+`b8807e155`, dirty tree: the measurement edits above, policy unchanged), lab start seed
+`rimgovernor-lab` with three colonists, 20,000 ticks, PASS in 55.2 s of wall time, service
+instance `d489418aa7bd4862b11cfdba29b30553`, every row at `coupled_evaluation_budget` 8,192
+and `coupled_traversal_bound` 65,536. The retained `otlp/logs.jsonl` holds 11 `rounds_review`
+rows and 8 `coupled_selection` decisions; `otlp/traces.jsonl` holds the 11 `coupled.select`
+spans (tags `rimgovernor.roots`, `evaluations`, `expansions`, `schedules`), each the child of
+a `rounds.review` span inside a `scheduler.step` span.
+
+| Review (tick) | Roots | Outcome evaluations | Expansions | Schedule searches | Selected phase | `coupled.select` ms | `inspect_ms` | `rounds.review` ms | `scheduler.step` ms |
+| --- | ---: | ---: | ---: | ---: | --- | ---: | ---: | ---: | ---: |
+| 1 (0) | 148 | 3,341 | 20,385 | 526 | extend (30 pruned, 395 unbounded) | 734.7 | 774.6 | 3,444.1 | 3,757.3 |
+| 2 (0) | 0 | 1 | 0 | 0 | baseline | 13.7 | 15.1 | 492.2 | 793.7 |
+| 3 (0) | 24 | 47 | 70 | 24 | baseline | 22.6 | 23.8 | 341.6 | 350.0 |
+| 4 (3,000) | 26 | 47 | 72 | 26 | baseline | 18.8 | 21.1 | 396.1 | 621.8 |
+| 5 (3,000) | 24 | 45 | 68 | 24 | baseline | 10.0 | 11.1 | 368.7 | 371.6 |
+| 6 (6,000) | 58 | 1,176 | 9,846 | 254 | extend | 259.8 | 261.0 | 488.8 | 567.6 |
+| 7 (6,000) | 58 | 464 | 3,890 | 113 | warm | 83.0 | 84.6 | 223.2 | 225.8 |
+| 8 (9,000) | 60 | 1,236 | 10,250 | 264 | extend | 194.1 | 195.1 | 383.7 | 461.0 |
+| 9 (9,240) | 60 | 850 | 6,938 | 163 | extend | 166.4 | 167.6 | 331.1 | 501.0 |
+| 10 (12,240) | 58 | 848 | 6,706 | 157 | extend | 125.5 | 126.8 | 331.4 | 456.1 |
+| 11 (15,240) | 79 | 839 | 13,922 | 361 | extend (52 pruned) | 158.4 | 159.6 | 366.1 | 409.8 |
+
+Attribution: `inspect_ms` is the coupled search (it exceeds the `coupled.select` span by
+1 to 2 ms in every review but the first, where the difference is 40 ms), and the search is
+21% of the first review's `rounds.review` span
+and 3% to 53% of the later ones; the rest of a review and the `scheduler.step` around it are
+not search time and were not measured apart. Within the search, schedule searches are about
+nine tenths of the time (`search_profile.schedule_ms`: 371.6 of the first review's 403.4 ms
+extension, 181.9 of its 192.3 ms seed), so a review's cost tracks expansions more than
+evaluations. No review reached either allowance: the most was 3,341 evaluations (41% of
+8,192) and 20,385 expansions (31% of 65,536), with no `outcome_evaluations_exhausted` or
+`traversal_bound_exhausted` anywhere; every review reported `portfolio_search_truncated`
+(the sweep is never affordable at 24 to 148 roots), and the selection came from the
+extension in 6 reviews, the warm start in 1 and the baseline in 4. Expansions per evaluation
+ran from 1.5 (the seed-only reviews) to 16.6 (review 11), above the fixtures' 3.3 to 5.2, so
+in game the traversal bound is the nearer ceiling: a 16,384 traversal would have cut the
+first review. The #3724 bound was available in no review (`bounds_unavailable`:
+`urgent_zero_unserved:rest_service_in_closure`, since every pawn's rest is in the closure
+here) and pruned 82 subsets in two reviews.
+
+Baseline side: no same-case rows for `739274879` or earlier exist in the repository or under
+any `.rimgovernor/` on this machine (the only retained `production/coupled-needs` outputs,
+in another worktree's `coupled-after-*` directories, failed at `test/portfolio_needs_prepare`
+with no `otlp/` directory), the brain-host.md colony-review rows are another case and build,
+and the baseline was not rebuilt natively here (a fixture rebuild and a game run on the shared
+machine for a comparison the nightly makes). The in-game comparison is therefore candidate
+only; #3472 stays open for the nightly's baseline-side rows.
+
+### Decision: keep 8,192 evaluations and 65,536 expansions
+
+`DefaultEvaluations = 8192` and `DefaultTraversal = 65536` are unchanged.
+
+- Evaluations. Every measured workload converges below the allowance at the default
+  traversal (2,823 at most at 700 ticks, 1,728 at one day, 485 on the shelter with its sweep)
+  and the in-game maximum was 3,341 (41%); nothing was exhausted anywhere. 4,096 keeps every
+  measured selection but refuses the shelter sweep the #3722 decision requires and leaves 6
+  of the 62 four-worker roots unscreened at 700 ticks (converged nonetheless); 2,048 cuts the
+  four-worker confirm (`outcome_evaluations_exhausted`) and regressed four default-budget
+  tests in #3722. 16,384 changes no selection in any row of any workload; its one effect is to
+  afford the original fixture's 700-tick sweep (749 → 7,713 evaluations, 4,487 → 39,809
+  expansions, 18.6 → 162 MB, about 65 → 180 to 390 ms) that confirms the same selection, and
+  no in-game review would have spent it. The #3563 colony-review's heaviest review (34,932
+  expansions) has no recorded evaluation count: at this run's 6 to 17 expansions per
+  evaluation it would be 2,100 to 5,800 evaluations, inside 8,192; at the fixtures' 3.3 it
+  would not be. Whether colony reviews fit the allowance is the nightly's to show.
+- Traversal. No row at the default budget reaches 65,536 (11,648 at most on the fixtures,
+  20,385 in game, 34,932 in the colony-review record). 16,384 would have cut the first
+  coupled-needs review and the heavier of the 12 served colony reviews (13,893 to 34,932
+  expansions; at that bound 14 of 20 extensions ran out before #3563 raised it,
+  [brain-host](../architecture/brain-host.md)), and screens 63 of the 91 one-day roots;
+  4,096 exhausts the original fixture's one-day confirm and screens 14. The fixtures'
+  selections are insensitive to the traversal, but the in-game expansions per evaluation make
+  the traversal the live ceiling, so it stays at the former default's.
+
+Both quality JSONs are unchanged (the regenerated rows match the pins), and every document
+naming the default remains correct.
+
+### Remaining limitations
+
+- The sweep-affordability estimate overstates the sweep's cost where pruning and the cache
+  make subsets cheap (the shelter rows above); it is unchanged here.
+- The baseline was measured only where its probe ran (the two food fixtures); the shelter
+  workload has no baseline row.
+- The native evidence is one case, one run, 11 reviews of 0 to 148 roots on a three-colonist
+  lab start, candidate only; no colony-review case ran. The nightly must supply the
+  colony-review's `coupled_search_evaluations` against `coupled_evaluation_budget`, the
+  exhaustion findings and the `inspect_ms` distribution on the candidate and, for the
+  comparison, the baseline side.
+- Timings are descriptive: three samples per .NET row on one machine, one game run.

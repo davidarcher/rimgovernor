@@ -98,9 +98,11 @@ per root, with 32 realizations per root. Provider input limits are 512 operation
 and 2,048 observed supplies. At most 192 composed activities reserve room for
 current needs in the overall 256-activity generation bound. Omitted work is
 reported, never certified infeasible. Portfolio subset search spends a deterministic
-allowance of outcome evaluations (`ForecastSearchBudget`, #3722): 8,192 by default, one
-unit per complete plan a schedule search hands to the evaluator, none for a schedule or
-outcome reused from the search's cache. A separate traversal bound of 65,536 scheduler
+allowance of outcome evaluations (`ForecastSearchBudget`, #3722): 8,192 by default (kept on
+measured quality and cost in #3725,
+[tuning](../testing/portfolio-allocations.md#default-budget-tuning-3725)), one unit per
+complete plan a schedule search hands to the evaluator, none for a schedule or outcome
+reused from the search's cache. A separate traversal bound of 65,536 scheduler
 expansions over the same comparison keeps refused, duplicate, infeasible and unknown-heavy
 branches finite when they evaluate nothing; each schedule search runs within 4,096 of it
 and the traversal left, and a portfolio has at most 32 selected activities. One ledger

@@ -614,8 +614,9 @@ baselines, and benchmarked at a one-day horizon in .NET
      nothing nested resets or extends it. Each allowance's end is its own
      finding (`outcome_evaluations_exhausted`, `traversal_bound_exhausted`). The
      default is 8,192 evaluations and 65,536 expansions
-     ([derivation](../testing/portfolio-allocations.md#outcome-evaluation-budget-3722));
-     the tuning on measured quality and cost is #3725.
+     ([derivation](../testing/portfolio-allocations.md#outcome-evaluation-budget-3722)),
+     kept by #3725 on measured quality and cost
+     ([tuning](../testing/portfolio-allocations.md#default-budget-tuning-3725)).
    - **Lazy outcome evaluation** ([#3723](https://github.com/davidarcher/rimgovernor/issues/3723), shipped).
      An evaluated outcome is priced in the comparator's order: the urgent-zero
      time, the harm term with the death excess, the break-risk excess and the
