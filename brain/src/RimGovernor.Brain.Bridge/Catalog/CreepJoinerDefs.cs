@@ -61,17 +61,23 @@ public sealed partial class DefinitionCatalog
     {
         static (double, double) Range(FloatRange r) => (Decimal32(r.min), Decimal32(r.max));
         var downsides = Rows<CreepJoinerDownsideDef>().OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => p.Value).ToList();
-        var rows = downsides.Select(d => new P.CreepJoinerDownsideRow
+        var rows = downsides.Select(d => (d, Triggered: TriggeredHediffs(d).ToList())).Select(x => new P.CreepJoinerDownsideRow
         {
-            Def = d.defName,
-            Weight = Decimal32(d.Weight),
-            CanOccurRandomly = d.CanOccurRandomly,
-            MinCombatPoints = Decimal32(d.MinCombatPoints),
-            AddsTrait = d.traits.Seq().Any(),
-            TriggersAfterDays = Range(d.triggersAfterDays),
-            TriggerMtbDays = Decimal32(d.triggerMtbDays),
-            TriggerMinDays = Range(d.triggerMinDays),
-            PsychicAgony = d.workerType is { } worker && typeof(CreepJoinerWorker_PsychicAgony).IsAssignableFrom(worker),
+            Def = x.d.defName,
+            Weight = Decimal32(x.d.Weight),
+            CanOccurRandomly = x.d.CanOccurRandomly,
+            MinCombatPoints = Decimal32(x.d.MinCombatPoints),
+            AddsTrait = x.d.traits.Seq().Any(),
+            TriggersAfterDays = Range(x.d.triggersAfterDays),
+            TriggerMtbDays = Decimal32(x.d.triggerMtbDays),
+            TriggerMinDays = Range(x.d.triggerMinDays),
+            Repeats = x.d.repeats,
+            Response = ResponseOf(x.d.workerType),
+            Hediffs = EquatableArray.From(x.Triggered.Where(t => t.Hediff is not null).Select(t => t.Hediff!).ToArray()),
+            Unmodelled = EquatableArray.From(x.Triggered.Select(t => t.Unmodelled).Where(u => u.Length != 0)
+                .Concat(x.d.workerType is { } w && ResponseOf(w) == P.CreepJoinerResponse.Other ? new[] { "creepjoiner_downside_response_unmodelled:" + x.d.defName + ":" + w.Name } : Array.Empty<string>())
+                .Concat(x.d.abilities.Seq().Any() ? new[] { "creepjoiner_downside_abilities_unmodelled:" + x.d.defName } : Array.Empty<string>())
+                .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray()),
         }).ToList();
         // GetRandom narrows the draw to the drawable defs a requires list names when one qualifies (see P.ForecastIsolation).
         var drawable = downsides.Where(d => d.CanOccurRandomly).ToHashSet();
@@ -83,6 +89,70 @@ public sealed partial class DefinitionCatalog
             Downsides = EquatableArray.From(rows),
             Agony = rows.Any(r => r.PsychicAgony) ? ReadAgonyPulse() : null,
             Unmirrored = requiring.Count == 0 ? "" : "the requires lists of " + string.Join(", ", requiring) + " name a downside",
+        };
+    }
+
+    // The worker classes the forecast prices (#3844 D12): DoResponse of each is read with ilspycmd (see P.CreepJoinerHarm).
+    private static P.CreepJoinerResponse ResponseOf(Type? worker) => worker switch
+    {
+        null => P.CreepJoinerResponse.None,
+        _ when typeof(CreepJoinerWorker_PsychicAgony).IsAssignableFrom(worker) => P.CreepJoinerResponse.PsychicAgony,
+        _ when typeof(CreepJoinerWorker_AggressiveDownside).IsAssignableFrom(worker) => P.CreepJoinerResponse.Aggressive,
+        _ when typeof(CreepJoinerWorker_DepartDownside).IsAssignableFrom(worker) => P.CreepJoinerResponse.Leaves,
+        _ => P.CreepJoinerResponse.Other,
+    };
+
+    // The hediffs a downside's firing gives (#3844 D12): DoDownside calls HediffComp_ReplaceHediff.Trigger on each of the downside's
+    // hediffs the pawn carries (the downside's own hediffs, added when it was drawn), which applies each TriggeredHediff. A downside
+    // hediff without a manually triggered ReplaceHediff, or one whose ReplaceHediff fires on its severity, is named.
+    private IEnumerable<(P.CreepJoinerHediff? Hediff, string Unmodelled)> TriggeredHediffs(CreepJoinerDownsideDef d)
+    {
+        foreach (var carried in d.hediffs.Seq().Where(h => h is not null))
+        {
+            var replace = carried.comps.Seq().OfType<HediffCompProperties_ReplaceHediff>().ToArray();
+            if (replace.Length != 1 || !replace[0].manuallyTriggered)
+            {
+                yield return (null, "creepjoiner_downside_hediff_unmodelled:" + d.defName + ":" + carried.defName);
+                continue;
+            }
+
+            foreach (var t in replace[0].hediffs.Seq().Where(t => t?.hediff is not null))
+            {
+                yield return (Triggered(t, 0), "");
+            }
+        }
+    }
+
+    // One TriggeredHediff as a course, with the hediff its own ReplaceHediff gives once its severity reaches the comp's severity
+    // (a chain the course follows, e.g. CrumblingMind into CrumbledMind). A chain deeper than the defs allow is an error.
+    private P.CreepJoinerHediff Triggered(HediffCompProperties_ReplaceHediff.TriggeredHediff t, int depth)
+    {
+        if (depth > 4) throw new CatalogException("the creepjoiner hediff chain from " + t.hediff.defName + " does not end");
+        var course = DiseaseCourse(t.hediff, t.partsToAffect, DefRow<BodyDef>(nameof(BodyDefOf.Human)));
+        var next = t.hediff.comps.Seq().OfType<HediffCompProperties_ReplaceHediff>().FirstOrDefault();
+        P.CreepJoinerHediff? then = null;
+        var unmodelled = course.Unmodelled.ToList();
+        // D12 prices the hediff's capacity loss; the work its stages disable (CrumbledMind's Caring, ManualDumb, Intellectual,
+        // ManualSkilled) is named.
+        if (t.hediff.stages.Seq().Any(s => s.disabledWorkTags != WorkTags.None))
+        {
+            unmodelled.Add("disabledWorkTags");
+        }
+        if (next is { manuallyTriggered: false, hediffs.Count: 1 } && next.hediffs[0]?.hediff is not null
+            && t.hediff.comps.Seq().OfType<HediffCompProperties_ReplaceHediff>().Count() == 1)
+        {
+            // The chained replacement is followed, so its comp is modelled.
+            then = Triggered(next.hediffs[0], depth + 1);
+            unmodelled.Remove(nameof(HediffCompProperties_ReplaceHediff));
+        }
+
+        return new P.CreepJoinerHediff
+        {
+            Course = course with { Unmodelled = [.. unmodelled] },
+            Count = (t.countRange.min, t.countRange.max),
+            Severity = (Decimal32(t.severityRange.min), Decimal32(t.severityRange.max)),
+            Then = then,
+            ThenAt = next is null ? 0 : Decimal32(next.severity),
         };
     }
 

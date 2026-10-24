@@ -235,7 +235,7 @@ public sealed class HospitalCreditTests
             Disease = new PawnDiseaseFacts
             {
                 ImmunityGainSpeed = 1, Contracts = [new DiseaseContract(decay, 1)], BloodPumping = 1, Breathing = 1, BloodFiltration = 1,
-                Parts = [new("Lung", 0.025, 1) { Incidents = [decay] }, new("Lung", 0.025, 1) { Incidents = [decay] }],
+                Parts = [new("Lung", 0.025, 1) { Incidents = [decay], Hediffs = [] }, new("Lung", 0.025, 1) { Incidents = [decay], Hediffs = [] }],
                 Replacements = [new("Lung", "InstallNaturalLung")
                 {
                     IngredientsOnMap = stocked, EligibleDoctors = 1, SuccessChance = 0.9, DoctorSuccessChance = 0.9,

@@ -80,6 +80,9 @@ public sealed partial class Rounder
     /// <summary>The ids the latest coupled comparison that selected anything chose (#3563) and the planned rooms of that review (#3556): the next search's warm start; derived state, empty until the first such review after a restart.</summary>
     internal ReviewMemory<(EquatableArray<string> Selected, EquatableArray<PlannedRoom> Rooms)> CoupledMemory = new(([], []));
 
+    /// <summary>The pawn values of the latest review that valued pawns (#3825): the next review's creepjoiner Leaves and Aggressive price (#3844); derived state, empty until the first such review after a restart.</summary>
+    internal ReviewMemory<EquatableArray<PawnValue>> PawnValueMemory = new([]);
+
     /// <summary>Since when each room has had unfinished blueprints or frames; see noteStall.</summary>
     internal Dictionary<string, RoomStall> RoomStalls = [];
 
@@ -718,6 +721,8 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with { OpenBills = [.. vOpenBills] });
         fine.Lap("derive/bills");
         reading = reading.WithFacts(rf => rf with { UrgentSites = UrgentBuilds.Covered });
+        // The harm term's creepjoiners and the pawn values their leaving prices (#3844), read before the coupled context's harm inputs.
+        reading = reading.WithFacts(rf => rf with { CreepJoiners = RoundsCreepJoiner.CreepJoinerHarmOf(reading.Projection, reading.Frame, reading.Catalog), PreviousPawnValues = PawnValueMemory.Get(state.Snapshot) });
         var reconsideration = ForecastIncumbentPreparation.PrepareCoupledIncumbents(reading.Projection.Facts, batches, workActions);
         reading = reading.WithFacts(_ => reconsideration.Facts with { PreviousCoupledSelection = CoupledMemory.Get(state.Snapshot).Selected, PreviousPlannedShelters = CoupledMemory.Get(state.Snapshot).Rooms });
         fine.Lap("derive/incumbents");
@@ -775,6 +780,7 @@ public sealed partial class Rounder
         TradeMemory.Set(result.Review.Snapshot, result.Needs.Trade);
         WorkAssignments.Set(result.Review.Snapshot, result.Needs.WorkAssignments);
         NoteGearChoices(GearChoices, result.Review.Snapshot, reading.Projection.Facts.CoupledAlternatives, result.Needs.CoupledSelection);
+        if (result.Needs.PawnValues.Count > 0) PawnValueMemory.Set(result.Review.Snapshot, result.Needs.PawnValues);
         if (result.Needs.CoupledSelection is { Selection.Selected.Length: > 0 } chosen) CoupledMemory.Set(result.Review.Snapshot, (EquatableArray.From(chosen.Selection.Selected), reading.Projection.Facts.PlannedShelters));
         RoomSelection.Set(result.Review.Snapshot, PlannedSelectionReviewed(RoomSelection.Get(result.Review.Snapshot), reading.Projection, result.Needs.CoupledSelection));
         GoalEta.Set(result.Review.Snapshot, goalEtas);

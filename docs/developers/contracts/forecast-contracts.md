@@ -567,6 +567,45 @@ The harm term's held-entity part: how often an entity held on a holding platform
 - `HarmDetail.Escape` (`EscapeTerm`: escapes a day, the loss — escapes a day × horizon days × one fight — and deaths a day) is zero
   without a held entity; its loss and deaths join the term's.
 
+### Creepjoiner downside term (#3844)
+
+The harm term's creepjoiner part (D12): what a colonist creepjoiner's hidden downside costs once it fires.
+
+- Native reads, read-only: `CreepJoinerState.CombatPower` (`kindDef.combatPower`, `NativeAnomalyFacts`), and on a creepjoiner's
+  `PawnDiseaseFacts` the parts of the defs its downsides' triggered hediffs strike (every `CreepJoinerDownsideDef`'s, since its own
+  downside is hidden): `DiseasePartRead.Hediffs` names the triggered hediffs `HediffGiverUtility.TryApply` could still give the part,
+  and the `DestroyOrgan` ones add their install recipes to `Replacements` (`NativeDiseaseFacts`).
+- The catalog's downside rows (`CreepJoinerDownsideRow`, `Catalog/CreepJoinerDefs.cs`) add `Repeats`, the worker's `Response`
+  (`PsychicAgony`, `Aggressive` for `CreepJoinerWorker_AggressiveDownside`, `Leaves` for `CreepJoinerWorker_DepartDownside`, `None`
+  or `Other`), and per downside hediff with one manually triggered `ReplaceHediff` its `TriggeredHediff`s as `CreepJoinerHediff`
+  (the course, `countRange`, `severityRange`, and the hediff a non-manual `ReplaceHediff` turns it into at its severity: CrumblingMind
+  into CrumbledMind at 1). Another worker, an ability, a hediff without that comp and a stage's `disabledWorkTags` are named.
+- `RoundsCreepJoiner.CreepJoinerHarmOf` lifts the complete colonist census into `RoundsFacts.CreepJoiners`
+  (`CreepJoinerHarmInputs`): each creepjoiner whose downside has not shown (`CreepJoinerDownsides.Unrevealed`), with the days since
+  `joined_tick` and its combat power, the ones whose downside has, and the catalog table. An incomplete census is `Unread`, raised as
+  `RequiredFactException("creepjoiner census: …")`. `RoundsFacts.PreviousPawnValues` is the latest review's `PawnValues` (#3825,
+  the Rounder's memory-only `PawnValueMemory`); `HarmInputs.CreepJoiners` carries both.
+- `CreepJoinerHarm.Term`, per unshown creepjoiner among the forecast's pawns: each drawable downside that adds no trait first fires in
+  one of 12 stretches of the horizon with chance w × (S(from) − S(to)) ÷ Σ w × S(now) (`Firings`, the isolation credit's draw and
+  survival, D11), and costs from the stretch's middle to the horizon:
+  - PsychicAgony: (1 + the expected renewals of a repeating downside, `Renewals` on the quarter-day check grid) × Σ over the pawns,
+    the creepjoiner with them, of one pulse's loss (`ForecastIsolation.PulseLoss`);
+  - Aggressive: one fight at its combat power against the other pawns (`HarmLedger.FightLoss`), plus its pawn value × the days left
+    (every aggressive kind takes it out of the colony);
+  - Leaves: its `PawnValue.PerDay` × the days left (negative priced as is); a creepjoiner no previous review valued adds 0 with
+    `creepjoiner_value_awaiting_plan:<pawn>` (#3857's awaiting_plan), never a throw;
+  - its triggered hediffs: the course (`IllnessForecast.Course`, risk-transformed) over the midpoint grid of `severityRange`; a hediff of
+    parts strikes each open part the read lists with chance E[min(k, n)] ÷ n (`countRange` picks without replacement), its organ
+    effect and lethality the illness term's; a chained hediff is walked to its replacement's severity and then the replacement's course.
+  Isolation changes none of these but the pulse (a lord's pawn ignores its allowed area; the hediffs act on the creepjoiner alone).
+- `HarmDetail.CreepJoiner` (`CreepJoinerTerm`: the loss, deaths a day and each creepjoiner's agony, aggressive, leaves and hediff
+  parts) is zero without one; its loss and deaths join the term's. A destroyed organ's stocked replacement is a hospital surgery rate
+  (`CreepJoinerHarm.Surgeries`, its probability over the horizon's days, `ForecastHospital.Surgeries`).
+- Named with every priced creepjoiner (`CreepJoinerHarm.NotModelled`): `creepjoiner_aggressive_kind_unmodelled`,
+  `creepjoiner_agony_reach_unmodelled`, `creepjoiner_trigger_conditions_unmodelled`, `creepjoiner_organ_joint_loss_unmodelled`,
+  `creepjoiner_inspection_posterior_unmodelled`, `creepjoiner_hediff_cures_unmodelled`; and `creepjoiner_shown_downside_unmodelled:<pawn>`,
+  `creepjoiner_hediff_unmodelled:<hediff>:<kind>` (`disabledWorkTags` for CrumbledMind). Metalhorror never comes from the draw.
+
 ### Threat schedule (#3539)
 
 The harm model's first step ([harm model](../architecture/forecast-value.md#harm-model)) reads the storyteller the game is running.

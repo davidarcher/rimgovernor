@@ -37,6 +37,7 @@ internal static class NativeDiseaseFacts
     {
         if (pawn.health?.immunity is not { } immunity) return null;
         var incidents = DiseaseIncidents().ToList();
+        var triggered = TriggeredHediffs(pawn);
         var capacities = pawn.health.capacities;
         return new Obs.PawnDiseaseFacts {
             ImmunityGainSpeed = pawn.GetStatValue(StatDefOf.ImmunityGainSpeed)
@@ -46,14 +47,27 @@ internal static class NativeDiseaseFacts
             BloodPumping = capacities.GetLevel(PawnCapacityDefOf.BloodPumping),
             Breathing = capacities.GetLevel(PawnCapacityDefOf.Breathing),
             BloodFiltration = capacities.GetLevel(PawnCapacityDefOf.BloodFiltration),
-            Parts = [.. Parts(pawn, incidents)],
-            Replacements = [.. Replacements(pawn, incidents)],
+            Parts = [.. Parts(pawn, incidents, triggered)],
+            Replacements = [.. Replacements(pawn, incidents, triggered)],
         };
     }
 
+    // #3844: on a creepjoiner, the hediffs its downsides' manually triggered ReplaceHediff comps give to parts
+    // (HediffComp_ReplaceHediff.Trigger, which DoDownside calls): every CreepJoinerDownsideDef's, since which downside the pawn has
+    // is hidden. None for another pawn or without Anomaly.
+    private static List<HediffCompProperties_ReplaceHediff.TriggeredHediff> TriggeredHediffs(Pawn pawn)
+    {
+        if (!ModsConfig.AnomalyActive || pawn.creepjoiner == null) return new List<HediffCompProperties_ReplaceHediff.TriggeredHediff>();
+        return DefDatabase<CreepJoinerDownsideDef>.AllDefsListForReading.Where(d => d.hediffs != null).SelectMany(d => d.hediffs)
+            .Where(h => h?.comps != null).SelectMany(h => h.comps.OfType<HediffCompProperties_ReplaceHediff>())
+            .Where(r => r.manuallyTriggered && r.hediffs != null).SelectMany(r => r.hediffs)
+            .Where(t => t?.hediff != null && t.partsToAffect != null).ToList();
+    }
+
     // #3830: every part of a def an incident affects, and the incidents HediffGiverUtility.TryApply could give it to: not missing, not
-    // already carrying the hediff, no directly added part on it or an ancestor.
-    private static IEnumerable<Obs.DiseasePartRead> Parts(Pawn pawn, List<IncidentDef> incidents)
+    // already carrying the hediff, no directly added part on it or an ancestor. #3844: a creepjoiner's parts of a def a triggered
+    // hediff affects too, with the triggered hediffs TryApply could give it by the same test.
+    private static IEnumerable<Obs.DiseasePartRead> Parts(Pawn pawn, List<IncidentDef> incidents, List<HediffCompProperties_ReplaceHediff.TriggeredHediff> triggered)
     {
         var set = pawn.health.hediffSet;
         var all = pawn.RaceProps.body.AllParts;
@@ -61,22 +75,27 @@ internal static class NativeDiseaseFacts
         {
             var part = all[i];
             var affecting = incidents.Where(d => d.diseasePartsToAffect != null && d.diseasePartsToAffect.Contains(part.def)).ToList();
-            if (affecting.Count == 0) continue;
+            var giving = triggered.Where(t => t.partsToAffect.Contains(part.def)).Select(t => t.hediff).Distinct().ToList();
+            if (affecting.Count == 0 && giving.Count == 0) continue;
             var open = !set.PartIsMissing(part) && !set.PartOrAnyAncestorHasDirectlyAddedParts(part);
             yield return new Obs.DiseasePartRead(part.def.defName, part.coverageAbs, PawnCapacityUtility.CalculatePartEfficiency(set, part)) {
                 Incidents = [.. affecting.Where(d => open && !set.HasHediff(d.diseaseIncident, part)).Select(d => d.defName)],
+                Hediffs = [.. giving.Where(h => open && !set.HasHediff(h, part)).Select(h => h.defName).OrderBy(h => h, System.StringComparer.Ordinal)],
             };
         }
     }
 
     // #3830: per part def a HediffComp_DestroyOrgan disease affects, its first part record taken as missing, each install recipe
-    // that would put it back (the surgery block's own recipe gates, NativePawnDetails.Surgery).
-    private static IEnumerable<Obs.OrganReplacementRead> Replacements(Pawn pawn, List<IncidentDef> incidents)
+    // that would put it back (the surgery block's own recipe gates, NativePawnDetails.Surgery). #3844: and per part def a
+    // creepjoiner's DestroyOrgan triggered hediff affects.
+    private static IEnumerable<Obs.OrganReplacementRead> Replacements(Pawn pawn, List<IncidentDef> incidents, List<HediffCompProperties_ReplaceHediff.TriggeredHediff> triggered)
     {
         var map = pawn.MapHeld;
         if (pawn.Dead || map == null) yield break;
         var defs = incidents.Where(d => d.diseaseIncident.comps != null && d.diseaseIncident.comps.Any(c => c is HediffCompProperties_DestroyOrgan))
-            .SelectMany(d => d.diseasePartsToAffect ?? new List<BodyPartDef>()).Distinct().OrderBy(d => d.defName, System.StringComparer.Ordinal);
+            .SelectMany(d => d.diseasePartsToAffect ?? new List<BodyPartDef>())
+            .Concat(triggered.Where(t => t.hediff.comps != null && t.hediff.comps.Any(c => c is HediffCompProperties_DestroyOrgan)).SelectMany(t => t.partsToAffect))
+            .Distinct().OrderBy(d => d.defName, System.StringComparer.Ordinal);
         var facts = NativePawnDetails.SurgeryScope.Facts(map);
         foreach (var def in defs)
         {

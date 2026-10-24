@@ -819,6 +819,9 @@ and a form or benefit whose requires list names a downside are required facts. T
 `isolation_passers_by_unmodelled`, `isolation_release_unmodelled`, `isolation_nonColonists_unmodelled`,
 `isolation_pulse_pain_mood_unmodelled`, `isolation_trigger_conditions_unmodelled` and
 `creepjoiner_downside_list_edit_unmodelled` (GetRandom's excludes loop edits the def list a later draw reads).
+The other downsides the harm term prices (Aggressive, Leaves, CrumblingMind, OrganDecay; [creepjoiner downside
+term](../contracts/forecast-contracts.md#creepjoiner-downside-term-3844)) earn the room no credit: a hostile or leaving
+creepjoiner has a lord and ignores its allowed area, and the hediffs act on the creepjoiner alone.
 
 *Hospital credit (#3804).* A planned hospital the outcome serves is credited through the same seam
 (`ForecastHospital.HospitalCredit`) what a patient gains lying in its bed instead of the bed it owns now (none: the ground, at the
@@ -965,6 +968,10 @@ which the acceptance case `apparel/harm_armor_direction` (#3547) shows natively
 (a devilstrand duster against a cloth one, in a colony inside a calibrated
 cell). The direction is the native claim; the magnitudes are the unit tests'
 (`ForecastValueTests`, `HarmConsequencesTests`) and the calibration's.
+
+Beside raids, the term adds illness (#3824), held entities' escapes (#3811) and colonist creepjoiners' unshown downsides
+(#3844, [creepjoiner downside term](../contracts/forecast-contracts.md#creepjoiner-downside-term-3844)), priced in the same
+capability-days with their deaths in the death floor.
 
 **Not modeled in v1:** adaptation feedback (a down lowers future threat points
 by about 5–8 adaptation days, a death by 30), non-raid threats (infestations,

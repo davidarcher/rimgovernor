@@ -20,9 +20,45 @@ namespace RimGovernor.Brain.Policy;
 //   through its stages' painOffset.
 
 /// <summary>
+/// What a downside's worker does when it fires (#3844 D12), by its class (BaseCreepJoinerWorker.DoResponse):
+/// <see cref="PsychicAgony"/> CreepJoinerWorker_PsychicAgony, <see cref="Aggressive"/> CreepJoinerWorker_AggressiveDownside
+/// (Pawn_CreepJoinerTracker.DoAggressive), <see cref="Leaves"/> CreepJoinerWorker_DepartDownside (DoLeave), <see cref="None"/>
+/// no worker, and <see cref="Other"/> a worker class the forecast does not price (named).
+/// </summary>
+public enum CreepJoinerResponse
+{
+    None,
+    PsychicAgony,
+    Aggressive,
+    Leaves,
+    Other,
+}
+
+/// <summary>
+/// One hediff a downside's manually triggered ReplaceHediff gives when it fires (#3844 D12; HediffComp_ReplaceHediff.Trigger,
+/// which DoDownside calls on each of the downside's hediffs): its course (the parts it may strike, read as a disease's), the
+/// count of parts TryApply gives it to (countRange, uniform inclusive) and the severity each is set to (severityRange, uniform;
+/// (0, 0) keeps the hediff's initialSeverity). <see cref="Then"/> is the hediff the triggered one's own ReplaceHediff gives
+/// once its severity reaches <see cref="ThenAt"/> (CompPostTickInterval, not manual), null for none.
+/// </summary>
+public sealed record CreepJoinerHediff
+{
+    public required DiseaseCourse Course { get; init; }
+
+    public (int Min, int Max) Count { get; init; } = (1, 1);
+
+    public (double Min, double Max) Severity { get; init; }
+
+    public CreepJoinerHediff? Then { get; init; }
+
+    public double ThenAt { get; init; }
+}
+
+/// <summary>
 /// One CreepJoinerDownsideDef as the posterior reads it (#3844): its def, Weight, CanOccurRandomly and MinCombatPoints (the
 /// draw's), whether it adds a trait (shown from the day the pawn arrives), triggersAfterDays, triggerMtbDays and
-/// triggerMinDays (zero ranges and 0 for none), and whether its worker pulses agony (CreepJoinerWorker_PsychicAgony).
+/// triggerMinDays (zero ranges and 0 for none), whether it repeats (fires again on its re-armed timers), what its worker does
+/// (<see cref="CreepJoinerResponse"/>) and the hediffs its firing triggers (<see cref="CreepJoinerHediff"/>).
 /// </summary>
 public sealed record CreepJoinerDownsideRow
 {
@@ -42,7 +78,16 @@ public sealed record CreepJoinerDownsideRow
 
     public (double Min, double Max) TriggerMinDays { get; init; }
 
-    public bool PsychicAgony { get; init; }
+    public bool Repeats { get; init; }
+
+    public CreepJoinerResponse Response { get; init; }
+
+    public EquatableArray<CreepJoinerHediff> Hediffs { get; init; }
+
+    /// <summary>What the downside does that the forecast leaves out, each a named finding (a triggered hediff the game gives without a part list, say).</summary>
+    public EquatableArray<string> Unmodelled { get; init; }
+
+    public bool PsychicAgony => Response == CreepJoinerResponse.PsychicAgony;
 }
 
 /// <summary>

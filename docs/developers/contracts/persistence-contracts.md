@@ -94,6 +94,8 @@ replan keeps the saved plan. The `StationAdvice` that produced it (graph, groups
 comfort and matched rooms) is not persisted: the Rounder holds it in memory and recomputes it
 at each layout review. The urgent builds waiting for a review (`UrgentBuilds`, #3537) and a failed carry's dropped
 stack (native `Entry.Dropped`) are in memory only: a restart empties them, and the next review reads the placed sites afresh.
+The latest review's pawn values (`PawnValueMemory`, #3825), which the next review's creepjoiner term prices a leaving creepjoiner
+by (#3844), are in memory only: after a restart the term names the creepjoiner `creepjoiner_value_awaiting_plan` until a review values it.
 
 ### need_transitions
 

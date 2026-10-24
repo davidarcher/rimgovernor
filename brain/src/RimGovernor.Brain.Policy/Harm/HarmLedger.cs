@@ -43,6 +43,9 @@ public sealed record HarmInputs
     /// <summary>The entities the colony holds or could capture and the containment curves (#3811), which the escape term reads; none by default.</summary>
     public ContainmentForecast Containment { get; init; } = new();
 
+    /// <summary>The colonist creepjoiners and the previous review's pawn values (#3844), which the creepjoiner term reads; none by default.</summary>
+    public CreepJoinerHarmInputs CreepJoiners { get; init; } = new();
+
     /// <summary>The inputs the review observed: the schedule at the storyteller and days passed, the composition of the observed raid points, the disease schedule of the observed disease facts, the containment census.</summary>
     internal static HarmInputs Of(RoundsFacts facts) => new()
     {
@@ -57,6 +60,7 @@ public sealed record HarmInputs
         Parts = facts.HarmCatalog.Parts,
         Illness = IllnessSchedule.Of(facts.DiseaseTable, facts.Disease),
         Containment = facts.Containment.Forecast,
+        CreepJoiners = facts.CreepJoiners with { Values = facts.PreviousPawnValues },
     };
 }
 
@@ -75,8 +79,11 @@ public sealed record HarmDetail(double RaidsPerDay, double ExposureLo, double Ex
     /// <summary>The escape part (#3811): the held entities' escapes; none without a held entity.</summary>
     public EscapeTerm Escape { get; init; } = new(0, 0, 0);
 
-    /// <summary>Expected pawn deaths per day, from raids, illness and escapes: the death floor's measure.</summary>
-    public double DeathsPerDay => RaidsPerDay * DeathProbability + (Illness?.DeathsPerDay ?? 0) + Escape.DeathsPerDay;
+    /// <summary>The creepjoiner downside part (#3844): the colonist creepjoiners' unshown downsides; none without one.</summary>
+    public CreepJoinerTerm CreepJoiner { get; init; } = new(0, 0, []);
+
+    /// <summary>Expected pawn deaths per day, from raids, illness, escapes and creepjoiner downsides: the death floor's measure.</summary>
+    public double DeathsPerDay => RaidsPerDay * DeathProbability + (Illness?.DeathsPerDay ?? 0) + Escape.DeathsPerDay + CreepJoiner.DeathsPerDay;
 }
 
 /// <summary>
@@ -347,8 +354,9 @@ internal static class HarmLedger
     }
 
     /// <summary>
-    /// The term of a known raid part with the illness (#3824) and escape (#3811) parts added: the loss is the raids' plus the
-    /// illness's plus the escapes', priced alike; an illness the table does not model leaves the others alone with its findings.
+    /// The term of a known raid part with the illness (#3824), escape (#3811) and creepjoiner downside (#3844) parts added: the loss
+    /// is the raids' plus the illness's plus the escapes' plus the downsides', priced alike; an illness the table does not model
+    /// leaves the others alone with its findings.
     /// </summary>
     private static HarmTerm WithIllness(HarmDetail raids, string[] ordered, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
         ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> fights,
@@ -357,8 +365,9 @@ internal static class HarmLedger
     {
         var illness = IllnessForecast.Term(context.Harm.Illness, ordered, pawns, context.CapacityPenalties, outcome.Support, context.Value, horizon, cache, findings);
         var escape = Escapes(ordered, outcome, context, horizon, fights, pawns, commitments, findings);
-        var detail = raids with { Illness = illness, Escape = escape };
-        return new(Known(detail.RaidLoss + (illness?.Loss ?? 0) + escape.Loss), detail, [.. findings]);
+        var creepJoiner = CreepJoinerHarm.Term(ordered, outcome, context, horizon, fights, pawns, commitments, findings);
+        var detail = raids with { Illness = illness, Escape = escape, CreepJoiner = creepJoiner };
+        return new(Known(detail.RaidLoss + (illness?.Loss ?? 0) + escape.Loss + creepJoiner.Loss), detail, [.. findings]);
     }
 
     /// <summary>

@@ -143,6 +143,42 @@ internal static class RoundsCreepJoiner
         return new CreepJoinerForecast { Unread = "", Held = EquatableArray.From(held), Table = defs.CreepJoinerDownsideTable() };
     }
 
+    /// <summary>
+    /// The harm term's creepjoiners (#3844 D12): each colonist creepjoiner, split by whether its downside has shown
+    /// (<see cref="CreepJoinerDownsides.Revealed"/>), an unshown one with the days since its tracker's joinedTick and its kindDef.combatPower,
+    /// and the catalog's downside table. Unread while the colonist census is incomplete.
+    /// </summary>
+    internal static CreepJoinerHarmInputs CreepJoinerHarmOf(ColonyProjection facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog)
+    {
+        if (frame.Pawns is null || CreepJoinerHands(frame) is null)
+        {
+            return new CreepJoinerHarmInputs { Unread = "the colonist census is incomplete" };
+        }
+        var defs = catalog ?? throw new ControlException("creepJoinerHarm: no definition catalog");
+        var downsides = defs.CreepJoinerDownsides();
+        var now = facts.Identity.Tick.Value;
+        var unshown = new List<UnshownCreepJoiner>();
+        var shown = new List<string>();
+        foreach (var row in frame.Pawns.Pawns.OrderBy(r => r.Pawn.Id ?? "", StringComparer.Ordinal))
+        {
+            if (row.Anomaly is not PbObservations.PawnAnomalyState.Active { Facts.Creepjoiner: { } tracker })
+            {
+                continue;
+            }
+            // The row's facts are all read, so whether the downside has shown is known (CreepJoinerDownsides.Revealed).
+            var pawn = row.Pawn.Id ?? "";
+            if (downsides.Unrevealed(CreepJoinerFacts.CreepJoinerPawn(row)))
+            {
+                unshown.Add(new UnshownCreepJoiner(pawn, Math.Max(0, now - tracker.JoinedTick) / (double)GameTime.TicksPerDay, tracker.CombatPower));
+            }
+            else
+            {
+                shown.Add(pawn);
+            }
+        }
+        return new CreepJoinerHarmInputs { Unshown = EquatableArray.From(unshown), Shown = EquatableArray.From(shown), Table = unshown.Count > 0 ? defs.CreepJoinerDownsideTable() : new() };
+    }
+
     internal static bool IsolationReady(ColonyProjection facts)
     {
         var (need, owed) = RoundsSleepingUpkeepPlanner.IsolationRoomNeed(facts);

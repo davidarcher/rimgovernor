@@ -433,7 +433,8 @@ public sealed record PawnMoodRead(double Target, double Threshold);
 /// What its organ loss reads (#3830): the BloodPumping, Breathing and BloodFiltration levels the consciousness and moving workers
 /// lerp in, every body part of a def some DiseaseHuman incident affects (<see cref="DiseasePartRead"/>), and per part def a
 /// HediffComp_DestroyOrgan disease affects, each install recipe that would replace that part once missing
-/// (<see cref="OrganReplacementRead"/>).
+/// (<see cref="OrganReplacementRead"/>). A creepjoiner's read adds the parts and replacements of its downsides' triggered
+/// hediffs (#3844, the organ decay downside).
 /// </para>
 /// </summary>
 public sealed record PawnDiseaseFacts
@@ -507,12 +508,17 @@ public sealed record BodyPartLossRead(string Part, double Coverage)
 /// One body part of a def a DiseaseHuman incident affects (#3830): its def, coverageAbs,
 /// <c>PawnCapacityUtility.CalculatePartEfficiency</c> (0 when missing), and the incidents whose hediff HediffGiverUtility.TryApply
 /// could give it (not missing, not already carrying the hediff, no directly added part on it or an ancestor, whatever the hediff's
-/// canAffectBionicOrImplant).
+/// canAffectBionicOrImplant). On a creepjoiner it also lists every part of a def a downside's triggered hediff affects
+/// (HediffCompProperties_ReplaceHediff.TriggeredHediff.partsToAffect, #3844), with the triggered hediffs TryApply could give it
+/// by the same test.
 /// </summary>
 public sealed record DiseasePartRead(string Part, double Coverage, double Efficiency)
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public required EquatableArray<string> Incidents { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public required EquatableArray<string> Hediffs { get; init; }
 }
 /// <summary>
 /// One install recipe that would replace a missing part of <see cref="Part"/>'s def (#3830), read as the surgery block reads an

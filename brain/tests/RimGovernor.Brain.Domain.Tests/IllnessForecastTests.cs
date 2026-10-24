@@ -154,7 +154,7 @@ public sealed class IllnessForecastTests
     ];
 
     private static DiseasePartRead Part(string part, double coverage, double efficiency = 1, bool open = true) =>
-        new(part, coverage, efficiency) { Incidents = open ? [Decay] : [] };
+        new(part, coverage, efficiency) { Incidents = open ? [Decay] : [], Hediffs = [] };
 
     private static OrganReplacementRead Replacement(string part, string recipe, bool stocked = true, int doctors = 1, double chance = 0.9) =>
         new(part, recipe)

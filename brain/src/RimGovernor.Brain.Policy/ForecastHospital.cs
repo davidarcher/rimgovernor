@@ -78,7 +78,7 @@ internal static class ForecastHospital
 
     /// <summary>
     /// Surgeries a future event queues on <see cref="Patient"/> at <see cref="PerDay"/> a day: the replacements of the organs illness
-    /// destroys (#3830) and of the parts a raid destroys (#3847). Each is credited at the rate, as a queued bill's once gain a day.
+    /// destroys (#3830), of the parts a raid destroys (#3847) and of the organs a creepjoiner's organ decay may destroy (#3844). Each is credited at the rate, as a queued bill's once gain a day.
     /// </summary>
     internal sealed record SurgeryRate(string Patient, SurgeryModel Surgery, double PerDay);
 
@@ -295,6 +295,12 @@ internal static class ForecastHospital
                 illness = incidents * (Risk(now) - Risk(hospital));
                 patientDays += incidents * hospital.PatientDays;
                 rates.AddRange(Surgeries(pawn.Pawn, now.Replacements, incidents));
+            }
+
+            // A creepjoiner's organ decay books its replacements at their chance over the horizon, spread over its days (#3844).
+            if (horizon > 0)
+            {
+                rates.AddRange(Surgeries(pawn.Pawn, CreepJoinerHarm.Surgeries(context, pawn, Care(1), horizon), GameTime.TicksPerDay / horizon));
             }
 
             patients.Add(new(pawn.Pawn, infection, illness, patientDays, patientDays > 0 ? MoodDelta(pawn, prediction) : 0));

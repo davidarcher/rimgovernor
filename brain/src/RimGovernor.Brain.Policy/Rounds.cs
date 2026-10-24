@@ -329,6 +329,9 @@ public sealed record RoundsFacts
     /// <summary>The containment cell's inputs and the entity rows the capture rule decides, set by the routine reading.</summary>
     public ContainmentPlanning Containment { get; init; } = new();
 
+    /// <summary>The colonist creepjoiners the harm term's downside part prices (#3844), set by the routine reading; none by default.</summary>
+    public CreepJoinerHarmInputs CreepJoiners { get; init; } = new();
+
     /// <summary>
     /// Carries the joiners family's quest census: every visible quest row
     /// (rimgovernor/observations_read_world_progression), read per cycle by a RoundsSource offering
@@ -543,6 +546,8 @@ public sealed record RoundsFacts
     public EquatableArray<string> PreviousCoupledSelection { get; init; }
     /// <summary>The planned rooms (<see cref="PlannedShelters"/>) at the review that selected <see cref="PreviousCoupledSelection"/> (#3556): a room the layout re-tiled under a new id since is found again by its role and ground (<see cref="RoundsRules.WarmStartOf"/>).</summary>
     public EquatableArray<PlannedRoom> PreviousPlannedShelters { get; init; }
+    /// <summary>The pawn values of the latest review that valued pawns (#3825): the creepjoiner term's Leaves and Aggressive price (#3844); empty before the first layout plan after a restart.</summary>
+    public EquatableArray<PawnValue> PreviousPawnValues { get; init; }
     public EssentialServiceInputs EssentialInputs { get; init; } = new();
 
     public Fact<long> Wood { get; init; }

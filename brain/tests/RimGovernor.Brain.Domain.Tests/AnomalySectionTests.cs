@@ -71,13 +71,13 @@ public sealed class AnomalySectionTests
             HiddenFromPlayer = false,
             PsychicRitualInvoker = false,
             MeleeOnly = true,
-            Creepjoiner = new CreepJoinerState { DownsideTriggered = false, JoinedTick = 120000 },
+            Creepjoiner = new CreepJoinerState { DownsideTriggered = false, JoinedTick = 120000, CombatPower = 55 },
         };
 
         var json = WireJson.Serialize(anomaly);
 
         Assert.Equal(
-            """{"entity":true,"mutant":false,"minContainmentStrength":40,"held":{"held":true,"mode":"ENTITY_CONTAINMENT_MODE_KIND_STUDY","escaping":false,"extractBioferrite":true,"canBeCaptured":true,"needsTend":false,"bleeding":false,"harvesterAttached":false,"bioferritePerDay":1.5,"escape":{"baseMtbDays":60,"movingFactor":1,"daysInCaptivity":2,"coldFactor":1,"combatPower":100,"canEscape":true}},"study":{"currentlyStudiable":true,"yield":{"knowledge":2,"category":null,"frequencyTicks":120000}},"hiddenFromPlayer":false,"psychicRitualInvoker":false,"meleeOnly":true,"creepjoiner":{"downsideTriggered":false,"joinedTick":120000}}""",
+            """{"entity":true,"mutant":false,"minContainmentStrength":40,"held":{"held":true,"mode":"ENTITY_CONTAINMENT_MODE_KIND_STUDY","escaping":false,"extractBioferrite":true,"canBeCaptured":true,"needsTend":false,"bleeding":false,"harvesterAttached":false,"bioferritePerDay":1.5,"escape":{"baseMtbDays":60,"movingFactor":1,"daysInCaptivity":2,"coldFactor":1,"combatPower":100,"canEscape":true}},"study":{"currentlyStudiable":true,"yield":{"knowledge":2,"category":null,"frequencyTicks":120000}},"hiddenFromPlayer":false,"psychicRitualInvoker":false,"meleeOnly":true,"creepjoiner":{"downsideTriggered":false,"joinedTick":120000,"combatPower":55}}""",
             json);
         Assert.Equal(anomaly, WireJson.Deserialize<PawnAnomaly>(json));
     }

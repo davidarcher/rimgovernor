@@ -253,7 +253,7 @@ public static class IllnessForecast
         return branches;
     }
 
-    private static OrganEffect? Organ(DiseaseCourse course, DiseasePart part, DiseasePartRead row, DiseasePartRead[] rows, PawnDiseaseFacts disease,
+    internal static OrganEffect? Organ(DiseaseCourse course, DiseasePart part, DiseasePartRead row, DiseasePartRead[] rows, PawnDiseaseFacts disease,
         double[] levels, SortedSet<string> findings)
     {
         if (part.Capacity.Length == 0)

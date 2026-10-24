@@ -320,6 +320,14 @@ public sealed partial class Rounder
             {
                 ["escapes_per_day"] = detail.Escape.EscapesPerDay, ["loss"] = detail.Escape.Loss, ["deaths_per_day"] = detail.Escape.DeathsPerDay,
             },
+            ["creepjoiner"] = new Dictionary<string, object?>
+            {
+                ["loss"] = detail.CreepJoiner.Loss, ["deaths_per_day"] = detail.CreepJoiner.DeathsPerDay,
+                ["pawns"] = detail.CreepJoiner.Pawns.Select(p => new Dictionary<string, object?>
+                {
+                    ["pawn"] = p.Pawn, ["agony"] = p.Agony, ["aggressive"] = p.Aggressive, ["leaves"] = p.Leaves, ["hediffs"] = p.Hediffs,
+                }).ToArray(),
+            },
         } : null, ["investment"] = Number(value.Ledger.Investment),
         ["investment_contributions"] = value.Ledger.InvestmentContributions.Select(c => new Dictionary<string, object?> { ["activity"] = c.Activity, ["pawn"] = c.Pawn, ["key"] = c.Key, ["units"] = c.Units, ["value"] = c.Value }).ToArray(),
         ["goals"] = Number(value.Ledger.Goals),

@@ -486,7 +486,8 @@ as a charging pack, so squad defense and the manhunter tactic apply).
 Hostility stays `PawnState.hostile`.
 `anomaly.creepjoiner` is the creepjoiner tracker block (null for a pawn without one):
 `downside_triggered`, the tracker's private `triggeredDownside`, read natively
-and true only once a timed downside has fired, and `joined_tick`, the tracker's public`njoinedTick (set when the pawn joins the colony; the downside's timers run from it, #3844). The downside def is hidden
+and true only once a timed downside has fired, and `joined_tick`, the tracker's public `joinedTick` (set when the pawn joins the colony; the downside's timers run from it, #3844), and `combat_power`, its
+`kindDef.combatPower`, the points of the fight an aggressive downside starts (#3844 D12). The downside def is hidden
 information: no pawn row carries it and nothing reads it (the catalog's
 downside rows are static defs). Trait-only downsides and no downside never set
 the flag, so "downside revealed" for the bot is what a player sees: the pawn's

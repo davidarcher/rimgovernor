@@ -105,9 +105,11 @@ namespace HomeBridge.BridgeTools
             internal static bool DownsideTriggered(Pawn_CreepJoinerTracker tracker) => Triggered(tracker);
         }
 
-        // The creepjoiner block; null for a pawn with no tracker. joinedTick is public: the tick the pawn joined (#3844).
+        // The creepjoiner block; null for a pawn with no tracker. joinedTick is public: the tick the pawn joined (#3844); the
+        // combat power is the kind's, the points of the fight an aggressive downside starts.
         private static Obs.CreepJoinerState? CreepJoiner(Pawn pawn) =>
-            pawn.creepjoiner is Pawn_CreepJoinerTracker tracker ? new Obs.CreepJoinerState { DownsideTriggered = CreepJoinerFields.DownsideTriggered(tracker), JoinedTick = tracker.joinedTick } : null;
+            pawn.creepjoiner is Pawn_CreepJoinerTracker tracker ? new Obs.CreepJoinerState { DownsideTriggered = CreepJoinerFields.DownsideTriggered(tracker), JoinedTick = tracker.joinedTick,
+                CombatPower = Finite(pawn.kindDef.combatPower, "creepjoiner combat power") } : null;
 
         // The doors the game counts for a holder's room: the Building_Door
         // things among the room's contained and adjacent things, which is

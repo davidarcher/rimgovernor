@@ -19,7 +19,7 @@ public sealed class IsolationCreditTests
 
     private static CreepJoinerDownsideRow Downside(string def, bool agony = false, bool trait = false, double mtb = Mtb) => new()
     {
-        Def = def, Weight = 1, CanOccurRandomly = true, AddsTrait = trait, TriggerMtbDays = mtb, PsychicAgony = agony,
+        Def = def, Weight = 1, CanOccurRandomly = true, AddsTrait = trait, TriggerMtbDays = mtb, Response = agony ? CreepJoinerResponse.PsychicAgony : CreepJoinerResponse.None,
     };
 
     private static readonly AgonyPulse Agony = new()
@@ -199,7 +199,7 @@ public sealed class IsolationCreditTests
         var tracker = new O.PawnAnomalyState.Active(new O.PawnAnomaly
         {
             Entity = false, Mutant = false, MinContainmentStrength = 0, HiddenFromPlayer = false, PsychicRitualInvoker = false, MeleeOnly = false,
-            Creepjoiner = new O.CreepJoinerState { DownsideTriggered = false, JoinedTick = (int)Day }, Held = null, Study = null,
+            Creepjoiner = new O.CreepJoinerState { DownsideTriggered = false, JoinedTick = (int)Day, CombatPower = 55 }, Held = null, Study = null,
         });
         var frame = new RimGovernor.Brain.Bridge.Contracts.RoundsFrame
         {
