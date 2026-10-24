@@ -237,11 +237,11 @@ public sealed class StockArrivalCatalogTests
     };
 
     // Three colonists (the routine trade's reserve is 300 silver) and the silver they hold.
-    private static StockArrival FreshStock(DefinitionCatalog catalog, string storyteller, long silver, string kind = "Caravan_Outlander_Exotic")
+    private static StockArrival FreshStock(DefinitionCatalog catalog, string storyteller, long silver, string kind = "Caravan_Outlander_Exotic", TradeVisitFacts? facts = null)
     {
         var census = ColonyFactsCoreTests.Snapshot() with
         {
-            Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = storyteller, Trade = Visits(kind) } },
+            Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = storyteller, Trade = facts ?? Visits(kind) } },
             Resources = [new Quantity { DefName = "Silver", Units = silver }],
             ColonistCount = 3,
         };
@@ -306,7 +306,7 @@ public sealed class StockArrivalCatalogTests
         // the read boundary fills it for three colonists with 1000 silver and no medicine, the routine trade's reserve review of it, and
         // the colony model over it.
         var stock = FreshStock(TradeCatalog(), "Cassandra", 1000, "Caravan_Outlander_Medic");
-        Assert.Equal(700, stock.Spendable);
+        Assert.All(stock.Trade, s => Assert.Equal(700, s.Silver));
         var items = ItemFactsFixtureRules.CoreItemFacts();
         var review = MedicalRules.ReviewMedicalReserve(new MedicalReserveObservation
         {
@@ -328,5 +328,24 @@ public sealed class StockArrivalCatalogTests
         Assert.Equal(21.125, stop.Day, 9);
         Assert.Equal(9, stop.Levels[(int)ModelStock.Medicine], 9);
         Assert.DoesNotContain(MedicineTrade.LaterBuysFinding, run.Findings);
+    }
+
+    [Fact]
+    public void AnOrbitalTraderOfAFreshColonyIsPaidOnlyFromTheSilverWithinBeaconRangeAboveTheReserve()
+    {
+        // The production way (#3822, #3910): three colonists with 1000 silver, 400 of it within the powered beacon's range, a comms
+        // console and the Medic kind everywhere. The routine trade's reserve is 300: the caravan and visitors see 700, the orbital cycle 100.
+        var facts = Visits("Caravan_Outlander_Medic") with { CommsConsole = true, TradeBeacon = true, BeaconSilver = 400 };
+        var stock = FreshStock(TradeCatalog(), "Cassandra", 1000, facts: facts);
+        var herbal = new Resource("MedicineHerbal");
+        var orbital = stock.Trade.Single(s => s.Resource == herbal && s.From == 0);
+        Assert.Equal(100, orbital.Silver);
+        Assert.All(stock.Trade.Where(s => s.From > 0), s => Assert.Equal(700, s.Silver));
+        // 100 silver pays 7 herbal at 14; the map's 700 pays all five a visit can carry.
+        Assert.Equal(orbital.VisitsPerDay * 4.0, orbital.UnitsPerDay(), 9);
+
+        // Silver within range that is all reserve pays nothing, whatever the map holds.
+        var none = FreshStock(TradeCatalog(), "Cassandra", 1000, facts: facts with { BeaconSilver = 300 }).Trade.Single(s => s.Resource == herbal && s.From == 0);
+        Assert.Equal((0L, 0.0), (none.Silver, none.UnitsPerDay()));
     }
 }

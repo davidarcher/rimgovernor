@@ -58,8 +58,7 @@ public static class StockArrivalReads
             return craft;
         }
 
-        var spendable = TradePolicyRules.SpendableSilver(stock.GetValueOrDefault(new Resource(catalog.Derived.CurrencyDef)), colony.ColonistCount);
-        var (trade, findings, unread) = Trade(catalog, colony.Threat.Observed, stock, spendable);
+        var (trade, findings, unread) = Trade(catalog, colony.Threat.Observed, stock.GetValueOrDefault(new Resource(catalog.Derived.CurrencyDef)), colony.ColonistCount);
         return unread.Length != 0
             ? new StockArrival { Unread = unread }
             : craft with
@@ -67,14 +66,15 @@ public static class StockArrivalReads
                 Trade = EquatableArray.From(trade),
                 Findings = EquatableArray.From(craft.Findings.Concat(findings).Distinct().Order(StringComparer.Ordinal)),
                 Medicines = EquatableArray.From(medicines),
-                Spendable = spendable,
             };
     }
 
     // The trader-visit sources (#3869): the storyteller's decoded trader comps, the trader kinds' stock, the visit facts the native
-    // read carries, the colony's wealth and raid points, and the silver above the routine trade's reserve (#3855 Q2 A, #3907).
+    // read carries, the colony's wealth and raid points, and the silver above the routine trade's reserve (#3855 Q2 A, #3907): the map's
+    // for caravans and visitors, the silver within trade-beacon range for orbital traders (#3910: the routine trade's reserve holds
+    // against the sheet's silver, which for an orbital trader is the beacon's).
     private static (IReadOnlyList<TradeSource> Sources, IReadOnlyList<string> Findings, string Unread) Trade(DefinitionCatalog catalog, O.ThreatFacts threat,
-        IReadOnlyDictionary<Resource, long> stock, long spendable)
+        long silver, long colonists)
     {
         if (threat.Trade is not { } facts)
         {
@@ -87,6 +87,7 @@ public static class StockArrivalReads
             return ([], [], "storyteller_unknown:" + threat.Storyteller);
         }
 
-        return TradeArrivalRules.Sources(schedule, storyteller, catalog.TraderStock(), facts, threat.RaidPoints, threat.WealthTotal, spendable);
+        return TradeArrivalRules.Sources(schedule, storyteller, catalog.TraderStock(), facts, threat.RaidPoints, threat.WealthTotal,
+            TradePolicyRules.SpendableSilver(silver, colonists), TradePolicyRules.SpendableSilver(facts.BeaconSilver, colonists));
     }
 }

@@ -81,9 +81,6 @@ public sealed record StockArrival
 
     public EquatableArray<string> Findings { get; init; }
 
-    /// <summary>The silver the trade sources price their buys from (#3907): today's silver above the routine trade's reserve (<see cref="TradePolicyRules.SpendableSilver"/>).</summary>
-    public long Spendable { get; init; }
-
     /// <summary>The medicine the routine trade buys over the horizon (#3907); null buys none. Set by <see cref="WithMedicineClaim"/>.</summary>
     public MedicineTrade? MedicineTrade { get; init; }
 
@@ -211,8 +208,8 @@ public sealed record StockArrival
 
     /// <summary>
     /// The silver shared between medicine and parts (#3907, #3855 Q2 A): the routine trade buys medicine first, so its gap's cost
-    /// (<see cref="TradePolicyRules.MedicineClaim"/> of <paramref name="review"/>'s replenish) is claimed from <see cref="Spendable"/> and
-    /// the parts' sources see what is left; the medicine sources see all of it and bring medicine on the reserve's latch. An unread
+    /// (<see cref="TradePolicyRules.MedicineClaim"/> of <paramref name="review"/>'s replenish) is claimed from each source's silver
+    /// (<see cref="TradeSource.Silver"/>: the silver above the routine trade's reserve that its trader is paid from) and the parts' sources see what is left; the medicine sources see all of it and bring medicine on the reserve's latch. An unread
     /// reserve leaves the model unread.
     /// </summary>
     public StockArrival WithMedicineClaim(ItemFacts items, MedicalReserveReview review, long colonists, MedicalReservePolicy reserve)
@@ -231,8 +228,10 @@ public sealed record StockArrival
         var parts = Trade.Select(s => Medicines.Contains(s.Resource) ? s : s with { Silver = Math.Max(0, s.Silver - claim) });
         var (kind, price) = items.CheapestMedicine();
         var tiers = items.MedicineTiers().Reverse().ToList();
-        var visits = Trade.Where(s => s.Resource == kind).Select(s => new MedicineTradeSource(s.From, s.UnitsPerDay())).Where(s => s.PerDay > 0).OrderBy(s => s.From).ThenBy(s => s.PerDay).ToList();
-        var units = Math.Floor(Spendable / price);
+        var buying = Trade.Where(s => s.Resource == kind && s.UnitsPerDay() > 0).ToList();
+        var visits = buying.Select(s => new MedicineTradeSource(s.From, s.UnitsPerDay())).OrderBy(s => s.From).ThenBy(s => s.PerDay).ToList();
+        // The units the silver pays for: the largest pool a visit buys from (beacon silver is mostly the same silver as the map's).
+        var units = buying.Count == 0 ? 0 : Math.Floor(buying.Max(s => s.Silver) / price);
         return this with
         {
             Trade = EquatableArray.From(parts),

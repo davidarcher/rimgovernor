@@ -38,6 +38,8 @@ internal static class NativeTradeVisitFacts
             DaysSinceSettle = GenDate.DaysPassedSinceSettleFloat,
             CommsConsole = map.listerBuildings.allBuildingsColonist.Any(b => b.def.IsCommsConsole && (b.GetComp<CompPowerTrader>() == null || b.GetComp<CompPowerTrader>().PowerOn)),
             TradeBeacon = Building_OrbitalTradeBeacon.AllPowered(map).Any(),
+            // TradeUtility.ColonyHasEnoughSilver's count: the silver an orbital trader is paid from.
+            BeaconSilver = TradeUtility.AllLaunchableThingsForTrade(map).Where(t => t.def == ThingDefOf.Silver).Sum(t => (long)t.stackCount),
             Negotiator = negotiators.Count != 0,
             NegotiatorPriceImprovement = negotiators.Count == 0 ? 0 : negotiators.Max(p => p.GetStatValue(StatDefOf.TradePriceImprovement)),
             PriceFactorLoss = difficulty.tradePriceFactorLoss,
@@ -52,8 +54,9 @@ internal static class NativeTradeVisitFacts
         if (def.workerClass == typeof(IncidentWorker_OrbitalTraderArrival))
         {
             if (map.passingShipManager.passingShips.Count >= MaxShips) blocked.Add("ships_full");
-            var kinds = DefDatabase<TraderKindDef>.AllDefsListForReading.Where(k => CanSpawn(map, k))
-                .Select(k => new Obs.TraderKindWeight(k.defName, k.CalculatedCommonality)).Where(k => k.Weight > 0).OrderBy(k => k.Kind, System.StringComparer.Ordinal).ToList();
+            var kinds = DefDatabase<TraderKindDef>.AllDefsListForReading.Where(k => k.orbital)
+                .Select(k => new Obs.TraderKindWeight(k.defName, k.CalculatedCommonality) { Qualifies = Qualifies(map, k) }).Where(k => k.Weight > 0 && k.Qualifies > 0)
+                .OrderBy(k => k.Kind, System.StringComparer.Ordinal).ToList();
             // No kind that can spawn fails TryExecuteWorker, not CanFireNow: the incident still takes its share of a category draw.
             sources.Add(new Obs.TraderSourceRead { Kinds = [.. kinds] });
         }
@@ -135,13 +138,15 @@ internal static class NativeTradeVisitFacts
         return kind.CalculatedCommonality;
     }
 
-    // IncidentWorker_OrbitalTraderArrival.CanSpawn: an orbital kind, of no faction or of a faction some free colonist can trade with
-    // (the game draws one faction of the def; any qualifying one is read).
-    private static bool CanSpawn(Map map, TraderKindDef kind)
+    // IncidentWorker_OrbitalTraderArrival.CanSpawn (an orbital kind, of no faction or of the faction GetFaction draws if some free
+    // colonist can trade with it) and TradeShip.CanCommunicateWith (the ship's own faction, drawn again by GetFaction, must be one the
+    // negotiator can trade with): each draw picks one of the def's factions at random, so each passes with the share of them that
+    // qualify (0 for a def with no faction, 1 for a kind of no faction).
+    private static double Qualifies(Map map, TraderKindDef kind)
     {
-        if (!kind.orbital) return false;
-        if (kind.faction == null) return true;
-        return Find.FactionManager.AllFactions.Where(f => f.def == kind.faction)
-            .Any(f => map.mapPawns.FreeColonists.Any(p => p.CanTradeWith(f, kind).Accepted));
+        if (kind.faction == null) return 1;
+        var factions = Find.FactionManager.AllFactions.Where(f => f.def == kind.faction).ToList();
+        if (factions.Count == 0) return 0;
+        return factions.Count(f => map.mapPawns.FreeColonists.Any(p => p.CanTradeWith(f, kind).Accepted)) / (double)factions.Count;
     }
 }

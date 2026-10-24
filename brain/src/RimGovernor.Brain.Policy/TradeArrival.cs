@@ -484,6 +484,9 @@ public static class TradeArrivalRules
     // IncidentWorker_VisitorGroup.TraderChance (private const): a visitor group converts one adult to a trader with this chance.
     internal const double VisitorTraderChance = 0.75;
 
+    // The most orbital kinds of a drawn faction one incident's exact draw enumerates (2^n sets of candidates).
+    private const int MaxFactionKinds = 16;
+
     /// <summary>
     /// The trade sources (#3869, #3909) of <paramref name="storyteller"/>'s trader comps for the colony now. Per comp the events a
     /// day (a FactionInteraction comp's incidents a day × the ally fraction, none below its min wealth or min danger; an OnOffCycle
@@ -492,11 +495,13 @@ public static class TradeArrivalRules
     /// categories as <see cref="IncidentChances"/> gives. None for an incident blocked now, an orbital trader without a powered comms
     /// console and trade beacon, travelers, or a colony without a negotiator. Each visit is of a kind drawn as the incident draws it
     /// (a source uniformly, then a kind by weight; a visitor group's trader with <see cref="VisitorTraderChance"/>) and supplies a
-    /// resource as <see cref="TradeSource"/> prices it from <paramref name="silver"/>. An incident the read or the catalog does not
+    /// resource as <see cref="TradeSource"/> prices it from the silver it is paid from: <paramref name="orbitalSilver"/> for an orbital
+    /// trader (the silver within trade-beacon range, #3910), <paramref name="silver"/> for every other trader, each already above the
+    /// routine trade's reserve (<see cref="TradePolicyRules.SpendableSilver"/>). An incident the read or the catalog does not
     /// carry, or a kind the catalog does not know, leaves the trade unread (the returned Unread).
     /// </summary>
     public static (IReadOnlyList<TradeSource> Sources, IReadOnlyList<string> Findings, string Unread) Sources(TradeScheduleTable schedule, StorytellerTrade storyteller,
-        TraderStockTable stock, TradeVisitFacts facts, double threatPoints, double wealth, long silver)
+        TraderStockTable stock, TradeVisitFacts facts, double threatPoints, double wealth, long silver, long orbitalSilver)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal) { SilverIncomeUnmodelled };
         if (storyteller.Unmodelled.Count > 0)
@@ -592,7 +597,7 @@ public static class TradeArrivalRules
 
                 foreach (var (resource, list) in offers.OrderBy(o => o.Key.Value, StringComparer.Ordinal))
                 {
-                    sources.Add(new TradeSource(resource, from, perDay * chance) { Kinds = EquatableArray.From(list), PriceFactor = priceFactor, Silver = silver });
+                    sources.Add(new TradeSource(resource, from, perDay * chance) { Kinds = EquatableArray.From(list), PriceFactor = priceFactor, Silver = incident.Worker == TradeWorker.Orbital ? orbitalSilver : silver });
                 }
             }
         }
@@ -736,6 +741,11 @@ public static class TradeArrivalRules
     // trader only with TraderChance, and none of a faction whose Peaceful groups may be children (named).
     private static Dictionary<string, double> KindChances(TradeScheduleTable schedule, TradeIncident incident, TraderIncidentRead read, SortedSet<string> findings)
     {
+        if (incident.Worker == TradeWorker.Orbital)
+        {
+            return OrbitalKindChances([.. read.Sources.SelectMany(s => s.Kinds)]);
+        }
+
         var kinds = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var source in read.Sources)
         {
@@ -763,6 +773,50 @@ public static class TradeArrivalRules
         }
 
         return kinds;
+    }
+
+    /// <summary>
+    /// The chance an orbital trader incident sends a ship of each kind the colony can trade with (#3910), as
+    /// IncidentWorker_OrbitalTraderArrival draws it: a kind is among the candidates when CanSpawn passes, which draws one of its
+    /// faction def's factions at random (<see cref="TraderKindWeight.Qualifies"/> of the draws pass, independently per kind), then
+    /// TryRandomElementByWeight picks a candidate by CalculatedCommonality; the ship's faction is drawn again, and
+    /// TradeShip.CanCommunicateWith lets the colony trade only when that one qualifies too. So kind k is traded with at
+    /// q × w ÷ (w + the weight of the other candidates) × q, over every set of other candidates.
+    /// </summary>
+    internal static Dictionary<string, double> OrbitalKindChances(IReadOnlyList<TraderKindWeight> kinds)
+    {
+        var candidates = kinds.Where(k => k.Weight > 0 && k.Qualifies > 0).ToList();
+        var chances = new Dictionary<string, double>(StringComparer.Ordinal);
+        foreach (var kind in candidates)
+        {
+            var others = candidates.Where(k => k != kind).ToList();
+            var sure = others.Where(k => k.Qualifies >= 1).Sum(k => k.Weight);
+            var maybe = others.Where(k => k.Qualifies < 1).ToList();
+            if (maybe.Count > MaxFactionKinds)
+            {
+                throw new DomainException($"orbital trader kinds of a drawn faction {maybe.Count} past {MaxFactionKinds}");
+            }
+
+            // E[1 ÷ (w + the candidates' weight)] over which of the other kinds' faction draws pass.
+            var share = 0.0;
+            for (var set = 0; set < 1 << maybe.Count; set++)
+            {
+                var chance = 1.0;
+                var weight = kind.Weight + sure;
+                for (var i = 0; i < maybe.Count; i++)
+                {
+                    var passes = (set >> i & 1) == 1;
+                    chance *= passes ? maybe[i].Qualifies : 1 - maybe[i].Qualifies;
+                    weight += passes ? maybe[i].Weight : 0;
+                }
+
+                share += chance / weight;
+            }
+
+            chances[kind.Kind] = kind.Weight * kind.Qualifies * kind.Qualifies * share;
+        }
+
+        return chances;
     }
 
     // StorytellerComp_FactionInteraction: no visits below minWealth or minDanger or without an ally fraction; IncidentCycleUtility's

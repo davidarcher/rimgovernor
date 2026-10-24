@@ -331,7 +331,8 @@ own target, standing in for the player's stock-target bill count.
 | RandomMain ThreatBig fraction (#3909) | 1 ÷ (1 + (1 − p)(1 − e^(−λpM)) ÷ p), 1 ÷ (1 + λM) at p = 0: λ = 1 ÷ `mtbDays`, p = ThreatBig's weight over the drawable weight, M = `maxThreatBigIntervalDays` | `StorytellerComp_RandomMain.MakeIntervalIncidents`, `ChooseRandomCategory` |
 
 The model's own choices, not game rules: a visit's purchases are paid from today's spendable silver (the silver above the routine
-trade's reserve, all the colony's silver, not only what lies in beacon range; medicine is claimed first, parts see the rest, #3907),
+trade's reserve: the map's silver for caravans and visitors, the silver within beacon range for orbital traders, #3910; medicine is
+claimed first, parts see the rest, #3907),
 the medicine the model buys is the cheapest kind by market value only (a visit whose trader lacks it buys none, though the routine
 trade would take its cheapest kind), a visit is a fluid rate rather than a lump, the silver at the market value (not the live buy
 price) caps the units bought, the accept curves are taken at today's days and points,

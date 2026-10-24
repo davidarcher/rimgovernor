@@ -523,13 +523,19 @@ class the decoder does not know, is named `stock_arrival_trade_comp_unmodelled:<
 (`FactionCanBeGroupSource`), then a kind by `TraderKindCommonality` (a visitor group: its visitorTraderKinds by
 `CalculatedCommonality`, with `TraderChance` 0.75; a faction whose Peaceful group makers hold a child kind supplies nothing,
 named `stock_arrival_visitor_child_group_unmodelled:<faction>`, #3909 Q1 B), a tribute collector the Empire's TributeCollector
-kinds by `CalculatedCommonality`, an orbital trader a kind by `CalculatedCommonality` over `CanSpawn`; travelers send none (the native `TradeVisitFacts` on the threat section carries both, with each incident's blocked gates). The catalog
+kinds by `CalculatedCommonality`, an orbital trader a kind by `CalculatedCommonality` among the kinds whose `CanSpawn` passes (#3910: `GetFaction` draws one of the
+kind's faction def's factions at random, so a kind passes with the share of them a colonist can trade with, `TraderKindWeight.Qualifies`;
+the ship's own faction is a second such draw, and `TradeShip.CanCommunicateWith` lets the colony trade only when that one qualifies too,
+so kind k is traded with at q × w ÷ (w + the other candidates' weight) × q, summed exactly over which other kinds pass); travelers send none (the native `TradeVisitFacts` on the threat section carries both, with each incident's blocked gates). The catalog
 reads every trader kind's stock (`DefinitionCatalog.TraderStock`): SingleDef, MultiDef, Category and Tag generators by exact class,
 each picking the def with the chance its draw of distinct defs gives and making `StockGenerator.RandomCountOf` of it; the Buy
 generators make nothing, another class handling a stock resource is named `stock_arrival_trade_stock_unmodelled:<kind>:<class>`.
 A visit supplies n units when its kind makes n and n × the buy price (the def's market value × 1.4 × its PriceType multiplier ×
 (1 + tradePriceFactorLoss) × (1 − the best negotiator's TradePriceImprovement)) is within today's spendable silver (the silver above the routine trade's reserve, `TradePolicyRules.SpendableSilver`: max(200, 100 ×
-colonists) kept, #3855 Q2 A, #3907; silver income named `stock_arrival_trade_silver_income_unmodelled`); its not-arrived chance is 1 until the comp starts, then e^(−visits a day ×
+colonists) kept, #3855 Q2 A, #3907; an orbital trader is paid only from the silver within a powered trade beacon's range
+(`TradeVisitFacts.BeaconSilver`, `TradeUtility.AllLaunchableThingsForTrade`, #3910) and the routine trade's reserve holds against that
+silver, the trade sheet's own, so the orbital sources see `SpendableSilver(BeaconSilver, colonists)` and the caravans and visitors
+the map's silver; silver income named `stock_arrival_trade_silver_income_unmodelled`); its not-arrived chance is 1 until the comp starts, then e^(−visits a day ×
 supply chance × (t − start)), multiplied with the craft steps, and the expected wait integrates the product exactly. True zeros are
 named: `stock_arrival_trade_no_negotiator`, `stock_arrival_orbital_no_comms_console`, `stock_arrival_orbital_no_trade_beacon`,
 `stock_arrival_trade_blocked:<incident>:<gates>`, `stock_arrival_trade_no_trader_kind:<incident>` (it fires with no kind to
@@ -539,7 +545,8 @@ send); a kind trading for royal favor is `stock_arrival_trade_favor_unmodelled:<
 Medicine and parts share the spendable silver in the autopilot's own order (#3907, `StockArrival.WithMedicineClaim`, applied in the
 review after the medical reserve latch): medicine first, with a fixed claim of today's gap, the reserve review's replenish × the
 cheapest medicine's market value (`TradePolicyRules.MedicineClaim`, also the medicine term of `SilverGap`), so the parts' sources
-see the spendable silver less that claim and the medicine sources all of it. Trade also feeds the colony model's medicine
+see their own spendable silver less that claim and the medicine sources all of it (the units the silver pays for over the horizon
+are the largest pool a medicine visit buys from). Trade also feeds the colony model's medicine
 trajectory (`ColonyModelPolicy.MedicineTrade`, `StockArrival.MedicineTrade`) as the routine trade buys: the cheapest kind, on the
 reserve's latch (`MedicalReservePolicy.Threshold`, the same threshold the review uses: starts below 1 medicine per colonist, stops
 at 3, counting the usable stock without the best kind, so tending's use of the best kind first moves the latch only once it is

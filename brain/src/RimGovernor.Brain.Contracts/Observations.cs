@@ -6388,7 +6388,8 @@ public sealed record ThreatFacts
 /// fullAlliesOnly false and true (StorytellerComp_FactionInteraction's accept fraction; at or below 0 no faction can visit),
 /// GenDate.DaysPassedSinceSettleFloat (IncidentCycleUtility counts from settling), whether a colonist comms console is powered
 /// (IncidentWorker_OrbitalTraderArrival announces, and so lets the colony trade with, a ship only then) and an orbital trade beacon
-/// is powered (a ship drops its goods and takes its silver there), the best eligible negotiator's TradePriceImprovement (<see cref="Negotiator"/> false: no free colonist can negotiate), the
+/// is powered (a ship drops its goods and takes its silver there), the silver within a powered beacon's range (<see cref="BeaconSilver"/>:
+/// TradeUtility.AllLaunchableThingsForTrade, the only silver an orbital trader is paid from), the best eligible negotiator's TradePriceImprovement (<see cref="Negotiator"/> false: no free colonist can negotiate), the
 /// difficulty's tradePriceFactorLoss, the map's DangerWatcher.DangerRating (a FactionInteraction comp's minDanger gate, #3909),
 /// StorytellerUtilityPopulation.PopulationIntent (StorytellerComp.TrySelectRandomIncident and IncidentChanceFinal, #3909), and one
 /// row per incident a trader comp can draw (#3909: every incident of an exact TraderCaravanArrival, OrbitalTraderArrival,
@@ -6409,6 +6410,8 @@ public sealed record TradeVisitFacts
     public bool CommsConsole { get; init; }
 
     public bool TradeBeacon { get; init; }
+
+    public long BeaconSilver { get; init; }
 
     public bool Negotiator { get; init; }
 
@@ -6433,8 +6436,8 @@ public sealed record TradeVisitFacts
 /// factions (FactionCanBeGroupSource, drawn uniformly), each with its caravanTraderKinds by
 /// IncidentWorker_TraderCaravanArrival.TraderKindCommonality (a visitor group: its visitorTraderKinds by CalculatedCommonality);
 /// a tribute collector's one source of the TributeCollector kinds by CalculatedCommonality; an orbital trader's one source of the
-/// orbital kinds that CanSpawn, by CalculatedCommonality (empty when none can: the ship fails in TryExecuteWorker, past the
-/// draw); none for a traveler group.
+/// orbital kinds that can pass CanSpawn (a Qualifies above 0), by CalculatedCommonality (empty when none can: the ship fails in
+/// TryExecuteWorker, past the draw); none for a traveler group.
 /// </summary>
 public sealed record TraderIncidentRead(string Incident)
 {
@@ -6468,8 +6471,17 @@ public enum StoryDangerLevel
     High,
 }
 
-/// <summary>A trader kind's draw weight: its TraderKindDef and the commonality the incident draws it by now.</summary>
-public sealed record TraderKindWeight(string Kind, double Weight);
+/// <summary>
+/// A trader kind's draw weight: its TraderKindDef and the commonality the incident draws it by now. <see cref="Qualifies"/> is the
+/// chance the faction the game draws for the kind (IncidentWorker_OrbitalTraderArrival.GetFaction: one of its faction def's factions
+/// at random, drawn once for CanSpawn and again for the ship itself) is one a free colonist can trade with (Pawn.CanTradeWith): the
+/// share of those factions that qualify, 0 when the def has none, and 1 for a kind of no faction and for every draw but an orbital
+/// trader's.
+/// </summary>
+public sealed record TraderKindWeight(string Kind, double Weight)
+{
+    public double Qualifies { get; init; } = 1;
+}
 
 /// <summary>
 /// The colony facts StorytellerComp_Disease and IncidentWorker_DiseaseHuman read (#3824). Read-only: the storyteller and the

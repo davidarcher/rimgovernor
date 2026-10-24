@@ -79,7 +79,7 @@ public sealed class MedicineTradeTests
         var arm = new Resource("BionicArm");
         var stock = new StockArrival
         {
-            Spendable = 700, Medicines = [Herbal, new Resource("MedicineIndustrial"), new Resource("MedicineUltratech")],
+            Medicines = [Herbal, new Resource("MedicineIndustrial"), new Resource("MedicineUltratech")],
             Trade =
             [
                 new TradeSource(Herbal, 2, 0.5) { Kinds = kinds, PriceFactor = 1, Silver = 700 },
@@ -102,6 +102,6 @@ public sealed class MedicineTradeTests
         Assert.Throws<RequiredFactException>(() => unread.NotArrived(new StockNeed([arm], 1), 5));
         // No visit of a kind carrying medicine, or no silver for a unit, buys none.
         Assert.Null((stock with { Trade = [stock.Trade[1]] }).WithMedicineClaim(items, review, 3, MedicalReservePolicy.Default()).MedicineTrade);
-        Assert.Null((stock with { Spendable = 10 }).WithMedicineClaim(items, review, 3, MedicalReservePolicy.Default()).MedicineTrade);
+        Assert.Null((stock with { Trade = [stock.Trade[0] with { Silver = 10 }, stock.Trade[1]] }).WithMedicineClaim(items, review, 3, MedicalReservePolicy.Default()).MedicineTrade);
     }
 }
