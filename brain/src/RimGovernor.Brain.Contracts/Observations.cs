@@ -146,14 +146,9 @@ public enum StockOwnership
 [JsonConverter(typeof(WireEnumConverter<BuildingStatus>))]
 public enum BuildingStatus
 {
-    [WireName("BUILDING_STATUS_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("BUILDING_STATUS_BLUEPRINT")]
-    Blueprint = 1,
-    [WireName("BUILDING_STATUS_FRAME")]
-    Frame = 2,
-    [WireName("BUILDING_STATUS_BUILT")]
-    Built = 3,
+    Blueprint,
+    Frame,
+    Built,
 }
 
 /// <summary>
@@ -1996,39 +1991,91 @@ public sealed record BuildingSettings
 
 public sealed record MaterialDeficit
 {
-    public string DefName { get; init; } = "";
+    public required string DefName { get; init; }
 
-    public long StillNeeded { get; init; }
+    public required long StillNeeded { get; init; }
 }
 
 /// <summary>
-/// A blueprint's or frame's construction state: work left (absent on an installation blueprint,
-/// which carries no work), the material each definition still needs, and the
-/// native finishing-skill guard's facts for a quality-sensitive build.
+/// A blueprint's or frame's construction state. A construction blueprint or frame is a <see cref="Build"/>; an
+/// installation blueprint (reinstalling a minified or uninstalled thing) is an <see cref="Installation"/>, which
+/// carries no work, no materials and no finishing guard.
 /// </summary>
-public sealed record ConstructionState
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ConstructionState.Build), "build")]
+[JsonDerivedType(typeof(ConstructionState.Installation), "installation")]
+public abstract record ConstructionState
 {
-    public double? WorkLeft { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<MaterialDeficit>))]
-    public EquatableArray<MaterialDeficit> Resources { get; init; }
-
-    public bool ResourcesComplete { get; init; }
-
-    public int? MinimumFinishingSkill { get; init; }
-
-    public bool? QualitySensitive { get; init; }
-
-    public int? EligibleFinishers { get; init; }
-
-    public string? FinishingBlocker { get; init; }
-
-    public int? NativeFinishingSkill { get; init; }
+    private protected ConstructionState() { }
 
     /// <summary>
-    /// Native per-target construction tier (#2522); absent = ungated.
+    /// A construction blueprint or frame: the definition it builds, the native work left (WorkToBuild on a
+    /// blueprint), the material each cost definition still needs (every cost listed, zero once delivered), and
+    /// the native finishing-skill guard's facts: whether the build has quality, the definition's own
+    /// constructionSkillPrerequisite, the planner-set minimum (absent when none is set) and the tier gate.
     /// </summary>
-    public int? Tier { get; init; }
+    public sealed record Build : ConstructionState
+    {
+        public required string Definition { get; init; }
+
+        public required double WorkLeft { get; init; }
+
+        [JsonConverter(typeof(EquatableArrayJsonConverter<MaterialDeficit>))]
+        public required EquatableArray<MaterialDeficit> Resources { get; init; }
+
+        public required bool QualitySensitive { get; init; }
+
+        public required int NativeFinishingSkill { get; init; }
+
+        public required FinishingMinimum? Minimum { get; init; }
+
+        public required ConstructionGate Gate { get; init; }
+    }
+
+    public sealed record Installation : ConstructionState;
+}
+
+/// <summary>A planner-set minimum finishing skill on a build, and how many free colonists meet it now.</summary>
+public sealed record FinishingMinimum
+{
+    public required int Skill { get; init; }
+
+    public required int EligibleFinishers { get; init; }
+}
+
+/// <summary>A build's native per-target construction tier (#2522): ungated, or gated at a tier.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ConstructionGate.Ungated), "ungated")]
+[JsonDerivedType(typeof(ConstructionGate.Tiered), "tiered")]
+public abstract record ConstructionGate
+{
+    private protected ConstructionGate() { }
+
+    public sealed record Ungated : ConstructionGate;
+
+    public sealed record Tiered : ConstructionGate
+    {
+        [JsonConverter(typeof(WireEnumConverter<ConstructionTier>))]
+        public required ConstructionTier Tier { get; init; }
+    }
+}
+
+/// <summary>A building's hit points: a definition without hit points (useHitPoints false) is <see cref="Untracked"/>.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BuildingHitPoints.Untracked), "untracked")]
+[JsonDerivedType(typeof(BuildingHitPoints.Tracked), "tracked")]
+public abstract record BuildingHitPoints
+{
+    private protected BuildingHitPoints() { }
+
+    public sealed record Untracked : BuildingHitPoints;
+
+    public sealed record Tracked : BuildingHitPoints
+    {
+        public required int Current { get; init; }
+
+        public required int Maximum { get; init; }
+    }
 }
 
 /// <summary>
@@ -2074,56 +2121,48 @@ public sealed record BuildingServiceState
 /// BuildingState is the canonical building row, built by one native
 /// builder: only the bundle's building table and the list read carry it;
 /// every other message points at a building by Ref, which the
-/// reader resolves against the table. Head, rotation, status, footprint,
-/// burning, service and settings.forbidden are set on every row; stuff is
-/// absent for a stuffless def, faction for an unowned thing, hit points for
-/// a def without them, build_def_name and construction on a built row.
+/// reader resolves against the table. Stuff is absent for a stuffless def
+/// and faction for an unowned thing; construction is present exactly on a
+/// blueprint or frame.
 /// </summary>
 public sealed record BuildingState
 {
-    public EntityRef Building { get; init; } = new();
+    public required EntityRef Building { get; init; }
 
-    public Placement.Rotation Rotation { get; init; }
+    public required Placement.Rotation Rotation { get; init; }
 
-    public string? Stuff { get; init; }
+    public required string? Stuff { get; init; }
 
-    public Common.Ref? Faction { get; init; }
+    public required Common.Ref? Faction { get; init; }
 
-    public BuildingStatus Status { get; init; }
+    public required BuildingStatus Status { get; init; }
 
-    /// <summary>
-    /// What a construction blueprint or frame builds; absent on a built row and an installation blueprint.
-    /// </summary>
-    public string? BuildDefName { get; init; }
+    public required BuildingHitPoints HitPoints { get; init; }
 
-    public int? HitPoints { get; init; }
+    /// <summary>What a blueprint or frame builds and how far it is; absent on a built row.</summary>
+    public required ConstructionState? Construction { get; init; }
 
-    public int? MaxHitPoints { get; init; }
+    public required BuildingServiceState Service { get; init; }
 
-    public ConstructionState? Construction { get; init; }
+    public required BuildingSettings Settings { get; init; }
 
-    public BuildingServiceState Service { get; init; } = new();
-
-    public BuildingSettings Settings { get; init; } = new();
-
-    public bool Burning { get; init; }
+    public required bool Burning { get; init; }
 
     /// <summary>
     /// The building's occupied rect, inclusive.
     /// </summary>
-    public Rectangle Occupied { get; init; } = new();
-
+    public required Rectangle Occupied { get; init; }
 
     /// <summary>
     /// Anomaly containment facts; absent without Anomaly or on a building
     /// that is no entity holder.
     /// </summary>
-    public AnomalyBuilding? Anomaly { get; init; }
+    public required AnomalyBuilding? Anomaly { get; init; }
 
     /// <summary>
     /// A door's state (Building_Door); absent on any other building.
     /// </summary>
-    public BuildingDoor? Door { get; init; }
+    public required BuildingDoor? Door { get; init; }
 }
 
 /// <summary>
@@ -2132,9 +2171,9 @@ public sealed record BuildingState
 /// </summary>
 public sealed record BuildingDoor
 {
-    public bool Open { get; init; }
+    public required bool Open { get; init; }
 
-    public bool HoldOpen { get; init; }
+    public required bool HoldOpen { get; init; }
 }
 
 /// <summary>
@@ -2154,10 +2193,10 @@ public sealed record PowerNetwork
 
 public sealed record BuildingsSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<BuildingState>))]
-    public EquatableArray<BuildingState> Buildings { get; init; }
+    public required EquatableArray<BuildingState> Buildings { get; init; }
 }
 
 public sealed record ListBuildingsRequest
@@ -2180,45 +2219,6 @@ public sealed record ListBuildingsRequest
     /// Every faction's buildings; false lists only the player's.
     /// </summary>
     public bool AnyFaction { get; init; }
-}
-
-public sealed record ListBuildingsReply
-{
-    public ListBuildingsReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ListBuildingsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ListBuildingsReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(ListBuildingsReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(ListBuildingsReplyOutcome.FailureCase), "failure")]
-public abstract record ListBuildingsReplyOutcome
-{
-    private protected ListBuildingsReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public BuildingsSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(BuildingsSnapshot Value) : ListBuildingsReplyOutcome;
-
-    public static implicit operator ListBuildingsReplyOutcome(BuildingsSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : ListBuildingsReplyOutcome;
-
-    public static implicit operator ListBuildingsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : ListBuildingsReplyOutcome;
-
-    public static implicit operator ListBuildingsReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 /// <summary>

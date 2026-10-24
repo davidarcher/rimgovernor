@@ -35,17 +35,30 @@ internal static class NativeProtoBuildingsProbe
         const string scope = "\"scope\":{\"expectedIdentity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}}";
         Func<string, string> request = fields => "{" + scope + (fields.Length == 0 ? "" : "," + fields) + "}";
         foreach (var fields in new[] { "", "\"anyFaction\":true",
-            "\"statuses\":[\"BUILDING_STATUS_BLUEPRINT\",\"BUILDING_STATUS_BUILT\"],\"defNames\":[\"Wall\"],\"ids\":[\"Wall17\"]" })
+            "\"statuses\":[\"blueprint\",\"built\"],\"defNames\":[\"Wall\"],\"ids\":[\"Wall17\"]" })
             Check(Valid(request(fields)), "Valid request preserves explicit values: " + fields);
         Check(!Valid("{}"), "Missing identity scope refused");
         foreach (var fields in new[] { "\"ids\":[\"same\",\"same\"]", "\"defNames\":[\"\"]", "\"ids\":[\"bad\\u0000id\"]" })
             Check(!Valid(request(fields)), "Invalid request refused: " + fields);
         var ids = string.Join(",", Enumerable.Range(0, 257).Select(i => "\"thing" + i + "\""));
         Check(!Valid(request("\"ids\":[" + ids + "]")), "ID filter bound enforced");
-        var snapshot = Get(Get(Wire("ListBuildingsReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"buildings\":[{\"building\":{\"id\":\"Wall17\"},\"construction\":{}}]}}}"), "Outcome"), "Observed");
-        var row = ((IList)Get(snapshot, "Buildings"))[0]!;
-        Check(Get(row, "Burning") is false, "Omitted burning reads false");
-        Check(Get(Get(row, "Construction"), "ResourcesComplete") is false, "Omitted resources_complete reads false");
+        const string context = "\"context\":{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0},\"tick\":1}";
+        const string build = "{\"type\":\"build\",\"definition\":\"Wall\",\"workLeft\":1,\"resources\":[{\"defName\":\"Steel\",\"stillNeeded\":0}],"
+            + "\"qualitySensitive\":false,\"nativeFinishingSkill\":0,\"minimum\":null,\"gate\":{\"type\":\"tiered\",\"tier\":\"survive\"}}";
+        Func<string, string> buildings = row => "{" + context + ",\"buildings\":[{\"building\":{\"id\":\"Wall17\"},\"rotation\":\"ROTATION_NORTH\",\"stuff\":null,"
+            + "\"faction\":null,\"status\":\"frame\",\"hitPoints\":{\"type\":\"tracked\",\"current\":5,\"maximum\":10},\"service\":{},\"settings\":{},"
+            + "\"occupied\":{\"minimum\":{\"x\":1,\"z\":1},\"maximum\":{\"x\":1,\"z\":1}},\"anomaly\":null,\"door\":null" + row + "}]}";
+        var snapshot = Wire("BuildingsSnapshot", buildings(",\"burning\":false,\"construction\":" + build));
+        var construction = Get(((IList)Get(snapshot, "Buildings"))[0]!, "Construction");
+        Check(construction.GetType().Name == "Build" && Get(construction, "Definition") is "Wall", "A frame row carries its build state");
+        Check(Get(Get(construction, "Gate"), "Tier").ToString() == "Survive", "A tiered gate names its tier");
+        foreach (var (missing, row) in new[] { ("burning", ",\"construction\":" + build), ("construction", ",\"burning\":false") })
+        {
+            var refused = false;
+            try { Wire("BuildingsSnapshot", buildings(row)); }
+            catch (TargetInvocationException) { refused = true; }
+            Check(refused, "A row missing its " + missing + " is refused");
+        }
         Console.WriteLine(checks + " compiled building boundary assertions passed; no gameplay assertions.");
         return 0;
     }

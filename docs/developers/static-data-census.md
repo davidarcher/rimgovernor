@@ -137,7 +137,7 @@ Kept, reason recorded:
 
 Converted (Go evaluates the rule over the mirrored `ThingDef`/`TerrainDef` rows; the native copy and the proto field are gone). Each rule has a parity check against the native value for vanilla defs in `go/internal/bridge/catalog_def_stats_test.go`:
 - `StorageCapacity.stack_limit`: `DefinitionCatalog.StackLimit` (`ThingDef.stackLimit`); `acquireFromSources` fills it.
-- `BuildingState.uses_hit_points`: `DefinitionCatalog.UsesHitPoints`.
+- `BuildingState.uses_hit_points`: gone; a row's `hit_points` is `tracked` (current and maximum) or `untracked` (`ThingDef.useHitPoints` false), read natively per instance.
 - `UpkeepBed.humanlike`/`rest_effectiveness`: `BedHumanlike` (`BuildingProperties.bed_humanlike`) and `PlannerStatValue(BedRestEffectiveness)` over the bed's stuff. `UpkeepStructure.flammability`: `PlannerStatValue(Flammability)`.
 - `UpkeepStructure.repair_priority`: `RepairPriority` (a `CompTempControl` or `CompPowerPlant` comp, or a medical bed, is 0; `holdsRoof`, a `Building_WorkTable` or a bed class is 1; otherwise 2). The medical flag stays the live `UpkeepBed.medical`.
 - `LampState.glow_radius`: `GlowRadius` (`CompProperties_Glower.glowRadius`).
@@ -432,7 +432,6 @@ Kept, reason recorded:
 | PowerNetwork | message | 718 | 4 | state | Power network generation, consumption and stored energy |  |  |
 | BuildingsSnapshot | message | 725 | 5 | state | Buildings table plus power networks for the map |  |  |
 | ListBuildingsRequest | message | 728 | 9 | state | Read request parameters |  |  |
-| ListBuildingsReply | message | 729 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | RoomStat | message | 730 | 6 | code | One room stat (value, display) computed by RoomStatDef workers |  |  |
 | StockpileMembership | message | 732 | 2 | state | Stockpile zone in a room with its contents |  |  |
 | RoomState | message | 733 | 22 | state | Room census row: role, temperature, pawns, beds, doors; its cells come from the frame cell grid by grid room key |  |  |

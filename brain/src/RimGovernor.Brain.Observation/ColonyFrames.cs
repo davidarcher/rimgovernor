@@ -46,7 +46,7 @@ public static class ColonyFramesReads
         return Known(catalog.OutdoorsPermanentlyDark(v.Biome));
     }
 
-    internal static RoundsFacts ColonyDisaster(O.ColonyFactsSnapshot v, RoundsFacts facts, Buildings buildings, DefinitionCatalog? catalog, EquatableArray<DisasterCondition> conditions, bool conditionsKnown)
+    internal static RoundsFacts ColonyDisaster(O.ColonyFactsSnapshot v, RoundsFacts facts, Buildings buildings, EquatableArray<DisasterCondition> conditions, bool conditionsKnown)
     {
         if (conditionsKnown)
         {
@@ -70,16 +70,11 @@ public static class ColonyFramesReads
             {
                 throw new BridgeContractException($"recovery building {reference.Id}: the frame holds no row for it");
             }
-            if (catalog is null)
-            {
-                throw new DomainException($"recovery building {reference.Id}: no definition catalog was loaded");
-            }
-            var usesHitPoints = catalog.UsesHitPoints(row.Building.DefName);
             var s = row.Service;
             var b = new RecoveryBuilding
             {
                 Id = reference.Id ?? "",
-                UsesHitPoints = Known(usesHitPoints),
+                UsesHitPoints = Known(row.HitPoints is O.BuildingHitPoints.Tracked),
                 Broken = Known(s.BrokenDown),
                 Forbidden = Known(row.Settings.Forbidden),
                 Burning = Known(row.Burning),
@@ -87,13 +82,9 @@ public static class ColonyFramesReads
                 FuelTarget = ColonyDecodeReads.Optional(s.TargetFuel is not null, s.TargetFuel.GetValueOrDefault()),
                 Refuelable = Known(s.Fuel is not null),
             };
-            if (row.HitPoints is not null)
+            if (row.HitPoints is O.BuildingHitPoints.Tracked hitPoints)
             {
-                b = b with { HitPoints = Known((long)row.HitPoints) };
-            }
-            if (row.MaxHitPoints is not null)
-            {
-                b = b with { MaxHitPoints = Known((long)row.MaxHitPoints) };
+                b = b with { HitPoints = Known((long)hitPoints.Current), MaxHitPoints = Known((long)hitPoints.Maximum) };
             }
 
             rows.Add(b);

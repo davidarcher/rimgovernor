@@ -115,9 +115,6 @@ internal sealed class ConstructionState
                 }
                 break;
             }
-            default:
-                Unset(id);
-                break;
         }
     }
 
@@ -227,13 +224,6 @@ public static class ConstructionReads
         _ => (Rotation)(-1),
     };
 
-    private static string? SiteStage(O.BuildingStatus status) => status switch
-    {
-        O.BuildingStatus.Blueprint => ConstructionSite.BlueprintStage,
-        O.BuildingStatus.Frame => "frame",
-        _ => null,
-    };
-
     /// <summary>Projects one built row for the construction census.</summary>
     internal static CurrentBuilding CurrentBuildingOf(O.BuildingState row)
     {
@@ -241,54 +231,46 @@ public static class ConstructionReads
         return new CurrentBuilding { Id = row.Building.Id, Building = building, Cells = EquatableArray.From(CellsRules.RectCells(row.Occupied)) };
     }
 
-    /// <summary>Projects one blueprint or frame row; ok is false for any other row.</summary>
+    /// <summary>
+    /// Projects one construction blueprint or frame row; ok is false for an installation blueprint, which is no
+    /// construction site. A blueprint or frame without its construction state is a contract error.
+    /// </summary>
     internal static (ConstructionSite Site, bool Ok, DomainException? Error) ConstructionSiteOf(O.BuildingState row)
     {
         var site = new ConstructionSite();
         try
         {
-            var stage = SiteStage(row.Status);
-            if (stage is null || row.BuildDefName is not { } buildDefName)
+            if (row.Status == O.BuildingStatus.Built)
+            {
+                throw new ObservationContractException("a built row is no construction site");
+            }
+            if (row.Construction is O.ConstructionState.Installation)
             {
                 return (site, false, null);
             }
-            var b = new Building(buildDefName, ColonyDecodeReads.CellOf(row.Building.Position), RotationOf(row.Rotation), row.Stuff ?? "");
-            var state = row.Construction;
-            site = new ConstructionSite { Building = b, Stage = stage, Id = row.Building.Id };
-            if (state is not null)
+            if (row.Construction is not O.ConstructionState.Build build)
             {
-                site = site with
-                {
-                    ResourcesComplete = Known(state.ResourcesComplete),
-                    QualitySensitive = ColonyDecodeReads.Optional(state.QualitySensitive is not null, state.QualitySensitive.GetValueOrDefault()),
-                    MaterialsOwed = Known(EquatableArray.From(SiteNeeds(row).Select(n => new Amount(n.Resource, n.Count)))),
-                };
-                if (state.WorkLeft is { } work)
-                {
-                    site = site with { WorkLeft = Known(work) };
-                }
-                if (state.MinimumFinishingSkill is not null)
-                {
-                    site = site with { MinimumFinishingSkill = Known(state.MinimumFinishingSkill.GetValueOrDefault()) };
-                }
-                if (state.NativeFinishingSkill is not null)
-                {
-                    site = site with { NativeFinishingSkill = Known(state.NativeFinishingSkill.GetValueOrDefault()) };
-                }
-                if (state.EligibleFinishers is not null)
-                {
-                    site = site with { EligibleFinishers = Known(state.EligibleFinishers.GetValueOrDefault()) };
-                }
-                if (state.Tier is not null)
-                {
-                    var tier = (ConstructionTier)state.Tier.GetValueOrDefault();
-                    if (!Enum.IsDefined(tier))
-                    {
-                        throw new ObservationContractException("invalid construction tier");
-                    }
-                    site = site with { Tier = Known(tier) };
-                }
-                site = site with { FinishingBlocker = state.FinishingBlocker ?? "" };
+                throw new ObservationContractException("a blueprint or frame row carries no construction state");
+            }
+            site = new ConstructionSite
+            {
+                Building = new Building(build.Definition, ColonyDecodeReads.CellOf(row.Building.Position), RotationOf(row.Rotation), row.Stuff ?? ""),
+                Stage = row.Status == O.BuildingStatus.Blueprint ? ConstructionSite.BlueprintStage : "frame",
+                Id = row.Building.Id,
+                ResourcesComplete = Known(build.Resources.All(r => r.StillNeeded == 0)),
+                WorkLeft = Known(build.WorkLeft),
+                MaterialsOwed = Known(EquatableArray.From(SiteNeeds(row).Select(n => new Amount(n.Resource, n.Count)))),
+                QualitySensitive = Known(build.QualitySensitive),
+                NativeFinishingSkill = Known(build.NativeFinishingSkill),
+                FinishingBlocker = FinishingBlocker(build),
+            };
+            if (build.Minimum is { } minimum)
+            {
+                site = site with { MinimumFinishingSkill = Known(minimum.Skill), EligibleFinishers = Known(minimum.EligibleFinishers) };
+            }
+            if (build.Gate is O.ConstructionGate.Tiered gate)
+            {
+                site = site with { Tier = Known(gate.Tier) };
             }
             return (site, true, null);
         }
@@ -298,15 +280,28 @@ public static class ConstructionReads
         }
     }
 
-    /// <summary>What one blueprint or frame row is still owed, nothing for any other row.</summary>
+    /// <summary>
+    /// Why the native finishing-skill guard holds a build: a quality build without a planner-set minimum
+    /// (minimum_not_set), a minimum no free colonist meets (no_qualified_builder), else empty.
+    /// </summary>
+    private static string FinishingBlocker(O.ConstructionState.Build build)
+    {
+        if (build.Minimum is not { } minimum)
+        {
+            return build.QualitySensitive ? "minimum_not_set" : "";
+        }
+        return minimum.EligibleFinishers == 0 ? "no_qualified_builder" : "";
+    }
+
+    /// <summary>What one construction blueprint or frame row is still owed, nothing for any other row.</summary>
     internal static List<SiteNeed> SiteNeeds(O.BuildingState row)
     {
         var needs = new List<SiteNeed>();
-        if (row.Status is not (O.BuildingStatus.Blueprint or O.BuildingStatus.Frame))
+        if (row.Construction is not O.ConstructionState.Build build)
         {
             return needs;
         }
-        foreach (var need in row.Construction?.Resources ?? [])
+        foreach (var need in build.Resources)
         {
             if (need.StillNeeded > 0)
             {
@@ -323,30 +318,13 @@ public static class ConstructionReads
     /// </summary>
     public static (Fact<CurrentConstruction> Construction, Fact<IReadOnlyDictionary<Resource, long>> Deficit) ConstructionFromCensus(BuildingCensus census)
     {
-        Fact<CurrentConstruction> construction = default;
-        Fact<IReadOnlyDictionary<Resource, long>> deficit = default;
-        DomainException? error = null;
-        object? Update(object? last)
-        {
-            var state = ConstructionState.Next(last as ConstructionState, census.Rows);
-            construction = state.Census;
-            deficit = state.DeficitFact;
-            error = state.Error;
-            return state;
-        }
-        if (census.Memo is { } memo)
-        {
-            memo.Update(Update);
-        }
-        else
-        {
-            Update(null);
-        }
-        if (error is not null)
+        object? Update(object? last) => ConstructionState.Next(last as ConstructionState, census.Rows);
+        var state = (ConstructionState)(census.Memo is { } memo ? memo.Update(Update) : Update(null))!;
+        if (state.Error is { } error)
         {
             throw error;
         }
-        return (construction, deficit);
+        return (state.Census, state.DeficitFact);
     }
 
     /// <summary>Bill lifecycle from the same census as ingredient reservations.</summary>

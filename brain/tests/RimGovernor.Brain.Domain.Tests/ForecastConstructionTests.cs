@@ -223,17 +223,34 @@ public sealed class ForecastConstructionTests
         var row = new O.BuildingState
         {
             Building = new O.EntityRef { Id = "frame", Position = new C.Cell { X = 1, Z = 1 } },
-            BuildDefName = "TestBuilding", Status = O.BuildingStatus.Frame,
             Rotation = RimGovernor.Contracts.Wire.Placement.Rotation.North,
-            Construction = new O.ConstructionState { WorkLeft = 123, ResourcesComplete = false,
-                Resources = [new O.MaterialDeficit { DefName = Material.Value, StillNeeded = 7 }] },
+            Stuff = null,
+            Faction = null,
+            Status = O.BuildingStatus.Frame,
+            HitPoints = new O.BuildingHitPoints.Untracked(),
+            Construction = new O.ConstructionState.Build
+            {
+                Definition = "TestBuilding",
+                WorkLeft = 123,
+                Resources = [new O.MaterialDeficit { DefName = Material.Value, StillNeeded = 7 }],
+                QualitySensitive = false,
+                NativeFinishingSkill = 0,
+                Minimum = null,
+                Gate = new O.ConstructionGate.Ungated(),
+            },
+            Service = new O.BuildingServiceState(),
+            Settings = new O.BuildingSettings(),
+            Burning = false,
+            Occupied = new O.Rectangle { Minimum = new C.Cell { X = 1, Z = 1 }, Maximum = new C.Cell { X = 1, Z = 1 } },
+            Anomaly = null,
+            Door = null,
         };
         var observed = ConstructionReads.ConstructionFromCensus(new(null, Buildings.Of(row))).Construction.Value;
+        Assert.Equal("TestBuilding", observed.Sites[0].Building!.Definition);
         Assert.Equal(123, observed.Sites[0].WorkLeft.Value);
         Assert.Equal(7, observed.Sites[0].MaterialsOwed.Value[0].Count);
-        var missing = row with { Construction = new O.ConstructionState() };
-        var unknown = ConstructionReads.ConstructionFromCensus(new(null, Buildings.Of(missing))).Construction.Value;
-        Assert.False(unknown.Sites[0].WorkLeft.IsKnown);
-        Assert.Empty(unknown.Sites[0].MaterialsOwed.Value);
+        Assert.False(observed.Sites[0].ResourcesComplete.Value);
+        var missing = row with { Construction = null };
+        Assert.Throws<ObservationContractException>(() => ConstructionReads.ConstructionFromCensus(new(null, Buildings.Of(missing))));
     }
 }

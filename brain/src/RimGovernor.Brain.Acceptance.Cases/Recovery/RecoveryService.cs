@@ -60,11 +60,11 @@ internal static class RecoveryService
         var wallId = s.Staged!.Buildings[Wall].Ids.Single();
         var builderId = s.Staged.Pawns[Builder].Id;
 
-        async Task<Observations.BuildingState> WallAsync(string label, CancellationToken ct)
+        async Task<Observations.BuildingHitPoints.Tracked> WallAsync(string label, CancellationToken ct)
         {
             var rows = await s.BuildingsAsync(label, new Observations.ListBuildingsRequest { Ids = [wallId], Statuses = [Observations.BuildingStatus.Built] }, ct).ConfigureAwait(false);
-            return rows is [{ HitPoints: not null, MaxHitPoints: not null } row] && row.Building.Id == wallId
-                ? row
+            return rows is [{ HitPoints: Observations.BuildingHitPoints.Tracked hitPoints } row] && row.Building.Id == wallId
+                ? hitPoints
                 : throw new AcceptanceException($"{label}: want one built row with hit points for {wallId}, got {string.Join("; ", rows)}");
         }
 
@@ -86,9 +86,9 @@ internal static class RecoveryService
 
         var before = await WallAsync("wall-before", cancellationToken).ConfigureAwait(false);
         s.RecordWire("wall_before", before);
-        if (before.HitPoints >= before.MaxHitPoints)
+        if (before.Current >= before.Maximum)
         {
-            throw new AcceptanceException($"wall-before: the staged wall is not damaged: {before.HitPoints}/{before.MaxHitPoints}");
+            throw new AcceptanceException($"wall-before: the staged wall is not damaged: {before.Current}/{before.Maximum}");
         }
 
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
@@ -116,7 +116,7 @@ internal static class RecoveryService
         _ = await s.RunUntilAsync("repaired", 20000, async ct =>
         {
             after = await WallAsync("wall-after", ct).ConfigureAwait(false);
-            return (Wait.Signature(after.HitPoints), after.HitPoints >= after.MaxHitPoints);
+            return (Wait.Signature(after.Current), after.Current >= after.Maximum);
         }, cancellationToken).ConfigureAwait(false);
         s.RecordWire("wall_after", after);
     }

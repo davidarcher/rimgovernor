@@ -199,8 +199,8 @@ namespace HomeBridge.BridgeTools
             Obs.ReadScope Scope() => new Obs.ReadScope { ExpectedIdentity = context.Identity };
             {
                 var began = Now();
-                var buildings = RequiredBuildings(NativeBuildingObservationTools.Read(map, new Obs.ListBuildingsRequest { Scope = Scope() }, context).Outcome);
-                ObservationWork.Captured("buildings", Now() - began, buildings != null ? buildings.Buildings.Count : 0);
+                var buildings = SnapshotSectionException.Read(nameof(Obs.BundleSnapshot.Buildings), () => NativeBuildingObservationTools.Read(map, new Obs.ListBuildingsRequest { Scope = Scope() }, context));
+                ObservationWork.Captured("buildings", Now() - began, buildings.Buildings.Count);
                 observed = observed with { Buildings = buildings };
             }
             {

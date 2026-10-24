@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Observation;
 /// </summary>
 public interface IRefrigerationSource
 {
-    Task<O.ListBuildingsReply> ReadConstructionBuildingsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken);
+    Task<O.BuildingsSnapshot> ReadConstructionBuildingsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken);
 }
 
 public static class RefrigerationReads
@@ -64,9 +64,8 @@ public static class RefrigerationReads
         var coolers = new List<RefrigerationCooler>(ids.Count);
         foreach (var batch in ids.Chunk(BuildingReadBatch))
         {
-            var reply = await source.ReadConstructionBuildingsAsync(identity, batch, cancellationToken).ConfigureAwait(false);
-            var observed = reply?.Outcome?.Observed;
-            if (observed is null || observed.Buildings.Count != batch.Length)
+            var observed = await source.ReadConstructionBuildingsAsync(identity, batch, cancellationToken).ConfigureAwait(false);
+            if (observed.Buildings.Count != batch.Length)
             {
                 throw new RequiredFactException("refrigeration coolers");
             }

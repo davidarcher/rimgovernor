@@ -28,8 +28,8 @@ public static class TypedReads
     public static async Task<IReadOnlyList<Observations.BuildingState>> BuildingsAsync(this Harness harness, string label, Observations.ListBuildingsRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(harness);
-        var reply = await harness.CallAsync(label, NativeOps.ListBuildings, request, cancellationToken).ConfigureAwait(false);
-        return Observed(label, NativeOps.ListBuildings, reply, reply.Outcome?.Observed).Buildings.ToList();
+        var snapshot = await harness.CallAsync(label, NativeOps.ListBuildings, request, cancellationToken).ConfigureAwait(false);
+        return snapshot.Buildings.ToList();
     }
 
     /// <summary>Every zone row <c>observations_list_zones</c> answers under <paramref name="scope"/>.</summary>

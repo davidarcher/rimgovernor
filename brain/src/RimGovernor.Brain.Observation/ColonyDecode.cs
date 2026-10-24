@@ -430,7 +430,7 @@ public static class ColonyDecodeReads
             f = f with { ButcherBenches = Known(EquatableArray.From(standing)) };
             r = r with { ButcheringBenches = Known(EquatableArray.From(benches)) };
         }
-        f = ColonyFramesReads.ColonyDisaster(v, f, buildings, catalog, conditions, conditionsKnown);
+        f = ColonyFramesReads.ColonyDisaster(v, f, buildings, conditions, conditionsKnown);
         var comfort = ColonyFramesReads.ColonyComfort(v, catalog);
         f = f with { Comfort = comfort, BasicComfort = comfort, HomeCoverage = v.Upkeep.Outcome.HomeCoverage };
         f = f with { Sleeping = SleepingUpkeepReads.ColonySleeping(v, buildings, catalog) };

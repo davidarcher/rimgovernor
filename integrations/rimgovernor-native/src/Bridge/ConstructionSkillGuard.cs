@@ -5,6 +5,7 @@ using HarmonyLib;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using ConstructionTier = RimGovernor.Brain.Domain.ConstructionTier;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
@@ -60,18 +61,33 @@ namespace HomeBridge.BridgeTools
         }
         private static bool Capable(Pawn p, int minimum) => Capability(p) == true && p.skills?.GetSkill(SkillDefOf.Construction) is SkillRecord skill
             && !skill.TotallyDisabled && skill.Level >= minimum;
-        internal static Obs.ConstructionState Read(Thing t, Obs.ConstructionState row)
+        // Read is a blueprint's or frame's build state: its material deficits and remaining work, with the finishing
+        // floor and tier this guard holds for it.
+        internal static Obs.ConstructionState.Build Read(Thing t, string definition, double workLeft, RimGovernor.Brain.Domain.EquatableArray<Obs.MaterialDeficit> resources)
         {
-            row = row with { QualitySensitive = Quality(t) };
-            if (t.def.entityDefToBuild == null) return row;
-            row = row with { NativeFinishingSkill = t.def.entityDefToBuild.constructionSkillPrerequisite };
+            var native = t.def.entityDefToBuild.constructionSkillPrerequisite;
             var setting = Setting(t);
-            if (setting != null && setting.Tier != ConstructionSkillSetting.None) row = row with { Tier = setting.Tier };
-            if (setting == null || setting.Minimum == ConstructionSkillSetting.None) { if (row.QualitySensitive.GetValueOrDefault()) row = row with { FinishingBlocker = "minimum_not_set" }; return row; }
-            row = row with { MinimumFinishingSkill = setting.Minimum };
-            row = row with { EligibleFinishers = t.Map.mapPawns.FreeColonistsSpawned.Count(p => Capable(p, Math.Max(setting.Minimum, t.def.entityDefToBuild.constructionSkillPrerequisite))) };
-            if (row.EligibleFinishers.GetValueOrDefault() == 0) row = row with { FinishingBlocker = "no_qualified_builder" };
-            return row;
+            Obs.ConstructionGate gate = new Obs.ConstructionGate.Ungated();
+            if (setting != null && setting.Tier != ConstructionSkillSetting.None)
+            {
+                if (setting.Tier < 0 || setting.Tier > MaxTier) throw new InvalidOperationException("Invalid construction tier.");
+                gate = new Obs.ConstructionGate.Tiered { Tier = (ConstructionTier)setting.Tier };
+            }
+            var minimum = setting == null || setting.Minimum == ConstructionSkillSetting.None ? null : new Obs.FinishingMinimum
+            {
+                Skill = setting.Minimum,
+                EligibleFinishers = t.Map.mapPawns.FreeColonistsSpawned.Count(p => Capable(p, Math.Max(setting.Minimum, native))),
+            };
+            return new Obs.ConstructionState.Build
+            {
+                Definition = definition,
+                WorkLeft = workLeft,
+                Resources = resources,
+                QualitySensitive = Quality(t),
+                NativeFinishingSkill = native,
+                Minimum = minimum,
+                Gate = gate,
+            };
         }
         internal static void Install()
         {

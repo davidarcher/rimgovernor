@@ -99,9 +99,10 @@ completion drops the tier; it is not carried onto the finished building.
 
 ## Readback
 
-`ConstructionState.tier` (field 13) on blueprint and frame rows;
-`observation.constructionSite` reads it into `policy.ConstructionSite.Tier`
-(unknown when absent, a contract error outside 0-5).
+`ConstructionState.Build.gate` on blueprint and frame rows: `tiered` with its
+`ConstructionTier`, or `ungated`; `ConstructionReads.ConstructionSiteOf` reads a
+tiered gate into `policy.ConstructionSite.Tier` (unknown when ungated). Native
+refuses the read of a tier outside 0-5.
 
 Native case `wall/construction-skill` covers tier through conversion and
 save/load, set-tier, the stale target refusal and the unchanged floor.

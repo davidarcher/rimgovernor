@@ -88,24 +88,24 @@ internal static class NativeObservationWorkProbe
 
     private static void RequiredBuildingsDoNotDisappear()
     {
-        var complete = new RimGovernor.Contracts.Wire.Observations.BuildingsSnapshot();
-        Check(ReferenceEquals(complete, SnapshotFrames.RequiredBuildings(complete)), "known empty buildings stay observed");
-        RimGovernor.Contracts.Wire.Observations.ListBuildingsReplyOutcome[] refused =
+        var complete = new RimGovernor.Contracts.Wire.Observations.BuildingsSnapshot
         {
-            new RimGovernor.Contracts.Wire.Common.Unavailable { Reason = RimGovernor.Contracts.Wire.Common.UnavailableReason.ReadFailed, Detail = "building 42: Invalid native amount." },
-            new RimGovernor.Contracts.Wire.Common.Failure { Code = RimGovernor.Contracts.Wire.Common.FailureCode.NativeFailure, Detail = "building 42: bad state" },
-            null,
+            Context = new RimGovernor.Contracts.Wire.Common.ObservationContext { Identity = new RimGovernor.Contracts.Wire.Common.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 1 },
+            Buildings = [],
         };
-        foreach (var outcome in refused)
+        Check(ReferenceEquals(complete, SnapshotFrames.SnapshotSectionException.Read("Buildings", () => complete)), "known empty buildings stay observed");
+        try
         {
-            try { SnapshotFrames.RequiredBuildings(outcome); throw new Exception("missing building outcome was accepted"); }
-            catch (SnapshotFrames.SnapshotSectionException error)
-            {
-                var frame = error.Frame();
-                Check(frame.Buildings == null && frame.Failure != null, "failure frame never invents an empty census");
-                Check(frame.Failure.Detail.Contains("Buildings"), "failure names the required section");
-                Check(frame.Failure.Detail.Contains(outcome == null ? "no outcome" : "building 42"), "failure retains native detail");
-            }
+            SnapshotFrames.SnapshotSectionException.Read<RimGovernor.Contracts.Wire.Observations.BuildingsSnapshot>("Buildings",
+                () => throw new InvalidOperationException("building 42: Invalid native amount."));
+            throw new Exception("a failed building read was accepted");
+        }
+        catch (SnapshotFrames.SnapshotSectionException error)
+        {
+            var frame = error.Frame();
+            Check(frame.Buildings == null && frame.Failure != null, "failure frame never invents an empty census");
+            Check(frame.Failure.Detail.Contains("Buildings"), "failure names the required section");
+            Check(frame.Failure.Detail.Contains("building 42"), "failure retains native detail");
         }
     }
 

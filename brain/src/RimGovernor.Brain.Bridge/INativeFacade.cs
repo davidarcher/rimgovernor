@@ -73,7 +73,7 @@ public interface INativeFacade
 
     Task<Obs.CellsSnapshot> GetCellsAsync(Obs.GetCellsRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.ListBuildingsReply> ListBuildingsAsync(Obs.ListBuildingsRequest request, CancellationToken cancellationToken);
+    Task<Obs.BuildingsSnapshot> ListBuildingsAsync(Obs.ListBuildingsRequest request, CancellationToken cancellationToken);
 
     Task<Obs.PawnSnapshot> ListPawnsAsync(Obs.ListPawnsRequest request, CancellationToken cancellationToken);
 

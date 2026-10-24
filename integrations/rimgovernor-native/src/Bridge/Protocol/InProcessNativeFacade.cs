@@ -129,7 +129,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.CellsSnapshot> GetCellsAsync(Obs.GetCellsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.GetCells, request, () => NativeObservationTools.HandleGetCells(request), cancellationToken);
 
-        public Task<Obs.ListBuildingsReply> ListBuildingsAsync(Obs.ListBuildingsRequest request, CancellationToken cancellationToken)
+        public Task<Obs.BuildingsSnapshot> ListBuildingsAsync(Obs.ListBuildingsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ListBuildings, request, () => NativeBuildingObservationTools.HandleListBuildings(request), cancellationToken);
 
         public Task<Obs.PawnSnapshot> ListPawnsAsync(Obs.ListPawnsRequest request, CancellationToken cancellationToken)

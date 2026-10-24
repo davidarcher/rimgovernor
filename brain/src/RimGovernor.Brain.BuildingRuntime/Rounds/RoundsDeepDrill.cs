@@ -152,7 +152,7 @@ public sealed partial class RoundsResourcePlanner
         }
         foreach (var row in buildings.Rows.Values())
         {
-            if ((row.Building?.DefName ?? "") == "DeepDrill" || (row.BuildDefName ?? "") == "DeepDrill")
+            if (row.Building.DefName == "DeepDrill" || row.Construction is PbObservations.ConstructionState.Build { Definition: "DeepDrill" })
             {
                 output.Built = true;
                 return output;

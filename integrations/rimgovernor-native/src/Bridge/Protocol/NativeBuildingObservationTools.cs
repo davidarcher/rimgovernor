@@ -2,9 +2,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
@@ -16,38 +15,38 @@ namespace HomeBridge.BridgeTools
     internal static class NativeBuildingObservationTools
     {
 
-        // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Obs.ListBuildingsReply HandleListBuildings(Obs.ListBuildingsRequest parsed)
+        // On the game thread: the typed core of the tool, shared with the in-process facade. A refused request
+        // or a census that cannot be read completely throws.
+        internal static Obs.BuildingsSnapshot HandleListBuildings(Obs.ListBuildingsRequest parsed)
         {
-            if (!Validate(parsed, out var invalidRequest)) return new Obs.ListBuildingsReply { Outcome = invalidRequest };
+            if (!Validate(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                return new Obs.ListBuildingsReply { Outcome = error };
-            return Read(map, parsed, context);
+                throw NativeFaults.Refused(error);
+            try { return Read(map, parsed, context); }
+            catch (Exception readError)
+            {
+                ModLog.Error("observe", "Building census read failed: " + readError);
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                    Detail = PlacementPreviewOperation.Diagnostic("Building facts could not be read completely: " + readError.GetType().Name + ": " + readError.Message) });
+            }
         }
 
         // Read is the list on the main thread under a validated identity: the
-        // reply its tool encodes, and the section the bundle carries.
-        internal static Obs.ListBuildingsReply Read(Map map, Obs.ListBuildingsRequest parsed, Common.ObservationContext context)
+        // reply its tool encodes, and the section the bundle carries. A
+        // building it cannot read completely throws, naming the building.
+        internal static Obs.BuildingsSnapshot Read(Map map, Obs.ListBuildingsRequest parsed, Common.ObservationContext context)
         {
-            Thing? reading = null;
-            try
+            if (!parsed.AnyFaction && Faction.OfPlayerSilentFail == null) throw new InvalidOperationException("Player faction unavailable.");
+            var rows = new List<Obs.BuildingState>();
+            foreach (var thing in Source(map).OrderBy(t => t.thingIDNumber))
             {
-                if (!parsed.AnyFaction && Faction.OfPlayerSilentFail == null)
-                    return new Obs.ListBuildingsReply { Outcome = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction unavailable.") };
-                var rows = new List<Obs.BuildingState>();
-                foreach (var thing in Source(map).OrderBy(t => t.thingIDNumber))
+                try { if (Matches(thing, parsed)) rows.Add(Row(thing, context)); }
+                catch (Exception error)
                 {
-                    reading = thing;
-                    if (Matches(thing, parsed)) rows.Add(Row(thing, context));
+                    throw new InvalidOperationException($"building {thing.thingIDNumber} ({thing.def?.defName}): {error.GetType().Name}: {error.Message}", error);
                 }
-                return new Obs.ListBuildingsReply { Outcome = new Obs.BuildingsSnapshot { Context = context, Buildings = [.. rows] } };
             }
-            catch (Exception error)
-            {
-                var target = reading == null ? "building census" : $"building {reading.thingIDNumber} ({reading.def?.defName})";
-                return new Obs.ListBuildingsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed,
-                    PlacementPreviewOperation.Diagnostic($"{target}: {error.GetType().Name}: {error.Message}")) };
-            }
+            return new Obs.BuildingsSnapshot { Context = context, Buildings = [.. rows] };
         }
 
         // Row is one listed building as the read emits it: the projection
@@ -122,41 +121,42 @@ namespace HomeBridge.BridgeTools
             DefName = Id(thing.def.defName), Label = PlacementPreviewOperation.Diagnostic(thing.LabelCap), MapId = thing.Map.uniqueID,
             Position = Cell(thing.Position) };
 
-        // Project is the one building row builder: the bundle's building
-        // table and the list read emit it.
+        // Project is the one building row builder, whole: the bundle's
+        // building table and the list read emit it. Every row carries its
+        // service state and forbidden flag; the list read adds the patchable
+        // kinds' settings with their own CAS snapshots (Row).
         internal static Obs.BuildingState Project(Thing thing)
         {
             if (!thing.Spawned || thing.Map == null) throw new InvalidOperationException("Building is not spawned.");
-            var pending = thing is Blueprint || thing is Frame;
-            var row = new Obs.BuildingState { Building = Head(thing), Status = Status(thing), Rotation = Rotation(thing.Rotation),
-                Burning = thing.IsBurning() };
-            var stuff = pending && thing is IConstructible constructible ? constructible.EntityToBuildStuff() : thing.Stuff;
-            if (stuff != null) row = row with { Stuff = Id(stuff.defName) };
-            if (thing.Faction != null) row = row with { Faction = NativeRef.Of(Id(thing.Faction.GetUniqueLoadID())) };
+            var stuff = (thing is Blueprint || thing is Frame) && thing is IConstructible constructible ? constructible.EntityToBuildStuff() : thing.Stuff;
             var rectangle = thing.OccupiedRect();
             foreach (var cell in rectangle.Cells)
                 if (!cell.InBounds(thing.Map)) throw new InvalidOperationException("Building geometry is outside its map.");
-            row = row with { Occupied = new Obs.Rectangle { Minimum = Cell(new IntVec3(rectangle.minX, 0, rectangle.minZ)), Maximum = Cell(new IntVec3(rectangle.maxX, 0, rectangle.maxZ)) } };
-            if (thing.def.useHitPoints)
+            var player = Faction.OfPlayerSilentFail;
+            return new Obs.BuildingState
             {
-                if (thing.HitPoints < 0 || thing.MaxHitPoints <= 0) throw new InvalidOperationException("Invalid native hit points.");
-                row = row with { HitPoints = thing.HitPoints }; row = row with { MaxHitPoints = thing.MaxHitPoints };
-            }
-            if (pending)
-            {
-                var buildDef = thing is Blueprint_Install installation ? InstallTarget(installation).def
-                    : thing.def.entityDefToBuild ?? throw new InvalidOperationException("Construction definition missing.");
-                if (!(thing is Blueprint_Install)) row = row with { BuildDefName = Id(buildDef.defName) };
-                row = row with { Construction = ConstructionSkillGuard.Read(thing, Construction(thing, buildDef, stuff)) };
-            }
-            // Every row carries its service state and forbidden flag; the
-            // list read adds the patchable kinds' settings with their own
-            // CAS snapshots (Row).
-            row = row with { Service = Service(thing) };
-            row = row with { Settings = new Obs.BuildingSettings { Forbidden = Faction.OfPlayerSilentFail != null && thing.IsForbidden(Faction.OfPlayerSilentFail) } };
-            row = row with { Anomaly = NativeAnomalyFacts.Building(thing) };
-            if (thing is Building_Door door) row = row with { Door = new Obs.BuildingDoor { Open = door.Open, HoldOpen = door.HoldOpen } };
-            return row;
+                Building = Head(thing),
+                Rotation = Rotation(thing.Rotation),
+                Stuff = stuff == null ? null : Id(stuff.defName),
+                Faction = thing.Faction == null ? null : NativeRef.Of(Id(thing.Faction.GetUniqueLoadID())),
+                Status = Status(thing),
+                HitPoints = HitPoints(thing),
+                Construction = Construction(thing, stuff),
+                Service = Service(thing),
+                Settings = new Obs.BuildingSettings { Forbidden = player != null && thing.IsForbidden(player) },
+                Burning = thing.IsBurning(),
+                Occupied = new Obs.Rectangle { Minimum = Cell(new IntVec3(rectangle.minX, 0, rectangle.minZ)), Maximum = Cell(new IntVec3(rectangle.maxX, 0, rectangle.maxZ)) },
+                Anomaly = NativeAnomalyFacts.Building(thing),
+                Door = thing is Building_Door door ? new Obs.BuildingDoor { Open = door.Open, HoldOpen = door.HoldOpen } : null,
+            };
+        }
+
+        // HitPoints is a building's hit points; a def without them (useHitPoints false) is untracked.
+        private static Obs.BuildingHitPoints HitPoints(Thing thing)
+        {
+            if (!thing.def.useHitPoints) return new Obs.BuildingHitPoints.Untracked();
+            if (thing.HitPoints < 0 || thing.MaxHitPoints <= 0) throw new InvalidOperationException("Invalid native hit points.");
+            return new Obs.BuildingHitPoints.Tracked { Current = thing.HitPoints, Maximum = thing.MaxHitPoints };
         }
 
         // Service is a building's power, switch, breakdown and fuel state:
@@ -187,31 +187,29 @@ namespace HomeBridge.BridgeTools
         // NetId names a power network for the frame it is read in.
         internal static string NetId(PowerNet net) => net.GetHashCode().ToString(System.Globalization.CultureInfo.InvariantCulture);
 
-        private static Obs.ConstructionState Construction(Thing thing, BuildableDef definition, ThingDef? stuff)
+        // Construction is a blueprint's or frame's state, absent on a built row. An installation blueprint carries
+        // nothing: TotalMaterialCost on it logs an error and pauses the simulation, and native installation consumes
+        // no material.
+        private static Obs.ConstructionState? Construction(Thing thing, ThingDef? stuff)
         {
-            var row = new Obs.ConstructionState();
-            if (thing is Blueprint_Install)
-            {
-                // TotalMaterialCost on installation blueprints logs an error and
-                // pauses the simulation. Native installation consumes no material.
-                return row with { ResourcesComplete = true };
-            }
+            if (thing is Blueprint_Install) return new Obs.ConstructionState.Installation();
+            if (!(thing is Blueprint || thing is Frame)) return null;
+            var definition = thing.def.entityDefToBuild ?? throw new InvalidOperationException("Construction definition missing.");
             if (!(thing is IConstructible construction)) throw new InvalidOperationException("Constructible unavailable.");
-            row = row with { WorkLeft = thing is Frame frame ? NativeConstructionWork.Remaining(frame.WorkLeft)
-                : Nonnegative(definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff)) };
+            var work = thing is Frame frame ? NativeConstructionWork.Remaining(frame.WorkLeft)
+                : Nonnegative(definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff));
             var costs = construction.TotalMaterialCost() ?? throw new InvalidOperationException("Cost list unavailable.");
             var seen = new HashSet<string>(StringComparer.Ordinal);
-            var complete = true;
+            var resources = new List<Obs.MaterialDeficit>();
             foreach (var cost in costs)
             {
                 var name = Id(cost.thingDef.defName);
                 if (!seen.Add(name) || cost.count < 0) throw new InvalidOperationException("Invalid native construction costs.");
                 var needed = construction.ThingCountNeeded(cost.thingDef);
                 if (needed < 0) throw new InvalidOperationException("Invalid native construction quantities.");
-                row = row with { Resources = [.. row.Resources, new Obs.MaterialDeficit { DefName = name, StillNeeded = needed }] };
-                complete &= needed == 0;
+                resources.Add(new Obs.MaterialDeficit { DefName = name, StillNeeded = needed });
             }
-            return row with { ResourcesComplete = complete };
+            return ConstructionSkillGuard.Read(thing, Id(definition.defName), work, [.. resources]);
         }
 
         private static bool Identifiers(IEnumerable<string> values) => values.Count() <= 256
@@ -228,6 +226,5 @@ namespace HomeBridge.BridgeTools
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native ID unavailable.");
         private static bool Finite(double value) => !double.IsNaN(value) && !double.IsInfinity(value);
         private static double Nonnegative(double value) => Finite(value) && value >= 0 ? value : throw new InvalidOperationException("Invalid native amount.");
-        private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
     }
 }

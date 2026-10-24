@@ -15,9 +15,6 @@ public sealed partial class DefinitionCatalog
     /// <summary>The def's <c>ThingDef.stackLimit</c>: the most one stack of it holds, which is what one storage cell holds of it.</summary>
     public long StackLimit(string def) => ThingRow(def).stackLimit;
 
-    /// <summary><c>ThingDef.useHitPoints</c>: the def has hit points that can be damaged and repaired.</summary>
-    public bool UsesHitPoints(string def) => ThingRow(def).useHitPoints;
-
     /// <summary>
     /// The order the colony repairs a structure in: 0 for what holds the temperature or the power, or a medical bed, 1
     /// for what holds a roof, a work table or a bed, 2 for the rest.

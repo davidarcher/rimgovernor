@@ -47,7 +47,7 @@ public sealed class SnapshotFailureTests
         game.Handoff.Publish(new NativeFrame(new O.BundleSnapshot
         {
             Context = Context,
-            Buildings = new O.BuildingsSnapshot { Context = Context },
+            Buildings = new O.BuildingsSnapshot { Context = Context, Buildings = [] },
         }, 122, 0));
         var recovered = client.ReadBuildingsAsync(Identity, Ct);
         Assert.True(recovered.IsCompleted);

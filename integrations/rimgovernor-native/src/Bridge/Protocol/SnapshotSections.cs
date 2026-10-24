@@ -27,17 +27,5 @@ namespace HomeBridge.BridgeTools
                 Failure = new Common.Failure { Code = Common.FailureCode.NativeFailure, Detail = "snapshot section " + Message },
             };
         }
-
-        // Required census outcomes must not turn into an omitted section and a consumer timeout.
-        internal static Obs.BuildingsSnapshot RequiredBuildings(Obs.ListBuildingsReplyOutcome? outcome) =>
-            SnapshotSectionException.Read(nameof(Obs.BundleSnapshot.Buildings), () => outcome switch
-            {
-                Obs.ListBuildingsReplyOutcome.ObservedCase observed => observed.Value,
-                Obs.ListBuildingsReplyOutcome.UnavailableCase unavailable => throw new System.InvalidOperationException(
-                    unavailable.Value.Reason + ": " + unavailable.Value.Detail),
-                Obs.ListBuildingsReplyOutcome.FailureCase failure => throw new System.InvalidOperationException(
-                    failure.Value.Code + ": " + failure.Value.Detail),
-                _ => throw new System.InvalidOperationException("Building read returned no outcome."),
-            });
     }
 }

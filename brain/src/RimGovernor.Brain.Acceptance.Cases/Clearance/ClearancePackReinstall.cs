@@ -66,7 +66,7 @@ internal static class ClearancePackReinstall
         }
 
         var start = await ReadAsync("bed-start").ConfigureAwait(false);
-        if (start is not { HitPoints: HitPoints, MaxHitPoints: > HitPoints })
+        if (start is not { HitPoints: Observations.BuildingHitPoints.Tracked { Current: HitPoints, Maximum: > HitPoints } })
         {
             throw new AcceptanceException($"bed-start: want the staged bed at {HitPoints} hit points below its maximum, got {start}");
         }
@@ -100,7 +100,7 @@ internal static class ClearancePackReinstall
         }, cancellationToken).ConfigureAwait(false);
 
         s.RecordWire("bed-end", end);
-        if (end?.HitPoints != start.HitPoints)
+        if (end is null || end.HitPoints != start.HitPoints)
         {
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"the round trip changed the bed's hit points: {start.HitPoints} -> {end?.HitPoints}"));
         }

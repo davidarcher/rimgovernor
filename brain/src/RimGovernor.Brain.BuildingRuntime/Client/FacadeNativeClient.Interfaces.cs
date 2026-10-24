@@ -74,7 +74,7 @@ public sealed partial class FacadeNativeClient :
     Task<O.ClearanceTargetsSnapshot> IClearanceSource.ReadClearanceAsync(Identity expected, bool includeSalvage, IReadOnlyList<Rectangle> ground, CancellationToken cancellationToken) =>
         ReadClearanceAsync(expected, includeSalvage, ground, cancellationToken);
 
-    Task<O.ListBuildingsReply> IRefrigerationSource.ReadConstructionBuildingsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
+    Task<O.BuildingsSnapshot> IRefrigerationSource.ReadConstructionBuildingsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadConstructionBuildingsAsync(identity, ids, cancellationToken);
 
     Task<O.ZonesSnapshot> IZonesNative.ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken) =>

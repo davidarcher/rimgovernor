@@ -25,9 +25,9 @@ public sealed partial class FacadeNativeClient
     /// <summary>
     /// Requests built artificial player-faction buildings. Empty
     /// <paramref name="ids"/> requests the complete bounded colony census; nonempty ids refresh exact targets.
-    /// Native faction filtering supplies planning ownership, not lineage.
+    /// Native faction filtering supplies planning ownership, not lineage. A refused or unreadable census throws.
     /// </summary>
-    internal async Task<PbObservations.ListBuildingsReply> ReadConstructionBuildingsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken)
+    internal Task<PbObservations.BuildingsSnapshot> ReadConstructionBuildingsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken)
     {
         if (ids.Count > 256)
         {
@@ -41,10 +41,7 @@ public sealed partial class FacadeNativeClient
                 throw BridgeContractException.Contract("duplicate requested building identity");
             }
         }
-        var request = PlacementChecks.ConstructionBuildingsRequest(identity, ids);
-        var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        BuildingDecode.UnwrapBuildings(reply);
-        return reply;
+        return Facade.ListBuildingsAsync(PlacementChecks.ConstructionBuildingsRequest(identity, ids), cancellationToken);
     }
 
     /// <summary>
@@ -59,16 +56,14 @@ public sealed partial class FacadeNativeClient
             Ids = [thing],
             Statuses = [PbObservations.BuildingStatus.Built],
         };
-        var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        var v = BuildingDecode.UnwrapBuildings(reply);
+        var v = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
         return new StorageBuildingTarget { Context = v.Context, Thing = thing, Present = v.Buildings.Count != 0 };
     }
 
     /// <summary>Observes one exact bed's medical flag, owners and CAS token via the existing building lookup.</summary>
     internal async Task<BedUseTarget> ReadBedUseTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
-        var reply = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
-        var v = reply.Outcome.Observed!;
+        var v = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
         if (v.Buildings.Count != 1)
         {
             throw BridgeContractException.Contract("bed medical target missing or ambiguous");
@@ -91,8 +86,7 @@ public sealed partial class FacadeNativeClient
     /// <summary>Observes one exact grower's crop via the existing building lookup; the crop is empty when the grower has none.</summary>
     internal async Task<GrowerCropTarget> ReadGrowerCropTargetAsync(PbCommon.Identity identity, string thing, CancellationToken cancellationToken)
     {
-        var reply = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
-        var v = reply.Outcome.Observed!;
+        var v = await ReadConstructionBuildingsAsync(identity, [thing], cancellationToken).ConfigureAwait(false);
         if (v.Buildings.Count != 1)
         {
             throw BridgeContractException.Contract("grower crop target missing or ambiguous");
@@ -117,14 +111,17 @@ public sealed partial class FacadeNativeClient
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
             Statuses = [PbObservations.BuildingStatus.Blueprint, PbObservations.BuildingStatus.Frame],
         };
-        var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        var observed = BuildingDecode.UnwrapBuildings(reply);
+        var observed = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
         var stillNeed = new Dictionary<string, long>(StringComparer.Ordinal);
         var structures = 0;
         foreach (var row in observed.Buildings)
         {
             structures++;
-            foreach (var need in row.Construction?.Resources ?? [])
+            if (row.Construction is not PbObservations.ConstructionState.Build build)
+            {
+                continue;
+            }
+            foreach (var need in build.Resources)
             {
                 stillNeed[need.DefName] = stillNeed.GetValueOrDefault(need.DefName) + need.StillNeeded;
             }
@@ -143,24 +140,4 @@ public sealed partial class FacadeNativeClient
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
             TargetId = targetId.Length != 0 ? targetId : null,
         }, cancellationToken);
-
-    internal static class BuildingDecode
-    {
-        /// <summary>
-        /// The building list reply's outcome check shared by the building reads: a failure or unavailable arm throws
-        /// its typed refusal; otherwise the observed snapshot is returned.
-        /// </summary>
-        internal static PbObservations.BuildingsSnapshot UnwrapBuildings(PbObservations.ListBuildingsReply reply)
-        {
-            if (reply.Outcome.Failure is { } failure)
-            {
-                throw Failure(failure);
-            }
-            if (reply.Outcome.Unavailable is { } unavailable)
-            {
-                throw Unavailable(unavailable);
-            }
-            return reply.Outcome.Observed!;
-        }
-    }
 }
