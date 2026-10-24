@@ -93,7 +93,7 @@ public static partial class TradePolicyRules
         var supported = new HashSet<FoodIngredientClass> { FoodIngredientClass.Meat, FoodIngredientClass.AnimalProduct, FoodIngredientClass.Vegetable };
         foreach (var bench in rows!)
         {
-            if (bench.Butcher || !RoundsRules.Positive(bench.Usable))
+            if (bench.Butcher || !bench.Usable)
             {
                 continue;
             }

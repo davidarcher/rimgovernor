@@ -105,7 +105,7 @@ public static class HumanFoodPlanRules
         var survival = false;
         foreach (var b in benches)
         {
-            if (!b.Usable.ValueOrDefault)
+            if (!b.Usable)
             {
                 continue;
             }
@@ -297,9 +297,7 @@ public static class HumanFoodPlanRules
         var choices = new List<BillSelection>();
         foreach (var b in rows)
         {
-            var uk = b.Usable.TryGetValue(out var usable);
-            var tk = b.Token.TryGetValue(out var token);
-            if (!uk || !usable || !tk || b.Bills.Count >= 15)
+            if (!b.Usable || b.Bills.Count >= 15)
             {
                 continue;
             }

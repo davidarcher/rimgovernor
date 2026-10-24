@@ -239,17 +239,13 @@ public static class ArtRules
         {
             foreach (var bill in bench.Bills)
             {
-                var wk = bill.Worker.TryGetValue(out var worker);
-                var ak = bill.Active.TryGetValue(out var active);
-                if (bill.Role == RecipeRole.Sculpture && wk && worker == artist.Value && (!ak || active))
+                if (bill.Role == RecipeRole.Sculpture && bill.Worker == artist.Value && bill.Active)
                 {
                     pinned.Add(bill.Recipe);
                 }
             }
 
-            var uk = bench.Usable.TryGetValue(out var usable);
-            var tk = bench.Token.TryGetValue(out var token);
-            if (!uk || !usable || !tk || !FoodForecastRules.FoodId(token!) || bench.Bills.Count >= 15)
+            if (!bench.Usable || !FoodForecastRules.FoodId(bench.Token) || bench.Bills.Count >= 15)
             {
                 continue;
             }

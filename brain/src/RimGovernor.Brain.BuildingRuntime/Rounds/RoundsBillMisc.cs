@@ -161,9 +161,9 @@ partial class Rounder
             }
             foreach (var bill in bills)
             {
-                benchBills.Add(new ExistingProductionBill { Id = bill.Id, Recipe = bill.Recipe, Worker = bill.Worker, Active = bill.Active });
+                benchBills.Add(bill.Existing);
             }
-            output.Add(new ProductionBench { Id = gear.Id, Token = Known(gear.Id), Usable = Known(true), Recipes = benchRecipes, Bills = benchBills });
+            output.Add(new ProductionBench { Id = gear.Id, Token = gear.Id, Usable = true, Recipes = benchRecipes, Bills = benchBills });
         }
         return output;
     }

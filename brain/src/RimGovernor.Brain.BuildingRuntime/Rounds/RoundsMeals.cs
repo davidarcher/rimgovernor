@@ -46,8 +46,7 @@ public sealed partial class Rounder
 
                 foreach (var bill in bench.Bills)
                 {
-                    var known = bill.Active.TryGetValue(out var active);
-                    ready = ready || (known && active && bill.Recipe == choice.Recipe);
+                    ready = ready || (bill.Active && bill.Recipe == choice.Recipe);
                 }
             }
         }

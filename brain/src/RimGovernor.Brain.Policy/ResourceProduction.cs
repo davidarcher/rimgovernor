@@ -447,11 +447,7 @@ public static partial class ResourceRules
                 {
                     continue;
                 }
-                if (!bill.Active.TryGetValue(out var active))
-                {
-                    return new ResourceMethod { Kind = ResourceMethodKind.Unknown };
-                }
-                if (active)
+                if (bill.Active)
                 {
                     return new ResourceMethod { Kind = ResourceMethodKind.Wait };
                 }
@@ -493,11 +489,11 @@ public static partial class ResourceRules
                     {
                         continue;
                     }
-                    if (!bill.Active.TryGetValue(out var active) || !FoodForecastRules.FoodId(bill.Id))
+                    if (!FoodForecastRules.FoodId(bill.Id))
                     {
                         return new ResourceMethod { Kind = ResourceMethodKind.Unknown };
                     }
-                    if (!active)
+                    if (!bill.Active)
                     {
                         break;
                     }

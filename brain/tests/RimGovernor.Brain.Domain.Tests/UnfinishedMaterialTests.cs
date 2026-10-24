@@ -16,8 +16,8 @@ public sealed class UnfinishedMaterialTests
     private static ProductionBatch Batch => new(new ProductionBill("bench", "TestRecipe", BillMode.GearBatch, 3, Material.Value),
         new ProgressView { Action = new ActionId("batch"), Stage = Stage.Completed, Attempt = new AttemptId(1), Bill = Known("bill") })
     { Slots = Known<EquatableArray<EquatableArray<Amount>>>([[new(Material, 10)]]), UsesUnfinishedItem = Known(true) };
-    private static ProductionBatchState State(int remaining, string item = "unfinished") => new("bill", Known(true), Known(remaining), Known(false), Known(false))
-    { UnfinishedWork = Known(new ProductionUnfinishedWork(item, item.Length == 0 ? [] : [new(Material, 10)])) };
+    private static ProductionBatchState State(int remaining, string item = "unfinished") => new("bill", true, BillRepeat.Count, remaining, false, false,
+        new ProductionUnfinishedWork(item, item.Length == 0 ? [] : [new(Material, 10)]));
     private static Fact<EquatableArray<ForecastCommitment>> Promises(ProductionBatchState state, ProductionBatch? batch = null) =>
         ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([batch ?? Batch]), Known<EquatableArray<ProductionBatchState>>([state]));
     private static RoundsFacts Facts(ProductionBatchState state, long loose = 90) => new()
@@ -43,7 +43,7 @@ public sealed class UnfinishedMaterialTests
     [Fact]
     public void PauseResumeAndCompletionRebuildFromCurrentBinding()
     {
-        Assert.Empty(Promises(State(3) with { Suspended = Known(true) }).Value);
+        Assert.Empty(Promises(State(3) with { Suspended = true }).Value);
         Assert.Equal(20, Promises(State(3)).Value[0].MaterialClaims[0].Units.Value);
         // Completion decrements remaining AND clears the bound item. Both snapshots owe the same next two inputs.
         Assert.Equal(20, Promises(State(2, "")).Value[0].MaterialClaims[0].Units.Value);
@@ -67,7 +67,7 @@ public sealed class UnfinishedMaterialTests
     [Fact]
     public void EmbeddedAlternativeFundsOneIterationOnlyAndDoesNotEnterFreeStock()
     {
-        var state = State(3) with { UnfinishedWork = Known(new ProductionUnfinishedWork("unfinished", [new(Alternate, 99)])) };
+        var state = State(3) with { UnfinishedWork = new ProductionUnfinishedWork("unfinished", [new(Alternate, 99)]) };
         var claims = Promises(state).Value;
         Assert.Equal(20, claims[0].MaterialClaims[0].Units.Value);
         Assert.DoesNotContain(claims[0].MaterialClaims, c => c.Resource == Alternate);
@@ -77,7 +77,7 @@ public sealed class UnfinishedMaterialTests
             Slots = Known<EquatableArray<EquatableArray<Amount>>>([[new(Material, 10), new(Alternate, 5)]]),
         };
         Assert.All(Promises(state, ambiguous).Value[0].MaterialClaims, c => Assert.False(c.Units.IsKnown));
-        Assert.All(Promises(state with { Remaining = Known(1) }, ambiguous).Value[0].MaterialClaims, c => Assert.Equal(0, c.Units.Value));
+        Assert.All(Promises(state with { RepeatCount = 1 }, ambiguous).Value[0].MaterialClaims, c => Assert.Equal(0, c.Units.Value));
     }
 
     [Fact]
@@ -91,30 +91,28 @@ public sealed class UnfinishedMaterialTests
     }
 
     [Fact]
-    public void UnknownBindingAndDuplicateOwnershipCannotGrantCredit()
+    public void DuplicateOwnershipAndMalformedBindingThrow()
     {
-        Assert.False(Promises(State(3) with { UnfinishedWork = default }).Value[0].MaterialClaims[0].Units.IsKnown);
         var second = Batch with { Progress = Batch.Progress with { Action = new ActionId("second"), Bill = Known("second-bill") } };
         Assert.Throws<DomainException>(() => ProductionRules.ProductionPromisesOf(Known<EquatableArray<ProductionBatch>>([Batch, second]),
             Known<EquatableArray<ProductionBatchState>>([State(3), State(3) with { Id = "second-bill" }])));
-        var malformed = State(3) with { UnfinishedWork = Known(new ProductionUnfinishedWork("", [new(Material, 10)])) };
+        var malformed = State(3) with { UnfinishedWork = new ProductionUnfinishedWork("", [new(Material, 10)]) };
         Assert.Throws<DomainException>(() => Promises(malformed));
     }
 
     [Fact]
-    public void WireRoundTripAndProjectionDistinguishAbsentUnreadAndEmbedded()
+    public void WireRoundTripAndProjectionDistinguishAbsentAndEmbedded()
     {
         var bill = BillWire.Bill("bill") with
         {
             ManagedUnchanged = true, Finished = false, RepeatMode = Ops.RepeatMode.Count, RepeatCount = 3,
-            UnfinishedWork = new() { Item = "unfinished", Ingredients = [new() { DefName = Material.Value, Units = 10 }] },
+            UnfinishedWork = new O.BillUnfinishedWork.Bound { Item = "unfinished", Ingredients = [new() { DefName = Material.Value, Units = 10 }] },
         };
         ProductionBatchState Read(O.BillState row) => ConstructionReads.ProductionBatchStates(BillWire.Census(row)).Value[0];
         var decoded = WireJson.Deserialize<O.BillState>(WireJson.Serialize(bill));
         Assert.Equal(20, Promises(Read(decoded)).Value[0].MaterialClaims[0].Units.Value);
-        Assert.Equal(30, Promises(Read(bill with { UnfinishedWork = new() { Item = "" } })).Value[0].MaterialClaims[0].Units.Value);
-        Assert.False(Read(bill with { UnfinishedWork = null }).UnfinishedWork.IsKnown);
-        Assert.False(Read(bill with { UnfinishedWork = new() { Item = "" , Ingredients = bill.UnfinishedWork.Ingredients } }).UnfinishedWork.IsKnown);
-        Assert.False(Read(bill with { UnfinishedWork = new() { Item = "unfinished", Ingredients = [new() { DefName = Material.Value, Units = null }] } }).UnfinishedWork.IsKnown);
+        Assert.Equal(30, Promises(Read(bill with { UnfinishedWork = new O.BillUnfinishedWork.None() })).Value[0].MaterialClaims[0].Units.Value);
+        Assert.Throws<RequiredFactException>(() => Read(bill with { UnfinishedWork = new O.BillUnfinishedWork.Bound { Item = "", Ingredients = [] } }));
+        Assert.Throws<RequiredFactException>(() => Read(bill with { UnfinishedWork = new O.BillUnfinishedWork.Bound { Item = "unfinished", Ingredients = [new() { DefName = Material.Value, Units = null }] } }));
     }
 }

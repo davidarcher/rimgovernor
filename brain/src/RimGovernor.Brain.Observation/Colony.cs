@@ -437,7 +437,7 @@ public sealed record CookingBench
 
     public string Definition { get; init; } = "";
 
-    public Fact<bool> Usable { get; init; }
+    public required bool Usable { get; init; }
 
     /// <summary>The native room census identity the bench stands in, unknown for a bench outdoors or when the native read left it out.</summary>
     public Fact<string> Room { get; init; }

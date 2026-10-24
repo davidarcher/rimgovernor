@@ -27,8 +27,7 @@ public static class GearOrdersRules
             if (!bench.Bills.TryGetValue(out var bills)) return WorkRules.Abstaining(Cause.UnreadBills);
             foreach (var bill in bills.Where(b => !b.Spent && b.Products.Any(clothing.Contains)))
             {
-                if (!bill.Active.TryGetValue(out var active) || !bill.Spec.TryGetValue(out var spec)) return WorkRules.Abstaining(Cause.UnreadBills);
-                if (active) orders.Add(spec);
+                if (bill.Active) orders.Add(bill.Spec);
             }
         }
         // New ordinary clothing is selected as executable activities, never pre-pinned ledger bills.
@@ -182,12 +181,7 @@ public static class GearOrdersRules
                     unknown = Cause.UnreadBills;
                     break;
                 case GearMethodKind.WaitForExistingWork:
-                    if (!method.Bill!.Spec.TryGetValue(out var spec))
-                    {
-                        unknown = Cause.UnreadBills;
-                        continue;
-                    }
-                    orders.Add(spec);
+                    orders.Add(method.Bill!.Spec);
                     break;
                 case GearMethodKind.Produce:
                     if (pending)
@@ -256,12 +250,7 @@ public static class GearOrdersRules
             }
             if (standing.TryGetValue(t.Resource, out var bill))
             {
-                if (!bill.Spec.TryGetValue(out var spec))
-                {
-                    unknown = Cause.UnreadBills;
-                    continue;
-                }
-                orders.Add(spec);
+                orders.Add(bill.Spec);
                 continue;
             }
             DomainException.Require(t.Count <= int.MaxValue, $"shell bill target {t.Count} exceeds the bill count");

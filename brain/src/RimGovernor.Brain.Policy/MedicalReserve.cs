@@ -218,11 +218,7 @@ public static partial class MedicalRules
                 {
                     continue;
                 }
-                if (!bill.Active.TryGetValue(out var active))
-                {
-                    return new MedicineMethod { Kind = MedicineMethodKind.Unknown };
-                }
-                if (active)
+                if (bill.Active)
                 {
                     return new MedicineMethod { Kind = MedicineMethodKind.Wait };
                 }

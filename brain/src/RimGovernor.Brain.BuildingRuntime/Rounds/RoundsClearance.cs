@@ -203,7 +203,7 @@ partial class HomeUpkeepReader
             {
                 foreach (var bill in bench.Bills)
                 {
-                    if (bill.Active.TryGetValue(out var active) && active)
+                    if (bill.Active)
                     {
                         inUse[bench.Id] = true;
                     }

@@ -139,12 +139,7 @@ public sealed record CropKitchen
         var best = new CropCooking();
         foreach (var b in benches!)
         {
-            if (!b.Usable.TryGetValue(out var u))
-            {
-                unknown = true;
-                continue;
-            }
-            if (!u)
+            if (!b.Usable)
             {
                 continue;
             }

@@ -210,15 +210,19 @@ public sealed record GearBill
     /// <summary>The recipe's role by its catalog row.</summary>
     public RecipeRole Role { get; init; }
 
-    public Fact<bool> Active { get; init; }
+    /// <summary>Neither suspended nor finished.</summary>
+    public required bool Active { get; init; }
 
-    /// <summary>The pinned pawn, known "" when unrestricted.</summary>
-    public Fact<string> Worker { get; init; }
+    /// <summary>The pinned pawn, "" when unrestricted.</summary>
+    public required string Worker { get; init; }
 
     public EquatableArray<Resource> Products { get; init; }
 
-    /// <summary>The bill as the work ledger identifies it; unknown when the readback lacked the repeat mode or count.</summary>
-    public Fact<OrderSpec> Spec { get; init; }
+    /// <summary>The bill as the work ledger identifies it.</summary>
+    public required OrderSpec Spec { get; init; }
+
+    /// <summary>The bill as the production bill selectors read it (the art selectors' bench rows); active as <see cref="Active"/> is.</summary>
+    public required ExistingProductionBill Existing { get; init; }
 
     /// <summary>A finished bill.</summary>
     public bool Spent { get; init; }
@@ -554,11 +558,7 @@ public static class GearRules
                 {
                     continue;
                 }
-                if (!bill.Active.TryGetValue(out var active))
-                {
-                    return (new GearMethod { Kind = GearMethodKind.Unknown }, true);
-                }
-                if (active)
+                if (bill.Active)
                 {
                     return (new GearMethod { Kind = GearMethodKind.WaitForExistingWork, Bill = bill }, true);
                 }

@@ -19,7 +19,7 @@ public sealed class ProductionPromisesTests
     { Slots = Known<EquatableArray<EquatableArray<Amount>>>([[new(Material, 10)]]), UsesUnfinishedItem = Known(false) };
     private static Fact<EquatableArray<IngredientReservation>> EmptyReservations => Known(default(EquatableArray<IngredientReservation>));
     private static Fact<EquatableArray<ProductionBatchState>> Census(int remaining = 5) => Known<EquatableArray<ProductionBatchState>>([
-        new("bill", Known(true), Known(remaining), Known(false), Known(false))]);
+        new("bill", true, BillRepeat.Count, remaining, false, false, new ProductionUnfinishedWork("", default))]);
     private static ProductionBatch Placed => Batch with
     { Progress = Batch.Progress with { Attempt = new AttemptId(1), Stage = Stage.Completed, Bill = Known("bill") } };
     private static Fact<EquatableArray<ForecastCommitment>> Promises(ProductionBatch batch, Fact<EquatableArray<ProductionBatchState>> census = default) =>
@@ -76,7 +76,7 @@ public sealed class ProductionPromisesTests
         Assert.Equal(50, Promises(cancelled, Census()).Value[0].MaterialClaims[0].Units.Value);
         Assert.Empty(Promises(cancelled, Known(default(EquatableArray<ProductionBatchState>))).Value);
         Assert.Empty(Promises(Placed, Census(0)).Value);
-        var suspended = Known<EquatableArray<ProductionBatchState>>([Census().Value[0] with { Suspended = Known(true) }]);
+        var suspended = Known<EquatableArray<ProductionBatchState>>([Census().Value[0] with { Suspended = true }]);
         Assert.Empty(Promises(Placed, suspended).Value);
         // A lingering native job still owns its materials after the future promise ends.
         Assert.Equal(10, ProductionRules.ProductionMaterialHoldsOf(Promises(Placed, Census(0)), Reserved("bill")).Value[Material].Value);
@@ -122,13 +122,14 @@ public sealed class ProductionPromisesTests
     }
 
     [Fact]
-    public void NativeProjectionKeepsMissingRemainingCountUnknown()
+    public void NativeProjectionCountsOnlyACountBillsRemaining()
     {
         var bill = BillWire.Bill("bill") with { ManagedUnchanged = true, Finished = false, RepeatMode = Ops.RepeatMode.Count, RepeatCount = 3 };
         O.BillsSnapshot Snapshot(O.BillState row) => BillWire.Census(row);
         var census = ConstructionReads.ProductionBatchStates(Snapshot(bill));
         Assert.Equal(30, Promises(Placed, census).Value[0].MaterialClaims[0].Units.Value);
-        Assert.False(ConstructionReads.ProductionBatchStates(Snapshot(bill with { RepeatCount = null })).Value[0].Remaining.IsKnown);
+        Assert.False(Promises(Placed, ConstructionReads.ProductionBatchStates(Snapshot(bill with { RepeatMode = Ops.RepeatMode.Target }))).Value[0].MaterialClaims[0].Units.IsKnown);
+        Assert.Throws<RequiredFactException>(() => ConstructionReads.ProductionBatchStates(Snapshot(bill with { RepeatMode = Ops.RepeatMode.Unspecified })));
         Assert.False(ConstructionReads.ProductionBatchStates(null).IsKnown);
         Assert.False(ConstructionReads.ProductionBatchStates(Snapshot(bill with { Id = "" })).IsKnown);
     }

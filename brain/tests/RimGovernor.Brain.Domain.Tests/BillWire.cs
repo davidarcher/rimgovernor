@@ -16,6 +16,13 @@ internal static class BillWire
         BillClass = "Bill_Production",
         Suspended = false,
         ManagedUnchanged = false,
+        DefaultIngredients = true,
+        UnrestrictedWorker = true,
+        RepeatMode = RimGovernor.Contracts.Wire.Operations.RepeatMode.Forever,
+        RepeatCount = 1,
+        TargetCount = 10,
+        Finished = false,
+        UnfinishedWork = new O.BillUnfinishedWork.None(),
         IngredientFilter = new O.StockpileFilter { AllowedDefNames = [], HitPointsMin = 0, HitPointsMax = 1, QualityMin = Quality.Awful, QualityMax = Quality.Legendary, AllowFresh = true, AllowRotten = false },
     };
 

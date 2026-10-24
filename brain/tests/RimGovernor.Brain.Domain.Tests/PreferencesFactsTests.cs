@@ -73,8 +73,8 @@ public sealed class PreferencesFactsTests
     {
         Id = "bench1",
         Definition = "ButcherSpot",
-        Token = Known("bench1-token"),
-        Usable = Known(true),
+        Token = "bench1-token",
+        Usable = true,
         Butcher = true,
         HumanCorpseNutrition = Known(60.0),
         Recipes = [new ProductionRecipe { Name = "ButcherCorpseFlesh", Role = RecipeRole.ButcherFlesh, Available = Known(true) }],

@@ -48,16 +48,6 @@ public static class WireEnums
             _ => "",
         };
 
-    /// <summary>The vanilla BillRepeatModeDef name of a repeat mode.</summary>
-    public static string RepeatModeName(RepeatMode mode) =>
-        mode switch
-        {
-            RepeatMode.Forever => "Forever",
-            RepeatMode.Count => "RepeatCount",
-            RepeatMode.Target => "TargetCount",
-            _ => "",
-        };
-
     /// <summary>Policy's fire mode ("fire_at_will", "hold_fire").</summary>
     public static string FireModeName(CombatFireMode mode) =>
         mode switch

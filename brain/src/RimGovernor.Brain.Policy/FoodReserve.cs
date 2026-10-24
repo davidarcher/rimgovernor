@@ -233,9 +233,7 @@ public static class FoodReserveRules
         }
         foreach (var bench in rows)
         {
-            var uk = bench.Usable.TryGetValue(out var usable);
-            var tk = bench.Token.TryGetValue(out var token);
-            if (!uk || !usable || !tk || !FoodForecastRules.FoodId(token!) || !FoodForecastRules.FoodId(bench.Id) || bench.Butcher || bench.Bills.Count > 15)
+            if (!bench.Usable || !FoodForecastRules.FoodId(bench.Token) || !FoodForecastRules.FoodId(bench.Id) || bench.Butcher || bench.Bills.Count > 15)
             {
                 continue;
             }

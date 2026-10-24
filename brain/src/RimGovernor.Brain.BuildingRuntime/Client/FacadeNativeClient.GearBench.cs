@@ -170,12 +170,13 @@ public sealed partial class FacadeNativeClient
                     Id = bill.Id,
                     Recipe = recipeName,
                     Role = role,
-                    Active = bill.Finished is { } finished ? Fact.Known(!bill.Suspended && !finished) : Fact.Unknown<bool>(),
-                    Worker = Fact.Known(bill.Worker ?? ""),
+                    Active = !bill.Suspended && !bill.Finished,
+                    Worker = bill.Worker ?? "",
                     Products = billProducts,
-                    Spent = bill.Finished.GetValueOrDefault(),
+                    Spent = bill.Finished,
                     Kind = bill.BillClass == "Bill_GovernorRecipe" ? P.LedgerBillKind.ActivityExecution : billKind,
                     Spec = GearBillOrderSpec(bill, recipeName, benchDef),
+                    Existing = Observation.ColonyProductionReads.ExistingBillOf(bill, role, false) with { Active = !bill.Suspended && !bill.Finished },
                 }
             );
         }
@@ -184,50 +185,30 @@ public sealed partial class FacadeNativeClient
 
     /// <summary>
     /// A bill read back as the work ledger's order spec, in the terms native identifies a bill
-    /// by (recipe, ingredient filter, worker pin, repeat mode and count). Unknown when the readback lacks the repeat
-    /// mode, its count or whether the ingredient filter is the recipe's default.
+    /// by (recipe, ingredient filter, worker pin, repeat mode and count).
     /// </summary>
-    private static Fact<P.OrderSpec> GearBillOrderSpec(PbObservations.BillState bill, string recipeName, string benchDef)
+    private static P.OrderSpec GearBillOrderSpec(PbObservations.BillState bill, string recipeName, string benchDef)
     {
-        if (bill.RepeatMode is null || bill.DefaultIngredients is null)
+        var repeat = Observation.ColonyProductionReads.BillRepeatOf(bill.RepeatMode);
+        switch (repeat)
         {
-            return Fact.Unknown<P.OrderSpec>();
+            case P.BillRepeat.Forever:
+                return Spec(BillMode.ButcherForever, 0);
+            case P.BillRepeat.Count:
+                return Spec(BillMode.GearBatch, bill.RepeatCount);
+            case P.BillRepeat.TargetCount:
+                return Spec(BillMode.StockTarget, bill.TargetCount);
         }
-        BillMode mode;
-        var target = 0;
-        switch (WireEnums.RepeatModeName(bill.RepeatMode.GetValueOrDefault()))
-        {
-            case "Forever":
-                mode = BillMode.ButcherForever;
-                break;
-            case "RepeatCount":
-                if (bill.RepeatCount is null)
-                {
-                    return Fact.Unknown<P.OrderSpec>();
-                }
-                mode = BillMode.GearBatch;
-                target = bill.RepeatCount.GetValueOrDefault();
-                break;
-            case "TargetCount":
-                if (bill.TargetCount is null)
-                {
-                    return Fact.Unknown<P.OrderSpec>();
-                }
-                mode = BillMode.StockTarget;
-                target = bill.TargetCount.GetValueOrDefault();
-                break;
-            default:
-                return Fact.Unknown<P.OrderSpec>();
-        }
-        var spec = new P.OrderSpec
+        throw new DomainException($"undefined bill repeat {(int)repeat}");
+
+        P.OrderSpec Spec(BillMode mode, int target) => new P.OrderSpec
         {
             Recipe = recipeName,
             BenchKind = benchDef,
             Mode = mode,
             Target = target,
             Worker = bill.Worker ?? "",
-            Ingredients = bill.DefaultIngredients.GetValueOrDefault() ? default : bill.IngredientFilter.AllowedDefNames,
+            Ingredients = bill.DefaultIngredients ? default : bill.IngredientFilter.AllowedDefNames,
         };
-        return Fact.Known(spec);
     }
 }

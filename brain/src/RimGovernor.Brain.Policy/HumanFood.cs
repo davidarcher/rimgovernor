@@ -122,10 +122,8 @@ public static class HumanFoodRules
         var animalBill = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var b in rows)
         {
-            var uk = b.Usable.TryGetValue(out var usable);
             var nk = b.HumanCorpseNutrition.TryGetValue(out var nutrition);
-            var tk = b.Token.TryGetValue(out var token);
-            if (!b.Butcher || !uk || !usable || !nk || !FoodForecastRules.FoodNumber(nutrition) || nutrition <= 0 || !tk || !FoodForecastRules.FoodId(token!) || !FoodForecastRules.FoodId(b.Id) || b.Bills.Count >= 15)
+            if (!b.Butcher || !b.Usable || !nk || !FoodForecastRules.FoodNumber(nutrition) || nutrition <= 0 || !FoodForecastRules.FoodId(b.Token) || !FoodForecastRules.FoodId(b.Id) || b.Bills.Count >= 15)
             {
                 continue;
             }
@@ -230,9 +228,8 @@ public static class HumanFoodRules
         }
         foreach (var b in rows)
         {
-            var uk = b.Usable.TryGetValue(out var usable);
             var nk = b.HumanCorpseNutrition.TryGetValue(out var nutrition);
-            if (!b.Butcher || !uk || !usable || !nk || !FoodForecastRules.FoodNumber(nutrition) || nutrition <= 0)
+            if (!b.Butcher || !b.Usable || !nk || !FoodForecastRules.FoodNumber(nutrition) || nutrition <= 0)
             {
                 continue;
             }

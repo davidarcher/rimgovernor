@@ -66,38 +66,39 @@ namespace HomeBridge.BridgeTools {
   }
   // An item, or a piece of art (a sculpture): vanilla makes it packed.
   internal static bool Product(ThingDef d)=>d!=null&&(d.category==ThingCategory.Item&&!d.IsCorpse||d.category==ThingCategory.Building&&d.Minifiable&&d.HasComp(typeof(CompArt)));
+  // Every bill on a workbench stack is a Bill_Production (mech and autonomous bills derive from it); another
+  // class there fails the read rather than leave the bill's settings unread.
   internal static Obs.BillState BillRow(Bill bill,int index){
-   var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Recipe=bill.recipe.defName,BillClass=bill.GetType().Name,Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill),IngredientFilter=IngredientFilter(bill)};
-   row = row with { Worker = bill.PawnRestriction?.GetUniqueLoadID() };
+   if(!(bill is Bill_Production p)||!(bill.billStack?.billGiver is Thing bench))throw new InvalidOperationException("bill "+bill.GetUniqueLoadID()+" is not a production bill on a bench");
    // Census defaults stay detached from native bill ids.
    var fresh=Detached(bill.recipe);
-   if(bill is Bill_Production && bill.billStack?.billGiver is Thing bench){
-    var defaults=new Operations.BillSettings();
-    if(NativeRecipeRoles.Corpse(bill.recipe)){defaults = defaults with { CorpseClass = CorpseClass(bill) };}
-    ConfigureIngredients(fresh,bill.recipe,defaults,bench.Map);
-    row = row with { DefaultIngredients = FilterConfiguration(bill.ingredientFilter)==FilterConfiguration(fresh.ingredientFilter) };
-    row = row with { UnrestrictedWorker = bill.allowedSkillRange==fresh.allowedSkillRange && bill.SlavesOnly==fresh.SlavesOnly && bill.MechsOnly==fresh.MechsOnly && bill.NonMechsOnly==fresh.NonMechsOnly };
-   }
-   row=Reservations(bill,row);
-   row=row with { UnfinishedWork=UnfinishedWork(bill) };
-   if(bill is Bill_Production p){row = row with { RepeatMode = NativeEnums.Repeat(p.repeatMode) };row = row with { RepeatCount = p.repeatCount };row = row with { TargetCount = p.targetCount };row = row with { Finished = BillCommon.IsFinished(p) };}
-   return row;
+   var defaults=new Operations.BillSettings();
+   if(NativeRecipeRoles.Corpse(bill.recipe)){defaults = defaults with { CorpseClass = CorpseClass(bill) };}
+   ConfigureIngredients(fresh,bill.recipe,defaults,bench.Map);
+   var row=new Obs.BillState{Id=bill.GetUniqueLoadID(),Recipe=bill.recipe.defName,BillClass=bill.GetType().Name,Suspended=bill.suspended,ManagedUnchanged=NativeProductionTracking.ManagedUnchanged(bill),IngredientFilter=IngredientFilter(bill),
+    Worker=bill.PawnRestriction?.GetUniqueLoadID(),
+    DefaultIngredients=FilterConfiguration(bill.ingredientFilter)==FilterConfiguration(fresh.ingredientFilter),
+    UnrestrictedWorker=bill.allowedSkillRange==fresh.allowedSkillRange && bill.SlavesOnly==fresh.SlavesOnly && bill.MechsOnly==fresh.MechsOnly && bill.NonMechsOnly==fresh.NonMechsOnly,
+    RepeatMode=NativeEnums.Repeat(p.repeatMode),RepeatCount=p.repeatCount,TargetCount=p.targetCount,Finished=BillCommon.IsFinished(p),
+    UnfinishedWork=UnfinishedWork(bill)};
+   return Reservations(bill,row);
   }
   // A flesh-butchering bill lists only the humanlike corpses it admits.
   private static Obs.StockpileFilter IngredientFilter(Bill bill)=>NativeStockpileSettings.Project(bill.ingredientFilter) with { AllowedDefNames = [.. bill.ingredientFilter.AllowedThingDefs
    .Where(d=>!NativeRecipeRoles.ButcherFlesh(bill.recipe)||d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true).Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal)] };
-  private static Obs.BillUnfinishedWork? UnfinishedWork(Bill bill){
+  private static Obs.BillUnfinishedWork UnfinishedWork(Bill bill){
    var item=(bill as Bill_ProductionWithUft)?.BoundUft;
-   if(item==null||item.Destroyed)return new Obs.BillUnfinishedWork{Item=""};
+   if(item==null||item.Destroyed)return new Obs.BillUnfinishedWork.None();
    // Read BoundUft, not BoundWorker/BoundBill: those getters can mutate the binding.
-   if(!item.Initialized||item.Recipe!=bill.recipe||item.ingredients==null)return null;
+   // Vanilla binds an item only once it has collected and consumed the whole iteration.
+   if(!item.Initialized||item.Recipe!=bill.recipe||item.ingredients==null)throw new InvalidOperationException("bill "+bill.GetUniqueLoadID()+" binds unfinished item "+item.GetUniqueLoadID()+" without an initialized iteration of its recipe");
    var totals=new Dictionary<string,long>(StringComparer.Ordinal);
    foreach(var ingredient in item.ingredients){
-    if(ingredient?.def==null||ingredient.Spawned||ingredient.stackCount<=0)return null;
+    if(ingredient?.def==null||ingredient.Spawned||ingredient.stackCount<=0)throw new InvalidOperationException("unfinished item "+item.GetUniqueLoadID()+" holds a spawned or empty ingredient");
     totals.TryGetValue(ingredient.def.defName,out var count);
     totals[ingredient.def.defName]=checked(count+ingredient.stackCount);
    }
-   return new Obs.BillUnfinishedWork{Item=item.GetUniqueLoadID(),Ingredients=[..totals.OrderBy(p=>p.Key,StringComparer.Ordinal)
+   return new Obs.BillUnfinishedWork.Bound{Item=item.GetUniqueLoadID(),Ingredients=[..totals.OrderBy(p=>p.Key,StringComparer.Ordinal)
     .Select(p=>new Obs.Quantity{DefName=p.Key,Units=p.Value})]};
   }
 

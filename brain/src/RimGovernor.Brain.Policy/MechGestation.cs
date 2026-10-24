@@ -274,5 +274,5 @@ public static partial class MechRules
         return (first, BillGap.None);
     }
 
-    internal static bool UsableBench(ProductionBench b) => b.Usable.TryGetValue(out var usable) && usable && b.Token.TryGetValue(out var token) && FoodForecastRules.FoodId(token);
+    internal static bool UsableBench(ProductionBench b) => b.Usable && FoodForecastRules.FoodId(b.Token);
 }

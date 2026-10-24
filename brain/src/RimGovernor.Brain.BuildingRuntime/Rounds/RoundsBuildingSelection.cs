@@ -201,19 +201,12 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (0, default, FieldUnavailable("cooking_benches"));
             }
-            var unknown = false;
             foreach (var bench in cooking)
             {
-                var known = bench.Usable.TryGetValue(out var usable);
-                if (bench.Definition == "Campfire" || (known && usable))
+                if (bench.Definition == "Campfire" || bench.Usable)
                 {
                     return (0, default, BuildingReasonExistingFacility);
                 }
-                unknown = unknown || !known;
-            }
-            if (unknown)
-            {
-                return (0, default, FieldUnavailable("cooking_bench_bills"));
             }
             if (CampfireIntentStanding(facts.Facts.ConstructionClaims, facts.Facts.CurrentConstruction))
             {

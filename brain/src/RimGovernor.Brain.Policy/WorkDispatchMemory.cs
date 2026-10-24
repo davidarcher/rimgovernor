@@ -137,10 +137,10 @@ public static partial class WorkRules
             }
             foreach (var bill in bills)
             {
-                if (bill.Spec.TryGetValue(out var spec) && !bill.Spent && spec.Key() == key)
+                if (!bill.Spent && bill.Spec.Key() == key)
                 {
                     carrying.Add(b.Id);
-                    if (!bill.Active.TryGetValue(out var active) || !active)
+                    if (!bill.Active)
                     {
                         o = o with { Active = false };
                     }

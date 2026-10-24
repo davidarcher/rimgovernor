@@ -335,28 +335,32 @@ public static class ConstructionReads
         foreach (var bill in snapshot.Benches.SelectMany(b => b.Bills))
         {
             if (string.IsNullOrWhiteSpace(bill.Id)) return default;
-            rows.Add(new(bill.Id, Known(bill.ManagedUnchanged),
-                bill.RepeatMode == RimGovernor.Contracts.Wire.Operations.RepeatMode.Count && bill.RepeatCount is >= 0
-                    ? Known(bill.RepeatCount.Value) : default,
-                Known(bill.Suspended),
-                bill.Finished is { } finished ? Known(finished) : default)
-            { UnfinishedWork = ProductionUnfinishedWorkOf(bill.UnfinishedWork) });
+            rows.Add(new(bill.Id, bill.ManagedUnchanged, ColonyProductionReads.BillRepeatOf(bill.RepeatMode), bill.RepeatCount,
+                bill.Suspended, bill.Finished, ProductionUnfinishedWorkOf(bill.Id, bill.UnfinishedWork)));
         }
         return Known(EquatableArray.From(rows));
     }
 
-    private static Fact<ProductionUnfinishedWork> ProductionUnfinishedWorkOf(O.BillUnfinishedWork? work)
+    /// <summary>The bill's bound unfinished item; a bound item without an id, or an embedded ingredient without a def or a positive count, is a broken read.</summary>
+    private static ProductionUnfinishedWork ProductionUnfinishedWorkOf(string bill, O.BillUnfinishedWork work)
     {
-        if (work?.Item is not { } id || id.Length != 0 && string.IsNullOrWhiteSpace(id)) return default;
-        if (id.Length == 0 && work.Ingredients.Count != 0) return default;
-        var items = new List<Amount>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var amount in work.Ingredients)
+        switch (work)
         {
-            if (string.IsNullOrWhiteSpace(amount.DefName) || amount.Units is not > 0 || !seen.Add(amount.DefName)) return default;
-            items.Add(new(new Resource(amount.DefName), amount.Units.Value));
+            case O.BillUnfinishedWork.None:
+                return new ProductionUnfinishedWork("", default);
+            case O.BillUnfinishedWork.Bound bound:
+                if (string.IsNullOrWhiteSpace(bound.Item)) throw new RequiredFactException("unfinished_work.item:" + bill);
+                var items = new List<Amount>();
+                var seen = new HashSet<string>(StringComparer.Ordinal);
+                foreach (var amount in bound.Ingredients)
+                {
+                    if (string.IsNullOrWhiteSpace(amount.DefName) || amount.Units is not > 0 || !seen.Add(amount.DefName))
+                        throw new RequiredFactException("unfinished_work.ingredients:" + bill);
+                    items.Add(new(new Resource(amount.DefName), amount.Units.Value));
+                }
+                return new ProductionUnfinishedWork(bound.Item, EquatableArray.From(items));
         }
-        return Known(new ProductionUnfinishedWork(id, EquatableArray.From(items)));
+        throw new DomainException("undefined unfinished work " + work.GetType().Name);
     }
 
     /// <summary>Reads every bill row's live bill-job reservations. Unknown without the bill census or when any row is malformed.</summary>

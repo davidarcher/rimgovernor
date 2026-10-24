@@ -55,8 +55,8 @@ public sealed class MechGestationPlanningTests
     {
         Id = "gestator",
         Definition = "MechGestator",
-        Token = Known("gestator-token"),
-        Usable = Known(true),
+        Token = "gestator-token",
+        Usable = true,
         Recipes = recipes,
     };
 

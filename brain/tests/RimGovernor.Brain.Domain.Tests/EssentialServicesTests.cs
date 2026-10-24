@@ -97,7 +97,7 @@ public sealed class EssentialServicesTests
             new("advanced-meal", Known<EquatableArray<EquatableArray<Amount>>>([[new(new("grain"), 5)]]), Known(false)),
             new("basic-meal", Known<EquatableArray<EquatableArray<Amount>>>([[new(new("grain"), 5)]]), Known(false))]) },
         EssentialInputs = new() { Benches = Known<EquatableArray<ProductionBench>>([
-            new() { Id = "stove", Usable = Known(true), Recipes = secondChain ? [Recipe("advanced-meal", 6), Recipe("basic-meal", 0)] : [Recipe("advanced-meal", 6)] }]) },
+            new() { Id = "stove", Token = "stove-token", Usable = true, Recipes = secondChain ? [Recipe("advanced-meal", 6), Recipe("basic-meal", 0)] : [Recipe("advanced-meal", 6)] }]) },
     };
     private static WorkPawn Cook(string id, int level) => new() { Id = new(id), Applies = Known(true), Available = Known(true),
         Work = Known<EquatableArray<WorkPriority>>([new() { Work = WorkType.Cooking, Skill = "Cooking", Priority = 1 }]),
@@ -123,7 +123,7 @@ public sealed class EssentialServicesTests
         var held = Review(kitchen with { WorkClaims = new([], ["expert"], [], []) });
         Assert.Contains(held.Coverage, c => c.Target.Predicate == "recipe_eligibility_and_inputs" && c.Coverage == ServiceCoverage.Shortfall);
         var unknown = Review(kitchen with { EssentialInputs = new() { Benches = Known<EquatableArray<ProductionBench>>([
-            new() { Id = "stove", Usable = Known(true), Recipes = [Recipe("advanced-meal", 6) with { CookSkillFloor = default }] }]) } });
+            new() { Id = "stove", Token = "stove-token", Usable = true, Recipes = [Recipe("advanced-meal", 6) with { CookSkillFloor = default }] }]) } });
         Assert.Contains(unknown.Coverage, c => c.Target.Predicate == "recipe_eligibility_and_inputs" && c.Coverage == ServiceCoverage.Unknown);
     }
 

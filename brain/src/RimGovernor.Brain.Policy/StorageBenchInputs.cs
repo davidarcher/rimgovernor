@@ -43,7 +43,7 @@ public static partial class StorageRules
             var active = new HashSet<string>(StringComparer.Ordinal);
             foreach (var bill in bills!)
             {
-                if (bill.Active.TryGetValue(out var on) && on)
+                if (bill.Active)
                 {
                     active.Add(bill.Recipe);
                 }

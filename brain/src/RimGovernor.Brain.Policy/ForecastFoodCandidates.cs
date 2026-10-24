@@ -124,9 +124,7 @@ public sealed partial record ForecastFoodCandidates
             foreach (var recipe in bench.Recipes.OrderBy(r => r.Name, StringComparer.Ordinal))
             {
                 if (truncated || !Spend()) break;
-                if (!bench.Usable.TryGetValue(out var usable))
-                { findings.Add("unknown_food_bench:" + bench.Id); continue; }
-                if (!usable || recipe.Role != RecipeRole.OrdinaryMeal) continue;
+                if (!bench.Usable || recipe.Role != RecipeRole.OrdinaryMeal) continue;
                 if (!recipe.Available.TryGetValue(out var allowed))
                 { findings.Add("unknown_food_recipe_availability:" + recipe.Name); continue; }
                 if (!allowed) continue;

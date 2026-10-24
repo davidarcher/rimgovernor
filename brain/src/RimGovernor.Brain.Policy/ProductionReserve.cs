@@ -35,14 +35,12 @@ public static partial class ProductionRules
             }
             foreach (var bill in bench.Bills)
             {
-                var fk = bill.Forever.TryGetValue(out var forever);
-                var tk = bill.TargetCount.TryGetValue(out var target);
                 var known = nutrition.TryGetValue(bill.Recipe, out var value);
-                if (!fk || forever || !tk || target <= 0 || !known)
+                if (bill.Repeat != BillRepeat.TargetCount || bill.TargetCount <= 0 || !known)
                 {
                     continue;
                 }
-                total += target * value;
+                total += bill.TargetCount * value;
             }
         }
         if (!FoodForecastRules.FoodNumber(total))

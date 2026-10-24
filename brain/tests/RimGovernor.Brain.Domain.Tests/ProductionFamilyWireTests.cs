@@ -61,7 +61,7 @@ public sealed class ProductionFamilyWireTests
         {
             Worker = "Thing_Human7", RepeatMode = RimGovernor.Contracts.Wire.Operations.RepeatMode.Count, RepeatCount = 3, Finished = false,
             Reservations = [new O.IngredientReservation { PawnId = "Thing_Human7", Items = [new O.Quantity { DefName = "RawPotatoes", Units = 10 }] }],
-            UnfinishedWork = new O.BillUnfinishedWork { Item = "" },
+            UnfinishedWork = new O.BillUnfinishedWork.None(),
         },
         BillWire.Bill("Bill_2") with { Suspended = true });
 

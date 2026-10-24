@@ -8,12 +8,12 @@ public sealed record ProductionBatch(ProductionBill Order, ProgressView Progress
     public Fact<bool> UsesUnfinishedItem { get; init; }
 }
 
-/// <summary>Current native bill lifecycle; disappearance is evidence only in a complete census.</summary>
-public sealed record ProductionBatchState(string Id, Fact<bool> Unchanged, Fact<int> Remaining,
-    Fact<bool> Suspended, Fact<bool> Finished)
-{
-    public Fact<ProductionUnfinishedWork> UnfinishedWork { get; init; }
-}
+/// <summary>
+/// Current native bill lifecycle; disappearance is evidence only in a complete census. RepeatCount is the iterations
+/// left, which bind only a Count bill.
+/// </summary>
+public sealed record ProductionBatchState(string Id, bool Unchanged, BillRepeat Repeat, int RepeatCount,
+    bool Suspended, bool Finished, ProductionUnfinishedWork UnfinishedWork);
 
 /// <summary>One initialized, bound iteration. Empty Item is observed absence; embedded inputs are never free stock.</summary>
 public sealed record ProductionUnfinishedWork(string Item, EquatableArray<Amount> Ingredients);
@@ -37,7 +37,7 @@ public static partial class ProductionRules
                 || !progress.Unresolved && progress.Effect.TryGetValue(out var effect) && effect == Effect.Absent;
             if (progress.Stage == Stage.Unsuccessful || progress.Stage == Stage.Cancelled && unplaced) continue;
             var remaining = Known(order.Target);
-            var unfinishedWork = unplaced ? Known(new ProductionUnfinishedWork("", default)) : default;
+            ProductionUnfinishedWork? unfinishedWork = unplaced ? new ProductionUnfinishedWork("", default) : null;
             var link = unplaced ? Known("") : progress.Bill;
             if (!unplaced)
             {
@@ -49,21 +49,19 @@ public static partial class ProductionRules
                     if (matches.Length > 1) throw new DomainException("duplicate production bill observation");
                     if (matches.Length == 0) continue;
                     var native = matches[0];
+                    var counted = native.Repeat == BillRepeat.Count;
                     // Cancellation in the journal does not remove an already placed native bill.
-                    if (native.Finished.TryGetValue(out var finished) && finished
-                        || native.Remaining.TryGetValue(out var count) && count == 0
-                        || native.Suspended.TryGetValue(out var suspended) && suspended) continue;
+                    if (native.Finished || counted && native.RepeatCount == 0 || native.Suspended) continue;
                     // A player edit can change ingredient definitions as well as the count.
-                    if (!native.Unchanged.TryGetValue(out var managed) || !managed) return default;
-                    if (native.Suspended.TryGetValue(out suspended) && !suspended)
-                        remaining = native.Remaining;
+                    if (!native.Unchanged) return default;
+                    if (counted) remaining = Known(native.RepeatCount);
                     unfinishedWork = native.UnfinishedWork;
                 }
             }
             if (!batch.UsesUnfinishedItem.TryGetValue(out var usesUnfinished)) remaining = default;
             else if (usesUnfinished)
             {
-                if (!unfinishedWork.TryGetValue(out var work)) remaining = default;
+                if (unfinishedWork is not { } work) remaining = default;
                 else if (work.Item.Length != 0)
                 {
                     if (!unfinishedItems.Add(work.Item)) throw new DomainException("unfinished item linked to multiple production promises");

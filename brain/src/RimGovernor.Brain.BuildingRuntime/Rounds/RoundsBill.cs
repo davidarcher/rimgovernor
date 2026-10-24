@@ -177,7 +177,7 @@ public sealed partial class RoundsBillPlanner : IPurposeReporter
         var butcher = _purpose == ProductionRules.ButcherFood;
         foreach (var bench in rows)
         {
-            if (bench.Usable.TryGetValue(out var usable) && usable && bench.Butcher == butcher)
+            if (bench.Usable && bench.Butcher == butcher)
             {
                 return BuildingReasonNoDeficit;
             }

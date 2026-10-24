@@ -585,13 +585,12 @@ public static class ExportOrdersRules
 
     /// <summary>
     /// The active pinned finite batches on the benches that make an export product: placed and unfinished goods
-    /// that stay declared as they stand and count against the gap. Unread is set when one's spec is.
+    /// that stay declared as they stand and count against the gap.
     /// </summary>
-    private static (List<OrderSpec> Orders, List<GearBill> Bills, bool Unread) StandingExports(IReadOnlyList<GearBench> benches, HashSet<Resource> products)
+    private static (List<OrderSpec> Orders, List<GearBill> Bills) StandingExports(IReadOnlyList<GearBench> benches, HashSet<Resource> products)
     {
         var orders = new List<OrderSpec>();
         var bills = new List<GearBill>();
-        var unread = false;
         foreach (var b in benches)
         {
             _ = b.Bills.TryGetValue(out var list);
@@ -601,28 +600,15 @@ public static class ExportOrdersRules
                 {
                     continue;
                 }
-                if (!bill.Worker.TryGetValue(out var worker) || worker.Length == 0)
+                if (bill.Worker.Length == 0 || !bill.Active || bill.Spec.Mode != BillMode.GearBatch)
                 {
                     continue;
                 }
-                if (bill.Active.TryGetValue(out var active) && !active)
-                {
-                    continue;
-                }
-                if (!bill.Spec.TryGetValue(out var spec))
-                {
-                    unread = true;
-                    continue;
-                }
-                if (spec.Mode != BillMode.GearBatch)
-                {
-                    continue;
-                }
-                orders.Add(spec);
+                orders.Add(bill.Spec);
                 bills.Add(bill);
             }
         }
-        return (orders, bills, unread);
+        return (orders, bills);
     }
 
     /// <summary>
@@ -674,15 +660,11 @@ public static class ExportOrdersRules
         {
             return Plan();
         }
-        var (standing, bills, standingUnread) = StandingExports(r.Benches, productSet);
+        var (standing, bills) = StandingExports(r.Benches, productSet);
         declared.Orders.AddRange(standing);
         if (unread)
         {
             declared.Unread(Cause.UnreadRecipes);
-        }
-        if (standingUnread)
-        {
-            declared.Unread(Cause.UnreadBills);
         }
         var busy = new HashSet<string>(StringComparer.Ordinal);
         foreach (var o in standing)
@@ -698,8 +680,7 @@ public static class ExportOrdersRules
         var draws = new Dictionary<Resource, long>();
         foreach (var bill in bills)
         {
-            var spec = bill.Spec.ValueOrDefault!;
-            foreach (var a in ExportBillDraw(recipes, spec))
+            foreach (var a in ExportBillDraw(recipes, bill.Spec))
             {
                 draws[a.Resource] = draws.GetValueOrDefault(a.Resource) + a.Count;
             }
@@ -926,9 +907,9 @@ public static class ExportOrdersRules
         }
         foreach (var bill in bills)
         {
-            if (bill.Spec.TryGetValue(out var spec) && bill.Products.Count == 1)
+            if (bill.Products.Count == 1)
             {
-                total += spec.Target * price.GetValueOrDefault(bill.Products[0]);
+                total += bill.Spec.Target * price.GetValueOrDefault(bill.Products[0]);
             }
         }
         return total;

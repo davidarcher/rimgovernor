@@ -1931,12 +1931,12 @@ public sealed record BillState
     /// <summary>
     /// Filter matches a new Auto bill, including food routing and special filters.
     /// </summary>
-    public bool? DefaultIngredients { get; init; }
+    public required bool DefaultIngredients { get; init; }
 
     /// <summary>
     /// No skill or worker-category restriction; worker_id separately records a pinned pawn.
     /// </summary>
-    public bool? UnrestrictedWorker { get; init; }
+    public required bool UnrestrictedWorker { get; init; }
 
     /// <summary>
     /// Current-load controller bill with unchanged player settings.
@@ -1951,15 +1951,18 @@ public sealed record BillState
     /// <summary>The bill's runtime class name (Bill_Production, Bill_GovernorRecipe, ...).</summary>
     public required string BillClass { get; init; }
 
-    public Operations.RepeatMode? RepeatMode { get; init; }
+    /// <summary>Forever, Count or Target: a bench bill is always a Bill_Production in one of vanilla's three modes.</summary>
+    public required Operations.RepeatMode RepeatMode { get; init; }
 
-    public int? RepeatCount { get; init; }
+    /// <summary>The bill's repeatCount: the iterations left in Count mode (vanilla keeps the field in every mode).</summary>
+    public required int RepeatCount { get; init; }
 
-    public int? TargetCount { get; init; }
+    /// <summary>The bill's targetCount: the stock the bill keeps in Target mode (vanilla keeps the field in every mode).</summary>
+    public required int TargetCount { get; init; }
 
     public required bool Suspended { get; init; }
 
-    public bool? Finished { get; init; }
+    public required bool Finished { get; init; }
 
     /// <summary>The pinned worker's pawn id; absent when no pawn is pinned (a real none).</summary>
     public string? Worker { get; init; }
@@ -1974,17 +1977,32 @@ public sealed record BillState
     [JsonConverter(typeof(EquatableArrayJsonConverter<IngredientReservation>))]
     public EquatableArray<IngredientReservation> Reservations { get; init; }
 
-    /// <summary>Exact bound unfinished work; absent means unread, an empty Item means no bound item.</summary>
-    public BillUnfinishedWork? UnfinishedWork { get; init; }
+    /// <summary>The unfinished item bound to the bill, if any.</summary>
+    public required BillUnfinishedWork UnfinishedWork { get; init; }
 }
 
-/// <summary>Ingredients embedded in one initialized unfinished iteration; these are not loose stock or job reservations.</summary>
-public sealed record BillUnfinishedWork
+/// <summary>
+/// A bill's bound unfinished item: <see cref="None"/> without one (a bill that makes no unfinished thing, or none bound
+/// now), <see cref="Bound"/> with the item and the ingredients embedded in its one initialized iteration (not loose
+/// stock or job reservations). Native fails the read on a bound item that is uninitialized, of another recipe, or
+/// holds a spawned or empty ingredient: vanilla binds an item only after collecting the whole iteration.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BillUnfinishedWork.None), "none")]
+[JsonDerivedType(typeof(BillUnfinishedWork.Bound), "bound")]
+public abstract record BillUnfinishedWork
 {
-    public string? Item { get; init; }
+    private protected BillUnfinishedWork() { }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
-    public EquatableArray<Quantity> Ingredients { get; init; }
+    public sealed record None : BillUnfinishedWork;
+
+    public sealed record Bound : BillUnfinishedWork
+    {
+        public required string Item { get; init; }
+
+        [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
+        public required EquatableArray<Quantity> Ingredients { get; init; }
+    }
 }
 
 public sealed record IngredientReservation
@@ -5338,9 +5356,10 @@ public sealed record FoodProduction
 
 public sealed record CookingFacts
 {
-    public Common.Ref? Bench { get; init; }
+    public required Common.Ref Bench { get; init; }
 
-    public bool? Usable { get; init; }
+    /// <summary>Not burning, powered when it draws power and fuelled when it burns fuel.</summary>
+    public required bool Usable { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<RecipeState>))]
     public EquatableArray<RecipeState> Recipes { get; init; }
@@ -5361,7 +5380,7 @@ public sealed record CookingFacts
     /// <summary>
     /// The bench's CAS token.
     /// </summary>
-    public SnapshotRef? BenchSnapshot { get; init; }
+    public required SnapshotRef BenchSnapshot { get; init; }
 }
 
 /// <summary>
@@ -5458,14 +5477,15 @@ public sealed record HuntCensus
 
 public sealed record ButcheringFacts
 {
-    public Common.Ref? Bench { get; init; }
+    public required Common.Ref Bench { get; init; }
 
-    public SnapshotRef? BenchSnapshot { get; init; }
+    public required SnapshotRef BenchSnapshot { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<BillState>))]
     public EquatableArray<BillState> Bills { get; init; }
 
-    public bool? Usable { get; init; }
+    /// <summary>The bench's NativeProductionBills.Usable: spawned, owned, unforbidden, unfogged, not burning and usable for bills.</summary>
+    public required bool Usable { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<RecipeState>))]
     public EquatableArray<RecipeState> Recipes { get; init; }

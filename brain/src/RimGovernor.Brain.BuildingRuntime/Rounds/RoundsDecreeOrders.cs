@@ -143,19 +143,14 @@ partial class JoinersRounds
                     {
                         continue;
                     }
-                    if (!bill.Active.TryGetValue(out var active))
-                    {
-                        candidate = candidate with { Available = Unknown<bool>() };
-                        continue;
-                    }
-                    if (!active)
+                    if (!bill.Active)
                     {
                         continue;
                     }
-                    if (bill.Spec.TryGetValue(out var spec) && spec.Mode == BillMode.GearBatch && (objective.Stuff == "" || spec.Ingredients.Contains(objective.Stuff)))
+                    if (bill.Spec.Mode == BillMode.GearBatch && (objective.Stuff == "" || bill.Spec.Ingredients.Contains(objective.Stuff)))
                     {
                         candidate = candidate with { Existing = true };
-                        standing.Add(spec);
+                        standing.Add(bill.Spec);
                     }
                     else
                     {

@@ -65,7 +65,8 @@ namespace HomeBridge.BridgeTools
         internal static Operations.RepeatMode Repeat(BillRepeatModeDef mode) =>
             mode == BillRepeatModeDefOf.Forever ? Operations.RepeatMode.Forever
             : mode == BillRepeatModeDefOf.RepeatCount ? Operations.RepeatMode.Count
-            : mode == BillRepeatModeDefOf.TargetCount ? Operations.RepeatMode.Target : Operations.RepeatMode.Unspecified;
+            : mode == BillRepeatModeDefOf.TargetCount ? Operations.RepeatMode.Target
+            : throw new InvalidOperationException("Unknown bill repeat mode " + mode?.defName + ".");
 
         internal static Operations.HostilityResponse Hostility(HostilityResponseMode mode) => mode switch
         {

@@ -83,27 +83,38 @@ public sealed record ExistingProductionBill
     /// <summary>The bill recipe's role by its catalog row.</summary>
     public RecipeRole Role { get; init; }
 
-    public Fact<bool> DefaultIngredients { get; init; }
+    /// <summary>The ingredient filter is the one a new bill of the recipe gets.</summary>
+    public required bool DefaultIngredients { get; init; }
 
-    public Fact<EquatableArray<string>> Ingredients { get; init; }
+    /// <summary>The filter's allowed defs; a butcher bill's filter is its corpse selection, never compared as an ingredient list.</summary>
+    public required EquatableArray<string> Ingredients { get; init; }
 
-    public Fact<bool> UnrestrictedWorker { get; init; }
+    public required bool UnrestrictedWorker { get; init; }
 
-    public Fact<string> Worker { get; init; }
+    /// <summary>The pinned pawn, "" when unrestricted.</summary>
+    public required string Worker { get; init; }
 
-    public Fact<string> RepeatMode { get; init; }
+    public required BillRepeat Repeat { get; init; }
 
     public bool Humanlike { get; init; }
 
     public string Id { get; init; } = "";
 
-    public Fact<bool> Active { get; init; }
+    /// <summary>Not suspended.</summary>
+    public required bool Active { get; init; }
 
     public string Recipe { get; init; } = "";
 
-    public Fact<int> TargetCount { get; init; }
+    /// <summary>The configured stock target (vanilla keeps it in every repeat mode; it binds only a TargetCount bill).</summary>
+    public required int TargetCount { get; init; }
+}
 
-    public Fact<bool> Forever { get; init; }
+/// <summary>A bill's repeat mode: run forever, a fixed count of iterations, or until the stock reaches the target count.</summary>
+public enum BillRepeat
+{
+    Forever,
+    Count,
+    TargetCount,
 }
 
 public sealed record ProductionBench
@@ -116,9 +127,10 @@ public sealed record ProductionBench
 
     public string Definition { get; init; } = "";
 
-    public Fact<string> Token { get; init; }
+    /// <summary>The bench's CAS token.</summary>
+    public required string Token { get; init; }
 
-    public Fact<bool> Usable { get; init; }
+    public required bool Usable { get; init; }
 
     public bool Butcher { get; init; }
 
@@ -184,40 +196,30 @@ public static partial class ProductionRules
     public static readonly BillPurpose CookAheadFood = new("cook_ahead");
 
     /// <summary>
-    /// Preserves unknown fields, but any observed drift is enough to correct a matching bill. Target bills
-    /// must cover the planned minimum; finite repeat counts cannot maintain stock. Forever remains adequate.
+    /// Any drift is enough to correct a matching bill. Target bills must cover the planned minimum; finite repeat
+    /// counts cannot maintain stock. Forever remains adequate. A butcher bill's filter is its corpse selection, so
+    /// its allowed defs are never compared with an ingredient list.
     /// </summary>
     internal static bool BillAdequate(ExistingProductionBill bill, BillSelection selection)
     {
-        var ak = bill.Active.TryGetValue(out var active);
-        var fk = bill.Forever.TryGetValue(out var forever);
-        var tk = bill.TargetCount.TryGetValue(out var target);
-        if (ak && !active)
-        {
-            return false;
-        }
-        if (bill.UnrestrictedWorker.TryGetValue(out var unrestricted) && !unrestricted)
-        {
-            return false;
-        }
-        if (bill.Worker.TryGetValue(out var worker) && worker != selection.Worker)
+        if (!bill.Active || !bill.UnrestrictedWorker || bill.Worker != selection.Worker)
         {
             return false;
         }
         if (selection.Ingredients.Count == 0)
         {
-            if (bill.DefaultIngredients.TryGetValue(out var defaults) && !defaults)
+            if (!bill.DefaultIngredients)
             {
                 return false;
             }
         }
-        else if (bill.Ingredients.TryGetValue(out var ingredients))
+        else if (bill.Role != RecipeRole.ButcherFlesh)
         {
-            if (ingredients.Count != selection.Ingredients.Count)
+            if (bill.Ingredients.Count != selection.Ingredients.Count)
             {
                 return false;
             }
-            var allowed = new HashSet<string>(ingredients, StringComparer.Ordinal);
+            var allowed = new HashSet<string>(bill.Ingredients, StringComparer.Ordinal);
             foreach (var name in selection.Ingredients)
             {
                 if (!allowed.Contains(name))
@@ -226,19 +228,15 @@ public static partial class ProductionRules
                 }
             }
         }
-        if (bill.RepeatMode.TryGetValue(out var mode) && mode != "TargetCount" && mode != "Forever")
+        if (bill.Repeat == BillRepeat.Count)
         {
             return false;
         }
-        if (selection.Mode is BillMode.ButcherForever or BillMode.HumanButcherForever)
+        if (selection.Mode is BillMode.ButcherForever or BillMode.HumanButcherForever || bill.Repeat == BillRepeat.Forever)
         {
-            return !fk || forever;
+            return bill.Repeat == BillRepeat.Forever;
         }
-        if (fk && forever)
-        {
-            return true;
-        }
-        return !tk || target >= selection.Target;
+        return bill.TargetCount >= selection.Target;
     }
 
     /// <summary>
@@ -338,9 +336,7 @@ public static partial class ProductionRules
             {
                 return none;
             }
-            var uk = bench.Usable.TryGetValue(out var usable);
-            var tk = bench.Token.TryGetValue(out var token);
-            if (!uk || !usable || !tk || !FoodForecastRules.FoodId(token!) || bench.Butcher != (purpose == ProductionRules.ButcherFood))
+            if (!bench.Usable || !FoodForecastRules.FoodId(bench.Token) || bench.Butcher != (purpose == ProductionRules.ButcherFood))
             {
                 continue;
             }

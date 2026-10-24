@@ -80,7 +80,7 @@ public sealed class ProductionAdmissionTests
         var first = Batch("first") with { Progress = Batch("first").Progress with { Stage = Stage.Completed, Attempt = new AttemptId(1), Bill = Known("bill") } };
         var f = Facts with
         {
-            WorkAdmission = Facts.WorkAdmission with { Bills = Known<EquatableArray<ProductionBatchState>>([new("bill", Known(true), Known(1), Known(false), Known(false))]) },
+            WorkAdmission = Facts.WorkAdmission with { Bills = Known<EquatableArray<ProductionBatchState>>([new("bill", true, BillRepeat.Count, 1, false, false, new ProductionUnfinishedWork("", default))]) },
             BillReservations = Known<EquatableArray<IngredientReservation>>([new() { Bill = Known("bill"), Pawn = new("pawn"), Items = [new(Wood, 10)] }]),
         };
         Assert.True(Fits(Evidence(f, first), [first], Batch("new")));

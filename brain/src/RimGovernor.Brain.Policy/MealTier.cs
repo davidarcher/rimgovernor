@@ -142,7 +142,7 @@ public static partial class MealRules
                 throw new MealTierFactsException();
             }
             seenBenches.Add(bench.Id);
-            if (bench.Butcher || !RoundsRules.Positive(bench.Usable))
+            if (bench.Butcher || !bench.Usable)
             {
                 continue;
             }
@@ -402,7 +402,8 @@ public static partial class MealRules
         // Correct drift even when another matching bill already covers the target.
         foreach (var choice in review.Recipes)
         {
-            var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench();
+            // A choice on a bench the census lacks selects nothing.
+            var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench { Token = "", Usable = false };
             bench = bench with { Recipes = [recipes.GetValueOrDefault((choice.Bench, choice.Recipe)) ?? new ProductionRecipe()] };
             var (selected, ok) = ProductionRules.SelectProductionBill(ProductionRules.CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
             if (ok && selected.Replace != "")
@@ -423,7 +424,8 @@ public static partial class MealRules
         }
         foreach (var choice in review.Recipes)
         {
-            var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench();
+            // A choice on a bench the census lacks selects nothing.
+            var bench = byBench.GetValueOrDefault(choice.Bench) ?? new ProductionBench { Token = "", Usable = false };
             bench = bench with { Recipes = [recipes.GetValueOrDefault((choice.Bench, choice.Recipe)) ?? new ProductionRecipe()] };
             var (selected, ok) = ProductionRules.SelectProductionBill(ProductionRules.CookFood, Known<EquatableArray<ProductionBench>>([bench]), colonists, request.RawRunwayDays, Unknown<double>(), request.TargetDays, new ProductionBillContext { Ingredients = ingredients });
             if (!ok)

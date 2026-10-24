@@ -313,11 +313,11 @@ public static partial class WorkRules
             }
             foreach (var bill in bills)
             {
-                if (!bill.Spec.TryGetValue(out var spec) || bill.Id.Length == 0)
+                if (bill.Id.Length == 0)
                 {
                     return ([], false);
                 }
-                output.Add(new ActualBill { Id = bill.Id, Bench = bench.Id, Kind = bill.Kind, Spec = spec, Spent = bill.Spent });
+                output.Add(new ActualBill { Id = bill.Id, Bench = bench.Id, Kind = bill.Kind, Spec = bill.Spec, Spent = bill.Spent });
             }
         }
         return (output, true);
@@ -348,9 +348,9 @@ public static partial class WorkRules
                 load[b.Id] = bills.Count;
                 foreach (var bill in bills)
                 {
-                    if (bill.Spec.TryGetValue(out var spec) && !bill.Spent)
+                    if (!bill.Spent)
                     {
-                        carries.Add((b.Id, spec.Key()));
+                        carries.Add((b.Id, bill.Spec.Key()));
                     }
                 }
             }

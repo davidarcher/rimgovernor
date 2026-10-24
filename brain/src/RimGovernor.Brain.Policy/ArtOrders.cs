@@ -29,8 +29,7 @@ public static class ArtOrdersRules
     /// The rooms/art Need's wanted sculpture orders. While the need is open (an inspired artist or a bedroom below
     /// target) every active sculpture bill pinned to a current artist is declared as it stands, and each artist
     /// lacking one is given the bill the art selectors choose; a need known to be gone declares nothing, so the
-    /// ledger removes the sculptures. Abstain while the artists or the need are unread, or a standing sculpture
-    /// bill's spec is.
+    /// ledger removes the sculptures. Abstain while the artists or the need are unread.
     /// </summary>
     public static Declared DeclareArtOrders(ArtOrderRequest r)
     {
@@ -49,13 +48,8 @@ public static class ArtOrdersRules
             return new Declared();
         }
 
-        var (orders, unread) = StandingSculptures(r.Benches, artists);
         var output = new Declared();
-        output.Orders.AddRange(orders);
-        if (unread)
-        {
-            output.Unread(Cause.UnreadBills);
-        }
+        output.Orders.AddRange(StandingSculptures(r.Benches, artists));
 
         if (!open)
         {
@@ -87,42 +81,26 @@ public static class ArtOrdersRules
         return output;
     }
 
-    /// <summary>
-    /// The specs of the active (or unknown-active) sculpture bills pinned to a current artist; unread is set
-    /// when one's spec is.
-    /// </summary>
-    internal static (List<OrderSpec> Orders, bool Unread) StandingSculptures(IEnumerable<GearBench> benches, IEnumerable<PawnId> artists)
+    /// <summary>The specs of the active sculpture bills pinned to a current artist.</summary>
+    internal static List<OrderSpec> StandingSculptures(IEnumerable<GearBench> benches, IEnumerable<PawnId> artists)
     {
         var orders = new List<OrderSpec>();
-        var unread = false;
         var current = new HashSet<string>(artists.Select(a => a.Value), StringComparer.Ordinal);
         foreach (var b in benches)
         {
             b.Bills.TryGetValue(out var bills);
             foreach (var bill in bills!)
             {
-                var wk = bill.Worker.TryGetValue(out var worker);
-                if (bill.Role != RecipeRole.Sculpture || !wk || !current.Contains(worker!))
+                if (bill.Role != RecipeRole.Sculpture || !current.Contains(bill.Worker) || !bill.Active)
                 {
                     continue;
                 }
 
-                if (bill.Active.TryGetValue(out var active) && !active)
-                {
-                    continue;
-                }
-
-                if (!bill.Spec.TryGetValue(out var spec))
-                {
-                    unread = true;
-                    continue;
-                }
-
-                orders.Add(spec);
+                orders.Add(bill.Spec);
             }
         }
 
-        return (orders, unread);
+        return orders;
     }
 
     /// <summary>
@@ -166,20 +144,13 @@ public static class ArtOrdersRules
                 continue;
             }
 
-            var existing = bills!.Select(bill => new ExistingProductionBill
-            {
-                Id = bill.Id,
-                Recipe = bill.Recipe,
-                Role = bill.Role,
-                Worker = bill.Worker,
-                Active = bill.Active,
-            });
+            var existing = bills!.Select(bill => bill.Existing);
             output.Add(
                 new ProductionBench
                 {
                     Id = read.Id,
-                    Token = Known(read.Id),
-                    Usable = Known(true),
+                    Token = read.Id,
+                    Usable = true,
                     Recipes = EquatableArray.From(rows),
                     Bills = EquatableArray.From(existing),
                 }
@@ -200,7 +171,7 @@ public static class ArtOrdersRules
             b.Bills.TryGetValue(out var bills);
             foreach (var bill in bills!)
             {
-                if (bill.Active.TryGetValue(out var active) && active && bill.Role == RecipeRole.Sculpture)
+                if (bill.Active && bill.Role == RecipeRole.Sculpture)
                 {
                     return true;
                 }

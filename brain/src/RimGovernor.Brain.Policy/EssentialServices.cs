@@ -207,8 +207,7 @@ public static class EssentialServicesRules
             var unknown = false;
             foreach (var bench in benches.Where(b => "facility/" + b.Id != excluded).OrderBy(b => b.Id, StringComparer.Ordinal))
             {
-                if (!bench.Usable.IsKnown) { unknown = true; continue; }
-                if (!bench.Usable.Value) continue;
+                if (!bench.Usable) continue;
                 foreach (var recipe in bench.Recipes.Where(r => r.Role == RecipeRole.OrdinaryMeal).OrderBy(r => r.Name, StringComparer.Ordinal))
                 {
                     if (!recipe.Available.IsKnown || !recipe.CookSkillFloor.IsKnown) { unknown = true; continue; }

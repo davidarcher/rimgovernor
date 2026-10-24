@@ -136,14 +136,8 @@ public static partial class ResourceRules
                 {
                     continue;
                 }
-                var specKnown = bill.Spec.TryGetValue(out var spec);
-                var onKnown = bill.Active.TryGetValue(out var on);
-                if (!specKnown || !onKnown)
-                {
-                    return ([], false, true);
-                }
-                active = active || on;
-                specs.Add(spec!);
+                active = active || bill.Active;
+                specs.Add(bill.Spec);
             }
         }
         return (specs, active, false);

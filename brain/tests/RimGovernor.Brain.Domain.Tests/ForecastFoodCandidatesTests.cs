@@ -35,7 +35,7 @@ public sealed class ForecastFoodCandidatesTests
         Tick = new(42), Destination = "home",
         Sources = Known(EquatableArray.From(new[] { new AcquisitionSource { Id = "plant", Definition = "TestPlant", Resource = Raw.Value, Food = true, Yield = 4, Growth = 1 } })),
         Crops = [new() { Name = "TestPlant", Harvests = Known(Raw), HarvestMinGrowth = Known(0.8), HarvestWork = Known(100.0) }],
-        Benches = Known(EquatableArray.From(new[] { new ProductionBench { Id = "bench", Usable = Known(true),
+        Benches = Known(EquatableArray.From(new[] { new ProductionBench { Id = "bench", Token = "bench-token", Usable = true,
             Recipes = [new() { Name = "TestRecipe", Role = RecipeRole.OrdinaryMeal, Available = Known(true), CookSkillFloor = Known(2) }] } })),
         Recipes = Known(EquatableArray.From(new[] { new ProductionRecipeInput("TestRecipe", Known(EquatableArray.From(new[] {
             EquatableArray.From(new[] { new Amount(Raw, 2) }) })), Known(false))
@@ -185,9 +185,9 @@ public sealed class ForecastFoodCandidatesTests
         var generated = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), missing);
         Assert.Single(generated.Relief);
         Assert.Contains("unsupported_or_unknown_food_recipe:TestRecipe", generated.Findings);
-        var unknownBench = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), input with
-            { Benches = Known(EquatableArray.From(input.Benches.Value.Select(b => b with { Usable = default }))) });
-        Assert.Contains("unknown_food_bench:bench", unknownBench.Findings);
+        var unusableBench = ForecastFoodCandidates.GenerateFoodActivities(Frame(), Capacity(), input with
+            { Benches = Known(EquatableArray.From(input.Benches.Value.Select(b => b with { Usable = false }))) });
+        Assert.DoesNotContain(unusableBench.Bindings, b => b.Recipe != "");
         var frame = Frame();
         frame = frame with { Demand = frame.Demand with { Work = frame.Demand.Work with
             { Pawns = Known(EquatableArray.From(frame.Demand.Work.Pawns.Value.Select(p => p with { Available = default }))) } } };

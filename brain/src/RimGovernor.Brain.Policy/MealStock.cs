@@ -88,7 +88,7 @@ public static partial class MealRules
         {
             foreach (var bill in bench.Bills)
             {
-                if (!RoundsRules.Positive(bill.Active))
+                if (!bill.Active)
                 {
                     continue;
                 }
@@ -122,7 +122,7 @@ public static partial class MealRules
         {
             foreach (var bill in bench.Bills)
             {
-                if (!RoundsRules.Positive(bill.Active))
+                if (!bill.Active)
                 {
                     continue;
                 }

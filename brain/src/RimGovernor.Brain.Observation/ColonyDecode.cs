@@ -413,9 +413,9 @@ public static class ColonyDecodeReads
             {
                 benches.Add(new CookingBench
                 {
-                    Id = b.Bench?.Id ?? "",
+                    Id = b.Bench.Id,
                     Definition = buildings.Entity(b.Bench)?.DefName ?? "",
-                    Usable = Optional(b.Usable is not null, b.Usable.GetValueOrDefault()),
+                    Usable = b.Usable,
                     Room = OptionalRef(b.Room),
                 });
             }
@@ -468,9 +468,9 @@ public static class ColonyDecodeReads
             {
                 benches.Add(new CookingBench
                 {
-                    Id = bench.Bench?.Id ?? "",
+                    Id = bench.Bench.Id,
                     Definition = buildings.Entity(bench.Bench)?.DefName ?? "",
-                    Usable = Optional(bench.Usable is not null, bench.Usable.GetValueOrDefault()),
+                    Usable = bench.Usable,
                     Room = OptionalRef(bench.Room),
                     AutoRefuel = Optional(bench.AutoRefuel is not null, bench.AutoRefuel.GetValueOrDefault()),
                 });

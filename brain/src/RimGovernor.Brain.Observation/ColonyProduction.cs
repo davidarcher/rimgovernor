@@ -3,17 +3,38 @@ namespace RimGovernor.Brain.Observation;
 
 public static class ColonyProductionReads
 {
-    /// <summary>The bill's allowed defs; a butcher bill's filter is the corpse selection, not an ingredient list, so it stays unknown.</summary>
-    private static Fact<EquatableArray<string>> BillIngredients(O.BillState b, RecipeRole role) =>
-        role == RecipeRole.ButcherFlesh
-            ? Unknown<EquatableArray<string>>()
-            : Known<EquatableArray<string>>([.. b.IngredientFilter.AllowedDefNames]);
+    /// <summary>A bench bill's repeat mode. Native reads only vanilla's three modes, so Unspecified is a broken read.</summary>
+    public static BillRepeat BillRepeatOf(Ops.RepeatMode mode)
+    {
+        switch (mode)
+        {
+            case Ops.RepeatMode.Forever:
+                return BillRepeat.Forever;
+            case Ops.RepeatMode.Count:
+                return BillRepeat.Count;
+            case Ops.RepeatMode.Target:
+                return BillRepeat.TargetCount;
+            case Ops.RepeatMode.Unspecified:
+                throw new RequiredFactException("bill repeat mode");
+        }
+        throw new DomainException($"undefined repeat mode {(int)mode}");
+    }
 
-    private static Fact<bool> BillForever(bool has, Ops.RepeatMode mode) => has ? Known(mode == Ops.RepeatMode.Forever) : Unknown<bool>();
-
-    private static Fact<string> RepeatModeFact(bool has, Ops.RepeatMode mode) => has ? Known(WireEnums.RepeatModeName(mode)) : Unknown<string>();
-
-    private static Fact<bool> BillActive(bool suspended) => Known(!suspended);
+    /// <summary>A bench bill as the production bill selectors read it. A butcher bench's bill is humanlike when its filter admits any corpse (native lists only humanlike ones).</summary>
+    public static ExistingProductionBill ExistingBillOf(O.BillState b, RecipeRole role, bool butcher) => new()
+    {
+        Role = role,
+        DefaultIngredients = b.DefaultIngredients,
+        UnrestrictedWorker = b.UnrestrictedWorker,
+        Worker = b.Worker ?? "",
+        Repeat = BillRepeatOf(b.RepeatMode),
+        Ingredients = b.IngredientFilter.AllowedDefNames,
+        Id = b.Id,
+        Active = !b.Suspended,
+        Recipe = b.Recipe,
+        TargetCount = b.TargetCount,
+        Humanlike = butcher && b.IngredientFilter.AllowedDefNames.Count > 0,
+    };
 
     /// <summary>The nutrition of the fresh humanlike corpses near a bench: each race's live MeatAmount sum times the Nutrition of that race's meat def; unknown when a race's meat shows no nutrition.</summary>
     private static Fact<double> HumanCorpseNutrition(IEnumerable<O.HumanCorpseMeat> meat, DefinitionCatalog? catalog)
@@ -195,15 +216,10 @@ public static class ColonyProductionReads
         {
             return facts;
         }
-        bool ready = false, known = true;
+        var ready = false;
         foreach (var bench in v.Cooking)
         {
-            if (bench.Usable is null)
-            {
-                known = false;
-                continue;
-            }
-            if (!bench.Usable.GetValueOrDefault())
+            if (!bench.Usable)
             {
                 continue;
             }
@@ -220,7 +236,7 @@ public static class ColonyProductionReads
                 }
             }
         }
-        return ready || known ? facts with { Cooking = Known(ready) } : facts;
+        return facts with { Cooking = Known(ready) };
     }
 
     /// <summary>
@@ -273,13 +289,17 @@ public static class ColonyProductionReads
             return Unknown<EquatableArray<ProductionBench>>();
         }
         var rows = new List<ProductionBench>();
-        ProductionBench Add(C.Ref? bench, O.SnapshotRef? snapshot, Fact<bool> usable, IEnumerable<O.RecipeState> recipes, IEnumerable<O.BillState> bills, IEnumerable<O.FoodProduction> production, bool butcher, C.Ref? room)
+        ProductionBench Add(C.Ref bench, O.SnapshotRef snapshot, bool usable, IEnumerable<O.RecipeState> recipes, IEnumerable<O.BillState> bills, IEnumerable<O.FoodProduction> production, bool butcher, C.Ref? room)
         {
-            var row = new ProductionBench { Id = bench?.Id ?? "", Definition = buildings.Entity(bench)?.DefName ?? "", Usable = usable, Butcher = butcher, Room = ColonyDecodeReads.OptionalRef(room) };
-            if (snapshot is not null)
+            var row = new ProductionBench
             {
-                row = row with { Token = ColonyDecodeReads.Optional(snapshot.Token is not null, (snapshot.Token ?? "")) };
-            }
+                Id = bench.Id,
+                Definition = buildings.Entity(bench)?.DefName ?? "",
+                Token = snapshot.Token ?? throw new RequiredFactException("bench_snapshot.token:" + bench.Id),
+                Usable = usable,
+                Butcher = butcher,
+                Room = ColonyDecodeReads.OptionalRef(room),
+            };
             var recipeRows = new List<ProductionRecipe>();
             foreach (var r in recipes)
             {
@@ -317,32 +337,17 @@ public static class ColonyProductionReads
             var billRows = new List<ExistingProductionBill>();
             foreach (var b in bills)
             {
-                var role = ColonyDecodeReads.RequireCatalog(catalog).RecipeRoleOf(b.Recipe);
-                billRows.Add(new ExistingProductionBill
-                {
-                    Role = role,
-                    DefaultIngredients = ColonyDecodeReads.Optional(b.DefaultIngredients is not null, b.DefaultIngredients.GetValueOrDefault()),
-                    UnrestrictedWorker = ColonyDecodeReads.Optional(b.UnrestrictedWorker is not null, b.UnrestrictedWorker.GetValueOrDefault()),
-                    Worker = Known(b.Worker ?? ""),
-                    RepeatMode = RepeatModeFact(b.RepeatMode is not null, b.RepeatMode.GetValueOrDefault()),
-                    Ingredients = BillIngredients(b, role),
-                    Id = b.Id,
-                    Active = BillActive(b.Suspended),
-                    Recipe = b.Recipe,
-                    TargetCount = ColonyDecodeReads.Optional(b.TargetCount is not null, b.TargetCount.GetValueOrDefault()),
-                    Forever = BillForever(b.RepeatMode is not null, b.RepeatMode.GetValueOrDefault()),
-                    Humanlike = butcher && b.IngredientFilter.AllowedDefNames.Count > 0,
-                });
+                billRows.Add(ExistingBillOf(b, ColonyDecodeReads.RequireCatalog(catalog).RecipeRoleOf(b.Recipe), butcher));
             }
             return row with { Recipes = recipeRows, Bills = billRows };
         }
         foreach (var b in v.Cooking)
         {
-            rows.Add(Add(b.Bench, b.BenchSnapshot, ColonyDecodeReads.Optional(b.Usable is not null, b.Usable.GetValueOrDefault()), b.Recipes, b.Bills, b.Production, false, b.Room));
+            rows.Add(Add(b.Bench, b.BenchSnapshot, b.Usable, b.Recipes, b.Bills, b.Production, false, b.Room));
         }
         foreach (var b in v.Butchering)
         {
-            var row = Add(b.Bench, b.BenchSnapshot, ColonyDecodeReads.Optional(b.Usable is not null, b.Usable.GetValueOrDefault()), b.Recipes, b.Bills, [], true, b.Room);
+            var row = Add(b.Bench, b.BenchSnapshot, b.Usable, b.Recipes, b.Bills, [], true, b.Room);
             var butchers = new List<HumanButcherCandidate>();
             foreach (var candidate in b.HumanButchers)
             {

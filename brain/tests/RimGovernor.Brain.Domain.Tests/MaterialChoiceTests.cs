@@ -47,7 +47,7 @@ public sealed class MaterialChoiceTests
                 StuffBeauty = new Dictionary<Resource, double> { [Metal] = 1, [Timber] = 1 },
                 StuffCategories = new Dictionary<Resource, IReadOnlyList<string>> { [Metal] = ["Stuff"], [Timber] = ["Stuff"] },
                 AcceptedStuff = new Dictionary<Resource, IReadOnlyList<string>> { [new("Sculpture")] = ["Stuff"] } } };
-        var bench = new ProductionBench { Id = "bench-a", Usable = Known(true), Token = Known("token"),
+        var bench = new ProductionBench { Id = "bench-a", Usable = true, Token = "token",
             Recipes = [new() { Name = "FlexibleRecipe", Role = RecipeRole.Sculpture, Available = Known(true) }] };
         var bill = Assert.Single(ArtRules.SelectArtBills(Known<EquatableArray<ProductionBench>>([bench]), 1L, [new RimGovernor.Brain.Domain.PawnId("artist")], demand));
         Assert.Equal(new[] { Metal.Value, Timber.Value }, bill.Ingredients);

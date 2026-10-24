@@ -283,11 +283,7 @@ public static class FoodOrdersRules
                 {
                     continue;
                 }
-                if (!bill.Spec.TryGetValue(out var spec))
-                {
-                    return ([], false);
-                }
-                orders.Add(spec);
+                orders.Add(bill.Spec);
             }
         }
         return (orders, true);
@@ -315,10 +311,7 @@ public static class FoodOrdersRules
             }
             foreach (var bill in bills)
             {
-                if (!bill.Spec.TryGetValue(out var spec))
-                {
-                    return (new OrderSpec(), false);
-                }
+                var spec = bill.Spec;
                 if (bill.Spent || bill.Kind != LedgerBillKind.Production || spec.BenchKind != want.BenchKind || spec.Recipe != want.Recipe
                     || WorkRules.WireClass(spec.Mode) != BillMode.StockTarget || spec.Worker != want.Worker || spec.Target < want.Target
                     || !SameSet(spec.Ingredients, want.Ingredients))

@@ -931,13 +931,13 @@ unread facts, and alternative ingredients. No native gameplay result is establis
 
 ### Ingredients inside unfinished work
 
-The native bill census includes `UnfinishedWork`: null means unread, an empty
-`Item` means observed absence, and a nonempty ID identifies one initialized
-unfinished item bound to that exact bill. Its ingredient quantities are embedded
+The native bill census always carries `UnfinishedWork`, a required union: `none`
+means no live unfinished item, and `bound` names one initialized unfinished item
+bound to that exact bill with its ingredients. Those ingredient quantities are embedded
 inputs, not spawned stock or live job reservations. Native reads the non-mutating
 `BoundUft` reference; it does not call `BoundWorker` or `BoundBill` getters that can
 change bindings. An uninitialized item or inconsistent recipe/ingredient read
-stays unknown. A destroyed item gives no credit.
+fails the bill read loudly. A destroyed item is `none` and gives no credit.
 
 RimWorld gathers an iteration's ingredients before creating its initialized
 unfinished item. The shared promise therefore reserves fresh inputs for

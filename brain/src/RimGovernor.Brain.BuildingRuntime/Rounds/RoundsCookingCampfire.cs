@@ -90,10 +90,9 @@ partial class RoundsBuildingPlanner
             {
                 continue;
             }
-            var uk = bench.Usable.TryGetValue(out var usable);
             var ik = bench.Room.TryGetValue(out var id);
             var (room, found) = ik && id is not null ? rooms!.Room(id) : (null, false);
-            stove = stove || (uk && usable && found && room!.Role == RoomRole.Kitchen);
+            stove = stove || (bench.Usable && found && room!.Role == RoomRole.Kitchen);
         }
         foreach (var bench in benches)
         {

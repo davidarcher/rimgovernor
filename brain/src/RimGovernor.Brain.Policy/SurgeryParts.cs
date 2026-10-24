@@ -69,7 +69,7 @@ public static partial class SurgeryRules
         var output = new HashSet<Resource>();
         foreach (var bench in benches)
         {
-            if (!bench.Usable.TryGetValue(out var usable) || !usable)
+            if (!bench.Usable)
             {
                 continue;
             }
@@ -150,7 +150,7 @@ public static partial class SurgeryRules
         {
             foreach (var bill in bench.Bills)
             {
-                if (!bill.Active.TryGetValue(out var active) || active)
+                if (bill.Active)
                 {
                     billed.Add(bill.Recipe);
                 }
@@ -166,8 +166,6 @@ public static partial class SurgeryRules
             {
                 foreach (var bench in benches)
                 {
-                    var uk = bench.Usable.TryGetValue(out var usable);
-                    var tk = bench.Token.TryGetValue(out var token);
                     foreach (var recipe in bench.Recipes)
                     {
                         if (!ProducesItem(recipe, item))
@@ -176,7 +174,7 @@ public static partial class SurgeryRules
                         }
                         inProduction = inProduction || billed.Contains(recipe.Name);
                         var ak = recipe.Available.TryGetValue(out var available);
-                        var serves = uk && usable && tk && FoodForecastRules.FoodId(token!) && ak && available;
+                        var serves = bench.Usable && FoodForecastRules.FoodId(bench.Token) && ak && available;
                         fabricable = fabricable || serves;
                         if (pick is null && serves && bench.Bills.Count < 15)
                         {
