@@ -23,13 +23,12 @@ public static class QuestPeaceTalksPolicy
         {
             return Fail("diplomacy_unknown");
         }
-        PeaceTalksRisk? risk = null;
+        Pb.QuestPeaceTalks? risk = null;
         foreach (var row in sites)
         {
             if (row.Id == site.Id)
             {
-                row.PeaceTalks.TryGetValue(out var found);
-                risk = found;
+                risk = row.PeaceTalks;
                 break;
             }
         }
@@ -59,11 +58,9 @@ public static class QuestPeaceTalksPolicy
         return QuestExpedition.PlanExpeditionCrew(offer, site, f, food, p, [diplomat]);
     }
 
-    public static QuestSkipReason PeaceTalksDownside(PeaceTalksRisk risk)
+    public static QuestSkipReason PeaceTalksDownside(Pb.QuestPeaceTalks risk)
     {
-        var lk = risk.WorstGoodwillLoss.TryGetValue(out var loss);
-        var gk = risk.BestGoodwillGain.TryGetValue(out var gain);
-        if (!lk || !gk || loss < 0 || gain < 0)
+        if (risk.WorstGoodwillLoss is not { } loss || risk.BestGoodwillGain is not { } gain || loss < 0 || gain < 0)
         {
             return "diplomacy_unknown";
         }
@@ -79,11 +76,10 @@ public static class QuestPeaceTalksPolicy
     /// eligible; otherwise Social ranks candidates. Vanilla still chooses its diplomat by NegotiationAbility
     /// when the caravan arrives.
     /// </summary>
-    public static (PawnId Pawn, QuestSkipReason Reason) PeaceTalksNegotiator(JoinerOffer offer, RoundsFacts f, Fact<EquatableArray<PeaceTalksPawn>> pawns, Fact<bool> ideology)
+    public static (PawnId Pawn, QuestSkipReason Reason) PeaceTalksNegotiator(JoinerOffer offer, RoundsFacts f, Fact<EquatableArray<PeaceTalksPawn>> pawns, bool? ideology)
     {
         var known = pawns.TryGetValue(out var all);
-        var ik = ideology.TryGetValue(out var ideo);
-        if (!known || !ik)
+        if (!known || ideology is not { } ideo)
         {
             return (default, "diplomacy_unknown");
         }

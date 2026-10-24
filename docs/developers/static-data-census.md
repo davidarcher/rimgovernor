@@ -510,11 +510,10 @@ Kept, reason recorded:
 | QuestHackRisk | message | 1096 | 2 | excluded | Odyssey quest hack risk |  |  #2632 Odyssey/Race |
 | QuestSurveyScanner | message | 1097 | 7 | excluded | Odyssey quest survey scanner |  |  #2632 Odyssey/Race |
 | QuestGravEngine | message | 1102 | 7 | excluded | Odyssey quest grav engine |  |  #2632 Odyssey/Race |
-| WorldSiteState | enum | 1107 | 5 | state | World site lifecycle state tag |  |  |
-| WorldSite | message | 1108 | 18 | state | World site row |  |  |
+| WorldSiteState | enum | 1107 | 3 | state | World site lifecycle state tag (pending, spawned, destroyed) |  |  |
+| WorldSite | message | 1108 | 7 | state | World site row: total place (SitePlace/SiteMap), route (SiteRoute), threat budget (SiteThreatBudget), loaded-map threat (SiteThreat) |  |  |
 | QuestSiteMiningTarget | message | 1118 | 5 | excluded | Odyssey site mining target |  |  #2632 Odyssey/Race |
-| QuestSiteSecurity | message | 1119 | 9 | state | Site security threat facts |  |  |
-| QuestSiteExtraction | message | 1124 | 9 | state | Site extraction crew, cargo and routes |  |  |
+| QuestSiteExtraction | message | 1124 | 9 | state | Site extraction: no crew, or an ExtractionCrew with cargo, home routes (SiteTravel) and exit cells |  |  |
 | QuestSiteCargo | message | 1132 | 7 | mixed | Site cargo item with mass, value, nutrition | unit_mass;market_value;nutrition | catalog stat table (statBases Mass, MarketValue, ThingDef.ingestible nutrition x stuff) |
 | QuestSiteHomeRoute | message | 1137 | 4 | code | Route from site to a home map |  |  |
 | QuestPeaceTalks | message | 1141 | 5 | state | Peace talks goodwill facts |  |  |

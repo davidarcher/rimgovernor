@@ -215,7 +215,15 @@ public sealed class QuestPolicyTests
     [Fact]
     public void ASurveyHoldReturnsOnNativeCompletionOrALostScannerAndWaitsWhileStopped()
     {
-        var site = new WorldSite { Id = "site-1" };
+        var site = new Pb.WorldSite
+        {
+            Id = "site-1",
+            State = Pb.WorldSiteState.Spawned,
+            Place = new Pb.SitePlace.OnTile(5, 0),
+            QuestIds = [new QuestId("survey")],
+            Route = new Pb.SiteRoute.NoCrew(),
+            Security = new Pb.SiteThreatBudget.Unbounded(),
+        };
         SurveyPlan Work(Pb.QuestSurveyScanner scanner) =>
             QuestSurvey.SurveyWork(SurveyOffer(scanner), site, Surveying, default, RoundsRules.DefaultRoundsPolicy());
 

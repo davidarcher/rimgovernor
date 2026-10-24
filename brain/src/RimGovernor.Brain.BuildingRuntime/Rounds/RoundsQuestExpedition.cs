@@ -22,7 +22,9 @@ public sealed partial class JoinersRounds
 
                     foreach (var site in sites)
                     {
-                        if (!site.Tile.TryGetValue(out var tile) || tile != departed.DestinationTile || site.QuestIds.Count == 0)
+                        var placed = site.Place is PbObservations.SitePlace.OnTile { Tile: var onTile } && onTile == departed.DestinationTile
+                            || site.Place is PbObservations.SitePlace.Loaded { Tile: var loadedTile } && loadedTile == departed.DestinationTile;
+                        if (!placed || site.QuestIds.Count == 0)
                         {
                             continue;
                         }

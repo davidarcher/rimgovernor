@@ -5,28 +5,37 @@ using Pb = RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// A derived native route and target. RoutePawnIds identifies the crew used for the conservative travel
+/// A derived native route and target. A reachable route's crew is the one used for the conservative travel
 /// estimate; a selected crew must be a subset. Layered destinations cannot use the surface caravan action.
 /// </summary>
 public sealed record ExpeditionSite
 {
-    public string Id { get; init; } = "";
+    public required string Id { get; init; }
 
-    public QuestId Quest { get; init; }
+    public required QuestId Quest { get; init; }
 
-    public int Tile { get; init; }
+    public required int Tile { get; init; }
 
-    public Fact<int> Layer { get; init; }
+    public required int Layer { get; init; }
 
-    public Fact<double> ThreatPoints { get; init; }
+    public required Pb.SiteRoute Route { get; init; }
 
-    public Fact<long> TravelTicks { get; init; }
+    public required ExpeditionThreat Threat { get; init; }
 
-    public Fact<bool> Reachable { get; init; }
+    public required long HoldTicks { get; init; }
+}
 
-    public IReadOnlyList<PawnId> RoutePawnIds { get; init; } = [];
+/// <summary>
+/// The hostile points an expedition must out-fight: a bounded sum of the site's generated and pending threats,
+/// or unbounded when the site's threats are open-ended or not a site's at all.
+/// </summary>
+public abstract record ExpeditionThreat
+{
+    private protected ExpeditionThreat() { }
 
-    public Fact<long> HoldTicks { get; init; }
+    public sealed record Bounded(double Points) : ExpeditionThreat;
+
+    public sealed record Unbounded : ExpeditionThreat;
 }
 
 public sealed record ExpeditionPlan
@@ -55,9 +64,9 @@ public sealed record ExpeditionTrip
 
 public static class QuestExpedition
 {
-    internal static bool QuestExpeditionSite(JoinerOffer offer, RoundsFacts f, out ExpeditionSite site)
+    internal static bool QuestExpeditionSite(JoinerOffer offer, RoundsFacts f, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ExpeditionSite? site)
     {
-        site = new ExpeditionSite();
+        site = null;
         if (!f.QuestSites.TryGetValue(out var sites))
         {
             return false;
@@ -83,36 +92,30 @@ public static class QuestExpedition
         {
             return false;
         }
-        if (!selected.Tile.TryGetValue(out var tile))
+        int tile, layer;
+        if (selected.Place is Pb.SitePlace.OnTile on)
+        {
+            (tile, layer) = (on.Tile, on.Layer);
+        }
+        else if (selected.Place is Pb.SitePlace.Loaded loaded)
+        {
+            (tile, layer) = (loaded.Tile, loaded.Layer);
+        }
+        else
         {
             return false;
-        }
-        var threat = selected.ThreatPoints;
-        if (offer.ScriptDef != "OpportunitySite_PeaceTalks")
-        {
-            threat = Unknown<double>();
-            if (selected.Security.TryGetValue(out var security))
-            {
-                var ck = security.Known.TryGetValue(out var complete);
-                var ik = security.InitialPoints.TryGetValue(out var initial);
-                var pk = security.PendingRaidPoints.TryGetValue(out var pending);
-                if (ck && complete && ik && pk && TradePolicyRules.Finite(initial) && TradePolicyRules.Finite(pending) && initial >= 0 && pending >= 0)
-                {
-                    threat = Known(initial + pending);
-                }
-            }
         }
         site = new ExpeditionSite
         {
             Id = selected.Id,
             Quest = offer.Quest,
             Tile = tile,
-            Layer = selected.Layer,
-            ThreatPoints = threat,
-            TravelTicks = selected.TravelTicks,
-            Reachable = selected.Reachable,
-            RoutePawnIds = selected.RoutePawnIds,
-            HoldTicks = Known(0L),
+            Layer = layer,
+            Route = selected.Route,
+            Threat = selected.Security is Pb.SiteThreatBudget.Bounded b
+                ? new ExpeditionThreat.Bounded(b.InitialPoints + b.PendingRaidPoints)
+                : new ExpeditionThreat.Unbounded(),
+            HoldTicks = 0,
         };
         return true;
     }
@@ -135,8 +138,7 @@ public static class QuestExpedition
                         {
                             continue;
                         }
-                        if (site.Map.TryGetValue(out _)
-                            && site.Extraction.TryGetValue(out var extraction) && extraction.Crew.Count > 0)
+                        if (site.Place is Pb.SitePlace.Loaded { Map.Extraction: Pb.QuestSiteExtraction.Crew })
                         {
                             return true;
                         }
@@ -189,7 +191,7 @@ public static class QuestExpedition
             {
                 foreach (var row in sites)
                 {
-                    if (row.Id == site.Id && row.State == Pb.WorldSiteState.MapLoaded)
+                    if (row.Id == site.Id && row.Place is Pb.SitePlace.Loaded)
                     {
                         if (offer.ScriptDef == "SurveySite")
                         {
@@ -265,26 +267,21 @@ public static class QuestExpedition
         {
             return Fail("site_unknown");
         }
-        if (!site.Layer.TryGetValue(out var layer))
-        {
-            return Fail("route_unknown");
-        }
-        if (layer != 0)
+        if (site.Layer != 0 || site.Route is Pb.SiteRoute.OffSurface)
         {
             return Fail("ship_only");
         }
-        var rk = site.Reachable.TryGetValue(out var reachable);
-        var tk = site.TravelTicks.TryGetValue(out var ticks);
-        var hk = site.HoldTicks.TryGetValue(out var hold);
-        if (!rk || !tk || !hk || ticks < 0 || hold < 0)
-        {
-            return Fail("route_unknown");
-        }
-        if (!reachable)
+        if (site.Route is Pb.SiteRoute.Unreachable)
         {
             return Fail("route_unreachable");
         }
-        if (!site.ThreatPoints.TryGetValue(out var threat) || !TradePolicyRules.Finite(threat) || threat < 0)
+        var hold = site.HoldTicks;
+        if (site.Route is not Pb.SiteRoute.Reachable route || route.TravelTicks < 0 || hold < 0)
+        {
+            return Fail("route_unknown");
+        }
+        var ticks = route.TravelTicks;
+        if (site.Threat is not ExpeditionThreat.Bounded { Points: var threat } || !TradePolicyRules.Finite(threat) || threat < 0)
         {
             return Fail("threat_unknown");
         }
@@ -380,7 +377,7 @@ public static class QuestExpedition
         }
         foreach (var id in crew)
         {
-            if (!site.RoutePawnIds.Contains(id))
+            if (!route.Crew.Contains(id))
             {
                 return Fail("route_crew_unknown");
             }

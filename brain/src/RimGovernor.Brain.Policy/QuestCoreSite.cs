@@ -34,11 +34,11 @@ public static class QuestCoreSite
             return result;
         }
         result = result with { Kind = "wait" };
-        if (!site.Map.TryGetValue(out var siteMap) || siteMap != currentMap)
+        if (site.Place is not Pb.SitePlace.Loaded { Map: var map } || map.Id != currentMap)
         {
             return result with { Reason = "site_map_unavailable" };
         }
-        if (!site.Threat.TryGetValue(out var threat) || threat)
+        if (map.Threat is Pb.SiteThreat.Active or Pb.SiteThreat.Dormant)
         {
             return result with { Reason = "site_security" };
         }
@@ -49,20 +49,12 @@ public static class QuestCoreSite
         switch (offer.ScriptDef)
         {
             case "OpportunitySite_DownedRefugee" or "OpportunitySite_PrisonerWillingToJoin":
-                return CoreSiteJoiner(offer, site, f, result);
+                return CoreSiteJoiner(offer, map, f, result);
             case "OpportunitySite_LongRangeMineralScannerLump" or "LongRangeMineralScannerLump":
-                var targets = site.MiningTargets.OrderBy(t => t.Id, StringComparer.Ordinal).ToList();
+                var targets = map.MiningTargets.OrderBy(t => t.Id, StringComparer.Ordinal).ToList();
                 foreach (var target in targets)
                 {
-                    if (target.Map != currentMap)
-                    {
-                        return result with { Reason = "mining_target_map" };
-                    }
-                    if (!target.Designated.TryGetValue(out var designated))
-                    {
-                        return result with { Reason = "mining_designation_unknown" };
-                    }
-                    if (designated)
+                    if (target.Designated)
                     {
                         continue;
                     }
@@ -84,7 +76,7 @@ public static class QuestCoreSite
         return result with { Kind = "return" };
     }
 
-    private static CoreSiteWork CoreSiteJoiner(JoinerOffer offer, WorldSite site, RoundsFacts f, CoreSiteWork result)
+    private static CoreSiteWork CoreSiteJoiner(JoinerOffer offer, Pb.SiteMap map, RoundsFacts f, CoreSiteWork result)
     {
         var ids = new List<PawnId>();
         foreach (var objective in offer.Objectives)
@@ -121,7 +113,7 @@ public static class QuestCoreSite
             }
             if (row.WillJoinIfRescued)
             {
-                if (site.Extraction.TryGetValue(out var extraction))
+                if (map.Extraction is Pb.QuestSiteExtraction.Crew { Value: var extraction })
                 {
                     foreach (var actor in extraction.Crew.OrderBy(a => a))
                     {

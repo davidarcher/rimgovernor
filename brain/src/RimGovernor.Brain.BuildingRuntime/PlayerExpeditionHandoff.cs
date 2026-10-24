@@ -110,11 +110,11 @@ public sealed partial class Player
                         var linked = false;
                         foreach (var site in world.Sites)
                         {
-                            if (site.MapId.GetValueOrDefault() == m.Id && site.MapId is not null && site.Tile.GetValueOrDefault() == m.Tile)
+                            if (site.Place is PbObservations.SitePlace.Loaded loaded && loaded.Map.Id.Value == m.Id && loaded.Tile == m.Tile)
                             {
                                 foreach (var quest in site.QuestIds)
                                 {
-                                    if (plan.Method.Value.StartsWith("quest-expedition-" + quest + "-" + (site.Id ?? "") + "-", StringComparison.Ordinal))
+                                    if (plan.Method.Value.StartsWith("quest-expedition-" + quest.Value + "-" + site.Id + "-", StringComparison.Ordinal))
                                     {
                                         linked = true;
                                         break;

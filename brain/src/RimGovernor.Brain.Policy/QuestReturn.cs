@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Domain;
 using static RimGovernor.Brain.Domain.Fact;
+using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -70,73 +71,41 @@ public static class QuestReturn
         var result = new SiteReturnPlan();
         SiteReturnPlan Fail(QuestSkipReason reason) => result with { Reason = reason };
 
-        if (!site.Extraction.TryGetValue(out var extraction) || extraction.Crew.Count == 0)
+        if (site.Place is not Pb.SitePlace.Loaded { Map: var map } || map.Extraction is not Pb.QuestSiteExtraction.Crew { Value: var extraction })
         {
             return Fail("extraction_unknown");
         }
-        var routes = extraction.HomeRoutes.ToList();
-        routes.Sort((x, y) =>
+        Pb.QuestSiteHomeRoute? route = null;
+        long travel = 0;
+        foreach (var candidate in extraction.HomeRoutes)
         {
-            var ak = x.TravelTicks.TryGetValue(out var a);
-            var bk = y.TravelTicks.TryGetValue(out var b);
-            if (ak != bk)
-            {
-                return ak ? -1 : 1;
-            }
-            if (a != b)
-            {
-                return a < b ? -1 : 1;
-            }
-            return x.Map.CompareTo(y.Map);
-        });
-        SiteHomeRoute? route = null;
-        foreach (var candidate in routes)
-        {
-            var rk = candidate.Reachable.TryGetValue(out var reachable);
-            var tk = candidate.TravelTicks.TryGetValue(out var ticks);
-            if (rk && reachable && tk && ticks >= 0)
+            if (candidate.Travel is Pb.SiteTravel.Reachable { TravelTicks: var ticks } && ticks >= 0
+                && (route is null || ticks < travel || (ticks == travel && candidate.Map.CompareTo(route.Map) < 0)))
             {
                 route = candidate;
-                break;
+                travel = ticks;
             }
         }
         if (route is null)
         {
             return Fail("home_route_unknown");
         }
-        if (!extraction.CanReform.TryGetValue(out var canReform))
-        {
-            return Fail("reform_unknown");
-        }
-        if (!canReform)
+        if (!extraction.CanReform)
         {
             return Fail("site_fight_pending");
         }
-        if (!site.Security.TryGetValue(out var security))
+        if (site.Security is not Pb.SiteThreatBudget.Bounded)
         {
             return Fail("security_unknown");
         }
-        var ck = security.Known.TryGetValue(out var complete);
-        var tc = security.TrapCount.TryGetValue(out var traps);
-        if (!ck || !complete || !tc)
+        if (map.Threat is Pb.SiteThreat.Active or Pb.SiteThreat.Dormant)
         {
-            return Fail("security_unknown");
+            return Fail("site_fight_pending");
         }
-        if (traps > 0)
+        if (map.Threat is Pb.SiteThreat.Trapped)
         {
             return Fail("site_hazards_pending");
         }
-        var ak2 = security.ActiveThreat.TryGetValue(out var active);
-        var dk = security.DormantThreat.TryGetValue(out var dormant);
-        if (!ak2 || !dk)
-        {
-            return Fail("security_unknown");
-        }
-        if (active || dormant)
-        {
-            return Fail("site_fight_pending");
-        }
-        route.TravelTicks.TryGetValue(out var travel);
         var days = (double)travel / GameTime.TicksPerDay + 1;
         var (cargo, reason) = SiteReturnCargo(extraction, days);
         if (!reason.IsNone)
@@ -150,34 +119,34 @@ public static class QuestReturn
         return result with { Departure = departure with { Mode = CaravanDepartureMode.SiteReform } };
     }
 
-    private static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) SiteReturnCargo(SiteExtraction extraction, double days)
+    private static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) SiteReturnCargo(Pb.ExtractionCrew extraction, double days)
     {
         IReadOnlyList<CargoItem> none = [];
-        var ck = extraction.CarryCapacity.TryGetValue(out var capacity);
-        var mk = extraction.CarriedMass.TryGetValue(out var carried);
-        var fk = extraction.InventoryFoodDays.TryGetValue(out var inventoryFood);
-        var rk = extraction.CrewNutritionPerDay.TryGetValue(out var rate);
-        if (!ck || !mk || !TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(carried) || capacity < 0 || carried < 0)
+        var capacity = extraction.CarryCapacity;
+        var carried = extraction.CarriedMass;
+        var inventoryFood = extraction.InventoryFoodDays;
+        var rate = extraction.CrewNutritionPerDay;
+        if (!TradePolicyRules.Finite(capacity) || !TradePolicyRules.Finite(carried) || capacity < 0 || carried < 0)
         {
             return (none, "mass_unknown");
         }
-        if (!fk || !rk || !TradePolicyRules.Finite(inventoryFood) || !TradePolicyRules.Finite(rate) || inventoryFood < 0 || rate <= 0)
+        if (!TradePolicyRules.Finite(inventoryFood) || !TradePolicyRules.Finite(rate) || inventoryFood < 0 || rate <= 0)
         {
             return (none, "food_unknown");
         }
         var rows = extraction.Cargo.ToList();
         rows.Sort((x, y) =>
         {
-            x.Held.TryGetValue(out var a);
-            y.Held.TryGetValue(out var b);
+            var a = x.Held;
+            var b = y.Held;
             if (a != b)
             {
                 return a ? -1 : 1;
             }
-            x.MarketValue.TryGetValue(out var av);
-            y.MarketValue.TryGetValue(out var bv);
-            x.UnitMass.TryGetValue(out var am);
-            y.UnitMass.TryGetValue(out var bm);
+            var av = x.MarketValue;
+            var bv = y.MarketValue;
+            var am = x.UnitMass;
+            var bm = y.UnitMass;
             if (am > 0)
             {
                 av /= am;
@@ -197,25 +166,22 @@ public static class QuestReturn
         var free = capacity - carried;
         foreach (var row in rows)
         {
-            var hk = row.Held.TryGetValue(out var held);
-            var nk = row.Count.TryGetValue(out var count);
-            var uk = row.UnitMass.TryGetValue(out var mass);
-            if (!hk || !nk || !uk || count < 0 || !TradePolicyRules.Finite(mass) || mass < 0)
+            if (row.Count < 0 || !TradePolicyRules.Finite(row.UnitMass) || row.UnitMass < 0)
             {
                 return (none, "cargo_unknown");
             }
-            if (held)
+            if (row.Held)
             {
-                free += count * mass;
+                free += row.Count * row.UnitMass;
             }
         }
         var packed = new Dictionary<string, ulong>(StringComparer.Ordinal);
         var left = new Dictionary<string, long>(StringComparer.Ordinal);
         foreach (var row in rows)
         {
-            row.Count.TryGetValue(out var count);
-            row.UnitMass.TryGetValue(out var mass);
-            row.Held.TryGetValue(out var held);
+            var count = row.Count;
+            var mass = row.UnitMass;
+            var held = row.Held;
             if (row.Def.Length == 0 || count > int.MaxValue)
             {
                 return (none, "cargo_invalid");
@@ -241,9 +207,9 @@ public static class QuestReturn
                 break;
             }
             var count = left.GetValueOrDefault(row.Id);
-            var nk = row.Nutrition.TryGetValue(out var nutrition);
-            row.UnitMass.TryGetValue(out var mass);
-            if (count == 0 || !nk || !TradePolicyRules.Finite(nutrition) || nutrition <= 0)
+            var nutrition = row.Nutrition;
+            var mass = row.UnitMass;
+            if (count == 0 || !TradePolicyRules.Finite(nutrition) || nutrition <= 0)
             {
                 continue;
             }
@@ -264,9 +230,9 @@ public static class QuestReturn
         foreach (var row in rows)
         {
             var count = left.GetValueOrDefault(row.Id);
-            var vk = row.MarketValue.TryGetValue(out var value);
-            row.UnitMass.TryGetValue(out var mass);
-            if (count == 0 || !vk || !TradePolicyRules.Finite(value) || value <= 0)
+            var value = row.MarketValue;
+            var mass = row.UnitMass;
+            if (count == 0 || !TradePolicyRules.Finite(value) || value <= 0)
             {
                 continue;
             }

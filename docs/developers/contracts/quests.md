@@ -6,13 +6,19 @@ The world-progression census carries typed objectives, reward choices, eligible
 accepters and offer expiry. Missing objective values remain unknown. Royal favor
 outside a choice part applies independently of the chosen reward index.
 
-World sites expose typed lifecycle state, planet layer/tile, associated visible
-quest IDs and threat presence. Hidden site parts leave threat unknown. Loaded
-maps use the native active-threat predicate. Distance is geographic distance,
-never travel duration. Surface route estimates use the native path and arrival
-estimator at full carrying mass and the slowest singleton of the observed eligible
-crew; only subsets of those crew identities may use that bound. Layered routes
-remain unknown. Formation crew and caravan destination are derived live reads.
+World site rows are total; the native producer throws on anything it cannot
+read. A site is pending, spawned or destroyed, and its place is unplaced, on a
+tile (layer and tile), or loaded with its site map. Only a loaded map carries the
+map's threat (active, dormant, trapped, or clear), its
+extraction (no able crew, or the crew with cargo, home routes and exit cells) and
+its precious-lump mining targets. The threat budget is bounded (the generated
+initial points plus pending raid points), unbounded when any quest threat part
+cannot be priced, or not a site for a non-Site world object. Surface route
+estimates use the native path and arrival estimator at full carrying mass and
+the slowest singleton of the observed eligible crew; only subsets of that crew
+may use the bound. A route is reachable (ticks and crew), unreachable, off the
+root surface, or has no eligible crew. Distance is geographic distance, never
+travel duration. Formation crew and caravan destination are derived live reads.
 
 MechanoidSignal inspection names its exact quest look-target grav engine, its
 spawned state, eligible and already-inspecting colonists, and the native global
@@ -97,17 +103,17 @@ their threat treatment. A native PlayerTended event completes the charity quest.
 
 All quest facts are derived observations. No quest-specific store is added.
 
-World sites retain exact quest associations, lifecycle state, layer and loaded map.
-Unknown or hidden threats remain unknown. Surface expeditions use native route
+World sites retain exact quest associations, lifecycle state, place and loaded map.
+An unbounded threat budget refuses admission. Surface expeditions use native route
 estimates bounded by the slowest eligible pawn at full carrying mass; the chosen
 crew must belong to that estimate. Shared departure staffing preserves home work
 owners and defense. Food packing covers the round trip and leaves the diet-aware
 home reserve intact; vanilla formation checks remain authoritative. Existing
 formation, travel and loaded-site facts prevent sending replacement crews.
 
-Site admission requires a complete native security bound, including dormant
-defenders, delayed attacks and complex triggers. Unsupported generated threats
-and underground entrances retain unknown risk. Peace talks send the best eligible
+Site admission requires a bounded native threat budget, including delayed
+attacks and complex triggers. Unsupported generated threats are unbounded, and
+off-surface sites are ship-only. Peace talks send the best eligible
 social negotiator only when native goodwill downside is affordable. Survey crews
 pack for the scanner's full native duration and preserve an independently affordable
 relief crew; elapsed time alone does not finish the hold.

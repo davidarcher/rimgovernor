@@ -56,14 +56,13 @@ public static class QuestSurvey
             }
             duration = Math.Max(0L, running.EndTick.Value - now.Value);
         }
-        site = site with { HoldTicks = Known(duration) };
+        site = site with { HoldTicks = duration };
         var fk = offer.ThreatPoints.TryGetValue(out var forced);
-        var ik = site.ThreatPoints.TryGetValue(out var initial);
-        if (!fk || !ik || !TradePolicyRules.Finite(forced) || !TradePolicyRules.Finite(initial) || forced < 0 || initial < 0)
+        if (!fk || site.Threat is not ExpeditionThreat.Bounded { Points: var initial } || !TradePolicyRules.Finite(forced) || !TradePolicyRules.Finite(initial) || forced < 0 || initial < 0)
         {
             return (site, "threat_unknown");
         }
-        site = site with { ThreatPoints = Known(Math.Max(initial, forced)) };
+        site = site with { Threat = new ExpeditionThreat.Bounded(Math.Max(initial, forced)) };
         return (site, "");
     }
 
@@ -248,32 +247,32 @@ public static class QuestSurvey
         {
             return result with { Reason = "survey_completion_pending" };
         }
-        var xk = site.Extraction.TryGetValue(out var extraction);
-        var runway = 0.0;
-        var rk = xk && extraction!.InventoryFoodDays.TryGetValue(out runway);
-        if (!xk || !rk || !TradePolicyRules.Finite(runway) || runway < 0)
+        if (site.Place is not Pb.SitePlace.Loaded loaded)
         {
             return result with { Reason = "survey_supply_unknown" };
         }
-        long homeTicks = 0;
-        var routeKnown = false;
-        foreach (var route in extraction!.HomeRoutes)
+        // A loaded site with no able crew left needs relief; it has no runway or routes of its own.
+        if (loaded.Map.Extraction is Pb.QuestSiteExtraction.Crew { Value: var extraction })
         {
-            var reachableKnown = route.Reachable.TryGetValue(out var reachable);
-            if (route.TravelTicks.TryGetValue(out var ticks) && reachableKnown && reachable && ticks >= 0)
+            long homeTicks = 0;
+            var routeKnown = false;
+            foreach (var route in extraction.HomeRoutes)
             {
-                homeTicks = Math.Max(homeTicks, ticks);
-                routeKnown = true;
+                if (route.Travel is Pb.SiteTravel.Reachable { TravelTicks: var ticks } && ticks >= 0)
+                {
+                    homeTicks = Math.Max(homeTicks, ticks);
+                    routeKnown = true;
+                }
             }
-        }
-        if (!routeKnown)
-        {
-            return result with { Reason = "home_route_unknown" };
-        }
-        var remaining = (double)(end - now.Value + homeTicks) / GameTime.TicksPerDay + 1;
-        if (extraction.Crew.Count > 0 && runway >= remaining)
-        {
-            return result;
+            if (!routeKnown)
+            {
+                return result with { Reason = "home_route_unknown" };
+            }
+            var remaining = (double)(end - now.Value + homeTicks) / GameTime.TicksPerDay + 1;
+            if (extraction.InventoryFoodDays >= remaining)
+            {
+                return result;
+            }
         }
         // Relief is an ordinary affordable expedition carrying food for the whole remaining hold and return.
         // Existing journeys prevent duplicate relief.
@@ -281,11 +280,10 @@ public static class QuestSurvey
         {
             return result with { Reason = "journey_unknown" };
         }
-        var tileKnown = site.Tile.TryGetValue(out var tile);
         foreach (var trip in trips)
         {
             var dk = trip.Destination.TryGetValue(out var destination);
-            if (trip.Forming || (tileKnown && dk && destination == tile))
+            if (trip.Forming || (dk && destination == loaded.Tile))
             {
                 return result;
             }

@@ -182,8 +182,6 @@ public enum WorldSiteState
     Pending,
     [WireName("spawned")]
     Spawned,
-    [WireName("map_loaded")]
-    MapLoaded,
     [WireName("destroyed")]
     Destroyed,
 }
@@ -3735,121 +3733,229 @@ public abstract record GravEnginePlace
     public sealed record Unspawned : GravEnginePlace;
 }
 
+/// <summary>
+/// One world site or quest-anchored world object, read whole: its lifecycle, where it is and its loaded map, the quests
+/// that look at it, the surface route from the observed colony map, its security budget and, for peace talks, the
+/// goodwill stakes.
+/// </summary>
 public sealed record WorldSite
 {
-    public string? Id { get; init; }
-
-    public int? Tile { get; init; }
-
-    public int? LayerId { get; init; }
+    public required string Id { get; init; }
 
     public required WorldSiteState State { get; init; }
 
-    public int? MapId { get; init; }
+    public required SitePlace Place { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> QuestIds { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<QuestId>))]
+    public required EquatableArray<QuestId> QuestIds { get; init; }
 
-    public bool? Threat { get; init; }
+    public required SiteRoute Route { get; init; }
 
-    public double? ThreatPoints { get; init; }
+    public required SiteThreatBudget Security { get; init; }
 
-    public bool? Reachable { get; init; }
-
-    public long? TravelTicks { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> RoutePawnIds { get; init; }
-
-    public QuestSiteSecurity? Security { get; init; }
-
-    public QuestSiteExtraction? Extraction { get; init; }
-
+    /// <summary>The goodwill stakes of a peace-talks world object; null for every other world object.</summary>
     public QuestPeaceTalks? PeaceTalks { get; init; }
+}
+
+/// <summary>
+/// Where a world site is: no valid world tile, a planet tile (layer 0 is the root surface) without a map, or a tile
+/// whose map is loaded.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(SitePlace.Unplaced), "unplaced")]
+[JsonDerivedType(typeof(SitePlace.OnTile), "on_tile")]
+[JsonDerivedType(typeof(SitePlace.Loaded), "loaded")]
+public abstract record SitePlace
+{
+    private protected SitePlace() { }
+
+    public sealed record Unplaced : SitePlace;
+
+    public sealed record OnTile(int Tile, int Layer) : SitePlace;
+
+    public sealed record Loaded(int Tile, int Layer, SiteMap Map) : SitePlace;
+}
+
+/// <summary>A loaded site map: its id, the hostiles left on it, its extraction crew and its quest mining targets.</summary>
+public sealed record SiteMap
+{
+    public required MapId Id { get; init; }
+
+    public required SiteThreat Threat { get; init; }
+
+    public required QuestSiteExtraction Extraction { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestSiteMiningTarget>))]
-    public EquatableArray<QuestSiteMiningTarget> MiningTargets { get; init; }
+    public required EquatableArray<QuestSiteMiningTarget> MiningTargets { get; init; }
 }
 
+/// <summary>
+/// The hostiles on a loaded site map, most pressing first: an active hostile threat, dormant hostiles (sleeping pawns
+/// or dormant buildings), hostile traps and complex explosives with no hostile left, or a clear map.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(SiteThreat.Active), "active")]
+[JsonDerivedType(typeof(SiteThreat.Dormant), "dormant")]
+[JsonDerivedType(typeof(SiteThreat.Trapped), "trapped")]
+[JsonDerivedType(typeof(SiteThreat.Clear), "clear")]
+public abstract record SiteThreat
+{
+    private protected SiteThreat() { }
+
+    public sealed record Active : SiteThreat;
+
+    public sealed record Dormant : SiteThreat;
+
+    public sealed record Trapped : SiteThreat;
+
+    public sealed record Clear : SiteThreat;
+}
+
+/// <summary>
+/// The surface caravan route from the observed colony map. Reachable carries the native arrival estimate at full
+/// carrying mass for the slowest singleton of <see cref="Reachable.Crew"/>, the eligible adult colonists the bound
+/// holds for. The site or the colony is off the root surface, no eligible colonist is on the colony map, or the path
+/// finder finds no path (also for a site without a world tile).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(SiteRoute.Reachable), "reachable")]
+[JsonDerivedType(typeof(SiteRoute.Unreachable), "unreachable")]
+[JsonDerivedType(typeof(SiteRoute.OffSurface), "off_surface")]
+[JsonDerivedType(typeof(SiteRoute.NoCrew), "no_crew")]
+public abstract record SiteRoute
+{
+    private protected SiteRoute() { }
+
+    public sealed record Reachable(long TravelTicks,
+        [property: JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))] EquatableArray<PawnId> Crew) : SiteRoute;
+
+    public sealed record Unreachable : SiteRoute;
+
+    public sealed record OffSurface : SiteRoute;
+
+    public sealed record NoCrew : SiteRoute;
+}
+
+/// <summary>
+/// The complete native security bound of a generated site: the initial defenders (dormant ones and resolved complex
+/// threats included) and the raid points still to come (timed detection raids, quest raids, sleeping mechs and
+/// latent complex triggers). Unbounded when a hidden part, an unsupported generated threat, hostile turrets, an
+/// unresolved complex or a raid priced only on arrival leaves the bound open; NotASite for a world object that is not
+/// a generated site.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(SiteThreatBudget.Bounded), "bounded")]
+[JsonDerivedType(typeof(SiteThreatBudget.Unbounded), "unbounded")]
+[JsonDerivedType(typeof(SiteThreatBudget.NotASite), "not_a_site")]
+public abstract record SiteThreatBudget
+{
+    private protected SiteThreatBudget() { }
+
+    public sealed record Bounded(double InitialPoints, double PendingRaidPoints) : SiteThreatBudget;
+
+    public sealed record Unbounded : SiteThreatBudget;
+
+    public sealed record NotASite : SiteThreatBudget;
+}
+
+/// <summary>A visible, unmined quest mineable on the site map and whether a mine designation is on it.</summary>
 public sealed record QuestSiteMiningTarget
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public string? Def { get; init; }
+    public required string Def { get; init; }
 
-    public Common.Cell? Cell { get; init; }
+    public required Cell Cell { get; init; }
 
-    public int? MapId { get; init; }
-
-    public bool? Designated { get; init; }
+    public required bool Designated { get; init; }
 }
 
-public sealed record QuestSiteSecurity
+/// <summary>Who can leave a loaded site map: no able free colonist, or the crew with what they would carry home.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestSiteExtraction.NoCrew), "no_crew")]
+[JsonDerivedType(typeof(QuestSiteExtraction.Crew), "crew")]
+public abstract record QuestSiteExtraction
 {
-    public bool? Known { get; init; }
+    private protected QuestSiteExtraction() { }
 
-    public double? InitialPoints { get; init; }
+    public sealed record NoCrew : QuestSiteExtraction;
 
-    public double? PendingRaidPoints { get; init; }
-
-    public bool? ActiveThreat { get; init; }
-
-    public bool? DormantThreat { get; init; }
-
-    public int? TrapCount { get; init; }
+    public sealed record Crew(ExtractionCrew Value) : QuestSiteExtraction;
 }
 
-public sealed record QuestSiteExtraction
+/// <summary>
+/// The able free colonists on a site map (never empty) and the vanilla reform dialog's view of them: whether reform is
+/// allowed now, carry capacity and the mass already carried, the inventory's food days (capped by rot), the crew's
+/// nutrition per day, the reachable cargo, the routes to every player home on the same layer and the exit cells every
+/// crew member can reach, nearest first.
+/// </summary>
+public sealed record ExtractionCrew
 {
-    public bool? CanReform { get; init; }
+    public required bool CanReform { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> CrewIds { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> Crew { get; init; }
 
-    public double? CarryCapacity { get; init; }
+    public required double CarryCapacity { get; init; }
 
-    public double? CarriedMass { get; init; }
+    public required double CarriedMass { get; init; }
 
-    public double? InventoryFoodDays { get; init; }
+    public required double InventoryFoodDays { get; init; }
+
+    public required double CrewNutritionPerDay { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestSiteCargo>))]
-    public EquatableArray<QuestSiteCargo> Cargo { get; init; }
+    public required EquatableArray<QuestSiteCargo> Cargo { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestSiteHomeRoute>))]
-    public EquatableArray<QuestSiteHomeRoute> HomeRoutes { get; init; }
+    public required EquatableArray<QuestSiteHomeRoute> HomeRoutes { get; init; }
 
-    public double? CrewNutritionPerDay { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> ExitCells { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))]
+    public required EquatableArray<Cell> ExitCells { get; init; }
 }
 
+/// <summary>
+/// One item stack the crew could carry home. Nutrition is what one unit feeds the hungriest crew member when every
+/// crew member eats it and it keeps on the road; 0 for anything else.
+/// </summary>
 public sealed record QuestSiteCargo
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public string? Def { get; init; }
+    public required string Def { get; init; }
 
-    public long? Count { get; init; }
+    public required long Count { get; init; }
 
-    public double? UnitMass { get; init; }
+    public required double UnitMass { get; init; }
 
-    public double? MarketValue { get; init; }
+    public required double MarketValue { get; init; }
 
-    public double? Nutrition { get; init; }
+    public required double Nutrition { get; init; }
 
-    public bool? Held { get; init; }
+    public required bool Held { get; init; }
 }
 
+/// <summary>A player home map on the site's layer and the caravan route to it.</summary>
 public sealed record QuestSiteHomeRoute
 {
-    public int? MapId { get; init; }
+    public required MapId Map { get; init; }
 
-    public int? Tile { get; init; }
+    public required int Tile { get; init; }
 
-    public bool? Reachable { get; init; }
+    public required SiteTravel Travel { get; init; }
+}
 
-    public long? TravelTicks { get; init; }
+/// <summary>A world route: the native arrival estimate for the crew's slowest member, or no path.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(SiteTravel.Reachable), "reachable")]
+[JsonDerivedType(typeof(SiteTravel.Unreachable), "unreachable")]
+public abstract record SiteTravel
+{
+    private protected SiteTravel() { }
+
+    public sealed record Reachable(long TravelTicks) : SiteTravel;
+
+    public sealed record Unreachable : SiteTravel;
 }
 
 public sealed record QuestPeaceTalks

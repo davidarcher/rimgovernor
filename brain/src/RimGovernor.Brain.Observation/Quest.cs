@@ -47,21 +47,14 @@ public static class QuestReads
     /// <summary>Preserves the native exact exit cells from the same combat frame. No remote map selection or additional observation is performed.</summary>
     public static Fact<CombatSiteExit> CombatSiteExitOf(WorldProgressionRead? read, MapId mapId)
     {
-        if (!WorldSitesReads.FrameWorldSites(read).TryGetValue(out var sites))
+        foreach (var site in read?.Sites ?? [])
         {
-            return Unknown<CombatSiteExit>();
-        }
-        foreach (var site in sites)
-        {
-            if (!site.Map.TryGetValue(out var mapped) || mapped != mapId)
+            if (site.Place is O.SitePlace.Loaded loaded && loaded.Map.Id == mapId)
             {
-                continue;
+                return Known(loaded.Map.Extraction is O.QuestSiteExtraction.Crew crew
+                    ? new CombatSiteExit { Crew = crew.Value.Crew, Cells = crew.Value.ExitCells }
+                    : new CombatSiteExit { Crew = [], Cells = [] });
             }
-            if (!site.Extraction.TryGetValue(out var extraction))
-            {
-                return Unknown<CombatSiteExit>();
-            }
-            return Known(new CombatSiteExit { Crew = EquatableArray.From(extraction.Crew), Cells = EquatableArray.From(extraction.ExitCells) });
         }
         return Unknown<CombatSiteExit>();
     }

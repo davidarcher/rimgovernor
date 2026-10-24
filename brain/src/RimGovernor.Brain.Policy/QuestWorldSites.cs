@@ -3,109 +3,8 @@ using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-public sealed record WorldSite
-{
-    public string Id { get; init; } = "";
-
-    public Fact<int> Tile { get; init; }
-
-    public Fact<int> Layer { get; init; }
-
-    public Pb.WorldSiteState State { get; init; }
-
-    public Fact<MapId> Map { get; init; }
-
-    public IReadOnlyList<QuestId> QuestIds { get; init; } = [];
-
-    public Fact<bool> Threat { get; init; }
-
-    public Fact<double> ThreatPoints { get; init; }
-
-    public Fact<bool> Reachable { get; init; }
-
-    public Fact<long> TravelTicks { get; init; }
-
-    public IReadOnlyList<PawnId> RoutePawnIds { get; init; } = [];
-
-    public Fact<SiteSecurity> Security { get; init; }
-
-    public Fact<SiteExtraction> Extraction { get; init; }
-
-    public Fact<PeaceTalksRisk> PeaceTalks { get; init; }
-
-    public IReadOnlyList<SiteMiningTarget> MiningTargets { get; init; } = [];
-}
-
-public sealed record SiteMiningTarget
-{
-    public string Id { get; init; } = "";
-
-    public string Def { get; init; } = "";
-
-    public Cell Cell { get; init; }
-
-    public MapId Map { get; init; }
-
-    public Fact<bool> Designated { get; init; }
-}
-
-public sealed record SiteSecurity
-{
-    public Fact<bool> Known { get; init; }
-
-    public Fact<bool> ActiveThreat { get; init; }
-
-    public Fact<bool> DormantThreat { get; init; }
-
-    public Fact<double> InitialPoints { get; init; }
-
-    public Fact<double> PendingRaidPoints { get; init; }
-
-    public Fact<int> TrapCount { get; init; }
-}
-
-public sealed record SiteExtraction
-{
-    public Fact<bool> CanReform { get; init; }
-
-    public IReadOnlyList<PawnId> Crew { get; init; } = [];
-
-    public Fact<double> CarryCapacity { get; init; }
-
-    public Fact<double> CarriedMass { get; init; }
-
-    public Fact<double> InventoryFoodDays { get; init; }
-
-    public Fact<double> CrewNutritionPerDay { get; init; }
-
-    public IReadOnlyList<SiteCargo> Cargo { get; init; } = [];
-
-    public IReadOnlyList<SiteHomeRoute> HomeRoutes { get; init; } = [];
-
-    public IReadOnlyList<Cell> ExitCells { get; init; } = [];
-}
-
-public sealed record SiteCargo
-{
-    public string Id { get; init; } = "";
-
-    public string Def { get; init; } = "";
-
-    public Fact<long> Count { get; init; }
-
-    public Fact<double> UnitMass { get; init; }
-
-    public Fact<double> MarketValue { get; init; }
-
-    public Fact<double> Nutrition { get; init; }
-
-    public Fact<bool> Held { get; init; }
-}
-
 public sealed record SiteHomeRoute
 {
-    public MapId Map { get; init; }
-
     public int Tile { get; init; }
 
     public Fact<bool> Reachable { get; init; }
@@ -228,19 +127,6 @@ public sealed record QuestMonumentResource
     public Fact<bool> InStorage { get; init; }
 
     public IReadOnlyList<PawnId> Haulers { get; init; } = [];
-}
-
-/// <summary>
-/// Loss includes vanilla disaster's forced-hostility adjustment; gain is capped by native faction goodwill
-/// limits. These are observations, not tuning.
-/// </summary>
-public sealed record PeaceTalksRisk
-{
-    public Fact<int> WorstGoodwillLoss { get; init; }
-
-    public Fact<int> BestGoodwillGain { get; init; }
-
-    public Fact<bool> IdeologyActive { get; init; }
 }
 
 public sealed record PeaceTalksPawn

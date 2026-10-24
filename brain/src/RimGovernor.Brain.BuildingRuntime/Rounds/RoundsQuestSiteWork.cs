@@ -14,7 +14,7 @@ public sealed partial class JoinersRounds
         var sites = siteRows.OrderBy(s => s.Id, StringComparer.Ordinal).ToList();
         foreach (var site in sites)
         {
-            if (!site.Map.TryGetValue(out var current) || current != read.Projection.Identity.Map)
+            if (site.Place is not PbObservations.SitePlace.Loaded loaded || loaded.Map.Id != read.Projection.Identity.Map)
             {
                 continue;
             }
@@ -69,7 +69,7 @@ public sealed partial class JoinersRounds
                 }
                 else
                 {
-                    var step = QuestCoreSite.PlanCoreSiteWork(offer, site, f, current);
+                    var step = QuestCoreSite.PlanCoreSiteWork(offer, site, f, loaded.Map.Id);
                     if (step.Reason != "")
                     {
                         reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", new QuestSkipReason(step.Reason), ""), call);

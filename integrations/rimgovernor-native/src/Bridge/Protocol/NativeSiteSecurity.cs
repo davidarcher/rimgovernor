@@ -52,60 +52,68 @@ namespace HomeBridge.BridgeTools
             if (part.def.defName == "BanditGang") return System.Math.Max(part.parms.points, part.parms.threatPoints);
             return part.parms.threatPoints;
         }
-        internal static Obs.QuestSiteSecurity Read(Site site, Quest[] quests)
+        /// <summary>
+        /// The hostiles left on a loaded map, most pressing first. Traps count the non-player traps and the latent
+        /// complex explosives; an unreadable complex trigger leaves the explosives out, and the site's budget is then
+        /// unbounded.
+        /// </summary>
+        internal static Obs.SiteThreat Threat(Map map)
         {
-            var row = new Obs.QuestSiteSecurity { Known = false };
+            if (GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: false, canBeFogged: true)) return new Obs.SiteThreat.Active();
+            if (GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: true, canBeFogged: true)
+                || map.listerThings.AllThings.Any(t => t.HostileTo(Faction.OfPlayer) && t.TryGetComp<CompCanBeDormant>()?.Awake == false))
+                return new Obs.SiteThreat.Dormant();
+            var traps = map.listerThings.AllThings.OfType<Building_Trap>().Count(t => t.Faction != Faction.OfPlayer);
+            if (NativeComplexSecurity.Latent(map, out _, out var explosives)) traps += explosives;
+            return traps > 0 ? new Obs.SiteThreat.Trapped() : new Obs.SiteThreat.Clear();
+        }
+
+        internal static Obs.SiteThreatBudget Budget(Site site, Quest[] quests)
+        {
             var visible = site.sitePartsKnown && site.parts.All(p => !p.hidden);
-            if (visible) row = row with { InitialPoints = site.ActualThreatPoints };
+            double initial = visible ? site.ActualThreatPoints : 0;
             // Random complex threats are not resolved until map generation.
-            // Other unrecognised parts remain unknown rather than zero risk.
+            // Other unrecognised parts leave the bound open rather than zero risk.
             var closed = visible && site.parts.All(ClosedPart);
             var complexes = site.parts.Where(p => p.def.workerClass == typeof(SitePartWorker_AncientComplex)).ToArray();
             if (visible && site.parts.All(p => ClosedPart(p) || complexes.Contains(p)))
             {
-                double initial = site.parts.Where(ClosedPart).Sum(InitialBudget);
+                double bounded = site.parts.Where(ClosedPart).Sum(InitialBudget);
                 var complete = true;
-                foreach (var part in complexes) { var bound = NativeComplexSecurity.Bound(part); if (!bound.HasValue) { complete = false; break; } initial += bound.Value; }
-                if (complete) { closed = true; row = row with { InitialPoints = initial }; }
+                foreach (var part in complexes) { var bound = NativeComplexSecurity.Bound(part); if (!bound.HasValue) { complete = false; break; } bounded += bound.Value; }
+                if (complete) { closed = true; initial = bounded; }
             }
+            double pending = 0;
             if (site.HasMap)
             {
                 var map = site.Map;
-                row = row with { ActiveThreat = GenHostility.AnyHostileActiveThreatToPlayer(map, countDormantPawnsAsHostile: false, canBeFogged: true) };
-                row = row with { DormantThreat = map.listerThings.AllThings.Any(t => t.HostileTo(Faction.OfPlayer) && t.TryGetComp<CompCanBeDormant>()?.Awake == false) };
-                row = row with { TrapCount = map.listerThings.AllThings.OfType<Building_Trap>().Count(t => t.Faction != Faction.OfPlayer) };
-                row = row with { Known = closed };
                 if (visible && site.parts.All(p => ClosedPart(p) || LoadedGroundPart(p)))
                 {
-                    row = row with { Known = !map.listerThings.AllThings.OfType<Building_Turret>().Any(t => t.HostileTo(Faction.OfPlayer)) };
                     // Generated layouts have resolved their actual pawn
-                    // identities. Turrets retain unknown until their native
+                    // identities. Turrets leave the bound open until their native
                     // weapon strength is part of this envelope.
-                    row = row with { InitialPoints = System.Math.Max(row.InitialPoints is not null ? row.InitialPoints.GetValueOrDefault() : 0,
-                        map.mapPawns.AllPawnsSpawned.Where(p => p.HostileTo(Faction.OfPlayer) && !p.Dead).Sum(p => p.kindDef.combatPower)) };
+                    closed = !map.listerThings.AllThings.OfType<Building_Turret>().Any(t => t.HostileTo(Faction.OfPlayer));
+                    initial = System.Math.Max(initial, map.mapPawns.AllPawnsSpawned.Where(p => p.HostileTo(Faction.OfPlayer) && !p.Dead).Sum(p => p.kindDef.combatPower));
                 }
-                if (NativeComplexSecurity.Latent(map, out var latent, out var explosives)) { row = row with { PendingRaidPoints = latent, TrapCount = (row.TrapCount ?? 0) + explosives }; }
-                else row = row with { Known = false };
+                if (NativeComplexSecurity.Latent(map, out var latent, out _)) pending = latent;
+                else closed = false;
             }
-            else row = row with { Known = closed };
             var timed = site.GetComponent<TimedDetectionRaids>();
             if (timed != null)
             {
-                if (site.HasMap) row = row with { PendingRaidPoints = (row.PendingRaidPoints is not null ? row.PendingRaidPoints.GetValueOrDefault() : 0) + StorytellerUtility.DefaultThreatPointsNow(site.Map) * TimedDetectionRaids.RaidThreatPointsMultiplier };
-                else row = row with { Known = false };
+                if (site.HasMap) pending += StorytellerUtility.DefaultThreatPointsNow(site.Map) * TimedDetectionRaids.RaidThreatPointsMultiplier;
+                else closed = false;
             }
             var linked = quests.Where(q => q.QuestLookTargets.Any(t => t.HasWorldObject && t.WorldObject == site)).ToArray();
-            double pending = row.PendingRaidPoints is not null ? row.PendingRaidPoints.GetValueOrDefault() : 0;
             foreach (var quest in linked)
             {
-                var points = NativeQuestThreats.Read(quest);
-                if (points.HasValue) pending += points.Value;
-                else if (quest.PartsListForReading.OfType<QuestPart_Incident>().Any(p => p.incident?.category == IncidentCategoryDefOf.ThreatBig || p.incident?.category == IncidentCategoryDefOf.ThreatSmall)) row = row with { Known = false };
+                if (NativeQuestThreats.TryRead(quest, out var points)) pending += points;
+                else closed = false;
                 foreach (var part in quest.PartsListForReading)
                 {
                     if (part is QuestPart_RandomRaid raid && raid.mapParent == site && (raid.faction == null || raid.faction.HostileTo(Faction.OfPlayer)))
                     {
-                        if (raid.useCurrentThreatPoints && !site.HasMap) { row = row with { Known = false }; continue; }
+                        if (raid.useCurrentThreatPoints && !site.HasMap) { closed = false; continue; }
                         var budget = raid.useCurrentThreatPoints ? StorytellerUtility.DefaultThreatPointsNow(site.Map) * raid.currentThreatPointsFactor : raid.pointsRange.max;
                         if (raid.faction != null) budget = System.Math.Max(budget, raid.faction.def.MinPointsToGeneratePawnGroup(PawnGroupKindDefOf.Combat));
                         pending += budget;
@@ -113,8 +121,9 @@ namespace HomeBridge.BridgeTools
                     if (part is QuestPart_SleepingMechs sleeping && sleeping.mapParent == site) pending += SleepingMechCurve.Evaluate(sleeping.points);
                 }
             }
-            row = row with { PendingRaidPoints = pending };
-            return row;
+            if (!closed || double.IsNaN(initial) || double.IsInfinity(initial) || initial < 0 || double.IsNaN(pending) || double.IsInfinity(pending) || pending < 0)
+                return new Obs.SiteThreatBudget.Unbounded();
+            return new Obs.SiteThreatBudget.Bounded(initial, pending);
         }
     }
 }

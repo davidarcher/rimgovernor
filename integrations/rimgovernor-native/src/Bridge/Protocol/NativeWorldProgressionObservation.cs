@@ -275,8 +275,7 @@ namespace HomeBridge.BridgeTools
                     ? q.PartsListForReading.OfType<QuestPart_SituationalThought>().Where(p => p.def?.defName == "DecreeUnmet").Select(p => p.pawn).Distinct().ToArray() : Array.Empty<Pawn>();
                 if (asker.Length == 1 && asker[0]?.Faction != null) row = row with { AskerFactionPlayer = asker[0].Faction.IsPlayer };
                 row = row with { ViolentQuestsAllowed = Find.Storyteller.difficulty.allowViolentQuests };
-                var threatPoints = NativeQuestThreats.Read(q);
-                if (threatPoints.HasValue) row = row with { ThreatPoints = threatPoints.Value };
+                if (NativeQuestThreats.TryRead(q, out var threatPoints, out var threatFound) && threatFound) row = row with { ThreatPoints = threatPoints };
                 row = row with { Shuttles = [.. row.Shuttles, .. NativeQuestShuttles.Read(q)] };
                 row = row with { DeparturePawnIds = [.. row.DeparturePawnIds, .. q.PartsListForReading.OfType<QuestPart_LendColonistsToFaction>()
                     .SelectMany(p => p.LentColonistsListForReading).OfType<Pawn>().Select(p => p.GetUniqueLoadID()).Distinct()] };
