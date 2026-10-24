@@ -9,9 +9,9 @@ namespace RimGovernor.Brain.Domain.Tests;
 // #3211: Hands admits claims against an observed target's capacity (MaxPawns, stack quantity), as the evaluator does.
 public sealed class WorkTargetCapacityClaimsTests
 {
-    private static NeedTarget Stack(double quantity, Fact<int> maxPawns) =>
-        NeedsFixtures.Food("stack", "Rice", 10, 0d, 10d, 0d) with { StockCount = Known(quantity), MaxPawns = maxPawns };
-    private static NeedTarget Service(string id, string kind, Fact<int> maxPawns) =>
+    private static NeedTarget Stack(double quantity, int maxPawns) =>
+        NeedsFixtures.Food("stack", "Rice", 10, 0d, 10d, 0d) with { Stock = new NeedStock.Stacked((int)quantity, new FoodFreshness.Never()), MaxPawns = maxPawns };
+    private static NeedTarget Service(string id, string kind, int maxPawns) =>
         NeedsFixtures.Service(id, kind, 0d, .01) with { MaxPawns = maxPawns };
 
     private static RoundsFacts Facts(params NeedTarget[] targets)
@@ -35,22 +35,22 @@ public sealed class WorkTargetCapacityClaimsTests
     public void TwoProposalsEatFromOneObservedStackWithinItsQuantityButNotBeyond()
     {
         var eatThree = Action("first", Order(PawnActivityKind.Eat, "a", "stack", 3));
-        var within = Committed(Facts(Stack(7, Known(10))), eatThree);
+        var within = Committed(Facts(Stack(7, 10)), eatThree);
         Assert.Null(WorkRules.WorkResourcesRefusal(within, Plan("second", Action("second", Order(PawnActivityKind.Eat, "b", "stack", 4)))));
         Assert.Equal("target_claimed:stack", WorkRules.WorkResourcesRefusal(within, Plan("third", Action("third", Order(PawnActivityKind.Eat, "b", "stack", 5)))));
-        Assert.Equal("target_claimed:stack", WorkRules.WorkResourcesRefusal(Committed(Facts(Stack(7, Known(10))), eatThree,
+        Assert.Equal("target_claimed:stack", WorkRules.WorkResourcesRefusal(Committed(Facts(Stack(7, 10)), eatThree,
             Action("second", Order(PawnActivityKind.Eat, "b", "stack", 4))), Plan("third", Action("third", Order(PawnActivityKind.Eat, "c", "stack", 1)))));
     }
 
     [Fact]
     public void OneProposalSharesAStackWithinItsQuantityAndCapacity()
     {
-        var facts = Facts(Stack(7, Known(10)));
+        var facts = Facts(Stack(7, 10));
         var view = Committed(facts);
         Assert.Null(WorkRules.WorkResourcesRefusal(view, Plan("two", Action("two", Order(PawnActivityKind.Eat, "a", "stack", 3), Order(PawnActivityKind.Eat, "b", "stack", 4)))));
         Assert.Equal("shared_target:stack", WorkRules.WorkResourcesRefusal(view, Plan("over", Action("over", Order(PawnActivityKind.Eat, "a", "stack", 4), Order(PawnActivityKind.Eat, "b", "stack", 4)))));
         // A stack of capacity 1 admits one owner however small the claims.
-        Assert.Equal("shared_target:stack", WorkRules.WorkResourcesRefusal(Committed(Facts(Stack(7, Known(1)))),
+        Assert.Equal("shared_target:stack", WorkRules.WorkResourcesRefusal(Committed(Facts(Stack(7, 1))),
             Plan("crowd", Action("crowd", Order(PawnActivityKind.Eat, "a", "stack", 1), Order(PawnActivityKind.Eat, "b", "stack", 1)))));
     }
 
@@ -63,7 +63,7 @@ public sealed class WorkTargetCapacityClaimsTests
             { Inputs = [new("Rice", "stack", 4, new(2, 2), "observed need target") { Observed = true }] };
         var held = DomainAction.NewPawnActivitiesAction(new("held"), new(1, [new("a", "a/assignment", "method", 0, 1, false, [step]) { Task = task.Id }])
             { Tasks = [task] });
-        var view = Committed(Facts(Stack(7, Known(10))), held);
+        var view = Committed(Facts(Stack(7, 10)), held);
         Assert.Equal(4, view.Claims.Shared.Sum(s => s.Count));
         Assert.Contains("stack", view.Claims.Targets);
         Assert.Null(WorkRules.WorkResourcesRefusal(view, Plan("rest", Action("rest", Order(PawnActivityKind.Eat, "b", "stack", 3)))));
@@ -75,29 +75,28 @@ public sealed class WorkTargetCapacityClaimsTests
     {
         var sleep = Action("sleeper", Order(PawnActivityKind.Sleep, "a", "bed"));
         var other = Plan("other", Action("other", Order(PawnActivityKind.Sleep, "b", "bed")));
-        Assert.Equal("target_claimed:bed", WorkRules.WorkResourcesRefusal(Committed(Facts(Service("bed", "rest", Known(1))), sleep), other));
-        Assert.Null(WorkRules.WorkResourcesRefusal(Committed(Facts(Service("bed", "rest", Known(2))), sleep), other));
-        Assert.Equal("target_claimed:bed", WorkRules.WorkResourcesRefusal(Committed(Facts(Service("bed", "rest", Known(2))), sleep,
+        Assert.Equal("target_claimed:bed", WorkRules.WorkResourcesRefusal(Committed(Facts(Service("bed", "rest", 1)), sleep), other));
+        Assert.Null(WorkRules.WorkResourcesRefusal(Committed(Facts(Service("bed", "rest", 2)), sleep), other));
+        Assert.Equal("target_claimed:bed", WorkRules.WorkResourcesRefusal(Committed(Facts(Service("bed", "rest", 2)), sleep,
             Action("second", Order(PawnActivityKind.Sleep, "b", "bed"))), Plan("third", Action("third", Order(PawnActivityKind.Sleep, "c", "bed")))));
     }
 
     [Fact]
-    public void CapacityIsTheObservedMaxPawnsAndUnknownBehavesAsOne()
+    public void CapacityIsTheObservedMaxPawnsAndAnUnobservedTargetBehavesAsOne()
     {
         var play = Action("player", Order(PawnActivityKind.Recreation, "a", "pin"));
         PlanSpec Next(string pawn) => Plan("next-" + pawn, Action("next-" + pawn, Order(PawnActivityKind.Recreation, pawn, "pin")));
-        var pin = Facts(Service("pin", "joy", Known(3)));
+        var pin = Facts(Service("pin", "joy", 3));
         Assert.Null(WorkRules.WorkResourcesRefusal(Committed(pin, play, Action("b", Order(PawnActivityKind.Recreation, "b", "pin"))), Next("c")));
         Assert.Equal("target_claimed:pin", WorkRules.WorkResourcesRefusal(Committed(pin, play, Action("b", Order(PawnActivityKind.Recreation, "b", "pin")),
             Action("c", Order(PawnActivityKind.Recreation, "c", "pin"))), Next("d")));
-        Assert.Equal("target_claimed:pin", WorkRules.WorkResourcesRefusal(Committed(Facts(Service("pin", "joy", default)), play), Next("b")));
         Assert.Equal("target_claimed:pin", WorkRules.WorkResourcesRefusal(Committed(Facts(), play), Next("b")));
     }
 
     [Fact]
     public void ATargetTakenWholeStaysExclusiveAgainstASharedClaim()
     {
-        var facts = Facts(Stack(7, Known(10)));
+        var facts = Facts(Stack(7, 10));
         var deliver = Action("haul", new PawnActivityOrder("a", "a/haul", "method", 0, 1, false,
             [new(PawnActivityKind.Deliver, "stack", "", "", 2, 2000) { Destination = new(2, 2) }]));
         Assert.Equal("target_claimed:stack", WorkRules.WorkResourcesRefusal(Committed(facts, deliver),

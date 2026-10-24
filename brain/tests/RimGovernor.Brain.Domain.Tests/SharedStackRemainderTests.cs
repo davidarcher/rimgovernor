@@ -36,7 +36,7 @@ public sealed class SharedStackRemainderTests
         {
             Pawn = id, Location = new(1, 1),
             Targets = [NeedsFixtures.Food(Stack, "Rice", 20, 0d, 10d, .05) with
-                { Location = new(2, 2), StockCount = Known(stock), MaxPawns = Known(10), FreshTicks = Known(100000d) }],
+                { Location = new(2, 2), Stock = new NeedStock.Stacked((int)stock, new FoodFreshness.Rots(100000)), MaxPawns = 10 }],
         };
         return facts with
         {
@@ -123,7 +123,7 @@ public sealed class SharedStackRemainderTests
         var bites = StackTasks(reviewed, "helper");
         Assert.NotEmpty(bites);
         Assert.Contains(bites, b => b.Count == 4);
-        Assert.All(bites, b => { Assert.InRange(b.Count, 1, 4); Assert.Equal(Known(4d), b.AvailableCount); Assert.Equal(Known(9), b.MaxPawns); });
+        Assert.All(bites, b => { Assert.InRange(b.Count, 1, 4); Assert.Equal(new TargetQuantity.Units(4), b.Quantity); Assert.Equal(9, b.MaxPawns); });
         Assert.Null(WorkRules.WorkResourcesRefusal(view, HelperEats(4)));
         Assert.Equal("target_claimed:" + Stack, WorkRules.WorkResourcesRefusal(view, HelperEats(5)));
         var helper = HelperEats(4);
@@ -148,21 +148,19 @@ public sealed class SharedStackRemainderTests
         Assert.Equal(16, Owed(grown.WorkView!));
         var bites = StackTasks(grown, "helper");
         Assert.Contains(bites, b => b.Count == 14);
-        Assert.All(bites, b => { Assert.InRange(b.Count, 1, 14); Assert.Equal(Known(14d), b.AvailableCount); });
+        Assert.All(bites, b => { Assert.InRange(b.Count, 1, 14); Assert.Equal(new TargetQuantity.Units(14), b.Quantity); });
         Assert.Null(WorkRules.WorkResourcesRefusal(grown.WorkView!, HelperEats(14)));
         Assert.Equal("target_claimed:" + Stack, WorkRules.WorkResourcesRefusal(grown.WorkView!, HelperEats(15)));
     }
 
     [Fact]
-    public void AStackTakenWholeOrOfUnknownCountOrCapacityStaysExcludedAndABedStaysWhole()
+    public void AStackTakenWholeStaysExcludedAndABedStaysWhole()
     {
         var target = Facts(20).ForecastObserved.Needs!.Pawns[0].Targets[0];
         var claims = Held(Facts(20), EatNowAndLater()).WorkView!.Claims;
         Assert.Equal(4, WorkRules.ProposableNeedTarget(claims, target)!.AvailableCount);
-        Assert.Null(WorkRules.ProposableNeedTarget(claims, target with { StockCount = default }));
-        Assert.Null(WorkRules.ProposableNeedTarget(claims, target with { MaxPawns = default }));
-        Assert.Null(WorkRules.ProposableNeedTarget(claims, target with { MaxPawns = Known(1) }));
-        Assert.Null(WorkRules.ProposableNeedTarget(claims, target with { Kind = "rest", StockCount = Known(2d), MaxPawns = Known(2) }));
+        Assert.Null(WorkRules.ProposableNeedTarget(claims, target with { MaxPawns = 1 }));
+        Assert.Null(WorkRules.ProposableNeedTarget(claims, target with { Kind = "rest", MaxPawns = 2 }));
         var unclaimed = target with { Id = "other-stack" };
         Assert.Equal(unclaimed, WorkRules.ProposableNeedTarget(claims, unclaimed));
         var hauled = Held(Facts(20), new PawnActivities(1, [new("pawn", "haul/pawn", "haul", 0, 1, false,

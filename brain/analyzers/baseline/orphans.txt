@@ -48,7 +48,6 @@ Policy|ForecastMoodResult.TargetDepthTicks
 Policy|ForecastMoodResult.Trajectory
 Policy|ForecastNeedMetric.DeficitTicks
 Policy|ForecastNeedMetric.WastedGain
-Policy|ForecastNeedTask.FreshTicks
 Policy|ForecastNeedWindow.Due
 Policy|ForecastNeedWindow.Ticks
 Policy|ForecastNeedsResult.MemoryAdjustedMoodTarget

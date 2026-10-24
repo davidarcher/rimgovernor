@@ -37,7 +37,7 @@ public sealed class ForecastIncumbentSelectionTests
             InitialLots = [new("rice", "start", new("Rice"), Known(1d)) { Perishable = true, FreshTicks = Known(1000d) }],
             NeedTasks = [new("ongoing-joy", "pawn", "joy", "horseshoes", new(""), 0, .25, []),
                 new("meal", "pawn", "food", "rice", new("Rice"), 1, .8, [])
-                { AvailableCount = Known(1d), FreshTicks = Known(1000d) }],
+                { Quantity = new TargetQuantity.Units(1) }],
             // What the synthetic incumbent holds, as PrepareCoupledIncumbents sets it: its commitment, its ongoing service and its
             // pawn, none dispatched now (#3889).
             IncumbentHold = new(["current-joy"], ["ongoing-joy"], ["pawn"], []),
@@ -105,15 +105,15 @@ public sealed class ForecastIncumbentSelectionTests
             f => f.Reason == "conflicting_selected_target_owners" && f.Commitment == "horseshoes");
     }
     /// <summary>The retained pawn plus <paramref name="helpers"/> proposed ones claim one target of the given capacity and stack.</summary>
-    private static IReadOnlyList<ForecastFinding> ClaimsOnOneTarget(string kind, string target, Fact<int> maxPawns, int helpers,
-        out bool anyFeasible, int count = 0, Fact<double> stock = default)
+    private static IReadOnlyList<ForecastFinding> ClaimsOnOneTarget(string kind, string target, int maxPawns, int helpers,
+        out bool anyFeasible, int count = 0, TargetQuantity? stock = null)
     {
         var (request, candidates) = Problem(1, 0, meal: false);
         var names = Enumerable.Range(1, helpers).Select(i => "helper" + i).ToArray();
         var roster = WorkRules.ReviewWorkResources(WorkResourceTestFacts.Create(["pawn", .. names]), Known<EquatableArray<ProductionBatch>>([]), new([]));
         var context = candidates.Context;
         ForecastNeedTask Claim(string task, string pawn) => new(task, pawn, kind, target, new(""), count, .2, [])
-            { MaxPawns = maxPawns, AvailableCount = stock };
+            { MaxPawns = maxPawns, Quantity = stock ?? new TargetQuantity.Unbounded() };
         // Each helper's service is bound, so the binding starts it (#3889).
         var bindings = context.Bindings.ToDictionary(b => b.Key, b => b.Value);
         foreach (var n in names)
@@ -143,7 +143,7 @@ public sealed class ForecastIncumbentSelectionTests
     public void TheForecastAndAdmissionAgreeOnAHaulAndAnEatFromOneStack(double eatStart, bool fits)
     {
         var (request, candidates) = Problem(1, 0, meal: false);
-        var rice = NeedsFixtures.Food("rice", "Rice", 2, 0d, 10d, 0d) with { StockCount = Known(20d), MaxPawns = Known(10) };
+        var rice = NeedsFixtures.Food("rice", "Rice", 2, 0d, 10d, 0d) with { Stock = new NeedStock.Stacked(20, new FoodFreshness.Never()), MaxPawns = 10 };
         var facts = WorkResourceTestFacts.Create("pawn", "helper");
         facts = facts with { ForecastObserved = facts.ForecastObserved with
             { Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [NeedsFixtures.Pawn() with { Pawn = "pawn", Targets = [rice] }, NeedsFixtures.Pawn() with { Pawn = "helper", Targets = [rice] }] } } };
@@ -160,7 +160,7 @@ public sealed class ForecastIncumbentSelectionTests
             Needs = candidates.Context.Needs with { Pawns = [candidates.Context.Needs.Pawns[0] with { Targets = [rice] },
                 candidates.Context.Needs.Pawns[0] with { Pawn = "helper", Targets = [rice] }] },
             InitialLots = [new("rice", "start", new("Rice"), Known(20d)) { Perishable = true, FreshTicks = Known(1000d) }],
-            NeedTasks = [new("eat", "pawn", "food", "rice", new("Rice"), 2, .1, []) { AvailableCount = Known(20d), MaxPawns = Known(10), FreshTicks = Known(1000d) }],
+            NeedTasks = [new("eat", "pawn", "food", "rice", new("Rice"), 2, .1, []) { Quantity = new TargetQuantity.Units(20), MaxPawns = 10 }],
             Activities = candidates.Context.Activities with
             {
                 Activities = [new("haul", "start", "start", []) { LatestStart = 0 }, new("work", "start", "start", []) { LatestStart = 0 },
@@ -189,15 +189,7 @@ public sealed class ForecastIncumbentSelectionTests
     [Fact]
     public void TwoPawnsCannotClaimAOneSlotBed()
     {
-        var findings = ClaimsOnOneTarget("rest", "bed", Known(1), 1, out var feasible);
-        Assert.False(feasible);
-        Assert.Contains(findings, f => f.Reason == "conflicting_selected_target_owners" && f.Commitment == "bed");
-    }
-
-    [Fact]
-    public void AnUnreadableCapacityBehavesAsOneSlot()
-    {
-        var findings = ClaimsOnOneTarget("rest", "bed", default, 1, out var feasible);
+        var findings = ClaimsOnOneTarget("rest", "bed", 1, 1, out var feasible);
         Assert.False(feasible);
         Assert.Contains(findings, f => f.Reason == "conflicting_selected_target_owners" && f.Commitment == "bed");
     }
@@ -205,10 +197,10 @@ public sealed class ForecastIncumbentSelectionTests
     [Fact]
     public void APinAdmitsUpToItsParticipantsAndRefusesOneMore()
     {
-        var within = ClaimsOnOneTarget("joy", "pin", Known(3), 2, out var feasibleWithin);
+        var within = ClaimsOnOneTarget("joy", "pin", 3, 2, out var feasibleWithin);
         Assert.True(feasibleWithin);
         Assert.DoesNotContain(within, f => f.Reason is "conflicting_selected_target_owners" or "target_stack_quantity_exceeded");
-        var over = ClaimsOnOneTarget("joy", "pin", Known(3), 3, out var feasibleOver);
+        var over = ClaimsOnOneTarget("joy", "pin", 3, 3, out var feasibleOver);
         Assert.False(feasibleOver);
         Assert.Contains(over, f => f.Reason == "conflicting_selected_target_owners" && f.Commitment == "pin");
     }
@@ -217,10 +209,10 @@ public sealed class ForecastIncumbentSelectionTests
     public void ConsumersSharingAStackFitWithinItsQuantityAndAreRefusedBeyondIt()
     {
         // Three claimants of two units each against a stack of ten (capacity 10): six fits, then the stack is exhausted.
-        var within = ClaimsOnOneTarget("joy", "stack", Known(10), 2, out var feasibleWithin, count: 2, stock: Known(6d));
+        var within = ClaimsOnOneTarget("joy", "stack", 10, 2, out var feasibleWithin, count: 2, stock: new TargetQuantity.Units(6));
         Assert.True(feasibleWithin);
         Assert.DoesNotContain(within, f => f.Reason == "target_stack_quantity_exceeded");
-        var beyond = ClaimsOnOneTarget("joy", "stack", Known(10), 2, out var feasibleBeyond, count: 2, stock: Known(5d));
+        var beyond = ClaimsOnOneTarget("joy", "stack", 10, 2, out var feasibleBeyond, count: 2, stock: new TargetQuantity.Units(5));
         Assert.False(feasibleBeyond);
         Assert.Contains(beyond, f => f.Reason == "target_stack_quantity_exceeded" && f.Commitment == "stack");
         Assert.DoesNotContain(beyond, f => f.Reason == "conflicting_selected_target_owners");

@@ -550,7 +550,7 @@ public sealed class ForecastCoupledSelectionTests
             State = "unsupported_voluntary_state", VoluntaryControlBlockers = ["chemical_need:Chemical_Smokeleaf"], Location = new(1, 1),
             Needs = [NeedsFixtures.Rate("food", .02, .003, .3), NeedsFixtures.Rate("rest", 1d, 0d, .3)],
             Targets = [NeedsFixtures.Food("meal", "MealSimple", 1, 0d, 10d, .9) with
-                { Location = new(1, 1), StockCount = Known(1d), MaxPawns = Known(1), FreshTicks = Known(100000d) }]
+                { Location = new(1, 1), Stock = new NeedStock.Stacked(1, new FoodFreshness.Rots(100000)), MaxPawns = 1 }]
         };
         facts = facts with { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("MealSimple"), 1)]), ForecastObserved = facts.ForecastObserved with
         {

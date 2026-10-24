@@ -67,21 +67,20 @@ internal static class NativeNeedsForecast
                             .Select(t => MealMemory(pawn, t)).ToArray();
                         targets.Add(new(target.GetUniqueLoadID(), "food", target.def.defName, target.def.ingestible.maxNumToIngestAtOnce > 0 ? Math.Min(target.stackCount, target.def.ingestible.maxNumToIngestAtOnce) : target.stackCount,
                             travel, new Obs.NeedRecovery.Ingest(F(service, "ingest ticks"), F(nutrition, "nutrition")))
-                            { MealThoughts = EquatableArray.From(thoughts), Location = new(target.Position.x, target.Position.z), StockCount = K(target.stackCount), MaxPawns = Capacity(IngestMaxPawns),
-                            FreshTicks = K(target.TryGetComp<CompRottable>()?.TicksUntilRotAtCurrentTemp ?? RimGovernor.Brain.Domain.GameTime.TicksPerDay),
+                            { MealThoughts = EquatableArray.From(thoughts), Location = new(target.Position.x, target.Position.z), Stock = new Obs.NeedStock.Stacked(target.stackCount, NativeCoupledFood.StackFreshness(target)), MaxPawns = Claimants(maxPawns, target),
                             Cell = CellAt(map, target.Position), Bed = null, Deterioration = DeteriorationOf(map, target),
                             Unsupported = ["chew_spot_travel", "ingestion_outcomes_and_poisoning", "meal_memory_stacking"] });
                     }
                     else if (group == "rest") targets.Add(new(target.GetUniqueLoadID(), "rest", "", 1, travel,
                         new Obs.NeedRecovery.Rate(F(Need_Rest.BaseRestGainPerTick * RestEffectiveness((Building_Bed)target) * pawn.GetStatValue(StatDefOf.RestRateMultiplier), "bed rest gain")))
-                        { MealThoughts = [], Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(((Building_Bed)target).SleepingSlotsCount),
+                        { MealThoughts = [], Location = new(target.Position.x,target.Position.z), Stock = new Obs.NeedStock.NotStacked(), MaxPawns = Claimants(maxPawns, target),
                             Cell = CellAt(map, target.Position), Bed = BedRoomOf((Building_Bed)target), Deterioration = null, Unsupported = [] });
                     else
                     {
                         var job = NativeRecreation.GiverFor(target)!.jobDef;
                         // Native JoyTickCheckEnd conversion, projected at observed tolerance only; future tolerance is explicit.
                         targets.Add(new(target.GetUniqueLoadID(), "joy", "", 1, travel, new Obs.NeedRecovery.Rate(F(NativeRecreation.GainPerTick(pawn, target, job), "joy gain")))
-                            { MealThoughts = [], Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(job.joyMaxParticipants), Cell = CellAt(map, target.Position),
+                            { MealThoughts = [], Location = new(target.Position.x,target.Position.z), Stock = new Obs.NeedStock.NotStacked(), MaxPawns = Claimants(maxPawns, target), Cell = CellAt(map, target.Position),
                                 Bed = null, Deterioration = null, Unsupported = ["play_position_travel", "future_tolerance_changes"] });
                     }
                 }
@@ -769,8 +768,9 @@ internal static class NativeNeedsForecast
     }
     /// <summary>The maxPawns literal JobDriver_Ingest passes to Reserve for a meal stack (decompiled 1.7; vanilla exposes no symbol for it).</summary>
     internal const int IngestMaxPawns = 10;
-    /// <summary>Vanilla claimant capacity; a non-positive read is unknown, never a guess.</summary>
-    internal static Fact<int> Capacity(int maxPawns) => maxPawns > 0 ? Fact.Known(maxPawns) : default;
+    /// <summary>Vanilla claimant capacity of a target; a non-positive read is a broken read and throws.</summary>
+    private static int Claimants(int maxPawns, Thing target) =>
+        maxPawns > 0 ? maxPawns : throw new InvalidOperationException("no claimant capacity for " + target.GetUniqueLoadID());
     /// <summary>The count a vanilla ingest job asks for before it has a step: FoodUtility.WillIngestStackCountOf (the nutrition the
     /// pawn wants, capped by maxNumToIngestAtOnce), which JobDriver_Ingest then clamps to the stack via GetMaxAmountToPickup.</summary>
     private static int IngestWantedCount(Pawn pawn, Thing food) =>
@@ -789,7 +789,6 @@ internal static class NativeNeedsForecast
     private static double Capacity(Pawn_HealthTracker health, PawnCapacityDef capacity) => F(health.capacities.GetLevel(capacity), capacity.defName);
     /// <summary>The hediff's current severity, 0 when the pawn has none (#3519).</summary>
     private static double Severity(Pawn_HealthTracker health, HediffDef hediff) => F(health.hediffSet.GetFirstHediffOfDef(hediff)?.Severity ?? 0, hediff.defName);
-    private static Fact<double> K(double value) => double.IsFinite(value) ? Fact.Known(value) : default;
     /// <summary>A finite read; a non-finite one is a broken read and throws.</summary>
     private static double F(double value, string what) => double.IsFinite(value) ? value : throw new InvalidOperationException(what + " is not finite.");
 }

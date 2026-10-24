@@ -9,6 +9,17 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class CoupledReadWireTests
 {
     [Fact]
+    public void ANeedTargetsStockRoundTripsAsStackedOrNotStacked()
+    {
+        NeedStock[] stocks = [new NeedStock.Stacked(4, new FoodFreshness.Rots(900)), new NeedStock.Stacked(2, new FoodFreshness.Never()), new NeedStock.NotStacked()];
+        foreach (var stock in stocks)
+        {
+            var target = NeedsFixtures.Service("pin", "joy", 0d, .01) with { Stock = stock, MaxPawns = 3 };
+            Assert.Equal(target, WireJson.Deserialize<NeedTarget>(WireJson.Serialize(target)));
+        }
+    }
+
+    [Fact]
     public void EveryCoupledNamedStateRoundTrips()
     {
         var conversion = CoupledFixtures.Conversion("rice", "pawn", "bench", "CookMeal", "Rice", 4, "Meal", 1,

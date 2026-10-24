@@ -39,9 +39,13 @@ internal sealed class WorkAdmissionEvidenceConverter : ObjectCodec<WorkAdmission
 
 internal sealed class WorkTargetCapacityConverter : ObjectCodec<WorkTargetCapacity>
 {
-    protected override WorkTargetCapacity Read(JsonElement e, Codecs o) => new(e.Str("Target"), e.Get<Fact<int>>("MaxPawns", o), e.Get<Fact<double>>("Quantity", o));
+    protected override WorkTargetCapacity Read(JsonElement e, Codecs o) => new(e.Str("Target"), e.I32("MaxPawns"),
+        e.Has("Units") ? new TargetQuantity.Units(e.Dbl("Units")) : new TargetQuantity.Unbounded());
     protected override void WriteFields(Utf8JsonWriter w, WorkTargetCapacity v, Codecs o)
-    { w.WriteString("Target", v.Target); w.Put("MaxPawns", v.MaxPawns, o); w.Put("Quantity", v.Quantity, o); }
+    {
+        w.WriteString("Target", v.Target); w.WriteNum("MaxPawns", v.MaxPawns);
+        if (v.Quantity is TargetQuantity.Units(var units)) w.WriteNum("Units", units);
+    }
 }
 
 internal sealed class WorkBuildingCostConverter : ObjectCodec<WorkBuildingCost>

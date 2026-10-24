@@ -14,7 +14,7 @@ public sealed class ForecastObservedMealTests
         var facts = ForecastCoupledSelectionTests.Review(level: .2, fall: 1.5 / Day);
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with { Targets =
             [NeedsFixtures.Food("meal-stack", "Meal", count, 0d, 10d, .9) with
-                { Location = new(1, 1), StockCount = Known((double)count), FreshTicks = Known(expiry) }] };
+                { Location = new(1, 1), Stock = new NeedStock.Stacked(count, new FoodFreshness.Rots(expiry)) }] };
         facts = facts with
         {
             Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Meal"), count)]),

@@ -253,7 +253,6 @@ Contracts/Common.cs|UnknownMember|6
 Contracts/Json/FactJsonConverter.cs|Fact|5
 Contracts/Lifecycle.cs|NullableValue|42
 Contracts/Lifecycle.cs|UnknownMember|6
-Contracts/NeedsForecast.cs|Fact|3
 Contracts/Observations.cs|NullableValue|48
 Contracts/Observations.cs|UnknownMember|1
 Contracts/Operations.cs|NullableValue|86
@@ -481,9 +480,9 @@ Policy/FoodStores.cs|Fact|14
 Policy/FoodStores.cs|Unknown|1
 Policy/ForecastCapacity.cs|Fact|17
 Policy/ForecastClaims.cs|Fact|27
-Policy/ForecastCoupled.cs|Fact|10
+Policy/ForecastCoupled.cs|Fact|7
 Policy/ForecastCoupledCandidates.cs|Fact|16
-Policy/ForecastCoupledEvaluation.cs|Fact|121
+Policy/ForecastCoupledEvaluation.cs|Fact|108
 Policy/ForecastCoupledMaterials.cs|Fact|20
 Policy/ForecastCoupledSelection.cs|Discard|1
 Policy/ForecastCoupledSelection.cs|Fact|52
@@ -589,7 +588,6 @@ Policy/MedicineCarry.cs|Unknown|1
 Policy/MethodClaims.cs|Fact|3
 Policy/Methods/Evaluation/WorkMaterialEvaluation.cs|Fact|7
 Policy/Methods/Generation/CoordinatedMethodCandidates.cs|NullableValue|2
-Policy/Methods/Generation/CoupledFoodMethodCandidates.cs|Fact|3
 Policy/Methods/Generation/CoupledShelterCandidates.cs|Fact|8
 Policy/Methods/Generation/EffectSourceCandidates.cs|Fact|5
 Policy/Methods/Generation/PlannedRoomCandidates.cs|Discard|1
@@ -765,7 +763,7 @@ Policy/WorkAssignment.cs|Fact|5
 Policy/WorkDispatch.cs|Fact|5
 Policy/WorkDispatchMemory.cs|Fact|6
 Policy/WorkDispatchMemory.cs|Unknown|2
-Policy/WorkResources.cs|Fact|102
+Policy/WorkResources.cs|Fact|91
 Policy/Workshop.cs|Fact|17
 Policy/Workshop.cs|Unknown|1
 Simulation/Supply/Shock.cs|Discard|2
@@ -775,7 +773,7 @@ Store/Codec/DomainActionConverter.cs|Discard|1
 Store/Codec/DomainActionConverter.cs|Fact|4
 Store/Codec/JsonKit.cs|Fact|7
 Store/Codec/PolicyConverters.cs|Fact|5
-Store/Codec/ProductionAdmissionCodecs.cs|Fact|19
+Store/Codec/ProductionAdmissionCodecs.cs|Fact|17
 Store/Owners/ActivityContinuation.cs|Fact|2
 Store/Owners/Combat.cs|Fact|1
 Store/Owners/Control.cs|Discard|1

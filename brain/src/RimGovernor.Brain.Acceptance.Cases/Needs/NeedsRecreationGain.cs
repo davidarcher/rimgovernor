@@ -56,9 +56,9 @@ internal static class NeedsRecreationGain
 
         var target = row.Targets.SingleOrDefault(t => t.Id == board)
             ?? throw new AcceptanceException($"the board {board} is not a target: [{string.Join(' ', row.Targets.Select(t => $"{t.Kind}:{t.Id}"))}]");
-        if (target.Kind != "joy" || target.Recovery is not Observations.NeedRecovery.Rate { GainPerTick: > 0 } || !target.MaxPawns.TryGetValue(out var capacity) || capacity < 1)
+        if (target.Kind != "joy" || target.Recovery is not Observations.NeedRecovery.Rate { GainPerTick: > 0 } || target.MaxPawns < 1)
         {
-            throw new AcceptanceException($"the board is not a joy target with a known gain and capacity: {target}");
+            throw new AcceptanceException($"the board is not a joy target with a gain and capacity: {target}");
         }
     }
 }

@@ -117,7 +117,8 @@ internal static class NeedsFixtures
 
     /// <summary>A target at the origin's indoor roofed cell, no meal thoughts, bed or deterioration.</summary>
     public static NeedTarget Target(string id, string kind, string resource, int count, double travel, NeedRecovery recovery) =>
-        new(id, kind, resource, count, travel, recovery) { MealThoughts = [], Location = new(0, 0), Unsupported = [], Cell = Indoors, Bed = null, Deterioration = null };
+        new(id, kind, resource, count, travel, recovery) { MealThoughts = [], Location = new(0, 0), Unsupported = [], Cell = Indoors, Bed = null, Deterioration = null,
+            Stock = kind == "food" ? new NeedStock.Stacked(count, new FoodFreshness.Never()) : new NeedStock.NotStacked(), MaxPawns = 1 };
 
     /// <summary>A food target eaten in <paramref name="service"/> ticks restoring <paramref name="gain"/> a unit.</summary>
     public static NeedTarget Food(string id, string resource, int count, double travel, double service, double gain) =>

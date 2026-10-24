@@ -15,8 +15,17 @@ public sealed record WorkPawnAvailability(string Pawn, Fact<bool> Available, Fac
 }
 public sealed record WorkAction(PlanId Plan, DomainAction Action, ProgressView Progress);
 public sealed record WorkActionCensus(EquatableArray<WorkAction> Actions, bool Truncated = false);
-/// <summary>An observed target's claimant capacity (vanilla ReservationManager maxPawns) and, for a stack, its quantity. Unknown stays unknown.</summary>
-public sealed record WorkTargetCapacity(string Target, Fact<int> MaxPawns, Fact<double> Quantity);
+/// <summary>An observed target's claimant capacity (vanilla ReservationManager maxPawns) and, for a stack, its quantity.</summary>
+public sealed record WorkTargetCapacity(string Target, int MaxPawns, TargetQuantity Quantity);
+/// <summary>The units claims on a capacity target sum against (#3895): a stack's count, or none for a bed or a recreation building.</summary>
+public abstract record TargetQuantity
+{
+    private TargetQuantity() { }
+    public sealed record Units(double Count) : TargetQuantity;
+    public sealed record Unbounded : TargetQuantity;
+    public static TargetQuantity Of(RimGovernor.Contracts.Wire.Observations.NeedStock stock) =>
+        stock is RimGovernor.Contracts.Wire.Observations.NeedStock.Stacked stacked ? new Units(stacked.Count) : new Unbounded();
+}
 /// <summary>One owner's claim on a capacity target; <see cref="Count"/> is the stack units it takes (0 for a bed or a pin).
 /// A stack use holds the target from <see cref="From"/> to <see cref="Until"/> (#3626); any other claim holds it throughout.</summary>
 public sealed record WorkTargetClaim(string Target, string Owner, string Task, int Count)
@@ -47,13 +56,13 @@ public static class TargetUseRules
     public static TargetUse Scheduled(string owner, int count, long tick, double depart, double end, bool alone) =>
         new(owner, count, checked(tick + (long)Math.Ceiling(depart)), SelectedActivityTask.UseUntil(tick, depart, end), alone);
 
-    public static bool Conflict(ReadOnlySpan<TargetUse> uses, int maxPawns, Fact<double> quantity) =>
+    public static bool Conflict(ReadOnlySpan<TargetUse> uses, int maxPawns, TargetQuantity quantity) =>
         UnitsConflict(uses, quantity) || OwnersConflict(uses, maxPawns);
 
-    /// <summary>Whether the uses take more units than a stack of known <paramref name="quantity"/> holds.</summary>
-    public static bool UnitsConflict(ReadOnlySpan<TargetUse> uses, Fact<double> quantity)
+    /// <summary>Whether the uses take more units than a stack of <paramref name="quantity"/> holds.</summary>
+    public static bool UnitsConflict(ReadOnlySpan<TargetUse> uses, TargetQuantity quantity)
     {
-        if (!quantity.TryGetValue(out var units)) return false;
+        if (quantity is not TargetQuantity.Units(var units)) return false;
         double sum = 0;
         foreach (var use in uses) sum += use.Count;
         return sum > units;
@@ -207,7 +216,7 @@ public static partial class WorkRules
         var exclusive = new HashSet<string>(StringComparer.Ordinal);
         var shared = new Dictionary<(string Target, string Owner, string Task), (int Count, long From, long Until, bool Alone)>();
         var findings = new HashSet<string>(StringComparer.Ordinal);
-        var stacks = evidence.NeedTargets.Where(t => t.Quantity.IsKnown).Select(t => t.Target).ToHashSet(StringComparer.Ordinal);
+        var stacks = evidence.NeedTargets.Where(t => t.Quantity is TargetQuantity.Units).Select(t => t.Target).ToHashSet(StringComparer.Ordinal);
         // A target some claim takes whole stays exclusive, whatever else shares it.
         void Take(string target) { targets.Add(target); exclusive.Add(target); }
         // The same task seen through its order and through its task row is one claim, not two. A stack use holds the stack
@@ -405,15 +414,14 @@ public static partial class WorkRules
     private static int EatCount(PawnActivityStep step) => step.Kind == PawnActivityKind.Eat ? step.Count : 0;
 
     /// <summary>True when <paramref name="claims"/> on one target conflict by <see cref="TargetUseRules"/>: more owners at once
-    /// than its MaxPawns (an unreadable value is read as 1, this admission's policy), a haul beside another owner, or, for a
-    /// stack of known quantity, more units than it holds. <paramref name="otherOwners"/> are pawns outside the claims that
+    /// than its MaxPawns (a target the need read does not name admits one, as a vanilla reservation does), a haul beside another owner, or, for a
+    /// stack, more units than it holds. <paramref name="otherOwners"/> are pawns outside the claims that
     /// already occupy it, holding it throughout.</summary>
     private static bool TargetOverCapacity(WorkAdmissionEvidence evidence, string target, IEnumerable<WorkTargetClaim> claims, IEnumerable<string> otherOwners)
     {
         var capacity = evidence.NeedTargets.FirstOrDefault(t => t.Target == target);
-        var max = capacity is not null && capacity.MaxPawns.TryGetValue(out var known) && known > 0 ? known : 1;
         var uses = claims.Select(c => c.Use).Concat(otherOwners.Select(o => new TargetUse(o, 0, long.MinValue, long.MaxValue, false))).ToArray();
-        return TargetUseRules.Conflict(uses, max, capacity?.Quantity ?? default);
+        return TargetUseRules.Conflict(uses, capacity?.MaxPawns ?? 1, capacity?.Quantity ?? new TargetQuantity.Unbounded());
     }
 
     /// <summary>
@@ -429,13 +437,13 @@ public static partial class WorkRules
         RimGovernor.Contracts.Wire.Observations.NeedTarget target)
     {
         if (!claims.Targets.Contains(target.Id)) return target;
-        if (target.Kind != "food" || !target.StockCount.TryGetValue(out var stock) || !target.MaxPawns.TryGetValue(out var max)) return null;
+        if (target.Kind != "food" || target.Stock is not RimGovernor.Contracts.Wire.Observations.NeedStock.Stacked(var stock, var freshness)) return null;
         var held = claims.Shared.Where(s => s.Target == target.Id).ToArray();
         if (held.Length == 0 || held.Any(s => s.Alone)) return null;
-        var units = (int)Math.Floor(stock) - held.Sum(s => s.Count);
-        var owners = max - held.Select(s => s.Owner).Distinct(StringComparer.Ordinal).Count();
+        var units = stock - held.Sum(s => s.Count);
+        var owners = target.MaxPawns - held.Select(s => s.Owner).Distinct(StringComparer.Ordinal).Count();
         return units > 0 && owners > 0
-            ? target with { AvailableCount = Math.Min(target.AvailableCount, units), StockCount = Known((double)units), MaxPawns = Known(owners) }
+            ? target with { AvailableCount = Math.Min(target.AvailableCount, units), Stock = new RimGovernor.Contracts.Wire.Observations.NeedStock.Stacked(units, freshness), MaxPawns = owners }
             : null;
     }
 

@@ -933,12 +933,11 @@ public sealed record NeedTarget(string Id, string Kind, string Resource, int Ava
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedMemory>))]
     public required EquatableArray<NeedMemory> MealThoughts { get; init; }
     public required Cell Location { get; init; }
-    /// <summary>Stack quantity that claims sum against (vanilla ingest reserves a stack by count); unknown when unread.</summary>
-    public Fact<double> StockCount { get; init; }
-    /// <summary>Simultaneous claimants vanilla lets reserve this target (ReservationManager maxPawns); unknown when unreadable, never a guess.
-    /// Claims on one target must share one value. The planner's default for unknown is evaluator policy, not contract.</summary>
-    public Fact<int> MaxPawns { get; init; }
-    public Fact<double> FreshTicks { get; init; }
+    /// <summary>The stack claims sum against (vanilla ingest reserves a stack by count) and how long it keeps; a rest or recreation target is not a stack.</summary>
+    public required NeedStock Stock { get; init; }
+    /// <summary>Simultaneous claimants vanilla lets reserve this target (ReservationManager maxPawns), as the service job reserves it
+    /// (NativeNeedsForecast.ServiceReservation); at least 1. Claims on one target must share one value.</summary>
+    public required int MaxPawns { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public required EquatableArray<string> Unsupported { get; init; }
     /// <summary>The target cell's roof and room now (#3339).</summary>
@@ -947,4 +946,19 @@ public sealed record NeedTarget(string Id, string Kind, string Resource, int Ava
     public required NeedBedRoom? Bed { get; init; }
     /// <summary>A food target's deterioration inputs (#3339); null when it cannot deteriorate.</summary>
     public required NeedDeterioration? Deterioration { get; init; }
+}
+/// <summary>What a need target is as a stock (#3895): a food stack with the count claims sum against and how long it keeps, or a bed or
+/// recreation building, which no claim takes units from.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(NeedStock.Stacked), "stacked")]
+[JsonDerivedType(typeof(NeedStock.NotStacked), "not_stacked")]
+public abstract record NeedStock
+{
+    private protected NeedStock() { }
+
+    /// <summary>The stack's count now, and its freshness at the current temperature.</summary>
+    public sealed record Stacked(int Count, FoodFreshness Freshness) : NeedStock;
+
+    /// <summary>A bed or a recreation building.</summary>
+    public sealed record NotStacked : NeedStock;
 }

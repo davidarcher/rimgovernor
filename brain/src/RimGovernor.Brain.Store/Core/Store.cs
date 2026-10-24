@@ -53,8 +53,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 48 reads plan geometry whole (#3914): a planned room's door side is doored or doorless, a training range's facing and a planned site's rotation are toward a side or unturned, each absent from the record for the doorless or unturned state.
     /// Version 49 reads threat, disaster and recovery containers whole (#3931): a disaster history no longer persists WorkKnown, and a recovery record persists its safety (restrictions with a plain area id, empty for none) and buildings always, never null for an unread census.
     /// Version 50 drops the never-read <c>Observed</c> deficit fraction from a concern's progress and the <c>Alternative</c> text from a ready work (#3962).
+    /// Version 51 reads a need target's claimant capacity and quantity whole (#3895): a persisted target capacity is its claimant count and, only for a stack, its units.
     /// </summary>
-    public const int SchemaVersion = 50;
+    public const int SchemaVersion = 51;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

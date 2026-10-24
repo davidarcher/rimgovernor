@@ -241,8 +241,8 @@ internal static class FoodMethodCandidates
                     Option(id, use.Pawn, use.ChewTicks);
                     bindings[(id, use.Pawn)] = new(id, use.Pawn, [supply], PawnActivityKind.Eat, "observed-output", "", "", count, deadline, cell) { Resource = resource.Value, Source = cell };
                     needTasks.Add(new(id, use.Pawn, "food", Location(cell), resource, count, count * gain, use.Thoughts)
-                    { FoodReady = supply, FreshFrom = freshFrom, FreshTicks = Known(Keeps(use.FreshTicks)), AvailableCount = Known(units), Batch = supply,
-                        MaxPawns = Known(IngestMaxPawns) });
+                    { FoodReady = supply, FreshFrom = freshFrom, Quantity = new TargetQuantity.Units(units), Batch = supply,
+                        MaxPawns = IngestMaxPawns });
                     Outcome(id, id);
                 }
             }

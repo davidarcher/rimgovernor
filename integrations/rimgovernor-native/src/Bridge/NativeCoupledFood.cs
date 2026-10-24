@@ -14,6 +14,14 @@ internal static class NativeCoupledFood
 {
     private static readonly Dictionary<ThingDef, Thing> FreshUnits = new();
 
+    /// <summary>How long a spawned stack keeps at its cell now. CompRottable.TicksUntilRotAtTemp answers a sentinel for an inactive comp
+    /// or a temperature that does not rot it (its RotRateAtTemperature of the rounded ambient temperature at or below 0): that
+    /// stack never rots.</summary>
+    internal static Obs.FoodFreshness StackFreshness(Thing stack) =>
+        stack.TryGetComp<CompRottable>() is { Active: true } rottable
+            && GenTemperature.RotRateAtTemperature(UnityEngine.Mathf.RoundToInt(stack.AmbientTemperature)) > 0
+            ? new Obs.FoodFreshness.Rots(Math.Max(0, rottable.TicksUntilRotAtCurrentTemp)) : new Obs.FoodFreshness.Never();
+
     /// <summary>
     /// Every food source's cooking conversions at every player bench, for every free colonist, to every accepting
     /// storage cell (#3341). The source-to-bench, bench-to-cell and return legs are searched once each for every
@@ -42,12 +50,7 @@ internal static class NativeCoupledFood
             var plant = source as Plant; var raw = plant?.def.plant.harvestedThingDef ?? source.def;
             var availableInput = plant == null ? source.stackCount : food.Options.Where(o => o.Target == source.GetUniqueLoadID())
                 .Select(o => o.SourceCount).DefaultIfEmpty(0).Min();
-            // CompRottable.TicksUntilRotAtTemp answers a sentinel for an inactive comp or a temperature that does not rot it
-            // (its RotRateAtTemperature of the rounded ambient temperature at or below 0): that lot never rots.
-            if (plant == null) sourceRows.Add(new(source.GetUniqueLoadID(),raw.defName,new(source.Position.x,source.Position.z),source.stackCount,
-                source.TryGetComp<CompRottable>() is { Active: true } rottable
-                    && GenTemperature.RotRateAtTemperature(UnityEngine.Mathf.RoundToInt(source.AmbientTemperature)) > 0
-                    ? new Obs.FoodFreshness.Rots(Math.Max(0, rottable.TicksUntilRotAtCurrentTemp)) : new Obs.FoodFreshness.Never()));
+            if (plant == null) sourceRows.Add(new(source.GetUniqueLoadID(),raw.defName,new(source.Position.x,source.Position.z),source.stackCount, StackFreshness(source)));
             // A loose source with ingredients is eaten with its own; any other is a fresh unit of its product.
             foreach (var target in food.Options.Where(o => o.Target == source.GetUniqueLoadID()).Select(o => o.Destination).Distinct())
                 AddUses(raw, target, plant == null && raw.HasComp(typeof(CompIngredients)) ? source : FreshUnit(raw), "");

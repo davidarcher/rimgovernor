@@ -64,6 +64,22 @@ public sealed class ProductionAdmissionTests
         Assert.Null(RoundTrip(new WorkAdmissionEvidence()).Standing);
     }
 
+    // #3895: a target's quantity is a stack's units or none, and its claimant capacity a plain count.
+    [Fact]
+    public void ANeedTargetCapacityKeepsItsStackOrItsAbsenceThroughTheJournalCodec()
+    {
+        WorkTargetCapacity[] targets = [new("stack", 10, new TargetQuantity.Units(7)), new("bed", 1, new TargetQuantity.Unbounded())];
+        var back = RoundTrip(new WorkAdmissionEvidence { NeedTargets = EquatableArray.From(targets) }).NeedTargets;
+        Assert.Equal(targets, back.ToArray());
+    }
+
+    [Fact]
+    public void ANeedTargetsQuantityIsItsStackedCountOrUnbounded()
+    {
+        Assert.Equal(new TargetQuantity.Units(4), TargetQuantity.Of(new RimGovernor.Contracts.Wire.Observations.NeedStock.Stacked(4, new RimGovernor.Contracts.Wire.Observations.FoodFreshness.Never())));
+        Assert.Equal(new TargetQuantity.Unbounded(), TargetQuantity.Of(new RimGovernor.Contracts.Wire.Observations.NeedStock.NotStacked()));
+    }
+
     [Fact]
     public void TwoAffordableBatchesCannotSpendTheSameRemainderOrHideInOneBundle()
     {

@@ -88,7 +88,8 @@ public static partial class ProductionRules
             Reviewed = batches.TryGetValue(out var rows) ? EquatableArray.From(rows.Select(b => b.Progress.Action)) : [],
             NeedTargets = facts.ForecastObserved.Needs is { } needs
                 ? EquatableArray.From(needs.Pawns.SelectMany(p => p.Targets).GroupBy(t => t.Id, StringComparer.Ordinal).OrderBy(g => g.Key, StringComparer.Ordinal)
-                    .Select(g => new WorkTargetCapacity(g.Key, g.First().MaxPawns, g.First().StockCount))) : [],
+                    .Select(g => new WorkTargetCapacity(g.Key, g.First().MaxPawns,
+                        TargetQuantity.Of(g.First().Stock)))) : [],
         };
     }
 

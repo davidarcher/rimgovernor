@@ -300,7 +300,7 @@ unknown. What the game does not have is a case, never an unknown:
   asleep voluntarily or has a hediff that blocks sleep, `SleepBlockedUntilTicks`
   the disturbance wait, 0 when none.
 
-`NeedTarget.StockCount`, `MaxPawns` and `FreshTicks` are still facts (#3783).
+`NeedTarget.Stock` is `NeedStock.Stacked(Count, Freshness)` for a food stack (the stack size claims sum against and when it rots, `FoodFreshness.Rots` or `Never`) or `NotStacked` for a bed or recreation building; `MaxPawns` is a plain claimant count (#3895).
 
 - `NeedsForecastRead`: the current weather's `WeatherThought` and its stage count,
   `RainRate`, `MapArea`, and `Deterioration`, the DeteriorationRate stat's
@@ -1346,11 +1346,10 @@ cadence over the trailing 14 days feeds the hunters' throughput
 against its capacity. A food or hauled-stack claim holds its units from its use tick
 (#3626, below); every other claim holds the target for the whole Method.
 A target is refused when its distinct selected owners exceed its `MaxPawns`
-(`conflicting_selected_target_owners`; the minimum over its claims, an unknown value
-read as 1, which is this evaluator's policy and not part of the contract) or when the
+(`conflicting_selected_target_owners`; the minimum over its claims) or when the
 claimed counts of one stack sum past its quantity (`target_stack_quantity_exceeded`).
 The claims are the `ForecastNeedTask`s of the selected activities (`Target`, `Pawn`,
-`Count` per claim, `AvailableCount` the stack quantity, `MaxPawns`, and `Batch` naming
+`Count` per claim, `Quantity` the stack units or none, `MaxPawns`, and `Batch` naming
 the produced batch when several batches can sit in one delivery cell; counts sum per
 target and batch), plus each selected binding that names an
 observed `Needs.Pawns[].Targets` id without a need task (capacity from that observed
@@ -1361,7 +1360,7 @@ and in Hands admission, so the forecast cannot select a pairing admission refuse
 claim is a `TargetUse` (owner, count, `[From, Until)`, `Alone`). A food claim holds the
 stack from its allocation's `Depart` until its `End` (native executes a non-preparing
 order at once, so the ingest reservation starts at departure). A Deliver or Supply
-binding on an observed stack with a known `StockCount` is an `Alone` claim of its count
+binding on an observed stack (`NeedStock.Stacked`) is an `Alone` claim of its count
 over its own allocation: vanilla hauls reserve with `maxPawns` 1, so no other owner may
 overlap it, but a haul done before an eat departs shares the stack. Owners conflict when,
 at any claim's `From`, more distinct owners hold the target than `MaxPawns`, or an `Alone`
@@ -1378,17 +1377,16 @@ target means depends on its producer:
 | `CoupledFoodMethodCandidates.AddEating` (produced or delivered food) | `food` | `cell/x/z` of the delivery cell (`CoupledFoodUse.Location`) | the cell the meal stack will sit in; `Count` is the meal, `AvailableCount` the batch | 10, vanilla's ingest value, the generated stack's capacity |
 | Incumbent preparation (`ForecastIncumbentPreparation`) | observed service kind | the observed service target | the current service the pawn already holds | the observed target of that id, else unknown |
 
-Capacity (#3209): each observed `NeedTarget` carries `MaxPawns`, a `Fact<int>`, the
+Capacity (#3209): each observed `NeedTarget` carries `MaxPawns`, an int, the
 number of simultaneous claimants vanilla `ReservationManager.CanReserve` admits on that
 target (claims must share one `maxPawns`, and summed stack counts must not exceed the
 stack). Native fills it from vanilla, never from the target's `Kind`: a food stack
 reads the literal 10 that `JobDriver_Ingest` reserves with (vanilla names no symbol for
 it, so `NativeNeedsForecast.IngestMaxPawns` mirrors it); a bed reads
 `Building_Bed.SleepingSlotsCount`; a recreation building reads `joyMaxParticipants` of the
-job def of the `JoyGiverDef` that uses it. A value native cannot read (not positive)
-is unknown, which is explicit on the wire and not a guess; what the planner assumes for
-unknown (1) is evaluator policy, not part of the contract. Quantity is the existing
-`StockCount` (the stack size claims sum against), distinct from `AvailableCount`, which
+job def of the `JoyGiverDef` that uses it (`NativeNeedsForecast.Claimants`). A value native
+cannot read (not positive) throws at the bridge: there is no unread capacity to report. The
+quantity is `NeedStock.Stacked.Count` (the stack size claims sum against), distinct from `AvailableCount`, which
 is capped at `maxNumToIngestAtOnce`. The evaluator reads it as above (#3210); a generated
 target without a `NeedTarget` row (a delivery cell) carries its capacity on the
 `ForecastNeedTask` itself.
@@ -1415,10 +1413,10 @@ target, the claiming pawn, the task and the stack count (the Eat step's `Count`;
 bed or a pin). The task row and its order name one claim once. A shared target is also
 listed in `Claims.Targets`, which generators read to avoid every claimed target; admission
 is what shares it. The capacity comes from `WorkAdmissionEvidence.NeedTargets`
-(`WorkTargetCapacity`: the observed `MaxPawns` and `StockCount`, frozen with the review
-and persisted with it); a target without an observed row, or with an unknown `MaxPawns`,
-reads as capacity 1 (this admission's policy, as in the evaluator), and an unknown
-quantity skips the summed-count bound. The rule never reads `Kind` or a target's string
+(`WorkTargetCapacity`: the observed `MaxPawns` and a `TargetQuantity`, `Units` for a stack or
+`Unbounded` for a bed or recreation building, frozen with the review and persisted with
+it); a target without an observed row reads as capacity 1 (this admission's policy, as in
+the evaluator), and an `Unbounded` quantity skips the summed-count bound. The rule never reads `Kind` or a target's string
 form.
 
 `WorkResourcesRefusal` refuses a shared target only when its distinct owners (committed

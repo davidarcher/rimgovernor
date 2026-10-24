@@ -8,14 +8,13 @@ public sealed record ForecastNeedTask(string Task, string Pawn, string Kind, str
 {
     public string FoodReady { get; init; } = "";
     public double ServiceDelay { get; init; }
-    public Fact<double> FreshTicks { get; init; }
-    /// <summary>Stack quantity the claims on this target sum against (<see cref="Count"/> per claim); unknown skips that bound.</summary>
-    public Fact<double> AvailableCount { get; init; }
+    /// <summary>Stack quantity the claims on this target sum against (<see cref="Count"/> per claim); a target that is not a stack has no bound.</summary>
+    public TargetQuantity Quantity { get; init; } = new TargetQuantity.Unbounded();
     /// <summary>The produced batch this claim eats from when the target is a cell several batches can be delivered to;
-    /// empty when the target itself is the stack. Claims sum against <see cref="AvailableCount"/> per (target, batch).</summary>
+    /// empty when the target itself is the stack. Claims sum against <see cref="Quantity"/> per (target, batch).</summary>
     public string Batch { get; init; } = "";
-    /// <summary>Simultaneous claimants the target admits (vanilla ReservationManager maxPawns). Unknown is read as 1 by the evaluator.</summary>
-    public Fact<int> MaxPawns { get; init; }
+    /// <summary>Simultaneous claimants the target admits (vanilla ReservationManager maxPawns).</summary>
+    public int MaxPawns { get; init; } = 1;
     public string FreshFrom { get; init; } = "";
 }
 public sealed record ForecastMaterialLot(string Lot, string Location, Resource Resource, Fact<double> Count)
