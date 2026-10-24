@@ -19,7 +19,7 @@ public sealed class MaintenancePracticeFixture
     private static Precept_Role? role;
     private static SkillDef skill = null!;
     private static int floor;
-    private static bool patched, earned, interrupt, drafted, restored, released;
+    private static bool patched, earned, interrupt, drafted, restored;
     private static readonly HashSet<string> methods = new(StringComparer.Ordinal);
     private static string realWeapon = "";
     private static Map? map;
@@ -58,7 +58,7 @@ public sealed class MaintenancePracticeFixture
             var hour = GenLocalDate.DayPercent(holder) * 24;
             Find.TickManager.DebugSetTicksGame(Find.TickManager.TicksGame + (int)Math.Round(((12 - hour + 24) % 24) * GenDate.TicksPerHour));
             realWeapon = holder.equipment.Primary?.def.defName ?? "";
-            methods.Clear(); earned = interrupt = drafted = restored = released = false;
+            methods.Clear(); earned = interrupt = drafted = restored = false;
             if (!patched)
             {
                 new Harmony("rimgovernor.fixture.maintenance").Patch(AccessTools.Method(typeof(JobDriver), "DriverTick"),
@@ -100,15 +100,14 @@ public sealed class MaintenancePracticeFixture
         return FixtureKit.Reply(new Fx.MaintenanceRead
         {
             Tick = Find.TickManager.TicksGame, Methods = methods.ToArray(), Earned = earned, Drafted = drafted, Restored = restored,
-            Released = released, Activity = NativePawnActivities.Read(holder)?.State ?? "unowned", Job = holder.CurJobDef?.defName ?? "",
+            Activity = NativePawnActivities.Read(holder)?.State ?? "unowned",
         });
     }, ct);
-    [Tool("test/maintenance_disturb", Description="UNSAFE FOR MODEL EXECUTION. Rearm below-floor maintenance and draft during native gear swap, or remove the assigned role. No work is selected. Test builds only.")]
+    [Tool("test/maintenance_disturb", Description="UNSAFE FOR MODEL EXECUTION. Rearm below-floor maintenance and draft during native gear swap. No work is selected. Test builds only.")]
     public async Task<object> Disturb(IRimBridgeContext ctx, CancellationToken ct, string action) => await ctx.MainThread.InvokeAsync<object>(() =>
     {
         if (holder == null || role == null) throw new InvalidOperationException("Prepare first.");
         if (action == "interrupt") { SetDeficit(); interrupt = true; }
-        else if (action == "release") { role.Unassign(holder, true); role.ideo.RemovePrecept(role); holder.drafter.Drafted = false; released = true; }
         else throw new ArgumentException("Unknown disturbance.");
         return FixtureKit.Reply(new Fx.FixtureDone { Success = true });
     }, ct);

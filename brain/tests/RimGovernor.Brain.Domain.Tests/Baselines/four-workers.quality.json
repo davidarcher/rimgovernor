@@ -474,11 +474,7 @@
         "support_observation_unknown",
         "threat_schedule_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry",
-        "unsupported_defensive_improvement_without_assignment:diner",
-        "unsupported_defensive_improvement_without_assignment:helper",
-        "unsupported_defensive_improvement_without_assignment:pawn",
-        "unsupported_defensive_improvement_without_assignment:porter"
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -972,11 +968,7 @@
         "support_observation_unknown",
         "threat_schedule_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry",
-        "unsupported_defensive_improvement_without_assignment:diner",
-        "unsupported_defensive_improvement_without_assignment:helper",
-        "unsupported_defensive_improvement_without_assignment:pawn",
-        "unsupported_defensive_improvement_without_assignment:porter"
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -1535,11 +1527,7 @@
         "support_observation_unknown",
         "threat_schedule_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry",
-        "unsupported_defensive_improvement_without_assignment:diner",
-        "unsupported_defensive_improvement_without_assignment:helper",
-        "unsupported_defensive_improvement_without_assignment:pawn",
-        "unsupported_defensive_improvement_without_assignment:porter"
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -2097,11 +2085,7 @@
         "support_observation_unknown",
         "threat_schedule_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry",
-        "unsupported_defensive_improvement_without_assignment:diner",
-        "unsupported_defensive_improvement_without_assignment:helper",
-        "unsupported_defensive_improvement_without_assignment:pawn",
-        "unsupported_defensive_improvement_without_assignment:porter"
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -2659,11 +2643,7 @@
         "support_observation_unknown",
         "threat_schedule_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry",
-        "unsupported_defensive_improvement_without_assignment:diner",
-        "unsupported_defensive_improvement_without_assignment:helper",
-        "unsupported_defensive_improvement_without_assignment:pawn",
-        "unsupported_defensive_improvement_without_assignment:porter"
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -3221,11 +3201,7 @@
         "support_observation_unknown",
         "threat_schedule_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry",
-        "unsupported_defensive_improvement_without_assignment:diner",
-        "unsupported_defensive_improvement_without_assignment:helper",
-        "unsupported_defensive_improvement_without_assignment:pawn",
-        "unsupported_defensive_improvement_without_assignment:porter"
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -3783,11 +3759,7 @@
         "support_observation_unknown",
         "threat_schedule_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry",
-        "unsupported_defensive_improvement_without_assignment:diner",
-        "unsupported_defensive_improvement_without_assignment:helper",
-        "unsupported_defensive_improvement_without_assignment:pawn",
-        "unsupported_defensive_improvement_without_assignment:porter"
+        "unknown_observed_shelter_geometry"
       ]
     }
   }

@@ -16,31 +16,53 @@ internal static class NativeSkillStat
 {
     internal const string Provenance = "native stat dependency graph at each stored skill level -> StatWorker.FinalizeValue; observed conditions held";
 
-    /// <summary>The per-pawn curves the biography carries (#3633). MedicalOperationSpeed has no StatDefOf field;
-    /// the surgery recipes' shared base names it.</summary>
-    private static readonly Func<StatDef>[] Biography =
+    /// <summary>The MeleeDPS curve's provenance: StatWorker_MeleeDPS is damage × MeleeHitChance / cooldown, and only the
+    /// hit chance reads the Melee skill, so each level's value is the observed MeleeDPS scaled by its hit chance.</summary>
+    internal const string MeleeProvenance = "StatWorker_MeleeDPS = damage x MeleeHitChance / cooldown; MeleeHitChance at each stored Melee level -> StatWorker.FinalizeValue; observed damage, cooldown and conditions held";
+
+    /// <summary>The per-pawn curves the biography carries: the medical ones over Medicine (#3633) and MeleeDPS over Melee
+    /// (#3813, the sparring ring's credit). MedicalOperationSpeed has no StatDefOf field; the surgery recipes' shared base names it.</summary>
+    private static readonly (Func<StatDef> Stat, Func<SkillDef> Skill)[] Biography =
     [
-        () => StatDefOf.MedicalTendQuality, () => StatDefOf.MedicalTendSpeed,
-        () => RecipeDefOf.RemoveBodyPart.workSpeedStat, () => StatDefOf.MedicalSurgerySuccessChance,
+        (() => StatDefOf.MedicalTendQuality, () => SkillDefOf.Medicine), (() => StatDefOf.MedicalTendSpeed, () => SkillDefOf.Medicine),
+        (() => RecipeDefOf.RemoveBodyPart.workSpeedStat, () => SkillDefOf.Medicine), (() => StatDefOf.MedicalSurgerySuccessChance, () => SkillDefOf.Medicine),
+        (() => StatDefOf.MeleeDPS, () => SkillDefOf.Melee),
     ];
 
     private static readonly MethodInfo? BaseBonusAtLevel =
         typeof(SkillNeed_BaseBonus).GetMethod("ValueAtLevel", BindingFlags.Instance | BindingFlags.NonPublic);
 
-    /// <summary>The biography's medical curves for a pawn with skills, plus one finding per stat that does not qualify.</summary>
+    /// <summary>The biography's curves for a pawn with skills, plus one finding per stat that does not qualify.</summary>
     internal static Obs.PawnBiography Curves(Pawn pawn, Obs.PawnBiography row)
     {
-        foreach (var stat in Biography.Select(s => s()))
+        foreach (var (stat, skill) in Biography.Select(s => (s.Stat(), s.Skill())))
         {
-            var values = Levels(pawn, stat, SkillDefOf.Medicine, out var finding);
+            var melee = stat == StatDefOf.MeleeDPS;
+            var values = melee ? MeleeDpsLevels(pawn, out var finding) : Levels(pawn, stat, skill, out finding);
             row = values == null
                 ? row with { SkillStatFindings = [.. row.SkillStatFindings, stat.defName + ": " + finding] }
                 : values.Any(v => float.IsNaN(v) || float.IsInfinity(v))
                     ? row with { SkillStatFindings = [.. row.SkillStatFindings, stat.defName + ": non-finite value"] }
-                    : row with { SkillStatCurves = [.. row.SkillStatCurves, new Obs.SkillStatCurve(stat.defName, SkillDefOf.Medicine.defName,
-                        EquatableArray.From(values.Select((v, level) => new Obs.SkillStatLevel(level, v)).ToArray()), Provenance)] };
+                    : row with { SkillStatCurves = [.. row.SkillStatCurves, new Obs.SkillStatCurve(stat.defName, skill.defName,
+                        EquatableArray.From(values.Select((v, level) => new Obs.SkillStatLevel(level, v)).ToArray()), melee ? MeleeProvenance : Provenance)] };
         }
         return row;
+    }
+
+    /// <summary>The pawn's MeleeDPS at each stored Melee level (see <see cref="MeleeProvenance"/>): the observed MeleeDPS times
+    /// the MeleeHitChance at the level over the current one. Null with the hit chance's finding when its pipeline does not qualify.</summary>
+    internal static float[]? MeleeDpsLevels(Pawn pawn, out string finding)
+    {
+        var hit = Levels(pawn, StatDefOf.MeleeHitChance, SkillDefOf.Melee, out finding);
+        if (hit == null) return null;
+        var now = pawn.GetStatValue(StatDefOf.MeleeHitChance);
+        if (!(now > 0))
+        {
+            finding = "melee hit chance is not positive";
+            return null;
+        }
+        var dps = pawn.GetStatValue(StatDefOf.MeleeDPS);
+        return hit.Select(h => dps * h / now).ToArray();
     }
 
     /// <summary>The finalized stat value at each stored level <see cref="SkillRecord.MinLevel"/>..<see cref="SkillRecord.MaxLevel"/>
@@ -105,7 +127,11 @@ internal static class NativeSkillStat
         if (stat.postProcessStatFactors?.Any(f => !Independent(pawn, f, skill)) == true) return "skill-dependent postprocess factor";
         if (pawn.Inspired) return "inspired";
         if (pawn.Stuff != null) return "pawn has stuff";
-        if (pawn.health.hediffSet.hediffs.Count > 0) return "hediffs present";
+        // A hediff's offset adds before the skill offset's sum is finalized, so only a hediff factor on the stat breaks an
+        // offset substitution; a factor stat keeps the stricter rule.
+        if (offsets == 0 && pawn.health.hediffSet.hediffs.Count > 0) return "hediffs present";
+        if (offsets == 1 && pawn.health.hediffSet.hediffs.Any(h => h.CurStage != null
+                && HediffStatsUtility.GetStatFactorForSeverity(stat, h.CurStage, pawn, h.Severity) != 1f)) return "hediff factor";
         if (pawn.story?.traits.allTraits.Any(t => !t.Suppressed && t.MultiplierOfStat(stat) != 1f) == true) return "trait factor";
         if (pawn.ageTracker.CurLifeStage.statFactors.GetStatFactorFromList(stat) != 1f) return "life stage factor";
         bool Conditional(System.Collections.Generic.List<ConditionalStatAffecter>? affecters) => affecters?.Any(c =>

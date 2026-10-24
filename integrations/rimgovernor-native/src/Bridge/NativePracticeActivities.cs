@@ -60,31 +60,11 @@ internal static class NativePracticeActivities
         return new() { Known = true, Workers = EquatableArray.From(workers) };
     }
 
-    internal static bool Assigned(Pawn pawn, PawnActivityPractice practice)
-    {
-        var beneficiary = pawn.Map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == practice.Beneficiary);
-        var role = beneficiary?.Ideo?.GetRole(beneficiary);
-        return role != null && role.GetUniqueLoadID() == practice.Role && role.Active
-            && practice.RequirementIndex >= 0 && practice.RequirementIndex < role.def.roleRequirements.Count
-            && role.def.roleRequirements[practice.RequirementIndex] is RoleRequirement_MinSkillAny requirement
-            && requirement.skills.Any(s => s.skill.defName == practice.Skill);
-    }
-
-    internal static Obs.PracticeMandateRead Mandate(Map map, SelectedActivityTask task)
-    {
-        var practice = task.Step.Practice!;
-        var beneficiary = map.mapPawns.FreeColonistsSpawned.FirstOrDefault(p => p.GetUniqueLoadID() == practice.Beneficiary);
-        if (beneficiary == null) return new(task.Id, default, []);
-        if (!Assigned(beneficiary, practice)) return new(task.Id, Fact.Known(false), []);
-        var role = beneficiary.Ideo.GetRole(beneficiary);
-        var requirement = (RoleRequirement_MinSkillAny)role.def.roleRequirements[practice.RequirementIndex];
-        return new(task.Id, Fact.Known(true), EquatableArray.From(requirement.skills.Select(s =>
-            new Obs.PracticeFloorRead(s.skill.defName, s.minLevel, NativeSkillLearning.Read(beneficiary, beneficiary.skills.GetSkill(s.skill))))));
-    }
-
+    /// <summary>The selected practice is still the pawn's to do: it may practise the skill (RangeTraining.CanTrain, under the
+    /// ceiling) and the stand or marker is usable. No Ideology role is required (#3813).</summary>
     internal static bool Legal(Pawn pawn, Thing target, PawnActivityStep step)
     {
-        if (step.Practice is not { } practice || !Assigned(pawn, practice) || target.IsForbidden(pawn)) return false;
+        if (step.Practice is not { } practice || target.IsForbidden(pawn)) return false;
         if (practice.Skill == "Shooting") return RangeTraining.Eligible(pawn, SkillDefOf.Shooting)
             && target.def == RangeTraining.StandDef && RangeTraining.DummyFor(target) is { } dummy
             && !dummy.IsForbidden(pawn) && pawn.CanReserve(target) && pawn.CanReserve(dummy);

@@ -29,6 +29,9 @@ public sealed record SkillLearning
     [JsonConverter(typeof(EquatableArrayJsonConverter<SkillLevelMechanics>))]
     public EquatableArray<SkillLevelMechanics> Levels { get; init; }
     public Fact<bool> PracticeEligible { get; init; }
+    /// <summary>The one practice eligibility rule (#3813, native RangeTraining.CanTrain): the pawn may practise this skill,
+    /// Shooting or Melee, whatever its level, draft or role. False for every other skill.</summary>
+    public bool PracticeCapable { get; init; }
     public Fact<int> PracticeCeiling { get; init; }
     public Fact<double> RangeAppliedBudget { get; init; }
 }

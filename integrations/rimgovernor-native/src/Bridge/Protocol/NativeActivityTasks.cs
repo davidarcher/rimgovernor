@@ -114,7 +114,6 @@ internal static class NativeActivityTasks
                 }
                 else if (step.Practice != null)
                 {
-                    if (!NativePracticeActivities.Assigned(pawn, step.Practice)) { satisfied.Add(task.Id); continue; }
                     var target = RefIndex.Thing(map, step.Target);
                     if (target != null && NativePracticeActivities.Legal(pawn, target, step)) bindings.Add(new(task.Id, step));
                 }
@@ -221,7 +220,6 @@ internal static class NativeActivityTasks
             }
         }
         return new() { Context = context, Known = true, Truncated = truncated,
-            Practice = EquatableArray.From(request.Batch.Tasks.Where(t => t.Step.Practice != null).Select(t => NativePracticeActivities.Mandate(map, t))),
             // Every continuation reads its participants' needs: the boundary between tasks hands no work to a pawn at its rest or food threshold.
             Needs = NativeNeedsForecast.Read(map, map.mapPawns.FreeColonistsSpawned.Where(p => request.Batch.Orders.Any(o => o.Pawn == p.GetUniqueLoadID())).ToList()),
             Pawns = EquatableArray.From(participants), Bindings = EquatableArray.From(bindings), SatisfiedTasks = EquatableArray.From(satisfied) };

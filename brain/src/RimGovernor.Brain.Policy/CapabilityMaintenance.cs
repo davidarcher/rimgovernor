@@ -3,8 +3,7 @@ using RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>One assigned native requirement. Alternatives are OR; distinct requirements are AND.</summary>
-public sealed record AssignedCapability(string Id, ServiceTarget Target, PawnId Pawn,
-    EquatableArray<SkillRequirement> Alternatives);
+public sealed record AssignedCapability(string Id, PawnId Pawn, EquatableArray<SkillRequirement> Alternatives);
 
 public static class CapabilityMaintenanceRules
 {
@@ -25,9 +24,7 @@ public static class CapabilityMaintenanceRules
                 foreach (var pawn in role.Pawns.OrderBy(p => p.Value, StringComparer.Ordinal))
                 {
                     var id = role.Id + "/" + index + "/" + pawn.Value;
-                    result.Add(new(id, ServiceTarget.ForNeed(IdeologyFamily.Roles, role.Id,
-                        "assigned_role_min_skill_any/" + index), pawn,
-                        EquatableArray.From(requirement.Skills)));
+                    result.Add(new(id, pawn, EquatableArray.From(requirement.Skills)));
                 }
             }
         }

@@ -2,15 +2,20 @@
 
 [Contract map](README.md) · [Skill mechanics](skill-learning.md) · [Pawn activities](pawn-activities.md)
 
-An active, actually held Ideology role establishes its native `RoleRequirement_MinSkillAny`
-requirements. Each requirement preserves every OR branch, including noncombat skills;
-separate requirements remain AND. Unfilled assignments are acquisition. Defense improvement
-without an assigned requirement is unsupported here. Current level, historical maxima and
-unlocked weapon ceilings never establish a target. No target is saved.
+Colony defense is every capable pawn's (#3813). Every pawn the one practice eligibility rule
+admits (`SkillLearning.PracticeCapable`, native `RangeTraining.CanTrain`: work tags allow the
+skill) may practise Shooting or Melee, whatever role it holds, and the gain does not stop at a
+role floor; only the native ceilings bound it. An active, actually held Ideology role still
+establishes its native `RoleRequirement_MinSkillAny` requirements, each preserving every OR
+branch; they feed the `maintenance_xp` tiebreak below. The role's skill requirement itself is
+not modelled: each assignment is the finding `ideology_role_skill_requirement_not_modelled:<id>`.
+Unfilled assignments are acquisition. No target is saved.
 
-Normal coupled generation proposes bounded range sessions and exact two-pawn sparring
-sessions. A partner can support a holder without having a maintenance requirement of their
-own. The common schedule charges both participants' travel, waiting and work, holds exact
+Normal coupled generation proposes bounded range sessions for each admitted pawn and exact
+two-pawn sparring sessions for each admitted pair. A session competes with other work on value
+(the skill XP it applies, priced by tier 2) like any other activity. The sparring ring's room
+credit prices the facility by the harm its trainees' Melee saves ([forecast value](../architecture/forecast-value.md)).
+The common schedule charges both participants' travel, waiting and work, holds exact
 stands/dummies/markers, and compares the same needs and mood trajectory as other work.
 Observed hostiles, critical patients or exhausted food/rest postpone practice; unknown
 hostile/critical-care evidence cannot admit it. Native drafting and existing safeguards
@@ -18,10 +23,8 @@ interrupt installed work.
 
 For each actual requirement, `ForecastMaintenance` projects native decay and callbacks from
 supported scheduled normal work once. Conditional practice callbacks join that same stream.
-The comparator minimizes the native XP still needed to meet a required branch, after urgent
-care, physiological and mood consequences. XP above the floor has no value. A practice group
-must improve an assigned shortfall relative to the same portfolio without its callbacks;
-sufficient ordinary learning therefore suppresses redundant practice. Missing OR-branch
+The comparator breaks ties by the native XP still needed to meet a required branch, after
+urgent care, physiological and mood consequences. Missing OR-branch
 mechanics are unknown unless another branch is known to satisfy the requirement. The
 projection ends before the earliest native reset for the skill, at most one day.
 
@@ -34,24 +37,22 @@ injury probability and recovery duration remain unassessed. Accounted schedule l
 excludes unassessed injury recovery; it is not a zero-risk estimate. Existing pain, bleeding,
 exchange, ceiling and daily-budget stops are unchanged.
 
-The existing `PawnActivities` Work step carries `PawnActivityPractice`: skill, actual role,
-requirement index and beneficiary, exact partner and partner marker, and bounded duration.
+The existing `PawnActivities` Work step carries `PawnActivityPractice`: skill, exact partner
+and partner marker, and bounded duration (#3813 removed the role, requirement and beneficiary).
 Domain and native validation require reciprocal paired tasks. Hands installs the exact roster when its selected Work starts
 in the existing transient bout registry. Controlled native WorkGivers no longer choose a skill
 or initiate a roster. Native drivers still own attacks, learning, practice gear and restoration.
 Manual/uncontrolled scanning retains its previous behavior. No new action kind, scheduler,
 reservation store or saved goal is introduced.
 
-Fresh continuation reads the beneficiary's actual assigned requirement and native mechanics.
-Loss/reassignment or known satisfaction releases the coordinated attempt for ordinary
-reconsideration; unknown evidence does not certify satisfaction. A bounded session's success
-is not evidence that a skill floor was restored. Actual skill readback owns that fact.
+A session continues while its step stays legal (an unforbidden target); a role's loss no longer
+releases it. A bounded session's success is not evidence that a skill floor was restored.
+Actual skill readback owns that fact.
 
 `coupled_selection` consequence vectors include `maintenance` rows with requirement identity,
 conditional `missing_xp` and findings. Existing OTLP timeline readers display them. Prepared
 `production/maintenance-range` and `production/maintenance-sparring` require normal Method
-journal attribution, observed recovery, draft/real-weapon restoration, and release after role
-removal. They complement the native budget, ceiling, damage and bystander laboratory cases.
+journal attribution, observed recovery and draft/real-weapon restoration. They complement the native budget, ceiling, damage and bystander laboratory cases.
 Registration and compilation are distinct from executed native acceptance.
 
 ## No practice surgery (#3344)

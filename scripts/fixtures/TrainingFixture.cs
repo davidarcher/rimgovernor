@@ -302,46 +302,51 @@ namespace HomeBridge.BridgeTools
                 return FixtureKit.Reply(new Fx.SkillLearningProbeRead { Samples = samples, Failures = failures });
             }, cancellationToken);
         }
-        [Tool("test/skill_stat_curve_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Clear two Medicine-capable colonists' hediffs and inspiration, compare the first's biography medical stat curves with live native stat calls at each level (temporarily set and restored), then anesthetize the second so its pipeline disqualifies. Test builds only.")]
+        [Tool("test/skill_stat_curve_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Clear two Medicine- and Melee-capable colonists' hediffs and inspiration, compare the first's biography medical and MeleeDPS stat curves with live native stat calls at each level (temporarily set and restored), then anesthetize the second so its medical pipeline disqualifies. Test builds only.")]
         public async Task<object> SkillStatCurvePrepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = FixtureKit.CurrentMap();
-                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => p.skills?.GetSkill(SkillDefOf.Medicine).TotallyDisabled == false).Take(2).ToArray();
-                if (pawns.Length < 2) throw new InvalidOperationException("Two Medicine-capable colonists are required.");
+                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => p.skills?.GetSkill(SkillDefOf.Medicine).TotallyDisabled == false && !p.skills.GetSkill(SkillDefOf.Melee).TotallyDisabled).Take(2).ToArray();
+                if (pawns.Length < 2) throw new InvalidOperationException("Two Medicine- and Melee-capable colonists are required.");
                 foreach (var pawn in pawns)
                 {
                     foreach (var hediff in pawn.health.hediffSet.hediffs.ToList()) pawn.health.RemoveHediff(hediff);
                     if (pawn.Inspired) pawn.mindState.inspirationHandler.EndInspiration(pawn.Inspiration);
                 }
                 var (qualified, disqualified) = (pawns[0], pawns[1]);
-                var skill = qualified.skills.GetSkill(SkillDefOf.Medicine);
-                var before = (skill.levelInt, skill.xpSinceLastLevel, skill.xpSinceMidnight);
+                var records = new[] { SkillDefOf.Medicine, SkillDefOf.Melee }.Select(d => qualified.skills.GetSkill(d)).ToArray();
+                var before = records.Select(r => (r.levelInt, r.xpSinceLastLevel, r.xpSinceMidnight)).ToArray();
                 var biography = NativePawnDetails.Biography(qualified);
                 var failures = biography.SkillStatFindings.ToList();
-                if (before != (skill.levelInt, skill.xpSinceLastLevel, skill.xpSinceMidnight)) failures.Add("read_mutated_pawn");
+                if (!before.SequenceEqual(records.Select(r => (r.levelInt, r.xpSinceLastLevel, r.xpSinceMidnight)))) failures.Add("read_mutated_pawn");
                 var samples = 0;
                 try
                 {
                     foreach (var curve in biography.SkillStatCurves)
                     {
-                        var stat = DefDatabase<StatDef>.GetNamed(curve.Stat); // the curve names its stat by defName across the wire
-                        foreach (var level in curve.Levels)
+                        var stat = DefDatabase<StatDef>.GetNamed(curve.Stat); // the curve names its stat and skill by defName across the wire
+                        var skill = records.Single(r => r.def.defName == curve.Skill);
+                        var saved = skill.levelInt;
+                        try
                         {
-                            // Disposable fixture mutation only: evaluate the actual native level without stat caching.
-                            skill.levelInt = level.StoredLevel;
-                            var actual = stat.Worker.GetValue(StatRequest.For(qualified));
-                            samples++;
-                            if (Math.Abs(level.Value - actual) > 1e-4 * Math.Max(1, Math.Abs(actual)))
-                                failures.Add($"{curve.Stat}/{level.StoredLevel}: {level.Value} vs {actual}");
+                            foreach (var level in curve.Levels)
+                            {
+                                // Disposable fixture mutation only: evaluate the actual native level without stat caching.
+                                skill.levelInt = level.StoredLevel;
+                                var actual = stat.Worker.GetValue(StatRequest.For(qualified));
+                                samples++;
+                                if (Math.Abs(level.Value - actual) > 1e-4 * Math.Max(1, Math.Abs(actual)))
+                                    failures.Add($"{curve.Stat}/{level.StoredLevel}: {level.Value} vs {actual}");
+                            }
                         }
+                        finally { skill.levelInt = saved; }
                     }
                 }
                 finally
                 {
-                    skill.levelInt = before.levelInt;
-                    skill.xpSinceLastLevel = before.xpSinceLastLevel;
-                    skill.xpSinceMidnight = before.xpSinceMidnight;
+                    for (var i = 0; i < records.Length; i++)
+                        (records[i].levelInt, records[i].xpSinceLastLevel, records[i].xpSinceMidnight) = before[i];
                 }
                 foreach (var pair in new[] { (StatDefOf.ConstructionSpeed, SkillDefOf.Construction),
                     (StatDefOf.PlantWorkSpeed, SkillDefOf.Plants), (StatDefOf.MiningSpeed, SkillDefOf.Mining),

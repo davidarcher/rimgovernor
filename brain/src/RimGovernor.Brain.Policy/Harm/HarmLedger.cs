@@ -104,10 +104,11 @@ internal static class HarmLedger
     /// <summary>The threats the harm term leaves out in v1 (non-raid threats, adaptation feedback, fire), reported with every known term.</summary>
     private static readonly string[] Unmodelled = ["other_threats_unassessed", "adaptation_feedback_unassessed", "fire_unassessed"];
 
-    /// <summary>The harm of <paramref name="outcome"/> wearing the worn outfits changed by <paramref name="commitments"/>.</summary>
+    /// <summary>The harm of <paramref name="outcome"/> wearing the worn outfits changed by <paramref name="commitments"/>, with
+    /// <paramref name="defenseShift"/> raid points of defense added to the observed capacity (the sparring ring's trained Melee, #3813).</summary>
     internal static HarmTerm Of(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
         ConcurrentDictionary<(string, string, EquatableArray<GearOption>, ForecastSupportConsequences, HitRange), HarmDistribution> cache, IReadOnlyDictionary<string, NeedsForecastPawn> pawns, IEnumerable<ForecastCommitment>? commitments,
-        ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution>? illnessCache = null)
+        ConcurrentDictionary<(string, ForecastSupportConsequences?), HarmDistribution>? illnessCache = null, double defenseShift = 0)
     {
         var inputs = context.Harm;
         var findings = new SortedSet<string>(StringComparer.Ordinal);
@@ -142,7 +143,7 @@ internal static class HarmLedger
         }
 
         var ratio = double.NaN;
-        if (PointsRatio(inputs) is { } known)
+        if (PointsRatio(inputs, defenseShift) is { } known)
         {
             ratio = known;
         }
@@ -408,12 +409,14 @@ internal static class HarmLedger
     internal static double? RaidsPerDay(HarmInputs inputs) =>
         inputs.Schedule.MajorThreatsPerDay.TryGetValue(out var threats) && inputs.Schedule.RaidFraction.TryGetValue(out var share) ? threats * share : null;
 
-    /// <summary>The raid's points ÷ the colony's defense capacity, the exposure table's ratio; null when either is unread or the capacity is not positive.</summary>
-    internal static double? PointsRatio(HarmInputs inputs) => inputs.RaidPoints.TryGetValue(out var points) ? RatioOf(inputs, points) : null;
+    /// <summary>The raid's points ÷ the colony's defense capacity plus <paramref name="shift"/> points (the sparring ring's trained
+    /// Melee, #3813), the exposure table's ratio; null when either is unread or the capacity is not positive.</summary>
+    internal static double? PointsRatio(HarmInputs inputs, double shift = 0) => inputs.RaidPoints.TryGetValue(out var points) ? RatioOf(inputs, points, shift) : null;
 
-    /// <summary><paramref name="points"/> ÷ the colony's defense capacity (a raid's, or an escaped entity's combatPower, #3811); null when the capacity is unread or not positive.</summary>
-    private static double? RatioOf(HarmInputs inputs, double points) =>
-        inputs.DefenseCapacity.TryGetValue(out var defense) && defense > 0 ? points / defense : null;
+    /// <summary><paramref name="points"/> ÷ the colony's defense capacity plus <paramref name="shift"/> (a raid's, or an escaped
+    /// entity's combatPower, #3811); null when the capacity is unread or not positive.</summary>
+    private static double? RatioOf(HarmInputs inputs, double points, double shift = 0) =>
+        inputs.DefenseCapacity.TryGetValue(out var defense) && defense > 0 ? points / (defense + shift) : null;
 
     /// <summary>The raid composition's weapon bins; null when the composition is unread or has none.</summary>
     internal static WeaponBin[]? BinsOf(HarmInputs inputs) =>

@@ -1,30 +1,15 @@
 using RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy;
 
-public sealed record ForecastPracticeTask(string Task, PracticeWorker Worker, string Requirement);
+/// <summary>A generated practice session (#3341): its task and the native mechanics of the pawn practising there.</summary>
+public sealed record ForecastPracticeTask(string Task, PracticeWorker Worker);
 public sealed record ForecastMaintenanceRequirement(AssignedCapability Requirement, EquatableArray<WorkSkill> Skills);
 public sealed record ForecastMaintenanceConsequence(string Requirement, Fact<double> MissingXp, EquatableArray<string> Findings);
 
 public static class ForecastMaintenancePolicy
 {
-    public static bool PracticeMandateEnded(PawnActivities batch, ActivityTaskRead read)
-    {
-        foreach (var task in batch.Tasks.Where(t => t.Step.Practice != null))
-        {
-            var current = read.Practice.FirstOrDefault(p => p.Task == task.Id);
-            if (current is null) continue;
-            if (current.Assigned == Known(false)) return true;
-            if (current.Assigned != Known(true)) continue;
-            var practice = task.Step.Practice!;
-            var requirement = new AssignedCapability(task.Id, ServiceTarget.ForNeed(IdeologyFamily.Roles, practice.Role, "assigned_role_min_skill_any/" + practice.RequirementIndex),
-                new(practice.Beneficiary), EquatableArray.From(current.Alternatives.Select(a => new SkillRequirement(a.Skill, a.Minimum))));
-            var skills = EquatableArray.From(current.Alternatives.Select(a => new WorkSkill { Name = a.Skill, Learning = a.Learning,
-                Disabled = a.Learning.Disabled == Known(true), Level = a.Learning.StoredLevel.IsKnown && a.Learning.Aptitude.IsKnown ? a.Learning.StoredLevel.Value + a.Learning.Aptitude.Value : 0 }));
-            var result = ForecastMaintenance([new(requirement, skills)], [], new([], 0, 0), new Dictionary<string, Fact<bool>>(), GameTime.TicksPerDay);
-            if (result[0].MissingXp == Known(0d)) return true;
-        }
-        return false;
-    }
+    /// <summary>No activity completed: a maintenance forecast of decay alone (the training review's).</summary>
+    public static readonly IReadOnlyDictionary<string, Fact<bool>> NoneCompleted = new Dictionary<string, Fact<bool>>();
 
     public static EquatableArray<ForecastMaintenanceConsequence> ForecastMaintenance(
         EquatableArray<ForecastMaintenanceRequirement> requirements, EquatableArray<ForecastPracticeTask> practice,

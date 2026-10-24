@@ -50,7 +50,8 @@ public static class PlannedRoomCredits
     /// remove (#3806); Worship by the ideoligion effects it meets for each believer (#3808); Pen by the roamers it keeps from walking off the map (#3812); DeathrestChamber by the work days and
     /// chamber mood its caskets and accelerators give each deathrester (#3810); Hospital by the infection, illness, sleep mood
     /// and queued surgery failures its bed relieves (#3804); ContainmentCell by the escapes its strength stops and the study it adds
-    /// for the entity it holds, or the study less the escapes of the entity it captures (#3811).</summary>
+    /// for the entity it holds, or the study less the escapes of the entity it captures (#3811); SparringRing by the raid harm its
+    /// trainees' Melee saves (#3813).</summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> Shipped = new Dictionary<PlannedRole, RoomCredit>
     {
         [PlannedRole.Bedroom] = ForecastHousing.BedroomCredit,
@@ -71,16 +72,19 @@ public static class PlannedRoomCredits
         [PlannedRole.DeathrestChamber] = ForecastDeathrest.ChamberCredit,
         [PlannedRole.Hospital] = ForecastHospital.HospitalCredit,
         [PlannedRole.ContainmentCell] = ForecastContainment.CellCredit,
+        [PlannedRole.SparringRing] = ForecastSparring.RingCredit,
     };
 
     /// <summary>
     /// The mechanics a role's credit leaves out, named with each room of it served (<see cref="RoomFindings"/>): the hospital's
-    /// (#3804); the containment cell's, with its held entity's unpriced escape fight or knowledge category (#3811).
+    /// (#3804); the containment cell's, with its held entity's unpriced escape fight or knowledge category (#3811); the sparring
+    /// ring's (#3813).
     /// </summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomFindings> Unmodelled = new Dictionary<PlannedRole, RoomFindings>
     {
         [PlannedRole.Hospital] = (_, _, _, _) => ForecastHospital.Unmodelled,
         [PlannedRole.ContainmentCell] = ForecastContainment.CellFindings,
+        [PlannedRole.SparringRing] = (_, _, _, _) => ForecastSparring.Unmodelled,
     };
 
     /// <summary>

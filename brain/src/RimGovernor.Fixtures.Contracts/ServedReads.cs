@@ -138,7 +138,7 @@ public sealed record SharedStackRead
     public bool SharedWhileOwned { get; init; }
 }
 
-/// <summary><c>test/maintenance_read</c>: the role holder's native practice, draft interruption and release.</summary>
+/// <summary><c>test/maintenance_read</c>: the role holder's native practice and draft interruption.</summary>
 public sealed record MaintenanceRead
 {
     public int Tick { get; init; }
@@ -156,11 +156,6 @@ public sealed record MaintenanceRead
 
     /// <summary>The holder's original weapon is back in hand after the draft.</summary>
     public bool Restored { get; init; }
-
-    /// <summary>The fixture removed the role.</summary>
-    public bool Released { get; init; }
-
-    public string Job { get; init; } = "";
 }
 
 /// <summary><c>test/service_shelter_prepare</c>: the cold room's 3x3 interior corner and its door, for the case's layout plan.</summary>

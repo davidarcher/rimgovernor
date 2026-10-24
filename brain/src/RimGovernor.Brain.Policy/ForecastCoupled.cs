@@ -121,6 +121,9 @@ public sealed record ForecastCoupledContext
     /// <summary>The player's roamers (AnimalUpkeepObservation.Roamers, #3812); null when native could not read the animal census,
     /// which a served pen's credit raises as a required fact.</summary>
     public IReadOnlyList<PenRoamer>? Roamers { get; init; }
+    /// <summary>The pawns a sparring ring trains (PracticeMethodCandidates.TraineesOf, #3813); null when the work pawns were not
+    /// read, which a served ring's credit raises as a required fact.</summary>
+    public SparringTrainees? Sparring { get; init; }
     /// <summary>The bench a planned laboratory is furnished with (RoundsFacts.LaboratoryBench, #3800); "" none.</summary>
     public string LaboratoryBench { get; init; } = "";
     /// <summary>

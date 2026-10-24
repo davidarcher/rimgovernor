@@ -10,7 +10,7 @@ public sealed record ForecastServiceInvestment(ServiceTarget Target, EquatableAr
 public static class ForecastServiceInvestments
 {
     public static Fact<bool> ReviewServiceActivityNeed(PawnActivities batch, Fact<bool> needed, ActivityTaskRead read)
-        => ForecastMaintenancePolicy.PracticeMandateEnded(batch, read) || read.Known && read.Context is not null && (ServiceConstructionBoundary(batch, read) || ProductiveFoodDemandEnded(batch, read)) ? Known(false) : needed;
+        => read.Known && read.Context is not null && (ServiceConstructionBoundary(batch, read) || ProductiveFoodDemandEnded(batch, read)) ? Known(false) : needed;
 
     /// <summary>Reconsider only at a physical work boundary. Fresh needs can retire the supported
     /// ingestion-only investment; missing observations cannot establish demand satisfaction.</summary>

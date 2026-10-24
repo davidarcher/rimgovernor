@@ -1347,6 +1347,4 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(EquatableArray<Observations.HuntHediffRead>))]
 [JsonSerializable(typeof(EquatableArray<Observations.HuntRevengeRead>))]
 [JsonSerializable(typeof(RimGovernor.Brain.Domain.PawnActivityPractice))]
-[JsonSerializable(typeof(EquatableArray<Observations.PracticeMandateRead>))]
-[JsonSerializable(typeof(EquatableArray<Observations.PracticeFloorRead>))]
 public sealed partial class WireJsonContext : JsonSerializerContext;

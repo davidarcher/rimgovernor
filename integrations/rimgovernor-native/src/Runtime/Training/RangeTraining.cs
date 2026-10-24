@@ -118,7 +118,9 @@ namespace RimGovernor.Runtime
             Spent[pawn.thingIDNumber] = new KeyValuePair<int, float>(GenDate.DaysPassed, SpentToday(pawn) + applied);
         }
 
-        // A skill is usable unless disabled; Shooting also not for a Brawler.
+        // The one practice eligibility rule (#3813, epic #3650), for both skills: every pawn whose work tags leave the
+        // skill usable may practise it, a Brawler not Shooting. The brain reads it as SkillLearning.PracticeCapable;
+        // the sparring ring's credit prices it, and the range's (#3846) will.
         public static bool CanTrain(Pawn pawn, SkillDef skill)
         {
             var record = pawn.skills?.GetSkill(skill);
@@ -126,32 +128,13 @@ namespace RimGovernor.Runtime
             return skill != SkillDefOf.Shooting || !(pawn.story?.traits?.HasTrait(TraitDefOf.Brawler) ?? false);
         }
 
-        // The skill a pawn trains (TrainingSkill in Brain.Policy):
-        // the higher usable level, then the stronger passion, then Shooting.
-        public static bool TryChoose(Pawn pawn, out SkillDef skill)
-        {
-            var canShoot = CanTrain(pawn, SkillDefOf.Shooting);
-            var canMelee = CanTrain(pawn, SkillDefOf.Melee);
-            skill = canShoot ? SkillDefOf.Shooting : canMelee ? SkillDefOf.Melee : null;
-            if (!canShoot || !canMelee) return skill != null;
-            var shooting = pawn.skills.GetSkill(SkillDefOf.Shooting);
-            var melee = pawn.skills.GetSkill(SkillDefOf.Melee);
-            if (melee.Level > shooting.Level || melee.Level == shooting.Level && melee.passion > shooting.passion)
-            {
-                skill = SkillDefOf.Melee;
-            }
-            return true;
-        }
-
         // Each skill's own ladder: the unlocked drill bow's ceiling, the sparring weapon's.
         public static int CeilingFor(SkillDef skill) => skill == SkillDefOf.Melee ? SparringRules.Ceiling : Ceiling;
 
-        // True when the pawn's chosen skill is the given one and still under that
-        // skill's ceiling.
+        // True when the pawn may practise the skill (CanTrain) and is still under that skill's ceiling.
         public static bool BelowTarget(Pawn pawn, SkillDef skill)
         {
-            return (MigratedScope(pawn) ? CanTrain(pawn, skill) : TryChoose(pawn, out var chosen) && chosen == skill)
-                && pawn.skills.GetSkill(skill).Level < CeilingFor(skill);
+            return CanTrain(pawn, skill) && pawn.skills.GetSkill(skill).Level < CeilingFor(skill);
         }
 
         public static bool Eligible(Pawn pawn, SkillDef skill)

@@ -374,7 +374,7 @@ Contracts/Operations.cs|UnknownMember|14
 Contracts/PawnActivities.cs|NullableValue|1
 Contracts/Placement.cs|NullableValue|17
 Contracts/Placement.cs|UnknownMember|1
-Contracts/PracticeActivities.cs|Fact|6
+Contracts/PracticeActivities.cs|Fact|5
 Contracts/Presentation.cs|NullableValue|30
 Contracts/Presentation.cs|UnknownMember|1
 Contracts/Receipts.cs|NullableValue|32
@@ -780,7 +780,7 @@ Policy/ForecastConstruction.cs|Fact|50
 Policy/ForecastConstruction.cs|Unknown|1
 Policy/ForecastCoupled.cs|Fact|18
 Policy/ForecastCoupledCandidates.cs|Fact|41
-Policy/ForecastCoupledEvaluation.cs|Fact|176
+Policy/ForecastCoupledEvaluation.cs|Fact|172
 Policy/ForecastCoupledExecution.cs|Fact|1
 Policy/ForecastCoupledMaterials.cs|Fact|31
 Policy/ForecastCoupledSelection.cs|Discard|1
@@ -796,7 +796,7 @@ Policy/ForecastHandoffProjects.cs|Fact|14
 Policy/ForecastHousing.cs|Fact|32
 Policy/ForecastIncumbentPreparation.cs|Fact|35
 Policy/ForecastLiveEvidence.cs|Fact|11
-Policy/ForecastMaintenance.cs|Fact|26
+Policy/ForecastMaintenance.cs|Fact|19
 Policy/ForecastMaterialChoices.cs|Fact|8
 Policy/ForecastMaterialValue.cs|Fact|8
 Policy/ForecastMood.cs|Fact|54
@@ -811,7 +811,7 @@ Policy/ForecastRoofConsequences.cs|Fact|35
 Policy/ForecastServiceInvestments.cs|Fact|22
 Policy/ForecastShelter.cs|Fact|26
 Policy/ForecastSkill.cs|Fact|64
-Policy/ForecastSkillCursor.cs|Fact|39
+Policy/ForecastSkillCursor.cs|Fact|33
 Policy/ForecastSupport.cs|Fact|18
 Policy/ForecastSurvivalNeeds.cs|Fact|19
 Policy/ForecastTerminalStock.cs|Fact|51
@@ -1013,7 +1013,7 @@ Policy/Methods/Generation/EffectSourceCandidates.cs|Fact|5
 Policy/Methods/Generation/FoodRecipeActivity.cs|Fact|2
 Policy/Methods/Generation/PlannedRoomCandidates.cs|Discard|1
 Policy/Methods/Generation/PlannedRoomCandidates.cs|Fact|56
-Policy/Methods/Generation/PracticeMethodCandidates.cs|Fact|19
+Policy/Methods/Generation/PracticeMethodCandidates.cs|Fact|16
 Policy/Methods/Generation/ResearchMethodCandidates.cs|Fact|2
 Policy/Methods/Generation/SowingMethodCandidates.cs|Fact|5
 Policy/Methods/Generation/SupportMethodCandidates.cs|Fact|22

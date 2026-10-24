@@ -72,6 +72,7 @@ internal static class NativeSkillLearning
             ValidForTicks = Known(Math.Min(localRemaining, globalRemaining)), NextMidnightReset = midnightReset > 0 ? Known(midnightReset) : default,
             TrackerIntervalTicks = cadence, TrackerPhase = phase, TrackerElapsedTicks = elapsed, Levels = EquatableArray.From(levels),
             PracticeEligible = practice ? Known(skill.def == SkillDefOf.Shooting ? RangeTraining.Eligible(pawn, skill.def) : SparringBouts.Eligible(pawn)) : default,
+            PracticeCapable = practice && RangeTraining.CanTrain(pawn, skill.def),
             PracticeCeiling = practice ? Known(RangeTraining.CeilingFor(skill.def)) : default,
             RangeAppliedBudget = skill.def == SkillDefOf.Shooting ? Known((double)RangeTraining.Remaining(pawn)) : default,
         };

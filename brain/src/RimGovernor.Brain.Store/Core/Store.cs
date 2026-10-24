@@ -41,8 +41,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 36 adds <c>FilthRuns</c> to the planned room (#3797): the station group's butchering load the room's cleanliness reads.
     /// Version 37 adds <c>Meals</c> to the planned room (#3802): the meals a day its stations make, which the kitchen credit prices.
     /// Version 38 reads mood evidence whole (#3768): a mood pawn's needs persist as has/lacks need levels, its flags and threshold as plain values, and a recovery worker's flags as plain booleans.
+    /// Version 39 drops <c>Practice.Role</c>, <c>Practice.RequirementIndex</c> and <c>Practice.Beneficiary</c> from journaled activity steps (#3813): practice is every capable pawn's, no role mandate.
     /// </summary>
-    public const int SchemaVersion = 38;
+    public const int SchemaVersion = 39;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

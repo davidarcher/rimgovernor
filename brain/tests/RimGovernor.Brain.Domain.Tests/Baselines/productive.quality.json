@@ -151,6 +151,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -199,6 +200,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -330,6 +332,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -378,6 +381,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -666,9 +670,7 @@
         "support_observation_unknown",
         "threat_schedule_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry",
-        "unsupported_defensive_improvement_without_assignment:helper",
-        "unsupported_defensive_improvement_without_assignment:pawn"
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -824,6 +826,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -872,6 +875,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -1003,6 +1007,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -1051,6 +1056,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -1338,9 +1344,7 @@
         "support_observation_unknown",
         "threat_schedule_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry",
-        "unsupported_defensive_improvement_without_assignment:helper",
-        "unsupported_defensive_improvement_without_assignment:pawn"
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -1496,6 +1500,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -1544,6 +1549,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -1675,6 +1681,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -1723,6 +1730,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -2010,9 +2018,7 @@
         "support_observation_unknown",
         "threat_schedule_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry",
-        "unsupported_defensive_improvement_without_assignment:helper",
-        "unsupported_defensive_improvement_without_assignment:pawn"
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -2168,6 +2174,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -2216,6 +2223,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -2347,6 +2355,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -2395,6 +2404,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -2682,9 +2692,7 @@
         "support_observation_unknown",
         "threat_schedule_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry",
-        "unsupported_defensive_improvement_without_assignment:helper",
-        "unsupported_defensive_improvement_without_assignment:pawn"
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -2840,6 +2848,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -2888,6 +2897,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -3019,6 +3029,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -3067,6 +3078,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -3354,9 +3366,7 @@
         "support_observation_unknown",
         "threat_schedule_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry",
-        "unsupported_defensive_improvement_without_assignment:helper",
-        "unsupported_defensive_improvement_without_assignment:pawn"
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -3519,6 +3529,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -3567,6 +3578,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -3698,6 +3710,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -3746,6 +3759,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -4034,9 +4048,7 @@
         "support_observation_unknown",
         "threat_schedule_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry",
-        "unsupported_defensive_improvement_without_assignment:helper",
-        "unsupported_defensive_improvement_without_assignment:pawn"
+        "unknown_observed_shelter_geometry"
       ]
     }
   },
@@ -4199,6 +4211,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -4247,6 +4260,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -4378,6 +4392,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -4426,6 +4441,7 @@
                   }
                 ],
                 "PracticeEligible": null,
+                "PracticeCapable": false,
                 "PracticeCeiling": null,
                 "RangeAppliedBudget": null
               }
@@ -4714,9 +4730,7 @@
         "support_observation_unknown",
         "threat_schedule_unknown",
         "unknown_clothing_requirements",
-        "unknown_observed_shelter_geometry",
-        "unsupported_defensive_improvement_without_assignment:helper",
-        "unsupported_defensive_improvement_without_assignment:pawn"
+        "unknown_observed_shelter_geometry"
       ]
     }
   }

@@ -1001,7 +1001,8 @@ public sealed record PawnBiography
 
     /// <summary>
     /// Medical stats at each stored Medicine level (MedicalTendQuality, MedicalTendSpeed, MedicalOperationSpeed,
-    /// MedicalSurgerySuccessChance) for a pawn with skills whose stat pipeline qualifies.
+    /// MedicalSurgerySuccessChance) and MeleeDPS at each stored Melee level (#3813) for a pawn with skills whose stat
+    /// pipeline qualifies.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<SkillStatCurve>))]
     public required EquatableArray<SkillStatCurve> SkillStatCurves { get; init; }

@@ -1,51 +1,64 @@
 namespace RimGovernor.Brain.Policy;
 
 
-/// <summary>Assigned combat requirements threatened by bounded native skill decay.</summary>
+/// <summary>Who trains (#3259, #3813): the assigned Shooting holders threatened by bounded native skill decay, and every pawn
+/// capable of Melee practice below the sparring ceiling.</summary>
 public sealed record TrainingReview
 {
-    /// <summary>The adult colonists who can train a skill.</summary>
+    /// <summary>The colonists the review read.</summary>
     public int Capable { get; init; }
 
-    /// <summary>Assigned holders with a projected requirement shortfall.</summary>
+    /// <summary>The assigned combat-capability holders: the training range's stands (#3846 prices the range).</summary>
+    public int Holders { get; init; }
+
+    /// <summary>The pawns who would train: the Shooting holders below their requirement, and the Melee trainees when a bout has a partner.</summary>
     public int Below { get; init; }
 
     /// <summary>Holders with supported Shooting maintenance alternatives.</summary>
     public int ShootingBelow { get; init; }
 
-    /// <summary>Holders with supported Melee maintenance alternatives.</summary>
-    public int MeleeBelow { get; init; }
+    /// <summary>The pawns the one practice eligibility rule admits for Melee (SkillLearning.PracticeCapable, #3813) below the
+    /// sparring ceiling. Under two, nobody spars: a bout needs a partner.</summary>
+    public int MeleeTrainees { get; init; }
 }
 
 public static partial class TrainingRules
 {
     /// <summary>
-    /// The military/training predicate's review (#3259): the assigned combat-capability holders forecast below their
-    /// requirement, with supported Shooting or Melee practice. Facilities follow actual requirements only; unlocked
-    /// ceilings constrain feasibility.
+    /// The military/training predicate's review (#3259, #3813): the assigned combat-capability holders forecast below their
+    /// Shooting requirement, and every pawn the practice eligibility rule admits for Melee whose level is under the sparring
+    /// ceiling (colony defense is every capable pawn's). Two or more trainees want a sparring ring; one alone has nobody to
+    /// train with. Unlocked ceilings constrain feasibility.
     /// </summary>
     public static Fact<TrainingReview> ReviewTraining(RoundsFacts facts)
     {
         if (!facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)) return Unknown<TrainingReview>();
         if (!facts.Ideology.TryGetValue(out _)) return Unknown<TrainingReview>();
         var requirements = CapabilityMaintenanceRules.AssignedCombatCapabilities(facts.Ideology);
-        var active = new List<(string Pawn, string Skill)>(); var unknown = false;
-        foreach (var requirement in requirements)
+        var shooting = new HashSet<string>(StringComparer.Ordinal); var trainees = new HashSet<string>(StringComparer.Ordinal); var unknown = false;
+        foreach (var pawn in pawns)
         {
-            var pawn = pawns.FirstOrDefault(p => p.Id == requirement.Pawn);
-            if (pawn is null || !pawn.Skills.TryGetValue(out var skills)) { unknown = true; continue; }
-            var consequence = ForecastMaintenancePolicy.ForecastMaintenance([new(requirement, EquatableArray.From(skills))], [],
-                new([], 0, 0), new Dictionary<string, Fact<bool>>(), GameTime.TicksPerDay)[0];
-            if (!consequence.MissingXp.TryGetValue(out var missing)) { unknown = true; continue; }
-            if (missing <= 0) continue;
-            foreach (var alternative in requirement.Alternatives.Where(a => a.Skill is "Shooting" or "Melee"))
-                if (skills.FirstOrDefault(s => s.Name == alternative.Skill)?.Learning?.PracticeEligible == Known(true))
-                    active.Add((requirement.Pawn.Value, alternative.Skill));
+            if (!pawn.Skills.TryGetValue(out var skills)) { unknown = true; continue; }
+            if (skills.FirstOrDefault(s => s.Name == "Melee") is { Learning: { PracticeCapable: true } melee } skill)
+            {
+                if (!melee.PracticeCeiling.TryGetValue(out var ceiling)) unknown = true;
+                else if (skill.Level < ceiling) trainees.Add(pawn.Id.Value);
+            }
+            foreach (var requirement in requirements.Where(r => r.Pawn == pawn.Id))
+            {
+                var consequence = ForecastMaintenancePolicy.ForecastMaintenance([new(requirement, EquatableArray.From(skills))], [],
+                    new([], 0, 0), ForecastMaintenancePolicy.NoneCompleted, GameTime.TicksPerDay)[0];
+                if (!consequence.MissingXp.TryGetValue(out var missing)) { unknown = true; continue; }
+                if (missing > 0 && requirement.Alternatives.Any(a => a.Skill == "Shooting")
+                    && skills.FirstOrDefault(s => s.Name == "Shooting")?.Learning?.PracticeEligible == Known(true))
+                    shooting.Add(pawn.Id.Value);
+            }
         }
-        if (active.Count == 0 && unknown) return Unknown<TrainingReview>();
-        return Known(new TrainingReview { Capable = requirements.Select(r => r.Pawn).Distinct().Count(),
-            Below = active.Select(a => a.Pawn).Distinct().Count(), ShootingBelow = active.Where(a => a.Skill == "Shooting").Select(a => a.Pawn).Distinct().Count(),
-            MeleeBelow = active.Where(a => a.Skill == "Melee").Select(a => a.Pawn).Distinct().Count() });
+        unknown |= requirements.Any(r => pawns.All(p => p.Id != r.Pawn));
+        var below = shooting.Union(trainees.Count >= 2 ? trainees : []).Count();
+        if (below == 0 && unknown) return Unknown<TrainingReview>();
+        return Known(new TrainingReview { Capable = pawns.Count, Holders = requirements.Select(r => r.Pawn).Distinct().Count(),
+            Below = below, ShootingBelow = shooting.Count, MeleeTrainees = trainees.Count });
     }
 
     /// <summary>

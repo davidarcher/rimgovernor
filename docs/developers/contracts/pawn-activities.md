@@ -511,4 +511,4 @@ task's bounded preparation under a new journal revision. The terminal old order
 does not grant clock progress; preparation preserves the original deadline and
 waits for the selected departure and observed prerequisites.
 
-Selected range/sparring use the existing Work step with a typed practice mandate and reciprocal exact participants. See [assigned capability maintenance](capability-maintenance.md) for floor ownership, bounded execution and uncertainty. Native autonomous roster/skill selection is disabled under active bot authority for the current map; uncontrolled behavior remains native.
+Selected range/sparring use the existing Work step with a typed practice (skill, partner, partner marker, duration; no role mandate since #3813) and reciprocal exact participants. See [assigned capability maintenance](capability-maintenance.md) for who practises, bounded execution and uncertainty. Native autonomous roster/skill selection is disabled under active bot authority for the current map; uncontrolled behavior remains native.

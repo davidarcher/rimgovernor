@@ -2,8 +2,7 @@ namespace RimGovernor.Brain.Domain;
 
 public enum PawnActivityKind { Work, Eat, Sleep, Hold, Recreation, Deliver, Recipe, Approach, Supply }
 
-public sealed record PawnActivityPractice(string Skill, string Role, int RequirementIndex, string Partner, string PartnerTarget, int DurationTicks)
-{ public string Beneficiary { get; init; } = ""; }
+public sealed record PawnActivityPractice(string Skill, string Partner, string PartnerTarget, int DurationTicks);
 
 public sealed record PawnActivityIngredient(string Thing, int Count);
 public sealed record PawnActivityRecipe(string Bill, string Recipe, EquatableArray<PawnActivityIngredient> Ingredients)
@@ -105,10 +104,9 @@ public sealed record PawnActivities(ulong AuthorityGeneration, PawnActivityOrder
     }
     private static void ValidatePractice(PawnActivityStep step)
     {
-        DomainException.Require(step.Practice != null || step.Job is not ("RimGovernor_TrainShooting" or "RimGovernor_Spar"), "practice requires an assigned mandate");
+        DomainException.Require(step.Practice != null || step.Job is not ("RimGovernor_TrainShooting" or "RimGovernor_Spar"), "a practice job requires a selected practice");
         if (step.Practice is { } practice)
-            DomainException.Require(step.Kind == PawnActivityKind.Work && IdText.IsValidText(practice.Role) && IdText.IsValidText(practice.Beneficiary)
-                && practice.RequirementIndex >= 0 && practice.DurationTicks > 0 && practice.DurationTicks <= GameTime.TicksPerDay
+            DomainException.Require(step.Kind == PawnActivityKind.Work && practice.DurationTicks > 0 && practice.DurationTicks <= GameTime.TicksPerDay
                 && (practice.Skill == "Shooting" && step.Job == "RimGovernor_TrainShooting" && practice.Partner.Length == 0 && practice.PartnerTarget.Length == 0
                     || practice.Skill == "Melee" && step.Job == "RimGovernor_Spar" && IdText.IsValidText(practice.Partner) && IdText.IsValidText(practice.PartnerTarget)),
                 "invalid selected practice");

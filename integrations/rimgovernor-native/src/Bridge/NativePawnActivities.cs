@@ -719,8 +719,6 @@ namespace HomeBridge.BridgeTools
                 && (__instance.job.targetA.Thing ?? p.carryTracker.CarriedThing) is { } source
                 && NativeSupportActivities.Remaining(p.Map, step, source.def) < step.Count)
             { p.jobs.EndCurrentJob(JobCondition.Incompletable); return; }
-            if (step.Practice is { } practice && !NativePracticeActivities.Assigned(p, practice))
-            { p.jobs.EndCurrentJob(JobCondition.Succeeded); return; }
             // The forecast's sleep ends at the wake threshold; the native LayDown toil wakes there but never completes, so a
             // rested pawn would lie awake in bed, still owned, until the planned end (#3598).
             if (step.Kind == PawnActivityKind.Sleep && !__instance.asleep && p.needs.rest != null && RestUtility.ShouldWakeUp(p))

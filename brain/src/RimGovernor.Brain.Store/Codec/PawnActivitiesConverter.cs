@@ -40,7 +40,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
           FullLoad = s.GetProperty("FullLoad").GetBoolean(),
           Collect = EquatableArray.From(s.GetProperty("Collect").EnumerateArray().Select(t => t.GetString()!)) };
     private static PawnActivityPractice? ReadPractice(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
-        : new(e.Str("Skill"), e.Str("Role"), e.GetProperty("RequirementIndex").GetInt32(), e.Str("Partner"), e.Str("PartnerTarget"), e.GetProperty("DurationTicks").GetInt32()) { Beneficiary = e.Str("Beneficiary") };
+        : new(e.Str("Skill"), e.Str("Partner"), e.Str("PartnerTarget"), e.GetProperty("DurationTicks").GetInt32());
     private static PawnActivityRecipe? ReadRecipe(JsonElement e) => e.ValueKind == JsonValueKind.Null ? null
         : new(e.Str("Bill"), e.Str("Recipe"), EquatableArray.From(e.GetProperty("Ingredients").EnumerateArray()
             .Select(i => new PawnActivityIngredient(i.Str("Thing"), i.GetProperty("Count").GetInt32())))) { Resource = e.Str("Resource"), Stuff = e.Str("Stuff"), Unfinished = e.Str("Unfinished") };
@@ -130,8 +130,7 @@ public sealed class PawnActivitiesConverter : ObjectCodec<PawnActivities>
         w.WriteEndArray();
         if (s.Practice is { } practice)
         {
-            w.WriteStartObject("Practice"); w.WriteString("Beneficiary", practice.Beneficiary); w.WriteString("Skill", practice.Skill); w.WriteString("Role", practice.Role);
-            w.WriteNum("RequirementIndex", practice.RequirementIndex); w.WriteString("Partner", practice.Partner);
+            w.WriteStartObject("Practice"); w.WriteString("Skill", practice.Skill); w.WriteString("Partner", practice.Partner);
             w.WriteString("PartnerTarget", practice.PartnerTarget); w.WriteNum("DurationTicks", practice.DurationTicks); w.WriteEndObject();
         }
         else w.WriteNull("Practice");

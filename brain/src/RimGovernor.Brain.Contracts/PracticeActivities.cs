@@ -25,7 +25,3 @@ public sealed record PracticeWorker(string Pawn, string Skill, string Target, Ce
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Findings { get; init; }
 }
-/// <summary>Fresh native requirement and skill observations for an admitted attempt.</summary>
-public sealed record PracticeMandateRead(string Task, Fact<bool> Assigned,
-    [property: JsonConverter(typeof(EquatableArrayJsonConverter<PracticeFloorRead>))] EquatableArray<PracticeFloorRead> Alternatives);
-public sealed record PracticeFloorRead(string Skill, int Minimum, SkillLearning Learning);

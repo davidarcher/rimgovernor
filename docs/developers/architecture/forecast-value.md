@@ -489,7 +489,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812), `DeathrestChamber` (#3810), `Hospital` (#3804) and `ContainmentCell` (#3811).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812), `DeathrestChamber` (#3810), `Hospital` (#3804), `ContainmentCell` (#3811) and `SparringRing` (#3813).
 Each fueled source with a steady burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 whose native supply is `HeatSupply.Burning`, with its `Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
@@ -703,6 +703,25 @@ its own, and of several pens of one herd the lowest id. An animal that does not 
 an animal census native could not read raises `RequiredFactException("animal census")`. Not modelled: the game's five-day roaming
 grace at a new colony and the cooldown after a roam, handlers roping a roamer back before it exits, the animal's future products
 beyond its market value, and pen capacity.
+
+*Sparring ring credit (#3813).* A planned sparring ring the outcome serves is credited (`ForecastSparring.RingCredit`) under
+`sparring_ring/<room>/<pawn>` by the raid harm its trainees' Melee saves, as the flak vest's armor is (#3816). The trainees
+(`ForecastCoupledContext.Sparring`, `PracticeMethodCandidates.TraineesOf`) are every work pawn the one practice eligibility rule
+admits for Melee (`SkillLearning.PracticeCapable`, native `RangeTraining.CanTrain`), with its native learning, the sparring ceiling
+(`PracticeCeiling`), its biography's MeleeDPS curve (`StatWorker_MeleeDPS` is damage × MeleeHitChance / cooldown; the hit chance at
+each stored Melee level, `NativeSkillStat.MeleeDpsLevels`) and its health. From the service day to tier 2's horizon, each day every
+trainee below the ceiling spars until today's XP reaches the game's daily cap (`SaturationThreshold`, SkillRecord.MaxFullRateXpPerDay)
+at its learn rate, while two remain below it; without the ring its Melee only decays. Both run the native skill arithmetic
+(`ForecastSkillCursor`: decay, the midnight reset, saturation, the XP-to-level table). A day's stored levels read the curves; the
+melee power they add (MeleeDPS × health × `DefensePointsPerDps`) shifts the defense capacity in the harm ledger
+(`HarmLedger.Of`'s `defenseShift`), whose raid loss without the ring less with it is the day's saving, shared by the added power.
+The lowest-id ring takes the trainees. No capable pawn (nobody to train), one (nobody to train with), two standing Melee practice
+targets (the colony already spars) or no raid to expect earn nothing. Unread trainees, learning mechanics or raid harm raise
+`RequiredFactException`; a capable pawn without a MeleeDPS curve is the finding `sparring_ring_melee_not_modelled:<pawn>`. Named
+as not modelled with each served ring (`PlannedRoomCredits.Unmodelled`): sparring injuries (`sparring_injury_unmodelled`), the
+bout's recreation (`sparring_recreation_unmodelled`) and the time practice takes from other work (`sparring_work_time_unmodelled`;
+the sessions' own scheduling prices that); and with each assigned role, its skill requirement
+(`ideology_role_skill_requirement_not_modelled:<id>`).
 
 *Containment cell credit (#3811).* A planned containment cell the outcome serves is credited through the same seam
 (`ForecastContainment.CellCredit`) under `containment-cell/<room>/<entity>`, for the entity it holds

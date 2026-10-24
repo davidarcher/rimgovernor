@@ -871,15 +871,6 @@ public static partial class ForecastCoupled
             if (relief.Unassessed is { } unassessedRelief) Finding(unassessedRelief, "thermal", 0);
             if (!maintenanceByCompleted.TryGetValue(completedId, out var maintenance))
                 maintenanceByCompleted.Add(completedId, maintenance = ForecastMaintenancePolicy.ForecastMaintenance(context.MaintenanceRequirements, context.PracticeTasks, plan, completed, horizon));
-            if (context.PracticeTasks.Count != 0)
-                foreach (var group in context.PracticeTasks.Where(p => allocations.ContainsKey(p.Task)).GroupBy(p => p.Requirement))
-                {
-                    var without = ForecastMaintenancePolicy.ForecastMaintenance(context.MaintenanceRequirements,
-                        EquatableArray.From(context.PracticeTasks.Where(p => p.Requirement != group.Key)), plan, completed, horizon);
-                    if (!maintenance.Zip(without).Any(p => p.First.MissingXp.IsKnown && p.Second.MissingXp.IsKnown
-                        && p.First.MissingXp.Value < p.Second.MissingXp.Value))
-                        Refuse("practice_without_assigned_shortfall_improvement", group.Key, 0);
-                }
             var developmentId = pairKeys.Id(developmentRows);
             if (!plannedByDevelopment.TryGetValue(developmentId, out var planned))
                 plannedByDevelopment.Add(developmentId, planned = PlannedOf(plan));
