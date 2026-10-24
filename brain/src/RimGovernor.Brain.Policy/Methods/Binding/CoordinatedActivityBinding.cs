@@ -36,7 +36,8 @@ internal static class CoordinatedActivityBinding
     /// The pawns a selection orders at once (#3884, #3889): the one rule <see cref="StartSelected"/> installs and the forecast reads
     /// for a pawn asleep now, whose lie-down an order interrupts. The review dispatches the selection first
     /// (<see cref="ForecastIncumbentHold.Dispatched"/>); the forecast passes the same dispatch. No one is ordered when no id is
-    /// selected (retaining observed baseline work requires no new orders) or when a placed allocation has no binding; a planned
+    /// selected (retaining observed baseline work requires no new orders) or when a placed allocation has no binding
+    /// (<see cref="Unbound"/>); a planned
     /// site's work has no action template, so it orders no one (#3278). Otherwise <see cref="Start"/> orders each pawn with a
     /// placed task its first, by departure then id. A pawn is left out, like any unselected pawn, when that first task is
     /// a distant service: an installed Method is protected from reselection, so holding a pawn for a service far ahead would
@@ -49,15 +50,10 @@ internal static class CoordinatedActivityBinding
     internal static IReadOnlySet<string> OrderedAtStart(IReadOnlyCollection<string> selected, IReadOnlyList<ForecastActivityAllocation> allocations,
         IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, IReadOnlySet<string> unplaced)
     {
-        var none = new HashSet<string>();
-        if (selected.Count == 0) return none;
+        if (selected.Count == 0 || Unbound(selected, allocations, bindings, unplaced) is not null) return new HashSet<string>();
         var placed = new List<(ForecastActivityAllocation Allocation, ActivityTaskCandidate Task)>();
         foreach (var a in allocations)
-        {
-            if (unplaced.Contains(a.Activity)) continue;
-            if (!bindings.TryGetValue((a.Activity, a.Pawn), out var task)) return none;
-            placed.Add((a, task));
-        }
+            if (!unplaced.Contains(a.Activity)) placed.Add((a, bindings[(a.Activity, a.Pawn)]));
         var ordered = new HashSet<string>(StringComparer.Ordinal);
         foreach (var own in placed.GroupBy(t => t.Task.Pawn, StringComparer.Ordinal))
         {
@@ -70,6 +66,18 @@ internal static class CoordinatedActivityBinding
             if (!distant) ordered.Add(own.Key);
         }
         return ordered;
+    }
+
+    /// <summary>The placed allocation of a selection that has no binding (#3889), by which the binding starts none of it: null when
+    /// nothing is selected (nothing to start) or every placed allocation is bound. <see cref="OrderedAtStart"/> orders no one then,
+    /// and the forecast refuses such an outcome, so it never selects a plan the binding will not start.</summary>
+    internal static ForecastActivityAllocation? Unbound(IReadOnlyCollection<string> selected, IReadOnlyList<ForecastActivityAllocation> allocations,
+        IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> bindings, IReadOnlySet<string> unplaced)
+    {
+        if (selected.Count == 0) return null;
+        foreach (var a in allocations)
+            if (!unplaced.Contains(a.Activity) && !bindings.ContainsKey((a.Activity, a.Pawn))) return a;
+        return null;
     }
 
     /// <summary>The tick, from now, a schedule has a pawn leave for <paramref name="a"/>: its departure, or later when the

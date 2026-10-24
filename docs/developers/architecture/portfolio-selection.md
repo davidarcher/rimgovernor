@@ -294,7 +294,9 @@ an active Method does not freeze unrelated participants. A participant whose nex
 service (sleep, recreation, a meal) departs more than `DistantServiceTicks` (600)
 ahead, with no other participant waiting on it, is not held for it: the start
 leaves it out (`OrderedAtStart`, the rule the forecast also reads for a sleeper, #3884, on the selection the review
-dispatches without its incumbents' work, `ForecastIncumbentHold.Dispatched`, #3889) and every later step boundary releases it to vanilla work (#3669), and a later
+dispatches without its incumbents' work, `ForecastIncumbentHold.Dispatched`, #3889; an outcome whose dispatch has an unbound
+placed allocation, or that releases an incumbent the review cannot release, starts nothing and is refused,
+`dispatch_allocation_unbound` and `incumbent_release_unavailable`) and every later step boundary releases it to vanilla work (#3669), and a later
 review selects the service again once it is due (#3047, #3598, #3649). Delayed
 variants that run work after a recovery are the recovering colonist's own: no
 colonist's work waits behind another colonist's meal, sleep or recreation (#3649). Independent

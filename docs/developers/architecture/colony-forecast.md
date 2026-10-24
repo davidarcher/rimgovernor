@@ -332,8 +332,13 @@ observed state holds.
   selection, and `ForecastIncumbentHold.Dispatched` (the context's `IncumbentHold`,
   the same step `ReviewCoupledExecution` takes) drops the incumbents' commitments,
   their tasks, their pawns' tasks and any task waiting on those. No one is ordered
-  when nothing is left selected or a placed allocation has no binding, else every pawn
-  with a placed task but one whose first is a distant service left to vanilla. Left
+  when nothing is left selected, else every pawn with a placed task but one whose
+  first is a distant service left to vanilla. An outcome the review would start
+  nothing of is refused, so the forecast never selects it: a dispatch with an unbound
+  placed allocation (`dispatch_allocation_unbound`, `CoordinatedActivityBinding.Unbound`)
+  and one that releases an incumbent the review cannot release
+  (`incumbent_release_unavailable`: `ForecastObservedIncumbent.ReleasedBy` and
+  `ForecastIncumbentHold.Release`, the review's own steps). Left
   alone it sleeps on (a rest
   from tick 0 at its `LyingIn` rate) until its rest reaches the wake threshold or the
   schedule has it leave for its first task: other work at its departure, a service at

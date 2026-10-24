@@ -579,8 +579,8 @@ public sealed class PlannedRoomCreditTests
     /// from tick 0 only when StartSelected sends it an order.
     /// - The schedule departs the sleeper at once to wait for a rest that waits on the cooking and starts far ahead: the binding
     ///   leaves it out, so its lie-down goes on until it must leave.
-    /// - The cooking has no binding: Start orders no one, so a rest due soon (which, the cooking bound, is an order now) leaves the
-    ///   sleeper asleep.
+    /// - The cooking has no binding: the binding starts nothing, so the forecast refuses the outcome (#3889,
+    ///   dispatch_allocation_unbound): it never selects a plan the autopilot will not run.
     /// </summary>
     [Fact]
     public void TheForecastWakesASleeperExactlyWhenTheBindingOrdersIt()
@@ -605,8 +605,12 @@ public sealed class PlannedRoomCreditTests
             var started = RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.StartSelected(new(["selected"], plan, [], 0, false),
                 bound.Bindings, 1, "m", 100, bound.PlannedSites);
             Assert.Equal(ordered, started?.Orders.Any(o => o.Pawn == "pawn") == true);
-            var mood = new ForecastCoupled.CoupledSearchCache().Evaluate(request with { Coupled = bound },
-                new Dictionary<string, ForecastCommitment> { [commitment.Id] = commitment }, bound.Activities, plan).Needs["pawn"].Mood!;
+            var outcome = new ForecastCoupled.CoupledSearchCache().Evaluate(request with { Coupled = bound },
+                new Dictionary<string, ForecastCommitment> { [commitment.Id] = commitment }, bound.Activities, plan);
+            // A plan the binding starts nothing of is refused; one it starts is not refused for it.
+            Assert.Equal(started is null, outcome.Findings.Contains(new ForecastFinding("dispatch_allocation_unbound", "cook")));
+            if (started is null) { Assert.Equal(Known(false), outcome.Feasible); return; }
+            var mood = outcome.Needs["pawn"].Mood!;
             Assert.True(mood.BreakRisk.IsKnown);
             Assert.Equal(ordered, mood.Trajectory[0].Actual != mood.Trajectory.First(p => p.Tick > 0).Actual);
         }
@@ -619,7 +623,7 @@ public sealed class PlannedRoomCreditTests
         }
         // Departed at once to wait 5000 ticks for its rest, which waits on the cooking: left to vanilla, asleep.
         Agree(false, context with { Bindings = Bindings(cookBound: true, waits: true) }, Rest(0, 5000));
-        // A rest due in 300 ticks is an order now, with the cooking bound; unbound, no one is ordered.
+        // A rest due in 300 ticks is an order now, with the cooking bound; unbound, nothing starts and the forecast refuses it.
         Agree(true, context with { Bindings = Bindings(cookBound: true, waits: false) }, Rest(300, 300));
         Agree(false, context with { Bindings = Bindings(cookBound: false, waits: false) }, Rest(300, 300));
     }
@@ -633,6 +637,10 @@ public sealed class PlannedRoomCreditTests
     ///   sleeper sleeps on.
     /// - The helper is the incumbent, its retained service unbound in the schedule: dropped, the rest due soon is ordered.
     /// - Nothing is selected: the review orders no one, so the rest due soon leaves the sleeper asleep.
+    /// A plan the review starts nothing of is refused with a named finding, so the forecast never selects it (#3889, decision B):
+    /// - The cooking has no binding: the binding starts none of the dispatch (dispatch_allocation_unbound).
+    /// - The helper's service, not retained, cannot be released (its ownership no longer matches its order): the review
+    ///   dispatches nothing (incumbent_release_unavailable).
     /// </summary>
     [Fact]
     public void TheForecastWakesASleeperExactlyWhenTheReviewOrdersIt()
@@ -658,7 +666,8 @@ public sealed class PlannedRoomCreditTests
         ForecastObservedIncumbent Incumbent(string pawn) => new(new("old-plan"), new(1,
             [new(pawn, "assignment", "method", 0, 1, false, [new(PawnActivityKind.Recreation, "pin", "", "", 0, 1000)])]), "incumbent/service",
             new(pawn, "assignment", "method", 1, "started")) { Activities = ["incumbent/service"] };
-        void Agree(bool ordered, string[] selected, ForecastObservedIncumbent[] incumbents, ForecastCoupledContext bound, params ForecastActivityAllocation[] rows)
+        void Agree(bool ordered, ForecastFinding? refused, string[] selected, ForecastObservedIncumbent[] incumbents, ForecastCoupledContext bound,
+            params ForecastActivityAllocation[] rows)
         {
             var plan = new ForecastActivityPlan(rows, rows.Max(a => a.End), 0);
             var outcome = new ForecastCoupledOutcome(plan, Known(true), new Dictionary<string, ForecastNeedsResult>(), []);
@@ -669,15 +678,29 @@ public sealed class PlannedRoomCreditTests
             var started = execution.Dispatch is { } dispatch
                 ? RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.StartSelected(dispatch.Selection, bound.Bindings, 1, "m", 100, bound.PlannedSites) : null;
             Assert.Equal(ordered, started?.Orders.Any(o => o.Pawn == "pawn") == true);
-            var held = bound with { IncumbentHold = ForecastIncumbentHold.Of(incumbents) };
+            var held = bound with { IncumbentHold = ForecastIncumbentHold.Of(incumbents, 100) };
             var commitments = selected.ToDictionary(id => id, id => id == commitment.Id ? commitment : new ForecastCommitment(id, []) { ActivityCompletions = [id] });
-            var mood = new ForecastCoupled.CoupledSearchCache().Evaluate(request with { Coupled = held }, commitments, held.Activities, plan).Needs["pawn"].Mood!;
+            var forecast = new ForecastCoupled.CoupledSearchCache().Evaluate(request with { Coupled = held }, commitments, held.Activities, plan);
+            string[] refusals = ["dispatch_allocation_unbound", "incumbent_release_unavailable"];
+            ForecastFinding[] expected = refused is { } named ? [named] : [];
+            Assert.Equal(expected, forecast.Findings.Where(f => refusals.Contains(f.Reason)).ToArray());
+            if (refused is not null)
+            {
+                // Refused exactly when the review starts nothing of a selection it would start.
+                Assert.Null(started);
+                Assert.Equal(Known(false), forecast.Feasible);
+                return;
+            }
+            var mood = forecast.Needs["pawn"].Mood!;
             Assert.True(mood.BreakRisk.IsKnown);
             Assert.Equal(ordered, mood.Trajectory[0].Actual != mood.Trajectory.First(p => p.Tick > 0).Actual);
         }
-        Agree(false, [commitment.Id, "incumbent/service"], [Incumbent("pawn")], context, rest, cooking);
-        Agree(true, [commitment.Id, "incumbent/service"], [Incumbent("helper")], context, rest, service);
-        Agree(false, [], [], context, rest, cooking);
+        Agree(false, null, [commitment.Id, "incumbent/service"], [Incumbent("pawn")], context, rest, cooking);
+        Agree(true, null, [commitment.Id, "incumbent/service"], [Incumbent("helper")], context, rest, service);
+        Agree(false, null, [], [], context, rest, cooking);
+        Agree(false, new("dispatch_allocation_unbound", "cook"), [commitment.Id, "cook"], [], context with { Bindings = request.Coupled!.Bindings }, rest, cooking);
+        var unreleasable = Incumbent("helper") with { Ownership = new("helper", "elsewhere", "method", 1, "started") };
+        Agree(false, new("incumbent_release_unavailable", "incumbent/service"), [commitment.Id], [unreleasable], context, rest, cooking);
     }
 
     /// <summary>

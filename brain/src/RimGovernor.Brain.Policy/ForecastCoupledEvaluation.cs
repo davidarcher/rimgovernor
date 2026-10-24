@@ -484,6 +484,14 @@ public static partial class ForecastCoupled
                     throw new DomainException("schedule allocates one activity more than once: " + a.Activity + " to "
                         + string.Join(",", plan.Allocations.Where(x => x.Activity == a.Activity).Select(x => x.Pawn + "@" + x.Start)));
             }
+            // The outcome's commitments are its selection, dispatched as the review dispatches it (#3889). An outcome the review would
+            // not start is one the autopilot never runs, so it is refused: the binding starts none of a dispatch with an unbound placed
+            // allocation, and a review that releases an incumbent it cannot release dispatches nothing.
+            var (dispatchedIds, dispatched) = context.IncumbentHold.Dispatched(commitments.Keys, plan.Allocations, tasks);
+            if (Methods.Binding.CoordinatedActivityBinding.Unbound(dispatchedIds, dispatched, context.Bindings, pawns.Unplaced) is { } unbound)
+                Refuse("dispatch_allocation_unbound", unbound.Activity);
+            foreach (var incumbent in context.IncumbentHold.Unreleased(commitments.Keys, plan.Allocations, context.Bindings))
+                Refuse("incumbent_release_unavailable", incumbent.Commitment);
             foreach (var l in context.InitialLots)
             {
                 lots.Add((l.Lot, l.Location, l.Resource), l.Count);
@@ -798,12 +806,8 @@ public static partial class ForecastCoupled
             var breakShifts = PlannedRoomCredits.BreakShifts(context);
             HashSet<string>? rejectedWork = null;
             IReadOnlySet<string>? ordered = null;
-            // Whom the binding orders at tick 0: the outcome's commitments are its selection, dispatched as the review dispatches it.
-            IReadOnlySet<string> Ordered()
-            {
-                var (selected, dispatched) = context.IncumbentHold.Dispatched(commitments.Keys, plan.Allocations, tasks);
-                return Methods.Binding.CoordinatedActivityBinding.OrderedAtStart(selected, dispatched, context.Bindings, pawns.Unplaced);
-            }
+            // Whom the binding orders at tick 0, on the outcome as the review dispatches it.
+            IReadOnlySet<string> Ordered() => Methods.Binding.CoordinatedActivityBinding.OrderedAtStart(dispatchedIds, dispatched, context.Bindings, pawns.Unplaced);
             // Per pawn, the cached timelines are looked up by their inputs; a timeline's capacity input is built only on a miss (#3468).
             for (var p = 0; p < pawns.Pawns.Length; p++)
             {

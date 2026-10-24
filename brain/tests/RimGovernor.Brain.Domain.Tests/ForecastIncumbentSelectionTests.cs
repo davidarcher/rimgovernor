@@ -37,7 +37,10 @@ public sealed class ForecastIncumbentSelectionTests
             InitialLots = [new("rice", "start", new("Rice"), Known(1d)) { Perishable = true, FreshTicks = Known(1000d) }],
             NeedTasks = [new("ongoing-joy", "pawn", "joy", "horseshoes", new(""), 0, .25, []),
                 new("meal", "pawn", "food", "rice", new("Rice"), 1, .8, [])
-                { AvailableCount = Known(1d), FreshTicks = Known(1000d) }]
+                { AvailableCount = Known(1d), FreshTicks = Known(1000d) }],
+            // What the synthetic incumbent holds, as PrepareCoupledIncumbents sets it: its commitment, its ongoing service and its
+            // pawn, none dispatched now (#3889).
+            IncumbentHold = new(["current-joy"], ["ongoing-joy"], ["pawn"], []),
         };
         var candidates = new ForecastCoupledCandidates(context, meal ? [eat] : [], [], false) { Incumbents = [current] };
         facts = facts with { CoupledAlternatives = candidates };
@@ -111,9 +114,13 @@ public sealed class ForecastIncumbentSelectionTests
         var context = candidates.Context;
         ForecastNeedTask Claim(string task, string pawn) => new(task, pawn, kind, target, new(""), count, .2, [])
             { MaxPawns = maxPawns, AvailableCount = stock };
+        // Each helper's service is bound, so the binding starts it (#3889).
+        var bindings = context.Bindings.ToDictionary(b => b.Key, b => b.Value);
+        foreach (var n in names)
+            bindings[(n + "-joy", n)] = new(n + "-joy", n, [], PawnActivityKind.Recreation, target, "", "", count, 2000, new(0, 0));
         context = context with
         {
-            Resources = roster.WorkView!,
+            Resources = roster.WorkView!, Bindings = bindings,
             Needs = context.Needs with { Pawns = [context.Needs.Pawns[0], .. names.Select(n => context.Needs.Pawns[0] with { Pawn = n })] },
             NeedTasks = [Claim("ongoing-joy", "pawn"), .. names.Select(n => Claim(n + "-joy", n))],
             Activities = context.Activities with

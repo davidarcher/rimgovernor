@@ -18,6 +18,19 @@ public sealed record ForecastObservedIncumbent(PlanId Plan, PawnActivities Batch
     /// <summary>The workers a reconsidered Method's review decides for: its owner and the other reconsidered participants.</summary>
     public IReadOnlySet<string> Reconsidered => new[] { Ownership }.Concat(Participants).Select(o => o.Pawn).ToHashSet(StringComparer.Ordinal);
 
+    /// <summary>Whether a review of <paramref name="selected"/> on <paramref name="allocations"/> releases this incumbent (#3598,
+    /// #3889): a retained service unless its commitment is selected; a reconsidered Method when the allocations give one of its
+    /// bills to a pawn other than its cooks (#3624), never without the bindings that name the bills. The review releases by it,
+    /// and the forecast refuses an outcome that releases an incumbent it cannot release (<see cref="ForecastIncumbentHold.Release"/>).</summary>
+    internal bool ReleasedBy(IEnumerable<string> selected, IReadOnlyList<ForecastActivityAllocation>? allocations,
+        IReadOnlyDictionary<(string Task, string Pawn), Methods.ActivityTaskCandidate>? bindings)
+    {
+        if (Bills.Count == 0) return !selected.Contains(Commitment);
+        var cooks = CooksOf(Batch, Bills);
+        return bindings is not null && allocations is not null && allocations.Any(a => !cooks.Contains(a.Pawn)
+            && bindings.TryGetValue((a.Activity, a.Pawn), out var b) && b.Recipe?.Bill is { } bill && Bills.Contains(bill));
+    }
+
     /// <summary>The pawns a batch has cooking one of <paramref name="bills"/>.</summary>
     public static HashSet<string> CooksOf(PawnActivities batch, IEnumerable<string> bills)
     {
@@ -207,7 +220,7 @@ public static class ForecastIncumbentPreparation
             {
                 NeedTasks = EquatableArray.From(needTasks), Findings = EquatableArray.From(findings),
                 NonproductiveOccupancy = EquatableArray.From(waiting),
-                IncumbentHold = ForecastIncumbentHold.Of(incumbents),
+                IncumbentHold = ForecastIncumbentHold.Of(incumbents, facts.Tick.Value),
                 Truncated = generated.Context.Truncated || truncated,
                 Activities = generated.Context.Activities with { Activities = activities.ToArray(), Options = options.ToArray(), Routes = routes.Values.ToArray() }
             }
