@@ -31,7 +31,6 @@ public static class DefTablesRules
     /// <summary>The ThingDefOf names the game's room-role workers score a furniture role by: a def of the name has the role. A toy is the play read's (DefinitionCatalog.PlayBuildings).</summary>
     public static readonly IReadOnlyDictionary<string, FurnitureRole> GameRoomRoleDefs = new Dictionary<string, FurnitureRole>(StringComparer.Ordinal)
     {
-        ["BabyDecoration"] = FurnitureRole.Decoration,
         ["Blackboard"] = FurnitureRole.Board,
         ["SchoolDesk"] = FurnitureRole.Desk,
     };

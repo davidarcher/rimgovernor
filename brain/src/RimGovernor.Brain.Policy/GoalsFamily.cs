@@ -87,7 +87,7 @@ public sealed record GoalBuildDemand
 {
     public static readonly GoalBuildDemand None = new();
 
-    /// <summary>The roles whose child room a goal names: the nursery, playroom, classroom and deathrest chamber (<see cref="ChildRoomsRules.GoalRoomNeeds"/>).</summary>
+    /// <summary>The roles whose child room a goal names: the nursery, classroom and deathrest chamber (<see cref="ChildRoomsRules.GoalRoomNeeds"/>).</summary>
     public EquatableArray<RoomRole> Rooms { get; init; }
 
     /// <summary>The hosted medical beds a Hospital goal asks for; 0 for none. It is the minimum bed count of <see cref="HospitalRules.SelectHospitalBed"/> and the station graph's injured floor.</summary>

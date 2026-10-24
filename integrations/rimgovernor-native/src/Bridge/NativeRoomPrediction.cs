@@ -94,6 +94,7 @@ internal static class NativeRoomPrediction
         var furniture = new List<Piece>();
         var furnitureBlocked = new HashSet<IntVec3>();
         var furnitureUnstandable = new HashSet<IntVec3>();
+        var placed = new List<(ThingDef Def, IntVec3 Anchor, Rot4 Rot)>();
         foreach (var f in shape.Furniture)
         {
             var def = DefDatabase<ThingDef>.GetNamedSilentFail(f.Definition)
@@ -101,6 +102,7 @@ internal static class NativeRoomPrediction
             var stuff = StuffOf(def, f.Stuff, shape);
             var anchor = new IntVec3(f.Cell.X, 0, f.Cell.Z);
             furniture.Add(new(anchor, def, stuff));
+            placed.Add((def, anchor, new Rot4((int)f.Rotation)));
             foreach (var c in GenAdj.OccupiedRect(anchor, new Rot4((int)f.Rotation), def.size))
             {
                 if (def.passability == Traversability.Impassable) furnitureBlocked.Add(c);
@@ -158,9 +160,10 @@ internal static class NativeRoomPrediction
             .OrderBy(t => t.defName, StringComparer.Ordinal)
             .Select(t => new Obs.PlannedRoomTerrain(EquatableArray.From((t.tags ?? new List<string>()).OrderBy(s => s, StringComparer.Ordinal))))
             .ToList();
+        var desks = PlannedDesks(map, placed);
         Obs.PlannedRoomPrediction Row(string role, float score, double clean) =>
             new(shape.Room, shape.Stuff, role, score, RoomStatDefOf.Impressiveness.GetScoreStageIndex(score), cells.Count, openRoof, edge)
-                { Beds = EquatableArray.From(beds), Benches = EquatableArray.From(benches), Cleanliness = clean, Terrains = EquatableArray.From(terrains) };
+                { Beds = EquatableArray.From(beds), Benches = EquatableArray.From(benches), Cleanliness = clean, Terrains = EquatableArray.From(terrains), Desks = desks };
 
         // No passable interior cell: closing the ring forms no room.
         if (cells.Count == 0) return null;
@@ -194,6 +197,30 @@ internal static class NativeRoomPrediction
     }
 
     private static readonly Dictionary<IntVec3, TerrainDef> NoFloors = new();
+
+    /// <summary>
+    /// The planned school desks among the shape's furniture (#3809), each at LearningUtility.SchoolDeskLearningRate's rate once
+    /// built: 1 plus LearningRateBonusOffset_Blackboard per blackboard (the player's standing ones and the shape's planned ones) the
+    /// desk's CompAffectedByFacilities could link (CanPotentiallyLinkTo_Static), at most MaxConnectedBlackboards. A blackboard
+    /// needing line of sight (which only the comp's private check reads) is a broken read; the game's needs none.
+    /// </summary>
+    private static EquatableArray<Obs.PlannedRoomDesk> PlannedDesks(Map map, List<(ThingDef Def, IntVec3 Anchor, Rot4 Rot)> placed)
+    {
+        var desk = ThingDefOf.SchoolDesk;
+        var board = ThingDefOf.Blackboard;
+        if (desk == null || board == null || !placed.Any(p => p.Def == desk)) return [];
+        var linkable = desk.GetCompProperties<CompProperties_AffectedByFacilities>()?.linkableFacilities?.Contains(board) == true;
+        if (board.GetCompProperties<CompProperties_Facility>() is not { } facility) throw new InvalidOperationException("Blackboard has no CompProperties_Facility");
+        if (facility.requiresLOS) throw new InvalidOperationException("Blackboard requires line of sight, which the desk prediction does not read");
+        var boards = map.listerThings.ThingsOfDef(board).Where(t => t.Spawned && t.Faction == Faction.OfPlayer).Select(t => (t.Position, t.Rotation))
+            .Concat(placed.Where(p => p.Def == board).Select(p => (p.Anchor, p.Rot))).ToList();
+        return EquatableArray.From(placed.Where(p => p.Def == desk).Select(d =>
+        {
+            var linked = !linkable ? 0 : Math.Min(LearningUtility.MaxConnectedBlackboards,
+                boards.Count(b => CompAffectedByFacilities.CanPotentiallyLinkTo_Static(board, b.Item1, b.Item2, desk, d.Anchor, d.Rot, map)));
+            return new Obs.PlannedRoomDesk(1 + linked * LearningUtility.LearningRateBonusOffset_Blackboard);
+        }));
+    }
 
     // An unregistered Room -> District -> Region whose region lists the given things; null when a member was renamed.
     private static Room? Unregistered(Map map, List<Thing> things, bool edge)

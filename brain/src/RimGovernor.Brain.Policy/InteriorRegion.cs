@@ -68,7 +68,6 @@ public static class InteriorRegionRules
             [RoomRole.DiningRoom] = InteriorRegionRolesRules.DiningWants(false),
             [RoomRole.RecRoom] = InteriorRegionRolesRules.DiningWants(true),
             [RoomRole.Nursery] = child,
-            [RoomRole.Playroom] = child,
             [RoomRole.Classroom] = child,
             [RoomRole.WorshipRoom] = child,
             [RoomRole.DeathrestChamber] = child,

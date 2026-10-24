@@ -535,10 +535,10 @@ Odyssey section today.
 ## Room-role furniture
 
 The brain catalog lists the roles the game's code
-names a building definition for, sorted: `Toy`, `Decoration`, `Board` and `Desk`.
+names a building definition for, sorted: `Toy`, `Board` and `Desk`.
 `Toy` is a building a `BabyPlayDef` giver plays at (`DefinitionCatalog.PlayBuildings`:
 `BabyPlayGiver_PlayToys` plays at the `ThingDefOf` toy box); the others are the
-`ThingDefOf` baby decoration, blackboard and school desk the room-role workers name. The brain derives the other two from the def rows:
+`ThingDefOf` blackboard and school desk the classroom's role worker names. The brain derives the other two from the def rows:
 `BabyBed` (`building.bed_crib`) and `DeathrestCasket` or `DeathrestAccelerator`
 (a building carrying `CompProperties_DeathrestBindable`, a casket when its class
 is a bed). The brain refuses an unknown, duplicate or unsorted role and plans child

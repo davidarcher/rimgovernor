@@ -13,7 +13,7 @@ internal static class NeedsFixtures
     public static NeedsForecastRead Read(long tick, params NeedsForecastPawn[] pawns) => new()
     {
         Tick = new(tick), Pawns = [.. pawns], WeatherThought = "", WeatherThoughtStages = 0, RainRate = 0, MapArea = 0,
-        Deterioration = null, ResearchBenches = [], Corpses = [], Deathrest = null, Prison = NoPrison,
+        Deterioration = null, ResearchBenches = [], Corpses = [], Deathrest = null, Prison = NoPrison, School = NoSchool,
     };
 
     /// <summary>The recruitment read of no warden and no prisoner, at the game's curves (InteractionWorker_RecruitAttempt, 1.7).</summary>
@@ -21,6 +21,18 @@ internal static class NeedsFixtures
     {
         MoodCurve = [new(0, .2), new(.5, 1), new(1, 1.5)], OpinionCurve = [new(-100, .5), new(0, 1), new(100, 1.5)],
         MaxInteractionsPerDay = 2, Wardens = [], Prisoners = [],
+    };
+
+    /// <summary>The lesson read of no child, no desk and no teacher, at the game's rates and desires (Biotech, 1.7).</summary>
+    public static SchoolRead NoSchool => new()
+    {
+        FallPerTick = 3E-06, RefillPerTick = 1.2E-05, Lessontaking = "Lessontaking", LessonXpPerTick = 0.25,
+        Desires =
+        [
+            new("Skydreaming", 1, true), new("Radiotalking", 1, false), new("Floordrawing", 1, true), new("NatureRunning", 1, true),
+            new("Reading", 1, true), new("Workwatching", 1, true), new("Lessontaking", 2.5, true),
+        ],
+        StandingDesks = 0, Teacher = "", Children = [],
     };
 
     /// <summary>The read of no pawns at tick 0.</summary>

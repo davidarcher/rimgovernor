@@ -28,7 +28,7 @@ public sealed partial class DefinitionCatalog
 
     /// <summary>
     /// The furniture roles the game's code gives the def: Toy for a building the babies' play uses (PlayBuildings), and
-    /// the role the room-role workers score it for by name (Decoration, Board, Desk). Sorted.
+    /// the role the room-role workers score it for by name (Board, Desk). Sorted.
     /// </summary>
     public IReadOnlyList<string> GameRoomRoles(string name)
     {

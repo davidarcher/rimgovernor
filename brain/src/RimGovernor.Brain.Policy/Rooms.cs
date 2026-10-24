@@ -157,9 +157,9 @@ public static partial class RoomsRules
             // and places the buildings the ideoligion requires, which the game's defs name (the ideology
             // section), not this row.
             new() { Role = RoomRole.WorshipRoom },
-            // The child rooms are their own planned rooms: shelter/sleeping shells each while a baby (nursery),
-            // baby or child (playroom) or child (classroom) lives and places the furniture the game scores the
-            // role from (ChildRoomNeeds); a nursery room holds no other bed.
+            // The child rooms are their own planned rooms: shelter/sleeping shells each while a baby (nursery)
+            // or child (classroom) lives and places the furniture the game scores the role from (ChildRoomNeeds);
+            // a nursery room holds no other bed. No playroom is planned (#3809): the babies' toy is the nursery's.
             new() { Role = RoomRole.Nursery },
             new() { Role = RoomRole.Playroom },
             new() { Role = RoomRole.Classroom },

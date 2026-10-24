@@ -42,7 +42,7 @@ Kinds the governor can work toward today:
 | Stock count | Hold a number of a thing. |
 | Colonists | Reach a head count. |
 | Animals | Hold a number of a race. |
-| Room role | Have a room of a role (nursery, playroom, classroom, deathrest chamber, worship room) or a hospital with a number of beds. |
+| Room role | Have a room of a role (nursery, classroom, deathrest chamber, worship room) or a hospital with a number of beds. |
 | Worn count | A number of colonists wearing a garment, optionally of one stuff. |
 | Precept, Meme | Hold that precept or meme in your ideoligion (needs Ideology and a fluid ideoligion). |
 | Believers | A number of colonists who share your ideoligion, by moral-guide and prisoner conversion. |

@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// The child rooms' layout: nursery, playroom and classroom are core rooms sized from the footprints they hold
+// The child rooms' layout: nursery and classroom are core rooms sized from the footprints they hold
 // (ChildRoomShape), sited at the nearest core slot like the throne room. Furniture stands in bands of free
 // floor: a band as high as the piece, a free row between bands, the row inside the entrance free, and the
 // entrance's column free the full depth so every band stays reachable.
@@ -14,7 +14,7 @@ public static partial class LayoutChildRoomsRules
     /// station group (the cribs of the babies); the rest have no station.
     /// </summary>
     internal static readonly IReadOnlyList<PlannedRole> ChildNodeRoles =
-        [PlannedRole.Playroom, PlannedRole.Classroom, PlannedRole.DeathrestChamber, PlannedRole.Worship, PlannedRole.ContainmentCell, PlannedRole.IsolationRoom];
+        [PlannedRole.Classroom, PlannedRole.DeathrestChamber, PlannedRole.Worship, PlannedRole.ContainmentCell, PlannedRole.IsolationRoom];
 
     /// <summary>The shapes of every need whose furniture resolves, planned or not.</summary>
     public static IReadOnlyList<ChildRoomShape> ChildRoomShapes(IReadOnlyList<ChildRoomNeed> needs, IReadOnlyList<FurnitureDefinition> defs)
@@ -116,7 +116,7 @@ public static partial class LayoutChildRoomsRules
 partial record LayoutPlan
 {
     /// <summary>
-    /// The playroom, classroom, deathrest chamber, worship room, containment cell and isolation room the colony
+    /// The classroom, deathrest chamber, worship room, containment cell and isolation room the colony
     /// owes (shapes, ChildRoomShapes) or the plan holds as room nodes. An owed room is the smallest interior
     /// that holds its furniture (ChildRoomSizes); a standing one keeps at least the floor it has, so it is a
     /// node to pin whether or not its need has ended. The short side is fixed, the long side follows the area.

@@ -2,10 +2,10 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-// Staging the Biotech child rooms: the nursery, playroom and classroom. A room role is the game's own score
+// Staging the Biotech child rooms: the nursery and classroom. A room role is the game's own score
 // over the room's contents (Rooms wiki, Roles): a Nursery needs at least two baby beds (a crib or a baby
-// sleeping spot) and no other bed, a Playroom scores each toy box and baby decoration and a Classroom each
-// blackboard and school desk, both only while the room holds no humanlike bed. The planner owes a role's room
+// sleeping spot) and no other bed, and a Classroom scores each blackboard and school desk only while the room
+// holds no humanlike bed. No playroom is planned (#3809): the babies' toy stands in the nursery (#3837). The planner owes a role's room
 // while a pawn of the matching developmental stage lives in the colony: the plan grows a room sized to the
 // furniture (GrowChildRoom), the sleeping planner reconciles it to the plan and the furniture at the
 // template's slots (NextChildRoomStep, ReconcileRoom). Footprints are the native definition catalog's, never
@@ -25,14 +25,13 @@ public readonly record struct FurnitureRole(string Value)
     // The roles the native catalog computes.
     public static readonly FurnitureRole BabyBed = new("BabyBed");
     public static readonly FurnitureRole Toy = new("Toy");
-    public static readonly FurnitureRole Decoration = new("Decoration");
     public static readonly FurnitureRole Board = new("Board");
     public static readonly FurnitureRole Desk = new("Desk");
     public static readonly FurnitureRole DeathrestCasket = new("DeathrestCasket");
     public static readonly FurnitureRole DeathrestAccelerator = new("DeathrestAccelerator");
 
     /// <summary>Every role a planner places furniture by.</summary>
-    public static readonly IReadOnlyList<FurnitureRole> All = [BabyBed, Toy, Decoration, Board, Desk, DeathrestCasket, DeathrestAccelerator];
+    public static readonly IReadOnlyList<FurnitureRole> All = [BabyBed, Toy, Board, Desk, DeathrestCasket, DeathrestAccelerator];
 
     public override string ToString() => Value;
 }
@@ -225,7 +224,7 @@ public static class ChildRoomsRules
 
     /// <summary>
     /// The child rooms the pawns owe, in role order: a nursery (beds for every newborn and baby, at least the game's two, and a toy box
-    /// for their play) while one lives, a playroom while a baby or child does, a classroom (a desk per child and
+    /// for their play) while one lives, a classroom (a desk per child and
     /// one blackboard) while a child does, and a deathrest chamber while a deathrester does: a casket per deathrester, which
     /// does not count toward its deathrest capacity, and the buildings that raise its deathrest efficiency (a factor above 1,
     /// the accelerator) as many as it binds (<see cref="ForecastDeathrest.Binds"/>, the credit's rule: each def's stackLimit
@@ -235,7 +234,7 @@ public static class ChildRoomsRules
     /// </summary>
     public static List<ChildRoomNeed> ChildRoomNeeds(IEnumerable<WorkPawn> pawns, DeathrestDefsRead? deathrest)
     {
-        int babies = 0, toddlers = 0, children = 0, caskets = 0;
+        int babies = 0, children = 0, caskets = 0;
         var bound = new SortedDictionary<string, int>(StringComparer.Ordinal);
         foreach (var p in pawns)
         {
@@ -264,11 +263,9 @@ public static class ChildRoomsRules
                     break;
                 case RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Baby:
                     babies++;
-                    toddlers++;
                     break;
                 case RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Child:
                     children++;
-                    toddlers++;
                     break;
             }
         }
@@ -277,11 +274,6 @@ public static class ChildRoomsRules
         if (babies > 0)
         {
             output.Add(NurseryNeed(babies));
-        }
-
-        if (toddlers > 0)
-        {
-            output.Add(PlayroomNeed());
         }
 
         if (children > 0)
@@ -311,14 +303,6 @@ public static class ChildRoomsRules
                     new ChildFurniture { Role = FurnitureRole.Toy, Count = 1, Optional = true },
                 ]
             ),
-        };
-
-    private static ChildRoomNeed PlayroomNeed() =>
-        new()
-        {
-            Role = RoomRole.Playroom,
-            Module = PlannedRole.Playroom,
-            Furniture = EquatableArray.From([new ChildFurniture { Role = FurnitureRole.Toy, Count = 1 }, new ChildFurniture { Role = FurnitureRole.Decoration, Count = 1 }]),
         };
 
     private static ChildRoomNeed ClassroomNeed(int children) =>
@@ -353,11 +337,11 @@ public static class ChildRoomsRules
             : [];
 
     /// <summary>The child rooms a goal can name (#3496); the worship room rides <see cref="WorshipRules.WorshipRoomNeed"/>, which the ideoligion's required buildings size.</summary>
-    internal static readonly IReadOnlyList<RoomRole> GoalRoles = [RoomRole.Nursery, RoomRole.Playroom, RoomRole.Classroom, RoomRole.DeathrestChamber];
+    internal static readonly IReadOnlyList<RoomRole> GoalRoles = [RoomRole.Nursery, RoomRole.Classroom, RoomRole.DeathrestChamber];
 
     /// <summary>
     /// The rooms the goals name that no pawn owes a room for: the smallest room of each role (the game's two baby beds,
-    /// a toy and a decoration, a blackboard and one desk, one casket). A role in <paramref name="have"/> keeps the need
+    /// a blackboard and one desk, one casket). A role in <paramref name="have"/> keeps the need
     /// the pawns size, which is never smaller.
     /// </summary>
     public static List<ChildRoomNeed> GoalRoomNeeds(IEnumerable<RoomRole> roles, IReadOnlyCollection<ChildRoomNeed> have)
@@ -374,9 +358,6 @@ public static class ChildRoomsRules
             {
                 case RoomRole.Nursery:
                     output.Add(NurseryNeed(MinNurseryBeds));
-                    break;
-                case RoomRole.Playroom:
-                    output.Add(PlayroomNeed());
                     break;
                 case RoomRole.Classroom:
                     output.Add(ClassroomNeed(1));

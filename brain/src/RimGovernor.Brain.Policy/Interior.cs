@@ -204,7 +204,6 @@ public static class InteriorRules
         [PlannedRole.Tomb] = RoomRole.Tomb,
         [PlannedRole.Throne] = RoomRole.ThroneRoom,
         [PlannedRole.Nursery] = RoomRole.Nursery,
-        [PlannedRole.Playroom] = RoomRole.Playroom,
         [PlannedRole.Classroom] = RoomRole.Classroom,
         [PlannedRole.Worship] = RoomRole.WorshipRoom,
         [PlannedRole.DeathrestChamber] = RoomRole.DeathrestChamber,

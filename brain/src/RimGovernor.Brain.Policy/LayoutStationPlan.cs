@@ -150,7 +150,7 @@ public sealed record StationFacts
 
     /// <summary>The pens the herd asks for (HerdPlan.PenWants): each unit short of its cells gets a pen node. Empty while the animal census or the pasture table is unread, which asks for none.</summary>
     public IReadOnlyList<PenWant> Pens { get; init; } = [];
-    /// <summary>The shapes of the child rooms the colony owes (ChildRoomShapes); the playroom, classroom and deathrest chamber among them are room nodes.</summary>
+    /// <summary>The shapes of the child rooms the colony owes (ChildRoomShapes); the classroom and deathrest chamber among them are room nodes.</summary>
     public IReadOnlyList<ChildRoomShape> Child { get; init; } = [];
 
     /// <summary>

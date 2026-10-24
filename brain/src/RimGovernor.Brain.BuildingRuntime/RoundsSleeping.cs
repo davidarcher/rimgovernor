@@ -1404,7 +1404,6 @@ partial class RoundsBuildingPlanner
                 case Pol.PlannedRole.Butchery:
                 case Pol.PlannedRole.Throne:
                 case Pol.PlannedRole.Nursery:
-                case Pol.PlannedRole.Playroom:
                 case Pol.PlannedRole.Classroom:
                 case Pol.PlannedRole.DeathrestChamber:
                 case Pol.PlannedRole.Worship:

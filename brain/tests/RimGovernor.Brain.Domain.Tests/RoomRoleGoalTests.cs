@@ -30,7 +30,6 @@ public sealed class RoomRoleGoalTests
 
     [Theory]
     [InlineData(RoomRole.Nursery)]
-    [InlineData(RoomRole.Playroom)]
     [InlineData(RoomRole.Classroom)]
     [InlineData(RoomRole.DeathrestChamber)]
     public void AChildRoomGoalYieldsItsRoomNeedForTheSleepingStepToBuild(RoomRole role)
@@ -53,13 +52,13 @@ public sealed class RoomRoleGoalTests
     {
         var owed = new ChildRoomNeed { Role = RoomRole.Classroom, Module = PlannedRole.Classroom };
         Assert.Empty(ChildRoomsRules.GoalRoomNeeds([RoomRole.Classroom], [owed]));
-        Assert.Single(ChildRoomsRules.GoalRoomNeeds([RoomRole.Classroom, RoomRole.Classroom, RoomRole.Playroom], [owed]));
+        Assert.Single(ChildRoomsRules.GoalRoomNeeds([RoomRole.Classroom, RoomRole.Classroom, RoomRole.Nursery], [owed]));
     }
 
     [Fact]
     public void AChildRoomGoalIsPursuedBySleepingAndMetOnceTheRoomStands()
     {
-        var goal = Room(1, RoomRole.Playroom);
+        var goal = Room(1, RoomRole.Classroom);
         var open = Facts(goal) with { Owners = new Dictionary<NeedId, OwnerProgress> { [ShelterFamily.Sleeping] = Working } };
         var status = GoalRules.Evaluate(goal, open);
         Assert.Equal((GoalState.Pursuing, ShelterFamily.Sleeping, 1.0), (status.State, status.Owner, status.Deficit.Value));
@@ -67,10 +66,10 @@ public sealed class RoomRoleGoalTests
         var blocked = open with { Owners = new Dictionary<NeedId, OwnerProgress> { [ShelterFamily.Sleeping] = new(false, "no_site") } };
         Assert.Equal((GoalState.Blocked, "no_site"), (GoalRules.Evaluate(goal, blocked).State, GoalRules.Evaluate(goal, blocked).Reason));
 
-        var built = Facts(goal, Standing(RoomRole.Playroom));
+        var built = Facts(goal, Standing(RoomRole.Classroom));
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, built).State);
         // A met room goal keeps asking, or the plan would end the role and retire the room.
-        Assert.Equal([RoomRole.Playroom], GoalRules.DemandOf(built).Build.Rooms.Items);
+        Assert.Equal([RoomRole.Classroom], GoalRules.DemandOf(built).Build.Rooms.Items);
 
         Assert.Equal("rooms", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, open with { Rooms = default })).Fact);
     }
@@ -92,6 +91,10 @@ public sealed class RoomRoleGoalTests
     [Fact]
     public void ARoleNoPlannerStagesHasNoMethodUntilItStands()
     {
+        // No playroom is planned (#3809): its goal is a role no planner stages, as the laboratory's is.
+        var playroom = Room(2, RoomRole.Playroom);
+        Assert.Equal((GoalState.NoMethod, "no_pursuit"), (GoalRules.Evaluate(playroom, Facts(playroom)).State, GoalRules.Evaluate(playroom, Facts(playroom)).Reason));
+        Assert.Empty(ChildRoomsRules.GoalRoomNeeds([RoomRole.Playroom], []));
         var goal = Room(1, RoomRole.Laboratory);
         var absent = GoalRules.Evaluate(goal, Facts(goal));
         Assert.Equal((GoalState.NoMethod, "no_pursuit"), (absent.State, absent.Reason));

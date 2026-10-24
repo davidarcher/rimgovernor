@@ -110,7 +110,7 @@ public static class PawnValueRules
     [
         "comparative_advantage", // a faster joiner freeing an existing pawn for other work (V2)
         "effects_on_others", // Abrasive and other traits' mood effects on the colony (V5)
-        "skill_growth", // passion's learning over the horizon (#3809)
+        "skill_growth", // passion's learning over the horizon (lessons are the classroom's, #3809)
     ];
 
     /// <summary>The plan a review's pawn values await before the colony has a layout plan (#3857): its food hauls walk the plan's
@@ -136,20 +136,8 @@ public static class PawnValueRules
     {
         DomainException.Require(double.IsFinite(pawn.FreeTicksPerDay) && pawn.FreeTicksPerDay >= 0, "pawn free ticks");
         DomainException.Require(double.IsFinite(pawn.FoodPerDay) && pawn.FoodPerDay >= 0, "pawn food a day");
-        double Speed(string stat) => stat.Length == 0 ? 1
-            : pawn.Speeds.TryGetValue(stat, out var speed) ? speed : throw new RequiredFactException("work speed " + stat + " of " + pawn.Pawn);
-        var incapable = pawn.Incapable.ToHashSet(StringComparer.Ordinal);
-        var free = pawn.FreeTicksPerDay;
-        var shares = new List<PawnWorkShare>();
-        foreach (var row in colony.Shortfall.Rows.Where(r => !incapable.Contains(r.WorkType))
-            .Select(r => (Row: r, Speed: Speed(r.Stat))).Where(r => r.Speed > 0)
-            .OrderByDescending(r => r.Speed).ThenBy(r => r.Row.WorkType, StringComparer.Ordinal).ThenBy(r => r.Row.Stat, StringComparer.Ordinal))
-        {
-            if (free <= 0) break;
-            var done = Math.Min(row.Row.TicksPerDay, free * row.Speed);
-            free -= done / row.Speed;
-            shares.Add(new(row.Row.WorkType, row.Row.Stat, done));
-        }
+        double Speed(string stat) => SpeedOf(pawn, stat);
+        var shares = WorkAdded(pawn, colony.Shortfall);
 
         var food = colony.Food;
         var perNutrition = food.Meal.Length != 0
@@ -171,6 +159,33 @@ public static class PawnValueRules
             Work = EquatableArray.From(shares), NotModelled = notModelled, FoodHaul = pawn.FoodPerDay * haul / GameTime.TicksPerDay,
         };
     }
+
+    /// <summary>
+    /// The shortfall rows the pawn's free ticks a day fill (V1, V2 of #3825): each row of a work type it is capable of, at its
+    /// fastest stat first, capped at its row, in ticks at speed 1; the rest of its time adds nothing. A stat a row needs that the
+    /// pawn's speeds lack throws <see cref="RequiredFactException"/>. The classroom credit charges a teacher's lesson ticks by it (#3809).
+    /// </summary>
+    public static IReadOnlyList<PawnWorkShare> WorkAdded(PawnValueFacts pawn, WorkShortfall shortfall)
+    {
+        DomainException.Require(double.IsFinite(pawn.FreeTicksPerDay) && pawn.FreeTicksPerDay >= 0, "pawn free ticks");
+        var incapable = pawn.Incapable.ToHashSet(StringComparer.Ordinal);
+        var free = pawn.FreeTicksPerDay;
+        var shares = new List<PawnWorkShare>();
+        foreach (var row in shortfall.Rows.Where(r => !incapable.Contains(r.WorkType))
+            .Select(r => (Row: r, Speed: SpeedOf(pawn, r.Stat))).Where(r => r.Speed > 0)
+            .OrderByDescending(r => r.Speed).ThenBy(r => r.Row.WorkType, StringComparer.Ordinal).ThenBy(r => r.Row.Stat, StringComparer.Ordinal))
+        {
+            if (free <= 0) break;
+            var done = Math.Min(row.Row.TicksPerDay, free * row.Speed);
+            free -= done / row.Speed;
+            shares.Add(new(row.Row.WorkType, row.Row.Stat, done));
+        }
+
+        return shares;
+    }
+
+    private static double SpeedOf(PawnValueFacts pawn, string stat) => stat.Length == 0 ? 1
+        : pawn.Speeds.TryGetValue(stat, out var speed) ? speed : throw new RequiredFactException("work speed " + stat + " of " + pawn.Pawn);
 
     /// <summary>The colonist beds of the sleeping census no one owns, by id (<see cref="SleepingRules.VacantColonistBed"/>).</summary>
     public static IReadOnlyList<string> VacantColonistBeds(SleepingObservation sleeping) =>

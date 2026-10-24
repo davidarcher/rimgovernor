@@ -8,15 +8,14 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// The layout plans the buildings the babies' play uses (#3837): the room the babies sleep in carries one of each
 /// play building the catalog reads from the BabyPlayDef givers (the toy box), in its stations and its area, and the
-/// nursery and playroom furnish it; a load without Biotech plans none.
+/// nursery furnishes it; a load without Biotech plans none.
 /// </summary>
 public sealed class ChildPlayBuildingsTests
 {
     private const string Crib = "Crib";
     private const string ToyBox = "ToyBox";
-    private const string Decoration = "BabyDecoration";
 
-    // A crib as the catalog scores it (a humanlike bed too small for a child) and a toy box (baby play power above one: a playroom piece).
+    // A crib as the catalog scores it (a humanlike bed too small for a child) and a toy box (baby play power above one, which the game's Playroom role scores).
     private static StationCatalog Catalog(params string[] play) => new()
     {
         PlayBuildings = play,
@@ -81,19 +80,17 @@ public sealed class ChildPlayBuildingsTests
     }
 
     [Fact]
-    public void TheNurseryAndThePlayroomFurnishTheToyTheCatalogReads()
+    public void TheNurseryFurnishesTheToyTheCatalogReads()
     {
         // The catalog gives the toy box the Toy role (DefinitionCatalog.GameRoomRoles over PlayBuildings).
         FurnitureDefinition Def(string name, FurnitureRole role) => new() { Name = name, Available = Known(true), Size = Known(new Bounds(1, 1)), Roles = [role.Value] };
-        var defs = new List<FurnitureDefinition> { Def(Crib, FurnitureRole.BabyBed), Def(ToyBox, FurnitureRole.Toy), Def(Decoration, FurnitureRole.Decoration) };
-        var needs = ChildRoomsRules.GoalRoomNeeds([RoomRole.Nursery, RoomRole.Playroom], []);
+        var defs = new List<FurnitureDefinition> { Def(Crib, FurnitureRole.BabyBed), Def(ToyBox, FurnitureRole.Toy) };
+        var needs = ChildRoomsRules.GoalRoomNeeds([RoomRole.Nursery], []);
 
         var nursery = Assert.Single(needs, n => n.Module == PlannedRole.Nursery).Shape(defs)!;
-        var playroom = Assert.Single(needs, n => n.Module == PlannedRole.Playroom).Shape(defs)!;
 
         // Two cribs and the toy box, all one cell.
         Assert.Equal(3, Assert.Single(nursery.Pieces).Count);
-        Assert.Equal(2, Assert.Single(playroom.Pieces).Count);
         // A nursery is owed whether or not a toy box is to be had: the toy is placed once one is.
         var cribs = Assert.Single(needs, n => n.Module == PlannedRole.Nursery).Shape([defs[0]])!;
         Assert.Equal(2, Assert.Single(cribs.Pieces).Count);

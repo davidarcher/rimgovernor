@@ -342,6 +342,15 @@ upkeep prices hauling its food over the planned layout. Read with ilspycmd on th
 | Units a carry holds | `min(stackLimit, round(CarryingCapacity / VolumePerUnit))` (`VolumePerUnit` 0.1 for a small-volume thing, else 1) | `Pawn_CarryTracker.MaxStackSpaceEver` |
 | Pick up and put down | no ticks | `Toils_Haul.StartCarryThing`, `Toils_Haul.PlaceHauledThingInCell` |
 
+## Mirrored game literals: lessons (#3809)
+
+`ForecastClassroom` (`brain/src/RimGovernor.Brain.Policy/ForecastClassroom.cs`) mirrors the one learning literal no member
+exposes; the rates, weights and skill count are read (`NeedsForecastRead.School`).
+
+| Literal | Value | Member |
+| --- | --- | --- |
+| `ActiveDesires` | 2: the active learning desires a child keeps, and the jobs a lesson wins (one in two, JobGiver_Learn's random order) | `Pawn_LearningTracker.AddNewLearningDesire` (`active.Count >= 2`) |
+
 ## Policy constants (#3469)
 
 `ForecastValuePolicy` (`brain/src/RimGovernor.Brain.Policy/ForecastValue.cs`)

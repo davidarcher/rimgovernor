@@ -106,7 +106,6 @@ public static partial class LayoutOverlayRules
             [PlannedRole.Pen] = St(PlanGreen, "pen"),
             [LayoutThroneRules.PlannedThrone] = St(PlanAmber, "throne room"),
             [PlannedRole.Nursery] = St(PlanGreen, "nursery"),
-            [PlannedRole.Playroom] = St(PlanYellow, "playroom"),
             [PlannedRole.Classroom] = St(PlanWhite, "classroom"),
             [PlannedRole.DeathrestChamber] = St(PlanDarkPurple, "deathrest chamber"),
             [PlannedRole.Worship] = St(PlanAmber, "worship room"),

@@ -533,7 +533,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812), `DeathrestChamber` (#3810), `Hospital` (#3804), `ContainmentCell` (#3811), `IsolationRoom` (#3844), `SparringRing` (#3813), `TrainingRange` (#3846) and `Prison` (#3805).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812), `DeathrestChamber` (#3810), `Hospital` (#3804), `ContainmentCell` (#3811), `IsolationRoom` (#3844), `SparringRing` (#3813), `TrainingRange` (#3846), `Prison` (#3805) and `Classroom` (#3809).
 Each fueled source with a steady burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 whose native supply is `HeatSupply.Burning`, with its `Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
@@ -867,6 +867,30 @@ without a bed (`prison_no_recruit`, with `prison_unrecruitable` for a loyal one)
 no bed (`prison_no_bed`) and the review before the first layout plan (`prison_awaiting:layout_plan`). Named as not modelled: a wild
 man's taming chance, trait thoughts whose worker reads the situation, the warden's chat labour, `Inspired_Recruitment`, and the
 prisoner's mood, memories and opinion held at now's over the recruitment.
+
+*Classroom credit (#3809).* A planned classroom the outcome serves is credited (`ForecastClassroom.ClassroomCredit`) the lessons
+it seats, per child under `classroom/<room>/<child>`. A child (a colonist with a learning need, `NeedsForecastRead.School`) takes
+no lesson without a school desk (`LearningGiver_Lessontaking.CanDo`); the colony's standing desks seat the children the lessons
+are worth most to, and the served classrooms, in service order, seat the rest, one per planned desk (the prediction's `Desks`),
+the most valuable first. Every learning job refills the need to satisfied, so a desire's share of the refill is its share of the
+jobs: a seated child's lesson share (`ForecastClassroom.LessonShare`) is the stationary chance that Lessontaking is one of its two
+active desires (the tracker's draw by `selectionWeight` among the givable defs not active, the oldest dropped) times the half of
+the jobs it then wins. Its lessons teach `share × BaseFallPerTick × ticks a day × xpPerTick / NeedSatisfiedPerTick` raw XP a day
+(the LearningRateFactor cancels), split evenly over the skills its teacher teaches (`ChooseSkill`'s top four of the first standing
+childcarer's skills neither is totally disabled in, age-disabled work included); each skill's XP goes through the skill arithmetic
+over the read's validity (at most a day, as a practice session's, #3852) and is priced at the stock's value per XP
+(`Investment[skill/<child>/<skill>]`; a skill without a marginal adds nothing, `classroom_skill_unvalued`). The teacher's lesson
+ticks (the child's lesson refill over `NeedSatisfiedPerTick × LearningRateFactor × the desk's SchoolDeskLearningRate`) are charged
+as lost work: the shortfall rows those ticks would fill at the teacher's speeds (`PawnValueRules.WorkAdded` against the outcome's
+shortfall, cached per outcome). The row is the XP value less that work, a day; it can be negative, since tier 2 values a child's
+skill only where a doctor's Medicine or a fighter's Melee and Shooting stock reads it. Named states, each earning nothing: no child
+(`classroom_no_child`), no teacher (`classroom_no_teacher`), no Lessontaking desire givable (`classroom_no_lesson`), every taught
+child already seated (`classroom_children_seated`), a child taught no skill (`classroom_nothing_taught`) and a classroom with no
+planned desk (`classroom_no_desk`). The credit reads no planned walk, so it prices the same before the first layout plan. Named as
+not modelled: the XP of the desire a lesson displaces (Workwatching, Reading), the teacher's Social XP, the teacher held free
+whenever a lesson is wanted, desks shared by turns, a blackboard's `maxSimultaneous` and the lesson memories. There is no growth
+term (D3): the learning need, whose level sets a child's growth points, is refilled by the other desires with or without a
+classroom, so growth is unchanged. No playroom is planned (#3809): its role is deleted, and the babies' play is the nursery's (#3854).
 
 *Who moves first (#3656).* A vacant bedroom bed, standing or planned, goes to the unhoused colonist with the largest priced gain
 from it (`ForecastHousing.LargestGainFirst`, a stable sort, so ties keep id order). The gain is read before the search, from

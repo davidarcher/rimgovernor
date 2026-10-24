@@ -90,9 +90,6 @@ public enum PlannedRole
     [WireName("nursery")]
     Nursery,
 
-    [WireName("playroom")]
-    Playroom,
-
     [WireName("classroom")]
     Classroom,
 

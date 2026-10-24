@@ -39,7 +39,6 @@ public static class ConstructionTierRules
         [PlannedRole.Reserve] = ConstructionTier.Expand,
         [PlannedRole.Circulation] = ConstructionTier.Expand,
         [PlannedRole.Nursery] = ConstructionTier.Expand,
-        [PlannedRole.Playroom] = ConstructionTier.Expand,
         [PlannedRole.Classroom] = ConstructionTier.Expand,
         [PlannedRole.DeathrestChamber] = ConstructionTier.Expand,
         [PlannedRole.ContainmentCell] = ConstructionTier.Expand,

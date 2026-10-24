@@ -361,6 +361,14 @@ unknown. What the game does not have is a case, never an unknown:
   `MakeThought` offsets, the names of trait thoughts whose worker reads the situation, and its
   memories, which `RecruitUtility.Recruit` keeps) and its need rates, joy from its own Need\_Joy or a
   detached one built under `Rand.PushState`.
+- `NeedsForecastRead.School` (#3809, `SchoolRead`): `Need_Learning.BaseFallPerTick`,
+  `LearningUtility.NeedSatisfiedPerTick`, `LearningDesireDefOf.Lessontaking` and its `xpPerTick` ("" and 0 without
+  Biotech), every `LearningDesireDef`'s `selectionWeight` and its worker's `CanGiveDesire`, the colony's spawned
+  school desks, the teacher (the first of `FreeColonistsSpawned` that is no juvenile, has Childcare enabled and
+  active and can talk: `ChildcareUtility.SpawnedColonistChildcarers` and `SchoolUtility.CanTeachNow`'s standing
+  clauses; "" none), and per colonist with a learning need its `LearningRateFactor` stat and the skills that
+  teacher's lessons teach it (`JobDriver_Lessongiving.ChooseSkill`: not totally disabled for either, a
+  `lessonInteraction`, best first, the private `TopTeachableSkillCount`), each with its `SkillLearning`.
 
 The brain mirrors the game literals these mechanics use; each constant cites its
 1.7 member ([kept constants](kept-constants.md#mirrored-game-literals-3339)).
@@ -1107,6 +1115,11 @@ piece stands in the shape's stuff) or an unreadable game member fails the read:
   UsesOutdoorTemperature read once closed.
 - `Beds`: the beds inside; `Benches`: the bill-giving buildings inside, each with
   whether `StatPart_WorkTableOutdoors` applies to it now.
+- `Desks` (#3809): the shape's planned school desks, each at the
+  `SchoolDeskLearningRate` it would have: 1 + 0.2 (`LearningRateBonusOffset_Blackboard`) per
+  standing or planned blackboard `CompAffectedByFacilities.CanPotentiallyLinkTo_Static` admits
+  (within the board's `maxDistance`), at most `MaxConnectedBlackboards`. A board's
+  `maxSimultaneous` is not applied; a board needing line of sight is a broken read.
 
 The unregistered room is never added to the map. The staged
 `observations/planned-room-prediction` case predicts an open 3x3 patch with a wooden

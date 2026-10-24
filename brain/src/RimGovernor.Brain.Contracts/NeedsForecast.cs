@@ -39,7 +39,52 @@ public sealed record NeedsForecastRead
     public required DeathrestDefsRead? Deathrest { get; init; }
     /// <summary>The recruitment mechanics the prison credit reads (#3805): the wardens among the colonists given and every prisoner of the colony on the map.</summary>
     public required PrisonRecruitRead Prison { get; init; }
+    /// <summary>The lesson mechanics the classroom credit reads (#3809): the learning need's rates, the learning desires, the
+    /// colony's school desks, its teacher and every child with a learning need.</summary>
+    public required SchoolRead School { get; init; }
 }
+/// <summary>
+/// The lesson mechanics (#3809). A child's learning need (<c>Need_Learning</c>) falls <see cref="FallPerTick"/>
+/// (<c>Need_Learning.BaseFallPerTick</c>, asleep or awake) and a learning job refills it <see cref="RefillPerTick"/>
+/// (<c>LearningUtility.NeedSatisfiedPerTick</c>) times its <c>LearningUtility.LearningRateFactor</c> until it is satisfied. A
+/// lesson (<see cref="Lessontaking"/>, <c>LearningDesireDefOf.Lessontaking</c>) teaches its <see cref="LessonXpPerTick"/>
+/// (<c>xpPerTick</c>) times that factor a tick (<c>JobDriver_Lessongiving</c>). <see cref="Desires"/> are every
+/// <c>LearningDesireDef</c> in def order. <see cref="StandingDesks"/> counts the colony's spawned <c>ThingDefOf.SchoolDesk</c>s.
+/// <see cref="Teacher"/> is the pawn <c>SchoolUtility.FindTeacher</c> takes first while it can teach: the first of
+/// <c>ChildcareUtility.SpawnedColonistChildcarers</c> (FreeColonistsSpawned order) that is no juvenile, has Childcare active and
+/// can talk; "" when none is.
+/// </summary>
+public sealed record SchoolRead
+{
+    public required double FallPerTick { get; init; }
+    public required double RefillPerTick { get; init; }
+    public required string Lessontaking { get; init; }
+    public required double LessonXpPerTick { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<LearningDesireRead>))]
+    public required EquatableArray<LearningDesireRead> Desires { get; init; }
+    public required int StandingDesks { get; init; }
+    public required string Teacher { get; init; }
+    /// <summary>Every colonist given with a learning need (<c>pawn.needs.learning</c>), in pawn id order. Empty means no child.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<SchoolChildRead>))]
+    public required EquatableArray<SchoolChildRead> Children { get; init; }
+}
+/// <summary>A <c>LearningDesireDef</c>: its <c>selectionWeight</c> and whether its worker's <c>CanGiveDesire</c> holds now.</summary>
+public sealed record LearningDesireRead(string Def, double SelectionWeight, bool CanGive);
+/// <summary>
+/// A child with a learning need (#3809): its <c>StatDefOf.LearningRateFactor</c> and the skills <see cref="SchoolRead.Teacher"/>
+/// would teach it (<c>JobDriver_Lessongiving.ChooseSkill</c>: the teacher's skills neither it nor the child is
+/// <c>TotallyDisabled</c> in that have a <c>lessonInteraction</c>, best first, its <c>TopTeachableSkillCount</c>, one drawn at
+/// random a lesson), each with the child's <see cref="SkillLearning"/> of it. Empty without a teacher.
+/// </summary>
+public sealed record SchoolChildRead
+{
+    public required string Pawn { get; init; }
+    public required double LearningRateFactor { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<TaughtSkillRead>))]
+    public required EquatableArray<TaughtSkillRead> Taught { get; init; }
+}
+/// <summary>One skill a lesson may teach a child, by SkillDef name, with the child's learning mechanics of it.</summary>
+public sealed record TaughtSkillRead(string Skill, SkillLearning Learning);
 /// <summary>
 /// The recruitment mechanics (#3805), from <c>InteractionWorker_RecruitAttempt.Interacted</c>: while a prisoner's resistance is
 /// above 0, each warden chat lowers it by the warden's <c>StatDefOf.NegotiationAbility</c> times <see cref="MoodCurve"/> at the

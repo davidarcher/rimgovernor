@@ -200,14 +200,14 @@ public sealed class DeathrestCreditTests
     [Fact]
     public void PawnsWithoutADeathrestGeneStageTheirChildRooms()
     {
-        // Pawns with no deathrest gene, or no Biotech at all, never throw, and their nursery, playroom and classroom stage.
+        // Pawns with no deathrest gene, or no Biotech at all, never throw, and their nursery and classroom stage.
         static WorkPawn Child(string id, RimGovernor.Contracts.Wire.Defs.DevelopmentalStage stage) =>
             new() { Id = new(id), Biotech = Known(Biotech(null, stage)) };
         var needs = ChildRoomsRules.ChildRoomNeeds([
             Child("baby", RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Baby),
             Child("child", RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Child),
             new WorkPawn { Id = new("plain") }], Defs);
-        Assert.Equal([RoomRole.Nursery, RoomRole.Playroom, RoomRole.Classroom], needs.Select(n => n.Role));
+        Assert.Equal([RoomRole.Nursery, RoomRole.Classroom], needs.Select(n => n.Role));
     }
 
     [Fact]

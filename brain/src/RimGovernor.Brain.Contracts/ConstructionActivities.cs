@@ -72,7 +72,17 @@ public sealed record PlannedRoomPrediction(string Room, string Stuff, string Rol
     public required EquatableArray<string> Beds { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomBench>))]
     public required EquatableArray<PlannedRoomBench> Benches { get; init; }
+    /// <summary>
+    /// The shape's planned school desks (#3809: <c>ThingDefOf.SchoolDesk</c> Build-site furniture), in furniture order, each with
+    /// the <c>LearningUtility.SchoolDeskLearningRate</c> it would have: 1 plus <c>LearningRateBonusOffset_Blackboard</c> per
+    /// blackboard, standing or planned in the shape, it could link to (<c>CompAffectedByFacilities.CanPotentiallyLinkTo_Static</c>),
+    /// at most <c>MaxConnectedBlackboards</c>. A blackboard's own <c>maxSimultaneous</c> is not applied.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomDesk>))]
+    public required EquatableArray<PlannedRoomDesk> Desks { get; init; }
 }
+/// <summary>One planned school desk of a predicted room and its learning rate.</summary>
+public sealed record PlannedRoomDesk(double LearningRate);
 public sealed record PlannedRoomBench(string Bench, bool PsychologicallyOutdoors);
 /// <summary>One terrain of a predicted closed room (#3808): its TerrainDef tags.</summary>
 public sealed record PlannedRoomTerrain(

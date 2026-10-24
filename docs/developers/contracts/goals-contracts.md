@@ -61,9 +61,10 @@ A `RoomRole` goal (#3496) adds demand to the planner that owns the room; it plac
 `RoundsFacts.GoalBuild` into every read of the world, so room demand lags the goal by one review. A room goal keeps
 asking after the room stands: dropping the need would end the role in the plan and retire the room.
 
-- **Nursery, Playroom, Classroom, DeathrestChamber.** `ChildRoomsRules.GoalRoomNeeds` adds the smallest `ChildRoomNeed`
-  of the role (two baby beds; a toy and a decoration; a blackboard and a desk; a casket) to `ChildRoomNeeds`, unless the
-  pawns already owe the role, whose larger need stands. Layout sizes and places the room (the playroom, classroom and
+- **Nursery, Classroom, DeathrestChamber.** `ChildRoomsRules.GoalRoomNeeds` adds the smallest `ChildRoomNeed`
+  of the role (two baby beds; a blackboard and a desk; a casket) to `ChildRoomNeeds`, unless the
+  pawns already owe the role, whose larger need stands. No playroom is planned (#3809), so a Playroom goal has no
+  method, as an unstaged role's. Layout sizes and places the room (the classroom and
   deathrest chamber are `ChildNodeRoles` room nodes; the nursery is the crib station group, so the station population
   floors its babies at the two beds while the catalog has a crib) and `shelter/sleeping` reconciles it.
 - **Worship.** The ideoligion's required buildings already size `WorshipRoomNeed`; the goal adds no need of its own and

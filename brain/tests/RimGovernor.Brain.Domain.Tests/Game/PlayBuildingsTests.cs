@@ -20,7 +20,7 @@ public sealed class PlayBuildingsTests
             Play("PlayWalking", typeof(BabyPlayGiver_PlayWalking)));
 
         Assert.Equal([nameof(ThingDefOf.ToyBox)], catalog.PlayBuildings());
-        // The planning views give the toy box the Toy role the nursery and playroom furnish by.
+        // The planning views give the toy box the Toy role the nursery furnishes by.
         Assert.Equal([FurnitureRole.Toy.Value], catalog.GameRoomRoles(nameof(ThingDefOf.ToyBox)));
     }
 

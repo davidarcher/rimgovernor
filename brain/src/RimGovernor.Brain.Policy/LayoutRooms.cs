@@ -62,7 +62,7 @@ public static partial class LayoutRoomsRules
                 break;
             }
         }
-        Add(stages && list.Count > 0, PlannedRole.Nursery, PlannedRole.Playroom, PlannedRole.Classroom);
+        Add(stages && list.Count > 0, PlannedRole.Nursery, PlannedRole.Classroom);
         Add(deathrests && list.Count > 0, PlannedRole.DeathrestChamber);
         Add(ideology.TryGetValue(out _), PlannedRole.Worship);
         var demandKnown = containment.Demand.TryGetValue(out var demand);
