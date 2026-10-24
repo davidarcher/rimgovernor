@@ -39,7 +39,8 @@ A compiling record is not evidence of native behavior.
 ## Wire and validation
 
 `WireJson` (`Json/WireJson.cs`) is the one JSON entry point: source-generated System.Text.Json
-(`WireJsonContext`), camelCase names, enums as their wire-name strings (`WireEnumConverter`), unknown
+(`WireJsonContext`), camelCase names, every member written (zeros and falses included), `required`
+members enforced on read, enums as their wire-name strings (`WireEnumConverter`), unknown
 members disallowed, choices as type-discriminated objects (the `...Case` records under each
 `...Outcome`), and 64-bit counters as plain JSON numbers. Each native tool has one fixed request and
 reply type. Read tools never include a mutation branch.

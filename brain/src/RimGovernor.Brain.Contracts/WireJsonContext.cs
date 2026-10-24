@@ -7,7 +7,7 @@ namespace RimGovernor.Contracts.Wire;
 // protobuf schemas, then owned by hand.
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
-    DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault,
+    DefaultIgnoreCondition = JsonIgnoreCondition.Never,
     NumberHandling = JsonNumberHandling.AllowNamedFloatingPointLiterals,
     UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow,
     AllowOutOfOrderMetadataProperties = true,

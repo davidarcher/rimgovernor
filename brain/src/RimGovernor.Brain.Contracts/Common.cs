@@ -148,13 +148,10 @@ public sealed record IdeoligionDesign
 /// </summary>
 public sealed record Identity
 {
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public required string ColonyId { get; init; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public required string LoadToken { get; init; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public required int MapId { get; init; }
 }
 
@@ -220,10 +217,8 @@ public sealed record OrbitalTradeTarget
 
 public sealed record ObservationContext
 {
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public required Identity Identity { get; init; }
 
-    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
     public required long Tick { get; init; }
 
     public ulong? NativeGeneration { get; init; }

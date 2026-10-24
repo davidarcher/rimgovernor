@@ -204,7 +204,8 @@ mod. They were generated once from `contracts/proto` and are now owned by hand; 
   `type` through `[JsonPolymorphic]`, and an implicit conversion from each message-typed payload. The message holds
   it in a nullable property named after the oneof (`reply.Outcome is ...Outcome.FailureCase { Value: var failure }`).
 - JSON is source-generated `System.Text.Json` (`WireJsonContext`, entry point `WireJson`): camelCase property names
-  (the names ProtoJSON emits), enums as strings, 64-bit integers as numbers, defaults omitted, unknown members
+  (the names ProtoJSON emits), enums as strings, 64-bit integers as numbers, every member written (zeros and falses
+  included), `required` members enforced on read, unknown members
   refused, `type` accepted anywhere in an object. Changing the casing is the single
   `PropertyNamingPolicy` in `WireJsonContext`.
 - The def mirror (`defs.proto`) is not a wire contract here: only the six game enums the observations carry
