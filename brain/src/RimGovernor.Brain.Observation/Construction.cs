@@ -229,7 +229,7 @@ public static class ConstructionReads
 
     private static string? SiteStage(O.BuildingStatus status) => status switch
     {
-        O.BuildingStatus.Blueprint => "blueprint",
+        O.BuildingStatus.Blueprint => ConstructionSite.BlueprintStage,
         O.BuildingStatus.Frame => "frame",
         _ => null,
     };

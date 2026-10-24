@@ -21,6 +21,10 @@ public enum GroundPhase
 {
     None,
 
+    /// <summary>Cancels a retired room's blueprints in one batch (#3742).</summary>
+    [WireName("blueprints")]
+    Blueprints,
+
     [WireName("furniture")]
     Furniture,
 
@@ -41,9 +45,9 @@ public enum GroundPhase
 /// <summary>
 /// The ground of rooms the plan retired among the ground planned clearance is given, with the wall rectangles
 /// of the rooms the plan still holds: a building on a retired room's ring that also lies in a kept room's
-/// walls is that room's and stays. Nothing on retired ground is planned: its ring walls, doors and frames
-/// come down and its sleeping spots go; a research table is packed with the rest and installed in the
-/// laboratory.
+/// walls is that room's and stays, and so is a blueprint anywhere on a held room's ground. Nothing else on retired ground is planned: its blueprints are cancelled, its
+/// ring walls, doors and frames come down and its sleeping spots go; a research table is packed with the
+/// rest and installed in the laboratory.
 /// </summary>
 public sealed record RetiredGround
 {
@@ -51,24 +55,25 @@ public sealed record RetiredGround
 
     public EquatableArray<Region> Kept { get; init; }
 
+    /// <summary>The ground (interior and ring) of every room the plan holds: a blueprint there is that room's build.</summary>
+    public EquatableArray<Region> Planned { get; init; }
+
     internal bool Has(Region g) => Ground.Items.Any(g.Equal);
 
     internal bool IsKept(Cell c) => Kept.Items.Any(k => k.Contains(c));
 
-    internal bool HeldRow(ClearanceTarget row)
+    internal bool HeldRow(ClearanceTarget row) =>
+        RowCells(row).Any(c => IsKept(c) || (row.Blueprint && Planned.Items.Any(p => p.Contains(c))));
+
+    private static IEnumerable<Cell> RowCells(ClearanceTarget row)
     {
         for (var x = row.Minimum.X; x <= row.Maximum.X; x++)
         {
             for (var z = row.Minimum.Z; z <= row.Maximum.Z; z++)
             {
-                if (IsKept(new Cell(x, z)))
-                {
-                    return true;
-                }
+                yield return new Cell(x, z);
             }
         }
-
-        return false;
     }
 }
 
@@ -139,13 +144,15 @@ public static class ClearanceGroundRules
     public static RetiredGround RetiredGroundOf(LayoutPlan plan)
     {
         var kept = new List<Region>();
+        var planned = new List<Region>();
         foreach (var r in plan.Rooms)
         {
             // Only the ring: an old wall that now stands inside a reshaped room is not its wall.
             kept.Add(r.WallRing());
+            planned.Add(RegionRules.RectRegion(RoomGround(r.Region.Bounds())));
         }
 
-        return new RetiredGround { Ground = EquatableArray.From(plan.RetiredGround), Kept = EquatableArray.From(kept) };
+        return new RetiredGround { Ground = EquatableArray.From(plan.RetiredGround), Kept = EquatableArray.From(kept), Planned = EquatableArray.From(planned) };
     }
 
     /// <summary>
@@ -201,10 +208,11 @@ public static class ClearanceGroundRules
     internal static bool StandInBed(ClearanceTarget row) => row.DefName == "SleepingSpot";
 
     /// <summary>
-    /// Picks the first retired ground, in plan order, with work left and its earliest phase: furniture,
-    /// packs, then walls (and every roof-holder) with their roof, then floors. Rows are the census's player
-    /// rows on the ground (SplitGroundRows). Null when the ground is clear. Planned rooms go through Reconcile
-    /// (PlannedGroundStep).
+    /// Picks the first retired ground, in plan order, with work left and its earliest phase: blueprints
+    /// (cancelled), furniture and frames, packs, then walls (and every roof-holder) with their roof, then floors.
+    /// Rows are the census's player rows on the ground (SplitGroundRows) and the colony's blueprints there
+    /// (HomeUpkeepReader.GroundBlueprints). A row on a kept room's ring stays. Null when the ground is clear.
+    /// Planned rooms go through Reconcile (PlannedGroundStep).
     /// </summary>
     internal static GroundStep? RetiredGroundStep(
         IReadOnlyList<ClearanceTarget> rows,
@@ -220,6 +228,7 @@ public static class ClearanceGroundRules
         var claimedFloor = new HashSet<Cell>();
         foreach (var g in ground.Items)
         {
+            var blueprints = new List<ClearanceTarget>();
             var furniture = new List<ClearanceTarget>();
             var packs = new List<ClearanceTarget>();
             var walls = new List<ClearanceTarget>();
@@ -231,8 +240,13 @@ public static class ClearanceGroundRules
                 }
 
                 claimed.Add(row.EntityId);
+                // A blueprint is cancelled (#3742); a frame is a building and is deconstructed with the rest.
+                if (row.Blueprint)
+                {
+                    blueprints.Add(row);
+                }
                 // A roof-holder goes with the walls and their roof, whatever it still encloses (#3681).
-                if (row.EnclosesRoom || row.RoofBlocker.Length != 0)
+                else if (row.EnclosesRoom || row.RoofBlocker.Length != 0)
                 {
                     walls.Add(row);
                 }
@@ -248,6 +262,12 @@ public static class ClearanceGroundRules
 
             // Pieces in use go after every other piece in the room.
             packs = [.. packs.OrderBy(p => p.InUse)];
+            // Nothing more is built on retired ground: its blueprints go first, in one batch.
+            if (blueprints.Count > 0)
+            {
+                return new GroundStep { Ground = g, Phase = GroundPhase.Blueprints, Targets = EquatableArray.From(blueprints) };
+            }
+
             if (furniture.Count > 0)
             {
                 return new GroundStep { Ground = g, Phase = GroundPhase.Furniture, Targets = EquatableArray.From(furniture) };

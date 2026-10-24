@@ -116,7 +116,10 @@ colony walls only.
 `Designate` DECONSTRUCT on a building `target` under the `enclosure` guard clears one exact
 building through `Designator_Deconstruct`; native rechecks deconstructibility, visible
 geometry, forbidden or burning state and any pending wall upgrade at apply; an enclosing
-wall is admitted.
+wall is admitted. A blueprint is not deconstructed (the deconstruct designator refuses it):
+`Designate` CANCEL on the blueprint `target` (no guard) destroys it through `Designator_Cancel`,
+and a blueprint already gone applies again (#3742). A frame is deconstructed, so its delivered
+materials come back.
 
 - Roof collapse is a hold at the work giver, not an admission refusal: the
   `WorkGiver_Deconstruct.HasJobOnThing` postfix keeps pawns off a standing designation while
@@ -198,7 +201,7 @@ maintenance cost factor, which scales `fuelMultiplier` for a `factorByDifficulty
 The `home-upkeep/clearance` Need (the `home-upkeep` family, #3253; composed by the
 `clearance` toggle) is met when the clearance census holds no removable non-player
 building inside Home and no planned-ground work is left; its deficit is that target
-count. Its Method is the next clearance step, keyed by the step (`deconstruct-<id>[-xN]`,
+count. Its Method is the next clearance step, keyed by the step (`cancel-<id>[-xN]`, `deconstruct-<id>[-xN]`,
 `pack-…`, `swap-door-…`, `roof-off-…`, `ground-walls-…`, `ground-floors-…`): the same
 step continues its open Method, independent steps run side by side, and a step whose
 cells or targets overlap an open Method is refused by claim (`claim_conflict`).

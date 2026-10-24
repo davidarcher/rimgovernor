@@ -119,16 +119,17 @@ public static partial class LayoutDeriveRules
 
     /// <summary>
     /// The retired ground prev holds that clearance has not cleared, and the ground (ring and attached
-    /// children) of each standing room of prev the plan next no longer holds: the building comes down through
-    /// planned-ground clearance.
+    /// children) of each started room of prev (<paramref name="started"/>: built, or anything of ours on its
+    /// walls, growth.Fixed) the plan next no longer holds: planned-ground clearance cancels its blueprints and
+    /// takes its frames and building down (#3742).
     /// </summary>
-    internal static List<Region> RetiredGround(LayoutPlan prev, LayoutPlan next, IReadOnlySet<int> built)
+    internal static List<Region> RetiredGround(LayoutPlan prev, LayoutPlan next, IReadOnlySet<int> started)
     {
         var output = new List<Region>(prev.RetiredGround);
         var held = new HashSet<int>(next.Rooms.Select(r => r.Id));
         foreach (var r in prev.Rooms)
         {
-            if (r.Attached() || held.Contains(r.Id) || !built.Contains(r.Id))
+            if (r.Attached() || held.Contains(r.Id) || !started.Contains(r.Id))
             {
                 continue;
             }
@@ -295,7 +296,7 @@ partial record LayoutPlan
         var (conduits, joined) = RejoinHeld(prev, tiled, plan, s);
         plan = plan with { Conduits = EquatableArray.From(conduits) };
         advice.Tiled!.ConduitDecisions.AddRange(joined);
-        plan = plan with { RetiredGround = LayoutDeriveRules.RetiredGround(prev, plan, f!.Built!) };
+        plan = plan with { RetiredGround = LayoutDeriveRules.RetiredGround(prev, plan, growth.Fixed ?? f!.Built!) };
         return (LayPerimeter(prev, plan, s, growth.Perimeter).WithDefenseTiersOf(prev).WithRoomIDs(), advice);
     }
 

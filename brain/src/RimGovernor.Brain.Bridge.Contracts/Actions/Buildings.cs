@@ -183,11 +183,16 @@ public static class BuildingsRules
     /// <summary>
     /// The DECONSTRUCT Designate of one exact building under the enclosure guard. Native
     /// checks the target's safety and the game designator live when it applies; a designation already standing applies
-    /// again, and revoking authority releases every guarded designation natively.
+    /// again, and revoking authority releases every guarded designation natively. A blueprint's removal is the
+    /// unguarded CANCEL Designate of the blueprint (#3742): the deconstruct designator refuses blueprints.
     /// </summary>
     internal static Op.Action DeconstructAction(DomainAction action)
     {
         var v = action.Deconstruction ?? throw BridgeContractException.Contract("not a deconstruction action");
+        if (v.CancelsBlueprint)
+        {
+            return Designate(new Op.DesignateIntent { Designation = Op.ThingDesignation.Cancel, Target = IntentActionRules.NewRef(v.Target) });
+        }
         var intent = new Op.DesignateIntent { Designation = Op.ThingDesignation.Deconstruct, Target = IntentActionRules.NewRef(v.Target), Guard = Op.DesignationGuard.Enclosure };
         if (v.ReplacesWithWall)
         {

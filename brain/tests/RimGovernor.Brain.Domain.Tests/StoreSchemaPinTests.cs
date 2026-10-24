@@ -16,8 +16,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class StoreSchemaPinTests
 {
-    private const int PinnedSchemaVersion = 34;
-    private const string PinnedShapeHash = "5560D69E4813F997ED647A63AC0E92DC167CF1E732C908264016A761349CBCE7";
+    private const int PinnedSchemaVersion = 35;
+    private const string PinnedShapeHash = "87885771B29FD57842FAD2B7044ADD86346D2E87DF833B7B53AFAB97A58714B1";
 
     [Fact]
     public void CodecShapeIsPinnedToTheSchemaVersion()

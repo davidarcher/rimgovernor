@@ -12,7 +12,7 @@ using Receipts = RimGovernor.Contracts.Wire.Receipts;
 namespace HomeBridge.BridgeTools
 {
     // Generic Designate: one removal designation (Deconstruct, Mine,
-    // CutPlant, Haul, RemoveFoundation) on a Ref target or a cell, placed
+    // CutPlant, Haul, RemoveFoundation, or Cancel of a blueprint) on a Ref target or a cell, placed
     // through the game's own designator and held by the named guard the
     // intent selects (NativeDesignationGuards). A designation already
     // standing (a player one is adopted) or a cell already cleared applies
@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
         {
             plan = new Plan(); code = Common.FailureCode.InvalidRequest;
             var def = intent.Designation is not null ? DefOf(intent.Designation.GetValueOrDefault()) : null;
-            if (def == null) return "the designation must be one of Deconstruct, Mine, CutPlant, Haul or RemoveFoundation";
+            if (def == null) return "the designation must be one of Deconstruct, Mine, CutPlant, Haul, RemoveFoundation or Cancel";
             plan.Designation = intent.Designation.GetValueOrDefault(); plan.Def = def;
             plan.Map = ProtoBoundary.LoadedMap(context);
             var map = plan.Map;
@@ -183,12 +183,49 @@ namespace HomeBridge.BridgeTools
             return refusal == null ? null : ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, ApplyPreconditions.Detail(Kind, refusal));
         }
 
+        // ---- blueprint cancel ----
+        // CANCEL destroys one exact player blueprint through the game's
+        // cancel designator (DestroyMode.Cancel). It takes no guard; a
+        // blueprint already gone applies again, and the evidence is the
+        // blueprint gone. A frame is deconstructed, not cancelled.
+        private static bool Cancel(Operations.DesignateIntent intent) => intent.Designation.GetValueOrDefault() == Operations.ThingDesignation.Cancel;
+        private const string CancelDef = "Cancel";
+
+        private static string? ResolveCancel(Operations.DesignateIntent intent, Common.ObservationContext context, out Thing? blueprint, out string id, out Common.FailureCode code)
+        {
+            blueprint = null; id = ""; code = Common.FailureCode.InvalidRequest;
+            if (intent.Guard is not null && intent.Guard.GetValueOrDefault() != Operations.DesignationGuard.Unspecified) return "this designation takes no guard";
+            if (intent.Target?.Id is null || !ProtoBoundary.IsIdentifier(intent.Target.Id)) return "CANCEL requires a blueprint target";
+            if (intent.Cell != null && !ValidCell(intent.Cell)) return "the cell is invalid";
+            if (intent.ReplaceWithWall.GetValueOrDefault()) return "only Deconstruct swaps a door for a wall";
+            id = intent.Target.Id;
+            var map = ProtoBoundary.LoadedMap(context);
+            var found = RefIndex.Thing(map, id);
+            if (found == null || found.Destroyed || !found.Spawned) return null;
+            if (intent.Cell != null && (found.Position.x != intent.Cell.X || found.Position.z != intent.Cell.Z)) return "the target is not at the expected cell";
+            if (!(found is Blueprint) || found.Faction != Faction.OfPlayer) return "CANCEL targets a player blueprint";
+            if (found.Position.Fogged(map)) return "the target's cell is fogged";
+            if (intent.ExpectedDef is not null && intent.ExpectedDef != found.def.defName) return "the target is not the expected definition";
+            var report = new Designator_Cancel().CanDesignateThing(found);
+            if (!report.Accepted) return "the native designator refuses the target" + (string.IsNullOrEmpty(report.Reason) ? "" : ": " + report.Reason);
+            blueprint = found;
+            return null;
+        }
+
+        private static Receipts.EffectEvidence CancelEvidence(string id) =>
+            new Receipts.EffectEvidence { Effect = new Receipts.DesignationEffect { ThingId = id, DesignationDef = CancelDef, Present = true } };
+
         internal static Common.Failure? Validate(Operations.DesignateIntent intent, Common.ObservationContext context)
         {
             var pairing = Pairing(intent);
             if (pairing != null) return pairing;
             if (WallUpgrade(intent)) return NativeWallRemovalOperations.Validate(intent, context);
             if (Acquisition(intent)) return NativeAcquire.Validate(intent, context);
+            if (Cancel(intent))
+            {
+                var cancel = ResolveCancel(intent, context, out _, out _, out var cancelCode);
+                return cancel == null ? null : ProtoBoundary.Fail(cancelCode, ApplyPreconditions.Detail(Kind, cancel));
+            }
             var refusal = Resolve(intent, context, out _, out var code);
             return refusal == null ? null : ProtoBoundary.Fail(code, ApplyPreconditions.Detail(Kind, refusal));
         }
@@ -199,6 +236,14 @@ namespace HomeBridge.BridgeTools
             if (pairing != null) throw new InvalidOperationException(pairing.Detail);
             if (WallUpgrade(intent)) return NativeWallRemovalOperations.Apply(intent, context);
             if (Acquisition(intent)) return NativeAcquire.Apply(intent, context);
+            if (Cancel(intent))
+            {
+                var cancel = ResolveCancel(intent, context, out var blueprint, out var id, out _);
+                if (cancel != null) throw new InvalidOperationException("Designate prerequisites changed before apply: " + cancel);
+                if (blueprint != null) new Designator_Cancel().DesignateThing(blueprint);
+                if (blueprint != null && !blueprint.Destroyed) throw new InvalidOperationException("Native blueprint cancel was not observed.");
+                return CancelEvidence(id);
+            }
             var refusal = Resolve(intent, context, out var plan, out _);
             if (refusal != null) throw new InvalidOperationException("Designate prerequisites changed before apply: " + refusal);
             if (plan.Cleared) return Evidence(plan, null);

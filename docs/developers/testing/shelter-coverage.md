@@ -28,7 +28,8 @@ inside the acceptance tick cap.
 
 A built room a replan drops leaves its ground to clearance; `clearance/retired-ground` owns that native clearance
 (its footprint the injected plan's `RetiredGround`, walls, door and spots deconstructed until nothing of the colony's
-stands there).
+stands there). A started room's blueprints on retired ground are cancelled, not deconstructed;
+`clearance/retired-blueprints-cancelled` owns that native cancel (`THING_DESIGNATION_CANCEL`, #3742).
 
 ## Composition
 

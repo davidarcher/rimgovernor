@@ -69,11 +69,12 @@ public static class ClearanceReconcileRules
     /// The clear side knows no furniture list, and an owner builds its furniture there while the ring differs
     /// from the plan, so it would deconstruct each piece as it is finished; the owner alone removes stale
     /// interior furniture. Walls and doors (an ancient wall inside the interior), frames and stand-in beds stay,
-    /// and furniture on a ring cell is not inside the interior.
+    /// and furniture on a ring cell is not inside the interior. Blueprints are retired ground's alone (#3742): a
+    /// planned room's own blueprints are its build side's.
     /// </summary>
     private static List<ClearanceTarget> InteriorFurnitureLeft(PlannedRoom room, IReadOnlyList<ClearanceTarget> rows) =>
     [
-        .. rows.Where(row => !ReconcileRules.InteriorFurniture(room, row)),
+        .. rows.Where(row => !row.Blueprint && !ReconcileRules.InteriorFurniture(room, row)),
     ];
 
     /// <summary>

@@ -38,6 +38,13 @@ public sealed record ClearanceTarget
     public bool EnclosesRoom { get; init; }
 
     /// <summary>
+    /// A player blueprint on planned ground (#3742), from the construction census rather than the clearance census
+    /// (which reports buildings only); DefName is what it builds. Only retired-ground clearance reads it, and it is
+    /// cancelled, not deconstructed.
+    /// </summary>
+    public bool Blueprint { get; init; }
+
+    /// <summary>
     /// Stamped by the clearance planner (#2103): the def packs into a minified item, and the piece is an
     /// owned bed or a bench with an active bill.
     /// </summary>

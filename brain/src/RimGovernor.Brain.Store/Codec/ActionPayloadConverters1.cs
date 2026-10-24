@@ -372,7 +372,8 @@ public sealed class DeconstructionConverter : ObjectCodec<Deconstruction>
     protected override Deconstruction Read(JsonElement e, Codecs o)
     {
         var cut = new Deconstruction(e.Str("Target"), e.Str("Definition"), e.Get<Cell>("Cell", o));
-        return e.BoolOr("ReplacesWithWall") ? cut.WithWallReplacement() : cut;
+        cut = e.BoolOr("ReplacesWithWall") ? cut.WithWallReplacement() : cut;
+        return e.BoolOr("CancelsBlueprint") ? cut.WithBlueprintCancel() : cut;
     }
 
     protected override void WriteFields(Utf8JsonWriter w, Deconstruction v, Codecs o)
@@ -381,6 +382,7 @@ public sealed class DeconstructionConverter : ObjectCodec<Deconstruction>
         w.WriteString("Definition", v.Definition);
         w.Put("Cell", v.Cell, o);
         w.WriteBoolean("ReplacesWithWall", v.ReplacesWithWall);
+        w.WriteBoolean("CancelsBlueprint", v.CancelsBlueprint);
     }
 }
 

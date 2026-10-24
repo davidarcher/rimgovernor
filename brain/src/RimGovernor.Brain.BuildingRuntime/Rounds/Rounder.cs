@@ -703,10 +703,15 @@ public sealed partial class Rounder
             var clearance = await ClearanceReads.ObserveClearanceCensusOnGround(clearanceSource, expected, true, ground, ct).ConfigureAwait(false);
             if (clearance.TryGetValue(out var census))
             {
-                var (others, player) = ClearanceGroundRules.SplitGroundRows(census.Targets, reading.Projection.Facts.Preferences);
+                var blueprints = HomeUpkeepReader.GroundBlueprints(reading.Projection);
+                var (others, player) = ClearanceGroundRules.SplitGroundRows(census.Targets.Concat(blueprints ?? []), reading.Projection.Facts.Preferences);
                 reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Clearance = Known<EquatableArray<ClearanceTarget>>([.. others]) } });
                 reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { RoomObstructions = RecoveryRules.RoomObstructionIDs(others, ground) } });
-                reading = reading.WithProjection(DropClearedRetiredGround(state.Snapshot, reading.Projection, player, census.Floors, ct));
+                // Retired ground is clear only once its blueprints are known gone too (#3742).
+                if (blueprints is not null)
+                {
+                    reading = reading.WithProjection(DropClearedRetiredGround(state.Snapshot, reading.Projection, player, census.Floors, ct));
+                }
                 reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
             }
         }

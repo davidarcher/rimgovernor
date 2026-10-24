@@ -525,7 +525,7 @@ and `LayoutSiteGround.cs` (the siting seeds), that `Embed` uses with `FieldGain`
 perimeter (`PlanMountainPockets(PlanPerimeter(...))`). `ReplanLayout` pins the started rooms and the rooms growth holds
 (`TilePinned`, `ReplanTileFacts`) and runs `TileStations` again, so the next plan is the
 tiled plan wholesale, except that an unbuilt, unpinned room keeps its site and id unless the new embedding beats the held arrangement by `ReplanGain` (#3740), and a room tiled on the interior it had keeps its id either way. It then puts back the held rooms the tiler left out (`keepHeld`),
-retires the ground of a standing room that has no node (`retiredGround`), carries the
+retires the ground of a started room (`growth.Fixed`: built, or anything of ours on its walls) that has no node (`retiredGround`, #3742), carries the
 and traces the perimeter around
 what the defense record holds (`LayPerimeter`). What moves among built rooms is decided
 inside the embedder by the switching price (`switchThreshold`, `LayoutBuilt.cs`:
@@ -553,9 +553,11 @@ waits for the ring as before. Furniture already standing is matched and kept. A 
 stuff it was built in; it is swapped in place only to a priced upgrade the planned-room
 comparison selected (`SelectedWallUpgrade`, #3657), one wall at a time on a ring with no
 other work. Standing census rooms are reconciled too. The plan's
-`RetiredGround` (the footprint of a built room a replan dropped) is cleared with the rest: its ring, spots
-and furniture come down, a research table packed to stock for the laboratory to install,
-and the entry drops once nothing of ours stands on it.
+`RetiredGround` (the footprint of a started room a replan dropped) is cleared with the rest: its
+blueprints are cancelled first (`THING_DESIGNATION_CANCEL`, read from the construction census, since the
+clearance census reports buildings only), then its frames, ring, spots and furniture come down, a research
+table packed to stock for the laboratory to install, and the entry drops once nothing of ours, blueprints
+included, stands on it. A blueprint on a held room's ring or ground is that room's and stays.
 
 Reshape order: the diff runs over the room's `Region` (an L's notch is no ground, floors
 lay on region cells only). A standing wall now inside the region (a column added) is owed

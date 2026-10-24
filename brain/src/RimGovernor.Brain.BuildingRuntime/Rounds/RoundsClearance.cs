@@ -73,7 +73,7 @@ public sealed partial class HomeUpkeepReader
         {
             return facts;
         }
-        var (others, player) = ClearanceGroundRules.SplitGroundRows(census.Targets, colony.Projection.Facts.Preferences);
+        var (others, player) = ClearanceGroundRules.SplitGroundRows(census.Targets.Concat(GroundBlueprints(colony.Projection) ?? []), colony.Projection.Facts.Preferences);
         var wants = _reviewer.ClearFloors(colony.Projection);
         facts = facts with
         {
@@ -157,6 +157,39 @@ partial class HomeUpkeepReader
         return ClearanceReconcileRules.PlannedGroundWork(plan, ground, player, floors, rooms, Rounder.RetiredGroundOfColony(colony), wants);
     }
 
+    /// <summary>
+    /// The colony's player blueprints as clearance rows (#3742): the clearance census reports buildings only (a frame
+    /// is one), so retired-ground clearance reads the blueprints from the construction census and cancels them. Null
+    /// while that census is incomplete.
+    /// </summary>
+    internal static List<ClearanceTarget>? GroundBlueprints(ColonyProjection colony)
+    {
+        if (!colony.Facts.CurrentConstruction.TryGetValue(out var census) || !census.Colony)
+        {
+            return null;
+        }
+        var sizes = Rounder.DefinitionSizes(colony);
+        var output = new List<ClearanceTarget>();
+        foreach (var site in census.Sites)
+        {
+            if (site.Stage != ConstructionSite.BlueprintStage || site.Building is not { } b || site.Id.Length == 0)
+            {
+                continue;
+            }
+            var r = Rounder.SiteRect(sizes, b);
+            output.Add(new ClearanceTarget
+            {
+                EntityId = site.Id,
+                DefName = b.Definition,
+                Minimum = new Cell(r.X, r.Z),
+                Maximum = new Cell(r.X + r.Width - 1, r.Z + r.Height - 1),
+                Player = true,
+                Blueprint = true,
+            });
+        }
+        return output;
+    }
+
     /// <summary>Stamps the packable flag and the in-use flag (a bed with owners or a bench with an active bill) onto the rows.</summary>
     internal static List<ClearanceTarget> StampPacking(IReadOnlyList<ClearanceTarget> rows, ColonyProjection colony)
     {
@@ -202,7 +235,11 @@ partial class HomeUpkeepReader
     internal static (string Prefix, IReadOnlyList<DomainAction> Actions) GroundStepMethod(PlanId id, GroundStep step)
     {
         string prefix;
-        if (step.Phase == GroundPhase.Furniture)
+        if (step.Phase == GroundPhase.Blueprints)
+        {
+            prefix = BatchPrefix("cancel", step.Targets[0].EntityId, step.Targets.Count);
+        }
+        else if (step.Phase == GroundPhase.Furniture)
         {
             prefix = $"deconstruct-{step.Targets[0].EntityId}-";
         }
@@ -261,6 +298,10 @@ partial class HomeUpkeepReader
             if (step.Phase == GroundPhase.Doors)
             {
                 value = value.WithWallReplacement();
+            }
+            else if (target.Blueprint)
+            {
+                value = value.WithBlueprintCancel();
             }
             actions.Add(DomainAction.NewDeconstructionAction(Next(), value));
         }

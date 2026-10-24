@@ -58,6 +58,34 @@ partial class Rounder
         return output;
     }
 
+    /// <summary>The size of every definition the projection read.</summary>
+    internal static Dictionary<string, Bounds> DefinitionSizes(ColonyProjection projection)
+    {
+        var sizes = new Dictionary<string, Bounds>(StringComparer.Ordinal);
+        foreach (var d in projection.Definitions)
+        {
+            if (d.Size.TryGetValue(out var size))
+            {
+                sizes[d.Name] = size;
+            }
+        }
+        return sizes;
+    }
+
+    /// <summary>The footprint of a building, blueprint or frame: its definition's size when read, else its anchor cell.</summary>
+    internal static Rectangle SiteRect(IReadOnlyDictionary<string, Bounds> sizes, Building b)
+    {
+        if (sizes.TryGetValue(b.Definition, out var size))
+        {
+            var r = InteriorRules.OccupiedRect(b.Cell, new Cell(size.Width, size.Height), b.Rotation);
+            if (r.Width > 0 && r.Height > 0)
+            {
+                return r;
+            }
+        }
+        return new Rectangle { X = b.Cell.X, Z = b.Cell.Z, Width = 1, Height = 1 };
+    }
+
     /// <summary>
     /// The cells of ours a room must not lose: every census building, the full footprint of every blueprint and
     /// frame site and of every journal claim whose work has not closed gone (the definition's size when the
@@ -70,26 +98,8 @@ partial class Rounder
         {
             return null;
         }
-        var sizes = new Dictionary<string, Bounds>(StringComparer.Ordinal);
-        foreach (var d in projection.Definitions)
-        {
-            if (d.Size.TryGetValue(out var size))
-            {
-                sizes[d.Name] = size;
-            }
-        }
-        IEnumerable<Cell> Footprint(Building b)
-        {
-            if (sizes.TryGetValue(b.Definition, out var size))
-            {
-                var r = InteriorRules.OccupiedRect(b.Cell, new Cell(size.Width, size.Height), b.Rotation);
-                if (r.Width > 0 && r.Height > 0)
-                {
-                    return LayoutUtilityRules.RectangleCells(r);
-                }
-            }
-            return [b.Cell];
-        }
+        var sizes = DefinitionSizes(projection);
+        IEnumerable<Cell> Footprint(Building b) => LayoutUtilityRules.RectangleCells(SiteRect(sizes, b));
         var built = new HashSet<Cell>();
         foreach (var b in census.Buildings)
         {

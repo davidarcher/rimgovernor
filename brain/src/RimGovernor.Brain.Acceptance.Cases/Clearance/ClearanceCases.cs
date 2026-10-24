@@ -10,5 +10,6 @@ public static class ClearanceCases
         registry.Register(ClearancePackReinstall.Case());
         registry.Register(ClearanceForeignIds.Case());
         registry.Register(ClearanceRetiredGround.Case());
+        registry.Register(ClearanceRetiredBlueprints.Case());
     }
 }

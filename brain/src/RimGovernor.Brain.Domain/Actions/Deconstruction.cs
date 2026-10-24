@@ -35,6 +35,15 @@ public sealed record Deconstruction : IActionPayload
     /// and orders a builder through both jobs.
     /// </summary>
     public Deconstruction WithWallReplacement() => this with { ReplacesWithWall = true };
+
+    /// <summary>Reports the removal of a blueprint: cancelled (THING_DESIGNATION_CANCEL), since nothing is built to take down.</summary>
+    public bool CancelsBlueprint { get; private init; }
+
+    /// <summary>
+    /// The removal of the player blueprint <see cref="Target"/> (#3742): native cancels it through the game's cancel
+    /// designator. A frame is deconstructed instead, so its delivered materials come back.
+    /// </summary>
+    public Deconstruction WithBlueprintCancel() => this with { CancelsBlueprint = true };
 }
 
 public sealed partial record DomainAction

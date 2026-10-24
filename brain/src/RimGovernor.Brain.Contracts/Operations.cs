@@ -83,6 +83,15 @@ public enum ThingDesignation
     Haul = 9,
     [WireName("THING_DESIGNATION_REMOVE_FOUNDATION")]
     RemoveFoundation = 10,
+    /// <summary>
+    /// Cancels one exact player blueprint on DesignateIntent target through
+    /// the game's cancel designator (Designator_Cancel.DesignateThing), which
+    /// destroys it in Cancel mode. Not DECONSTRUCT: the deconstruct designator
+    /// refuses blueprints. A frame is deconstructed instead, so its delivered
+    /// materials come back.
+    /// </summary>
+    [WireName("THING_DESIGNATION_CANCEL")]
+    Cancel = 11,
 }
 
 [JsonConverter(typeof(WireEnumConverter<PowerSetting>))]
@@ -1916,9 +1925,13 @@ public sealed record GiveJobIntent
 /// cell alone names a MINE rock cell or a REMOVE_FOUNDATION cell, whose
 /// expected_def is the rock or foundation definition. Native checks the target,
 /// the designator and the guard live; the designation already standing (a
-/// player one is adopted) or a cell already cleared applies again. Evidence:
+/// player one is adopted) or a cell already cleared applies again. CANCEL
+/// (no guard) names one player blueprint as target and destroys it through
+/// Designator_Cancel; a blueprint already gone applies again. Evidence:
 /// DeconstructEffect for DECONSTRUCT, ExcavationEffect for MINE, otherwise
-/// DesignationEffect. Revoking authority releases every guarded designation.
+/// DesignationEffect (CANCEL: the blueprint's id, designation_def "Cancel",
+/// present once the blueprint is gone). Revoking authority releases every
+/// guarded designation.
 /// </summary>
 public sealed record DesignateIntent
 {

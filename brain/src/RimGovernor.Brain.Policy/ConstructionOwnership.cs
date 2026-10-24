@@ -59,6 +59,9 @@ public sealed record CurrentConstruction
 /// <summary>One blueprint or frame on the map: the building it will become and its stage.</summary>
 public sealed record ConstructionSite
 {
+    /// <summary>The <see cref="Stage"/> of a blueprint: nothing delivered yet.</summary>
+    public const string BlueprintStage = "blueprint";
+
     public Building? Building { get; init; }
 
     public string Stage { get; init; } = "";
