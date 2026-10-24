@@ -111,6 +111,10 @@ public sealed record AnimalUpkeepObservation
     /// <summary>The load's race catalog, read with every routine reading.</summary>
     public AnimalRaceCatalog AnimalRaces { get; init; } = new();
 
+    /// <summary>The player's roaming animals (the census rows' Roam, #3812), which a planned pen keeps; a colony without one has
+    /// none. Null when native could not read the census, which a pen credit raises as a required fact.</summary>
+    public IReadOnlyList<PenRoamer>? Roamers { get; init; }
+
     public Fact<FoodSupply> Food { get; init; }
 
     public EquatableArray<Resource> DirectedHerds { get; init; }

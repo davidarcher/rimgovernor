@@ -123,6 +123,20 @@ public static class AnimalUpkeepReads
         return Known(EquatableArray.From(rows));
     }
 
+    /// <summary>
+    /// The player's roamers (#3812): each census row with Roam, in census order. Null when native could not read the census
+    /// (an "animals" section issue), which a pen credit raises as a required fact.
+    /// </summary>
+    internal static IReadOnlyList<PenRoamer>? ColonyRoamers(O.ColonyFactsSnapshot v)
+    {
+        var u = v.Upkeep?.Outcome;
+        if (u is null || ColonyDecodeReads.HasIssue(u.Issues, "animals"))
+        {
+            return null;
+        }
+        return [.. u.Animals.Where(a => a.Roam is not null).Select(a => new PenRoamer(a.Pawn?.Id ?? "", a.Roam!.Race, a.Roam.MtbDays, a.Roam.MarketValue, a.Roam.ReachesMapEdge))];
+    }
+
     /// <summary>Resolves each feed row's animal against the pawn table, false when one is missing or carries no animal state.</summary>
     private static bool AnimalRows(EquatableArray<O.AnimalFeed> feed, Pawns pawns, out List<O.PawnState> output)
     {

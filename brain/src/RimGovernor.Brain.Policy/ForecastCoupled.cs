@@ -109,6 +109,11 @@ public sealed record ForecastCoupledContext
     public IReadOnlyDictionary<string, BenchSpeedModel> ResearchBenchSpeeds { get; init; } = new Dictionary<string, BenchSpeedModel>();
     /// <summary>The worship room's believers, presence demands and rituals (RoundsFacts.Worship, #3808).</summary>
     public WorshipFacts Worship { get; init; } = new();
+    /// <summary>The planned pens by room id, each its herd's key (RoundsFacts.PlannedPens, #3812).</summary>
+    public IReadOnlyDictionary<int, string> PenHerds { get; init; } = new Dictionary<int, string>();
+    /// <summary>The player's roamers (AnimalUpkeepObservation.Roamers, #3812); null when native could not read the animal census,
+    /// which a served pen's credit raises as a required fact.</summary>
+    public IReadOnlyList<PenRoamer>? Roamers { get; init; }
     /// <summary>The bench a planned laboratory is furnished with (RoundsFacts.LaboratoryBench, #3800); "" none.</summary>
     public string LaboratoryBench { get; init; } = "";
     /// <summary>The benches the colony cooks at now (the coupled food read's conversion benches, #3802): the kitchen credit's

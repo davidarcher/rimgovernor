@@ -663,6 +663,7 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(EquatableArray<Observations.BestowingCeremony>), TypeInfoPropertyName = "EquatableArrayObservationsBestowingCeremony")]
 [JsonSerializable(typeof(EquatableArray<Observations.RoyalThrone>), TypeInfoPropertyName = "EquatableArrayObservationsRoyalThrone")]
 [JsonSerializable(typeof(Observations.AnimalFeed), TypeInfoPropertyName = "ObservationsAnimalFeed")]
+[JsonSerializable(typeof(Observations.AnimalRoam), TypeInfoPropertyName = "ObservationsAnimalRoam")]
 [JsonSerializable(typeof(Observations.DevelopmentPower), TypeInfoPropertyName = "ObservationsDevelopmentPower")]
 [JsonSerializable(typeof(Observations.SteamGeyser), TypeInfoPropertyName = "ObservationsSteamGeyser")]
 [JsonSerializable(typeof(Observations.DevelopmentFacts), TypeInfoPropertyName = "ObservationsDevelopmentFacts")]

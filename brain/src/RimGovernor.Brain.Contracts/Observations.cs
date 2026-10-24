@@ -5246,6 +5246,25 @@ public sealed record AnimalFeed
     public bool? RequiresPen { get; init; }
 
     public Common.Ref? SuitablePen { get; init; }
+
+    /// <summary>The roaming facts of an animal native manages by rope (RequiresPen, #3812); absent for one the game never walks off the map.</summary>
+    public AnimalRoam? Roam { get; init; }
+}
+
+/// <summary>
+/// A roamer's facts (#3812): its race def; the game's Pawn.RoamMtbDays, the mean days between the Roaming mental states
+/// that walk it off the map (ThinkNode_ChancePerDay_Roam); its MarketValue stat, what that loses; and whether it can reach
+/// the map edge now (Pawn.CanReachMapEdge, the gate MentalStateWorker_Roaming.CanRoamNow checks), which a pen takes away.
+/// </summary>
+public sealed record AnimalRoam
+{
+    public string Race { get; init; } = "";
+
+    public double MtbDays { get; init; }
+
+    public double MarketValue { get; init; }
+
+    public bool ReachesMapEdge { get; init; }
 }
 
 /// <summary>

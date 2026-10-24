@@ -391,6 +391,10 @@ namespace HomeBridge.BridgeTools
                         RequiresPen = requiresPen
                     };
                     if (suitable != null) value = value with { SuitablePen = NativeRef.Of(Id(suitable.parent.GetUniqueLoadID())) };
+                    // A rope-managed animal is a roamer (NeedsToBeManagedByRope tests Pawn.Roamer), so its RoamMtbDays is set.
+                    if (requiresPen) value = value with { Roam = new Obs.AnimalRoam { Race = Id(p.def.defName),
+                        MtbDays = Number(p.RoamMtbDays ?? throw new InvalidOperationException("A rope-managed animal has no RoamMtbDays.")),
+                        MarketValue = Number(p.MarketValue), ReachesMapEdge = p.CanReachMapEdge() } };
                     return value;
                 }).ToList();
                 result = result with { Animals = [.. result.Animals, .. values] };

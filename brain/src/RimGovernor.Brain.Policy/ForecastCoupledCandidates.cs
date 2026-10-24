@@ -364,6 +364,8 @@ public sealed partial record ForecastCoupledCandidates
             ResearchBenchSpeeds = facts.ResearchBenchSpeeds,
             LaboratoryBench = facts.LaboratoryBench,
             Worship = facts.Worship,
+            PenHerds = facts.PlannedPens,
+            Roamers = facts.AnimalUpkeep.Roamers,
             InitialLots = EquatableArray.From(lots),
             FoodUses = read.FoodUses,
             Bindings = bindings,

@@ -442,6 +442,7 @@ public static class ColonyDecodeReads
                 AnimalRaces = races,
                 Animals = AnimalUpkeepReads.MergeHerdFoodFacts(AnimalUpkeepReads.ColonyAnimals(v, tables.Pawns, races), r.FoodChannels),
                 WildAnimals = AnimalUpkeepReads.ColonyWildAnimals(v, tables.Pawns, races),
+                Roamers = AnimalUpkeepReads.ColonyRoamers(v),
             },
         };
         f = f with { Waste = ColonyFramesReads.ColonyWaste(v, tables), Pollution = ColonyFramesReads.ColonyPollution(r.Biotech) };

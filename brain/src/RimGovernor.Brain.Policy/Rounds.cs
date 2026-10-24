@@ -522,6 +522,8 @@ public sealed record RoundsFacts
     public EquatableArray<PlannedRoom> PlannedShelters { get; init; }
     /// <summary>The layout plan's door graph between the <see cref="PlannedShelters"/> (LayoutPlan.Links): the rooms a circulation corridor reaches (#3815).</summary>
     public EquatableArray<RoomLink> PlannedLinks { get; init; }
+    /// <summary>The layout plan's pens by room id, each its herd's key (PlannedRoom.Herd: the race, "" the misc unit's), which the pen credit matches roamers to (#3812).</summary>
+    public IReadOnlyDictionary<int, string> PlannedPens { get; init; } = new Dictionary<int, string>();
     /// <summary>
     /// The urgent build this review compares (#3537): the buildings of the sleeping shelter or bed placements whose blueprints
     /// stand since the last review, which the clock was held for. While it is set the coupled comparison leaves routine

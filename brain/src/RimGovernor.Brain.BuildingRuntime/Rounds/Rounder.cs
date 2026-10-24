@@ -526,6 +526,7 @@ public sealed partial class Rounder
             PlannedConstruction = PlannedConstructionOf(reading.Projection, plannedOwed),
             PlannedShelters = EquatableArray.From(plannedRooms.Where(r => !r.Outdoor)),
             PlannedLinks = EquatableArray.From(layout?.Links ?? []),
+            PlannedPens = plannedRooms.Where(r => r.Role == PlannedRole.Pen && r.Id > 0).DistinctBy(r => r.Id).ToDictionary(r => r.Id, r => r.Herd),
             // The planned stores' stock (#3798) is read from the request the stockpile review just reviewed; null when it did not run.
             PlannedStoreStock = stockpileRequest is { } stockRequest ? StoreRules.PlannedStoreStock(stockRequest, plannedRooms) : null,
         });

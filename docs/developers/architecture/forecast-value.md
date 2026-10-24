@@ -410,7 +410,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), and `Morgue` and `Tomb` (#3806).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Battery` (#3814, at zero) and `Pen` (#3812).
 Each fueled source with a steady burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 whose native supply is `HeatSupply.Burning`, with its `Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
@@ -578,6 +578,18 @@ clamped; each outcome weighted chance × quality when positive, chance otherwise
 quality comps are not modelled. No ideoligion, no believer or no worship room owed earns nothing. A room with no closure
 prediction or an unread one, a demand requirement of a kind the plan cannot predict, missing demand moods or a ritual outcome
 effect not drawn from quality is named `worship_credit_unassessed:<room>`.
+
+*Pen credit (#3812).* A planned pen the outcome serves is credited through the same seam (`ForecastPens.PenCredit`) under
+`pen/<room>/<animal>`, per roamer it takes (`AnimalUpkeepObservation.Roamers`, from the animal census rows' `Roam`: the race,
+`Pawn.RoamMtbDays`, the `MarketValue` stat and `Pawn.CanReachMapEdge`). A roamer that can reach the map edge starts a Roaming
+mental state once per `RoamMtbDays` on average (`ThinkNode_ChancePerDay_Roam`, `JobGiver_StartRoaming`, gated by
+`MentalStateWorker_Roaming.CanRoamNow`) and walks off the map; a pen encloses it. Each such roamer gains the pen its market value in
+capability-days (over `SilverGapRules.ValuePerWorkTick`, as a market good is priced) over its `RoamMtbDays` a day. A pen takes the
+roamers of its herd's race (`PlannedRoom.Herd`, carried as `RoundsFacts.PlannedPens`), a misc pen those whose race has no pen of
+its own, and of several pens of one herd the lowest id. An animal that does not roam, or a roamer already enclosed, earns nothing;
+an animal census native could not read raises `RequiredFactException("animal census")`. Not modelled: the game's five-day roaming
+grace at a new colony and the cooldown after a roam, handlers roping a roamer back before it exits, the animal's future products
+beyond its market value, and pen capacity.
 
 *Who moves first (#3656).* A vacant bedroom bed, standing or planned, goes to the unhoused colonist with the largest priced gain
 from it (`ForecastHousing.LargestGainFirst`, a stable sort, so ties keep id order). The gain is read before the search, from

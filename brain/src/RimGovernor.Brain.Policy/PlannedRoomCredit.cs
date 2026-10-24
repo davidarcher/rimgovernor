@@ -38,7 +38,7 @@ public static class PlannedRoomCredits
     /// the room meets its title's requirement (#3807), Kitchen and Butchery by the food poisoning they prevent (#3802); Storage,
     /// Meal closet, Reserve and Yard by the stock they keep from deteriorating (#3798); Morgue and Tomb by the corpse moods they
     /// remove (#3806); Worship by the ideoligion effects it meets for each believer (#3808); Battery at zero, since no modelled consequence
-    /// changes with it (#3814).</summary>
+    /// changes with it (#3814); Pen by the roamers it keeps from walking off the map (#3812).</summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> Shipped = new Dictionary<PlannedRole, RoomCredit>
     {
         [PlannedRole.Bedroom] = ForecastHousing.BedroomCredit,
@@ -56,6 +56,7 @@ public static class PlannedRoomCredits
         [PlannedRole.Tomb] = ForecastCorpses.TombCredit,
         [PlannedRole.Worship] = ForecastWorship.WorshipCredit,
         [PlannedRole.Battery] = ForecastBattery.BatteryCredit,
+        [PlannedRole.Pen] = ForecastPens.PenCredit,
     };
 
     /// <summary>
