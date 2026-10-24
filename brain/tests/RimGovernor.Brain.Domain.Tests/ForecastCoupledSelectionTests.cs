@@ -52,7 +52,7 @@ public sealed class ForecastCoupledSelectionTests
                         new FoodActivityOption("pawn", source, "Rice", new(1, 1), new(1, 1), "Harvest", 2, harvest)
                         { ApproachTicks = Known(0d), DeliveryTicks = Known(10d), HarvestAllowed = unknownHarvest ? default : Known(true),
                             SourceCount = Known(2d) })) },
-                    FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.2), Known(10d), 2, Known(expiry))],
+                    FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.2), Known(10d), 2, Known(expiry)) { Thoughts = [] }],
                 },
             },
         };

@@ -137,7 +137,7 @@ public static class ColonyForecastRules
         {
             Origin = request.Origin,
             HorizonDays = request.HorizonDays,
-            Unsupported = request.Coupled is null ? ColonyForecast.UnsupportedDomains : ["combat_outcomes", "future_weather", "unmodeled_thermal_geometry", "future_meal_thoughts"],
+            Unsupported = request.Coupled is null ? ColonyForecast.UnsupportedDomains : ["combat_outcomes", "future_weather", "unmodeled_thermal_geometry"],
             Observed = ColonyDiagnosticsRules.DiagnoseColony(request.Facts),
             Baseline = request.Coupled is null ? ForecastConstruction.ForecastConstructionScenario(request, baseline) : ForecastCoupled.ForecastCoupledScenarioOf(request, baseline),
             Proposed = request.Coupled is null ? ForecastConstruction.ForecastConstructionScenario(request, proposed) : ForecastCoupled.ForecastCoupledScenarioOf(request, proposed),

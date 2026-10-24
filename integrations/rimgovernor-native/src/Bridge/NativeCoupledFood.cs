@@ -30,19 +30,24 @@ internal static class NativeCoupledFood
         var consumers = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == Faction.OfPlayer && p.needs?.food != null)
             .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         foreach (var hunt in food.Options)
-            if (RefIndex.Thing(map, hunt.Target) is Pawn prey && prey.RaceProps.meatDef is { } meat) AddUses(meat, hunt.Destination);
+            if (RefIndex.Thing(map, hunt.Target) is Pawn prey && prey.RaceProps.meatDef is { } meat) AddUses(meat, hunt.Destination, FreshUnit(meat));
         var plants = food.Options.Select(o => o.Target).Distinct().Select(id => RefIndex.Thing(map, id)).OfType<Plant>().Cast<Thing>().ToArray();
         var loose = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).Where(t => t.Spawned && t.def.IsNutritionGivingIngestible)
             .OrderBy(t => t.GetUniqueLoadID(),StringComparer.Ordinal).ToArray();
         var sources = plants.Concat(loose);
+        // Each cooked product's uses wait for its ingredient mix: every source ingredient a bill making it accepts (#3858).
+        var mixes = new Dictionary<ThingDef, SortedDictionary<string, ThingDef>>();
+        var cooked = new List<(ThingDef Product, Cell Location)>();
         foreach (var source in sources)
         {
-                        var plant = source as Plant; var raw = plant?.def.plant.harvestedThingDef ?? source.def;
+            var plant = source as Plant; var raw = plant?.def.plant.harvestedThingDef ?? source.def;
             var availableInput = plant == null ? source.stackCount : food.Options.Where(o => o.Target == source.GetUniqueLoadID())
                 .Select(o => o.SourceCount.IsKnown ? (int)o.SourceCount.Value : 0).DefaultIfEmpty(0).Min();
             if (plant == null) sourceRows.Add(new(source.GetUniqueLoadID(),raw.defName,new(source.Position.x,source.Position.z),source.stackCount,
                 Fact.Known(source.TryGetComp<CompRottable>() is { } rottable ? (double)rottable.TicksUntilRotAtCurrentTemp : (double)long.MaxValue)));
-            foreach (var target in food.Options.Where(o => o.Target == source.GetUniqueLoadID()).Select(o => o.Destination).Distinct()) AddUses(raw, target);
+            // A loose source with ingredients is eaten with its own; any other is a fresh unit of its product.
+            foreach (var target in food.Options.Where(o => o.Target == source.GetUniqueLoadID()).Select(o => o.Destination).Distinct())
+                AddUses(raw, target, plant == null && raw.HasComp(typeof(CompIngredients)) ? source : FreshUnit(raw));
             foreach (var bench in benches)
             foreach (var bill in bench.BillStack.Bills.OfType<Bill_Production>().OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
             {
@@ -102,25 +107,25 @@ internal static class NativeCoupledFood
                                 Fact.Known((double)approach), Fact.Known((double)supply),
                                 speed > 0 ? Fact.Known(recipe.WorkAmountTotal(null) / (double)speed) : default, deliveryTicks, capacity, availableInput) { WorkGiver = giver.defName, Bill = bill.GetUniqueLoadID(), RequiresHarvest = plant != null, CanCook = canCook, CanSupply = canHaul, CanDeliver = canHaul && productCapacity > 0,
                                     SkillWork = skillWork, FoodPoisonChance = poison });
-                            AddUses(product.thingDef, new(destination.x, destination.z));
+                            if (!mixes.TryGetValue(product.thingDef, out var mix)) mixes[product.thingDef] = mix = new(StringComparer.Ordinal);
+                            mix[raw.defName] = raw;
+                            cooked.Add((product.thingDef, new(destination.x, destination.z)));
                         }
                     }
                 }
             }
         }
+        foreach (var (product, location) in cooked.Distinct()) AddUses(product, location, CookedUnit(product, mixes[product].Values));
         return (conversions.ToArray(), uses.Distinct().ToArray(), sourceRows.ToArray());
-        void AddUses(ThingDef resource, Cell location)
+        void AddUses(ThingDef resource, Cell location, Thing unit)
         {
-            // An unspawned fresh unit stands in for the produced one; with ingredients its thoughts depend on what it is cooked from.
-            // One unit per def for the session, so repeated reads draw no further thing ids.
-            Thing? unit = null;
-            if (!resource.HasComp(typeof(CompIngredients)) && !FreshUnits.TryGetValue(resource, out unit))
-                FreshUnits[resource] = unit = ThingMaker.MakeThing(resource);
             foreach (var pawn in consumers)
             {
                 if (pawn.needs?.food == null) continue;
-                var thoughts = unit == null || pawn.story == null ? default
-                    : Fact.Known(EquatableArray.From(FoodUtility.ThoughtsFromIngesting(pawn, unit, resource).Select(t => NativeNeedsForecast.MealMemory(pawn, t)).ToArray()));
+                // FoodUtility.ThoughtsFromIngesting gives a pawn without a mood none, and reads the story of one with a mood.
+                if (pawn.needs.mood != null && pawn.story == null)
+                    throw new InvalidOperationException("food consumer with a mood and no story: " + pawn.GetUniqueLoadID());
+                var thoughts = EquatableArray.From(FoodUtility.ThoughtsFromIngesting(pawn, unit, resource).Select(t => NativeNeedsForecast.MealMemory(pawn, t)).ToArray());
                 var nutrition = resource.GetStatValueAbstract(StatDefOf.Nutrition);
                 if (ModsConfig.BiotechActive && resource.IsRawHumanFood()) nutrition *= pawn.GetStatValue(StatDefOf.RawNutritionFactor);
                 var rot = resource.GetCompProperties<CompProperties_Rottable>();
@@ -136,5 +141,29 @@ internal static class NativeCoupledFood
                     resource.ingestible.maxNumToIngestAtOnce, fresh) { Thoughts = thoughts });
             }
         }
+    }
+
+    /// <summary>An unspawned fresh unit of <paramref name="resource"/>, one per def for the session, so repeated reads draw no
+    /// further thing ids.</summary>
+    private static Thing FreshUnit(ThingDef resource)
+    {
+        if (!FreshUnits.TryGetValue(resource, out var unit)) FreshUnits[resource] = unit = ThingMaker.MakeThing(resource);
+        return unit;
+    }
+
+    /// <summary>
+    /// A fresh unit of a cooked product as GenRecipe.MakeRecipeProducts makes it (#3858): CompIngredients.RegisterIngredient for
+    /// each ingredient, here the colony's mix for the product, every source ingredient a bill making it accepts (the recipe's
+    /// ingredient filters and the bill's IsFixedOrAllowedIngredient over the stock and the harvests). FoodUtility.ThoughtsFromIngesting
+    /// then reads that list: the cannibal and insect ingredient thoughts, the precepts on human meat, fungus and plants, and the
+    /// meat and vegetarian food kinds.
+    /// </summary>
+    private static Thing CookedUnit(ThingDef product, IEnumerable<ThingDef> mix)
+    {
+        var unit = FreshUnit(product);
+        if (unit.TryGetComp<CompIngredients>() is not { } ingredients) return unit;
+        ingredients.ingredients.Clear();
+        foreach (var ingredient in mix) ingredients.RegisterIngredient(ingredient);
+        return unit;
     }
 }

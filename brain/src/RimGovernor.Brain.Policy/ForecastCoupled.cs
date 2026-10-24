@@ -17,7 +17,6 @@ public sealed record ForecastNeedTask(string Task, string Pawn, string Kind, str
     /// <summary>Simultaneous claimants the target admits (vanilla ReservationManager maxPawns). Unknown is read as 1 by the evaluator.</summary>
     public Fact<int> MaxPawns { get; init; }
     public string FreshFrom { get; init; } = "";
-    public bool ThoughtsComplete { get; init; } = true;
 }
 public sealed record ForecastMaterialLot(string Lot, string Location, Resource Resource, Fact<double> Count)
 { public bool Perishable { get; init; } public Fact<double> FreshTicks { get; init; } }

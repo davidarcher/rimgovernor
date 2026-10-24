@@ -28,8 +28,8 @@ public sealed class SupportMethodTests
                     FoodConversions = cooking ? [new("rice", "pawn", "bench", "CookMeal", "Rice", 4, "Meal", 1,
                         new(1, 1), new(1, 1), new(1, 1), Known(0d), Known(1d), Known(10d), Known(1d), 4, 4)
                         { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" }] : [],
-                    FoodUses = cooking ? [new("pawn", "Meal", new(1, 1), Known(true), Known(.8), Known(10d), 1, Known(1000d)),
-                        new("pawn", "Rice", new(1, 1), Known(false), Known(.1), Known(10d), 4, Known(1000d))] : [],
+                    FoodUses = cooking ? [new("pawn", "Meal", new(1, 1), Known(true), Known(.8), Known(10d), 1, Known(1000d)) { Thoughts = [] },
+                        new("pawn", "Rice", new(1, 1), Known(false), Known(.1), Known(10d), 4, Known(1000d)) { Thoughts = [] }] : [],
                     Routes = [new("pawn", new(1, 1), new(1, 1), Known(0d)) { FromStart = true },
                         new("helper", new(1, 1), new(1, 1), Known(0d)) { FromStart = true }]
                 }

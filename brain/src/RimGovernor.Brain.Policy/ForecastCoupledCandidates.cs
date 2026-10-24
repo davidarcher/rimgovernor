@@ -189,10 +189,11 @@ public sealed partial record ForecastCoupledCandidates
         foreach (var binding in sowing.Bindings) bindings.Add(binding.Key, binding.Value);
         foreach (var route in sowing.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
         findings.UnionWith(sowing.Findings);
-        foreach (var task in practice.Practice.Where(p => p.Worker.JoyGainPerTick.IsKnown && p.Worker.JoyGainPerTick.Value > 0))
+        // A spar is recreation: its joy at the native rate over the fight, and the memory a completed bout gives (#3858).
+        foreach (var task in practice.Practice.Where(p => p.Worker.JoyGainPerTick > 0))
             needTasks.Add(new(task.Task, task.Worker.Pawn, "joy", task.Worker.Target, new(""), 0,
-                Known(task.Worker.JoyGainPerTick.Value * Math.Max(0, task.Worker.DurationTicks.Value - task.Worker.PreparationTicks)), [])
-                { ThoughtsComplete = false, ServiceDelay = task.Worker.PreparationTicks,
+                Known(task.Worker.JoyGainPerTick * Math.Max(0, task.Worker.DurationTicks.Value - task.Worker.PreparationTicks)), task.Worker.Thoughts)
+                { ServiceDelay = task.Worker.PreparationTicks,
                     MaxPawns = needs.Pawns.SelectMany(p => p.Targets).FirstOrDefault(t => t.Id == task.Worker.Target)?.MaxPawns ?? default });
         foreach (var pawn in needs.Pawns)
         {

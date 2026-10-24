@@ -45,7 +45,7 @@ public sealed class ForecastPortfolioChoiceTests
                     Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Construction = ConstructionFixtures.NoConstruction(),
                     Tick = 100, Food = new(), FoodSources = EquatableArray.From(sources),
                     FoodConversions = EquatableArray.From(conversions),
-                    FoodUses = [new("pawn", "Meal", Destination, Known(true), Known(.8), Known(10d), 1, Known(1000d))],
+                    FoodUses = [new("pawn", "Meal", Destination, Known(true), Known(.8), Known(10d), 1, Known(1000d)) { Thoughts = [] }],
                     Routes = EquatableArray.From(roster.ForecastObserved.WorkPawns.Value.SelectMany(p => Cells.SelectMany(a => Cells.Where(b => b != a)
                         .Select(b => new CoupledRoute(p.Id.Value, a, b, Known(1d))))
                         .Concat(Cells.Select(c => new CoupledRoute(p.Id.Value, new(0, 0), c, Known(0d)) { FromStart = true })))),

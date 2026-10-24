@@ -218,8 +218,15 @@ the pawn's choices instead of staying at their observed stage.
 - A produced or delivered meal (`CoupledFoodMethodCandidates.AddEating`) carries
   `CoupledFoodUse.Thoughts`: native's `FoodUtility.ThoughtsFromIngesting` on one
   unspawned fresh unit of the resource, kept per def. A resource with ingredients
-  (a cooked meal) leaves them unknown, and a plan eating it leaves the pawn's mood
-  unassessed with `future_meal_thoughts_unassessed`, as before.
+  (a cooked meal) is a unit made as `GenRecipe.MakeRecipeProducts` makes it, its
+  `CompIngredients` holding the colony's mix for that product: every source
+  ingredient a bill making it accepts, stocked or harvestable (#3858). So the
+  cannibal and insect ingredient thoughts, the human-meat, fungus and plant precepts
+  and the meat and vegetarian food kinds are priced. The mix is the union a cook may
+  draw from, not the ingredients one batch takes. A consumer without a mood has none.
+- A spar's joy task carries `PracticeWorker.Thoughts`, the `RimGovernor_TrainedWith`
+  memory a completed bout gives, at the task's end (#3858). The meal and spar
+  thoughts are always read, so neither leaves a pawn's mood forecast null.
 
 ### Temperature mood from banded cards
 

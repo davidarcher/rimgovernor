@@ -295,13 +295,87 @@ public sealed class PlannedRoomCreditTests
     [Fact]
     public void AFreshColonyRunsEveryShippedCreditWithoutAThrow()
     {
-        var roles = PlannedRoomCredits.Shipped.Keys.Select((role, i) => (Room: i + 1, Role: role)).ToArray();
-        var review = ForecastCoupledTests.ConstructionReview();
+        var facts = WithEveryShippedRoom(ForecastCoupledTests.ConstructionReview());
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
+        var pawns = generated.Needs.Pawns.Select(p => p.Pawn).Distinct(StringComparer.Ordinal).ToArray();
+        Assert.NotEmpty(pawns);
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], default, default, new(new(p, "", default, default), []), [])
+        {
+            Mood = new([], default, default, default, default, default, [])
+            {
+                PressureTicks = Known(0d), BreakRisk = Known(0d), BreakTierTicks = [0, 0, 0], ShiftedBreakTierTicks = [new(0, [Day, 0, 0])],
+            },
+        }), []);
+        RunsEveryShippedCredit(generated, outcome, Day);
+    }
+
+    /// <summary>
+    /// #3858 acceptance: a colony cooking meals, the production way (GenerateCoupledActivities, then the comparison selecting
+    /// the cook-and-eat portfolio). The meal carries the thoughts native reads over the colony's ingredient mix (here human meat
+    /// as an ingredient), so the eater's mood forecast stays whole, and every shipped credit runs on that outcome without a throw.
+    /// </summary>
+    [Fact]
+    public void AColonyCookingMealsKeepsItsMoodForecastAndRunsEveryShippedCredit()
+    {
+        var cannibal = NeedsFixtures.Memory("AteHumanMeatAsIngredient", -15, Day, false) with { StackLimit = 1 };
+        var cooking = ForecastPortfolioChoiceTests.Observed([ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "CookMeal", 10)],
+            [new("rice", "Rice", new(1, 1), 4, Known(1000d))]);
+        var coupled = cooking.ForecastObserved.Coupled!;
+        cooking = cooking with { ForecastObserved = cooking.ForecastObserved with
+            { Coupled = coupled with { FoodUses = EquatableArray.From(coupled.FoodUses.Select(u => u with { Thoughts = [cannibal] })) } } };
+        var (generated, outcome) = Selected(WithEveryShippedRoom(cooking), 150);
+        Assert.Contains(generated.NeedTasks, n => n.Kind == "food" && n.Resource.Value == "Meal" && outcome.Plan.Allocations.Any(a => a.Activity == n.Task));
+        var mood = Assert.IsType<ForecastMoodResult>(outcome.Needs["pawn"].Mood);
+        Assert.True(mood.BreakRisk.IsKnown);
+        // The ingredient memory is priced: the same meal without it leaves a higher thought offset at the horizon.
+        var plain = cooking with { ForecastObserved = cooking.ForecastObserved with { Coupled = coupled } };
+        var (_, unflavoured) = Selected(WithEveryShippedRoom(plain), 150);
+        Assert.True(outcome.Needs["pawn"].ThoughtOffsetAtHorizon.Value < unflavoured.Needs["pawn"].ThoughtOffsetAtHorizon.Value);
+        RunsEveryShippedCredit(generated, outcome, 150);
+    }
+
+    /// <summary>
+    /// #3858 acceptance: a pawn on a spar, the production way (PracticeMethodCandidates' bout, priced by tier 2's skill
+    /// marginal). The spar is recreation with the TrainedWith memory a completed bout gives, so the mood forecast stays whole and
+    /// every shipped credit runs on the outcome without a throw.
+    /// </summary>
+    [Fact]
+    public void APawnSparringKeepsItsMoodForecastAndRunsEveryShippedCredit()
+    {
+        var trainedWith = NeedsFixtures.Memory("RimGovernor_TrainedWith", 3, Day, false) with { StackLimit = 1 };
+        var facts = ForecastPortfolioChoiceTests.Observed([], [], helper: true);
+        var learning = CapabilityMaintenanceTests.Learning() with { Xp = Known(0d) };
+        var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Melee", Level = 1, Learning = learning }]) }).ToArray();
+        var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Melee", "target/" + i, new(i + 1, 1), "RimGovernor_Spar", "RimGovernor_Spar",
+            Known(0d), Known(100d), learning) { CallbackIntervalTicks = Known(10d), RawXpPerCallback = Known(10d), JoyGainPerTick = .0001, Thoughts = [trainedWith] }).ToArray();
+        facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), ForecastObserved = facts.ForecastObserved with
+        {
+            WorkPawns = Known(EquatableArray.From(roster)),
+            Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with
+            { Needs = EquatableArray.From(p.Needs.Select(n => n with { Level = 1d, FallPerTick = 0d })) })) },
+            Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Known = true, Workers = EquatableArray.From(workers) } }
+        } };
+        var investment = roster.ToDictionary(p => ProjectGraph.SkillKey(p.Id.Value, "Melee"), _ => 1d, StringComparer.Ordinal);
+        var (generated, outcome) = Selected(WithEveryShippedRoom(facts), 300, investment);
+        var spars = generated.NeedTasks.Where(n => n.Kind == "joy" && outcome.Plan.Allocations.Any(a => a.Activity == n.Task)).ToArray();
+        Assert.NotEmpty(spars);
+        Assert.All(spars, s => Assert.Equal([trainedWith], s.Thoughts.ToArray()));
+        Assert.All(spars, s => Assert.True(Assert.IsType<ForecastMoodResult>(outcome.Needs[s.Pawn].Mood).BreakRisk.IsKnown));
+        RunsEveryShippedCredit(generated, outcome, 300);
+    }
+
+    /// <summary>One planned room per shipped role, each predicted as native predicts every priced room.</summary>
+    private static (int Room, PlannedRole Role)[] ShippedRooms() => PlannedRoomCredits.Shipped.Keys.Select((role, i) => (Room: i + 1, Role: role)).ToArray();
+
+    /// <summary><paramref name="review"/> with <see cref="ShippedRooms"/> planned, the way RoundsRead and RoundsWork read them.</summary>
+    private static RoundsFacts WithEveryShippedRoom(RoundsFacts review)
+    {
+        var roles = ShippedRooms();
         var facts = review with
         {
-            // RoundsWork reads each work pawn's skills (a fresh colonist here with none it could practise) and health.
+            // RoundsWork reads each work pawn's skills (a fresh colonist with none it could practise) and health.
             ForecastObserved = review.ForecastObserved with { WorkPawns = Known(EquatableArray.From(review.ForecastObserved.WorkPawns.Value
-                .Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([]), Health = Known(1d) }))) },
+                .Select(p => p with { Skills = p.Skills.IsKnown ? p.Skills : Known<EquatableArray<WorkSkill>>([]), Health = Known(1d) }))) },
             PlannedShelters = [.. roles.Select(r => new PlannedRoom { Id = r.Room, Role = r.Role,
                 Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5 + (10 * r.Room), Z = 5, Width = 3, Height = 3 }) })],
             PlannedRoomPredictions = EquatableArray.From(roles.Select(r => PlannedRoomPredictionTests.Closed(
@@ -309,10 +383,31 @@ public sealed class PlannedRoomCreditTests
             // RoundsRead furnishes the planned hospital with the catalog's hospital bed.
             HospitalBed = new RoomFurniture { Beds = [new() { Def = "Bed", Slots = 1, ImmunityGainSpeedFactor = 1.07 }] }.HospitalBed(),
         };
-        // Tier 2 sets the investment horizon and the tending a wound gets now (ColonyValue.TendingNow); the round reads the
-        // storyteller's threat schedule (here a quiet one) and its disease schedule (no disease incident yet); the catalog
-        // carries the capacity penalty tables.
-        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
+        return facts;
+    }
+
+    /// <summary>The production comparison's selected outcome over <paramref name="facts"/> and the context it was evaluated on.</summary>
+    private static (ForecastCoupledContext Context, ForecastCoupledOutcome Outcome) Selected(RoundsFacts facts, double horizon,
+        IReadOnlyDictionary<string, double>? investment = null)
+    {
+        var generated = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)?.Priced());
+        if (investment is not null) generated = generated with { Context = generated.Context with { Investment = investment } };
+        var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), horizon / GameTime.TicksPerDay,
+            facts with { CoupledAlternatives = generated }, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
+        var selected = ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = generated.Context }, generated);
+        Assert.NotEmpty(selected.Selection.Selected);
+        return (generated.Context, selected.Selected);
+    }
+
+    /// <summary>
+    /// Every shipped credit on its served room in <paramref name="outcome"/>, and the ledger over them all, without a throw. Tier 2
+    /// sets the investment horizon and the tending a wound gets now (ColonyValue.TendingNow); the round reads the storyteller's
+    /// threat schedule (here a quiet one) and its disease schedule (no disease incident yet); the catalog carries the capacity
+    /// penalty tables.
+    /// </summary>
+    private static void RunsEveryShippedCredit(ForecastCoupledContext generated, ForecastCoupledOutcome outcome, double horizon)
+    {
+        var roles = ShippedRooms();
         var context = generated with
         {
             // The round reads no creepjoiner held apart (RoundsCreepJoiner.CreepJoinerForecastOf, #3844).
@@ -321,22 +416,8 @@ public sealed class PlannedRoomCreditTests
             Harm = ForecastValueTests.RaidDay(raidsPerDay: 0) with { Illness = new IllnessSchedule { Assessed = true }, Containment = generated.Harm.Containment },
         };
         Assert.All(roles, r => Assert.Equal(r.Role, context.PlannedRoomRoles[r.Room]));
-        var pawns = context.Needs.Pawns.Select(p => p.Pawn).Distinct(StringComparer.Ordinal).ToArray();
-        Assert.NotEmpty(pawns);
-        var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], default, default, new(new(p, "", default, default), []), [])
-        {
-            Mood = new([], default, default, default, default, default, [])
-            {
-                PressureTicks = Known(0d), BreakRisk = Known(0d), BreakTierTicks = [0, 0, 0], ShiftedBreakTierTicks = [new(0, [Day, 0, 0])],
-            },
-        }), [])
-        { ServedRooms = [.. roles.Select(r => new ForecastRoomService(r.Room, "", Day))] };
-        foreach (var (room, role) in roles)
-        {
-            var gains = PlannedRoomCredits.Shipped[role](new(room, "", Day), outcome, context, Day);
-            Assert.NotNull(gains);
-        }
-        // The ledger runs them all on the served rooms too.
-        Assert.NotNull(ForecastValue.Of(outcome, context, Day));
+        var served = outcome with { ServedRooms = [.. roles.Select(r => new ForecastRoomService(r.Room, "", Day))] };
+        foreach (var (room, role) in roles) Assert.NotNull(PlannedRoomCredits.Shipped[role](new(room, "", Day), served, context, horizon));
+        Assert.NotNull(ForecastValue.Of(served, context, horizon));
     }
 }

@@ -19,7 +19,14 @@ public sealed record PracticeWorker(string Pawn, string Skill, string Target, Ce
     public Fact<double> CallbackIntervalTicks { get; init; }
     public double PreparationTicks { get; init; }
     public Fact<double> RawXpPerCallback { get; init; }
-    public Fact<double> JoyGainPerTick { get; init; }
+    /// <summary>The joy a tick of the session gives (the spar's JobDef.joyGainRate × 0.36 / 2500 × the tolerance factor); 0 for
+    /// a range drill, which is not recreation.</summary>
+    public required double JoyGainPerTick { get; init; }
+    /// <summary>The memories a completed session gives the pawn: a spar's RimGovernor_TrainedWith (TrainingCompany.Finished,
+    /// a bout always shared), unless ThoughtUtility.CanGetThought refuses it (#3858). A range drill's is empty: its company
+    /// memory depends on who else trains (practice_company_mood_unassessed), and it is no recreation task.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<NeedMemory>))]
+    public required EquatableArray<NeedMemory> Thoughts { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Equipment { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]

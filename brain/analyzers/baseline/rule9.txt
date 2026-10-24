@@ -338,11 +338,10 @@ Contracts/Clock.cs|NullableValue|32
 Contracts/Clock.cs|UnknownMember|7
 Contracts/Common.cs|NullableValue|6
 Contracts/Common.cs|UnknownMember|6
-Contracts/CoupledFood.cs|Fact|11
+Contracts/CoupledFood.cs|Fact|10
 Contracts/CoupledForecast.cs|Fact|1
 Contracts/FoodActivities.cs|Fact|4
 Contracts/Json/FactJsonConverter.cs|Fact|5
-Contracts/Json/ObservedNeedsJsonConverter.cs|Fact|5
 Contracts/Lifecycle.cs|NullableValue|42
 Contracts/Lifecycle.cs|UnknownMember|6
 Contracts/Mirror.cs|NullableValue|24
@@ -354,7 +353,7 @@ Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
 Contracts/Placement.cs|NullableValue|17
 Contracts/Placement.cs|UnknownMember|1
-Contracts/PracticeActivities.cs|Fact|5
+Contracts/PracticeActivities.cs|Fact|4
 Contracts/Presentation.cs|NullableValue|28
 Contracts/Presentation.cs|UnknownMember|1
 Contracts/Receipts.cs|NullableValue|32
@@ -744,7 +743,7 @@ Policy/ForecastComposedCandidates.cs|Fact|9
 Policy/ForecastConstruction.cs|Fact|50
 Policy/ForecastConstruction.cs|Unknown|1
 Policy/ForecastCoupled.cs|Fact|18
-Policy/ForecastCoupledCandidates.cs|Fact|36
+Policy/ForecastCoupledCandidates.cs|Fact|33
 Policy/ForecastCoupledEvaluation.cs|Fact|172
 Policy/ForecastCoupledExecution.cs|Fact|1
 Policy/ForecastCoupledMaterials.cs|Fact|31
@@ -959,8 +958,7 @@ Policy/Methods/Generation/ClothingMethodCandidates.cs|Fact|18
 Policy/Methods/Generation/ConstructionMethodCandidates.cs|Fact|37
 Policy/Methods/Generation/CoordinatedMethodCandidates.cs|Fact|1
 Policy/Methods/Generation/CoordinatedMethodCandidates.cs|NullableValue|2
-Policy/Methods/Generation/CoupledFoodMethodCandidates.cs|Fact|70
-Policy/Methods/Generation/CoupledFoodMethodCandidates.cs|ValueOrDefault|1
+Policy/Methods/Generation/CoupledFoodMethodCandidates.cs|Fact|69
 Policy/Methods/Generation/CoupledShelterCandidates.cs|Fact|29
 Policy/Methods/Generation/EffectSourceCandidates.cs|Fact|5
 Policy/Methods/Generation/FoodRecipeActivity.cs|Fact|2

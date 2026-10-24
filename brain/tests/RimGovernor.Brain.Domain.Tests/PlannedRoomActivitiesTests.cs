@@ -118,7 +118,7 @@ public sealed class PlannedRoomActivitiesTests
                         new FoodActivityOption("pawn", source, "Rice", new(1, 1), new(1, 1), "Harvest", 2, 10)
                         { ApproachTicks = Known(0d), DeliveryTicks = Known(10d), HarvestAllowed = Known(true),
                             SourceCount = Known(2d) })) },
-                    FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.2), Known(10d), 2, Known(1000d)) { Thoughts = Known<EquatableArray<NeedMemory>>([]) }],
+                    FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.2), Known(10d), 2, Known(1000d)) { Thoughts = [] }],
                     Construction = ConstructionFixtures.NoConstruction() with { Context = Context },
                     // A roof is worked cell by cell at the coupled read's RoofCellWorkTicks.
                     Thermal = roofCellWork > 0 ? CoupledThermalTests.NoThermal with { Workers = [new(Pawn, roofCellWork)] } : null,

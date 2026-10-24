@@ -85,7 +85,7 @@ public sealed class PracticeHarmTests
 
     private static PracticeWorker Worker(string pawn, string skill, SkillLearning learning) =>
         new(pawn, skill, "target/" + pawn, new(1, 1), "RimGovernor_Spar", "RimGovernor_Spar", Known(0d), Known(1000d), learning)
-        { CallbackIntervalTicks = Known(100d), RawXpPerCallback = Known(10d) };
+        { CallbackIntervalTicks = Known(100d), RawXpPerCallback = Known(10d), JoyGainPerTick = 0, Thoughts = [] };
 
     [Fact]
     public void ASessionIsCreditedTheXpItAppliesAtTheStocksHarmPrice()
@@ -129,7 +129,7 @@ public sealed class PracticeHarmTests
         var learning = CapabilityMaintenanceTests.Learning() with { Xp = Known(0d) };
         var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Melee", Level = 1, Learning = learning }]) }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Melee", "target/" + i, new(i + 1, 1), "RimGovernor_Spar", "RimGovernor_Spar",
-            Known(0d), Known(100d), learning) { CallbackIntervalTicks = Known(10d), RawXpPerCallback = Known(10d) }).ToArray();
+            Known(0d), Known(100d), learning) { CallbackIntervalTicks = Known(10d), RawXpPerCallback = Known(10d), JoyGainPerTick = 0, Thoughts = [] }).ToArray();
         facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), ForecastObserved = facts.ForecastObserved with
         {
             WorkPawns = Known(EquatableArray.From(roster)),

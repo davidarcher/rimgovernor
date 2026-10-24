@@ -49,15 +49,30 @@ internal static class NativePracticeActivities
                     {
                         PreparationTicks = ranged ? 0 : SparringBouts.JoinWindowTicks, CallbackIntervalTicks = Fact.Known(cycle), RawXpPerCallback = Fact.Known(ranged ? (double)RangeTraining.ShotXp(weapon) : 200d * cycle / 60d),
                         Equipment = dummy == null ? [] : [dummy.GetUniqueLoadID()],
-                        JoyGainPerTick = ranged || pawn.needs.joy == null ? Fact.Known(0d) : Fact.Known(
-                            DefDatabase<JobDef>.GetNamed(SparringBouts.JobName).joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour
-                            * pawn.needs.joy.tolerances.JoyFactorFromTolerance(DefDatabase<JobDef>.GetNamed(SparringBouts.JobName).joyKind)),
-                        Findings = ["conditional_successful_practice_cycles", "practice_injury_recovery_unassessed", "practice_company_mood_unassessed", "future_tolerance_changes", "practice_movement_repair_overhead_unassessed"]
+                        JoyGainPerTick = ranged || pawn.needs.joy == null ? 0d
+                            : DefDatabase<JobDef>.GetNamed(SparringBouts.JobName).joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour
+                            * pawn.needs.joy.tolerances.JoyFactorFromTolerance(DefDatabase<JobDef>.GetNamed(SparringBouts.JobName).joyKind),
+                        Thoughts = ranged ? [] : SparThoughts(pawn),
+                        Findings = ranged
+                            ? ["conditional_successful_practice_cycles", "practice_injury_recovery_unassessed", "practice_company_mood_unassessed", "future_tolerance_changes", "practice_movement_repair_overhead_unassessed"]
+                            : ["conditional_successful_practice_cycles", "practice_injury_recovery_unassessed", "future_tolerance_changes", "practice_movement_repair_overhead_unassessed"]
                     });
                 }
             }
         }
         return new() { Known = true, Workers = EquatableArray.From(workers) };
+    }
+
+    /// <summary>
+    /// The memories a completed spar gives the pawn (#3858): SparringJobDriver's finish action calls TrainingCompany.Finished with
+    /// a shared session (it fought a partner), which gains RimGovernor_TrainedWith through MemoryThoughtHandler.TryGainMemory;
+    /// that refuses it where ThoughtUtility.CanGetThought does. None without a mood or the def.
+    /// </summary>
+    private static EquatableArray<Obs.NeedMemory> SparThoughts(Pawn pawn)
+    {
+        // The mod's own def has no DefOf; TrainingCompany names it.
+        var def = DefDatabase<ThoughtDef>.GetNamedSilentFail(TrainingCompany.ThoughtName);
+        return def == null || pawn.needs?.mood == null || !ThoughtUtility.CanGetThought(pawn, def) ? [] : [NativeNeedsForecast.Memory(pawn, def)];
     }
 
     /// <summary>The selected practice is still the pawn's to do: it may practise the skill (RangeTraining.CanTrain, under the

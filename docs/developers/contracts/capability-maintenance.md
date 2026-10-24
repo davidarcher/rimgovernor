@@ -34,8 +34,10 @@ Native observations quote practice verb cycles on detached, unequipped objects u
 methods. They neither swap live equipment nor change skills. Those are conditional successful
 cycles: misses, movement, repairs, injuries and interrupted work can yield less learning.
 Sparring's native gathering delay consumes time before its callbacks and recreation. Its joy
-rate uses the current native tolerance; future tolerance is unassessed. Company memories,
-injury probability and recovery duration remain unassessed. Accounted schedule labor
+rate uses the current native tolerance; future tolerance is unassessed. A completed spar gives
+its `RimGovernor_TrainedWith` memory (`PracticeWorker.Thoughts`, #3858), so a pawn on a spar keeps its mood
+forecast; a range drill's company memory depends on who else trains and remains unassessed, as do
+injury probability and recovery duration. Accounted schedule labor
 excludes unassessed injury recovery; it is not a zero-risk estimate. Existing pain, bleeding,
 exchange, ceiling and daily-budget stops are unchanged.
 

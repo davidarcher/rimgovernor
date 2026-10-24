@@ -594,12 +594,14 @@ internal static class NativeNeedsForecast
             }
         return EquatableArray.From(blockers);
     }
-    internal static Obs.NeedMemory MealMemory(Pawn pawn, FoodUtility.ThoughtFromIngesting source)
+    internal static Obs.NeedMemory MealMemory(Pawn pawn, FoodUtility.ThoughtFromIngesting source) => Memory(pawn, source.thought, source.fromPrecept);
+    /// <summary>The memory <paramref name="def"/> would be on the pawn: an unattached native memory, so the native stage, stat
+    /// and trait multipliers price it; it is never added to the pawn.</summary>
+    internal static Obs.NeedMemory Memory(Pawn pawn, ThoughtDef def, Precept? precept = null)
     {
-        // Unattached native memory: inspect the native stage/stat/trait multiplier, never add it to the pawn.
-        var thought = ThoughtMaker.MakeThought(source.thought, source.fromPrecept);
+        var thought = ThoughtMaker.MakeThought(def, precept);
         thought.pawn = pawn;
-        return new(source.thought.defName, F(thought.MoodOffset(), "meal memory offset"), new Obs.MemoryLife.Expires(thought.DurationTicks), source.thought.lerpMoodToZero) { StackLimit = source.thought.stackLimit };
+        return new(def.defName, F(thought.MoodOffset(), "memory offset"), new Obs.MemoryLife.Expires(thought.DurationTicks), def.lerpMoodToZero) { StackLimit = def.stackLimit };
     }
     /// <summary>The maxPawns literal JobDriver_Ingest passes to Reserve for a meal stack (decompiled 1.7; vanilla exposes no symbol for it).</summary>
     internal const int IngestMaxPawns = 10;

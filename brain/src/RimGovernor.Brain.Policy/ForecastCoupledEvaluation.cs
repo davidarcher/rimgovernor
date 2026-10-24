@@ -263,7 +263,7 @@ public static partial class ForecastCoupled
         private readonly Dictionary<(int Pawn, int Choices, int Granted, int Situational, int Banded, int Renewals), Cached<ForecastMoodResult>> moods = [];
         private readonly Dictionary<(int Pawn, int Choices, EquatableArray<ForecastClosedRoom> Rooms), Cached<ForecastRoofMood>> roofs = [];
         private readonly Dictionary<(int Pawn, int Exposure, int Roof, int Choices), Cached<BandedThought[]>> banded = [];
-        private readonly Dictionary<(int Needs, int Mood, int Roof, bool Meals, bool Grants), ForecastNeedsResult> projected = [];
+        private readonly Dictionary<(int Needs, int Mood, int Roof, bool Grants), ForecastNeedsResult> projected = [];
         private Cached<ForecastThermalExposure> Exposure(ForecastThermalExposure value)
         {
             if (!exposuresByValue.TryGetValue(value, out var cached)) exposuresByValue.Add(value, cached = Next(value));
@@ -762,11 +762,9 @@ public static partial class ForecastCoupled
             {
                 var facts = pawns.Pawns[p]; var pawn = facts.Pawn;
                 choices.Clear(); productive.Clear(); protectedTime.Clear();
-                var mealsUnknown = false;
                 foreach (var task in facts.NeedTasks)
                 {
                     if (!allocations.TryGetValue(task.Task, out var a)) continue;
-                    mealsUnknown |= !task.ThoughtsComplete;
                     if (completed.GetValueOrDefault(task.Task) != Known(true) || !task.Gain.TryGetValue(out var gain))
                     { Uncertain("unassessed_need_completion", task.Task, a.End); continue; }
                     choices.Add(Choice(task, a, gain));
@@ -810,7 +808,7 @@ public static partial class ForecastCoupled
                     moods.Add(moodKey, mood = Next(ForecastMood.ForecastMoodTimeline(pawn, horizon, choiceKeys.Array(choicesId), null,
                         grantedId == 0 ? null : grantedKeys.Array(grantedId), situationalId == 0 ? null : situationalKeys.Array(situationalId),
                         bandedThoughts.Value, roofMood.Renewals, context.MoodTrajectory, breakShifts.GetValueOrDefault(pawn.Pawn))));
-                needsByPawn[pawn.Pawn] = Projected(projectedNeeds, mood, roof, mealsUnknown, pawns.GrantUnknown[p]);
+                needsByPawn[pawn.Pawn] = Projected(projectedNeeds, mood, roof, pawns.GrantUnknown[p]);
             }
             // Removing impossible work may invalidate its meals and therefore later work. Each pass removes at least one task.
             if (rejectedWork is not null && rejectedWork.Count > (unavailableWork?.Count ?? 0))
@@ -963,22 +961,21 @@ public static partial class ForecastCoupled
 
         /// <summary>A pawn's needs result with its mood, roof findings and unassessed mood inputs applied.</summary>
         private ForecastNeedsResult Projected(Cached<ForecastNeedsResult> needsResult, Cached<ForecastMoodResult> moodResult, Cached<ForecastRoofMood> roofMood,
-            bool mealsUnknown, bool grantUnknown)
+            bool grantUnknown)
         {
-            var key = (needsResult.Id, moodResult.Id, roofMood.Id, mealsUnknown, grantUnknown);
+            var key = (needsResult.Id, moodResult.Id, roofMood.Id, grantUnknown);
             if (projected.TryGetValue(key, out var result)) return result;
             var (mood, roof) = (moodResult.Value, roofMood.Value);
             result = needsResult.Value with { Mood = mood, Findings = mood.BreakRisk.IsKnown ? needsResult.Value.Findings
                 : EquatableArray.From(needsResult.Value.Findings.Append("mental_break_probability_unassessed").Distinct().Order(StringComparer.Ordinal)) };
             if (roof.Findings.Count > 0) result = result with { Findings = EquatableArray.From(result.Findings.Concat(roof.Findings).Distinct().Order(StringComparer.Ordinal)) };
-            if (mealsUnknown || grantUnknown || roof.Unassessed.Length != 0)
+            if (grantUnknown || roof.Unassessed.Length != 0)
                 result = result with
                 {
                     ThoughtOffsetAtHorizon = default,
                     MemoryAdjustedMoodTarget = default,
                     Mood = null,
-                    Findings = [.. result.Findings, mealsUnknown ? "future_meal_thoughts_unassessed"
-                        : grantUnknown ? "commitment_mood_memory_unassessed" : roof.Unassessed]
+                    Findings = [.. result.Findings, grantUnknown ? "commitment_mood_memory_unassessed" : roof.Unassessed]
                 };
             projected.Add(key, result);
             return result;
