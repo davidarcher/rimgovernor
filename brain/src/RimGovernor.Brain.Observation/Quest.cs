@@ -79,7 +79,7 @@ public static class QuestReads
     /// <summary>Derives the open meeting's protection on each read; rescue and ordinary tending stay available when operations are excluded.</summary>
     internal static RoundsFacts StampQuestGuestProtection(RoundsFacts f)
     {
-        var ids = QuestHospitality.ProtectedQuestGuestIds(f.QuestOffers);
+        var ids = QuestHospitality.ProtectedQuestGuestIds(f);
         if (f.Population.TryGetValue(out var census))
         {
             var rows = new List<CustodyFacts>(census.Custody.Count);
@@ -104,7 +104,7 @@ public static class QuestReads
 
     internal static RoundsFacts StampQuestRefugees(RoundsFacts f)
     {
-        var refugees = QuestRefugees.QuestRefugeeIds(f.QuestOffers);
+        var refugees = QuestRefugees.QuestRefugeeIds(f);
         if (f.Population.TryGetValue(out var census))
         {
             var rows = new List<CustodyFacts>(census.Custody.Count);
@@ -169,25 +169,5 @@ public static class QuestReads
             return (Known(EquatableArray.From(capacity)), departuresRead ? Known(EquatableArray.From(departures)) : unknown.Item2);
         }
         return unknown;
-    }
-
-    /// <summary>
-    /// The objective's remaining work with the work type that does it: plant cutting for a harvest, the bill work of the
-    /// recipe for a bill. Native names the recipe only from a usable bench, so a recipe the catalog's benches do not host
-    /// raises <see cref="RequiredFactException"/>.
-    /// </summary>
-    internal static QuestWorkload? QuestWorkloadOf(O.QuestWorkload? w, DefinitionCatalog catalog)
-    {
-        if (w is null)
-        {
-            return null;
-        }
-        var work = WorkType.PlantCutting;
-        if (w.Recipe is { } recipe)
-        {
-            var (billWork, hosted) = catalog.RecipeFacts().BillWorkOf(recipe);
-            work = hosted ? billWork : throw new RequiredFactException($"bill work type of quest recipe {recipe}");
-        }
-        return new QuestWorkload { Work = work, Stat = w.Stat, Amount = w.Work, RateFactor = w.RateFactor };
     }
 }

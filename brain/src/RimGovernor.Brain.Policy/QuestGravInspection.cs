@@ -22,9 +22,9 @@ public static class QuestGravInspection
         {
             return new QuestGravInspectionWork();
         }
-        foreach (var offer in offers.OrderBy(o => o.Quest))
+        foreach (var offer in offers.OrderBy(o => o.Id))
         {
-            if (offer.State != "Ongoing")
+            if (offer.State != QuestStatus.Ongoing)
             {
                 continue;
             }
@@ -33,13 +33,13 @@ public static class QuestGravInspection
                 var engine = objective.GravEngine;
                 if (objective.Kind == Pb.QuestObjectiveKind.InspectGravEngine && engine is null)
                 {
-                    return new QuestGravInspectionWork { Quest = offer.Quest, Waiting = true };
+                    return new QuestGravInspectionWork { Quest = offer.Id, Waiting = true };
                 }
                 if (engine is null || engine.Inspected)
                 {
                     continue;
                 }
-                var result = new QuestGravInspectionWork { Quest = offer.Quest, Waiting = true };
+                var result = new QuestGravInspectionWork { Quest = offer.Id, Waiting = true };
                 if (engine.Place is not Pb.GravEnginePlace.Spawned spawned)
                 {
                     return result;
@@ -71,7 +71,7 @@ public static class QuestGravInspection
         }
         foreach (var offer in rows)
         {
-            if (offer.State != "Ongoing")
+            if (offer.State != QuestStatus.Ongoing)
             {
                 continue;
             }

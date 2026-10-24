@@ -59,9 +59,9 @@ public static class QuestRewards
     /// without a reward choice is scored on that favor alone as choice -1. A multiple-part quest is refused because
     /// native cannot choose it.
     /// </summary>
-    public static QuestRewardChoice SelectQuestReward(JoinerOffer offer, RoundsFacts f)
+    public static QuestRewardChoice SelectQuestReward(QuestState offer, RoundsFacts f)
     {
-        if (offer.RewardChoiceParts > 1)
+        if (offer.ChoicePartCount > 1)
         {
             return new QuestRewardChoice { Choice = -1, Reason = "reward_choices" };
         }

@@ -1,112 +1,7 @@
 using RimGovernor.Brain.Domain;
 using static RimGovernor.Brain.Domain.Fact;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
-
-/// <summary>
-/// One row of the visible quest census (bridge.QuestOffer, from rimgovernor/observations_read_world_progression)
-/// as the joiners family reads it: enough to tell a joiner offer from every other quest and to build the
-/// QuestAccept write for it. The boundary re-reads the quest's CAS token and native CanAcceptQuest verdict
-/// immediately before dispatch; this only decides which already-observed offer to answer.
-/// </summary>
-public sealed record JoinerOffer
-{
-    /// <summary>The raid points the quest threatens, or none for a quest without threat parts.</summary>
-    public Pb.QuestThreat Threat { get; init; } = new Pb.QuestThreat.NoThreat();
-
-    public QuestId Quest { get; init; }
-
-    public string ScriptDef { get; init; } = "";
-
-    public string State { get; init; } = "";
-
-    public bool CanAccept { get; init; }
-
-    public bool RequiresAccepter { get; init; }
-
-    public Pb.QuestExpiry Expiry { get; init; } = new Pb.QuestExpiry.NoExpiry();
-
-    public IReadOnlyList<PawnId> EligiblePawnIds { get; init; } = [];
-
-    public IReadOnlyList<PawnId> DeparturePawnIds { get; init; } = [];
-
-    public IReadOnlyList<QuestObjective> Objectives { get; init; } = [];
-
-    public IReadOnlyList<Pb.QuestShuttleState> Shuttles { get; init; } = [];
-
-    public Fact<QuestProfile> Profile { get; init; }
-
-    // FactionId is the quest's first non-player faction ("" when none); FactionHostile is that faction's
-    // FactionState.hostile, unknown when the census carries no row for it. OnMap is true when the quest's map
-    // is the colony's identity map. Favor is the royal favor the quest grants whatever option is taken; Rewards
-    // holds one row per reward option, its position the QuestAccept reward index.
-    public string FactionId { get; init; } = "";
-
-    public Fact<bool> FactionHostile { get; init; }
-
-    public bool OnMap { get; init; }
-
-    public int Favor { get; init; }
-
-    public IReadOnlyList<Pb.QuestReward> Rewards { get; init; } = [];
-
-    public int RewardChoiceParts { get; init; }
-
-    public Pb.DecreeAsker Asker { get; init; }
-
-    public bool ViolentQuestsAllowed { get; init; }
-
-    /// <summary>
-    /// The quest root's ground or ship-only classification from the catalog's QuestScriptDef rows
-    /// (bridge.QuestClass); unknown when the catalog could not classify it. SelectOdysseyQuestMethod reads it.
-    /// </summary>
-    public Fact<QuestClass> Class { get; init; }
-
-    /// <summary>Why the catalog could not classify the root.</summary>
-    public string ClassError { get; init; } = "";
-}
-
-/// <summary>Carries the typed native requirement and its observed progress.</summary>
-public sealed record QuestObjective
-{
-    public IReadOnlyList<Pb.QuestHackTarget> HackTargets { get; init; } = [];
-
-    /// <summary>The worshipped terminal's site faction; null when the objective names none.</summary>
-    public Pb.QuestHackRisk? HackRisk { get; init; }
-
-    /// <summary>The beg-for-items request; null for an objective that is not one.</summary>
-    public Pb.QuestGiftRequest? Gift { get; init; }
-
-    /// <summary>The monument marker; null for an objective that is not a monument or whose quest holds no live marker.</summary>
-    public Pb.QuestMonument? Monument { get; init; }
-
-    public Pb.QuestGravEngine? GravEngine { get; init; }
-
-    public Pb.QuestSurveyScanner? SurveyScanner { get; init; }
-
-    public Pb.QuestObjectiveKind Kind { get; init; }
-
-    public string Def { get; init; } = "";
-
-    public string Stuff { get; init; } = "";
-
-    public Pb.QuestObjectiveGoal Goal { get; init; } = new Pb.QuestObjectiveGoal.Uncounted();
-
-    public Pb.QuestObjectiveTiming Timing { get; init; } = new Pb.QuestObjectiveTiming.Untimed();
-
-    /// <summary>The work an unfinished produce or harvest objective still needs; null when it needs none or no usable bench hosts its recipe.</summary>
-    public QuestWorkload? Workload { get; init; }
-
-    public IReadOnlyList<PawnId> PawnIds { get; init; } = [];
-
-    public Pb.QuestMoodFloor MinimumMood { get; init; } = new Pb.QuestMoodFloor.NoFloor();
-
-    public IReadOnlyList<Pb.QuestLodgerMood> LodgerMoods { get; init; } = [];
-
-    public bool Active { get; init; }
-}
-
 
 /// <summary>Names why the joiner planner did or did not propose a quest acceptance.</summary>
 public enum JoinerPlanReason
@@ -117,8 +12,6 @@ public enum JoinerPlanReason
     NoOffer,
     [WireName("no_population_capacity")]
     NoCapacity,
-    [WireName("quest_census_unknown")]
-    CensusUnknown,
     [WireName("no_quest_offer")]
     QuestNoOffer,
 }
@@ -156,22 +49,6 @@ public sealed record JoinerCapacityFacts
     public int ColonistGoal { get; init; }
 }
 
-/// <summary>
-/// A pending current-map WandererJoins or creepjoiner letter. Its opaque token binds the native pawn, quest,
-/// map, expiry and choices. Expires is the letter's disappearAtTick verbatim, negative for a letter with no
-/// timeout (the game's own sentinel).
-/// </summary>
-public sealed record JoinerLetterOffer
-{
-    public int Id { get; init; }
-
-    public string Token { get; init; } = "";
-
-    public string Label { get; init; } = "";
-
-    public bool CanAccept { get; init; }
-}
-
 public static partial class PopulationRules
 {
     /// <summary>The population the colony grows toward: the bot's own target, raised to the player's colonist goal (#3494).</summary>
@@ -206,8 +83,8 @@ public static partial class PopulationRules
     /// Reports whether an offer is a joiner quest the colony could accept right now: not yet accepted,
     /// native-acceptable, and needing no accepter (a joiner offer never names one).
     /// </summary>
-    internal static bool JoinerAnswerable(JoinerOffer offer) =>
-        IsJoinerOffer(offer.ScriptDef) && offer.State == "NotYetAccepted" && offer.CanAccept && !offer.RequiresAccepter;
+    internal static bool JoinerAnswerable(QuestState offer) =>
+        IsJoinerOffer(offer.ScriptDef) && offer.State == QuestStatus.NotYetAccepted && offer.CanAccept && !offer.RequiresAccepter;
 
     /// <summary>
     /// Counts the living people the colony hosts: admitted colonists plus every guest (a prisoner is a guest
@@ -232,103 +109,58 @@ public static partial class PopulationRules
 
     /// <summary>
     /// Reports whether an answerable joiner offer is waiting while the colony has capacity for it. An offer
-    /// the colony cannot host is not a deficit: it is left to expire. An unknown census leaves the need
-    /// unknown rather than silently settled, the same rule the prisoner census uses.
+    /// the colony cannot host is not a deficit: it is left to expire. A waiting offer while the capacity is
+    /// unread raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static Fact<bool> JoinerDeficit(Fact<EquatableArray<JoinerOffer>> offers, Fact<bool> capacity, RoundsFacts facts)
-    {
-        if (!offers.TryGetValue(out var rows))
-        {
-            return Unknown<bool>();
-        }
-        var waiting = false;
-        foreach (var offer in rows)
-        {
-            waiting = waiting || (JoinerAnswerable(offer) && QuestSelection.JoinerThreatReason(offer, facts).IsNone);
-        }
-        if (!waiting)
-        {
-            return Known(false);
-        }
-        if (!capacity.TryGetValue(out var room))
-        {
-            return Unknown<bool>();
-        }
-        return Known(room);
-    }
+    public static bool JoinerDeficit(IReadOnlyList<QuestState> offers, Fact<bool> capacity, RoundsFacts facts) =>
+        offers.Any(offer => JoinerAnswerable(offer) && QuestSelection.JoinerThreatReason(offer, facts).IsNone) && Room(capacity);
 
     /// <summary>
-    /// Picks the lowest-ID answerable joiner offer to accept next, for a
-    /// deterministic order, once the colony's capacity for one more colonist is known.
+    /// Picks the lowest-ID answerable joiner offer to accept next, for a deterministic order, once the
+    /// colony's capacity for one more colonist is known.
     /// </summary>
-    public static JoinerChoice SelectJoinerMethod(Fact<EquatableArray<JoinerOffer>> offers, Fact<bool> capacity, RoundsFacts facts)
+    public static JoinerChoice SelectJoinerMethod(IReadOnlyList<QuestState> offers, Fact<bool> capacity, RoundsFacts facts)
     {
-        if (!offers.TryGetValue(out var rows))
-        {
-            return new JoinerChoice { Reason = JoinerPlanReason.CensusUnknown };
-        }
-        var sorted = rows.OrderBy(o => o.Quest).ToList();
         var refused = false;
-        foreach (var offer in sorted)
+        foreach (var offer in offers.OrderBy(o => o.Id))
         {
             if (!JoinerAnswerable(offer))
             {
                 continue;
-            }
-            if (!capacity.TryGetValue(out var room))
-            {
-                return new JoinerChoice { Reason = JoinerPlanReason.CensusUnknown };
-            }
-            if (!room)
-            {
-                return new JoinerChoice { Reason = JoinerPlanReason.NoCapacity };
             }
             if (!QuestSelection.JoinerThreatReason(offer, facts).IsNone)
             {
                 refused = true;
                 continue;
             }
-            return new JoinerChoice { Quest = offer.Quest, RewardChoice = offer.Rewards.Count > 0 ? 0 : -1 };
+            return Room(capacity)
+                ? new JoinerChoice { Quest = offer.Id, RewardChoice = offer.Rewards.Count > 0 ? 0 : -1 }
+                : new JoinerChoice { Reason = JoinerPlanReason.NoCapacity };
         }
         return new JoinerChoice { Reason = refused ? JoinerPlanReason.NoCapacity : JoinerPlanReason.NoOffer };
     }
+
+    /// <summary>Whether the colony has room for one more colonist; an unread capacity raises <see cref="RequiredFactException"/>.</summary>
+    private static bool Room(Fact<bool> capacity) => capacity.TryGetValue(out var room) ? room : throw new RequiredFactException("population capacity");
 
     /// <summary>
     /// Reports whether an offer is a bestowing-ceremony quest the title claim gate allows (claims,
     /// ClaimQuests): not yet accepted, native-acceptable and needing no accepter. The quest is identified by
     /// the royalty read's quest id, not by script def.
     /// </summary>
-    internal static bool ClaimAnswerable(JoinerOffer offer, IReadOnlyList<QuestId> claims) =>
-        claims.Contains(offer.Quest) && offer.State == "NotYetAccepted" && offer.CanAccept && !offer.RequiresAccepter;
+    internal static bool ClaimAnswerable(QuestState offer, IReadOnlyList<QuestId> claims) =>
+        claims.Contains(offer.Id) && offer.State == QuestStatus.NotYetAccepted && offer.CanAccept && !offer.RequiresAccepter;
 
-    public static (JoinerLetterOffer Offer, bool Ok) SelectJoinerLetter(Fact<EquatableArray<JoinerLetterOffer>> offers, Fact<bool> capacity)
+    /// <summary>The lowest-id acceptable joiner letter while the colony has room; null when none waits or there is no room.</summary>
+    public static JoinerLetter? SelectJoinerLetter(IReadOnlyList<JoinerLetter> letters, Fact<bool> capacity)
     {
-        var known = offers.TryGetValue(out var rows);
-        var capacityKnown = capacity.TryGetValue(out var room);
-        if (!known || !capacityKnown || !room)
-        {
-            return (new JoinerLetterOffer(), false);
-        }
-        var chosen = new JoinerLetterOffer();
-        var found = false;
-        foreach (var row in rows!)
-        {
-            if (row.CanAccept && (!found || row.Id < chosen.Id))
-            {
-                (chosen, found) = (row, true);
-            }
-        }
-        return (chosen, found);
+        var acceptable = letters.Where(row => row.CanAccept).OrderBy(row => row.Id).ToList();
+        return acceptable.Count > 0 && Room(capacity) ? acceptable[0] : null;
     }
 
-    public static Fact<bool> JoinerLetterDeficit(Fact<EquatableArray<JoinerLetterOffer>> offers, Fact<bool> capacity)
-    {
-        if (!offers.TryGetValue(out var rows))
-        {
-            return Unknown<bool>();
-        }
-        return rows.Any(row => row.CanAccept) ? capacity : Known(false);
-    }
+    /// <summary>Reports whether an acceptable joiner letter waits while the colony has room.</summary>
+    public static bool JoinerLetterDeficit(IReadOnlyList<JoinerLetter> letters, Fact<bool> capacity) =>
+        letters.Any(row => row.CanAccept) && Room(capacity);
 }
 
 public static class JoinerRoundsFactsExtensions

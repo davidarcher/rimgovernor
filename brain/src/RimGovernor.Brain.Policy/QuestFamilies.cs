@@ -321,3 +321,49 @@ public static class QuestFamiliesPolicy
         or "GravshipWreckage" or "OpportunitySite_AncientMercenaries" or "OpportunitySite_BanditCamp_Giver" or "OpportunitySite_ItemStash_Giver" or "OpportunitySite_AlphaThrumbo_Giver" or "OpportunitySite_DistressCall"
         or "Opportunity_AncientStructureLaunchSite" or "Opportunity_AncientStructureGarrison" or "Opportunity_AncientStructureChemfuelRefinery" or "Opportunity_AncientStructureWarehouse" or "Opportunity_AncientInfestedSettlement";
 }
+
+/// <summary>
+/// The catalog's classification of one quest root script (DefinitionCatalog.QuestProfile): <see cref="Classified"/>
+/// with its family profile and, for a ship-only Odyssey quest, the space layer that makes it so; or
+/// <see cref="Unclassified"/> with why the catalog could not classify it (no QuestScriptDef row, no known family, or
+/// a layer reference that names no planet layer def).
+/// </summary>
+public abstract record QuestRoot
+{
+    private protected QuestRoot() { }
+
+    /// <summary>The root QuestScriptDef's defName.</summary>
+    public required string ScriptDef { get; init; }
+
+    public sealed record Classified : QuestRoot
+    {
+        public required QuestProfile Profile { get; init; }
+
+        /// <summary>The space layer of a ship-only quest; empty for every other root.</summary>
+        public required string SpaceLayer { get; init; }
+    }
+
+    public sealed record Unclassified : QuestRoot
+    {
+        public required string Error { get; init; }
+    }
+}
+
+public static class QuestRoots
+{
+    /// <summary>
+    /// The classification of <paramref name="quest"/>'s root among the review's <see cref="RoundsFacts.QuestRoots"/>;
+    /// every root of the census is classified, so a missing one raises <see cref="RequiredFactException"/>.
+    /// </summary>
+    public static QuestRoot RootOf(this RoundsFacts f, QuestState quest)
+    {
+        foreach (var root in f.QuestRoots)
+        {
+            if (root.ScriptDef == quest.ScriptDef)
+            {
+                return root;
+            }
+        }
+        throw new RequiredFactException("quest root " + quest.ScriptDef);
+    }
+}

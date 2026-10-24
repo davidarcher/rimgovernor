@@ -28,12 +28,12 @@ public sealed class JoinersAnomalyFamilyTests
         }),
     };
 
-    private static JoinerLetterOffer Letter(int id) => new() { Id = id, Token = "t" + id, Label = "Accept", CanAccept = true };
+    private static RimGovernor.Contracts.Wire.Observations.JoinerLetter Letter(int id) => new() { Id = id, Token = "t" + id, Label = "Accept", CanAccept = true };
 
-    private static RoundsFacts Census(params JoinerLetterOffer[] letters) => Room(new RoundsFacts
+    private static RoundsFacts Census(params RimGovernor.Contracts.Wire.Observations.JoinerLetter[] letters) => Room(new RoundsFacts
     {
-        QuestOffers = Known<EquatableArray<JoinerOffer>>([]),
-        JoinerLetters = Known<EquatableArray<JoinerLetterOffer>>([.. letters]),
+        QuestOffers = Known<EquatableArray<RimGovernor.Contracts.Wire.Observations.QuestState>>([]),
+        JoinerLetters = Known<EquatableArray<RimGovernor.Contracts.Wire.Observations.JoinerLetter>>([.. letters]),
         Royalty = new RoyaltyState.Active(new RoyaltyFacts()),
     });
 
@@ -53,8 +53,8 @@ public sealed class JoinersAnomalyFamilyTests
         Assert.Equal((Satisfaction.Unmet, 1.0), (unmet.Satisfaction, unmet.Deficit.Value));
 
         // A letter the colony may have no room for, or an unread census, never reads as settled.
-        Assert.Equal("joiner letters", Assert.Throws<RequiredFactException>(() => Joiner(Census(Letter(7)) with { FoodDays = default }, JoinersFamily.Letters)).Fact);
-        Assert.Equal("joiner offers", Assert.Throws<RequiredFactException>(() => new JoinersFamily().Derive(new JoinersFacts())).Fact);
+        Assert.Equal("population capacity", Assert.Throws<RequiredFactException>(() => Joiner(Census(Letter(7)) with { FoodDays = default }, JoinersFamily.Letters)).Fact);
+        Assert.Equal("quest offers", Assert.Throws<RequiredFactException>(() => new JoinersFamily().Derive(new JoinersFacts())).Fact);
         // With Royalty inactive no ceremony can wait, so the Need is met.
         Assert.Equal(Satisfaction.Met, Joiner(Census() with { Royalty = new RoyaltyState.Inactive() }, JoinersFamily.Ceremony).Satisfaction);
     }

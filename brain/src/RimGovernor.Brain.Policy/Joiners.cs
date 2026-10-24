@@ -68,17 +68,18 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
     {
         var f = facts.Rounds;
         var capacity = PopulationRules.JoinerCapacity(f.JoinerCapacity());
-        var known = f.QuestOffers.TryGetValue(out _);
+        var offers = Offered(f);
+        var letters = f.JoinerLetters.TryGetValue(out var rows) ? rows : throw new RequiredFactException("joiner letters");
         return
         [
-            FromFact(Offers, PopulationRules.JoinerDeficit(f.QuestOffers, capacity, f), "joiner offers"),
-            FromFact(Letters, PopulationRules.JoinerLetterDeficit(f.JoinerLetters, capacity), "joiner letters"),
+            Owed(Offers, PopulationRules.JoinerDeficit(offers, capacity, f)),
+            Owed(Letters, PopulationRules.JoinerLetterDeficit(letters, capacity)),
             Ceremonies(f),
-            Quest(Quests, known, () => QuestSelection.QuestDeficit(f).ValueOrDefault || QuestRefugees.RefugeeDeficit(f)),
-            Quest(Decrees, known, () => QuestDecrees.DecreeDeficit(f)),
-            Quest(Monuments, known, () => QuestMonumentPolicy.MonumentDeficit(f)),
-            Quest(Departures, known, () => QuestDeparture.DepartureDeficit(f)),
-            Quest(GravInspection, known, () => QuestGravInspection.GravInspectionDeficit(f)),
+            Owed(Quests, QuestSelection.QuestDeficit(f) || QuestRefugees.RefugeeDeficit(f)),
+            Owed(Decrees, QuestDecrees.DecreeDeficit(f)),
+            Owed(Monuments, QuestMonumentPolicy.MonumentDeficit(f)),
+            Owed(Departures, QuestDeparture.DepartureDeficit(f)),
+            Owed(GravInspection, QuestGravInspection.GravInspectionDeficit(f)),
         ];
     }
 
@@ -90,14 +91,14 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
         var f = facts.Rounds;
         var capacity = PopulationRules.JoinerCapacity(f.JoinerCapacity());
         var output = new List<NeedMethod>();
-        var joiner = PopulationRules.SelectJoinerMethod(f.QuestOffers, capacity, f);
+        var joiner = PopulationRules.SelectJoinerMethod(Offered(f), capacity, f);
         foreach (var need in ready)
         {
             if (need.Id == Offers && joiner.Reason == JoinerPlanReason.None)
             {
                 output.Add(Accept(Offers, AcceptMethod("joiner", joiner.Quest), joiner));
             }
-            else if (need.Id == Letters && PopulationRules.SelectJoinerLetter(f.JoinerLetters, capacity) is (var letter, true))
+            else if (need.Id == Letters && f.JoinerLetters.TryGetValue(out var letters) && PopulationRules.SelectJoinerLetter(letters, capacity) is { } letter)
             {
                 var answer = DialogAnswer.NewJoinerLetterAnswer(letter.Id, letter.Label, letter.Token);
                 output.Add(new NeedMethod(Letters, LetterMethod(letter.Id), "",
@@ -128,8 +129,6 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
         return new NeedMethod(need, method, "", id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewQuestAcceptAction(new ActionId(id.Value + "-0"), accept)]));
     }
 
-    private static Need FromFact(NeedId id, Fact<bool> deficit, string fact) => Owed(id, deficit.TryGetValue(out var owed) ? owed : throw new RequiredFactException(fact));
-
     private static Need Owed(NeedId id, bool owed) => FoodRules.WholeNeed(id, NeedTier.Development, !owed);
 
     /// <summary>
@@ -138,7 +137,7 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
     private static Need Ceremonies(RoundsFacts f) =>
         Owed(Ceremony, f.Royalty is RoyaltyState.Active { Facts: var royalty } && CeremonyRules.CeremonyStart(royalty) is not null);
 
-    /// <summary>A quest-census Need: <paramref name="owed"/>; an unread census raises <see cref="RequiredFactException"/>.</summary>
-    private static Need Quest(NeedId id, bool known, Func<bool> owed) =>
-        Owed(id, known ? owed() : throw new RequiredFactException("quest offers"));
+    /// <summary>The quest census; an unread one raises <see cref="RequiredFactException"/>.</summary>
+    private static EquatableArray<QuestState> Offered(RoundsFacts f) =>
+        f.QuestOffers.TryGetValue(out var offers) ? offers : throw new RequiredFactException("quest offers");
 }

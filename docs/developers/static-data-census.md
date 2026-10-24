@@ -324,7 +324,7 @@ Kept, reason recorded:
 | NativeWallUpgradeObservationTools.cs | 201 | mixed | Read-only census of wall replacement and cleanup sites with backup cells, supports, blockers and snapshot tokens. | Materials(): stony stuffs allowed for ThingDefOf.Wall with CostListAdjusted costs (~12 lines); ThingDefOf.Wall hardcoded as the only wall def | ThingDef.stuffCategories and StuffProperties.categories plus ThingDef.costList and costStuffCount for Wall rows; Go rule picks stony stuffs and computes cost |
 | NativeWorkSettings.cs | 158 | state | Applies work priorities, allowed area and 24-hour timetable to one free colonist with readback and evidence. | ScheduleHours=24 constant | GameConstants (#2626) hours per day |
 | NativeWorldObservation.cs | 123 | state | Reads settlements near a world tile with faction relation, goodwill and self-computed CAS tokens. |  | none |
-| NativeWorldProgressionObservation.cs | 395 | state | Census of maps, colonists, factions, caravans with routes and inventory, assemblies and quests with objectives and rewards. |  | none |
+| NativeWorldProgressionObservation.cs | 395 | state | Census of maps, colonists, caravans with routes and inventory, assemblies and quests with objectives and rewards. |  | none |
 | NativeWorldSites.cs | 74 | mixed | Lists world sites and quest-anchored world objects with security, mining, extraction, peace talks and caravan route estimate. | PeaceTalks goodwill ranges DiplomacyTuning.Goodwill_PeaceTalksDisasterRange and TriumphRange and MaxGoodwill (3 lines) | GameConstants (#2626) DiplomacyTuning constants |
 | NativeZoneCellEdit.cs | 122 | state | Adds or removes explicit cells on an existing zone with grid consistency checks. |  | none |
 | NativeZoneCreation.cs | 214 | state | Validates, previews and creates growing or fishing zones and returns zone evidence. | Required labels Fishing and Crops; crop sowTags contains Ground check; Fishing needs Odyssey and Fishing research (Odyssey part belongs to #2632) | ThingDef.plant.sowTags (PlantProperties.sowTags); label constants stay as protocol |
@@ -527,10 +527,9 @@ Kept, reason recorded:
 | QuestMonumentResource | message | 1183 | 5 | state | Monument resource thing location |  |  |
 | QuestShuttleState | message | 1190 | 10 | state | Quest shuttle loading state |  |  |
 | QuestState | message | 1202 | 24 | state | Quest row |  |  |
-| FactionState | message | 1203 | 7 | state | Faction relation row |  |  |
 | WorldMap | message | 1204 | 7 | state | Map row with pawns and stored items |  |  |
 | CaravanAssembly | message | 1205 | 5 | state | Caravan assembly state |  |  |
-| WorldProgressionSnapshot | message | 1206 | 7 | state | World progression: maps, factions, caravans, quests, sites |  |  |
+| WorldProgressionSnapshot | message | 1206 | 7 | state | World progression: maps, caravans, quests, sites |  |  |
 | WorldProgressionRequest | message | 1207 | 2 | state | Read request parameters |  |  |
 | BillsSnapshot | message | 1211 | 2 | state | Bills per bench |  |  |
 | BillsRequest | message | 1212 | 2 | state | Read request parameters |  |  |

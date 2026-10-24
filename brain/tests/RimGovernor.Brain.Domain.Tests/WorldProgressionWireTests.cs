@@ -5,7 +5,7 @@ using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
-// #3866: the caravan, world map, faction and assembly rows are plain required records; a caravan's course is Moving or
+// #3866: the caravan, world map and assembly rows are plain required records; a caravan's course is Moving or
 // Stopped and a home route is Reachable with its ticks or Unreachable. Each round-trips exactly through the wire JSON.
 public sealed class WorldProgressionWireTests
 {
@@ -33,11 +33,6 @@ public sealed class WorldProgressionWireTests
     {
         Context = Context,
         Maps = [new O.WorldMap { Id = 0, Tile = 7, Home = true, Pawns = [PawnFixtures.Row("Human2")], QuestWorkers = [] }],
-        Factions =
-        [
-            new O.FactionState { Id = "Faction_1", Player = true, Hostile = false },
-            new O.FactionState { Id = "Faction_3", Player = false, Hostile = true },
-        ],
         Caravans = [Caravan("Caravan_1", new O.CaravanCourse.Moving(7)), Caravan("Caravan_2", new O.CaravanCourse.Stopped())],
         Assemblies = [new O.CaravanAssembly { MapId = 0, Pawns = [new PawnId("Human3")] }],
         Quests = [],

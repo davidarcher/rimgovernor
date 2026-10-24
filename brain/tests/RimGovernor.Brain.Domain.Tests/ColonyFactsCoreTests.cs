@@ -23,6 +23,7 @@ public sealed class ColonyFactsCoreTests
         Context = context ?? new C.ObservationContext { Identity = new C.Identity { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 0 },
         ResourceThings = [],
         WorkResources = [],
+        JoinerLetters = [],
         ColonistCount = 0,
         WorkerCount = 0,
         MapSize = new MapSize { Width = 0, Height = 0 },

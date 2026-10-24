@@ -46,12 +46,8 @@ public static partial class TradePolicyRules
                 continue;
             }
             var candidate = f with { QuestSparePawns = Known(EquatableArray.From([row.Id])) };
-            var offer = new JoinerOffer
-            {
-                Profile = Known(new QuestProfile { Family = QuestFamily.BanditCamp }),
-                Objectives = [new QuestObjective { Kind = O.QuestObjectiveKind.LoadPawns, Goal = new O.QuestObjectiveGoal.Pawns(1) }],
-            };
-            var (crew, reason) = QuestDeparture.DepartureSquadWithCrew(offer, candidate, false, true);
+            // A trade caravan is no quest: no open quest's departures are its own.
+            var (crew, reason) = QuestDeparture.DepartureSquadFor(default, QuestFamily.BanditCamp, 1, candidate, false, true);
             if (reason.Value.Length == 0)
             {
                 return (crew, reason);

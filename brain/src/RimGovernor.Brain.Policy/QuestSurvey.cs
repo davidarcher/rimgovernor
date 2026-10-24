@@ -16,7 +16,7 @@ public sealed record SurveyPlan
 public static class QuestSurvey
 {
     /// <summary>The site's one survey scanner hold; null when no objective or more than one names the site.</summary>
-    private static Pb.QuestSurveyScanner? SurveyScannerOf(JoinerOffer offer, string site)
+    private static Pb.QuestSurveyScanner? SurveyScannerOf(QuestState offer, string site)
     {
         Pb.QuestSurveyScanner? scanner = null;
         foreach (var objective in offer.Objectives)
@@ -33,7 +33,7 @@ public static class QuestSurvey
         return scanner;
     }
 
-    private static (ExpeditionSite Site, QuestSkipReason Reason) SurveyBudget(JoinerOffer offer, ExpeditionSite site, RoundsFacts f)
+    private static (ExpeditionSite Site, QuestSkipReason Reason) SurveyBudget(QuestState offer, ExpeditionSite site, RoundsFacts f)
     {
         if (SurveyScannerOf(offer, site.Id) is not { } scanner)
         {
@@ -66,7 +66,7 @@ public static class QuestSurvey
         return (site, "");
     }
 
-    public static QuestSkipReason SurveyAdmission(JoinerOffer offer, RoundsFacts f)
+    public static QuestSkipReason SurveyAdmission(QuestState offer, RoundsFacts f)
     {
         if (!QuestExpedition.QuestExpeditionSite(offer, f, out var site))
         {
@@ -80,12 +80,12 @@ public static class QuestSurvey
     /// affordable after that departure; none is sent merely because time passed, and the scanner performs its
     /// ordinary passive work.
     /// </summary>
-    public static ExpeditionPlan PlanSurvey(JoinerOffer offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p)
+    public static ExpeditionPlan PlanSurvey(QuestState offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p)
     {
         var (budget, reason) = SurveyBudget(offer, site, f);
         if (!reason.IsNone)
         {
-            return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Reason = reason };
+            return new ExpeditionPlan { Quest = offer.Id, Site = site.Id, Reason = reason };
         }
         var plan = QuestExpedition.PlanExpedition(offer, budget, f, food, p);
         if (!plan.Reason.IsNone || plan.Departure is null)
@@ -209,10 +209,10 @@ public static class QuestSurvey
         return true;
     }
 
-    public static SurveyPlan SurveyWork(JoinerOffer offer, WorldSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p)
+    public static SurveyPlan SurveyWork(QuestState offer, WorldSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p)
     {
         var result = new SurveyPlan();
-        if (offer.State == "EndedFailed")
+        if (offer.State == QuestStatus.EndedFailed)
         {
             return result with { Return = true, Reason = "quest_failed" };
         }

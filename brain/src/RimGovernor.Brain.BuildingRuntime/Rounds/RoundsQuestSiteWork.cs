@@ -21,18 +21,18 @@ public sealed partial class JoinersRounds
 
             foreach (var offer in offers)
             {
-                if (!site.QuestIds.Contains(offer.Quest))
+                if (!site.QuestIds.Contains(offer.Id))
                 {
                     continue;
                 }
 
-                if (!offer.Profile.TryGetValue(out var profile) || profile.NeverAct)
+                if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile } || profile.NeverAct)
                 {
                     continue;
                 }
 
                 var hackTargets = offer.Objectives.Any(o => o.HackTargets.Count > 0);
-                if (hackTargets && offer.State != "EndedFailed" && !QuestHackPolicy.QuestHackComplete(offer))
+                if (hackTargets && offer.State != PbReceipts.QuestStatus.EndedFailed && !QuestHackPolicy.QuestHackComplete(offer))
                 {
                     continue;
                 }
@@ -49,7 +49,7 @@ public sealed partial class JoinersRounds
                     var step = QuestSurvey.SurveyWork(offer, site, f, f.AnimalUpkeep.Food, reviewer.Policy);
                     if (step.Reason != "")
                     {
-                        reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", step.Reason, ""), call);
+                        reviewer.LogQuestSkip(new QuestSkip(offer.Id, "", step.Reason, ""), call);
                     }
 
                     if (step.Departure is not null)
@@ -72,7 +72,7 @@ public sealed partial class JoinersRounds
                     var step = QuestCoreSite.PlanCoreSiteWork(offer, site, f, loaded.Map.Id);
                     if (step.Reason != "")
                     {
-                        reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", new QuestSkipReason(step.Reason), ""), call);
+                        reviewer.LogQuestSkip(new QuestSkip(offer.Id, "", new QuestSkipReason(step.Reason), ""), call);
                     }
 
                     switch (step.Kind)
@@ -116,7 +116,7 @@ public sealed partial class JoinersRounds
                     {
                         if (step.Reason != "")
                         {
-                            reviewer.LogQuestSkip(new QuestSkip(offer.Quest, "", step.Reason, ""), call);
+                            reviewer.LogQuestSkip(new QuestSkip(offer.Id, "", step.Reason, ""), call);
                         }
 
                         continue;
@@ -130,13 +130,13 @@ public sealed partial class JoinersRounds
                 if (action?.CaravanDeparture is { Mode: CaravanDepartureMode.Formation })
                     return (Verdict.AwaitingPlan("unsupported_forecast_caravan_formation",
                         "Caravan packing and departure require shared forecast labor admission."), true);
-                if (crew.Count > 0 && !Claim(work, crew, "quest:" + offer.Quest))
+                if (crew.Count > 0 && !Claim(work, crew, "quest:" + offer.Id))
                 {
                     return (Verdict.WaitFor(Cause.Claim, "quest_site"), true);
                 }
 
                 var plan = new PlanSpec(id, new PlanRevision(1), [action!]);
-                var method = new MethodId($"quest-site-{offer.Quest}-{site.Id}-{kind}-{target}");
+                var method = new MethodId($"quest-site-{offer.Id}-{site.Id}-{kind}-{target}");
                 return (Commit(work, method, plan, started, "admitSiteWork", call), true);
             }
         }

@@ -21,9 +21,8 @@ public sealed partial class JoinersRounds
         var asked = false;
         var request = new DecreeOrderRequest
         {
-            Offers = projection.Facts.QuestOffers,
+            Facts = projection.Facts,
             Now = projection.Identity.Tick.Value,
-            Stock = projection.Facts.Resources,
             Recipes = _ =>
             {
                 asked = true;
@@ -79,7 +78,7 @@ public sealed partial class JoinersRounds
 partial class JoinersRounds
 {
     /// <summary>The recipes on the benches that make the quest objective's item, with their standing batch bills.</summary>
-    internal static List<DecreeRecipe> DecreeRecipes(IReadOnlyList<GearBench> benches, DefinitionCatalog catalog, QuestObjective objective)
+    internal static List<DecreeRecipe> DecreeRecipes(IReadOnlyList<GearBench> benches, DefinitionCatalog catalog, DecreeDue objective)
     {
         var output = new List<DecreeRecipe>();
         foreach (var bench in benches)
@@ -112,8 +111,8 @@ partial class JoinersRounds
                     Product = new Resource(objective.Def),
                     Units = units,
                     Ingredients = recipe.Ingredients,
+                    Available = recipe.Available && recipe.AvailableOn,
                 };
-                candidate = candidate with { Available = Known(recipe.Available && recipe.AvailableOn) };
                 var stuff = new Dictionary<Resource, bool>();
                 var standing = new List<OrderSpec>();
                 foreach (var group in recipe.Ingredients)
@@ -144,7 +143,7 @@ partial class JoinersRounds
                     }
                     else
                     {
-                        candidate = candidate with { Available = Known(false) };
+                        candidate = candidate with { Available = false };
                     }
                 }
                 output.Add(candidate with { Stuff = stuff, Standing = standing });

@@ -18,7 +18,7 @@ public static class QuestHackPolicy
     /// <summary>
     /// Follows the native filter predicate: destruction satisfies only a filter which explicitly permits it.
     /// </summary>
-    public static bool QuestHackComplete(JoinerOffer offer)
+    public static bool QuestHackComplete(QuestState offer)
     {
         var seen = false;
         foreach (var objective in offer.Objectives)
@@ -43,7 +43,7 @@ public static class QuestHackPolicy
         }
         foreach (var offer in offers)
         {
-            if (offer.State != "Ongoing" || !offer.Profile.TryGetValue(out var profile))
+            if (offer.State != QuestStatus.Ongoing || f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile })
             {
                 continue;
             }
@@ -56,7 +56,7 @@ public static class QuestHackPolicy
                 var seen = false;
                 foreach (var objective in offer.Objectives)
                 {
-                    if (objective.Gift is { } request)
+                    if (objective.GiftRequest is { } request)
                     {
                         seen = true;
                         // Until the recipient asks, the gift is still owed.
@@ -75,7 +75,7 @@ public static class QuestHackPolicy
         return false;
     }
 
-    public static QuestSkipReason WorshippedTerminalAdmission(JoinerOffer offer)
+    public static QuestSkipReason WorshippedTerminalAdmission(QuestState offer)
     {
         if (offer.ScriptDef != "Hack_WorshippedTerminal")
         {
@@ -92,7 +92,7 @@ public static class QuestHackPolicy
         return "terminal_tribe_absent";
     }
 
-    public static QuestSkipReason HackAdmission(JoinerOffer offer, RoundsFacts f)
+    public static QuestSkipReason HackAdmission(QuestState offer, RoundsFacts f)
     {
         var reason = WorshippedTerminalAdmission(offer);
         if (!reason.IsNone)
@@ -112,17 +112,17 @@ public static class QuestHackPolicy
         {
             return new QuestHackWork();
         }
-        foreach (var offer in all.OrderBy(o => o.Quest))
+        foreach (var offer in all.OrderBy(o => o.Id))
         {
-            if (offer.State != "Ongoing")
+            if (offer.State != QuestStatus.Ongoing)
             {
                 continue;
             }
-            if (!offer.Profile.TryGetValue(out var profile) || (profile.Family != QuestFamily.Hack && offer.ScriptDef != "Gravcore_MechanoidRelay"))
+            if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile } || (profile.Family != QuestFamily.Hack && offer.ScriptDef != "Gravcore_MechanoidRelay"))
             {
                 continue;
             }
-            var result = new QuestHackWork { Quest = offer.Quest };
+            var result = new QuestHackWork { Quest = offer.Id };
             var admission = WorshippedTerminalAdmission(offer);
             if (!admission.IsNone)
             {
@@ -165,7 +165,7 @@ public static class QuestHackPolicy
         return new QuestHackWork();
     }
 
-    public static QuestSkipReason RelicAdmission(JoinerOffer offer, RoundsFacts f)
+    public static QuestSkipReason RelicAdmission(QuestState offer, RoundsFacts f)
     {
         if (offer.ScriptDef != "RelicHunt")
         {

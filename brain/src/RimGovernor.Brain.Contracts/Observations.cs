@@ -4333,7 +4333,7 @@ public sealed record QuestShuttleState
 /// </summary>
 public sealed record QuestState
 {
-    public required string Id { get; init; }
+    public required QuestId Id { get; init; }
 
     public required Receipts.QuestStatus State { get; init; }
 
@@ -4357,8 +4357,7 @@ public sealed record QuestState
     /// <summary>The root QuestScriptDef's defName.</summary>
     public required string ScriptDef { get; init; }
 
-    /// <summary>The first non-player faction the quest involves, null when it involves none.</summary>
-    public required string? FactionId { get; init; }
+    public required QuestFaction Faction { get; init; }
 
     public required QuestPlace Place { get; init; }
 
@@ -4424,6 +4423,22 @@ public abstract record QuestPlace
 }
 
 /// <summary>
+/// The first non-player faction the quest involves and whether it is hostile to the player, or <see cref="NoFaction"/>
+/// for a quest that involves none.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestFaction.Involved), "involved")]
+[JsonDerivedType(typeof(QuestFaction.NoFaction), "no_faction")]
+public abstract record QuestFaction
+{
+    private protected QuestFaction() { }
+
+    public sealed record Involved(bool Hostile) : QuestFaction;
+
+    public sealed record NoFaction : QuestFaction;
+}
+
+/// <summary>
 /// The threat a quest generates: the summed points of its big and small threat incidents plus the combat power of its
 /// hostile arrivals, or <see cref="NoThreat"/> when it carries neither.
 /// </summary>
@@ -4453,15 +4468,6 @@ public enum DecreeAsker
     /// <summary>A decree whose DecreeUnmet thought sits on no single pawn with a faction.</summary>
     [WireName("no_single_asker")]
     NoSingleAsker,
-}
-
-public sealed record FactionState
-{
-    public required string Id { get; init; }
-
-    public required bool Player { get; init; }
-
-    public required bool Hostile { get; init; }
 }
 
 /// <summary>One loaded map: its free colonists as whole pawn rows, and its quest workers.</summary>
@@ -4495,9 +4501,6 @@ public sealed record WorldProgressionSnapshot
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<WorldMap>))]
     public required EquatableArray<WorldMap> Maps { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<FactionState>))]
-    public required EquatableArray<FactionState> Factions { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<CaravanState>))]
     public required EquatableArray<CaravanState> Caravans { get; init; }
@@ -7001,7 +7004,7 @@ public sealed record ColonyFactsSnapshot
     public required LootSection EventLoot { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<JoinerLetter>))]
-    public EquatableArray<JoinerLetter> JoinerLetters { get; init; }
+    public required EquatableArray<JoinerLetter> JoinerLetters { get; init; }
 
     public required FoodChannelsFacts FoodChannels { get; init; }
 
@@ -7324,18 +7327,18 @@ public sealed record MechChargerState
 }
 
 /// <summary>
-/// Current-map WandererJoins offers and creepjoiner offers (creepjoiner true); the token binds letter, quest, pawn and expiry. expires_tick is the letter's disappearAtTick, negative for no timeout.
+/// A pending current-map WandererJoins or creepjoiner letter: its letter id, the opaque token that binds letter, quest,
+/// pawn, map, expiry and choices, the accept option's label and whether that option is enabled.
 /// </summary>
 public sealed record JoinerLetter
 {
-    public int? LetterId { get; init; }
+    public required int Id { get; init; }
 
-    public string? SnapshotToken { get; init; }
+    public required string Token { get; init; }
 
-    public string? AcceptLabel { get; init; }
+    public required string Label { get; init; }
 
-    public bool? CanAccept { get; init; }
-
+    public required bool CanAccept { get; init; }
 }
 
 /// <summary>

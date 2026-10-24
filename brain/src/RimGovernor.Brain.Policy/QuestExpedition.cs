@@ -73,7 +73,7 @@ public abstract record ExpeditionTrip
 
 public static class QuestExpedition
 {
-    internal static bool QuestExpeditionSite(JoinerOffer offer, RoundsFacts f, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ExpeditionSite? site)
+    internal static bool QuestExpeditionSite(QuestState offer, RoundsFacts f, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ExpeditionSite? site)
     {
         site = null;
         if (!f.QuestSites.TryGetValue(out var sites))
@@ -83,7 +83,7 @@ public static class QuestExpedition
         WorldSite? selected = null;
         foreach (var candidate in sites)
         {
-            if (!candidate.QuestIds.Contains(offer.Quest))
+            if (!candidate.QuestIds.Contains(offer.Id))
             {
                 continue;
             }
@@ -117,7 +117,7 @@ public static class QuestExpedition
         site = new ExpeditionSite
         {
             Id = selected.Id,
-            Quest = offer.Quest,
+            Quest = offer.Id,
             Tile = tile,
             Layer = layer,
             Route = selected.Route,
@@ -137,13 +137,13 @@ public static class QuestExpedition
         }
         foreach (var offer in offers)
         {
-            if (offer.Profile.TryGetValue(out var profile) && !profile.NeverAct && profile.Disposition != QuestDisposition.Refuse)
+            if (f.RootOf(offer) is QuestRoot.Classified { Profile: var profile } && !profile.NeverAct && profile.Disposition != QuestDisposition.Refuse)
             {
                 if (f.QuestSites.TryGetValue(out var sites))
                 {
                     foreach (var site in sites)
                     {
-                        if (!site.QuestIds.Contains(offer.Quest))
+                        if (!site.QuestIds.Contains(offer.Id))
                         {
                             continue;
                         }
@@ -153,7 +153,7 @@ public static class QuestExpedition
                         }
                     }
                 }
-                if (offer.State != "Ongoing")
+                if (offer.State != QuestStatus.Ongoing)
                 {
                     continue;
                 }
@@ -172,9 +172,9 @@ public static class QuestExpedition
         {
             return new ExpeditionPlan();
         }
-        foreach (var offer in offers.OrderBy(o => o.Quest))
+        foreach (var offer in offers.OrderBy(o => o.Id))
         {
-            if (!offer.Profile.TryGetValue(out var profile) || profile.NeverAct || profile.Disposition == QuestDisposition.Refuse || offer.State != "Ongoing")
+            if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile } || profile.NeverAct || profile.Disposition == QuestDisposition.Refuse || offer.State != QuestStatus.Ongoing)
             {
                 continue;
             }
@@ -184,7 +184,7 @@ public static class QuestExpedition
             }
             if (!f.QuestExpeditionTrips.TryGetValue(out var trips))
             {
-                return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Reason = "journey_unknown" };
+                return new ExpeditionPlan { Quest = offer.Id, Site = site.Id, Reason = "journey_unknown" };
             }
             foreach (var trip in trips)
             {
@@ -192,7 +192,7 @@ public static class QuestExpedition
                     || trip is ExpeditionTrip.OnWorld { Tile: var tile } && tile == site.Tile
                     || trip is ExpeditionTrip.OnWorld { Course: Pb.CaravanCourse.Moving { Destination: var destination } } && destination == site.Tile)
                 {
-                    return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id };
+                    return new ExpeditionPlan { Quest = offer.Id, Site = site.Id };
                 }
             }
             // A live site map proves arrival; its work belongs to the site driver.
@@ -205,16 +205,16 @@ public static class QuestExpedition
                         if (offer.ScriptDef == "SurveySite")
                         {
                             var work = QuestSurvey.SurveyWork(offer, row, f, f.AnimalUpkeep.Food, p);
-                            return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Departure = work.Departure, Reason = work.Reason };
+                            return new ExpeditionPlan { Quest = offer.Id, Site = site.Id, Departure = work.Departure, Reason = work.Reason };
                         }
-                        return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id };
+                        return new ExpeditionPlan { Quest = offer.Id, Site = site.Id };
                     }
                 }
             }
             var terminal = QuestHackPolicy.WorshippedTerminalAdmission(offer);
             if (!terminal.IsNone)
             {
-                return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Reason = terminal };
+                return new ExpeditionPlan { Quest = offer.Id, Site = site.Id, Reason = terminal };
             }
             if (offer.ScriptDef == "SurveySite")
             {
@@ -229,7 +229,7 @@ public static class QuestExpedition
         return new ExpeditionPlan();
     }
 
-    public static QuestSkipReason ExpeditionAdmission(JoinerOffer offer, RoundsFacts f)
+    public static QuestSkipReason ExpeditionAdmission(QuestState offer, RoundsFacts f)
     {
         if (offer.ScriptDef == "SurveySite")
         {
@@ -251,28 +251,28 @@ public static class QuestExpedition
     /// food that every selected pawn eats, survives the round trip, and leaves the colony's diet-aware
     /// reserve intact.
     /// </summary>
-    public static ExpeditionPlan PlanExpedition(JoinerOffer offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p) =>
+    public static ExpeditionPlan PlanExpedition(QuestState offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p) =>
         PlanExpeditionOf(offer, site, f, food, p, null);
 
     /// <summary>
     /// Validates a specialized crew through the common staffing, route, mass and food gates. Diplomacy may
     /// select noncombatant colonists.
     /// </summary>
-    public static ExpeditionPlan PlanExpeditionCrew(JoinerOffer offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p, IReadOnlyList<PawnId> crew)
+    public static ExpeditionPlan PlanExpeditionCrew(QuestState offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p, IReadOnlyList<PawnId> crew)
     {
         if (crew.Count == 0)
         {
-            return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id, Reason = "crew_unknown" };
+            return new ExpeditionPlan { Quest = offer.Id, Site = site.Id, Reason = "crew_unknown" };
         }
         return PlanExpeditionOf(offer, site, f, food, p, crew);
     }
 
-    private static ExpeditionPlan PlanExpeditionOf(JoinerOffer offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p, IReadOnlyList<PawnId>? explicitCrew)
+    private static ExpeditionPlan PlanExpeditionOf(QuestState offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p, IReadOnlyList<PawnId>? explicitCrew)
     {
-        var result = new ExpeditionPlan { Quest = offer.Quest, Site = site.Id };
+        var result = new ExpeditionPlan { Quest = offer.Id, Site = site.Id };
         ExpeditionPlan Fail(QuestSkipReason reason) => result with { Reason = reason };
 
-        if (site.Quest != offer.Quest || site.Id.Length == 0 || site.Tile < 0)
+        if (site.Quest != offer.Id || site.Id.Length == 0 || site.Tile < 0)
         {
             return Fail("site_unknown");
         }
@@ -332,12 +332,7 @@ public static class QuestExpedition
                 }
                 filtered.Add(id);
             }
-            var mission = offer with
-            {
-                Profile = Known(new QuestProfile { Family = QuestFamily.BanditCamp }),
-                Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.LoadPawns, Goal = new Pb.QuestObjectiveGoal.Pawns(explicitCrew.Count) }],
-            };
-            var (selected, reason) = QuestDeparture.DepartureSquadWithCrew(mission, f with { QuestSparePawns = Known(EquatableArray.From(filtered)) }, false, true);
+            var (selected, reason) = QuestDeparture.DepartureSquadFor(offer.Id, QuestFamily.BanditCamp, explicitCrew.Count, f with { QuestSparePawns = Known(EquatableArray.From(filtered)) }, false, true);
             if (!reason.IsNone)
             {
                 return Fail(reason);
@@ -347,12 +342,7 @@ public static class QuestExpedition
         for (var count = 1; crew.Count == 0 && count <= spare.Count; count++)
         {
             // The common departure selector takes an explicit required headcount.
-            var mission = offer with
-            {
-                Profile = Known(new QuestProfile { Family = QuestFamily.BanditCamp }),
-                Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.LoadPawns, Goal = new Pb.QuestObjectiveGoal.Pawns(count) }],
-            };
-            var (candidate, reason) = QuestDeparture.DepartureSquadOf(mission, f, true);
+            var (candidate, reason) = QuestDeparture.DepartureSquadFor(offer.Id, QuestFamily.BanditCamp, count, f, true, false);
             if (!reason.IsNone)
             {
                 return Fail(reason);

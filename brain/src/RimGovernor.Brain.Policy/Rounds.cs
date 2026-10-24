@@ -338,7 +338,13 @@ public sealed record RoundsFacts
     /// (rimgovernor/observations_read_world_progression), read per cycle by a RoundsSource offering
     /// RoundsQuestSource, for JoinerDeficit to detect and SelectJoinerMethod to answer a joiner offer from.
     /// </summary>
-    public Fact<EquatableArray<JoinerOffer>> QuestOffers { get; init; }
+    public Fact<EquatableArray<QuestState>> QuestOffers { get; init; }
+
+    /// <summary>The catalog's classification of every quest root the census holds (QuestRoots.RootOf); empty without a census.</summary>
+    public EquatableArray<QuestRoot> QuestRoots { get; init; }
+
+    /// <summary>The colony's map: a quest on it is a quest at home (QuestSelection's off-map check).</summary>
+    public MapId ColonyMap { get; init; }
 
     public Fact<EquatableArray<WorldSite>> QuestSites { get; init; }
 
@@ -364,7 +370,7 @@ public sealed record RoundsFacts
     /// <summary>The bestowing-ceremony quests the title claim gate allows to accept now (ClaimQuests); the review fills it once the plan, rooms and royalty read are known.</summary>
     public EquatableArray<QuestId> TitleClaimQuests { get; init; }
 
-    public Fact<EquatableArray<JoinerLetterOffer>> JoinerLetters { get; init; }
+    public Fact<EquatableArray<JoinerLetter>> JoinerLetters { get; init; }
 
     public Fact<double> RaidPoints { get; init; }
 

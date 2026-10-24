@@ -14,7 +14,8 @@ public sealed record DecreeRecipe
 
     public long Units { get; init; }
 
-    public Fact<bool> Available { get; init; }
+    /// <summary>The bench can run the recipe now and no other-mode bill of it stands.</summary>
+    public bool Available { get; init; }
 
     public required EquatableArray<EquatableArray<Amount>> Ingredients { get; init; }
 
@@ -32,18 +33,31 @@ public sealed record DecreeRecipe
 }
 
 /// <summary>
-/// What one Round's produce-decree declaration reads. Now is the review's tick and Recipes the bench
-/// census's recipes making an objective's item.
+/// What one Round's produce-decree declaration reads. Facts carries the quest census, its roots and the stock, Now is
+/// the review's tick and Recipes the bench census's recipes making a decree's item.
 /// </summary>
 public sealed record DecreeOrderRequest
 {
-    public Fact<EquatableArray<JoinerOffer>> Offers { get; init; }
+    public required RoundsFacts Facts { get; init; }
 
     public long Now { get; init; }
 
-    public Fact<EquatableArray<Amount>> Stock { get; init; }
+    public Func<DecreeDue, IReadOnlyList<DecreeRecipe>> Recipes { get; init; } = _ => [];
+}
 
-    public Func<QuestObjective, IReadOnlyList<DecreeRecipe>> Recipes { get; init; } = _ => [];
+/// <summary>
+/// An accepted decree's open objective: the objective itself, the item (Def, made of Stuff, "" for any) it counts and
+/// how many it still wants.
+/// </summary>
+public sealed record DecreeDue
+{
+    public required QuestObjective Objective { get; init; }
+
+    public required string Def { get; init; }
+
+    public required string Stuff { get; init; }
+
+    public required long Remaining { get; init; }
 }
 
 public static class QuestDecrees
@@ -51,11 +65,11 @@ public static class QuestDecrees
     /// <summary>
     /// Identifies outstanding native progress; inventory is never progress for a production or harvest decree.
     /// </summary>
-    public static (QuestObjective? Objective, long Remaining, bool Owed) DecreeObjective(JoinerOffer offer)
+    public static DecreeDue? DecreeObjective(QuestState offer, RoundsFacts f)
     {
-        if (offer.State != "Ongoing" || !offer.Profile.TryGetValue(out var profile))
+        if (offer.State != QuestStatus.Ongoing || f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile })
         {
-            return (null, 0, false);
+            return null;
         }
         Pb.QuestObjectiveKind kind;
         switch (profile.Family)
@@ -70,16 +84,16 @@ public static class QuestDecrees
                 kind = Pb.QuestObjectiveKind.KillAnimals;
                 break;
             default:
-                return (null, 0, false);
+                return null;
         }
         foreach (var objective in offer.Objectives)
         {
             if (objective.Kind == kind && objective.Active && objective.Goal is Pb.QuestObjectiveGoal.Things things && things.Count > things.Done)
             {
-                return (objective, things.Count - things.Done, true);
+                return new DecreeDue { Objective = objective, Def = things.Def, Stuff = things.Stuff ?? "", Remaining = things.Count - things.Done };
             }
         }
-        return (null, 0, false);
+        return null;
     }
 
     public static bool DecreeDeficit(RoundsFacts f)
@@ -90,7 +104,7 @@ public static class QuestDecrees
         }
         foreach (var offer in rows)
         {
-            if (DecreeObjective(offer).Owed)
+            if (DecreeObjective(offer, f) is not null)
             {
                 return true;
             }
@@ -102,9 +116,10 @@ public static class QuestDecrees
     /// Funds a repeat-count batch from the outstanding crafted count. A stock-target bill would stop on
     /// inventory that the quest never counts.
     /// </summary>
-    public static (ProductionBill? Bill, string Reason) PlanDecreeProduction<TStock>(QuestObjective objective, long remaining, IReadOnlyList<DecreeRecipe> recipes, Fact<TStock> stock)
+    public static (ProductionBill? Bill, string Reason) PlanDecreeProduction<TStock>(DecreeDue objective, IReadOnlyList<DecreeRecipe> recipes, Fact<TStock> stock)
         where TStock : IReadOnlyList<Amount>
     {
+        var remaining = objective.Remaining;
         if (remaining <= 0)
         {
             return (null, "complete");
@@ -131,7 +146,7 @@ public static class QuestDecrees
             {
                 return (null, "existing_work");
             }
-            if (!recipe.Available.TryGetValue(out var usable) || !usable)
+            if (!recipe.Available)
             {
                 continue;
             }
@@ -192,8 +207,9 @@ public static class QuestDecrees
         return (null, "production_infeasible");
     }
 
-    public static (FieldPlan? Plan, string Reason) PlanDecreeHarvest(QuestObjective objective, long remaining, long standing, IReadOnlyList<CropChoice> choices, CropClimate climate, FarmSiteRequest site, Fact<int> skill)
+    public static (FieldPlan? Plan, string Reason) PlanDecreeHarvest(DecreeDue objective, long standing, IReadOnlyList<CropChoice> choices, CropClimate climate, FarmSiteRequest site, Fact<int> skill)
     {
+        var remaining = objective.Remaining;
         if (remaining <= 0)
         {
             return (null, "complete");
@@ -226,9 +242,10 @@ public static class QuestDecrees
         return (plan, "");
     }
 
-    public static (IReadOnlyList<AcquisitionSource> Prey, string Reason) PlanDecreeHunt<TSources>(QuestObjective objective, long remaining, bool allowed, Fact<TSources> sources)
+    public static (IReadOnlyList<AcquisitionSource> Prey, string Reason) PlanDecreeHunt<TSources>(DecreeDue objective, bool allowed, Fact<TSources> sources)
         where TSources : IReadOnlyList<AcquisitionSource>
     {
+        var remaining = objective.Remaining;
         if (!allowed)
         {
             return ([], "violent_quests_off");
@@ -273,25 +290,24 @@ public static class QuestDecrees
     /// </summary>
     public static Declared DeclareDecreeOrders(DecreeOrderRequest r)
     {
-        if (!r.Offers.TryGetValue(out var offers))
+        if (!r.Facts.QuestOffers.TryGetValue(out var offers))
         {
             return WorkRules.Abstaining(Cause.UnreadQuestOffers);
         }
         var output = new Declared();
-        foreach (var offer in offers.OrderBy(o => o.Quest))
+        foreach (var offer in offers.OrderBy(o => o.Id))
         {
-            var (objective, remaining, owed) = DecreeObjective(offer);
-            if (!owed || objective!.Kind != Pb.QuestObjectiveKind.ProduceItem)
+            if (DecreeObjective(offer, r.Facts) is not { } objective || objective.Objective.Kind != Pb.QuestObjectiveKind.ProduceItem)
             {
                 continue;
             }
             if (offer.Asker != Pb.DecreeAsker.PlayerFaction
-                || (objective.Timing is Pb.QuestObjectiveTiming.Deadline due && due.Tick <= r.Now))
+                || (objective.Objective.Timing is Pb.QuestObjectiveTiming.Deadline due && due.Tick <= r.Now))
             {
                 continue;
             }
             var recipes = r.Recipes(objective);
-            var (bill, why) = PlanDecreeProduction(objective, remaining, recipes, r.Stock);
+            var (bill, why) = PlanDecreeProduction(objective, recipes, r.Facts.Resources);
             switch (why)
             {
                 case "":

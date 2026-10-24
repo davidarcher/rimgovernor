@@ -22,14 +22,14 @@ public static class QuestCoreSite
     /// Follows only the exact quest-linked site and native targets. A designation starts work; the
     /// mineable disappearing is its completion evidence.
     /// </summary>
-    public static CoreSiteWork PlanCoreSiteWork(JoinerOffer offer, WorldSite site, RoundsFacts f, MapId currentMap)
+    public static CoreSiteWork PlanCoreSiteWork(QuestState offer, WorldSite site, RoundsFacts f, MapId currentMap)
     {
         var result = new CoreSiteWork();
-        if (!offer.Profile.TryGetValue(out var profile)
+        if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile }
             || (profile.Family != QuestFamily.Site && profile.Family != QuestFamily.BanditCamp
-                && !(profile.Family == QuestFamily.Hack && offer.State == "EndedFailed") && !QuestFamiliesPolicy.OdysseyGroundSiteRoot(offer.ScriptDef))
-            || (offer.State != "Ongoing" && offer.State != "EndedSuccess" && offer.State != "EndedFailed")
-            || !site.QuestIds.Contains(offer.Quest))
+                && !(profile.Family == QuestFamily.Hack && offer.State == QuestStatus.EndedFailed) && !QuestFamiliesPolicy.OdysseyGroundSiteRoot(offer.ScriptDef))
+            || (offer.State != QuestStatus.Ongoing && offer.State != QuestStatus.EndedSuccess && offer.State != QuestStatus.EndedFailed)
+            || !site.QuestIds.Contains(offer.Id))
         {
             return result;
         }
@@ -42,7 +42,7 @@ public static class QuestCoreSite
         {
             return result with { Reason = "site_security" };
         }
-        if (offer.State == "EndedFailed")
+        if (offer.State == QuestStatus.EndedFailed)
         {
             return result with { Kind = "return", Reason = "quest_failed" };
         }
@@ -76,7 +76,7 @@ public static class QuestCoreSite
         return result with { Kind = "return" };
     }
 
-    private static CoreSiteWork CoreSiteJoiner(JoinerOffer offer, Pb.SiteMap map, RoundsFacts f, CoreSiteWork result)
+    private static CoreSiteWork CoreSiteJoiner(QuestState offer, Pb.SiteMap map, RoundsFacts f, CoreSiteWork result)
     {
         var ids = new List<PawnId>();
         foreach (var objective in offer.Objectives)

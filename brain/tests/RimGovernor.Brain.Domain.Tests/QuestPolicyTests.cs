@@ -3,6 +3,7 @@ using RimGovernor.Contracts.Wire;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
 using Pb = RimGovernor.Contracts.Wire.Observations;
+using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -13,24 +14,23 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class QuestPolicyTests
 {
-    private static JoinerOffer JoinerOffer(string quest, double threat = 100) => new()
+    private static Pb.QuestState JoinerOffer(string quest, double threat = 100) => QuestStateTests.NoQuest with
     {
-        Quest = new(quest),
+        Id = new(quest),
         ScriptDef = "ThreatReward_Raid_Joiner",
-        State = "NotYetAccepted",
-        CanAccept = true,
         Rewards = [QuestStateTests.NoReward, QuestStateTests.NoReward],
         Threat = new Pb.QuestThreat.Points(threat),
     };
 
-    private static RoundsFacts Calm(params JoinerOffer[] offers) => new()
+    private static RoundsFacts Calm(params Pb.QuestState[] offers) => QuestStateTests.WithQuests(new RoundsFacts
     {
-        QuestOffers = Known<EquatableArray<JoinerOffer>>([.. offers]),
         QuestColonyCalm = Known(true),
         DefenseCapacity = Known(500.0),
         Population = Known(PopulationFixtures.Census()),
         FoodDays = Known(20.0),
-    };
+    }, offers);
+
+    private static EquatableArray<Pb.QuestState> Offers(RoundsFacts f) => f.QuestOffers.TryGetValue(out var rows) ? rows : [];
 
     [Fact]
     public void AJoinerOfferIsAcceptedWithRoomAndLeftWithoutIt()
@@ -40,15 +40,15 @@ public sealed class QuestPolicyTests
         Assert.True(capacity.TryGetValue(out var room) && room);
 
         // The lowest quest id, on its first reward choice.
-        var choice = PopulationRules.SelectJoinerMethod(f.QuestOffers, capacity, f);
+        var choice = PopulationRules.SelectJoinerMethod(Offers(f), capacity, f);
         Assert.Equal((new QuestId("q2"), 0, JoinerPlanReason.None), (choice.Quest, choice.RewardChoice, choice.Reason));
 
-        // A food runway under the floor is no room; a raid the colony cannot defend is turned away; an unread census decides nothing.
+        // A food runway under the floor is no room; a raid the colony cannot defend is turned away; an unread capacity is a missing fact.
         var full = f with { FoodDays = Known(1.0) };
-        Assert.Equal(JoinerPlanReason.NoCapacity, PopulationRules.SelectJoinerMethod(full.QuestOffers, PopulationRules.JoinerCapacity(full.JoinerCapacity()), full).Reason);
+        Assert.Equal(JoinerPlanReason.NoCapacity, PopulationRules.SelectJoinerMethod(Offers(full), PopulationRules.JoinerCapacity(full.JoinerCapacity()), full).Reason);
         var outgunned = Calm(JoinerOffer("q2", threat: 900));
-        Assert.Equal(JoinerPlanReason.NoCapacity, PopulationRules.SelectJoinerMethod(outgunned.QuestOffers, capacity, outgunned).Reason);
-        Assert.Equal(JoinerPlanReason.CensusUnknown, PopulationRules.SelectJoinerMethod(default, capacity, f).Reason);
+        Assert.Equal(JoinerPlanReason.NoCapacity, PopulationRules.SelectJoinerMethod(Offers(outgunned), capacity, outgunned).Reason);
+        Assert.Throws<RequiredFactException>(() => PopulationRules.SelectJoinerMethod(Offers(f), Unknown<bool>(), f));
     }
 
     [Fact]
@@ -63,10 +63,8 @@ public sealed class QuestPolicyTests
         Assert.Equal(Known(true), PopulationRules.JoinerCapacity((owned with { Sleeping = Unknown<SleepingObservation>() }).JoinerCapacity()));
     }
 
-    private static readonly QuestObjective Produce = new()
+    private static readonly Pb.QuestObjective Produce = QuestStateTests.Objective(Pb.QuestObjectiveKind.ProduceItem) with
     {
-        Kind = Pb.QuestObjectiveKind.ProduceItem,
-        Def = "Gun_Revolver",
         Goal = new Pb.QuestObjectiveGoal.Things("Gun_Revolver", null, 3, 1),
         Active = true,
     };
@@ -79,7 +77,7 @@ public sealed class QuestPolicyTests
         Recipe = "Make_Gun_Revolver",
         Product = new("Gun_Revolver"),
         Units = 1,
-        Available = Known(true),
+        Available = true,
         Existing = existing,
         Ingredients = [[new(new("Steel"), 30)], [new(new("ComponentIndustrial"), 2)]],
     };
@@ -87,44 +85,37 @@ public sealed class QuestPolicyTests
     [Fact]
     public void AProduceDecreeOwesItsNativeCountAndFundsItAsABatchBill()
     {
-        var offer = new JoinerOffer
+        var offer = QuestStateTests.NoQuest with
         {
-            Quest = new("decree"),
-            State = "Ongoing",
-            Profile = Known(QuestFamiliesPolicy.QuestFamilyForRoot("Decree_ProduceItem")),
+            Id = new("decree"),
+            State = Receipts.QuestStatus.Ongoing,
+            ScriptDef = "Decree_ProduceItem",
             Objectives = [Produce],
         };
-        Assert.Equal((Produce, 2L, true), QuestDecrees.DecreeObjective(offer));
+        var f = Calm(offer);
+        var due = QuestDecrees.DecreeObjective(offer, f);
+        Assert.Equal(new DecreeDue { Objective = Produce, Def = "Gun_Revolver", Stuff = "", Remaining = 2 }, due);
 
         // Inventory is never progress: only an active objective with native production outstanding is owed.
-        Assert.False(QuestDecrees.DecreeObjective(offer with { State = "NotYetAccepted" }).Owed);
-        Assert.False(QuestDecrees.DecreeObjective(offer with { Objectives = [Produce with { Goal = new Pb.QuestObjectiveGoal.Things("Gun_Revolver", null, 3, 3) }] }).Owed);
+        Assert.Null(QuestDecrees.DecreeObjective(offer with { State = Receipts.QuestStatus.NotYetAccepted }, f));
+        Assert.Null(QuestDecrees.DecreeObjective(offer with { Objectives = [Produce with { Goal = new Pb.QuestObjectiveGoal.Things("Gun_Revolver", null, 3, 3) }] }, f));
 
         Fact<EquatableArray<Amount>> stock = Known<EquatableArray<Amount>>([new(new("Steel"), 100), new(new("ComponentIndustrial"), 10)]);
-        var (bill, reason) = QuestDecrees.PlanDecreeProduction(Produce, 2, [Revolver()], stock);
+        var (bill, reason) = QuestDecrees.PlanDecreeProduction(due!, [Revolver()], stock);
         Assert.Equal("", reason);
         Assert.Equal(("bench-1", "Make_Gun_Revolver", BillMode.GearBatch, 2), (bill!.Bench, bill.Recipe, bill.Mode, bill.Target));
         Assert.Equal(RevolverIngredients, bill.Ingredients);
 
-        Assert.Equal("existing_work", QuestDecrees.PlanDecreeProduction(Produce, 2, [Revolver(existing: true)], stock).Reason);
+        Assert.Equal("existing_work", QuestDecrees.PlanDecreeProduction(due!, [Revolver(existing: true)], stock).Reason);
         Fact<EquatableArray<Amount>> scarce = Known<EquatableArray<Amount>>([new(new("Steel"), 40), new(new("ComponentIndustrial"), 10)]);
-        Assert.Equal("production_infeasible", QuestDecrees.PlanDecreeProduction(Produce, 2, [Revolver()], scarce).Reason);
-        Assert.Equal("complete", QuestDecrees.PlanDecreeProduction(Produce, 0, [Revolver()], stock).Reason);
+        Assert.Equal("production_infeasible", QuestDecrees.PlanDecreeProduction(due!, [Revolver()], scarce).Reason);
+        Assert.Equal("complete", QuestDecrees.PlanDecreeProduction(due! with { Remaining = 0 }, [Revolver()], stock).Reason);
     }
 
-    private static RoundsFacts Hosting(Pb.QuestShuttleState shuttle) => new()
-    {
-        QuestOffers = Known<EquatableArray<JoinerOffer>>(
-        [
-            new JoinerOffer
-            {
-                Quest = new("hosting"),
-                State = "Ongoing",
-                Profile = Known(new QuestProfile { Family = QuestFamily.HospitalityAnimals }),
-                Shuttles = [shuttle],
-            },
-        ]),
-    };
+    private static RoundsFacts Hosting(Pb.QuestShuttleState shuttle) => QuestStateTests.WithQuests(
+        new RoundsFacts(),
+        [QuestStateTests.NoQuest with { Id = new("hosting"), State = Receipts.QuestStatus.Ongoing, ScriptDef = "Hospitality_Animals", Shuttles = [shuttle] }],
+        QuestStateTests.Root("Hospitality_Animals", new QuestProfile { Family = QuestFamily.HospitalityAnimals }));
 
     [Fact]
     public void AHospitalityShuttleIsAutoloadedThenLaunchedOnceLoaded()
@@ -207,11 +198,11 @@ public sealed class QuestPolicyTests
         QuestObservedTick = Known(new Tick(100_000)),
     };
 
-    private static JoinerOffer SurveyOffer(Pb.QuestSurveyScanner scanner) => new()
+    private static Pb.QuestState SurveyOffer(Pb.QuestSurveyScanner scanner) => QuestStateTests.NoQuest with
     {
-        Quest = new("survey"),
-        State = "Ongoing",
-        Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.HoldSurveyScanner, SurveyScanner = scanner }],
+        Id = new("survey"),
+        State = Receipts.QuestStatus.Ongoing,
+        Objectives = [QuestStateTests.Objective(Pb.QuestObjectiveKind.HoldSurveyScanner) with { SurveyScanner = scanner }],
     };
 
     [Fact]
@@ -240,18 +231,16 @@ public sealed class QuestPolicyTests
         Assert.Equal("survey_unknown", QuestSurvey.SurveyWork(twice, site, Surveying, default, RoundsRules.DefaultRoundsPolicy()).Reason.Value);
     }
 
-    private static RoundsFacts Inspecting(Pb.QuestGravEngine? engine) => new()
-    {
-        QuestOffers = Known<EquatableArray<JoinerOffer>>(
+    private static RoundsFacts Inspecting(Pb.QuestGravEngine? engine) => QuestStateTests.WithQuests(
+        new RoundsFacts(),
         [
-            new JoinerOffer
+            QuestStateTests.NoQuest with
             {
-                Quest = new("signal"),
-                State = "Ongoing",
-                Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.InspectGravEngine, GravEngine = engine }],
+                Id = new("signal"),
+                State = Receipts.QuestStatus.Ongoing,
+                Objectives = [QuestStateTests.Objective(Pb.QuestObjectiveKind.InspectGravEngine) with { GravEngine = engine }],
             },
-        ]),
-    };
+        ]);
 
     [Fact]
     public void TheGravEngineIsInspectedByTheLowestEligibleColonistOnTheHomeMap()

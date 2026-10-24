@@ -224,7 +224,9 @@ public static class RoundsReads
             Facts = p.Facts with
             {
                 Traders = FrameTraders(frame.Traders),
-                QuestOffers = FrameQuests(frame.Quests, expected.Map, catalog),
+                QuestOffers = FrameQuests(frame.Quests),
+                QuestRoots = FrameQuestRoots(frame.Quests, catalog),
+                ColonyMap = expected.Map,
                 QuestSites = WorldSitesReads.FrameWorldSites(frame.Quests),
                 QuestExpeditionTrips = QuestReads.FrameExpeditionTrips(frame.Quests, expected.Map),
                 QuestWorkers = p.WorkPawns,
@@ -353,95 +355,39 @@ public static class RoundsReads
             Finished = frame.Research is { } research ? DefinitionsReads.FinishedSet(research.Finished) : default,
         };
 
+    /// <summary>The visible quest census as native reads it; unknown when the frame carries none.</summary>
+    internal static Fact<EquatableArray<O.QuestState>> FrameQuests(WorldProgressionRead? read) =>
+        read is null ? Unknown<EquatableArray<O.QuestState>>() : Known(EquatableArray.From(read.Quests));
+
     /// <summary>
-    /// The visible quest census; unknown when the frame carries none. Each offer carries the catalog's ground or
-    /// ship-only class of its quest root (QuestClass), unknown when the catalog cannot classify the root.
+    /// The catalog's classification of every quest root the census holds, once per root: its profile and, for a
+    /// ship-only Odyssey root, the space layer (QuestClass). A root the catalog cannot classify carries why the class
+    /// failed ("" when only the profile did).
     /// </summary>
-    internal static Fact<EquatableArray<JoinerOffer>> FrameQuests(WorldProgressionRead? read, MapId home, DefinitionCatalog catalog)
+    internal static EquatableArray<QuestRoot> FrameQuestRoots(WorldProgressionRead? read, DefinitionCatalog catalog)
     {
-        if (read is null)
+        var roots = new List<QuestRoot>();
+        foreach (var def in (read?.Quests ?? []).Select(q => q.ScriptDef).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal))
         {
-            return Unknown<EquatableArray<JoinerOffer>>();
-        }
-        var hostile = new Dictionary<string, bool>(StringComparer.Ordinal);
-        foreach (var faction in read.Factions)
-        {
-            hostile[faction.Id] = faction.Hostile;
-        }
-        var offers = new List<JoinerOffer>(read.Quests.Count);
-        foreach (var quest in read.Quests)
-        {
-            var offer = new JoinerOffer
-            {
-                Quest = new QuestId(quest.Id),
-                ScriptDef = quest.ScriptDef,
-                State = quest.State,
-                CanAccept = quest.CanAccept,
-                RequiresAccepter = quest.RequiresAccepter,
-                FactionId = quest.FactionId,
-                FactionHostile = Unknown<bool>(),
-                OnMap = quest.Place is O.QuestPlace.OnMap place && new MapId(place.MapId) == home,
-                Class = Unknown<QuestClass>(),
-            };
+            string layer = "", classError = "";
             try
             {
-                offer = offer with { Profile = Known(catalog.QuestProfile(quest.ScriptDef)) };
-            }
-            catch (DomainException)
-            {
-                // The profile stays unknown.
-            }
-            try
-            {
-                offer = offer with { Class = Known(catalog.QuestClass(quest.ScriptDef)) };
+                layer = catalog.QuestClass(def).SpaceLayer;
             }
             catch (DomainException e)
             {
-                offer = offer with { ClassError = e.Message };
+                classError = e.Message;
             }
-            if (quest.FactionId != "" && hostile.TryGetValue(quest.FactionId, out var value))
+            try
             {
-                offer = offer with { FactionHostile = Known(value) };
+                roots.Add(new QuestRoot.Classified { ScriptDef = def, Profile = catalog.QuestProfile(def), SpaceLayer = layer });
             }
-            offer = offer with
+            catch (DomainException)
             {
-                Favor = quest.Favor,
-                RewardChoiceParts = quest.RewardChoiceParts,
-                DeparturePawnIds = [.. quest.DeparturePawnIds.Select(i => new PawnId(i))],
-                Asker = quest.Asker,
-                ViolentQuestsAllowed = quest.ViolentQuestsAllowed,
-                Threat = quest.Threat,
-                Rewards = quest.Rewards,
-                EligiblePawnIds = [.. quest.EligiblePawnIds.Select(i => new PawnId(i))],
-                Expiry = quest.Expiry,
-            };
-            var objectives = new List<QuestObjective>();
-            foreach (var objective in quest.Objectives)
-            {
-                var row = new QuestObjective
-                {
-                    Kind = objective.Kind,
-                    Def = objective.Goal is O.QuestObjectiveGoal.Things things ? things.Def : "",
-                    Stuff = objective.Goal is O.QuestObjectiveGoal.Things { Stuff: { } stuff } ? stuff : "",
-                    Goal = objective.Goal,
-                    Timing = objective.Timing,
-                    MinimumMood = objective.MinimumMood,
-                    GravEngine = objective.GravEngine,
-                    SurveyScanner = objective.SurveyScanner,
-                    Workload = QuestReads.QuestWorkloadOf(objective.Workload, catalog),
-                    LodgerMoods = objective.LodgerMoods,
-                    Active = objective.Active,
-                    PawnIds = [.. objective.PawnIds.Select(i => new PawnId(i))],
-                    Monument = objective.Monument,
-                    HackTargets = objective.HackTargets,
-                    HackRisk = objective.HackRisk,
-                    Gift = objective.Gift,
-                };
-                objectives.Add(row);
+                roots.Add(new QuestRoot.Unclassified { ScriptDef = def, Error = classError });
             }
-            offers.Add(offer with { Objectives = objectives, Shuttles = quest.Shuttles });
         }
-        return Known(EquatableArray.From(offers));
+        return EquatableArray.From(roots);
     }
 
     /// <summary>The research census; unknown when the frame carries none.</summary>

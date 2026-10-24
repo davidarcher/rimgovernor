@@ -69,5 +69,9 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations.FinishingMinimum" Alias="FinishingMinimum" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.ConstructionGate" Alias="ConstructionGate" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.WorldSite" Alias="WorldSite" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.QuestState" Alias="QuestState" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.QuestObjective" Alias="QuestObjective" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.JoinerLetter" Alias="JoinerLetter" />
+    <Using Include="RimGovernor.Contracts.Wire.Receipts.QuestStatus" Alias="QuestStatus" />
   </ItemGroup>
 </Project>

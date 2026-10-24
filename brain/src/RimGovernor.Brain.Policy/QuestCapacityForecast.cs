@@ -33,11 +33,11 @@ public static class QuestCapacityForecast
     /// scheduled work/Anything hours per day, and half that time for useful work; the remainder funds
     /// hauling, walking and normal upkeep.
     /// </summary>
-    public static QuestSkipReason QuestDeadlineFeasibility(JoinerOffer offer, RoundsFacts f)
+    public static QuestSkipReason QuestDeadlineFeasibility(QuestState offer, RoundsFacts f)
     {
         var nk = f.QuestObservedTick.TryGetValue(out var observed);
         var now = observed.Value;
-        var (tasks, reason) = QuestDeadlineTasks(offer, now);
+        var (tasks, reason) = QuestDeadlineTasks(offer, now, f.Recipes);
         if (!reason.IsNone)
         {
             return reason;
@@ -63,11 +63,11 @@ public static class QuestCapacityForecast
         long reserved = 0;
         foreach (var q in open!)
         {
-            if (q.State != "Ongoing" || q.Quest == offer.Quest)
+            if (q.State != QuestStatus.Ongoing || q.Id == offer.Id)
             {
                 continue;
             }
-            if (!q.Profile.TryGetValue(out var p))
+            if (f.RootOf(q) is not QuestRoot.Classified { Profile: var p })
             {
                 return "open_demands_unknown";
             }
@@ -75,14 +75,14 @@ public static class QuestCapacityForecast
             {
                 continue;
             }
-            var (pending, r) = QuestDeadlineTasks(q, now);
+            var (pending, r) = QuestDeadlineTasks(q, now, f.Recipes);
             if (!r.IsNone)
             {
                 return "open_demands_unknown";
             }
             if (pending.Count == 0)
             {
-                var (n, demandReason) = QuestSelection.QuestPawnDemand(q);
+                var (n, demandReason) = QuestSelection.QuestPawnDemand(q, f);
                 if (!demandReason.IsNone)
                 {
                     return demandReason;
@@ -175,7 +175,7 @@ public static class QuestCapacityForecast
         return "";
     }
 
-    private static (List<QuestTimedWork> Tasks, QuestSkipReason Reason) QuestDeadlineTasks(JoinerOffer offer, long now)
+    private static (List<QuestTimedWork> Tasks, QuestSkipReason Reason) QuestDeadlineTasks(QuestState offer, long now, RecipeFacts recipes)
     {
         var tasks = new List<QuestTimedWork>();
         foreach (var objective in offer.Objectives)
@@ -184,7 +184,7 @@ public static class QuestCapacityForecast
             {
                 continue;
             }
-            if (offer.State == "Ongoing"
+            if (offer.State == QuestStatus.Ongoing
                 && !objective.Active && objective.Kind != Pb.QuestObjectiveKind.Monument)
             {
                 continue;
@@ -211,7 +211,7 @@ public static class QuestCapacityForecast
             {
                 continue;
             }
-            var work = objective.Workload;
+            var work = objective.Workload is { } load ? WorkloadOf(load, recipes) : null;
             if (objective.Monument is { } marker)
             {
                 if (marker.State is Pb.QuestMonumentState.Installed { AllDone: true })
@@ -250,6 +250,22 @@ public static class QuestCapacityForecast
             tasks.Add(new QuestTimedWork(deadline, work));
         }
         return (tasks, "");
+    }
+
+    /// <summary>
+    /// The objective's remaining work with the work type that does it: plant cutting for a harvest, the bill work of the
+    /// recipe for a bill. Native names the recipe only from a usable bench, so a recipe the catalog's benches do not host
+    /// raises <see cref="RequiredFactException"/>.
+    /// </summary>
+    internal static QuestWorkload WorkloadOf(Pb.QuestWorkload load, RecipeFacts recipes)
+    {
+        var work = WorkType.PlantCutting;
+        if (load.Recipe is { } recipe)
+        {
+            var (billWork, hosted) = recipes.BillWorkOf(recipe);
+            work = hosted ? billWork : throw new RequiredFactException($"bill work type of quest recipe {recipe}");
+        }
+        return new QuestWorkload { Work = work, Stat = load.Stat, Amount = load.Work, RateFactor = load.RateFactor };
     }
 
     private static bool QuestWorkEnabled(WorkPawn p, WorkType work)

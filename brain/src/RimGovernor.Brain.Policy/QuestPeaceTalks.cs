@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 
 public static class QuestPeaceTalksPolicy
 {
-    public static QuestSkipReason PeaceTalksAdmission(JoinerOffer offer, RoundsFacts f)
+    public static QuestSkipReason PeaceTalksAdmission(QuestState offer, RoundsFacts f)
     {
         if (!QuestExpedition.QuestExpeditionSite(offer, f, out var site))
         {
@@ -15,9 +15,9 @@ public static class QuestPeaceTalksPolicy
         return PlanPeaceTalks(offer, site, f, f.AnimalUpkeep.Food, RoundsRules.DefaultRoundsPolicy()).Reason;
     }
 
-    public static ExpeditionPlan PlanPeaceTalks(JoinerOffer offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p)
+    public static ExpeditionPlan PlanPeaceTalks(QuestState offer, ExpeditionSite site, RoundsFacts f, Fact<FoodSupply> food, RoundsPolicy p)
     {
-        ExpeditionPlan Fail(QuestSkipReason reason) => new() { Quest = offer.Quest, Site = site.Id, Reason = reason };
+        ExpeditionPlan Fail(QuestSkipReason reason) => new() { Quest = offer.Id, Site = site.Id, Reason = reason };
 
         if (!f.QuestSites.TryGetValue(out var sites))
         {
@@ -80,7 +80,7 @@ public static class QuestPeaceTalksPolicy
     /// eligible; otherwise Social ranks candidates. Vanilla still chooses its diplomat by NegotiationAbility
     /// when the caravan arrives.
     /// </summary>
-    public static (PawnId Pawn, QuestSkipReason Reason) PeaceTalksNegotiator(JoinerOffer offer, RoundsFacts f, IReadOnlyList<PeaceTalksPawn> pawns, bool ideo)
+    public static (PawnId Pawn, QuestSkipReason Reason) PeaceTalksNegotiator(QuestState offer, RoundsFacts f, IReadOnlyList<PeaceTalksPawn> pawns, bool ideo)
     {
         var rows = pawns.ToList();
         if (rows.Count == 0)
@@ -114,12 +114,7 @@ public static class QuestPeaceTalksPolicy
                 continue;
             }
             var trial = f with { QuestSparePawns = Known(EquatableArray.From(new[] { pawn.Id })) };
-            var mission = offer with
-            {
-                Profile = Known(new QuestProfile { Family = QuestFamily.PawnLend }),
-                Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.LoadPawns, Goal = new Pb.QuestObjectiveGoal.Pawns(1) }],
-            };
-            var (crew, reason) = QuestDeparture.DepartureSquadOf(mission, trial, false);
+            var (crew, reason) = QuestDeparture.DepartureSquadFor(offer.Id, QuestFamily.PawnLend, 1, trial, false, false);
             if (!reason.IsNone || crew.Count != 1)
             {
                 continue;

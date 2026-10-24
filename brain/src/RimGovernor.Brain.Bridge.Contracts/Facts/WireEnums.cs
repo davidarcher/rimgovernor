@@ -73,8 +73,4 @@ public static class WireEnums
             RouteFacilityKind.Stockpile => "stockpile",
             _ => "",
         };
-
-    /// <summary>The vanilla QuestState name ("NotYetAccepted", ...): every QuestStatus member is named after its QuestState.</summary>
-    public static string QuestStatusName(QuestStatus status) =>
-        Enum.GetName(status) ?? throw new BridgeContractException("quest status " + (int)status + " is not a QuestStatus member");
 }

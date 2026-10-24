@@ -5,18 +5,17 @@ namespace RimGovernor.Brain.Policy;
 
 public static class QuestRefugees
 {
-    public static Dictionary<PawnId, QuestId> QuestRefugeeIds<TOffers>(Fact<TOffers> offers)
-        where TOffers : IReadOnlyList<JoinerOffer>
+    public static Dictionary<PawnId, QuestId> QuestRefugeeIds(RoundsFacts f)
     {
         var output = new Dictionary<PawnId, QuestId>();
-        if (!offers.TryGetValue(out var rows))
+        if (!f.QuestOffers.TryGetValue(out var rows))
         {
             return output;
         }
         foreach (var offer in rows)
         {
-            var known = offer.Profile.TryGetValue(out var profile);
-            if (offer.State != "Ongoing" || !known || (profile!.Family != QuestFamily.RefugeePod && profile.Family != QuestFamily.Site))
+            if (offer.State != QuestStatus.Ongoing || f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile }
+                || (profile.Family != QuestFamily.RefugeePod && profile.Family != QuestFamily.Site))
             {
                 continue;
             }
@@ -26,7 +25,7 @@ public static class QuestRefugees
                 {
                     foreach (var id in objective.PawnIds)
                     {
-                        output[id] = offer.Quest;
+                        output[id] = offer.Id;
                     }
                 }
             }
@@ -34,5 +33,5 @@ public static class QuestRefugees
         return output;
     }
 
-    public static bool RefugeeDeficit(RoundsFacts f) => QuestRefugeeIds(f.QuestOffers).Count > 0;
+    public static bool RefugeeDeficit(RoundsFacts f) => QuestRefugeeIds(f).Count > 0;
 }

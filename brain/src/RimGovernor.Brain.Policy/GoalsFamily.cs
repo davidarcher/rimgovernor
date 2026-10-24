@@ -588,7 +588,7 @@ public static partial class GoalRules
             throw new RequiredFactException("quest offers");
         }
         var quest = new QuestId(goal.Target);
-        var offer = offers.FirstOrDefault(o => o.Quest == quest);
+        var offer = offers.FirstOrDefault(o => o.Id == quest);
         if (offer is null)
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_quest", default, one);
@@ -596,22 +596,23 @@ public static partial class GoalRules
         var owner = PopulationRules.IsJoinerOffer(offer.ScriptDef) ? JoinersFamily.Offers : JoinersFamily.Quests;
         switch (offer.State)
         {
-            case "EndedSuccess":
+            case QuestStatus.EndedSuccess:
                 return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, Fact.Known(0.0));
-            case "EndedOfferExpired":
+            case QuestStatus.EndedOfferExpired:
                 return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, Expired, default, one);
-            case "Ongoing":
+            case QuestStatus.Ongoing:
                 return Pursued(goal, f, owner, one);
-            case "NotYetAccepted":
+            case QuestStatus.NotYetAccepted:
                 var reason = owner == JoinersFamily.Offers ? QuestSelection.JoinerThreatReason(offer, f.Rounds) : QuestSelection.NamedQuestReason(offer, f.Rounds);
                 if (reason == Expired)
                 {
                     return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, Expired, default, one);
                 }
                 return reason.IsNone ? Pursued(goal, f, owner, one) : new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, reason.ToString(), owner, one);
-            default:
+            case QuestStatus.EndedUnknownOutcome or QuestStatus.EndedFailed or QuestStatus.EndedInvalid:
                 return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "ended", default, one);
         }
+        throw new ArgumentOutOfRangeException(nameof(goal), offer.State, "unhandled quest status");
     }
 
     /// <summary>Every theme's progress: its member goals that stand met.</summary>

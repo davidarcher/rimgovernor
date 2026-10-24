@@ -20,18 +20,18 @@ public static class QuestCapacity
     /// Chooses only from the native eligibility list. The least skilled eligible pawn is preferred; royal favor
     /// goes to an existing title holder when one is eligible.
     /// </summary>
-    public static (PawnId Pawn, bool Ok) QuestAccepter<TWorkers>(JoinerOffer offer, RoundsFacts facts, Fact<TWorkers> workers)
+    public static (PawnId Pawn, bool Ok) QuestAccepter<TWorkers>(QuestState offer, RoundsFacts facts, Fact<TWorkers> workers)
         where TWorkers : IReadOnlyList<WorkPawn> =>
         QuestAccepter(offer, facts, workers, QuestRewards.SelectQuestReward(offer, facts).Choice);
 
-    private static (PawnId Pawn, bool Ok) QuestAccepter<TWorkers>(JoinerOffer offer, RoundsFacts facts, Fact<TWorkers> workers, int choice)
+    private static (PawnId Pawn, bool Ok) QuestAccepter<TWorkers>(QuestState offer, RoundsFacts facts, Fact<TWorkers> workers, int choice)
         where TWorkers : IReadOnlyList<WorkPawn>
     {
         if (!offer.RequiresAccepter)
         {
             return (default, true);
         }
-        if (offer.EligiblePawnIds.Count == 0)
+        if (offer.EligiblePawns.Count == 0)
         {
             return (default, false);
         }
@@ -60,7 +60,7 @@ public static class QuestCapacity
         var best = default(PawnId);
         var bestRoyal = false;
         var bestValue = 0;
-        foreach (var id in offer.EligiblePawnIds)
+        foreach (var id in offer.EligiblePawns)
         {
             if (!priorities.TryGetValue(id, out var value))
             {
@@ -91,17 +91,17 @@ public static class QuestCapacity
         {
             return new QuestGiftWork();
         }
-        foreach (var offer in offers.OrderBy(o => o.Quest))
+        foreach (var offer in offers.OrderBy(o => o.Id))
         {
-            if (offer.State != "Ongoing" || offer.ScriptDef != "Beggars")
+            if (offer.State != QuestStatus.Ongoing || offer.ScriptDef != "Beggars")
             {
                 continue;
             }
-            var result = new QuestGiftWork { Quest = offer.Quest };
+            var result = new QuestGiftWork { Quest = offer.Id };
             var seen = false;
             foreach (var objective in offer.Objectives)
             {
-                if (objective.Gift is not { } request)
+                if (objective.GiftRequest is not { } request)
                 {
                     continue;
                 }

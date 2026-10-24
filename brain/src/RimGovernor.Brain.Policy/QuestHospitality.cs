@@ -22,8 +22,6 @@ public static class QuestHospitality
     public static bool HospitalityFamily(QuestFamily f) =>
         f is QuestFamily.HospitalityAnimals or QuestFamily.HospitalityJoiners or QuestFamily.HospitalityPrisoners or QuestFamily.HospitalityRefugee or QuestFamily.Laborers;
 
-    /// <summary>The offer's classification, or the zero profile (unknown family) when it is unread.</summary>
-    private static QuestProfile ProfileOf(JoinerOffer offer) => offer.Profile.TryGetValue(out var profile) ? profile : new QuestProfile();
 
     /// <summary>
     /// Reuses sleeping upkeep and ordinary guest work, including crash rescue pickup. Native facts end
@@ -36,7 +34,7 @@ public static class QuestHospitality
             return new HospitalityWork { Reason = "quest_census_unknown" };
         }
         var waiting = new HospitalityWork();
-        foreach (var offer in rows.OrderBy(o => o.Quest))
+        foreach (var offer in rows.OrderBy(o => o.Id))
         {
             var one = f with { QuestOffers = Known(EquatableArray.From(new[] { offer })) };
             var work = HospitalityWorkOf(one, tick);
@@ -58,19 +56,19 @@ public static class QuestHospitality
         {
             return new HospitalityWork { Reason = "quest_census_unknown" };
         }
-        foreach (var offer in offers.OrderBy(o => o.Quest))
+        foreach (var offer in offers.OrderBy(o => o.Id))
         {
-            if (!offer.Profile.TryGetValue(out var profile)
+            if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile }
                 || (!HospitalityFamily(profile.Family) && profile.Family != QuestFamily.ShuttleRescue)
                 || (profile.NeverAct && profile.Family != QuestFamily.Laborers)
-                || (offer.State != "Ongoing" && offer.State != "NotYetAccepted"))
+                || (offer.State != QuestStatus.Ongoing && offer.State != QuestStatus.NotYetAccepted))
             {
                 continue;
             }
-            var work = new HospitalityWork { Quest = offer.Quest };
+            var work = new HospitalityWork { Quest = offer.Id };
             if (profile.Family == QuestFamily.ShuttleRescue)
             {
-                if (offer.State != "Ongoing")
+                if (offer.State != QuestStatus.Ongoing)
                 {
                     continue;
                 }
@@ -79,7 +77,7 @@ public static class QuestHospitality
                     return work with { Waiting = true };
                 }
             }
-            if (offer.State == "NotYetAccepted" && offer.CanAccept)
+            if (offer.State == QuestStatus.NotYetAccepted && offer.CanAccept)
             {
                 continue;
             }
@@ -94,7 +92,7 @@ public static class QuestHospitality
                     {
                         guests.Add(guest.Id);
                     }
-                    if (offer.State == "NotYetAccepted")
+                    if (offer.State == QuestStatus.NotYetAccepted)
                     {
                         foreach (var person in sleeping.People)
                         {
@@ -119,7 +117,7 @@ public static class QuestHospitality
                     }
                 }
             }
-            if (offer.State != "Ongoing")
+            if (offer.State != QuestStatus.Ongoing)
             {
                 continue;
             }
@@ -134,7 +132,7 @@ public static class QuestHospitality
                 {
                     if (shuttle.ManualLaunchAvailable)
                     {
-                        return work with { Shuttle = new QuestShuttle(offer.Quest, ShuttleLoading.LaunchOnly, false, [], true) };
+                        return work with { Shuttle = new QuestShuttle(offer.Id, ShuttleLoading.LaunchOnly, false, [], true) };
                     }
                     return work with { Waiting = true };
                 }
@@ -144,7 +142,7 @@ public static class QuestHospitality
                 }
                 if (!shuttle.Autoload)
                 {
-                    return work with { Shuttle = new QuestShuttle(offer.Quest, ShuttleLoading.Autoload, true, [], false) };
+                    return work with { Shuttle = new QuestShuttle(offer.Id, ShuttleLoading.Autoload, true, [], false) };
                 }
                 return work with { Waiting = true };
             }
@@ -171,10 +169,9 @@ public static class QuestHospitality
     }
 
     /// <summary>Requires vacant appropriate beds before adding guests.</summary>
-    public static QuestSkipReason HospitalityAdmission(JoinerOffer offer, RoundsFacts f)
+    public static QuestSkipReason HospitalityAdmission(QuestState offer, RoundsFacts f)
     {
-        var profile = ProfileOf(offer);
-        if (!HospitalityFamily(profile.Family) || profile.Family == QuestFamily.HospitalityAnimals)
+        if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile } || !HospitalityFamily(profile.Family) || profile.Family == QuestFamily.HospitalityAnimals)
         {
             return "";
         }
@@ -227,12 +224,15 @@ public static class QuestHospitality
         }
         foreach (var offer in rows)
         {
-            var known = offer.Profile.TryGetValue(out var p);
-            if (known && (HospitalityFamily(p!.Family) || p.Family == QuestFamily.ShuttleRescue) && (!p.NeverAct || p.Family == QuestFamily.Laborers) && offer.State == "Ongoing")
+            if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var p })
+            {
+                continue;
+            }
+            if ((HospitalityFamily(p.Family) || p.Family == QuestFamily.ShuttleRescue) && (!p.NeverAct || p.Family == QuestFamily.Laborers) && offer.State == QuestStatus.Ongoing)
             {
                 return true;
             }
-            if (known && HospitalityFamily(p!.Family) && !p.NeverAct && offer.State == "NotYetAccepted" && !offer.CanAccept)
+            if (HospitalityFamily(p.Family) && !p.NeverAct && offer.State == QuestStatus.NotYetAccepted && !offer.CanAccept)
             {
                 foreach (var objective in offer.Objectives)
                 {
@@ -246,23 +246,22 @@ public static class QuestHospitality
         return false;
     }
 
-    public static HashSet<PawnId> ProtectedQuestGuestIds<TOffers>(Fact<TOffers> offers)
-        where TOffers : IReadOnlyList<JoinerOffer>
+    public static HashSet<PawnId> ProtectedQuestGuestIds(RoundsFacts f)
     {
         var ids = new HashSet<PawnId>();
-        if (!offers.TryGetValue(out var rows))
+        if (!f.QuestOffers.TryGetValue(out var rows))
         {
             return ids;
         }
         foreach (var offer in rows)
         {
-            if (!offer.Profile.TryGetValue(out var profile) || !profile.ProtectGuests || offer.State != "Ongoing")
+            if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile } || !profile.ProtectGuests || offer.State != QuestStatus.Ongoing)
             {
                 continue;
             }
             foreach (var objective in offer.Objectives)
             {
-                if (objective.Gift is { } gift)
+                if (objective.GiftRequest is { } gift)
                 {
                     foreach (var id in gift.Pawns)
                     {

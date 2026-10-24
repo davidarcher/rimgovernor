@@ -492,9 +492,9 @@ information: no pawn row carries it and nothing reads it (the catalog's
 downside rows are static defs). Trait-only downsides and no downside never set
 the flag, so "downside revealed" for the bot is what a player sees: the pawn's
 visible traits and hediffs, or the flag. Creepjoiner offer letters
-(`ChoiceLetter_AcceptCreepJoiner`) ride the colony census's `joiner_letters`
-with `creepjoiner` true and a negative `expires_tick` when the letter has no
-timeout (the game's sentinel, mirrored);
+(`ChoiceLetter_AcceptCreepJoiner`) ride the colony census's `joiner_letters` beside the WandererJoins letters: every
+row is whole, with the letter `id`, the `token` that binds the letter, quest, pawn,
+map, expiry and choices, the accept option's `label` and `can_accept`;
 accepting sends the letter's own accept signal (`signalAccept`, then removes
 the letter) through the same `DialogIntent`, guarded on the pawn being
 spawned, and never by option index or label.
@@ -601,12 +601,11 @@ a def-name list.
 ## Quest census Empire fields
 
 Every `QuestState` member is required; native builds the row whole and fails the
-read on a quest it cannot read. `QuestState.faction_id` is the first non-player
-faction in `Quest.InvolvedFactions` (the id `FactionState` rows use), null when
-the quest involves none. `place` is `on_map` with the map of the first
-`QuestLookTargets` entry on a map, or `off_map` for a quest anchored only to a
-world object; the brain read carries `FactionState` id and hostile beside the
-quests, and a quest off the identity map is off-map. `acceptance` is `accepted`
+read on a quest it cannot read. `QuestState.faction` is `involved` with whether
+the first non-player faction in `Quest.InvolvedFactions` is hostile to the player,
+or `no_faction` when the quest involves none. `place` is `on_map` with the map
+of the first `QuestLookTargets` entry on a map, or `off_map` for a quest anchored
+only to a world object; a quest off the identity map is off-map. `acceptance` is `accepted`
 with the acceptance tick or `not_accepted`; `expiry` is `expires_in` with the
 ticks left on the offer or `no_expiry`. `threat` is `points` with the raid
 budget the quest's threat parts generate, or `no_threat` for a quest without

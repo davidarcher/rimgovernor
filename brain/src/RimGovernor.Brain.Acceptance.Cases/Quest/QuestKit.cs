@@ -36,6 +36,6 @@ internal static class QuestKit
     internal static async Task<Observations.QuestState?> QuestAsync(TypedSession s, string label, string questId, CancellationToken cancellationToken)
     {
         var world = await s.CallAsync(label, NativeOps.ReadWorldProgression, new Observations.WorldProgressionRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        return world.Quests.LastOrDefault(q => q.Id == questId);
+        return world.Quests.LastOrDefault(q => q.Id.Value == questId);
     }
 }

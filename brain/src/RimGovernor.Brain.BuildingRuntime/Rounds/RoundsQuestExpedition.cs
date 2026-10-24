@@ -30,7 +30,7 @@ public sealed partial class JoinersRounds
                         }
 
                         var crew = departed.Crew.ToPolicyIds();
-                        foreach (var (pawn, quest) in QuestRefugees.QuestRefugeeIds(facts.QuestOffers))
+                        foreach (var (pawn, quest) in QuestRefugees.QuestRefugeeIds(facts))
                         {
                             if (site.QuestIds.Contains(quest))
                             {

@@ -447,18 +447,7 @@ public static class ColonyDecodeReads
         }
         f = f with { OutdoorsDark = outdoorsDark };
         f = f with { MedicalReserve = ColonyFramesReads.ColonyMedicalReserve(v, tables, catalog) };
-        var letters = new List<JoinerLetterOffer>(v.JoinerLetters.Count);
-        foreach (var row in v.JoinerLetters)
-        {
-            letters.Add(new JoinerLetterOffer
-            {
-                Id = row.LetterId.GetValueOrDefault(),
-                Token = row.SnapshotToken ?? "",
-                Label = row.AcceptLabel ?? "",
-                CanAccept = row.CanAccept.GetValueOrDefault(),
-            });
-        }
-        f = f with { JoinerLetters = Known(EquatableArray.From(letters)) };
+        f = f with { JoinerLetters = Known(v.JoinerLetters) };
         if (!HasIssue(v.Issues, "cooking") && Headed(buildings, v.Cooking, b => b.Bench))
         {
             var benches = new List<CookingBench>();

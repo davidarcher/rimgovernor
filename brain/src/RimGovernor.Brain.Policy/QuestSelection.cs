@@ -1,5 +1,4 @@
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
@@ -23,23 +22,19 @@ public static class QuestSelection
             var (_, reason) = QuestDecision(offer, f);
             if (!reason.IsNone)
             {
-                var detail = "";
-                if (reason == "class_unknown")
-                {
-                    detail = offer.ClassError;
-                }
-                if (reason == "ship_only" && offer.Class.TryGetValue(out var cls))
-                {
-                    detail = cls.SpaceLayer;
-                }
-                output.Add(new QuestSkip(offer.Quest, offer.ScriptDef, reason, detail));
+                // The detail names why the root is unclassified, or the space layer of a ship-only quest.
+                var root = f.RootOf(offer);
+                var detail = reason == QuestSkipReason.ClassUnknown && root is QuestRoot.Unclassified unclassified ? unclassified.Error
+                    : reason == QuestSkipReason.ShipOnly && root is QuestRoot.Classified classified ? classified.SpaceLayer
+                    : "";
+                output.Add(new QuestSkip(offer.Id, offer.ScriptDef, reason, detail));
             }
         }
         return output.OrderBy(s => s.Quest).ToList();
     }
 
     /// <summary>Gates the delayed quest raid using its generated budget.</summary>
-    public static QuestSkipReason JoinerThreatReason(JoinerOffer offer, RoundsFacts facts)
+    public static QuestSkipReason JoinerThreatReason(QuestState offer, RoundsFacts facts)
     {
         if (!facts.QuestColonyCalm.TryGetValue(out var calm))
         {
@@ -66,9 +61,9 @@ public static class QuestSelection
     /// Admits the short crash offer immediately when its observed window is still open and the colony can
     /// defend the generated raid.
     /// </summary>
-    public static QuestSkipReason ShuttleRescueAdmission(JoinerOffer offer, RoundsFacts facts)
+    public static QuestSkipReason ShuttleRescueAdmission(QuestState offer, RoundsFacts facts)
     {
-        if (!offer.Profile.TryGetValue(out var profile) || profile.Family != QuestFamily.ShuttleRescue)
+        if (facts.RootOf(offer) is not QuestRoot.Classified { Profile: var profile } || profile.Family != QuestFamily.ShuttleRescue)
         {
             return "";
         }
@@ -80,15 +75,15 @@ public static class QuestSelection
     }
 
     /// <summary>Shared by selection, inspection and refusal telemetry.</summary>
-    private static (bool Accept, QuestSkipReason Reason) QuestDecision(JoinerOffer offer, RoundsFacts f)
+    private static (bool Accept, QuestSkipReason Reason) QuestDecision(QuestState offer, RoundsFacts f)
     {
-        if (offer.State != "NotYetAccepted")
+        if (offer.State != QuestStatus.NotYetAccepted)
         {
             return (false, "");
         }
-        if (!offer.Profile.TryGetValue(out var profile) || profile.Family == QuestFamily.None)
+        if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile } || profile.Family == QuestFamily.None)
         {
-            return (false, "class_unknown");
+            return (false, QuestSkipReason.ClassUnknown);
         }
         if (profile.Disposition == QuestDisposition.Refuse)
         {
@@ -104,7 +99,7 @@ public static class QuestSelection
         }
         if (profile.Family == QuestFamily.Bestowing)
         {
-            if (offer.RewardChoiceParts > 1)
+            if (offer.ChoicePartCount > 1)
             {
                 return (false, "reward_choices");
             }
@@ -126,19 +121,15 @@ public static class QuestSelection
         }
         if (profile.Family != QuestFamily.OdysseyGround && profile.Family != QuestFamily.Hack && profile.Family != QuestFamily.Relic && !expedition)
         {
-            if (offer.FactionId.Length == 0)
+            if (offer.Faction is not Pb.QuestFaction.Involved faction)
             {
                 return (false, "no_faction");
             }
-            if (!offer.FactionHostile.TryGetValue(out var hostile))
-            {
-                return (false, "faction_unknown");
-            }
-            if (hostile)
+            if (faction.Hostile)
             {
                 return (false, "hostile");
             }
-            if (!offer.OnMap)
+            if (offer.Place is not Pb.QuestPlace.OnMap place || new MapId(place.MapId) != f.ColonyMap)
             {
                 return (false, "off_map");
             }
@@ -199,11 +190,11 @@ public static class QuestSelection
     /// Accounts for open non-automatic quests before admitting new work. Unknown observations hold capacity;
     /// an autoAccept root reserves none.
     /// </summary>
-    public static QuestSkipReason QuestFeasibility(JoinerOffer offer, RoundsFacts f)
+    public static QuestSkipReason QuestFeasibility(QuestState offer, RoundsFacts f)
     {
-        if (!offer.Profile.TryGetValue(out var profile))
+        if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile })
         {
-            return "class_unknown";
+            return QuestSkipReason.ClassUnknown;
         }
         if (offer.Expiry is Pb.QuestExpiry.ExpiresIn { Ticks: 0 })
         {
@@ -243,16 +234,16 @@ public static class QuestSelection
         }
         if (!f.QuestOffers.TryGetValue(out var rows))
         {
-            return "class_unknown";
+            return QuestSkipReason.ClassUnknown;
         }
         long used = 0, away = 0;
         foreach (var open in rows)
         {
-            if (open.State != "Ongoing")
+            if (open.State != QuestStatus.Ongoing)
             {
                 continue;
             }
-            if (!open.Profile.TryGetValue(out var p))
+            if (f.RootOf(open) is not QuestRoot.Classified { Profile: var p })
             {
                 return "open_demands_unknown";
             }
@@ -260,7 +251,7 @@ public static class QuestSelection
             {
                 continue;
             }
-            var (openNeed, openReason) = QuestPawnDemand(open);
+            var (openNeed, openReason) = QuestPawnDemand(open, f);
             if (!openReason.IsNone)
             {
                 return openReason;
@@ -271,7 +262,7 @@ public static class QuestSelection
                 away += openNeed;
             }
         }
-        var (need, reason) = QuestPawnDemand(offer);
+        var (need, reason) = QuestPawnDemand(offer, f);
         if (!reason.IsNone)
         {
             return reason;
@@ -302,12 +293,12 @@ public static class QuestSelection
         return "";
     }
 
-    internal static (long Need, QuestSkipReason Reason) QuestPawnDemand(JoinerOffer offer)
+    internal static (long Need, QuestSkipReason Reason) QuestPawnDemand(QuestState offer, RoundsFacts f)
     {
         long need = 1;
         // Pickup passengers of a time-cost quest are guests, not colony staff leaving home. Only pawn-cost
         // work reserves the boarding roster.
-        if (offer.Profile.TryGetValue(out var profile) && profile.Cost != QuestCost.Pawns)
+        if (f.RootOf(offer) is QuestRoot.Classified { Profile: var profile } && profile.Cost != QuestCost.Pawns)
         {
             return (need, "");
         }
@@ -335,7 +326,7 @@ public static class QuestSelection
     /// joiner offer is the joiners/offers step's and answers to its threat check; a quest no check refuses but no step
     /// answers reads <c>not_pursued</c>.
     /// </summary>
-    public static QuestSkipReason NamedQuestReason(JoinerOffer offer, RoundsFacts f)
+    public static QuestSkipReason NamedQuestReason(QuestState offer, RoundsFacts f)
     {
         var (accept, reason) = QuestDecision(offer, f);
         return accept || !reason.IsNone ? reason : "not_pursued";
@@ -349,13 +340,13 @@ public static class QuestSelection
     {
         if (!f.QuestOffers.TryGetValue(out var rows))
         {
-            return new JoinerChoice { Reason = JoinerPlanReason.CensusUnknown };
+            throw new RequiredFactException("quest offers");
         }
         // A quest a player goal names goes first, when the same checks every offer passes admit it (#3499).
-        JoinerOffer? best = null;
+        QuestState? best = null;
         foreach (var named in f.NamedQuests)
         {
-            var offer = rows.FirstOrDefault(o => o.Quest == named);
+            var offer = rows.FirstOrDefault(o => o.Id == named);
             if (offer is not null && QuestDecision(offer, f).Accept)
             {
                 best = offer;
@@ -366,7 +357,7 @@ public static class QuestSelection
         {
             foreach (var offer in rows)
             {
-                if (PopulationRules.ClaimAnswerable(offer, f.TitleClaimQuests) && QuestRewards.SelectQuestReward(offer, f).Reason.IsNone && (best is null || offer.Quest.CompareTo(best.Quest) < 0))
+                if (PopulationRules.ClaimAnswerable(offer, f.TitleClaimQuests) && QuestRewards.SelectQuestReward(offer, f).Reason.IsNone && (best is null || offer.Id.CompareTo(best.Id) < 0))
                 {
                     best = offer;
                 }
@@ -379,7 +370,7 @@ public static class QuestSelection
             {
                 var reward = QuestRewards.SelectQuestReward(offer, f);
                 if (QuestDecision(offer, f).Accept
-                    && (best is null || reward.Value.BetterThan(bestValue) || (reward.Value == bestValue && offer.Quest.CompareTo(best.Quest) < 0)))
+                    && (best is null || reward.Value.BetterThan(bestValue) || (reward.Value == bestValue && offer.Id.CompareTo(best.Id) < 0)))
                 {
                     best = offer;
                     bestValue = reward.Value;
@@ -390,7 +381,7 @@ public static class QuestSelection
         {
             return new JoinerChoice { Reason = JoinerPlanReason.QuestNoOffer };
         }
-        var choice = new JoinerChoice { Quest = best.Quest, RewardChoice = QuestRewards.SelectQuestReward(best, f).Choice };
+        var choice = new JoinerChoice { Quest = best.Id, RewardChoice = QuestRewards.SelectQuestReward(best, f).Choice };
         if (best.RequiresAccepter)
         {
             choice = choice with { Accepter = QuestCapacity.QuestAccepter(best, f, f.QuestWorkers).Pawn };
@@ -398,12 +389,10 @@ public static class QuestSelection
         return choice;
     }
 
-    public static Fact<bool> QuestDeficit(RoundsFacts f)
-    {
-        if (!f.QuestOffers.TryGetValue(out _))
-        {
-            return Unknown<bool>();
-        }
-        return Known(SelectQuestMethod(f).Reason == JoinerPlanReason.None || QuestHospitality.HospitalityDeficit(f) || QuestExpedition.ExpeditionDeficit(f) || QuestHackPolicy.IdeologyWorkDeficit(f));
-    }
+    /// <summary>
+    /// Whether a quest is worth accepting, or an accepted one owes hosting, expedition or ideology work; an unread census
+    /// raises <see cref="RequiredFactException"/>.
+    /// </summary>
+    public static bool QuestDeficit(RoundsFacts f) =>
+        SelectQuestMethod(f).Reason == JoinerPlanReason.None || QuestHospitality.HospitalityDeficit(f) || QuestExpedition.ExpeditionDeficit(f) || QuestHackPolicy.IdeologyWorkDeficit(f);
 }

@@ -12,15 +12,16 @@ public sealed partial class JoinersRounds
             return (default, false);
         }
 
-        var offers = known.OrderBy(o => o.Quest.Value, StringComparer.Ordinal).ToList();
+        var offers = known.OrderBy(o => o.Id.Value, StringComparer.Ordinal).ToList();
         var lending = false;
         foreach (var offer in offers)
         {
-            var (objective, remaining, owed) = QuestDecrees.DecreeObjective(offer);
-            if (!owed || objective is null)
+            if (QuestDecrees.DecreeObjective(offer, f) is not { } due)
             {
                 continue;
             }
+            var objective = due.Objective;
+            var remaining = due.Remaining;
 
             if (offer.Asker != O.DecreeAsker.PlayerFaction)
             {
@@ -28,7 +29,7 @@ public sealed partial class JoinersRounds
                 continue;
             }
 
-            if (objective.Timing is O.QuestObjectiveTiming.Deadline due && due.Tick <= read.Projection.Identity.Tick.Value)
+            if (objective.Timing is O.QuestObjectiveTiming.Deadline deadline && deadline.Tick <= read.Projection.Identity.Tick.Value)
             {
                 DecreeSkip(offer, "deadline", call);
                 continue;
@@ -60,13 +61,13 @@ public sealed partial class JoinersRounds
                     long standing = 0;
                     foreach (var farm in read.Projection.Farms)
                     {
-                        if (farm.Crop == objective.Def)
+                        if (farm.Crop == due.Def)
                         {
                             standing += farm.UsableCells;
                         }
                     }
 
-                    var (plan0, why) = QuestDecrees.PlanDecreeHarvest(objective, remaining, standing, field.Choices, field.Climate, site, field.Skill);
+                    var (plan0, why) = QuestDecrees.PlanDecreeHarvest(due, standing, field.Choices, field.Climate, site, field.Skill);
                     reason = why;
                     if (reason != "")
                     {
@@ -96,7 +97,7 @@ public sealed partial class JoinersRounds
                             }
                         }
 
-                        var zone = new ZoneCreate(Domain.ZoneKind.Growing, objective.Def, cells);
+                        var zone = new ZoneCreate(Domain.ZoneKind.Growing, due.Def, cells);
                         var (reply, zoneWhy) = await ZonePreviews.PreviewZoneAsync(reviewer.ResourceNative, Boundary.Identity(snapshot), zone, call).ConfigureAwait(false);
                         if (zoneWhy != "")
                         {
@@ -125,7 +126,7 @@ public sealed partial class JoinersRounds
 
                 case O.QuestObjectiveKind.KillAnimals:
                 {
-                    var (prey, why) = QuestDecrees.PlanDecreeHunt(objective, remaining, offer.ViolentQuestsAllowed, read.Projection.Acquisition);
+                    var (prey, why) = QuestDecrees.PlanDecreeHunt(due, offer.ViolentQuestsAllowed, read.Projection.Acquisition);
                     reason = why;
                     for (var i = 0; i < prey.Count; i++)
                     {
@@ -154,7 +155,7 @@ public sealed partial class JoinersRounds
                 continue;
             }
 
-            var method = new MethodId($"decree-{offer.Quest}-{(int)objective.Kind}-{remaining}");
+            var method = new MethodId($"decree-{offer.Id}-{(int)objective.Kind}-{remaining}");
             var (refused, admitted) = AdmitMethod(work, method, call);
             if (!admitted)
             {
@@ -210,8 +211,8 @@ public sealed partial class JoinersRounds
         return (default, false);
     }
 
-    private void DecreeSkip(JoinerOffer offer, string reason, CancellationToken ct) =>
-        reviewer.LogQuestSkip(new QuestSkip(offer.Quest, offer.ScriptDef, new QuestSkipReason(reason), ""), ct);
+    private void DecreeSkip(O.QuestState offer, string reason, CancellationToken ct) =>
+        reviewer.LogQuestSkip(new QuestSkip(offer.Id, offer.ScriptDef, new QuestSkipReason(reason), ""), ct);
 }
 
 partial class JoinersRounds

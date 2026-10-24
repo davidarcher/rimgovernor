@@ -15,12 +15,13 @@ using Verse.AI.Group;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 using PawnId = RimGovernor.Brain.Domain.PawnId;
+using QuestId = RimGovernor.Brain.Domain.QuestId;
 
 namespace HomeBridge.BridgeTools
 {
     // Answers rimgovernor/observations_read_world_progression behind the typed
     // ReadScope boundary (observations.proto's WorldProgressionRequest/Reply,
-    // WorldMap, FactionState, CaravanState, CaravanAssembly and QuestState).
+    // WorldMap, CaravanState, CaravanAssembly and QuestState).
     // Stateless: every read recomputes from current native state, per
     // native-static-state.md. Read-only; no orders, no UI, no camera.
     internal static class NativeWorldProgressionObservation
@@ -43,8 +44,11 @@ namespace HomeBridge.BridgeTools
             return rows;
         }
 
-        private static List<Obs.FactionState> Factions() =>
-            [.. Find.FactionManager.AllFactionsVisible.Select(f => new Obs.FactionState { Id = f.GetUniqueLoadID(), Player = f.IsPlayer, Hostile = f.HostileTo(Faction.OfPlayer) })];
+        // The quest's first non-player faction and its relation to the player.
+        private static Obs.QuestFaction QuestFaction(Quest quest) =>
+            quest.InvolvedFactions.FirstOrDefault(f => f != null && !f.IsPlayer) is { } faction
+                ? new Obs.QuestFaction.Involved(faction.HostileTo(Faction.OfPlayer))
+                : new Obs.QuestFaction.NoFaction();
 
         // Per-caravan home routes: one route per player-home map, so the brain can tell whether a caravan could path
         // home without depending on the caravan formation catalog (which only ever evaluates one destination at a time).
@@ -290,7 +294,7 @@ namespace HomeBridge.BridgeTools
                     throw new InvalidOperationException("Quest " + q.GetUniqueLoadID() + " has a threat budget or combat power the game does not hold as a finite, non-negative number.");
                 rows.Add(new Obs.QuestState
                 {
-                    Id = q.GetUniqueLoadID(),
+                    Id = new QuestId(q.GetUniqueLoadID()),
                     State = NativeEnums.Quest(q.State),
                     Acceptance = q.acceptanceTick >= 0 ? new Obs.QuestAcceptance.Accepted(q.acceptanceTick) : new Obs.QuestAcceptance.NotAccepted(),
                     Expiry = q.TicksUntilExpiry >= 0 ? new Obs.QuestExpiry.ExpiresIn(q.TicksUntilExpiry) : new Obs.QuestExpiry.NoExpiry(),
@@ -301,7 +305,7 @@ namespace HomeBridge.BridgeTools
                     Rewards = [.. Rewards(q)],
                     Favor = QuestFavor(q),
                     ScriptDef = q.root.defName,
-                    FactionId = q.InvolvedFactions.FirstOrDefault(f => f != null && !f.IsPlayer)?.GetUniqueLoadID(),
+                    Faction = QuestFaction(q),
                     Place = QuestPlace(q),
                     Objectives = [.. Objectives(q)],
                     ChoicePartCount = q.PartsListForReading.OfType<QuestPart_Choice>().Count(),
@@ -320,7 +324,6 @@ namespace HomeBridge.BridgeTools
         {
             Context = context,
             Maps = [.. Maps(context)],
-            Factions = [.. Factions()],
             Caravans = [.. Caravans(context)],
             Assemblies = [.. Assemblies()],
             Quests = [.. Quests()],

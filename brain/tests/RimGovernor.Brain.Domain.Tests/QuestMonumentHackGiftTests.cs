@@ -26,16 +26,18 @@ public sealed class QuestMonumentHackGiftTests
 
     private static readonly Pb.QuestMonumentPieceSite.Placed Open = new(false, false, true);
 
-    private static JoinerOffer Ongoing(string script, QuestFamily family, QuestObjective objective) => new()
+    private static Pb.QuestState Ongoing(string script, Pb.QuestObjective objective) => QuestStateTests.NoQuest with
     {
-        Quest = new("q1"), ScriptDef = script, State = "Ongoing", Objectives = [objective],
-        Profile = Known(new QuestProfile { Family = family }),
+        Id = new("q1"), ScriptDef = script, State = RimGovernor.Contracts.Wire.Receipts.QuestStatus.Ongoing, Objectives = [objective],
     };
 
-    private static RoundsFacts Facts(JoinerOffer offer) => new() { QuestOffers = Known<EquatableArray<JoinerOffer>>([offer]) };
+    private static Pb.QuestObjective Objective => QuestStateTests.Objective(Pb.QuestObjectiveKind.ProduceItem);
+
+    private static RoundsFacts Facts(Pb.QuestState offer, QuestFamily family) =>
+        QuestStateTests.WithQuests(new RoundsFacts(), [offer], QuestStateTests.Root(offer.ScriptDef, new QuestProfile { Family = family }));
 
     private static QuestMonumentMethod Select(Pb.QuestMonument marker) => QuestMonumentPolicy.SelectQuestMonument(
-        Known<EquatableArray<JoinerOffer>>([Ongoing("BuildMonument", QuestFamily.BuildMonument, new QuestObjective { Monument = marker })]),
+        Known<EquatableArray<Pb.QuestState>>([Ongoing("BuildMonument", Objective with { Monument = marker })]),
         new MapId(0), new Dictionary<Resource, long> { [new Resource("Steel")] = 100 }, []);
 
     [Fact]
@@ -113,10 +115,10 @@ public sealed class QuestMonumentHackGiftTests
     [Fact]
     public void AHackTargetIsDesignatedOnlyWhenItStandsOnThisMap()
     {
-        static QuestHackWork Hack(Pb.QuestHackTargetPlace place) => QuestHackPolicy.SelectQuestHack(Facts(Ongoing("Hack_Spacedrone", QuestFamily.Hack, new QuestObjective
+        static QuestHackWork Hack(Pb.QuestHackTargetPlace place) => QuestHackPolicy.SelectQuestHack(Facts(Ongoing("Hack_Spacedrone", Objective with
         {
             HackTargets = [new Pb.QuestHackTarget { Id = "Terminal1", LockedOut = false, Autohack = false, Satisfied = false, Place = place }],
-        })), new MapId(0));
+        }), QuestFamily.Hack), new MapId(0));
 
         Assert.Equal("Terminal1", Hack(new Pb.QuestHackTargetPlace.OnMap(0, [new PawnId("Human1")])).Hack!.Target);
         Assert.Equal("hacker_unavailable", Hack(new Pb.QuestHackTargetPlace.OnMap(0, [])).Reason.Value);
@@ -127,7 +129,7 @@ public sealed class QuestMonumentHackGiftTests
     [Fact]
     public void AWorshippedTerminalIsHackedOnlyFromAHostileTribe()
     {
-        static string Admit(Pb.QuestHackRisk? risk) => QuestHackPolicy.WorshippedTerminalAdmission(Ongoing("Hack_WorshippedTerminal", QuestFamily.Hack, new QuestObjective { HackRisk = risk })).Value;
+        static string Admit(Pb.QuestHackRisk? risk) => QuestHackPolicy.WorshippedTerminalAdmission(Ongoing("Hack_WorshippedTerminal", Objective with { HackRisk = risk })).Value;
 
         Assert.Equal("", Admit(new Pb.QuestHackRisk { Hostile = true }));
         Assert.Equal("worshipped_terminal_trap", Admit(new Pb.QuestHackRisk { Hostile = false }));
@@ -137,10 +139,10 @@ public sealed class QuestMonumentHackGiftTests
     [Fact]
     public void AGiftIsOwedUntilTheAskingRecipientHasEverything()
     {
-        static RoundsFacts Beggars(Pb.QuestGiftAsk ask) => Facts(Ongoing("Beggars", QuestFamily.Beggars, new QuestObjective
+        static RoundsFacts Beggars(Pb.QuestGiftAsk ask) => Facts(Ongoing("Beggars", Objective with
         {
-            Gift = new Pb.QuestGiftRequest { Recipient = new PawnId("Beggar1"), DefName = "MedicineIndustrial", Pawns = [new PawnId("Beggar1")], Ask = ask },
-        }));
+            GiftRequest = new Pb.QuestGiftRequest { Recipient = new PawnId("Beggar1"), DefName = "MedicineIndustrial", Pawns = [new PawnId("Beggar1")], Ask = ask },
+        }), QuestFamily.Beggars);
 
         Assert.Equal("gift_not_asked", QuestCapacity.SelectQuestGift(Beggars(new Pb.QuestGiftAsk.Away()), new MapId(0)).Reason.Value);
         Assert.Equal("gift_not_asked", QuestCapacity.SelectQuestGift(Beggars(new Pb.QuestGiftAsk.NotAsking()), new MapId(0)).Reason.Value);

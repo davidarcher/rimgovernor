@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal static class RoundsQuestMonumentClaims
 {
     /// <summary>Cells that open monument-install moves will occupy once the quest marker is placed.</summary>
-    internal static IReadOnlyList<Cell> PendingMonumentCells(IReadOnlyList<PlanState> plans, Fact<EquatableArray<JoinerOffer>> offers)
+    internal static IReadOnlyList<Cell> PendingMonumentCells(IReadOnlyList<PlanState> plans, Fact<EquatableArray<O.QuestState>> offers)
     {
         if (!offers.TryGetValue(out var rows))
         {
@@ -14,7 +14,7 @@ internal static class RoundsQuestMonumentClaims
 
         foreach (var offer in rows)
         {
-            if (offer.State != "Ongoing")
+            if (offer.State != PbReceipts.QuestStatus.Ongoing)
             {
                 continue;
             }

@@ -5,6 +5,7 @@ using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
+using QuestStatus = RimGovernor.Contracts.Wire.Receipts.QuestStatus;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -245,17 +246,15 @@ public sealed class GoalsFamilyTests
 
     private static (GoalState, Satisfaction) Pair(GoalStatus s) => (s.State, s.Satisfaction);
 
-    private static JoinerOffer Offer(string quest, string state = "NotYetAccepted", QuestCost cost = QuestCost.Free) => new()
-    {
-        Quest = new(quest),
-        ScriptDef = "MechanoidSignal",
-        State = state,
-        CanAccept = true,
-        Profile = Known(new QuestProfile { Family = QuestFamily.OdysseyGround, Cost = cost, Disposition = QuestDisposition.Decide }),
-    };
+    /// <summary>An Odyssey ground quest offer whose root costs cost: a free root and a pawn-cost root are two script defs.</summary>
+    private static RimGovernor.Contracts.Wire.Observations.QuestState Offer(string quest, QuestStatus state = QuestStatus.NotYetAccepted, QuestCost cost = QuestCost.Free) =>
+        QuestStateTests.NoQuest with { Id = new(quest), ScriptDef = "MechanoidSignal_" + cost, State = state };
 
-    private static GoalsFacts QuestFacts(params JoinerOffer[] offers) =>
-        new() { Rounds = new RoundsFacts { QuestOffers = Known<EquatableArray<JoinerOffer>>([.. offers]) } };
+    private static QuestRoot SignalRoot(QuestCost cost) =>
+        QuestStateTests.Root("MechanoidSignal_" + cost, new QuestProfile { Family = QuestFamily.OdysseyGround, Cost = cost, Disposition = QuestDisposition.Decide });
+
+    private static GoalsFacts QuestFacts(params RimGovernor.Contracts.Wire.Observations.QuestState[] offers) =>
+        new() { Rounds = QuestStateTests.WithQuests(new RoundsFacts(), offers, SignalRoot(QuestCost.Free), SignalRoot(QuestCost.Pawns)) };
 
     [Fact]
     public void ANamedQuestIsConsideredFirstAndAcceptedWhenFeasible()
@@ -280,9 +279,9 @@ public sealed class GoalsFamilyTests
         Assert.Equal((GoalState.Blocked, "capacity_unknown", JoinersFamily.Quests), (infeasible.State, infeasible.Reason, infeasible.Owner));
 
         Assert.Equal(GoalState.Pursuing, GoalRules.Evaluate(goal, QuestFacts(Offer("q9"))).State);
-        Assert.Equal(GoalState.Pursuing, GoalRules.Evaluate(goal, QuestFacts(Offer("q9", "Ongoing"))).State);
-        Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, QuestFacts(Offer("q9", "EndedSuccess"))).State);
-        var expired = GoalRules.Evaluate(goal, QuestFacts(Offer("q9", "EndedOfferExpired")));
+        Assert.Equal(GoalState.Pursuing, GoalRules.Evaluate(goal, QuestFacts(Offer("q9", QuestStatus.Ongoing))).State);
+        Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, QuestFacts(Offer("q9", QuestStatus.EndedSuccess))).State);
+        var expired = GoalRules.Evaluate(goal, QuestFacts(Offer("q9", QuestStatus.EndedOfferExpired)));
         Assert.Equal((GoalState.NoMethod, "expired"), (expired.State, expired.Reason));
         var lapsed = GoalRules.Evaluate(goal, QuestFacts(Offer("q9") with { Expiry = new RimGovernor.Contracts.Wire.Observations.QuestExpiry.ExpiresIn(0) }));
         Assert.Equal((GoalState.NoMethod, "expired"), (lapsed.State, lapsed.Reason));

@@ -29,7 +29,7 @@ public static class QuestMonumentPolicy
         }
         foreach (var offer in rows)
         {
-            if (offer.State != "Ongoing")
+            if (offer.State != QuestStatus.Ongoing)
             {
                 continue;
             }
@@ -49,15 +49,15 @@ public static class QuestMonumentPolicy
     /// work; receipts never complete it.
     /// </summary>
     public static QuestMonumentMethod SelectQuestMonument<TOffers>(Fact<TOffers> offers, MapId home, IReadOnlyDictionary<Resource, long> stock, IReadOnlyList<Rectangle> protectedRects)
-        where TOffers : IReadOnlyList<JoinerOffer>
+        where TOffers : IReadOnlyList<QuestState>
     {
         if (!offers.TryGetValue(out var all))
         {
             return new QuestMonumentMethod { Reason = "quest_census_unknown" };
         }
-        foreach (var offer in all.OrderBy(o => o.Quest))
+        foreach (var offer in all.OrderBy(o => o.Id))
         {
-            if (offer.State != "Ongoing")
+            if (offer.State != QuestStatus.Ongoing)
             {
                 continue;
             }
@@ -67,7 +67,7 @@ public static class QuestMonumentPolicy
                 {
                     continue;
                 }
-                var step = new QuestMonumentMethod { Quest = offer.Quest };
+                var step = new QuestMonumentMethod { Quest = offer.Id };
                 if (marker.State is Pb.QuestMonumentState.Packed packed)
                 {
                     return Install(step, marker, packed.InstallCells, protectedRects);
@@ -186,9 +186,9 @@ public static class QuestMonumentPolicy
         return best;
     }
 
-    public static QuestSkipReason MonumentAdmission(JoinerOffer offer, RoundsFacts f)
+    public static QuestSkipReason MonumentAdmission(QuestState offer, RoundsFacts f)
     {
-        if (!offer.Profile.TryGetValue(out var profile))
+        if (f.RootOf(offer) is not QuestRoot.Classified { Profile: var profile })
         {
             return "class_unknown";
         }
@@ -250,11 +250,11 @@ public static class QuestMonumentPolicy
         }
         foreach (var q in open)
         {
-            if (q.State != "Ongoing" || q.Quest == offer.Quest)
+            if (q.State != QuestStatus.Ongoing || q.Id == offer.Id)
             {
                 continue;
             }
-            if (!q.Profile.TryGetValue(out var p))
+            if (f.RootOf(q) is not QuestRoot.Classified { Profile: var p })
             {
                 return "open_demands_unknown";
             }
