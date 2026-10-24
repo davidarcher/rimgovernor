@@ -59,11 +59,11 @@ public static class ForecastPrison
 
     /// <summary>The credit (<see cref="RoomCredit"/>): one row per prisoner the room beds, under the prisoner.</summary>
     public static IReadOnlyList<RoomGain> PrisonCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon) =>
-        Of(outcome, commitments, context, horizon).GetValueOrDefault(room.Room)?.Gains ?? [];
+        Rows.Of(outcome, commitments, context, horizon).GetValueOrDefault(room.Room)?.Gains ?? [];
 
     /// <summary>The findings (<see cref="RoomFindings"/>): the room's named states and what the credit leaves out.</summary>
     public static IEnumerable<string> Findings(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon) =>
-        Of(outcome, commitments, context, horizon).GetValueOrDefault(room.Room)?.Findings ?? [.. NotModelled];
+        Rows.Of(outcome, commitments, context, horizon).GetValueOrDefault(room.Room)?.Findings ?? [.. NotModelled];
 
     /// <summary>
     /// The days from a prison serving to its prisoner's recruitment (#3805): the chats to bring <paramref name="resistance"/> to 0
@@ -90,20 +90,8 @@ public static class ForecastPrison
 
     private sealed record RoomRows(RoomGain[] Gains, string[] Findings);
 
-    private sealed record Cached(ForecastCoupledContext Context, string Chosen, double Horizon, IReadOnlyDictionary<int, RoomRows> Rooms);
-
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledOutcome, Cached> Cache = new();
-
-    // Every served prison's rows of the outcome, cached per outcome for its context, chosen roots and horizon.
-    private static IReadOnlyDictionary<int, RoomRows> Of(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
-    {
-        var chosen = string.Join('\n', commitments.Select(c => c.Id).Order(StringComparer.Ordinal));
-        if (Cache.TryGetValue(outcome, out var cached) && ReferenceEquals(cached.Context, context) && cached.Chosen == chosen && cached.Horizon == horizon)
-            return cached.Rooms;
-        var rooms = Compute(outcome, commitments, context, horizon);
-        Cache.AddOrUpdate(outcome, new(context, chosen, horizon, rooms));
-        return rooms;
-    }
+    // Every served prison's rows of the outcome, computed once per outcome.
+    private static readonly PerOutcome<Dictionary<int, RoomRows>> Rows = new(Compute);
 
     private static Dictionary<int, RoomRows> Compute(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {

@@ -66,11 +66,11 @@ public static class ForecastClassroom
 
     /// <summary>The credit (<see cref="RoomCredit"/>): one row per child the room seats, under the child.</summary>
     public static IReadOnlyList<RoomGain> ClassroomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon) =>
-        Of(outcome, commitments, context, horizon).GetValueOrDefault(room.Room)?.Gains ?? [];
+        Rows.Of(outcome, commitments, context, horizon).GetValueOrDefault(room.Room)?.Gains ?? [];
 
     /// <summary>The findings (<see cref="RoomFindings"/>): the room's named states and what the credit leaves out.</summary>
     public static IEnumerable<string> Findings(ForecastRoomService room, ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon) =>
-        Of(outcome, commitments, context, horizon).GetValueOrDefault(room.Room)?.Findings ?? [.. NotModelled];
+        Rows.Of(outcome, commitments, context, horizon).GetValueOrDefault(room.Room)?.Findings ?? [.. NotModelled];
 
     /// <summary>
     /// The share of a seated child's learning refill its lessons take (#3809, D2): the stationary chance that
@@ -154,20 +154,8 @@ public static class ForecastClassroom
 
     private sealed record RoomRows(RoomGain[] Gains, string[] Findings);
 
-    private sealed record Cached(ForecastCoupledContext Context, string Chosen, double Horizon, IReadOnlyDictionary<int, RoomRows> Rooms);
-
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledOutcome, Cached> Cache = new();
-
-    // Every served classroom's rows of the outcome, cached per outcome for its context, chosen roots and horizon.
-    private static IReadOnlyDictionary<int, RoomRows> Of(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
-    {
-        var chosen = string.Join('\n', commitments.Select(c => c.Id).Order(StringComparer.Ordinal));
-        if (Cache.TryGetValue(outcome, out var cached) && ReferenceEquals(cached.Context, context) && cached.Chosen == chosen && cached.Horizon == horizon)
-            return cached.Rooms;
-        var rooms = Compute(outcome, commitments, context, horizon);
-        Cache.AddOrUpdate(outcome, new(context, chosen, horizon, rooms));
-        return rooms;
-    }
+    // Every served classroom's rows of the outcome, computed once per outcome.
+    private static readonly PerOutcome<Dictionary<int, RoomRows>> Rows = new(Compute);
 
     private static Dictionary<int, RoomRows> Compute(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
     {

@@ -141,26 +141,20 @@ public static class JoinerMoodRules
     /// <summary>
     /// The work <paramref name="outcome"/> leaves short (#3805, <see cref="WorkShortfallRules.Of"/>): the joiner basis's roots, the
     /// outcome's chosen <paramref name="commitments"/> and allocations over the tier-1 <paramref name="horizon"/>, at the colonists'
-    /// read speeds. Cached per outcome, for its context and chosen roots. A context without the joiner basis throws
+    /// read speeds. Computed once per outcome (<see cref="PerOutcome{T}"/>). A context without the joiner basis throws
     /// <see cref="RequiredFactException"/>.
     /// </summary>
-    public static WorkShortfall ShortfallOf(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon)
+    public static WorkShortfall ShortfallOf(ForecastCoupledOutcome outcome, IReadOnlyList<ForecastCommitment> commitments, ForecastCoupledContext context, double horizon) =>
+        Shortfalls.Of(outcome, commitments, context, horizon);
+
+    private static readonly PerOutcome<WorkShortfall> Shortfalls = new((outcome, commitments, context, horizon) =>
     {
-        var chosen = string.Join('\n', commitments.Select(c => c.Id).Order(StringComparer.Ordinal));
-        if (Shortfalls.TryGetValue(outcome, out var cached) && ReferenceEquals(cached.Context, context) && cached.Chosen == chosen && cached.Horizon == horizon)
-            return cached.Shortfall;
         var joiners = context.Joiners ?? throw new RequiredFactException("joiner basis");
         var speeds = context.Needs.Pawns.ToDictionary(p => p.Pawn,
             p => (IReadOnlyDictionary<string, double>)p.Upkeep.Speeds.ToDictionary(s => s.Stat, s => s.Value, StringComparer.Ordinal), StringComparer.Ordinal);
-        var shortfall = WorkShortfallRules.Of(context, joiners.Roots, commitments.Select(c => c.Id).ToHashSet(StringComparer.Ordinal),
+        return WorkShortfallRules.Of(context, joiners.Roots, commitments.Select(c => c.Id).ToHashSet(StringComparer.Ordinal),
             outcome.Plan.Allocations, horizon, joiners.Work, speeds);
-        Shortfalls.AddOrUpdate(outcome, new(context, chosen, horizon, shortfall));
-        return shortfall;
-    }
-
-    private sealed record CachedShortfall(ForecastCoupledContext Context, string Chosen, double Horizon, WorkShortfall Shortfall);
-
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledOutcome, CachedShortfall> Shortfalls = new();
+    });
 
     private static double Median(IReadOnlyList<double> values)
     {

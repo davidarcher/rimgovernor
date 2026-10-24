@@ -858,7 +858,7 @@ NegotiationAbility × the mood curve at the prisoner's instant mood in the room 
 replaced by the room's PrisonCell, one bed, or PrisonBarracks stage) × the opinion curve at its opinion of the warden; recruitment
 takes `ceil(resistance / perChat) + 1` chats at two a day (`ForecastPrison.RecruitDays`). The prisoner's value is its #3825 value
 as a colonist (`JoinerMoodRules.ValueOf`) against the work the outcome leaves short (`WorkShortfallRules.Of` over the outcome's
-chosen roots, cached per outcome): its own speeds, food and incapable work; its mood the colony's food, room and recreation thoughts
+chosen roots, `JoinerMoodRules.ShortfallOf`, computed once per outcome by the shared `PerOutcome` cache, #3913): its own speeds, food and incapable work; its mood the colony's food, room and recreation thoughts
 (the median of the colonists' observed rows, picked by thought_triggers.tsv owner, grant and dependency) plus its trait thoughts (a colony thought that is one of them counted once, at its own offset)
 and memories; its free hours the median over the colonists of its own need falls served as each is served. The row is that value a
 day with a `Once` of −value × the recruitment days: the value over the days the room saves. A non-positive value earns nothing
@@ -882,7 +882,7 @@ over the read's validity (at most a day, as a practice session's, #3852) and is 
 (`Investment[skill/<child>/<skill>]`; a skill without a marginal adds nothing, `classroom_skill_unvalued`). The teacher's lesson
 ticks (the child's lesson refill over `NeedSatisfiedPerTick × LearningRateFactor × the desk's SchoolDeskLearningRate`) are charged
 as lost work: the shortfall rows those ticks would fill at the teacher's speeds (`PawnValueRules.WorkAdded` against the outcome's
-shortfall, cached per outcome). The row is the XP value less that work, a day; it can be negative, since tier 2 values a child's
+shortfall, the same `JoinerMoodRules.ShortfallOf` the prison reads, #3913). The row is the XP value less that work, a day; it can be negative, since tier 2 values a child's
 skill only where a doctor's Medicine or a fighter's Melee and Shooting stock reads it. Named states, each earning nothing: no child
 (`classroom_no_child`), no teacher (`classroom_no_teacher`), no Lessontaking desire givable (`classroom_no_lesson`), every taught
 child already seated (`classroom_children_seated`), a child taught no skill (`classroom_nothing_taught`) and a classroom with no
