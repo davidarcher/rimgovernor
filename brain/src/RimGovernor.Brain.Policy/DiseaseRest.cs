@@ -14,19 +14,26 @@ public sealed record DiseaseRest(PawnId Pawn, EquatableArray<string> Conditions)
 
 public static class DiseaseRestRules
 {
-    public static Fact<DiseaseProjection> ProjectDisease(CareCondition c)
+    /// <summary>The disease's projection at its native rates; null unless it is immunizable with an immunity gain rate.</summary>
+    public static DiseaseProjection? ProjectDisease(Hediff c)
     {
-        if (!c.Severity.TryGetValue(out var s) || !c.Immunity.TryGetValue(out var i)
-            || !c.SeverityPerDay.TryGetValue(out var sr) || !c.ImmunityPerDay.TryGetValue(out var ir)
-            || s < 0 || i < 0 || i > 1)
+        if (c.Immunizable is not { Gain: ImmunityGain.PerDay gain } immune)
         {
-            return Unknown<DiseaseProjection>();
+            return null;
+        }
+        var s = c.Severity;
+        var i = immune.Immunity;
+        var sr = immune.SeverityPerDay;
+        var ir = gain.Value;
+        if (s < 0 || i < 0 || i > 1)
+        {
+            return null;
         }
         foreach (var v in new[] { s, i, sr, ir })
         {
             if (double.IsNaN(v) || double.IsInfinity(v))
             {
-                return Unknown<DiseaseProjection>();
+                return null;
             }
         }
         static double Days(double value, double rate)
@@ -41,7 +48,7 @@ public static class DiseaseRestRules
             }
             return (1 - value) / rate;
         }
-        return Known(new DiseaseProjection(Days(s, sr), Days(i, ir)));
+        return new DiseaseProjection(Days(s, sr), Days(i, ir));
     }
 
     internal static void ValidateDiseaseRest(IReadOnlyList<DiseaseRest> rows)
@@ -84,26 +91,27 @@ public static class DiseaseRestRules
             {
                 throw new DomainException("invalid disease pawn");
             }
-            if (!pawn.Dead.TryGetValue(out var dead) || dead || !pawn.Conditions.TryGetValue(out var conditions))
+            if (pawn.Dead)
             {
                 continue;
             }
             var heldNames = held.GetValueOrDefault(pawn.Id) ?? [];
             var next = new HashSet<string>(StringComparer.Ordinal);
             var unnamed = false;
-            foreach (var c in conditions)
+            foreach (var c in pawn.Conditions)
             {
-                if (!c.DefName.TryGetValue(out var name) || !AdmissionRules.ValidResource(new Resource(name)))
+                var name = c.DefName;
+                if (!AdmissionRules.ValidResource(new Resource(name)))
                 {
                     unnamed = true;
                     continue;
                 }
-                var immuneKnown = c.Immunity.TryGetValue(out var immune);
-                if (heldNames.Contains(name) && (!immuneKnown || double.IsNaN(immune) || double.IsInfinity(immune) || immune < 1))
+                var immune = c.Immunizable is { } im && double.IsFinite(im.Immunity) && im.Immunity >= 1;
+                if (heldNames.Contains(name) && !immune)
                 {
                     next.Add(name);
                 }
-                if (ProjectDisease(c).TryGetValue(out var projection) && projection.NeedsRest())
+                if (ProjectDisease(c) is { } projection && projection.NeedsRest())
                 {
                     next.Add(name);
                 }

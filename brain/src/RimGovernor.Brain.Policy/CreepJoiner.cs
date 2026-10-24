@@ -234,8 +234,7 @@ public sealed record CreepJoinerDownsides
             var stage = record.Inspections.GetValueOrDefault(h.Pawn);
             if (stage == InspectionStage.Ordered)
             {
-                var (ended, known) = h.InspectionEnded(recipes);
-                if (known && ended)
+                if (h.InspectionEnded(recipes))
                 {
                     inspections[h.Pawn] = InspectionStage.Done;
                 }
@@ -300,13 +299,12 @@ public sealed record CreepJoinerHand
 
     public Fact<string> Weapon { get; init; }
 
-    /// <summary>The colonist's native surgery facts (CarePawn's).</summary>
-    public Fact<EquatableArray<SurgeryOperation>> Operations { get; init; }
+    /// <summary>The colonist's native operations; a dead colonist has none.</summary>
+    public required EquatableArray<SurgeryOperation> Operations { get; init; }
 
-    public Fact<int> QueuedSurgeries { get; init; }
+    public required int QueuedSurgeries { get; init; }
 
-    /// <summary>Null when unread.</summary>
-    public EquatableArray<string>? QueuedRecipes { get; init; }
+    public required EquatableArray<string> QueuedRecipes { get; init; }
 
     /// <summary>The load id of the colonist's allowed area (empty when unrestricted).</summary>
     public Fact<string> Area { get; init; }
@@ -314,23 +312,8 @@ public sealed record CreepJoinerHand
     /// <summary>Whether it is below the game's fed band.</summary>
     public Fact<bool> Hungry { get; init; }
 
-    /// <summary>Whether the pawn has no inspection bill queued; unknown while its bill stack cannot be read.</summary>
-    internal (bool Ended, bool Known) InspectionEnded(IReadOnlySet<string> recipes)
-    {
-        if (!QueuedSurgeries.TryGetValue(out var queued))
-        {
-            return (false, false);
-        }
-        if (queued == 0)
-        {
-            return (true, true);
-        }
-        if (QueuedRecipes is not { } queuedRecipes)
-        {
-            return (false, false);
-        }
-        return (!queuedRecipes.Any(recipes.Contains), true);
-    }
+    /// <summary>Whether the pawn has no inspection bill queued.</summary>
+    internal bool InspectionEnded(IReadOnlySet<string> recipes) => QueuedSurgeries == 0 || !QueuedRecipes.Any(recipes.Contains);
 
     /// <summary>Picks the inspection operation to queue, or says in plain English why none can be.</summary>
     internal (InspectionOrder? Order, string Why) InspectionOrder(IReadOnlySet<string> recipes)
@@ -347,28 +330,19 @@ public sealed record CreepJoinerHand
         {
             return (null, "it cannot take an order now");
         }
-        var (ended, endedKnown) = InspectionEnded(recipes);
-        if (!endedKnown)
-        {
-            return (null, "its queued surgery bills could not be read");
-        }
-        if (!ended)
+        if (!InspectionEnded(recipes))
         {
             return (null, "an inspection bill is already queued");
         }
-        if (!Operations.TryGetValue(out var ops))
-        {
-            return (null, "its available operations could not be read");
-        }
         SurgeryOperation? best = null;
         var bestPart = 0;
-        foreach (var op in ops)
+        foreach (var op in Operations)
         {
-            if (!op.Recipe.TryGetValue(out var recipe) || !recipes.Contains(recipe))
+            if (!recipes.Contains(op.Recipe))
             {
                 continue;
             }
-            var part = op.PartIndex.TryGetValue(out var index) ? index : SurgeryConstants.NoSurgeryPart;
+            var part = SurgeryRules.PartOf(op);
             if (best is null || part < bestPart)
             {
                 best = op;
@@ -379,15 +353,14 @@ public sealed record CreepJoinerHand
         {
             return (null, "the game offers no surgical inspection on it");
         }
-        if (!best.EligibleDoctors.TryGetValue(out var doctors) || doctors == 0)
+        if (best.EligibleDoctors == 0)
         {
             return (null, "no eligible doctor");
         }
-        if (!best.IngredientsOnMap.TryGetValue(out var stocked) || !stocked)
+        if (!best.IngredientsOnMap)
         {
             return (null, "the inspection's ingredients are not on the map");
         }
-        best.Recipe.TryGetValue(out var chosen);
-        return (new InspectionOrder(Pawn, chosen ?? "", bestPart), "");
+        return (new InspectionOrder(Pawn, best.Recipe, bestPart), "");
     }
 }

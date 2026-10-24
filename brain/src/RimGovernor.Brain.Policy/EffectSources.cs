@@ -92,10 +92,9 @@ public static class EffectSourcesRules
     internal static CardPawnFacts CardPawnFactsOf(PawnId pawn, GearLoadoutInput input, Fact<EquatableArray<CarePawn>> medical, Fact<bool> ideologyActive)
     {
         var hediffs = Unknown<EquatableArray<string>>();
-        if (medical.TryGetValue(out var rows) && rows.FirstOrDefault(r => r.Id == pawn) is { } care
-            && care.Conditions.TryGetValue(out var conditions) && conditions.All(c => c.DefName.IsKnown))
+        if (medical.TryGetValue(out var rows) && rows.FirstOrDefault(r => r.Id == pawn) is { } care)
         {
-            hediffs = Known(EquatableArray.From(conditions.Select(c => c.DefName.Value).Distinct().Order(StringComparer.Ordinal)));
+            hediffs = Known(EquatableArray.From(care.Conditions.Select(c => c.DefName).Distinct().Order(StringComparer.Ordinal)));
         }
         var traits = input.Role.Work.Traits.TryGetValue(out var observed)
             ? Known(EquatableArray.From(observed.Select(t => t.Name))) : Unknown<EquatableArray<string>>();

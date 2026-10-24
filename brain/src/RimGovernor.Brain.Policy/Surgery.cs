@@ -112,71 +112,38 @@ public static partial class SurgeryRules
         {
             return Unknown<bool>();
         }
-        foreach (var pawn in rows)
-        {
-            if (pawn.Dead.TryGetValue(out var dead) && dead)
-            {
-                continue;
-            }
-            if (!pawn.Operations.TryGetValue(out var ops))
-            {
-                return Unknown<bool>();
-            }
-            foreach (var op in ops)
-            {
-                var (served, known) = ServedSurgery(pawn, op);
-                if (!known)
-                {
-                    return Unknown<bool>();
-                }
-                if (served > 0)
-                {
-                    return Known(false);
-                }
-            }
-        }
-        return Known(true);
+        return Known(!rows.Any(pawn => !pawn.Dead && pawn.Operations.Any(op => ServedSurgery(pawn, op) > 0)));
     }
+
+    /// <summary>The operation's part index; NoSurgeryPart for a whole-body recipe.</summary>
+    internal static int PartOf(SurgeryOperation op) => op.Part?.Index ?? SurgeryConstants.NoSurgeryPart;
 
     /// <summary>
     /// The capacity weight an operation gives back, zero when the planner does not serve it: a restore weighs its
     /// part; a cure recipe or a replacement part on a part carrying a chronic condition weighs the condition.
-    /// Known is false when a cure's conditions are unread.
     /// </summary>
-    internal static (double Weight, bool Known) ServedSurgery(CarePawn pawn, SurgeryOperation op)
+    internal static double ServedSurgery(CarePawn pawn, CareOperation care)
     {
-        op.PartDefName.TryGetValue(out var name);
-        switch (op.Kind)
+        var op = care.Operation;
+        if (op.Kind == SurgeryKind.Restore)
         {
-            case SurgeryKind.Restore:
-                return (PartWeight(name ?? ""), true);
-            case SurgeryKind.Cure:
-                break;
-            case SurgeryKind.Install:
-                if (op.Tier == 0)
-                {
-                    return (0, true); // an implant, not a replacement part
-                }
-                break;
-            default:
-                return (0, true);
+            return PartWeight(op.Part?.DefName ?? "");
         }
-        if (!pawn.Conditions.TryGetValue(out var conditions))
+        // An install of a part with no tier is an implant, not a replacement part.
+        if (op.Kind != SurgeryKind.Cure && !(op.Kind == SurgeryKind.Install && care.Tier != 0))
         {
-            return (0, false);
+            return 0;
         }
-        var partKnown = op.PartIndex.TryGetValue(out var part);
+        var part = op.Part?.Index;
         var weight = 0.0;
-        foreach (var c in conditions)
+        foreach (var c in pawn.Conditions)
         {
-            c.DefName.TryGetValue(out var def);
-            var atKnown = c.PartIndex.TryGetValue(out var at);
-            if (atKnown == partKnown && (!atKnown || at == part))
+            if (c.Part?.Index == part)
             {
-                weight = Math.Max(weight, ChronicWeight.GetValueOrDefault(def ?? "", 0));
+                weight = Math.Max(weight, ChronicWeight.GetValueOrDefault(c.DefName, 0));
             }
         }
-        return (weight, true);
+        return weight;
     }
 
     /// <summary>The capacity a chronic condition costs, which its cure or replacement gives back.</summary>
@@ -198,8 +165,8 @@ public static partial class SurgeryRules
     };
 
     /// <summary>An install on a healthy part whose part beats a natural one (bionic, archotech); implants and lesser parts are never electives unless a health goal names them.</summary>
-    private static bool ElectiveUpgrade(SurgeryOperation op) =>
-        op.Kind == SurgeryKind.Install && op.Recipe.IsKnown && op.PartIndex.IsKnown && op.Tier > 1;
+    private static bool ElectiveUpgrade(CareOperation care) =>
+        care.Operation.Kind == SurgeryKind.Install && care.Operation.Part is not null && care.Tier > 1;
 
     /// <summary>The rank of a health goal's operation (#3508): above every elective, so its part item is claimed first.</summary>
     private const double GoalSurgeryValue = 10;
@@ -209,27 +176,26 @@ public static partial class SurgeryRules
         ctx.Goals.Where(g => g.Pawn == pawn).Select(g => g.Recipe).ToHashSet(StringComparer.Ordinal);
 
     /// <summary>Whether a health goal asks for the operation: its recipe is one of <paramref name="recipes"/>.</summary>
-    private static bool GoalOperation(SurgeryOperation op, HashSet<string> recipes) =>
-        recipes.Count > 0 && op.Recipe.TryGetValue(out var recipe) && recipes.Contains(recipe!);
+    private static bool GoalOperation(CareOperation care, HashSet<string> recipes) =>
+        recipes.Count > 0 && recipes.Contains(care.Operation.Recipe);
 
     /// <summary>The goal operations the pawn could take within ElectiveFailureCap, by part.</summary>
-    private static List<SurgeryOperation> GoalOperations(IEnumerable<SurgeryOperation> ops, HashSet<string> recipes) =>
-        [.. ops.Where(op => GoalOperation(op, recipes) && SurgeryAcceptable(op, ElectiveFailureCap)).OrderBy(op => op.PartIndex.TryGetValue(out var part) ? part : -1)];
+    private static List<CareOperation> GoalOperations(IEnumerable<CareOperation> ops, HashSet<string> recipes) =>
+        [.. ops.Where(op => GoalOperation(op, recipes) && SurgeryAcceptable(op.Operation, ElectiveFailureCap)).OrderBy(op => PartOf(op.Operation))];
 
     /// <summary>The first stocked goal operation as an elective choice; null when none is stocked.</summary>
-    private static SurgeryChoice? GoalChoice(PawnId pawn, IEnumerable<SurgeryOperation> ops, HashSet<string> recipes)
+    private static SurgeryChoice? GoalChoice(PawnId pawn, IEnumerable<CareOperation> ops, HashSet<string> recipes)
     {
-        foreach (var op in GoalOperations(ops, recipes))
+        foreach (var care in GoalOperations(ops, recipes))
         {
-            if (op.IngredientsOnMap.TryGetValue(out var stocked) && stocked)
+            if (care.Operation.IngredientsOnMap)
             {
-                op.Recipe.TryGetValue(out var recipe);
                 return new SurgeryChoice
                 {
                     Pawn = pawn,
-                    Recipe = recipe ?? "",
-                    Item = op.Item,
-                    Part = op.PartIndex.TryGetValue(out var part) ? part : -1,
+                    Recipe = care.Operation.Recipe,
+                    Item = care.Item,
+                    Part = PartOf(care.Operation),
                     Elective = true,
                     Value = GoalSurgeryValue,
                 };
@@ -263,22 +229,14 @@ public static partial class SurgeryRules
         }
         foreach (var pawn in rows)
         {
-            if (!pawn.Dead.TryGetValue(out var dead) || dead)
+            if (pawn.Dead || pawn.QueuedSurgeries > 0)
             {
                 continue;
             }
-            if (!pawn.QueuedSurgeries.TryGetValue(out var queued) || queued > 0)
-            {
-                continue;
-            }
-            pawn.Operations.TryGetValue(out var ops);
             var goals = GoalRecipes(ctx, pawn.Id);
-            foreach (var op in ops)
+            foreach (var op in pawn.Operations)
             {
-                if ((ElectiveUpgrade(op) || GoalOperation(op, goals))
-                    && op.IngredientsOnMap.TryGetValue(out var stocked)
-                    && stocked
-                    && SurgeryAcceptable(op, ElectiveFailureCap))
+                if ((ElectiveUpgrade(op) || GoalOperation(op, goals)) && op.Operation.IngredientsOnMap && SurgeryAcceptable(op.Operation, ElectiveFailureCap))
                 {
                     return Known(true);
                 }
@@ -329,41 +287,34 @@ public static partial class SurgeryRules
             {
                 continue;
             }
-            if (!pawn.Dead.TryGetValue(out var dead) || dead || (inFlight?.Contains(pawn.Id) ?? false))
-            {
-                continue;
-            }
-            if (!pawn.QueuedSurgeries.TryGetValue(out var queued) || queued > 0)
+            if (pawn.Dead || (inFlight?.Contains(pawn.Id) ?? false) || pawn.QueuedSurgeries > 0)
             {
                 continue;
             }
             var profiled = profiles.TryGetValue(pawn.Id, out var profile);
-            pawn.Operations.TryGetValue(out var ops);
-            var parts = new Dictionary<int, List<SurgeryOperation>>();
+            var ops = pawn.Operations;
+            var parts = new Dictionary<int, List<CareOperation>>();
             var weights = new Dictionary<int, double>();
             var elective = new Dictionary<int, bool>();
             var order = new List<int>();
             foreach (var op in ops)
             {
-                var pk = op.PartIndex.TryGetValue(out var part);
-                if (!pk)
-                {
-                    part = -1; // whole-body cure
-                }
-                var (weight, _) = ServedSurgery(pawn, op);
-                op.PartDefName.TryGetValue(out var name);
+                var wholeBody = op.Operation.Part is null;
+                var part = PartOf(op.Operation);
+                var weight = ServedSurgery(pawn, op);
+                var name = op.Operation.Part?.DefName ?? "";
                 if (weight <= 0 && electives && ElectiveUpgrade(op))
                 {
-                    weight = PartWeight(name ?? "");
+                    weight = PartWeight(name);
                     elective[part] = true;
                 }
-                if (!op.Recipe.IsKnown || weight <= 0 || (!pk && op.Kind != SurgeryKind.Cure))
+                if (weight <= 0 || (wholeBody && op.Operation.Kind != SurgeryKind.Cure))
                 {
                     continue;
                 }
                 if (profiled)
                 {
-                    weight *= PawnRules.UpgradeRoleWeight(profile!, name ?? "");
+                    weight *= PawnRules.UpgradeRoleWeight(profile!, name);
                 }
                 if (!parts.TryGetValue(part, out var group))
                 {
@@ -428,10 +379,10 @@ public static partial class SurgeryRules
     }
 
     /// <summary>An elective takes ElectiveFailureCap and is valued by its gain over the natural part, so any served operation outranks it.</summary>
-    private static (SurgeryChoice? Choice, SurgeryWant Want) SelectPartSurgery(PawnId pawn, int part, double weight, List<SurgeryOperation> ops, bool elective)
+    private static (SurgeryChoice? Choice, SurgeryWant Want) SelectPartSurgery(PawnId pawn, int part, double weight, List<CareOperation> ops, bool elective)
     {
         var sorted = ops.OrderByDescending(OpTier).ToList();
-        sorted[0].PartDefName.TryGetValue(out var topPart);
+        var topPart = sorted[0].Operation.Part?.DefName ?? "";
         var items = new List<Resource>();
         foreach (var op in sorted)
         {
@@ -450,24 +401,23 @@ public static partial class SurgeryRules
         }
         foreach (var op in sorted)
         {
-            if (!op.IngredientsOnMap.TryGetValue(out var stocked) || !stocked)
+            if (!op.Operation.IngredientsOnMap)
             {
                 continue;
             }
-            if (!SurgeryAcceptable(op, failureCap))
+            if (!SurgeryAcceptable(op.Operation, failureCap))
             {
                 if (reason != SurgeryWantReason.BedShort)
                 {
-                    reason = SurgeryBedBlocked(op, failureCap) ? SurgeryWantReason.BedShort : SurgeryWantReason.NoDoctor;
+                    reason = SurgeryBedBlocked(op.Operation, failureCap) ? SurgeryWantReason.BedShort : SurgeryWantReason.NoDoctor;
                 }
                 continue;
             }
-            op.Recipe.TryGetValue(out var recipe);
             return (
                 new SurgeryChoice
                 {
                     Pawn = pawn,
-                    Recipe = recipe ?? "",
+                    Recipe = op.Operation.Recipe,
                     Item = op.Item,
                     Part = part,
                     Elective = elective,
@@ -483,23 +433,20 @@ public static partial class SurgeryRules
             Pawn = pawn,
             Part = part,
             Reason = reason,
-            Value = sorted[0].Tier * PartWeight(topPart ?? ""),
+            Value = sorted[0].Tier * PartWeight(topPart),
             Items = items,
         };
     }
 
     /// <summary>A cure leaves the natural part; a part recipe gives its tier.</summary>
-    private static double OpTier(SurgeryOperation op) => op.Kind == SurgeryKind.Cure ? 1 : op.Tier;
+    private static double OpTier(CareOperation op) => op.Operation.Kind == SurgeryKind.Cure ? 1 : op.Tier;
 
-    /// <summary>Some eligible doctor performs it within the failure cap, and it is neither a violation nor lethal. Unknown facts refuse.</summary>
-    internal static bool SurgeryAcceptable(SurgeryOperation op, double failureCap)
-    {
-        var dk = op.EligibleDoctors.TryGetValue(out var doctors);
-        var ck = op.SuccessChance.TryGetValue(out var chance);
-        var vk = op.Violation.TryGetValue(out var violation);
-        var lk = op.Lethal.TryGetValue(out var lethal);
-        return dk && ck && vk && lk && SurgeryAcceptable(doctors, chance, violation, lethal, failureCap);
-    }
+    /// <summary>Some eligible doctor performs it within the failure cap, and it is neither a violation nor lethal. An unrated chance refuses.</summary>
+    internal static bool SurgeryAcceptable(SurgeryOperation op, double failureCap) =>
+        op.Chance is SurgeryChance.Rated rated && Acceptable(op, rated.Success, failureCap);
+
+    private static bool Acceptable(SurgeryOperation op, double chance, double failureCap) =>
+        SurgeryAcceptable(op.EligibleDoctors, chance, op.Violation, op.Lethal, failureCap);
 
     private static bool SurgeryAcceptable(int doctors, double chance, bool violation, bool lethal, double failureCap) =>
         doctors > 0 && 1 - chance <= failureCap + 1e-9 && !violation && !lethal;
@@ -535,14 +482,8 @@ public static partial class SurgeryRules
     }
 
     /// <summary>The operation fails the cap as observed but passes it with the doctor's ideal-bed chance, so the bed or room is the blocker.</summary>
-    private static bool SurgeryBedBlocked(SurgeryOperation op, double failureCap)
-    {
-        if (!op.DoctorSuccessChance.TryGetValue(out var ideal))
-        {
-            return false;
-        }
-        return SurgeryAcceptable(op with { SuccessChance = Known(ideal) }, failureCap);
-    }
+    private static bool SurgeryBedBlocked(SurgeryOperation op, double failureCap) =>
+        op.Chance is SurgeryChance.Rated rated && Acceptable(op, rated.IdealSuccess, failureCap);
 
     /// <summary>The living colonists whose served operation waits only on a better bed or room: the hospital planner's surgical demand, which needs a Bed, not a sleeping spot.</summary>
     public static IReadOnlyList<PawnId> SurgeryBedShortPatients(Fact<EquatableArray<CarePawn>> pawns)

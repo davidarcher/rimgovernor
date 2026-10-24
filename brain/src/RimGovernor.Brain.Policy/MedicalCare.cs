@@ -1,106 +1,50 @@
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>A fresh native health assessment, independent of urgent tending.</summary>
+/// <summary>A fresh native health assessment, independent of urgent tending. A dead colonist has no operations.</summary>
 public sealed record CarePawn
 {
     /// <summary>Quest-protected guests may be tended, but never operated on during their visit.</summary>
     public bool QuestProtected { get; init; }
 
-    public PawnId Id { get; init; }
-    public Fact<string> Care { get; init; }
-    public Fact<bool> LifeThreatening { get; init; }
-    public Fact<EquatableArray<CareCondition>> Conditions { get; init; }
-    public Fact<bool> Dead { get; init; }
-    public Fact<bool> NeedsRest { get; init; }
-    public Fact<bool> NeedsTend { get; init; }
-    public Fact<bool> BadConditions { get; init; }
+    public required PawnId Id { get; init; }
 
-    public Fact<EquatableArray<SurgeryOperation>> Operations { get; init; }
+    /// <summary>The colonist's standing medical care.</summary>
+    public required MedicalCare Care { get; init; }
+
+    public required bool LifeThreatening { get; init; }
+
+    /// <summary>Every hediff on the pawn, none filtered.</summary>
+    public required EquatableArray<Hediff> Conditions { get; init; }
+
+    public required bool Dead { get; init; }
+
+    public required bool NeedsRest { get; init; }
+
+    /// <summary>Some hediff is one the catalog classifies as bad.</summary>
+    public required bool BadConditions { get; init; }
+
+    public required EquatableArray<CareOperation> Operations { get; init; }
 
     /// <summary>The medical bills queued on the patient: the surgery planner's in-flight evidence.</summary>
-    public Fact<int> QueuedSurgeries { get; init; }
+    public required int QueuedSurgeries { get; init; }
 
     /// <summary>The part items those bills install, by the catalog's recipe rows.</summary>
     public IReadOnlyList<Resource> QueuedItems { get; init; } = [];
 }
 
-/// <summary>A missing or destroyed body part at its common missing ancestor; its descendants are implied.</summary>
-public sealed record MissingPart
+/// <summary>
+/// One native operation with what the catalog says of its recipe: the part item it installs (empty for none) and
+/// the capacity that part gives back relative to a natural part (1): the added part hediff's partEfficiency, 1 for a
+/// natural install, 0 for a recipe that installs no replacement part (an implant).
+/// </summary>
+public sealed record CareOperation
 {
-    public Fact<int> PartIndex { get; init; }
-    public Fact<string> PartDefName { get; init; }
-}
+    public required SurgeryOperation Operation { get; init; }
 
-/// <summary>Classifies an operation the way the surgery planner ranks it.</summary>
-public enum SurgeryKind
-{
-    [WireName("")]
-    Unknown = 0,
-    Restore,
-    Cure,
-    Amputate,
-    Install,
-    Harvest,
-    Other,
-}
+    public required Resource Item { get; init; }
 
-/// <summary>One available medical recipe on one target part. SuccessChance is vanilla's, for the best eligible doctor, bed and medicine; it is unknown when no doctor is eligible.</summary>
-public sealed record SurgeryOperation
-{
-    public Fact<string> Recipe { get; init; }
-    public Fact<string> PartDefName { get; init; }
-
-    /// <summary>The part item the recipe installs by its catalog row, empty for a recipe that installs none.</summary>
-    public Resource Item { get; init; }
-
-    /// <summary>
-    /// The capacity the recipe's part gives back relative to a natural part (1): the added part hediff's
-    /// partEfficiency, 1 for a natural install, 0 for a recipe that installs no replacement part (an implant).
-    /// </summary>
-    public double Tier { get; init; }
-
-    public Fact<int> PartIndex { get; init; }
-    public SurgeryKind Kind { get; init; }
-    public Fact<double> SuccessChance { get; init; }
-
-    /// <summary>The same doctor's chance with an ideal bed and room; above SuccessChance when the bed holds it back.</summary>
-    public Fact<double> DoctorSuccessChance { get; init; }
-
-    public Fact<int> EligibleDoctors { get; init; }
-    public Fact<bool> IngredientsOnMap { get; init; }
-    public Fact<bool> Violation { get; init; }
-    public Fact<bool> Lethal { get; init; }
-
-    /// <summary>The market value in silver of what the removal spawns: a harvested organ or a removed added part.</summary>
-    public Fact<double> YieldValue { get; init; }
-
-    /// <summary>The added part hediff on a removal's target and the thing it spawns; unknown on a natural part.</summary>
-    public Fact<string> AddedPart { get; init; }
-
-    public Fact<string> YieldThing { get; init; }
-
-    /// <summary>The market value of the medicine the operation uses.</summary>
-    public Fact<double> MedicineValue { get; init; }
-
-    /// <summary>Medicine the recipe takes is stocked but the patient's medical care forbids it; IngredientsOnMap is then false.</summary>
-    public Fact<bool> CareLimited { get; init; }
-
-    /// <summary>Each eligible doctor's SuccessChance by pawn; null when unread.</summary>
-    public IReadOnlyDictionary<PawnId, double>? DoctorChances { get; init; }
-}
-
-/// <summary>Native disease evidence without estimating missing values. Rates are instantaneous per game day, and may be negative during recovery.</summary>
-public sealed record CareCondition
-{
-    public Fact<string> DefName { get; init; }
-    public Fact<double> Severity { get; init; }
-    public Fact<double> SeverityPerDay { get; init; }
-    public Fact<double> Immunity { get; init; }
-    public Fact<double> ImmunityPerDay { get; init; }
-    public Fact<bool> Tended { get; init; }
-    /// <summary>The condition's part in the race body's AllParts; unknown for a whole-body condition.</summary>
-    public Fact<int> PartIndex { get; init; }
+    public required double Tier { get; init; }
 }
 
 /// <summary>Retains unresolved patient identities across reviews and restart. Missing patients and deaths do not constitute observed recovery.</summary>
@@ -169,20 +113,12 @@ public static partial class MedicalRules
                 throw new DomainException("invalid medical care census");
             }
             seen.Add(pawn.Id);
-            var dk = pawn.Dead.TryGetValue(out var dead);
-            if (dk && dead)
+            if (pawn.Dead)
             {
                 continue;
             }
             tracked.Remove(pawn.Id);
-            var rk = pawn.NeedsRest.TryGetValue(out var rest);
-            var tk = pawn.NeedsTend.IsKnown;
-            var bk = pawn.BadConditions.TryGetValue(out var bad);
-            if (!dk || !rk || !tk || !bk)
-            {
-                unknown.Add(pawn.Id);
-            }
-            else if (rest || bad)
+            if (pawn.NeedsRest || pawn.BadConditions)
             {
                 patients.Add(pawn.Id);
             }

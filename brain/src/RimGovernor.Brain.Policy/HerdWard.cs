@@ -77,22 +77,7 @@ public static class HerdWardRules
     /// <summary>An animal with a condition no one has tended or that threatens its life.</summary>
     internal static bool AnimalNeedsTending(UpkeepAnimal a)
     {
-        if (a.LifeThreatening.TryGetValue(out var life) && life)
-        {
-            return true;
-        }
-        if (!a.Conditions.TryGetValue(out var conditions))
-        {
-            return false;
-        }
-        foreach (var c in conditions)
-        {
-            if (c.Tended.TryGetValue(out var tended) && !tended)
-            {
-                return true;
-            }
-        }
-        return false;
+        return a.LifeThreatening || a.Conditions.Any(c => c.Tend is HediffTend.Untended);
     }
 
     /// <summary>

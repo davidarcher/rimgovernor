@@ -463,19 +463,15 @@ public static partial class GoalRules
             throw new RequiredFactException("medical pawns");
         }
         var pawn = pawns.FirstOrDefault(p => p.Id == new PawnId(goal.Target));
-        if (pawn is null || (pawn.Dead.TryGetValue(out var dead) && dead))
+        if (pawn is null || pawn.Dead)
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NotAColonist, default, default);
         }
-        if (!pawn.Conditions.TryGetValue(out var conditions) || !pawn.Operations.TryGetValue(out var ops))
-        {
-            throw new RequiredFactException("conditions or operations of " + goal.Target);
-        }
-        if (conditions.Any(c => c.DefName.TryGetValue(out var held) && held == hediff))
+        if (pawn.Conditions.Any(c => c.DefName == hediff))
         {
             return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, Fact.Known(0.0));
         }
-        if (!ops.Any(op => op.Recipe.TryGetValue(out var recipe) && recipe == goal.Qualifier))
+        if (!pawn.Operations.Any(op => op.Operation.Recipe == goal.Qualifier))
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unavailable", default, one);
         }

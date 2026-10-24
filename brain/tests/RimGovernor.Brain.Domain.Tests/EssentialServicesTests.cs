@@ -54,15 +54,11 @@ public sealed class EssentialServicesTests
         Assert.Throws<DomainException>(() => EssentialServicesRules.ReviewEssentialServices(Facts(), RoundsRules.DefaultRoundsPolicy(), new(), 1));
     }
 
-    private static CarePawn Patient(params (string Id, double Chance)[] doctors) => new()
-    {
-        Id = new("patient"), Dead = Known(false), Operations = Known<EquatableArray<SurgeryOperation>>([
-            new() { Kind = SurgeryKind.Restore, Recipe = Known("restore-leg"), PartIndex = Known(2), PartDefName = Known("Leg"),
-                IngredientsOnMap = Known(true), EligibleDoctors = Known(doctors.Length),
-                SuccessChance = doctors.Length == 0 ? default : Known(doctors.Max(d => d.Chance)),
-                Violation = Known(false), Lethal = Known(false),
-                DoctorChances = doctors.ToDictionary(d => new PawnId(d.Id), d => d.Chance) }])
-    };
+    private static CarePawn Patient(params (string Id, double Chance)[] doctors) => CareFixtures.Patient("patient", operations: [
+        CareFixtures.Operation(SurgeryKind.Restore, "restore-leg", 2, "Leg", stocked: true, doctors: doctors.Length,
+            chance: doctors.Length == 0
+                ? new SurgeryChance.NoEligibleDoctor()
+                : new SurgeryChance.Rated(doctors.Max(d => d.Chance), doctors.Max(d => d.Chance), doctors.ToDictionary(d => d.Id, d => d.Chance)))]);
 
     [Fact]
     public void MedicalResilienceUsesProcedureChanceNotGenericDoctorCount()

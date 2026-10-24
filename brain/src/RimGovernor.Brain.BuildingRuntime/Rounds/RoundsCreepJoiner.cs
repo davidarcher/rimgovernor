@@ -68,16 +68,20 @@ internal static class RoundsCreepJoiner
     /// <summary>Lifts a combat-detail pawn row into the weapon drop's facts (the downside check's facts, whether the colonist can take an order, its weapon, surgery operations and bills, allowed area and hunger).</summary>
     internal static CreepJoinerHand CreepJoinerHandOf(PbObservations.PawnState row)
     {
+        // A dead colonist has no surgery facts and no operations; a living census colonist always has them.
+        var surgery = row.Health.Surgery
+            ?? (row.Dead
+                ? new PbObservations.PawnSurgery { SurgeryBills = [], MissingParts = [], Operations = [] }
+                : throw BridgeContractException.Contract($"living colonist {row.Pawn.Id} without surgery facts"));
         var hand = new CreepJoinerHand
         {
             Pawn = new PawnId(row.Pawn.Id ?? ""),
             Facts = CreepJoinerFacts.CreepJoinerPawn(row),
             Available = Unknown<bool>(),
             Weapon = Unknown<string>(),
-            // The weapon drop and inspections read recipe names only, no part items.
-            Operations = SurgeryFactsRules.SurgeryFacts(row.Health.Surgery, null).Operations,
-            QueuedSurgeries = SurgeryFactsRules.QueuedSurgeries(row.Health.Surgery),
-            QueuedRecipes = SurgeryFactsRules.QueuedSurgeryRecipes(row.Health.Surgery) is { } recipes ? EquatableArray.From(recipes) : null,
+            Operations = surgery.Operations,
+            QueuedSurgeries = surgery.SurgeryBills.Count,
+            QueuedRecipes = EquatableArray.From(SurgeryFactsRules.QueuedSurgeryRecipes(surgery)),
             // An unset allowed area is an unrestricted pawn (native AllowedArea).
             Area = Known(row.Settings.AllowedAreaId ?? ""),
             Hungry = Unknown<bool>(),

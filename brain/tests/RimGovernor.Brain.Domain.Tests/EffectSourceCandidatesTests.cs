@@ -163,7 +163,7 @@ public sealed class EffectSourceCandidatesTests
         var model = Pawn().Gear;
         model = model with { Role = model.Role with { Work = model.Role.Work with { Traits = Known<EquatableArray<PawnTrait>>([new() { Name = "Kind" }]) } } };
         var gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = Known(model) }, new GearPawn { Pawn = new("blocked"), Blocked = true }] };
-        var care = new CarePawn { Id = new("pawn"), Conditions = Known<EquatableArray<CareCondition>>([new() { DefName = Known("Flu") }]) };
+        var care = CareFixtures.Patient("pawn", [CareFixtures.Condition("Flu")]);
 
         var facts = EffectSourcesRules.EffectSourceFactsOf(gear, Known<EquatableArray<CarePawn>>([care]));
         var read = Assert.Single(facts.Pawns);

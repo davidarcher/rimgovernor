@@ -322,16 +322,16 @@ public static class EmergencyRules
     /// loses against progressing severity, and nonprogressing severity has no deadline. Known is false when any
     /// value is missing or not finite.
     /// </summary>
-    public static (bool Losing, bool Known) LosingImmunityRace(CareCondition c)
+    public static (bool Losing, bool Known) LosingImmunityRace(Hediff c)
     {
-        var sk = c.Severity.TryGetValue(out var severity);
-        var ik = c.Immunity.TryGetValue(out var immunity);
-        var srk = c.SeverityPerDay.TryGetValue(out var sr);
-        var irk = c.ImmunityPerDay.TryGetValue(out var ir);
-        if (!sk || !ik || !srk || !irk)
+        if (c.Immunizable is not { Gain: ImmunityGain.PerDay gain } immune)
         {
             return (false, false);
         }
+        var severity = c.Severity;
+        var immunity = immune.Immunity;
+        var sr = immune.SeverityPerDay;
+        var ir = gain.Value;
         foreach (var v in (ReadOnlySpan<double>)[severity, immunity, sr, ir])
         {
             if (double.IsNaN(v) || double.IsInfinity(v))
@@ -357,47 +357,37 @@ public static class EmergencyRules
     /// </summary>
     public static IReadOnlyList<Surgery> LifeSavingAmputations(CarePawn pawn)
     {
-        if (!pawn.Dead.TryGetValue(out var dead) || dead)
-        {
-            return [];
-        }
-        var ck = pawn.Conditions.TryGetValue(out var conditions);
-        var ok = pawn.Operations.TryGetValue(out var operations);
-        if (!ck || !ok)
+        if (pawn.Dead)
         {
             return [];
         }
         var result = new List<Surgery>();
         var seen = new HashSet<int>();
-        foreach (var c in conditions!)
+        foreach (var c in pawn.Conditions)
         {
-            var nk = c.DefName.TryGetValue(out var name);
-            var pk = c.PartIndex.TryGetValue(out var part);
-            if (!nk || name != WoundInfection || !pk || seen.Contains(part))
+            if (c.DefName != WoundInfection || c.Part is not { } infected || seen.Contains(infected.Index))
             {
                 continue;
             }
+            var part = infected.Index;
             var (losing, known) = LosingImmunityRace(c);
             if (!known || !losing)
             {
                 continue;
             }
-            foreach (var op in operations!)
+            foreach (var care in pawn.Operations)
             {
-                var rk = op.Recipe.TryGetValue(out var recipe);
-                var ak = op.PartIndex.TryGetValue(out var at);
-                var sk = op.SuccessChance.TryGetValue(out var success);
-                var dk = op.EligibleDoctors.TryGetValue(out var doctors);
-                var vk = op.Violation.TryGetValue(out var violation);
-                var lk = op.Lethal.TryGetValue(out var lethal);
-                if (op.Kind != SurgeryKind.Amputate || !rk || !ak || at != part || !sk || double.IsNaN(success) || success <= 0 || !dk || doctors <= 0 || !vk || violation || !lk || lethal)
+                var op = care.Operation;
+                if (op.Kind != SurgeryKind.Amputate || op.Part?.Index != part || op.Chance is not SurgeryChance.Rated { Success: > 0 }
+                    || op.EligibleDoctors <= 0 || op.Violation || op.Lethal)
                 {
                     continue;
                 }
+                var recipe = op.Recipe;
                 Surgery s;
                 try
                 {
-                    s = new Surgery((Domain.PawnId)pawn.Id, recipe!, part, false);
+                    s = new Surgery((Domain.PawnId)pawn.Id, recipe, part, false);
                 }
                 catch (DomainException)
                 {

@@ -62,9 +62,10 @@ public static class AnimalUpkeepReads
                 Obedient = state.Obedient,
                 Sterilized = state.Sterilized,
                 SterilizeQueued = state.SterilizeQueued,
+                Conditions = pawn.Health.Hediffs,
+                LifeThreatening = pawn.Health.LifeThreatening,
             };
-            var (conditions, lifeThreatening) = CareConditionsRules.CareConditions(pawn.Health);
-            rows.Add(animal with { Conditions = conditions, LifeThreatening = lifeThreatening });
+            rows.Add(animal);
         }
         return Known(EquatableArray.From(rows));
     }
@@ -88,6 +89,8 @@ public static class AnimalUpkeepReads
                 Slaughter = state.Slaughter,
                 Bonded = state.Bonded,
                 Sterilized = state.Sterilized,
+                Conditions = pawn.Health.Hediffs,
+                LifeThreatening = pawn.Health.LifeThreatening,
                 Gender = state.Gender,
                 Tameable = state.Tameable,
                 Tame = state.Tame,

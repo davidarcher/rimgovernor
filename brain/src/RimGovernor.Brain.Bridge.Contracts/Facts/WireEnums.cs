@@ -25,6 +25,10 @@ public static class WireEnums
             _ => null,
         };
 
+    /// <summary>The domain care tier of a wire tier; native always names one, so an unspecified tier throws.</summary>
+    public static DomainMedicalCare RequiredMedicalCare(WireMedicalCare care) =>
+        MedicalCareOf(care) ?? throw new BridgeContractException($"medical care {care} names no care tier");
+
     /// <summary>The MedicalCareCategory name of a wire care tier.</summary>
     public static string MedicalCareName(WireMedicalCare care) => MedicalCareOf(care) is { } tier ? Domain.Wire.Name(tier) : "";
 

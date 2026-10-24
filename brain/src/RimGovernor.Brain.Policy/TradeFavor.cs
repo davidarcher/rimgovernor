@@ -132,8 +132,7 @@ public static partial class TradePolicyRules
     private static bool SurplusPrisoner(PrisonerFacts row, PrisonerColony colony)
     {
         var jk = row.CreepJoiner.TryGetValue(out var joiner);
-        var qk = row.QueuedSurgeries.TryGetValue(out var queued);
-        if (row.Dead || !row.HarvestEligible(colony) || !jk || joiner || !qk || queued > 0 || row.Executing)
+        if (row.Dead || !row.HarvestEligible(colony) || !jk || joiner || row.QueuedSurgeries > 0 || row.Executing)
         {
             return false;
         }

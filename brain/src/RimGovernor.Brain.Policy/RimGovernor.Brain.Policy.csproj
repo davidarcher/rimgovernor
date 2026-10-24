@@ -49,6 +49,16 @@
     <!-- The gear census's climate and option source (#3777). -->
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearClimate" Alias="GearClimate" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearSource" Alias="GearSource" />
+    <!-- The native health and surgery rows the care planners read (#3788). -->
+    <Using Include="RimGovernor.Contracts.Wire.Observations.Hediff" Alias="Hediff" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnConditions" Alias="PawnConditions" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.HediffTend" Alias="HediffTend" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.HediffImmunity" Alias="HediffImmunity" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.ImmunityGain" Alias="ImmunityGain" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.SurgeryOperation" Alias="SurgeryOperation" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.SurgeryChance" Alias="SurgeryChance" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.SurgeryKind" Alias="SurgeryKind" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.MissingBodyPart" Alias="MissingBodyPart" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.AnimalPregnancy" Alias="AnimalPregnancy" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.AnimalNextLifeStage" Alias="AnimalNextLifeStage" />
     <!-- The population read's ideology mode and owned names (#3785). -->

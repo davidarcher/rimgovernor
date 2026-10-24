@@ -38,24 +38,17 @@ public static partial class PrisonerMedicineRules
         var limited = new HashSet<CareOp>();
         foreach (var row in census.Prisoners)
         {
-            if (!row.Operations.TryGetValue(out var ops))
-            {
-                relaxed.Add(row);
-                continue;
-            }
-            var copied = new List<SurgeryOperation>(ops);
+            var copied = new List<CareOperation>(row.Operations);
             for (var j = 0; j < copied.Count; j++)
             {
-                var op = copied[j];
-                if (RoundsRules.Positive(op.CareLimited))
+                var op = copied[j].Operation;
+                if (op.MedicineCareLimited)
                 {
-                    copied[j] = op with { IngredientsOnMap = Known(true) };
-                    op.Recipe.TryGetValue(out var recipe);
-                    op.PartIndex.TryGetValue(out var part);
-                    limited.Add(new CareOp(row.Pawn, recipe ?? "", part));
+                    copied[j] = copied[j] with { Operation = op with { IngredientsOnMap = true } };
+                    limited.Add(new CareOp(row.Pawn, op.Recipe, SurgeryRules.PartOf(op)));
                 }
             }
-            relaxed.Add(row with { Operations = Known(EquatableArray.From(copied)) });
+            relaxed.Add(row with { Operations = EquatableArray.From(copied) });
         }
         if (limited.Count == 0)
         {

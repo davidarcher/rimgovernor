@@ -4,10 +4,13 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>One guest's care cap inputs.</summary>
 public sealed record CarePatient
 {
-    public PawnId Id { get; init; }
-    public Fact<string> Care { get; init; }
-    public Fact<EquatableArray<CareCondition>> Conditions { get; init; }
-    public Fact<bool> LifeThreatening { get; init; }
+    public required PawnId Id { get; init; }
+
+    public required MedicalCare Care { get; init; }
+
+    public required EquatableArray<Hediff> Conditions { get; init; }
+
+    public required bool LifeThreatening { get; init; }
 }
 
 /// <summary>
@@ -23,32 +26,27 @@ public static partial class MedicalRules
 {
     /// <summary>
     /// A condition worth one more medicine tier: a native life threat, plague, malaria past half severity, a wound
-    /// infection not yet immune, or any immunizable disease losing its immunity race. Unknown evidence is unknown
-    /// unless a known condition is already serious.
+    /// infection not yet immune, or any immunizable disease losing its immunity race. An immunizable condition whose
+    /// race cannot be projected (no immunity gain record, a value out of range) leaves the answer unknown unless a
+    /// projected condition is already serious.
     /// </summary>
-    public static (bool Serious, bool Known) SeriousCondition(Fact<EquatableArray<CareCondition>> conditions, Fact<bool> life)
+    public static (bool Serious, bool Known) SeriousCondition(IReadOnlyList<Hediff> conditions, bool life)
     {
-        if (RoundsRules.Positive(life))
+        if (life)
         {
             return (true, true);
         }
-        var ck = conditions.TryGetValue(out var rows);
-        var lk = life.IsKnown;
-        var incomplete = !ck || !lk;
-        foreach (var row in rows)
+        var incomplete = false;
+        foreach (var row in conditions)
         {
-            var nk = row.DefName.TryGetValue(out var name);
-            var ik = row.Immunity.TryGetValue(out var immunity);
-            if (!ik)
+            if (row.Immunizable is not { } immune)
             {
-                if (!nk)
-                {
-                    incomplete = true;
-                }
                 continue;
             }
-            var sk = row.Severity.TryGetValue(out var severity);
-            if (!nk || !sk || !FiniteUnit(severity) || !FiniteUnit(immunity))
+            var name = row.DefName;
+            var severity = row.Severity;
+            var immunity = immune.Immunity;
+            if (!FiniteUnit(severity) || !FiniteUnit(immunity))
             {
                 incomplete = true;
                 continue;
@@ -72,7 +70,7 @@ public static partial class MedicalRules
     }
 
     /// <summary>The cap with the serious raise applied; Ok is false when the raise is owed but the evidence is unknown.</summary>
-    private static (MedicalCare Care, bool Ok) Capped(MedicalCare baseCare, bool raise, Fact<EquatableArray<CareCondition>> conditions, Fact<bool> life)
+    private static (MedicalCare Care, bool Ok) Capped(MedicalCare baseCare, bool raise, IReadOnlyList<Hediff> conditions, bool life)
     {
         if (!raise)
         {
@@ -139,13 +137,11 @@ public static partial class MedicalRules
     /// <summary>A queued bill whose recipe removes a clean natural part (a harvest) from the prisoner.</summary>
     public static bool PrisonerHarvestQueued(PrisonerFacts p)
     {
-        p.Operations.TryGetValue(out var ops);
         foreach (var queued in p.QueuedRecipes)
         {
-            foreach (var op in ops)
+            foreach (var care in p.Operations)
             {
-                op.Recipe.TryGetValue(out var recipe);
-                if (recipe == queued && op.Kind == SurgeryKind.Harvest)
+                if (care.Operation.Recipe == queued && care.Operation.Kind == SurgeryKind.Harvest)
                 {
                     return true;
                 }
@@ -165,13 +161,13 @@ public static partial class MedicalRules
         return a.Bonded || combat ? MedicalCare.Normal : MedicalCare.Herbal;
     }
 
-    /// <summary>The care settings to write: every pawn whose known care differs from its cap. A pawn with unknown care, unknown cap inputs or an unknown census is left alone.</summary>
+    /// <summary>The care settings to write: every pawn whose care differs from its cap. A pawn with unknown cap inputs, an unknown animal care or an unknown census is left alone.</summary>
     public static List<PawnSettings> MedicalCareChanges(RoundsFacts f, MedicalReservePolicy p)
     {
         var output = new List<PawnSettings>();
-        void Add(PawnId id, Fact<string> current, MedicalCare want, bool ok)
+        void Add(PawnId id, bool differs, MedicalCare want, bool ok)
         {
-            if (!ok || !current.TryGetValue(out var care) || care == Wire.Name(want))
+            if (!ok || !differs)
             {
                 return;
             }
@@ -187,25 +183,18 @@ public static partial class MedicalRules
 
         if (f.MedicalPawns.TryGetValue(out var colonists))
         {
-            long living = 0;
-            foreach (var c in colonists)
-            {
-                if (c.Dead.TryGetValue(out var dead) && !dead)
-                {
-                    living++;
-                }
-            }
+            var living = colonists.LongCount(c => !c.Dead);
             var (baseCare, ok) = ColonistCareBase(f.Items, f.Resources, living, p);
             if (ok)
             {
                 foreach (var c in colonists)
                 {
-                    if (!c.Dead.TryGetValue(out var dead) || dead)
+                    if (c.Dead)
                     {
                         continue;
                     }
                     var (want, capOk) = Capped(baseCare, true, c.Conditions, c.LifeThreatening);
-                    Add(c.Id, c.Care, want, capOk);
+                    Add(c.Id, c.Care != want, want, capOk);
                 }
             }
         }
@@ -218,19 +207,22 @@ public static partial class MedicalRules
             }
             var (baseCare, raise) = PrisonerCareBase(row);
             var (want, ok) = Capped(baseCare, raise, row.Conditions, row.LifeThreatening);
-            Add(row.Pawn, row.MedicalCare, want, ok);
+            Add(row.Pawn, row.MedicalCare != want, want, ok);
         }
         foreach (var g in census?.Guests ?? [])
         {
             var (want, ok) = Capped(MedicalCare.Normal, true, g.Conditions, g.LifeThreatening);
-            Add(g.Id, g.Care, want, ok);
+            Add(g.Id, g.Care != want, want, ok);
         }
         f.AnimalUpkeep.Animals.TryGetValue(out var animals);
         foreach (var a in animals)
         {
-            var baseCare = AnimalCareBase(a);
-            var (want, capOk) = Capped(baseCare, true, a.Conditions, a.LifeThreatening);
-            Add(a.Id, a.Care, want, capOk);
+            if (!a.Care.TryGetValue(out var care))
+            {
+                continue;
+            }
+            var (want, capOk) = Capped(AnimalCareBase(a), true, a.Conditions, a.LifeThreatening);
+            Add(a.Id, care != Wire.Name(want), want, capOk);
         }
         return output;
     }

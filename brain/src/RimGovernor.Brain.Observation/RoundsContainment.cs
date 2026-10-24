@@ -287,38 +287,44 @@ public static class RoundsContainmentReads
             {
                 return unknown;
             }
-            var p = new CarePawn { Id = pawn.Id, Dead = Known(pawn.Dead) };
-            p = p with { Care = RoundsWorkReads.CareName(row.Settings.Care is O.PawnCare.Configured care ? care.MedicalCare : null) };
             var h = row.Health;
-            var (_, operations) = SurgeryFactsRules.SurgeryFacts(h.Surgery, parts);
-            p = p with { Operations = operations, QueuedSurgeries = SurgeryFactsRules.QueuedSurgeries(h.Surgery) };
-            var recipes = SurgeryFactsRules.QueuedSurgeryRecipes(h.Surgery) ?? [];
-            p = p with { QueuedItems = SurgeryFactsRules.QueuedSurgeryItems(recipes, parts) };
-            var (conditions, lifeThreatening) = CareConditionsRules.CareConditions(h);
-            p = p with
+            // A colonist always has player settings; a living one on the map always has its surgery facts.
+            if (row.Settings.Care is not O.PawnCare.Configured care)
             {
-                Conditions = conditions,
-                LifeThreatening = lifeThreatening,
-                NeedsRest = Known(h.ShouldSeekMedicalRest),
-                NeedsTend = Known(h.NeedsTend),
-            };
-            // The list is every hediff, so it proves bad conditions resolved; a hediff the catalog cannot
-            // classify leaves the answer unknown.
+                throw new ObservationContractException($"colonist {pawn.Id.Value} without medical care settings");
+            }
+            EquatableArray<CareOperation> operations = [];
+            var queued = 0;
+            IReadOnlyList<Resource> items = [];
+            if (h.Surgery is { } surgery)
+            {
+                operations = SurgeryFactsRules.CareOperations(surgery, parts);
+                queued = surgery.SurgeryBills.Count;
+                items = SurgeryFactsRules.QueuedSurgeryItems(SurgeryFactsRules.QueuedSurgeryRecipes(surgery), parts);
+            }
+            else if (!pawn.Dead)
+            {
+                throw new ObservationContractException($"living colonist {pawn.Id.Value} without surgery facts");
+            }
+            // The list is every hediff, so it proves bad conditions resolved; the catalog classifies each.
             var bad = false;
-            var known = true;
             foreach (var condition in h.Hediffs)
             {
-                if (!catalog.HediffBad(condition.DefName).TryGetValue(out var isBad))
-                {
-                    known = false;
-                    break;
-                }
-                bad = bad || isBad;
+                bad = bad || catalog.HediffBad(condition.DefName);
             }
-            if (known)
+            var p = new CarePawn
             {
-                p = p with { BadConditions = Known(bad) };
-            }
+                Id = pawn.Id,
+                Dead = pawn.Dead,
+                Care = WireEnums.RequiredMedicalCare(care.MedicalCare),
+                Operations = operations,
+                QueuedSurgeries = queued,
+                QueuedItems = items,
+                Conditions = h.Hediffs,
+                LifeThreatening = h.LifeThreatening,
+                NeedsRest = h.ShouldSeekMedicalRest,
+                BadConditions = bad,
+            };
             rows.Add(p);
         }
         return Known(EquatableArray.From(rows));

@@ -143,7 +143,7 @@ namespace HomeBridge.BridgeTools
             var bills=pawn.BillStack.Bills.Select(bill => new Obs.SurgeryBill {Id=Id(bill.GetUniqueLoadID()),Recipe=Id(bill.recipe.defName),
                 Part=bill is Bill_Medical { Part: { } part } ? PartRef(pawn,part,"Surgery") : null}).ToList();
             var missingParts=pawn.health.hediffSet.GetMissingPartsCommonAncestors().Where(m => m.Part!=null)
-                .Select(m => PartRef(pawn,m.Part,"Missing")).Select(p => new Obs.MissingBodyPart {PartIndex=p.Index,PartDefName=p.DefName}).ToList();
+                .Select(m => new Obs.MissingBodyPart {Part=PartRef(pawn,m.Part,"Missing")}).ToList();
             var operations=new System.Collections.Generic.List<Obs.SurgeryOperation>();
             var facts=SurgeryScope.Facts(map);
             var bestBed=facts.BestBed; var bedFactor=facts.BedFactor; var idealFactor=facts.IdealFactor;
@@ -178,7 +178,7 @@ namespace HomeBridge.BridgeTools
                             if(added.def.spawnThingOnRemoved is { } spawn) yield=new Obs.SurgeryYield { ThingDef=Id(spawn.defName), MarketValue=Number(spawn.BaseMarketValue) };
                         }
                     }
-                    double? medicineValue=null;
+                    double medicineValue=0;
                     if(medicine!=null) {
                         var count=def.ingredients.Where(i => i.filter.Allows(medicine)).Sum(i => i.CountRequiredOfFor(medicine,def));
                         if(count>0) medicineValue=Number(medicine.BaseMarketValue*count);
@@ -193,9 +193,9 @@ namespace HomeBridge.BridgeTools
                         foreach(var d in doctors) chances[d.GetUniqueLoadID()]=Number(Chance(def,d,pawn,part,medicine,real));
                         chance=new Obs.SurgeryChance.Rated(chances.Values.Max(),Number(doctors.Max(d => Chance(def,d,pawn,part,medicine,idealFactor))),chances);
                     }
-                    operations.Add(new Obs.SurgeryOperation {Recipe=Definition(def),Part=part!=null?PartRef(pawn,part,"Surgery"):null,Kind=kind,
+                    operations.Add(new Obs.SurgeryOperation {Recipe=Id(def.defName),Part=part!=null?PartRef(pawn,part,"Surgery"):null,Kind=kind,
                         Chance=chance,
-                        EligibleDoctors=(uint)doctors.Count,
+                        EligibleDoctors=doctors.Count,
                         IngredientsOnMap=others && (!usesMedicine || medicine!=null),
                         // medicine is stocked but the care level forbids all of it.
                         MedicineCareLimited=careLimited,
@@ -525,6 +525,5 @@ namespace HomeBridge.BridgeTools
         private static Obs.Thought ThoughtRow(string? defName,int count,double total)=>
             new Obs.Thought {DefName=defName ?? throw new InvalidOperationException("A thought has no def."),MoodOffsetTotal=Number(total)};
 
-        private static Obs.DefinitionRef Definition(Def def)=>new Obs.DefinitionRef {DefName=Id(def.defName)};
     }
 }

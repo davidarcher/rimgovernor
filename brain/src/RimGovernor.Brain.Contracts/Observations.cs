@@ -814,25 +814,17 @@ public sealed record PawnSurgery
     public required EquatableArray<SurgeryOperation> Operations { get; init; }
 }
 
-/// <summary>
-/// A missing or destroyed part at its common missing ancestor; descendants are implied. Native always sets both;
-/// they stay optional until their only reader, Policy MissingPart, is hardened (#3788).
-/// </summary>
+/// <summary>A missing or destroyed part at its common missing ancestor; descendants are implied.</summary>
 public sealed record MissingBodyPart
 {
-    public int? PartIndex { get; init; }
-
-    public string? PartDefName { get; init; }
+    public required BodyPartRef Part { get; init; }
 }
 
-/// <summary>
-/// One available operation on one part. Native always sets the recipe, eligible doctors, ingredients, violation,
-/// lethal and care-limited facts; they stay optional until their only reader, Policy SurgeryOperation, is hardened
-/// (#3788).
-/// </summary>
+/// <summary>One available operation on one part.</summary>
 public sealed record SurgeryOperation
 {
-    public DefinitionRef? Recipe { get; init; }
+    /// <summary>The recipe's def name.</summary>
+    public required string Recipe { get; init; }
 
     /// <summary>The part the operation targets; absent for a whole-body recipe.</summary>
     public required BodyPartRef? Part { get; init; }
@@ -841,13 +833,15 @@ public sealed record SurgeryOperation
 
     public required SurgeryChance Chance { get; init; }
 
-    public uint? EligibleDoctors { get; init; }
+    /// <summary>The colonists vanilla would let perform the operation.</summary>
+    public required int EligibleDoctors { get; init; }
 
-    public bool? IngredientsOnMap { get; init; }
+    public required bool IngredientsOnMap { get; init; }
 
-    public bool? Violation { get; init; }
+    /// <summary>The operation is a guest violation: vanilla's goodwill penalty applies.</summary>
+    public required bool Violation { get; init; }
 
-    public bool? Lethal { get; init; }
+    public required bool Lethal { get; init; }
 
     /// <summary>
     /// The thing the operation spawns: a harvest's organ, or an added part's on its removal; absent when it
@@ -862,16 +856,16 @@ public sealed record SurgeryOperation
     public required string? AddedPartHediff { get; init; }
 
     /// <summary>
-    /// BaseMarketValue x count of the medicine the operation would use (the best permitted on the map); absent when
-    /// it uses none or none is stocked.
+    /// BaseMarketValue x count of the medicine the operation would use (the best permitted on the map); 0 when it
+    /// uses none or none is stocked, since the operation then spends no medicine value.
     /// </summary>
-    public double? MedicineMarketValue { get; init; }
+    public required double MedicineMarketValue { get; init; }
 
     /// <summary>
     /// True when medicine the recipe accepts is on the map but the patient's medical care level forbids all of it;
     /// ingredients_on_map is then false.
     /// </summary>
-    public bool? MedicineCareLimited { get; init; }
+    public required bool MedicineCareLimited { get; init; }
 }
 
 /// <summary>A thing an operation spawns: its def and BaseMarketValue.</summary>

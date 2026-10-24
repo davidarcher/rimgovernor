@@ -18,6 +18,17 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations.EntityContainmentModeKind" Alias="EntityContainmentModeKind" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearClimate" Alias="GearClimate" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.GearSource" Alias="GearSource" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.Hediff" Alias="Hediff" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnConditions" Alias="PawnConditions" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.HediffTend" Alias="HediffTend" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.HediffImmunity" Alias="HediffImmunity" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.ImmunityGain" Alias="ImmunityGain" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.SurgeryOperation" Alias="SurgeryOperation" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.SurgeryChance" Alias="SurgeryChance" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.SurgeryKind" Alias="SurgeryKind" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.SurgeryYield" Alias="SurgeryYield" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.MissingBodyPart" Alias="MissingBodyPart" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.BodyPartRef" Alias="BodyPartRef" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.ColonyIdeology" Alias="ColonyIdeology" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.OwnedName" Alias="OwnedName" />
   </ItemGroup>

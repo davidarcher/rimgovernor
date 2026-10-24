@@ -160,24 +160,24 @@ public sealed partial record PrisonerFacts
 
     public required PrisonerProspect Prospect { get; init; }
 
-    // Organ harvest facts: the prisoner's operations and queued medical bills and the goodwill change vanilla's
-    // harvest violation would make with its home faction (<= 0). MissingParts: the prisoner's missing parts;
-    // removal must retain one leg.
-    public Fact<EquatableArray<MissingPart>> MissingParts { get; init; }
+    // Organ harvest facts: the prisoner's operations and queued medical bills, its home faction's id (empty
+    // for none) and the goodwill change vanilla's harvest violation would make with it (<= 0). MissingParts:
+    // the prisoner's missing parts; removal must retain one leg.
+    public EquatableArray<MissingBodyPart> MissingParts { get; init; } = [];
 
-    public Fact<EquatableArray<SurgeryOperation>> Operations { get; init; }
+    public EquatableArray<CareOperation> Operations { get; init; } = [];
 
-    public Fact<int> QueuedSurgeries { get; init; }
+    public int QueuedSurgeries { get; init; }
 
     public required int HarvestGoodwill { get; init; }
 
-    /// <summary>The prisoner's MedicalCareCategory name.</summary>
-    public Fact<string> MedicalCare { get; init; }
+    /// <summary>The prisoner's MedicalCareCategory.</summary>
+    public MedicalCare MedicalCare { get; init; }
 
     // Care cap inputs: conditions and life threat, the queued bills' recipes and an Execution interaction.
-    public Fact<EquatableArray<CareCondition>> Conditions { get; init; }
+    public EquatableArray<Hediff> Conditions { get; init; } = [];
 
-    public Fact<bool> LifeThreatening { get; init; }
+    public bool LifeThreatening { get; init; }
 
     public IReadOnlyList<string> QueuedRecipes { get; init; } = [];
 
@@ -293,7 +293,7 @@ public static partial class PopulationRules
 
     /// <summary>Every leg of a human body (two) is missing.</summary>
     private static bool Legless(PrisonerFacts row) =>
-        row.MissingParts.TryGetValue(out var missing) && missing.Count(m => m.PartDefName.TryGetValue(out var name) && name == "Leg") >= 2;
+        row.MissingParts.Count(m => m.Part.DefName == "Leg") >= 2;
 
     /// <summary>
     /// The use the colony has for one living prisoner, or null while it is simply held. The rules, in order:

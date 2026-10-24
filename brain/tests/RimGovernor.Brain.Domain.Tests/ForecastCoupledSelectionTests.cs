@@ -1094,7 +1094,7 @@ public sealed class ForecastCoupledSelectionTests
         var facts = Review() with
         {
             Gear = Known(ColonyModelFixtures.NoGear() with { Stored = [], Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = Known(model), Candidates = [] }] }),
-            MedicalPawns = Known<EquatableArray<CarePawn>>([new() { Id = new("pawn"), Conditions = Known<EquatableArray<CareCondition>>([]) }]),
+            MedicalPawns = Known<EquatableArray<CarePawn>>([CareFixtures.Patient("pawn")]),
         };
         var gear = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Alternatives.Where(a => a.ExclusiveOutcome == "gear/pawn").ToArray();
         Assert.Contains(gear, a => a.Id == "gear/pawn/disallow-tainted/cold30-heat0");

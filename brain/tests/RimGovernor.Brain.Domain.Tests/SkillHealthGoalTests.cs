@@ -85,29 +85,10 @@ public sealed class SkillHealthGoalTests
     private const string Recipe = "InstallBionicEye";
     private const int EyePart = 12;
 
-    private static SurgeryOperation Install(bool stocked) => new()
-    {
-        Kind = SurgeryKind.Install,
-        Recipe = Known(Recipe),
-        PartIndex = Known(EyePart),
-        PartDefName = Known("Eye"),
-        Item = new Resource("BionicEye"),
-        Tier = 0,
-        IngredientsOnMap = Known(stocked),
-        EligibleDoctors = Known(1),
-        SuccessChance = Known(0.95),
-        Violation = Known(false),
-        Lethal = Known(false),
-    };
+    private static CareOperation Install(bool stocked) => CareFixtures.Operation(SurgeryKind.Install, Recipe, EyePart, "Eye", stocked, "BionicEye");
 
-    private static CarePawn Patient(bool stocked, params string[] hediffs) => new()
-    {
-        Id = new PawnId("colonist"),
-        Dead = Known(false),
-        QueuedSurgeries = Known(0),
-        Operations = Known(EquatableArray.From([Install(stocked)])),
-        Conditions = Known(EquatableArray.From(hediffs.Select(h => new CareCondition { DefName = Known(h) }))),
-    };
+    private static CarePawn Patient(bool stocked, params string[] hediffs) =>
+        CareFixtures.Patient("colonist", hediffs.Select(CareFixtures.Condition), [Install(stocked)]);
 
     private static readonly SleepingObservation Hospital = new() { Beds = [new SleepingBed { Id = "bed", Humanlike = true, Medical = true }] };
 
@@ -132,7 +113,7 @@ public sealed class SkillHealthGoalTests
 
         Assert.Equal((GoalState.Blocked, "no_hospital_bed"), Reason(GoalRules.Evaluate(goal, HealthFacts(goal, Patient(true), bed: false))));
         Assert.Equal((GoalState.NoMethod, "unknown_recipe"), Reason(GoalRules.Evaluate(goal with { Qualifier = "Nope" }, HealthFacts(goal, Patient(true)))));
-        Assert.Equal((GoalState.NoMethod, "unavailable"), Reason(GoalRules.Evaluate(goal, HealthFacts(goal, Patient(true) with { Operations = Known(EquatableArray.From(Array.Empty<SurgeryOperation>())) }))));
+        Assert.Equal((GoalState.NoMethod, "unavailable"), Reason(GoalRules.Evaluate(goal, HealthFacts(goal, Patient(true) with { Operations = [] }))));
         Assert.Equal((GoalState.NoMethod, "not_a_colonist"), Reason(GoalRules.Evaluate(goal with { Target = "other" }, HealthFacts(goal, Patient(true)))));
         var unread = HealthFacts(goal, Patient(true));
         Assert.Equal("medical pawns", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, unread with { Rounds = unread.Rounds with { MedicalPawns = default } })).Fact);

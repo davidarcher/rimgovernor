@@ -149,20 +149,17 @@ public static partial class OrganHarvestRules
             {
                 continue;
             }
-            pawn.Operations.TryGetValue(out var ops);
             var best = new OrganNeed("", default, 0);
-            foreach (var op in ops)
+            foreach (var op in pawn.Operations)
             {
-                var pk = op.PartIndex.TryGetValue(out var part);
-                op.PartDefName.TryGetValue(out var organ);
-                organ ??= "";
                 // The natural install of the organ is the recipe that consumes the organ itself.
-                if (!pk || part != want.Part || !facts.HarvestOrgan(organ) || op.Item != new Resource(organ)
-                    || stock.GetValueOrDefault(new Resource(organ)) > 0)
+                if (op.Operation.Part is not { } part || part.Index != want.Part || !facts.HarvestOrgan(part.DefName) || op.Item != new Resource(part.DefName)
+                    || stock.GetValueOrDefault(new Resource(part.DefName)) > 0)
                 {
                     continue;
                 }
-                var (weight, _) = SurgeryRules.ServedSurgery(pawn, op);
+                var organ = part.DefName;
+                var weight = SurgeryRules.ServedSurgery(pawn, op);
                 if (weight * OrganHarvestRules.SilverPerCapacity > best.Gain)
                 {
                     best = new OrganNeed(organ, pawn.Id, weight * OrganHarvestRules.SilverPerCapacity);
@@ -207,30 +204,29 @@ public static partial class OrganHarvestRules
         OrganHarvest? best = null;
         foreach (var row in census.Prisoners)
         {
-            if (!row.HarvestEligible(c) || !row.Operations.TryGetValue(out var ops))
+            if (!row.HarvestEligible(c))
             {
                 continue;
             }
             var goodwill = row.HarvestGoodwill;
+            var ops = row.Operations.Select(op => op.Operation).ToList();
             var pairs = new Dictionary<string, int>(StringComparer.Ordinal);
             foreach (var op in ops)
             {
-                op.PartDefName.TryGetValue(out var organ);
-                if (op.Kind == SurgeryKind.Harvest)
+                if (op.Kind == SurgeryKind.Harvest && op.Part is { } harvested)
                 {
-                    pairs[organ ?? ""] = pairs.GetValueOrDefault(organ ?? "") + 1;
+                    pairs[harvested.DefName] = pairs.GetValueOrDefault(harvested.DefName) + 1;
                 }
             }
             foreach (var op in ops)
             {
-                op.PartDefName.TryGetValue(out var organ);
-                organ ??= "";
-                if (op.Kind != SurgeryKind.Harvest || pairs.GetValueOrDefault(organ) < 2 || !HarvestAcceptable(op))
+                if (op.Kind != SurgeryKind.Harvest || op.Part is not { } target || pairs.GetValueOrDefault(target.DefName) < 2 || !HarvestAcceptable(op))
                 {
                     continue;
                 }
-                op.Recipe.TryGetValue(out var recipe);
-                op.PartIndex.TryGetValue(out var part);
+                var organ = target.DefName;
+                var recipe = op.Recipe;
+                var part = target.Index;
                 foreach (var need in needs)
                 {
                     if (need.Organ != organ)
@@ -240,14 +236,14 @@ public static partial class OrganHarvestRules
                     var gain = need.Gain;
                     if (need.For.Value.Length == 0)
                     {
-                        if (!op.YieldValue.TryGetValue(out var value) || !TradePolicyRules.Finite(value))
+                        if (op.Yield is not { } yield || !TradePolicyRules.Finite(yield.MarketValue))
                         {
                             continue;
                         }
-                        gain = value;
+                        gain = yield.MarketValue;
                     }
                     var (cost, ok) = HarvestCost(c, goodwill, need.For.Value.Length == 0);
-                    var h = new OrganHarvest((Domain.PawnId)row.Pawn, recipe ?? "", part, need.For, gain, cost, true);
+                    var h = new OrganHarvest((Domain.PawnId)row.Pawn, recipe, part, need.For, gain, cost, true);
                     if (ok && gain > cost && (best is null || BetterHarvest(h, best)))
                     {
                         best = h;
@@ -266,8 +262,7 @@ public static partial class OrganHarvestRules
     {
         foreach (var row in rows)
         {
-            if (!row.QueuedSurgeries.TryGetValue(out var queued) || queued > 0
-                || (inFlight?.GetValueOrDefault(row.Pawn) ?? false))
+            if (row.QueuedSurgeries > 0 || (inFlight?.GetValueOrDefault(row.Pawn) ?? false))
             {
                 if (!row.Dead)
                 {
@@ -296,16 +291,9 @@ public static partial class OrganHarvestRules
     /// A part harvest native reports non-lethal, with its ingredients on the map and some eligible doctor
     /// within RestoreFailureCap. The violation is acknowledged, not refused.
     /// </summary>
-    internal static bool HarvestAcceptable(SurgeryOperation op)
-    {
-        var dk = op.EligibleDoctors.TryGetValue(out var doctors);
-        var ck = op.SuccessChance.TryGetValue(out var chance);
-        var lk = op.Lethal.TryGetValue(out var lethal);
-        var sk = op.IngredientsOnMap.TryGetValue(out var stocked);
-        var pk = op.PartIndex.TryGetValue(out _);
-        var rk = op.Recipe.TryGetValue(out _);
-        return dk && ck && lk && sk && pk && rk && doctors > 0 && stocked && !lethal && 1 - chance <= SurgeryRules.RestoreFailureCap + 1e-9;
-    }
+    internal static bool HarvestAcceptable(SurgeryOperation op) =>
+        op.Chance is SurgeryChance.Rated rated && op.Part is not null && op.EligibleDoctors > 0 && op.IngredientsOnMap && !op.Lethal
+        && 1 - rated.Success <= SurgeryRules.RestoreFailureCap + 1e-9;
 
     /// <summary>
     /// Reports whether a sale harvest would be queued now: the silver runway is short and some eligible
@@ -388,16 +376,14 @@ public static partial class OrganHarvestRules
             {
                 continue;
             }
-            pawn.Operations.TryGetValue(out var ops);
-            foreach (var op in ops)
+            foreach (var op in pawn.Operations)
             {
-                var pk = op.PartIndex.TryGetValue(out var part);
                 var item = op.Item;
-                if (!pk || part != want.Part || item.Value.Length == 0 || !AdmissionRules.ValidResource(item) || facts.HarvestOrgan(item.Value))
+                if (op.Operation.Part?.Index != want.Part || item.Value.Length == 0 || !AdmissionRules.ValidResource(item) || facts.HarvestOrgan(item.Value))
                 {
                     continue;
                 }
-                var (weight, _) = SurgeryRules.ServedSurgery(pawn, op);
+                var weight = SurgeryRules.ServedSurgery(pawn, op);
                 if (weight > 0)
                 {
                     result.Add(new OrganNeed(item.Value, pawn.Id, weight * OrganHarvestRules.SilverPerCapacity));
@@ -431,28 +417,14 @@ public static partial class OrganHarvestRules
             {
                 continue;
             }
-            if (!row.Operations.TryGetValue(out var ops) || !row.MissingParts.TryGetValue(out var missing))
+            var legless = row.MissingParts.Any(m => m.Part.DefName == "Leg");
+            foreach (var care in row.Operations)
             {
-                continue;
-            }
-            var legless = false;
-            foreach (var m in missing)
-            {
-                m.PartDefName.TryGetValue(out var name);
-                if (name == "Leg")
-                {
-                    legless = true;
-                }
-            }
-            foreach (var op in ops)
-            {
-                var hk = op.AddedPart.TryGetValue(out var hediff);
-                var ik = op.YieldThing.TryGetValue(out var item);
-                var vk = op.YieldValue.TryGetValue(out var value);
-                op.PartDefName.TryGetValue(out var body);
-                body ??= "";
-                if (op.Kind != SurgeryKind.Amputate || !hk || !ik || !vk || !TradePolicyRules.Finite(value) || OrganHarvestRules.UnrecoveredParts.Contains(hediff!)
-                    || facts.KeptPart(body) || (body == "Leg" && legless) || !HarvestAcceptable(op))
+                var op = care.Operation;
+                // HarvestAcceptable holds the operation to a part.
+                if (op.Kind != SurgeryKind.Amputate || op.AddedPartHediff is not { } hediff || op.Yield is not { } yield || !TradePolicyRules.Finite(yield.MarketValue)
+                    || OrganHarvestRules.UnrecoveredParts.Contains(hediff) || !HarvestAcceptable(op) || op.Part is not { } target
+                    || facts.KeptPart(target.DefName) || (target.DefName == "Leg" && legless))
                 {
                     continue;
                 }
@@ -461,10 +433,8 @@ public static partial class OrganHarvestRules
                 {
                     continue;
                 }
-                op.Recipe.TryGetValue(out var recipe);
-                op.PartIndex.TryGetValue(out var part);
-                op.Violation.TryGetValue(out var violation);
-                var h = new OrganHarvest((Domain.PawnId)row.Pawn, recipe ?? "", part, default, value, cost, violation);
+                var item = yield.ThingDef;
+                var h = new OrganHarvest((Domain.PawnId)row.Pawn, op.Recipe, target.Index, default, yield.MarketValue, cost, op.Violation);
                 foreach (var need in needs)
                 {
                     if (need.Organ == item && need.For.Value.Length != 0 && (h.For.Value.Length == 0 || need.Gain > h.Gain))
@@ -487,20 +457,12 @@ public static partial class OrganHarvestRules
     /// </summary>
     internal static (double Cost, bool Ok) PartRecoveryCost(SurgeryOperation op, PrisonerFacts row, PrisonerColony c)
     {
-        double cost = 0;
-        if (op.MedicineValue.TryGetValue(out var medicine))
-        {
-            if (!TradePolicyRules.Finite(medicine))
-            {
-                return (0, false);
-            }
-            cost = medicine;
-        }
-        if (!op.Violation.TryGetValue(out var violation))
+        if (!TradePolicyRules.Finite(op.MedicineMarketValue))
         {
             return (0, false);
         }
-        if (violation)
+        var cost = op.MedicineMarketValue;
+        if (op.Violation)
         {
             var (extra, ok) = HarvestCost(c, row.HarvestGoodwill, false);
             if (!ok)
@@ -539,13 +501,8 @@ public static partial class OrganHarvestRules
         }
         if (pawns.TryGetValue(out var rows))
         {
-            foreach (var pawn in rows)
+            foreach (var pawn in rows.Where(pawn => !pawn.Dead))
             {
-                pawn.Dead.TryGetValue(out var dead);
-                if (dead)
-                {
-                    continue;
-                }
                 foreach (var item in pawn.QueuedItems)
                 {
                     options.Add([item]); // queued bill

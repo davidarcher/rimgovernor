@@ -146,7 +146,7 @@ public sealed class RoomRoleGoalTests
 
         var sick = Ward(1, Bed("b1", true)) with
         {
-            Patients = Known<EquatableArray<CarePawn>>([.. SickIds.Select(id => new CarePawn { Id = new PawnId(id), Dead = Known(false), NeedsRest = Known(true) })]),
+            Patients = Known<EquatableArray<CarePawn>>([.. SickIds.Select(id => CareFixtures.Patient(id) with { NeedsRest = true })]),
         };
         Assert.Equal(3, HospitalRules.SelectHospitalBed(sick).Needed);
     }

@@ -57,7 +57,7 @@ public sealed partial class DefinitionCatalog
     }
 
     /// <summary>The hediff def's isBad; a hediff with no row is an error.</summary>
-    public Fact<bool> HediffBad(string hediff) => Known(RequireRow<HediffDef>(hediff).isBad);
+    public bool HediffBad(string hediff) => RequireRow<HediffDef>(hediff).isBad;
 
     /// <summary>
     /// The harvest and kept-part facts derived from the BodyDef trees and the BodyPartDef rows. A vital BodyPartTagDef

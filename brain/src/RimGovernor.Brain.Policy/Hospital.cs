@@ -90,21 +90,7 @@ public static class HospitalRules
         var ill = new HashSet<PawnId>();
         foreach (var p in rows)
         {
-            var dk = p.Dead.TryGetValue(out var dead);
-            var rk = p.NeedsRest.TryGetValue(out var rest);
-            if (!dk)
-            {
-                return ([], false);
-            }
-            if (dead)
-            {
-                continue;
-            }
-            if (!rk)
-            {
-                return ([], false);
-            }
-            if (rest)
+            if (!p.Dead && p.NeedsRest)
             {
                 ill.Add(p.Id);
             }

@@ -107,13 +107,13 @@ internal static class MedicalSurgery
         (await TypedPawns.OneAsync(s, label, pawn, cancellationToken).ConfigureAwait(false)).Health
             ?? throw new AcceptanceException($"{label}: {pawn} read no health detail");
 
-    private static bool Missing(Observations.PawnHealth health, int part) => health.Surgery?.MissingParts.Any(m => m.PartIndex == part) == true;
+    private static bool Missing(Observations.PawnHealth health, int part) => health.Surgery?.MissingParts.Any(m => m.Part.Index == part) == true;
 
     private static Observations.SurgeryOperation? Operation(Observations.PawnHealth health, Func<Observations.SurgeryOperation, bool> match) =>
         health.Surgery?.Operations.FirstOrDefault(match);
 
     private static string OperationList(Observations.PawnHealth health) =>
-        string.Join("; ", health.Surgery?.Operations.Select(o => $"{o.Recipe?.DefName}/{o.Kind}@{o.Part?.Index}") ?? []);
+        string.Join("; ", health.Surgery?.Operations.Select(o => $"{o.Recipe}/{o.Kind}@{o.Part?.Index}") ?? []);
 
     private static string Condition(Fx.MedicalSetup setup) =>
         setup.ConditionPatient is { Length: > 0 } patient && setup.ConditionPart >= 0
@@ -207,7 +207,7 @@ internal static class MedicalSurgery
             throw new AcceptanceException($"no Cataract read on part {setup.ConditionPart}");
         }
 
-        if (Operation(health, o => o.Recipe?.DefName == "InstallBionicEye" && o.Kind == Observations.SurgeryKind.Install && o.Part?.Index == setup.ConditionPart) is null)
+        if (Operation(health, o => o.Recipe == "InstallBionicEye" && o.Kind == Observations.SurgeryKind.Install && o.Part?.Index == setup.ConditionPart) is null)
         {
             throw new AcceptanceException($"no InstallBionicEye install operation on the cataract eye {setup.ConditionPart}: {OperationList(health)}");
         }
@@ -223,7 +223,7 @@ internal static class MedicalSurgery
             throw new AcceptanceException($"WoundInfection not read on its part {setup.ConditionPart}");
         }
 
-        if (Operation(health, o => o.Recipe?.DefName == "RemoveBodyPart" && o.Kind == Observations.SurgeryKind.Amputate && o.Part?.Index == setup.ConditionPart) is null)
+        if (Operation(health, o => o.Recipe == "RemoveBodyPart" && o.Kind == Observations.SurgeryKind.Amputate && o.Part?.Index == setup.ConditionPart) is null)
         {
             throw new AcceptanceException($"no RemoveBodyPart amputate operation on the infected hand {setup.ConditionPart}: {OperationList(health)}");
         }
@@ -265,7 +265,7 @@ internal static class MedicalSurgery
             throw new AcceptanceException($"prisoner {prisoner} medical care {person.MedicalCare}, want HerbalOrWorse");
         }
 
-        if (harvest.MedicineCareLimited != true || harvest.IngredientsOnMap == true)
+        if (!harvest.MedicineCareLimited || harvest.IngredientsOnMap)
         {
             throw new AcceptanceException($"kidney harvest reads medicine-care limited {harvest.MedicineCareLimited} and ingredients on map {harvest.IngredientsOnMap}, want true and not true");
         }

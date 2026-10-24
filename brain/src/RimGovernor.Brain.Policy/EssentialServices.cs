@@ -252,9 +252,10 @@ public static class EssentialServicesRules
         if (!facts.MedicalPawns.TryGetValue(out var patients)) return;
         foreach (var patient in patients.OrderBy(p => p.Id.Value, StringComparer.Ordinal))
         {
-            if (patient.QuestProtected || !patient.Dead.TryGetValue(out var dead) || dead || !patient.Operations.TryGetValue(out var operations)) continue;
-            foreach (var group in operations.Where(o => SurgeryRules.ServedSurgery(patient, o) is { Known: true, Weight: > 0 })
-                .GroupBy(o => o.PartIndex.IsKnown ? o.PartIndex.Value.ToString(System.Globalization.CultureInfo.InvariantCulture) : "whole")
+            if (patient.QuestProtected || patient.Dead) continue;
+            foreach (var group in patient.Operations.Where(o => SurgeryRules.ServedSurgery(patient, o) > 0)
+                .Select(o => o.Operation)
+                .GroupBy(o => o.Part is { } part ? part.Index.ToString(System.Globalization.CultureInfo.InvariantCulture) : "whole")
                 .OrderBy(g => g.Key, StringComparer.Ordinal))
             {
                 var target = new ServiceTarget(MedicalRules.SurgeryNeed.FilingKey, patient.Id.Value + "/" + group.Key, "served_procedure_feasible", default);
@@ -264,27 +265,27 @@ public static class EssentialServicesRules
                     var unknown = false;
                     foreach (var operation in options)
                     {
-                        if (operation.IngredientsOnMap.IsKnown && !operation.IngredientsOnMap.Value) continue;
-                        if (!operation.IngredientsOnMap.IsKnown || !operation.Violation.IsKnown || !operation.Lethal.IsKnown)
-                        { unknown = true; continue; }
+                        if (!operation.IngredientsOnMap) continue;
+                        // A recipe without an outcome effect rates no doctor: its eligible doctors' odds are unread.
+                        if (operation.Chance is not SurgeryChance.Rated rated) { unknown = unknown || operation.EligibleDoctors > 0; continue; }
                         var current = operation;
                         if (excluded.Length != 0)
                         {
-                            if (operation.DoctorChances is null) { unknown = true; continue; }
-                            var chances = operation.DoctorChances.Where(d => d.Key.Value != excluded).Select(d => d.Value).ToArray();
-                            current = operation with { EligibleDoctors = Known(chances.Length), SuccessChance = chances.Length > 0 ? Known(chances.Max()) : default };
+                            var chances = rated.Doctors.Where(d => d.Key != excluded).Select(d => d.Value).ToArray();
+                            current = chances.Length > 0
+                                ? operation with { EligibleDoctors = chances.Length, Chance = rated with { Success = chances.Max() } }
+                                : operation with { EligibleDoctors = 0, Chance = new SurgeryChance.NoEligibleDoctor() };
                         }
                         if (SurgeryRules.SurgeryAcceptable(current, SurgeryRules.RestoreFailureCap)) return (ServiceCoverage.Adequate, []);
-                        if (!current.EligibleDoctors.IsKnown || current.EligibleDoctors.Value > 0 && !current.SuccessChance.IsKnown) unknown = true;
                     }
                     return unknown ? (ServiceCoverage.Unknown, ["procedure_eligibility_ingredients_or_doctor_chances"]) : (ServiceCoverage.Shortfall, []);
                 }
                 var baseline = Assess("");
                 rows.Add(new(EssentialService.Medical, target, baseline.Item1, [patient.Id.Value], baseline.Item2));
-                foreach (var doctor in options.Where(o => o.DoctorChances is not null).SelectMany(o => o.DoctorChances!.Keys)
-                    .Distinct().OrderBy(p => p.Value, StringComparer.Ordinal))
-                    scenario(target, "pawn/" + doctor.Value, () => Assess(doctor.Value));
-                if (options.Any(o => o.DoctorChances is null))
+                foreach (var doctor in options.Select(o => o.Chance).OfType<SurgeryChance.Rated>().SelectMany(r => r.Doctors.Keys)
+                    .Distinct().Order(StringComparer.Ordinal))
+                    scenario(target, "pawn/" + doctor, () => Assess(doctor));
+                if (options.Any(o => o.Chance is SurgeryChance.NoOutcomeEffect && o.EligibleDoctors > 0))
                     scenario(target, "unmapped_doctor", () => (ServiceCoverage.Unknown, ["procedure_doctor_identities"]));
             }
         }

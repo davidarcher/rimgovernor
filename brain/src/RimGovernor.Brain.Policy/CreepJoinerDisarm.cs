@@ -82,30 +82,28 @@ public sealed record CreepJoinerDisarm
         {
             return null;
         }
-        var qk = p.QueuedSurgeries.TryGetValue(out var queued);
-        var ok = p.Operations.TryGetValue(out var ops);
-        var mk = p.MissingParts.TryGetValue(out var missing);
-        if (!qk || !ok || !mk || queued > 0)
+        if (p.QueuedSurgeries > 0)
         {
             return null;
         }
+        var ops = p.Operations.Select(op => op.Operation).ToList();
+        var missing = p.MissingParts;
         DisarmOrder? firstInstall = null;
         foreach (var site in sites)
         {
-            if (CreepJoinerDisarmRules.SiteGone(site, missing!))
+            if (CreepJoinerDisarmRules.SiteGone(site, missing))
             {
                 continue;
             }
-            if (CreepJoinerDisarmRules.RemovalOn(site, ops!) is { } op)
+            if (CreepJoinerDisarmRules.RemovalOn(site, ops) is { } op)
             {
                 if (!CreepJoinerDisarmRules.SurgeryQueueable(op))
                 {
                     continue;
                 }
-                op.Recipe.TryGetValue(out var recipe);
-                return new DisarmOrder(p.Pawn, recipe ?? "", site.Index);
+                return new DisarmOrder(p.Pawn, op.Recipe, site.Index);
             }
-            firstInstall ??= CheapestInstall(p.Pawn, site, ops!);
+            firstInstall ??= CheapestInstall(p.Pawn, site, ops);
         }
         return firstInstall;
     }
@@ -117,14 +115,13 @@ public sealed record CreepJoinerDisarm
         var bestCost = 0.0;
         foreach (var op in ops)
         {
-            if (!op.PartIndex.TryGetValue(out var index) || index != site.Index || op.Kind != SurgeryKind.Install
-                || !op.Recipe.TryGetValue(out var recipe) || !CreepJoinerDisarmRules.SurgeryQueueable(op)
+            var recipe = op.Recipe;
+            if (op.Part?.Index != site.Index || op.Kind != SurgeryKind.Install || !CreepJoinerDisarmRules.SurgeryQueueable(op)
                 || !InstallValue.TryGetValue(recipe, out var items))
             {
                 continue;
             }
-            op.MedicineValue.TryGetValue(out var medicine);
-            var cost = items + medicine;
+            var cost = items + op.MedicineMarketValue;
             if (best is null || cost < bestCost || (cost == bestCost && string.CompareOrdinal(recipe, best.Recipe) < 0))
             {
                 best = new DisarmOrder(pawn, recipe, site.Index);
@@ -138,11 +135,11 @@ public sealed record CreepJoinerDisarm
 public static class CreepJoinerDisarmRules
 {
     /// <summary>The site's part or one of its ancestors is missing.</summary>
-    internal static bool SiteGone(DisarmSite site, IReadOnlyList<MissingPart> missing)
+    internal static bool SiteGone(DisarmSite site, IReadOnlyList<MissingBodyPart> missing)
     {
         foreach (var m in missing)
         {
-            if (m.PartIndex.TryGetValue(out var index) && (index == site.Index || site.Ancestors.Contains(index)))
+            if (m.Part.Index == site.Index || site.Ancestors.Contains(m.Part.Index))
             {
                 return true;
             }
@@ -155,11 +152,11 @@ public static class CreepJoinerDisarmRules
     {
         foreach (var op in ops)
         {
-            if (!op.PartIndex.TryGetValue(out var index) || index != site.Index || op.Kind != SurgeryKind.Amputate)
+            if (op.Part?.Index != site.Index || op.Kind != SurgeryKind.Amputate)
             {
                 continue;
             }
-            if (op.AddedPart.TryGetValue(out var added) && added.Length != 0 && op.Recipe.IsKnown)
+            if (op.AddedPartHediff is { Length: > 0 })
             {
                 return op;
             }
@@ -168,8 +165,5 @@ public static class CreepJoinerDisarmRules
     }
 
     /// <summary>Whether an offered operation can be queued now: a known non-violation with an eligible doctor and its ingredients on the map.</summary>
-    internal static bool SurgeryQueueable(SurgeryOperation op) =>
-        op.Violation.TryGetValue(out var violation) && !violation
-        && op.EligibleDoctors.TryGetValue(out var doctors) && doctors > 0
-        && op.IngredientsOnMap.TryGetValue(out var stocked) && stocked;
+    internal static bool SurgeryQueueable(SurgeryOperation op) => !op.Violation && op.EligibleDoctors > 0 && op.IngredientsOnMap;
 }

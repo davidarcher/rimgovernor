@@ -36,30 +36,30 @@ public sealed class HealthWireTests
         Surgery = new PawnSurgery
         {
             SurgeryBills = [new SurgeryBill { Id = "Bill_1", Recipe = "InstallPegLeg", Part = Leg }],
-            MissingParts = [new MissingBodyPart { PartIndex = 7, PartDefName = "Leg" }],
+            MissingParts = [new MissingBodyPart { Part = Leg }],
             Operations =
             [
                 new SurgeryOperation
                 {
-                    Recipe = new DefinitionRef { DefName = "InstallPegLeg" }, Part = Leg, Kind = SurgeryKind.Restore,
+                    Recipe = "InstallPegLeg", Part = Leg, Kind = SurgeryKind.Restore,
                     Chance = new SurgeryChance.Rated(0.9, 0.95, new Dictionary<string, double> { ["doc"] = 0.9 }),
                     EligibleDoctors = 1, IngredientsOnMap = true, Violation = false, Lethal = false, Yield = null, AddedPartHediff = null,
                     MedicineMarketValue = 18, MedicineCareLimited = false,
                 },
                 new SurgeryOperation
                 {
-                    Recipe = new DefinitionRef { DefName = "HarvestKidney" }, Part = new BodyPartRef { Index = 12, DefName = "Kidney" }, Kind = SurgeryKind.Harvest,
+                    Recipe = "HarvestKidney", Part = new BodyPartRef { Index = 12, DefName = "Kidney" }, Kind = SurgeryKind.Harvest,
                     Chance = new SurgeryChance.NoEligibleDoctor(),
                     EligibleDoctors = 0, IngredientsOnMap = false, Violation = true, Lethal = false,
                     Yield = new SurgeryYield { ThingDef = "Kidney", MarketValue = 250 }, AddedPartHediff = null,
-                    MedicineMarketValue = null, MedicineCareLimited = false,
+                    MedicineMarketValue = 0, MedicineCareLimited = false,
                 },
                 new SurgeryOperation
                 {
-                    Recipe = new DefinitionRef { DefName = "Euthanize" }, Part = null, Kind = SurgeryKind.Other,
+                    Recipe = "Euthanize", Part = null, Kind = SurgeryKind.Other,
                     Chance = new SurgeryChance.NoOutcomeEffect(),
                     EligibleDoctors = 1, IngredientsOnMap = true, Violation = false, Lethal = true, Yield = null, AddedPartHediff = null,
-                    MedicineMarketValue = null, MedicineCareLimited = false,
+                    MedicineMarketValue = 0, MedicineCareLimited = false,
                 },
             ],
         },
@@ -81,7 +81,22 @@ public sealed class HealthWireTests
         Assert.Contains("\"kind\":\"restore\"", json);
         Assert.Contains("\"kind\":\"harvest\"", json);
         Assert.Contains("""{"id":"Bill_1","recipe":"InstallPegLeg","part":{"index":7,"defName":"Leg"}}""", json);
+        Assert.Contains("""{"part":{"index":7,"defName":"Leg"}}""", json);
+        Assert.Contains("""{"recipe":"HarvestKidney","part":{"index":12,"defName":"Kidney"},"kind":"harvest",""", json);
+        Assert.Contains("\"eligibleDoctors\":0,\"ingredientsOnMap\":false,\"violation\":true,\"lethal\":false,", json);
+        Assert.Contains("\"medicineMarketValue\":0,\"medicineCareLimited\":false}", json);
         Assert.Equal(json, WireJson.Serialize(WireJson.Deserialize<PawnHealth>(json)));
+    }
+
+    [Fact]
+    public void AHardenedSurgeryRowWithoutItsFieldsDoesNotDecode()
+    {
+        // #3788: a missing part names its part, and an operation its doctors and medicine value; neither may be absent.
+        var json = WireJson.Serialize(Health);
+
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<PawnHealth>(json.Replace("""{"part":{"index":7,"defName":"Leg"}}""", "{}", StringComparison.Ordinal)));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<PawnHealth>(json.Replace("\"eligibleDoctors\":0,", "", StringComparison.Ordinal)));
+        Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<PawnHealth>(json.Replace("\"medicineMarketValue\":0,", "\"medicineMarketValue\":null,", StringComparison.Ordinal)));
     }
 
     [Fact]

@@ -45,8 +45,14 @@ internal static class PopulationDecoder
 
             if (person.Custody is PbObservations.PersonCustody.Guest hosted && !pawn.Dead)
             {
-                var (conditions, life) = CareConditionsRules.CareConditions(hosted.Conditions);
-                guests.Add(new P.CarePatient { Id = person.Pawn, Care = Known(WireEnums.MedicalCareName(hosted.MedicalCare)), Conditions = conditions, LifeThreatening = life });
+                guests.Add(
+                    new P.CarePatient
+                    {
+                        Id = person.Pawn,
+                        Care = WireEnums.RequiredMedicalCare(hosted.MedicalCare),
+                        Conditions = hosted.Conditions.Hediffs,
+                        LifeThreatening = hosted.Conditions.LifeThreatening,
+                    });
             }
             if (person.Admitted && !pawn.Dead)
             {
@@ -79,8 +85,12 @@ internal static class PopulationDecoder
     /// <summary>One colony prisoner's census row.</summary>
     private static P.PrisonerFacts PrisonerRow(PbObservations.PopulationPerson person, PbObservations.PersonCustody.Prisoner held, PbObservations.PawnState pawn, P.PrisonerProspect prospect, BridgeCatalog? catalog)
     {
-        var (parts, operations) = SurgeryFactsRules.SurgeryFacts(held.Surgery, catalog is null ? null : new DefinitionPartCatalog(catalog));
-        var (conditions, life) = CareConditionsRules.CareConditions(held.Conditions);
+        // The part items of the prisoner's operations are the catalog's; a census without one has none to price.
+        var operations = held.Surgery.Operations.Count == 0
+            ? []
+            : SurgeryFactsRules.CareOperations(
+                held.Surgery,
+                catalog is null ? throw BridgeContractException.Contract("prisoner operations read without the definition catalog") : new DefinitionPartCatalog(catalog));
         var f = new P.PrisonerFacts
         {
             Pawn = person.Pawn,
@@ -92,16 +102,16 @@ internal static class PopulationDecoder
             Ideo = person.IdeoId ?? "",
             WildMan = person.WildMan,
             Prospect = prospect,
-            MissingParts = parts,
+            MissingParts = held.Surgery.MissingParts,
             Operations = operations,
-            QueuedSurgeries = SurgeryFactsRules.QueuedSurgeries(held.Surgery),
-            QueuedRecipes = SurgeryFactsRules.QueuedSurgeryRecipes(held.Surgery) ?? [],
+            QueuedSurgeries = held.Surgery.SurgeryBills.Count,
+            QueuedRecipes = SurgeryFactsRules.QueuedSurgeryRecipes(held.Surgery),
             Kind = pawn.KindDefName,
             CreepJoiner = Unknown<bool>(),
             HarvestGoodwill = held.HarvestGoodwillChange,
-            MedicalCare = Known(WireEnums.MedicalCareName(held.MedicalCare)),
-            Conditions = conditions,
-            LifeThreatening = life,
+            MedicalCare = WireEnums.RequiredMedicalCare(held.MedicalCare),
+            Conditions = held.Conditions.Hediffs,
+            LifeThreatening = held.Conditions.LifeThreatening,
             Executing = held.Interaction == "Execution",
         };
         if (CreepJoinerFacts.CreepJoinerPawn(pawn).CreepJoiner.TryGetValue(out var joiner))

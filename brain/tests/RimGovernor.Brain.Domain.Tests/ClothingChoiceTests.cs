@@ -245,7 +245,7 @@ public sealed class ClothingChoiceTests
         // #3621: one census, a stored devilstrand duster to swap in and a bill to craft one; the coupled generator joins them.
         var census = Wearing(Duster("DevilstrandCloth", 0.5, GearSource.Stored), Duster("DevilstrandCloth", 0.5));
         var facts = Review(census, Read(Option("DevilstrandCloth", "Duster")), Resources(devilstrand: 30)) with
-        { MedicalPawns = Known<EquatableArray<CarePawn>>([new() { Id = new("wearer"), Conditions = Known<EquatableArray<CareCondition>>([]) }]) };
+        { MedicalPawns = Known<EquatableArray<CarePawn>>([CareFixtures.Patient("wearer")]) };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var swaps = generated.Alternatives.Where(a => a.ExclusiveOutcome == "gear/wearer").ToArray();
         // Each ingredient allocation is its own craft alternative.

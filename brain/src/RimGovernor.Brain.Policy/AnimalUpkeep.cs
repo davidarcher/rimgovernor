@@ -89,9 +89,10 @@ public sealed record UpkeepAnimal
     /// <summary>Learned Obedience, which native requires to master or follow.</summary>
     public bool Obedient { get; init; }
 
-    public Fact<EquatableArray<CareCondition>> Conditions { get; init; }
+    /// <summary>The animal's hediffs, none filtered: the medical care cap's and the ward's input.</summary>
+    public EquatableArray<Hediff> Conditions { get; init; } = [];
 
-    public Fact<bool> LifeThreatening { get; init; }
+    public bool LifeThreatening { get; init; }
 }
 
 /// <summary>One trainable definition's recursive-training eligibility for one animal, ported from AnimalState.TrainingEntry.</summary>

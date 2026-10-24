@@ -226,25 +226,12 @@ public static partial class SurgeryRules
         var wants = new List<SurgeryWant>();
         foreach (var pawn in rows)
         {
-            if (!pawn.Dead.TryGetValue(out var dead) || dead)
+            if (pawn.Dead || pawn.QueuedSurgeries > 0)
             {
                 continue;
             }
-            if (!pawn.QueuedSurgeries.TryGetValue(out var queued) || queued > 0)
-            {
-                continue;
-            }
-            if (!pawn.Operations.TryGetValue(out var ops))
-            {
-                continue;
-            }
-            var served = false;
-            foreach (var op in ops)
-            {
-                var (weight, known) = ServedSurgery(pawn, op);
-                served = served || !known || weight > 0;
-            }
-            if (served)
+            var ops = pawn.Operations;
+            if (ops.Any(op => ServedSurgery(pawn, op) > 0))
             {
                 continue;
             }
@@ -252,12 +239,12 @@ public static partial class SurgeryRules
             var goalOps = GoalOperations(ops, GoalRecipes(ctx, pawn.Id));
             if (goalOps.Count > 0)
             {
-                if (!goalOps.Any(op => op.IngredientsOnMap.TryGetValue(out var stocked) && stocked))
+                if (!goalOps.Any(op => op.Operation.IngredientsOnMap))
                 {
                     wants.Add(new SurgeryWant
                     {
                         Pawn = pawn.Id,
-                        Part = goalOps[0].PartIndex.TryGetValue(out var at) ? at : -1,
+                        Part = PartOf(goalOps[0].Operation),
                         Reason = SurgeryWantReason.PartShort,
                         Value = GoalSurgeryValue,
                         Items = [.. goalOps.Where(op => !op.Item.IsEmpty).Select(op => op.Item).Distinct()],
@@ -265,15 +252,16 @@ public static partial class SurgeryRules
                 }
                 continue;
             }
-            var parts = new Dictionary<int, List<SurgeryOperation>>();
+            var parts = new Dictionary<int, List<CareOperation>>();
             var order = new List<int>();
             foreach (var op in ops)
             {
-                var pk = op.PartIndex.TryGetValue(out var part);
-                if (!op.Recipe.IsKnown || !pk || !ElectiveUpgrade(op) || !SurgeryAcceptable(op, ElectiveFailureCap))
+                // An elective upgrade always names its part.
+                if (!ElectiveUpgrade(op) || !SurgeryAcceptable(op.Operation, ElectiveFailureCap))
                 {
                     continue;
                 }
+                var part = PartOf(op.Operation);
                 if (!parts.TryGetValue(part, out var group))
                 {
                     order.Add(part);
@@ -288,11 +276,11 @@ public static partial class SurgeryRules
             foreach (var part in order)
             {
                 var group = parts[part].OrderByDescending(OpTier).ToList();
-                group[0].PartDefName.TryGetValue(out var name);
-                var weight = PartWeight(name ?? "");
+                var name = group[0].Operation.Part?.DefName ?? "";
+                var weight = PartWeight(name);
                 if (profiles.TryGetValue(pawn.Id, out var profile))
                 {
-                    weight *= PawnRules.UpgradeRoleWeight(profile, name ?? "");
+                    weight *= PawnRules.UpgradeRoleWeight(profile, name);
                 }
                 var value = (group[0].Tier - 1) * weight;
                 if (best is not null && value <= best.Value)
@@ -307,7 +295,7 @@ public static partial class SurgeryRules
                     {
                         items.Add(op.Item);
                     }
-                    if (op.IngredientsOnMap.TryGetValue(out var stocked) && stocked)
+                    if (op.Operation.IngredientsOnMap)
                     {
                         bestStocked = true;
                     }
