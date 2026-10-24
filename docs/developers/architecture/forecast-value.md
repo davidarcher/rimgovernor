@@ -201,8 +201,8 @@ The player's goals ([player goals](player-goals.md)) enter the currency as a led
 for the progress a schedule makes inside the horizon (#3503). A goal is worth `GoalImportanceValue[Low, Normal, High]`
 capability-days when it is completed, times `GoalDeadlineDecay` per day past its deadline (never under
 `GoalDeadlineFloor`); a schedule earns the fraction of that worth it progresses. Research is paid per point of the goal
-project's remaining cost, a worn-garment goal per colonist dressed (the requirement relief it injected), and relief a
-goal injected is not also counted as a unit of requested development. Other goal kinds have no forecast route and earn
+project's remaining cost, a worn-garment goal per colonist a selected outfit change dresses in the garment (#3816), and a
+garment delivery is not a unit of requested development. Other goal kinds have no forecast route and earn
 nothing yet. A goal tier 2 models (#3505) is paid instead per unit of progress at its marginal value there, not by its flat
 share ([goal terminals](#tier-2-event-driven-colony-model)). Every decision lists each goal
 and its contribution (`goal_contributions`). The player's risk profile and pace choose rows of two tables
@@ -416,6 +416,14 @@ with the native `ThermalSource.Fuel` and `FuelPerTick`) is charged, whatever the
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
 pawn; each fuel is one of
 `ForecastValue.ChargedMaterials` and priced the same way. The climate watts model does not charge fuel.
+
+*Garment credit (#3816).* A selected commitment that overlays a garment on a colonist's worn outfit (a craft's delivery, a
+retained bill's completion) is credited, under `apparel/<pawn>/<garment>`, the apparel thoughts the outfit then gives less the
+worn outfit's (`ForecastApparel.MoodOf` over the pawn's native stage rows), priced as a bedroom's delta below from the change's
+tick to tier 2's horizon. A pawn's garments are taken in delivery order, each credited the gain its delivery adds; the break
+shifts of every outfit the alternatives can reach are integrated before the search (`ForecastApparel.BreakShifts`, at most 64
+outfits a pawn). A pawn whose apparel facts, outfit, mood, tick or shift is unread is `apparel_credit_unassessed:<pawn>`.
+Armor is the harm term's ([harm model](#harm-model)), not a credit.
 
 *Bedroom credit (#3655, #3647).* A planned bedroom the outcome serves (`PlannedRoomCredits.ServiceDays`, logged on the outcome
 as `ServedRooms`; #3796, the day its reconcile owes nothing, furniture included) is credited through the room credit seam

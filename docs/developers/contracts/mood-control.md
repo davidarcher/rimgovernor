@@ -85,8 +85,12 @@ evidence. The apparel thoughts `ApparelDamaged` (ratty and tattered), `DeadMansA
 exist (the outfit excludes tainted gear unless the comparator chose otherwise, see
 [mechanic cards: now live](#mechanic-cards-now-live), floors hit points at `apparelMinHP`, offers only
 gender-correct definitions, and `ClothingRunway` replaces garments before they tatter),
-so dominant apparel pressure names that Need and adds no new action.
-Cosmetic preferences and Ideology apparel precepts stay unowned. The pain and
+so dominant apparel pressure names that Need and adds no new action. The clothing family prices a
+garment by the apparel thoughts it changes (#3816, [equipment upkeep](equipment-upkeep.md)): the native
+needs read carries the stage rows of `ApparelDamaged`, `DeadMansApparel`, `Naked` (without Ideology) and the
+ideoligion's covering precepts (`groin_uncovered` through `any_body_part_but_hair_or_face_covered`, by worker
+class, only for a precept the pawn's ideoligion holds), and `NeedsForecastPawn.Apparel` the facts their
+workers read beyond the outfit. Cosmetic preferences stay unowned. The pain and
 sickness thoughts `Pain`, `Sick` and `BabySick` are owned by the `medical/care` Need:
 tending, disease rest, the hospital bed and the medicine stock it holds already treat
 their causes (injuries, infections, infant illness), so dominant pain or sickness

@@ -1064,12 +1064,13 @@ public sealed class ForecastCoupledSelectionTests
         Assert.All(ColdParka(.28).Parkas, parka =>
         {
             Assert.Equal([new ForecastComfortShift("pawn", -15, 0)], parka.ComfortShifts);
-            Assert.Empty(parka.Outcome!.Requirements!.Relief);
+            Assert.Null(parka.Outcome!.Requirements);
         });
         Assert.All(ColdParka(.28, shirt: false).Parkas, bare =>
         {
             Assert.Equal([new ForecastComfortShift("pawn", -20, 0)], bare.ComfortShifts);
-            Assert.Equal(["clothing/pawn/coverage/Torso"], bare.Outcome!.Requirements!.Relief.Select(r => r.Need));
+            // #3816: coverage is no relief; the apparel thoughts the garment changes are its credit.
+            Assert.Null(bare.Outcome!.Requirements);
         });
     }
 
@@ -1082,11 +1083,9 @@ public sealed class ForecastCoupledSelectionTests
     }
 
     [Fact]
-    public void AContentPawnGetsNoParkaForWarmthAloneButStillForCoverage()
+    public void AContentPawnGetsNoParkaForWarmthAlone()
     {
         Assert.Empty(ColdParka(.9).Result.Selection.Selected);
-        var (covered, parkas) = ColdParka(.9, shirt: false);
-        Assert.Contains(Assert.Single(covered.Selection.Selected), parkas.Select(p => p.Id));
     }
 
     [Fact]

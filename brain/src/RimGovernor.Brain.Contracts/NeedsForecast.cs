@@ -52,10 +52,25 @@ public sealed record NeedDeterioration(double HitPoints, Fact<double> RatePerDay
 /// (ThoughtWorker_Ascetic's own-room thought by Impressiveness stage, #3655), and the title room thoughts a throne room or
 /// suite relieves (#3807): title_bedroom_unmet, title_no_bedroom, title_throne_unmet, title_no_throne. A null stage of a bed or ascetic thought,
 /// where the game gives none (Toils_LayDown.ApplyBedThoughts at SleptInBedroom's dull stage, #3822; the ascetic worker
-/// inactive), is a row at 0. A stage the game cannot price is left out. Memories carry their duration; situational thoughts none.
+/// inactive), is a row at 0. Then apparel_damaged, naked, dead_mans_apparel, and the ideoligion's apparel precept thoughts by
+/// worker (#3816): groin_uncovered, groin_or_chest_uncovered, groin_chest_or_hair_uncovered, groin_chest_hair_or_face_uncovered,
+/// any_body_part_covered, any_body_part_but_groin_covered, any_body_part_but_hair_or_face_covered, each read only when
+/// ThoughtWorker_Precept's ideoligion gate lets the pawn have it. A stage the game cannot price is left out. Memories carry
+/// their duration; situational thoughts none.
 /// </summary>
 public sealed record NeedThoughtStage(string Thought, string Role, int Stage, double Offset,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> DurationTicks, bool Fades);
+/// <summary>
+/// The pawn facts the apparel thought workers read beside the worn apparel (#3816): pawn.gender, whether any not-missing
+/// body part is in the Legs group (a legless pawn counts as wearing pants), whether GenTemperature.SafeTemperatureRange
+/// includes pawn.AmbientTemperature, and the kind's apparelRequired defs (clothing the pawn kind requires does not count
+/// against the covering-disapproved precepts).
+/// </summary>
+public sealed record NeedApparel(Defs.Gender Gender, bool Legs, bool SafeAmbient)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> KindRequired { get; init; }
+}
 public sealed record NeedRate(string Kind,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> Level,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> FallPerTick,
@@ -142,6 +157,8 @@ public sealed record NeedsForecastPawn
     public bool Ascetic { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedThoughtStage>))]
     public EquatableArray<NeedThoughtStage> ThoughtStages { get; init; }
+    /// <summary>The apparel thought workers' pawn facts (#3816); null without an apparel tracker.</summary>
+    public NeedApparel? Apparel { get; init; }
     /// <summary>pawn.health.capacities.GetLevel of the five capacities a pawn-day is counted in (#3519); unknown when the pawn has no health tracker.</summary>
     public Fact<double> Consciousness { get; init; }
     public Fact<double> Moving { get; init; }

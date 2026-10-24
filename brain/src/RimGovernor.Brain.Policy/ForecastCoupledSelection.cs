@@ -302,15 +302,13 @@ public sealed partial record ForecastCoupledSelection
         // Every outcome's wellbeing is priced against this one outcome, so the deltas between outcomes do not depend on which is the baseline.
         var reference = baseline;
         var horizonTicks = request.HorizonDays * GameTime.TicksPerDay;
-        // Relief a goal injected is valued by the goal's ledger term, not as a unit of development (#3503).
-        var goalRelief = candidates.Context.GoalValues.SelectMany(g => g.Relief.Select(r => r.Need)).ToHashSet(StringComparer.Ordinal);
         // The death floor of every outcome is measured from this one reference (#3723): priced once, not per outcome.
         var referenceHarm = ForecastValue.ReferenceHarm(reference, candidates.Context, horizonTicks);
         // An outcome's consequences are staged (#3723): the floors and the cheap terms at once, the ledger when a comparison reaches
         // it or a consumer needs the complete vector. The eager test control prices the ledger here instead.
         StagedConsequences Consequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments)
         {
-            var staged = StagedConsequences.Of(outcome, commitments, candidates.Context, horizonTicks, reference, referenceHarm, goalRelief);
+            var staged = StagedConsequences.Of(outcome, commitments, candidates.Context, horizonTicks, reference, referenceHarm);
             if (eager) _ = staged.Vector;
             return staged;
         }
@@ -415,14 +413,14 @@ public sealed partial record ForecastCoupledSelection
         var pricedRoom = pricedRooms.Select(r => FormattableString.Invariant($"planned/room{r}")).ToHashSet(StringComparer.Ordinal);
         // Per root: whether it is graph-only, keys a schedule by id (direct effects or claims; a retained incumbent) and exempts
         // its closure from the relief gate: a planned site root (#3651), a priced room's placed ring site (#3537) or alternative
-        // (#3823), or a root that requests relief.
+        // (#3823), a root that requests relief, or one that dresses a pawn (a garment priced by the thoughts and armor it changes, #3816).
         var graphOnly = new bool[alternatives.Length]; var keyed = new bool[alternatives.Length]; var exempting = new bool[alternatives.Length];
         for (var i = 0; i < alternatives.Length; i++)
         {
             graphOnly[i] = GraphOnly(alternatives[i]);
             var plannedSite = PlannedSiteRoot(alternatives[i]);
             keyed[i] = !graphOnly[i] && !plannedSite || incumbentIds.Contains(alternatives[i].Id);
-            exempting[i] = plannedSite || alternatives[i].Outcome?.Requirements is { Relief.Count: > 0 }
+            exempting[i] = plannedSite || alternatives[i].Outcome?.Requirements is { Relief.Count: > 0 } || alternatives[i].OutfitChanges.Count > 0
                 || alternatives[i].ExclusiveOutcome is { } exclusive && (placedRing.Contains(exclusive) || pricedRoom.Contains(exclusive));
         }
         // A planned room closes only once every ring site of one stuff is built, so one site root alone carries its labor and
@@ -926,9 +924,8 @@ public sealed partial record ForecastCoupledSelection
         public ulong[] Create(ReadOnlySpan<ulong> alternate) => alternate.ToArray();
     }
 
-    public static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments,
-        IReadOnlySet<string>? goalRelief = null)
-        => CoupledConsequences(outcome, commitments, null, 0, null, goalRelief);
+    public static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments)
+        => CoupledConsequences(outcome, commitments, null, 0, null);
 
     private enum Term { ZeroTicks, ThresholdDepthTicks, ThresholdExposureTicks, ZeroAtHorizon }
 
@@ -960,17 +957,16 @@ public sealed partial record ForecastCoupledSelection
 
     private static Fact<double> Worst(Fact<double> a, Fact<double> b) => a.IsKnown && b.IsKnown ? Known(Math.Max(a.Value, b.Value)) : default;
 
-    /// <summary>The complete vector, priced by the ledger against <paramref name="reference"/> when a <paramref name="context"/> is given (#3522).
-    /// Relief in <paramref name="goalRelief"/> is a goal's, valued by the ledger's goal term, not as development (#3503).</summary>
+    /// <summary>The complete vector, priced by the ledger against <paramref name="reference"/> when a <paramref name="context"/> is given (#3522).</summary>
     internal static ForecastConsequenceVector CoupledConsequences(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments,
-        ForecastCoupledContext? context, double horizonTicks, ForecastCoupledOutcome? reference, IReadOnlySet<string>? goalRelief)
-        => context is null ? ConsequenceTerms(outcome, commitments, null, goalRelief)
-        : StagedConsequences.Of(outcome, commitments, context, horizonTicks, reference!, ForecastValue.ReferenceHarm(reference!, context, horizonTicks), goalRelief).Vector;
+        ForecastCoupledContext? context, double horizonTicks, ForecastCoupledOutcome? reference)
+        => context is null ? ConsequenceTerms(outcome, commitments, null)
+        : StagedConsequences.Of(outcome, commitments, context, horizonTicks, reference!, ForecastValue.ReferenceHarm(reference!, context, horizonTicks)).Vector;
 
     /// <summary>The terms of the vector read from the outcome alone (urgency, needs, mood, development, labor, support, maintenance,
     /// unknowns), with an empty <see cref="ForecastConsequenceVector.Value"/>: what a staged comparison has before the ledger (#3723).</summary>
     private static ForecastConsequenceVector ConsequenceTerms(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments,
-        ForecastCoupledContext? context, IReadOnlySet<string>? goalRelief)
+        ForecastCoupledContext? context)
     {
         var rows = outcome.Needs as Dictionary<string, ForecastNeedsResult> ?? new Dictionary<string, ForecastNeedsResult>(outcome.Needs, StringComparer.Ordinal);
         var unknown = new List<string>();
@@ -992,16 +988,16 @@ public sealed partial record ForecastCoupledSelection
             Metric(rows, unknown, "joy", Term.ThresholdExposureTicks, true), Metric(rows, unknown, "joy", Term.ThresholdExposureTicks),
             Metric(rows, unknown, "food", Term.ZeroAtHorizon), Metric(rows, unknown, "rest", Term.ZeroAtHorizon)
         };
-        // Delivered clothing is development, not wearing or physiological thermal protection. Planned development counts
-        // what the schedule completes, whichever root built it, each physical site once (#3334), but not a priced room's, its
-        // floors and removals included (#3651, #3796).
+        // Requested relief (a floor, a removal) is development. A garment is not: the ledger prices it by the thoughts and armor it
+        // changes (#3816). Planned development counts what the schedule completes, whichever root built it, each physical site
+        // once (#3334), but not a priced room's, its floors and removals included (#3651, #3796).
         var priced = context is null ? null : PlannedRoomCredits.PricedUnits(context);
         Dictionary<string, double>? relief = null;
         foreach (var c in commitments)
         {
             if (c.Outcome?.Requirements is not { } requirements) continue;
             foreach (var r in requirements.Relief)
-                if (goalRelief?.Contains(r.Need) != true && priced?.Contains(r.Need) != true) (relief ??= new(StringComparer.Ordinal))[r.Need] = relief.GetValueOrDefault(r.Need) + r.Fraction;
+                if (priced?.Contains(r.Need) != true) (relief ??= new(StringComparer.Ordinal))[r.Need] = relief.GetValueOrDefault(r.Need) + r.Fraction;
         }
         double delivered = 0;
         if (relief is not null) foreach (var fraction in relief.Values) delivered += Math.Min(1, fraction);
@@ -1045,9 +1041,9 @@ public sealed partial record ForecastCoupledSelection
         private StagedConsequences(ForecastConsequenceVector vector, ForecastValue.Staged? staged) { this.vector = vector; this.staged = staged; }
 
         internal static StagedConsequences Of(ForecastCoupledOutcome outcome, IEnumerable<ForecastCommitment> commitments, ForecastCoupledContext context,
-            double horizonTicks, ForecastCoupledOutcome reference, HarmDetail? referenceHarm, IReadOnlySet<string>? goalRelief)
+            double horizonTicks, ForecastCoupledOutcome reference, HarmDetail? referenceHarm)
         {
-            var terms = ConsequenceTerms(outcome, commitments, context, goalRelief);
+            var terms = ConsequenceTerms(outcome, commitments, context);
             return new(terms, ForecastValue.Stage(outcome, terms.Urgent[0], context, horizonTicks, reference, referenceHarm, commitments));
         }
 

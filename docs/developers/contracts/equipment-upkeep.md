@@ -346,10 +346,21 @@ resumption using its exact recipe, stuff, creator and bound bill. No loose input
 are charged again after native observation shows their conversion into a UFT.
 Unsupported existing intent remains visible in findings and is not cancelled.
 
-Known clothing relief retains explicit lexicographic priorities:
-
-1. Restore missing core coverage or an observed required apparel definition.
-2. Replace a tattered worn garment.
+A garment relieves no requirement (#3816): it is priced by the apparel thoughts
+and the armor it changes. Its outfit change (below) overlays the worn outfit from
+its delivery, or from a retained bill's completion; the apparel thoughts the
+outfit then gives (`ForecastApparel.MoodOf`: `ApparelDamaged`, `Naked` without
+Ideology, `DeadMansApparel`, and the ideoligion's covering precepts, each stage
+priced by the pawn's own native thought rows) less the worn outfit's are its
+investment credit, `apparel/<pawn>/<garment>`, as a bedroom's mood is
+([bedroom credit](../architecture/forecast-value.md)): wellbeing plus the break
+days the shifted mood saves, from the delivery to tier 2's horizon. Several
+garments for one pawn are credited in delivery order, each the gain its delivery
+adds, so a female pawn's shirt and pants share the nakedness they end together.
+A wearer whose apparel facts (`NeedsForecastPawn.Apparel`: gender, legs, safe
+ambient temperature, kind-required apparel), outfit, mood, tick or shift is
+unread is named `apparel_credit_unassessed:<pawn>` and credited nothing. The
+delivery is no unit of development.
 
 Warmth is not a relief (#3330). Each crafted candidate carries a comfort shift
 for its wearer: the garment's Cold/Heat insulation scaled by its quality
@@ -359,14 +370,16 @@ price it along the wearer's projected exposure as break risk, beside the craftin
 labor and stock. A garment whose only effect is warmth has no relief: it is
 selected only when that lowers break risk, so a content pawn, a short horizon or
 a card that is not Live crafts nothing for warmth. A retained bill
-has no completion task to time a shift, so only its relief values it.
+has no completion task to time a shift; its outfit change, timed by the bill's
+completion, is what values it.
 
 Armor is not a relief either (#3621). Each crafted candidate carries an outfit
 change for its wearer (`ForecastOutfitChange` with `Overlay`): the garment
 replaces the worn items it conflicts with (`GearConflicts`) from the delivery's
 completion, and the harm term prices the outfit worn over each share of the
-horizon. A garment that changes neither warmth nor armor and relieves nothing is
-not a candidate. The family runs whether or not the pawn has physical options, so
+horizon. A garment that changes neither warmth, armor nor what the apparel
+thought workers read of the outfit, and is no garment a worn-count goal wants
+the wearer in, is not a candidate. The family runs whether or not the pawn has physical options, so
 crafting competes with swaps to stored or loose items: a craft excludes every
 effect-source swap (`gear/<pawn>`) whose outfit changes the garment's slot
 (`ClothingActivitiesRules.SwapsInSlot`), and a swap of the wearer's other slots

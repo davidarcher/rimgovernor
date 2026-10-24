@@ -127,6 +127,9 @@ public sealed record ForecastCoupledContext
     public HarmInputs Harm { get; init; } = new();
     /// <summary>The outfit (apparel and primary weapon) each pawn wears now (#3546), from the gear census's worn items; a pawn without a row has an unobserved outfit.</summary>
     public IReadOnlyDictionary<string, EquatableArray<GearOption>> Outfits { get; init; } = new Dictionary<string, EquatableArray<GearOption>>();
+    /// <summary>Per pawn, the apparel mood shifts of the garments the alternatives overlay on its outfit (ForecastApparel.BreakShifts,
+    /// #3816), which its mood timeline integrates breaks at; none by default.</summary>
+    public IReadOnlyDictionary<string, double[]> ApparelShifts { get; init; } = new Dictionary<string, double[]>(StringComparer.Ordinal);
     /// <summary>Capability-days a unit of progress adds on each project tier 2 valued (#3531), by <see cref="ForecastProjectProgress.Project"/>: per research point, per cell sown. Empty before tier 2 ran.</summary>
     public IReadOnlyDictionary<string, double> Investment { get; init; } = new Dictionary<string, double>();
     /// <summary>Per construction material a priced planned room consumes, its value per unit (#3653), priced once per review

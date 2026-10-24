@@ -246,7 +246,7 @@ public static partial class ForecastValue
     {
         var index = Indexes.GetValue(context, static c => new LedgerIndex(c));
         return Ledger(outcome, context, index, horizon, baseline, HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments),
-            GoalContributionsOf(ProgressOf(outcome, context, index), context, commitments ?? []));
+            GoalContributionsOf(ProgressOf(outcome, context, index), context, commitments ?? []), commitments);
     }
 
     /// <summary>
@@ -256,7 +256,7 @@ public static partial class ForecastValue
     /// two paths produce one ledger.
     /// </summary>
     private static ForecastValueResult Ledger(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index, double horizon,
-        ForecastCoupledOutcome? baseline, HarmTerm harmTerm, List<ForecastGoalContribution> contributions)
+        ForecastCoupledOutcome? baseline, HarmTerm harmTerm, List<ForecastGoalContribution> contributions, IEnumerable<ForecastCommitment>? commitments)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var pawns = outcome.Needs.ToArray();
@@ -359,6 +359,7 @@ public static partial class ForecastValue
         var goals = Known(-earned);
         var investmentRows = InvestmentOf(outcome, context, index, horizon, findings);
         PlannedRoomCredits.Credit(outcome, context, horizon, investmentRows, findings);
+        ForecastApparel.Credits(outcome, context, commitments, horizon, investmentRows, findings);
         double invested = 0;
         foreach (var row in investmentRows) invested += row.Value;
         var investment = Known(invested);
@@ -478,21 +479,22 @@ public static partial class ForecastValue
 
     /// <summary>
     /// What the outcome earns of the player's goals (#3503). Research: the points its scheduled work at a goal's project adds,
-    /// at the goal's share per point. Relief: each requirement relief a selected commitment carries that a goal injected, once
-    /// per relief need, at the goal's share. A goal's progress is capped at the whole goal; its value is the progress times
-    /// the goal's worth at the observed tick, which carries the deadline's decay.
+    /// at the goal's share per point. Wearers: each colonist a selected commitment's outfit change dresses in the goal's garment (a
+    /// crafted overlay or an effect-source swap, #3816), once per colonist, at the goal's share. A goal's progress is capped at the
+    /// whole goal; its value is the progress times the goal's worth at the observed tick, which carries the deadline's decay.
     /// </summary>
     private static List<ForecastGoalContribution> GoalContributionsOf(Dictionary<string, double> progress, ForecastCoupledContext context,
         IEnumerable<ForecastCommitment> commitments)
     {
         var result = new List<ForecastGoalContribution>();
         if (context.GoalValues.Count == 0) return result;
-        var relief = commitments.Where(c => c.Outcome?.Requirements is not null).SelectMany(c => c.Outcome!.Requirements!.Relief)
-            .GroupBy(r => r.Need, StringComparer.Ordinal).ToDictionary(g => g.Key, g => Math.Min(1, g.Sum(r => r.Fraction)), StringComparer.Ordinal);
+        var changes = commitments.SelectMany(c => c.OutfitChanges).ToArray();
+        bool Dressed(ForecastGoalWearer w) => changes.Any(c => c.Pawn == w.Pawn
+            && c.Items.Any(i => i.Definition.Value == w.Garment && (w.Stuff.Length == 0 || i.Stuff.Value == w.Stuff)));
         foreach (var goal in context.GoalValues)
         {
             var share = (goal.Priced ? 0 : goal.Research.Sum(r => progress.GetValueOrDefault(r.Project) * r.SharePerPoint))
-                + goal.Relief.Sum(r => relief.GetValueOrDefault(r.Need) * r.Share);
+                + goal.Wearers.Where(Dressed).Sum(w => w.Share);
             share = Math.Min(1, share);
             var worth = context.Value.GoalWorth(goal.Importance, goal.DeadlineDay, context.Needs.Tick);
             // A priced goal's progress is paid at tier 2's marginal value per unit, which already carries the deadline's decay at the modelled day.
@@ -539,12 +541,13 @@ public static partial class ForecastValue
         private readonly ForecastCoupledOutcome reference;
         private readonly HarmTerm harm;
         private readonly List<ForecastGoalContribution> contributions;
+        private readonly IEnumerable<ForecastCommitment>? commitments;
         private ForecastValueExplanation? explanation;
 
         internal Staged(ForecastCoupledOutcome outcome, Fact<double> urgentZeroTicks, ForecastCoupledContext context, double horizon,
             ForecastCoupledOutcome reference, HarmDetail? referenceHarm, IEnumerable<ForecastCommitment>? commitments)
         {
-            this.outcome = outcome; this.context = context; this.horizon = horizon; this.reference = reference;
+            this.outcome = outcome; this.context = context; this.horizon = horizon; this.reference = reference; this.commitments = commitments;
             index = Indexes.GetValue(context, static c => new LedgerIndex(c));
             var policy = context.Value;
             var days = horizon / GameTime.TicksPerDay;
@@ -573,7 +576,7 @@ public static partial class ForecastValue
         /// <summary>Whether the remaining ledger terms have been priced.</summary>
         public bool LedgerPriced => explanation is not null;
         /// <summary>The complete explanation, pricing the remaining ledger terms on the first read.</summary>
-        public ForecastValueExplanation Explanation => explanation ??= new(Ledger(outcome, context, index, horizon, reference, harm, contributions), Policy)
+        public ForecastValueExplanation Explanation => explanation ??= new(Ledger(outcome, context, index, horizon, reference, harm, contributions, commitments), Policy)
             { UrgentZero = UrgentZero, BreakRisk = BreakRisk, Death = Death };
     }
 

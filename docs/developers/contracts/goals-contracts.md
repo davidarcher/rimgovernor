@@ -86,8 +86,8 @@ fraction of the goal an evaluated schedule progresses:
 - **Research** (`ResearchProject`, `ResearchTier`): the goal's worth is split over the unfinished projects it waits on and
   paid per research point of each project's remaining cost, so a scheduled research block at one of them earns its share.
 - **Worn garment** (`WornCount`): one share (`1 / missing`) per eligible colonist among the first `Count` not yet wearing
-  it, on the requirement relief `clothing/<pawn>/required/<garment>` the clothing planner gives that colonist. That relief
-  is valued by the goal and is not also counted as a unit of requested development; other relief keeps its unit.
+  it (`ForecastGoalWearer`: pawn, garment, stuff, share), paid when a selected commitment's outfit change dresses that
+  colonist in the garment of that stuff (#3816). A garment delivery is no unit of requested development.
 - Other kinds (stock, room, population, ideology, prisoner, quest) have no forecast route yet and earn no ledger value.
 
 The worth is `GoalImportanceValue[importance]` times the deadline's decay at the observed day (full until the deadline,

@@ -260,8 +260,8 @@ public sealed class ForecastValueTests
         var sleeping = Calm() with { Needs = [rested, hungry, Joy(5000)] };
         var context = Context(Pawn());
 
-        var work = ForecastCoupledSelection.CoupledConsequences(Outcome(working), [], context, Day, Outcome(sleeping), null);
-        var sleep = ForecastCoupledSelection.CoupledConsequences(Outcome(sleeping), [], context, Day, Outcome(sleeping), null);
+        var work = ForecastCoupledSelection.CoupledConsequences(Outcome(working), [], context, Day, Outcome(sleeping));
+        var sleep = ForecastCoupledSelection.CoupledConsequences(Outcome(sleeping), [], context, Day, Outcome(sleeping));
 
         Assert.Equal(47025, sleep.Value.UrgentZero.Excess, 3);
         Assert.Equal(work.Value.UrgentZero.Excess, sleep.Value.UrgentZero.Excess);
@@ -283,14 +283,14 @@ public sealed class ForecastValueTests
         var sleeping = Calm() with { Needs = [rested, Hungry(39374.99978028882)] };
         var context = Context(Pawn());
 
-        var work = ForecastCoupledSelection.CoupledConsequences(Outcome(working), [], context, Day, Outcome(sleeping), null);
-        var sleep = ForecastCoupledSelection.CoupledConsequences(Outcome(sleeping), [], context, Day, Outcome(sleeping), null);
+        var work = ForecastCoupledSelection.CoupledConsequences(Outcome(working), [], context, Day, Outcome(sleeping));
+        var sleep = ForecastCoupledSelection.CoupledConsequences(Outcome(sleeping), [], context, Day, Outcome(sleeping));
 
         Assert.True(sleep.Value.UrgentZero.Excess > work.Value.UrgentZero.Excess);
         Assert.True(ForecastCoupledSelection.CompareConsequences(sleep, work) < 0);
         Assert.True(ForecastCoupledSelection.CompareConsequences(work, sleep) > 0);
         // A whole tick is a different floor.
-        var later = ForecastCoupledSelection.CoupledConsequences(Outcome(sleeping with { Needs = [rested, Hungry(39376)] }), [], context, Day, Outcome(sleeping), null);
+        var later = ForecastCoupledSelection.CoupledConsequences(Outcome(sleeping with { Needs = [rested, Hungry(39376)] }), [], context, Day, Outcome(sleeping));
         Assert.True(ForecastCoupledSelection.CompareConsequences(later, work) > 0);
     }
 
@@ -562,6 +562,23 @@ public sealed class ForecastValueTests
     }
 
     [Fact]
+    public void AFlakVestIsWorthTheExpectedDamageItReduces()
+    {
+        // #3816 acceptance: a flak vest crafted over the cloth duster adds its armor to the torso; the harm term prices the
+        // expected damage it saves from its delivery, and nothing else credits it.
+        var vest = Duster(0.8) with { ID = "flakvest", Definition = new("Apparel_FlakVest"), Slot = GearSlot.MiddleTorso, Layers = ["Middle"] };
+        var craft = new ForecastCommitment("craft", default) { ActivityCompletions = ["deliver"], OutfitChanges = [new("pawn", [vest]) { Overlay = true }] };
+        var vested = ForecastValue.Of(Outcome(Calm()) with { OutfitTicks = [new("craft", Known(0d))] }, HarmContext(Cloth), Day, Outcome(Calm()), [craft]);
+        var cloth = Harmed(Cloth);
+        var both = Harmed([.. Cloth, vest]);
+
+        Assert.True(vested.Harm.Value < cloth.Harm.Value);
+        Assert.Equal(both.Harm.Value, vested.Harm.Value, 9);
+        Assert.True(vested.LossAgainst(cloth).Value < 0);
+        Assert.DoesNotContain(vested.InvestmentContributions, r => r.Key.StartsWith("apparel/", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void AnOverlayReplacesOnlyTheItemsItConflictsWith()
     {
         // A swap to devilstrand pants at the start keeps them under the duster crafted later: one outfit holds both changes.
@@ -664,7 +681,7 @@ public sealed class ForecastValueTests
 
     private static ForecastCoupledSelection.StagedConsequences Staged(ForecastCoupledOutcome outcome, ForecastCoupledContext context, ForecastCoupledOutcome reference,
         params ForecastCommitment[] commitments)
-        => ForecastCoupledSelection.StagedConsequences.Of(outcome, commitments, context, Day, reference, ForecastValue.ReferenceHarm(reference, context, Day), null);
+        => ForecastCoupledSelection.StagedConsequences.Of(outcome, commitments, context, Day, reference, ForecastValue.ReferenceHarm(reference, context, Day));
 
     private static ForecastNeedMetric Hungry(double zero) => Calm().Needs.Single(n => n.Kind == "food") with { ZeroTicks = Known(zero), ZeroSpans = [new(Day - zero, Day)] };
 

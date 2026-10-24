@@ -114,7 +114,7 @@ internal static class NativeNeedsForecast
                 OutdoorsDisabled = pawn.needs?.outdoors != null && pawn.needs.PrefersIndoors,
                 OwnedBed = pawn.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
                 Ascetic = pawn.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true,
-                ThoughtStages = ThoughtStagesOf(pawn, map),
+                ThoughtStages = ThoughtStagesOf(pawn, map), Apparel = ApparelOf(pawn),
                 Consciousness = Capacity(pawn, PawnCapacityDefOf.Consciousness), Moving = Capacity(pawn, PawnCapacityDefOf.Moving),
                 Manipulation = Capacity(pawn, PawnCapacityDefOf.Manipulation), Sight = Capacity(pawn, PawnCapacityDefOf.Sight),
                 Talking = Capacity(pawn, PawnCapacityDefOf.Talking),
@@ -209,12 +209,49 @@ internal static class NativeNeedsForecast
         // No ThoughtDefOf field names the Ascetic thought; its worker class is the typed route (#3655).
         foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_Ascetic)))
             Rows(def, "ascetic", nullStagesInactive: true);
+        // The apparel thoughts a garment changes (#3816). ThoughtWorker_PsychologicallyNude's Naked is inactive under Ideology,
+        // where the precept workers below take its place.
+        Rows(ThoughtDefOf.ApparelDamaged, "apparel_damaged");
+        if (!ModsConfig.IdeologyActive) Rows(ThoughtDefOf.Naked, "naked");
+        Rows(ThoughtDefOf.DeadMansApparel, "dead_mans_apparel");
+        foreach (var (worker, role) in ApparelPrecepts)
+            foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == worker && PreceptAllows(pawn, d)))
+                Rows(def, role);
         // The title room thoughts a planned throne room or suite relieves (#3807); no ThoughtDefOf field names them, their
         // worker classes are the typed route. Without Royalty no def has these workers and no row is read.
         foreach (var (worker, role) in TitleRoomThoughts)
             foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == worker))
                 Rows(def, role);
         return EquatableArray.From(rows);
+    }
+    /// <summary>The non-social apparel precept workers by class, the typed route to their gendered defs (#3816).</summary>
+    private static readonly (Type Worker, string Role)[] ApparelPrecepts =
+    [
+        (typeof(ThoughtWorker_Precept_GroinUncovered), "groin_uncovered"),
+        (typeof(ThoughtWorker_Precept_GroinOrChestUncovered), "groin_or_chest_uncovered"),
+        (typeof(ThoughtWorker_Precept_GroinChestOrHairUncovered), "groin_chest_or_hair_uncovered"),
+        (typeof(ThoughtWorker_Precept_GroinChestHairOrFaceUncovered), "groin_chest_hair_or_face_uncovered"),
+        (typeof(ThoughtWorker_Precept_AnyBodyPartCovered), "any_body_part_covered"),
+        (typeof(ThoughtWorker_Precept_AnyBodyPartButGroinCovered), "any_body_part_but_groin_covered"),
+        (typeof(ThoughtWorker_Precept_AnyBodyPartButHairOrFaceCovered), "any_body_part_but_hair_or_face_covered"),
+    ];
+    /// <summary>ThoughtWorker_Precept.CurrentStateInternal's ideoligion gate, before its ShouldHaveThought.</summary>
+    private static bool PreceptAllows(Pawn pawn, ThoughtDef def)
+    {
+        var ideo = pawn.Ideo;
+        if (ideo == null) return false;
+        var precept = ideo.GetFirstPreceptAllowingSituationalThought(def);
+        if (precept != null && !precept.def.enabledForNPCFactions && !pawn.CountsAsNonNPCForPrecepts()) return false;
+        return ideo.cachedPossibleSituationalThoughts.Contains(def);
+    }
+    /// <summary>The pawn facts the apparel workers read beside the worn apparel (#3816); null without an apparel tracker.</summary>
+    private static Obs.NeedApparel? ApparelOf(Pawn pawn)
+    {
+        if (pawn.apparel == null) return null;
+        var legs = pawn.health.hediffSet.GetNotMissingParts().Any(p => p.IsInGroup(BodyPartGroupDefOf.Legs));
+        var safe = GenTemperature.SafeTemperatureRange(pawn.def).Includes(pawn.AmbientTemperature);
+        return new((RimGovernor.Contracts.Wire.Defs.Gender)(int)pawn.gender, legs, safe)
+            { KindRequired = EquatableArray.From((pawn.kindDef?.apparelRequired ?? new List<ThingDef>()).Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal)) };
     }
     /// <summary>The title room thoughts' worker classes and the stage-row roles the brain reads them by (ForecastHousing.Title*Role).</summary>
     private static readonly (Type Worker, string Role)[] TitleRoomThoughts =

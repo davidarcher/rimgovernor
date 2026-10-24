@@ -39,6 +39,11 @@ public sealed record ForecastOutfitChange(string Pawn, EquatableArray<GearOption
     /// <summary>A crafted garment (#3621): it replaces only the items it conflicts with (<see cref="GearLoadoutRules.GearConflicts"/>),
     /// so it composes with a swap of the pawn's other slots.</summary>
     public bool Overlay { get; init; }
+
+    /// <summary>The outfit worn after this change to <paramref name="worn"/>: the items, or with <see cref="Overlay"/> the worn items they do not conflict with and the items.</summary>
+    public EquatableArray<GearOption> Apply(IEnumerable<GearOption> worn) => Overlay
+        ? EquatableArray.From(worn.Where(w => !Items.Any(i => GearLoadoutRules.GearConflicts(w, i))).Concat(Items))
+        : Items;
 }
 
 /// <summary>The tick, from the forecast start, at which <paramref name="Commitment"/>'s activities all completed: positive

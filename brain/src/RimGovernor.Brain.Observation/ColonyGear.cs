@@ -283,6 +283,8 @@ public static class ColonyGearReads
             Shield = shape.Shield,
             Psychic = shape.Psychic,
             Smokepop = shape.Smokepop,
+            CareIfDamaged = shape.CareIfDamaged,
+            CountsAsClothingForNudity = shape.CountsAsClothing,
             Research = research,
             Ingredients = ingredients,
             Sharp = GearDefinitionsReads.OptionStat(catalog, def, stuff, CatalogStats.ArmorSharp, false),
@@ -296,7 +298,7 @@ public static class ColonyGearReads
     }
 
     /// <summary>The stuff-independent facts of an apparel def an option carries; null for a def no model slot names.</summary>
-    private sealed record ApparelShape(GearSlot Slot, EquatableArray<string> Layers, EquatableArray<string> Groups, double WearPerDay, double MoveSpeed, bool SlaveOnly, bool Shield, bool Psychic, bool Smokepop);
+    private sealed record ApparelShape(GearSlot Slot, EquatableArray<string> Layers, EquatableArray<string> Groups, double WearPerDay, double MoveSpeed, bool SlaveOnly, bool Shield, bool Psychic, bool Smokepop, bool CareIfDamaged, bool CountsAsClothing);
 
     // Every observation reads every option of every pawn, and the catalog's defs do not change under it, so each
     // def's shape is worked out once per catalog.
@@ -317,7 +319,8 @@ public static class ColonyGearReads
         var layers = GearDefinitionsReads.Distinct((apparel.layers ?? []).Select(l => l.defName));
         var groups = GearDefinitionsReads.Distinct((apparel.bodyPartGroups ?? []).Select(g => g.defName));
         shape = GearSlotOf(layers, groups, out var slot)
-            ? new ApparelShape(slot, layers, groups, apparel.wearPerDay, GearDefinitionsReads.StatOffset(row, GearDefinitionsReads.StatMoveSpeed), apparel.slaveApparel, GearDefinitionsReads.HasShield(row), GearDefinitionsReads.StatOffset(row, GearDefinitionsReads.StatPsychic) < 0, catalog.SmokePop(def))
+            ? new ApparelShape(slot, layers, groups, apparel.wearPerDay, GearDefinitionsReads.StatOffset(row, GearDefinitionsReads.StatMoveSpeed), apparel.slaveApparel, GearDefinitionsReads.HasShield(row), GearDefinitionsReads.StatOffset(row, GearDefinitionsReads.StatPsychic) < 0, catalog.SmokePop(def),
+                row?.useHitPoints == true && apparel.careIfDamaged, apparel.countsAsClothingForNudity)
             : null;
         shapes.TryAdd(def, shape);
         return shape;

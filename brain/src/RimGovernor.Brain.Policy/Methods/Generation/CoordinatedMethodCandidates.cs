@@ -6,6 +6,8 @@ internal sealed record CoordinatedMethodCandidates(ForecastActivityProblem? Prob
     public EquatableArray<string> Findings { get; init; }
     public EquatableArray<ForecastCompositionOperation> Operations { get; init; }
     public EquatableArray<ForecastCompositionSupply> Observed { get; init; }
+    /// <summary>The clothing family's garment per outcome id (crafted or retained): the wearer's outfit change and comfort shift (#3330, #3621, #3816).</summary>
+    public IReadOnlyDictionary<string, ClothingActivityRequirement> Garments { get; init; } = new Dictionary<string, ClothingActivityRequirement>(StringComparer.Ordinal);
 }
 
 internal sealed record ActivityTaskCandidate(string Id, string Pawn, EquatableArray<string> Prerequisites,
@@ -25,7 +27,6 @@ internal sealed record ActivityTaskCandidate(string Id, string Pawn, EquatableAr
     public PawnActivityRecipe? Recipe { get; init; }
     public PawnActivityPractice? Practice { get; init; }
     public string ProductStuff { get; init; } = "";
-    public ClothingActivityRequirement? Clothing { get; init; }
     public EquatableArray<SelectedActivityInput> SelectedInputs { get; init; }
     /// <summary>A cook binding's chance its meal is poisoned (CoupledFoodConversion.FoodPoisonChance, #3167).</summary>
     public Fact<double> FoodPoisonChance { get; init; }

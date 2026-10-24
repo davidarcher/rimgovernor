@@ -369,6 +369,7 @@ public sealed partial record ForecastCoupledCandidates
             Value = ForecastValuePolicy.For(facts.Preferences),
             Harm = HarmInputs.Of(facts),
             Outfits = outfits,
+            ApparelShifts = ForecastApparel.BreakShifts(needs, outfits, alternatives),
             GoalValues = facts.GoalValues,
             CookedNutritionRatio = ForecastValue.CookedNutritionRatios(read.FoodConversions, facts.Items.Nutrition, findings),
             MoodBreaks = facts.MoodBreak,
@@ -436,16 +437,16 @@ public sealed partial record ForecastCoupledCandidates
                     if (finish is null) { findings.Add("construction_outcome_unbound:" + outcome.Id); continue; }
                     exclusive = "construction/" + finish.Target;
                 }
-                // A crafted garment's warmth (#3330) and armor (#3621), timed by its delivery's completion. A swap that changes
-                // the garment's slot cannot hold with it.
-                var clothing = family.Bindings.Values.FirstOrDefault(b => b.Id == outcome.Completion)?.Clothing;
+                // A garment's armor (#3621) and apparel thoughts (#3816), from its delivery's completion or a retained bill's;
+                // a crafted one's warmth too (#3330), timed by the delivery. A swap that changes the garment's slot cannot hold with it.
+                var clothing = family.Garments.GetValueOrDefault(outcome.Id);
                 alternatives.Add(new(outcome.Id, [])
                 {
                     ActivityCompletions = outcome.Completion.Length == 0 ? [] : [outcome.Completion],
                     ExclusiveOutcome = exclusive,
                     Outcome = clothing is null ? outcome : outcome with { Excludes = EquatableArray.From(outcome.Excludes
                         .Concat(ClothingActivitiesRules.SwapsInSlot(clothing, outfits.TryGetValue(clothing.Wearer, out var wearing) ? wearing : null, swaps))) },
-                    ComfortShifts = clothing?.Comfort is { } comfort ? [comfort] : [],
+                    ComfortShifts = clothing?.Comfort is { } comfort && outcome.Completion.Length != 0 ? [comfort] : [],
                     OutfitChanges = clothing is null ? [] : [new(clothing.Wearer, [clothing.Garment]) { Overlay = true }]
                 });
             }

@@ -12,9 +12,9 @@ public static partial class GoalRules
     /// <summary>
     /// The unmet goals the forecast can price progress on (#3503), in goal id order. Research: the goal's value is split
     /// equally over the projects it waits on and paid per point of the project's remaining cost, so finishing them earns
-    /// the whole worth. Worn garment: one share per eligible colonist among the first <c>Count</c> not yet wearing it, on the
-    /// requirement relief the clothing planner gives that colonist (<c>clothing/&lt;pawn&gt;/required/&lt;garment&gt;</c>). A goal
-    /// with neither (stock, room, population, ideology and the rest) is valued by no ledger term yet.
+    /// the whole worth. Worn garment: one share per eligible colonist among the first <c>Count</c> not yet wearing it, paid when a
+    /// selected commitment dresses that colonist in the garment (#3816). A goal with neither (stock, room, population, ideology
+    /// and the rest) is valued by no ledger term yet.
     /// </summary>
     public static EquatableArray<ForecastGoalValue> ValuesOf(GoalsFacts f)
     {
@@ -22,7 +22,7 @@ public static partial class GoalRules
         foreach (var goal in f.Goals.OrderBy(g => g.Id))
         {
             var research = new List<ForecastGoalResearch>();
-            var relief = new List<ForecastGoalRelief>();
+            var wearers = new List<ForecastGoalWearer>();
             if (goal.Kind is GoalKind.ResearchProject or GoalKind.ResearchTier && f.Research.TryGetValue(out var census))
             {
                 var open = ResearchOf(goal, f).Where(p => census.Details.TryGetValue(p, out var d) && d.Cost > 0).ToList();
@@ -46,13 +46,13 @@ public static partial class GoalRules
                         && model.Worn.Items.Any(o => o.Definition == want.Garment && (want.Stuff.Value == "" || o.Stuff == want.Stuff))).Select(p => p.Pawn).ToHashSet();
                     foreach (var pawn in EligibleWearers(gear, want.Garment).Take(goal.Count).Where(p => !wearing.Contains(p.Pawn)))
                     {
-                        relief.Add(new(FormattableString.Invariant($"clothing/{pawn.Pawn.Value}/required/{goal.Target}"), 1.0 / missing));
+                        wearers.Add(new(pawn.Pawn.Value, goal.Target, want.Stuff.Value, 1.0 / missing));
                     }
                 }
             }
-            if (research.Count + relief.Count > 0)
+            if (research.Count + wearers.Count > 0)
             {
-                values.Add(new(NeedOf(goal).Value, ImportanceOf(goal), DeadlineOf(goal, f.Themes)) { Research = EquatableArray.From(research), Relief = EquatableArray.From(relief) });
+                values.Add(new(NeedOf(goal).Value, ImportanceOf(goal), DeadlineOf(goal, f.Themes)) { Research = EquatableArray.From(research), Wearers = EquatableArray.From(wearers) });
             }
         }
         return EquatableArray.From(values);

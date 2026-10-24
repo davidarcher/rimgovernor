@@ -11,8 +11,11 @@ public sealed record GoalImportanceValues(double Low, double Normal, double High
     };
 }
 
-/// <summary>A relief need (a requirement relief id the forecast's commitments carry) a goal owns, and the fraction of the goal's progress one unit of it is.</summary>
-public sealed record ForecastGoalRelief(string Need, double Share);
+/// <summary>
+/// A colonist a worn-count goal wants dressed in its garment (def, and stuff when the goal names one, else ""), and the fraction of
+/// the goal's progress that colonist wearing it is (#3816): paid when a selected commitment's outfit change dresses the pawn in it.
+/// </summary>
+public sealed record ForecastGoalWearer(string Pawn, string Garment, string Stuff, double Share);
 
 /// <summary>A research project a goal waits on, and the fraction of the goal's progress one research point is.</summary>
 public sealed record ForecastGoalResearch(string Project, double SharePerPoint);
@@ -27,8 +30,8 @@ public sealed record ForecastGoalUnit(string Project, double Value);
 /// </summary>
 public sealed record ForecastGoalValue(string Goal, Importance Importance, int? DeadlineDay)
 {
-    /// <summary>Requirement relief the goal injected (a garment it requires of a colonist); each replaces that relief's unit of requested development.</summary>
-    public EquatableArray<ForecastGoalRelief> Relief { get; init; }
+    /// <summary>The colonists a worn-count goal still wants wearing its garment.</summary>
+    public EquatableArray<ForecastGoalWearer> Wearers { get; init; }
 
     /// <summary>Research projects the goal is waiting on; an hour of work at one of them is progress.</summary>
     public EquatableArray<ForecastGoalResearch> Research { get; init; }

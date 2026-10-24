@@ -69,7 +69,6 @@ Policy|ForecastActivityOutcome.AvoidedLaborLoss
 Policy|ForecastActivityOutcome.ChoiceIdentity
 Policy|ForecastActivityOutcome.Deadline
 Policy|ForecastActivityOutcome.ProgressUnits
-Policy|ForecastActivityOutcome.RetainedCompletion
 Policy|ForecastActivityOutcomeComparison.NetBenefit
 Policy|ForecastActivityRelief.Completion
 Policy|ForecastActivityRelief.Food

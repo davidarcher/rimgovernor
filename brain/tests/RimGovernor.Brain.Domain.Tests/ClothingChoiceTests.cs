@@ -34,9 +34,18 @@ public sealed class ClothingChoiceTests
         Stored = Known(default(EquatableArray<GearStock>)),
         Pawns = [new() { Pawn = new("wearer"), Loadout = "load",
         Candidates = Known(default(EquatableArray<GearCandidate>)), Apparel = Known(default(EquatableArray<GearApparel>)),
-        LoadoutModel = Known(new GearLoadoutInput { Ambient = ambient, ComfortableMin = 10, ComfortableMax = 30,
+        LoadoutModel = Known(new GearLoadoutInput { Ambient = ambient, ComfortableMin = 10, ComfortableMax = 30, Worn = [Tattered],
             Options = options.Length == 0 ? [Garment("Shirt", "Cloth"), Garment("Shirt", "Wool", 15)] : EquatableArray.From(options) }) }]
     };
+    // The wearer's tattered shirt and bare legs (#3816): a torso garment ends the tattered thought, pants the nakedness.
+    private static GearOption Tattered => Garment("Shirt", "Cloth", 0) with
+    { ID = "tattered-shirt", Source = GearSource.Worn, Sharp = 0, Condition = 0.1, CareIfDamaged = true, CountsAsClothingForNudity = true };
+    private static NeedThoughtStage[] ApparelStages =>
+    [
+        new("ApparelDamaged", ForecastApparel.Damaged, 0, -3, Known((double)GameTime.TicksPerDay), false),
+        new("ApparelDamaged", ForecastApparel.Damaged, 1, -5, Known((double)GameTime.TicksPerDay), false),
+        new("Naked", ForecastApparel.Naked, 0, -6, Known((double)GameTime.TicksPerDay), false),
+    ];
     private static RecipeIngredientObservation Input(string id, string stuff, int count = 10, double travel = 5) =>
         new(id, stuff, count, new(id == "a-far" ? 50 : id == "c-near" ? 6 : 5, 5), count) { Capacity = 75, ApproachTicks = Known(travel), CarryTicks = Known(5.0), ReturnTicks = Known(5.0) };
     private static RecipeActivityOption Option(string stuff, string product = "Shirt", double work = 100, string pawn = "tailor", string bench = "bench") =>
@@ -53,9 +62,10 @@ public sealed class ClothingChoiceTests
     {
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
         var template = facts.ForecastObserved.Needs!.Pawns[0];
-        return facts with { Gear = Known(census), WorkView = resources, ForecastObserved = facts.ForecastObserved with
+        return facts with { Gear = Known(census), WorkView = resources, MoodBreak = new() { Threshold = 0.3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] }, ForecastObserved = facts.ForecastObserved with
         {
-            Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "tailor" }, template with { Pawn = "helper" }] },
+            Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "tailor" }, template with { Pawn = "helper" },
+                template with { Pawn = "wearer", Apparel = new(RimGovernor.Contracts.Wire.Defs.Gender.Male, true, true), ThoughtStages = [.. template.ThoughtStages, .. ApparelStages] }] },
             Coupled = new() { Tick = 100, Clothing = read }
         } };
     }
@@ -64,6 +74,8 @@ public sealed class ClothingChoiceTests
     {
         var facts = Review(census, read, resources);
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
+        // The colony model's horizon, as the review stamps it before the comparison (Rounder).
+        generated = generated with { Context = generated.Context with { InvestmentHorizonDays = 10d } };
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
             facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new());
         var selected = ForecastCoupledSelection.CompareActivityOutcomes(request, generated);
@@ -203,11 +215,11 @@ public sealed class ClothingChoiceTests
     };
 
     [Fact]
-    public void AnArmorOnlyCraftRelievesNothingAndCarriesItsArmorAsAnOutfitChange()
+    public void AnArmorOnlyCraftIsACandidateAndCarriesItsArmorAsAnOutfitChange()
     {
-        // #3621: relief never counts armor, which the harm term prices from the outfit change, so the value has one source.
+        // #3621: armor is priced by the harm term from the outfit change, so the value has one source.
         var need = Assert.Single(ClothingActivitiesRules.ClothingActivityRequirements(Wearing(Duster("DevilstrandCloth", 0.5))));
-        Assert.Empty(need.Assessment.Relief);
+        Assert.True(need.Garment.Sharp > 0.1);
         Assert.Null(need.Comfort);
         Assert.Equal(0.5, need.Garment.Sharp);
         // The same garment as the worn one, armor and all, is no candidate.

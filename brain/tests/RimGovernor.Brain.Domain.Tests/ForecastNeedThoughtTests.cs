@@ -84,8 +84,8 @@ public sealed class ForecastNeedThoughtTests
         var eatFirst = early with { Needs = [.. early.Needs, Joy(5000)] };
         var playFirst = late with { Needs = [.. late.Needs, Joy(0)] };
 
-        var eat = ForecastCoupledSelection.CoupledConsequences(Outcome(eatFirst), [], context, H, Outcome(eatFirst), null);
-        var play = ForecastCoupledSelection.CoupledConsequences(Outcome(playFirst), [], context, H, Outcome(eatFirst), null);
+        var eat = ForecastCoupledSelection.CoupledConsequences(Outcome(eatFirst), [], context, H, Outcome(eatFirst));
+        var play = ForecastCoupledSelection.CoupledConsequences(Outcome(playFirst), [], context, H, Outcome(eatFirst));
 
         // Neither plan starves or exhausts the pawn: the floors and the physiological terms tie.
         Assert.Equal(0, eat.Value.UrgentZero.Excess);

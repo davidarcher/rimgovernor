@@ -753,7 +753,8 @@ public static partial class ForecastCoupled
             var needsByPawn = new Dictionary<string, ForecastNeedsResult>(pawns.Pawns.Length, StringComparer.Ordinal);
             var closedRooms = ForecastRoofConsequences.PlannedClosedRooms(context, finishedAt);
             var service = PlannedRoomCredits.ServiceDays(context, finishedAt, horizon);
-            // A bedroom occupant's mood also integrates breaks at its move's shift (#3655); constant per pawn, so the mood key holds.
+            // A bedroom occupant's mood also integrates breaks at its move's shift (#3655), a wearer's at its garments' (#3816);
+            // constant per pawn, so the mood key holds.
             var breakShifts = ForecastHousing.BreakShifts(context);
             HashSet<string>? rejectedWork = null;
             // Per pawn, the cached timelines are looked up by their inputs; a timeline's capacity input is built only on a miss (#3468).

@@ -553,7 +553,7 @@ public sealed class ForecastCoupledTests
                 var recipe = generated.Context.Activities.Activities.First(t => t.Id.StartsWith("clothing-", StringComparison.Ordinal) && t.Inputs.Any(i => i.Resource.Value == stuff));
                 var garment = generated.Alternatives.First(c => c.ActivityCompletions.Count == 1 && generated.Context.Activities.Activities
                     .Single(t => t.Id == c.ActivityCompletions[0]).Prerequisites.Contains(recipe.Id));
-                Assert.NotNull(garment.Outcome!.Requirements);
+                Assert.Equal(stuff, Assert.Single(Assert.Single(garment.OutfitChanges, o => o.Overlay).Items).Stuff.Value);
                 Assert.Equal(stuff == "Cloth" || rice == 110, Evaluate(facts, wall, garment).Proposed.Coupled!.Alternatives.Any(p => p.Feasible == Known(true)));
             }
         }

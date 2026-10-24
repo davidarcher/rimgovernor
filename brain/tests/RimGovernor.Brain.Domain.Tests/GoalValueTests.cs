@@ -105,21 +105,29 @@ public sealed class GoalValueTests
     }
 
     [Fact]
-    public void ReliefAGoalInjectedIsValuedByTheGoalAndNotCountedAsADevelopmentUnit()
+    public void AGoalsWearerIsPaidWhenACommitmentDressesThemAndTheDeliveryIsNoDevelopmentUnit()
     {
-        var need = "clothing/pawn/required/Duster";
-        var commitment = new ForecastCommitment("clothing", [])
+        // #3816: the worn-count goal pays the wearer's share when a selected commitment's outfit change dresses that pawn in the
+        // garment, a crafted overlay or a swap into a stored one alike; the delivery adds nothing to the development count.
+        var duster = new GearOption { ID = "duster", Definition = new("Duster"), Stuff = new("Cloth"), Slot = GearSlot.Outer };
+        var crafted = new ForecastCommitment("clothing", [])
         {
-            Outcome = new("clothing", "clothing", "done", Known(1d), Known(0d))
-            { Requirements = new([new(need, ProductionNeedPriority.Required, 1)], Known(0d), Known(0d)) },
+            ActivityCompletions = ["done"], Outcome = new("clothing", "clothing/pawn/Duster", "done", Known(1d), Known(0d)),
+            OutfitChanges = [new("pawn", [duster]) { Overlay = true }],
         };
-        var context = Context(Importance.Normal) with { GoalValues = [new("goals/worn-count/2", Importance.Normal, null) { Relief = [new(need, .5)] }] };
+        var swap = new ForecastCommitment("gear/pawn/a", []) { OutfitChanges = [new("pawn", [duster with { ID = "stored-duster", Source = GearSource.Stored }])] };
+        var other = new ForecastCommitment("gear/other/a", []) { OutfitChanges = [new("other", [duster])] };
+        var context = Context(Importance.Normal) with { GoalValues = [new("goals/worn-count/2", Importance.Normal, null) { Wearers = [new("pawn", "Duster", "", .5)] }] };
         var outcome = Outcome(0);
 
-        Assert.Equal(1, ForecastCoupledSelection.CoupledConsequences(outcome, [commitment]).Development);
-        Assert.Equal(0, ForecastCoupledSelection.CoupledConsequences(outcome, [commitment], new HashSet<string> { need }).Development);
-        Assert.Equal(-1, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [commitment]).Goals.Value, 9);
-        Assert.Equal(0, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), []).Goals.Value);
+        Assert.Equal(0, ForecastCoupledSelection.CoupledConsequences(outcome, [crafted]).Development);
+        Assert.Equal(-1, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [crafted]).Goals.Value, 9);
+        Assert.Equal(-1, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [swap]).Goals.Value, 9);
+        // Once per wearer, and only the wearer the goal names; a goal on another stuff is not met by cloth.
+        Assert.Equal(-1, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [crafted, swap]).Goals.Value, 9);
+        Assert.Equal(0, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [other]).Goals.Value);
+        var devilstrand = context with { GoalValues = [new("goals/worn-count/2", Importance.Normal, null) { Wearers = [new("pawn", "Duster", "DevilstrandCloth", .5)] }] };
+        Assert.Equal(0, ForecastValue.Of(outcome, devilstrand, GameTime.TicksPerDay, Outcome(0), [crafted]).Goals.Value);
     }
 
     [Fact]

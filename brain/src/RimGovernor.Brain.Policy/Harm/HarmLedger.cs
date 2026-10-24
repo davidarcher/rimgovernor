@@ -293,10 +293,9 @@ internal static class HarmLedger
 
     /// <summary>
     /// The garments and weapon the pawn wears under <paramref name="commitments"/>, each with the share of the horizon it is worn:
-    /// the worn items from the start, then each outfit change from its commitment's effective tick (the start for a commitment
-    /// without activities, else its row in <paramref name="ticks"/>), in tick order. A whole outfit replaces the one then worn; an
-    /// overlay replaces only the items it conflicts with. A change that takes effect at or after the horizon is never worn. Null
-    /// when a change's tick is unknown.
+    /// the worn items from the start, then each outfit change from its commitment's <see cref="ChangeTick"/>, in tick order. A whole
+    /// outfit replaces the one then worn; an overlay replaces only the items it conflicts with. A change that takes effect at or after
+    /// the horizon is never worn. Null when a change's tick is unknown.
     /// </summary>
     internal static List<(EquatableArray<GearOption> Outfit, double Share)>? OutfitsOf(string pawn, EquatableArray<GearOption> worn,
         IEnumerable<ForecastCommitment>? commitments, EquatableArray<ForecastEffectiveTick> ticks, double horizon)
@@ -311,27 +310,14 @@ internal static class HarmLedger
                     continue;
                 }
 
-                var at = Known(0d);
-                if (commitment.ActivityCompletions.Count > 0)
-                {
-                    at = default;
-                    foreach (var tick in ticks)
-                    {
-                        if (tick.Commitment == commitment.Id)
-                        {
-                            at = tick.Tick;
-                        }
-                    }
-                }
-
-                if (!at.IsKnown)
+                if (ChangeTick(commitment, ticks) is not { } at)
                 {
                     return null;
                 }
 
-                if (at.Value < horizon || at.Value == 0)
+                if (at < horizon || at == 0)
                 {
-                    changes.Add((at.Value, change));
+                    changes.Add((at, change));
                 }
             }
         }
@@ -346,13 +332,35 @@ internal static class HarmLedger
                 from = at;
             }
 
-            outfit = change.Overlay
-                ? EquatableArray.From(outfit.Where(w => !change.Items.Any(i => GearLoadoutRules.GearConflicts(w, i))).Concat(change.Items))
-                : change.Items;
+            outfit = change.Apply(outfit);
         }
 
         outfits.Add((outfit, horizon > 0 ? (horizon - from) / horizon : 1));
         return outfits;
+    }
+
+    /// <summary>
+    /// The tick, from the forecast start, at which <paramref name="commitment"/>'s outfit changes take effect: its row in
+    /// <paramref name="ticks"/> for a commitment with activities, a retained bill's completion (#3816), else the start. Null when
+    /// that tick is unknown.
+    /// </summary>
+    internal static double? ChangeTick(ForecastCommitment commitment, EquatableArray<ForecastEffectiveTick> ticks)
+    {
+        if (commitment.ActivityCompletions.Count == 0)
+        {
+            return commitment.Outcome is { RetainedCompletion.IsKnown: true } retained ? retained.RetainedCompletion.Value : 0;
+        }
+
+        double? at = null;
+        foreach (var tick in ticks)
+        {
+            if (tick.Commitment == commitment.Id)
+            {
+                at = tick.Tick.IsKnown ? tick.Tick.Value : null;
+            }
+        }
+
+        return at;
     }
 
     /// <summary>The exposure role of a pawn from what it wears: a ranged primary weapon is a gunner, a melee one a melee fighter, none a noncombatant.</summary>

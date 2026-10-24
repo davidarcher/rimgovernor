@@ -2,8 +2,8 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>A wearer's garment to craft: the bill option (product, stuff, layers, groups and armor) and what it relieves.</summary>
-public sealed record ClothingActivityRequirement(string Wearer, GearOption Garment, ForecastRequirementAssessment Assessment)
+/// <summary>A wearer's garment to craft: the bill option (product, stuff, layers, groups and armor).</summary>
+public sealed record ClothingActivityRequirement(string Wearer, GearOption Garment)
 {
     public string Product => Garment.Definition.Value;
     public string Stuff => Garment.Stuff.Value;
@@ -31,21 +31,25 @@ public static class ClothingActivitiesRules
             if (!pawn.LoadoutModel.TryGetValue(out var input)) continue;
             foreach (var trait in input.Role.Work.Traits.ValueOrDefault)
                 input = input with { Nudist = input.Nudist || trait.Effects.Nudist };
+            var required = pawn.Policy.TryGetValue(out var policy) ? policy.Required : [];
             foreach (var option in input.Options.Where(o => o.Source == GearSource.Bill && !GearArmorRules.ArmoryArmor(o.Definition)
                 && GearLoadoutRules.GearEligible(input, o)))
             {
-                var effects = ClothingRequirementsRules.ClothingRelief(pawn, input, option);
-                if (effects is null) continue;
                 // Warmth is a comfort shift from the craft's completion, priced by the forecast's temperature cards as break
-                // risk (#3330); armor is the outfit change the harm term prices from the delivery (#3621). A garment changing
-                // neither and relieving nothing is not a candidate.
+                // risk (#3330); armor is the outfit change the harm term prices from the delivery (#3621); the apparel thoughts it
+                // changes are its investment credit (#3816). A garment the policy requires and the wearer lacks (a worn-count
+                // goal's, stamped into the policy) is a candidate too, so a goal can be met. Any other is not.
                 var (cold, heat) = GearLoadoutRules.GearInsulation([option]);
                 var replaced = input.Worn.Where(w => GearLoadoutRules.GearConflicts(w, option)).ToArray();
                 var (wornCold, wornHeat) = GearLoadoutRules.GearInsulation(replaced);
                 var comfort = new ForecastComfortShift(pawn.Pawn.Value, wornCold - cold, heat - wornHeat);
-                if (effects.Count == 0 && comfort.MinDelta >= 0 && comfort.MaxDelta <= 0
+                // A garment that changes what the apparel workers read is kept even when it alone changes no thought: with
+                // another (a female pawn's shirt and pants) it may.
+                var thoughts = ForecastApparel.ChangesThoughts(input.Worn, [option]);
+                var wanted = required.Contains(option.Definition.Value) && !input.Worn.Any(w => w.Definition == option.Definition);
+                if (!thoughts && !wanted && comfort.MinDelta >= 0 && comfort.MaxDelta <= 0
                     && !Methods.Generation.EffectSourceCandidates.ArmorDiffers(replaced, [option])) continue;
-                result.Add(new(pawn.Pawn.Value, option, new(EquatableArray.From(effects), Known(0.0), Known(0.0)))
+                result.Add(new(pawn.Pawn.Value, option)
                 { Comfort = comfort.MinDelta == 0 && comfort.MaxDelta == 0 ? null : comfort, Score = GearLoadoutRules.GearItemScore(input, option) });
             }
         }

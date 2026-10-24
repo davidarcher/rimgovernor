@@ -130,6 +130,12 @@ public sealed record GearOption
 
     public bool Tainted { get; init; }
     public bool Locked { get; init; }
+
+    /// <summary>The def has hit points and ApparelProperties.careIfDamaged: its wear counts toward ThoughtWorker_ApparelDamaged.</summary>
+    public bool CareIfDamaged { get; init; }
+
+    /// <summary>ApparelProperties.countsAsClothingForNudity, which the covering-disapproved precept workers read.</summary>
+    public bool CountsAsClothingForNudity { get; init; }
     public bool Shield { get; init; }
     public bool Ranged { get; init; }
 

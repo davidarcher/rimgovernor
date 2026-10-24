@@ -232,7 +232,8 @@ public static class ForecastHousing
     internal static IReadOnlyDictionary<(int Room, string Stuff), ForecastHousingDelta[]> BedroomDeltas(ForecastCoupledContext context)
         => Cache.GetValue(context, MovesOf).Deltas;
 
-    /// <summary>Per pawn, the distinct known nonzero bedroom shifts (delta / 100) its mood timeline integrates breaks at.</summary>
+    /// <summary>Per pawn, the distinct known nonzero bedroom and garment (<see cref="ForecastCoupledContext.ApparelShifts"/>) shifts
+    /// (delta / 100) its mood timeline integrates breaks at.</summary>
     internal static IReadOnlyDictionary<string, double[]> BreakShifts(ForecastCoupledContext context) => Cache.GetValue(context, MovesOf).Shifts;
 
     private static Moves MovesOf(ForecastCoupledContext c)
@@ -259,6 +260,9 @@ public static class ForecastHousing
             if (move.Delta.TryGetValue(out var delta)) gains.Add((move.Pawn, delta));
         var shifts = gains.Where(m => m.Delta != 0).GroupBy(m => m.Pawn, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.Select(m => m.Delta / 100).Distinct().Order().ToArray(), StringComparer.Ordinal);
+        // A garment's apparel mood delta is priced by the same break days (#3816).
+        foreach (var (pawn, apparel) in c.ApparelShifts)
+            shifts[pawn] = shifts.TryGetValue(pawn, out var own) ? [.. own.Concat(apparel).Distinct().Order()] : apparel;
         return new(deltas, royal, shifts);
     }
 

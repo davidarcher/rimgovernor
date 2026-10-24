@@ -580,11 +580,10 @@ Policy/ClockWatch.cs|Discard|1
 Policy/ClockWatch.cs|Fact|8
 Policy/ClockWatchTypes.cs|Fact|4
 Policy/ClockWatchTypes.cs|UnknownMember|1
-Policy/ClothingActivities.cs|Fact|4
+Policy/ClothingActivities.cs|Fact|3
 Policy/ClothingActivities.cs|ValueOrDefault|1
 Policy/ClothingDemand.cs|Fact|26
 Policy/ClothingDemand.cs|Unknown|5
-Policy/ClothingRequirements.cs|Fact|1
 Policy/ColonyAdmin.cs|Fact|23
 Policy/ColonyAdmin.cs|NullableValue|5
 Policy/ColonyAdmin.cs|Unknown|5
@@ -880,7 +879,7 @@ Policy/GrowerCrop.cs|Fact|9
 Policy/GrowerCrop.cs|ValueOrDefault|2
 Policy/Harm/ArmorResponse.cs|Discard|2
 Policy/Harm/HarmConsequences.cs|Fact|10
-Policy/Harm/HarmLedger.cs|Fact|29
+Policy/Harm/HarmLedger.cs|Fact|28
 Policy/Harm/RaidComposition.cs|Fact|2
 Policy/Harm/RaidComposition.cs|NullableValue|1
 Policy/Harm/RaidExposure.cs|Fact|3
@@ -1037,7 +1036,7 @@ Policy/MedicineCarry.cs|Unknown|1
 Policy/MethodClaims.cs|Fact|3
 Policy/Methods/Binding/CoordinatedActivityBinding.cs|Fact|8
 Policy/Methods/Evaluation/WorkMaterialEvaluation.cs|Fact|9
-Policy/Methods/Generation/ClothingMethodCandidates.cs|Fact|41
+Policy/Methods/Generation/ClothingMethodCandidates.cs|Fact|39
 Policy/Methods/Generation/ConstructionMethodCandidates.cs|Discard|2
 Policy/Methods/Generation/ConstructionMethodCandidates.cs|Fact|53
 Policy/Methods/Generation/CoordinatedMethodCandidates.cs|Fact|1

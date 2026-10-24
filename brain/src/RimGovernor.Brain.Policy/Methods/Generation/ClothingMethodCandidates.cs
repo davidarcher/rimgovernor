@@ -20,16 +20,17 @@ internal static class ClothingMethodCandidates
         var findings = new HashSet<string>(StringComparer.Ordinal);
         var garmentNeeds = new Dictionary<string, ClothingActivityRequirement>(StringComparer.Ordinal);
         var truncated = false;
-        // A retained bill has no completion task to time a comfort shift (#3330), so only its relief can value it.
+        // A retained bill has no completion task to time a comfort shift (#3330); its garment is the outfit change the harm term
+        // and the apparel credit price from the bill's completion (#3816).
         foreach (var retained in read.Retained.OrderBy(r => r.Id, StringComparer.Ordinal))
-            foreach (var need in requirements.Where(n => n.Product == retained.Product && n.Stuff == retained.Stuff && n.Assessment.Relief.Count > 0))
+            foreach (var need in requirements.Where(n => n.Product == retained.Product && n.Stuff == retained.Stuff))
             {
                 if (outcomes.Count == 16) { truncated = true; findings.Add(GenerationTruncated); break; }
                 if (!retained.CompletionTicks.IsKnown) { findings.Add("unknown_retained_completion:" + retained.Id); continue; }
                 var id = "retain-" + outcomes.Count;
                 garmentNeeds[id] = need;
                 outcomes.Add(new(id, "clothing/" + need.Wearer + "/" + need.Product, "", Known((double)horizon), default)
-                { Requirements = need.Assessment, RetainedCompletion = retained.CompletionTicks, ExclusiveOutput = retained.Id });
+                { RetainedCompletion = retained.CompletionTicks, ExclusiveOutput = retained.Id });
             }
         var allocations = new List<RecipeActivityOption>();
         foreach (var row in read.Options.OrderBy(o => o.Id, StringComparer.Ordinal))
@@ -90,10 +91,9 @@ internal static class ClothingMethodCandidates
                 { Resource = row.Stuff, Stuff = row.Stuff, Unfinished = row.Unfinished }
             };
             bindings[(id, row.Pawn)] = new(id, row.Pawn, [make], PawnActivityKind.Deliver, "observed-output", "", "", 1, deadline, row.Location)
-            // The completion carries the wearer's requirement: its comfort shift takes effect when the delivery completes (#3330).
-            { Resource = row.Product, ProductStuff = row.Stuff, Source = row.Location, Destination = row.Destination, Clothing = need };
+            { Resource = row.Product, ProductStuff = row.Stuff, Source = row.Location, Destination = row.Destination };
             outcomes.Add(new(id, "clothing/" + need.Wearer + "/" + need.Product, id, Known((double)horizon), default)
-            { ChoiceIdentity = "clothing/" + need.Wearer + "/" + need.Product, Requirements = need.Assessment with { Work = Known(travel + work + row.OutputTravelTicks.Value) } });
+            { ChoiceIdentity = "clothing/" + need.Wearer + "/" + need.Product });
         }
         var capacities = workers.Order(StringComparer.Ordinal).Select(p => new ForecastPawnCapacity(p, "start",
             resources.Capacity.TryGetValue(p, out var capacity) && capacity.Capacity.Windows.TryGetValue(out var windows)
@@ -126,7 +126,7 @@ internal static class ClothingMethodCandidates
             Deadline = Known((double)horizon),
             AlternativeLaborCost = Known((double)horizon)
         }, alternativesWithConflicts, bindings, truncated)
-        { Findings = EquatableArray.From(findings.Order(StringComparer.Ordinal)) };
+        { Findings = EquatableArray.From(findings.Order(StringComparer.Ordinal)), Garments = garmentNeeds };
     }
 
     private static RecipeActivityOption[] AllocateInputs(RecipeActivityOption row, out bool truncated)
