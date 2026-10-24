@@ -101,7 +101,7 @@ internal static class ColonyModelFixtures
         CombinedFoodSupply = Known(new FoodSupply { Complete = Known(true), Consumers = [new() { Id = new("Anna"), NutritionPerDay = Known(1d) }], Stocks = [new RimGovernor.Brain.Policy.FoodStock { Id = "meal", Nutrition = Known(12.5), Holder = Known(new PawnId("")), Perishable = Known(false), Eaters = [new("Anna")] }] }),
         Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new Resource("Steel")] = 120, [new Resource(Cloth)] = 0 }),
         Definitions = [CropRow()],
-        Farms = [new FarmZoneFact { Id = "zone1", Crop = Crop }],
+        Farms = [ZoneFixtures.Growing("zone1", Crop)],
         Cells = [.. Enumerable.Range(0, 4).Select(x => new SiteCell { Cell = new Cell(x, 0), Zone = Known(true), ZoneId = Known("zone1"), Fertility = Known(0.5 + (0.1 * x)) })],
         WorkPawns = Known(EquatableArray.From(new[] { new WorkPawn { Id = new PawnId("Anna"), Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Plants", Level = 10 } })) } })),
         Acquisition = Known(EquatableArray.From(Array.Empty<AcquisitionSource>())),

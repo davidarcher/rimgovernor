@@ -211,7 +211,6 @@ public static class CellReads
             Scope = TypedReads.Scope(identity),
             Rectangle = new() { Minimum = new() { X = min.X, Z = min.Z }, Maximum = new() { X = max.X, Z = max.Z } },
         };
-        var reply = await harness.CallAsync(label, NativeOps.GetCells, request, cancellationToken).ConfigureAwait(false);
-        return TypedReads.Observed(label, NativeOps.GetCells, reply, reply.Outcome?.Observed);
+        return await harness.CallAsync(label, NativeOps.GetCells, request, cancellationToken).ConfigureAwait(false);
     }
 }

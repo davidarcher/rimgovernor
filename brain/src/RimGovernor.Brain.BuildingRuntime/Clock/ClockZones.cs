@@ -18,19 +18,19 @@ internal sealed class ZoneRefresher(IZonesNative native, FactStore store) : IZon
     /// <summary>Whether the step reviews: a review step reads the census whole once.</summary>
     public bool Review { get; set; }
 
-    public async Task<Held<ZonesRead>> ZonesAsync(PbCommon.Identity id, CancellationToken ct)
+    public async Task<Held<O.ZonesSnapshot>> ZonesAsync(PbCommon.Identity id, CancellationToken ct)
     {
-        var ok = FactStore.Read<ZonesRead>(store, FactSection.Zones, out var held);
+        var ok = FactStore.Read<O.ZonesSnapshot>(store, FactSection.Zones, out var held);
         ok = ok && store.Scope == Scope
-            && (held.Value.Context?.Identity?.ColonyId ?? "") == (id.ColonyId ?? "")
-            && (held.Value.Context?.Identity?.MapId).GetValueOrDefault() == id.MapId;
+            && (held.Value.Context.Identity.ColonyId ?? "") == (id.ColonyId ?? "")
+            && held.Value.Context.Identity.MapId == id.MapId;
         if (ok && (_refreshed || !Review))
         {
             return held;
         }
         var read = await native.ReadZoneSectionAsync(id, ct).ConfigureAwait(false);
         _refreshed = Review;
-        var output = new Held<ZonesRead> { Value = read, AsOf = read.AsOf, Complete = true, Source = "rimgovernor/observations_list_zones" };
+        var output = new Held<O.ZonesSnapshot> { Value = read, AsOf = read.Context.Tick, Complete = true, Source = "rimgovernor/observations_list_zones" };
         FactStore.Put(store, Scope, FactSection.Zones, output);
         return output;
     }

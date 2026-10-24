@@ -304,10 +304,10 @@ public sealed partial record ColonyProjection
     /// <summary>The window's provenance when a PlanningWindowSource served it (Source set); null when the reply listed the cells itself.</summary>
     public Held<PlanningCells>? Window { get; init; }
 
-    public Held<ZonesRead>? Zones { get; init; }
+    public Held<O.ZonesSnapshot>? Zones { get; init; }
 
     /// <summary>Observed growing zones by native id and current crop.</summary>
-    public IReadOnlyList<FarmZoneFact> Farms { get; init; } = [];
+    public IReadOnlyList<O.ZoneState.Growing> Farms { get; init; } = [];
 
     /// <summary>The controlled-growing census inside the planning region.</summary>
     public Fact<ControlledEnvironment> Environment { get; init; }
@@ -415,15 +415,6 @@ public sealed partial record ColonyProjection
             PowerSources,
             GeneratorRows);
     }
-}
-
-public sealed record FarmZoneFact
-{
-    public string Id { get; init; } = "";
-
-    public string Crop { get; init; } = "";
-
-    public uint UsableCells { get; init; }
 }
 
 public sealed record CookingBench

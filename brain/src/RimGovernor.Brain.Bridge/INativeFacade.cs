@@ -71,7 +71,7 @@ public interface INativeFacade
 
     Task<Obs.ColonyFactsSnapshot> ReadColonyFactsAsync(Obs.ColonyFactsRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.GetCellsReply> GetCellsAsync(Obs.GetCellsRequest request, CancellationToken cancellationToken);
+    Task<Obs.CellsSnapshot> GetCellsAsync(Obs.GetCellsRequest request, CancellationToken cancellationToken);
 
     Task<Obs.ListBuildingsReply> ListBuildingsAsync(Obs.ListBuildingsRequest request, CancellationToken cancellationToken);
 
@@ -161,7 +161,7 @@ public interface INativeFacade
 
     Task<Obs.WorldProgressionReply> ReadWorldProgressionAsync(Obs.WorldProgressionRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.ListZonesReply> ListZonesAsync(Obs.ListZonesRequest request, CancellationToken cancellationToken);
+    Task<Obs.ZonesSnapshot> ListZonesAsync(Obs.ListZonesRequest request, CancellationToken cancellationToken);
 
     Task<Obs.ExcavationSiteReply> ReadExcavationSiteAsync(Obs.ExcavationSiteRequest request, CancellationToken cancellationToken);
 

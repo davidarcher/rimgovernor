@@ -53,7 +53,7 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
         return Task.FromResult(frame.Tables with { FinishedResearch = Known<EquatableArray<string>>([.. RoundsReads.ResearchSection(frame).Finished]) });
     }
 
-    public Task<ZonesRead> ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken)
+    public Task<O.ZonesSnapshot> ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken)
     {
         if (frame.Zones is not { } zones)
         {
@@ -62,10 +62,10 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
         return Task.FromResult(zones);
     }
 
-    public async Task<Held<ZonesRead>> ZonesAsync(C.Identity identity, CancellationToken cancellationToken)
+    public async Task<Held<O.ZonesSnapshot>> ZonesAsync(C.Identity identity, CancellationToken cancellationToken)
     {
         var read = await ReadZoneSectionAsync(identity, cancellationToken).ConfigureAwait(false);
-        return new Held<ZonesRead> { Value = read, AsOf = read.AsOf, Complete = true, Source = "native_frame" };
+        return new Held<O.ZonesSnapshot> { Value = read, AsOf = read.Context.Tick, Complete = true, Source = "native_frame" };
     }
 
     /// <summary>The load's catalog.</summary>

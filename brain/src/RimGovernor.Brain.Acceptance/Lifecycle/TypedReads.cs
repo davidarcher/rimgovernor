@@ -37,7 +37,7 @@ public static class TypedReads
     {
         ArgumentNullException.ThrowIfNull(harness);
         var reply = await harness.CallAsync(label, NativeOps.ListZones, new Observations.ListZonesRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
-        return Observed(label, NativeOps.ListZones, reply, reply.Outcome?.Observed).Zones.ToList();
+        return reply.Zones.ToList();
     }
 
     /// <summary>
@@ -58,16 +58,11 @@ public static class TypedReads
         ArgumentNullException.ThrowIfNull(grid);
         var byZone = grid.ZoneCells();
         var rows = new List<GrowingZone>();
-        foreach (var zone in zones)
+        foreach (var zone in zones.OfType<Observations.ZoneState.Growing>())
         {
-            if (!string.Equals(zone.Type, "growing", StringComparison.OrdinalIgnoreCase) || zone.Id is null)
-            {
-                continue;
-            }
-
             var cells = byZone.GetValueOrDefault(zone.Id) ?? [];
-            var crop = zone.CropDefName ?? "";
-            var planted = cells.Where(c => crop.Length > 0 && grid.ThingsAt(c).Any(t => t.Def == crop)).ToList();
+            var crop = zone.Crop;
+            var planted = cells.Where(c => grid.ThingsAt(c).Any(t => t.Def == crop)).ToList();
             rows.Add(new GrowingZone(zone.Id, crop, cells, planted));
         }
 

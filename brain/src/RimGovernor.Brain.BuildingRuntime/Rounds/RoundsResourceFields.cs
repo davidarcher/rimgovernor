@@ -85,7 +85,7 @@ internal sealed class ResourceFieldPlanner
     private bool read;
     private bool sited;
 
-    public ResourceFieldPlanner(IReadOnlyList<CropChoice> choices, CropClimate climate, Fact<int> skill, IReadOnlyList<FarmZoneFact> farms, Func<(FarmSiteRequest Site, bool Ok)> siteRead)
+    public ResourceFieldPlanner(IReadOnlyList<CropChoice> choices, CropClimate climate, Fact<int> skill, IReadOnlyList<O.ZoneState.Growing> farms, Func<(FarmSiteRequest Site, bool Ok)> siteRead)
     {
         Choices = choices;
         Climate = climate;
@@ -100,7 +100,7 @@ internal sealed class ResourceFieldPlanner
 
     public Fact<int> Skill { get; }
 
-    public IReadOnlyList<FarmZoneFact> Farms { get; }
+    public IReadOnlyList<O.ZoneState.Growing> Farms { get; }
 
     public bool Serves(Resource resource)
     {

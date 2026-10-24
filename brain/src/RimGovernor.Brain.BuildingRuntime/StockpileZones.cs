@@ -12,8 +12,8 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal sealed partial class StockpileZones(Rounder reviewer, FacadeNativeClient native)
 {
     /// <summary>
-    /// Whether the edit's target (the stockpile zone, or the shelf for a shelf patch) is still there; false when
-    /// the source cannot read it.
+    /// Whether the edit's target (the stockpile zone, or the shelf for a shelf patch) is still there; a zone read
+    /// that fails throws.
     /// </summary>
     public async Task<bool> EditTargetPresentAsync(C.Identity identity, Pol.StockpileEdit e, CancellationToken ct)
     {
@@ -26,8 +26,7 @@ internal sealed partial class StockpileZones(Rounder reviewer, FacadeNativeClien
             var shelf = await source.ReadStorageBuildingTargetAsync(identity, e.Zone, ct).ConfigureAwait(false);
             return shelf.Present;
         }
-        var target = await native.ReadZoneDeleteTargetAsync(identity, e.Zone, ct).ConfigureAwait(false);
-        return target.Present && target.Type == "stockpile";
+        return await native.ReadZoneAsync(identity, e.Zone, ct).ConfigureAwait(false) is PbObservations.ZoneState.Stockpile;
     }
 
     /// <summary>

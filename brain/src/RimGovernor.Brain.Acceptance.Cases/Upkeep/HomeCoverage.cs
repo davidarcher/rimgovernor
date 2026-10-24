@@ -104,7 +104,6 @@ internal static class UpkeepHomeCoverage
                 Maximum = new Common.Cell { X = cells.Max(c => c.X), Z = cells.Max(c => c.Z) },
             },
         }, cancellationToken).ConfigureAwait(false);
-        var snapshot = TypedReads.Observed(label, NativeOps.GetCells, reply, reply.Outcome?.Observed);
-        return MapCellGrid.Of(snapshot.Grid);
+        return MapCellGrid.Of(reply.Grid);
     }
 }

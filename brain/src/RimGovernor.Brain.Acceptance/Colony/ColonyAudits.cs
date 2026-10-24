@@ -122,15 +122,10 @@ public static class ColonyAudits
         var stockpiles = 0;
         var food = 0;
         var rows = new JsonArray();
-        foreach (var zone in TypedReads.Observed("audit-zones", NativeOps.ListZones, zones, zones.Outcome?.Observed).Zones)
+        foreach (var zone in zones.Zones.OfType<Observations.ZoneState.Stockpile>())
         {
-            if (zone.Type != "stockpile")
-            {
-                continue;
-            }
-
             stockpiles++;
-            var isFood = zone.FoodStorage == true;
+            var isFood = zone.FoodStorage;
             if (isFood)
             {
                 food++;
@@ -142,7 +137,7 @@ public static class ColonyAudits
                 { "id", zone.Id },
                 { "label", zone.Label },
                 { "priority", zone.Priority },
-                { "bounds", zone.Bounds is { } bounds ? JsonNode.Parse(WireJson.Serialize(bounds)) : null },
+                { "bounds", JsonNode.Parse(WireJson.Serialize(zone.Bounds)) },
                 { "food_storage", isFood },
             });
         }

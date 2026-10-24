@@ -184,7 +184,7 @@ a depleted drill for removal from the deep drill step's recorded read.
 - `JobEvidence` reports the pawn's real current job. `preemptible` is set when the
   pawn is controlled with no committed coupled order, so the job is vanilla job
   selection a coupled order may replace (#3670, [pawn activities](../../docs/developers/contracts/pawn-activities.md)).
-- BillStack, BuildingSettings, PawnSettings, ZoneState, GearLoadout,
+- BillStack, BuildingSettings, PawnSettings, GearLoadout,
   ResearchSnapshot and TradeSheet expose SnapshotRef for exact
   compare-and-set. Read tokens cannot revive authority or prove successful writes.
 - PawnHealth carries surgery facts: `missing_parts` (each missing or

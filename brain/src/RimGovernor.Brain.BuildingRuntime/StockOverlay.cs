@@ -109,17 +109,13 @@ public sealed partial class Rounder
             }
         }
         var output = new List<Pol.StockZone>();
-        foreach (var row in projection.Zones?.Value.Rows ?? [])
+        foreach (var row in projection.Zones?.Value.Zones.OfType<O.ZoneState.Stockpile>() ?? [])
         {
-            if ((row.Type ?? "") != "stockpile")
-            {
-                continue;
-            }
             var z = new Pol.StockZone
             {
-                Id = row.Id ?? "",
-                FoodStorage = row.FoodStorage.GetValueOrDefault(),
-                Cells = cells.TryGetValue((row.Id ?? ""), out var own) ? [.. own] : [],
+                Id = row.Id,
+                FoodStorage = row.FoodStorage,
+                Cells = cells.TryGetValue(row.Id, out var own) ? [.. own] : [],
             };
             if (owned.TryGetValue(z.Id, out var claim) && claim.Kind == Domain.ZoneKind.Stockpile)
             {
@@ -137,12 +133,13 @@ public sealed partial class Rounder
                     }
                 }
             }
-            if (row.Bounds is { } b && z.Cells.Count == 0)
+            if (z.Cells.Count == 0)
             {
+                var b = row.Bounds;
                 var all = new List<Cell>();
-                for (var x = (b.Minimum?.X).GetValueOrDefault(); x <= (b.Maximum?.X).GetValueOrDefault(); x++)
+                for (var x = b.Minimum.X; x <= b.Maximum.X; x++)
                 {
-                    for (var zz = (b.Minimum?.Z).GetValueOrDefault(); zz <= (b.Maximum?.Z).GetValueOrDefault(); zz++)
+                    for (var zz = b.Minimum.Z; zz <= b.Maximum.Z; zz++)
                     {
                         all.Add(new Cell(x, zz));
                     }

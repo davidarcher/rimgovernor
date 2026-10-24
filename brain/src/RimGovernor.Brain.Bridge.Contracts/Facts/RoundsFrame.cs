@@ -51,8 +51,8 @@ public sealed record RoundsFrame
     /// <summary>The frame's keyed tables every other section's references resolve against: sites by id and the pawn table.</summary>
     public Tables Tables { get; init; } = new(default, default, default);
 
-    public ZonesRead? Zones { get; init; }
-
+    /// <summary>The zone census, in id order.</summary>
+    public ZonesSnapshot? Zones { get; init; }
 
     /// <summary>The indoor room census.</summary>
     public RoomsSnapshot? Rooms { get; init; }

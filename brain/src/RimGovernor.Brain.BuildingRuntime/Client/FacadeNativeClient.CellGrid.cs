@@ -135,7 +135,7 @@ public sealed partial class FacadeNativeClient
 
     /// <summary>
     /// Reads the one-cell grid at a caller-observed anchor for the map's dimensions. A
-    /// failed or unavailable observation never supplies default bounds.
+    /// failed or unavailable observation throws; it never supplies default bounds.
     /// get_cells is no frame-served read and always goes to the facade.
     /// </summary>
     internal async Task<MapBounds> ReadMapBoundsAsync(PbCommon.Identity identity, Cell anchor, CancellationToken cancellationToken)
@@ -154,17 +154,7 @@ public sealed partial class FacadeNativeClient
                 Maximum = new PbCommon.Cell { X = rect.X + rect.Width - 1, Z = rect.Z + rect.Height - 1 },
             },
         };
-        var reply = await Facade.GetCellsAsync(request, cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome;
-        if (outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        if (outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        var observed = outcome.Observed!;
+        var observed = await Facade.GetCellsAsync(request, cancellationToken).ConfigureAwait(false);
         return new MapBounds { Context = observed.Context, Bounds = new P.Bounds((int)observed.MapSize.Width, (int)observed.MapSize.Height) };
     }
 

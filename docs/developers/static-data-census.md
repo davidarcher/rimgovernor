@@ -440,15 +440,13 @@ Kept, reason recorded:
 | RoomDoor | message | 751 | 9 | state | Door in a room boundary with open/forbidden state |  |  |
 | RoomsSnapshot | message | 760 | 2 | state | Rooms table; a census the native cannot read fails the read |  |  |
 | ListRoomsRequest | message | 761 | 5 | state | Read request parameters |  |  |
-| ZoneState | message | 763 | 14 | state | Zone row: bounds, priority, crop, filter, contents, farm facts |  |  |
-| ZonesSnapshot | message | 771 | 3 | state | Zones table |  |  |
+| ZoneState | message | 763 | 15 | state | Zone row, one case per kind: growing (crop, usable/planted/blighted counts, growth and fertility totals, temperature), stockpile (priority, food storage, filter) or other; id, label, bounds on each |  |  |
+| ZonesSnapshot | message | 771 | 2 | state | Zones table; a census the native cannot read fails the read |  |  |
 | ListZonesRequest | message | 772 | 6 | state | Read request parameters |  |  |
-| ListZonesReply | message | 773 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | Thing | message | 784 | 22 | state | Canonical thing row: stack, stuff, hp, forbidden, food facts |  |  |
 | ThingsSnapshot | message | 790 | 3 | state | Things table with removed ids |  |  |
-| CellsSnapshot | message | 799 | 3 | state | Map size plus requested CellGrid |  |  |
+| CellsSnapshot | message | 799 | 3 | state | Map size plus requested CellGrid; a read the native cannot make fails |  |  |
 | GetCellsRequest | message | 806 | 2 | state | Read request parameters |  |  |
-| GetCellsReply | message | 810 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | ResearchUnlock | message | 811 | 3 | static | What a research project unlocks (def, native type, label) | def_name;native_type;label | Go rule over ThingDef.researchPrerequisites, RecipeDef.researchPrerequisite(s), TerrainDef.researchPrerequisites rows keyed by ResearchProjectDef.defName |
 | ResearchProject | message | 814 | 8 | state | Research project row: progress and lock reasons (definition facts are catalog rows) |  |  |
 | ResearchSlot | message | 826 | 2 | state | Current project per research category |  |  |
@@ -624,7 +622,6 @@ Kept, reason recorded:
 | DevelopmentFacts | message | 1432 | 5 | state | Development power, furniture, networks, geysers |  |  |
 | EnvironmentCondition | message | 1433 | 4 | state | Active game condition with id, def name and ticks left (class and label deleted, #2657) |  |  |
 | FoodClimate | message | 1444 | 8 | code | Growing-day calendar computed from biome temperatures and season |  |  |
-| FarmFacts | message | 1452 | 18 | mixed | Per-growing-zone plant growth state plus the crop's static growth range and yield | edible_crop; nutrition_per_harvest_cell; min_growth_temperature; min_optimal_growth_temperature; max_optimal_growth_temperature; max_growth_temperature | PlantProperties.minGrowthTemperature, minOptimalGrowthTemperature, maxOptimalGrowthTemperature, maxGrowthTemperature; nutrition_per_harvest_cell = PlantProperties.harvestYield x harvestedThingDef nutrition stat (Go rule over crop row); edible_crop = harvestedThingDef ingestible (Go rule) |
 | GrowLight | message | 1466 | 8 | mixed | Sun lamp state: powered, lit, grown cells, net | power_w | CompProperties_Power.basePowerConsumption on the building def |
 | PlantGrower | message | 1467 | 11 | mixed | Hydroponics basin state: powered, fertility, cells, sow tag | power_w; sow_tag | power_w = CompProperties_Power.basePowerConsumption; sow_tag = building def sowTag (verify field in ThingDef) |
 | GrowRoom | message | 1468 | 7 | state | Roofed grow room temperature, cell and lit counts |  |  |

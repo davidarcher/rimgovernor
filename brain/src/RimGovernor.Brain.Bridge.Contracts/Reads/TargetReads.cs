@@ -49,20 +49,6 @@ public sealed record StorageBuildingTarget
     public bool Present { get; init; }
 }
 
-/// <summary>Whether one zone is present, its type and its planted cell count.</summary>
-public sealed record ZoneDeleteTarget
-{
-    public ObservationContext? Context { get; init; }
-
-    public string Zone { get; init; } = "";
-
-    public bool Present { get; init; }
-
-    public string Type { get; init; } = "";
-
-    public uint Planted { get; init; }
-}
-
 /// <summary>The map's bounds as the cell read answered them.</summary>
 public sealed record MapBounds
 {

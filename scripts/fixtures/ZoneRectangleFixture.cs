@@ -132,9 +132,9 @@ internal sealed class RectangleRun(RectangleCaseRequest request, INativeFacade n
                 Maximum = new Common.Cell { X = site.X + site.Width - 1, Z = site.Z + site.Height - 1 },
             },
         }, ct).ConfigureAwait(false);
-        var grid = read.Outcome?.Observed?.Grid;
-        var count = grid is null ? 0 : (long)grid.Width * grid.Height;
-        if (grid is null || grid.Width < 1 || grid.Height < 1 || grid.Held.Length != count || grid.Things.Length != count || grid.ZoneId.Length != count)
+        var grid = read.Grid;
+        var count = (long)grid.Width * grid.Height;
+        if (grid.Width < 1 || grid.Height < 1 || grid.Held.Length != count || grid.Things.Length != count || grid.ZoneId.Length != count)
             throw new InvalidOperationException($"{label}: no complete cell grid: {read}");
         var groups = new Dictionary<string, List<Cell>>(StringComparer.Ordinal);
         for (var j = 0; j < grid.Held.Length; j++)
@@ -233,11 +233,11 @@ internal sealed class RectangleRun(RectangleCaseRequest request, INativeFacade n
             Ids = [.. ids],
             IncludeFilter = true,
         }, cancellationToken).ConfigureAwait(false);
-        var zones = (zonesReply.Outcome?.Observed ?? throw new InvalidOperationException($"rectangle-zone-settings: {zonesReply}")).Zones.ToList();
         Record("zones", zonesReply);
-        if (zones.Count != 3)
+        var zones = zonesReply.Zones.OfType<Observations.ZoneState.Stockpile>().ToList();
+        if (zonesReply.Zones.Count != 3 || zones.Count != 3)
         {
-            throw new InvalidOperationException($"expected three zones, got {zones.Count}");
+            throw new InvalidOperationException($"expected three stockpile zones, got {zonesReply}");
         }
 
         foreach (var row in zones)

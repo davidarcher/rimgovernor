@@ -211,9 +211,8 @@ namespace HomeBridge.BridgeTools
             }
             {
                 var began = Now();
-                var zones = NativeZoneObservationTools.Read(map, new Obs.ListZonesRequest { Scope = Scope() }, context).Outcome?.Observed;
-                ObservationWork.Captured("zones", Now() - began, zones != null ? zones.Zones.Count : 0);
-                if (zones != null) { observed = observed with { Zones = zones }; }
+                observed = observed with { Zones = SnapshotSectionException.Read("zones", () => NativeZoneObservationTools.Read(map, new Obs.ListZonesRequest { Scope = Scope() }, context)) };
+                ObservationWork.Captured("zones", Now() - began, observed.Zones?.Zones.Count ?? 0);
             }
             {
                 var began = Now();

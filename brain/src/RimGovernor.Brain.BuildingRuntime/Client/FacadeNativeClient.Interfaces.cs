@@ -80,7 +80,7 @@ public sealed partial class FacadeNativeClient :
     Task<O.ListBuildingsReply> IRefrigerationSource.ReadConstructionBuildingsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadConstructionBuildingsAsync(identity, ids, cancellationToken);
 
-    Task<ZonesRead> IZonesNative.ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken) =>
+    Task<O.ZonesSnapshot> IZonesNative.ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken) =>
         ReadZoneSectionAsync(identity, cancellationToken);
 
     // ---- Clock ----------------------------------------------------------------------------------------------

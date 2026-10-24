@@ -3,54 +3,23 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// The zone census,
+// The zone census and one zone,
 // the single-target building reads, the construction census and the wall upgrade sites.
 public sealed partial class FacadeNativeClient
 {
-    /// <summary>Reads the whole zone census. A failure never silently replaces a held census.</summary>
-    internal async Task<ZonesRead> ReadZoneSectionAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
-    {
-        var reply = await Facade.ListZonesAsync(PlacementChecks.ZoneSectionRequest(identity), cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        if (reply.Outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        return BuildingDecode.DecodeZones(reply.Outcome.Observed!);
-    }
+    /// <summary>Reads the whole zone census, in id order. A failure throws and never replaces a held census.</summary>
+    internal Task<PbObservations.ZonesSnapshot> ReadZoneSectionAsync(PbCommon.Identity identity, CancellationToken cancellationToken) =>
+        Facade.ListZonesAsync(PlacementChecks.ZoneSectionRequest(identity), cancellationToken);
 
     /// <summary>
-    /// Observes one exact zone's presence via the zone listing; an absent zone reads
-    /// back as not present rather than as an error, so a deletion's observer can tell success from a stale read.
+    /// Reads one exact zone by id; null when no such zone stands, so an edit's observer can tell a deleted zone
+    /// from a failed read (which throws).
     /// </summary>
-    internal async Task<ZoneDeleteTarget> ReadZoneDeleteTargetAsync(PbCommon.Identity identity, string zone, CancellationToken cancellationToken)
+    internal async Task<PbObservations.ZoneState?> ReadZoneAsync(PbCommon.Identity identity, string zone, CancellationToken cancellationToken)
     {
         var request = new PbObservations.ListZonesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, Ids = [zone] };
-        var reply = await Facade.ListZonesAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        if (reply.Outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        var v = reply.Outcome.Observed!;
-        var output = new ZoneDeleteTarget { Context = v.Context, Zone = zone };
-        if (v.Zones.Count == 0)
-        {
-            return output;
-        }
-        var row = v.Zones[0];
-        output = output with { Present = true, Type = row.Type ?? "" };
-        if (row.Farm is not null)
-        {
-            output = output with { Planted = row.Farm.PlantedCells };
-        }
-        return output;
+        var census = await Facade.ListZonesAsync(request, cancellationToken).ConfigureAwait(false);
+        return census.Zones.Count == 0 ? null : census.Zones[0];
     }
 
     /// <summary>
@@ -201,14 +170,6 @@ public sealed partial class FacadeNativeClient
 
     internal static class BuildingDecode
     {
-        /// <summary>Decodes a complete zone census, rows in id order.</summary>
-        internal static ZonesRead DecodeZones(PbObservations.ZonesSnapshot value)
-        {
-            List<PbObservations.ZoneState> rows = [.. value.Zones];
-            rows.Sort((a, b) => string.CompareOrdinal(a.Id ?? "", b.Id ?? ""));
-            return new ZonesRead(value.Context, rows, value.Context!.Tick);
-        }
-
         /// <summary>
         /// The building list reply's outcome check shared by the building reads: a failure or unavailable arm throws
         /// its typed refusal; otherwise the observed snapshot is returned.

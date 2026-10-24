@@ -374,7 +374,7 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|710
+Contracts/Observations.cs|NullableValue|705
 Contracts/Observations.cs|UnknownMember|17
 Contracts/Operations.cs|NullableValue|93
 Contracts/Operations.cs|UnknownMember|16
@@ -455,8 +455,8 @@ Observation/ColonyFrames.cs|Unknown|5
 Observation/ColonyGear.cs|Fact|50
 Observation/ColonyGear.cs|Unknown|14
 Observation/ColonyGear.cs|ValueOrDefault|2
-Observation/ColonyProduction.cs|Fact|45
-Observation/ColonyProduction.cs|Unknown|14
+Observation/ColonyProduction.cs|Fact|48
+Observation/ColonyProduction.cs|Unknown|12
 Observation/ColonyRead.cs|Fact|3
 Observation/ColonySurgery.cs|Fact|2
 Observation/ColonyUpkeep.cs|Discard|1

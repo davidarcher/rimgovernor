@@ -581,69 +581,69 @@ public sealed record Watermark
 /// </summary>
 public sealed class CellGrid
 {
-    public int X { get; init; }
+    public required int X { get; init; }
 
-    public int Z { get; init; }
+    public required int Z { get; init; }
 
-    public int Width { get; init; }
+    public required int Width { get; init; }
 
-    public int Height { get; init; }
+    public required int Height { get; init; }
 
     /// <summary>The cell is not fogged: every other array holds its facts.</summary>
-    public bool[] Held { get; init; } = [];
+    public required bool[] Held { get; init; }
 
-    public bool[] Walkable { get; init; } = [];
+    public required bool[] Walkable { get; init; }
 
     /// <summary>The cell lies in a proper room that is not psychologically outdoors.</summary>
-    public bool[] Indoors { get; init; } = [];
+    public required bool[] Indoors { get; init; }
 
     /// <summary>A door, or a door blueprint or frame, stands on the cell.</summary>
-    public bool[] Doorway { get; init; } = [];
+    public required bool[] Doorway { get; init; }
 
-    public bool[] Polluted { get; init; } = [];
+    public required bool[] Polluted { get; init; }
 
     /// <summary>Inside the home area.</summary>
-    public bool[] InHome { get; init; } = [];
+    public required bool[] InHome { get; init; }
 
     /// <summary>The top terrain layer can be removed.</summary>
-    public bool[] TopLayerRemovable { get; init; } = [];
+    public required bool[] TopLayerRemovable { get; init; }
 
     /// <summary>A RemoveFoundation designation stands on the cell.</summary>
-    public bool[] FoundationRemoval { get; init; } = [];
+    public required bool[] FoundationRemoval { get; init; }
 
     /// <summary>The item stacks on the cell (0 for none; up to StorageCapacity).</summary>
-    public int[] StorageStacks { get; init; } = [];
+    public required int[] StorageStacks { get; init; }
 
     /// <summary>
     /// The stacks the cell can hold: a storage building's maxItemsInCell (3 on a shelf), 0 under any other edifice, 1
     /// on open ground.
     /// </summary>
-    public int[] StorageCapacity { get; init; } = [];
+    public required int[] StorageCapacity { get; init; }
 
-    public float[] Fertility { get; init; } = [];
+    public required float[] Fertility { get; init; }
 
-    public float[] Glow { get; init; } = [];
+    public required float[] Glow { get; init; }
 
-    public float[] SnowDepth { get; init; } = [];
+    public required float[] SnowDepth { get; init; }
 
     /// <summary>The terrain def's name.</summary>
-    public string[] Terrain { get; init; } = [];
+    public required string[] Terrain { get; init; }
 
     /// <summary>The terrain def under a floor or bridge (its affordances are what a foundation stands on).</summary>
-    public string[] BaseTerrain { get; init; } = [];
+    public required string[] BaseTerrain { get; init; }
 
     /// <summary>The roof def's name; null for no roof.</summary>
-    public string?[] Roof { get; init; } = [];
+    public required string?[] Roof { get; init; }
 
     /// <summary>The covering zone's load id; null for no zone.</summary>
-    public string?[] ZoneId { get; init; } = [];
+    public required string?[] ZoneId { get; init; }
 
     /// <summary>
     /// The room holding the cell, null for none: keyed by the map index (z * map width + x) of the room's first held
     /// cell, which stays put across the room regeneration an edifice change triggers (the room census's GridRoom).
     /// </summary>
-    public int?[] Room { get; init; } = [];
+    public required int?[] Room { get; init; }
 
     /// <summary>The cell's non-pawn things in native order, null for none.</summary>
-    public RimGovernor.Brain.Policy.Thing[]?[] Things { get; init; } = [];
+    public required RimGovernor.Brain.Policy.Thing[]?[] Things { get; init; }
 }

@@ -2346,8 +2346,8 @@ public sealed record RoomStat
     public required double Value { get; init; }
 }
 
-/// <summary>The cells at the low and high corners of the rectangle around a room's cells.</summary>
-public sealed record RoomExtents
+/// <summary>The cells at the low and high corners of the rectangle around a room's or a zone's cells.</summary>
+public sealed record CellExtents
 {
     public required Cell Minimum { get; init; }
 
@@ -2391,7 +2391,7 @@ public sealed record RoomState
 
     public required uint CellCount { get; init; }
 
-    public required RoomExtents Extents { get; init; }
+    public required CellExtents Extents { get; init; }
 
     public required Cell Center { get; init; }
 
@@ -2480,34 +2480,81 @@ public sealed record ListRoomsRequest
     public EquatableArray<string> RoomIds { get; init; }
 }
 
-public sealed record ZoneState
+/// <summary>
+/// One zone of the native census, a case per zone class the planners read: a growing zone with its crop and
+/// planted state, a stockpile with its storage facts, and every other zone class (fishing, another mod's) as
+/// <see cref="Other"/>, which carries only what every zone has. Every member is read; a zone the native cannot
+/// read completely fails the census. Its cells are not on the row: a reader takes them from the cell grid by
+/// <see cref="Id"/> (CellGrid.ZoneId).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(Growing), "growing")]
+[JsonDerivedType(typeof(Stockpile), "stockpile")]
+[JsonDerivedType(typeof(Other), "other")]
+public abstract record ZoneState
 {
-    public string? Id { get; init; }
+    private protected ZoneState() { }
 
-    public string? Label { get; init; }
+    /// <summary>The zone's unique load id.</summary>
+    public required string Id { get; init; }
 
-    public string? Type { get; init; }
+    public required string Label { get; init; }
 
-    public Rectangle? Bounds { get; init; }
+    public required CellExtents Bounds { get; init; }
 
-    public string? Priority { get; init; }
+    /// <summary>
+    /// A growing zone. Crop is the plant def it grows; the counts are over its unfogged cells: usable cells meet
+    /// the crop's minimum fertility, planted cells carry a plant of the crop, fertile planted ones have a fertility
+    /// growth factor above zero, blighted ones are blighted. GrowthTotal and FertilityFactorTotal sum the planted
+    /// plants' growth fraction (0..1 each) and native fertility growth-rate factor, so each mean is the total over
+    /// PlantedCells. EdibleCrop is whether every colonist WillEat the harvest. Temperature is the map's outdoor
+    /// temperature; the crop's growth range and harvest nutrition are its PlantProperties row's.
+    /// </summary>
+    public sealed record Growing : ZoneState
+    {
+        public required string Crop { get; init; }
 
-    public string? CropDefName { get; init; }
+        public required uint UsableCells { get; init; }
 
-    public StockpileFilter? Filter { get; init; }
+        public required uint PlantedCells { get; init; }
 
-    public FarmFacts? Farm { get; init; }
+        public required uint FertilePlantedCells { get; init; }
 
-    public bool? FoodStorage { get; init; }
+        public required uint BlightedPlants { get; init; }
+
+        public required bool EdibleCrop { get; init; }
+
+        public required double GrowthTotal { get; init; }
+
+        public required double FertilityFactorTotal { get; init; }
+
+        public required double Temperature { get; init; }
+    }
+
+    /// <summary>
+    /// A stockpile. Priority is the native StoragePriority's name; FoodStorage is whether it allows a perishable
+    /// every colonist eats. Filter is the zone's thing filter, carried only when the request asks for it.
+    /// </summary>
+    public sealed record Stockpile : ZoneState
+    {
+        public required string Priority { get; init; }
+
+        public required bool FoodStorage { get; init; }
+
+        public StockpileFilter? Filter { get; init; }
+    }
+
+    /// <summary>A zone of a class the planners read nothing more of: a fishing zone, or another mod's.</summary>
+    public sealed record Other : ZoneState;
 }
 
+/// <summary>The native zone census: every zone with a cell the request selects, in id order. A census the native cannot read fails the read.</summary>
 public sealed record ZonesSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ZoneState>))]
-    public EquatableArray<ZoneState> Zones { get; init; }
-
+    public required EquatableArray<ZoneState> Zones { get; init; }
 }
 
 public sealed record ListZonesRequest
@@ -2522,45 +2569,6 @@ public sealed record ListZonesRequest
     public Rectangle? Region { get; init; }
 
     public bool? IncludeFilter { get; init; }
-}
-
-public sealed record ListZonesReply
-{
-    public ListZonesReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ListZonesReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ListZonesReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(ListZonesReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(ListZonesReplyOutcome.FailureCase), "failure")]
-public abstract record ListZonesReplyOutcome
-{
-    private protected ListZonesReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ZonesSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(ZonesSnapshot Value) : ListZonesReplyOutcome;
-
-    public static implicit operator ListZonesReplyOutcome(ZonesSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : ListZonesReplyOutcome;
-
-    public static implicit operator ListZonesReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : ListZonesReplyOutcome;
-
-    public static implicit operator ListZonesReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 /// <summary>
@@ -2610,15 +2618,15 @@ public sealed record ThingsSnapshot
 /// <summary>
 /// One observations_get_cells read: the map's dimensions and the
 /// requested rectangle as a CellGrid, the arrays the snapshot frame's
-/// grid carries.
+/// grid carries. A rectangle the native cannot read fails the read.
 /// </summary>
 public sealed record CellsSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
-    public MapSize MapSize { get; init; } = new();
+    public required MapSize MapSize { get; init; }
 
-    public Mirror.CellGrid? Grid { get; init; }
+    public required Mirror.CellGrid Grid { get; init; }
 }
 
 /// <summary>
@@ -2630,45 +2638,6 @@ public sealed record GetCellsRequest
     public ReadScope? Scope { get; init; }
 
     public Rectangle? Rectangle { get; init; }
-}
-
-public sealed record GetCellsReply
-{
-    public GetCellsReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="GetCellsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(GetCellsReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(GetCellsReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(GetCellsReplyOutcome.FailureCase), "failure")]
-public abstract record GetCellsReplyOutcome
-{
-    private protected GetCellsReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CellsSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(CellsSnapshot Value) : GetCellsReplyOutcome;
-
-    public static implicit operator GetCellsReplyOutcome(CellsSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : GetCellsReplyOutcome;
-
-    public static implicit operator GetCellsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : GetCellsReplyOutcome;
-
-    public static implicit operator GetCellsReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 /// <summary>
@@ -5567,40 +5536,6 @@ public sealed record FoodClimate
     public int? DayOfYear { get; init; }
 
     public double? NonGrowingDays { get; init; }
-}
-
-/// <summary>
-/// FarmFacts mirrors one growing zone's raw state; policy computes the harvest
-/// lead and the growing-cell count from it and the food climate calendar.
-/// growth_mean is the planted plants' mean growth fraction (0..1),
-/// fertility_factor_mean their mean native fertility growth-rate factor, fertile_planted_cells
-/// the planted cells whose fertility factor is above zero, and blighted_plants
-/// the planted plants with blight. temperature is the map's outdoor temperature;
-/// the crop's growth range and harvest nutrition are its PlantProperties row's.
-/// edible_crop stays native's: whether every colonist WillEat the harvest.
-/// </summary>
-public sealed record FarmFacts
-{
-    public Common.Ref? Zone { get; init; }
-
-    public string? Crop { get; init; }
-
-    public uint UsableCells { get; init; }
-
-    public uint PlantedCells { get; init; }
-
-    public bool? EdibleCrop { get; init; }
-
-
-    public double? GrowthMean { get; init; }
-
-    public double? FertilityFactorMean { get; init; }
-
-    public uint FertilePlantedCells { get; init; }
-
-    public uint BlightedPlants { get; init; }
-
-    public double? Temperature { get; init; }
 }
 
 /// <summary>

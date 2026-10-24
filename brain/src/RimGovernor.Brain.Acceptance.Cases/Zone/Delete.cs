@@ -71,7 +71,7 @@ internal static class ZoneDelete
         async Task<Observations.ZoneState?> RowAsync(string label, string zoneId)
         {
             var reply = await s.CallAsync(label, NativeOps.ListZones, new Observations.ListZonesRequest { Scope = s.Scope, Ids = [zoneId], IncludeFilter = true }, cancellationToken).ConfigureAwait(false);
-            var rows = TypedReads.Observed(label, NativeOps.ListZones, reply, reply.Outcome?.Observed).Zones.ToList();
+            var rows = reply.Zones.ToList();
             return rows switch
             {
                 [] => null,
@@ -91,7 +91,7 @@ internal static class ZoneDelete
         async Task FilterAsync(string label, string zoneId, string priority, string[] allowed, double hpMin, double hpMax)
         {
             var row = await RowAsync(label, zoneId).ConfigureAwait(false) ?? throw new AcceptanceException($"{label}: zone not listed");
-            if (row.Priority != priority || row.Filter is not { } filter || !filter.AllowedDefNames.SequenceEqual(allowed)
+            if (row is not Observations.ZoneState.Stockpile stockpile || stockpile.Priority != priority || stockpile.Filter is not { } filter || !filter.AllowedDefNames.SequenceEqual(allowed)
                 || filter.HitPointsMin != hpMin || filter.HitPointsMax != hpMax || filter.QualityMin != "Normal" || filter.QualityMax != "Legendary")
             {
                 throw new AcceptanceException($"{label}: want {priority} [{string.Join(' ', allowed)}] hp [{hpMin}, {hpMax}] quality [Normal, Legendary], got {row}");
@@ -189,7 +189,7 @@ internal static class ZoneDelete
         {
             var key = "preset-" + preset;
             _ = await AppliedAsync(key, new Operations.ZoneIntent { Zone = zone, Stockpile = new Operations.StockpileSettings { Preset = preset } }).ConfigureAwait(false);
-            var filter = (await RowAsync(key + "-readback", zoneId).ConfigureAwait(false))?.Filter;
+            var filter = (await RowAsync(key + "-readback", zoneId).ConfigureAwait(false) as Observations.ZoneState.Stockpile)?.Filter;
             return (filter?.AllowedDefNames.ToHashSet(StringComparer.Ordinal) ?? [], filter);
         }
 

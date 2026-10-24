@@ -19,12 +19,7 @@ public sealed class RoomCellsTests
     {
         // A 3x2 grid at (10, 20): key 1 on (0,0), (2,0) and (1,1); key 2 on (1,0) but fogged; key 3 on (0,1),
         // which no census room names; no grid cell carries the census room keyed 4.
-        var grid = new FrameCellGrid(new Mirror.CellGrid
-        {
-            X = 10, Z = 20, Width = 3, Height = 2,
-            Held = [true, false, true, true, true, false],
-            Room = [1, 2, 1, 3, 1, null],
-        });
+        var grid = new FrameCellGrid(Grid(10, 20, 3, 2, [true, false, true, true, true, false], [1, 2, 1, 3, 1, null]));
         var rooms = new RoomsSnapshot
         {
             Context = Context,
@@ -33,6 +28,23 @@ public sealed class RoomCellsTests
         var cells = FacadeNativeClient.RoomCellsOf(rooms, grid);
         Assert.Equal(["a"], cells.Keys);
         Assert.Equal([new Cell(10, 20), new Cell(12, 20), new Cell(11, 21)], cells["a"]);
+    }
+
+    // A grid of bare cells (unwalkable open ground, no roof, zone or things) carrying the given held and room arrays.
+    private static Mirror.CellGrid Grid(int x, int z, int width, int height, bool[] held, int?[] room)
+    {
+        var n = width * height;
+        return new Mirror.CellGrid
+        {
+            X = x, Z = z, Width = width, Height = height,
+            Held = held, Room = room,
+            Walkable = new bool[n], Indoors = new bool[n], Doorway = new bool[n], Polluted = new bool[n], InHome = new bool[n],
+            TopLayerRemovable = new bool[n], FoundationRemoval = new bool[n],
+            StorageStacks = new int[n], StorageCapacity = new int[n],
+            Fertility = new float[n], Glow = new float[n], SnowDepth = new float[n],
+            Terrain = [.. Enumerable.Repeat("Soil", n)], BaseTerrain = [.. Enumerable.Repeat("Soil", n)],
+            Roof = new string?[n], ZoneId = new string?[n], Things = new RimGovernor.Brain.Policy.Thing[]?[n],
+        };
     }
 
     private static readonly RoomsSnapshot Census = new()

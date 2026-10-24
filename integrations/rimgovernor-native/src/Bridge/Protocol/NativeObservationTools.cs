@@ -6,6 +6,8 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
@@ -27,30 +29,28 @@ namespace HomeBridge.BridgeTools
             catch (Exception) { return new Obs.StatusReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native status facts could not be read completely.") }; }
         }
 
-        // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Obs.GetCellsReply HandleGetCells(Obs.GetCellsRequest parsed)
+        // On the game thread: the typed core of the tool, shared with the in-process facade: the rectangle as the
+        // frame grid reads it. A refused request or a rectangle that cannot be read completely throws.
+        internal static Obs.CellsSnapshot HandleGetCells(Obs.GetCellsRequest parsed)
         {
-            if (!ValidateCells(parsed, out var invalidRequest)) return new Obs.GetCellsReply { Outcome = invalidRequest };
+            if (!ValidateCells(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
-                return new Obs.GetCellsReply { Outcome = failure };
-            return ReadCells(map, parsed, context);
-        }
-
-        // ReadCells is the read on the main thread under a validated
-        // identity: the rectangle as the frame grid reads it.
-        internal static Obs.GetCellsReply ReadCells(Map map, Obs.GetCellsRequest parsed, Common.ObservationContext context)
-        {
-            try {
-                var min = parsed.Rectangle?.Minimum ?? new Common.Cell(); var max = parsed.Rectangle?.Maximum ?? new Common.Cell();
-                if (!new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map)) return new Obs.GetCellsReply {
-                    Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map.") };
-                var grid = CellGridReader.Read(map, min.X, min.Z, max.X - min.X + 1, max.Z - min.Z + 1);
-                var snapshot = new Obs.CellsSnapshot { Context = context,
+                throw NativeFaults.Refused(failure);
+            var min = parsed.Rectangle!.Minimum!; var max = parsed.Rectangle.Maximum!;
+            if (!new IntVec3(min.X, 0, min.Z).InBounds(map) || !new IntVec3(max.X, 0, max.Z).InBounds(map))
+                throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Selected cell is outside the current map."));
+            try
+            {
+                return new Obs.CellsSnapshot { Context = context,
                     MapSize = new Obs.MapSize { Width = checked((uint)map.Size.x), Height = checked((uint)map.Size.z) },
-                    Grid = grid };
-                return new Obs.GetCellsReply { Outcome = snapshot };
+                    Grid = CellGridReader.Read(map, min.X, min.Z, max.X - min.X + 1, max.Z - min.Z + 1) };
             }
-            catch (Exception) { return new Obs.GetCellsReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native cell facts could not be read completely.") }; }
+            catch (Exception readError)
+            {
+                ModLog.Error("observe", "Cell read failed: " + readError);
+                throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.ReadFailed,
+                    PlacementPreviewOperation.Diagnostic("Native cell facts could not be read completely: " + readError.GetType().Name + ": " + readError.Message)));
+            }
         }
 
         // On the game thread: the typed core of the tool.

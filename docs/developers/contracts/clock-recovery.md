@@ -359,11 +359,12 @@ cancellation keeps shutdown retryable until the call returns.
 
 ### Zone policy section
 
-The `zones` section supplies farm capacity, raw per-crop growth facts (plant growth,
-fertility, temperature, the crop's growth range, blight; policy computes growing
-cells and the harvest lead from them and the calendar), food-stockpile suitability and the guarded zone-map token.
-`observations_read_colony_facts` omits `farms`, `food_storage` and
-`planning.zone_map_snapshot`; routine policy and zone creation read the zone
-section. `observations_list_zones` reads the census whole, in pages of 16; every
-reply carries `map_snapshot`, each growing row `farm`, each zone `food_storage`. A
-stale colony invalidation or scope change rereads the census whole.
+The `zones` section supplies farm capacity, raw per-crop growth facts (plant growth and
+fertility totals, temperature and blight; the crop's growth range comes from the definition
+rows; policy computes growing cells and the harvest lead from them and the calendar) and
+food-stockpile suitability. `observations_read_colony_facts` carries no zone rows; routine
+policy and zone creation read the zone section. `observations_list_zones` reads the census
+whole: one row per zone, a `growing` row with its crop and plant totals, a `stockpile` row
+with its priority and `food_storage`, and an `other` row for any other zone kind. A census
+the native cannot read fails the read. A stale colony invalidation or scope change rereads
+the census whole.

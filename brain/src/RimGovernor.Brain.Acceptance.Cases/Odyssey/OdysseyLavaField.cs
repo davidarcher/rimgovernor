@@ -62,7 +62,7 @@ internal static class OdysseyLavaField
                 Maximum = new Common.Cell { X = site.X + site.Width - 1, Z = site.Z + site.Height - 1 },
             },
         }, cancellationToken).ConfigureAwait(false);
-        var grid = MapCellGrid.Of(TypedReads.Observed("lava-cells", NativeOps.GetCells, reply, reply.Outcome?.Observed).Grid);
+        var grid = MapCellGrid.Of(reply.Grid);
         var cells = grid.Cells();
         var things = grid.Things();
         var notLava = cells.Where(c => c.Terrain != Lava).Select(c => c.Cell).ToList();

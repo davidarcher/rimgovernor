@@ -23,7 +23,7 @@ public sealed record RoundsSections
 
     public Held<RoomObservation>? Rooms { get; init; }
 
-    public Held<ZonesRead>? Zones { get; init; }
+    public Held<O.ZonesSnapshot>? Zones { get; init; }
 
     public Held<Ideoligion>? Ideology { get; init; }
 

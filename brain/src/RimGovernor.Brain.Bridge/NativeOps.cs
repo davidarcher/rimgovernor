@@ -112,7 +112,7 @@ public static class NativeOps
     // Observations.
     public static readonly NativeOp<Obs.StatusRequest, Obs.StatusReply> ReadStatus = Op<Obs.StatusRequest, Obs.StatusReply>("observations_read_status", (f, r, c) => f.ReadStatusAsync(r, c));
     public static readonly NativeOp<Obs.ColonyFactsRequest, Obs.ColonyFactsSnapshot> ReadColonyFacts = Op<Obs.ColonyFactsRequest, Obs.ColonyFactsSnapshot>("observations_read_colony_facts", (f, r, c) => f.ReadColonyFactsAsync(r, c));
-    public static readonly NativeOp<Obs.GetCellsRequest, Obs.GetCellsReply> GetCells = Op<Obs.GetCellsRequest, Obs.GetCellsReply>("observations_get_cells", (f, r, c) => f.GetCellsAsync(r, c));
+    public static readonly NativeOp<Obs.GetCellsRequest, Obs.CellsSnapshot> GetCells = Op<Obs.GetCellsRequest, Obs.CellsSnapshot>("observations_get_cells", (f, r, c) => f.GetCellsAsync(r, c));
     public static readonly NativeOp<Obs.ListBuildingsRequest, Obs.ListBuildingsReply> ListBuildings = Op<Obs.ListBuildingsRequest, Obs.ListBuildingsReply>("observations_list_buildings", (f, r, c) => f.ListBuildingsAsync(r, c));
     public static readonly NativeOp<Obs.ListPawnsRequest, Obs.PawnSnapshot> ListPawns = Op<Obs.ListPawnsRequest, Obs.PawnSnapshot>("observations_list_pawns", (f, r, c) => f.ListPawnsAsync(r, c));
     public static readonly NativeOp<Obs.ActivityTaskRequest, Obs.ActivityTaskRead> ReadActivityTasks = Op<Obs.ActivityTaskRequest, Obs.ActivityTaskRead>("activity_tasks", (f, r, c) => f.ReadActivityTasksAsync(r, c));
@@ -139,7 +139,7 @@ public static class NativeOps
     public static readonly NativeOp<Obs.WallUpgradeSitesRequest, Obs.WallUpgradeSitesReply> ListWallUpgradeSites = Op<Obs.WallUpgradeSitesRequest, Obs.WallUpgradeSitesReply>("observations_list_wall_upgrade_sites", (f, r, c) => f.ListWallUpgradeSitesAsync(r, c));
     public static readonly NativeOp<Obs.WorldRequest, Obs.WorldReply> ReadWorld = Op<Obs.WorldRequest, Obs.WorldReply>("observations_read_world", (f, r, c) => f.ReadWorldAsync(r, c));
     public static readonly NativeOp<Obs.WorldProgressionRequest, Obs.WorldProgressionReply> ReadWorldProgression = Op<Obs.WorldProgressionRequest, Obs.WorldProgressionReply>("observations_read_world_progression", (f, r, c) => f.ReadWorldProgressionAsync(r, c));
-    public static readonly NativeOp<Obs.ListZonesRequest, Obs.ListZonesReply> ListZones = Op<Obs.ListZonesRequest, Obs.ListZonesReply>("observations_list_zones", (f, r, c) => f.ListZonesAsync(r, c));
+    public static readonly NativeOp<Obs.ListZonesRequest, Obs.ZonesSnapshot> ListZones = Op<Obs.ListZonesRequest, Obs.ZonesSnapshot>("observations_list_zones", (f, r, c) => f.ListZonesAsync(r, c));
     public static readonly NativeOp<Obs.ExcavationSiteRequest, Obs.ExcavationSiteReply> ReadExcavationSite = Op<Obs.ExcavationSiteRequest, Obs.ExcavationSiteReply>("observations_read_excavation_site", (f, r, c) => f.ReadExcavationSiteAsync(r, c));
 
     // Operations and receipts.

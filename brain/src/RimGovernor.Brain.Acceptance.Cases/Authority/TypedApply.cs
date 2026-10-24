@@ -67,6 +67,6 @@ internal static class TypedApply
                 Maximum = new Common.Cell { X = rect.X + rect.Width - 1, Z = rect.Z + rect.Height - 1 },
             },
         }, cancellationToken).ConfigureAwait(false);
-        return MapCellGrid.Of(TypedReads.Observed(label, NativeOps.GetCells, reply, reply.Outcome?.Observed).Grid);
+        return MapCellGrid.Of(reply.Grid);
     }
 }

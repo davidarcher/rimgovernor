@@ -148,7 +148,7 @@ namespace HomeBridge.BridgeTools
                 TemperatureC = Finite(room.Temperature),
                 OpenRoofCount = (uint)roof,
                 CellCount = (uint)cells.Count,
-                Extents = new Obs.RoomExtents { Minimum = new DomainCell(cells.Min(c => c.x), cells.Min(c => c.z)), Maximum = new DomainCell(cells.Max(c => c.x), cells.Max(c => c.z)) },
+                Extents = new Obs.CellExtents { Minimum = new DomainCell(cells.Min(c => c.x), cells.Min(c => c.z)), Maximum = new DomainCell(cells.Max(c => c.x), cells.Max(c => c.z)) },
                 Center = Cell(Center(cells)),
                 Stats = [.. stats],
                 Pawns = [.. pawns.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Select(p => NativeRef.Thing(p))],

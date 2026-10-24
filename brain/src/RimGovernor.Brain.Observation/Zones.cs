@@ -2,12 +2,12 @@ namespace RimGovernor.Brain.Observation;
 
 public interface IZonesNative
 {
-    Task<ZonesRead> ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken);
+    Task<O.ZonesSnapshot> ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken);
 }
 
 public interface IZonesSource
 {
-    Task<Held<ZonesRead>> ZonesAsync(C.Identity identity, CancellationToken cancellationToken);
+    Task<Held<O.ZonesSnapshot>> ZonesAsync(C.Identity identity, CancellationToken cancellationToken);
 }
 
 public static class ZonesReads
@@ -26,7 +26,7 @@ public static class ZonesReads
     /// Serves the scheduler's zone section, or a full census outside a scheduler step (for standalone planners
     /// and inspection).
     /// </summary>
-    public static async Task<Held<ZonesRead>> ReadZoneSection(IZonesNative? native, C.Identity id, CancellationToken cancellationToken)
+    public static async Task<Held<O.ZonesSnapshot>> ReadZoneSection(IZonesNative? native, C.Identity id, CancellationToken cancellationToken)
     {
         if (ZonesScope.Value is { } zones)
         {
@@ -37,13 +37,13 @@ public static class ZonesReads
             throw new BridgeUnavailableException();
         }
         var read = await native.ReadZoneSectionAsync(id, cancellationToken).ConfigureAwait(false);
-        return new Held<ZonesRead> { Value = read, AsOf = read.AsOf, Complete = true, Source = "rimgovernor/observations_list_zones" };
+        return new Held<O.ZonesSnapshot> { Value = read, AsOf = read.Context.Tick, Complete = true, Source = "rimgovernor/observations_list_zones" };
     }
 
     /// <summary>Supplies the policy facts intentionally omitted by <see cref="DecodeColony"/>.</summary>
     public static async Task<ColonyProjection> FillZones(IZonesNative? native, C.Identity id, Identity expected, ColonyProjection p, CancellationToken cancellationToken)
     {
-        Held<ZonesRead> held;
+        Held<O.ZonesSnapshot> held;
         try
         {
             held = await ReadZoneSection(native, id, cancellationToken).ConfigureAwait(false);
@@ -60,19 +60,10 @@ public static class ZonesReads
         return ApplyZones(p with { Zones = held }, held.Value);
     }
 
-    private static ColonyProjection ApplyZones(ColonyProjection p, ZonesRead read)
+    private static ColonyProjection ApplyZones(ColonyProjection p, O.ZonesSnapshot read)
     {
-        var farms = new List<O.FarmFacts>();
-        var zoneFacts = new List<FarmZoneFact>();
-        foreach (var row in read.Rows)
-        {
-            if (row.Farm is { } farm)
-            {
-                farms.Add(farm);
-                zoneFacts.Add(new FarmZoneFact { Id = row.Id ?? "", Crop = farm.Crop ?? "", UsableCells = farm.UsableCells });
-            }
-        }
-        p = p with { Farms = zoneFacts };
+        List<O.ZoneState.Growing> farms = [.. read.Zones.OfType<O.ZoneState.Growing>()];
+        p = p with { Farms = farms };
         p = p with { Facts = ColonyProductionReads.ZoneProduction(farms, p.Definitions, p.Facts) };
         return p with
         {

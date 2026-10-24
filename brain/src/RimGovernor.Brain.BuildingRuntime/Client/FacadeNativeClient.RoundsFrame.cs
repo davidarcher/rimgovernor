@@ -87,11 +87,7 @@ public sealed partial class FacadeNativeClient
         {
             output = output with { IdeologyActive = Fact.Known(active) };
         }
-        if (v.Zones is not null)
-        {
-            output = output with { Zones = BuildingDecode.DecodeZones(v.Zones) };
-        }
-        return output;
+        return output with { Zones = v.Zones };
     }
 
     /// <summary>

@@ -101,8 +101,7 @@ internal static class FarmBlight
 
     private static async Task<Observations.CellsSnapshot> ReadAsync(TypedSession s, string label, Observations.Rectangle rect, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.GetCells, new Observations.GetCellsRequest { Scope = s.Scope, Rectangle = rect }, cancellationToken).ConfigureAwait(false);
-        return TypedReads.Observed(label, NativeOps.GetCells, reply, reply.Outcome?.Observed);
+        return await s.CallAsync(label, NativeOps.GetCells, new Observations.GetCellsRequest { Scope = s.Scope, Rectangle = rect }, cancellationToken).ConfigureAwait(false);
     }
 
     private static async Task<Census> CensusAsync(TypedSession s, string label, Observations.Rectangle rect, CancellationToken cancellationToken)

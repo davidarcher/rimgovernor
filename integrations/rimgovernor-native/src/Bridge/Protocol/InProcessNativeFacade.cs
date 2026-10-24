@@ -126,7 +126,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.ColonyFactsSnapshot> ReadColonyFactsAsync(Obs.ColonyFactsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadColonyFacts, request, () => NativeColonyObservationTools.HandleReadColonyFacts(request), cancellationToken);
 
-        public Task<Obs.GetCellsReply> GetCellsAsync(Obs.GetCellsRequest request, CancellationToken cancellationToken)
+        public Task<Obs.CellsSnapshot> GetCellsAsync(Obs.GetCellsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.GetCells, request, () => NativeObservationTools.HandleGetCells(request), cancellationToken);
 
         public Task<Obs.ListBuildingsReply> ListBuildingsAsync(Obs.ListBuildingsRequest request, CancellationToken cancellationToken)
@@ -245,7 +245,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.WorldProgressionReply> ReadWorldProgressionAsync(Obs.WorldProgressionRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadWorldProgression, request, () => NativeWorldProgressionObservationTools.HandleReadWorldProgression(request), cancellationToken);
 
-        public Task<Obs.ListZonesReply> ListZonesAsync(Obs.ListZonesRequest request, CancellationToken cancellationToken)
+        public Task<Obs.ZonesSnapshot> ListZonesAsync(Obs.ListZonesRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ListZones, request, () => NativeZoneObservationTools.HandleListZones(request), cancellationToken);
 
         public Task<Obs.ExcavationSiteReply> ReadExcavationSiteAsync(Obs.ExcavationSiteRequest request, CancellationToken cancellationToken)
