@@ -49,7 +49,6 @@ public static class CatalogStats
     public static readonly CatalogStat Nutrition = Declare(StatNames.Nutrition);
     public static readonly CatalogStat Beauty = Declare(StatNames.Beauty);
     public static readonly CatalogStat Cleanliness = Declare(StatNames.Cleanliness);
-    public static readonly CatalogStat Comfort = Declare(StatNames.Comfort);
     public static readonly CatalogStat Mass = Declare("Mass");
     public static readonly CatalogStat MaxHitPoints = Declare("MaxHitPoints");
     public static readonly CatalogStat DoorOpenSpeed = Declare("DoorOpenSpeed");
@@ -68,10 +67,11 @@ public static class CatalogStats
     public static readonly CatalogStat InsulationHeat = Declare("Insulation_Heat");
 
     // Read whether or not the game shows them: DeteriorationRate of every item, Flammability and BedRestEffectiveness of
-    // placed furniture and the WorkToBuild of terrain, which the game does not show.
+    // placed furniture, the Comfort of every sleeping bed (#3840) and the WorkToBuild of terrain, which the game does not show.
     public static readonly CatalogStat DeteriorationRate = Declare(StatNames.DeteriorationRate, readHidden: true);
     public static readonly CatalogStat Flammability = Declare("Flammability", readHidden: true);
     public static readonly CatalogStat BedRestEffectiveness = Declare("BedRestEffectiveness", readHidden: true);
+    public static readonly CatalogStat Comfort = Declare(StatNames.Comfort, readHidden: true);
     public static readonly CatalogStat WorkToBuild = Declare(StatNames.WorkToBuild, readHidden: true);
 
     // Read for every medicine: a def that does not set it has the stat's default (#3635).

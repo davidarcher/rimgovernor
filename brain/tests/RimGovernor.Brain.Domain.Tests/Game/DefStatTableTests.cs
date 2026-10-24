@@ -29,7 +29,7 @@ public sealed class DefStatTableTests
     {
         var catalog = Catalog();
 
-        Assert.Throws<CatalogException>(() => catalog.PlannerStatValue("Wall", "Silver", CatalogStats.Comfort));
+        Assert.Throws<CatalogException>(() => catalog.PlannerStatValue("Wall", "Silver", CatalogStats.Beauty));
     }
 
     [Fact]

@@ -32,7 +32,8 @@ namespace HomeBridge.BridgeTools
             foreach (var m in Find.Maps)
             {
                 var row = new Obs.WorldMap { Id = m.uniqueID, Tile = m.Tile.tileId, Home = m.IsPlayerHome };
-                row = row with { Pawns = [.. row.Pawns, .. m.mapPawns.FreeColonistsSpawned.Select(p => NativePawnObservationTools.Row(p, new NativePawnObservationTools.MapFacts(m), context))] };
+                // A copy: the game refills FreeColonistsSpawned in place, and a row's reads ask for it again.
+                row = row with { Pawns = [.. row.Pawns, .. m.mapPawns.FreeColonistsSpawned.ToList().Select(p =>NativePawnObservationTools.Row(p, new NativePawnObservationTools.MapFacts(m), context))] };
                 row = row with { QuestWorkers = [.. row.QuestWorkers, .. NativeQuestWorkers.Read(m)] };
                 rows.Add(row);
             }
