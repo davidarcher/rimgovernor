@@ -15,7 +15,7 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <RimWorldDir Condition="'$(RimWorldDir)' == ''">C:/Program Files (x86)/Steam/steamapps/common/RimWorld</RimWorldDir>
   </PropertyGroup>
-  <!-- Architecture gates (RGARCH001-009, docs/developers/architecture/rules.md): every src project loads the analyzers and
+  <!-- Architecture gates (RGARCH001-010, docs/developers/architecture/rules.md): every src project loads the analyzers and
        gets the shrink-only baselines as AdditionalFiles. The analyzer project itself and the tests are not gated. The native mod build copies only the
        sources it ships, not the analyzers, so it skips the gate when the analyzer project is absent. -->
   <ItemGroup Condition="'$(MSBuildProjectName)' != 'RimGovernor.Brain.Analyzers' And !$(MSBuildProjectName.EndsWith('.Tests')) And Exists('$(MSBuildThisFileDirectory)analyzers/RimGovernor.Brain.Analyzers/RimGovernor.Brain.Analyzers.csproj')">

@@ -1,5 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <!-- Roslyn analyzers for the brain solution (#3096): the architecture gates (RGARCH001-006, 008) and
+  <!-- Roslyn analyzers for the brain solution (#3096): the architecture gates (RGARCH001-006, 008-010) and
        the world-state API ban (RGARCH007). Every src project loads this through
        brain/Directory.Build.props (ProjectReference as Analyzer); baselines under brain/analyzers/baseline are
        AdditionalFiles. Rules: docs/developers/architecture/rules.md. -->

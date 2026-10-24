@@ -1369,7 +1369,7 @@ choices may be better. This is narrower than the former 128 independent trip
 comparisons. Equal objective values use the shared comparator's lower-total-labor,
 then earlier-completion tie break, followed by stable outcome ordering.
 
-`RGARCH009` has no baseline. Generation and binding cannot call each other or
+`RGARCH010` has no baseline. Generation and binding cannot call each other or
 policy comparison helpers. Lifecycle entry points can call the shared outcome
 comparator but cannot add arithmetic, use the lower-level allocator directly, or
 construct orders. These stages cannot construct or clone a forecast selection.

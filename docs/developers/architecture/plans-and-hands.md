@@ -45,7 +45,7 @@ For food, the live comparison covers bounded same-pawn harvest/delivery
 alternatives and, after observed harvest, raw delivery versus one cooking iteration.
 It does not yet compare the complete raw-versus-cooked portfolio
 against all colony work. The [live stage contract](colony-forecast.md#live-activity-policy-stages)
-owns class responsibilities, the local objective and search limits. `RGARCH009`
+owns class responsibilities, the local objective and search limits. `RGARCH010`
 enforces its dependency boundaries without a baseline; it is not universal
 enforcement for older planners or proof of exhaustive candidate generation.
 

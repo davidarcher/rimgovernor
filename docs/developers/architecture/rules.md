@@ -1,9 +1,9 @@
 # Architecture rules
 
-Six rules are mechanical gates, one more gate (the world-state ban) bans game APIs from the
+Seven rules are mechanical gates (1 to 6 and 9), one more gate (the world-state ban) bans game APIs from the
 brain, the record-orphan job of the repo gate catches unread contract, Policy and fixture-contract record members
 (see [Record orphans](#record-orphans)), the acceptance-case gates hold the cases to their charter (see
-[Acceptance cases](#acceptance-cases)), and three are review questions. The C# brain enforces the rules as Roslyn
+[Acceptance cases](#acceptance-cases)), and three are review questions (rule 9 is both). The C# brain enforces the rules as Roslyn
 analyzers in `brain/analyzers/RimGovernor.Brain.Analyzers`, loaded into every
 `brain/src` project by `brain/Directory.Build.props`, so they run inside every
 `dotnet build`, the gate's among them (the tests projects are not gated). Each gate
@@ -18,7 +18,7 @@ A baseline entry belongs to one project (its first path segment, for example
 built `unavailable` (no game in `RimWorldDir`, see `brain/Game.props`) compiles
 as an empty assembly and is skipped, so on a machine without the game its
 baseline entries are neither checked nor reported stale. A baseline over 200
-entries (450 for rule 6) fails in `RimGovernor.Brain.Domain`: stop and review
+entries (450 for rule 6, 1381 for rule 9) fails in `RimGovernor.Brain.Domain`: stop and review
 the rule.
 
 ## Gates
@@ -82,6 +82,27 @@ the rule.
    edited by hand in the analyzer's `data/` (`defof_names.txt`, `game_constants.txt`) when the game's
    defs change; no generator exists since the def mirror was removed.
 
+9. **There is no unknown (`RGARCH009`).** The gate half of review item 9 ([#3753](https://github.com/davidarcher/rimgovernor/issues/3753)).
+   In every `RimGovernor.Brain.*` project except `Acceptance*` it counts these tokens per file:
+   - `Fact`: a name bound to `Domain`'s `Fact<T>` (the type, or a member other than `ValueOrDefault`) or to `Fact.Known`;
+   - `Unknown`: a call of `Fact.Unknown<T>()`;
+   - `ValueOrDefault`: `Fact<T>.ValueOrDefault`;
+   - `UnknownMember`: an enum member named `Unknown` or `Unspecified`;
+   - `NullableValue` (in `Policy`, `Domain` and `Contracts` only): a property or positional parameter of a
+     record or class whose type is a nullable value type (`int?`, `Cell?`);
+   - `Discard`: a catch-all `_ =>` arm, `default:` or `case _:` label in a switch whose governing type is
+     an enum or an abstract or sealed record declared in the repo. Switches over game or BCL enums, strings
+     and tuples are not counted; neither is a guarded `_ when ...` arm.
+
+   The baseline (`rule9.txt`) is counted, unlike the other gates: each line is `Project/File.cs|token|count`.
+   A count above its line fails, a file or token without a line fails on its first hit, and a count below its
+   line fails too, asking for the line to be lowered, so the baseline always holds what the code holds. A
+   deleted file's lines go with it. The starting baseline was generated from the analyzer's own output; its
+   cap is that starting line count. The native mod's Bridge (`integrations/rimgovernor-native`) is not analyzed:
+   the native build stages only the sources it ships, and its locked restore records project references, so a
+   reference to the analyzer that exists in one build and not the other breaks restore. Its unknowns go with
+   the family children and its nullable checking (#3791).
+
 **World-state ban (`RGARCH007`)**: no world-state game API on the planner worker thread. The
 whole brain runs off the game thread, so a `brain/src` project that
 references the game assemblies may read immutable Def data and nothing that
@@ -110,6 +131,14 @@ member or through a Policy `RoomTier`/`PlannerTier`/`AdoptedTier`/
 `DefenseBuildTier` call. The only pass-through caller is the store codec's
 `ReadBuilding` (a row without a tier does not load); see
 [construction tiers](../contracts/construction-tiers.md).
+
+Live Method stages (`RGARCH010`, no baseline): internal generation and binding
+dependencies follow the [ColonyForecast stage contract](colony-forecast.md#live-activity-policy-stages).
+Generation cannot construct activity orders; binding cannot generate or compare.
+Lifecycle entry points use `CompareActivityOutcomes`; independent ranking,
+direct order construction and fabricated forecast selections are rejected.
+This gate covers the explicit live Method stages,
+not every existing planner or every possible form of decision math.
 
 ### Record orphans
 
@@ -169,14 +198,6 @@ Two gates hold the cases to the [acceptance charter](../testing/acceptance-guide
 
 ## Refreshing
 
-Live Method stages (`RGARCH009`, no baseline): internal generation and binding
-dependencies follow the [ColonyForecast stage contract](colony-forecast.md#live-activity-policy-stages).
-Generation cannot construct activity orders; binding cannot generate or compare.
-Lifecycle entry points use `CompareActivityOutcomes`; independent ranking,
-direct order construction and fabricated forecast selections are rejected.
-This gate covers the explicit live Method stages,
-not every existing planner or every possible form of decision math.
-
 A violation you fixed leaves a stale baseline line, and the build says which:
 delete it. To see all findings of a project while fixing, build it; the
 diagnostics list every finding with its baseline key, so a key can be copied into
@@ -205,4 +226,4 @@ The landing report answers each in a line.
    default, a zero, a sentinel or a clamp: read the fact, name the state, or
    drop the option from planning and file an issue
    ([#3753](https://github.com/davidarcher/rimgovernor/issues/3753)). `Fact<T>`
-   is being burned down family by family; do not add new uses.
+   is being burned down family by family; gate 9 counts what is left and only lets it fall.

@@ -81,6 +81,6 @@ public sealed class ActivityStagesTests
         Assert.DoesNotContain(compilation.GetDiagnostics(), d => d.Severity == DiagnosticSeverity.Error);
         var diagnostics = await compilation.WithAnalyzers(ImmutableArray.Create<DiagnosticAnalyzer>(new ActivityStagesAnalyzer()))
             .GetAnalyzerDiagnosticsAsync(TestContext.Current.CancellationToken);
-        Assert.Equal(rejected, diagnostics.Any(d => d.Id == "RGARCH009"));
+        Assert.Equal(rejected, diagnostics.Any(d => d.Id == "RGARCH010"));
     }
 }

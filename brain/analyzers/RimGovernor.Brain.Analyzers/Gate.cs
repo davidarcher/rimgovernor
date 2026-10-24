@@ -137,19 +137,24 @@ internal static class Arch
 /// <summary>
 /// One gate over one compilation: the violation keys found, compared with the rule's baseline when the compilation ends.
 /// The baseline may only shrink: a violation missing from it fails, and so does an entry of this project that no longer
-/// occurs.
+/// occurs. A counted gate's lines are "key|count" instead: a key without a line fails, a count above its line fails, and
+/// a count below its line fails too, so the line is lowered to what the code holds.
 /// </summary>
 public sealed class GateRun
 {
     private readonly ConcurrentDictionary<string, Location> _found = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, int> _counts = new(StringComparer.Ordinal);
 
-    internal GateRun(int rule, string assembly, ImmutableHashSet<string> baseline, Func<string, string> owner)
+    internal GateRun(int rule, string assembly, ImmutableHashSet<string> baseline, Func<string, string> owner, bool counted = false)
     {
         Rule = rule;
         Assembly = assembly;
         Baseline = baseline;
         Owner = owner;
+        Counted = counted;
     }
+
+    internal bool Counted { get; }
 
     internal int Rule { get; }
 
@@ -179,8 +184,21 @@ public sealed class GateRun
         return c != 0 ? (c < 0 ? a : b) : (a.SourceSpan.Start <= b.SourceSpan.Start ? a : b);
     }
 
+    /// <summary>Records one hit of a counted gate; the key's count is the number of hits.</summary>
+    internal void Count(string key, Location location)
+    {
+        _counts.AddOrUpdate(key, 1, (_, n) => n + 1);
+        Add(key, location);
+    }
+
     internal void Report(DiagnosticDescriptor descriptor, Action<Diagnostic> report, string what)
     {
+        if (Counted)
+        {
+            ReportCounts(descriptor, report, what);
+            return;
+        }
+
         var mine = Arch.ShortName(Assembly);
         foreach (var pair in _found.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
@@ -196,6 +214,49 @@ public sealed class GateRun
             {
                 report(Diagnostic.Create(descriptor, Location.None,
                     $"{Arch.Label(Rule)}: baseline entry no longer occurs, delete it from {Arch.BaselineDir}/{Arch.BaselineFile(Rule)}: {entry}"));
+            }
+        }
+    }
+
+    private void ReportCounts(DiagnosticDescriptor descriptor, Action<Diagnostic> report, string what)
+    {
+        var mine = Arch.ShortName(Assembly);
+        var file = Arch.BaselineDir + "/" + Arch.BaselineFile(Rule);
+        var lines = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var entry in Baseline.Where(e => Owner(e) == mine).OrderBy(e => e, StringComparer.Ordinal))
+        {
+            var cut = entry.LastIndexOf('|');
+            if (cut <= 0 || !int.TryParse(entry.Substring(cut + 1), NumberStyles.None, CultureInfo.InvariantCulture, out var count) || count <= 0)
+            {
+                report(Diagnostic.Create(descriptor, Location.None, $"{Arch.Label(Rule)}: baseline line is not key|count, fix it in {file}: {entry}"));
+                continue;
+            }
+
+            lines[entry.Substring(0, cut)] = count;
+        }
+
+        foreach (var pair in _counts.OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            var where = _found[pair.Key];
+            if (!lines.TryGetValue(pair.Key, out var allowed))
+            {
+                report(Diagnostic.Create(descriptor, where, $"{Arch.Label(Rule)} violated: {what}: {pair.Key}|{pair.Value} has no baseline line (see {Arch.RulesDoc})"));
+            }
+            else if (pair.Value > allowed)
+            {
+                report(Diagnostic.Create(descriptor, where, $"{Arch.Label(Rule)} violated: {what}: {pair.Key} rose from {allowed} to {pair.Value} (see {Arch.RulesDoc})"));
+            }
+            else if (pair.Value < allowed)
+            {
+                report(Diagnostic.Create(descriptor, where, $"{Arch.Label(Rule)}: {pair.Key} fell from {allowed} to {pair.Value}, lower the line in {file} to {pair.Key}|{pair.Value}"));
+            }
+        }
+
+        foreach (var pair in lines.OrderBy(p => p.Key, StringComparer.Ordinal))
+        {
+            if (!_counts.ContainsKey(pair.Key))
+            {
+                report(Diagnostic.Create(descriptor, Location.None, $"{Arch.Label(Rule)}: baseline entry no longer occurs, delete it from {file}: {pair.Key}|{pair.Value}"));
             }
         }
     }
@@ -229,6 +290,9 @@ public abstract class GateAnalyzer : DiagnosticAnalyzer
 
     /// <summary>The most entries a baseline may hold before the rule needs review.</summary>
     protected virtual int BaselineCap => 200;
+
+    /// <summary>Whether baseline lines are "key|count" (see <see cref="GateRun"/>); hits are recorded with GateRun.Count.</summary>
+    protected virtual bool Counted => false;
 
     public sealed override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(_descriptor);
 
@@ -274,7 +338,7 @@ public abstract class GateAnalyzer : DiagnosticAnalyzer
             }
 
             var baseline = LoadBaseline(start.Options, Rule, start.CancellationToken);
-            var run = new GateRun(Rule, assembly, baseline, OwnerOf);
+            var run = new GateRun(Rule, assembly, baseline, OwnerOf, Counted);
             Register(start, run);
             start.RegisterCompilationEndAction(end =>
             {

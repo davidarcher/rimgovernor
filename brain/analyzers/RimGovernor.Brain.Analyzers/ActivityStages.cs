@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Analyzers;
 public sealed class ActivityStagesAnalyzer : DiagnosticAnalyzer
 {
     private const string Root = "RimGovernor.Brain.Policy.Methods";
-    private static readonly DiagnosticDescriptor Descriptor = new("RGARCH009", "Activity stage ownership",
+    private static readonly DiagnosticDescriptor Descriptor = new("RGARCH010", "Activity stage ownership",
         "activity stage {0} cannot depend on {1}", "Architecture", DiagnosticSeverity.Error, true);
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics => ImmutableArray.Create(Descriptor);
 

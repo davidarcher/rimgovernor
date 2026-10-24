@@ -56,7 +56,7 @@ pushes), or edit the main checkout. Details: [landing](docs/developers/developme
   not copy the existing combat bypass into new work.
 - Keep policy pure and orchestration free of decision math. Use typed boundary
   contracts and explicit ownership. There is no unknown: read the fact, name the
-  state, or don't plan the option (rule 9). The five mechanical
+  state, or don't plan the option (rule 9). The mechanical
   [architecture gates](docs/developers/architecture/rules.md) have shrink-only
   baselines; never add exemptions to make a change pass.
 - Reference game and repo symbols in ways the compiler checks. Use `DefOf`

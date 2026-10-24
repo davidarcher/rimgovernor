@@ -20,7 +20,7 @@
 | [brain/src/RimGovernor.Brain.Acceptance](../../brain/src/RimGovernor.Brain.Acceptance), [Acceptance.Cases](../../brain/src/RimGovernor.Brain.Acceptance.Cases) | Acceptance harness (`RimGovernor.cmd acceptance`), case registry, fixtures and gameplay evidence |
 | [brain/src/RimGovernor.Fixtures.Contracts](../../brain/src/RimGovernor.Fixtures.Contracts) | The typed stage spec and reply of `test/stage`: the harness references it, fixture builds of the mod compile it in, production never does |
 | [brain/src/RimGovernor.Brain.RemoteAccept](../../brain/src/RimGovernor.Brain.RemoteAccept), [RemoteBundle](../../brain/src/RimGovernor.Brain.RemoteBundle) | Remote acceptance evidence and encrypted bundles |
-| [brain/analyzers](../../brain/analyzers) | Architecture gates: Roslyn analyzers `RGARCH001`-`009`; baselined gates are shrink-only, construction tiers and live Method stages have no baseline |
+| [brain/analyzers](../../brain/analyzers) | Architecture gates: Roslyn analyzers `RGARCH001`-`010`; baselined gates are shrink-only, construction tiers and live Method stages have no baseline |
 | [brain/tests](../../brain/tests) | Bug-driven xUnit tests |
 | [tools/repo](../../tools/repo) | Front door behind `RimGovernor.cmd`: land, test (the gate), issue, affected; no brain references ([tools/common](../../tools/common) holds what both tools share) |
 | [tools/repo.Tests](../../tools/repo.Tests) | The landing lane against throwaway git repositories |
