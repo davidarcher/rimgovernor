@@ -1,8 +1,6 @@
 using RimGovernor.Contracts.Wire.Observations;
-using PolicyPermitCooldown = RimGovernor.Brain.Policy.PermitCooldown;
+using KnownPsycast = RimGovernor.Brain.Policy.KnownPsycast;
 using PolicyPsycast = RimGovernor.Brain.Policy.Psycast;
-using PolicyPsycasterState = RimGovernor.Brain.Policy.PsycasterState;
-using PolicyRoyalHolding = RimGovernor.Brain.Policy.RoyalHolding;
 using PolicyRoyaltyFacts = RimGovernor.Brain.Policy.RoyaltyFacts;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
@@ -12,8 +10,8 @@ public static class RoyaltyFactsRules
     /// <summary>
     /// Reads each colonist's own royalty facts (the pawn row's royalty block; the
     /// ladder and permits are def rows, the neuroformers, ceremonies and thrones the colony section). A colonist
-    /// without royalty, or with neither a holding nor a psycast, is not listed. <paramref name="psycast"/> is the
-    /// catalog's psycast row for a def name (<c>DefinitionCatalog.Psycast</c>).
+    /// without royalty, or with neither a holding nor a psycast, is not listed; a colonist without a psylink has no
+    /// caster entry. <paramref name="psycast"/> is the catalog's psycast row for a def name (<c>DefinitionCatalog.Psycast</c>).
     /// </summary>
     /// <exception cref="BridgeContractException">There are no pawn rows.</exception>
     public static PolicyRoyaltyFacts PawnRoyaltyFacts(PawnSnapshot? pawns, Func<string, PolicyPsycast> psycast)
@@ -22,52 +20,22 @@ public static class RoyaltyFactsRules
         {
             throw BridgeContractException.Contract("no pawn rows for the royalty facts");
         }
-        var holders = new Dictionary<PawnId, EquatableArray<PolicyRoyalHolding>>();
-        var psycasts = new Dictionary<PawnId, EquatableArray<PolicyPsycast>>();
-        var casters = new Dictionary<PawnId, PolicyPsycasterState>();
+        var holders = new Dictionary<PawnId, EquatableArray<PawnRoyalHolding>>();
+        var psycasts = new Dictionary<PawnId, EquatableArray<KnownPsycast>>();
+        var casters = new Dictionary<PawnId, PawnPsylink>();
         foreach (var pawn in pawns.Pawns)
         {
-            var id = pawn.Pawn.Id ?? "";
             if (pawn.Royalty is not PawnRoyaltyState.Active { Facts: var row } || (row.Holdings.Count == 0 && row.Psycasts.Count == 0))
             {
                 continue;
             }
-            var holdings = new List<PolicyRoyalHolding>(row.Holdings.Count);
-            foreach (var holding in row.Holdings)
+            var key = new PawnId(pawn.Pawn.Id ?? "");
+            holders[key] = row.Holdings;
+            psycasts[key] = EquatableArray.From(row.Psycasts.Select(cast => new KnownPsycast(psycast(cast.DefName), cast.CooldownRemainingTicks)));
+            if (row.Psylink is { } link)
             {
-                var cooldowns = new Dictionary<string, PolicyPermitCooldown>(StringComparer.Ordinal);
-                foreach (var cooldown in holding.PermitCooldowns)
-                {
-                    cooldowns[cooldown.Permit ?? ""] = new PolicyPermitCooldown
-                    {
-                        RemainingTicks = FactHelpers.OptionalInt(cooldown.CooldownRemainingTicks is not null, cooldown.CooldownRemainingTicks.GetValueOrDefault()),
-                    };
-                }
-                holdings.Add(
-                    new PolicyRoyalHolding
-                    {
-                        FactionDef = (holding.FactionDef ?? ""),
-                        Title = holding.Title ?? "",
-                        Favor = FactHelpers.OptionalInt(holding.Favor is not null, holding.Favor.GetValueOrDefault()),
-                        PermitPoints = FactHelpers.OptionalInt(holding.PermitPoints is not null, holding.PermitPoints.GetValueOrDefault()),
-                        Permits = EquatableArray.From(holding.Permits),
-                        Cooldowns = cooldowns,
-                    });
+                casters[key] = link;
             }
-            var key = new PawnId(id);
-            holders[key] = EquatableArray.From(holdings);
-            var casts = new List<PolicyPsycast>(row.Psycasts.Count);
-            foreach (var cast in row.Psycasts)
-            {
-                casts.Add(psycast(cast.DefName ?? "") with { CooldownRemaining = FactHelpers.OptionalInt(cast.CooldownRemainingTicks is not null, cast.CooldownRemainingTicks.GetValueOrDefault()) });
-            }
-            psycasts[key] = EquatableArray.From(casts);
-            casters[key] = new PolicyPsycasterState
-            {
-                Psyfocus = FactHelpers.OptionalFact(row.Psyfocus is not null, row.Psyfocus.GetValueOrDefault()),
-                Entropy = FactHelpers.OptionalFact(row.Entropy is not null, row.Entropy.GetValueOrDefault()),
-                EntropyMax = FactHelpers.OptionalFact(row.EntropyMax is not null, row.EntropyMax.GetValueOrDefault()),
-            };
         }
         return new PolicyRoyaltyFacts { Holders = holders, Psycasts = psycasts, Casters = casters };
     }

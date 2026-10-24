@@ -63,10 +63,10 @@ public sealed record TitleClaimFacts
 public static partial class TitleClaimRules
 {
     /// <summary>The rung a holding would claim next: the first rung above the held title (the first rung for none), false at the top of the ladder.</summary>
-    internal static (RoyalRung Rung, bool Ok) NextClaim(EquatableArray<RoyalRung> ladder, string held)
+    internal static (RoyalRung Rung, bool Ok) NextClaim(EquatableArray<RoyalRung> ladder, string? held)
     {
         var next = 0;
-        if (held.Length != 0)
+        if (held is not null)
         {
             next = -1;
             for (var i = 0; i < ladder.Count; i++)
@@ -204,9 +204,9 @@ public static partial class TitleClaimRules
                 {
                     continue;
                 }
-                var fk = h.Favor.TryGetValue(out var favor);
+                var favor = h.Favor;
                 var nk = rung.FavorNeeded.TryGetValue(out var needed);
-                if (!fk || !nk)
+                if (!nk)
                 {
                     if (verdict.Reason == TitleClaimReason.NoFavor)
                     {
@@ -246,5 +246,5 @@ public static partial class TitleClaimRules
         return verdict;
     }
 
-    internal static List<PawnId> SortedHolders(IReadOnlyDictionary<PawnId, EquatableArray<RoyalHolding>> m) => [.. m.Keys.OrderBy(id => id)];
+    internal static List<PawnId> SortedHolders(IReadOnlyDictionary<PawnId, EquatableArray<PawnRoyalHolding>> m) => [.. m.Keys.OrderBy(id => id)];
 }

@@ -95,7 +95,7 @@ public static partial class PsylinkRules
 
     /// <summary>Reports whether the colonist holds a royal title with any faction.</summary>
     private static bool Titled(RoyaltyFacts facts, PawnId pawn) =>
-        facts.Holders.TryGetValue(pawn, out var holdings) && holdings.Any(h => h.Title.Length != 0);
+        facts.Holders.TryGetValue(pawn, out var holdings) && holdings.Any(h => h.Title is not null);
 
     /// <summary>
     /// Adds a stock floor of one psylink neuroformer to needs while a candidate waits, none is held and the
@@ -116,10 +116,7 @@ public static partial class PsylinkRules
         {
             return needs;
         }
-        var hk = stock!.Held.TryGetValue(out var held);
-        stock.Craftable.TryGetValue(out var craftable);
-        stock.Tradeable.TryGetValue(out var tradeable);
-        if (!hk || held > 0 || (!craftable && !tradeable))
+        if (stock!.Held > 0 || (!stock.Craftable && !stock.Tradeable))
         {
             return needs;
         }

@@ -34,36 +34,38 @@ namespace HomeBridge.BridgeTools
                 .Concat(royalty.AllTitlesForReading.Select(t => t.faction))
                 .Where(f => f?.def != null && ProtoBoundary.IsIdentifier(f.def.defName)).Distinct()
                 .OrderBy(f => f.def.defName, StringComparer.Ordinal).ToList();
-            var row = new Obs.PawnRoyalty();
-            foreach (var faction in factions)
-            {
-                var holding = new Obs.PawnRoyalHolding { FactionDef = faction.def.defName, Favor = royalty.GetFavor(faction), PermitPoints = royalty.GetPermitPoints(faction) };
-                var title = royalty.GetCurrentTitle(faction);
-                if (title != null) holding = holding with { Title = title.defName };
-                holding = holding with { Permits = [.. holding.Permits, .. royalty.AllFactionPermits.Where(p => p.Faction == faction && p.Permit != null)
-                    .Select(p => p.Permit.defName).OrderBy(n => n, StringComparer.Ordinal)] };
-                // The native cooldown of each held permit: the ticks left of the permit's cooldown.
-                var now = Find.TickManager.TicksGame;
-                foreach (var held in royalty.AllFactionPermits.Where(p => p.Faction == faction && p.Permit != null && ProtoBoundary.IsIdentifier(p.Permit.defName))
-                    .OrderBy(p => p.Permit.defName, StringComparer.Ordinal))
-                {
-                    var cooldown = new Obs.PermitCooldown { Permit = held.Permit.defName, CooldownRemainingTicks = held.OnCooldown ? Math.Max(0, held.LastUsedTick + held.Permit.CooldownTicks - now) : 0 };
-                    holding = holding with { PermitCooldowns = [.. holding.PermitCooldowns, cooldown] };
-                }
-                row = row with { Holdings = [.. row.Holdings, holding] };
-            }
-            if (pawn.abilities != null)
-                foreach (var ability in pawn.abilities.abilities.Where(a => a.def != null && a.def.IsPsycast && ProtoBoundary.IsIdentifier(a.def.defName))
-                    .OrderBy(a => a.def.level).ThenBy(a => a.def.defName, StringComparer.Ordinal))
-                    row = row with { Psycasts = [.. row.Psycasts, Psycast(ability.def, ability.CooldownTicksRemaining)] };
+            var now = Find.TickManager.TicksGame;
             var tracker = pawn.psychicEntropy;
-            if (tracker != null && tracker.Psylink != null)
+            return new Obs.PawnRoyalty
             {
-                if (tracker.NeedsPsyfocus) row = row with { Psyfocus = tracker.CurrentPsyfocus };
-                row = row with { Entropy = tracker.EntropyValue };
-                row = row with { EntropyMax = tracker.MaxEntropy };
-            }
-            return row;
+                Holdings = [.. factions.Select(faction => Holding(royalty, faction, now))],
+                Psycasts = [.. (pawn.abilities?.abilities ?? new List<Ability>()).Where(a => a.def != null && a.def.IsPsycast && ProtoBoundary.IsIdentifier(a.def.defName))
+                    .OrderBy(a => a.def.level).ThenBy(a => a.def.defName, StringComparer.Ordinal)
+                    .Select(a => Psycast(a.def, a.CooldownTicksRemaining))],
+                Psylink = tracker?.Psylink == null ? null : new Obs.PawnPsylink
+                {
+                    Psyfocus = tracker.CurrentPsyfocus,
+                    Entropy = tracker.EntropyValue,
+                    EntropyMax = tracker.MaxEntropy,
+                },
+            };
+        }
+
+        // One faction's standing: its current title, favor, permit points, the held permits and each held permit's
+        // cooldown, the ticks left of the permit's cooldown.
+        private static Obs.PawnRoyalHolding Holding(Pawn_RoyaltyTracker royalty, Faction faction, int now)
+        {
+            var held = royalty.AllFactionPermits.Where(p => p.Faction == faction && p.Permit != null).ToList();
+            return new Obs.PawnRoyalHolding
+            {
+                FactionDef = faction.def.defName,
+                Title = royalty.GetCurrentTitle(faction)?.defName,
+                Favor = royalty.GetFavor(faction),
+                PermitPoints = royalty.GetPermitPoints(faction),
+                Permits = [.. held.Select(p => p.Permit.defName).OrderBy(n => n, StringComparer.Ordinal)],
+                PermitCooldowns = [.. held.Where(p => ProtoBoundary.IsIdentifier(p.Permit.defName)).OrderBy(p => p.Permit.defName, StringComparer.Ordinal)
+                    .Select(p => new Obs.PermitCooldown { Permit = p.Permit.defName, CooldownRemainingTicks = p.OnCooldown ? Math.Max(0, p.LastUsedTick + p.Permit.CooldownTicks - now) : 0 })],
+            };
         }
 
         // The ability's level, costs, cooldown and target kind are its AbilityDef row;

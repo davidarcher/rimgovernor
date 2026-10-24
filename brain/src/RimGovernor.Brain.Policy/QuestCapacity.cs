@@ -77,7 +77,7 @@ public static class QuestCapacity
             {
                 foreach (var holding in holdings)
                 {
-                    isRoyal = isRoyal || holding.Title.Length != 0;
+                    isRoyal = isRoyal || holding.Title is not null;
                 }
             }
             if (best.IsEmpty || (isRoyal && !bestRoyal) || (isRoyal == bestRoyal && (value < bestValue || (value == bestValue && id.CompareTo(best) < 0))))

@@ -169,6 +169,7 @@ public static class ColonyDecodeReads
             Books = catalog!.Books(),
             Foods = catalog.Foods(),
             FoodEaters = FoodEaters(v.Policies.FoodEaters, tables.Pawns, races, catalog),
+            RoyaltySection = v.Royalty,
         };
         r = r with { FoodChannels = FoodChannelsReads.ColonyFoodChannels(v.FoodChannels, tables.Pawns, races) };
         var (conditions, conditionsKnown) = ColonyFramesReads.ColonyConditions(v, catalog);
@@ -208,7 +209,6 @@ public static class ColonyDecodeReads
         {
             Biotech = BiotechColonyReads.ColonyBiotech(v.Biotech),
             Anomaly = AnomalyColonyReads.ColonyAnomaly(v.Anomaly),
-            RoyaltyColony = RoyaltyColonyProjectionReads.ColonyRoyalty(v.Royalty),
         };
         // No eligible indoor bed (SleepingTemperature.NoIndoorBed) leaves the rounds' indoor sleeping range unknown.
         var (indoor, sleepingMin, sleepingMax) = v.SleepingTemperature is O.SleepingTemperature.Indoor(var min, var max) ? (true, min, max) : (false, 0d, 0d);

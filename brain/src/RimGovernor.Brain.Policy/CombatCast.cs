@@ -69,16 +69,14 @@ public static partial class CombatCastRules
         m.Casts.Any(c => c.Pawn == pawn && c.Def == def && view.Tick.Value - c.Tick.Value < c.Cooldown);
 
     /// <summary>A known psycast that is affordable and off cooldown for a caster; every unread fact holds it.</summary>
-    private static bool CastReady(CombatView view, CombatMemory m, PsycasterState state, PawnId pawn, Psycast c)
+    private static bool CastReady(CombatView view, CombatMemory m, PawnPsylink state, PawnId pawn, KnownPsycast known)
     {
+        var c = known.Psycast;
         var ck = c.PsyfocusCost.TryGetValue(out var cost);
         var gk = c.Entropy.TryGetValue(out var gain);
         var kk = c.CooldownTicks.IsKnown;
-        var lk = c.CooldownRemaining.TryGetValue(out var left);
-        var fk = state.Psyfocus.TryGetValue(out var focus);
-        var hk = state.Entropy.TryGetValue(out var heat);
-        var mk = state.EntropyMax.TryGetValue(out var ceiling);
-        if (!ck || !gk || !kk || !lk || !fk || !hk || !mk || left != 0 || CastCooling(view, m, pawn, c.Def))
+        var (focus, heat, ceiling) = (state.Psyfocus, state.Entropy, state.EntropyMax);
+        if (!ck || !gk || !kk || known.CooldownRemaining != 0 || CastCooling(view, m, pawn, c.Def))
         {
             return false;
         }
@@ -116,17 +114,17 @@ public static partial class CombatCastRules
             var bestFamily = CastFamily.None;
             foreach (var c in royalty.Psycasts[caster].Items)
             {
-                var family = _psycastFamilies.GetValueOrDefault(c.Def);
-                if (family == CastFamily.None || (bestFamily != CastFamily.None && family >= bestFamily) || !CastReady(view, m, royalty.Casters[caster], pawn, c))
+                var family = _psycastFamilies.GetValueOrDefault(c.Psycast.Def);
+                if (family == CastFamily.None || (bestFamily != CastFamily.None && family >= bestFamily) || !royalty.Casters.TryGetValue(caster, out var link) || !CastReady(view, m, link, pawn, c))
                 {
                     continue;
                 }
 
-                var (order, found) = CastOrder(view, pawn, at, c, family);
+                var (order, found) = CastOrder(view, pawn, at, c.Psycast, family);
                 if (found)
                 {
                     best = order;
-                    bestCast = c;
+                    bestCast = c.Psycast;
                     bestFamily = family;
                 }
             }

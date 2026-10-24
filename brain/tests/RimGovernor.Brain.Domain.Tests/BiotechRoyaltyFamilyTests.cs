@@ -172,13 +172,7 @@ public sealed class BiotechRoyaltyFamilyTests
                 Worker = worker,
             },
         },
-        Holders = holders.ToDictionary(h => new PawnId(h), _ => (EquatableArray<RoyalHolding>)[new RoyalHolding
-        {
-            FactionDef = "Empire",
-            Title = "Knight",
-            PermitPoints = Known(1),
-            Permits = [],
-        }]),
+        Holders = holders.ToDictionary(h => new PawnId(h), _ => (EquatableArray<PawnRoyalHolding>)[new PawnRoyalHolding { FactionDef = "Empire", Title = "Knight", Favor = 0, PermitPoints = 1, Permits = [], PermitCooldowns = [] }]),
     };
 
     [Fact]

@@ -185,8 +185,8 @@ public sealed partial record ColonyProjection
 
     public Fact<AnomalyColony> Anomaly { get; init; }
 
-    /// <summary>The Royalty colony section; unknown without Royalty or when the read failed.</summary>
-    public Fact<RoyaltyColony> RoyaltyColony { get; init; }
+    /// <summary>The Royalty colony section; inactive without Royalty.</summary>
+    public required O.RoyaltySection RoyaltySection { get; init; }
 
     /// <summary>The creepjoiner isolation room's inputs, set by the rounds.</summary>
     public IsolationPlanning Isolation { get; init; } = new();

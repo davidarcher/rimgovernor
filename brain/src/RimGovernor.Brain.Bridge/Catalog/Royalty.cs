@@ -200,19 +200,23 @@ public sealed partial class DefinitionCatalog
     };
 
     /// <summary>
-    /// <paramref name="colony"/> with each neuroformer's tradeability (a trader can sell a Sellable or All thing)
-    /// read from its ThingDef row. The colony is not changed; a neuroformer with no row is an error.
+    /// The colony section's neuroformer stock by def, each with its tradeability (a trader can sell a Sellable or All
+    /// thing) read from its ThingDef row. A neuroformer with no row, or a def listed twice, is an error.
     /// </summary>
-    public P.RoyaltyColony WithNeuroformerDefs(P.RoyaltyColony colony)
+    public IReadOnlyDictionary<string, P.Neuroformer> WithNeuroformerDefs(RimGovernor.Contracts.Wire.Observations.RoyaltyColonyFacts colony)
     {
         var neuroformers = new Dictionary<string, P.Neuroformer>(StringComparer.Ordinal);
-        foreach (var (name, n) in colony.Neuroformers)
+        foreach (var stock in colony.Neuroformers)
         {
-            var row = ThingRow(name);
-            neuroformers[name] = n with { Tradeable = Known(row.tradeability is Tradeability.Sellable or Tradeability.All) };
+            var row = ThingRow(stock.DefName);
+            var neuroformer = new P.Neuroformer { Held = stock.Held, Craftable = stock.Craftable, Tradeable = row.tradeability is Tradeability.Sellable or Tradeability.All };
+            if (!neuroformers.TryAdd(stock.DefName, neuroformer))
+            {
+                throw new InvalidOperationException($"the royalty section lists neuroformer {stock.DefName} twice");
+            }
         }
 
-        return colony with { Neuroformers = neuroformers };
+        return neuroformers;
     }
 
     /// <summary>

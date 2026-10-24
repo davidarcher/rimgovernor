@@ -8,40 +8,19 @@ namespace RimGovernor.Brain.Policy;
 // player's command (his Wait toil gizmo) CeremonyStart picks the ceremony the colony starts through the
 // generic Ritual action.
 
-/// <summary>
-/// One pending bestowing-ceremony quest, decoded from the royalty read. <see cref="Quest"/> is the quest
-/// census id. <see cref="Pawn"/> is the colonist to be bestowed with <see cref="Title"/>.
-/// <see cref="Accepted"/> is the quest Ongoing (else offered); <see cref="BestowerWaiting"/>
-/// the bestower standing on the map waiting for the command; <see cref="Started"/> the ritual running.
-/// </summary>
-public sealed record BestowingCeremony
-{
-    public QuestId Quest { get; init; }
-
-    public PawnId Pawn { get; init; }
-
-    public string Title { get; init; } = "";
-
-    public Fact<bool> Accepted { get; init; }
-
-    public Fact<bool> BestowerWaiting { get; init; }
-
-    public Fact<bool> Started { get; init; }
-}
-
 public static class CeremonyRules
 {
     /// <summary>The accepted ceremonies, by colonist.</summary>
     public static List<BestowingCeremony> PendingCeremonies(RoyaltyFacts f) =>
         [
             .. f.Ceremonies.Items
-                .Where(c => c.Accepted.TryGetValue(out var accepted) && accepted)
+                .Where(c => c.Accepted)
                 .OrderBy(c => c.Pawn.Value, StringComparer.Ordinal),
         ];
 
     /// <summary>
     /// The ceremony to start now: accepted, its bestower standing on the map waiting for the command and the
-    /// ritual known not to have started (an unknown flag emits nothing); the lowest colonist breaks a tie.
+    /// ritual not started; the lowest colonist breaks a tie.
     /// The throne room is native's refusal, not a gate here: the bestower waits at the throne only once it
     /// stands and native refuses the command while the game offers none.
     /// </summary>
@@ -49,9 +28,7 @@ public static class CeremonyRules
     {
         foreach (var c in PendingCeremonies(f))
         {
-            var wok = c.BestowerWaiting.TryGetValue(out var waiting);
-            var sok = c.Started.TryGetValue(out var started);
-            if (wok && waiting && sok && !started)
+            if (c.BestowerWaiting && !c.Started)
             {
                 return c;
             }
@@ -106,14 +83,13 @@ public static class CeremonyRules
         foreach (var c in f.Ceremonies.Items)
         {
             if (
-                c.Accepted.TryGetValue(out var accepted)
-                && !accepted
-                && c.Quest.Value.Length != 0
+                !c.Accepted
+                && c.Quest.Length != 0
                 && c.Pawn == claim.Holder
-                && (c.Title.Length == 0 || c.Title == claim.Title)
+                && (c.Title is null || c.Title == claim.Title)
             )
             {
-                output.Add(c.Quest);
+                output.Add(new QuestId(c.Quest));
             }
         }
 

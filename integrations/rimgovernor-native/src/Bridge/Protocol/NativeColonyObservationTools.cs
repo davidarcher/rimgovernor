@@ -111,7 +111,7 @@ namespace HomeBridge.BridgeTools
             var deepResources = NativeDeepResources.Read(map);
             var policies = NativePolicyFacts.Read(map);
             var biotech = NativeBiotechColony.Read(map);
-            var royalty = NativeRoyaltyColony.Read(map);
+            var royalty = NativeRoyaltyColony.Read();
             var anomaly = NativeAnomalyColony.Read(map);
             Span("cf.deep");
             var issues = new List<Obs.ReadIssue>();

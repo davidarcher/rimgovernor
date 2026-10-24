@@ -49,7 +49,7 @@ public sealed class ColonyFactsCoreTests
         Policies = PoliciesTests.NoPolicies,
         Biotech = null,
         Anomaly = null,
-        Royalty = null,
+        Royalty = RoyaltySectionTests.NoRoyalty,
         DeliveryLedger = DeliveryLedgerTests.NoDeliveries,
         HuntCensus = new() { Hunters = [] },
         Acquisition = [],
@@ -71,6 +71,7 @@ public sealed class ColonyFactsCoreTests
         Books = [],
         Foods = [],
         FoodEaters = [],
+        RoyaltySection = RoyaltySectionTests.NoRoyalty,
     };
 
     /// <summary>A threat read of a colony with no wealth, no raid points, no hostile faction and no raid on the map.</summary>

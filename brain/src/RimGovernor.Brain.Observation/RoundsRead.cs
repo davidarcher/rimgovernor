@@ -272,7 +272,7 @@ public static class RoundsReads
         Fact<RoyaltyFacts> royalty;
         try
         {
-            royalty = ColonyProjection.RoyaltyOf(p.RoyaltyColony, pawns, catalog);
+            royalty = ColonyProjection.RoyaltyOf(p.RoyaltySection, pawns, catalog);
         }
         catch (DomainException)
         {

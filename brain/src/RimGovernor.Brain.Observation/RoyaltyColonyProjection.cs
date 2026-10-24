@@ -1,88 +1,20 @@
 namespace RimGovernor.Brain.Observation;
 
-public static class RoyaltyColonyProjectionReads
-{
-    /// <summary>Projects a validated Royalty section; an absent or unavailable one is an unknown fact.</summary>
-    internal static Fact<RoyaltyColony> ColonyRoyalty(O.RoyaltySection? section)
-    {
-        var f = section?.Observed;
-        return f is null ? default : Known(DecodeRoyaltyColony(f));
-    }
-
-    /// <summary>
-    /// Validates the Royalty colony section's facts (the neuroformer stock, pending
-    /// bestowing ceremonies and standing thrones) and projects them; a malformed row breaks the contract.
-    /// </summary>
-    internal static RoyaltyColony DecodeRoyaltyColony(O.RoyaltyColonyFacts? v)
-    {
-        if (v is null)
-        {
-            throw new BridgeContractException("incomplete royalty colony facts");
-        }
-        var neuroformers = new Dictionary<string, Neuroformer>(StringComparer.Ordinal);
-        foreach (var row in v.Neuroformers)
-        {
-            var name = row.DefName;
-            if (row.Held.GetValueOrDefault() < 0)
-            {
-                throw new BridgeContractException("invalid royalty neuroformer");
-            }
-            if (!neuroformers.TryAdd(name, new Neuroformer { Held = ColonyDecodeReads.Optional(row.Held is not null, (int)row.Held.GetValueOrDefault()), Craftable = ColonyDecodeReads.Optional(row.Craftable is not null, row.Craftable.GetValueOrDefault()) }))
-            {
-                throw new BridgeContractException($"duplicate royalty neuroformer {name}");
-            }
-        }
-        var ceremonies = new List<BestowingCeremony>();
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var row in v.Ceremonies)
-        {
-            var pawn = row.Pawn.Id;
-            if (!seen.Add(pawn + "/" + row.FactionDef))
-            {
-                throw new BridgeContractException("duplicate royalty ceremony");
-            }
-            ceremonies.Add(new BestowingCeremony
-            {
-                Quest = new QuestId(row.Quest),
-                Pawn = new PawnId(pawn),
-                Title = row.Title is not null ? (row.Title ?? "") : "",
-                Accepted = ColonyDecodeReads.Optional(row.Accepted is not null, row.Accepted.GetValueOrDefault()),
-                BestowerWaiting = ColonyDecodeReads.Optional(row.BestowerWaiting is not null, row.BestowerWaiting.GetValueOrDefault()),
-                Started = ColonyDecodeReads.Optional(row.Started is not null, row.Started.GetValueOrDefault()),
-            });
-        }
-        var thrones = new List<RoyalThrone>();
-        var throneIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var row in v.Thrones)
-        {
-            var id = row.Thing.Id;
-            var owner = row.Owner?.Id ?? "";
-            if (!throneIds.Add(id))
-            {
-                throw new BridgeContractException("duplicate royalty throne");
-            }
-            thrones.Add(new RoyalThrone { Id = id, Owner = new PawnId(owner) });
-        }
-        return new RoyaltyColony { Neuroformers = neuroformers, Ceremonies = EquatableArray.From(ceremonies), Thrones = EquatableArray.From(thrones) };
-    }
-}
-
 public sealed partial record ColonyProjection
 {
     /// <summary>
     /// The royalty fact: the colonists' own holdings and psycasts from their pawn rows, the ladder and permits
     /// from the def mirror and the colony <paramref name="section"/>'s neuroformers, ceremonies and thrones. The colony
-    /// section's presence is the Royalty-applicable gate, as for the other DLC sections: without it the fact is unknown
-    /// and nothing is read, since planning on a stock, ceremony or throne list that was not read would act on an empty
-    /// one. A pawn row or def the read cannot use throws and the fact stays unknown.
+    /// section is the Royalty-applicable gate, as for the other DLC sections: an inactive one is no royalty fact and
+    /// nothing is read. A pawn row or def the read cannot use throws.
     /// </summary>
-    public static Fact<RoyaltyFacts> RoyaltyOf(Fact<RoyaltyColony> section, O.PawnSnapshot? pawns, DefinitionCatalog catalog)
+    public static Fact<RoyaltyFacts> RoyaltyOf(O.RoyaltySection section, O.PawnSnapshot? pawns, DefinitionCatalog catalog)
     {
-        if (!section.TryGetValue(out var colony))
+        if (section is not O.RoyaltySection.Active { Facts: var colony })
         {
             return Unknown<RoyaltyFacts>();
         }
         var facts = RoyaltyFactsRules.PawnRoyaltyFacts(pawns, catalog.Psycast);
-        return Known(catalog.WithTitleDefs(facts).WithColony(catalog.WithNeuroformerDefs(colony)));
+        return Known(catalog.WithTitleDefs(facts).WithColony(catalog.WithNeuroformerDefs(colony), colony));
     }
 }

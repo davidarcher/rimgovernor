@@ -192,18 +192,21 @@ public sealed class PolicyController : IFightController
 
     private static string Casters(CombatView view) =>
         !view.Royalty.TryGetValue(out var royal) ? "" : string.Join(" ", royal.Psycasts.Select(c =>
-            c.Key.Value + ":" + string.Join(",", c.Value.Items.Select(x => x.Def + "/" + x.Target + "/focus=" + x.PsyfocusCost + "/cd=" + x.CooldownRemaining))))
-            + " holders=" + string.Join(" ", royal.Holders.Select(h => h.Key.Value + ":" + string.Join(",", h.Value.Select(x => x.FactionDef + "/favor=" + x.Favor + "/permits=" + string.Join("+", x.Permits) + "/cd=" + string.Join("+", x.Cooldowns.Select(c => c.Key + "=" + c.Value.RemainingTicks))))))
+            c.Key.Value + ":" + string.Join(",", c.Value.Items.Select(x => x.Psycast.Def + "/" + x.Psycast.Target + "/focus=" + x.Psycast.PsyfocusCost + "/cd=" + x.CooldownRemaining))))
+            + " holders=" + string.Join(" ", royal.Holders.Select(h => h.Key.Value + ":" + string.Join(",", h.Value.Select(x => x.FactionDef + "/favor=" + x.Favor + "/permits=" + string.Join("+", x.Permits) + "/cd=" + string.Join("+", x.PermitCooldowns.Select(c => c.Permit + "=" + c.CooldownRemainingTicks))))))
             + " permitdefs=" + string.Join(" ", royal.Permits.Select(p => p.Key + ":acts=" + p.Value.Acts + ",cost=" + p.Value.FavorCost));
 
     // The royalty fact the rounds read: the colonists' pawn rows and the colony section of the frame, against the catalog.
-    // Unknown when the frame has no royalty section (no Royalty) or a row cannot be used.
+    // Unknown when the frame has no colony facts or an inactive royalty section (no Royalty), or a row cannot be used.
     private static RimGovernor.Brain.Domain.Fact<RoyaltyFacts> RoyaltyOf(Obs.BundleSnapshot frame, DefinitionCatalog catalog)
     {
         try
         {
-            var colony = RimGovernor.Brain.Observation.RoyaltyColonyProjectionReads.ColonyRoyalty(frame.ColonyFacts?.Royalty);
-            return RimGovernor.Brain.Observation.ColonyProjection.RoyaltyOf(colony, frame.Pawns, catalog);
+            if (frame.ColonyFacts is not { } colony)
+            {
+                return RimGovernor.Brain.Domain.Fact.Unknown<RoyaltyFacts>();
+            }
+            return RimGovernor.Brain.Observation.ColonyProjection.RoyaltyOf(colony.Royalty, frame.Pawns, catalog);
         }
         catch (RimGovernor.Brain.Domain.DomainException)
         {

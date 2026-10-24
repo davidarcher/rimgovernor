@@ -29,7 +29,7 @@ public static partial class CombatPermitRules
     internal static string PermitKey(PawnId pawn, string faction, string permit) => pawn.Value + "/" + faction + "/" + permit;
 
     /// <summary>Reports a held acting permit that is off cooldown and affordable per the royalty read; every unread fact holds the call.</summary>
-    internal static bool PermitReady(RoyaltyFacts f, RoyalHolding h, string name)
+    internal static bool PermitReady(RoyaltyFacts f, PawnRoyalHolding h, string name)
     {
         if (!f.Permits.TryGetValue(name, out var permit))
         {
@@ -39,13 +39,11 @@ public static partial class CombatPermitRules
         {
             return false;
         }
-        var costKnown = permit.FavorCost.TryGetValue(out var cost);
-        var favorKnown = h.Favor.TryGetValue(out var favor);
-        if (!costKnown || !favorKnown || favor < cost)
+        if (!permit.FavorCost.TryGetValue(out var cost) || h.Favor < cost)
         {
             return false;
         }
-        return h.Cooldowns.TryGetValue(name, out var cooldown) && cooldown.RemainingTicks.TryGetValue(out var remaining) && remaining == 0;
+        return RoyalHoldingRules.PermitReady(h, name);
     }
 
     /// <summary>

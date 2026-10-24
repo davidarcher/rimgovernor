@@ -76,7 +76,7 @@ public sealed class RoyaltyRounds
         var items = Unknown<EquatableArray<string>>();
         if (candidates.TryGetValue(out var first) && levelUps.TryGetValue(out var up) && first.Count + up.Count > 0 && projection.Royalty.TryGetValue(out var royalty))
         {
-            if (royalty.Neuroformers.TryGetValue(PsylinkRules.PsylinkNeuroformer, out var stock) && stock.Held.TryGetValue(out var held) && held == 0)
+            if (royalty.Neuroformers.TryGetValue(PsylinkRules.PsylinkNeuroformer, out var stock) && stock.Held == 0)
             {
                 items = Known<EquatableArray<string>>([]);
             }

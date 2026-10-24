@@ -306,20 +306,24 @@ ladder (seniority, favor needed, throne and bedroom requirements) and the permit
 catalog (minimum title, permit points, worker class, whether the permit acts and
 the favor a call spends) are static defs read from the game's Def objects
 (`RoyalTitleDef`, `RoyalTitlePermitDef`; `DefinitionCatalog.WithTitleDefs`).
-Each colonist's holdings and psycasts are its `PawnState.royalty`, decoded by `bridge.PawnRoyaltyFacts` into `policy.RoyaltyFacts`, where an
-absent scalar is unknown. The neuroformer stock, bestowing ceremonies and
-thrones are the colony section
-`ColonyFactsSnapshot.royalty` (`RoyaltySection`), absent without
-Royalty and without `observed` when the read failed, read on every colony frame.
+Each colonist's holdings, psycasts and psylink are its `PawnState.royalty`
+(`PawnRoyalty`, every member required: a holding's `title` is null while it
+holds none, `psylink` null without a psylink), gathered by
+`bridge.PawnRoyaltyFacts` into `policy.RoyaltyFacts`. The neuroformer stock,
+bestowing ceremonies and thrones are the colony section
+`ColonyFactsSnapshot.royalty` (`RoyaltySection`): `active` with its facts, or
+`inactive` without Royalty; a failed read fails the colony read. It is read on
+every colony frame.
 `neuroformers` lists the psylink neuroformer and each psycast neurotrainer with
-held, craftable and tradeable; `ceremonies` lists each offered or ongoing
+held and craftable (tradeable is the ThingDef row, `WithNeuroformerDefs`);
+`ceremonies` lists each offered or ongoing
 bestowing-ceremony quest (`RoyalTitleUtility.GetCurrentBestowingCeremonyQuest`):
-quest id, colonist, awarded title, accepted, bestower waiting in the
-lord's Wait toil and started;
+quest id, colonist, awarded title (null when the favor awards none),
+accepted, bestower waiting in the lord's Wait toil and started;
 `thrones` lists every spawned player throne (`Building_Throne`) with its
-assigned owner, absent when unassigned. `policy.RoyaltyFacts.WithColony`
-joins the section to the read; a colony frame without the section leaves the
-royalty fact unknown, and the section's presence is the Royalty-applicable
+assigned owner, null when unassigned. `policy.RoyaltyFacts.WithColony`
+joins the section to the read; an inactive section leaves the
+royalty fact unknown and is the Royalty-applicable
 gate (`ColonyProjection.RoyaltyOf`). Reads are derived state
 (persistence-contracts.md); they add no store.
 

@@ -150,7 +150,7 @@ public sealed class QuestPolicyTests
     {
         var holder = new PawnId("pawn-1");
         BestowingCeremony Ceremony(string quest, string pawn, string title, bool accepted) =>
-            new() { Quest = new(quest), Pawn = new(pawn), Title = title, Accepted = Known(accepted) };
+            new() { Quest = quest, Pawn = new(pawn), Title = title, Accepted = accepted, BestowerWaiting = false, Started = false };
         var royalty = new RoyaltyFacts
         {
             Ceremonies =

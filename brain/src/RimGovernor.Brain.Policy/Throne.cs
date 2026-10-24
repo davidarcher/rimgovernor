@@ -227,7 +227,7 @@ public static partial class ThroneRules
             foreach (var h in f.Holders[id])
             {
                 int current;
-                if (h.Title.Length != 0)
+                if (h.Title is not null)
                 {
                     if (!index.TryGetValue(h.Title, out current))
                     {
@@ -238,13 +238,12 @@ public static partial class ThroneRules
                 {
                     // No title yet: owed only once the first rung is within reach of the favor held.
                     current = -1;
-                    var fk = h.Favor.TryGetValue(out var favor);
                     if (f.Ladder.Count == 0)
                     {
                         continue;
                     }
                     var nk = f.Ladder[0].FavorNeeded.TryGetValue(out var needed);
-                    if (!fk || !nk || favor < needed)
+                    if (!nk || h.Favor < needed)
                     {
                         continue;
                     }
@@ -382,7 +381,7 @@ public static partial class ThroneRules
         {
             return held;
         }
-        var titles = holdings.Select(h => h.Title).Where(t => t.Length != 0).ToHashSet(StringComparer.Ordinal);
+        var titles = holdings.Select(h => h.Title).OfType<string>().ToHashSet(StringComparer.Ordinal);
         foreach (var rung in f.Ladder)
         {
             if (titles.Contains(rung.Title) && RungRequirement(rung) is (var need, true))
@@ -401,7 +400,7 @@ public static partial class ThroneRules
         }
         foreach (var h in holdings)
         {
-            if (h.Title.Length != 0)
+            if (h.Title is not null)
             {
                 return true;
             }
@@ -424,17 +423,17 @@ public static partial class ThroneRules
         var previous = step.PreviousThrone;
         foreach (var t in thrones)
         {
-            if (t.Id == throne.Id)
+            if (t.Thing.Id == throne.Id)
             {
-                if (!t.Owner.IsEmpty)
+                if (t.Owner is not null)
                 {
                     return new ThroneStep();
                 }
                 listed = true;
             }
-            else if (t.Owner == step.Need.Holder)
+            else if (t.Owner is { } owner && new PawnId(owner.Id) == step.Need.Holder)
             {
-                previous = t.Id;
+                previous = t.Thing.Id;
             }
         }
         if (!listed)

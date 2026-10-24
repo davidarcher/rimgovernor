@@ -156,7 +156,7 @@ public sealed class RoyalRoomCreditTests
         var royalty = new RoyaltyFacts
         {
             Ladder = [Rung("Baron", 1, 30, 60), Rung("Count", 2, 40, 80)],
-            Holders = new Dictionary<PawnId, EquatableArray<RoyalHolding>> { [A] = [new RoyalHolding { FactionDef = "Empire", Title = "Baron" }] },
+            Holders = new Dictionary<PawnId, EquatableArray<PawnRoyalHolding>> { [A] = [new PawnRoyalHolding { FactionDef = "Empire", Title = "Baron", Favor = 0, PermitPoints = 0, Permits = [], PermitCooldowns = [] }] },
         };
         var rooms = ProductionRooms(sleeping, royalty);
         // The baron claims the vacant suite (its standard room cannot reach the title's target) at its bedroom requirement; the

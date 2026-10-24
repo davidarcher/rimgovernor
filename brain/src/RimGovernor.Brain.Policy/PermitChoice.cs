@@ -139,13 +139,13 @@ public static partial class PermitChoiceRules
         {
             foreach (var h in f.Holders[holder])
             {
-                if (h.Title.Length == 0)
+                if (h.Title is null)
                 {
                     continue;
                 }
                 var held = new HashSet<string>(h.Permits, StringComparer.Ordinal);
                 var (rank, rankKnown) = TitleSeniority(f.Ladder, h.Title);
-                var pointsKnown = h.PermitPoints.TryGetValue(out var points);
+                var points = h.PermitPoints;
                 foreach (var name in names)
                 {
                     if (held.Contains(name))
@@ -160,7 +160,7 @@ public static partial class PermitChoiceRules
                     {
                         (need, needKnown) = TitleSeniority(f.Ladder, min);
                     }
-                    var take = costKnown && pointsKnown && rankKnown && needKnown && rank >= need && points >= cost;
+                    var take = costKnown && rankKnown && needKnown && rank >= need && points >= cost;
                     result.Add(new PermitChoice
                     {
                         Holder = holder,

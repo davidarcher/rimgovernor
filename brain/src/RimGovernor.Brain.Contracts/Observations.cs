@@ -5072,108 +5072,116 @@ public abstract record RoyalStanding
 }
 
 /// <summary>
-/// permit_cooldowns: one row per held permit. cooldown_remaining_ticks is the ticks until it can be
-/// used again (0 when ready), read at the read's tick.
+/// One held permit's cooldown: the ticks until it can be used again (0 when ready), read at the read's tick.
 /// </summary>
 public sealed record PermitCooldown
 {
-    public string? Permit { get; init; }
+    public required string Permit { get; init; }
 
-    public int? CooldownRemainingTicks { get; init; }
-}
-
-public sealed record PawnRoyalHolding
-{
-    public string? FactionDef { get; init; }
-
-    public string? Title { get; init; }
-
-    public int? Favor { get; init; }
-
-    public int? PermitPoints { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Permits { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<PermitCooldown>))]
-    public EquatableArray<PermitCooldown> PermitCooldowns { get; init; }
+    public required int CooldownRemainingTicks { get; init; }
 }
 
 /// <summary>
-/// Psycasts: psycasts holds each psycaster's known psycasts (Ability
-/// defs with IsPsycast); the level, costs, cooldown and target kind are the
-/// AbilityDef row. neuroformers: the psylink neuroformer
-/// and each psycast neurotrainer, with held (unforbidden spawned stacks on the
-/// player's home maps) and craftable (a recipe that is available now makes it);
-/// what a trainer teaches and whether a trader sells it are its ThingDef row.
-/// For combat casts cooldown_remaining_ticks is the
-/// psycast's remaining cooldown and the pawn's psyfocus (0-1), entropy and
-/// entropy_max are read at the read's tick; each is absent when unread.
+/// A pawn's standing with one royal faction: its current title (null while it holds none), favor, permit points,
+/// held permits (sorted) and each held permit's cooldown.
+/// </summary>
+public sealed record PawnRoyalHolding
+{
+    public required string FactionDef { get; init; }
+
+    public required string? Title { get; init; }
+
+    public required int Favor { get; init; }
+
+    public required int PermitPoints { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public required EquatableArray<string> Permits { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PermitCooldown>))]
+    public required EquatableArray<PermitCooldown> PermitCooldowns { get; init; }
+}
+
+/// <summary>
+/// One known psycast (an Ability def with IsPsycast): the level, costs, cooldown and target kind are the AbilityDef
+/// row; cooldown_remaining_ticks is its remaining cooldown at the read's tick.
 /// </summary>
 public sealed record PawnPsycast
 {
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public int? CooldownRemainingTicks { get; init; }
+    public required int CooldownRemainingTicks { get; init; }
 }
 
+/// <summary>
+/// The psylink neuroformer or a psycast neurotrainer: held counts the unforbidden spawned stacks on the player's
+/// home maps, craftable whether a recipe that is available now makes it. What a trainer teaches and whether a
+/// trader sells it are its ThingDef row.
+/// </summary>
 public sealed record NeuroformerStock
 {
     public required string DefName { get; init; }
 
-    public int? Held { get; init; }
+    public required int Held { get; init; }
 
-    public bool? Craftable { get; init; }
+    public required bool Craftable { get; init; }
 }
 
 /// <summary>
-/// PawnState.royalty: the pawn is the row's.
+/// A psylinked pawn's psyfocus (0-1), neural heat (entropy) and its ceiling (PsychicEntropyMax), read at the read's
+/// tick from Pawn_PsychicEntropyTracker.
+/// </summary>
+public sealed record PawnPsylink
+{
+    public required double Psyfocus { get; init; }
+
+    public required double Entropy { get; init; }
+
+    public required double EntropyMax { get; init; }
+}
+
+/// <summary>
+/// PawnState.royalty: the pawn's holdings per royal faction, its known psycasts and its psylink (null for a pawn
+/// with no psylink).
 /// </summary>
 public sealed record PawnRoyalty
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<PawnRoyalHolding>))]
-    public EquatableArray<PawnRoyalHolding> Holdings { get; init; }
+    public required EquatableArray<PawnRoyalHolding> Holdings { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PawnPsycast>))]
-    public EquatableArray<PawnPsycast> Psycasts { get; init; }
+    public required EquatableArray<PawnPsycast> Psycasts { get; init; }
 
-    public double? Psyfocus { get; init; }
-
-    public double? Entropy { get; init; }
-
-    public double? EntropyMax { get; init; }
+    public required PawnPsylink? Psylink { get; init; }
 }
 
 /// <summary>
 /// Pending bestowing ceremonies: one per colonist holding an ongoing or
 /// offered bestowing-ceremony quest (RoyalTitleUtility.GetCurrentBestowingCeremonyQuest).
 /// quest is the quest load id the quest census lists. pawn is the colonist to be bestowed, title the def
-/// the ceremony awards (GetTitleAwardedWhenUpdating), accepted whether the
+/// the ceremony awards (GetTitleAwardedWhenUpdating; null when the favor awards none), accepted whether the
 /// quest is Ongoing (else NotYetAccepted), bestower_waiting whether the bestower
 /// stands on the map in the lord's Wait toil (the ceremony starts only on the
-/// player's command) and started whether the ritual runs. Each
-/// scalar is absent when native could not read it.
+/// player's command) and started whether the bestower's ceremony lord job has started the ritual.
 /// </summary>
 public sealed record BestowingCeremony
 {
     public required string Quest { get; init; }
 
-    public required Common.Ref Pawn { get; init; }
+    public required PawnId Pawn { get; init; }
 
-    public required string FactionDef { get; init; }
+    public required string? Title { get; init; }
 
-    public string? Title { get; init; }
+    public required bool Accepted { get; init; }
 
-    public bool? Accepted { get; init; }
+    public required bool BestowerWaiting { get; init; }
 
-    public bool? BestowerWaiting { get; init; }
-
-    public bool? Started { get; init; }
+    public required bool Started { get; init; }
 }
 
 /// <summary>
 /// Throne ownership: thrones lists every spawned player throne
-/// (Building_Throne) with its assigned owner; owner is absent when none is
+/// (Building_Throne) with its assigned owner; owner is null when none is
 /// assigned. A throne appears once it stands, so a throne missing from the
 /// list was built after the read.
 /// </summary>
@@ -5181,30 +5189,36 @@ public sealed record RoyalThrone
 {
     public required Common.Ref Thing { get; init; }
 
-    public Common.Ref? Owner { get; init; }
+    public required Common.Ref? Owner { get; init; }
 }
 
 /// <summary>
-/// Royalty colony facts, a keyed colony section: the neuroformer
-/// stock, the pending bestowing ceremonies and the standing thrones. Absent
-/// without Royalty.
+/// The Royalty colony section: the colony facts, or <see cref="Inactive"/> without Royalty. A failed read fails the
+/// colony read.
 /// </summary>
-public sealed record RoyaltySection
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(RoyaltySection.Active), "active")]
+[JsonDerivedType(typeof(RoyaltySection.Inactive), "inactive")]
+public abstract record RoyaltySection
 {
-    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
-    public RoyaltyColonyFacts? Observed { get; init; }
+    private protected RoyaltySection() { }
+
+    public sealed record Active(RoyaltyColonyFacts Facts) : RoyaltySection;
+
+    public sealed record Inactive : RoyaltySection;
 }
 
+/// <summary>The neuroformer stock, the pending bestowing ceremonies and the standing thrones of the player's home maps.</summary>
 public sealed record RoyaltyColonyFacts
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeuroformerStock>))]
-    public EquatableArray<NeuroformerStock> Neuroformers { get; init; }
+    public required EquatableArray<NeuroformerStock> Neuroformers { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<BestowingCeremony>))]
-    public EquatableArray<BestowingCeremony> Ceremonies { get; init; }
+    public required EquatableArray<BestowingCeremony> Ceremonies { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<RoyalThrone>))]
-    public EquatableArray<RoyalThrone> Thrones { get; init; }
+    public required EquatableArray<RoyalThrone> Thrones { get; init; }
 }
 
 /// <summary>
@@ -6622,9 +6636,9 @@ public sealed record ColonyFactsSnapshot
     public required AnomalySection? Anomaly { get; init; }
 
     /// <summary>
-    /// Royalty neuroformer stock, bestowing ceremonies and thrones; null without Royalty.
+    /// Royalty neuroformer stock, bestowing ceremonies and thrones, or inactive without Royalty.
     /// </summary>
-    public required RoyaltySection? Royalty { get; init; }
+    public required RoyaltySection Royalty { get; init; }
 
     /// <summary>Cumulative production-site delivery counters.</summary>
     public required DeliveryLedger DeliveryLedger { get; init; }

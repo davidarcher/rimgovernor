@@ -46,7 +46,7 @@ Bridge/Catalog/RecipeLearning.cs|Fact|1
 Bridge/Catalog/RecipeView.cs|Discard|1
 Bridge/Catalog/RecipeView.cs|Fact|25
 Bridge/Catalog/RecipeView.cs|Unknown|8
-Bridge/Catalog/Royalty.cs|Fact|12
+Bridge/Catalog/Royalty.cs|Fact|11
 Bridge/Catalog/Stations.cs|Fact|2
 Bridge/Catalog/SurgeryParts.cs|Fact|4
 Bridge/Catalog/SurgeryParts.cs|Unknown|1
@@ -285,7 +285,7 @@ BuildingRuntime/Rounds/RoundsRituals.cs|Fact|1
 BuildingRuntime/Rounds/RoundsRituals.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsRooms.cs|Fact|10
 BuildingRuntime/Rounds/RoundsRooms.cs|Unknown|5
-BuildingRuntime/Rounds/RoundsRoyalty.cs|Fact|7
+BuildingRuntime/Rounds/RoundsRoyalty.cs|Fact|6
 BuildingRuntime/Rounds/RoundsRoyalty.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsShelterFamily.cs|Fact|1
 BuildingRuntime/Rounds/RoundsShelterFamily.cs|Unknown|4
@@ -361,7 +361,7 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|489
+Contracts/Observations.cs|NullableValue|477
 Contracts/Observations.cs|UnknownMember|7
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
@@ -429,7 +429,7 @@ Observation/AnomalyColony.cs|Unknown|8
 Observation/BiotechColony.cs|Fact|78
 Observation/BiotechColony.cs|Unknown|3
 Observation/Clearance.cs|Fact|4
-Observation/Colony.cs|Fact|88
+Observation/Colony.cs|Fact|87
 Observation/Colony.cs|Unknown|4
 Observation/ColonyDecode.cs|Fact|56
 Observation/ColonyDecode.cs|Unknown|5
@@ -473,7 +473,7 @@ Observation/RoundsRead.cs|Fact|51
 Observation/RoundsRead.cs|Unknown|16
 Observation/RoundsWork.cs|Fact|41
 Observation/RoundsWork.cs|Unknown|6
-Observation/RoyaltyColonyProjection.cs|Fact|6
+Observation/RoyaltyColonyProjection.cs|Fact|2
 Observation/RoyaltyColonyProjection.cs|Unknown|1
 Observation/SleepingUpkeep.cs|Fact|5
 Observation/StuffChoice.cs|Discard|1
@@ -537,7 +537,7 @@ Policy/Candidate.cs|Unknown|3
 Policy/CapabilityMaintenance.cs|Fact|2
 Policy/CapacityPenaltyTables.cs|NullableValue|6
 Policy/CareOrders.cs|Discard|1
-Policy/Ceremony.cs|Fact|9
+Policy/Ceremony.cs|Fact|2
 Policy/ChildRooms.cs|Fact|6
 Policy/Climate.cs|Discard|2
 Policy/Climate.cs|Fact|1
@@ -580,7 +580,7 @@ Policy/ColonyModel/SkillStock.cs|NullableValue|1
 Policy/Combat/CombatMortar.cs|Discard|1
 Policy/Combat/CombatMortar.cs|Fact|5
 Policy/Combat/CombatPeel.cs|Fact|2
-Policy/Combat/CombatPermit.cs|Fact|6
+Policy/Combat/CombatPermit.cs|Fact|4
 Policy/Combat/CombatPodsWait.cs|Fact|2
 Policy/Combat/CombatPrison.cs|Fact|4
 Policy/Combat/CombatRescue.cs|Fact|2
@@ -602,7 +602,7 @@ Policy/CombatAnomaly.cs|Fact|5
 Policy/CombatBatch.cs|Fact|2
 Policy/CombatBleed.cs|Fact|9
 Policy/CombatBlocking.cs|Fact|7
-Policy/CombatCast.cs|Fact|15
+Policy/CombatCast.cs|Fact|11
 Policy/CombatDecide.cs|Fact|25
 Policy/CombatDecide.cs|NullableValue|7
 Policy/CombatDecide.cs|UnknownMember|1
@@ -1032,7 +1032,7 @@ Policy/PenFood.cs|Fact|1
 Policy/PeopleFamily.cs|Fact|8
 Policy/PerimeterCut.cs|Fact|4
 Policy/PermitChoice.cs|Discard|1
-Policy/PermitChoice.cs|Fact|10
+Policy/PermitChoice.cs|Fact|9
 Policy/PermitChoice.cs|Unknown|1
 Policy/Pest.cs|Fact|10
 Policy/Pest.cs|Unknown|1
@@ -1066,7 +1066,7 @@ Policy/ProductionAdmission.cs|Fact|56
 Policy/ProductionBill.cs|Fact|47
 Policy/ProductionPromises.cs|Fact|74
 Policy/ProductionReserve.cs|Fact|4
-Policy/Psylink.cs|Fact|36
+Policy/Psylink.cs|Fact|33
 Policy/Psylink.cs|Unknown|4
 Policy/QuestCapacity.cs|Fact|26
 Policy/QuestCapacity.cs|Unknown|4
@@ -1084,7 +1084,7 @@ Policy/QuestMonument.cs|Fact|24
 Policy/QuestPeaceTalks.cs|Fact|25
 Policy/QuestRefugees.cs|Fact|3
 Policy/QuestReturn.cs|Fact|37
-Policy/QuestRewards.cs|Fact|8
+Policy/QuestRewards.cs|Fact|7
 Policy/QuestSelection.cs|Fact|25
 Policy/QuestSelection.cs|Unknown|1
 Policy/QuestSurvey.cs|Fact|42
@@ -1149,7 +1149,7 @@ Policy/RoundsImmediate.cs|Fact|1
 Policy/RoundsReviewFacts.cs|Fact|7
 Policy/Routes.cs|Fact|12
 Policy/Routes.cs|UnknownMember|1
-Policy/Royalty.cs|Fact|21
+Policy/Royalty.cs|Fact|11
 Policy/RoyaltyFamily.cs|Fact|5
 Policy/SafetyOverlay.cs|Fact|2
 Policy/Shelter.cs|Fact|11
@@ -1207,9 +1207,9 @@ Policy/Tend.cs|Unknown|1
 Policy/TendThreat.cs|Fact|2
 Policy/ThemePresets.cs|Discard|1
 Policy/ThemePresets.cs|NullableValue|6
-Policy/Throne.cs|Fact|7
+Policy/Throne.cs|Fact|6
 Policy/TierStyle.cs|Discard|1
-Policy/TitleClaim.cs|Fact|17
+Policy/TitleClaim.cs|Fact|16
 Policy/TitleClaim.cs|UnknownMember|1
 Policy/TitleClaim.cs|Unknown|2
 Policy/Tomb.cs|Fact|13

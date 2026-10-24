@@ -62,9 +62,8 @@ public static class QuestRewards
             foreach (var holding in holdings)
             {
                 var (rung, more) = TitleClaimRules.NextClaim(royalty.Ladder, holding.Title);
-                var fk = holding.Favor.TryGetValue(out var favor);
                 var nk = rung.FavorNeeded.TryGetValue(out var needed);
-                if (more && fk && nk && favor < needed)
+                if (more && nk && holding.Favor < needed)
                 {
                     return true;
                 }
