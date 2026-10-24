@@ -25,7 +25,7 @@ public sealed class ForecastConstructionTests
         PawnFixtures.Worker(id) with { Skills = [new WorkSkill { Name = "Construction", Level = skill }] },
         new(id, "stock", Known(EquatableArray.From(new[] { new ForecastTimeWindow(0, 1000) })), Known(1.0)), Known(1.0));
     private static ForecastCommitment Commitment(ConstructionSite site) => new(site.Id, default)
-    { Construction = site.Building, AlternativeLaborCost = Known(2000.0) };
+    { Construction = site.Building };
     private static ColonyForecastRequest Request(params ConstructionSite[] sites) => new()
     {
         Origin = new("world/load", 100), HorizonDays = 500.0 / GameTime.TicksPerDay,
@@ -52,7 +52,7 @@ public sealed class ForecastConstructionTests
         Assert.Equal(2, plan.Allocations.Length);
         Assert.Equal(100, Assert.Single(plan.Allocations, a => a.Activity == "finish").Start);
         Assert.Equal(200.0 / GameTime.TicksPerDay, construction.CompletedDay.Value);
-        Assert.Equal(-10, Assert.Single(construction.MaterialChanges).Units.Value);
+        Assert.Equal(-10, Assert.Single(construction.MaterialChanges).Units);
         Assert.Empty(result.Proposed.Commitments[0].StockChanges);
     }
 
@@ -133,7 +133,7 @@ public sealed class ForecastConstructionTests
         Assert.Equal("insufficient_uncommitted_materials", Assert.Single(ColonyForecastRules.ForecastColony(request).Proposed.Construction).Reason);
         request = Request(Site());
         request = request with { Commitments = EquatableArray.From(request.Commitments.Append(new ForecastCommitment("other", EquatableArray.From(new[]
-        { new ForecastStockChange(Material, Known(0.0), Known(-6.0)) })))) };
+        { new ForecastStockChange(Material, 0.0, -6.0) })))) };
         Assert.Equal("insufficient_uncommitted_materials", Assert.Single(ColonyForecastRules.ForecastColony(request).Proposed.Construction).Reason);
     }
 
@@ -173,18 +173,16 @@ public sealed class ForecastConstructionTests
         var forecast = ColonyForecastRules.ForecastColony(request);
         Assert.Equal("insufficient_uncommitted_materials", Assert.Single(forecast.Baseline.Construction).Reason);
         Assert.Equal("scheduled", Assert.Single(forecast.Proposed.Construction).Reason);
-        Assert.Equal(9, forecast.Baseline.MaterialAvailability.Value[Material].Value);
-        Assert.Equal(5, forecast.Proposed.MaterialAvailability.Value[Material].Value);
     }
 
     [Fact]
     public void UnknownConsumptionBlocksOnlyConstructionUsingThatMaterial()
     {
         var request = Request(Site());
-        var unrelated = new ForecastCommitment("other", [new(new Resource("TestOther"), Known(0.0), Unknown<double>())]);
+        var unrelated = new ForecastCommitment("other", default) { MaterialClaims = [new(new Resource("TestOther"), Unknown<double>(), Known(""))] };
         var result = ColonyForecastRules.ForecastColony(request with { Commitments = [.. request.Commitments, unrelated] });
         Assert.Equal("scheduled", Assert.Single(result.Proposed.Construction).Reason);
-        var related = unrelated with { StockChanges = [new(Material, Known(0.0), Unknown<double>())] };
+        var related = unrelated with { MaterialClaims = [new(Material, Unknown<double>(), Known(""))] };
         result = ColonyForecastRules.ForecastColony(request with { Commitments = [.. request.Commitments, related] });
         Assert.Equal("unknown_available_materials", Assert.Single(result.Proposed.Construction).Reason);
     }

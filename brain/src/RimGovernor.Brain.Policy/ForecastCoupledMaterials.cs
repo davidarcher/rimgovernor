@@ -21,8 +21,8 @@ public static class ForecastCoupledMaterials
         // The same owner's timed debit replaces only that debit's unlinked reservation, not another hold.
         foreach (var commitment in commitments.Values.Where(c => c.ActivityCompletions.Count == 0 && held.ContainsKey(c.Id)))
         {
-            var debit = commitment.StockChanges.Where(s => s.Day.IsKnown && s.Day.Value <= request.HorizonDays && s.Units.IsKnown && s.Units.Value < 0)
-                .GroupBy(s => s.Resource).ToDictionary(g => g.Key, g => -g.Sum(s => s.Units.Value));
+            var debit = commitment.StockChanges.Where(s => s.Day <= request.HorizonDays && s.Units < 0)
+                .GroupBy(s => s.Resource).ToDictionary(g => g.Key, g => -g.Sum(s => s.Units));
             var owner = held[commitment.Id];
             held[commitment.Id] = owner with
             {

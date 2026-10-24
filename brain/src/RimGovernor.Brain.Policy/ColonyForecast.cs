@@ -6,8 +6,7 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ColonyForecastOrigin(string World, long ObservedTick);
 
 /// <summary>Positive units enter inventory; negative units consume it. Day is relative to the observed tick.</summary>
-public sealed record ForecastStockChange(Resource Resource, Fact<double> Day, Fact<double> Units);
-
+public sealed record ForecastStockChange(Resource Resource, double Day, double Units);
 /// <summary>Supplied Method effects, not a promise of native completion.</summary>
 public sealed record ForecastCommitment(string Id, EquatableArray<ForecastStockChange> StockChanges)
 {
@@ -19,7 +18,6 @@ public sealed record ForecastCommitment(string Id, EquatableArray<ForecastStockC
     public EquatableArray<string> UnsupportedEffects { get; init; }
     /// <summary>Observed standing construction owned by this Method; no second supplied stock effect.</summary>
     public Building? Construction { get; init; }
-    public Fact<double> AlternativeLaborCost { get; init; }
     /// <summary>Mood memories this Method grants when all its activities complete (at the forecast start when it has
     /// none); in-memory forecast evidence, not a wire or save field. The same effective tick applies below.</summary>
     public EquatableArray<ForecastMoodMemory> MoodMemories { get; init; }
@@ -80,13 +78,11 @@ public sealed record ColonyForecastRequest
     public ForecastCoupledContext? Coupled { get; init; }
 }
 
-public sealed record ForecastFinding(string Reason, string Commitment, Resource Resource, Fact<double> Day, Fact<double> Units);
+public sealed record ForecastFinding(string Reason, string Commitment);
 
 public sealed record ColonyForecastScenario
 {
     public ForecastCoupledScenario? Coupled { get; init; }
-    /// <summary>Free for new declared claims, not an inventory trajectory or native reservation.</summary>
-    public Fact<IReadOnlyDictionary<Resource, Fact<double>>> MaterialAvailability { get; init; }
     public EquatableArray<ForecastEquipmentCapacity> EquipmentAvailability { get; init; }
     public EquatableArray<ForecastCommitment> Commitments { get; init; }
     public EquatableArray<ForecastConstructionResult> Construction { get; init; }
@@ -158,8 +154,7 @@ public static class ColonyForecastRules
             foreach (var change in commitment.StockChanges)
             {
                 if (!AdmissionRules.ValidResource(change.Resource)
-                    || (change.Day.TryGetValue(out var day) && (!double.IsFinite(day) || day < 0))
-                    || (change.Units.TryGetValue(out var units) && !double.IsFinite(units)))
+                    || !double.IsFinite(change.Day) || change.Day < 0 || !double.IsFinite(change.Units))
                 {
                     throw new DomainException("invalid forecast stock change");
                 }
@@ -177,9 +172,9 @@ public static class ColonyForecastRules
         IReadOnlyDictionary<string, ForecastCommitment> commitments, double horizon)
         => new() { Commitments = EquatableArray.From(new InventoryBase(observed, commitments, horizon).Ordered) };
 
-    /// <summary>One stock effect in projection order, with the finding it always raises (unknown day or units, or a day
-    /// beyond the horizon), made once.</summary>
-    internal readonly record struct InventoryEffect(string Id, Resource Resource, Fact<double> Day, Fact<double> Units, ForecastFinding? Note);
+    /// <summary>One stock effect in projection order, with the finding it always raises (a day beyond the horizon), made
+    /// once. Only a schedule's own activity output can carry unread units (#3894's activity yields).</summary>
+    internal readonly record struct InventoryEffect(string Id, Resource Resource, double Day, Fact<double> Units, ForecastFinding? Note);
 
     /// <summary>What a stock projection reads besides a schedule's own timed effects (#3468): the observed stock, the
     /// commitments by id with their effects split where the schedule's own sort, the resources and the findings every
@@ -215,9 +210,8 @@ public static class ColonyForecastRules
                 foreach (var change in commitment.StockChanges)
                 {
                     Resources.Add(change.Resource);
-                    var note = !change.Day.IsKnown || !change.Units.IsKnown ? new ForecastFinding("unknown_stock_effect", commitment.Id, change.Resource, change.Day, change.Units)
-                        : change.Day.Value > horizon ? new ForecastFinding("beyond_horizon", commitment.Id, change.Resource, change.Day, change.Units) : null;
-                    (string.CompareOrdinal(commitment.Id, TimedEffects) < 0 ? before : after).Add(new(commitment.Id, change.Resource, change.Day, change.Units, note));
+                    var note = change.Day > horizon ? new ForecastFinding("beyond_horizon", commitment.Id) : null;
+                    (string.CompareOrdinal(commitment.Id, TimedEffects) < 0 ? before : after).Add(new(commitment.Id, change.Resource, change.Day, Known(change.Units), note));
                 }
             (Before, After) = ([.. before], [.. after]);
             Sorted = [.. Resources];
@@ -225,13 +219,13 @@ public static class ColonyForecastRules
             var constant = new List<ForecastFinding>();
             if (!StockKnown)
             {
-                constant.Add(new ForecastFinding("unknown_initial_stock", "", default, Known(0.0), Unknown<double>()));
+                constant.Add(new ForecastFinding("unknown_initial_stock", ""));
             }
             foreach (var commitment in Ordered)
             {
                 foreach (var effect in commitment.UnsupportedEffects)
                 {
-                    constant.Add(new ForecastFinding("unsupported:" + effect, commitment.Id, default, Unknown<double>(), Unknown<double>()));
+                    constant.Add(new ForecastFinding("unsupported:" + effect, commitment.Id));
                 }
             }
             Constant = [.. constant];
@@ -248,7 +242,7 @@ public static class ColonyForecastRules
         private readonly HashSet<Resource> extra = [];
         private readonly List<int> timed = [];
 
-        public void Run(InventoryBase stock, ReadOnlySpan<(Resource Resource, Fact<double> Day, Fact<double> Units)> own,
+        public void Run(InventoryBase stock, ReadOnlySpan<(Resource Resource, double Day, Fact<double> Units)> own,
             List<ForecastFinding> findings)
         {
             foreach (var finding in stock.Constant) findings.Add(finding);
@@ -268,28 +262,21 @@ public static class ColonyForecastRules
                 {
                     var e = merged[i];
                     if (e.Resource != resource) continue;
-                    if (!e.Day.TryGetValue(out var day))
-                    {
-                        // Unknown time may affect any future point, but never rewrites the observed stock.
-                        balance = Unknown<double>();
-                        findings.Add(e.Note ?? new ForecastFinding("unknown_stock_effect", e.Id, resource, e.Day, e.Units));
-                        continue;
-                    }
                     if (!e.Units.IsKnown)
                     {
-                        findings.Add(e.Note ?? new ForecastFinding("unknown_stock_effect", e.Id, resource, e.Day, e.Units));
+                        findings.Add(e.Note ?? new ForecastFinding("unknown_stock_effect", e.Id));
                     }
-                    else if (day > horizon)
+                    else if (e.Day > horizon)
                     {
-                        findings.Add(e.Note ?? new ForecastFinding("beyond_horizon", e.Id, resource, e.Day, e.Units));
+                        findings.Add(e.Note ?? new ForecastFinding("beyond_horizon", e.Id));
                     }
-                    if (day <= horizon) Place(i);
+                    if (e.Day <= horizon) Place(i);
                 }
                 for (var start = 0; start < timed.Count;)
                 {
-                    var day = merged[timed[start]].Day.Value;
+                    var day = merged[timed[start]].Day;
                     var end = start;
-                    while (end < timed.Count && merged[timed[end]].Day.Value == day) end++;
+                    while (end < timed.Count && merged[timed[end]].Day == day) end++;
                     for (var k = start; k < end; k++)
                     {
                         var e = merged[timed[k]];
@@ -303,7 +290,7 @@ public static class ColonyForecastRules
                             balance = Known(after);
                             if (after < 0 && units < 0)
                             {
-                                findings.Add(new ForecastFinding("stock_shortfall", e.Id, resource, Known(day), Known(-after)));
+                                findings.Add(new ForecastFinding("stock_shortfall", e.Id));
                             }
                         }
                         else
@@ -329,7 +316,7 @@ public static class ColonyForecastRules
         private int Compare(int x, int y)
         {
             var (a, b) = (merged[x], merged[y]);
-            var c = a.Day.Value.CompareTo(b.Day.Value);
+            var c = a.Day.CompareTo(b.Day);
             if (c == 0) c = Sign(a.Units).CompareTo(Sign(b.Units));
             if (c == 0) c = string.CompareOrdinal(a.Id, b.Id);
             return c == 0 ? x.CompareTo(y) : c;

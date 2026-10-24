@@ -32,17 +32,9 @@ public sealed class ForecastClaimsTests
     [Fact]
     public void CancellationReleasesPromiseButNotAnObservedNativeReservation()
     {
-        var request = new ColonyForecastRequest
-        {
-            Origin = new("world", 1), HorizonDays = 1, Facts = new() { Stock = Stock },
-            Construction = new() { IngredientReservations = Native() },
-            Commitments = [Promise("cook", Material, 50, "bill")], Proposed = new() { Remove = ["cook"] },
-        };
-        var forecast = ColonyForecastRules.ForecastColony(request);
-        Assert.Equal(50, forecast.Baseline.MaterialAvailability.Value[Material].Value);
-        Assert.Equal(80, forecast.Proposed.MaterialAvailability.Value[Material].Value);
-        var released = ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { IngredientReservations = NoReservations } });
-        Assert.Equal(100, released.Proposed.MaterialAvailability.Value[Material].Value);
+        Assert.Equal(50, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [Promise("cook", Material, 50, "bill")], 1).Value[Material].Value);
+        Assert.Equal(80, ForecastClaims.ForecastMaterialBudgetOf(Stock, Native(), [], 1).Value[Material].Value);
+        Assert.Equal(100, ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations, [], 1).Value[Material].Value);
     }
 
     [Fact]
@@ -64,13 +56,13 @@ public sealed class ForecastClaimsTests
     public void ClaimsCannotDuplicateInventoryConsumptionOrUseFutureOutputAsStock()
     {
         var claim = Promise("method", Material, 10);
-        var effect = new ForecastStockChange(Material, Known(0.5), Known(-10.0));
+        var effect = new ForecastStockChange(Material, 0.5, -10.0);
         Assert.Throws<DomainException>(() => ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations,
             [claim with { StockChanges = [effect] }], 1));
-        var future = new ForecastCommitment("future", [effect with { Units = Known(100.0) }]);
+        var future = new ForecastCommitment("future", [effect with { Units = 100.0 }]);
         Assert.Equal(-50, ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations,
             [Promise("a", Material, 75), Promise("b", Material, 75), future], 1).Value[Material].Value);
-        var beyond = future with { StockChanges = [new(Material, Known(2.0), Unknown<double>())] };
+        var beyond = future with { StockChanges = [new(Material, 2.0, -10.0)] };
         Assert.Equal(100, ForecastClaims.ForecastMaterialBudgetOf(Stock, NoReservations, [beyond], 1).Value[Material].Value);
     }
 

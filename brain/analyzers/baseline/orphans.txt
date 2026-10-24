@@ -39,7 +39,6 @@ Policy|ColonyForecastRequest.Proposed
 Policy|ColonyForecastScenario.Commitments
 Policy|ColonyForecastScenario.Construction
 Policy|ColonyForecastScenario.EquipmentAvailability
-Policy|ColonyForecastScenario.MaterialAvailability
 Policy|ConstructionInputs.Admitted
 Policy|ConstructionInputs.Deficit
 Policy|ConstructionMaterial.Need
@@ -103,9 +102,6 @@ Policy|ForecastConstructionWorker.WorkPerTick
 Policy|ForecastEquipmentClaim.End
 Policy|ForecastEquipmentClaim.Equipment
 Policy|ForecastEquipmentClaim.Start
-Policy|ForecastFinding.Day
-Policy|ForecastFinding.Resource
-Policy|ForecastFinding.Units
 Policy|ForecastFoodCandidateInputs.Benches
 Policy|ForecastFoodCandidateInputs.Crops
 Policy|ForecastFoodCandidateInputs.Destination

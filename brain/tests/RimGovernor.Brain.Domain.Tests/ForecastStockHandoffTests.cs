@@ -61,8 +61,8 @@ public sealed class ForecastStockHandoffTests
     public void ExternalOutputsAndMultiLotDebitsCarryOnceAndRemainUsable()
     {
         var request = Request(Stock("first", 4), Stock("second", 6));
-        var outcome = Evaluate(request, new("debit", [new(Meal, Known(.25), Known(-3d))]), new("harvest", [new(Meal, Known(.5), Known(8d))]),
-            new("tend", [new(Medicine, Known(.5), Known(-2d))]));
+        var outcome = Evaluate(request, new("debit", [new(Meal, .25, -3d)]), new("harvest", [new(Meal, .5, 8d)]),
+            new("tend", [new(Medicine, .5, -2d)]));
         Assert.Equal(Known(true), outcome.Feasible);
         var handoff = ForecastHandoffPolicy.Project(outcome)!;
         Assert.Empty(handoff.Gaps);

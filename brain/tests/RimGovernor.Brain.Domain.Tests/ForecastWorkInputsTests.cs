@@ -41,7 +41,7 @@ public sealed class ForecastWorkInputsTests
     }
 
     [Fact]
-    public void SupportDoesNotDuplicateMultipleOutputsAndUnknownYieldStaysUnknown()
+    public void SupportDoesNotDuplicateMultipleOutputsAndAnUnreadYieldIsRequired()
     {
         var food = new Resource("TestFood"); var secondary = new Resource("TestSecondary");
         var worker = ForecastCapacity.ForecastPawnCapacityOf(Capacity()).Capacity;
@@ -53,19 +53,22 @@ public sealed class ForecastWorkInputsTests
             Options = [new("clean", worker.Pawn, Known(10.0), Known(0.0)), new("clean", helper.Pawn, Known(10.0), Known(0.0)), new("harvest", worker.Pawn, Known(20.0), Known(0.0))],
         };
         var comparison = ForecastActivities.CompareActivityPlans(problem);
+        // An unread yield has no stock change to give: the plan's stock changes need it read.
         Assert.All(comparison.Alternatives, p =>
         {
             Assert.Equal(30, p.Allocations.Sum(a => a.WorkTicks));
-            var changes = ForecastActivities.StockChangesOf(problem, p);
-            Assert.Equal(2, changes.Count);
-            Assert.Equal(10, Assert.Single(changes, e => e.Resource == food).Units.Value);
-            Assert.False(Assert.Single(changes, e => e.Resource == secondary).Units.IsKnown);
+            Assert.Throws<RequiredFactException>(() => ForecastActivities.StockChangesOf(problem, p));
         });
-        // Walked from an empty known stock, the known yield raises nothing and the unknown one stays an unknown effect.
+        var read = problem with { Activities = [problem.Activities[0], problem.Activities[1] with
+            { Outputs = EquatableArray.From(new[] { new ForecastActivityYield(food, Known(10.0)), new ForecastActivityYield(secondary, Known(2.0)) }) }] };
+        var changes = ForecastActivities.StockChangesOf(read, comparison.Selected!);
+        Assert.Equal(2, changes.Count);
+        Assert.Equal(10, Assert.Single(changes, e => e.Resource == food).Units);
+        // Walked from an empty known stock, the outputs raise nothing.
         var findings = new List<ForecastFinding>();
-        var harvest = ColonyForecastRules.ForecastCommitmentsById([new ForecastCommitment("harvest", ForecastActivities.StockChangesOf(problem, comparison.Selected!))]);
-        new ColonyForecastRules.InventoryWalk().Run(new(Known(default(EquatableArray<Amount>)), harvest, 1), default, findings);
-        Assert.Equal("unknown_stock_effect", Assert.Single(findings).Reason);
+        new ColonyForecastRules.InventoryWalk().Run(new(Known(default(EquatableArray<Amount>)),
+            ColonyForecastRules.ForecastCommitmentsById([new ForecastCommitment("harvest", changes)]), 1), default, findings);
+        Assert.Empty(findings);
     }
 
     [Fact]

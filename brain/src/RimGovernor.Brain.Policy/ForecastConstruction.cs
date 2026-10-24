@@ -41,7 +41,7 @@ public static class ForecastConstruction
         var stock = materialKnown ? new Dictionary<Resource, Fact<double>>(free!) : [];
         var equipment = ForecastClaims.ForecastEquipmentAvailabilityOf(context.Equipment, commitments.Values.SelectMany(c => c.EquipmentClaims));
         if (rows.Length == 0) return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
-        { MaterialAvailability = material, EquipmentAvailability = EquatableArray.From(equipment) };
+        { EquipmentAvailability = EquatableArray.From(equipment) };
         if (context.ExpansionBudget is < 1 or > 4096
             || context.Workers.Select(w => w.Capacity.Pawn).Distinct().Count() != context.Workers.Length
             || context.Workers.Any(w => w.Capacity.Pawn != w.Observed.Id.Value)
@@ -114,13 +114,18 @@ public static class ForecastConstruction
                 }
                 options.Add(new("finish", pawn.Id.Value, duration, estimate.RecoveryLaborTicks) { Equipment = estimate.FinishEquipment });
             }
+            // A site has no other way to be built, so the alternative is the most labor a plan can take inside the horizon:
+            // every pawn busy until the deadline plus every option's recovery labor. Any plan that meets the deadline beats it.
+            var horizonTicks = request.HorizonDays * GameTime.TicksPerDay;
+            var laborCeiling = horizonTicks * capacity.Count + options.Sum(o => o.RecoveryLaborTicks.TryGetValue(out var r) ? r : 0) + 1;
             var problem = new ForecastActivityProblem
             {
                 Activities = needs.Length == 0 ? [new("finish", site.Id, site.Id, [])]
                     : [new("deliver", pickups[0], site.Id, []), new("finish", site.Id, site.Id, ["deliver"])],
                 Pawns = capacity.Values.ToArray(), Options = options.ToArray(), Routes = context.Routes,
                 Equipment = equipment,
-                Deadline = Known(request.HorizonDays * GameTime.TicksPerDay), AlternativeLaborCost = commitment.AlternativeLaborCost,
+                Deadline = Known(horizonTicks),
+                AlternativeLaborCost = Known(laborCeiling),
                 ExpansionBudget = context.ExpansionBudget - expansions,
             };
             var comparison = ForecastActivities.CompareActivityPlans(problem);
@@ -140,8 +145,7 @@ public static class ForecastConstruction
             }
             var deliveryRow = plan.Allocations.SingleOrDefault(a => a.Activity == "deliver");
             foreach (var need in needs) stock[need.Resource] = Known(stock.GetValueOrDefault(need.Resource, Known(0.0)).Value - need.Count);
-            var effects = needs.Select(n => new ForecastStockChange(n.Resource,
-                Known(deliveryRow!.Arrive / GameTime.TicksPerDay), Known(-(double)n.Count))).ToArray();
+            var effects = needs.Select(n => new ForecastStockChange(n.Resource, deliveryRow!.Arrive / GameTime.TicksPerDay, -(double)n.Count)).ToArray();
             resolved[commitment.Id] = commitment with { StockChanges = EquatableArray.From(effects) };
             Result("scheduled", comparison, Known(plan.CompletedAt / GameTime.TicksPerDay));
             results[^1] = results[^1] with { MaterialChanges = EquatableArray.From(effects) };
@@ -151,7 +155,6 @@ public static class ForecastConstruction
         {
             Commitments = EquatableArray.From(commitments.Values.OrderBy(c => c.Id, StringComparer.Ordinal)),
             Construction = EquatableArray.From(results),
-            MaterialAvailability = materialKnown ? Known<IReadOnlyDictionary<Resource, Fact<double>>>(stock) : default,
             EquipmentAvailability = EquatableArray.From(equipment),
         };
     }

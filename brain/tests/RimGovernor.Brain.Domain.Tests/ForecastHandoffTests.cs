@@ -64,7 +64,7 @@ public sealed class ForecastHandoffTests
         var request = Request();
         var inventory = new ColonyForecastRules.InventoryWalk();
         inventory.Run(new(request.Facts.Stock, new Dictionary<string, ForecastCommitment>(), 1),
-            [(Food, Known(.1), Known(-2d)), (Food, Known(.2), Known(4d)), (Food, Known(.8), Known(-1d)), (Steel, Known(.3), Known(-5d))], []);
+            [(Food, .1, Known(-2d)), (Food, .2, Known(4d)), (Food, .8, Known(-1d)), (Steel, .3, Known(-5d))], []);
         var handoff = Handoff(request, inventory.Terminal);
         Assert.Empty(handoff.Gaps);
         Assert.Equal(5.5, handoff.State.Nutrition.Value);
@@ -92,7 +92,7 @@ public sealed class ForecastHandoffTests
             Shelters = [new(new(ForecastShelterSource.Planned, "1"), [new(1, 1)], ["research"], Known(0d), Known(5d), Known(.01),
                 [new("heater", new(1, 1), false, .1, 20d, CoupledThermalTests.Powered(90000d))], [])] } };
         var commitment = new ForecastCommitment("warm", []) { ActivityCompletions = ["research"], ComfortShifts = [new("pawn", -5, 2)] };
-        var outcome = Outcome() with { Findings = [new("thermal_relief_unassessed", "", default, default, default)],
+        var outcome = Outcome() with { Findings = [new("thermal_relief_unassessed", "")],
             ServedRooms = [new(1, "Wood", 50)], Shelters = [new(new(ForecastShelterSource.Planned, "1"), Known(50d), Known(20d), [], [])] };
         var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(10d), [Medicine] = Known(3d) }, outcome,
             new Dictionary<string, ForecastCommitment> { [commitment.Id] = commitment });
@@ -123,7 +123,7 @@ public sealed class ForecastHandoffTests
     public void LinkedOwnerDebitReleasesOnlyItsHold()
     {
         var request = Request();
-        var paid = new ForecastCommitment("paid", [new(Steel, Known(.5), Known(-5d))]);
+        var paid = new ForecastCommitment("paid", [new(Steel, .5, -5d)]);
         var other = new ForecastCommitment("other", []) { MaterialClaims = [new(Steel, Known(3d), Known(""))] };
         var promises = Known<EquatableArray<ProductionMaterialPromise>>([new("paid", [new(Steel, Known(5d), Known(""))]), new("other", other.MaterialClaims)]);
         request = request with { Commitments = [paid, other], Coupled = request.Coupled! with

@@ -12,8 +12,11 @@ public static partial class ForecastCoupled
         private readonly HashSet<string> outsidePhysical = new(StringComparer.Ordinal);
         private bool physicalCensusComplete;
 
-        private Fact<double> ScheduledUnits(ScheduledEffect effect) => effect.Stock != ModelStock.Nutrition || string.IsNullOrEmpty(effect.Resource.Value) ? Known(effect.Amount)
-            : items.Nutrition.TryGetValue(effect.Resource, out var perUnit) && perUnit > 0 ? Known(effect.Amount / perUnit) : default;
+        /// <summary>A scheduled effect's units: its amount, or a named resource's nutrition over that resource's nutrition per
+        /// unit, which the item facts carry for every edible def the model schedules.</summary>
+        private double ScheduledUnits(ScheduledEffect effect) => effect.Stock != ModelStock.Nutrition || string.IsNullOrEmpty(effect.Resource.Value) ? effect.Amount
+            : items.Nutrition.TryGetValue(effect.Resource, out var perUnit) && perUnit > 0 ? effect.Amount / perUnit
+            : throw new RequiredFactException("nutrition_per_unit:" + effect.Resource);
 
         private void ApplyNutrition(string id, double amount, double at)
         {
@@ -38,7 +41,7 @@ public static partial class ForecastCoupled
                 if (outsidePhysical.Contains(key.Lot)) continue;
                 var before = balance.GetValueOrDefault(key.Resource, Known(0d));
                 balance[key.Resource] = before.IsKnown ? Known(before.Value - units) : default;
-                effects.Add((key.Resource, Known(at / GameTime.TicksPerDay), Known(-units)));
+                effects.Add((key.Resource, at / GameTime.TicksPerDay, Known(-units)));
             }
         }
 
@@ -128,7 +131,7 @@ public static partial class ForecastCoupled
                             lots[key] = default;
                             if (outsidePhysical.Contains(key.Lot)) continue;
                             balance[key.Resource] = default;
-                            effects.Add((key.Resource, Known(end / GameTime.TicksPerDay), default));
+                            effects.Add((key.Resource, end / GameTime.TicksPerDay, default));
                         }
                         continue;
                     }
@@ -147,10 +150,10 @@ public static partial class ForecastCoupled
                         {
                             var before = balance.GetValueOrDefault(key.Resource, Known(0d));
                             balance[key.Resource] = before.IsKnown ? Known(before.Value - units) : default;
-                            effects.Add((key.Resource, Known(end / GameTime.TicksPerDay), Known(-units)));
+                            effects.Add((key.Resource, end / GameTime.TicksPerDay, Known(-units)));
                         }
                     }
-                    if (needed > 1e-8) Finding("food_consumer_shortfall", consumer.Id.Value, end, units: Known(needed));
+                    if (needed > 1e-8) Finding("food_consumer_shortfall", consumer.Id.Value);
                 }
                 consumedUntil = end;
             }

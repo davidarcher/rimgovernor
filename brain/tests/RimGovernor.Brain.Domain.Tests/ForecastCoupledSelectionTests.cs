@@ -576,7 +576,6 @@ public sealed class ForecastCoupledSelectionTests
 
     [Theory]
     [InlineData("graph", false)]
-    [InlineData("cost", true)]
     [InlineData("claim", true)]
     public void RedundantGraphRootsAreSkippedButDirectEffectsAndClaimsAreEvaluated(string effect, bool evaluatePair)
     {
@@ -585,7 +584,6 @@ public sealed class ForecastCoupledSelectionTests
         var root = candidates.Alternatives.First(c => c.ActivityCompletions.Count == 1
             && candidates.Context.NeedTasks.Any(n => n.Task == c.ActivityCompletions[0]));
         root = root with { Outcome = null, ExclusiveOutcome = "",
-            AlternativeLaborCost = effect == "cost" ? Known(0d) : default,
             MaterialClaims = effect == "claim" ? [new(new("Rice"), Known(0d), default)] : [] };
         facts = facts with { CoupledAlternatives = candidates with { Alternatives = [root with { Id = "a" }, root with { Id = "b" }] } };
         var selected = Select(facts);

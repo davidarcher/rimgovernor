@@ -508,6 +508,9 @@ change `ResourceDemandOf` or raise another material target.
 For each baseline/delta scenario independently, policy generates a delivery
 activity followed by finishing, or finishing alone for a supplied frame. It
 uses `CompareActivityPlans` for self-service/delegation and preparatory travel.
+A site has no other way to be built, so its alternative labor budget is the most
+labor any plan can take inside the horizon (every pawn busy to the deadline plus
+every option's recovery labor): any plan meeting the deadline is selected.
 Finishing requires observed availability, construction capability, native skill
 prerequisite and the site's adopted quality floor. Unknown quality floors do
 not relax eligibility. Explicit delivery/finish eligibility estimates must
@@ -828,8 +831,9 @@ cannot straddle a protected interval even when the total free time is sufficient
 
 Generic activities can also carry multiple typed outputs. Each completed activity
 emits its outputs once, at its completion day (`ForecastActivities.StockChangesOf`
-derives a plan's changes from its problem). Helpers and retrieval do not automatically get another copy. Unknown yield
-quantities remain unknown when those effects enter the inventory forecast. The
+derives a plan's changes from its problem). Helpers and retrieval do not automatically get another copy. A stock
+change is a plain day and quantity: deriving one from an unread yield throws `RequiredFactException`, and inside the
+coupled evaluator an unread yield's output stays an unknown effect of its own schedule. The
 plan's labor comparison still assumes the caller's declared outcome/alternative;
 these effects are conditional, not observed goods or a new utility currency.
 
@@ -853,10 +857,9 @@ observed outstanding needs, so it cannot also carry supplied material claims.
 
 `ForecastMaterialBudgetOf` extends the existing `MaterialBudget`: native bill holds
 are deducted once, then declared promises and in-horizon negative stock effects.
-Future outputs cannot finance these promises. `MaterialAvailability` exposes free
-units separately from inventory trajectories; negative availability means the
-declared promises exceed stock. Unknown quantities or consumption timing affect
-only that resource.
+Future outputs cannot finance these promises. The budget is free units, separate
+from inventory trajectories; negative availability means the declared promises
+exceed stock. An unknown promise quantity affects only that resource.
 
 The observation projection retains each native reservation's bill identity.
 `ReservationBill` is known empty for a promise not handed to a bill, the exact bill

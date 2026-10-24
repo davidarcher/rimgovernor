@@ -394,7 +394,6 @@ public static partial class ForecastCoupled
         // Inventory-only clients keep their conditional diagnostics; migrated consumers inspect each coupled alternative.
         return ColonyForecastRules.ForecastInventory(request.Facts.Stock, commitments, request.HorizonDays) with
         {
-            MaterialAvailability = context.Resources.Materials,
             Coupled = new(EquatableArray.From(results), EquatableArray.From(findings), truncated),
         };
     }

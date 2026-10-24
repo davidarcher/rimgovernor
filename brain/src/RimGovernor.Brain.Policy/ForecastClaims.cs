@@ -86,11 +86,7 @@ public static class ForecastClaims
             }
             foreach (var change in commitment.StockChanges)
             {
-                if (change.Day.TryGetValue(out var observedDay) && observedDay > horizonDays) continue;
-                if (!change.Units.TryGetValue(out var units)) { Hold(change.Resource, default); continue; }
-                if (units >= 0) continue;
-                if (!change.Day.TryGetValue(out var day)) { Hold(change.Resource, default); continue; }
-                if (day <= horizonDays) Hold(change.Resource, Known(-units));
+                if (change.Day <= horizonDays && change.Units < 0) Hold(change.Resource, Known(-change.Units));
             }
         }
         return Known<IReadOnlyDictionary<Resource, Fact<double>>>(result);

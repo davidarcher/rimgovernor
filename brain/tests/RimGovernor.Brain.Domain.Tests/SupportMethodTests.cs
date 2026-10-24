@@ -73,7 +73,7 @@ public sealed class SupportMethodTests
         var facts = Facts(Delivery(required)); var result = Select(facts); var delivery = Assert.Single(Tasks(facts, result));
         Assert.Equal(required, delivery.Step.Count); Assert.Equal("useful-chunk", delivery.Step.Target);
         Assert.Equal(0d, result.SelectedVector.Support.UnsuppliedDemand);
-        Assert.Equal(0d, ForecastActivities.StockChangesOf(facts.CoupledAlternatives!.Context.Activities, result.Selected.Plan).Where(c => c.Resource.Value == "Chunk").Sum(c => c.Units.Value));
+        Assert.Equal(0d, ForecastActivities.StockChangesOf(facts.CoupledAlternatives!.Context.Activities, result.Selected.Plan).Where(c => c.Resource.Value == "Chunk").Sum(c => c.Units));
     }
     [Fact]
     public void ChangedDemandAndInfeasibleTravelRetainNoTrip()
@@ -106,7 +106,7 @@ public sealed class SupportMethodTests
         var facts = Facts(read); var result = Select(facts); var task = Assert.Single(Tasks(facts, result));
         Assert.Equal("medicine", task.Step.Medicine); Assert.Equal("care", task.Step.SupportDemand);
         Assert.Equal(1, Assert.Single(task.Inputs).Count);
-        Assert.Equal(-1d, ForecastActivities.StockChangesOf(facts.CoupledAlternatives!.Context.Activities, result.Selected.Plan).Where(c => c.Resource.Value == "Chunk").Sum(c => c.Units.Value));
+        Assert.Equal(-1d, ForecastActivities.StockChangesOf(facts.CoupledAlternatives!.Context.Activities, result.Selected.Plan).Where(c => c.Resource.Value == "Chunk").Sum(c => c.Units));
     }
 
     [Theory]

@@ -348,7 +348,7 @@ public sealed class ForecastCoupledTests
         var meal = generated.Alternatives.Single(c => c.ActivityCompletions.Contains(firstMeal.Task));
         var result = Evaluate(facts, batch, meal).Proposed.Coupled!.Alternatives.Where(p => p.Feasible == Known(true)).ToArray();
         Assert.NotEmpty(result);
-        Assert.All(result, p => Assert.Equal(1, ForecastActivities.StockChangesOf(generated.Context.Activities, p.Plan).Where(c => c.Resource.Value == "Meal").Sum(c => c.Units.Value)));
+        Assert.All(result, p => Assert.Equal(1, ForecastActivities.StockChangesOf(generated.Context.Activities, p.Plan).Where(c => c.Resource.Value == "Meal").Sum(c => c.Units)));
         var secondRecipe = generated.Context.Activities.Activities.Single(t => t.Id == batch.ActivityCompletions[1]).Prerequisites
             .Single(id => generated.Context.Activities.Activities.Single(t => t.Id == id).Outputs.Any(o => o.Resource.Value == "Meal"));
         Assert.Contains(result, p => p.Plan.Allocations.Single(a => a.Activity == firstMeal.Task).End < p.Plan.Allocations.Single(a => a.Activity == secondRecipe).End);
@@ -635,7 +635,7 @@ public sealed class ForecastCoupledTests
     public void ExternalTimedConsumptionSharesTheLedgerAndCreditsOnlyItsOwnHold(int stock, bool fits)
     {
         var facts = ConstructionReview(stock: stock);
-        var legacy = new ForecastCommitment("external", [new(new("Rice"), Known(0.0), Known(-20.0))]);
+        var legacy = new ForecastCommitment("external", [new(new("Rice"), 0.0, -20.0)]);
         var held = new ForecastCommitment("external", []) { MaterialClaims = [new(new("Rice"), Known(20.0), Known(""))] };
         var context = facts.CoupledAlternatives!.Context;
         context = context with { Resources = context.Resources with { Evidence = context.Resources.Evidence with { Promises = Known<EquatableArray<ProductionMaterialPromise>>([new(held.Id, [new(new("Rice"), Known(20.0), Known(""))])]) } } };
@@ -653,7 +653,7 @@ public sealed class ForecastCoupledTests
         var facts = ConstructionReview(stock: 0);
         Assert.DoesNotContain(facts.CoupledAlternatives!.Alternatives, c => Original(c, "site-0-finish"));
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
-            [new("external", [new(new("Rice"), Known(0.0), Known(100.0))])], new());
+            [new("external", [new(new("Rice"), 0.0, 100.0)])], new());
         var result = ColonyForecastRules.ForecastColony(request).Proposed.Coupled!.Alternatives;
         Assert.All(result, p => Assert.Empty(p.Plan.Allocations));
         Assert.All(result, p => Assert.Equal(100, Assert.Single(p.Terminal!.Lots, l => l.Resource == new Resource("Rice")).Count.Value));
@@ -687,7 +687,7 @@ public sealed class ForecastCoupledTests
         };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world", 100), 300.0 / GameTime.TicksPerDay, facts,  new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) },
-            [new("external", [new(new("Rice"), Known(20.0 / GameTime.TicksPerDay), Known(-10.0))])], new());
+            [new("external", [new(new("Rice"), 20.0 / GameTime.TicksPerDay, -10.0)])], new());
         var result = ColonyForecastRules.ForecastColony(request).Proposed.Coupled!.Alternatives.Single();
         Assert.Equal(Known(false), result.Feasible);
         Assert.Contains(result.Findings, f => f.Reason == "observed_lot_expired");

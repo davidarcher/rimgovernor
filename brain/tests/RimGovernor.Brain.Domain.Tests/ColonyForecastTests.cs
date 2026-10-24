@@ -10,7 +10,7 @@ public sealed class ColonyForecastTests
     private static readonly Resource Material = new("TestMaterial");
     private static readonly Fact<EquatableArray<Amount>> Stock = Known(EquatableArray.From(new[] { new Amount(Material, 10) }));
     private static ForecastCommitment Change(string id, double day, double units) =>
-        new(id, EquatableArray.From(new[] { new ForecastStockChange(Material, Known(day), Known(units)) }));
+        new(id, EquatableArray.From(new[] { new ForecastStockChange(Material, day, units) }));
 
     private static ColonyForecastRequest Request(params ForecastCommitment[] commitments) => new()
     {
@@ -40,10 +40,10 @@ public sealed class ColonyForecastTests
                 Add = EquatableArray.From(new[] { Change("delivery", 0.5, 10) }),
             },
         });
-        Assert.Equal(5, Assert.Single(Findings(Stock, Change("delivery", 2, 10), Change("build", 1, -15)), f => f.Reason == "stock_shortfall").Units.Value);
+        Assert.Equal("build", Assert.Single(Findings(Stock, Change("delivery", 2, 10), Change("build", 1, -15)), f => f.Reason == "stock_shortfall").Commitment);
         Assert.Empty(Findings(Stock, Change("delivery", 0.5, 10), Change("build", 1, -15)));
-        Assert.Equal(2, Assert.Single(result.Baseline.Commitments, c => c.Id == "delivery").StockChanges[0].Day.Value);
-        Assert.Equal(0.5, Assert.Single(result.Proposed.Commitments, c => c.Id == "delivery").StockChanges[0].Day.Value);
+        Assert.Equal(2, Assert.Single(result.Baseline.Commitments, c => c.Id == "delivery").StockChanges[0].Day);
+        Assert.Equal(0.5, Assert.Single(result.Proposed.Commitments, c => c.Id == "delivery").StockChanges[0].Day);
         Assert.Equal(request.Origin, result.Origin);
         Assert.Contains("pawn_capacity", result.Unsupported);
     }
@@ -55,13 +55,8 @@ public sealed class ColonyForecastTests
         var b = Change("delivery", 2, 2);
         var first = ColonyForecastRules.ForecastColony(Request(a, b));
         var second = ColonyForecastRules.ForecastColony(Request(b, a));
-        // The free stock is a dictionary per scenario (no reservations here, so known): compare it by content (#3881).
-        static ColonyForecastScenario Plain(ColonyForecastScenario s) => s with { MaterialAvailability = default };
-        static KeyValuePair<Resource, Fact<double>>[] Free(ColonyForecastScenario s) => [.. s.MaterialAvailability.Value.OrderBy(p => p.Key.Value, StringComparer.Ordinal)];
-        Assert.Equal(Plain(first.Baseline), Plain(first.Proposed));
-        Assert.Equal(Plain(first.Baseline), Plain(second.Baseline));
-        Assert.Equal(Free(first.Baseline), Free(first.Proposed));
-        Assert.Equal(Free(first.Baseline), Free(second.Baseline));
+        Assert.Equal(first.Baseline, first.Proposed);
+        Assert.Equal(first.Baseline, second.Baseline);
         Assert.Empty(Findings(Stock, b, a));
     }
 
@@ -71,19 +66,7 @@ public sealed class ColonyForecastTests
         var use = Change("use", 1, -4);
         Assert.Contains(Findings(default, use), f => f.Reason == "unknown_initial_stock");
         Assert.DoesNotContain(Findings(default, use), f => f.Reason == "stock_shortfall");
-        Assert.Equal(4, Assert.Single(Findings(Known(default(EquatableArray<Amount>)), use)).Units.Value);
-    }
-
-    [Fact]
-    public void UnknownTimingCannotCertifyFutureInventory()
-    {
-        var change = new ForecastCommitment("delivery", EquatableArray.From(new[]
-        {
-            new ForecastStockChange(Material, Unknown<double>(), Known(20.0)),
-        }));
-        Assert.Equal("unknown_stock_effect", Assert.Single(Findings(Stock, change)).Reason);
-        // The unknown time may affect any future point, so a later use is certified neither way.
-        Assert.Equal(["unknown_stock_effect"], Findings(Stock, change, Change("use", 1, -15)).Select(f => f.Reason));
+        Assert.Equal("stock_shortfall", Assert.Single(Findings(Known(default(EquatableArray<Amount>)), use)).Reason);
     }
 
     [Fact]
@@ -102,7 +85,7 @@ public sealed class ColonyForecastTests
     {
         var finding = Assert.Single(Findings(Stock, Change("output", 1, 20), Change("input", 1, -15)));
         Assert.Equal("stock_shortfall", finding.Reason);
-        Assert.Equal(5, finding.Units.Value);
+        Assert.Equal("input", finding.Commitment);
     }
 
     [Fact]
@@ -141,19 +124,23 @@ public sealed class ColonyForecastTests
     [Fact]
     public void UnknownQuantityStartsAtItsEventAndUnsupportedWorkStaysExplicit()
     {
-        var commitment = new ForecastCommitment("work", EquatableArray.From(new[]
-        {
-            new ForecastStockChange(Material, Known(2.0), Unknown<double>()),
-        }))
+        var commitment = new ForecastCommitment("work", [])
         {
             UnsupportedEffects = EquatableArray.From(new List<string> { "work_completion" }),
         };
-        // A use before the unknown quantity's day is still certified; one after it is not.
-        var before = Findings(Stock, Change("use", 1, -12), commitment);
-        Assert.Equal(2, Assert.Single(before, f => f.Reason == "stock_shortfall").Units.Value);
+        // A schedule's own output with an unread yield on day 2: a use before it is still certified; one after it is not.
+        List<ForecastFinding> Walk(params ForecastCommitment[] commitments)
+        {
+            var findings = new List<ForecastFinding>();
+            new ColonyForecastRules.InventoryWalk().Run(new(Stock, ColonyForecastRules.ForecastCommitmentsById(commitments), 3),
+                new[] { (Material, 2.0, Unknown<double>()) }, findings);
+            return findings;
+        }
+        var before = Walk(Change("use", 1, -12), commitment);
+        Assert.Equal("use", Assert.Single(before, f => f.Reason == "stock_shortfall").Commitment);
         Assert.Contains(before, f => f.Reason == "unsupported:work_completion");
         Assert.Contains(before, f => f.Reason == "unknown_stock_effect");
-        Assert.DoesNotContain(Findings(Stock, Change("use", 3, -12), commitment), f => f.Reason == "stock_shortfall");
+        Assert.DoesNotContain(Walk(Change("use", 3, -12), commitment), f => f.Reason == "stock_shortfall");
     }
 
     [Fact]

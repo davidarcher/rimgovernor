@@ -85,17 +85,20 @@ public sealed record ForecastActivityComparison(ForecastActivityPlan? Selected, 
 
 public static class ForecastActivities
 {
-    /// <summary>A plan's stock changes: each task's outputs once at its completion day and its inputs at its start, an unknown
-    /// input quantity staying unknown.</summary>
+    /// <summary>A plan's stock changes: each task's outputs once at its completion day and its inputs at its start. Throws
+    /// <see cref="RequiredFactException"/> on an unread yield.</summary>
     public static EquatableArray<ForecastStockChange> StockChangesOf(ForecastActivityProblem problem, ForecastActivityPlan plan)
     {
         var effects = new List<ForecastStockChange>();
         foreach (var a in plan.Allocations)
         {
             var task = problem.Activities.Single(t => t.Id == a.Activity);
-            foreach (var output in task.Outputs) effects.Add(new(output.Resource, Known(a.End / GameTime.TicksPerDay), output.Units));
+            foreach (var output in task.Outputs)
+                effects.Add(new(output.Resource, a.End / GameTime.TicksPerDay,
+                    output.Units.TryGetValue(out var made) ? made : throw new RequiredFactException("activity_output:" + task.Id + ":" + output.Resource)));
             foreach (var input in task.Inputs)
-                effects.Add(new(input.Resource, Known(a.Start / GameTime.TicksPerDay), input.Units.TryGetValue(out var units) ? Known(-units) : default));
+                effects.Add(new(input.Resource, a.Start / GameTime.TicksPerDay,
+                    input.Units.TryGetValue(out var units) ? -units : throw new RequiredFactException("activity_input:" + task.Id + ":" + input.Resource)));
         }
         return EquatableArray.From(effects);
     }
