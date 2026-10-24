@@ -209,9 +209,6 @@ public sealed record ColonyModelInput
     /// <summary>The recipes of the standing benches the model may craft: their work, input slots and products.</summary>
     public Fact<EquatableArray<ProductionRecipeInput>> Recipes { get; init; }
 
-    /// <summary>Standing blueprints and frames with their remaining work and owed materials.</summary>
-    public Fact<EquatableArray<ConstructionSite>> Sites { get; init; }
-
     /// <summary>The sites the layout plan would place, with the material each takes.</summary>
     public Fact<EquatableArray<PlannedBuildSite>> PlannedSites { get; init; }
 
@@ -512,21 +509,6 @@ public sealed record ColonyModelInput
 
     private void SiteGaps(List<string> gaps)
     {
-        if (!Sites.TryGetValue(out var sites))
-        {
-            gaps.Add("sites: the review frame carries no construction census");
-        }
-        else
-        {
-            foreach (var site in sites)
-            {
-                if (!Number(site.WorkLeft) || site.WorkLeft < 0 || site.MaterialsOwed.Any(a => a.Count < 0))
-                {
-                    gaps.Add($"sites: '{site.Id}' reads an invalid remaining work or owed materials");
-                }
-            }
-        }
-
         if (!PlannedSites.IsKnown)
         {
             gaps.Add("sites: the layout plan's sites are not assembled this review");

@@ -345,8 +345,8 @@ Its cost grows with the number of events, not with ticks.
   rates that change only at events.
 - **Land.** A growing cell is one crop at a time; a devilstrand cell is not
   growing food.
-- **Projects.** A small graph of research, sowing, growth, harvest, crafting,
-  construction and hunting nodes with prerequisites (`ProjectNode`, `ProjectGraph`;
+- **Projects.** A small graph of research, sowing, growth, harvest, crafting
+  and hunting nodes with prerequisites (`ProjectNode`, `ProjectGraph`;
   the builders read a `ColonyModelInput`, and a gap leaves the node out and
   is named). The graph's order is the priority order of the labor allocation
   (`ColonyModelPolicy.Projects`). v1 allocation is a fixed order with no
@@ -354,14 +354,15 @@ Its cost grows with the number of events, not with ticks.
   ready nodes in that order, a node taking all the hours of every pawn able to
   work on it (research needs a read `ResearchSpeed`, sowing the Plants gate and
   a read `PlantWorkSpeed`, harvest a read `PlantWorkSpeed`; an unread stat makes
-  the pawn unavailable and is named). Research, crafting and construction use
+  the pawn unavailable and is named). Research and crafting use
   all free hours; sowing and harvest only the daylight ones. Research makes
   speed × 0.00825 points per work tick (the pawn's `ResearchSpeed` stat times
   the difficulty's research factor, times the best bench's factor) and has one
   researcher per powered research bench the needs read counts, whatever the
   current project is; the other nodes make
-  speed × 1 work per tick, with crafting and construction at speed 1 (named,
-  the pawn model has no such stat). An unread bench count leaves the
+  speed × 1 work per tick, with crafting at the recipe's `workSpeedStat` of the
+  crafter (1 when it names none, #3868). Construction is not a graph node: its
+  timing is the native schedule's (#3890). An unread bench count leaves the
   researchers unlimited and is named. The rates are constant between events, so the engine fires each
   node's completion (or, for a harvest, harvest) event at its exact finish
   time. A craft takes its ingredients (the alternative of each slot that is the

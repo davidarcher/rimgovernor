@@ -40,16 +40,7 @@ internal static class ForecastHandoffProjects
             }
             else if (binding is not null)
             {
-                if (binding.Kind == PawnActivityKind.Supply && binding.Container.Length > 0)
-                {
-                    var delivered = nodes.Values.FirstOrDefault(n => n.Kind == ProjectKind.Construction && n.Target == binding.Container);
-                    if (delivered is not null)
-                        nodes[delivered.Id] = delivered with { Ingredients = Subtract(delivered.Ingredients, task.Inputs) };
-                    continue;
-                }
-                if (binding.Job == "FinishFrame")
-                    node = nodes.Values.FirstOrDefault(n => n.Kind == ProjectKind.Construction && n.Target == binding.Target);
-                else if (binding.Recipe is { } recipe)
+                if (binding.Recipe is { } recipe)
                     node = nodes.Values.FirstOrDefault(n => n.Kind == ProjectKind.Craft && n.Recipe == recipe.Recipe
                         && states[n.Id].Status != ModelProjectStatus.Done
                         && (recipe.Unfinished.Length > 0 || n.Ingredients.All(i => task.Inputs.Any(x => x.Resource == i.Resource)))
@@ -64,7 +55,6 @@ internal static class ForecastHandoffProjects
                 // A detailed operation absent from the long-term graph changes physical stock only; never infer identity from overlapping resources.
                 if (node is null) continue;
                 var fraction = node.Kind == ProjectKind.Harvest ? 1d / Math.Max(1, node.Cells)
-                    : node.Kind == ProjectKind.Construction ? 1
                     : node.Products.Select(p => task.Outputs.Where(o => o.Resource == p.Resource).Sum(o => o.Units) / p.Count).DefaultIfEmpty(1).Min();
                 work = Math.Min(1, fraction) * states[node.Id].Remaining;
                 var paid = binding.Recipe is { Unfinished.Length: > 0 }

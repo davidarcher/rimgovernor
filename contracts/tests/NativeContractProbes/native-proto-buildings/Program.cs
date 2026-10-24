@@ -43,7 +43,7 @@ internal static class NativeProtoBuildingsProbe
         var ids = string.Join(",", Enumerable.Range(0, 257).Select(i => "\"thing" + i + "\""));
         Check(!Valid(request("\"ids\":[" + ids + "]")), "ID filter bound enforced");
         const string context = "\"context\":{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0},\"tick\":1}";
-        const string build = "{\"type\":\"build\",\"definition\":\"Wall\",\"workLeft\":1,\"resources\":[{\"defName\":\"Steel\",\"stillNeeded\":0}],"
+        const string build = "{\"type\":\"build\",\"definition\":\"Wall\",\"resources\":[{\"defName\":\"Steel\",\"stillNeeded\":0}],"
             + "\"qualitySensitive\":false,\"nativeFinishingSkill\":0,\"minimum\":null,\"gate\":{\"type\":\"tiered\",\"tier\":\"survive\"}}";
         Func<string, string> buildings = row => "{" + context + ",\"buildings\":[{\"building\":{\"id\":\"Wall17\"},\"rotation\":\"ROTATION_NORTH\",\"stuff\":null,"
             + "\"faction\":null,\"status\":\"frame\",\"hitPoints\":{\"type\":\"tracked\",\"current\":5,\"maximum\":10},\"service\":{},\"settings\":{},"

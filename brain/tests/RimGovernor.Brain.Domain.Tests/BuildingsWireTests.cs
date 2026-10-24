@@ -38,13 +38,13 @@ public sealed class BuildingsWireTests
             Row("wall-1", O.BuildingStatus.Built, new O.BuildingHitPoints.Tracked { Current = 150, Maximum = 300 }, null),
             Row("wall-2", O.BuildingStatus.Frame, new O.BuildingHitPoints.Tracked { Current = 10, Maximum = 300 }, new O.ConstructionState.Build
             {
-                Definition = "Wall", WorkLeft = 42.5, Resources = [new O.MaterialDeficit { DefName = "WoodLog", StillNeeded = 2 }],
+                Definition = "Wall", Resources = [new O.MaterialDeficit { DefName = "WoodLog", StillNeeded = 2 }],
                 QualitySensitive = true, NativeFinishingSkill = 4, Minimum = new O.FinishingMinimum { Skill = 6, EligibleFinishers = 0 },
                 Gate = new O.ConstructionGate.Tiered { Tier = ConstructionTier.Comfort },
             }),
             Row("wall-3", O.BuildingStatus.Blueprint, new O.BuildingHitPoints.Untracked(), new O.ConstructionState.Build
             {
-                Definition = "Wall", WorkLeft = 100, Resources = [], QualitySensitive = false, NativeFinishingSkill = 0,
+                Definition = "Wall", Resources = [], QualitySensitive = false, NativeFinishingSkill = 0,
                 Minimum = null, Gate = new O.ConstructionGate.Ungated(),
             }),
             Row("bed-1", O.BuildingStatus.Blueprint, new O.BuildingHitPoints.Untracked(), new O.ConstructionState.Installation()),
@@ -151,7 +151,6 @@ public sealed class BuildingsWireTests
     [Theory]
     [InlineData("gate")]
     [InlineData("minimum")]
-    [InlineData("workLeft")]
     public void ABuildStateMissingAMemberDoesNotDecode(string member)
     {
         var node = JsonNode.Parse(WireJson.Serialize(Census))!.AsObject();

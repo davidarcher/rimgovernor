@@ -210,20 +210,14 @@ public static class DefenseBlock
     /// <summary>Indexes BlockPricing.Rows: a def made of a stuff takes the stuff's work.</summary>
     public static string ClearKey(string def, string stuff) => def + "|" + stuff;
 
-    /// <summary>The pawn stat building and removing work goes at (JobDriver_ConstructFinishFrame, JobDriver_RemoveBuilding).</summary>
-    internal const string ConstructionSpeedStat = "ConstructionSpeed";
-
-    /// <summary>Those drivers' work a tick is the ConstructionSpeed stat × 1.7 (kept-constants, mirrored game literals).</summary>
-    internal const double ConstructionWorkFactor = 1.7;
-
     /// <summary>
     /// The work ticks one colonist's work-day holds: the mean over the available colonists of their timetable's
-    /// work hours at their ConstructionSpeed × 1.7 (#3868), the build and removal drivers' work a tick. Zero when no
+    /// work hours at the removal driver's work a tick (<see cref="WorkRules.ConstructionWorkPerTick"/>, #3868). Zero when no
     /// colonist can be dispatched to construction or none has working hours at a positive speed: no work-day to price.
     /// </summary>
     public static double ColonistWorkTicksPerDay(IReadOnlyList<WorkPawn> pawns)
     {
-        if (!WorkRules.TryDispatchWorkers(pawns, [], ConstructionSpeedStat, out var workers) || workers.Count == 0)
+        if (!WorkRules.TryDispatchWorkers(pawns, [], WorkRules.ConstructionSpeedStat, out var workers) || workers.Count == 0)
         {
             return 0;
         }
@@ -232,7 +226,7 @@ public static class DefenseBlock
         {
             return 0;
         }
-        return mean.WorkHoursPerDay * GameTime.TicksPerHour * mean.WorkSpeed * ConstructionWorkFactor;
+        return mean.WorkHoursPerDay * GameTime.TicksPerHour * WorkRules.ConstructionWorkPerTick(mean.WorkSpeed);
     }
 
     private sealed record BlockedTier(DefenseTierName Name, Dictionary<Cell, CoverThing> Blocked, List<Building> Standing);

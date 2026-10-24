@@ -73,12 +73,6 @@ public sealed record ConstructionSite
     /// <summary>Every material the build needs is delivered.</summary>
     public bool ResourcesComplete { get; init; }
 
-    /// <summary>Native remaining work units, not elapsed pawn ticks.</summary>
-    public double WorkLeft { get; init; }
-
-    /// <summary>Exact outstanding material units; delivered frame contents are excluded.</summary>
-    public EquatableArray<Amount> MaterialsOwed { get; init; }
-
     /// <summary>The built thing has quality, so the finisher's skill sets it.</summary>
     public bool QualitySensitive { get; init; }
 

@@ -1629,7 +1629,7 @@ year. Missing annual observations are named unknowns, never a zero reserve.
 
 This engine entry does not yet provide continuation **valuation**: the bridge
 must account for initial needs and restrict pricing to the remaining interval.
-A done craft/construction node is not evidence that the original review's
+A done craft node is not evidence that the original review's
 outfit, shelter, capacities or needs changed. Supported handoff extraction must
 supply those consequences in its valuation context or declare them uncovered;
 pre-handoff output must not be paid again. Initial recovery and coverage-aware
@@ -1662,7 +1662,7 @@ unsown area; each cohort grows and harvests independently in the same engine.
 Payoff-free milestones retain the original aggregate graph identities. A
 continuation must use this graph with the handoff state, not the review graph.
 Maturity crossings before the boundary retain their actual climate-integrated
-dates. Recipe and construction target identities join detailed work to graph
+dates. Recipe identities join detailed work to graph
 nodes, whose remaining inputs and products exclude work already paid and made.
 An unrelated output sharing a resource never consumes another project or herd.
 
@@ -1679,9 +1679,7 @@ memory aging and strip already-paid stock changes and claims. Completed shelter
 plans restart at their endpoint temperature with their remaining source supply,
 without redoing construction. Completed insulation changes update carried pawn
 temperature ranges. Continuation valuation consumes these effects; retaining
-them does not create a benefit for unfinished rooms. Standing construction's
-exact remaining owed inputs transfer from external shared-owner protection to
-graph-owned holds; unrelated bill holds stay external even when they use the
-same resource. Unassessed detailed terms do not invalidate unrelated covered
+them does not create a benefit for unfinished rooms.
+Unassessed detailed terms do not invalidate unrelated covered
 continuation inputs. Missing terminal needs and unavailable native mechanics
 remain explicit. Initial recovery and continuation ranking are separate stages.

@@ -132,7 +132,7 @@ namespace HomeBridge.BridgeTools
                 Faction = thing.Faction == null ? null : NativeRef.Of(Id(thing.Faction.GetUniqueLoadID())),
                 Status = Status(thing),
                 HitPoints = HitPoints(thing),
-                Construction = Construction(thing, stuff),
+                Construction = Construction(thing),
                 Service = Service(thing),
                 Settings = new Obs.BuildingSettings { Forbidden = player != null && thing.IsForbidden(player), Control = new Obs.BuildingControl.None() },
                 Burning = thing.IsBurning(),
@@ -193,14 +193,12 @@ namespace HomeBridge.BridgeTools
         // Construction is a blueprint's or frame's state, absent on a built row. An installation blueprint carries
         // nothing: TotalMaterialCost on it logs an error and pauses the simulation, and native installation consumes
         // no material.
-        private static Obs.ConstructionState? Construction(Thing thing, ThingDef? stuff)
+        private static Obs.ConstructionState? Construction(Thing thing)
         {
             if (thing is Blueprint_Install) return new Obs.ConstructionState.Installation();
             if (!(thing is Blueprint || thing is Frame)) return null;
             var definition = thing.def.entityDefToBuild ?? throw new InvalidOperationException("Construction definition missing.");
             if (!(thing is IConstructible construction)) throw new InvalidOperationException("Constructible unavailable.");
-            var work = thing is Frame frame ? NativeConstructionWork.Remaining(frame.WorkLeft)
-                : Nonnegative(definition.GetStatValueAbstract(StatDefOf.WorkToBuild, stuff));
             var costs = construction.TotalMaterialCost() ?? throw new InvalidOperationException("Cost list unavailable.");
             var seen = new HashSet<string>(StringComparer.Ordinal);
             var resources = new List<Obs.MaterialDeficit>();
@@ -212,7 +210,7 @@ namespace HomeBridge.BridgeTools
                 if (needed < 0) throw new InvalidOperationException("Invalid native construction quantities.");
                 resources.Add(new Obs.MaterialDeficit { DefName = name, StillNeeded = needed });
             }
-            return ConstructionSkillGuard.Read(thing, Id(definition.defName), work, [.. resources]);
+            return ConstructionSkillGuard.Read(thing, Id(definition.defName), [.. resources]);
         }
 
         private static bool Identifiers(IEnumerable<string> values) => values.Count() <= 256

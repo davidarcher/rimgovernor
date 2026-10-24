@@ -251,8 +251,6 @@ public static class ConstructionReads
                 Stage = row.Status == O.BuildingStatus.Blueprint ? ConstructionSite.BlueprintStage : "frame",
                 Id = row.Building.Id,
                 ResourcesComplete = build.Resources.All(r => r.StillNeeded == 0),
-                WorkLeft = build.WorkLeft,
-                MaterialsOwed = EquatableArray.From(SiteNeeds(row).Select(n => new Amount(n.Resource, n.Count))),
                 QualitySensitive = build.QualitySensitive,
                 NativeFinishingSkill = build.NativeFinishingSkill,
                 Minimum = build.Minimum,

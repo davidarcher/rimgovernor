@@ -21,7 +21,6 @@ public static class ForecastClaims
         foreach (var commitment in promises)
         {
             if (commitment.MaterialClaims.Select(c => c.Resource).Distinct().Count() != commitment.MaterialClaims.Count
-                || (commitment.Construction is not null && commitment.MaterialClaims.Count != 0)
                 || commitment.MaterialClaims.Any(c => commitment.StockChanges.Any(s => s.Resource == c.Resource)))
                 throw new DomainException("material claim duplicates construction or stock effects");
             foreach (var claim in commitment.MaterialClaims)

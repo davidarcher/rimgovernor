@@ -26,7 +26,6 @@ public sealed class ColonyModelInputTests
         Assert.Equal([new Amount(new Resource("MedicineHerbal"), 4)], input.Stocks.Medicine.Value);
         Assert.Equal(["DevilstrandCloth", "Steel"], input.Stocks.Materials.Value.Select(a => a.Resource.Value));
         Assert.Equal(ColonyModelFixtures.Project, Assert.Single(input.Research.Value.Projects).Project.Value);
-        Assert.Empty(input.Sites.Value);
         Assert.Empty(input.PlannedSites.Value);
     }
 

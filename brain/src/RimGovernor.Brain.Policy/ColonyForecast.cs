@@ -16,8 +16,6 @@ public sealed record ForecastCommitment(string Id, EquatableArray<ForecastStockC
     public EquatableArray<ForecastMaterialClaim> MaterialClaims { get; init; }
     public EquatableArray<ForecastEquipmentClaim> EquipmentClaims { get; init; }
     public EquatableArray<string> UnsupportedEffects { get; init; }
-    /// <summary>Observed standing construction owned by this Method; no second supplied stock effect.</summary>
-    public Building? Construction { get; init; }
     /// <summary>Mood memories this Method grants when all its activities complete (at the forecast start when it has
     /// none); in-memory forecast evidence, not a wire or save field. The same effective tick applies below.</summary>
     public EquatableArray<ForecastMoodMemory> MoodMemories { get; init; }
@@ -147,8 +145,6 @@ public static class ColonyForecastRules
         var result = new Dictionary<string, ForecastCommitment>(StringComparer.Ordinal);
         foreach (var commitment in commitments)
         {
-            if (commitment.Construction is not null && commitment.StockChanges.Count != 0)
-                throw new DomainException("construction stock effects come from observed outstanding materials");
             if (string.IsNullOrWhiteSpace(commitment.Id) || !result.TryAdd(commitment.Id, commitment))
             {
                 throw new DomainException("invalid or duplicate forecast commitment");

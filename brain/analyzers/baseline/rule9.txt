@@ -106,8 +106,8 @@ BuildingRuntime/Rounds/RoundsCensus.cs|Unknown|2
 BuildingRuntime/Rounds/RoundsChildRooms.cs|Fact|3
 BuildingRuntime/Rounds/RoundsClearance.cs|Fact|9
 BuildingRuntime/Rounds/RoundsClearance.cs|Unknown|1
-BuildingRuntime/Rounds/RoundsColonyModel.cs|Fact|58
-BuildingRuntime/Rounds/RoundsColonyModel.cs|Unknown|16
+BuildingRuntime/Rounds/RoundsColonyModel.cs|Fact|57
+BuildingRuntime/Rounds/RoundsColonyModel.cs|Unknown|15
 BuildingRuntime/Rounds/RoundsCombat.cs|Fact|2
 BuildingRuntime/Rounds/RoundsComfort.cs|Fact|10
 BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Fact|12
@@ -434,7 +434,7 @@ Policy/ColonyForecast.cs|Fact|14
 Policy/ColonyForecast.cs|Unknown|2
 Policy/ColonyForecastFacts.cs|Fact|2
 Policy/ColonyModel/ColonyModel.cs|Fact|11
-Policy/ColonyModel/ColonyModelInput.cs|Fact|62
+Policy/ColonyModel/ColonyModelInput.cs|Fact|60
 Policy/ColonyModel/ColonyModelPolicy.cs|Fact|1
 Policy/ColonyModel/ColonyModelState.cs|Fact|18
 Policy/ColonyModel/ColonyTrajectory.cs|NullableValue|1
@@ -445,7 +445,7 @@ Policy/ColonyModel/GoalPaths.cs|Fact|6
 Policy/ColonyModel/GoalPaths.cs|NullableValue|1
 Policy/ColonyModel/PawnCycle.cs|Fact|43
 Policy/ColonyModel/PawnCycle.cs|Unknown|11
-Policy/ColonyModel/ProjectGraph.cs|Fact|15
+Policy/ColonyModel/ProjectGraph.cs|Fact|14
 Policy/ColonyModel/ProjectMarginalValue.cs|Fact|7
 Policy/ColonyModel/ProjectRun.cs|Discard|1
 Policy/ColonyModel/ProjectRun.cs|Fact|19
@@ -540,7 +540,7 @@ Policy/ForecastCoupledSelection.cs|Discard|1
 Policy/ForecastCoupledSelection.cs|Fact|52
 Policy/ForecastCoupledStock.cs|Fact|80
 Policy/ForecastCurrentWork.cs|Fact|10
-Policy/ForecastHandoff.cs|Fact|64
+Policy/ForecastHandoff.cs|Fact|61
 Policy/ForecastHandoffProjects.cs|Fact|7
 Policy/ForecastHousing.cs|Fact|19
 Policy/ForecastIncumbentPreparation.cs|Fact|9

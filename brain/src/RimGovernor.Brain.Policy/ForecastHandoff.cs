@@ -92,9 +92,6 @@ public static class ForecastHandoffPolicy
         dates.AddRange(projected.Completed);
         Fact<EquatableArray<ModelResourceStock>> external = default;
         var budget = ForecastCoupledMaterials.CoupledMaterialBudgetOf(request, holds, tasks, outcome.Plan);
-        var ownedSites = nodes.Where(n => n.Kind == ProjectKind.Construction && n.Target.Length > 0
-            && projects[n.Id].Status != ModelProjectStatus.Done && basis.Input.Sites.IsKnown
-            && basis.Input.Sites.Value.Any(s => s.Id == n.Target)).ToArray();
         if (holds is not null && budget.TryGetValue(out var available) && request.Facts.Stock.TryGetValue(out var initial))
         {
             var reserved = new List<ModelResourceStock>();
@@ -108,23 +105,16 @@ public static class ForecastHandoffPolicy
                     && context.Bindings.TryGetValue((a.Activity, a.Pawn), out var b) && b.Kind == PawnActivityKind.Supply && b.Container.Length > 0)
                     .SelectMany(a => tasks[a.Activity].Inputs).Where(i => i.Resource == resource).Sum(i => i.Units);
                 count -= Math.Min(delivered, holds.Owed.GetValueOrDefault(resource));
-                var graphHeld = ownedSites.Sum(n => n.Ingredients.Where(i => i.Resource == resource).Sum(i => (double)i.Count));
-                if (graphHeld > Math.Max(0, holds.Owed.GetValueOrDefault(resource) - delivered))
-                    gaps.Add("terminal_construction_hold_scope_mismatch:" + resource);
-                count -= Math.Min(Math.Max(0, count), graphHeld);
                 if (count > 0) reserved.Add(new(resource, count));
             }
             if (!gaps.Any(g => g.StartsWith("terminal_hold_unknown:", StringComparison.Ordinal))) external = Known(EquatableArray.From(reserved));
         }
         if (!external.IsKnown) gaps.Add("terminal_holds_unknown");
 
-        if (external.IsKnown)
-            foreach (var node in ownedSites)
-                projects[node.Id] = projects[node.Id] with { Inputs = ModelProjectInputs.Held };
         var active = EquatableArray.From(commitments.Values.Where(c => c.MoodMemories.Count + c.SituationalChanges.Count + c.ComfortShifts.Count + c.OutfitChanges.Count > 0
             && c.ActivityCompletions.All(finished.ContainsKey))
             .Select(c => new ForecastTerminalEffect(c with { StockChanges = [], MaterialClaims = [], EquipmentClaims = [], ActivityCompletions = [],
-                Construction = null, Outcome = null, UnsupportedEffects = [], ExclusiveOutcome = "" },
+                Outcome = null, UnsupportedEffects = [], ExclusiveOutcome = "" },
                 c.ActivityCompletions.Count == 0 ? 0 : c.ActivityCompletions.Max(id => finished[id]) / GameTime.TicksPerDay))
             .OrderBy(c => c.Day).ThenBy(c => c.Effect.Id, StringComparer.Ordinal));
         var pawns = Pawns(start.Pawns, context.PracticeTasks, outcome, finished, day, gaps);

@@ -295,7 +295,7 @@ accumulating on a part, and the dependence of a part's loss on the raid's total 
 ## Mirrored game rules: stock arrival and work speed (#3868)
 
 `StockArrivalRules` (`brain/src/RimGovernor.Brain.Policy/StockArrival.cs`), the catalog's `StockRecipes`
-(`brain/src/RimGovernor.Brain.Bridge/Catalog/StockRecipes.cs`) and `DefenseBlock.ColonistWorkTicksPerDay` mirror the work rules no
+(`brain/src/RimGovernor.Brain.Bridge/Catalog/StockRecipes.cs`) and `WorkRules.ConstructionWorkPerTick` (for `DefenseBlock.ColonistWorkTicksPerDay`) mirror the work rules no
 def carries. Read with ilspycmd (1.7). The work amounts, speed stats, skill requirements, ingredients and benches come from the defs;
 each pawn's speed stats from the pawn (`PawnBiography.WorkSpeeds`), each bench's `WorkTableWorkSpeedFactor` from the bills census.
 
@@ -303,7 +303,7 @@ each pawn's speed stats from the pawn (`PawnBiography.WorkSpeeds`), each bench's
 | --- | --- | --- |
 | Recipe work a tick | the crafter's `workSpeedStat` (1 when the recipe names none) × the bench's `workTableSpeedStat` (`WorkTableWorkSpeedFactor` unless the def sets another; another is named, not read) | `Toils_Recipe.DoRecipeWork` |
 | Crafter eligibility | the bench's DoBill giver's work type enabled and every `skillRequirements` minimum met | `WorkGiver_DoBill`, `RecipeDef.PawnSatisfiesSkillRequirements` |
-| `ConstructionWorkFactor` | 1.7: building work a tick is `ConstructionSpeed` × 1.7 (`DefenseBlock.ConstructionSpeedStat`); the stuff's `ConstructionSpeedFactor` is not applied | `JobDriver_ConstructFinishFrame`, `JobDriver_RemoveBuilding` |
+| `ConstructionWorkFactor` | 1.7: building work a tick is `ConstructionSpeed` × 1.7 (`WorkRules.ConstructionWorkPerTick`); the stuff's `ConstructionSpeedFactor` is not applied: the one caller prices removals, and construction timing is the native schedule's | `JobDriver_ConstructFinishFrame`, `JobDriver_RemoveBuilding` |
 
 The model's own choices, not game rules: a source's arrival is a fixed delay (a step) once the bill and its ingredients exist, the
 crafter works its timetable's work hours on the bill alone.

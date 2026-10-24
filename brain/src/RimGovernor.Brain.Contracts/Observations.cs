@@ -2143,16 +2143,13 @@ public abstract record ConstructionState
     private protected ConstructionState() { }
 
     /// <summary>
-    /// A construction blueprint or frame: the definition it builds, the native work left (WorkToBuild on a
-    /// blueprint), the material each cost definition still needs (every cost listed, zero once delivered), and
+    /// A construction blueprint or frame: the definition it builds, the material each cost definition still needs (every cost listed, zero once delivered), and
     /// the native finishing-skill guard's facts: whether the build has quality, the definition's own
     /// constructionSkillPrerequisite, the planner-set minimum (absent when none is set) and the tier gate.
     /// </summary>
     public sealed record Build : ConstructionState
     {
         public required string Definition { get; init; }
-
-        public required double WorkLeft { get; init; }
 
         [JsonConverter(typeof(EquatableArrayJsonConverter<MaterialDeficit>))]
         public required EquatableArray<MaterialDeficit> Resources { get; init; }

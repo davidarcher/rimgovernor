@@ -217,9 +217,6 @@ internal sealed class ProjectRun
                 }
 
                 break;
-            case ProjectKind.Construction:
-                Consume(live, levels);
-                break;
             case ProjectKind.Hunt:
                 levels[(int)ModelStock.Nutrition] += node.Nutrition;
                 levels[(int)ModelStock.Materials] += node.Products.Sum(a => a.Count);
@@ -422,9 +419,7 @@ internal sealed class ProjectRun
                 findings.Add($"craft_work_speed_unknown:{pawn.Pawn}:{node.WorkSpeedStat}");
                 return null;
             default:
-                // The pawn model carries no construction speed for a site (the stuff's ConstructionSpeedFactor is not read).
-                findings.Add("construction_work_speed_unread");
-                return 1;
+                throw new InvalidOperationException($"a {node.Kind} node takes no labor");
         }
     }
 

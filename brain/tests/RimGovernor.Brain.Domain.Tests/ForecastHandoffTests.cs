@@ -135,27 +135,6 @@ public sealed class ForecastHandoffTests
         Assert.Equal(15, Assert.Single(handoff.State.Materials.Value, s => s.Resource == Steel).Count);
     }
 
-    [Fact]
-    public void NativeSupplyBindingTransfersOnlyItsSitesRemainingHoldToTheGraph()
-    {
-        var request = Request();
-        var basis = request.Coupled!.ModelBasis!;
-        var input = basis.Input with { Sites = Known<EquatableArray<ConstructionSite>>([new() { Id = "site", WorkLeft = 100d, MaterialsOwed = [new(Steel, 8)] }]) };
-        var graph = ProjectGraph.Construction(input, "site", []);
-        var binding = new RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate("research", "pawn", [], PawnActivityKind.Supply, "steel-stack", "", "", 5, 60000, new(2, 2)) { Container = "site" };
-        request = request with { Coupled = request.Coupled with { ModelBasis = new(input, basis.Policy with { Projects = graph }),
-            Activities = new() { Deadline = 0, Activities = [new("research", "stock", "site", []) { Inputs = [new(Steel, 5d)] }] },
-            Bindings = new Dictionary<(string, string), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate> { [("research", "pawn")] = binding },
-            Resources = request.Coupled.Resources with { Evidence = request.Coupled.Resources.Evidence with
-            { Standing = new([], new Dictionary<Resource, long> { [Steel] = 8 }),
-              Promises = Known<EquatableArray<ProductionMaterialPromise>>([new("other-owner", [new(Steel, Known(2d), Known(""))])]) } } } };
-        var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(15d), [Food] = Known(10d), [Medicine] = Known(3d) });
-        Assert.Empty(handoff.Gaps);
-        Assert.Equal(2, Assert.Single(handoff.State.ExternalHolds.Value).Count);
-        Assert.Equal(ModelProjectInputs.Held, Assert.Single(handoff.State.Projects.Value).Inputs);
-        Assert.Equal(3, Assert.Single(Assert.Single(handoff.Graph.Nodes).Ingredients).Count);
-        Assert.Equal(15, Assert.Single(handoff.State.Materials.Value, s => s.Resource == Steel).Count);
-    }
     [Theory]
     [InlineData(.1)]
     [InlineData(.4)]

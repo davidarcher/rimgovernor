@@ -31,8 +31,8 @@ public sealed class ColonyModelContinuationTests
         HorizonDays = 8, MedicineTendsPerDay = Known(0d),
         Projects = new ProjectGraph { Nodes = EquatableArray.From(new[]
         {
-            new ProjectNode { Id = "a", Kind = ProjectKind.Construction, Work = 6 * Hour, Ingredients = EquatableArray.From(new[] { new Amount(Steel, 5) }) },
-            new ProjectNode { Id = "b", Kind = ProjectKind.Construction, Work = 0, Prerequisites = EquatableArray.From(["a"]), Ingredients = EquatableArray.From(new[] { new Amount(Steel, 5) }) },
+            new ProjectNode { Id = "a", Kind = ProjectKind.Craft, ProductsToStock = true, Work = 6 * Hour, Ingredients = EquatableArray.From(new[] { new Amount(Steel, 5) }) },
+            new ProjectNode { Id = "b", Kind = ProjectKind.Craft, ProductsToStock = true, Work = 0, Prerequisites = EquatableArray.From(["a"]), Ingredients = EquatableArray.From(new[] { new Amount(Steel, 5) }) },
         }) },
         Scheduled = EquatableArray.From(new[]
         {

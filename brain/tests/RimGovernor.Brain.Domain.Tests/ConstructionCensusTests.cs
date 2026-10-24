@@ -14,7 +14,7 @@ public sealed class ConstructionCensusTests
     private static readonly Resource Material = new("TestMaterial");
 
     [Fact]
-    public void NativeConstructionProjectionRetainsRemainingWorkAndOwedMaterials()
+    public void NativeConstructionProjectionRetainsOwedMaterialsGateAndMinimum()
     {
         var row = new O.BuildingState
         {
@@ -27,7 +27,6 @@ public sealed class ConstructionCensusTests
             Construction = new O.ConstructionState.Build
             {
                 Definition = "TestBuilding",
-                WorkLeft = 123,
                 Resources = [new O.MaterialDeficit { DefName = Material.Value, StillNeeded = 7 }],
                 QualitySensitive = false,
                 NativeFinishingSkill = 0,
@@ -43,8 +42,7 @@ public sealed class ConstructionCensusTests
         };
         var observed = ConstructionReads.ConstructionFromCensus(new(null, Buildings.Of(row)));
         Assert.Equal("TestBuilding", observed.Sites[0].Building!.Definition);
-        Assert.Equal(123, observed.Sites[0].WorkLeft);
-        Assert.Equal(7, observed.Sites[0].MaterialsOwed[0].Count);
+        Assert.Equal(7, observed.Deficit[Material]);
         Assert.False(observed.Sites[0].ResourcesComplete);
         Assert.Null(observed.Sites[0].Minimum);
         Assert.IsType<O.ConstructionGate.Ungated>(observed.Sites[0].Gate);

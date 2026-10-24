@@ -1,6 +1,6 @@
 namespace RimGovernor.Brain.Policy;
 
-// The tier-2 colony model's project graph nodes (#3530 of #3470): research, sowing, growth, harvest, crafting, construction and hunting (#3620).
+// The tier-2 colony model's project graph nodes (#3530 of #3470): research, sowing, growth, harvest, crafting and hunting (#3620).
 
 /// <summary>The kinds of project node.</summary>
 public enum ProjectKind
@@ -26,9 +26,6 @@ public enum ProjectKind
     /// <summary>A recipe: the work, the ingredients it consumes and the products it makes.</summary>
     Craft,
 
-    /// <summary>A building: the work and the materials it consumes.</summary>
-    Construction,
-
     /// <summary>Hunting and butchering one race's animals of the wildlife census; the work is the hunt planner's pursuit work, the yields its meat and butchery products.</summary>
     Hunt,
 
@@ -45,9 +42,8 @@ public sealed record CategoryFunding(string Category, string Node);
 /// </summary>
 public sealed record ProjectNode
 {
-    /// <summary>Native recipe/site identity retained independently of display/event ids.</summary>
+    /// <summary>Native recipe identity retained independently of display/event ids.</summary>
     public string Recipe { get; init; } = "";
-    public string Target { get; init; } = "";
 
     /// <summary>A craft node's recipe workSpeedStat (#3868), the pawn stat its work goes at; "" works at 1.</summary>
     public string WorkSpeedStat { get; init; } = "";
@@ -59,7 +55,7 @@ public sealed record ProjectNode
     /// <summary>Ids of the nodes that must complete first.</summary>
     public EquatableArray<string> Prerequisites { get; init; }
 
-    /// <summary>Research: points remaining. Knowledge: knowledge points remaining. Sow, Harvest, Craft, Construction, Hunt: work units. Grow: unused.</summary>
+    /// <summary>Research: points remaining. Knowledge: knowledge points remaining. Sow, Harvest, Craft, Hunt: work units. Grow: unused.</summary>
     public double Work { get; init; }
 
     /// <summary>Hunt: the meat's nutrition, which joins the nutrition stock at completion.</summary>
@@ -74,7 +70,7 @@ public sealed record ProjectNode
     /// <summary>Sow, Grow and Harvest: the cells sown, which is the harvested area.</summary>
     public int Cells { get; init; }
 
-    /// <summary>Craft and Construction: the materials consumed.</summary>
+    /// <summary>Craft: the materials consumed.</summary>
     public EquatableArray<Amount> Ingredients { get; init; }
 
     /// <summary>Craft: the products. Hunt: the butchery products (leather), which join the materials stock at completion.</summary>

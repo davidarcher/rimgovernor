@@ -36,7 +36,6 @@ public sealed record ProjectGraph
 
     /// <summary>The id of the sowing node of a field (the field is the native zone id the sowing read names).</summary>
     public static string SowId(string field) => ForecastProjectProgress.SowPrefix + field;
-    public static string ConstructionId(string site) => $"construction:{site}";
 
     /// <summary>
     /// The key tier-1 progress is credited under (<see cref="ForecastProjectProgress.Project"/>): a research node's project name,
@@ -383,20 +382,6 @@ public sealed record ProjectGraph
                 new ProjectNode { Id = $"craft:{recipe}", Recipe = recipe, WorkSpeedStat = row.WorkSpeedStat, Kind = ProjectKind.Craft, Prerequisites = after, Work = work * copies, Ingredients = EquatableArray.From(ingredients), Products = EquatableArray.From(products.Select(p => p with { Count = p.Count * copies })), ProductsToStock = productsToStock },
             }),
             Findings = findings,
-        };
-    }
-
-    /// <summary>The work left on a standing blueprint or frame, with the materials it still owes, after <paramref name="after"/>.</summary>
-    public static ProjectGraph Construction(ColonyModelInput input, string site, EquatableArray<string> after)
-    {
-        if (!input.Sites.TryGetValue(out var sites) || sites.FirstOrDefault(s => s.Id == site) is not { } row)
-        {
-            return Gap($"site_unknown:{site}");
-        }
-
-        return new ProjectGraph
-        {
-            Nodes = EquatableArray.From(new[] { new ProjectNode { Id = ConstructionId(site), Target = site, Kind = ProjectKind.Construction, Prerequisites = after, Work = row.WorkLeft, Ingredients = row.MaterialsOwed } }),
         };
     }
 

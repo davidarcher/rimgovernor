@@ -254,6 +254,19 @@ public static partial class WorkRules
         return new BenchWorker { WorkHoursPerDay = hours / n, WorkSpeed = speed / n };
     }
 
+    /// <summary>The pawn stat building and removing work goes at (JobDriver_ConstructFinishFrame, JobDriver_RemoveBuilding).</summary>
+    internal const string ConstructionSpeedStat = "ConstructionSpeed";
+
+    /// <summary>Those drivers' work a tick is the ConstructionSpeed stat × 1.7 (kept-constants, mirrored game literals).</summary>
+    private const double ConstructionWorkFactor = 1.7;
+
+    /// <summary>
+    /// The construction work a builder at <paramref name="constructionSpeed"/> does a tick: its ConstructionSpeed × 1.7
+    /// (JobDriver_ConstructFinishFrame, JobDriver_RemoveBuilding). The stuff's ConstructionSpeedFactor is not applied: the
+    /// one caller prices removals, and construction timing is the native schedule's.
+    /// </summary>
+    internal static double ConstructionWorkPerTick(double constructionSpeed) => constructionSpeed * ConstructionWorkFactor;
+
     /// <summary>
     /// The pawns that can work a bench: available and (when the recipe names work types) with one of them enabled.
     /// Speed is the pawn's <paramref name="stat"/> as read (<see cref="WorkPawn.WorkSpeeds"/>, #3868), 1 for a work that names

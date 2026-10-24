@@ -61,9 +61,9 @@ namespace HomeBridge.BridgeTools
         }
         private static bool Capable(Pawn p, int minimum) => Capability(p) && p.skills?.GetSkill(SkillDefOf.Construction) is SkillRecord skill
             && !skill.TotallyDisabled && skill.Level >= minimum;
-        // Read is a blueprint's or frame's build state: its material deficits and remaining work, with the finishing
+        // Read is a blueprint's or frame's build state: its material deficits, with the finishing
         // floor and tier this guard holds for it.
-        internal static Obs.ConstructionState.Build Read(Thing t, string definition, double workLeft, RimGovernor.Brain.Domain.EquatableArray<Obs.MaterialDeficit> resources)
+        internal static Obs.ConstructionState.Build Read(Thing t, string definition, RimGovernor.Brain.Domain.EquatableArray<Obs.MaterialDeficit> resources)
         {
             var native = t.def.entityDefToBuild.constructionSkillPrerequisite;
             var setting = Setting(t);
@@ -81,7 +81,6 @@ namespace HomeBridge.BridgeTools
             return new Obs.ConstructionState.Build
             {
                 Definition = definition,
-                WorkLeft = workLeft,
                 Resources = resources,
                 QualitySensitive = Quality(t),
                 NativeFinishingSkill = native,

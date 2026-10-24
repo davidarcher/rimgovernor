@@ -31,32 +31,16 @@ public sealed class ColonyForecastTests
     [Fact]
     public void EarlierDeliveryChangesShortfallWithoutChangingObservedStock()
     {
-        var request = Request(Change("delivery", 2, 10), Change("build", 1, -15));
-        var result = ColonyForecastRules.ForecastColony(request with
-        {
-            Proposed = new ColonyForecastDelta
-            {
-                Remove = EquatableArray.From(new List<string> { "delivery" }),
-                Add = EquatableArray.From(new[] { Change("delivery", 0.5, 10) }),
-            },
-        });
         Assert.Equal("build", Assert.Single(Findings(Stock, Change("delivery", 2, 10), Change("build", 1, -15)), f => f.Reason == "stock_shortfall").Commitment);
         Assert.Empty(Findings(Stock, Change("delivery", 0.5, 10), Change("build", 1, -15)));
-        Assert.Equal(2, Assert.Single(result.Baseline.Commitments, c => c.Id == "delivery").StockChanges[0].Day);
-        Assert.Equal(0.5, Assert.Single(result.Proposed.Commitments, c => c.Id == "delivery").StockChanges[0].Day);
-        Assert.Equal(request.Origin, result.Origin);
-        Assert.Contains("pawn_capacity", result.Unsupported);
     }
 
     [Fact]
-    public void EmptyDeltaContinuesAndInputOrderingDoesNotChangeTheForecast()
+    public void InputOrderingDoesNotChangeTheFindings()
     {
         var a = Change("use", 1, -4);
         var b = Change("delivery", 2, 2);
-        var first = ColonyForecastRules.ForecastColony(Request(a, b));
-        var second = ColonyForecastRules.ForecastColony(Request(b, a));
-        Assert.Equal(first.Baseline, first.Proposed);
-        Assert.Equal(first.Baseline, second.Baseline);
+        Assert.Empty(Findings(Stock, a, b));
         Assert.Empty(Findings(Stock, b, a));
     }
 
@@ -75,9 +59,7 @@ public sealed class ColonyForecastTests
         var late = Change("late", 4, 20);
         Assert.Equal("beyond_horizon", Assert.Single(Findings(Stock, late)).Reason);
         Assert.Equal(["beyond_horizon", "stock_shortfall"], Findings(Stock, late, Change("use", 3, -15)).Select(f => f.Reason));
-        var result = ColonyForecastRules.ForecastColony(Request(late));
-        Assert.Equal(3, result.HorizonDays);
-        Assert.Equal(ColonyDiagnosticsRules.MaintenanceHorizonDays, result.Observed.HorizonDays);
+        Assert.Equal(ColonyDiagnosticsRules.MaintenanceHorizonDays, ColonyDiagnosticsRules.DiagnoseColony(Request(late).Facts).HorizonDays);
     }
 
     [Fact]
@@ -104,18 +86,15 @@ public sealed class ColonyForecastTests
     public void ConstructionDiagnosticsKeepExactResourcesAndUnits()
     {
         var other = new Resource("OtherMaterial");
-        var result = ColonyForecastRules.ForecastColony(Request() with
+        var result = ColonyDiagnosticsRules.DiagnoseColony(new ColonyForecastFacts
         {
-            Facts = new ColonyForecastFacts
+            Stock = Known(EquatableArray.From(new[] { new Amount(other, 100) })),
+            Construction = new ConstructionInputs
             {
-                Stock = Known(EquatableArray.From(new[] { new Amount(other, 100) })),
-                Construction = new ConstructionInputs
-                {
-                    Deficit = new Dictionary<Resource, long> { [Material] = 15 },
-                },
+                Deficit = new Dictionary<Resource, long> { [Material] = 15 },
             },
         });
-        var row = Assert.Single(result.Observed.Construction.Value.Materials);
+        var row = Assert.Single(result.Construction.Value.Materials);
         Assert.Equal(Material, row.Resource);
         Assert.Equal(15, row.ShortfallUnits);
         Assert.Equal(0, row.Stock);
@@ -146,33 +125,27 @@ public sealed class ColonyForecastTests
     [Fact]
     public void DiagnosticRatesAreNotInventoryEventsAndFloorsOverlapByMaximum()
     {
-        var request = Request();
-        var result = ColonyForecastRules.ForecastColony(request with
+        var result = ColonyDiagnosticsRules.DiagnoseColony(Request().Facts with
         {
-            HorizonDays = 2,
-            Facts = request.Facts with
+            Power = new[]
             {
-                Power = new[]
+                new PowerNetworkFact
                 {
-                    new PowerNetworkFact
-                    {
-                        Id = "net", GenerationW = 0.0,
-                        ConsumptionW = 10.0, StoredWD = 30.0,
-                    },
-                },
-                Construction = new ConstructionInputs
-                {
-                    Deficit = new Dictionary<Resource, long> { [Material] = 15 },
-                    Admitted = EquatableArray.From(new[]
-                    {
-                        new AdmittedCost { Resource = Material, Action = new ActionId("build"), Count = 20 },
-                    }),
+                    Id = "net", GenerationW = 0.0,
+                    ConsumptionW = 10.0, StoredWD = 30.0,
                 },
             },
+            Construction = new ConstructionInputs
+            {
+                Deficit = new Dictionary<Resource, long> { [Material] = 15 },
+                Admitted = EquatableArray.From(new[]
+                {
+                    new AdmittedCost { Resource = Material, Action = new ActionId("build"), Count = 20 },
+                }),
+            },
         });
-        Assert.Equal(3, Assert.Single(result.Observed.Power.Value.Nets).ReserveDays);
-        Assert.Equal(20, Assert.Single(result.Observed.Construction.Value.Materials).Need);
-        Assert.Equal(10, Assert.Single(result.Observed.Construction.Value.Materials).ShortfallUnits);
-        Assert.Empty(result.Baseline.Commitments);
+        Assert.Equal(3, Assert.Single(result.Power.Value.Nets).ReserveDays);
+        Assert.Equal(20, Assert.Single(result.Construction.Value.Materials).Need);
+        Assert.Equal(10, Assert.Single(result.Construction.Value.Materials).ShortfallUnits);
     }
 }

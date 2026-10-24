@@ -74,7 +74,7 @@ For example, start with 10 units and a build consuming 15 on day 1. A delivery
 of 10 on day 2 produces a day-1 deficit of 5. Replacing only that delivery with
 one on day 0.5 removes the inventory deficit while leaving observed stock at
 10 in both alternatives. It says nothing yet about which pawn can deliver it.
-`ColonyForecastTests` exercises this comparison and the uncertainty boundaries.
+`ColonyForecastTests` exercises the inventory walk and the uncertainty boundaries.
 
 ## Diagnostics and model coverage
 
@@ -1386,7 +1386,7 @@ in-play proof is `production/devilstrand-investment` (#3560: a research block wi
 already carries and makes no native call: the seasonal climate, the calendar, the growing zones and planned fields with
 per-cell fertility, the crop catalog, the research census, the stocks (nutrition of the edible food census, materials,
 medicine), the pawns (need mechanics, capacities, comfort range, research and plant work speed from the coupled research and
-sowing reads), the recipes, and the current and planned construction sites. A section the frame did not carry is an unknown
+sowing reads), the recipes, and the planned construction sites. A section the frame did not carry is an unknown
 `Fact`, never a default; `ColonyModelInput.Unknowns()` names each and the `colony_model` event reports it as `input:<section>`.
 
 **Pawn cycle.** `PawnCycle.Year` derives, per pawn, twelve entries (one per twelfth of the year) of sleep, recreation, eating,
