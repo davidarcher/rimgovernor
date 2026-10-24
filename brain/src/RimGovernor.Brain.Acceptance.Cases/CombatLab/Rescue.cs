@@ -95,9 +95,10 @@ internal static class CombatLabRescue
     {
         var request = new Mirror.CombatGeometryRequest
         {
-            HostileIds = [.. hostiles],
-            PawnId = rescuer,
-            Propose = new Mirror.CombatGeometryPropose { Role = new Mirror.CombatRescuePath { To = downed } },
+            Identity = s.Identity,
+            Cells = [],
+            HostileIds = CombatLabKit.PawnIds(hostiles),
+            Propose = new Mirror.CombatGeometryPropose.RescuePath { Pawn = new RimGovernor.Brain.Domain.PawnId(rescuer), To = downed },
         };
 
         // The first read on a fresh game pays one-time costs; the second, warm, must fit the budget.
@@ -111,15 +112,15 @@ internal static class CombatLabRescue
         var route = g.Proposed;
         for (var i = 0; i < route.Count; i++)
         {
-            var any = route[i].Lines.Any(l => l.LineOfFire == true);
-            if ((route[i].HostileLineOfFire == true) != any)
+            var any = route[i].Lines.Any(l => l.LineOfFire);
+            if (route[i].HostileLineOfFire != any)
             {
                 throw new AcceptanceException($"route cell {i} line-of-fire flag {route[i].HostileLineOfFire} disagrees with its lines: {route[i]}");
             }
         }
 
         s.Record("rescue_path_cells", route.Count);
-        if (route.Count == 0 || CombatLabKit.Chebyshev(route[^1].Cell ?? new Common.Cell(), downed) > 1)
+        if (route.Count == 0 || CombatLabKit.Chebyshev(route[^1].Cell, downed) > 1)
         {
             throw new AcceptanceException($"rescue route of {route.Count} cells does not end next to {CombatLabKit.Show(downed)}: last {CombatLabKit.Show(route.Count == 0 ? null : route[^1].Cell)}");
         }

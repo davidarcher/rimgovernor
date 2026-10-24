@@ -7,35 +7,24 @@ public sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// DecideCombat's one geometry read per stop. For candidate cells and hostiles: cover,
-    /// line of fire and colonist-in-path by the game's own rules, and the pawn's path ticks to each cell when a pawn
-    /// is named. The reply's cells and lines are in request order; with a propose block its proposed cells follow,
-    /// ranked, scored alike.
+    /// line of fire and colonist-in-path by the game's own rules. The reply's cells and lines are in request order;
+    /// with a propose block its proposed cells follow, ranked, scored alike. A refused read throws.
     /// </summary>
-    internal async Task<PbMirror.CombatGeometry> CombatGeometryAsync(PbMirror.CombatGeometryRequest request, CancellationToken cancellationToken)
+    internal Task<PbMirror.CombatGeometry> CombatGeometryAsync(PbMirror.CombatGeometryRequest request, CancellationToken cancellationToken)
     {
         CombatGeometryChecks.ValidateCombatGeometryRequest(request);
-        var reply = await Facade.ReadCombatGeometryAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        return reply.Outcome.Observed!;
+        return Facade.ReadCombatGeometryAsync(request, cancellationToken);
     }
 
     /// <summary>The request checks of the combat geometry read.</summary>
     internal static class CombatGeometryChecks
     {
         /// <summary>
-        /// Checks the caps and shape. An identity, 1..max distinct cells (0..max-1
-        /// with propose), 1..max distinct hostile ids (0 for named cells with no propose and no pawn), a valid pawn id
-        /// when one is named, and a propose block's role and anchor.
+        /// Checks the caps and shape: 1..max distinct cells (0..max-1 with propose), 1..max distinct hostile ids (0 for
+        /// named cells with no propose), and a propose block's anchor.
         /// </summary>
-        internal static void ValidateCombatGeometryRequest(PbMirror.CombatGeometryRequest? request)
+        internal static void ValidateCombatGeometryRequest(PbMirror.CombatGeometryRequest request)
         {
-            if (request is null)
-            {
-                throw BridgeContractException.Contract("combat geometry request required");
-            }
             var min = 1;
             if (request.Propose is not null)
             {
@@ -48,27 +37,15 @@ public sealed partial class FacadeNativeClient
             GeometryCells(request.Cells, min);
 
             // Named cells alone need no hostile: their standability.
-            var hostiles = 1;
-            if (request.Propose is null && request.PawnId is null)
-            {
-                hostiles = 0;
-            }
+            var hostiles = request.Propose is null ? 0 : 1;
             var n = request.HostileIds.Count;
             if (n < hostiles || n > CombatConstants.CombatGeometryMaxHostiles)
             {
                 throw BridgeContractException.Contract($"combat geometry hostiles outside {hostiles}..{CombatConstants.CombatGeometryMaxHostiles}");
             }
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var id in request.HostileIds)
+            if (request.HostileIds.Distinct().Count() != n)
             {
-                if (!seen.Add(id))
-                {
-                    throw BridgeContractException.Contract("duplicate combat detail ID");
-                }
-            }
-            if (request.Propose?.Role?.RescuePath is not null && request.PawnId is null)
-            {
-                throw BridgeContractException.Contract("combat geometry rescue_path needs a pawn");
+                throw BridgeContractException.Contract("duplicate combat detail ID");
             }
             if (request.Propose is not null)
             {
@@ -91,44 +68,41 @@ public sealed partial class FacadeNativeClient
                 {
                     throw BridgeContractException.Contract("combat geometry cell invalid");
                 }
-                if (!seen.Add((cell!.X, cell.Z)))
+                if (!seen.Add((cell.X, cell.Z)))
                 {
                     throw BridgeContractException.Contract("combat geometry cell repeated");
                 }
             }
         }
 
-        private static bool GeometryCell(PbCommon.Cell? cell) =>
-            cell is not null && cell.X >= 0 && cell.Z >= 0;
+        private static bool GeometryCell(PbCommon.Cell cell) => cell.X >= 0 && cell.Z >= 0;
 
         /// <summary>One role and its anchor.</summary>
         private static void ValidatePropose(PbMirror.CombatGeometryPropose p)
         {
-            switch (p.Role)
+            switch (p)
             {
-                case PbMirror.CombatGeometryProposeRole.CoverBehindLineCase role:
-                    GeometryCells(role.Value?.Line ?? [], 1);
+                case PbMirror.CombatGeometryPropose.CoverBehindLine role:
+                    GeometryCells(role.Line, 1);
                     return;
-                case PbMirror.CombatGeometryProposeRole.AdjacentToChokeCase role:
-                    var a = role.Value;
-                    if (!GeometryCell(a?.Choke) || !GeometryCell(a?.OurSide) || Equals(a!.Choke, a.OurSide))
+                case PbMirror.CombatGeometryPropose.AdjacentToChoke a:
+                    if (!GeometryCell(a.Choke) || !GeometryCell(a.OurSide) || Equals(a.Choke, a.OurSide))
                     {
                         throw BridgeContractException.Contract("combat geometry adjacent_to_choke needs a choke and a distinct our_side cell");
                     }
                     return;
-                case PbMirror.CombatGeometryProposeRole.RescuePathCase role:
-                    if (!GeometryCell(role.Value?.To))
+                case PbMirror.CombatGeometryPropose.RescuePath role:
+                    if (!GeometryCell(role.To) || role.Pawn.IsEmpty)
                     {
-                        throw BridgeContractException.Contract("combat geometry rescue_path needs a to cell");
+                        throw BridgeContractException.Contract("combat geometry rescue_path needs a pawn and a to cell");
                     }
                     return;
-                case PbMirror.CombatGeometryProposeRole.FiringCellsCase role:
-                    var f = role.Value;
-                    if (!GeometryCell(f?.From))
+                case PbMirror.CombatGeometryPropose.FiringCells f:
+                    if (!GeometryCell(f.From))
                     {
                         throw BridgeContractException.Contract("combat geometry firing_cells needs a from cell");
                     }
-                    if (f!.Radius is not { } radius || radius < 1 || radius > CombatConstants.CombatGeometryMaxRadius)
+                    if (f.Radius < 1 || f.Radius > CombatConstants.CombatGeometryMaxRadius)
                     {
                         throw BridgeContractException.Contract($"combat geometry firing_cells radius outside 1..{CombatConstants.CombatGeometryMaxRadius}");
                     }
@@ -139,7 +113,7 @@ public sealed partial class FacadeNativeClient
                     GeometryCells(f.Targets, 1);
                     return;
             }
-            throw BridgeContractException.Contract("combat geometry propose without a role");
+            throw new ArgumentOutOfRangeException(nameof(p), p, "combat geometry propose role");
         }
     }
 

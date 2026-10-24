@@ -3,13 +3,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimWorld;
 using Verse;
 using Verse.AI;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Mirror = RimGovernor.Contracts.Wire.Mirror;
+using PawnId = RimGovernor.Brain.Domain.PawnId;
 
 namespace HomeBridge.BridgeTools
 {
@@ -19,28 +19,27 @@ namespace HomeBridge.BridgeTools
     /// sight or pathing. For each candidate cell and each hostile: the cover
     /// at the cell against a shot from the hostile's cell
     /// (CoverUtility.CalculateOverallBlockChance), line of fire
-    /// (GenSight.LineOfSight), and whether a colonist stands on that line;
-    /// and, for a named pawn, the path ticks to each cell. Read-only, one
-    /// main-thread hop.
+    /// (GenSight.LineOfSight), and whether a colonist stands on that line.
+    /// Read-only, one main-thread hop. A request it cannot answer is refused
+    /// (NativeFaults.Refused); the reply is always the whole geometry.
     /// </summary>
     internal static class NativeCombatGeometryTools
     {
         /// The caps, measured on lab-ranged against the 50 ms main-thread
         /// budget: 64 cells x 8 pawns took 1.3-6.6 ms of main thread
-        /// (worst of 5 per run, path ticks included), about 13 ms at the caps.
+        /// (worst of 5 per run), about 13 ms at the caps.
         /// Kept (docs/developers/contracts/kept-constants.md).
         internal const int MaxCells = 64;
         internal const int MaxHostiles = 16;
         /// A firing_cells proposal's search radius cap.
         internal const int MaxRadius = 12;
 
-        internal static Mirror.CombatGeometryReply HandleRead(Mirror.CombatGeometryRequest request)
+        internal static Mirror.CombatGeometry HandleRead(Mirror.CombatGeometryRequest request)
         {
-            if (!Validate(request, out var failure0)) return new Mirror.CombatGeometryReply { Outcome = new Mirror.CombatGeometryReplyOutcome.FailureCase(failure0) };
-            if (!ProtoBoundary.ValidateIdentity(request.Identity, out Map? map, out var context, out var stale))
-                return new Mirror.CombatGeometryReply { Outcome = stale };
-            try { return new Mirror.CombatGeometryReply { Outcome = Geometry(map, request, context) }; }
-            catch (GeometryRefused refused) { return new Mirror.CombatGeometryReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, refused.Message) }; }
+            if (!Validate(request, out var failure)) throw NativeFaults.Refused(failure);
+            if (!ProtoBoundary.ValidateIdentity(request.Identity, out Map? map, out var context, out var stale)) throw NativeFaults.Refused(stale);
+            try { return Geometry(map, request, context); }
+            catch (GeometryRefused refused) { throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, refused.Message)); }
         }
 
         private sealed class GeometryRefused : Exception { public GeometryRefused(string message) : base(message) { } }
@@ -48,26 +47,24 @@ namespace HomeBridge.BridgeTools
         internal static bool Validate(Mirror.CombatGeometryRequest request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A combat geometry read requires a complete identity, 1.." + MaxCells
-                + " distinct cells, 1.." + MaxHostiles + " distinct hostile ids and an optional pawn id.");
+                + " distinct cells and 1.." + MaxHostiles + " distinct hostile ids.");
             if (!ProtoBoundary.Complete(request.Identity)) return false;
             if (request.Propose != null)
             {
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "A combat geometry propose block requires one role with a valid anchor (line 1.." + MaxCells
                     + " distinct cells; a choke and a distinct our_side cell; 1.." + MaxHostiles + " distinct targets, a from cell and radius 1.." + MaxRadius
-                    + ") and at most " + (MaxCells - 1) + " named cells.");
-                if (request.Cells.Count >= MaxCells || !ValidatePropose(request.Propose)
-                    || request.Propose.Role is Mirror.CombatGeometryProposeRole.RescuePathCase && request.PawnId is null) return false;
+                    + "; a rescuer and a to cell) and at most " + (MaxCells - 1) + " named cells.");
+                if (request.Cells.Count >= MaxCells || !ValidatePropose(request.Propose)) return false;
             }
             // Named cells alone need no hostile: their standability.
-            var hostilesMin = request.Propose == null && request.PawnId is null ? 0 : 1;
+            var hostilesMin = request.Propose == null ? 0 : 1;
             if (request.Cells.Count < (request.Propose == null ? 1 : 0) || request.Cells.Count > MaxCells || request.HostileIds.Count < hostilesMin || request.HostileIds.Count > MaxHostiles) return false;
-            if (request.Cells.Any(c => c == null) || request.Cells.Select(c => (c.X, c.Z)).Distinct().Count() != request.Cells.Count) return false;
-            if (request.HostileIds.Any(id => !ProtoBoundary.IsIdentifier(id)) || request.HostileIds.Distinct(StringComparer.Ordinal).Count() != request.HostileIds.Count) return false;
-            if (request.PawnId is not null && !ProtoBoundary.IsIdentifier(request.PawnId)) return false;
+            if (!request.Cells.All(ValidCell) || request.Cells.Select(c => (c.X, c.Z)).Distinct().Count() != request.Cells.Count) return false;
+            if (request.HostileIds.Any(id => !ProtoBoundary.IsIdentifier(id.Value)) || request.HostileIds.Distinct().Count() != request.HostileIds.Count) return false;
             return true;
         }
 
-        private static bool ValidCell(Common.Cell? c) => c != null && c.X >= 0 && c.Z >= 0;
+        private static bool ValidCell(Common.Cell c) => c != null && c.X >= 0 && c.Z >= 0;
 
         private static bool ValidCells(RimGovernor.Brain.Domain.EquatableArray<Common.Cell> cells, int max) =>
             cells.Count >= 1 && cells.Count <= max && cells.All(ValidCell) && cells.Select(c => (c.X, c.Z)).Distinct().Count() == cells.Count;
@@ -76,16 +73,16 @@ namespace HomeBridge.BridgeTools
         /// named plus proposed share MaxCells; each role's anchor is checked.
         private static bool ValidatePropose(Mirror.CombatGeometryPropose p)
         {
-            switch (p.Role)
+            switch (p)
             {
-                case Mirror.CombatGeometryProposeRole.CoverBehindLineCase { Value: var cover }:
+                case Mirror.CombatGeometryPropose.CoverBehindLine cover:
                     return ValidCells(cover.Line, MaxCells);
-                case Mirror.CombatGeometryProposeRole.AdjacentToChokeCase { Value: var a }:
-                    return ValidCell(a.Choke) && ValidCell(a.OurSide) && !(a.Choke?.X == a.OurSide?.X && a.Choke?.Z == a.OurSide?.Z);
-                case Mirror.CombatGeometryProposeRole.FiringCellsCase { Value: var f }:
-                    return ValidCell(f.From) && f.Radius is >= 1 && f.Radius <= MaxRadius && ValidCells(f.Targets, MaxHostiles);
-                case Mirror.CombatGeometryProposeRole.RescuePathCase { Value: var rescue }:
-                    return ValidCell(rescue.To);
+                case Mirror.CombatGeometryPropose.AdjacentToChoke a:
+                    return ValidCell(a.Choke) && ValidCell(a.OurSide) && !(a.Choke.X == a.OurSide.X && a.Choke.Z == a.OurSide.Z);
+                case Mirror.CombatGeometryPropose.FiringCells f:
+                    return ValidCell(f.From) && f.Radius >= 1 && f.Radius <= MaxRadius && ValidCells(f.Targets, MaxHostiles);
+                case Mirror.CombatGeometryPropose.RescuePath rescue:
+                    return ValidCell(rescue.To) && ProtoBoundary.IsIdentifier(rescue.Pawn.Value);
             }
             return false;
         }
@@ -98,33 +95,29 @@ namespace HomeBridge.BridgeTools
             var hostiles = new List<Pawn>();
             foreach (var id in request.HostileIds)
             {
-                if (!pawns.TryGetValue(id, out var h)) throw new GeometryRefused("Hostile " + id + " is not spawned on the map.");
+                if (!pawns.TryGetValue(id.Value, out var h)) throw new GeometryRefused("Hostile " + id.Value + " is not spawned on the map.");
                 hostiles.Add(h);
             }
-            Pawn? walker = null;
-            if (request.PawnId is not null && !pawns.TryGetValue((request.PawnId ?? ""), out walker)) throw new GeometryRefused("Pawn " + (request.PawnId ?? "") + " is not spawned on the map.");
             var colonists = new HashSet<IntVec3>(map.mapPawns.FreeColonistsSpawned.Select(c => c.Position));
-            var observed = new Mirror.CombatGeometry { Context = context };
-            foreach (var wire in request.Cells)
-                observed = observed with { Cells = [.. observed.Cells, Score(map, InBounds(map, wire), wire, hostiles, colonists, walker)] };
-            if (request.Propose?.Role is Mirror.CombatGeometryProposeRole.RescuePathCase { Value: var rescue })
+            var cells = request.Cells.Select(wire => Score(map, InBounds(map, wire), hostiles, colonists)).ToList();
+            var proposed = new List<Mirror.CombatGeometryCell>();
+            if (request.Propose is Mirror.CombatGeometryPropose.RescuePath rescue)
             {
-                foreach (var cell in Route(map, walker!, InBounds(map, rescue.To)).Take(MaxCells - request.Cells.Count))
-                    observed = observed with { Proposed = [.. observed.Proposed, Score(map, cell, new Common.Cell { X = cell.x, Z = cell.z }, hostiles, colonists, null)] };
+                if (!pawns.TryGetValue(rescue.Pawn.Value, out var walker)) throw new GeometryRefused("Pawn " + rescue.Pawn.Value + " is not spawned on the map.");
+                foreach (var cell in Route(map, walker, InBounds(map, rescue.To)).Take(MaxCells - request.Cells.Count))
+                    proposed.Add(Score(map, cell, hostiles, colonists));
             }
             else if (request.Propose != null)
             {
                 var named = new HashSet<IntVec3>(request.Cells.Select(w => new IntVec3(w.X, 0, w.Z)));
                 foreach (var cell in Propose(map, request.Propose, hostiles, named).Take(MaxCells - request.Cells.Count))
-                    observed = observed with { Proposed = [.. observed.Proposed, Score(map, cell, new Common.Cell { X = cell.x, Z = cell.z }, hostiles, colonists, walker)] };
+                    proposed.Add(Score(map, cell, hostiles, colonists));
             }
-            observed = observed with { MainThreadMs = clock.Elapsed.TotalMilliseconds };
-            return observed;
+            return new Mirror.CombatGeometry { Context = context, Cells = [.. cells], Proposed = [.. proposed], MainThreadMs = clock.Elapsed.TotalMilliseconds };
         }
 
-        private static IntVec3 InBounds(Map map, Common.Cell? wire)
+        private static IntVec3 InBounds(Map map, Common.Cell wire)
         {
-            if (wire is null) throw new GeometryRefused("A cell is required.");
             var cell = new IntVec3(wire.X, 0, wire.Z);
             if (!cell.InBounds(map)) throw new GeometryRefused("Cell " + wire.X + "," + wire.Z + " is out of bounds.");
             return cell;
@@ -140,9 +133,9 @@ namespace HomeBridge.BridgeTools
         private static IEnumerable<IntVec3> Propose(Map map, Mirror.CombatGeometryPropose propose, List<Pawn> hostiles, HashSet<IntVec3> named)
         {
             bool Candidate(IntVec3 c) => c.InBounds(map) && !named.Contains(c) && c.Standable(map);
-            switch (propose.Role)
+            switch (propose)
             {
-                case Mirror.CombatGeometryProposeRole.CoverBehindLineCase { Value: var coverBehind }:
+                case Mirror.CombatGeometryPropose.CoverBehindLine coverBehind:
                 {
                     var line = coverBehind.Line.Select(w => InBounds(map, w)).ToList();
                     var onLine = new HashSet<IntVec3>(line);
@@ -151,7 +144,7 @@ namespace HomeBridge.BridgeTools
                         .Select(c => (cell: c, cover: BestCover(map, c, hostiles))).Where(t => t.cover > 0f).ToList()
                         .OrderByDescending(t => t.cover).ThenBy(t => DistanceTo(t.cell, line)).ThenBy(t => t.cell.x).ThenBy(t => t.cell.z).Select(t => t.cell);
                 }
-                case Mirror.CombatGeometryProposeRole.AdjacentToChokeCase { Value: var adjacent }:
+                case Mirror.CombatGeometryPropose.AdjacentToChoke adjacent:
                 {
                     var choke = InBounds(map, adjacent.Choke);
                     var side = InBounds(map, adjacent.OurSide);
@@ -159,9 +152,9 @@ namespace HomeBridge.BridgeTools
                     return GenAdj.AdjacentCells.Select(d => choke + d).Where(c => Candidate(c) && c.DistanceToSquared(side) < limit).ToList()
                         .OrderBy(c => c.DistanceToSquared(side)).ThenBy(c => c.x).ThenBy(c => c.z);
                 }
-                case Mirror.CombatGeometryProposeRole.FiringCellsCase { Value: var f }:
+                case Mirror.CombatGeometryPropose.FiringCells f:
                 {
-                    var radius = f.Radius.GetValueOrDefault();
+                    var radius = f.Radius;
                     var from = InBounds(map, f.From);
                     var targets = f.Targets.Select(w => InBounds(map, w)).ToList();
                     var found = new List<(IntVec3 cell, int sight, float cover)>();
@@ -199,26 +192,24 @@ namespace HomeBridge.BridgeTools
             return route;
         }
 
-        private static Mirror.CombatGeometryCell Score(Map map, IntVec3 cell, Common.Cell wire, List<Pawn> hostiles, HashSet<IntVec3> colonists, Pawn? walker)
+        private static Mirror.CombatGeometryCell Score(Map map, IntVec3 cell, List<Pawn> hostiles, HashSet<IntVec3> colonists)
         {
-            var row = new Mirror.CombatGeometryCell { Cell = wire, Standable = cell.Standable(map) };
-            row = row with { Door = cell.GetEdifice(map) is Building_Door door && door.Faction == Faction.OfPlayerSilentFail };
-                foreach (var h in hostiles)
-                {
-                    var line = new Mirror.CombatSightLine { HostileId = CombatMirror.LoadId(h),
-                        Cover = CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(cell), h.Position, map),
-                        HostileCover = CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(h.Position), cell, map),
-                        LineOfFire = GenSight.LineOfSight(cell, h.Position, map, true) };
-                    line = line with { ColonistInPath = GenSight.PointsOnLineOfSight(cell, h.Position).Any(p => p != cell && p != h.Position && colonists.Contains(p)) };
-                    row = row with { Lines = [.. row.Lines, line] };
-                    if (line.LineOfFire.GetValueOrDefault()) row = row with { HostileLineOfFire = true };
-                }
-                if (walker != null)
-                {
-                    using (var path = map.pathFinder.FindPathNow(walker.Position, new LocalTargetInfo(cell), TraverseParms.For(walker, Danger.Deadly), peMode: PathEndMode.OnCell))
-                        if (path.Found) row = row with { PathTicks = (int)Math.Min(int.MaxValue, path.TotalCost) };
-                }
-                return row;
+            var lines = hostiles.Select(h => new Mirror.CombatSightLine
+            {
+                HostileId = new PawnId(CombatMirror.LoadId(h)),
+                Cover = CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(cell), h.Position, map),
+                HostileCover = CoverUtility.CalculateOverallBlockChance(new LocalTargetInfo(h.Position), cell, map),
+                LineOfFire = GenSight.LineOfSight(cell, h.Position, map, true),
+                ColonistInPath = GenSight.PointsOnLineOfSight(cell, h.Position).Any(p => p != cell && p != h.Position && colonists.Contains(p)),
+            }).ToList();
+            return new Mirror.CombatGeometryCell
+            {
+                Cell = new Common.Cell { X = cell.x, Z = cell.z },
+                Lines = [.. lines],
+                Standable = cell.Standable(map),
+                HostileLineOfFire = lines.Any(l => l.LineOfFire),
+                Door = cell.GetEdifice(map) is Building_Door door && door.Faction == Faction.OfPlayerSilentFail,
+            };
         }
     }
 }

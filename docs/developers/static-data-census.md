@@ -196,7 +196,7 @@ Kept, reason recorded:
 | NativeClockRuntime.cs | 549 | state | Clock epoch runtime: leases, speed, pause holds, colony event publishing and authority. |  |  |
 | NativeClockTools.cs | 150 | state | Tool handlers for clock start/change-speed/status. |  |  |
 | NativeColonyObservationTools.cs | 558 | mixed | Reads the whole colony facts frame (food, power, wealth, crops, conditions) from live game state. | CropDefs DefDatabase enumeration (conduit list deleted, #2657) | kept, see the #2657 disposition |
-| NativeCombatGeometryTools.cs | 234 | code | Combat geometry read: cover, line of fire and path ticks via CoverUtility/GenSight/pathfinder. |  |  |
+| NativeCombatGeometryTools.cs | 214 | code | Combat geometry read: cover, line of fire and the rescue route via CoverUtility/GenSight/pathfinder. |  |  |
 | NativeCombatOperations.cs | 47 | code | Attack rules: picks melee or ranged attack job per vanilla float-menu logic. |  |  |
 | NativeCombatOrders.cs | 488 | state | Applies a batch of combat micro orders (draft, goto, attack, rescue, repair, mortar, animal orders). |  |  |
 | NativeCommsTradeRequests.cs | 122 | mixed | Executes trader requests through the real comms console job with eligibility checks. | goodwill cost -30/-15 and cooldown 900000/240000 ticks hardcoded for orbital vs caravan requests | GameConstants (#2626): trader request goodwill costs and cooldown ticks |

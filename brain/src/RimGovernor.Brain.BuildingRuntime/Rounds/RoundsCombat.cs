@@ -246,13 +246,11 @@ partial class RoundsDefensePlanner
         M.CombatGeometryPropose? propose = null;
         if (ask.Propose == FormationRole.CoverBehindLine)
         {
-            var cover = new M.CombatCoverBehindLine();
-            cover = cover with { Line = [.. cover.Line, .. line] };
-            propose = new M.CombatGeometryPropose { Role = cover };
+            propose = new M.CombatGeometryPropose.CoverBehindLine { Line = [.. line] };
         }
         else if (ask.Propose == FormationRole.AdjacentToChoke)
         {
-            propose = new M.CombatGeometryPropose { Role = new M.CombatAdjacentToChoke { Choke = Wire(ask.Choke), OurSide = Wire(ask.OurSide) } };
+            propose = new M.CombatGeometryPropose.AdjacentToChoke { Choke = Wire(ask.Choke), OurSide = Wire(ask.OurSide) };
         }
         else if (ask.Propose == FormationRole.FiringCells)
         {
@@ -261,9 +259,7 @@ partial class RoundsDefensePlanner
             {
                 targets = targets.Take(CombatConstants.CombatGeometryMaxHostiles).ToList();
             }
-            var firing = new M.CombatFiringCells { From = Wire(ask.From), Radius = CombatConstants.CombatGeometryMaxRadius };
-            firing = firing with { Targets = [.. firing.Targets, .. targets] };
-            propose = new M.CombatGeometryPropose { Role = firing };
+            propose = new M.CombatGeometryPropose.FiringCells { From = Wire(ask.From), Radius = CombatConstants.CombatGeometryMaxRadius, Targets = [.. targets] };
         }
         reply = reply with { Role = ask.Propose };
         var named = ask.Line.ToList();
@@ -287,10 +283,7 @@ partial class RoundsDefensePlanner
         {
             return reply;
         }
-        var cells = named.Select(Wire).ToList();
-        var hostiles = ask.Hostiles.Select(h => h.Value).ToList();
-        var request = CombatCalls.CombatGeometryAsk(identity, cells, hostiles, "");
-        request = request with { Propose = propose };
+        var request = new M.CombatGeometryRequest { Identity = identity, Cells = [.. named.Select(Wire)], HostileIds = [.. ask.Hostiles], Propose = propose };
         M.CombatGeometry geometry;
         try
         {
@@ -305,30 +298,26 @@ partial class RoundsDefensePlanner
         var proposals = new List<Cell>();
         foreach (var row in geometry.Cells)
         {
-            if (row.Cell is { } cell && row.Standable.GetValueOrDefault())
+            if (row.Standable)
             {
-                standable.Add(new Cell(cell.X, cell.Z));
+                standable.Add(new Cell(row.Cell.X, row.Cell.Z));
             }
         }
         foreach (var row in geometry.Proposed)
         {
-            if (row.Cell is { } cell)
-            {
-                proposals.Add(new Cell(cell.X, cell.Z));
-                standable.Add(new Cell(cell.X, cell.Z));
-            }
+            proposals.Add(new Cell(row.Cell.X, row.Cell.Z));
+            standable.Add(new Cell(row.Cell.X, row.Cell.Z));
         }
         var sightLines = new List<SightLine>();
         var scoredCells = new List<ScoredCell>();
         foreach (var row in geometry.Cells.Concat(geometry.Proposed).ToList())
         {
-            var scoredAt = new Cell(row.Cell?.X ?? 0, row.Cell?.Z ?? 0);
+            var scoredAt = new Cell(row.Cell.X, row.Cell.Z);
             var coverLines = new List<CoverLine>();
             foreach (var l in row.Lines)
             {
-                var hostile = new PawnId((l.HostileId ?? ""));
-                coverLines.Add(new CoverLine { Cover = l.Cover.GetValueOrDefault(), HostileCover = l.HostileCover.GetValueOrDefault(), LineOfFire = l.LineOfFire.GetValueOrDefault() });
-                sightLines.Add(new SightLine { Cell = scoredAt, Hostile = hostile, LineOfFire = l.LineOfFire.GetValueOrDefault(), ColonistInPath = l.ColonistInPath.GetValueOrDefault() });
+                coverLines.Add(new CoverLine { Cover = l.Cover, HostileCover = l.HostileCover, LineOfFire = l.LineOfFire });
+                sightLines.Add(new SightLine { Cell = scoredAt, Hostile = l.HostileId, LineOfFire = l.LineOfFire, ColonistInPath = l.ColonistInPath });
             }
             scoredCells.Add(new ScoredCell { Cell = scoredAt, Lines = [.. coverLines] });
         }
@@ -342,12 +331,11 @@ partial class RoundsDefensePlanner
         {
             return reply;
         }
-        var hostiles = ask.Hostiles.Select(h => h.Value).ToList();
-        var propose = new M.CombatGeometryPropose { Role = new M.CombatRescuePath { To = new C.Cell { X = ask.To.X, Z = ask.To.Z } } };
+        var propose = new M.CombatGeometryPropose.RescuePath { Pawn = ask.Pawn, To = new C.Cell { X = ask.To.X, Z = ask.To.Z } };
         M.CombatGeometry geometry;
         try
         {
-            geometry = read(CombatCalls.CombatGeometryProposeAsk(identity, propose, hostiles, ask.Pawn.Value));
+            geometry = read(new M.CombatGeometryRequest { Identity = identity, Cells = [], HostileIds = [.. ask.Hostiles], Propose = propose });
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -357,10 +345,7 @@ partial class RoundsDefensePlanner
         var route = new List<RouteCell>();
         foreach (var row in geometry.Proposed)
         {
-            if (row.Cell is { } cell)
-            {
-                route.Add(new RouteCell { Cell = new Cell(cell.X, cell.Z), LineOfFire = row.HostileLineOfFire.GetValueOrDefault(), Door = row.Door.GetValueOrDefault() });
-            }
+            route.Add(new RouteCell { Cell = new Cell(row.Cell.X, row.Cell.Z), LineOfFire = row.HostileLineOfFire, Door = row.Door });
         }
         return reply with { Route = [.. route] };
     }

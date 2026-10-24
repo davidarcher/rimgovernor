@@ -200,7 +200,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.ClearanceTargetsSnapshot> ReadClearanceTargetsAsync(Obs.ClearanceTargetsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadClearanceTargets, request, () => NativeClearanceObservationTools.HandleRead(request), cancellationToken);
 
-        public Task<Mirror.CombatGeometryReply> ReadCombatGeometryAsync(Mirror.CombatGeometryRequest request, CancellationToken cancellationToken)
+        public Task<Mirror.CombatGeometry> ReadCombatGeometryAsync(Mirror.CombatGeometryRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadCombatGeometry, request, () => NativeCombatGeometryTools.HandleRead(request), cancellationToken);
 
         public Task<Obs.ConsumptionSnapshot> ReadConsumptionAsync(Obs.ConsumptionRequest request, CancellationToken cancellationToken)

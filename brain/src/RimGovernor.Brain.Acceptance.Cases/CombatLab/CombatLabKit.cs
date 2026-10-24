@@ -139,13 +139,11 @@ internal static class CombatLabKit
             ?? throw new AcceptanceException($"{label}: no player building at {Show(cell)}");
     }
 
-    /// <summary>A geometry read of <paramref name="request"/> (its identity filled in), checked against its request.</summary>
+    /// <summary>A geometry read of <paramref name="request"/>, checked against its request.</summary>
     internal static async Task<Mirror.CombatGeometry> GeometryAsync(TypedSession s, string label, Mirror.CombatGeometryRequest request, CancellationToken cancellationToken)
     {
-        var asked = request with { Identity = s.Identity };
-        var reply = await s.CallAsync(label, NativeOps.ReadCombatGeometry, asked, cancellationToken).ConfigureAwait(false);
-        var g = reply.Outcome?.Observed ?? throw new AcceptanceException($"{label}: combat geometry not observed: {reply.Outcome}");
-        CombatGeometryContract.Validate(label, g, asked);
+        var g = await s.CallAsync(label, NativeOps.ReadCombatGeometry, request, cancellationToken).ConfigureAwait(false);
+        CombatGeometryContract.Validate(label, g, request);
         s.RecordWire(label, g);
         return g;
     }
@@ -158,6 +156,9 @@ internal static class CombatLabKit
     }
 
     /// <summary>A cell as text.</summary>
+    /// <summary>Load ids as a geometry request's hostile ids.</summary>
+    internal static RimGovernor.Brain.Domain.EquatableArray<RimGovernor.Brain.Domain.PawnId> PawnIds(IEnumerable<string> ids) => [.. ids.Select(id => new RimGovernor.Brain.Domain.PawnId(id))];
+
     internal static string Show(Common.Cell? c) => c is null ? "<none>" : string.Create(CultureInfo.InvariantCulture, $"({c.X},{c.Z})");
 
     /// <summary>The Chebyshev distance between two cells.</summary>
@@ -342,13 +343,13 @@ internal static class CombatGeometryContract
     internal const double BudgetMs = 50.0;
 
     /// <summary>
-    /// The request's world, every cell in order with every hostile's line in order and cover in 0..1, path ticks only
-    /// with a pawn, and proposals only for a propose block: standable, distinct from each other and the named cells
+    /// The request's world, every cell in order with every hostile's line in order and cover in 0..1, and proposals
+    /// only for a propose block: standable, distinct from each other and the named cells
     /// (a rescue route excepted), within the cells cap.
     /// </summary>
     internal static void Validate(string label, Mirror.CombatGeometry g, Mirror.CombatGeometryRequest request)
     {
-        if (g.Context?.Identity != request.Identity)
+        if (g.Context.Identity != request.Identity)
         {
             throw Contract(label, "combat geometry world mismatch");
         }
@@ -386,12 +387,12 @@ internal static class CombatGeometryContract
             throw Contract(label, "combat geometry proposals over the cells cap");
         }
 
-        var route = request.Propose.Role?.RescuePath is not null;
+        var route = request.Propose is Mirror.CombatGeometryPropose.RescuePath;
         for (var i = 0; i < g.Proposed.Count; i++)
         {
             var row = g.Proposed[i];
             var valid = row.Cell is { X: >= 0, Z: >= 0 };
-            if (!valid || (!route && (row.Standable != true || !seen.Add(Key(row.Cell)))))
+            if (!valid || (!route && (!row.Standable || !seen.Add(Key(row.Cell)))))
             {
                 throw Contract(label, $"combat geometry proposal {i} invalid or repeated");
             }
@@ -412,15 +413,10 @@ internal static class CombatGeometryContract
             throw Contract(label, $"combat geometry cell {i} lines off its request");
         }
 
-        if (row.PathTicks is { } ticks && (request.PawnId is null || ticks < 0))
-        {
-            throw Contract(label, "combat geometry path ticks without a pawn");
-        }
-
         for (var j = 0; j < row.Lines.Count; j++)
         {
             var line = row.Lines[j];
-            if (line.HostileId != request.HostileIds[j] || line.Cover is not { } cover || double.IsNaN(cover) || cover < 0 || cover > 1)
+            if (line.HostileId != request.HostileIds[j] || double.IsNaN(line.Cover) || line.Cover < 0 || line.Cover > 1)
             {
                 throw Contract(label, $"combat geometry line {i}.{j} invalid");
             }

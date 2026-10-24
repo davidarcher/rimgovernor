@@ -5,7 +5,7 @@ using Receipt = RimGovernor.Contracts.Wire.Receipts.Receipt;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// CombatGeometryAsk, CombatGeometryProposeAsk and MaxConcurrentCalls. The
+// MaxConcurrentCalls, the pods arrival and the combat order results. The
 // RecordCombatOrder telemetry row is the caller's: the redesigned telemetry facade takes its emitter by instance.
 public static class CombatCalls
 {
@@ -48,29 +48,5 @@ public static class CombatCalls
             output.Add(new CombatOrderResult { Index = i, PawnId = v.PawnId ?? "", Applied = v.Applied.GetValueOrDefault(), Refusal = v.Refusal ?? "", JobDef = v.JobDef ?? "" });
         }
         return output;
-    }
-
-    /// <summary>A request for <paramref name="identity"/>'s cells and hostiles.</summary>
-    public static CombatGeometryRequest CombatGeometryAsk(Identity identity, IEnumerable<Cell> cells, IEnumerable<string> hostiles, string pawnId)
-    {
-        var request = new CombatGeometryRequest { Identity = identity };
-        request = request with { Cells = [.. request.Cells, .. cells] };
-        request = request with { HostileIds = [.. request.HostileIds, .. hostiles] };
-        if (pawnId.Length != 0)
-        {
-            request = request with { PawnId = pawnId };
-        }
-        return request;
-    }
-
-    /// <summary>
-    /// A request whose cells are all proposed by the native for
-    /// <paramref name="propose"/>'s role, scored against <paramref name="hostiles"/>.
-    /// </summary>
-    public static CombatGeometryRequest CombatGeometryProposeAsk(Identity identity, CombatGeometryPropose propose, IEnumerable<string> hostiles, string pawnId)
-    {
-        var request = CombatGeometryAsk(identity, [], hostiles, pawnId);
-        request = request with { Propose = propose };
-        return request;
     }
 }

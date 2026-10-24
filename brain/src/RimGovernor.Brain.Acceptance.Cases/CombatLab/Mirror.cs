@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>combatlab/mirror</c> (#851, #858, #871, #881): the combat frame sections and combat_geometry on lab-ranged plus a
-/// choke room. Geometry reads the staged layout (cover, line of fire, colonist in path, path ticks, the caps' timing, the
+/// choke room. Geometry reads the staged layout (cover, line of fire, colonist in path, the caps' timing, the
 /// cover_behind_line, firing_cells and adjacent_to_choke proposals); a frame lists every rifleman and raider with a rifle;
 /// and the firefight's first downing or death arrives as a combat_events row with the pawn's row agreeing.
 /// </summary>
@@ -45,7 +45,7 @@ internal static class CombatLabMirror
         Name = "combatlab/mirror",
         Scope = "Combat frame sections (#851, #858) and combat_geometry on lab-ranged plus a lab-choke room: on the staged layout combat_geometry "
             + "gives a sandbagged rifleman cover against the raider north of him, an open cell none, line of fire to the raider, a colonist in the "
-            + "path from the cell behind a rifleman and path ticks for a named pawn; a read at 64 cells x 8 pawns projects under 50 ms of main thread "
+            + "path from the cell behind a rifleman; a read at 64 cells x 8 pawns projects under 50 ms of main thread "
             + "at the caps; cover_behind_line on the sandbags proposes every cell behind them, a firing_cells proposal at the radius cap fills 64 cells "
             + "within budget (#871), and adjacent_to_choke on the room's gap proposes exactly its three inner cells, the one straight behind first "
             + "(#881). A frame's combat_pawns lists the 4 riflemen and 4 raiders with rifles, and the firefight's first downing or death arrives as a "
@@ -91,9 +91,9 @@ internal static class CombatLabMirror
         var colonists = lab.Colonists();
         var g = await CombatLabKit.GeometryAsync(s, "geometry", new Mirror.CombatGeometryRequest
         {
+            Identity = s.Identity,
             Cells = [at, Offset(at, -12, 0), Offset(at, 0, -2)],
-            HostileIds = [hostiles[0]],
-            PawnId = colonists[1],
+            HostileIds = CombatLabKit.PawnIds([hostiles[0]]),
         }, cancellationToken).ConfigureAwait(false);
         var (sandbagged, bare, back) = (g.Cells[0].Lines[0], g.Cells[1].Lines[0], g.Cells[2].Lines[0]);
         if (sandbagged is not { Cover: > 0, LineOfFire: true } || sandbagged.ColonistInPath == true
@@ -102,13 +102,8 @@ internal static class CombatLabMirror
             throw new AcceptanceException($"geometry answers off lab-ranged's layout: sandbagged {sandbagged}, open {bare}, behind {back}");
         }
 
-        if (g.Cells[1].PathTicks is not > 0)
-        {
-            throw new AcceptanceException($"no path ticks to the open cell: {g.Cells[1]}");
-        }
-
         // The timing: every staged pawn as a target (the read does not care which side a target is on) against the
-        // cells cap of cells around the line, with path ticks.
+        // cells cap of cells around the line.
         var targets = hostiles.Concat(colonists).ToList();
         var cells = new List<Common.Cell>();
         for (var dz = 0; cells.Count < CombatGeometryContract.MaxCells; dz++)
@@ -119,7 +114,7 @@ internal static class CombatLabMirror
             }
         }
 
-        var worst = await WorstMsAsync(s, "geometry-cap", new Mirror.CombatGeometryRequest { Cells = [.. cells], HostileIds = [.. targets], PawnId = colonists[1] }, _ => { }, cancellationToken).ConfigureAwait(false);
+        var worst = await WorstMsAsync(s, "geometry-cap", new Mirror.CombatGeometryRequest { Identity = s.Identity, Cells = [.. cells], HostileIds = CombatLabKit.PawnIds(targets) }, _ => { }, cancellationToken).ConfigureAwait(false);
         var projected = worst / (cells.Count * targets.Count) * CombatGeometryContract.MaxCells * CombatGeometryContract.MaxHostiles;
         s.Record("geometry_timing", CombatLabKit.Obj(("cells", cells.Count), ("targets", targets.Count), ("worst_ms", worst), ("projected_at_caps_ms", projected)));
         if (projected > CombatGeometryContract.BudgetMs)
@@ -135,8 +130,10 @@ internal static class CombatLabMirror
         var line = Fixture.Things.Where(t => t.Def == "Sandbags").Select(t => lab.At(t.X, t.Z)).ToList();
         var cover = await CombatLabKit.GeometryAsync(s, "propose-cover", new Mirror.CombatGeometryRequest
         {
-            HostileIds = [.. lab.Hostiles()],
-            Propose = new Mirror.CombatGeometryPropose { Role = new Mirror.CombatCoverBehindLine { Line = [.. line] } },
+            Identity = s.Identity,
+            Cells = [],
+            HostileIds = CombatLabKit.PawnIds(lab.Hostiles()),
+            Propose = new Mirror.CombatGeometryPropose.CoverBehindLine { Line = [.. line] },
         }, cancellationToken).ConfigureAwait(false);
         var proposed = CombatGeometryContract.Cells(cover.Proposed);
         var missed = line.Select(c => (c.X, c.Z - 1)).Where(c => !proposed.Contains(c)).ToList();
@@ -149,16 +146,14 @@ internal static class CombatLabMirror
         var pawns = lab.Hostiles().Concat(lab.Colonists()).ToList();
         var firing = new Mirror.CombatGeometryRequest
         {
-            HostileIds = [.. pawns],
-            PawnId = lab.Colonists()[1],
-            Propose = new Mirror.CombatGeometryPropose
+            Identity = s.Identity,
+            Cells = [],
+            HostileIds = CombatLabKit.PawnIds(pawns),
+            Propose = new Mirror.CombatGeometryPropose.FiringCells
             {
-                Role = new Mirror.CombatFiringCells
-                {
-                    Targets = [.. Fixture.Pawns.Select(p => lab.At(p.X, p.Z))],
-                    From = lab.At(rifleman.X, rifleman.Z - 3),
-                    Radius = CombatGeometryContract.MaxRadius,
-                },
+                Targets = [.. Fixture.Pawns.Select(p => lab.At(p.X, p.Z))],
+                From = lab.At(rifleman.X, rifleman.Z - 3),
+                Radius = CombatGeometryContract.MaxRadius,
             },
         };
         var worst = await WorstMsAsync(s, "propose-cap", firing, g =>
@@ -185,8 +180,10 @@ internal static class CombatLabMirror
         var gap = lab.Cell(ChokeDx, ChokeDz + CombatFixtures.ChokeHalf);
         var g = await CombatLabKit.GeometryAsync(s, "propose-choke", new Mirror.CombatGeometryRequest
         {
-            HostileIds = [.. lab.Hostiles()],
-            Propose = new Mirror.CombatGeometryPropose { Role = new Mirror.CombatAdjacentToChoke { Choke = gap, OurSide = Offset(gap, 0, -3) } },
+            Identity = s.Identity,
+            Cells = [],
+            HostileIds = CombatLabKit.PawnIds(lab.Hostiles()),
+            Propose = new Mirror.CombatGeometryPropose.AdjacentToChoke { Choke = gap, OurSide = Offset(gap, 0, -3) },
         }, cancellationToken).ConfigureAwait(false);
         var inside = Offset(gap, 0, -1);
         var want = new HashSet<(int, int)> { CombatGeometryContract.Key(inside), CombatGeometryContract.Key(Offset(inside, -1, 0)), CombatGeometryContract.Key(Offset(inside, 1, 0)) };
@@ -205,7 +202,7 @@ internal static class CombatLabMirror
         {
             var g = await CombatLabKit.GeometryAsync(s, $"{label}-{i}", request, cancellationToken).ConfigureAwait(false);
             check(g);
-            worst = Math.Max(worst, g.MainThreadMs ?? 0);
+            worst = Math.Max(worst, g.MainThreadMs);
         }
 
         return worst;

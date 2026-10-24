@@ -347,7 +347,7 @@ Contracts/Json/FactJsonConverter.cs|Fact|5
 Contracts/Json/ObservedNeedsJsonConverter.cs|Fact|5
 Contracts/Lifecycle.cs|NullableValue|42
 Contracts/Lifecycle.cs|UnknownMember|6
-Contracts/Mirror.cs|NullableValue|34
+Contracts/Mirror.cs|NullableValue|24
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|3
 Contracts/Observations.cs|NullableValue|268

@@ -131,7 +131,7 @@ public interface INativeFacade
 
     Task<Obs.ClearanceTargetsSnapshot> ReadClearanceTargetsAsync(Obs.ClearanceTargetsRequest request, CancellationToken cancellationToken);
 
-    Task<Mirror.CombatGeometryReply> ReadCombatGeometryAsync(Mirror.CombatGeometryRequest request, CancellationToken cancellationToken);
+    Task<Mirror.CombatGeometry> ReadCombatGeometryAsync(Mirror.CombatGeometryRequest request, CancellationToken cancellationToken);
 
     Task<Obs.ConsumptionSnapshot> ReadConsumptionAsync(Obs.ConsumptionRequest request, CancellationToken cancellationToken);
 

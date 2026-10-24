@@ -298,156 +298,97 @@ public sealed record CombatEventRow
 }
 
 /// <summary>
-/// rimgovernor/combat_geometry: an on-demand read, not mirrored, that
-/// answers DecideCombat's geometry questions at a stop by the game's own
-/// rules. Caps: at most MaxGeometryCells cells and MaxGeometryHostiles
-/// hostiles (the native's CombatGeometry constants, bridge.CombatGeometry*),
-/// measured on lab-ranged under the 50 ms main-thread budget.
+/// rimgovernor/combat_geometry: an on-demand read, not mirrored, that answers DecideCombat's geometry questions at a
+/// stop by the game's own rules. Caps: at most MaxGeometryCells cells and MaxGeometryHostiles hostiles (the native's
+/// CombatGeometry constants, bridge.CombatGeometry*), measured on lab-ranged under the 50 ms main-thread budget. A
+/// request the native cannot answer (a bad shape, a stale identity, a hostile or pawn not spawned, a cell out of
+/// bounds) is refused; the reply is always the whole geometry.
 /// </summary>
 public sealed record CombatGeometryRequest
 {
-    /// <summary>
-    /// required
-    /// </summary>
-    public Common.Identity? Identity { get; init; }
+    public required Common.Identity Identity { get; init; }
 
     /// <summary>
-    /// 1..cap, distinct, in bounds; 0..cap with propose. Named plus proposed
-    /// cells together score at most the cells cap.
+    /// 1..cap distinct, in-bounds cells; 0..cap-1 with a propose block (named plus proposed cells together score at
+    /// most the cells cap).
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Cells { get; init; }
+    public required EquatableArray<Common.Cell> Cells { get; init; }
 
-    /// <summary>
-    /// 1..cap, distinct pawn load ids; 0..cap for named cells alone (their
-    /// standability), with no propose and no pawn.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> HostileIds { get; init; }
+    /// <summary>1..cap distinct pawn load ids; 0..cap for named cells alone (their standability), with no propose.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> HostileIds { get; init; }
 
-    /// <summary>
-    /// optional: path ticks for this pawn to each cell
-    /// </summary>
-    public string? PawnId { get; init; }
-
-    /// <summary>
-    /// Optional: the native proposes candidate cells for one role and
-    /// scores them like named cells, in the same read.
-    /// </summary>
+    /// <summary>The role the native proposes candidate cells for, scored like named cells in the same read; none for named cells alone.</summary>
     public CombatGeometryPropose? Propose { get; init; }
 }
 
 /// <summary>
-/// A role and its anchor. Every proposal is a standable, in-bounds
-/// cell not among the named cells, scored against the request's hostiles,
-/// ranked best first, at most the cells cap minus the named cells (so a
-/// propose request names at most cap-1 cells). Anchor cells are in bounds.
+/// A role and its anchor. Every proposal is a standable, in-bounds cell not among the named cells (a rescue route
+/// excepted), scored against the request's hostiles, ranked best first, at most the cells cap minus the named cells.
+/// Anchor cells are in bounds.
 /// </summary>
-public sealed record CombatGeometryPropose
-{
-    public CombatGeometryProposeRole? Role { get; init; }
-}
-
-/// <summary>The <c>role</c> choice of <see cref="CombatGeometryPropose"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(CombatGeometryProposeRole.CoverBehindLineCase), "coverBehindLine")]
-[JsonDerivedType(typeof(CombatGeometryProposeRole.AdjacentToChokeCase), "adjacentToChoke")]
-[JsonDerivedType(typeof(CombatGeometryProposeRole.FiringCellsCase), "firingCells")]
-[JsonDerivedType(typeof(CombatGeometryProposeRole.RescuePathCase), "rescuePath")]
-public abstract record CombatGeometryProposeRole
+[JsonDerivedType(typeof(CoverBehindLine), "coverBehindLine")]
+[JsonDerivedType(typeof(AdjacentToChoke), "adjacentToChoke")]
+[JsonDerivedType(typeof(FiringCells), "firingCells")]
+[JsonDerivedType(typeof(RescuePath), "rescuePath")]
+public abstract record CombatGeometryPropose
 {
-    private protected CombatGeometryProposeRole() { }
-
-    public sealed record CoverBehindLineCase(CombatCoverBehindLine Value) : CombatGeometryProposeRole;
-
-    public static implicit operator CombatGeometryProposeRole(CombatCoverBehindLine value) => new CoverBehindLineCase(value);
-
-    public sealed record AdjacentToChokeCase(CombatAdjacentToChoke Value) : CombatGeometryProposeRole;
-
-    public static implicit operator CombatGeometryProposeRole(CombatAdjacentToChoke value) => new AdjacentToChokeCase(value);
-
-    public sealed record FiringCellsCase(CombatFiringCells Value) : CombatGeometryProposeRole;
-
-    public static implicit operator CombatGeometryProposeRole(CombatFiringCells value) => new FiringCellsCase(value);
-
-    /// <summary>The <c>RescuePath</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CombatRescuePath? RescuePath => (this as RescuePathCase)?.Value;
-
-    public sealed record RescuePathCase(CombatRescuePath Value) : CombatGeometryProposeRole;
-
-    public static implicit operator CombatGeometryProposeRole(CombatRescuePath value) => new RescuePathCase(value);
-}
-
-/// <summary>
-/// The request pawn's route to `to`, from the game pathfinder
-/// (TraverseParms.For(pawn, Danger.Deadly), touch end), in walking order,
-/// start cell excluded; each cell scored and flagged hostile_line_of_fire
-/// and door. Needs pawn_id. Not ranked and not filtered by standable or the
-/// named cells; a route longer than the cap is cut, so the last cell is
-/// then not next to `to`. No path: no proposals.
-/// </summary>
-public sealed record CombatRescuePath
-{
-    /// <summary>
-    /// required: the downed pawn's cell
-    /// </summary>
-    public Common.Cell? To { get; init; }
-}
-
-/// <summary>
-/// Cells within one step (8-way) of the line, not on it, whose best cover
-/// against the named hostiles (CoverUtility) is above zero; ranked by that
-/// cover, then by distance to the line.
-/// </summary>
-public sealed record CombatCoverBehindLine
-{
-    /// <summary>
-    /// 1..cells cap, distinct
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Line { get; init; }
-}
-
-/// <summary>
-/// The choke's 8-way neighbours strictly nearer our_side than the choke;
-/// ranked by distance to our_side.
-/// </summary>
-public sealed record CombatAdjacentToChoke
-{
-    /// <summary>
-    /// required
-    /// </summary>
-    public Common.Cell? Choke { get; init; }
+    private CombatGeometryPropose()
+    {
+    }
 
     /// <summary>
-    /// required: any cell on our side
+    /// Cells within one step (8-way) of the line, not on it, whose best cover against the named hostiles
+    /// (CoverUtility) is above zero; ranked by that cover, then by distance to the line.
     /// </summary>
-    public Common.Cell? OurSide { get; init; }
-}
+    public sealed record CoverBehindLine : CombatGeometryPropose
+    {
+        /// <summary>1..cells cap, distinct.</summary>
+        [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
+        public required EquatableArray<Common.Cell> Line { get; init; }
+    }
 
-/// <summary>
-/// Cells within radius of from with line of fire (GenSight) to at least
-/// one target; ranked by targets in sight, then best cover, then distance
-/// to from.
-/// </summary>
-public sealed record CombatFiringCells
-{
-    /// <summary>
-    /// 1..hostiles cap, distinct
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Targets { get; init; }
+    /// <summary>The choke's 8-way neighbours strictly nearer our_side than the choke; ranked by distance to our_side.</summary>
+    public sealed record AdjacentToChoke : CombatGeometryPropose
+    {
+        public required Common.Cell Choke { get; init; }
 
-    /// <summary>
-    /// required
-    /// </summary>
-    public Common.Cell? From { get; init; }
+        /// <summary>Any cell on our side, distinct from the choke.</summary>
+        public required Common.Cell OurSide { get; init; }
+    }
 
     /// <summary>
-    /// required, 1..12
+    /// Cells within radius of from with line of fire (GenSight) to at least one target; ranked by targets in sight,
+    /// then best cover, then distance to from.
     /// </summary>
-    public int? Radius { get; init; }
+    public sealed record FiringCells : CombatGeometryPropose
+    {
+        /// <summary>1..hostiles cap, distinct.</summary>
+        [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
+        public required EquatableArray<Common.Cell> Targets { get; init; }
+
+        public required Common.Cell From { get; init; }
+
+        /// <summary>1..12.</summary>
+        public required int Radius { get; init; }
+    }
+
+    /// <summary>
+    /// The pawn's route to <see cref="To"/>, from the game pathfinder (TraverseParms.For(pawn, Danger.Deadly), touch
+    /// end), in walking order, start cell excluded; each cell scored and flagged hostile_line_of_fire and door. Not
+    /// ranked and not filtered by standable or the named cells; a route longer than the cap is cut, so the last cell is
+    /// then not next to <see cref="To"/>. No path: no proposals.
+    /// </summary>
+    public sealed record RescuePath : CombatGeometryPropose
+    {
+        /// <summary>The rescuer.</summary>
+        public required PawnId Pawn { get; init; }
+
+        /// <summary>The downed pawn's cell.</summary>
+        public required Common.Cell To { get; init; }
+    }
 }
 
 /// <summary>
@@ -455,111 +396,73 @@ public sealed record CombatFiringCells
 /// </summary>
 public sealed record CombatSightLine
 {
-    public string? HostileId { get; init; }
+    public required PawnId HostileId { get; init; }
 
     /// <summary>
-    /// CoverUtility.CalculateOverallBlockChance at the cell against a shot
-    /// from the hostile's cell, 0..1.
+    /// CoverUtility.CalculateOverallBlockChance at the cell against a shot from the hostile's cell, 0..1.
     /// </summary>
-    public double? Cover { get; init; }
+    public required double Cover { get; init; }
 
     /// <summary>
     /// A shooter at the cell can hit the hostile (a verb shoot line exists).
     /// </summary>
-    public bool? LineOfFire { get; init; }
+    public required bool LineOfFire { get; init; }
 
     /// <summary>
     /// A colonist stands on the shoot line between them.
     /// </summary>
-    public bool? ColonistInPath { get; init; }
+    public required bool ColonistInPath { get; init; }
 
     /// <summary>
-    /// CoverUtility.CalculateOverallBlockChance at the hostile's cell against
-    /// a shot from the cell, 0..1: the cover the hostile keeps against a
-    /// shooter here.
+    /// CoverUtility.CalculateOverallBlockChance at the hostile's cell against a shot from the cell, 0..1: the cover the
+    /// hostile keeps against a shooter here.
     /// </summary>
-    public double? HostileCover { get; init; }
+    public required double HostileCover { get; init; }
 }
 
 public sealed record CombatGeometryCell
 {
-    public Common.Cell? Cell { get; init; }
+    public required Common.Cell Cell { get; init; }
 
     /// <summary>
     /// request hostile order
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<CombatSightLine>))]
-    public EquatableArray<CombatSightLine> Lines { get; init; }
+    public required EquatableArray<CombatSightLine> Lines { get; init; }
 
-    /// <summary>
-    /// Path ticks for the request's pawn; absent without a pawn or a path.
-    /// </summary>
-    public int? PathTicks { get; init; }
-
-    public bool? Standable { get; init; }
+    public required bool Standable { get; init; }
 
     /// <summary>
     /// Any request hostile has line of fire to the cell.
     /// </summary>
-    public bool? HostileLineOfFire { get; init; }
+    public required bool HostileLineOfFire { get; init; }
 
     /// <summary>
     /// A player door stands on the cell.
     /// </summary>
-    public bool? Door { get; init; }
+    public required bool Door { get; init; }
 }
 
 public sealed record CombatGeometry
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     /// <summary>
     /// request cell order
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<CombatGeometryCell>))]
-    public EquatableArray<CombatGeometryCell> Cells { get; init; }
+    public required EquatableArray<CombatGeometryCell> Cells { get; init; }
 
     /// <summary>
     /// the read's own main-thread time
     /// </summary>
-    public double? MainThreadMs { get; init; }
+    public required double MainThreadMs { get; init; }
 
     /// <summary>
-    /// The propose block's cells, ranked best first, scored like
-    /// cells; empty without propose.
+    /// The propose block's cells, ranked best first, scored like cells; empty without propose.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<CombatGeometryCell>))]
-    public EquatableArray<CombatGeometryCell> Proposed { get; init; }
-}
-
-public sealed record CombatGeometryReply
-{
-    public CombatGeometryReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="CombatGeometryReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(CombatGeometryReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(CombatGeometryReplyOutcome.FailureCase), "failure")]
-public abstract record CombatGeometryReplyOutcome
-{
-    private protected CombatGeometryReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public CombatGeometry? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(CombatGeometry Value) : CombatGeometryReplyOutcome;
-
-    public static implicit operator CombatGeometryReplyOutcome(CombatGeometry value) => new ObservedCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : CombatGeometryReplyOutcome;
-
-    public static implicit operator CombatGeometryReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public required EquatableArray<CombatGeometryCell> Proposed { get; init; }
 }
 
 /// <summary>
