@@ -76,29 +76,34 @@ public sealed class JoinersAnomalyFamilyTests
 
     private static BuiltHolder Holder(string pawn, int x, bool holdOpen) => new()
     {
+        Strength = 0,
+        Available = false,
         HeldPawn = pawn,
-        Doors = Known<EquatableArray<AnomalyDoor>>([new AnomalyDoor
+        Doors = [new AnomalyDoor
         {
             Cell = new(x, 1), HoldOpen = holdOpen, ContainmentBreached = false, BlockedOpen = false,
-        }]),
+        }],
     };
 
     private static CapturableEntity Held(string pawn, bool flag = false) => new()
     {
         Pawn = new(pawn),
-        Dead = Known(false),
-        Downed = Known(false),
-        CanBeCaptured = Known(true),
-        Held = Known(true),
-        Need = Known(10.0),
-        NeedsTend = Known(false),
-        Bleeding = Known(false),
-        Escaping = Known(false),
-        CurrentlyStudiable = Known(false),
-        Mode = Known(EntityContainmentModeKind.Study),
-        ExtractBioferrite = Known(flag),
-        HarvesterAttached = Known(false),
-        BioferritePerDay = Known(1.0),
+        Dead = false,
+        Downed = false,
+        Need = 10.0,
+        CurrentlyStudiable = false,
+        Target = new PlatformTarget
+        {
+            CanBeCaptured = true,
+            Held = true,
+            NeedsTend = false,
+            Bleeding = false,
+            Escaping = false,
+            Mode = EntityContainmentModeKind.Study,
+            ExtractBioferrite = flag,
+            HarvesterAttached = false,
+            BioferritePerDay = 1.0,
+        },
     };
 
     private static RoundsFacts Containment(BuiltHolder[] holders, params CapturableEntity[] entities) => new()
@@ -111,7 +116,7 @@ public sealed class JoinersAnomalyFamilyTests
         },
         Research = Known(Researched),
         Gear = Known(ColonyModelFixtures.NoGear()),
-        Monolith = Known(new MonolithFacts()),
+        Monolith = Known(new MonolithFacts { AmbientHorror = false, Level = 0, Thing = null }),
     };
 
     private static Need Anomaly(RoundsFacts f, NeedId id) => Assert.Single(new AnomalyFamily().Derive(AnomalyFacts.From(f with { AnomalyInstalled = true })), n => n.Id == id);

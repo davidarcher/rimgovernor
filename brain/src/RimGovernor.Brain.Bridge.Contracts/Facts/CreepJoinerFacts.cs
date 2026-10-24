@@ -11,8 +11,8 @@ public static class CreepJoinerFacts
     /// </summary>
     public static PolicyCreepJoinerPawn CreepJoinerPawn(PawnState row) => new()
     {
-        CreepJoiner = Known(row.Anomaly is PawnAnomalyState.Active { Facts: var anomaly } ? anomaly.Creepjoiner : null),
-        Traits = Known(EquatableArray.From(row.Biography.Traits.Select(trait => trait.DefName))),
-        Hediffs = Known(EquatableArray.From(row.Health.Hediffs.Where(hediff => hediff.Visible).Select(hediff => hediff.DefName))),
+        CreepJoiner = row.Anomaly is PawnAnomalyState.Active { Facts: var anomaly } ? anomaly.Creepjoiner : null,
+        Traits = EquatableArray.From(row.Biography.Traits.Select(trait => trait.DefName)),
+        Hediffs = EquatableArray.From(row.Health.Hediffs.Where(hediff => hediff.Visible).Select(hediff => hediff.DefName)),
     };
 }

@@ -2,77 +2,81 @@ using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>The monolith's observed state: each fact is unknown when native did not read it.</summary>
+/// <summary>
+/// The monolith's observed state: GameComponent_Anomaly's AmbientHorror and level, and the monolith thing's own
+/// read (null unless it is spawned).
+/// </summary>
 public sealed record MonolithFacts
 {
-    /// <summary>GameComponent_Anomaly's Spawned and AmbientHorror.</summary>
-    public Fact<bool> Spawned { get; init; }
+    public required bool AmbientHorror { get; init; }
 
-    public Fact<bool> AmbientHorror { get; init; }
+    public required int Level { get; init; }
 
-    /// <summary>GameComponent_Anomaly's level.</summary>
-    public Fact<int> Level { get; init; }
+    public required MonolithThing? Thing { get; init; }
 
+    /// <summary>GameComponent_Anomaly's MonolithSpawned.</summary>
+    public bool Spawned => Thing is not null;
+}
+
+/// <summary>The spawned monolith and the endgame it gates.</summary>
+public sealed record MonolithThing
+{
     /// <summary>The monolith thing.</summary>
-    public Fact<string> Id { get; init; }
+    public required string Id { get; init; }
 
     /// <summary>The monolith's own CanActivate verdict.</summary>
-    public Fact<bool> CanActivate { get; init; }
+    public required bool CanActivate { get; init; }
 
-    /// <summary>The def activation would reach.</summary>
-    public Fact<string> NextLevel { get; init; }
+    /// <summary>The def activation would reach; null when the level does not advance through activation.</summary>
+    public required string? NextLevel { get; init; }
 
     /// <summary>The entries still undiscovered for the next level.</summary>
-    public Fact<uint> CodexShortfall { get; init; }
+    public required uint CodexShortfall { get; init; }
 
     /// <summary>The active conditions the next level is unreachable under.</summary>
-    public IReadOnlyList<string> Blocking { get; init; } = [];
+    public required IReadOnlyList<string> Blocking { get; init; }
 
     /// <summary>Whether the Gleaming monolith interaction is available.</summary>
-    public Fact<bool> Gleaming { get; init; }
+    public required bool Gleaming { get; init; }
 
     /// <summary>The VoidStructures still to activate.</summary>
-    public IReadOnlyList<string> PendingStructures { get; init; } = [];
+    public required IReadOnlyList<string> PendingStructures { get; init; }
 
     /// <summary>The VoidNode that can be touched (empty when none).</summary>
-    public string NodeId { get; init; } = "";
+    public required string NodeId { get; init; }
 
     /// <summary>The colonists on the node's map able to touch it.</summary>
-    public IReadOnlyList<string> NodePawns { get; init; } = [];
+    public required IReadOnlyList<string> NodePawns { get; init; }
 
     /// <summary>
     /// The awakening quest's next interaction, in the order the quest offers them: the void node, the Gleaming
     /// monolith, then a void structure. Nothing is owed (no interaction, no hold) outside the quest. A node nobody
-    /// on its map can touch is a hold; an unread Gleaming fact is an issue.
+    /// on its map can touch is a hold.
     /// </summary>
-    internal (bool Interact, string Hold, IReadOnlyList<string> Issues) Endgame(string monolith)
+    internal (bool Interact, string Hold) Endgame()
     {
         if (NodeId != "")
         {
             if (NodePawns.Count == 0)
             {
-                return (false, "no colonist on the void node's map can touch it", []);
+                return (false, "no colonist on the void node's map can touch it");
             }
-            return (true, "", []);
+            return (true, "");
         }
-        if (!Gleaming.TryGetValue(out var gleaming))
+        if (Gleaming)
         {
-            return (false, "", ["whether the Gleaming monolith can be used is unread"]);
-        }
-        if (gleaming)
-        {
-            return (monolith != "", "", []);
+            return (Id != "", "");
         }
         if (PendingStructures.Count > 0)
         {
-            return (PendingStructures[0] != "", "", []);
+            return (PendingStructures[0] != "", "");
         }
-        return (false, "", []);
+        return (false, "");
     }
 
     internal string CannotActivate()
     {
-        if (CodexShortfall.TryGetValue(out var shortfall) && shortfall > 0)
+        if (CodexShortfall is var shortfall and > 0)
         {
             return $"the codex is short {shortfall} entries for the next level";
         }
@@ -127,7 +131,7 @@ public sealed record MonolithAdvance
 /// is the awakening: it cannot be undone and starts the EndGame_VoidAwakening quest. Ambient Horror mode has no
 /// monolith questline; the rule is inert there. No level is advanced before the colony has reached the Stable
 /// stage (#630); the awakening is further ordered only when the colony is strong enough for those waves,
-/// containment is stable and no threat stands. An unread fact is a loud issue and holds the order, never a guess.
+/// containment is stable and no threat stands. An unread colony fact is a loud issue and holds the order, never a guess.
 /// The awakening quest already under way is walked at any stage.
 /// </summary>
 public static partial class MonolithRules
@@ -146,55 +150,27 @@ public static partial class MonolithRules
         {
             return none;
         }
-        if (!f.Spawned.TryGetValue(out var spawned) || !spawned)
+        if (f.Thing is not { } thing || f.AmbientHorror)
         {
             return none;
-        }
-        if (!f.AmbientHorror.TryGetValue(out var horror))
-        {
-            return none with { Issues = ["whether Ambient Horror mode is on is unread"] };
-        }
-        if (horror)
-        {
-            return none;
-        }
-        var lk = f.Level.TryGetValue(out var level);
-        var ik = f.Id.TryGetValue(out var id);
-        var ck = f.CanActivate.TryGetValue(out var can);
-        var missing = new List<string>();
-        foreach (var (isKnown, what) in new[] { (lk, "the monolith level"), (ik, "the monolith thing"), (ck, "whether the monolith can be activated") })
-        {
-            if (!isKnown)
-            {
-                missing.Add(what + " is unread");
-            }
-        }
-        if (missing.Count > 0)
-        {
-            return none with { Issues = missing };
         }
         var outcome = none;
-        var (interact, hold, issues) = f.Endgame(id!);
-        if (interact || hold != "" || issues.Count > 0)
+        var (interact, hold) = thing.Endgame();
+        if (interact || hold != "")
         {
-            outcome = outcome with { Hold = hold, Issues = issues };
-            if (interact)
-            {
-                outcome = outcome with { Order = MonolithOrder.Interact };
-            }
-            return outcome;
+            return outcome with { Hold = hold, Order = interact ? MonolithOrder.Interact : MonolithOrder.None };
         }
-        if (!can)
+        if (!thing.CanActivate)
         {
-            return outcome with { Hold = f.CannotActivate() };
+            return outcome with { Hold = thing.CannotActivate() };
         }
-        if (level == 0)
+        if (f.Level == 0)
         {
             return outcome with { Order = MonolithOrder.Investigate };
         }
-        if (!f.NextLevel.TryGetValue(out var next))
+        if (thing.NextLevel is not { } next)
         {
-            return outcome with { Issues = ["the level the monolith would reach is unread"] };
+            return outcome with { Hold = "no level follows the monolith's through activation" };
         }
         outcome = outcome with { Order = MonolithOrder.Activate };
         if (next != MonolithLevelVoidAwakened)
@@ -278,30 +254,16 @@ public static partial class MonolithRules
         }
         foreach (var e in entities)
         {
-            var dk = e.Dead.TryGetValue(out var dead);
-            var hk = e.Held.TryGetValue(out var held);
-            var ek = e.Escaping.TryGetValue(out var escaping);
-            if (!dk)
-            {
-                unread.Add($"whether entity {e.Pawn} is dead is unread");
-            }
-            else if (dead)
+            if (e.Dead || reason != "")
             {
                 // A dead entity needs no containment.
+                continue;
             }
-            else if (!hk)
-            {
-                unread.Add($"whether a platform holds entity {e.Pawn} is unread");
-            }
-            else if (!held && reason == "")
+            if (!e.Held)
             {
                 reason = $"entity {e.Pawn} is free";
             }
-            else if (held && !ek)
-            {
-                unread.Add($"whether entity {e.Pawn} is escaping is unread");
-            }
-            else if (held && escaping && reason == "")
+            else if (e.Target is { Escaping: true })
             {
                 reason = $"entity {e.Pawn} is escaping";
             }
@@ -310,16 +272,7 @@ public static partial class MonolithRules
     }
 
     /// <summary>Whether the monolith is spawned and its questline runs (not Ambient Horror mode): the only time the rule reads anything further.</summary>
-    public static bool MonolithInPlay(Fact<MonolithFacts> m)
-    {
-        if (!m.TryGetValue(out var f))
-        {
-            return false;
-        }
-        var sk = f.Spawned.TryGetValue(out var spawned);
-        var hk = f.AmbientHorror.TryGetValue(out var horror);
-        return sk && spawned && (!hk || !horror);
-    }
+    public static bool MonolithInPlay(Fact<MonolithFacts> m) => m.TryGetValue(out var f) && f.Spawned && !f.AmbientHorror;
 
     /// <summary>The advance gate the facts give.</summary>
     public static AwakenGate MonolithGate(RoundsFacts f) =>

@@ -12,50 +12,35 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// One spawned wastepack stack with the game's own verdicts (CompDissolution.IsFrozen, InAtomizer, the item's
-/// forbidden flag). An unknown verdict is never read as false.
+/// forbidden flag).
 /// </summary>
 public sealed record Wastepack
 {
-    public string Id { get; init; } = "";
+    public required string Id { get; init; }
 
-    public string Definition { get; init; } = "";
+    public required string Definition { get; init; }
 
-    public Cell Cell { get; init; }
+    public required Cell Cell { get; init; }
 
-    public Fact<bool> Frozen { get; init; }
+    public required bool Frozen { get; init; }
 
-    public Fact<bool> InAtomizer { get; init; }
+    public required bool InAtomizer { get; init; }
 
-    public Fact<bool> Forbidden { get; init; }
+    public required bool Forbidden { get; init; }
 
-    /// <summary>
-    /// Reports a pack known to be neither frozen nor in an atomizer; Known is false when either verdict is
-    /// unknown and the pack is not known protected.
-    /// </summary>
-    public (bool Exposed, bool Known) Exposure()
-    {
-        var fk = Frozen.TryGetValue(out var frozen);
-        var ak = InAtomizer.TryGetValue(out var atomized);
-        if ((fk && frozen) || (ak && atomized))
-        {
-            return (false, true);
-        }
-        return (true, fk && ak);
-    }
-
-    /// <summary>Reports a pack known to be forbidden.</summary>
-    public bool Held() => Forbidden.TryGetValue(out var forbidden) && forbidden;
+    /// <summary>A pack neither frozen nor in an atomizer: it deteriorates into pollution.</summary>
+    public bool Exposed => !Frozen && !InAtomizer;
 }
 
 /// <summary>
 /// The Biotech pollution read the goal works from. UncoveredCells counts the polluted cells outside the
-/// pollution-clear area (the game's grid, whole map); unknown when native did not say.
+/// pollution-clear area (the game's grid, whole map).
 /// </summary>
 public sealed record PollutionFacts
 {
-    public IReadOnlyList<Wastepack> Wastepacks { get; init; } = [];
+    public required IReadOnlyList<Wastepack> Wastepacks { get; init; }
 
-    public Fact<uint> UncoveredCells { get; init; }
+    public required uint UncoveredCells { get; init; }
 }
 
 /// <summary>
@@ -76,43 +61,13 @@ public sealed record PollutionWork
 public static partial class PollutionRules
 {
     /// <summary>
-    /// The binary pollution signal. Any known exposed or forbidden pack, or polluted cell outside the
-    /// area, is a deficit; otherwise the answer is no deficit only when every verdict is known.
+    /// The binary pollution signal: any exposed or forbidden pack, or polluted cell outside the area, is a
+    /// deficit. Unknown while the section is unread.
     /// </summary>
-    public static Fact<bool> PollutionDeficit(Fact<PollutionFacts> facts)
-    {
-        if (!facts.TryGetValue(out var f))
-        {
-            return Unknown<bool>();
-        }
-        var complete = true;
-        foreach (var w in f.Wastepacks)
-        {
-            if (w.Held())
-            {
-                return Known(true);
-            }
-            var (exposed, ok) = w.Exposure();
-            if (exposed && ok)
-            {
-                return Known(true);
-            }
-            if (!ok || !w.Forbidden.TryGetValue(out _))
-            {
-                complete = false;
-            }
-        }
-        var uncoveredKnown = f.UncoveredCells.TryGetValue(out var uncovered);
-        if (uncoveredKnown && uncovered > 0)
-        {
-            return Known(true);
-        }
-        if (!uncoveredKnown || !complete)
-        {
-            return Unknown<bool>();
-        }
-        return Known(false);
-    }
+    public static Fact<bool> PollutionDeficit(Fact<PollutionFacts> facts) =>
+        facts.TryGetValue(out var f)
+            ? Known(f.UncoveredCells > 0 || f.Wastepacks.Any(w => w.Forbidden || w.Exposed))
+            : Unknown<bool>();
 
     /// <summary>
     /// Derives the work. A forbidden pack is allowed first and hauled on a later cycle, once it stands
@@ -131,7 +86,7 @@ public static partial class PollutionRules
             {
                 continue;
             }
-            if (w.Held())
+            if (w.Forbidden)
             {
                 // A pack's allow names it by id, definition and cell (SupplyAllow); a pack without them cannot be allowed.
                 if (IdText.IsValidText(w.Id) && IdText.IsValidText(w.Definition) && w.Cell.X >= 0 && w.Cell.Z >= 0)
@@ -140,8 +95,7 @@ public static partial class PollutionRules
                 }
                 continue;
             }
-            var (exposed, known) = w.Exposure();
-            if (exposed && known && !(claimed?.GetValueOrDefault(w.Id) ?? false))
+            if (w.Exposed && !(claimed?.GetValueOrDefault(w.Id) ?? false))
             {
                 haul.Add(w);
             }
@@ -150,7 +104,7 @@ public static partial class PollutionRules
         allow.Sort(byId);
         haul.Sort(byId);
         IReadOnlyList<Cell> area = [];
-        if (facts.UncoveredCells.TryGetValue(out var uncovered) && uncovered > 0)
+        if (facts.UncoveredCells > 0)
         {
             area = polluted;
         }

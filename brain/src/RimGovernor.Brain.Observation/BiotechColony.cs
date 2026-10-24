@@ -9,21 +9,21 @@ public static class BiotechColonyReads
 {
     /// <summary>The section's chargers as the recharge policy reads them: charging is a mech attached.</summary>
     public static IReadOnlyList<MechCharger> MechChargerRows(O.BiotechColonyFacts biotech) =>
-        [.. biotech.Chargers.Select(c => new MechCharger { Powered = Known(c.Powered), FullOfWaste = Known(c.FullOfWaste), Charging = Known(c.ChargingMechId is not null) })];
+        [.. biotech.Chargers.Select(c => new MechCharger { Powered = c.Powered, FullOfWaste = c.FullOfWaste, Charging = c.ChargingMechId is not null })];
 
     /// <summary>The section's gestators as the gestation review reads them: active while a bill runs.</summary>
     public static IReadOnlyList<GestatorFact> GestatorFacts(O.BiotechColonyFacts biotech) =>
-        [.. biotech.Gestators.Select(g => new GestatorFact { Active = Known(g.BillId is not null), WasteCount = Known(g.WasteCount) })];
+        [.. biotech.Gestators.Select(g => new GestatorFact { Active = g.BillId is not null, WasteCount = g.WasteCount })];
 
     /// <summary>The section's wastepack stacks as the gestation review reads them.</summary>
     public static IReadOnlyList<WastepackFact> WastepackFacts(O.BiotechColonyFacts biotech) =>
-        [.. biotech.Wastepacks.Select(w => new WastepackFact { Count = w.Count, Frozen = Known(w.Frozen), InAtomizer = Known(w.InAtomizer) })];
+        [.. biotech.Wastepacks.Select(w => new WastepackFact { Count = w.Count, Frozen = w.Frozen, InAtomizer = w.InAtomizer })];
 
     /// <summary>The section's banks and packs as the biotech/gene-bank Need reads them: a pack is loose when no bank holds it.</summary>
     public static GeneBankFacts GeneBankFacts(O.BiotechColonyFacts biotech) => new()
     {
-        Banks = EquatableArray.From(biotech.GeneBanks.Select(b => new GeneBankSlot { Capacity = Known(b.Capacity), Held = b.PackIds.Count })),
-        Packs = EquatableArray.From(biotech.Genepacks.Select(p => Known(p.BankId is null))),
+        Banks = EquatableArray.From(biotech.GeneBanks.Select(b => new GeneBankSlot { Capacity = b.Capacity, Held = b.PackIds.Count })),
+        Packs = EquatableArray.From(biotech.Genepacks.Select(p => p.BankId is null)),
     };
 
     /// <summary>The section's chargers as a fact, unknown without Biotech.</summary>
@@ -49,11 +49,11 @@ public static class BiotechColonyReads
             Id = w.ThingId,
             Definition = w.DefName,
             Cell = w.Position,
-            Frozen = Known(w.Frozen),
-            InAtomizer = Known(w.InAtomizer),
-            Forbidden = Known(w.Forbidden),
+            Frozen = w.Frozen,
+            InAtomizer = w.InAtomizer,
+            Forbidden = w.Forbidden,
         });
-        return Known(new PollutionFacts { UncoveredCells = Known(b.PollutedUncoveredCells), Wastepacks = [.. wastepacks] });
+        return Known(new PollutionFacts { UncoveredCells = b.PollutedUncoveredCells, Wastepacks = [.. wastepacks] });
     }
 
     /// <summary>The catalog definitions that are mech chargers (PlanningDefinition.MechCharger, from the game's Building_MechCharger class), in catalog order; the build planner picks among them.</summary>

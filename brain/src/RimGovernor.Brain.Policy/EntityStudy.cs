@@ -8,9 +8,8 @@ public static class EntityStudyRules
 {
     /// <summary>
     /// The DarkStudy requirement the held entities owe the work planner: one owner while
-    /// any held entity is currently studiable, none otherwise. A held entity whose held or currently-studiable
-    /// fact is unread makes the whole answer unknown, so the planner waits instead of guessing; Reason says
-    /// which entity and fact. Without Anomaly (entities unknown) no entity is held and nothing is owed.
+    /// any held entity is currently studiable, none otherwise. Without Anomaly (entities unknown) no entity is held
+    /// and nothing is owed.
     /// </summary>
     public static (Fact<EquatableArray<WorkRequirement>> Requirements, string Reason) StudyWork(ContainmentPlanning p)
     {
@@ -19,28 +18,7 @@ public static class EntityStudyRules
         {
             return (none, "");
         }
-        var owed = false;
-        foreach (var e in entities)
-        {
-            if (e.Dead.TryGetValue(out var dead) && dead)
-            {
-                continue;
-            }
-            if (!e.Held.TryGetValue(out var held))
-            {
-                return (Unknown<EquatableArray<WorkRequirement>>(), $"whether a platform holds entity {e.Pawn} is unread");
-            }
-            if (!held)
-            {
-                continue;
-            }
-            if (!e.CurrentlyStudiable.TryGetValue(out var studiable))
-            {
-                return (Unknown<EquatableArray<WorkRequirement>>(), $"whether held entity {e.Pawn} is currently studiable is unread");
-            }
-            owed = owed || studiable;
-        }
-        if (!owed)
+        if (!entities.Any(e => !e.Dead && e.Held && e.CurrentlyStudiable))
         {
             return (none, "");
         }

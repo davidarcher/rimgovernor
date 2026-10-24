@@ -513,7 +513,7 @@ public static partial class LayoutStationPlanRules
             {
                 continue;
             }
-            if (bt.DevelopmentalStage.TryGetValue(out var stage) && stage is RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Newborn or RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Baby)
+            if (bt.DevelopmentalStage is RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Newborn or RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Baby)
             {
                 n++;
             }

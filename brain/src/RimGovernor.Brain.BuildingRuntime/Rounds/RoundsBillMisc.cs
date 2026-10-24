@@ -52,7 +52,7 @@ partial class Rounder
             {
                 continue;
             }
-            if (bt.Mechanitor.TryGetValue(out var m) && m is not null)
+            if (bt.Mechanitor is { } m)
             {
                 mechanitors.Add(new MechanitorInput { Id = p.Id, Mechanitor = m });
                 ids.AddRange(m.ControlledMechs);

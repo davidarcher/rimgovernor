@@ -55,19 +55,11 @@ public static partial class LayoutRoomsRules
         var deathrests = listKnown;
         foreach (var p in list)
         {
-            if (!p.Biotech.TryGetValue(out var bt))
+            if (!p.Biotech.IsKnown)
             {
                 stages = false;
                 deathrests = false;
                 break;
-            }
-            if (!bt.DevelopmentalStage.TryGetValue(out _))
-            {
-                stages = false;
-            }
-            if (!bt.Deathrest.TryGetValue(out _))
-            {
-                deathrests = false;
             }
         }
         Add(stages && list.Count > 0, PlannedRole.Nursery, PlannedRole.Playroom, PlannedRole.Classroom);

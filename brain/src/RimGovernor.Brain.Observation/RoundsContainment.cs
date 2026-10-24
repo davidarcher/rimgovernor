@@ -160,7 +160,7 @@ public static class RoundsContainmentReads
         {
             if (row.Anomaly is { Holder: var h })
             {
-                holders.Add(new BuiltHolder { Strength = h.ContainmentStrength, Available = h.Available, HeldPawn = h.HeldPawn?.Id ?? "", Doors = Known(h.Doors) });
+                holders.Add(new BuiltHolder { Strength = h.ContainmentStrength, Available = h.Available, HeldPawn = h.HeldPawn?.Id ?? "", Doors = h.Doors });
             }
         }
         return Known(EquatableArray.From(holders));
@@ -181,39 +181,28 @@ public static class RoundsContainmentReads
             {
                 continue;
             }
-            var e = new CapturableEntity
+            output.Add(new CapturableEntity
             {
                 Pawn = new RimGovernor.Brain.Domain.PawnId(row.Pawn.Id ?? ""),
-                Dead = Known(row.Dead),
-                Downed = Known(row.Downed),
-                CanBeCaptured = Known(false),
-                Held = Known(false),
-                Need = Known(a.MinContainmentStrength),
-                CurrentlyStudiable = Known(a.Study is { CurrentlyStudiable: true }),
-                NeedsTend = Unknown<bool>(),
-                Bleeding = Unknown<bool>(),
-                Escaping = Unknown<bool>(),
-                Mode = Unknown<O.EntityContainmentModeKind>(),
-                ExtractBioferrite = Unknown<bool>(),
-                HarvesterAttached = Unknown<bool>(),
-                BioferritePerDay = Unknown<double>(),
-            };
-            if (a.Held is { } held)
-            {
-                e = e with
-                {
-                    CanBeCaptured = Known(held.CanBeCaptured),
-                    Held = Known(held.Held),
-                    NeedsTend = Known(held.NeedsTend),
-                    Bleeding = Known(held.Bleeding),
-                    Escaping = Known(held.Escaping),
-                    Mode = Known(held.Mode),
-                    ExtractBioferrite = Known(held.ExtractBioferrite),
-                    HarvesterAttached = Known(held.HarvesterAttached),
-                    BioferritePerDay = Known(held.BioferritePerDay),
-                };
-            }
-            output.Add(e);
+                Dead = row.Dead,
+                Downed = row.Downed,
+                Need = a.MinContainmentStrength,
+                CurrentlyStudiable = a.Study is { CurrentlyStudiable: true },
+                Target = a.Held is { } held
+                    ? new PlatformTarget
+                    {
+                        CanBeCaptured = held.CanBeCaptured,
+                        Held = held.Held,
+                        NeedsTend = held.NeedsTend,
+                        Bleeding = held.Bleeding,
+                        Escaping = held.Escaping,
+                        Mode = held.Mode,
+                        ExtractBioferrite = held.ExtractBioferrite,
+                        HarvesterAttached = held.HarvesterAttached,
+                        BioferritePerDay = held.BioferritePerDay,
+                    }
+                    : null,
+            });
         }
         return Known(EquatableArray.From(output));
     }
@@ -240,11 +229,11 @@ public static class RoundsContainmentReads
             }
             var id = new PawnId(row.Pawn.Id ?? "");
             var cell = RitualSitesReads.RowCell(row.Pawn.Place);
-            if (bt.Mechanitor.TryGetValue(out var m) && m is not null && row.Colonist)
+            if (bt.Mechanitor is { } m && row.Colonist)
             {
                 mechanitors.Add(new MechanitorInput { Id = id, Mechanitor = m, Cell = cell });
             }
-            if (bt.Mech.TryGetValue(out var mm) && mm is not null && row.Mechanoid)
+            if (bt.Mech is { } mm && row.Mechanoid)
             {
                 var mech = new MechInput { Id = id, Kind = row.KindDefName, Mech = mm, Cell = cell, Downed = row.Downed, Drafted = row.Drafted };
                 if (row.Job.TargetA?.Target?.Entity is { } target)

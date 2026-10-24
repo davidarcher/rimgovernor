@@ -153,8 +153,11 @@ public sealed class DeathrestCreditTests
     private static WorkPawn Worker(P.PawnDeathrest? deathrest) => new()
     {
         Id = new("pawn"),
-        Biotech = Known(new P.PawnBiotech { Deathrest = Known(deathrest), DevelopmentalStage = Known(RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult) }),
+        Biotech = Known(Biotech(deathrest, RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult)),
     };
+
+    private static P.PawnBiotech Biotech(P.PawnDeathrest? deathrest, RimGovernor.Contracts.Wire.Defs.DevelopmentalStage stage) =>
+        new() { DevelopmentalStage = stage, Genes = [], Mechanitor = null, Mech = null, Deathrest = deathrest };
 
     private static EquatableArray<DeathrestPiece> Staged(DeathrestDefsRead? defs, params WorkPawn[] pawns) =>
         ChildRoomsRules.DeathrestFurniture(ChildRoomsRules.ChildRoomNeeds(pawns, defs), Catalog);
@@ -164,7 +167,7 @@ public sealed class DeathrestCreditTests
     {
         // #3842: the casket does not count toward capacity, so a capacity-1 deathrester binds one accelerator beside it. The
         // amplifier (factor 1) raises no efficiency and is not staged.
-        var furniture = Staged(Defs, Worker(new P.PawnDeathrest { Capacity = Known(1) }));
+        var furniture = Staged(Defs, Worker(new P.PawnDeathrest { Deathresting = false, Capacity = 1 }));
         Assert.Equal([new DeathrestPiece("DeathrestCasket", 1), new DeathrestPiece("DeathrestAccelerator", 1)], furniture.Items);
         var row = Assert.Single(Rows(Context(Deathrester(capacity: 1), furniture), Serving(0)));
         Assert.Equal(-(Share(1) - Share(1.32)) * Horizon, row.Value, 12);
@@ -175,7 +178,7 @@ public sealed class DeathrestCreditTests
     {
         // Capacity 3 binds two accelerators (the stack limit); two such deathresters get two caskets and four accelerators,
         // and the credit binds them all.
-        var a = Worker(new P.PawnDeathrest { Capacity = Known(3) });
+        var a = Worker(new P.PawnDeathrest { Deathresting = false, Capacity = 3 });
         var furniture = Staged(Defs, a, a with { Id = new("b") });
         Assert.Equal([new DeathrestPiece("DeathrestCasket", 2), new DeathrestPiece("DeathrestAccelerator", 4)], furniture.Items);
         var context = Context(Deathrester("a", capacity: 3), furniture) with { Needs = NeedsFixtures.Empty with { Pawns = [Deathrester("a", capacity: 3), Deathrester("b", capacity: 3)], Deathrest = Defs } };
@@ -195,17 +198,14 @@ public sealed class DeathrestCreditTests
     }
 
     [Fact]
-    public void AnUnreadDeathrestThrowsWhileReadPawnsStillStageTheirChildRooms()
+    public void PawnsWithoutADeathrestGeneStageTheirChildRooms()
     {
-        // #3835: a pawn whose Biotech deathrest section is unread (a failed native read) throws, never a skipped chamber.
-        static WorkPawn Child(string id, Fact<P.PawnDeathrest?> deathrest, RimGovernor.Contracts.Wire.Defs.DevelopmentalStage stage) =>
-            new() { Id = new(id), Biotech = Known(new P.PawnBiotech { Deathrest = deathrest, DevelopmentalStage = Known(stage) }) };
-        var unread = Child("unread", default, RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult);
-        Assert.Throws<RequiredFactException>(() => ChildRoomsRules.ChildRoomNeeds([unread], Defs));
-        // Read pawns (no deathrest gene, or no Biotech at all) never throw, and their nursery, playroom and classroom stage.
+        // Pawns with no deathrest gene, or no Biotech at all, never throw, and their nursery, playroom and classroom stage.
+        static WorkPawn Child(string id, RimGovernor.Contracts.Wire.Defs.DevelopmentalStage stage) =>
+            new() { Id = new(id), Biotech = Known(Biotech(null, stage)) };
         var needs = ChildRoomsRules.ChildRoomNeeds([
-            Child("baby", Known<P.PawnDeathrest?>(null), RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Baby),
-            Child("child", Known<P.PawnDeathrest?>(null), RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Child),
+            Child("baby", RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Baby),
+            Child("child", RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Child),
             new WorkPawn { Id = new("plain") }], Defs);
         Assert.Equal([RoomRole.Nursery, RoomRole.Playroom, RoomRole.Classroom], needs.Select(n => n.Role));
     }
@@ -232,9 +232,8 @@ public sealed class DeathrestCreditTests
     }
 
     [Fact]
-    public void ADeathresterWhoseCapacityOrDeathrestDefsAreUnreadIsARequiredFactForTheStaging()
+    public void ADeathresterWhoseDeathrestDefsAreUnreadIsARequiredFactForTheStaging()
     {
-        Assert.Throws<RequiredFactException>(() => Staged(null, Worker(new P.PawnDeathrest { Capacity = Known(1) })));
-        Assert.Throws<RequiredFactException>(() => Staged(Defs, Worker(new P.PawnDeathrest())));
+        Assert.Throws<RequiredFactException>(() => Staged(null, Worker(new P.PawnDeathrest { Deathresting = false, Capacity = 1 })));
     }
 }

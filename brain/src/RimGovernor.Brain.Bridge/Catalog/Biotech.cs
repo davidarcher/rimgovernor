@@ -132,7 +132,7 @@ public sealed class BiotechCatalog
         var enabled = new HashSet<string>(StringComparer.Ordinal);
         foreach (var gene in genes)
         {
-            if (gene.Active.TryGetValue(out var active) && !active)
+            if (!gene.Active)
             {
                 continue;
             }

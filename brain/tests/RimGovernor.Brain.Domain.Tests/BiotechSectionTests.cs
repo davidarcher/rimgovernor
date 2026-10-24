@@ -73,9 +73,10 @@ public sealed class BiotechSectionTests
         Assert.Equal(state, WireJson.Deserialize<O.PawnBiotechState>(json));
 
         var lifted = BiotechFactsRules.PawnBiotech(state).Value;
-        Assert.Equal((Fact.Known(1), Fact.Known(0.1)), (lifted.Mech.Value!.ControlGroup, lifted.Mech.Value.RechargeBelow));
-        Assert.Null(lifted.Mechanitor.Value);
-        Assert.Equal(Fact.Known(2), lifted.Deathrest.Value!.Capacity);
+        Assert.Equal(new PawnMechGroup(1, 0.1, 1), lifted.Mech!.Group);
+        Assert.Equal(new MechEnergy.Level(0.5), lifted.Mech.Energy);
+        Assert.Null(lifted.Mechanitor);
+        Assert.Equal(2, lifted.Deathrest!.Capacity);
         Assert.False(BiotechFactsRules.PawnBiotech(new O.PawnBiotechState.Inactive()).IsKnown);
     }
 
@@ -85,13 +86,13 @@ public sealed class BiotechSectionTests
         O.BiotechSection section = new O.BiotechSection.Active(Colony);
 
         Assert.True(BiotechColonyReads.Pollution(section).TryGetValue(out var pollution));
-        Assert.Equal(7u, pollution.UncoveredCells.Value);
-        Assert.Equal(Fact.Known(true), Assert.Single(pollution.Wastepacks).Forbidden);
-        Assert.Equal([true, false], BiotechColonyReads.GestatorFacts(Colony).Select(g => g.Active.Value));
-        Assert.Equal(Fact.Known(false), Assert.Single(BiotechColonyReads.MechChargerFact(section).Value).Charging);
+        Assert.Equal(7u, pollution.UncoveredCells);
+        Assert.True(Assert.Single(pollution.Wastepacks).Forbidden);
+        Assert.Equal([true, false], BiotechColonyReads.GestatorFacts(Colony).Select(g => g.Active));
+        Assert.False(Assert.Single(BiotechColonyReads.MechChargerFact(section).Value).Charging);
         var banks = BiotechColonyReads.GeneBankFact(section).Value;
-        Assert.Equal((4, 1), (banks.Banks[0].Capacity.Value, banks.Banks[0].Held));
-        Assert.Equal([false, true], banks.Packs.Select(p => p.Value));
+        Assert.Equal((4, 1), (banks.Banks[0].Capacity, banks.Banks[0].Held));
+        Assert.Equal([false, true], banks.Packs);
     }
 
     [Fact]

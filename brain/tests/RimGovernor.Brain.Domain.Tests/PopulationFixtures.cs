@@ -10,6 +10,7 @@ internal static class PopulationFixtures
     {
         Pawn = new(pawn),
         Dead = false,
+        CreepJoiner = false,
         Recruitable = recruitable,
         CurrentInteraction = new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.Maintain),
         Resistance = 0,

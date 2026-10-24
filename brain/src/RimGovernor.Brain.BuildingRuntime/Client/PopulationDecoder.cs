@@ -107,17 +107,13 @@ internal static class PopulationDecoder
             QueuedSurgeries = held.Surgery.SurgeryBills.Count,
             QueuedRecipes = SurgeryFactsRules.QueuedSurgeryRecipes(held.Surgery),
             Kind = pawn.KindDefName,
-            CreepJoiner = Unknown<bool>(),
+            CreepJoiner = CreepJoinerFacts.CreepJoinerPawn(pawn).CreepJoiner is not null,
             HarvestGoodwill = held.HarvestGoodwillChange,
             MedicalCare = WireEnums.RequiredMedicalCare(held.MedicalCare),
             Conditions = held.Conditions.Hediffs,
             LifeThreatening = held.Conditions.LifeThreatening,
             Executing = held.Interaction == "Execution",
         };
-        if (CreepJoinerFacts.CreepJoinerPawn(pawn).CreepJoiner.TryGetValue(out var joiner))
-        {
-            f = f with { CreepJoiner = Known(joiner is not null) };
-        }
         return f;
     }
 

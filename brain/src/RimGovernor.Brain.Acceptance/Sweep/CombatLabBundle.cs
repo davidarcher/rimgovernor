@@ -106,7 +106,7 @@ internal static class CombatLabBundle
     /// </summary>
     internal static double DefenseCapacity(StagedFixture s)
     {
-        var defenders = new List<SquadDefenderFacts>();
+        var defenders = new List<DefenderStrength>();
         for (var i = 0; i < s.Fixture.Pawns.Count; i++)
         {
             if (s.Fixture.Pawns[i].Side != CombatFixtures.Colonist)
@@ -115,14 +115,14 @@ internal static class CombatLabBundle
             }
 
             var pawn = s.Pawns[i];
-            defenders.Add(new SquadDefenderFacts
+            defenders.Add(new DefenderStrength
             {
                 Id = new PawnId(pawn.Id),
-                Dead = Known(false),
-                Downed = Known(s.Fixture.Pawns[i].Downed),
-                ViolenceCapable = Known(true),
-                MeleePower = Known(pawn.MeleeDps * pawn.Health),
-                RangedDPS = Known(pawn.RangedDps),
+                Dead = false,
+                Downed = s.Fixture.Pawns[i].Downed,
+                ViolenceCapable = true,
+                MeleePower = pawn.MeleeDps * pawn.Health,
+                RangedDps = pawn.RangedDps,
             });
         }
 

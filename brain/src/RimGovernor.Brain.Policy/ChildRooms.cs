@@ -244,21 +244,11 @@ public static class ChildRoomsRules
                 continue;
             }
 
-            if (!bt.Deathrest.TryGetValue(out var d))
-            {
-                throw new RequiredFactException("deathrest of " + p.Id);
-            }
-
-            if (d is not null)
+            if (bt.Deathrest is { } d)
             {
                 caskets++;
                 var defs = deathrest ?? throw new RequiredFactException("deathrest defs");
-                if (!d.Capacity.TryGetValue(out var capacity))
-                {
-                    throw new RequiredFactException("deathrest capacity of " + p.Id);
-                }
-
-                foreach (var (bindable, count) in ForecastDeathrest.Binds(defs.Bindables.Where(b => b.Factor > 1).Select(b => (b, int.MaxValue)), capacity))
+                foreach (var (bindable, count) in ForecastDeathrest.Binds(defs.Bindables.Where(b => b.Factor > 1).Select(b => (b, int.MaxValue)), d.Capacity))
                 {
                     // A def neither stack-limited nor counting toward the capacity binds without bound; the game ships none.
                     bound[bindable.Def] = count == int.MaxValue
@@ -267,12 +257,7 @@ public static class ChildRoomsRules
                 }
             }
 
-            if (!bt.DevelopmentalStage.TryGetValue(out var stage))
-            {
-                continue;
-            }
-
-            switch (stage)
+            switch (bt.DevelopmentalStage)
             {
                 case RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Newborn:
                     babies++;

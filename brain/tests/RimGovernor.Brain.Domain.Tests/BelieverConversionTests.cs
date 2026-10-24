@@ -130,6 +130,7 @@ public sealed class BelieverConversionTests
         {
             Pawn = new("p"),
             Dead = false,
+            CreepJoiner = false,
             Recruitable = true,
             CurrentInteraction = new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.Maintain),
             Resistance = 0.0,

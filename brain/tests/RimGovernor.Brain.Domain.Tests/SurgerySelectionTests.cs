@@ -74,6 +74,7 @@ public sealed class SurgerySelectionTests
     {
         Pawn = Captive,
         Dead = false,
+        CreepJoiner = false,
         Recruitable = false,
         CurrentInteraction = new PrisonerHeldInteraction.Settable(PrisonerInteractionMode.Maintain),
         Resistance = 0.0,

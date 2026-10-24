@@ -12,7 +12,7 @@ internal static class GearFixtures
     public static O.GearSnapshot NoSnapshot => new() { Pawns = [], Climate = ColonyModelFixtures.Climate(), StoredApparel = [], LockedBills = [] };
 
     /// <summary>An unarmed pawn wearing nothing.</summary>
-    public static readonly O.PawnEquipment NoEquipment = new() { PrimaryId = null, Equipped = [], Apparel = [], Armed = false, RangedHitFactor = 0 };
+    public static readonly O.PawnEquipment NoEquipment = new() { PrimaryId = null, Equipped = [], Apparel = [], Armed = false, RangedHitFactor = 0, RangedDps = 0, MeleeDps = 0 };
 
     /// <summary>A loadout model with no traits, worn garments or options.</summary>
     public static readonly O.GearLoadoutModel NoModel = new() { Traits = [], Worn = [], Options = [] };

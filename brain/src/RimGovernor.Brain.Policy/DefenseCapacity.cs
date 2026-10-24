@@ -1,5 +1,27 @@
 namespace RimGovernor.Brain.Policy;
 
+/// <summary>
+/// One colonist's defense strength as the pawn rows read it: whether it can fight now (living, not downed, capable
+/// of violence), its MeleeDPS times summary health and its primary's ranged DPS at its hit factor (#3845).
+/// </summary>
+public sealed record DefenderStrength
+{
+    public required PawnId Id { get; init; }
+
+    public required bool Dead { get; init; }
+
+    public required bool Downed { get; init; }
+
+    public required bool ViolenceCapable { get; init; }
+
+    public required double MeleePower { get; init; }
+
+    public required double RangedDps { get; init; }
+
+    /// <summary>Whether the colonist adds to the colony's strength now.</summary>
+    public bool Fighting => !Dead && !Downed && ViolenceCapable;
+}
+
 public static class DefenseCapacityPolicy
 {
     /// <summary>
@@ -15,31 +37,18 @@ public static class DefenseCapacityPolicy
     /// <summary>
     /// The colony's combat strength in raid-point units: each combat-ready colonist (living, not downed, capable
     /// of violence) adds melee power plus ranged weapon DPS weighted by its hit factor, and every powered turret adds its
-    /// DPS. Any unknown
-    /// input a sum needs leaves the result unknown.
+    /// DPS. An unread roster, or a turret fact the sum needs, leaves the result unknown.
     /// </summary>
-    public static Fact<double> DefenseCapacity(Fact<EquatableArray<SquadDefenderFacts>> defenders, Fact<EquatableArray<DefenseTurretFacts>> turrets)
+    public static Fact<double> DefenseCapacity(Fact<EquatableArray<DefenderStrength>> defenders, Fact<EquatableArray<DefenseTurretFacts>> turrets)
     {
         if (!defenders.TryGetValue(out var pawns) || !turrets.TryGetValue(out var guns))
         {
             return Unknown<double>();
         }
         var strength = 0.0;
-        foreach (var d in pawns)
+        foreach (var d in pawns.Where(d => d.Fighting))
         {
-            if (!d.Dead.TryGetValue(out var dead) || !d.Downed.TryGetValue(out var downed) || !d.ViolenceCapable.TryGetValue(out var violent))
-            {
-                return Unknown<double>();
-            }
-            if (dead || downed || !violent)
-            {
-                continue;
-            }
-            if (!d.MeleePower.TryGetValue(out var melee) || !d.RangedDPS.TryGetValue(out var ranged))
-            {
-                return Unknown<double>();
-            }
-            strength += melee + ranged;
+            strength += d.MeleePower + d.RangedDps;
         }
         foreach (var t in guns)
         {

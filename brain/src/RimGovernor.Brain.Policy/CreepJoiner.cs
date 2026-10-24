@@ -16,77 +16,28 @@ public sealed record CreepJoinerDownsides
 
     /// <summary>
     /// Measures whether a creepjoiner's downside has shown: the game fired it (the tracker's triggered flag),
-    /// or the pawn carries a trait or a visible hediff a downside def adds. Unknown while nothing shows and a
-    /// fact the answer rests on is unread. The pawn must be a creepjoiner.
+    /// or the pawn carries a trait or a visible hediff a downside def adds. A pawn that is no creepjoiner has none.
     /// </summary>
-    public Fact<bool> Revealed(CreepJoinerPawn p)
-    {
-        p.CreepJoiner.TryGetValue(out var joiner);
-        if (joiner is null)
-        {
-            return Unknown<bool>();
-        }
-        if (joiner.DownsideTriggered)
-        {
-            return Known(true);
-        }
-        var tk = p.Traits.TryGetValue(out var traits);
-        var hk = p.Hediffs.TryGetValue(out var hediffs);
-        if ((tk && traits.Any(Traits.Contains)) || (hk && hediffs.Any(Hediffs.Contains)))
-        {
-            return Known(true);
-        }
-        if (!tk || !hk)
-        {
-            return Unknown<bool>();
-        }
-        return Known(false);
-    }
+    public bool Revealed(CreepJoinerPawn p) =>
+        p.CreepJoiner is { } joiner && (joiner.DownsideTriggered || p.Traits.Any(Traits.Contains) || p.Hediffs.Any(Hediffs.Contains));
 
     /// <summary>
-    /// Whether the pawn is a creepjoiner whose downside has not shown (or cannot be read to have shown). A
-    /// pawn that is no creepjoiner, or whose creepjoiner status is unread, is not: the gear census flags only a
-    /// known creepjoiner (GearRoleInput.UnrevealedCreepjoiner).
+    /// Whether the pawn is a creepjoiner whose downside has not shown. A pawn that is no creepjoiner is not: the
+    /// gear census flags only a creepjoiner (GearRoleInput.UnrevealedCreepjoiner).
     /// </summary>
-    public bool Unrevealed(CreepJoinerPawn p)
-    {
-        if (!p.CreepJoiner.TryGetValue(out var joiner) || joiner is null)
-        {
-            return false;
-        }
-        return !Revealed(p).TryGetValue(out var revealed) || !revealed;
-    }
+    public bool Unrevealed(CreepJoinerPawn p) => p.CreepJoiner is not null && !Revealed(p);
 
     /// <summary>
     /// The plain-English reason a colonist must not hold a weapon yet, empty when nothing holds it back: a
-    /// creepjoiner whose downside has not shown, or one whose downside cannot be read. A pawn known to be no
-    /// creepjoiner is never held.
+    /// creepjoiner whose downside has not shown. A pawn that is no creepjoiner is never held.
     /// </summary>
-    public string ArmsHold(CreepJoinerPawn p)
-    {
-        if (!p.CreepJoiner.TryGetValue(out var joiner))
-        {
-            return "its creepjoiner status could not be read, so it is not armed";
-        }
-        if (joiner is null)
-        {
-            return "";
-        }
-        if (!Revealed(p).TryGetValue(out var revealed))
-        {
-            return "it is a creepjoiner whose downside could not be read, so it is not armed";
-        }
-        if (!revealed)
-        {
-            return "it is a creepjoiner whose downside is not revealed yet, so it is not armed";
-        }
-        return "";
-    }
+    public string ArmsHold(CreepJoinerPawn p) =>
+        Unrevealed(p) ? "it is a creepjoiner whose downside is not revealed yet, so it is not armed" : "";
 
     /// <summary>
     /// The drops the colony owes: every available colonist held back from arms who holds a weapon, sorted by
     /// pawn id. Owed is known true with a drop, known false when none is owed and every held colonist was
-    /// read, and unknown when none is owed but a held colonist's weapon or availability is unread.
+    /// read, and unknown when none is owed but a held colonist's weapon is unread.
     /// </summary>
     public (IReadOnlyList<WeaponDrop> Drops, Fact<bool> Owed) WeaponDrops(IReadOnlyList<CreepJoinerHand> hands)
     {
@@ -98,14 +49,11 @@ public sealed record CreepJoinerDownsides
             {
                 continue;
             }
-            var wk = h.Weapon.TryGetValue(out var weapon);
-            var ak = h.Available.TryGetValue(out var available);
-            weapon ??= "";
-            if (!wk || (!ak && weapon.Length != 0))
+            if (!h.Weapon.TryGetValue(out var weapon))
             {
                 unread = true;
             }
-            else if (weapon.Length != 0 && available)
+            else if (weapon.Length != 0 && h.Available)
             {
                 drops.Add(new WeaponDrop(h.Pawn));
             }
@@ -120,57 +68,21 @@ public sealed record CreepJoinerDownsides
 
     /// <summary>
     /// Whether the colony holds the creepjoiner apart: its downside is known not to have shown and the record
-    /// holds no finished inspection of it. Unknown while its downside cannot be read.
+    /// holds no finished inspection of it.
     /// </summary>
-    internal Fact<bool> HoldsApart(CreepJoinerHand h, CreepJoinerRecord record)
-    {
-        if (record.Inspections.GetValueOrDefault(h.Pawn) == InspectionStage.Done)
-        {
-            return Known(false);
-        }
-        if (!Revealed(h.Facts).TryGetValue(out var revealed))
-        {
-            return Unknown<bool>();
-        }
-        return Known(!revealed);
-    }
+    internal bool HoldsApart(CreepJoinerHand h, CreepJoinerRecord record) =>
+        record.Inspections.GetValueOrDefault(h.Pawn) != InspectionStage.Done && Unrevealed(h.Facts);
 
-    /// <summary>
-    /// The creepjoiners the colony holds apart, sorted by pawn id. Unknown while a creepjoiner's downside
-    /// cannot be read, or one's creepjoiner status cannot.
-    /// </summary>
-    public Fact<EquatableArray<PawnId>> Isolated(IReadOnlyList<CreepJoinerHand> hands, CreepJoinerRecord record)
-    {
-        var result = new List<PawnId>();
-        foreach (var h in hands)
-        {
-            if (!h.Facts.CreepJoiner.TryGetValue(out var joiner))
-            {
-                return Unknown<EquatableArray<PawnId>>();
-            }
-            if (joiner is null)
-            {
-                continue;
-            }
-            if (!HoldsApart(h, record).TryGetValue(out var apart))
-            {
-                return Unknown<EquatableArray<PawnId>>();
-            }
-            if (apart)
-            {
-                result.Add(h.Pawn);
-            }
-        }
-        result.Sort();
-        return Known(EquatableArray.From(result));
-    }
+    /// <summary>The creepjoiners the colony holds apart, sorted by pawn id.</summary>
+    public EquatableArray<PawnId> Isolated(IReadOnlyList<CreepJoinerHand> hands, CreepJoinerRecord record) =>
+        EquatableArray.From(hands.Where(h => HoldsApart(h, record)).Select(h => h.Pawn).Order());
 
     /// <summary>
     /// The allowed-area changes the colony owes its creepjoiners, sorted by pawn id. <paramref name="area"/> is
     /// the Isolation area's load id (empty if the map has none); <paramref name="ready"/> is whether the
     /// isolation room stands with its bed. A creepjoiner held apart, available and not hungry is moved into the
     /// area once ready; one in the area that is no longer held apart, or is hungry, is released. A pawn whose
-    /// area, availability or hunger is unread is left as it is.
+    /// hunger is unread is moved in never, and released only when no longer held apart.
     /// </summary>
     public IReadOnlyList<IsolationMove> IsolationMoves(IReadOnlyList<CreepJoinerHand> hands, CreepJoinerRecord record, string area, bool ready)
     {
@@ -181,22 +93,17 @@ public sealed record CreepJoinerDownsides
         var result = new List<IsolationMove>();
         foreach (var h in hands)
         {
-            if (!h.Facts.CreepJoiner.TryGetValue(out var joiner) || joiner is null)
+            if (h.Facts.CreepJoiner is null)
             {
                 continue;
             }
-            if (!h.Area.TryGetValue(out var current))
-            {
-                continue;
-            }
-            var ak = HoldsApart(h, record).TryGetValue(out var apart);
+            var apart = HoldsApart(h, record);
             var hk = h.Hungry.TryGetValue(out var hungry);
-            var vk = h.Available.TryGetValue(out var available);
-            if (current == area && ak && (!apart || (hk && hungry)))
+            if (h.Area == area && (!apart || (hk && hungry)))
             {
                 result.Add(new IsolationMove(h.Pawn, ""));
             }
-            else if (current != area && ready && ak && apart && hk && !hungry && vk && available)
+            else if (h.Area != area && ready && apart && hk && !hungry && h.Available)
             {
                 result.Add(new IsolationMove(h.Pawn, area));
             }
@@ -206,10 +113,10 @@ public sealed record CreepJoinerDownsides
 
     /// <summary>
     /// Finds what the colony owes its creepjoiners. A creepjoiner needs an inspection while its downside is
-    /// unrevealed (Revealed known false) and the record holds none for it. An available colonist with the
-    /// inspection operation on offer, a doctor able to perform it and its ingredients on the map is ordered
-    /// one; the operation is the offered one whose recipe is in recipes, on its lowest part index. A colonist
-    /// whose downside or inspection operation cannot be read is not ordered (and says why in Waiting). An
+    /// unrevealed and the record holds none for it. An available colonist with the inspection operation on
+    /// offer, a doctor able to perform it and its ingredients on the map is ordered one; the operation is the
+    /// offered one whose recipe is in recipes, on its lowest part index. A colonist whose inspection operation
+    /// cannot be ordered is not (and says why in Waiting). An
     /// ordered inspection ends when no inspection bill is queued on the pawn any more.
     /// </summary>
     public Inspections Inspections(IReadOnlyList<CreepJoinerHand> hands, IReadOnlySet<string> recipes, CreepJoinerRecord record)
@@ -227,7 +134,7 @@ public sealed record CreepJoinerDownsides
         var waiting = new List<string>();
         foreach (var h in hands)
         {
-            if (!h.Facts.CreepJoiner.TryGetValue(out var joiner) || joiner is null)
+            if (h.Facts.CreepJoiner is null)
             {
                 continue;
             }
@@ -244,12 +151,7 @@ public sealed record CreepJoinerDownsides
             {
                 continue;
             }
-            if (!Revealed(h.Facts).TryGetValue(out var revealed))
-            {
-                waiting.Add($"creepjoiner {h.Pawn} cannot be inspected: its downside could not be read");
-                continue;
-            }
-            if (revealed)
+            if (Revealed(h.Facts))
             {
                 continue;
             }
@@ -272,16 +174,16 @@ public sealed record CreepJoinerDownsides
 }
 
 /// <summary>
-/// One colonist's facts for the downside check: its creepjoiner tracker facts and the def names of its traits
-/// and of its visible hediffs.
+/// One colonist's facts for the downside check: its creepjoiner tracker facts (null for a pawn that is no
+/// creepjoiner) and the def names of its traits and of its visible hediffs.
 /// </summary>
 public sealed record CreepJoinerPawn
 {
-    public Fact<CreepJoinerState?> CreepJoiner { get; init; }
+    public required CreepJoinerState? CreepJoiner { get; init; }
 
-    public Fact<EquatableArray<string>> Traits { get; init; }
+    public required EquatableArray<string> Traits { get; init; }
 
-    public Fact<EquatableArray<string>> Hediffs { get; init; }
+    public required EquatableArray<string> Hediffs { get; init; }
 }
 
 /// <summary>
@@ -291,11 +193,11 @@ public sealed record CreepJoinerPawn
 /// </summary>
 public sealed record CreepJoinerHand
 {
-    public PawnId Pawn { get; init; }
+    public required PawnId Pawn { get; init; }
 
-    public CreepJoinerPawn Facts { get; init; } = new();
+    public required CreepJoinerPawn Facts { get; init; }
 
-    public Fact<bool> Available { get; init; }
+    public required bool Available { get; init; }
 
     public Fact<string> Weapon { get; init; }
 
@@ -307,7 +209,7 @@ public sealed record CreepJoinerHand
     public required EquatableArray<string> QueuedRecipes { get; init; }
 
     /// <summary>The load id of the colonist's allowed area (empty when unrestricted).</summary>
-    public Fact<string> Area { get; init; }
+    public required string Area { get; init; }
 
     /// <summary>Whether it is below the game's fed band.</summary>
     public Fact<bool> Hungry { get; init; }
@@ -322,11 +224,7 @@ public sealed record CreepJoinerHand
         {
             return (null, "the game defines no surgical inspection recipe");
         }
-        if (!Available.TryGetValue(out var available))
-        {
-            return (null, "its availability could not be read");
-        }
-        if (!available)
+        if (!Available)
         {
             return (null, "it cannot take an order now");
         }

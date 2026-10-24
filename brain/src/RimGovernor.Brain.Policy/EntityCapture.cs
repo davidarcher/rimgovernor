@@ -3,50 +3,58 @@ using System.Globalization;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// One entity pawn row's capture facts: each is unknown when native did not read it.
+/// One entity pawn row's capture facts. Target is its holding-platform target block (CompHoldingPlatformTarget);
+/// null for an entity without one, which the colony cannot capture.
 /// </summary>
 public sealed record CapturableEntity
 {
-    public Domain.PawnId Pawn { get; init; }
+    public required Domain.PawnId Pawn { get; init; }
 
     /// <summary>The pawn row's.</summary>
-    public Fact<bool> Dead { get; init; }
+    public required bool Dead { get; init; }
 
     /// <summary>The pawn row's.</summary>
-    public Fact<bool> Downed { get; init; }
-
-    /// <summary>The holding-platform target's CompHoldingPlatformTarget.CanBeCaptured.</summary>
-    public Fact<bool> CanBeCaptured { get; init; }
-
-    /// <summary>The holding-platform target's CurrentlyHeldOnPlatform.</summary>
-    public Fact<bool> Held { get; init; }
+    public required bool Downed { get; init; }
 
     /// <summary>MinimumContainmentStrength.</summary>
-    public Fact<double> Need { get; init; }
+    public required double Need { get; init; }
 
-    /// <summary>The held entity's health.</summary>
-    public Fact<bool> NeedsTend { get; init; }
+    /// <summary>CompStudiable.CurrentlyStudiable; false for an entity with no study block.</summary>
+    public required bool CurrentlyStudiable { get; init; }
 
-    /// <summary>The held entity's health.</summary>
-    public Fact<bool> Bleeding { get; init; }
+    public required PlatformTarget? Target { get; init; }
 
-    /// <summary>The held entity's EscapeChance flag.</summary>
-    public Fact<bool> Escaping { get; init; }
+    /// <summary>The holding-platform target's CompHoldingPlatformTarget.CanBeCaptured; false without a target block.</summary>
+    public bool CanBeCaptured => Target is { CanBeCaptured: true };
 
-    /// <summary>CompStudiable.CurrentlyStudiable; a known false for an entity with no study block.</summary>
-    public Fact<bool> CurrentlyStudiable { get; init; }
+    /// <summary>The holding-platform target's CurrentlyHeldOnPlatform; false without a target block.</summary>
+    public bool Held => Target is { Held: true };
+}
 
-    /// <summary>The held entity's bioferrite harvest fact.</summary>
-    public Fact<EntityContainmentModeKind> Mode { get; init; }
+/// <summary>
+/// An entity's holding-platform target: whether the game lets the colony capture it and whether a platform holds
+/// it, the held entity's health (needs tend, bleeding), its escape flag and its containment mode and bioferrite
+/// harvest facts.
+/// </summary>
+public sealed record PlatformTarget
+{
+    public required bool CanBeCaptured { get; init; }
 
-    /// <summary>The held entity's bioferrite harvest fact.</summary>
-    public Fact<bool> ExtractBioferrite { get; init; }
+    public required bool Held { get; init; }
 
-    /// <summary>The held entity's bioferrite harvest fact.</summary>
-    public Fact<bool> HarvesterAttached { get; init; }
+    public required bool NeedsTend { get; init; }
 
-    /// <summary>The held entity's bioferrite harvest fact.</summary>
-    public Fact<double> BioferritePerDay { get; init; }
+    public required bool Bleeding { get; init; }
+
+    public required bool Escaping { get; init; }
+
+    public required EntityContainmentModeKind Mode { get; init; }
+
+    public required bool ExtractBioferrite { get; init; }
+
+    public required bool HarvesterAttached { get; init; }
+
+    public required double BioferritePerDay { get; init; }
 }
 
 /// <summary>What the rule does with one downed entity.</summary>
@@ -58,7 +66,7 @@ public enum EntityDecision
     /// <summary>Finishes the entity: no platform holds it with margin, or the game does not let the colony capture it.</summary>
     Kill,
 
-    /// <summary>Does neither: a fact the rule needs is unread. Reason names it.</summary>
+    /// <summary>Does neither: a colony fact the rule needs is unread. Reason names it.</summary>
     Refuse,
 }
 
@@ -106,41 +114,15 @@ public static class EntityCaptureRules
     private static EntityVerdict? EntityVerdictFor(ContainmentPlanning p, CapturableEntity e)
     {
         EntityVerdict Refuse(string reason) => new(e.Pawn, EntityDecision.Refuse, reason);
-        var dk = e.Dead.TryGetValue(out var dead);
-        if (dk && dead)
+        if (e.Dead || !e.Downed || e.Held)
         {
             return null;
         }
-        var wk = e.Downed.TryGetValue(out var downed);
-        var hk = e.Held.TryGetValue(out var held);
-        if ((wk && !downed) || (hk && held))
-        {
-            return null;
-        }
-        if (!dk)
-        {
-            return Refuse("whether the entity is dead is unread");
-        }
-        if (!wk)
-        {
-            return Refuse("whether the entity is downed is unread");
-        }
-        if (!hk)
-        {
-            return Refuse("whether a platform holds the entity is unread");
-        }
-        if (!e.CanBeCaptured.TryGetValue(out var capturable))
-        {
-            return Refuse("whether the game lets the colony capture the entity is unread");
-        }
-        if (!capturable)
+        if (!e.CanBeCaptured)
         {
             return new EntityVerdict(e.Pawn, EntityDecision.Kill, "the game does not let the colony capture it");
         }
-        if (!e.Need.TryGetValue(out var need))
-        {
-            return Refuse("the containment strength the entity needs is unread");
-        }
+        var need = e.Need;
         if (!p.Holders.TryGetValue(out var holders))
         {
             return Refuse("the standing holding platforms are unread");

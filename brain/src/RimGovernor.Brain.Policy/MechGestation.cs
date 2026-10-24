@@ -4,18 +4,18 @@ namespace RimGovernor.Brain.Policy;
 public sealed record GestatorFact
 {
     /// <summary>Whether the gestator has an active bill (a mech forming).</summary>
-    public Fact<bool> Active { get; init; }
+    public required bool Active { get; init; }
 
     /// <summary>The wastepacks held in its own waste producer.</summary>
-    public Fact<int> WasteCount { get; init; }
+    public required int WasteCount { get; init; }
 }
 
 /// <summary>One stack of wastepacks as the colony section reads it.</summary>
 public sealed record WastepackFact
 {
-    public int Count { get; init; }
-    public Fact<bool> Frozen { get; init; }
-    public Fact<bool> InAtomizer { get; init; }
+    public required int Count { get; init; }
+    public required bool Frozen { get; init; }
+    public required bool InAtomizer { get; init; }
 }
 
 /// <summary>
@@ -54,49 +54,13 @@ public static partial class MechRules
 
     /// <summary>
     /// Whether new gestation must wait on waste: a gestator holding waste, or a wastepack stack not frozen and not
-    /// in an atomizer (a dissolved pack is no stack any more; an empty stack counts as dissolved). An unread count
-    /// or flag cannot certify the waste cleared.
+    /// in an atomizer (a dissolved pack is no stack any more; an empty stack counts as dissolved).
     /// </summary>
-    public static bool UnclearedWaste(MechGestation g)
-    {
-        foreach (var gestator in g.Gestators)
-        {
-            if (!gestator.WasteCount.TryGetValue(out var n) || n > 0)
-            {
-                return true;
-            }
-        }
-        foreach (var pack in g.Wastepacks)
-        {
-            if (pack.Count <= 0)
-            {
-                continue;
-            }
-            if (pack.Frozen.TryGetValue(out var frozen) && frozen)
-            {
-                continue;
-            }
-            if (pack.InAtomizer.TryGetValue(out var atomizer) && atomizer)
-            {
-                continue;
-            }
-            return true;
-        }
-        return false;
-    }
+    public static bool UnclearedWaste(MechGestation g) =>
+        g.Gestators.Any(gestator => gestator.WasteCount > 0) || g.Wastepacks.Any(pack => pack.Count > 0 && !pack.Frozen && !pack.InAtomizer);
 
-    /// <summary>A mechanitor's bandwidth left for a new mech; Ok is false while any of the three figures is unread.</summary>
-    public static (int Free, bool Ok) FreeBandwidth(PawnMechanitor m)
-    {
-        var tk = m.TotalBandwidth.TryGetValue(out var total);
-        var uk = m.UsedBandwidth.TryGetValue(out var used);
-        var gk = m.GestationBandwidth.TryGetValue(out var gestation);
-        if (!tk || !uk || !gk)
-        {
-            return (0, false);
-        }
-        return (total - used - gestation, true);
-    }
+    /// <summary>A mechanitor's bandwidth left for a new mech.</summary>
+    public static int FreeBandwidth(PawnMechanitor m) => m.TotalBandwidth - m.UsedBandwidth - m.GestationBandwidth;
 
     /// <summary>
     /// Picks the next mech: for each mechanitor, most free bandwidth first, the role MechRoleNext names, then the
@@ -106,11 +70,11 @@ public static partial class MechRules
     /// </summary>
     public static (MechChoice Choice, bool Ok) NextMech(MechGestation g, Func<string, bool> offered)
     {
-        var ordered = g.Mechanitors.OrderByDescending(m => FreeBandwidth(m.Mechanitor).Free).ThenBy(m => m.Id).ToList();
+        var ordered = g.Mechanitors.OrderByDescending(m => FreeBandwidth(m.Mechanitor)).ThenBy(m => m.Id).ToList();
         foreach (var m in ordered)
         {
-            var (free, freeOk) = FreeBandwidth(m.Mechanitor);
-            if (!freeOk || free <= 0)
+            var free = FreeBandwidth(m.Mechanitor);
+            if (free <= 0)
             {
                 continue;
             }
@@ -160,23 +124,16 @@ public static partial class MechRules
     }
 
     /// <summary>
-    /// The goal's deficit: false while waste is uncleared (or unread), no charger is ready, a gestator is forming
+    /// The goal's deficit: false while waste is uncleared, no charger is ready, a gestator is forming
     /// a mech, or no gestator exists; true when NextMech finds an affordable mech of the needed role. The catalog's
     /// kinds stand in for the recipes a gestator offers here; the bill planner narrows to the recipes it can
     /// actually queue.
     /// </summary>
     public static Fact<bool> MechGestationOwed(MechGestation g)
     {
-        if (g.Gestators.Count == 0 || UnclearedWaste(g) || !MechChargerReady(g.Chargers))
+        if (g.Gestators.Count == 0 || UnclearedWaste(g) || !MechChargerReady(g.Chargers) || g.Gestators.Any(gestator => gestator.Active))
         {
             return Known(false);
-        }
-        foreach (var gestator in g.Gestators)
-        {
-            if (!gestator.Active.TryGetValue(out var active) || active)
-            {
-                return Known(false);
-            }
         }
         var (_, ok) = NextMech(g, _ => true);
         return Known(ok);

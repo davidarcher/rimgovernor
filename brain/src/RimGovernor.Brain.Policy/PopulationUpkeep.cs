@@ -183,8 +183,8 @@ public sealed partial record PrisonerFacts
 
     public bool Executing { get; init; }
 
-    /// <summary>The prisoner has a creepjoiner tracker (unknown while that read failed); Kind is its PawnKindDef name.</summary>
-    public Fact<bool> CreepJoiner { get; init; }
+    /// <summary>The prisoner has a creepjoiner tracker; Kind is its PawnKindDef name.</summary>
+    public required bool CreepJoiner { get; init; }
 
     public string Kind { get; init; } = "";
 

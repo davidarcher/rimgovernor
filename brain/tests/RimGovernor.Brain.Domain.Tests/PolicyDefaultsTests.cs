@@ -34,9 +34,10 @@ public sealed class PolicyDefaultsTests
     }
 
     [Fact]
-    public void AKnownAbsentRecordSurvivesTheJournalCodec()
+    public void AnAbsentRecordSurvivesTheJournalCodec()
     {
-        var biotech = new PawnBiotech { Mechanitor = Fact.Known<PawnMechanitor?>(null) };
+        var mech = new PawnMech { Overseer = "", WorkMode = null, Energy = new MechEnergy.NoEnergyNeed(), Group = null };
+        var biotech = new PawnBiotech { DevelopmentalStage = default, Genes = [], Mechanitor = null, Mech = mech, Deathrest = null };
         var buffer = new ArrayBufferWriter<byte>();
         using (var writer = new Utf8JsonWriter(buffer))
         {
@@ -44,8 +45,8 @@ public sealed class PolicyDefaultsTests
         }
         using var doc = JsonDocument.Parse(buffer.WrittenMemory);
         var back = Codecs.Default.Read<PawnBiotech>(doc.RootElement);
-        Assert.True(back.Mechanitor.TryGetValue(out var mechanitor));
-        Assert.Null(mechanitor);
-        Assert.False(back.Mech.TryGetValue(out _));
+        Assert.Equal(biotech with { Genes = back.Genes }, back);
+        Assert.Null(back.Mechanitor);
+        Assert.Equal(mech, back.Mech);
     }
 }

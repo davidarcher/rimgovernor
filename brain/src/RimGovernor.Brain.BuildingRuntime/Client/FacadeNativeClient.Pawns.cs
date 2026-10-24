@@ -87,7 +87,7 @@ public sealed partial class FacadeNativeClient
             {
                 throw BridgeContractException.Contract($"mech {id}: not a mechanoid");
             }
-            if (!BiotechFactsRules.PawnBiotech(row.Biotech).TryGetValue(out var biotech) || !biotech.Mech.TryGetValue(out var mech) || mech is null)
+            if (!BiotechFactsRules.PawnBiotech(row.Biotech).TryGetValue(out var biotech) || biotech.Mech is not { } mech)
             {
                 throw BridgeContractException.Contract($"mech {id}: no Biotech mech block");
             }

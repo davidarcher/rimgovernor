@@ -39,22 +39,12 @@ public static class EntityBioferriteRules
             return new BioferriteHarvest();
         }
         var issues = new List<string>();
-        var held = new List<CapturableEntity>();
+        var held = new List<(Domain.PawnId Pawn, PlatformTarget Target)>();
         foreach (var e in entities)
         {
-            var dk = e.Dead.TryGetValue(out var dead);
-            var hk = e.Held.TryGetValue(out var isHeld);
-            if (dk && dead)
+            if (!e.Dead && e.Target is { Held: true } target)
             {
-                continue;
-            }
-            if (!hk)
-            {
-                issues.Add($"whether a platform holds entity {e.Pawn} is unread");
-            }
-            else if (isHeld)
-            {
-                held.Add(e);
+                held.Add((e.Pawn, target));
             }
         }
         if (held.Count == 0)
@@ -71,46 +61,18 @@ public static class EntityBioferriteRules
             return new BioferriteHarvest { Issues = issues };
         }
         var enable = new List<Domain.PawnId>();
-        foreach (var e in held)
+        foreach (var (pawn, target) in held)
         {
-            var (on, reason) = BioferriteEnable(e);
-            if (reason.Length != 0)
+            if (BioferriteEnable(target))
             {
-                issues.Add(reason);
-            }
-            else if (on)
-            {
-                enable.Add(e.Pawn);
+                enable.Add(pawn);
             }
         }
         enable.Sort();
         return new BioferriteHarvest { Enable = enable, Issues = issues };
     }
 
-    /// <summary>Whether the held entity's flag is to be set; reason names the unread fact otherwise.</summary>
-    private static (bool Enable, string Reason) BioferriteEnable(CapturableEntity e)
-    {
-        (bool, string) Unread(string what) => (false, $"{what} of entity {e.Pawn} is unread");
-        if (!e.Mode.TryGetValue(out var mode))
-        {
-            return Unread("the containment mode");
-        }
-        if (!e.ExtractBioferrite.TryGetValue(out var flag))
-        {
-            return Unread("the extract bioferrite flag");
-        }
-        if (!e.HarvesterAttached.TryGetValue(out var harvester))
-        {
-            return Unread("whether a bioferrite harvester is attached");
-        }
-        if (!e.BioferritePerDay.TryGetValue(out var perDay))
-        {
-            return Unread("the bioferrite production");
-        }
-        if (mode == EntityContainmentModeKind.Release || flag || harvester)
-        {
-            return (false, "");
-        }
-        return (BioferriteYield(perDay) >= 1, "");
-    }
+    /// <summary>Whether the held entity's flag is to be set.</summary>
+    private static bool BioferriteEnable(PlatformTarget t) =>
+        t.Mode != EntityContainmentModeKind.Release && !t.ExtractBioferrite && !t.HarvesterAttached && BioferriteYield(t.BioferritePerDay) >= 1;
 }

@@ -102,9 +102,6 @@ public record SquadDefenderFacts
     /// <summary>The pawn's MeleeDPS scaled by health.</summary>
     public Fact<double> MeleePower { get; init; }
 
-    /// <summary>The primary ranged weapon's damage per second, 0 without one.</summary>
-    public Fact<double> RangedDPS { get; init; }
-
     /// <summary>A pawn with Warden work enabled; a prison break ranks it first.</summary>
     public bool Warden { get; init; }
 }

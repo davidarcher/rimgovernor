@@ -47,14 +47,14 @@ public sealed record MechCatalog
 public sealed record MechanitorInput
 {
     public PawnId Id { get; init; }
-    public PawnMechanitor Mechanitor { get; init; } = new();
+    public required PawnMechanitor Mechanitor { get; init; }
 
     /// <summary>Where the mechanitor stands; unknown plans no guard orders.</summary>
     public Fact<Cell> Cell { get; init; }
 
-    public Fact<int> UsedBandwidth => Mechanitor.UsedBandwidth;
-    public Fact<int> TotalBandwidth => Mechanitor.TotalBandwidth;
-    public Fact<int> ControlGroups => Mechanitor.ControlGroups;
+    public int UsedBandwidth => Mechanitor.UsedBandwidth;
+    public int TotalBandwidth => Mechanitor.TotalBandwidth;
+    public int ControlGroups => Mechanitor.ControlGroups;
 }
 
 /// <summary>One colony mech with its Biotech row. It is composed with forwarding members.</summary>
@@ -62,7 +62,7 @@ public sealed record MechInput
 {
     public PawnId Id { get; init; }
     public string Kind { get; init; } = "";
-    public PawnMech Mech { get; init; } = new();
+    public required PawnMech Mech { get; init; }
     public Fact<Cell> Cell { get; init; }
     public bool Downed { get; init; }
     public bool Drafted { get; init; }
@@ -71,11 +71,9 @@ public sealed record MechInput
     public PawnId Target { get; init; }
 
     public string Overseer => Mech.Overseer;
-    public Fact<string> WorkMode => Mech.WorkMode;
-    public Fact<int> ControlGroup => Mech.ControlGroup;
-    public Fact<double> Energy => Mech.Energy;
-    public Fact<double> RechargeBelow => Mech.RechargeBelow;
-    public Fact<double> RechargeAbove => Mech.RechargeAbove;
+    public string? WorkMode => Mech.WorkMode;
+    public PawnMechGroup? Group => Mech.Group;
+    public MechEnergy Energy => Mech.Energy;
 }
 
 /// <summary>The colony's mechanitors and mechs as one read recorded them.</summary>
@@ -108,7 +106,7 @@ public sealed record MechGroup
 
     /// <summary>
     /// Whether the group already runs the mode: a mech now in the group has a known mode and every one that is
-    /// has the wanted one. An empty group, or one with an unread mode, is written.
+    /// has the wanted one. An empty group, or one with a mech without a mode, is written.
     /// </summary>
     public bool HoldsMode(IReadOnlyList<MechInput> all) => Holds(all, Mode);
 
@@ -118,11 +116,11 @@ public sealed record MechGroup
         var seen = false;
         foreach (var mech in all)
         {
-            if (!mech.ControlGroup.TryGetValue(out var group) || group != Index)
+            if (mech.Group?.Index != Index)
             {
                 continue;
             }
-            if (!mech.WorkMode.TryGetValue(out var mode) || mode != wanted)
+            if (mech.WorkMode != wanted)
             {
                 return false;
             }
@@ -149,8 +147,8 @@ public static partial class MechRules
     /// <summary>
     /// The settings that bring each mechanitor's mechs into role groups with the right modes: first every move,
     /// then every group mode, so a mode lands on a group after its mechs are in it. hostile is a hostile on the
-    /// map; chargerReady is a charger a mech can use now (MechRechargeMode). An unknown group count, an unknown
-    /// mech group or a mech whose overseer is not an input mechanitor is skipped; a mech kind or mode the catalog
+    /// map; chargerReady is a charger a mech can use now (MechRechargeMode). A mechanitor without control groups, a
+    /// mech outside any group or a mech whose overseer is not an input mechanitor is skipped; a mech kind or mode the catalog
     /// lacks throws.
     /// </summary>
     public static List<PawnSettings> PlanMechControl(MechCatalog catalog, IReadOnlyList<MechanitorInput> mechanitors, IReadOnlyList<MechInput> mechs, bool hostile, bool chargerReady)
@@ -166,7 +164,8 @@ public static partial class MechRules
         var modes = new List<PawnSettings>();
         foreach (var m in SortedMechanitors(mechanitors))
         {
-            if (!m.ControlGroups.TryGetValue(out var groups) || groups < 1)
+            var groups = m.ControlGroups;
+            if (groups < 1)
             {
                 continue;
             }
@@ -182,7 +181,7 @@ public static partial class MechRules
                 {
                     throw new DomainException($"mech {mech.Id} kind {mech.Kind} is not in the catalog");
                 }
-                if (!mech.ControlGroup.IsKnown)
+                if (mech.Group is null)
                 {
                     continue;
                 }
@@ -224,7 +223,7 @@ public static partial class MechRules
             {
                 foreach (var mech in planned.Mechs)
                 {
-                    if (mech.ControlGroup.TryGetValue(out var current) && current == planned.Index)
+                    if (mech.Group?.Index == planned.Index)
                     {
                         continue;
                     }
@@ -247,7 +246,7 @@ public static partial class MechRules
         var count = new Dictionary<int, int>();
         foreach (var mech in mechs)
         {
-            if (mech.ControlGroup.TryGetValue(out var g) && g != skip && g < groups)
+            if (mech.Group is { Index: var g } && g != skip && g < groups)
             {
                 count[g] = count.GetValueOrDefault(g) + 1;
             }
@@ -270,13 +269,11 @@ public static partial class MechRules
     /// <summary>
     /// The role the mechanitor's next free bandwidth should buy, by colonist need first: Worker while a work type
     /// has fewer colonist owners than demand and none of the mechanitor's work mechs covers it, Guard otherwise.
-    /// Ok is false with no free bandwidth or an unread budget.
+    /// Ok is false with no free bandwidth.
     /// </summary>
     public static (MechRole Role, bool Ok) MechRoleNext(MechCatalog catalog, MechanitorInput m, IReadOnlyList<MechInput> mechs, IReadOnlyList<WorkCoverage> coverage)
     {
-        var uk = m.UsedBandwidth.TryGetValue(out var used);
-        var tk = m.TotalBandwidth.TryGetValue(out var total);
-        if (!uk || !tk || total - used <= 0)
+        if (m.TotalBandwidth - m.UsedBandwidth <= 0)
         {
             return (MechRole.None, false);
         }

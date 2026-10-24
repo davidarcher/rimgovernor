@@ -60,7 +60,7 @@ public sealed record CreepJoinerDisarm
         var orders = new List<DisarmOrder>();
         foreach (var p in prisoners.OrderBy(x => x.Pawn))
         {
-            if (!p.CreepJoiner.TryGetValue(out var joiner) || !joiner || p.Dead)
+            if (!p.CreepJoiner || p.Dead)
             {
                 continue;
             }

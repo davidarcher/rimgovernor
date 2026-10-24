@@ -45,12 +45,7 @@ public static class EntityUpkeepRules
             {
                 continue;
             }
-            if (!h.Doors.TryGetValue(out var doors))
-            {
-                issues.Add(new UpkeepIssue($"the doors of the cell holding {h.HeldPawn} are unread"));
-                continue;
-            }
-            foreach (var d in doors)
+            foreach (var d in h.Doors)
             {
                 if (!seen.Add(d.Cell))
                 {
@@ -78,8 +73,7 @@ public static class EntityUpkeepRules
 
     /// <summary>
     /// The held entity to tend next: one that is alive, held and read as needing
-    /// tend, a bleeding one first, then by pawn ID. An entity whose health facts are unread is skipped; null
-    /// when none.
+    /// tend, a bleeding one first, then by pawn ID; null when none.
     /// </summary>
     public static Domain.PawnId? EntityTendTarget(ContainmentPlanning p)
     {
@@ -91,21 +85,17 @@ public static class EntityUpkeepRules
         var bestBleeding = false;
         foreach (var e in entities)
         {
-            var dk = e.Dead.TryGetValue(out var dead);
-            var hk = e.Held.TryGetValue(out var held);
-            var nk = e.NeedsTend.TryGetValue(out var needs);
-            var wk = e.Downed.TryGetValue(out var downed);
-            if (!dk || dead || !hk || !held || !nk || !needs)
+            if (e.Dead || e.Target is not { Held: true, NeedsTend: true } target)
             {
                 continue;
             }
-            if (!wk || !downed)
+            if (!e.Downed)
             {
                 // SelectTend tends a patient only where they lie (downed or in a bed, tendable), and an entity is
                 // in no bed: a standing entity is no deficit the colony can work, so none is owed.
                 continue;
             }
-            var bleeding = e.Bleeding.ValueOrDefault;
+            var bleeding = target.Bleeding;
             if (best.IsEmpty || (bleeding && !bestBleeding) || (bleeding == bestBleeding && e.Pawn < best))
             {
                 best = e.Pawn;

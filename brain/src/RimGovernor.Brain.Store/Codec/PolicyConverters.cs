@@ -1333,13 +1333,13 @@ internal sealed class PawnBiotechConverter : ObjectCodec<PawnBiotech>
     protected override PawnBiotech Read(JsonElement e, Codecs o) =>
         new()
         {
-            DevelopmentalStage = e.Get<Fact<RimGovernor.Contracts.Wire.Defs.DevelopmentalStage>>("DevelopmentalStage", o),
-            Genes = e.Get<Fact<EquatableArray<PawnGene>>>("Genes", o),
+            DevelopmentalStage = e.Get<RimGovernor.Contracts.Wire.Defs.DevelopmentalStage>("DevelopmentalStage", o),
+            Genes = e.Get<EquatableArray<PawnGene>>("Genes", o),
             Effects = e.Get<Fact<GeneEffects>>("Effects", o),
             WorkMinAges = e.Get<Fact<IReadOnlyDictionary<WorkType, int>>>("WorkMinAges", o),
-            Mechanitor = e.Get<Fact<PawnMechanitor?>>("Mechanitor", o),
-            Mech = e.Get<Fact<PawnMech?>>("Mech", o),
-            Deathrest = e.Get<Fact<PawnDeathrest?>>("Deathrest", o),
+            Mechanitor = Absent(e, "Mechanitor") ? null : e.Get<PawnMechanitor>("Mechanitor", o),
+            Mech = Absent(e, "Mech") ? null : e.Get<PawnMech>("Mech", o),
+            Deathrest = Absent(e, "Deathrest") ? null : e.Get<PawnDeathrest>("Deathrest", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PawnBiotech v, Codecs o)
@@ -1348,9 +1348,26 @@ internal sealed class PawnBiotechConverter : ObjectCodec<PawnBiotech>
         w.Put("Genes", v.Genes, o);
         w.Put("Effects", v.Effects, o);
         w.Put("WorkMinAges", v.WorkMinAges, o);
-        w.Put("Mechanitor", v.Mechanitor, o);
-        w.Put("Mech", v.Mech, o);
-        w.Put("Deathrest", v.Deathrest, o);
+        PutOrNull(w, "Mechanitor", v.Mechanitor, o);
+        PutOrNull(w, "Mech", v.Mech, o);
+        PutOrNull(w, "Deathrest", v.Deathrest, o);
+    }
+
+    /// <summary>Whether a required nullable record field is JSON null (the pawn has none).</summary>
+    private static bool Absent(JsonElement e, string name) =>
+        e.TryGetProperty(name, out var field) ? field.ValueKind == JsonValueKind.Null : throw new StoreCorruptException($"missing field {name}");
+
+    private static void PutOrNull<T>(Utf8JsonWriter w, string name, T? value, Codecs o)
+        where T : class
+    {
+        if (value is not null)
+        {
+            w.Put(name, value, o);
+        }
+        else
+        {
+            w.WriteNull(name);
+        }
     }
 }
 
@@ -1359,14 +1376,14 @@ internal sealed class PawnDeathrestConverter : ObjectCodec<PawnDeathrest>
     protected override PawnDeathrest Read(JsonElement e, Codecs o) =>
         new()
         {
-            Deathresting = e.Get<Fact<bool>>("Deathresting", o),
-            Capacity = e.Get<Fact<int>>("Capacity", o),
+            Deathresting = e.Bool("Deathresting"),
+            Capacity = e.I32("Capacity"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PawnDeathrest v, Codecs o)
     {
-        w.Put("Deathresting", v.Deathresting, o);
-        w.Put("Capacity", v.Capacity, o);
+        w.WriteBoolean("Deathresting", v.Deathresting);
+        w.WriteNum("Capacity", v.Capacity);
     }
 }
 
@@ -1376,13 +1393,13 @@ internal sealed class PawnGeneConverter : ObjectCodec<PawnGene>
         new()
         {
             Name = e.Str("Name"),
-            Active = e.Get<Fact<bool>>("Active", o),
+            Active = e.Bool("Active"),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PawnGene v, Codecs o)
     {
         w.WriteString("Name", v.Name);
-        w.Put("Active", v.Active, o);
+        w.WriteBoolean("Active", v.Active);
     }
 }
 
@@ -1392,21 +1409,43 @@ internal sealed class PawnMechConverter : ObjectCodec<PawnMech>
         new()
         {
             Overseer = e.Str("Overseer"),
-            WorkMode = e.Get<Fact<string>>("WorkMode", o),
-            ControlGroup = e.Get<Fact<int>>("ControlGroup", o),
-            Energy = e.Get<Fact<double>>("Energy", o),
-            RechargeBelow = e.Get<Fact<double>>("RechargeBelow", o),
-            RechargeAbove = e.Get<Fact<double>>("RechargeAbove", o),
+            WorkMode = e.GetProperty("WorkMode") is { ValueKind: JsonValueKind.String } mode ? mode.GetString() : null,
+            Energy = e.GetProperty("Energy") is { ValueKind: JsonValueKind.Number } energy
+                ? new MechEnergy.Level(energy.GetDouble())
+                : new MechEnergy.NoEnergyNeed(),
+            Group = e.GetProperty("Group") is { ValueKind: JsonValueKind.Object } g
+                ? new PawnMechGroup(g.I32("Index"), g.Dbl("RechargeBelow"), g.Dbl("RechargeAbove"))
+                : null,
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PawnMech v, Codecs o)
     {
         w.WriteString("Overseer", v.Overseer);
-        w.Put("WorkMode", v.WorkMode, o);
-        w.Put("ControlGroup", v.ControlGroup, o);
-        w.Put("Energy", v.Energy, o);
-        w.Put("RechargeBelow", v.RechargeBelow, o);
-        w.Put("RechargeAbove", v.RechargeAbove, o);
+        w.WriteString("WorkMode", v.WorkMode);
+        if (v.Energy is MechEnergy.Level level)
+        {
+            w.WriteNum("Energy", level.Fraction);
+        }
+        else if (v.Energy is MechEnergy.NoEnergyNeed)
+        {
+            w.WriteNull("Energy");
+        }
+        else
+        {
+            throw new JsonException($"unknown mech energy {v.Energy.GetType().Name}");
+        }
+        if (v.Group is { } group)
+        {
+            w.WriteStartObject("Group");
+            w.WriteNum("Index", group.Index);
+            w.WriteNum("RechargeBelow", group.RechargeBelow);
+            w.WriteNum("RechargeAbove", group.RechargeAbove);
+            w.WriteEndObject();
+        }
+        else
+        {
+            w.WriteNull("Group");
+        }
     }
 }
 
@@ -1415,19 +1454,19 @@ internal sealed class PawnMechanitorConverter : ObjectCodec<PawnMechanitor>
     protected override PawnMechanitor Read(JsonElement e, Codecs o) =>
         new()
         {
-            UsedBandwidth = e.Get<Fact<int>>("UsedBandwidth", o),
-            TotalBandwidth = e.Get<Fact<int>>("TotalBandwidth", o),
-            GestationBandwidth = e.Get<Fact<int>>("GestationBandwidth", o),
-            ControlGroups = e.Get<Fact<int>>("ControlGroups", o),
+            UsedBandwidth = e.I32("UsedBandwidth"),
+            TotalBandwidth = e.I32("TotalBandwidth"),
+            GestationBandwidth = e.I32("GestationBandwidth"),
+            ControlGroups = e.I32("ControlGroups"),
             ControlledMechs = e.Get<IReadOnlyList<string>>("ControlledMechs", o),
         };
 
     protected override void WriteFields(Utf8JsonWriter w, PawnMechanitor v, Codecs o)
     {
-        w.Put("UsedBandwidth", v.UsedBandwidth, o);
-        w.Put("TotalBandwidth", v.TotalBandwidth, o);
-        w.Put("GestationBandwidth", v.GestationBandwidth, o);
-        w.Put("ControlGroups", v.ControlGroups, o);
+        w.WriteNum("UsedBandwidth", v.UsedBandwidth);
+        w.WriteNum("TotalBandwidth", v.TotalBandwidth);
+        w.WriteNum("GestationBandwidth", v.GestationBandwidth);
+        w.WriteNum("ControlGroups", v.ControlGroups);
         w.Put("ControlledMechs", v.ControlledMechs, o);
     }
 }

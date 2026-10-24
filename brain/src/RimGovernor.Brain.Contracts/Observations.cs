@@ -968,9 +968,9 @@ public sealed record PawnEquipment
     /// <summary>
     /// Defense capacity: the primary ranged verb's damage per second
     /// (projectile damage x burst over aim-adjusted warmup, cooldown and burst
-    /// gaps; 0 without a ranged primary) and the pawn's MeleeDPS stat.
+    /// gaps; 0 without a ranged primary or an equipment tracker).
     /// </summary>
-    public double? RangedDps { get; init; }
+    public required double RangedDps { get; init; }
 
     /// <summary>
     /// Defense capacity (#3845): the pawn's game hit chance with its primary over the reference gunner's, the factor
@@ -983,7 +983,8 @@ public sealed record PawnEquipment
     /// </summary>
     public required double RangedHitFactor { get; init; }
 
-    public double? MeleeDps { get; init; }
+    /// <summary>Defense capacity: the pawn's MeleeDPS stat.</summary>
+    public required double MeleeDps { get; init; }
 }
 
 /// <summary>

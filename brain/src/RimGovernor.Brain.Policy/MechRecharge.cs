@@ -3,15 +3,15 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>One charger's state as the colony section reads it.</summary>
 public sealed record MechCharger
 {
-    public Fact<bool> Powered { get; init; }
-    public Fact<bool> FullOfWaste { get; init; }
-    public Fact<bool> Charging { get; init; }
+    public required bool Powered { get; init; }
+    public required bool FullOfWaste { get; init; }
+    public required bool Charging { get; init; }
 }
 
 /// <summary>
 /// Mechs spend Need_MechEnergy working and refill it on a charger
 /// (Building_MechCharger, one mech at a time). Each control group carries its own recharge band
-/// (mechRechargeThresholds, read natively per mech as PawnMech.RechargeBelow/RechargeAbove): the game sends a mech
+/// (mechRechargeThresholds, read natively per mech as PawnMech.Group): the game sends a mech
 /// to a charger below the band's lower bound. The bot reuses that band instead of a number of its own: a group
 /// whose mech is below its lower bound moves to the Recharge mode, provided a charger is ready, so no mech returns
 /// to work half charged; a group in Recharge stays there until every mech is at or above the band's upper bound
@@ -23,8 +23,8 @@ public static partial class MechRules
 {
     /// <summary>
     /// The mode a planned group should run: the catalog's Recharge mode while the group is low (or still charging
-    /// up), the group's role mode otherwise. A mech whose energy or band is unread never makes the group low; a
-    /// charging group with an unread mech stays charging.
+    /// up), the group's role mode otherwise. A mech without an energy need or outside a group never makes the group
+    /// low; a charging group with such a mech stays charging.
     /// </summary>
     public static string MechRechargeMode(MechCatalog catalog, MechGroup g, IReadOnlyList<MechInput> all, bool chargerReady)
     {
@@ -37,19 +37,16 @@ public static partial class MechRules
         var recovered = true;
         foreach (var mech in g.Mechs)
         {
-            var ek = mech.Energy.TryGetValue(out var energy);
-            var bk = mech.RechargeBelow.TryGetValue(out var below);
-            var ak = mech.RechargeAbove.TryGetValue(out var above);
-            if (!ek || !bk || !ak)
+            if (mech.Energy is not MechEnergy.Level { Fraction: var energy } || mech.Group is not { } band)
             {
                 recovered = false;
                 continue;
             }
-            if (energy < below)
+            if (energy < band.RechargeBelow)
             {
                 low = true;
             }
-            if (energy < above)
+            if (energy < band.RechargeAbove)
             {
                 recovered = false;
             }
@@ -66,7 +63,7 @@ public static partial class MechRules
     {
         foreach (var c in chargers)
         {
-            if (c.Powered.TryGetValue(out var powered) && powered && c.FullOfWaste.TryGetValue(out var full) && !full)
+            if (c.Powered && !c.FullOfWaste)
             {
                 return true;
             }
@@ -76,7 +73,7 @@ public static partial class MechRules
 
     /// <summary>
     /// Whether the colony owes one more charger: a mechanitor exists and every standing charger is charging a mech
-    /// (none standing counts as all busy). An unread charger list or charging state owes nothing, and neither does
+    /// (none standing counts as all busy). An unread charger list owes nothing, and neither does
     /// a charger full of waste: emptying it is owned by waste management, not a reason to build. An idle unpowered
     /// charger owes nothing either, though MechChargerReady does not count it ready: the power planner covers every
     /// power consumer (PowerCoverage, connectLiveBeforeUpgrade), so wiring it is the power goal's and a second
@@ -88,15 +85,6 @@ public static partial class MechRules
         {
             return false;
         }
-        foreach (var c in rows)
-        {
-            var ok = c.Charging.TryGetValue(out var busy);
-            var fk = c.FullOfWaste.TryGetValue(out var full);
-            if (!ok || !busy || !fk || full)
-            {
-                return false;
-            }
-        }
-        return true;
+        return rows.All(c => c.Charging && !c.FullOfWaste);
     }
 }

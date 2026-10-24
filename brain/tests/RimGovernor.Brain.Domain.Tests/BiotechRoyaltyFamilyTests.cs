@@ -84,20 +84,19 @@ public sealed class BiotechRoyaltyFamilyTests
         Id = id,
         Definition = "Wastepack",
         Cell = new Cell(1, 2),
-        Frozen = Known(false),
-        InAtomizer = Known(false),
-        Forbidden = Known(forbidden),
+        Frozen = false,
+        InAtomizer = false,
+        Forbidden = forbidden,
     };
 
     private static BiotechFacts Polluted(uint uncovered, params Wastepack[] packs) =>
-        new() { Installed = true, Pollution = Known(new PollutionFacts { Wastepacks = packs, UncoveredCells = Known(uncovered) }), PollutedCells = [new Cell(3, 4)] };
+        new() { Installed = true, Pollution = Known(new PollutionFacts { Wastepacks = packs, UncoveredCells = uncovered }), PollutedCells = [new Cell(3, 4)] };
 
     [Fact]
     public void PollutionIsMetUnmetOrUnknownAndItsMethodNamesItsWork()
     {
         Assert.Equal((Satisfaction.Met, NeedTier.Wellbeing), (Biotech(Polluted(0), BiotechFamily.Pollution).Satisfaction, Biotech(Polluted(0), BiotechFamily.Pollution).Tier));
         Assert.Equal("pollution census", Assert.Throws<RequiredFactException>(() => Biotech(new BiotechFacts(), BiotechFamily.Pollution)).Fact);
-        Assert.Equal("pollution census", Assert.Throws<RequiredFactException>(() => Biotech(Polluted(0, Pack("w1") with { Frozen = Unknown<bool>() }), BiotechFamily.Pollution)).Fact);
 
         var owed = Polluted(2, Pack("w1"));
         var need = Biotech(owed, BiotechFamily.Pollution);

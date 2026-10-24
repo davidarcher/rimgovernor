@@ -59,18 +59,15 @@ public static class RoundsWorkReads
             var w = WorkPawnRow(row, catalog, things);
             if (w.Biotech.TryGetValue(out var bt))
             {
-                if (bt.IsChild() is (true, true))
+                if (bt.IsChild())
                 {
                     var ages = RequireBiotech(biotech).WorkMinAges(row.Pawn.DefName ?? "");
                     bt = bt with { WorkMinAges = Known(ages) };
                     w = w with { Biotech = Known(bt) };
                 }
-                if (bt.Genes.TryGetValue(out var genes))
-                {
-                    var effects = RequireBiotech(biotech).GeneEffects(genes);
-                    bt = bt with { Effects = Known(effects) };
-                    w = w with { Biotech = Known(bt) };
-                }
+                var effects = RequireBiotech(biotech).GeneEffects(bt.Genes);
+                bt = bt with { Effects = Known(effects) };
+                w = w with { Biotech = Known(bt) };
             }
             rows.Add(w);
         }

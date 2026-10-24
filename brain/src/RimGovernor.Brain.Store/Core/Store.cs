@@ -44,8 +44,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 39 drops <c>Practice.Role</c>, <c>Practice.RequirementIndex</c> and <c>Practice.Beneficiary</c> from journaled activity steps (#3813): practice is every capable pawn's, no role mandate.
     /// Version 40 reads a pawn's Biotech block whole (#3773): the persisted PawnBiotech drops its unread life stage, learning, xenotype, hybrid, xenogerm and extractor facts and the gene's xenogene flag, and its deathrest keeps only deathresting and capacity.
     /// Version 41 reads recipe facts whole (#3873): the work-admission evidence's recipe input persists its slots and unfinished-item flag as plain values and adds its products and work amount.
+    /// Version 42 reads a pawn's Biotech block whole (#3789): stage, genes, mechanitor, mech (work mode, energy, control group) and deathrest persist as plain values, absent records as null.
     /// </summary>
-    public const int SchemaVersion = 41;
+    public const int SchemaVersion = 42;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

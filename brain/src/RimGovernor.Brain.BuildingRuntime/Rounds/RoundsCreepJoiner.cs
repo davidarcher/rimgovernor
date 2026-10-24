@@ -77,20 +77,19 @@ internal static class RoundsCreepJoiner
         {
             Pawn = new PawnId(row.Pawn.Id ?? ""),
             Facts = CreepJoinerFacts.CreepJoinerPawn(row),
-            Available = Unknown<bool>(),
+            Available = !row.Dead && !row.Downed && !row.Drafted && row.MentalState is null,
             Weapon = Unknown<string>(),
             Operations = surgery.Operations,
             QueuedSurgeries = surgery.SurgeryBills.Count,
             QueuedRecipes = EquatableArray.From(SurgeryFactsRules.QueuedSurgeryRecipes(surgery)),
             // An unset allowed area is an unrestricted pawn (native AllowedArea).
-            Area = Known(row.Settings.AllowedAreaId ?? ""),
+            Area = row.Settings.AllowedAreaId ?? "",
             Hungry = Unknown<bool>(),
         };
         if (row.Needs.Food is RimGovernor.Contracts.Wire.Observations.FoodNeed.Has food)
         {
             hand = hand with { Hungry = Known(food.Hunger != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed) };
         }
-        hand = hand with { Available = Known(!row.Dead && !row.Downed && !row.Drafted && row.MentalState is null) };
         if (!row.Equipment.Armed)
         {
             hand = hand with { Weapon = Known("") };
@@ -108,7 +107,7 @@ internal static class RoundsCreepJoiner
         if (CreepJoinerHands(frame) is { } hands)
         {
             var defs = catalog ?? throw new ControlException("creepJoinerIsolation: no definition catalog");
-            output = output with { Pawns = defs.CreepJoinerDownsides().Isolated(hands, record) };
+            output = output with { Pawns = Known(defs.CreepJoinerDownsides().Isolated(hands, record)) };
         }
         return output;
     }

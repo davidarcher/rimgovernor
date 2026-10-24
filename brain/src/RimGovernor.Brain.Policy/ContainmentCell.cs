@@ -25,16 +25,16 @@ public sealed record ContainmentDemand
 /// <summary>A standing holding platform's native facts.</summary>
 public sealed record BuiltHolder
 {
-    public double Strength { get; init; }
+    public required double Strength { get; init; }
 
     /// <summary>Whether the platform can take a pawn now.</summary>
-    public bool Available { get; init; }
+    public required bool Available { get; init; }
 
     /// <summary>The pawn on the platform (empty when none).</summary>
-    public string HeldPawn { get; init; } = "";
+    public required string HeldPawn { get; init; }
 
     /// <summary>The doors of the platform's room.</summary>
-    public Fact<EquatableArray<AnomalyDoor>> Doors { get; init; }
+    public required EquatableArray<AnomalyDoor> Doors { get; init; }
 }
 
 /// <summary>The projection's containment inputs. Each unknown fact stops the cell with its own reason.</summary>

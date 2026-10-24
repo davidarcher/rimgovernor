@@ -53,14 +53,14 @@ public static class QuestReads
     }
 
 
-    internal static Fact<EquatableArray<QuestDeparturePawn>> ProjectDepartureStrength(Fact<EquatableArray<QuestDeparturePawn>> candidates, Fact<EquatableArray<SquadDefenderFacts>> defenders)
+    internal static Fact<EquatableArray<QuestDeparturePawn>> ProjectDepartureStrength(Fact<EquatableArray<QuestDeparturePawn>> candidates, Fact<EquatableArray<DefenderStrength>> defenders)
     {
         if (!candidates.TryGetValue(out var candidateRows))
         {
             return Unknown<EquatableArray<QuestDeparturePawn>>();
         }
         var rows = new List<QuestDeparturePawn>(candidateRows);
-        var byId = new Dictionary<PawnId, SquadDefenderFacts>();
+        var byId = new Dictionary<PawnId, DefenderStrength>();
         if (defenders.TryGetValue(out var fighters))
         {
             foreach (var pawn in fighters)
@@ -79,10 +79,7 @@ public static class QuestReads
             {
                 continue;
             }
-            if (pawn.MeleePower.TryGetValue(out var melee) && pawn.RangedDPS.TryGetValue(out var ranged))
-            {
-                rows[i] = rows[i] with { DefensePoints = Known((melee + ranged) * DefenseCapacityPolicy.DefensePointsPerDps) };
-            }
+            rows[i] = rows[i] with { DefensePoints = Known((pawn.MeleePower + pawn.RangedDps) * DefenseCapacityPolicy.DefensePointsPerDps) };
         }
         return Known(EquatableArray.From(rows));
     }

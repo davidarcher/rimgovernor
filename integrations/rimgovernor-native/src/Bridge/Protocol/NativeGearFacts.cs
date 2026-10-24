@@ -265,8 +265,9 @@ namespace HomeBridge.BridgeTools
         }
 
         // The pawn's equipment and worn apparel, shared by the loadout upkeep and the pawn detail reads. A pawn
-        // without an equipment or apparel tracker (an animal) carries neither and is unarmed. The defense capacity is the
-        // pawn detail read's (NativePawnDetails.Equipment): the loadout census leaves the hit factor 0.
+        // without an equipment or apparel tracker (an animal) carries neither and is unarmed, with no ranged damage. The
+        // damage per second is the game's own (NativeDefenseStats); the hit factor is the pawn detail read's
+        // (NativePawnDetails.Equipment): the loadout census leaves it 0.
         internal static Obs.PawnEquipment Equipment(Pawn pawn)
         {
             var equipped = new List<Obs.GearItem>();
@@ -280,7 +281,8 @@ namespace HomeBridge.BridgeTools
                     worn.Add(Gear(apparel) with { Forced = forced != null && !forced.AllowedToAutomaticallyDrop(apparel), Locked = pawn.apparel.IsLocked(apparel) });
             }
             return new Obs.PawnEquipment { PrimaryId = primary == null ? null : Id(primary.GetUniqueLoadID()), Equipped = [.. equipped],
-                Apparel = [.. worn], Armed = primary != null, RangedHitFactor = 0 };
+                Apparel = [.. worn], Armed = primary != null, RangedHitFactor = 0,
+                RangedDps = NativeDefenseStats.PawnRangedDps(pawn), MeleeDps = pawn.GetStatValue(StatDefOf.MeleeDPS) };
         }
 
         // Planning census, not simulated damage: natural armor or strongest worn layer.

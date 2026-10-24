@@ -417,11 +417,7 @@ public static partial class PawnRules
                     LearnRate = genes.Apply("GlobalLearningFactor", effects.LearnRate),
                 };
             }
-            var (isChild, known) = bt.IsChild();
-            if (known)
-            {
-                child = isChild;
-            }
+            child = bt.IsChild();
             if (bt.WorkMinAges.TryGetValue(out var ages))
             {
                 workMinAge = ages;

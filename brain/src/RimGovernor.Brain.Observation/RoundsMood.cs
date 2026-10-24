@@ -341,12 +341,12 @@ public static class RoundsMoodReads
     /// <summary>
     /// Each census colonist's defense capacity facts from the same pawn rows <see cref="RoundsArmed"/> compares:
     /// dead and downed from the emergency census, violence from the biography, melee power as the observed
-    /// MeleeDPS times summary health and the observed ranged DPS. A row the census does not match leaves the
-    /// roster unknown; a missing stat leaves that fact unknown.
+    /// MeleeDPS times summary health and the observed ranged DPS at the pawn's hit factor. A row the census does not
+    /// match leaves the roster unknown.
     /// </summary>
-    internal static Fact<EquatableArray<SquadDefenderFacts>> RoundsDefenders(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns)
+    internal static Fact<EquatableArray<DefenderStrength>> RoundsDefenders(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns)
     {
-        var unknown = Unknown<EquatableArray<SquadDefenderFacts>>();
+        var unknown = Unknown<EquatableArray<DefenderStrength>>();
         if (colony is null || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
         {
             return unknown;
@@ -356,31 +356,24 @@ public static class RoundsMoodReads
         {
             byId[row.Pawn.Id ?? ""] = row;
         }
-        var output = new List<SquadDefenderFacts>(emergency.Colonists.Count);
+        var output = new List<DefenderStrength>(emergency.Colonists.Count);
         foreach (var pawn in emergency.Colonists)
         {
             if (!byId.TryGetValue(pawn.Id.Value, out var row))
             {
                 return unknown;
             }
-            var d = new SquadDefenderFacts { Id = pawn.Id, Dead = Known(pawn.Dead), Downed = Known(pawn.Downed) };
-            if (BiotechFactsRules.PawnBiotech(row.Biotech).TryGetValue(out var bt))
-            {
-                d = d with { Deathresting = bt.IsDeathresting() };
-            }
-            var violent = true;
-            foreach (var tag in row.Biography.DisabledWorkTags)
-            {
-                violent = violent && tag != "Violent";
-            }
             var e = row.Equipment;
             // Ranged DPS counts at the pawn's hit chance over the reference gunner's (#3845).
-            d = d with { ViolenceCapable = Known(violent), RangedDPS = ColonyDecodeReads.Optional(e.RangedDps is not null, e.RangedDps.GetValueOrDefault() * e.RangedHitFactor) };
-            if (e.MeleeDps is { } melee)
+            output.Add(new DefenderStrength
             {
-                d = d with { MeleePower = Known(melee * row.Health.SummaryFraction) };
-            }
-            output.Add(d);
+                Id = pawn.Id,
+                Dead = pawn.Dead,
+                Downed = pawn.Downed,
+                ViolenceCapable = !row.Biography.DisabledWorkTags.Contains("Violent"),
+                MeleePower = e.MeleeDps * row.Health.SummaryFraction,
+                RangedDps = e.RangedDps * e.RangedHitFactor,
+            });
         }
         return Known(EquatableArray.From(output));
     }

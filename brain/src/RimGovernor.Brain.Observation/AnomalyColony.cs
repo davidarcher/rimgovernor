@@ -3,9 +3,8 @@ namespace RimGovernor.Brain.Observation;
 public static class AnomalyColonyReads
 {
     /// <summary>
-    /// The monolith rule's input: GameComponent_Anomaly's level state and the monolith's own read. Unknown without
-    /// Anomaly; the monolith's facts are unknown while it is not spawned, and the next level is unknown when none
-    /// follows through activation.
+    /// The monolith rule's input: GameComponent_Anomaly's level state and the monolith's own read (null while it is
+    /// not spawned). Unknown without Anomaly; a monolith read that disagrees with MonolithSpawned breaks the contract.
     /// </summary>
     internal static Fact<MonolithFacts> MonolithFacts(O.AnomalySection section)
     {
@@ -14,32 +13,28 @@ public static class AnomalyColonyReads
             return Unknown<MonolithFacts>();
         }
         var i = a.Incidents;
-        var output = new MonolithFacts
+        if (i.MonolithSpawned != (a.Monolith is not null))
         {
-            Spawned = Known(i.MonolithSpawned),
-            AmbientHorror = Known(i.AmbientHorrorMode),
-            Level = Known(i.Level),
-            Id = Unknown<string>(),
-            CanActivate = Unknown<bool>(),
-            NextLevel = Unknown<string>(),
-            CodexShortfall = Unknown<uint>(),
-            Gleaming = Unknown<bool>(),
-        };
-        if (a.Monolith is { } m)
-        {
-            output = output with
-            {
-                Id = Known(m.MonolithId),
-                CanActivate = Known(m.CanActivate),
-                NextLevel = m.NextLevelDef is { } next ? Known(next) : Unknown<string>(),
-                CodexShortfall = Known((uint)m.CodexShortfall),
-                Blocking = [.. m.BlockingConditions],
-                Gleaming = Known(m.GleamingInteractionAvailable),
-                PendingStructures = [.. m.PendingVoidStructureIds],
-                NodeId = m.VoidNodeId ?? "",
-                NodePawns = [.. m.VoidNodePawnIds],
-            };
+            throw new BridgeContractException($"monolith_spawned is {i.MonolithSpawned} but the monolith block is {(a.Monolith is null ? "absent" : "present")}");
         }
-        return Known(output);
+        return Known(new MonolithFacts
+        {
+            AmbientHorror = i.AmbientHorrorMode,
+            Level = i.Level,
+            Thing = a.Monolith is { } m
+                ? new MonolithThing
+                {
+                    Id = m.MonolithId,
+                    CanActivate = m.CanActivate,
+                    NextLevel = m.NextLevelDef,
+                    CodexShortfall = (uint)m.CodexShortfall,
+                    Blocking = [.. m.BlockingConditions],
+                    Gleaming = m.GleamingInteractionAvailable,
+                    PendingStructures = [.. m.PendingVoidStructureIds],
+                    NodeId = m.VoidNodeId ?? "",
+                    NodePawns = [.. m.VoidNodePawnIds],
+                }
+                : null,
+        });
     }
 }
