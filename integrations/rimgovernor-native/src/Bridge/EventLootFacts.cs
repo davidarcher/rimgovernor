@@ -36,10 +36,27 @@ namespace HomeBridge.BridgeTools
                 // filter would take it. Unknown safety is listed too, so the
                 // brain can read that store's stranded count as unknown.
                 if (units == 0 && row.Forbidden == false && safe != false) row = row with { AcceptedBy = [.. AcceptingGroups(map, t)] };
+                row = row with { Deterioration = DeteriorationOf(map, t) };
                 census = census with { Items = [.. census.Items, row] };
             }
             safety.Dispose();
             return new Obs.LootSection { Outcome = census };
+        }
+
+        // The stack's deterioration where it lies (#3798): the game's own rate now
+        // and the StatPart_EnvironmentalEffects inputs at its cell, so the brain
+        // can rebuild the rate in the roofed indoor room that would store it.
+        // Null for a stack that cannot deteriorate.
+        internal static Obs.LootDeterioration? DeteriorationOf(Map map, Thing thing)
+        {
+            if (!thing.def.useHitPoints || !thing.def.CanEverDeteriorate) return null;
+            return new Obs.LootDeterioration {
+                MaxHitPoints = thing.MaxHitPoints, RatePerDay = SteadyEnvironmentEffects.FinalDeteriorationRate(thing),
+                Environmental = thing.def.deteriorateFromEnvironmentalEffects,
+                TerrainFactor = thing.Position.GetTerrain(map)?.extraDeteriorationFactor ?? 0,
+                Protected = SteadyEnvironmentEffects.ProtectedByEdifice(thing.Position, map),
+                Roofed = thing.Position.Roofed(map), Outdoors = thing.GetRoom()?.UsesOutdoorTemperature == true
+            };
         }
 
         // Free item units the player's storage accepting this def can still take:

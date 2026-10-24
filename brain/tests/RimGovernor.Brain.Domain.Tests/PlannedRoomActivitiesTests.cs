@@ -643,6 +643,59 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     /// <summary>
+    /// #3798: room 1 a planned storage room, its facts filled the production way. The needs read carries the map's rain,
+    /// area and environmental part as native reads them; the stock is StoreRules.PlannedStoreStock over a stockpile request
+    /// whose stores are the departments' declarations and whose loot census holds 50 steel and 50 cloth stranded in open
+    /// air; candidate generation carries it into the context. Before the stockpile review has run (a fresh colony) the
+    /// room's credit is unassessed, never thrown.
+    /// </summary>
+    [Fact]
+    public void AStorageRoomsStockReachesItsCreditTheProductionWay()
+    {
+        var region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5, Z = 5, Width = 3, Height = 3 });
+        var room = new PlannedRoom { Id = 1, Role = PlannedRole.Storage, Region = region };
+        var stores = StoreRules.DeclareStores(new StoreView { Layout = new LayoutPlan { Rooms = [room] } }).Stores;
+        var zone = new StockpileZone { Id = "Zone_w", Role = StockpileRolesConstants.GeneralRole, Cells = [.. region.Cells()], Filter = StockpileFilter.GeneralFilter() };
+        static RimGovernor.Brain.Policy.LootItem Loose(string thing, string def, LootDeterioration? deterioration) => new()
+        {
+            Supply = new StartingSupply { Thing = thing, Definition = def, Cell = new(20, 20) }, Count = 50, SafeToHaul = true, SafetyKnown = true,
+            StorageHeadroom = Known(0L), AcceptedBy = ["Zone_w"], Deterioration = deterioration,
+        };
+        var cloth = new LootDeterioration { MaxHitPoints = 100, RatePerDay = 2, Environmental = true, Outdoors = true };
+        var request = new StockpileRequest
+        {
+            Stores = stores, Zones = [zone],
+            Loot = Known(EquatableArray.From(new[] { Loose("Thing_Steel1", "Steel", null), Loose("Thing_Cloth1", "Cloth", cloth) })),
+        };
+        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200)]);
+        facts = facts with
+        {
+            PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Storage)] }),
+            PlannedShelters = [room],
+            ForecastObserved = facts.ForecastObserved with
+            {
+                Needs = facts.ForecastObserved.Needs! with { RainRate = Known(0d), MapArea = Known(62500), Deterioration = new(.5, .5, 0) },
+            },
+        };
+        var served = new ForecastRoomService(1, "WoodLog", Horizon);
+
+        var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Context;
+        Assert.True(fresh.Priced(1));
+        Assert.Null(fresh.StoreStock);
+        Assert.Null(ForecastStorage.StorageCredit(served, null!, fresh, Horizon));
+
+        var context = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { PlannedStoreStock = StoreRules.PlannedStoreStock(request, [room]) }, Horizon)!.Context;
+        var stock = context.StoreStock![1];
+        Assert.Equal(9, stock.Cells);
+        Assert.Equal(["Thing_Cloth1", "Thing_Steel1"], stock.Rows.Select(r => r.Supply.Thing).Order(StringComparer.Ordinal));
+        Assert.Contains(new Resource("Cloth"), ForecastValue.ChargedMaterials(context));
+        // Unpriced until the round prices the stock with the charged materials; then the cloth alone is credited.
+        Assert.Null(ForecastStorage.StorageCredit(served, null!, context, Horizon));
+        var priced = context with { MaterialValues = new Dictionary<Resource, ConstructionMaterialValue> { [new("Cloth")] = new(MaterialValueBasis.Market, .01) } };
+        Assert.Equal("Thing_Cloth1", Assert.Single(ForecastStorage.StorageCredit(served, null!, priced, Horizon)!).Subject);
+    }
+
+    /// <summary>
     /// #3651: a room whose role carries a priced value leaves the development tiebreak. Its completed sites add nothing to
     /// the count, yet the selection still exempts its site roots from the thermal-relief gate and the record still places
     /// its sites when they are selected. #3655: a bedroom is priced in production.
@@ -973,14 +1026,14 @@ public sealed class PlannedRoomActivitiesTests
 
     /// <summary>
     /// #3744 acceptance (a): one builder, bedroom ring A (room 1) started with two days of ring work left, which no
-    /// schedule of the day finishes, and a storage ring B (room 2) a third of a day long. A's closure is projected past the
-    /// horizon at its remaining work over the builder; opening B would push it later by B's work, which A's credit pays, so
-    /// B is not opened though its sites count development. With A closed (its ring owes nothing), B opens.
+    /// schedule of the day finishes, and a workshop ring B (room 2, an unpriced role) a third of a day long. A's closure is
+    /// projected past the horizon at its remaining work over the builder; opening B would push it later by B's work, which
+    /// A's credit pays, so B is not opened though its sites count development. With A closed (its ring owes nothing), B opens.
     /// </summary>
     [Fact]
-    public void OneBuilderLeavesAStorageRingClosedWhileABedroomRingIsOpenAndOpensItOnceTheBedroomCloses()
+    public void OneBuilderLeavesAnUnpricedRingClosedWhileABedroomRingIsOpenAndOpensItOnceTheBedroomCloses()
     {
-        var roles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom, [2] = PlannedRole.Storage };
+        var roles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom, [2] = PlannedRole.Workshop };
         var bedroom = new Dictionary<int, string> { [1] = Pawn };
         var b = RoomTwoWall(Day / 3);
         var facts = Rings([Ring(OpKind.WallIn, "WoodLog", 2 * Day), b], roles, bedroom, builders: 1, open: [1]);

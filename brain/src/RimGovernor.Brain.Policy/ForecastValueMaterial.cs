@@ -45,12 +45,16 @@ public static partial class ForecastValue
     internal static IEnumerable<(ForecastShelterPlan Shelter, ThermalSource Source)> FueledShelters(ForecastCoupledContext context) =>
         context.Shelters.SelectMany(s => s.Sources.Where(f => f.Fuel.Length != 0 && f.FuelPerTick.IsKnown).Select(f => (s, f)));
 
-    /// <summary>The materials the charged activities consume and the fueled shelters burn, each priced once per review (<see cref="MaterialValueOf"/>).</summary>
+    /// <summary>
+    /// The materials the charged activities consume and the fueled shelters burn, and the stock a planned store keeps from
+    /// deteriorating (#3798), each priced once per review (<see cref="MaterialValueOf"/>).
+    /// </summary>
     public static IReadOnlyList<Resource> ChargedMaterials(ForecastCoupledContext context)
     {
         var charged = ChargedMaterialActivities(context);
         return [.. context.Activities.Activities.Where(a => charged.Contains(a.Id)).SelectMany(a => a.Inputs).Select(i => i.Resource)
             .Concat(FueledShelters(context).Select(s => new Resource(s.Source.Fuel)))
+            .Concat(ForecastStorage.StockMaterials(context))
             .Distinct().OrderBy(r => r.Value, StringComparer.Ordinal)];
     }
 

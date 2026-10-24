@@ -339,9 +339,8 @@ public static class ForecastRoofConsequences
     internal static double? DeterioratedAt(NeedTarget stack, NeedsForecastRead read, IReadOnlyList<ForecastClosedRoom> rooms, double until)
     {
         if (stack.Deterioration is not { } d || stack.Location is not { } cell) return double.PositiveInfinity;
-        if (!d.RatePerDay.TryGetValue(out var observedRate) || !double.IsFinite(observedRate) || !read.MapArea.TryGetValue(out var area) || area <= 0) return null;
+        if (!d.RatePerDay.TryGetValue(out var observedRate) || !double.IsFinite(observedRate) || DeteriorationVisits(read) is not { } visits) return null;
         if (observedRate <= 0) return double.PositiveInfinity;
-        var visits = Math.Ceiling(area * ForecastRoofConsequences.SteadyCellsFractionPerTick) / area;
         var room = rooms.FirstOrDefault(r => r.Interior.Contains(cell));
         var times = new SortedSet<double> { 0 };
         if (room is not null)
@@ -350,12 +349,9 @@ public static class ForecastRoofConsequences
         double? Factor(double time)
         {
             var state = CellStateAt(stack.Cell, cell, time, rooms);
-            if (read.Deterioration is not { } part || !read.RainRate.TryGetValue(out var rain)
+            if (read.Deterioration is not { } part || DeteriorationRain(read) is not { } rain
                 || !state.Roofed.TryGetValue(out var roofed) || !state.OutdoorTemperature.TryGetValue(out var outdoors)) return null;
-            var factor = (roofed ? 0 : part.UnroofedOffset) + (outdoors ? part.OutdoorsOffset : 0) + d.TerrainFactor;
-            if (!roofed) factor *= ForecastRoofConsequences.DeteriorationRainLow + (ForecastRoofConsequences.DeteriorationRainHigh - ForecastRoofConsequences.DeteriorationRainLow) * Math.Clamp(rain, 0, 1);
-            if (d.Protected) factor *= part.ProtectedFactor;
-            return factor;
+            return EnvironmentalFactor(part, rain, roofed, outdoors, d.TerrainFactor, d.Protected);
         }
         var now = d.Environmental && room is not null ? Factor(0) : 1;
         if (now is null) return null;
@@ -376,6 +372,36 @@ public static class ForecastRoofConsequences
         }
         return double.PositiveInfinity;
     }
+
+    /// <summary>
+    /// The share of the map SteadyEnvironmentEffects visits a tick: Ceil(MapArea × 0.0006) cells over the area (#3339, #3798).
+    /// Null while the area is unread or empty.
+    /// </summary>
+    internal static double? DeteriorationVisits(NeedsForecastRead read) =>
+        read.MapArea.TryGetValue(out var area) && area > 0 ? Math.Ceiling(area * ForecastRoofConsequences.SteadyCellsFractionPerTick) / area : null;
+
+    /// <summary>The map's rain rate now, held over the horizon (#3339); null while unread.</summary>
+    internal static double? DeteriorationRain(NeedsForecastRead read) => read.RainRate.TryGetValue(out var rain) ? rain : null;
+
+    /// <summary>
+    /// StatPart_EnvironmentalEffects' factor at a cell (#3339, #3798): the unroofed offset, the outdoors offset (the cell
+    /// room's UsesOutdoorTemperature) and the terrain's extraDeteriorationFactor, scaled by Lerp(1, 5, RainRate) when
+    /// unroofed and by the protecting edifice's factor.
+    /// </summary>
+    internal static double EnvironmentalFactor(NeedDeteriorationPart part, double rain, bool roofed, bool outdoors, double terrain, bool edificeProtected)
+    {
+        var factor = (roofed ? 0 : part.UnroofedOffset) + (outdoors ? part.OutdoorsOffset : 0) + terrain;
+        if (!roofed) factor *= ForecastRoofConsequences.DeteriorationRainLow + (ForecastRoofConsequences.DeteriorationRainHigh - ForecastRoofConsequences.DeteriorationRainLow) * Math.Clamp(rain, 0, 1);
+        if (edificeProtected) factor *= part.ProtectedFactor;
+        return factor;
+    }
+
+    /// <summary>
+    /// Expected hit points a stack loses a day at <paramref name="rate"/> (FinalDeteriorationRate, #3339, #3798): none below
+    /// 0.001, else rate / 36 a visit, times the visits a tick and the ticks a day.
+    /// </summary>
+    internal static double DeteriorationPerDay(double rate, double visits) =>
+        rate < ForecastRoofConsequences.DeteriorationMinimumRate ? 0 : rate / ForecastRoofConsequences.DeteriorationChanceDivisor * visits * GameTime.TicksPerDay;
 
     /// <summary>
     /// Closure-conditional bench variants (#3339): a root whose one completion task works at a bench native reads as in a

@@ -503,7 +503,7 @@ public sealed partial class Rounder
         var stockFine = new StepStages();
         var stockpileReview = ReviewStockpilesAsync(state.Snapshot, reading.Projection, zoneReads, ct, stockFine);
         var vResourceConsumption = await ResourceConsumptionAsync(state.Snapshot, ct).ConfigureAwait(false);
-        var shelfCandidates = await stockpileReview.ConfigureAwait(false);
+        var (shelfCandidates, stockpileRequest) = await stockpileReview.ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ResourceConsumption = vResourceConsumption });
         fine.Lap("d_stock/stockpile");
         fine.Add(stockFine);
@@ -533,11 +533,14 @@ public sealed partial class Rounder
         Lap("d_stock");
         // The owed diff over every built room is taken once a review; the pricing and the sites read it.
         var plannedOwed = PlannedOwedOf(reading.Projection, Policy.Flooring);
+        IReadOnlyList<PlannedRoom> plannedRooms = reading.Projection.LayoutPlan.TryGetValue(out var layout) ? layout.Rooms : [];
         reading = reading.WithFacts(rf => rf with
         {
             PlannedConstruction = PlannedConstructionOf(reading.Projection, plannedOwed),
-            PlannedShelters = reading.Projection.LayoutPlan.TryGetValue(out var layout) ? EquatableArray.From(layout.Rooms.Where(r => !r.Outdoor)) : [],
+            PlannedShelters = EquatableArray.From(plannedRooms.Where(r => !r.Outdoor)),
             PlannedLinks = EquatableArray.From(layout?.Links ?? []),
+            // The planned stores' stock (#3798) is read from the request the stockpile review just reviewed; null when it did not run.
+            PlannedStoreStock = stockpileRequest is { } stockRequest ? StoreRules.PlannedStoreStock(stockRequest, plannedRooms) : null,
         });
         // The firebreak review reads nothing the planned sites answer, so its tile reads share frames with the site reads.
         fine.Mark();

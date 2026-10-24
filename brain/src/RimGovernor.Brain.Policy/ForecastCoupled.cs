@@ -85,6 +85,9 @@ public sealed record ForecastCoupledContext
     /// <summary>Per planned bedroom, the colonists the bedroom step would move into it (SleepingRules.PlannedBedroomOccupants,
     /// #3655, #3656: one, or a couple), by pawn id; a bedroom without a row houses nobody and earns no credit.</summary>
     public IReadOnlyDictionary<int, EquatableArray<string>> BedroomOccupants { get; init; } = new Dictionary<int, EquatableArray<string>>();
+    /// <summary>Per planned storage room, yard and meal closet, the stock it would keep (RoundsFacts.PlannedStoreStock, #3798);
+    /// null when the stockpile review did not read it, which leaves those rooms' credit unassessed.</summary>
+    public IReadOnlyDictionary<int, PlannedStock>? StoreStock { get; init; }
     /// <summary>Per planned throne room or suite, the titled colonist it would serve and its title's requirement of that room
     /// (#3807, RoundsSleepingUpkeepPlanner.PlannedOccupantsOf); a room without a row serves no title and earns no credit.</summary>
     public IReadOnlyDictionary<int, RoyalRoomNeed> RoyalRooms { get; init; } = new Dictionary<int, RoyalRoomNeed>();
@@ -132,8 +135,9 @@ public sealed record ForecastCoupledContext
     public IReadOnlyDictionary<string, double[]> ApparelShifts { get; init; } = new Dictionary<string, double[]>(StringComparer.Ordinal);
     /// <summary>Capability-days a unit of progress adds on each project tier 2 valued (#3531), by <see cref="ForecastProjectProgress.Project"/>: per research point, per cell sown. Empty before tier 2 ran.</summary>
     public IReadOnlyDictionary<string, double> Investment { get; init; } = new Dictionary<string, double>();
-    /// <summary>Per construction material a priced planned room consumes, its value per unit (#3653), priced once per review
-    /// (ForecastValue.MaterialValueOf). A material without a row is unpriced and charged nothing.</summary>
+    /// <summary>Per construction material a priced planned room consumes and per stock def a planned store keeps (#3798), its
+    /// value per unit (#3653), priced once per review (ForecastValue.MaterialValueOf, over ForecastValue.ChargedMaterials). A
+    /// material without a row is unpriced and charged nothing; a kept stack without one leaves its store's credit unassessed.</summary>
     public IReadOnlyDictionary<Resource, ConstructionMaterialValue> MaterialValues { get; init; } = new Dictionary<Resource, ConstructionMaterialValue>();
     /// <summary>Per cookable ingredient, the nutrition a unit gives cooked over what it gives raw (#3626): the best observed
     /// conversion's product Nutrition stat times its count over the ingredient count, divided by the ingredient's own Nutrition

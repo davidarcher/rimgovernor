@@ -9,7 +9,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// #3796: the per-role planned-room credit seam. A room serves from the day its one reconcile owes nothing (epic #3650 P2),
 /// its credit runs perDay from then to tier 2's horizon, and a role is priced exactly when it has a credit (P3). The
-/// storage credit here is a test-only one of a capability-day a day; no non-bedroom role ships a credit.
+/// storage credit here is a test-only one of a capability-day a day, standing in for the shipped one (StorageCreditTests).
 /// </summary>
 public sealed class PlannedRoomCreditTests
 {
@@ -30,7 +30,7 @@ public sealed class PlannedRoomCreditTests
     /// Room 1 a storage room, started, one builder: its wood wall ring two builder-days, a stuff-less roof and shelves a
     /// builder-day, a floor blueprint and a removal on it, and a removal on its shared wall with room 2.
     /// </summary>
-    private static ForecastCoupledContext Context(IReadOnlyDictionary<PlannedRole, RoomCredit> credits, double shelves = Day, double removal = 0) =>
+    internal static ForecastCoupledContext Context(IReadOnlyDictionary<PlannedRole, RoomCredit> credits, double shelves = Day, double removal = 0) =>
         ForecastValueTests.Context(ForecastValueTests.Pawn()) with
         {
             Activities = new() { Activities = [new(Delivery, "stack", "planned/room1", []) { Inputs = [new(new("WoodLog"), Known(10d))] }] },
@@ -48,7 +48,7 @@ public sealed class PlannedRoomCreditTests
             InvestmentHorizonDays = Horizon,
         };
 
-    private static ForecastCoupledOutcome Outcome(ForecastCoupledContext context, IReadOnlyDictionary<string, double>? finished = null)
+    internal static ForecastCoupledOutcome Outcome(ForecastCoupledContext context, IReadOnlyDictionary<string, double>? finished = null)
     {
         var service = PlannedRoomCredits.ServiceDays(context, finished ?? new Dictionary<string, double>(), Day);
         return new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), [])
@@ -71,7 +71,7 @@ public sealed class PlannedRoomCreditTests
             { Requirements = new([new(need, ProductionNeedPriority.Maintenance, 1.0)], default, default) },
         })];
 
-    private static double Development(ForecastCoupledContext context) =>
+    internal static double Development(ForecastCoupledContext context) =>
         ForecastCoupledSelection.CoupledConsequences(Outcome(context), Relief(), context, Day, Outcome(context)).Development;
 
     [Fact]

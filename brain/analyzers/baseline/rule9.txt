@@ -1231,14 +1231,14 @@ Policy/StockpileMaintenance.cs|Fact|37
 Policy/StockpileMaintenance.cs|Unknown|6
 Policy/StockpileSiting.cs|Fact|1
 Policy/StorageBenchInputs.cs|Fact|4
-Policy/StorageOptions.cs|Fact|52
+Policy/StorageOptions.cs|Fact|47
 Policy/StorageOptions.cs|Unknown|7
 Policy/StorageShelves.cs|Fact|11
 Policy/StorageShelves.cs|Unknown|2
 Policy/StoreCapacity.cs|Fact|21
 Policy/StoreCapacity.cs|Unknown|4
-Policy/StoreDepartment.cs|Fact|7
-Policy/StoreDepartment.cs|Unknown|4
+Policy/StoreDepartment.cs|Fact|4
+Policy/StoreDepartment.cs|Unknown|1
 Policy/StoreGear.cs|NullableValue|2
 Policy/StoreGeometry.cs|Fact|3
 Policy/StoreIndustry.cs|Fact|1

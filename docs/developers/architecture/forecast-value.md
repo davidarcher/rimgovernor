@@ -410,7 +410,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), and `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below).
 Each fueled source with a known burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 with the native `ThermalSource.Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
@@ -450,6 +450,25 @@ Ascetic thought it has, #3658). The pricing is `ForecastHousing`, which the pric
 A room any of whose occupants' stage, bed, observed thoughts or mood is unread, or whose service day is unknown, is named
 `bedroom_credit_unassessed:<room>` (`barracks_credit_unassessed:<room>`) and earns nothing. A bedroom with no occupant, or one
 not served before tier 2's horizon, pays its material with no credit and waits.
+
+*Storage credit (#3798, epic #3650).* A served planned storage room, meal closet or yard is credited the stock it keeps from
+deteriorating (`ForecastStorage.StorageCredit`), under `storage/<room>/<thing>` (`meal_closet/`, `yard/`); a reserve keeps no
+store and earns nothing.
+
+- *Stock*: `StoreRules.PlannedStoreStock` over the stockpile review's request (`RoundsFacts.PlannedStoreStock`,
+  `ForecastCoupledContext.StoreStock`): the stranded loot rows whose accepting groups include a zone of the role of a store
+  sited on the room's region (a shelf in one), and the room's interior cells, one stack each.
+- *Per stack*: native reads each stack's `LootItem.Deterioration` (MaxHitPoints, `FinalDeteriorationRate`, the
+  StatPart_EnvironmentalEffects inputs at its cell). The part's factor is rebuilt roofed and indoors (a yard: unroofed open
+  air), terrain and edifice held, and the rate rescaled by it. The hit points a day are rate / 36 × the visits a tick ×
+  ticks a day (none below 0.001), as `DeterioratedAt` reads them. The gain is the hit points saved × count ×
+  `MaterialValues[def].PerUnit` / MaxHitPoints.
+- *Capacity and sharing*: each room keeps its largest gains up to its cells; rooms take stacks in id order, each stack once. A food
+  stack hunger already debits (a needs food target with a deterioration read) is left to it.
+
+An unread stock (the stockpile review did not run), an unpriced kept stack or an unread rain, map area or environmental part
+names `<role>_credit_unassessed:<room>`. A yard credits only stock its open cells protect more than where it lies, so in
+practice nothing.
 
 *Kitchen and butchery credit (#3802, epic #3650 P1).* Both are priced by the food poisoning their room changes
 (`KitchenCredits`). A meal's first poisoning roll (`CompFoodPoisonable.Notify_RecipeProduced`) is its bench room's

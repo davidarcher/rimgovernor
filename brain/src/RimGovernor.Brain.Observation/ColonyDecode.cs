@@ -524,6 +524,7 @@ public static class ColonyDecodeReads
                     Count = row.Count.GetValueOrDefault(),
                     SpawnForbidden = spawnForbidden.Contains(head?.DefName ?? ""),
                     AcceptedBy = EquatableArray.From(row.AcceptedBy.Select(r => r.Id ?? "")),
+                    Deterioration = row.Deterioration,
                 };
                 if (row.PathLength is not null)
                 {

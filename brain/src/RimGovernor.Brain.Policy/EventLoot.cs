@@ -32,6 +32,9 @@ public sealed record LootItem
     /// (<see cref="StoreRules.StrandedStacks"/>); empty elsewhere.
     /// </summary>
     public EquatableArray<string> AcceptedBy { get; init; }
+
+    /// <summary>The stack's deterioration where it lies (#3798); null when it cannot deteriorate.</summary>
+    public RimGovernor.Contracts.Wire.Observations.LootDeterioration? Deterioration { get; init; }
 }
 
 /// <summary>

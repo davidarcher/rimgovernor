@@ -35,7 +35,8 @@ public static class PlannedRoomCredits
 {
     /// <summary>The shipped credits: Bedroom by its occupant's mood gain (#3655), Barracks by each sleeper's (#3658), Lab by
     /// the research speed its room gives the bench (#3800), Throne and Suite by the title room thoughts their colonist loses once
-    /// the room meets its title's requirement (#3807), Kitchen and Butchery by the food poisoning they prevent (#3802).</summary>
+    /// the room meets its title's requirement (#3807), Kitchen and Butchery by the food poisoning they prevent (#3802); Storage,
+    /// Meal closet, Reserve and Yard by the stock they keep from deteriorating (#3798).</summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> Shipped = new Dictionary<PlannedRole, RoomCredit>
     {
         [PlannedRole.Bedroom] = ForecastHousing.BedroomCredit,
@@ -45,6 +46,10 @@ public static class PlannedRoomCredits
         [PlannedRole.Suite] = ForecastHousing.RoyalRoomCredit,
         [PlannedRole.Kitchen] = KitchenCredits.KitchenCredit,
         [PlannedRole.Butchery] = KitchenCredits.ButcheryCredit,
+        [PlannedRole.Storage] = ForecastStorage.StorageCredit,
+        [PlannedRole.MealCloset] = ForecastStorage.StorageCredit,
+        [PlannedRole.Reserve] = ForecastStorage.StorageCredit,
+        [PlannedRole.Yard] = ForecastStorage.StorageCredit,
     };
 
     /// <summary>

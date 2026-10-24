@@ -194,7 +194,7 @@ public static partial class StorageRules
     }
 
     /// <summary>Zone growth: the store's open, reachable footprint cells (StoreGrowth), no material and no work, one stack per new cell; null when none is left or the store is a fixed-size patch.</summary>
-    private static StorageOption? ZoneGrowthOption(StockpileRequest r, Store store, StockpileZone keep, Fact<List<LootItem>> stranded, StockpileOpen untaken)
+    private static StorageOption? ZoneGrowthOption(StockpileRequest r, Store store, StockpileZone keep, List<LootItem>? stranded, StockpileOpen untaken)
     {
         if (!store.Site.WholeFootprint())
         {
@@ -222,7 +222,7 @@ public static partial class StorageRules
     }
 
     /// <summary>A shelf on a candidate site: the catalog Shelf's cost from its build stuff and its WorkToBuild; its cells' floor stacks lost; the candidate's stacks.</summary>
-    private static StorageOption ShelfOption(StockpileRequest r, ShelfCandidate c, Fact<List<LootItem>> stranded, Dictionary<Cell, SiteCell> census)
+    private static StorageOption ShelfOption(StockpileRequest r, ShelfCandidate c, List<LootItem>? stranded, Dictionary<Cell, SiteCell> census)
     {
         var cells = PlannedRules.RectCells(c.Piece.Rect).Count;
         var costKnown = r.ShelfCost.TryGetValue(out var cost);
@@ -256,7 +256,7 @@ public static partial class StorageRules
     /// room's work is its planned sites' catalog work, PlannedStoreRoom.Work, its roof named apart); its interior is the ground taken and the stacks gained, its exposure that of
     /// open air for an outdoor room and none for a roofed one. With none, one unsized option.
     /// </summary>
-    private static List<StorageOption> RoomOptions(StockpileRequest r, StorageOptionKind kind, PlannedRole role, string prefix, Fact<List<LootItem>> stranded, Dictionary<Cell, SiteCell> census)
+    private static List<StorageOption> RoomOptions(StockpileRequest r, StorageOptionKind kind, PlannedRole role, string prefix, List<LootItem>? stranded, Dictionary<Cell, SiteCell> census)
     {
         if (!r.StoreRooms.TryGetValue(out var planned))
         {
@@ -310,9 +310,9 @@ public static partial class StorageRules
     /// counted as rate times (exposure now less the slot's). A shelf takes no Chunks, Plants or Buildings row.
     /// Unknown, never zero, when the census, the stacks gained, a row's rate or any exposure is unknown.
     /// </summary>
-    internal static Fact<double> DeteriorationAvoided(ItemFacts items, Fact<List<LootItem>> stranded, Fact<int> stacks, IReadOnlyList<Fact<double>> slots, bool shelf, IReadOnlyDictionary<Cell, SiteCell> census)
+    internal static Fact<double> DeteriorationAvoided(ItemFacts items, List<LootItem>? stranded, Fact<int> stacks, IReadOnlyList<Fact<double>> slots, bool shelf, IReadOnlyDictionary<Cell, SiteCell> census)
     {
-        if (!stranded.TryGetValue(out var rows) || !stacks.TryGetValue(out var n))
+        if (stranded is not { } rows || !stacks.TryGetValue(out var n))
         {
             return Unknown<double>();
         }

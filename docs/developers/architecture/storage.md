@@ -108,6 +108,14 @@ is unknown, never zero, while the census is unread, while any unforbidden row's
 headroom is unknown, or when a zero-headroom row of unknown safety names the
 store. The yard's further-room ask reads it.
 
+The same census prices the planned storage rooms, meal closets and yards (#3798,
+`StoreRules.PlannedStoreStock`): a room's stock is the stranded rows its role's
+zones accept, read from the stockpile review's request (null when the review did
+not run), and native adds each deteriorating row's `LootItem.Deterioration`
+(MaxHitPoints, the game's rate now and the environmental part's inputs at its
+cell). The forecast credits the room the hit points it saves those stacks
+(forecast-value.md, storage credit).
+
 ### Store inflow
 
 Native keeps a saved occupancy ring (`StorageOccupancyState`, 15 days of 2500-tick

@@ -221,24 +221,25 @@ public sealed partial class Rounder
 
     /// <summary>
     /// Runs the stockpile review when the admin/stockpiles Need is composed, records whether it proposes work for the
-    /// Need's read, and returns the shelf candidates it plans; none otherwise, or while a fact is unread.
+    /// Need's read, and returns the shelf candidates it plans with the whole request it reviewed (the planned stores'
+    /// stock reads it, #3798); no candidates and no request otherwise, or while a fact is unread.
     /// <paramref name="zones"/> is the review's zone reads, taken before the census; null reads them here.
     /// </summary>
     // The review's parts are lapped onto fine under d_stock/stockpile/ (#3566): census (the patches and the mirrored
     // bench census), build (the request: zones, stores, demand), shelves (the shelf stacks and rows), occupancy (the
     // occupancy ring read), plan (the maintenance review).
-    internal async Task<IReadOnlyList<Pol.ShelfCandidate>> ReviewStockpilesAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, StockpileZoneReads? zones, CancellationToken ct, StepStages? fine = null)
+    internal async Task<(IReadOnlyList<Pol.ShelfCandidate> Shelves, Pol.StockpileRequest? Request)> ReviewStockpilesAsync(GenerationSnapshot snapshot, Observation.ColonyProjection projection, StockpileZoneReads? zones, CancellationToken ct, StepStages? fine = null)
     {
         if (!Needs.Contains(AdminFamily.Stockpiles))
         {
-            return [];
+            return ([], null);
         }
         Stockpiles.SetActive(snapshot, Unknown<bool>());
         fine?.Mark();
         var (request, missing) = await StockpileRequestAsync(snapshot, projection, zones, ct, fine).ConfigureAwait(false);
         if (missing != "")
         {
-            return [];
+            return ([], null);
         }
         Stockpiles.SetDemand(RoundsStockpilePlanner.StockpileWorld(snapshot), request.RoomDemand);
         var review = Pol.StockpileRules.PlanStockpileMaintenance(request);
@@ -249,7 +250,7 @@ public sealed partial class Rounder
             ct.ThrowIfCancellationRequested();
             Tel.Decide(RoundsStockpilePlanner.StockpileEditDecision("proposed", "", e.Zone, new Dictionary<string, object?> { ["kind"] = Wire.Name(e.Kind), ["detail"] = e.Explanation }));
         }
-        return review.ShelfCandidates;
+        return (review.ShelfCandidates, request);
     }
 
     /// <summary>The stacks one Shelf holds: the load catalog's Shelf station item slots; unknown without the catalog or the station.</summary>

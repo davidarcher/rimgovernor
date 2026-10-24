@@ -6292,6 +6292,8 @@ public sealed record ThreatSection
 /// accepted_by, set only on an unforbidden row with storage_headroom 0 and
 /// safe_to_haul not false, names the player's storage groups (stockpile zones and
 /// storage buildings, by load id) whose settings accept the item, ignoring space.
+/// deterioration is the stack's deterioration where it lies (#3798), absent when it
+/// cannot deteriorate.
 /// </summary>
 public sealed record LootItem
 {
@@ -6309,6 +6311,32 @@ public sealed record LootItem
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> AcceptedBy { get; init; }
+
+    public LootDeterioration? Deterioration { get; init; }
+}
+
+/// <summary>
+/// A stack's deterioration where it lies (#3798): its MaxHitPoints, SteadyEnvironmentEffects.FinalDeteriorationRate now
+/// (every DeteriorationRate part applied at its cell), whether StatPart_EnvironmentalEffects applies
+/// (deteriorateFromEnvironmentalEffects), the cell terrain's extraDeteriorationFactor, SteadyEnvironmentEffects.ProtectedByEdifice,
+/// whether the cell is roofed and whether its room uses the outdoor temperature (the part's two offsets). Read only for a
+/// stack that can deteriorate (useHitPoints and CanEverDeteriorate).
+/// </summary>
+public sealed record LootDeterioration
+{
+    public double MaxHitPoints { get; init; }
+
+    public double RatePerDay { get; init; }
+
+    public bool Environmental { get; init; }
+
+    public double TerrainFactor { get; init; }
+
+    public bool Protected { get; init; }
+
+    public bool Roofed { get; init; }
+
+    public bool Outdoors { get; init; }
 }
 
 public sealed record LootCensus

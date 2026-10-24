@@ -84,16 +84,18 @@ public static partial class StoreRules
     /// row of unknown safety is accepted by this store.
     /// </summary>
     public static Fact<long> StrandedStacks(StockpileRequest request, Store store) =>
-        StrandedRows(request, store).TryGetValue(out var rows) ? Known((long)rows.Count) : Unknown<long>();
+        StrandedRows(request, store) is { } rows ? Known((long)rows.Count) : Unknown<long>();
 
-    /// <summary>The store's stranded loot rows (<see cref="StrandedStacks"/>), one stack each; unknown on the same terms.</summary>
-    internal static Fact<List<LootItem>> StrandedRows(StockpileRequest request, Store store)
+    /// <summary>The store's stranded loot rows (<see cref="StrandedStacks"/>), one stack each; null (unread) on the same terms.</summary>
+    internal static List<LootItem>? StrandedRows(StockpileRequest request, Store store) => StrandedRows(request, StoreGroups(request, store));
+
+    /// <summary>The stranded loot rows one of whose accepting storage groups is in <paramref name="groups"/>; null (unread) on the terms of <see cref="StrandedStacks"/>.</summary>
+    private static List<LootItem>? StrandedRows(StockpileRequest request, HashSet<string> groups)
     {
         if (!request.Loot.TryGetValue(out var rows))
         {
-            return Unknown<List<LootItem>>();
+            return null;
         }
-        var groups = StoreGroups(request, store);
         var stranded = new List<LootItem>();
         foreach (var row in rows)
         {
@@ -103,7 +105,7 @@ public static partial class StoreRules
             }
             if (!row.StorageHeadroom.TryGetValue(out var room))
             {
-                return Unknown<List<LootItem>>();
+                return null;
             }
             if (room > 0 || (row.SafetyKnown && !row.SafeToHaul) || !row.AcceptedBy.Any(groups.Contains))
             {
@@ -111,11 +113,47 @@ public static partial class StoreRules
             }
             if (!row.SafetyKnown)
             {
-                return Unknown<List<LootItem>>();
+                return null;
             }
             stranded.Add(row);
         }
-        return Known(stranded);
+        return stranded;
+    }
+
+    /// <summary>
+    /// The stock each planned storage room, yard and meal closet would keep (#3798), by room id: its interior's cells (one
+    /// stack each) and the stranded rows whose accepting storage groups include a zone of the role of a store sited on its
+    /// region (or a shelf in one), each row once. Zones of one role carry one filter, so a room whose own zone is not yet
+    /// laid is read through its role's standing zones, as StorageOptions prices a successor room. A room no store is
+    /// sited on keeps nothing; a room whose rows are unread (<see cref="StrandedStacks"/>) has no entry.
+    /// </summary>
+    public static IReadOnlyDictionary<int, PlannedStock> PlannedStoreStock(StockpileRequest request, IReadOnlyList<PlannedRoom> rooms)
+    {
+        var output = new Dictionary<int, PlannedStock>();
+        foreach (var room in rooms)
+        {
+            if (room.Role is not (PlannedRole.Storage or PlannedRole.Yard or PlannedRole.MealCloset))
+            {
+                continue;
+            }
+            var groups = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var store in request.Stores.Where(s => !s.Retired && s.Site.Region == room.Region))
+            {
+                groups.UnionWith(request.Zones.Where(store.RoleOf).Select(z => z.Id));
+            }
+            foreach (var s in request.Shelves)
+            {
+                if (groups.Contains(s.Zone))
+                {
+                    groups.Add(s.Building);
+                }
+            }
+            if (StrandedRows(request, groups) is { } rows)
+            {
+                output[room.Id] = new PlannedStock(room.Region.Area(), EquatableArray.From(rows));
+            }
+        }
+        return output;
     }
 
     /// <summary>The store's storage groups (native load ids): the owned zones serving it and the built shelves in them.</summary>

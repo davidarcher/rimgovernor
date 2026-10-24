@@ -202,6 +202,13 @@ public sealed record RoundsFacts
     public Fact<PlannedSiteFacts> PlannedSites { get; init; }
 
     /// <summary>
+    /// The stock each planned storage room, yard and meal closet would keep from deteriorating, by room id
+    /// (StoreRules.PlannedStoreStock over the stockpile review's request, #3798); null when the review did not run or its
+    /// request was not whole, and a room whose rows are unread has no entry.
+    /// </summary>
+    public IReadOnlyDictionary<int, PlannedStock>? PlannedStoreStock { get; init; }
+
+    /// <summary>
     /// The native thermal read of the unplaced planned shelters (PlannedThermalRequestOf, #3323): their cells and planned
     /// heaters, joined into the coupled thermal read (WithPlannedThermal); null when nothing was asked or native did not answer.
     /// </summary>
