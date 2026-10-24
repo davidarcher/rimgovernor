@@ -64,7 +64,7 @@ public sealed class GarmentNodeTests
     {
         var option = Bill("Apparel_Duster", Devilstrand, 0.8);
         var input = Colony(8, 0, Recipe("Apparel_Duster", Devilstrand, 80));
-        var graph = ProjectGraph.Standing(input, [option], default);
+        var graph = ProjectGraph.Standing(input, [option], ColonyModelFixtures.NoThreat);
         var garment = ProjectGraph.GarmentId(Devilstrand, GearSlot.Outer);
         Assert.Contains(graph.Nodes, n => n.Id == garment);
 
@@ -97,7 +97,7 @@ public sealed class GarmentNodeTests
             Wildlife = Known(HuntSquadRules.Herds([deer, deer with { Id = "deer1" }])),
         };
         input = input with { Pawns = Known(EquatableArray.From(input.Pawns.Value.Select(p => p with { Hunts = Known(true) }))) };
-        var graph = ProjectGraph.Standing(input, [option], default);
+        var graph = ProjectGraph.Standing(input, [option], ColonyModelFixtures.NoThreat);
 
         var trajectory = ProjectGraphTests.Run(input, graph);
 
@@ -154,7 +154,7 @@ public sealed class GarmentNodeTests
         var option = Bill("Apparel_Duster", Devilstrand, 0.8);
         var recipe = Recipe("Apparel_Duster", Devilstrand, 80);
         ProjectMarginals Marginals(ColonyModelInput input) => ProjectMarginalValue.Of(input,
-            new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = ProjectGraph.Standing(input, [option], default) }, Value([option]));
+            new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = ProjectGraph.Standing(input, [option], ColonyModelFixtures.NoThreat) }, Value([option]));
 
         var bare = Marginals(Colony(8, 0, recipe));
         var stocked = Marginals(Colony(80, 0, recipe));
@@ -171,10 +171,10 @@ public sealed class GarmentNodeTests
     {
         // Cloth is in stock for a 0.5 duster; devilstrand comes from the field.
         var input = Colony(8, 80, Recipe("Apparel_Duster", Cloth, 80), Recipe("Apparel_Duster", Devilstrand, 80), Recipe("Apparel_Parka", Devilstrand, 80));
-        var sources = ProjectGraph.Standing(input, [], default);
+        var sources = ProjectGraph.Standing(input, [], ColonyModelFixtures.NoThreat);
         var cloth = Bill("Apparel_Duster", Cloth, 0.5);
         string[] Garments(params GearOption[] options) =>
-            [.. ProjectGraph.Garments(input, sources, options, default).Nodes.Where(n => n.Kind == ProjectKind.Craft).Select(n => n.Id)];
+            [.. ProjectGraph.Garments(input, sources, options, ColonyModelFixtures.NoThreat).Nodes.Where(n => n.Kind == ProjectKind.Craft).Select(n => n.Id)];
 
         // A stronger devilstrand duster stays: the cloth one is worn until it arrives.
         Assert.Equal([ProjectGraph.GarmentId(Devilstrand, GearSlot.Outer), ProjectGraph.GarmentId(Cloth, GearSlot.Outer)], Garments(cloth, Bill("Apparel_Duster", Devilstrand, 0.8)));
@@ -188,9 +188,9 @@ public sealed class GarmentNodeTests
     public void WithinAStuffAndSlotTheMostArmorPicksTheDefAndAnUnreachableStuffHasNoNode()
     {
         var input = Colony(8, 0, Recipe("Apparel_Duster", Devilstrand, 80), Recipe("Apparel_Parka", Devilstrand, 80), Recipe("Apparel_Duster", Cloth, 80));
-        var sources = ProjectGraph.Standing(input, [], default);
+        var sources = ProjectGraph.Standing(input, [], ColonyModelFixtures.NoThreat);
         var graph = ProjectGraph.Garments(input, sources,
-            [Bill("Apparel_Duster", Devilstrand, 0.8), Bill("Apparel_Parka", Devilstrand, 0.9), Bill("Apparel_Duster", Cloth, 0.99), Bill("Apparel_Cape", Devilstrand, 0, GearSlot.Belt)], default);
+            [Bill("Apparel_Duster", Devilstrand, 0.8), Bill("Apparel_Parka", Devilstrand, 0.9), Bill("Apparel_Duster", Cloth, 0.99), Bill("Apparel_Cape", Devilstrand, 0, GearSlot.Belt)], ColonyModelFixtures.NoThreat);
 
         var node = Assert.Single(graph.Nodes, n => n.Kind == ProjectKind.Craft);
         Assert.Equal(ProjectGraph.GarmentId(Devilstrand, GearSlot.Outer), node.Id);

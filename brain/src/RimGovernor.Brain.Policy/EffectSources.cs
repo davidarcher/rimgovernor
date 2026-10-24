@@ -75,7 +75,7 @@ public static class EffectSourcesRules
         var pawns = new List<EffectSourcePawn>();
         foreach (var pawn in gear.Pawns)
         {
-            if (pawn.Blocked || !pawn.LoadoutModel.TryGetValue(out var input))
+            if (pawn.Blocked || pawn.Model is not { } input)
             {
                 continue;
             }

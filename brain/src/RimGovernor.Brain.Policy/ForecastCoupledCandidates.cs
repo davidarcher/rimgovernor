@@ -156,8 +156,8 @@ public sealed partial record ForecastCoupledCandidates
         truncated |= food.Truncated || construction.Truncated || composed.Truncated || support.Truncated;
         // The worn outfit per pawn with a loadout model: the same options the effect-source facts carry (#3546).
         var outfits = facts.Gear.TryGetValue(out var worn)
-            ? worn.Pawns.Where(p => p.LoadoutModel.IsKnown).GroupBy(p => p.Pawn.Value, StringComparer.Ordinal)
-                .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().LoadoutModel.Value.Worn, StringComparer.Ordinal)
+            ? worn.Pawns.Where(p => p.Model is not null).GroupBy(p => p.Pawn.Value, StringComparer.Ordinal)
+                .Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().Model!.Worn, StringComparer.Ordinal)
             : new Dictionary<string, EquatableArray<GearOption>>();
         if (NeedEnabled(MilitaryFamily.Equipment) && facts.Gear.TryGetValue(out var gear))
         {

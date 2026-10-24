@@ -133,10 +133,11 @@ the definitions that role's apparel policy permits. The census row is whole
 temperatures, gender, stage and body-part groups. A row whose bounds the model
 refuses (a definition the catalog lacks, or two worn garments on one slot) is not
 judged by a weaker rule: the pawn's
-`GearPawn.LoadoutModel` is unknown with the cause in `GearPawn.ModelRefusal`, and
+`GearPawn.LoadoutModel` is `GearModel.Refused` with the cause, and
 planning the colony fails with an error naming the pawn and the cause. A pawn with no
-apparel policy (it cannot wear apparel) is unknown with no cause and is skipped when
-blocked, an error otherwise. A frame without the definition catalog, finished research
+apparel policy (it cannot wear apparel) is `GearModel.NoOutfit` and is skipped when
+blocked, an error otherwise. The replacements and deficit a modeled pawn needs are
+derived per Round (`ModeledGearPawns`), never carried on the census row. A frame without the definition catalog, finished research
 or stock census leaves the whole census unknown; a census missing a colonist raises
 `RequiredFactException`.
 
@@ -201,7 +202,7 @@ is 1 for a def without hit points.
 
 Targets cover skin torso, skin legs, middle torso, outer, belt, headgear and
 primary weapon. An exact bounded ensemble search rejects shared layer AND body
-group conflicts and preserves locked items. It scores armor as damage per hit avoided against the colony's expected raid (`GearLoadoutInput.Threat`: the raid composition's weapon bins, body coverage and natural armor; `GearArmorTerm` sums bin weight times the unarmored response minus the response with the option as the only layer on its groups, so quality and condition enter through `ArmorResponseRules`; layers over one group are not combined per item, the ledger combines them; a soldier weighs it tenfold; with no known threat the response is against a nominal 10-damage, 0.15-penetration sharp hit on the parts the option covers and the loadout carries the finding `gear_threat_unknown`), and scores condition and
+group conflicts and preserves locked items. It scores armor as damage per hit avoided against the colony's expected raid (`GearLoadoutInput.Threat`: the raid composition's weapon bins, body coverage and natural armor; `GearArmorTerm` sums bin weight times the unarmored response minus the response with the option as the only layer on its groups, so quality and condition enter through `ArmorResponseRules`; layers over one group are not combined per item, the ledger combines them; a soldier weighs it tenfold; with an uncomposed threat (`RaidThreat.Uncomposed`, the raid composition's findings) the response is against a nominal 10-damage, 0.15-penetration sharp hit on the parts the option covers and the loadout carries the finding `gear_threat_uncomposed`), and scores condition and
 coverage, and prices neither mood nor warmth. Coverage requires
 legs for men and legs plus chest for women; nudists prefer no body apparel.
 It plans inside the pawn's outfit filter, which excludes tainted apparel unless

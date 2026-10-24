@@ -42,7 +42,7 @@ public static partial class GoalRules
                 var missing = goal.Count - WearingCount(gear, want);
                 if (missing > 0)
                 {
-                    var wearing = gear.Pawns.Where(p => p.LoadoutModel.TryGetValue(out var model)
+                    var wearing = gear.Pawns.Where(p => p.Model is { } model
                         && model.Worn.Items.Any(o => o.Definition == want.Garment && (want.Stuff.Value == "" || o.Stuff == want.Stuff))).Select(p => p.Pawn).ToHashSet();
                     foreach (var pawn in EligibleWearers(gear, want.Garment).Take(goal.Count).Where(p => !wearing.Contains(p.Pawn)))
                     {

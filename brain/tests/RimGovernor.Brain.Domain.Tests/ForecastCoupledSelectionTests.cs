@@ -992,7 +992,7 @@ public sealed class ForecastCoupledSelectionTests
             Stored = default(EquatableArray<RimGovernor.Brain.Policy.GearStock>),
             Pawns = [new() { Pawn = new("pawn"), Loadout = "load",
                 Candidates = default(EquatableArray<RimGovernor.Brain.Policy.GearCandidate>),
-                LoadoutModel = Known(new GearLoadoutInput { Ambient = -10, ComfortableMin = 10, ComfortableMax = 30,
+                LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Ambient = -10, ComfortableMin = 10, ComfortableMax = 30,
                     Worn = shirt ? [Garment("Shirt", GearSlot.SkinTorso, "OnSkin", 2, GearSource.Worn), Garment("Jacket", GearSlot.Outer, "Shell", 5, GearSource.Worn)] : [],
                     Options = [Garment("Parka", GearSlot.Outer, "Shell", 20, GearSource.Bill)] }) }]
         };
@@ -1103,7 +1103,7 @@ public sealed class ForecastCoupledSelectionTests
         model = model with { Role = model.Role with { Work = model.Role.Work with { Traits = Known<EquatableArray<PawnTrait>>([]) } } };
         var facts = Review() with
         {
-            Gear = Known(ColonyModelFixtures.NoGear() with { Stored = [], Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = Known(model), Candidates = [] }] }),
+            Gear = Known(ColonyModelFixtures.NoGear() with { Stored = [], Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = new GearModel.Modeled(model), Candidates = [] }] }),
             MedicalPawns = Known<EquatableArray<CarePawn>>([CareFixtures.Patient("pawn")]),
         };
         var gear = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Alternatives.Where(a => a.ExclusiveOutcome == "gear/pawn").ToArray();

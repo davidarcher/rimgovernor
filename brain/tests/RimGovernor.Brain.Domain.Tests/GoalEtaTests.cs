@@ -24,7 +24,7 @@ public sealed class GoalEtaTests
     {
         Goals = goals,
         Stock = Known<EquatableArray<Amount>>([]),
-        Rounds = new RoundsFacts { Gear = Known(ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("Anna"), LoadoutModel = Known(new GearLoadoutInput { Worn = [] }) }] }) },
+        Rounds = new RoundsFacts { Gear = Known(ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("Anna"), LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Worn = [] }) }] }) },
         StuffResearch = new Dictionary<string, IReadOnlyList<string>> { [ColonyModelFixtures.Cloth] = [ColonyModelFixtures.Project] },
     };
 

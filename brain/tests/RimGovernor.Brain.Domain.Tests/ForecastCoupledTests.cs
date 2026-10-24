@@ -535,7 +535,7 @@ public sealed class ForecastCoupledTests
                     Stored = [],
                     Pawns = [new() { Pawn = new("wearer"), Loadout = "load",
                     Candidates = [], Apparel = [],
-                    LoadoutModel = Known(new GearLoadoutInput { Ambient = 0, ComfortableMin = 10, ComfortableMax = 30, Options = [Garment("Rice"),Garment("Cloth")] }) }]
+                    LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Ambient = 0, ComfortableMin = 10, ComfortableMax = 30, Options = [Garment("Rice"),Garment("Cloth")] }) }]
                 }),
                 ForecastObserved = facts.ForecastObserved with
                 {

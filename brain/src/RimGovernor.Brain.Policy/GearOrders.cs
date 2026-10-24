@@ -14,12 +14,12 @@ public static class GearOrdersRules
     /// </summary>
     public static Declared DeclareGearOrders(GearPlanningRequest r)
     {
-        var (review, v, unread) = GearOrderCensus(r);
+        var (_, v, _, unread) = GearOrderCensus(r);
         if (unread is { } cause)
         {
             return WorkRules.Abstaining(cause);
         }
-        var clothing = v!.Pawns.SelectMany(p => p.LoadoutModel.ValueOrDefault?.Options ?? [])
+        var clothing = v!.Pawns.SelectMany(p => p.Model?.Options ?? [])
             .Select(o => o.Definition).Where(d => !GearArmorRules.ArmoryArmor(d)).ToHashSet();
         var orders = new List<OrderSpec>();
         foreach (var bench in r.Benches.Value)
@@ -40,7 +40,7 @@ public static class GearOrdersRules
     /// </summary>
     public static Declared DeclareArmoryOrders(GearPlanningRequest r, ArmoryTier tier, IReadOnlyList<Amount> weapons, IReadOnlyList<Amount> shells)
     {
-        var (review, v, unread) = GearOrderCensus(r);
+        var (review, v, modeled, unread) = GearOrderCensus(r);
         if (unread is { } cause)
         {
             return WorkRules.Abstaining(cause);
@@ -62,10 +62,10 @@ public static class GearOrdersRules
             DomainException.Require(AdmissionRules.ValidResource(d.Resource) && d.Count > 0 && d.Count <= 256, $"invalid weapon demand \"{d.Resource.Value}\" x{d.Count}");
             for (long i = 0; i < d.Count; i++)
             {
-                needs.Add(new GearNeed(new GearPawn { Pawn = new PawnId("weapon-batch"), Loadout = "colony" }, new GearReplacement { Definition = d.Resource, Reason = "unarmed" }));
+                needs.Add(new GearNeed(new PawnId("weapon-batch"), new GearReplacement { Definition = d.Resource, Reason = "unarmed" }));
             }
         }
-        var (weaponOrders, weaponUnknown) = GearOrders(needs, v!, review!, r);
+        var (weaponOrders, weaponUnknown) = GearOrders(needs, v!, modeled!, review!, r);
         Collect(weaponOrders, weaponUnknown);
         // Armor and shells follow the tier; weapons stand without it.
         if (tier == ArmoryTier.Unknown)
@@ -73,13 +73,9 @@ public static class GearOrdersRules
             return @out.Unread(Cause.UnreadArmoryTier);
         }
         var armor = new Dictionary<Resource, int>();
-        foreach (var p in v!.Pawns)
+        foreach (var p in modeled!)
         {
-            if (!p.Replacements.TryGetValue(out var replacements))
-            {
-                return WorkRules.Abstaining(Cause.UnreadGearNeeds);
-            }
-            foreach (var n in replacements)
+            foreach (var n in p.Replacements)
             {
                 if (GearArmorRules.ArmoryArmor(n.Definition))
                 {
@@ -95,9 +91,9 @@ public static class GearOrdersRules
                 var rungNeeds = new List<GearNeed>();
                 for (var i = 0; i < armor[d]; i++)
                 {
-                    rungNeeds.Add(new GearNeed(new GearPawn { Pawn = new PawnId("armor-batch"), Loadout = "colony" }, new GearReplacement { Definition = rung, Reason = "armory" }));
+                    rungNeeds.Add(new GearNeed(new PawnId("armor-batch"), new GearReplacement { Definition = rung, Reason = "armory" }));
                 }
-                var (orders, unknown) = GearOrders(rungNeeds, v, review!, r);
+                var (orders, unknown) = GearOrders(rungNeeds, v!, modeled, review!, r);
                 Collect(orders, unknown);
                 if (orders.Count > 0 || unknown is not null)
                 {
@@ -114,25 +110,25 @@ public static class GearOrdersRules
     /// The reviewed, loadout-modelled census a declaration reads; Unread names the fact the review cannot
     /// establish (recovery or the bench readback), null when both are read.
     /// </summary>
-    private static (GearReview? Review, GearObservation? Observation, Cause? Unread) GearOrderCensus(GearPlanningRequest r)
+    private static (GearReview? Review, GearObservation? Observation, IReadOnlyList<ModeledGearPawn>? Modeled, Cause? Unread) GearOrderCensus(GearPlanningRequest r)
     {
         var review = GearRules.ReviewGear(r.Observation);
         if (!review.Recovered.IsKnown)
         {
-            return (null, null, Cause.UnreadGearRecover);
+            return (null, null, null, Cause.UnreadGearRecover);
         }
         if (!r.Benches.IsKnown)
         {
-            return (null, null, Cause.UnreadBenches);
+            return (null, null, null, Cause.UnreadBenches);
         }
         r.Observation.TryGetValue(out var observed);
-        return (review, GearLoadoutRules.ModeledGearObservation(observed!, review.Loadouts), null);
+        return (review, observed, GearLoadoutRules.ModeledGearPawns(observed!, review.Loadouts), null);
     }
 
     /// <summary>Orders needs by pawn, definition and reason.</summary>
     private static List<GearNeed> SortGearNeeds(IEnumerable<GearNeed> needs) =>
         needs
-            .OrderBy(n => n.Pawn.Pawn.Value, StringComparer.Ordinal)
+            .OrderBy(n => n.Pawn.Value, StringComparer.Ordinal)
             .ThenBy(n => n.Need.Definition.Value, StringComparer.Ordinal)
             .ThenBy(n => n.Need.Reason, StringComparer.Ordinal)
             .ToList();
@@ -142,7 +138,7 @@ public static class GearOrdersRules
     /// (declared as it stands) or the first funded recipe's batch sized to the demand left after stored stock.
     /// Unknown names the fact left unread (a bench census, bills or a recipe's facts).
     /// </summary>
-    private static (IReadOnlyList<OrderSpec> Orders, Cause? Unknown) GearOrders(List<GearNeed> needs, GearObservation v, GearReview review, GearPlanningRequest r)
+    private static (IReadOnlyList<OrderSpec> Orders, Cause? Unknown) GearOrders(List<GearNeed> needs, GearObservation v, IReadOnlyList<ModeledGearPawn> modeled, GearReview review, GearPlanningRequest r)
     {
         var orders = new List<OrderSpec>();
         Cause? unknown = null;
@@ -157,9 +153,9 @@ public static class GearOrdersRules
             return (orders, Cause.UnreadBenches);
         }
         var pending = false;
-        foreach (var p in v.Pawns)
+        foreach (var p in modeled)
         {
-            pending = pending || p.Candidates.Count > 0;
+            pending = pending || p.Pawn.Candidates.Count > 0;
         }
         var done = new HashSet<Resource>();
         foreach (var n in needs)

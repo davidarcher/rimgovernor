@@ -73,11 +73,9 @@ internal static class RoundsColonyModel
             .Select(g => (Goal: GoalRules.NeedOf(g).Value, Path: GoalPaths.Of(g, goals!, input))).ToList();
         // The pawns' bill options, and the apparel only unfinished knowledge projects keep from the colony (#3848): a garment node of one waits on them.
         var options = colony.Facts.Gear.TryGetValue(out var gear)
-            ? gear.Pawns.Where(p => p.LoadoutModel.IsKnown).SelectMany(p => p.LoadoutModel.Value.Options).Where(o => o.Source == GearSource.Bill).Concat(gear.KnowledgeBills).DistinctBy(o => o.ID).ToArray()
+            ? gear.Pawns.SelectMany(p => p.Model?.Options ?? []).Where(o => o.Source == GearSource.Bill).Concat(gear.KnowledgeBills).DistinctBy(o => o.ID).ToArray()
             : [];
-        // The colony's expected raid is the same on every pawn's loadout input; the first known one is the colony's.
-        var threat = gear is null ? default : gear.Pawns.Where(p => p.LoadoutModel.IsKnown).Select(p => p.LoadoutModel.Value.Threat).FirstOrDefault(t => t.IsKnown);
-        var policy = new ColonyModelPolicy { Projects = paths.Aggregate(ProjectGraph.Standing(input, options, threat), (graph, p) => graph.Then(p.Path.Graph)) };
+        var policy = new ColonyModelPolicy { Projects = paths.Aggregate(ProjectGraph.Standing(input, options, gear?.Threat), (graph, p) => graph.Then(p.Path.Graph)) };
         var valuation = new ColonyValue(context, options, policy.HorizonDays, input.Pawns, colony.Facts.MedicalReserve.Catalog);
         policy = policy with { MedicineTendsPerDay = valuation.TreatmentsPerDay(input) };
         var marginals = ProjectMarginalValue.Of(input, policy, valuation, [.. paths.Where(p => p.Path.Terminal is not null).Select(p => p.Path.Terminal!)]);

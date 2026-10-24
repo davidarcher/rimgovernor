@@ -47,7 +47,7 @@ public sealed class KnowledgeValueTests
         var summary = EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog, overflow));
         var research = RoundsColonyModel.InputOf(ColonyModelFixtures.Projection() with { Facts = ColonyModelFixtures.Projection().Facts with { Research = Known(summary) } }).Input.Research;
         var input = ProjectGraphTests.Colony() with { Research = research };
-        var policy = new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = ProjectGraph.Standing(input, [], default) };
+        var policy = new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = ProjectGraph.Standing(input, [], ColonyModelFixtures.NoThreat) };
         return (input, ProjectMarginalValue.Of(input, policy, new Completion(ProjectGraph.ResearchId(new ResearchProjectId(Bioferrite)))));
     }
 
@@ -71,7 +71,7 @@ public sealed class KnowledgeValueTests
         Assert.Equal([Advanced, Basic], input.Research.Value.Knowledge.Select(k => k.Category));
         Assert.Equal(Bioferrite, input.Research.Value.Knowledge.Single(k => k.Category == Basic).Project.Value);
         // The node is the 3 knowledge points still to give (4 less the quarter given), and no researcher works it: study alone gives them.
-        var node = Assert.Single(ProjectGraph.Standing(input, [], default).Nodes, n => n.Kind == ProjectKind.Knowledge);
+        var node = Assert.Single(ProjectGraph.Standing(input, [], ColonyModelFixtures.NoThreat).Nodes, n => n.Kind == ProjectKind.Knowledge);
         Assert.Equal(3, node.Work, 9);
         Assert.Equal(0, marginals.Value.Value);
         Assert.DoesNotContain(marginals.Trajectory.Events, e => e.Id == node.Id);
@@ -88,7 +88,7 @@ public sealed class KnowledgeValueTests
         var (input, marginals) = Review(AnomalyRead("prerequisite:Other"), AnomalyCatalog, new Dictionary<string, string>(StringComparer.Ordinal) { [Basic] = "", [Advanced] = Basic });
 
         Assert.True(input.Research.Value.Knowledge.All(k => k.Project.IsEmpty));
-        Assert.DoesNotContain(ProjectGraph.Standing(input, [], default).Nodes, n => n.Kind == ProjectKind.Knowledge);
+        Assert.DoesNotContain(ProjectGraph.Standing(input, [], ColonyModelFixtures.NoThreat).Nodes, n => n.Kind == ProjectKind.Knowledge);
         Assert.Equal(0, marginals.PerUnit[ProjectGraph.KnowledgeKey(Basic)]);
         Assert.Equal(0, marginals.PerUnit[ProjectGraph.KnowledgeKey(Advanced)]);
     }
@@ -133,7 +133,7 @@ public sealed class KnowledgeValueTests
         var pawn = ForecastValueTests.HarmPawn() with { Pawn = "Anna" };
         var context = ForecastValueTests.Context(pawn, ForecastValueTests.HarmTables(), ForecastValueTests.RaidDay(), new Dictionary<string, EquatableArray<GearOption>>(StringComparer.Ordinal) { ["Anna"] = worn })
             with { Needs = NeedsFixtures.Empty with { Pawns = [pawn] } };
-        var policy = new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = ProjectGraph.Standing(input, options, default) };
+        var policy = new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = ProjectGraph.Standing(input, options, ColonyModelFixtures.NoThreat) };
         return ProjectMarginalValue.Of(input, policy, new ColonyValue(context, options, CalendarRules.YearDays, default, new ItemFacts()));
     }
 

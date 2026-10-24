@@ -27,7 +27,7 @@ public sealed class ColonyModelWiringTests
         {
             Facts = projection.Facts with
             {
-                Gear = Known(gear with { Climate = ColonyModelFixtures.Climate() with { Temperatures = EquatableArray.From(new[] { -10.0, -8, -2, 5, 12, 18, 22, 21, 15, 8, 12, 12 }) }, Pawns = [gear.Pawns[0] with { LoadoutModel = Known(new GearLoadoutInput { Options = [BillDuster()] }) }] }),
+                Gear = Known(gear with { Climate = ColonyModelFixtures.Climate() with { Temperatures = EquatableArray.From(new[] { -10.0, -8, -2, 5, 12, 18, 22, 21, 15, 8, 12, 12 }) }, Pawns = [gear.Pawns[0] with { LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Options = [BillDuster()] }) }] }),
             },
             // 20 cells of 6 cloth each cover the duster's 80.
             Cells = [.. Enumerable.Range(0, 20).Select(x => new SiteCell { Cell = new Cell(x, 0), Zone = Known(true), ZoneId = Known("zone1"), Fertility = Known(0.8) })],
@@ -106,10 +106,10 @@ public sealed class ColonyModelWiringTests
         ProjectNode[] Garments(ProjectGraph graph) => [.. graph.Nodes.Where(n => n.Kind == ProjectKind.Craft)];
 
         // The parka beats the duster in the harvest's cloth, and the frame has no recipe for it; no cotton is grown or held.
-        var graph = ProjectGraph.Standing(input, [BillDuster(), better, cotton], default);
+        var graph = ProjectGraph.Standing(input, [BillDuster(), better, cotton], ColonyModelFixtures.NoThreat);
         Assert.Empty(Garments(graph));
         Assert.Contains("garment_recipe_unknown:Apparel_Parka", graph.Findings);
-        Assert.Equal([Garment], Garments(ProjectGraph.Standing(input, [BillDuster()], default)).Select(n => n.Id));
-        Assert.Empty(Garments(ProjectGraph.Standing(input, [BillDuster() with { Sharp = 0, Blunt = 0 }], default)));
+        Assert.Equal([Garment], Garments(ProjectGraph.Standing(input, [BillDuster()], ColonyModelFixtures.NoThreat)).Select(n => n.Id));
+        Assert.Empty(Garments(ProjectGraph.Standing(input, [BillDuster() with { Sharp = 0, Blunt = 0 }], ColonyModelFixtures.NoThreat)));
     }
 }

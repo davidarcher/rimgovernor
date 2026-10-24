@@ -120,9 +120,10 @@ public sealed record ProjectGraph
     /// wildlife is hunted and butchered (<see cref="Hunts"/>). Last, the garments the colony can make from the stuffs it holds or those
     /// nodes yield (<see cref="Garments"/>), so the harm model prices what wearing each avoids from the day it is made. Then the knowledge
     /// projects the colony's knowledge categories fund (<see cref="Knowledge"/>), whose points are priced per category by what the nodes
-    /// waiting on them add: the garments of <paramref name="options"/> only those projects keep from the colony.
+    /// waiting on them add: the garments of <paramref name="options"/> only those projects keep from the colony. A colony with
+    /// no gear census has no <paramref name="threat"/> and no options, so no garment nodes.
     /// </summary>
-    public static ProjectGraph Standing(ColonyModelInput input, IReadOnlyList<GearOption> options, Fact<RaidThreat> threat)
+    public static ProjectGraph Standing(ColonyModelInput input, IReadOnlyList<GearOption> options, RaidThreat? threat)
     {
         var graph = input.Research.TryGetValue(out var research) && !research.Current.IsEmpty ? ResearchChain(input, research.Current) : new ProjectGraph();
         var knowledge = research is null ? new ProjectGraph() : Knowledge(input, research, options);
@@ -136,7 +137,7 @@ public sealed record ProjectGraph
         }
 
         graph = graph.Then(Hunts(input));
-        return graph.Then(Garments(input, graph, options, threat)).Then(knowledge);
+        return graph.Then(threat is null ? new ProjectGraph() : Garments(input, graph, options, threat)).Then(knowledge);
     }
 
     /// <summary>The id of the garment node of a stuff in a gear slot.</summary>
@@ -157,7 +158,7 @@ public sealed record ProjectGraph
     /// </para>
     /// The nodes are in armor order (most first), ties by id.
     /// </summary>
-    public static ProjectGraph Garments(ColonyModelInput input, ProjectGraph sources, IReadOnlyList<GearOption> options, Fact<RaidThreat> threat)
+    public static ProjectGraph Garments(ColonyModelInput input, ProjectGraph sources, IReadOnlyList<GearOption> options, RaidThreat threat)
     {
         var held = input.Stocks.Materials.TryGetValue(out var materials) ? materials.GroupBy(a => a.Resource).ToDictionary(g => g.Key, g => g.Sum(a => a.Count)) : [];
         var yielded = new HashSet<Resource>();

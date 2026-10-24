@@ -482,7 +482,7 @@ public static partial class GoalRules
 
     /// <summary>The colonists wearing the goal's garment, of its stuff when it names one.</summary>
     private static int WearingCount(GearObservation gear, WornGoal want) =>
-        gear.Pawns.Count(p => p.LoadoutModel.TryGetValue(out var model)
+        gear.Pawns.Count(p => p.Model is { } model
             && model.Worn.Items.Any(o => o.Definition == want.Garment && (want.Stuff.Value == "" || o.Stuff == want.Stuff)));
 
     /// <summary>The colonists who can wear <paramref name="garment"/> and are not soldiers, children or prisoners, in pawn id order: the outfit rule's candidates.</summary>

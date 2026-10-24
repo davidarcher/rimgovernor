@@ -45,14 +45,14 @@ public static class PreferenceRules
                 state = state with { Preference = apparel };
                 p = p with { Policy = state };
                 // The model's options were cut by the Dressed outfit rule; the preference's rule only narrows it.
-                if (p.LoadoutModel.TryGetValue(out var model))
+                if (p.Model is { } model)
                 {
                     var allowed = ApparelPolicyRules.RoleApparelDefinitions(GearLoadoutRules.DeriveGearRole(model.Role), state).ToHashSet(StringComparer.Ordinal);
-                    p = p with { LoadoutModel = Known(model with { Options = EquatableArray.From(model.Options.Where(o => allowed.Contains(o.Definition.ToString()))) }) };
+                    p = p with { LoadoutModel = new GearModel.Modeled(model with { Options = EquatableArray.From(model.Options.Where(o => allowed.Contains(o.Definition.ToString()))) }) };
                 }
             }
-            return leather && p.LoadoutModel.TryGetValue(out var input)
-                ? p with { LoadoutModel = Known(input with { Options = EquatableArray.From(input.Options.Where(o => o.Stuff != HumanLeather)) }) }
+            return leather && p.Model is { } input
+                ? p with { LoadoutModel = new GearModel.Modeled(input with { Options = EquatableArray.From(input.Options.Where(o => o.Stuff != HumanLeather)) }) }
                 : p;
         }
         gear = gear with { Pawns = [.. gear.Pawns.Select(Stamp)] };

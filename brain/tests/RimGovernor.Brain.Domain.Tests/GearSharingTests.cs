@@ -29,7 +29,7 @@ public sealed class GearSharingTests
         {
             Pawn = new(pawn),
             Loadout = "load",
-            LoadoutModel = Known(new GearLoadoutInput { Ambient = ambient, ComfortableMin = 10, ComfortableMax = 30, Options = [Shirt("Cloth", 5), Shirt("Wool", 15)] }),
+            LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Ambient = ambient, ComfortableMin = 10, ComfortableMax = 30, Options = [Shirt("Cloth", 5), Shirt("Wool", 15)] }),
         },
     ];
 

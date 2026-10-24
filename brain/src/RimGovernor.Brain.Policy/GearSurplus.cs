@@ -25,7 +25,7 @@ public static class GearSurplusRules
     /// The serviceable stored apparel above demand. Demand is the gear planners' own: the stored garments the
     /// loadout model assigns to a gap, the replacements the census still asks for (best quality first) and the
     /// spare the clothing runway keeps for the worn garments about to wear out. Known is false while the census
-    /// or any replacement is unread, or the loadout model refuses a pawn: nothing is then surplus.
+    /// is unread, or the loadout model refuses a pawn: nothing is then surplus.
     /// </summary>
     public static (IReadOnlyList<GearStock> Rows, bool Known) ApparelSurplus(ClothingDemandInput input)
     {
@@ -63,13 +63,9 @@ public static class GearSurplusRules
                 }
             }
         }
-        foreach (var pawn in gear.Pawns)
+        foreach (var pawn in GearLoadoutRules.ModeledGearPawns(gear, review.Loadouts))
         {
-            if (!pawn.Replacements.TryGetValue(out var replacements))
-            {
-                return ([], false);
-            }
-            foreach (var n in replacements)
+            foreach (var n in pawn.Replacements)
             {
                 Claim(n.Definition);
             }

@@ -11,7 +11,7 @@ public static class ColonyGearReads
     /// arrival of its stuff (<see cref="StuffArrivalFacts"/>), counting the growing <paramref name="fields"/> of the
     /// <paramref name="crops"/>' plants. A frame without a catalog, finished research or stock census leaves the census
     /// unknown; a census whose rows are not the frame's colonists raises <see cref="RequiredFactException"/>. A pawn the
-    /// loadout model refuses carries the cause in GearPawn.ModelRefusal.
+    /// loadout model refuses is <see cref="GearModel.Refused"/> with the cause.
     /// </summary>
     public static Fact<GearObservation> GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs, Fact<EquatableArray<FoodField>> fields, IReadOnlyList<PlanningDefinition> crops)
     {
@@ -30,7 +30,16 @@ public static class ColonyGearReads
         foreach (var p in gear.Pawns)
         {
             var policy = ApparelPolicyFacts(p, catalog);
-            var row = new GearPawn
+            GearModel model;
+            try
+            {
+                model = GearLoadoutModelFacts(defs, tables, v.OutdoorTemperatureC, p, policy, threat, arrival);
+            }
+            catch (DomainException e)
+            {
+                model = new GearModel.Refused(e.Message);
+            }
+            pawns.Add(new GearPawn
             {
                 Pawn = p.Pawn,
                 Loadout = p.Token,
@@ -38,21 +47,14 @@ public static class ColonyGearReads
                 Candidates = GearCandidateFacts(p, tables, catalog),
                 Apparel = GearApparelFacts(p.Equipment, tables, catalog),
                 Policy = policy,
-            };
-            try
-            {
-                row = row with { LoadoutModel = GearLoadoutModelFacts(defs, tables, v.OutdoorTemperatureC, p, policy, threat, arrival) };
-            }
-            catch (DomainException e)
-            {
-                row = row with { ModelRefusal = e.Message };
-            }
-            pawns.Add(row);
+                LoadoutModel = model,
+            });
         }
         var result = new GearObservation
         {
             Pawns = pawns,
             Climate = gear.Climate,
+            Threat = threat,
             Stored = GearStorageFacts(gear.StoredApparel),
             Outfits = OutfitIds(v.Policies),
             KnowledgeBills = KnowledgeBillOptions(catalog, finished, gear.LockedBills),
@@ -152,36 +154,31 @@ public static class ColonyGearReads
 
     /// <summary>
     /// The expected raid the gear planner values armor against (#3545): the composition of the observed raid points from the
-    /// hostile factions, with the catalog's body coverage and the race's natural armor. Unknown without a catalog or hostile
-    /// factions, or when the composition cannot be decoded.
+    /// hostile factions, with the catalog's body coverage and the race's natural armor. Uncomposed when no hostile faction
+    /// raids or the faction defs support no composition.
     /// </summary>
-    internal static Fact<RaidThreat> RaidThreatFacts(O.ThreatFacts threat, DefinitionCatalog? catalog)
+    internal static RaidThreat RaidThreatFacts(O.ThreatFacts threat, DefinitionCatalog catalog)
     {
-        if (catalog is null || threat.HostileFactions.Count == 0)
-        {
-            return Unknown<RaidThreat>();
-        }
         var composition = RaidCompositionRules.Of(threat.RaidPoints, [.. threat.HostileFactions], catalog.RaidFactions());
         return composition.Pawns.IsKnown
-            ? Known(new RaidThreat { Bins = composition.Bins, Coverage = catalog.BodyCoverage(), Natural = catalog.NaturalArmor() })
-            : Unknown<RaidThreat>();
+            ? new RaidThreat.Composed(composition.Bins, catalog.BodyCoverage(), catalog.NaturalArmor())
+            : new RaidThreat.Uncomposed();
     }
 
     /// <summary>
     /// Maps one pawn's loadout-model inputs. The role is the apparel-policy role (with the model's traits), and
     /// unworn options are narrowed to the definitions that role's apparel policy permits, so the model never plans a
-    /// garment DesiredApparelPolicy would forbid. A pawn with no apparel policy cannot wear apparel: unknown with no
-    /// error. Any other pawn the model cannot be built for (no catalog or finished research, a garment the catalog
+    /// garment DesiredApparelPolicy would forbid. A pawn with no apparel policy cannot wear apparel: <see cref="GearModel.NoOutfit"/>. Any other pawn the model cannot be built for (no catalog or finished research, a garment the catalog
     /// lacks a row or stat values for, or a model outside PlanGearLoadout's bounds such as two worn garments on one
     /// slot) throws a <see cref="DomainException"/> naming the cause. Each option carries its <see cref="GearOption.Arrival"/>
     /// by <paramref name="arrival"/>.
     /// </summary>
-    public static Fact<GearLoadoutInput> GearLoadoutModelFacts(GearDefinitions defs, Tables tables, double outdoor, O.GearLoadout p, ApparelPolicyState? role, Fact<RaidThreat> threat, StuffArrival arrival)
+    public static GearModel GearLoadoutModelFacts(GearDefinitions defs, Tables tables, double outdoor, O.GearLoadout p, ApparelPolicyState? role, RaidThreat threat, StuffArrival arrival)
     {
         var m = p.LoadoutModel;
         if (role is null)
         {
-            return Unknown<GearLoadoutInput>();
+            return new GearModel.NoOutfit();
         }
         var catalog = defs.Catalog ?? throw new DomainException("gear loadout model needs a definition catalog");
         if (!defs.Finished.TryGetValue(out var finished))
@@ -243,7 +240,7 @@ public static class ColonyGearReads
         }
         input = input with { Worn = EquatableArray.From(worn), Options = EquatableArray.From(options) };
         input.Validate();
-        return Known(input);
+        return new GearModel.Modeled(input);
     }
 
     /// <summary>
@@ -544,9 +541,9 @@ public static class ColonyGearReads
             {
                 g = g with { Policy = state with { Role = state.Role with { UnrevealedCreepjoiner = true } } };
             }
-            if (g.LoadoutModel.TryGetValue(out var model))
+            if (g.Model is { } model)
             {
-                g = g with { LoadoutModel = Known(model with { Role = model.Role with { UnrevealedCreepjoiner = true } }) };
+                g = g with { LoadoutModel = new GearModel.Modeled(model with { Role = model.Role with { UnrevealedCreepjoiner = true } }) };
             }
             stamped[i] = g;
         }

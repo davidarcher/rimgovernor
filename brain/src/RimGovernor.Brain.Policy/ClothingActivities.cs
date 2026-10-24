@@ -27,7 +27,7 @@ public static class ClothingActivitiesRules
         foreach (var pawn in census.Pawns.OrderBy(p => p.Pawn.Value, StringComparer.Ordinal))
         {
             if (pawn.Blocked) continue;
-            if (!pawn.LoadoutModel.TryGetValue(out var input)) continue;
+            if (pawn.Model is not { } input) continue;
             foreach (var trait in input.Role.Work.Traits.ValueOrDefault)
                 input = input with { Nudist = input.Nudist || trait.Effects.Nudist };
             var required = pawn.Policy is { } policy ? policy.Required : [];

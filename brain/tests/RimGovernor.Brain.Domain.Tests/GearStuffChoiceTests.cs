@@ -35,7 +35,7 @@ public sealed class GearStuffChoiceTests
     private static GearOption Arrived(GearOption o, StuffArrival arrival) => o with { Arrival = arrival.Of(o) };
 
     private static Resource? Planned(params GearOption[] options) =>
-        GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { Ambient = 20, ComfortableMin = 10, ComfortableMax = 30, Options = EquatableArray.From(options) })
+        GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Ambient = 20, ComfortableMin = 10, ComfortableMax = 30, Options = EquatableArray.From(options) })
             .Target.SingleOrDefault()?.Stuff;
 
     [Fact]

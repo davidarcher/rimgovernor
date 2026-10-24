@@ -50,12 +50,14 @@ public sealed record GearPawn
     public ApparelPolicyState? Policy { get; init; }
 
     /// <summary>
-    /// Unknown only for a pawn that cannot wear apparel (Blocked, no apparel policy) or one the model refused,
-    /// whose cause ModelRefusal names; PlanColonyGear fails on a refused pawn rather than judging it by a weaker rule.
+    /// The pawn's loadout model: modeled, a pawn with no apparel policy (it cannot wear apparel), or one the model refused;
+    /// PlanColonyGear fails on a refused pawn rather than judging it by a weaker rule.
     /// </summary>
-    public Fact<GearLoadoutInput> LoadoutModel { get; init; }
+    public required GearModel LoadoutModel { get; init; }
 
-    public string ModelRefusal { get; init; } = "";
+    /// <summary>The modeled loadout input; null for a pawn with no outfit or one the model refused.</summary>
+    public GearLoadoutInput? Model => LoadoutModel is GearModel.Modeled m ? m.Input : null;
+
     public PawnId Pawn { get; init; }
 
     /// <summary>
@@ -71,13 +73,37 @@ public sealed record GearPawn
     public string Loadout { get; init; } = "";
     public bool Blocked { get; init; }
 
-    /// <summary>Deficit and Replacements are projected from the loadout model's gaps (ModeledGearObservation); a census decoder never sets them.</summary>
-    public Fact<bool> Deficit { get; init; }
-
     public EquatableArray<GearCandidate> Candidates { get; init; }
-    public Fact<EquatableArray<GearReplacement>> Replacements { get; init; }
     public EquatableArray<GearApparel> Apparel { get; init; }
 
+}
+
+/// <summary>A census pawn's loadout model (<see cref="GearPawn.LoadoutModel"/>).</summary>
+public abstract record GearModel
+{
+    private GearModel()
+    {
+    }
+
+    /// <summary>The model's inputs for the pawn.</summary>
+    public sealed record Modeled(GearLoadoutInput Input) : GearModel;
+
+    /// <summary>A pawn with no apparel policy: it cannot wear apparel, so nothing is modeled.</summary>
+    public sealed record NoOutfit : GearModel;
+
+    /// <summary>A pawn the model cannot be built for; <see cref="Cause"/> names why.</summary>
+    public sealed record Refused(string Cause) : GearModel;
+}
+
+/// <summary>
+/// One census pawn as the loadout model leaves it (<see cref="GearLoadoutRules.ModeledGearPawns"/>): its candidates narrowed
+/// to the model's wanted gaps, whether any gap is wanted, and the bill-sourced definitions those gaps need made.
+/// </summary>
+public sealed record ModeledGearPawn
+{
+    public required GearPawn Pawn { get; init; }
+    public required bool Deficit { get; init; }
+    public required EquatableArray<GearReplacement> Replacements { get; init; }
 }
 
 public sealed record GearObservation
@@ -86,6 +112,9 @@ public sealed record GearObservation
 
     /// <summary>The map's seasonal climate the census dresses for.</summary>
     public required GearClimate Climate { get; init; }
+
+    /// <summary>The colony's expected raid every pawn's model values armor against (<see cref="GearLoadoutInput.Threat"/>).</summary>
+    public required RaidThreat Threat { get; init; }
 
     public EquatableArray<GearStock> Stored { get; init; }
 
@@ -133,10 +162,7 @@ public sealed record GearObservation
         foreach (var p in Pawns)
         {
             DomainException.Require(FoodForecastRules.FoodId(p.Pawn.Value) && FoodForecastRules.FoodId(p.Loadout) && pawns.Add(p.Pawn), "invalid gear pawn or loadout");
-            if (p.LoadoutModel.TryGetValue(out var model))
-            {
-                model.Validate();
-            }
+            p.Model?.Validate();
             var targets = new HashSet<string>(StringComparer.Ordinal);
             foreach (var c in p.Candidates)
             {
@@ -144,19 +170,6 @@ public sealed record GearObservation
                     FoodForecastRules.FoodId(c.Target) && AdmissionRules.ValidResource(c.Definition) && FoodForecastRules.FoodNumber(c.Gain) && c.Gain > 0 && targets.Add(c.Target),
                     "invalid gear candidate"
                 );
-            }
-            if (p.Replacements.TryGetValue(out var needs))
-            {
-                var identities = new HashSet<GearReplacement>();
-                foreach (var n in needs)
-                {
-                    DomainException.Require(
-                        AdmissionRules.ValidResource(n.Definition)
-                            && FoodForecastRules.FoodId(n.Reason)
-                            && identities.Add(n),
-                        "invalid gear replacement need"
-                    );
-                }
             }
             foreach (var a in p.Apparel)
             {
@@ -310,7 +323,7 @@ public sealed record GearPlanningRequest
 }
 
 /// <summary>One definition to produce, attributed to a pawn or to the armory's colony weapon batch.</summary>
-internal readonly record struct GearNeed(GearPawn Pawn, GearReplacement Need);
+internal readonly record struct GearNeed(PawnId Pawn, GearReplacement Need);
 
 public static class GearRules
 {
@@ -436,16 +449,15 @@ public static class GearRules
             return [];
         }
         f.TryGetValue(out var observed);
-        var v = GearLoadoutRules.ModeledGearObservation(observed!, review.Loadouts);
         var seen = new HashSet<Resource>();
         var @out = new List<Resource>();
-        foreach (var p in v.Pawns)
+        foreach (var p in GearLoadoutRules.ModeledGearPawns(observed!, review.Loadouts))
         {
-            if (!p.Deficit.ValueOrDefault)
+            if (!p.Deficit)
             {
                 continue;
             }
-            foreach (var n in p.Replacements.ValueOrDefault)
+            foreach (var n in p.Replacements)
             {
                 if (seen.Add(n.Definition))
                 {

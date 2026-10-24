@@ -26,8 +26,8 @@ public sealed class ClothingChosenStuffTests
                 new GearPawn
                 {
                     Pawn = new("p1"),
-                    LoadoutModel = Known(new GearLoadoutInput
-                    {
+                    LoadoutModel = new GearModel.Modeled(new GearLoadoutInput
+                    { Threat = ColonyModelFixtures.NoThreat,
                         Worn = [new GearOption { ID = "worn1", Definition = new(Parka), Stuff = Plain, Slot = GearSlot.Outer, Source = GearSource.Worn, Condition = 0.4 }],
                     }),
                 },

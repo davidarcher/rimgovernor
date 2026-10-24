@@ -69,7 +69,7 @@ public sealed class ApparelCreditProductionTests
         };
         var defs = new GearDefinitions { Catalog = Catalog(), Finished = Known<IReadOnlySet<string>>(new HashSet<string>()) };
         var model = ColonyGearReads.GearLoadoutModelFacts(defs, new Tables(default, default, Things.Of([])), 20, row,
-            new RimGovernor.Brain.Policy.ApparelPolicyState(), Unknown<RaidThreat>(), new StuffArrival(new Dictionary<Resource, long> { [new("Cloth")] = 100 }, []));
+            new RimGovernor.Brain.Policy.ApparelPolicyState(), ColonyModelFixtures.NoThreat, new StuffArrival(new Dictionary<Resource, long> { [new("Cloth")] = 100 }, []));
         return ColonyModelFixtures.NoGear() with
         {
             Stored = [],
@@ -107,7 +107,7 @@ public sealed class ApparelCreditProductionTests
     [Fact]
     public void TheCensusDecodeCarriesTheCatalogsDamageAndNudityFacts()
     {
-        var input = Census().Pawns[0].LoadoutModel.Value;
+        var input = Census().Pawns[0].Model!;
         var worn = Assert.Single(input.Worn);
         Assert.True(worn.CareIfDamaged);
         Assert.True(worn.CountsAsClothingForNudity);
@@ -175,7 +175,7 @@ public sealed class ApparelCreditProductionTests
     public void AQualitylessWornGarmentDecodesAsQualitylessAndCountsTowardNoMinimum()
     {
         var plain = Option("worn-shirt", GearSource.Worn, 1, quality: null);
-        var worn = Assert.Single(Census(worn: plain).Pawns[0].LoadoutModel.Value.Worn);
+        var worn = Assert.Single(Census(worn: plain).Pawns[0].Model!.Worn);
         Assert.True(worn.Qualityless);
         // The quality-less shirt counts neither way; the only shift is the crafted bill replacement's chance of falling
         // below Knight's Normal minimum.
@@ -187,14 +187,14 @@ public sealed class ApparelCreditProductionTests
     public void AShirtBillDecodesAtItsBestCraftersQualityOdds()
     {
         O.GearCrafter novice = new(3, false, 0), master = new(15, false, 0), inspired = new(8, true, 0);
-        GearOption Bill(EquatableArray<O.GearCrafter> crafters) => Assert.Single(Census(crafters: crafters).Pawns[0].LoadoutModel.Value.Options);
+        GearOption Bill(EquatableArray<O.GearCrafter> crafters) => Assert.Single(Census(crafters: crafters).Pawns[0].Model!.Options);
         Assert.Equal(CraftedQualityRules.Odds(Crafter), Bill([Crafter]).QualityOdds);
         Assert.Equal(CraftedQualityRules.Odds(master), Bill([novice, master]).QualityOdds);
         Assert.Equal(CraftedQualityRules.Odds(inspired), Bill([master, inspired]).QualityOdds);
         // A bill with a quality and no crafter is an unread fact (the native read offers no bill nobody can craft).
         Assert.Throws<RequiredFactException>(() => Census(crafters: []));
         // A bill without quality is at none.
-        var plain = Assert.Single(Census(bill: Option("bill-shirt", GearSource.Bill, 1, quality: null)).Pawns[0].LoadoutModel.Value.Options);
+        var plain = Assert.Single(Census(bill: Option("bill-shirt", GearSource.Bill, 1, quality: null)).Pawns[0].Model!.Options);
         Assert.True(plain.Qualityless);
         Assert.Empty(plain.QualityOdds);
     }

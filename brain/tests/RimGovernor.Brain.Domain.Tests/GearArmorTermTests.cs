@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Policy;
 using Xunit;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -14,13 +13,12 @@ public sealed class GearArmorTermTests
     private static readonly GearOption Devilstrand = Garment("devilstrand-duster", GearSlot.Outer, "Shell", 0.5, 0.3);
     private static readonly GearOption Flak = Garment("flak-vest", GearSlot.MiddleTorso, "Middle", 0.9, 0.4);
 
-    private static Fact<RaidThreat> Threat(ArmorCategory category) => Known(new RaidThreat
-    {
-        Bins = [new WeaponBin { Damage = 12, ArmorPenetration = 0.05, Category = category, Weight = 1 }],
-        Coverage = new BodyCoverage { Shares = [new CoverageShare { Groups = ["Torso"], Probability = 1 }], Layers = ["OnSkin", "Middle", "Shell"] },
-    });
+    private static RaidThreat.Composed Threat(ArmorCategory category) => new RaidThreat.Composed(
+        [new WeaponBin { Damage = 12, ArmorPenetration = 0.05, Category = category, Weight = 1 }],
+        new BodyCoverage { Shares = [new CoverageShare { Groups = ["Torso"], Probability = 1 }], Layers = ["OnSkin", "Middle", "Shell"] },
+        new NaturalArmor());
 
-    private static double Value(Fact<RaidThreat> threat, GearOption option) => new GearArmorTerm(threat).Of(option);
+    private static double Value(RaidThreat threat, GearOption option) => new GearArmorTerm(threat).Of(option);
 
     [Fact]
     public void AgainstASharpHeavyRaidDevilstrandBeatsClothAndAFlakVestBeatsBothOnTheTorso()
@@ -54,13 +52,13 @@ public sealed class GearArmorTermTests
     }
 
     [Fact]
-    public void AnUnknownThreatStillPrefersDevilstrandToClothAndReportsTheFinding()
+    public void AnUncomposedThreatStillPrefersDevilstrandToClothAndReportsTheFinding()
     {
-        var unknown = Unknown<RaidThreat>();
-        Assert.True(Value(unknown, Devilstrand) > Value(unknown, Cloth));
+        var uncomposed = ColonyModelFixtures.NoThreat;
+        Assert.True(Value(uncomposed, Devilstrand) > Value(uncomposed, Cloth));
 
-        var loadout = GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { ComfortableMin = 10, ComfortableMax = 30, Ambient = 20, Options = [Cloth, Devilstrand] });
-        Assert.Equal([GearArmorTerm.ThreatUnknownFinding], loadout.Findings);
+        var loadout = GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, ComfortableMin = 10, ComfortableMax = 30, Ambient = 20, Options = [Cloth, Devilstrand] });
+        Assert.Equal([GearArmorTerm.ThreatUncomposedFinding], loadout.Findings);
         Assert.Contains(loadout.Target, o => o.ID == Devilstrand.ID);
 
         var known = GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { ComfortableMin = 10, ComfortableMax = 30, Ambient = 20, Threat = Threat(ArmorCategory.Sharp), Options = [Cloth, Devilstrand] });

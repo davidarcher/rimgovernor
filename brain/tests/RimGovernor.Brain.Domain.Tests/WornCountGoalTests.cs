@@ -24,7 +24,7 @@ public sealed class WornCountGoalTests
             Role = role ?? new(),
             Definitions = canWear ? [new() { Name = Duster, Adult = true, CoversBody = true }, new() { Name = "Apparel_Shirt", Adult = true, CoversBody = true }] : [new() { Name = "Apparel_Shirt", Adult = true, CoversBody = true }],
         },
-        LoadoutModel = Known(new GearLoadoutInput { Worn = wearing ? [new GearOption { Definition = new(Duster), Stuff = Devilstrand, Condition = 1 }] : [] }),
+        LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Worn = wearing ? [new GearOption { Definition = new(Duster), Stuff = Devilstrand, Condition = 1 }] : [] }),
     };
 
     private static RoundsFacts Facts(params GearPawn[] pawns) => new()

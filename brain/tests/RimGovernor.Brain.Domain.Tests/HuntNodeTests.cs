@@ -95,7 +95,7 @@ public sealed class HuntNodeTests
         var input = Colony(pest, bush);
 
         Assert.Empty(input.Wildlife.Value);
-        var graph = ProjectGraph.Standing(input, [], default);
+        var graph = ProjectGraph.Standing(input, [], ColonyModelFixtures.NoThreat);
         Assert.DoesNotContain(graph.Nodes, n => n.Kind == ProjectKind.Hunt);
         Assert.DoesNotContain("butcher_work_unread", graph.Findings);
         Assert.Equal(["wildlife_unknown"], ProjectGraph.Hunts(input with { Wildlife = default }).Findings);

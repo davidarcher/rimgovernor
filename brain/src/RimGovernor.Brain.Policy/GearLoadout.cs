@@ -179,8 +179,8 @@ public sealed record GearLoadoutInput
     /// <summary>Options have passed outfit/body/stage and resource-policy eligibility. Loose/stored IDs identify physical items; bill IDs identify products.</summary>
     public EquatableArray<GearOption> Options { get; init; }
 
-    /// <summary>The colony's expected raid, which values armor (<see cref="GearArmorTerm"/>); unknown plans against a nominal hit with a <c>gear_threat_unknown</c> finding.</summary>
-    public Fact<RaidThreat> Threat { get; init; }
+    /// <summary>The colony's expected raid, which values armor (<see cref="GearArmorTerm"/>); uncomposed plans against a nominal hit with a <c>gear_threat_uncomposed</c> finding.</summary>
+    public required RaidThreat Threat { get; init; }
 
     /// <summary>Throws <see cref="DomainException"/>.</summary>
     public void Validate()
@@ -274,7 +274,7 @@ public sealed record GearLoadout
     /// <summary>Set when the exact search hit GearSearchBudget: Target is the best ensemble found within it, not a proven optimum.</summary>
     public bool SearchBudgetExhausted { get; init; }
 
-    /// <summary>What the plan lacked: <c>gear_threat_unknown</c> when armor was valued against a nominal hit.</summary>
+    /// <summary>What the plan lacked: <c>gear_threat_uncomposed</c> when armor was valued against a nominal hit.</summary>
     public EquatableArray<string> Findings { get; init; }
 }
 
@@ -973,7 +973,7 @@ public static class GearLoadoutRules
             Target = EquatableArray.From(best),
             SearchBudgetExhausted = exhausted,
             Gaps = EquatableArray.From(sorted),
-            Findings = armor.ThreatKnown || GearConstrained(role) ? default : EquatableArray.From([GearArmorTerm.ThreatUnknownFinding]),
+            Findings = armor.ThreatComposed || GearConstrained(role) ? default : EquatableArray.From([GearArmorTerm.ThreatUncomposedFinding]),
         };
     }
 
@@ -983,28 +983,20 @@ public static class GearLoadoutRules
     /// Projects model-selected gaps into the existing method planner. Native gain is only an admission gate: a
     /// loose/stored item must still occur in the fresh eligible candidate list, but is ordered by model gain.
     /// </summary>
-    internal static GearObservation ModeledGearObservation(GearObservation v, IReadOnlyList<GearLoadout> loadouts)
+    internal static IReadOnlyList<ModeledGearPawn> ModeledGearPawns(GearObservation v, IReadOnlyList<GearLoadout> loadouts)
     {
         var models = new Dictionary<PawnId, GearLoadout>();
         foreach (var l in loadouts)
         {
             models[l.Pawn] = l;
         }
-        var pawns = new List<GearPawn>(v.Pawns.Count);
-        foreach (var p0 in v.Pawns)
+        var pawns = new List<ModeledGearPawn>(v.Pawns.Count);
+        foreach (var p in v.Pawns)
         {
-            var p = p0;
             if (!models.TryGetValue(p.Pawn, out var l))
             {
                 // A pawn the model skipped cannot wear apparel: nothing to repair.
-                pawns.Add(
-                    p with
-                    {
-                        Deficit = Known(false),
-                        Candidates = [],
-                        Replacements = Known<EquatableArray<GearReplacement>>([]),
-                    }
-                );
+                pawns.Add(new ModeledGearPawn { Pawn = p with { Candidates = [] }, Deficit = false, Replacements = [] });
                 continue;
             }
             var native = p.Candidates;
@@ -1031,16 +1023,9 @@ public static class GearLoadoutRules
                     }
                 }
             }
-            pawns.Add(
-                p with
-                {
-                    Deficit = Known(deficit),
-                    Candidates = EquatableArray.From(candidates),
-                    Replacements = Known(EquatableArray.From(needs)),
-                }
-            );
+            pawns.Add(new ModeledGearPawn { Pawn = p with { Candidates = EquatableArray.From(candidates) }, Deficit = deficit, Replacements = EquatableArray.From(needs) });
         }
-        return v with { Pawns = pawns };
+        return pawns;
     }
 
     // Each pawn's search span, under the scope prefix the trace listener samples.
@@ -1063,9 +1048,12 @@ public static class GearLoadoutRules
         var @out = new List<GearLoadout>();
         foreach (var p in rows)
         {
-            if (!p.LoadoutModel.TryGetValue(out var input))
+            if (p.LoadoutModel is GearModel.Refused refused)
             {
-                DomainException.Require(p.ModelRefusal.Length == 0, $"gear pawn {p.Pawn.Value}: loadout model refused: {p.ModelRefusal}");
+                throw new DomainException($"gear pawn {p.Pawn.Value}: loadout model refused: {refused.Cause}");
+            }
+            if (p.Model is not { } input)
+            {
                 if (p.Blocked)
                 {
                     continue;

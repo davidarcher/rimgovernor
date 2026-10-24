@@ -157,7 +157,7 @@ public sealed class PreferencesFactsTests
             },
             Gear = Known(ColonyModelFixtures.NoGear() with
             {
-                Pawns = [new GearPawn { Pawn = new PawnId("p"), LoadoutModel = Known(new GearLoadoutInput { Options = EquatableArray.From([option, plain]) }) }],
+                Pawns = [new GearPawn { Pawn = new PawnId("p"), LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Options = EquatableArray.From([option, plain]) }) }],
             }),
         };
 
@@ -168,7 +168,7 @@ public sealed class PreferencesFactsTests
         Assert.Equal([cloth], stamped.Items.StuffCategories.Keys);
         Assert.Equal([cloth], stamped.Items.StuffBeauty.Keys);
         Assert.True(stamped.Gear.TryGetValue(out var gear));
-        Assert.True(gear.Pawns[0].LoadoutModel.TryGetValue(out var input));
+        var input = Assert.IsType<GearModel.Modeled>(gear.Pawns[0].LoadoutModel).Input;
         Assert.Equal(["o2"], input.Options.Select(o => o.ID));
     }
 

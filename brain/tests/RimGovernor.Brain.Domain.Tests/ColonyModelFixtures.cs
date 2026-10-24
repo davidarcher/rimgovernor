@@ -32,7 +32,10 @@ internal static class ColonyModelFixtures
     };
 
     /// <summary>A gear census of no colonist under the fixture climate.</summary>
-    internal static GearObservation NoGear() => new() { Climate = Climate() };
+    internal static GearObservation NoGear() => new() { Climate = Climate(), Threat = NoThreat };
+
+    /// <summary>A raid threat with no composition: the armor term falls back to the nominal bins.</summary>
+    internal static readonly RaidThreat NoThreat = new RaidThreat.Uncomposed();
 
     internal static PlanningDefinition CropRow() => new()
     {
@@ -61,7 +64,7 @@ internal static class ColonyModelFixtures
         Facts = new RoundsFacts
         {
             ResourceThings = Known<EquatableArray<string>>(["m1"]),
-            Gear = Known(NoGear() with { Pawns = [new GearPawn()] }),
+            Gear = Known(NoGear() with { Pawns = [new GearPawn { LoadoutModel = new GearModel.NoOutfit() }] }),
             Calendar = Known(new Calendar { GrowingYear = EquatableArray.From(Enumerable.Repeat(true, CalendarRules.YearDays)), Season = "Spring", DayOfYear = 12, GrowingDays = 40, GrowingDaysRemaining = 25, GrowingDaysUntil = 0, NonGrowingDays = 0 }),
             Research = Known(new ResearchFacts
             {

@@ -34,7 +34,7 @@ public sealed class ClothingChoiceTests
         Stored = [],
         Pawns = [new() { Pawn = new("wearer"), Loadout = "load",
         Candidates = [], Apparel = [],
-        LoadoutModel = Known(new GearLoadoutInput { Ambient = ambient, ComfortableMin = 10, ComfortableMax = 30, Worn = [Tattered],
+        LoadoutModel = new GearModel.Modeled(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Ambient = ambient, ComfortableMin = 10, ComfortableMax = 30, Worn = [Tattered],
             Options = options.Length == 0 ? [Garment("Shirt", "Cloth"), Garment("Shirt", "Wool", 15)] : EquatableArray.From(options) }) }]
     };
     // The wearer's tattered shirt and bare legs (#3816): a torso garment ends the tattered thought, pants the nakedness.
@@ -208,7 +208,7 @@ public sealed class ClothingChoiceTests
 
     private static GearObservation Wearing(params GearOption[] options) => Census(20, options) with
     {
-        Pawns = [Census(20, options).Pawns[0] with { LoadoutModel = Known(Census(20, options).Pawns[0].LoadoutModel.Value with
+        Pawns = [Census(20, options).Pawns[0] with { LoadoutModel = new GearModel.Modeled(Census(20, options).Pawns[0].Model! with
         { Worn = [Garment("Shirt", "Cloth", 0) with { ID = "worn-shirt", Source = GearSource.Worn, Sharp = 0 }, Duster("Cloth", 0.1, GearSource.Worn)] }) }]
     };
 
@@ -228,7 +228,7 @@ public sealed class ClothingChoiceTests
     public void ASwapOfTheGarmentsSlotExcludesTheCraftAndASwapOfAnotherSlotDoesNot()
     {
         var need = Assert.Single(ClothingActivitiesRules.ClothingActivityRequirements(Wearing(Duster("DevilstrandCloth", 0.5))));
-        var worn = Wearing().Pawns[0].LoadoutModel.Value.Worn;
+        var worn = Wearing().Pawns[0].Model!.Worn;
         var dusterSwap = new ForecastCommitment("gear/wearer/a", []) { ExclusiveOutcome = "gear/wearer",
             OutfitChanges = [new("wearer", [worn[0], Duster("DevilstrandCloth", 0.5, GearSource.Stored)])] };
         var shirtSwap = new ForecastCommitment("gear/wearer/b", []) { ExclusiveOutcome = "gear/wearer",

@@ -57,7 +57,7 @@ public sealed class ApparelDrugPreferencesTests
             new() { Definition = new("Apparel_Shirt") },
             new() { Definition = new("Apparel_FlakVest") },
         ],
-        Gear = Known(ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("pawn"), Policy = State() }] }),
+        Gear = Known(ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("pawn"), Policy = State(), LoadoutModel = new GearModel.NoOutfit() }] }),
     };
 
     [Fact]

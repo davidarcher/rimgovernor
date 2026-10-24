@@ -193,7 +193,7 @@ public static class ClothingDemandRules
 
         foreach (var pawn in gear.Pawns)
         {
-            if (!pawn.LoadoutModel.TryGetValue(out var model))
+            if (pawn.Model is not { } model)
             {
                 continue;
             }

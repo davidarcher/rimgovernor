@@ -164,10 +164,9 @@ public static class ApparelPolicyRules
         }
 
         var role = GearLoadoutRules.DeriveGearRole(state.Role);
-        var modelled = p.LoadoutModel.TryGetValue(out var model);
-        if (modelled)
+        if (p.Model is { } model)
         {
-            role = GearLoadoutRules.DeriveGearRole(model!.Role);
+            role = GearLoadoutRules.DeriveGearRole(model.Role);
         }
 
         if (!RoleApparelPolicy(p.Pawn, role, state, out desired, p.AllowTainted))
@@ -177,9 +176,9 @@ public static class ApparelPolicyRules
         }
 
         var spec = desired!.Spec;
-        if (modelled)
+        if (p.Model is { } modelled)
         {
-            spec = spec with { MinQuality = ApparelQualityFloor(model!, spec.Definitions, p.AllowTainted) };
+            spec = spec with { MinQuality = ApparelQualityFloor(modelled, spec.Definitions, p.AllowTainted) };
             try
             {
                 desired = new Domain.ApparelPolicy(spec);

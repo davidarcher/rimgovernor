@@ -13,7 +13,7 @@ public static class BillWantedRules
     /// The set of apparel and armor definitions a gear bill may still make: every replacement a pawn's
     /// loadout model names, blocked pawns included (a busy pawn still wants its garment), and for an armor
     /// definition every rung of its family. Stored stock is not netted, so the set only over-states what is
-    /// wanted. Known is false while the census or a pawn's replacements are unread.
+    /// wanted. Known is false while the census is unread.
     /// </summary>
     public static (HashSet<Resource>? Wanted, bool Known) GearBillsWanted(Fact<GearObservation> gear)
     {
@@ -30,14 +30,9 @@ public static class BillWantedRules
         }
 
         gear.TryGetValue(out var v);
-        foreach (var p in GearLoadoutRules.ModeledGearObservation(v!, review.Loadouts).Pawns)
+        foreach (var p in GearLoadoutRules.ModeledGearPawns(v!, review.Loadouts))
         {
-            if (!p.Replacements.TryGetValue(out var needs))
-            {
-                return (null, false);
-            }
-
-            foreach (var n in needs)
+            foreach (var n in p.Replacements)
             {
                 var (rungs, rungsOk) = GearArmorRules.ArmoryArmorRungs(n.Definition, ArmoryTier.Fabrication);
                 if (rungsOk)
