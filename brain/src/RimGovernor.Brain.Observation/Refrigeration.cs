@@ -30,10 +30,6 @@ public static class RefrigerationReads
         {
             throw new RequiredFactException("refrigeration power topology");
         }
-        if (!topology.Blackout.TryGetValue(out var blackout))
-        {
-            throw new RequiredFactException("refrigeration solar flare");
-        }
         if (!projection.DefinitionAvailable(cooler).TryGetValue(out var available))
         {
             throw new RequiredFactException("cooler definition");
@@ -44,7 +40,7 @@ public static class RefrigerationReads
             Coolers = await Coolers(source, projection.Identity, topology, cooler, cancellationToken).ConfigureAwait(false),
             Cells = EquatableArray.From(projection.Cells),
             CoolerAvailable = available,
-            Blackout = blackout,
+            Blackout = topology.Blackout,
         };
     }
 

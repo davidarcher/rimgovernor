@@ -240,15 +240,14 @@ public static class ColonyDecodeReads
             var geometryKnown = true;
             var turrets = new List<DefenseTurretFacts>();
             var fuel = new List<FuelConsumer>();
+            // The topology is planned on only with the map conditions read: a solar flare holds every network off.
             if (conditionsKnown)
             {
-                bool blackout = false, eclipse = false;
-                foreach (var condition in conditions)
+                topology = topology with
                 {
-                    blackout = blackout || condition.DisablesPower;
-                    eclipse = eclipse || condition.Definition == "Eclipse";
-                }
-                topology = topology with { Blackout = Known(blackout), Eclipse = Known(eclipse) };
+                    Blackout = conditions.Any(condition => condition.DisablesPower),
+                    Eclipse = conditions.Any(condition => condition.Definition == DisasterRules.ConditionEclipse),
+                };
             }
             var sites = new List<PowerSite>();
             var defs = RequireCatalog(catalog);
@@ -258,8 +257,11 @@ public static class ColonyDecodeReads
                 var s = b!.Service;
                 var def = b.Building.DefName;
                 var reference = b.Building;
-                // Every development power row is a power trader or a battery, so the service row carries its
-                // connection, power state and output.
+                // Every development power row is a power trader or a battery: a battery is on while connected and
+                // outputs nothing.
+                var (output, powered, network) = s.Power is O.BuildingPower.Trader trader ? (trader.OutputW, trader.PowerOn, trader.Network)
+                    : s.Power is O.BuildingPower.Battery battery ? (0d, battery.Network is not null, battery.Network)
+                    : throw new ObservationContractException($"development power row {reference.Id} has no power comp");
                 var site = new PowerSite
                 {
                     Id = reference.Id,
@@ -267,18 +269,17 @@ public static class ColonyDecodeReads
                     Cell = reference.Place is O.EntityPlace.OnMap placed ? CellOf(placed.Cell) : default,
                     Occupied = CellsRules.RectCells(b.Occupied),
                     BaseW = defs.PowerBaseW(def, tables.FinishedResearch),
-                    OutputW = s.PowerOutputW.GetValueOrDefault(),
-                    Powered = s.PowerOn.GetValueOrDefault(),
-                    Connected = s.Connected.GetValueOrDefault(),
-                    Network = s.PowerNetId ?? "",
+                    OutputW = output,
+                    Powered = powered,
+                    Connected = network is not null,
+                    Network = network ?? "",
                     Forbidden = b.Settings.Forbidden,
                     SwitchedOn = s.SwitchedOn,
-                    Fuel = Optional(s.Fuel is not null, s.Fuel.GetValueOrDefault()),
-                    TargetFuel = Optional(s.TargetFuel is not null, s.TargetFuel.GetValueOrDefault()),
-                    OutOfFuel = Optional(s.OutOfFuel is not null, s.OutOfFuel.GetValueOrDefault()),
+                    Fuel = s.Fuel,
+                    OutOfFuel = Optional(s.Fuel is O.BuildingFuel.Refuelable, s.Fuel is O.BuildingFuel.Refuelable { OutOfFuel: true }),
                     BrokenDown = s.BrokenDown,
                     FuelDefinitions = defs.RefuelFuels(def),
-                    Capacity = defs.BatteryCapacityWd(def),
+                    StorageWD = defs.BatteryCapacityWd(def),
                     // Whether rain shorts the building is its def's, not the frame's.
                     RainVulnerable = defs.RainVulnerable(def),
                     Roofed = row.Roofed,
@@ -292,7 +293,7 @@ public static class ColonyDecodeReads
                 }
                 geometryKnown = geometryKnown && reference.Place is O.EntityPlace.OnMap && site.Occupied.Count > 0;
                 sites.Add(site);
-                if (site.TurretDps.IsKnown)
+                if (row.TurretDps is not null)
                 {
                     turrets.Add(new DefenseTurretFacts { Id = site.Id, Cell = site.Cell, Powered = Known(site.Powered), Dps = site.TurretDps });
                 }
@@ -348,18 +349,18 @@ public static class ColonyDecodeReads
                 geysers.Add(new PowerGeyser { Id = reference.Id ?? "", Cell = CellOf(at.Cell), Occupied = row.Occupied, Cells = geyserCells });
             }
             topology = topology with { Conduits = conduits, UnsafeConduits = unsafeConduits, Networks = networks, Geysers = geysers };
-            if (geometryKnown)
+            if (geometryKnown && conditionsKnown)
             {
                 r = r with { PowerPlanning = Known(topology) };
             }
             r = r with { DefenseTurrets = Known(EquatableArray.From(turrets)) };
             f = f with { Fuel = Known(EquatableArray.From(fuel)) };
-            var (required, headroom, disabled) = PowerRules.PowerCoverage(power);
+            var coverage = PowerRules.PowerCoverageOf(power);
             f = f with
             {
-                PowerRequired = required,
-                PowerHeadroom = headroom,
-                DisabledConsumers = disabled,
+                PowerRequired = Known(coverage.Required),
+                PowerHeadroom = Known(coverage.HeadroomW),
+                DisabledConsumers = Known(coverage.Disabled),
                 PowerWeatherSafe = Known(unsafeConduits.Count == 0 && PowerRules.PowerWeatherSafe(power)),
             };
             if (development.ShortCircuitTick is not null)

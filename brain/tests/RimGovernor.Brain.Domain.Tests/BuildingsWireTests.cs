@@ -22,7 +22,7 @@ public sealed class BuildingsWireTests
         Status = status,
         HitPoints = hitPoints,
         Construction = construction,
-        Service = new O.BuildingServiceState(),
+        Service = BuildingServiceWire.NoService,
         Settings = new O.BuildingSettings { Forbidden = false, Control = new O.BuildingControl.None() },
         Burning = false,
         Occupied = new O.Rectangle { Minimum = new C.Cell { X = 3, Z = 4 }, Maximum = new C.Cell { X = 3, Z = 4 } },
@@ -75,6 +75,50 @@ public sealed class BuildingsWireTests
         Assert.True(node["buildings"]![1]!.AsObject().Remove(member));
 
         Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<O.BuildingsSnapshot>(node.ToJsonString()));
+    }
+
+    // #3877: a building's service is read whole: power is a trader, a battery or none; fuel is refuelable or not; the
+    // wind path is a turbine's or none. Every named state round-trips and a row missing one does not decode.
+    [Fact]
+    public void EveryServiceStateRoundTripsExactly()
+    {
+        O.BuildingServiceState[] services =
+        [
+            BuildingServiceWire.NoService,
+            BuildingServiceWire.NoService with
+            {
+                Power = new O.BuildingPower.Trader { PowerOn = true, OutputW = 1000, Producer = true, Network = "net-1" },
+                Fuel = new O.BuildingFuel.Refuelable { Fuel = 0, TargetFuel = 30, OutOfFuel = true },
+            },
+            BuildingServiceWire.NoService with { Power = new O.BuildingPower.Trader { PowerOn = false, OutputW = 0, Producer = false, Network = null } },
+            BuildingServiceWire.NoService with { Power = new O.BuildingPower.Battery { Network = "net-2" }, BrokenDown = true },
+            BuildingServiceWire.NoService with { Wind = new O.BuildingWind.WindTurbine { BlockedCells = 4 }, SwitchedOn = false },
+        ];
+
+        var json = services.Select(s => WireJson.Serialize(s)).ToList();
+
+        Assert.Equal(
+            [
+                """{"power":{"type":"no_power"},"switchedOn":true,"fuel":{"type":"not_refuelable"},"brokenDown":false,"wind":{"type":"not_wind_turbine"}}""",
+                """{"power":{"type":"trader","powerOn":true,"outputW":1000,"producer":true,"network":"net-1"},"switchedOn":true,"fuel":{"type":"refuelable","fuel":0,"targetFuel":30,"outOfFuel":true},"brokenDown":false,"wind":{"type":"not_wind_turbine"}}""",
+                """{"power":{"type":"trader","powerOn":false,"outputW":0,"producer":false,"network":null},"switchedOn":true,"fuel":{"type":"not_refuelable"},"brokenDown":false,"wind":{"type":"not_wind_turbine"}}""",
+                """{"power":{"type":"battery","network":"net-2"},"switchedOn":true,"fuel":{"type":"not_refuelable"},"brokenDown":true,"wind":{"type":"not_wind_turbine"}}""",
+                """{"power":{"type":"no_power"},"switchedOn":false,"fuel":{"type":"not_refuelable"},"brokenDown":false,"wind":{"type":"wind_turbine","blockedCells":4}}""",
+            ],
+            json);
+        Assert.Equal(services, json.Select(j => WireJson.Deserialize<O.BuildingServiceState>(j)).ToList());
+    }
+
+    [Theory]
+    [InlineData("power")]
+    [InlineData("fuel")]
+    [InlineData("wind")]
+    public void AServiceRowMissingAStateDoesNotDecode(string member)
+    {
+        var node = JsonNode.Parse(WireJson.Serialize(BuildingServiceWire.NoService))!.AsObject();
+        Assert.True(node.Remove(member));
+
+        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<O.BuildingServiceState>(node.ToJsonString()));
     }
 
     // #3770: a building's settings are its forbidden flag and one control family the brain reads; only temperature carries its CAS snapshot.

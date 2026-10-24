@@ -72,10 +72,13 @@ internal static class PowerFuel
             return (Service(generatorId), Service(stoveId));
         }
 
+        static bool OutOfFuel(Observations.BuildingServiceState s) => s.Fuel is Observations.BuildingFuel.Refuelable { OutOfFuel: true };
+        static bool PowerOn(Observations.BuildingServiceState s) => s.Power is Observations.BuildingPower.Trader { PowerOn: true };
+
         var before = await ReadAsync("before", cancellationToken).ConfigureAwait(false);
         s.RecordWire("generator_before", before.Generator);
         s.RecordWire("stove_before", before.Stove);
-        if (before.Generator is not { OutOfFuel: true, Producer: true } || before.Stove.PowerOn == true)
+        if (!OutOfFuel(before.Generator) || before.Generator.Power is not Observations.BuildingPower.Trader { Producer: true } || PowerOn(before.Stove))
         {
             throw new AcceptanceException($"before: want an out-of-fuel producer and an unpowered stove, got {before.Generator} / {before.Stove}");
         }
@@ -84,7 +87,7 @@ internal static class PowerFuel
         _ = await s.RunUntilAsync("refuelled", 10000, async ct =>
         {
             after = await ReadAsync("after", ct).ConfigureAwait(false);
-            return (Wait.Signature(after.Generator.Fuel, after.Generator.OutOfFuel, after.Stove.PowerOn), after.Generator.OutOfFuel == false && after.Stove.PowerOn == true);
+            return (Wait.Signature(after.Generator.Fuel, PowerOn(after.Stove)), after.Generator.Fuel is Observations.BuildingFuel.Refuelable { OutOfFuel: false } && PowerOn(after.Stove));
         }, cancellationToken).ConfigureAwait(false);
         s.RecordWire("generator_after", after.Generator);
         s.RecordWire("stove_after", after.Stove);

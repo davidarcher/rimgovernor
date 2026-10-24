@@ -218,7 +218,7 @@ public static partial class LayoutPowerDeriveRules
                 producers.Add(new PowerProducer { NominalW = p.Solar.NominalW, Profile = p.Solar.Profile });
             }
         }
-        var input = new PowerBudgetInput { DemandW = demand, ChargeEfficiency = p.Battery.Efficiency, StorageMargin = PowerRules.DefaultPowerPlanning().StorageMargin, Producers = producers };
+        var input = new PowerBudgetInput { DemandW = demand, ChargeEfficiency = p.Battery.Efficiency, StorageMargin = PowerRules.DefaultStorageMargin, Producers = producers };
         return PowerRules.ComputePowerBudget(input);
     }
 }

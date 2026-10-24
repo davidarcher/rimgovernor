@@ -261,8 +261,8 @@ public sealed partial record ColonyProjection
     /// <summary>The catalog rows of the ranked generator definitions (DefinitionCatalog.GeneratorRow).</summary>
     public IReadOnlyDictionary<string, GeneratorRow> GeneratorRows { get; init; } = new Dictionary<string, GeneratorRow>();
 
-    /// <summary>The steel a component costs by the game's recipe (ProductInputCost).</summary>
-    public Fact<double> ComponentSteel { get; init; }
+    /// <summary>The steel a component costs by the game's recipe (ProductInputCost); null when the frame carries no catalog.</summary>
+    public InputCost? ComponentSteel { get; init; }
 
     /// <summary>The terrain defs affording Light (DefinitionCatalog.LightTerrains).</summary>
     public LightTerrains LightTerrains { get; init; } = new();

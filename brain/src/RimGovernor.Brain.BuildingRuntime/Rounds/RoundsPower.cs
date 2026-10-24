@@ -21,7 +21,7 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>The planner resolved to the power method the policy picked, or the verdict that says why none applies.</summary>
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectPower(ColonyProjection facts, IReadOnlyList<string> pendingConsumers)
     {
-        var planning = PowerRules.DefaultPowerPlanning();
+        var planning = PowerRules.DefaultPowerPlanning(facts.ComponentSteel ?? throw new RequiredFactException("component steel cost"));
         var crops = RoundsFieldPlanner.CropChoices(facts);
         var biome = facts.CropClimate.Biome;
         var skill = TreePlantationRules.GrowerSkill(facts.WorkPawns);
@@ -29,7 +29,6 @@ public sealed partial class RoundsBuildingPlanner
         planning = planning with
         {
             Generators = generators,
-            ComponentSteel = facts.ComponentSteel,
             DaylightHours = RoundsColonyModel.ClimateOf(facts.Facts.Gear).TryGetValue(out var climate) ? climate.DaylightHoursIn(climate.CurrentTwelfth) : default,
             Sources = facts.PowerSources,
             Battery = facts.PowerBattery,
@@ -46,8 +45,6 @@ public sealed partial class RoundsBuildingPlanner
         var proposal = PowerRules.SelectPowerMethod(facts.PowerPlanning, facts.Bounds, facts.Cells, [], planning);
         switch (proposal.Method)
         {
-            case PowerMethod.Unknown:
-                return (null, FieldUnavailable("power"));
             case PowerMethod.NoMethod:
                 return (null, BuildingReasonNoDeficit);
             case PowerMethod.RouteBlocked:

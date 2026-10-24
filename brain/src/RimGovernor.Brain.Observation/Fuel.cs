@@ -29,8 +29,8 @@ public static class FuelReads
         {
             Id = id,
             Definition = definition,
-            Fuel = b.Fuel,
-            Target = b.TargetFuel,
+            Fuel = ColonyDecodeReads.Optional(b.Fuel is O.BuildingFuel.Refuelable, b.Fuel is O.BuildingFuel.Refuelable fuel ? fuel.Fuel : 0),
+            Target = ColonyDecodeReads.Optional(b.Fuel is O.BuildingFuel.Refuelable, b.Fuel is O.BuildingFuel.Refuelable target ? target.TargetFuel : 0),
             OutOfFuel = b.OutOfFuel,
             SwitchedOn = b.SwitchedOn,
             Powered = b.Powered,

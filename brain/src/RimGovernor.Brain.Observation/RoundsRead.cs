@@ -47,11 +47,7 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
     public Task<O.ColonyFactsSnapshot> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken) =>
         Task.FromResult(frame.Colony ?? throw new BridgeUnavailableException("The frame holds no colony facts."));
 
-    public Task<Tables> FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken)
-    {
-        // A power row's wattage includes the upgrades the frame's research census says are finished.
-        return Task.FromResult(frame.Tables with { FinishedResearch = Known<EquatableArray<string>>([.. RoundsReads.ResearchSection(frame).Finished]) });
-    }
+    public Task<Tables> FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken) => Task.FromResult(frame.Tables);
 
     public Task<O.ZonesSnapshot> ReadZoneSectionAsync(C.Identity identity, CancellationToken cancellationToken)
     {

@@ -78,7 +78,7 @@ check on the model: a consumer that actually loses power is a deficit whatever t
     night, read from the gear climate's `DaylightHours`; an unread gear census keeps the nominal
     solar profile). Within a tier the higher average watts per steel of build cost goes
     first, components priced at the game recipe's steel (`Make_ComponentIndustrial`: 12 steel each,
-    `DefinitionCatalog.ProductInputCost`); an unknown recipe prices nothing and list order breaks
+    `DefinitionCatalog.ProductInputCost`); a component with no recipe (`InputCost.NoRecipe`) prices nothing and list order breaks
     ties. Cost, nominal watts and fuel come from the catalog (`DefinitionCatalog.GeneratorRow`).
     Renewability is read from the colony's sowable crops rather than the Round's supply plan: that
     plan holds rows only for unmet `economy/resource` floors, so a stocked fuel has none. Ranked
@@ -140,7 +140,7 @@ what budget, and the `connect` contract above is unchanged. No action kind carri
 
 `power/fuel` (`brain/src/RimGovernor.Brain.Acceptance.Cases/Power`) stages an empty wood-fired generator and shows
 ordinary hauling refuel it until its stove is powered; the planner's refuel hold is `PowerMethodTests`.
-`power/wind-path` reads `wind_path_blocked_cells` for a clear and a roofed turbine.
+`power/wind-path` reads the service row's `wind` state (`wind_turbine` with its `blocked_cells`) for a clear and a roofed turbine.
 The generation shortfall on a draining reserve, storage for a solar-only network (one `Battery` sited
 indoors), a wind turbine on a clear catch zone and a geothermal generator on a free geyser ahead of
 every other generator are decided by the power planner over recorded reviews

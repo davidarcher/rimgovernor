@@ -16,7 +16,6 @@ Bridge.Contracts/Facts/PlanningWindow.cs|Unknown|2
 Bridge.Contracts/Facts/RoundsFrame.cs|Fact|1
 Bridge.Contracts/Facts/WireEnums.cs|Discard|5
 Bridge.Contracts/Foundation/Families.cs|Discard|1
-Bridge.Contracts/Tables/Tables.cs|Fact|1
 Bridge/Catalog/DefenseCensus.cs|Fact|2
 Bridge/Catalog/DefenseCensus.cs|ValueOrDefault|4
 Bridge/Catalog/Ideology.cs|Discard|1
@@ -25,8 +24,6 @@ Bridge/Catalog/ItemFacts.cs|Fact|2
 Bridge/Catalog/Items.cs|Fact|2
 Bridge/Catalog/Items.cs|Unknown|1
 Bridge/Catalog/MapSurvey.cs|ValueOrDefault|5
-Bridge/Catalog/Power.cs|Fact|9
-Bridge/Catalog/Power.cs|Unknown|3
 Bridge/Catalog/Races.cs|Fact|1
 Bridge/Catalog/Royalty.cs|Fact|11
 Bridge/Catalog/SurgeryParts.cs|Fact|2
@@ -124,7 +121,7 @@ BuildingRuntime/Rounds/RoundsColonyModel.cs|Unknown|17
 BuildingRuntime/Rounds/RoundsCombat.cs|Discard|1
 BuildingRuntime/Rounds/RoundsCombat.cs|Fact|12
 BuildingRuntime/Rounds/RoundsCombatStep.cs|Fact|2
-BuildingRuntime/Rounds/RoundsComfort.cs|Fact|16
+BuildingRuntime/Rounds/RoundsComfort.cs|Fact|15
 BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Fact|15
 BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsCoupled.cs|Fact|12
@@ -312,7 +309,7 @@ Contracts/Json/FactJsonConverter.cs|Fact|5
 Contracts/Lifecycle.cs|NullableValue|42
 Contracts/Lifecycle.cs|UnknownMember|6
 Contracts/NeedsForecast.cs|Fact|3
-Contracts/Observations.cs|NullableValue|86
+Contracts/Observations.cs|NullableValue|78
 Contracts/Observations.cs|UnknownMember|3
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
@@ -372,7 +369,7 @@ Observation/AnomalyColony.cs|Unknown|1
 Observation/BiotechColony.cs|Fact|7
 Observation/BiotechColony.cs|Unknown|3
 Observation/Clearance.cs|Fact|4
-Observation/Colony.cs|Fact|82
+Observation/Colony.cs|Fact|81
 Observation/Colony.cs|Unknown|4
 Observation/ColonyDecode.cs|Fact|54
 Observation/ColonyDecode.cs|Unknown|5
@@ -401,14 +398,14 @@ Observation/PlanningView.cs|Fact|28
 Observation/PlanningView.cs|Unknown|2
 Observation/Quest.cs|Fact|18
 Observation/Quest.cs|Unknown|6
-Observation/Refrigeration.cs|Fact|4
+Observation/Refrigeration.cs|Fact|3
 Observation/RitualSites.cs|Fact|7
 Observation/RitualSites.cs|Unknown|2
 Observation/RoundsContainment.cs|Fact|11
 Observation/RoundsContainment.cs|Unknown|5
 Observation/RoundsMood.cs|Fact|24
 Observation/RoundsMood.cs|Unknown|8
-Observation/RoundsRead.cs|Fact|40
+Observation/RoundsRead.cs|Fact|39
 Observation/RoundsRead.cs|Unknown|16
 Observation/RoundsWork.cs|Fact|36
 Observation/RoundsWork.cs|Unknown|5
@@ -625,7 +622,7 @@ Policy/EntityCapture.cs|Fact|3
 Policy/EntityStudy.cs|Fact|4
 Policy/EntityUpkeep.cs|Fact|2
 Policy/Equip.cs|Fact|6
-Policy/EssentialServices.cs|Fact|36
+Policy/EssentialServices.cs|Fact|32
 Policy/EssentialServices.cs|UnknownMember|2
 Policy/EventLoot.cs|Fact|6
 Policy/EventLoot.cs|Unknown|1
@@ -928,10 +925,9 @@ Policy/PopulationJoiner.cs|Fact|29
 Policy/PopulationJoiner.cs|Unknown|4
 Policy/PopulationLance.cs|Fact|3
 Policy/PopulationUpkeep.cs|Fact|4
-Policy/Power.cs|Fact|15
+Policy/Power.cs|Fact|2
 Policy/PowerFamily.cs|Fact|2
-Policy/PowerMethod.cs|Fact|33
-Policy/PowerMethod.cs|UnknownMember|1
+Policy/PowerMethod.cs|Fact|17
 Policy/Preferences.cs|Fact|4
 Policy/PrisonerMedicine.cs|Fact|5
 Policy/PrisonerMedicine.cs|Unknown|1
@@ -1063,8 +1059,7 @@ Policy/Surgery.cs|Unknown|3
 Policy/SurgeryParts.cs|Fact|7
 Policy/TechTier.cs|Fact|7
 Policy/TechTier.cs|Unknown|1
-Policy/TemperatureMethod.cs|Fact|39
-Policy/TemperatureMethod.cs|Unknown|2
+Policy/TemperatureMethod.cs|Fact|34
 Policy/TemperatureMethod.cs|UnknownMember|1
 Policy/Tend.cs|Fact|46
 Policy/Tend.cs|Unknown|1

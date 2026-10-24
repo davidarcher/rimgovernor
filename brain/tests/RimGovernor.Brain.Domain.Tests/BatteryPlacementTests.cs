@@ -104,14 +104,15 @@ public sealed class BatteryPlacementTests
             Definition = PowerRules.BatteryDefinition,
             Cell = new(8, 8),
             Occupied = [new(8, 8), new(8, 9)],
-            BaseW = Known(0.0),
+            BaseW = 0,
+            Fuel = new RimGovernor.Contracts.Wire.Observations.BuildingFuel.NotRefuelable(),
             Connected = true,
             Network = "net",
             RainVulnerable = true,
             Roofed = false,
         };
-        var topology = new PowerTopology { Buildings = [battery], Blackout = Known(false), Eclipse = Known(false) };
-        var planning = new PowerPlanning { Battery = new PowerBattery(600, 0.5), Light = light };
+        var topology = new PowerTopology { Buildings = [battery], Blackout = false, Eclipse = false };
+        var planning = new PowerPlanning { ComponentSteel = new InputCost.NoRecipe(), Battery = new PowerBattery(600, 0.5), Light = light };
 
         var proposal = PowerRules.SelectPowerMethod(Known(topology), new Bounds(20, 20), cells, [], planning);
 

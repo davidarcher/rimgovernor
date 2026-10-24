@@ -322,13 +322,12 @@ public static class EssentialServicesRules
                 () => (ServiceCoverage.Unknown, ["power_topology"]));
             return;
         }
-        foreach (var generator in power.Buildings.Where(b => b.BaseW.IsKnown && b.BaseW.Value > 0).OrderBy(b => b.Id, StringComparer.Ordinal))
+        foreach (var generator in power.Buildings.Where(b => b.BaseW > 0).OrderBy(b => b.Id, StringComparer.Ordinal))
         {
             scenario(ServiceTarget.ForNeed(PowerFamily.Basic, "", "owner_power_coverage"), "facility/" + generator.Id, () =>
             {
-                var coverage = PowerRules.PowerCoverage([.. power.Buildings.Where(b => b.Id != generator.Id)]);
-                if (!coverage.Headroom.IsKnown) return (ServiceCoverage.Unknown, ["power_network_output"]);
-                return (coverage.Headroom.Value >= 0 ? ServiceCoverage.Adequate : ServiceCoverage.Shortfall, []);
+                var coverage = PowerRules.PowerCoverageOf([.. power.Buildings.Where(b => b.Id != generator.Id)]);
+                return (coverage.HeadroomW >= 0 ? ServiceCoverage.Adequate : ServiceCoverage.Shortfall, []);
             });
         }
         // Network service membership is not inferred from the sign of watts: decorative consumers are not essential services.

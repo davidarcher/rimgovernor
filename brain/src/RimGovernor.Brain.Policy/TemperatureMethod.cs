@@ -184,11 +184,11 @@ public sealed record TemperatureCooling
         {
             return false;
         }
-        if (topology!.Blackout.TryGetValue(out var blackout) && blackout)
+        if (topology!.Blackout)
         {
             return false;
         }
-        return topology.SpareW().TryGetValue(out var spare) && spare >= draw;
+        return topology.SpareW() >= draw;
     }
 }
 
@@ -315,10 +315,10 @@ public static partial class TemperatureMethodRules
 
     /// <summary>
     /// The largest surplus of nominal producer capacity over consumer demand across the topology's connected
-    /// power networks, the same capacity-versus-demand reading the power family sizes its budget by. Unknown when
-    /// any connected building's draw is unknown, or when no network has a producer.
+    /// power networks, the same capacity-versus-demand reading the power family sizes its budget by; zero when no
+    /// network has a producer.
     /// </summary>
-    public static Fact<double> SpareW(this PowerTopology t)
+    public static double SpareW(this PowerTopology t)
     {
         var nets = new Dictionary<string, (double Capacity, double Demand)>(StringComparer.Ordinal);
         foreach (var b in t.Buildings)
@@ -327,10 +327,7 @@ public static partial class TemperatureMethodRules
             {
                 continue;
             }
-            if (!b.BaseW.TryGetValue(out var w))
-            {
-                return Unknown<double>();
-            }
+            var w = b.BaseW;
             nets.TryGetValue(b.Network, out var n);
             if (w > 0)
             {
@@ -356,7 +353,7 @@ public static partial class TemperatureMethodRules
             }
             have = true;
         }
-        return have ? Known(spare) : Unknown<double>();
+        return have ? spare : 0;
     }
 
     public static void Validate(this RoomObservation v)

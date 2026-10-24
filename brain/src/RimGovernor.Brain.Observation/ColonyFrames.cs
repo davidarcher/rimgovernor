@@ -74,8 +74,8 @@ public static class ColonyFramesReads
                 Broken = s.BrokenDown,
                 Forbidden = row.Settings.Forbidden,
                 Burning = row.Burning,
-                Fuel = s.Fuel is { } fuel
-                    ? new RecoveryFuel.Refuelable(fuel, s.TargetFuel ?? throw new BridgeContractException($"recovery building {reference.Id}: a refuelable building carries no fuel target"))
+                Fuel = s.Fuel is O.BuildingFuel.Refuelable fuel
+                    ? new RecoveryFuel.Refuelable(fuel.Fuel, fuel.TargetFuel)
                     : new RecoveryFuel.NotRefuelable(),
             });
         }

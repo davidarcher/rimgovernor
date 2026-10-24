@@ -110,7 +110,7 @@ public sealed partial class RoundsBuildingPlanner
         if (GearLadder())
         {
             var things = await RoundsGear.FrameThingsOfAsync(Native, identity, call).ConfigureAwait(false);
-            var (facts, factsKnown) = RoundsGear.GearObservationFacts(observed, new Tables(Buildings.Of(), Pawns.Of(), things), defs);
+            var (facts, factsKnown) = RoundsGear.GearObservationFacts(observed, new Tables(Buildings.Of(), Pawns.Of(), things, [.. finished.Order(StringComparer.Ordinal)]), defs);
             if (!factsKnown)
             {
                 return (null, FieldUnavailable("gear_census"));

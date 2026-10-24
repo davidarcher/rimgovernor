@@ -208,7 +208,7 @@ public sealed class ContainmentCreditTests
         Status = O.BuildingStatus.Built,
         HitPoints = new O.BuildingHitPoints.Untracked(),
         Construction = null,
-        Service = new O.BuildingServiceState(),
+        Service = BuildingServiceWire.NoService,
         Settings = new O.BuildingSettings { Forbidden = false, Control = new O.BuildingControl.None() },
         Burning = false,
         Occupied = new O.Rectangle { Minimum = new C.Cell { X = x, Z = z }, Maximum = new C.Cell { X = x, Z = z } },

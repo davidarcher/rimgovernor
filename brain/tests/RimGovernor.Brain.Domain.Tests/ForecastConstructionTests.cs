@@ -234,7 +234,7 @@ public sealed class ForecastConstructionTests
                 Minimum = null,
                 Gate = new O.ConstructionGate.Ungated(),
             },
-            Service = new O.BuildingServiceState(),
+            Service = BuildingServiceWire.NoService,
             Settings = new O.BuildingSettings { Forbidden = false, Control = new O.BuildingControl.None() },
             Burning = false,
             Occupied = new O.Rectangle { Minimum = new C.Cell { X = 1, Z = 1 }, Maximum = new C.Cell { X = 1, Z = 1 } },

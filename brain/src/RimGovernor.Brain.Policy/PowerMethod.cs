@@ -36,12 +36,13 @@ public sealed record PowerTopology
 
     public IReadOnlyList<Cell> UnsafeConduits { get; init; } = [];
 
-    public Fact<bool> Blackout { get; init; }
+    /// <summary>A map condition that disables power (a solar flare) holds every network off.</summary>
+    public bool Blackout { get; init; }
 
     /// <summary>The native eclipse condition: solar output is zero for the rest of it, so the day's budget carries no solar energy.</summary>
-    public Fact<bool> Eclipse { get; init; }
+    public bool Eclipse { get; init; }
 
-    /// <summary>The per-net energy summary; an empty census means the native read predates network facts and reserve runway stays unknown.</summary>
+    /// <summary>The per-net energy summary: a network it does not list has no reserve runway to keep.</summary>
     public IReadOnlyList<PowerNetworkFact> Networks { get; init; } = [];
 
     /// <summary>
@@ -55,8 +56,6 @@ public enum PowerMethod
 {
     [WireName("")]
     None = 0,
-    [WireName("unknown")]
-    Unknown,
     [WireName("no_deficit")]
     NoMethod,
     [WireName("waiting_for_native_power")]
@@ -152,7 +151,7 @@ public sealed record PowerPlanning
     public IReadOnlyDictionary<string, PowerSourceProfile> Sources { get; init; } = new Dictionary<string, PowerSourceProfile>();
 
     /// <summary>The steel one component costs by the game's recipe; it prices generators' components for RankGenerators.</summary>
-    public Fact<double> ComponentSteel { get; init; }
+    public required InputCost ComponentSteel { get; init; }
 
     /// <summary>The current twelfth's daylight hours at the map's latitude (GearClimate.DaylightHoursIn); RankGenerators ranks solar last at none.</summary>
     public Fact<double> DaylightHours { get; init; }
@@ -181,9 +180,9 @@ public sealed record PowerPlanning
 /// What RankGenerators knows about the colony beyond the options: whether a battery can be built (a renewable
 /// is free to run but needs storage to carry the night), whether the shortfall being closed is night-only,
 /// which a solar generator cannot touch, and the steel a component costs to make (the game's own recipe,
-/// DefinitionCatalog.ProductInputCost), which prices a generator's components in steel. Unknown, no generator
-/// can be priced and list order breaks ties. DaylightHours is the current twelfth's daylight at the map's
-/// latitude: none (polar night) leaves a solar generator nothing to deliver; unknown keeps the nominal profile.
+/// DefinitionCatalog.ProductInputCost), which prices a generator's components in steel. Without such a recipe no
+/// generator with components can be priced and list order breaks ties. DaylightHours is the current twelfth's daylight
+/// at the map's latitude: none (polar night) leaves a solar generator nothing to deliver; unknown keeps the nominal profile.
 /// </summary>
 public sealed record GeneratorRanking
 {
@@ -191,9 +190,22 @@ public sealed record GeneratorRanking
 
     public bool NightOnly { get; init; }
 
-    public Fact<double> ComponentSteel { get; init; }
+    public required InputCost ComponentSteel { get; init; }
 
     public Fact<double> DaylightHours { get; init; }
+}
+
+/// <summary>
+/// The units of one input the cheapest recipe making a product takes per unit made, when a recipe's one ingredient
+/// slot accepts only that input (DefinitionCatalog.ProductInputCost); <see cref="NoRecipe"/> when no recipe is so shaped.
+/// </summary>
+public abstract record InputCost
+{
+    private InputCost() { }
+
+    public sealed record PerUnit(double Units) : InputCost;
+
+    public sealed record NoRecipe : InputCost;
 }
 
 public sealed record PowerProposal
@@ -253,7 +265,10 @@ public static partial class PowerRules
     public static IReadOnlyList<string> PowerFamilyDefinitions() =>
         [Wire.Name(PowerMethod.Connect), .. PowerRules.GeneratorDefinitions, PowerRules.GeothermalDefinition, PowerRules.BatteryDefinition];
 
-    public static PowerPlanning DefaultPowerPlanning() => new() { ReserveMinDays = 1, StorageMargin = 0.25 };
+    /// <summary>The margin the storage target carries over the night deficit.</summary>
+    public const double DefaultStorageMargin = 0.25;
+
+    public static PowerPlanning DefaultPowerPlanning(InputCost componentSteel) => new() { ComponentSteel = componentSteel, ReserveMinDays = 1, StorageMargin = DefaultStorageMargin };
 
     /// <summary>
     /// Pairs each generator definition with its catalog row (cost, nominal watts, fuel and tank), the observed
@@ -290,9 +305,9 @@ public static partial class PowerRules
 
     /// <summary>
     /// The average watts a generator delivers per steel of build cost, components counted at componentSteel
-    /// steel each; zero when a cost cannot be priced (unknown component recipe or another resource).
+    /// steel each; zero when a cost cannot be priced (no steel-only component recipe, or another resource).
     /// </summary>
-    internal static double GeneratorYield(GeneratorOption o, Fact<double> componentSteel)
+    internal static double GeneratorYield(GeneratorOption o, InputCost componentSteel)
     {
         var steel = 0.0;
         foreach (var c in o.Costs)
@@ -303,7 +318,7 @@ public static partial class PowerRules
             }
             else if (c.Resource == TradePolicyRules.ComponentResource)
             {
-                if (!componentSteel.TryGetValue(out var rate))
+                if (componentSteel is not InputCost.PerUnit(var rate))
                 {
                     return 0;
                 }
@@ -386,14 +401,12 @@ public static partial class PowerRules
     /// repair are ordinary pawn work owned by other families. A powered network whose stored reserve runway
     /// falls under ReserveMinDays is a deficit too, sized by its 24 h budget (ComputePowerBudget): a
     /// generation shortfall adds a generator, a storage shortfall alone adds a battery, and a network the
-    /// budget already covers waits for its bank to charge. Throws DomainException on invalid input.
+    /// budget already covers waits for its bank to charge. Throws DomainException on invalid input, and
+    /// RequiredFactException when the colony's topology was not read (no geometry or map conditions).
     /// </summary>
-    public static PowerProposal SelectPowerMethod(Fact<PowerTopology> fact, Bounds bounds, IReadOnlyList<SiteCell> cells, IReadOnlyList<Cell> protectedCells, PowerPlanning planning)
+    public static PowerProposal SelectPowerMethod(Fact<PowerTopology> topology, Bounds bounds, IReadOnlyList<SiteCell> cells, IReadOnlyList<Cell> protectedCells, PowerPlanning planning)
     {
-        if (!fact.TryGetValue(out var v))
-        {
-            return new PowerProposal { Method = PowerMethod.Unknown };
-        }
+        var v = topology.TryGetValue(out var read) ? read : throw new RequiredFactException("power topology");
         if (!FoodForecastRules.FoodNumber(planning.ReserveMinDays) || !FoodForecastRules.FoodNumber(planning.StorageMargin) || !FoodForecastRules.FoodNumber(planning.PendingDemandW)
             || planning.StorageMargin > 10 || planning.PendingDemandW > 1e12)
         {
@@ -422,7 +435,6 @@ public static partial class PowerRules
         }
         bool Inside(Cell c) => c.X >= 0 && c.Z >= 0 && c.X < bounds.Width && c.Z < bounds.Height;
         var seen = new HashSet<string>(StringComparer.Ordinal);
-        var complete = true;
         foreach (var b in v.Buildings)
         {
             if (!FoodForecastRules.FoodId(b.Id) || !FoodForecastRules.FoodId(b.Definition) || seen.Contains(b.Id) || !Inside(b.Cell) || b.Occupied.Count < 1)
@@ -442,7 +454,6 @@ public static partial class PowerRules
             {
                 throw new DomainException("power anchor outside footprint");
             }
-            complete = complete && b.BaseW.IsKnown;
         }
         var existing = new HashSet<Cell>();
         foreach (var c in v.Conduits)
@@ -503,13 +514,7 @@ public static partial class PowerRules
                 route.Add(c.Cell);
             }
         }
-        var known = v.Blackout.TryGetValue(out var blackout);
-        v.Eclipse.TryGetValue(out var eclipse);
-        if (!known || !complete)
-        {
-            return new PowerProposal { Method = PowerMethod.Unknown };
-        }
-        if (blackout)
+        if (v.Blackout)
         {
             return new PowerProposal { Method = PowerMethod.WaitBlackout };
         }
@@ -555,7 +560,7 @@ public static partial class PowerRules
         var producers = new List<PowerSite>();
         foreach (var b in v.Buildings)
         {
-            b.BaseW.TryGetValue(out var w);
+            var w = b.BaseW;
             if (w > 0)
             {
                 producers.Add(b);
@@ -564,7 +569,7 @@ public static partial class PowerRules
         var result = new PowerProposal { Method = PowerMethod.NoMethod };
         foreach (var target in v.Buildings)
         {
-            target.BaseW.TryGetValue(out var baseW);
+            var baseW = target.BaseW;
             if (baseW >= 0)
             {
                 continue;
@@ -589,12 +594,9 @@ public static partial class PowerRules
                 {
                     continue;
                 }
-                b.BaseW.TryGetValue(out var w);
+                var w = b.BaseW;
                 output += b.OutputW;
-                if (b.Capacity.TryGetValue(out var storage))
-                {
-                    budgetCapacity += storage;
-                }
+                budgetCapacity += b.StorageWD;
                 if (w < 0)
                 {
                     demand -= w;
@@ -609,14 +611,14 @@ public static partial class PowerRules
                     }
                     budgetProducers.Add(new PowerProducer { NominalW = w, Profile = profile });
                     disabledProducer = disabledProducer || b.Forbidden || !b.SwitchedOn;
-                    b.OutOfFuel.TryGetValue(out var empty);
+                    var empty = b.Unfueled;
                     unfueledProducer = unfueledProducer || empty;
                     brokenProducer = brokenProducer || b.BrokenDown;
                 }
             }
             var budget = new PowerBudgetInput
             {
-                Eclipse = eclipse,
+                Eclipse = v.Eclipse,
                 StorageMargin = planning.StorageMargin,
                 ChargeEfficiency = planning.Battery.Efficiency,
                 CapacityWD = budgetCapacity,
@@ -725,7 +727,7 @@ public static partial class PowerRules
         var destinations = new HashSet<Cell>();
         foreach (var b in v.Buildings)
         {
-            b.BaseW.TryGetValue(out var w);
+            var w = b.BaseW;
             if (w <= 0 || b.OutputW <= 0 || !b.Powered || b.Forbidden || !b.SwitchedOn)
             {
                 continue;
@@ -742,7 +744,7 @@ public static partial class PowerRules
         }
         foreach (var target in v.Buildings)
         {
-            target.BaseW.TryGetValue(out var baseW);
+            var baseW = target.BaseW;
             if (baseW >= 0 || target.Connected || target.Forbidden || !target.SwitchedOn)
             {
                 continue;

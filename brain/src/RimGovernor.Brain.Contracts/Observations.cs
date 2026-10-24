@@ -2201,43 +2201,93 @@ public abstract record BuildingHitPoints
     }
 }
 
-/// <summary>
-/// A building's power, switch, breakdown and fuel state. The power facts are absent without a power
-/// trader or battery (a battery is on while connected and outputs nothing), power_net_id without a
-/// network, producer without a power trader, the fuel facts without a refuelable comp. A building
-/// without a flick switch is switched on.
-/// </summary>
+/// <summary>A building's power, switch, breakdown, fuel and wind state. A building without a flick switch is switched on.</summary>
 public sealed record BuildingServiceState
 {
-    public bool? Connected { get; init; }
+    public required BuildingPower Power { get; init; }
 
-    public bool? PowerOn { get; init; }
+    public required bool SwitchedOn { get; init; }
 
-    public double? PowerOutputW { get; init; }
+    public required BuildingFuel Fuel { get; init; }
 
-    public bool SwitchedOn { get; init; }
+    public required bool BrokenDown { get; init; }
 
-    public double? Fuel { get; init; }
+    public required BuildingWind Wind { get; init; }
+}
 
-    public double? TargetFuel { get; init; }
+/// <summary>
+/// A building's power comp: <see cref="NoPower"/> without a power trader or battery. Network names the power net the
+/// building is connected to, absent while it is not connected.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BuildingPower.NoPower), "no_power")]
+[JsonDerivedType(typeof(BuildingPower.Trader), "trader")]
+[JsonDerivedType(typeof(BuildingPower.Battery), "battery")]
+public abstract record BuildingPower
+{
+    private protected BuildingPower() { }
 
-    public bool? OutOfFuel { get; init; }
+    /// <summary>The building has neither a power trader nor a battery comp.</summary>
+    public sealed record NoPower : BuildingPower;
 
-    public bool BrokenDown { get; init; }
+    /// <summary>A power trader (CompPowerTrader): whether it is on, its output, and whether it is a producer (negative base consumption: a generator).</summary>
+    public sealed record Trader : BuildingPower
+    {
+        public required bool PowerOn { get; init; }
 
-    public string? PowerNetId { get; init; }
+        public required double OutputW { get; init; }
+
+        public required bool Producer { get; init; }
+
+        public required string? Network { get; init; }
+    }
+
+    /// <summary>A battery (CompPowerBattery): it is on while connected and outputs nothing.</summary>
+    public sealed record Battery : BuildingPower
+    {
+        public required string? Network { get; init; }
+    }
+}
+
+/// <summary>A building's refuelable comp: <see cref="NotRefuelable"/> without one.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BuildingFuel.NotRefuelable), "not_refuelable")]
+[JsonDerivedType(typeof(BuildingFuel.Refuelable), "refuelable")]
+public abstract record BuildingFuel
+{
+    private protected BuildingFuel() { }
+
+    public sealed record NotRefuelable : BuildingFuel;
+
+    /// <summary>CompRefuelable's fuel, its target fuel level, and whether it is out of fuel (not HasFuel).</summary>
+    public sealed record Refuelable : BuildingFuel
+    {
+        public required double Fuel { get; init; }
+
+        public required double TargetFuel { get; init; }
+
+        public required bool OutOfFuel { get; init; }
+    }
+}
+
+/// <summary>A building's wind plant comp: <see cref="NotWindTurbine"/> on any building without CompPowerPlantWind.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(BuildingWind.NotWindTurbine), "not_wind_turbine")]
+[JsonDerivedType(typeof(BuildingWind.WindTurbine), "wind_turbine")]
+public abstract record BuildingWind
+{
+    private protected BuildingWind() { }
+
+    public sealed record NotWindTurbine : BuildingWind;
 
     /// <summary>
-    /// The building is a power producer (a power trader whose base consumption is negative: a generator); absent
-    /// without a power trader.
+    /// The wind path cells that are off the map, roofed or hold a wind-blocking thing (the cells
+    /// CompPowerPlantWind.RecalculateBlockages counts).
     /// </summary>
-    public bool? Producer { get; init; }
-
-    /// <summary>
-    /// A wind turbine's wind path cells that are off the map, roofed or hold a wind-blocking thing (the cells
-    /// CompPowerPlantWind.RecalculateBlockages counts); absent on any other building.
-    /// </summary>
-    public uint? WindPathBlockedCells { get; init; }
+    public sealed record WindTurbine : BuildingWind
+    {
+        public required uint BlockedCells { get; init; }
+    }
 }
 
 /// <summary>

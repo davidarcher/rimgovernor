@@ -299,7 +299,7 @@ partial class RoundsBuildingPlanner
     /// <summary>Whether a powered network within six cells of the cell has the spare generation for a recreation building of these watts.</summary>
     internal static bool PoweredRecreationCell(ColonyProjection facts, Cell cell, double watts)
     {
-        if (!facts.PowerPlanning.TryGetValue(out var topology) || topology.Blackout != Known(false))
+        if (!facts.PowerPlanning.TryGetValue(out var topology) || topology.Blackout)
         {
             return false;
         }

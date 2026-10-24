@@ -65,7 +65,7 @@ public sealed class PrimaryWeaponRoleTests
             equipment = equipment with { Armed = true, PrimaryId = id, Equipped = [GearFixtures.Item(id, new O.ItemQuality.Graded(D.QualityCategory.Good)) with { ConditionFraction = 0.8 }] };
             things.Add(new O.Thing { Entity = new O.EntityRef { Id = id, DefName = def, Label = def, Place = new O.EntityPlace.Unplaced() } });
         }
-        var tables = new Tables(default, default, Things.Of(things));
+        var tables = new Tables(default, default, Things.Of(things), []);
         var row = GearFixtures.Loadout("pawn") with { Equipment = equipment, ApparelPolicy = PoliciesTests.EmptyOutfit };
         var defs = new GearDefinitions { Catalog = Catalog(), Finished = Known<IReadOnlySet<string>>(new HashSet<string>()) };
         var model = ColonyGearReads.GearLoadoutModelFacts(defs, tables, 20, row, new RimGovernor.Brain.Policy.ApparelPolicyState(), ColonyModelFixtures.NoThreat, new StuffArrival(new Dictionary<Resource, long>(), []));

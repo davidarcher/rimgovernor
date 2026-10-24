@@ -49,7 +49,7 @@ public sealed record RoundsFrame
     public BuildingCensus? Buildings { get; init; }
 
     /// <summary>The frame's keyed tables every other section's references resolve against: sites by id and the pawn table.</summary>
-    public Tables Tables { get; init; } = new(default, default, default);
+    public Tables Tables { get; init; } = new(default, default, default, []);
 
     /// <summary>The zone census, in id order.</summary>
     public ZonesSnapshot? Zones { get; init; }

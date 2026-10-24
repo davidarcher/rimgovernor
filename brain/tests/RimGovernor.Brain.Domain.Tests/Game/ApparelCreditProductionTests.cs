@@ -68,7 +68,7 @@ public sealed class ApparelCreditProductionTests
             LoadoutModel = GearFixtures.NoModel with { Worn = dressed ? [worn ?? Option("worn-shirt", GearSource.Worn, 0.1)] : [], Options = [bill ?? Option("bill-shirt", GearSource.Bill, 1) with { Crafters = crafters ?? [Crafter] }] },
         };
         var defs = new GearDefinitions { Catalog = Catalog(), Finished = Known<IReadOnlySet<string>>(new HashSet<string>()) };
-        var model = ColonyGearReads.GearLoadoutModelFacts(defs, new Tables(default, default, Things.Of([])), 20, row,
+        var model = ColonyGearReads.GearLoadoutModelFacts(defs, new Tables(default, default, Things.Of([]), []), 20, row,
             new RimGovernor.Brain.Policy.ApparelPolicyState(), ColonyModelFixtures.NoThreat, new StuffArrival(new Dictionary<Resource, long> { [new("Cloth")] = 100 }, []));
         return ColonyModelFixtures.NoGear() with
         {

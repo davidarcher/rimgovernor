@@ -51,7 +51,7 @@ internal static class PowerWindPath
         var clearId = s.Staged!.Buildings[Clear].Ids.Single();
         var roofedId = s.Staged.Buildings[Roofed].Ids.Single();
         var rows = await s.BuildingsAsync("turbines", new Observations.ListBuildingsRequest { Ids = [clearId, roofedId] }, cancellationToken).ConfigureAwait(false);
-        uint? Blocked(string id) => rows.FirstOrDefault(r => r.Building?.Id == id)?.Service?.WindPathBlockedCells;
+        uint? Blocked(string id) => rows.FirstOrDefault(r => r.Building?.Id == id)?.Service?.Wind is Observations.BuildingWind.WindTurbine turbine ? turbine.BlockedCells : null;
         var clear = Blocked(clearId);
         var roofed = Blocked(roofedId);
         s.Record("clear_blocked", clear);

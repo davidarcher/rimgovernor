@@ -206,7 +206,7 @@ public static class ColonyUpkeepReads
                 Lit = row.Lit,
                 SwitchedOn = s.SwitchedOn,
                 BrokenDown = s.BrokenDown,
-                Fuel = s.OutOfFuel switch { null => LampFuel.Unfueled, true => LampFuel.Empty, false => LampFuel.Fueled },
+                Fuel = s.Fuel is O.BuildingFuel.Refuelable fuel ? (fuel.OutOfFuel ? LampFuel.Empty : LampFuel.Fueled) : LampFuel.Unfueled,
             });
         }
         var plants = census.WorkCells.SelectMany(c => c.PlantDefs).Distinct(StringComparer.Ordinal).Where(required.PlantDiesToLight);

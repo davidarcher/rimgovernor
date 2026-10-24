@@ -150,29 +150,41 @@ namespace HomeBridge.BridgeTools
             return new Obs.BuildingHitPoints.Tracked { Current = thing.HitPoints, Maximum = thing.MaxHitPoints };
         }
 
-        // Service is a building's power, switch, breakdown and fuel state:
-        // a power trader's network, output and whether it produces, a
-        // battery's network, a wind turbine's blocked wind path cells, the
-        // flick switch (on without one) and a refuelable's fuel.
-        private static Obs.BuildingServiceState Service(Thing thing)
+        // Service is a building's power, switch, breakdown, fuel and wind
+        // state, read whole: power is a trader (network, output, whether it
+        // produces), a battery (network) or none; fuel is refuelable or not;
+        // the wind path is a turbine's blocked cells or none; the flick
+        // switch is on without one.
+        private static Obs.BuildingServiceState Service(Thing thing) => new()
         {
-            var service = new Obs.BuildingServiceState { SwitchedOn = thing.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true,
-                BrokenDown = thing.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false };
-            var power = thing.TryGetComp<CompPowerTrader>();
-            var battery = thing.TryGetComp<CompPowerBattery>();
-            var net = power?.PowerNet ?? battery?.PowerNet;
-            if (power != null) { service = service with { Connected = net != null }; service = service with { PowerOn = power.PowerOn }; service = service with { PowerOutputW = Finite(power.PowerOutput) ? power.PowerOutput : throw new InvalidOperationException("Invalid power output.") }; }
-            else if (battery != null) { service = service with { Connected = net != null }; service = service with { PowerOn = net != null }; service = service with { PowerOutputW = 0 }; }
-            if (net != null) service = service with { PowerNetId = NetId(net) };
-            if (power != null) service = service with { Producer = power.Props.PowerConsumption < 0f };
-            if (thing.TryGetComp<CompPowerPlantWind>() != null)
-                service = service with { WindPathBlockedCells = checked((uint)PlacementPreviewOperation.WindBlockedCells(thing.Map, thing.Position, thing.Rotation, thing.def.size)) };
-            var fuel = thing.TryGetComp<CompRefuelable>();
-            if (fuel != null)
+            Power = Power(thing),
+            SwitchedOn = thing.TryGetComp<CompFlickable>()?.SwitchIsOn ?? true,
+            Fuel = thing.TryGetComp<CompRefuelable>() is { } fuel
+                ? new Obs.BuildingFuel.Refuelable { Fuel = Nonnegative(fuel.Fuel), TargetFuel = Nonnegative(fuel.TargetFuelLevel), OutOfFuel = !fuel.HasFuel }
+                : new Obs.BuildingFuel.NotRefuelable(),
+            BrokenDown = thing.TryGetComp<CompBreakdownable>()?.BrokenDown ?? false,
+            Wind = thing.TryGetComp<CompPowerPlantWind>() != null
+                ? new Obs.BuildingWind.WindTurbine { BlockedCells = checked((uint)PlacementPreviewOperation.WindBlockedCells(thing.Map, thing.Position, thing.Rotation, thing.def.size)) }
+                : new Obs.BuildingWind.NotWindTurbine(),
+        };
+
+        private static Obs.BuildingPower Power(Thing thing)
+        {
+            if (thing.TryGetComp<CompPowerTrader>() is { } power)
             {
-                service = service with { Fuel = Nonnegative(fuel.Fuel) }; service = service with { TargetFuel = Nonnegative(fuel.TargetFuelLevel) }; service = service with { OutOfFuel = !fuel.HasFuel };
+                return new Obs.BuildingPower.Trader
+                {
+                    PowerOn = power.PowerOn,
+                    OutputW = Finite(power.PowerOutput) ? power.PowerOutput : throw new InvalidOperationException("Invalid power output."),
+                    Producer = power.Props.PowerConsumption < 0f,
+                    Network = power.PowerNet is { } net ? NetId(net) : null,
+                };
             }
-            return service;
+            if (thing.TryGetComp<CompPowerBattery>() is { } battery)
+            {
+                return new Obs.BuildingPower.Battery { Network = battery.PowerNet is { } net ? NetId(net) : null };
+            }
+            return new Obs.BuildingPower.NoPower();
         }
 
         // NetId names a power network for the frame it is read in.

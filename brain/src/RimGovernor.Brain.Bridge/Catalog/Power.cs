@@ -136,9 +136,9 @@ public sealed partial class DefinitionCatalog
 
     /// <summary>
     /// The units of input the cheapest recipe making product takes per unit made, when that recipe's one ingredient slot
-    /// accepts only input (the game's own steel-to-components rate); unknown when no recipe is so shaped.
+    /// accepts only input (the game's own steel-to-components rate); <see cref="P.InputCost.NoRecipe"/> when no recipe is so shaped.
     /// </summary>
-    public Fact<double> ProductInputCost(string product, string input)
+    public P.InputCost ProductInputCost(string product, string input)
     {
         double? best = null;
         foreach (var host in RecipeHosts(product, null))
@@ -158,7 +158,7 @@ public sealed partial class DefinitionCatalog
             best = best is null || cost < best ? cost : best;
         }
 
-        return best is { } value ? Known(value) : Unknown<double>();
+        return best is { } value ? new P.InputCost.PerUnit(value) : new P.InputCost.NoRecipe();
     }
 
     /// <summary>The storage of the named battery def: the capacity and charge efficiency of its CompProperties_Battery. A def without the comp is an error.</summary>
@@ -171,9 +171,9 @@ public sealed partial class DefinitionCatalog
             : throw new CatalogException($"battery {name} has capacity {result.CapacityWD} and efficiency {result.Efficiency}");
     }
 
-    /// <summary>The stored-energy capacity of the named def's CompProperties_Battery; a def without the comp is unknown, not an error.</summary>
-    public Fact<double> BatteryCapacityWd(string name) =>
-        ThingRow(name).GetCompProperties<CompProperties_Battery>() is { } battery ? Known((double)battery.storedEnergyMax) : Unknown<double>();
+    /// <summary>The stored-energy capacity of the named def's CompProperties_Battery; a def without the comp stores none.</summary>
+    public double BatteryCapacityWd(string name) =>
+        ThingRow(name).GetCompProperties<CompProperties_Battery>() is { } battery ? battery.storedEnergyMax : 0;
 
     /// <summary>Whether the named def is a power conduit: a plain Building whose power comp is a bare CompPowerTransmitter (no generator, consumer, battery or switch class).</summary>
     public bool PlainConduit(string name)
@@ -186,36 +186,26 @@ public sealed partial class DefinitionCatalog
     /// The base wattage a power row states for the named def, in the sign the power policy reads: negative for a consumer,
     /// positive for a producer, zero for a battery. It is the def's basePowerConsumption with the factor of every power
     /// upgrade whose research is finished applied in order, as the game's <c>CompProperties_Power.PowerConsumption</c>
-    /// does. A def with upgrades and no finished-research census yields an unknown fact; a def with no power comp is an error.
+    /// does, with <paramref name="finished"/> the research census's finished projects. A def with no power comp is an error.
     /// </summary>
-    public Fact<double> PowerBaseW(string name, Fact<EquatableArray<string>> finished)
+    public double PowerBaseW(string name, EquatableArray<string> finished)
     {
         var comp = ThingRow(name).GetCompProperties<CompProperties_Power>() ?? throw new CatalogException($"def {name} has no power comp");
         var draw = GameMembers.BasePowerConsumption(comp);
-        if (comp.powerUpgrades.Seq().Any() is false)
-        {
-            return Known(0 - (double)draw);
-        }
-
-        if (!finished.TryGetValue(out var done))
-        {
-            return Unknown<double>();
-        }
-
         var num = draw;
-        foreach (var upgrade in comp.powerUpgrades)
+        foreach (var upgrade in comp.powerUpgrades.Seq())
         {
             if (upgrade is null)
             {
                 throw new CatalogException($"def {name} has an empty power upgrade");
             }
 
-            if (upgrade.researchProject is { } project && done.Contains(project.defName))
+            if (upgrade.researchProject is { } project && finished.Contains(project.defName))
             {
                 num *= upgrade.factor;
             }
         }
 
-        return Known(0 - (double)num);
+        return 0 - (double)num;
     }
 }

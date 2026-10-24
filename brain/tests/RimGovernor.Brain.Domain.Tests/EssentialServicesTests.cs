@@ -131,7 +131,7 @@ public sealed class EssentialServicesTests
     [Fact]
     public void GeneratorRemovalUsesItsNetworkAndDoesNotClaimEssentialConsumerMembership()
     {
-        PowerSite Site(string id, string network, double watts) => new() { Id = id, Network = network, BaseW = Known(watts),
+        PowerSite Site(string id, string network, double watts) => new() { Id = id, Network = network, BaseW = watts, Fuel = new RimGovernor.Contracts.Wire.Observations.BuildingFuel.NotRefuelable(),
             OutputW = watts, Connected = true, Powered = true, Forbidden = false, SwitchedOn = true };
         var facts = Facts() with { PowerRequired = Known(true), EssentialInputs = new() { Power = Known(new PowerTopology {
             Buildings = [Site("generator", "home", 100), Site("heater", "home", -80), Site("remote", "remote", 100)] }) } };

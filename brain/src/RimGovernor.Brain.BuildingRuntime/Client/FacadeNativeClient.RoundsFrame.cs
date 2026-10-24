@@ -49,6 +49,7 @@ public sealed partial class FacadeNativeClient
         var identity = v.Context!.Identity!;
         var held = prepared.Held;
         var pawns = held.Pawns;
+        var research = v.Research ?? throw BridgeContractException.Contract("routine frame without its research section");
         var output = new RoundsFrame
         {
             Context = v.Context,
@@ -56,8 +57,8 @@ public sealed partial class FacadeNativeClient
             Rooms = v.Rooms,
             Bills = v.Bills,
             Buildings = held.BuildMeta is null ? null : new BuildingCensus(held.BuildMeta.Context, held.Buildings),
-            Tables = new Tables(held.Buildings, pawns, held.Things),
-            Research = v.Research ?? throw BridgeContractException.Contract("routine frame without its research section"),
+            Tables = new Tables(held.Buildings, pawns, held.Things, [.. research.Finished]),
+            Research = research,
         };
         if (prepared.Emergency is { } emergency)
         {

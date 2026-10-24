@@ -14,12 +14,16 @@ public sealed partial class FacadeNativeClient
 
     private const string ReadBillsMethod = "rimgovernor/observations_read_bills";
 
-    /// <summary>The keyed tables of the newest frame (buildings, pawns, things).</summary>
-    internal async Task<Tables> FrameTablesAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
-    {
-        var held = await FrameHeldAsync(FramePawnsMethod, identity, view => view.Snapshot.Pawns is not null, cancellationToken).ConfigureAwait(false);
-        return new Tables(held.Buildings, held.Pawns, held.Things);
-    }
+    /// <summary>
+    /// The keyed tables of the newest frame (buildings, pawns, things) and its research census's finished projects: a
+    /// frame that carries the pawn table carries the research section too.
+    /// </summary>
+    internal Task<Tables> FrameTablesAsync(PbCommon.Identity identity, CancellationToken cancellationToken) =>
+        FrameReadAsync(FramePawnsMethod, identity, view => view.Snapshot.Pawns is null ? null : new Tables(
+            view.Prepared.Held.Buildings,
+            view.Prepared.Held.Pawns,
+            view.Prepared.Held.Things,
+            [.. (view.Snapshot.Research ?? throw BridgeContractException.Contract("frame with a pawn table and no research section")).Finished]), cancellationToken);
 
     /// <summary>The pawn table of the newest frame.</summary>
     internal async Task<Pawns> FramePawnsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
