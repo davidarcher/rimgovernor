@@ -254,7 +254,7 @@ BuildingRuntime/Rounds/RoundsPlannedRooms.cs|Fact|8
 BuildingRuntime/Rounds/RoundsPlannedSites.cs|Fact|5
 BuildingRuntime/Rounds/RoundsPlannedSites.cs|Unknown|5
 BuildingRuntime/Rounds/RoundsPlannedSites.cs|ValueOrDefault|1
-BuildingRuntime/Rounds/RoundsPlannedThermal.cs|Fact|5
+BuildingRuntime/Rounds/RoundsPlannedThermal.cs|Fact|3
 BuildingRuntime/Rounds/RoundsPower.cs|Fact|24
 BuildingRuntime/Rounds/RoundsPowerDig.cs|Fact|4
 BuildingRuntime/Rounds/RoundsPrisoners.cs|Discard|1
@@ -348,7 +348,6 @@ Contracts/Clock.cs|NullableValue|32
 Contracts/Clock.cs|UnknownMember|7
 Contracts/Common.cs|NullableValue|6
 Contracts/Common.cs|UnknownMember|6
-Contracts/ConstructionActivities.cs|Fact|1
 Contracts/CoupledFood.cs|Fact|11
 Contracts/CoupledForecast.cs|Fact|1
 Contracts/FoodActivities.cs|Fact|4
@@ -797,7 +796,7 @@ Policy/ForecastRequirements.cs|Fact|4
 Policy/ForecastResearchWork.cs|Fact|11
 Policy/ForecastResiduals.cs|Fact|4
 Policy/ForecastResiduals.cs|NullableValue|8
-Policy/ForecastRoofConsequences.cs|Fact|35
+Policy/ForecastRoofConsequences.cs|Fact|33
 Policy/ForecastServiceInvestments.cs|Fact|22
 Policy/ForecastShelter.cs|Fact|26
 Policy/ForecastSkill.cs|Fact|64
@@ -1139,7 +1138,7 @@ Policy/RoomRole.cs|Discard|1
 Policy/Rooms.cs|Fact|1
 Policy/RoomsFamily.cs|Fact|17
 Policy/Rounds.cs|Discard|1
-Policy/Rounds.cs|Fact|180
+Policy/Rounds.cs|Fact|179
 Policy/Rounds.cs|Unknown|6
 Policy/RoundsImmediate.cs|Fact|1
 Policy/RoundsReviewFacts.cs|Fact|7

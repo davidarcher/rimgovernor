@@ -56,14 +56,14 @@ public sealed class WorshipCreditTests
             Rituals = [.. rituals.Select((_, i) => new HeldRitual { Id = "Ritual_" + i, Pattern = "Pattern" + i })],
         });
 
-    private static PlannedRoomPrediction Prediction(int cells = 4, double impressiveness = 30, string role = "WorshipRoom") =>
-        new("1", "WoodLog", role, impressiveness, Known(0), cells, 0, false) { Terrains = [new(["Floor"])] };
+    private static PlannedRoomPrediction Prediction(int cells = 4, double impressiveness = 30) =>
+        PlannedRoomPredictionTests.Closed("1", "WoodLog", "WorshipRoom", impressiveness, 0, cells, 0, false) with { Terrains = [new(["Floor"])] };
 
-    private static ForecastCoupledContext Context(WorshipFacts worship, PlannedRoomPrediction? prediction = null) =>
+    private static ForecastCoupledContext Context(WorshipFacts worship) =>
         ForecastValueTests.Context(ForecastValueTests.Pawn()) with
         {
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Worship },
-            Closures = [new(1, "WoodLog", [new(1, 1)], [], [], prediction ?? Prediction())],
+            Closures = [new(1, "WoodLog", [new(1, 1)], [], [], Prediction())],
             LayoutRooms = new Dictionary<int, PlannedRoom> { [1] = new() { Id = 1, Role = PlannedRole.Worship } },
             InvestmentHorizonDays = Horizon,
             Worship = worship,
@@ -147,13 +147,11 @@ public sealed class WorshipCreditTests
     }
 
     [Fact]
-    public void ARequirementThePlanCannotPredictOrAnUnreadPredictionIsUnassessed()
+    public void ARequirementThePlanCannotPredictIsUnassessed()
     {
         var unread = Context(WorshipRules.FactsOf(Ideo(Missing() with { Unread = ["RoomRequirement_Modded"] })));
         Assert.Contains("worship_credit_unassessed:1", Ledger(unread).Findings);
         Assert.Empty(Credits(Ledger(unread)));
-        var prediction = Context(WorshipRules.FactsOf(Ideo(Missing())), Prediction(role: ""));
-        Assert.Contains("worship_credit_unassessed:1", Ledger(prediction).Findings);
         // So is a ritual whose outcome effect is not drawn from quality.
         var worker = Gathering with { Outcome = new RitualOutcomeModel { Unread = "RitualOutcomeEffectWorker_Modded" } };
         Assert.Contains("worship_credit_unassessed:1", Ledger(Context(WorshipRules.FactsOf(Ideo(Missing(), worker)))).Findings);

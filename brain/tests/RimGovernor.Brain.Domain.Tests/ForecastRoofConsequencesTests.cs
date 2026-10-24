@@ -71,7 +71,7 @@ public sealed class ForecastRoofConsequencesTests
             PlannedSites = Known(new PlannedSiteFacts { Sites = [Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30)], Routes = EquatableArray.From(cells
                 .SelectMany(a => cells.Where(b => a != b).Select(b => new CoupledRoute("pawn", a, b, Known(1d))))
                 .Concat(cells.Select(b => new CoupledRoute("pawn", b, b, Known(1d)) { FromStart = true }))) }),
-            PlannedRoomPredictions = Known<EquatableArray<PlannedRoomPrediction>>([prediction]),
+            PlannedRoomPredictions = [prediction],
             ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
             ForecastObserved = facts.ForecastObserved with
             {
@@ -89,7 +89,7 @@ public sealed class ForecastRoofConsequencesTests
     }
 
     private static PlannedRoomPrediction Closed(string role, int stage)
-        => new("1", "WoodLog", role, 30d, Known(stage), 1, 1, false) { Beds = ["bed"] };
+        => PlannedRoomPredictionTests.Closed("1", "WoodLog", role, 30d, stage, 1, 1, false) with { Beds = ["bed"] };
 
     /// <summary>The pawn's mood targets at the horizon over the feasible schedules of the full sleep and the given sites' roots.</summary>
     private static double[] MoodAtHorizon(RoundsFacts facts, params string[] sites)
@@ -133,23 +133,6 @@ public sealed class ForecastRoofConsequencesTests
     }
 
     [Fact]
-    public void AnUnknownPredictedStageLeavesTheOwnersMoodUnassessed()
-    {
-        var facts = Review(Closed("Bedroom", 2) with { Stage = default });
-        var candidates = facts.CoupledAlternatives!;
-        var full = candidates.Context.NeedTasks.Where(n => n.Kind == "rest").OrderByDescending(n => n.Gain.Value).First();
-        var roots = candidates.Alternatives.Where(c => c.ActivityCompletions.SequenceEqual([full.Task])
-            || (c.Id.StartsWith(Wall + "/composition/", StringComparison.Ordinal) || c.Id.StartsWith(Door + "/composition/", StringComparison.Ordinal))
-            && !c.Id.Contains("/after/", StringComparison.Ordinal)).ToArray();
-        var forecast = ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), Horizon / GameTime.TicksPerDay, facts, 
-            new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new() { Add = EquatableArray.From(roots) }));
-        var closing = forecast.Proposed.Coupled!.Alternatives.Where(a => a.Feasible == Known(true) && a.PlannedRooms.Any(r => r.CompletedSites.Count == 2)
-            && a.Plan.Allocations.Where(x => x.Activity == full.Task).All(x => a.Plan.Allocations.Where(s => candidates.Context.PlannedSites.Any(p => p.Finishes.Contains(s.Activity))).All(s => s.End <= x.End)));
-        Assert.All(closing, a => Assert.Contains(a.Needs["pawn"].Findings, f => f.StartsWith("sleep_room_stage_unknown:", StringComparison.Ordinal)));
-        Assert.All(closing, a => Assert.Null(a.Needs["pawn"].Mood));
-    }
-
-    [Fact]
     public void ARenewalEndsTheObservedSleepMemoryAtTheWake()
     {
         // An observed SleptOutside with half a day left is ended at the wake and replaced by the bedroom thought.
@@ -167,7 +150,7 @@ public sealed class ForecastRoofConsequencesTests
     }
 
     private static ForecastClosedRoom Room(double closedAt, double roofedAt, int open = 4)
-        => new([Inside],new("1", "WoodLog", "Bedroom", 30d, Known(2), 4, open, false), closedAt, roofedAt);
+        => new([Inside],PlannedRoomPredictionTests.Closed("1", "WoodLog", "Bedroom", 30d, 2, 4, open, false), closedAt, roofedAt);
 
     [Fact]
     public void ForAPawnWhoNeedsTheOutdoorsAPlannedRoofIsACost()
@@ -258,8 +241,8 @@ public sealed class ForecastRoofConsequencesTests
     public void ABenchInAnUnclosedPlannedRoomGetsAFasterClosureConditionalVariant()
     {
         var closure = new ForecastPlannedClosure(1, "WoodLog", [Inside], [Wall, Door], [],
-            new("1", "WoodLog", "Workshop", 10d, Known(1), 4, 4, false)
-            { Benches = [new("bench", true), new("indoor-bench", false)] });
+            PlannedRoomPredictionTests.Closed("1", "WoodLog", "Workshop", 10d, 1, 4, 4, false)
+            with { Benches = [new("bench", true), new("indoor-bench", false)] });
         var realized = new[]
         {
             new ForecastPlannedSite(Wall, 1, "WoodLog", ["wall/deliver", "wall/finish"], ["wall/finish"]),

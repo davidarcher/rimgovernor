@@ -41,10 +41,10 @@ public sealed record BedroomGainFacts
             .GroupBy(m => m.Id.Value, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count() == 1 ? g.Single().Thoughts : default, StringComparer.Ordinal),
         Breaks = facts.MoodBreak,
         WellbeingWeight = ForecastValuePolicy.For(facts.Preferences).WellbeingWeight,
-        PlannedStages = (facts.PlannedRoomPredictions.TryGetValue(out var rows) ? rows : [])
+        PlannedStages = facts.PlannedRoomPredictions
             .Where(r => int.TryParse(r.Room, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
             .GroupBy(r => int.Parse(r.Room, System.Globalization.CultureInfo.InvariantCulture))
-            .ToDictionary(g => g.Key, g => g.Select(r => r.Stage).Distinct().Count() == 1 ? g.First().Stage : default),
+            .ToDictionary(g => g.Key, g => g.Select(r => r.Stage).Distinct().Count() == 1 ? Known(g.First().Stage) : default),
     };
 
     /// <summary>The <see cref="ForecastHousing.BedroomGain"/> of moving <paramref name="pawn"/> into a bedroom (or, with <paramref name="barracks"/>, a barracks) at <paramref name="stage"/>; null when unread.</summary>
@@ -289,10 +289,6 @@ public static class ForecastHousing
         return stages.FirstOrDefault(r => r.Role == thought && r.Stage == at)?.Offset;
     }
 
-    /// <summary>A planned room's predicted Impressiveness stage; throws a RequiredFactException when the prediction left it unread.</summary>
-    internal static int PlannedStage(PlannedRoomPrediction prediction) =>
-        prediction.Stage.TryGetValue(out var stage) ? stage : throw new RequiredFactException("planned room impressiveness stage");
-
     /// <summary>
     /// The capability-days a mood delta gains a day: WellbeingWeight times delta / 100, plus the break days a day the
     /// target mood shifted by delta / 100 loses fewer than the unshifted one over the tier-1 horizon
@@ -404,7 +400,7 @@ public static class ForecastHousing
     {
         if (RestRate(pawn) is not { } rate) return new(pawn, 0, 0, null, null) { Sleeps = false };
         if (SleepNow(pawn) is not { } now
-            || !BedroomMoodDelta(pawn, closure.Prediction.Stage, c.ObservedThoughts.GetValueOrDefault(pawn.Pawn), barracks).TryGetValue(out var room)) return null;
+            || !BedroomMoodDelta(pawn, Known(closure.Prediction.Stage), c.ObservedThoughts.GetValueOrDefault(pawn.Pawn), barracks).TryGetValue(out var room)) return null;
         var (ground, comfort, gain) = planned is not null ? (planned.Ground, planned.Comfort, rate.GainPerTickPerEffectiveness * planned.RestEffectiveness)
             : now.Read.Bed.Length != 0 && closure.Prediction.Beds.Contains(now.Read.Bed) ? (now.Read.Ground, now.Read.Comfort, now.Read.GainPerTick)
             : throw new RequiredFactException("planned bed of room " + closure.Room.ToString(System.Globalization.CultureInfo.InvariantCulture));
@@ -433,9 +429,9 @@ public static class ForecastHousing
     /// less the one the colonist has now.</item>
     /// </list>
     /// A thought the colonist cannot get (its rows all 0: no title, no trait) changes nothing, and a colonist with none of them
-    /// is 0 without its thoughts read. For a Greedy or Jealous colonist, unread observed thoughts, closed room, stage or stage row
-    /// throws <see cref="RequiredFactException"/>; for a title thought alone, unread thoughts or closed room leave the closure out
-    /// (unassessed, the #3807 path #3835 retires).
+    /// is 0 without its thoughts read. For a Greedy or Jealous colonist, unread observed thoughts or stage row throws
+    /// <see cref="RequiredFactException"/>; for a title thought alone, unread thoughts leave the closure out (unassessed, the
+    /// #3807 path #3835 retires).
     /// </summary>
     private static Dictionary<(int, string), (string, double)> RoyalDeltasOf(ForecastCoupledContext c, Dictionary<string, NeedsForecastPawn> pawns)
     {
@@ -452,7 +448,7 @@ public static class ForecastHousing
             var jealous = role == PlannedRole.Suite && Gets(JealousRole);
             var traits = greedy || jealous;
             if (!traits && !roles.Any(Gets)) { royal[key] = (need.Pawn, 0); continue; }
-            // A trait thought's colonist needs its thoughts and the closed room read (#3650 P10 as revised: no unassessed in new
+            // A trait thought's colonist needs its thoughts read (#3650 P10 as revised: no unassessed in new
             // code); the title path's unassessed is #3835's to remove.
             if (!c.ObservedThoughts.GetValueOrDefault(need.Pawn).TryGetValue(out var thoughts))
             {
@@ -464,16 +460,11 @@ public static class ForecastHousing
             var relieved = -rows.Where(r => r.Stage == 0 && roles.Contains(r.Role, StringComparer.Ordinal) && thoughts.Any(t => t.Def == r.Thought))
                 .DistinctBy(r => r.Thought).Sum(r => r.Offset);
             if (relieved == 0 && !traits) { royal[key] = (need.Pawn, 0); continue; }
-            if (closure.Prediction.Role.Length == 0)
-            {
-                if (traits) throw new RequiredFactException("planned room prediction");
-                continue;
-            }
             var impressiveness = closure.Prediction.Impressiveness;
             var delta = closure.Prediction.Cells >= need.MinArea && Math.Round(impressiveness) >= need.MinImpressiveness ? relieved : 0;
             if (greedy)
             {
-                var stage = PlannedStage(closure.Prediction);
+                var stage = closure.Prediction.Stage;
                 var next = Defs(GreedyRole).Select(d => rows.FirstOrDefault(s => s.Thought == d && s.Role == GreedyRole && s.Stage == stage + 1)).ToArray();
                 if (next.Any(s => s is null)) throw new RequiredFactException("greedy thought stage");
                 delta += next.Sum(s => s!.Offset) - Now(GreedyRole);

@@ -66,14 +66,13 @@ public static class KitchenCredits
 
     /// <summary>
     /// The poison chance of planned room <paramref name="room"/> with <paramref name="runs"/> standing in it, from its closure
-    /// prediction in <paramref name="stuff"/>, else its first by stuff; null when it has none, it is unread (Role "") or the
-    /// filth model is unread.
+    /// prediction in <paramref name="stuff"/>, else its first by stuff; null when it has none or the filth model is unread.
     /// </summary>
     private static double? Chance(ForecastCoupledContext context, int room, string stuff, IEnumerable<FilthRuns> runs)
     {
         var predictions = context.Closures.Where(c => c.Room == room).OrderBy(c => c.Stuff, StringComparer.Ordinal).ToArray();
         var closure = predictions.FirstOrDefault(c => c.Stuff == stuff) ?? predictions.FirstOrDefault();
-        if (closure is null || closure.Prediction.Role.Length == 0 || !PlannedRoomCleanlinessRules.Read(context.Filth)) return null;
+        if (closure is null || !PlannedRoomCleanlinessRules.Read(context.Filth)) return null;
         return PlannedRoomCleanlinessRules.FoodPoisonChance(closure.Prediction, runs, context.Filth);
     }
 }

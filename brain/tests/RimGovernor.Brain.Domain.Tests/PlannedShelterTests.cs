@@ -173,7 +173,7 @@ public sealed class PlannedShelterTests
         {
             PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Barracks)] }),
             PlannedShelters = [facts.PlannedShelters[0] with { Role = PlannedRole.Barracks }],
-            PlannedRoomPredictions = Known(EquatableArray.From([new PlannedRoomPrediction("1", "WoodLog", "Barracks", 30d, Known(0), 1, 0, false)])),
+            PlannedRoomPredictions = EquatableArray.From([PlannedRoomPredictionTests.Closed("1", "WoodLog", "Barracks", 30d, 0, 1, 0, false)]),
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = [sleeper] } },
         };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(barracks, Horizon)!.Priced();
@@ -216,7 +216,7 @@ public sealed class PlannedShelterTests
         {
             PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Barracks)] }),
             PlannedShelters = [facts.PlannedShelters[0] with { Role = PlannedRole.Barracks }],
-            PlannedRoomPredictions = Known(EquatableArray.From([new PlannedRoomPrediction("1", "WoodLog", "Barracks", 30d, Known(0), 1, 0, false)])),
+            PlannedRoomPredictions = EquatableArray.From([PlannedRoomPredictionTests.Closed("1", "WoodLog", "Barracks", 30d, 0, 1, 0, false)]),
             ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = [sleeper] } },
         };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(barracks, Horizon)!.Priced();

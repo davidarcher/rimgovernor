@@ -39,7 +39,7 @@ public sealed class RoyalRoomCreditTests
         {
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = role },
             Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [],
-                new("1", "WoodLog", "Bedroom", impressiveness, Known(3), cells, 0, false))],
+                PlannedRoomPredictionTests.Closed("1", "WoodLog", "Bedroom", impressiveness, 3, cells, 0, false))],
             RoyalRooms = need is null ? new Dictionary<int, RoyalRoomNeed>() : new Dictionary<int, RoyalRoomNeed> { [1] = need },
             InvestmentHorizonDays = Horizon,
             ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>> { ["pawn"] = observed },
@@ -197,7 +197,7 @@ public sealed class RoyalRoomCreditTests
         {
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Suite },
             Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [],
-                new("1", "WoodLog", "Bedroom", impressiveness, Known(stage), 49, 0, false))],
+                PlannedRoomPredictionTests.Closed("1", "WoodLog", "Bedroom", impressiveness, stage, 49, 0, false))],
             RoyalRooms = new Dictionary<int, RoyalRoomNeed> { [1] = need },
             InvestmentHorizonDays = Horizon,
             ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>> { ["pawn"] = observed },
@@ -265,13 +265,10 @@ public sealed class RoyalRoomCreditTests
     }
 
     [Fact]
-    public void AGreedyOccupantsUnreadThoughtsOrRoomAreARequiredFact()
+    public void AGreedyOccupantsUnreadThoughtsAreARequiredFact()
     {
         var pawn = Traited(greedy: true, jealous: false);
         Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Serving(0, 0.06), TraitContext(pawn, 55, 4, Untitled, default), Day));
-        var unread = TraitContext(pawn, 55, 4, Untitled, Known(EquatableArray.From([new MoodThought("Greedy", -6)])));
-        unread = unread with { Closures = [unread.Closures[0] with { Prediction = unread.Closures[0].Prediction with { Stage = default } }] };
-        Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Serving(0, 0.06), unread, Day));
     }
 
     [Fact]

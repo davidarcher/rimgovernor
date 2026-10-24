@@ -596,7 +596,7 @@ poisoning is priced as the ledger prices an expected case (`ForecastValue.Poison
 - *Butchery*, under `butchery/<room>/<kitchen>`: per planned kitchen, its chance with the butchery's filth runs added to its
   own less its chance with its own, times the kitchen's meals and the price.
 
-A kitchen whose layout room, prediction (`Role` "") or the filth model is unread, with no bench cooking now (a fresh colony)
+A kitchen whose layout room, prediction or the filth model is unread, with no bench cooking now (a fresh colony)
 or cooking benches in rooms of different chances, or whose price is unread is named `kitchen_credit_unassessed:<room>`
 (`butchery_credit_unassessed:<room>`) and earns nothing. The dirt pawns track in is not priced (the layout's traffic is
 unknown), nor a floor laid in a standing kitchen with no ring left (it is not a served room).

@@ -41,7 +41,7 @@ public sealed class BedroomCreditTests
         {
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom },
             Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [],
-                new("1", "WoodLog", "Bedroom", 30d, Known(bedroomStage), 4, 0, false))],
+                PlannedRoomPredictionTests.Closed("1", "WoodLog", "Bedroom", 30d, bedroomStage, 4, 0, false))],
             BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = ["pawn"] },
             InvestmentHorizonDays = Horizon,
             PlannedBeds = SleepFixtures.Beds(1, 1), Thermal = SleepFixtures.Outdoors(),
@@ -178,7 +178,7 @@ public sealed class BedroomCreditTests
         {
             Needs = new() { Pawns = EquatableArray.From(pawns) },
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Barracks },
-            Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [], new("1", "WoodLog", "Barracks", 30d, Known(stage), 25, 0, false))],
+            Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [], PlannedRoomPredictionTests.Closed("1", "WoodLog", "Barracks", 30d, stage, 25, 0, false))],
             BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = EquatableArray.From(ids) },
             PlannedBeds = new Dictionary<int, IReadOnlyList<SleepingBedFacts?>> { [1] = [.. ids.Select(_ => new SleepingBedFacts("Bed", "WoodLog", false, 1, .75))] },
             ComfortCurve = curve, Thermal = SleepFixtures.Outdoors(), InvestmentHorizonDays = Horizon,

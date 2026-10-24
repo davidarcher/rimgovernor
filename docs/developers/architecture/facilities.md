@@ -337,7 +337,7 @@ model after the layout: `PlannedRoomCleanlinessRules.Steady` adds the units of t
 standing at once (`LayoutFilthRules.Standing`, the `Residual` above) times the filth def's
 `Cleanliness` over the room's cells to the native prediction's `Cleanliness`, which counts
 the room's planned floor ([planned room prediction](../contracts/forecast-contracts.md#planned-room-prediction-read)).
-A None room keeps the stat's roomless score; an unread prediction or filth model is a
+A None room keeps the stat's roomless score; an unread filth model is a
 `RequiredFactException`. The room roles that value cleanliness read it: the kitchen and butchery
 credits (#3802, `PlannedRoomCleanlinessRules.FoodPoisonChance`, [forecast value](forecast-value.md)) and their siblings.
 The tiler also keeps the group's meals a day on its room (`PlannedRoom.Meals`, #3802).

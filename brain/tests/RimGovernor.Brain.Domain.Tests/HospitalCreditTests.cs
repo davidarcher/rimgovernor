@@ -58,16 +58,15 @@ public sealed class HospitalCreditTests
     };
 
     private static PlannedRoomPrediction Prediction(string role = ForecastHospital.HospitalRole, double cleanliness = 1) =>
-        new("1", "WoodLog", role, 40, Known(2), 12, 0, false) { Cleanliness = cleanliness };
+        PlannedRoomPredictionTests.Closed("1", "WoodLog", role, 40, 2, 12, 0, false) with { Cleanliness = cleanliness };
 
-    private static ForecastCoupledContext Context(double raidsPerDay, double illnessPerDay = 0, PlannedRoomPrediction? prediction = null,
-        NeedsForecastPawn? pawn = null)
+    private static ForecastCoupledContext Context(double raidsPerDay, double illnessPerDay = 0, NeedsForecastPawn? pawn = null)
     {
         var harm = ForecastValueTests.RaidDay(raidsPerDay: raidsPerDay) with { Illness = Flu(illnessPerDay) };
         return ForecastValueTests.Context(pawn ?? Patient(), Tables(), harm, new Dictionary<string, EquatableArray<GearOption>> { ["pawn"] = ForecastValueTests.Cloth }) with
         {
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Hospital },
-            Closures = [new(1, "WoodLog", [new(1, 1)], [], [], prediction ?? Prediction())],
+            Closures = [new(1, "WoodLog", [new(1, 1)], [], [], Prediction())],
             LayoutRooms = new Dictionary<int, PlannedRoom> { [1] = new() { Id = 1, Role = PlannedRole.Hospital } },
             InvestmentHorizonDays = Horizon,
             Filth = Filth,
@@ -134,10 +133,8 @@ public sealed class HospitalCreditTests
     }
 
     [Fact]
-    public void AnUnreadCleanlinessOrTendingThrows()
+    public void AnUnreadTendingOrOwnedRoomThrows()
     {
-        // An unread prediction (Role "") leaves the hospital's cleanliness, so its infection factor, unknown.
-        Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Served(0.05), Context(1, prediction: Prediction(role: "")), Day));
         Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Served(0.05), Context(1) with { Tending = null }, Day));
         Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Served(0.05), Context(1, pawn: Patient() with { OwnedBedRoom = null }), Day));
     }

@@ -22,16 +22,11 @@ public static class PlannedRoomCleanlinessRules
 {
     /// <summary>
     /// The planned room's Cleanliness with <paramref name="runs"/> (a room's <see cref="PlannedRoom.FilthRuns"/>, or more)
-    /// standing in it. A None room (map edge, over 60 regions) has the stat's roomless score whatever stands in it. An
-    /// unread prediction (Role "") throws a RequiredFactException naming planned_room_prediction and the room; runs with
-    /// an unread filth model, filth_model.
+    /// standing in it. A None room (map edge, over 60 regions) has the stat's roomless score whatever stands in it. Runs
+    /// with an unread filth model throw a RequiredFactException naming filth_model.
     /// </summary>
     public static PlannedRoomCleanliness Steady(PlannedRoomPrediction prediction, IEnumerable<FilthRuns> runs, FilthModel filth)
     {
-        if (prediction.Role.Length == 0)
-        {
-            throw new RequiredFactException("planned_room_prediction:" + prediction.Room);
-        }
         var clean = prediction.Cleanliness;
         if (prediction.Role == Wire.Name(RoomRole.None) || runs.All(r => !(r.Runs > 0)))
         {

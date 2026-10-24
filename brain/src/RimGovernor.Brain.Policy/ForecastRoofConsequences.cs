@@ -70,12 +70,11 @@ public static class ForecastRoofConsequences
     /// <summary>
     /// The closed-room predictions of a round's planned rooms (#3339): one per prediction row, with the room's region
     /// cells and its ring (WallIn and DoorIn in the row's stuff, or stuff-less) and RoofIn site ids, and its placed ring
-    /// sites with their finishes (<paramref name="finishes"/>, by site id, #3537). None when the predictions are unknown.
+    /// sites with their finishes (<paramref name="finishes"/>, by site id, #3537).
     /// </summary>
     internal static EquatableArray<ForecastPlannedClosure> PlannedClosuresOf(IEnumerable<PlannedBuildSite> sites, IEnumerable<PlannedRoom> rooms,
-        Fact<EquatableArray<PlannedRoomPrediction>> predictions, IEnumerable<ConstructionSite> placed, IReadOnlyDictionary<string, EquatableArray<string>> finishes)
+        EquatableArray<PlannedRoomPrediction> rows, IEnumerable<ConstructionSite> placed, IReadOnlyDictionary<string, EquatableArray<string>> finishes)
     {
-        if (!predictions.TryGetValue(out var rows)) return [];
         var standing = placed.ToList();
         var byRoom = sites.Where(s => s.Room > 0 && s.Zone.Length == 0).ToLookup(s => s.Room);
         var shapes = rooms.Where(r => r.Id > 0).GroupBy(r => r.Id).ToDictionary(g => g.Key, g => g.First());
@@ -138,7 +137,6 @@ public static class ForecastRoofConsequences
         if (roofDone) state = state with { Roofed = Known(true), ThickRoof = Known(false), NaturalRoof = Known(false) };
         if (room.ClosedAt > time) return state;
         var prediction = room.Prediction;
-        if (prediction.Cells <= 0) return state with { OutdoorTemperature = default, PsychologicallyOutdoors = default };
         var open = roofDone ? 0 : prediction.OpenRoofCells;
         return state with
         {
@@ -149,7 +147,7 @@ public static class ForecastRoofConsequences
     }
 
     private static bool ClosedPsychologicallyOutdoors(PlannedRoomPrediction prediction, int open)
-        => open >= ForecastRoofConsequences.PsychologicallyOutdoorsOpenRoofCells || prediction.TouchesMapEdge && prediction.Cells > 0
+        => open >= ForecastRoofConsequences.PsychologicallyOutdoorsOpenRoofCells || prediction.TouchesMapEdge
             && open / (double)prediction.Cells >= ForecastRoofConsequences.PsychologicallyOutdoorsEdgeOpenFraction;
 
     /// <summary>
@@ -186,7 +184,7 @@ public static class ForecastRoofConsequences
             if (!continuing && slept < ForecastRoofConsequences.BedThoughtsEarliestTicks) continue;
             if (slept < ForecastRoofConsequences.BedThoughtsLatestTicks) { Unknown("sleep_bed_thoughts_onset_unassessed:" + rest.Id); continue; }
             var closed = rooms.FirstOrDefault(r => r.ClosedAt <= wake && r.Prediction.Beds.Contains(bed.Id));
-            var (role, stage) = closed is null ? (bed.Bed.Role, bed.Bed.Stage) : (closed.Prediction.Role, closed.Prediction.Stage);
+            var role = closed is null ? bed.Bed.Role : closed.Prediction.Role;
             var outside = CellStateAt(bed.Cell, bed.Location, wake, rooms).PsychologicallyOutdoors;
             var gains = new List<NeedMemory>();
             if (!outside.TryGetValue(out var isOutside)) { Unknown("sleep_room_outdoors_unknown:" + rest.Id); continue; }
@@ -201,7 +199,9 @@ public static class ForecastRoofConsequences
                 var thought = role == BedroomRole ? "slept_in_bedroom" : role == BarracksRole ? "slept_in_barracks" : "";
                 if (thought.Length != 0)
                 {
-                    if (!stage.TryGetValue(out var index)) { Unknown("sleep_room_stage_unknown:" + rest.Id); continue; }
+                    var index = 0;
+                    if (closed is not null) index = closed.Prediction.Stage;
+                    else if (!bed.Bed.Stage.TryGetValue(out index)) { Unknown("sleep_room_stage_unknown:" + rest.Id); continue; }
                     if (stages.FirstOrDefault(r => r.Role == thought && r.Stage == index) is not { } row) { Unknown("sleep_room_stage_unpriced:" + rest.Id); continue; }
                     gains.Add(Memory(row));
                 }
@@ -419,7 +419,7 @@ public static class ForecastRoofConsequences
         foreach (var closure in closures.OrderBy(c => c.Room).ThenBy(c => c.Stuff, StringComparer.Ordinal))
         {
             var benches = closure.Prediction.Benches.Where(b => b.PsychologicallyOutdoors).Select(b => b.Bench).ToHashSet(StringComparer.Ordinal);
-            if (benches.Count == 0 || closure.Ring.Count == 0 || closure.Prediction.Cells <= 0
+            if (benches.Count == 0 || closure.Ring.Count == 0
                 || ClosedPsychologicallyOutdoors(closure.Prediction, closure.Prediction.OpenRoofCells)) continue;
             var firsts = closure.Ring.Select(site => realized.FirstOrDefault(p => p.Site == site)?.Finishes is { Count: > 0 } f ? f[0] : null).ToArray();
             if (firsts.Any(f => f is null)) continue;

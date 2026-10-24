@@ -43,7 +43,7 @@ public sealed class DeathrestCreditTests
             Needs = new() { Pawns = [pawn], Deathrest = defs ?? Defs },
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.DeathrestChamber },
             Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [],
-                new("1", "WoodLog", "DeathrestChamber", impressiveness, Known(2), 12, 0, false))],
+                PlannedRoomPredictionTests.Closed("1", "WoodLog", "DeathrestChamber", impressiveness, 2, 12, 0, false))],
             DeathrestFurniture = furniture,
             InvestmentHorizonDays = Horizon,
         };
@@ -122,7 +122,7 @@ public sealed class DeathrestCreditTests
         {
             Needs = new() { Pawns = [a, b], Deathrest = Defs },
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.DeathrestChamber },
-            Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [], new("1", "WoodLog", "DeathrestChamber", 35, Known(2), 12, 0, false))],
+            Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [], PlannedRoomPredictionTests.Closed("1", "WoodLog", "DeathrestChamber", 35, 2, 12, 0, false))],
             DeathrestFurniture = [new("DeathrestCasket", 1), new("DeathrestAccelerator", 3), new("HemogenAmplifier", 1)],
             InvestmentHorizonDays = Horizon,
         };

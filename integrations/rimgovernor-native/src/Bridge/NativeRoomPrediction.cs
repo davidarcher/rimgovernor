@@ -22,7 +22,8 @@ namespace HomeBridge.BridgeTools;
 /// not in the stats Impressiveness reads, and in the reported Terrains (the distinct interior terrains with their tags,
 /// #3808). The planned furniture (#3840) stands in the closed room: counted once in Wealth, Beauty and Cleanliness, its
 /// cells walkable only in Space unless it is standable, and an impassable piece's cells out of the room; the role
-/// workers still list only observed things. An unassessed row (empty role) reports impressiveness 0, the map-edge row the stat's roomlessScore. The
+/// workers still list only observed things. The map-edge row reports the stats' roomlessScore. A shape with no passable
+/// interior cell closes no room and has no row; a piece, stuff or game member that cannot be read throws (#3834). The
 /// unregistered room is never added to the map's room lookup and touches no game state.
 /// </summary>
 internal static class NativeRoomPrediction
@@ -49,34 +50,43 @@ internal static class NativeRoomPrediction
     private const float SpaceStandable = 1.4f, SpaceWalkable = 0.5f, SpaceCap = 350f;
     private const float RoofedFilthBeautyFactor = 0.3f, PollutedTerrainBeauty = -1f;
 
+    /// <summary>One row per shape whose ring closes a room; a shape whose interior has no passable cell closes none and has no row.</summary>
     internal static EquatableArray<Obs.PlannedRoomPrediction> Predict(Map map, EquatableArray<Obs.PlannedRoomShape> shapes)
     {
         var rows = new List<Obs.PlannedRoomPrediction>();
-        foreach (var shape in shapes) rows.Add(Predict(map, shape));
+        foreach (var shape in shapes)
+            if (Predict(map, shape) is { } row) rows.Add(row);
         return EquatableArray.From(rows);
     }
 
     private sealed record Piece(IntVec3 Cell, ThingDef Def, ThingDef? Stuff);
 
-    private static Obs.PlannedRoomPrediction Predict(Map map, Obs.PlannedRoomShape shape)
+    // A piece's stuff: none for a def made from none, else its own, else the shape's (a stuff-less ring site stands in every
+    // ring stuff); throws when a stuffed def names no loaded stuff.
+    private static ThingDef? StuffOf(ThingDef def, string own, Obs.PlannedRoomShape shape)
+    {
+        if (!def.MadeFromStuff) return null;
+        var name = string.IsNullOrEmpty(own) ? shape.Stuff : own;
+        return DefDatabase<ThingDef>.GetNamedSilentFail(name)
+            ?? throw new InvalidOperationException($"planned room {shape.Room}: {def.defName} needs a stuff, got '{name}'");
+    }
+
+    private static Obs.PlannedRoomPrediction? Predict(Map map, Obs.PlannedRoomShape shape)
     {
         var pieces = new Dictionary<IntVec3, Piece>();
         var floors = new Dictionary<IntVec3, TerrainDef>();
-        var unknown = false;
         foreach (var p in shape.Pieces)
         {
             var cell = new IntVec3(p.Cell.X, 0, p.Cell.Z);
-            if (!cell.InBounds(map)) { unknown = true; continue; }
+            if (!cell.InBounds(map)) throw new InvalidOperationException($"planned room {shape.Room}: piece {p.Definition} at {cell} is off the map");
             if (DefDatabase<ThingDef>.GetNamedSilentFail(p.Definition) is not { } def)
             {
-                // A planned floor (a FloorIn site's terrain); a name that is neither def leaves the row unread.
-                if (DefDatabase<TerrainDef>.GetNamedSilentFail(p.Definition) is { } floor) floors[cell] = floor;
-                else unknown = true;
+                // A planned floor (a FloorIn site's terrain); a name that is neither def is no piece.
+                floors[cell] = DefDatabase<TerrainDef>.GetNamedSilentFail(p.Definition)
+                    ?? throw new InvalidOperationException($"planned room {shape.Room}: piece {p.Definition} names no ThingDef or TerrainDef");
                 continue;
             }
-            var stuff = string.IsNullOrEmpty(p.Stuff) ? null : DefDatabase<ThingDef>.GetNamedSilentFail(p.Stuff);
-            if (def.MadeFromStuff && stuff == null) { unknown = true; continue; }
-            pieces[cell] = new(cell, def, stuff);
+            pieces[cell] = new(cell, def, StuffOf(def, p.Stuff, shape));
         }
         // The planned furniture (#3840), standing in the closed room: its occupied rect from its anchor, size and rotation.
         // An impassable piece's cells leave the room as a ring piece's do; a piece a pawn cannot stand on (a bed) makes its
@@ -86,9 +96,9 @@ internal static class NativeRoomPrediction
         var furnitureUnstandable = new HashSet<IntVec3>();
         foreach (var f in shape.Furniture)
         {
-            if (DefDatabase<ThingDef>.GetNamedSilentFail(f.Definition) is not { } def) { unknown = true; continue; }
-            var stuff = string.IsNullOrEmpty(f.Stuff) ? null : DefDatabase<ThingDef>.GetNamedSilentFail(f.Stuff);
-            if (def.MadeFromStuff && stuff == null) { unknown = true; continue; }
+            var def = DefDatabase<ThingDef>.GetNamedSilentFail(f.Definition)
+                ?? throw new InvalidOperationException($"planned room {shape.Room}: furniture {f.Definition} names no ThingDef");
+            var stuff = StuffOf(def, f.Stuff, shape);
             var anchor = new IntVec3(f.Cell.X, 0, f.Cell.Z);
             furniture.Add(new(anchor, def, stuff));
             foreach (var c in GenAdj.OccupiedRect(anchor, new Rot4((int)f.Rotation), def.size))
@@ -148,16 +158,17 @@ internal static class NativeRoomPrediction
             .OrderBy(t => t.defName, StringComparer.Ordinal)
             .Select(t => new Obs.PlannedRoomTerrain(EquatableArray.From((t.tags ?? new List<string>()).OrderBy(s => s, StringComparer.Ordinal))))
             .ToList();
-        Obs.PlannedRoomPrediction Row(string role, double score, Fact<int> stage, double clean) =>
-            new(shape.Room, shape.Stuff, role, score, stage, cells.Count, openRoof, edge)
-                { Beds = EquatableArray.From(beds), Benches = EquatableArray.From(benches), Cleanliness = clean,
-                  Terrains = role.Length == 0 ? default : EquatableArray.From(terrains) };
+        Obs.PlannedRoomPrediction Row(string role, float score, double clean) =>
+            new(shape.Room, shape.Stuff, role, score, RoomStatDefOf.Impressiveness.GetScoreStageIndex(score), cells.Count, openRoof, edge)
+                { Beds = EquatableArray.From(beds), Benches = EquatableArray.From(benches), Cleanliness = clean, Terrains = EquatableArray.From(terrains) };
 
-        if (cells.Count == 0 || unknown) return Row("", 0, default, 0);
+        // No passable interior cell: closing the ring forms no room.
+        if (cells.Count == 0) return null;
         // Room.ProperRoom and Room.UpdateRoomStatsAndRole: no role nor stats at the map edge or over 60 regions, where
-        // Room.GetStat answers the stat's roomlessScore.
-        if (edge || regions > MaxRegionsForRole) return Row(RoomRoleDefOf.None.defName, RoomStatDefOf.Impressiveness.roomlessScore, default, RoomStatDefOf.Cleanliness.roomlessScore);
-        if (BeautyCellCurve?.GetValue(null) is not SimpleCurve curve) return Row("", 0, default, 0);
+        // Room.GetStat answers the stat's roomlessScore (and Room.GetStatScoreStage that score's stage).
+        if (edge || regions > MaxRegionsForRole) return Row(RoomRoleDefOf.None.defName, RoomStatDefOf.Impressiveness.roomlessScore, RoomStatDefOf.Cleanliness.roomlessScore);
+        var curve = BeautyCellCurve?.GetValue(null) as SimpleCurve
+            ?? throw new InvalidOperationException("RoomStatWorker_Beauty.CellCountCurve is not readable");
 
         // The furniture counts as contained buildings: once each in Wealth and Cleanliness, and in Beauty once, on its cell
         // over the terrain (CellBeauty counts a thing once, at the first of its cells).
@@ -171,18 +182,15 @@ internal static class NativeRoomPrediction
         var cleanliness = Cleanliness(map, cells, things, furnished, NoFloors);
         var floored = Cleanliness(map, cells, things, furnished, floors);
 
-        var room = Unregistered(map, things, edge);
-        if (room == null) return Row("", 0, default, 0);
+        var room = Unregistered(map, things, edge) ?? throw new InvalidOperationException("the unregistered Room/District/Region members are not readable");
         var stats = new DefMap<RoomStatDef, float>();
         stats[RoomStatDefOf.Wealth] = wealth; stats[RoomStatDefOf.Beauty] = beauty;
         stats[RoomStatDefOf.Space] = space; stats[RoomStatDefOf.Cleanliness] = cleanliness;
         RoomStats!.SetValue(room, stats); RoomDirty!.SetValue(room, false);
-        string role;
-        try { role = DefDatabase<RoomRoleDef>.AllDefs.MaxBy(d => d.Worker.GetScore(room))?.defName ?? ""; }
-        catch (Exception) { role = ""; }
-        RoomRole!.SetValue(room, DefDatabase<RoomRoleDef>.GetNamedSilentFail(role));
-        var impressiveness = RoomStatDefOf.Impressiveness.Worker.GetScore(room);
-        return Row(role, impressiveness, Fact.Known(RoomStatDefOf.Impressiveness.GetScoreStageIndex(impressiveness)), floored);
+        var role = DefDatabase<RoomRoleDef>.AllDefs.MaxBy(d => d.Worker.GetScore(room))
+            ?? throw new InvalidOperationException("no RoomRoleDef is loaded");
+        RoomRole!.SetValue(room, role);
+        return Row(role.defName, RoomStatDefOf.Impressiveness.Worker.GetScore(room), floored);
     }
 
     private static readonly Dictionary<IntVec3, TerrainDef> NoFloors = new();

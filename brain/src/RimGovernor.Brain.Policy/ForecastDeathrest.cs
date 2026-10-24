@@ -145,7 +145,6 @@ internal static class ForecastDeathrest
         var now = pawn.Deathrest!;
         var before = DeathrestShare(defs, now.Efficiency);
         var after = DeathrestShare(defs, efficiency);
-        if (prediction.Role.Length == 0) throw new RequiredFactException("closure prediction of deathrest chamber " + prediction.Room);
         var mood = Offset(pawn, pawn.Ascetic ? -1 : ChamberStage(defs, prediction.Impressiveness)) * (1 - after) - Offset(pawn, now.ChamberStage) * (1 - before);
         return new(pawn.Pawn, before - after, mood);
     }

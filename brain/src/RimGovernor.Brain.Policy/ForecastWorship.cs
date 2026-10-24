@@ -73,7 +73,7 @@ internal static class ForecastWorship
     /// </summary>
     internal static double? Delta(PlannedRoomPrediction prediction, PlannedRoom planned, WorshipFacts worship, FilthModel filth)
     {
-        if (prediction.Role.Length == 0 || worship.Need is not { } need) return null;
+        if (worship.Need is not { } need) return null;
         double delta = 0;
         foreach (var demand in worship.Demands.Where(d => d.Applies))
         {

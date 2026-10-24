@@ -130,7 +130,7 @@ internal static class PlannedRoomPredictionCase
             problems.Add($"role {prediction.Role}, room {room.Role}");
         }
 
-        if (prediction.Role.Length == 0 || actual is not double score || Math.Abs(prediction.Impressiveness - score) > 1e-3)
+        if (actual is not double score || Math.Abs(prediction.Impressiveness - score) > 1e-3)
         {
             problems.Add(string.Create(CultureInfo.InvariantCulture, $"impressiveness {prediction.Impressiveness}, room {actual}"));
         }

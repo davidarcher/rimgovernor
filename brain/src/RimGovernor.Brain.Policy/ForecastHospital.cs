@@ -155,22 +155,16 @@ internal static class ForecastHospital
 
     /// <summary>
     /// The mood delta of one patient-day in the hospital <paramref name="prediction"/> predicts (see the class summary). Throws when
-    /// the predicted stage, a thought stage row or the owned bed's room is unread.
+    /// a thought stage row or the owned bed's room is unread.
     /// </summary>
     internal static double MoodDelta(NeedsForecastPawn pawn, PlannedRoomPrediction prediction)
     {
-        if (prediction.Role.Length == 0)
-        {
-            throw new RequiredFactException("planned_room_prediction:" + prediction.Room);
-        }
-
         var stages = pawn.ThoughtStages;
         double Row(string role) => stages.FirstOrDefault(r => r.Role == role && r.Stage == 0)?.Offset ?? throw new RequiredFactException(role + " thought stage");
         var gained = 0.0;
         if (prediction.Role == HospitalRole)
         {
-            var stage = ForecastHousing.PlannedStage(prediction);
-            var rows = stages.Where(r => r.Role == PatientRole && r.Stage == stage).DistinctBy(r => r.Thought).ToArray();
+            var rows = stages.Where(r => r.Role == PatientRole && r.Stage == prediction.Stage).DistinctBy(r => r.Thought).ToArray();
             if (rows.Length == 0)
             {
                 throw new RequiredFactException(PatientRole + " thought stage");

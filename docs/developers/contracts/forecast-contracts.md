@@ -876,21 +876,24 @@ same read as the thermal read, for every enclosed unplaced planned room with rin
 sites, and every planned kitchen even with none (its cleanliness is priced, #3802; a
 ringless prediction owes no work), once per ring stuff (`PlannedRoomPredictionRequestOf`); nothing is capped.
 `ConstructionActivityRead.RoomPredictions` answers one `PlannedRoomPrediction` per
-shape:
+shape whose ring closes a room, read whole (#3834). A shape whose interior has no
+passable cell closes no room and has no row; a piece naming neither a `ThingDef` nor a
+`TerrainDef`, a piece off the map, a stuffed def with no loaded stuff (a stuff-less
+piece stands in the shape's stuff) or an unreadable game member fails the read:
 
 - `Role`: the game's `RoomRoleDef` with the highest `Worker.GetScore` over an
   unregistered room that lists the things the closed room would contain or touch;
-  `None` at the map edge or over 60 regions, "" when unknown.
+  `None` at the map edge or over 60 regions.
 - `Impressiveness` and `Stage`: `RoomStatWorker_Impressiveness` over the predicted
   Wealth, Beauty, Space and Cleanliness (the game's worker bodies run over the planned
   interior with the planned ring pieces counted), and `RoomStatDef.GetScoreStageIndex`.
-  The planned floor is not counted here.
+  A `None` room has the stat's `roomlessScore` and that score's stage. The planned
+  floor is not counted here.
 - `Cleanliness`: `RoomStatWorker_Cleanliness` over the same room with each planned
   floor piece's terrain in place of its cell's (things contained or adjacent times
   their stack count, plus each cell's terrain stat, over the cells; natural soil is -1),
-  and no filth beyond what stands now; the stat's `roomlessScore` for a `None` room, 0
-  for an unread one. A piece naming neither a `ThingDef` nor a `TerrainDef` leaves the
-  row unread (`Role` ""). The steady state with the room's stations' filth is the
+  and no filth beyond what stands now; the stat's `roomlessScore` for a `None` room.
+  The steady state with the room's stations' filth is the
   policy's (`PlannedRoomCleanlinessRules.Steady`,
   [facilities](../architecture/facilities.md)).
 - `Cells`, `OpenRoofCells`, `TouchesMapEdge`: what PsychologicallyOutdoors and

@@ -25,7 +25,7 @@ public sealed class KitchenCreditTests
 
     private static ForecastPlannedClosure Closure(int room, double cleanliness, string role = "Kitchen") =>
         new(room, "WoodLog", [], ["planned/room" + room.ToString(CultureInfo.InvariantCulture) + "/wall/WoodLog"], [],
-            new(room.ToString(CultureInfo.InvariantCulture), "WoodLog", role, 30d, Known(2), 9, 0, false) { Cleanliness = cleanliness });
+            PlannedRoomPredictionTests.Closed(room.ToString(CultureInfo.InvariantCulture), "WoodLog", role, 30d, 2, 9, 0, false) with { Cleanliness = cleanliness });
 
     private static ForecastCoupledContext Context(PlannedRoom[] rooms, ForecastPlannedClosure[] closures, bool cooking = true) =>
         ForecastValueTests.Context(ForecastValueTests.Pawn()) with
@@ -82,13 +82,11 @@ public sealed class KitchenCreditTests
         Assert.Equal(-(delta * 6 * price) * Horizon, row.Value, 12);
     }
 
-    /// <summary>An unread prediction (Role "") or no bench cooking now leaves the cook's change unknown: the kitchen is named, not credited.</summary>
-    [Theory]
-    [InlineData("", true)]
-    [InlineData("Kitchen", false)]
-    public void AnUnknownCleanlinessOrCurrentRoomIsUnassessed(string role, bool cooking)
+    /// <summary>No bench cooking now leaves the cook's change unknown: the kitchen is named, not credited.</summary>
+    [Fact]
+    public void AnUnknownCurrentRoomIsUnassessed()
     {
-        var context = Context([Room(1, PlannedRole.Kitchen, meals: 6)], [Closure(1, 0, role)], cooking);
+        var context = Context([Room(1, PlannedRole.Kitchen, meals: 6)], [Closure(1, 0, "Kitchen")], cooking: false);
         var ledger = ForecastValue.Of(Serving(1), context, Day);
         Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("kitchen/", StringComparison.Ordinal));
         Assert.Contains("kitchen_credit_unassessed:1", ledger.Findings);

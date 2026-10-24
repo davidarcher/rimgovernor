@@ -18,7 +18,7 @@ internal static class ForecastLaboratory
 {
     /// <summary>
     /// The lab's gains per researcher (<see cref="RoomCredit"/>). Null (unassessed) when the room has no closure prediction
-    /// in its stuff, an unread prediction or filth model, an unread stat part, or a research bench without a bench row or bench model.
+    /// in its stuff, a predicted role RoomRole does not name (a modded one), an unread filth model, an unread stat part, or a research bench without a bench row or bench model.
     /// </summary>
     internal static IReadOnlyList<RoomGain>? LaboratoryCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
     {

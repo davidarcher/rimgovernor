@@ -47,30 +47,31 @@ public sealed record PlannedRoomFurniture(Cell Cell, string Definition, string S
 /// and RoomStatWorker_Impressiveness over the predicted base stats, with its RoomStatDef stage; the closed room's
 /// cell count, observed open-roof cells and map-edge contact (the outdoors rules' inputs); the existing beds inside with
 /// their owners, and the work tables inside whose speed stat has StatPart_WorkTableOutdoors with their current
-/// room's PsychologicallyOutdoors. Unknown stage when a stat could not be read; Impressiveness is the score, the stat's
-/// roomlessScore for a None room and 0 when Role is "" (unread).
+/// room's PsychologicallyOutdoors. Read whole (#3834): Impressiveness is the score (the stat's roomlessScore for a None
+/// room) and Stage its RoomStatDef.GetScoreStageIndex; Cells is at least 1, since a shape whose interior has no passable
+/// cell closes no room and native answers no row for it.
 /// </summary>
-public sealed record PlannedRoomPrediction(string Room, string Stuff, string Role, double Impressiveness, Fact<int> Stage,
+public sealed record PlannedRoomPrediction(string Room, string Stuff, string Role, double Impressiveness, int Stage,
     int Cells, int OpenRoofCells, bool TouchesMapEdge)
 {
     /// <summary>
     /// The distinct terrains of the closed room's cells with the shape's planned floors laid, each with its TerrainDef
-    /// tags (#3808: RoomRequirement_TerrainWithTags reads every cell's), in TerrainDef name order; empty when Role is "".
+    /// tags (#3808: RoomRequirement_TerrainWithTags reads every cell's), in TerrainDef name order.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomTerrain>))]
-    public EquatableArray<PlannedRoomTerrain> Terrains { get; init; }
+    public required EquatableArray<PlannedRoomTerrain> Terrains { get; init; }
 
     /// <summary>
     /// RoomStatWorker_Cleanliness of the closed room with the shape's planned floor pieces (TerrainDef pieces) laid in
     /// place of their cells' terrain and no filth beyond what stands now (#3797); the stat's roomlessScore for a None
-    /// room; 0 when Role is "" (unread). Impressiveness reads the cleanliness without the planned floor.
+    /// room. Impressiveness reads the cleanliness without the planned floor.
     /// </summary>
-    public double Cleanliness { get; init; }
+    public required double Cleanliness { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Beds { get; init; }
+    public required EquatableArray<string> Beds { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomBench>))]
-    public EquatableArray<PlannedRoomBench> Benches { get; init; }
+    public required EquatableArray<PlannedRoomBench> Benches { get; init; }
 }
 public sealed record PlannedRoomBench(string Bench, bool PsychologicallyOutdoors);
 /// <summary>One terrain of a predicted closed room (#3808): its TerrainDef tags.</summary>
@@ -269,7 +270,7 @@ public sealed record ConstructionActivityRead
     public required EquatableArray<CoupledRoute> Routes { get; init; }
     /// <summary>The answer to <see cref="ConstructionActivityRequest.Thermal"/>; null when nothing was asked.</summary>
     public required CoupledThermalRead? Thermal { get; init; }
-    /// <summary>The answer to <see cref="ConstructionActivityRequest.RoomPredictions"/>, one row per asked room and stuff.</summary>
+    /// <summary>The answer to <see cref="ConstructionActivityRequest.RoomPredictions"/>, one row per asked room and stuff whose ring closes a room (a shape with no passable interior cell closes none and has no row).</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomPrediction>))]
     public required EquatableArray<PlannedRoomPrediction> RoomPredictions { get; init; }
 }

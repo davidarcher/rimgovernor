@@ -24,7 +24,7 @@ public sealed class PlannedRoomCleanlinessTests
     };
 
     private static PlannedRoomPrediction Predicted(double cleanliness, string role = "Kitchen") =>
-        new("1", "WoodLog", role, 10d, Known(2), 9, 0, false) { Cleanliness = cleanliness };
+        PlannedRoomPredictionTests.Closed("1", "WoodLog", role, 10d, 2, 9, 0, false) with { Cleanliness = cleanliness };
 
     private static double Dirty(PlannedRoomPrediction prediction, PlannedRoom room, FilthModel filth) =>
         PlannedRoomCleanlinessRules.Steady(prediction, room.FilthRuns.Values, filth).Dirty;
@@ -128,12 +128,8 @@ public sealed class PlannedRoomCleanlinessTests
     }
 
     [Fact]
-    public void AnUnreadFloorDefOrFilthModelFailsNamingIt()
+    public void AnUnreadFilthModelFailsNamingIt()
     {
-        // Native leaves the row unread (Role "") when a piece names no ThingDef nor TerrainDef.
-        var unread = Assert.Throws<RequiredFactException>(() => Dirty(Predicted(0, ""), Kitchen, BedStationPriceTests.Filth));
-        Assert.Equal("planned_room_prediction:1", unread.Fact);
-
         var model = Assert.Throws<RequiredFactException>(() => Dirty(Predicted(-1), Kitchen, new FilthModel()));
         Assert.Equal("filth_model", model.Fact);
         // No filth runs read no filth model.
