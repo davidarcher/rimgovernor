@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Domain;
 using static RimGovernor.Brain.Domain.Fact;
+using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -14,47 +15,46 @@ public sealed record SurveyPlan
 
 public static class QuestSurvey
 {
-    private static bool SurveyScannerOf(JoinerOffer offer, string site, out QuestSurveyScanner scanner)
+    /// <summary>The site's one survey scanner hold; null when no objective or more than one names the site.</summary>
+    private static Pb.QuestSurveyScanner? SurveyScannerOf(JoinerOffer offer, string site)
     {
-        scanner = new QuestSurveyScanner();
-        var found = false;
+        Pb.QuestSurveyScanner? scanner = null;
         foreach (var objective in offer.Objectives)
         {
-            if (objective.SurveyScanner.TryGetValue(out var candidate) && candidate.SiteId == site)
+            if (objective.SurveyScanner is { } candidate && candidate.SiteId == site)
             {
-                if (found)
+                if (scanner is not null)
                 {
-                    scanner = new QuestSurveyScanner();
-                    return false;
+                    return null;
                 }
                 scanner = candidate;
-                found = true;
             }
         }
-        return found;
+        return scanner;
     }
 
     private static (ExpeditionSite Site, QuestSkipReason Reason) SurveyBudget(JoinerOffer offer, ExpeditionSite site, RoundsFacts f)
     {
-        if (!SurveyScannerOf(offer, site.Id, out var scanner))
+        if (SurveyScannerOf(offer, site.Id) is not { } scanner)
         {
             return (site, "survey_unknown");
         }
-        if (scanner.Alive.TryGetValue(out var alive) && !alive)
+        if (scanner.Scanner == Pb.SurveyScannerCondition.Destroyed)
         {
             return (site, "scanner_destroyed");
         }
-        if (!scanner.DurationTicks.TryGetValue(out var duration) || duration <= 0)
+        var duration = scanner.DurationTicks;
+        if (duration <= 0)
         {
             return (site, "survey_duration_unknown");
         }
-        if (scanner.EndTick.TryGetValue(out var end))
+        if (scanner.Hold is Pb.SurveyHold.Running running)
         {
             if (!f.QuestObservedTick.TryGetValue(out var now))
             {
                 return (site, "survey_duration_unknown");
             }
-            duration = Math.Max(0L, end - now.Value);
+            duration = Math.Max(0L, running.EndTick.Value - now.Value);
         }
         site = site with { HoldTicks = Known(duration) };
         var fk = offer.ThreatPoints.TryGetValue(out var forced);
@@ -222,24 +222,27 @@ public static class QuestSurvey
         {
             return result with { Return = true, Reason = "quest_failed" };
         }
-        if (!SurveyScannerOf(offer, site.Id, out var scanner))
+        if (SurveyScannerOf(offer, site.Id) is not { } scanner)
         {
             return result with { Reason = "survey_unknown" };
         }
-        if (scanner.Alive.TryGetValue(out var alive) && !alive)
+        if (scanner.Scanner == Pb.SurveyScannerCondition.Destroyed)
         {
             return result with { Return = true, Reason = "scanner_destroyed" };
         }
-        if (scanner.Complete.TryGetValue(out var complete) && complete)
+        if (scanner.Complete)
         {
             return result with { Return = true };
         }
-        var ek = scanner.EndTick.TryGetValue(out var end);
-        var nk = f.QuestObservedTick.TryGetValue(out var now);
-        if (!ek || !nk)
+        if (scanner.Hold is not Pb.SurveyHold.Running running)
+        {
+            return result with { Reason = "survey_hold_stopped" };
+        }
+        if (!f.QuestObservedTick.TryGetValue(out var now))
         {
             return result with { Reason = "survey_duration_unknown" };
         }
+        var end = running.EndTick.Value;
         // Elapsed time alone never proves native completion.
         if (end <= now.Value)
         {

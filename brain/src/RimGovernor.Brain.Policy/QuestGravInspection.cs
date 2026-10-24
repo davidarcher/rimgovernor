@@ -30,41 +30,33 @@ public static class QuestGravInspection
             }
             foreach (var objective in offer.Objectives)
             {
-                var known = objective.GravEngine.TryGetValue(out var engine);
-                if (objective.Kind == Pb.QuestObjectiveKind.InspectGravEngine && !known)
+                var engine = objective.GravEngine;
+                if (objective.Kind == Pb.QuestObjectiveKind.InspectGravEngine && engine is null)
                 {
                     return new QuestGravInspectionWork { Quest = offer.Quest, Waiting = true };
                 }
-                if (!known)
+                if (engine is null || engine.Inspected)
                 {
                     continue;
                 }
                 var result = new QuestGravInspectionWork { Quest = offer.Quest, Waiting = true };
-                if (!engine!.Inspected.TryGetValue(out var inspected))
-                {
-                    return result with { Reason = "inspection_unknown" };
-                }
-                if (inspected)
-                {
-                    continue;
-                }
-                if (!engine.Spawned.TryGetValue(out var spawned) || !spawned)
+                if (engine.Place is not Pb.GravEnginePlace.Spawned spawned)
                 {
                     return result;
                 }
-                if (engine.Map != home)
+                if (new MapId(spawned.MapId) != home)
                 {
                     return result with { Reason = "off_map" };
                 }
-                if (engine.InspectingPawnIds.Count > 0)
+                if (spawned.InspectingPawnIds.Count > 0)
                 {
                     return result;
                 }
-                if (engine.EligiblePawns.Count == 0)
+                if (spawned.EligiblePawnIds.Count == 0)
                 {
                     return result with { Reason = "inspector_unavailable" };
                 }
-                var service = new RecoveryService((Domain.PawnId)engine.EligiblePawns.Min(), engine.Id, RecoveryMethod.InspectGravEngine);
+                var service = new RecoveryService(spawned.EligiblePawnIds.Min(), engine.EngineId, RecoveryMethod.InspectGravEngine);
                 return result with { Service = service, Waiting = false };
             }
         }
@@ -85,12 +77,12 @@ public static class QuestGravInspection
             }
             foreach (var objective in offer.Objectives)
             {
-                var known = objective.GravEngine.TryGetValue(out var engine);
-                if (objective.Kind == Pb.QuestObjectiveKind.InspectGravEngine && !known)
+                var engine = objective.GravEngine;
+                if (objective.Kind == Pb.QuestObjectiveKind.InspectGravEngine && engine is null)
                 {
                     return true;
                 }
-                if (known && (!engine!.Inspected.TryGetValue(out var inspected) || !inspected))
+                if (engine is { Inspected: false })
                 {
                     return true;
                 }

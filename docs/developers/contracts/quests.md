@@ -26,6 +26,8 @@ without an acceptance decision. Endgame offers and deferred Anomaly progression
 are refused. SurveySite reserves food for its full native hold and return, prices
 the forced raid, and retains a separately affordable healthy relief crew. Only
 native scanner completion ends the hold; scanner destruction ends it as failure.
+The scanner read is total: the scanner is absent, intact or destroyed, and the hold
+clock is running to its end tick or stopped; a stopped hold short of completion waits.
 
 The joiners family selects joiners first (`joiners/offers`), then, under `joiners/quests`, allowed bestowing claims, then an
 affordable family offer. Feasibility uses the existing work roster and emergency

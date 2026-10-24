@@ -78,9 +78,9 @@ public sealed record QuestObjective
 
     public Fact<QuestMonument> Monument { get; init; }
 
-    public Fact<QuestGravEngine> GravEngine { get; init; }
+    public Pb.QuestGravEngine? GravEngine { get; init; }
 
-    public Fact<QuestSurveyScanner> SurveyScanner { get; init; }
+    public Pb.QuestSurveyScanner? SurveyScanner { get; init; }
 
     public Pb.QuestObjectiveKind Kind { get; init; }
 

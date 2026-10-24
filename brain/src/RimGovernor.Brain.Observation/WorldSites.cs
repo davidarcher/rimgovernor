@@ -128,43 +128,4 @@ public static class WorldSitesReads
         }
         return Known(EquatableArray.From(rows));
     }
-
-    internal static Fact<QuestSurveyScanner> QuestSurveyScannerOf(O.QuestSurveyScanner? scanner) =>
-        scanner is null
-            ? Unknown<QuestSurveyScanner>()
-            : Known(new QuestSurveyScanner
-            {
-                SiteId = scanner.SiteId ?? "",
-                DurationTicks = ColonyDecodeReads.Optional(scanner.DurationTicks is not null, (long)scanner.DurationTicks.GetValueOrDefault()),
-                EndTick = ColonyDecodeReads.Optional(scanner.EndTick is not null, (long)scanner.EndTick.GetValueOrDefault()),
-                Alive = ColonyDecodeReads.Optional(scanner.Alive is not null, scanner.Alive.GetValueOrDefault()),
-                Complete = ColonyDecodeReads.Optional(scanner.Complete is not null, scanner.Complete.GetValueOrDefault()),
-            });
-
-    internal static Fact<QuestGravEngine> QuestGravEngineOf(O.QuestGravEngine? engine)
-    {
-        if (engine is null)
-        {
-            return Unknown<QuestGravEngine>();
-        }
-        var eligible = new List<PawnId>(engine.EligiblePawnIds.Count);
-        foreach (var id in engine.EligiblePawnIds)
-        {
-            eligible.Add(new PawnId(id));
-        }
-        var inspecting = new List<PawnId>(engine.InspectingPawnIds.Count);
-        foreach (var id in engine.InspectingPawnIds)
-        {
-            inspecting.Add(new PawnId(id));
-        }
-        return Known(new QuestGravEngine
-        {
-            Id = engine.EngineId ?? "",
-            Map = new MapId(engine.MapId.GetValueOrDefault()),
-            Spawned = ColonyDecodeReads.Optional(engine.Spawned is not null, engine.Spawned.GetValueOrDefault()),
-            Inspected = ColonyDecodeReads.Optional(engine.Inspected is not null, engine.Inspected.GetValueOrDefault()),
-            EligiblePawns = eligible,
-            InspectingPawnIds = inspecting,
-        });
-    }
 }

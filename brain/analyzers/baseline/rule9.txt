@@ -340,7 +340,7 @@ Contracts/Json/FactJsonConverter.cs|Fact|5
 Contracts/Lifecycle.cs|NullableValue|42
 Contracts/Lifecycle.cs|UnknownMember|6
 Contracts/NeedsForecast.cs|Fact|3
-Contracts/Observations.cs|NullableValue|223
+Contracts/Observations.cs|NullableValue|216
 Contracts/Observations.cs|UnknownMember|3
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
@@ -455,8 +455,8 @@ Observation/SleepingUpkeep.cs|Fact|5
 Observation/StuffChoice.cs|Discard|1
 Observation/StuffChoice.cs|Fact|7
 Observation/StuffChoice.cs|Unknown|1
-Observation/WorldSites.cs|Fact|10
-Observation/WorldSites.cs|Unknown|3
+Observation/WorldSites.cs|Fact|6
+Observation/WorldSites.cs|Unknown|1
 PlayerApi/GoalsViewModel.cs|Discard|1
 PlayerApi/GoalsViewModel.cs|Fact|1
 PlayerApi/LifecycleRoutes.cs|Discard|6
@@ -999,7 +999,7 @@ Policy/PlannedShell.cs|Fact|18
 Policy/PlannedSites.cs|Discard|1
 Policy/Pollution.cs|Fact|20
 Policy/Pollution.cs|Unknown|2
-Policy/PopulationJoiner.cs|Fact|52
+Policy/PopulationJoiner.cs|Fact|50
 Policy/PopulationJoiner.cs|Unknown|4
 Policy/PopulationLance.cs|Fact|3
 Policy/PopulationUpkeep.cs|Fact|5
@@ -1026,7 +1026,7 @@ Policy/QuestDecrees.cs|Fact|24
 Policy/QuestDeparture.cs|Fact|33
 Policy/QuestExpedition.cs|Fact|61
 Policy/QuestExpedition.cs|Unknown|1
-Policy/QuestGravInspection.cs|Fact|7
+Policy/QuestGravInspection.cs|Fact|2
 Policy/QuestHack.cs|Fact|13
 Policy/QuestHospitality.cs|Fact|22
 Policy/QuestMonument.cs|Fact|24
@@ -1036,8 +1036,8 @@ Policy/QuestReturn.cs|Fact|37
 Policy/QuestRewards.cs|Fact|7
 Policy/QuestSelection.cs|Fact|25
 Policy/QuestSelection.cs|Unknown|1
-Policy/QuestSurvey.cs|Fact|42
-Policy/QuestWorldSites.cs|Fact|50
+Policy/QuestSurvey.cs|Fact|35
+Policy/QuestWorldSites.cs|Fact|44
 Policy/ReadingPolicy.cs|Fact|4
 Policy/ReadyWork.cs|Discard|1
 Policy/ReadyWork.cs|Fact|9

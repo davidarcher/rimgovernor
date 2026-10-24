@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Policy;
+using RimGovernor.Contracts.Wire;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
 using Pb = RimGovernor.Contracts.Wire.Observations;
@@ -165,5 +166,101 @@ public sealed class QuestPolicyTests
 
         Assert.Equal(new[] { new QuestId("mine") }, CeremonyRules.ClaimQuests(royalty, claim));
         Assert.Empty(CeremonyRules.ClaimQuests(royalty, claim with { Claim = false }));
+    }
+
+    private static readonly Pb.QuestSurveyScanner Scanner = new()
+    {
+        SiteId = "site-1",
+        DurationTicks = 120_000,
+        Scanner = Pb.SurveyScannerCondition.Intact,
+        Hold = new Pb.SurveyHold.Running(new Tick(150_000)),
+        Complete = false,
+    };
+
+    private static readonly Pb.QuestGravEngine Engine = new()
+    {
+        EngineId = "Thing_GravEngine7",
+        Inspected = false,
+        Place = new Pb.GravEnginePlace.Spawned(0, [new PawnId("b"), new PawnId("a")], []),
+    };
+
+    [Fact]
+    public void SurveyAndGravEngineRecordsRoundTripExactly()
+    {
+        var scannerJson = WireJson.Serialize(Scanner);
+        Assert.Equal(
+            """{"siteId":"site-1","durationTicks":120000,"scanner":"intact","hold":{"type":"running","endTick":150000},"complete":false}""",
+            scannerJson);
+        Assert.Equal(Scanner, WireJson.Deserialize<Pb.QuestSurveyScanner>(scannerJson));
+
+        var engineJson = WireJson.Serialize(Engine);
+        Assert.Equal(
+            """{"engineId":"Thing_GravEngine7","inspected":false,"place":{"type":"spawned","mapId":0,"eligiblePawnIds":["b","a"],"inspectingPawnIds":[]}}""",
+            engineJson);
+        Assert.Equal(Engine, WireJson.Deserialize<Pb.QuestGravEngine>(engineJson));
+    }
+
+    private static readonly RoundsFacts Surveying = new()
+    {
+        QuestObservedTick = Known(new Tick(100_000)),
+    };
+
+    private static JoinerOffer SurveyOffer(Pb.QuestSurveyScanner scanner) => new()
+    {
+        Quest = new("survey"),
+        State = "Ongoing",
+        Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.HoldSurveyScanner, SurveyScanner = scanner }],
+    };
+
+    [Fact]
+    public void ASurveyHoldReturnsOnNativeCompletionOrALostScannerAndWaitsWhileStopped()
+    {
+        var site = new WorldSite { Id = "site-1" };
+        SurveyPlan Work(Pb.QuestSurveyScanner scanner) =>
+            QuestSurvey.SurveyWork(SurveyOffer(scanner), site, Surveying, default, RoundsRules.DefaultRoundsPolicy());
+
+        var lost = Work(Scanner with { Scanner = Pb.SurveyScannerCondition.Destroyed });
+        Assert.Equal((true, "scanner_destroyed"), (lost.Return, lost.Reason.Value));
+        Assert.True(Work(Scanner with { Hold = new Pb.SurveyHold.Stopped(), Complete = true }).Return);
+        Assert.Equal("survey_hold_stopped", Work(Scanner with { Hold = new Pb.SurveyHold.Stopped() }).Reason.Value);
+        // A running hold reads on to the crew's supplies at the site.
+        Assert.Equal("survey_supply_unknown", Work(Scanner).Reason.Value);
+        // A second scanner naming the same site leaves the hold unread.
+        var twice = SurveyOffer(Scanner) with { Objectives = [.. SurveyOffer(Scanner).Objectives, .. SurveyOffer(Scanner).Objectives] };
+        Assert.Equal("survey_unknown", QuestSurvey.SurveyWork(twice, site, Surveying, default, RoundsRules.DefaultRoundsPolicy()).Reason.Value);
+    }
+
+    private static RoundsFacts Inspecting(Pb.QuestGravEngine? engine) => new()
+    {
+        QuestOffers = Known<EquatableArray<JoinerOffer>>(
+        [
+            new JoinerOffer
+            {
+                Quest = new("signal"),
+                State = "Ongoing",
+                Objectives = [new QuestObjective { Kind = Pb.QuestObjectiveKind.InspectGravEngine, GravEngine = engine }],
+            },
+        ]),
+    };
+
+    [Fact]
+    public void TheGravEngineIsInspectedByTheLowestEligibleColonistOnTheHomeMap()
+    {
+        var home = new MapId(0);
+        var step = QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine), home);
+        Assert.Equal((new PawnId("a"), "Thing_GravEngine7", false), (step.Service!.Pawn, step.Service.Thing, step.Waiting));
+        Assert.True(QuestGravInspection.GravInspectionDeficit(Inspecting(Engine)));
+
+        // No single engine, an unspawned engine or one already being inspected waits; another map is skipped with a reason.
+        Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(null), home) is { Service: null, Waiting: true });
+        Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine with { Place = new Pb.GravEnginePlace.Unspawned() }), home) is { Service: null, Waiting: true });
+        Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine with { Place = new Pb.GravEnginePlace.Spawned(0, [new PawnId("a")], [new PawnId("a")]) }), home) is { Service: null, Waiting: true });
+        Assert.Equal("off_map", QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine), new MapId(3)).Reason.Value);
+        Assert.Equal("inspector_unavailable", QuestGravInspection.SelectQuestGravInspection(Inspecting(Engine with { Place = new Pb.GravEnginePlace.Spawned(0, [], []) }), home).Reason.Value);
+
+        // An inspected engine is done.
+        var done = Engine with { Inspected = true };
+        Assert.True(QuestGravInspection.SelectQuestGravInspection(Inspecting(done), home).Quest.IsEmpty);
+        Assert.False(QuestGravInspection.GravInspectionDeficit(Inspecting(done)));
     }
 }

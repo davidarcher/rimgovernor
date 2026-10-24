@@ -113,34 +113,6 @@ public sealed record SiteHomeRoute
     public Fact<long> TravelTicks { get; init; }
 }
 
-public sealed record QuestSurveyScanner
-{
-    public string SiteId { get; init; } = "";
-
-    public Fact<long> DurationTicks { get; init; }
-
-    public Fact<long> EndTick { get; init; }
-
-    public Fact<bool> Alive { get; init; }
-
-    public Fact<bool> Complete { get; init; }
-}
-
-public sealed record QuestGravEngine
-{
-    public string Id { get; init; } = "";
-
-    public MapId Map { get; init; }
-
-    public Fact<bool> Spawned { get; init; }
-
-    public Fact<bool> Inspected { get; init; }
-
-    public IReadOnlyList<PawnId> EligiblePawns { get; init; } = [];
-
-    public IReadOnlyList<PawnId> InspectingPawnIds { get; init; } = [];
-}
-
 public sealed record QuestHackTarget
 {
     public string Id { get; init; } = "";

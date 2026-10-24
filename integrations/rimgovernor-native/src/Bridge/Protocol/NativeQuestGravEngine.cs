@@ -4,8 +4,8 @@ using System.Linq;
 using RimWorld;
 using Verse;
 using Verse.AI;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
+using PawnId = RimGovernor.Brain.Domain.PawnId;
 
 namespace HomeBridge.BridgeTools
 {
@@ -21,16 +21,22 @@ namespace HomeBridge.BridgeTools
                 yield break;
             }
             var engine = engines[0];
-            var row = new Obs.QuestGravEngine { EngineId = engine.GetUniqueLoadID(), Spawned = engine.Spawned,
-                Inspected = Find.ResearchManager.gravEngineInspected };
-            if (engine.Spawned)
+            var row = new Obs.QuestGravEngine
             {
-                row = row with { MapId = engine.Map.uniqueID };
-                                var pawns = engine.Map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState).ToArray();
-                row = row with { EligiblePawnIds = [.. row.EligiblePawnIds, .. pawns.Where(p => p.CanReserveAndReach(engine, PathEndMode.Touch, Danger.None)).Select(p => p.GetUniqueLoadID())] };
-                row = row with { InspectingPawnIds = [.. row.InspectingPawnIds, .. pawns.Where(p => p.CurJob?.def == JobDefOf.InspectGravEngine && p.CurJob.targetA.Thing == engine).Select(p => p.GetUniqueLoadID())] };
-            }
+                EngineId = engine.GetUniqueLoadID(),
+                Inspected = Find.ResearchManager.gravEngineInspected,
+                Place = Place(engine),
+            };
             yield return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.InspectGravEngine, GravEngine = row };
+        }
+
+        private static Obs.GravEnginePlace Place(Building_GravEngine engine)
+        {
+            if (!engine.Spawned) return new Obs.GravEnginePlace.Unspawned();
+            var pawns = engine.Map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed && !p.Drafted && !p.InMentalState).ToArray();
+            return new Obs.GravEnginePlace.Spawned(engine.Map.uniqueID,
+                [.. pawns.Where(p => p.CanReserveAndReach(engine, PathEndMode.Touch, Danger.None)).Select(p => new PawnId(p.GetUniqueLoadID()))],
+                [.. pawns.Where(p => p.CurJob?.def == JobDefOf.InspectGravEngine && p.CurJob.targetA.Thing == engine).Select(p => new PawnId(p.GetUniqueLoadID()))]);
         }
     }
 }

@@ -3664,34 +3664,75 @@ public sealed record QuestHackRisk
     public bool? Hostile { get; init; }
 }
 
+/// <summary>A survey quest's scanner hold at a site: the native hold length, the scanner's condition, the hold clock and native completion.</summary>
 public sealed record QuestSurveyScanner
 {
-    public string? SiteId { get; init; }
+    public required string SiteId { get; init; }
 
-    public long? DurationTicks { get; init; }
+    /// <summary>The full hold length the quest asks for (QuestPart_ScannerDurationRemainingAlert.duration).</summary>
+    public required long DurationTicks { get; init; }
 
-    public long? EndTick { get; init; }
+    public required SurveyScannerCondition Scanner { get; init; }
 
-    public bool? Alive { get; init; }
+    public required SurveyHold Hold { get; init; }
 
-    public bool? Complete { get; init; }
+    /// <summary>The alert ended with the intact scanner spawned at or after its end tick.</summary>
+    public required bool Complete { get; init; }
 }
 
+/// <summary>The survey scanner thing the hold alert names.</summary>
+[JsonConverter(typeof(WireEnumConverter<SurveyScannerCondition>))]
+public enum SurveyScannerCondition
+{
+    /// <summary>The alert names no scanner thing.</summary>
+    [WireName("absent")]
+    Absent,
+    [WireName("intact")]
+    Intact,
+    [WireName("destroyed")]
+    Destroyed,
+}
+
+/// <summary>The hold clock: <see cref="Running"/> to its end tick while the alert is enabled, otherwise <see cref="Stopped"/>.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(SurveyHold.Running), "running")]
+[JsonDerivedType(typeof(SurveyHold.Stopped), "stopped")]
+public abstract record SurveyHold
+{
+    private protected SurveyHold() { }
+
+    public sealed record Running(Tick EndTick) : SurveyHold;
+
+    public sealed record Stopped : SurveyHold;
+}
+
+/// <summary>The one grav engine a MechanoidSignal quest asks the colony to inspect.</summary>
 public sealed record QuestGravEngine
 {
-    public string? EngineId { get; init; }
+    public required string EngineId { get; init; }
 
-    public int? MapId { get; init; }
+    /// <summary>The research manager's gravEngineInspected flag.</summary>
+    public required bool Inspected { get; init; }
 
-    public bool? Spawned { get; init; }
+    public required GravEnginePlace Place { get; init; }
+}
 
-    public bool? Inspected { get; init; }
+/// <summary>
+/// Where the grav engine is: <see cref="Spawned"/> on a map, with the free colonists there who can reach it and those
+/// inspecting it now, or <see cref="Unspawned"/>.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(GravEnginePlace.Spawned), "spawned")]
+[JsonDerivedType(typeof(GravEnginePlace.Unspawned), "unspawned")]
+public abstract record GravEnginePlace
+{
+    private protected GravEnginePlace() { }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> EligiblePawnIds { get; init; }
+    public sealed record Spawned(int MapId,
+        [property: JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))] EquatableArray<PawnId> EligiblePawnIds,
+        [property: JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))] EquatableArray<PawnId> InspectingPawnIds) : GravEnginePlace;
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> InspectingPawnIds { get; init; }
+    public sealed record Unspawned : GravEnginePlace;
 }
 
 public sealed record WorldSite

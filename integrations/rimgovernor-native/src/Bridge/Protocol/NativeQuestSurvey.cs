@@ -6,6 +6,7 @@ using RimWorld.Planet;
 using RimWorld.QuestGen;
 using Verse;
 using Obs = RimGovernor.Contracts.Wire.Observations;
+using Tick = RimGovernor.Brain.Domain.Tick;
 
 namespace HomeBridge.BridgeTools
 {
@@ -23,11 +24,18 @@ namespace HomeBridge.BridgeTools
                 if (!(part is QuestPart_ScannerDurationRemainingAlert alert)) continue;
                 var site = Site(alert);
                 if (site == null) continue;
-                var state = new Obs.QuestSurveyScanner { SiteId = site.GetUniqueLoadID(), DurationTicks = Duration(alert) };
                 var scanner = Scanner(alert);
-                if (scanner != null) state = state with { Alive = !scanner.Destroyed };
-                state = state with { Complete = alert.State == QuestPartState.Disabled && scanner?.Spawned == true && state.Alive is not null && state.Alive.GetValueOrDefault() && End(alert) > 0 && GenTicks.TicksGame >= End(alert) };
-                if (alert.State == QuestPartState.Enabled) state = state with { EndTick = End(alert) };
+                var condition = scanner == null ? Obs.SurveyScannerCondition.Absent
+                    : scanner.Destroyed ? Obs.SurveyScannerCondition.Destroyed : Obs.SurveyScannerCondition.Intact;
+                var state = new Obs.QuestSurveyScanner
+                {
+                    SiteId = site.GetUniqueLoadID(),
+                    DurationTicks = Duration(alert),
+                    Scanner = condition,
+                    Hold = alert.State == QuestPartState.Enabled ? new Obs.SurveyHold.Running(new Tick(End(alert))) : new Obs.SurveyHold.Stopped(),
+                    Complete = alert.State == QuestPartState.Disabled && condition == Obs.SurveyScannerCondition.Intact && scanner!.Spawned
+                        && End(alert) > 0 && GenTicks.TicksGame >= End(alert),
+                };
                 yield return new Obs.QuestObjective { Kind = Obs.QuestObjectiveKind.HoldSurveyScanner, Active = alert.State != QuestPartState.Disabled, DurationTicks = Duration(alert), SurveyScanner = state };
             }
         }
