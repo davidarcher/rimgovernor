@@ -18,8 +18,7 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
         var tasks = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
         var routes = new List<ForecastActivityRoute>(); var roots = new List<ForecastCommitment>();
         var bindings = new Dictionary<(string, string), ActivityTaskCandidate>(); var practice = new List<ForecastPracticeTask>();
-        var requirements = new List<ForecastMaintenanceRequirement>(); var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal);
-        if (!read.Known) findings.Add("practice_observation_unknown");
+        var requirements = new List<ForecastMaintenanceRequirement>(); var findings = new SortedSet<string>(StringComparer.Ordinal);
         if (!facts.Ideology.TryGetValue(out var ideology)) findings.Add("assigned_capability_floor_unknown");
         else
             foreach (var role in ideology.Facts.Roles.Where(r => r.Active && r.Pawns.Count == 0))
@@ -35,8 +34,7 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
         if (!admitted) findings.Add("practice_held_essential_emergency_or_unknown");
         var eligible = read.Workers.Where(w => admitted && w.Skill is "Shooting" or "Melee"
             && !facts.WorkView!.Claims.Pawns.Contains(w.Pawn) && !facts.WorkView.Claims.Targets.Contains(w.Target)
-            && w.DurationTicks.TryGetValue(out var duration) && duration > 0
-            && w.ApproachTicks.IsKnown && w.CallbackIntervalTicks.IsKnown && w.RawXpPerCallback.IsKnown
+            && w.DurationTicks > 0
             && w.Learning.PracticeEligible == Known(true)).Take(32).ToArray();
         foreach (var worker in eligible.Where(w => w.Skill == "Shooting"))
         {
@@ -50,7 +48,7 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
         {
             if (tasks.Count >= 64) { findings.Add("practice_generation_truncated"); break; }
             var id = "practice/pair/" + first.Pawn + "/" + second.Pawn + "/" + first.Target + "/" + second.Target;
-            var start = Math.Max(first.ApproachTicks.Value, second.ApproachTicks.Value);
+            var start = Math.Max(first.ApproachTicks, second.ApproachTicks);
             Add(id + "/a", first, second, start);
             Add(id + "/b", second, first, start);
             roots.Add(new(id, []) { ActivityCompletions = [id + "/a", id + "/b"] });
@@ -64,11 +62,11 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
             var location = ForecastLocations.Of(worker.Location);
             tasks.Add(new(id, location, location, []) { ChoiceIdentity = "practice/" + worker.Pawn,
                 NotBefore = start, LatestStart = partner is null ? null : start });
-            options.Add(new(id, worker.Pawn, worker.DurationTicks, Known(0d)) { Equipment = [worker.Target, .. worker.Equipment] });
-            routes.Add(new(worker.Pawn, "start", location, worker.ApproachTicks));
+            options.Add(new(id, worker.Pawn, Known(worker.DurationTicks), Known(0d)) { Equipment = [worker.Target, .. worker.Equipment] });
+            routes.Add(new(worker.Pawn, "start", location, new RouteTicks.Reachable(worker.ApproachTicks)));
             bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work, worker.Target,
                 worker.WorkGiver, worker.Job, 0, checked(facts.Tick.Value + (long)horizon), worker.Location)
-            { Practice = new(worker.Skill, partner?.Pawn ?? "", partner?.Target ?? "", (int)Math.Ceiling(worker.DurationTicks.Value)) };
+            { Practice = new(worker.Skill, partner?.Pawn ?? "", partner?.Target ?? "", (int)Math.Ceiling(worker.DurationTicks)) };
             practice.Add(new(id, worker));
             findings.UnionWith(worker.Findings);
             findings.Add("practice_injury_recovery_unassessed");

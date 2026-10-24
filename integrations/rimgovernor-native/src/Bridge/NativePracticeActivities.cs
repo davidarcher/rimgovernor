@@ -47,9 +47,9 @@ internal static class NativePracticeActivities
                     if (legs.Cost(pawn, pawn.Position, target.Position, PathEndMode.OnCell) is not { } path) continue;
                     workers.Add(new(pawn.GetUniqueLoadID(), skill.defName, target.GetUniqueLoadID(), new(target.Position.x, target.Position.z),
                         ranged ? "RimGovernor_TrainRange" : "RimGovernor_Spar", ranged ? RangeTraining.ShootingJob : SparringBouts.JobName,
-                        Fact.Known((double)path), Fact.Known(duration), learning)
+                        path, duration, learning)
                     {
-                        PreparationTicks = ranged ? 0 : SparringBouts.JoinWindowTicks, CallbackIntervalTicks = Fact.Known(cycle), RawXpPerCallback = Fact.Known(ranged ? (double)RangeTraining.ShotXp(weapon) : 200d * cycle / 60d),
+                        PreparationTicks = ranged ? 0 : SparringBouts.JoinWindowTicks, CallbackIntervalTicks = cycle, RawXpPerCallback = ranged ? (double)RangeTraining.ShotXp(weapon) : 200d * cycle / 60d,
                         Equipment = dummy == null ? [] : [dummy.GetUniqueLoadID()],
                         JoyGainPerTick = ranged || pawn.needs.joy == null ? 0d
                             : DefDatabase<JobDef>.GetNamed(SparringBouts.JobName).joyGainRate * 0.36 / RimGovernor.Brain.Domain.GameTime.TicksPerHour
@@ -63,7 +63,7 @@ internal static class NativePracticeActivities
                 }
             }
         }
-        return new() { Known = true, Workers = EquatableArray.From(workers) };
+        return new() { Workers = EquatableArray.From(workers) };
     }
 
     /// <summary>

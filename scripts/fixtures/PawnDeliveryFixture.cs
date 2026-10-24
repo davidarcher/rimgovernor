@@ -86,12 +86,6 @@ namespace HomeBridge.BridgeTools
                 new[] { new PawnActivityStep(PawnActivityKind.Deliver, product.GetUniqueLoadID(), "", "", 1, deadline)
                     { Destination = new Cell(cell.x, cell.z) } });
             var batch = new PawnActivities(Context().NativeGeneration!.Value, new[] { order });
-            var preceding = order with { Revision = revised ? 2 : 1, ExpectedRevision = revised ? 1 : 0,
-                OutputDelivery = new(harvestProduct!.defName, new(deliverySourceCell.x, deliverySourceCell.z), new(cell.x, cell.z), 1, deadline, 3) };
-            var observed = NativeFoodActivity.Read(new(Context().Identity!, [], preceding));
-            if (!observed.Options.Any(o => o.Pawn == worker.GetUniqueLoadID()
-                && o.Target == product.GetUniqueLoadID() && o.Destination == new Cell(cell.x, cell.z)))
-                throw new InvalidOperationException("Fresh native food binding did not find the current stack/destination.");
             NativePawnActivities.Apply(batch, Context());
             NativePawnActivities.Apply(batch, Context());
             if (!revised) GenSpawn.Spawn(ThingDefOf.Steel, cell, worker.Map);

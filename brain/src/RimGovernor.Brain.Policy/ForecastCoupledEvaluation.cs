@@ -317,7 +317,8 @@ public static partial class ForecastCoupled
                     var id = item.Owner + "/output/" + change.Resource + "/" + nextExternal;
                     var uses = context.FoodUses.Where(u => u.Resource == change.Resource.Value).ToArray();
                     var edible = items.Nutrition.GetValueOrDefault(change.Resource) > 0;
-                    var fresh = uses.Length > 0 && uses.All(u => u.FreshTicks.IsKnown) ? Known(uses.Min(u => u.FreshTicks.Value)) : default;
+                    // A use whose resource never rots keeps the lot forever; with no observed use its shelf life is unread.
+                    var fresh = uses.Length > 0 ? Known(uses.Min(u => u.FreshTicks is FoodFreshness.Rots(var keeps) ? keeps : double.PositiveInfinity)) : default;
                     RegisterOutput(id, change.Resource, edible, fresh, at);
                     lots[(id, "external", change.Resource)] = change.Units;
                 }

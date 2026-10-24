@@ -166,16 +166,16 @@ public sealed class ProductiveLearningTests
     internal static RoundsFacts NormalFoodFacts(double learning = .1, double speed = 1)
     {
         var novice = ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "SimpleMeal", 100 / speed) with
-            { AvailableInput = 8, SkillWork = Work(speed, learning), CanSupply = false, CanDeliver = false };
-        var facts = ForecastPortfolioChoiceTests.Observed([novice, novice with { Pawn = "helper", WorkTicks = Known(91d), SkillWork = null, CanSupply = true, CanDeliver = true }],
-            [new("rice", "Rice", new(1, 1), 8, Known(2000d))], helper: true);
+            { AvailableInput = 8, Cooking = new FoodCooking.Cook(100 / speed, 0, Work(speed, learning)), CanSupply = false, Delivery = new FoodDelivery.CannotCarry() };
+        var facts = ForecastPortfolioChoiceTests.Observed([novice, novice with { Pawn = "helper", Cooking = new FoodCooking.Cook(91d, 0, null), CanSupply = true, Delivery = new FoodDelivery.Carried(1d) }],
+            [new("rice", "Rice", new(1, 1), 8, new FoodFreshness.Rots(2000d))], helper: true);
         var read = facts.ForecastObserved.Coupled!;
         var needs = facts.ForecastObserved.Needs!;
         facts = facts with { ForecastObserved = facts.ForecastObserved with
         {
             Needs = needs with { Pawns = EquatableArray.From(needs.Pawns.Select(p => p.Pawn == "pawn" ? p with
                 { Needs = EquatableArray.From(p.Needs.Select(n => n.Kind == "food" ? n with { Level = .75, FallPerTick = .002, Threshold = .25 } : n)) } : p)) },
-            Coupled = read with { FoodUses = EquatableArray.From(read.FoodUses.Select(u => u with { Nutrition = Known(.5), FreshTicks = Known(2000d) })) }
+            Coupled = read with { FoodUses = EquatableArray.From(read.FoodUses.Select(u => u with { Nutrition = .5, FreshTicks = new FoodFreshness.Rots(2000d) })) }
         } };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         return facts;

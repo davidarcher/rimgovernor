@@ -168,7 +168,7 @@ public static class ForecastIncumbentPreparation
             // Only routes from that observed start cell can be aliased without another probe.
             foreach (var route in routes.Values.Where(r => r.Pawn == pawn && r.From == "start").ToArray())
                 routes.TryAdd((pawn, startLocation, route.To), route with { From = startLocation });
-            routes[(pawn, startLocation, "start")] = new(pawn, startLocation, "start", Known(0d));
+            routes[(pawn, startLocation, "start")] = new(pawn, startLocation, "start", new RouteTicks.Reachable(0));
             var graph = new List<string>();
             if (entry.Wait > 0)
             {
@@ -176,15 +176,15 @@ public static class ForecastIncumbentPreparation
                 activities.Add(new(waitId, startLocation, startLocation, []) { NotBefore = 0, LatestStart = 0 });
                 options.Add(new(waitId, pawn, Known(entry.Wait), Known(0d)));
                 waiting.Add(waitId); graph.Add(waitId);
-                routes[(pawn, startLocation, location)] = new(pawn, startLocation, location, Known(entry.Travel));
+                routes[(pawn, startLocation, location)] = new(pawn, startLocation, location, new RouteTicks.Reachable(entry.Travel));
             }
             activities.Add(new(id, location, location, graph.ToArray())
                 { NotBefore = entry.Wait + entry.Travel, LatestStart = entry.Wait + entry.Travel });
             graph.Add(id);
             options.Add(new(id, pawn, Known(duration), Known(0d)));
-            routes[(pawn, "start", "start")] = new(pawn, "start", "start", Known(0d));
-            routes[(pawn, "start", startLocation)] = new(pawn, "start", startLocation, Known(0d));
-            routes[(pawn, "start", location)] = new(pawn, "start", location, Known(entry.Travel));
+            routes[(pawn, "start", "start")] = new(pawn, "start", "start", new RouteTicks.Reachable(0));
+            routes[(pawn, "start", startLocation)] = new(pawn, "start", startLocation, new RouteTicks.Reachable(0));
+            routes[(pawn, "start", location)] = new(pawn, "start", location, new RouteTicks.Reachable(entry.Travel));
             needTasks.Add(new(id, pawn, service.Kind, service.Target, default, 0, Known(service.GainPerTick * duration), [])
                 { MaxPawns = needs.Pawns.SelectMany(p => p.Targets).FirstOrDefault(t => t.Id == service.Target)?.MaxPawns ?? default });
             retained.Add(new(id, []) { ActivityCompletions = [id] });
@@ -293,12 +293,12 @@ public static class ForecastIncumbentPreparation
         var context = generated.Context;
         var options = context.Activities.Options.Where(o => o.WorkTicks.TryGetValue(out var ticks) && double.IsFinite(ticks) && ticks >= 0)
             .GroupBy(o => (o.Activity, o.Pawn)).ToDictionary(g => g.Key, g => g.First().WorkTicks.Value);
-        var routes = context.Activities.Routes.Where(r => r.Ticks.TryGetValue(out var ticks) && double.IsFinite(ticks))
-            .GroupBy(r => (r.Pawn, r.From, r.To)).ToDictionary(g => g.Key, g => g.First().Ticks.Value);
+        var routes = context.Activities.Routes.Where(r => r.Ticks is RouteTicks.Reachable(var ticks) && double.IsFinite(ticks))
+            .GroupBy(r => (r.Pawn, r.From, r.To)).ToDictionary(g => g.Key, g => ((RouteTicks.Reachable)g.First().Ticks).Ticks);
         double? Route(string pawn, Cell to) => routes.TryGetValue((pawn, "start", Methods.Generation.ForecastLocations.Of(to)), out var ticks) ? ticks : null;
         var offered = new List<(string Pawn, double Total, Fact<double> Poison)>();
         foreach (var cook in context.Bindings.Values.Where(b => b.Kind == PawnActivityKind.Recipe
-            && (b.Recipe?.Bill ?? b.Cooking?.Continuation.Bill) is { } bill && method.Bills.Contains(bill)))
+            && b.Recipe?.Bill is { } bill && method.Bills.Contains(bill)))
         {
             if (!options.TryGetValue((cook.Id, cook.Pawn), out var work) || work <= 0) continue;
             var needed = cook.Recipe?.Ingredients.Sum(i => i.Count) ?? 0;

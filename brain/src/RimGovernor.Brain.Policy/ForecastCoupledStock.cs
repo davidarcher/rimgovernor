@@ -82,9 +82,8 @@ public static partial class ForecastCoupled
             if (census.ContainsKey(id)) return; // A delivery moves the existing lot and its eligibility.
             var uses = context.FoodUses.Where(u => u.Resource == resource.Value).ToArray();
             var edible = items.Nutrition.TryGetValue(resource, out var nutrition) && nutrition > 0;
-            var eaters = uses.Where(u => u.Eligible == Known(true)).Select(u => new PawnId(u.Pawn)).Distinct().ToArray();
-            var eligible = !edible ? Known(false) : eaters.Length > 0 ? Known(true)
-                : uses.Length > 0 && uses.All(u => u.Eligible.IsKnown) ? Known(false) : default;
+            var eaters = uses.Where(u => u.Eligible).Select(u => new PawnId(u.Pawn)).Distinct().ToArray();
+            var eligible = !edible ? Known(false) : eaters.Length > 0 ? Known(true) : uses.Length > 0 ? Known(false) : default;
             var fresh = !perishable ? Known(double.PositiveInfinity) : freshTicks.IsKnown ? Known(at + freshTicks.Value) : default;
             census[id] = new(id, resource, Known(0d), fresh, eligible, edible ? Known(nutrition) : Known(0d),
                 EquatableArray.From(eaters), items.MedicalPotency.ContainsKey(resource));

@@ -28,7 +28,7 @@ public sealed class ForecastCoupledSelectionTests
     private static readonly ObservationContext Context = new()
         { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
     internal static RoundsFacts Review(double level = .2, double fall = .003, double harvest = 10, double expiry = 1000,
-        bool reverse = false, bool unknownHarvest = false, int sourceCount = 2, double horizon = Horizon)
+        bool reverse = false, bool harvestRefused = false, int sourceCount = 2, double horizon = Horizon, bool neverRots = false)
     {
         var facts = WorkResourceTestFacts.Create("pawn");
         var sources = Plants.Take(sourceCount).ToArray();
@@ -44,15 +44,14 @@ public sealed class ForecastCoupledSelectionTests
                     Needs = [NeedsFixtures.Rate("food", level, fall, .3),
                         NeedsFixtures.Rate("rest", 1d, 0d, .3)],
                 }] },
-                Coupled = new()
-                {
+                Coupled = CoupledFixtures.Empty with {
                     Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Construction = ConstructionFixtures.NoConstruction(),
                     Tick = 100,
                     Food = new() { Options = EquatableArray.From(sources.Select(source =>
                         new FoodActivityOption("pawn", source, "Rice", new(1, 1), new(1, 1), "Harvest", 2, harvest)
-                        { ApproachTicks = Known(0d), DeliveryTicks = Known(10d), HarvestAllowed = unknownHarvest ? default : Known(true),
-                            SourceCount = Known(2d) })) },
-                    FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.2), Known(10d), 2, Known(expiry)) { Thoughts = [] }],
+                        { ApproachTicks = 0d, DeliveryTicks = 10d, HarvestAllowed = !harvestRefused,
+                            SourceCount = 2, SkillWork = null })) },
+                    FoodUses = [new("pawn", "Rice", new(1, 1), true, .2, 10d, 2, neverRots ? new FoodFreshness.Never() : new FoodFreshness.Rots(expiry)) { Ingredient = "", Thoughts = [] }],
                 },
             },
         };
@@ -318,7 +317,7 @@ public sealed class ForecastCoupledSelectionTests
         (RoundsFacts facts, ForecastSearchBudget? budget) = graph switch
         {
             "one-pawn" => (Review(), null),
-            "one-pawn-unknown-harvest" => (Review(unknownHarvest: true), null),
+            "one-pawn-unknown-harvest" => (Review(harvestRefused: true), null),
             // Harvests too slow for either pawn to eat before starving: every choice breaks the floor and the least excess wins.
             "all-violate" => (TwoPawnReview(harvest: 400), null),
             "reversed" => (TwoPawnReview(pawnLevel: .5, workerLevel: .2), null),
@@ -621,10 +620,22 @@ public sealed class ForecastCoupledSelectionTests
     [InlineData(10, 1000, true)]
     public void LateExpiredOrUnavailableHarvestCannotBuyEarlierNeedRelief(double work, double expiry, bool unknown)
     {
-        var result = Select(Review(harvest: work, expiry: expiry, unknownHarvest: unknown));
+        var result = Select(Review(harvest: work, expiry: expiry, harvestRefused: unknown));
         Assert.Empty(result.Selection.Selected);
         Assert.DoesNotContain(result.Selected.Plan.Allocations, a => a.Activity.Contains("/eat/", StringComparison.Ordinal));
         Assert.Equal(result.BaselineVector.Urgent, result.SelectedVector.Urgent);
+    }
+
+    // #3782: a resource that never rots is the named Never state, not an unread shelf life: the harvested lot keeps for the whole
+    // horizon, so the harvest that a five-tick shelf life refuses buys the same need relief as a long-keeping one.
+    [Fact]
+    public void ANonRottingHarvestLotKeepsAndBuysNeedRelief()
+    {
+        var never = Select(Review(harvest: 10, expiry: 5, neverRots: true));
+        var lasting = Select(Review(harvest: 10, expiry: 1000));
+        Assert.NotEmpty(never.Selection.Selected);
+        Assert.Contains(never.Selected.Plan.Allocations, a => a.Activity.Contains("/eat/", StringComparison.Ordinal));
+        Assert.Equal(lasting.SelectedVector.Urgent, never.SelectedVector.Urgent);
     }
 
     [Fact]
@@ -1174,9 +1185,9 @@ public sealed class ForecastCoupledSelectionTests
     // its evaluation allowance. A bound of zero runs the mandatory baseline alone.
     [Theory]
     [InlineData(false, 0)] [InlineData(false, 1)] [InlineData(false, 24)] [InlineData(false, 700)] [InlineData(true, 24)]
-    public void TheTraversalBoundIsNeverExceededAndItsEndIsReported(bool unknownHarvest, int traversal)
+    public void TheTraversalBoundIsNeverExceededAndItsEndIsReported(bool harvestRefused, int traversal)
     {
-        var facts = Review(unknownHarvest: unknownHarvest);
+        var facts = Review(harvestRefused: harvestRefused);
         var budget = new ForecastSearchBudget(ForecastSearchBudget.DefaultEvaluations, Traversal: traversal);
         var first = Select(facts, budget);
         var again = Select(facts, budget);
@@ -1185,7 +1196,7 @@ public sealed class ForecastCoupledSelectionTests
         var spent = first.Selection.Expansions - first.BaselineExpansions;
         Assert.True(spent <= traversal, why);
         Assert.True((spent == traversal) == first.Selection.Findings.Contains(ForecastCoupledSelection.TraversalBoundExhausted), why);
-        if (traversal <= 1 && !unknownHarvest) Assert.True(spent == traversal, why);
+        if (traversal <= 1 && !harvestRefused) Assert.True(spent == traversal, why);
         Assert.DoesNotContain(ForecastCoupledSelection.OutcomeEvaluationsExhausted, first.Selection.Findings);
         Assert.True(first.Selection.SearchTruncated);
         Assert.True(first.OutcomeEvaluations - first.BaselineEvaluations < ForecastSearchBudget.DefaultEvaluations);

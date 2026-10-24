@@ -76,13 +76,13 @@ public sealed class ForecastIncumbentPreparationTests
     {
         var (facts, actions) = Current();
         facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
-        { Routes = [new("pawn", new(1, 1), new(5, 5), Known(17d)) { FromStart = true },
-            new("pawn", new(8, 8), new(5, 5), Known(31d))] } } };
+        { Routes = [new("pawn", new(1, 1), new(5, 5), new RouteTicks.Reachable(17d)) { FromStart = true },
+            new("pawn", new(8, 8), new(5, 5), new RouteTicks.Reachable(31d)) { FromStart = false }] } } };
         var (prepared, _) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
         var routes = prepared.CoupledAlternatives!.Context.Activities.Routes;
-        Assert.Equal(Known(17d), Assert.Single(routes, r => r.Pawn == "pawn" && r.From == "cell/1/1" && r.To == "cell/5/5").Ticks);
-        Assert.Equal(Known(31d), Assert.Single(routes, r => r.Pawn == "pawn" && r.From == "cell/8/8" && r.To == "cell/5/5").Ticks);
-        Assert.Equal(Known(0d), Assert.Single(routes, r => r.Pawn == "pawn" && r.From == "cell/1/1" && r.To == "start").Ticks);
+        Assert.Equal(new RouteTicks.Reachable(17d), Assert.Single(routes, r => r.Pawn == "pawn" && r.From == "cell/1/1" && r.To == "cell/5/5").Ticks);
+        Assert.Equal(new RouteTicks.Reachable(31d), Assert.Single(routes, r => r.Pawn == "pawn" && r.From == "cell/8/8" && r.To == "cell/5/5").Ticks);
+        Assert.Equal(new RouteTicks.Reachable(0d), Assert.Single(routes, r => r.Pawn == "pawn" && r.From == "cell/1/1" && r.To == "start").Ticks);
     }
 
     [Theory]
@@ -194,17 +194,16 @@ public sealed class ForecastIncumbentPreparationTests
     /// is left. <paramref name="busy"/>: a second participant "busy" is mid-task on a recipe that is independent of pawn's,
     /// "depends" on pawn's next recipe, or "shares" its bill.</summary>
     private static (RoundsFacts Facts, WorkActionCensus Actions) BoundaryCooking(double helperTicks, string state = "holding",
-        double helperApproach = 0, double pawnPoison = double.NaN, double helperPoison = double.NaN, bool finished = false, string busy = "")
+        double helperApproach = 0, double pawnPoison = 0, double helperPoison = 0, bool finished = false, string busy = "")
     {
-        static Fact<double> Chance(double p) => double.IsNaN(p) ? default : Known(p);
         var conversion = ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "CookRice", 100)
-            with { AvailableInput = 8, CanSupply = true, CanDeliver = true, FoodPoisonChance = Chance(pawnPoison) };
-        var facts = ForecastPortfolioChoiceTests.Observed([conversion, conversion with { Pawn = "helper", WorkTicks = Known(helperTicks),
-                ApproachTicks = Known(helperApproach), FoodPoisonChance = Chance(helperPoison) }],
-            [new("rice", "Rice", new(1, 1), 8, Known(2000d))], helper: true);
+            with { AvailableInput = 8, CanSupply = true, Cooking = new FoodCooking.Cook(100, pawnPoison, null) };
+        var facts = ForecastPortfolioChoiceTests.Observed([conversion, conversion with { Pawn = "helper",
+                Cooking = new FoodCooking.Cook(helperTicks, helperPoison, null), ApproachTicks = helperApproach }],
+            [new("rice", "Rice", new(1, 1), 8, new FoodFreshness.Rots(2000d))], helper: true);
         var coupled = facts.ForecastObserved.Coupled!;
         facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = coupled with { Routes = EquatableArray.From(coupled.Routes
-            .Select(r => r.FromStart && r.Pawn == "helper" && r.To == new Cell(1, 1) ? r with { Ticks = Known(helperApproach) } : r)) } } };
+            .Select(r => r.FromStart && r.Pawn == "helper" && r.To == new Cell(1, 1) ? r with { Ticks = new RouteTicks.Reachable(helperApproach) } : r)) } } };
         var recipe = new PawnActivityRecipe("bill/CookRice", "CookRice", [new("observed-output", 4)]);
         var task = new SelectedActivityTask("cook-task", "pawn", [], new(PawnActivityKind.Recipe, "bench", "Cook", "", 0, 2000) { Recipe = recipe }, new(2, 1), 400);
         var order = new PawnActivityOrder("pawn", "cook-assignment", "coupled-cook", 0, 1, false,
@@ -335,8 +334,8 @@ public sealed class ForecastIncumbentPreparationTests
     }
 
     [Theory]
-    // #3167: an equally fast cook is preferred only with a lower chance its meal is poisoned; an unknown chance breaks no tie.
-    [InlineData(0.05, 0.01, true)]    [InlineData(0.05, 0.05, false)]    [InlineData(0.01, 0.05, false)]    [InlineData(double.NaN, 0.01, false)]
+    // #3167: an equally fast cook is preferred only with a lower chance its meal is poisoned.
+    [InlineData(0.05, 0.01, true)]    [InlineData(0.05, 0.05, false)]    [InlineData(0.01, 0.05, false)]
     public void AnEquallyFastCookWithALowerPoisoningChanceReconsidersTheMethod(double pawnPoison, double helperPoison, bool reconsidered)
     {
         var (facts, actions) = BoundaryCooking(100, pawnPoison: pawnPoison, helperPoison: helperPoison);

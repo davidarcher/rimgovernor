@@ -29,16 +29,15 @@ public sealed class ForecastCoupledTests
                 Needs = [NeedsFixtures.Rate("food", foodLevel, .001, .3),
                     NeedsFixtures.Rate("rest", 1.0, 0.0, .3)] }]
                 },
-                Coupled = new()
-                {
+                Coupled = CoupledFixtures.Empty with {
                     Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing,
                     Tick = 100,
                     Food = new()
                     {
                         Options = [new("pawn", "plant", "Rice", new(1,1), new(1,1), "Harvest", 8, harvest)
-                    { ApproachTicks = Known(0.0), DeliveryTicks = Known(10.0), HarvestAllowed = Known(true), SourceCount = Known(8.0) }]
+                    { SkillWork = null, ApproachTicks = 0.0, DeliveryTicks = 10.0, HarvestAllowed = true, SourceCount = 8 }]
                     },
-                    FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.1), Known(10.0), 4, Known(expiry)) { Thoughts = [] }],
+                    FoodUses = [new("pawn", "Rice", new(1, 1), true, .1, 10.0, 4, new FoodFreshness.Rots(expiry)) { Ingredient = "", Thoughts = [] }],
                     Construction = ConstructionFixtures.NoConstruction() with
                     {
                         Context = Context,
@@ -307,7 +306,7 @@ public sealed class ForecastCoupledTests
                 {
                     Thermal = thermal,
                     Construction = facts.ForecastObserved.Coupled.Construction with { Options = [wall] },
-                    Routes = EquatableArray.From(cells.SelectMany(a => cells.Where(b => a != b).Select(b => new CoupledRoute("pawn", a, b, Known(1.0)))))
+                    Routes = EquatableArray.From(cells.SelectMany(a => cells.Where(b => a != b).Select(b => new CoupledRoute("pawn", a, b, new RouteTicks.Reachable(1.0)) { FromStart = false })))
                 }
             }
         };
@@ -333,11 +332,11 @@ public sealed class ForecastCoupledTests
             {
                 Coupled = facts.ForecastObserved.Coupled! with
                 {
-                    Food = new(),
-                    FoodSources = [new("rice-stack", "Rice", new(1, 1), 8, Known(1000.0))],
-                    FoodConversions = [new("rice-stack","pawn","bench","CookMeal","Rice",4,"Meal",1,new(1,1),new(1,1),new(1,1),
-                    Known(0.0),Known(10.0),Known(20.0),Known(10.0),8,8) { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" }],
-                    FoodUses = [new("pawn", "Meal", new(1, 1), Known(true), Known(.8), Known(10.0), 1, Known(1000.0)) { Thoughts = [], Ingredient = "Rice" }]
+                    Food = CoupledFixtures.NoFood,
+                    FoodSources = [new("rice-stack", "Rice", new(1, 1), 8, new FoodFreshness.Rots(1000.0))],
+                    FoodConversions = [CoupledFixtures.Conversion("rice-stack","pawn","bench","CookMeal","Rice",4,"Meal",1,new(1,1),new(1,1),new(1,1),
+                    0.0,10.0,20.0,10.0,8,8) with { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" }],
+                    FoodUses = [new("pawn", "Meal", new(1, 1), true, .8, 10.0, 1, new FoodFreshness.Rots(1000.0)) { Thoughts = [], Ingredient = "Rice" }]
                 }
             }
         };
@@ -566,9 +565,9 @@ public sealed class ForecastCoupledTests
     {
         var facts = Review(foodLevel: 1); var roster = WorkResourceTestFacts.Create("pawn", "helper");
         var cells = new[] { new Cell(1, 1), new Cell(2, 1), new Cell(3, 1) };
-        var cook = new CoupledFoodConversion("rice", "pawn", "bench", "CookMeal", "Rice", 4, "Meal", 1, cells[0], cells[1], cells[2],
-            Known(0.0), Known(40.0), Known(20.0), Known(40.0), 4, 4)
-        { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" };
+        var cook = CoupledFixtures.Conversion("rice", "pawn", "bench", "CookMeal", "Rice", 4, "Meal", 1, cells[0], cells[1], cells[2],
+            0.0, 40.0, 20.0, 40.0, 4, 4)
+        with { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" };
         facts = facts with
         {
             Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 4)]),
@@ -579,13 +578,13 @@ public sealed class ForecastCoupledTests
                 Needs = facts.ForecastObserved.Needs! with { Pawns = [facts.ForecastObserved.Needs!.Pawns[0], facts.ForecastObserved.Needs.Pawns[0] with { Pawn = "helper" }] },
                 Coupled = facts.ForecastObserved.Coupled! with
                 {
-                    Food = new(),
-                    FoodSources = [new("rice", "Rice", cells[0], 4, Known(1000.0))],
-                    FoodConversions = [cook, cook with { Pawn = "helper", CanCook = false, CarryingCapacity = capacity, SupplyTicks = Known(travel), DeliveryTicks = Known(travel) }],
-                    FoodUses = [new("pawn", "Meal", cells[2], Known(true), Known(.8), Known(10.0), 1, Known(1000.0)) { Thoughts = [], Ingredient = "Rice" }],
+                    Food = CoupledFixtures.NoFood,
+                    FoodSources = [new("rice", "Rice", cells[0], 4, new FoodFreshness.Rots(1000.0))],
+                    FoodConversions = [cook, cook with { Pawn = "helper", Cooking = new FoodCooking.Incapable(), CarryingCapacity = capacity, SupplyTicks = travel, Delivery = new FoodDelivery.Carried(travel) }],
+                    FoodUses = [new("pawn", "Meal", cells[2], true, .8, 10.0, 1, new FoodFreshness.Rots(1000.0)) { Thoughts = [], Ingredient = "Rice" }],
                     Routes = EquatableArray.From(roster.ForecastObserved.WorkPawns.Value.Select(p => p.Id.Value).SelectMany(p => cells.SelectMany(a => cells.Where(b => b != a)
-                        .Select(b => new CoupledRoute(p, a, b, Known(p == "helper" && a == cells[1] && b == cells[0] ? travel : 1.0))))
-                        .Concat(cells.Select(c => new CoupledRoute(p, new(0, 0), c, Known(1.0)) { FromStart = true }))))
+                        .Select(b => new CoupledRoute(p, a, b, new RouteTicks.Reachable(p == "helper" && a == cells[1] && b == cells[0] ? travel : 1.0)) { FromStart = false }))
+                        .Concat(cells.Select(c => new CoupledRoute(p, new(0, 0), c, new RouteTicks.Reachable(1.0)) { FromStart = true }))))
                 }
             }
         };
@@ -683,7 +682,7 @@ public sealed class ForecastCoupledTests
             ForecastObserved = facts.ForecastObserved with
             {
                 Coupled = facts.ForecastObserved.Coupled! with
-                { FoodSources = [new("rice", "Rice", new(1, 1), 10, Known(10.0))] }
+                { FoodSources = [new("rice", "Rice", new(1, 1), 10, new FoodFreshness.Rots(10.0))] }
             }
         };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));

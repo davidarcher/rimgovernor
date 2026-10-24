@@ -15,21 +15,17 @@ namespace HomeBridge.BridgeTools;
 /// <summary>Native legality and route observations. No orders, demand or economic selection.</summary>
 internal static class NativeFoodActivity
 {
-    /// <summary>One native-internal food read: the asked plants, or the one pawn's executing delivery in <paramref name="Existing"/>.</summary>
-    internal sealed record Request(RimGovernor.Contracts.Wire.Common.Identity Identity, EquatableArray<string> Plants, PawnActivityOrder? Existing = null)
-    {
-        internal bool AllowCooking { get; init; }
-    }
+    /// <summary>One native-internal food read: the asked plants.</summary>
+    internal sealed record Request(RimGovernor.Contracts.Wire.Common.Identity Identity, EquatableArray<string> Plants);
 
     internal static bool Available(Pawn pawn) => pawn.CurJob == null || NativePawnActivities.Standing(pawn) || pawn.CurJob.def == JobDefOf.Wait || pawn.CurJob.def == JobDefOf.Wait_Wander || pawn.CurJob.def == JobDefOf.GotoWander;
     /// <summary>
-    /// Every free colonist's harvest and haul rows for the asked plants (or, executing, the one pawn's), one per
-    /// accepting storage group: its cheapest flood-nearest exact cell (#3341). A source's route to a cell is searched once for every colonist (NativePathLegs).
-    /// Only the cooking expansion of an executing delivery (NativeFoodCooking) keeps its route budget.
+    /// Every free colonist's harvest and haul rows for the asked plants, one per accepting storage group: its cheapest
+    /// flood-nearest exact cell (#3341). A source's route to a cell is searched once for every colonist (NativePathLegs).
     /// </summary>
     internal static Obs.FoodActivityRead Read(Request request, NativePathLegs? legs = null)
     {
-        if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out _, out _)) return new();
+        if (!ProtoBoundary.ValidateIdentity(request.Identity, out var map, out _, out _)) throw new InvalidOperationException("food_activity_identity_invalid");
         legs ??= new(map);
         // Every pawn's approach legs start at its own cell, so a read searches them anew once the pawn has moved: the
         // read runs batched (NativePathLegs.Batched), its legs searched together on the path job workers (#3556).
@@ -38,19 +34,9 @@ internal static class NativeFoodActivity
 
     private static Obs.FoodActivityRead ReadOnce(Request request, Map map, NativePathLegs legs)
     {
-        var result = new Obs.FoodActivityRead();
         var options = new List<Obs.FoodActivityOption>();
         var storage = new Dictionary<Thing, List<List<IntVec3>>>(); // Per source: its accepting groups' cells, flood-nearest first.
-        var existing = request.Existing;
-        var budget = 128; // NativeFoodCooking's route budget; only an executing delivery expands cooking.
         var pawns = map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
-        if (existing is not null)
-        {
-            pawns = pawns.Where(p => p.GetUniqueLoadID() == existing.Pawn).ToArray();
-            if (pawns.Length != 1) return result; // Missing pawn is unknown, not a completed delivery.
-            var execution = NativePawnActivities.Read(pawns[0]);
-            if (execution?.State is not ("completed" or "failed") && !(existing.Preparing && execution?.State == "holding")) return result;
-        }
         var plants = request.Plants.Select(id => RefIndex.Thing(map, id))
             .OfType<Plant>().OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is WorkGiver_GrowerHarvest);
@@ -59,38 +45,25 @@ internal static class NativeFoodActivity
             if (pawn.Downed || pawn.InMentalState || pawn.Drafted || !pawn.IsColonistPlayerControlled
                 || pawn.carryTracker.CarriedThing != null || pawn.WorkTypeIsDisabled(WorkTypeDefOf.Hauling)
                 || pawn.WorkTagIsDisabled(WorkTags.ManualDumb) || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)) continue;
-            if (existing is null && (NativePawnActivities.Owned(pawn) || !Available(pawn) || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0)) continue;
-            IEnumerable<Thing> sources = plants;
-            if (existing?.OutputDelivery is { } output)
-                sources = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver)
-                    .Where(t => t.Spawned && t.def.defName == output.Resource && t.Position.DistanceToSquared(output.Recipe is null
-                        ? new(output.Origin.X, 0, output.Origin.Z) : new(output.Destination.X, 0, output.Destination.Z)) <= 4)
-                    .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
-            foreach (var source in sources)
+            if (NativePawnActivities.Owned(pawn) || !Available(pawn) || pawn.CurJob?.playerForced == true || pawn.jobs.jobQueue.Count > 0) continue;
+            foreach (var plant in plants)
             {
-                var plant = source as Plant;
-                var product = plant?.def.plant.harvestedThingDef ?? source.def;
+                Thing source = plant; var product = plant.def.plant.harvestedThingDef;
                 if (product?.ingestible is null || !product.IsNutritionGivingIngestible || source.IsForbidden(pawn)
                     || !pawn.CanReserveAndReach(source, PathEndMode.Touch, Danger.None)) continue;
-                var harvestAllowed = plant is not null && !(giver?.Worker is not WorkGiver_Scanner scanner || !plant.HarvestableNow
+                var harvestAllowed = !(giver?.Worker is not WorkGiver_Scanner scanner || !plant.HarvestableNow
                     || pawn.WorkTagIsDisabled(giver.workTags) || (giver.workType != null && pawn.WorkTypeIsDisabled(giver.workType))
                     || scanner.MissingRequiredCapacity(pawn) != null || !scanner.HasJobOnCell(pawn, plant.Position, false));
-                var sourceCount = plant is null ? source.stackCount : plant.YieldNow();
+                var sourceCount = plant.YieldNow();
                 var count = Math.Min(sourceCount, pawn.carryTracker.MaxStackSpaceEver(product));
-                if (existing?.OutputDelivery is { } obligation) count = Math.Min(count, obligation.Count);
                 if (count <= 0) continue;
-                var work = plant is null ? 0 : plant.def.plant.harvestWork / Math.Max(0.01f, JobDriver_PlantWork.WorkDonePerTick(pawn, plant));
+                var work = plant.def.plant.harvestWork / Math.Max(0.01f, JobDriver_PlantWork.WorkDonePerTick(pawn, plant));
                 if (legs.Cost(pawn, pawn.Position, source, PathEndMode.Touch) is not { } approach) continue;
-                if (existing?.OutputDelivery?.Recipe is not null)
-                {
-                    NativeFoodCooking.Add(pawn, source, count, existing, options, ref budget);
-                    continue; // Supply was selected; rebind that exact recipe only.
-                }
                 // Each accepting storage group's cheapest exact, empty cell for this pawn: of the group's cells in flood
                 // order from the source, the first Nearest the pawn can use are searched. Policy ranks the groups' rows.
                 if (!storage.TryGetValue(source, out var groups))
                     storage[source] = groups = StorageByGroup(map, source.Position, map.haulDestinationManager.AllGroupsListInPriorityOrder
-                        .Where(g => plant is null ? g.Settings.AllowedToAccept(source) : g.Settings.filter.Allows(product)).ToList());
+                        .Where(g => g.Settings.filter.Allows(product)).ToList());
                 foreach (var ordered in groups)
                 {
                     (IntVec3 Cell, float Route)? best = null;
@@ -107,15 +80,13 @@ internal static class NativeFoodActivity
                     var (cell, route) = chosen;
                     options.Add(new(pawn.GetUniqueLoadID(), source.GetUniqueLoadID(), product.defName,
                         new(source.Position.x, source.Position.z), new(cell.x, cell.z), giver?.defName ?? "", count, work) {
-                            SkillWork = plant == null ? null : NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Plants, StatDefOf.PlantWorkSpeed,
+                            SkillWork = NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Plants, StatDefOf.PlantWorkSpeed,
                                 plant.def.plant.harvestWork, UnityEngine.Mathf.Lerp(3.3f, 1f, plant.Growth), .085, true, false, "JobDriver_PlantHarvest: learning before work"),
-                            ApproachTicks = Fact.Known((double)approach), DeliveryTicks = Fact.Known((double)route), HarvestAllowed = Fact.Known(harvestAllowed), SourceCount = Fact.Known((double)sourceCount) });
+                            ApproachTicks = approach, DeliveryTicks = route, HarvestAllowed = harvestAllowed, SourceCount = sourceCount });
                 }
-                if (plant is null && existing is not null && (request.AllowCooking || existing.Steps[0].Kind == PawnActivityKind.Work))
-                    NativeFoodCooking.Add(pawn, source, count, existing, options, ref budget);
             }
         }
-        return result with { Options = EquatableArray.From(options) };
+        return new() { Options = EquatableArray.From(options) };
     }
 
     /// <summary>The flood-nearest cells searched per storage group: flood steps are cardinal, paths also diagonal.</summary>

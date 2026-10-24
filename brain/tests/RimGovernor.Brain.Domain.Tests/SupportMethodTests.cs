@@ -20,18 +20,17 @@ public sealed class SupportMethodTests
             {
                 Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [basePawn, basePawn with { Pawn = "helper", Needs =
                     [NeedsFixtures.Rate("food", 1d, 0d, .3), NeedsFixtures.Rate("rest", 1d, 0d, .3)] }] },
-                Coupled = new()
-                {
+                Coupled = CoupledFixtures.Empty with {
                     Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Construction = ConstructionFixtures.NoConstruction(),
                     Tick = 100, Support = support,
-                    FoodSources = cooking ? [new("rice", "Rice", new(1, 1), 4, Known(1000d))] : [],
-                    FoodConversions = cooking ? [new("rice", "pawn", "bench", "CookMeal", "Rice", 4, "Meal", 1,
-                        new(1, 1), new(1, 1), new(1, 1), Known(0d), Known(1d), Known(10d), Known(1d), 4, 4)
-                        { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" }] : [],
-                    FoodUses = cooking ? [new("pawn", "Meal", new(1, 1), Known(true), Known(.8), Known(10d), 1, Known(1000d)) { Thoughts = [], Ingredient = "Rice" },
-                        new("pawn", "Rice", new(1, 1), Known(false), Known(.1), Known(10d), 4, Known(1000d)) { Thoughts = [] }] : [],
-                    Routes = [new("pawn", new(1, 1), new(1, 1), Known(0d)) { FromStart = true },
-                        new("helper", new(1, 1), new(1, 1), Known(0d)) { FromStart = true }]
+                    FoodSources = cooking ? [new("rice", "Rice", new(1, 1), 4, new FoodFreshness.Rots(1000d))] : [],
+                    FoodConversions = cooking ? [CoupledFixtures.Conversion("rice", "pawn", "bench", "CookMeal", "Rice", 4, "Meal", 1,
+                        new(1, 1), new(1, 1), new(1, 1), 0d, 1d, 10d, 1d, 4, 4)
+                        with { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" }] : [],
+                    FoodUses = cooking ? [new("pawn", "Meal", new(1, 1), true, .8, 10d, 1, new FoodFreshness.Rots(1000d)) { Thoughts = [], Ingredient = "Rice" },
+                        new("pawn", "Rice", new(1, 1), false, .1, 10d, 4, new FoodFreshness.Rots(1000d)) { Ingredient = "", Thoughts = [] }] : [],
+                    Routes = [new("pawn", new(1, 1), new(1, 1), new RouteTicks.Reachable(0d)) { FromStart = true },
+                        new("helper", new(1, 1), new(1, 1), new RouteTicks.Reachable(0d)) { FromStart = true }]
                 }
             }
         };
@@ -47,7 +46,7 @@ public sealed class SupportMethodTests
     [Fact]
     public void ACookedMealIsExposedToItsBenchRoomsPoisonChance()
     {
-        var read = new SupportActivityRead { Known = true, Demands = [new("bench", "bench", "bench", new(1, 1), .02, Known(0d))] };
+        var read = CoupledFixtures.NoSupport with { Demands = [CoupledFixtures.Demand("bench", "bench", "bench", new(1, 1), .02, 0d)] };
         var facts = Facts(read, true); var result = Select(facts);
         Assert.Contains(Tasks(facts, result), t => t.Step.Kind == PawnActivityKind.Recipe);
         Assert.Equal(.02, result.SelectedVector.Support.FoodPoisonExposure, 9);
@@ -56,17 +55,15 @@ public sealed class SupportMethodTests
     [Fact]
     public void UrgentCareIsTendedAndPricedByItsFirstCareTicks()
     {
-        var read = new SupportActivityRead { Known = true, Demands = [new("care", "care", "patient", new(1, 1), default, Known(.1))],
-            Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))] };
+        var read = CoupledFixtures.NoSupport with { Demands = [CoupledFixtures.Demand("care", "care", "patient", new(1, 1), default, .1)],
+            Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), 0d, 20d) { Medicine = null, Treatment = CoupledFixtures.Tend() }] };
         var facts = Facts(read); var result = Select(facts);
         Assert.Contains(Tasks(facts, result), t => t.Step.Job == "TendPatient");
         Assert.Equal(Known(20d), result.SelectedVector.Support.UrgentFirstCareTicks);
     }
 
-    private static SupportActivityRead Delivery(int required, double duration = 10) => new()
-    {
-        Known = true,
-        Deliveries = [new("bill:stone:Chunk", "helper", "useful-chunk", "Chunk", "bench", "stone", new(2, 2), new(1, 1), required, 20, 20, Known(0d), Known(duration))]
+    private static SupportActivityRead Delivery(int required, double duration = 10) => CoupledFixtures.NoSupport with {
+        Deliveries = [new("bill:stone:Chunk", "helper", "useful-chunk", "Chunk", "bench", "stone", new(2, 2), new(1, 1), required, 20, 20, 0d, duration)]
     };
     [Theory]
     [InlineData(1)]
@@ -100,13 +97,12 @@ public sealed class SupportMethodTests
     [Fact]
     public void ExactMedicineChoiceConsumesOneObservedLotAndPreservesIntent()
     {
-        var read = new SupportActivityRead { Known = true,
-            Demands = [new("care", "care", "patient", new(1, 1), default, Known(0d))
-                { InfectionChanceFactor = Known(1d) }],
-            Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))
-                { TendQuality = Known(.2) },
-                new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))
-                { Medicine = "medicine", MedicineResource = "Chunk", MedicineCount = 1, MedicineAvailable = 20, MedicineLocation = new(1, 1), TendQuality = Known(.8) }] };
+        var read = CoupledFixtures.NoSupport with {
+            Demands = [CoupledFixtures.Demand("care", "care", "patient", new(1, 1), default, 0d)],
+            Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), 0d, 20d)
+                { Medicine = null, Treatment = CoupledFixtures.Tend(.2) },
+                new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), 0d, 20d)
+                { Medicine = new("medicine", "Chunk", 1, new(1, 1), 20), Treatment = CoupledFixtures.Tend(.8) }] };
         var facts = Facts(read); var result = Select(facts); var task = Assert.Single(Tasks(facts, result));
         Assert.Equal("medicine", task.Step.Medicine); Assert.Equal("care", task.Step.SupportDemand);
         Assert.Equal(1, Assert.Single(task.Inputs).Count);
@@ -115,34 +111,29 @@ public sealed class SupportMethodTests
 
     [Theory]
     [InlineData(false, 100)]
-    [InlineData(null, 100)]
     [InlineData(true, 10)]
     [InlineData(true, 100)]
-    public void CareRoomFactorRequiresApplicableNativeBatchAndAnUnexpiredCheck(bool? applicable, double checkTicks)
+    public void CareRoomFactorRequiresAPendingNativeCheckThatOutlastsTheTend(bool pending, double checkTicks)
     {
-        var read = new SupportActivityRead
+        var read = CoupledFixtures.NoSupport with
         {
-            Known = true,
-            Demands = [new("care", "care", "patient", new(1, 1), default, Known(0d)) { InfectionChanceFactor = Known(2d) }],
-            Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d))
-                { InfectionRoomEffectApplies = applicable is { } value ? Known(value) : default,
-                    InfectionCheckTicks = Known(checkTicks), TendQuality = Known(.5) }]
+            Demands = [CoupledFixtures.Demand("care", "care", "patient", new(1, 1), default, 0d) with { InfectionChanceFactor = 2d }],
+            Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), 0d, 20d)
+                { Medicine = null, Treatment = CoupledFixtures.Tend(.5, pending ? new InfectionCheck.Pending(checkTicks) : new InfectionCheck.None()) }]
         };
         var facts = Facts(read); var selection = Select(facts);
         Assert.Contains(Tasks(facts, selection), t => t.Step.Job == "TendPatient");
-        var factor = selection.SelectedVector.Support.CareRoomFactor;
-        if (applicable == false) Assert.Equal(Known(0d), factor);
-        else if (applicable == true && checkTicks == 100) Assert.Equal(Known(2d), factor);
-        else Assert.False(factor.IsKnown);
+        // A batch with no pending check, or one that fires before the tend ends, leaves the room out: no factor is unknown.
+        Assert.Equal(Known(pending && checkTicks == 100 ? 2d : 0d), selection.SelectedVector.Support.CareRoomFactor);
     }
 
     [Fact]
     public void SurgeryUsesItsOwnQueuedServiceAndNativeRoomMultiplier()
     {
-        var read = new SupportActivityRead { Known = true, Demands = [new("surgery", "surgery", "patient", new(1, 1), default, Known(0d))
-                { SurgerySuccessFactor = Known(.6) }], Workers =
-            [new("surgery", "pawn", "patient", "DoBill", "Doctor", new(1, 1), Known(0d), Known(20d))
-                { Recipe = new("selected-medical-bill", "selected-operation", []) }] };
+        var read = CoupledFixtures.NoSupport with { Demands = [CoupledFixtures.Demand("surgery", "surgery", "patient", new(1, 1), default, 0d)
+                with { SurgerySuccessFactor = .6 }], Workers =
+            [new("surgery", "pawn", "patient", "DoBill", "Doctor", new(1, 1), 0d, 20d)
+                { Medicine = null, Treatment = CoupledFixtures.Surgery(new("selected-medical-bill", "selected-operation", [])) }] };
         var facts = Facts(read); var result = Select(facts); var tasks = Tasks(facts, result);
         Assert.Equal("selected-medical-bill", Assert.Single(tasks, t => t.Step.Job == "DoBill").Step.Recipe!.Bill);
         Assert.Equal(Known(.6), result.SelectedVector.Support.SurgeryRoomFactor);
@@ -153,14 +144,13 @@ public sealed class SupportMethodTests
     [InlineData(1)]
     public void TendAndSurgeryAllocationsCarryMedicineLearningWhateverTheSurgeryOutcome(double success)
     {
-        var read = new SupportActivityRead
+        var read = CoupledFixtures.NoSupport with
         {
-            Known = true,
-            Demands = [new("care", "care", "patient", new(1, 1), default, Known(.1)),
-                new("surgery", "surgery", "other", new(1, 1), default, Known(0d)) { SurgerySuccessFactor = Known(success) }],
-            Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(20d)) { TendLearning = ProductiveLearningTests.Tend() },
-                new("surgery", "helper", "other", "DoBill", "Doctor", new(1, 1), Known(0d), Known(20d))
-                { Recipe = new("selected-medical-bill", "selected-operation", []), SkillWork = ProductiveLearningTests.Surgery(15) }],
+            Demands = [CoupledFixtures.Demand("care", "care", "patient", new(1, 1), default, .1),
+                CoupledFixtures.Demand("surgery", "surgery", "other", new(1, 1), default, 0d) with { SurgerySuccessFactor = success }],
+            Workers = [new("care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), 0d, 20d) { Medicine = null, Treatment = CoupledFixtures.Tend(learning: ProductiveLearningTests.Tend()) },
+                new("surgery", "helper", "other", "DoBill", "Doctor", new(1, 1), 0d, 20d)
+                { Medicine = null, Treatment = CoupledFixtures.Surgery(new("selected-medical-bill", "selected-operation", []), ProductiveLearningTests.Surgery(15)) }],
         };
         var facts = Facts(read); var result = Select(facts); var tasks = Tasks(facts, result);
         Assert.Contains(tasks, t => t.Step.Job == "TendPatient");

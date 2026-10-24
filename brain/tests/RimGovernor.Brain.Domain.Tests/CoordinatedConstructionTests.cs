@@ -27,7 +27,7 @@ public sealed class CoordinatedConstructionTests
         facts = facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
-            Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options), Routes = EquatableArray.From(routes) } }
+            Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options), Routes = EquatableArray.From(routes) } }
         } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var request = ForecastCoupled.CoupledForecastRequestOf(new("world/map/load", 100), 1900d / GameTime.TicksPerDay,
@@ -54,7 +54,7 @@ public sealed class CoordinatedConstructionTests
         facts = facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
-            Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = [option] } }
+            Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = [option] } }
         } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 1900)!;
         var outcome = Assert.Single(generated.Alternatives, c => c.ExclusiveOutcome.StartsWith("construction/", StringComparison.Ordinal)).Outcome!;
@@ -69,7 +69,7 @@ public sealed class CoordinatedConstructionTests
         return facts with { WorkView = Resources(), ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "producer" }, template with { Pawn = "helper" }] },
-            Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+            Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Construction = ConstructionFixtures.NoConstruction() with { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
                 Removals = EquatableArray.From(removals) } }
         } };
     }
@@ -420,7 +420,7 @@ public sealed class CoordinatedConstructionTests
         var near = Option("producer", 0, 20, 20) with { AvailableInput = Known(12d) };
         var far = Option("producer", 5, 30, 20) with { Input = "wood-b", Origin = new(12, 10), AvailableInput = Known(8d) };
         // Native reads the leg back from the site to each stack of the set.
-        CoupledRoute[] back = [new("producer", near.Location, near.Origin, Known(20d)), new("producer", far.Location, far.Origin, Known(22d))];
+        CoupledRoute[] back = [new("producer", near.Location, near.Origin, new RouteTicks.Reachable(20d)) { FromStart = false }, new("producer", far.Location, far.Origin, new RouteTicks.Reachable(22d)) { FromStart = false }];
         var batch = Start(out _, back, near, far)!;
         var supplies = batch.Tasks.Where(t => t.Step.Kind == PawnActivityKind.Supply).ToDictionary(t => t.Step.Target, t => t.Step.Count);
         Assert.Equal(new Dictionary<string, int> { ["wood"] = 12, ["wood-b"] = 8 }, supplies);

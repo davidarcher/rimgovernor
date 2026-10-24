@@ -167,7 +167,7 @@ internal static class CoupledShelterCandidates
                     // A colonist with no path to the cell (or no route read to it) cannot roof it: it gets no option, never a free approach.
                     if (read.RoofRoutes.SingleOrDefault(r => r.Pawn == worker.Pawn && r.Cell == cell)?.Approach is not RoofApproach.Path path) continue;
                     options.Add(new(id, worker.Pawn, Known(worker.RoofCellWorkTicks), Known(0d)) { SkillWork = worker.SkillWork });
-                    routes.TryAdd((worker.Pawn, "start", location), new(worker.Pawn, "start", location, Known(path.Ticks)));
+                    routes.TryAdd((worker.Pawn, "start", location), new(worker.Pawn, "start", location, new RouteTicks.Reachable(path.Ticks)));
                     bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work,
                         // One claim target per cell: a shared "roof" target made two pawns on different cells refuse each other at admission.
                         "roof/" + cell.X + "/" + cell.Z, "BuildRoofs", "BuildRoof", 0, deadline, cell) { Destination = cell };

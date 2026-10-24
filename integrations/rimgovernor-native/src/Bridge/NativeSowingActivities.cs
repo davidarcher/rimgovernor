@@ -113,27 +113,28 @@ internal static class NativeSowingActivities
         var growers = map.zoneManager.AllZones.OfType<Zone_Growing>().Cast<IPlantToGrowSettable>()
             .Concat(map.listerBuildings.allBuildingsColonist.OfType<Building_PlantGrower>())
             .OrderBy(IdOf, StringComparer.Ordinal).ToArray();
-        var giverName = Giver?.defName;
-        if (giverName == null) { findings.Add("sow_giver_def_missing"); return new() { Known = true, Findings = EquatableArray.From(findings) }; }
+        var giverName = Probe().def.defName;
         foreach (var grower in growers)
             if (grower.GetPlantDefToGrow() == null) findings.Add("sowing_zone_without_crop:" + IdOf(grower));
         foreach (var pawn in map.mapPawns.FreeColonistsSpawned.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
         {
             if (!NativeFoodActivity.Available(pawn)) continue;
+            // A pawn with no plant work speed, or no Plants skill to learn, cannot sow: it has no row.
             var speed = pawn.GetStatValue(StatDefOf.PlantWorkSpeed);
+            if (speed <= 0) continue;
             foreach (var grower in growers)
             {
                 var crop = grower.GetPlantDefToGrow();
                 if (crop?.plant == null) continue;
                 var cells = LegalCells(pawn, grower);
                 if (cells.Count == 0 || legs.Cost(pawn, pawn.Position, cells[0], PathEndMode.OnCell) is not { } path) continue;
-                workers.Add(new(pawn.GetUniqueLoadID(), IdOf(grower), giverName, Fact.Known((double)path),
-                    speed > 0 ? Fact.Known((double)crop.plant.sowWork / speed) : default,
+                if (NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Plants, StatDefOf.PlantWorkSpeed, cells.Count,
+                    1d / crop.plant.sowWork, 0.085, true, false, "JobDriver_PlantSow: Plants 0.085 XP per callback tick before sow work") is not { } skillWork) continue;
+                workers.Add(new(pawn.GetUniqueLoadID(), IdOf(grower), giverName, path, (double)crop.plant.sowWork / speed,
                     EquatableArray.From(cells.Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z))))
-                { SkillWork = NativeProductiveSkill.ReadWork(pawn, SkillDefOf.Plants, StatDefOf.PlantWorkSpeed, cells.Count,
-                    1d / crop.plant.sowWork, 0.085, true, false, "JobDriver_PlantSow: Plants 0.085 XP per callback tick before sow work") });
+                { SkillWork = skillWork });
             }
         }
-        return new() { Known = true, Workers = EquatableArray.From(workers), Findings = EquatableArray.From(findings) };
+        return new() { Workers = EquatableArray.From(workers), Findings = EquatableArray.From(findings) };
     }
 }

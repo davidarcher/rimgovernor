@@ -26,11 +26,11 @@ public sealed class HuntAlternativesTests
     /// <summary>Chooses over stated estimates by encounter; a roster without one is refused as <c>estimate_missing</c>.</summary>
     static HuntSelection Choose(HuntActivityRead read, EquatableArray<HuntRoster> rosters, Dictionary<string, HuntEstimate> estimates, IReadOnlyList<CoupledRoute> routes, double needed) =>
         HuntAlternatives.Choose(read, rosters, r => estimates.TryGetValue(r.SceneKey, out var e) ? (e, "") : (null, "estimate_missing"), routes, needed);
-    static CoupledRoute Walk(string pawn, int x, double ticks) => new(pawn, new(0, 0), new(x, 10), Fact.Known(ticks)) { FromStart = true };
+    static CoupledRoute Walk(string pawn, int x, double ticks) => new(pawn, new(0, 0), new(x, 10), new RouteTicks.Reachable(ticks)) { FromStart = true };
     /// <summary>The pawn's trip from the prey at x to the corpse store, carrying.</summary>
-    static CoupledRoute Haul(string pawn, int x, double ticks) => new(pawn, new(x, 10), Store, Fact.Known(ticks));
+    static CoupledRoute Haul(string pawn, int x, double ticks) => new(pawn, new(x, 10), Store, new RouteTicks.Reachable(ticks)) { FromStart = false };
     /// <summary>The pawn's empty walk from the prey at x back to where it stood.</summary>
-    static CoupledRoute Back(string pawn, int x, double ticks) => new(pawn, new(x, 10), new(0, 0), Fact.Known(ticks));
+    static CoupledRoute Back(string pawn, int x, double ticks) => new(pawn, new(x, 10), new(0, 0), new RouteTicks.Reachable(ticks)) { FromStart = false };
     /// <summary>Every leg of every pawn at the prey at x, at one tick cost.</summary>
     static IEnumerable<CoupledRoute> Legs(int x, double ticks, params string[] pawns) =>
         pawns.SelectMany(p => new[] { Walk(p, x, ticks), Haul(p, x, ticks), Back(p, x, ticks) });
@@ -145,7 +145,7 @@ public sealed class HuntAlternativesTests
         Assert.Empty(own.Roster!.Retrievers);
         Assert.Equal((100 + 1000 + 100.0, 100.0, 0.0), (own.LaborTicks, own.HaulTicks, own.ReturnTicks));
         // A far store the slow gunner would carry to for 2000 ticks: the hauler's 800 and the gunner's empty return are less.
-        var far = near.Select(r => r.FromStart || r.To != Store ? r : r with { Ticks = Fact.Known(r.Pawn == "a" ? 2000.0 : 800.0) }).ToArray();
+        var far = near.Select(r => r.FromStart || r.To != Store ? r : r with { Ticks = new RouteTicks.Reachable(r.Pawn == "a" ? 2000.0 : 800.0) }).ToArray();
         var retrieved = Choose(read, rosters, estimates, far, 3.0).Selected;
         Assert.Equal(["h"], retrieved.Roster!.Retrievers);
         Assert.Equal((100 + 1000 + 50 + 50 + 800.0, 850.0, 50.0), (retrieved.LaborTicks, retrieved.HaulTicks, retrieved.ReturnTicks));
@@ -186,7 +186,7 @@ public sealed class HuntAlternativesTests
         Assert.All(HuntAlternatives.Propose(idle, new HashSet<string>(), routes).Rosters, r => Assert.Empty(r.Retrievers));
         // Three haulers outside the pool: the two with the shortest walk and haul are offered with every team, in one scene each.
         var crowd = Read([Hunter("a"), Hunter("f", armed: false, hauls: true), Hunter("g", armed: false, hauls: true), Hunter("h", armed: false, hauls: true)], [prey]);
-        var ranked = routes.Select(r => r.Pawn == "g" && r.FromStart ? r with { Ticks = Fact.Known(500.0) } : r).ToArray();
+        var ranked = routes.Select(r => r.Pawn == "g" && r.FromStart ? r with { Ticks = new RouteTicks.Reachable(500.0) } : r).ToArray();
         var (rosters, _) = HuntAlternatives.Propose(crowd, new HashSet<string>(), ranked);
         Assert.Equal(["f", "h"], rosters.Where(r => r.Retrievers.Count == 1).Select(r => r.Retrievers[0]).Order());
         Assert.Single(rosters.Select(r => r.SceneKey).Distinct());

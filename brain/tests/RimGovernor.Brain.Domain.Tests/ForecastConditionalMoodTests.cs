@@ -267,7 +267,7 @@ public sealed class ForecastConditionalMoodTests
         facts = facts with { ForecastObserved = facts.ForecastObserved with
         {
             Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [pawn] },
-            Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Food = new(), Construction = ConstructionFixtures.NoConstruction(), Routes = [new("pawn", new(1, 1), new(1, 1), Known(0d)) { FromStart = true }] },
+            Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Food = CoupledFixtures.NoFood, Construction = ConstructionFixtures.NoConstruction(), Routes = [new("pawn", new(1, 1), new(1, 1), new RouteTicks.Reachable(0d)) { FromStart = true }] },
         } };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, horizon)!.Priced(horizon);

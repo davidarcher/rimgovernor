@@ -16,8 +16,8 @@ public sealed class ProductiveDemandTests
     public void UsefulBatchRemainderIsAllowedButSaturatedEatingCannotJustifyLearningInvestment(bool learning, bool saturated, bool feasible)
     {
         var conversion = ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "SimpleMeal", 100) with
-        { AvailableInput = 8, ProductCount = 2, SkillWork = learning ? ProductiveLearningTests.Work() : null };
-        var facts = ForecastPortfolioChoiceTests.Observed([conversion], [new("rice", "Rice", new(1, 1), 8, Known(2000d))]);
+        { AvailableInput = 8, ProductCount = 2, Cooking = new FoodCooking.Cook(100, 0, learning ? ProductiveLearningTests.Work() : null) };
+        var facts = ForecastPortfolioChoiceTests.Observed([conversion], [new("rice", "Rice", new(1, 1), 8, new FoodFreshness.Rots(2000d))]);
         var needs = facts.ForecastObserved.Needs!;
         facts = facts with { ForecastObserved = facts.ForecastObserved with
         {

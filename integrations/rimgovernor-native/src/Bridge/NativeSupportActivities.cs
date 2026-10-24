@@ -39,7 +39,7 @@ internal static class NativeSupportActivities
                     var deficit = needed - Staged(map, destination, source.def);
                     if (deficit <= 0 || source.Position == destination) continue;
                     var id = "bill:" + bill.GetUniqueLoadID() + ":" + source.def.defName;
-                    if (!demands.Any(d => d.Id == id)) demands.Add(new(id, "delivery", bench.GetUniqueLoadID(), At(destination), default, default));
+                    if (!demands.Any(d => d.Id == id)) demands.Add(Demand(id, "delivery", bench.GetUniqueLoadID(), destination, 0, 0));
                     foreach (var pawn in roster)
                     {
                         if (!Available(pawn) || source.IsForbidden(pawn) || bench.IsForbidden(pawn)
@@ -47,8 +47,8 @@ internal static class NativeSupportActivities
                             || pawn.WorkTagIsDisabled(WorkTags.ManualDumb) || !pawn.health.capacities.CapableOf(PawnCapacityDefOf.Manipulation)
                             || !pawn.CanReserveAndReach(source, PathEndMode.Touch, Danger.None)
                             || !DestinationAllowed(pawn, source, destination, Math.Min(deficit, source.stackCount))) continue;
-                        var approach = Route(pawn, pawn.Position, source.Position, PathEndMode.Touch);
-                        var travel = Route(pawn, source.Position, destination, PathEndMode.OnCell);
+                        if (Route(pawn, pawn.Position, source.Position, PathEndMode.Touch) is not { } approach
+                            || Route(pawn, source.Position, destination, PathEndMode.OnCell) is not { } travel) continue;
                         deliveries.Add(new(id, pawn.GetUniqueLoadID(), source.GetUniqueLoadID(), source.def.defName,
                             bench.GetUniqueLoadID(), bill.GetUniqueLoadID(), At(source.Position), At(destination), deficit,
                             source.stackCount, pawn.carryTracker.MaxStackSpaceEver(source.def), approach, travel));
@@ -71,22 +71,25 @@ internal static class NativeSupportActivities
                     .Where(t => t.Spawned && t.def.IsMedicine && patient.playerSettings != null && patient.playerSettings.medCare.AllowsMedicine(t.def)
                         && !t.IsForbidden(pawn) && pawn.CanReserveAndReach(t, PathEndMode.ClosestTouch, Danger.None))
                     .OrderBy(t => t.GetUniqueLoadID(), StringComparer.Ordinal).Cast<Thing?>().Append(null).ToArray();
+                // A colonist with no tend speed cannot tend; nothing tendable now leaves no batch to give.
                 var speed = pawn.GetStatValue(StatDefOf.MedicalTendSpeed);
-                var medicineSkill = pawn.skills?.GetSkill(SkillDefOf.Medicine);
-                var learning = medicineSkill == null ? null : NativeSkillLearning.Read(pawn, medicineSkill);
-                // One selected native treatment batch. Remaining wounds need fresh observation and selection.
                 var count = patient.health.hediffSet.hediffs.Count(h => h.TendableNow());
+                if (speed <= 0 || count == 0) continue;
+                var learning = NativeSkillLearning.Read(pawn, pawn.skills.GetSkill(SkillDefOf.Medicine));
+                // One selected native treatment batch. Remaining wounds need fresh observation and selection.
                 foreach (var medicine in medicines)
                 {
-                var infection = InfectionEffect(patient, medicine != null);
-                workers.Add(new(id, pawn.GetUniqueLoadID(), patient.GetUniqueLoadID(), "TendPatient", tend.defName,
-                    At(patient.Position), medicine == null ? Route(pawn, pawn.Position, patient.Position, PathEndMode.Touch)
-                        : Add(Route(pawn, pawn.Position, medicine.Position, PathEndMode.Touch), Route(pawn, medicine.Position, patient.Position, PathEndMode.Touch)),
-                    speed > 0 && count > 0 ? Fact.Known(Math.Ceiling(600d / speed)) : default) { Medicine = medicine?.GetUniqueLoadID() ?? "", MedicineResource = medicine?.def.defName ?? "", MedicineCount = medicine == null ? 0 : 1, MedicineLocation = medicine == null ? null : At(medicine.Position), MedicineAvailable = medicine?.stackCount ?? 0,
-                        TendQuality = Fact.Known((double)TendUtility.CalculateBaseTendQuality(pawn, patient, medicine?.def)),
-                        InfectionRoomEffectApplies = infection.Applies, InfectionCheckTicks = infection.Ticks,
-                        TendLearning = learning == null ? null : new(learning, SkillDefOf.Medicine.defName,
-                            Fact.Known(RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveTendLearning(patient.RaceProps.Animal, medicine?.def)), "native Toils_Tend.FinalizeTend") });
+                    var approach = medicine == null ? Route(pawn, pawn.Position, patient.Position, PathEndMode.Touch)
+                        : Add(Route(pawn, pawn.Position, medicine.Position, PathEndMode.Touch), Route(pawn, medicine.Position, patient.Position, PathEndMode.Touch));
+                    if (approach is not { } walk) continue;
+                    workers.Add(new(id, pawn.GetUniqueLoadID(), patient.GetUniqueLoadID(), "TendPatient", tend.defName,
+                        At(patient.Position), walk, Math.Ceiling(600d / speed))
+                    {
+                        Medicine = medicine == null ? null : new(medicine.GetUniqueLoadID(), medicine.def.defName, 1, At(medicine.Position), medicine.stackCount),
+                        Treatment = new Obs.SupportTreatment.Tend(TendUtility.CalculateBaseTendQuality(pawn, patient, medicine?.def), Infection(patient, medicine != null),
+                            new(learning, SkillDefOf.Medicine.defName,
+                                Fact.Known(RimGovernor.Brain.Bridge.DefinitionCatalog.ObserveTendLearning(patient.RaceProps.Animal, medicine?.def)), "native Toils_Tend.FinalizeTend"))
+                    });
                 }
             }
         }
@@ -114,33 +117,39 @@ internal static class NativeSupportActivities
                     var step = new PawnActivityStep(PawnActivityKind.Work, patient.GetUniqueLoadID(), giver.defName, "DoBill", 0, Find.TickManager.TicksGame + 60000) { Recipe = recipe };
                     if (!NativeSupportSurgery.Resolve(pawn, patient, step, out var job)) continue;
                     JobMaker.ReturnToPool(job!);
+                    // A surgeon with no operation speed cannot operate.
                     var speed = bill.recipe.workSpeedStat == null ? 1 : pawn.GetStatValue(bill.recipe.workSpeedStat);
+                    if (speed <= 0 || Add(Route(pawn, pawn.Position, source.Position, PathEndMode.Touch), Route(pawn, source.Position, patient.Position, PathEndMode.Touch)) is not { } walk) continue;
                     workers.Add(new(id, pawn.GetUniqueLoadID(), patient.GetUniqueLoadID(), "DoBill", giver.defName, At(patient.Position),
-                        Add(Route(pawn, pawn.Position, source.Position, PathEndMode.Touch), Route(pawn, source.Position, patient.Position, PathEndMode.Touch)),
-                        speed > 0 ? Fact.Known((double)bill.recipe.WorkAmountTotal(null) / speed) : default) { Recipe = recipe,
-                            Medicine = source.GetUniqueLoadID(), MedicineResource = source.def.defName, MedicineCount = count, MedicineLocation = At(source.Position), MedicineAvailable = source.stackCount, SkillWork = skillWork,
-                            SurgeryQuality = SurgeryQualityOf(pawn, patient, bill.recipe, bill.Part, bill) });
+                        walk, (double)bill.recipe.WorkAmountTotal(null) / speed)
+                    {
+                        Medicine = new(source.GetUniqueLoadID(), source.def.defName, count, At(source.Position), source.stackCount),
+                        Treatment = new Obs.SupportTreatment.Surgery(recipe, SurgeryQualityOf(pawn, patient, bill.recipe, bill.Part, bill), skillWork)
+                    });
                 }
             }
         }
         }
-        return new() { Known = true, Demands = EquatableArray.From(demands),
+        return new() { Demands = EquatableArray.From(demands),
             Workers = EquatableArray.From(workers), Deliveries = EquatableArray.From(deliveries), Findings = EquatableArray.From(findings.OrderBy(x => x, StringComparer.Ordinal)) };
 
-        Fact<double> Route(Pawn pawn, IntVec3 from, IntVec3 to, PathEndMode mode) =>
-            legs.Cost(pawn, from, to, mode) is { } ticks ? Fact.Known((double)ticks) : default;
+        double? Route(Pawn pawn, IntVec3 from, IntVec3 to, PathEndMode mode) => legs.Cost(pawn, from, to, mode);
         string AddRoom(Thing target, IntVec3 location, string kind, string suffix = "")
         {
-            var id = kind + ":" + target.GetUniqueLoadID() + (suffix.Length == 0 ? "" : ":" + suffix); var room = location.GetRoom(map);
-            var poison = room == null ? (double)RoomStatDefOf.FoodPoisonChance.roomlessScore : (double)room.GetStat(RoomStatDefOf.FoodPoisonChance);
-            var surgeryFactor = DefDatabase<RoomStatDef>.GetNamedSilentFail("SurgerySuccessChanceCleanlinessFactor");
-            demands.Add(new(id, kind, target.GetUniqueLoadID(), At(location), poison,
-                target is Pawn patient ? Fact.Known((double)patient.health.hediffSet.BleedRateTotal) : default)
-                {
-                    SurgerySuccessFactor = room != null && surgeryFactor != null ? Fact.Known((double)room.GetStat(surgeryFactor)) : default,
-                    InfectionChanceFactor = room == null ? default : Fact.Known((double)room.GetStat(RoomStatDefOf.InfectionChanceFactor)),
-                });
+            var id = kind + ":" + target.GetUniqueLoadID() + (suffix.Length == 0 ? "" : ":" + suffix);
+            // A bench demand's target is a building, which does not bleed.
+            demands.Add(Demand(id, kind, target.GetUniqueLoadID(), location, Stat(location.GetRoom(map), RoomStatDefOf.FoodPoisonChance),
+                target is Pawn patient ? patient.health.hediffSet.BleedRateTotal : 0));
             return id;
+        }
+        Obs.SupportDemand Demand(string id, string kind, string target, IntVec3 location, double poison, double bleed)
+        {
+            var room = location.GetRoom(map);
+            return new(id, kind, target, At(location), poison, bleed)
+            {
+                InfectionChanceFactor = Stat(room, RoomStatDefOf.InfectionChanceFactor), SurgerySuccessFactor = Stat(room, SurgeryRoomStat()),
+                SurgeryOutcomes = [], SurgeryEnvironment = false, SurgeryQualityMin = 0, SurgeryQualityMax = float.MaxValue
+            };
         }
     }
     /// <summary>
@@ -204,31 +213,39 @@ internal static class NativeSupportActivities
         }
         return quality;
     }
-    private static Fact<double> Add(Fact<double> a, Fact<double> b) => a.IsKnown && b.IsKnown ? Fact.Known(a.Value + b.Value) : default;
+    private static double? Add(double? a, double? b) => a is { } x && b is { } y ? x + y : null;
+    /// <summary>A room stat of <paramref name="room"/>, its roomlessScore without a room.</summary>
+    private static double Stat(Room? room, RoomStatDef stat) => room == null ? stat.roomlessScore : room.GetStat(stat);
+    /// <summary>The room stat StatDefOf.SurgerySuccessChanceFactor multiplies: no RoomStatDefOf field names it; the stat's
+    /// StatPart_RoomStat holds it, the typed route.</summary>
+    private static RoomStatDef SurgeryRoomStat() => StatDefOf.SurgerySuccessChanceFactor.parts?.OfType<StatPart_RoomStat>()
+        .Select(part => RimGovernor.Brain.Bridge.GameMembers.RoomStat(part)).FirstOrDefault(stat => stat != null)
+        ?? throw new InvalidOperationException("surgery_room_stat_missing");
     private static Cell At(IntVec3 cell) => new(cell.x, cell.z);
     private static bool Available(Pawn pawn) => !pawn.Downed && !pawn.Drafted && !pawn.InMentalState && NativeFoodActivity.Available(pawn)
         && !NativePawnActivities.Owned(pawn) && pawn.CurJob?.playerForced != true && pawn.jobs.jobQueue.Count == 0 && pawn.carryTracker.CarriedThing == null;
-    private static (Fact<bool> Applies, Fact<double> Ticks) InfectionEffect(Pawn patient, bool medicine)
+    /// <summary>The selected batch's earliest pending native infection check (HediffComp_Infecter.ticksUntilInfect, -1 once the
+    /// wound's check has run), or None when no wound in the batch has one.</summary>
+    private static Obs.InfectionCheck Infection(Pawn patient, bool medicine)
     {
         var batch = new List<Hediff>();
         TendUtility.GetOptimalHediffsToTendWithSingleTreatment(patient, medicine, batch);
-        if (batch.Count == 0) return default;
         var pending = new List<int>();
-        var timer = HarmonyLib.AccessTools.Field(typeof(HediffComp_Infecter), "ticksUntilInfect");
+        var timer = HarmonyLib.AccessTools.Field(typeof(HediffComp_Infecter), "ticksUntilInfect")
+            ?? throw new InvalidOperationException("infecter_timer_missing");
         foreach (var wound in batch)
         {
             var infecter = wound.TryGetComp<HediffComp_Infecter>();
             if (infecter == null) continue;
-            if (infecter.GetType() != typeof(HediffComp_Infecter) || timer?.GetValue(infecter) is not int ticks)
-                return default;
-            if (ticks == -1) return default;
+            var ticks = timer.GetValue(infecter) as int? ?? throw new InvalidOperationException("infecter_timer_unread");
+            if (ticks == -1) continue;
             if (ticks <= 0 || patient.health.hediffSet.HasRegeneration
                 || patient.health.immunity.DiseaseContractChanceFactor(HediffDefOf.WoundInfection, wound.Part) <= .001f
                 || patient.Faction == Faction.OfPlayer && Find.Storyteller.difficulty.playerPawnInfectionChanceFactor <= 0) continue;
             if (wound.TryGetComp<HediffComp_TendDuration>() == null) continue;
             pending.Add(ticks);
         }
-        return pending.Count == 0 ? (Fact.Known(false), Fact.Known(0d)) : (Fact.Known(true), Fact.Known((double)pending.Min()));
+        return pending.Count == 0 ? new Obs.InfectionCheck.None() : new Obs.InfectionCheck.Pending(pending.Min());
     }
 
     private static bool CanWork(Pawn pawn, WorkGiver giver) => giver.MissingRequiredCapacity(pawn) == null

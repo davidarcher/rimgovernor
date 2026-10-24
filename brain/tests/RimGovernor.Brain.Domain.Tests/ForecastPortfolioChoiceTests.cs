@@ -40,26 +40,25 @@ public sealed class ForecastPortfolioChoiceTests
                 WorkPawns = roster.ForecastObserved.WorkPawns,
                 Needs = needs with { Pawns = helper ? [needs.Pawns[0], needs.Pawns[0] with { Pawn = "helper",
                     Needs = EquatableArray.From(needs.Pawns[0].Needs.Select(n => n with { Level = 1d, FallPerTick = 0d })) }] : needs.Pawns },
-                Coupled = new()
-                {
+                Coupled = CoupledFixtures.Empty with {
                     Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Construction = ConstructionFixtures.NoConstruction(),
-                    Tick = 100, Food = new(), FoodSources = EquatableArray.From(sources),
+                    Tick = 100, Food = CoupledFixtures.NoFood, FoodSources = EquatableArray.From(sources),
                     FoodConversions = EquatableArray.From(conversions),
                     // Native reads a meal use per ingredient a batch can be cooked from (#3872).
                     FoodUses = EquatableArray.From(conversions.Select(c => c.Ingredient).Distinct().Select(ingredient =>
-                        new CoupledFoodUse("pawn", "Meal", Destination, Known(true), Known(.8), Known(10d), 1, Known(1000d)) { Thoughts = [], Ingredient = ingredient })),
+                        new CoupledFoodUse("pawn", "Meal", Destination, true, .8, 10d, 1, new FoodFreshness.Rots(1000d)) { Thoughts = [], Ingredient = ingredient })),
                     Routes = EquatableArray.From(roster.ForecastObserved.WorkPawns.Value.SelectMany(p => Cells.SelectMany(a => Cells.Where(b => b != a)
-                        .Select(b => new CoupledRoute(p.Id.Value, a, b, Known(1d))))
-                        .Concat(Cells.Select(c => new CoupledRoute(p.Id.Value, new(0, 0), c, Known(0d)) { FromStart = true })))),
+                        .Select(b => new CoupledRoute(p.Id.Value, a, b, new RouteTicks.Reachable(1d)) { FromStart = false }))
+                        .Concat(Cells.Select(c => new CoupledRoute(p.Id.Value, new(0, 0), c, new RouteTicks.Reachable(0d)) { FromStart = true })))),
                 },
             },
         };
         return WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
     }
     internal static CoupledFoodConversion Conversion(string source, string resource, string recipe, double work) =>
-        new(source, "pawn", "bench", recipe, resource, 4, "Meal", 1, Source, Bench, Destination,
-            Known(0d), Known(1d), Known(work), Known(1d), 4, 4)
-        { RequiresHarvest = false, Bill = "bill/" + recipe, WorkGiver = "Cook" };
+        CoupledFixtures.Conversion(source, "pawn", "bench", recipe, resource, 4, "Meal", 1, Source, Bench, Destination,
+            0d, 1d, work, 1d, 4, 4)
+        with { RequiresHarvest = false, Bill = "bill/" + recipe, WorkGiver = "Cook" };
 
     [Theory]
     [InlineData(false, "Rice", "CookRice", "rice")]
@@ -68,7 +67,7 @@ public sealed class ForecastPortfolioChoiceTests
     {
         var facts = Observed([Conversion("rice", "Rice", "CookRice", reverse ? 80 : 10),
             Conversion("corn", "Corn", "CookCorn", reverse ? 10 : 80)],
-            [new("rice", "Rice", Source, 4, Known(1000d)), new("corn", "Corn", Source, 4, Known(1000d))]);
+            [new("rice", "Rice", Source, 4, new FoodFreshness.Rots(1000d)), new("corn", "Corn", Source, 4, new FoodFreshness.Rots(1000d))]);
         var (_, batch) = Select(facts);
         var cooking = Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Recipe);
         Assert.Equal(recipe, cooking.Step.Recipe!.Recipe);
@@ -84,14 +83,31 @@ public sealed class ForecastPortfolioChoiceTests
     [InlineData(5, true, "pawn")]
     public void WholePortfolioChangesDelegationWithTravelAndExistingObligation(double helperTravel, bool obligated, string supplier)
     {
-        var cook = Conversion("rice", "Rice", "CookMeal", 10) with { SupplyTicks = Known(40d), DeliveryTicks = Known(10d) };
-        var facts = Observed([cook, cook with { Pawn = "helper", CanCook = false, CanDeliver = false, SupplyTicks = Known(helperTravel) }],
-            [new("rice", "Rice", Source, 4, Known(1000d))], helper: true);
+        var cook = Conversion("rice", "Rice", "CookMeal", 10) with { SupplyTicks = 40d, Delivery = new FoodDelivery.Carried(10d) };
+        var facts = Observed([cook, cook with { Pawn = "helper", Cooking = new FoodCooking.Incapable(), Delivery = new FoodDelivery.CannotCarry(), SupplyTicks = helperTravel }],
+            [new("rice", "Rice", Source, 4, new FoodFreshness.Rots(1000d))], helper: true);
         if (obligated) facts = facts with { WorkView = facts.WorkView! with { Claims = facts.WorkView!.Claims with { Pawns = ["helper"] } } };
         var (_, batch) = Select(facts);
         Assert.Equal(supplier, Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Deliver && t.Resource == "Rice").Pawn);
         Assert.Equal("pawn", Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Recipe).Pawn);
         if (obligated) Assert.DoesNotContain(batch.Tasks, t => t.Pawn == "helper");
+    }
+
+    // #3782: a walk native found no path for is the named Unreachable state. The scheduler never plans it, so the nearer helper
+    // with no path anywhere cannot take the supply, the cook fetches its own rice, and the refusal is named, not unknown.
+    [Fact]
+    public void AHelperWithNoPathCannotTakeTheSupplyAndTheRouteIsNamedUnreachable()
+    {
+        var cook = Conversion("rice", "Rice", "CookMeal", 10) with { SupplyTicks = 40d, Delivery = new FoodDelivery.Carried(10d) };
+        var facts = Observed([cook, cook with { Pawn = "helper", Cooking = new FoodCooking.Incapable(), Delivery = new FoodDelivery.CannotCarry(), SupplyTicks = 5d }],
+            [new("rice", "Rice", Source, 4, new FoodFreshness.Rots(1000d))], helper: true);
+        var coupled = facts.ForecastObserved.Coupled!;
+        facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = coupled with
+            { Routes = EquatableArray.From(coupled.Routes.Select(r => r.Pawn == "helper" ? r with { Ticks = RouteTicks.None } : r)) } } };
+        var (selection, batch) = Select(facts);
+        Assert.Equal("pawn", Assert.Single(batch.Tasks, t => t.Step.Kind == PawnActivityKind.Deliver && t.Resource == "Rice").Pawn);
+        Assert.DoesNotContain(batch.Tasks, t => t.Pawn == "helper");
+        Assert.Contains(selection.Selection.Findings, f => f.StartsWith("unreachable_route:helper:", StringComparison.Ordinal));
     }
     [Fact]
     public void GeneratedTwoSourcePortfolioMatchesExhaustiveSubsetAndScheduleOracle()

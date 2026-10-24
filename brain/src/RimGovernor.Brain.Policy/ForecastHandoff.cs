@@ -184,8 +184,6 @@ public static class ForecastHandoffPolicy
                     if (allocation is null) continue;
                     events.AddRange(ForecastMaintenancePolicy.PracticeCallbacks(task, allocation, (int)Math.Ceiling(day * GameTime.TicksPerDay)));
                     gaps.Add("terminal_practice_injury_recovery_unassessed:" + task.Task);
-                    if (!task.Worker.CallbackIntervalTicks.IsKnown || !task.Worker.RawXpPerCallback.IsKnown)
-                        gaps.Add("terminal_practice_callbacks_unknown:" + task.Task);
                 }
                 var result = ForecastSkillPolicy.ForecastTerminalSkill(s.Learning, events.OrderBy(e => e.Tick).ThenBy(e => e.Id, StringComparer.Ordinal).ToArray(), (int)Math.Ceiling(day * GameTime.TicksPerDay));
                 if (!result.StoredLevel.IsKnown || !result.Level.IsKnown || !result.Xp.IsKnown)

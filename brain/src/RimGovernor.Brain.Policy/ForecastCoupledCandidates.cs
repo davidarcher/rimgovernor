@@ -58,7 +58,7 @@ public sealed partial record ForecastCoupledCandidates
             || NeedEnabled(ShelterFamily.SafeArea) || NeedEnabled(ShelterFamily.Temperature);
         if (!shelterEnabled)
             read = read with { Construction = read.Construction with { Options = [] },
-                Thermal = read.Thermal is { } thermal ? thermal with { Cells = EquatableArray.From(thermal.Cells.Select(c => c with { BuildRoof = false })) } : null };
+                Thermal = read.Thermal with { Cells = EquatableArray.From(read.Thermal.Cells.Select(c => c with { BuildRoof = false })) } };
         // An urgent build's review (#3537) compares its placed sites alone of the construction: the planned sites, every other
         // placed site and the standing removals are routine, vanilla's. Its shelters are the planned rooms it rings, and all
         // of its sites are compared, so a shell's whole ring can close.
@@ -82,19 +82,18 @@ public sealed partial record ForecastCoupledCandidates
             plannedFacts is null ? [] : plannedFacts.Routes, read.Thermal, resources,
             needs.Pawns.Select(p => p.Pawn).ToHashSet(StringComparer.Ordinal), horizon, deadline);
         ForecastMaterialLot Lot(string lot, string location, string resource, double count) => new(lot, location, new(resource), Known(count));
-        var lots = read.FoodSources.Select(o => Lot(o.Target, Location(o.Location), o.Resource, o.Count) with { Perishable = true, FreshTicks = o.FreshTicks })
+        var lots = read.FoodSources.Select(o => Lot(o.Target, Location(o.Location), o.Resource, o.Count) with { Perishable = true, FreshTicks = Known(Methods.Generation.FoodMethodCandidates.Keeps(o.FreshTicks)) })
     .Concat(read.Construction.Options.Where(o => o.Input.Length != 0).Select(o => Lot(o.Input, Location(o.Origin), o.Resource, o.AvailableInput)))
     .Concat(read.Clothing.Options.SelectMany(o => o.Inputs).Select(i => Lot(i.Thing, Location(i.Location), i.Resource, i.AvailableCount)))
     .Concat(read.Support.Deliveries.Select(d => Lot(d.Target, Location(d.Source), d.Resource, d.Available)))
-    .Concat(read.Support.Workers.Where(w => w.Medicine.Length != 0 && w.MedicineLocation is not null)
-        .Select(w => Lot(w.Medicine, Location(w.MedicineLocation!.Value), w.MedicineResource, w.MedicineAvailable)))
+    .Concat(read.Support.Workers.Select(w => w.Medicine).OfType<SupportMedicine>()
+        .Select(m => Lot(m.Id, Location(m.Location), m.Resource, m.Available)))
     .Concat(needs.Pawns.SelectMany(p => p.Targets).Where(t => t.Kind == "food")
         .Select(t => new ForecastMaterialLot(t.Id, Location(t.Location), new(t.Resource), t.StockCount) { Perishable = true, FreshTicks = t.FreshTicks }))
     .Concat(planned.Lots)
     .GroupBy(l => (l.Lot, l.Location, l.Resource)).Select(g => g.Select(l => l.Count).Distinct().Count() == 1 ? g.First() : g.First() with { Count = default }).ToArray();
         var needTasks = new List<ForecastNeedTask>(); var alternatives = new List<ForecastCommitment>();
-        var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal);
-        findings.UnionWith(plannedFindings); findings.UnionWith(planned.Findings);
+        var findings = new SortedSet<string>(plannedFindings, StringComparer.Ordinal); findings.UnionWith(planned.Findings);
         foreach (var pawn in needs.Pawns) foreach (var blocker in pawn.VoluntaryControlBlockers)
             findings.Add("unsupported_voluntary_state:" + pawn.Pawn + ":" + blocker);
         if (facts.CoupledWorkActive) findings.Add("protected_current_method_remaining_time_unassessed");
@@ -105,7 +104,7 @@ public sealed partial record ForecastCoupledCandidates
             if (++expanded > 256 || tasks.Count + count > 256) { truncated = true; return false; }
             return true;
         }
-        void Route(string pawn, string from, string to, Fact<double> ticks)
+        void Route(string pawn, string from, string to, RouteTicks ticks)
             => routes.TryAdd((pawn, from, to), new(pawn, from, to, ticks));
         void Option(string id, string pawn, Fact<double> ticks, string? equipment = null)
             => options.Add(new(id, pawn, ticks, Known(0.0)) { Equipment = equipment is null ? [] : [equipment] });
@@ -192,7 +191,7 @@ public sealed partial record ForecastCoupledCandidates
         // A spar is recreation: its joy at the native rate over the fight, and the memory a completed bout gives (#3858).
         foreach (var task in practice.Practice.Where(p => p.Worker.JoyGainPerTick > 0))
             needTasks.Add(new(task.Task, task.Worker.Pawn, "joy", task.Worker.Target, new(""), 0,
-                Known(task.Worker.JoyGainPerTick * Math.Max(0, task.Worker.DurationTicks.Value - task.Worker.PreparationTicks)), task.Worker.Thoughts)
+                Known(task.Worker.JoyGainPerTick * Math.Max(0, task.Worker.DurationTicks - task.Worker.PreparationTicks)), task.Worker.Thoughts)
                 { ServiceDelay = task.Worker.PreparationTicks,
                     MaxPawns = needs.Pawns.SelectMany(p => p.Targets).FirstOrDefault(t => t.Id == task.Worker.Target)?.MaxPawns ?? default });
         foreach (var pawn in needs.Pawns)
@@ -215,7 +214,7 @@ public sealed partial record ForecastCoupledCandidates
                     EndLocation = location,
                     Inputs = choice.Kind == "food" ? [new(new(choice.Resource), Known((double)choice.Count)) { Lot = target.Id }] : []
                 });
-                Route(pawn.Pawn, "start", location, Known(choice.Start - choice.Depart));
+                Route(pawn.Pawn, "start", location, new RouteTicks.Reachable(choice.Start - choice.Depart));
                 if (target.Location is { } physical)
                     bindings[(id, pawn.Pawn)] = new(id, pawn.Pawn, [], choice.Kind == "food" ? PawnActivityKind.Eat : choice.Kind == "rest" ? PawnActivityKind.Sleep : PawnActivityKind.Recreation,
                         target.Id, "", "", choice.Count, deadline, physical)

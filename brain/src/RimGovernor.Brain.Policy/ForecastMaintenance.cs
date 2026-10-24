@@ -57,9 +57,8 @@ public static class ForecastMaintenancePolicy
     private static int? Bound(SkillLearning learning, double horizon) =>
         learning.ValidForTicks.TryGetValue(out var valid) ? Math.Min((int)horizon, valid - 1) : null;
 
-    /// <summary>The ticks between a practice session's callbacks; null when that cadence or the XP a callback pays was not read.</summary>
-    private static double? Interval(PracticeWorker worker) =>
-        worker.CallbackIntervalTicks.TryGetValue(out var interval) && interval > 0 && worker.RawXpPerCallback.IsKnown ? interval : null;
+    /// <summary>The ticks between a practice session's callbacks; null for a session without a positive cadence.</summary>
+    private static double? Interval(PracticeWorker worker) => worker.CallbackIntervalTicks > 0 ? worker.CallbackIntervalTicks : null;
 
     /// <summary>The same bounded native practice callbacks used by maintenance and terminal skill stock.</summary>
     internal static IEnumerable<SkillXpEvent> PracticeCallbacks(ForecastPracticeTask task, ForecastActivityAllocation allocation, int bound)
@@ -67,7 +66,7 @@ public static class ForecastMaintenancePolicy
         if (Interval(task.Worker) is not { } interval) yield break;
         for (var number = 1; number <= 128 && allocation.Start + task.Worker.PreparationTicks + interval * number <= Math.Min(bound, allocation.End); number++)
             yield return new(task.Task + "/callback/" + number, (int)Math.Ceiling(allocation.Start + task.Worker.PreparationTicks + interval * number),
-                task.Worker.RawXpPerCallback, task.Worker.Skill == "Shooting" ? SkillXpPath.Range : SkillXpPath.NormalTracker, true);
+                Known(task.Worker.RawXpPerCallback), task.Worker.Skill == "Shooting" ? SkillXpPath.Range : SkillXpPath.NormalTracker, true);
     }
 
     /// <summary>

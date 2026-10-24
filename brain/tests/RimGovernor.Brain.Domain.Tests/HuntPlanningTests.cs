@@ -24,9 +24,9 @@ public sealed class HuntPlanningTests
     };
     static IEnumerable<CoupledRoute> Legs(string pawn, int x) =>
     [
-        new(pawn, new(0, 0), new(x, 10), Fact.Known(100.0)) { FromStart = true },
-        new(pawn, new(x, 10), Store, Fact.Known(100.0)),
-        new(pawn, new(x, 10), new(0, 0), Fact.Known(100.0)),
+        new(pawn, new(0, 0), new(x, 10), new RouteTicks.Reachable(100.0)) { FromStart = true },
+        new(pawn, new(x, 10), Store, new RouteTicks.Reachable(100.0)) { FromStart = false },
+        new(pawn, new(x, 10), new(0, 0), new RouteTicks.Reachable(100.0)) { FromStart = false },
     ];
     static HuntEstimate Estimate(HuntRoster r, double harm = 0, double death = 0, double ticks = 500) => new(true, harm, death, 1.0, 6.0, ticks);
     static readonly CoupledRoute[] Routes = [.. Legs("a", 10), .. Legs("b", 10), .. Legs("a", 60), .. Legs("b", 60)];

@@ -58,7 +58,7 @@ public sealed class ResearchMethodCandidatesTests
     [Fact]
     public void TheReadRoundTripsOnTheWire()
     {
-        var read = new CoupledForecastRead { Research = Read(Worker("a")), Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Construction = ConstructionFixtures.NoConstruction() };
+        var read = CoupledFixtures.Empty with { Research = Read(Worker("a")) };
         var back = WireJson.Deserialize<CoupledForecastRead>(WireJson.Serialize(read));
         Assert.Equal(read.Research, back!.Research);
     }

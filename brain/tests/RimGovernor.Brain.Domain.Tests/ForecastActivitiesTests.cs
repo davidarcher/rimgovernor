@@ -1,3 +1,4 @@
+using RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -9,7 +10,7 @@ public sealed class ForecastActivitiesTests
 {
     private static ForecastPawnCapacity Pawn(string id, double rate = 1, double until = 5000) => new(id, "home", Known(EquatableArray.From(new[] { new ForecastTimeWindow(0, until) })), Known(rate));
     private static ForecastActivityOption Option(string task, string pawn, double ticks, double injury = 0) => new(task, pawn, Known(ticks), Known(injury));
-    private static ForecastActivityRoute Route(string pawn, string from, string to, double ticks) => new(pawn, from, to, Known(ticks));
+    private static ForecastActivityRoute Route(string pawn, string from, string to, double ticks) => new(pawn, from, to, new RouteTicks.Reachable(ticks));
     // Synthetic estimates, not game constants: the helper has a 100-tick detour.
     private static ForecastActivityProblem Hunt(double distance = 200, double helperRate = 1,
         double harvestTime = 100, double injury = 0, double helperCapacity = 100) => new()
@@ -196,16 +197,16 @@ public sealed class ForecastActivitiesTests
         var p = Hunt();
         var index = new ForecastActivities.RouteIndex();
         var original = index.Get(p);
-        var far = p with { Routes = p.Routes.Select(r => r with { Ticks = Known(10000.0) }).ToArray() };
+        var far = p with { Routes = p.Routes.Select(r => r with { Ticks = new RouteTicks.Reachable(10000.0) }).ToArray() };
         Assert.Empty(ForecastActivities.CompareActivityPlans(far, index).Alternatives);
         Assert.NotSame(original, index.Get(far));
-        var unknown = p with { Routes = p.Routes.Select(r => r with { Ticks = Unknown<double>() }).ToArray() };
-        Assert.Empty(ForecastActivities.CompareActivityPlans(unknown, index).Alternatives);
-        Assert.Contains(ForecastActivities.CompareActivityPlans(unknown, index).Findings, f => f.StartsWith("unknown_route:", StringComparison.Ordinal));
+        var walled = p with { Routes = p.Routes.Select(r => r with { Ticks = RouteTicks.None }).ToArray() };
+        Assert.Empty(ForecastActivities.CompareActivityPlans(walled, index).Alternatives);
+        Assert.Contains(ForecastActivities.CompareActivityPlans(walled, index).Findings, f => f.StartsWith("unreachable_route:", StringComparison.Ordinal));
         foreach (var bad in new[]
         {
             p with { Routes = [.. p.Routes, p.Routes[0]] },
-            p with { Routes = [p.Routes[0] with { Ticks = Known(double.NaN) }] },
+            p with { Routes = [p.Routes[0] with { Ticks = new RouteTicks.Reachable(double.NaN) }] },
             p with { Routes = [p.Routes[0] with { From = "invalid:location" }] },
             p with { Pawns = [Pawn("replacement")] , Options = [] },
         })

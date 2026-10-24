@@ -100,7 +100,7 @@ internal static class NativeCoupledForecast
             var observed = new HashSet<(int Pawn, Cell From, Cell To, bool Initial)>();
             NativePathLegs.Found? Leg(int i, Cell from, Cell to) => legs.Find(pawns[i], new(from.X, 0, from.Z), new IntVec3(to.X, 0, to.Z), PathEndMode.OnCell);
             void Row(int i, Cell from, Cell to, bool initial, NativePathLegs.Found? leg) =>
-                rows.Add(new(ids[i], from, to, leg is { } found ? Fact.Known((double)found.For(moves[i])) : default) { FromStart = initial });
+                rows.Add(new(ids[i], from, to, leg is { } found ? new Obs.RouteTicks.Reachable(found.For(moves[i])) : Obs.RouteTicks.None) { FromStart = initial });
             // One pawn over the leg between two cells.
             void One(int i, Cell from, Cell to) { if (observed.Add((i, from, to, false))) Row(i, from, to, false, Leg(i, from, to)); }
             // One pawn over the leg from where it stands.

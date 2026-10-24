@@ -54,7 +54,7 @@ internal static class PlannedRoomCandidates
         var capability = new Resource("ConstructionReady"); var cleared = new Resource("PlannedSiteCleared");
         var completed = new Resource("CompletedPhysicalSite");
         // Routes between planned sites (#3313): a site is worked at its first position, a route reaching its nearest one.
-        bool Routed(string pawn, Cell to) => between.Any(r => r.Pawn == pawn && r.To == to && r.Ticks.IsKnown);
+        bool Routed(string pawn, Cell to) => between.Any(r => r.Pawn == pawn && r.To == to && r.Ticks is RouteTicks.Reachable);
         ForecastActivityOption[] RoofOptions(PlannedBuildSite site, string id) => thermal is null ? [] : thermal.Workers
             .Where(w => pawns.Contains(w.Pawn) && !resources.Claims.Pawns.Contains(w.Pawn) && Routed(w.Pawn, site.Positions[0]))
             .Select(w => new ForecastActivityOption(id, w.Pawn, Known(w.RoofCellWorkTicks * site.Positions.Count), Known(0.0))

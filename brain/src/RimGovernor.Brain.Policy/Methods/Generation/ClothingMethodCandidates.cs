@@ -78,7 +78,7 @@ internal static class ClothingMethodCandidates
             options.Add(new(make, row.Pawn, Known(row.TravelTicks - approach + row.WorkTicks), Known(0.0))
             { Equipment = [row.Bench], SkillWork = row.SkillWork is { } skill ? skill with { PreparationTicks = row.TravelTicks - approach } : null });
             options.Add(new(id, row.Pawn, Known(row.OutputTravelTicks), Known(0.0)));
-            routes.Add(new(row.Pawn, "start", sourceLocation, Known(approach)));
+            routes.Add(new(row.Pawn, "start", sourceLocation, new RouteTicks.Reachable(approach)));
             workers.Add(row.Pawn);
             bindings[(make, row.Pawn)] = new(make, row.Pawn, [], PawnActivityKind.Recipe, row.Bench, row.WorkGiver, "", 0, deadline, row.Location)
             {

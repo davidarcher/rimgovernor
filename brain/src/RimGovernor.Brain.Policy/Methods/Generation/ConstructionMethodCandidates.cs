@@ -37,7 +37,7 @@ internal static class ConstructionMethodCandidates
         new(activity, pawn, Known(ticks), Known(0.0)) { SkillWork = skillWork };
 
     /// <summary>A pawn's leg from its start to <paramref name="location"/>.</summary>
-    internal static ForecastActivityRoute Start(string pawn, string location, double ticks) => new(pawn, "start", location, Known(ticks));
+    internal static ForecastActivityRoute Start(string pawn, string location, double ticks) => new(pawn, "start", location, new RouteTicks.Reachable(ticks));
 
     /// <summary>
     /// A haul row the Deliver task can work: a stack and a carry. A stack larger than one carry is still one task, its

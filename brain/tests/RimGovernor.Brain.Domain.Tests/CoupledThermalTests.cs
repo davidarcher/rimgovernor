@@ -75,6 +75,6 @@ public sealed class CoupledThermalTests
         Assert.Equal(interior.Count, result.Options.Count(o => o.Activity.StartsWith("roof/", StringComparison.Ordinal)));
         Assert.All(result.Options, o => Assert.Equal("near", o.Pawn));
         Assert.All(result.Routes, r => Assert.Equal("near", r.Pawn));
-        Assert.All(result.Routes, r => Assert.Equal(Fact.Known(30d), r.Ticks));
+        Assert.All(result.Routes, r => Assert.Equal(new RouteTicks.Reachable(30d), r.Ticks));
     }
 }

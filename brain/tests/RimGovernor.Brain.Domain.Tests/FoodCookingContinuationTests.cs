@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class FoodCookingContinuationTests
 {
     private static FoodActivityOption Raw(string target = "raw") => new("pawn", target, "Rice", new(3, 4), new(8, 9), "HarvestGiver", 10, 0)
-        { ApproachTicks = Known(20.0), DeliveryTicks = Known(0.0), HarvestAllowed = Known(true) };
+        { SkillWork = null, SourceCount = 10, ApproachTicks = 20.0, DeliveryTicks = 0.0, HarvestAllowed = true };
     private static FoodActivityRead Read(params FoodActivityOption[] options) => new() { Options = EquatableArray.From(options) };
     private static ActivityTaskRead Done(PawnActivities batch, string state = "completed", params ActivityTaskBinding[] bindings) => ConstructionFixtures.NoTasks() with
     {
@@ -114,13 +114,11 @@ public sealed class FoodCookingContinuationTests
     }
 
     [Fact]
-    public void KnownAndUnknownNativeEstimateCollectionsRoundTripWithoutInventingValues()
+    public void NativeEstimateCollectionsRoundTripWithoutInventingValues()
     {
-        var read = Read(Raw(), Raw() with { ApproachTicks = default });
+        var read = Read(Raw(), Raw() with { ApproachTicks = 0 });
         var decoded = WireJson.Deserialize<FoodActivityRead>(WireJson.Serialize(read));
-        Assert.Equal(2, decoded.Options.Count);
-        Assert.Equal(20, decoded.Options[0].ApproachTicks.Value);
-        Assert.False(decoded.Options[1].ApproachTicks.IsKnown);
+        Assert.Equal(read, decoded);
         var tasks = ConstructionFixtures.NoTasks() with { SatisfiedTasks = ["one"],
             Bindings = [new ActivityTaskBinding.Supply("deliver", new(PawnActivityKind.Deliver, "stack", "", "", 2, 500) { Destination = new(3, 4) }, 2)],
             Pawns = [new("pawn", null)] };

@@ -73,8 +73,8 @@ public sealed class ForecastRoofConsequencesTests
         {
             PlannedShelters = [new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 1, 1)), Door = DoorCell }],
             PlannedSites = Known(new PlannedSiteFacts { Sites = [Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30)], Routes = EquatableArray.From(cells
-                .SelectMany(a => cells.Where(b => a != b).Select(b => new CoupledRoute("pawn", a, b, Known(1d))))
-                .Concat(cells.Select(b => new CoupledRoute("pawn", b, b, Known(1d)) { FromStart = true }))) }),
+                .SelectMany(a => cells.Where(b => a != b).Select(b => new CoupledRoute("pawn", a, b, new RouteTicks.Reachable(1d)) { FromStart = false }))
+                .Concat(cells.Select(b => new CoupledRoute("pawn", b, b, new RouteTicks.Reachable(1d)) { FromStart = true }))) }),
             PlannedRoomPredictions = [prediction],
             ConstructionDeficit = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
             ForecastObserved = facts.ForecastObserved with
@@ -84,7 +84,7 @@ public sealed class ForecastRoofConsequencesTests
                 {
                     Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [],
                     Thermal = thermal, Construction = facts.ForecastObserved.Coupled.Construction with { Options = [] },
-                    Routes = EquatableArray.From(cells.SelectMany(a => cells.Where(b => a != b).Select(b => new CoupledRoute("pawn", a, b, Known(1d))))),
+                    Routes = EquatableArray.From(cells.SelectMany(a => cells.Where(b => a != b).Select(b => new CoupledRoute("pawn", a, b, new RouteTicks.Reachable(1d)) { FromStart = false }))),
                 },
             },
         };

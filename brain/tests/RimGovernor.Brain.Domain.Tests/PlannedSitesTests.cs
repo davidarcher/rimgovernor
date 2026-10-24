@@ -303,8 +303,8 @@ public sealed class PlannedSitesTests
     public void JoinedRoutesKeepTheReadsRowsAndAMissingReadAddsNone()
     {
         EquatableArray<O.PlannedRouteProbe> asked = [new(new(0, 0), new(1, 0), [new(1, 0)]), new(new(1, 1), new(1, 1), [new(1, 1)]) { FromStart = true }];
-        var known = new O.CoupledRoute("Pawn_1", new(0, 0), new(1, 0), Known(2d));
-        var fromStart = new O.CoupledRoute("Pawn_1", new(7, 7), new(1, 1), Known(12d)) { FromStart = true };
+        var known = new O.CoupledRoute("Pawn_1", new(0, 0), new(1, 0), new O.RouteTicks.Reachable(2d)) { FromStart = false };
+        var fromStart = new O.CoupledRoute("Pawn_1", new(7, 7), new(1, 1), new O.RouteTicks.Reachable(12d)) { FromStart = true };
         var read = ConstructionFixtures.NoConstruction() with { Routes = [known, fromStart], Findings = ["planned_route_out_of_bounds"] };
         var sites = new PlannedSiteFacts { Findings = ["planned_site_read_unknown"] };
         var facts = PlannedRules.JoinPlannedRoutes(sites, asked, read);

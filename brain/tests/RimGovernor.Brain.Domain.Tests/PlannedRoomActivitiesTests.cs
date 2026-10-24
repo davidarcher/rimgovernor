@@ -80,7 +80,7 @@ public sealed class PlannedRoomActivitiesTests
             Routes = EquatableArray.From(probes.Select(p =>
             {
                 var origin = p.FromStart ? Start : p.From;
-                return new CoupledRoute(Pawn, origin, p.To, Known(Ticks(origin, p.Reach.Count == 0 ? p.To : Nearest(p.Reach, origin)))) { FromStart = p.FromStart };
+                return new CoupledRoute(Pawn, origin, p.To, new RouteTicks.Reachable(Ticks(origin, p.Reach.Count == 0 ? p.To : Nearest(p.Reach, origin)))) { FromStart = p.FromStart };
             })),
         });
     }
@@ -110,18 +110,17 @@ public sealed class PlannedRoomActivitiesTests
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = EquatableArray.From(others.Select(p => Idle(p)).Append(Idle(Pawn, level, fall))) },
-                Coupled = new()
-                {
+                Coupled = CoupledFixtures.Empty with {
                     Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing,
                     Tick = 100,
                     Food = new() { Options = EquatableArray.From(Plants.Select(source =>
                         new FoodActivityOption("pawn", source, "Rice", new(1, 1), new(1, 1), "Harvest", 2, 10)
-                        { ApproachTicks = Known(0d), DeliveryTicks = Known(10d), HarvestAllowed = Known(true),
-                            SourceCount = Known(2d) })) },
-                    FoodUses = [new("pawn", "Rice", new(1, 1), Known(true), Known(.2), Known(10d), 2, Known(1000d)) { Thoughts = [] }],
+                        { ApproachTicks = 0d, DeliveryTicks = 10d, HarvestAllowed = true,
+                            SourceCount = 2, SkillWork = null })) },
+                    FoodUses = [new("pawn", "Rice", new(1, 1), true, .2, 10d, 2, new FoodFreshness.Rots(1000d)) { Ingredient = "", Thoughts = [] }],
                     Construction = ConstructionFixtures.NoConstruction() with { Context = Context },
                     // A roof is worked cell by cell at the coupled read's RoofCellWorkTicks.
-                    Thermal = roofCellWork > 0 ? CoupledThermalTests.NoThermal with { Workers = [new(Pawn, roofCellWork)] } : null,
+                    Thermal = roofCellWork > 0 ? CoupledThermalTests.NoThermal with { Workers = [new(Pawn, roofCellWork)] } : CoupledThermalTests.NoThermal,
                 },
             },
         };
@@ -954,10 +953,10 @@ public sealed class PlannedRoomActivitiesTests
         });
         var coupled = facts.ForecastObserved.Coupled! with
         {
-            Support = new() { Known = true, Demands = [new("campfire", "bench", "campfire", new(1, 1), .02, Known(0d))] },
-            FoodConversions = cooking ? [new("rice", Pawn, "campfire", "CookMeal", "Rice", 4, "Meal", 1,
-                new(1, 1), new(1, 1), new(1, 1), Known(0d), Known(1d), Known(10d), Known(1d), 4, 4)
-                { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" }] : [],
+            Support = CoupledFixtures.NoSupport with { Demands = [CoupledFixtures.Demand("campfire", "bench", "campfire", new(1, 1), .02, 0d)] },
+            FoodConversions = cooking ? [CoupledFixtures.Conversion("rice", Pawn, "campfire", "CookMeal", "Rice", 4, "Meal", 1,
+                new(1, 1), new(1, 1), new(1, 1), 0d, 1d, 10d, 1d, 4, 4)
+                with { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" }] : [],
         };
         facts = facts with
         {

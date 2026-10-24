@@ -164,10 +164,10 @@ public static class HuntAlternatives
     }
 
     private static double? Walk(IReadOnlyList<CoupledRoute> routes, string pawn, Cell to) =>
-        routes.FirstOrDefault(r => r.FromStart && r.Pawn == pawn && r.To == to) is { Ticks.IsKnown: true } r ? r.Ticks.Value : null;
+        routes.FirstOrDefault(r => r.FromStart && r.Pawn == pawn && r.To == to) is { Ticks: RouteTicks.Reachable(var ticks) } ? ticks : null;
 
     private static double? Leg(IReadOnlyList<CoupledRoute> routes, string pawn, Cell from, Cell to) =>
-        routes.FirstOrDefault(r => !r.FromStart && r.Pawn == pawn && r.From == from && r.To == to) is { Ticks.IsKnown: true } r ? r.Ticks.Value : null;
+        routes.FirstOrDefault(r => !r.FromStart && r.Pawn == pawn && r.From == from && r.To == to) is { Ticks: RouteTicks.Reachable(var ticks) } ? ticks : null;
 
     /// <summary>The pawn's load of the prey's corpse to its store; null when no store takes the corpse or the leg is unrouted.</summary>
     private static double? Haul(IReadOnlyList<CoupledRoute> routes, string pawn, HuntActorRead prey) =>

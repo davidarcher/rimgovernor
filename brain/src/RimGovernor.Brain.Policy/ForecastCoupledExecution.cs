@@ -25,7 +25,7 @@ public sealed partial record ForecastCoupledExecution
         {
             var cooks = ForecastObservedIncumbent.CooksOf(incumbent.Batch, incumbent.Bills);
             return bindings is not null && selection.Selection.Plan is { } chosen && chosen.Allocations.Any(a => !cooks.Contains(a.Pawn)
-                && bindings.TryGetValue((a.Activity, a.Pawn), out var b) && (b.Recipe?.Bill ?? b.Cooking?.Continuation.Bill) is { } bill
+                && bindings.TryGetValue((a.Activity, a.Pawn), out var b) && b.Recipe?.Bill is { } bill
                 && incumbent.Bills.Contains(bill));
         }
         var releases = new List<ForecastIncumbentRelease>();

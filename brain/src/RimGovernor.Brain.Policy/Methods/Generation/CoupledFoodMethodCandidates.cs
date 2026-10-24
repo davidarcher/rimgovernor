@@ -28,29 +28,30 @@ internal static class FoodMethodCandidates
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         string Location(Cell c) => ForecastLocations.Of(c);
         bool Space(int count) { if (++expanded > 128 || tasks.Count + count > 128) { truncated = true; return false; } return true; }
-        void Route(string pawn, string from, string to, Fact<double> ticks) => routes.TryAdd((pawn, from, to), new(pawn, from, to, ticks));
-        void Option(string id, string pawn, Fact<double> ticks, string? equipment = null)
-            => options.Add(new(id, pawn, ticks, Known(0.0)) { Equipment = equipment is null ? [] : [equipment] });
+        void Route(string pawn, string from, string to, double ticks) => routes.TryAdd((pawn, from, to), new(pawn, from, to, new RouteTicks.Reachable(ticks)));
+        void Option(string id, string pawn, double ticks)
+            => options.Add(new(id, pawn, Known(ticks), Known(0.0)) { Equipment = [] });
         void Outcome(string id, params string[] completion)
             => alternatives.Add(new(id, []) { ActivityCompletions = EquatableArray.From(completion), ExclusiveOutcome = id });
+        // A produced lot keeps as long as its shortest-keeping observed use; with no use of the resource its shelf life is unread.
         Fact<double> Fresh(string resource)
         {
-            var estimates = read.FoodUses.Where(u => u.Resource == resource).Select(u => u.FreshTicks).ToArray();
-            return estimates.Length != 0 && estimates.All(t => t.IsKnown) ? Known(estimates.Min(t => t.Value)) : default;
+            var estimates = read.FoodUses.Where(u => u.Resource == resource).Select(u => Keeps(u.FreshTicks)).ToArray();
+            return estimates.Length != 0 ? Known(estimates.Min()) : default;
         }
         var harvests = new Dictionary<string, string>(StringComparer.Ordinal);
         // Seed each source once. The full observed yield is physical output, regardless of one carrier's load.
-        foreach (var group in read.Food.Options.Where(o => o.Cooking is null).GroupBy(o => o.Target).OrderBy(g => g.Key, StringComparer.Ordinal))
+        foreach (var group in read.Food.Options.GroupBy(o => o.Target).OrderBy(g => g.Key, StringComparer.Ordinal))
         {
             if (!Space(1)) break;
             var row = group.First(); var id = "harvest/" + group.Key;
-            var yield = row.SourceCount;
+            var yield = Known((double)row.SourceCount);
             tasks.Add(new(id, Location(row.Origin), Location(row.Origin), []) { Outputs = [new(new(row.Resource), yield) { Lot = id, Perishable = true, FreshTicks = Fresh(row.Resource) }] });
             harvests[group.Key] = id;
             foreach (var pawn in group.GroupBy(o => o.Pawn).Select(g => g.First()))
             {
                 Route(pawn.Pawn, "start", Location(pawn.Origin), pawn.ApproachTicks);
-                if (pawn.HarvestAllowed == Known(true))
+                if (pawn.HarvestAllowed)
                 {
                     options.Add(new(id, pawn.Pawn, Known(pawn.WorkTicks), Known(0d)) { SkillWork = pawn.SkillWork });
                     bindings[(id, pawn.Pawn)] = new(id, pawn.Pawn, [], PawnActivityKind.Work, pawn.Target, pawn.WorkGiver, "Harvest", 0, deadline, pawn.Origin);
@@ -101,10 +102,12 @@ internal static class FoodMethodCandidates
                         {
                             Route(row.Pawn, "start", Location(row.SourceCell), row.ApproachTicks);
                             var trips = row.CarryingCapacity > 0 ? Math.Ceiling((double)quantity / row.CarryingCapacity) : 0;
-                            var back = read.Routes.FirstOrDefault(r => !r.FromStart && r.Pawn == row.Pawn && r.From == row.BenchCell && r.To == row.SourceCell);
-                            var ticks = trips == 0 ? default : trips == 1 ? row.SupplyTicks : row.SupplyTicks.IsKnown && back?.Ticks.IsKnown == true
-                                ? Known(trips * row.SupplyTicks.Value + (trips - 1) * back.Ticks.Value) : default;
-                            if (row.CanSupply && row.CarryingCapacity > 0) Option(supply, row.Pawn, ticks);
+                            // Several trips walk back from the bench between loads: an unreachable return leaves the pawn no supply option.
+                            var back = trips > 1 ? read.Routes.FirstOrDefault(r => !r.FromStart && r.Pawn == row.Pawn && r.From == row.BenchCell && r.To == row.SourceCell) : null;
+                            if (trips > 1 && back is null) findings.Add("unrouted:" + row.Pawn + ":" + Location(row.BenchCell) + "->" + Location(row.SourceCell));
+                            double? ticks = trips == 1 ? row.SupplyTicks
+                                : back?.Ticks is RouteTicks.Reachable(var walk) ? trips * row.SupplyTicks + (trips - 1) * walk : null;
+                            if (row.CanSupply && row.CarryingCapacity > 0 && ticks is { } carry) Option(supply, row.Pawn, carry);
                             bindings[(supply, row.Pawn)] = new(supply, row.Pawn, [], PawnActivityKind.Deliver,
                                 row.RequiresHarvest ? "observed-output" : row.Source, "", "", quantity, deadline, row.SourceCell)
                             { Resource = row.Ingredient, Source = row.SourceCell, Destination = row.BenchCell, Capacity = row.CarryingCapacity };
@@ -121,16 +124,16 @@ internal static class FoodMethodCandidates
                     { Inputs = EquatableArray.From(products), Outputs = EquatableArray.From(products) });
                 foreach (var row in group.GroupBy(c => c.Pawn).Select(g => g.First()))
                 {
-                    if (row.CanCook)
+                    if (row.Cooking is FoodCooking.Cook cooking)
                     {
-                        options.Add(new(cook, row.Pawn, row.WorkTicks, Known(0d)) { Equipment = [row.Bench], SkillWork = row.SkillWork });
-                        if (row.SkillWork is null) findings.Add("productive_learning_unassessed:" + row.Pawn + ":" + row.Recipe);
+                        options.Add(new(cook, row.Pawn, Known(cooking.WorkTicks), Known(0d)) { Equipment = [row.Bench], SkillWork = cooking.SkillWork });
+                        if (cooking.SkillWork is null) findings.Add("productive_learning_unassessed:" + row.Pawn + ":" + row.Recipe);
                         findings.Add("cooking_poisoning_and_future_environment_unassessed");
                     }
-                    if (row.CanDeliver) Option(deliver, row.Pawn, row.DeliveryTicks);
+                    if (row.Delivery is FoodDelivery.Carried(var carried)) Option(deliver, row.Pawn, carried);
                     bindings[(cook, row.Pawn)] = new(cook, row.Pawn, [], PawnActivityKind.Recipe, row.Bench, row.WorkGiver, "", 0, deadline, row.BenchCell)
                     { Resource = row.Ingredient, Source = row.BenchCell, Recipe = new(row.Bill, row.Recipe, [new("observed-output", row.IngredientCount)]) { Resource = row.Ingredient },
-                      FoodPoisonChance = row.FoodPoisonChance };
+                      FoodPoisonChance = row.Cooking is FoodCooking.Cook { FoodPoisonChance: var poison } ? Known(poison) : default };
                     bindings[(deliver, row.Pawn)] = new(deliver, row.Pawn, [], PawnActivityKind.Deliver, "observed-output", "", "", row.ProductCount, deadline, row.BenchCell)
                     { Resource = row.Product, Source = row.BenchCell, Destination = row.Destination };
                 }
@@ -142,7 +145,7 @@ internal static class FoodMethodCandidates
             }
             Outcome(id, deliveries.ToArray());
         }
-        foreach (var group in read.Food.Options.Where(o => o.Cooking is null).GroupBy(o => (o.Target, o.Destination))
+        foreach (var group in read.Food.Options.GroupBy(o => (o.Target, o.Destination))
             .OrderBy(g => g.Key.Target, StringComparer.Ordinal).ThenBy(g => g.Key.Destination.X).ThenBy(g => g.Key.Destination.Z))
         {
             if (!harvests.TryGetValue(group.Key.Target, out var harvest) || !Space(1)) continue;
@@ -168,11 +171,11 @@ internal static class FoodMethodCandidates
             var physical = read.FoodSources.Where(s => s.Target == lot && s.Resource == resource.Value).ToArray();
             var producedHere = tasks.Any(t => t.Outputs.Any(o => o.Perishable && o.Resource == resource && o.Lot == lot));
             var estimate = physical.Length == 0 ? producedHere ? Fresh(resource.Value) : default
-                : physical.All(s => s.FreshTicks.IsKnown) ? Known(physical.Min(s => s.FreshTicks.Value)) : default;
+                : Known(physical.Min(s => Keeps(s.FreshTicks)));
             return estimate.TryGetValue(out var fresh) ? Known(Math.Min(horizon, fresh)) : default;
         }
         var observed = read.FoodSources.Select(s => new ForecastCompositionSupply("observed/" + s.Target, new(s.Resource), Known(s.Count),
-                Location(s.Location), Known(0d), s.FreshTicks.TryGetValue(out var expiry) ? Known(Math.Min(horizon, expiry)) : default)
+                Location(s.Location), Known(0d), Known(Math.Min(horizon, Keeps(s.FreshTicks))))
                 { Lot = s.Target, Provenance = "observed-food/" + s.Target })
             .Concat(read.FoodConversions.Where(c => !c.RequiresHarvest).Select(c => new ForecastCompositionSupply("observed/" + c.Source,
                 new(c.Ingredient), Known(c.AvailableInput), Location(c.SourceCell), Known(0d), Expiry(new(c.Ingredient), c.Source))
@@ -206,7 +209,8 @@ internal static class FoodMethodCandidates
             foreach (var use in read.FoodUses.Where(u => u.Resource == resource.Value && u.Location == cell && u.Ingredient == ingredient)
                 .OrderBy(u => u.Pawn, StringComparer.Ordinal))
             {
-                if (use.Eligible != Known(true) || !use.Nutrition.TryGetValue(out var gain) || gain <= 0 || !use.ChewTicks.IsKnown) continue;
+                var gain = use.Nutrition;
+                if (!use.Eligible || gain <= 0) continue;
                 var pawn = needs.Pawns.SingleOrDefault(p => p.Pawn == use.Pawn);
                 var food = pawn?.Needs.SingleOrDefault(n => n.Kind == "food");
                 if (food is null) continue;
@@ -219,18 +223,21 @@ internal static class FoodMethodCandidates
                     if (!Space(1)) break;
                     var count = Math.Min((int)units, serving); var id = supply + "/eat/" + use.Pawn + "/" + meal;
                     var earliest = food.FallPerTick > 0 ? Math.Max(0,
-                        (food.Level - food.Threshold + meal * serving * gain) / food.FallPerTick - use.ChewTicks.Value) : 0;
-                    if (earliest + use.ChewTicks.Value > horizon) continue;
+                        (food.Level - food.Threshold + meal * serving * gain) / food.FallPerTick - use.ChewTicks) : 0;
+                    if (earliest + use.ChewTicks > horizon) continue;
                     tasks.Add(new(id, Location(cell), Location(cell), [supply])
                     { Inputs = [new(resource, Known((double)count)) { Lot = freshFrom }], NotBefore = earliest });
                     Option(id, use.Pawn, use.ChewTicks);
                     bindings[(id, use.Pawn)] = new(id, use.Pawn, [supply], PawnActivityKind.Eat, "observed-output", "", "", count, deadline, cell) { Resource = resource.Value, Source = cell };
                     needTasks.Add(new(id, use.Pawn, "food", Location(cell), resource, count, Known(count * gain), use.Thoughts)
-                    { FoodReady = supply, FreshFrom = freshFrom, FreshTicks = use.FreshTicks, AvailableCount = quantity, Batch = supply,
+                    { FoodReady = supply, FreshFrom = freshFrom, FreshTicks = Known(Keeps(use.FreshTicks)), AvailableCount = quantity, Batch = supply,
                         MaxPawns = Known(IngestMaxPawns) });
                     Outcome(id, id);
                 }
             }
         }
     }
+
+    /// <summary>The ticks a fresh unit keeps: <see cref="double.PositiveInfinity"/> for one that never rots.</summary>
+    internal static double Keeps(FoodFreshness freshness) => freshness is FoodFreshness.Rots(var ticks) ? ticks : double.PositiveInfinity;
 }

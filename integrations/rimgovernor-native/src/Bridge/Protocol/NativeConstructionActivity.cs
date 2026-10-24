@@ -170,7 +170,7 @@ internal static class NativeConstructionActivity
                 var origin = probe.FromStart ? pawn.Position : new IntVec3(probe.From.X, 0, probe.From.Z);
                 var target = reach.Length == 0 ? to : reach.OrderBy(c => c.DistanceToSquared(origin)).ThenBy(c => c.x).ThenBy(c => c.z).First();
                 var cost = legs.Cost(pawn, origin, target, PathEndMode.Touch);
-                rows.Add(new(pawn.GetUniqueLoadID(), new(origin.x, origin.z), probe.To, cost is { } ticks ? Fact.Known((double)ticks) : default)
+                rows.Add(new(pawn.GetUniqueLoadID(), new(origin.x, origin.z), probe.To, cost is { } ticks ? new Obs.RouteTicks.Reachable(ticks) : Obs.RouteTicks.None)
                     { FromStart = probe.FromStart });
             }
         }
@@ -630,7 +630,7 @@ internal static class NativeConstructionActivity
                     && legs.Cost(pawn, site.Target(source.Position), source, PathEndMode.Touch) is { } returning)
                 {
                     if (share < count)
-                        setRoutes?.Add(new(pawn.GetUniqueLoadID(), new(site.Location.x, site.Location.z), new(source.Position.x, source.Position.z), Fact.Known((double)returning)));
+                        setRoutes?.Add(new(pawn.GetUniqueLoadID(), new(site.Location.x, site.Location.z), new(source.Position.x, source.Position.z), new Obs.RouteTicks.Reachable(returning)) { FromStart = false });
                     var trips = (share + capacity - 1) / capacity;
                     delivery = new Obs.ConstructionDelivery.Carried(first, (double)loaded * trips + returning * (trips - 1));
                 }

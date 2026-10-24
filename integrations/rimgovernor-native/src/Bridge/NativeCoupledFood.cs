@@ -30,7 +30,7 @@ internal static class NativeCoupledFood
         var consumers = map.mapPawns.AllPawnsSpawned.Where(p => p.Faction == Faction.OfPlayer && p.needs?.food != null)
             .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToArray();
         foreach (var hunt in food.Options)
-            if (RefIndex.Thing(map, hunt.Target) is Pawn prey && prey.RaceProps.meatDef is { } meat) AddUses(meat, hunt.Destination, FreshUnit(meat));
+            if (RefIndex.Thing(map, hunt.Target) is Pawn prey && prey.RaceProps.meatDef is { } meat) AddUses(meat, hunt.Destination, FreshUnit(meat), "");
         var plants = food.Options.Select(o => o.Target).Distinct().Select(id => RefIndex.Thing(map, id)).OfType<Plant>().Cast<Thing>().ToArray();
         var loose = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).Where(t => t.Spawned && t.def.IsNutritionGivingIngestible)
             .OrderBy(t => t.GetUniqueLoadID(),StringComparer.Ordinal).ToArray();
@@ -41,12 +41,16 @@ internal static class NativeCoupledFood
         {
             var plant = source as Plant; var raw = plant?.def.plant.harvestedThingDef ?? source.def;
             var availableInput = plant == null ? source.stackCount : food.Options.Where(o => o.Target == source.GetUniqueLoadID())
-                .Select(o => o.SourceCount.IsKnown ? (int)o.SourceCount.Value : 0).DefaultIfEmpty(0).Min();
+                .Select(o => o.SourceCount).DefaultIfEmpty(0).Min();
+            // CompRottable.TicksUntilRotAtTemp answers a sentinel for an inactive comp or a temperature that does not rot it
+            // (its RotRateAtTemperature of the rounded ambient temperature at or below 0): that lot never rots.
             if (plant == null) sourceRows.Add(new(source.GetUniqueLoadID(),raw.defName,new(source.Position.x,source.Position.z),source.stackCount,
-                Fact.Known(source.TryGetComp<CompRottable>() is { } rottable ? (double)rottable.TicksUntilRotAtCurrentTemp : (double)long.MaxValue)));
+                source.TryGetComp<CompRottable>() is { Active: true } rottable
+                    && GenTemperature.RotRateAtTemperature(UnityEngine.Mathf.RoundToInt(source.AmbientTemperature)) > 0
+                    ? new Obs.FoodFreshness.Rots(Math.Max(0, rottable.TicksUntilRotAtCurrentTemp)) : new Obs.FoodFreshness.Never()));
             // A loose source with ingredients is eaten with its own; any other is a fresh unit of its product.
             foreach (var target in food.Options.Where(o => o.Target == source.GetUniqueLoadID()).Select(o => o.Destination).Distinct())
-                AddUses(raw, target, plant == null && raw.HasComp(typeof(CompIngredients)) ? source : FreshUnit(raw));
+                AddUses(raw, target, plant == null && raw.HasComp(typeof(CompIngredients)) ? source : FreshUnit(raw), "");
             foreach (var bench in benches)
             foreach (var bill in bench.BillStack.Bills.OfType<Bill_Production>().OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
             {
@@ -80,11 +84,13 @@ internal static class NativeCoupledFood
                     if (!canCook && !canHaul) continue;
                     // The ingredient delivery is strict-exact-destination: it refuses a cell holding any item, staged rice included.
                     var stage = NativeSupportActivities.Staging(map, bench, c => JobDriver_GovernorDeliver.DestinationAvailable(pawn, c));
-                    var skillWork = canCook ? NativeProductiveSkill.Read(pawn, recipe, bench) : null;
                     // CompFoodPoisonable.Notify_RecipeProduced: the room's chance first, then the cook's own.
                     var room = bench.InteractionCell.GetRoom(map);
                     var roomPoison = room?.GetStat(RoomStatDefOf.FoodPoisonChance) ?? RoomStatDefOf.FoodPoisonChance.roomlessScore;
-                    Fact<double> poison = canCook ? Fact.Known(roomPoison + (1 - roomPoison) * (double)pawn.GetStatValue(StatDefOf.FoodPoisonChance)) : default;
+                    Obs.FoodCooking cooking = canCook
+                        ? new Obs.FoodCooking.Cook(recipe.WorkAmountTotal(null) / (double)speed,
+                            roomPoison + (1 - roomPoison) * (double)pawn.GetStatValue(StatDefOf.FoodPoisonChance), NativeProductiveSkill.Read(pawn, recipe, bench))
+                        : new Obs.FoodCooking.Incapable();
                     foreach (var product in recipe.products)
                     {
                         var destinations = map.haulDestinationManager.AllGroupsListInPriorityOrder.Where(g => g.Settings.filter.Allows(product.thingDef))
@@ -96,16 +102,19 @@ internal static class NativeCoupledFood
                                 || legs.Cost(pawn, source.Position, stage, PathEndMode.OnCell) is not { } supply
                                 || legs.Cost(pawn, bench.InteractionCell, destination, PathEndMode.OnCell) is not { } delivery) continue;
                             var productCapacity = pawn.carryTracker.MaxStackSpaceEver(product.thingDef);
-                            var trips = productCapacity > 0 ? Math.Ceiling((double)product.count / productCapacity) : 0;
-                            Fact<double> deliveryTicks = trips == 1 ? Fact.Known((double)delivery) : default;
-                            if (trips > 1 && legs.Cost(pawn, destination, bench.InteractionCell, PathEndMode.OnCell) is { } back)
-                                deliveryTicks = Fact.Known(trips * delivery + (trips - 1) * back);
+                            var trips = Math.Ceiling((double)product.count / Math.Max(1, productCapacity));
+                            Obs.FoodDelivery carried = !canHaul || productCapacity <= 0 ? new Obs.FoodDelivery.CannotCarry()
+                                : trips == 1 ? new Obs.FoodDelivery.Carried(delivery)
+                                : legs.Cost(pawn, destination, bench.InteractionCell, PathEndMode.OnCell) is { } back
+                                    ? new Obs.FoodDelivery.Carried(trips * delivery + (trips - 1) * back) : new Obs.FoodDelivery.NoReturnPath();
                             conversions.Add(new(source.GetUniqueLoadID(), pawn.GetUniqueLoadID(), bench.GetUniqueLoadID(), recipe.defName,
                                 raw.defName, (int)required, product.thingDef.defName, product.count,
                                 new(source.Position.x, source.Position.z), new(stage.x, stage.z), new(destination.x, destination.z),
-                                Fact.Known((double)approach), Fact.Known((double)supply),
-                                speed > 0 ? Fact.Known(recipe.WorkAmountTotal(null) / (double)speed) : default, deliveryTicks, capacity, availableInput) { WorkGiver = giver.defName, Bill = bill.GetUniqueLoadID(), RequiresHarvest = plant != null, CanCook = canCook, CanSupply = canHaul, CanDeliver = canHaul && productCapacity > 0,
-                                    SkillWork = skillWork, FoodPoisonChance = poison });
+                                approach, supply, capacity, availableInput)
+                            {
+                                WorkGiver = giver.defName, Bill = bill.GetUniqueLoadID(), RequiresHarvest = plant != null, CanSupply = canHaul,
+                                Cooking = cooking, Delivery = carried
+                            });
                             cooked.Add((product.thingDef, new(destination.x, destination.z), raw));
                         }
                     }
@@ -114,7 +123,7 @@ internal static class NativeCoupledFood
         }
         foreach (var (product, location, ingredient) in cooked.Distinct()) AddUses(product, location, CookedUnit(product, ingredient), ingredient.defName);
         return (conversions.ToArray(), uses.Distinct().ToArray(), sourceRows.ToArray());
-        void AddUses(ThingDef resource, Cell location, Thing unit, string ingredient = "")
+        void AddUses(ThingDef resource, Cell location, Thing unit, string ingredient)
         {
             foreach (var pawn in consumers)
             {
@@ -127,14 +136,13 @@ internal static class NativeCoupledFood
                 if (ModsConfig.BiotechActive && resource.IsRawHumanFood()) nutrition *= pawn.GetStatValue(StatDefOf.RawNutritionFactor);
                 var rot = resource.GetCompProperties<CompProperties_Rottable>();
                 // Conditional fresh-output shelf life at this observed destination temperature; future weather is unassessed.
-                Fact<double> fresh = rot == null ? Fact.Known((double)long.MaxValue) : default;
-                var temperature = new IntVec3(location.X, 0, location.Z).GetTemperature(map);
-                if (rot != null) fresh = Fact.Known<double>(GenTemperature.RotRateAtTemperature(temperature) > 0
-                    ? rot.daysToRotStart * RimGovernor.Brain.Domain.GameTime.TicksPerDay / GenTemperature.RotRateAtTemperature(temperature) : (double)long.MaxValue);
+                var rate = GenTemperature.RotRateAtTemperature(new IntVec3(location.X, 0, location.Z).GetTemperature(map));
+                Obs.FoodFreshness fresh = rot != null && rate > 0
+                    ? new Obs.FoodFreshness.Rots(rot.daysToRotStart * RimGovernor.Brain.Domain.GameTime.TicksPerDay / rate) : new Obs.FoodFreshness.Never();
                 uses.Add(new(pawn.GetUniqueLoadID(), resource.defName, location,
-                    Fact.Known(pawn.WillEat(resource) && pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(resource) != false),
-                    Fact.Known((double)nutrition / pawn.needs.food.MaxLevel),
-                    Fact.Known(resource.ingestible.baseIngestTicks / (double)(resource.ingestible.useEatingSpeedStat ? pawn.GetStatValue(StatDefOf.EatingSpeed) : 1)),
+                    pawn.WillEat(resource) && pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(resource) != false,
+                    (double)nutrition / pawn.needs.food.MaxLevel,
+                    resource.ingestible.baseIngestTicks / (double)(resource.ingestible.useEatingSpeedStat ? pawn.GetStatValue(StatDefOf.EatingSpeed) : 1),
                     resource.ingestible.maxNumToIngestAtOnce, fresh) { Thoughts = thoughts, Ingredient = ingredient });
             }
         }

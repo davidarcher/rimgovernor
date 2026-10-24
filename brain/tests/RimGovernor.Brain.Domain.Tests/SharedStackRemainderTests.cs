@@ -50,8 +50,8 @@ public sealed class SharedStackRemainderTests
                 Needs = facts.ForecastObserved.Needs! with { Tick = new(tick), Pawns = [Hungry("pawn"), Hungry("helper")] },
                 Coupled = facts.ForecastObserved.Coupled! with
                 {
-                    Tick = tick, Food = new(), FoodUses = [],
-                    Routes = [new("pawn", new(1, 1), new(2, 2), Known(0d)) { FromStart = true }, new("helper", new(1, 1), new(2, 2), Known(0d)) { FromStart = true }],
+                    Tick = tick, Food = CoupledFixtures.NoFood, FoodUses = [],
+                    Routes = [new("pawn", new(1, 1), new(2, 2), new RouteTicks.Reachable(0d)) { FromStart = true }, new("helper", new(1, 1), new(2, 2), new RouteTicks.Reachable(0d)) { FromStart = true }],
                 },
             },
         };

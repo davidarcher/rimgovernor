@@ -140,13 +140,13 @@ internal static class ConstructionRouteLegsCase
         {
             // A colonist that wandered next to the open cell is priced 0.
             var openRoutes = read.Routes.Where(r => r.To == open).ToList();
-            if (openRoutes.Count == 0 || openRoutes.Any(r => !r.Ticks.IsKnown))
+            if (openRoutes.Count == 0 || openRoutes.Any(r => r.Ticks is not Observations.RouteTicks.Reachable))
             {
                 problems.Add($"open route to {open.X},{open.Z}: {Describe(openRoutes)}");
             }
 
             var walledRoutes = read.Routes.Where(r => r.To == walledIn).ToList();
-            if (walledRoutes.Count != openRoutes.Count || walledRoutes.Any(r => r.Ticks.IsKnown))
+            if (walledRoutes.Count != openRoutes.Count || walledRoutes.Any(r => r.Ticks is not Observations.RouteTicks.Unreachable))
             {
                 problems.Add($"walled-in route to {walledIn.X},{walledIn.Z}: {Describe(walledRoutes)}");
             }
@@ -178,7 +178,7 @@ internal static class ConstructionRouteLegsCase
         }
 
         var walledRows = read.Routes.Where(r => r.To == walledIn && r.Pawn == builder).ToList();
-        if (walledRows.Count != 1 || walledRows[0].Ticks.IsKnown)
+        if (walledRows.Count != 1 || walledRows[0].Ticks is not Observations.RouteTicks.Unreachable)
         {
             problems.Add($"walled-in route to {walledIn.X},{walledIn.Z}: {Describe(walledRows)}");
         }
@@ -186,7 +186,7 @@ internal static class ConstructionRouteLegsCase
         return problems;
     }
 
-    private static bool Priced(Fact<double> ticks) => ticks.IsKnown && ticks.Value > 0;
+    private static bool Priced(Observations.RouteTicks ticks) => ticks is Observations.RouteTicks.Reachable(> 0);
 
     private static string Describe(List<Observations.CoupledRoute> rows) =>
         rows.Count == 0 ? "no row" : string.Join(", ", rows.Select(r => string.Create(CultureInfo.InvariantCulture, $"{r.Pawn} {r.Ticks}")));

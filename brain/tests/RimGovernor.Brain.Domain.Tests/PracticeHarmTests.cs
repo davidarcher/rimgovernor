@@ -84,8 +84,8 @@ public sealed class PracticeHarmTests
     }
 
     private static PracticeWorker Worker(string pawn, string skill, SkillLearning learning) =>
-        new(pawn, skill, "target/" + pawn, new(1, 1), "RimGovernor_Spar", "RimGovernor_Spar", Known(0d), Known(1000d), learning)
-        { CallbackIntervalTicks = Known(100d), RawXpPerCallback = Known(10d), JoyGainPerTick = 0, Thoughts = [], Company = [] };
+        new(pawn, skill, "target/" + pawn, new(1, 1), "RimGovernor_Spar", "RimGovernor_Spar", 0d, 1000d, learning)
+        { Equipment = [], Findings = [], PreparationTicks = 0, CallbackIntervalTicks = 100d, RawXpPerCallback = 10d, JoyGainPerTick = 0, Thoughts = [], Company = [] };
 
     [Fact]
     public void ASessionIsCreditedTheXpItAppliesAtTheStocksHarmPrice()
@@ -129,13 +129,13 @@ public sealed class PracticeHarmTests
         var learning = CapabilityMaintenanceTests.Learning() with { Xp = Known(0d) };
         var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Melee", Level = 1, Learning = learning }]) }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Melee", "target/" + i, new(i + 1, 1), "RimGovernor_Spar", "RimGovernor_Spar",
-            Known(0d), Known(100d), learning) { CallbackIntervalTicks = Known(10d), RawXpPerCallback = Known(10d), JoyGainPerTick = 0, Thoughts = [], Company = [] }).ToArray();
+            0d, 100d, learning) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [], Equipment = [], Findings = [] }).ToArray();
         facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), ForecastObserved = facts.ForecastObserved with
         {
             WorkPawns = Known(EquatableArray.From(roster)),
             Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with
             { Needs = EquatableArray.From(p.Needs.Select(n => n with { Level = 1d, FallPerTick = 0d })) })) },
-            Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Known = true, Workers = EquatableArray.From(workers) } }
+            Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Workers = EquatableArray.From(workers) } }
         } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300)!;
         Assert.NotEmpty(generated.Context.PracticeTasks);

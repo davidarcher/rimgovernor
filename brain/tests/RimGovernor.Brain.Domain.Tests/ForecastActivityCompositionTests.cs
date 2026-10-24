@@ -15,19 +15,19 @@ public sealed class ForecastActivityCompositionTests
         var facts = ForecastCoupledSelectionTests.Review();
         // Eligibility alone is not physical inventory. Earlier recipe roots have
         // many quantity combinations but their observed ingredient stock is empty.
-        var conversions = Enumerable.Range(0, 12).Select(i => new CoupledFoodConversion("empty-source", "pawn", "bench-" + i,
+        var conversions = Enumerable.Range(0, 12).Select(i => CoupledFixtures.Conversion("empty-source", "pawn", "bench-" + i,
             "recipe-" + i, "Rice", 10, "Meal", 1, new(1, 1), new(2, 1), new(3, 1),
-            Known(0d), Known(1d), Known(10d), Known(1d), 10, 10)
-            { RequiresHarvest = false, Bill = "bill-" + i, WorkGiver = "Cook" }).ToArray();
+            0d, 1d, 10d, 1d, 10, 10)
+            with { RequiresHarvest = false, Bill = "bill-" + i, WorkGiver = "Cook" }).ToArray();
         var read = facts.ForecastObserved.Coupled! with
         {
             Food = facts.ForecastObserved.Coupled!.Food with { Options = [] },
-            FoodSources = [new("empty-source", "Rice", new(1, 1), 0, Known(1000d))],
+            FoodSources = [new("empty-source", "Rice", new(1, 1), 0, new FoodFreshness.Rots(1000d))],
             FoodConversions = EquatableArray.From(conversions),
-            FoodUses = [new("pawn", "Meal", new(3, 1), Known(true), Known(.8), Known(10d), 1, Known(1000d)) { Thoughts = [], Ingredient = "Rice" }],
-            Support = new() { Known = true,
-                Demands = [new("patient-care", "care", "patient", new(1, 1), default, Known(0d))],
-                Workers = [new("patient-care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(10d))] }
+            FoodUses = [new("pawn", "Meal", new(3, 1), true, .8, 10d, 1, new FoodFreshness.Rots(1000d)) { Thoughts = [], Ingredient = "Rice" }],
+            Support = CoupledFixtures.NoSupport with {
+                Demands = [CoupledFixtures.Demand("patient-care", "care", "patient", new(1, 1), default, 0d)],
+                Workers = [new("patient-care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), 0d, 10d) { Medicine = null, Treatment = CoupledFixtures.Tend() }] }
         };
         facts = facts with { ForecastObserved = facts.ForecastObserved with { Coupled = read } };
         var result = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300));
@@ -215,9 +215,9 @@ public sealed class ForecastActivityCompositionTests
         var context = new RimGovernor.Contracts.Wire.Common.ObservationContext
             { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 };
         RimGovernor.Contracts.Wire.Observations.CoupledFoodConversion Conversion(string source) =>
-            new(source, "pawn", "bench", "CookMeal", "Rice", 4, "Meal", 1, new(1, 1), new(2, 1), new(2, 1),
-                Known(0d), Known(10d), Known(20d), Known(10d), 4, 2)
-            { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" };
+            CoupledFixtures.Conversion(source, "pawn", "bench", "CookMeal", "Rice", 4, "Meal", 1, new(1, 1), new(2, 1), new(2, 1),
+                0d, 10d, 20d, 10d, 4, 2)
+            with { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" };
         facts = facts with
         {
             Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 4)]),
@@ -225,14 +225,14 @@ public sealed class ForecastActivityCompositionTests
             {
                 Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [NeedsFixtures.Pawn() with { Pawn = "pawn", State = "eligible",
                     Needs = [NeedsFixtures.Rate("food", .2, .001, .3)] }] },
-                Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Food = new(),
-                    FoodSources = [new("a", "Rice", new(1, 1), 2, Known(1000d)), new("b", "Rice", new(1, 1), 2, Known(1000d)), new("unused-unknown", "Rice", new(9, 9), 2, default),
-                        new("unrelated-meal", "Meal", new(9, 9), 1, existingMealFreshness < 0 ? default : Known(existingMealFreshness))],
+                Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Food = CoupledFixtures.NoFood,
+                    FoodSources = [new("a", "Rice", new(1, 1), 2, new FoodFreshness.Rots(1000d)), new("b", "Rice", new(1, 1), 2, new FoodFreshness.Rots(1000d)), new("unused-unknown", "Rice", new(9, 9), 2, new FoodFreshness.Never()),
+                        new("unrelated-meal", "Meal", new(9, 9), 1, existingMealFreshness < 0 ? new FoodFreshness.Never() : new FoodFreshness.Rots(existingMealFreshness))],
                     FoodConversions = [Conversion("a"), Conversion("b")],
                     Construction = ConstructionFixtures.NoConstruction() with { Context = context,
                         Options = [new Row("shared-stock-frame", "TestWall", new(3, 1), "pawn", "Rice", "a", new(1, 1), 2, 4, "Finish",
                             Known(0d), Known(10d), Known(10d)) { AvailableInput = Known(2d), SiteApproachTicks = Known(0d) }] },
-                    FoodUses = [new("pawn", "Meal", new(2, 1), Known(true), Known(.8), Known(10d), 1, Known(1000d)) { Thoughts = [], Ingredient = "Rice" }] },
+                    FoodUses = [new("pawn", "Meal", new(2, 1), true, .8, 10d, 1, new FoodFreshness.Rots(1000d)) { Thoughts = [], Ingredient = "Rice" }] },
             },
         };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
@@ -247,11 +247,6 @@ public sealed class ForecastActivityCompositionTests
             { Coupled = facts.ForecastObserved.Coupled! with { FoodConversions = [Conversion("a")] } } };
         var refused = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(missingEligibility, 300));
         Assert.DoesNotContain(refused.Context.Activities.Activities, t => t.Id.Contains("/recipe/", StringComparison.Ordinal));
-        var unknownIngredient = facts with { ForecastObserved = facts.ForecastObserved with
-            { Coupled = facts.ForecastObserved.Coupled! with { FoodSources = EquatableArray.From(facts.ForecastObserved.Coupled.FoodSources
-                .Select(source => source.Target == "a" ? source with { FreshTicks = default } : source)) } } };
-        var unknown = Assert.IsType<ForecastCoupledCandidates>(ForecastCoupledCandidates.GenerateCoupledActivities(unknownIngredient, 300));
-        Assert.DoesNotContain(unknown.Context.Activities.Activities, task => task.Id.Contains("/recipe/", StringComparison.Ordinal));
         var absentIngredient = facts with { ForecastObserved = facts.ForecastObserved with
             { Coupled = facts.ForecastObserved.Coupled! with { FoodSources = EquatableArray.From(facts.ForecastObserved.Coupled.FoodSources
                 .Where(source => source.Target != "a")) } } };
@@ -314,7 +309,7 @@ public sealed class ForecastActivityCompositionTests
             PlannedShelters = [new() { Id = 1, Region = RegionRules.RectRegion(new(1, 1, 1, 1)) }],
             ForecastObserved = facts.ForecastObserved with { Coupled = facts.ForecastObserved.Coupled! with
             {
-                Food = new(), FoodUses = [],
+                Food = CoupledFixtures.NoFood, FoodUses = [],
                 Construction = ConstructionFixtures.NoConstruction() with { Context = context, Options = [Option("a"), Option("b")] },
                 Thermal = CoupledThermalTests.NoThermal with
                 {

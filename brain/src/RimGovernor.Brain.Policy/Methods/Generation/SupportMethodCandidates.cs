@@ -19,24 +19,26 @@ internal sealed record SupportMethodCandidates(ForecastCompositionOperation[] Op
         var observed = new List<ForecastCompositionSupply>(); var roots = new List<ForecastCommitment>();
         var routes = new List<ForecastActivityRoute>(); var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal);
         var horizon = (double)(deadline - tick); var truncated = false;
-        if (!read.Known) findings.Add("support_observation_unknown");
         bool Space() { if (operations.Count < 384) return true; truncated = true; return false; }
         bool Free(string pawn, string target) => !resources.Claims.Pawns.Contains(pawn) && !resources.Claims.Targets.Contains(target);
         string Location(Cell cell) => ForecastLocations.Of(cell);
         string Key(string value) => Uri.EscapeDataString(value);
         void Worker(string id, SupportWorker worker, string demand)
         {
-            if (!Free(worker.Pawn, worker.Target) || worker.Medicine.Length != 0 && resources.Claims.Targets.Contains(worker.Medicine)) return;
+            if (!Free(worker.Pawn, worker.Target) || worker.Medicine is { } stack && resources.Claims.Targets.Contains(stack.Id)) return;
+            var surgery = worker.Treatment as SupportTreatment.Surgery;
             // Real medical work learns (#3344): surgery through its recipe work, a tend once at completion.
-            options.Add(new(id, worker.Pawn, worker.WorkTicks, Known(0d)) { SkillWork = worker.SkillWork, TendLearning = worker.TendLearning });
-            routes.Add(new(worker.Pawn, "start", Location(worker.Location), worker.ApproachTicks));
+            options.Add(new(id, worker.Pawn, Known(worker.WorkTicks), Known(0d))
+                { SkillWork = surgery?.SkillWork, TendLearning = (worker.Treatment as SupportTreatment.Tend)?.Learning });
+            routes.Add(new(worker.Pawn, "start", Location(worker.Location), new RouteTicks.Reachable(worker.ApproachTicks)));
             bindings[(id, worker.Pawn)] = new(id, worker.Pawn, [], PawnActivityKind.Work, worker.Target,
-                worker.WorkGiver, worker.Job, 0, deadline, worker.Location) { SupportDemand = demand, Medicine = worker.Medicine, Recipe = worker.Recipe, Source = worker.MedicineLocation };
+                worker.WorkGiver, worker.Job, 0, deadline, worker.Location)
+                { SupportDemand = demand, Medicine = worker.Medicine?.Id ?? "", Recipe = surgery?.Recipe, Source = worker.Medicine?.Location };
         }
         foreach (var demand in read.Demands.Where(d => d.Kind is "care" or "surgery").OrderBy(d => d.Id, StringComparer.Ordinal))
         {
             foreach (var service in read.Workers.Where(w => w.Demand == demand.Id && w.Job is "TendPatient" or "DoBill")
-                .GroupBy(w => (w.Medicine, Recipe: w.Recipe?.Bill ?? "")))
+                .GroupBy(w => (Medicine: w.Medicine?.Id ?? "", Recipe: (w.Treatment as SupportTreatment.Surgery)?.Recipe.Bill ?? "")))
             {
                 var care = "support/care/" + Key(demand.Id) + "/" + Key(service.Key.Medicine + service.Key.Recipe);
                 var choice = "support/care/" + Key(demand.Id);
@@ -64,8 +66,8 @@ internal sealed record SupportMethodCandidates(ForecastCompositionOperation[] Op
                     [new(id + "/yield", new(first.Resource), Known(count), Location(first.Destination), Known(0d), Known(horizon)) { Producer = id, Lot = first.Target, Provenance = "native-demand-delivery/" + first.Demand }]));
                 foreach (var row in group.Where(d => d.Capacity >= count && Free(d.Pawn, d.Target)))
                 {
-                    options.Add(new(id, row.Pawn, row.DeliveryTicks, Known(0d)));
-                    routes.Add(new(row.Pawn, "start", Location(row.Source), row.ApproachTicks));
+                    options.Add(new(id, row.Pawn, Known(row.DeliveryTicks), Known(0d)));
+                    routes.Add(new(row.Pawn, "start", Location(row.Source), new RouteTicks.Reachable(row.ApproachTicks)));
                     bindings[(id, row.Pawn)] = new(id, row.Pawn, [], PawnActivityKind.Deliver, row.Target, "", "", count, deadline, row.Source)
                     { Resource = row.Resource, Source = row.Source, Destination = row.Destination, Capacity = row.Capacity, SupportDemand = row.Demand, Container = row.Container };
                 }
@@ -78,12 +80,11 @@ internal sealed record SupportMethodCandidates(ForecastCompositionOperation[] Op
 
         EquatableArray<ForecastCompositionRequirement> ServiceInputs(SupportWorker worker)
         {
-            if (worker.Medicine.Length == 0) return [];
-            var source = "support/observed/" + worker.Medicine;
-            if (worker.MedicineLocation is not { } cell) { findings.Add("care_medicine_location_unknown:" + worker.Medicine); return [new("medicine", new(worker.MedicineResource), default, "unknown", ForecastRequirementKind.Consumed, default, Known(0d), Known(horizon))]; }
-            if (observed.All(s => s.Id != source)) observed.Add(new(source, new(worker.MedicineResource), Known(worker.MedicineAvailable), Location(cell), Known(0d), Known(horizon))
-            { Lot = worker.Medicine, Provenance = "native-selected-medicine" });
-            return [new("medicine", new(worker.MedicineResource), Known(worker.MedicineCount), Location(cell), ForecastRequirementKind.Consumed,
+            if (worker.Medicine is not { } medicine) return [];
+            var source = "support/observed/" + medicine.Id;
+            if (observed.All(s => s.Id != source)) observed.Add(new(source, new(medicine.Resource), Known(medicine.Available), Location(medicine.Location), Known(0d), Known(horizon))
+            { Lot = medicine.Id, Provenance = "native-selected-medicine" });
+            return [new("medicine", new(medicine.Resource), Known(medicine.Count), Location(medicine.Location), ForecastRequirementKind.Consumed,
                 Known<EquatableArray<string>>([source]), Known(0d), Known(horizon))];
         }
     }

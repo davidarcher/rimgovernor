@@ -111,15 +111,11 @@ public static partial class PlannedRules
     /// every cell and source it has; planned rows and planned heaters fill only what it lacks. The planned read comes
     /// from the round's construction activity read, a later frame than the coupled capture. Its truncation carries over.
     /// </summary>
-    public static CoupledThermalRead? WithPlannedThermal(CoupledThermalRead? observed, CoupledThermalRead? planned)
+    public static CoupledThermalRead WithPlannedThermal(CoupledThermalRead observed, CoupledThermalRead? planned)
     {
         if (planned is null)
         {
             return observed;
-        }
-        if (observed is null)
-        {
-            return planned;
         }
         var cells = observed.Cells.Select(c => c.Cell).ToHashSet();
         var targets = observed.Sources.Select(s => s.Target).ToHashSet(StringComparer.Ordinal);

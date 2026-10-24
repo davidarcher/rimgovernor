@@ -319,7 +319,7 @@ public sealed class PlannedRoomCreditTests
     {
         var cannibal = NeedsFixtures.Memory("AteHumanMeatAsIngredient", -15, Day, false) with { StackLimit = 1 };
         var cooking = ForecastPortfolioChoiceTests.Observed([ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "CookMeal", 10)],
-            [new("rice", "Rice", new(1, 1), 4, Known(1000d))]);
+            [new("rice", "Rice", new(1, 1), 4, new FoodFreshness.Rots(1000d))]);
         var coupled = cooking.ForecastObserved.Coupled!;
         cooking = cooking with { ForecastObserved = cooking.ForecastObserved with
             { Coupled = coupled with { FoodUses = EquatableArray.From(coupled.FoodUses.Select(u => u with { Thoughts = [cannibal] })) } } };
@@ -351,8 +351,8 @@ public sealed class PlannedRoomCreditTests
         var rice = ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "CookMeal", 10);
         Assert.Equal(meat.Bill, rice.Bill);
         var cooking = ForecastPortfolioChoiceTests.Observed(riceStocked ? [meat, rice] : [meat],
-            riceStocked ? [new("meat", "Meat_Human", new(1, 1), 4, Known(1000d)), new("rice", "Rice", new(1, 1), 4, Known(1000d))]
-                : [new("meat", "Meat_Human", new(1, 1), 4, Known(1000d))]);
+            riceStocked ? [new("meat", "Meat_Human", new(1, 1), 4, new FoodFreshness.Rots(1000d)), new("rice", "Rice", new(1, 1), 4, new FoodFreshness.Rots(1000d))]
+                : [new("meat", "Meat_Human", new(1, 1), 4, new FoodFreshness.Rots(1000d))]);
         var coupled = cooking.ForecastObserved.Coupled!;
         cooking = cooking with { ForecastObserved = cooking.ForecastObserved with { Coupled = coupled with { FoodUses = EquatableArray.From(
             coupled.FoodUses.Select(u => u.Ingredient == "Meat_Human" ? u with { Thoughts = [cannibal] } : u)) } } };
@@ -384,13 +384,13 @@ public sealed class PlannedRoomCreditTests
         var learning = CapabilityMaintenanceTests.Learning() with { Xp = Known(0d) };
         var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Melee", Level = 1, Learning = learning }]) }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Melee", "target/" + i, new(i + 1, 1), "RimGovernor_Spar", "RimGovernor_Spar",
-            Known(0d), Known(100d), learning) { CallbackIntervalTicks = Known(10d), RawXpPerCallback = Known(10d), JoyGainPerTick = .0001, Thoughts = [trainedWith], Company = [] }).ToArray();
+            0d, 100d, learning) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = .0001, Thoughts = [trainedWith], Equipment = [], Findings = [] }).ToArray();
         facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), ForecastObserved = facts.ForecastObserved with
         {
             WorkPawns = Known(EquatableArray.From(roster)),
             Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with
             { Needs = EquatableArray.From(p.Needs.Select(n => n with { Level = 1d, FallPerTick = 0d })) })) },
-            Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Known = true, Workers = EquatableArray.From(workers) } }
+            Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Workers = EquatableArray.From(workers) } }
         } };
         var investment = roster.ToDictionary(p => ProjectGraph.SkillKey(p.Id.Value, "Melee"), _ => 1d, StringComparer.Ordinal);
         var (generated, outcome) = Selected(WithEveryShippedRoom(facts), 300, investment);
@@ -445,10 +445,11 @@ public sealed class PlannedRoomCreditTests
             : pawn with { Targets = [.. pawn.Targets.Select(t => t with { Recovery = new NeedRecovery.Rate(.00016) })] }, review =>
             {
                 review = WithEveryShippedRoom(review);
-                // A pawn asleep in its bed is at the bed: native's route from its start there costs nothing.
+                // A pawn asleep in its bed is at the bed (the fixture's inside cell, 1,1): native's route from its start there
+                // costs nothing. The start routes to the wall and door cells keep the walk their site rows price.
                 var sites = review.PlannedSites.Value;
                 return !asleep ? review : review with { PlannedSites = Known(sites with
-                    { Routes = EquatableArray.From(sites.Routes.Select(r => r.FromStart ? r with { Ticks = Known(0d) } : r)) }) };
+                    { Routes = EquatableArray.From(sites.Routes.Select(r => r.FromStart && r.To == new Cell(1, 1) ? r with { Ticks = new RouteTicks.Reachable(0d) } : r)) }) };
             });
         var generated = facts.CoupledAlternatives!;
         var full = generated.Context.NeedTasks.Where(n => n.Kind == "rest").OrderByDescending(n => n.Gain.Value).First();
@@ -456,8 +457,11 @@ public sealed class PlannedRoomCreditTests
             || new[] { ForecastRoofConsequencesTests.Wall, ForecastRoofConsequencesTests.Door }.Any(site =>
                 c.Id.StartsWith(site + "/composition/", StringComparison.Ordinal) && !c.Id.Contains("/after/", StringComparison.Ordinal))).ToArray();
         Assert.Equal(3, roots.Length);
-        // The schedules that sleep: an observed sleep continues (Pawn_JobTracker keeps the lie-down until the wake).
-        var outcomes = Evaluated(facts, ForecastRoofConsequencesTests.Horizon, roots).Where(o => o.Plan.Allocations.Any(a => a.Activity == full.Task)).ToArray();
+        // The schedules that sleep: an observed sleep continues (Pawn_JobTracker keeps the lie-down until the wake), so an
+        // asleep pawn's schedule sleeps from the start; one that walks to a site first (now priced, the walk being known)
+        // is not a continuation the mood forecast assesses.
+        var outcomes = Evaluated(facts, ForecastRoofConsequencesTests.Horizon, roots)
+            .Where(o => o.Plan.Allocations.Any(a => a.Activity == full.Task && (!asleep || a.Depart == 0))).ToArray();
         Assert.Contains(outcomes, o => o.Plan.Allocations.Any(a => a.Activity.StartsWith(ForecastRoofConsequencesTests.Wall, StringComparison.Ordinal)));
         foreach (var outcome in outcomes)
         {
@@ -482,14 +486,14 @@ public sealed class PlannedRoomCreditTests
             var learning = CapabilityMaintenanceTests.Learning() with { Xp = Known(0d) };
             var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Shooting", Level = 1, Learning = learning }]) }).ToArray();
             var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Shooting", "stand/" + i, new(i + 1, 1), "RimGovernor_TrainRange", "RimGovernor_TrainShooting",
-                Known(0d), Known(100d), learning) { CallbackIntervalTicks = Known(10d), RawXpPerCallback = Known(10d), JoyGainPerTick = 0, Thoughts = [trainedWith],
+                0d, 100d, learning) { CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [trainedWith], Equipment = [], Findings = [],
                     Company = company ? ["stand/" + (1 - i)] : [] }).ToArray();
             facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), ForecastObserved = facts.ForecastObserved with
             {
                 WorkPawns = Known(EquatableArray.From(roster)),
                 Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with
                 { Needs = EquatableArray.From(p.Needs.Select(n => n with { Level = 1d, FallPerTick = 0d })) })) },
-                Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Known = true, Workers = EquatableArray.From(workers) } }
+                Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Workers = EquatableArray.From(workers) } }
             } };
             var investment = roster.ToDictionary(p => ProjectGraph.SkillKey(p.Id.Value, "Shooting"), _ => 1d, StringComparer.Ordinal);
             return Selected(WithEveryShippedRoom(facts), 300, investment);

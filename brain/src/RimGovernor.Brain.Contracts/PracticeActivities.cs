@@ -2,23 +2,24 @@ using System.Text.Json.Serialization;
 using RimGovernor.Brain.Domain;
 namespace RimGovernor.Contracts.Wire.Observations;
 
-/// <summary>Native mechanics for a bounded practice session, not a chosen trainee or goal.</summary>
+/// <summary>Native mechanics for a bounded practice session, not a chosen trainee or goal: one row per free colonist, skill
+/// and stand or marker it can reach and use now.</summary>
 public sealed record PracticeActivityRead
 {
-    public bool Known { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PracticeWorker>))]
-    public EquatableArray<PracticeWorker> Workers { get; init; }
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Findings { get; init; }
+    public required EquatableArray<PracticeWorker> Workers { get; init; }
 }
+
+/// <summary>One pawn's practice at one target: the walk there, the session's length, its native callback cadence and the
+/// raw XP each completed shot or exchange pays (native success remains unobserved), the joy a sparring tick gives (0 at the
+/// range) and the preparation before the first callback (a sparring bout's join window).</summary>
 public sealed record PracticeWorker(string Pawn, string Skill, string Target, Cell Location,
-    string WorkGiver, string Job, Fact<double> ApproachTicks, Fact<double> DurationTicks,
+    string WorkGiver, string Job, double ApproachTicks, double DurationTicks,
     SkillLearning Learning)
 {
-    /// <summary>Conditional completed shots/exchanges; native success remains unobserved.</summary>
-    public Fact<double> CallbackIntervalTicks { get; init; }
-    public double PreparationTicks { get; init; }
-    public Fact<double> RawXpPerCallback { get; init; }
+    public required double CallbackIntervalTicks { get; init; }
+    public required double PreparationTicks { get; init; }
+    public required double RawXpPerCallback { get; init; }
     /// <summary>The joy a tick of the session gives (the spar's JobDef.joyGainRate × 0.36 / 2500 × the tolerance factor); 0 for
     /// a range drill, which is not recreation.</summary>
     public required double JoyGainPerTick { get; init; }
@@ -33,7 +34,7 @@ public sealed record PracticeWorker(string Pawn, string Skill, string Target, Ce
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public required EquatableArray<string> Company { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Equipment { get; init; }
+    public required EquatableArray<string> Equipment { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Findings { get; init; }
+    public required EquatableArray<string> Findings { get; init; }
 }

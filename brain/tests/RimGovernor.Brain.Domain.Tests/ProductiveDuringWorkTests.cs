@@ -40,9 +40,9 @@ public sealed class ProductiveDuringWorkTests
     [Fact]
     public void GeneratedSowingLevelsBeforeWorkAndDiscardsEachCellsExcess()
     {
-        var worker = new SowingWorker("pawn", "zone", "giver", Known(0d), Known(100d), [new(1, 1), new(1, 2)])
+        var worker = new SowingWorker("pawn", "zone", "giver", 0d, 100d, [new(1, 1), new(1, 2)])
             { SkillWork = Work("Plants", 2, .01, before: true) };
-        var generated = SowingMethodCandidates.Generate(new() { Known = true, Workers = [worker] }, 0, 1000, new([], [], [], []));
+        var generated = SowingMethodCandidates.Generate(CoupledFixtures.NoSowing with { Workers = [worker] }, 0, 1000, new([], [], [], []));
         var option = Assert.Single(generated.Options);
         var result = ForecastProductiveWorkPolicy.ForecastProductiveWork(option, [], 0);
         var learning = Assert.IsType<ForecastProductiveLearning>(result.Evidence);

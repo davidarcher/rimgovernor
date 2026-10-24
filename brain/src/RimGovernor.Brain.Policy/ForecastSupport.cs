@@ -1,4 +1,5 @@
 using RimGovernor.Brain.Policy.Methods;
+using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -30,8 +31,7 @@ public static class ForecastSupport
             .Where(p => p.Binding is not null).Select(p => (p.Allocation, Binding: p.Binding!)).ToArray();
         var findings = new SortedSet<string>(read.Findings, StringComparer.Ordinal);
         double urgent = 0, pending = 0, untreated = 0, unsupplied = 0, poison = 0;
-        var urgencyKnown = true; var careKnown = true; var qualityKnown = true;
-        var careServices = new List<string>(); var careFactor = 0d; var quality = 0d; var surgery = 0d; var surgeryKnown = true;
+        var careServices = new List<string>(); var careFactor = 0d; var quality = 0d; var surgery = 0d;
         foreach (var demand in read.Demands.Where(d => d.Kind is "care" or "surgery"))
         {
             var service = tasks.Where(t => t.Binding.SupportDemand == demand.Id && t.Binding.Target == demand.Target
@@ -40,28 +40,17 @@ public static class ForecastSupport
                 .Select(t => t.Allocation.End).DefaultIfEmpty(horizon).Min();
             var served = service.Length != 0;
             pending += served ? 0 : 1; untreated += end;
-            if (demand.Kind == "care")
-            {
-                if (!demand.BleedRate.TryGetValue(out var bleeding)) { urgencyKnown = false; findings.Add("care_urgency_unknown:" + demand.Id); }
-                else if (bleeding > 0) urgent += end;
-            }
+            if (demand.Kind == "care" && demand.BleedRate > 0) urgent += end;
             findings.Add("first_service_only_remaining_health_unknown:" + demand.Id);
             foreach (var task in service)
             {
                 careServices.Add(demand.Id + "/" + (task.Binding.Recipe?.Bill ?? "tend"));
-                var worker = read.Workers.FirstOrDefault(w => w.Demand == demand.Id && w.Pawn == task.Binding.Pawn && w.Medicine == task.Binding.Medicine);
-                if (demand.Kind == "surgery")
-                {
-                    if (demand.SurgerySuccessFactor.TryGetValue(out var multiplier)) surgery += multiplier;
-                    else { surgeryKnown = false; findings.Add("surgery_room_effect_unknown:" + demand.Id); }
-                }
-                else if (worker?.InfectionRoomEffectApplies == Known(false)) { }
-                else if (worker?.InfectionRoomEffectApplies == Known(true)
-                    && worker.InfectionCheckTicks.TryGetValue(out var check) && double.IsFinite(check) && check > task.Allocation.End
-                    && demand.InfectionChanceFactor.TryGetValue(out var value)) careFactor += value;
-                else { careKnown = false; findings.Add("care_room_effect_unknown:" + demand.Id); }
-                if (worker?.TendQuality.TryGetValue(out var tendQuality) == true) quality += tendQuality;
-                else qualityKnown = false;
+                var worker = read.Workers.First(w => w.Demand == demand.Id && w.Pawn == task.Binding.Pawn && (w.Medicine?.Id ?? "") == task.Binding.Medicine);
+                if (demand.Kind == "surgery") surgery += demand.SurgerySuccessFactor;
+                // A tend's room counts when the batch's infection check falls after the tend ends.
+                else if (worker.Treatment is SupportTreatment.Tend { Infection: InfectionCheck.Pending(var check) } && check > task.Allocation.End)
+                    careFactor += demand.InfectionChanceFactor;
+                if (worker.Treatment is SupportTreatment.Tend tend) quality += tend.Quality;
             }
         }
         foreach (var bill in read.Deliveries.GroupBy(d => d.Bill.Length == 0 ? d.Demand : d.Bill))
@@ -86,15 +75,15 @@ public static class ForecastSupport
         {
             var demand = read.Demands.FirstOrDefault(d => d.Kind == "bench" && d.Target == task.Binding.Target);
             if (demand is null) continue;
-            production.Add(task.Binding.Target + "/" + (task.Binding.Recipe?.Recipe ?? task.Binding.Cooking?.Continuation.Recipe ?? ""));
+            production.Add(task.Binding.Target + "/" + (task.Binding.Recipe?.Recipe ?? ""));
             poison += demand.FoodPoisonChance;
         }
         return new()
         {
-            UrgentFirstCareTicks = urgencyKnown ? Known(urgent) : default, PendingCareBatches = pending, FirstCareTicks = untreated,
+            UrgentFirstCareTicks = Known(urgent), PendingCareBatches = pending, FirstCareTicks = untreated,
             UnsuppliedDemand = unsupplied, FoodPoisonExposure = poison,
-            CareRoomFactor = careKnown ? Known(careFactor) : default, TendQuality = qualityKnown ? Known(quality) : default,
-            SurgeryRoomFactor = surgeryKnown ? Known(surgery) : default,
+            CareRoomFactor = Known(careFactor), TendQuality = Known(quality),
+            SurgeryRoomFactor = Known(surgery),
             CareServices = string.Join(";", careServices.Order(StringComparer.Ordinal)),
             FoodProduction = string.Join(";", production.Order(StringComparer.Ordinal)), Findings = EquatableArray.From(findings)
         };

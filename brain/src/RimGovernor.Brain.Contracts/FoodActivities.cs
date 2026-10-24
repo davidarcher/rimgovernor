@@ -6,22 +6,22 @@ using System.Text.Json.Serialization;
 
 namespace RimGovernor.Contracts.Wire.Observations;
 
+/// <summary>One pawn's harvest-and-haul row for a ripe food plant to one storage cell. Native emits the row only when the
+/// pawn reaches the plant and the cell, so both walks are priced.</summary>
 public sealed record FoodActivityOption(string Pawn, string Target, string Resource, Cell Origin, Cell Destination,
     string WorkGiver, int Count, double WorkTicks)
 {
-    public ProductiveSkillWork? SkillWork { get; init; }
-    public Fact<double> SourceCount { get; init; }
-    public FoodCookingEstimate? Cooking { get; init; }
-    public Fact<double> ApproachTicks { get; init; }
-    public Fact<double> DeliveryTicks { get; init; }
-    public Fact<bool> HarvestAllowed { get; init; }
-}
-/// <summary>One eligible recipe/source alternative, not a selected order. Route includes final product delivery.</summary>
-public sealed record FoodCookingEstimate(ActivityRecipeContinuation Continuation, int IngredientCount)
-{
+    /// <summary>The Plants learning the harvest gives, when the pawn's Plants skill is not disabled.</summary>
+    public required ProductiveSkillWork? SkillWork { get; init; }
+    /// <summary>The plant's whole yield now (Plant.YieldNow), whatever one carrier's load.</summary>
+    public required int SourceCount { get; init; }
+    public required double ApproachTicks { get; init; }
+    public required double DeliveryTicks { get; init; }
+    /// <summary>Whether the pawn may harvest it (WorkGiver_GrowerHarvest's legality), not just haul it.</summary>
+    public required bool HarvestAllowed { get; init; }
 }
 public sealed record FoodActivityRead
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<FoodActivityOption>))]
-    public EquatableArray<FoodActivityOption> Options { get; init; }
+    public required EquatableArray<FoodActivityOption> Options { get; init; }
 }

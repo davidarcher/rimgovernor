@@ -55,7 +55,7 @@ public sealed record ForecastCoupledContext
     public required WorkResourceView Resources { get; init; }
     /// <summary>The construction read the candidates came from; null for a context built without one.</summary>
     public ConstructionActivityRead? Construction { get; init; }
-    public SupportActivityRead Support { get; init; } = new();
+    public SupportActivityRead Support { get; init; } = new() { Demands = [], Workers = [], Deliveries = [], Findings = [] };
     public CoupledThermalRead? Thermal { get; init; }
     public EquatableArray<ForecastShelterPlan> Shelters { get; init; }
     /// <summary>The planned sites generated as construction activities (#3276), and the room alternatives they make up.</summary>

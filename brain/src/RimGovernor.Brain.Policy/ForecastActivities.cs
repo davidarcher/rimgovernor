@@ -1,3 +1,5 @@
+using RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>Relative game ticks; availability excludes protected obligations. Cost is displaced baseline labor per tick.</summary>
@@ -52,7 +54,7 @@ public sealed record ForecastActivityOption(string Activity, string Pawn, Fact<d
     public EquatableArray<string> Equipment { get; init; }
 }
 /// <summary>Route duration supplied by observation/estimation, never inferred from straight-line distance.</summary>
-public sealed record ForecastActivityRoute(string Pawn, string From, string To, Fact<double> Ticks);
+public sealed record ForecastActivityRoute(string Pawn, string From, string To, RouteTicks Ticks);
 
 /// <summary>A single outcome graph and its alternative cost, not a second colony demand calculation.</summary>
 public sealed record ForecastActivityProblem
@@ -229,10 +231,15 @@ public static class ForecastActivities
                             : window.StartLocation.IsKnown ? window.StartLocation : window.Start == 0 ? Known(pawn.Location) : Unknown<string>();
                         if (!origin.TryGetValue(out var from))
                         { if (!SpendExpansion()) return; findings.Add("unknown_window_location:" + pawn.Pawn); continue; }
-                        var route = from == task.Location ? Known(0.0)
-                            : routes.TryGetValue((pawn.Pawn, from, task.Location), out var observed) ? observed.Ticks : Unknown<double>();
-                        if (!route.TryGetValue(out var travel))
-                        { if (!SpendExpansion()) return; findings.Add("unknown_route:" + pawn.Pawn + ":" + from + ":" + task.Location); continue; }
+                        // A walk the problem carries no route for is not planned (#3338); one native found no path for is Unreachable.
+                        RouteTicks? route = from == task.Location ? new RouteTicks.Reachable(0)
+                            : routes.TryGetValue((pawn.Pawn, from, task.Location), out var observed) ? observed.Ticks : null;
+                        if (route is not RouteTicks.Reachable(var travel))
+                        {
+                            if (!SpendExpansion()) return;
+                            findings.Add((route is null ? "unrouted:" : "unreachable_route:") + pawn.Pawn + ":" + from + ":" + task.Location);
+                            continue;
+                        }
                         var free = Math.Max(released, window.Start);
                         foreach (var serviceReady in serviceTimes)
                         {
@@ -307,8 +314,12 @@ public static class ForecastActivities
         if (!option.WorkTicks.TryGetValue(out var work) || !option.RecoveryLaborTicks.TryGetValue(out var recovery)
             || !pawns.TryGetValue(option.Pawn, out var pawn) || !pawn.OpportunityCostPerTick.TryGetValue(out var rate)) return double.PositiveInfinity;
         var travel = 0d;
-        if (pawn.Location != task.Location && !(routes.TryGetValue((option.Pawn, pawn.Location, task.Location), out var route)
-            && route.Ticks.TryGetValue(out travel))) return double.PositiveInfinity;
+        if (pawn.Location != task.Location)
+        {
+            if (!routes.TryGetValue((option.Pawn, pawn.Location, task.Location), out var route) || route.Ticks is not RouteTicks.Reachable(var walk))
+                return double.PositiveInfinity;
+            travel = walk;
+        }
         var cost = (work + travel) * rate + recovery;
         return double.IsFinite(cost) ? cost : double.PositiveInfinity;
     }
@@ -529,7 +540,7 @@ public static class ForecastActivities
         foreach (var route in p.Routes)
         {
             if (!pawns.Contains(route.Pawn) || !Id(route.From) || !Id(route.To)) throw new DomainException("invalid route identity");
-            if (route.Ticks.TryGetValue(out var ticks) && (!double.IsFinite(ticks) || ticks < 0))
+            if (route.Ticks is RouteTicks.Reachable(var ticks) && (!double.IsFinite(ticks) || ticks < 0))
                 throw new DomainException("invalid activity estimate");
         }
     }

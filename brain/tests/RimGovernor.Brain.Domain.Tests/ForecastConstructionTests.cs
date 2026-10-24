@@ -1,3 +1,5 @@
+using RimGovernor.Contracts.Wire.Observations;
+using IngredientReservation = RimGovernor.Brain.Policy.IngredientReservation;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Observation;
@@ -35,9 +37,9 @@ public sealed class ForecastConstructionTests
             Census = Known(new CurrentConstruction { Colony = true, Sites = EquatableArray.From(sites) }),
             Workers = [Worker()], IngredientReservations = Known(default(EquatableArray<IngredientReservation>)),
             Estimates = sites.Select(s => new ForecastConstructionEstimate(s.Id, "worker", "stock", Known(true), Known(true), Known(100.0), Known(0.0))).ToArray(),
-            Routes = sites.Select(s => new ForecastActivityRoute("worker", "stock", s.Id, Known(50.0)))
-                .Concat(sites.SelectMany(s => sites.Where(t => t.Id != s.Id).Select(t => new ForecastActivityRoute("worker", s.Id, t.Id, Known(50.0)))))
-                .Concat(sites.Select(s => new ForecastActivityRoute("worker", s.Id, "stock", Known(50.0)))).ToArray(),
+            Routes = sites.Select(s => new ForecastActivityRoute("worker", "stock", s.Id, new RouteTicks.Reachable(50.0)))
+                .Concat(sites.SelectMany(s => sites.Where(t => t.Id != s.Id).Select(t => new ForecastActivityRoute("worker", s.Id, t.Id, new RouteTicks.Reachable(50.0)))))
+                .Concat(sites.Select(s => new ForecastActivityRoute("worker", s.Id, "stock", new RouteTicks.Reachable(50.0)))).ToArray(),
         },
     };
 
@@ -114,13 +116,13 @@ public sealed class ForecastConstructionTests
     }
 
     [Fact]
-    public void MissingRoutesStayUnknown()
+    public void MissingRoutesAreNamedUnrouted()
     {
         var b = Site("b", 2, owed: 0);
         Assert.Equal("scheduled", Assert.Single(ColonyForecastRules.ForecastColony(Request(b)).Proposed.Construction).Reason);
         var missing = ColonyForecastRules.ForecastColony(Request(b) with { Construction = Request(b).Construction with { Routes = [] } });
         Assert.Null(missing.Proposed.Construction[0].Comparison!.Selected);
-        Assert.Contains(missing.Proposed.Construction[0].Comparison!.Findings, f => f.StartsWith("unknown_route:", StringComparison.Ordinal));
+        Assert.Contains(missing.Proposed.Construction[0].Comparison!.Findings, f => f.StartsWith("unrouted:", StringComparison.Ordinal));
     }
 
     [Fact]

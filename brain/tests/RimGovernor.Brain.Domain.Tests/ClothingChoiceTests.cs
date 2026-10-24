@@ -66,7 +66,7 @@ public sealed class ClothingChoiceTests
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "tailor" }, template with { Pawn = "helper" },
                 template with { Pawn = "wearer", Apparel = NeedsFixtures.Apparel(RimGovernor.Contracts.Wire.Defs.Gender.Male, true, true), ThoughtStages = [.. template.ThoughtStages, .. ApparelStages] }] },
-            Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Tick = 100, Clothing = read, Construction = ConstructionFixtures.NoConstruction() }
+            Coupled = CoupledFixtures.Empty with { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Tick = 100, Clothing = read, Construction = ConstructionFixtures.NoConstruction() }
         } };
     }
     private static PawnActivities? Start(GearObservation census, RecipeActivityRead read, WorkResourceView resources,

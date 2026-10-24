@@ -120,7 +120,7 @@ public sealed class ForecastActivityOutcomesTests
     }
 
     [Fact]
-    public void RecoveryCostAndUnknownRoutesAreNotFree()
+    public void RecoveryCostAndUnroutedWalksAreNotFree()
     {
         var problem = Work(true);
         var danger = problem with { Options = problem.Options.Select(o => o.Activity == "build"
@@ -130,7 +130,7 @@ public sealed class ForecastActivityOutcomesTests
             ? a with { Location = "remote" } : a).ToArray() };
         var result = ForecastActivityOutcomes.CompareActivityOutcomes(distant, Needs());
         Assert.Equal(["food"], result.Selected);
-        Assert.Contains(result.Findings, f => f.StartsWith("unknown_route:", StringComparison.Ordinal));
+        Assert.Contains(result.Findings, f => f.StartsWith("unrouted:", StringComparison.Ordinal));
     }
 
     [Fact]

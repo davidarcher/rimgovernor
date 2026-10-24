@@ -32,7 +32,7 @@ public sealed class ForecastStockHandoffTests
         return new() { Origin = new("map", 0), HorizonDays = 1, Facts = facts, Coupled = new()
         {
             Activities = new(), Needs = NeedsFixtures.Empty, ModelBasis = new(input, new()),
-            FoodUses = [new("animal", Meal.Value, new(1, 1), Known(true), Known(.5), Known(10d), 1, Known(120000d)) { Thoughts = [] }],
+            FoodUses = [new("animal", Meal.Value, new(1, 1), true, .5, 10d, 1, new FoodFreshness.Rots(120000d)) { Ingredient = "", Thoughts = [] }],
             Resources = new(new() { Stock = Known(physical), Construction = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()), Reservations = Known<EquatableArray<IngredientReservation>>([]), Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) }, new([], [], [], []), default)
         } };
     }

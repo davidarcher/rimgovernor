@@ -46,7 +46,7 @@ public sealed class ForecastThermalPortfolioTests
                     Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [],
                     Thermal = thermal, Construction = facts.ForecastObserved.Coupled.Construction with { Options = demand ? [wall] : [] },
                     Routes = EquatableArray.From(cells.Append(bed).Distinct().SelectMany(a => cells.Append(bed).Distinct().Where(b => a != b)
-                        .Select(b => new CoupledRoute("pawn", a, b, Known(1d))))),
+                        .Select(b => new CoupledRoute("pawn", a, b, new RouteTicks.Reachable(1d)) { FromStart = false }))),
                 },
             },
         };
@@ -133,7 +133,7 @@ public sealed class ForecastThermalPortfolioTests
                 {
                     Food = facts.ForecastObserved.Coupled.Food with { Options = [] }, FoodUses = [],
                     Thermal = thermal, Construction = facts.ForecastObserved.Coupled.Construction with { Options = [frame] },
-                    Routes = EquatableArray.From(interior.SelectMany(a => interior.Where(b => a != b).Select(b => new CoupledRoute("pawn", a, b, Known(1d))))),
+                    Routes = EquatableArray.From(interior.SelectMany(a => interior.Where(b => a != b).Select(b => new CoupledRoute("pawn", a, b, new RouteTicks.Reachable(1d)) { FromStart = false }))),
                 },
             },
         };

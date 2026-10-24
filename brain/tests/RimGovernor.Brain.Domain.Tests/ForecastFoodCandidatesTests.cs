@@ -1,3 +1,6 @@
+using RimGovernor.Contracts.Wire.Observations;
+using IngredientReservation = RimGovernor.Brain.Policy.IngredientReservation;
+using FoodStock = RimGovernor.Brain.Policy.FoodStock;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -26,7 +29,7 @@ public sealed class ForecastFoodCandidatesTests
     private static ForecastActivityProblem Capacity() => new()
     {
         Pawns = [new("worker", "home", Known(EquatableArray.From(new[] { new ForecastTimeWindow(0, 4000) })), Known(1.0))],
-        Routes = [new("worker", "home", "plant", Known(10.0)), new("worker", "bench", "plant", Known(10.0))],
+        Routes = [new("worker", "home", "plant", new RouteTicks.Reachable(10.0)), new("worker", "bench", "plant", new RouteTicks.Reachable(10.0))],
         Equipment = [new("bench", "bench", Known(EquatableArray.From(new[] { new ForecastTimeWindow(0, 4000) })))],
         Deadline = Known(4000.0), AlternativeLaborCost = Known(3000.0), ExpansionBudget = 4096,
     };

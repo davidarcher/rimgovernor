@@ -330,7 +330,8 @@ internal static class ForecastHospital
                 continue;
             }
 
-            var surgeons = context.Support.Workers.Where(w => w.Demand == demand.Id).Select(w => w.SurgeryQuality).ToArray();
+            var surgeons = context.Support.Workers.Where(w => w.Demand == demand.Id).Select(w => w.Treatment)
+                .OfType<SupportTreatment.Surgery>().Select(s => s.Quality).ToArray();
             if (surgeons.Length == 0)
             {
                 continue;

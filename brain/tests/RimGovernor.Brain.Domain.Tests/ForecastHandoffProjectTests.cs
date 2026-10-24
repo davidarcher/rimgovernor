@@ -18,7 +18,7 @@ public sealed class ForecastHandoffProjectTests
         var graph = ProjectGraph.CropChain(input, ColonyModelFixtures.Crop, "zone1", []);
         var learning = ProductiveLearningTests.Work() with { Recipe = new("Plants", Known(.085), true), WorkAmount = Known(2d),
             Rates = [new(0, Known(.005)), new(1, Known(.005)), new(2, Known(.005))], LearnBeforeWork = true };
-        var native = new SowingActivityRead { Known = true, Workers = [new("Bo", "zone1", "Grower", Known(0d), Known(200d), [new(1, 1), new(1, 2)]) { SkillWork = learning }] };
+        var native = CoupledFixtures.NoSowing with { Workers = [new("Bo", "zone1", "Grower", 0d, 200d, [new(1, 1), new(1, 2)]) { SkillWork = learning }] };
         var generated = SowingMethodCandidates.Generate(native, 0, GameTime.TicksPerDay, new([], [], [], []));
         var task = Assert.Single(generated.Tasks);
         var duration = ForecastProductiveWorkPolicy.ForecastProductiveWork(Assert.Single(generated.Options), [], 0);

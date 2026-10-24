@@ -194,14 +194,12 @@ public sealed class HospitalCreditTests
 
     private static ForecastCoupledContext SurgeryContext(params SurgeryOutcomeRead[] outcomes) => Context(0) with
     {
-        Support = new()
-        {
-            Known = true,
-            Demands = [new(Surgery, "surgery", "pawn", new(1, 1), 0, default)
+        Support = CoupledFixtures.NoSupport with {
+            Demands = [CoupledFixtures.Demand(Surgery, "surgery", "pawn", new(1, 1), 0, default) with
             {
                 SurgeryOutcomes = EquatableArray.From(outcomes), SurgeryEnvironment = true, SurgeryQualityMin = 0, SurgeryQualityMax = 0.98,
             }],
-            Workers = [new(Surgery, "doctor", "pawn", "DoBill", "DoBillsMedicalHumanOperation", new(1, 1), Known(0d), Known(100d)) { SurgeryQuality = 0.9 }],
+            Workers = [new(Surgery, "doctor", "pawn", "DoBill", "DoBillsMedicalHumanOperation", new(1, 1), 0d, 100d) { Medicine = null, Treatment = CoupledFixtures.Surgery(new("bill", "operation", []), quality: 0.9) }],
         },
     };
 
