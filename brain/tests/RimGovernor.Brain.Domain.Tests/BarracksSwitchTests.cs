@@ -40,7 +40,7 @@ public sealed class BarracksSwitchTests
         return f with { Built = built, ShellStanding = LayoutPlan.ShellStanding(plan, ground) };
     }
 
-    private static StationFacts WithLosses(StationFacts f, double c) => f with { BedMerge = f.BedMerge with { Sleepers = BedMergePriceTests.Flat([.. Calm[..^1], c]).Sleepers } };
+    private static StationFacts WithLosses(StationFacts f, double c) => f with { BedMerge = ((BedMergeFacts.Read)f.BedMerge) with { Sleepers = BedMergePriceTests.Flat([.. Calm[..^1], c]).Sleepers } };
 
     private static LayoutPlan Replan(LayoutPlan prev, StationFacts f) =>
         LayoutPlan.ReplanLayout(prev, f with { Plan = prev }, f.Survey, [], new RoomGrowth { Fixed = [] }).Plan;

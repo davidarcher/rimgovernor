@@ -42,7 +42,7 @@ public sealed class FirstRoomPlanTests
             OutdoorCurve = Known(EquatableArray.From(curve)),
             BedMerge = treeless ? BedMergePriceTests.MarketWood(calm) : BedMergePriceTests.Wood(calm),
             Crops = [BedMergePriceTests.Rice],
-            Orders = Known(EquatableArray.From(orders ?? [])),
+            Ledger = new LedgerView { Status = WorkRules.LedgerViewReconciled, Orders = orders ?? [] },
             HostBuild = hostBuild ?? new Dictionary<string, double>(),
         };
     }
@@ -50,8 +50,8 @@ public sealed class FirstRoomPlanTests
     internal static LayoutPlan Derive(StationFacts f)
     {
         var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(f.Survey, f, []);
-        Assert.True(plan.IsKnown, "no first plan");
-        return plan.Value;
+        Assert.NotNull(plan);
+        return plan;
     }
 
     [Fact]
@@ -68,7 +68,7 @@ public sealed class FirstRoomPlanTests
     {
         var f = Facts(BedMergePriceTests.Temperate, "mild", treeless: true);
         var (derived, advice) = LayoutDeriveRules.DeriveLayoutPlan(f.Survey, f, []);
-        var plan = derived.Value;
+        var plan = derived!;
 
         var barracks = Assert.Single(plan.RoomsOf(PlannedRole.Barracks));
         Assert.Empty(plan.RoomsOf(PlannedRole.Bedroom));

@@ -320,8 +320,9 @@ Hot and NextRoomID.
   amount over interval a day (milk, wool, eggs, chemfuel); feed hauls what the pen's
   grazing leaves of `AdultFeedPerDay` (`PenCells` over the weakest pasture, so a pen is
   hand-fed only past `penCellsCap` or on barren ground) in the richest feed item. Unread
-  yields, hunger, pasture or feed add no flow (#2996). Joy is `StationGraph.Recreation`
-  (`RecreationNode`, from `StationCatalog.Joy`, #2997): the awake fall of the Joy need
+  yields, pasture or feed add no flow (#2996); a race feed that is no number fails the
+  graph with `RequiredFactException` (`adult feed of <race>`). Joy is the graph's
+  `RecreationNode` (`JoyModel.RecreationDemand`, from `StationCatalog.Joy`, #2997): the awake fall of the Joy need
   (`joyGame`: Need_Joy's 0.0015 an interval over the schedule template's awake hours)
   over the chance-weighted mean session of the joy givers that need no building
   (`joyGainRate` x `joyDuration` x 0.36/2500), split by the givers the def flags outdoors

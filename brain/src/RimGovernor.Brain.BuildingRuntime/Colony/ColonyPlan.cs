@@ -538,13 +538,13 @@ public sealed partial class Rounder
         var f = StationFactsBuilder.FirstPlanFacts(projection, survey, StationNeeds(demandWorld), WorkLedgerView());
         f = f with { Crops = FieldCrops.Of(projection), FoodReserveDays = Seasonal(projection.Facts).FoodTargetDays, BedMerge = await BedMergeFactsAsync(snapshot, projection, ct).ConfigureAwait(false) };
         f = f with { HostBuild = await HostBuildAsync(snapshot, projection, f, ct).ConfigureAwait(false) };
-        Fact<LayoutPlan> fact = default;
+        LayoutPlan? derived = null;
         StationAdvice advice = new();
         Exception? error = null;
         try
         {
             f = StationFactsBuilder.StationFacts(catalog, f);
-            (fact, advice) = LayoutDeriveRules.DeriveLayoutPlan(survey, f, geysers);
+            (derived, advice) = LayoutDeriveRules.DeriveLayoutPlan(survey, f, geysers);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
@@ -564,7 +564,7 @@ public sealed partial class Rounder
                 Tel.Decide(LayoutPlanning.LayoutPlanDecision("failed", "chain_error", colonists, "", new Dictionary<string, object?> { ["error"] = error.ToString() }));
                 return "";
         }
-        if (!fact.TryGetValue(out var plan))
+        if (derived is not { } plan)
         {
             Tel.Decide(LayoutPlanning.LayoutPlanDecision("skipped", "no_core", colonists, "", null));
             return "";

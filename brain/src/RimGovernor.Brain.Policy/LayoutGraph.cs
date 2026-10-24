@@ -302,9 +302,6 @@ public sealed partial class StationGraph
     /// <summary>The outdoor pen nodes of the herds; their edges count as trips to the outside node.</summary>
     public List<PenNode> Pens { get; set; } = [];
 
-    /// <summary>The joy demand; unknown without a joy model. Its outdoor sessions are edges to the outside node.</summary>
-    public Fact<RecreationNode> Recreation { get; set; }
-
     public List<StationEdge> Edges { get; set; } = [];
 
     /// <summary>The node with the id.</summary>
@@ -958,7 +955,8 @@ internal sealed partial class GraphBuilder(StationGraphInput input)
                 case StationPurpose.SleepMed:
                     AddEdge(n.Id, dine, meals * injured / colonists, false);
                     break;
-                default:
+                case StationPurpose.None or StationPurpose.SleepPrison or StationPurpose.SleepBaby or StationPurpose.Work or StationPurpose.Store or StationPurpose.StoreCold
+                    or StationPurpose.Dine or StationPurpose.Outside or StationPurpose.Cool or StationPurpose.Play:
                     break;
             }
         }
@@ -1094,12 +1092,11 @@ partial class StationGraph
         b.DayCycle();
         var fields = b.FieldNodes(runs);
         var pens = b.PenNodes();
-        var recreation = b.Recreation();
+        b.Recreation();
         b.Hauls();
         var g = b.Graph();
         g.Fields = fields;
         g.Pens = pens;
-        g.Recreation = recreation;
         g.Rooms = LayoutGraphRules.StationRoomNodes(input);
         foreach (var n in g.Nodes)
         {
@@ -1111,7 +1108,8 @@ partial class StationGraph
                     // Somebody sleeps in a room nobody may walk through (RoomCrossing.Beds): the colony may need a way to reach it that crosses no other room.
                     g.Rooms.Add(new RoomNode { Id = Wire.Name(PlannedRole.Circulation), Role = PlannedRole.Circulation, Width = LayoutGraphRules.CirculationWidth, Joins = true, Reason = LayoutGraphRules.ReasonCirculation });
                     return g;
-                default:
+                case StationPurpose.None or StationPurpose.SleepPrison or StationPurpose.Work or StationPurpose.Store or StationPurpose.StoreCold
+                    or StationPurpose.Dine or StationPurpose.Outside or StationPurpose.Cool or StationPurpose.Play:
                     break;
             }
         }

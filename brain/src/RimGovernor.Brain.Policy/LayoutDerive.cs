@@ -55,10 +55,10 @@ public static partial class LayoutDeriveRules
     /// reported steam geyser and rooms stay off it; the turbines and solar plots the planned demand needs
     /// (derivePowerSites) are placed beside the rooms by the site embedding and stored with their wind lanes,
     /// and the tiler routes the conduit net to them; the outskirts are rooms of the chain itself. The advice is
-    /// returned beside the plan for the caller to journal. Unknown when the survey holds no room for a core; the
+    /// returned beside the plan for the caller to journal. The plan is null when the survey holds no room for a core; the
     /// failure is the chain's (RequiredFactException for a fact the colony has not read and the chain needs).
     /// </summary>
-    public static (Fact<LayoutPlan> Plan, StationAdvice Advice) DeriveLayoutPlan(MapSurvey s, StationFacts f, IReadOnlyList<PowerGeyser> geysers)
+    public static (LayoutPlan? Plan, StationAdvice Advice) DeriveLayoutPlan(MapSurvey s, StationFacts f, IReadOnlyList<PowerGeyser> geysers)
     {
         var zones = LayoutZoningRules.Zone(s);
         var footprints = GeyserFootprints(geysers);
@@ -79,12 +79,12 @@ public static partial class LayoutDeriveRules
         var plan = advice.Tiled!.Plan;
         if (plan.Rooms.Count == 0)
         {
-            return (Unknown<LayoutPlan>(), advice);
+            return (null, advice);
         }
         // The survey's zones less its field patches, then the fields the tiler placed.
         plan = plan with { Zones = [.. LayoutFieldReplanRules.WithFieldZones(zones, null), .. plan.Zones.Skip(f.Plan.Zones.Count)], Cold = s.Cold, Hot = s.Hot };
         plan = LayoutPlan.PlanMountainPockets(LayoutPlan.PlanPerimeter(plan, s), s);
-        return (Known(LayoutPlan.WithoutCore(plan).WithRoomIDs()), advice);
+        return (LayoutPlan.WithoutCore(plan).WithRoomIDs(), advice);
     }
 
     /// <summary>The enclosures of the geysers whose cells all lie on core ground; a site that does not fit is left out.</summary>

@@ -270,7 +270,7 @@ public sealed record MoodModel
             case RoleEffect.PatientMood:
             case RoleEffect.PrisonMood:
                 break;
-            default:
+            case RoleEffect.None or RoleEffect.BenchSpeed or RoleEffect.SleepDisturbed or RoleEffect.Impressiveness:
                 return (0, false);
         }
         var (had, ok) = RoleEffectAt(lost.Role, stage);

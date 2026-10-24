@@ -87,8 +87,9 @@ public sealed partial class LayoutRounds
     /// <summary>
     /// Reads the family's facts in <paramref name="scope"/>'s world: the home-area diff and the flammable owned walls
     /// from the owned census, the rooms owed a vent or a roof and the routes standing from the rooms census, the ring
-    /// work this tick's review left, unknown when the review did not plan the ring this tick, and the defensive layout's
-    /// journal facts.
+    /// work this tick's review left, and the defensive layout's journal facts. A composed section that cannot be read
+    /// (the review did not plan the ring this tick, no layout plan or colony ground) raises
+    /// <see cref="RequiredFactException"/>.
     /// Throws when the read is from another world or older than the review.
     /// </summary>
     internal async Task<LayoutFacts> ReadAsync(FamilyReadScope scope, CancellationToken ct)
@@ -113,11 +114,21 @@ public sealed partial class LayoutRounds
             var f = read.Projection.Facts;
             if (_needs.HomeCoverage)
             {
-                facts = facts with { HomeCoverage = HomeAreaRules.PlanHomeArea(f.MapBounds, f.CurrentConstruction, claims, f.HomeCoverage) };
+                // The plan's own unread inputs (the geometry, Home cells, auto-expand state) are HomeArea's to harden.
+                facts = facts with
+                {
+                    HomeCoverage = HomeAreaRules.PlanHomeArea(f.MapBounds, f.CurrentConstruction, claims, f.HomeCoverage).TryGetValue(out var plan)
+                        ? plan : throw new RequiredFactException("home area plan"),
+                };
             }
             if (_needs.StoneShell)
             {
-                facts = facts with { StoneShell = FacilityUpkeepRules.ReviewStoneShell(ConstructionOwnershipRules.OwnedConstructions(claims, f.CurrentConstruction), f.Upkeep.Structures) };
+                // The owned construction and the structure census are FacilityUpkeep's reads to harden.
+                facts = facts with
+                {
+                    StoneShell = FacilityUpkeepRules.ReviewStoneShell(ConstructionOwnershipRules.OwnedConstructions(claims, f.CurrentConstruction), f.Upkeep.Structures).TryGetValue(out var walls)
+                        ? walls : throw new RequiredFactException("flammable walls"),
+                };
             }
         }
         if (_needs.ClimateEnvelope || _needs.Routes)
@@ -126,24 +137,24 @@ public sealed partial class LayoutRounds
             if (_needs.ClimateEnvelope)
             {
                 var (owed, known) = EnvelopeWork(rooms.Projection);
-                facts = facts with { ClimateEnvelope = known ? Known(owed.Count) : Unknown<int>() };
+                facts = facts with { ClimateEnvelope = known ? owed : throw new RequiredFactException("climate envelope") };
             }
             if (_needs.Routes)
             {
                 var projection = rooms.Projection;
-                facts = facts with { Routes = Known(LayoutFamily.RoutesStandingOf(projection.Facts.Upkeep.Routes, projection.Rooms, _reviewer.Policy)) };
+                facts = facts with { Routes = LayoutFamily.RoutesStandingOf(projection.Facts.Upkeep.Routes, projection.Rooms, _reviewer.Policy) };
             }
         }
         if (_firebreak is not null)
         {
             var (work, ruins, ok) = _firebreak.Take(RoundsStockpilePlanner.StockpileWorld(scope.World), review.Tick);
             facts = ok
-                ? facts with { Firebreak = Known(work), FirebreakStep = FirebreakCandidate(work, ruins ?? []) }
-                : facts with { Firebreak = Unknown<FirebreakWork>() };
+                ? facts with { Firebreak = work, FirebreakStep = FirebreakCandidate(work, ruins ?? []) }
+                : throw new RequiredFactException("firebreak ring");
         }
         if (_defense is not null)
         {
-            facts = facts with { Defense = Known(RoundsDefenseLayoutPlanner.DefenseLayoutFactsOf(_reviewer, review, ct)) };
+            facts = facts with { Defense = RoundsDefenseLayoutPlanner.DefenseLayoutFactsOf(_reviewer, review, ct) };
         }
         return facts;
     }

@@ -75,12 +75,10 @@ public static partial class LayoutRangeRules
 partial record PlannedRoom
 {
     /// <summary>The stands a planned range holds: the length of its rows.</summary>
-    public static int RangeStandCount(PlannedRoom r) => r.Facing switch
-    {
-        Rotation.North or Rotation.South => r.Region.Bounds().Width,
-        Rotation.East or Rotation.West => r.Region.Bounds().Height,
-        _ => 0,
-    };
+    public static int RangeStandCount(PlannedRoom r) =>
+        r.Facing is Rotation.North or Rotation.South ? r.Region.Bounds().Width
+        : r.Facing is Rotation.East or Rotation.West ? r.Region.Bounds().Height
+        : 0; // a room without a facing is no range
 
     /// <summary>The footprint an unfenced range blocks: its interior with a one-cell margin. A stray practice shot cannot hit a pawn, so nothing behind the dummies is kept free.</summary>
     internal static Rectangle RangeBlock(PlannedRoom r) => LayoutPerimeterRules.Pad(r.Region.Bounds(), 1);

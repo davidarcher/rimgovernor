@@ -170,7 +170,7 @@ public sealed class PawnValueTests
             Perishable = new Dictionary<Resource, bool> { [raw] = true },
         };
         var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(survey, facts, []);
-        return FoodHaulRules.Legs(plan.Value, Game.WorkSpeedFactsTests.Catalog().FoodWork(new HashSet<string>(StringComparer.Ordinal)));
+        return FoodHaulRules.Legs(plan!, Game.WorkSpeedFactsTests.Catalog().FoodWork(new HashSet<string>(StringComparer.Ordinal)));
     }
 
     [Fact]

@@ -119,7 +119,7 @@ public sealed class FirstLayoutPlanTests
             Larder = new(),
             Consumers = [.. Enumerable.Range(0, (int)colonists).Select(i => new FoodConsumer { Id = new PawnId("c" + i), NutritionPerDay = 1.6 })],
         }),
-        Orders = Fact.Known(EquatableArray.From<OrderSpec>([])),
+        Ledger = WorkRules.NewLedgerView(WorkRules.LedgerViewInactive),
         Stock = Fact.Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
         Survey = s,
         Built = new HashSet<int>(),
@@ -143,8 +143,8 @@ public sealed class FirstLayoutPlanTests
     {
         var s = Survey(climate);
         var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(s, Priced(Facts(s, colonists), climate), []);
-        Assert.True(plan.IsKnown, "no first plan on an open " + climate + " map");
-        return plan.Value;
+        Assert.NotNull(plan); // a first plan on an open map
+        return plan;
     }
 
     [Theory]

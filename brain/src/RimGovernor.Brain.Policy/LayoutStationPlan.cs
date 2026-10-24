@@ -56,8 +56,8 @@ public sealed record StationFacts
     /// <summary>The colonists' food census; its consumers' rates sum to the nutrition a day.</summary>
     public Fact<FoodSupply> Food { get; init; }
 
-    /// <summary>The work ledger's wanted orders.</summary>
-    public Fact<EquatableArray<OrderSpec>> Orders { get; init; }
+    /// <summary>The work ledger as the latest review filed it: its wanted orders are read once a review reconciled it or found no planner declaring (LedgerOrders).</summary>
+    public LedgerView Ledger { get; init; } = WorkRules.NewLedgerView(WorkRules.LedgerViewNone);
 
     /// <summary>The resource demand's stock levels (DerivedDemand.Needs).</summary>
     public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
@@ -104,26 +104,24 @@ public sealed record StationFacts
     public Fact<double> ExpectedMood { get; init; }
 
     /// <summary>What the colony reads for the bed merge's price (#3658); its default reads nothing, which fails a chain with a free-bed pool naming the unread fact (#3747).</summary>
-    public BedMergeFacts BedMerge { get; init; } = new();
+    public BedMergeFacts BedMerge { get; init; } = new BedMergeFacts.Unread("sleeper_mood");
 
-    /// <summary>The capability-days of building each work station the catalog offers (labor plus material, LayoutClusterRules.ShellPiecePrice), by def; a station absent is unread (#3659, GraphBuilder.HostOf).</summary>
+    /// <summary>The capability-days of building each work station the catalog offers (labor plus material, LayoutClusterRules.PiecePrice), by def; a station absent is unread (#3659, GraphBuilder.HostOf).</summary>
     public IReadOnlyDictionary<string, double> HostBuild { get; init; } = new Dictionary<string, double>();
 
     /// <summary>
-    /// The bed merge's price (#3658): the colony's facts, the outdoor curve, the work-day's watts (unknown while
-    /// StationWorkPrice gives none), the colonists able to build (#3748), the bed slots of the plan's largest barracks as the incumbent, and the plan's committed barracks and
+    /// The bed merge's price (#3658): the colony's facts, the outdoor curve, the work-day (StationWorkDayOf), the colonists able to build (#3748), the bed slots of the plan's largest barracks as the incumbent, and the plan's committed barracks and
     /// bedrooms with what of each shell stands (#3661, #3675): a room standing or under construction (StandingIds), a
     /// superseded one counted once, as its successor. A room on paper alone is not committed.
     /// </summary>
     public BedMergePrice BedMergePriceOf()
     {
         var standing = StandingIds() ?? new HashSet<int>();
-        var workDay = LayoutRegroupRules.StationWorkPrice(this).WorkDayW;
         return new()
         {
             Facts = BedMerge,
             OutdoorCurve = OutdoorCurve,
-            WorkDayW = QuestCapacityForecast.FinitePositive(workDay) ? Known(workDay) : default,
+            WorkDay = LayoutLightRules.StationWorkDayOf(this),
             Builders = LayoutClusterRules.BuildersOf(WorkPawns),
             Incumbent = Furniture is null ? 0 : Plan.RoomsOf(PlannedRole.Barracks).Select(r => SleepingRules.BedSlotsOf(Plan, r, Furniture)?.Count ?? 0).DefaultIfEmpty(0).Max(),
             Committed = EquatableArray.From(Plan.RoomsOf(PlannedRole.Barracks).Concat(Plan.RoomsOf(PlannedRole.Bedroom))
@@ -142,8 +140,8 @@ public sealed record StationFacts
     /// </summary>
     public bool Derive { get; init; }
 
-    /// <summary>The interior cells of the throne room a title asks (the growth's ThroneArea); 0 is none owed, unknown asks for none and says so.</summary>
-    public Fact<int> ThroneArea { get; init; }
+    /// <summary>The interior cells of the throne room a title asks (the growth's ThroneArea); 0 is none owed.</summary>
+    public int ThroneArea { get; init; }
 
     /// <summary>The departments' room demand (the training range's stands and the ring's markers, #3003); its default asks for none.</summary>
     public RoomDemand Demand { get; init; } = new();
@@ -168,7 +166,7 @@ public sealed record StationFacts
                 held = Math.Max(held, b.Width * b.Height);
             }
         }
-        return new SeedRooms { ThroneArea = ThroneArea.TryGetValue(out var area) && area > held ? area : held };
+        return new SeedRooms { ThroneArea = Math.Max(ThroneArea, held) };
     }
 
     /// <summary>
@@ -200,6 +198,14 @@ public sealed record StationFacts
     internal IReadOnlyList<RoomNode> RoomNodes() =>
         [.. LayoutPlan.OutskirtsRoomNodes(Plan, Demand), .. LayoutPlan.ChildRoomNodes(Plan, Child), .. LayoutPlan.YardRoomNodes(Plan, Demand), .. LayoutPlan.HerdRoomNodes(Plan, Pens)];
 
+    /// <summary>
+    /// The work ledger's wanted orders: those of a reconciled ledger, or none for an inactive one (no planner declares
+    /// into it). Before any review or with the bench readback unread it throws a RequiredFactException.
+    /// </summary>
+    public IReadOnlyList<OrderSpec> LedgerOrders() => Ledger.Status is WorkRules.LedgerViewReconciled or WorkRules.LedgerViewInactive
+        ? Ledger.Orders
+        : throw new RequiredFactException("work ledger orders");
+
     /// <summary>Assembles the graph's input, or throws a RequiredFactException naming the unknown fact.</summary>
     public StationGraphInput GraphInput()
     {
@@ -209,10 +215,7 @@ public sealed record StationFacts
             throw new RequiredFactException("food census");
         }
         var nutrition = LayoutStationPlanRules.HumanNutritionPerDay(supply);
-        if (!Orders.TryGetValue(out var orders))
-        {
-            throw new RequiredFactException("work ledger orders");
-        }
+        var orders = LedgerOrders();
         if (!Stock.TryGetValue(out var stock))
         {
             throw new RequiredFactException("resource demand");

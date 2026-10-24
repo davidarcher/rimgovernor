@@ -62,15 +62,15 @@ public sealed class FirstPlanHeldTests
         var s = FirstLayoutPlanTests.Survey("cold");
         var priced = FirstLayoutPlanTests.Priced(FirstLayoutPlanTests.Facts(s, 3), "cold");
 
-        var mood = Assert.Throws<RequiredFactException>(() => LayoutDeriveRules.DeriveLayoutPlan(s, priced with { BedMerge = priced.BedMerge with { Sleepers = default } }, []));
+        var mood = Assert.Throws<RequiredFactException>(() => LayoutDeriveRules.DeriveLayoutPlan(s, priced with { BedMerge = new BedMergeFacts.Unread("sleeper_mood") }, []));
         Assert.Equal("sleeper_mood", mood.Fact);
         var curve = Assert.Throws<RequiredFactException>(() => LayoutDeriveRules.DeriveLayoutPlan(s, priced with { OutdoorCurve = default }, []));
         Assert.Equal("outdoor_curve", curve.Fact);
         Assert.False(Decide(curve.Fact).Run);
 
         var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(s, priced, []);
-        Assert.True(plan.IsKnown);
-        Assert.NotEmpty(plan.Value.RoomsOf(LayoutSurveyRules.PlannedBedroom).Concat(plan.Value.RoomsOf(PlannedRole.Barracks)));
+        Assert.NotNull(plan);
+        Assert.NotEmpty(plan!.RoomsOf(LayoutSurveyRules.PlannedBedroom).Concat(plan!.RoomsOf(PlannedRole.Barracks)));
     }
 
     // The game's SleptInBedroom and SleptInBarracks stage offsets (Thoughts_Memory_RoomStats.xml) up to the stages the
@@ -101,12 +101,12 @@ public sealed class FirstPlanHeldTests
         return NeedsFixtures.Pawn() with { Pawn = id, Mood = NeedsFixtures.Mood with { UnclampedTarget = 0.6, BreakThreshold = 0.35 }, ThoughtStages = EquatableArray.From(stages), Sleep = SleepFixtures.Ground() };
     }
 
-    private static BedMergeFacts FreshSleepers(bool nullStageRow) => new BedroomGainFacts
+    private static EquatableArray<SleeperGains>? FreshSleepers(bool nullStageRow) => LayoutClusterRules.SleeperGainsOf(new BedroomGainFacts
     {
         Pawns = FreshIds.ToDictionary(p => p, p => FreshColonist(p, nullStageRow), StringComparer.Ordinal),
         Breaks = new() { Threshold = 0.35, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
         WellbeingWeight = 0.1,
-    }.BedMerge(BedMergePriceTests.Levels);
+    }, BedMergePriceTests.Levels);
 
     [Fact]
     public void AFreshColonysFirstPlanReadsTheSleepersMoodAtTheBedroomsNullDullStage()
@@ -115,7 +115,10 @@ public sealed class FirstPlanHeldTests
         // and the first plan of every colony failed on sleeper_mood at ChooseBeds, holding the clock for good.
         var s = FirstLayoutPlanTests.Survey("mild");
         var priced = FirstLayoutPlanTests.Priced(FirstLayoutPlanTests.Facts(s, 3), "mild");
-        StationFacts With(BedMergeFacts sleepers) => priced with { BedMerge = priced.BedMerge with { Sleepers = sleepers.Sleepers, Levels = sleepers.Levels } };
+        StationFacts With(EquatableArray<SleeperGains>? sleepers) => priced with
+        {
+            BedMerge = sleepers is { } gains ? ((BedMergeFacts.Read)priced.BedMerge) with { Sleepers = gains } : new BedMergeFacts.Unread("sleeper_mood"),
+        };
 
         var before = Assert.Throws<RequiredFactException>(() => LayoutDeriveRules.DeriveLayoutPlan(s, With(FreshSleepers(nullStageRow: false)), []));
         Assert.Equal("sleeper_mood", before.Fact);
@@ -123,10 +126,10 @@ public sealed class FirstPlanHeldTests
         Assert.EndsWith(" ChooseBeds", before.Site, StringComparison.Ordinal);
 
         var read = FreshSleepers(nullStageRow: true);
-        Assert.True(read.Sleepers.IsKnown);
+        Assert.NotNull(read);
         var (plan, _) = LayoutDeriveRules.DeriveLayoutPlan(s, With(read), []);
-        Assert.True(plan.IsKnown);
-        Assert.NotEmpty(plan.Value.RoomsOf(LayoutSurveyRules.PlannedBedroom).Concat(plan.Value.RoomsOf(PlannedRole.Barracks)));
+        Assert.NotNull(plan);
+        Assert.NotEmpty(plan!.RoomsOf(LayoutSurveyRules.PlannedBedroom).Concat(plan!.RoomsOf(PlannedRole.Barracks)));
     }
 
     [Fact]

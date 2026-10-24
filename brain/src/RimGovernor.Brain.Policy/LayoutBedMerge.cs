@@ -7,42 +7,51 @@ namespace RimGovernor.Brain.Policy;
 public sealed record SleeperGains(EquatableArray<double> Bedroom, EquatableArray<double> Barracks);
 
 /// <summary>
-/// What the colony reads for the bed merge's price (#3658, #3748): each pool sleeper's gains per stage, unknown while any
-/// sleeper's gain at any stage is unread; the game's Impressiveness stages the stage is read in; and per wall cell and door
-/// of a planned bedroom's base ring, in the stuff the ring's sites are placed in, the capability-days it costs to build
-/// (labor plus material) and its work to build (ticks). Each is a required planner input (#3747): the chain fails naming
-/// the one unread.
+/// What the colony reads for the bed merge's price (#3658, #3748), read whole or naming the fact it could not read. Each
+/// is a required planner input (#3747): a chain with a free-bed pool fails naming the one unread.
 /// </summary>
-public sealed record BedMergeFacts
+public abstract record BedMergeFacts
 {
-    /// <summary>Per sleeper in id order, its gains per stage.</summary>
-    public Fact<EquatableArray<SleeperGains>> Sleepers { get; init; }
+    private protected BedMergeFacts() { }
 
-    /// <summary>The Impressiveness score stages (the catalog's RoomStatDef); unknown without a catalog.</summary>
-    public Fact<ImpressivenessLevels> Levels { get; init; }
+    /// <summary>
+    /// Read: each pool sleeper's gains per stage (in id order); the game's Impressiveness stages the stage is read in (the
+    /// catalog's RoomStatDef); and per wall cell and door of a planned bedroom's base ring, in the stuff the ring's sites are
+    /// placed in, the capability-days it costs to build (labor plus material) and its work to build (ticks).
+    /// </summary>
+    public sealed record Read : BedMergeFacts
+    {
+        public required EquatableArray<SleeperGains> Sleepers { get; init; }
 
-    public Fact<double> WallCell { get; init; }
+        public required ImpressivenessLevels Levels { get; init; }
 
-    public Fact<double> Door { get; init; }
+        public required double WallCell { get; init; }
 
-    /// <summary>The work to build one wall cell of the ring, in ticks.</summary>
-    public Fact<double> WallWork { get; init; }
+        public required double Door { get; init; }
 
-    /// <summary>The work to build the ring's door, in ticks.</summary>
-    public Fact<double> DoorWork { get; init; }
+        /// <summary>The work to build one wall cell of the ring, in ticks.</summary>
+        public required double WallWork { get; init; }
+
+        /// <summary>The work to build the ring's door, in ticks.</summary>
+        public required double DoorWork { get; init; }
+    }
+
+    /// <summary>A fact the price needs is unread: <c>sleeper_mood</c> (a sleeper's gain at a stage), <c>impressiveness_levels</c> (no catalog stages), <c>wall_price</c> or <c>door_price</c> (the catalog shows no work or cost list for the ring's piece).</summary>
+    public sealed record Unread(string Fact) : BedMergeFacts;
 }
 
 /// <summary>Everything the clustering prices a bed merge with (#3658): the colony's facts, the climate the room's heat is read in, the builders, and the barracks the plan holds.</summary>
 public sealed record BedMergePrice
 {
-    public BedMergeFacts Facts { get; init; } = new();
+    public required BedMergeFacts Facts { get; init; }
 
+    /// <summary>The seasonal outdoor curve; the colony projection's read to harden (#3790).</summary>
     public Fact<EquatableArray<double>> OutdoorCurve { get; init; }
 
-    /// <summary>The watts a colonist's work-day is worth (WorkPrice.WorkDayW); unknown while the work price is (its zero).</summary>
-    public Fact<double> WorkDayW { get; init; }
+    /// <summary>A colonist's work-day (LayoutLightRules.StationWorkDayOf); a day with no price fails the heat it prices.</summary>
+    public required StationWorkDay WorkDay { get; init; }
 
-    /// <summary>The colonists able to build (LayoutClusterRules.BuildersOf); unknown while a pawn's work facts are unread.</summary>
+    /// <summary>The colonists able to build (LayoutClusterRules.BuildersOf); unknown while a pawn's work facts are unread (the work planning's read to harden, #3876).</summary>
     public Fact<int> Builders { get; init; }
 
     /// <summary>The bed slots of the barracks the plan holds (BedSlotsOf), 0 for none: the incumbent a new size must beat by more than the tie resolution.</summary>
@@ -83,13 +92,64 @@ public static partial class LayoutClusterRules
     }
 
     /// <summary>
-    /// The capability-days of building one shell piece (#3658): its work to build over a day's ticks plus its cost list at
-    /// the materials' values (ForecastValue.MaterialValueOf); unknown when the piece's work or cost list is unread.
+    /// The bed merge's facts (#3658, #3748): the sleepers' gains (null while any is unread, SleeperGainsOf), the catalog's
+    /// stages (read when the dull stage is positive), and one wall cell and one door of a bedroom's ring, each priced by
+    /// PiecePrice from its work and cost list (null when the catalog shows none), or the first of them unread.
     /// </summary>
-    public static Fact<double> ShellPiecePrice((double Work, IReadOnlyList<Amount> Costs)? piece, IReadOnlyDictionary<Resource, ConstructionMaterialValue> values) =>
-        piece is { } p ? Known(PiecePrice(p, values)) : default;
+    public static BedMergeFacts BedMergeFactsOf(EquatableArray<SleeperGains>? sleepers, ImpressivenessLevels levels,
+        (double Work, IReadOnlyList<Amount> Costs)? wall, (double Work, IReadOnlyList<Amount> Costs)? door, IReadOnlyDictionary<Resource, ConstructionMaterialValue> values)
+    {
+        if (sleepers is not { } gains)
+        {
+            return new BedMergeFacts.Unread("sleeper_mood");
+        }
+        if (levels.Dull <= 0)
+        {
+            return new BedMergeFacts.Unread("impressiveness_levels");
+        }
+        if (wall is not { } w)
+        {
+            return new BedMergeFacts.Unread("wall_price");
+        }
+        if (door is not { } d)
+        {
+            return new BedMergeFacts.Unread("door_price");
+        }
+        return new BedMergeFacts.Read
+        {
+            Sleepers = gains, Levels = levels,
+            WallCell = PiecePrice(w, values), Door = PiecePrice(d, values),
+            WallWork = w.Work, DoorWork = d.Work,
+        };
+    }
 
-    /// <summary>The capability-days of building a piece whose work and cost list are read (<see cref="ShellPiecePrice"/>).</summary>
+    /// <summary>
+    /// The sleepers' gains (#3658, #3748): per pawn in id order, the capability-days a day it gains in a bedroom and in a
+    /// barracks at each of the game's Impressiveness stages (the clustering computes a room's stage from its size). Null
+    /// while any gain of any pawn at any stage is unread (#3747), so the chain waits for it.
+    /// </summary>
+    public static EquatableArray<SleeperGains>? SleeperGainsOf(BedroomGainFacts gains, ImpressivenessLevels levels)
+    {
+        var sleepers = new List<SleeperGains>();
+        foreach (var pawn in gains.Pawns.Keys.Order(StringComparer.Ordinal))
+        {
+            var bedroom = new double[levels.StageCount];
+            var barracks = new double[levels.StageCount];
+            for (var s = 0; s < levels.StageCount; s++)
+            {
+                // The stage argument is the housing forecast's to harden (#3897).
+                if (gains.Gain(pawn, Known(s)) is not { } b || gains.Gain(pawn, Known(s), barracks: true) is not { } k)
+                {
+                    return null;
+                }
+                (bedroom[s], barracks[s]) = (b, k);
+            }
+            sleepers.Add(new SleeperGains(EquatableArray.From(bedroom), EquatableArray.From(barracks)));
+        }
+        return EquatableArray.From(sleepers);
+    }
+
+    /// <summary>The capability-days of building one shell piece (#3658): its work to build over a day's ticks plus its cost list at the materials' values (ForecastValue.MaterialValueOf).</summary>
     public static double PiecePrice((double Work, IReadOnlyList<Amount> Costs) piece, IReadOnlyDictionary<Resource, ConstructionMaterialValue> values) =>
         (piece.Work / GameTime.TicksPerDay) + piece.Costs.Sum(a => a.Count * values[a.Resource].PerUnit);
 
@@ -257,27 +317,12 @@ internal sealed partial class Clusterer
     /// </remarks>
     internal BedMergeChoice ChooseBeds(int n, int count, BedMergePrice price)
     {
-        var f = price.Facts;
-        if (!f.Sleepers.TryGetValue(out var sleepers))
+        if (price.Facts is BedMergeFacts.Unread unread)
         {
-            throw new RequiredFactException("sleeper_mood");
+            throw new RequiredFactException(unread.Fact);
         }
-        if (!f.Levels.TryGetValue(out var levels))
-        {
-            throw new RequiredFactException("impressiveness_levels");
-        }
-        if (!f.WallCell.TryGetValue(out var wall))
-        {
-            throw new RequiredFactException("wall_price");
-        }
-        if (!f.Door.TryGetValue(out var door))
-        {
-            throw new RequiredFactException("door_price");
-        }
-        if (!f.WallWork.TryGetValue(out var wallWork) || !f.DoorWork.TryGetValue(out var doorWork))
-        {
-            throw new RequiredFactException("ring_work");
-        }
+        var f = (BedMergeFacts.Read)price.Facts;
+        var (sleepers, levels, wall, door) = (f.Sleepers, f.Levels, f.WallCell, f.Door);
         if (!price.Builders.TryGetValue(out var builders))
         {
             throw new RequiredFactException("builders");
@@ -292,7 +337,7 @@ internal sealed partial class Clusterer
             throw new RequiredFactException("sleeper_mood");
         }
         _stageGains = new StageGains(levels, sleepers);
-        var rooms = new BedRooms(this, price, levels, sleepers, count, wall, door, wallWork, doorWork, Math.Max(1, builders),
+        var rooms = new BedRooms(this, price, levels, sleepers, count, wall, door, f.WallWork, f.DoorWork, Math.Max(1, builders),
             (PlanWeights.Footprint + (PlanWeights.Soil * BuildGround.SoilCostNormal)) * walk / PlanWeights.Walk);
         var depth = LayoutClusterRules.RoomLimits(_in.RoofDistance).Depth;
         var spent = price.Committed.Select(p => (p.Walls * wall) + (p.Doors * door)).Order().ToList();
@@ -373,10 +418,11 @@ internal sealed partial class Clusterer
         {
             throw new RequiredFactException("outdoor_curve");
         }
-        if (!price.WorkDayW.TryGetValue(out var workDay))
+        if (price.WorkDay is not StationWorkDay.Priced day)
         {
             throw new RequiredFactException("work_day");
         }
+        var workDay = day.W;
         if (!m.HasLiving())
         {
             throw new RequiredFactException("living_band");

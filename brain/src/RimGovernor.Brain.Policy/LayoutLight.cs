@@ -71,6 +71,34 @@ public sealed record LightModel
 }
 
 /// <summary>
+/// A colonist's work-day as the station facts price it (LayoutLightRules.StationWorkDayOf): priced from a
+/// colonist's upkeep and the best crop's unit, or the reason it has none.
+/// </summary>
+public abstract record StationWorkDay
+{
+    private protected StationWorkDay() { }
+
+    /// <summary>Priced: Upkeep a colonist's nutrition a day, Unit a site-type unit's nutrition a day (both positive).</summary>
+    public sealed record Priced(double Upkeep, double Unit) : StationWorkDay
+    {
+        /// <summary>The work-day in sustained watts, the lamp price's own (NewLightPrice): upkeep over the unit at the site-type weights.</summary>
+        public double W => ClimateRules.UnitsW(SiteRules.DefaultSiteTypeWeights(), Upkeep / Unit);
+    }
+
+    /// <summary>The food census is unread.</summary>
+    public sealed record FoodUnread : StationWorkDay;
+
+    /// <summary>The colony has no colonist.</summary>
+    public sealed record NoColonist : StationWorkDay;
+
+    /// <summary>The food census lists no human eating.</summary>
+    public sealed record NoEater : StationWorkDay;
+
+    /// <summary>No crop grows a unit of nutrition: the colony has no crop.</summary>
+    public sealed record NoCrop : StationWorkDay;
+}
+
+/// <summary>
 /// What darkness and light cost, in sustained watts. WorkDayW is a colonist's work-day, LampW one standing lamp's
 /// draw and amortised build, CellWalkDays the work-days a colonist spends walking one cell. LampReach is the
 /// standing lamp's lit radius in cells. WallLampW and WallReach are the wall lamp's price and reach; zero while
@@ -270,53 +298,50 @@ public static partial class LayoutLightRules
 
     /// <summary>
     /// Prices the colony's darkness from its station facts: a colonist's upkeep is the food census's nutrition
-    /// over the colonists, a unit the best crop's nutrition a day on normal soil. Invalid while the census, a crop
-    /// or the lamp is unknown, or the colony has no colonist.
+    /// over the colonists, a unit the best crop's nutrition a day on normal soil. Invalid while the work-day is not
+    /// priced (StationWorkDayOf) or the lamp is unknown.
     /// </summary>
     internal static LightPrice StationLightPrice(StationFacts f, double steel)
     {
-        var (upkeep, unit, ok) = StationUpkeep(f);
-        if (!ok)
+        if (StationWorkDayOf(f) is not StationWorkDay.Priced day)
         {
             return default;
         }
-        return NewLightPrice(new LightPriceInput { Model = f.Catalog.Light, Climate = f.Catalog.Climate, SteelValue = steel, UpkeepPerDay = upkeep, UnitNutrition = unit });
+        return NewLightPrice(new LightPriceInput { Model = f.Catalog.Light, Climate = f.Catalog.Climate, SteelValue = steel, UpkeepPerDay = day.Upkeep, UnitNutrition = day.Unit });
     }
 
     /// <summary>
-    /// A colonist's nutrition a day (the food census over the colonists) and a site-type unit's nutrition a day
-    /// (the best crop on normal soil); false while the census is unknown or the colony has no colonist. A unit of 0 is a
-    /// colony with no crop: the caller's price stays invalid.
+    /// A colonist's work-day from the station facts: a colonist's nutrition a day (the food census over the
+    /// colonists) against a site-type unit's nutrition a day (the best crop on normal soil), or the named reason it
+    /// has no price.
     /// </summary>
-    internal static (double Upkeep, double Unit, bool Ok) StationUpkeep(StationFacts f)
+    internal static StationWorkDay StationWorkDayOf(StationFacts f)
     {
+        // The food census is the food family's read to harden (#3786).
         if (!f.Food.TryGetValue(out var supply))
         {
-            return (0, 0, false);
+            return new StationWorkDay.FoodUnread();
         }
         var colonists = f.Colonists;
-        var nutrition = LayoutStationPlanRules.HumanNutritionPerDay(supply);
         if (colonists <= 0)
         {
-            return (0, 0, false);
+            return new StationWorkDay.NoColonist();
+        }
+        var nutrition = LayoutStationPlanRules.HumanNutritionPerDay(supply);
+        if (!QuestCapacityForecast.FinitePositive(nutrition))
+        {
+            return new StationWorkDay.NoEater();
         }
         double unit = 0;
         foreach (var crop in f.Crops)
         {
             unit = Math.Max(unit, SiteRules.CropRate(crop, 1));
         }
-        return (nutrition / colonists, unit, true);
-    }
-
-    /// <summary>A colonist's work-day in sustained watts, the lamp price's own (NewLightPrice): upkeep over the best crop's unit at the site-type weights. Zero while unknown.</summary>
-    internal static double StationWorkDayW(StationFacts f)
-    {
-        var (upkeep, unit, ok) = StationUpkeep(f);
-        if (!ok || !QuestCapacityForecast.FinitePositive(unit))
+        if (!QuestCapacityForecast.FinitePositive(unit))
         {
-            return 0;
+            return new StationWorkDay.NoCrop();
         }
-        return ClimateRules.UnitsW(SiteRules.DefaultSiteTypeWeights(), upkeep / unit);
+        return new StationWorkDay.Priced(nutrition / colonists, unit);
     }
 
     /// <summary>

@@ -48,18 +48,12 @@ internal sealed record BuildGround
         var rock = new HashSet<Cell>();
         foreach (var z in zones)
         {
-            HashSet<Cell> set;
-            switch (z.Kind)
+            // Only the core and the mining ground are build ground: fields, pasture, wood and no-go zones are not.
+            if (z.Kind is not (ZoneKind.Core or ZoneKind.Mining))
             {
-                case ZoneKind.Core:
-                    set = core;
-                    break;
-                case ZoneKind.Mining:
-                    set = rock;
-                    break;
-                default:
-                    continue;
+                continue;
             }
+            var set = z.Kind == ZoneKind.Core ? core : rock;
             foreach (var r in z.Runs)
             {
                 for (var x = r.X; x < r.X + r.Length; x++)

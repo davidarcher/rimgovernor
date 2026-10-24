@@ -55,8 +55,8 @@ public sealed record JoyModel
 {
     public IReadOnlyList<JoySource> Sources { get; init; } = [];
 
-    /// <summary>The joy demand the model implies; unknown without a source that gives joy.</summary>
-    public Fact<RecreationNode> RecreationDemand()
+    /// <summary>The joy demand the model implies; null when the catalog lists no source that gives joy.</summary>
+    public RecreationNode? RecreationDemand()
     {
         double weight = 0, gain = 0, outdoor = 0;
         foreach (var s in Sources)
@@ -74,17 +74,17 @@ public sealed record JoyModel
         }
         if (weight <= 0 || gain <= 0)
         {
-            return Unknown<RecreationNode>();
+            return null;
         }
         var game = LayoutJoyNodesRules.JoyJudgment;
         var need = game.FallPerInterval * GameTime.TicksPerDay / game.IntervalTicks * LayoutJoyNodesRules.AwakeShare();
         var session = gain / weight;
         var sessions = need / session;
         var share = outdoor / weight;
-        return Known(new RecreationNode
+        return new RecreationNode
         {
             Outdoor = sessions * share,
-        });
+        };
     }
 }
 
@@ -125,13 +125,12 @@ public static partial class LayoutJoyNodesRules
 
 internal sealed partial class GraphBuilder
 {
-    /// <summary>Adds the joy outings: each healthy sleeper's outdoor sessions a day, trips from their bed to the outside node, and returns the recreation node (unknown without the model).</summary>
-    public Fact<RecreationNode> Recreation()
+    /// <summary>Adds the joy outings: each healthy sleeper's outdoor sessions a day, trips from their bed to the outside node; none while the catalog lists no joy source.</summary>
+    public void Recreation()
     {
-        var demand = In.Catalog.Joy.RecreationDemand();
-        if (!demand.TryGetValue(out var node) || In.Population.Colonists <= 0)
+        if (In.Catalog.Joy.RecreationDemand() is not { } node || In.Population.Colonists <= 0)
         {
-            return demand;
+            return;
         }
         foreach (var n in Nodes.Values)
         {
@@ -140,6 +139,5 @@ internal sealed partial class GraphBuilder
                 AddEdge(n.Id, LayoutGraphRules.OutsideNode, node.Outdoor * HealthySleepers(n), false);
             }
         }
-        return demand;
     }
 }

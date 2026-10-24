@@ -69,10 +69,10 @@ public sealed class BedMergePriceTests
         BedMerge = price,
     };
 
-    internal static readonly BedMergeFacts Calm = CalmOf(3);
+    internal static readonly BedMergeFacts.Read Calm = CalmOf(3);
 
     /// <summary>The losses of <paramref name="colonists"/> calm colonists: the plan's sleep slots count them exactly (#3749).</summary>
-    internal static BedMergeFacts CalmOf(int colonists) => Flat(Enumerable.Repeat(0.004, colonists).ToArray());
+    internal static BedMergeFacts.Read CalmOf(int colonists) => Flat(Enumerable.Repeat(0.004, colonists).ToArray());
 
     /// <summary>The game's Impressiveness stages up to slightly impressive: awful, dull 20, mediocre 30, decent 40, 50.</summary>
     internal static ImpressivenessLevels Levels => new() { Dull = 20, Mediocre = 30, Decent = 40, SlightlyImpressive = 50 };
@@ -81,36 +81,41 @@ public sealed class BedMergePriceTests
     /// Sleepers who gain nothing in a bedroom and lose their loss a day in a barracks, at every stage, so a room's size buys
     /// no mood; with the game's stages and a wood ring's work (a wall cell 135 x 0.7 ticks, the door 850 x 0.7).
     /// </summary>
-    internal static BedMergeFacts Flat(params double[] losses) => Staged(losses.Select(l => (new double[Levels.StageCount], Enumerable.Repeat(-l, Levels.StageCount).ToArray())).ToArray());
+    internal static BedMergeFacts.Read Flat(params double[] losses) => Staged(losses.Select(l => (new double[Levels.StageCount], Enumerable.Repeat(-l, Levels.StageCount).ToArray())).ToArray());
 
-    /// <summary>Sleepers with these gains a day per stage, in a bedroom and in a barracks, at the game's stages and a wood ring's work.</summary>
-    internal static BedMergeFacts Staged(params (double[] Bedroom, double[] Barracks)[] sleepers) => new()
+    /// <summary>Sleepers with these gains a day per stage, in a bedroom and in a barracks, at the game's stages and a wood ring's work; the ring's material is free until Wood or MarketWood prices it.</summary>
+    internal static BedMergeFacts.Read Staged(params (double[] Bedroom, double[] Barracks)[] sleepers) => new()
     {
-        Sleepers = Known(EquatableArray.From(sleepers.Select(s => new SleeperGains(EquatableArray.From(s.Bedroom), EquatableArray.From(s.Barracks))).ToArray())),
-        Levels = Known(Levels),
-        WallWork = Known(135 * 0.7),
-        DoorWork = Known(850 * 0.7),
+        Sleepers = EquatableArray.From(sleepers.Select(s => new SleeperGains(EquatableArray.From(s.Bedroom), EquatableArray.From(s.Barracks))).ToArray()),
+        Levels = Levels,
+        WallCell = 0,
+        Door = 0,
+        WallWork = 135 * 0.7,
+        DoorWork = 850 * 0.7,
     };
+
+    /// <summary>A colonist's work-day priced at <paramref name="w"/> watts (StationWorkDay.Priced: one unit of nutrition a day per unit at the site-type weights).</summary>
+    internal static StationWorkDay Day(double w) => new StationWorkDay.Priced(w * SiteRules.DefaultSiteTypeWeights().Power / 1000, 1);
 
     // Wood walls at the game's numbers: a wall cell is 135 x 0.7 work and 5 logs, a door 850 x 0.7 work and 25 logs; the
     // work alone is 0.0016 and 0.0099 capability-days.
 
     /// <summary>Trees in reach: logs at chop labor (about 0.0005 a log) price a wall cell at 0.0042 and a door at 0.023.</summary>
-    internal static BedMergeFacts Wood(BedMergeFacts f) => f with { WallCell = Known(0.0042), Door = Known(0.023) };
+    internal static BedMergeFacts.Read Wood(BedMergeFacts.Read f) => f with { WallCell = 0.0042, Door = 0.023 };
 
     /// <summary>No tree in reach (the lab map is bare soil): logs at the market fallback (about 0.0055 a log) price a wall cell at 0.029 and a door at 0.149.</summary>
-    internal static BedMergeFacts MarketWood(BedMergeFacts f) => f with { WallCell = Known(0.029), Door = Known(0.149) };
+    internal static BedMergeFacts.Read MarketWood(BedMergeFacts.Read f) => f with { WallCell = 0.029, Door = 0.149 };
 
     private static BedMergePrice Price(BedMergeFacts facts, double[]? curve) => new()
     {
         Facts = facts,
         OutdoorCurve = curve is null ? default : Known(EquatableArray.From(curve)),
-        WorkDayW = Known(8000.0), // a colonist's work-day at the game's rice (the key test's facts give the same)
+        WorkDay = Day(8000.0), // a colonist's work-day at the game's rice (the key test's facts give the same)
         Builders = Known(1),
     };
 
     /// <summary>The walls alone decide: a temperate room's heat priced at a work-day so dear that it costs nothing.</summary>
-    private static BedMergePrice WallsAlone(BedMergeFacts facts) => Price(facts, Temperate) with { WorkDayW = Known(1e15) };
+    private static BedMergePrice WallsAlone(BedMergeFacts facts) => Price(facts, Temperate) with { WorkDay = Day(1e15) };
 
     private static List<int> Rooms(Clustering c) => [.. c.Groups.Where(g => g.Stations.Any(s => s.Node == Pool)).Select(g => g.Stations.Single(s => s.Node == Pool).Count).OrderDescending()];
 
@@ -153,20 +158,41 @@ public sealed class BedMergePriceTests
         RequiredFactException Fails(BedMergePrice price) => Assert.Throws<RequiredFactException>(() => LayoutClusterRules.ClusterStations(Input(4, price)));
 
         Assert.Equal("outdoor_curve", Fails(Price(Wood(Calm), null)).Fact);
-        Assert.Equal("work_day", Fails(Price(Wood(Calm), Temperate) with { WorkDayW = default }).Fact);
-        Assert.Equal("sleeper_mood", Fails(Price(Wood(new BedMergeFacts()), IceSheet)).Fact);
-        Assert.Equal("wall_price", Fails(Price(Calm, IceSheet)).Fact);
-        Assert.Equal("door_price", Fails(Price(Wood(Calm) with { Door = default }, IceSheet)).Fact);
-
-        Assert.Equal("impressiveness_levels", Fails(Price(Wood(Calm) with { Levels = default }, IceSheet)).Fact);
-        Assert.Equal("ring_work", Fails(Price(Wood(Calm) with { DoorWork = default }, IceSheet)).Fact);
+        // A work-day with no price, whatever its reason, fails the heat it prices.
+        foreach (var day in new StationWorkDay[] { new StationWorkDay.FoodUnread(), new StationWorkDay.NoColonist(), new StationWorkDay.NoEater(), new StationWorkDay.NoCrop() })
+        {
+            Assert.Equal("work_day", Fails(Price(Wood(Calm), Temperate) with { WorkDay = day }).Fact);
+        }
         Assert.Equal("builders", Fails(Price(Wood(Calm), IceSheet) with { Builders = default }).Fact);
+        // Facts the colony could not read fail naming the one unread.
+        foreach (var fact in new[] { "sleeper_mood", "impressiveness_levels", "wall_price", "door_price" })
+        {
+            Assert.Equal(fact, Fails(Price(new BedMergeFacts.Unread(fact), IceSheet)).Fact);
+        }
+    }
 
-        // One sleeper's gain unread leaves every gain unread; no catalog leaves the stages unread.
-        var unread = Gains(Pawn("a", 0.8), Pawn("b", 0.8), NeedsFixtures.Pawn() with { Pawn = "c" }).BedMerge(Levels);
-        Assert.False(unread.Sleepers.IsKnown);
-        Assert.False(Gains(Pawn("a", 0.8)).BedMerge(new ImpressivenessLevels()).Levels.IsKnown);
-        Assert.Equal("sleeper_mood", Fails(Price(Wood(unread), IceSheet)).Fact);
+    [Fact]
+    public void TheBedMergeFactsReadWholeOrNameTheFirstUnread()
+    {
+        var log = new Resource("WoodLog");
+        var values = new Dictionary<Resource, ConstructionMaterialValue> { [log] = new(MaterialValueBasis.Unpriced, 0.001) };
+        (double Work, IReadOnlyList<Amount> Costs) wall = (135 * 0.7, [new Amount(log, 5)]);
+        (double Work, IReadOnlyList<Amount> Costs) door = (850 * 0.7, [new Amount(log, 25)]);
+        var gains = Calm.Sleepers;
+
+        Assert.Equal(new BedMergeFacts.Unread("sleeper_mood"), LayoutClusterRules.BedMergeFactsOf(null, Levels, wall, door, values));
+        Assert.Equal(new BedMergeFacts.Unread("impressiveness_levels"), LayoutClusterRules.BedMergeFactsOf(gains, new ImpressivenessLevels(), wall, door, values));
+        Assert.Equal(new BedMergeFacts.Unread("wall_price"), LayoutClusterRules.BedMergeFactsOf(gains, Levels, null, door, values));
+        Assert.Equal(new BedMergeFacts.Unread("door_price"), LayoutClusterRules.BedMergeFactsOf(gains, Levels, wall, null, values));
+        var read = Assert.IsType<BedMergeFacts.Read>(LayoutClusterRules.BedMergeFactsOf(gains, Levels, wall, door, values));
+        Assert.Equal((wall.Work, door.Work), (read.WallWork, read.DoorWork));
+        Assert.Equal(LayoutClusterRules.PiecePrice(wall, values), read.WallCell, 12);
+        Assert.Equal(LayoutClusterRules.PiecePrice(door, values), read.Door, 12);
+        Assert.Equal(Levels, read.Levels);
+
+        // One sleeper's gain unread leaves every gain unread.
+        Assert.Null(LayoutClusterRules.SleeperGainsOf(Gains(Pawn("a", 0.8), Pawn("b", 0.8), NeedsFixtures.Pawn() with { Pawn = "c" }), Levels));
+        Assert.Equal(2, LayoutClusterRules.SleeperGainsOf(Gains(Pawn("a", 0.8), Pawn("b", 0.8)), Levels)!.Value.Count);
     }
 
     // a and b are calm; c sits under its break threshold, which a bedroom's +2 lifts it clear of and a barracks' -2 does not.
@@ -188,15 +214,15 @@ public sealed class BedMergePriceTests
     [Fact]
     public void APawnNearItsBreakKeepsItsBedroomWhileTheOthersMerge()
     {
-        var facts = Gains(Pawn("a", 0.8), Pawn("b", 0.8), Pawn("c", 0.34)).BedMerge(Levels) with { WallWork = Known(135 * 0.7), DoorWork = Known(850 * 0.7) };
-        Assert.All(facts.Sleepers.Value, s => Assert.Equal(Levels.StageCount, s.Bedroom.Count));
-        var losses = facts.Sleepers.Value.Select(s => s.Bedroom[0] - s.Barracks[0]).ToList();
+        var facts = Calm with { Sleepers = LayoutClusterRules.SleeperGainsOf(Gains(Pawn("a", 0.8), Pawn("b", 0.8), Pawn("c", 0.34)), Levels)!.Value };
+        Assert.All(facts.Sleepers, s => Assert.Equal(Levels.StageCount, s.Bedroom.Count));
+        var losses = facts.Sleepers.Select(s => s.Bedroom[0] - s.Barracks[0]).ToList();
         Assert.Equal(0.004, losses[0], 6);
         Assert.Equal(0.004, losses[1], 6);
         Assert.True(losses[2] > 0.05, $"c loses {losses[2]} a day");
 
         // Dearer walls alone: two bedrooms saved outweigh a and b's mood, not c's.
-        var c = LayoutClusterRules.ClusterStations(Input(4, WallsAlone(facts with { WallCell = Known(0.08), Door = Known(0.12) })));
+        var c = LayoutClusterRules.ClusterStations(Input(4, WallsAlone(facts with { WallCell = 0.08, Door = 0.12 })));
 
         Assert.Equal([3, 1], Rooms(c));
         Assert.Equal([RoomRole.Barracks, RoomRole.Bedroom], c.Groups.OrderBy(g => g.Stations.Single().Count == 1).Select(g => g.Role));
@@ -233,7 +259,7 @@ public sealed class BedMergePriceTests
         // One sleeper gains 0.01 a day more in a dull bedroom than an awful one: the bare room turns dull at 21 cells
         // (RoomSpaceRules), which takes more wall cells. The chooser holds no size: the wall price alone moves the area.
         var gains = Staged(([0, 0.01, 0.01, 0.01, 0.01], [0, 0, 0, 0, 0]));
-        BedMergeChoice At(double wall) => LayoutClusterRules.BedMergeChoiceOf(Input(1, WallsAlone(gains with { WallCell = Known(wall), Door = Known(0.023) })))!;
+        BedMergeChoice At(double wall) => LayoutClusterRules.BedMergeChoiceOf(Input(1, WallsAlone(gains with { WallCell = wall, Door = 0.023 })))!;
 
         var cheap = At(0.02);
         var dear = At(0.1);
@@ -242,7 +268,7 @@ public sealed class BedMergePriceTests
         Assert.True(RoomSpaceRules.BareImpressiveness(dear.Area) < Levels.Dull);
 
         // The cluster's room takes the chosen area.
-        var g = Assert.Single(LayoutClusterRules.ClusterStations(Input(1, WallsAlone(gains with { WallCell = Known(0.02), Door = Known(0.023) }))).Groups);
+        var g = Assert.Single(LayoutClusterRules.ClusterStations(Input(1, WallsAlone(gains with { WallCell = 0.02, Door = 0.023 }))).Groups);
         Assert.Equal(cheap.Area, g.Area);
     }
     [Fact]
@@ -250,7 +276,7 @@ public sealed class BedMergePriceTests
     {
         // Walls alone and dear: the spare, a and b share a barracks, and c's loss decides whether it joins them (four beds)
         // or takes a bedroom (three). Four beds' value falls about 60 a day of c's loss against three's.
-        int Size(double c, int incumbent) => LayoutClusterRules.BedMergeChoiceOf(Input(4, WallsAlone(Flat(0.004, 0.004, c) with { WallCell = Known(0.08), Door = Known(0.12) }) with { Incumbent = incumbent }))!.Size;
+        int Size(double c, int incumbent) => LayoutClusterRules.BedMergeChoiceOf(Input(4, WallsAlone(Flat(0.004, 0.004, c) with { WallCell = 0.08, Door = 0.12 }) with { Incumbent = incumbent }))!.Size;
 
         // With four beds planned, the loss at which three replace them: the line where three beat four by the tie resolution.
         var (held, switched) = (0.004, 0.2);
@@ -279,7 +305,7 @@ public sealed class BedMergePriceTests
         // Walls alone, three calm sleepers: the plan's three-bed barracks is worth 2 - 0.48 = 1.52, four beds 3 - 0.72 =
         // 2.28 less the spend on the one committed room four beds give up (#3675). The barracks stands whole.
         var barracks = new ShellPieces(17, 1);
-        int Size(params ShellPieces[] bedroom) => LayoutClusterRules.BedMergeChoiceOf(Input(4, WallsAlone(Calm with { WallCell = Known(0.08), Door = Known(0.12) }) with
+        int Size(params ShellPieces[] bedroom) => LayoutClusterRules.BedMergeChoiceOf(Input(4, WallsAlone(Calm with { WallCell = 0.08, Door = 0.12 }) with
         {
             Incumbent = 3,
             Committed = EquatableArray.From(bedroom.Prepend(barracks)),
@@ -317,7 +343,7 @@ public sealed class BedMergePriceTests
             Crops = [Rice],
         };
         Assert.Equal(3, f.BedMergePriceOf().Incumbent);
-        Assert.True(f.BedMergePriceOf().WorkDayW.IsKnown);
+        Assert.IsType<StationWorkDay.Priced>(f.BedMergePriceOf().WorkDay);
 
         string Key(StationFacts facts) => facts.InputsKeyParts().Single(p => p.Key == "barracks").Value;
         // The key carries the size and both areas.
@@ -422,7 +448,7 @@ public sealed class BedMergePriceTests
         Assert.Equal(wood, WallStuff(Colony(trees)));
         var (wall, door) = Rounder.BedMergeShell(Colony(trees));
         var values = new Dictionary<Resource, ConstructionMaterialValue> { [wood] = new(MaterialValueBasis.Unpriced, 0.001) };
-        Assert.True(LayoutClusterRules.ShellPiecePrice(wall, values).IsKnown && LayoutClusterRules.ShellPiecePrice(door, values).IsKnown);
+        Assert.IsType<BedMergeFacts.Read>(LayoutClusterRules.BedMergeFactsOf(Calm.Sleepers, Levels, wall, door, values));
         Assert.Equal(wood.Value, RoundsBuildingPlanner.ShellMaterials(Colony(trees), ContainmentCellRules.ShellWallDefinition, ContainmentCellRules.ShellDoorDefinition, null).WallStuff);
         // No trees, granite rock: the granite blocks.
         Assert.Equal(granite, WallStuff(Colony(rock)));
@@ -462,8 +488,29 @@ public sealed class BedMergePriceTests
         var values = new Dictionary<Resource, ConstructionMaterialValue> { [wood] = new(MaterialValueBasis.Unpriced, 0.001) };
         IReadOnlyList<Amount> costs = [new Amount(wood, 5)];
 
-        Assert.True(LayoutClusterRules.ShellPiecePrice((GameTime.TicksPerDay / 2.0, costs), values).TryGetValue(out var price));
-        Assert.Equal(0.5 + 0.005, price, 9);
-        Assert.Equal(default, LayoutClusterRules.ShellPiecePrice(null, values));
+        Assert.Equal(0.5 + 0.005, LayoutClusterRules.PiecePrice((GameTime.TicksPerDay / 2.0, costs), values), 9);
+    }
+
+    [Fact]
+    public void TheStationWorkDayIsPricedFromTheUpkeepAndTheCropOrNamesWhyNot()
+    {
+        var s = FirstLayoutPlanTests.Survey("mild");
+        var f = FirstLayoutPlanTests.Priced(FirstLayoutPlanTests.Facts(s, 3), "mild");
+
+        // Three colonists eating 1.6 a day each: a colonist's upkeep is 1.6 a day against rice's unit on normal soil.
+        var day = Assert.IsType<StationWorkDay.Priced>(LayoutLightRules.StationWorkDayOf(f));
+        Assert.Equal(1.6, day.Upkeep, 9);
+        Assert.Equal(SiteRules.CropRate(Rice, 1), day.Unit, 9);
+        Assert.Equal(day.Upkeep / day.Unit / SiteRules.DefaultSiteTypeWeights().Power * 1000, day.W, 6);
+        Assert.Equal(day.W, LayoutRegroupRules.StationWorkPrice(f).WorkDayW, 9);
+        Assert.Equal(day, f.BedMergePriceOf().WorkDay);
+
+        // Each reason it has no price is named, and the work price stays invalid.
+        Assert.IsType<StationWorkDay.FoodUnread>(LayoutLightRules.StationWorkDayOf(f with { Food = default }));
+        Assert.IsType<StationWorkDay.NoColonist>(LayoutLightRules.StationWorkDayOf(f with { Colonists = 0 }));
+        Assert.IsType<StationWorkDay.NoEater>(LayoutLightRules.StationWorkDayOf(f with { Food = Known(new FoodSupply { Larder = new(), Consumers = [] }) }));
+        Assert.IsType<StationWorkDay.NoCrop>(LayoutLightRules.StationWorkDayOf(f with { Crops = [] }));
+        Assert.False(LayoutRegroupRules.StationWorkPrice(f with { Crops = [] }).Valid());
+        Assert.Empty(LayoutComfortChooseRules.AdviseComfort(f with { Crops = [], ExpectedMood = Known(0.5) }, new StationGraph(), 1));
     }
 }

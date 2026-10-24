@@ -51,33 +51,6 @@ public sealed record BedroomGainFacts
     public double? Gain(string pawn, Fact<int> stage, bool barracks = false) => Pawns.TryGetValue(pawn, out var row)
         ? ForecastHousing.BedroomGain(row, stage, Thoughts.GetValueOrDefault(pawn), Breaks, WellbeingWeight, barracks) : null;
 
-    /// <summary>
-    /// The bed merge's facts of the sleepers (#3658, #3748): per pawn in id order, the capability-days a day it gains in a
-    /// bedroom and in a barracks at each of the game's Impressiveness stages (the clustering computes a room's stage from
-    /// its size); and the stages, known when the catalog gave them (a positive dull stage). The gains are unknown while any
-    /// gain of any pawn at any stage is unread (#3747), so the chain waits for it.
-    /// </summary>
-    public BedMergeFacts BedMerge(ImpressivenessLevels levels)
-    {
-        var known = levels.Dull > 0 ? Known(levels) : default;
-        var sleepers = new List<SleeperGains>();
-        foreach (var pawn in Pawns.Keys.Order(StringComparer.Ordinal))
-        {
-            var bedroom = new double[levels.StageCount];
-            var barracks = new double[levels.StageCount];
-            for (var s = 0; s < levels.StageCount; s++)
-            {
-                if (Gain(pawn, Known(s)) is not { } b || Gain(pawn, Known(s), barracks: true) is not { } k)
-                {
-                    return new BedMergeFacts { Levels = known };
-                }
-                (bedroom[s], barracks[s]) = (b, k);
-            }
-            sleepers.Add(new SleeperGains(EquatableArray.From(bedroom), EquatableArray.From(barracks)));
-        }
-        return new BedMergeFacts { Sleepers = Known(EquatableArray.From(sleepers)), Levels = known };
-    }
-
     /// <summary>A standing bed's room stage now, as <paramref name="pawn"/>'s rest target for it reads it; unknown without one.</summary>
     public Fact<int> BedStage(string pawn, string bed) => Pawns.TryGetValue(pawn, out var row)
         && row.Targets.FirstOrDefault(t => t.Id == bed && t.Bed is not null) is { Bed: { } room } ? Known(room.Stage) : default;

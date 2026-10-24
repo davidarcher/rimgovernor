@@ -430,15 +430,15 @@ public static partial class LayoutRegroupRules
     internal const int RegroupProposals = LayoutSiteGroundRules.SiteSearchTop;
     internal const int RegroupRounds = LayoutSiteGroundRules.SiteSearchTop / 2;
 
-    /// <summary>Prices a colonist's time from the station facts: the lamp price's own work-day and the walk of a cell at the game's ticks a second and a colonist's move speed. Invalid while the food census, a crop or the game's tick rate is unknown, or the colony has no colonist.</summary>
+    /// <summary>Prices a colonist's time from the station facts: the lamp price's own work-day and the walk of a cell at the game's ticks a second and a colonist's move speed. Invalid while the work-day has no price (StationWorkDayOf) or the game's tick rate is unknown.</summary>
     public static WorkPrice StationWorkPrice(StationFacts f)
     {
         var ticks = f.Catalog.Climate.TicksPerSecond;
-        if (!QuestCapacityForecast.FinitePositive(ticks))
+        if (!QuestCapacityForecast.FinitePositive(ticks) || LayoutLightRules.StationWorkDayOf(f) is not StationWorkDay.Priced day)
         {
             return default;
         }
-        var p = new WorkPrice(LayoutLightRules.StationWorkDayW(f), CellWalkDays(ticks));
+        var p = new WorkPrice(day.W, CellWalkDays(ticks));
         return p.Valid() ? p : default;
     }
 

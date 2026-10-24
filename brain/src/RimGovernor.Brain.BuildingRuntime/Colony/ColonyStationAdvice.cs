@@ -18,7 +18,7 @@ public sealed partial class Rounder
             HostBuild = hostBuild ?? new Dictionary<string, double>(),
             Pinned = LayoutPlan.TilePinned(plan, growth),
             Held = LayoutPlan.HeldRooms(plan, growth),
-            ThroneArea = Known(growth.ThroneArea),
+            ThroneArea = growth.ThroneArea,
             Demand = growth.Demand,
             Child = LayoutChildRoomsRules.ChildRoomShapes(RoundsSleepingUpkeepPlanner.ChildRoomNeeds(projection), RoundsSleepingUpkeepPlanner.FurnitureDefinitions(projection)),
             Crops = FieldCrops.Of(projection),
@@ -35,24 +35,18 @@ public sealed partial class Rounder
 
     /// <summary>
     /// The bed merge's facts over the live colony (#3658, #3748): the sleepers' gains per Impressiveness stage and the
-    /// catalog's stages (BedroomGainFacts.BedMerge), and the capability-days and work to build of one wall cell and one door
-    /// of a bedroom's ring (BedMergeShell), each priced by LayoutClusterRules.ShellPiecePrice from its WorkToBuild for its
-    /// stuff and cost list. A piece the catalog shows no work
-    /// or cost list for is unknown, which the chain waits on (#3747).
+    /// catalog's stages (LayoutClusterRules.SleeperGainsOf), and the capability-days and work to build of one wall cell and one
+    /// door of a bedroom's ring (BedMergeShell), each priced by LayoutClusterRules.PiecePrice from its WorkToBuild for its
+    /// stuff and cost list (LayoutClusterRules.BedMergeFactsOf). A piece the catalog shows no work or cost list for is
+    /// unread, which the chain waits on (#3747).
     /// </summary>
     internal async Task<BedMergeFacts> BedMergeFactsAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
     {
-        var facts = BedroomGainFacts.Of(projection.Facts).BedMerge(projection.Impressiveness);
+        var sleepers = LayoutClusterRules.SleeperGainsOf(BedroomGainFacts.Of(projection.Facts), projection.Impressiveness);
         var (wall, door) = BedMergeShell(projection);
         var materials = new[] { wall, door }.SelectMany(p => p?.Costs ?? []).Select(a => a.Resource);
         var values = await MaterialValuesAsync(snapshot, materials, projection.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
-        return facts with
-        {
-            WallCell = LayoutClusterRules.ShellPiecePrice(wall, values),
-            Door = LayoutClusterRules.ShellPiecePrice(door, values),
-            WallWork = wall is { } w ? Known(w.Work) : default,
-            DoorWork = door is { } d ? Known(d.Work) : default,
-        };
+        return LayoutClusterRules.BedMergeFactsOf(sleepers, projection.Impressiveness, wall, door, values);
     }
 
     /// <summary>
@@ -70,16 +64,17 @@ public sealed partial class Rounder
 
     /// <summary>
     /// The capability-days of building each work station that hosts a recipe the ledger orders (#3659, StationFacts.HostBuild):
-    /// its WorkToBuild and cost list, a stuffed station's in its cheapest common stuff, priced by LayoutClusterRules.ShellPiecePrice.
+    /// its WorkToBuild and cost list, a stuffed station's in its cheapest common stuff, priced by LayoutClusterRules.PiecePrice.
     /// A station the catalog shows no work or cost list for is left out, which leaves its recipe's hosts unpriced.
     /// </summary>
     internal async Task<IReadOnlyDictionary<string, double>> HostBuildAsync(GenerationSnapshot snapshot, ColonyProjection projection, StationFacts facts, CancellationToken ct)
     {
         var output = new Dictionary<string, double>(StringComparer.Ordinal);
-        if (!facts.Orders.TryGetValue(out var orders) || orders.Count == 0)
+        if (facts.Ledger.Status is not (WorkRules.LedgerViewReconciled or WorkRules.LedgerViewInactive) || facts.Ledger.Orders.Count == 0)
         {
             return output;
         }
+        var orders = facts.Ledger.Orders;
         var recipes = orders.Select(o => o.Recipe).ToHashSet(StringComparer.Ordinal);
         var pieces = new SortedDictionary<string, (double Work, IReadOnlyList<Amount> Costs)>(StringComparer.Ordinal);
         foreach (var (def, s) in facts.Catalog.Stations)
@@ -92,10 +87,7 @@ public sealed partial class Rounder
         var values = await MaterialValuesAsync(snapshot, pieces.Values.SelectMany(p => p.Costs).Select(a => a.Resource), projection.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
         foreach (var (def, piece) in pieces)
         {
-            if (LayoutClusterRules.ShellPiecePrice(piece, values).TryGetValue(out var price))
-            {
-                output[def] = price;
-            }
+            output[def] = LayoutClusterRules.PiecePrice(piece, values);
         }
         return output;
     }
@@ -491,7 +483,7 @@ internal static class StationFactsBuilder
             WorkPawns = projection.WorkPawns,
             Rest = projection.Rest,
             Food = projection.FoodSupply,
-            Orders = Unknown<EquatableArray<OrderSpec>>(),
+            Ledger = ledger,
             Stock = needs,
             RoofDistance = projection.RoofSupport,
             Plan = plan,
@@ -521,12 +513,6 @@ internal static class StationFactsBuilder
         {
             f = f with { Prisoners = Known(PrisonersRounds.HeldPrisoners(census.Prisoners)) };
         }
-        // An inactive ledger (no planner declares into it) wants no order: a known empty list, where an
-        // unreviewed or unread one is unknown.
-        if (ledger.Status is WorkRules.LedgerViewReconciled or WorkRules.LedgerViewInactive)
-        {
-            f = f with { Orders = Known(new EquatableArray<OrderSpec>([.. ledger.Orders])) };
-        }
         return f;
     }
 
@@ -540,7 +526,7 @@ internal static class StationFactsBuilder
     {
         var f = StationFactsOf(projection, new LayoutPlan(), survey, needs, ledger) with { Derive = true };
         var (need, owed) = RoundsSleepingUpkeepPlanner.ThroneNeed(projection);
-        return f with { ThroneArea = Known(ThroneRules.ThroneAreaOwed(new LayoutPlan(), need, owed)) };
+        return f with { ThroneArea = ThroneRules.ThroneAreaOwed(new LayoutPlan(), need, owed) };
     }
 
     /// <summary>

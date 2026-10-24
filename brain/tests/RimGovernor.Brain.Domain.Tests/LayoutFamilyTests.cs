@@ -30,28 +30,29 @@ public sealed class LayoutFamilyTests
 
     private static FirebreakWork Ring(params (int X, int Z)[] cut) => new() { Cut = [.. cut.Select(c => new Cell(c.X, c.Z))] };
 
+    private static PlannedRoom[] Rooms(int n) => [.. Enumerable.Range(0, n).Select(_ => new PlannedRoom())];
+
     private static Need Single(LayoutNeeds composed, LayoutFacts facts) => Assert.Single(new LayoutFamily(composed).Derive(facts));
 
     /// <summary>Every fact of the <see cref="All"/> composition read and settled.</summary>
     private static readonly LayoutFacts Settled = new()
     {
-        HomeCoverage = Known(Diff()), Firebreak = Known(Ring()), StoneShell = Known<EquatableArray<string>>([]), ClimateEnvelope = Known(0),
+        HomeCoverage = Diff(), Firebreak = Ring(), StoneShell = [], ClimateEnvelope = Rooms(0),
     };
 
     [Fact]
     public void TheHomeCoverageNeedIsUnmetWhileTheHomeAreaDiffersAndUnknownUnread()
     {
         var composed = new LayoutNeeds { HomeCoverage = true };
-        var met = Single(composed, new() { HomeCoverage = Known(Diff()) });
+        var met = Single(composed, new() { HomeCoverage = Diff() });
         Assert.Equal((LayoutFamily.HomeCoverage, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
 
-        var unmet = Single(composed, new() { HomeCoverage = Known(Diff((1, 1), (1, 2))) });
+        var unmet = Single(composed, new() { HomeCoverage = Diff((1, 1), (1, 2)) });
         Assert.Equal((Satisfaction.Unmet, Known(2.0)), (unmet.Satisfaction, unmet.Deficit));
 
         // Auto-expand still on is a diff of its own.
-        Assert.Equal(Satisfaction.Unmet, Single(composed, new() { HomeCoverage = Known(Diff() with { AutoOff = true }) }).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Single(composed, new() { HomeCoverage = Diff() with { AutoOff = true } }).Satisfaction);
 
-        Assert.Equal("home area plan", Assert.Throws<RequiredFactException>(() => Single(composed, new() { HomeCoverage = Unknown<HomeAreaPlan>() })).Fact);
         Assert.Equal("home area plan", Assert.Throws<RequiredFactException>(() => Single(composed, new())).Fact);
     }
 
@@ -59,26 +60,26 @@ public sealed class LayoutFamilyTests
     public void TheFirebreakEnvelopeAndStoneShellNeedsArePlainThresholds()
     {
         var firebreak = new LayoutNeeds { Firebreak = true };
-        Assert.Equal(Satisfaction.Met, Single(firebreak, new() { Firebreak = Known(Ring()) }).Satisfaction);
-        var owed = Single(firebreak, new() { Firebreak = Known(Ring((3, 3)) with { Deconstruct = [new(4, 4)] }) });
+        Assert.Equal(Satisfaction.Met, Single(firebreak, new() { Firebreak = Ring() }).Satisfaction);
+        var owed = Single(firebreak, new() { Firebreak = Ring((3, 3)) with { Deconstruct = [new(4, 4)] } });
         Assert.Equal((LayoutFamily.Firebreak, Satisfaction.Unmet, Known(2.0)), (owed.Id, owed.Satisfaction, owed.Deficit));
-        Assert.Equal("firebreak ring", Assert.Throws<RequiredFactException>(() => Single(firebreak, new() { Firebreak = Unknown<FirebreakWork>() })).Fact);
+        Assert.Equal("firebreak ring", Assert.Throws<RequiredFactException>(() => Single(firebreak, new())).Fact);
 
         var envelope = new LayoutNeeds { ClimateEnvelope = true };
-        Assert.Equal(Satisfaction.Met, Single(envelope, new() { ClimateEnvelope = Known(0) }).Satisfaction);
-        var rooms = Single(envelope, new() { ClimateEnvelope = Known(2) });
+        Assert.Equal(Satisfaction.Met, Single(envelope, new() { ClimateEnvelope = Rooms(0) }).Satisfaction);
+        var rooms = Single(envelope, new() { ClimateEnvelope = Rooms(2) });
         Assert.Equal((LayoutFamily.ClimateEnvelope, NeedTier.Wellbeing, Satisfaction.Unmet, Known(2.0)), (rooms.Id, rooms.Tier, rooms.Satisfaction, rooms.Deficit));
-        Assert.Equal("climate envelope", Assert.Throws<RequiredFactException>(() => Single(envelope, new() { ClimateEnvelope = Unknown<int>() })).Fact);
+        Assert.Equal("climate envelope", Assert.Throws<RequiredFactException>(() => Single(envelope, new())).Fact);
 
         var stone = new LayoutNeeds { StoneShell = true };
-        Assert.Equal(Satisfaction.Met, Single(stone, new() { StoneShell = Known<EquatableArray<string>>([]) }).Satisfaction);
-        var walls = Single(stone, new() { StoneShell = Known<EquatableArray<string>>(["wall-1"]) });
+        Assert.Equal(Satisfaction.Met, Single(stone, new() { StoneShell = [] }).Satisfaction);
+        var walls = Single(stone, new() { StoneShell = ["wall-1"] });
         Assert.Equal((LayoutFamily.StoneShell, NeedTier.Development, Satisfaction.Unmet, Known(1.0)), (walls.Id, walls.Tier, walls.Satisfaction, walls.Deficit));
-        Assert.Equal("flammable walls", Assert.Throws<RequiredFactException>(() => Single(stone, new() { StoneShell = Unknown<EquatableArray<string>>() })).Fact);
+        Assert.Equal("flammable walls", Assert.Throws<RequiredFactException>(() => Single(stone, new())).Fact);
 
         // The envelope and the stone shell are the runtime step's: the family proposes nothing for them purely.
         var family = new LayoutFamily(envelope with { StoneShell = true });
-        var facts = new LayoutFacts { ClimateEnvelope = Known(0), StoneShell = Known<EquatableArray<string>>(["wall-1"]) };
+        var facts = new LayoutFacts { ClimateEnvelope = Rooms(0), StoneShell = ["wall-1"] };
         Assert.Empty(family.Propose(family.Derive(facts), facts));
     }
 
@@ -102,7 +103,7 @@ public sealed class LayoutFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         var diff = Diff((1, 1), (1, 2)) with { AutoOff = true };
-        using var colony = Open(new LayoutNeeds { HomeCoverage = true }, new() { HomeCoverage = Known(diff) });
+        using var colony = Open(new LayoutNeeds { HomeCoverage = true }, new() { HomeCoverage = diff });
         var first = colony.Run();
         Assert.Equal(Outcome.Admitted, Colony.Report(first, LayoutFamily.HomeCoverage).Outcome);
         var method = Assert.Single(first.Methods);
@@ -124,8 +125,8 @@ public sealed class LayoutFamilyTests
         var ring = Ring((20, 20));
         using var colony = Open(new LayoutNeeds { HomeCoverage = true, Firebreak = true }, new()
         {
-            HomeCoverage = Known(Diff((1, 1))),
-            Firebreak = Known(ring),
+            HomeCoverage = Diff((1, 1)),
+            Firebreak = ring,
             FirebreakStep = LayoutRounds.FirebreakCandidate(ring, new Dictionary<Cell, CoverClearance>()),
         });
         var run = colony.Run();
@@ -133,7 +134,7 @@ public sealed class LayoutFamilyTests
         Assert.Empty(colony.Journal.LoadNeed(LayoutFamily.Firebreak, World, ct).Methods);
 
         // Home coverage met: the ring order is admitted.
-        colony.Facts = colony.Facts with { HomeCoverage = Known(Diff()) };
+        colony.Facts = colony.Facts with { HomeCoverage = Diff() };
         Assert.Equal(Outcome.Admitted, Colony.Report(colony.Run(), LayoutFamily.Firebreak).Outcome);
         Assert.Single(colony.Journal.LoadNeed(LayoutFamily.Firebreak, World, ct).Methods);
     }
@@ -143,7 +144,7 @@ public sealed class LayoutFamilyTests
     {
         var ct = TestContext.Current.CancellationToken;
         var none = new Dictionary<Cell, CoverClearance>();
-        LayoutFacts Order(FirebreakWork ring) => new() { Firebreak = Known(ring), FirebreakStep = LayoutRounds.FirebreakCandidate(ring, none) };
+        LayoutFacts Order(FirebreakWork ring) => new() { Firebreak = ring, FirebreakStep = LayoutRounds.FirebreakCandidate(ring, none) };
         using var colony = Open(new LayoutNeeds { Firebreak = true }, Order(Ring((10, 10), (10, 11))));
         var first = colony.Run();
         Assert.Equal(Outcome.Admitted, Colony.Report(first, LayoutFamily.Firebreak).Outcome);
@@ -170,7 +171,7 @@ public sealed class LayoutFamilyTests
     {
         var composed = new LayoutNeeds { Defense = true };
         Need Of(bool standing, bool verified, bool waiting) =>
-            Single(composed, new() { Defense = Known(new DefenseLayoutFacts { Standing = standing, Verified = verified, WaitingFight = waiting }) });
+            Single(composed, new() { Defense = new DefenseLayoutFacts { Standing = standing, Verified = verified, WaitingFight = waiting } });
 
         var met = Of(standing: true, verified: true, waiting: false);
         Assert.Equal((LayoutFamily.Defense, NeedTier.Development, Satisfaction.Met, Known(0.0)), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
@@ -183,7 +184,6 @@ public sealed class LayoutFamilyTests
         // No hysteresis: the same facts give the same answer whatever came before.
         Assert.Equal(Satisfaction.Met, Of(true, true, false).Satisfaction);
 
-        Assert.Equal("defense layout", Assert.Throws<RequiredFactException>(() => Single(composed, new() { Defense = Unknown<DefenseLayoutFacts>() })).Fact);
         Assert.Equal("defense layout", Assert.Throws<RequiredFactException>(() => Single(composed, new())).Fact);
         Assert.DoesNotContain(new LayoutFamily(All).Derive(Settled), n => n.Id == LayoutFamily.Defense);
     }
@@ -202,14 +202,14 @@ public sealed class LayoutFamilyTests
             Facilities = [new() { Id = "store", Kind = "storage", Travel = [new() { Pawn = "a", Reachable = reachable }] }],
         };
         LayoutFacts Facts(RoutesObservation census) =>
-            new() { Routes = Known(LayoutFamily.RoutesStandingOf(Known(census), default, RoundsRules.DefaultRoundsPolicy())) };
+            new() { Routes = LayoutFamily.RoutesStandingOf(Known(census), default, RoundsRules.DefaultRoundsPolicy()) };
 
         var unmet = Single(composed, Facts(Census(reachable: false)));
         Assert.Equal((LayoutFamily.Routes, NeedTier.Development, Satisfaction.Unmet, Known(1.0)), (unmet.Id, unmet.Tier, unmet.Satisfaction, unmet.Deficit));
         var met = Single(composed, Facts(Census(reachable: true)));
         Assert.Equal((Satisfaction.Met, Known(0.0)), (met.Satisfaction, met.Deficit));
         Assert.Equal("routes census", Assert.Throws<RequiredFactException>(() => Single(composed, new())).Fact);
-        Assert.Equal("routes census", Assert.Throws<RequiredFactException>(() => Single(composed, new() { Routes = Known(LayoutFamily.RoutesStandingOf(default, default, RoundsRules.DefaultRoundsPolicy())) })).Fact);
+        Assert.Equal("routes census", Assert.Throws<RequiredFactException>(() => Single(composed, new() { Routes = LayoutFamily.RoutesStandingOf(default, default, RoundsRules.DefaultRoundsPolicy()) })).Fact);
         Assert.Equal([WorkType.Construction], LaborRules.NeedLabor(LayoutFamily.Routes));
     }
 

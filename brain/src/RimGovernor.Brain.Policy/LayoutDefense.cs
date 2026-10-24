@@ -118,7 +118,7 @@ partial record LayoutPlan
                 approach = new Rectangle(31, 29, 1, 3);
                 killbox = new Rectangle(7, 20, 21, 21);
                 break;
-            default:
+            case Rotation.North:
                 break;
         }
         PlannedSite Site(string id, NodeKind kind, Rectangle r) =>

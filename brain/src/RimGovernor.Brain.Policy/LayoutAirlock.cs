@@ -9,14 +9,21 @@ namespace RimGovernor.Brain.Policy;
 public static partial class LayoutAirlockRules
 {
     /// <summary>The cell beyond door d, away from the room whose wall side it faces.</summary>
-    internal static Cell Outside(Cell d, Rotation side) => side switch
+    internal static Cell Outside(Cell d, Rotation side)
     {
-        Rotation.South => new Cell(d.X, d.Z - 1),
-        Rotation.North => new Cell(d.X, d.Z + 1),
-        Rotation.West => new Cell(d.X - 1, d.Z),
-        Rotation.East => new Cell(d.X + 1, d.Z),
-        _ => d,
-    };
+        switch (side)
+        {
+            case Rotation.South:
+                return new Cell(d.X, d.Z - 1);
+            case Rotation.North:
+                return new Cell(d.X, d.Z + 1);
+            case Rotation.West:
+                return new Cell(d.X - 1, d.Z);
+            case Rotation.East:
+                return new Cell(d.X + 1, d.Z);
+        }
+        throw new DomainException("airlock: unnamed wall side " + (int)side);
+    }
 }
 
 partial record PlannedRoom

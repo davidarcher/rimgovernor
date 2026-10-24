@@ -947,12 +947,10 @@ public static partial class LayoutClusterRules
         {
             return RoleCondition.Always;
         }
-        return purpose switch
-        {
-            StationPurpose.SleepMed => RoleCondition.BedMedical,
-            StationPurpose.SleepPrison => RoleCondition.BedPrisoner,
-            _ => RoleCondition.BedFree,
-        };
+        // Every other sleeping purpose (a colonist's or a baby's bed) is a free bed.
+        return purpose == StationPurpose.SleepMed ? RoleCondition.BedMedical
+            : purpose == StationPurpose.SleepPrison ? RoleCondition.BedPrisoner
+            : RoleCondition.BedFree;
     }
 
     /// <summary>
@@ -1237,7 +1235,7 @@ internal sealed partial class Clusterer
                             continue;
                         }
                         break;
-                    default:
+                    case EnvNeedKind.None or EnvNeedKind.RoomStat or EnvNeedKind.Indoors or EnvNeedKind.OpenSky or EnvNeedKind.Cold:
                         continue;
                 }
                 var ticks = n.DailyWork * u.Count / n.Count * ((1 / need.Factor) - 1);

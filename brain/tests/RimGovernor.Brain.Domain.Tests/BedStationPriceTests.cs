@@ -77,7 +77,7 @@ public sealed class BedStationPriceTests
     {
         Facts = facts,
         OutdoorCurve = Known(EquatableArray.From(curve)),
-        WorkDayW = Known(8000.0),
+        WorkDay = BedMergePriceTests.Day(8000.0),
         Builders = Known(1),
     };
 

@@ -128,7 +128,7 @@ public static class EssentialServicesRules
         NeedOwner(EssentialService.Food, FoodStoresRules.FoodStorageNeed, () => FoodStoresRules.FoodStorageNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
         NeedOwner(EssentialService.Food, FoodStoresRules.RefrigerationNeed, () => FoodStoresRules.RefrigerationNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
         NeedOwner(EssentialService.Power, PowerFamily.Basic, () => PowerRules.PowerNeedOf(PowerFacts.From(facts)));
-        NeedOwner(EssentialService.Logistics, LayoutFamily.Routes, () => LayoutFamily.RoutesNeed(Known(LayoutFamily.RoutesStandingOf(facts.Upkeep.Routes, facts.Upkeep.Rooms, policy))));
+        NeedOwner(EssentialService.Logistics, LayoutFamily.Routes, () => LayoutFamily.RoutesNeed(LayoutFamily.RoutesStandingOf(facts.Upkeep.Routes, facts.Upkeep.Rooms, policy)));
         NeedOwner(EssentialService.Materials, EconomyFamily.Resource, () => EconomyRules.ResourceNeedOf(ResourceFacts.From(facts, demand)));
 
         // The owner already merged overlapping costs. Never add a fuel or service copy to demand.

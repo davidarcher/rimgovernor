@@ -12,8 +12,8 @@ public sealed record StationHerd(Resource Race, int Animals)
 public sealed record PenNode
 {
     public string Id { get; init; } = "";
-    /// <summary>The nutrition a day the herd eats (AdultFeedPerDay times the animals); unknown with the race's feed.</summary>
-    public Fact<double> Hunger { get; init; }
+    /// <summary>The nutrition a day the herd eats (AdultFeedPerDay times the animals); 0 for a race that needs no food.</summary>
+    public double Hunger { get; init; }
 
 }
 
@@ -75,16 +75,7 @@ partial class GraphBuilder
             {
                 continue;
             }
-            var node = new PenNode { Id = Resource.PenId(h.Race), Hunger = Unknown<double>() };
-            switch (race.AdultFeed)
-            {
-                case RaceFeed.Eats { PerDay: var feed } when FoodForecastRules.FoodNumber(feed):
-                    node = node with { Hunger = Known(feed * h.Animals) };
-                    break;
-                case RaceFeed.NoNeed:
-                    node = node with { Hunger = Known(0.0) };
-                    break;
-            }
+            var node = new PenNode { Id = Resource.PenId(h.Race), Hunger = PenHunger(h, race) };
             foreach (var p in race.Products)
             {
                 if (!HerdPlanRules.HerdProductJob(p).Item2)
@@ -109,10 +100,26 @@ partial class GraphBuilder
         return [.. output.OrderBy(p => p.Id, StringComparer.Ordinal)];
     }
 
+    /// <summary>The herd's nutrition a day: the race's adult feed times the animals, 0 for a race that needs none; a feed that is no number fails the graph naming it.</summary>
+    private static double PenHunger(StationHerd h, AnimalRace race)
+    {
+        if (race.AdultFeed is RaceFeed.NoNeed)
+        {
+            return 0;
+        }
+        if (race.AdultFeed is RaceFeed.Eats { PerDay: var feed } && FoodForecastRules.FoodNumber(feed))
+        {
+            return feed * h.Animals;
+        }
+        throw new RequiredFactException("adult feed of " + h.Race.Value);
+    }
+
     /// <summary>Sizes the pen's hand feeding: the hunger less what PenCells' worth of the weakest grazing terrain grows, hauled in the race's richest feed item (the fewest items) from the store that holds it.</summary>
     private PenNode PenFeed(PenNode node, AnimalRace race)
     {
-        if (!node.Hunger.TryGetValue(out var hunger) || !this.In.Pasture.TryGetValue(out var pasture))
+        // The pasture table is the food family's read to harden (#3786).
+        var hunger = node.Hunger;
+        if (!this.In.Pasture.TryGetValue(out var pasture))
         {
             return node;
         }

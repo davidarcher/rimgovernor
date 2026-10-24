@@ -324,7 +324,7 @@ each sleeper. **Impressiveness** (`impressiveness`): the filth of the group's
 runs standing at once (`Residual`) lowers the room's Cleanliness over its cells
 and so perhaps its stage (`RoomSpaceRules`, `ImpressivenessLevels`); the sleepers
 lose their bed thought's difference between the stages
-(`BedMergeFacts.Sleepers`, `ForecastHousing.BedroomGain`) for the share of the
+(`BedMergeFacts.Read.Sleepers`, `ForecastHousing.BedroomGain`) for the share of the
 day the filth stands, in work-days. An unread rest schedule, `SleepDisturbed`
 def, filth model or sleeper gains, where needed, is a `RequiredFactException`.
 Not priced: the game's 300-tick cooldown between disturbances (the price is an
@@ -892,10 +892,11 @@ are best at, and each larger size takes its best area beside them. The chosen
 area is the group's `Area`. The chooser holds no size constant: a cheaper wall
 grows a room, a dearer one shrinks it. Every one of these is a required
 planner input on every map (#3747): an unread sleeper's gain, stage table, wall
-or door price, ring work, builder count, outdoor curve, work-day
-(`StationWorkDayW`'s zero) or living band fails the chain with
+or door price, builder count, outdoor curve, work-day (a
+`StationWorkDay` that is not `Priced`: food unread, no colonist, no eater or no
+crop) or living band fails the chain with
 `RequiredFactException` naming it (`sleeper_mood`, `impressiveness_levels`,
-`wall_price`, `door_price`, `ring_work`, `builders`, `outdoor_curve`,
+`wall_price`, `door_price`, `builders`, `outdoor_curve`,
 `work_day`, `living_band`, `bedroom_heat`), so the replan is skipped with
 the `required_fact` row and the next hourly check tries again; no plan is made on a
 guessed price. The plan's largest barracks (its bed slots) is the incumbent
