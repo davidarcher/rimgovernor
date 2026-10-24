@@ -10,6 +10,9 @@ namespace RimGovernor.Brain.Policy.Methods.Generation;
 internal sealed record PlannedSiteOperations(string Site, int Room, string Stuff, string[] Operations, string Finish)
 {
     public string[][] WorkGroups { get; init; } = [];
+
+    /// <summary>The template piece a Build site places (its definition, #3827); empty for any other operation.</summary>
+    public string Piece { get; init; } = "";
 }
 
 internal sealed record PlannedRoomCandidatesResult(
@@ -239,7 +242,8 @@ internal static class PlannedRoomCandidates
                     { Producer = finish, Lot = site.Id, Kind = ForecastRequirementKind.Reusable, Provenance = "planned-finish-site:" + site.Id }]));
                 ids.Add(finish); finishes[site.Id] = finish;
                 roomSitesOps.Add(new(site.Id, site.Room, ring ? site.Stuff : "", [.. ids], finish)
-                    { WorkGroups = [[finish], .. hauls, .. site.Clearing.Where(c => ids.Contains(c.Id)).Select(c => new[] { c.Id })] });
+                    { WorkGroups = [[finish], .. hauls, .. site.Clearing.Where(c => ids.Contains(c.Id)).Select(c => new[] { c.Id })],
+                        Piece = site.Op == OpKind.Build ? site.Definition : "" });
             }
             if (operations.Count + roomOperations.Count > OperationBudget)
             {

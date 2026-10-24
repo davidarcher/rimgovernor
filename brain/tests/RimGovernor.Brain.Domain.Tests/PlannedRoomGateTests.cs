@@ -306,6 +306,74 @@ public sealed class PlannedRoomGateTests
         Assert.True(PlannedRules.PlannedRoomDone(owed, RoundsBuildingPlanner.PieceBlockedOf(Reading(0, "ComplexFurniture"))));
     }
 
+    /// <summary>A projection describing a bed (ComplexFurniture, wood) and a stuff-less FueledStove (no prerequisite), <paramref name="wood"/> stocked and no ring sources on the map.</summary>
+    private static ColonyProjection BlockedFacts(Fact<bool> bedAvailable, bool researchRead, long wood = 100)
+    {
+        var projection = ColonyFactsCoreTests.Projection() with
+        {
+            Definitions =
+            [
+                new PlanningDefinition
+                {
+                    Name = "Bed", Available = bedAvailable, Research = ["ComplexFurniture"],
+                    StuffOptions = [new StuffOption { Stuff = "WoodLog", Value = 1, Common = true, Costs = [new RimGovernor.Brain.Policy.Amount(new("WoodLog"), 45)] }],
+                },
+                new PlanningDefinition { Name = "FueledStove", Available = Known(true) },
+            ],
+            Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("WoodLog")] = wood }),
+            RingSources = Known(new RingStuffSources()),
+        };
+        return projection with { Facts = projection.Facts with { Research = researchRead ? Known(new ResearchFacts()) : default } };
+    }
+
+    /// <summary>
+    /// #3819: a piece is blocked only on read evidence. A started room owing only a bed whose definition's Available is
+    /// unread is open, not done; so is one whose research is unread while the bed has a prerequisite, and one whose stock
+    /// is unread (no stuff stocked is then no evidence). Read unavailable, or read unresearched, it is done.
+    /// </summary>
+    [Fact]
+    public void ABedWhoseFactsAreUnreadKeepsTheRoomOpen()
+    {
+        var bed = new WantedPiece { DefName = "Bed", Minimum = new(5, 5), Maximum = new(5, 6), Size = new(1, 2), Rot = Rotation.North };
+        IReadOnlyList<Operation> owed = [new Operation { Kind = OpKind.Build, Pieces = [bed] }];
+        RoundsReading Reading(ColonyProjection projection) => new() { Emergency = new(), Frame = new(), Reading = new ColonyReading { Projection = projection } };
+        bool Done(ColonyProjection projection) => PlannedRules.PlannedRoomDone(owed, RoundsBuildingPlanner.PieceBlockedOf(Reading(projection)));
+
+        Assert.False(Done(BlockedFacts(default, researchRead: true)));
+        Assert.False(Done(BlockedFacts(Known(true), researchRead: false)));
+        Assert.True(Done(BlockedFacts(Known(false), researchRead: false)));
+        Assert.True(Done(BlockedFacts(Known(true), researchRead: true)));
+        // Researched, nothing stocked: blocked only when the stock was read and the map offers no wood or blocks.
+        var read = BlockedFacts(Known(true), researchRead: true, wood: 0);
+        var researched = read with { Facts = read.Facts with { Research = Known(new ResearchFacts { Finished = [new ResearchProjectId("ComplexFurniture")] }) } };
+        Assert.True(Done(researched));
+        Assert.False(Done(researched with { Resources = default }));
+        Assert.False(Done(researched with { RingSources = default }));
+        // A definition the census does not describe is unread, not blocked.
+        Assert.False(Done(researched with { Definitions = [] }));
+    }
+
+    /// <summary>
+    /// #3827: the round resolves the forecast's blocked items with the same predicate: a planned bed site blocked on
+    /// research is one; a stove site (no prerequisite, made of no stuff) and a ring site are not, nor is the bed while
+    /// research is unread.
+    /// </summary>
+    [Fact]
+    public void TheRoundResolvesBlockedPlannedPiecesForTheServiceDay()
+    {
+        var context = PlannedRoomCreditTests.Context(PlannedRoomCredits.Shipped) with
+        {
+            PlannedSites =
+            [
+                new("planned/room1/wall/WoodLog", 1, "WoodLog", [], []),
+                new("planned/room1/build/Bed/5/5", 1, "", [], []) { Piece = "Bed" },
+                new("planned/room1/build/FueledStove/6/6", 1, "", [], []) { Piece = "FueledStove" },
+            ],
+        };
+        Assert.Equal(["planned/room1/build/Bed/5/5"], RoundsBuildingPlanner.BlockedRoomItems(BlockedFacts(Known(true), researchRead: true), context));
+        Assert.Empty(RoundsBuildingPlanner.BlockedRoomItems(BlockedFacts(Known(true), researchRead: false), context));
+    }
+
     [Fact]
     public async Task AnAssessedUnstartedRoomTheComparisonDidNotSelectPlacesNothing()
     {

@@ -100,7 +100,6 @@ Policy|ForecastConstructionResult.Site
 Policy|ForecastConstructionWorker.Capacity
 Policy|ForecastConstructionWorker.Observed
 Policy|ForecastConstructionWorker.WorkPerTick
-Policy|ForecastCoupledContext.Construction
 Policy|ForecastEquipmentClaim.End
 Policy|ForecastEquipmentClaim.Equipment
 Policy|ForecastEquipmentClaim.Start

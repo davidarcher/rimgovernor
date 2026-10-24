@@ -3,6 +3,9 @@ using RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
+/// <summary>What the facts say of building a definition now (RoundsDefenseLayoutPlanner.DefinitionReadinessOf, #3819).</summary>
+internal enum DefinitionReadiness { Available, Blocked, Unread }
+
 public sealed class RoundsDefenseLayoutResult : IPlannerMethod
 {
     public Verdict Verdict { get; set; }
@@ -59,29 +62,46 @@ public sealed partial class RoundsDefenseLayoutPlanner
         _native = native;
     }
 
-    internal static bool DefenseDefinitionAvailable(RoundsReading read, string name)
+    /// <summary>Whether a defense may build <paramref name="name"/>: read available with its research finished; an unread fact is no option.</summary>
+    internal static bool DefenseDefinitionAvailable(RoundsReading read, string name) =>
+        DefinitionReadinessOf(read.Projection, name) == DefinitionReadiness.Available;
+
+    /// <summary>
+    /// What the facts say of building <paramref name="name"/> now (#3819): Blocked when its definition is read unavailable
+    /// or its research is read with a prerequisite unfinished; Unread when the census does not describe it, its Available
+    /// is unread, or it has prerequisites and research is unread; else Available.
+    /// </summary>
+    internal static DefinitionReadiness DefinitionReadinessOf(ColonyProjection projection, string name)
     {
-        var rk = read.Projection.Facts.Research.TryGetValue(out var research);
-        foreach (var d in read.Projection.Definitions)
+        var rk = projection.Facts.Research.TryGetValue(out var research);
+        foreach (var d in projection.Definitions)
         {
             if (d.Name != name)
             {
                 continue;
             }
-            if (!d.Available.TryGetValue(out var v) || !v || (d.Research.Count > 0 && !rk))
+            if (!d.Available.TryGetValue(out var v))
             {
-                return false;
+                return DefinitionReadiness.Unread;
+            }
+            if (!v)
+            {
+                return DefinitionReadiness.Blocked;
+            }
+            if (d.Research.Count > 0 && !rk)
+            {
+                return DefinitionReadiness.Unread;
             }
             foreach (var prerequisite in d.Research)
             {
                 if (!research!.Finished.Contains(new ResearchProjectId(prerequisite)))
                 {
-                    return false;
+                    return DefinitionReadiness.Blocked;
                 }
             }
-            return true;
+            return DefinitionReadiness.Available;
         }
-        return false;
+        return DefinitionReadiness.Unread;
     }
 
     internal static bool DefenseRoamerOwned(ColonyProjection projection)

@@ -218,6 +218,54 @@ public sealed class PlannedRoomCreditTests
         Assert.Empty(PlannedRoomCredits.ConnectorsOf([], []));
     }
 
+    private const string BarracksWall = "planned/room1/wall/WoodLog", Beds = "planned/room1/build/Bed/43/48", Stove = "planned/room1/build/FueledStove/44/46";
+
+    /// <summary>
+    /// #3827: room 1 a started barracks, one builder: a wood ring of two builder-days, a builder-day of beds and a stove with
+    /// no finish option, so no owed-work row.
+    /// </summary>
+    private static ForecastCoupledContext Barracks() => ForecastValueTests.Context(ForecastValueTests.Pawn()) with
+    {
+        PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Barracks },
+        RoomCredits = new Dictionary<PlannedRole, RoomCredit> { [PlannedRole.Barracks] = (_, _, _, _) => [new("rest", "", 1)] },
+        PlannedSites =
+        [
+            new(BarracksWall, 1, "WoodLog", [], [BarracksWall + "/finish"]),
+            new(Beds, 1, "", [], [Beds + "/finish"]) { Piece = "Bed" },
+            new(Stove, 1, "", [], [Stove + "/finish"]) { Piece = "FueledStove" },
+        ],
+        Closures = [new(1, "WoodLog", [new(1, 1)], [BarracksWall], [], new("1", "WoodLog", "Barracks", 10d, Known(1), 4, 0, false))],
+        OwedWork = new Dictionary<string, double> { [BarracksWall] = 2 * Day, [Beds] = Day },
+        OpenRooms = new HashSet<int> { 1 },
+        PlannedBuilders = 1,
+        InvestmentHorizonDays = Horizon,
+    };
+
+    [Fact]
+    public void ABarracksOwingABlockedStoveIsCreditedFromTheDayItsOtherItemsFinish()
+    {
+        var blocked = Barracks() with { BlockedItems = new HashSet<string>(StringComparer.Ordinal) { Stove } };
+        // Projected: the ring's two days, then the beds' one.
+        var served = Assert.Single(PlannedRoomCredits.ServiceDays(blocked, new Dictionary<string, double>(), Day).Served);
+        Assert.Equal(new ForecastRoomService(1, "WoodLog", 3 * Day), served);
+        // Inside the schedule: the last of the ring and the beds, the stove never finishing.
+        var finished = new Dictionary<string, double> { [BarracksWall + "/finish"] = 300, [Beds + "/finish"] = 900 };
+        Assert.Equal(900, Assert.Single(PlannedRoomCredits.ServiceDays(blocked, finished, Day).Served).ServedAt);
+        var row = Assert.Single(ForecastValue.Of(Outcome(blocked), blocked, Day).InvestmentContributions, r => r.Key == "barracks/1/rest");
+        Assert.Equal(Horizon - 3, row.Units, 9);
+    }
+
+    [Fact]
+    public void ABarracksOwingAStoveWithoutAFinishOptionForAnotherReasonStaysUnassessed()
+    {
+        // Not blocked (its research done, its steel unread or obtainable): the stove still owes work no row prices.
+        var context = Barracks();
+        var service = PlannedRoomCredits.ServiceDays(context, new Dictionary<string, double> { [BarracksWall + "/finish"] = 300, [Beds + "/finish"] = 900 }, Day);
+        Assert.Empty(service.Served);
+        Assert.Equal([1], service.Unassessed);
+        Assert.Contains("barracks_credit_unassessed:1", ForecastValue.Of(Outcome(context), context, Day).Findings);
+    }
+
     [Fact]
     public void APricedRoomWithoutBuildersOrWithAnUnknownCreditIsUnassessedAndCreditedNothing()
     {

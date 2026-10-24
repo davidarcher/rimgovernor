@@ -95,24 +95,32 @@ public sealed partial class Rounder
     /// first is its base sites' stuff. The one chooser of the ring's stuff: the planned sites, the reconcile's placement
     /// (ShellMaterials) and the bed merge's shell price (BedMergeShell) all read it, so the plan and the placements agree.
     /// </summary>
-    internal static IReadOnlyList<string> PlannedRingStuffsOf(ColonyProjection colony, string wallDef, string doorDef)
+    internal static IReadOnlyList<string> PlannedRingStuffsOf(ColonyProjection colony, string wallDef, string doorDef) =>
+        PlannedRingStuffsRead(colony, wallDef, doorDef).Stuffs;
+
+    /// <summary>
+    /// <see cref="PlannedRingStuffsOf"/> with whether its facts were read (#3819): the wall's definition, and, unless a
+    /// usable stuff is stocked, the stock and the map's ring sources. An unread one reads as none stocked or offered.
+    /// </summary>
+    internal static (IReadOnlyList<string> Stuffs, bool Read) PlannedRingStuffsRead(ColonyProjection colony, string wallDef, string doorDef)
     {
         if (RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, wallDef) is not { } wall)
         {
-            return [];
+            return ([], false);
         }
         var door = RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, doorDef);
         var common = wall.StuffOptions.Any(o => o.Common);
-        colony.TryStock(out var stock);
+        var stockRead = colony.TryStock(out var stock);
         var options = wall.StuffOptions
             .Where(o => (o.Common || !common) && (door is null || door.MakeableFrom(o.Stuff)))
             .Select(o => new PlannedRingStuff(o.Stuff, o.Value, stock is not null && stock.TryGetValue(new Resource(o.Stuff), out var held) && held > 0))
             .ToList();
         if (wall.StuffOptions.Count > 0 && options.Count == 0)
         {
-            return [];
+            return ([], true);
         }
-        return PlannedRules.PlannedRingStuffs(options, colony.RingSources.ValueOrDefault ?? new RingStuffSources());
+        var sources = colony.RingSources.ValueOrDefault;
+        return (PlannedRules.PlannedRingStuffs(options, sources ?? new RingStuffSources()), options.Any(o => o.Stocked) || stockRead && sources is not null);
     }
 
     /// <summary>The stuff def is built from for a wanted stuff ("" for a def made from no stuff) and its cost list; null where the def is unavailable or cannot be made from it.</summary>

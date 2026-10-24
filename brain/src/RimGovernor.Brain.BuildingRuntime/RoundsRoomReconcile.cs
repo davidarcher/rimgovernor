@@ -168,14 +168,49 @@ partial class RoundsBuildingPlanner
     internal const string PortfolioUnassessed = "portfolio_unassessed";
 
     /// <summary>
-    /// The owed template pieces no builder can work now (#3754, PlannedRoomDone): a def native does not read available
-    /// with its research finished (DefenseDefinitionAvailable: missing research, or a def the census does not describe,
-    /// is no option to work), or one made from stuff none of which the colony stocks or the map offers as wood or rock
-    /// blocks (the one stuff chooser, PlannedRingStuffsOf, reads none).
+    /// The owed template pieces no builder can work now (#3754, PlannedRoomDone; <see cref="DefinitionBlockedOf"/>).
     /// </summary>
-    internal static Func<Pol.WantedPiece, bool> PieceBlockedOf(Observation.RoundsReading reading) =>
-        piece => !RoundsDefenseLayoutPlanner.DefenseDefinitionAvailable(reading, piece.DefName)
-            || Rounder.PlannedRingStuffsOf(reading.Projection, piece.DefName, "").Count == 0;
+    internal static Func<Pol.WantedPiece, bool> PieceBlockedOf(Observation.RoundsReading reading)
+    {
+        var blocked = DefinitionBlockedOf(reading.Projection);
+        return piece => blocked(piece.DefName);
+    }
+
+    /// <summary>
+    /// The one blocked predicate (#3754, #3827): a definition is blocked only on read evidence (#3819), when it is read
+    /// unavailable or its research is read with a prerequisite unfinished (DefinitionReadinessOf), or when its stuff
+    /// options, the stock and the map's ring sources are read and the one stuff chooser (PlannedRingStuffsRead) finds
+    /// none the colony stocks or the map offers as wood or rock blocks. An unread fact leaves it unblocked.
+    /// </summary>
+    internal static Func<string, bool> DefinitionBlockedOf(Observation.ColonyProjection projection) =>
+        name => RoundsDefenseLayoutPlanner.DefinitionReadinessOf(projection, name) == DefinitionReadiness.Blocked
+            || Rounder.PlannedRingStuffsRead(projection, name, "") is { Stuffs.Count: 0, Read: true };
+
+    /// <summary>
+    /// The owed items of the coupled comparison's planned rooms that are blocked pieces (#3827), resolved here at the read
+    /// boundary so the service-day projection reads plain ids (ForecastCoupledContext.BlockedItems): each planned site of a
+    /// template piece (ForecastPlannedSite.Piece), and each placed site a room holds (ForecastCoupledContext.RoomItems,
+    /// its definition the construction read's) other than a ring's, whose definition <see cref="DefinitionBlockedOf"/> blocks.
+    /// </summary>
+    internal static IReadOnlySet<string> BlockedRoomItems(Observation.ColonyProjection projection, Pol.ForecastCoupledContext context)
+    {
+        var blocked = DefinitionBlockedOf(projection);
+        var ring = context.Closures.SelectMany(c => c.Placed).Select(p => p.Site).ToHashSet(StringComparer.Ordinal);
+        var placed = context.Construction.Options.GroupBy(o => o.Site, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First().Definition, StringComparer.Ordinal);
+        var items = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var site in context.PlannedSites.Where(s => s.Piece.Length != 0 && blocked(s.Piece)))
+        {
+            items.Add(site.Site);
+        }
+        foreach (var item in context.RoomItems.Where(i => !ring.Contains(i.Item)))
+        {
+            if (placed.TryGetValue(item.Item, out var definition) && blocked(definition))
+            {
+                items.Add(item.Item);
+            }
+        }
+        return items;
+    }
 
     /// <summary>The mirror cells inside ground: the room's foreign things are read from them.</summary>
     internal static List<Pol.SiteCell> CellsOn(IEnumerable<Pol.SiteCell> cells, Pol.Rectangle ground) =>

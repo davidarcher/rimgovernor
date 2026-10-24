@@ -79,6 +79,10 @@ either room is priced); its sites are still emitted and exempt.
   cells, all one job). Inside the schedule it is the last item's finish; left owing, it is the
   cumulative owed work (`Context.OwedWork`: finished work first, then started rooms, then the
   rest, each by its remaining work) over `PlannedBuilders`, never before the horizon.
+  A blocked piece it owes (#3827: `Context.BlockedItems`, the round's read of the one predicate
+  `PlannedRoomDone` uses, `RoundsBuildingPlanner.DefinitionBlockedOf`) delays nothing: the room
+  serves from the day the rest is finished. A piece with no row for any other reason still leaves
+  the room unassessed.
 - Connectors (#3815, P4) have no credit: a circulation corridor and an airlock are prerequisites
   of the rooms they reach or seal (`Context.Connectors`, `PlannedRoomCredits.ConnectorsOf`: an
   attached airlock its parent, a corridor each non-connector room a layout door joins it to). A
@@ -346,8 +350,9 @@ open; the priced delay does.
 
 A room is open while it is started and not done (#3754). Done means its
 reconcile owes nothing a builder can do now (`PlannedRoomDone`): every owed
-operation is a template piece whose definition is unresearched, undescribed or
-has no obtainable stuff (`PieceBlockedOf`), so a bed waiting on
+operation is a template piece whose definition is read unavailable or
+unresearched, or whose stuff options, stock and map sources are read and offer
+none (`PieceBlockedOf`; an unread fact blocks nothing, #3819), so a bed waiting on
 ComplexFurniture does not keep its builders on the room, while an owed wall,
 door, floor or roof does. Each room reconcile records its room's answer
 (`Rounder.DoneRooms`, latest wins, envelope calls excluded); a started room with

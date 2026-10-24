@@ -144,7 +144,7 @@ public sealed partial record ForecastCoupledCandidates
         var plannedRealized = EquatableArray.From(planned.Sites.Select(s => new ForecastPlannedSite(s.Site, s.Room, s.Stuff,
             EquatableArray.From(s.Operations.SelectMany(id => composed.Realizations.GetValueOrDefault(id) ?? []).Where(id => !bound.Contains(id))
                 .Distinct().Order(StringComparer.Ordinal)),
-            EquatableArray.From((composed.Realizations.GetValueOrDefault(s.Finish) ?? []).Order(StringComparer.Ordinal)))));
+            EquatableArray.From((composed.Realizations.GetValueOrDefault(s.Finish) ?? []).Order(StringComparer.Ordinal))) { Piece = s.Piece }));
         var unplaced = plannedRealized.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         tasks.AddRange(composed.Tasks); options.AddRange(composed.Options); needTasks.AddRange(composed.Needs);
         alternatives.AddRange(PlannedExclusions(composed.Alternatives, planned.Sites, planned.Rooms));

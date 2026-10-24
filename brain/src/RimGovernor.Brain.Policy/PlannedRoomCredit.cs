@@ -156,9 +156,10 @@ public static class PlannedRoomCredits
         {
             var stuffs = closures[room].Any() ? closures[room].Select(c => c.Stuff).Distinct().ToArray()
                 : sites[room].Select(s => s.Stuff).Where(s => s.Length != 0).Distinct().DefaultIfEmpty("").ToArray();
+            // A blocked piece (#3827) is owed nothing: the room serves once the rest is done.
             return [.. stuffs.Select(stuff => new Way(stuff, [.. sites[room].Where(s => s.Stuff.Length == 0 || s.Stuff == stuff).Select(s => s.Site)
                     .Concat(closures[room].Where(c => c.Stuff == stuff).SelectMany(c => c.Placed).Select(p => p.Site))
-                    .Concat(items[room]).Distinct(StringComparer.Ordinal)]))];
+                    .Concat(items[room]).Distinct(StringComparer.Ordinal).Where(i => !context.BlockedItems.Contains(i))]))];
         }
         // A connector's work is part of each room it serves (#3815, P4): a room's ways are its own, each joined with each way
         // of every connector serving it, the room keeping its own ring stuff.
@@ -197,7 +198,9 @@ public static class PlannedRoomCredits
     /// service day is unassessed (#3796, epic #3650 P2, replacing #3744's ring closure). A room is built by its one
     /// reconcile: per ring stuff (its closure predictions', else its sites'), it owes its planned sites in that stuff or
     /// none, the placed ring sites of that stuff's closure and the room items it holds (<see cref="ForecastCoupledContext.RoomItems"/>),
-    /// with every way of each connector serving it (<see cref="ForecastCoupledContext.Connectors"/>, #3815), as one job. It serves at the latest finish once the schedule finishes all of one stuff's, the earliest stuff
+    /// with every way of each connector serving it (<see cref="ForecastCoupledContext.Connectors"/>, #3815), as one job, less
+    /// its blocked pieces (<see cref="ForecastCoupledContext.BlockedItems"/>, #3827: research unfinished or no stuff stocked or
+    /// obtainable, as PlannedRules.PlannedRoomDone reads them), which delay nothing. It serves at the latest finish once the schedule finishes all of one stuff's, the earliest stuff
     /// winning. A room the schedule leaves owing is projected when it is open
     /// (<see cref="ForecastCoupledContext.OpenRooms"/>: started, and not done by its latest reconcile, #3754) or the schedule finished one of its items: its remaining work is
     /// the owed work (<see cref="ForecastCoupledContext.OwedWork"/>) of its unfinished items in the stuff that leaves the
