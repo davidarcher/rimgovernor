@@ -111,10 +111,10 @@ internal static class HypothermiaProbe
     private static async Task<Body> ReadAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken)
     {
         var read = "read-" + label;
-        var reply = await s.CallAsync(read, NativeOps.ListPawns, new ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [pawn] }, Details = new PawnDetails { Settings = true, Work = true } }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync(read, NativeOps.ListPawns, new ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [pawn] } }, cancellationToken).ConfigureAwait(false);
         var observed = reply;
         var state = observed.Pawns.SingleOrDefault(p => p.Pawn.Id == pawn) ?? throw new AcceptanceException($"{read}: pawn {pawn} missing from the pawn read");
-        var body = state.Settings?.Body;
+        var body = state.Settings.Body;
         if (observed.Context is not { } context || body?.CellTemperatureC is not { } cell || body.ComfortableMinC is not { } comfyMin || body.Hypothermia is not { } severity)
         {
             throw new AcceptanceException($"{read}: the pawn read carried no tick, cell temperature, comfortable minimum or hypothermia severity");

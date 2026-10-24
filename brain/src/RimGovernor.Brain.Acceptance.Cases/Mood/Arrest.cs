@@ -114,7 +114,7 @@ internal static class Arrest
             }
 
             var mental = row.MentalState?.DefName ?? "";
-            var inBed = row.Health?.BedId ?? "";
+            var inBed = row.Health.BedId ?? "";
             s.RecordWire("custody", row);
             return (string.Create(CultureInfo.InvariantCulture, $"{row.Prisoner} {mental} {inBed} {row.Pawn.Position}"), row.Prisoner && mental.Length == 0 && inBed == bed);
         }, cancellationToken).ConfigureAwait(false);

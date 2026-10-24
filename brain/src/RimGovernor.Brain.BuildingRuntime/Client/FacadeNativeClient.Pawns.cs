@@ -4,103 +4,59 @@ using PolicyMechInput = RimGovernor.Brain.Policy.MechInput;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// The pawn-list reads. Each differs only in which PawnDetails families it asks for.
+// The pawn-list reads. Every row is whole; the tend table is its own read.
 public sealed partial class FacadeNativeClient
 {
     /// <summary>The main-thread milliseconds the tend pair reachability may spend.</summary>
     internal const uint PawnsTendReachBudgetMs = 50;
 
     /// <summary>
-    /// Observes exact ids including dead pawns. Missing rows, CAS tokens and drafted state never
+    /// Observes exact ids including dead pawns, each row whole. Missing rows, CAS tokens and drafted state never
     /// imply death, write permission or controller ownership.
     /// </summary>
-    internal Task<PbObservations.PawnSnapshot> ReadPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
-        ReadPawnDetailsAsync(identity, ids, new PawnDetailSelection(), cancellationToken);
-
-    /// <summary>
-    /// Retains optional detailed facts and issues for exact ids. A complete query is not
-    /// proof that absent health, gear or capability is known.
-    /// </summary>
-    internal Task<PbObservations.PawnSnapshot> ReadCombatPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
-        ReadPawnDetailsAsync(identity, ids, new PawnDetailSelection(Combat: true), cancellationToken);
-
-    /// <summary>
-    /// Combat facts, work settings and care policy for exact doctor and patient ids, plus the
-    /// tend detail: the doctor-side native gates and reachability between the requested pawns.
-    /// </summary>
-    internal Task<PbObservations.PawnSnapshot> ReadTendPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
-        ReadPawnDetailsAsync(identity, ids, new PawnDetailSelection(Combat: true, Work: true, Care: true, Tend: true), cancellationToken);
-
-    internal async Task<PbObservations.PawnSnapshot> ReadPawnDetailsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, PawnDetailSelection want, CancellationToken cancellationToken)
+    internal async Task<PbObservations.PawnSnapshot> ReadPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken)
     {
         if (ids.Count < 1 || ids.Count > 256)
         {
             throw BridgeContractException.Contract("pawn IDs outside 1..256");
         }
-        var copied = ids.ToArray();
-
-        var request = PawnDetailsRequest(identity, copied, want);
+        var request = new PbObservations.ListPawnsRequest
+        {
+            Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
+            Filter = new PbObservations.PawnFilter { Ids = [.. ids], IncludeDead = true },
+        };
         return await Facade.ListPawnsAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// The exact request <see cref="ReadPawnDetailsAsync"/> issues for
-    /// <paramref name="ids"/> (validated, in the caller's order); the bundle seeds its pawn table's colonist rows under
-    /// the routine form of it.
+    /// The tend table for exact doctor and patient ids: the doctor-side native gates and reachability between the
+    /// requested pawns, within <see cref="PawnsTendReachBudgetMs"/>.
     /// </summary>
-    internal static PbObservations.ListPawnsRequest PawnDetailsRequest(PbCommon.Identity identity, IReadOnlyList<string> ids, PawnDetailSelection want)
+    internal async Task<PbObservations.TendDoctorSnapshot> ReadTendDoctorsAsync(PbCommon.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken)
     {
-        var details = new PbObservations.PawnDetails
+        if (ids.Count < 1 || ids.Count > 256)
         {
-            Needs = false,
-            Health = want.Combat,
-            Equipment = want.Combat,
-            Biography = want.Combat,
-            Settings = want.Care,
-            Animals = want.Combat,
-        };
-        if (want.Work)
-        {
-            details = details with { Work = true, Needs = true };
+            throw BridgeContractException.Contract("pawn IDs outside 1..256");
         }
-        if (want.Tend)
-        {
-            details = details with { Tend = true, TendReachBudgetMs = PawnsTendReachBudgetMs };
-        }
-        return new PbObservations.ListPawnsRequest
+        var request = new PbObservations.TendDoctorsRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
-            Filter = new PbObservations.PawnFilter { Ids = [.. ids], IncludeDead = true },
-            Details = details,
+            PawnIds = [.. ids],
+            ReachBudgetMs = PawnsTendReachBudgetMs,
         };
+        return await Facade.ReadTendDoctorsAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Lists every current-map living colonist's identity and Doctor work-type
-    /// enablement: who is home. Unlike the id-scoped reads this one is not: the family must first learn who stays home
-    /// before it can ask about their facts.
+    /// Lists every current-map living colonist: who is home. Unlike the id-scoped reads this one is not: the family
+    /// must first learn who stays home before it can ask about their facts.
     /// </summary>
     internal async Task<PbObservations.PawnSnapshot> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-
-        // Native defaults every unset detail family to requested, and the home-colonist check refuses any family
-        // beyond work and needs, so the rest are declined explicitly (the same shape PawnDetailsRequest sends).
         var request = new PbObservations.ListPawnsRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
             Filter = new PbObservations.PawnFilter { Colonist = true, IncludeDead = false },
-            Details = new PbObservations.PawnDetails
-            {
-                Work = true,
-                Needs = true,
-                Health = false,
-                Equipment = false,
-                Biography = false,
-                Settings = false,
-                Social = false,
-                Animals = false,
-                Schedule = false,
-            },
         };
         return await Facade.ListPawnsAsync(request, cancellationToken).ConfigureAwait(false);
     }
@@ -121,10 +77,10 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>Lifts mech pawn rows into planner input.</summary>
-    internal static IReadOnlyList<PolicyMechInput> MechInputs(PbObservations.PawnSnapshot? snapshot)
+    internal static IReadOnlyList<PolicyMechInput> MechInputs(PbObservations.PawnSnapshot snapshot)
     {
         var result = new List<PolicyMechInput>();
-        foreach (var row in snapshot?.Pawns ?? [])
+        foreach (var row in snapshot.Pawns)
         {
             var id = row.Pawn.Id ?? "";
             if (!row.Mechanoid)

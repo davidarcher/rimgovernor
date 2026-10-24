@@ -18,10 +18,10 @@ public sealed class DependentPatientTests
         Context = new() { Identity = Identity, Tick = 100 }, Threats = new(), Colonists = [new() { Id = "doctor" }],
         DependentPatients = new() { Patients = EquatableArray.From(patients) }
     };
-    private static O.PawnState Pawn(string id, bool injured = false) => new()
+    private static O.PawnState Pawn(string id, bool injured = false) => PawnFixtures.Row(id) with
     {
-        Pawn = new() { Id = id }, Dead = false, Downed = injured, InBed = false,
-        Health = new() { Bleeding = injured, NeedsTend = injured }
+        Downed = injured,
+        Health = new() { SummaryFraction = 1, Bleeding = injured, NeedsTend = injured },
     };
     private static O.DependentPatientObservation Patient(string id, DependentPatientGroup group, bool rescue, bool tend) =>
         new() { Pawn = new() { Id = id }, Group = group, Rescue = rescue, Tend = tend };

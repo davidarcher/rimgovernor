@@ -22,8 +22,6 @@ internal static class MedicalSurgery
     // The restore's walk, haul and InstallSimpleProstheticLeg by a Medicine 20 doctor, with room to spare.
     private const int RestoreTicks = 20000;
 
-    private static readonly Observations.PawnDetails HealthDetails = new() { Health = true };
-
     private static readonly FixtureOp<string, Fx.MedicalSetup> Setup = new(
         SetupTool,
         condition => ServedOps.Args(("disease", false), ("condition", condition)),
@@ -106,7 +104,7 @@ internal static class MedicalSurgery
     });
 
     private static async Task<Observations.PawnHealth> HealthAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
-        (await TypedPawns.OneAsync(s, label, pawn, HealthDetails, cancellationToken).ConfigureAwait(false)).Health
+        (await TypedPawns.OneAsync(s, label, pawn, cancellationToken).ConfigureAwait(false)).Health
             ?? throw new AcceptanceException($"{label}: {pawn} read no health detail");
 
     private static bool Missing(Observations.PawnHealth health, int part) => health.Surgery?.MissingParts.Any(m => m.PartIndex == part) == true;

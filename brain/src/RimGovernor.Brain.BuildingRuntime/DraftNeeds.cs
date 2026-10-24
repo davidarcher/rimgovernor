@@ -65,7 +65,7 @@ internal static class DraftNeeds
             {
                 continue;
             }
-            if (row.Job is null || CustodyJobs.Contains((row.Job.DefName ?? "")))
+            if (CustodyJobs.Contains(row.Job.DefName ?? ""))
             {
                 continue;
             }

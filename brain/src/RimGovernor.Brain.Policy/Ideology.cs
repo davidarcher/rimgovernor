@@ -284,8 +284,8 @@ public sealed record IdeoligionFacts
 /// </summary>
 public readonly record struct IdeoDevelopment(bool Fluid, bool CanReform, int ReformCount, int DevelopmentPoints, int NextReformPoints);
 
-/// <summary>A colonist holding the ideoligion with the certainty the pawn row read; unknown when unread.</summary>
-public sealed record Believer(PawnId Id, Fact<double> Certainty);
+/// <summary>A colonist holding the ideoligion with the certainty the pawn row read.</summary>
+public sealed record Believer(PawnId Id, double Certainty);
 
 /// <summary>The ideoligion with the defs its rows resolve against.</summary>
 public sealed partial record Ideoligion(IdeologyDefs Defs, IdeoligionFacts Facts)
@@ -307,9 +307,9 @@ public sealed partial record Ideoligion(IdeologyDefs Defs, IdeoligionFacts Facts
             {
                 return Unknown<EquatableArray<Believer>>();
             }
-            if (inputs.Ideo == Facts.IdeoId)
+            if (inputs.Ideo is PawnIdeo.Member member && member.IdeoId == Facts.IdeoId)
             {
-                output.Add(new Believer(row.Id, inputs.IdeoCertainty));
+                output.Add(new Believer(row.Id, member.Certainty));
             }
         }
         return Known(EquatableArray.From(output.OrderBy(b => b.Id)));

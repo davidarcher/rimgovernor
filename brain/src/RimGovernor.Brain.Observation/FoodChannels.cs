@@ -281,7 +281,7 @@ public static class FoodChannelsReads
     private static bool StageFeedPerDay(AnimalRace race, Pawns pawns, string id, out double feed)
     {
         feed = 0;
-        if (!race.AdultFeedPerDay.TryGetValue(out var adult) || !pawns.TryGetValue(id, out var row) || row?.AnimalState is not { } state)
+        if (!race.AdultFeedPerDay.TryGetValue(out var adult) || !pawns.TryGetValue(id, out var row) || row?.AnimalState is not O.PawnAnimalState.Animal { State: var state })
         {
             return false;
         }

@@ -73,7 +73,7 @@ public static class ConversionRules
         var certainty = double.PositiveInfinity;
         foreach (var row in rows)
         {
-            if (!row.PolicyInputs.TryGetValue(out var inputs) || inputs.GuestStatus is not null || inputs.Ideo == ideo!.Facts.IdeoId)
+            if (!row.PolicyInputs.TryGetValue(out var inputs) || inputs.Guest is GuestState.Hosted || inputs.Ideo is PawnIdeo.Member { IdeoId: var believed } && believed == ideo!.Facts.IdeoId)
             {
                 continue;
             }
@@ -81,7 +81,7 @@ public static class ConversionRules
             {
                 continue;
             }
-            var c = inputs.IdeoCertainty.TryGetValue(out var known) ? known : double.PositiveInfinity;
+            var c = inputs.Ideo is PawnIdeo.Member member ? member.Certainty : double.PositiveInfinity;
             if (target.IsEmpty || c < certainty || (c == certainty && row.Id < target))
             {
                 target = row.Id;
@@ -122,12 +122,12 @@ public static class ConversionRules
             {
                 return false;
             }
-            if (inputs.GuestStatus is not null)
+            if (inputs.Guest is GuestState.Hosted)
             {
                 continue;
             }
             colonists++;
-            if (inputs.Ideo == ideo.Facts.IdeoId)
+            if (inputs.Ideo is PawnIdeo.Member member && member.IdeoId == ideo.Facts.IdeoId)
             {
                 believers++;
             }

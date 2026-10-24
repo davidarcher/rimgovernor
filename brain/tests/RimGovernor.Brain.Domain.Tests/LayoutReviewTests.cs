@@ -162,7 +162,7 @@ public sealed class LayoutReviewTests
     public void HousingCountsLiveColonistsOwningABedInAnEnclosedBedroomOrBarracks()
     {
         Observations.RoomState Rooms(RoomRole role, string bed, uint openRoof = 0) => RoomFixtures.State(bed + "-room", role, beds: [bed]) with { OpenRoofCount = openRoof };
-        Observations.PawnState Pawn(string? bed, bool dead = false) => new() { Dead = dead, OwnedBed = bed is null ? null : new Common.Ref { Id = bed } };
+        Observations.PawnState Pawn(string? bed, bool dead = false) => PawnFixtures.Row("pawn") with { Dead = dead, OwnedBed = bed is null ? null : new Common.Ref { Id = bed } };
         var rooms = new[]
         {
             Rooms(RoomRole.Bedroom, "b1"),

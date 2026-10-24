@@ -17,22 +17,16 @@ namespace HomeBridge.BridgeTools
     // read tool is gone. What remains is each pawn row's royalty block.
     public static class NativePawnRoyalty
     {
-        // A free colonist's royalty facts on its pawn row: holdings per
-        // faction with each held permit's cooldown, the known psycasts and the
-        // caster's psyfocus and neural heat (combat casts hold on them).
-        // Absent without Royalty or a royalty tracker; a failed read leaves the
-        // block absent next to a ReadIssue named "royalty".
-        internal static Obs.PawnState Apply(Pawn pawn, Obs.PawnState row)
+        // A pawn's royalty facts on its pawn row: holdings per faction with
+        // each held permit's cooldown, the known psycasts and the caster's
+        // psyfocus and neural heat (combat casts hold on them). Inactive
+        // without Royalty; no tracker for a pawn the game gives none.
+        internal static Obs.PawnRoyaltyState State(Pawn pawn)
         {
-            if (!ModsConfig.RoyaltyActive || !pawn.IsFreeColonist || pawn.royalty == null) return row;
-            try { row = row with { Royalty = Pawn(pawn) }; }
-            catch (Exception ex)
-            {
-                row = row with { Issues = [.. row.Issues, new Obs.ReadIssue { Field = "royalty", Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic(ex.Message) } }] };
-            }
-            return row;
+            if (!ModsConfig.RoyaltyActive) return new Obs.PawnRoyaltyState.Inactive();
+            if (pawn.royalty == null) return new Obs.PawnRoyaltyState.NoTracker();
+            return new Obs.PawnRoyaltyState.Active(Pawn(pawn));
         }
-
         private static Obs.PawnRoyalty Pawn(Pawn pawn)
         {
             var royalty = pawn.royalty;

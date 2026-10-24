@@ -13,12 +13,12 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 public static class BiotechFactsRules
 {
     /// <summary>
-    /// Lifts a pawn row's Biotech block; unknown when the row carries none (no Biotech).
+    /// Lifts a pawn row's Biotech block; unknown when Biotech is inactive.
     /// A field a read issue names stays unknown.
     /// </summary>
-    public static Fact<PolicyPawnBiotech> PawnBiotech(RimGovernor.Contracts.Wire.Observations.PawnBiotech? biotech)
+    public static Fact<PolicyPawnBiotech> PawnBiotech(RimGovernor.Contracts.Wire.Observations.PawnBiotechState state)
     {
-        if (biotech is null)
+        if (state is not RimGovernor.Contracts.Wire.Observations.PawnBiotechState.Active { Facts: var biotech })
         {
             return Unknown<PolicyPawnBiotech>();
         }

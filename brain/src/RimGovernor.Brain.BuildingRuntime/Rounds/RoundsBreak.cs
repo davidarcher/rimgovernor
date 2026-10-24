@@ -110,7 +110,7 @@ public sealed partial class RoundsDefensePlanner
                 foreach (var order in orders)
                 {
                     var ok = fresh.Detail.TryGetValue(order.Pawn.Value, out var row);
-                    confirmed = confirmed && ok && row is not null && row.Job is not null && !row.Job.PlayerForced
+                    confirmed = confirmed && ok && row is not null && !row.Job.PlayerForced
                         && row.Job.QueuedJobs == 0;
                 }
                 if (confirmed)

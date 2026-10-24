@@ -135,7 +135,7 @@ partial class RoundsDefensePlanner
 
     internal static Fact<bool> ApparelWorn(O.PawnState? row)
     {
-        if (row is null || row.Equipment is null)
+        if (row is null)
         {
             return Unknown<bool>();
         }

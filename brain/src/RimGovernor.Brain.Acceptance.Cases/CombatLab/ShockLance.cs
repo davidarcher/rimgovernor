@@ -45,7 +45,7 @@ internal static class CombatLabShockLance
         var wearer = await CombatLabKit.PawnAsync(s, "wearer", user, cancellationToken).ConfigureAwait(false);
         // The staging adds the lance to the colonist's own clothes (only hostiles and prisoners are stripped): the one worn
         // lance by its load id, "Thing_" + defName + number.
-        var worn = wearer.Equipment?.Apparel.Select(a => a.Thing.Id).ToList() ?? [];
+        var worn = wearer.Equipment.Apparel.Select(a => a.Thing.Id).ToList();
         var lance = worn.Where(id => id.StartsWith("Thing_" + ShockLance, StringComparison.Ordinal)).ToList() is [{ } one] ? one
             : throw new AcceptanceException($"colonist 0: want one worn {ShockLance}, got [{string.Join(", ", worn)}]");
         s.Record("lance", lance);
@@ -70,7 +70,7 @@ internal static class CombatLabShockLance
                 throw new AcceptanceException("raider died; the lance must down it alive");
             }
 
-            var hediffs = p.Health?.Hediffs.Select(h => h.DefName).ToList() ?? [];
+            var hediffs = p.Health.Hediffs.Select(h => h.DefName).ToList();
             if (p.Downed && !hediffs.Contains("PsychicShock"))
             {
                 throw new AcceptanceException($"raider down without PsychicShock: [{string.Join(' ', hediffs)}]");

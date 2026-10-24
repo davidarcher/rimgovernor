@@ -51,15 +51,15 @@ namespace HomeBridge.BridgeTools
             return setting == null || setting.Minimum == ConstructionSkillSetting.None
                 || Capable(pawn, Math.Max(setting.Minimum, t.def.entityDefToBuild.constructionSkillPrerequisite));
         }
-        internal static bool? Capability(Pawn p)
+        internal static bool Capability(Pawn p)
         {
             if (p.Dead || p.Downed || !p.IsColonist || p.WorkTypeIsDisabled(WorkTypeDefOf.Construction)) return false;
             var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading
                 .Where(d => d.giverClass != null && typeof(WorkGiver_ConstructFinishFrames).IsAssignableFrom(d.giverClass))
                 .Select(d => d.Worker as WorkGiver_ConstructFinishFrames).FirstOrDefault(w => w != null);
-            return giver == null ? (bool?)null : giver.MissingRequiredCapacity(p) == null;
+            return (giver ?? throw new InvalidOperationException("WorkGiver_ConstructFinishFrames is missing from the game's work givers.")).MissingRequiredCapacity(p) == null;
         }
-        private static bool Capable(Pawn p, int minimum) => Capability(p) == true && p.skills?.GetSkill(SkillDefOf.Construction) is SkillRecord skill
+        private static bool Capable(Pawn p, int minimum) => Capability(p) && p.skills?.GetSkill(SkillDefOf.Construction) is SkillRecord skill
             && !skill.TotallyDisabled && skill.Level >= minimum;
         // Read is a blueprint's or frame's build state: its material deficits and remaining work, with the finishing
         // floor and tier this guard holds for it.

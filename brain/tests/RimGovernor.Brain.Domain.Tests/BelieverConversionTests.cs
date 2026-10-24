@@ -14,12 +14,12 @@ public sealed class BelieverConversionTests
 
     private static readonly GoalRecord Everyone = new() { Id = 4, Kind = GoalKind.Believers };
 
-    private static WorkPawn Colonist(string id, string ideo, Fact<double> certainty, Policy.PawnPolicyInputs? with = null, bool available = true, double age = 30) => new()
+    private static WorkPawn Colonist(string id, string ideo, double certainty, RimGovernor.Contracts.Wire.Defs.GuestStatus? guest = null, bool available = true, double age = 30) => new()
     {
         Id = new PawnId(id),
         Available = Known(available),
         Age = Known(age),
-        PolicyInputs = Known((with ?? new PawnPolicyInputs()) with { Ideo = ideo, IdeoCertainty = certainty }),
+        PolicyInputs = Known(PawnFixtures.Inputs(ideo, certainty, guest: guest)),
     };
 
     private static Fact<EquatableArray<WorkPawn>> Pawns(params WorkPawn[] rows) => Known(EquatableArray.From(rows));
@@ -32,12 +32,12 @@ public sealed class BelieverConversionTests
     private static IdeologyFacts Facts(Fact<Ideoligion> ideo, Fact<EquatableArray<WorkPawn>> pawns, params GoalRecord[] goals) =>
         new() { Installed = true, Roles = Known<EquatableArray<RoleAssignment>>([]), Conversion = ConversionRules.Owed(goals, ideo, pawns) };
 
-    private static readonly WorkPawn Believer = Colonist("guide", Ours, Known(0.9));
+    private static readonly WorkPawn Believer = Colonist("guide", Ours, 0.9);
 
     [Fact]
     public void TheLowestCertaintyNonBelieverIsConvertedNextByTheGuide()
     {
-        var facts = Facts(Ideo(Guide("guide")), Pawns(Believer, Colonist("b", "Ideo_other", Known(0.8)), Colonist("a", "Ideo_other", Known(0.3)), Colonist("c", "Ideo_other", default)), Everyone);
+        var facts = Facts(Ideo(Guide("guide")), Pawns(Believer, Colonist("b", "Ideo_other", 0.8), Colonist("a", "Ideo_other", 0.3)), Everyone);
         var family = new IdeologyFamily(rituals: false, reform: false);
 
         var need = Assert.Single(family.Derive(facts), n => n.Id.Kind == IdeologyFamily.ConvertKind);
@@ -57,10 +57,10 @@ public sealed class BelieverConversionTests
     public void NoNeedIsOwedOnceEveryColonistBelievesOrWithoutAGoal()
     {
         var family = new IdeologyFamily(rituals: false, reform: false);
-        var everyone = Facts(Ideo(Guide("guide")), Pawns(Believer, Colonist("a", Ours, Known(0.5))), Everyone);
+        var everyone = Facts(Ideo(Guide("guide")), Pawns(Believer, Colonist("a", Ours, 0.5)), Everyone);
         Assert.DoesNotContain(family.Derive(everyone), n => n.Id.Kind == IdeologyFamily.ConvertKind);
 
-        var noGoal = Facts(Ideo(Guide("guide")), Pawns(Believer, Colonist("a", "Ideo_other", Known(0.5))));
+        var noGoal = Facts(Ideo(Guide("guide")), Pawns(Believer, Colonist("a", "Ideo_other", 0.5)));
         Assert.DoesNotContain(family.Derive(noGoal), n => n.Id.Kind == IdeologyFamily.ConvertKind);
         Assert.False(new IdeologyFacts().Conversion.TryGetValue(out _));
         Assert.DoesNotContain(family.Derive(new IdeologyFacts()), n => n.Id.Kind == IdeologyFamily.ConvertKind);
@@ -71,24 +71,24 @@ public sealed class BelieverConversionTests
     {
         var pawns = Pawns(
             Believer,
-            Colonist("slave", "Ideo_other", Known(0.1), new PawnPolicyInputs { GuestStatus = RimGovernor.Contracts.Wire.Defs.GuestStatus.Slave }),
-            Colonist("baby", "Ideo_other", Known(0.1), age: 1),
-            Colonist("down", "Ideo_other", Known(0.1), available: false),
-            Colonist("ok", "Ideo_other", Known(0.9)));
+            Colonist("slave", "Ideo_other", 0.1, RimGovernor.Contracts.Wire.Defs.GuestStatus.Slave),
+            Colonist("baby", "Ideo_other", 0.1, age: 1),
+            Colonist("down", "Ideo_other", 0.1, available: false),
+            Colonist("ok", "Ideo_other", 0.9));
         var owed = ConversionRules.Owed([Everyone], Ideo(Guide("guide")), pawns);
         Assert.True(owed.TryGetValue(out var next));
         Assert.Equal(new PawnId("ok"), next.Target);
 
         // Two believers of three free colonists wanted: one more is lacking until the count is reached.
         var two = new GoalRecord { Id = 5, Kind = GoalKind.Believers, Count = 2 };
-        Assert.Equal(1, ConversionRules.Shortfall([two], Ideo(), Pawns(Believer, Colonist("x", "Ideo_other", Known(0.5)))).Value);
-        Assert.Equal(0, ConversionRules.Shortfall([two], Ideo(), Pawns(Believer, Colonist("x", Ours, Known(0.5)), Colonist("y", "Ideo_other", Known(0.5)))).Value);
+        Assert.Equal(1, ConversionRules.Shortfall([two], Ideo(), Pawns(Believer, Colonist("x", "Ideo_other", 0.5))).Value);
+        Assert.Equal(0, ConversionRules.Shortfall([two], Ideo(), Pawns(Believer, Colonist("x", Ours, 0.5), Colonist("y", "Ideo_other", 0.5))).Value);
     }
 
     [Fact]
     public void WithoutAGuideTheNeedWaitsOnTheRoleNeedAndHoldsItsMethod()
     {
-        var pawns = Pawns(Believer, Colonist("a", "Ideo_other", Known(0.3)));
+        var pawns = Pawns(Believer, Colonist("a", "Ideo_other", 0.3));
         var family = new IdeologyFamily(rituals: false, reform: false);
 
         // The ideoligion grants no Convert ability at all: nothing pursues the goal.
@@ -111,11 +111,11 @@ public sealed class BelieverConversionTests
     [Fact]
     public void TheGoalIsPursuedByTheConvertNeedAndMetOnceNoOneIsLacking()
     {
-        var pawns = Pawns(Believer, Colonist("a", "Ideo_other", Known(0.3)));
+        var pawns = Pawns(Believer, Colonist("a", "Ideo_other", 0.3));
         var pursued = GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), pawns));
         Assert.Equal((GoalState.Pursuing, "ideology/convert/a", 1.0), (pursued.State, pursued.Owner.Value, pursued.Deficit.Value));
 
-        var met = GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), Pawns(Believer, Colonist("a", Ours, Known(0.3)))));
+        var met = GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), Pawns(Believer, Colonist("a", Ours, 0.3))));
         Assert.Equal(GoalState.Met, met.State);
 
         // An unread pawn census raises rather than block the goal.
@@ -151,7 +151,7 @@ public sealed class BelieverConversionTests
     [Fact]
     public void TheDemandOfAnUnmetGoalReachesThePrisonerColony()
     {
-        var pawns = Pawns(Believer, Colonist("a", "Ideo_other", Known(0.3)));
+        var pawns = Pawns(Believer, Colonist("a", "Ideo_other", 0.3));
         Assert.True(GoalRules.DemandOf(GoalFacts(Ideo(Guide("guide")), pawns)).Believers);
         Assert.False(GoalRules.DemandOf(GoalFacts(Ideo(Guide("guide")), Pawns(Believer))).Believers);
 

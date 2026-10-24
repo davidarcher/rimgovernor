@@ -188,21 +188,16 @@ public static class RoundsMoodReads
                 Drafted = Known(r.Drafted),
                 Mental = Known(r.MentalState is not null),
             };
-            if (r.Job is { } job)
+            var n = r.Needs;
+            p = p with
             {
-                p = p with { PlayerForced = Known(job.PlayerForced) };
-            }
-            if (r.Needs is { } n)
-            {
-                p = p with
-                {
-                    Mood = ColonyDecodeReads.Optional(n.Mood is O.NeedLevel.Has, n.Mood is O.NeedLevel.Has mood ? mood.Level : 0),
-                    Threshold = Known(n.BreakThresholdMinor),
-                    Food = ColonyDecodeReads.Optional(n.Food is O.FoodNeed.Has, n.Food is O.FoodNeed.Has food ? food.Level : 0),
-                    Rest = ColonyDecodeReads.Optional(n.Rest is O.NeedLevel.Has, n.Rest is O.NeedLevel.Has rest ? rest.Level : 0),
-                    Joy = ColonyDecodeReads.Optional(n.Joy is O.NeedLevel.Has, n.Joy is O.NeedLevel.Has joy ? joy.Level : 0),
-                };
-            }
+                PlayerForced = Known(r.Job.PlayerForced),
+                Mood = ColonyDecodeReads.Optional(n.Mood is O.NeedLevel.Has, n.Mood is O.NeedLevel.Has mood ? mood.Level : 0),
+                Threshold = Known(n.BreakThresholdMinor),
+                Food = ColonyDecodeReads.Optional(n.Food is O.FoodNeed.Has, n.Food is O.FoodNeed.Has food ? food.Level : 0),
+                Rest = ColonyDecodeReads.Optional(n.Rest is O.NeedLevel.Has, n.Rest is O.NeedLevel.Has rest ? rest.Level : 0),
+                Joy = ColonyDecodeReads.Optional(n.Joy is O.NeedLevel.Has, n.Joy is O.NeedLevel.Has joy ? joy.Level : 0),
+            };
             if (forecasts.TryGetValue(pawn.Id.Value, out var f) && !ColonyDecodeReads.HasIssue(f.Issues, "mood_target"))
             {
                 p = p with { Target = ColonyDecodeReads.Optional(f.MoodTarget is not null, f.MoodTarget.GetValueOrDefault()) };
@@ -284,18 +279,12 @@ public static class RoundsMoodReads
             };
             if (byId.TryGetValue(m.Id.Value, out var r))
             {
-                if (r.Biography is { } b)
+                pawn = pawn with
                 {
-                    pawn = pawn with { Traits = Known<EquatableArray<string>>([.. b.Traits.Select(t => (t.DefName))]) };
-                }
-                if (r.Social is { } s)
-                {
-                    pawn = pawn with { Expectation = Known(s.ExpectationDefName) };
-                }
-                if (r.Settings is { } settings && PolicyInputs.PawnPolicyInputs(settings.PolicyInputs).TryGetValue(out var inputs))
-                {
-                    pawn = pawn with { Precepts = Known<EquatableArray<string>>([.. inputs.Precepts]) };
-                }
+                    Traits = Known<EquatableArray<string>>([.. r.Biography.Traits.Select(t => t.DefName)]),
+                    Expectation = Known(r.Social.ExpectationDefName),
+                    Precepts = Known<EquatableArray<string>>(r.Settings.PolicyInputs.Ideo is O.PawnIdeo.Member ideo ? [.. ideo.Precepts] : []),
+                };
             }
             pawns.Add(pawn);
         }
@@ -307,8 +296,7 @@ public static class RoundsMoodReads
     /// Compares independent same-tick censuses before deriving available armed capacity. Missing or contradictory
     /// pawn details must not recover a defense deficit. The second count is the living, conscious colonists able
     /// to fight who hold no weapon: military/defense stays unmet while any remain, so a loose starting club is
-    /// equipped (or a weapon crafted) for every one of them, not only the first two. A row without its biography
-    /// leaves it unknown.
+    /// equipped (or a weapon crafted) for every one of them, not only the first two.
     /// </summary>
     internal static (Fact<long> Armed, Fact<long> Unarmed) RoundsArmed(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns, CreepJoinerDownsides downsides)
     {
@@ -323,7 +311,6 @@ public static class RoundsMoodReads
             byId[row.Pawn.Id ?? ""] = row;
         }
         long armed = 0, unarmed = 0;
-        var unarmedKnown = true;
         foreach (var pawn in emergency.Colonists)
         {
             byId.TryGetValue(pawn.Id.Value, out var row);
@@ -337,10 +324,6 @@ public static class RoundsMoodReads
             {
                 continue;
             }
-            if (row.Equipment is null)
-            {
-                return (unknown, unknown);
-            }
             if (row.Equipment.Armed)
             {
                 armed++;
@@ -350,11 +333,6 @@ public static class RoundsMoodReads
             // counting it would hold military/defense unmet for good.
             if (downsides.ArmsHold(CreepJoinerFacts.CreepJoinerPawn(row)) != "")
             {
-                continue;
-            }
-            if (row.Biography is null)
-            {
-                unarmedKnown = false;
                 continue;
             }
             var violent = true;
@@ -367,7 +345,7 @@ public static class RoundsMoodReads
                 unarmed++;
             }
         }
-        return (Known(armed), unarmedKnown ? Known(unarmed) : unknown);
+        return (Known(armed), Known(unarmed));
     }
 
     /// <summary>
@@ -400,23 +378,17 @@ public static class RoundsMoodReads
             {
                 d = d with { Deathresting = bt.IsDeathresting() };
             }
-            if (row.Biography is { } bio)
+            var violent = true;
+            foreach (var tag in row.Biography.DisabledWorkTags)
             {
-                var violent = true;
-                foreach (var tag in bio.DisabledWorkTags)
-                {
-                    violent = violent && tag != "Violent";
-                }
-                d = d with { ViolenceCapable = Known(violent) };
+                violent = violent && tag != "Violent";
             }
-            if (row.Equipment is { } e)
+            var e = row.Equipment;
+            // Ranged DPS counts at the pawn's hit chance over the reference gunner's (#3845).
+            d = d with { ViolenceCapable = Known(violent), RangedDPS = ColonyDecodeReads.Optional(e.RangedDps is not null, e.RangedDps.GetValueOrDefault() * e.RangedHitFactor) };
+            if (e.MeleeDps is { } melee)
             {
-                // Ranged DPS counts at the pawn's hit chance over the reference gunner's (#3845).
-                d = d with { RangedDPS = ColonyDecodeReads.Optional(e.RangedDps is not null, e.RangedDps.GetValueOrDefault() * e.RangedHitFactor) };
-                if (e.MeleeDps is not null && row.Health is { } health)
-                {
-                    d = d with { MeleePower = Known(e.MeleeDps.GetValueOrDefault() * health.SummaryFraction) };
-                }
+                d = d with { MeleePower = Known(melee * row.Health.SummaryFraction) };
             }
             output.Add(d);
         }

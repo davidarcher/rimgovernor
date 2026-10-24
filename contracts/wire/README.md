@@ -11,24 +11,23 @@ editing the records: there is no code generation, no field numbering and no comp
 definitions remain open native identifiers, not enums of the current installed content.
 
 Field names below are written in snake_case for readability; the records use PascalCase properties
-and the JSON uses camelCase (`tend_reach_budget_ms` is `TendReachBudgetMs` / `tendReachBudgetMs`).
+and the JSON uses camelCase (`reach_budget_ms` is `ReachBudgetMs` / `reachBudgetMs`).
 
-`PawnDetails.work` requests only the work portion of `PawnSettings`, independently
-of full settings. `work_applies` distinguishes inapplicable pawns from unreadable
-work tables; `manual_work_priorities` distinguishes numbered and checkbox mode.
-`WorkSetting.priority` is native effective priority: 0–4 in numbered mode and
-0 or 3 in checkbox mode. Missing values remain unknown. Reads never initialize a
-work tracker or grant permission to change settings.
+A `PawnState` row is read whole: every section (needs, health, equipment, biography, settings, social,
+animal state, the DLC blocks) is present for every pawn, and the cases a section can lack are named
+states rather than absent members: `not_animal`, `inactive` for an absent DLC, `none` for no care
+policy, ideoligion or nearest colonist, `no_hostiles` for raid armor, `free` for a pawn that is not
+a guest. `PawnSettings.work_applies` distinguishes inapplicable pawns from unread work tables;
+`manual_work_priorities` distinguishes numbered and checkbox mode. `WorkSetting.priority` is native
+effective priority: 0–4 in numbered mode and 0 or 3 in checkbox mode. Reads never initialize a work
+tracker or grant permission to change settings.
 
-`PawnDetails.tend` requests `PawnState.tend_doctor`: the doctor-side gates the
-native tend order enforces -- pawn-control eligibility, WorkGiver_Tend's required
-capacities, the Doctor work type -- plus `reachable_pawn_ids`, this pawn's
-`CanReach(ClosestTouch, Deadly)` over the other rows of the same reply. Reachability
-is pairwise, so it runs under the request's `PawnDetails.tend_reach_budget_ms`
-(the brain sends `FacadeNativeClient.PawnsTendReachBudgetMs`); a doctor reached after it is spent carries
-`reach_skipped` and an empty list, which is unknown, not "reaches nobody". A producer that omits the block leaves the
-gates unknown and the brain proposes no doctor, rather than failing the read.
-
+Tend reachability is its own opt-in read, `TendDoctorsRequest` → `TendDoctorSnapshot`, keyed by pawn
+id: per requested pawn the doctor-side gates the native tend order enforces (pawn-control
+eligibility, drafter, spawned, WorkGiver_Tend's required capacities) plus `reach`, this pawn's
+`CanReach(ClosestTouch, Deadly)` over the other requested pawns. Reachability is pairwise, so it runs
+under the request's `reach_budget_ms` (the brain sends `FacadeNativeClient.PawnsTendReachBudgetMs`);
+a doctor reached after it is spent carries `reach_skipped`, which is unknown, not "reaches nobody".
 - [Validation](validation.md): shared presence, bounds and outcome requirements.
 - [Observations](observations.md), [operations/receipts](operations.md),
   [clock/lifecycle](clock-lifecycle.md), [placement](placement.md)

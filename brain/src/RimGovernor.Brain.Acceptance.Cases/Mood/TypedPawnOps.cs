@@ -64,7 +64,6 @@ internal static class TypedPawnOps
         {
             Scope = s.Scope,
             Filter = new Observations.PawnFilter { Ids = [pawnId], IncludeDead = true },
-            Details = new Observations.PawnDetails { Health = true },
         }, cancellationToken).ConfigureAwait(false);
         var rows = reply.Pawns.ToList();
         return rows switch

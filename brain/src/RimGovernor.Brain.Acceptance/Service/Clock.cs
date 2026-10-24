@@ -40,21 +40,14 @@ public static class ClockFixture
                 blocked.Add("downed");
             }
 
-            if (pawn.Health is not { } health)
+            if (pawn.Health.Bleeding)
             {
-                blocked.Add("health");
+                blocked.Add("bleeding");
             }
-            else
-            {
-                if (health.Bleeding)
-                {
-                    blocked.Add("bleeding");
-                }
 
-                if (health.NeedsTend)
-                {
-                    blocked.Add("needsTend");
-                }
+            if (pawn.Health.NeedsTend)
+            {
+                blocked.Add("needsTend");
             }
 
             if (blocked.Count > 0)

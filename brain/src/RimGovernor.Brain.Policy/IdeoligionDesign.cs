@@ -177,7 +177,7 @@ public static class IdeoligionDesignRules
             {
                 return Unknown<DesignNeeds>();
             }
-            if (inputs.Ideo != ideo.IdeoId)
+            if (inputs.Ideo is not PawnIdeo.Member { IdeoId: var believed } || believed != ideo.IdeoId)
             {
                 continue;
             }

@@ -71,7 +71,7 @@ public sealed class SkillHealthGoalTests
     [Fact]
     public void ALearnerWithoutAPassionIsAllowedTextbooks()
     {
-        var pawn = Pawn("trainee", 6, 18) with { PolicyInputs = Known(new PawnPolicyInputs { ReadingPolicy = "rp1" }) };
+        var pawn = Pawn("trainee", 6, 18) with { PolicyInputs = Known(PawnFixtures.Inputs(readingPolicyId: "rp1")) };
         OwnedName[] names = [new(pawn.Id, "Tess", 1)];
         ReadingPolicyEntry[] policies = [new() { Id = "rp1", Label = "Tess", Allowed = ["Novel"] }];
         Book[] books = [new("Novel", BookKind.Novel), new("Textbook", BookKind.Textbook)];

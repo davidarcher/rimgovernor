@@ -7,33 +7,21 @@ namespace RimGovernor.Brain.Bridge.Contracts;
 public static class CreepJoinerFacts
 {
     /// <summary>
-    /// Lifts a combat-detail pawn row into the downside check's facts. A row with no
-    /// Anomaly block is a game without Anomaly: no creepjoiner. A failed creepjoiner read stays unknown. The
-    /// hediffs are the visible ones, known only from a complete hediff read.
+    /// Lifts a pawn row into the downside check's facts. A row with inactive Anomaly is a game without Anomaly:
+    /// no creepjoiner. A failed creepjoiner read stays unknown. The hediffs are the visible ones.
     /// </summary>
     public static PolicyCreepJoinerPawn CreepJoinerPawn(PawnState row)
     {
         var result = new PolicyCreepJoinerPawn
         {
             CreepJoiner = Known<PolicyCreepJoiner?>(null),
-            Traits = Unknown<EquatableArray<string>>(),
-            Hediffs = Unknown<EquatableArray<string>>(),
+            Traits = Known(EquatableArray.From(row.Biography.Traits.Select(trait => trait.DefName))),
+            Hediffs = Known(EquatableArray.From(row.Health.Hediffs.Where(hediff => hediff.Visible).Select(hediff => hediff.DefName))),
         };
-        if (row.Anomaly is { } anomaly)
+        // The fact's known flag is discarded: an inactive anomaly reads as the zero value, no creepjoiner fact.
+        if (AnomalyFactsRules.PawnAnomaly(row.Anomaly).TryGetValue(out var lifted))
         {
-            // The fact's known flag is discarded: an unknown anomaly reads as the zero value, no creepjoiner fact.
-            if (AnomalyFactsRules.PawnAnomaly(anomaly).TryGetValue(out var lifted))
-            {
-                result = result with { CreepJoiner = lifted.CreepJoiner };
-            }
-        }
-        if (row.Biography is { } biography)
-        {
-            result = result with { Traits = Known(EquatableArray.From(biography.Traits.Select(trait => trait.DefName))) };
-        }
-        if (row.Health is { } health)
-        {
-            result = result with { Hediffs = Known(EquatableArray.From(health.Hediffs.Where(hediff => hediff.Visible).Select(hediff => hediff.DefName))) };
+            result = result with { CreepJoiner = lifted.CreepJoiner };
         }
         return result;
     }

@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>Reads live pawn positions and jobs for the arrival hold.</summary>
 public interface IArrivalPawns
 {
-    Task<PbObservations.PawnSnapshot> ReadCombatPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct);
+    Task<PbObservations.PawnSnapshot> ReadPawnsAsync(PbCommon.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct);
 }
 
 /// <summary>One completed move an undispatched action depends on.</summary>
@@ -84,7 +84,7 @@ public sealed partial class Worker
                     continue;
                 }
                 held.Add(waiting);
-                if (row.Drafted && (row.Job?.DefName ?? "") != "Goto" && resent.Add(move.Action.Id) && _config.Moves is not null)
+                if (row.Drafted && (row.Job.DefName ?? "") != "Goto" && resent.Add(move.Action.Id) && _config.Moves is not null)
                 {
                     await ResendMoveAsync(current, move, tick, ct).ConfigureAwait(false);
                 }
@@ -103,7 +103,7 @@ public sealed partial class Worker
         PbObservations.PawnSnapshot reply;
         try
         {
-            reply = await _config.Pawns.ReadCombatPawnsAsync(Boundary.Identity(current), ids, ct).ConfigureAwait(false);
+            reply = await _config.Pawns.ReadPawnsAsync(Boundary.Identity(current), ids, ct).ConfigureAwait(false);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

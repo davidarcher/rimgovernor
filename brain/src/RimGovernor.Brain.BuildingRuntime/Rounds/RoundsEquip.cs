@@ -41,31 +41,24 @@ internal static class EquipCandidates
                 }
             }
         }
-        if (row.RaidArmor is not null && !Boundary.IssueField(row.Issues, "raid_armor"))
+        if (row.RaidArmor is O.RaidArmor.Rated armor)
         {
-            facts = facts with { RaidArmor = Known(row.RaidArmor.GetValueOrDefault()) };
+            facts = facts with { RaidArmor = Known(armor.Mean) };
         }
         facts = facts with { Position = new Cell(row.Pawn.Position?.X ?? 0, row.Pawn.Position?.Z ?? 0) };
-        if (row.Biography is { } biography)
+        var capable = true;
+        foreach (var tag in row.Biography.DisabledWorkTags)
         {
-            var capable = true;
-            foreach (var tag in biography.DisabledWorkTags)
+            if (tag == "Shooting")
             {
-                if (tag == "Shooting")
-                {
-                    facts = facts with { ShootingDisabled = true };
-                }
-                if (tag == "Violent")
-                {
-                    capable = false;
-                }
+                facts = facts with { ShootingDisabled = true };
             }
-            facts = facts with { IncapableOfViolence = Known(!capable) };
+            if (tag == "Violent")
+            {
+                capable = false;
+            }
         }
-        if (row.Equipment is { } equipment)
-        {
-            facts = facts with { Armed = Known(equipment.Armed) };
-        }
+        facts = facts with { IncapableOfViolence = Known(!capable), Armed = Known(row.Equipment.Armed) };
         facts = facts with { NoArms = catalog.CreepJoinerDownsides().ArmsHold(CreepJoinerFacts.CreepJoinerPawn(row)) };
         return facts;
     }

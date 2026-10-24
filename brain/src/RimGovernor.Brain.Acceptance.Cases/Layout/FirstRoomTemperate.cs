@@ -101,9 +101,8 @@ internal static class FirstRoomReads
         {
             Scope = s.Scope,
             Filter = new() { Colonist = true },
-            Details = new Observations.PawnDetails { Settings = true, Work = true },
         }, cancellationToken).ConfigureAwait(false);
         var observed = reply;
-        return observed.Pawns.ToDictionary(p => p.Pawn.Id, p => p.Settings?.Body?.Hypothermia ?? 0, StringComparer.Ordinal);
+        return observed.Pawns.ToDictionary(p => p.Pawn.Id, p => p.Settings.Body.Hypothermia ?? 0, StringComparer.Ordinal);
     }
 }

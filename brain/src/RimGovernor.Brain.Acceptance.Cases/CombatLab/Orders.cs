@@ -97,8 +97,8 @@ internal static class CombatLabOrders
         void Check(int i, string job, bool forced, string? thing = null, Common.Cell? cell = null)
         {
             var p = Row(i);
-            if (CombatLabKit.Job(p) != job || p.Job?.PlayerForced != forced
-                || (thing is not null && CombatLabKit.JobThing(p) != thing) || (cell is not null && p.Job?.TargetACell != cell))
+            if (CombatLabKit.Job(p) != job || p.Job.PlayerForced != forced
+                || (thing is not null && CombatLabKit.JobThing(p) != thing) || (cell is not null && p.Job.TargetACell != cell))
             {
                 throw new AcceptanceException($"colonist {i}: want job {job} forced {forced} target {thing ?? CombatLabKit.Show(cell)}, got {p.Job}");
             }
@@ -108,7 +108,7 @@ internal static class CombatLabOrders
         Check(1, "Goto", true, cell: moveTo);
         Check(2, "AttackStatic", true, thing: hostiles[2]);
         Check(3, "Wait_Combat", true);
-        if (CombatLabKit.Job(Row(4)) == "Goto" || Row(4).Job?.PlayerForced == true)
+        if (CombatLabKit.Job(Row(4)) == "Goto" || Row(4).Job.PlayerForced)
         {
             throw new AcceptanceException($"colonist 4 still holds a forced move after stop: {Row(4).Job}");
         }

@@ -981,36 +981,36 @@ public sealed record TimetableSlot
 
 /// <summary>
 /// The pawn's age, skills, traits and work incapabilities. A pawn without a story or skill tracker (an animal)
-/// has no traits or skills, and its medicine skill is then unknown to the tend facts.
+/// has no traits or skills: both lists are empty.
 /// </summary>
 public sealed record PawnBiography
 {
-    public double BiologicalAgeYears { get; init; }
+    public required double BiologicalAgeYears { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Skill>))]
-    public EquatableArray<Skill> Skills { get; init; }
+    public required EquatableArray<Skill> Skills { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Trait>))]
-    public EquatableArray<Trait> Traits { get; init; }
+    public required EquatableArray<Trait> Traits { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> IncapableWorkTypes { get; init; }
+    public required EquatableArray<string> IncapableWorkTypes { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> DisabledWorkTags { get; init; }
+    public required EquatableArray<string> DisabledWorkTags { get; init; }
 
     /// <summary>
     /// Medical stats at each stored Medicine level (MedicalTendQuality, MedicalTendSpeed, MedicalOperationSpeed,
     /// MedicalSurgerySuccessChance) for a pawn with skills whose stat pipeline qualifies.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<SkillStatCurve>))]
-    public EquatableArray<SkillStatCurve> SkillStatCurves { get; init; }
+    public required EquatableArray<SkillStatCurve> SkillStatCurves { get; init; }
 
     /// <summary>
     /// "Stat: reason" for each of those stats that yields no curve.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> SkillStatFindings { get; init; }
+    public required EquatableArray<string> SkillStatFindings { get; init; }
 }
 
 /// <summary>
@@ -1048,68 +1048,71 @@ public sealed record PawnSocial
 }
 
 /// <summary>
-/// The requested settings families: care policy (medical care, self tend, hostility response) under
-/// PawnDetails.settings, work priorities with the allowed area, food restriction, policy inputs and body stats
-/// under PawnDetails.work, the 24 timetable slots under PawnDetails.schedule. A family's fields are absent when
-/// it was not requested; the care fields are absent too for a pawn without player settings, and the hostility
-/// response when it is not configurable.
+/// The pawn's player settings: its care policy, work priorities, allowed area, food restriction, policy inputs,
+/// body stats and the 24 timetable slots. Every member is read for every pawn.
 /// </summary>
 public sealed record PawnSettings
 {
-    public Operations.MedicalCare? MedicalCare { get; init; }
-
-    public bool? SelfTend { get; init; }
-
-    public Operations.HostilityResponse? HostilityResponse { get; init; }
+    /// <summary>The care policy PawnSettingsIntent writes; <see cref="PawnCare.None"/> for a pawn without player settings.</summary>
+    public required PawnCare Care { get; init; }
 
     /// <summary>
-    /// The current-map area restriction's load id; absent when the pawn is unrestricted.
+    /// The current-map area restriction's load id; null when the pawn is unrestricted or has no player settings.
     /// </summary>
-    public string? AllowedAreaId { get; init; }
+    public required string? AllowedAreaId { get; init; }
 
     /// <summary>
-    /// One row per work type; empty when the pawn never works or its work settings are uninitialized.
+    /// One row per work type WorkSettingsIntent writes; empty when the pawn never works or its work settings are
+    /// uninitialized. Hardening the work block waits on the work planner's Fact copy (#3787).
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<WorkSetting>))]
     public EquatableArray<WorkSetting> Work { get; init; }
-
-    /// <summary>
-    /// The 24 hourly slots, hour 0 first; empty for a pawn without a timetable.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<TimetableSlot>))]
-    public EquatableArray<TimetableSlot> Schedule { get; init; }
 
     public bool? WorkApplies { get; init; }
 
     public bool? ManualWorkPriorities { get; init; }
 
     /// <summary>
-    /// Whether the pawn eats under a food policy: it respects one, has a food need and is past babyhood. Read
-    /// with work detail.
+    /// The 24 hourly slots, hour 0 first; empty for a pawn without a timetable (an animal, another faction's pawn).
     /// </summary>
-    public bool? FoodPolicyRespected { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<TimetableSlot>))]
+    public required EquatableArray<TimetableSlot> Schedule { get; init; }
 
     /// <summary>
-    /// Per-pawn policy planner inputs, read with work detail.
+    /// Whether the pawn eats under a food policy: it respects one, has a food need and is past babyhood.
     /// </summary>
-    public PawnPolicyInputs? PolicyInputs { get; init; }
+    public required bool FoodPolicyRespected { get; init; }
 
-    /// <summary>
-    /// Body stats for outdoor dash planning and nearby hazard planners, read
-    /// with work detail.
-    /// </summary>
-    public PawnBodyStats? Body { get; init; }
+    /// <summary>Per-pawn policy planner inputs.</summary>
+    public required PawnPolicyInputs PolicyInputs { get; init; }
+
+    /// <summary>Body stats for outdoor dash planning and nearby hazard planners.</summary>
+    public required PawnBodyStats Body { get; init; }
 }
 
 /// <summary>
-/// The pawn's body stats the outdoor dash planner and nearby hazard planners
-/// read: native values at the read tick (the game's own stat and hediff
-/// evaluation, never derived in the brain). A scalar is absent when native could not
-/// read it (unknown, not zero). comfortable_min_c and comfortable_max_c are
-/// StatDefOf.ComfyTemperatureMin/Max (degrees C, apparel included);
-/// move_speed is StatDefOf.MoveSpeed in cells per second, with the current
-/// Moving capacity. cell_temperature_c is the temperature at the pawn's cell.
-/// hypothermia is a hediff severity, 0 when the pawn has none.
+/// A pawn's care policy: <see cref="Configured"/> from its player settings (the hostility response with whether the
+/// game lets the player configure it), or <see cref="None"/> for a pawn without player settings.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(PawnCare.Configured), "configured")]
+[JsonDerivedType(typeof(PawnCare.None), "none")]
+public abstract record PawnCare
+{
+    private protected PawnCare() { }
+
+    public sealed record Configured(Operations.MedicalCare MedicalCare, bool SelfTend, Operations.HostilityResponse HostilityResponse) : PawnCare;
+
+    public sealed record None : PawnCare;
+}
+
+/// <summary>
+/// The pawn's body stats the outdoor dash planner and nearby hazard planners read: native values at the read tick
+/// (the game's own stat and hediff evaluation, never derived in the brain). ComfortableMinC and ComfortableMaxC
+/// are StatDefOf.ComfyTemperatureMin/Max (degrees C, apparel included); MoveSpeed is StatDefOf.MoveSpeed in cells
+/// per second, with the current Moving capacity. CellTemperatureC is Thing.AmbientTemperature (the pawn's cell, or
+/// its holder's). Hypothermia is the highest Hypothermia hediff severity, 0 when the pawn has none. Native writes
+/// every scalar; making them required waits on the work planner's Fact copy (#3787).
 /// </summary>
 public sealed record PawnBodyStats
 {
@@ -1125,59 +1128,68 @@ public sealed record PawnBodyStats
 }
 
 /// <summary>
-/// The inputs per-pawn outfit/drug/food/reading planners compose from.
-/// Traits, mood and break thresholds (biography, needs) are observed elsewhere.
-/// Policy ids are Policy.GetUniqueLoadID(); absent when the pawn has no
-/// tracker for that policy kind. A field the pawn has no source for (no
-/// Royalty title, no ideoligion, not a guest) is absent or empty, never an
-/// issue.
+/// The inputs per-pawn outfit/drug/food/reading planners compose from. Traits, mood and break thresholds
+/// (biography, needs) are observed elsewhere. Policy ids are Policy.GetUniqueLoadID().
 /// </summary>
 public sealed record PawnPolicyInputs
 {
-    public string? ReadingPolicyId { get; init; }
+    /// <summary>The current reading policy's id; null for a pawn without a reading tracker.</summary>
+    public required string? ReadingPolicyId { get; init; }
 
     /// <summary>
-    /// Pawn_InventoryStockTracker entries (medicine carry): group def and
-    /// desired count.
+    /// Pawn_InventoryStockTracker entries (medicine carry): group def and desired count; empty for a pawn
+    /// without the tracker.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<InventoryStockSetting>))]
-    public EquatableArray<InventoryStockSetting> InventoryStock { get; init; }
+    public required EquatableArray<InventoryStockSetting> InventoryStock { get; init; }
 
-    /// <summary>
-    /// Ideo.GetUniqueLoadID(), the ideo's precept defNames (diet, apparel and
-    /// every other issue) and the pawn's Precept_Role defName.
-    /// </summary>
-    public string? IdeoId { get; init; }
+    /// <summary>The pawn's ideoligion; <see cref="PawnIdeo.None"/> without Ideology or without an ideoligion.</summary>
+    public required PawnIdeo Ideo { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Precepts { get; init; }
+    /// <summary>The pawn's guest status under its host faction; <see cref="GuestState.Free"/> for a pawn no faction hosts.</summary>
+    public required GuestState Guest { get; init; }
+}
 
-    public string? IdeoRole { get; init; }
+/// <summary>
+/// A pawn's ideoligion: <see cref="Member"/> with Ideo.GetUniqueLoadID(), the ideo's precept defNames (diet,
+/// apparel and every other issue, sorted and distinct), the pawn's Precept_Role defName (null without a role)
+/// and Pawn_IdeoTracker.Certainty (0..1); or <see cref="None"/>.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(PawnIdeo.Member), "member")]
+[JsonDerivedType(typeof(PawnIdeo.None), "none")]
+public abstract record PawnIdeo
+{
+    private protected PawnIdeo() { }
 
-    /// <summary>
-    /// GuestStatus (Guest, Prisoner, Slave); absent for a pawn that is no guest.
-    /// </summary>
-    public Defs.GuestStatus? GuestStatus { get; init; }
+    public sealed record Member(string IdeoId, [property: JsonConverter(typeof(EquatableArrayJsonConverter<string>))] EquatableArray<string> Precepts, string? Role, double Certainty) : PawnIdeo;
 
-    /// <summary>
-    /// StatDefOf.MedicalTendQuality of the pawn as a doctor, before vanilla's
-    /// 0.7 self-tend factor; absent for a pawn that cannot doctor.
-    /// </summary>
-    public double? MedicalTendQuality { get; init; }
+    public sealed record None : PawnIdeo;
+}
 
-    /// <summary>
-    /// Pawn_IdeoTracker.Certainty (0..1) in the pawn's ideoligion;
-    /// absent without an ideoligion.
-    /// </summary>
-    public double? IdeoCertainty { get; init; }
+/// <summary>
+/// A pawn's guest status: <see cref="Hosted"/> with its GuestStatus (Guest, Prisoner, Slave) while a faction hosts
+/// it, or <see cref="Free"/>.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(GuestState.Hosted), "hosted")]
+[JsonDerivedType(typeof(GuestState.Free), "free")]
+public abstract record GuestState
+{
+    private protected GuestState() { }
+
+    public sealed record Hosted(Defs.GuestStatus Status) : GuestState;
+
+    public sealed record Free : GuestState;
 }
 
 public sealed record InventoryStockSetting
 {
-    public string? Group { get; init; }
+    public required string Group { get; init; }
 
-    public int? Count { get; init; }
+    public required int Count { get; init; }
 }
+
 
 public sealed record TrainingEntry
 {
@@ -1310,90 +1322,84 @@ public sealed record AnimalState
     public EquatableArray<string> BondedPawnIds { get; init; }
 }
 
+/// <summary>
+/// One pawn's row: every section is read for every pawn. A section only some pawns have is a named state
+/// (<see cref="PawnAnimalState.NotAnimal"/>, a DLC's <c>Inactive</c>); a dead pawn's needs are all Lacks, its
+/// job tracker gone (no job) and its work never assigned.
+/// </summary>
 public sealed record PawnState
 {
-    public EntityRef Pawn { get; init; } = new();
+    public required EntityRef Pawn { get; init; }
 
-    public string KindDefName { get; init; } = "";
+    public required string KindDefName { get; init; }
 
-    public bool Colonist { get; init; }
+    public required bool Colonist { get; init; }
 
-    public bool FreeColonist { get; init; }
+    public required bool FreeColonist { get; init; }
 
-    public bool Prisoner { get; init; }
+    public required bool Prisoner { get; init; }
 
-    public bool Humanlike { get; init; }
+    public required bool Humanlike { get; init; }
 
-    public bool Animal { get; init; }
+    public required bool Animal { get; init; }
 
-    public bool Mechanoid { get; init; }
+    public required bool Mechanoid { get; init; }
 
-    public bool Dead { get; init; }
+    public required bool Dead { get; init; }
 
-    public bool Downed { get; init; }
+    public required bool Downed { get; init; }
 
-    public bool Drafted { get; init; }
+    public required bool Drafted { get; init; }
 
-    public bool Hostile { get; init; }
-
-    /// <summary>
-    /// The active mental state; absent when the pawn has none.
-    /// </summary>
-    public PawnMentalState? MentalState { get; init; }
-
-    public bool InBed { get; init; }
-
-    public Operations.PawnActivityExecution? ActivityExecution { get; init; }
-    public JobEvidence? Job { get; init; }
-
-    public PawnNeeds? Needs { get; init; }
-
-    public PawnHealth? Health { get; init; }
-
-    public PawnEquipment? Equipment { get; init; }
-
-    public PawnBiography? Biography { get; init; }
-
-    public PawnSettings? Settings { get; init; }
-
-    public PawnSocial? Social { get; init; }
-
-    public AnimalState? AnimalState { get; init; }
+    public required bool Hostile { get; init; }
 
     /// <summary>
-    /// Chebyshev distance to the nearest other live colonist on the map; absent when there is none.
+    /// The active mental state; null when the pawn is in none.
     /// </summary>
-    public double? NearestColonistDistance { get; init; }
+    public required PawnMentalState? MentalState { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
-    public EquatableArray<ReadIssue> Issues { get; init; }
+    public required bool InBed { get; init; }
+
+    /// <summary>The coupled order the pawn executes; null when it carries none.</summary>
+    public required Operations.PawnActivityExecution? ActivityExecution { get; init; }
+
+    public required JobEvidence Job { get; init; }
+
+    public required PawnNeeds Needs { get; init; }
+
+    public required PawnHealth Health { get; init; }
+
+    public required PawnEquipment Equipment { get; init; }
+
+    public required PawnBiography Biography { get; init; }
+
+    public required PawnSettings Settings { get; init; }
+
+    public required PawnSocial Social { get; init; }
+
+    public required PawnAnimalState AnimalState { get; init; }
 
     /// <summary>
-    /// Native draft claims were removed: drafts are plan-owned.
+    /// Chebyshev distance to the nearest other live colonist on the map.
     /// </summary>
-    public Common.Ref? OwnedBed { get; init; }
+    public required NearestColonist NearestColonist { get; init; }
+
+    /// <summary>The bed the pawn owns; null when it owns none.</summary>
+    public required Common.Ref? OwnedBed { get; init; }
 
     /// <summary>
-    /// Native lord evidence for hostile groups: the LordJob and current LordToil
-    /// class names (e.g. LordJob_AssaultColony / LordToil_AssaultColonySappers,
-    /// LordJob_Siege). Absent when the pawn has no lord; never inferred.
+    /// Native lord evidence for hostile groups: the LordJob and current LordToil class names (e.g.
+    /// LordJob_AssaultColony / LordToil_AssaultColonySappers, LordJob_Siege). Null when the pawn has no lord (or the
+    /// lord no current toil); never inferred.
     /// </summary>
-    public string? LordJobClass { get; init; }
+    public required string? LordJobClass { get; init; }
 
-    public string? LordToilClass { get; init; }
-
-    /// <summary>
-    /// Mean of each active spawned hostile's highest natural/worn sharp armor rating.
-    /// Equipment detail only; absent when there are no live, standing hostiles.
-    /// </summary>
-    public double? RaidArmor { get; init; }
+    public required string? LordToilClass { get; init; }
 
     /// <summary>
-    /// Doctor-side tend gates, mirroring NativeTendOperations.Prepare so the
-    /// controller never proposes a pair the native gate refuses. Present
-    /// only when PawnDetails.tend is requested.
+    /// Mean of each active spawned hostile's highest natural/worn sharp armor rating on the pawn's map.
     /// </summary>
-    public PawnTendDoctor? TendDoctor { get; init; }
+    public required RaidArmor RaidArmor { get; init; }
 
     /// <summary>
     /// Verse.IntVec3.Fogged: the pawn stands in fog the colony has not
@@ -1401,40 +1407,29 @@ public sealed record PawnState
     /// emergency -- the ancient-danger mechanoid behind a sealed wall held
     /// every window and deselected every development goal for good.
     /// </summary>
-    public bool Fogged { get; init; }
+    public required bool Fogged { get; init; }
 
     /// <summary>
-    /// Current InspirationDef defName: empty when the pawn has no
-    /// inspiration; absent from producers that do not read it (unknown).
+    /// The current InspirationDef defName; null when the pawn has no inspiration.
     /// </summary>
-    public string? Inspiration { get; init; }
+    public required string? Inspiration { get; init; }
 
     /// <summary>
-    /// The pawn control CAS token, on reads that admit a pawn order.
+    /// The pawn control CAS token; null when native admits no pawn order (the pawn is not spawned on the current
+    /// map, or its control state is not ready).
     /// </summary>
-    public SnapshotRef? PawnSnapshot { get; init; }
+    public required SnapshotRef? PawnSnapshot { get; init; }
+
+    public required PawnBiotechState Biotech { get; init; }
+
+    public required PawnAnomalyState Anomaly { get; init; }
+
+    public required PawnRoyaltyState Royalty { get; init; }
 
     /// <summary>
-    /// Biotech pawn facts; absent without Biotech, so absent is not
-    /// applicable, never a gene-less pawn.
+    /// The pawn's FactionDef; null without a faction.
     /// </summary>
-    public PawnBiotech? Biotech { get; init; }
-
-    /// <summary>
-    /// Anomaly facts; absent without Anomaly.
-    /// </summary>
-    public PawnAnomaly? Anomaly { get; init; }
-
-    /// <summary>
-    /// Royalty facts of a free colonist; absent without Royalty or on a pawn with no royalty tracker. A failed read is a ReadIssue named "royalty".
-    /// </summary>
-    public PawnRoyalty? Royalty { get; init; }
-
-    /// <summary>
-    /// Standing of a spawned humanlike pawn among the factions, colonist
-    /// or not; absent for animals and mechanoids.
-    /// </summary>
-    public PawnStanding? Standing { get; init; }
+    public required string? FactionDefName { get; init; }
 
     /// <summary>
     /// Alive, standing colony builder with native finishing work-type and required
@@ -1443,27 +1438,102 @@ public sealed record PawnState
     public bool? ConstructionCapable { get; init; }
 }
 
+/// <summary>An animal's facts, or <see cref="NotAnimal"/> for a pawn whose race is no animal.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(PawnAnimalState.Animal), "animal")]
+[JsonDerivedType(typeof(PawnAnimalState.NotAnimal), "not_animal")]
+public abstract record PawnAnimalState
+{
+    private protected PawnAnimalState() { }
+
+    public sealed record Animal(AnimalState State) : PawnAnimalState;
+
+    public sealed record NotAnimal : PawnAnimalState;
+}
+
+/// <summary>The Chebyshev distance to the nearest other live colonist on the map, or <see cref="None"/> when there is none.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(NearestColonist.At), "at")]
+[JsonDerivedType(typeof(NearestColonist.None), "none")]
+public abstract record NearestColonist
+{
+    private protected NearestColonist() { }
+
+    public sealed record At(double Distance) : NearestColonist;
+
+    public sealed record None : NearestColonist;
+}
+
+/// <summary>The hostile armor on the pawn's map, or <see cref="NoHostiles"/> when no live, standing hostile is spawned there.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(RaidArmor.Rated), "rated")]
+[JsonDerivedType(typeof(RaidArmor.NoHostiles), "no_hostiles")]
+public abstract record RaidArmor
+{
+    private protected RaidArmor() { }
+
+    public sealed record Rated(double Mean) : RaidArmor;
+
+    public sealed record NoHostiles : RaidArmor;
+}
+
+/// <summary>The pawn's Biotech facts, or <see cref="Inactive"/> without Biotech.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(PawnBiotechState.Active), "active")]
+[JsonDerivedType(typeof(PawnBiotechState.Inactive), "inactive")]
+public abstract record PawnBiotechState
+{
+    private protected PawnBiotechState() { }
+
+    public sealed record Active(PawnBiotech Facts) : PawnBiotechState;
+
+    public sealed record Inactive : PawnBiotechState;
+}
+
+/// <summary>The pawn's Anomaly facts, or <see cref="Inactive"/> without Anomaly.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(PawnAnomalyState.Active), "active")]
+[JsonDerivedType(typeof(PawnAnomalyState.Inactive), "inactive")]
+public abstract record PawnAnomalyState
+{
+    private protected PawnAnomalyState() { }
+
+    public sealed record Active(PawnAnomaly Facts) : PawnAnomalyState;
+
+    public sealed record Inactive : PawnAnomalyState;
+}
+
+/// <summary>
+/// The pawn's royalty facts, <see cref="Inactive"/> without Royalty, or <see cref="NoTracker"/> for a pawn the game
+/// gives no royalty tracker (a non-humanlike).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(PawnRoyaltyState.Active), "active")]
+[JsonDerivedType(typeof(PawnRoyaltyState.Inactive), "inactive")]
+[JsonDerivedType(typeof(PawnRoyaltyState.NoTracker), "no_tracker")]
+public abstract record PawnRoyaltyState
+{
+    private protected PawnRoyaltyState() { }
+
+    public sealed record Active(PawnRoyalty Facts) : PawnRoyaltyState;
+
+    public sealed record Inactive : PawnRoyaltyState;
+
+    public sealed record NoTracker : PawnRoyaltyState;
+}
+
 /// <summary>
 /// A pawn's active mental state: its MentalStateDef defName, MentalStateDef.IsAggro
 /// and MentalState.Age (native ticks, 30-tick granularity).
 /// </summary>
 public sealed record PawnMentalState
 {
-    public string DefName { get; init; } = "";
+    public required string DefName { get; init; }
 
-    public bool IsAggro { get; init; }
+    public required bool IsAggro { get; init; }
 
-    public int Ticks { get; init; }
+    public required int Ticks { get; init; }
 }
-
-/// <summary>
-/// Faction standing of one humanlike pawn: its FactionDef, absent without a faction.
-/// </summary>
-public sealed record PawnStanding
-{
-    public string? FactionDefName { get; init; }
-}
-
 
 /// <summary>
 /// Biotech facts of one pawn. Each scalar is absent when native could
@@ -1591,40 +1661,6 @@ public sealed record PawnBiotech
     public string? ExtractableReason { get; init; }
 }
 
-public sealed record PawnTendDoctor
-{
-    /// <summary>
-    /// NativePawnControlState eligibility: a drafter exists, the pawn is spawned,
-    /// alive, not downed, not in a mental state and player-controlled. This is
-    /// the gate whose native refusal reads "Tend requires an eligible doctor".
-    /// </summary>
-    public bool ControlEligible { get; init; }
-
-    public bool Spawned { get; init; }
-
-    public bool HasDrafter { get; init; }
-
-    /// <summary>
-    /// WorkGiver_Tend.MissingRequiredCapacity(pawn) == null.
-    /// </summary>
-    public bool CapacitiesOk { get; init; }
-
-    /// <summary>
-    /// Pawn IDs from this same reply this pawn can reach
-    /// (CanReach ClosestTouch, Danger.Deadly); self is excluded. The list is
-    /// exhaustive over the reply's other rows unless reach_skipped is set; an
-    /// unspawned or dead pawn reaches nothing.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> ReachablePawnIds { get; init; }
-
-    /// <summary>
-    /// PawnDetails.tend_reach_budget_ms ran out before this pawn's reachability
-    /// was read: reachable_pawn_ids is empty and unknown, not "reaches nothing".
-    /// </summary>
-    public bool ReachSkipped { get; init; }
-}
-
 public sealed record PawnFilter
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
@@ -1653,58 +1689,87 @@ public sealed record PawnFilter
     public double? WithinColonistDistance { get; init; }
 }
 
-public sealed record PawnDetails
-{
-    public bool? Needs { get; init; }
-
-    public bool? Health { get; init; }
-
-    public bool? Equipment { get; init; }
-
-    public bool? Biography { get; init; }
-
-    public bool? Settings { get; init; }
-
-    public bool? Social { get; init; }
-
-    public bool? Animals { get; init; }
-
-    public bool? Work { get; init; }
-
-    /// <summary>
-    /// schedule projects PawnSettings.schedule (the 24 TimetableSlot rows) on its own, independent of settings (care policy) and work (priorities).
-    /// </summary>
-    public bool? Schedule { get; init; }
-
-    /// <summary>
-    /// tend projects PawnState.tend_doctor: the native tend gates plus pairwise
-    /// reachability across the rows this query returns. Opt-in; reachability is
-    /// quadratic in the page (about 0.3 us a pair), so it runs under
-    /// tend_reach_budget_ms: doctors past it report PawnTendDoctor.reach_skipped.
-    /// </summary>
-    public bool? Tend { get; init; }
-
-    /// <summary>
-    /// Main-thread milliseconds the tend pair reachability may spend. Absent: read every pair.
-    /// </summary>
-    public uint? TendReachBudgetMs { get; init; }
-}
-
 public sealed record PawnSnapshot
 {
     public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PawnState>))]
-    public EquatableArray<PawnState> Pawns { get; init; }
+    public required EquatableArray<PawnState> Pawns { get; init; }
 }
 
+/// <summary>Every row carries every section; the filter only picks the pawns.</summary>
 public sealed record ListPawnsRequest
 {
     public ReadScope? Scope { get; init; }
 
     public PawnFilter? Filter { get; init; }
+}
 
-    public PawnDetails? Details { get; init; }
+/// <summary>
+/// The opt-in tend read: the doctor-side native gates of each named pawn and its reachability to every other named
+/// pawn (the candidate patients). Reachability is quadratic in the pawns (about 0.3 us a pair), so it runs under
+/// <see cref="ReachBudgetMs"/> main-thread milliseconds: a doctor reached after the budget is spent reports
+/// <see cref="TendReach.Skipped"/>, never a partial list.
+/// </summary>
+public sealed record TendDoctorsRequest
+{
+    public required ReadScope Scope { get; init; }
+
+    /// <summary>1..256 distinct pawn ids, dead pawns included; an id with no pawn on the map has no row.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public required EquatableArray<string> PawnIds { get; init; }
+
+    public required uint ReachBudgetMs { get; init; }
+}
+
+/// <summary>The tend table: one row per requested pawn on the map, keyed by its id, in id order.</summary>
+public sealed record TendDoctorSnapshot
+{
+    public required Common.ObservationContext Context { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<TendDoctor>))]
+    public required EquatableArray<TendDoctor> Doctors { get; init; }
+}
+
+/// <summary>
+/// One pawn's doctor-side tend gates, mirroring NativeTendOperations.Prepare so the controller never proposes a pair
+/// the native gate refuses.
+/// </summary>
+public sealed record TendDoctor
+{
+    public required string PawnId { get; init; }
+
+    /// <summary>
+    /// NativePawnControlState eligibility: a drafter exists, the pawn is spawned, alive, not downed, not in a mental
+    /// state and player-controlled. This is the gate whose native refusal reads "Tend requires an eligible doctor".
+    /// </summary>
+    public required bool ControlEligible { get; init; }
+
+    public required bool Spawned { get; init; }
+
+    public required bool HasDrafter { get; init; }
+
+    /// <summary>WorkGiver_Tend.MissingRequiredCapacity(pawn) == null.</summary>
+    public required bool CapacitiesOk { get; init; }
+
+    public required TendReach Reach { get; init; }
+}
+
+/// <summary>
+/// <see cref="Read"/>: the ids of the request's other pawns this pawn can reach (CanReach ClosestTouch,
+/// Danger.Deadly), exhaustive; an unspawned or dead pawn reaches nothing. <see cref="Skipped"/>: the reach budget ran
+/// out before this pawn was read.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(TendReach.Read), "read")]
+[JsonDerivedType(typeof(TendReach.Skipped), "reach_skipped")]
+public abstract record TendReach
+{
+    private protected TendReach() { }
+
+    public sealed record Read([property: JsonConverter(typeof(EquatableArrayJsonConverter<string>))] EquatableArray<string> PawnIds) : TendReach;
+
+    public sealed record Skipped : TendReach;
 }
 
 /// <summary>

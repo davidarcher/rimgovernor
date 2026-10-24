@@ -247,7 +247,7 @@ public static class RoundsContainmentReads
             if (bt.Mech.TryGetValue(out var mm) && mm is not null && row.Mechanoid)
             {
                 var mech = new MechInput { Id = id, Kind = row.KindDefName, Mech = mm, Cell = cell, Downed = row.Downed, Drafted = row.Drafted };
-                if (row.Job?.TargetA?.Target?.Entity is { } target)
+                if (row.Job.TargetA?.Target?.Entity is { } target)
                 {
                     mech = mech with { Target = new PawnId(target.Id ?? "") };
                 }
@@ -290,41 +290,36 @@ public static class RoundsContainmentReads
                 return unknown;
             }
             var p = new CarePawn { Id = pawn.Id, Dead = Known(dead) };
-            if (row.Settings is { } settings)
+            p = p with { Care = RoundsWorkReads.CareName(row.Settings.Care is O.PawnCare.Configured care ? care.MedicalCare : null) };
+            var h = row.Health;
+            var (_, operations) = SurgeryFactsRules.SurgeryFacts(h.Surgery, parts);
+            p = p with { Operations = operations, QueuedSurgeries = SurgeryFactsRules.QueuedSurgeries(h.Surgery) };
+            var recipes = SurgeryFactsRules.QueuedSurgeryRecipes(h.Surgery) ?? [];
+            p = p with { QueuedItems = SurgeryFactsRules.QueuedSurgeryItems(recipes, parts) };
+            var (conditions, lifeThreatening) = CareConditionsRules.CareConditions(h);
+            p = p with
             {
-                p = p with { Care = RoundsWorkReads.CareName(settings.MedicalCare) };
+                Conditions = conditions,
+                LifeThreatening = lifeThreatening,
+                NeedsRest = Known(h.ShouldSeekMedicalRest),
+                NeedsTend = Known(h.NeedsTend),
+            };
+            // The list is every hediff, so it proves bad conditions resolved; a hediff the catalog cannot
+            // classify leaves the answer unknown.
+            var bad = false;
+            var known = true;
+            foreach (var condition in h.Hediffs)
+            {
+                if (!catalog.HediffBad(condition.DefName).TryGetValue(out var isBad))
+                {
+                    known = false;
+                    break;
+                }
+                bad = bad || isBad;
             }
-            if (row.Health is { } h)
+            if (known)
             {
-                var (_, operations) = SurgeryFactsRules.SurgeryFacts(h.Surgery, parts);
-                p = p with { Operations = operations, QueuedSurgeries = SurgeryFactsRules.QueuedSurgeries(h.Surgery) };
-                var recipes = SurgeryFactsRules.QueuedSurgeryRecipes(h.Surgery) ?? [];
-                p = p with { QueuedItems = SurgeryFactsRules.QueuedSurgeryItems(recipes, parts) };
-                var (conditions, lifeThreatening) = CareConditionsRules.CareConditions(h);
-                p = p with
-                {
-                    Conditions = conditions,
-                    LifeThreatening = lifeThreatening,
-                    NeedsRest = Known(h.ShouldSeekMedicalRest),
-                    NeedsTend = Known(h.NeedsTend),
-                };
-                // The list is every hediff, so it proves bad conditions resolved; a hediff the catalog cannot
-                // classify leaves the answer unknown.
-                var bad = false;
-                var known = true;
-                foreach (var condition in h.Hediffs)
-                {
-                    if (!catalog.HediffBad(condition.DefName).TryGetValue(out var isBad))
-                    {
-                        known = false;
-                        break;
-                    }
-                    bad = bad || isBad;
-                }
-                if (known)
-                {
-                    p = p with { BadConditions = Known(bad) };
-                }
+                p = p with { BadConditions = Known(bad) };
             }
             rows.Add(p);
         }

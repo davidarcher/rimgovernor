@@ -115,7 +115,7 @@ internal static class CombatLabAnimals
         var areas = await CombatLabKit.AreasAsync(s, label + "-areas", cancellationToken).ConfigureAwait(false);
         s.RecordWireRows(label + "_areas", areas);
         var listing = areas.Where(a => a.Pawns.Any(p => p.Value == pup)).ToList();
-        var settings = (await CombatLabKit.PawnAsync(s, label + "-pup", pup, cancellationToken).ConfigureAwait(false)).Settings?.AllowedAreaId;
+        var settings = (await CombatLabKit.PawnAsync(s, label + "-pup", pup, cancellationToken).ConfigureAwait(false)).Settings.AllowedAreaId;
         if (listing.Count > 1 || listing.FirstOrDefault()?.Id != settings)
         {
             throw new AcceptanceException($"{label}: pup {pup} settings name area {settings ?? "<none>"}, the colony read lists it under [{string.Join(", ", listing.Select(a => a.Id))}]");

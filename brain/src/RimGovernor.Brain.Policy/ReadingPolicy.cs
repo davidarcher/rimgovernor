@@ -117,7 +117,7 @@ public static partial class ReadingPolicyRules
         {
             var ok = pawn.PolicyInputs.TryGetValue(out var inputs);
             var name = shortNames.GetValueOrDefault(pawn.Id) ?? "";
-            if (!ok || inputs!.ReadingPolicy.Length == 0 || name.Length == 0 || count.GetValueOrDefault(name.ToLowerInvariant()) != 1)
+            if (!ok || inputs!.ReadingPolicyId is null || name.Length == 0 || count.GetValueOrDefault(name.ToLowerInvariant()) != 1)
             {
                 continue;
             }
@@ -139,7 +139,7 @@ public static partial class ReadingPolicyRules
                 {
                     write = new ReadingPolicy(name, want);
                 }
-                if (own.Count == 0 || inputs.ReadingPolicy != own[0].Id)
+                if (own.Count == 0 || inputs!.ReadingPolicyId != own[0].Id)
                 {
                     assign = PawnSettings.NewReadingPolicySetting((Domain.PawnId)pawn.Id, name);
                 }

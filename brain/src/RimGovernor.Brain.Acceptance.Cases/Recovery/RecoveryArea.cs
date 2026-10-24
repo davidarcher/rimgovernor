@@ -66,12 +66,11 @@ internal static class RecoveryArea
                 {
                     Scope = s.Scope,
                     Filter = new Observations.PawnFilter { Ids = [prepared.Pawn] },
-                    Details = new Observations.PawnDetails { Work = true },
                 },
                 cancellationToken).ConfigureAwait(false);
             var rows = reply.Pawns.ToList();
             return rows is [{ } row] && row.Pawn.Id == prepared.Pawn
-                ? row.Settings?.AllowedAreaId
+                ? row.Settings.AllowedAreaId
                 : throw new AcceptanceException($"{label}: want one row for {prepared.Pawn}, got {rows.Count}");
         }
 

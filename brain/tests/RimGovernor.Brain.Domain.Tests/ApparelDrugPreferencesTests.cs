@@ -94,7 +94,7 @@ public sealed class ApparelDrugPreferencesTests
     };
 
     private static WorkPawn Pawn(string id, GuestStatus? status = null) =>
-        new() { Id = new(id), PolicyInputs = Known(new PawnPolicyInputs { GuestStatus = status }) };
+        new() { Id = new(id), PolicyInputs = Known(PawnFixtures.Inputs(guest: status)) };
 
     private static OwnedDrugPolicy Owned(IEnumerable<DrugPolicyEntry> entries, params string[] pawns) =>
         new(DrugPolicyPlanRules.Label, [.. pawns.Select(p => new PawnId(p))], [.. entries]);

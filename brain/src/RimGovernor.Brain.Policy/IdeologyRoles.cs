@@ -141,9 +141,9 @@ public static class IdeologyRolesRules
             if (row.Available.TryGetValue(out var available) && available
                 && row.PolicyInputs.TryGetValue(out var inputs)
                 && row.Skills.TryGetValue(out var skills)
-                && inputs.Ideo == ideo.Facts.IdeoId && inputs.IdeoRole == string.Empty)
+                && inputs.Ideo is PawnIdeo.Member { Role: null } member && member.IdeoId == ideo.Facts.IdeoId)
             {
-                inputs.IdeoCertainty.TryGetValue(out var certainty);
+                var certainty = member.Certainty;
                 HashSet<WorkType>? work = null;
                 var chosen = !selected.TryGetValue(out var committedWork) ? Unknown<EquatableArray<WorkType>>()
                     : committedWork.TryGetValue(row.Id, out var fact) ? fact : Known<EquatableArray<WorkType>>([]);

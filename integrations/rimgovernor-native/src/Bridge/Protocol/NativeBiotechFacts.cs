@@ -22,11 +22,13 @@ namespace HomeBridge.BridgeTools
         private static Obs.ReadIssue Failed(string field, Exception ex) => new Obs.ReadIssue { Field = field,
             Unavailable = new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = PlacementPreviewOperation.Diagnostic(ex.Message) } };
 
-        // The pawn row block; null without Biotech. A sub-read that throws
-        // leaves its fields absent and adds a ReadIssue named for it.
-        internal static Obs.PawnBiotech? Pawn(Pawn pawn)
+        // The pawn row block; inactive without Biotech.
+        internal static Obs.PawnBiotechState State(Pawn pawn) =>
+            ModsConfig.BiotechActive ? new Obs.PawnBiotechState.Active(Pawn(pawn)) : new Obs.PawnBiotechState.Inactive();
+
+        // A sub-read that throws leaves its fields absent and adds a ReadIssue named for it.
+        private static Obs.PawnBiotech Pawn(Pawn pawn)
         {
-            if (!ModsConfig.BiotechActive) return null;
             var row = new Obs.PawnBiotech();
             try { if (Id(pawn.ageTracker?.CurLifeStage?.defName) is string stage) row = row with { LifeStage = stage }; }
             catch (Exception ex) { row = row with { Issues = [.. row.Issues, Failed("life_stage", ex)] }; }

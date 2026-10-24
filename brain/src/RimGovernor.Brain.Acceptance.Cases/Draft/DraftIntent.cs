@@ -33,7 +33,7 @@ internal static class DraftIntent
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var pawn = await TypedPawns.FirstColonistAsync(s, "initial", null, cancellationToken).ConfigureAwait(false);
+        var pawn = await TypedPawns.FirstColonistAsync(s, "initial", cancellationToken).ConfigureAwait(false);
         var id = pawn.Pawn.Id;
         if (pawn.Drafted)
         {
@@ -69,7 +69,7 @@ internal static class DraftIntent
 
     private static async Task ExpectDraftedAsync(TypedSession s, string label, string id, bool drafted, CancellationToken cancellationToken)
     {
-        var row = await TypedPawns.OneAsync(s, label, id, null, cancellationToken).ConfigureAwait(false);
+        var row = await TypedPawns.OneAsync(s, label, id, cancellationToken).ConfigureAwait(false);
         if (row.Drafted != drafted)
         {
             throw new AcceptanceException($"{label}: {id} reads drafted={row.Drafted}, want {drafted}");

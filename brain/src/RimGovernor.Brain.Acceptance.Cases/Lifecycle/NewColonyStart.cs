@@ -114,7 +114,6 @@ internal static class NewColonyStart
             {
                 Scope = TypedReads.Scope(identity),
                 Filter = new Observations.PawnFilter { Colonist = true },
-                Details = new Observations.PawnDetails { Biography = true },
             },
             cancellationToken).ConfigureAwait(false);
         return [.. reply.Pawns];
@@ -130,7 +129,7 @@ internal static class NewColonyStart
             throw new AcceptanceException($"trait-pawns: want 1 colonist, got {pawns.Count}");
         }
 
-        var traits = pawn.Biography?.Traits.Select(t => t.DefName).ToList() ?? [];
+        var traits = pawn.Biography.Traits.Select(t => t.DefName).ToList();
         s.Record("traits", Strings(traits));
         return traits.Contains(trait, StringComparer.Ordinal)
             ? traits

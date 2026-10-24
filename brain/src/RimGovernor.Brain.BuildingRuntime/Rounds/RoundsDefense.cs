@@ -762,17 +762,17 @@ partial class RoundsDefensePlanner
             Downed = Fact.Known(row.Downed),
             Humanlike = Known(row.Humanlike),
         };
-        if (row.LordJobClass is not null && !Boundary.IssueField(row.Issues, "lord_job_class"))
+        if (row.LordJobClass is { } lordJob)
         {
-            facts = facts with { LordJobClass = Known((row.LordJobClass ?? "")) };
+            facts = facts with { LordJobClass = Known(lordJob) };
         }
-        if (row.LordToilClass is not null && !Boundary.IssueField(row.Issues, "lord_toil_class"))
+        if (row.LordToilClass is { } lordToil)
         {
-            facts = facts with { LordToilClass = Known((row.LordToilClass ?? "")) };
+            facts = facts with { LordToilClass = Known(lordToil) };
         }
-        if (row.NearestColonistDistance is { } distance)
+        if (row.NearestColonist is O.NearestColonist.At nearest)
         {
-            facts = facts with { NearestColonistDistance = Known(distance) };
+            facts = facts with { NearestColonistDistance = Known(nearest.Distance) };
         }
         if (row.Pawn.Position is { } position)
         {

@@ -32,11 +32,13 @@ namespace HomeBridge.BridgeTools
             return state;
         }
 
-        // The pawn row block; null without Anomaly. A sub-read that throws
-        // leaves its block absent and adds a ReadIssue.
-        internal static Obs.PawnAnomaly? Pawn(Pawn pawn)
+        // The pawn row block; inactive without Anomaly.
+        internal static Obs.PawnAnomalyState State(Pawn pawn) =>
+            ModsConfig.AnomalyActive ? new Obs.PawnAnomalyState.Active(Pawn(pawn)) : new Obs.PawnAnomalyState.Inactive();
+
+        // A sub-read that throws leaves its block absent and adds a ReadIssue.
+        private static Obs.PawnAnomaly Pawn(Pawn pawn)
         {
-            if (!ModsConfig.AnomalyActive) return null;
             var row = new Obs.PawnAnomaly();
             try
             {

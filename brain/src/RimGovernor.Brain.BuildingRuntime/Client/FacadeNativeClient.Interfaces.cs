@@ -124,8 +124,8 @@ public sealed partial class FacadeNativeClient :
 
     // ---- Pawn reads of the boundary, haul and break paths ---------------------------------------------------
 
-    Task<O.PawnSnapshot> IArrivalPawns.ReadCombatPawnsAsync(C.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct) =>
-        ReadCombatPawnsAsync(identity, pawnIds, ct);
+    Task<O.PawnSnapshot> IArrivalPawns.ReadPawnsAsync(C.Identity identity, IReadOnlyList<string> pawnIds, CancellationToken ct) =>
+        ReadPawnsAsync(identity, pawnIds, ct);
 
 
     Task<EmergencyObservation> IBoundaryNative.ReadEmergencyAsync(C.Identity identity, CancellationToken ct) =>

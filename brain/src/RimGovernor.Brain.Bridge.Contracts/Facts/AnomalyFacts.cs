@@ -32,12 +32,12 @@ public static class AnomalyFactsRules
     };
 
     /// <summary>
-    /// Lifts a pawn row's Anomaly block; unknown when the row carries none (no Anomaly).
+    /// Lifts a pawn row's Anomaly block; unknown when Anomaly is inactive.
     /// A block a read issue names stays unknown.
     /// </summary>
-    public static Fact<PolicyPawnAnomaly> PawnAnomaly(RimGovernor.Contracts.Wire.Observations.PawnAnomaly? anomaly)
+    public static Fact<PolicyPawnAnomaly> PawnAnomaly(RimGovernor.Contracts.Wire.Observations.PawnAnomalyState state)
     {
-        if (anomaly is null)
+        if (state is not RimGovernor.Contracts.Wire.Observations.PawnAnomalyState.Active { Facts: var anomaly })
         {
             return Unknown<PolicyPawnAnomaly>();
         }

@@ -20,7 +20,8 @@ public sealed class NativeOpsTests
         foreach (var op in NativeOps.All.Where(op => op.OnFacade))
         {
             // A request with a required member does not read from an empty body.
-            var body = ReferenceEquals(op, NativeOps.ReadDefinitionCatalog) ? """{"scope":{}}""" : "{}";
+            var body = ReferenceEquals(op, NativeOps.ReadDefinitionCatalog) ? """{"scope":{}}"""
+                : ReferenceEquals(op, NativeOps.ReadTendDoctors) ? """{"scope":{},"pawnIds":[],"reachBudgetMs":0}""" : "{}";
             _ = op.InvokeJsonAsync(facade, body, CancellationToken.None);
         }
 

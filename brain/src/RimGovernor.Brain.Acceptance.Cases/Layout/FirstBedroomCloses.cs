@@ -140,7 +140,6 @@ internal static class LayoutFirstBedroomCloses
             {
                 Scope = s.Scope,
                 Filter = new Observations.PawnFilter { Colonist = true },
-                Details = new Observations.PawnDetails { Health = true },
             }, ct).ConfigureAwait(false);
             owned = pawns.Pawns
                 .ToDictionary(p => p.Pawn.Id, p => p.OwnedBed?.Id ?? "", StringComparer.Ordinal);

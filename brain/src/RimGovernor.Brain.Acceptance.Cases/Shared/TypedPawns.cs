@@ -9,25 +9,25 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <summary>The typed pawn reads and the one-action apply a <see cref="TypedCase"/> takes on a pawn.</summary>
 internal static class TypedPawns
 {
-    /// <summary>The observations_list_pawns rows <paramref name="filter"/> selects, with <paramref name="details"/>.</summary>
+    /// <summary>The observations_list_pawns rows <paramref name="filter"/> selects, each whole.</summary>
     internal static async Task<IReadOnlyList<Observations.PawnState>> ListAsync(
-        TypedSession s, string label, Observations.PawnFilter? filter, Observations.PawnDetails? details, CancellationToken cancellationToken)
+        TypedSession s, string label, Observations.PawnFilter? filter, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = s.Scope, Filter = filter, Details = details }, cancellationToken).ConfigureAwait(false);
+        var reply = await s.CallAsync(label, NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = s.Scope, Filter = filter }, cancellationToken).ConfigureAwait(false);
         return [.. reply.Pawns];
     }
 
     /// <summary>The one row of pawn <paramref name="id"/>; a missing row fails <paramref name="label"/>.</summary>
-    internal static async Task<Observations.PawnState> OneAsync(TypedSession s, string label, string id, Observations.PawnDetails? details, CancellationToken cancellationToken)
+    internal static async Task<Observations.PawnState> OneAsync(TypedSession s, string label, string id, CancellationToken cancellationToken)
     {
-        var rows = await ListAsync(s, label, new Observations.PawnFilter { Ids = [id] }, details, cancellationToken).ConfigureAwait(false);
+        var rows = await ListAsync(s, label, new Observations.PawnFilter { Ids = [id] }, cancellationToken).ConfigureAwait(false);
         return rows.FirstOrDefault(p => p.Pawn.Id == id) ?? throw new AcceptanceException($"{label}: pawn {id} not read");
     }
 
     /// <summary>The first free, standing colonist by id.</summary>
-    internal static async Task<Observations.PawnState> FirstColonistAsync(TypedSession s, string label, Observations.PawnDetails? details, CancellationToken cancellationToken)
+    internal static async Task<Observations.PawnState> FirstColonistAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var rows = await ListAsync(s, label, new Observations.PawnFilter { Colonist = true, Downed = false }, details, cancellationToken).ConfigureAwait(false);
+        var rows = await ListAsync(s, label, new Observations.PawnFilter { Colonist = true, Downed = false }, cancellationToken).ConfigureAwait(false);
         return rows.OrderBy(p => p.Pawn.Id, StringComparer.Ordinal).FirstOrDefault() ?? throw new AcceptanceException($"{label}: no standing colonist");
     }
 

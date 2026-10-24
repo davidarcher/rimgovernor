@@ -96,5 +96,5 @@ internal static class CombatLabStrip
 
     // The ids of the pawn's worn apparel.
     private static async Task<List<string>> WornAsync(TypedSession s, string label, string id, CancellationToken cancellationToken) =>
-        [.. (await CombatLabKit.PawnAsync(s, label, id, cancellationToken).ConfigureAwait(false)).Equipment?.Apparel.Select(a => a.Thing.Id ?? "") ?? []];
+        [.. (await CombatLabKit.PawnAsync(s, label, id, cancellationToken).ConfigureAwait(false)).Equipment.Apparel.Select(a => a.Thing.Id ?? "")];
 }

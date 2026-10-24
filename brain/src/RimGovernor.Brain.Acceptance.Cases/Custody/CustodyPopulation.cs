@@ -150,14 +150,14 @@ internal static class CustodyPopulation
         // Absence is pending, never successful custody; the tick budget still
         // fails a patient that does not reappear with the required outcome.
         var rows = await TypedPawns.ListAsync(s, "custody-" + pawn,
-            new Observations.PawnFilter { Ids = [pawn] }, null, ct).ConfigureAwait(false);
+            new Observations.PawnFilter { Ids = [pawn] }, ct).ConfigureAwait(false);
         var row = rows.FirstOrDefault(p => p.Pawn.Id == pawn);
         if (row is null) return ("patient unobserved; awaiting spawned custody outcome", false);
         return ($"{row.Prisoner} {row.InBed} {row.Downed}", done(row));
     };
 
     private static Task<Observations.PawnState> PawnAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
-        TypedPawns.OneAsync(s, label, pawn, null, cancellationToken);
+        TypedPawns.OneAsync(s, label, pawn, cancellationToken);
 
     /// <summary>The population census row of <paramref name="pawn"/>.</summary>
     private static async Task<Observations.PopulationPerson> PersonAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken)

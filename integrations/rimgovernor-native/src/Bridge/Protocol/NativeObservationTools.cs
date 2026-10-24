@@ -222,39 +222,6 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        internal static Obs.PawnState PawnRow(Pawn pawn, Common.ObservationContext context)
-        {
-            var row = new Obs.PawnState { Pawn=Entity(pawn), KindDefName=Identifier(pawn.kindDef?.defName), Dead=pawn.Dead, Downed=pawn.Downed,
-                Drafted=pawn.drafter?.Drafted == true, InBed=RestUtility.InBed(pawn), Colonist=pawn.IsColonist, FreeColonist=pawn.IsFreeColonist,
-                Prisoner=pawn.IsPrisoner, Humanlike=pawn.RaceProps.Humanlike, Animal=pawn.RaceProps.Animal, Mechanoid=pawn.RaceProps.IsMechanoid };
-            var player=Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
-            var manhunter=pawn.MentalStateDef?.defName.IndexOf("Manhunter",StringComparison.OrdinalIgnoreCase)>=0;
-            row = row with {
-                Hostile = manhunter || pawn.Faction!=null && pawn.Faction!=player && pawn.Faction.HostileTo(player) };
-            var constructionCapable = ConstructionSkillGuard.Capability(pawn);
-            if (constructionCapable.HasValue) row = row with { ConstructionCapable = constructionCapable.Value };
-                        // Fog is the discovery fact, not a guess at reachability: a hostile
-            // the colony has never seen is no emergency.
-            row = row with { Fogged = pawn.Spawned && pawn.Map != null && pawn.Position.Fogged(pawn.Map) };
-            var mental = pawn.MentalState;
-            if (mental != null) row = row with { MentalState = new Obs.PawnMentalState { DefName = Identifier(mental.def.defName), IsAggro = mental.def.IsAggro, Ticks = mental.Age } };
-            // Inspiration: empty is a known "none"; a pawn without a
-            // mind state handler leaves the field absent (unknown).
-            if (pawn.mindState?.inspirationHandler != null)
-                row = row with { Inspiration = pawn.mindState.inspirationHandler.CurStateDef?.defName ?? "" };
-            // Lord evidence is the game's own group-AI class names: a raid's job
-            // (assault/siege/stage-then-attack) and its current toil (the sapper
-            // and breach toils are distinct classes). No lord means no field.
-            var lord = pawn.GetLord();
-            if (lord?.LordJob != null) { row = row with { LordJobClass = Identifier(lord.LordJob.GetType().Name) }; if (lord.CurLordToil != null) row = row with { LordToilClass = Identifier(lord.CurLordToil.GetType().Name) }; }
-            // A pawn without a job tracker (a corpse's) carries no job block.
-            if (pawn.jobs?.jobQueue != null) row = row with { Job = JobRow(pawn.CurJob, pawn.jobs.jobQueue.Count, NativePawnActivities.Standing(pawn)) };
-            row = row with { Biotech = NativeBiotechFacts.Pawn(pawn) };
-            row = row with { Anomaly = NativeAnomalyFacts.Pawn(pawn) };
-            row = NativePawnRoyalty.Apply(pawn, row);
-            row = NativePawnControlObservation.Apply(pawn, row, context);
-            return row;
-        }
         private static Obs.EntityRef Entity(Thing thing)
         {
             var row = new Obs.EntityRef { Id=Identifier(thing.GetUniqueLoadID()), DefName=Identifier(thing.def.defName), Label=Diagnostic(thing.LabelCap) };

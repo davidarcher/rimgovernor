@@ -585,7 +585,7 @@ internal static class NativeConstructionActivity
         {
             if (!Free(pawn) || !site.Eligible(pawn)) continue;
             if (legs.Cost(pawn, pawn.Position, To(pawn.Position), PathEndMode.Touch) is not { } siteRoute) continue;
-            var finish = finishGiver != null && ConstructionSkillGuard.Capability(pawn) == true && site.Finishes(pawn)
+            var finish = finishGiver != null && ConstructionSkillGuard.Capability(pawn) && site.Finishes(pawn)
                 && (pawn.skills?.GetSkill(SkillDefOf.Construction).Level ?? 0) >= site.Definition.constructionSkillPrerequisite;
             var factor = 1.7 * (site.Stuff?.GetStatValueAbstract(StatDefOf.ConstructionSpeedFactor) ?? 1f);
             // Only a finisher reads ConstructionSpeed: a hauling-only pawn (Construction disabled) has the stat disabled.

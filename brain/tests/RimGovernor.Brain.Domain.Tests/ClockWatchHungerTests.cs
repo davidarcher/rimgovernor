@@ -19,11 +19,9 @@ public sealed class ClockWatchHungerTests
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
     private static readonly C.Identity Identity = new() { ColonyId = "colony", MapId = 1, LoadToken = "load" };
 
-    private static O.PawnState Colonist(string id, Defs.HungerCategory? hunger) => new()
+    private static O.PawnState Colonist(string id, Defs.HungerCategory? hunger) => PawnFixtures.Row(id) with
     {
-        Pawn = new() { Id = id }, Dead = false, Downed = false, InBed = false,
-        Health = new() { Bleeding = false, NeedsTend = false },
-        Needs = hunger is { } h ? PawnNeedsTests.NoNeeds with { Food = new O.FoodNeed.Has(0.1, h) } : null,
+        Needs = hunger is { } h ? PawnNeedsTests.NoNeeds with { Food = new O.FoodNeed.Has(0.1, h) } : PawnNeedsTests.NoNeeds,
     };
 
     private static EmergencySnapshot Census(params O.PawnState[] rows)

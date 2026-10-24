@@ -460,16 +460,14 @@ partial class RoundsDefensePlanner
         s = s with { Kind = row.KindDefName };
         var (mech, insect) = catalog.RaceFlags(row.Pawn.DefName ?? "");
         s = s with { Mech = mech, Insect = insect };
-        if (row.Health is { } h)
+        var h = row.Health;
+        s = s with { BloodLoss = Known(h.BloodLoss), BleedRatePerDay = Known(h.BleedRatePerDay) };
+        if (h.HoursUntilDeathFromBloodLoss is not null)
         {
-            s = s with { BloodLoss = Known(h.BloodLoss), BleedRatePerDay = Known(h.BleedRatePerDay) };
-            if (h.HoursUntilDeathFromBloodLoss is not null)
-            {
-                s = s with { HoursUntilBleedDeath = Known(h.HoursUntilDeathFromBloodLoss.GetValueOrDefault()) };
-            }
+            s = s with { HoursUntilBleedDeath = Known(h.HoursUntilDeathFromBloodLoss.GetValueOrDefault()) };
         }
         var toil = row.LordToilClass ?? "";
-        s = s with { Sapper = toil.Contains("Sapper", StringComparison.Ordinal) || toil.Contains("Breach", StringComparison.Ordinal) || (row.Job?.DefName ?? "") == "Mine" };
+        s = s with { Sapper = toil.Contains("Sapper", StringComparison.Ordinal) || toil.Contains("Breach", StringComparison.Ordinal) || (row.Job.DefName ?? "") == "Mine" };
         return s;
     }
 

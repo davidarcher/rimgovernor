@@ -241,7 +241,7 @@ namespace HomeBridge.BridgeTools
         }
 
         // Planning census, not simulated damage: natural armor or strongest worn layer.
-        internal static double? RaidArmor(Map map)
+        internal static Obs.RaidArmor RaidArmor(Map map)
         {
             var hostiles = map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && !p.Downed && p.HostileTo(Faction.OfPlayer));
             var total = 0.0;
@@ -250,7 +250,7 @@ namespace HomeBridge.BridgeTools
                 total += PawnArmor(hostile);
                 count++;
             }
-            return count == 0 ? (double?)null : Number(total / count);
+            return count == 0 ? new Obs.RaidArmor.NoHostiles() : new Obs.RaidArmor.Rated(Number(total / count));
         }
 
         // One pawn's sharp armor: natural armor or its strongest worn layer.

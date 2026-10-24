@@ -183,8 +183,9 @@ public sealed class MedicalRounds
         {
             var eligible = EmergencyPatientsRules.EmergencyTendPatients(emergency).ToHashSet();
             var ids = workers.Union(eligible).Select(pawn => pawn.Value).Order(StringComparer.Ordinal).ToList();
-            var reply = await _tend.ReadTendPawnsAsync(identity, ids, ct).ConfigureAwait(false);
+            var reply = await _tend.ReadPawnsAsync(identity, ids, ct).ConfigureAwait(false);
             var observed = PawnRows(reply, world, ids, "tend");
+            var tend = TendRows(await _tend.ReadTendDoctorsAsync(identity, ids, ct).ConfigureAwait(false), world, ids);
             var threatened = TendRules.ThreatenedPatients(emergency);
             var doctors = new List<TendDoctorFacts>();
             var tendPatients = new List<TendPatientFacts>();
@@ -193,20 +194,20 @@ public sealed class MedicalRounds
                 var pawn = new PawnId(row.Pawn.Id ?? "");
                 if (workers.Contains(pawn))
                 {
-                    doctors.Add(TendFacts.NewTendDoctorFacts(pawn, row));
+                    doctors.Add(TendFacts.NewTendDoctorFacts(pawn, row, tend[pawn.Value]));
                 }
                 if (eligible.Contains(pawn))
                 {
                     tendPatients.Add(TendFacts.NewTendPatientFacts(pawn, row) with { Threatened = threatened.Contains(pawn) });
                 }
             }
-            care = care with { Doctors = doctors, TendPatients = tendPatients, Reach = TendFacts.TendReachabilityOf(observed.Pawns) };
+            care = care with { Doctors = doctors, TendPatients = tendPatients, Reach = TendFacts.TendReachabilityOf(tend.Values) };
         }
         if (_rescue is not null)
         {
             var eligible = EmergencyPatientsRules.EmergencyRescuePatients(emergency).ToHashSet();
             var ids = workers.Union(eligible).Select(pawn => pawn.Value).Order(StringComparer.Ordinal).ToList();
-            var reply = await _rescue.ReadCombatPawnsAsync(identity, ids, ct).ConfigureAwait(false);
+            var reply = await _rescue.ReadPawnsAsync(identity, ids, ct).ConfigureAwait(false);
             var observed = PawnRows(reply, world, ids, "rescue");
             var rescuers = new List<RescuerFacts>();
             var rescuePatients = new List<RescuePatientFacts>();
@@ -251,6 +252,32 @@ public sealed class MedicalRounds
             }
         }
         return observed;
+    }
+
+    /// <summary>The tend table of a care read, checked: in the world, one row per requested pawn and no other.</summary>
+    private static Dictionary<string, O.TendDoctor> TendRows(O.TendDoctorSnapshot observed, GenerationSnapshot world, List<string> ids)
+    {
+        try
+        {
+            Boundary.Context(observed.Context, world);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            throw new ControlException("medical read: tend table context", e);
+        }
+        var rows = new Dictionary<string, O.TendDoctor>(StringComparer.Ordinal);
+        foreach (var row in observed.Doctors)
+        {
+            if (!ids.Contains(row.PawnId) || !rows.TryAdd(row.PawnId, row))
+            {
+                throw new ControlException("medical read: unrequested or duplicate tend row");
+            }
+        }
+        if (rows.Count != ids.Count)
+        {
+            throw new ControlException("medical read: tend row count differs from the request");
+        }
+        return rows;
     }
 
     /// <summary>The doctors, rescuers and patients the critical Needs' open tends and rescues hold.</summary>

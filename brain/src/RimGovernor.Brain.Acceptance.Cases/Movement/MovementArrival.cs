@@ -54,9 +54,9 @@ internal static class MovementArrival
 
         var moving = await TypedApply.PawnAsync(s, "moving", pawnId, cancellationToken).ConfigureAwait(false);
         s.RecordWire("moving", moving.Job);
-        if (moving.Job?.DefName != "Goto")
+        if (moving.Job.DefName != "Goto")
         {
-            throw new AcceptanceException($"moving: pawn job is \"{moving.Job?.DefName}\", not Goto");
+            throw new AcceptanceException($"moving: pawn job is \"{moving.Job.DefName}\", not Goto");
         }
 
         Common.Cell? at = null;

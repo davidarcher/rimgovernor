@@ -12,11 +12,10 @@ public static class RoyaltyFactsRules
     /// <summary>
     /// Reads each colonist's own royalty facts (the pawn row's royalty block; the
     /// ladder and permits are def rows, the neuroformers, ceremonies and thrones the colony section). A colonist
-    /// with neither a holding nor a psycast is not listed. A row whose royalty read failed (ReadIssue "royalty")
-    /// throws: royalty stays unknown rather than read as empty. <paramref name="psycast"/> is the catalog's psycast
-    /// row for a def name (<c>DefinitionCatalog.Psycast</c>).
+    /// without royalty, or with neither a holding nor a psycast, is not listed. <paramref name="psycast"/> is the
+    /// catalog's psycast row for a def name (<c>DefinitionCatalog.Psycast</c>).
     /// </summary>
-    /// <exception cref="BridgeContractException">There are no pawn rows, or a row's royalty is unread.</exception>
+    /// <exception cref="BridgeContractException">There are no pawn rows.</exception>
     public static PolicyRoyaltyFacts PawnRoyaltyFacts(PawnSnapshot? pawns, Func<string, PolicyPsycast> psycast)
     {
         if (pawns is null)
@@ -29,12 +28,7 @@ public static class RoyaltyFactsRules
         foreach (var pawn in pawns.Pawns)
         {
             var id = pawn.Pawn.Id ?? "";
-            if (FactHelpers.IssueNames(pawn.Issues, "royalty"))
-            {
-                throw BridgeContractException.Contract($"royalty of pawn {id} unread");
-            }
-            var row = pawn.Royalty;
-            if (row is null || (row.Holdings.Count == 0 && row.Psycasts.Count == 0))
+            if (pawn.Royalty is not PawnRoyaltyState.Active { Facts: var row } || (row.Holdings.Count == 0 && row.Psycasts.Count == 0))
             {
                 continue;
             }

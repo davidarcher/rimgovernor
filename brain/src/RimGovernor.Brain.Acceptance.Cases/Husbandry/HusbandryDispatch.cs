@@ -46,10 +46,11 @@ internal static class HusbandryDispatch
 
         async Task<Observations.AnimalState> AnimalAsync(string label, string id)
         {
-            var request = new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [id] }, Details = new Observations.PawnDetails { Animals = true } };
+            var request = new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [id] } };
             var reply = await s.CallAsync(label, NativeOps.ListPawns, request, cancellationToken).ConfigureAwait(false);
-            return reply.Pawns.FirstOrDefault(p => p.Pawn?.Id == id)?.AnimalState
-                ?? throw new AcceptanceException($"{label}: animal {id} has no animal details");
+            return reply.Pawns.FirstOrDefault(p => p.Pawn?.Id == id)?.AnimalState is Observations.PawnAnimalState.Animal animal
+                ? animal.State
+                : throw new AcceptanceException($"{label}: animal {id} is not read as an animal");
         }
 
         async Task<Operations.ActionResultOutcome?> ApplyAsync(string key, Operations.HusbandryIntent intent)

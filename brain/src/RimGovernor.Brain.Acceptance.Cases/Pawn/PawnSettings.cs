@@ -12,8 +12,6 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// </summary>
 internal static class PawnSettings
 {
-    private static readonly Observations.PawnDetails SettingsDetails = new() { Settings = true, Work = true };
-
     private sealed record Row(string Name, string Scope, Func<TypedSession, CancellationToken, Task> Run);
 
     private static readonly Row[] Rows =
@@ -72,13 +70,17 @@ internal static class PawnSettings
     }
 
     private static Task<Observations.PawnState> ReadAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken) =>
-        TypedPawns.OneAsync(s, label, pawn, SettingsDetails, cancellationToken);
+        TypedPawns.OneAsync(s, label, pawn, cancellationToken);
+
+    /// <summary>The pawn's configured care policy; a colonist always has one.</summary>
+    private static Observations.PawnCare.Configured Care(Observations.PawnState pawn) =>
+        pawn.Settings.Care as Observations.PawnCare.Configured ?? throw new AcceptanceException($"{pawn.Pawn.Id} reads no care policy");
 
     private static async Task HostilityAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var pawn = await TypedPawns.FirstColonistAsync(s, "colonist", SettingsDetails, cancellationToken).ConfigureAwait(false);
+        var pawn = await TypedPawns.FirstColonistAsync(s, "colonist", cancellationToken).ConfigureAwait(false);
         var id = pawn.Pawn.Id;
-        if (pawn.Settings?.HostilityResponse == Operations.HostilityResponse.Flee)
+        if (Care(pawn).HostilityResponse == Operations.HostilityResponse.Flee)
         {
             throw new AcceptanceException($"{id} already flees: the write would prove nothing");
         }
@@ -86,10 +88,11 @@ internal static class PawnSettings
         var flee = new Operations.PawnSettingsIntentSetting.HostilityResponseCase(Operations.HostilityResponse.Flee);
         _ = await ApplyAsync(s, "flee", id, flee, cancellationToken).ConfigureAwait(false);
         var read = await ReadAsync(s, "flee-readback", id, cancellationToken).ConfigureAwait(false);
-        s.RecordWire("hostility", read.Settings?.HostilityResponse);
-        if (read.Settings?.HostilityResponse != Operations.HostilityResponse.Flee)
+        var hostility = Care(read).HostilityResponse;
+        s.RecordWire("hostility", hostility);
+        if (hostility != Operations.HostilityResponse.Flee)
         {
-            throw new AcceptanceException($"{id} reads hostility {read.Settings?.HostilityResponse}, want Flee");
+            throw new AcceptanceException($"{id} reads hostility {hostility}, want Flee");
         }
 
         await ExpectUnchangedAsync(s, "flee-again", id, flee, cancellationToken).ConfigureAwait(false);
@@ -97,9 +100,9 @@ internal static class PawnSettings
 
     private static async Task SelfTendAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var colonists = await TypedPawns.ListAsync(s, "colonists", new Observations.PawnFilter { Colonist = true, Downed = false }, SettingsDetails, cancellationToken).ConfigureAwait(false);
+        var colonists = await TypedPawns.ListAsync(s, "colonists", new Observations.PawnFilter { Colonist = true, Downed = false }, cancellationToken).ConfigureAwait(false);
         var doctor = colonists.OrderBy(p => p.Pawn.Id, StringComparer.Ordinal)
-            .FirstOrDefault(p => p.Settings?.Work.Any(w => w.DefName == "Doctor" && !w.Disabled) == true)
+            .FirstOrDefault(p => p.Settings.Work.Any(w => w.DefName == "Doctor" && !w.Disabled))
             ?? throw new AcceptanceException("no doctor-capable colonist");
         var id = doctor.Pawn.Id;
         foreach (var on in new[] { false, true })
@@ -107,19 +110,9 @@ internal static class PawnSettings
             var key = on ? "self-tend-on" : "self-tend-off";
             _ = await ApplyAsync(s, key, id, new Operations.PawnSettingsIntentSetting.SelfTendCase(on), cancellationToken).ConfigureAwait(false);
             var read = await ReadAsync(s, key + "-readback", id, cancellationToken).ConfigureAwait(false);
-            if (read.Settings?.SelfTend != on)
+            if (Care(read).SelfTend != on)
             {
-                throw new AcceptanceException($"{key}: {id} reads self-tend {read.Settings?.SelfTend}");
-            }
-
-            if (on)
-            {
-                var quality = read.Settings?.PolicyInputs?.MedicalTendQuality;
-                s.Record("tend_quality", quality);
-                if (quality is null)
-                {
-                    throw new AcceptanceException($"doctor-capable {id} read no medical tend quality");
-                }
+                throw new AcceptanceException($"{key}: {id} reads self-tend {Care(read).SelfTend}");
             }
         }
     }
@@ -127,12 +120,12 @@ internal static class PawnSettings
     private static async Task MedicineCarryAsync(TypedSession s, CancellationToken cancellationToken)
     {
         const int Count = 2;
-        var pawn = await TypedPawns.FirstColonistAsync(s, "colonist", SettingsDetails, cancellationToken).ConfigureAwait(false);
+        var pawn = await TypedPawns.FirstColonistAsync(s, "colonist", cancellationToken).ConfigureAwait(false);
         var id = pawn.Pawn.Id;
         var carry = new Operations.PawnSettingsIntentSetting.MedicineCarryCase(Count);
         _ = await ApplyAsync(s, "medicine-carry", id, carry, cancellationToken).ConfigureAwait(false);
         var read = await ReadAsync(s, "medicine-carry-readback", id, cancellationToken).ConfigureAwait(false);
-        var stock = read.Settings?.PolicyInputs?.InventoryStock.FirstOrDefault(i => i.Group == "Medicine");
+        var stock = read.Settings.PolicyInputs.InventoryStock.FirstOrDefault(i => i.Group == "Medicine");
         s.RecordWire("medicine_stock", stock);
         if (stock?.Count != Count)
         {
@@ -151,7 +144,7 @@ internal static class PawnSettings
             return population.OwnedNames.Where(n => n.PawnId is not null).ToDictionary(n => n.PawnId!, n => n.ShortName ?? "", StringComparer.Ordinal);
         }
 
-        var pawn = await TypedPawns.FirstColonistAsync(s, "colonist", null, cancellationToken).ConfigureAwait(false);
+        var pawn = await TypedPawns.FirstColonistAsync(s, "colonist", cancellationToken).ConfigureAwait(false);
         var id = pawn.Pawn.Id;
         var before = await NamesAsync("names-before").ConfigureAwait(false);
         var old = before.GetValueOrDefault(id) ?? throw new AcceptanceException($"{id} has no owned name");

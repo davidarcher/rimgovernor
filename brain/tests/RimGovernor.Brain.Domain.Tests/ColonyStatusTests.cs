@@ -66,7 +66,7 @@ public sealed class ColonyStatusTests
     }
 
     private static PawnState Colonist(string id, bool dead = false) =>
-        new() { Pawn = new EntityRef { Id = id, Label = id }, Dead = dead, Downed = false };
+        PawnFixtures.Row(id) with { Dead = dead };
 
     [Fact]
     public async Task EmptyRosterReportsNoColonistsWithoutFailing()

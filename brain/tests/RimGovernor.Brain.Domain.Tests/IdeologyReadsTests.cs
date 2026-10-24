@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.BuildingRuntime;
 using IdeoDevelopment = RimGovernor.Brain.Policy.IdeoDevelopment;
-using PawnPolicyInputs = RimGovernor.Brain.Policy.PawnPolicyInputs;
 using WorkPawn = RimGovernor.Brain.Policy.WorkPawn;
 using RimWorld;
 using Verse;
@@ -57,18 +56,17 @@ public sealed class IdeologyReadsTests
         var ideo = IdeologyDecoder.Decode(new Obs.IdeologySnapshot { IdeoId = "Ideo_1", Believers = 3 }, Catalog());
         var pawns = Known(EquatableArray.From(new[]
         {
-            Pawn("a", "Ideo_1", Known(0.8)),
-            Pawn("b", "Ideo_2", Known(0.5)),
-            Pawn("c", "Ideo_1", Known(0.25)),
-            Pawn("d", "Ideo_1", default),
+            Pawn("a", "Ideo_1", 0.8),
+            Pawn("b", "Ideo_2", 0.5),
+            Pawn("c", "Ideo_1", 0.25),
+            Pawn("d", "Ideo_1", 0),
         }));
 
         Assert.True(ideo.BelieverList(pawns).TryGetValue(out var believers));
 
         Assert.Equal(["a", "c", "d"], believers.Select(b => b.Id.Value));
-        Assert.True(believers[0].Certainty.TryGetValue(out var first));
-        Assert.Equal(0.8, first);
-        Assert.False(believers[2].Certainty.TryGetValue(out _));
+        Assert.Equal(0.8, believers[0].Certainty);
+        Assert.Equal(0, believers[2].Certainty);
     }
 
     [Fact]
@@ -123,11 +121,11 @@ public sealed class IdeologyReadsTests
         Assert.True(DefinitionCatalog.UnlocksUnvaluedPrecept(shrine, precepts));
     }
 
-    private static WorkPawn Pawn(string id, string ideo, Fact<double> certainty) =>
+    private static WorkPawn Pawn(string id, string ideo, double certainty) =>
         new()
         {
             Id = new PawnId(id),
-            PolicyInputs = Known(new PawnPolicyInputs { Ideo = ideo, IdeoCertainty = certainty }),
+            PolicyInputs = Known(PawnFixtures.Inputs(ideo, certainty)),
         };
 
     private static DefinitionCatalog Catalog()

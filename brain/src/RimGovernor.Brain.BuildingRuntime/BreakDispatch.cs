@@ -112,7 +112,7 @@ public sealed partial class Worker
         var positions = new Dictionary<string, Fact<Cell>>(StringComparer.Ordinal);
         if (aggressive.Count > 0)
         {
-            var reply = await _config.BreakSource.ReadCombatPawnsAsync(Boundary.Identity(current), ids, ct).ConfigureAwait(false);
+            var reply = await _config.BreakSource.ReadPawnsAsync(Boundary.Identity(current), ids, ct).ConfigureAwait(false);
             var observed = reply;
             if (observed.Pawns.Count != ids.Count)
             {

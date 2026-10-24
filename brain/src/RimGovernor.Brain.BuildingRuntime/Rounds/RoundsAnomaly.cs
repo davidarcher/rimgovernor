@@ -18,7 +18,7 @@ partial class AnomalyRounds
                 continue;
             }
 
-            foreach (var item in row.Equipment?.Apparel ?? [])
+            foreach (var item in row.Equipment.Apparel)
             {
                 if (PopulationRules.LanceDefs.ContainsKey(new Resource(RoundsGear.GearDef(things, item.Thing))) && (item.Thing?.Id ?? "") != "")
                 {
@@ -127,7 +127,7 @@ public sealed partial class AnomalyRounds
             return false;
         }
 
-        var reply = await _native.ReadCombatPawnsAsync(identity, ids, call).ConfigureAwait(false);
+        var reply = await _native.ReadPawnsAsync(identity, ids, call).ConfigureAwait(false);
         var observed = reply;
         try
         {

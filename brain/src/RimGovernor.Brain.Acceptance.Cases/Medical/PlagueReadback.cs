@@ -36,12 +36,12 @@ internal static class PlagueReadback
             throw new AcceptanceException($"plague-prepare: want two patients, got {ServedOps.Json(setup)}");
         }
 
-        var rows = await TypedPawns.ListAsync(s, "plague-readback", new Observations.PawnFilter { Ids = [.. setup.Patients] }, new Observations.PawnDetails { Health = true }, cancellationToken).ConfigureAwait(false);
+        var rows = await TypedPawns.ListAsync(s, "plague-readback", new Observations.PawnFilter { Ids = [.. setup.Patients] }, cancellationToken).ConfigureAwait(false);
         var problems = new List<string>();
         for (var index = 0; index < 2; index++)
         {
             var id = setup.Patients[index];
-            var plague = rows.SingleOrDefault(r => r.Pawn.Id == id)?.Health?.Hediffs.SingleOrDefault(h => h.DefName == "Plague");
+            var plague = rows.SingleOrDefault(r => r.Pawn.Id == id)?.Health.Hediffs.SingleOrDefault(h => h.DefName == "Plague");
             if (plague is null)
             {
                 problems.Add($"{id}: no single Plague condition read");

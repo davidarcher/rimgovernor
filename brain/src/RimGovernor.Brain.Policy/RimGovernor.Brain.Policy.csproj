@@ -31,5 +31,9 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations.RoomDoor" Alias="RoomDoor" />
     <!-- The native clearance census floor rows (#3774). -->
     <Using Include="RimGovernor.Contracts.Wire.Observations.ClearanceFloor" Alias="ClearanceFloor" />
+    <!-- The native pawn table's policy inputs (#3768). -->
+    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnPolicyInputs" Alias="PawnPolicyInputs" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnIdeo" Alias="PawnIdeo" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.GuestState" Alias="GuestState" />
   </ItemGroup>
 </Project>

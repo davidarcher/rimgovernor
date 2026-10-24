@@ -168,24 +168,16 @@ partial class Armament
         {
             facts = facts with { Deathresting = bt.IsDeathresting() };
         }
-        if (row.Job is { } job)
+        return facts with
         {
-            facts = facts with { PlayerForced = Fact.Known(job.PlayerForced), QueuedJobs = Fact.Known(job.QueuedJobs) };
-        }
-        if (row.Health is { } health)
-        {
-            facts = facts with { NeedsTend = Fact.Known(health.NeedsTend), HealthFraction = Fact.Known(health.SummaryFraction) };
-        }
-        if (row.Biography is { } biography)
-        {
-            var capable = !biography.DisabledWorkTags.Contains("Violent");
-            facts = facts with { ViolenceCapable = Fact.Known(capable) };
-        }
-        facts = facts with { RangedEquipped = ranged, MeleeEquipped = MeleeCapable(row.Equipment) };
-        if (row.Equipment is { } equipment)
-        {
-            facts = facts with { Armed = Fact.Known(equipment.Armed) };
-        }
-        return facts;
+            PlayerForced = Fact.Known(row.Job.PlayerForced),
+            QueuedJobs = Fact.Known(row.Job.QueuedJobs),
+            NeedsTend = Fact.Known(row.Health.NeedsTend),
+            HealthFraction = Fact.Known(row.Health.SummaryFraction),
+            ViolenceCapable = Fact.Known(!row.Biography.DisabledWorkTags.Contains("Violent")),
+            RangedEquipped = ranged,
+            MeleeEquipped = MeleeCapable(row.Equipment),
+            Armed = Fact.Known(row.Equipment.Armed),
+        };
     }
 }

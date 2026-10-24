@@ -73,24 +73,23 @@ namespace HomeBridge.BridgeTools
                 FoodEaters = [.. eaters],
             };
         }
-        internal static Obs.PawnPolicyInputs Inputs(Pawn pawn)
-        {
-            var row = new Obs.PawnPolicyInputs();
-            if (pawn.reading?.CurrentPolicy is ReadingPolicy reading) row = row with { ReadingPolicyId = Id(reading.GetUniqueLoadID()) };
-            if (pawn.inventoryStock?.stockEntries is Dictionary<InventoryStockGroupDef, InventoryStockEntry> stock)
-                foreach (var entry in stock.OrderBy(e => e.Key.defName, StringComparer.Ordinal))
-                    row = row with { InventoryStock = [.. row.InventoryStock, new Obs.InventoryStockSetting { Group = Id(entry.Key.defName), Count = entry.Value.count }] };
-            if (ModsConfig.IdeologyActive && pawn.Ideo is Ideo ideo) {
-                row = row with { IdeoId = Id(ideo.GetUniqueLoadID()) };
-                if (pawn.ideo != null) row = row with { IdeoCertainty = Number(pawn.ideo.Certainty) };
-                row = row with { Precepts = [.. row.Precepts, .. ideo.PreceptsListForReading.Select(p => Id(p.def.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal)] };
-                if (ideo.GetRole(pawn) is Precept_Role role) row = row with { IdeoRole = Id(role.def.defName) };
-            }
-            if (pawn.guest is Pawn_GuestTracker guest && pawn.HostFaction != null)
-                row = row with { GuestStatus = (RimGovernor.Contracts.Wire.Defs.GuestStatus)(int)guest.GuestStatus };
-            if (!pawn.WorkTypeIsDisabled(WorkTypeDefOf.Doctor))
-                row = row with { MedicalTendQuality = Number(pawn.GetStatValue(StatDefOf.MedicalTendQuality)) };
-            return row;
-        }
+        // The per-pawn policy planner inputs, read for every pawn: a pawn
+        // without a tracker has none of its inputs.
+        internal static Obs.PawnPolicyInputs Inputs(Pawn pawn) => new Obs.PawnPolicyInputs {
+            ReadingPolicyId = pawn.reading?.CurrentPolicy is ReadingPolicy reading ? Id(reading.GetUniqueLoadID()) : null,
+            InventoryStock = [.. (pawn.inventoryStock?.stockEntries ?? new Dictionary<InventoryStockGroupDef, InventoryStockEntry>())
+                .OrderBy(e => e.Key.defName, StringComparer.Ordinal)
+                .Select(e => new Obs.InventoryStockSetting { Group = Id(e.Key.defName), Count = e.Value.count })],
+            // Pawn.Ideo is the ideo tracker's ideo, so a member has a tracker.
+            Ideo = ModsConfig.IdeologyActive && pawn.Ideo is Ideo ideo
+                ? new Obs.PawnIdeo.Member(Id(ideo.GetUniqueLoadID()),
+                    [.. ideo.PreceptsListForReading.Select(p => Id(p.def.defName)).Distinct().OrderBy(d => d, StringComparer.Ordinal)],
+                    ideo.GetRole(pawn) is Precept_Role role ? Id(role.def.defName) : null,
+                    Number(pawn.ideo.Certainty))
+                : new Obs.PawnIdeo.None(),
+            Guest = pawn.guest is Pawn_GuestTracker guest && pawn.HostFaction != null
+                ? new Obs.GuestState.Hosted((RimGovernor.Contracts.Wire.Defs.GuestStatus)(int)guest.GuestStatus)
+                : new Obs.GuestState.Free(),
+        };
     }
 }

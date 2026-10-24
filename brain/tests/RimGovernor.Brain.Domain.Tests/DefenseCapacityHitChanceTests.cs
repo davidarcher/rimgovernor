@@ -13,14 +13,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class DefenseCapacityHitChanceTests
 {
     // The rows of a colonist with these combat facts, as the pawn read gives them.
-    private static O.PawnState Row(string id, double rangedDps, double hitFactor, double meleeDps) => new()
+    private static O.PawnState Row(string id, double rangedDps, double hitFactor, double meleeDps) => PawnFixtures.Row(id) with
     {
-        Pawn = new O.EntityRef { Id = id },
-        Colonist = true,
-        FreeColonist = true,
-        Humanlike = true,
-        Health = new O.PawnHealth { SummaryFraction = 1 },
-        Biography = new O.PawnBiography(),
         Equipment = new O.PawnEquipment { RangedDps = rangedDps, RangedHitFactor = hitFactor, MeleeDps = meleeDps },
     };
 

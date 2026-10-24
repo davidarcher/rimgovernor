@@ -1,15 +1,14 @@
 #nullable enable
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
+using Verse.AI;
+using Verse.AI.Group;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
@@ -25,81 +24,156 @@ namespace HomeBridge.BridgeTools
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var invalid))
                 throw NativeFaults.Refused(invalid);
             try { return Read(map, parsed, context); }
-            catch (Exception error)
-            {
-                ModLog.Error("observe", "Pawn facts read failed: " + error);
-                throw NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.ReadFailed,
-                    PlacementPreviewOperation.Diagnostic("Pawn facts could not be read completely: " + error.GetType().Name + ": " + error.Message)));
-            }
+            catch (Exception error) { throw Failed("Pawn facts", error); }
         }
 
-        // On the main thread.
+        // On the game thread: the opt-in tend table.
+        internal static Obs.TendDoctorSnapshot HandleTendDoctors(Obs.TendDoctorsRequest parsed)
+        {
+            if (!ValidateTend(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
+            if (!ProtoBoundary.ValidateIdentity(parsed.Scope.ExpectedIdentity, out var map, out var context, out var invalid))
+                throw NativeFaults.Refused(invalid);
+            try {
+                var wanted = new HashSet<string>(parsed.PawnIds, StringComparer.Ordinal);
+                var pawns = OnMap(map, true).Where(p => wanted.Contains(p.GetUniqueLoadID())).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
+                return new Obs.TendDoctorSnapshot { Context = context, Doctors = [.. NativePawnDetails.Tend(pawns, parsed.ReachBudgetMs)] };
+            }
+            catch (Exception error) { throw Failed("Tend facts", error); }
+        }
+
+        private static Exception Failed(string what, Exception error)
+        {
+            ModLog.Error("observe", what + " read failed: " + error);
+            return NativeFaults.Unavailable(Unavailable(Common.UnavailableReason.ReadFailed,
+                PlacementPreviewOperation.Diagnostic(what + " could not be read completely: " + error.GetType().Name + ": " + error.Message)));
+        }
+
+        // The map's spawned pawns, and with dead the corpses' inner pawns, each once.
+        private static List<Pawn> OnMap(Map map, bool dead)
+        {
+            var source = map.mapPawns.AllPawnsSpawned.ToList();
+            if (dead) source.AddRange(map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).Cast<Corpse>().Select(c => c.InnerPawn));
+            if (source.Any(p => p == null)) throw new InvalidOperationException("Null native pawn.");
+            return source.Distinct().ToList();
+        }
+
+        // On the main thread. The filter picks the pawns from native facts
+        // before any row is built: a frame asks for the colonists by id, and
+        // the map holds every animal too.
         private static Obs.PawnSnapshot Read(Map map, Obs.ListPawnsRequest parsed, Common.ObservationContext context)
         {
-            var source = map.mapPawns.AllPawnsSpawned.ToList();
-            if ((parsed.Filter?.IncludeDead).GetValueOrDefault() == true)
-                source.AddRange(map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).Cast<Corpse>().Select(c => c.InnerPawn));
-            if (source.Any(p => p == null)) throw new InvalidOperationException("Null native pawn.");
-            source = source.Distinct().ToList();
-            var colonists = source.Where(p => !p.Dead && p.IsColonist && p.Spawned).ToList();
-            // An id filter picks its pawns before any row is built: a frame asks
-            // for the colonists by id, and the map holds every animal too.
-            var wanted = parsed.Filter != null && parsed.Filter.Ids.Count > 0 ? new HashSet<string>(parsed.Filter.Ids, StringComparer.Ordinal) : null;
-            var selected = new List<KeyValuePair<Pawn, Obs.PawnState>>();
-            foreach (var pawn in source) {
-                if (wanted != null && !wanted.Contains(pawn.GetUniqueLoadID())) continue;
-                var row = Core(pawn, colonists, context);
-                if (Matches(row, parsed.Filter)) selected.Add(new KeyValuePair<Pawn, Obs.PawnState>(pawn, row));
-            }
-            var ordered = selected.OrderBy(p => (p.Value.Pawn.Id ?? ""), StringComparer.Ordinal).ToList();
-            var page = ordered;
-            var result = new Obs.PawnSnapshot { Context = context };
-            var details = NativePawnDetails.Defaults(parsed.Details);
-            var raidArmor = details.Equipment ? NativeGearFacts.RaidArmor(map) : null;
-            // The tend detail is pairwise across the page, so it runs once over
-            // the whole page before the per-row detail.
-            if (details.Tend) page = NativePawnDetails.Tend(page, details.TendReachBudgetMs);
-            foreach (var item in page) result = result with { Pawns = [.. result.Pawns, Detail(item.Key, item.Value, parsed.Details ?? new Obs.PawnDetails(), raidArmor, context)] };
-            return result;
-        }
-
-        // The bundle's pawn table: every spawned pawn on the map,
-        // each built by the one row builder with the detail its kind needs;
-        // combat names the pawns the defense planner reads combat detail of.
-        internal static Obs.PawnSnapshot Table(Map map, Common.ObservationContext context, ISet<string> combat)
-        {
-            var source = map.mapPawns.AllPawnsSpawned.ToList();
-            if (source.Any(p => p == null)) throw new InvalidOperationException("Null native pawn.");
-            var colonists = source.Where(p => !p.Dead && p.IsColonist && p.Spawned).ToList();
-            var result = new Obs.PawnSnapshot { Context = context };
-            var dependentPatients = NativeDependentPatients.Read(map).Select(p => p.Pawn).ToHashSet();
-            double? raidArmor = null; var armorRead = false;
+            var filter = parsed.Filter;
+            var facts = new MapFacts(map);
             using var surgery = new NativePawnDetails.SurgeryScope();
-            foreach (var pawn in source.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) {
-                var details = !pawn.Dead && pawn.IsFreeColonist ? ColonistDetail : combat.Contains(Id(pawn.GetUniqueLoadID())) ? CombatDetail
-                    : dependentPatients.Contains(pawn) ? PatientDetail : pawn.RaceProps.Animal ? AnimalDetail : CoreDetail;
-                if (details.Equipment.GetValueOrDefault() && !armorRead) { raidArmor = NativeGearFacts.RaidArmor(map); armorRead = true; }
-                result = result with { Pawns = [.. result.Pawns, Detail(pawn, Core(pawn, colonists, context), details, raidArmor, context)] };
-            }
-            return result;
+            var rows = OnMap(map, filter?.IncludeDead == true)
+                .Where(p => Matches(p, filter, facts))
+                .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)
+                .Select(p => Row(p, facts, context));
+            return new Obs.PawnSnapshot { Context = context, Pawns = [.. rows] };
         }
 
-        // The table's detail families: a free colonist every one but tend,
-        // a combat pawn health, gear, biography and animal state, another
-        // animal its animal state, any other pawn none.
-        private static readonly Obs.PawnDetails ColonistDetail = new Obs.PawnDetails { Needs = true, Health = true, Equipment = true, Biography = true, Settings = true, Social = true, Animals = true, Work = true, Schedule = true, Tend = false };
-        private static readonly Obs.PawnDetails CombatDetail = new Obs.PawnDetails { Needs = false, Health = true, Equipment = true, Biography = true, Settings = false, Social = false, Animals = true };
-        private static readonly Obs.PawnDetails AnimalDetail = new Obs.PawnDetails { Needs = false, Health = false, Equipment = false, Biography = false, Settings = false, Social = false, Animals = true };
-        private static readonly Obs.PawnDetails PatientDetail = new Obs.PawnDetails { Needs = false, Health = true, Equipment = false, Biography = false, Settings = false, Social = false, Animals = false };
-        private static readonly Obs.PawnDetails CoreDetail = new Obs.PawnDetails { Needs = false, Health = false, Equipment = false, Biography = false, Settings = false, Social = false, Animals = false };
-
-        // Detail is the one pawn row builder: the core row with the
-        // requested detail families and the row's snapshot token.
-        private static Obs.PawnState Detail(Pawn pawn, Obs.PawnState row, Obs.PawnDetails details, double? raidArmor, Common.ObservationContext context)
+        // The bundle's pawn table: every spawned pawn on the map, each a whole row.
+        internal static Obs.PawnSnapshot Table(Map map, Common.ObservationContext context)
         {
-            if (raidArmor.HasValue && NativePawnDetails.Defaults(details).Equipment) row = row with { RaidArmor = raidArmor.Value };
-            row = NativePawnDetails.Apply(pawn, row, details, context);
-            return row with { ActivityExecution = NativePawnActivities.Read(pawn) };
+            var facts = new MapFacts(map);
+            using var surgery = new NativePawnDetails.SurgeryScope();
+            var rows = OnMap(map, false).OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Select(p => Row(p, facts, context));
+            return new Obs.PawnSnapshot { Context = context, Pawns = [.. rows] };
+        }
+
+        // The pawn-independent facts of one map's rows: its live colonists
+        // (the nearest-colonist distance) and its hostiles' armor, read once.
+        // A pawn on no map (a caravan's) has neither.
+        internal sealed class MapFacts
+        {
+            private readonly Map? map;
+            private Obs.RaidArmor? armor;
+            internal readonly List<Pawn> Colonists;
+
+            internal MapFacts(Map? map)
+            {
+                this.map = map;
+                Colonists = map == null ? new List<Pawn>() : map.mapPawns.AllPawnsSpawned.Where(p => !p.Dead && p.IsColonist && p.Spawned).ToList();
+            }
+
+            internal Obs.RaidArmor RaidArmor => armor ??= map == null ? new Obs.RaidArmor.NoHostiles() : NativeGearFacts.RaidArmor(map);
+        }
+
+        // The one pawn row builder: every section, for every pawn. A pawn
+        // the game gives no tracker for a section reads that section's
+        // named state; anything else it cannot read throws.
+        internal static Obs.PawnState Row(Pawn pawn, MapFacts facts, Common.ObservationContext context)
+        {
+            var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
+            var mental = pawn.MentalState;
+            var lord = pawn.GetLord();
+            var lordJob = lord?.LordJob;
+            // A pawn without a job tracker (a corpse's) has no job.
+            var job = pawn.jobs?.jobQueue != null
+                ? NativeObservationTools.JobRow(pawn.CurJob, pawn.jobs.jobQueue.Count, NativePawnActivities.Standing(pawn))
+                : NativeObservationTools.JobRow(null, 0, false);
+            return new Obs.PawnState {
+                Pawn = Entity(pawn),
+                KindDefName = Id(pawn.kindDef?.defName),
+                Colonist = pawn.IsColonist,
+                FreeColonist = pawn.IsFreeColonist,
+                Prisoner = pawn.IsPrisoner,
+                Humanlike = pawn.RaceProps.Humanlike,
+                Animal = pawn.RaceProps.Animal,
+                Mechanoid = pawn.RaceProps.IsMechanoid,
+                Dead = pawn.Dead,
+                Downed = pawn.Downed,
+                Drafted = pawn.drafter?.Drafted == true,
+                Hostile = Hostile(pawn, player),
+                MentalState = mental == null ? null : new Obs.PawnMentalState { DefName = Id(mental.def.defName), IsAggro = mental.def.IsAggro, Ticks = mental.Age },
+                InBed = RestUtility.InBed(pawn),
+                ActivityExecution = NativePawnActivities.Read(pawn),
+                Job = job,
+                Needs = NativePawnDetails.Needs(pawn),
+                Health = NativePawnDetails.Health(pawn, context),
+                Equipment = NativePawnDetails.Equipment(pawn),
+                Biography = NativePawnDetails.Biography(pawn),
+                Settings = NativePawnDetails.Settings(pawn),
+                Social = NativePawnDetails.Social(pawn),
+                AnimalState = pawn.RaceProps.Animal ? new Obs.PawnAnimalState.Animal(NativePawnDetails.Animal(pawn)) : new Obs.PawnAnimalState.NotAnimal(),
+                NearestColonist = Nearest(pawn, facts.Colonists),
+                OwnedBed = pawn.ownership?.OwnedBed is Building_Bed bed ? NativeRef.Of(Id(bed.GetUniqueLoadID())) : null,
+                // Lord evidence is the game's own group-AI class names: a raid's job
+                // (assault/siege/stage-then-attack) and its current toil (the sapper
+                // and breach toils are distinct classes).
+                LordJobClass = lordJob == null ? null : Id(lordJob.GetType().Name),
+                LordToilClass = lordJob == null || lord!.CurLordToil == null ? null : Id(lord.CurLordToil.GetType().Name),
+                RaidArmor = facts.RaidArmor,
+                // Fog is the discovery fact, not a guess at reachability: a hostile
+                // the colony has never seen is no emergency.
+                Fogged = pawn.Spawned && pawn.Map != null && pawn.Position.Fogged(pawn.Map),
+                // A pawn without a mind state (a corpse's) has no inspiration.
+                Inspiration = pawn.mindState?.inspirationHandler?.CurStateDef is InspirationDef inspiration ? Id(inspiration.defName) : null,
+                PawnSnapshot = NativePawnControlObservation.Read(pawn, context),
+                Biotech = NativeBiotechFacts.State(pawn),
+                Anomaly = NativeAnomalyFacts.State(pawn),
+                Royalty = NativePawnRoyalty.State(pawn),
+                FactionDefName = pawn.Faction == null ? null : Id(pawn.Faction.def.defName),
+                ConstructionCapable = ConstructionSkillGuard.Capability(pawn),
+            };
+        }
+
+        private static bool Hostile(Pawn pawn, Faction player)
+        {
+            var manhunter = pawn.MentalStateDef?.defName.IndexOf("Manhunter", StringComparison.OrdinalIgnoreCase) >= 0;
+            return manhunter || pawn.Faction != null && pawn.Faction != player && pawn.Faction.HostileTo(player);
+        }
+
+        // Chebyshev distance to the nearest other live colonist.
+        private static Obs.NearestColonist Nearest(Pawn pawn, List<Pawn> colonists)
+        {
+            long? nearest = null;
+            foreach (var other in colonists) {
+                if (other == pawn) continue;
+                var d = Distance(other.Position, pawn.PositionHeld);
+                if (nearest == null || d < nearest) nearest = d;
+            }
+            return nearest.HasValue ? new Obs.NearestColonist.At(nearest.Value) : new Obs.NearestColonist.None();
         }
 
         // A reference to a pawn's table row: every other message names a
@@ -112,49 +186,40 @@ namespace HomeBridge.BridgeTools
             if (request?.Scope?.ExpectedIdentity == null) return false;
             var filter=request.Filter;
             if (filter == null) return true;
-            return filter.Ids.Count<=256 && filter.Ids.All(ProtoBoundary.IsIdentifier)
-                && filter.Ids.Distinct(StringComparer.Ordinal).Count()==filter.Ids.Count
-                && (filter.NameContains is null || (filter.NameContains ?? "").IndexOf('\0')<0 && Encoding.UTF8.GetByteCount((filter.NameContains ?? ""))<=256)
+            return Ids(filter.Ids)
+                && (filter.NameContains is null || filter.NameContains.IndexOf('\0')<0 && Encoding.UTF8.GetByteCount(filter.NameContains)<=256)
                 && (filter.WithinColonistDistance is null || IsFinite(filter.WithinColonistDistance.GetValueOrDefault()) && filter.WithinColonistDistance.GetValueOrDefault()>=0);
         }
 
-        // Pure predicate: optional false is an actual exclusion, never an omitted filter.
-        internal static bool Matches(Obs.PawnState row, Obs.PawnFilter? f)
+        private static bool ValidateTend(Obs.TendDoctorsRequest request, out Common.Failure failure)
         {
-            if (row.Dead && (f?.IncludeDead).GetValueOrDefault() != true) return false;
-            if (f==null) return true;
-            return (f.Ids.Count==0 || f.Ids.Contains((row.Pawn.Id ?? "")))
-                && (f.NameContains is null || (row.Pawn.Label ?? "").IndexOf((f.NameContains ?? ""),StringComparison.OrdinalIgnoreCase)>=0)
-                && (f.Colonist is null || f.Colonist==row.Colonist) && (f.Prisoner is null || f.Prisoner==row.Prisoner)
-                && (f.Animal is null || f.Animal==row.Animal) && (f.Humanlike is null || f.Humanlike==row.Humanlike)
-                && (f.Mechanoid is null || f.Mechanoid==row.Mechanoid)
-                && (f.Hostile is null || f.Hostile==row.Hostile)
-                && (f.Downed is null || f.Downed==row.Downed) && (f.Drafted is null || f.Drafted==row.Drafted)
-                && (f.WithinColonistDistance is null || row.NearestColonistDistance is not null && row.NearestColonistDistance.GetValueOrDefault()<=f.WithinColonistDistance.GetValueOrDefault());
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity scope and 1..256 unique exact pawn IDs are required.");
+            return request?.Scope?.ExpectedIdentity != null && request.PawnIds.Count > 0 && Ids(request.PawnIds);
         }
 
-        internal static Obs.PawnState Core(Pawn pawn, List<Pawn> colonists, Common.ObservationContext context)
+        private static bool Ids(IReadOnlyCollection<string> ids) =>
+            ids.Count<=256 && ids.All(ProtoBoundary.IsIdentifier) && ids.Distinct(StringComparer.Ordinal).Count()==ids.Count;
+
+        // Pure predicate over the native pawn: optional false is an actual
+        // exclusion, never an omitted filter.
+        private static bool Matches(Pawn pawn, Obs.PawnFilter? f, MapFacts facts)
         {
-            var row=NativeObservationTools.PawnRow(pawn,context);
-            row = row with { Pawn = row.Pawn with { Label = Text(pawn.LabelCap) } };
-            if (pawn.MapHeld!=null) { row = row with { Pawn = row.Pawn with { MapId = pawn.MapHeld.uniqueID, Position = Cell(pawn.PositionHeld) } }; }
-            Pawn? nearest=null; long nearestDistance=0;
-            foreach(var other in colonists) {
-                if(other==pawn) continue;
-                var d=Distance(other.Position,pawn.PositionHeld);
-                if(nearest==null || d<nearestDistance
-                    || d==nearestDistance && string.CompareOrdinal(other.GetUniqueLoadID(),nearest.GetUniqueLoadID())<0) { nearest=other; nearestDistance=d; }
-            }
-            if (nearest!=null) row = row with { NearestColonistDistance = nearestDistance };
-            // Faction standing of a humanlike pawn, colonist or not.
-            if(pawn.RaceProps.Humanlike) row = row with { Standing = new Obs.PawnStanding { FactionDefName = pawn.Faction==null ? null : Id(pawn.Faction.def.defName) } };
-            if (pawn.ownership?.OwnedBed!=null) row = row with { OwnedBed = NativeRef.Of(Id(pawn.ownership.OwnedBed.GetUniqueLoadID())) };
-            else row = row with { Issues = [.. row.Issues, Issue("owned_bed",Common.UnavailableReason.NotApplicable,"No owned bed.")] };
-            return row;
+            if (pawn.Dead && f?.IncludeDead != true) return false;
+            if (f==null) return true;
+            return (f.Ids.Count==0 || f.Ids.Contains(pawn.GetUniqueLoadID()))
+                && (f.NameContains is null || Text(pawn.LabelCap).IndexOf(f.NameContains,StringComparison.OrdinalIgnoreCase)>=0)
+                && (f.Colonist is null || f.Colonist==pawn.IsColonist) && (f.Prisoner is null || f.Prisoner==pawn.IsPrisoner)
+                && (f.Animal is null || f.Animal==pawn.RaceProps.Animal) && (f.Humanlike is null || f.Humanlike==pawn.RaceProps.Humanlike)
+                && (f.Mechanoid is null || f.Mechanoid==pawn.RaceProps.IsMechanoid)
+                && (f.Hostile is null || f.Hostile==Hostile(pawn, Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.")))
+                && (f.Downed is null || f.Downed==pawn.Downed) && (f.Drafted is null || f.Drafted==(pawn.drafter?.Drafted == true))
+                && (f.WithinColonistDistance is null || Nearest(pawn, facts.Colonists) is Obs.NearestColonist.At at && at.Distance<=f.WithinColonistDistance.GetValueOrDefault());
         }
+
         private static long Distance(IntVec3 a,IntVec3 b)=>Math.Max(Math.Abs((long)a.x-b.x),Math.Abs((long)a.z-b.z));
         internal static Obs.EntityRef Entity(Thing thing) {
             var row=new Obs.EntityRef { Id=Id(thing.GetUniqueLoadID()),DefName=Id(thing.def.defName),Label=Text(thing.LabelCap) };
+            // A held thing (gear, a buried corpse) is at its holder's cell.
             if(thing.MapHeld!=null) { row = row with { MapId = thing.MapHeld.uniqueID };row = row with { Position = Cell(thing.PositionHeld) }; } return row;
         }
         internal static Common.Cell Cell(IntVec3 value)=>new Common.Cell {X=value.x,Z=value.z};

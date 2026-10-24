@@ -135,6 +135,9 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.PawnSnapshot> ListPawnsAsync(Obs.ListPawnsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ListPawns, request, () => NativePawnObservationTools.HandleListPawns(request), cancellationToken);
 
+        public Task<Obs.TendDoctorSnapshot> ReadTendDoctorsAsync(Obs.TendDoctorsRequest request, CancellationToken cancellationToken)
+            => Read(NativeOps.ReadTendDoctors, request, () => NativePawnObservationTools.HandleTendDoctors(request), cancellationToken);
+
         public Task<Obs.ListSuppliesReply> ListSuppliesAsync(Obs.ListSuppliesRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ListSupplies, request, () => NativeSuppliesObservationTools.HandleListSupplies(request), cancellationToken);
 

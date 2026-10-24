@@ -82,7 +82,7 @@ internal static class TemperatureProbe
             var (offset, row, ticks, state) = await MoodProbe.ReadAsync(s, label, held.Pawn, thought, cancellationToken).ConfigureAwait(false);
 
             // The deficit the read itself carries: the brain's body stats at the read tick, the same ones the evaluator will read.
-            var body = state.Settings?.Body;
+            var body = state.Settings.Body;
             if (body?.CellTemperatureC is not { } cell || body.ComfortableMinC is not { } comfyMin || body.ComfortableMaxC is not { } comfyMax)
             {
                 throw new AcceptanceException($"{label}: the pawn read carried no cell temperature or comfy range");

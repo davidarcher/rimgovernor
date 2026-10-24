@@ -1,9 +1,10 @@
+using RimGovernor.Brain.Bridge;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
-/// <c>medical/tend-gates</c>: list_pawns' tend detail carries the doctor gates NativeTendOperations.Prepare enforces
+/// <c>medical/tend-gates</c>: the tend table carries the doctor gates NativeTendOperations.Prepare enforces
 /// (pawn-control eligibility, WorkGiver_Tend capacities, pairwise reachability), so SelectTend stops proposing doctors
 /// the native tend gate refuses (#657).
 /// </summary>
@@ -12,7 +13,7 @@ internal static class TendGates
     internal static TypedCase Case() => new()
     {
         Name = "medical/tend-gates",
-        Scope = "list_pawns' tend detail on the lab colonists: a spawned, live, undowned, sane colonist with a drafter is control "
+        Scope = "the tend table of the lab colonists: a spawned, live, undowned, sane colonist with a drafter is control "
             + "eligible, and reachability names other spawned colonists only, never the row itself, and symmetrically.",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
@@ -22,29 +23,40 @@ internal static class TendGates
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
-        var rows = await TypedPawns.ListAsync(s, "tend-gates", new Observations.PawnFilter { Colonist = true }, new Observations.PawnDetails { Tend = true }, cancellationToken).ConfigureAwait(false);
+        var rows = await TypedPawns.ListAsync(s, "tend-gates", new Observations.PawnFilter { Colonist = true }, cancellationToken).ConfigureAwait(false);
+        var table = await s.CallAsync(
+            "tend-table",
+            NativeOps.ReadTendDoctors,
+            new Observations.TendDoctorsRequest { Scope = s.Scope, PawnIds = [.. rows.Select(row => row.Pawn.Id ?? "")], ReachBudgetMs = 50 },
+            cancellationToken).ConfigureAwait(false);
+        var doctors = table.Doctors.ToDictionary(doctor => doctor.PawnId, StringComparer.Ordinal);
         var reach = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
         foreach (var row in rows)
         {
-            var id = row.Pawn.Id;
-            var doctor = row.TendDoctor ?? throw new AcceptanceException($"{id} carries no tend detail; the tend gates are unobserved");
+            var id = row.Pawn.Id ?? "";
+            var doctor = doctors.GetValueOrDefault(id) ?? throw new AcceptanceException($"{id} has no tend row; the tend gates are unobserved");
             if (doctor.Spawned && doctor.HasDrafter && !row.Dead && !row.Downed && row.MentalState is null && !doctor.ControlEligible)
             {
                 throw new AcceptanceException($"{id} is not control eligible though spawned, live, undowned and sane");
             }
 
             // An unspawned row reaches nobody and one past the tend budget is skipped; neither takes part in the symmetry check.
-            if (!doctor.Spawned || doctor.ReachSkipped)
+            if (!doctor.Spawned)
             {
                 continue;
             }
 
-            if (doctor.ReachablePawnIds.Contains(id))
+            if (doctor.Reach is not Observations.TendReach.Read read)
+            {
+                continue;
+            }
+
+            if (read.PawnIds.Contains(id))
             {
                 throw new AcceptanceException($"{id} is listed as reaching itself");
             }
 
-            reach[id] = [.. doctor.ReachablePawnIds];
+            reach[id] = [.. read.PawnIds];
         }
 
         s.Record("reach_checked", reach.Count);

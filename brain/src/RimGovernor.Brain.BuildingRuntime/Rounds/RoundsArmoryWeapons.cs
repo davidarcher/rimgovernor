@@ -23,7 +23,7 @@ public sealed partial class RoundsArmoryPlanner
         // and the loose weapons read nothing of each other and their hops share one frame (#3566). The replies are read
         // in the order the sequential reads had, so the first failure in that order still throws.
         var thingsRead = SharedReads.Attempt(RoundsGear.FrameThingsOfAsync(_native, identity, ct));
-        var pawnsRead = SharedReads.Attempt(source.ReadCombatPawnsAsync(identity, ids, ct));
+        var pawnsRead = SharedReads.Attempt(source.ReadPawnsAsync(identity, ids, ct));
         var weaponsRead = SharedReads.Attempt(source.ReadEquipWeaponsAsync(identity, default(Cell), new Cell(bounds.Width - 1, bounds.Height - 1), ct));
         var things = SharedReads.Reply(await thingsRead.ConfigureAwait(false));
         var reply = SharedReads.Reply(await pawnsRead.ConfigureAwait(false));

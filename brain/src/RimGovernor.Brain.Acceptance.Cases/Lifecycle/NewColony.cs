@@ -207,7 +207,7 @@ internal static class LifecycleNewColony
         var colonists = (await NewColonyStart.ColonistsAsync(s, label + "-pawns", identity, cancellationToken).ConfigureAwait(false))
             .Select(p => string.Create(
                 CultureInfo.InvariantCulture,
-                $"{p.Pawn.Label}[{string.Join(',', (p.Biography?.Skills ?? []).Select(k => $"{k.DefName}={Math.Max(k.Level, 0)}/{k.Passion}").Order(StringComparer.Ordinal))}]"))
+                $"{p.Pawn.Label}[{string.Join(',', p.Biography.Skills.Select(k => $"{k.DefName}={Math.Max(k.Level, 0)}/{k.Passion}").Order(StringComparer.Ordinal))}]"))
             .Order(StringComparer.Ordinal)
             .ToList();
         if (colonists.Count != 3)

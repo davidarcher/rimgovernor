@@ -108,7 +108,6 @@ internal static class CombatLabKit
         {
             Scope = s.Scope,
             Filter = new Observations.PawnFilter { Ids = [.. ids], IncludeDead = true },
-            Details = new Observations.PawnDetails { Health = true, Equipment = true, Settings = true },
         }, cancellationToken).ConfigureAwait(false);
         var snapshot = reply;
         return snapshot.Pawns.ToDictionary(p => p.Pawn.Id, StringComparer.Ordinal);
@@ -120,10 +119,10 @@ internal static class CombatLabKit
             ?? throw new AcceptanceException($"{label}: pawn {id} not listed");
 
     /// <summary>The pawn's current job def, empty without one.</summary>
-    internal static string Job(Observations.PawnState p) => p.Job?.DefName ?? "";
+    internal static string Job(Observations.PawnState p) => p.Job.DefName ?? "";
 
     /// <summary>The thing the pawn's job targets, null for none or a cell.</summary>
-    internal static string? JobThing(Observations.PawnState p) => p.Job?.TargetA?.Target?.Entity?.Id;
+    internal static string? JobThing(Observations.PawnState p) => p.Job.TargetA?.Target?.Entity?.Id;
 
     /// <summary>The colony's allowed areas (the typed colony read's policy section).</summary>
     internal static async Task<IReadOnlyList<Observations.AllowedArea>> AreasAsync(TypedSession s, string label, CancellationToken cancellationToken)

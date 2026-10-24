@@ -96,8 +96,8 @@ public sealed class FoodActivityContinuationTests
                             { Target = observed.Target, Count = Math.Min(task.Step.Count, observed.Count) })))),
             });
         public Task<ConstructionActivityRead> ReadConstructionActivityAsync(ConstructionActivityRequest request, CancellationToken ct) => Task.FromResult(new ConstructionActivityRead());
-        public Task<PawnSnapshot> ReadCombatPawnsAsync(RimGovernor.Contracts.Wire.Common.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
-            Task.FromResult(new PawnSnapshot { Context = read.Context });
+        public Task<PawnSnapshot> ReadPawnsAsync(RimGovernor.Contracts.Wire.Common.Identity identity, IReadOnlyList<string> ids, CancellationToken ct) =>
+            Task.FromResult(new PawnSnapshot { Context = read.Context, Pawns = [] });
     }
     private sealed class DispatchSession(Journal journal) : IWorkerSession
     {

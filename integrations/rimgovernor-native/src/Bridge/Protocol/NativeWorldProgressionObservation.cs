@@ -32,7 +32,7 @@ namespace HomeBridge.BridgeTools
             foreach (var m in Find.Maps)
             {
                 var row = new Obs.WorldMap { Id = m.uniqueID, Tile = m.Tile.tileId, Home = m.IsPlayerHome };
-                row = row with { Pawns = [.. row.Pawns, .. m.mapPawns.FreeColonistsSpawned.Select(p => NativeObservationTools.PawnRow(p, context))] };
+                row = row with { Pawns = [.. row.Pawns, .. m.mapPawns.FreeColonistsSpawned.Select(p => NativePawnObservationTools.Row(p, new NativePawnObservationTools.MapFacts(m), context))] };
                 row = row with { QuestWorkers = [.. row.QuestWorkers, .. NativeQuestWorkers.Read(m)] };
                 rows.Add(row);
             }
@@ -92,7 +92,7 @@ namespace HomeBridge.BridgeTools
                     FoodDays = c.DaysWorthOfFood.days, FoodRotDays = c.DaysWorthOfFood.tillRot,
                 };
                 if (c.pather.Moving) row = row with { Destination = c.pather.Destination.tileId };
-                row = row with { Pawns = [.. row.Pawns, .. c.PawnsListForReading.Select(p => NativeObservationTools.PawnRow(p, context))] };
+                row = row with { Pawns = [.. row.Pawns, .. c.PawnsListForReading.Select(p => NativePawnObservationTools.Row(p, new NativePawnObservationTools.MapFacts(null), context))] };
                 row = row with { HomeRoutes = [.. row.HomeRoutes, .. HomeRoutes(c)] };
                 row = row with { Inventory = [.. row.Inventory, .. Inventory(c)] };
                 rows.Add(row);

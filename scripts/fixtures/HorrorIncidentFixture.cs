@@ -99,8 +99,7 @@ namespace HomeBridge.BridgeTools
         // with no offensive ability and that the player can see.
         private static bool MeleeEntity(Pawn pawn)
         {
-            var a = NativeAnomalyFacts.Pawn(pawn);
-            return a != null && (a.Entity == true || a.Mutant == true) && a.MeleeOnly == true && a.HiddenFromPlayer != true;
+            return NativeAnomalyFacts.State(pawn) is RimGovernor.Contracts.Wire.Observations.PawnAnomalyState.Active { Facts: var a } && (a.Entity == true || a.Mutant == true) && a.MeleeOnly == true && a.HiddenFromPlayer != true;
         }
 
         private static IEnumerable<string> SplitIds(string ids) =>

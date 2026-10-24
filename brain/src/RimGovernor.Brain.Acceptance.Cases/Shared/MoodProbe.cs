@@ -18,19 +18,16 @@ internal static class MoodProbe
     /// </summary>
     internal static async Task<(double Offset, Thought? Row, int Ticks, PawnState Pawn)> ReadAsync(TypedSession s, string label, string pawn, string thought, CancellationToken cancellationToken)
     {
-        var details = new PawnDetails
-        {
-            Needs = true, Health = true, Equipment = true, Biography = true, Settings = true, Social = true, Animals = true, Work = true, Schedule = true,
-        };
+
         for (var advanced = 0; ; )
         {
             await s.RunTicksAsync($"settle-{label}", Settle, cancellationToken).ConfigureAwait(false);
             advanced += Settle;
             var read = $"read-{label}-{CaseSupport.Tag(advanced)}";
-            var reply = await s.CallAsync(read, NativeOps.ListPawns, new ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [pawn] }, Details = details }, cancellationToken).ConfigureAwait(false);
+            var reply = await s.CallAsync(read, NativeOps.ListPawns, new ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [pawn] } }, cancellationToken).ConfigureAwait(false);
             var observed = reply;
             var state = observed.Pawns.SingleOrDefault(p => p.Pawn.Id == pawn) ?? throw new AcceptanceException($"{read}: pawn {pawn} missing from the pawn read");
-            var social = state.Social ?? throw new AcceptanceException($"{read}: the pawn read carried no social detail");
+            var social = state.Social;
             if (social.SituationalCacheStale)
             {
                 if (advanced >= SettleMax)

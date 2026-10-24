@@ -65,7 +65,6 @@ public static class ColonyAudits
             {
                 Scope = TypedReads.Scope(identity),
                 Filter = new Observations.PawnFilter { Colonist = true },
-                Details = new Observations.PawnDetails { Health = true },
             },
             cancellationToken).ConfigureAwait(false);
         var rows = new JsonArray();
@@ -73,7 +72,7 @@ public static class ColonyAudits
         foreach (var pawn in reply.Pawns)
         {
             var worst = 0.0;
-            foreach (var hediff in pawn.Health?.Hediffs ?? [])
+            foreach (var hediff in pawn.Health.Hediffs)
             {
                 if (hediff.DefName == MalnutritionDef)
                 {

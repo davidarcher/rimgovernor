@@ -48,7 +48,7 @@ public readonly record struct Pawns(Table<PawnState> Table)
     /// </summary>
     public PawnSnapshot? Snapshot(ObservationContext context, IEnumerable<string> ids)
     {
-        var snapshot = new PawnSnapshot { Context = context };
+        var snapshot = new PawnSnapshot { Context = context, Pawns = [] };
         foreach (var id in ids.Order(StringComparer.Ordinal))
         {
             if (!TryRow(new Ref { Id = id }, out var row))

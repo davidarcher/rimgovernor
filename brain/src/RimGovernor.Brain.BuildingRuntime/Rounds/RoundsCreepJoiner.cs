@@ -73,41 +73,26 @@ internal static class RoundsCreepJoiner
             Facts = CreepJoinerFacts.CreepJoinerPawn(row),
             Available = Unknown<bool>(),
             Weapon = Unknown<string>(),
-            Operations = Unknown<EquatableArray<SurgeryOperation>>(),
-            QueuedSurgeries = Unknown<int>(),
-            Area = Unknown<string>(),
+            // The weapon drop and inspections read recipe names only, no part items.
+            Operations = SurgeryFactsRules.SurgeryFacts(row.Health.Surgery, null).Operations,
+            QueuedSurgeries = SurgeryFactsRules.QueuedSurgeries(row.Health.Surgery),
+            QueuedRecipes = SurgeryFactsRules.QueuedSurgeryRecipes(row.Health.Surgery) is { } recipes ? EquatableArray.From(recipes) : null,
+            // An unset allowed area is an unrestricted pawn (native AllowedArea).
+            Area = Known(row.Settings.AllowedAreaId ?? ""),
             Hungry = Unknown<bool>(),
         };
-        if (row.Health is { } health)
-        {
-            // The weapon drop and inspections read recipe names only, no part items.
-            hand = hand with
-            {
-                Operations = SurgeryFactsRules.SurgeryFacts(health.Surgery, null).Operations,
-                QueuedSurgeries = SurgeryFactsRules.QueuedSurgeries(health.Surgery),
-                QueuedRecipes = SurgeryFactsRules.QueuedSurgeryRecipes(health.Surgery) is { } recipes ? EquatableArray.From(recipes) : null,
-            };
-        }
-        // An unset allowed area is an unrestricted pawn (native AllowedArea).
-        if (row.Settings is { } settings)
-        {
-            hand = hand with { Area = Known((settings.AllowedAreaId ?? "")) };
-        }
-        if (row.Needs?.Food is RimGovernor.Contracts.Wire.Observations.FoodNeed.Has food)
+        if (row.Needs.Food is RimGovernor.Contracts.Wire.Observations.FoodNeed.Has food)
         {
             hand = hand with { Hungry = Known(food.Hunger != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed) };
         }
         hand = hand with { Available = Known(!row.Dead && !row.Downed && !row.Drafted && row.MentalState is null) };
-        if (row.Equipment is { } equipment)
+        if (!row.Equipment.Armed)
         {
-            if (!equipment.Armed)
-            {
-                hand = hand with { Weapon = Known("") };
-            }
-            else if (equipment.PrimaryId is not null)
-            {
-                hand = hand with { Weapon = Known((equipment.PrimaryId ?? "")) };
-            }
+            hand = hand with { Weapon = Known("") };
+        }
+        else if (row.Equipment.PrimaryId is { } primary)
+        {
+            hand = hand with { Weapon = Known(primary) };
         }
         return hand;
     }

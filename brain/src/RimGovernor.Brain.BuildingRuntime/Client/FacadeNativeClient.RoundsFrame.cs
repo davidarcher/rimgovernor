@@ -196,7 +196,7 @@ public sealed partial class FacadeNativeClient
         var table = default(Table<PbObservations.Thing>);
         foreach (var pawn in pawns.Pawns)
         {
-            var id = pawn.Equipment?.PrimaryId ?? "";
+            var id = pawn.Equipment.PrimaryId ?? "";
             if (id.Length != 0 && held.Things.TryGetValue(id, out var row) && row is not null)
             {
                 rows.Add(row);
@@ -270,7 +270,7 @@ public sealed partial class FacadeNativeClient
 
     /// <summary>A living pawn carrying a mechanitor or mech block.</summary>
     private static bool IsMechRow(PbObservations.PawnState row) =>
-        !row.Dead && (row.Biotech?.Mechanitor is not null || row.Biotech?.Mech is not null);
+        !row.Dead && row.Biotech is PbObservations.PawnBiotechState.Active { Facts: var biotech } && (biotech.Mechanitor is not null || biotech.Mech is not null);
 
     /// <summary>
     /// Decodes a frame's combat part. The census pawns and weapons are keyed from

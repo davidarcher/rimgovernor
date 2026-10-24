@@ -138,11 +138,11 @@ public static class AcquisitionReads
         {
             return false;
         }
-        if (!pawns.TryGetRow(row.Source, out var state) || state.AnimalState is null || !race.BodySize.TryGetValue(out var size))
+        if (!pawns.TryGetRow(row.Source, out var state) || state.AnimalState is not O.PawnAnimalState.Animal { State: var animal } || !race.BodySize.TryGetValue(out var size))
         {
             return false;
         }
-        var index = state.AnimalState.LifeStageIndex;
+        var index = animal.LifeStageIndex;
         if (index < 0 || index >= race.LifeStages.Count)
         {
             return false;

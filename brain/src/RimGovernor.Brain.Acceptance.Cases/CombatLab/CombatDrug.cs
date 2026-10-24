@@ -49,7 +49,7 @@ internal static class CombatLabCombatDrug
         _ = await s.RunUntilAsync("high", CombatLabKit.ProbeTicks, async ct =>
         {
             var p = await CombatLabKit.PawnAsync(s, "colonist-0", colonists[0], ct).ConfigureAwait(false);
-            var hediffs = p.Health?.Hediffs.Select(h => h.DefName).ToList() ?? [];
+            var hediffs = p.Health.Hediffs.Select(h => h.DefName).ToList();
             return (Wait.Signature(CombatLabKit.Job(p), hediffs.Count), hediffs.Contains("GoJuiceHigh"));
         }, cancellationToken).ConfigureAwait(false);
     }

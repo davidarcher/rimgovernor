@@ -113,7 +113,7 @@ internal static class ShelterSheltering
                     throw new AcceptanceException($"{row.Trigger}: {id} died or left the map: {pawn}");
                 }
 
-                var injuries = pawn.Health?.Hediffs.Items.Count(h => Injuries.Contains(h.DefName)) ?? 0;
+                var injuries = pawn.Health.Hediffs.Items.Count(h => Injuries.Contains(h.DefName));
                 if (injuries > (scars.TryAdd(id, injuries) ? injuries : scars[id]))
                 {
                     throw new AcceptanceException($"{row.Trigger}: {id} was harmed ({injuries} injuries, {scars[id]} at the start): {pawn}");

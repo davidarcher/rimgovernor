@@ -82,11 +82,8 @@ public sealed partial class FacadeNativeClient
             {
                 result = result with { Position = Known(new DomainCell(at.X, at.Z)) };
             }
-            if (row.Health is { } h)
-            {
-                result = result with { Bleeding = Known(h.Bleeding), NeedsTend = Known(h.NeedsTend) };
-            }
-            if (row.Needs?.Food is O.FoodNeed.Has food)
+            result = result with { Bleeding = Known(row.Health.Bleeding), NeedsTend = Known(row.Health.NeedsTend) };
+            if (row.Needs.Food is O.FoodNeed.Has food)
             {
                 result = result with { Hunger = Known(food.Hunger) };
             }

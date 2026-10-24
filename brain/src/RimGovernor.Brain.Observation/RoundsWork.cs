@@ -82,49 +82,27 @@ public static class RoundsWorkReads
         biotech ?? throw new DomainException("biotech work facts need the Biotech catalog, which was not loaded");
 
     /// <summary>
-    /// Lifts one pawn row into the planner's WorkPawn: availability from the vital flags, the work snapshot token,
-    /// manual mode, timetable and priorities from the settings block, skills, traits, incapable work types and age
-    /// from the biography, and whether the primary weapon is ranged (its def rows, found through the frame's things
-    /// table: unknown until the table holds the weapon). A missing or issued block leaves its facts unknown.
-    /// The pawn's traits are resolved against the catalog; a trait the catalog lacks is an error, and a pawn with
-    /// traits needs a catalog.
+    /// Lifts one pawn row into the planner's WorkPawn: availability from the vital flags, manual mode, timetable,
+    /// priorities, care and policy inputs from the settings block, skills, traits, incapable work types and age from
+    /// the biography, and whether the primary weapon is ranged (its def rows, found through the frame's things table:
+    /// unknown until the table holds the weapon). Work rows and traits are resolved against the catalog, which every
+    /// row needs; a trait the catalog lacks is an error.
     /// </summary>
     public static WorkPawn WorkPawnRow(O.PawnState row, DefinitionCatalog? catalog, Things things)
     {
-        var w = WorkPawnRowFrom(row);
-        // Native writes the Biotech block on every pawn when Biotech is active and always names the developmental
-        // stage; a row without one is a contract break, not an adult.
-        if (row.Biotech is { } b && b.DevelopmentalStage is null)
+        var defs = ColonyDecodeReads.RequireCatalog(catalog);
+        // Native always names an active Biotech pawn's developmental stage; a row without one is a contract break,
+        // not an adult.
+        if (row.Biotech is O.PawnBiotechState.Active { Facts.DevelopmentalStage: null })
         {
             throw new ObservationContractException($"pawn {(row.Pawn.Id ?? "")} has a Biotech block without a developmental stage");
         }
-        if (row.Equipment is { } e)
+        var w = WorkPawnRowFrom(row, defs);
+        if (PrimaryWeapon(defs, row.Equipment, things, out var weapon))
         {
-            if (PrimaryWeapon(ColonyDecodeReads.RequireCatalog(catalog), e, things, out var weapon))
-            {
-                w = w with { Ranged = Known(weapon.Ranged), Hunts = Known(weapon.Hunts()) };
-            }
+            w = w with { Ranged = Known(weapon.Ranged), Hunts = Known(weapon.Hunts()) };
         }
-        if (w.Work.TryGetValue(out var work))
-        {
-            var resolved = new List<WorkPriority>(work.Count);
-            foreach (var entry in work)
-            {
-                resolved.Add(ColonyDecodeReads.RequireCatalog(catalog).ResolveWorkRow(entry));
-            }
-            w = w with { Work = Known(EquatableArray.From(resolved)) };
-        }
-        w = w with { SeriousBloodLoss = ColonyDecodeReads.RequireCatalog(catalog).SeriousBloodLoss() };
-        if (w.Traits.TryGetValue(out var traits))
-        {
-            var resolved = new List<PawnTrait>(traits.Count);
-            foreach (var trait in traits)
-            {
-                resolved.Add(ResolveTrait(catalog, trait));
-            }
-            w = w with { Traits = Known(EquatableArray.From(resolved)) };
-        }
-        return w;
+        return w with { SeriousBloodLoss = defs.SeriousBloodLoss() };
     }
 
     /// <summary>Returns the trait with its Effects set from the catalog.</summary>
@@ -139,7 +117,7 @@ public static class RoundsWorkReads
 
     /// <summary>
     /// The colony's rest schedule (#3750) from its workers' timetables: the colonists whose settings say they work. Null,
-    /// unread, when a colonist has no settings or no work flag, or a worker's timetable is not read (RestSchedule.Of).
+    /// unread, when a colonist has no work flag, or a worker's timetable is not read (RestSchedule.Of).
     /// </summary>
     internal static RestSchedule? RoundsRest(O.PawnSnapshot snapshot)
     {
@@ -150,132 +128,114 @@ public static class RoundsWorkReads
             {
                 continue;
             }
-            if (row.Settings is not { WorkApplies: { } works } s)
+            if (row.Settings.WorkApplies is not { } works)
             {
                 return null;
             }
             if (works)
             {
-                timetables.Add([.. s.Schedule.Select(slot => slot.AssignmentDefName)]);
+                timetables.Add([.. row.Settings.Schedule.Select(slot => slot.AssignmentDefName)]);
             }
         }
         return RestSchedule.Of(timetables);
     }
 
-    private static WorkPawn WorkPawnRowFrom(O.PawnState row)
+    private static WorkPawn WorkPawnRowFrom(O.PawnState row, DefinitionCatalog defs)
     {
         var w = new WorkPawn { Id = new PawnId(row.Pawn.Id ?? ""), ConstructionAble = ColonyDecodeReads.Optional(row.ConstructionCapable is not null, row.ConstructionCapable.GetValueOrDefault()) };
         w = w with { Available = Known(!row.Dead && !row.Downed && !row.Drafted && row.MentalState is null) };
-        if (row.Settings is { } s)
+        var s = row.Settings;
+        var b = s.Body;
+        w = w with
         {
-            if (s.FoodPolicyRespected is { } respected)
+            FoodPolicyRespected = Known(s.FoodPolicyRespected),
+            PolicyInputs = Known(s.PolicyInputs),
+            Body = Known(new PawnBody
             {
-                w = w with { FoodPolicyRespected = Known(respected) };
+                ComfortableMinC = ColonyDecodeReads.Optional(b.ComfortableMinC is not null, b.ComfortableMinC.GetValueOrDefault()),
+                ComfortableMaxC = ColonyDecodeReads.Optional(b.ComfortableMaxC is not null, b.ComfortableMaxC.GetValueOrDefault()),
+                MoveSpeed = ColonyDecodeReads.Optional(b.MoveSpeed is not null, b.MoveSpeed.GetValueOrDefault()),
+                CellTemperatureC = ColonyDecodeReads.Optional(b.CellTemperatureC is not null, b.CellTemperatureC.GetValueOrDefault()),
+                Hypothermia = ColonyDecodeReads.Optional(b.Hypothermia is not null, b.Hypothermia.GetValueOrDefault()),
+            }),
+        };
+        if (s.Care is O.PawnCare.Configured care)
+        {
+            w = w with { MedicalCare = Known(WireEnums.MedicalCareName(care.MedicalCare)) };
+            if (WireEnums.HostilityName(care.HostilityResponse) is { } hostility)
+            {
+                w = w with { Hostility = Known(hostility) };
             }
-            w = w with { PolicyInputs = PolicyInputs.PawnPolicyInputs(s.PolicyInputs) };
-            if (s.Body is { } b)
+        }
+        w = w with { Applies = ColonyDecodeReads.Optional(s.WorkApplies is not null, s.WorkApplies.GetValueOrDefault()), Manual = ColonyDecodeReads.Optional(s.ManualWorkPriorities is not null, s.ManualWorkPriorities.GetValueOrDefault()) };
+        // Native sends the 24 hourly slots hour 0 first, or none for a pawn without a timetable.
+        if (s.Schedule.Count == 24)
+        {
+            w = w with { Schedule = Known(EquatableArray.From(s.Schedule.Select(slot => slot.AssignmentDefName))) };
+        }
+        // Work rows exist only for a pawn that works.
+        if (s.WorkApplies == true)
+        {
+            var work = new List<WorkPriority>();
+            foreach (var entry in s.Work)
             {
-                w = w with
+                // Another mod's work type has no planner meaning and nothing to write back: it is left out of the rows.
+                if (ColonyDecodeReads.WireParseOpen(entry.DefName, WorkType.Unrecognized) == WorkType.Unrecognized)
                 {
-                    Body = Known(new PawnBody
-                    {
-                        ComfortableMinC = ColonyDecodeReads.Optional(b.ComfortableMinC is not null, b.ComfortableMinC.GetValueOrDefault()),
-                        ComfortableMaxC = ColonyDecodeReads.Optional(b.ComfortableMaxC is not null, b.ComfortableMaxC.GetValueOrDefault()),
-                        MoveSpeed = ColonyDecodeReads.Optional(b.MoveSpeed is not null, b.MoveSpeed.GetValueOrDefault()),
-                        CellTemperatureC = ColonyDecodeReads.Optional(b.CellTemperatureC is not null, b.CellTemperatureC.GetValueOrDefault()),
-                        Hypothermia = ColonyDecodeReads.Optional(b.Hypothermia is not null, b.Hypothermia.GetValueOrDefault()),
-                    }),
-                };
-            }
-            if (s.MedicalCare is not null)
-            {
-                w = w with { MedicalCare = Known(WireEnums.MedicalCareName(s.MedicalCare.GetValueOrDefault())) };
-            }
-            w = w with { Applies = ColonyDecodeReads.Optional(s.WorkApplies is not null, s.WorkApplies.GetValueOrDefault()), Manual = ColonyDecodeReads.Optional(s.ManualWorkPriorities is not null, s.ManualWorkPriorities.GetValueOrDefault()) };
-            // Native sends the 24 hourly slots hour 0 first, or none for a pawn without a timetable.
-            if (s.Schedule.Count == 24)
-            {
-                w = w with { Schedule = Known(EquatableArray.From(s.Schedule.Select(slot => slot.AssignmentDefName))) };
-            }
-            // Work rows exist only for a pawn that works.
-            if (s.WorkApplies == true)
-            {
-                var work = new List<WorkPriority>();
-                foreach (var entry in s.Work)
-                {
-                    // Another mod's work type has no planner meaning and nothing to write back: it is left out of the rows.
-                    if (ColonyDecodeReads.WireParseOpen(entry.DefName, WorkType.Unrecognized) == WorkType.Unrecognized)
-                    {
-                        continue;
-                    }
-                    work.Add(new WorkPriority { Work = ColonyDecodeReads.WireParse<WorkType>(entry.DefName), Priority = entry.Priority, Disabled = entry.Disabled });
+                    continue;
                 }
-                w = w with { Work = Known(EquatableArray.From(work)) };
+                work.Add(defs.ResolveWorkRow(new WorkPriority { Work = ColonyDecodeReads.WireParse<WorkType>(entry.DefName), Priority = entry.Priority, Disabled = entry.Disabled }));
             }
+            w = w with { Work = Known(EquatableArray.From(work)) };
         }
-        if (row.Job is { } j)
+        // JobRow: a pawn with no job carries no def; a job always carries its def and, when a work giver issued
+        // it, that giver's work type. A preemptible pawn's job is its vanilla job (#3670).
+        var j = row.Job;
+        w = w with
         {
-            // JobRow: a pawn with no job carries no def; a job always carries its def and, when a work giver issued
-            // it, that giver's work type. A preemptible pawn's job is its vanilla job (#3670).
-            w = w with
-            {
-                Job = Known(j.DefName is null
-                    ? new PawnJob { Preemptible = j.Preemptible }
-                    : new PawnJob { Def = j.DefName, Work = ColonyDecodeReads.WireParseOpen(j.WorkTypeDefName, WorkType.Unrecognized), Target = JobTarget(j.TargetA, j.TargetACell), Preemptible = j.Preemptible }),
-            };
-        }
-        if (row.Biography is { } bio)
+            Job = Known(j.DefName is null
+                ? new PawnJob { Preemptible = j.Preemptible }
+                : new PawnJob { Def = j.DefName, Work = ColonyDecodeReads.WireParseOpen(j.WorkTypeDefName, WorkType.Unrecognized), Target = JobTarget(j.TargetA, j.TargetACell), Preemptible = j.Preemptible }),
+        };
+        var bio = row.Biography;
+        var incapable = new List<WorkType>();
+        foreach (var name in bio.IncapableWorkTypes)
         {
-            w = w with
-            {
-                Skills = Known(EquatableArray.From(bio.Skills.Select(entry => new WorkSkill { Learning = entry.Learning, Name = entry.DefName, Level = entry.Level, Stored = entry.StoredLevel, Disabled = entry.Disabled, Passion = SkillPassion(entry.Passion) }))),
-                SkillStatCurves = bio.SkillStatCurves,
-                // Traits, incapable work types and age feed the pawn profile.
-                Traits = Known(EquatableArray.From(bio.Traits.Select(entry => new PawnTrait { Name = entry.DefName, Degree = entry.Degree }))),
-            };
-            var incapable = new List<WorkType>();
-            foreach (var name in bio.IncapableWorkTypes)
-            {
-                incapable.Add(ColonyDecodeReads.WireParseOpen(name, WorkType.Unrecognized));
-            }
-            w = w with { Incapable = Known(EquatableArray.From(incapable)), Age = Known(bio.BiologicalAgeYears) };
+            incapable.Add(ColonyDecodeReads.WireParseOpen(name, WorkType.Unrecognized));
         }
+        var violent = true;
+        foreach (var tag in bio.DisabledWorkTags)
+        {
+            violent = violent && tag != "Violent";
+        }
+        w = w with
+        {
+            Skills = Known(EquatableArray.From(bio.Skills.Select(entry => new WorkSkill { Learning = entry.Learning, Name = entry.DefName, Level = entry.Level, Stored = entry.StoredLevel, Disabled = entry.Disabled, Passion = SkillPassion(entry.Passion) }))),
+            SkillStatCurves = bio.SkillStatCurves,
+            // Traits, incapable work types and age feed the pawn profile.
+            Traits = Known(EquatableArray.From(bio.Traits.Select(entry => ResolveTrait(defs, new PawnTrait { Name = entry.DefName, Degree = entry.Degree })))),
+            Incapable = Known(EquatableArray.From(incapable)),
+            Age = Known(bio.BiologicalAgeYears),
+            ViolenceCapable = Known(violent),
+        };
         w = w with { Inspiration = ColonyDecodeReads.Optional(row.Inspiration is not null, (row.Inspiration ?? "")), Biotech = BiotechFactsRules.PawnBiotech(row.Biotech) };
         if (w.Biotech.TryGetValue(out var bt) && bt.IsDeathresting())
         {
             w = w with { Available = Known(false) };
         }
-        if (row.Settings is { } hs && hs.HostilityResponse is not null && WireEnums.HostilityName(hs.HostilityResponse.GetValueOrDefault()) is { } hostility)
+        var n = row.Needs;
+        // A psylink level is known only for a psycaster: level 0 is no psylink (Psylink.cs).
+        return w with
         {
-            w = w with { Hostility = Known(hostility) };
-        }
-        if (row.Biography is { } db)
-        {
-            var violent = true;
-            foreach (var tag in db.DisabledWorkTags)
-            {
-                violent = violent && tag != "Violent";
-            }
-            w = w with { ViolenceCapable = Known(violent) };
-        }
-        if (row.Health is { } h)
-        {
-            w = w with { BloodLoss = Known(h.BloodLoss), Health = Known(h.SummaryFraction) };
-        }
-        if (row.Needs is { } n)
-        {
-            // A psylink level is known only for a psycaster: level 0 is no psylink (Psylink.cs).
-            w = w with
-            {
-                Rest = ColonyDecodeReads.Optional(n.Rest is O.NeedLevel.Has, n.Rest is O.NeedLevel.Has rest ? rest.Level : 0),
-                Mood = ColonyDecodeReads.Optional(n.Mood is O.NeedLevel.Has, n.Mood is O.NeedLevel.Has mood ? mood.Level : 0),
-                Hunger = ColonyDecodeReads.Optional(n.Food is O.FoodNeed.Has, n.Food is O.FoodNeed.Has food ? food.Hunger : default),
-                BreakThreshold = Known(n.BreakThresholdMinor),
-                PsylinkLevel = ColonyDecodeReads.Optional(n.PsylinkLevel > 0, n.PsylinkLevel),
-            };
-        }
-        w = w with { HighExpectations = ColonyDecodeReads.Optional(row.Social is not null, row.Social is { HighExpectations: true }) };
-        return w;
+            BloodLoss = Known(row.Health.BloodLoss),
+            Health = Known(row.Health.SummaryFraction),
+            Rest = ColonyDecodeReads.Optional(n.Rest is O.NeedLevel.Has, n.Rest is O.NeedLevel.Has rest ? rest.Level : 0),
+            Mood = ColonyDecodeReads.Optional(n.Mood is O.NeedLevel.Has, n.Mood is O.NeedLevel.Has mood ? mood.Level : 0),
+            Hunger = ColonyDecodeReads.Optional(n.Food is O.FoodNeed.Has, n.Food is O.FoodNeed.Has food ? food.Hunger : default),
+            BreakThreshold = Known(n.BreakThresholdMinor),
+            PsylinkLevel = ColonyDecodeReads.Optional(n.PsylinkLevel > 0, n.PsylinkLevel),
+            HighExpectations = Known(row.Social.HighExpectations),
+        };
     }
 
     /// <summary>Reads a job's targetA. An absent field is an older producer (unknown); an unavailable target is a job with none.</summary>

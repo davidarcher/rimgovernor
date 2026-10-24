@@ -112,9 +112,9 @@ public static partial class RitualRules
         {
             var ak = row.Available.TryGetValue(out var available);
             var nk = row.PolicyInputs.TryGetValue(out var inputs);
-            if (ak && available && nk && inputs!.Ideo == ideo!.Facts.IdeoId)
+            if (ak && available && nk && inputs!.Ideo is PawnIdeo.Member member && member.IdeoId == ideo!.Facts.IdeoId)
             {
-                inputs.IdeoCertainty.TryGetValue(out var certainty);
+                var certainty = member.Certainty;
                 pool.Add((row.Id, certainty));
             }
         }

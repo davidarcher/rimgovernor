@@ -267,11 +267,11 @@ public static class ColonyProductionReads
     /// <summary>The pawn's own ideoligion and precepts from its row's policy inputs; unknown while the table lacks the row or the inputs.</summary>
     private static Fact<HeldPrecepts> HeldPreceptsOf(Pawns pawns, string id)
     {
-        if (!pawns.TryGetValue(id, out var row) || row?.Settings?.PolicyInputs is not { } p)
+        if (!pawns.TryGetValue(id, out var row) || row is null)
         {
             return Unknown<HeldPrecepts>();
         }
-        return Known(new HeldPrecepts { Ideo = p.IdeoId ?? "", Defs = [.. p.Precepts] });
+        return Known(row.Settings.PolicyInputs.Ideo is O.PawnIdeo.Member m ? new HeldPrecepts { Ideo = m.IdeoId, Defs = [.. m.Precepts] } : new HeldPrecepts());
     }
 
     internal static Fact<EquatableArray<ProductionBench>> ColonyProductionBenches(O.ColonyFactsSnapshot v, Buildings buildings, Pawns pawns, DefinitionCatalog? catalog)

@@ -39,7 +39,7 @@ internal static class PawnStateReads
     private static async Task RunAsync(TypedSession s, Row row, CancellationToken cancellationToken)
     {
         var id = s.Staged?.Pawns["pawn"].Id ?? throw new AcceptanceException("the stage made no pawn");
-        var pawn = await TypedPawns.OneAsync(s, "pawn", id, null, cancellationToken).ConfigureAwait(false);
+        var pawn = await TypedPawns.OneAsync(s, "pawn", id, cancellationToken).ConfigureAwait(false);
         s.RecordWire("mental_state", pawn.MentalState);
         s.Record("inspiration", pawn.Inspiration);
         if (!row.Read(pawn))

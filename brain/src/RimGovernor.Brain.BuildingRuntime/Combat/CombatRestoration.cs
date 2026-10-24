@@ -47,7 +47,7 @@ public sealed partial class RoundsDefensePlanner
             }
             else if (o.Kind == CombatOrderKind.AnimalArea && !keptAnimals.Any(a => a.Pawn == (Domain.PawnId)o.Pawn))
             {
-                if (!combat.Detail.TryGetValue(o.Pawn.Value, out var p) || p.AnimalState is not { SupportsAllowedAreas: not null } animal)
+                if (!combat.Detail.TryGetValue(o.Pawn.Value, out var p) || p.AnimalState is not PbObservations.PawnAnimalState.Animal { State: { SupportsAllowedAreas: not null } animal })
                 {
                     continue;
                 }

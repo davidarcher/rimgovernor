@@ -182,14 +182,12 @@ public sealed class ColonyStatus
                 continue;
             }
             var pawn = new ColonyStatusPawn { Id = new PawnId((row.Pawn.Id ?? "")), Label = row.Pawn.Label ?? "", Downed = Known(row.Downed) };
-            if (row.Needs is { } needs)
+            var needs = row.Needs;
+            pawn = pawn with
             {
-                pawn = pawn with
-                {
-                    Mood = OptionalFact(needs.Mood is PbObservations.NeedLevel.Has, needs.Mood is PbObservations.NeedLevel.Has mood ? mood.Level : 0),
-                    Food = OptionalFact(needs.Food is PbObservations.FoodNeed.Has, needs.Food is PbObservations.FoodNeed.Has food ? food.Level : 0),
-                };
-            }
+                Mood = OptionalFact(needs.Mood is PbObservations.NeedLevel.Has, needs.Mood is PbObservations.NeedLevel.Has mood ? mood.Level : 0),
+                Food = OptionalFact(needs.Food is PbObservations.FoodNeed.Has, needs.Food is PbObservations.FoodNeed.Has food ? food.Level : 0),
+            };
             rows.Add(pawn);
         }
         report = report with { Pawns = rows, Roster = rows.Count == 0 ? ColonyRoster.NoColonists : ColonyRoster.Colonists };

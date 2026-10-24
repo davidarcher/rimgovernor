@@ -13,88 +13,36 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativePawnDetails
     {
-        // The detail families one request resolves to: an absent family of
-        // the first seven is requested, an absent work, schedule or tend is not.
-        internal sealed class Requested
-        {
-            internal bool Needs, Health, Equipment, Biography, Settings, Social, Animals, Work, Schedule, Tend;
-            internal uint? TendReachBudgetMs;
-        }
-
-        internal static Requested Defaults(Obs.PawnDetails? source) => new Requested {
-            Needs=source?.Needs ?? true, Health=source?.Health ?? true, Equipment=source?.Equipment ?? true,
-            Biography=source?.Biography ?? true, Settings=source?.Settings ?? true, Social=source?.Social ?? true,
-            Animals=source?.Animals ?? true, Work=source?.Work ?? false, Schedule=source?.Schedule ?? false,
-            Tend=source?.Tend ?? false, TendReachBudgetMs=source?.TendReachBudgetMs };
-
-        // Doctor-side tend gates for one reply's rows, mirroring
+        // Doctor-side tend gates of the requested pawns, mirroring
         // NativeTendOperations.Prepare: pawn-control eligibility (the gate
         // behind "Tend requires an eligible doctor"), WorkGiver_Tend's required
-        // capacities, the Doctor work type, and CanReach(ClosestTouch, Deadly)
-        // to every other row of the same reply -- the candidate patients.
-        internal static System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<Pawn,Obs.PawnState>> Tend(System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<Pawn,Obs.PawnState>> page,uint? reachBudgetMs)
+        // capacities, and CanReach(ClosestTouch, Deadly) to every other
+        // requested pawn -- the candidate patients.
+        internal static System.Collections.Generic.List<Obs.TendDoctor> Tend(System.Collections.Generic.List<Pawn> pawns,uint reachBudgetMs)
         {
             var giver=DefDatabase<WorkGiverDef>.AllDefsListForReading
                 .Where(d => d.giverClass!=null && typeof(WorkGiver_Tend).IsAssignableFrom(d.giverClass))
                 .Select(d => d.Worker as WorkGiver_Tend).FirstOrDefault(w => w!=null)
                 ?? throw new InvalidOperationException("WorkGiver_Tend is missing from the game's work givers.");
-            // Pairwise reachability is quadratic in the page (about 0.3 us a pair), so
+            // Pairwise reachability is quadratic in the pawns (about 0.3 us a pair), so
             // it runs under the brain's budget: a doctor reached after it is spent reports
-            // reach_skipped (list unknown), never a partial list.
-            var budgetTicks=reachBudgetMs.HasValue ? reachBudgetMs.Value*System.Diagnostics.Stopwatch.Frequency/1000 : long.MaxValue;
+            // reach_skipped, never a partial list.
+            var budgetTicks=reachBudgetMs*System.Diagnostics.Stopwatch.Frequency/1000;
             var began=System.Diagnostics.Stopwatch.GetTimestamp();
-            var result=new System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<Pawn,Obs.PawnState>>(page.Count);
-            foreach(var item in page) {
-                var pawn=item.Key;
-                var row=new Obs.PawnTendDoctor { Spawned = pawn.Spawned, HasDrafter = pawn.drafter!=null,
+            var result=new System.Collections.Generic.List<Obs.TendDoctor>(pawns.Count);
+            foreach(var pawn in pawns) {
+                Obs.TendReach reach;
+                if(!pawn.Spawned || pawn.Dead) reach=new Obs.TendReach.Read([]);
+                else if(System.Diagnostics.Stopwatch.GetTimestamp()-began>=budgetTicks) reach=new Obs.TendReach.Skipped();
+                else reach=new Obs.TendReach.Read([.. pawns
+                    .Where(other => !ReferenceEquals(other,pawn) && other.Spawned && !other.Dead && pawn.CanReach(other,PathEndMode.ClosestTouch,Danger.Deadly))
+                    .Select(other => Id(other.GetUniqueLoadID()))]);
+                result.Add(new Obs.TendDoctor { PawnId = Id(pawn.GetUniqueLoadID()), Spawned = pawn.Spawned, HasDrafter = pawn.drafter!=null,
                     ControlEligible = pawn.drafter!=null && pawn.Spawned && !pawn.Dead && !pawn.Downed && !pawn.InMentalState && pawn.IsColonistPlayerControlled,
-                    CapacitiesOk = giver.MissingRequiredCapacity(pawn)==null };
-                if(!pawn.Spawned || pawn.Dead) {
-                    result.Add(new System.Collections.Generic.KeyValuePair<Pawn,Obs.PawnState>(pawn,item.Value with { TendDoctor = row }));
-                    continue;
-                }
-                if(System.Diagnostics.Stopwatch.GetTimestamp()-began>=budgetTicks) {row = row with { ReachSkipped = true };result.Add(new System.Collections.Generic.KeyValuePair<Pawn,Obs.PawnState>(pawn,item.Value with { TendDoctor = row }));continue;}
-                foreach(var other in page) {
-                    if(ReferenceEquals(other.Key,pawn) || !other.Key.Spawned || other.Key.Dead) continue;
-                    if(pawn.CanReach(other.Key,PathEndMode.ClosestTouch,Danger.Deadly)) row = row with { ReachablePawnIds = [.. row.ReachablePawnIds, (other.Value.Pawn.Id ?? "")] };
-                }
-                result.Add(new System.Collections.Generic.KeyValuePair<Pawn,Obs.PawnState>(pawn,item.Value with { TendDoctor = row }));
+                    CapacitiesOk = giver.MissingRequiredCapacity(pawn)==null, Reach = reach });
             }
             return result;
         }
-
-        internal static Obs.PawnState Apply(Pawn pawn,Obs.PawnState row,Obs.PawnDetails? requested,Common.ObservationContext context)
-        {
-            var d=Defaults(requested);
-            // An unrequested family is an absent block.
-            if(d.Needs) row = row with { Needs = Needs(pawn) };
-            if(d.Health) row = row with { Health = Health(pawn,context) };
-            if(d.Equipment) row = row with { Equipment = Equipment(pawn) };
-            if(d.Biography) row = row with { Biography = Biography(pawn) };
-            if(d.Settings || d.Work || d.Schedule) {
-                var settings = new Obs.PawnSettings();
-                // The bridge contract (the brain's settings
-                // validation) enforces that a PawnSettings reply carries
-                // ONLY the fields the request actually asked for: care policy
-                // (medical_care, self_tend, hostility_response) under
-                // d.Settings, work priorities
-                // plus the allowed area under d.Work, the 24 timetable slots
-                // under d.Schedule.
-                // Callers that request several (e.g. ReadTendPawns,
-                // ReadRoundsPawns) must therefore get exactly their union,
-                // never the wider Assign-tab row (follow
-                // flags, master, allowed area) that home/pawn_config's own
-                // PawnSettingsRead.SettingsBlock reports instead.
-                if(d.Settings) settings = CarePolicy(pawn,settings);
-                if(d.Work) { settings = Work(pawn,settings); settings = AllowedArea(pawn,settings); settings = settings with { FoodPolicyRespected = NativeFoodPolicy.Respected(pawn), PolicyInputs = NativePolicyFacts.Inputs(pawn) }; settings = BodyStats(pawn,settings); }
-                if(d.Schedule) settings = Schedule(pawn,settings);
-                row = row with { Settings = settings };
-            }
-            if(d.Social) row = row with { Social = Social(pawn) };
-            if(d.Animals && pawn.RaceProps.Animal) row = row with { AnimalState = Animal(pawn) };
-            return row;
-        }
-
         // One hediff row of a health read.
         private static Obs.Hediff HediffRow(Pawn pawn,Hediff h)
         {
@@ -122,7 +70,7 @@ namespace HomeBridge.BridgeTools
             }
 
         // The need levels; a need the pawn lacks is Lacks.
-        private static Obs.PawnNeeds Needs(Pawn pawn)
+        internal static Obs.PawnNeeds Needs(Pawn pawn)
         {
             var food = pawn.needs?.food;
             return new Obs.PawnNeeds
@@ -131,7 +79,8 @@ namespace HomeBridge.BridgeTools
                 Rest = Level(pawn.needs?.rest),
                 Mood = Level(pawn.needs?.mood),
                 Joy = Level(pawn.needs?.joy),
-                BreakThresholdMinor = Number(pawn.mindState.mentalBreaker.BreakThresholdMinor),
+                // MentalBreaker.BreakThresholdMinor is this stat; a corpse has no mind state but its stat reads.
+                BreakThresholdMinor = Number(pawn.GetStatValue(StatDefOf.MentalBreakThreshold, true, 5)),
                 PsylinkLevel = ModsConfig.RoyaltyActive ? pawn.GetPsylinkLevel() : 0,
             };
         }
@@ -146,7 +95,7 @@ namespace HomeBridge.BridgeTools
             return new Obs.PawnConditions { LifeThreatening = all.Any(h=>h.IsCurrentlyLifeThreatening), Hediffs = [.. all.Select(h=>HediffRow(pawn,h))] };
         }
 
-        private static Obs.PawnHealth Health(Pawn pawn,Common.ObservationContext context)
+        internal static Obs.PawnHealth Health(Pawn pawn,Common.ObservationContext context)
         {
             var set=pawn.health.hediffSet;
             var all=set.hediffs.ToList();
@@ -375,7 +324,7 @@ namespace HomeBridge.BridgeTools
             return def.addsHediff!=null && pawn.health.WouldDieAfterAddingHediff(def.addsHediff,part,def.addsHediff.initialSeverity);
         }
 
-        private static Obs.PawnEquipment Equipment(Pawn pawn)
+        internal static Obs.PawnEquipment Equipment(Pawn pawn)
         {
             var row=NativeGearFacts.Equipment(pawn);
             // Defense capacity: observed damage per second and the ranged hit factor it counts for (#3845).
@@ -388,7 +337,7 @@ namespace HomeBridge.BridgeTools
 
         internal static Obs.PawnBiography Biography(Pawn pawn)
         {
-            var row=new Obs.PawnBiography { BiologicalAgeYears = Number(pawn.ageTracker.AgeBiologicalYearsFloat) };
+            var row=new Obs.PawnBiography { BiologicalAgeYears = Number(pawn.ageTracker.AgeBiologicalYearsFloat), Traits = [], Skills = [], SkillStatCurves = [], SkillStatFindings = [], DisabledWorkTags = [], IncapableWorkTypes = [] };
             // A pawn without a story or skill tracker (an animal) has no traits or skills.
             if(pawn.story?.traits!=null)
                 foreach(var trait in pawn.story.traits.allTraits) row = row with { Traits = [.. row.Traits, new Obs.Trait {DefName=Id(trait.def.defName),Degree=trait.Degree}] };
@@ -404,97 +353,77 @@ namespace HomeBridge.BridgeTools
             return row;
         }
 
-        // Populates ONLY the care-policy fields (medical_care, self_tend and
-        // hostility_response, which PawnSettingsIntent writes) that
-        // the brain's settings validation allows through
-        // when a caller asks for `care`. The follow flags,
-        // master_id and the 24-hour schedule are the wider Assign-tab row --
-        // deliberately never requested via this protobuf
-        // (rimgovernor/observations_list_pawns) path, so they must never be
-        // set here regardless of what native happens to hold.
-        // allowed_area_id belongs to the work snapshot (AllowedArea below).
-        private static Obs.PawnSettings CarePolicy(Pawn pawn,Obs.PawnSettings row)
-        {
-            // A pawn without player settings has no care policy.
-            var settings=pawn.playerSettings;
-            if(settings==null) return row;
-            row = row with { MedicalCare = NativeEnums.Care(settings.medCare), SelfTend = settings.selfTend };
-            if(settings.UsesConfigurableHostilityResponse) row = row with { HostilityResponse = NativeEnums.Hostility(settings.hostilityResponse) };
-            return row;
-        }
-
-        private static Obs.PawnSettings Work(Pawn pawn,Obs.PawnSettings row)
-        {
-            row = row with { WorkApplies = pawn.workSettings?.EverWork==true };
-            // GetPriority can initialize an unreadable tracker; never read it then: no work rows.
-            if(pawn.workSettings?.Initialized!=true || row.WorkApplies!=true) return row;
-            row = row with { ManualWorkPriorities = PawnSettingsRead.ManualPriorities() ?? throw new InvalidOperationException("A pawn read has no game play settings.") };
-            var defs=DefDatabase<WorkTypeDef>.AllDefsListForReading;
-            foreach(var def in defs) row = row with { Work = [.. row.Work, new Obs.WorkSetting {DefName=Id(def.defName),Priority=pawn.workSettings.GetPriority(def),Disabled=pawn.WorkTypeIsDisabled(def)}] };
-            return row;
-        }
-
-        // The body stats the outdoor dash planner reads under d.Work: the
-        // game's own stat and hediff values. A failed read leaves the whole
-        // block absent and adds a body issue, never zeros.
-        private static Obs.PawnSettings BodyStats(Pawn pawn,Obs.PawnSettings row)
-        {
-            try {
-                var body=new Obs.PawnBodyStats {
-                    ComfortableMinC=Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)),
-                    ComfortableMaxC=Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)),
-                    MoveSpeed=Number(pawn.GetStatValue(StatDefOf.MoveSpeed)),
-                    Hypothermia=Severity(pawn,"Hypothermia") };
-                if(pawn.Spawned) body = body with { CellTemperatureC = Number(pawn.AmbientTemperature) };
-                row = row with { Body = body };
-            } catch(InvalidOperationException) {
-                // A failed stat read leaves the whole block absent, never zeros.
-            }
-            return row;
-        }
-
-        // The highest severity among the pawn's hediffs of one def, 0 when it has none.
-        private static double Severity(Pawn pawn,string defName)
-        {
-            var def=DefDatabase<HediffDef>.GetNamedSilentFail(defName);
-            if(def==null) return 0;
-            var best=0.0;
-            foreach(var h in pawn.health.hediffSet.hediffs) if(h.def==def) best=Math.Max(best,h.Severity);
-            return Number(best);
-        }
-
-        // Projects the pawn's current allowed-area restriction under d.Work
-        //: WorkSettingsIntent writes allowed_area alongside the
-        // priorities, so a work reader (the routine
-        // work review, the recovery/area case) must see the
-        // area alongside the priorities. Unset when the pawn is unrestricted,
-        // matching the AllowedArea{Clear} write; Missing when the pawn has no
-        // player settings at all.
-        private static Obs.PawnSettings AllowedArea(Pawn pawn,Obs.PawnSettings row)
+        // The pawn's player settings, every member read for every pawn.
+        internal static Obs.PawnSettings Settings(Pawn pawn)
         {
             var settings=pawn.playerSettings;
-            if(settings==null) return row;
-            var area=settings.AreaRestrictionInPawnCurrentMap;
-            if(area!=null) row = row with { AllowedAreaId = Id(area.GetUniqueLoadID()) };
-            return row;
+            return new Obs.PawnSettings {
+                Care = Care(pawn),
+                // The current-map restriction WorkSettingsIntent writes alongside the priorities;
+                // null when unrestricted (the AllowedArea{Clear} write) or without player settings.
+                AllowedAreaId = settings?.AreaRestrictionInPawnCurrentMap is Area area ? Id(area.GetUniqueLoadID()) : null,
+                Work = Work(pawn),
+                WorkApplies = pawn.workSettings?.EverWork==true,
+                ManualWorkPriorities = Manual(pawn),
+                Schedule = Schedule(pawn),
+                FoodPolicyRespected = NativeFoodPolicy.Respected(pawn),
+                PolicyInputs = NativePolicyFacts.Inputs(pawn),
+                Body = BodyStats(pawn),
+            };
         }
 
-        // Projects the pawn's 24-hour timetable as one TimetableSlot per hour
-        // (hour 0 first), the exact list RimWorld's Pawn_TimetableTracker
-        // resolves CurrentAssignment from, so the brain can mirror the
-        // schedule observation used by independent timetable-aware consumers
-        // (boundary.ExpectedScheduleDef). Pawns without a timetable tracker
-        // (animals, other factions) or with an unreadable/odd-length one
-        // report a "schedule" issue rather than a partial list.
-        private static Obs.PawnSettings Schedule(Pawn pawn,Obs.PawnSettings row)
+        // The care policy PawnSettingsIntent writes; none without player settings.
+        private static Obs.PawnCare Care(Pawn pawn)
+        {
+            var settings=pawn.playerSettings;
+            if(settings==null) return new Obs.PawnCare.None();
+            return new Obs.PawnCare.Configured(NativeEnums.Care(settings.medCare), settings.selfTend,
+                NativeEnums.Hostility(settings.hostilityResponse));
+        }
+
+        // One row per work type for a working pawn with an initialized tracker; GetPriority can initialize an
+        // unread tracker, so it is never read then.
+        private static RimGovernor.Brain.Domain.EquatableArray<Obs.WorkSetting> Work(Pawn pawn)
+        {
+            var work=pawn.workSettings;
+            if(work==null || !work.EverWork || !work.Initialized) return [];
+            return [.. DefDatabase<WorkTypeDef>.AllDefsListForReading
+                .Select(def => new Obs.WorkSetting {DefName=Id(def.defName),Priority=work.GetPriority(def),Disabled=pawn.WorkTypeIsDisabled(def)})];
+        }
+
+        // The game's manual-priorities setting, for a working pawn with an initialized tracker; null otherwise.
+        private static bool? Manual(Pawn pawn)
+        {
+            var work=pawn.workSettings;
+            if(work==null || !work.EverWork || !work.Initialized) return null;
+            return PawnSettingsRead.ManualPriorities() ?? throw new InvalidOperationException("A pawn read has no game play settings.");
+        }
+
+        // The body stats the outdoor dash planner reads: the game's own stat
+        // and hediff values, at the pawn's cell or its holder's.
+        private static Obs.PawnBodyStats BodyStats(Pawn pawn)
+        {
+            var hypothermia=0.0;
+            foreach(var h in pawn.health.hediffSet.hediffs) if(h.def==HediffDefOf.Hypothermia) hypothermia=Math.Max(hypothermia,h.Severity);
+            return new Obs.PawnBodyStats {
+                ComfortableMinC=Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)),
+                ComfortableMaxC=Number(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)),
+                MoveSpeed=Number(pawn.GetStatValue(StatDefOf.MoveSpeed)),
+                CellTemperatureC=Number(pawn.AmbientTemperature),
+                Hypothermia=Number(hypothermia) };
+        }
+
+        // The pawn's 24-hour timetable as one TimetableSlot per hour (hour 0
+        // first), the exact list RimWorld's Pawn_TimetableTracker resolves
+        // CurrentAssignment from. A pawn without a timetable (an animal,
+        // another faction's pawn) has no slots.
+        private static RimGovernor.Brain.Domain.EquatableArray<Obs.TimetableSlot> Schedule(Pawn pawn)
         {
             var times=pawn.timetable?.times;
-            if(times==null) return row;
+            if(times==null) return [];
             if(times.Count!=24 || times.Any(t=>t==null)) throw new InvalidOperationException("The pawn's timetable is not 24 assigned hours.");
-            for(var hour=0;hour<times.Count;hour++) row = row with { Schedule = [.. row.Schedule, new Obs.TimetableSlot {Hour=(uint)hour,AssignmentDefName=Id(times[hour].defName)}] };
-            return row;
+            return [.. times.Select((t,hour) => new Obs.TimetableSlot {Hour=(uint)hour,AssignmentDefName=Id(t.defName)})];
         }
-
         // The one animal state builder: body, herd and training
         // facts for every animal; for a player animal its pen, area, care
         // and the release/slaughter guards; for a wild one its tame facts.
@@ -544,7 +473,7 @@ namespace HomeBridge.BridgeTools
         // recalculates situational social thoughts -- see PawnConfigTool's class
         // remarks for why (Thought_Situational.Notify_BecameActive deletes memories
         // of the def it produces). Ported from PawnSettingsRead.RelationsBlock/OpinionRow.
-        private static Obs.PawnSocial Social(Pawn pawn)
+        internal static Obs.PawnSocial Social(Pawn pawn)
         {
             var current=ExpectationsUtility.CurrentExpectationFor(pawn) ?? throw new InvalidOperationException("The pawn has no current expectation.");
             var (situational,stale)=PawnSettingsRead.LiveSituational(pawn);

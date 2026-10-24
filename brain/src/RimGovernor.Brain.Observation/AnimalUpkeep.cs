@@ -22,7 +22,7 @@ public static class AnimalUpkeepReads
         {
             var a = u.Animals[i];
             var pawn = resolved[i];
-            var state = pawn.AnimalState ?? new O.AnimalState();
+            var state = AnimalOf(pawn);
             var area = Unknown<string>();
             if (state.SupportsAllowedAreas is not null)
             {
@@ -100,7 +100,7 @@ public static class AnimalUpkeepReads
         var rows = new List<UpkeepAnimal>();
         foreach (var pawn in resolved)
         {
-            var state = pawn.AnimalState ?? new O.AnimalState();
+            var state = AnimalOf(pawn);
             var race = RaceOf(pawn, races);
             rows.Add(new UpkeepAnimal
             {
@@ -143,7 +143,7 @@ public static class AnimalUpkeepReads
         output = new List<O.PawnState>(feed.Count);
         foreach (var a in feed)
         {
-            if (!pawns.TryGetRow(a.Pawn, out var row) || row.AnimalState is null)
+            if (!pawns.TryGetRow(a.Pawn, out var row) || row.AnimalState is not O.PawnAnimalState.Animal)
             {
                 return false;
             }
@@ -151,6 +151,12 @@ public static class AnimalUpkeepReads
         }
         return true;
     }
+
+    /// <summary>The animal block of a row the upkeep read resolved as an animal; any other row is a contract break.</summary>
+    private static O.AnimalState AnimalOf(O.PawnState pawn) =>
+        pawn.AnimalState is O.PawnAnimalState.Animal animal
+            ? animal.State
+            : throw new ObservationContractException($"pawn {(pawn.Pawn.Id ?? "")} is an upkeep animal without an animal state");
 
     /// <summary>The catalog row of the pawn's race; a race the catalog does not hold is the zero row, whose numbers are unknown.</summary>
     private static AnimalRace RaceOf(O.PawnState pawn, AnimalRaceCatalog races)
@@ -165,7 +171,7 @@ public static class AnimalUpkeepReads
     /// </summary>
     private static HerdFacts HerdFactsOf(O.PawnState pawn, AnimalRaceCatalog races)
     {
-        var state = pawn.AnimalState ?? new O.AnimalState();
+        var state = AnimalOf(pawn);
         var race = RaceOf(pawn, races);
         return new HerdFacts
         {

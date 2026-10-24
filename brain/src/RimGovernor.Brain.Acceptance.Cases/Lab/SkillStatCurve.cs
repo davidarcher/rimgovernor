@@ -45,7 +45,6 @@ internal static class LabSkillStatCurve
             {
                 Scope = s.Scope,
                 Filter = new() { Ids = [prepared.Qualified, prepared.Disqualified] },
-                Details = new PawnDetails { Biography = true },
             }, ct).ConfigureAwait(false);
             var pawns = reply.Pawns;
             PawnBiography Bio(string id) => pawns.SingleOrDefault(p => p.Pawn.Id == id)?.Biography

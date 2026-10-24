@@ -19,7 +19,7 @@ public sealed partial class Rounder
                 continue;
             }
 
-            var name = pawn.Standing?.FactionDefName ?? "";
+            var name = pawn.FactionDefName ?? "";
             if (name.Length == 0 || (faction.Length != 0 && faction != name))
             {
                 return Unknown<DesignChoice>();

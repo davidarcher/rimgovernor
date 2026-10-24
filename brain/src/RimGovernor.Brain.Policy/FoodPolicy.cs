@@ -172,7 +172,7 @@ public static class FoodPolicyRules
         {
             return (new Diet(), false);
         }
-        var (d, dok) = DietOf(traits!, inputs!.Precepts, ideology, preferences);
+        var (d, dok) = DietOf(traits!, inputs!.Ideo is PawnIdeo.Member member ? member.Precepts : [], ideology, preferences);
         if (!dok)
         {
             return (new Diet(), false);
@@ -351,7 +351,7 @@ public static class FoodPolicyRules
                 continue;
             }
             _ = pawn.PolicyInputs.TryGetValue(out var inputs);
-            if (inputs?.GuestStatus is RimGovernor.Contracts.Wire.Defs.GuestStatus.Slave or RimGovernor.Contracts.Wire.Defs.GuestStatus.Prisoner)
+            if (inputs?.Guest is GuestState.Hosted { Status: RimGovernor.Contracts.Wire.Defs.GuestStatus.Slave or RimGovernor.Contracts.Wire.Defs.GuestStatus.Prisoner })
             {
                 rows.Add((pawn.Id, CaptiveFoods(diet, foods)));
             }

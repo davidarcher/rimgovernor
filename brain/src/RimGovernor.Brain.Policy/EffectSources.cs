@@ -100,7 +100,7 @@ public static class EffectSourcesRules
         var traits = input.Role.Work.Traits.TryGetValue(out var observed)
             ? Known(EquatableArray.From(observed.Select(t => t.Name))) : Unknown<EquatableArray<string>>();
         var precepts = input.Role.Work.PolicyInputs.TryGetValue(out var policy)
-            ? Known<EquatableArray<string>>(policy.Ideo.Length == 0 ? [] : EquatableArray.From(policy.Precepts)) : Unknown<EquatableArray<string>>();
+            ? Known<EquatableArray<string>>(policy.Ideo is PawnIdeo.Member member ? member.Precepts : []) : Unknown<EquatableArray<string>>();
         return new CardPawnFacts { Traits = traits, Hediffs = hediffs, AnomalyActive = Unknown<bool>(), IdeologyActive = ideologyActive, Precepts = precepts };
     }
 

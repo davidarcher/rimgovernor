@@ -65,18 +65,6 @@ namespace HomeBridge.BridgeTools
             return observed;
         }
 
-        // The census pawns the pawn table carries combat detail for:
-        // every engaged threat row, a superset of what the brain classifies as a
-        // hostile or hunting predator.
-        private static ISet<string> CombatSet(Obs.StatusSnapshot? census)
-        {
-            var ids = new HashSet<string>(System.StringComparer.Ordinal);
-            var threats = census?.Threats;
-            if (threats == null) return ids;
-            foreach (var threat in threats.Pawns.Where(Engaged))
-                if (threat?.Pawn?.Id != null) ids.Add((threat.Pawn.Id ?? ""));
-            return ids;
-        }
         private static bool Engaged(Obs.ThreatPawn row) => row.MentalState is not null || row.FactionHostile.GetValueOrDefault() || row.PrisonBreak.GetValueOrDefault() || row.PredatorHunt.GetValueOrDefault();
 
         // On the main thread. The defense planner's other combat inputs
@@ -185,8 +173,7 @@ namespace HomeBridge.BridgeTools
             }
             {
                 var began = Now();
-                var combatSet = CombatSet(observed.Emergency);
-                observed = observed with { Pawns = SnapshotSectionException.Read("pawns", () => NativePawnObservationTools.Table(map, context, combatSet)) };
+                observed = observed with { Pawns = SnapshotSectionException.Read("pawns", () => NativePawnObservationTools.Table(map, context)) };
                 ObservationWork.Captured("pawns", Now() - began, observed.Pawns != null ? observed.Pawns.Pawns.Count : 0);
             }
         }

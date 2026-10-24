@@ -78,10 +78,11 @@ internal static class AnimalsContainment
         Observations.AnimalState? cow = null;
         _ = await s.RunUntilAsync("roped-in", s.TicksLeft, async ct =>
         {
-            var request = new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [cowId] }, Details = new Observations.PawnDetails { Animals = true } };
+            var request = new Observations.ListPawnsRequest { Scope = s.Scope, Filter = new() { Ids = [cowId] } };
             var reply = await s.CallAsync("cow-animal", NativeOps.ListPawns, request, ct).ConfigureAwait(false);
-            cow = reply.Pawns.FirstOrDefault(p => p.Pawn?.Id == cowId)?.AnimalState
-                ?? throw new AcceptanceException($"cow-animal: the staged cow {cowId} has no animal details");
+            cow = reply.Pawns.FirstOrDefault(p => p.Pawn?.Id == cowId)?.AnimalState is Observations.PawnAnimalState.Animal animal
+                ? animal.State
+                : throw new AcceptanceException($"cow-animal: the staged cow {cowId} is not read as an animal");
             return (Wait.Signature(cow.Contained, cow.PenId), cow is { Contained: true, PenId.Length: > 0 });
         }, cancellationToken).ConfigureAwait(false);
         s.RecordWire("cow", cow);

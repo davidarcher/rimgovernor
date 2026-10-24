@@ -29,7 +29,7 @@ public sealed class IdeologyRoleWorkTests
         Available = Known(true),
         Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Crafting", Level = crafting }]),
         Work = Known(EquatableArray.From(work)),
-        PolicyInputs = Known(new PawnPolicyInputs { Ideo = Ours, IdeoCertainty = Known(0.5) }),
+        PolicyInputs = Known(PawnFixtures.Inputs(Ours, 0.5)),
     };
 
     private static Fact<EquatableArray<WorkPawn>> Pawns(params WorkPawn[] rows) => Known(EquatableArray.From(rows));
