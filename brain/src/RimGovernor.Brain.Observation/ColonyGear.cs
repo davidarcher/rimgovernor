@@ -50,7 +50,7 @@ public static class ColonyGearReads
         {
             Pawns = pawns,
             Stored = GearStorageFacts(gear),
-            Outfits = OutfitIds(PoliciesReads.ColonyPolicies(v.Policies)),
+            Outfits = OutfitIds(v.Policies),
         };
         return Known(result);
     }
@@ -477,17 +477,13 @@ public static class ColonyGearReads
         return v;
     }
 
-    /// <summary>Every outfit policy's load id; unknown with the policy section.</summary>
-    public static Fact<EquatableArray<string>> OutfitIds(Fact<Policies> f)
+    /// <summary>Every outfit policy's load id.</summary>
+    public static Fact<EquatableArray<string>> OutfitIds(O.Policies p)
     {
-        if (!f.TryGetValue(out var p))
-        {
-            return Unknown<EquatableArray<string>>();
-        }
         var ids = new List<string>();
         foreach (var row in p.Outfit)
         {
-            ids.Add(row.ID);
+            ids.Add(row.Id);
         }
         return Known(EquatableArray.From(ids));
     }
@@ -545,14 +541,14 @@ public static class ColonyGearReads
         }
         var s = new ApparelPolicyState
         {
-            Token = v.Token ?? "",
-            PawnName = v.PawnName ?? "",
-            PolicyID = v.PolicyId ?? "",
-            Required = EquatableArray.From(v.RequiredDefs),
-            Nude = v.Nude.GetValueOrDefault(),
-            ExcludesTainted = v.ExcludesTainted.GetValueOrDefault(),
-            Role = new GearRoleInput { Child = v.Child.GetValueOrDefault(), Slave = v.Slave.GetValueOrDefault(), IncapableOfViolence = v.IncapableOfViolence.GetValueOrDefault(), DraftedSquad = v.Drafted.GetValueOrDefault() },
-            Current = new ApparelPolicySpec(default, "", (v.Name ?? ""), EquatableArray.From(v.AllowedDefs), v.MinHitPoints.GetValueOrDefault(), v.MaxHitPoints.GetValueOrDefault(), (int)v.MinQuality.GetValueOrDefault(), (int)v.MaxQuality.GetValueOrDefault()),
+            Token = v.Token,
+            PawnName = v.PawnName,
+            PolicyID = v.PolicyId,
+            Required = v.RequiredDefs,
+            Nude = v.Nude,
+            ExcludesTainted = v.ExcludesTainted,
+            Role = new GearRoleInput { Child = v.Child, Slave = v.Slave, IncapableOfViolence = v.IncapableOfViolence, DraftedSquad = v.Drafted },
+            Current = new ApparelPolicySpec(default, "", v.Name, v.AllowedDefs, v.MinHitPoints, v.MaxHitPoints, v.MinQuality, v.MaxQuality),
         };
         var wearer = GearDefinitionsReads.WearerOf(p);
         if (wearer is null || catalog is null)

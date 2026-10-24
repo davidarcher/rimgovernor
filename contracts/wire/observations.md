@@ -68,31 +68,33 @@ zones and built shelves over the inflow window and derives `policy.StoreInflow`;
 
 ## Deep resources and mineral scanners
 
-`ColonyFactsSnapshot.deep_resources` reads discovered `DeepResourceGrid` entries,
+`ColonyFactsSnapshot.deep_resources` (`DeepResources`, #3767) reads discovered `DeepResourceGrid` entries,
 aggregated into eight-connected lumps of the same definition. Each row reports
 total remaining units, cell count and the member nearest its centroid (ties x,z).
 Depleted cells disappear; touching discoveries of the same definition merge.
-The census returns every lump, scanner and drill.
-A failed read leaves the section's `observed` absent (the native side logs the reason once), never partial known-empty facts.
+The census returns every lump, scanner and drill; a read native cannot produce
+throws and fails the colony facts read.
 
-Drill rows (`DeepDrillState`) cover every spawned colonist deep drill: powered
-state, the native next deposit under the drill (`resource`, `remaining`, absent
-when `depleted`) and a standing Deconstruct designation. The brain requires depletion,
-designation and power to be stated, a positive exact deposit on an undepleted
-drill and none on a depleted one; the removal guard dispatches only a depleted,
-still-present drill (every colonist drill is the brain's; no ownership
-ledger).
+Drill rows (`DeepDrill`) cover every spawned colonist deep drill: its id,
+definition, position, the native next deposit under the drill (`deposit`, with
+`resource` and `remaining`; null once no valuable deposit remains, when vanilla
+drills stone only) and a standing Deconstruct designation. The removal guard
+dispatches only a depleted, undesignated drill (every colonist drill is the
+brain's; no ownership ledger).
 
-Ground and long-range scanner rows carry built, powered and recent-working state;
-long-range rows also expose the selected output mineral when readable. Remaining
-ticks estimate work to the guaranteed-find threshold at the last user's speed,
-excluding idle time and the native discovery-check interval of up to 59 ticks.
-Random discovery may occur sooner. Missing timing stays unknown. The brain preserves an
-absent/unavailable section as `ColonyProjection.DeepResources` unknown, while an
-observed empty section establishes no discovered lumps or built scanners.
-The deep-resources acceptance case checks seeded aggregation, both scanner kinds and a
-yielding drill beside a depleted one; a colony snapshot test selects
-a depleted drill for removal from the deep drill step's recorded read.
+Ground and long-range scanner rows (`MineralScanner`) carry powered and
+recent-working state and the remaining ticks of work to the guaranteed-find
+threshold at the last user's speed, excluding idle time and the native
+discovery-check interval of up to 59 ticks. Random discovery may occur sooner.
+The deep drill step plans a drill only with a ground-penetrating scanner on the
+map. The deep-resources acceptance case checks seeded aggregation, both scanner
+kinds and a yielding drill beside a depleted one.
+
+`ColonyFactsSnapshot.policies` (`Policies`, #3767) lists every outfit, drug,
+food and reading policy (load id, label, holders, allowed definitions,
+drug entries), every allowed area on the colony map (holders and cell count)
+and the prisoners and tame animals holding food policies. The brain holds it as
+`ColonyProjection.Policies` and joins it with the catalog's books and foods.
 
 ## Required semantic validation
 

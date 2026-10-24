@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
+using Cell = RimGovernor.Brain.Domain.Cell;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 
@@ -39,12 +39,12 @@ internal static class ToolsDeepResources
         var seed = await s.FixtureAsync("seed", Seed, "", cancellationToken).ConfigureAwait(false);
         var (ex, ez) = (seed.X, seed.Z);
         var facts = await s.CallAsync("deep-resources", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-        var f = facts.DeepResources?.Observed ?? throw new AcceptanceException($"deep-resources: no observed census: {facts.DeepResources}");
+        var f = facts.DeepResources;
         s.RecordWire("deep_resources", f);
 
-        bool At(Common.Cell? cell, int x, int z) => cell?.X == x && cell.Z == z;
-        var near = f.Lumps.Where(l => l.Centre is { X: { } x, Z: { } z } && Math.Abs(x - ex) <= 5 && Math.Abs(z - ez) <= 5).ToList();
-        bool Lump(string def, int x, int z, long count, uint cells) => near.Any(l => l.DefName == def && At(l.Centre, x, z) && l.Count == count && l.CellCount == cells);
+        static bool At(Cell cell, int x, int z) => cell.X == x && cell.Z == z;
+        var near = f.Lumps.Where(l => Math.Abs(l.Centre.X - ex) <= 5 && Math.Abs(l.Centre.Z - ez) <= 5).ToList();
+        bool Lump(string def, int x, int z, long count, int cells) => near.Any(l => l.Definition == def && At(l.Centre, x, z) && l.Count == count && l.CellCount == cells);
         if (near.Count != 3 || !Lump("Plasteel", ex, ez, 300, 3) || !Lump("Plasteel", ex + 4, ez, 25, 1) || !Lump("Steel", ex + 3, ez + 3, 70, 2))
         {
             throw new AcceptanceException($"lumps: want Plasteel 300x3 at the centre, Plasteel 25x1 at +4 and Steel 70x2 at +3,+3, got {string.Join("; ", near)}");
@@ -52,26 +52,26 @@ internal static class ToolsDeepResources
 
         foreach (var (kind, rows) in new[] { ("ground", f.GroundScanners), ("long-range", f.LongRangeScanners) })
         {
-            var scanners = rows.Where(r => r.Position?.X == ex - 12).ToList();
-            if (scanners is not [{ Built: true, Powered: false, Working: false, TicksToNextFind: > 0 }])
+            var scanners = rows.Where(r => r.Position.X == ex - 12).ToList();
+            if (scanners is not [{ Powered: false, Working: false, TicksToNextFind: > 0 }])
             {
-                throw new AcceptanceException($"{kind} scanner: want one built, unpowered, idle scanner at x {ex - 12} with a positive time to next find, got {string.Join("; ", rows)}");
+                throw new AcceptanceException($"{kind} scanner: want one unpowered, idle scanner at x {ex - 12} with a positive time to next find, got {string.Join("; ", rows)}");
             }
         }
 
-        if (f.Drills.FirstOrDefault(d => d.DefName != "DeepDrill" || d.Depleted is null || d.Designated != false) is { } incomplete)
+        if (f.Drills.FirstOrDefault(d => d.Definition != "DeepDrill" || d.Designated) is { } incomplete)
         {
             throw new AcceptanceException($"drills: incomplete row {incomplete}");
         }
 
         var yielding = f.Drills.FirstOrDefault(d => At(d.Position, ex, ez));
-        if (yielding is not { Depleted: false, Resource: "Plasteel", Remaining: 100 })
+        if (yielding is not { Deposit: { Resource: "Plasteel", Remaining: 100 } })
         {
             throw new AcceptanceException($"drills: want the drill on the lump to read 100 Plasteel remaining, got {yielding}");
         }
 
         var depleted = f.Drills.FirstOrDefault(d => At(d.Position, ex, ez - 8));
-        if (depleted is not { Depleted: true, Resource: null, Remaining: null })
+        if (depleted is not { Deposit: null })
         {
             throw new AcceptanceException($"drills: want the drill over cleared ground depleted with no deposit, got {depleted}");
         }

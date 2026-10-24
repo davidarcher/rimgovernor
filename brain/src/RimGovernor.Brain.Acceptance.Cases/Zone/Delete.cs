@@ -5,6 +5,9 @@ using Clock = RimGovernor.Contracts.Wire.Clock;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Observations = RimGovernor.Contracts.Wire.Observations;
+using FilterBase = RimGovernor.Brain.Domain.FilterBase;
+using StockpilePriority = RimGovernor.Brain.Domain.StockpilePriority;
+using Quality = RimGovernor.Brain.Domain.Quality;
 using Operations = RimGovernor.Contracts.Wire.Operations;
 using Receipts = RimGovernor.Contracts.Wire.Receipts;
 
@@ -92,7 +95,7 @@ internal static class ZoneDelete
         {
             var row = await RowAsync(label, zoneId).ConfigureAwait(false) ?? throw new AcceptanceException($"{label}: zone not listed");
             if (row is not Observations.ZoneState.Stockpile stockpile || stockpile.Priority != priority || stockpile.Filter is not { } filter || !filter.AllowedDefNames.SequenceEqual(allowed)
-                || filter.HitPointsMin != hpMin || filter.HitPointsMax != hpMax || filter.QualityMin != "Normal" || filter.QualityMax != "Legendary")
+                || filter.HitPointsMin != hpMin || filter.HitPointsMax != hpMax || filter.QualityMin != Quality.Normal || filter.QualityMax != Quality.Legendary)
             {
                 throw new AcceptanceException($"{label}: want {priority} [{string.Join(' ', allowed)}] hp [{hpMin}, {hpMax}] quality [Normal, Legendary], got {row}");
             }
@@ -123,8 +126,8 @@ internal static class ZoneDelete
             AddCells = new Operations.Cells { Selection = new Operations.Rectangle { Origin = corner, Width = 2, Height = 2 } },
             Stockpile = new Operations.StockpileSettings
             {
-                Priority = Operations.StoragePriority.Important,
-                Preset = Operations.FilterPreset.Nothing,
+                Priority = StockpilePriority.Important,
+                Preset = FilterBase.Nothing,
                 Filter = new Operations.FilterPatch { Allow = [Def("Steel"), Def("WoodLog")], HitPointsMin = 0.5, HitPointsMax = 1, QualityMin = "Normal", QualityMax = "Legendary" },
             },
         };
@@ -167,7 +170,7 @@ internal static class ZoneDelete
             Zone = zone,
             Stockpile = new Operations.StockpileSettings
             {
-                Priority = Operations.StoragePriority.Normal,
+                Priority = StockpilePriority.Normal,
                 Filter = new Operations.FilterPatch { HitPointsMin = 0.25, HitPointsMax = 0.75 },
             },
         };
@@ -185,7 +188,7 @@ internal static class ZoneDelete
         }
 
         // --- presets ---
-        async Task<(HashSet<string> Defs, Observations.StockpileFilter? Filter)> PresetAsync(Operations.FilterPreset preset)
+        async Task<(HashSet<string> Defs, Observations.StockpileFilter? Filter)> PresetAsync(FilterBase preset)
         {
             var key = "preset-" + preset;
             _ = await AppliedAsync(key, new Operations.ZoneIntent { Zone = zone, Stockpile = new Operations.StockpileSettings { Preset = preset } }).ConfigureAwait(false);
@@ -193,16 +196,16 @@ internal static class ZoneDelete
             return (filter?.AllowedDefNames.ToHashSet(StringComparer.Ordinal) ?? [], filter);
         }
 
-        var (nonperishable, _) = await PresetAsync(Operations.FilterPreset.Nonperishables).ConfigureAwait(false);
-        var (outdoor, _) = await PresetAsync(Operations.FilterPreset.OutdoorSafe).ConfigureAwait(false);
-        var (indoor, _) = await PresetAsync(Operations.FilterPreset.IndoorOnly).ConfigureAwait(false);
+        var (nonperishable, _) = await PresetAsync(FilterBase.Nonperishables).ConfigureAwait(false);
+        var (outdoor, _) = await PresetAsync(FilterBase.OutdoorSafe).ConfigureAwait(false);
+        var (indoor, _) = await PresetAsync(FilterBase.IndoorOnly).ConfigureAwait(false);
         if (outdoor.Count == 0 || indoor.Count == 0 || indoor.Overlaps(outdoor) || !nonperishable.SetEquals(indoor.Union(outdoor)))
         {
             throw new AcceptanceException($"presets: indoor_only ({indoor.Count}) and outdoor_safe ({outdoor.Count}) do not partition nonperishables ({nonperishable.Count})");
         }
 
         // outdoor_safe_waste is the materials yard's (#3232): rotten corpses and the toxic wastepack, not Cloth.
-        var (waste, wasteFilter) = await PresetAsync(Operations.FilterPreset.OutdoorSafeWaste).ConfigureAwait(false);
+        var (waste, wasteFilter) = await PresetAsync(FilterBase.OutdoorSafeWaste).ConfigureAwait(false);
         if (!waste.Any(n => n.StartsWith("Corpse_", StringComparison.Ordinal)) || wasteFilter is not { AllowFresh: false, AllowRotten: true })
         {
             throw new AcceptanceException($"presets: outdoor_safe_waste must allow corpse defs with allowFresh off and allowRotten on; got {waste.Count} defs, {wasteFilter}");

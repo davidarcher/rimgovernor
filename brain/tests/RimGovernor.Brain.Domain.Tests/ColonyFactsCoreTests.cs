@@ -44,9 +44,9 @@ public sealed class ColonyFactsCoreTests
         Threat = new() { Observed = QuietThreat },
         EventLoot = new(),
         FoodChannels = new(),
-        DeepResources = new(),
+        DeepResources = DeepResourcesTests.NoDeepResources,
         FermentingBarrels = 0,
-        Policies = new(),
+        Policies = PoliciesTests.NoPolicies,
         Biotech = null,
         Anomaly = null,
         Royalty = null,
@@ -65,6 +65,11 @@ public sealed class ColonyFactsCoreTests
         DeliveryLedger = DeliveryLedgerTests.NoDeliveries,
         PendingFoodNutrition = 0,
         PendingHunts = 0,
+        DeepResources = DeepResourcesTests.NoDeepResources,
+        Policies = PoliciesTests.NoPolicies,
+        Books = [],
+        Foods = [],
+        FoodEaters = [],
     };
 
     /// <summary>A threat read of a colony with no wealth, no raid points, no hostile faction and no raid on the map.</summary>

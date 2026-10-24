@@ -97,7 +97,7 @@ the option.
   JSON without one does not decode. Measured values are plain (`long`, `double`, `string`); a nullable reference
   is allowed only for a real relation (a pawn's equipped weapon). Domain types replace wire shapes: `Tick`,
   `PawnId` and `Cell`, written as a bare number, a bare id string and `{x,z}`.
-- **Enums.** One enum per concept, declared in Contracts and used by Policy and native alike, with no `Unknown`,
+- **Enums.** One enum per concept, declared in Contracts (or in Domain when a Domain record already carries it, as with `StockpilePriority`, `FilterBase` and `Quality`) and used by Policy and native alike, with no `Unknown`,
   `Unspecified` or `None` member and wire names in snake_case (`animal_product`), so `Wire.Name` gives the same
   string Policy keys on.
 - **A read that cannot be produced throws.** The native producer returns the whole record or throws; it never

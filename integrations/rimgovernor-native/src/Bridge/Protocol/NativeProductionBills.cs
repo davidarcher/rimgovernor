@@ -79,9 +79,9 @@ namespace HomeBridge.BridgeTools {
     row = row with { UnrestrictedWorker = bill.allowedSkillRange==fresh.allowedSkillRange && bill.SlavesOnly==fresh.SlavesOnly && bill.MechsOnly==fresh.MechsOnly && bill.NonMechsOnly==fresh.NonMechsOnly };
    }
    if(NativeRecipeRoles.ButcherFlesh(bill.recipe)){
-    row = row with { IngredientFilter = new Obs.StockpileFilter { AllowedDefNames = [.. bill.ingredientFilter.AllowedThingDefs.Where(d=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true).Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal)] } };
+    row = row with { IngredientFilter = NativeStockpileSettings.Project(bill.ingredientFilter) with { AllowedDefNames = [.. bill.ingredientFilter.AllowedThingDefs.Where(d=>d.IsCorpse&&d.ingestible?.sourceDef?.race?.Humanlike==true).Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal)] } };
    }
-   else {row = row with { IngredientFilter = new Obs.StockpileFilter { AllowedDefNames = [.. bill.ingredientFilter.AllowedThingDefs.Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal)] } };}
+   else {row = row with { IngredientFilter = NativeStockpileSettings.Project(bill.ingredientFilter) with { AllowedDefNames = [.. bill.ingredientFilter.AllowedThingDefs.Select(d=>d.defName).OrderBy(id=>id,StringComparer.Ordinal)] } };}
    row=Reservations(bill,row);
    row=row with { UnfinishedWork=UnfinishedWork(bill) };
    if(bill is Bill_Production p){row = row with { RepeatMode = NativeEnums.Repeat(p.repeatMode) };row = row with { RepeatCount = p.repeatCount };row = row with { TargetCount = p.targetCount };row = row with { Finished = BillCommon.IsFinished(p) };}

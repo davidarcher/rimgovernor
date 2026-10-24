@@ -164,9 +164,22 @@ public sealed record StuffOption
 
 public sealed partial record ColonyProjection
 {
-    public Fact<DeepResources> DeepResources { get; init; }
+    public required O.DeepResources DeepResources { get; init; }
 
-    public Fact<Policies> Policies { get; init; }
+    public required O.Policies Policies { get; init; }
+
+    /// <summary>Every book definition and its kind, read from the definition catalog.</summary>
+    public required IReadOnlyList<Book> Books { get; init; }
+
+    /// <summary>Every food definition and its kind, read from the definition catalog.</summary>
+    public required IReadOnlyList<Food> Foods { get; init; }
+
+    /// <summary>
+    /// The prisoners and tame animals holding food policies (Policies.FoodEaters) with their traits resolved
+    /// against the catalog and each animal's edible foods from its race; an animal whose pawn row or race the
+    /// frame does not hold is left out, so no diet is written for it.
+    /// </summary>
+    public required IReadOnlyList<FoodEater> FoodEaters { get; init; }
 
     public Fact<BiotechColony> Biotech { get; init; }
 

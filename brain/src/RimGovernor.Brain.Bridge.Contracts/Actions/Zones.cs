@@ -50,27 +50,8 @@ public static class Zones
     {
         var settings = new Op.StockpileSettings
         {
-            Priority = priority switch
-            {
-                StockpilePriority.Critical => Op.StoragePriority.Critical,
-                StockpilePriority.Important => Op.StoragePriority.Important,
-                StockpilePriority.Preferred => Op.StoragePriority.Preferred,
-                StockpilePriority.Normal => Op.StoragePriority.Normal,
-                StockpilePriority.Low => Op.StoragePriority.Low,
-                _ => Op.StoragePriority.Unspecified,
-            },
-            Preset = filter.Base switch
-            {
-                FilterBase.Everything => Op.FilterPreset.Everything,
-                FilterBase.Nothing => Op.FilterPreset.Nothing,
-                FilterBase.Food => Op.FilterPreset.Food,
-                FilterBase.Perishables => Op.FilterPreset.Perishables,
-                FilterBase.Nonperishables => Op.FilterPreset.Nonperishables,
-                FilterBase.OutdoorSafe => Op.FilterPreset.OutdoorSafe,
-                FilterBase.IndoorOnly => Op.FilterPreset.IndoorOnly,
-                FilterBase.OutdoorSafeWaste => Op.FilterPreset.OutdoorSafeWaste,
-                _ => Op.FilterPreset.Unspecified,
-            },
+            Priority = priority,
+            Preset = filter.Base,
         };
         var patch = new Op.FilterPatch { Allow = [.. FilterSelectors(filter.Allow)], Disallow = [.. FilterSelectors(filter.Disallow)] };
         if (filter.HitPoints is { } hitPoints)

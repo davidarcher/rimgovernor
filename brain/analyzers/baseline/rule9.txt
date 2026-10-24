@@ -5,7 +5,7 @@ Bridge.Contracts/Actions/GiveJob.cs|Discard|1
 Bridge.Contracts/Actions/Orders.cs|Discard|5
 Bridge.Contracts/Actions/PolicyActions.cs|Discard|3
 Bridge.Contracts/Actions/Trade.cs|Discard|2
-Bridge.Contracts/Actions/Zones.cs|Discard|5
+Bridge.Contracts/Actions/Zones.cs|Discard|3
 Bridge.Contracts/Facts/AnomalyFacts.cs|Discard|1
 Bridge.Contracts/Facts/AnomalyFacts.cs|Fact|10
 Bridge.Contracts/Facts/AnomalyFacts.cs|Unknown|8
@@ -113,7 +113,7 @@ BuildingRuntime/PlayerExpeditionHandoff.cs|Fact|4
 BuildingRuntime/PlayerExpeditionHandoff.cs|Unknown|1
 BuildingRuntime/ReviewMemory.cs|Fact|7
 BuildingRuntime/ReviewMemory.cs|Unknown|3
-BuildingRuntime/Rounds/Rounder.cs|Fact|48
+BuildingRuntime/Rounds/Rounder.cs|Fact|47
 BuildingRuntime/Rounds/Rounder.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsAcquisition.cs|Fact|40
 BuildingRuntime/Rounds/RoundsAcquisition.cs|Unknown|4
@@ -134,7 +134,7 @@ BuildingRuntime/Rounds/RoundsArmory.cs|Fact|1
 BuildingRuntime/Rounds/RoundsArmoryWeapons.cs|Fact|3
 BuildingRuntime/Rounds/RoundsArt.cs|Fact|7
 BuildingRuntime/Rounds/RoundsArt.cs|Unknown|2
-BuildingRuntime/Rounds/RoundsAssignments.cs|Fact|25
+BuildingRuntime/Rounds/RoundsAssignments.cs|Fact|20
 BuildingRuntime/Rounds/RoundsAssignments.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsBabyFeeding.cs|Fact|3
 BuildingRuntime/Rounds/RoundsBabyFeeding.cs|Unknown|1
@@ -168,7 +168,7 @@ BuildingRuntime/Rounds/RoundsCreepJoiner.cs|Fact|13
 BuildingRuntime/Rounds/RoundsCreepJoiner.cs|Unknown|8
 BuildingRuntime/Rounds/RoundsDecreeOrders.cs|Fact|9
 BuildingRuntime/Rounds/RoundsDecreeOrders.cs|Unknown|1
-BuildingRuntime/Rounds/RoundsDeepDrill.cs|Fact|18
+BuildingRuntime/Rounds/RoundsDeepDrill.cs|Fact|13
 BuildingRuntime/Rounds/RoundsDefense.cs|Fact|27
 BuildingRuntime/Rounds/RoundsDefense.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsDefenseCover.cs|Fact|3
@@ -372,10 +372,10 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|691
-Contracts/Observations.cs|UnknownMember|14
-Contracts/Operations.cs|NullableValue|93
-Contracts/Operations.cs|UnknownMember|16
+Contracts/Observations.cs|NullableValue|665
+Contracts/Observations.cs|UnknownMember|13
+Contracts/Operations.cs|NullableValue|86
+Contracts/Operations.cs|UnknownMember|14
 Contracts/PawnActivities.cs|NullableValue|1
 Contracts/Placement.cs|NullableValue|17
 Contracts/Placement.cs|UnknownMember|1
@@ -442,14 +442,14 @@ Observation/AnomalyColony.cs|Unknown|8
 Observation/BiotechColony.cs|Fact|78
 Observation/BiotechColony.cs|Unknown|3
 Observation/Clearance.cs|Fact|4
-Observation/Colony.cs|Fact|90
+Observation/Colony.cs|Fact|88
 Observation/Colony.cs|Unknown|4
 Observation/ColonyDecode.cs|Fact|56
 Observation/ColonyDecode.cs|Unknown|5
 Observation/ColonyFrames.cs|Fact|32
 Observation/ColonyFrames.cs|Unknown|5
-Observation/ColonyGear.cs|Fact|50
-Observation/ColonyGear.cs|Unknown|14
+Observation/ColonyGear.cs|Fact|48
+Observation/ColonyGear.cs|Unknown|13
 Observation/ColonyGear.cs|ValueOrDefault|2
 Observation/ColonyProduction.cs|Fact|48
 Observation/ColonyProduction.cs|Unknown|12
@@ -462,7 +462,6 @@ Observation/Construction.cs|Discard|3
 Observation/Construction.cs|Fact|26
 Observation/Construction.cs|Unknown|4
 Observation/Decode.cs|Fact|3
-Observation/DeepResources.cs|Fact|14
 Observation/Definitions.cs|Fact|8
 Observation/FacilityUpkeep.cs|Fact|10
 Observation/FacilityUpkeep.cs|Unknown|4
@@ -476,8 +475,6 @@ Observation/MealTier.cs|Fact|20
 Observation/Observation.cs|Fact|4
 Observation/PlanningView.cs|Fact|29
 Observation/PlanningView.cs|Unknown|2
-Observation/Policies.cs|Fact|9
-Observation/Policies.cs|Unknown|1
 Observation/Quest.cs|Fact|42
 Observation/Quest.cs|Unknown|19
 Observation/Refrigeration.cs|Fact|13

@@ -87,6 +87,48 @@ public static class ColonyDecodeReads
 
     internal static Cell CellOf(C.Cell? cell) => new(cell?.X ?? 0, cell?.Z ?? 0);
 
+    /// <summary>The load id of the allowed area labelled <paramref name="label"/>, "" when the map has none.</summary>
+    internal static string AllowedAreaID(O.Policies policies, string label)
+    {
+        foreach (var a in policies.AllowedAreas)
+        {
+            if (a.Label == label)
+            {
+                return a.Id;
+            }
+        }
+        return "";
+    }
+
+    /// <summary>
+    /// The food policy holders outside the work census, as the diet planner reads them: a prisoner's traits
+    /// resolved against the catalog, an animal with the foods its race can ever eat. An animal whose pawn row or
+    /// race the frame does not hold is dropped, so no diet is written for it.
+    /// </summary>
+    internal static IReadOnlyList<FoodEater> FoodEaters(IEnumerable<O.FoodEater> eaters, Pawns pawns, AnimalRaceCatalog races, DefinitionCatalog? catalog)
+    {
+        var output = new List<FoodEater>();
+        foreach (var e in eaters)
+        {
+            var traits = new List<PawnTrait>(e.Traits.Count);
+            foreach (var t in e.Traits)
+            {
+                traits.Add(RoundsWorkReads.ResolveTrait(catalog, new PawnTrait { Name = t.DefName, Degree = t.Degree }));
+            }
+            var eater = new FoodEater { Pawn = e.Pawn, Animal = e.Kind == O.FoodEaterKind.Animal, Precepts = [.. e.Precepts], Traits = traits };
+            if (eater.Animal)
+            {
+                if (!pawns.TryGetValue(e.Pawn.Value, out var row) || row is null || !races.Race(new Resource(row.Pawn.DefName ?? ""), out var race))
+                {
+                    continue;
+                }
+                eater = eater with { Edible = race.Edible };
+            }
+            output.Add(eater);
+        }
+        return output;
+    }
+
     /// <summary>
     /// Projects only same-tick validated facts. Native raw food runway cannot stand in for the
     /// diet/rot/competing-feed forecast needed by FoodDays.
@@ -106,6 +148,8 @@ public static class ColonyDecodeReads
         {
             throw new ObservationChangedException();
         }
+        // The race rows are static for a load and come from the catalog; an unbuildable race table fails the reading.
+        var races = RequireCatalog(catalog).AnimalRaces();
         var r = new ColonyProjection
         {
             Identity = identity,
@@ -116,21 +160,13 @@ public static class ColonyDecodeReads
             PendingFoodNutrition = v.PendingFoodNutrition,
             PendingHunts = (int)v.PendingHunts,
             Threat = v.Threat.Observed,
+            DeepResources = v.DeepResources,
+            Policies = v.Policies,
+            Books = catalog!.Books(),
+            Foods = catalog.Foods(),
+            FoodEaters = FoodEaters(v.Policies.FoodEaters, tables.Pawns, races, catalog),
         };
-        // The race rows are static for a load and come from the catalog; an unbuildable race table fails the reading.
-        var races = RequireCatalog(catalog).AnimalRaces();
-        r = r with
-        {
-            FoodChannels = FoodChannelsReads.ColonyFoodChannels(v.FoodChannels, tables.Pawns, races),
-            DeepResources = DeepResourcesReads.ColonyDeepResources(v.DeepResources, catalog),
-            Policies = PoliciesReads.ColonyPolicies(v.Policies),
-        };
-        if (r.Policies.TryGetValue(out var policies))
-        {
-            policies = policies with { Books = catalog!.Books(), Foods = catalog.Foods() };
-            policies = policies with { BiomeDiseases = catalog.BiomeDiseases(v.Biome) };
-            r = r with { Policies = Known(policies) };
-        }
+        r = r with { FoodChannels = FoodChannelsReads.ColonyFoodChannels(v.FoodChannels, tables.Pawns, races) };
         var (conditions, conditionsKnown) = ColonyFramesReads.ColonyConditions(v, catalog);
         if (catalog is not null)
         {
@@ -186,10 +222,10 @@ public static class ColonyDecodeReads
         f = f with
         {
             MapBounds = Known(r.Bounds),
-            ShelterArea = PoliciesReads.ShelterArea(r.Policies),
-            NoDangerArea = PoliciesReads.AllowedAreaID(r.Policies, ShelterRules.NoDangerAreaLabel),
-            AnimalWard = f.AnimalWard with { Area = PoliciesReads.AllowedAreaID(r.Policies, HerdWardRules.HospitalAreaLabel) },
-            IsolationArea = PoliciesReads.AllowedAreaID(r.Policies, IsolationRoomRules.IsolationAreaLabel),
+            ShelterArea = Known(AllowedAreaID(r.Policies, ShelterRules.SafeAreaLabel)),
+            NoDangerArea = Known(AllowedAreaID(r.Policies, ShelterRules.NoDangerAreaLabel)),
+            AnimalWard = f.AnimalWard with { Area = Known(AllowedAreaID(r.Policies, HerdWardRules.HospitalAreaLabel)) },
+            IsolationArea = Known(AllowedAreaID(r.Policies, IsolationRoomRules.IsolationAreaLabel)),
             RaidPoints = Known(r.Threat.RaidPoints),
             HostileFactions = Known(r.Threat.HostileFactions),
             Storyteller = Known(r.Threat.Storyteller),
@@ -408,11 +444,6 @@ public static class ColonyDecodeReads
                 WildAnimals = AnimalUpkeepReads.ColonyWildAnimals(v, tables.Pawns, races),
             },
         };
-        if (r.Policies.TryGetValue(out policies))
-        {
-            policies = policies with { FoodEaters = PoliciesReads.AnimalFoodEaters(policies.FoodEaters, tables.Pawns, races, catalog) };
-            r = r with { Policies = Known(policies) };
-        }
         f = f with { Waste = ColonyFramesReads.ColonyWaste(v, tables), Pollution = ColonyFramesReads.ColonyPollution(r.Biotech) };
         f = f with { Upkeep = ColonyUpkeepReads.ColonyUpkeep(v, tables, catalog) };
         if (f.Upkeep.Lighting.IsKnown && !outdoorsDark.IsKnown)

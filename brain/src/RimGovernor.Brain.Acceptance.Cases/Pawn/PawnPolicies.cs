@@ -71,9 +71,8 @@ internal static class PawnPolicies
         return reply;
     }
 
-    private static async Task<Observations.PolicyFacts> PoliciesAsync(TypedSession s, string label, CancellationToken cancellationToken) =>
-        (await FactsAsync(s, label, false, cancellationToken).ConfigureAwait(false)).Policies?.Observed
-            ?? throw new AcceptanceException($"{label}: policy facts unavailable");
+    private static async Task<Observations.Policies> PoliciesAsync(TypedSession s, string label, CancellationToken cancellationToken) =>
+        (await FactsAsync(s, label, false, cancellationToken).ConfigureAwait(false)).Policies;
 
     /// <summary>Writes a policy's contents, then assigns it to each pawn.</summary>
     private static async Task WriteAsync(TypedSession s, string key, Operations.ActionIntent policy, IEnumerable<(string Pawn, Operations.PawnSettingsIntentSetting Setting)> assignments, CancellationToken cancellationToken)
@@ -89,7 +88,7 @@ internal static class PawnPolicies
     private static Observations.PolicyEntry Held(IEnumerable<Observations.PolicyEntry> policies, string label, string pawn)
     {
         var policy = policies.SingleOrDefault(p => p.Label == label) ?? throw new AcceptanceException($"no single policy labelled \"{label}\"");
-        return policy.PawnIds.Contains(pawn) ? policy : throw new AcceptanceException($"policy \"{label}\" is held by [{string.Join(' ', policy.PawnIds)}], not {pawn}");
+        return policy.Pawns.Any(p => p.Value == pawn) ? policy : throw new AcceptanceException($"policy \"{label}\" is held by [{string.Join(' ', policy.Pawns)}], not {pawn}");
     }
 
     private static void Allows(Observations.PolicyEntry policy, params string[] defs)
@@ -130,7 +129,7 @@ internal static class PawnPolicies
         var policy = Held(facts.Drug, Label, colonist);
         s.RecordWire("drug", policy);
         Operations.DrugPolicyEntry? Entry(string def) => policy.DrugEntries.FirstOrDefault(e => e.DrugDef == def);
-        if (policy.DrugEntries.Count != 1 || Entry("Penoxycyline") is not { AllowScheduled: true, AllowedForJoy: not true, AllowedForAddiction: not true })
+        if (policy.DrugEntries.Count != 1 || Entry("Penoxycyline") is not { AllowScheduled: true, AllowedForJoy: false, AllowedForAddiction: false })
         {
             throw new AcceptanceException($"policy \"{Label}\" reads entries [{string.Join("; ", policy.DrugEntries)}]");
         }

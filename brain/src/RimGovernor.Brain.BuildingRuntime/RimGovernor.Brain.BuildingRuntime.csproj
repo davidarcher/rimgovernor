@@ -82,7 +82,6 @@
     <Using Include="RimGovernor.Brain.Store.Store" Alias="StoreJournal" />
     <Using Include="RimGovernor.Brain.Store.World" Alias="StoreWorld" />
     <Using Include="RimGovernor.Brain.Store.Rounds" Alias="RoundsReview" />
-    <Using Include="RimGovernor.Brain.Observation.Policies" Alias="ObservationPolicies" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.PlanningWindow" Alias="PlanningWindowRead" />
     <Using Include="RimGovernor.Brain.Policy.DefenseCell" Alias="DefenseCell" />
   </ItemGroup>

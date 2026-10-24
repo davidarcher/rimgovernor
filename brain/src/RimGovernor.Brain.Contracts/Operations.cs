@@ -166,46 +166,6 @@ public enum ZoneType
     Fishing = 4,
 }
 
-[JsonConverter(typeof(WireEnumConverter<StoragePriority>))]
-public enum StoragePriority
-{
-    [WireName("STORAGE_PRIORITY_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("STORAGE_PRIORITY_LOW")]
-    Low = 1,
-    [WireName("STORAGE_PRIORITY_NORMAL")]
-    Normal = 2,
-    [WireName("STORAGE_PRIORITY_PREFERRED")]
-    Preferred = 3,
-    [WireName("STORAGE_PRIORITY_IMPORTANT")]
-    Important = 4,
-    [WireName("STORAGE_PRIORITY_CRITICAL")]
-    Critical = 5,
-}
-
-[JsonConverter(typeof(WireEnumConverter<FilterPreset>))]
-public enum FilterPreset
-{
-    [WireName("FILTER_PRESET_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("FILTER_PRESET_EVERYTHING")]
-    Everything = 1,
-    [WireName("FILTER_PRESET_NOTHING")]
-    Nothing = 2,
-    [WireName("FILTER_PRESET_FOOD")]
-    Food = 3,
-    [WireName("FILTER_PRESET_PERISHABLES")]
-    Perishables = 4,
-    [WireName("FILTER_PRESET_NONPERISHABLES")]
-    Nonperishables = 5,
-    [WireName("FILTER_PRESET_OUTDOOR_SAFE")]
-    OutdoorSafe = 6,
-    [WireName("FILTER_PRESET_INDOOR_ONLY")]
-    IndoorOnly = 7,
-    [WireName("FILTER_PRESET_OUTDOOR_SAFE_WASTE")]
-    OutdoorSafeWaste = 8,
-}
-
 /// <summary>
 /// Exclusive prisoner interaction modes. REDUCE_RESISTANCE and RELEASE are
 /// Core; ENSLAVE and CONVERT resolve only while Ideology is active and are
@@ -826,9 +786,11 @@ public sealed record BillSettings
 
 public sealed record StockpileSettings
 {
-    public StoragePriority? Priority { get; init; }
+    [JsonConverter(typeof(WireEnumConverter<StockpilePriority>))]
+    public StockpilePriority? Priority { get; init; }
 
-    public FilterPreset? Preset { get; init; }
+    [JsonConverter(typeof(WireEnumConverter<FilterBase>))]
+    public FilterBase? Preset { get; init; }
 
     public FilterPatch? Filter { get; init; }
 }
@@ -1802,21 +1764,21 @@ public sealed record ReadingPolicyIntent
 /// </summary>
 public sealed record DrugPolicyEntry
 {
-    public string? DrugDef { get; init; }
+    public required string DrugDef { get; init; }
 
-    public bool? AllowedForJoy { get; init; }
+    public required bool AllowedForJoy { get; init; }
 
-    public bool? AllowedForAddiction { get; init; }
+    public required bool AllowedForAddiction { get; init; }
 
-    public bool? AllowScheduled { get; init; }
+    public required bool AllowScheduled { get; init; }
 
-    public float? DaysFrequency { get; init; }
+    public required float DaysFrequency { get; init; }
 
-    public float? OnlyIfMoodBelow { get; init; }
+    public required float OnlyIfMoodBelow { get; init; }
 
-    public float? OnlyIfJoyBelow { get; init; }
+    public required float OnlyIfJoyBelow { get; init; }
 
-    public int? TakeToInventory { get; init; }
+    public required int TakeToInventory { get; init; }
 }
 
 public sealed record DrugPolicyIntent
@@ -1830,7 +1792,7 @@ public sealed record DrugPolicyIntent
 /// <summary>
 /// Write one food policy's contents: the FoodPolicy labelled name
 /// (made when missing) allows exactly allowed_defs among the food ThingDefs
-/// (PolicyFacts.foods); special filters keep their values. Native refuses a name
+/// (catalog food definitions); special filters keep their values. Native refuses a name
 /// several policies carry or a definition that is not a food. A policy that
 /// already matches applies again. PawnSettingsIntent.food_policy assigns it.
 /// Evidence is a SettingsEffect on the policy's load id with the

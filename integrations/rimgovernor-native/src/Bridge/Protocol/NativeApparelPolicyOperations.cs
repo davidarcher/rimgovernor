@@ -23,26 +23,40 @@ namespace HomeBridge.BridgeTools
             Current.Game.outfitDatabase.AllOutfits.OrderBy(o => o.id).Select(o => o.GetUniqueLoadID() + ":" + Signature(o)))));
         internal static Obs.ApparelPolicyState Read(Pawn p)
         {
-            var outfit = p.outfits?.CurrentApparelPolicy;
-            var row = new Obs.ApparelPolicyState { Token = Token(p), Child = p.DevelopmentalStage.Child(), Slave = p.IsSlaveOfColony,
-                IncapableOfViolence = p.WorkTagIsDisabled(WorkTags.Violent), PawnName = ShortName(p), Nude = Nude(p) };
-            if (outfit != null) {
-                row = row with { Name = outfit.label }; row = row with { PolicyId = outfit.GetUniqueLoadID() }; row = row with { AllowedDefs = [.. row.AllowedDefs, .. outfit.filter.AllowedThingDefs.Where(d => d.IsApparel).Select(d => d.defName).OrderBy(d => d)] };
-                row = row with { MinHitPoints = outfit.filter.AllowedHitPointsPercents.min }; row = row with { MaxHitPoints = outfit.filter.AllowedHitPointsPercents.max };
-                row = row with { MinQuality = (int)outfit.filter.AllowedQualityLevels.min }; row = row with { MaxQuality = (int)outfit.filter.AllowedQualityLevels.max };
-                row = row with { ExcludesTainted = !outfit.filter.Allows(SpecialThingFilterDefOf.AllowDeadmansApparel) && outfit.filter.Allows(SpecialThingFilterDefOf.AllowNonDeadmansApparel) };
-            }
+            var outfit = p.outfits?.CurrentApparelPolicy ?? throw new InvalidOperationException("Pawn " + p.GetUniqueLoadID() + " has no apparel policy to read.");
             var requirements = Requirements(p).ToList();
             var precepts = new HashSet<string>(ModsConfig.IdeologyActive && p.Ideo != null
                 ? p.Ideo.PreceptsListForReading.OfType<Precept_Apparel>().Where(v => v.apparelDef != null).Select(v => v.apparelDef.defName) : Enumerable.Empty<string>());
             // What the pawn's title, role and precepts require, by def; the brain keeps
             // those it can wear (the apparel rows and its wear inputs).
-            foreach (var d in CensusMemo.Of(("apparelDefs", (object?)null), () => DefDatabase<ThingDef>.AllDefs.Where(d => d.IsApparel).OrderBy(d => d.defName).ToList()))
-                if (precepts.Contains(d.defName) || requirements.Any(r => r.ApparelMeetsRequirement(d, false))) row = row with { RequiredDefs = [.. row.RequiredDefs, d.defName] };
-            row = row with { Drafted = p.Drafted };
-            if (p.workSettings != null) foreach (var d in DefDatabase<WorkTypeDef>.AllDefs) row = row with { Work = [.. row.Work, new Obs.WorkSetting { DefName = d.defName, Priority = p.workSettings.GetPriority(d), Disabled = p.WorkTypeIsDisabled(d) }] };
-            if (p.skills != null) foreach (var s in p.skills.skills) row = row with { Skills = [.. row.Skills, new Obs.Skill { DefName = s.def.defName, Level = s.Level, StoredLevel = s.levelInt, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled }] };
-            return row;
+            var required = CensusMemo.Of(("apparelDefs", (object?)null), () => DefDatabase<ThingDef>.AllDefs.Where(d => d.IsApparel).OrderBy(d => d.defName).ToList())
+                .Where(d => precepts.Contains(d.defName) || requirements.Any(r => r.ApparelMeetsRequirement(d, false))).Select(d => d.defName);
+            // A pawn without work settings (or skills) has no work (or skills) to list.
+            var work = p.workSettings == null ? Enumerable.Empty<Obs.WorkSetting>()
+                : DefDatabase<WorkTypeDef>.AllDefs.Select(d => new Obs.WorkSetting { DefName = d.defName, Priority = p.workSettings.GetPriority(d), Disabled = p.WorkTypeIsDisabled(d) });
+            var skills = p.skills == null ? Enumerable.Empty<Obs.Skill>()
+                : p.skills.skills.Select(s => new Obs.Skill { DefName = s.def.defName, Level = s.Level, StoredLevel = s.levelInt, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled });
+            return new Obs.ApparelPolicyState
+            {
+                Token = Token(p),
+                Name = outfit.label,
+                PolicyId = outfit.GetUniqueLoadID(),
+                AllowedDefs = [.. outfit.filter.AllowedThingDefs.Where(d => d.IsApparel).Select(d => d.defName).OrderBy(d => d)],
+                MinHitPoints = outfit.filter.AllowedHitPointsPercents.min,
+                MaxHitPoints = outfit.filter.AllowedHitPointsPercents.max,
+                MinQuality = (int)outfit.filter.AllowedQualityLevels.min,
+                MaxQuality = (int)outfit.filter.AllowedQualityLevels.max,
+                ExcludesTainted = !outfit.filter.Allows(SpecialThingFilterDefOf.AllowDeadmansApparel) && outfit.filter.Allows(SpecialThingFilterDefOf.AllowNonDeadmansApparel),
+                Child = p.DevelopmentalStage.Child(),
+                Slave = p.IsSlaveOfColony,
+                IncapableOfViolence = p.WorkTagIsDisabled(WorkTags.Violent),
+                Work = [.. work],
+                Drafted = p.Drafted,
+                Skills = [.. skills],
+                PawnName = ShortName(p),
+                RequiredDefs = [.. required],
+                Nude = Nude(p),
+            };
         }
 
         internal static string ShortName(Pawn p) => p.Name?.ToStringShort ?? p.LabelShort;

@@ -125,7 +125,7 @@ public sealed partial class RoundsWorkPlanner
         settings.AddRange(care);
         settings.AddRange(RoundsMech.RoundsMechSettings(read));
         var reading = new List<ReadingPolicy>();
-        var readingChanges = RoundsReadingChanges(read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.GoalTraining);
+        var readingChanges = RoundsReadingChanges(read.Projection.Policies, read.Projection.Books, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.GoalTraining);
         if (readingChanges.Count > 0)
         {
             foreach (var c in readingChanges.Take(8))
@@ -141,7 +141,7 @@ public sealed partial class RoundsWorkPlanner
             }
         }
         var food = new List<FoodPolicy>();
-        var dietChanges = RoundsDietChanges(read.Projection.Facts.Ideology, read.Projection.Policies, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.FoodReserve, read.Projection.Facts.Preferences);
+        var dietChanges = RoundsDietChanges(read.Projection.Facts.Ideology, read.Projection.Policies, read.Projection.Foods, read.Projection.FoodEaters, read.Projection.Facts.OwnedNames, pawns, read.Projection.Facts.FoodReserve, read.Projection.Facts.Preferences);
         if (dietChanges.Count > 0)
         {
             foreach (var c in dietChanges.Take(8))
@@ -157,16 +157,12 @@ public sealed partial class RoundsWorkPlanner
             }
         }
         var drug = new List<DrugPolicy>();
-        if (read.Projection.Policies.TryGetValue(out var nativePolicies))
+        var drugChanges = DrugPolicyPlanRules.Changes(read.Projection.Facts.Preferences, read.Projection.Facts.Items, pawns, OwnedDrugPolicies(read.Projection.Policies));
+        if (drugChanges.Write is not null)
         {
-            var owned = nativePolicies.Drug.Select(e => new OwnedDrugPolicy(e.Label, [.. e.Pawns], [.. e.Drugs])).ToList();
-            var drugChanges = DrugPolicyPlanRules.Changes(read.Projection.Facts.Preferences, read.Projection.Facts.Items, pawns, owned);
-            if (drugChanges.Write is not null)
-            {
-                drug.Add(drugChanges.Write);
-            }
-            settings.AddRange(drugChanges.Assign);
+            drug.Add(drugChanges.Write);
         }
+        settings.AddRange(drugChanges.Assign);
         foreach (var openPlan in open)
         {
             CancelStaleWorkActions(p.Journal, openPlan, work, settings, drug, call);
@@ -366,31 +362,31 @@ partial class RoundsWorkPlanner
         pawns.TryGetValue(out var rows) ? Known<EquatableArray<HostilityPawn>>([.. HostilityRows(rows)]) : Unknown<EquatableArray<HostilityPawn>>();
 
     /// <summary>The reading-policy writes and assignments the review's policies, books and skill goals call for.</summary>
-    internal static IReadOnlyList<ReadingPolicyChange> RoundsReadingChanges(Fact<ObservationPolicies> policies, Fact<EquatableArray<OwnedName>> names, IReadOnlyList<WorkPawn> pawns, IReadOnlyList<SkillGoal> training)
+    internal static IReadOnlyList<ReadingPolicyChange> RoundsReadingChanges(PbObservations.Policies policies, IReadOnlyList<Book> books, Fact<EquatableArray<OwnedName>> names, IReadOnlyList<WorkPawn> pawns, IReadOnlyList<SkillGoal> training)
     {
-        var ok = policies.TryGetValue(out var p);
-        var named = names.TryGetValue(out var owned);
-        if (!ok || !named || p!.Books.Count == 0)
+        if (!names.TryGetValue(out var owned) || books.Count == 0)
         {
             return [];
         }
-        var entries = p.Reading.Select(e => new ReadingPolicyEntry { Id = e.ID, Label = e.Label, Allowed = e.Allowed }).ToList();
-        return ReadingPolicyRules.ReadingPolicyChanges(pawns, owned, entries, p.Books, training);
+        var entries = policies.Reading.Select(e => new ReadingPolicyEntry { Id = e.Id, Label = e.Label, Allowed = e.AllowedDefs }).ToList();
+        return ReadingPolicyRules.ReadingPolicyChanges(pawns, owned, entries, books, training);
     }
 
     /// <summary>The food-policy writes and assignments the review's policies and reserve call for.</summary>
-    internal static IReadOnlyList<FoodPolicyChange> RoundsDietChanges(Fact<Ideoligion> ideology, Fact<ObservationPolicies> policies, Fact<EquatableArray<OwnedName>> names, IReadOnlyList<WorkPawn> pawns, Fact<FoodReserveReview> reserve, PreferencesRecord preferences)
+    internal static IReadOnlyList<FoodPolicyChange> RoundsDietChanges(Fact<Ideoligion> ideology, PbObservations.Policies policies, IReadOnlyList<Food> foods, IReadOnlyList<FoodEater> eaters, Fact<EquatableArray<OwnedName>> names, IReadOnlyList<WorkPawn> pawns, Fact<FoodReserveReview> reserve, PreferencesRecord preferences)
     {
-        var ok = policies.TryGetValue(out var p);
-        var named = names.TryGetValue(out var owned);
-        if (!ok || !named || p!.Foods.Count == 0)
+        if (!names.TryGetValue(out var owned) || foods.Count == 0)
         {
             return [];
         }
-        var entries = p.Food.Select(e => new FoodPolicyEntry { Label = e.Label, Pawns = e.Pawns, Allowed = e.Allowed }).ToList();
+        var entries = policies.Food.Select(e => new FoodPolicyEntry { Label = e.Label, Pawns = e.Pawns, Allowed = e.AllowedDefs }).ToList();
         reserve.TryGetValue(out var stock);
-        return FoodPolicyRules.DietPolicyChanges(ideology, pawns, p.FoodEaters, owned, entries, p.Foods, stock?.IsShort ?? false, preferences);
+        return FoodPolicyRules.DietPolicyChanges(ideology, pawns, eaters, owned, entries, foods, stock?.IsShort ?? false, preferences);
     }
+
+    /// <summary>Every native drug policy as the drug planners read it: its label, holders and the entries that allow anything.</summary>
+    internal static List<OwnedDrugPolicy> OwnedDrugPolicies(PbObservations.Policies policies) =>
+        [.. policies.Drug.Select(e => new OwnedDrugPolicy(e.Label, e.Pawns, [.. e.DrugEntries.Select(d => new DrugPolicyEntry(d.DrugDef, d.AllowedForJoy, d.AllowedForAddiction, d.AllowScheduled, d.DaysFrequency, d.OnlyIfMoodBelow, d.OnlyIfJoyBelow, d.TakeToInventory))]))];
 
     /// <summary>A string in double quotes, with backslashes and quotes escaped.</summary>
     internal static string GoQuote(string s) => "\"" + s.Replace("\\", "\\\\", StringComparison.Ordinal).Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";

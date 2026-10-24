@@ -143,10 +143,9 @@ internal static class ShelterSheltering
     private static async Task<HashSet<string>> SafePawnsAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-        var policies = facts.Policies?.Observed ?? throw new AcceptanceException($"{label}: policy facts unavailable");
-        return policies.AllowedAreas.Items
+        return facts.Policies.AllowedAreas.Items
             .Where(a => a.Label == ShelterRules.SafeAreaLabel)
-            .SelectMany(a => a.PawnIds.Items)
+            .SelectMany(a => a.Pawns.Items.Select(p => p.Value))
             .ToHashSet(StringComparer.Ordinal);
     }
 }

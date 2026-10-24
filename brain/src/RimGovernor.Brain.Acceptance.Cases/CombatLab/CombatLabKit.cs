@@ -126,11 +126,10 @@ internal static class CombatLabKit
     internal static string? JobThing(Observations.PawnState p) => p.Job?.TargetA?.Target?.Entity?.Id;
 
     /// <summary>The colony's allowed areas (the typed colony read's policy section).</summary>
-    internal static async Task<IReadOnlyList<Observations.AllowedAreaEntry>> AreasAsync(TypedSession s, string label, CancellationToken cancellationToken)
+    internal static async Task<IReadOnlyList<Observations.AllowedArea>> AreasAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-        var policies = facts.Policies?.Observed ?? throw new AcceptanceException($"{label}: policy section unavailable: {facts.Policies}");
-        return [.. policies.AllowedAreas];
+        return [.. facts.Policies.AllowedAreas];
     }
 
     /// <summary>The player building at <paramref name="cell"/> (a door, a mortar), from the production building read.</summary>

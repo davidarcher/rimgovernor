@@ -57,7 +57,7 @@ public sealed class ApparelCreditProductionTests
         {
             Pawn = new C.Ref { Id = "pawn" },
             Equipment = new O.PawnEquipment(),
-            ApparelPolicy = new O.ApparelPolicyState(),
+            ApparelPolicy = PoliciesTests.EmptyOutfit,
             Gender = D.Gender.Male,
             ComfortableMinC = 10,
             ComfortableMaxC = 30,

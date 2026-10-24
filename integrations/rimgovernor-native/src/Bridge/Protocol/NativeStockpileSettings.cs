@@ -8,6 +8,8 @@ using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 using Operations = RimGovernor.Contracts.Wire.Operations;
+using FilterBase = RimGovernor.Brain.Domain.FilterBase;
+using Quality = RimGovernor.Brain.Domain.Quality;
 
 namespace HomeBridge.BridgeTools
 {
@@ -34,29 +36,35 @@ namespace HomeBridge.BridgeTools
             internal QualityRange? Quality;
         }
 
-        internal static string? PresetName(Operations.FilterPreset preset)
+        internal static string PresetName(FilterBase preset) => preset switch
         {
-            switch (preset)
-            {
-                case Operations.FilterPreset.Everything: return "everything";
-                case Operations.FilterPreset.Nothing: return "nothing";
-                case Operations.FilterPreset.Food: return "food";
-                case Operations.FilterPreset.Perishables: return "perishables";
-                case Operations.FilterPreset.Nonperishables: return "nonperishables";
-                case Operations.FilterPreset.OutdoorSafe: return "outdoorSafe";
-                case Operations.FilterPreset.IndoorOnly: return "indoorOnly";
-                case Operations.FilterPreset.OutdoorSafeWaste: return "outdoorSafeWaste";
-                default: return null;
-            }
-        }
+            FilterBase.Everything => "everything",
+            FilterBase.Nothing => "nothing",
+            FilterBase.Food => "food",
+            FilterBase.Perishables => "perishables",
+            FilterBase.Nonperishables => "nonperishables",
+            FilterBase.OutdoorSafe => "outdoorSafe",
+            FilterBase.IndoorOnly => "indoorOnly",
+            FilterBase.OutdoorSafeWaste => "outdoorSafeWaste",
+            _ => throw new ArgumentOutOfRangeException(nameof(preset), preset, "Unknown filter preset."),
+        };
 
+        private static Quality ToQuality(QualityCategory q) => q switch
+        {
+            QualityCategory.Awful => Quality.Awful,
+            QualityCategory.Poor => Quality.Poor,
+            QualityCategory.Normal => Quality.Normal,
+            QualityCategory.Good => Quality.Good,
+            QualityCategory.Excellent => Quality.Excellent,
+            QualityCategory.Masterwork => Quality.Masterwork,
+            QualityCategory.Legendary => Quality.Legendary,
+            _ => throw new ArgumentOutOfRangeException(nameof(q), q, "Unknown quality category."),
+        };
         /// <summary>Structural validation without the def database: shapes,
         /// bounds and range coherence. Resolve does the database lookups.</summary>
         internal static bool Valid(Operations.StockpileSettings? settings)
         {
             if (settings == null) return false;
-            if (settings.Priority is not null && settings.Priority.GetValueOrDefault() == Operations.StoragePriority.Unspecified) return false;
-            if (settings.Preset is not null && PresetName(settings.Preset.GetValueOrDefault()) == null) return false;
             var filter = settings.Filter;
             if (filter == null) return settings.Priority is not null || settings.Preset is not null;
             var selectors = filter.Allow.Concat(filter.Disallow).Concat(filter.Replace?.Selectors ?? Enumerable.Empty<Operations.FilterSelector>()).ToList();
@@ -93,12 +101,8 @@ namespace HomeBridge.BridgeTools
         {
             if (settings is null || !Valid(settings)) return null;
             var result = new Resolved();
-            if (settings.Priority is not null)
-            {
-                result.Priority = NativeZoneCreation.ToNativePriority(settings.Priority.GetValueOrDefault());
-                if (!result.Priority.HasValue) return null;
-            }
-            if (settings.Preset is not null) result.Preset = PresetName(settings.Preset.GetValueOrDefault());
+            if (settings.Priority is { } priority) result.Priority = NativeZoneCreation.ToNativePriority(priority);
+            if (settings.Preset is { } preset) result.Preset = PresetName(preset);
             var filter = settings.Filter;
             if (filter == null) return result;
             var storable = new HashSet<ThingDef>(universe);
@@ -196,18 +200,15 @@ namespace HomeBridge.BridgeTools
             w.Write((int)filter.AllowedQualityLevels.min); w.Write((int)filter.AllowedQualityLevels.max);
         }
 
-        internal static Obs.StockpileFilter Project(ThingFilter filter)
+        // The filter's allowed set, ranges and fresh/rotten flags; AllowRotten has no SpecialThingFilterDefOf member.
+        internal static Obs.StockpileFilter Project(ThingFilter filter) => new Obs.StockpileFilter
         {
-            var row = new Obs.StockpileFilter {
-                HitPointsMin = filter.AllowedHitPointsPercents.min, HitPointsMax = filter.AllowedHitPointsPercents.max,
-                QualityMin = filter.AllowedQualityLevels.min.ToString(), QualityMax = filter.AllowedQualityLevels.max.ToString() };
-            var allowed = StockpileFilter.AllowedSet(filter).Select(d => d.defName).OrderBy(n => n, StringComparer.Ordinal).ToList();
-            row = row with { AllowedDefNames = [.. row.AllowedDefNames, .. allowed] };
-            var fresh = DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowFresh");
-            var rotten = DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowRotten");
-            if (fresh != null) row = row with { AllowFresh = filter.Allows(fresh) };
-            if (rotten != null) row = row with { AllowRotten = filter.Allows(rotten) };
-            return row;
-        }
-    }
+            AllowedDefNames = [.. StockpileFilter.AllowedSet(filter).Select(d => d.defName).OrderBy(n => n, StringComparer.Ordinal)],
+            HitPointsMin = filter.AllowedHitPointsPercents.min,
+            HitPointsMax = filter.AllowedHitPointsPercents.max,
+            QualityMin = ToQuality(filter.AllowedQualityLevels.min),
+            QualityMax = ToQuality(filter.AllowedQualityLevels.max),
+            AllowFresh = filter.Allows(SpecialThingFilterDefOf.AllowFresh),
+            AllowRotten = filter.Allows(DefDatabase<SpecialThingFilterDef>.GetNamedSilentFail("AllowRotten") ?? throw new InvalidOperationException("SpecialThingFilterDef AllowRotten is missing.")),
+        };    }
 }

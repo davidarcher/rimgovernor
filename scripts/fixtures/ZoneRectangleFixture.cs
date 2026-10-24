@@ -160,8 +160,8 @@ internal sealed class RectangleRun(RectangleCaseRequest request, INativeFacade n
             AddCells = new Operations.Cells { Selection = new Operations.Rectangle { Origin = new Common.Cell { X = x, Z = z }, Width = 7, Height = 5 } },
             Stockpile = new Operations.StockpileSettings
             {
-                Priority = Operations.StoragePriority.Important,
-                Preset = Operations.FilterPreset.Nothing,
+                Priority = StockpilePriority.Important,
+                Preset = FilterBase.Nothing,
                 Filter = new Operations.FilterPatch { Allow = [new Operations.FilterSelector { Definition = new Operations.FilterSelectorDefinition.ThingDefCase(ThingDefOf.Steel.defName) }] },
             },
         };
@@ -266,7 +266,7 @@ internal sealed class RectangleRun(RectangleCaseRequest request, INativeFacade n
                 Intent = new Operations.ZoneIntent
                 {
                     Zone = new Common.Ref { Id = ids[1] },
-                    Stockpile = new Operations.StockpileSettings { Priority = Operations.StoragePriority.Important },
+                    Stockpile = new Operations.StockpileSettings { Priority = StockpilePriority.Important },
                 },
             })],
         }, cancellationToken).ConfigureAwait(false);

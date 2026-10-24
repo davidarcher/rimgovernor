@@ -504,15 +504,8 @@ public sealed partial class Rounder
         var vResourceSurfaceOre = await ResourceSurfaceOreAsync(state.Snapshot, reading.Projection.Facts.Items, reading.Projection.Facts.ResourceConsumption, ct).ConfigureAwait(false);
         reading = reading.WithFacts(rf => rf with { ResourceSurfaceOre = vResourceSurfaceOre });
         fine.Lap("d_stock/ore");
-        if (reading.Projection.Policies.TryGetValue(out var policies))
-        {
-            var entries = new List<OwnedDrugPolicy>(policies.Drug.Count);
-            foreach (var e in policies.Drug)
-            {
-                entries.Add(new OwnedDrugPolicy(e.Label, [.. e.Pawns], [.. e.Drugs]));
-            }
-            reading = reading.WithFacts(rf => rf with { DrugUsers = DrugRunwayRules.DrugUsers(reading.Projection.Facts.Items, entries) });
-        }
+        var drugPolicies = RoundsWorkPlanner.OwnedDrugPolicies(reading.Projection.Policies);
+        reading = reading.WithFacts(rf => rf with { DrugUsers = DrugRunwayRules.DrugUsers(reading.Projection.Facts.Items, drugPolicies) });
         reading = reading.WithProjection(ReviewMeals(reading.Projection));
         var reserveProjection = reading.Projection;
         ReviewReserve(ref reserveProjection);

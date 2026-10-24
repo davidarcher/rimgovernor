@@ -318,12 +318,8 @@ public enum DeliveryKind
 [JsonConverter(typeof(WireEnumConverter<FoodEaterKind>))]
 public enum FoodEaterKind
 {
-    [WireName("FOOD_EATER_KIND_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("FOOD_EATER_KIND_PRISONER")]
-    Prisoner = 1,
-    [WireName("FOOD_EATER_KIND_ANIMAL")]
-    Animal = 2,
+    Prisoner,
+    Animal,
 }
 
 /// <summary>
@@ -1856,22 +1852,28 @@ public abstract record ListSuppliesReplyOutcome
     public static implicit operator ListSuppliesReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
+/// <summary>
+/// A storage or ingredient ThingFilter as the game holds it: the allowed definitions (sorted), the allowed hit-point
+/// fraction and quality ranges, and the AllowFresh and AllowRotten special filters.
+/// </summary>
 public sealed record StockpileFilter
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> AllowedDefNames { get; init; }
+    public required EquatableArray<string> AllowedDefNames { get; init; }
 
-    public double? HitPointsMin { get; init; }
+    public required double HitPointsMin { get; init; }
 
-    public double? HitPointsMax { get; init; }
+    public required double HitPointsMax { get; init; }
 
-    public string? QualityMin { get; init; }
+    [JsonConverter(typeof(WireEnumConverter<Quality>))]
+    public required Quality QualityMin { get; init; }
 
-    public string? QualityMax { get; init; }
+    [JsonConverter(typeof(WireEnumConverter<Quality>))]
+    public required Quality QualityMax { get; init; }
 
-    public bool? AllowFresh { get; init; }
+    public required bool AllowFresh { get; init; }
 
-    public bool? AllowRotten { get; init; }
+    public required bool AllowRotten { get; init; }
 }
 
 public sealed record BillState
@@ -6482,91 +6484,74 @@ public sealed record FoodChannelsSection
 /// </summary>
 public sealed record DeepResourceLump
 {
-    public string? DefName { get; init; }
+    public required string Definition { get; init; }
 
-    public long? Count { get; init; }
+    public required long Count { get; init; }
 
-    public Common.Cell? Centre { get; init; }
+    public required Cell Centre { get; init; }
 
-    public uint? CellCount { get; init; }
+    public required int CellCount { get; init; }
 }
 
 /// <summary>
-/// Built player scanners only (empty list means none built). Working means usable
-/// and used within the last 30 ticks. Ticks-to-next-find estimates remaining work
-/// to the guaranteed threshold at the last user's speed, excluding idle time and
-/// the &lt;=59 tick discovery check interval; random finds may happen sooner.
-/// Timing is absent when native progress/speed or a guaranteed threshold is absent.
+/// One built player mineral scanner (ground-penetrating or long-range). Working means usable and used within the
+/// last 30 ticks. TicksToNextFind is the remaining work to the guaranteed find at the last user's speed, excluding
+/// idle time and the &lt;=59 tick discovery check interval; random finds may happen sooner.
 /// </summary>
-public sealed record MineralScannerState
+public sealed record MineralScanner
 {
-    public string? BuildingId { get; init; }
+    public required string Definition { get; init; }
 
-    public string? DefName { get; init; }
+    public required Cell Position { get; init; }
 
-    public Common.Cell? Position { get; init; }
+    public required bool Powered { get; init; }
 
-    public bool? Built { get; init; }
+    public required bool Working { get; init; }
 
-    public bool? Powered { get; init; }
-
-    public bool? Working { get; init; }
-
-    public long? TicksToNextFind { get; init; }
-
-    public string? TargetMineable { get; init; }
+    public required long TicksToNextFind { get; init; }
 }
 
-/// <summary>
-/// Every spawned player deep drill (an observed empty list means none). resource
-/// and remaining are the native next deposit under the drill's radius; depleted
-/// means no valuable deposit remains there (vanilla then drills stone only), so a
-/// lump centre moving as it is mined never implies depletion. Every colonist
-/// drill is the controller's under autonomous play; there is no ownership
-/// ledger. designated reports a standing Deconstruct designation on the drill.
-/// </summary>
-public sealed record DeepDrillState
+/// <summary>The valuable deposit a deep drill mines next: the drill's own lookup over its radius.</summary>
+public sealed record DrillDeposit
 {
-    public string? BuildingId { get; init; }
+    public required string Resource { get; init; }
 
-    public string? DefName { get; init; }
-
-    public Common.Cell? Position { get; init; }
-
-    public bool? Powered { get; init; }
-
-    public string? Resource { get; init; }
-
-    public long? Remaining { get; init; }
-
-    public bool? Depleted { get; init; }
-
-    public bool? Designated { get; init; }
+    public required long Remaining { get; init; }
 }
 
 /// <summary>
-/// At most 256 lumps and 256 scanners plus drills total; excess/read failure makes the
-/// section unavailable, never a silently truncated census. Absent section means unknown.
+/// One spawned player deep drill. Deposit is the next valuable deposit under the drill's radius, null when none
+/// remains there (the drill is depleted; vanilla then drills stone only), so a lump centre moving as it is mined
+/// never implies depletion. Every colonist drill is the controller's under autonomous play; there is no ownership
+/// ledger. Designated reports a standing Deconstruct designation on the drill.
 /// </summary>
-public sealed record DeepResourcesFacts
+public sealed record DeepDrill
+{
+    public required string Id { get; init; }
+
+    public required string Definition { get; init; }
+
+    public required Cell Position { get; init; }
+
+    public required DrillDeposit? Deposit { get; init; }
+
+    public required bool Designated { get; init; }
+}
+
+/// <summary>The colony map's discovered deep resource lumps, its built mineral scanners and its deep drills.</summary>
+public sealed record DeepResources
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<DeepResourceLump>))]
-    public EquatableArray<DeepResourceLump> Lumps { get; init; }
+    public required EquatableArray<DeepResourceLump> Lumps { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<MineralScannerState>))]
-    public EquatableArray<MineralScannerState> GroundScanners { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<MineralScanner>))]
+    public required EquatableArray<MineralScanner> GroundScanners { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<MineralScannerState>))]
-    public EquatableArray<MineralScannerState> LongRangeScanners { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<MineralScanner>))]
+    public required EquatableArray<MineralScanner> LongRangeScanners { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<DeepDrillState>))]
-    public EquatableArray<DeepDrillState> Drills { get; init; }
-}
-
-public sealed record DeepResourcesSection
-{
-    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
-    public DeepResourcesFacts? Observed { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<DeepDrill>))]
+    public required EquatableArray<DeepDrill> Drills { get; init; }
 }
 
 /// <summary>
@@ -6773,14 +6758,14 @@ public sealed record ColonyFactsSnapshot
 
     public required FoodChannelsSection FoodChannels { get; init; }
 
-    public required DeepResourcesSection DeepResources { get; init; }
+    public required DeepResources DeepResources { get; init; }
 
     public required uint FermentingBarrels { get; init; }
 
     /// <summary>
     /// Every outfit, drug, food and reading policy and every allowed area.
     /// </summary>
-    public required PolicySection Policies { get; init; }
+    public required Policies Policies { get; init; }
 
     /// <summary>
     /// Biotech pollution sources, wastepacks, gestators, chargers and baby care; null without Biotech.
@@ -6980,88 +6965,77 @@ public sealed record MonolithState
 /// <summary>
 /// One policy database row: Policy.GetUniqueLoadID(), label, the player
 /// pawns (colonists, prisoners, slaves, tame animals; any map, caravan or
-/// transporter) whose current policy it is, and whether it is the
-/// database default (index 0). allowed_defs is a reading policy's allowed
-/// book ThingDefs or a food policy's allowed food ThingDefs (one of
-/// PolicyFacts.foods); empty for the other databases. drug_entries is
+/// transporter) whose current policy it is. allowed_defs is a reading policy's allowed
+/// book ThingDefs or a food policy's allowed food ThingDefs (a catalog
+/// food definition); empty for the other databases. drug_entries is
 /// a drug policy's entries that allow anything (joy, addiction, scheduled
 /// use or a carried count); every other drug of it is off.
 /// </summary>
 public sealed record PolicyEntry
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public string? Label { get; init; }
+    public required string Label { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> PawnIds { get; init; }
-
-    public bool? Default { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> Pawns { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> AllowedDefs { get; init; }
+    public required EquatableArray<string> AllowedDefs { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Operations.DrugPolicyEntry>))]
-    public EquatableArray<Operations.DrugPolicyEntry> DrugEntries { get; init; }
+    public required EquatableArray<Operations.DrugPolicyEntry> DrugEntries { get; init; }
 }
 
 /// <summary>
-/// Area_Allowed on the colony map: Area.GetUniqueLoadID(), label and the
-/// pawns restricted to it there.
+/// Area_Allowed on the colony map: Area.GetUniqueLoadID(), label, the
+/// pawns restricted to it there and the cells it holds (Area.TrueCount).
 /// </summary>
-public sealed record AllowedAreaEntry
+public sealed record AllowedArea
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public string? Label { get; init; }
+    public required string Label { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> PawnIds { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> Pawns { get; init; }
 
-    /// <summary>
-    /// The cells the area holds (Area.TrueCount).
-    /// </summary>
-    public int CellCount { get; init; }
+    public required int CellCount { get; init; }
 }
 
-public sealed record PolicyFacts
+/// <summary>Every outfit, drug, food and reading policy, every allowed area on the colony map and the food policy holders outside the work census.</summary>
+public sealed record Policies
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<PolicyEntry>))]
-    public EquatableArray<PolicyEntry> Outfit { get; init; }
+    public required EquatableArray<PolicyEntry> Outfit { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PolicyEntry>))]
-    public EquatableArray<PolicyEntry> Drug { get; init; }
+    public required EquatableArray<PolicyEntry> Drug { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PolicyEntry>))]
-    public EquatableArray<PolicyEntry> Food { get; init; }
+    public required EquatableArray<PolicyEntry> Food { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PolicyEntry>))]
-    public EquatableArray<PolicyEntry> Reading { get; init; }
+    public required EquatableArray<PolicyEntry> Reading { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<AllowedAreaEntry>))]
-    public EquatableArray<AllowedAreaEntry> AllowedAreas { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<AllowedArea>))]
+    public required EquatableArray<AllowedArea> AllowedAreas { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<FoodEater>))]
-    public EquatableArray<FoodEater> FoodEaters { get; init; }
+    public required EquatableArray<FoodEater> FoodEaters { get; init; }
 }
 
 public sealed record FoodEater
 {
-    public string? PawnId { get; init; }
+    public required PawnId Pawn { get; init; }
 
-    public FoodEaterKind? Kind { get; init; }
+    public required FoodEaterKind Kind { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Precepts { get; init; }
+    public required EquatableArray<string> Precepts { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Trait>))]
-    public EquatableArray<Trait> PawnTraits { get; init; }
-}
-
-public sealed record PolicySection
-{
-    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
-    public PolicyFacts? Observed { get; init; }
+    public required EquatableArray<Trait> Traits { get; init; }
 }
 
 /// <summary>
@@ -8193,51 +8167,52 @@ public sealed record FlushSnapshotReply
     public bool Flushed { get; init; }
 }
 
+/// <summary>
+/// One pawn's current outfit and its wearer inputs: the outfit's label (Name), load id (PolicyId), allowed apparel
+/// definitions, hit-point fraction and quality ranges (QualityCategory indices) and whether it excludes tainted
+/// apparel; the pawn's stage, slave and violence flags, work settings, draft state and skills; its short name
+/// (PawnName), the definitions its royal title, ideoligion role and ideoligion apparel precepts require, and
+/// whether it goes nude (nudist trait or mandatory nudity precept).
+/// </summary>
 public sealed record ApparelPolicyState
 {
-    public string? Token { get; init; }
+    public required string Token { get; init; }
 
-    public string? Name { get; init; }
+    public required string Name { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> AllowedDefs { get; init; }
+    public required EquatableArray<string> AllowedDefs { get; init; }
 
-    public float? MinHitPoints { get; init; }
+    public required float MinHitPoints { get; init; }
 
-    public float? MaxHitPoints { get; init; }
+    public required float MaxHitPoints { get; init; }
 
-    public int? MinQuality { get; init; }
+    public required int MinQuality { get; init; }
 
-    public int? MaxQuality { get; init; }
+    public required int MaxQuality { get; init; }
 
-    public bool? ExcludesTainted { get; init; }
+    public required bool ExcludesTainted { get; init; }
 
-    public bool? Child { get; init; }
+    public required bool Child { get; init; }
 
-    public bool? Slave { get; init; }
+    public required bool Slave { get; init; }
 
-    public bool? IncapableOfViolence { get; init; }
+    public required bool IncapableOfViolence { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<WorkSetting>))]
-    public EquatableArray<WorkSetting> Work { get; init; }
+    public required EquatableArray<WorkSetting> Work { get; init; }
 
-    public bool? Drafted { get; init; }
+    public required bool Drafted { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Skill>))]
-    public EquatableArray<Skill> Skills { get; init; }
+    public required EquatableArray<Skill> Skills { get; init; }
 
-    /// <summary>
-    /// The pawn's short name (its outfit's label), the load id of its current
-    /// outfit, the definitions its royal title, ideoligion role and
-    /// ideoligion apparel precepts require, and whether it goes nude (nudist
-    /// trait or mandatory nudity precept).
-    /// </summary>
-    public string? PawnName { get; init; }
+    public required string PawnName { get; init; }
 
-    public string? PolicyId { get; init; }
+    public required string PolicyId { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> RequiredDefs { get; init; }
+    public required EquatableArray<string> RequiredDefs { get; init; }
 
-    public bool? Nude { get; init; }
+    public required bool Nude { get; init; }
 }

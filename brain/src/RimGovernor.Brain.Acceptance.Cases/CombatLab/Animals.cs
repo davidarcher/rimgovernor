@@ -110,11 +110,11 @@ internal static class CombatLabAnimals
     }
 
     // The allowed area the pawn is restricted to: the area listing it, which its own settings name.
-    private static async Task<Observations.AllowedAreaEntry?> PupAreaAsync(TypedSession s, string label, string pup, CancellationToken cancellationToken)
+    private static async Task<Observations.AllowedArea?> PupAreaAsync(TypedSession s, string label, string pup, CancellationToken cancellationToken)
     {
         var areas = await CombatLabKit.AreasAsync(s, label + "-areas", cancellationToken).ConfigureAwait(false);
         s.RecordWireRows(label + "_areas", areas);
-        var listing = areas.Where(a => a.PawnIds.Contains(pup)).ToList();
+        var listing = areas.Where(a => a.Pawns.Any(p => p.Value == pup)).ToList();
         var settings = (await CombatLabKit.PawnAsync(s, label + "-pup", pup, cancellationToken).ConfigureAwait(false)).Settings?.AllowedAreaId;
         if (listing.Count > 1 || listing.FirstOrDefault()?.Id != settings)
         {

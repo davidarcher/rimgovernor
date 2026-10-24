@@ -58,8 +58,7 @@ internal static class ApplyPolicyPrune
         await PruneAsync("prune-area", Operations.PolicyDatabase.AllowedArea, before.Area, true).ConfigureAwait(false);
 
         var reply = await s.CallAsync("after", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-        var policies = reply.Policies?.Observed
-            ?? throw new AcceptanceException("after: policy facts unavailable");
+        var policies = reply.Policies;
         s.RecordWire("after_outfits", policies.Outfit);
         s.RecordWire("after_areas", policies.AllowedAreas);
         if (policies.Outfit.Any(o => o.Id == before.Outfit) || policies.AllowedAreas.Any(a => a.Id == before.Area))
@@ -67,8 +66,8 @@ internal static class ApplyPolicyPrune
             throw new AcceptanceException("after: the pruned outfit or allowed area still stands");
         }
 
-        var own = policies.Outfit.SingleOrDefault(o => o.PawnIds.Contains(before.Pawn));
-        if (own?.Label != before.ShortName || policies.AllowedAreas.Any(a => a.PawnIds.Contains(before.Pawn)))
+        var own = policies.Outfit.SingleOrDefault(o => o.Pawns.Any(p => p.Value == before.Pawn));
+        if (own?.Label != before.ShortName || policies.AllowedAreas.Any(a => a.Pawns.Any(p => p.Value == before.Pawn)))
         {
             throw new AcceptanceException($"after: {before.Pawn} is not on its own outfit \"{before.ShortName}\" and unrestricted: outfit {own}");
         }

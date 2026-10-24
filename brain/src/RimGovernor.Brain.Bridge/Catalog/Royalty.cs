@@ -215,15 +215,6 @@ public sealed partial class DefinitionCatalog
         return colony with { Neuroformers = neuroformers };
     }
 
-    /// <summary>The hediffs of the named biome's disease incidents: each <c>BiomeDef.diseases</c> record with commonality, resolved through its IncidentDef's diseaseIncident, sorted and unique. A biome with no row is an error.</summary>
-    public IReadOnlyList<string> BiomeDiseases(string biome) =>
-        [.. GameMembers.BiomeDiseases(RequireRow<BiomeDef>(biome)).Seq()
-            .Where(record => record.commonality > 0)
-            .Select(record => RequireRow<IncidentDef>(record.diseaseInc.defName).diseaseIncident?.defName ?? string.Empty)
-            .Where(hediff => hediff.Length > 0)
-            .Distinct(StringComparer.Ordinal)
-            .Order(StringComparer.Ordinal)];
-
     /// <summary>
     /// The title's throne-room requirement from its RoyalTitleDef row. A title with no throneRoomRequirements asks for no
     /// throne (no Things). A missing row, a malformed requirement (no things, a count below one, a tag-less floor), a kind

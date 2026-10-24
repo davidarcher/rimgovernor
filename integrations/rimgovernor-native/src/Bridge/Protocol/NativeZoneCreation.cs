@@ -16,21 +16,17 @@ namespace HomeBridge.BridgeTools
 {
     internal static class NativeZoneCreation
     {
-        // RimWorld.StoragePriority is a plain int enum (Unstored=0, Low..Critical);
-        // the wire enum mirrors it one-for-one except Unstored has no wire member.
-        internal static RimWorld.StoragePriority? ToNativePriority(Operations.StoragePriority priority)
+        // RimWorld.StoragePriority is a plain int enum (Unstored=0, Low..Critical); every
+        // brain priority has its native member, and Unstored has none.
+        internal static RimWorld.StoragePriority ToNativePriority(RimGovernor.Brain.Domain.StockpilePriority priority) => priority switch
         {
-            switch (priority)
-            {
-                case Operations.StoragePriority.Low: return RimWorld.StoragePriority.Low;
-                case Operations.StoragePriority.Normal: return RimWorld.StoragePriority.Normal;
-                case Operations.StoragePriority.Preferred: return RimWorld.StoragePriority.Preferred;
-                case Operations.StoragePriority.Important: return RimWorld.StoragePriority.Important;
-                case Operations.StoragePriority.Critical: return RimWorld.StoragePriority.Critical;
-                default: return null;
-            }
-        }
-        internal static bool Valid([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Operations.ZoneIntent? command)
+            RimGovernor.Brain.Domain.StockpilePriority.Low => RimWorld.StoragePriority.Low,
+            RimGovernor.Brain.Domain.StockpilePriority.Normal => RimWorld.StoragePriority.Normal,
+            RimGovernor.Brain.Domain.StockpilePriority.Preferred => RimWorld.StoragePriority.Preferred,
+            RimGovernor.Brain.Domain.StockpilePriority.Important => RimWorld.StoragePriority.Important,
+            RimGovernor.Brain.Domain.StockpilePriority.Critical => RimWorld.StoragePriority.Critical,
+            _ => throw new ArgumentOutOfRangeException(nameof(priority), priority, "Unknown stockpile priority."),
+        };        internal static bool Valid([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Operations.ZoneIntent? command)
         {
             if (command == null || command.Kind is null || command.RemoveCells != null || command.Delete.GetValueOrDefault()) return false;
             if (command.AddCells?.Selection?.ExplicitCells is not { } cellList || cellList.Cells.Count == 0) return false;

@@ -82,8 +82,8 @@ internal static class StorageYardShelf
             Zone = new() { Id = shelf },
             Stockpile = new Operations.StockpileSettings
             {
-                Priority = Operations.StoragePriority.Low,
-                Preset = Operations.FilterPreset.OutdoorSafeWaste,
+                Priority = StockpilePriority.Low,
+                Preset = FilterBase.OutdoorSafeWaste,
                 Filter = new Operations.FilterPatch { Allow = [new() { Definition = new Operations.FilterSelectorDefinition.ThingDefCase(Wearing) }] },
             },
         }, cancellationToken).ConfigureAwait(false);

@@ -21,7 +21,7 @@ public sealed class ZoneCellsWireTests
             ZoneFixtures.Growing("Zone_1", "Plant_Rice", usableCells: 12, edible: true) with { PlantedCells = 4, FertilePlantedCells = 3, BlightedPlants = 1, GrowthTotal = 1.5, FertilityFactorTotal = 3.2 },
             ZoneFixtures.Stockpile("Zone_2", "Important", foodStorage: true) with
             {
-                Filter = new O.StockpileFilter { AllowedDefNames = ["MealSimple"], HitPointsMin = 0, HitPointsMax = 1, QualityMin = "Awful", QualityMax = "Legendary" },
+                Filter = new O.StockpileFilter { AllowedDefNames = ["MealSimple"], HitPointsMin = 0, HitPointsMax = 1, QualityMin = Quality.Awful, QualityMax = Quality.Legendary, AllowFresh = true, AllowRotten = false },
             },
             new O.ZoneState.Other { Id = "Zone_3", Label = "Fishing zone 1", Bounds = ZoneFixtures.Origin },
         ],

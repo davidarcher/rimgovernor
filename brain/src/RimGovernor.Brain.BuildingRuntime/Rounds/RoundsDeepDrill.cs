@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal sealed class DeepDrillPlacement
 {
     public string Id = "";
-    public DeepResourceLump Site = null!;
+    public PbObservations.DeepResourceLump Site = null!;
     public double Distance;
     public GenerationSnapshot Snapshot;
     public PlanSpec Plan = null!;
@@ -19,7 +19,7 @@ internal sealed class DeepDrillReading
 {
     public FacadeNativeClient Native = null!;
     public ColonyProjection F = null!;
-    public List<DeepResourceLump> Sites = [];
+    public List<PbObservations.DeepResourceLump> Sites = [];
     public bool Built;
     public List<DeepDrillPlacement> Placeable = [];
 
@@ -43,18 +43,15 @@ public sealed partial class RoundsResourcePlanner
     /// <summary>Deconstructs the first exhausted, undesignated deep drill that has no method yet.</summary>
     internal (RoundsResourceResult Result, bool Handled) RemoveExhaustedDrill(ControlState state, NeedOwner goal, ColonyProjection f, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
-        if (!f.DeepResources.TryGetValue(out var deep))
-        {
-            return (new RoundsResourceResult(), false);
-        }
+        var deep = f.DeepResources;
         var history = reviewer.Player.Journal.OwnerMethodHistory(goal, call);
         foreach (var drill in ExhaustedDrills(deep))
         {
-            if (f.Facts.Preferences.Protects(drill.ID))
+            if (f.Facts.Preferences.Protects(drill.Id))
             {
                 continue;
             }
-            var prefix = $"deconstruct-drill-{drill.ID}-";
+            var prefix = $"deconstruct-drill-{drill.Id}-";
             var plans = history.Where(m => m.Method.Value.StartsWith(prefix, StringComparison.Ordinal)).Select(m => m.Plan).ToList();
             var (_, ok) = RoundsRefusalBudget.AdmitSubject(reviewer.Player.Journal, prefix, plans, state.Snapshot, call);
             if (!ok)
@@ -63,7 +60,7 @@ public sealed partial class RoundsResourcePlanner
             }
             var method = RoundsRefusalBudget.NextMethodId(prefix, [.. history.Select(m => m.Method)]);
             var planId = PlanIds.MintPlanId();
-            var action = DomainAction.NewDeconstructionAction(new ActionId(planId.Value + "-0"), new Deconstruction(drill.ID, drill.Definition, drill.Position));
+            var action = DomainAction.NewDeconstructionAction(new ActionId(planId.Value + "-0"), new Deconstruction(drill.Id, drill.Definition, drill.Position));
             var spec = new PlanSpec(planId, new PlanRevision(1), [action]);
             var player = reviewer.Player;
             player.Current(call, epoch);
@@ -174,7 +171,7 @@ public sealed partial class RoundsResourcePlanner
         return output;
     }
 
-    internal static async Task<(DeepDrillPlacement? Placement, bool Ok)> ReadDeepDrillPlacementAsync(FacadeNativeClient native, ControlState state, ColonyProjection f, DeepResourceLump site, double distance, CancellationToken call)
+    internal static async Task<(DeepDrillPlacement? Placement, bool Ok)> ReadDeepDrillPlacementAsync(FacadeNativeClient native, ControlState state, ColonyProjection f, PbObservations.DeepResourceLump site, double distance, CancellationToken call)
     {
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
@@ -275,19 +272,19 @@ public sealed partial class RoundsResourcePlanner
 partial class RoundsResourcePlanner
 {
     /// <summary>The deep resource lumps of the needed resources, nearest the colony centre first; empty without a scanner, the research or the drill.</summary>
-    internal static List<DeepResourceLump> DeepDrillSites(ColonyProjection f, IReadOnlyList<ResourceRunway> runways, ItemFacts items)
+    internal static List<PbObservations.DeepResourceLump> DeepDrillSites(ColonyProjection f, IReadOnlyList<ResourceRunway> runways, ItemFacts items)
     {
-        var known = f.DeepResources.TryGetValue(out var deep);
+        var deep = f.DeepResources;
         var ak = f.DefinitionAvailable("DeepDrill").TryGetValue(out var available);
         var planned = f.Center().TryGetValue(out var center);
-        if (!planned || !known || ResearchRules.ResearchGate(["DeepDrilling", "GroundPenetratingScanner"], f.Facts.Research) != "" || !ak || !available)
+        if (!planned || ResearchRules.ResearchGate(["DeepDrilling", "GroundPenetratingScanner"], f.Facts.Research) != "" || !ak || !available)
         {
             return [];
         }
         var scanner = false;
-        foreach (var row in deep!.GroundScanners)
+        foreach (var row in deep.GroundScanners)
         {
-            scanner = scanner || (row.Definition == "GroundPenetratingScanner" && row.Built.TryGetValue(out var built) && built);
+            scanner = scanner || row.Definition == "GroundPenetratingScanner";
         }
         if (!scanner)
         {
@@ -303,7 +300,7 @@ partial class RoundsResourcePlanner
                 needed.Add(row.Resource.Value);
             }
         }
-        var sites = new List<DeepResourceLump>();
+        var sites = new List<PbObservations.DeepResourceLump>();
         foreach (var lump in deep.Lumps)
         {
             if (needed.Contains(lump.Definition) && lump.Count > 0)
@@ -335,17 +332,18 @@ partial class RoundsResourcePlanner
         return sites;
     }
 
-    internal static List<DeepDrill> ExhaustedDrills(DeepResources deep)
+    /// <summary>The drills with no valuable deposit left under them and no standing Deconstruct designation, by id.</summary>
+    internal static List<PbObservations.DeepDrill> ExhaustedDrills(PbObservations.DeepResources deep)
     {
-        var output = new List<DeepDrill>();
+        var output = new List<PbObservations.DeepDrill>();
         foreach (var drill in deep.Drills)
         {
-            if (drill.Depleted.TryGetValue(out var depleted) && depleted && drill.Designated.TryGetValue(out var designated) && !designated)
+            if (drill.Deposit is null && !drill.Designated)
             {
                 output.Add(drill);
             }
         }
-        output.Sort((a, b) => string.CompareOrdinal(a.ID, b.ID));
+        output.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
         return output;
     }
 

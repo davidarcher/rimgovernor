@@ -1,6 +1,8 @@
 using RimGovernor.Brain.Bridge;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
+using FilterBase = RimGovernor.Brain.Domain.FilterBase;
+using StockpilePriority = RimGovernor.Brain.Domain.StockpilePriority;
 using Operations = RimGovernor.Contracts.Wire.Operations;
 using Placement = RimGovernor.Contracts.Wire.Placement;
 
@@ -111,7 +113,7 @@ internal static class ApplyRefusal
                 Label = "RimGovernor apply refusal",
                 Kind = Operations.ZoneType.Stockpile,
                 AddCells = new Operations.Cells { Selection = new Operations.Rectangle { Origin = free, Width = 1, Height = 1 } },
-                Stockpile = new Operations.StockpileSettings { Priority = Operations.StoragePriority.Normal, Preset = Operations.FilterPreset.Nothing },
+                Stockpile = new Operations.StockpileSettings { Priority = StockpilePriority.Normal, Preset = FilterBase.Nothing },
             },
             Common.FailureCode.InvalidRequest,
             "Rectangle has no free vanilla-zoneable stockpile cells").ConfigureAwait(false);
@@ -121,7 +123,7 @@ internal static class ApplyRefusal
         await MoveAsync("delete-zone", "delete_zone", prepared.ZoneId).ConfigureAwait(false);
         await RefusedAsync(
             "stockpile-patch",
-            new Operations.ZoneIntent { Zone = zone, Stockpile = new Operations.StockpileSettings { Priority = Operations.StoragePriority.Important } },
+            new Operations.ZoneIntent { Zone = zone, Stockpile = new Operations.StockpileSettings { Priority = StockpilePriority.Important } },
             Common.FailureCode.NotFound,
             "Stockpile patch refused: the exact stockpile zone or storage building no longer exists on this map").ConfigureAwait(false);
         await RefusedAsync(

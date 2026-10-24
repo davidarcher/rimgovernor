@@ -3,7 +3,6 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using JournalStore = RimGovernor.Brain.Store.Store;
-using Op = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -40,7 +39,7 @@ public sealed class YardMergeTests
         Assert.Equal(FilterBase.OutdoorSafeWaste, filter.Base);
         Assert.Empty(filter.Allow);
         Assert.Empty(filter.Disallow);
-        Assert.Equal(Op.FilterPreset.OutdoorSafeWaste, Zones.StockpileSettings(filter, StockpilePriority.Low).Preset);
+        Assert.Equal(FilterBase.OutdoorSafeWaste, Zones.StockpileSettings(filter, StockpilePriority.Low).Preset);
     }
 
     [Fact]
