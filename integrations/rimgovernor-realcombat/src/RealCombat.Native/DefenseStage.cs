@@ -99,7 +99,7 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
             Home = Home,
             Cells = EquatableArray.From(cells),
             Definitions = names,
-            MinRange = Fact.Known(minRange),
+            MinRange = minRange,
             Defenders = defenders,
             Killbox = killbox,
         };
@@ -176,16 +176,16 @@ public sealed class DefenseStage(Rotation toward, int defenders, double minRange
         return new DefenseCell
         {
             Cell = new Cell(c.x, c.z),
-            Walkable = Fact.Known(c.Walkable(map)),
-            Passable = Fact.Known(!c.Impassable(map)),
-            PlayerOwned = Fact.Known(edifice?.Faction == Faction.OfPlayer),
-            NaturalRock = Fact.Known(edifice?.def.building?.isNaturalRock == true),
-            EdgeReachable = Fact.Known(map.reachability.CanReachMapEdge(c, TraverseParms.For(TraverseMode.PassDoors))),
-            Door = Fact.Known(edifice is Building_Door),
-            Roofed = Fact.Known(c.Roofed(map)),
-            WallSupport = Fact.Known(terrain.affordances.Contains(wall.terrainAffordanceNeeded ?? TerrainAffordanceDefOf.Light)),
-            TrapSupport = Fact.Known(terrain.affordances.Contains(trap.terrainAffordanceNeeded ?? TerrainAffordanceDefOf.Light)),
-            CoverFill = Fact.Known(cover == null ? 0d : cover.def.fillPercent),
+            Walkable = c.Walkable(map),
+            Passable = !c.Impassable(map),
+            PlayerOwned = edifice?.Faction == Faction.OfPlayer,
+            NaturalRock = edifice?.def.building?.isNaturalRock == true,
+            EdgeReachable = map.reachability.CanReachMapEdge(c, TraverseParms.For(TraverseMode.PassDoors)),
+            Door = edifice is Building_Door,
+            Roofed = c.Roofed(map),
+            WallSupport = terrain.affordances.Contains(wall.terrainAffordanceNeeded ?? TerrainAffordanceDefOf.Light),
+            TrapSupport = terrain.affordances.Contains(trap.terrainAffordanceNeeded ?? TerrainAffordanceDefOf.Light),
+            CoverFill = cover == null ? 0d : cover.def.fillPercent,
             Edifice = edifice?.def.defName ?? "",
         };
     }

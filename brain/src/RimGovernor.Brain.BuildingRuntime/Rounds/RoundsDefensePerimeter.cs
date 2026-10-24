@@ -39,7 +39,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         if (DefenseResearched(projection, DefenseMoistureResearch))
         {
             cut.Transmitters = q.Transmitters;
-            q.SpareW.TryGetValue(out cut.Spare);
+            cut.Spare = q.SpareW;
         }
         cut.Prison = DefensePrisonTurrets(plan, q);
         return (cut, true);
@@ -47,10 +47,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static IReadOnlyList<PerimeterSection> DefensePrisonTurrets(LayoutPlan plan, DefenseTurretRequest q)
     {
-        var ak = q.Available.TryGetValue(out var available);
-        var dk = q.DrawW.TryGetValue(out var draw);
-        var sk = q.SpareW.TryGetValue(out var spare);
-        if (!ak || !available || !dk || !sk)
+        var (draw, spare) = (q.DrawW, q.SpareW);
+        if (!q.Available)
         {
             return [];
         }

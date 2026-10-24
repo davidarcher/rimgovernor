@@ -210,10 +210,8 @@ public static class DefensePositions
             case Rotation.West:
                 v = DefenseLayout.Directions[3];
                 return true;
-            default:
-                v = default;
-                return false;
         }
+        throw new DomainException($"rotation {(int)r} is not a rotation");
     }
 
     /// <summary>Recognises the native lord classes of a walk-in assault. Sapper, breach, siege and drop toils are excluded by name.</summary>

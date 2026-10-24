@@ -31,8 +31,8 @@ public record PowerBuilding
     public required O.BuildingFuel Fuel { get; init; }
 
     /// <summary>
-    /// <see cref="Fuel"/>'s out-of-fuel flag, unknown on a building that is not refuelable. Only the defense turret
-    /// facts read it, which #3887 hardens.
+    /// <see cref="Fuel"/>'s out-of-fuel flag, unknown on a building that is not refuelable. Only the fuel consumer
+    /// rows (Observation's Fuel) read it; the defense turret facts read <see cref="Unfueled"/>.
     /// </summary>
     public Fact<bool> OutOfFuel { get; init; }
 
@@ -43,12 +43,15 @@ public record PowerBuilding
     /// <summary>The energy the building's battery comp stores at most (storedEnergyMax); a building without one stores none.</summary>
     public double StorageWD { get; init; }
 
-    /// <summary>A turret gun's observed damage per second, unknown for every other consumer. Only the defense turret facts read it (#3887).</summary>
-    public Fact<double> TurretDps { get; init; }
+    /// <summary>The turret gun the building carries; null for every other consumer.</summary>
+    public TurretGun? Turret { get; init; }
 
     /// <summary>Whether the building is a refuelable one that is out of fuel.</summary>
     public bool Unfueled => Fuel is O.BuildingFuel.Refuelable { OutOfFuel: true };
 }
+
+/// <summary>A turret gun's observed damage per second, from its own verb and burst timing.</summary>
+public sealed record TurretGun(double Dps);
 
 /// <summary>
 /// One native power net's same-tick energy summary. Reserve runway is derived, never observed: stored energy

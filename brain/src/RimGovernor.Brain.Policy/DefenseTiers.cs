@@ -395,11 +395,11 @@ public static class DefenseTiersPolicy
                 c = c with
                 {
                     Edifice = "",
-                    PlayerOwned = Known(false),
-                    Door = Known(false),
-                    Walkable = Known(true),
-                    Passable = Known(true),
-                    CoverFill = Known(0.0),
+                    PlayerOwned = false,
+                    Door = false,
+                    Walkable = true,
+                    Passable = true,
+                    CoverFill = 0.0,
                 };
             }
             output.Add(c);

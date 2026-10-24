@@ -7,11 +7,12 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal const int MaxDefenseCoverBatch = 8;
     internal const string DefenseCoverPrefix = "defense-cover-";
 
-    internal async Task<(int Defenders, Fact<double> MinRange, bool Ok)> DefenderRangeAsync(ControlState state, RoundsReading read, CancellationToken call)
+    /// <summary>The ranged defenders and their shortest reach; not Ok when the colonists are not all seen or none holds a ranged weapon.</summary>
+    internal async Task<(int Defenders, double MinRange, bool Ok)> DefenderRangeAsync(ControlState state, RoundsReading read, CancellationToken call)
     {
         if (!read.Emergency.AllSeen || read.Emergency.Colonists.Count == 0)
         {
-            return (0, Unknown<double>(), false);
+            return (0, 0, false);
         }
         var ids = read.Emergency.Colonists.Select(p => p.Id.Value).ToList();
         var reply = await _native.ReadPawnsAsync(Boundary.Identity(state.Snapshot), ids, call).ConfigureAwait(false);
@@ -45,11 +46,10 @@ public sealed partial class RoundsDefenseLayoutPlanner
         request = request with { Killbox = killbox };
         request = request with { Region = new Rectangle(region.Min.X, region.Min.Z, region.Max.X - region.Min.X + 1, region.Max.Z - region.Min.Z + 1) };
         var byCell = new Dictionary<Cell, O.DefenseCell.Seen>();
-        var requestCells = new List<DefenseCell>();
+        var (requestCells, fogged) = await DefenseSiteCellsAsync(identity, request.Definitions, site, call).ConfigureAwait(false);
         var entrances = new List<Cell>();
         foreach (var cell in site)
         {
-            requestCells.Add(DefenseCellFacts(cell));
             if (cell is not O.DefenseCell.Seen seen)
             {
                 continue;
@@ -60,10 +60,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 entrances.Add(cell.Cell);
             }
         }
-        request = request with { Cells = [.. requestCells], Entrances = [.. entrances] };
-        const double defenseCoverFillThreshold = 0.0;
+        request = request with { Cells = [.. requestCells], Fogged = [.. fogged], Entrances = [.. entrances] };
         request = request with { Arrivals = [.. DefenseArrivals(projection.Raids, region)] };
-        request = request with { CoverThreshold = Known(defenseCoverFillThreshold) };
         var (defenders, minRange, haveRange) = await DefenderRangeAsync(state, read, call).ConfigureAwait(false);
         if (!haveRange)
         {

@@ -78,12 +78,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
         request = request with { Home = home };
         request = request with { Killbox = killbox };
         request = request with { Region = new Rectangle(region.Min.X, region.Min.Z, region.Max.X - region.Min.X + 1, region.Max.Z - region.Min.Z + 1) };
-        var requestCells = new List<DefenseCell>();
-        foreach (var cell in site)
-        {
-            requestCells.Add(DefenseCellFacts(cell));
-        }
-        request = request with { Cells = [.. requestCells] };
+        var (requestCells, fogged) = await DefenseSiteCellsAsync(identity, request.Definitions, site, call).ConfigureAwait(false);
+        request = request with { Cells = [.. requestCells], Fogged = [.. fogged] };
         Building old;
         Building replacement;
         try

@@ -360,29 +360,30 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return output;
     }
 
-    internal static DefenseCell DefenseCellFacts(O.DefenseCell cell)
+    /// <summary>A seen census row as the policy cell, with the footing the catalog gives its terrain.</summary>
+    internal static DefenseCell DefenseCellFacts(O.DefenseCell.Seen seen, bool wallSupport, bool trapSupport)
     {
-        var output = new DefenseCell { Cell = cell.Cell };
-        if (cell is not O.DefenseCell.Seen seen)
-        {
-            return output;
-        }
         var edifice = seen.Edifice;
-        output = output with { Walkable = Known(seen.Walkable) };
-        output = output with { Passable = Known(seen.Passable) };
-        output = output with { PlayerOwned = Known(edifice is { PlayerOwned: true }) };
-        output = output with { NaturalRock = Known(edifice is { NaturalRock: true }) };
-        output = output with { EdgeReachable = Known(seen.EdgeReachable) };
-        output = output with { Door = Known(edifice is { Door: true }) };
-        output = output with { CoverFill = Known(seen.CoverFill) };
-        output = output with { Edifice = edifice?.DefName ?? "" };
-        output = output with { Roofed = Known(seen.Roofed) };
-        output = output with { Cover = DefenseCover(seen) };
-        return output;
+        return new DefenseCell
+        {
+            Cell = seen.Cell,
+            Walkable = seen.Walkable,
+            Passable = seen.Passable,
+            PlayerOwned = edifice is { PlayerOwned: true },
+            NaturalRock = edifice is { NaturalRock: true },
+            EdgeReachable = seen.EdgeReachable,
+            Door = edifice is { Door: true },
+            CoverFill = seen.CoverFill,
+            Edifice = edifice?.DefName ?? "",
+            Roofed = seen.Roofed,
+            WallSupport = wallSupport,
+            TrapSupport = trapSupport,
+            Cover = DefenseCover(seen),
+        };
     }
 
-    /// <summary>How many defenders hold a ranged weapon (capped at eight) and the shortest reach among them.</summary>
-    internal static (int Count, Fact<double> Shortest) DefenderRangeOf(IReadOnlyList<O.PawnState> rows, Armament arms)
+    /// <summary>How many defenders hold a ranged weapon (capped at eight) and the shortest reach among them; zero with none.</summary>
+    internal static (int Count, double Shortest) DefenderRangeOf(IReadOnlyList<O.PawnState> rows, Armament arms)
     {
         var count = 0;
         var shortest = double.PositiveInfinity;
@@ -398,19 +399,18 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         if (count == 0)
         {
-            return (0, Unknown<double>());
+            return (0, 0);
         }
         if (count > 8)
         {
             count = 8;
         }
-        return (count, Known(shortest));
+        return (count, shortest);
     }
-
     internal static DefenseRequest DefenseIedRequest(RoundsReading read, DefenseRequest request)
     {
         var projection = read.Projection;
-        request = request with { IEDMax = DefenseIEDs.IEDBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets, projection.Facts.GoalBuild.Turrets), IEDStock = projection.Resources };
+        request = request with { IEDMax = DefenseIEDs.IEDBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets, projection.Facts.GoalBuild.Turrets), IEDStock = DefenseStock(projection) };
         var ieds = new List<DefenseIED>();
         var unitCosts = new Dictionary<string, EquatableArray<Amount>>(request.UnitCosts, StringComparer.Ordinal);
         foreach (var d in projection.Definitions)
@@ -431,7 +431,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
         }
         ieds.Sort((a, b) => string.CompareOrdinal(a.Definition, b.Definition));
-        request = request with { IEDs = [.. ieds], UnitCosts = unitCosts };
+        request = request with { UnitCosts = unitCosts };
+        // An IED is sited clear of flammable storage, so a round whose zones are not read whole places none.
         if (projection.Zones is not { Complete: true } zones)
         {
             return request;
@@ -445,7 +446,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 storage.Add(cell.Cell);
             }
         }
-        return request with { FlammableStorage = Known<EquatableArray<Cell>>([.. storage]) };
+        return request with { IEDs = [.. ieds], FlammableStorage = [.. storage] };
     }
 
     internal void LogUnbuiltTiers(DefenseLayoutRecord record, DefenseCensus census, CancellationToken ct)

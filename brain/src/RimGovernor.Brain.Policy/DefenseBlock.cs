@@ -107,9 +107,11 @@ public sealed record BlockPricing
                 }
                 result = WorkW(row.Work) - yield;
                 return true;
-            default:
+            case CoverKind.None:
+            case CoverKind.Mineable:
                 return false;
         }
+        throw new DomainException($"cover kind {(int)t.Kind} is not a cover kind");
     }
 
     /// <summary>
@@ -216,21 +218,21 @@ public static class DefenseBlock
 
     /// <summary>
     /// The work ticks one colonist's work-day holds: the mean over the available colonists of their timetable's
-    /// work hours at their ConstructionSpeed × 1.7 (#3868), the build and removal drivers' work a tick. Unknown while a
-    /// schedule or speed is.
+    /// work hours at their ConstructionSpeed × 1.7 (#3868), the build and removal drivers' work a tick. Zero when no
+    /// colonist can be dispatched to construction or none has working hours at a positive speed: no work-day to price.
     /// </summary>
-    public static Fact<double> ColonistWorkTicksPerDay(IReadOnlyList<WorkPawn> pawns)
+    public static double ColonistWorkTicksPerDay(IReadOnlyList<WorkPawn> pawns)
     {
         if (!WorkRules.TryDispatchWorkers(pawns, [], ConstructionSpeedStat, out var workers) || workers.Count == 0)
         {
-            return Unknown<double>();
+            return 0;
         }
         var mean = WorkRules.AverageWorker(workers);
         if (!QuestCapacityForecast.FinitePositive(mean.WorkHoursPerDay * mean.WorkSpeed))
         {
-            return Unknown<double>();
+            return 0;
         }
-        return Known(mean.WorkHoursPerDay * GameTime.TicksPerHour * mean.WorkSpeed * ConstructionWorkFactor);
+        return mean.WorkHoursPerDay * GameTime.TicksPerHour * mean.WorkSpeed * ConstructionWorkFactor;
     }
 
     private sealed record BlockedTier(DefenseTierName Name, Dictionary<Cell, CoverThing> Blocked, List<Building> Standing);
@@ -334,9 +336,9 @@ public static class DefenseBlock
     {
         var steel = f.Items.Market.GetValueOrDefault(SiteRules.SiteSteelUnit); // The missing-value error is dropped: an unpriced steel stays 0
         var p = new BlockPricing { Work = LayoutRegroupRules.StationWorkPrice(f), SteelValue = steel, Market = f.Items.Market, UnitCosts = unitCosts, Rows = rows };
-        if (f.WorkPawns.TryGetValue(out var pawns) && ColonistWorkTicksPerDay(pawns).TryGetValue(out var ticks))
+        if (f.WorkPawns.TryGetValue(out var pawns))
         {
-            p = p with { TicksPerWorkDay = ticks };
+            p = p with { TicksPerWorkDay = ColonistWorkTicksPerDay(pawns) };
         }
         return p;
     }

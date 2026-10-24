@@ -38,6 +38,9 @@ public static class DefenseArrivalRoutes
     internal const long DefenseArrivalWindow = 3 * GameTime.TicksPerDay;
     internal const int DefenseRouteTail = 6;
 
+    /// <summary>The cover fill a cell must exceed to be cover demand on an approach: any fill at all.</summary>
+    internal const double CoverFillThreshold = 0.0;
+
     /// <summary>Bounds how far an arrival's crossing may lie from a sector's edge cell: the native trail is sampled every 60 ticks, a few cells of raider movement.</summary>
     internal const int DefenseArrivalSnap = 8;
 
@@ -72,11 +75,8 @@ public static class DefenseArrivalRoutes
             }
             seen[a.Id] = a;
         }
-        if (r.CoverThreshold.TryGetValue(out var v) && (double.IsNaN(v) || double.IsInfinity(v) || v < 0 || v >= 1))
-        {
-            throw new DefenseException("invalid defense cover threshold");
-        }
     }
+
 
     internal static bool DefenseCellLess(Cell a, Cell b) => a.Z != b.Z ? a.Z < b.Z : a.X < b.X;
 
@@ -100,7 +100,7 @@ public static class DefenseArrivalRoutes
 
     /// <summary>
     /// Recomputes the approaches of an accepted layout against a fresh census: the layout's tiers, lanes and
-    /// firing cells stay protected, and the request's arrivals and cover threshold decide the cover demand.
+    /// firing cells stay protected, and the request's arrivals and any cell with cover fill inside the defenders' range decide the cover demand.
     /// </summary>
     public static DefenseApproaches DefenseApproachesFor(DefenseRequest r, DefenseLayout l) => DefenseSite.Create(r).ComputeApproaches(l);
 }
@@ -164,7 +164,7 @@ internal sealed partial class DefenseSite
         var ordered = new List<Cell>();
         foreach (var c in distance.Keys)
         {
-            if (OnBorder(c) && RoundsRules.Positive(Cells[c].EdgeReachable))
+            if (OnBorder(c) && Cells[c].EdgeReachable)
             {
                 edge.Add(c);
                 ordered.Add(c);
@@ -304,7 +304,7 @@ internal sealed partial class DefenseSite
         }
         foreach (var (c, row) in Cells)
         {
-            if (RoundsRules.Positive(row.Door) && RoundsRules.Positive(row.PlayerOwned))
+            if (row.Door && row.PlayerOwned)
             {
                 closed.Add(c);
             }
@@ -330,19 +330,16 @@ internal sealed partial class DefenseSite
             sectorList[i] = sector;
         }
         var output = new DefenseApproaches { Sectors = EquatableArray.From(sectorList) };
-        if (!R.CoverThreshold.TryGetValue(out var threshold))
+        if (l.Firing.Count == 0)
         {
-            return output with { Hold = "cover_threshold_unknown" };
+            return output with { Hold = "no_firing_line" };
         }
-        if (!R.MinRange.TryGetValue(out var rangeLimit) || l.Firing.Count == 0)
-        {
-            return output with { Hold = "engagement_range_unknown" };
-        }
+        var rangeLimit = R.MinRange;
         var dir = DefenseTurretsPolicy.DirectionOf(l.Toward);
         var cover = new List<DefenseCoverDemand>();
         foreach (var (c, row) in Cells)
         {
-            if (protectedCells.Contains(c) || !row.CoverFill.TryGetValue(out var fill) || fill <= threshold)
+            if (protectedCells.Contains(c) || row.CoverFill <= DefenseArrivalRoutes.CoverFillThreshold)
             {
                 continue;
             }
@@ -381,11 +378,11 @@ internal sealed partial class DefenseSite
                 continue;
             }
             var hold = "";
-            if (RoundsRules.Positive(row.NaturalRock) && (c.X == 0 || c.Z == 0 || c.X == R.Bounds.Width - 1 || c.Z == R.Bounds.Height - 1))
+            if (row.NaturalRock && (c.X == 0 || c.Z == 0 || c.X == R.Bounds.Width - 1 || c.Z == R.Bounds.Height - 1))
             {
                 hold = "map_edge_rock";
             }
-            if (RoundsRules.Positive(row.NaturalRock) && hold == "")
+            if (row.NaturalRock && hold == "")
             {
                 var exposed = false;
                 foreach (var delta in DefenseLayout.Directions)
@@ -397,14 +394,14 @@ internal sealed partial class DefenseSite
                     hold = "mountain_interior";
                 }
             }
-            if (RoundsRules.Positive(row.NaturalRock) && hold == "")
+            if (row.NaturalRock && hold == "")
             {
                 // A rock face is terrain: mining one cell of a mass exposes the next, and the mass may be the wall
                 // the layout leans on. Only a lone rock (no natural rock beside it) is orderable.
                 foreach (var delta in DefenseLayout.Directions)
                 {
                     var n = DefenseLayout.AddCell(c, delta);
-                    if (Cells.TryGetValue(n, out var nrow) && RoundsRules.Positive(nrow.NaturalRock) && !Passable(n))
+                    if (Cells.TryGetValue(n, out var nrow) && nrow.NaturalRock && !Passable(n))
                     {
                         hold = "rock_face";
                         break;

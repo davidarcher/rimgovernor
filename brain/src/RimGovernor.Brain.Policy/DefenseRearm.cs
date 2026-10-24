@@ -1,8 +1,8 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// One standing tier turret's service state from the power census. Every field is an observation; an unknown
-/// fuel state is neither a deficit nor a rearm.
+/// One standing tier turret's service state from the power census: its gun's damage per second, whether it is
+/// powered, and whether it is a refuelable turret out of fuel.
 /// </summary>
 public sealed record DefenseTurretFacts
 {
@@ -11,11 +11,12 @@ public sealed record DefenseTurretFacts
     public Cell Cell { get; init; }
 
     /// <summary>The turret's observed damage per second.</summary>
-    public Fact<double> Dps { get; init; }
+    public required double Dps { get; init; }
 
-    public Fact<bool> Powered { get; init; }
+    public required bool Powered { get; init; }
 
-    public Fact<bool> OutOfFuel { get; init; }
+    /// <summary>A refuelable turret with an empty barrel; false for one with fuel or one that takes none.</summary>
+    public required bool OutOfFuel { get; init; }
 
     /// <summary>The definitions the barrel accepts (steel for the mini turret), in the census's order.</summary>
     public EquatableArray<Resource> FuelDefinitions { get; init; }
@@ -41,32 +42,27 @@ public static class DefenseRearm
     /// disabled, preferring one with it enabled at the highest priority. Under a solar flare (blackout) every
     /// turret is dark for the outage and none is a power deficit; an empty barrel is still rearmed.
     /// </summary>
-    public static DefenseTurretUpkeep DefenseRearmTurrets(IReadOnlyList<DefenseTurretFacts> turrets, IReadOnlyList<WorkPawn> workers, Fact<IReadOnlyDictionary<Resource, long>> stock, bool blackout)
+    public static DefenseTurretUpkeep DefenseRearmTurrets(IReadOnlyList<DefenseTurretFacts> turrets, IReadOnlyList<WorkPawn> workers, IReadOnlyDictionary<Resource, long> stock, bool blackout)
     {
         var unpowered = new List<Cell>();
         var empty = new List<Cell>();
         var rearm = false;
-        var stockKnown = stock.TryGetValue(out var stocked);
         var pawnOk = DefenseRearmPawn(workers, out _);
         foreach (var t in turrets)
         {
-            if (t.Powered.TryGetValue(out var on) && !on && !blackout)
+            if (!t.Powered && !blackout)
             {
                 unpowered.Add(t.Cell);
             }
-            if (!t.OutOfFuel.TryGetValue(out var isEmpty) || !isEmpty)
+            if (!t.OutOfFuel)
             {
                 continue;
             }
             empty.Add(t.Cell);
-            if (!stockKnown)
-            {
-                continue;
-            }
             var fueled = false;
             foreach (var d in t.FuelDefinitions)
             {
-                if (stocked!.TryGetValue(d, out var n) && n > 0)
+                if (stock.TryGetValue(d, out var n) && n > 0)
                 {
                     fueled = true;
                     break;

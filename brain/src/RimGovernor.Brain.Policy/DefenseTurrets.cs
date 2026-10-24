@@ -1,10 +1,10 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// The powered turret tier's input. Every gate is an observation: Available is the native planning definition's
-/// availability, DrawW its base draw, SpareW the chosen power network's spare watts, Transmitters the conduit
-/// cells that carry that network, and Stock the colony's stock census. An unknown gate places no turret.
-/// Definition empty asks for no turret tier.
+/// The powered turret tier's input. Every gate is an observation: Available says the native planning definition is
+/// read available with its research finished, its base draw (DrawW) read, and a generating power network to carry
+/// it; SpareW is the chosen network's spare watts and Transmitters the conduit cells that carry it (zero and none
+/// without a generating network); Stock is the colony's stock census. Definition empty asks for no turret tier.
 /// </summary>
 public sealed record DefenseTurretRequest
 {
@@ -14,15 +14,15 @@ public sealed record DefenseTurretRequest
 
     public string Conduit { get; init; } = "";
 
-    public Fact<bool> Available { get; init; }
+    public bool Available { get; init; }
 
-    public Fact<double> DrawW { get; init; }
+    public double DrawW { get; init; }
 
-    public Fact<double> SpareW { get; init; }
+    public double SpareW { get; init; }
 
     public EquatableArray<Cell> Transmitters { get; init; }
 
-    public Fact<IReadOnlyDictionary<Resource, long>> Stock { get; init; }
+    public IReadOnlyDictionary<Resource, long> Stock { get; init; } = new Dictionary<Resource, long>();
 
     /// <summary>Bounds the turrets placed; zero or negative places none.</summary>
     public int Max { get; init; }
@@ -159,13 +159,21 @@ public static class DefenseTurretsPolicy
         return gap;
     }
 
-    internal static Cell DirectionOf(Rotation r) => r switch
+    internal static Cell DirectionOf(Rotation r)
     {
-        Rotation.North => DefenseLayout.Directions[0],
-        Rotation.East => DefenseLayout.Directions[1],
-        Rotation.South => DefenseLayout.Directions[2],
-        _ => DefenseLayout.Directions[3],
-    };
+        switch (r)
+        {
+            case Rotation.North:
+                return DefenseLayout.Directions[0];
+            case Rotation.East:
+                return DefenseLayout.Directions[1];
+            case Rotation.South:
+                return DefenseLayout.Directions[2];
+            case Rotation.West:
+                return DefenseLayout.Directions[3];
+        }
+        throw new DomainException($"rotation {(int)r} is not a rotation");
+    }
 
     /// <summary>The turret tier's view of the layout.</summary>
     public static DefenseGeometry Geometry(this DefenseLayout l)
@@ -210,8 +218,8 @@ public static class DefenseTurretsPolicy
     internal static (int Count, string Gate) TurretLimit(DefenseRequest r, int verified)
     {
         var q = r.Turret;
-        if (!q.Available.TryGetValue(out var available) || !available
-            || !q.DrawW.TryGetValue(out var draw) || !q.SpareW.TryGetValue(out var spare) || draw < 0)
+        var (draw, spare) = (q.DrawW, q.SpareW);
+        if (!q.Available || draw < 0)
         {
             return (0, GateTurretUnavailable);
         }
@@ -256,22 +264,8 @@ public static class DefenseTurretsPolicy
         return (n, gate);
     }
 
-    /// <summary>Reports whether the stock census covers the buildings' summed unit costs; unknown costs or stock never afford anything.</summary>
-    internal static bool Affordable(DefenseRequest r, IEnumerable<Building> buildings)
-    {
-        if (!DefenseLayout.TierCosts(r.UnitCosts, buildings).TryGetValue(out var costs) || !r.Turret.Stock.TryGetValue(out var stock))
-        {
-            return false;
-        }
-        foreach (var a in costs)
-        {
-            if (stock.GetValueOrDefault(a.Resource) < a.Count)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
+    /// <summary>Reports whether the turret stock covers the buildings' summed unit costs; an unpriced definition is never afforded.</summary>
+    internal static bool Affordable(DefenseRequest r, IEnumerable<Building> buildings) => DefenseLayout.StockCovers(r.UnitCosts, r.Turret.Stock, buildings);
 
     /// <summary>Drops the last turret and the conduits routed for it.</summary>
     internal static List<Building> TrimLastTurret(List<Building> buildings, string turret)
@@ -437,11 +431,11 @@ internal sealed partial class DefenseSite
             {
                 continue;
             }
-            // Kept when it has a known line of sight to some cell of the lane.
+            // Kept when it has a clear line of sight to some cell of the lane.
             var sees = false;
             foreach (var a in g.Approach)
             {
-                if (LineOfSight(c, a).TryGetValue(out var los) && los)
+                if (LineOfSight(c, a) == Sightline.Clear)
                 {
                     sees = true;
                     break;
@@ -467,11 +461,11 @@ internal sealed partial class DefenseSite
         var allowed = new HashSet<Cell>();
         foreach (var (c, row) in Cells)
         {
-            if ((taken.Contains(c) && !underWall.Contains(c)) || Protect.Contains(c) || RoundsRules.Positive(row.Door) || RoundsRules.Positive(row.NaturalRock))
+            if ((taken.Contains(c) && !underWall.Contains(c)) || Protect.Contains(c) || row.Door || row.NaturalRock)
             {
                 continue;
             }
-            if (RoundsRules.Positive(row.Walkable) || (RoundsRules.Positive(row.PlayerOwned) && row.Edifice != ""))
+            if (row.Walkable || (row.PlayerOwned && row.Edifice != ""))
             {
                 allowed.Add(c);
             }

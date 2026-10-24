@@ -283,7 +283,7 @@ public static class ColonyDecodeReads
                     // Whether rain shorts the building is its def's, not the frame's.
                     RainVulnerable = defs.RainVulnerable(def),
                     Roofed = row.Roofed,
-                    TurretDps = Optional(row.TurretDps is not null, row.TurretDps.GetValueOrDefault()),
+                    Turret = row.TurretDps is { } dps ? new TurretGun(dps) : null,
                 };
                 power.Add(site);
                 var consumer = FuelReads.FuelConsumerOf(catalog, site.Id, site.Definition, site, out var refuelable);
@@ -293,9 +293,9 @@ public static class ColonyDecodeReads
                 }
                 geometryKnown = geometryKnown && reference.Place is O.EntityPlace.OnMap && site.Occupied.Count > 0;
                 sites.Add(site);
-                if (row.TurretDps is not null)
+                if (site.Turret is { } gun)
                 {
-                    turrets.Add(new DefenseTurretFacts { Id = site.Id, Cell = site.Cell, Powered = Known(site.Powered), Dps = site.TurretDps });
+                    turrets.Add(new DefenseTurretFacts { Id = site.Id, Cell = site.Cell, Powered = site.Powered, Dps = gun.Dps, OutOfFuel = site.Unfueled, FuelDefinitions = [.. site.FuelDefinitions.Select(d => new Resource(d))] });
                 }
             }
             topology = topology with { Buildings = sites };

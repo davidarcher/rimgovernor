@@ -78,22 +78,9 @@ public static class DefenseMortarsPolicy
         return (n, gate);
     }
 
-    /// <summary>Reports whether the stock covers the buildings' summed unit costs; unknown costs or stock never cover anything.</summary>
-    internal static bool StockCovers(IReadOnlyDictionary<string, EquatableArray<Amount>> unitCosts, Fact<IReadOnlyDictionary<Resource, long>> stock, IEnumerable<Building> buildings)
-    {
-        if (!DefenseLayout.TierCosts(unitCosts, buildings).TryGetValue(out var costs) || !stock.TryGetValue(out var have))
-        {
-            return false;
-        }
-        foreach (var a in costs)
-        {
-            if (have.GetValueOrDefault(a.Resource) < a.Count)
-            {
-                return false;
-            }
-        }
-        return true;
-    }
+    /// <summary>Reports whether the stock covers the buildings' summed unit costs; unpriced buildings or an unknown stock never cover anything.</summary>
+    internal static bool StockCovers(IReadOnlyDictionary<string, EquatableArray<Amount>> unitCosts, Fact<IReadOnlyDictionary<Resource, long>> stock, IEnumerable<Building> buildings) =>
+        stock.TryGetValue(out var have) && DefenseLayout.StockCovers(unitCosts, have, buildings);
 
     /// <summary>
     /// Proposes the mortar tier for a layout: mortars behind the shooters' row (away from the corridor entry),
@@ -136,7 +123,7 @@ public static class DefenseMortarsPolicy
                 foreach (var o in offsets)
                 {
                     var c = DefenseLayout.AddCell(row, DefenseLayout.Scale(p, o));
-                    if (!s.Cells.TryGetValue(c, out var cell) || taken.Contains(c) || !s.Free(c) || !RoundsRules.Negative(cell.Roofed))
+                    if (!s.Cells.TryGetValue(c, out var cell) || taken.Contains(c) || !s.Free(c) || cell.Roofed)
                     {
                         continue;
                     }

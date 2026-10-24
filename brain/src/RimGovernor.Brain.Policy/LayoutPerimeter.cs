@@ -421,10 +421,10 @@ partial record LayoutPlan
         foreach (var c in s.Cells)
         {
             var pass = !Impassable(c.Cell);
-            var row = new DefenseCell { Cell = c.Cell, Passable = Known(pass) };
+            var row = new DefenseCell { Cell = c.Cell, Passable = pass };
             if (pass && site.OnBorder(c.Cell))
             {
-                row = row with { EdgeReachable = Known(true) };
+                row = row with { EdgeReachable = true };
             }
             site.Cells[c.Cell] = row;
         }

@@ -394,7 +394,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
         verification.Update(world, v => v with { Complete = true, Tick = tick, Combat = combat });
         read.Projection.WorkPawns.TryGetValue(out var workers);
-        var upkeep = DefenseRearm.DefenseRearmTurrets(DefenseTurretFactsOf(record, census), workers, read.Projection.Resources, DisasterRules.PowerOutageHold(read.Projection.Facts.DisasterConditions));
+        var upkeep = DefenseRearm.DefenseRearmTurrets(DefenseTurretFactsOf(record, census), workers, DefenseStock(read.Projection), DisasterRules.PowerOutageHold(read.Projection.Facts.DisasterConditions));
         if (upkeep.Rearm)
         {
             return Rearm();
@@ -415,6 +415,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal static RoundsDefenseLayoutResult Rearm() =>
         new() { Verdict = Verdict.AwaitingPlan("unsupported_forecast_turret_refuel",
             "Routine turret refuel requires exact fuel, worker and outcome alternatives."), Tier = DefenseTurretsPolicy.TierTurrets.Value };
+    /// <summary>The tier turrets the census finds standing as armed power consumers; a turret it does not find is no service fact.</summary>
     internal static List<DefenseTurretFacts> DefenseTurretFactsOf(DefenseLayoutRecord record, DefenseCensus? census)
     {
         var output = new List<DefenseTurretFacts>();
@@ -434,16 +435,19 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 {
                     continue;
                 }
-                var facts = new DefenseTurretFacts { Cell = b.Cell };
-                if (census.Consumers.TryGetValue(b.Cell, out var site))
+                if (!census.Consumers.TryGetValue(b.Cell, out var site) || site.Turret is not { } gun)
                 {
-                    facts = facts with { Dps = site.TurretDps };
-                    facts = facts with { Id = site.Id };
-                    facts = facts with { Powered = Known(site.Powered) };
-                    facts = facts with { OutOfFuel = site.OutOfFuel };
-                    facts = facts with { FuelDefinitions = [.. site.FuelDefinitions.Select(d => new Resource(d))] };
+                    continue;
                 }
-                output.Add(facts);
+                output.Add(new DefenseTurretFacts
+                {
+                    Id = site.Id,
+                    Cell = b.Cell,
+                    Dps = gun.Dps,
+                    Powered = site.Powered,
+                    OutOfFuel = site.Unfueled,
+                    FuelDefinitions = [.. site.FuelDefinitions.Select(d => new Resource(d))],
+                });
             }
         }
         return output;
@@ -493,15 +497,25 @@ public sealed partial class RoundsDefenseLayoutPlanner
         }
     }
 
+    /// <summary>
+    /// The colony's stock census for a defense tier's pricing; an unread census stocks nothing, so no priced building is
+    /// afforded until it is read.
+    /// </summary>
+    internal static IReadOnlyDictionary<Resource, long> DefenseStock(ColonyProjection projection) =>
+        projection.Resources.TryGetValue(out var stock) ? stock : new Dictionary<Resource, long>();
+
+    /// <summary>
+    /// The powered turret tier's request: the turret is available when its definition is ready (read available, research
+    /// finished), its draw is read and a generating network carries it; the network with the most spare watts is the
+    /// one the tier wires to. An unread power topology is no generating network.
+    /// </summary>
     internal static DefenseRequest DefenseTurretRequest(RoundsReading read)
     {
         var projection = read.Projection;
         var request = new DefenseRequest { Definitions = DefenseDefinitionNames };
         var unitCosts = new Dictionary<string, EquatableArray<Amount>>(StringComparer.Ordinal);
-        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = projection.Resources, Max = DefenseBudget.TurretBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets, projection.Facts.GoalBuild.Turrets) };
-        DefenseRequest Done() => request with { Turret = turret, UnitCosts = unitCosts };
-        var rk = projection.Facts.Research.TryGetValue(out var research);
-        var finished = new HashSet<ResearchProjectId>(research?.Finished ?? []);
+        var turret = new DefenseTurretRequest { Definition = DefenseTurretRung(read), Conduit = DefenseConduitDefinition, Stock = DefenseStock(projection), Max = DefenseBudget.TurretBudget(projection.Facts.RaidPoints, projection.Facts.DefenseCapacity, projection.DefenseTurrets, projection.Facts.GoalBuild.Turrets) };
+        var drawRead = false;
         foreach (var d in projection.Definitions)
         {
             if (d.Name != turret.Definition && d.Name != DefenseConduitDefinition)
@@ -517,53 +531,40 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 continue;
             }
-            var available = d.Available;
-            if (rk)
-            {
-                foreach (var prerequisite in d.Research)
-                {
-                    var k = available.TryGetValue(out var v);
-                    available = Known(k && v && finished.Contains(new ResearchProjectId(prerequisite)));
-                }
-            }
-            else if (d.Research.Count > 0)
-            {
-                available = Unknown<bool>();
-            }
-            turret = turret with { Available = available };
             if (priced)
             {
                 turret = turret with { Stuff = price.Stuff };
             }
             if (d.PowerW.TryGetValue(out var w) && w >= 0)
             {
-                turret = turret with { DrawW = Known(w) };
+                drawRead = true;
+                turret = turret with { DrawW = w };
             }
             if (d.Size.TryGetValue(out var size))
             {
                 turret = turret with { Size = size };
             }
         }
-        if (!projection.PowerPlanning.TryGetValue(out var topology))
-        {
-            return Done();
-        }
         var best = "";
         var spare = 0.0;
-        foreach (var net in topology.Networks)
+        if (projection.PowerPlanning.TryGetValue(out var topology))
         {
-            if (net.GenerationW > 0 && (best == "" || net.GenerationW - net.ConsumptionW > spare))
+            foreach (var net in topology.Networks)
             {
-                best = net.Id;
-                spare = net.GenerationW - net.ConsumptionW;
+                if (net.GenerationW > 0 && (best == "" || net.GenerationW - net.ConsumptionW > spare))
+                {
+                    best = net.Id;
+                    spare = net.GenerationW - net.ConsumptionW;
+                }
+            }
+            if (best != "")
+            {
+                turret = turret with { SpareW = spare, Transmitters = [.. DefenseNetworkConduits(topology, best)] };
             }
         }
-        if (best == "")
-        {
-            return Done();
-        }
-        turret = turret with { SpareW = Known(spare), Transmitters = [.. DefenseNetworkConduits(topology, best)] };
-        return Done();
+        var ready = DefinitionReadinessOf(projection, turret.Definition) == DefinitionReadiness.Available;
+        turret = turret with { Available = ready && drawRead && best != "" };
+        return request with { Turret = turret, UnitCosts = unitCosts };
     }
 }
 

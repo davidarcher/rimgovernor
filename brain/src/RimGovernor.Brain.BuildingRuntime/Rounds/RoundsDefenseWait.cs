@@ -98,44 +98,31 @@ public sealed partial class RoundsDefenseLayoutPlanner
         return new RoundsDefenseLayoutResult { Verdict = BuildingReasonAdmitted, Plan = id, Tier = tier };
     }
 
-    /// <summary>Marks which cells of the request can carry the wall and the trap, from the terrain affordances of the site.</summary>
-    internal async Task<DefenseRequest> MarkWallSupportAsync(C.Identity identity, DefenseRequest request, IReadOnlyList<O.DefenseCell> site, CancellationToken call)
+    /// <summary>
+    /// The site census as policy cells: every seen cell a row with its footing (whether its terrain carries the funnel
+    /// wall's and the trap's affordance; a building that needs none stands on any terrain), and the fogged cells apart.
+    /// The definition catalog is required, and a seen cell whose terrain the catalog has no row for is a catalog fault.
+    /// </summary>
+    internal async Task<(List<DefenseCell> Cells, List<Cell> Fogged)> DefenseSiteCellsAsync(C.Identity identity, DefenseDefinitions definitions, IReadOnlyList<O.DefenseCell> site, CancellationToken call)
     {
-        var catalog = await RoundsEquipPawn.PawnCatalogAsync(_native, identity, call).ConfigureAwait(false);
-        if (catalog is null)
-        {
-            return request;
-        }
-        var wallNeed = DefenseWallAffordance(catalog, request.Definitions.Wall, request.Definitions.WallStuff);
-        var trapNeed = DefenseWallAffordance(catalog, request.Definitions.Trap, request.Definitions.TrapStuff);
-        var terrain = new Dictionary<Cell, string>();
+        var catalog = await RoundsEquipPawn.PawnCatalogAsync(_native, identity, call).ConfigureAwait(false) ?? throw new RequiredFactException("definition_catalog");
+        var wallNeed = DefenseWallAffordance(catalog, definitions.Wall, definitions.WallStuff);
+        var trapNeed = DefenseWallAffordance(catalog, definitions.Trap, definitions.TrapStuff);
+        var cells = new List<DefenseCell>(site.Count);
+        var fogged = new List<Cell>();
         foreach (var cell in site)
         {
-            if (cell is O.DefenseCell.Seen seen)
+            if (cell is not O.DefenseCell.Seen seen)
             {
-                terrain[cell.Cell] = seen.Terrain;
+                fogged.Add(cell.Cell);
+                continue;
             }
+            var terrain = catalog.FindTerrain(seen.Terrain) ?? throw new CatalogException($"catalog has no def row for terrain {seen.Terrain} at {cell.Cell}");
+            var wall = wallNeed == "" || terrain.affordances.Any(a => a.defName == wallNeed);
+            var trap = trapNeed == "" || terrain.affordances.Any(a => a.defName == trapNeed);
+            cells.Add(DefenseCellFacts(seen, wall, trap));
         }
-        var cells = new List<DefenseCell>(request.Cells.Count);
-        foreach (var row in request.Cells)
-        {
-            var cell = row;
-            terrain.TryGetValue(cell.Cell, out var terrainName);
-            var def = catalog.FindTerrain(terrainName ?? "");
-            if (def is not null)
-            {
-                if (wallNeed != "")
-                {
-                    cell = cell with { WallSupport = Known(def.affordances.Any(a => a.defName == wallNeed)) };
-                }
-                if (trapNeed != "")
-                {
-                    cell = cell with { TrapSupport = Known(def.affordances.Any(a => a.defName == trapNeed)) };
-                }
-            }
-            cells.Add(cell);
-        }
-        return request with { Cells = [.. cells] };
+        return (cells, fogged);
     }
 }
 

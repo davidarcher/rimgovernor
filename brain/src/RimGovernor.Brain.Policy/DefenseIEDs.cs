@@ -61,21 +61,21 @@ internal sealed partial class DefenseSite
     /// Walks the approach outward from Entry along the trap lane and places an IED on each free cell, every
     /// DefenseIEDSpacing cells, whose blast cannot reach a door, the safe lane, a colonist route or flammable
     /// storage; an incendiary IED also stays clear of every player building, observed or planned. The first
-    /// listed IED that fits a cell takes it. An unknown storage census, no IED definition or no qualifying
-    /// cell leaves the tier empty.
+    /// listed IED that fits a cell takes it. No IED definition or no qualifying cell leaves the tier empty;
+    /// a round whose storage zones are not read whole lists no IED.
     /// </summary>
     internal DefenseTier IedTier(DefenseLayout l, CorridorCosts costs)
     {
         var tier = new DefenseTier { Name = DefenseIEDs.TierIEDs };
-        if (R.IEDs.Count == 0 || !R.FlammableStorage.TryGetValue(out var storage))
+        if (R.IEDs.Count == 0)
         {
             return tier;
         }
-        var keepOff = new List<Cell>(storage);
+        var keepOff = new List<Cell>(R.FlammableStorage);
         keepOff.AddRange(R.Entrances);
         foreach (var (c, row) in Cells)
         {
-            if (RoundsRules.Positive(row.Door))
+            if (row.Door)
             {
                 keepOff.Add(c);
             }
@@ -91,7 +91,7 @@ internal sealed partial class DefenseSite
         var buildings = new List<Cell>(keepOff);
         foreach (var (c, row) in Cells)
         {
-            if (RoundsRules.Positive(row.PlayerOwned))
+            if (row.PlayerOwned)
             {
                 buildings.Add(c);
             }
@@ -150,7 +150,7 @@ internal sealed partial class DefenseSite
             reserved = reserved.Take(keep).ToList();
             gated = DefenseTurretsPolicy.GateIEDThreat;
         }
-        while (placed.Count > 0 && !DefenseMortarsPolicy.StockCovers(R.UnitCosts, R.IEDStock, placed))
+        while (placed.Count > 0 && !DefenseLayout.StockCovers(R.UnitCosts, R.IEDStock, placed))
         {
             placed.RemoveAt(placed.Count - 1);
             reserved.RemoveAt(reserved.Count - 1);

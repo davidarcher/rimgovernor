@@ -31,9 +31,9 @@ public static class DefenseBudget
         var n = 0;
         foreach (var t in turrets.TryGetValue(out var standing) ? standing : default)
         {
-            if (t.Powered.TryGetValue(out var powered) && powered && t.Dps.TryGetValue(out var dps) && dps > 0)
+            if (t.Powered && t.Dps > 0)
             {
-                sum += dps * DefenseCapacityPolicy.DefensePointsPerDps;
+                sum += t.Dps * DefenseCapacityPolicy.DefensePointsPerDps;
                 n++;
             }
         }

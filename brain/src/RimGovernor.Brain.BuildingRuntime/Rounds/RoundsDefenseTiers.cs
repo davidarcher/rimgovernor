@@ -22,11 +22,9 @@ public sealed partial class RoundsDefenseLayoutPlanner
         {
             [DefenseMortarDefinition] = mortar.UnitCosts.GetValueOrDefault(DefenseMortarDefinition),
         };
-        var cells = new List<DefenseCell>(request.Cells);
         var entrances = new List<Cell>(request.Entrances);
         foreach (var cell in site)
         {
-            cells.Add(DefenseCellFacts(cell));
             if (cell is O.DefenseCell.Seen { Edifice: { Door: true, PlayerOwned: true } })
             {
                 entrances.Add(cell.Cell);
@@ -42,7 +40,6 @@ public sealed partial class RoundsDefenseLayoutPlanner
             Arrivals = EquatableArray.From(DefenseArrivals(projection.Raids, region)),
             Tick = projection.Identity.Tick,
             Region = new Rectangle(region.Min.X, region.Min.Z, region.Max.X - region.Min.X + 1, region.Max.Z - region.Min.Z + 1),
-            Cells = [.. cells],
             Entrances = [.. entrances],
         };
         var (defenders, minRange, ok) = await DefenderRangeAsync(state, read, call).ConfigureAwait(false);
@@ -60,7 +57,8 @@ public sealed partial class RoundsDefenseLayoutPlanner
                 DefenseDefinitionAvailable(read, DefenseCoverStock.DefenseSandbags), DefenseDefinitionAvailable(read, DefenseCoverStock.DefenseEmbrasure), defenders),
         };
         request = DefenseIedRequest(read, request);
-        request = await MarkWallSupportAsync(identity, request, site, call).ConfigureAwait(false);
+        var (cells, fogged) = await DefenseSiteCellsAsync(identity, request.Definitions, site, call).ConfigureAwait(false);
+        request = request with { Cells = [.. cells], Fogged = [.. fogged] };
         return (request, default, true);
     }
 

@@ -1,49 +1,53 @@
 namespace RimGovernor.Brain.Policy;
 
+/// <summary>How a census cell stands to a line of sight: open, blocking, or unseen (fogged or outside the census).</summary>
+public enum SightCell
+{
+    Open,
+    Blocks,
+    Unseen,
+}
+
+/// <summary>
+/// A line of sight over the census: clear when every walked cell is seen and open, blocked at the first seen
+/// blocker or off the map, unseen when no seen cell blocks it but a fogged or uncensused cell lies on it.
+/// </summary>
+public enum Sightline
+{
+    Clear,
+    Blocked,
+    Unseen,
+}
+
 internal sealed partial class DefenseSite
 {
     /// <summary>
-    /// Reports whether the cell stops a line of sight, as GenGrid.CanBeSeenOver reads it: an edifice of Full
-    /// fillage, an open door excepted. A door is read closed. Unknown for a cell the census lacks or fogs.
+    /// How the cell stands to a line of sight, as GenGrid.CanBeSeenOver reads it: an edifice of Full fillage
+    /// blocks, an open door excepted (a door is read closed). A cell the census lacks or fogs is unseen.
     /// </summary>
-    internal Fact<bool> BlocksSight(Cell c)
+    internal SightCell BlocksSight(Cell c)
     {
         if (!Cells.TryGetValue(c, out var row))
         {
-            return Unknown<bool>();
+            return SightCell.Unseen;
         }
-        if (!row.Passable.IsKnown)
-        {
-            return Unknown<bool>();
-        }
-        if (!row.CoverFill.TryGetValue(out var fill))
-        {
-            return Unknown<bool>();
-        }
-        return Known(row.Edifice != "" && fill > DefenseSightConstants.FullFillAbove);
+        return row.Edifice != "" && row.CoverFill > DefenseSightConstants.FullFillAbove ? SightCell.Blocks : SightCell.Open;
     }
 
     /// <summary>
     /// GenSight.LineOfSight(from, to, map, skipFirstCell: true): the game's integer line walk, which stops short
     /// of the target and does not test the shooter's own cell. Blocked when any walked cell blocks it; clear only
-    /// if every walked cell and both endpoints are known.
+    /// if every walked cell and both endpoints are seen.
     /// </summary>
-    internal Fact<bool> LineOfSight(Cell from, Cell to)
+    internal Sightline LineOfSight(Cell from, Cell to)
     {
         var b = R.Bounds;
         bool InBounds(Cell c) => c.X >= 0 && c.Z >= 0 && c.X < b.Width && c.Z < b.Height;
         if (!InBounds(from) || !InBounds(to))
         {
-            return Known(false);
+            return Sightline.Blocked;
         }
-        var unknown = false;
-        foreach (var c in new[] { from, to })
-        {
-            if (!BlocksSight(c).IsKnown)
-            {
-                unknown = true;
-            }
-        }
+        var unseen = BlocksSight(from) == SightCell.Unseen || BlocksSight(to) == SightCell.Unseen;
         var sideOnEqual = from.X < to.X;
         if (from.X == to.X)
         {
@@ -62,13 +66,15 @@ internal sealed partial class DefenseSite
             var c = new Cell(x, z);
             if (c != from)
             {
-                if (!BlocksSight(c).TryGetValue(out var blocked))
+                switch (BlocksSight(c))
                 {
-                    unknown = true;
-                }
-                else if (blocked)
-                {
-                    return Known(false);
+                    case SightCell.Blocks:
+                        return Sightline.Blocked;
+                    case SightCell.Unseen:
+                        unseen = true;
+                        break;
+                    case SightCell.Open:
+                        break;
                 }
             }
             if (err > 0 || (err == 0 && sideOnEqual))
@@ -82,7 +88,7 @@ internal sealed partial class DefenseSite
                 err += dx;
             }
         }
-        return unknown ? Unknown<bool>() : Known(true);
+        return unseen ? Sightline.Unseen : Sightline.Clear;
     }
 }
 
@@ -90,10 +96,4 @@ internal static class DefenseSightConstants
 {
     /// <summary>ThingDef.Fillage's boundary: a def with fillPercent above it is FillCategory.Full, which blocks sight.</summary>
     internal const double FullFillAbove = 0.99;
-}
-
-public static class DefenseSight
-{
-    /// <summary>The game's line of sight between two cells of the request's census, for callers that hold only a request.</summary>
-    public static Fact<bool> LineOfSight(this DefenseRequest r, Cell from, Cell to) => DefenseSite.Create(r).LineOfSight(from, to);
 }

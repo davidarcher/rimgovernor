@@ -3,33 +3,37 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>A defense layout or request the site cannot honour.</summary>
 public sealed class DefenseException(string message) : Exception(message);
 
-/// <summary>One census row of observations_read_defense_site. Unknown facts never become free space, cover or a route. Policy's view of the wire's <c>DefenseCell</c>: facts rather than plain values, plus the terrain affordances derived from them.</summary>
+/// <summary>
+/// One seen census row of observations_read_defense_site: Policy's view of the wire's seen <c>DefenseCell</c>, plus
+/// the terrain affordances of the funnel wall and the trap. A fogged cell is no row: the request lists it in
+/// <see cref="DefenseRequest.Fogged"/>, and it never becomes free space, cover or a route.
+/// </summary>
 public sealed record DefenseCell
 {
     public Cell Cell { get; init; }
 
-    public Fact<bool> Walkable { get; init; }
+    public bool Walkable { get; init; }
 
-    public Fact<bool> Passable { get; init; }
+    public bool Passable { get; init; }
 
-    public Fact<bool> PlayerOwned { get; init; }
+    public bool PlayerOwned { get; init; }
 
-    public Fact<bool> NaturalRock { get; init; }
+    public bool NaturalRock { get; init; }
 
-    public Fact<bool> EdgeReachable { get; init; }
+    public bool EdgeReachable { get; init; }
 
-    public Fact<bool> Door { get; init; }
+    public bool Door { get; init; }
 
-    /// <summary>The cell under any roof; the mortar tier needs it known false.</summary>
-    public Fact<bool> Roofed { get; init; }
+    /// <summary>The cell under any roof; the mortar tier needs it unroofed.</summary>
+    public bool Roofed { get; init; }
 
-    /// <summary>Whether the cell's terrain carries the funnel wall's affordance. Unknown leaves the cell sited; the native preview is the backstop.</summary>
-    public Fact<bool> WallSupport { get; init; }
+    /// <summary>Whether the cell's terrain carries the funnel wall's affordance; a wall that needs none stands on any terrain.</summary>
+    public bool WallSupport { get; init; }
 
     /// <summary>The same for the spike trap.</summary>
-    public Fact<bool> TrapSupport { get; init; }
+    public bool TrapSupport { get; init; }
 
-    public Fact<double> CoverFill { get; init; }
+    public double CoverFill { get; init; }
 
     public string Edifice { get; init; } = "";
 
@@ -88,17 +92,21 @@ public sealed record DefenseRequest
 
     public EquatableArray<DefenseCell> Cells { get; init; }
 
+    /// <summary>The census cells under fog: inside the site, never seen, read as mountain mass rather than free ground.</summary>
+    public EquatableArray<Cell> Fogged { get; init; }
+
     /// <summary>Accepted footprints, walkways and doorway approaches.</summary>
     public EquatableArray<Cell> Protected { get; init; }
 
     public DefenseDefinitions Definitions { get; init; } = new();
 
-    /// <summary>The shortest ranged-weapon range among defenders; unknown forbids the firing line.</summary>
-    public Fact<double> MinRange { get; init; }
+    /// <summary>The shortest ranged-weapon range among the defenders; read only while there are defenders.</summary>
+    public double MinRange { get; init; }
 
+    /// <summary>The ranged defenders the firing line seats; none sites no firing line.</summary>
     public int Defenders { get; init; }
 
-    /// <summary>Maps a definition to its per-placement cost; a missing entry leaves that tier's cost unknown.</summary>
+    /// <summary>Maps a definition to its per-placement cost; a definition without an entry is unpriced and never afforded.</summary>
     public IReadOnlyDictionary<string, EquatableArray<Amount>> UnitCosts { get; init; } = new Dictionary<string, EquatableArray<Amount>>();
 
     public DefenseTurretRequest Turret { get; init; } = new();
@@ -110,9 +118,6 @@ public sealed record DefenseRequest
 
     public Tick Tick { get; init; }
 
-    /// <summary>The fill above which a thing counts as raider cover. Unknown disables cover selection.</summary>
-    public Fact<double> CoverThreshold { get; init; }
-
     /// <summary>The layout plan's opening the corridor stands in.</summary>
     public DefenseKillbox Killbox { get; init; } = new();
 
@@ -122,11 +127,11 @@ public sealed record DefenseRequest
     /// <summary>The threat demand (IEDBudget).</summary>
     public int IEDMax { get; init; }
 
-    /// <summary>The stock census the tier's summed IED cost must fit; unknown places none.</summary>
-    public Fact<IReadOnlyDictionary<Resource, long>> IEDStock { get; init; }
+    /// <summary>The stock census the tier's summed IED cost must fit.</summary>
+    public IReadOnlyDictionary<Resource, long> IEDStock { get; init; } = new Dictionary<Resource, long>();
 
-    /// <summary>Every storage cell the IED tier's blast must not reach; unknown places no IED.</summary>
-    public Fact<EquatableArray<Cell>> FlammableStorage { get; init; }
+    /// <summary>Every storage cell the IED tier's blast must not reach.</summary>
+    public EquatableArray<Cell> FlammableStorage { get; init; }
 }
 
 /// <summary>
@@ -220,6 +225,9 @@ internal sealed partial class DefenseSite
 
     internal Dictionary<Cell, DefenseCell> Cells { get; } = [];
 
+    /// <summary>The request's fogged cells.</summary>
+    internal HashSet<Cell> Fogged { get; } = [];
+
     internal HashSet<Cell> Protect { get; } = [];
 
     internal bool InRegion(Cell c)
@@ -228,17 +236,17 @@ internal sealed partial class DefenseSite
         return c.X >= reg.X && c.Z >= reg.Z && c.X < reg.X + reg.Width && c.Z < reg.Z + reg.Height;
     }
 
-    internal bool Passable(Cell c) => Cells.TryGetValue(c, out var row) && RoundsRules.Positive(row.Passable);
+    internal bool Passable(Cell c) => Cells.TryGetValue(c, out var row) && row.Passable;
 
-    /// <summary>Buildable: walkable, unprotected, no edifice, not a door.</summary>
+    /// <summary>Buildable: seen, walkable, unprotected, no edifice, not a door.</summary>
     internal bool Free(Cell c) =>
-        Cells.TryGetValue(c, out var row) && !Protect.Contains(c) && RoundsRules.Positive(row.Walkable) && row.Edifice == "" && !RoundsRules.Positive(row.Door) && !RoundsRules.Positive(row.PlayerOwned);
+        Cells.TryGetValue(c, out var row) && !Protect.Contains(c) && row.Walkable && row.Edifice == "" && !row.Door && !row.PlayerOwned;
 
-    /// <summary>A cell known to stop raiders: observed impassable rock or wall.</summary>
-    internal bool Blocking(Cell c) => Cells.TryGetValue(c, out var row) && row.Passable.TryGetValue(out var v) && !v;
+    /// <summary>A seen cell that stops raiders: observed impassable rock or wall.</summary>
+    internal bool Blocking(Cell c) => Cells.TryGetValue(c, out var row) && !row.Passable;
 
-    /// <summary>A cell inside the site whose passability the census does not know: fogged mountain.</summary>
-    internal bool Unseen(Cell c) => Cells.TryGetValue(c, out var row) && !row.Passable.IsKnown;
+    /// <summary>A fogged cell inside the site: unseen mountain.</summary>
+    internal bool Unseen(Cell c) => Fogged.Contains(c);
 
     internal bool OnBorder(Cell c)
     {
@@ -262,7 +270,7 @@ internal sealed partial class DefenseSite
             throw new DefenseException("invalid defender count");
         }
         DefenseArrivalRoutes.ValidateDefenseArrivals(r);
-        if (r.MinRange.TryGetValue(out var range) && (double.IsNaN(range) || double.IsInfinity(range) || range <= 0))
+        if (r.Defenders > 0 && (double.IsNaN(r.MinRange) || double.IsInfinity(r.MinRange) || r.MinRange <= 0))
         {
             throw new DefenseException("invalid minimum range");
         }
@@ -289,11 +297,22 @@ internal sealed partial class DefenseSite
             {
                 throw new DefenseException("duplicate defense cell");
             }
-            if (c.CoverFill.TryGetValue(out var fill) && (double.IsNaN(fill) || fill < 0 || fill > 1))
+            if (double.IsNaN(c.CoverFill) || c.CoverFill < 0 || c.CoverFill > 1)
             {
                 throw new DefenseException("invalid cover fill");
             }
             s.Cells[c.Cell] = c;
+        }
+        foreach (var c in r.Fogged)
+        {
+            if (!s.InRegion(c))
+            {
+                throw new DefenseException("defense cell outside region");
+            }
+            if (s.Cells.ContainsKey(c) || !s.Fogged.Add(c))
+            {
+                throw new DefenseException("duplicate defense cell");
+            }
         }
         foreach (var c in r.Protected)
         {
@@ -543,13 +562,14 @@ public sealed partial record DefenseLayout
         var output = new List<RoleCell>();
         foreach (var c in want)
         {
-            if (!s.Cells.TryGetValue(c.Cell, out var row) || RoundsRules.Positive(row.Passable))
+            if (s.Unseen(c.Cell))
             {
+                output.Add(c); // fogged mountain
                 continue;
             }
-            if (row.Passable.IsKnown && !RoundsRules.Positive(row.NaturalRock))
+            if (!s.Cells.TryGetValue(c.Cell, out var row) || row.Passable || !row.NaturalRock)
             {
-                continue; // a wall or building, not rock
+                continue; // open ground, or a wall or building rather than rock
             }
             output.Add(c);
         }
@@ -663,7 +683,7 @@ public sealed partial record DefenseLayout
             }
             // Terrain that cannot carry the wall is left open, not closed: the raider route check below refuses
             // the layout if the gap lets them round the corridor, instead of the native preview holding it.
-            if (s.Cells[c].WallSupport.TryGetValue(out var supported) && !supported)
+            if (!s.Cells[c].WallSupport)
             {
                 continue;
             }
@@ -715,7 +735,7 @@ public sealed partial record DefenseLayout
         {
             var t = st.Cell;
             // Terrain that cannot carry the trap is skipped for the next corridor cell; native would refuse it every round.
-            if (s.Cells[t].TrapSupport.TryGetValue(out var supported) && !supported)
+            if (!s.Cells[t].TrapSupport)
             {
                 unsupportedTrap = true;
                 continue;
@@ -759,8 +779,9 @@ public sealed partial record DefenseLayout
         // Firing line: sandbags behind the fence bar, floored shooter cells behind them and a free retreat cell
         // before the back wall, centred on column 0, each within MinRange of the exit and in the game's line of
         // sight of it over the census.
-        if (r.MinRange.TryGetValue(out var minRange) && r.Defenders > 0)
+        if (r.Defenders > 0)
         {
+            var minRange = r.MinRange;
             foreach (var o in new[] { 0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6 })
             {
                 if (firing.Count >= r.Defenders)
@@ -780,7 +801,7 @@ public sealed partial record DefenseLayout
                 {
                     continue;
                 }
-                if (!s.LineOfSight(shooter, exit).TryGetValue(out var los) || !los)
+                if (s.LineOfSight(shooter, exit) != Sightline.Clear)
                 {
                     continue;
                 }
@@ -878,25 +899,32 @@ public sealed partial record DefenseLayout
         return layout with { Gated = EquatableArray.From(gated) };
     }
 
-    internal static Fact<EquatableArray<Amount>> TierCosts(IReadOnlyDictionary<string, EquatableArray<Amount>> unit, IEnumerable<Building> buildings)
+    /// <summary>
+    /// Reports whether the stock covers the buildings' summed unit costs. A building whose definition has no unit
+    /// cost is unpriced, and an unpriced tier is never covered.
+    /// </summary>
+    internal static bool StockCovers(IReadOnlyDictionary<string, EquatableArray<Amount>> unit, IReadOnlyDictionary<Resource, long> stock, IEnumerable<Building> buildings)
     {
         var total = new Dictionary<Resource, long>();
         foreach (var b in buildings)
         {
             if (!unit.TryGetValue(b.Definition, out var costs))
             {
-                return Unknown<EquatableArray<Amount>>();
+                return false;
             }
             foreach (var a in costs)
             {
                 total[a.Resource] = total.GetValueOrDefault(a.Resource) + a.Count;
             }
         }
-        var output = total
-            .Select(kv => new Amount(kv.Key, kv.Value))
-            .OrderBy(a => a.Resource.Value, StringComparer.Ordinal)
-            .ToList();
-        return Known(EquatableArray.From(output));
+        foreach (var (resource, count) in total)
+        {
+            if (stock.GetValueOrDefault(resource) < count)
+            {
+                return false;
+            }
+        }
+        return true;
     }
 }
 
