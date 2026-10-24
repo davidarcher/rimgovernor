@@ -70,7 +70,7 @@ public sealed class ChildPlayBuildingsTests
         // Without Biotech the catalog reads no BabyPlayDef, so it names no play building.
         var g = Assert.Single(LayoutClusterRules.ClusterStations(Babies(Catalog())).Groups);
         Assert.DoesNotContain(g.Stations, s => s.Purpose == StationPurpose.Play);
-        Assert.Empty(ChildRoomsRules.ChildRoomNeeds([]));
+        Assert.Empty(ChildRoomsRules.ChildRoomNeeds([], null));
     }
 
     [Fact]

@@ -599,15 +599,15 @@ of days spent deathresting is F / (G·e + F): 1/7 with nothing bound. The chambe
 (`ForecastCoupledContext.DeathrestFurniture`, the staging's own chamber need resolved against the catalog,
 `ChildRoomsRules.DeathrestFurniture`) is bound in id order: each deathrester takes one casket (it is laid in and does not count
 toward capacity) while caskets last, then the other bindables by factor, each up to its stack limit and, when it counts, the
-remaining capacity (the factors and limits are the native `NeedsForecastRead.Deathrest` defs). A deathrester left without a
+remaining capacity (`ForecastDeathrest.Binds`; the factors and limits are the native `NeedsForecastRead.Deathrest` defs). A deathrester left without a
 casket gains nothing. The gain per day is the share no longer deathresting (one deathrest day is one capability-day: the Deathrest
 hediff caps consciousness at 0.1) plus the `DeathrestChamber` thought between deathrests, through `GainPerDay` (registered in
 `BreakShifts`): the stage the prediction's impressiveness gives (1 + its Impressiveness score stage, none for an ascetic) over the
 awake share after, against the stage the last deathrest left over the awake share now. The lowest-id chamber serves every
 deathrester. No Biotech, no deathrester or no chamber owed earns nothing. Missing deathrest defs, a missing chamber thought stage
 row, or a bindable the defs do not name is a required fact (`RequiredFactException`). Not modelled: a deathrester with auto-wake
-off, and a bound building's power or fuel (`CanIncreasePresence`). The staging still furnishes capacity − 1 accelerators with no
-stack limit (#3842).
+off, and a bound building's power or fuel (`CanIncreasePresence`). The staging furnishes the chamber by the same `Binds` rule
+(#3842, [facilities](facilities.md)).
 
 *Pen credit (#3812).* A planned pen the outcome serves is credited through the same seam (`ForecastPens.PenCredit`) under
 `pen/<room>/<animal>`, per roamer it takes (`AnimalUpkeepObservation.Roamers`, from the animal census rows' `Roam`: the race,

@@ -633,9 +633,13 @@ Furniture is never a def-name list: the native definition catalog gives each
 [observations.md](../../../contracts/wire/observations.md#room-role-furniture))
 and a room's pieces are the catalog definitions carrying the role, the first
 available by name placed. The same machinery owes a **deathrest chamber**
-while a deathrester lives: a casket per deathrester and, as an optional piece
-(left out when no accelerator is available), the accelerators its deathrest
-capacity beyond the casket allows.
+while a deathrester lives: a casket per deathrester (it does not count toward
+deathrest capacity) and, as optional pieces named by def (each left out while
+unavailable), the buildings that raise deathrest efficiency (factor above 1, the
+accelerator) as many as the deathrester binds: each def's stack limit and the
+capacity, by the deathrest credit's own rule (`ForecastDeathrest.Binds` over the
+`NeedsForecastRead.Deathrest` defs, #3842). A deathrester whose capacity or
+deathrest defs are unread is a required fact.
 
 1. The layout review grows a `nursery`, `playroom` or `classroom` core room
    sized to hold the furniture (`policy.ChildRoomSizes`,

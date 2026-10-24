@@ -69,7 +69,7 @@ partial class RoundsSleepingUpkeepPlanner
         var needs = new List<ChildRoomNeed>();
         if (facts.WorkPawns.TryGetValue(out var pawns))
         {
-            needs.AddRange(ChildRoomsRules.ChildRoomNeeds(pawns));
+            needs.AddRange(ChildRoomsRules.ChildRoomNeeds(pawns, facts.Facts.ForecastObserved.Needs?.Deathrest));
         }
         if (facts.Facts.Worship.Need is { } worship)
         {

@@ -1,8 +1,12 @@
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
+using O = RimGovernor.Contracts.Wire.Observations;
+using Obs = RimGovernor.Brain.Observation;
 using P = RimGovernor.Brain.Policy;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -152,21 +156,69 @@ public sealed class DeathrestCreditTests
         Biotech = Known(new P.PawnBiotech { Deathrest = Known(deathrest), DevelopmentalStage = Known(RimGovernor.Contracts.Wire.Defs.DevelopmentalStage.Adult) }),
     };
 
+    private static EquatableArray<DeathrestPiece> Staged(DeathrestDefsRead? defs, params WorkPawn[] pawns) =>
+        ChildRoomsRules.DeathrestFurniture(ChildRoomsRules.ChildRoomNeeds(pawns, defs), Catalog);
+
     [Fact]
-    public void AFreshColonysDeathresterIsCreditedTheChamberTheStagingFurnishesFromTheProductionFacts()
+    public void AFreshColonysDefaultDeathresterIsStagedACasketAndOneAcceleratorAndCreditedThem()
     {
-        var furniture = ChildRoomsRules.DeathrestFurniture(ChildRoomsRules.ChildRoomNeeds([Worker(new P.PawnDeathrest { Capacity = Known(2) })]), Catalog);
+        // #3842: the casket does not count toward capacity, so a capacity-1 deathrester binds one accelerator beside it. The
+        // amplifier (factor 1) raises no efficiency and is not staged.
+        var furniture = Staged(Defs, Worker(new P.PawnDeathrest { Capacity = Known(1) }));
         Assert.Equal([new DeathrestPiece("DeathrestCasket", 1), new DeathrestPiece("DeathrestAccelerator", 1)], furniture.Items);
-        var row = Assert.Single(Rows(Context(Deathrester(capacity: 2), furniture), Serving(0)));
+        var row = Assert.Single(Rows(Context(Deathrester(capacity: 1), furniture), Serving(0)));
         Assert.Equal(-(Share(1) - Share(1.32)) * Horizon, row.Value, 12);
     }
 
     [Fact]
-    public void AFreshColonyWithoutADeathresterOwesNoChamberAndCreditsNothing()
+    public void TheStagingFurnishesEachDeathresterTheAcceleratorsItsStackLimitAllows()
     {
-        var furniture = ChildRoomsRules.DeathrestFurniture(ChildRoomsRules.ChildRoomNeeds([Worker(null)]), Catalog);
+        // Capacity 3 binds two accelerators (the stack limit); two such deathresters get two caskets and four accelerators,
+        // and the credit binds them all.
+        var a = Worker(new P.PawnDeathrest { Capacity = Known(3) });
+        var furniture = Staged(Defs, a, a with { Id = new("b") });
+        Assert.Equal([new DeathrestPiece("DeathrestCasket", 2), new DeathrestPiece("DeathrestAccelerator", 4)], furniture.Items);
+        var context = Context(Deathrester("a", capacity: 3), furniture) with { Needs = new() { Pawns = [Deathrester("a", capacity: 3), Deathrester("b", capacity: 3)], Deathrest = Defs } };
+        var gains = ForecastDeathrest.ChamberCredit(new(1, "WoodLog", 0), Serving(0), context, Day);
+        Assert.Equal(["a", "b"], gains.Select(g => g.Pawn));
+        Assert.All(gains, g => Assert.Equal(Share(1) - Share(1.1 * 1.2 * 1.2), g.PerDay, 12));
+    }
+
+    [Fact]
+    public void AFreshColonyWithoutADeathresterOrBiotechOwesNoChamberAndCreditsNothing()
+    {
+        Assert.Empty(Staged(Defs, Worker(null)));
+        var furniture = Staged(null, Worker(null));
         Assert.Empty(furniture);
         var context = Context(ForecastValueTests.Pawn(), furniture) with { Needs = new() { Pawns = [ForecastValueTests.Pawn()] } };
         Assert.Empty(Rows(context, Serving(0)));
+    }
+
+    [Fact]
+    public void AFreshColonysDeathresterIsStagedFromTheReadsTheRoundDecodes()
+    {
+        // The production path (#3822): the pawn row's wire Biotech block lifted by BiotechFactsRules, the needs read's deathrest
+        // defs on ForecastObserved and the catalog's role rows, through DeathrestFurnitureOf as the round sets the credit's context.
+        Obs.PlanningDefinition Row(string name, FurnitureRole role) =>
+            new() { Name = name, Available = Known(true), Size = Known(new P.Bounds(1, 2)), RoomRoles = [role.Value] };
+        var worker = new WorkPawn { Id = new("pawn"), Biotech = BiotechFactsRules.PawnBiotech(new O.PawnBiotech { Deathrest = new O.PawnDeathrest { Capacity = 1 } }) };
+        var colony = ColonyFactsCoreTests.Projection() with
+        {
+            WorkPawns = Known(EquatableArray.From([worker])),
+            Facts = new() { ForecastObserved = new() { Needs = new() { Pawns = [Deathrester()], Deathrest = Defs } } },
+            Definitions = [Row("DeathrestCasket", FurnitureRole.DeathrestCasket), Row("DeathrestAccelerator", FurnitureRole.DeathrestAccelerator), Row("HemogenAmplifier", FurnitureRole.DeathrestAccelerator)],
+        };
+        var furniture = RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(colony);
+        Assert.Equal([new DeathrestPiece("DeathrestCasket", 1), new DeathrestPiece("DeathrestAccelerator", 1)], furniture.Items);
+        Assert.Equal(-(Share(1) - Share(1.32)) * Horizon, Assert.Single(Rows(Context(Deathrester(), furniture), Serving(0))).Value, 12);
+        // Without Biotech no pawn row carries a block and the needs read no defs: no chamber is owed.
+        Assert.Empty(RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(colony with { WorkPawns = Known(EquatableArray.From([new WorkPawn { Id = new("pawn") }])), Facts = new() }));
+    }
+
+    [Fact]
+    public void ADeathresterWhoseCapacityOrDeathrestDefsAreUnreadIsARequiredFactForTheStaging()
+    {
+        Assert.Throws<RequiredFactException>(() => Staged(null, Worker(new P.PawnDeathrest { Capacity = Known(1) })));
+        Assert.Throws<RequiredFactException>(() => Staged(Defs, Worker(new P.PawnDeathrest())));
     }
 }

@@ -1,3 +1,5 @@
+using RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 // Staging the Biotech child rooms: the nursery, playroom and classroom. A room role is the game's own score
@@ -224,13 +226,16 @@ public static class ChildRoomsRules
     /// <summary>
     /// The child rooms the pawns owe, in role order: a nursery (beds for every newborn and baby, at least the game's two, and a toy box
     /// for their play) while one lives, a playroom while a baby or child does, a classroom (a desk per child and
-    /// one blackboard) while a child does, and a deathrest chamber (a casket per deathrester, and the
-    /// accelerators its deathrest capacity beyond the casket allows) while a deathrester does. Pawns whose
-    /// developmental stage or deathrest is unknown owe nothing.
+    /// one blackboard) while a child does, and a deathrest chamber while a deathrester does: a casket per deathrester, which
+    /// does not count toward its deathrest capacity, and the buildings that raise its deathrest efficiency (a factor above 1,
+    /// the accelerator) as many as it binds (<see cref="ForecastDeathrest.Binds"/>, the credit's rule: each def's stackLimit
+    /// and the capacity, #3842). Pawns whose developmental stage or deathrest is unknown owe nothing; a deathrester whose
+    /// capacity or whose <paramref name="deathrest"/> defs are unread raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static List<ChildRoomNeed> ChildRoomNeeds(IEnumerable<WorkPawn> pawns)
+    public static List<ChildRoomNeed> ChildRoomNeeds(IEnumerable<WorkPawn> pawns, DeathrestDefsRead? deathrest)
     {
-        int babies = 0, toddlers = 0, children = 0, caskets = 0, accelerators = 0;
+        int babies = 0, toddlers = 0, children = 0, caskets = 0;
+        var bound = new SortedDictionary<string, int>(StringComparer.Ordinal);
         foreach (var p in pawns)
         {
             if (!p.Biotech.TryGetValue(out var bt))
@@ -241,9 +246,18 @@ public static class ChildRoomsRules
             if (bt.Deathrest.TryGetValue(out var d) && d is not null)
             {
                 caskets++;
-                if (d.Capacity.TryGetValue(out var capacity) && capacity > 1)
+                var defs = deathrest ?? throw new RequiredFactException("deathrest defs");
+                if (!d.Capacity.TryGetValue(out var capacity))
                 {
-                    accelerators += capacity - 1;
+                    throw new RequiredFactException("deathrest capacity of " + p.Id);
+                }
+
+                foreach (var (bindable, count) in ForecastDeathrest.Binds(defs.Bindables.Where(b => b.Factor > 1).Select(b => (b, int.MaxValue)), capacity))
+                {
+                    // A def neither stack-limited nor counting toward the capacity binds without bound; the game ships none.
+                    bound[bindable.Def] = count == int.MaxValue
+                        ? throw new InvalidOperationException("deathrest bindable " + bindable.Def + " has no stack limit and does not count toward capacity")
+                        : bound.GetValueOrDefault(bindable.Def) + count;
                 }
             }
 
@@ -286,7 +300,7 @@ public static class ChildRoomsRules
 
         if (caskets > 0)
         {
-            output.Add(DeathrestNeed(caskets, accelerators));
+            output.Add(DeathrestNeed(caskets, bound));
         }
 
         return output;
@@ -324,7 +338,8 @@ public static class ChildRoomsRules
             Furniture = EquatableArray.From([new ChildFurniture { Role = FurnitureRole.Board, Count = 1 }, new ChildFurniture { Role = FurnitureRole.Desk, Count = children }]),
         };
 
-    private static ChildRoomNeed DeathrestNeed(int caskets, int accelerators) =>
+    /// <summary>The chamber: <paramref name="caskets"/> caskets, and each bound def by name, placed once the catalog has it available.</summary>
+    private static ChildRoomNeed DeathrestNeed(int caskets, IEnumerable<KeyValuePair<string, int>> bound) =>
         new()
         {
             Role = RoomRole.DeathrestChamber,
@@ -332,7 +347,7 @@ public static class ChildRoomsRules
             Furniture = EquatableArray.From(
                 [
                     new ChildFurniture { Role = FurnitureRole.DeathrestCasket, Count = caskets },
-                    new ChildFurniture { Role = FurnitureRole.DeathrestAccelerator, Count = accelerators, Optional = true },
+                    .. bound.Select(b => new ChildFurniture { Defs = [b.Key], Count = b.Value, Optional = true }),
                 ]
             ),
         };
@@ -376,7 +391,7 @@ public static class ChildRoomsRules
                     output.Add(ClassroomNeed(1));
                     break;
                 case RoomRole.DeathrestChamber:
-                    output.Add(DeathrestNeed(1, 0));
+                    output.Add(DeathrestNeed(1, []));
                     break;
             }
         }

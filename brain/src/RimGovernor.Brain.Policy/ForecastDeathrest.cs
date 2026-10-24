@@ -101,24 +101,39 @@ internal static class ForecastDeathrest
         DeathrestBindableRead Bindable(string def) => bindables.TryGetValue(def, out var b) ? b : throw new RequiredFactException("deathrest bindable " + def);
         var caskets = new Queue<double>(furniture.Where(p => Bindable(p.Def).Casket).SelectMany(p => Enumerable.Repeat(Bindable(p.Def).Factor, p.Count)));
         var left = furniture.Where(p => !Bindable(p.Def).Casket).GroupBy(p => p.Def, StringComparer.Ordinal)
-            .Select(g => (Bindable: Bindable(g.Key), Count: g.Sum(p => p.Count))).OrderByDescending(p => p.Bindable.Factor).ThenBy(p => p.Bindable.Def, StringComparer.Ordinal).ToList();
+            .ToDictionary(g => g.Key, g => g.Sum(p => p.Count), StringComparer.Ordinal);
         var output = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var pawn in deathresters)
         {
             if (!caskets.TryDequeue(out var casket)) break;
             var efficiency = casket > 0 ? casket : 1;
-            var capacity = pawn.Deathrest!.Capacity;
-            for (var i = 0; i < left.Count; i++)
+            foreach (var (bindable, bound) in Binds(left.Select(l => (Bindable(l.Key), l.Value)), pawn.Deathrest!.Capacity))
             {
-                var (bindable, count) = left[i];
-                var bound = Math.Min(count, bindable.StackLimit > 0 ? bindable.StackLimit : count);
-                if (bindable.CountsTowardsLimit) bound = Math.Min(bound, Math.Max(0, capacity));
-                if (bound <= 0) continue;
                 if (bindable.Factor > 0) efficiency *= Math.Pow(bindable.Factor, bound);
-                if (bindable.CountsTowardsLimit) capacity -= bound;
-                left[i] = (bindable, count - bound);
+                left[bindable.Def] -= bound;
             }
             output[pawn.Pawn] = efficiency;
+        }
+        return output;
+    }
+
+    /// <summary>
+    /// What one deathrester binds beside its casket of the <paramref name="offered"/> buildings (Gene_Deathrest's binding; the
+    /// credit's furniture and the staging's chamber, #3842): the highest factor first, then by def, each up to its stackLimit
+    /// (0 none) and, for one that counts toward the limit, the <paramref name="capacity"/> left. Caskets are not offered here.
+    /// </summary>
+    internal static List<(DeathrestBindableRead Bindable, int Count)> Binds(IEnumerable<(DeathrestBindableRead Bindable, int Count)> offered, int capacity)
+    {
+        var output = new List<(DeathrestBindableRead, int)>();
+        foreach (var (bindable, count) in offered.Where(o => !o.Bindable.Casket).OrderByDescending(o => o.Bindable.Factor).ThenBy(o => o.Bindable.Def, StringComparer.Ordinal))
+        {
+            var bound = bindable.StackLimit > 0 ? Math.Min(count, bindable.StackLimit) : count;
+            if (bindable.CountsTowardsLimit)
+            {
+                bound = Math.Min(bound, Math.Max(0, capacity));
+                capacity -= bound;
+            }
+            if (bound > 0) output.Add((bindable, bound));
         }
         return output;
     }
