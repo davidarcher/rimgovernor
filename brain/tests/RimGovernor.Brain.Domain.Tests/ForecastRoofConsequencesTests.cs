@@ -10,7 +10,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ForecastRoofConsequencesTests
 {
     internal const double Horizon = 30000;
-    private static readonly Cell Inside = new(1, 1);
+    internal static readonly Cell Inside = new(1, 1);
     private static readonly Cell WallCell = new(0, 1);
     private static readonly Cell DoorCell = new(2, 1);
     internal const string Wall = "planned/room1/wall/WoodLog", Door = "planned/room1/door/WoodLog";
@@ -200,7 +200,7 @@ public sealed class ForecastRoofConsequencesTests
         var asleep = NeedsFixtures.Pawn() with
         {
             Awake = false, BedThoughts = new BedThoughtOnset.Given(), OwnedBed = "bed", OwnedBedRoom = NeedsFixtures.BedRoom("Bedroom", 2, false),
-            LyingIn = new(new("bed", true, false, .00005, 0, 20), false, false), ThoughtStages = EquatableArray.From(BedStages),
+            LyingIn = new(new("bed", true, false, .00005, 0, 20), false, new LyingInDeathrest.None()), ThoughtStages = EquatableArray.From(BedStages),
         };
         var renewal = Assert.Single(ForecastRoofConsequences.RoofMoodOf(asleep, NeedsFixtures.Empty, [], [], NoThoughts(asleep), Horizon).Renewals);
         Assert.Equal((0d, 1d), (renewal.At, renewal.Chance));
@@ -215,6 +215,35 @@ public sealed class ForecastRoofConsequencesTests
         // Without the lie-down read, the woken pawn's bed thoughts are a required fact.
         Assert.Throws<RequiredFactException>(() => ForecastRoofConsequences.RoofMoodOf(asleep with { LyingIn = null }, NeedsFixtures.Empty, [], [],
             NoThoughts(asleep), Horizon));
+    }
+
+    /// <summary>
+    /// #3883: where an observed deathrest ends (Gene_Deathrest.TickDeathresting). An auto-wake ends it at its remaining ticks, a
+    /// held or paused one holds to the horizon; an open bed's first sunlit check wakes it first unless the outcome's planned roof
+    /// covers the bed by then, and a bed unlit through native's scan short of the horizon is an unread fact.
+    /// </summary>
+    [Fact]
+    public void ADeathrestEndsAtItsWakeOrItsBedsFirstSunlight()
+    {
+        var findings = new List<string>();
+        double? End(LyingInDeathrest d, params ForecastClosedRoom[] rooms) => ForecastCoupled.CoupledSearchCache.DeathrestEnd(d, rooms, Horizon, findings.Add);
+        DeathrestSunlight sunlit = new DeathrestSunlight.Sunlit([Inside], 3000);
+        Assert.Equal(6000, End(new LyingInDeathrest.Wakes(6000, new DeathrestSunlight.Shaded())));
+        Assert.Equal(Horizon, End(new LyingInDeathrest.Wakes(2 * Horizon, new DeathrestSunlight.Shaded())));
+        Assert.Equal(Horizon, End(new LyingInDeathrest.Held(new DeathrestSunlight.Shaded())));
+        Assert.Equal(Horizon, End(new LyingInDeathrest.Paused()));
+        Assert.Empty(findings);
+        Assert.Equal(3000, End(new LyingInDeathrest.Wakes(6000, sunlit)));
+        Assert.Equal(3000, End(new LyingInDeathrest.Held(sunlit)));
+        // Roofed at 2000, before the sunlit check: the roof stays, so only the auto-wake ends it. Roofed after it: the sun wakes it.
+        Assert.Equal(6000, End(new LyingInDeathrest.Wakes(6000, sunlit), Room(1000, 2000)));
+        Assert.Equal(3000, End(new LyingInDeathrest.Wakes(6000, sunlit), Room(1000, 4000)));
+        // Sunlit only after the wake: the wake ends it.
+        Assert.Equal(6000, End(new LyingInDeathrest.Wakes(6000, new DeathrestSunlight.Sunlit([Inside], 8000))));
+        Assert.All(findings, f => Assert.Equal("deathrest_sunlight_weather_not_modelled", f));
+        // Unlit through a scan that outlasts the wake ends at the wake; one the held deathrest outlasts is unread.
+        Assert.Equal(6000, End(new LyingInDeathrest.Wakes(6000, new DeathrestSunlight.Unlit(10000))));
+        Assert.Null(End(new LyingInDeathrest.Held(new DeathrestSunlight.Unlit(10000))));
     }
 
     /// <summary>The pawn's observed thoughts read, none held.</summary>

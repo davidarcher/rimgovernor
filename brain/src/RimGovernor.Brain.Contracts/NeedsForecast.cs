@@ -245,9 +245,58 @@ public sealed record NeedSleep(string Bed, bool Outside, bool Ground, double Gai
 /// pawn's own cell and its CurrentBed (<see cref="NeedSleep.Bed"/> the bed's load id, "" on the ground): what Toils_LayDown's
 /// tick gains there and what ApplyBedThoughts gives when the lie-down ends. RestUtility.ShouldWakeUp, which LayDown checks,
 /// wakes the pawn once its rest reaches the wake threshold or at once while <see cref="HediffBlocksSleeping"/>
-/// (HasHediffBlocksSleeping), and never while <see cref="Deathresting"/>.
+/// (HasHediffBlocksSleeping), and never while it deathrests (<see cref="Deathrest"/>, #3883).
 /// </summary>
-public sealed record NeedLyingIn(NeedSleep Place, bool HediffBlocksSleeping, bool Deathresting);
+public sealed record NeedLyingIn(NeedSleep Place, bool HediffBlocksSleeping, LyingInDeathrest Deathrest);
+/// <summary>
+/// The deathrest the pawn lies in now (#3883), as Hediff_Deathrest ticks Gene_Deathrest.TickDeathresting. <see cref="None"/>: not
+/// deathresting (Pawn.Deathresting, the Deathrest hediff). <see cref="Paused"/>: Hediff_Deathrest.Paused
+/// (SanguophageUtility.ShouldBeDeathrestingOrInComaInsteadOfDead), so the deathrest neither advances nor checks sunlight and
+/// lasts while the pawn's injuries do. <see cref="Wakes"/>: autoWake is set and the wake not yet notified, so the deathrest ends
+/// (Gene_Deathrest.Wake) once deathrestTicks reaches MinDeathrestTicks, <c>InTicks</c> from now. <see cref="Held"/>: no
+/// auto-wake, so it lasts until a player wakes the pawn. A deathrest that advances also ends when the bed touches sunlight
+/// (<see cref="Sunlight"/>).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(LyingInDeathrest.None), "none")]
+[JsonDerivedType(typeof(LyingInDeathrest.Paused), "paused")]
+[JsonDerivedType(typeof(LyingInDeathrest.Wakes), "wakes")]
+[JsonDerivedType(typeof(LyingInDeathrest.Held), "held")]
+public abstract record LyingInDeathrest
+{
+    private protected LyingInDeathrest() { }
+
+    public sealed record None : LyingInDeathrest;
+
+    public sealed record Paused : LyingInDeathrest;
+
+    public sealed record Wakes(double InTicks, DeathrestSunlight Sunlight) : LyingInDeathrest;
+
+    public sealed record Held(DeathrestSunlight Sunlight) : LyingInDeathrest;
+}
+/// <summary>
+/// When an advancing deathrest's bed first touches sunlight (#3883). Gene_Deathrest.TickDeathresting wakes the pawn on its
+/// 150-tick hash interval while a cell of its CurrentBed is in sunlight (IntVec3.InSunlight: unroofed and SkyManager.CurSkyGlow
+/// above 0.1); a pawn on the ground never wakes so. <see cref="Shaded"/>: no bed, or every bed cell roofed now.
+/// <see cref="Sunlit"/>: the bed's <c>Unroofed</c> cells now and the ticks to the first check whose sky glow is above 0.1: the
+/// celestial glow (GenCelestial.CelestialSunGlow at that tick) darkened by each game condition affecting the map while it lasts
+/// (SkyManager's SkyTarget.LerpDarken at the condition's lerp factor), weather left out. <see cref="Unlit"/>: no such check
+/// within <c>ThroughTicks</c>.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(DeathrestSunlight.Shaded), "shaded")]
+[JsonDerivedType(typeof(DeathrestSunlight.Sunlit), "sunlit")]
+[JsonDerivedType(typeof(DeathrestSunlight.Unlit), "unlit")]
+public abstract record DeathrestSunlight
+{
+    private protected DeathrestSunlight() { }
+
+    public sealed record Shaded : DeathrestSunlight;
+
+    public sealed record Sunlit([property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Unroofed, double InTicks) : DeathrestSunlight;
+
+    public sealed record Unlit(double ThroughTicks) : DeathrestSunlight;
+}
 /// <summary>
 /// When the pawn's current lie-down gives its bed thoughts (#3871). Toils_LayDown's init draws mindState.applyBedThoughtsTick =
 /// now + Rand.Range(2500, 10000) when it is 0; ApplyBedRelatedEffects gives the thoughts once that tick passes and sets

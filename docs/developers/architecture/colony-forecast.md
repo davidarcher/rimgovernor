@@ -344,7 +344,15 @@ observed state holds.
   schedule has it leave for its first task: other work at its departure, a service at
   its planned start less travel, since no order holds it waiting there (its service
   then departs when the sleep ends); a hediff that blocks sleeping wakes it at
-  once, and a deathrest is `deathrest_continuation_unassessed` (#3883). Woken at tick 0, its
+  once. A deathrest (#3883) runs to its own end instead, since its LayDown has
+  `lookForOtherJobs` false and `ShouldWakeUp` is false while deathresting: `Wakes` ends
+  at its remaining `MinDeathrestTicks`, `Held` (autoWake off or wake already notified)
+  and `Paused` hold to the horizon. A `Sunlit` bed wakes it at that 150-tick check
+  unless the outcome's planned roof (`CellStateAt`) covers every open bed cell first;
+  weather, lightning and sky-affecting things are `deathrest_sunlight_weather_not_modelled`,
+  an `Unlit` scan that ends before the wake is a `RequiredFactException`, and the
+  DeathrestChamber thought that starts at the wake is
+  `deathrest_chamber_thought_at_wake_not_modelled`. Woken at tick 0, its
   `FinalizeLayingJob` gives the bed thoughts again when they were given (from the
   lie-down's `LyingIn` place and the owned bed's room), and the mood timeline has it
   awake from then. A continuing sleep off the rest targets (on the ground) keeps its

@@ -338,11 +338,78 @@ internal static class NativeNeedsForecast
     }
     /// <summary>
     /// The lie-down <paramref name="pawn"/> is in now (#3882, Obs.NeedLyingIn): its CurrentBed, else the ground, at its own cell,
-    /// and the two facts besides its rest level RestUtility.ShouldWakeUp reads. Null when it is not laying (GetPosture), has no
-    /// rest need or is not spawned.
+    /// and the two facts besides its rest level RestUtility.ShouldWakeUp reads: a hediff that blocks sleeping and its deathrest
+    /// (#3883). Null when it is not laying (GetPosture), has no rest need or is not spawned.
     /// </summary>
     private static Obs.NeedLyingIn? LyingInOf(Pawn pawn, Map map) => pawn.needs?.rest == null || !pawn.Spawned || !pawn.GetPosture().Laying() ? null
-        : new(SleepAt(pawn, map, pawn.CurrentBed(), pawn.Position), pawn.health.hediffSet.HasHediffBlocksSleeping(), pawn.Deathresting);
+        : new(SleepAt(pawn, map, pawn.CurrentBed(), pawn.Position), pawn.health.hediffSet.HasHediffBlocksSleeping(), DeathrestOf(pawn, map));
+    /// <summary>
+    /// The deathrest the pawn lies in now (#3883, Obs.LyingInDeathrest), as Hediff_Deathrest.PostTickInterval runs
+    /// Gene_Deathrest.TickDeathresting: paused while SanguophageUtility.ShouldBeDeathrestingOrInComaInsteadOfDead (Hediff_Deathrest.Paused's
+    /// test, called directly so the read leaves the hediff's pause cache alone); else it ends at MinDeathrestTicks when autoWake is
+    /// set and notifiedWakeOK (private) is not, and is held otherwise, either way until its bed touches sunlight. Read-only.
+    /// </summary>
+    private static Obs.LyingInDeathrest DeathrestOf(Pawn pawn, Map map)
+    {
+        if (!pawn.Deathresting) return new Obs.LyingInDeathrest.None();
+        if (SanguophageUtility.ShouldBeDeathrestingOrInComaInsteadOfDead(pawn)) return new Obs.LyingInDeathrest.Paused();
+        var gene = pawn.genes?.GetFirstGeneOfType<Gene_Deathrest>()
+            ?? throw new InvalidOperationException("deathresting without a Gene_Deathrest: " + pawn.GetUniqueLoadID());
+        var notified = BridgeCommon.PrivateInstanceField(typeof(Gene_Deathrest), "notifiedWakeOK")?.GetValue(gene) as bool?
+            ?? throw new InvalidOperationException("Gene_Deathrest.notifiedWakeOK is not readable.");
+        var sunlight = SunlightOf(pawn, map);
+        return gene.autoWake && !notified ? new Obs.LyingInDeathrest.Wakes(Math.Max(0, gene.MinDeathrestTicks - gene.deathrestTicks), sunlight)
+            : new Obs.LyingInDeathrest.Held(sunlight);
+    }
+    /// <summary>Gene_Deathrest.SunlightCheckInterval (private const): TickDeathresting checks sunlight on this hash interval.</summary>
+    private const int SunlightCheckInterval = 150;
+    /// <summary>IntVec3.InSunlight's glow limit, a literal in the game's code (SkyManager.CurSkyGlow above 0.1).</summary>
+    private const float SunlightGlow = 0.1f;
+    /// <summary>
+    /// When the deathrester's bed first touches sunlight (#3883, Obs.DeathrestSunlight), within a year: shaded without a bed
+    /// (Gene_Deathrest.PawnOrBedTouchingSunlight reads only CurrentBed) or with every bed cell roofed; else the first of the pawn's
+    /// sunlight checks (IsHashIntervalTick(150): the ticks where TicksGame plus thingIDNumber.HashOffset() is a multiple of 150) whose
+    /// sky glow is above 0.1. That glow is GenCelestial.CelestialSunGlow at the check's absolute tick, darkened as
+    /// SkyManager.CurrentSkyTarget darkens it by each condition affecting the map (GetAllGameConditionsAffectingMap) with a SkyTarget,
+    /// while the condition lasts (Permanent, or TicksLeft past the check), at its lerp factor then. A condition's SkyTargetLerpFactor
+    /// is GameConditionUtility.LerpInOutValue of its TicksPassed and TicksLeft over its TransitionTicks, scaled by a target its class
+    /// fixes; the target is the factor now over that ramp now. Only a condition whose SkyTarget glow is at most 0.1 can bring a glow
+    /// above 0.1 down to it (LerpDarken moves toward the lower glow), so only those are read. The weather (its maxGlow and
+    /// transition, weather events) and CompAffectsSky things are left out: the forecast names them.
+    /// </summary>
+    private static Obs.DeathrestSunlight SunlightOf(Pawn pawn, Map map)
+    {
+        if (pawn.CurrentBed() is not { } bed) return new Obs.DeathrestSunlight.Shaded();
+        var open = bed.OccupiedRect().Cells.Where(c => c.InBounds(map) && !map.roofGrid.Roofed(c)).Select(c => new Cell(c.x, c.z)).ToArray();
+        if (open.Length == 0) return new Obs.DeathrestSunlight.Shaded();
+        var affecting = new List<GameCondition>();
+        map.gameConditionManager.GetAllGameConditionsAffectingMap(map, affecting);
+        var darkening = new List<(GameCondition Condition, float Glow, float Target)>();
+        foreach (var condition in affecting)
+        {
+            if (condition.SkyTarget(map) is not { } sky || sky.glow > SunlightGlow) continue;
+            var ramp = GameConditionUtility.LerpInOutValue(condition, condition.TransitionTicks);
+            var factor = condition.SkyTargetLerpFactor(map);
+            if (ramp <= 0 && factor != 0) throw new InvalidOperationException("sky lerp target of condition " + condition.def.defName + " is not readable at its ramp's end.");
+            darkening.Add((condition, sky.glow, ramp <= 0 ? 0 : factor / ramp));
+        }
+        var now = Find.TickManager.TicksGame;
+        var abs = Find.TickManager.TicksAbs;
+        var phase = ((now + 1 + pawn.thingIDNumber.HashOffset()) % SunlightCheckInterval + SunlightCheckInterval) % SunlightCheckInterval;
+        for (var ahead = 1 + (phase == 0 ? 0 : SunlightCheckInterval - phase); ahead <= GenDate.TicksPerYear; ahead += SunlightCheckInterval)
+        {
+            var glow = GenCelestial.CelestialSunGlow(map.Tile, abs + ahead);
+            foreach (var (condition, sky, target) in darkening)
+            {
+                if (!condition.Permanent && condition.TicksLeft <= ahead) continue;
+                var left = condition.Permanent ? condition.TransitionTicks + 1f : condition.TicksLeft - ahead;
+                var factor = GameConditionUtility.LerpInOutValue(condition.TicksPassed + ahead, left, condition.TransitionTicks, target);
+                glow = UnityEngine.Mathf.Lerp(glow, Math.Min(glow, sky), factor);
+            }
+            if (glow > SunlightGlow) return new Obs.DeathrestSunlight.Sunlit(EquatableArray.From(open), ahead);
+        }
+        return new Obs.DeathrestSunlight.Unlit(GenDate.TicksPerYear);
+    }
     private static Obs.NeedSleep SleepAt(Pawn pawn, Map map, Building_Bed? bed, IntVec3 cell) =>
         new(bed?.GetUniqueLoadID() ?? "", cell.GetRoom(map)?.PsychologicallyOutdoors ?? true, bed == null || bed.CostListAdjusted().Count == 0,
             Need_Rest.BaseRestGainPerTick * RestEffectiveness(bed) * pawn.GetStatValue(StatDefOf.RestRateMultiplier),

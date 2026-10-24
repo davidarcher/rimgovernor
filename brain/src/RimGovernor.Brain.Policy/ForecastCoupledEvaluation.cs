@@ -397,23 +397,33 @@ public static partial class ForecastCoupled
         /// Toils_LayDown keeps it asleep until RestUtility.ShouldWakeUp (its rest at the wake threshold, at once while a hediff
         /// blocks sleeping) or until the schedule has it leave for its first task, gaining its lie-down's rest. No order holds it
         /// waiting at a service the schedule departs it for at once, so it leaves for a service at its planned start less travel
-        /// (the caller departs the service then), and for other work at its departure. Deathrest, which ShouldWakeUp never ends,
-        /// is a named finding (#3883).
+        /// (the caller departs the service then), and for other work at its departure. A deathrest, which ShouldWakeUp never ends
+        /// and whose lie-down never looks for other jobs (JobDriver_Deathrest's LayDown, lookForOtherJobs false), goes on until it
+        /// ends (<see cref="DeathrestEnd"/>, #3883) whatever the schedule.
         /// </summary>
         private ForecastNeedChoice? ObservedSleep(int p, NeedsForecastPawn pawn, List<ForecastActivityAllocation> own,
-            ILookup<string, ForecastNeedTask> needTasksByTask, IReadOnlySet<string> ordered, double horizon)
+            ILookup<string, ForecastNeedTask> needTasksByTask, IReadOnlySet<string> ordered, IReadOnlyList<ForecastClosedRoom> rooms, double horizon)
         {
             if (ordered.Contains(pawn.Pawn)) return null;
-            var until = horizon;
-            foreach (var a in own)
-                until = Math.Min(until, needTasksByTask.Contains(a.Activity) ? Math.Max(a.Depart, a.Start - a.TravelTicks) : a.Depart);
             var lying = pawn.LyingIn ?? throw new RequiredFactException("lie-down:" + pawn.Pawn);
-            if (lying.Deathresting) { Finding("deathrest_continuation_unassessed", pawn.Pawn); return null; }
-            if (lying.HediffBlocksSleeping) return null;
-            var rest = pawn.Needs.SingleOrDefault(n => n.Kind == "rest") ?? throw new RequiredFactException("rest need:" + pawn.Pawn);
             var rate = lying.Place.GainPerTick;
             if (!double.IsFinite(rate) || rate <= 0) throw new RequiredFactException("lie-down rest gain:" + pawn.Pawn);
-            var end = Math.Min(until, Math.Max(0, pawn.WakeThreshold - rest.Level) / rate);
+            double end;
+            if (lying.Deathrest is not LyingInDeathrest.None)
+            {
+                end = DeathrestEnd(lying.Deathrest, rooms, horizon, reason => Finding(reason, pawn.Pawn))
+                    ?? throw new RequiredFactException("deathrest sunlight past the scanned year:" + pawn.Pawn);
+                if (end < horizon) Finding("deathrest_chamber_thought_at_wake_not_modelled", pawn.Pawn);
+            }
+            else
+            {
+                if (lying.HediffBlocksSleeping) return null;
+                var until = horizon;
+                foreach (var a in own)
+                    until = Math.Min(until, needTasksByTask.Contains(a.Activity) ? Math.Max(a.Depart, a.Start - a.TravelTicks) : a.Depart);
+                var rest = pawn.Needs.SingleOrDefault(n => n.Kind == "rest") ?? throw new RequiredFactException("rest need:" + pawn.Pawn);
+                end = Math.Min(until, Math.Max(0, pawn.WakeThreshold - rest.Level) / rate);
+            }
             if (end <= 0) return null;
             if (!observedSleeps.TryGetValue((p, end), out var choice))
                 observedSleeps.Add((p, end), choice = new("need/" + pawn.Pawn + "/observed_sleep", pawn.Pawn, "rest", lying.Place.Bed, "", 0,
@@ -421,6 +431,29 @@ public static partial class ForecastCoupled
             return choice;
         }
 
+        /// <summary>
+        /// The tick a deathrest observed now ends, capped at <paramref name="horizon"/> (#3883, <see cref="LyingInDeathrest"/>). A paused
+        /// one holds to the horizon. An advancing one ends at its auto-wake (<see cref="LyingInDeathrest.Wakes"/>), or at the
+        /// horizon when held, unless its bed touches sunlight first: at the first sunlit check, when one of the bed's unroofed cells
+        /// is still open then (the schedule's planned rooms roof a cell from their RoofedAt, <see cref="ForecastRoofConsequences.CellStateAt"/>).
+        /// A roof once done stays, so a bed the planned roof covers by then never wakes so. The sunlight forecast leaves the weather out,
+        /// which <paramref name="finding"/> names. Null when the bed stays unlit through native's scan but the horizon reaches past it.
+        /// </summary>
+        internal static double? DeathrestEnd(LyingInDeathrest deathrest, IReadOnlyList<ForecastClosedRoom> rooms, double horizon, Action<string> finding)
+        {
+            // Paused: no progress and no sunlight check while it lasts.
+            if (deathrest is not (LyingInDeathrest.Wakes or LyingInDeathrest.Held)) return horizon;
+            var (wake, sunlight) = deathrest is LyingInDeathrest.Wakes w ? (Math.Min(horizon, w.InTicks), w.Sunlight)
+                : (horizon, ((LyingInDeathrest.Held)deathrest).Sunlight);
+            if (sunlight is DeathrestSunlight.Shaded) return wake;
+            finding("deathrest_sunlight_weather_not_modelled");
+            if (sunlight is DeathrestSunlight.Unlit { ThroughTicks: var through }) return wake <= through ? wake : null;
+            var (at, cells) = sunlight is DeathrestSunlight.Sunlit s ? (s.InTicks, s.Unroofed)
+                : throw new ArgumentOutOfRangeException(nameof(deathrest), sunlight, "deathrest sunlight");
+            if (at >= wake) return wake;
+            var open = new NeedCell(false, false, false, true, true);
+            return cells.Any(c => !ForecastRoofConsequences.CellStateAt(open, c, at, rooms).Roofed) ? at : wake;
+        }
 
         private ForecastOccupancy Occupancy(ForecastActivityAllocation a)
         {
@@ -823,7 +856,7 @@ public static partial class ForecastCoupled
                 }
                 if (!pawn.Awake && !choices.Any(c => c.Kind == "rest" && c.Start == 0)
                     && ObservedSleep(p, pawn, pawns.Allocations[p], needTasksByTask,
-                        ordered ??= Ordered(), horizon) is { } observedSleep)
+                        ordered ??= Ordered(), closedRooms, horizon) is { } observedSleep)
                 {
                     // Left asleep, the pawn departs for a service the schedule departed it for at once when the sleep ends (#3884).
                     for (var c = 0; c < choices.Count; c++)

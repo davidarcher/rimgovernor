@@ -496,7 +496,7 @@ public sealed class PlannedRoomCreditTests
     }
 
     /// <summary>The builder's lie-down in its owned bed in the open (ForecastRoofConsequencesTests.Review), as native reads it.</summary>
-    private static readonly NeedLyingIn LyingInBed = new(new("bed", true, false, .00005, 0, 20), false, false);
+    private static readonly NeedLyingIn LyingInBed = new(new("bed", true, false, .00005, 0, 20), false, new LyingInDeathrest.None());
 
     /// <summary>
     /// #3882 acceptance: a pawn asleep now on an outcome that does not continue its sleep, the production way
@@ -528,6 +528,38 @@ public sealed class PlannedRoomCreditTests
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new())).Baseline.Coupled!.Alternatives.Single(o => o.Plan.Allocations.Length == 0);
         Assert.Equal(1, baseline.Needs["pawn"].Needs.Single(n => n.Kind == "rest").FinalLevel.Value, 9);
         Assert.True(Assert.IsType<ForecastMoodResult>(baseline.Needs["pawn"].Mood).BreakRisk.IsKnown);
+    }
+
+    /// <summary>
+    /// #3883 acceptance, the production way: the builder deathresting in its owned bed (0.2 rest gaining 0.00002 a tick, below the
+    /// wake threshold through the horizon) on the outcome that sends it no order. Its lie-down goes on until the deathrest ends,
+    /// not the wake threshold: at its auto-wake 6000 ticks ahead, at the first sunlit check (3000) when held with its open bed
+    /// sunlit, and to the horizon when paused. The mood forecast stays whole and the old unassessed finding is gone.
+    /// </summary>
+    [Theory]
+    [InlineData("wakes", .32, true)]
+    [InlineData("sunlit", .26, true)]
+    [InlineData("paused", .8, false)]
+    public void ADeathrestingPawnSleepsUntilItsDeathrestEnds(string state, double rest, bool wakes)
+    {
+        LyingInDeathrest deathrest = state switch
+        {
+            "wakes" => new LyingInDeathrest.Wakes(6000, new DeathrestSunlight.Shaded()),
+            "sunlit" => new LyingInDeathrest.Held(new DeathrestSunlight.Sunlit(EquatableArray.From([ForecastRoofConsequencesTests.Inside]), 3000)),
+            _ => new LyingInDeathrest.Paused(),
+        };
+        var facts = ForecastRoofConsequencesTests.Review(ForecastRoofConsequencesTests.Closed("Bedroom", 2), pawn => pawn with
+        {
+            Awake = false, Location = pawn.Targets[0].Location, SleepBlockedUntilTicks = 0, BedThoughts = new BedThoughtOnset.Given(),
+            LyingIn = LyingInBed with { Place = LyingInBed.Place with { GainPerTick = .00002 }, Deathrest = deathrest },
+        }, WithEveryShippedRoom);
+        var baseline = ColonyForecastRules.ForecastColony(ForecastCoupled.CoupledForecastRequestOf(new("world", 100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
+            facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [], new())).Baseline.Coupled!.Alternatives.Single(o => o.Plan.Allocations.Length == 0);
+        Assert.Equal(rest, baseline.Needs["pawn"].Needs.Single(n => n.Kind == "rest").FinalLevel.Value, 9);
+        Assert.True(Assert.IsType<ForecastMoodResult>(baseline.Needs["pawn"].Mood).BreakRisk.IsKnown);
+        Assert.DoesNotContain(baseline.Findings, f => f.Reason == "deathrest_continuation_unassessed");
+        Assert.Equal(wakes, baseline.Findings.Any(f => f.Reason == "deathrest_chamber_thought_at_wake_not_modelled"));
+        Assert.Equal(state == "sunlit", baseline.Findings.Any(f => f.Reason == "deathrest_sunlight_weather_not_modelled"));
     }
 
     /// <summary>

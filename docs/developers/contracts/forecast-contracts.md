@@ -341,8 +341,16 @@ unknown. What the game does not have is a case, never an unknown:
 - `NeedsForecastPawn.LyingIn` (#3882, `NeedLyingIn`): the lie-down the pawn is in now,
   null when it is not laying. `Place` is a `NeedSleep` read at the pawn's own cell and its
   `CurrentBed` (its load id, "" on the ground); `HediffBlocksSleeping`
-  (`HasHediffBlocksSleeping`) and `Deathresting` are what `RestUtility.ShouldWakeUp`
-  reads besides the rest level.
+  (`HasHediffBlocksSleeping`) and `Deathrest` are what `RestUtility.ShouldWakeUp`
+  reads besides the rest level. `Deathrest` (#3883, `LyingInDeathrest`) is `None`
+  without the Deathrest hediff, `Paused` while
+  `SanguophageUtility.ShouldBeDeathrestingOrInComaInsteadOfDead` holds its progress,
+  `Wakes(InTicks)` with autoWake on and the wake not yet notified (`MinDeathrestTicks`
+  less `deathrestTicks`), else `Held`. Its `Sunlight` (`DeathrestSunlight`) is `Shaded`
+  with no unroofed bed cell, else the open cells and the first hash-phased 150-tick
+  check whose celestial glow, darkened by the active game conditions' sky targets over
+  their known ends, passes 0.1 (`Sunlit(InTicks)`), or `Unlit(ThroughTicks)` when none
+  does within a year.
 - `NeedsForecastPawn.RivalRooms`: the Impressiveness of each room another spawned
   player-faction pawn without a host faction owns (`OwnedRoom`), each once, ascending:
   what `ThoughtWorker_BedroomJealous` compares the pawn's own room against (#3826).
