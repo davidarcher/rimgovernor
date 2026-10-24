@@ -563,7 +563,7 @@ public sealed class GameReuse : IAsyncDisposable
         {
             if (!string.IsNullOrEmpty(row.DefName))
             {
-                stock[row.DefName] = new StockCounts(row.Units ?? 0, -1);
+                stock[row.DefName] = new StockCounts(row.Units, -1);
             }
         }
 

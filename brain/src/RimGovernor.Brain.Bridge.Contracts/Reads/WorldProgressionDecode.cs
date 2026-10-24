@@ -9,51 +9,15 @@ partial record WorldProgressionRead
     /// <summary>Projects the world census a frame carries.</summary>
     public static WorldProgressionRead DecodeWorldProgressionSnapshot(WorldProgressionSnapshot v)
     {
-        var maps = new List<WorldMap>(v.Maps.Count);
-        foreach (var row in v.Maps)
-        {
-            maps.Add(new WorldMap
-            {
-                Id = row.Id.GetValueOrDefault(),
-                Tile = row.Tile.GetValueOrDefault(),
-                Home = row.Home.GetValueOrDefault(),
-                PawnIds = [.. row.Pawns.Select(pawn => pawn.Pawn.Id ?? "")],
-                QuestWorkers = [.. row.QuestWorkers],
-            });
-        }
-        var caravans = new List<CaravanJourney>(v.Caravans.Count);
-        foreach (var row in v.Caravans)
-        {
-            var inventory = new Dictionary<string, long>(row.Inventory.Count, StringComparer.Ordinal);
-            foreach (var item in row.Inventory)
-            {
-                inventory[item.DefName ?? ""] = item.Units.GetValueOrDefault();
-            }
-            caravans.Add(new CaravanJourney
-            {
-                Id = row.Caravan.Id,
-                Tile = row.Tile.GetValueOrDefault(),
-                Moving = row.Moving.GetValueOrDefault(),
-                PawnIds = [.. row.Pawns.Select(pawn => pawn.Pawn.Id ?? "")],
-                HomeRoutes = [.. row.HomeRoutes.Select(route => new WorldRouteFact(route.Destination.GetValueOrDefault(), route.Reachable.GetValueOrDefault(), route.EstimatedTicks.GetValueOrDefault(), route.EstimatedTicks is not null))],
-                Inventory = inventory,
-                MassUsage = FactHelpers.OptionalFact(row.MassUsage is not null, row.MassUsage.GetValueOrDefault()),
-                MassCapacity = FactHelpers.OptionalFact(row.MassCapacity is not null, row.MassCapacity.GetValueOrDefault()),
-                FoodRotDays = FactHelpers.OptionalFact(row.FoodRotDays is not null, row.FoodRotDays.GetValueOrDefault()),
-                Destination = row.Destination,
-                FoodDays = row.FoodDays.GetValueOrDefault(),
-                FoodDaysKnown = row.FoodDays is not null,
-            });
-        }
         return new WorldProgressionRead
         {
             Context = v.Context,
-            Maps = maps,
-            Caravans = caravans,
+            Maps = [.. v.Maps],
+            Caravans = [.. v.Caravans],
             Quests = [.. v.Quests.Select(QuestOffer.DecodeQuest)],
-            Factions = [.. v.Factions.Select(row => new FactionFact(row.Id ?? "", row.Player.GetValueOrDefault(), row.Hostile.GetValueOrDefault()))],
+            Factions = [.. v.Factions.Select(row => new FactionFact(row.Id, row.Player, row.Hostile))],
             Sites = [.. v.Sites],
-            Assemblies = [.. v.Assemblies.Select(row => new CaravanAssemblyFact(row.Id ?? "", row.MapId.GetValueOrDefault(), [.. row.Pawns.Select(pawn => pawn.Id ?? "")]))],
+            Assemblies = [.. v.Assemblies],
         };
     }
 }
@@ -88,7 +52,7 @@ partial record QuestOffer
                 Psylink = reward.Psylink.GetValueOrDefault(),
                 PermitPoints = reward.PermitPoints.GetValueOrDefault(),
                 Permits = [.. reward.Permits],
-                Items = [.. reward.Items.Select(item => new QuestTradeItemFact(item.DefName ?? "", item.Units.GetValueOrDefault()))],
+                Items = [.. reward.Items.Select(item => new QuestTradeItemFact(item.DefName, item.Units))],
             });
         }
         var shuttles = new List<QuestShuttleFact>(row.Shuttles.Count);

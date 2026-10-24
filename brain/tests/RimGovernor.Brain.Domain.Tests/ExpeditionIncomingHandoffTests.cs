@@ -43,7 +43,7 @@ public sealed class ExpeditionIncomingHandoffTests
             Reads++;
             return Task.FromResult(new WorldProgressionRead
             {
-                Maps = [new WorldMap { Id = ExpeditionMap, Tile = DestinationTile, Home = true, PawnIds = [Pawn] }],
+                Maps = [new PbObservations.WorldMap { Id = ExpeditionMap, Tile = DestinationTile, Home = true, Pawns = [PawnFixtures.Row(Pawn)], QuestWorkers = [] }],
             });
         }
     }

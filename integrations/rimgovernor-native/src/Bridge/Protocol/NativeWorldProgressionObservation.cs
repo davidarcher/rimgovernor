@@ -31,92 +31,70 @@ namespace HomeBridge.BridgeTools
             var rows = new List<Obs.WorldMap>();
             foreach (var m in Find.Maps)
             {
-                var row = new Obs.WorldMap { Id = m.uniqueID, Tile = m.Tile.tileId, Home = m.IsPlayerHome };
-                // A copy: the game refills FreeColonistsSpawned in place, and a row's reads ask for it again.
-                row = row with { Pawns = [.. row.Pawns, .. m.mapPawns.FreeColonistsSpawned.ToList().Select(p =>NativePawnObservationTools.Row(p, new NativePawnObservationTools.MapFacts(m), context))] };
-                row = row with { QuestWorkers = [.. row.QuestWorkers, .. NativeQuestWorkers.Read(m)] };
-                rows.Add(row);
-            }
-            return rows;
-        }
-
-        private static List<Obs.FactionState> Factions()
-        {
-            var rows = new List<Obs.FactionState>();
-            foreach (var f in Find.FactionManager.AllFactionsVisible)
-            {
-                var row = new Obs.FactionState { Id = f.GetUniqueLoadID(), Player = f.IsPlayer, Hostile = f.HostileTo(Faction.OfPlayer) };
-                rows.Add(row);
-            }
-            return rows;
-        }
-
-        // Per-caravan home routes: one
-        // route fact per player-home map, so the brain can tell whether a caravan
-        // could path home without depending on the caravan formation catalog
-        // (which only ever evaluates one destination at a time).
-        private static List<Obs.WorldRoute> HomeRoutes(Caravan caravan)
-        {
-            var rows = new List<Obs.WorldRoute>();
-            foreach (var m in Find.Maps.Where(m => m.IsPlayerHome))
-            {
-                var reachable = caravan.CanReach(m.Tile);
-                var route = new Obs.WorldRoute { Destination = m.Tile.tileId, Reachable = reachable };
-                if (reachable)
+                rows.Add(new Obs.WorldMap
                 {
-                    try { route = route with { EstimatedTicks = (long)CaravanArrivalTimeEstimator.EstimatedTicksToArrive(caravan.Tile, m.Tile, caravan) }; }
-                    catch (Exception) { /* Estimate is a diagnostic extra; omission does not affect route freshness. */ }
-                }
-                rows.Add(route);
+                    Id = m.uniqueID, Tile = m.Tile.tileId, Home = m.IsPlayerHome,
+                    // A copy: the game refills FreeColonistsSpawned in place, and a row's reads ask for it again.
+                    Pawns = [.. m.mapPawns.FreeColonistsSpawned.ToList().Select(p => NativePawnObservationTools.Row(p, new NativePawnObservationTools.MapFacts(m), context))],
+                    QuestWorkers = [.. NativeQuestWorkers.Read(m)],
+                });
             }
             return rows;
         }
 
-        private static List<Obs.Quantity> Inventory(Caravan caravan)
-        {
-            var rows = new List<Obs.Quantity>();
-            foreach (var group in CaravanInventoryUtility.AllInventoryItems(caravan).GroupBy(t => t.def))
-                rows.Add(new Obs.Quantity { DefName = group.Key.defName, Units = group.Sum(t => (long)t.stackCount) });
-            return rows;
-        }
+        private static List<Obs.FactionState> Factions() =>
+            [.. Find.FactionManager.AllFactionsVisible.Select(f => new Obs.FactionState { Id = f.GetUniqueLoadID(), Player = f.IsPlayer, Hostile = f.HostileTo(Faction.OfPlayer) })];
+
+        // Per-caravan home routes: one route per player-home map, so the brain can tell whether a caravan could path
+        // home without depending on the caravan formation catalog (which only ever evaluates one destination at a time).
+        private static List<Obs.WorldRoute> HomeRoutes(Caravan caravan) =>
+            [.. Find.Maps.Where(m => m.IsPlayerHome).Select(m => new Obs.WorldRoute
+            {
+                Destination = m.Tile.tileId,
+                Route = caravan.CanReach(m.Tile)
+                    ? new Obs.PackRoute.Reachable(CaravanArrivalTimeEstimator.EstimatedTicksToArrive(caravan.Tile, m.Tile, caravan))
+                    : new Obs.PackRoute.Unreachable(),
+            })];
+
+        private static List<Obs.Quantity> Inventory(Caravan caravan) =>
+            [.. CaravanInventoryUtility.AllInventoryItems(caravan).GroupBy(t => t.def)
+                .Select(group => new Obs.Quantity { DefName = group.Key.defName, Units = group.Sum(t => (long)t.stackCount) })];
+
+        // A figure the game cannot give as a finite number is a read failure, never an omitted field.
+        private static double Finite(float value, string what, Caravan caravan) =>
+            float.IsNaN(value) || float.IsInfinity(value) ? throw new InvalidOperationException("Caravan " + caravan.GetUniqueLoadID() + " " + what + " is not a finite number.") : value;
 
         private static List<Obs.CaravanState> Caravans(Common.ObservationContext context)
         {
             var rows = new List<Obs.CaravanState>();
             foreach (var c in Find.WorldObjects.Caravans.Where(c => c.IsPlayerControlled))
             {
-                var row = new Obs.CaravanState
+                var food = c.DaysWorthOfFood;
+                rows.Add(new Obs.CaravanState
                 {
                     // A caravan is a world object: it is on no map.
                     Caravan = new Obs.EntityRef { Id = c.GetUniqueLoadID(), DefName = c.def.defName, Label = c.Label ?? throw new InvalidOperationException("Caravan label unavailable."), Place = new Obs.EntityPlace.Unplaced() },
-                    Tile = c.Tile.tileId, Moving = c.pather.Moving,
-                    MassUsage = c.MassUsage, MassCapacity = c.MassCapacity,
-                    FoodDays = c.DaysWorthOfFood.days, FoodRotDays = c.DaysWorthOfFood.tillRot,
-                };
-                if (c.pather.Moving) row = row with { Destination = c.pather.Destination.tileId };
-                row = row with { Pawns = [.. row.Pawns, .. c.PawnsListForReading.Select(p => NativePawnObservationTools.Row(p, new NativePawnObservationTools.MapFacts(null), context))] };
-                row = row with { HomeRoutes = [.. row.HomeRoutes, .. HomeRoutes(c)] };
-                row = row with { Inventory = [.. row.Inventory, .. Inventory(c)] };
-                rows.Add(row);
+                    Tile = c.Tile.tileId,
+                    Course = c.pather.Moving ? new Obs.CaravanCourse.Moving(c.pather.Destination.tileId) : new Obs.CaravanCourse.Stopped(),
+                    MassUsage = Finite(c.MassUsage, "mass usage", c),
+                    MassCapacity = Finite(c.MassCapacity, "mass capacity", c),
+                    FoodDays = Finite(food.days, "food days", c),
+                    FoodRotDays = Finite(food.tillRot, "food rot days", c),
+                    Pawns = [.. c.PawnsListForReading.Select(p => NativePawnObservationTools.Row(p, new NativePawnObservationTools.MapFacts(null), context))],
+                    HomeRoutes = [.. HomeRoutes(c)],
+                    Inventory = [.. Inventory(c)],
+                });
             }
             return rows;
         }
 
-        private static List<Obs.CaravanAssembly> Assemblies()
-        {
-            var rows = new List<Obs.CaravanAssembly>();
-            foreach (var m in Find.Maps)
-            {
-                foreach (var l in m.lordManager.lords.Where(l => l.LordJob is LordJob_FormAndSendCaravan))
+        private static List<Obs.CaravanAssembly> Assemblies() =>
+            [.. Find.Maps.SelectMany(m => m.lordManager.lords.Where(l => l.LordJob is LordJob_FormAndSendCaravan)
+                .Select(l => new Obs.CaravanAssembly
                 {
-                    var job = (LordJob_FormAndSendCaravan)l.LordJob;
-                    var row = new Obs.CaravanAssembly { Id = l.GetUniqueLoadID(), MapId = m.uniqueID };
-                    row = row with { Pawns = [.. row.Pawns, .. l.ownedPawns.Select(NativeRef.Thing)] };
-                    rows.Add(row);
-                }
-            }
-            return rows;
-        }
+                    MapId = m.uniqueID,
+                    Pawns = [.. l.ownedPawns.Select(p => new RimGovernor.Brain.Domain.PawnId(p.GetUniqueLoadID()))],
+                }))];
 
         private static List<Obs.QuestReward> Rewards(Quest quest)
         {

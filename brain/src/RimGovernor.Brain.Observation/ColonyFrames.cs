@@ -202,20 +202,11 @@ public static class ColonyFramesReads
         if (!ColonyDecodeReads.HasIssue(v.Issues, "resources"))
         {
             var rows = new List<Amount>();
-            var known = true;
             foreach (var q in v.Resources)
             {
-                if (q.Units is null)
-                {
-                    known = false;
-                    break;
-                }
-                rows.Add(new Amount(new Resource((q.DefName ?? "")), q.Units.GetValueOrDefault()));
+                rows.Add(new Amount(new Resource(q.DefName), q.Units));
             }
-            if (known)
-            {
-                r = r with { Resources = Known(EquatableArray.From(rows)) };
-            }
+            r = r with { Resources = Known(EquatableArray.From(rows)) };
         }
         var stacks = new List<MedicineStackRow>();
         foreach (var item in v.Upkeep.Items)

@@ -351,9 +351,9 @@ public static class ConstructionReads
                 var seen = new HashSet<string>(StringComparer.Ordinal);
                 foreach (var amount in bound.Ingredients)
                 {
-                    if (string.IsNullOrWhiteSpace(amount.DefName) || amount.Units is not > 0 || !seen.Add(amount.DefName))
+                    if (string.IsNullOrWhiteSpace(amount.DefName) || amount.Units <= 0 || !seen.Add(amount.DefName))
                         throw new RequiredFactException("unfinished_work.ingredients:" + bill);
-                    items.Add(new(new Resource(amount.DefName), amount.Units.Value));
+                    items.Add(new(new Resource(amount.DefName), amount.Units));
                 }
                 return new ProductionUnfinishedWork(bound.Item, EquatableArray.From(items));
         }
@@ -382,11 +382,11 @@ public static class ConstructionReads
                     var items = new List<Amount>();
                     foreach (var item in r.Items)
                     {
-                        if ((item.DefName ?? "") == "" || item.Units is null || item.Units.GetValueOrDefault() < 0)
+                        if (item.DefName == "" || item.Units < 0)
                         {
                             return unknown;
                         }
-                        items.Add(new Amount(new Resource((item.DefName ?? "")), item.Units.GetValueOrDefault()));
+                        items.Add(new Amount(new Resource(item.DefName), item.Units));
                     }
                     output.Add(new IngredientReservation
                     {

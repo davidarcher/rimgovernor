@@ -170,49 +170,50 @@ async
     /// Never authorizes a fresh formation after the planned phase. Lost receipts are resolved from exact native
     /// crew, and partial or conflicting crew evidence holds the mission instead of sending replacements.
     /// </summary>
-    public static (TradeMissionPhase Phase, CaravanJourney? Journey, bool Observed) TradeMissionDepartureEvidence(TradeMission m, WorldProgressionRead? read)
+    public static (TradeMissionPhase Phase, bool Observed) TradeMissionDepartureEvidence(TradeMission m, WorldProgressionRead? read)
     {
         if (!TradeMissionValid(m)
             || (m.Phase != TradeMissionPhase.Planned && m.Phase != TradeMissionPhase.Departing && m.Phase != TradeMissionPhase.Outbound)
             || read?.Context?.Identity is null
             || (read.Context.Identity.ColonyId ?? "") != m.HomeColony.Value)
         {
-            return (m.Phase, null, false);
+            return (m.Phase, false);
         }
-        bool Exact(IReadOnlyList<string> ids) => ids.Count == m.Crew.Count && m.Crew.All(id => ids.Contains(id.Value));
-        bool Overlaps(IReadOnlyList<string> ids) => m.Crew.Any(id => ids.Contains(id.Value));
-        CaravanJourney? found = null;
+        bool Exact(IReadOnlyList<PawnId> ids) => ids.Count == m.Crew.Count && m.Crew.All(ids.Contains);
+        bool Overlaps(IReadOnlyList<PawnId> ids) => m.Crew.Any(ids.Contains);
+        PbObservations.CaravanState? found = null;
         foreach (var row in read.Caravans)
         {
-            if (Overlaps(row.PawnIds))
+            var crew = row.Crew();
+            if (Overlaps(crew))
             {
-                if (!Exact(row.PawnIds) || found is not null)
+                if (!Exact(crew) || found is not null)
                 {
-                    return (m.Phase, null, false);
+                    return (m.Phase, false);
                 }
                 found = row;
             }
         }
         if (found is not null)
         {
-            if (found.Tile == m.SettlementTile && !found.Moving)
+            if (found.Tile == m.SettlementTile && found.Course is PbObservations.CaravanCourse.Stopped)
             {
-                return (TradeMissionPhase.Buying, found, true);
+                return (TradeMissionPhase.Buying, true);
             }
-            return (TradeMissionPhase.Outbound, found, true);
+            return (TradeMissionPhase.Outbound, true);
         }
         foreach (var assembly in read.Assemblies)
         {
-            if (Overlaps(assembly.PawnIds))
+            if (Overlaps(assembly.Pawns))
             {
-                if (assembly.MapId != m.HomeMap.Value || !Exact(assembly.PawnIds))
+                if (assembly.MapId != m.HomeMap.Value || !Exact(assembly.Pawns))
                 {
-                    return (m.Phase, null, false);
+                    return (m.Phase, false);
                 }
-                return (TradeMissionPhase.Departing, null, true);
+                return (TradeMissionPhase.Departing, true);
             }
         }
-        return (m.Phase, null, false);
+        return (m.Phase, false);
     }
 }
 
@@ -232,14 +233,14 @@ partial class RoundsTradePlanner
     {
         foreach (var caravan in read.Caravans)
         {
-            if (m.Crew.Any(id => caravan.PawnIds.Contains(id.Value)))
+            if (m.Crew.Any(caravan.Crew().Contains))
             {
                 return false;
             }
         }
         foreach (var assembly in read.Assemblies)
         {
-            if (m.Crew.Any(id => assembly.PawnIds.Contains(id.Value)))
+            if (m.Crew.Any(assembly.Pawns.Contains))
             {
                 return false;
             }
@@ -248,7 +249,7 @@ partial class RoundsTradePlanner
         {
             if (home.Home && new MapId(home.Id) == m.HomeMap && home.Tile == m.HomeTile)
             {
-                return m.Crew.All(id => home.PawnIds.Contains(id.Value));
+                return m.Crew.All(home.Colonists().Contains);
             }
         }
         return false;

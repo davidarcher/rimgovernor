@@ -64,12 +64,7 @@ public sealed partial class RoundsResourcePlanner
         var rows = new List<Amount>();
         foreach (var q in v.Resources)
         {
-            if (q.Units is null)
-            {
-                return Unknown<EquatableArray<Amount>>();
-            }
-
-            rows.Add(new Amount(new Resource((q.DefName ?? "")), (long)q.Units.GetValueOrDefault()));
+            rows.Add(new Amount(new Resource(q.DefName), q.Units));
         }
 
         return Known<EquatableArray<Amount>>([.. rows]);

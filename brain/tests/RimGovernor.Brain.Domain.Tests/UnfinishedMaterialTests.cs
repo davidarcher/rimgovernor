@@ -113,6 +113,6 @@ public sealed class UnfinishedMaterialTests
         Assert.Equal(20, Promises(Read(decoded)).Value[0].MaterialClaims[0].Units.Value);
         Assert.Equal(30, Promises(Read(bill with { UnfinishedWork = new O.BillUnfinishedWork.None() })).Value[0].MaterialClaims[0].Units.Value);
         Assert.Throws<RequiredFactException>(() => Read(bill with { UnfinishedWork = new O.BillUnfinishedWork.Bound { Item = "", Ingredients = [] } }));
-        Assert.Throws<RequiredFactException>(() => Read(bill with { UnfinishedWork = new O.BillUnfinishedWork.Bound { Item = "unfinished", Ingredients = [new() { DefName = Material.Value, Units = null }] } }));
+        Assert.Throws<RequiredFactException>(() => Read(bill with { UnfinishedWork = new O.BillUnfinishedWork.Bound { Item = "unfinished", Ingredients = [new() { DefName = Material.Value, Units = 0 }] } }));
     }
 }

@@ -45,12 +45,16 @@ public static class QuestPeaceTalksPolicy
         {
             return Fail("capacity_unknown");
         }
+        // Native leaves the Social skill out when NegotiationAbility is disabled: that pawn is no diplomat.
         var pawns = new List<PeaceTalksPawn>(departures.Count);
         foreach (var row in departures)
         {
-            pawns.Add(new PeaceTalksPawn { Id = row.Id, Social = row.SocialLevel, Leader = row.FactionLeader });
+            if (row.SocialLevel.TryGetValue(out var social) && social >= 0 && row.FactionLeader.TryGetValue(out var leader))
+            {
+                pawns.Add(new PeaceTalksPawn { Id = row.Id, Social = social, Leader = leader });
+            }
         }
-        var (diplomat, reason) = PeaceTalksNegotiator(offer, f, Known(EquatableArray.From(pawns)), risk.IdeologyActive);
+        var (diplomat, reason) = PeaceTalksNegotiator(offer, f, pawns, risk.IdeologyActive);
         if (!reason.IsNone)
         {
             return Fail(reason);
@@ -60,11 +64,11 @@ public static class QuestPeaceTalksPolicy
 
     public static QuestSkipReason PeaceTalksDownside(Pb.QuestPeaceTalks risk)
     {
-        if (risk.WorstGoodwillLoss is not { } loss || risk.BestGoodwillGain is not { } gain || loss < 0 || gain < 0)
+        if (risk.WorstGoodwillLoss < 0 || risk.BestGoodwillGain < 0)
         {
             return "diplomacy_unknown";
         }
-        if (loss > gain)
+        if (risk.WorstGoodwillLoss > risk.BestGoodwillGain)
         {
             return "goodwill_downside";
         }
@@ -76,38 +80,22 @@ public static class QuestPeaceTalksPolicy
     /// eligible; otherwise Social ranks candidates. Vanilla still chooses its diplomat by NegotiationAbility
     /// when the caravan arrives.
     /// </summary>
-    public static (PawnId Pawn, QuestSkipReason Reason) PeaceTalksNegotiator(JoinerOffer offer, RoundsFacts f, Fact<EquatableArray<PeaceTalksPawn>> pawns, bool? ideology)
+    public static (PawnId Pawn, QuestSkipReason Reason) PeaceTalksNegotiator(JoinerOffer offer, RoundsFacts f, IReadOnlyList<PeaceTalksPawn> pawns, bool ideo)
     {
-        var known = pawns.TryGetValue(out var all);
-        if (!known || ideology is not { } ideo)
-        {
-            return (default, "diplomacy_unknown");
-        }
-        // Native omits the diplomacy skill when NegotiationAbility is disabled. Unavailable candidates cannot
-        // displace a known capable diplomat.
-        var rows = all!.Where(pawn =>
-        {
-            var socialKnown = pawn.Social.TryGetValue(out var social);
-            var leaderKnown = pawn.Leader.TryGetValue(out _);
-            return !(!socialKnown || social < 0 || (ideo && !leaderKnown));
-        }).ToList();
+        var rows = pawns.ToList();
         if (rows.Count == 0)
         {
             return (default, "diplomacy_unknown");
         }
         rows.Sort((x, y) =>
         {
-            x.Leader.TryGetValue(out var a);
-            y.Leader.TryGetValue(out var b);
-            if (ideo && a != b)
+            if (ideo && x.Leader != y.Leader)
             {
-                return a ? -1 : 1;
+                return x.Leader ? -1 : 1;
             }
-            x.Social.TryGetValue(out var sa);
-            y.Social.TryGetValue(out var sb);
-            if (sa != sb)
+            if (x.Social != y.Social)
             {
-                return sa > sb ? -1 : 1;
+                return x.Social > y.Social ? -1 : 1;
             }
             return x.Id.CompareTo(y.Id);
         });

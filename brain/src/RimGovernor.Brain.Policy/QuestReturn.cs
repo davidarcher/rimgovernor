@@ -19,42 +19,34 @@ public static class QuestReturn
     /// </summary>
     public static CaravanDeparture? PlanStoppedExpeditionReturn(ExpeditionTrip trip, IReadOnlyList<PawnId> departed)
     {
-        if (trip.Forming || trip.PawnIds.Count == 0)
+        if (trip is not ExpeditionTrip.OnWorld { Course: Pb.CaravanCourse.Stopped } stopped || stopped.PawnIds.Count == 0)
         {
             return null;
         }
-        if (trip.Destination.TryGetValue(out _))
-        {
-            return null;
-        }
-        foreach (var id in trip.PawnIds)
+        foreach (var id in stopped.PawnIds)
         {
             if (!departed.Contains(id))
             {
                 return null;
             }
         }
-        if (!trip.Tile.TryGetValue(out var tile))
-        {
-            return null;
-        }
-        var routes = trip.HomeRoutes
-            .OrderBy(r => r.TravelTicks.TryGetValue(out var t) ? t : 0L)
-            .ThenBy(r => r.Tile)
+        // An unreachable home sorts after every reachable one; the stopped caravan already home holds.
+        var routes = stopped.HomeRoutes
+            .OrderBy(r => r.Route is Pb.PackRoute.Unreachable)
+            .ThenBy(r => r.Route is Pb.PackRoute.Reachable { EstimatedTicks: var t } ? t : 0L)
+            .ThenBy(r => r.Destination)
             .ToList();
         foreach (var route in routes)
         {
-            var rk = route.Reachable.TryGetValue(out var reachable);
-            var tk = route.TravelTicks.TryGetValue(out var ticks);
-            if (route.Tile == tile)
+            if (route.Destination == stopped.Tile)
             {
                 return null;
             }
-            if (!rk || !reachable || !tk || ticks < 0)
+            if (route.Route is not Pb.PackRoute.Reachable { EstimatedTicks: >= 0 })
             {
                 continue;
             }
-            if (CaravanDeparture.TryCreate(trip.PawnIds.Select(p => (Domain.PawnId)p), [], route.Tile, out var departure))
+            if (CaravanDeparture.TryCreate(stopped.PawnIds, [], route.Destination, out var departure))
             {
                 return departure with { Mode = CaravanDepartureMode.ExistingRoute };
             }

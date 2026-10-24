@@ -551,9 +551,9 @@ public abstract record TargetRefTarget
 
 public sealed record Quantity
 {
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public long? Units { get; init; }
+    public required long Units { get; init; }
 }
 
 /// <summary>
@@ -3513,41 +3513,55 @@ public sealed record WorldRequest
     public double SettlementRadius { get; init; }
 }
 
+/// <summary>A caravan's route to one destination tile: Reachable with its estimated ticks to arrive, or Unreachable.</summary>
 public sealed record WorldRoute
 {
-    public int? Destination { get; init; }
+    public required int Destination { get; init; }
 
-    public bool? Reachable { get; init; }
-
-    public long? EstimatedTicks { get; init; }
+    public required PackRoute Route { get; init; }
 }
 
+/// <summary>Where a caravan is headed: Moving to its destination tile, or Stopped.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(CaravanCourse.Moving), "moving")]
+[JsonDerivedType(typeof(CaravanCourse.Stopped), "stopped")]
+public abstract record CaravanCourse
+{
+    private protected CaravanCourse() { }
+
+    public sealed record Moving(int Destination) : CaravanCourse;
+
+    public sealed record Stopped : CaravanCourse;
+}
+
+/// <summary>
+/// One player caravan on the world map. FoodDays and FoodRotDays are the game's days-worth-of-food figures (600, the
+/// game's InfiniteDaysWorthOfFood, when nothing eats or nothing rots); HomeRoutes has one route per player home map.
+/// </summary>
 public sealed record CaravanState
 {
     public required EntityRef Caravan { get; init; }
 
-    public int? Tile { get; init; }
+    public required int Tile { get; init; }
 
-    public int? Destination { get; init; }
+    public required CaravanCourse Course { get; init; }
 
-    public bool? Moving { get; init; }
+    public required double MassUsage { get; init; }
 
-    public double? MassUsage { get; init; }
+    public required double MassCapacity { get; init; }
 
-    public double? MassCapacity { get; init; }
+    public required double FoodDays { get; init; }
 
-    public double? FoodDays { get; init; }
-
-    public double? FoodRotDays { get; init; }
+    public required double FoodRotDays { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PawnState>))]
-    public EquatableArray<PawnState> Pawns { get; init; }
+    public required EquatableArray<PawnState> Pawns { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<WorldRoute>))]
-    public EquatableArray<WorldRoute> HomeRoutes { get; init; }
+    public required EquatableArray<WorldRoute> HomeRoutes { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
-    public EquatableArray<Quantity> Inventory { get; init; }
+    public required EquatableArray<Quantity> Inventory { get; init; }
 }
 
 public sealed record QuestReward
@@ -3990,13 +4004,17 @@ public abstract record SiteTravel
     public sealed record Unreachable : SiteTravel;
 }
 
+/// <summary>
+/// A peace talks site's goodwill stakes: the loss includes vanilla disaster's forced-hostility adjustment, the gain is
+/// capped by the faction goodwill limit. Both are observations, not tuning.
+/// </summary>
 public sealed record QuestPeaceTalks
 {
-    public int? WorstGoodwillLoss { get; init; }
+    public required int WorstGoodwillLoss { get; init; }
 
-    public int? BestGoodwillGain { get; init; }
+    public required int BestGoodwillGain { get; init; }
 
-    public bool? IdeologyActive { get; init; }
+    public required bool IdeologyActive { get; init; }
 }
 
 public sealed record QuestWorkload
@@ -4224,36 +4242,36 @@ public sealed record QuestState
 
 public sealed record FactionState
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public bool? Player { get; init; }
+    public required bool Player { get; init; }
 
-    public bool? Hostile { get; init; }
+    public required bool Hostile { get; init; }
 }
 
+/// <summary>One loaded map: its free colonists as whole pawn rows, and its quest workers.</summary>
 public sealed record WorldMap
 {
-    public int? Id { get; init; }
+    public required int Id { get; init; }
 
-    public int? Tile { get; init; }
+    public required int Tile { get; init; }
 
-    public bool? Home { get; init; }
+    public required bool Home { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PawnState>))]
-    public EquatableArray<PawnState> Pawns { get; init; }
+    public required EquatableArray<PawnState> Pawns { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestWorker>))]
-    public EquatableArray<QuestWorker> QuestWorkers { get; init; }
+    public required EquatableArray<QuestWorker> QuestWorkers { get; init; }
 }
 
+/// <summary>A caravan forming on a map: the form-and-send lord and the pawns it owns.</summary>
 public sealed record CaravanAssembly
 {
-    public string? Id { get; init; }
+    public required int MapId { get; init; }
 
-    public int? MapId { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Pawns { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> Pawns { get; init; }
 }
 
 public sealed record WorldProgressionSnapshot
@@ -4864,7 +4882,7 @@ public abstract record TradePackEstimate
     public sealed record Unpackable : TradePackEstimate;
 }
 
-/// <summary>One leg of a packed trip: the estimated ticks to arrive, or Unreachable when the world pather finds no path.</summary>
+/// <summary>One world route leg (a packed trip's, or a caravan's way home): the estimated ticks to arrive, or Unreachable when the world pather finds no path.</summary>
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
 [JsonDerivedType(typeof(PackRoute.Reachable), "reachable")]
 [JsonDerivedType(typeof(PackRoute.Unreachable), "unreachable")]

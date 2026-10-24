@@ -31,46 +31,38 @@ partial class RoundsTradePlanner
     }
 
     /// <summary>
-    /// Refreshes asymmetric home routes, current food/rot and capacity after trading. An unread fact or an
-    /// unreachable home route holds an order, never admits a trip.
+    /// Refreshes asymmetric home routes, current food/rot and capacity after trading. An unreachable home route
+    /// holds an order, never admits a trip.
     /// </summary>
-    public static bool TradeMissionReturnSafe(TradeMission m, CaravanJourney? caravan)
+    public static bool TradeMissionReturnSafe(TradeMission m, PbObservations.CaravanState caravan)
     {
-        if (caravan is null || !caravan.FoodDaysKnown || !MissionCaravanLoad(caravan, out var mass, out var capacity, out var rot))
-        {
-            return false;
-        }
         foreach (var route in caravan.HomeRoutes)
         {
-            if (route.DestinationTile == m.HomeTile && route.Reachable && route.EstimatedTicksKnown && route.EstimatedTicks >= 0)
+            if (route.Destination == m.HomeTile && route.Route is PbObservations.PackRoute.Reachable { EstimatedTicks: >= 0 and var ticks })
             {
-                return Pol.TradePolicyRules.TradeMissionReturnSafe(new Pol.MissionReturnFacts { Mass = mass, Capacity = capacity, FoodDays = caravan.FoodDays, RotDays = rot, RouteTicks = route.EstimatedTicks });
+                return Pol.TradePolicyRules.TradeMissionReturnSafe(new Pol.MissionReturnFacts
+                {
+                    Mass = caravan.MassUsage, Capacity = caravan.MassCapacity, FoodDays = caravan.FoodDays, RotDays = caravan.FoodRotDays, RouteTicks = ticks,
+                });
             }
         }
         return false;
     }
-
-    /// <summary>
-    /// The caravan's mass, capacity and food rot days, the one place the trade mission reads them; false while
-    /// any is unread (the world-progression slice of #3785 makes CaravanJourney total).
-    /// </summary>
-    internal static bool MissionCaravanLoad(CaravanJourney caravan, out double mass, out double capacity, out double rot) =>
-        caravan.MassUsage.TryGetValue(out mass) & caravan.MassCapacity.TryGetValue(out capacity) & caravan.FoodRotDays.TryGetValue(out rot);
 }
 
 partial class RoundsTradePlanner
 {
-    internal static CaravanJourney? MissionCaravan(TradeMission m, WorldProgressionRead world)
+    internal static PbObservations.CaravanState? MissionCaravan(TradeMission m, WorldProgressionRead world)
     {
-        CaravanJourney? found = null;
+        PbObservations.CaravanState? found = null;
         foreach (var row in world.Caravans)
         {
-            var overlap = m.Crew.Any(id => row.PawnIds.Contains(id.Value));
-            if (!overlap)
+            var crew = row.Crew();
+            if (!m.Crew.Any(crew.Contains))
             {
                 continue;
             }
-            if (found is not null || row.PawnIds.Count != m.Crew.Count || m.Crew.Any(id => !row.PawnIds.Contains(id.Value)))
+            if (found is not null || crew.Count != m.Crew.Count || !m.Crew.All(crew.Contains))
             {
                 return null;
             }
@@ -145,14 +137,14 @@ public sealed partial class RoundsTradePlanner
         var caravan = MissionCaravan(m, world);
         if (m.Phase == TradeMissionPhase.Planned)
         {
-            var (observedPhase, _, observed) = RoundsTradePlanner.TradeMissionDepartureEvidence(m, world);
+            var (observedPhase, observed) = RoundsTradePlanner.TradeMissionDepartureEvidence(m, world);
             if (observed) return MissionRecord(step, m with { Phase = observedPhase }, call);
             return new RoundsTradeResult { Verdict = Verdict.AwaitingPlan("unsupported_forecast_caravan_formation",
                 "Caravan packing and departure require shared forecast labor admission.") };
         }
         if (m.Phase is TradeMissionPhase.Departing or TradeMissionPhase.Outbound)
         {
-            var (phase, _, known) = RoundsTradePlanner.TradeMissionDepartureEvidence(m, world);
+            var (phase, known) = RoundsTradePlanner.TradeMissionDepartureEvidence(m, world);
             if (known && phase != m.Phase)
             {
                 return MissionRecord(step, m with { Phase = phase }, call);
@@ -177,9 +169,9 @@ public sealed partial class RoundsTradePlanner
                 return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
             }
             // Crew explicitly dead or absent everywhere ends without delivery.
-            var visible = world.Maps.Any(row => m.Crew.Any(id => row.PawnIds.Contains(id.Value)))
-                || world.Assemblies.Any(row => m.Crew.Any(id => row.PawnIds.Contains(id.Value)))
-                || world.Caravans.Any(row => m.Crew.Any(id => row.PawnIds.Contains(id.Value)));
+            var visible = world.Maps.Any(row => m.Crew.Any(row.Colonists().Contains))
+                || world.Assemblies.Any(row => m.Crew.Any(row.Pawns.Contains))
+                || world.Caravans.Any(row => m.Crew.Any(row.Crew().Contains));
             return visible
                 ? new RoundsTradeResult { Verdict = BuildingReasonExistingWork }
                 : MissionRecord(step, m with { Phase = TradeMissionPhase.Ended }, call);
@@ -191,7 +183,7 @@ public sealed partial class RoundsTradePlanner
         if (m.Phase == TradeMissionPhase.Returning)
         {
             var session = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
-            var target = new TradeParticipant(TradeParticipantKind.Settlement, m.Settlement, caravan.Id);
+            var target = new TradeParticipant(TradeParticipantKind.Settlement, m.Settlement, caravan.Caravan.Id);
             if (TradeTarget.TraderOf(session) == target.Key())
             {
                 if (MissionAttempted(step, "trade-end", call))
@@ -201,7 +193,7 @@ public sealed partial class RoundsTradePlanner
                 var value = Trade.NewTradeEnd(target.Key(), m.Negotiator, TradeEndKind.Cancel, false).WithParticipant(target);
                 return MissionTradeCommit(state, step, m, value, call, work.Epoch);
             }
-            if (caravan.Moving && caravan.Destination == m.HomeTile)
+            if (caravan.Course is PbObservations.CaravanCourse.Moving { Destination: var destination } && destination == m.HomeTile)
             {
                 return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
             }
@@ -274,9 +266,9 @@ public sealed partial class RoundsTradePlanner
         Sto.Rounds review,
         MissionStep step,
         TradeMission m,
-        CaravanJourney caravan, CancellationToken call, CancellationToken epoch)
+        PbObservations.CaravanState caravan, CancellationToken call, CancellationToken epoch)
     {
-        var target = new TradeParticipant(TradeParticipantKind.Settlement, m.Settlement, caravan.Id);
+        var target = new TradeParticipant(TradeParticipantKind.Settlement, m.Settlement, caravan.Caravan.Id);
         var trader = target.Key();
         var session = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         if (m.PurchaseCommitted)
@@ -339,7 +331,7 @@ public sealed partial class RoundsTradePlanner
     /// food/resource plans, bounded by saved authorization. It does not publish away goods into home supply
     /// candidates.
     /// </summary>
-    internal async Task<(IReadOnlyList<TradeLine> Lines, IReadOnlyList<CargoItem> Goods)> MissionPurchasesAsync(ControlState state, Sto.Rounds review, TradeMission m, PbObservations.TradeSheet sheet, CaravanJourney caravan, CancellationToken ct)
+    internal async Task<(IReadOnlyList<TradeLine> Lines, IReadOnlyList<CargoItem> Goods)> MissionPurchasesAsync(ControlState state, Sto.Rounds review, TradeMission m, PbObservations.TradeSheet sheet, PbObservations.CaravanState caravan, CancellationToken ct)
     {
         var reply = await Native.ReadColonyFactsAsync(Boundary.Identity(state.Snapshot), false, ct).ConfigureAwait(false);
         var tables = await Native.FrameTablesAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
@@ -404,7 +396,7 @@ public sealed partial class RoundsTradePlanner
             });
         }
         var (silver, _, known) = TradeSheetSilver(sheet.Lines);
-        if (!known || !MissionCaravanLoad(caravan, out var mass, out var capacity, out _))
+        if (!known)
         {
             return ([], []);
         }
@@ -418,8 +410,8 @@ public sealed partial class RoundsTradePlanner
             Nutrition = nutrition,
             Rows = rows,
             Silver = silver,
-            Mass = mass,
-            Capacity = capacity,
+            Mass = caravan.MassUsage,
+            Capacity = caravan.MassCapacity,
         });
     }
 

@@ -3,42 +3,12 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-/// <summary>
-/// One native player-home route row from a caravan's home_routes census.
-/// <see cref="EstimatedTicksKnown"/> is false when native reports no travel-time estimate for that route.
-/// </summary>
-public sealed record WorldRouteFact(int DestinationTile, bool Reachable, long EstimatedTicks, bool EstimatedTicksKnown);
-
-/// <summary>
-/// The validated subset of one player caravan's world-progression census row that
-/// travel/arrival tracking and the world-evaluation advisory need. <see cref="Inventory"/> is the full per-caravan
-/// cargo census (defName to units); an absent row is a known zero.
-/// </summary>
-public sealed record CaravanJourney
+/// <summary>The crews of the world census rows: a caravan's and a map's pawns, and a forming caravan's.</summary>
+public static class WorldProgressionCrews
 {
-    public int? Destination { get; init; }
+    public static IReadOnlyList<PawnId> Crew(this CaravanState caravan) => [.. caravan.Pawns.Select(pawn => new PawnId(pawn.Pawn.Id))];
 
-    public string Id { get; init; } = "";
-
-    public int Tile { get; init; }
-
-    public bool Moving { get; init; }
-
-    public IReadOnlyList<string> PawnIds { get; init; } = [];
-
-    public double FoodDays { get; init; }
-
-    public bool FoodDaysKnown { get; init; }
-
-    public IReadOnlyList<WorldRouteFact> HomeRoutes { get; init; } = [];
-
-    public Fact<double> MassUsage { get; init; }
-
-    public Fact<double> MassCapacity { get; init; }
-
-    public Fact<double> FoodRotDays { get; init; }
-
-    public IReadOnlyDictionary<string, long> Inventory { get; init; } = new Dictionary<string, long>(StringComparer.Ordinal);
+    public static IReadOnlyList<PawnId> Colonists(this WorldMap map) => [.. map.Pawns.Select(pawn => new PawnId(pawn.Pawn.Id))];
 }
 
 /// <summary>
@@ -177,31 +147,13 @@ public sealed record QuestFavorFact(int Choice, int Favor);
 public sealed record FactionFact(string Id, bool Player, bool Hostile);
 
 /// <summary>
-/// The validated subset of one maps row that failure-recovery classification needs. Tile is
-/// the codebase's only home-tile source: the row with <see cref="Home"/> true.
-/// </summary>
-public sealed record WorldMap
-{
-    public int Id { get; init; }
-
-    public int Tile { get; init; }
-
-    public bool Home { get; init; }
-
-    public IReadOnlyList<string> PawnIds { get; init; } = [];
-
-    public IReadOnlyList<QuestWorker> QuestWorkers { get; init; } = [];
-}
-
-public sealed record CaravanAssemblyFact(string Id, int MapId, IReadOnlyList<string> PawnIds);
-
-/// <summary>
 /// The validated subset of one world progression census the world-site and
-/// quest boundaries need. The read and its decoders are wire plumbing and not ported.
+/// quest boundaries need. The maps, caravans and assemblies are the census rows themselves; a map's Tile is the
+/// codebase's only home-tile source (the row with Home true).
 /// </summary>
 public sealed partial record WorldProgressionRead
 {
-    public IReadOnlyList<CaravanAssemblyFact> Assemblies { get; init; } = [];
+    public IReadOnlyList<CaravanAssembly> Assemblies { get; init; } = [];
 
     public IReadOnlyList<WorldSite> Sites { get; init; } = [];
 
@@ -209,7 +161,7 @@ public sealed partial record WorldProgressionRead
 
     public IReadOnlyList<WorldMap> Maps { get; init; } = [];
 
-    public IReadOnlyList<CaravanJourney> Caravans { get; init; } = [];
+    public IReadOnlyList<CaravanState> Caravans { get; init; } = [];
 
     public IReadOnlyList<QuestOffer> Quests { get; init; } = [];
 

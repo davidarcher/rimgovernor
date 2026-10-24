@@ -1,23 +1,13 @@
 using RimGovernor.Brain.Domain;
-using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-public sealed record SiteHomeRoute
-{
-    public int Tile { get; init; }
-
-    public Fact<bool> Reachable { get; init; }
-
-    public Fact<long> TravelTicks { get; init; }
-}
-
-
+/// <summary>A peace talks diplomat candidate: a capable negotiator's Social level, and whether they lead the colony's faction.</summary>
 public sealed record PeaceTalksPawn
 {
-    public PawnId Id { get; init; }
+    public required PawnId Id { get; init; }
 
-    public Fact<int> Social { get; init; }
+    public required int Social { get; init; }
 
-    public Fact<bool> Leader { get; init; }
+    public required bool Leader { get; init; }
 }

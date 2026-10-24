@@ -73,11 +73,8 @@ public static class ColonyDecodeReads
         var stock = new Dictionary<Resource, long>();
         foreach (var q in v.Resources)
         {
-            if (q.Units is not null)
-            {
-                var key = new Resource(q.DefName ?? "");
-                stock[key] = stock.GetValueOrDefault(key) + q.Units.GetValueOrDefault();
-            }
+            var key = new Resource(q.DefName);
+            stock[key] = stock.GetValueOrDefault(key) + q.Units;
         }
         return Known<IReadOnlyDictionary<Resource, long>>(stock);
     }
@@ -515,22 +512,17 @@ public static class ColonyDecodeReads
         f = f with { AnimalUpkeep = f.AnimalUpkeep with { Food = r.CombinedFoodSupply } };
         if (!HasIssue(v.Issues, "resources"))
         {
-            f = f with { Wood = Known(0L) };
             var rows = new List<Amount>(v.Resources.Count);
-            var complete = true;
+            var wood = 0L;
             foreach (var q in v.Resources)
             {
-                if ((q.DefName ?? "") == "WoodLog")
+                if (q.DefName == "WoodLog")
                 {
-                    f = f with { Wood = Optional(q.Units is not null, q.Units.GetValueOrDefault()) };
+                    wood = q.Units;
                 }
-                complete = complete && q.Units is not null;
-                rows.Add(new Amount(new Resource((q.DefName ?? "")), q.Units.GetValueOrDefault()));
+                rows.Add(new Amount(new Resource(q.DefName), q.Units));
             }
-            if (complete)
-            {
-                f = f with { Resources = Known(EquatableArray.From(rows)), ResourceThings = Known(v.ResourceThings) };
-            }
+            f = f with { Wood = Known(wood), Resources = Known(EquatableArray.From(rows)), ResourceThings = Known(v.ResourceThings) };
         }
         r = r with { Resources = StockCensus(v) };
         if (v.EventLoot?.Outcome is { } loot && Headed(tables, loot.Items, row => row.Item))

@@ -101,7 +101,7 @@ public sealed partial class Player
                         continue;
                     }
                     var crew = departure.Crew;
-                    if (crew.Count == 0 || !AllExpeditionCrewPresent(crew, m.PawnIds))
+                    if (crew.Count == 0 || !crew.All(m.Colonists().Contains))
                     {
                         continue;
                     }
@@ -134,15 +134,4 @@ public sealed partial class Player
         return Unknown<GenerationSnapshot>();
     }
 
-    private static bool AllExpeditionCrewPresent(IReadOnlyList<Domain.PawnId> crew, IReadOnlyList<string> present)
-    {
-        foreach (var pawn in crew)
-        {
-            if (!present.Contains(pawn.Value, StringComparer.Ordinal))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
 }

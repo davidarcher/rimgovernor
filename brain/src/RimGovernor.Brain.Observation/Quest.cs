@@ -11,25 +11,18 @@ public static class QuestReads
         {
             return Unknown<int>();
         }
-        var away = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var caravan in read.Caravans)
-        {
-            foreach (var id in caravan.PawnIds)
-            {
-                away.Add(id);
-            }
-        }
+        var away = new HashSet<PawnId>(read.Caravans.SelectMany(caravan => caravan.Crew()));
         foreach (var row in read.Maps)
         {
             if (new MapId(row.Id) != home || !row.Home)
             {
                 continue;
             }
-            var present = new HashSet<string>(row.PawnIds, StringComparer.Ordinal);
+            var present = new HashSet<PawnId>(row.Colonists());
             var n = 0;
             foreach (var pawn in emergency.Colonists)
             {
-                if (!present.Contains(pawn.Id.Value) || away.Contains(pawn.Id.Value))
+                if (!present.Contains(pawn.Id) || away.Contains(pawn.Id))
                 {
                     continue;
                 }
@@ -104,28 +97,7 @@ public static class QuestReads
         var rows = new List<ExpeditionTrip>();
         foreach (var caravan in read.Caravans)
         {
-            var pawns = new List<PawnId>();
-            foreach (var id in caravan.PawnIds)
-            {
-                pawns.Add(new PawnId(id));
-            }
-            var routes = new List<SiteHomeRoute>();
-            foreach (var route in caravan.HomeRoutes)
-            {
-                routes.Add(new SiteHomeRoute
-                {
-                    Tile = route.DestinationTile,
-                    Reachable = Known(route.Reachable),
-                    TravelTicks = route.EstimatedTicksKnown ? Known((long)route.EstimatedTicks) : Unknown<long>(),
-                });
-            }
-            rows.Add(new ExpeditionTrip
-            {
-                Tile = Known(caravan.Tile),
-                Destination = caravan.Destination is { } destination ? Known(destination) : Unknown<int>(),
-                PawnIds = pawns,
-                HomeRoutes = routes,
-            });
+            rows.Add(new ExpeditionTrip.OnWorld { PawnIds = caravan.Crew(), Tile = caravan.Tile, Course = caravan.Course, HomeRoutes = [.. caravan.HomeRoutes] });
         }
         foreach (var assembly in read.Assemblies)
         {
@@ -133,12 +105,7 @@ public static class QuestReads
             {
                 continue;
             }
-            var pawns = new List<PawnId>();
-            foreach (var id in assembly.PawnIds)
-            {
-                pawns.Add(new PawnId(id));
-            }
-            rows.Add(new ExpeditionTrip { Forming = true, PawnIds = pawns });
+            rows.Add(new ExpeditionTrip.Forming { PawnIds = [.. assembly.Pawns] });
         }
         return Known(EquatableArray.From(rows));
     }
@@ -199,13 +166,13 @@ public static class QuestReads
             {
                 continue;
             }
-            if (m.QuestWorkers.Count != m.PawnIds.Count)
+            if (m.QuestWorkers.Count != m.Pawns.Count)
             {
                 return unknown;
             }
             var capacity = new List<QuestWorkCapacity>();
             var departures = new List<QuestDeparturePawn>();
-            var present = new HashSet<string>(m.PawnIds, StringComparer.Ordinal);
+            var present = new HashSet<string>(m.Pawns.Select(pawn => pawn.Pawn.Id), StringComparer.Ordinal);
             foreach (var p in m.QuestWorkers)
             {
                 if (!present.Contains((p.PawnId ?? "")))

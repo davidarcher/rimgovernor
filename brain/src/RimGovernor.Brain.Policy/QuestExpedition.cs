@@ -49,17 +49,26 @@ public sealed record ExpeditionPlan
     public QuestSkipReason Reason { get; init; }
 }
 
-public sealed record ExpeditionTrip
+/// <summary>
+/// A caravan the colony has out with its crew: Forming on the home map, or OnWorld at a tile with its course and its
+/// routes to the player homes.
+/// </summary>
+public abstract record ExpeditionTrip
 {
-    public Fact<int> Tile { get; init; }
+    private protected ExpeditionTrip() { }
 
-    public Fact<int> Destination { get; init; }
+    public required IReadOnlyList<PawnId> PawnIds { get; init; }
 
-    public IReadOnlyList<PawnId> PawnIds { get; init; } = [];
+    public sealed record Forming : ExpeditionTrip;
 
-    public bool Forming { get; init; }
+    public sealed record OnWorld : ExpeditionTrip
+    {
+        public required int Tile { get; init; }
 
-    public IReadOnlyList<SiteHomeRoute> HomeRoutes { get; init; } = [];
+        public required Pb.CaravanCourse Course { get; init; }
+
+        public required IReadOnlyList<Pb.WorldRoute> HomeRoutes { get; init; }
+    }
 }
 
 public static class QuestExpedition
@@ -179,9 +188,9 @@ public static class QuestExpedition
             }
             foreach (var trip in trips)
             {
-                var tk = trip.Tile.TryGetValue(out var tile);
-                var dk = trip.Destination.TryGetValue(out var destination);
-                if ((tk && tile == site.Tile) || (dk && destination == site.Tile) || trip.Forming)
+                if (trip is ExpeditionTrip.Forming
+                    || trip is ExpeditionTrip.OnWorld { Tile: var tile } && tile == site.Tile
+                    || trip is ExpeditionTrip.OnWorld { Course: Pb.CaravanCourse.Moving { Destination: var destination } } && destination == site.Tile)
                 {
                     return new ExpeditionPlan { Quest = offer.Quest, Site = site.Id };
                 }

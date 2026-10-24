@@ -104,7 +104,7 @@ internal static class CaravanDeparture
         // simple meal left home.
         foreach (var def in new[] { "WoodLog", "Pemmican", "MealSurvivalPack", "MealSimple" })
         {
-            var carried = caravan!.Inventory.Where(q => q.DefName == def).Sum(q => q.Units ?? 0);
+            var carried = caravan!.Inventory.Where(q => q.DefName == def).Sum(q => q.Units);
             if (carried != Packed.GetValueOrDefault(def))
             {
                 throw new AcceptanceException($"world-progression: caravan carries {def} x{carried}, the pack had x{Packed.GetValueOrDefault(def)} ({string.Join(", ", caravan.Inventory)})");
@@ -120,7 +120,7 @@ internal static class CaravanDeparture
     private static async Task<int> DestinationAsync(TypedSession s, string crew, Operations.DefCount[] cargo, CancellationToken cancellationToken)
     {
         var progression = await s.CallAsync("home-tile", NativeOps.ReadWorldProgression, new Observations.WorldProgressionRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var home = progression.Maps.FirstOrDefault(m => m.Home == true)?.Tile
+        var home = progression.Maps.FirstOrDefault(m => m.Home)?.Tile
             ?? throw new AcceptanceException("home-tile: no home map tile");
         var reply = await s.CallAsync("settlements", NativeOps.ReadWorld, new Observations.WorldRequest { Scope = s.Scope, Tile = home, SettlementRadius = 1000 }, cancellationToken).ConfigureAwait(false);
         var candidates = reply.Settlements

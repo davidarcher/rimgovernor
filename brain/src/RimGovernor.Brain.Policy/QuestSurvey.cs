@@ -282,8 +282,7 @@ public static class QuestSurvey
         }
         foreach (var trip in trips)
         {
-            var dk = trip.Destination.TryGetValue(out var destination);
-            if (trip.Forming || (dk && destination == loaded.Tile))
+            if (trip is ExpeditionTrip.Forming || trip is ExpeditionTrip.OnWorld { Course: Pb.CaravanCourse.Moving { Destination: var destination } } && destination == loaded.Tile)
             {
                 return result;
             }
