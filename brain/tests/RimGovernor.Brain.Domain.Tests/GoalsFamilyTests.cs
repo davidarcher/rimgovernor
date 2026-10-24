@@ -64,10 +64,11 @@ public sealed class GoalsFamilyTests
         Assert.Equal((Satisfaction.Met, 0.0), (Derive(done, goal).Satisfaction, Derive(done, goal).Deficit.Value));
         Assert.Empty(GoalRules.DemandOf(done).Research);
 
-        // A project the census does not list, or an unread census, is unknown, never met.
+        // A project the census does not list does not exist: unmet with no method. An unread census raises.
         var unlisted = Goal(1, GoalKind.ResearchProject, "Nope");
-        Assert.Equal(Satisfaction.Unknown, Derive(Facts(unlisted), unlisted).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Derive(open with { Research = default }, goal).Satisfaction);
+        var missing = GoalRules.Evaluate(unlisted, Facts(unlisted));
+        Assert.Equal((Satisfaction.Unmet, GoalState.NoMethod, "unknown_target"), (missing.Satisfaction, missing.State, missing.Reason));
+        Assert.Equal("research census", Assert.Throws<RequiredFactException>(() => Derive(open with { Research = default }, goal)).Fact);
     }
 
     [Fact]
@@ -78,7 +79,7 @@ public sealed class GoalsFamilyTests
         Assert.Equal(["Electricity", "Stonecutting"], GoalRules.DemandOf(facts).Research);
         Assert.Equal((Satisfaction.Unmet, 2.0), (Derive(facts, goal).Satisfaction, Derive(facts, goal).Deficit.Value));
         Assert.Equal(Satisfaction.Met, Derive(facts with { Tier = Known(TechTier.Industrial) }, goal).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Derive(facts with { Tier = default }, goal).Satisfaction);
+        Assert.Equal("tech tier", Assert.Throws<RequiredFactException>(() => Derive(facts with { Tier = default }, goal)).Fact);
     }
 
     private static GoalsFacts WithLevels(GoalsFacts facts, string[] finished, params (string Project, RimGovernor.Contracts.Wire.Defs.TechLevel Level)[] levels) => facts with
@@ -119,7 +120,7 @@ public sealed class GoalsFamilyTests
         var done = WithLevels(open, ["Smithing", "Smelting"], ("Smithing", medieval), ("Smelting", medieval));
         Assert.Equal(Satisfaction.Met, Derive(done, goal).Satisfaction);
         Assert.Empty(GoalRules.DemandOf(done).Research);
-        Assert.Equal(Satisfaction.Unknown, Derive(open with { Research = default }, goal).Satisfaction);
+        Assert.Equal("research census", Assert.Throws<RequiredFactException>(() => Derive(open with { Research = default }, goal)).Fact);
     }
 
     [Fact]
@@ -200,7 +201,7 @@ public sealed class GoalsFamilyTests
     {
         var goal = Goal(5, GoalKind.Caravan);
         var facts = Facts(goal);
-        Assert.Equal(Satisfaction.Unknown, Derive(facts, goal).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Derive(facts, goal).Satisfaction);
         var status = GoalRules.Evaluate(goal, facts);
         Assert.Equal((GoalState.NoMethod, "no_pursuit"), (status.State, status.Reason));
         Assert.Equal(GoalDemand.None.Colonists, GoalRules.DemandOf(facts).Colonists);
@@ -216,9 +217,9 @@ public sealed class GoalsFamilyTests
         Assert.Equal("no_method:not fluid", Assert.Single(new GoalsFamily().Propose([Derive(rigid, goal)], rigid)).Hold!.Subject);
 
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, rigid with { Ideology = Known(Ideo(fluid: false, "Slavery_Acceptable")) }).State);
-        Assert.Equal("facts_unread", GoalRules.Evaluate(goal, rigid with { Ideology = Known(Ideo(fluid: true)) }).Reason);
+        Assert.Equal("ideoligion reform design", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, rigid with { Ideology = Known(Ideo(fluid: true)) })).Fact);
         Assert.Equal("missing_dlc", GoalRules.Evaluate(goal, rigid with { IdeologyInstalled = Known(false) }).Reason);
-        Assert.Equal((GoalState.Blocked, "facts_unread"), (GoalRules.Evaluate(goal, Facts(goal)).State, GoalRules.Evaluate(goal, Facts(goal)).Reason));
+        Assert.Equal("ideoligion", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, Facts(goal))).Fact);
     }
 
     private static PrisonerFacts Held(string pawn, bool recruitable = true) => new()
@@ -246,7 +247,7 @@ public sealed class GoalsFamilyTests
         Assert.Equal((GoalState.NoMethod, "not a prisoner"), (stranger.State, stranger.Reason));
         var unrecruitable = GoalRules.Evaluate(goal, PrisonersCensus([Held("p1", recruitable: false)]));
         Assert.Equal((GoalState.NoMethod, "not_recruitable"), (unrecruitable.State, unrecruitable.Reason));
-        Assert.Equal(GoalState.Blocked, GoalRules.Evaluate(goal, new GoalsFacts()).State);
+        Assert.Equal("prisoners", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, new GoalsFacts())).Fact);
 
         var demand = GoalRules.DemandOf(PrisonersCensus([Held("p1")]) with { Goals = [goal] });
         Assert.Equal([new PawnId("p1")], demand.Prisoners);
@@ -298,7 +299,7 @@ public sealed class GoalsFamilyTests
         var lapsed = GoalRules.Evaluate(goal, QuestFacts(Offer("q9") with { ExpiresInTicks = Known(0L) }));
         Assert.Equal((GoalState.NoMethod, "expired"), (lapsed.State, lapsed.Reason));
         Assert.Equal(GoalState.NoMethod, GoalRules.Evaluate(goal, QuestFacts(Offer("q1"))).State);
-        Assert.Equal(GoalState.Blocked, GoalRules.Evaluate(goal, new GoalsFacts()).State);
+        Assert.Equal("quest offers", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, new GoalsFacts())).Fact);
     }
 
     [Fact]
@@ -334,17 +335,21 @@ public sealed class GoalsFamilyTests
         var skill = Goal(5, GoalKind.Skill, "pawn1", 10, "Shooting");
         var stock = Goal(2, GoalKind.StockCount, "Steel", 100);
         var done = Goal(1, GoalKind.Colonists, count: 3);
-        var current = Facts(skill, stock, done) with { Owners = new Dictionary<NeedId, OwnerProgress> { [EconomyFamily.Resource] = new OwnerProgress(true, "") } };
+        var owners = new Dictionary<NeedId, OwnerProgress> { [EconomyFamily.Resource] = new OwnerProgress(true, "") };
+        var current = Facts(stock, done) with { Owners = owners };
         var runner = new FamilyRunner<GoalsFacts>(new GoalsFamily(), (_, _) => Task.FromResult(current), GoalsRounds.Schedule);
         var run = await runner.RunAsync(new FamilyStep { Journal = journal, World = World }, ct);
 
         Assert.Empty(run.UndeclaredReads);
         Assert.Empty(run.Methods);
         Assert.Equal(Verdict.BuildingReasonNoDeficit, Assert.Single(run.Reports, r => r.Need == GoalRules.NeedOf(done)).Verdict);
-        Assert.True(Assert.Single(run.Reports, r => r.Need == GoalRules.NeedOf(skill)).Verdict.Is(Cause.FieldUnavailable));
         var pursued = Assert.Single(run.Reports, r => r.Need == GoalRules.NeedOf(stock)).Verdict;
         Assert.True(pursued.Is(Cause.AwaitingPlan));
         Assert.Equal("pursuing:economy/resource", pursued.Refusal.Subject);
+
+        // A goal whose facts are unread (the skill goal's pawn census) raises for the run.
+        current = Facts(skill, stock, done) with { Owners = owners };
+        Assert.Equal("pawn census", (await Assert.ThrowsAsync<RequiredFactException>(() => runner.RunAsync(new FamilyStep { Journal = journal, World = World }, ct))).Fact);
     }
 
     [Fact]

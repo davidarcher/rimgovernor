@@ -270,7 +270,7 @@ public abstract class FamilyRunner
 }
 
 /// <summary>A family over its own fact type, with the full read and the immediate pass's narrow read.</summary>
-/// <param name="read">Reads the facts for the scope; in the immediate pass only the SeriousHarm families, the rest left unknown.</param>
+/// <param name="read">Reads the facts for the scope; in the immediate pass only the SeriousHarm families, the rest left unread.</param>
 /// <param name="work">
 /// The family's asynchronous step for each ready Need after its pure proposals (#3279), or null. It runs behind the
 /// step's fence and returns the Need's verdict; Methods it commits under the Need owner are reported on the run.
@@ -305,11 +305,8 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
         IReadOnlyList<NeedStanding> standings;
         using (Tel.Phase("family.derive"))
         {
-            standings = NeedsRules.NeedStandings(_family.Id, _family.Derive(facts.Facts));
-        }
-        if (step.Immediate)
-        {
-            standings = [.. standings.Where(s => s.Need.Tier == NeedTier.SeriousHarm)];
+            // The immediate pass's narrow read leaves every other fact unread, so it derives the SeriousHarm Needs only.
+            standings = NeedsRules.NeedStandings(_family.Id, step.Immediate ? _family.DeriveSeriousHarm(facts.Facts) : _family.Derive(facts.Facts));
         }
 
         var reports = new Dictionary<NeedId, Verdict>();
@@ -321,14 +318,10 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
                 case NeedReadiness.Met:
                     reports[standing.Need.Id] = Verdict.BuildingReasonNoDeficit;
                     break;
-                case NeedReadiness.Unknown:
-                    // Unknown never counts as met: the Need is reported unmeasured and nothing is proposed.
-                    reports[standing.Need.Id] = Verdict.FieldUnavailable(standing.Need.Id.Value);
-                    break;
                 case NeedReadiness.Waiting:
                     reports[standing.Need.Id] = Verdict.WaitFor(Cause.WaitingOnNeed, standing.WaitingOn.Value);
                     break;
-                default:
+                case NeedReadiness.Ready:
                     ready.Add(standing.Need);
                     reports[standing.Need.Id] = Verdict.AwaitingPlan(standing.Need.Id.Value, "no_method");
                     break;

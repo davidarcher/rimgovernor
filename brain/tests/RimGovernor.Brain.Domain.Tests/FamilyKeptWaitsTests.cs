@@ -34,7 +34,9 @@ public sealed class FamilyKeptWaitsTests
         public NeedTier Tier { get; set; } = NeedTier.Development;
 
         public IReadOnlyList<Need> Derive(KeepFacts facts) =>
-            [new Need { Id = Fix, Tier = Tier, Satisfaction = !facts.Fixed.TryGetValue(out var v) ? Satisfaction.Unknown : v ? Satisfaction.Met : Satisfaction.Unmet, Deficit = facts.Deficit }];
+            [new Need { Id = Fix, Tier = Tier, Satisfaction = !facts.Fixed.TryGetValue(out var v) ? throw new RequiredFactException("fixed") : v ? Satisfaction.Met : Satisfaction.Unmet, Deficit = facts.Deficit }];
+
+        public IReadOnlyList<Need> DeriveSeriousHarm(KeepFacts facts) => Tier == NeedTier.SeriousHarm ? Derive(facts) : [];
 
         public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, KeepFacts facts) => [];
     }

@@ -100,6 +100,8 @@ public sealed class FoodFamily(bool supply, bool cooking, bool babyFeeding = fal
         .. blight ? [FoodRules.BlightNeedOf(facts)] : Array.Empty<Need>(),
     ];
 
+    public IReadOnlyList<Need> DeriveSeriousHarm(FoodFacts facts) => [];
+
     /// <summary>
     /// The blight Need's next cut batch: the undesignated, eligible plants not refused to an open cut, lowest id first.
     /// With none left and none designated it is held. The other Needs' Methods are building, zone and acquisition work
@@ -135,39 +137,25 @@ public static class FoodRules
     public static readonly NeedId CookingNeed = NeedId.Of(FoodFamilyId, "cooking");
 
     /// <summary>
-    /// The supply Need, a plain threshold over its six checks: unmet when any known check fails, unknown when none
-    /// fails and one is unread, met otherwise. The runway is held to the season's target days with no hysteresis. Its
-    /// deficit is whole while unmet.
+    /// The supply Need, a plain threshold over its six checks: unmet when any known check fails, met otherwise; with
+    /// none failing, an unread one raises <see cref="RequiredFactException"/>. The runway is held to the season's target
+    /// days with no hysteresis. Its deficit is whole while unmet.
     /// </summary>
     public static Need FoodSupplyNeedOf(FoodFacts f)
     {
         var met = RoundsRules.AllFacts(f.HumanFoodSettled, f.FootholdFood, f.FootholdProduction, f.FieldsCovered, f.ButcherFacility, f.ReserveCovered);
-        var satisfaction = met.TryGetValue(out var known) ? known ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown;
-        return new Need
-        {
-            Id = FoodSupplyNeed,
-            Tier = NeedTier.Wellbeing,
-            Satisfaction = satisfaction,
-            Deficit = WholeDeficit(satisfaction),
-        };
+        return WholeNeed(FoodSupplyNeed, NeedTier.Wellbeing, met.TryGetValue(out var known) ? known : throw new RequiredFactException("food supply checks"));
     }
 
     /// <summary>
     /// The cooking Need, a plain threshold: unmet while a superseded cooking campfire is owed its deconstruction or
-    /// no meal of the picked tier can be made, unknown while the cooking fact is unread, and met otherwise. Its deficit
-    /// is whole while unmet.
+    /// no meal of the picked tier can be made, and met otherwise; without a retire, an unread cooking fact raises
+    /// <see cref="RequiredFactException"/>. Its deficit is whole while unmet.
     /// </summary>
     public static Need CookingNeedOf(FoodFacts f)
     {
         var retire = RoundsRules.Positive(f.CampfireRetireOwed);
-        var satisfaction = retire ? Satisfaction.Unmet : f.Cooking.TryGetValue(out var ready) ? ready ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown;
-        return new Need
-        {
-            Id = CookingNeed,
-            Tier = NeedTier.Wellbeing,
-            Satisfaction = satisfaction,
-            Deficit = WholeDeficit(satisfaction),
-        };
+        return WholeNeed(CookingNeed, NeedTier.Wellbeing, !retire && (f.Cooking.TryGetValue(out var ready) ? ready : throw new RequiredFactException("cooking")));
     }
 
     /// <summary>The food family's baby feeding Need (#3254).</summary>
@@ -178,42 +166,26 @@ public static class FoodRules
 
     /// <summary>
     /// The baby feeding Need, a plain threshold: unmet while no colonist can breastfeed and the baby-edible stock is
-    /// below the game's low-baby-food floor (<see cref="BabyFeeding.IsShort"/>), unknown while the review is unread,
-    /// met otherwise (no babies included). Its deficit is whole while unmet.
+    /// below the game's low-baby-food floor (<see cref="BabyFeeding.IsShort"/>), met otherwise (no babies included); an
+    /// unread review raises <see cref="RequiredFactException"/>. Its deficit is whole while unmet.
     /// </summary>
-    public static Need BabyFeedingNeedOf(FoodFacts f)
-    {
-        var satisfaction = f.BabyFeeding.TryGetValue(out var review) ? review.IsShort ? Satisfaction.Unmet : Satisfaction.Met : Satisfaction.Unknown;
-        return new Need
-        {
-            Id = BabyFeedingNeed,
-            Tier = NeedTier.Wellbeing,
-            Satisfaction = satisfaction,
-            Deficit = WholeDeficit(satisfaction),
-        };
-    }
+    public static Need BabyFeedingNeedOf(FoodFacts f) =>
+        WholeNeed(BabyFeedingNeed, NeedTier.Wellbeing, f.BabyFeeding.TryGetValue(out var review) ? !review.IsShort : throw new RequiredFactException("baby feeding"));
 
     /// <summary>
     /// The blight Need, a plain threshold over the census: unmet while any blighted plant stands, designated or not
-    /// (the Need is met by the cut, not the order), unknown while the census is unread, met otherwise. Its deficit is
-    /// whole while unmet.
+    /// (the Need is met by the cut, not the order), met otherwise; an unread census raises
+    /// <see cref="RequiredFactException"/>. Its deficit is whole while unmet.
     /// </summary>
-    public static Need BlightNeedOf(FoodFacts f)
-    {
-        var satisfaction = BlightRules.BlightDeficit(f.Blight).TryGetValue(out var standing) ? standing ? Satisfaction.Unmet : Satisfaction.Met : Satisfaction.Unknown;
-        return new Need
-        {
-            Id = BlightNeed,
-            Tier = NeedTier.Wellbeing,
-            Satisfaction = satisfaction,
-            Deficit = WholeDeficit(satisfaction),
-        };
-    }
+    public static Need BlightNeedOf(FoodFacts f) =>
+        WholeNeed(BlightNeed, NeedTier.Wellbeing, BlightRules.BlightDeficit(f.Blight).TryGetValue(out var standing) ? !standing : throw new RequiredFactException("blight census"));
 
-    internal static Fact<double> WholeDeficit(Satisfaction satisfaction) => satisfaction switch
+    /// <summary>A Need met or unmet by <paramref name="met"/>, with a whole deficit while unmet.</summary>
+    internal static Need WholeNeed(NeedId id, NeedTier tier, bool met) => new()
     {
-        Satisfaction.Unknown => Unknown<double>(),
-        Satisfaction.Unmet => Known(1.0),
-        _ => Known(0.0),
+        Id = id,
+        Tier = tier,
+        Satisfaction = met ? Satisfaction.Met : Satisfaction.Unmet,
+        Deficit = Known(met ? 0.0 : 1.0),
     };
 }

@@ -80,11 +80,7 @@ public sealed class ShelterFamily(bool sleeping, bool temperature, bool safeArea
 
     public IReadOnlyList<Need> Derive(ShelterFacts facts)
     {
-        var needs = new List<Need>(3);
-        if (safeArea)
-        {
-            needs.Add(ShelterRules.SafeAreaNeedOf(facts));
-        }
+        var needs = new List<Need>(DeriveSeriousHarm(facts));
         if (sleeping)
         {
             needs.Add(ShelterRules.SleepingNeedOf(facts));
@@ -96,6 +92,9 @@ public sealed class ShelterFamily(bool sleeping, bool temperature, bool safeArea
         return needs;
     }
 
+    /// <summary>The safe area, the SeriousHarm Need.</summary>
+    public IReadOnlyList<Need> DeriveSeriousHarm(ShelterFacts facts) => safeArea ? [ShelterRules.SafeAreaNeedOf(facts)] : [];
+
     /// <summary>Nothing pure: every Method is building, assignment or area work the runtime's work step commits.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, ShelterFacts facts) => [];
 }
@@ -104,49 +103,32 @@ public static partial class ShelterRules
 {
     /// <summary>
     /// Bed ownership and bedrooms: met once every colonist was seen using a suitable bed they own and no bedroom step
-    /// is due, unmet while one is not, unknown while the sleeping census is. No hysteresis: an open bedroom plan does
+    /// is due, unmet while one is not; an unread sleeping census raises <see cref="RequiredFactException"/>. No hysteresis: an open bedroom plan does
     /// not hold it unmet. Its deficit is whole. Its work places the stand-in sleeping spots first (#3659).
     /// </summary>
-    public static Need SleepingNeedOf(ShelterFacts f) => new()
-    {
-        Id = ShelterFamily.Sleeping,
-        Tier = NeedTier.Wellbeing,
-        Satisfaction = Satisfy(f.SleepingRecovered),
-        Deficit = f.SleepingRecovered.TryGetValue(out var v) ? Known(v ? 0.0 : 1.0) : Unknown<double>(),
-    };
+    public static Need SleepingNeedOf(ShelterFacts f) => Whole(ShelterFamily.Sleeping, NeedTier.Wellbeing, f.SleepingRecovered, "sleeping census");
 
     /// <summary>
     /// The sleeping rooms' temperature, a plain threshold at the exit bars (decision 16): unmet while the coldest
     /// sleeping room (outdoors when none is measured) is below <see cref="RoundsPolicy.ColdExit"/> or the warmest above
     /// <see cref="RoundsPolicy.HotExit"/>, or while a refuel switch, an unheated sleeping room or a venting door is
-    /// owed; otherwise unknown while a temperature is, and met. Its deficit is whole.
+    /// owed; met otherwise, and an unread temperature raises <see cref="RequiredFactException"/>. Its deficit is whole.
     /// </summary>
     public static Need TemperatureNeedOf(ShelterFacts f)
     {
         var band = RoundsRules.AllFacts(RoundsRules.Measured(f.SleepingMin, v => v >= f.ColdExit), RoundsRules.Measured(f.SleepingMax, v => v <= f.HotExit));
         var met = RoundsRules.Positive(f.TemperatureOwed) || RoundsRules.Positive(f.HeatDoorOwed) ? Known(false) : band;
-        return new Need
-        {
-            Id = ShelterFamily.Temperature,
-            Tier = NeedTier.Wellbeing,
-            Satisfaction = Satisfy(met),
-            Deficit = met.TryGetValue(out var v) ? Known(v ? 0.0 : 1.0) : Unknown<double>(),
-        };
+        return Whole(ShelterFamily.Temperature, NeedTier.Wellbeing, met, "sleeping room temperature");
     }
 
     /// <summary>
     /// The safe area (SeriousHarm, the immediate pass): unmet while a bot-owned allowed area edit is owed, met while
-    /// none is, unknown while the room census is unread. Its deficit is whole.
+    /// none is; an unread room census raises <see cref="RequiredFactException"/>. Its deficit is whole.
     /// </summary>
-    public static Need SafeAreaNeedOf(ShelterFacts f) => new()
-    {
-        Id = ShelterFamily.SafeArea,
-        Tier = NeedTier.SeriousHarm,
-        Satisfaction = Satisfy(RoundsRules.NotFact(f.SafeAreaOwed)),
-        Deficit = f.SafeAreaOwed.TryGetValue(out var owed) ? Known(owed ? 1.0 : 0.0) : Unknown<double>(),
-    };
+    public static Need SafeAreaNeedOf(ShelterFacts f) => Whole(ShelterFamily.SafeArea, NeedTier.SeriousHarm, RoundsRules.NotFact(f.SafeAreaOwed), "safe area edits");
 
-    private static Satisfaction Satisfy(Fact<bool> met) =>
-        met.TryGetValue(out var v) ? v ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown;
+    /// <summary>A Need met by <paramref name="met"/>, with a whole deficit; an unread <paramref name="met"/> raises for <paramref name="fact"/>.</summary>
+    private static Need Whole(NeedId id, NeedTier tier, Fact<bool> met, string fact) =>
+        FoodRules.WholeNeed(id, tier, met.TryGetValue(out var known) ? known : throw new RequiredFactException(fact));
 
 }

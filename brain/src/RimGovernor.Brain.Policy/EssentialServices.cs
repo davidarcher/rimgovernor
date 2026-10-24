@@ -46,16 +46,10 @@ public sealed record EssentialServiceInputs
 public static class EssentialServicesRules
 {
     /// <summary>
-    /// A Need owner's service coverage (#3250): met is adequate, unmet a shortfall, and unknown stays unknown, never
-    /// adequate. A family slice that moves a service row onto its Need reads coverage from here, so the move does
-    /// not turn a measured row into Unknown.
+    /// A Need owner's service coverage (#3250): met is adequate, unmet a shortfall. A family slice that moves a
+    /// service row onto its Need reads coverage from here, so the move does not turn a measured row into Unknown.
     /// </summary>
-    public static ServiceCoverage NeedCoverage(Need need) => need.Satisfaction switch
-    {
-        Satisfaction.Met => ServiceCoverage.Adequate,
-        Satisfaction.Unmet => ServiceCoverage.Shortfall,
-        _ => ServiceCoverage.Unknown,
-    };
+    public static ServiceCoverage NeedCoverage(Need need) => need.Satisfaction == Satisfaction.Met ? ServiceCoverage.Adequate : ServiceCoverage.Shortfall;
 
     /// <summary>Disappearance or a truncated search is not observed satisfaction. No state is retained here.</summary>
     public static DevelopmentReviewState ReassessDevelopment(DevelopmentProposal previous, EssentialServiceReview current)
@@ -94,10 +88,20 @@ public static class EssentialServicesRules
         var beneficiaries = facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)
             ? EquatableArray.From(pawns.Select(p => p.Id.Value).Order(StringComparer.Ordinal)) : default;
         var inactive = facts.Colonists == 0;
-        void NeedOwner(EssentialService service, Need need)
+        // An owner whose Need raises on an unread fact is coverage the review cannot see: Unknown, never adequate,
+        // with the owner named as the missing evidence. The review itself still commits.
+        void NeedOwner(EssentialService service, NeedId id, Func<Need> need)
         {
-            var target = ServiceTarget.ForNeed(need.Id);
-            var coverage = inactive ? ServiceCoverage.NotApplicable : NeedCoverage(need);
+            var target = ServiceTarget.ForNeed(id);
+            ServiceCoverage coverage;
+            try
+            {
+                coverage = inactive ? ServiceCoverage.NotApplicable : NeedCoverage(need());
+            }
+            catch (RequiredFactException)
+            {
+                coverage = ServiceCoverage.Unknown;
+            }
             rows.Add(new(service, target, coverage, beneficiaries,
                 coverage == ServiceCoverage.Unknown ? ["owner_evidence:" + target.Owner.Value] : []));
         }
@@ -109,23 +113,23 @@ public static class EssentialServicesRules
             stress.Add(new(target, unavailable, result.Coverage, result.Missing));
         }
         var food = FoodFacts.From(facts, policy);
-        NeedOwner(EssentialService.Food, FoodRules.FoodSupplyNeedOf(food));
-        NeedOwner(EssentialService.Cooking, FoodRules.CookingNeedOf(food));
+        NeedOwner(EssentialService.Food, FoodRules.FoodSupplyNeed, () => FoodRules.FoodSupplyNeedOf(food));
+        NeedOwner(EssentialService.Cooking, FoodRules.CookingNeed, () => FoodRules.CookingNeedOf(food));
         // The medical family's Needs (#3258): the critical census as one row (the review counts the patients, it
         // does not name them), then surgery and reserves; medicineActive is the review's medicine latch.
         var medical = MedicalFacts.From(facts, policy, medicineActive);
-        NeedOwner(EssentialService.Medical, MedicalRules.CriticalCensusNeedOf(facts.CriticalPatients));
-        NeedOwner(EssentialService.Medical, MedicalRules.SurgeryNeedOf(medical));
-        NeedOwner(EssentialService.Medical, MedicalRules.MedicalReservesNeedOf(medical));
+        NeedOwner(EssentialService.Medical, MedicalRules.CriticalCensusNeed, () => MedicalRules.CriticalCensusNeedOf(facts.CriticalPatients));
+        NeedOwner(EssentialService.Medical, MedicalRules.SurgeryNeed, () => MedicalRules.SurgeryNeedOf(medical));
+        NeedOwner(EssentialService.Medical, MedicalRules.MedicalReservesNeed, () => MedicalRules.MedicalReservesNeedOf(medical));
         var shelter = ShelterFacts.From(facts, policy);
-        NeedOwner(EssentialService.Shelter, ShelterRules.SleepingNeedOf(shelter));
-        NeedOwner(EssentialService.Shelter, ShelterRules.SafeAreaNeedOf(shelter));
-        NeedOwner(EssentialService.Temperature, ShelterRules.TemperatureNeedOf(shelter));
-        NeedOwner(EssentialService.Food, FoodStoresRules.FoodStorageNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
-        NeedOwner(EssentialService.Food, FoodStoresRules.RefrigerationNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
-        NeedOwner(EssentialService.Power, PowerRules.PowerNeedOf(PowerFacts.From(facts)));
-        NeedOwner(EssentialService.Logistics, LayoutFamily.RoutesNeed(Known(LayoutFamily.RoutesStandingOf(facts.Upkeep.Routes, facts.Upkeep.Rooms, policy))));
-        NeedOwner(EssentialService.Materials, EconomyRules.ResourceNeedOf(ResourceFacts.From(facts, demand)));
+        NeedOwner(EssentialService.Shelter, ShelterFamily.Sleeping, () => ShelterRules.SleepingNeedOf(shelter));
+        NeedOwner(EssentialService.Shelter, ShelterFamily.SafeArea, () => ShelterRules.SafeAreaNeedOf(shelter));
+        NeedOwner(EssentialService.Temperature, ShelterFamily.Temperature, () => ShelterRules.TemperatureNeedOf(shelter));
+        NeedOwner(EssentialService.Food, FoodStoresRules.FoodStorageNeed, () => FoodStoresRules.FoodStorageNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
+        NeedOwner(EssentialService.Food, FoodStoresRules.RefrigerationNeed, () => FoodStoresRules.RefrigerationNeedOf(FoodStoresFacts.From(facts), policy.FoodStorage));
+        NeedOwner(EssentialService.Power, PowerFamily.Basic, () => PowerRules.PowerNeedOf(PowerFacts.From(facts)));
+        NeedOwner(EssentialService.Logistics, LayoutFamily.Routes, () => LayoutFamily.RoutesNeed(Known(LayoutFamily.RoutesStandingOf(facts.Upkeep.Routes, facts.Upkeep.Rooms, policy))));
+        NeedOwner(EssentialService.Materials, EconomyFamily.Resource, () => EconomyRules.ResourceNeedOf(ResourceFacts.From(facts, demand)));
 
         // The owner already merged overlapping costs. Never add a fuel or service copy to demand.
         var fuel = facts.FuelRunway().Projection;

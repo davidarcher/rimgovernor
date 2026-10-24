@@ -39,8 +39,6 @@ public sealed class UpkeepChunkRetirementTests
     [Fact]
     public void UnknownBuildingCensusCannotCertifyPriorClearanceComplete()
     {
-        var need = Clearance(new HomeUpkeepFacts { Ground = Fact.Known(default(EquatableArray<string>)) });
-        Assert.Equal(Satisfaction.Unknown, need.Satisfaction);
-        Assert.False(need.Deficit.IsKnown);
+        Assert.Equal("clearance census", Assert.Throws<RequiredFactException>(() => Clearance(new HomeUpkeepFacts { Ground = Fact.Known(default(EquatableArray<string>)) })).Fact);
     }
 }

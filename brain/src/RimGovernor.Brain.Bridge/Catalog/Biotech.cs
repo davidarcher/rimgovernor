@@ -16,11 +16,14 @@ public sealed partial class DefinitionCatalog
     /// <summary>The load's Biotech facts; null without Biotech (the game has no gene defs).</summary>
     public BiotechCatalog? Biotech => _biotech.Value;
 
+    /// <summary>Whether the game runs Biotech: the defs carry MechWorkModeDef rows only with the expansion (Core ships gene defs).</summary>
+    public bool HasBiotech() => Rows<MechWorkModeDef>().Count > 0;
+
     private BiotechCatalog? BuildBiotech()
     {
         var genes = Rows<GeneDef>();
         // Core ships gene defs but the mech work modes are Biotech's: a load without them has no Biotech (#3185).
-        if (genes.Count == 0 || Rows<MechWorkModeDef>().Count == 0)
+        if (genes.Count == 0 || !HasBiotech())
         {
             return null;
         }

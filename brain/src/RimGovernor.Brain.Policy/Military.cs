@@ -107,11 +107,11 @@ public sealed record MilitaryFacts
 /// The runtime's work step places or retires the crafting spot and walks the workshop ladder for replacement
 /// gear; worn-gear replacement itself is not a supported forecast outcome.</item>
 /// <item><c>military/restore-workers</c> (SeriousHarm, #3311): no drafted colonist stands that no live plan needs
-/// while no hostile does; unknown while the census is unread. It has no Methods: its work step is the undraft
+/// while no hostile does; an unread census raises <see cref="RequiredFactException"/>. It has no Methods: its work step is the undraft
 /// sweep, which replaced the RestoreWorkers Concern and the undraft planner.</item>
 /// <item><c>military/combat</c> (SeriousHarm, #3311): one per map, <see cref="RoundsRules.CombatSituation"/> over
-/// the hostiles and the squad-hunt prey: unmet while a hostile stands or a squad hunt is open, met otherwise, unknown
-/// while the hostile count is. It proposes no Methods: the defense runner fights it (<c>engage-&lt;map&gt;</c>,
+/// the hostiles and the squad-hunt prey: unmet while a hostile stands or a squad hunt is open, met otherwise; an
+/// unread hostile count raises <see cref="RequiredFactException"/>. It proposes no Methods: the defense runner fights it (<c>engage-&lt;map&gt;</c>,
 /// <c>subdue-&lt;colonist&gt;</c>, <c>strip-&lt;raider&gt;</c>, <c>permit-&lt;hash&gt;</c>, its batches and the
 /// settings restoration). It replaced the combat incident Concern.</item>
 /// </list>
@@ -150,15 +150,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
 
     public IReadOnlyList<Need> Derive(MilitaryFacts facts)
     {
-        var needs = new List<Need>(6);
-        if (combat)
-        {
-            needs.Add(CombatNeed(facts));
-        }
-        if (restoreWorkers)
-        {
-            needs.Add(RestoreWorkersNeed(facts));
-        }
+        var needs = new List<Need>(DeriveSeriousHarm(facts));
         if (defense)
         {
             needs.Add(DefenseNeed(facts));
@@ -177,6 +169,13 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         }
         return needs;
     }
+
+    /// <summary>Combat and restore-workers, the SeriousHarm Needs.</summary>
+    public IReadOnlyList<Need> DeriveSeriousHarm(MilitaryFacts facts) =>
+    [
+        .. combat ? [CombatNeed(facts)] : Array.Empty<Need>(),
+        .. restoreWorkers ? [RestoreWorkersNeed(facts)] : Array.Empty<Need>(),
+    ];
 
     /// <summary>
     /// Defense is held; pests proposes its next hunt unless hunting is held; equipment proposes its apparel
@@ -261,7 +260,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         var gear = GearRules.ReviewGear(f.Gear);
         if (!EquipmentMet(f).TryGetValue(out var ok))
         {
-            return new Need { Id = Equipment, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("gear review");
         }
         // The gear review's deficit while gear is short; a retire or a shell shortage alone is a whole deficit.
         var deficit = ok ? Known(0.0) : gear.Recovered.TryGetValue(out var recovered) && !recovered ? gear.Deficit : Known(1.0);
@@ -323,7 +322,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         var met = DefenseMet(f);
         if (!met.TryGetValue(out var ok))
         {
-            return new Need { Id = Defense, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("armed fighters, hostiles or unarmed colonists");
         }
         var deficit = ok ? Known(0.0) : Unknown<double>();
         var n = f.Foothold;
@@ -362,7 +361,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     {
         if (!RestoreWorkersMet(f).TryGetValue(out var ok))
         {
-            return new Need { Id = RestoreWorkers, Tier = NeedTier.SeriousHarm };
+            throw new RequiredFactException("stray drafts or hostiles");
         }
         return new Need
         {
@@ -382,7 +381,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
         var situation = RoundsRules.CombatSituation(f.Hostiles, f.HuntPrey.Count);
         if (situation == Situation.Unclear || !f.Hostiles.TryGetValue(out var hostiles))
         {
-            return new Need { Id = Combat, Tier = NeedTier.SeriousHarm };
+            throw new RequiredFactException("hostiles");
         }
         var met = situation == Situation.Clear;
         return new Need
@@ -398,7 +397,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     {
         if (!f.Pests.TryGetValue(out var count))
         {
-            return new Need { Id = Pests, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("pests");
         }
         var owed = count + f.StaleHunts.Count;
         return new Need
@@ -414,7 +413,7 @@ public sealed class MilitaryFamily(bool defense = true, bool pests = true, bool 
     {
         if (!review.TryGetValue(out var r))
         {
-            return new Need { Id = Training, Tier = NeedTier.Development };
+            throw new RequiredFactException("training review");
         }
         return new Need
         {

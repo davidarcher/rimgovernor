@@ -27,7 +27,9 @@ public sealed class DisasterFamilyTests
 
     private static AllowedAreaChange Move(string pawn, string area, bool animal = false) => new() { Pawn = new(pawn), Area = area, Animal = animal };
 
-    private static Need Derive(DisasterFacts facts, NeedId id) => Assert.Single(new DisasterFamily().Derive(facts), n => n.Id == id);
+    // Each Need's own predicate: the family raises on the first Need whose fact is unread.
+    private static Need Derive(DisasterFacts facts, NeedId id) =>
+        id == DisasterFamily.Sheltering ? DisasterFamily.ShelteringNeed(facts.Changes) : DisasterFamily.ServicesNeed(facts.Disaster, facts.ConditionsKnown);
 
     private static DisasterHistory Disrupted() => new()
     {
@@ -42,8 +44,7 @@ public sealed class DisasterFamilyTests
     [Fact]
     public void ShelteringIsUnmetWhileAMoveIsOwedAndUnknownWhileATriggerIsUnknown()
     {
-        var unknown = Derive(new DisasterFacts(), DisasterFamily.Sheltering);
-        Assert.Equal((Satisfaction.Unknown, NeedTier.SeriousHarm), (unknown.Satisfaction, unknown.Tier));
+        Assert.Equal("sheltering triggers", Assert.Throws<RequiredFactException>(() => Derive(new DisasterFacts(), DisasterFamily.Sheltering)).Fact);
 
         var owed = Derive(new DisasterFacts { Changes = Known<EquatableArray<AllowedAreaChange>>([Move("a", "Safe"), Move("b", "Safe")]) }, DisasterFamily.Sheltering);
         Assert.Equal((Satisfaction.Unmet, 2.0), (owed.Satisfaction, owed.Deficit.Value));
@@ -55,13 +56,13 @@ public sealed class DisasterFamilyTests
     [Fact]
     public void ServicesFollowTheDisasterHistoryAndWaitOnSheltering()
     {
-        Assert.Equal(Satisfaction.Unknown, Derive(new DisasterFacts(), DisasterFamily.Services).Satisfaction);
+        Assert.Equal("disaster conditions", Assert.Throws<RequiredFactException>(() => Derive(new DisasterFacts(), DisasterFamily.Services)).Fact);
+        Assert.Equal("sheltering triggers", Assert.Throws<RequiredFactException>(() => new DisasterFamily().Derive(new DisasterFacts { ConditionsKnown = true })).Fact);
         Assert.Equal(Satisfaction.Met, Derive(new DisasterFacts { ConditionsKnown = true }, DisasterFamily.Services).Satisfaction);
         var unmet = Derive(new DisasterFacts { Disaster = Disrupted() }, DisasterFamily.Services);
         Assert.Equal((Satisfaction.Unmet, NeedTier.Wellbeing), (unmet.Satisfaction, unmet.Tier));
         Assert.Equal([DisasterFamily.Sheltering], unmet.Preconditions);
-        var unclear = Derive(new DisasterFacts { Disaster = Disrupted() with { Phase = DisasterPhase.Unknown } }, DisasterFamily.Services);
-        Assert.Equal(Satisfaction.Unknown, unclear.Satisfaction);
+        Assert.Equal("disaster service finding", Assert.Throws<RequiredFactException>(() => Derive(new DisasterFacts { Disaster = Disrupted() with { Phase = DisasterPhase.Unknown } }, DisasterFamily.Services)).Fact);
         Assert.Empty(new DisasterFamily().Propose([unmet], new DisasterFacts()));
     }
 

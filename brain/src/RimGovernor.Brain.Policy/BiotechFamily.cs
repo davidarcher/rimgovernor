@@ -6,10 +6,14 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// What the biotech family reads (#3261): whether a mech is owed (MechGestationOwed over the gestation read),
 /// whether one more charger or gene bank is owed, and the pollution census with the packs an earlier haul of the
-/// pollution Need could not store and the polluted cells the planning window shows.
+/// pollution Need could not store and the polluted cells the planning window shows. Without Biotech the family
+/// derives no Needs.
 /// </summary>
 public sealed record BiotechFacts
 {
+    /// <summary>Whether the Biotech expansion is active (<see cref="RoundsFacts.BiotechInstalled"/>).</summary>
+    public bool Installed { get; init; }
+
     public Fact<bool> MechsOwed { get; init; }
 
     public Fact<bool> MechChargerOwed { get; init; }
@@ -77,6 +81,25 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
 
     public IReadOnlyList<Need> Derive(BiotechFacts facts)
     {
+        if (!facts.Installed)
+        {
+            return [];
+        }
+        var output = MechNeeds(facts);
+        if (_needs.GeneBank)
+        {
+            output.Add(Owed(GeneBank, NeedTier.Development, "gene_bank_owed", facts.GeneBankOwed));
+        }
+        if (_needs.Pollution)
+        {
+            output.Add(BiotechFamilyRules.PollutionNeedOf(facts));
+        }
+        return output;
+    }
+
+    /// <summary>The mech-charger and mechs Needs, the ones composed, in derivation order.</summary>
+    private List<Need> MechNeeds(BiotechFacts facts)
+    {
         var output = new List<Need>(4);
         if (_needs.MechCharger)
         {
@@ -89,16 +112,10 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
                 Preconditions = _needs.MechCharger ? [MechCharger] : [],
             });
         }
-        if (_needs.GeneBank)
-        {
-            output.Add(Owed(GeneBank, NeedTier.Development, "gene_bank_owed", facts.GeneBankOwed));
-        }
-        if (_needs.Pollution)
-        {
-            output.Add(BiotechFamilyRules.PollutionNeedOf(facts));
-        }
         return output;
     }
+
+    public IReadOnlyList<Need> DeriveSeriousHarm(BiotechFacts facts) => [];
 
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, BiotechFacts facts)
     {
@@ -160,36 +177,21 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
         });
     }
 
-    /// <summary>Whether the mechs Need is ready this read: derived, unmet, and its charger precondition met.</summary>
+    /// <summary>Whether the mechs Need is ready over the gestation read: composed, unmet, and its charger precondition met.</summary>
     public bool MechsReady(BiotechFacts facts) =>
-        NeedsRules.NeedStandings(FamilyId, Derive(facts)).Any(s => s.Need.Id == Mechs && s.Readiness == NeedReadiness.Ready);
+        NeedsRules.NeedStandings(FamilyId, MechNeeds(facts)).Any(s => s.Need.Id == Mechs && s.Readiness == NeedReadiness.Ready);
 
-    private static Need Owed(NeedId id, NeedTier tier, string fact, Fact<bool> owed) => new()
-    {
-        Id = id,
-        Tier = tier,
-        Satisfaction = !owed.TryGetValue(out var o) ? Satisfaction.Unknown : o ? Satisfaction.Unmet : Satisfaction.Met,
-        Deficit = owed.TryGetValue(out var d) ? Known(d ? 1.0 : 0.0) : Unknown<double>(),
-    };
+    private static Need Owed(NeedId id, NeedTier tier, string fact, Fact<bool> owed) =>
+        FoodRules.WholeNeed(id, tier, owed.TryGetValue(out var o) ? !o : throw new RequiredFactException(fact));
 }
 
 public static class BiotechFamilyRules
 {
     /// <summary>
     /// The pollution Need: unmet while PollutionDeficit finds an exposed or forbidden pack or an uncovered polluted
-    /// cell, met once every verdict is known and none is, unknown otherwise (no Biotech read, or an unread verdict).
+    /// cell, met once every verdict is known and none is; an unread verdict raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static Need PollutionNeedOf(BiotechFacts facts)
-    {
-        var deficit = PollutionRules.PollutionDeficit(facts.Pollution);
-        var known = deficit.TryGetValue(out var owed);
-        var uncovered = facts.Pollution.TryGetValue(out var f) && f.UncoveredCells.TryGetValue(out var cells) ? Known(cells.ToString(CultureInfo.InvariantCulture)) : Unknown<string>();
-        return new Need
-        {
-            Id = BiotechFamily.Pollution,
-            Tier = NeedTier.Wellbeing,
-            Satisfaction = !known ? Satisfaction.Unknown : owed ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = known ? Known(owed ? 1.0 : 0.0) : Unknown<double>(),
-        };
-    }
+    public static Need PollutionNeedOf(BiotechFacts facts) =>
+        FoodRules.WholeNeed(BiotechFamily.Pollution, NeedTier.Wellbeing,
+            PollutionRules.PollutionDeficit(facts.Pollution).TryGetValue(out var owed) ? !owed : throw new RequiredFactException("pollution census"));
 }

@@ -72,7 +72,7 @@ public sealed class RoomRoleGoalTests
         // A met room goal keeps asking, or the plan would end the role and retire the room.
         Assert.Equal([RoomRole.Playroom], GoalRules.DemandOf(built).Build.Rooms.Items);
 
-        Assert.Equal(GoalState.Blocked, GoalRules.Evaluate(goal, open with { Rooms = default }).State);
+        Assert.Equal("rooms", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, open with { Rooms = default })).Fact);
     }
 
     [Fact]
@@ -166,7 +166,7 @@ public sealed class RoomRoleGoalTests
         Assert.Equal(Satisfaction.Unmet, MedicalRules.MedicalCareNeedOf(recovered with { HospitalShort = Known(true) }).Satisfaction);
         Assert.Equal(Satisfaction.Met, MedicalRules.MedicalCareNeedOf(recovered with { HospitalShort = Known(false) }).Satisfaction);
         // An unread care census stays unknown whatever the ward.
-        Assert.Equal(Satisfaction.Unknown, MedicalRules.MedicalCareNeedOf(new MedicalFacts { HospitalShort = Known(false) }).Satisfaction);
+        Assert.Equal("care census", Assert.Throws<RequiredFactException>(() => MedicalRules.MedicalCareNeedOf(new MedicalFacts { HospitalShort = Known(false) })).Fact);
     }
 
     [Fact]

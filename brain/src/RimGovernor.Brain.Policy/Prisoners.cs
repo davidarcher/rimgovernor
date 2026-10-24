@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// What the prisoners family reads (#3262): the prisoner census with the colony facts a prisoner's use is judged by,
 /// the food runway a release waits on, and the custody census of every observed humanlike. Each is a complete
-/// native read; an unknown one leaves its Need unknown.
+/// native read; an unknown one raises <see cref="RequiredFactException"/> for its Need.
 /// </summary>
 public sealed record PrisonersFacts
 {
@@ -75,6 +75,8 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
         return needs;
     }
 
+    public IReadOnlyList<Need> DeriveSeriousHarm(PrisonersFacts facts) => [];
+
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, PrisonersFacts facts)
     {
         var output = new List<NeedMethod>();
@@ -113,7 +115,7 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
     {
         if (!PopulationRules.PrisonerRecruitDeficit(facts.Prisoners, facts.Colony, facts.FoodDays, policy).TryGetValue(out var deficit))
         {
-            return new Need { Id = Recruit, Tier = NeedTier.Development };
+            throw new RequiredFactException("prisoner recruit deficit");
         }
         var owed = 0;
         if (deficit && facts.Prisoners.TryGetValue(out var rows) && facts.Colony.TryGetValue(out var colony))
@@ -133,7 +135,7 @@ public sealed class PrisonersFamily(PrisonerPolicy policy, bool recruit = true, 
     {
         if (!PopulationRules.CustodyDeficit(census).TryGetValue(out var deficit) || !census.TryGetValue(out var rows))
         {
-            return new Need { Id = Custody, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("custody census");
         }
         var candidates = rows.Count(row => PopulationRules.CustodyEligible(row).Ok);
         return new Need

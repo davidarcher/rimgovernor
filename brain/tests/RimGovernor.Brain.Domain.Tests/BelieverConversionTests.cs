@@ -30,7 +30,7 @@ public sealed class BelieverConversionTests
         new("role-1", "IdeoRole_Moralist", active, pawn.Length == 0 ? [] : [new PawnId(pawn)]) { Converts = true, ConvertReady = ready };
 
     private static IdeologyFacts Facts(Fact<Ideoligion> ideo, Fact<EquatableArray<WorkPawn>> pawns, params GoalRecord[] goals) =>
-        new() { Conversion = ConversionRules.Owed(goals, ideo, pawns) };
+        new() { Installed = true, Roles = Known<EquatableArray<RoleAssignment>>([]), Conversion = ConversionRules.Owed(goals, ideo, pawns) };
 
     private static readonly WorkPawn Believer = Colonist("guide", Ours, Known(0.9));
 
@@ -38,7 +38,7 @@ public sealed class BelieverConversionTests
     public void TheLowestCertaintyNonBelieverIsConvertedNextByTheGuide()
     {
         var facts = Facts(Ideo(Guide("guide")), Pawns(Believer, Colonist("b", "Ideo_other", Known(0.8)), Colonist("a", "Ideo_other", Known(0.3)), Colonist("c", "Ideo_other", default)), Everyone);
-        var family = new IdeologyFamily();
+        var family = new IdeologyFamily(rituals: false, reform: false);
 
         var need = Assert.Single(family.Derive(facts), n => n.Id.Kind == IdeologyFamily.ConvertKind);
         Assert.Equal("ideology/convert/a", need.Id.Value);
@@ -56,7 +56,7 @@ public sealed class BelieverConversionTests
     [Fact]
     public void NoNeedIsOwedOnceEveryColonistBelievesOrWithoutAGoal()
     {
-        var family = new IdeologyFamily();
+        var family = new IdeologyFamily(rituals: false, reform: false);
         var everyone = Facts(Ideo(Guide("guide")), Pawns(Believer, Colonist("a", Ours, Known(0.5))), Everyone);
         Assert.DoesNotContain(family.Derive(everyone), n => n.Id.Kind == IdeologyFamily.ConvertKind);
 
@@ -89,7 +89,7 @@ public sealed class BelieverConversionTests
     public void WithoutAGuideTheNeedWaitsOnTheRoleNeedAndHoldsItsMethod()
     {
         var pawns = Pawns(Believer, Colonist("a", "Ideo_other", Known(0.3)));
-        var family = new IdeologyFamily();
+        var family = new IdeologyFamily(rituals: false, reform: false);
 
         // The ideoligion grants no Convert ability at all: nothing pursues the goal.
         var noRole = Facts(Ideo(), pawns, Everyone);
@@ -118,8 +118,8 @@ public sealed class BelieverConversionTests
         var met = GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), Pawns(Believer, Colonist("a", Ours, Known(0.3)))));
         Assert.Equal(GoalState.Met, met.State);
 
-        var unread = GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), default));
-        Assert.Equal((GoalState.Blocked, "facts_unread"), (unread.State, unread.Reason));
+        // An unread pawn census raises rather than block the goal.
+        Assert.Equal("ideoligion or pawns", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), default))).Fact);
     }
 
     [Fact]

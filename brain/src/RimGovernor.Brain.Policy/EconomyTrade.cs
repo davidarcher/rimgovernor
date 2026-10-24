@@ -36,58 +36,34 @@ public sealed partial class EconomyFamily
     public static readonly NeedId TradeMission = NeedId.Of(FamilyId, "trade-mission");
 
     /// <summary>
-    /// The trade Need: unmet while the review's silver gap is open, met once it is closed, unknown while unread. It has
+    /// The trade Need: unmet while the review's silver gap is open, met once it is closed; an unread gap raises
+    /// <see cref="RequiredFactException"/>. It has
     /// no Method: its sale batches are the work ledger's, filed under the Need. Binary: the silver amount is not a
     /// fraction.
     /// </summary>
     public static Need TradeNeed(TradeReview f)
     {
-        var satisfaction = !f.SilverGap.TryGetValue(out var gap) ? Satisfaction.Unknown : gap > 0 ? Satisfaction.Unmet : Satisfaction.Met;
-        return new Need
-        {
-            Id = Trade,
-            Tier = NeedTier.Development,
-            Satisfaction = satisfaction,
-            Deficit = Whole(satisfaction),
-        };
+        var gap = f.SilverGap.TryGetValue(out var g) ? g : throw new RequiredFactException("silver gap");
+        return FoodRules.WholeNeed(Trade, NeedTier.Development, gap <= 0);
     }
 
     /// <summary>
-    /// The caravan Need: unmet while a caravan present has something worth trading, met when none is or nothing is,
-    /// unknown while the trader census or the need is unread. Its work is the session phases with each caravan.
+    /// The caravan Need: unmet while a caravan present has something worth trading, met when none is or nothing is; an
+    /// unread trader census or need raises <see cref="RequiredFactException"/>. Its work is the session phases with each caravan.
     /// </summary>
     public static Need CaravanNeed(TradeReview f)
     {
-        var satisfaction = !f.CaravanRecovered.TryGetValue(out var recovered) ? Satisfaction.Unknown : recovered ? Satisfaction.Met : Satisfaction.Unmet;
-        return new Need
-        {
-            Id = Caravan,
-            Tier = NeedTier.Wellbeing,
-            Satisfaction = satisfaction,
-            Deficit = Whole(satisfaction),
-        };
+        return FoodRules.WholeNeed(Caravan, NeedTier.Wellbeing,
+            f.CaravanRecovered.TryGetValue(out var recovered) ? recovered : throw new RequiredFactException("caravan trade"));
     }
 
     /// <summary>
     /// The trade-mission Need: unmet while the record holds a mission under way or a supply plan proposed one, met
-    /// otherwise, unknown while the record was not read. Its work drives the mission one phase at a time.
+    /// otherwise; an unread record raises <see cref="RequiredFactException"/>. Its work drives the mission one phase at a time.
     /// </summary>
     public static Need TradeMissionNeed(TradeMissionFacts f)
     {
-        var satisfaction = !f.Active.TryGetValue(out var active) ? Satisfaction.Unknown : active || f.Proposed ? Satisfaction.Unmet : Satisfaction.Met;
-        return new Need
-        {
-            Id = TradeMission,
-            Tier = NeedTier.Development,
-            Satisfaction = satisfaction,
-            Deficit = Whole(satisfaction),
-        };
+        var active = f.Active.TryGetValue(out var a) ? a : throw new RequiredFactException("trade missions");
+        return FoodRules.WholeNeed(TradeMission, NeedTier.Development, !active && !f.Proposed);
     }
-
-    private static Fact<double> Whole(Satisfaction satisfaction) => satisfaction switch
-    {
-        Satisfaction.Unknown => Unknown<double>(),
-        Satisfaction.Unmet => Known(1.0),
-        _ => Known(0.0),
-    };
 }

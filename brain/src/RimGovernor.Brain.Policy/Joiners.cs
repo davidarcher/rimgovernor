@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// What the joiners family reads (#3302): the review's facts, whose quest census (offers and sites), joiner letters,
 /// royalty and capacity facts its predicates and choices read. Each is a complete native read; an unknown one
-/// leaves its Need unknown.
+/// raises <see cref="RequiredFactException"/> for its Need.
 /// </summary>
 public sealed record JoinersFacts
 {
@@ -17,7 +17,7 @@ public sealed record JoinersFacts
 
 /// <summary>
 /// The joiners family (#3302): the joiner and quest half of the old population Concern. Every Need is
-/// Development and unknown while its census is unread.
+/// Development; an unread census raises <see cref="RequiredFactException"/>.
 /// <list type="bullet">
 /// <item><c>joiners/offers</c>: no answerable joiner offer waits while the colony has room for one more colonist
 /// (<see cref="PopulationRules.JoinerDeficit"/>). Its Method accepts the lowest-id offer, <c>joiner-accept-&lt;quest&gt;</c>.</item>
@@ -71,9 +71,9 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
         var known = f.QuestOffers.TryGetValue(out _);
         return
         [
-            FromFact(Offers, PopulationRules.JoinerDeficit(f.QuestOffers, capacity, f)),
-            FromFact(Letters, PopulationRules.JoinerLetterDeficit(f.JoinerLetters, capacity)),
-            Ceremonies(f.Royalty),
+            FromFact(Offers, PopulationRules.JoinerDeficit(f.QuestOffers, capacity, f), "joiner offers"),
+            FromFact(Letters, PopulationRules.JoinerLetterDeficit(f.JoinerLetters, capacity), "joiner letters"),
+            Ceremonies(f),
             Quest(Quests, known, () => QuestSelection.QuestDeficit(f).ValueOrDefault || QuestRefugees.RefugeeDeficit(f)),
             Quest(Decrees, known, () => QuestDecrees.DecreeDeficit(f)),
             Quest(Monuments, known, () => QuestMonument.MonumentDeficit(f)),
@@ -81,6 +81,8 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
             Quest(GravInspection, known, () => QuestGravInspection.GravInspectionDeficit(f)),
         ];
     }
+
+    public IReadOnlyList<Need> DeriveSeriousHarm(JoinersFacts facts) => [];
 
     /// <summary>The offer, letter and quest acceptances and the ceremony hold; the rest is the runtime's work.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, JoinersFacts facts)
@@ -126,33 +128,28 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
         return new NeedMethod(need, method, "", id => new PlanSpec(id, new PlanRevision(1), [DomainAction.NewQuestAcceptAction(new ActionId(id.Value + "-0"), accept)]));
     }
 
-    private static Need FromFact(NeedId id, Fact<bool> deficit)
+    private static Need FromFact(NeedId id, Fact<bool> deficit, string fact) => Owed(id, deficit.TryGetValue(out var owed) ? owed : throw new RequiredFactException(fact));
+
+    private static Need Owed(NeedId id, bool owed) => FoodRules.WholeNeed(id, NeedTier.Development, !owed);
+
+    /// <summary>
+    /// The ceremony Need: unmet while an accepted ceremony waits to start. Without Royalty none can, so it is met; with
+    /// it, an unread royalty read raises <see cref="RequiredFactException"/>.
+    /// </summary>
+    private static Need Ceremonies(RoundsFacts f)
     {
-        if (!deficit.TryGetValue(out var owed))
+        if (!f.RoyaltyInstalled)
         {
-            return new Need { Id = id, Tier = NeedTier.Development };
+            return Owed(Ceremony, false);
         }
-        return new Need
+        if (!f.Royalty.TryGetValue(out _))
         {
-            Id = id,
-            Tier = NeedTier.Development,
-            Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known(owed ? 1.0 : 0.0),
-        };
+            throw new RequiredFactException("royalty");
+        }
+        return Owed(Ceremony, CeremonyRules.CeremonyStartOf(f.Royalty) is not null);
     }
 
-    /// <summary>The ceremony Need: unknown without the royalty read, unmet while an accepted ceremony waits to start.</summary>
-    private static Need Ceremonies(Fact<RoyaltyFacts> royalty)
-    {
-        if (!royalty.TryGetValue(out _))
-        {
-            return FromFact(Ceremony, default);
-        }
-        var waiting = CeremonyRules.CeremonyStartOf(royalty) is not null;
-        return FromFact(Ceremony, Fact.Known(waiting));
-    }
-
-    /// <summary>A quest-census Need: unknown while the census is unread, otherwise <paramref name="owed"/>.</summary>
+    /// <summary>A quest-census Need: <paramref name="owed"/>; an unread census raises <see cref="RequiredFactException"/>.</summary>
     private static Need Quest(NeedId id, bool known, Func<bool> owed) =>
-        FromFact(id, known ? Fact.Known(owed()) : default);
+        Owed(id, known ? owed() : throw new RequiredFactException("quest offers"));
 }

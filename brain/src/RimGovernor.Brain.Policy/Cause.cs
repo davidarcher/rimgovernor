@@ -114,7 +114,6 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
     public static readonly Cause UnreadFoodFacts = new("food_facts");
     public static readonly Cause UnreadFoodPlan = new("food_plan");
     public static readonly Cause UnreadFoodStorage = new("food_storage");
-    public static readonly Cause UnreadBabyFeeding = new("baby_feeding");
     public static readonly Cause UnreadMechs = new("mech_gestation");
     public static readonly Cause UnreadWort = new("wort");
     public static readonly Cause UnreadQuestOffers = new("quest_offers");
@@ -147,7 +146,7 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
         UnreadReview, UnreadStock, UnreadBenches, UnreadBenchDef, UnreadBills, UnreadRecipes,
         UnreadDefinitions, UnreadNativeRead, UnreadMedicine, UnreadArtists, UnreadArtNeed,
         UnreadGearRecover, UnreadGearNeeds, UnreadGearDemand, UnreadArmoryTier, UnreadWeapons,
-        UnreadShells, UnreadFoodFacts, UnreadFoodPlan, UnreadFoodStorage, UnreadBabyFeeding,
+        UnreadShells, UnreadFoodFacts, UnreadFoodPlan, UnreadFoodStorage,
         UnreadMechs, UnreadWort, UnreadQuestOffers, UnreadQuestAsker, UnreadSilverGap,
         UnreadWorkers, UnreadTraderCash, UnreadBuyers, UnreadSurplus, UnreadRunways,
         UnreadSupply, UnreadSources,
@@ -301,7 +300,6 @@ public static class CauseRules
         [Cause.UnreadFoodFacts] = UnreadWording("the food facts"),
         [Cause.UnreadFoodPlan] = UnreadWording("the food plan"),
         [Cause.UnreadFoodStorage] = UnreadWording("food storage"),
-        [Cause.UnreadBabyFeeding] = UnreadWording("which babies need feeding"),
         [Cause.UnreadMechs] = UnreadWording("the mech gestation"),
         [Cause.UnreadWort] = UnreadWording("which wort makes beer"),
         [Cause.UnreadQuestOffers] = UnreadWording("the quest offers"),

@@ -52,6 +52,8 @@ public sealed class FamilySharedScopeTests
         public IReadOnlyList<Need> Derive(ScopeFacts facts) =>
             [new Need { Id = NeedId.Of("test-scope", "scope"), Tier = NeedTier.Development, Satisfaction = Satisfaction.Met }];
 
+        public IReadOnlyList<Need> DeriveSeriousHarm(ScopeFacts facts) => [];
+
         public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, ScopeFacts facts) => [];
     }
 

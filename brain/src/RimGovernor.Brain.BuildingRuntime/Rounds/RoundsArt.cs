@@ -69,7 +69,8 @@ public sealed class RoundsArtPlanner : IPurposeReporter
     {
         lock (_mu)
         {
-            var need = _need ?? RoomsFamily.ArtNeed(new RoomsFacts());
+            // Reports follow the declare that set the Need; a declare that raised never reaches here.
+            var need = _need ?? throw new RequiredFactException("art need");
             if (!_sculpting)
             {
                 return new PurposeReport { Need = need, Order = BuildingReasonNoDeficit };

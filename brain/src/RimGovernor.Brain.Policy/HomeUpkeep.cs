@@ -78,6 +78,8 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
         return needs;
     }
 
+    public IReadOnlyList<Need> DeriveSeriousHarm(HomeUpkeepFacts facts) => [];
+
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, HomeUpkeepFacts facts)
     {
         var output = new List<NeedMethod>();
@@ -172,7 +174,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
     {
         if (!census.TryGetValue(out var structures))
         {
-            return new Need { Id = Repairs, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("repair census");
         }
         var (targets, missing) = DamagedStructures(structures);
         return new Need
@@ -188,7 +190,7 @@ public sealed class HomeUpkeepFamily(bool repairs = true, bool clearance = true)
     {
         if (!census.TryGetValue(out var rows))
         {
-            return new Need { Id = Clearance, Tier = NeedTier.Development };
+            throw new RequiredFactException("clearance census");
         }
         var targets = ClearanceTargets(rows, ground);
         return new Need

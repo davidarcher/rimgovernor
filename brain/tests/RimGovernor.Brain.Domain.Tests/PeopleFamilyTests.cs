@@ -23,7 +23,7 @@ public sealed class PeopleFamilyTests
     {
         Need Derive(Fact<bool> open) => Assert.Single(new PeopleFamily(Dialog).Derive(new PeopleFacts { DialogOpen = open }));
 
-        Assert.Equal(Satisfaction.Unknown, Derive(Unknown<bool>()).Satisfaction);
+        Assert.Equal("choice dialog", Assert.Throws<RequiredFactException>(() => Derive(Unknown<bool>())).Fact);
         Assert.Equal(Satisfaction.Unmet, Derive(Known(true)).Satisfaction);
         Assert.Equal(Satisfaction.Met, Derive(Known(false)).Satisfaction);
         Assert.Equal(PeopleFamily.Dialog, Derive(Known(true)).Id);
@@ -69,17 +69,16 @@ public sealed class PeopleFamilyTests
 
     /// <summary>people/mood replaced the per-pawn mood incident: one Need per tracked pawn, its predicate the review's mood state.</summary>
     [Fact]
-    public void MoodIsOneNeedPerTrackedPawnAndAnUnreadReviewIsOneUnknownNeed()
+    public void MoodIsOneNeedPerTrackedPawnAndAnUnreadReviewRaises()
     {
         var mood = new PeopleNeeds { Mood = true };
-        var census = Assert.Single(new PeopleFamily(mood).Derive(new PeopleFacts()));
-        Assert.Equal(PeopleFamily.MoodCensus, census.Id);
-        Assert.Equal(Satisfaction.Unknown, census.Satisfaction);
+        Assert.Equal("mood review", Assert.Throws<RequiredFactException>(() => new PeopleFamily(mood).Derive(new PeopleFacts())).Fact);
 
         var states = EquatableArray.From<MoodState>([AtRisk("a"), AtRisk("b") with { Active = false, Pawn = AtRisk("b").Pawn with { Mood = Known(.9) } }, AtRisk("c") with { Missing = true }]);
         var needs = new PeopleFamily(mood).Derive(new PeopleFacts { Mood = Known(states) });
         Assert.Equal([PeopleFamily.Mood(new("a")), PeopleFamily.Mood(new("b")), PeopleFamily.Mood(new("c"))], needs.Select(n => n.Id));
-        Assert.Equal([Satisfaction.Unmet, Satisfaction.Met, Satisfaction.Unknown], needs.Select(n => n.Satisfaction));
+        // A pawn no longer tracked (c is missing) owes nothing.
+        Assert.Equal([Satisfaction.Unmet, Satisfaction.Met, Satisfaction.Met], needs.Select(n => n.Satisfaction));
         Assert.All(needs, n => Assert.True(PeopleFamily.IsMood(n.Id)));
         Assert.False(PeopleFamily.IsMood(PeopleFamily.Dialog));
         // The dialog Need is its own toggle's.

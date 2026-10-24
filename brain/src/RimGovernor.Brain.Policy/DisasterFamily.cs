@@ -62,17 +62,20 @@ public sealed class DisasterFamily : IFamily<DisasterFacts>
 
     public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = [FactFamily.Pawns, FactFamily.Emergency, FactFamily.Colony];
 
-    public IReadOnlyList<Need> Derive(DisasterFacts facts) => [ShelteringNeed(facts.Changes), ServicesNeed(facts.Disaster, facts.ConditionsKnown)];
+    public IReadOnlyList<Need> Derive(DisasterFacts facts) => [.. DeriveSeriousHarm(facts), ServicesNeed(facts.Disaster, facts.ConditionsKnown)];
+
+    /// <summary>Sheltering, the SeriousHarm Need.</summary>
+    public IReadOnlyList<Need> DeriveSeriousHarm(DisasterFacts facts) => [ShelteringNeed(facts.Changes)];
 
     /// <summary>Nothing pure: both steps fence and commit the read they act on.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, DisasterFacts facts) => [];
 
-    /// <summary>Unmet while any area move is owed, unknown while a trigger is not known clear, met otherwise.</summary>
+    /// <summary>Unmet while any area move is owed, met otherwise; a trigger not known clear raises <see cref="RequiredFactException"/>.</summary>
     public static Need ShelteringNeed(Fact<EquatableArray<AllowedAreaChange>> changes)
     {
         if (!changes.TryGetValue(out var owed))
         {
-            return new Need { Id = Sheltering, Tier = NeedTier.SeriousHarm };
+            throw new RequiredFactException("sheltering triggers");
         }
         return new Need
         {
@@ -84,19 +87,29 @@ public sealed class DisasterFamily : IFamily<DisasterFacts>
     }
 
     /// <summary>
-    /// The disaster history's finding (<see cref="RecoveryRules.RecoveryNeed"/>): unclear is unknown, and a missing
-    /// history is met only when the conditions were read. It waits on sheltering.
+    /// The disaster history's finding (<see cref="RecoveryRules.RecoveryNeed"/>): a missing history is met when the
+    /// conditions were read; unread conditions or an unclear finding raise <see cref="RequiredFactException"/>. It waits
+    /// on sheltering.
     /// </summary>
     public static Need ServicesNeed(DisasterHistory? history, bool conditionsKnown)
     {
-        var finding = history is null && !conditionsKnown ? Finding.Unclear : RecoveryRules.RecoveryNeed(history);
-        var phase = history is null ? (conditionsKnown ? Fact.Known("none") : default) : Fact.Known(Wire.Name(history.Phase));
-        var need = new Need { Id = Services, Tier = NeedTier.Wellbeing, Preconditions = [Sheltering] };
-        return finding switch
+        if (history is null && !conditionsKnown)
         {
-            Finding.Met => need with { Satisfaction = Satisfaction.Met, Deficit = Fact.Known(0.0) },
-            Finding.Unmet => need with { Satisfaction = Satisfaction.Unmet, Deficit = Fact.Known(1.0) },
-            _ => need,
+            throw new RequiredFactException("disaster conditions");
+        }
+        var finding = RecoveryRules.RecoveryNeed(history);
+        if (finding == Finding.Unclear)
+        {
+            throw new RequiredFactException("disaster service finding");
+        }
+        var met = finding == Finding.Met;
+        return new Need
+        {
+            Id = Services,
+            Tier = NeedTier.Wellbeing,
+            Preconditions = [Sheltering],
+            Satisfaction = met ? Satisfaction.Met : Satisfaction.Unmet,
+            Deficit = Fact.Known(met ? 0.0 : 1.0),
         };
     }
 

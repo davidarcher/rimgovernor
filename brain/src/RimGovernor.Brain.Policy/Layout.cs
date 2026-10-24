@@ -108,7 +108,7 @@ public sealed record LayoutNeeds
 /// door into the wall enclosing an unreachable facility, or sets the owed door, under the Need owner.</item>
 /// </list>
 /// A latch no longer holds a Need after its census recovers: each is a plain predicate over this review, and an
-/// unread census leaves it unknown.
+/// unread census raises <see cref="RequiredFactException"/>.
 /// </summary>
 public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
 {
@@ -168,6 +168,8 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
         return needs;
     }
 
+    public IReadOnlyList<Need> DeriveSeriousHarm(LayoutFacts facts) => [];
+
     /// <summary>The home-area diff and the firebreak order; the envelope and stone shell are the runtime step's, which previews and admits buildings.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, LayoutFacts facts)
     {
@@ -208,12 +210,12 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
         return actions;
     }
 
-    /// <summary>Unmet while the home area differs from the planned coverage, unknown while the geometry, Home cells or auto-expand state cannot be read.</summary>
+    /// <summary>Unmet while the home area differs from the planned coverage; raises <see cref="RequiredFactException"/> while the geometry, Home cells or auto-expand state cannot be read.</summary>
     public static Need HomeCoverageNeed(Fact<HomeAreaPlan> planned)
     {
         if (!planned.TryGetValue(out var diff))
         {
-            return new Need { Id = HomeCoverage, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("home area plan");
         }
         var cells = diff.Set.Count + diff.Clear.Count;
         return new Need
@@ -225,12 +227,12 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
         };
     }
 
-    /// <summary>Unmet while the ring owes a cut or a ruin, unknown while this tick's ring review is missing.</summary>
+    /// <summary>Unmet while the ring owes a cut or a ruin; raises <see cref="RequiredFactException"/> while this tick's ring review is missing.</summary>
     public static Need FirebreakNeed(Fact<FirebreakWork> ring)
     {
         if (!ring.TryGetValue(out var work))
         {
-            return new Need { Id = Firebreak, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("firebreak ring");
         }
         return new Need
         {
@@ -241,12 +243,12 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
         };
     }
 
-    /// <summary>Unmet while a planned room is owed a vent or a roof, unknown without the layout plan or colony ground.</summary>
+    /// <summary>Unmet while a planned room is owed a vent or a roof; raises <see cref="RequiredFactException"/> without the layout plan or colony ground.</summary>
     public static Need ClimateEnvelopeNeed(Fact<int> owed)
     {
         if (!owed.TryGetValue(out var rooms))
         {
-            return new Need { Id = ClimateEnvelope, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("climate envelope");
         }
         DomainException.Require(rooms >= 0, "invalid envelope room count");
         return new Need
@@ -258,12 +260,12 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
         };
     }
 
-    /// <summary>Unmet while an owned wall is flammable, unknown while the owned construction or the structure census cannot be read.</summary>
+    /// <summary>Unmet while an owned wall is flammable; raises <see cref="RequiredFactException"/> while the owned construction or the structure census cannot be read.</summary>
     public static Need StoneShellNeed(Fact<EquatableArray<string>> walls)
     {
         if (!walls.TryGetValue(out var rows))
         {
-            return new Need { Id = StoneShell, Tier = NeedTier.Development };
+            throw new RequiredFactException("flammable walls");
         }
         return new Need
         {
@@ -275,15 +277,15 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
     }
 
     /// <summary>
-    /// Unmet while the stored layout's verification is not current or an open fight waits in rooms to harden; unknown
-    /// while the layout facts are unread. The deficit is zero while every tier stands (a re-verification or a fight
+    /// Unmet while the stored layout's verification is not current or an open fight waits in rooms to harden; raises
+    /// <see cref="RequiredFactException"/> while the layout facts are unread. The deficit is zero while every tier stands (a re-verification or a fight
     /// only) and one while a tier is owed.
     /// </summary>
     public static Need DefenseNeed(Fact<DefenseLayoutFacts> layout)
     {
         if (!layout.TryGetValue(out var f))
         {
-            return new Need { Id = Defense, Tier = NeedTier.Development };
+            throw new RequiredFactException("defense layout");
         }
         return new Need
         {
@@ -296,13 +298,13 @@ public sealed class LayoutFamily(LayoutNeeds composed) : IFamily<LayoutFacts>
 
     /// <summary>
     /// Unmet while the routes census reads a facility no mobile colonist reaches or a traffic door is owed a change;
-    /// unknown while the census is unread. A plain threshold: a facility whose ordered door is framed reads reachable.
+    /// an unread census raises <see cref="RequiredFactException"/>. A plain threshold: a facility whose ordered door is framed reads reachable.
     /// </summary>
     public static Need RoutesNeed(Fact<RoutesStanding> standing)
     {
         if (!standing.TryGetValue(out var s) || !s.Review.Known)
         {
-            return new Need { Id = Routes, Tier = NeedTier.Development };
+            throw new RequiredFactException("routes census");
         }
         var unreachable = s.Review.Deficits.Count;
         return new Need

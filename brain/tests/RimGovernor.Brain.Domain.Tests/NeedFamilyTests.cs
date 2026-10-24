@@ -43,8 +43,12 @@ public sealed class NeedFamilyTests
         public IReadOnlyList<Need> Derive(CareFacts facts) =>
         [
             new Need { Id = Rest, Tier = NeedTier.Wellbeing, Satisfaction = Of(facts.Rested, met: true), Preconditions = RestWaits ? [Bleeding] : [] },
-            new Need { Id = Bleeding, Tier = NeedTier.SeriousHarm, Satisfaction = Of(facts.Bleeding, met: false) },
+            .. DeriveSeriousHarm(facts),
         ];
+
+        // The immediate pass reads only the bleeding, so it derives only the SeriousHarm Need.
+        public IReadOnlyList<Need> DeriveSeriousHarm(CareFacts facts) =>
+            [new Need { Id = Bleeding, Tier = NeedTier.SeriousHarm, Satisfaction = Of(facts.Bleeding, met: false) }];
 
         public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, CareFacts facts) =>
         [
@@ -54,7 +58,7 @@ public sealed class NeedFamilyTests
         ];
 
         private static Satisfaction Of(Fact<bool> fact, bool met) =>
-            !fact.TryGetValue(out var value) ? Satisfaction.Unknown : value == met ? Satisfaction.Met : Satisfaction.Unmet;
+            !fact.TryGetValue(out var value) ? throw new RequiredFactException("care") : value == met ? Satisfaction.Met : Satisfaction.Unmet;
 
         private static PlanSpec Plan(PlanId id, string pawn, string method) =>
             new(id, new(1), [Delivery(id.Value + "-0", pawn, method)]);
@@ -190,18 +194,14 @@ public sealed class NeedFamilyTests
     }
 
     [Fact]
-    public void UnknownIsNeverMetForThePredicateOrThePrecondition()
+    public void AnUnreadFactRaisesAndAMetPreconditionReleasesTheWaitingNeed()
     {
         using var colony = Open();
         colony.Facts = new(Unknown<bool>(), Known(false));
-        var run = colony.Run();
-        Assert.True(Colony.Report(run, Bleeding).Is(Cause.FieldUnavailable));
-        var rest = Colony.Report(run, Rest);
-        Assert.True(rest.Is(Cause.WaitingOnNeed));
-        Assert.Empty(run.Methods);
+        Assert.Equal("care", Assert.Throws<RequiredFactException>(() => colony.Run()).Fact);
 
         colony.Facts = new(Known(false), Known(true));
-        run = colony.Run();
+        var run = colony.Run();
         Assert.Equal(Verdict.BuildingReasonNoDeficit, Colony.Report(run, Bleeding));
         Assert.Equal(Verdict.BuildingReasonNoDeficit, Colony.Report(run, Rest));
         Assert.Equal(Verdict.BuildingReasonNoDeficit, run.Verdict);
@@ -222,10 +222,10 @@ public sealed class NeedFamilyTests
         Assert.Equal([NeedReadiness.Met, NeedReadiness.Waiting, NeedReadiness.Ready], standings.Select(s => s.Readiness));
         Assert.Equal(missing, standings[1].WaitingOn);
 
-        Assert.Throws<DomainException>(() => NeedsRules.NeedStandings("fam", [new Need { Id = a, Tier = NeedTier.Wellbeing }, new Need { Id = a, Tier = NeedTier.Wellbeing }]));
-        Assert.Throws<DomainException>(() => NeedsRules.NeedStandings("other", [new Need { Id = a, Tier = NeedTier.Wellbeing }]));
-        Assert.Throws<DomainException>(() => NeedsRules.NeedStandings("fam", [new Need { Id = a, Tier = NeedTier.Wellbeing, Preconditions = [a] }]));
-        Assert.Equal(Satisfaction.Unknown, new Need { Id = a, Tier = NeedTier.Wellbeing }.Satisfaction);
+        var unmet = Satisfaction.Unmet;
+        Assert.Throws<DomainException>(() => NeedsRules.NeedStandings("fam", [new Need { Id = a, Tier = NeedTier.Wellbeing, Satisfaction = unmet }, new Need { Id = a, Tier = NeedTier.Wellbeing, Satisfaction = unmet }]));
+        Assert.Throws<DomainException>(() => NeedsRules.NeedStandings("other", [new Need { Id = a, Tier = NeedTier.Wellbeing, Satisfaction = unmet }]));
+        Assert.Throws<DomainException>(() => NeedsRules.NeedStandings("fam", [new Need { Id = a, Tier = NeedTier.Wellbeing, Satisfaction = unmet, Preconditions = [a] }]));
     }
 
     [Fact]
@@ -239,7 +239,8 @@ public sealed class NeedFamilyTests
         Assert.Contains('/', Bleeding.FilingKey.Value);
         Assert.Equal(Bleeding, ServiceTarget.ForNeed(Bleeding).OwnerNeed);
         Assert.Equal(default, new ServiceTarget(default, "", "", default).OwnerNeed);
-        Assert.Equal(ServiceCoverage.Unknown, EssentialServicesRules.NeedCoverage(new Need { Id = Rest, Tier = NeedTier.Wellbeing }));
+        Assert.Equal(ServiceCoverage.Shortfall, EssentialServicesRules.NeedCoverage(new Need { Id = Rest, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Unmet }));
+        Assert.Equal(ServiceCoverage.Adequate, EssentialServicesRules.NeedCoverage(new Need { Id = Rest, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Met }));
     }
 
     [Fact]

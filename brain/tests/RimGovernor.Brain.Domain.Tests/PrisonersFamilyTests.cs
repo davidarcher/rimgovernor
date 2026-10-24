@@ -64,7 +64,9 @@ public sealed class PrisonersFamilyTests
         WearingApparel = Known(false),
     };
 
-    private static Need Derive(PrisonersFacts facts, NeedId id) => Assert.Single(new PrisonersFamily(Policy).Derive(facts), n => n.Id == id);
+    // Only the Need under test is composed: the family raises on the first composed Need whose fact is unread.
+    private static Need Derive(PrisonersFacts facts, NeedId id) =>
+        Assert.Single(new PrisonersFamily(Policy, id == PrisonersFamily.Recruit, id == PrisonersFamily.Custody).Derive(facts));
 
     [Fact]
     public void RecruitIsMetUnmetOrUnknownByThePrisonersOwedAnInteraction()
@@ -77,10 +79,8 @@ public sealed class PrisonersFamilyTests
         Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit.Value));
 
         // An unknown census, or one prisoner whose decision facts are missing, never reads as settled.
-        Assert.Equal(Satisfaction.Unknown, Derive(new PrisonersFacts(), PrisonersFamily.Recruit).Satisfaction);
-        var partial = Derive(Census(Colony1, Prisoner("a"), Prisoner("b") with { Dead = default }), PrisonersFamily.Recruit);
-        Assert.Equal(Satisfaction.Unknown, partial.Satisfaction);
-        Assert.False(partial.Deficit.IsKnown);
+        Assert.Equal("prisoner recruit deficit", Assert.Throws<RequiredFactException>(() => Derive(new PrisonersFacts(), PrisonersFamily.Recruit)).Fact);
+        Assert.Equal("prisoner recruit deficit", Assert.Throws<RequiredFactException>(() => Derive(Census(Colony1, Prisoner("a"), Prisoner("b") with { Dead = default }), PrisonersFamily.Recruit)).Fact);
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed class PrisonersFamilyTests
         var unmet = Derive(Census(Colony1) with { Custody = Known<EquatableArray<CustodyFacts>>([Downed("g", guest: true), Downed("h", guest: false)]) }, PrisonersFamily.Custody);
         Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit.Value));
 
-        Assert.Equal(Satisfaction.Unknown, Derive(Census(Colony1) with { Custody = default }, PrisonersFamily.Custody).Satisfaction);
+        Assert.Equal("custody census", Assert.Throws<RequiredFactException>(() => Derive(Census(Colony1) with { Custody = default }, PrisonersFamily.Custody)).Fact);
     }
 
     [Fact]
@@ -214,12 +214,14 @@ public sealed class PrisonersFamilyTests
     }
 
     [Fact]
-    public void UnknownFactsProposeNothingAndHeldCustodyFilesItsSubject()
+    public void AnUnreadCensusRaisesAndHeldCustodyFilesItsSubject()
     {
         using var colony = Open();
         colony.Facts = new PrisonersFacts { Custody = Known<EquatableArray<CustodyFacts>>([Downed("g", guest: true)]) };
+        Assert.Equal("prisoner recruit deficit", Assert.Throws<RequiredFactException>(() => colony.Run()).Fact);
+
+        colony.Facts = Census(Colony1) with { Custody = Known<EquatableArray<CustodyFacts>>([Downed("g", guest: true)]) };
         var run = colony.Run();
-        Assert.True(Colony.Report(run, PrisonersFamily.Recruit).Is(Cause.FieldUnavailable));
         Assert.Empty(run.Methods);
         colony.File(run);
 

@@ -2,10 +2,14 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// What the royalty family reads (#3261): the royalty read the permit ranking runs on, and whether a psylink
-/// neuroformer use is owed (PsylinkOwed over the candidates, the level-ups and the held neuroformer items).
+/// neuroformer use is owed (PsylinkOwed over the candidates, the level-ups and the held neuroformer items). Without
+/// Royalty the family derives no Needs.
 /// </summary>
 public sealed record RoyaltyFamilyFacts
 {
+    /// <summary>Whether the Royalty expansion is active (<see cref="RoundsFacts.RoyaltyInstalled"/>).</summary>
+    public bool Installed { get; init; }
+
     public Fact<RoyaltyFacts> Royalty { get; init; }
 
     public Fact<bool> PsylinkOwed { get; init; }
@@ -42,6 +46,10 @@ public sealed class RoyaltyFamily(bool permits = true, bool psylink = true) : IF
 
     public IReadOnlyList<Need> Derive(RoyaltyFamilyFacts facts)
     {
+        if (!facts.Installed)
+        {
+            return [];
+        }
         var output = new List<Need>(2);
         if (permits)
         {
@@ -49,16 +57,13 @@ public sealed class RoyaltyFamily(bool permits = true, bool psylink = true) : IF
         }
         if (psylink)
         {
-            output.Add(new Need
-            {
-                Id = Psylink,
-                Tier = NeedTier.Development,
-                Satisfaction = !facts.PsylinkOwed.TryGetValue(out var owed) ? Satisfaction.Unknown : owed ? Satisfaction.Unmet : Satisfaction.Met,
-                Deficit = facts.PsylinkOwed.TryGetValue(out var d) ? Known(d ? 1.0 : 0.0) : Unknown<double>(),
-            });
+            output.Add(FoodRules.WholeNeed(Psylink, NeedTier.Development,
+                facts.PsylinkOwed.TryGetValue(out var owed) ? !owed : throw new RequiredFactException("psylink owed")));
         }
         return output;
     }
+
+    public IReadOnlyList<Need> DeriveSeriousHarm(RoyaltyFamilyFacts facts) => [];
 
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, RoyaltyFamilyFacts facts)
     {
@@ -85,17 +90,8 @@ public sealed class RoyaltyFamily(bool permits = true, bool psylink = true) : IF
 
 public static partial class RoyaltyFamilyRules
 {
-    /// <summary>The permits Need: met once no worthwhile permit is takeable now (PermitsSpent), unmet while one is, unknown without the royalty read.</summary>
-    public static Need PermitsNeedOf(Fact<RoyaltyFacts> royalty)
-    {
-        var spent = PermitChoiceRules.PermitsSpent(royalty);
-        var known = spent.TryGetValue(out var done);
-        return new Need
-        {
-            Id = RoyaltyFamily.Permits,
-            Tier = NeedTier.Development,
-            Satisfaction = !known ? Satisfaction.Unknown : done ? Satisfaction.Met : Satisfaction.Unmet,
-            Deficit = known ? Known(done ? 0.0 : 1.0) : Unknown<double>(),
-        };
-    }
+    /// <summary>The permits Need: met once no worthwhile permit is takeable now (PermitsSpent), unmet while one is; an unread royalty read raises <see cref="RequiredFactException"/>.</summary>
+    public static Need PermitsNeedOf(Fact<RoyaltyFacts> royalty) =>
+        FoodRules.WholeNeed(RoyaltyFamily.Permits, NeedTier.Development,
+            PermitChoiceRules.PermitsSpent(royalty).TryGetValue(out var done) ? done : throw new RequiredFactException("royalty"));
 }

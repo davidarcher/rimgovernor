@@ -191,14 +191,12 @@ public sealed class BabyFoodDeclarer : IOrderDeclarer
 
     internal static Declared Declare(ColonyProjection projection, IReadOnlyList<GearBench> benches)
     {
-        if (!projection.Facts.BabyFeeding.TryGetValue(out var babies))
-        {
-            return WorkRules.Abstaining(Cause.UnreadBabyFeeding);
-        }
+        // An unread baby census raises from the Need.
         if (FoodRules.BabyFeedingNeedOf(new FoodFacts { BabyFeeding = projection.Facts.BabyFeeding }).Satisfaction == Satisfaction.Met)
         {
             return new Declared();
         }
+        var babies = projection.Facts.BabyFeeding.Value;
         var (selected, ok) = ProductionRules.SelectProductionBill(BabyFeedingRules.BabyFoodBill, projection.ProductionBenches, projection.Facts.Colonists,
             default(Fact<double>), default(Fact<double>), 1, new ProductionBillContext { BabyFeeding = babies });
         return CareOrdersRules.DeclareSelection(selected, ok, benches);

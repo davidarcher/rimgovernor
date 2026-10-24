@@ -42,7 +42,7 @@ public sealed class ShelterFamilyTests
     public void SleepingFollowsTheBedReviewAndWaitsOnNothing()
     {
         Assert.Equal(Satisfaction.Unmet, Of(Housed with { SleepingRecovered = Known(false) }, ShelterFamily.Sleeping).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Of(Housed with { SleepingRecovered = Unknown<bool>() }, ShelterFamily.Sleeping).Satisfaction);
+        Assert.Equal("sleeping census", Assert.Throws<RequiredFactException>(() => Of(Housed with { SleepingRecovered = Unknown<bool>() }, ShelterFamily.Sleeping)).Fact);
         Assert.Empty(Of(Housed, ShelterFamily.Sleeping).Preconditions);
     }
 
@@ -68,7 +68,7 @@ public sealed class ShelterFamilyTests
         Assert.Equal(Satisfaction.Unmet, Of(Housed with { SleepingMax = Known(30.1) }, ShelterFamily.Temperature).Satisfaction);
         Assert.Equal(Satisfaction.Unmet, Of(Housed with { TemperatureOwed = Known(true) }, ShelterFamily.Temperature).Satisfaction);
         Assert.Equal(Satisfaction.Unmet, Of(Housed with { HeatDoorOwed = Known(true) }, ShelterFamily.Temperature).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Of(Housed with { SleepingMin = Unknown<double>() }, ShelterFamily.Temperature).Satisfaction);
+        Assert.Equal("sleeping room temperature", Assert.Throws<RequiredFactException>(() => Of(Housed with { SleepingMin = Unknown<double>() }, ShelterFamily.Temperature)).Fact);
     }
 
     [Fact]
@@ -77,7 +77,7 @@ public sealed class ShelterFamilyTests
         var need = Of(Housed with { SafeAreaOwed = Known(true) }, ShelterFamily.SafeArea);
         Assert.Equal(NeedTier.SeriousHarm, need.Tier);
         Assert.Equal(Satisfaction.Unmet, need.Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Of(Housed with { SafeAreaOwed = Unknown<bool>() }, ShelterFamily.SafeArea).Satisfaction);
+        Assert.Equal("safe area edits", Assert.Throws<RequiredFactException>(() => Of(Housed with { SafeAreaOwed = Unknown<bool>() }, ShelterFamily.SafeArea)).Fact);
         Assert.NotEmpty(new ShelterFamily(false, false, true).SeriousHarmReads);
         Assert.Empty(new ShelterFamily(true, true, false).SeriousHarmReads);
         // Only the safe area is SeriousHarm: the immediate pass keeps it alone.
@@ -106,7 +106,7 @@ public sealed class ShelterFamilyTests
         var unmet = Assert.Single(family.Derive(new PowerFacts { Standing = Known(false) }));
         Assert.Equal(Satisfaction.Unmet, unmet.Satisfaction);
         Assert.Equal(Known(1.0), unmet.Deficit);
-        Assert.Equal(Satisfaction.Unknown, Assert.Single(family.Derive(new PowerFacts())).Satisfaction);
+        Assert.Equal("power standing", Assert.Throws<RequiredFactException>(() => Assert.Single(family.Derive(new PowerFacts()))).Fact);
         Assert.Empty(family.SeriousHarmReads);
         Assert.Empty(family.Propose([unmet], new PowerFacts { Standing = Known(false) }));
         var held = Assert.Single(family.Propose([unmet], new PowerFacts { Standing = Known(false), OutageHeld = true }));

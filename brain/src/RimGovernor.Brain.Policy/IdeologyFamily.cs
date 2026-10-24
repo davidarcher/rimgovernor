@@ -6,10 +6,13 @@ namespace RimGovernor.Brain.Policy;
 /// What the ideology family reads (#3260): the owed role assignments, the rituals that can begin now, and the
 /// reform the colony's ideoligion owes. The reform's intent is what a Method commits: the pending record's intent
 /// when it still matches the colony and the chosen design, otherwise a fresh one; null while nothing is owed or the
-/// ideoligion or catalog is unread.
+/// ideoligion or catalog is unread. Without Ideology the family derives no Needs.
 /// </summary>
 public sealed record IdeologyFacts
 {
+    /// <summary>Whether the Ideology expansion is active (<see cref="IdeologyFamilyRules.Installed"/>).</summary>
+    public bool Installed { get; init; }
+
     public Fact<EquatableArray<RoleAssignment>> Roles { get; init; }
 
     public Fact<EquatableArray<RitualPlan>> Rituals { get; init; }
@@ -73,14 +76,18 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
 
     public IReadOnlyList<Need> Derive(IdeologyFacts facts)
     {
+        if (!facts.Installed)
+        {
+            return [];
+        }
         var needs = new List<Need>(3);
         if (roles)
         {
-            needs.Add(Owed(Roles, "owed_roles", facts.Roles.TryGetValue(out var owed) ? Known(owed.Count) : Unknown<int>()));
+            needs.Add(Owed(Roles, facts.Roles.TryGetValue(out var owed) ? owed.Count : throw new RequiredFactException("owed_roles")));
         }
         if (rituals)
         {
-            needs.Add(Owed(Rituals, "ritual_plans", facts.Rituals.TryGetValue(out var plans) ? Known(plans.Count) : Unknown<int>()));
+            needs.Add(Owed(Rituals, facts.Rituals.TryGetValue(out var plans) ? plans.Count : throw new RequiredFactException("ritual_plans")));
         }
         if (reform)
         {
@@ -99,6 +106,8 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
         }
         return needs;
     }
+
+    public IReadOnlyList<Need> DeriveSeriousHarm(IdeologyFacts facts) => [];
 
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, IdeologyFacts facts)
     {
@@ -164,32 +173,28 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
     private static string ReformReason(DesignComparison c) =>
         FormattableString.Invariant($"ideoligion: restrictions {c.Current.Restrictions}→{c.Candidate.Restrictions}, mood cost {c.Current.MoodCost:G}→{c.Candidate.MoodCost:G}, obligations {c.Current.Obligations}→{c.Candidate.Obligations}; work relief {(c.WorkRelief ? "true" : "false")}, observed mood relief {c.MoodRelief:G}, new mood cost {c.NewMoodCost:G}");
 
-    private static Need Owed(NeedId id, string fact, Fact<int> count) => new()
+    private static Need Owed(NeedId id, int count) => new()
     {
         Id = id,
         Tier = NeedTier.Development,
-        Satisfaction = !count.TryGetValue(out var n) ? Satisfaction.Unknown : n > 0 ? Satisfaction.Unmet : Satisfaction.Met,
-        Deficit = count.TryGetValue(out var d) ? Known((double)d) : Unknown<double>(),
+        Satisfaction = count > 0 ? Satisfaction.Unmet : Satisfaction.Met,
+        Deficit = Known((double)count),
     };
 }
 
 public static class IdeologyFamilyRules
 {
+    /// <summary>Whether the Ideology expansion is active; an unread frame flag raises <see cref="RequiredFactException"/>.</summary>
+    public static bool Installed(RoundsFacts f) => f.IdeologyInstalled.TryGetValue(out var on) ? on : throw new RequiredFactException("ideology installed");
+
     /// <summary>
-    /// The reform Need: unknown while the chosen design is; met once the pending reform is observed, or while the
-    /// choice is no reform (no memes, or not an improvement); unmet otherwise.
+    /// The reform Need: met once the pending reform is observed, or while the choice is no reform (no memes, or not an
+    /// improvement); unmet otherwise. An unread chosen design raises <see cref="RequiredFactException"/>.
     /// </summary>
     public static Need ReformNeedOf(IdeologyFacts f)
     {
-        var known = f.Reform.TryGetValue(out var choice);
-        var owed = known && !f.ReformObserved && choice!.Design.Memes.Count > 0 && choice.Comparison?.Decision is DesignDecision.Improves or DesignDecision.Awaiting;
-        var satisfaction = !known ? Satisfaction.Unknown : owed ? Satisfaction.Unmet : Satisfaction.Met;
-        return new Need
-        {
-            Id = IdeologyFamily.Reform,
-            Tier = NeedTier.Development,
-            Satisfaction = satisfaction,
-            Deficit = known ? Known(owed ? 1.0 : 0.0) : Unknown<double>(),
-        };
+        var choice = f.Reform.TryGetValue(out var c) ? c : throw new RequiredFactException("ideoligion reform design");
+        var owed = !f.ReformObserved && choice.Design.Memes.Count > 0 && choice.Comparison?.Decision is DesignDecision.Improves or DesignDecision.Awaiting;
+        return FoodRules.WholeNeed(IdeologyFamily.Reform, NeedTier.Development, !owed);
     }
 }

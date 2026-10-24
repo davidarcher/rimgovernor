@@ -342,17 +342,11 @@ public sealed partial class AdminRounds
 
     private static Verdict PurposeVerdict(LedgerPurpose purpose)
     {
-        // A purpose keyed by a NeedId reads its Need's standing: met is nothing to do, unknown is unmeasured, and
-        // unmet is the order's own verdict. Its bills share the ledger, so no owner's open work gates it.
+        // A purpose keyed by a NeedId reads its Need's standing: met is nothing to do, and unmet (or no Need
+        // reported) is the order's own verdict. Its bills share the ledger, so no owner's open work gates it.
         if (new NeedId(purpose.Need.Value).IsValid)
         {
-            return purpose.Report.Need?.Satisfaction switch
-            {
-                Satisfaction.Met => Verdict.BuildingReasonNoDeficit,
-                Satisfaction.Unmet => purpose.Report.Order,
-                Satisfaction.Unknown => Verdict.FieldUnavailable(purpose.Need.Value),
-                _ => purpose.Report.Order,
-            };
+            return purpose.Report.Need?.Satisfaction == Satisfaction.Met ? Verdict.BuildingReasonNoDeficit : purpose.Report.Order;
         }
 
         // A purpose keyed by anything else has no owner to work it.

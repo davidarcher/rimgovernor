@@ -39,6 +39,8 @@ public sealed class PowerFamily : IFamily<PowerFacts>
 
     public IReadOnlyList<Need> Derive(PowerFacts facts) => [PowerRules.PowerNeedOf(facts)];
 
+    public IReadOnlyList<Need> DeriveSeriousHarm(PowerFacts facts) => [];
+
     /// <summary>A flare holds the ready Need; otherwise every Method is the work step's.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, PowerFacts facts) =>
         facts.OutageHeld && ready.Any(n => n.Id == Basic)
@@ -48,12 +50,7 @@ public sealed class PowerFamily : IFamily<PowerFacts>
 
 public static partial class PowerRules
 {
-    /// <summary>The colony's power, a plain threshold: met while the grid stands, unmet while it is known short, otherwise unknown. Its deficit is whole.</summary>
-    public static Need PowerNeedOf(PowerFacts f) => new()
-    {
-        Id = PowerFamily.Basic,
-        Tier = NeedTier.Wellbeing,
-        Satisfaction = f.Standing.TryGetValue(out var v) ? v ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown,
-        Deficit = f.Standing.TryGetValue(out var d) ? Known(d ? 0.0 : 1.0) : Unknown<double>(),
-    };
+    /// <summary>The colony's power, a plain threshold: met while the grid stands, unmet while it is short; an unread grid raises <see cref="RequiredFactException"/>. Its deficit is whole.</summary>
+    public static Need PowerNeedOf(PowerFacts f) =>
+        FoodRules.WholeNeed(PowerFamily.Basic, NeedTier.Wellbeing, f.Standing.TryGetValue(out var v) ? v : throw new RequiredFactException("power standing"));
 }

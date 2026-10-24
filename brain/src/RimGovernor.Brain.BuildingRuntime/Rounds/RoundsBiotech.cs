@@ -69,6 +69,7 @@ public sealed partial class BiotechRounds
         var projection = reading.Projection;
         var facts = new BiotechFacts
         {
+            Installed = projection.Facts.BiotechInstalled,
             MechChargerOwed = projection.Facts.MechChargerOwed,
             GeneBankOwed = projection.Facts.GeneBankOwed,
             Pollution = projection.Facts.Pollution,

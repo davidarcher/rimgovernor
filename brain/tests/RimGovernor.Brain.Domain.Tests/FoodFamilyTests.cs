@@ -42,8 +42,7 @@ public sealed class FoodFamilyTests
         Assert.Equal(Satisfaction.Unmet, Supply(SupplyFacts() with { HumanFoodSettled = Known(false) }).Satisfaction);
 
         // An unread check with none short is unknown, never met.
-        var unread = Supply(SupplyFacts() with { FieldsCovered = Unknown<bool>() });
-        Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
+        Assert.Equal("food supply checks", Assert.Throws<RequiredFactException>(() => Supply(SupplyFacts() with { FieldsCovered = Unknown<bool>() })).Fact);
     }
 
     [Fact]
@@ -60,16 +59,20 @@ public sealed class FoodFamilyTests
         {
             var row = Assert.Single(EssentialServicesRules.ReviewEssentialServices(f, policy, new() { Work = new() { Tick = f.Tick } }).Coverage,
                 c => c.Service == EssentialService.Food && c.Target == ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed));
-            var expected = FoodRules.FoodSupplyNeedOf(FoodFacts.From(f, policy)).Satisfaction switch
+            // The review keeps an unread Need's row as unknown coverage.
+            ServiceCoverage expected;
+            try
             {
-                Satisfaction.Met => ServiceCoverage.Adequate,
-                Satisfaction.Unmet => ServiceCoverage.Shortfall,
-                _ => ServiceCoverage.Unknown,
-            };
+                expected = FoodRules.FoodSupplyNeedOf(FoodFacts.From(f, policy)).Satisfaction == Satisfaction.Met ? ServiceCoverage.Adequate : ServiceCoverage.Shortfall;
+            }
+            catch (RequiredFactException)
+            {
+                expected = ServiceCoverage.Unknown;
+            }
             Assert.Equal(expected, row.Coverage);
         }
         Assert.Equal(Satisfaction.Met, FoodRules.FoodSupplyNeedOf(FoodFacts.From(met, policy)).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, FoodRules.FoodSupplyNeedOf(FoodFacts.From(facts, policy)).Satisfaction);
+        Assert.Equal("food supply checks", Assert.Throws<RequiredFactException>(() => FoodRules.FoodSupplyNeedOf(FoodFacts.From(facts, policy))).Fact);
     }
 
     [Fact]
@@ -87,16 +90,16 @@ public sealed class FoodFamilyTests
         Assert.Equal(Satisfaction.Unmet, Cooking(new() { CampfireRetireOwed = Known(true) }).Satisfaction);
 
         // Unread cooking is unknown, never met; an unread campfire owes nothing.
-        var unread = Cooking(new() { CampfireRetireOwed = Known(false) });
-        Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
+        Assert.Equal("cooking", Assert.Throws<RequiredFactException>(() => Cooking(new() { CampfireRetireOwed = Known(false) })).Fact);
         Assert.Equal(Satisfaction.Met, Cooking(new() { Cooking = Known(true) }).Satisfaction);
     }
 
     [Fact]
     public void TheCookingNeedIsDerivedOnlyWhenComposedAndProposesNothingPurely()
     {
-        var facts = new FoodFacts { Cooking = Known(false) };
+        var facts = SupplyFacts() with { Cooking = Known(false) };
         Assert.Empty(new FoodFamily(false, false).Derive(facts));
+        Assert.Equal("food supply checks", Assert.Throws<RequiredFactException>(() => new FoodFamily(true, true).Derive(new FoodFacts { Cooking = Known(false) })).Fact);
         Assert.Equal([FoodRules.FoodSupplyNeed, FoodRules.CookingNeed], new FoodFamily(true, true).Derive(facts).Select(n => n.Id));
         var family = new FoodFamily(true, true);
         Assert.Empty(family.Propose(family.Derive(facts), facts));
@@ -119,7 +122,7 @@ public sealed class FoodFamilyTests
     {
         public required Journal Journal { get; init; }
         public required FamilyRunner<FoodFacts> Runner { get; init; }
-        public FoodFacts Facts { get; set; } = new() { Cooking = Known(false), CampfireRetireOwed = Known(false) };
+        public FoodFacts Facts { get; set; } = SupplyFacts() with { Cooking = Known(false), CampfireRetireOwed = Known(false) };
 
         /// <summary>The building Methods the cooking step commits on the next run, each a (MethodId, cell) pair.</summary>
         public List<(string Method, Cell Cell)> Builds { get; } = [];
@@ -319,8 +322,7 @@ public sealed class FoodFamilyTests
         var shortFood = BabyFeedingOf(new() { BabyFeeding = Known(new BabyFeeding { TargetNutrition = 5, IsShort = true }) });
         Assert.Equal((Satisfaction.Unmet, Known(1.0)), (shortFood.Satisfaction, shortFood.Deficit));
 
-        var unread = BabyFeedingOf(new());
-        Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
+        Assert.Equal("baby feeding", Assert.Throws<RequiredFactException>(() => BabyFeedingOf(new())).Fact);
 
         // The bill is the work ledger's: the family proposes nothing for the Need.
         var family = new FoodFamily(false, false, babyFeeding: true);
@@ -337,9 +339,9 @@ public sealed class FoodFamilyTests
         var standing = BlightOf(Census(Blighted("plant-1", 1, designated: true)));
         Assert.Equal((Satisfaction.Unmet, Known(1.0)), (standing.Satisfaction, standing.Deficit));
 
-        var unread = BlightOf(new());
-        Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
-        Assert.Equal([FoodRules.FoodSupplyNeed, FoodRules.CookingNeed, FoodRules.BabyFeedingNeed, FoodRules.BlightNeed], new FoodFamily(true, true, true, true).Derive(new()).Select(n => n.Id));
+        Assert.Equal("blight census", Assert.Throws<RequiredFactException>(() => BlightOf(new())).Fact);
+        var all = SupplyFacts() with { Cooking = Known(false), BabyFeeding = Known(new BabyFeeding { Breastfed = true }), Blight = Known<EquatableArray<BlightedPlant>>([]) };
+        Assert.Equal([FoodRules.FoodSupplyNeed, FoodRules.CookingNeed, FoodRules.BabyFeedingNeed, FoodRules.BlightNeed], new FoodFamily(true, true, true, true).Derive(all).Select(n => n.Id));
     }
 
     [Fact]

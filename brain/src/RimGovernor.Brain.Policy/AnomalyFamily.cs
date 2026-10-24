@@ -4,7 +4,9 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// What the anomaly family reads (#3302): the review's facts, whose containment planning (holders, doors and held
-/// entities), research, monolith, gear and custody census its predicates read. An unknown one leaves its Need unknown.
+/// entities), research, monolith, gear and custody census its predicates read. Without Anomaly
+/// (<see cref="RoundsFacts.AnomalyInstalled"/>) the family derives no Needs; with it, an unread fact raises
+/// <see cref="RequiredFactException"/>.
 /// </summary>
 public sealed record AnomalyFacts
 {
@@ -72,25 +74,46 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
     public IReadOnlyList<Need> Derive(AnomalyFacts facts)
     {
         var f = facts.Rounds;
+        if (!f.AnomalyInstalled)
+        {
+            return [];
+        }
         var p = f.Containment;
-        var holders = p.Holders.TryGetValue(out _);
-        var entities = p.Entities.TryGetValue(out _);
-        var doors = EntityUpkeepRules.ContainmentDoorUpkeep(p).CloseDoors.Count;
+        if (!p.Holders.TryGetValue(out _))
+        {
+            throw new RequiredFactException("containment holders");
+        }
+        if (!p.Entities.TryGetValue(out _))
+        {
+            throw new RequiredFactException("containment entities");
+        }
+        if (!f.Monolith.TryGetValue(out _))
+        {
+            throw new RequiredFactException("monolith");
+        }
         var harvest = EntityBioferriteRules.BioferriteHarvestOwed(p, f.Research);
         var monolith = MonolithRules.MonolithAdvanceOwed(f.Monolith, MonolithRules.MonolithGate(f));
+        // A rule an unread fact kept from deciding names its issues; it raises, never reads as met.
+        if (harvest.Enable.Count == 0 && harvest.Issues.Count > 0)
+        {
+            throw new RequiredFactException(string.Join("; ", harvest.Issues));
+        }
+        if (monolith.Order == MonolithOrder.None && MonolithRules.MonolithInPlay(f.Monolith) && monolith.Issues.Count > 0)
+        {
+            throw new RequiredFactException(string.Join("; ", monolith.Issues));
+        }
         return
         [
-            Counted(Doors, NeedTier.Wellbeing, holders ? doors : null),
-            Counted(Capture, NeedTier.Wellbeing, entities ? (EntityCaptureRules.EntityCaptureTarget(p) is null ? 0 : 1) : null),
-            Counted(Tend, NeedTier.Wellbeing, entities ? (EntityUpkeepRules.EntityTendTarget(p) is null ? 0 : 1) : null),
+            Counted(Doors, NeedTier.Wellbeing, EntityUpkeepRules.ContainmentDoorUpkeep(p).CloseDoors.Count),
+            Counted(Capture, NeedTier.Wellbeing, EntityCaptureRules.EntityCaptureTarget(p) is null ? 0 : 1),
+            Counted(Tend, NeedTier.Wellbeing, EntityUpkeepRules.EntityTendTarget(p) is null ? 0 : 1),
             Counted(Lance, NeedTier.Wellbeing, LanceTargets(f)),
-            // An unread fact that kept the rule from deciding leaves the Need unknown, never met.
-            Counted(Bioferrite, NeedTier.Development, entities && (harvest.Enable.Count > 0 || harvest.Issues.Count == 0) ? harvest.Enable.Count : null),
-            Counted(Monolith, NeedTier.Development,
-                f.Monolith.TryGetValue(out _) && (monolith.Order != MonolithOrder.None || !MonolithRules.MonolithInPlay(f.Monolith) || monolith.Issues.Count == 0)
-                    ? (monolith.Order == MonolithOrder.None ? 0 : 1) : null),
+            Counted(Bioferrite, NeedTier.Development, harvest.Enable.Count),
+            Counted(Monolith, NeedTier.Development, monolith.Order == MonolithOrder.None ? 0 : 1),
         ];
     }
+
+    public IReadOnlyList<Need> DeriveSeriousHarm(AnomalyFacts facts) => [];
 
     /// <summary>A Method per door to close and per entity to flag; holds for capture, tend and the monolith. The lance is the runtime's.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, AnomalyFacts facts)
@@ -140,36 +163,33 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
     /// <summary>The MethodId of setting <paramref name="entity"/>'s extract-bioferrite flag.</summary>
     public static MethodId BioferriteMethod(Domain.PawnId entity) => new("entity-bioferrite-" + entity.Value);
 
-    /// <summary>The lance targets: none while no colonist wears a lance; unknown while the gear, colony or custody census is unread.</summary>
-    private static int? LanceTargets(RoundsFacts f)
+    /// <summary>The lance targets: none while no colonist wears a lance; an unread gear, colony or custody census raises <see cref="RequiredFactException"/>.</summary>
+    private static int LanceTargets(RoundsFacts f)
     {
         if (!f.Gear.TryGetValue(out _))
         {
-            return null;
+            throw new RequiredFactException("gear");
         }
         if (!PopulationRules.LanceWorn(f.Gear))
         {
             return 0;
         }
-        if (!f.PrisonerColony.TryGetValue(out _) || !f.Custody.TryGetValue(out _))
+        if (!f.PrisonerColony.TryGetValue(out _))
         {
-            return null;
+            throw new RequiredFactException("prisoner colony");
+        }
+        if (!f.Custody.TryGetValue(out _))
+        {
+            throw new RequiredFactException("custody");
         }
         return PopulationRules.LanceCandidate(f) is null ? 0 : 1;
     }
 
-    private static Need Counted(NeedId id, NeedTier tier, int? owed)
+    private static Need Counted(NeedId id, NeedTier tier, int owed) => new()
     {
-        if (owed is not { } n)
-        {
-            return new Need { Id = id, Tier = tier };
-        }
-        return new Need
-        {
-            Id = id,
-            Tier = tier,
-            Satisfaction = n > 0 ? Satisfaction.Unmet : Satisfaction.Met,
-            Deficit = Fact.Known((double)n),
-        };
-    }
+        Id = id,
+        Tier = tier,
+        Satisfaction = owed > 0 ? Satisfaction.Unmet : Satisfaction.Met,
+        Deficit = Fact.Known((double)owed),
+    };
 }

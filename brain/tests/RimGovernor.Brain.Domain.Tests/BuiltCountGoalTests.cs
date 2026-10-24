@@ -52,8 +52,7 @@ public sealed class BuiltCountGoalTests
         // A met goal keeps its floor, or the budget would drop below the turrets standing.
         Assert.Equal(3, GoalRules.DemandOf(Facts(goal, Standing((DefenseTurretsPolicy.TurretMini, 3)))).Build.Turrets);
 
-        var unread = GoalRules.Evaluate(goal, Facts(goal, new RoundsFacts()));
-        Assert.Equal((GoalState.Blocked, "facts_unread"), (unread.State, unread.Reason));
+        Assert.Equal("built buildings", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, Facts(goal, new RoundsFacts()))).Fact);
     }
 
     [Fact]
@@ -69,7 +68,7 @@ public sealed class BuiltCountGoalTests
         Assert.Equal(GoalState.NoMethod, GoalRules.Evaluate(goal, Facts(goal, new RoundsFacts())).State);
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, Facts(goal, Standing(("Turret_Mortar", 2)))).State);
 
-        var held = new GoalsFamily().Propose([new Need { Id = GoalRules.NeedOf(goal), Tier = NeedTier.Development }], Facts(goal, new RoundsFacts()));
+        var held = new GoalsFamily().Propose([new Need { Id = GoalRules.NeedOf(goal), Tier = NeedTier.Development, Satisfaction = Satisfaction.Unmet }], Facts(goal, new RoundsFacts()));
         Assert.Equal("no_method:no placer for Turret_Mortar", Assert.Single(held).Hold!.Subject);
     }
 
@@ -91,7 +90,7 @@ public sealed class BuiltCountGoalTests
         Assert.Equal(0, GoalRules.DemandOf(open).Build.Turrets);
 
         // The goal's work step reports its own verdict, so the family holds no Method for it.
-        Assert.Empty(new GoalsFamily().Propose([new Need { Id = own, Tier = NeedTier.Development }], open));
+        Assert.Empty(new GoalsFamily().Propose([new Need { Id = own, Tier = NeedTier.Development, Satisfaction = Satisfaction.Unmet }], open));
     }
 
     [Fact]

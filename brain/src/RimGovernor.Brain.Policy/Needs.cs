@@ -87,14 +87,11 @@ public enum NeedTier
 }
 
 /// <summary>
-/// A Need's satisfaction predicate over what stands now. <see cref="Unknown"/> is the default and never counts as
-/// met: not for proposing, and not as a precondition.
+/// A Need's satisfaction predicate over what stands now. There is no unknown: a Family missing a fact it needs raises
+/// <see cref="RequiredFactException"/> and derives no Need.
 /// </summary>
 public enum Satisfaction
 {
-    [WireName("unknown")]
-    Unknown,
-
     [WireName("unmet")]
     Unmet,
 
@@ -113,8 +110,8 @@ public sealed record Need
 
     public required NeedTier Tier { get; init; }
 
-    /// <summary>The predicate's result; unknown unless the facts say.</summary>
-    public Satisfaction Satisfaction { get; init; }
+    /// <summary>The predicate's result over the facts read.</summary>
+    public required Satisfaction Satisfaction { get; init; }
 
     /// <summary>How far from met, in the family's own unit; unknown when the facts do not say.</summary>
     public Fact<double> Deficit { get; init; }
@@ -158,14 +155,11 @@ public sealed record NeedMethod(NeedId Need, MethodId Method, string Reason, Fun
 /// <summary>Why a family holds a ready Need without a Method: a stable refusal subject and its detail.</summary>
 public sealed record NeedHold(string Subject, string Detail);
 
-/// <summary>Where a derived Need stands before proposing: met, unknown, waiting on a precondition, or ready for a Method.</summary>
+/// <summary>Where a derived Need stands before proposing: met, waiting on a precondition, or ready for a Method.</summary>
 public enum NeedReadiness
 {
     [WireName("met")]
     Met,
-
-    [WireName("unknown")]
-    Unknown,
 
     [WireName("waiting")]
     Waiting,
@@ -196,13 +190,21 @@ public interface IFamily
 
 /// <summary>
 /// A family's pure policy over its own fact type. The runtime reads <typeparamref name="TFacts"/> (the full read,
-/// or in the immediate pass the narrow one, whose other facts stay unknown), derives, evaluates preconditions with
-/// <see cref="NeedsRules.NeedStandings"/>, and asks for Methods for the ready Needs only.
+/// or in the immediate pass the narrow one, which leaves every other fact unread), derives (<see cref="Derive"/>,
+/// or <see cref="DeriveSeriousHarm"/> in the immediate pass), evaluates preconditions with
+/// <see cref="NeedsRules.NeedStandings"/>, and asks for Methods for the ready Needs only. A Need's fact that is not
+/// read raises <see cref="RequiredFactException"/>.
 /// </summary>
 public interface IFamily<in TFacts> : IFamily
 {
     /// <summary>Pure. Derives every Need of the family from the current facts, in the family's own order.</summary>
     IReadOnlyList<Need> Derive(TFacts facts);
+
+    /// <summary>
+    /// Pure. Derives only the family's <see cref="NeedTier.SeriousHarm"/> Needs, from the immediate pass's narrow read
+    /// (<see cref="IFamily.SeriousHarmReads"/>); empty for a family without such Needs.
+    /// </summary>
+    IReadOnlyList<Need> DeriveSeriousHarm(TFacts facts);
 
     /// <summary>Pure. Candidate Methods for <paramref name="ready"/> (unmet, preconditions met), in the family's preferred order within a tier.</summary>
     IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, TFacts facts);
@@ -211,10 +213,9 @@ public interface IFamily<in TFacts> : IFamily
 public static partial class NeedsRules
 {
     /// <summary>
-    /// Where each derived Need stands, ordered by tier and then the family's derivation order. A Need is met or
-    /// unknown by its own predicate; an unmet one waits on its first precondition that is not met among
-    /// <paramref name="needs"/> (a precondition that is unknown or was not derived does not hold) and is otherwise
-    /// ready. Throws for an invalid Need or a repeated id.
+    /// Where each derived Need stands, ordered by tier and then the family's derivation order. A met Need is met; an
+    /// unmet one waits on its first precondition that is not met among <paramref name="needs"/> (a precondition that
+    /// was not derived does not hold) and is otherwise ready. Throws for an invalid Need or a repeated id.
     /// </summary>
     public static IReadOnlyList<NeedStanding> NeedStandings(string family, IReadOnlyList<Need> needs)
     {
@@ -227,14 +228,11 @@ public static partial class NeedsRules
         var standings = new List<NeedStanding>(needs.Count);
         foreach (var need in needs.Select((n, i) => (Need: n, Index: i)).OrderBy(n => n.Need.Tier).ThenBy(n => n.Index).Select(n => n.Need))
         {
-            standings.Add(need.Satisfaction switch
-            {
-                Satisfaction.Met => new NeedStanding(need, NeedReadiness.Met),
-                Satisfaction.Unknown => new NeedStanding(need, NeedReadiness.Unknown),
-                _ => need.Preconditions.FirstOrDefault(p => !byId.TryGetValue(p, out var held) || held.Satisfaction != Satisfaction.Met) is { IsValid: true } waiting
+            standings.Add(need.Satisfaction == Satisfaction.Met
+                ? new NeedStanding(need, NeedReadiness.Met)
+                : need.Preconditions.FirstOrDefault(p => !byId.TryGetValue(p, out var held) || held.Satisfaction != Satisfaction.Met) is { IsValid: true } waiting
                     ? new NeedStanding(need, NeedReadiness.Waiting, waiting)
-                    : new NeedStanding(need, NeedReadiness.Ready),
-            });
+                    : new NeedStanding(need, NeedReadiness.Ready));
         }
         return standings;
     }

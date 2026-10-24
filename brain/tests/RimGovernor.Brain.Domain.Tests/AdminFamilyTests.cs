@@ -41,9 +41,7 @@ public sealed class AdminFamilyTests
         var recorded = Derive(new CreepJoinerWork { Owed = Known(true) });
         Assert.Equal((Satisfaction.Unmet, 0.0), (recorded.Satisfaction, recorded.Deficit.Value));
 
-        var unknown = Derive(new CreepJoinerWork());
-        Assert.Equal(Satisfaction.Unknown, unknown.Satisfaction);
-        Assert.False(unknown.Deficit.IsKnown);
+        Assert.Equal("creepjoiner work", Assert.Throws<RequiredFactException>(() => Derive(new CreepJoinerWork())).Fact);
         Assert.Empty(new AdminFamily(creepJoiners: false).Derive(new AdminFacts()));
     }
 
@@ -54,7 +52,7 @@ public sealed class AdminFamilyTests
     [Fact]
     public void SupplySafetyIsMetUnmetOrUnknownByTheCohort()
     {
-        Need Supply(AdminFacts facts) => Assert.Single(Composed.Derive(facts), n => n.Id == AdminFamily.SupplySafety);
+        Need Supply(AdminFacts facts) => Assert.Single(new AdminFamily(new AdminNeeds { SupplySafety = true }).Derive(facts));
 
         var met = Supply(new AdminFacts { SupplySafety = Known(EquatableArray.From(Array.Empty<StartingSupply>())) });
         Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing, "admin/supply-safety"), (met.Satisfaction, met.Deficit.Value, met.Tier, met.Id.Value));
@@ -63,22 +61,24 @@ public sealed class AdminFamilyTests
         Assert.Equal((Satisfaction.Unmet, 3.0), (unmet.Satisfaction, unmet.Deficit.Value));
 
         // An unread census (or a read that never ran) is Unknown, never met.
-        Assert.Equal(Satisfaction.Unknown, Supply(new AdminFacts()).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Supply(new AdminFacts { SupplySafety = Unknown<EquatableArray<StartingSupply>>() }).Satisfaction);
+        Assert.Equal("supply safety census", Assert.Throws<RequiredFactException>(() => Supply(new AdminFacts())).Fact);
+        Assert.Equal("supply safety census", Assert.Throws<RequiredFactException>(() => Supply(new AdminFacts { SupplySafety = Unknown<EquatableArray<StartingSupply>>() })).Fact);
     }
 
     [Fact]
     public void BurialIsMetUnmetOrUnknownByTheStepOwed()
     {
-        Need Burial(AdminFacts facts) => Assert.Single(Composed.Derive(facts), n => n.Id == AdminFamily.Burial);
+        Need Burial(AdminFacts facts) => Assert.Single(new AdminFamily(new AdminNeeds { Burial = true }).Derive(facts));
 
         Assert.Equal((Satisfaction.Met, 0.0, "admin/burial"), (Burial(new AdminFacts { Burial = Known(false) }).Satisfaction, Burial(new AdminFacts { Burial = Known(false) }).Deficit.Value, AdminFamily.Burial.Value));
         var unmet = Burial(new AdminFacts { Burial = Known(true) });
         Assert.Equal((Satisfaction.Unmet, 1.0, NeedTier.Wellbeing), (unmet.Satisfaction, unmet.Deficit.Value, unmet.Tier));
-        Assert.Equal(Satisfaction.Unknown, Burial(new AdminFacts { Burial = Unknown<bool>() }).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Burial(new AdminFacts()).Satisfaction);
-        // Only the composed Needs are derived.
-        Assert.Equal([AdminFamily.SupplySafety, AdminFamily.Burial], Composed.Derive(new AdminFacts()).Select(n => n.Id));
+        Assert.Equal("burial steps", Assert.Throws<RequiredFactException>(() => Burial(new AdminFacts { Burial = Unknown<bool>() })).Fact);
+        Assert.Equal("burial steps", Assert.Throws<RequiredFactException>(() => Burial(new AdminFacts())).Fact);
+        // Only the composed Needs are derived, and any one unread raises for the family.
+        var both = new AdminFacts { SupplySafety = Known(EquatableArray.From(Array.Empty<StartingSupply>())), Burial = Known(false) };
+        Assert.Equal([AdminFamily.SupplySafety, AdminFamily.Burial], Composed.Derive(both).Select(n => n.Id));
+        Assert.Equal("burial steps", Assert.Throws<RequiredFactException>(() => Composed.Derive(both with { Burial = null })).Fact);
     }
 
     private static PlanSpec Forbid(params StartingSupply[] stacks)
@@ -125,8 +125,8 @@ public sealed class AdminFamilyTests
         Assert.Equal((Satisfaction.Met, 0.0, NeedTier.Wellbeing, "admin/work-ledger"), (met.Satisfaction, met.Deficit.Value, met.Tier, met.Id.Value));
         Assert.Equal((Satisfaction.Unmet, 1.0), (Ledger(new AdminFacts { WorkLedger = Known(true) }).Satisfaction, Ledger(new AdminFacts { WorkLedger = Known(true) }).Deficit.Value));
         // Unread declarations or bench bills are Unknown, never met.
-        Assert.Equal(Satisfaction.Unknown, Ledger(new AdminFacts { WorkLedger = Unknown<bool>() }).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Ledger(new AdminFacts()).Satisfaction);
+        Assert.Equal("work ledger diff", Assert.Throws<RequiredFactException>(() => Ledger(new AdminFacts { WorkLedger = Unknown<bool>() })).Fact);
+        Assert.Equal("work ledger diff", Assert.Throws<RequiredFactException>(() => Ledger(new AdminFacts())).Fact);
     }
 
     [Fact]
@@ -140,8 +140,8 @@ public sealed class AdminFamilyTests
         var unmet = Stores(new AdminFacts { Stockpiles = Known(true) });
         Assert.Equal((Satisfaction.Unmet, 1.0), (unmet.Satisfaction, unmet.Deficit.Value));
         // A world the review has not planned (or a review missing a fact) is Unknown, never met.
-        Assert.Equal(Satisfaction.Unknown, Stores(new AdminFacts { Stockpiles = Unknown<bool>() }).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Stores(new AdminFacts()).Satisfaction);
+        Assert.Equal("stockpile review", Assert.Throws<RequiredFactException>(() => Stores(new AdminFacts { Stockpiles = Unknown<bool>() })).Fact);
+        Assert.Equal("stockpile review", Assert.Throws<RequiredFactException>(() => Stores(new AdminFacts())).Fact);
     }
 
     private static readonly StockpileFilter Everything = new(FilterBase.Nothing);

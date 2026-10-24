@@ -44,7 +44,7 @@ retired Concern registry row, Rounds assessment and Standard episode.
 | --- | --- |
 | Id (`NeedId`) | `family/kind[/subject]`, stable across reviews and loads, for example `food-stores/refrigeration` or `medical/critical/<pawn>`. The family segment is the owning Family's id. A subject names one occurrence or target: a pawn, an event, a building. The id must be reproducible from facts alone; never hash a load token or tick into it. |
 | Evidence | The read facts the finding rests on. |
-| Satisfaction predicate | `met` or `unmet` over what stands now. There is no unknown: a Family whose facts are missing raises `RequiredFactException` and derives no Need ([rule 9](rules.md#review-items), #3753; #3758 deletes the remaining `Unknown` case described below). |
+| Satisfaction predicate | `met` or `unmet` over what stands now; `Need.Satisfaction` is required and has only those two values. There is no unknown: a Family any of whose composed Needs reads a missing fact raises `RequiredFactException` naming that fact and derives no Need, so the planner run is skipped ([rule 9](rules.md#review-items), #3753, #3758). A target that does not exist (a goal naming an unlisted project, skill or recipe) is `unmet` with no method, not missing. An expansion that is not installed derives no Needs at all. |
 | Deficit | How far from met, in the family's own unit; used by selection and explain. |
 | Tier | `SeriousHarm`, `Wellbeing` or `Development`. Selection orders by tier first; `SeriousHarm` Needs also run in the [immediate pass](#scheduling-and-the-immediate-pass). |
 | Preconditions | Optional: other NeedIds whose predicate must be met before this Need is proposed for ([below](#preconditions)). |
@@ -103,16 +103,19 @@ admission applies to every owner. Combat keeps one rule of its own: a second fig
 is refused while one is open or held (`CombatOpenWork`,
 `CombatWorkOpenException`).
 
-**Implemented (#3250).** Policy `Needs.cs` holds `NeedId`, `Need` (tier,
-`Satisfaction` Unknown/Unmet/Met, deficit, preconditions), `NeedMethod`
-and `IFamily<TFacts>` (`Reads`, `SeriousHarmReads`, `Derive`, `Propose`);
-`NeedStandings` resolves preconditions within one family, and Unknown never
-counts as met. Store `NeedOwner` and `Store.CommitClaimedMethod(NeedId, ...)`
+**Implemented (#3250, #3758).** Policy `Needs.cs` holds `NeedId`, `Need` (tier,
+`Satisfaction` Unmet/Met, deficit, preconditions), `NeedMethod`
+and `IFamily<TFacts>` (`Reads`, `SeriousHarmReads`, `Derive`, `DeriveSeriousHarm`,
+`Propose`); `NeedStandings` resolves preconditions within one family: a met Need
+is Met, an unmet one Waiting while a precondition is not met, else Ready. Store `NeedOwner` and `Store.CommitClaimedMethod(NeedId, ...)`
 admit a Method (Admitted, Continued or Conflict on a held claim). BuildingRuntime
 `FamilyRunner<TFacts>` runs a family as a planner entry
 (`ClockPlannerCatalog.WithFamilies`, from `ClockSchedulerConfig.Families`): one
 `planner_step` row and one ledger report per Need, and a family with
-SeriousHarm reads also runs in the immediate pass on those reads only. Each
+SeriousHarm reads also runs in the immediate pass on those reads only, deriving
+through `DeriveSeriousHarm` (Medical, Military, Shelter and Disaster implement it;
+every other family returns no Needs), so a fact only the full pass reads cannot
+raise there. Each
 migrating slice adds its family (food stores, #3251, home upkeep, #3253, and animals and ideology, #3260, are wired).
 
 **Need progress (#3231 decision 18).** A Need reaches launcher progress
@@ -120,7 +123,7 @@ migrating slice adds its family (food stores, #3251, home upkeep, #3253, and ani
 is no second progress source. After each wave `PlannerWave.NeedProgress` turns
 every returned family run into a `FamilyProgress` (each Need's filed planner note
 and the Method it works, from `NeedReport.Method`), and
-`Store.RecordPlannerReasons` applies it: an unmet or unknown Need's row is
+`Store.RecordPlannerReasons` applies it: an unmet Need's row is
 inserted or updated (the Method label with `Open`, or with no Method the note as
 its blocker), a met Need's row is pruned, and a complete run (`FamilyRun.Complete`,
 the full pass) prunes its family's rows for Needs it no longer derives. The
@@ -230,7 +233,8 @@ action kinds and cadence like a planner entry does today, and wakes on:
 - its cadence: the rounder's unless its schedule sets one (#3556).
 
 The **immediate pass** runs the `SeriousHarm` Needs of registered families,
-reading only their declared narrow facts. The legacy immediate Concern set was
+reading only their declared narrow facts: it calls each family's
+`DeriveSeriousHarm`, never `Derive` filtered by tier. The legacy immediate Concern set was
 deleted when its last entry, the disaster recovery incident, migrated (#3304).
 Immediate-protection behavior does not change; only its bookkeeping moves.
 
@@ -238,8 +242,8 @@ Immediate-protection behavior does not change; only its bookkeeping moves.
 
 Ordering between Needs is a precondition: "this Need waits on Need X's
 predicate". A Need whose precondition is not met is derived (so explain can show
-it) but not proposed for; explain shows it as waiting on that NeedId. An
-`unknown` precondition does not hold. Preconditions replaced the hard-coded phase
+it) but not proposed for; explain shows it as waiting on that NeedId. A
+precondition with no Need in the family does not hold. Preconditions replaced the hard-coded phase
 latches (Housing, Comfort, Medical).
 
 ### Forecast owners and coverage
@@ -280,7 +284,7 @@ Need run by the `food-stores` catalog entry (`FoodStoresRounds.Runner`). It is a
 plain threshold with no latch: unmet while reserve access is pending, the reserve
 is short outside an emergency, a food stockpile is known missing, a larder corpse
 change is due, or less than `TargetStoredFraction` (0.9) of at-risk perishable
-nutrition is stored; unknown when the census is unread; otherwise met. Its
+nutrition is stored; an unread census raises `RequiredFactException`; otherwise met. Its
 Methods are `food-reserve` (at most eight hold/release supply actions) and
 `corpse-larder-{allow|forbid}-{corpse}`, admitted under the Need owner with the
 supply stacks as claims; `AdmitSupplyMethod` binds the Need owner to the stacks the
@@ -294,8 +298,8 @@ same family, derived only when the refrigeration service is composed and with no
 precondition on storage. It is a plain threshold (decision 16): unmet while at-risk
 perishable nutrition warmer than `ChilledExitC` (5 C) reaches
 `AtRiskNutritionThreshold`, while a standing tomb, morgue or meal closet measures
-warm, or while the planned meal closet waits for its shell; unknown when the census
-is unread; otherwise met. The `Refrigeration` and `RefrigerationSince` latches and
+warm, or while the planned meal closet waits for its shell; an unread census
+raises `RequiredFactException`; otherwise met. The `Refrigeration` and `RefrigerationSince` latches and
 the native cooling time they lent are gone: the cooling window runs only over
 coolers the Need itself recently committed in its world (`OwnerMethodHistory`). Its building
 work is the family runner's `work` step (`FoodStoresRounds.WorkAsync` calling
@@ -318,7 +322,7 @@ while the ring review leaves cut cells or wooden ruins; its pure Method is
 `firebreak-<digest>` over the cells it orders, with AreaPlantCut claiming
 `cut/x/z` and CoverClearance its cell and thing, so disjoint orders run side by
 side. The ring's dwell clock stays in the review (`FirebreakMemory`); a tick the
-review did not plan the ring reads unknown. Firebreak has home-coverage as a
+review did not plan the ring raises `RequiredFactException`. Firebreak has home-coverage as a
 precondition (as #3256 decided). `layout/climate-envelope`
 (Wellbeing) is unmet while a planned room owes a vent or roof; its work step
 reconciles each owed room ring-only and climate-only, one Method per room.
@@ -336,7 +340,7 @@ their codec fields, the inspections, facility detectors, labor rows,
 the last registry Concern, composed by the `routes` toggle. It
 reads the rooms census each run: unmet while a facility some mobile colonist is
 listed for is reachable by none, or while a traffic door is owed a hold-open
-change; met otherwise, and unknown while the routes census is unread. There is no
+change; met otherwise; an unread routes census raises `RequiredFactException`. There is no
 latch (decision 16): a framed door makes the facility read reachable, and the
 open Method continues by itself until it settles. The work step is the old
 door-cut building step run under the Need owner and admitted by claims; the
@@ -350,8 +354,8 @@ process and world, at the map's latest fight and within the re-verify window
 (the verification and the siting probe's tick are the Rounder's in-memory
 `DefenseVerification`, never saved, #3008: a restart re-verifies), and no open fight
 waits in rooms to harden. Otherwise it is unmet; its deficit is 0 while every
-tier stands and 1 while a tier is owed. It is unknown while the journal facts
-are unread. The family reads combat as facts only (the military/combat Need's
+tier stands and 1 while a tier is owed. Unread journal facts
+raises `RequiredFactException`. The family reads combat as facts only (the military/combat Need's
 latest `engage-<map>` plan and the open fights); no combat Need is a
 precondition. The work step is the old planner run under the Need owner:
 fight-time room hardening, then the killbox proposal, re-verification and one
@@ -373,7 +377,7 @@ deleted.
 EnsureResearch: unmet while the first unfinished recorded research need (the
 workshop ladder's rung, planner waits, fishing and furniture requests, deep
 drilling) is unfinished, or while an empty Anomaly knowledge slot has a project
-to fund; unknown when the census is unread. Its pure Method is
+to fund; an unread census raises `RequiredFactException`. Its pure Method is
 `research-<project>` (one ResearchSelect, claiming `research/<project>`); a
 current project or a bench-locked rung holds the Need. The family's work step
 raises the laboratory benches (`laboratory-<def>`, the high-tech bench and the
@@ -386,8 +390,8 @@ step reads the room census, so a destroyed bench is raised again under the same
 Need (`ResourceNeedOf`), a Wellbeing Need of the same `economy` entry, composed
 by the resource-target or acquisition toggle. It is a plain threshold with no
 latch: unmet while the worst-covered derived stock target is short or a runway
-is known short; unknown while the stock census, or a runway over a day's window
-with nothing short, is unread; otherwise met. Its deficit is the worst target's
+is known short; an unread stock census, or an unread runway over a day's window
+with nothing short, raises `RequiredFactException`; otherwise met. Its deficit is the worst target's
 shortfall fraction raised to a short runway's missing horizon share. While a
 recorded research need is unfinished and the colony's works demand nothing a
 chop or mine provides, the Need is held on `research` (the economy/research Need
@@ -420,8 +424,8 @@ The trade export bills are filed under `economy/trade` and the workshop resource
 (`FoodRounds.Runner`), composed by the cooking or bill toggle. It is a plain
 threshold: unmet while no meal of the tier the meal policy picks can be made (an
 active bill of the tier's recipe, or a stocked, powered paste dispenser) or a
-cooking campfire a stove kitchen supersedes waits to be taken down; unknown while
-the cooking fact is unread; otherwise met. It is not a Once: a lost kitchen
+cooking campfire a stove kitchen supersedes waits to be taken down; an unread
+cooking fact raises `RequiredFactException`; otherwise met. It is not a Once: a lost kitchen
 reopens the Need on the next review. Its building work (campfire, paste
 dispenser and hopper, kitchen shell, stove, the campfire's deconstruction) is the
 family's `work` step running the shared building planner under the Need owner,
@@ -443,7 +447,7 @@ acquisition, field or bill toggle. It is a plain threshold over six checks: no
 human-food route of the food plan holds nutrition, the runway covers the
 foothold's days and the season's target days (no latch), the growing cells cover
 the foothold, the fields cover the plan's share, and a butcher bench stands. A
-known failing check makes it unmet; otherwise an unread check makes it unknown.
+known failing check makes it unmet; otherwise an unread check raises `RequiredFactException`.
 The family read applies the season's field budget to the room census. Its work
 step runs, under the Need owner and admitted by claims, the butcher building
 planner, the food acquisition planner (forage, hunts, stall withdrawals) and the
@@ -460,14 +464,14 @@ keyed to the Need; the coupled-candidate gate reads `RoundsFacts.AvailableNeeds`
 are the `food/baby-feeding` and `food/blight` Needs (`BabyFeedingNeedOf`,
 `BlightNeedOf`), Wellbeing Needs of the same `food` entry. Baby feeding is
 composed by the bill toggle: unmet while babies live, no colonist can breastfeed
-and the stock a baby eats is under the low-baby-food floor, unknown while that
-review is unread. Its one remedy is the standing baby food bill, which
+and the stock a baby eats is under the low-baby-food floor; an unread
+review raises `RequiredFactException`. Its one remedy is the standing baby food bill, which
 `BabyFoodDeclarer` declares to the work ledger under the Need's filing key
-(nothing while met, an abstain while unread); the family has no Methods of its
+(nothing while met); the family has no Methods of its
 own for it, so its work verdict waits on the bill (`baby_food_bill`). Blight is
 composed by the blight toggle: unmet while any blighted plant stands (designated
-or not, since the cut meets it, not the order), met on an empty census, unknown
-unread. Its Method is the family's pure proposal of the next batch of at most
+or not, since the cut meets it, not the order), met on an empty census; an unread census
+raises `RequiredFactException`. Its Method is the family's pure proposal of the next batch of at most
 eight eligible, undesignated plants not refused to an open cut,
 `cut-<hash of the plants>`, each plant a claim, so batches run side by side and
 the same batch continues; with nothing eligible and nothing designated the Need
@@ -497,16 +501,16 @@ outfit prune claims `policy/Outfit`. Its work step stands or retires the craftin
 spot and runs the gear workshop ladder under the Need, and the gear and armory
 ledger orders file under it. Restore-workers (SeriousHarm, #3311) replaced the
 RestoreWorkers Concern and the `undraft` planner: it is unmet while a drafted
-colonist no live plan needs stands and no hostile does, unknown while the colonist
-census is unread, and has no Methods. Its work step is the undraft sweep; the
+colonist no live plan needs stands and no hostile does (an unread colonist
+census raises `RequiredFactException`), and has no Methods. Its work step is the undraft sweep; the
 family is immediate, so the sweep runs in both passes, and its undrafts are logged
 under `military/restore-workers`. The family's own kinds widen the protection
 watch only on its own SeriousHarm plans.
 
 **Military family, combat (#3311).** `military/combat` replaces the combat incident
 incident: a SeriousHarm Need, one per map, unmet while a hostile stands or the held
-food plan requests a roster hunt (deficit hostiles plus prey), met when neither does,
-unknown while the hostile census is unread. One policy function,
+food plan requests a roster hunt (deficit hostiles plus prey), met when neither does;
+an unread hostile census raises `RequiredFactException`. One policy function,
 `RoundsRules.CombatSituation`, gives Active, Clear or Unclear for the review's
 combat standing (`Rounds.Combat`), the Need's predicate and `CombatCleared`. The
 review files the standing while it is active or the Need still holds open work; a
@@ -533,7 +537,7 @@ forecast outcome.
 `admin/work-assignments` Need, a Wellbeing Need of the `admin` entry. It is unmet
 while a coupled activity runs, is selected or is deferred, while a hostility
 response, nickname, medicine carry or medical care cap is owed, or while a work
-type is uncovered or a cleanup pawn idles; unknown while coverage is unread. Its
+type is uncovered or a cleanup pawn idles; unread coverage raises `RequiredFactException`. Its
 step (`RoundsWorkPlanner`) commits the work priorities, pawn settings and the
 reading, food and drug policies as one Method under the Need owner; each pawn's
 settings claim `settings/<pawn>` and each written policy
@@ -546,8 +550,8 @@ work priorities: other Needs' assignments are area-only.
 
 **People, mood (#3304).** EnsureMood and the mood relief planner are now the
 `people/mood/<pawn>` Needs of the `people` entry, one Wellbeing Need per tracked pawn
-from the review's mood state (one Unknown `people/mood` while the review is of another
-world). The step commits nothing: a provisioned pawn waits on its owner Need while that
+from the review's mood state (an unread review, or a present pawn's unclear mood,
+raises `RequiredFactException`). The step commits nothing: a provisioned pawn waits on its owner Need while that
 Need's latest progress row is unmet with a Method; with no measured need relief left it
 holds as `unsupported_forecast_mood_cast`; otherwise it waits on the shared need relief.
 The thought table's owner column names NeedIds only.
@@ -556,8 +560,8 @@ The thought table's owner column names NeedIds only.
 family (`Prisoners.cs`, runtime `PrisonersRounds`), an Optional entry woken by
 PrisonerInteraction, Building and BedUse outcomes. `prisoners/recruit`
 (Development) is unmet while any living prisoner is owed an interaction change
-(recruit, convert, enslave or release), unknown while the census or any
-prisoner's decision facts are unread. Each owed change is its own Method,
+(recruit, convert, enslave or release); an unread census or any unread
+prisoner's decision facts raises `RequiredFactException`. Each owed change is its own Method,
 `prisoner-<mode>-<pawn>`, claiming `prisoner/<pawn>`: two prisoners' changes run
 side by side, and a second change to one prisoner waits on the first's claim.
 While the Need is unmet its work step stages the jail (ring and next bed through
@@ -568,8 +572,8 @@ owed a rescue or capture; both are held (`dependent_rescue_incident_owner`,
 
 **Joiners and anomaly (#3302).** The rest of the population Concern is two
 families, and MaintainPopulation is deleted. `joiners` (`Joiners.cs`, runtime
-`JoinersRounds`) is an Optional entry with Development Needs, each unknown while
-its census is unread: `joiners/offers` and `joiners/letters` accept the
+`JoinersRounds`) is an Optional entry with Development Needs, each of which
+raises `RequiredFactException` while its census is unread: `joiners/offers` and `joiners/letters` accept the
 lowest-id joiner offer (`joiner-accept-<quest>`) or letter
 (`joiner-letter-<id>`) while the colony has room; `joiners/ceremony` is held
 (`unsupported_forecast_bestowing`); `joiners/quests` accepts the best quest
@@ -635,7 +639,7 @@ keys. Known gap: roof actions claim no cells.
 one Critical catalog entry that replaces the `tend`, `rescue`, `hospital`,
 `medical` and `surgery` planners. `medical/critical/<pawn>` (SeriousHarm) stands
 per critical patient and runs in the immediate pass on the emergency census and the
-care candidates' pawn rows; an unread census is one Unknown `medical/critical` Need.
+care candidates' pawn rows; an unread census raises `RequiredFactException`.
 Every patient's Need reads one shared greedy pairing over the pawns no open care
 order holds and commits its own `tend-<patient>` or `rescue-<patient>` under the
 Need owner; both pawns are claims (`care/<pawn>`), so two patients' tends run side

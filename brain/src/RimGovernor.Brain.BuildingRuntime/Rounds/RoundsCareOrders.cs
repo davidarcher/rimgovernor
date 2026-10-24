@@ -40,15 +40,10 @@ public sealed class RoundsCareBillDeclarer : IOrderDeclarer
         }
         if (_surgery)
         {
-            // The medical/surgery Need's part bill (#3258): declared while the Need is unmet, nothing while it is met,
-            // an abstain while the care census is unread.
+            // The medical/surgery Need's part bill (#3258): declared while the Need is unmet, nothing while it is met; an
+            // unread care census raises.
             var standing = MedicalRules.SurgeryNeedOf(MedicalFacts.From(projection.Facts, _reviewer.Policy, review.Latches.MedicalReserve)).Satisfaction;
-            var one = standing switch
-            {
-                Satisfaction.Unknown => WorkRules.Abstaining(Cause.UnreadMedicine),
-                Satisfaction.Met => new Declared(),
-                _ => SurgeryPartBill(projection, benches),
-            };
+            var one = standing == Satisfaction.Met ? new Declared() : SurgeryPartBill(projection, benches);
             output.Merge(one.For(MedicalRules.SurgeryNeed.FilingKey.Value));
         }
         return Task.FromResult(output);

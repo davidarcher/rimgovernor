@@ -41,13 +41,14 @@ count or a herd band, and the existing planners keep their own refusals.
 (`Bridge/Catalog/Research.cs`) and carried to the review as `ResearchFacts.Levels` (project to level). A
 `ResearchTier` target is read as a `TechTier` (the unlock chain, unchanged) and as a `TechLevel`; only `Industrial`
 and `Spacer` name both. While the goal is unmet, its demand is the chain's projects plus every unfinished project
-the census lists at that level; all of them join the research-wanted set. An unread census asks for nothing from the
-level and leaves a level-only goal Unknown.
+the census lists at that level; all of them join the research-wanted set. An unread census raises `RequiredFactException`
+(`research census`), skipping the run (#3758).
 
 ## Status
 
 `GoalStatus` is `Met`, `Pursuing` (the owning Need is at work or has no block to report), `Blocked` (the owner has
-no method and an actionable or held block, or the goal's facts are unread: `facts_unread`) or `NoMethod`. The
+no method and an actionable or held block) or `NoMethod`. A goal whose facts are unread raises
+`RequiredFactException` naming the fact, skipping the run; a target that does not exist is `NoMethod` (#3758). The
 family's Method for an unmet goal is only `NeedMethod.Held`, with the subject `pursuing:<owner need>`,
 `blocked:<reason>`, `infeasible:<floor>` (below) or `no_method:<reason>`. The owner's state is read from its rounds progress row.
 
@@ -123,7 +124,7 @@ Need is `economy/resource`, and the goal asks three existing channels for help; 
   plant definitions: the plant whose `HarvestedThingDef` is the stuff gives its `Research` (devilstrand cloth to the
   Devilstrand project), unfinished projects only. Sowing and tailoring then follow the field and clothing channels.
 
-`NoMethod` `no_wearer` when no colonist is eligible; `Blocked` `facts_unread` while the gear census is unread. The
+`NoMethod` `no_wearer` when no colonist is eligible; an unread gear census raises `RequiredFactException` (`gear`). The
 deficit is `Count` less the wearers.
 
 ## Built-count goals (#3496)

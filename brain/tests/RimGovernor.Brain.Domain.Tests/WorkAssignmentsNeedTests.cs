@@ -21,9 +21,7 @@ public sealed class WorkAssignmentsNeedTests
     {
         Assert.Equal(Satisfaction.Unmet, AdminFamily.WorkAssignmentsNeed(Known(true)).Satisfaction);
         Assert.Equal(Satisfaction.Met, AdminFamily.WorkAssignmentsNeed(Known(false)).Satisfaction);
-        var unread = Assert.Single(new AdminFamily(new AdminNeeds { WorkAssignments = true }).Derive(new AdminFacts()));
-        Assert.Equal(AdminFamily.WorkAssignments, unread.Id);
-        Assert.Equal(Satisfaction.Unknown, unread.Satisfaction);
+        Assert.Equal("work assignments review", Assert.Throws<RequiredFactException>(() => Assert.Single(new AdminFamily(new AdminNeeds { WorkAssignments = true }).Derive(new AdminFacts()))).Fact);
         Assert.Empty(new AdminFamily(new AdminNeeds()).Derive(new AdminFacts { WorkAssignments = Known(true) }));
     }
 

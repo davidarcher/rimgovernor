@@ -23,10 +23,11 @@ public sealed class MedicalFamilyTests
         new MedicalFamily(critical, care, reserves, surgery).Derive(facts);
 
     [Fact]
-    public void ACriticalNeedStandsPerPatientAndAnUnreadCensusIsOneUnknownNeed()
+    public void ACriticalNeedStandsPerPatientAndAnUnreadCensusRaises()
     {
-        var unknown = Assert.Single(Derive(new MedicalFacts(), critical: true));
-        Assert.Equal((MedicalRules.CriticalCensusNeed, NeedTier.SeriousHarm, Satisfaction.Unknown), (unknown.Id, unknown.Tier, unknown.Satisfaction));
+        Assert.Equal("critical patients", Assert.Throws<RequiredFactException>(() => Derive(new MedicalFacts(), critical: true)).Fact);
+        // The immediate pass derives the same critical Needs, and an unread census raises there too.
+        Assert.Equal("critical patients", Assert.Throws<RequiredFactException>(() => new MedicalFamily(true, false, false, false).DeriveSeriousHarm(new MedicalFacts())).Fact);
 
         var patients = Derive(new MedicalFacts { Critical = Known(EquatableArray.From([P1, P2])) }, critical: true);
         Assert.Equal([MedicalRules.CriticalNeed(P1), MedicalRules.CriticalNeed(P2)], patients.Select(n => n.Id));
@@ -38,23 +39,34 @@ public sealed class MedicalFamilyTests
         Assert.Empty(Derive(new MedicalFacts { Critical = Known(EquatableArray.From(Array.Empty<PawnId>())) }, critical: true));
         Assert.Equal(Satisfaction.Met, MedicalRules.CriticalCensusNeedOf(Known(0L)).Satisfaction);
         Assert.Equal(Satisfaction.Unmet, MedicalRules.CriticalCensusNeedOf(Known(2L)).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, MedicalRules.CriticalCensusNeedOf(Unknown<long>()).Satisfaction);
+        Assert.Equal("critical patients", Assert.Throws<RequiredFactException>(() => MedicalRules.CriticalCensusNeedOf(Unknown<long>())).Fact);
+        // Only the critical Needs are the immediate pass's.
+        var facts = new MedicalFacts { Critical = Known(EquatableArray.From([P1])), CareRecovered = Known(false) };
+        Assert.Equal([MedicalRules.CriticalNeed(P1)], new MedicalFamily(true, true, false, false).DeriveSeriousHarm(facts).Select(n => n.Id));
     }
 
     [Theory]
     [InlineData(true, Satisfaction.Met)]
     [InlineData(false, Satisfaction.Unmet)]
-    [InlineData(null, Satisfaction.Unknown)]
-    public void CareReservesAndSurgeryArePlainThresholds(bool? value, Satisfaction expected)
+    public void CareReservesAndSurgeryArePlainThresholds(bool value, Satisfaction expected)
     {
-        var fact = value is { } v ? Known(v) : Unknown<bool>();
+        var fact = Known(value);
         var facts = new MedicalFacts { CareRecovered = fact, ReservesCovered = fact, SurgeryRecovered = fact, MedicineStock = Known(2L), MedicineTarget = Known(8L) };
         var needs = Derive(facts, care: true, reserves: true, surgery: true);
         Assert.Equal([MedicalRules.MedicalCareNeed, MedicalRules.MedicalReservesNeed, MedicalRules.SurgeryNeed], needs.Select(n => n.Id));
         Assert.All(needs, n => Assert.Equal((NeedTier.Wellbeing, expected), (n.Tier, n.Satisfaction)));
         var reserves = needs[1];
-        Assert.Equal(expected switch { Satisfaction.Met => Known(0.0), Satisfaction.Unmet => Known(0.75), _ => Unknown<double>() }, reserves.Deficit);
+        Assert.Equal(expected == Satisfaction.Met ? Known(0.0) : Known(0.75), reserves.Deficit);
         Assert.Empty(new MedicalFamily(true, true, true, true).Propose(needs, facts));
+    }
+
+    [Fact]
+    public void AnUnreadCareReservesOrSurgeryFactRaises()
+    {
+        var read = new MedicalFacts { CareRecovered = Known(true), ReservesCovered = Known(true), SurgeryRecovered = Known(true), MedicineStock = Known(2L), MedicineTarget = Known(8L) };
+        Assert.Equal("care census", Assert.Throws<RequiredFactException>(() => Derive(read with { CareRecovered = Unknown<bool>() }, care: true)).Fact);
+        Assert.Equal("medicine reserves", Assert.Throws<RequiredFactException>(() => Derive(read with { ReservesCovered = Unknown<bool>() }, reserves: true)).Fact);
+        Assert.Equal("surgery census", Assert.Throws<RequiredFactException>(() => Derive(read with { SurgeryRecovered = Unknown<bool>() }, surgery: true)).Fact);
     }
 
     [Fact]

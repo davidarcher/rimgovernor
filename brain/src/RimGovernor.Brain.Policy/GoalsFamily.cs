@@ -215,6 +215,8 @@ public sealed class GoalsFamily : IFamily<GoalsFacts>
             Deficit = s.Deficit,
         })];
 
+    public IReadOnlyList<Need> DeriveSeriousHarm(GoalsFacts facts) => [];
+
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, GoalsFacts facts)
     {
         var output = new List<NeedMethod>();
@@ -290,15 +292,15 @@ public static partial class GoalRules
                 owner = EconomyFamily.Research;
                 break;
             case GoalKind.StockCount:
-                (met, deficit) = Shortfall(goal.Count, f.Stock.TryGetValue(out var stock) ? Fact.Known(stock.Where(a => a.Resource == new Resource(goal.Target)).Sum(a => a.Count)) : Fact.Unknown<long>());
+                (met, deficit) = Shortfall(goal.Count, f.Stock.TryGetValue(out var stock) ? stock.Where(a => a.Resource == new Resource(goal.Target)).Sum(a => a.Count) : throw new RequiredFactException("stock census"));
                 owner = EconomyFamily.Resource;
                 break;
             case GoalKind.Colonists:
-                (met, deficit) = Shortfall(goal.Count, Fact.Known(f.Colonists));
+                (met, deficit) = Shortfall(goal.Count, f.Colonists);
                 owner = JoinersFamily.Offers;
                 break;
             case GoalKind.Animals:
-                (met, deficit) = Shortfall(goal.Count, f.Animals.TryGetValue(out var animals) ? Fact.Known((long)animals.Count(a => a.Definition == new Resource(goal.Target))) : Fact.Unknown<long>());
+                (met, deficit) = Shortfall(goal.Count, f.Animals.TryGetValue(out var animals) ? animals.Count(a => a.Definition == new Resource(goal.Target)) : throw new RequiredFactException("animal census"));
                 owner = AnimalsFamily.Herd;
                 break;
             case GoalKind.WornCount:
@@ -322,11 +324,12 @@ public static partial class GoalRules
             case GoalKind.Health:
                 return Health(goal, f);
             default:
-                return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, NoPursuit, default, default);
+                return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NoPursuit, default, default);
         }
         if (!met.TryGetValue(out var isMet))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, deficit);
+            // The facts are read (an unread one raised); a target they do not list does not exist.
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, UnknownTarget, default, deficit);
         }
         return isMet ? new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, deficit) : Pursued(goal, f, owner, deficit);
     }
@@ -347,7 +350,7 @@ public static partial class GoalRules
         var owner = EconomyFamily.Resource;
         if (!f.Rounds.Gear.TryGetValue(out var gear))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+            throw new RequiredFactException("gear");
         }
         var want = new WornGoal(new Resource(goal.Target), new Resource(goal.Qualifier), goal.Count);
         var wearing = WearingCount(gear, want);
@@ -387,7 +390,13 @@ public static partial class GoalRules
     {
         var placer = PlacerOf(goal.Target);
         var owner = placer switch { BuiltPlacer.Turret => LayoutFamily.Defense, BuiltPlacer.None => default, _ => NeedOf(goal) };
-        var (met, deficit) = Shortfall(goal.Count, BuiltOf(f.Rounds, goal.Target));
+        // A definition nothing places has no method whether or not the building table was read.
+        var read = BuiltOf(f.Rounds, goal.Target).TryGetValue(out var built);
+        if (!read && placer != BuiltPlacer.None)
+        {
+            throw new RequiredFactException("built buildings");
+        }
+        var (met, deficit) = read ? Shortfall(goal.Count, built) : (default, default);
         if (met.TryGetValue(out var isMet) && isMet)
         {
             return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", owner, deficit);
@@ -396,7 +405,7 @@ public static partial class GoalRules
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "no placer for " + goal.Target, default, deficit);
         }
-        return met.IsKnown ? Pursued(goal, f, owner, deficit) : new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, deficit);
+        return Pursued(goal, f, owner, deficit);
     }
 
     /// <summary>
@@ -409,21 +418,21 @@ public static partial class GoalRules
         var owner = AdminFamily.WorkAssignments;
         if (!f.Pawns.TryGetValue(out var pawns))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+            throw new RequiredFactException("pawn census");
         }
         var pawn = pawns.FirstOrDefault(p => p.Id == new PawnId(goal.Target));
         if (pawn is null)
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, NotAColonist, default, default);
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NotAColonist, default, default);
         }
         if (!pawn.Skills.TryGetValue(out var skills))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+            throw new RequiredFactException("skills of " + goal.Target);
         }
         var skill = skills.FirstOrDefault(s => s.Name == goal.Qualifier);
         if (skill is null)
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, "unknown_skill", default, default);
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_skill", default, default);
         }
         var deficit = Fact.Known((double)Math.Max(0, goal.Count - skill.Level));
         if (skill.Level >= goal.Count)
@@ -447,20 +456,20 @@ public static partial class GoalRules
         var one = Fact.Known(1.0);
         if (!f.Rounds.Recipes.AddedHediffs.TryGetValue(goal.Qualifier, out var hediff))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, "unknown_recipe", default, default);
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_recipe", default, default);
         }
         if (!f.Rounds.MedicalPawns.TryGetValue(out var pawns))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+            throw new RequiredFactException("medical pawns");
         }
         var pawn = pawns.FirstOrDefault(p => p.Id == new PawnId(goal.Target));
         if (pawn is null || (pawn.Dead.TryGetValue(out var dead) && dead))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, NotAColonist, default, default);
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NotAColonist, default, default);
         }
         if (!pawn.Conditions.TryGetValue(out var conditions) || !pawn.Operations.TryGetValue(out var ops))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+            throw new RequiredFactException("conditions or operations of " + goal.Target);
         }
         if (conditions.Any(c => c.DefName.TryGetValue(out var held) && held == hediff))
         {
@@ -496,14 +505,14 @@ public static partial class GoalRules
         var pawn = new PawnId(goal.Target);
         if (!f.Rounds.Prisoners.TryGetValue(out var prisoners))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+            throw new RequiredFactException("prisoners");
         }
         var row = prisoners.FirstOrDefault(p => p.Pawn == pawn);
         if (row is null)
         {
             if (!f.Rounds.Custody.TryGetValue(out var custody))
             {
-                return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+                throw new RequiredFactException("custody");
             }
             var colonist = custody.Any(c => c.Pawn == pawn && c.Admitted.TryGetValue(out var admitted) && admitted && c.Dead.TryGetValue(out var dead) && !dead);
             return colonist
@@ -512,7 +521,7 @@ public static partial class GoalRules
         }
         if (!row.Dead.TryGetValue(out var gone) || !row.Recruitable.TryGetValue(out var recruitable))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+            throw new RequiredFactException("prisoner " + goal.Target);
         }
         if (gone)
         {
@@ -531,13 +540,13 @@ public static partial class GoalRules
     {
         if (!Wire.TryParse<RoomRole>(goal.Target, out var role) || role == RoomRole.Unset)
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.NoMethod, "unknown_role", default, default);
+            return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_role", default, default);
         }
         var staged = StagedRole(role);
         var owner = role == RoomRole.Hospital ? MedicalRules.MedicalCareNeed : staged ? ShelterFamily.Sleeping : default;
         if (!f.Rooms.TryGetValue(out var rooms))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+            throw new RequiredFactException("rooms");
         }
         double deficit;
         if (role == RoomRole.Hospital)
@@ -545,7 +554,7 @@ public static partial class GoalRules
             var (hosted, known) = HospitalRules.HostedMedicalBeds(rooms, f.Rounds.Sleeping, false);
             if (!known)
             {
-                return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+                throw new RequiredFactException("hosted medical beds");
             }
             deficit = Math.Max(0, HospitalBedsOf(goal) - hosted);
         }
@@ -588,7 +597,7 @@ public static partial class GoalRules
         var one = Fact.Known(1.0);
         if (!f.Rounds.QuestOffers.TryGetValue(out var offers))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", JoinersFamily.Quests, default);
+            throw new RequiredFactException("quest offers");
         }
         var quest = new QuestId(goal.Target);
         var offer = offers.FirstOrDefault(o => o.Quest == quest);
@@ -779,6 +788,8 @@ public static partial class GoalRules
 
     private const string NoPursuit = "no_pursuit";
 
+    private const string UnknownTarget = "unknown_target";
+
     private const string NotAPrisoner = "not a prisoner";
 
     private const string NotAColonist = "not_a_colonist";
@@ -798,7 +809,7 @@ public static partial class GoalRules
         }
         if (!ConversionRules.Shortfall([goal], f.Ideology, f.Pawns).TryGetValue(out var lacking) || !ConversionRules.Owed([goal], f.Ideology, f.Pawns).TryGetValue(out var owed))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", default, default);
+            throw new RequiredFactException("ideoligion or pawns");
         }
         if (lacking == 0)
         {
@@ -826,7 +837,7 @@ public static partial class GoalRules
         }
         if (!f.Ideology.TryGetValue(out var ideo))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", default, default);
+            throw new RequiredFactException("ideoligion");
         }
         var held = goal.Kind switch
         {
@@ -851,7 +862,7 @@ public static partial class GoalRules
         }
         if (!ideo.Facts.Development.TryGetValue(out var development))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", default, default);
+            throw new RequiredFactException("ideoligion development");
         }
         if (!development.Fluid)
         {
@@ -860,7 +871,7 @@ public static partial class GoalRules
         var owner = IdeologyFamily.Reform;
         if (!f.Reform.TryGetValue(out var reform))
         {
-            return new GoalStatus(goal, Satisfaction.Unknown, GoalState.Blocked, "facts_unread", owner, default);
+            throw new RequiredFactException("ideoligion reform design");
         }
         if (reform.Blocked.TryGetValue(goal.Id, out var missing))
         {
@@ -890,9 +901,11 @@ public static partial class GoalRules
                 }, g.Target)),
         ];
 
+    /// <summary>Whether the project is finished; neither while the census does not list it. An unread census raises <see cref="RequiredFactException"/>.</summary>
     private static (Fact<bool> Met, Fact<double> Deficit) ProjectMet(string project, Fact<ResearchFacts> research)
     {
-        if (!research.TryGetValue(out var facts) || project == "" || !facts.Projects.Any(p => p.Value == project))
+        var facts = research.TryGetValue(out var r) ? r : throw new RequiredFactException("research census");
+        if (project == "" || !facts.Projects.Any(p => p.Value == project))
         {
             return (default, default);
         }
@@ -902,7 +915,8 @@ public static partial class GoalRules
 
     private static (Fact<bool> Met, Fact<double> Deficit) TierMet(string target, Fact<TechTier> tier)
     {
-        if (!tier.TryGetValue(out var reached) || !Enum.TryParse<TechTier>(target, true, out var wanted))
+        var reached = tier.TryGetValue(out var t) ? t : throw new RequiredFactException("tech tier");
+        if (!Enum.TryParse<TechTier>(target, true, out var wanted))
         {
             return (default, default);
         }
@@ -920,10 +934,14 @@ public static partial class GoalRules
         return [.. facts.Levels.Where(l => l.Value == level && !finished.Contains(l.Key.Value)).Select(l => l.Key.Value)];
     }
 
-    /// <summary>A tech level that is not a construction tier: met once no listed project at that level is unfinished.</summary>
+    /// <summary>A tech level that is not a construction tier: met once no listed project at that level is unfinished; neither when the target names no level.</summary>
     private static (Fact<bool> Met, Fact<double> Deficit) LevelMet(string target, Fact<ResearchFacts> research)
     {
-        if (!Enum.TryParse<TechLevel>(target, true, out var level) || !Enum.IsDefined(level) || !research.TryGetValue(out _))
+        if (!research.TryGetValue(out _))
+        {
+            throw new RequiredFactException("research census");
+        }
+        if (!Enum.TryParse<TechLevel>(target, true, out var level) || !Enum.IsDefined(level))
         {
             return (default, default);
         }
@@ -931,12 +949,6 @@ public static partial class GoalRules
         return (Fact.Known(open == 0), Fact.Known((double)open));
     }
 
-    private static (Fact<bool> Met, Fact<double> Deficit) Shortfall(long wanted, Fact<long> have)
-    {
-        if (!have.TryGetValue(out var count))
-        {
-            return (default, default);
-        }
-        return (Fact.Known(count >= wanted), Fact.Known((double)Math.Max(0, wanted - count)));
-    }
+    private static (Fact<bool> Met, Fact<double> Deficit) Shortfall(long wanted, long have) =>
+        (Fact.Known(have >= wanted), Fact.Known((double)Math.Max(0, wanted - have)));
 }

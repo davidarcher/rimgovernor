@@ -51,7 +51,7 @@ public sealed class RoyaltyRounds
             throw new ControlException("royalty read: the scope is another world or older than the review");
         }
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
-        var facts = new RoyaltyFamilyFacts { Royalty = read.Projection.Facts.Royalty };
+        var facts = new RoyaltyFamilyFacts { Installed = read.Projection.Facts.RoyaltyInstalled, Royalty = read.Projection.Facts.Royalty };
         if (_psylink is not null)
         {
             facts = facts with { PsylinkOwed = await PsylinkOwedAsync(_psylink, Boundary.Identity(scope.World), read.Projection, call).ConfigureAwait(false) };

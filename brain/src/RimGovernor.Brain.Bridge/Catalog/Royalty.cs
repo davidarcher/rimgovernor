@@ -14,6 +14,9 @@ public sealed partial class DefinitionCatalog
     private const string PsyfocusCostStat = "Ability_PsyfocusCost";
     private const string EntropyGainStat = "Ability_EntropyGain";
 
+    /// <summary>Whether the game runs Royalty: the defs carry RoyalTitleDef rows only with the expansion.</summary>
+    public bool HasRoyalty() => Rows<RoyalTitleDef>().Count > 0;
+
     /// <summary>
     /// <paramref name="facts"/> with its Ladder and Permits read from the defs: every RoyalTitleDef by ascending seniority
     /// (then name), each with its favor, bedroom and throne requirements, and every RoyalTitlePermitDef by name. A catalog

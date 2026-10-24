@@ -187,7 +187,7 @@ public sealed class IdeoligionGoalReformTests
 
         var rigid = GoalRules.Evaluate(goal, GoalFacts(goal, Points(fluid: false), default));
         Assert.Equal((GoalState.NoMethod, "not fluid"), (rigid.State, rigid.Reason));
-        Assert.Equal((GoalState.Blocked, "facts_unread"), (GoalRules.Evaluate(goal, GoalFacts(goal, Points(), default)).State, GoalRules.Evaluate(goal, GoalFacts(goal, Points(), default)).Reason));
+        Assert.Equal("ideoligion reform design", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, GoalFacts(goal, Points(), default))).Fact);
     }
 
     [Fact]

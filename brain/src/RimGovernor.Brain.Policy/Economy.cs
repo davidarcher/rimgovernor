@@ -121,6 +121,8 @@ public sealed partial class EconomyFamily(bool research = true, bool resource = 
             .. caravan ? [CaravanNeed(facts.Trade), TradeMissionNeed(facts.Missions)] : Array.Empty<Need>(),
         ];
 
+    public IReadOnlyList<Need> DeriveSeriousHarm(EconomyFacts facts) => [];
+
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, EconomyFacts facts)
     {
         var methods = new List<NeedMethod>();
@@ -149,8 +151,9 @@ public sealed partial class EconomyFamily(bool research = true, bool resource = 
     /// <summary>
     /// The research Need, a plain predicate with no latch: met with no unfinished need; unmet while the target is
     /// unfinished and nothing current recovers it (a derived target stays owed while its project is current, and a
-    /// current project missing its bench is owed), or while an empty knowledge slot has a project to fund; unknown
-    /// when the census was not read. A need the census does not list is no target. Its deficit is 1 while owed.
+    /// current project missing its bench is owed), or while an empty knowledge slot has a project to fund. An unread
+    /// census raises <see cref="RequiredFactException"/>. A need the census does not list is no target. Its deficit is 1
+    /// while owed.
     /// </summary>
     public static Need ResearchNeed(EconomyFacts f)
     {
@@ -165,13 +168,16 @@ public sealed partial class EconomyFamily(bool research = true, bool resource = 
             recovered = Known(false);
             deficit = Known(Math.Max(deficit.TryGetValue(out var d) ? d : 0.0, 1.0));
         }
-        var satisfaction = !recovered.TryGetValue(out var met) ? Satisfaction.Unknown : met ? Satisfaction.Met : Satisfaction.Unmet;
+        if (!recovered.TryGetValue(out var met))
+        {
+            throw new RequiredFactException("research census");
+        }
         return new Need
         {
             Id = Research,
             Tier = NeedTier.Development,
-            Satisfaction = satisfaction,
-            Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : deficit,
+            Satisfaction = met ? Satisfaction.Met : Satisfaction.Unmet,
+            Deficit = deficit,
         };
     }
 }
@@ -188,8 +194,8 @@ public static class EconomyRules
 
     /// <summary>
     /// The resource Need, a plain threshold with no latch: met with no target short and no runway short; unmet while
-    /// the worst-covered target is short or a runway is known short; unknown while the stock census is unread, or a
-    /// runway over a day's window is unread with nothing short. Its deficit is the worst target's shortfall fraction,
+    /// the worst-covered target is short or a runway is known short. An unread stock census, or a runway over a day's
+    /// window unread with nothing short, raises <see cref="RequiredFactException"/>. Its deficit is the worst target's shortfall fraction,
     /// raised to a short runway's missing share of the maintenance horizon.
     /// </summary>
     public static Need ResourceNeedOf(ResourceFacts f)
@@ -216,27 +222,16 @@ public static class EconomyRules
                 }
             }
         }
-        var satisfaction = !recovered.TryGetValue(out var met) ? Satisfaction.Unknown : met ? Satisfaction.Met : Satisfaction.Unmet;
-        var worst = Unknown<string>();
-        if (census.IsKnown)
+        if (!recovered.TryGetValue(out var met))
         {
-            try
-            {
-                var (resource, _, found) = ResourceRules.SelectResourceTarget(f.Targets, census);
-                worst = Known(found ? resource.Value : "");
-            }
-            catch (DomainException)
-            {
-                // A census the selector cannot rank names no worst target.
-                worst = Unknown<string>();
-            }
+            throw new RequiredFactException("resource stock or runways");
         }
         return new Need
         {
             Id = EconomyFamily.Resource,
             Tier = NeedTier.Wellbeing,
-            Satisfaction = satisfaction,
-            Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : deficit,
+            Satisfaction = met ? Satisfaction.Met : Satisfaction.Unmet,
+            Deficit = deficit,
         };
     }
 

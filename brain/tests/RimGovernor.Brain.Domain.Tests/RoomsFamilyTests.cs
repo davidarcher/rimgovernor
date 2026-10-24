@@ -18,7 +18,33 @@ public sealed class RoomsFamilyTests
 
     private static RoomsFamily All() => new(true, true, true, true, true);
 
-    private static Need Of(RoomsFacts facts, NeedId id) => Assert.Single(All().Derive(facts), n => n.Id == id);
+    // Each Need's own predicate, as the full composition derives it: the family raises on the first Need whose fact is unread.
+    private static Need Of(RoomsFacts facts, NeedId id) =>
+        id == RoomsFamily.Lighting ? RoomsFamily.LightingNeed(facts)
+        : id == RoomsFamily.Flooring ? RoomsFamily.FlooringNeed(facts)
+        : id == RoomsFamily.Art ? RoomsFamily.ArtNeed(facts)
+        : id == RoomsFamily.Comfort ? RoomsFamily.ComfortNeed(facts)
+        : id == RoomsFamily.Hosting ? RoomsFamily.HostingNeed(facts)
+        : id == RoomsFamily.PartySpot ? RoomsFamily.PartySpotNeed(facts)
+        : id == RoomsFamily.WorkChairs ? RoomsFamily.WorkChairsNeed(facts)
+        : RoomsFamily.GatheringsNeed(facts, partySpot: true);
+
+    private static readonly ComfortObservation NoComfortOwed = new() { People = [], Surfaces = [], Dining = [], Recreation = [], WatchBuildings = [], Joy = new() { Kinds = [], Pawns = [], Methods = [] } };
+
+    /// <summary>Every fact of the full composition read, with nothing owed.</summary>
+    private static readonly RoomsFacts Settled = new()
+    {
+        Lighting = Known(new LightingReview { Known = true }),
+        Flooring = Known(new FlooringReview { Known = true }),
+        Profiles = Known<EquatableArray<PawnProfile>>([]),
+        SculptureRoomsOwed = Known(false),
+        BasicComfort = Known(NoComfortOwed),
+        HostingRecovered = Known(true),
+        HostingDeficit = Known(0.0),
+        PartySpotOwed = Known(false),
+        WorkChairsOwed = Known(false),
+        Gathering = Known(new GatheringPlan()),
+    };
 
     private static PawnProfile Artist(string id, string inspiration = "") => new()
     {
@@ -41,8 +67,7 @@ public sealed class RoomsFamilyTests
         var planned = Of(new() { Lighting = Known(new LightingReview { Known = true }.WithPlanned(Known<EquatableArray<int>>([4]))) }, RoomsFamily.Lighting);
         Assert.Equal(Satisfaction.Unmet, planned.Satisfaction);
 
-        var unread = Of(new(), RoomsFamily.Lighting);
-        Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
+        Assert.Equal("lighting census", Assert.Throws<RequiredFactException>(() => Of(new(), RoomsFamily.Lighting)).Fact);
     }
 
     [Fact]
@@ -54,8 +79,7 @@ public sealed class RoomsFamilyTests
         var owed = Of(new() { Flooring = Known(new FlooringReview { Known = true, Active = true }) }, RoomsFamily.Flooring);
         Assert.Equal((Satisfaction.Unmet, Known(1.0)), (owed.Satisfaction, owed.Deficit));
 
-        var unread = Of(new(), RoomsFamily.Flooring);
-        Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
+        Assert.Equal("flooring census", Assert.Throws<RequiredFactException>(() => Of(new(), RoomsFamily.Flooring)).Fact);
     }
 
     [Fact]
@@ -73,8 +97,8 @@ public sealed class RoomsFamilyTests
         // An inspired artist decides the Need while the bedrooms are unread.
         Assert.Equal(Satisfaction.Unmet, Of(new() { Profiles = Known<EquatableArray<PawnProfile>>([Artist("a", ArtRules.InspiredCreativity)]) }, RoomsFamily.Art).Satisfaction);
 
-        var unread = Of(new() { SculptureRoomsOwed = Known(true) }, RoomsFamily.Art);
-        Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
+        Assert.Equal("colonist profiles", Assert.Throws<RequiredFactException>(() => Of(new() { SculptureRoomsOwed = Known(true) }, RoomsFamily.Art)).Fact);
+        Assert.Equal("sculpture rooms owed", Assert.Throws<RequiredFactException>(() => Of(new() { Profiles = Known<EquatableArray<PawnProfile>>([Artist("a")]) }, RoomsFamily.Art)).Fact);
     }
 
     [Fact]
@@ -90,9 +114,8 @@ public sealed class RoomsFamilyTests
         Assert.Equal((Satisfaction.Unmet, Known(1.0)), (bare.Satisfaction, bare.Deficit));
 
         // The variety catalog unread with the core met is unknown, never met.
-        Assert.Equal(Satisfaction.Unknown, Of(new() { BasicComfort = Known(empty with { Joy = null }) }, RoomsFamily.Comfort).Satisfaction);
-        var unread = Of(new(), RoomsFamily.Comfort);
-        Assert.Equal((Satisfaction.Unknown, false), (unread.Satisfaction, unread.Deficit.IsKnown));
+        Assert.Equal("basic comfort census", Assert.Throws<RequiredFactException>(() => Of(new() { BasicComfort = Known(empty with { Joy = null }) }, RoomsFamily.Comfort)).Fact);
+        Assert.Equal("basic comfort census", Assert.Throws<RequiredFactException>(() => Of(new(), RoomsFamily.Comfort)).Fact);
     }
 
     [Fact]
@@ -102,37 +125,39 @@ public sealed class RoomsFamilyTests
         Assert.Equal((NeedTier.Development, Satisfaction.Unmet, Known(0.5)), (hosting.Tier, hosting.Satisfaction, hosting.Deficit));
         Assert.Equal([RoomsFamily.Comfort], hosting.Preconditions);
         Assert.Equal(Satisfaction.Met, Of(new() { HostingRecovered = Known(true), HostingDeficit = Known(0.0) }, RoomsFamily.Hosting).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Of(new(), RoomsFamily.Hosting).Satisfaction);
+        Assert.Equal("hosted comfort", Assert.Throws<RequiredFactException>(() => Of(new(), RoomsFamily.Hosting)).Fact);
 
         var spot = Of(new() { PartySpotOwed = Known(true) }, RoomsFamily.PartySpot);
         Assert.Equal((Satisfaction.Unmet, Known(1.0)), (spot.Satisfaction, spot.Deficit));
         Assert.Equal([RoomsFamily.Hosting], spot.Preconditions);
         Assert.Equal(Satisfaction.Met, Of(new() { PartySpotOwed = Known(false) }, RoomsFamily.PartySpot).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Of(new(), RoomsFamily.PartySpot).Satisfaction);
+        Assert.Equal("party spot", Assert.Throws<RequiredFactException>(() => Of(new(), RoomsFamily.PartySpot)).Fact);
 
         var chairs = Of(new() { WorkChairsOwed = Known(true) }, RoomsFamily.WorkChairs);
         Assert.Equal((NeedTier.Development, Satisfaction.Unmet, Known(1.0)), (chairs.Tier, chairs.Satisfaction, chairs.Deficit));
         Assert.Equal([RoomsFamily.Comfort], chairs.Preconditions);
         Assert.Equal(Satisfaction.Met, Of(new() { WorkChairsOwed = Known(false) }, RoomsFamily.WorkChairs).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Of(new(), RoomsFamily.WorkChairs).Satisfaction);
+        Assert.Equal("work chairs", Assert.Throws<RequiredFactException>(() => Of(new(), RoomsFamily.WorkChairs)).Fact);
 
         var party = Of(new() { Gathering = Known(new GatheringPlan { Organizer = new("a") }) }, RoomsFamily.Gatherings);
         Assert.Equal((NeedTier.Wellbeing, Satisfaction.Unmet, Known(1.0)), (party.Tier, party.Satisfaction, party.Deficit));
         Assert.Equal([RoomsFamily.PartySpot], party.Preconditions);
         Assert.Equal(Satisfaction.Met, Of(new() { Gathering = Known(new GatheringPlan()) }, RoomsFamily.Gatherings).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Of(new(), RoomsFamily.Gatherings).Satisfaction);
+        Assert.Equal("gathering mood census", Assert.Throws<RequiredFactException>(() => Of(new(), RoomsFamily.Gatherings)).Fact);
 
         // Without the comfort Needs composed the gatherings Need has no precondition.
-        Assert.Empty(Assert.Single(new RoomsFamily(false, false, false, false, true).Derive(new())).Preconditions);
+        Assert.Empty(Assert.Single(new RoomsFamily(false, false, false, false, true).Derive(Settled)).Preconditions);
         Assert.Equal([RoomsFamily.Lighting, RoomsFamily.Flooring, RoomsFamily.Art, RoomsFamily.Comfort, RoomsFamily.Hosting, RoomsFamily.PartySpot, RoomsFamily.WorkChairs, RoomsFamily.Gatherings],
-            All().Derive(new()).Select(n => n.Id));
+            All().Derive(Settled).Select(n => n.Id));
+        // Any one composed Need's fact unread raises for the family.
+        Assert.Equal("party spot", Assert.Throws<RequiredFactException>(() => All().Derive(Settled with { PartySpotOwed = default })).Fact);
     }
 
     [Fact]
     public void AnOwedPartyIsHeldAndNothingElseIsProposed()
     {
         var family = All();
-        var facts = new RoomsFacts { Gathering = Known(new GatheringPlan { Organizer = new("a") }), Lighting = Known(new LightingReview { Known = true, Active = true }) };
+        var facts = Settled with { Gathering = Known(new GatheringPlan { Organizer = new("a") }), Lighting = Known(new LightingReview { Known = true, Active = true }) };
         var held = Assert.Single(family.Propose(family.Derive(facts), facts));
         Assert.Equal(RoomsFamily.Gatherings, held.Need);
         Assert.Equal(RoomsFamily.UnsupportedGathering, held.Hold!.Subject);
@@ -168,6 +193,10 @@ public sealed class RoomsFamilyTests
         {
             Lighting = Known(new LightingReview { Known = true, Active = true }),
             BasicComfort = Known(new ComfortObservation { People = [new PawnId("a")], Surfaces = [], Dining = [], Recreation = [], WatchBuildings = [] }),
+            HostingRecovered = Known(true),
+            HostingDeficit = Known(0.0),
+            PartySpotOwed = Known(false),
+            WorkChairsOwed = Known(false),
         };
 
         /// <summary>The building Methods each Need commits on the next run, each a (Need, MethodId, definition, cell).</summary>

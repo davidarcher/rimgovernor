@@ -95,11 +95,9 @@ public sealed class FoodStoresFamilyTests
         Assert.True(closet.Deficit.TryGetValue(out var owed) && owed >= 0.5);
 
         // An unread census, or a warm stock of unknown temperature, is unknown, never met.
-        var unread = Refrigeration(new());
-        Assert.Equal(Satisfaction.Unknown, unread.Satisfaction);
-        Assert.False(unread.Deficit.TryGetValue(out _));
+        Assert.Equal("refrigeration census", Assert.Throws<RequiredFactException>(() => Refrigeration(new())).Fact);
         var unmeasured = Census(new FoodStorageStock(Warm("a", Policy.AtRiskNutritionThreshold, 20).Stock with { TemperatureC = Unknown<double>() }));
-        Assert.Equal(Satisfaction.Unknown, Refrigeration(new() { Storage = unmeasured }).Satisfaction);
+        Assert.Equal("refrigeration census", Assert.Throws<RequiredFactException>(() => Refrigeration(new() { Storage = unmeasured })).Fact);
     }
 
     [Fact]
@@ -124,10 +122,7 @@ public sealed class FoodStoresFamilyTests
         Assert.Equal(Satisfaction.Met, stored.Satisfaction);
         Assert.Equal(Known(0.0), stored.Deficit);
 
-        var unread = Derive(new() { Stockpile = Known(true) });
-        Assert.Equal(Satisfaction.Unknown, unread.Satisfaction);
-        Assert.False(unread.Deficit.IsKnown);
-        Assert.Equal(ServiceCoverage.Unknown, EssentialServicesRules.NeedCoverage(unread));
+        Assert.Equal("food storage census", Assert.Throws<RequiredFactException>(() => Derive(new() { Stockpile = Known(true) })).Fact);
     }
 
     [Fact]

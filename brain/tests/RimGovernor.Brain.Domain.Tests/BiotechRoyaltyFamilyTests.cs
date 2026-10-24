@@ -18,10 +18,28 @@ public sealed class BiotechRoyaltyFamilyTests
 
     private static readonly BiotechNeeds AllBiotech = new() { Mechs = true, MechCharger = true, GeneBank = true, Pollution = true };
 
+    // Only the Need under test is composed: the family raises on the first composed Need whose fact is unread.
     private static Need Biotech(BiotechFacts facts, NeedId id, BiotechNeeds? needs = null) =>
-        Assert.Single(new BiotechFamily(needs ?? AllBiotech).Derive(facts), n => n.Id == id);
+        Assert.Single(new BiotechFamily(needs ?? new BiotechNeeds
+        {
+            Mechs = id == BiotechFamily.Mechs,
+            MechCharger = id == BiotechFamily.MechCharger,
+            GeneBank = id == BiotechFamily.GeneBank,
+            Pollution = id == BiotechFamily.Pollution,
+        }).Derive(facts with { Installed = true }), n => n.Id == id);
 
-    private static Need Royalty(RoyaltyFamilyFacts facts, NeedId id) => Assert.Single(new RoyaltyFamily().Derive(facts), n => n.Id == id);
+    private static Need Royalty(RoyaltyFamilyFacts facts, NeedId id) =>
+        Assert.Single(new RoyaltyFamily(id == RoyaltyFamily.Permits, id == RoyaltyFamily.Psylink).Derive(facts with { Installed = true }));
+
+    [Fact]
+    public void WithoutTheExpansionBiotechAndRoyaltyDeriveNothing()
+    {
+        Assert.Empty(new BiotechFamily(AllBiotech).Derive(new BiotechFacts()));
+        Assert.Empty(new RoyaltyFamily().Derive(new RoyaltyFamilyFacts()));
+        Assert.Empty(new IdeologyFamily().Derive(new IdeologyFacts()));
+        Assert.False(new RoundsFacts().AnomalyInstalled);
+        Assert.Empty(new AnomalyFamily().Derive(new AnomalyFacts()));
+    }
 
     [Theory]
     [InlineData("mech-charger")]
@@ -39,24 +57,24 @@ public sealed class BiotechRoyaltyFamilyTests
         var owed = Biotech(With(Known(true)), id);
         Assert.Equal((Satisfaction.Unmet, NeedTier.Development, 1.0), (owed.Satisfaction, owed.Tier, owed.Deficit.Value));
         Assert.Equal(Satisfaction.Met, Biotech(With(Known(false)), id).Satisfaction);
-        var unknown = Biotech(With(Unknown<bool>()), id);
-        Assert.Equal(Satisfaction.Unknown, unknown.Satisfaction);
-        Assert.False(unknown.Deficit.IsKnown);
+        var fact = kind switch { "mech-charger" => "mech_charger_owed", "mechs" => "mech_owed", _ => "gene_bank_owed" };
+        Assert.Equal(fact, Assert.Throws<RequiredFactException>(() => Biotech(With(Unknown<bool>()), id)).Fact);
     }
 
     [Fact]
     public void MechsWaitOnTheChargerWhenItIsComposed()
     {
-        var needs = new BiotechFamily(AllBiotech).Derive(new BiotechFacts());
+        var settled = Polluted(0) with { MechsOwed = Known(false), MechChargerOwed = Known(false), GeneBankOwed = Known(false) };
+        var needs = new BiotechFamily(AllBiotech).Derive(settled);
         Assert.Equal([BiotechFamily.MechCharger], Assert.Single(needs, n => n.Id == BiotechFamily.Mechs).Preconditions);
         Assert.All(needs.Where(n => n.Id != BiotechFamily.Mechs), n => Assert.Empty(n.Preconditions));
-        Assert.Empty(Biotech(new BiotechFacts(), BiotechFamily.Mechs, new BiotechNeeds { Mechs = true }).Preconditions);
+        Assert.Empty(Biotech(settled, BiotechFamily.Mechs, new BiotechNeeds { Mechs = true }).Preconditions);
 
         // The gestation bill is declared only while the mechs Need is ready: owed, with no charger owed.
         var family = new BiotechFamily(AllBiotech);
         Assert.True(family.MechsReady(new BiotechFacts { MechsOwed = Known(true), MechChargerOwed = Known(false) }));
         Assert.False(family.MechsReady(new BiotechFacts { MechsOwed = Known(true), MechChargerOwed = Known(true) }));
-        Assert.False(family.MechsReady(new BiotechFacts { MechsOwed = Known(true), MechChargerOwed = Unknown<bool>() }));
+        Assert.Equal("mech_charger_owed", Assert.Throws<RequiredFactException>(() => family.MechsReady(new BiotechFacts { MechsOwed = Known(true), MechChargerOwed = Unknown<bool>() })).Fact);
         Assert.False(family.MechsReady(new BiotechFacts { MechsOwed = Known(false), MechChargerOwed = Known(false) }));
         Assert.True(new BiotechFamily(new BiotechNeeds { Mechs = true }).MechsReady(new BiotechFacts { MechsOwed = Known(true) }));
     }
@@ -72,14 +90,14 @@ public sealed class BiotechRoyaltyFamilyTests
     };
 
     private static BiotechFacts Polluted(uint uncovered, params Wastepack[] packs) =>
-        new() { Pollution = Known(new PollutionFacts { Wastepacks = packs, UncoveredCells = Known(uncovered) }), PollutedCells = [new Cell(3, 4)] };
+        new() { Installed = true, Pollution = Known(new PollutionFacts { Wastepacks = packs, UncoveredCells = Known(uncovered) }), PollutedCells = [new Cell(3, 4)] };
 
     [Fact]
     public void PollutionIsMetUnmetOrUnknownAndItsMethodNamesItsWork()
     {
         Assert.Equal((Satisfaction.Met, NeedTier.Wellbeing), (Biotech(Polluted(0), BiotechFamily.Pollution).Satisfaction, Biotech(Polluted(0), BiotechFamily.Pollution).Tier));
-        Assert.Equal(Satisfaction.Unknown, Biotech(new BiotechFacts(), BiotechFamily.Pollution).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Biotech(Polluted(0, Pack("w1") with { Frozen = Unknown<bool>() }), BiotechFamily.Pollution).Satisfaction);
+        Assert.Equal("pollution census", Assert.Throws<RequiredFactException>(() => Biotech(new BiotechFacts(), BiotechFamily.Pollution)).Fact);
+        Assert.Equal("pollution census", Assert.Throws<RequiredFactException>(() => Biotech(Polluted(0, Pack("w1") with { Frozen = Unknown<bool>() }), BiotechFamily.Pollution)).Fact);
 
         var owed = Polluted(2, Pack("w1"));
         var need = Biotech(owed, BiotechFamily.Pollution);
@@ -169,7 +187,7 @@ public sealed class BiotechRoyaltyFamilyTests
         var owed = Royalty(new RoyaltyFamilyFacts { Royalty = Known(Titled("a")) }, RoyaltyFamily.Permits);
         Assert.Equal((Satisfaction.Unmet, NeedTier.Development), (owed.Satisfaction, owed.Tier));
         Assert.Equal(Satisfaction.Met, Royalty(new RoyaltyFamilyFacts { Royalty = Known(new RoyaltyFacts()) }, RoyaltyFamily.Permits).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Royalty(new RoyaltyFamilyFacts(), RoyaltyFamily.Permits).Satisfaction);
+        Assert.Equal("royalty", Assert.Throws<RequiredFactException>(() => Royalty(new RoyaltyFamilyFacts(), RoyaltyFamily.Permits)).Fact);
 
         var method = Assert.Single(new RoyaltyFamily().Propose([owed], new RoyaltyFamilyFacts { Royalty = Known(Titled("a")) }));
         Assert.Equal("permit-a-CallAid", method.Method.Value);
@@ -183,11 +201,13 @@ public sealed class BiotechRoyaltyFamilyTests
         var owed = Royalty(new RoyaltyFamilyFacts { PsylinkOwed = Known(true) }, RoyaltyFamily.Psylink);
         Assert.Equal(Satisfaction.Unmet, owed.Satisfaction);
         Assert.Equal(Satisfaction.Met, Royalty(new RoyaltyFamilyFacts { PsylinkOwed = Known(false) }, RoyaltyFamily.Psylink).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Royalty(new RoyaltyFamilyFacts(), RoyaltyFamily.Psylink).Satisfaction);
+        Assert.Equal("psylink owed", Assert.Throws<RequiredFactException>(() => Royalty(new RoyaltyFamilyFacts(), RoyaltyFamily.Psylink)).Fact);
         var held = Assert.Single(new RoyaltyFamily().Propose([owed], new RoyaltyFamilyFacts()));
         Assert.Equal(RoyaltyFamily.UnsupportedNeuroformer, held.Hold!.Subject);
-        Assert.DoesNotContain(new RoyaltyFamily(true, false).Derive(new RoyaltyFamilyFacts()), n => n.Id == RoyaltyFamily.Psylink);
-        Assert.DoesNotContain(new RoyaltyFamily(false, true).Derive(new RoyaltyFamilyFacts()), n => n.Id == RoyaltyFamily.Permits);
+        var settled = new RoyaltyFamilyFacts { Installed = true, Royalty = Known(new RoyaltyFacts()), PsylinkOwed = Known(false) };
+        Assert.Equal(2, new RoyaltyFamily().Derive(settled).Count);
+        Assert.DoesNotContain(new RoyaltyFamily(true, false).Derive(settled), n => n.Id == RoyaltyFamily.Psylink);
+        Assert.DoesNotContain(new RoyaltyFamily(false, true).Derive(settled), n => n.Id == RoyaltyFamily.Permits);
     }
 
     private sealed class Colony : IDisposable
@@ -215,7 +235,7 @@ public sealed class BiotechRoyaltyFamilyTests
         return colony;
     }
 
-    private static RoyaltyFamilyFacts Permit(RoyaltyFacts royalty) => new() { Royalty = Known(royalty) };
+    private static RoyaltyFamilyFacts Permit(RoyaltyFacts royalty) => new() { Installed = true, Royalty = Known(royalty) };
 
     [Fact]
     public void PermitMethodsRunSideBySideAndAHoldersSecondPermitIsHeldByItsClaim()

@@ -23,6 +23,7 @@ public sealed class GoalEtaTests
     private static GoalsFacts Facts(params GoalRecord[] goals) => new()
     {
         Goals = goals,
+        Stock = Known<EquatableArray<Amount>>([]),
         Rounds = new RoundsFacts { Gear = Known(new GearObservation { Pawns = [new GearPawn { Pawn = new("Anna"), LoadoutModel = Known(new GearLoadoutInput { Worn = [] }) }] }) },
         StuffResearch = new Dictionary<string, IReadOnlyList<string>> { [ColonyModelFixtures.Cloth] = [ColonyModelFixtures.Project] },
     };

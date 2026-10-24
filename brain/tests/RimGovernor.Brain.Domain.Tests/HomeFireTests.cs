@@ -12,7 +12,7 @@ public sealed class HomeFireTests
     public void NoConcernOrImmediateReviewOwnsAHomeFire()
     {
         // The home-upkeep family derives only repairs and clearance; a home fire raises nothing that could hold development.
-        var upkeep = new HomeUpkeepFamily().Derive(new HomeUpkeepFacts());
+        var upkeep = new HomeUpkeepFamily().Derive(new HomeUpkeepFacts { Structures = Known<EquatableArray<UpkeepStructure>>([]), Clearance = Known<EquatableArray<ClearanceTarget>>([]) });
         Assert.Equal([HomeUpkeepFamily.Repairs, HomeUpkeepFamily.Clearance], upkeep.Select(n => n.Id));
     }
 

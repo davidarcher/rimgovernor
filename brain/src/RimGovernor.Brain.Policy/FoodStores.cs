@@ -69,6 +69,8 @@ public sealed class FoodStoresFamily(FoodStoragePolicy policy, bool storage, boo
         .. refrigeration ? [FoodStoresRules.RefrigerationNeedOf(facts, policy)] : Array.Empty<Need>(),
     ];
 
+    public IReadOnlyList<Need> DeriveSeriousHarm(FoodStoresFacts facts) => [];
+
     /// <summary>
     /// Pending reserve access first (one Method of at most eight supply actions), otherwise the larder's one corpse
     /// change. A corpse haul, the refill and the stockpile have no Method here.
@@ -146,8 +148,8 @@ public static class FoodStoresRules
     /// <summary>
     /// The storage Need, a plain threshold with no latch: unmet while reserve access is pending, the reserve (outside
     /// an emergency) is short, a food stockpile is known missing, a larder corpse change is due, or the stored share
-    /// of at-risk perishable nutrition is under <see cref="FoodStoragePolicy.TargetStoredFraction"/>. Otherwise it is
-    /// unknown when the census is (an unread reserve or stockpile is not "missing"), and met. Its deficit is the
+    /// of at-risk perishable nutrition is under <see cref="FoodStoragePolicy.TargetStoredFraction"/>. Otherwise an
+    /// unread census raises <see cref="RequiredFactException"/> (an unread reserve or stockpile is not "missing"), and else it is met. Its deficit is the
     /// owed share, 0 to 1: pending access, a missing stockpile or a larder change are whole; a short reserve or
     /// storage is its shortfall over its target.
     /// </summary>
@@ -181,13 +183,16 @@ public static class FoodStoresRules
         {
             owed.Add(storage.Larder ? 1.0 : storage.Target.TryGetValue(out var target) && target > 0 && storage.Deficit.TryGetValue(out var deficit) ? Math.Min(1.0, deficit / target) : 1.0);
         }
-        var satisfaction = owed.Count > 0 ? Satisfaction.Unmet : census ? Satisfaction.Met : Satisfaction.Unknown;
+        if (owed.Count == 0 && !census)
+        {
+            throw new RequiredFactException("food storage census");
+        }
         return new Need
         {
             Id = FoodStorageNeed,
             Tier = NeedTier.Wellbeing,
-            Satisfaction = satisfaction,
-            Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : Known(owed.Count == 0 ? 0.0 : owed.Max()),
+            Satisfaction = owed.Count > 0 ? Satisfaction.Unmet : Satisfaction.Met,
+            Deficit = Known(owed.Count == 0 ? 0.0 : owed.Max()),
         };
     }
 
@@ -195,8 +200,8 @@ public static class FoodStoresRules
     /// The refrigeration Need, a plain threshold with no latch (decision 16): unmet while the at-risk roofed
     /// perishable nutrition warmer than <see cref="FoodStoragePolicy.ChilledExitC"/> reaches
     /// <see cref="FoodStoragePolicy.AtRiskNutritionThreshold"/>, while a standing tomb, morgue or meal closet measures
-    /// warm, or while the planned meal closet waits for its shell. Otherwise it is unknown when the census is, and
-    /// met. Unread warm rooms or an unread closet owe nothing. Its deficit is the warm nutrition's share of the
+    /// warm, or while the planned meal closet waits for its shell. Otherwise an unread census raises
+    /// <see cref="RequiredFactException"/>, and a read one is met. Unread warm rooms or an unread closet owe nothing. Its deficit is the warm nutrition's share of the
     /// threshold, whole for a warm cooling room, and at least a half while the closet is owed.
     /// </summary>
     public static Need RefrigerationNeedOf(FoodStoresFacts f, FoodStoragePolicy p)
@@ -213,9 +218,13 @@ public static class FoodStoresRules
         }
         var nutritionKnown = review.WarmNutrition.TryGetValue(out var nutrition);
         var closet = RoundsRules.Positive(f.MealClosetOwed);
-        var satisfaction = review.Active || closet ? Satisfaction.Unmet : nutritionKnown ? Satisfaction.Met : Satisfaction.Unknown;
+        var unmet = review.Active || closet;
+        if (!unmet && !nutritionKnown)
+        {
+            throw new RequiredFactException("refrigeration census");
+        }
         var deficit = 0.0;
-        if (satisfaction == Satisfaction.Unmet)
+        if (unmet)
         {
             deficit = nutritionKnown && p.AtRiskNutritionThreshold > 0 ? Math.Min(1.0, nutrition / p.AtRiskNutritionThreshold) : 1.0;
             if (review.Warm.Count > 0)
@@ -231,8 +240,8 @@ public static class FoodStoresRules
         {
             Id = RefrigerationNeed,
             Tier = NeedTier.Wellbeing,
-            Satisfaction = satisfaction,
-            Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : Known(deficit),
+            Satisfaction = unmet ? Satisfaction.Unmet : Satisfaction.Met,
+            Deficit = Known(deficit),
         };
     }
 

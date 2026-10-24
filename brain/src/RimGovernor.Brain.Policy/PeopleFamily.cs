@@ -48,11 +48,11 @@ public sealed record PeopleFacts
 /// with the option the answer policy picks, once per window and option (<see cref="DialogMethod"/>), and the
 /// answer claims its window (<c>dialog/&lt;window&gt;</c>).</item>
 /// <item><c>people/mood/&lt;pawn&gt;</c> (Wellbeing): one per pawn the review tracks, unmet while its mood is at risk
-/// (the review's mood state), unknown while the pawn is missing or unread. It replaced the per-pawn mood incident
+/// (the review's mood state), met once the pawn is missing or dead. It replaced the per-pawn mood incident
 /// Concern and the mood relief planner. Nothing is committed: the step defers to the owner Need of the pawn's
 /// dominant thought pressure while that Need is at work (<see cref="MoodRules.MoodNeedProposal"/>), leaves
-/// need relief to the shared portfolio, and holds a preventative cast as unsupported. An unread review is one
-/// unknown <c>people/mood</c>.</item>
+/// need relief to the shared portfolio, and holds a preventative cast as unsupported. An unread review or pawn
+/// raises <see cref="RequiredFactException"/>.</item>
 /// </list>
 /// </summary>
 public sealed class PeopleFamily(PeopleNeeds needs) : IFamily<PeopleFacts>
@@ -61,15 +61,12 @@ public sealed class PeopleFamily(PeopleNeeds needs) : IFamily<PeopleFacts>
 
     public static readonly NeedId Dialog = NeedId.Of(FamilyId, "dialog");
 
-    /// <summary>The mood Need of an unread review: one Unknown Need stands for the pawns nobody can list.</summary>
-    public static readonly NeedId MoodCensus = NeedId.Of(FamilyId, MoodKind);
-
     private const string MoodKind = "mood";
 
     /// <summary>The mood Need of one pawn.</summary>
     public static NeedId Mood(PawnId pawn) => NeedId.Of(FamilyId, MoodKind, pawn.Value);
 
-    /// <summary>Whether <paramref name="need"/> is a mood Need (a pawn's or the census).</summary>
+    /// <summary>Whether <paramref name="need"/> is a pawn's mood Need.</summary>
     public static bool IsMood(NeedId need) => need.Family == FamilyId && need.Kind == MoodKind;
 
     public string Id => FamilyId;
@@ -84,15 +81,17 @@ public sealed class PeopleFamily(PeopleNeeds needs) : IFamily<PeopleFacts>
         .. needs.Mood ? MoodNeeds(facts.Mood) : [],
     ];
 
+    public IReadOnlyList<Need> DeriveSeriousHarm(PeopleFacts facts) => [];
+
     /// <summary>Nothing pure: the answer is the runtime step's, which fences the read it answers.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, PeopleFacts facts) => [];
 
-    /// <summary>Unmet while a choice dialog is open, unknown while the census cannot say, met otherwise.</summary>
+    /// <summary>Unmet while a choice dialog is open, met otherwise; an unread census raises <see cref="RequiredFactException"/>.</summary>
     public static Need DialogNeed(Fact<bool> open)
     {
         if (!open.TryGetValue(out var waiting))
         {
-            return new Need { Id = Dialog, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("choice dialog");
         }
         return new Need
         {
@@ -104,32 +103,28 @@ public sealed class PeopleFamily(PeopleNeeds needs) : IFamily<PeopleFacts>
     }
 
     /// <summary>
-    /// The mood Needs: one per tracked pawn, unmet while the review holds its mood at risk, met once it recovered,
-    /// unknown while the pawn is missing or its mood, threshold or availability is unread (<see cref="MoodState.Need"/>).
-    /// An unread review is one Unknown census Need.
+    /// The mood Needs: one per tracked pawn, unmet while the review holds its mood at risk, met once it recovered or
+    /// the pawn is missing or dead (<see cref="MoodState.Need"/>). An unread review, or a present pawn's unread mood,
+    /// threshold or availability, raises <see cref="RequiredFactException"/>.
     /// </summary>
     public static IReadOnlyList<Need> MoodNeeds(Fact<EquatableArray<MoodState>> mood)
     {
         if (!mood.TryGetValue(out var states))
         {
-            return [new Need { Id = MoodCensus, Tier = NeedTier.Wellbeing, Deficit = Fact.Unknown<double>() }];
+            throw new RequiredFactException("mood review");
         }
-        return [.. states.Select(s =>
+        return [.. states.Select(s => FoodRules.WholeNeed(Mood(s.Pawn.Id), NeedTier.Wellbeing, MoodMet(s)))];
+    }
+
+    /// <summary>Whether the pawn's mood stands met: a missing or dead pawn is; an unclear finding raises <see cref="RequiredFactException"/>.</summary>
+    private static bool MoodMet(MoodState s)
+    {
+        var finding = s.Need();
+        if (finding == Finding.Unclear && !s.Missing && !RoundsRules.Positive(s.Pawn.Dead))
         {
-            var satisfaction = s.Need() switch
-            {
-                Finding.Unmet => Satisfaction.Unmet,
-                Finding.Met => Satisfaction.Met,
-                _ => Satisfaction.Unknown,
-            };
-            return new Need
-            {
-                Id = Mood(s.Pawn.Id),
-                Tier = NeedTier.Wellbeing,
-                Satisfaction = satisfaction,
-                Deficit = FoodRules.WholeDeficit(satisfaction),
-            };
-        })];
+            throw new RequiredFactException("mood of " + s.Pawn.Id.Value);
+        }
+        return finding != Finding.Unmet;
     }
 
     /// <summary>

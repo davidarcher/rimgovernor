@@ -41,13 +41,13 @@ public sealed class GoalsViewModelTests
         var statuses = new[]
         {
             Status(g[0], GoalState.Met), Status(g[1], GoalState.Pursuing, owner: "economy/resource"),
-            Status(g[2], GoalState.Blocked, "facts_unread"), Status(g[3], GoalState.NoMethod, "no_pursuit"),
+            Status(g[2], GoalState.Blocked, "missing_dlc"), Status(g[3], GoalState.NoMethod, "no_pursuit"),
         };
 
         var rows = GoalsViewModel.From(new GoalsSnapshot(record, statuses, [])).Groups.Single().Rows;
 
         Assert.Equal(["Met", "Pursuing", "Blocked", "No method", GoalsViewModel.Pending], rows.Select(r => r.State));
-        Assert.Equal(["", "economy/resource", "facts_unread", "no_pursuit", ""], rows.Select(r => r.Detail));
+        Assert.Equal(["", "economy/resource", "missing_dlc", "no_pursuit", ""], rows.Select(r => r.Detail));
         Assert.Equal("Stock count", rows[1].Kind);
         Assert.Equal("Steel x100", rows[1].Target);
         Assert.Equal("p1 Shooting x5", rows[3].Target);

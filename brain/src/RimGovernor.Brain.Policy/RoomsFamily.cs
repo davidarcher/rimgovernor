@@ -124,71 +124,52 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
         return needs;
     }
 
+    public IReadOnlyList<Need> DeriveSeriousHarm(RoomsFacts facts) => [];
+
     /// <summary>A ready gatherings Need is held: nothing starts a party until participation is forecast. Every other Method is the runtime's building work or the ledger's bills.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, RoomsFacts facts) =>
         ready.Any(n => n.Id == Gatherings)
             ? [NeedMethod.Held(Gatherings, UnsupportedGathering, "Gathering participation requires shared forecast occupancy and need effects.")]
             : [];
 
-    /// <summary>A plain threshold over the lighting review: unmet while a work cell is dark or a planned lamp unbuilt, unknown while the census is unread.</summary>
-    public static Need LightingNeed(RoomsFacts f)
-    {
-        var known = f.Lighting.TryGetValue(out var review);
-        var satisfaction = !known ? Satisfaction.Unknown : review!.Active ? Satisfaction.Unmet : Satisfaction.Met;
-        return new Need
-        {
-            Id = Lighting,
-            Tier = NeedTier.Development,
-            Satisfaction = satisfaction,
-            Deficit = Whole(satisfaction),
-        };
-    }
+    /// <summary>A plain threshold over the lighting review: unmet while a work cell is dark or a planned lamp unbuilt; an unread census raises <see cref="RequiredFactException"/>.</summary>
+    public static Need LightingNeed(RoomsFacts f) =>
+        FoodRules.WholeNeed(Lighting, NeedTier.Development, f.Lighting.TryGetValue(out var review) ? !review.Active : throw new RequiredFactException("lighting census"));
 
-    /// <summary>A plain threshold over the flooring review: unmet while any room or cell is owed its floor, unknown while the census is unread.</summary>
-    public static Need FlooringNeed(RoomsFacts f)
-    {
-        var known = f.Flooring.TryGetValue(out var review);
-        var satisfaction = !known ? Satisfaction.Unknown : review!.Active ? Satisfaction.Unmet : Satisfaction.Met;
-        return new Need
-        {
-            Id = Flooring,
-            Tier = NeedTier.Development,
-            Satisfaction = satisfaction,
-            Deficit = Whole(satisfaction),
-        };
-    }
+    /// <summary>A plain threshold over the flooring review: unmet while any room or cell is owed its floor; an unread census raises <see cref="RequiredFactException"/>.</summary>
+    public static Need FlooringNeed(RoomsFacts f) =>
+        FoodRules.WholeNeed(Flooring, NeedTier.Development, f.Flooring.TryGetValue(out var review) ? !review.Active : throw new RequiredFactException("flooring census"));
 
     /// <summary>
     /// Unmet while an artist is inspired, or while a bedroom is owed a sculpture and a colonist can sculpt; met while
-    /// no bedroom is owed one or no colonist can sculpt; unknown while either is unread.
+    /// no bedroom is owed one or no colonist can sculpt. An unread fact that leaves it undecided raises
+    /// <see cref="RequiredFactException"/>.
     /// </summary>
     public static Need ArtNeed(RoomsFacts f)
     {
         var pk = f.Profiles.TryGetValue(out var profiles);
         var ok = f.SculptureRoomsOwed.TryGetValue(out var owed);
-        var satisfaction = Satisfaction.Unknown;
+        bool met;
         if (pk && ArtRules.InspiredArtists(profiles!).Count > 0)
         {
-            satisfaction = Satisfaction.Unmet;
+            met = false;
         }
         else if (ok && !owed)
         {
-            satisfaction = Satisfaction.Met;
+            met = true;
         }
         else if (ok && pk)
         {
-            satisfaction = ArtRules.Artists(profiles!).Count == 0 ? Satisfaction.Met : Satisfaction.Unmet;
+            met = ArtRules.Artists(profiles!).Count == 0;
         }
-        return new Need
+        else
         {
-            Id = Art,
-            Tier = NeedTier.Development,
-            Satisfaction = satisfaction,
-            Deficit = Whole(satisfaction),
-        };
+            throw new RequiredFactException(ok ? "colonist profiles" : "sculpture rooms owed");
+        }
+        return FoodRules.WholeNeed(Art, NeedTier.Development, met);
     }
 
-    /// <summary>The basic comfort review: unmet while dining, recreation or its variety is short; unknown while the census or the variety catalog is unread. The deficit is the review's half per short kind.</summary>
+    /// <summary>The basic comfort review: unmet while dining, recreation or its variety is short; an unread census or variety catalog raises <see cref="RequiredFactException"/>. The deficit is the review's half per short kind.</summary>
     public static Need ComfortNeed(RoomsFacts f)
     {
         var review = BasicComfortRules.ReviewBasicComfort(f.BasicComfort);
@@ -197,76 +178,44 @@ public sealed class RoomsFamily(bool lighting, bool flooring, bool art, bool com
         {
             Id = Comfort,
             Tier = NeedTier.Wellbeing,
-            Satisfaction = Of(recovered),
+            Satisfaction = Of(recovered, "basic comfort census"),
             Deficit = review.Deficit(),
         };
     }
 
-    /// <summary>After comfort: the hosted comfort review, unmet while a hosting room or its proof of use is missing, unknown while unread.</summary>
+    /// <summary>After comfort: the hosted comfort review, unmet while a hosting room or its proof of use is missing; an unread review raises <see cref="RequiredFactException"/>.</summary>
     public static Need HostingNeed(RoomsFacts f) => new()
     {
         Id = Hosting,
         Tier = NeedTier.Development,
-        Satisfaction = Of(f.HostingRecovered),
+        Satisfaction = Of(f.HostingRecovered, "hosted comfort"),
         Deficit = f.HostingDeficit,
         Preconditions = [Comfort],
     };
 
-    /// <summary>After hosting: unmet while the PartySpot step is owed, unknown while the rooms, qualities or census are unread.</summary>
-    public static Need PartySpotNeed(RoomsFacts f)
-    {
-        var satisfaction = f.PartySpotOwed.TryGetValue(out var owed) ? owed ? Satisfaction.Unmet : Satisfaction.Met : Satisfaction.Unknown;
-        return new Need
-        {
-            Id = PartySpot,
-            Tier = NeedTier.Development,
-            Satisfaction = satisfaction,
-            Deficit = Whole(satisfaction),
-            Preconditions = [Hosting],
-        };
-    }
+    /// <summary>After hosting: unmet while the PartySpot step is owed; unread rooms, qualities or census raise <see cref="RequiredFactException"/>.</summary>
+    public static Need PartySpotNeed(RoomsFacts f) =>
+        FoodRules.WholeNeed(PartySpot, NeedTier.Development, !Owed(f.PartySpotOwed, "party spot")) with { Preconditions = [Hosting] };
 
-    /// <summary>After comfort: unmet while a standing bench's chosen work chair is missing, unknown while the census or plan is unread.</summary>
-    public static Need WorkChairsNeed(RoomsFacts f)
-    {
-        var satisfaction = f.WorkChairsOwed.TryGetValue(out var owed) ? owed ? Satisfaction.Unmet : Satisfaction.Met : Satisfaction.Unknown;
-        return new Need
-        {
-            Id = WorkChairs,
-            Tier = NeedTier.Development,
-            Satisfaction = satisfaction,
-            Deficit = Whole(satisfaction),
-            Preconditions = [Comfort],
-        };
-    }
+    /// <summary>After comfort: unmet while a standing bench's chosen work chair is missing; an unread census or plan raises <see cref="RequiredFactException"/>.</summary>
+    public static Need WorkChairsNeed(RoomsFacts f) =>
+        FoodRules.WholeNeed(WorkChairs, NeedTier.Development, !Owed(f.WorkChairsOwed, "work chairs")) with { Preconditions = [Comfort] };
 
     /// <summary>
-    /// Unmet while the mood census owes a party, unknown while it is unread. The PartySpot Need is its precondition
+    /// Unmet while the mood census owes a party; an unread census raises <see cref="RequiredFactException"/>. The PartySpot Need is its precondition
     /// when the comfort Needs are composed. The cooldown is the AttendedParty memory the plan reads.
     /// </summary>
     public static Need GatheringsNeed(RoomsFacts f, bool partySpot)
     {
-        var owed = GatheringRules.GatheringOwed(f.Gathering);
-        var satisfaction = owed.TryGetValue(out var v) ? v ? Satisfaction.Unmet : Satisfaction.Met : Satisfaction.Unknown;
-        return new Need
+        return FoodRules.WholeNeed(Gatherings, NeedTier.Wellbeing, !Owed(GatheringRules.GatheringOwed(f.Gathering), "gathering mood census")) with
         {
-            Id = Gatherings,
-            Tier = NeedTier.Wellbeing,
-            Satisfaction = satisfaction,
-            Deficit = Whole(satisfaction),
             Preconditions = partySpot ? [PartySpot] : [],
         };
     }
 
-    private static Satisfaction Of(Fact<bool> recovered) =>
-        recovered.TryGetValue(out var v) ? v ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown;
+    private static bool Owed(Fact<bool> owed, string fact) => owed.TryGetValue(out var v) ? v : throw new RequiredFactException(fact);
 
-    private static Fact<double> Whole(Satisfaction satisfaction) => satisfaction switch
-    {
-        Satisfaction.Unknown => Fact.Unknown<double>(),
-        Satisfaction.Unmet => Fact.Known(1.0),
-        _ => Fact.Known(0.0),
-    };
+    private static Satisfaction Of(Fact<bool> recovered, string fact) => Owed(recovered, fact) ? Satisfaction.Met : Satisfaction.Unmet;
 
     private static string Count(int n) => n.ToString(CultureInfo.InvariantCulture);
 }

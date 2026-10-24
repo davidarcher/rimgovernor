@@ -57,7 +57,7 @@ public sealed class IdeologyReader
         }
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
         var projection = read.Projection;
-        var facts = new IdeologyFacts();
+        var facts = new IdeologyFacts { Installed = IdeologyFamilyRules.Installed(projection.Facts) };
         if (_roles)
         {
             facts = facts with { Roles = IdeologyRolesRules.RoleAssignments(projection.Facts.Ideology, projection.WorkPawns, SelectedWork(read, scope.World, call)) };

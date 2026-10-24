@@ -99,6 +99,8 @@ public sealed class AnimalsFamily(bool herd = true, bool containment = true) : I
         return needs;
     }
 
+    public IReadOnlyList<Need> DeriveSeriousHarm(AnimalsFacts facts) => [];
+
     /// <summary>
     /// The herd's one husbandry write and the sterilize step. Containment and the ward build in the work step, so
     /// they propose nothing here.
@@ -178,8 +180,8 @@ public static class AnimalsFamilyRules
     /// <summary>
     /// The herd Need, a plain threshold (no always-held flag): unmet while the herd plan owes training, taming or
     /// removal (AnimalHerdDeficit, ReconcileHerdRemoval), the food plan a slaughter or a tame, or an animal a master;
-    /// otherwise unknown while the herd deficit is unread or the choice chain (<see cref="HerdChoice"/>) reads an
-    /// unknown row; met otherwise.
+    /// met otherwise. With nothing owed, an unread herd deficit or a choice chain (<see cref="HerdChoice"/>) that reads
+    /// an unread row raises <see cref="RequiredFactException"/>.
     /// </summary>
     public static Need HerdNeedOf(AnimalsFacts f)
     {
@@ -189,22 +191,28 @@ public static class AnimalsFamilyRules
         var tame = AnimalAcquireRules.FoodTameChoice(f.FoodPlan, f.Wild, f.FeedShort, f.Handlers).Method == HusbandryMethod.Tame;
         var master = HerdMasterRules.HerdMasterChoice(f.Animals, f.Herd, f.Handlers).Method is not null;
         var owed = RoundsRules.Positive(deficit) || removal.Method is not null || slaughter || tame || master;
-        var satisfaction = owed ? Satisfaction.Unmet
-            : deficit.IsKnown && HerdChoice(f).Reason != HusbandryPlanReason.Unknown ? Satisfaction.Met
-            : Satisfaction.Unknown;
+        if (!owed && !deficit.IsKnown)
+        {
+            throw new RequiredFactException("herd deficit");
+        }
+        if (!owed && HerdChoice(f).Reason == HusbandryPlanReason.Unknown)
+        {
+            throw new RequiredFactException("husbandry census");
+        }
         return new Need
         {
             Id = AnimalsFamily.Herd,
             Tier = NeedTier.Development,
-            Satisfaction = satisfaction,
-            Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : Known(owed ? 1.0 : 0.0),
+            Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
+            Deficit = Known(owed ? 1.0 : 0.0),
         };
     }
 
     /// <summary>
     /// The containment Need, a plain threshold (no latch): unmet while a pen-bound animal is uncontained or a pen
-    /// step is owed; unknown while either is unread; met otherwise. Its deficit is the uncontained animals, plus
-    /// one for an owed pen.
+    /// step is owed; met otherwise (a colony with no planned pen or no animals has a no-op pen step). With nothing
+    /// owed, either one unread raises <see cref="RequiredFactException"/>. Its deficit is the uncontained animals,
+    /// plus one for an owed pen.
     /// </summary>
     public static Need ContainmentNeedOf(AnimalsFacts f)
     {
@@ -212,51 +220,67 @@ public static class AnimalsFamilyRules
         var penKnown = f.Pen.TryGetValue(out var pen);
         var penOwed = penKnown && pen!.Owed();
         var count = known ? uncontained!.Count : 0;
-        var satisfaction = count > 0 || penOwed ? Satisfaction.Unmet : known && penKnown ? Satisfaction.Met : Satisfaction.Unknown;
+        var owed = count > 0 || penOwed;
+        if (!owed && !known)
+        {
+            throw new RequiredFactException("uncontained animals");
+        }
+        if (!owed && !penKnown)
+        {
+            throw new RequiredFactException("pen step");
+        }
         return new Need
         {
             Id = AnimalsFamily.Containment,
             Tier = NeedTier.Wellbeing,
-            Satisfaction = satisfaction,
-            Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : Known(count + (penOwed ? 1.0 : 0.0)),
+            Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
+            Deficit = Known(count + (penOwed ? 1.0 : 0.0)),
         };
     }
 
-    /// <summary>The ward Need: unmet while a ward step is owed (an animal bed to build or flag medical), unknown while the step is unread.</summary>
+    /// <summary>The ward Need: unmet while a ward step is owed (an animal bed to build or flag medical); an unread step raises <see cref="RequiredFactException"/>.</summary>
     public static Need WardNeedOf(AnimalsFacts f)
     {
-        var known = f.Ward.TryGetValue(out var step);
-        var owed = known && step!.Owed();
-        var satisfaction = !known ? Satisfaction.Unknown : owed ? Satisfaction.Unmet : Satisfaction.Met;
+        if (!f.Ward.TryGetValue(out var step))
+        {
+            throw new RequiredFactException("ward step");
+        }
+        var owed = step.Owed();
         return new Need
         {
             Id = AnimalsFamily.Ward,
             Tier = NeedTier.Wellbeing,
-            Satisfaction = satisfaction,
-            Deficit = known ? Known(owed ? 1.0 : 0.0) : Unknown<double>(),
+            Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
+            Deficit = Known(owed ? 1.0 : 0.0),
         };
     }
 
     /// <summary>
     /// The sterilize Need, waiting on the ward when the family derives it: unmet while an animal the herd plan wants
-    /// sterilized is fertile or an animal sits in the hospital area; unknown while the census, or with nothing
-    /// wanted the hospital area, is unread; met otherwise. Its deficit is the animals wanted.
+    /// sterilized is fertile or an animal sits in the hospital area; met otherwise. An unread census, or with nothing
+    /// wanted an unread hospital area, raises <see cref="RequiredFactException"/>. Its deficit is the animals wanted.
     /// </summary>
     public static Need SterilizeNeedOf(AnimalsFacts f, bool ward = true)
     {
-        var need = new Need { Id = AnimalsFamily.Sterilize, Tier = NeedTier.Development, Preconditions = ward ? [AnimalsFamily.Ward] : [] };
         if (!f.Animals.TryGetValue(out var animals))
         {
-            return need with { };
+            throw new RequiredFactException("animal census");
         }
         var wanted = HerdSterilizeRules.SterilizeWanted(animals, f.Herd).Count;
         var areaKnown = f.WardRoom.Area.TryGetValue(out var area);
         var inWard = areaKnown && area!.Length != 0 && animals.Any(a => a.AllowedArea.TryGetValue(out var held) && held == area);
-        var satisfaction = wanted > 0 || inWard ? Satisfaction.Unmet : areaKnown ? Satisfaction.Met : Satisfaction.Unknown;
-        return need with
+        var owed = wanted > 0 || inWard;
+        if (!owed && !areaKnown)
         {
-            Satisfaction = satisfaction,
-            Deficit = satisfaction == Satisfaction.Unknown ? Unknown<double>() : Known((double)wanted),
+            throw new RequiredFactException("hospital area");
+        }
+        return new Need
+        {
+            Id = AnimalsFamily.Sterilize,
+            Tier = NeedTier.Development,
+            Satisfaction = owed ? Satisfaction.Unmet : Satisfaction.Met,
+            Deficit = Known((double)wanted),
+            Preconditions = ward ? [AnimalsFamily.Ward] : [],
         };
     }
 }

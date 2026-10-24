@@ -104,6 +104,8 @@ public sealed class PlannedRoomGateTests
 
         public IReadOnlyList<Need> Derive(bool unused) => [new Need { Id = Bedroom, Tier = NeedTier.Development, Satisfaction = Satisfaction.Unmet }];
 
+        public IReadOnlyList<Need> DeriveSeriousHarm(bool facts) => [];
+
         public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, bool unused) => [];
     }
 

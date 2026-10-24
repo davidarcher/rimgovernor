@@ -53,13 +53,11 @@ public sealed class JoinersAnomalyFamilyTests
         Assert.Equal((Satisfaction.Unmet, 1.0), (unmet.Satisfaction, unmet.Deficit.Value));
 
         // A letter the colony may have no room for, or an unread census, never reads as settled.
-        Assert.Equal(Satisfaction.Unknown, Joiner(Census(Letter(7)) with { FoodDays = default }, JoinersFamily.Letters).Satisfaction);
-        Assert.All(new JoinersFamily().Derive(new JoinersFacts()), n =>
-        {
-            Assert.Equal(Satisfaction.Unknown, n.Satisfaction);
-            Assert.False(n.Deficit.IsKnown);
-        });
-        Assert.Equal(Satisfaction.Unknown, Joiner(Census() with { Royalty = default }, JoinersFamily.Ceremony).Satisfaction);
+        Assert.Equal("joiner letters", Assert.Throws<RequiredFactException>(() => Joiner(Census(Letter(7)) with { FoodDays = default }, JoinersFamily.Letters)).Fact);
+        Assert.Equal("joiner offers", Assert.Throws<RequiredFactException>(() => new JoinersFamily().Derive(new JoinersFacts())).Fact);
+        // With Royalty an unread royalty read raises; without it no ceremony can wait, so the Need is met.
+        Assert.Equal("royalty", Assert.Throws<RequiredFactException>(() => Joiner(Census() with { Royalty = default, RoyaltyInstalled = true }, JoinersFamily.Ceremony)).Fact);
+        Assert.Equal(Satisfaction.Met, Joiner(Census() with { Royalty = default }, JoinersFamily.Ceremony).Satisfaction);
     }
 
     [Fact]
@@ -105,6 +103,7 @@ public sealed class JoinersAnomalyFamilyTests
 
     private static RoundsFacts Containment(BuiltHolder[] holders, params CapturableEntity[] entities) => new()
     {
+        AnomalyInstalled = true,
         Containment = new ContainmentPlanning
         {
             Holders = Known<EquatableArray<BuiltHolder>>([.. holders]),
@@ -115,13 +114,13 @@ public sealed class JoinersAnomalyFamilyTests
         Monolith = Known(new MonolithFacts()),
     };
 
-    private static Need Anomaly(RoundsFacts f, NeedId id) => Assert.Single(new AnomalyFamily().Derive(AnomalyFacts.From(f)), n => n.Id == id);
+    private static Need Anomaly(RoundsFacts f, NeedId id) => Assert.Single(new AnomalyFamily().Derive(AnomalyFacts.From(f with { AnomalyInstalled = true })), n => n.Id == id);
 
     [Fact]
     public void AnomalyNeedsAreMetUnmetOrUnknownByTheirCensus()
     {
         var met = Containment([Holder("e1", 1, holdOpen: false)], Held("e1", flag: true));
-        Assert.All(new AnomalyFamily().Derive(AnomalyFacts.From(met)), n =>
+        Assert.All(new AnomalyFamily().Derive(AnomalyFacts.From(met with { AnomalyInstalled = true })), n =>
         {
             Assert.Equal(Satisfaction.Met, n.Satisfaction);
             Assert.Equal(AnomalyFamily.FamilyId, n.Id.Family);
@@ -134,12 +133,13 @@ public sealed class JoinersAnomalyFamilyTests
         Assert.Equal((Satisfaction.Unmet, 2.0), (doors.Satisfaction, doors.Deficit.Value));
         Assert.Equal((Satisfaction.Unmet, 2.0), (Anomaly(unmet, AnomalyFamily.Bioferrite).Satisfaction, Anomaly(unmet, AnomalyFamily.Bioferrite).Deficit.Value));
 
-        // Unread containment, research, gear or monolith facts leave their Needs unknown, never met.
-        Assert.All(new AnomalyFamily().Derive(new AnomalyFacts()), n => Assert.Equal(Satisfaction.Unknown, n.Satisfaction));
-        Assert.Equal(Satisfaction.Unknown, Anomaly(unmet with { Research = default }, AnomalyFamily.Bioferrite).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, Anomaly(unmet with { Research = default }, AnomalyFamily.Doors).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Anomaly(unmet with { Gear = default }, AnomalyFamily.Lance).Satisfaction);
-        Assert.Equal(Satisfaction.Unknown, Anomaly(unmet with { Monolith = default }, AnomalyFamily.Monolith).Satisfaction);
+        // Without Anomaly the family derives nothing; with it, unread containment, research, gear or monolith facts
+        // raise for the whole family, never reading as met.
+        Assert.Empty(new AnomalyFamily().Derive(new AnomalyFacts()));
+        Assert.Equal("containment holders", Assert.Throws<RequiredFactException>(() => new AnomalyFamily().Derive(new AnomalyFacts { Rounds = new RoundsFacts { AnomalyInstalled = true } })).Fact);
+        Assert.Equal("whether BioferriteExtraction is researched is unread", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Research = default }, AnomalyFamily.Bioferrite)).Fact);
+        Assert.Equal("gear", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Gear = default }, AnomalyFamily.Lance)).Fact);
+        Assert.Equal("monolith", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Monolith = default }, AnomalyFamily.Monolith)).Fact);
     }
 
     [Fact]

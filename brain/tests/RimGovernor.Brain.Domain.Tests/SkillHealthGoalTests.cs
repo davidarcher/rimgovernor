@@ -40,8 +40,8 @@ public sealed class SkillHealthGoalTests
         Assert.Equal((GoalState.Pursuing, AdminFamily.WorkAssignments, 4.0), (open.State, open.Owner, open.Deficit.Value));
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, SkillFacts(goal, Pawn("trainee", 12, 18))).State);
 
-        Assert.Equal((GoalState.Blocked, "facts_unread"), Reason(GoalRules.Evaluate(goal, new GoalsFacts { Goals = [goal] })));
-        Assert.Equal((GoalState.Blocked, "facts_unread"), Reason(GoalRules.Evaluate(goal, SkillFacts(goal, Pawn("trainee", 6, 18) with { Skills = default }))));
+        Assert.Equal("pawn census", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, new GoalsFacts { Goals = [goal] })).Fact);
+        Assert.Equal("skills of trainee", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, SkillFacts(goal, Pawn("trainee", 6, 18) with { Skills = default }))).Fact);
         Assert.Equal((GoalState.NoMethod, "not_a_colonist"), Reason(GoalRules.Evaluate(goal, SkillFacts(goal, Pawn("other", 6, 18)))));
         Assert.Equal((GoalState.NoMethod, "unknown_skill"), Reason(GoalRules.Evaluate(goal with { Qualifier = "Taming" }, SkillFacts(goal, Pawn("trainee", 6, 18)))));
         Assert.Equal((GoalState.NoMethod, "incapable"), Reason(GoalRules.Evaluate(goal, SkillFacts(goal, Pawn("trainee", 6, 18, cookingDisabled: true)))));
@@ -135,7 +135,7 @@ public sealed class SkillHealthGoalTests
         Assert.Equal((GoalState.NoMethod, "unavailable"), Reason(GoalRules.Evaluate(goal, HealthFacts(goal, Patient(true) with { Operations = Known(EquatableArray.From(Array.Empty<SurgeryOperation>())) }))));
         Assert.Equal((GoalState.NoMethod, "not_a_colonist"), Reason(GoalRules.Evaluate(goal with { Target = "other" }, HealthFacts(goal, Patient(true)))));
         var unread = HealthFacts(goal, Patient(true));
-        Assert.Equal((GoalState.Blocked, "facts_unread"), Reason(GoalRules.Evaluate(goal, unread with { Rounds = unread.Rounds with { MedicalPawns = default } })));
+        Assert.Equal("medical pawns", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, unread with { Rounds = unread.Rounds with { MedicalPawns = default } })).Fact);
     }
 
     [Fact]

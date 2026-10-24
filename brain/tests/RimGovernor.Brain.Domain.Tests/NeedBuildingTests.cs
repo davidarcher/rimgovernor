@@ -91,6 +91,8 @@ public sealed class NeedBuildingTests
             .. overlap ? [new Need { Id = RoomB, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Unmet }] : Array.Empty<Need>(),
         ];
 
+        public IReadOnlyList<Need> DeriveSeriousHarm(bool facts) => [];
+
         // Building work needs previews between choosing and committing: nothing is proposed purely.
         public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, bool overlap) => [];
     }
@@ -110,6 +112,8 @@ public sealed class NeedBuildingTests
             new Need { Id = FoodStoresRules.RefrigerationNeed, Tier = NeedTier.Wellbeing, Satisfaction = Satisfaction.Unmet },
         ];
 
+        public IReadOnlyList<Need> DeriveSeriousHarm(bool facts) => [];
+
         public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, bool overlap) => [];
     }
 
@@ -123,6 +127,8 @@ public sealed class NeedBuildingTests
         public IReadOnlyList<FactFamily> SeriousHarmReads { get; } = [];
 
         public IReadOnlyList<Need> Derive(bool overlap) => [new Need { Id = EconomyFamily.Research, Tier = NeedTier.Development, Satisfaction = Satisfaction.Unmet }];
+
+        public IReadOnlyList<Need> DeriveSeriousHarm(bool facts) => [];
 
         public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, bool overlap) => [];
     }

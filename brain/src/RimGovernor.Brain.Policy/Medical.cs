@@ -84,7 +84,7 @@ public sealed record MedicalFacts
 /// The medical family (#3258): the colony's patients, its care, its medicine and its operations.
 /// <list type="bullet">
 /// <item><c>medical/critical/&lt;pawn&gt;</c> (SeriousHarm, one per patient) is unmet while the pawn is a critical
-/// patient. With the census unknown the family derives one <c>medical/critical</c> Need, Unknown. It runs in the
+/// patient. An unread census raises <see cref="RequiredFactException"/>. It runs in the
 /// immediate pass on the emergency and pawn reads alone. Its work is the patient's tend and rescue, and in the
 /// ordinary pass a life-saving amputation, each the runtime's: they pair the patient with a doctor or rescuer under
 /// the step's arbiter.</item>
@@ -110,11 +110,14 @@ public sealed class MedicalFamily(bool critical, bool care, bool reserves, bool 
 
     public IReadOnlyList<Need> Derive(MedicalFacts facts) =>
     [
-        .. critical ? MedicalRules.CriticalNeedsOf(facts) : Array.Empty<Need>(),
+        .. DeriveSeriousHarm(facts),
         .. care ? [MedicalRules.MedicalCareNeedOf(facts)] : Array.Empty<Need>(),
         .. reserves ? [MedicalRules.MedicalReservesNeedOf(facts)] : Array.Empty<Need>(),
         .. surgery ? [MedicalRules.SurgeryNeedOf(facts)] : Array.Empty<Need>(),
     ];
+
+    /// <summary>The critical Needs, when composed.</summary>
+    public IReadOnlyList<Need> DeriveSeriousHarm(MedicalFacts facts) => critical ? MedicalRules.CriticalNeedsOf(facts) : [];
 
     /// <summary>None: every medical Method is runtime work (pairs under the step's arbiter, native reads, ledger bills).</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, MedicalFacts facts) => [];
@@ -124,7 +127,7 @@ public static partial class MedicalRules
 {
     public const string MedicalFamilyId = "medical";
 
-    /// <summary>The critical Need of an unknown patient census (#3258): one Unknown Need stands for the patients nobody can count.</summary>
+    /// <summary>The critical census as one Need (#3258), for a reader that counts the patients without naming them.</summary>
     public static readonly NeedId CriticalCensusNeed = NeedId.Of(MedicalFamilyId, "critical");
 
     /// <summary>The medical family's care Need (#3258).</summary>
@@ -154,13 +157,13 @@ public static partial class MedicalRules
 
     /// <summary>
     /// The critical Needs: one SeriousHarm Need per patient, unmet while the pawn is a critical patient (a Need that
-    /// is met no longer exists: the patient left the census). An unknown census is one Unknown Need.
+    /// is met no longer exists: the patient left the census). An unread census raises <see cref="RequiredFactException"/>.
     /// </summary>
     public static IReadOnlyList<Need> CriticalNeedsOf(MedicalFacts f)
     {
         if (!f.Critical.TryGetValue(out var patients))
         {
-            return [new Need { Id = CriticalCensusNeed, Tier = NeedTier.SeriousHarm, Satisfaction = Satisfaction.Unknown, Deficit = Unknown<double>() }];
+            throw new RequiredFactException("critical patients");
         }
         return [.. patients.Select(p => new Need
         {
@@ -173,73 +176,44 @@ public static partial class MedicalRules
 
     /// <summary>
     /// The critical census as one Need, for a reader that counts the patients without naming them (the essential
-    /// services review): met with none, unmet with any, unknown while the count is.
+    /// services review): met with none, unmet with any; an unread count raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static Need CriticalCensusNeedOf(Fact<long> patients)
-    {
-        var satisfaction = patients.TryGetValue(out var n) ? n == 0 ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown;
-        return new Need
-        {
-            Id = CriticalCensusNeed,
-            Tier = NeedTier.SeriousHarm,
-            Satisfaction = satisfaction,
-            Deficit = FoodRules.WholeDeficit(satisfaction),
-        };
-    }
+    public static Need CriticalCensusNeedOf(Fact<long> patients) =>
+        FoodRules.WholeNeed(CriticalCensusNeed, NeedTier.SeriousHarm, patients.TryGetValue(out var n) ? n == 0 : throw new RequiredFactException("critical patients"));
 
-    /// <summary>The care Need, a plain threshold over the care census: unmet while a sick colonist rests or is in bad condition, unknown while a tracked pawn is unread.</summary>
+    /// <summary>
+    /// The care Need, a plain threshold over the care census: unmet while a sick colonist rests or is in bad condition
+    /// or the hospital is short; otherwise an unread tracked pawn raises <see cref="RequiredFactException"/>.
+    /// </summary>
     public static Need MedicalCareNeedOf(MedicalFacts f)
     {
-        var satisfaction = f.CareRecovered.TryGetValue(out var recovered) ? recovered ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown;
-        if (satisfaction != Satisfaction.Unmet && f.HospitalShort.TryGetValue(out var wardShort) && wardShort)
-        {
-            satisfaction = Satisfaction.Unmet;
-        }
-        return new Need
-        {
-            Id = MedicalCareNeed,
-            Tier = NeedTier.Wellbeing,
-            Satisfaction = satisfaction,
-            Deficit = FoodRules.WholeDeficit(satisfaction),
-        };
+        var wardShort = f.HospitalShort.TryGetValue(out var ward) && ward;
+        return FoodRules.WholeNeed(MedicalCareNeed, NeedTier.Wellbeing,
+            !wardShort && (f.CareRecovered.TryGetValue(out var recovered) ? recovered : throw new RequiredFactException("care census")));
     }
 
     /// <summary>
     /// The reserves Need, a plain threshold at the target bar (decision 16, no entry bar): unmet while the usable
-    /// medicine stock is below the colonists' target, unknown while the stock is unread. The deficit is the missing
-    /// share of the target.
+    /// medicine stock is below the colonists' target; an unread stock raises <see cref="RequiredFactException"/>. The
+    /// deficit is the missing share of the target.
     /// </summary>
     public static Need MedicalReservesNeedOf(MedicalFacts f)
     {
-        var satisfaction = f.ReservesCovered.TryGetValue(out var covered) ? covered ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown;
-        var deficit = satisfaction switch
-        {
-            Satisfaction.Unknown => Unknown<double>(),
-            Satisfaction.Met => Known(0.0),
-            _ => f.MedicineStock.TryGetValue(out var stock) && f.MedicineTarget.TryGetValue(out var target) && target > 0
-                ? Known(Math.Clamp((target - stock) / (double)target, 0, 1)) : Known(1.0),
-        };
+        var covered = f.ReservesCovered.TryGetValue(out var c) ? c : throw new RequiredFactException("medicine reserves");
         return new Need
         {
             Id = MedicalReservesNeed,
             Tier = NeedTier.Wellbeing,
-            Satisfaction = satisfaction,
-            Deficit = deficit,
+            Satisfaction = covered ? Satisfaction.Met : Satisfaction.Unmet,
+            Deficit = covered ? Known(0.0)
+                : f.MedicineStock.TryGetValue(out var stock) && f.MedicineTarget.TryGetValue(out var target) && target > 0
+                    ? Known(Math.Clamp((target - stock) / (double)target, 0, 1)) : Known(1.0),
         };
     }
 
-    /// <summary>The surgery Need, a plain threshold: unmet while an operation the surgery work serves stands, unknown while the care census is unread.</summary>
-    public static Need SurgeryNeedOf(MedicalFacts f)
-    {
-        var satisfaction = f.SurgeryRecovered.TryGetValue(out var recovered) ? recovered ? Satisfaction.Met : Satisfaction.Unmet : Satisfaction.Unknown;
-        return new Need
-        {
-            Id = SurgeryNeed,
-            Tier = NeedTier.Wellbeing,
-            Satisfaction = satisfaction,
-            Deficit = FoodRules.WholeDeficit(satisfaction),
-        };
-    }
+    /// <summary>The surgery Need, a plain threshold: unmet while an operation the surgery work serves stands; an unread care census raises <see cref="RequiredFactException"/>.</summary>
+    public static Need SurgeryNeedOf(MedicalFacts f) =>
+        FoodRules.WholeNeed(SurgeryNeed, NeedTier.Wellbeing, f.SurgeryRecovered.TryGetValue(out var recovered) ? recovered : throw new RequiredFactException("surgery census"));
 
     /// <summary>
     /// Whether no operation the surgery work serves stands: no owed restore, no actionable elective upgrade, and no

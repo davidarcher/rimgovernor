@@ -19,7 +19,9 @@ public sealed class HomeUpkeepFamilyTests
     private static UpkeepStructure Structure(string id, long hp, long max = 100, bool home = true, int priority = 1) =>
         new() { Id = id, Cell = new(1, 1), Home = home, HitPoints = hp, MaxHitPoints = max, Priority = priority };
 
-    private static Need Derive(HomeUpkeepFacts facts, NeedId id) => Assert.Single(new HomeUpkeepFamily().Derive(facts), n => n.Id == id);
+    // Only the Need under test is composed: the family raises on the first composed Need whose fact is unread.
+    private static Need Derive(HomeUpkeepFacts facts, NeedId id) =>
+        Assert.Single(new HomeUpkeepFamily(id == HomeUpkeepFamily.Repairs, id == HomeUpkeepFamily.Clearance).Derive(facts));
 
     [Fact]
     public void RepairsIsMetUnmetOrUnknownByTheDamagedHomeStructures()
@@ -30,9 +32,7 @@ public sealed class HomeUpkeepFamilyTests
         var unmet = Derive(new HomeUpkeepFacts { Structures = Known<EquatableArray<UpkeepStructure>>([Structure("wall", 60), Structure("door", 90)]) }, HomeUpkeepFamily.Repairs);
         Assert.Equal((Satisfaction.Unmet, 50.0), (unmet.Satisfaction, unmet.Deficit.Value));
 
-        var unknown = Derive(new HomeUpkeepFacts(), HomeUpkeepFamily.Repairs);
-        Assert.Equal(Satisfaction.Unknown, unknown.Satisfaction);
-        Assert.False(unknown.Deficit.IsKnown);
+        Assert.Equal("repair census", Assert.Throws<RequiredFactException>(() => Derive(new HomeUpkeepFacts(), HomeUpkeepFamily.Repairs)).Fact);
     }
 
     [Fact]
@@ -59,7 +59,7 @@ public sealed class HomeUpkeepFamilyTests
         }, HomeUpkeepFamily.Clearance);
         Assert.Equal((Satisfaction.Unmet, 2.0), (unmet.Satisfaction, unmet.Deficit.Value));
 
-        Assert.Equal(Satisfaction.Unknown, Derive(new HomeUpkeepFacts { Ground = Known<EquatableArray<string>>(["floor"]) }, HomeUpkeepFamily.Clearance).Satisfaction);
+        Assert.Equal("clearance census", Assert.Throws<RequiredFactException>(() => Derive(new HomeUpkeepFacts { Ground = Known<EquatableArray<string>>(["floor"]) }, HomeUpkeepFamily.Clearance)).Fact);
     }
 
     [Fact]
@@ -78,7 +78,7 @@ public sealed class HomeUpkeepFamilyTests
         Assert.Equal((HomeUpkeepFamily.Clearance, "deconstruct-a"), (cut.Need, cut.Method.Value));
 
         // Clearance no longer waits on repairs: the old hold only labelled the progress strip.
-        Assert.Empty(new HomeUpkeepFamily().Derive(new HomeUpkeepFacts()).SelectMany(n => n.Preconditions));
+        Assert.Empty(new HomeUpkeepFamily().Derive(new HomeUpkeepFacts { Structures = Known<EquatableArray<UpkeepStructure>>([]), Clearance = Known<EquatableArray<ClearanceTarget>>([]) }).SelectMany(n => n.Preconditions));
     }
 
     private static ClearanceCandidate Step(string method, string target, int x = 5, bool wall = false) =>

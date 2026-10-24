@@ -153,6 +153,8 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         return needs;
     }
 
+    public IReadOnlyList<Need> DeriveSeriousHarm(AdminFacts facts) => [];
+
     /// <summary>Only the weapon drop hold: the other Needs' work is the runtime step's, which reads the native targets and claims them.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, AdminFacts facts)
     {
@@ -164,12 +166,12 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         return output;
     }
 
-    /// <summary>Unmet while any creepjoiner work is owed (including a record change), unknown while it cannot be read, met otherwise.</summary>
+    /// <summary>Unmet while any creepjoiner work is owed (including a record change); raises <see cref="RequiredFactException"/> while it cannot be read, met otherwise.</summary>
     public static Need CreepJoinersNeed(CreepJoinerWork work)
     {
         if (!work.Owed.TryGetValue(out var owed))
         {
-            return new Need { Id = CreepJoiners, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("creepjoiner work");
         }
         return new Need
         {
@@ -181,14 +183,14 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
     }
 
     /// <summary>
-    /// Unmet while the safety census leaves any event-loot stack to forbid or allow, unknown while it cannot be
+    /// Unmet while the safety census leaves any event-loot stack to forbid or allow; raises <see cref="RequiredFactException"/> while it cannot be
     /// read, met otherwise. The deficit is the number of stacks.
     /// </summary>
     public static Need SupplySafetyNeed(Fact<EquatableArray<StartingSupply>> pending)
     {
         if (!pending.TryGetValue(out var rows))
         {
-            return new Need { Id = SupplySafety, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("supply safety census");
         }
         var forbid = rows.Count(r => r.Forbid);
         return new Need
@@ -200,12 +202,12 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         };
     }
 
-    /// <summary>Unmet while a tomb, grave or morgue step is due, unknown while that cannot be read, met otherwise.</summary>
+    /// <summary>Unmet while a tomb, grave or morgue step is due; raises <see cref="RequiredFactException"/> while that cannot be read, met otherwise.</summary>
     public static Need BurialNeed(Fact<bool> owed)
     {
         if (!owed.TryGetValue(out var due))
         {
-            return new Need { Id = Burial, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("burial steps");
         }
         return new Need
         {
@@ -216,12 +218,12 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         };
     }
 
-    /// <summary>Unmet while the ledger's reconcile places or removes a bill, unknown while the declarations or the bench readback are unread, met otherwise.</summary>
+    /// <summary>Unmet while the ledger's reconcile places or removes a bill; raises <see cref="RequiredFactException"/> while the declarations or the bench readback are unread, met otherwise.</summary>
     public static Need WorkLedgerNeed(Fact<bool> owed)
     {
         if (!owed.TryGetValue(out var diff))
         {
-            return new Need { Id = WorkLedger, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("work ledger diff");
         }
         return new Need
         {
@@ -232,12 +234,12 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         };
     }
 
-    /// <summary>Unmet while the stockpile review proposes work, unknown while it cannot be read, met otherwise.</summary>
+    /// <summary>Unmet while the stockpile review proposes work; raises <see cref="RequiredFactException"/> while it cannot be read, met otherwise.</summary>
     public static Need StockpilesNeed(Fact<bool> active)
     {
         if (!active.TryGetValue(out var owed))
         {
-            return new Need { Id = Stockpiles, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("stockpile review");
         }
         return new Need
         {
@@ -248,12 +250,12 @@ public sealed class AdminFamily(AdminNeeds composed) : IFamily<AdminFacts>
         };
     }
 
-    /// <summary>Unmet while the review owes work assignments, settings or coupled activities, unknown while it cannot say, met otherwise.</summary>
+    /// <summary>Unmet while the review owes work assignments, settings or coupled activities; raises <see cref="RequiredFactException"/> while it cannot say, met otherwise.</summary>
     public static Need WorkAssignmentsNeed(Fact<bool> owed)
     {
         if (!owed.TryGetValue(out var due))
         {
-            return new Need { Id = WorkAssignments, Tier = NeedTier.Wellbeing };
+            throw new RequiredFactException("work assignments review");
         }
         return new Need
         {
