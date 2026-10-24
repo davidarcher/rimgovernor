@@ -208,7 +208,7 @@ public sealed partial record CombatView
         var output = new Dictionary<PawnId, bool>();
         foreach (var d in Defenders.Items)
         {
-            output[d.Id] = !RoundsRules.Positive(d.Dead) && !RoundsRules.Positive(d.Downed) && !d.Deathresting;
+            output[d.Id] = !d.Dead && !d.Downed && !d.Deathresting;
         }
 
         foreach (var p in Pawns.Items)
@@ -1403,7 +1403,7 @@ public static partial class CombatDecideRules
         var down = CombatManhunterRules.DownPawns(view);
         foreach (var t in view.Threats.Items)
         {
-            if (RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed))
+            if (t.Dead || t.Downed)
             {
                 down.Add(ThreatPawn(t));
             }

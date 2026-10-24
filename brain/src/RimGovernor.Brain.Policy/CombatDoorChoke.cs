@@ -19,7 +19,7 @@ public static partial class CombatDoorRules
             return null;
         }
 
-        if (CombatBlockingRules.Brawlers(view.Defenders.Items).Count == 0|| CombatThreatRules.RankThreats(view).Count == 0 || !view.Defenders.Items.Any(d => SquadDefenseRules.SquadDefenderEligible(d) && RoundsRules.Positive(d.RangedEquipped)))
+        if (CombatBlockingRules.Brawlers(view.Defenders.Items).Count == 0|| CombatThreatRules.RankThreats(view).Count == 0 || !view.Defenders.Items.Any(d => SquadDefenseRules.SquadDefenderEligible(d) && d.RangedEquipped))
         {
             return null;
         }
@@ -27,13 +27,12 @@ public static partial class CombatDoorRules
         var down = CombatManhunterRules.DownPawns(view);
         foreach (var threat in view.Threats.Items)
         {
-            if (RoundsRules.Positive(threat.Dead) || RoundsRules.Positive(threat.Downed) || down.Contains(CombatDecideRules.ThreatPawn(threat)))
+            if (threat.Dead || threat.Downed || down.Contains(CombatDecideRules.ThreatPawn(threat)))
             {
                 continue;
             }
 
-            var known = threat.RangedEquipped.TryGetValue(out var ranged);
-            if (threat.Building || !known || ranged)
+            if (threat.Building || threat.RangedEquipped)
             {
                 return null;
             }
@@ -211,7 +210,7 @@ public static partial class CombatDoorRules
         var next = 0;
         foreach (var defender in view.Defenders.Items)
         {
-            if (!SquadDefenseRules.SquadDefenderEligible(defender) || !RoundsRules.Positive(defender.RangedEquipped) || next >= support.Count)
+            if (!SquadDefenseRules.SquadDefenderEligible(defender) || !defender.RangedEquipped || next >= support.Count)
             {
                 continue;
             }

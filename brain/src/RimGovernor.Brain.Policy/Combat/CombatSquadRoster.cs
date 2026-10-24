@@ -22,7 +22,7 @@ public static partial class CombatSquadRosterRules
             }
             foreach (var d in view.Defenders)
             {
-                if (d.HealthFraction.TryGetValue(out var health) && d.Id == r.Pawn && health <= SquadHurtHealth)
+                if (d.Id == r.Pawn && d.HealthFraction <= SquadHurtHealth)
                 {
                     result.Add(r.Pawn);
                 }

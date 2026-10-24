@@ -19,7 +19,7 @@ public static partial class CombatDrugsRules
     /// </summary>
     private static bool WorthDosing(CombatView view, Dictionary<PawnId, CombatPawnState> state)
     {
-        var known = view.Defenders.Items.Any(d => SquadDefenseRules.SquadDefenderEligible(d) && RoundsRules.Positive(d.Armed));
+        var known = view.Defenders.Items.Any(d => SquadDefenseRules.SquadDefenderEligible(d) && d.Armed);
         if (known && CombatWaitRules.Outmatched(view))
         {
             return true;
@@ -27,7 +27,7 @@ public static partial class CombatDrugsRules
 
         foreach (var t in view.Threats.Items)
         {
-            if (t.Building || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed))
+            if (t.Building || t.Dead || t.Downed)
             {
                 continue;
             }
@@ -65,7 +65,7 @@ public static partial class CombatDrugsRules
         var hostiles = new List<CombatPawnState>();
         foreach (var t in view.Threats.Items)
         {
-            if (state.TryGetValue(CombatDecideRules.ThreatPawn(t), out var s) && !t.Building && !s.Dead && !s.Downed && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed))
+            if (state.TryGetValue(CombatDecideRules.ThreatPawn(t), out var s) && !t.Building && !s.Dead && !s.Downed && !t.Dead && !t.Downed)
             {
                 hostiles.Add(s);
             }

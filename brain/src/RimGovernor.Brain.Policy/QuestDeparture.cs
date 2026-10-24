@@ -12,8 +12,8 @@ public sealed record QuestDeparturePawn
 
     public required bool CanFight { get; init; }
 
-    /// <summary>Melee power plus ranged DPS in raid points; 0 for a pawn that cannot fight. Unknown while the defender roster (#3789) is.</summary>
-    public Fact<double> DefensePoints { get; init; }
+    /// <summary>Melee power plus ranged DPS in raid points; 0 for a pawn that cannot fight.</summary>
+    public required double DefensePoints { get; init; }
 
     public required double CarryCapacity { get; init; }
 
@@ -136,13 +136,9 @@ public static class QuestDeparture
         {
             if (profile.Family == QuestFamily.BanditCamp)
             {
-                var ak = x.DefensePoints.TryGetValue(out var a);
-                var bk = y.DefensePoints.TryGetValue(out var b);
-                if (ak != bk)
-                {
-                    return ak ? -1 : 1;
-                }
-                if (ak && bk && a != b)
+                var a = x.DefensePoints;
+                var b = y.DefensePoints;
+                if (a != b)
                 {
                     if (strongestFirst)
                     {
@@ -178,11 +174,7 @@ public static class QuestDeparture
             }
             if (profile.Family == QuestFamily.BanditCamp)
             {
-                if (!pawn.DefensePoints.TryGetValue(out var points) || !TradePolicyRules.Finite(points) || points < 0)
-                {
-                    return (none, "defense_unknown");
-                }
-                capacity -= points;
+                capacity -= pawn.DefensePoints;
             }
         }
         if (home - need < floor)
@@ -227,17 +219,15 @@ public static class QuestDeparture
             {
                 continue;
             }
-            var dk = pawn.DefensePoints.TryGetValue(out var defense);
+            var defense = pawn.DefensePoints;
             if (profile.Family == QuestFamily.BanditCamp)
             {
                 if (!allowNonfighters && !pawn.CanFight)
                 {
                     continue;
                 }
-                if (!dk || !TradePolicyRules.Finite(defense) || defense < 0)
-                {
-                    return (none, "defense_unknown");
-                }
+
+
                 if (capacity - defense < Math.Max(raid, WealthBudgetRules.WealthBudgetMinRaidPoints))
                 {
                     continue;

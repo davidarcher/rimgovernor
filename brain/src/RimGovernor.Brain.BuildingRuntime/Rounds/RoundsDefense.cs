@@ -418,7 +418,7 @@ internal sealed class CombatInputs
     /// <summary>The player's preferences: protected pawns are held back from the squad while another defender is eligible.</summary>
     public PreferencesRecord Preferences = new();
     public Dictionary<string, WeaponDef> Weapons = new(StringComparer.Ordinal);
-    public Dictionary<string, Fact<bool>> Ranged = new(StringComparer.Ordinal);
+    public Dictionary<string, bool> Ranged = new(StringComparer.Ordinal);
     public Dictionary<string, double> Reach = new(StringComparer.Ordinal);
 
     /// <summary>Each pawn's primary weapon def name from its equipment row: what a pawn the combat read does not list (no hostile stands in a hunt) is armed with.</summary>
@@ -506,13 +506,9 @@ partial class RoundsDefensePlanner
         inp.ResolveProfiles(facts.Colonists, arms);
         foreach (var (id, row) in inp.Rows)
         {
-            var (weapon, known) = arms.Primary(row.Equipment);
-            if (!known)
-            {
-                continue;
-            }
+            var weapon = arms.Primary(row.Equipment);
             inp.Primary[id] = arms.PrimaryDefName(row.Equipment);
-            inp.Ranged[id] = Known(weapon.Ranged);
+            inp.Ranged[id] = weapon.Ranged;
             if (weapon.Ranged)
             {
                 inp.Reach[id] = weapon.Range;
@@ -544,27 +540,22 @@ partial class RoundsDefensePlanner
         var needed = inp.Needed.Select(n => (Domain.PawnId)n).ToHashSet();
         var owned = new HashSet<PawnId>(orderable);
         var armor = new Dictionary<PawnId, double>();
-        var melee = new Dictionary<PawnId, Fact<double>>();
         foreach (var row in combat.Pawns)
         {
             armor[row.Id] = row.Armor;
-            melee[row.Id] = Known(row.MeleePower * row.Health);
         }
+        var arms = new Armament { Catalog = catalog, Things = combat.Things };
         var defenders = new List<SquadDefenderFacts>();
         var profiles = new List<PawnProfile>();
         foreach (var pawn in combat.Emergency.Facts.Colonists)
         {
             var row = inp.Rows[pawn.Id.Value];
-            inp.Ranged.TryGetValue(pawn.Id.Value, out var ranged);
-            var d = Armament.SquadDefenderFacts(row, needed, ranged);
-            if (armor.TryGetValue(d.Id, out var a))
-            {
-                d = d with { Armor = Known(a) };
-            }
-            d = d with { MeleePower = melee.TryGetValue(d.Id, out var mp) ? mp : default };
+            // The combat mirror lists every spawned colonist while a hostile stands; a hunt or a break alone has no rows.
+            DefenderArmor rating = armor.TryGetValue(pawn.Id, out var a) ? new DefenderArmor.Rated(a) : new DefenderArmor.Unmirrored();
+            var d = Armament.SquadDefenderFacts(row, needed, arms, rating);
             if (owned.Contains(d.Id))
             {
-                d = d with { DraftOwned = Known(false) };
+                d = d with { DraftOwned = false };
             }
             defenders.Add(d);
             // The warden capability is assigned to a local copy after the append, so it never reaches the defender row.
@@ -577,28 +568,22 @@ partial class RoundsDefensePlanner
         // A protected pawn already in the fight stays in it; the hold-back is for who is drafted next.
         defenders = [.. defenders.Where(d => !heldBack.Contains(d.Id) || owned.Contains(d.Id)).Select(d => d with { FrontLine = holds.Contains(d.Id) })];
         var threats = new List<SquadThreatFacts>();
-        var races = catalog.AnimalRaces();
         var positional = new List<DefensiveThreatFacts>(inp.HostileIds.Count);
         foreach (var id in inp.HostileIds)
         {
             var row = inp.Rows[id];
-            inp.Ranged.TryGetValue(id, out var ranged);
-            var facts = Armament.SquadThreatFacts(row, races, ranged);
-            facts = facts with { Hunting = Known(inp.Hunting.Contains(id)) };
-            facts = facts with { MeleePower = melee.TryGetValue(new PawnId(id), out var mp) ? mp : default };
-            threats.Add(facts);
+            threats.Add(Armament.SquadThreatFacts(row, catalog, inp.Ranged[id]) with { Hunting = inp.Hunting.Contains(id) });
             positional.Add(DefensiveThreatFacts(row));
         }
         foreach (var id in inp.Prey)
         {
-            inp.Ranged.TryGetValue(id, out var ranged);
-            threats.Add(Armament.SquadThreatFacts(inp.Rows[id], races, ranged));
+            threats.Add(Armament.SquadThreatFacts(inp.Rows[id], catalog, inp.Ranged[id]));
         }
         var lines = BuildingLinesOfFire(combat.Lines, inp.Buildings, defenders, inp.Rows, inp.Reach);
         foreach (var building in inp.Buildings)
         {
             lines.TryGetValue(building.Id, out var linesOfFire);
-            threats.Add(new SquadThreatFacts { Id = building.Id, Dead = Known(building.Dead), Building = true, LinesOfFire = linesOfFire?.ToDictionary(shooter => shooter, _ => true) ?? new Dictionary<PawnId, bool>() });
+            threats.Add(new SquadThreatFacts { Id = building.Id, Dead = building.Dead, Building = true, Anomaly = new O.PawnAnomalyState.Inactive(), LinesOfFire = linesOfFire?.ToDictionary(shooter => shooter, _ => true) ?? new Dictionary<PawnId, bool>() });
         }
         var structures = new List<HostileStructure>();
         foreach (var b in inp.Buildings)
@@ -699,7 +684,7 @@ partial class RoundsDefensePlanner
         foreach (var d in defenders)
         {
             rows.TryGetValue(d.Id.Value, out var row);
-            if (!d.RangedEquipped.TryGetValue(out var ranged) || !ranged || row is null || row.Pawn.Place is not O.EntityPlace.OnMap { Cell: var position })
+            if (!d.RangedEquipped || row is null || row.Pawn.Place is not O.EntityPlace.OnMap { Cell: var position })
             {
                 continue;
             }
@@ -865,9 +850,9 @@ partial class RoundsDefensePlanner
 internal sealed partial class Armament
 {
     /// <summary>The primary weapon's range when it is a ranged weapon; zero otherwise.</summary>
-    internal double PrimaryRange(O.PawnEquipment? equipment)
+    internal double PrimaryRange(O.PawnEquipment equipment)
     {
-        var (weapon, known) = Primary(equipment);
-        return !known || !weapon.Ranged ? 0 : weapon.Range;
+        var weapon = Primary(equipment);
+        return weapon.Ranged ? weapon.Range : 0;
     }
 }

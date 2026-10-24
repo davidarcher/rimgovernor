@@ -14,6 +14,10 @@ public sealed partial class DefinitionCatalog
     /// <summary>Every animal race of the catalog, built once.</summary>
     public P.AnimalRaceCatalog AnimalRaces() => _races.Value;
 
+    /// <summary>A pawn def's base body size (RaceProperties.baseBodySize); a def without race properties fails the read.</summary>
+    public double BaseBodySize(string pawnDef) =>
+        FindThing(pawnDef)?.race is { } props ? props.baseBodySize : throw new CatalogException($"pawn def {pawnDef} without race properties");
+
     private P.AnimalRaceCatalog BuildAnimalRaces()
     {
         var races = new Dictionary<P.Resource, P.AnimalRace>();

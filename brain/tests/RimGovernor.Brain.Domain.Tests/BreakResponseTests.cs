@@ -29,16 +29,17 @@ public sealed class BreakResponseTests
         SquadDefenderFacts = new SquadDefenderFacts
         {
             Id = new PawnId(id),
-            Dead = Known(false),
-            Downed = Known(false),
-            Drafted = Known(false),
+            Dead = false,
+            Downed = false,
+            Drafted = false,
             MentalState = breaking,
-            ViolenceCapable = Known(true),
-            NeedsTend = Known(false),
-            HealthFraction = Known(1.0),
-            Armed = Known(arms != Arms.Unarmed),
-            MeleeEquipped = Known(arms == Arms.Melee),
-            RangedEquipped = Known(arms == Arms.Ranged),
+            ViolenceCapable = true,
+            NeedsTend = false,
+            HealthFraction = 1.0,
+            Armor = new DefenderArmor.Unmirrored(),
+            Armed = arms != Arms.Unarmed,
+            MeleeEquipped = arms == Arms.Melee,
+            RangedEquipped = arms == Arms.Ranged,
         },
     };
 

@@ -10,22 +10,23 @@ public sealed record SquadThreatFacts
 {
     public PawnId Id { get; init; }
 
-    public Fact<bool> Dead { get; init; }
+    public bool Dead { get; init; }
 
-    public Fact<bool> Downed { get; init; }
+    public bool Downed { get; init; }
 
-    public Fact<bool> Humanlike { get; init; }
+    public bool Humanlike { get; init; }
 
-    public Fact<bool> Animal { get; init; }
+    public bool Animal { get; init; }
 
-    public Fact<double> BodySize { get; init; }
+    /// <summary>The race's base body size (RaceProperties.baseBodySize); zero for a hostile building.</summary>
+    public double BodySize { get; init; }
 
-    public Fact<bool> Manhunter { get; init; }
+    public bool Manhunter { get; init; }
 
-    /// <summary>An animal the emergency census lists as hunting a colonist; unknown counts as not hunting.</summary>
-    public Fact<bool> Hunting { get; init; }
+    /// <summary>An animal the emergency census lists as hunting a colonist.</summary>
+    public bool Hunting { get; init; }
 
-    public Fact<bool> RangedEquipped { get; init; }
+    public bool RangedEquipped { get; init; }
 
     /// <summary>
     /// Marks a hostile building (an insect hive, a crashed ship part) rather than a pawn, engaged only once no
@@ -36,16 +37,30 @@ public sealed record SquadThreatFacts
     /// </summary>
     public bool Building { get; init; }
 
-    /// <summary>The pawn row's Anomaly facts; unknown without Anomaly.</summary>
-    public Fact<PawnAnomaly> Anomaly { get; init; }
+    /// <summary>The pawn row's Anomaly facts, <see cref="PawnAnomalyState.Inactive"/> without Anomaly and for a hostile building.</summary>
+    public required PawnAnomalyState Anomaly { get; init; }
 
     /// <summary>A Mech_ pawn kind, marked from the combat view.</summary>
     public bool Mech { get; init; }
 
     public IReadOnlyDictionary<PawnId, bool> LinesOfFire { get; init; } = new Dictionary<PawnId, bool>();
 
-    /// <summary>The pawn's MeleeDPS scaled by health.</summary>
-    public Fact<double> MeleePower { get; init; }
+    /// <summary>The pawn's MeleeDPS scaled by health; zero for a hostile building.</summary>
+    public double MeleePower { get; init; }
+}
+
+/// <summary>
+/// A defender's worn sharp armor: <see cref="Rated"/> from its combat mirror row, or <see cref="Unmirrored"/> while the
+/// combat mirror lists no row for it (no hostile stands: a hunt, or a break the combat read is not open for).
+/// </summary>
+public abstract record DefenderArmor
+{
+    private DefenderArmor() { }
+
+    /// <summary>The stronger of natural armor and the best worn layer.</summary>
+    public sealed record Rated(double Sharp) : DefenderArmor;
+
+    public sealed record Unmirrored : DefenderArmor;
 }
 
 /// <summary>
@@ -56,51 +71,52 @@ public record SquadDefenderFacts
 {
     public PawnId Id { get; init; }
 
-    public Fact<bool> Dead { get; init; }
+    public bool Dead { get; init; }
 
-    public Fact<bool> Downed { get; init; }
+    public bool Downed { get; init; }
 
-    public Fact<bool> Drafted { get; init; }
+    public bool Drafted { get; init; }
 
     public bool MentalState { get; init; }
 
-    public Fact<bool> PlayerForced { get; init; }
+    public bool PlayerForced { get; init; }
 
     /// <summary>
     /// Whether a live plan needs the pawn drafted. A drafted pawn a plan needs is busy elsewhere; a drafted pawn
     /// no plan needs is a candidate like any undrafted colonist and the draft adopts it.
     /// </summary>
-    public Fact<bool> DraftOwned { get; init; }
+    public bool DraftOwned { get; init; }
 
-    /// <summary>A pawn known to be in deathrest: never a defender.</summary>
+    /// <summary>A pawn in deathrest: never a defender.</summary>
     public bool Deathresting { get; init; }
 
-    public Fact<uint> QueuedJobs { get; init; }
+    public uint QueuedJobs { get; init; }
 
-    public Fact<bool> ViolenceCapable { get; init; }
+    public bool ViolenceCapable { get; init; }
 
-    public Fact<bool> NeedsTend { get; init; }
+    public bool NeedsTend { get; init; }
 
-    public Fact<double> HealthFraction { get; init; }
+    public double HealthFraction { get; init; }
 
-    public Fact<bool> RangedEquipped { get; init; }
+    public bool RangedEquipped { get; init; }
 
-    public Fact<bool> MeleeEquipped { get; init; }
+    /// <summary>The pawn's primary is a melee weapon.</summary>
+    public bool MeleeEquipped { get; init; }
 
-    public Fact<bool> Armed { get; init; }
+    public bool Armed { get; init; }
 
     /// <summary>
     /// The pawn's place in FrontLine's split of the roster: a line holder (Tough, Nimble, Brawler or Melee over
     /// Shooting) takes a melee opponent before a shooter does, and shooters take ranged opponents and firing
-    /// cells first. False when the profile is unknown; it orders preference only, never eligibility.
+    /// cells first. It orders preference only, never eligibility.
     /// </summary>
     public bool FrontLine { get; init; }
 
-    /// <summary>The pawn's worn sharp armor rating; it ranks choke blockers. Unknown ranks after every known rating.</summary>
-    public Fact<double> Armor { get; init; }
+    /// <summary>The pawn's worn sharp armor rating; it ranks choke blockers, an unmirrored one after every rated one.</summary>
+    public required DefenderArmor Armor { get; init; }
 
     /// <summary>The pawn's MeleeDPS scaled by health.</summary>
-    public Fact<double> MeleePower { get; init; }
+    public double MeleePower { get; init; }
 
     /// <summary>A pawn with Warden work enabled; a prison break ranks it first.</summary>
     public bool Warden { get; init; }
@@ -121,79 +137,52 @@ public static partial class SquadDefenseRules
     private const int RequiredDefendersPerFoe = 2;
 
     /// <summary>
-    /// Whether defenders can win a melee against t: their summed melee power above t's. A gun among them, a
-    /// building or any unknown power is not a melee this compares.
+    /// Whether defenders can win a melee against t: their summed melee power above t's. A gun among them or a
+    /// building is not a melee this compares.
     /// </summary>
     private static bool MeleeBeats(SquadThreatFacts t, IEnumerable<SquadDefenderFacts> defenders)
     {
-        var ok = t.MeleePower.TryGetValue(out var foe);
-        if (t.Building || !ok)
+        if (t.Building)
         {
             return true;
         }
         var sum = 0.0;
         foreach (var d in defenders)
         {
-            var pk = d.MeleePower.TryGetValue(out var power);
-            if (!pk || RoundsRules.Positive(d.RangedEquipped))
+            if (d.RangedEquipped)
             {
                 return true;
             }
-            sum += power;
+            sum += d.MeleePower;
         }
-        return sum > foe;
+        return sum > t.MeleePower;
     }
 
     /// <summary>
-    /// Whether the pawn's draft is spoken for: drafted under an owned claim, or drafted with the claim unknown.
+    /// Whether the pawn's draft is spoken for: drafted under an owned claim.
     /// Forced and queued jobs affect candidate preference, never draft ownership.
     /// </summary>
-    internal static (bool Busy, bool Known) SquadDraftBusy(SquadDefenderFacts d)
-    {
-        if (!d.Drafted.TryGetValue(out var drafted))
-        {
-            return (false, false);
-        }
-        if (!drafted)
-        {
-            return (false, true);
-        }
-        var ok = d.DraftOwned.TryGetValue(out var owned);
-        return (!ok || owned, true);
-    }
+    internal static bool SquadDraftBusy(SquadDefenderFacts d) => d.Drafted && d.DraftOwned;
 
     /// <summary>
-    /// The shared combat_health_hold gate: known health, not drafted under another claim, violence-capable, not
+    /// The shared combat_health_hold gate: not drafted under another claim, violence-capable, not
     /// needing tending and above the native combat-health threshold.
     /// </summary>
     internal static bool SquadDefenderEligible(SquadDefenderFacts d) => SquadDefenderReasons(d).Count == 0;
 
-    /// <summary>Every reason d is not eligible, empty when eligible. Each check stands alone: an unknown fact is a reason, and the known ones are still checked.</summary>
+    /// <summary>Every reason d is not eligible, empty when eligible. Each check stands alone.</summary>
     internal static List<string> SquadDefenderReasons(SquadDefenderFacts d)
     {
         var why = new List<string>();
-        if (!d.Dead.TryGetValue(out var dead))
-        {
-            why.Add("dead unknown");
-        }
-        else if (dead)
+        if (d.Dead)
         {
             why.Add("dead");
         }
-        if (!d.Downed.TryGetValue(out var downed))
-        {
-            why.Add("downed unknown");
-        }
-        else if (downed)
+        if (d.Downed)
         {
             why.Add("downed");
         }
-        var (busy, bk) = SquadDraftBusy(d);
-        if (!bk)
-        {
-            why.Add("drafted unknown");
-        }
-        else if (busy)
+        if (SquadDraftBusy(d))
         {
             why.Add("drafted under another claim");
         }
@@ -201,19 +190,11 @@ public static partial class SquadDefenseRules
         {
             why.Add("in a mental state");
         }
-        if (!d.ViolenceCapable.TryGetValue(out var violent))
-        {
-            why.Add("violence capability unknown");
-        }
-        else if (!violent)
+        if (!d.ViolenceCapable)
         {
             why.Add("not violence-capable");
         }
-        if (!d.NeedsTend.TryGetValue(out var needsTend))
-        {
-            why.Add("needs-tend unknown");
-        }
-        else if (needsTend)
+        if (d.NeedsTend)
         {
             why.Add("needs tending");
         }
@@ -221,13 +202,9 @@ public static partial class SquadDefenseRules
         {
             why.Add("deathresting");
         }
-        if (!d.HealthFraction.TryGetValue(out var health))
+        if (d.HealthFraction <= CombatSquadRosterRules.SquadHurtHealth)
         {
-            why.Add("health unknown");
-        }
-        else if (health <= CombatSquadRosterRules.SquadHurtHealth)
-        {
-            why.Add("health " + health.ToString("F2", CultureInfo.InvariantCulture));
+            why.Add("health " + d.HealthFraction.ToString("F2", CultureInfo.InvariantCulture));
         }
         return why;
     }
@@ -254,42 +231,23 @@ public static partial class SquadDefenseRules
     {
         static bool EligibleThreat(SquadThreatFacts t)
         {
-            var dk = t.Dead.TryGetValue(out var dead);
             if (t.Building)
             {
-                return dk && !dead;
+                return !t.Dead;
             }
-            var wk = t.Downed.TryGetValue(out var downed);
-            var hk = t.Humanlike.TryGetValue(out var humanlike);
-            var ak = t.Animal.TryGetValue(out var animal);
-            if (!dk || !wk || dead || downed)
+            if (t.Dead || t.Downed)
             {
                 return false;
             }
-            if (t.Mech)
+            if (t.Mech || t.Humanlike || CombatAnomalyRules.MeleeEntity(t))
             {
                 return true;
             }
-            if (!hk || !ak)
+            if (!t.Animal || (!t.Manhunter && !t.Hunting))
             {
                 return false;
             }
-            if (humanlike || CombatAnomalyRules.MeleeEntity(t))
-            {
-                return true;
-            }
-            if (!animal)
-            {
-                return false;
-            }
-            var sk = t.BodySize.TryGetValue(out var size);
-            var mk = t.Manhunter.TryGetValue(out var manhunter);
-            t.Hunting.TryGetValue(out var hunting);
-            if (!sk || !mk || (!manhunter && !hunting))
-            {
-                return false;
-            }
-            return size > 0 && size <= 4;
+            return t.BodySize > 0 && t.BodySize <= 4;
         }
 
         var threatPool = new List<SquadThreatFacts>();
@@ -299,9 +257,7 @@ public static partial class SquadDefenseRules
         {
             if (!t.Building)
             {
-                var dk = t.Dead.TryGetValue(out var dead);
-                var wk = t.Downed.TryGetValue(out var downed);
-                standing = standing || !dk || !wk || (!dead && !downed);
+                standing = standing || (!t.Dead && !t.Downed);
             }
             if (!EligibleThreat(t))
             {
@@ -357,14 +313,12 @@ public static partial class SquadDefenseRules
                     {
                         continue;
                     }
-                    var known = d.RangedEquipped.TryGetValue(out var equipped);
-                    if (ranged && (!known || !equipped))
+                    if (ranged && !d.RangedEquipped)
                     {
                         continue;
                     }
                     // Melee needs a weapon in hand: fists lose to anything worth fighting.
-                    var ak = d.Armed.TryGetValue(out var armed);
-                    if (!ranged && (!ak || !armed))
+                    if (!ranged && !d.Armed)
                     {
                         continue;
                     }
@@ -380,8 +334,7 @@ public static partial class SquadDefenseRules
         {
             foreach (var d in defenderPool)
             {
-                var known = d.RangedEquipped.TryGetValue(out var equipped);
-                if (!used.Contains(d.Id) && known && equipped && t.LinesOfFire.TryGetValue(d.Id, out var line) && line)
+                if (!used.Contains(d.Id) && d.RangedEquipped && t.LinesOfFire.TryGetValue(d.Id, out var line) && line)
                 {
                     used.Add(d.Id);
                     return (d.Id, SquadMode.Ranged, true);
@@ -400,11 +353,7 @@ public static partial class SquadDefenseRules
                 {
                     break;
                 }
-                var known = t.RangedEquipped.TryGetValue(out var ranged);
-                if (!t.Building && !known)
-                {
-                    continue;
-                }
+                var ranged = t.RangedEquipped;
                 var chosen = new List<SquadAssignment>();
                 var ok = true;
                 for (var i = 0; i < per; i++)
@@ -479,47 +428,16 @@ public static partial class SquadDefenseRules
         IReadOnlyList<SquadDefenderFacts> defenders
     )
     {
-        if (threat.Building)
+        if (threat.Building || threat.Dead || threat.Downed || !threat.Humanlike || threat.RangedEquipped)
         {
             return ([], false);
         }
-        var dk = threat.Dead.TryGetValue(out var dead);
-        var wk = threat.Downed.TryGetValue(out var downed);
-        var hk = threat.Humanlike.TryGetValue(out var humanlike);
-        var rk = threat.RangedEquipped.TryGetValue(out var ranged);
-        if (!dk || !wk || !hk || !rk || dead || downed || !humanlike || ranged)
-        {
-            return ([], false);
-        }
-        static bool Eligible(SquadDefenderFacts d)
-        {
-            var dk = d.Dead.TryGetValue(out var dead);
-            var wk = d.Downed.TryGetValue(out var downed);
-            var (drafted, tk) = SquadDraftBusy(d);
-            var mental = d.MentalState;
-            var vk = d.ViolenceCapable.TryGetValue(out var violent);
-            var nk = d.NeedsTend.TryGetValue(out var needsTend);
-            var hk2 = d.HealthFraction.TryGetValue(out var health);
-            var ak = d.Armed.TryGetValue(out var armed);
-            if (!dk || !wk || !tk || !vk || !nk || !hk2 || !ak)
-            {
-                return false;
-            }
-            if (dead || downed || drafted || mental || !violent || needsTend || !armed || d.Deathresting)
-            {
-                return false;
-            }
-            return health >= 0.85;
-        }
-        static bool RangedOf(SquadDefenderFacts d)
-        {
-            d.RangedEquipped.TryGetValue(out var r);
-            return r;
-        }
+        static bool Eligible(SquadDefenderFacts d) =>
+            !d.Dead && !d.Downed && !SquadDraftBusy(d) && !d.MentalState && d.ViolenceCapable && !d.NeedsTend && d.Armed && !d.Deathresting && d.HealthFraction >= 0.85;
         var pool = defenders
             .Where(Eligible)
             .OrderBy(d => OrderedWorkRules.OrderedWorkCost(d.PlayerForced, d.QueuedJobs))
-            .ThenByDescending(RangedOf)
+            .ThenByDescending(d => d.RangedEquipped)
             .ThenByDescending(d => d.FrontLine)
             .ThenBy(d => d.Id)
             .ToList();
@@ -530,7 +448,7 @@ public static partial class SquadDefenseRules
         var assignments = new List<SquadAssignment>();
         foreach (var d in pool.GetRange(0, 3))
         {
-            var mode = RangedOf(d) ? SquadMode.Ranged : SquadMode.Melee;
+            var mode = d.RangedEquipped ? SquadMode.Ranged : SquadMode.Melee;
             assignments.Add(new SquadAssignment(d.Id, threat.Id, mode));
         }
         return (assignments, true);

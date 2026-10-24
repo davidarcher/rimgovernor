@@ -151,17 +151,6 @@ public sealed partial class RoundsDefensePlanner
         return (new RoundsDefenseResult(), false);
     }
 
-    /// <summary>The melee fact of a pawn row: whether its primary weapon is a melee weapon.</summary>
-    internal static Fact<bool> BreakMelee(O.PawnState row, Armament arms)
-    {
-        var (weapon, known) = arms.Primary(row.Equipment);
-        if (!known)
-        {
-            return Unknown<bool>();
-        }
-        return Known(weapon.Melee);
-    }
-
     internal static bool HasAggressiveBreak(EmergencyFacts f)
     {
         foreach (var p in f.Colonists)
@@ -212,9 +201,7 @@ public sealed partial class RoundsDefensePlanner
         foreach (var p0 in f.Colonists)
         {
             var row = rows[p0.Id.Value];
-            var ranged = Armament.RangedWeaponEquipped(row.Equipment, arms);
-            var d = Armament.SquadDefenderFacts(row, needed.Select(n => n).ToHashSet(), ranged);
-            d = d with { MeleeEquipped = BreakMelee(row, arms) };
+            var d = Armament.SquadDefenderFacts(row, needed.Select(n => n).ToHashSet(), arms, new DefenderArmor.Unmirrored());
             responders.Add(new BreakResponder { SquadDefenderFacts = d, Cell = BreakDispatch.BreakCell(row) });
         }
         var preferences = _reviewer.PreferencesOf(state.Snapshot, call);

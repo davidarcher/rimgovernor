@@ -29,7 +29,7 @@ public static partial class CombatInfestationRules
         var n = 0;
         foreach (var t in view.Threats.Items)
         {
-            if (t.Building || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || down.Contains(CombatDecideRules.ThreatPawn(t)))
+            if (t.Building || t.Dead || t.Downed || down.Contains(CombatDecideRules.ThreatPawn(t)))
             {
                 continue;
             }

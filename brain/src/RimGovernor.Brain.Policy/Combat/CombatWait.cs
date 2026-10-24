@@ -35,7 +35,7 @@ public static partial class CombatWaitRules
 
     /// <summary>
     /// The wait-it-out comparison: ours is the health fraction summed over the armed, eligible defenders;
-    /// theirs is the live hostiles' body sizes. Unknown health or size counts 1.
+    /// theirs is the live hostiles' body sizes.
     /// </summary>
     internal static bool Outmatched(CombatView view)
     {
@@ -43,27 +43,19 @@ public static partial class CombatWaitRules
         double theirs = 0;
         foreach (var d in view.Defenders)
         {
-            if (SquadDefenseRules.SquadDefenderEligible(d) && RoundsRules.Positive(d.Armed))
+            if (SquadDefenseRules.SquadDefenderEligible(d) && d.Armed)
             {
-                if (!d.HealthFraction.TryGetValue(out var h))
-                {
-                    h = 1;
-                }
-                ours += h;
+                ours += d.HealthFraction;
             }
         }
         var down = CombatManhunterRules.DownPawns(view);
         foreach (var t in view.Threats)
         {
-            if (t.Building || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || down.Contains(t.Id))
+            if (t.Building || t.Dead || t.Downed || down.Contains(t.Id))
             {
                 continue;
             }
-            if (!t.BodySize.TryGetValue(out var size) || size <= 0)
-            {
-                size = 1;
-            }
-            theirs += size;
+            theirs += t.BodySize;
         }
         return ours < theirs;
     }
@@ -91,12 +83,12 @@ public static partial class CombatWaitRules
         var n = 0;
         foreach (var t in view.Threats)
         {
-            if (t.Building || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || down.Contains(t.Id))
+            if (t.Building || t.Dead || t.Downed || down.Contains(t.Id))
             {
                 continue;
             }
             // A shambler is humanlike but fights as a pack of its own.
-            if (!RoundsRules.Positive(t.Humanlike) || CombatAnomalyRules.Anomalous(t))
+            if (!t.Humanlike || CombatAnomalyRules.Anomalous(t))
             {
                 return false;
             }

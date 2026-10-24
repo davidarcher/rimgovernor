@@ -293,7 +293,7 @@ public static class RoundsMoodReads
     internal static (Fact<long> Armed, Fact<long> Unarmed) RoundsArmed(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns, CreepJoinerDownsides downsides)
     {
         var unknown = Unknown<long>();
-        if (colony is null || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
+        if (colony is null || pawns is null || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
         {
             return (unknown, unknown);
         }
@@ -342,12 +342,12 @@ public static class RoundsMoodReads
     /// Each census colonist's defense capacity facts from the same pawn rows <see cref="RoundsArmed"/> compares:
     /// dead and downed from the emergency census, violence from the biography, melee power as the observed
     /// MeleeDPS times summary health and the observed ranged DPS at the pawn's hit factor. A row the census does not
-    /// match leaves the roster unknown.
+    /// match, or a frame without the pawn rows, leaves the roster unknown.
     /// </summary>
-    internal static Fact<EquatableArray<DefenderStrength>> RoundsDefenders(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot pawns)
+    internal static Fact<EquatableArray<DefenderStrength>> RoundsDefenders(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? pawns)
     {
         var unknown = Unknown<EquatableArray<DefenderStrength>>();
-        if (colony is null || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
+        if (colony is null || pawns is null || colony.ColonistCount != emergency.Colonists.Count || pawns.Pawns.Count != emergency.Colonists.Count)
         {
             return unknown;
         }

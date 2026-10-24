@@ -41,15 +41,16 @@ public sealed class CombatHuntTests
     private static SquadDefenderFacts Defender(PawnId id) => new()
     {
         Id = id,
-        Dead = Known(false),
-        Downed = Known(false),
-        Drafted = Known(false),
-        ViolenceCapable = Known(true),
-        NeedsTend = Known(false),
-        HealthFraction = Known(1.0),
+        Dead = false,
+        Downed = false,
+        Drafted = false,
+        ViolenceCapable = true,
+        NeedsTend = false,
+        HealthFraction = 1.0,
+        Armor = new DefenderArmor.Unmirrored(),
     };
 
-    private static SquadThreatFacts Prey(PawnId id) => new() { Id = id, Dead = Known(false), Downed = Known(false), Animal = Known(true) };
+    private static SquadThreatFacts Prey(PawnId id) => new() { Id = id, Dead = false, Downed = false, Animal = true, Anomaly = new RimGovernor.Contracts.Wire.Observations.PawnAnomalyState.Inactive() };
 
     private static CombatView View(IEnumerable<CombatPawnState> pawns, IEnumerable<PawnId> defenders, IEnumerable<PawnId> prey, IEnumerable<PawnId> roster)
     {
@@ -168,7 +169,7 @@ public sealed class CombatHuntTests
     {
         var view = TwoGunners(Rifleman, Marksman) with
         {
-            Threats = EquatableArray.From(new[] { Prey(Deer) with { Downed = Known(true) } }),
+            Threats = EquatableArray.From(new[] { Prey(Deer) with { Downed = true } }),
         };
 
         Assert.Empty(CombatHuntRules.HuntFormation(view, []));

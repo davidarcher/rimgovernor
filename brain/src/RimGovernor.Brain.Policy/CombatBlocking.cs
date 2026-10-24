@@ -121,26 +121,26 @@ public static partial class CombatBlockingRules
         return c => Near(c, 2) && Project(c) <= 0;
     }
 
-    /// <summary>The eligible melee-only defenders, best armored first (unknown armor last), then by id.</summary>
+    /// <summary>The eligible defenders without a ranged weapon, best armored first (unmirrored armor last), then by id.</summary>
     internal static List<SquadDefenderFacts> Brawlers(IEnumerable<SquadDefenderFacts> defenders) =>
-        ByArmor([.. defenders.Where(d => SquadDefenseRules.SquadDefenderEligible(d) && RoundsRules.Positive(d.MeleeEquipped) && !RoundsRules.Positive(d.RangedEquipped))]);
+        ByArmor([.. defenders.Where(d => SquadDefenseRules.SquadDefenderEligible(d) && !d.RangedEquipped)]);
 
-    /// <summary>Sorts defenders best armored first (unknown armor last), then by id.</summary>
+    /// <summary>Sorts defenders best armored first (unmirrored armor last), then by id.</summary>
     internal static List<SquadDefenderFacts> ByArmor(List<SquadDefenderFacts> output) =>
         PolicySort.ByLess(
             output,
             (a, b) =>
             {
-                var ik = a.Armor.TryGetValue(out var ai);
-                var jk = b.Armor.TryGetValue(out var aj);
-                if (ik != jk)
+                if (a.Armor is DefenderArmor.Rated ra && b.Armor is DefenderArmor.Rated rb)
                 {
-                    return ik;
+                    if (ra.Sharp != rb.Sharp)
+                    {
+                        return ra.Sharp > rb.Sharp;
+                    }
                 }
-
-                if (ik && ai != aj)
+                else if (a.Armor is DefenderArmor.Rated != b.Armor is DefenderArmor.Rated)
                 {
-                    return ai > aj;
+                    return a.Armor is DefenderArmor.Rated;
                 }
 
                 return a.Id < b.Id;

@@ -169,11 +169,7 @@ public static class QuestSurvey
             {
                 if (row.Id == (PawnId)id)
                 {
-                    if (!row.DefensePoints.TryGetValue(out var strength))
-                    {
-                        return false;
-                    }
-                    capacity -= strength;
+                    capacity -= row.DefensePoints;
                     found = true;
                 }
             }

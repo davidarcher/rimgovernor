@@ -9,11 +9,7 @@ partial class AnomalyRounds
         var output = new List<LanceUser>();
         foreach (var row in rows)
         {
-            var facts = Armament.SquadDefenderFacts(row, new HashSet<Domain.PawnId>(), Unknown<bool>());
-            var dk = facts.Dead.TryGetValue(out var dead);
-            var wk = facts.Downed.TryGetValue(out var downed);
-            var vk = facts.ViolenceCapable.TryGetValue(out var violent);
-            if (!dk || !wk || !vk || dead || downed || facts.MentalState || !violent)
+            if (row.Dead || row.Downed || row.MentalState is not null || row.Biography.DisabledWorkTags.Contains("Violent"))
             {
                 continue;
             }

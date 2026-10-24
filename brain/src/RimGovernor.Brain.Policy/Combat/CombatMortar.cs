@@ -341,7 +341,7 @@ public static partial class CombatMortarRules
         var hostile = new Dictionary<PawnId, bool>();
         foreach (var t in view.Threats)
         {
-            hostile[t.Id] = !t.Building && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed);
+            hostile[t.Id] = !t.Building && !t.Dead && !t.Downed;
         }
         var ours = ColonistCells(view);
         var result = new List<Cell>();

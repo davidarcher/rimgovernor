@@ -24,7 +24,7 @@ public static partial class CombatSapperRules
         var humanlike = new Dictionary<PawnId, bool>();
         foreach (var t in view.Threats)
         {
-            humanlike[t.Id] = RoundsRules.Positive(t.Humanlike);
+            humanlike[t.Id] = t.Humanlike;
         }
         var diggers = new List<CombatPawnState>();
         foreach (var h in LiveSappers(view))

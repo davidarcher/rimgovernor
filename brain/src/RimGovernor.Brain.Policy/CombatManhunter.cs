@@ -32,12 +32,12 @@ public static partial class CombatManhunterRules
         var n = 0;
         foreach (var t in view.Threats.Items)
         {
-            if (t.Building || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || down.Contains(CombatDecideRules.ThreatPawn(t)))
+            if (t.Building || t.Dead || t.Downed || down.Contains(CombatDecideRules.ThreatPawn(t)))
             {
                 continue;
             }
 
-            if (!(RoundsRules.Positive(t.Animal) && RoundsRules.Positive(t.Manhunter)) && !CombatAnomalyRules.MeleeEntity(t))
+            if (!(t.Animal && t.Manhunter) && !CombatAnomalyRules.MeleeEntity(t))
             {
                 return false;
             }
@@ -125,12 +125,12 @@ public static partial class CombatManhunterRules
         var rest = new List<SquadDefenderFacts>();
         foreach (var d in view.Defenders.Items)
         {
-            if (!SquadDefenseRules.SquadDefenderEligible(d) || !RoundsRules.Positive(d.Armed))
+            if (!SquadDefenseRules.SquadDefenderEligible(d) || !d.Armed)
             {
                 continue;
             }
 
-            if (RoundsRules.Positive(d.RangedEquipped))
+            if (d.RangedEquipped)
             {
                 gunners.Add(d);
             }

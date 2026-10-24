@@ -19,7 +19,7 @@ public static partial class CombatKiteRules
     /// </summary>
     internal const double KiteMinRange = 30.0;
 
-    /// <summary>The heaviest worn sharp armor rating a kiter wears: light armor, below a marine's. Unknown armor does not refuse.</summary>
+    /// <summary>The heaviest worn sharp armor rating a kiter wears: light armor, below a marine's. Unmirrored armor does not refuse.</summary>
     internal const double KiteMaxArmor = 0.8;
 
     /// <summary>A hostile this close to the kiter, in cells, starts the lead even before it targets the kiter.</summary>
@@ -53,7 +53,7 @@ public static partial class CombatKiteRules
             state[p.Id] = p;
         }
 
-        var armor = new Dictionary<PawnId, Fact<double>>();
+        var armor = new Dictionary<PawnId, DefenderArmor>();
         foreach (var d in view.Defenders.Items)
         {
             armor[d.Id] = d.Armor;
@@ -129,9 +129,9 @@ public static partial class CombatKiteRules
     }
 
     /// <summary>The wiki's kiter: a gunner with a long-range gun, no more than light armor, and a MoveSpeed of at least <paramref name="need"/>.</summary>
-    private static bool KiterEligible(CombatRole r, CombatPawnState s, Fact<double> armor, double need)
+    private static bool KiterEligible(CombatRole r, CombatPawnState s, DefenderArmor? armor, double need)
     {
-        if (armor.TryGetValue(out var a) && a > KiteMaxArmor)
+        if (armor is DefenderArmor.Rated { Sharp: > KiteMaxArmor })
         {
             return false;
         }

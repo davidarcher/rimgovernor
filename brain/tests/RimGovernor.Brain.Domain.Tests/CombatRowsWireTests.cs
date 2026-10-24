@@ -29,7 +29,6 @@ public sealed class CombatRowsWireTests
         Health = 0.75,
         MoveSpeed = 4.6,
         Armor = 0.35,
-        MeleePower = 2.1,
         Changed = new M.Watermark { Tick = 1200, Seq = 3 },
         MedicalSkill = 0,
         GoJuiceHigh = false,

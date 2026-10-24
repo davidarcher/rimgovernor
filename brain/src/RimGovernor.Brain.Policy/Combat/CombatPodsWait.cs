@@ -23,10 +23,9 @@ public static partial class CombatPodsRules
         double theirs = 0;
         foreach (var d in view.Defenders)
         {
-            if (SquadDefenseRules.SquadDefenderEligible(d) && RoundsRules.Positive(d.Armed))
+            if (SquadDefenseRules.SquadDefenderEligible(d) && d.Armed)
             {
-                d.HealthFraction.TryGetValue(out var h);
-                ours += h;
+                ours += d.HealthFraction;
             }
         }
         var down = new HashSet<PawnId>();

@@ -29,9 +29,8 @@ public static class BreakResponseRules
     /// Chooses at most two healthy responders. Distance is primary; stable pawn identity breaks ties.
     /// SUBDUE selects a legal blunt verb, fists included, as the game's own subdue does: a responder is either
     /// armed with a melee weapon or known unarmed. A ranged-equipped responder is never one (shooting a colonist
-    /// is not a subdue). A squad of fists alone is refused against a breaker wielding a melee weapon, or whose
-    /// weapon is unknown: the breaker is found among the candidates, and a squad there leads with the nearest
-    /// melee-armed responder.
+    /// is not a subdue). A squad of fists alone is refused against a breaker wielding a melee weapon, or one not among
+    /// the candidates: a squad there leads with the nearest melee-armed responder.
     /// </summary>
     public static List<PawnId> SelectBreakSquad(EmergencyPawn target, Fact<Cell> cell, IEnumerable<BreakResponder> candidates)
     {
@@ -41,7 +40,7 @@ public static class BreakResponseRules
         }
 
         static bool MeleeArmed(SquadDefenderFacts f) =>
-            f.Armed.TryGetValue(out var armed) && armed && f.MeleeEquipped.TryGetValue(out var melee) && melee;
+            f.Armed && f.MeleeEquipped;
 
         var pool = new List<BreakResponder>();
         var breakerUnarmedOrRanged = false;
@@ -50,12 +49,10 @@ public static class BreakResponseRules
             var f = c.SquadDefenderFacts;
             if (c.ID == target.Id)
             {
-                breakerUnarmedOrRanged = f.MeleeEquipped.TryGetValue(out var breakerMelee) && !breakerMelee;
+                breakerUnarmedOrRanged = !f.MeleeEquipped;
                 continue;
             }
-            var rk = f.RangedEquipped.TryGetValue(out var ranged);
-            var unarmed = f.Armed.TryGetValue(out var armed) && !armed;
-            if (SquadDefenseRules.SquadDefenderEligible(f) && rk && !ranged && (MeleeArmed(f) || unarmed) && c.Cell.IsKnown)
+            if (SquadDefenseRules.SquadDefenderEligible(f) && !f.RangedEquipped && (MeleeArmed(f) || !f.Armed) && c.Cell.IsKnown)
             {
                 pool.Add(c);
             }

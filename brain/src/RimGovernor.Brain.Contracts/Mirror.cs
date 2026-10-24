@@ -153,11 +153,6 @@ public sealed record CombatPawn
     public required double Armor { get; init; }
 
     /// <summary>
-    /// Melee strength: the MeleeDPS stat, to 0.1.
-    /// </summary>
-    public required double MeleePower { get; init; }
-
-    /// <summary>
     /// The watermark of the row's last change: when events concerned the pawn
     /// since the last compare, the newest of the highest rank (downing or
     /// death, then another combat stop kind, then any), the matching combat_events

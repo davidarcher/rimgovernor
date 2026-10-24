@@ -78,7 +78,7 @@ public static partial class CombatFallbackRules
         var down = CombatManhunterRules.DownPawns(view);
         foreach (var t in view.Threats.Items)
         {
-            if (!at.TryGetValue(CombatDecideRules.ThreatPawn(t), out var c) || t.Building || RoundsRules.Positive(t.Dead) || RoundsRules.Positive(t.Downed) || down.Contains(t.Id))
+            if (!at.TryGetValue(CombatDecideRules.ThreatPawn(t), out var c) || t.Building || t.Dead || t.Downed || down.Contains(t.Id))
             {
                 continue;
             }

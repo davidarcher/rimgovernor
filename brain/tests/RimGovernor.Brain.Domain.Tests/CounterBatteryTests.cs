@@ -20,7 +20,7 @@ public sealed class CounterBatteryTests
         Pawns = EquatableArray.From(
             new[] { new CombatPawnState { Id = Near, Cell = Known(new Cell(52, 50)) }, new CombatPawnState { Id = Far, Cell = Known(new Cell(40, 40)) } }
                 .Concat(besiegers.Select(b => new CombatPawnState { Id = new(b.Id), Cell = Known(b.Cell), Kind = "Mercenary_Gunner" }))),
-        Defenders = EquatableArray.From(new[] { Near, Far }.Select(id => new SquadDefenderFacts { Id = id, Dead = Known(false), Downed = Known(false) })),
+        Defenders = EquatableArray.From(new[] { Near, Far }.Select(id => new SquadDefenderFacts { Id = id, Dead = false, Downed = false, Armor = new DefenderArmor.Unmirrored() })),
         Positional = EquatableArray.From(besiegers.Select(b => new DefensiveThreatFacts
         {
             Id = new(b.Id),

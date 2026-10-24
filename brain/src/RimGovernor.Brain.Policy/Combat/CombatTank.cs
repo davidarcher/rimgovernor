@@ -43,16 +43,16 @@ public static partial class CombatTankRules
         var ranged = 0;
         foreach (var t in view.Threats)
         {
-            if (t.Dead.ValueOrDefault || t.Building)
+            if (t.Dead || t.Building)
             {
                 continue;
             }
-            if (t.Downed.ValueOrDefault)
+            if (t.Downed)
             {
                 continue;
             }
             live++;
-            if (t.RangedEquipped.ValueOrDefault)
+            if (t.RangedEquipped)
             {
                 ranged++;
             }

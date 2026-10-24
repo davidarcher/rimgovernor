@@ -7,11 +7,7 @@ public static partial class CombatShelterRules
 
     /// <summary>The shelter tactic's moves; empty with no live hostile position known.</summary>
     internal static List<CombatRole> ShelterRoles(CombatView view, GeometryReply geometry, IReadOnlyList<Cell> unreachable) =>
-        ShelterRolesFor(view, geometry, unreachable, d =>
-        {
-            var (busy, known) = SquadDefenseRules.SquadDraftBusy(d);
-            return known && !busy;
-        });
+        ShelterRolesFor(view, geometry, unreachable, d => !SquadDefenseRules.SquadDraftBusy(d));
 
     /// <summary>The shelter moves of the defenders <paramref name="pick"/> admits.</summary>
     internal static List<CombatRole> ShelterRolesFor(CombatView view, GeometryReply geometry, IReadOnlyList<Cell> unreachable, Func<SquadDefenderFacts, bool> pick)
@@ -58,7 +54,7 @@ public static partial class CombatShelterRules
         var taken = new List<Cell>();
         foreach (var d in view.Defenders)
         {
-            if (!at.TryGetValue(d.Id, out var c) || !pick(d) || RoundsRules.Positive(d.Dead) || RoundsRules.Positive(d.Downed) || d.MentalState)
+            if (!at.TryGetValue(d.Id, out var c) || !pick(d) || d.Dead || d.Downed || d.MentalState)
             {
                 continue;
             }

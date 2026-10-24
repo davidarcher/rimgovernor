@@ -130,11 +130,11 @@ public static partial class CombatSiegeRules
         var i = 0;
         foreach (var d in view.Defenders)
         {
-            if (!SquadDefenseRules.SquadDefenderEligible(d) || !RoundsRules.Positive(d.Armed))
+            if (!SquadDefenseRules.SquadDefenderEligible(d) || !d.Armed)
             {
                 continue;
             }
-            var ranged = RoundsRules.Positive(d.RangedEquipped);
+            var ranged = d.RangedEquipped;
             var role = new CombatRole { Pawn = d.Id, Ranged = ranged };
             if (mode == SiegeMode.Sortie || mode == SiegeMode.Sneak)
             {

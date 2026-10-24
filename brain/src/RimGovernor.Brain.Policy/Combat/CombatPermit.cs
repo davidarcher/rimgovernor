@@ -93,7 +93,7 @@ public static partial class CombatPermitRules
 
     /// <summary>Outmatched with a known eligible armed defender: with none the comparison measures missing facts, not the fight.</summary>
     internal static bool OutmatchedKnown(CombatView view) =>
-        view.Defenders.Any(d => SquadDefenseRules.SquadDefenderEligible(d) && RoundsRules.Positive(d.Armed)) && CombatWaitRules.Outmatched(view);
+        view.Defenders.Any(d => SquadDefenseRules.SquadDefenderEligible(d) && d.Armed) && CombatWaitRules.Outmatched(view);
 
     /// <summary>The cells of the live hostile pawns, in view order.</summary>
     internal static List<Cell> LiveHostileCells(CombatView view)

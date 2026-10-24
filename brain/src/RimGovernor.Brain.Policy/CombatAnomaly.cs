@@ -2,13 +2,12 @@ namespace RimGovernor.Brain.Policy;
 
 //
 // Anomaly threats in defense tactics. Every fact here is a native def or object read on the pawn row
-// (PawnAnomaly); unknown is never one of the cases below, so a pawn the native read could not classify keeps
-// the tactic it had before.
+// (PawnAnomaly); a pawn without Anomaly is none of the cases below.
 
 public static partial class CombatAnomalyRules
 {
     /// <summary>A hostile that is an Anomaly entity or a mutant (a shambler is a humanlike mutant, so Humanlike alone cannot place it).</summary>
-    internal static bool Anomalous(SquadThreatFacts t) => t.Anomaly.TryGetValue(out var a) && (a.Entity || a.Mutant);
+    internal static bool Anomalous(SquadThreatFacts t) => t.Anomaly is PawnAnomalyState.Active { Facts: var a } && (a.Entity || a.Mutant);
 
     /// <summary>
     /// An entity or mutant whose attack is melee with no offensive ability. It charges in, so a choke blocks
@@ -16,20 +15,20 @@ public static partial class CombatAnomalyRules
     /// offensive-ability attack shoots over the block and is not.
     /// </summary>
     public static bool MeleeEntity(SquadThreatFacts t) =>
-        t.Anomaly.TryGetValue(out var a) && (a.Entity || a.Mutant) && a.MeleeOnly;
+        t.Anomaly is PawnAnomalyState.Active { Facts: var a } && (a.Entity || a.Mutant) && a.MeleeOnly;
 
     /// <summary>
     /// The pawn casting its lord's psychic ritual. A cultist psychic ritual siege only needs its caster to
     /// finish the ritual, and damage or interruption to the caster makes every cultist attack directly, so the
     /// caster is the one to hurt: https://rimworldwiki.com/wiki/Psychic_ritual_siege
     /// </summary>
-    internal static bool RitualCaster(SquadThreatFacts t) => t.Anomaly.TryGetValue(out var a) && a.PsychicRitualInvoker;
+    internal static bool RitualCaster(SquadThreatFacts t) => t.Anomaly is PawnAnomalyState.Active { Facts.PsychicRitualInvoker: true };
 
     /// <summary>
     /// A pawn the player cannot see or target (an unrevealed sightstealer): an attack order naming it is
     /// refused, so it is never a target until it shows itself.
     /// </summary>
-    internal static bool HiddenFromPlayer(SquadThreatFacts t) => t.Anomaly.TryGetValue(out var a) && a.HiddenFromPlayer;
+    internal static bool HiddenFromPlayer(SquadThreatFacts t) => t.Anomaly is PawnAnomalyState.Active { Facts.HiddenFromPlayer: true };
 
     /// <summary>
     /// The live ritual casters' known cells, not within MortarSafeRadius of a colonist: shelled while they
@@ -40,7 +39,7 @@ public static partial class CombatAnomalyRules
         var caster = new Dictionary<PawnId, bool>();
         foreach (var t in view.Threats.Items)
         {
-            caster[CombatDecideRules.ThreatPawn(t)] = !t.Building && RitualCaster(t) && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed);
+            caster[CombatDecideRules.ThreatPawn(t)] = !t.Building && RitualCaster(t) && !t.Dead && !t.Downed;
         }
 
         var ours = CombatMortarRules.ColonistCells(view);

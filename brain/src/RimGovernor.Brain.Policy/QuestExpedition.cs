@@ -318,10 +318,7 @@ public static class QuestExpedition
         var strength = new Dictionary<PawnId, double>();
         foreach (var pawn in rows)
         {
-            if (pawn.DefensePoints.TryGetValue(out var value) && TradePolicyRules.Finite(value) && value >= 0)
-            {
-                strength[pawn.Id] = value;
-            }
+            strength[pawn.Id] = pawn.DefensePoints;
         }
         IReadOnlyList<PawnId> crew = [];
         if (explicitCrew is { Count: > 0 })

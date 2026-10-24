@@ -53,38 +53,6 @@ public static class QuestReads
     }
 
 
-    internal static Fact<EquatableArray<QuestDeparturePawn>> ProjectDepartureStrength(Fact<EquatableArray<QuestDeparturePawn>> candidates, Fact<EquatableArray<DefenderStrength>> defenders)
-    {
-        if (!candidates.TryGetValue(out var candidateRows))
-        {
-            return Unknown<EquatableArray<QuestDeparturePawn>>();
-        }
-        var rows = new List<QuestDeparturePawn>(candidateRows);
-        var byId = new Dictionary<PawnId, DefenderStrength>();
-        if (defenders.TryGetValue(out var fighters))
-        {
-            foreach (var pawn in fighters)
-            {
-                byId[pawn.Id] = pawn;
-            }
-        }
-        for (var i = 0; i < rows.Count; i++)
-        {
-            if (!rows[i].CanFight)
-            {
-                rows[i] = rows[i] with { DefensePoints = Known(0.0) };
-                continue;
-            }
-            if (!byId.TryGetValue(new PawnId(rows[i].Id.Value), out var pawn))
-            {
-                continue;
-            }
-            rows[i] = rows[i] with { DefensePoints = Known((pawn.MeleePower + pawn.RangedDps) * DefenseCapacityPolicy.DefensePointsPerDps) };
-        }
-        return Known(EquatableArray.From(rows));
-    }
-
-
     internal static Fact<EquatableArray<ExpeditionTrip>> FrameExpeditionTrips(WorldProgressionRead? read, MapId home)
     {
         if (read is null)
@@ -150,7 +118,12 @@ public static class QuestReads
     }
 
 
-    internal static (Fact<EquatableArray<QuestWorkCapacity>> Capacity, Fact<EquatableArray<QuestDeparturePawn>> Departures) FrameQuestWorkerCapacity(WorldProgressionRead? read, MapId current)
+    /// <summary>
+    /// The current map's quest workers and departure rows. A departure row's defense points are the pawn's melee
+    /// power plus ranged DPS in raid points from the defender roster, 0 for a pawn that cannot fight; an unread roster,
+    /// or a fighter it does not list, leaves the departures unread.
+    /// </summary>
+    internal static (Fact<EquatableArray<QuestWorkCapacity>> Capacity, Fact<EquatableArray<QuestDeparturePawn>> Departures) FrameQuestWorkerCapacity(WorldProgressionRead? read, MapId current, Fact<EquatableArray<DefenderStrength>> defenders)
     {
         var unknown = (Unknown<EquatableArray<QuestWorkCapacity>>(), Unknown<EquatableArray<QuestDeparturePawn>>());
         if (read is null)
@@ -166,21 +139,34 @@ public static class QuestReads
             // Native reads the map's pawns and its quest workers from the same FreeColonistsSpawned list.
             var capacity = new List<QuestWorkCapacity>();
             var departures = new List<QuestDeparturePawn>();
+            var byId = defenders.TryGetValue(out var fighters) ? fighters.ToDictionary(f => f.Id) : null;
+            var departuresRead = byId is not null;
             foreach (var p in m.QuestWorkers)
             {
                 capacity.Add(new QuestWorkCapacity { Pawn = p.PawnId, HealthyAdult = p.HealthyAdult, Rates = p.Rates.ToDictionary(r => r.Stat, r => r.Rate, StringComparer.Ordinal) });
+                var points = 0.0;
+                if (p.CanFight)
+                {
+                    if (byId is null || !byId.TryGetValue(new PawnId(p.PawnId.Value), out var pawn))
+                    {
+                        departuresRead = false;
+                        continue;
+                    }
+                    points = (pawn.MeleePower + pawn.RangedDps) * DefenseCapacityPolicy.DefensePointsPerDps;
+                }
                 departures.Add(new QuestDeparturePawn
                 {
                     Id = p.PawnId,
                     HealthyAdult = p.HealthyAdult,
                     CanFight = p.CanFight,
+                    DefensePoints = points,
                     CarryCapacity = p.CarryCapacity,
                     CarriedMass = p.CarriedMass,
                     FactionLeader = p.FactionLeader,
                     Negotiation = p.Negotiation,
                 });
             }
-            return (Known(EquatableArray.From(capacity)), Known(EquatableArray.From(departures)));
+            return (Known(EquatableArray.From(capacity)), departuresRead ? Known(EquatableArray.From(departures)) : unknown.Item2);
         }
         return unknown;
     }

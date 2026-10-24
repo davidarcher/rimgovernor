@@ -216,7 +216,7 @@ public static partial class CombatAnimalsRules
         var ours = new List<Cell>();
         foreach (var d in view.Defenders.Items)
         {
-            if (RoundsRules.Positive(d.Dead) || RoundsRules.Positive(d.Downed))
+            if (d.Dead || d.Downed)
             {
                 continue;
             }
@@ -282,14 +282,13 @@ public static partial class CombatAnimalsRules
         return choke;
     }
 
-    /// <summary>The live humanlike hostiles known to carry no ranged weapon, with a known position, by id, and their cells.</summary>
+    /// <summary>The live humanlike hostiles carrying no ranged weapon, with a known position, by id, and their cells.</summary>
     private static (List<PawnId> Ids, List<Cell> Cells) MeleeRaiders(CombatView view)
     {
         var melee = new HashSet<PawnId>();
         foreach (var t in view.Threats.Items)
         {
-            var known = t.RangedEquipped.TryGetValue(out var ranged);
-            if (!t.Building && RoundsRules.Positive(t.Humanlike) && known && !ranged && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed))
+            if (!t.Building && t.Humanlike && !t.RangedEquipped && !t.Dead && !t.Downed)
             {
                 melee.Add(CombatDecideRules.ThreatPawn(t));
             }
@@ -319,7 +318,7 @@ public static partial class CombatAnimalsRules
         var humanlike = new HashSet<PawnId>();
         foreach (var t in view.Threats.Items)
         {
-            if (!t.Building && RoundsRules.Positive(t.Humanlike) && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed))
+            if (!t.Building && t.Humanlike && !t.Dead && !t.Downed)
             {
                 humanlike.Add(CombatDecideRules.ThreatPawn(t));
             }

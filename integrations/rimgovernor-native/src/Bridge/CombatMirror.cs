@@ -306,7 +306,6 @@ namespace HomeBridge.BridgeTools
                 Stance = motion,
                 Health = Step(pawn.health.summaryHealth.SummaryHealthPercent, 0.01),
                 MoveSpeed = Step(pawn.GetStatValue(StatDefOf.MoveSpeed), 0.1),
-                MeleePower = Step(pawn.GetStatValue(StatDefOf.MeleeDPS), 0.1),
                 Armor = Step(NativeGearFacts.PawnArmor(pawn), 0.05),
                 // Enemy drugs.
                 GoJuiceHigh = HasHediff(pawn, "GoJuiceHigh"),

@@ -113,7 +113,7 @@ public static partial class CombatDoorRules
             live.Add(p.Id);
         }
 
-        return view.Threats.Items.Any(t => live.Contains(CombatDecideRules.ThreatPawn(t)) && (RoundsRules.Positive(t.Manhunter) || RoundsRules.Positive(t.Hunting)));
+        return view.Threats.Items.Any(t => live.Contains(CombatDecideRules.ThreatPawn(t)) && (t.Manhunter || t.Hunting));
     }
 
     /// <summary>The door gunner nearest the door with a known cell, or none.</summary>
@@ -184,7 +184,7 @@ public static partial class CombatDoorRules
         var armed = new Dictionary<PawnId, bool>();
         foreach (var d in view.Defenders.Items)
         {
-            armed[d.Id] = RoundsRules.Positive(d.RangedEquipped);
+            armed[d.Id] = d.RangedEquipped;
         }
 
         var gunners = new List<int>();

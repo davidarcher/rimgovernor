@@ -240,12 +240,8 @@ public static class RoundsReads
                 EssentialInputs = new() { Benches = p.ProductionBenches, Power = p.PowerPlanning },
             },
         };
-        var (capacity, departures) = QuestReads.FrameQuestWorkerCapacity(frame.Quests, expected.Map);
+        var (capacity, departures) = QuestReads.FrameQuestWorkerCapacity(frame.Quests, expected.Map, RoundsMoodReads.RoundsDefenders(colony, emergency, pawns));
         p = p with { Facts = p.Facts with { QuestWorkCapacity = capacity, QuestDeparturePawns = departures } };
-        if (pawns is not null)
-        {
-            p = p with { Facts = p.Facts with { QuestDeparturePawns = QuestReads.ProjectDepartureStrength(p.Facts.QuestDeparturePawns, RoundsMoodReads.RoundsDefenders(colony, emergency, pawns)) } };
-        }
         if (frame.Quests?.Context is { } questContext)
         {
             p = p with { Facts = p.Facts with { QuestObservedTick = Known(new Tick(questContext.Tick)) } };

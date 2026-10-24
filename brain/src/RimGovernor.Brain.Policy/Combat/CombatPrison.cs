@@ -149,7 +149,7 @@ public static partial class CombatPrisonRules
             {
                 continue;
             }
-            if (RoundsRules.Positive(d.RangedEquipped) || (f?.Ranged ?? false))
+            if (d.RangedEquipped || (f?.Ranged ?? false))
             {
                 if (f is not null && PrisonSafeRanged(f))
                 {
@@ -167,7 +167,7 @@ public static partial class CombatPrisonRules
             {
                 return 0;
             }
-            if ((weapon.GetValueOrDefault(d.Id) ?? "").Length == 0 && !RoundsRules.Positive(d.Armed))
+            if ((weapon.GetValueOrDefault(d.Id) ?? "").Length == 0 && !d.Armed)
             {
                 return 1;
             }

@@ -80,7 +80,7 @@ public static partial class CombatLoadoutRules
         var hostile = new Dictionary<PawnId, bool>();
         foreach (var t in view.Threats.Items)
         {
-            hostile[CombatDecideRules.ThreatPawn(t)] = !t.Building && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed);
+            hostile[CombatDecideRules.ThreatPawn(t)] = !t.Building && !t.Dead && !t.Downed;
         }
 
         var tribal = false;

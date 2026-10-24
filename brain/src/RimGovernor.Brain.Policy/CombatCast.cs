@@ -238,7 +238,7 @@ public static partial class CombatCastRules
         var hostile = new Dictionary<PawnId, bool>();
         foreach (var t in view.Threats.Items)
         {
-            hostile[CombatDecideRules.ThreatPawn(t)] = !t.Building && !RoundsRules.Positive(t.Dead) && !RoundsRules.Positive(t.Downed);
+            hostile[CombatDecideRules.ThreatPawn(t)] = !t.Building && !t.Dead && !t.Downed;
         }
 
         return [.. view.Pawns.Items.Where(p => p.Cell.IsKnown && hostile.GetValueOrDefault(p.Id) && !p.Dead && !p.Downed)];
@@ -272,9 +272,9 @@ public static partial class CombatCastRules
         var found = false;
         foreach (var d in view.Defenders.Items)
         {
-            var ok = d.HealthFraction.TryGetValue(out var health);
+            var health = d.HealthFraction;
             var (c, cellKnown) = PawnCell(view, d.Id);
-            if (!ok || !cellKnown || health >= lowest || CombatMortarRules.Dist(from, c) > CastReach)
+            if (!cellKnown || health >= lowest || CombatMortarRules.Dist(from, c) > CastReach)
             {
                 continue;
             }

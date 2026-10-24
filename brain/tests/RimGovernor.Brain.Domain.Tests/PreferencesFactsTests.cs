@@ -116,12 +116,13 @@ public sealed class PreferencesFactsTests
     private static SquadDefenderFacts Fighter(string id) => new()
     {
         Id = new PawnId(id),
-        Dead = Known(false),
-        Downed = Known(false),
-        Drafted = Known(false),
-        ViolenceCapable = Known(true),
-        NeedsTend = Known(false),
-        HealthFraction = Known(1.0),
+        Dead = false,
+        Downed = false,
+        Drafted = false,
+        ViolenceCapable = true,
+        NeedsTend = false,
+        HealthFraction = 1.0,
+        Armor = new DefenderArmor.Unmirrored(),
     };
 
     [Fact]
@@ -136,7 +137,7 @@ public sealed class PreferencesFactsTests
     [Fact]
     public void AProtectedPawnIsDraftedWhenNobodyElseCanFight()
     {
-        var downed = Fighter("b") with { Downed = Known(true) };
+        var downed = Fighter("b") with { Downed = true };
 
         Assert.Empty(PreferenceRules.HeldBackFromDraft(Prefer(pawns: ["a"]), [Fighter("a"), downed]));
         Assert.Empty(PreferenceRules.HeldBackFromDraft(Prefer(pawns: ["a", "b"]), [Fighter("a"), Fighter("b")]));

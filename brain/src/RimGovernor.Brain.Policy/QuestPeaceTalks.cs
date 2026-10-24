@@ -130,11 +130,7 @@ public static class QuestPeaceTalksPolicy
                 {
                     continue;
                 }
-                if (!departure.DefensePoints.TryGetValue(out var strength) || !TradePolicyRules.Finite(strength) || strength < 0)
-                {
-                    return (default, "defense_unknown");
-                }
-                if (capacity - strength < raid)
+                if (capacity - departure.DefensePoints < raid)
                 {
                     continue;
                 }
