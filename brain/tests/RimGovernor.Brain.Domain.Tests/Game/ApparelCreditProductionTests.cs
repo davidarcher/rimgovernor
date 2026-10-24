@@ -88,8 +88,9 @@ public sealed class ApparelCreditProductionTests
         var template = facts.ForecastObserved.Needs!.Pawns[0];
         var clothing = new O.RecipeActivityRead
         {
-            Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
-            Retained = [new("running", ShirtDef, "Cloth", Known(25.0))],
+            Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 },
+            Options = [],
+            Retained = [new("running", ShirtDef, "Cloth", 25.0)],
         };
         facts = facts with
         {

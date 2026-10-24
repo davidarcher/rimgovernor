@@ -11,7 +11,8 @@ internal static class ClothingMethodCandidates
         EquatableArray<ClothingActivityRequirement> requirements, long deadline, WorkResourceView resources)
     {
         var bindings = new Dictionary<(string, string), ActivityTaskCandidate>();
-        if (!read.Known || read.Context?.Tick is not { } tick || deadline <= tick || resources.Claims.Truncated)
+        var tick = read.Context.Tick;
+        if (deadline <= tick || resources.Claims.Truncated)
             return new(null, [], bindings, resources.Claims.Truncated);
         var horizon = deadline - tick;
         var activities = new List<ForecastActivity>(); var options = new List<ForecastActivityOption>();
@@ -26,11 +27,10 @@ internal static class ClothingMethodCandidates
             foreach (var need in requirements.Where(n => n.Product == retained.Product && n.Stuff == retained.Stuff))
             {
                 if (outcomes.Count == 16) { truncated = true; findings.Add(GenerationTruncated); break; }
-                if (!retained.CompletionTicks.IsKnown) { findings.Add("unknown_retained_completion:" + retained.Id); continue; }
                 var id = "retain-" + outcomes.Count;
                 garmentNeeds[id] = need;
                 outcomes.Add(new(id, "clothing/" + need.Wearer + "/" + need.Product, "", Known((double)horizon), default)
-                { RetainedCompletion = retained.CompletionTicks, ExclusiveOutput = retained.Id });
+                { RetainedCompletion = Known(retained.CompletionTicks), ExclusiveOutput = retained.Id });
             }
         var allocations = new List<RecipeActivityOption>();
         foreach (var row in read.Options.OrderBy(o => o.Id, StringComparer.Ordinal))
@@ -59,8 +59,6 @@ internal static class ClothingMethodCandidates
                 || row.Inputs.Any(i => resources.Claims.Targets.Contains(i.Thing))
                 || row.Unfinished.Length != 0 && resources.Claims.Targets.Contains(row.Unfinished)) continue;
             if (outcomes.Count == 16) { truncated = true; findings.Add(GenerationTruncated); break; }
-            if (!row.TravelTicks.TryGetValue(out var travel) || !row.WorkTicks.TryGetValue(out var work)
-                || !row.OutputTravelTicks.IsKnown) { findings.Add("unknown_recipe_estimate:" + row.Id); continue; }
             // The stuff names the alternative in the coupled selection's telemetry.
             var id = "clothing-" + outcomes.Count + "-" + row.Stuff;
             garmentNeeds[id] = need;
@@ -77,11 +75,10 @@ internal static class ClothingMethodCandidates
             });
             activities.Add(new(id, benchLocation, ForecastLocations.Of(row.Destination), [make])
             { Inputs = [new(new(row.Product), Known(1.0)) { Lot = make }], Outputs = [new(new(row.Product), Known(1.0)) { Lot = make }] });
-            options.Add(new(make, row.Pawn, approach.IsKnown ? Known(travel - approach.Value + work) : default, Known(0.0))
-            { Equipment = [row.Bench], SkillWork = row.SkillWork is { } skill && approach.IsKnown
-                ? skill with { PreparationTicks = travel - approach.Value } : null });
-            options.Add(new(id, row.Pawn, row.OutputTravelTicks, Known(0.0)));
-            routes.Add(new(row.Pawn, "start", sourceLocation, approach));
+            options.Add(new(make, row.Pawn, Known(row.TravelTicks - approach + row.WorkTicks), Known(0.0))
+            { Equipment = [row.Bench], SkillWork = row.SkillWork is { } skill ? skill with { PreparationTicks = row.TravelTicks - approach } : null });
+            options.Add(new(id, row.Pawn, Known(row.OutputTravelTicks), Known(0.0)));
+            routes.Add(new(row.Pawn, "start", sourceLocation, Known(approach)));
             workers.Add(row.Pawn);
             bindings[(make, row.Pawn)] = new(make, row.Pawn, [], PawnActivityKind.Recipe, row.Bench, row.WorkGiver, "", 0, deadline, row.Location)
             {
@@ -146,30 +143,29 @@ internal static class ClothingMethodCandidates
             foreach (var input in inputs.Skip(start).Concat(inputs.Take(start)))
             {
                 if (remaining == 0) break;
-                if (input.Capacity <= 0 || !input.ApproachTicks.IsKnown || !input.CarryTicks.IsKnown || !input.ReturnTicks.IsKnown) continue;
+                if (input.Capacity <= 0) continue;
                 var take = Math.Min(remaining, input.AvailableCount);
                 var trips = (take + input.Capacity - 1) / input.Capacity;
-                travel += (seed.Count == 0 ? input.ApproachTicks.Value : input.ReturnTicks.Value)
-                    + trips * input.CarryTicks.Value + (trips - 1) * input.ReturnTicks.Value;
+                travel += (seed.Count == 0 ? input.ApproachTicks : input.ReturnTicks)
+                    + trips * input.CarryTicks + (trips - 1) * input.ReturnTicks;
                 seed.Add(input with { Count = take }); remaining -= take;
             }
-            if (remaining == 0 && seed.Count is > 0 and <= 16) results.Add(row with { Inputs = EquatableArray.From(seed), TravelTicks = Known(travel) });
+            if (remaining == 0 && seed.Count is > 0 and <= 16) results.Add(row with { Inputs = EquatableArray.From(seed), TravelTicks = travel });
         }
         void Search(int left, double travel)
         {
-            if (left == 0) { results.Add(row with { Inputs = EquatableArray.From(chosen), TravelTicks = Known(travel) }); return; }
+            if (left == 0) { results.Add(row with { Inputs = EquatableArray.From(chosen), TravelTicks = travel }); return; }
             if (chosen.Count == 16) { exhausted = true; return; }
             foreach (var input in inputs)
             {
-                if (chosen.Any(c => c.Thing == input.Thing) || input.Capacity <= 0 || !input.ApproachTicks.IsKnown
-                    || !input.CarryTicks.IsKnown || !input.ReturnTicks.IsKnown) continue;
+                if (chosen.Any(c => c.Thing == input.Thing) || input.Capacity <= 0) continue;
                 for (var take = Math.Min(left, input.AvailableCount); take > 0; take--)
                 {
                     if (--budget < 0 || results.Count == 16) { exhausted = true; return; }
                     var trips = (take + input.Capacity - 1) / input.Capacity;
-                    var approach = chosen.Count == 0 ? input.ApproachTicks.Value : input.ReturnTicks.Value;
+                    var approach = chosen.Count == 0 ? input.ApproachTicks : input.ReturnTicks;
                     chosen.Add(input with { Count = take });
-                    Search(left - take, travel + approach + trips * input.CarryTicks.Value + (trips - 1) * input.ReturnTicks.Value);
+                    Search(left - take, travel + approach + trips * input.CarryTicks + (trips - 1) * input.ReturnTicks);
                     chosen.RemoveAt(chosen.Count - 1);
                     if (exhausted) return;
                 }

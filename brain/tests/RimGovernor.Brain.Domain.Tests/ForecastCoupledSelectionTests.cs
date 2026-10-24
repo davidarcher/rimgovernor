@@ -51,7 +51,7 @@ public sealed class ForecastCoupledSelectionTests
                 }] },
                 Coupled = new()
                 {
-                    Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Construction = ConstructionFixtures.NoConstruction(),
+                    Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Construction = ConstructionFixtures.NoConstruction(),
                     Tick = 100,
                     Food = new() { Options = EquatableArray.From(sources.Select(source =>
                         new FoodActivityOption("pawn", source, "Rice", new(1, 1), new(1, 1), "Harvest", 2, harvest)
@@ -996,9 +996,9 @@ public sealed class ForecastCoupledSelectionTests
                     Options = [Garment("Parka", GearSlot.Outer, "Shell", 20, GearSource.Bill)] }) }]
         };
         var stack = new RecipeIngredientObservation("cloth-stack", "Cloth", 10, new(5, 5), 10)
-        { Capacity = 75, ApproachTicks = Known(5.0), CarryTicks = Known(5.0), ReturnTicks = Known(5.0) };
+        { Capacity = 75, ApproachTicks = 5.0, CarryTicks = 5.0, ReturnTicks = 5.0 };
         var recipe = new RecipeActivityOption("parka-tailor", "tailor", "bench", "Tailor", "MakeParka", "Parka", "Cloth", "", "", new(10, 10),
-            [stack], Known(0.0), Known(20.0), Known(5.0), new(15, 15)) { RequiredCount = 10 };
+            [stack], 0.0, 20.0, 5.0, new(15, 15)) { RequiredCount = 10 };
         var facts = Review(level: 1, fall: 0, harvest: 200);
         var roster = WorkResourceTestFacts.Create("pawn", "tailor") with
         { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Cloth"), 10)]) };
@@ -1010,7 +1010,7 @@ public sealed class ForecastCoupledSelectionTests
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = facts.ForecastObserved.Needs with { Pawns = [template, template with { Pawn = "tailor" }] },
-                Coupled = facts.ForecastObserved.Coupled! with { Clothing = new() { Known = true, Context = Context, Options = [recipe] } }
+                Coupled = facts.ForecastObserved.Coupled! with { Clothing = new() { Context = Context, Options = [recipe], Retained = [] } }
             }
         };
         var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!;

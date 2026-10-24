@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
@@ -21,7 +22,7 @@ internal static class NativeRecipeActivity
     /// </summary>
     internal static Obs.RecipeActivityRead Read(Common.Identity identity, NativePathLegs? legs = null)
     {
-        if (!ProtoBoundary.ValidateIdentity(identity, out var map, out var context, out _)) return new();
+        if (!ProtoBoundary.ValidateIdentity(identity, out var map, out var context, out var error)) throw NativeFaults.Refused(error);
         legs ??= new(map);
         var options = new List<Obs.RecipeActivityOption>();
         var retained = new List<Obs.RecipeRetainedOutput>();
@@ -42,8 +43,9 @@ internal static class NativeRecipeActivity
                     || worker.CurJob.targetB.Thing is not UnfinishedThing current) continue;
                 var rate = recipe.workSpeedStat == null ? 1 : worker.GetStatValue(recipe.workSpeedStat);
                 if (recipe.workTableSpeedStat != null) rate *= bench.GetStatValue(recipe.workTableSpeedStat);
-                retained.Add(new(current.GetUniqueLoadID(), product.defName, current.Stuff.defName,
-                    rate > 0 ? Fact.Known((double)running.workLeft / rate) : default));
+                // A worker at no speed never finishes: there is no completion to time, so the garment is not retained.
+                if (rate <= 0) continue;
+                retained.Add(new(current.GetUniqueLoadID(), product.defName, current.Stuff.defName, (double)running.workLeft / rate));
             }
             foreach (var stuff in DefDatabase<ThingDef>.AllDefsListForReading.Where(s => s.IsStuff
                 && product.stuffCategories.Any(c => s.stuffProps.categories.Contains(c)) && recipe.ingredients.All(i => i.filter.Allows(s))).OrderBy(s => s.defName, StringComparer.Ordinal))
@@ -81,7 +83,7 @@ internal static class NativeRecipeActivity
                         || legs.Cost(pawn, stack.Position, bench.InteractionCell, PathEndMode.OnCell) is not { } carry
                         || legs.Cost(pawn, bench.InteractionCell, stack.Position, PathEndMode.ClosestTouch) is not { } back) continue;
                     if (uft == null) inputs.Add(new(stack.GetUniqueLoadID(), stuff.defName, stack.stackCount, new(stack.Position.x, stack.Position.z), stack.stackCount)
-                    { Capacity = capacity, ApproachTicks = Fact.Known((double)approach), CarryTicks = Fact.Known((double)carry), ReturnTicks = Fact.Known((double)back) });
+                    { Capacity = capacity, ApproachTicks = approach, CarryTicks = carry, ReturnTicks = back });
                     else travel = approach + carry;
                 }
                 if (uft == null && inputs.Sum(i => (long)i.Count) < required) continue;
@@ -97,13 +99,13 @@ internal static class NativeRecipeActivity
                     if (legs.Cost(pawn, bench.InteractionCell, destination, PathEndMode.OnCell) is not { } output) continue;
                     options.Add(new(options.Count.ToString(System.Globalization.CultureInfo.InvariantCulture), pawn.GetUniqueLoadID(), bench.GetUniqueLoadID(), giver.defName,
                         recipe.defName, product.defName, stuff.defName, selectedBill?.GetUniqueLoadID() ?? "", uft?.GetUniqueLoadID() ?? "",
-                        new(bench.InteractionCell.x, bench.InteractionCell.z), EquatableArray.From(inputs), Fact.Known(travel), Fact.Known((double)work / speed),
-                        Fact.Known((double)output), new(destination.x, destination.z)) { RequiredCount = (int)required, SkillWork = NativeProductiveSkill.Read(pawn, recipe, bench, work) });
+                        new(bench.InteractionCell.x, bench.InteractionCell.z), EquatableArray.From(inputs), travel, (double)work / speed,
+                        output, new(destination.x, destination.z)) { RequiredCount = (int)required, SkillWork = NativeProductiveSkill.Read(pawn, recipe, bench, work) });
                 }
                 }
             }
         }
-        return new() { Context = context, Known = true,
+        return new() { Context = context,
             Options = EquatableArray.From(options), Retained = EquatableArray.From(retained.Distinct()) };
     }
 }

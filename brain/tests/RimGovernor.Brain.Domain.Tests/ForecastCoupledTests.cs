@@ -31,7 +31,7 @@ public sealed class ForecastCoupledTests
                 },
                 Coupled = new()
                 {
-                    Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt,
+                    Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing,
                     Tick = 100,
                     Food = new()
                     {
@@ -527,8 +527,8 @@ public sealed class ForecastCoupledTests
             };
             RecipeActivityOption Recipe(string stuff) => new("Shirt" + stuff, "pawn", "bench", "Tailor", "MakeShirt", "Shirt", stuff, "", "", new(1, 1),
                 [new(stuff == "Rice" ? "stack" : "cloth-stack",stuff,10,new(1,1),stuff == "Rice" ? rice : 10)
-                    { Capacity = 100, ApproachTicks = Known(0.0), CarryTicks = Known(0.0), ReturnTicks = Known(0.0) }],
-                Known(0.0), Known(30.0), Known(5.0), new(1, 1))
+                    { Capacity = 100, ApproachTicks = 0.0, CarryTicks = 0.0, ReturnTicks = 0.0 }],
+                0.0, 30.0, 5.0, new(1, 1))
             { RequiredCount = 10 };
             facts = facts with
             {
@@ -543,7 +543,7 @@ public sealed class ForecastCoupledTests
                 ForecastObserved = facts.ForecastObserved with
                 {
                     Coupled = facts.ForecastObserved.Coupled! with
-                    { Clothing = new() { Context = Context, Known = true, Options = [Recipe("Rice"), Recipe("Cloth")] } }
+                    { Clothing = new() { Context = Context, Options = [Recipe("Rice"), Recipe("Cloth")], Retained = [] } }
                 }
             };
             facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));

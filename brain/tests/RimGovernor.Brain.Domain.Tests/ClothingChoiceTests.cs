@@ -47,13 +47,13 @@ public sealed class ClothingChoiceTests
         new("Naked", ForecastApparel.Naked, 0, -6, Known((double)GameTime.TicksPerDay), false),
     ];
     private static RecipeIngredientObservation Input(string id, string stuff, int count = 10, double travel = 5) =>
-        new(id, stuff, count, new(id == "a-far" ? 50 : id == "c-near" ? 6 : 5, 5), count) { Capacity = 75, ApproachTicks = Known(travel), CarryTicks = Known(5.0), ReturnTicks = Known(5.0) };
+        new(id, stuff, count, new(id == "a-far" ? 50 : id == "c-near" ? 6 : 5, 5), count) { Capacity = 75, ApproachTicks = travel, CarryTicks = 5.0, ReturnTicks = 5.0 };
     private static RecipeActivityOption Option(string stuff, string product = "Shirt", double work = 100, string pawn = "tailor", string bench = "bench") =>
         new(product + stuff + pawn, pawn, bench, "Tailor", "Make" + product, product, stuff, "", "", new(10, 10),
-            [Input(stuff, stuff)], Known(0.0), Known(work), Known(5.0), new(15, 15))
+            [Input(stuff, stuff)], 0.0, work, 5.0, new(15, 15))
         { RequiredCount = 10 };
     private static RecipeActivityRead Read(params RecipeActivityOption[] options) => new()
-    { Known = true, Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options) };
+    { Context = new() { Identity = new() { ColonyId = "colony", LoadToken = "load", MapId = 0 }, Tick = 100 }, Options = EquatableArray.From(options), Retained = [] };
     private static RoundsFacts Facts(double cloth = 30, double wool = 30, double devilstrand = 0) => WorkResourceTestFacts.Create("tailor", "helper") with
     { Resources = Known<EquatableArray<Amount>>([new(new("Cloth"), (long)cloth), new(new("Wool"), (long)wool), new(new("DevilstrandCloth"), (long)devilstrand)]) };
     private static WorkResourceView Resources(double cloth = 30, double wool = 30, double devilstrand = 0) => WorkRules.WorkResourcesOf(
@@ -128,18 +128,17 @@ public sealed class ClothingChoiceTests
     [Fact]
     public void RetainingObservedCurrentProductAndPostponingAreRealComparisonResults()
     {
-        var read = Read(Option("Cloth")) with { Retained = [new("running-uft", "Shirt", "Cloth", Known(25.0))] };
+        var read = Read(Option("Cloth")) with { Retained = [new("running-uft", "Shirt", "Cloth", 25.0)] };
         Assert.Null(Start(Census(), read, Resources(), out var retained));
         Assert.StartsWith("retain-", Assert.Single(retained!.Selected));
         Assert.Null(Start(Census(), Read(Option("Cloth", work: 3000)), Resources(), out var postpone));
         Assert.Empty(postpone!.Selected);
-        Assert.Null(Start(Census(), Read(Option("Cloth") with { WorkTicks = default }), Resources(), out _));
     }
 
     [Fact]
     public void UnfinishedWorkUsesRemainingWorkAndDoesNotSpendLooseIngredientsAgain()
     {
-        var unfinished = Option("Cloth") with { Bill = "owned-bill", Unfinished = "unfinished-shirt", Inputs = [], WorkTicks = Known(10.0) };
+        var unfinished = Option("Cloth") with { Bill = "owned-bill", Unfinished = "unfinished-shirt", Inputs = [], WorkTicks = 10.0 };
         var result = Start(Census(), Read(unfinished), Resources(0, 0), out _)!;
         Assert.Equal("unfinished-shirt", Recipe(result).Unfinished);
         Assert.Empty(Recipe(result).Ingredients);
@@ -189,7 +188,7 @@ public sealed class ClothingChoiceTests
     public void RetainedGarmentCannotAddProtectionAlongsideAConflictingReplacement()
     {
         var census = Census(0, Garment("Shirt", "Cloth", 5), Garment("Parka", "Cloth", 10));
-        var read = Read(Option("Cloth", "Parka")) with { Retained = [new("ongoing", "Shirt", "Cloth", Known(10.0))] };
+        var read = Read(Option("Cloth", "Parka")) with { Retained = [new("ongoing", "Shirt", "Cloth", 10.0)] };
         Start(census, read, Resources(), out var comparison);
         Assert.Single(comparison!.Selected);
     }

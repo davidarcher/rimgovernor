@@ -72,6 +72,18 @@ public sealed class ProductionFamilyWireTests
         Recipes = [new O.RecipeState { Recipe = "CookMealSimple", AvailableNow = true, AvailableOnBench = true }, new O.RecipeState { Recipe = "Make_Pemmican", AvailableNow = false, AvailableOnBench = true }],
     };
 
+    private static readonly O.RecipeActivityRead Clothing = new()
+    {
+        Context = BillWire.Context,
+        Options =
+        [
+            new O.RecipeActivityOption("0", "Thing_Human7", "Thing_TableTailor1", "DoBillsTailor", "Make_Apparel_Parka", "Apparel_Parka", "Cloth", "", "", new Cell(10, 10),
+                [new O.RecipeIngredientObservation("Thing_Cloth1", "Cloth", 80, new Cell(4, 4), 80) { ApproachTicks = 120, CarryTicks = 90.5, ReturnTicks = 88, Capacity = 75 }],
+                210.5, 3600, 40, new Cell(12, 10)) { RequiredCount = 80 },
+        ],
+        Retained = [new O.RecipeRetainedOutput("Thing_UnfinishedApparel3", "Apparel_Parka", "Cloth", 1250.25)],
+    };
+
     private static void RoundTrips<T>(T payload)
     {
         var json = WireJson.Serialize(payload);
@@ -98,4 +110,7 @@ public sealed class ProductionFamilyWireTests
 
     [Fact]
     public void BenchRecipesRoundTripExactly() => RoundTrips(Recipes);
+
+    [Fact]
+    public void TheClothingRecipeReadRoundTripsExactly() => RoundTrips(Clothing);
 }

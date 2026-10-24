@@ -5,29 +5,36 @@ using Cell = RimGovernor.Brain.Domain.Cell;
 
 namespace RimGovernor.Contracts.Wire.Observations;
 
-/// <summary>Observed recipe mechanics; policy still owns garment, material and worker choices.</summary>
+/// <summary>
+/// Observed recipe mechanics; policy still owns garment, material and worker choices. A stack is listed only when the
+/// pawn reaches it both ways, so its legs are read path costs.
+/// </summary>
 public sealed record RecipeIngredientObservation(string Thing, string Resource, int Count, Cell Location, int AvailableCount)
 {
-    public Fact<double> ApproachTicks { get; init; }
-    public Fact<double> CarryTicks { get; init; }
-    public Fact<double> ReturnTicks { get; init; }
-    public int Capacity { get; init; }
+    public required double ApproachTicks { get; init; }
+    public required double CarryTicks { get; init; }
+    public required double ReturnTicks { get; init; }
+    public required int Capacity { get; init; }
 }
+/// <summary>
+/// One pawn's way to make a garment at a bench: listed only when the pawn reaches the bench, its stacks and the output
+/// cell and works at a positive speed, so travel, work and output travel are read ticks.
+/// </summary>
 public sealed record RecipeActivityOption(string Id, string Pawn, string Bench, string WorkGiver,
     string Recipe, string Product, string Stuff, string Bill, string Unfinished, Cell Location,
-    [property: JsonConverter(typeof(EquatableArrayJsonConverter<RecipeIngredientObservation>))] EquatableArray<RecipeIngredientObservation> Inputs, Fact<double> TravelTicks, Fact<double> WorkTicks,
-    Fact<double> OutputTravelTicks, Cell Destination)
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<RecipeIngredientObservation>))] EquatableArray<RecipeIngredientObservation> Inputs, double TravelTicks, double WorkTicks,
+    double OutputTravelTicks, Cell Destination)
 {
-    public int RequiredCount { get; init; }
+    public required int RequiredCount { get; init; }
     public ProductiveSkillWork? SkillWork { get; init; }
 }
 public sealed record RecipeActivityRead
 {
-    public ObservationContext? Context { get; init; }
-    public bool Known { get; init; }
+    public required ObservationContext Context { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<RecipeActivityOption>))]
-    public EquatableArray<RecipeActivityOption> Options { get; init; }
+    public required EquatableArray<RecipeActivityOption> Options { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<RecipeRetainedOutput>))]
-    public EquatableArray<RecipeRetainedOutput> Retained { get; init; }
+    public required EquatableArray<RecipeRetainedOutput> Retained { get; init; }
 }
-public sealed record RecipeRetainedOutput(string Id, string Product, string Stuff, Fact<double> CompletionTicks);
+/// <summary>A garment a worker is making now: its work left over the worker's positive rate at this bench.</summary>
+public sealed record RecipeRetainedOutput(string Id, string Product, string Stuff, double CompletionTicks);

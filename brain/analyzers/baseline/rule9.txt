@@ -369,7 +369,6 @@ Contracts/Presentation.cs|NullableValue|28
 Contracts/Presentation.cs|UnknownMember|1
 Contracts/Receipts.cs|NullableValue|32
 Contracts/Receipts.cs|UnknownMember|5
-Contracts/RecipeActivities.cs|Fact|7
 Contracts/SkillLearning.cs|Fact|24
 Contracts/SowingActivities.cs|Fact|2
 Contracts/SupportActivities.cs|Fact|10
@@ -977,7 +976,7 @@ Policy/MedicineCarry.cs|Unknown|1
 Policy/MethodClaims.cs|Fact|3
 Policy/Methods/Binding/CoordinatedActivityBinding.cs|Fact|2
 Policy/Methods/Evaluation/WorkMaterialEvaluation.cs|Fact|9
-Policy/Methods/Generation/ClothingMethodCandidates.cs|Fact|39
+Policy/Methods/Generation/ClothingMethodCandidates.cs|Fact|18
 Policy/Methods/Generation/ConstructionMethodCandidates.cs|Fact|37
 Policy/Methods/Generation/CoordinatedMethodCandidates.cs|Fact|1
 Policy/Methods/Generation/CoordinatedMethodCandidates.cs|NullableValue|2
