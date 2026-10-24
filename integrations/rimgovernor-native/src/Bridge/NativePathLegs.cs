@@ -28,7 +28,8 @@ namespace HomeBridge.BridgeTools;
 /// every leg from many origins to many cells fills them first by <see cref="Floods"/>, one Dijkstra flood per origin
 /// on the job workers instead of one search per leg (the coupled forecast's route matrix, #3685). The legs are
 /// kept across reads by the map's <see cref="Store"/> until the map changes under them, so a read finds the legs an
-/// earlier read searched.
+/// earlier read searched. A leg the game's region reachability already rules out is stored with no path unsearched
+/// (<see cref="Unreachable"/>): a search that fails walks every cell the origin reaches first.
 /// </summary>
 internal sealed class NativePathLegs
 {
@@ -127,10 +128,17 @@ internal sealed class NativePathLegs
                 if (wantedKeys.Add(key)) wanted.Add((pawn, from, to, mode));
                 return default(Found);
             }
-            GameThreadTrace.Mark("leg search " + from + " -> " + to + ", " + mode + ", for " + pawn);
             var started = Stopwatch.GetTimestamp();
-            using var path = map.pathFinder.FindPathNow(from, to, TraverseParms.For(pawn, Danger.None), peMode: mode);
-            leg = store.Put(key, path.Found ? Measure(map, path, pawn) : null);
+            if (Unreachable(map, pawn, from, to, mode))
+            {
+                leg = store.Put(key, null, pawn);
+            }
+            else
+            {
+                GameThreadTrace.Mark("leg search " + from + " -> " + to + ", " + mode + ", for " + pawn);
+                using var path = map.pathFinder.FindPathNow(from, to, TraverseParms.For(pawn, Danger.None), peMode: mode);
+                leg = store.Put(key, path.Found ? Measure(map, path, pawn) : null, pawn);
+            }
             Searches++;
             SearchTicks += Stopwatch.GetTimestamp() - started;
         }
@@ -161,9 +169,10 @@ internal sealed class NativePathLegs
     // Pushes the wanted legs to the path finder in rounds and ticks it twice per round: the first tick schedules the
     // pushed requests across the job workers (PathFinder.ScheduleBatchedPathJobs), the second completes them and
     // resolves each request with its path. A request that resolved with no path, or did not resolve, is not stored as
-    // "no path": its leg is searched directly (FindPathNow, the game thread) and that answer is stored. A map whose
-    // batched round missed a path the direct search found is searched directly from then on, with one warning in the
-    // game's log naming the first such leg (#3556).
+    // "no path" on its word: a leg the region reachability rules out is stored with no path, any other is searched
+    // directly (FindPathNow, the game thread) and that answer is stored. A map whose batched round missed a path the
+    // direct search found is searched directly from then on, with one warning in the game's log naming the first such
+    // leg (#3556).
     private void Search()
     {
         if (wanted.Count == 0) return;
@@ -194,7 +203,7 @@ internal sealed class NativePathLegs
                 for (var j = 0; j < requests.Count; j++)
                 {
                     var (key, request, pawn) = requests[j];
-                    if (request.TryGetPath(out var path) && path != null && path.Found) store.Put(key, Measure(map, path, pawn));
+                    if (request.TryGetPath(out var path) && path != null && path.Found) store.Put(key, Measure(map, path, pawn), pawn);
                     else direct.Add(first + j);
                     request.Dispose();
                 }
@@ -205,9 +214,15 @@ internal sealed class NativePathLegs
         foreach (var i in direct)
         {
             var (pawn, from, to, mode) = wanted[i];
+            var key = new Key(from, to.Cell, to.Thing, mode);
+            if (Unreachable(map, pawn, from, to, mode))
+            {
+                store.Put(key, null, pawn);
+                continue;
+            }
             GameThreadTrace.Mark("legs direct search " + from + " -> " + to + ", " + mode + ", for " + pawn + " (" + direct.Count + " of " + wanted.Count + " unresolved)");
             using var path = finder.FindPathNow(from, to, TraverseParms.For(pawn, Danger.None), peMode: mode);
-            store.Put(new Key(from, to.Cell, to.Thing, mode), path.Found ? Measure(map, path, pawn) : null);
+            store.Put(key, path.Found ? Measure(map, path, pawn) : null, pawn);
             if (!path.Found || store.Direct) continue;
             missed++;
             firstMissed ??= $"{from} -> {to}, {mode}, for {pawn}";
@@ -320,8 +335,8 @@ internal sealed class NativePathLegs
         var legs = 0;
         for (var f = 0; f < floods.Count; f++)
         {
-            var (_, from, to) = floods[f];
-            for (var t = 0; t < to.Length; t++) store.Put(new Key(from, map.cellIndices.IndexToCell(to[t]), null, PathEndMode.OnCell), results[f].Legs[t]);
+            var (pawn, from, to) = floods[f];
+            for (var t = 0; t < to.Length; t++) store.Put(new Key(from, map.cellIndices.IndexToCell(to[t]), null, PathEndMode.OnCell), results[f].Legs[t], pawn);
             legs += to.Length;
         }
         var elapsed = Stopwatch.GetTimestamp() - started;
@@ -478,6 +493,17 @@ internal sealed class NativePathLegs
         }
     }
 
+    /// <summary>
+    /// Whether the game's region reachability finds no way for <paramref name="pawn"/> from <paramref name="from"/> to
+    /// <paramref name="to"/>: a walk over the map's regions, cached by the game between region changes, where a failed
+    /// path search walks every cell the origin reaches. Both read the same passability, so a leg this rules out has no
+    /// path for the finder either; it is asked at the most permissive danger, so a hot or dark region never stands in
+    /// for a wall, and with the pawn's own doors and fences, so a locked door keeps the answer the search gave. A pawn no
+    /// longer on the map cannot be asked: its leg is searched.
+    /// </summary>
+    internal static bool Unreachable(Map map, Pawn pawn, IntVec3 from, LocalTargetInfo to, PathEndMode mode) =>
+        pawn.Spawned && pawn.Map == map && !map.reachability.CanReach(from, to, mode, TraverseParms.For(pawn, Danger.Deadly));
+
     private static Leg Measure(Map map, PawnPath path, Pawn pawn)
     {
         var nodes = path.NodesReversed;
@@ -501,12 +527,14 @@ internal sealed class NativePathLegs
     /// <summary>
     /// The map's legs kept across reads, with the cells each crosses, dropped when the map changes under them the way
     /// the finder's own map data is (PathFinderMapData's map events), each change dropping only the legs it could alter
-    /// (#3686). A fog change and a game condition drop every leg (passability, danger). A region or room change drops the
-    /// no-path legs, which it can connect. A building, a path-relevant thing, a terrain or path-cost change, a
-    /// reservation or a haul en route dirties its cells, and a dirty cell drops the no-path legs, the legs crossing it
-    /// (an obstacle or cost added on the path), and the legs a path through it could beat (an obstacle removed or a cell
-    /// made cheaper): those whose octile lower bound from the origin through the cell to the end, priced at the leg's own
-    /// move ticks with no cell cost, is under the leg's cost. More than <see cref="MaxDirtyCells"/> dirty cells in one
+    /// (#3686). A fog change and a game condition drop every leg (passability, danger). A region or room change, which
+    /// can connect a no-path leg, and any dirty cell re-test the no-path legs against the region reachability
+    /// (<see cref="Unreachable"/>) and drop only those it now connects: dropping them all had every read after any change
+    /// search the same unreachable legs again, a full failing search each (#3726). A building, a path-relevant thing, a
+    /// terrain or path-cost change, a reservation or a haul en route dirties its cells, and a dirty cell drops the legs
+    /// crossing it (an obstacle or cost added on the path), and the legs a path through it could beat (an obstacle
+    /// removed or a cell made cheaper): those whose octile lower bound from the origin through the cell to the end,
+    /// priced at the leg's own move ticks with no cell cost, is under the leg's cost. More than <see cref="MaxDirtyCells"/> dirty cells in one
     /// settle drop every leg instead. Door open states are not watched: a leg through a door was priced at the door's
     /// state when searched, as every leg of one read is. Changes are noted as they happen and applied at the next read
     /// (<see cref="Settle"/>).
@@ -522,6 +550,8 @@ internal sealed class NativePathLegs
 
         private readonly Map map;
         private readonly Dictionary<Key, Leg?> legs = new();
+        // Per no-path leg, the pawn it was searched for: the re-test asks the reachability with its doors and fences.
+        private readonly Dictionary<Key, Pawn> noPath = new();
         // Per cell, the legs stored crossing it. An entry whose key now holds another leg (or none) is stale and skipped;
         // the index is rebuilt from the live legs once stale entries outnumber them.
         private readonly List<(Key Key, Leg Leg)>?[] crossing;
@@ -560,11 +590,16 @@ internal sealed class NativePathLegs
 
         internal bool TryGet(Key key, out Leg? leg) => legs.TryGetValue(key, out leg);
 
-        internal Leg? Put(Key key, Leg? leg)
+        internal Leg? Put(Key key, Leg? leg, Pawn pawn)
         {
             if (legs.TryGetValue(key, out var old) && old != null) live -= old.Cells.Length;
             legs[key] = leg;
-            if (leg == null) return leg;
+            if (leg == null)
+            {
+                noPath[key] = pawn;
+                return leg;
+            }
+            noPath.Remove(key);
             foreach (var cell in leg.Cells) (crossing[cell] ??= new()).Add((key, leg));
             indexed += leg.Cells.Length;
             live += leg.Cells.Length;
@@ -572,8 +607,8 @@ internal sealed class NativePathLegs
         }
 
         /// <summary>
-        /// Applies the changes noted since the last read: every leg, or the no-path legs and, per dirty cell, the legs
-        /// crossing it and the legs a path through it could beat.
+        /// Applies the changes noted since the last read: every leg, or the no-path legs the reachability now connects
+        /// and, per dirty cell, the legs crossing it and the legs a path through it could beat.
         /// </summary>
         internal void Settle()
         {
@@ -590,10 +625,7 @@ internal sealed class NativePathLegs
             dirtyRects.Clear();
             if (!dropNoPath && dirtyCells.Count == 0) return;
             dropNoPath = false;
-            var drop = new List<Key>();
-            foreach (var pair in legs)
-                if (pair.Value == null) drop.Add(pair.Key);
-            foreach (var key in drop) legs.Remove(key);
+            RetestNoPath();
             if (dirtyCells.Count == 0) return;
             foreach (var index in dirtyCells)
             {
@@ -640,6 +672,24 @@ internal sealed class NativePathLegs
         private static int Octile(int dx, int dz, int cardinal, int diagonal) =>
             dx < dz ? diagonal * dx + cardinal * (dz - dx) : diagonal * dz + cardinal * (dx - dz);
 
+        // Keeps each no-path leg the reachability still rules out and drops the rest, to be searched again.
+        private void RetestNoPath()
+        {
+            if (noPath.Count == 0) return;
+            var drop = new List<Key>();
+            foreach (var pair in noPath)
+            {
+                var key = pair.Key;
+                var to = key.Thing is { } thing ? new LocalTargetInfo(thing) : new LocalTargetInfo(key.To);
+                if (!Unreachable(map, pair.Value, key.From, to, key.Mode)) drop.Add(key);
+            }
+            foreach (var key in drop)
+            {
+                legs.Remove(key);
+                noPath.Remove(key);
+            }
+        }
+
         private void Remove(Key key, Leg leg)
         {
             legs.Remove(key);
@@ -661,6 +711,7 @@ internal sealed class NativePathLegs
         private void Clear()
         {
             legs.Clear();
+            noPath.Clear();
             Array.Clear(crossing, 0, crossing.Length);
             indexed = live = 0;
             dropAll = dropNoPath = false;

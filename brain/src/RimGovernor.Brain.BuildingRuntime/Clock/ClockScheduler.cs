@@ -181,26 +181,25 @@ public sealed partial class ClockScheduler
 
     /// <summary>
     /// Why a step that runs planners runs the rounder first, or null when its planners read the last committed
-    /// review instead (#3556): <c>all</c> when every planner runs (a full step, an authority change), <c>wake</c>
-    /// on an early review (any hold but the review tick), <c>due</c> when no review has been committed since the
-    /// scheduler started, the tick went back, or the last review at <paramref name="lastTick"/> has stood
-    /// <paramref name="every"/> ticks at <paramref name="tick"/>, and <c>task</c> when a coupled Method's worker finished a task with bills left (<paramref name="task"/>, #3624): the
+    /// review instead (#3556): <c>all</c> when every planner runs (a full step, an authority change), <c>due</c> when
+    /// no review has been committed since the scheduler started, the tick went back, or the last review at
+    /// <paramref name="lastTick"/> has stood <paramref name="every"/> ticks at <paramref name="tick"/>, and <c>task</c> when a coupled Method's worker finished a task with bills left (<paramref name="task"/>, #3624): the
     /// review reconsiders who takes that worker's next task, one event per finished task, and <c>first_plan</c> while the
     /// colony's first layout plan holds the clock (<paramref name="firstPlan"/>, #3652): the held clock advances no tick,
     /// so only a review reads the fact it waits for, and <c>urgent_build</c> while an urgent placement waits for a review
     /// to compare its sites (<paramref name="urgent"/>, #3537): the clock is held until one does. A colonist whose activity
     /// Method ended runs vanilla work until the next review (#3669), so its release is no reason to review early. A
     /// review step between two due ticks that selects only dirty and due planners is the step the cadence makes cheap.
+    /// A wake (any hold but the review tick) runs every planner against the last committed review as a review step
+    /// does: what a hazard, a letter or a hungry colonist changes is the planners' evidence, not the rounder's inputs,
+    /// and the rounder's review is the step's cost, so re-running it on a wake seconds after a due review held the
+    /// clock paused for it on a hosted runner (#3726).
     /// </summary>
     internal static string? RoundsSelection(StepCause cause, bool everyPlanner, long tick, bool reviewed, long lastTick, long every, bool task = false, bool firstPlan = false, bool urgent = false)
     {
         if (everyPlanner)
         {
             return "all";
-        }
-        if (cause == StepCause.Wake)
-        {
-            return "wake";
         }
         if (!reviewed || tick < lastTick || tick - lastTick >= every)
         {

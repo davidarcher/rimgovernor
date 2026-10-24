@@ -6,8 +6,9 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 /// <c>lab/leg-invalidation</c>: the path leg store drops only the legs a map change could alter (#3686).
 /// test/leg_invalidation stores a 30-cell leg on an open patch and reads it again after each change: a wall well off its
 /// path (a region change, the leg kept), a wall line across it (re-searched, dearer), the line removed (re-searched,
-/// cheaper, equal to FindPathNow), and a target walled in (no path) then opened by removing one wall (re-searched,
-/// reachable). A unit test cannot run the pathfinder.
+/// cheaper, equal to FindPathNow), and a target walled in (no path), kept through an unrelated wall's region change
+/// (#3726: the reachability still rules it out, so it is not searched again) then opened by removing one wall
+/// (re-searched, reachable). A unit test cannot run the pathfinder.
 /// </summary>
 internal static class LabLegInvalidation
 {
@@ -19,7 +20,8 @@ internal static class LabLegInvalidation
     {
         Name = "lab/leg-invalidation",
         Scope = "A stored leg is kept across a region change off its path, re-searched dearer when a wall crosses it and cheaper (equal to "
-            + "FindPathNow) when the wall goes, and a walled-in target's no-path leg is re-searched reachable once a wall is removed.",
+            + "FindPathNow) when the wall goes, and a walled-in target's no-path leg is kept through an unrelated wall's region change and "
+            + "re-searched reachable once a wall is removed.",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = 3 },
@@ -53,6 +55,7 @@ internal static class LabLegInvalidation
             var detour = Step("detour", 1);
             var removed = Step("detour-removed", 1);
             var walledIn = Step("walled-in", 1);
+            var kept = Step("walled-in-kept", 0);
             var opened = Step("opened", 1);
             if (offPath.RegionChanges == 0)
             {
@@ -77,6 +80,16 @@ internal static class LabLegInvalidation
             if (walledIn.Cost is not null || walledIn.Search is not null)
             {
                 wrong.Add($"walled-in: cost {walledIn.Cost}, search {walledIn.Search}, want no path");
+            }
+
+            if (kept.RegionChanges == 0)
+            {
+                wrong.Add("walled-in-kept: no region change fired");
+            }
+
+            if (kept.Cost is not null || kept.Search is not null)
+            {
+                wrong.Add($"walled-in-kept: cost {kept.Cost}, search {kept.Search}, want no path still");
             }
 
             if (opened.Cost is null || opened.Cost != opened.Search)

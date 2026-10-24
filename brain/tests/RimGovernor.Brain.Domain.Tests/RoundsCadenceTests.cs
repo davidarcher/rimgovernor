@@ -6,9 +6,10 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// The rounds cadence (#3556): between two rounds reviews a review step runs its dirty and due planners against the
-/// last committed review; the rounder runs again once the review has stood
-/// <see cref="ClockSchedulerConfig.DefaultRoundsEveryTicks"/>, on an early review (a wake), whenever every planner
-/// runs, once a coupled worker finished a task (#3624) and while the first plan holds the clock (#3652).
+/// last committed review, and so does a wake (an early review of every planner, #3726); the rounder runs again once
+/// the review has stood <see cref="ClockSchedulerConfig.DefaultRoundsEveryTicks"/>, whenever every planner runs for a
+/// full step or an authority change, once a coupled worker finished a task (#3624) and while the first plan holds the
+/// clock (#3652).
 /// </summary>
 public sealed class RoundsCadenceTests
 {
@@ -37,10 +38,14 @@ public sealed class RoundsCadenceTests
         Assert.Equal("due", ClockScheduler.RoundsSelection(StepCause.Review, false, Reviewed - 1, true, Reviewed, Every));
     }
 
+    /// <summary>#3726: a wake between two due ticks runs its planners against the last review like a review step; it
+    /// reviews when due, and a step of every planner reviews first.</summary>
     [Fact]
-    public void AnEarlyReviewAndAStepOfEveryPlannerReviewFirst()
+    public void AWakeReadsTheLastReviewAndAStepOfEveryPlannerReviewsFirst()
     {
-        Assert.Equal("wake", ClockScheduler.RoundsSelection(StepCause.Wake, false, Reviewed + 600, true, Reviewed, Every));
+        Assert.Null(ClockScheduler.RoundsSelection(StepCause.Wake, false, Reviewed + 600, true, Reviewed, Every));
+        Assert.Equal("due", ClockScheduler.RoundsSelection(StepCause.Wake, false, Reviewed + Every, true, Reviewed, Every));
+        Assert.Equal("all", ClockScheduler.RoundsSelection(StepCause.Wake, true, Reviewed + 600, true, Reviewed, Every));
         Assert.Equal("all", ClockScheduler.RoundsSelection(StepCause.Full, true, Reviewed + 600, true, Reviewed, Every));
         Assert.Equal("all", ClockScheduler.RoundsSelection(StepCause.Review, true, Reviewed + 600, true, Reviewed, Every));
     }

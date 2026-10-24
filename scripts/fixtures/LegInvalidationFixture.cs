@@ -13,8 +13,9 @@ using Fx = RimGovernor.Fixtures.Contracts;
 namespace HomeBridge.BridgeTools;
 
 // Private disposable acceptance only: the leg store's invalidation (#3686). On an open 40x40 soil patch a leg runs 30
-// cells east; walls are built off its path, across it and removed again, and a target cell is walled in and opened,
-// each change followed by a region rebuild, one tick and a fresh read of the leg with its search count. Nothing is ordered.
+// cells east; walls are built off its path, across it and removed again, and a target cell is walled in, left walled in
+// through an unrelated wall (#3726) and opened, each change followed by a region rebuild, one tick and a fresh read of the
+// leg with its search count. Nothing is ordered.
 public sealed partial class PawnControlFixture
 {
     [Tool("test/leg_invalidation", Description = "UNSAFE FOR MODEL EXECUTION. Build and remove walls on an open patch and read a stored path leg after each change, with its search count.")]
@@ -76,6 +77,10 @@ public sealed partial class PawnControlFixture
                 Read("detour-removed", to);
                 var ring = GenAdj.AdjacentCellsAround.Select(offset => Wall(walledIn + offset)).ToList();
                 Read("walled-in", walledIn);
+                // Off everything: a region change and dirty cells that cannot connect the walled-in target, so its
+                // no-path leg is kept, not searched again (#3726).
+                Wall(At(2, 2));
+                Read("walled-in-kept", walledIn);
                 ring[0].Destroy(DestroyMode.Vanish);
                 Read("opened", walledIn);
             }

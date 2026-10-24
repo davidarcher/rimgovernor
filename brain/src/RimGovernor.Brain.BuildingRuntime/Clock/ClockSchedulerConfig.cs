@@ -18,9 +18,10 @@ public sealed class ClockSchedulerConfig
     /// <summary>
     /// The rounds cadence (#3556): how many game ticks a committed rounds review stands before a review step runs the
     /// rounder again. One in-game hour, the planners' own default cadence. Between two rounds reviews a review step
-    /// runs its dirty and due planners against the last committed review; a wake (an early review) and a step that
-    /// runs every planner review first regardless. The rounds review is the step's cost (derive, acquisition, the
-    /// coupled search), and its inputs rarely change in the 600 ticks between reviews.
+    /// runs its dirty and due planners against the last committed review, and a wake (an early review) runs every
+    /// planner against it; a step that runs every planner for a full step or an authority change reviews first
+    /// regardless. The rounds review is the step's cost (derive, acquisition, the coupled search), and its inputs
+    /// rarely change in the 600 ticks between reviews.
     /// </summary>
     public const long DefaultRoundsEveryTicks = GameTime.TicksPerHour;
 
