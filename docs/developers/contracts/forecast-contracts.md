@@ -268,7 +268,13 @@ Every field is unknown, or null, when unread; nothing is capped.
   `undergrounder_outdoors`, and `ascetic` (#3655): the thought `ThoughtWorker_Ascetic`
   gives in a room the pawn owns alone, staged by the room's Impressiveness, read
   from every def with that worker. Its null stages, where the worker leaves the
-  thought inactive, are rows at 0. A stage the game cannot price is left out.
+  thought inactive, are rows at 0. A stage the game cannot price is left out. The
+  title room thoughts (#3807) and the trait bedroom thoughts a suite relieves (#3826):
+  `greedy` (`ThoughtWorker_Greedy`, staged by the owned room's Impressiveness stage
+  + 1, 0 without one; null stages at 0) and `jealous` (`ThoughtWorker_BedroomJealous`).
+- `NeedsForecastPawn.RivalRooms`: the Impressiveness of each room another spawned
+  player-faction pawn without a host faction owns (`OwnedRoom`), each once, ascending:
+  what `ThoughtWorker_BedroomJealous` compares the pawn's own room against (#3826).
 - `NeedTarget.Cell`: the target cell's roof (roofed, thick, natural) and its room's
   UsesOutdoorTemperature and PsychologicallyOutdoors (no room reads as outdoors).
 - `NeedTarget.Bed`: a rest target's room role, impressiveness stage, ForPrisoners and

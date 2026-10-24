@@ -115,7 +115,7 @@ internal static class NativeNeedsForecast
                 OutdoorsLevel = pawn.needs?.outdoors is { } outdoors ? K(outdoors.CurLevel) : default,
                 OutdoorsDisabled = pawn.needs?.outdoors != null && pawn.needs.PrefersIndoors,
                 OwnedBed = pawn.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
-                Ascetic = pawn.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true,
+                Ascetic = pawn.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true, RivalRooms = RivalRoomsOf(pawn, map),
                 ThoughtStages = ThoughtStagesOf(pawn, map), Apparel = ApparelOf(pawn),
                 Consciousness = Capacity(pawn, PawnCapacityDefOf.Consciousness), Moving = Capacity(pawn, PawnCapacityDefOf.Moving),
                 Manipulation = Capacity(pawn, PawnCapacityDefOf.Manipulation), Sight = Capacity(pawn, PawnCapacityDefOf.Sight),
@@ -273,6 +273,13 @@ internal static class NativeNeedsForecast
         // No ThoughtDefOf field names the Ascetic thought; its worker class is the typed route (#3655).
         foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_Ascetic)))
             Rows(def, "ascetic", nullStagesInactive: true);
+        // The trait bedroom thoughts a planned suite relieves (#3826): Greedy (ThoughtWorker_Greedy, staged by the owned room's
+        // Impressiveness stage + 1, stage 0 without one; its null stages are the worker inactive, rows at 0) and Jealous
+        // (ThoughtWorker_BedroomJealous). No ThoughtDefOf field names them; their worker classes are the typed route.
+        foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_Greedy)))
+            Rows(def, "greedy", nullStagesInactive: true);
+        foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_BedroomJealous)))
+            Rows(def, "jealous");
         // The apparel thoughts a garment changes (#3816). ThoughtWorker_PsychologicallyNude's Naked is inactive under Ideology,
         // where the precept workers below take its place.
         Rows(ThoughtDefOf.ApparelDamaged, "apparel_damaged");
@@ -287,6 +294,19 @@ internal static class NativeNeedsForecast
             foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == worker))
                 Rows(def, role);
         return EquatableArray.From(rows);
+    }
+    /// <summary>
+    /// The Impressiveness of each room another pawn owns, as ThoughtWorker_BedroomJealous compares the pawn's own room against
+    /// them (#3826): every spawned pawn of the player faction but this one, without a host faction, by its ownership.OwnedRoom,
+    /// each room once, ascending. The pawn's current room stays in when another pawn owns it too: the suite credit asks about
+    /// the pawn moved out of it.
+    /// </summary>
+    private static EquatableArray<double> RivalRoomsOf(Pawn pawn, Map map)
+    {
+        var rooms = new HashSet<Room>();
+        foreach (var other in map.mapPawns.SpawnedPawnsInFaction(Faction.OfPlayer))
+            if (other != pawn && other.HostFaction == null && other.ownership?.OwnedRoom is { } room) rooms.Add(room);
+        return EquatableArray.From(rooms.Select(r => (double)r.GetStat(RoomStatDefOf.Impressiveness)).OrderBy(v => v).ToArray());
     }
     /// <summary>The non-social apparel precept workers by class, the typed route to their gendered defs (#3816).</summary>
     private static readonly (Type Worker, string Role)[] ApparelPrecepts =

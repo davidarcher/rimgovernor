@@ -503,6 +503,15 @@ bedroom's (`GainPerDay` × (H − service day)). A room serving no title (no Roy
 whose colonist has neither thought now, is credited 0; unread observed thoughts or an unread Impressiveness, when a thought is
 held, is `throne_credit_unassessed:<room>` (`suite_credit_unassessed:<room>`).
 
+*Greedy and Jealous suite credit (#3826).* A suite also relieves its occupant's trait bedroom thoughts, titled or not:
+`RoyalRoomRules.PlannedRoyalRooms` gives every suite occupant a row (an untitled one with no requirement, 0 and 0), and the
+suite's delta is the sum of every thought it changes, title and trait alike, through one `GainPerDay`. Greedy
+(`ThoughtWorker_Greedy`, native rows `greedy`) is its stage at the predicted Impressiveness stage + 1 less the one held now;
+Jealous (`ThoughtWorker_BedroomJealous`, rows `jealous`) is held after the move when a room another pawn owns
+(`NeedsForecastPawn.RivalRooms`) beats the predicted Impressiveness by a tenth of its absolute value, less the one held now.
+A colonist whose rows are all 0 (no trait, no title) is credited 0 without its thoughts read. For a Greedy or Jealous
+colonist an unread observed thought list, closed room, stage or stage row is a `RequiredFactException` (P10 as revised).
+
 *Laboratory credit (#3800).* A planned lab the outcome serves is credited through the same seam (`ForecastLaboratory.LaboratoryCredit`)
 under `lab/<room>/<pawn>`: the research speed the closed room gives the bench. `BenchSpeedModel` (the bridge's
 `DefinitionCatalog.ResearchBenchSpeeds`, from each research bench def's `ResearchSpeedFactor` statBases, the stat's parts and its

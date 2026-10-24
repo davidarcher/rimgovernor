@@ -133,10 +133,11 @@ public sealed class RoyalRoomCreditTests
         Rooms = Known<EquatableArray<UpkeepRoom>>([new() { Id = "std", Role = RoomRole.None, Quality = new RoomQuality(30, 0, 0, 0, 30), Cells = 12, Beds = [] }]),
     };
 
-    private static IReadOnlyDictionary<int, RoyalRoomNeed> ProductionRooms(SleepingObservation sleeping, RoyaltyFacts? royalty)
+    private static IReadOnlyDictionary<int, RoyalRoomNeed> ProductionRooms(SleepingObservation sleeping, RoyaltyFacts? royalty, TraitEffects? effects = null)
     {
-        var traits = new Dictionary<PawnId, TraitEffects>();
-        var targets = RoomQualityRules.RoomQualityTargets(sleeping, traits, default, new ImpressivenessLevels());
+        var traits = effects is null ? new Dictionary<PawnId, TraitEffects>() : new Dictionary<PawnId, TraitEffects> { [A] = effects };
+        var levels = new ImpressivenessLevels { Dull = 20, Mediocre = 30, Decent = 40, SlightlyImpressive = 50 };
+        var targets = RoomQualityRules.RoomQualityTargets(sleeping, traits, default, levels);
         var claims = RoomQualityRules.SuiteClaims(Plan, StandingStandard, sleeping, targets, traits, new Dictionary<PawnId, double>());
         var (throne, owed) = royalty is null ? (new ThroneNeed(), false) : ThroneRules.NextThroneNeed(royalty);
         return RoyalRoomRules.PlannedRoyalRooms(Plan, StandingStandard, sleeping, claims, owed ? throne : null);
@@ -180,5 +181,122 @@ public sealed class RoyalRoomCreditTests
         var ledger = ForecastValue.Of(Serving(0, 0.06), context, Day);
         Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("suite/", StringComparison.Ordinal));
         Assert.DoesNotContain("suite_credit_unassessed:1", ledger.Findings);
+    }
+
+    // #3826 (epic #3650 P1, P7): a suite relieves its occupant's Greedy and Jealous bedroom thoughts too, title or not.
+
+    /// <summary>Core's Greedy rows (ThoughtWorker_Greedy: stage 0 without a room, else the room's Impressiveness stage + 1; stages 5-10 null, rows at 0).</summary>
+    private static NeedThoughtStage[] GreedyStages(bool greedy) =>
+        [.. new double[] { -8, -8, -8, -6, -4, 0, 0, 0, 0, 0, 0 }.Select((o, i) => new NeedThoughtStage("Greedy", ForecastHousing.GreedyRole, i, greedy ? o : 0, default, false))];
+
+    /// <summary>Core's Jealous row (ThoughtWorker_BedroomJealous); 0 for a colonist without the trait (CanGetThought refuses it).</summary>
+    private static NeedThoughtStage JealousStage(bool jealous) => Stage("Jealous", ForecastHousing.JealousRole, jealous ? -8 : 0);
+
+    private static ForecastCoupledContext TraitContext(NeedsForecastPawn pawn, double impressiveness, int stage, RoyalRoomNeed need, Fact<EquatableArray<MoodThought>> observed)
+        => ForecastValueTests.Context(pawn) with
+        {
+            PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Suite },
+            Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [],
+                new("1", "WoodLog", "Bedroom", impressiveness, Known(stage), 49, 0, false))],
+            RoyalRooms = new Dictionary<int, RoyalRoomNeed> { [1] = need },
+            InvestmentHorizonDays = Horizon,
+            ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>> { ["pawn"] = observed },
+        };
+
+    private static readonly RoyalRoomNeed Untitled = new("pawn", 0, 0);
+
+    private static NeedsForecastPawn Traited(bool greedy, bool jealous, params double[] rivals) => ForecastValueTests.Pawn() with
+    {
+        ThoughtStages = EquatableArray.From([.. GreedyStages(greedy), JealousStage(jealous)]),
+        RivalRooms = EquatableArray.From(rivals),
+    };
+
+    private static double SuiteValue(ForecastCoupledContext context, double delta)
+    {
+        var outcome = Serving(0, delta / 100);
+        var perDay = ForecastHousing.GainPerDay(delta, outcome.Needs["pawn"].Mood, context.MoodBreaks, context.Value.WellbeingWeight, 1)!.Value;
+        var row = Assert.Single(Rows(context, outcome, "suite"));
+        Assert.Equal(("pawn", "suite/1/pawn", Horizon), (row.Pawn, row.Key, row.Units));
+        Assert.Equal(-perDay * Horizon, row.Value, 12);
+        return perDay;
+    }
+
+    [Fact]
+    public void AGreedyOccupantsSuiteEarnsTheGreedyMoodItRelieves()
+    {
+        // Greedy at -6 now (a decent room: stage 3 + 1); the suite is slightly impressive (stage 4), so Greedy stage 5, null: 0.
+        var context = TraitContext(Traited(greedy: true, jealous: false), 55, 4, Untitled, Known(EquatableArray.From([new MoodThought("Greedy", -6)])));
+        Assert.True(SuiteValue(context, 6) > 0);
+    }
+
+    [Fact]
+    public void AGreedyOccupantsSuiteStillBelowItsWantRelievesOnlyTheDifference()
+    {
+        // A mediocre suite (stage 2) leaves Greedy at stage 3 (-6) against -8 now (no room: stage 0).
+        var context = TraitContext(Traited(greedy: true, jealous: false), 35, 2, Untitled, Known(EquatableArray.From([new MoodThought("Greedy", -8)])));
+        SuiteValue(context, 2);
+    }
+
+    [Fact]
+    public void AJealousOccupantsSuiteEarnsTheJealousMoodWhenNoOtherRoomBeatsItByATenth()
+    {
+        var jealous = Known(EquatableArray.From([new MoodThought("Jealous", -8)]));
+        // 65 - 60 = 5 < 6: the jealousy goes.
+        SuiteValue(TraitContext(Traited(greedy: false, jealous: true, 20, 65), 60, 4, Untitled, jealous), 8);
+        // 66 - 60 = 6 >= 6 (ThoughtWorker_BedroomJealous's |own x 0.1|): it stays, and the suite relieves nothing.
+        Assert.Empty(Rows(TraitContext(Traited(greedy: false, jealous: true, 66), 60, 4, Untitled, jealous), Serving(0, 0.08), "suite"));
+    }
+
+    [Fact]
+    public void AnUntraitedUntitledOccupantsSuiteEarnsZeroWithoutReadingItsThoughts()
+    {
+        var context = TraitContext(Traited(greedy: false, jealous: false, 90), 60, 4, Untitled, default);
+        var ledger = ForecastValue.Of(Serving(0, 0.06), context, Day);
+        Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("suite/", StringComparison.Ordinal));
+        Assert.DoesNotContain("suite_credit_unassessed:1", ledger.Findings);
+    }
+
+    [Fact]
+    public void ATitledGreedyOccupantsSuiteEarnsBothThoughtsItRelieves()
+    {
+        var pawn = Knight() with { ThoughtStages = EquatableArray.From([.. TitleStages, .. GreedyStages(true), JealousStage(false)]) };
+        var observed = Known(EquatableArray.From([new MoodThought("TitleBedroomRequirementsNotMet", -6), new MoodThought("Greedy", -6)]));
+        SuiteValue(TraitContext(pawn, 55, 4, KnightBedroom, observed), 12);
+    }
+
+    [Fact]
+    public void AGreedyOccupantsUnreadThoughtsOrRoomAreARequiredFact()
+    {
+        var pawn = Traited(greedy: true, jealous: false);
+        Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Serving(0, 0.06), TraitContext(pawn, 55, 4, Untitled, default), Day));
+        var unread = TraitContext(pawn, 55, 4, Untitled, Known(EquatableArray.From([new MoodThought("Greedy", -6)])));
+        unread = unread with { Closures = [unread.Closures[0] with { Prediction = unread.Closures[0].Prediction with { Stage = default } }] };
+        Assert.Throws<RequiredFactException>(() => ForecastValue.Of(Serving(0, 0.06), unread, Day));
+    }
+
+    [Fact]
+    public void AnUntitledGreedyColonistsPlannedSuiteIsServedFromTheProductionFacts()
+    {
+        // The suite step's claim (a Greedy target above the standard room's reach) names the untitled occupant, with no requirement.
+        var rooms = ProductionRooms(Sleeping(null), null, new TraitEffects { Greedy = true });
+        Assert.Equal(Untitled, rooms[Suite.Id]);
+        Assert.DoesNotContain(ThroneRoom.Id, rooms.Keys);
+    }
+
+    [Fact]
+    public void AFreshColonysProductionContextCreditsItsSuiteNothingWithoutThrowing()
+    {
+        // The production path (#3822): GenerateCoupledActivities builds the context from the review's facts, and
+        // RoundsSleepingUpkeepPlanner.PlannedOccupantsOf adds the suite occupants (RoyalRoomRules.PlannedRoyalRooms): a fresh
+        // colony without Greedy, Jealous or titled colonists houses nobody in its suite.
+        var facts = ForecastCoupledTests.ConstructionReview() with
+        {
+            PlannedShelters = [new() { Id = 2, Role = PlannedRole.Suite, Region = Suite.Region }],
+        };
+        var context = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
+        context = context with { RoyalRooms = ProductionRooms(Sleeping(null), null) };
+        Assert.Equal(PlannedRole.Suite, context.PlannedRoomRoles[2]);
+        Assert.Empty(ForecastHousing.RoyalRoomCredit(new(2, "", Day), Serving(0, 0.06), context, Day)!);
+        Assert.Empty(ForecastHousing.BreakShifts(context));
     }
 }

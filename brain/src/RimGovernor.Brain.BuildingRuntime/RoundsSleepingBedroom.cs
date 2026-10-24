@@ -23,7 +23,7 @@ partial class RoundsSleepingUpkeepPlanner
 
     /// <summary>
     /// Per planned bedroom, the colonists the bedroom step would move into it (#3655), the largest priced gain first (#3656); and
-    /// per planned throne room or suite, the titled colonist it serves and its title's requirement (#3807,
+    /// per planned throne room or suite, the colonist it serves (any suite occupant, #3826) and its title's requirement (#3807,
     /// RoyalRoomRules.PlannedRoyalRooms: the suite step's claims in its order, the owed throne room's holder). None without the
     /// layout plan, the room census or the sleeping census. An unread gain is named in <paramref name="findings"/>.
     /// </summary>
@@ -35,7 +35,7 @@ partial class RoundsSleepingUpkeepPlanner
             return (new Dictionary<int, EquatableArray<string>>(), new Dictionary<int, Pol.RoyalRoomNeed>());
         }
         var targets = BedroomTargets(facts);
-        // The suite queue as SuiteWishesOf orders it; an unread trait census only drops the ascetic skip, and an ascetic has no title room thought.
+        // The suite queue as SuiteWishesOf orders it; an unread trait census only drops the ascetic skip, and an ascetic has no title, Greedy or Jealous room thought.
         var claims = RoomQualityRules.SuiteClaims(plan!, rooms!, sleeping!, targets ?? new Dictionary<string, Pol.RoomTarget>(),
             SleepingTraits(facts) ?? new Dictionary<PawnId, Pol.TraitEffects>(), SuitePressure(facts) ?? new Dictionary<PawnId, double>());
         var (throne, owed) = ThroneNeed(facts);

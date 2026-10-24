@@ -74,9 +74,11 @@ public sealed record NeedDeterioration(double HitPoints, Fact<double> RatePerDay
 /// pawn (#3339). Role names why it is read: slept_outside, slept_in_bedroom, slept_in_barracks, weather, need_outdoors,
 /// undergrounder_indoors (constructed roof), undergrounder_underground (natural roof), undergrounder_outdoors, ascetic
 /// (ThoughtWorker_Ascetic's own-room thought by Impressiveness stage, #3655), and the title room thoughts a throne room or
-/// suite relieves (#3807): title_bedroom_unmet, title_no_bedroom, title_throne_unmet, title_no_throne. A null stage of a bed or ascetic thought,
-/// where the game gives none (Toils_LayDown.ApplyBedThoughts at SleptInBedroom's dull stage, #3822; the ascetic worker
-/// inactive), is a row at 0. Then apparel_damaged, naked, dead_mans_apparel, and the ideoligion's apparel precept thoughts by
+/// suite relieves (#3807): title_bedroom_unmet, title_no_bedroom, title_throne_unmet, title_no_throne; and the trait bedroom
+/// thoughts a suite relieves (#3826): greedy (ThoughtWorker_Greedy, staged by the owned room's Impressiveness stage + 1, 0 with
+/// none) and jealous (ThoughtWorker_BedroomJealous). A null stage of a bed, ascetic or greedy thought,
+/// where the game gives none (Toils_LayDown.ApplyBedThoughts at SleptInBedroom's dull stage, #3822; the ascetic or greedy
+/// worker inactive), is a row at 0. Then apparel_damaged, naked, dead_mans_apparel, and the ideoligion's apparel precept thoughts by
 /// worker (#3816): groin_uncovered, groin_or_chest_uncovered, groin_chest_or_hair_uncovered, groin_chest_hair_or_face_uncovered,
 /// any_body_part_covered, any_body_part_but_groin_covered, any_body_part_but_hair_or_face_covered, each read only when
 /// ThoughtWorker_Precept's ideoligion gate lets the pawn have it. A stage the game cannot price is left out. Memories carry
@@ -179,6 +181,13 @@ public sealed record NeedsForecastPawn
     /// <summary>ownership.OwnedBed's load id ("" none) and the Ascetic trait, the two pawn facts ApplyBedThoughts reads (#3339).</summary>
     public string OwnedBed { get; init; } = "";
     public bool Ascetic { get; init; }
+    /// <summary>
+    /// The Impressiveness of each room another pawn owns, ascending, as ThoughtWorker_BedroomJealous compares the pawn's own
+    /// room against them (#3826): every spawned player-faction pawn but this one without a host faction, by its OwnedRoom,
+    /// each room once. Empty when no other pawn owns a room.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<double>))]
+    public EquatableArray<double> RivalRooms { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedThoughtStage>))]
     public EquatableArray<NeedThoughtStage> ThoughtStages { get; init; }
     /// <summary>The apparel thought workers' pawn facts (#3816); null without an apparel tracker.</summary>

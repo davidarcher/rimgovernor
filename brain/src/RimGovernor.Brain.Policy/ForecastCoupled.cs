@@ -95,8 +95,9 @@ public sealed record ForecastCoupledContext
     /// <summary>Per planned storage room, yard and meal closet, the stock it would keep (RoundsFacts.PlannedStoreStock, #3798);
     /// null when the stockpile review did not read it, which leaves those rooms' credit unassessed.</summary>
     public IReadOnlyDictionary<int, PlannedStock>? StoreStock { get; init; }
-    /// <summary>Per planned throne room or suite, the titled colonist it would serve and its title's requirement of that room
-    /// (#3807, RoundsSleepingUpkeepPlanner.PlannedOccupantsOf); a room without a row serves no title and earns no credit.</summary>
+    /// <summary>Per planned throne room or suite, the colonist it would serve (titled for a throne room; any suite occupant,
+    /// #3826) and its title's requirement of that room (#3807, RoundsSleepingUpkeepPlanner.PlannedOccupantsOf); a room without a
+    /// row serves nobody and earns no credit.</summary>
     public IReadOnlyDictionary<int, RoyalRoomNeed> RoyalRooms { get; init; } = new Dictionary<int, RoyalRoomNeed>();
     /// <summary>The layout plan's rooms by id (RoundsFacts.PlannedShelters, #3800): what a planned room's predicted
     /// cleanliness reads beside its closure prediction (PlannedRoomCleanlinessRules.Steady); the kitchen and butchery credits
