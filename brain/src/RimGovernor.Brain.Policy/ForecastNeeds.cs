@@ -76,33 +76,30 @@ public static class ForecastNeeds
         {
             var need = pawn.Needs.SingleOrDefault(n => n.Kind == target.Kind);
             findings.UnionWith(target.Unsupported);
-            if (need is null || !need.Level.TryGetValue(out var level) || !need.FallPerTick.TryGetValue(out var fall)
-                || !target.TravelTicks.TryGetValue(out var travel) || travel < 0)
-            { findings.Add("unknown_need_target:" + target.Id); continue; }
-            if (!double.IsFinite(level) || level < 0 || level > 1 || !double.IsFinite(fall) || fall < 0 || !double.IsFinite(travel))
+            if (need is null) { findings.Add("unknown_need_target:" + target.Id); continue; }
+            var (level, fall, travel) = (need.Level, need.FallPerTick, target.TravelTicks);
+            if (!double.IsFinite(level) || level < 0 || level > 1 || !double.IsFinite(fall) || fall < 0 || !double.IsFinite(travel) || travel < 0)
                 throw new DomainException("invalid needs candidate mechanics");
-            if (target.Kind == "rest" && (!pawn.SleepThreshold.IsKnown || !pawn.WakeThreshold.IsKnown || !pawn.SleepBlockedUntilTicks.IsKnown))
-            { findings.Add("unknown_sleep_activation:" + pawn.Pawn); continue; }
+            // A sleep blocker with no recovery bound plans no sleep.
+            if (target.Kind == "rest" && pawn.SleepBlocked) { findings.Add("sleep_blocked:" + pawn.Pawn); continue; }
             var starts = new SortedSet<double> { 0, horizon / 2 };
             var primaryStarts = new HashSet<double> { 0, horizon / 2 };
-            if (need.Threshold.TryGetValue(out var threshold) && fall > 0)
-                starts.Add(Math.Max(0, (level - threshold) / fall - travel));
+            if (fall > 0) starts.Add(Math.Max(0, (level - need.Threshold) / fall - travel));
             foreach (var window in windows) { starts.Add(window.Start); primaryStarts.Add(window.Start); }
             if (target.Kind == "rest")
             {
-                starts.Add(Math.Max(0, pawn.SleepBlockedUntilTicks.Value - travel));
-                if (fall > 0) starts.Add(Math.Max(0, Math.Floor((level - pawn.SleepThreshold.Value) / fall) + 1 - travel));
+                starts.Add(Math.Max(0, pawn.SleepBlockedUntilTicks - travel));
+                if (fall > 0) starts.Add(Math.Max(0, Math.Floor((level - pawn.SleepThreshold) / fall) + 1 - travel));
             }
             var variants = new List<(int Count, double Duration, double Gain)>();
-            if (target.Kind == "food" && target.ServiceTicks.TryGetValue(out var service)
-                && target.GainPerUnit.TryGetValue(out var unit) && unit > 0 && service > 0)
+            if (target.Kind == "food" && target.Recovery is NeedRecovery.Ingest { ServiceTicks: var service and > 0, GainPerUnit: var unit and > 0 })
             {
                 // Whole quantities are alternatives, not a preselected nutrition target. Bound excessive stacks explicitly.
                 var limit = Math.Min(target.AvailableCount, Math.Min(16, (int)Math.Ceiling(1 / unit)));
                 if (target.AvailableCount > limit) findings.Add("bounded_food_quantities:" + target.Id);
                 for (var count = 1; count <= limit; count++) variants.Add((count, service, unit * count));
             }
-            else if (target.GainPerTick.TryGetValue(out var rate) && rate > 0)
+            else if (target.Recovery is NeedRecovery.Rate { GainPerTick: var rate and > 0 })
             {
                 // Partial and full recovery both survive generation; service duration never comes from a trigger.
                 var full = (1 - level) / rate;
@@ -110,8 +107,9 @@ public static class ForecastNeeds
                     if (duration > 0) variants.Add((0, duration, rate * duration));
             }
             else findings.Add("unknown_need_recovery:" + target.Id);
-            if (target.Kind == "food" && fall > 0 && need.Threshold.TryGetValue(out var foodThreshold))
+            if (target.Kind == "food" && fall > 0)
             {
+                var foodThreshold = need.Threshold;
                 // Repeated observed meals are separate timed uses of the same finite lot, not another food owner.
                 // Seed whole-quantity refill trajectories; the shared selector still chooses all actual uses.
                 foreach (var variant in variants)
@@ -134,20 +132,20 @@ public static class ForecastNeeds
             }
             IEnumerable<(int Count, double Duration, double Gain)> RestVariants(double start)
             {
-                if (!target.GainPerTick.TryGetValue(out var restRate) || restRate <= 0) yield break;
-                var full = Math.Max(0, pawn.WakeThreshold.Value - Math.Max(0, level - fall * start)) / restRate;
+                if (target.Recovery is not NeedRecovery.Rate { GainPerTick: var restRate and > 0 }) yield break;
+                var full = Math.Max(0, pawn.WakeThreshold - Math.Max(0, level - fall * start)) / restRate;
                 foreach (var duration in new[] { full / 2, full, Math.Min(full, horizon / 4) }.Distinct().Order())
                     if (duration > 0) yield return (0, duration, restRate * duration);
             }
             void EndsAt(double end)
             {
-                if (target.Kind != "rest" || !target.GainPerTick.TryGetValue(out var restRate) || restRate <= 0) return;
+                if (target.Kind != "rest" || target.Recovery is not NeedRecovery.Rate { GainPerTick: var restRate and > 0 }) return;
                 foreach (var portion in new[] { .5, 1d })
                 {
                     // Solve start + portion * (wake - (initial - fall*start))/gain = end.
-                    var start = (restRate * end - portion * (pawn.WakeThreshold.Value - level)) / (restRate + portion * fall);
+                    var start = (restRate * end - portion * (pawn.WakeThreshold - level)) / (restRate + portion * fall);
                     if (start >= 0 && level - fall * start >= 0) starts.Add(Math.Max(0, start - travel));
-                    var depletedStart = end - portion * pawn.WakeThreshold.Value / restRate;
+                    var depletedStart = end - portion * pawn.WakeThreshold / restRate;
                     if (depletedStart >= 0 && level - fall * depletedStart <= 0) starts.Add(Math.Max(0, depletedStart - travel));
                 }
             }
@@ -197,9 +195,9 @@ public static class ForecastNeeds
             {
                 var start = depart + travel;
                 var end = start + variant.Duration;
-                if (target.Kind == "rest" && (start < pawn.SleepBlockedUntilTicks.Value
-                    || Math.Max(0, level - fall * start) >= pawn.SleepThreshold.Value)) continue;
-                if (target.Kind == "food" && target.GainPerUnit.TryGetValue(out var nutrition)
+                if (target.Kind == "rest" && (start < pawn.SleepBlockedUntilTicks
+                    || Math.Max(0, level - fall * start) >= pawn.SleepThreshold)) continue;
+                if (target.Kind == "food" && target.Recovery is NeedRecovery.Ingest { GainPerUnit: var nutrition }
                     && variant.Count > Math.Ceiling((1 - Math.Max(0, level - fall * end)) / nutrition)) continue;
                 if (end > horizon || !windows.Any(w => w.Start <= depart && w.End >= end)) continue;
                 // Equivalent algebraic event constructions can differ by floating-point roundoff below a microtick.
@@ -268,13 +266,7 @@ public static class ForecastNeeds
                 occupied.Add(new("unknown_sleep", pawn.Pawn, Known(0d), default, ForecastOccupancyState.Active));
                 continue;
             }
-            if (!need.Level.TryGetValue(out var level) || !need.FallPerTick.TryGetValue(out var fall)
-                || !need.Threshold.TryGetValue(out var threshold))
-            {
-                metrics.Add(new(need.Kind, default, default, default, default));
-                occupied.Add(new("unknown_need/" + need.Kind, pawn.Pawn, Known(0.0), default, ForecastOccupancyState.Active));
-                findings.Add("unknown_need_mechanics:" + need.Kind); continue;
-            }
+            var (level, fall, threshold) = (need.Level, need.FallPerTick, need.Threshold);
             if (!double.IsFinite(level) || level < 0 || level > 1 || !double.IsFinite(fall) || fall < 0
                 || !double.IsFinite(threshold) || threshold < 0 || threshold > 1) throw new DomainException("invalid need mechanics");
             double deficit = 0, exposure = 0, waste = 0, zero = 0, depth = 0;
@@ -348,10 +340,10 @@ public static class ForecastNeeds
             });
         }
         Fact<double> thoughtDelta = default;
-        if (pawn.Memories.TryGetValue(out var memories) && memories.All(m => m.Permanent || m.RemainingTicks.IsKnown))
+        if (pawn.Mood is { } mood)
         {
-            double Remaining(NeedMemory m, double elapsed) => m.Permanent ? m.Offset : m.RemainingTicks.Value <= elapsed ? 0
-                : m.Fades ? m.Offset * (1 - elapsed / m.RemainingTicks.Value) : m.Offset;
+            var memories = mood.Memories;
+            static double Remaining(NeedMemory m, double elapsed) => ForecastMood.MemoryAt(m, elapsed, elapsed);
             var complete = true;
             if (ForecastMood.StackedMemoryFinding(memories) is { } stacked) findings.Add(stacked);
             var added = intervals.Where(r => r.Choice.Kind == "food" && r.End == r.Choice.End)
@@ -370,14 +362,13 @@ public static class ForecastNeeds
             for (var i = 0; i < added.Length; i++)
             {
                 var (thought, start) = added[i];
-                if (!thought.Permanent && !thought.RemainingTicks.IsKnown) { findings.Add("unknown_meal_thought_duration"); complete = false; continue; }
                 if (planned is { } ends && ends.Ends[i] <= horizonTicks) continue;
                 delta += Remaining(thought, horizonTicks - start);
             }
             thoughtDelta = complete ? Known(delta) : default;
         }
         else findings.Add("unknown_thought_expiry");
-        var target = thoughtDelta.IsKnown && pawn.MoodTarget.IsKnown ? Known(Math.Clamp(pawn.MoodTarget.Value + thoughtDelta.Value / 100, 0, 1)) : default;
+        var target = thoughtDelta.IsKnown && pawn.Mood is { } moodNow ? Known(Math.Clamp(moodNow.Target + thoughtDelta.Value / 100, 0, 1)) : default;
         findings.Add("need_rates_constant_current_conditions");
         findings.Add("room_mood_changes_unassessed");
         return new(EquatableArray.From(metrics), [.. occupied], thoughtDelta, target, usefulFood, [.. findings], intervals);
@@ -433,11 +424,10 @@ public static class ForecastNeeds
         var sleeps = selected.Where(c => c.Kind == "rest").OrderBy(c => c.Start).ToArray();
         if (sleeps.Length == 0) return result;
         var need = pawn.Needs.SingleOrDefault(n => n.Kind == "rest");
-        if (need is null || !need.Level.TryGetValue(out var level) || !need.FallPerTick.TryGetValue(out var fall)
-            || !pawn.WakeThreshold.TryGetValue(out var wake) || !pawn.SleepThreshold.TryGetValue(out var threshold)
-            || !pawn.Awake.IsKnown || !double.IsFinite(wake) || wake <= 0 || wake > 1
-            || !double.IsFinite(threshold) || threshold <= 0 || threshold >= wake)
-        { findings.Add("unknown_sleep_mechanics"); return null; }
+        if (need is null) { findings.Add("unknown_sleep_mechanics"); return null; }
+        var (level, fall, wake, threshold) = (need.Level, need.FallPerTick, pawn.WakeThreshold, pawn.SleepThreshold);
+        if (!double.IsFinite(wake) || wake <= 0 || wake > 1 || !double.IsFinite(threshold) || threshold <= 0 || threshold >= wake)
+            throw new DomainException("invalid sleep thresholds");
         double cursor = 0;
         foreach (var choice in sleeps)
         {
@@ -445,11 +435,10 @@ public static class ForecastNeeds
                 ? Math.Clamp(stopped, choice.Depart, choice.End) : choice.End;
             if (end <= choice.Start) { result.Add(choice.Id, choice.Start); continue; }
             level = Math.Max(0, level - fall * (choice.Start - cursor));
-            var continuing = choice.Start == 0 && pawn.Awake == Known(false);
+            var continuing = choice.Start == 0 && !pawn.Awake;
             if (!continuing && pawn.Needs.SingleOrDefault(n => n.Kind == "food") is { } food)
             {
-                if (!food.Level.TryGetValue(out var nutrition) || !food.FallPerTick.TryGetValue(out var hunger))
-                { findings.Add("sleep_food_availability_unassessed:" + choice.Id); return null; }
+                var (nutrition, hunger) = (food.Level, food.FallPerTick);
                 double ateAt = 0;
                 foreach (var meal in selected.Where(c => c.Kind == "food" && c.End <= choice.Start
                     && (interruptedAt is null || !interruptedAt.TryGetValue(c.Id, out var stoppedAt) || stoppedAt >= c.End)).OrderBy(c => c.End))
@@ -458,10 +447,10 @@ public static class ForecastNeeds
                     ateAt = meal.End;
                 }
                 nutrition = Math.Max(0, nutrition - hunger * (choice.Start - ateAt));
-                if (nutrition == 0 && pawn.SleepWhileStarving != Known(true))
+                if (nutrition == 0 && !pawn.SleepWhileStarving)
                 { findings.Add("sleep_requires_observed_food_recovery:" + choice.Id); return null; }
             }
-            if (!continuing && (!pawn.SleepBlockedUntilTicks.TryGetValue(out var blocked) || choice.Start < blocked || level >= threshold))
+            if (!continuing && (pawn.SleepBlocked || choice.Start < pawn.SleepBlockedUntilTicks || level >= threshold))
             { findings.Add("sleep_activation_unassessed:" + choice.Id); return null; }
             var rate = choice.Gain / (choice.End - choice.Start);
             if (!double.IsFinite(rate) || rate <= 0 || !double.IsFinite(level) || !double.IsFinite(fall) || fall < 0)

@@ -16,10 +16,10 @@ public sealed class ForecastRoofConsequencesTests
     private const string Wall = "planned/room1/wall/WoodLog", Door = "planned/room1/door/WoodLog";
 
     /// <summary>An open bed cell now: no roof, no room (the outdoors).</summary>
-    private static readonly NeedCell OpenCell = new(Known(false), Known(false), Known(false), Known(true), Known(true));
+    private static readonly NeedCell OpenCell = new(false, false, false, true, true);
 
     private static NeedThoughtStage Stage(string thought, string role, int stage, double offset, double days = 1)
-        => new(thought, role, stage, offset, Known(days * GameTime.TicksPerDay), false);
+        => new(thought, role, stage, offset, NeedsFixtures.Lasting(days * GameTime.TicksPerDay, false));
 
     private static readonly NeedThoughtStage[] BedStages =
     [
@@ -53,15 +53,17 @@ public sealed class ForecastRoofConsequencesTests
         };
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {
-            Awake = Known(true), LocalHour = Known(6d), SleepThreshold = Known(.75), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(200d),
-            ComfortableMin = Known(10d), ComfortableMax = Known(30d),
-            MoodUnclampedTarget = Known(.5), MoodIntervalTicks = Known(150d), MoodRisePerTick = Known(.12 / GameTime.TicksPerHour),
-            MoodFallPerTick = Known(.08 / GameTime.TicksPerHour), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
-            ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]), Memories = Known<EquatableArray<NeedMemory>>([]),
-            Needs = [new("food", Known(1d), Known(0d), Known(.3)), new("rest", Known(.2), Known(0d), Known(.3))],
+            Awake = true, LocalHour = 6d, SleepThreshold = .75, WakeThreshold = 1d, SleepBlockedUntilTicks = 200d,
+            ComfortableMin = 10d, ComfortableMax = 30d,
+            Mood = (facts.ForecastObserved.Needs!.Pawns[0].Mood ?? NeedsFixtures.Mood) with
+            {
+                UnclampedTarget = .5, RisePerTick = .12 / GameTime.TicksPerHour, FallPerTick = .08 / GameTime.TicksPerHour,
+                FreezesWhileAsleep = true, BreakThreshold = .3, Conditional = new ConditionalMood.Modeled([]), Memories = [],
+            },
+            Needs = [NeedsFixtures.Rate("food", 1d, 0d, .3), NeedsFixtures.Rate("rest", .2, 0d, .3)],
             // 0.8 rest at 0.00005 a tick: a 16000-tick sleep, long enough that ApplyBedThoughts always runs at the wake.
-            Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.00005))
-                { Location = Inside, Cell = OpenCell, Bed = new("None", Known(0), false) }],
+            Targets = [NeedsFixtures.Service("bed", "rest", 0d, .00005) with
+                { Location = Inside, Cell = OpenCell, Bed = NeedsFixtures.BedRoom("None", 0, false) }],
             OwnedBed = "bed",
             ThoughtStages = EquatableArray.From(BedStages),
         };
@@ -136,8 +138,8 @@ public sealed class ForecastRoofConsequencesTests
     public void ARenewalEndsTheObservedSleepMemoryAtTheWake()
     {
         // An observed SleptOutside with half a day left is ended at the wake and replaced by the bedroom thought.
-        var observed = new NeedMemory("SleptOutside", -4, Known(30000d), false);
-        var renewal = new ForecastMemoryRenewal(10000, ["SleptOutside", "SleptInBedroom"], [new("SleptInBedroom", 2, Known(60000d), false)]);
+        var observed = NeedsFixtures.Memory("SleptOutside", -4, 30000d, false);
+        var renewal = new ForecastMemoryRenewal(10000, ["SleptOutside", "SleptInBedroom"], [NeedsFixtures.Memory("SleptInBedroom", 2, 60000d, false)]);
         var (ends, gains) = ForecastMood.RenewalSchedule([observed], [renewal], [])!.Value;
         Assert.Equal(10000, ends["SleptOutside"]);
         var gain = Assert.Single(gains);
@@ -158,15 +160,14 @@ public sealed class ForecastRoofConsequencesTests
         // Joy at a cell of the planned room for 12000 ticks, the outdoors need at 0.85 (Free above 0.8). Under the planned
         // roof the room is indoors under a thin roof (-0.32 per interval): the level falls into NeedFreshAir, a mood cost.
         // Closed but unroofed it is indoors with no roof (+5): the need stays free and costs nothing.
-        var pawn = new NeedsForecastPawn
-        {
-            Pawn = "pawn", OutdoorsLevel = Known(.85),
-            Targets = [new("pin", "joy", "", 1, Known(0d), default, default, Known(.001)) { Location = Inside, Cell = OpenCell }],
+        var pawn = NeedsFixtures.Pawn() with {
+            Pawn = "pawn", Outdoors = new NeedLevel.Has(.85),
+            Targets = [NeedsFixtures.Service("pin", "joy", 0d, .001) with { Location = Inside, Cell = OpenCell }],
             ThoughtStages = [Stage("NeedOutdoors", "need_outdoors", 4, -3), Stage("NeedOutdoors", "need_outdoors", 3, -5)],
         };
         ForecastNeedChoice[] joy = [new("joy", "pawn", "joy", "pin", "", 0, 0, 0, 12000, 1, [])];
         var observed = Known<EquatableArray<MoodThought>>([]);
-        var roofed = ForecastRoofConsequences.RoofMoodOf(pawn, new(), joy, [Room(0, 0)], observed, Horizon);
+        var roofed = ForecastRoofConsequences.RoofMoodOf(pawn, NeedsFixtures.Empty, joy, [Room(0, 0)], observed, Horizon);
         Assert.Equal("", roofed.Unassessed);
         var (thought, spans) = Assert.Single(roofed.Banded);
         Assert.Equal("NeedOutdoors", thought);
@@ -175,7 +176,7 @@ public sealed class ForecastRoofConsequencesTests
         Assert.Equal(9375, span.Start, 6);
         Assert.Equal((Horizon, -3d), (span.End, span.OffsetDelta));
 
-        var unroofed = ForecastRoofConsequences.RoofMoodOf(pawn, new(), joy, [Room(0, double.PositiveInfinity)], observed, Horizon);
+        var unroofed = ForecastRoofConsequences.RoofMoodOf(pawn, NeedsFixtures.Empty, joy, [Room(0, double.PositiveInfinity)], observed, Horizon);
         Assert.All(unroofed.Banded, b => Assert.Empty(b.Spans));
     }
 
@@ -184,9 +185,9 @@ public sealed class ForecastRoofConsequencesTests
     {
         // Observed in the open in full rain: (0.5 unroofed + 0.5 outdoors) * Lerp(1, 5, 1) = 5 times a base rate of 2,
         // 10 hit points a day. 8 hit points last 0.8 of a day on a 250x250 map (38 cells a tick).
-        var read = new NeedsForecastRead { RainRate = Known(1d), MapArea = Known(62500), Deterioration = new(.5, .5, 0) };
-        var stack = new NeedTarget("meal", "food", "MealSimple", 5, Known(0d), default, default, default)
-            { Location = Inside, Cell = OpenCell, Deterioration = new(8, Known(10d), true, 0, false) };
+        var read = NeedsFixtures.Empty with { RainRate = 1d, MapArea = 62500, Deterioration = new(.5, .5, 0) };
+        var stack = NeedsFixtures.Target("meal", "food", "MealSimple", 5, 0d, new NeedRecovery.Rate(0)) with
+            { Location = Inside, Cell = OpenCell, Deterioration = new(8, 10d, true, 0, false) };
         var perTick = 10 / 36d * 38 / 62500;
         Assert.Equal(8 / perTick, ForecastRoofConsequences.DeterioratedAt(stack, read, [], GameTime.TicksPerDay)!.Value, 6);
         Assert.True(8 / perTick < GameTime.TicksPerDay);
@@ -195,8 +196,6 @@ public sealed class ForecastRoofConsequencesTests
         // Closed but open to the sky: the outdoors offset is gone (one open cell of four is under a quarter), the rain stays.
         var closedOpen = ForecastRoofConsequences.DeterioratedAt(stack, read, [Room(6000, double.PositiveInfinity, open: 0)], 2 * GameTime.TicksPerDay)!.Value;
         Assert.Equal(6000 + (8 - 6000 * perTick) / (perTick / 2), closedOpen, 6);
-        // An unread rate stays unknown.
-        Assert.Null(ForecastRoofConsequences.DeterioratedAt(stack with { Deterioration = stack.Deterioration! with { RatePerDay = default } }, read, [], GameTime.TicksPerDay));
     }
 
     [Fact]

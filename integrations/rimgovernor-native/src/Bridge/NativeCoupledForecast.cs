@@ -60,7 +60,7 @@ internal static class NativeCoupledForecast
             construction.Options.SelectMany(o => new[] { o.Origin,o.Location }),
             future.Conversions.SelectMany(o => new[] { o.SourceCell,o.BenchCell,o.Destination }),
             clothing.Options.SelectMany(o => new[] { o.Location,o.Destination }.Concat(o.Inputs.Select(i => i.Location))),
-            needs.Pawns.SelectMany(p => p.Targets).Where(t => t.Location is not null).Select(t => t.Location!.Value),
+            needs.Pawns.SelectMany(p => p.Targets).Select(t => t.Location),
             thermal.Cells.Where(c => c.BuildRoof && c.Roof == "none").Select(c => c.Cell),
             support.Workers.Select(w => w.Location).Concat(support.Deliveries.SelectMany(d => new[] { d.Source, d.Destination }))
         };

@@ -32,7 +32,7 @@ public sealed class GoalEtaTests
     {
         var pawns = Wearers.Select(name => ForecastValueTests.HarmPawn() with { Pawn = name }).ToArray();
         var outfits = Wearers.ToDictionary(name => name, _ => ForecastValueTests.Cloth, StringComparer.Ordinal);
-        return ForecastValueTests.Context(pawns[0], ForecastValueTests.HarmTables(), ForecastValueTests.RaidDay(), outfits) with { Needs = new() { Pawns = [.. pawns] } };
+        return ForecastValueTests.Context(pawns[0], ForecastValueTests.HarmTables(), ForecastValueTests.RaidDay(), outfits) with { Needs = NeedsFixtures.Empty with { Pawns = [.. pawns] } };
     }
 
     private static GearOption BillDuster() => ForecastValueTests.Duster(0.8) with
@@ -151,7 +151,7 @@ public sealed class GoalEtaTests
         var context = new ForecastCoupledContext
         {
             Activities = new() { Activities = [new("research/Anna/bench", "bench", "bench", []) { ProjectProgress = new("Devilstrand", 1) }] },
-            Needs = new(), Resources = ForecastValueTests.Resources(),
+            Needs = NeedsFixtures.Empty, Resources = ForecastValueTests.Resources(),
         };
         ForecastValueResult Ledger(ForecastGoalValue goal) => ForecastValue.Of(
             new(new([new("research/Anna/bench", "Anna", 0, 0, 0, 2500, 0, 0, 2500, 0, 0)], 2500, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), []),

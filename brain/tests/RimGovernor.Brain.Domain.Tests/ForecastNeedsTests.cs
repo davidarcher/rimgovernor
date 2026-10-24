@@ -16,16 +16,16 @@ public sealed class ForecastNeedsTests
         CurrentJobRemainingTicks = Known(0.0), Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
         LocationAfterProtectedTime = Known("bed"), ProtectTimetable = false,
     };
-    private static NeedsForecastPawn Pawn() => new()
+    private static NeedsForecastPawn Pawn() => NeedsFixtures.Pawn() with
     {
-        Pawn = "pawn", State = "eligible", Awake = Known(true), SleepThreshold = Known(.75), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(0d), Mood = Known(.5), MoodTarget = Known(.5), BreakThreshold = Known(.3),
-        Needs = [new("rest", Known(.2), Known(.0005), Known(.28)),
-            new("food", Known(.5), Known(.0001), Known(.3)),
-            new("joy", Known(.4), Known(.0001), Known(.3))],
-        Memories = Known<EquatableArray<NeedMemory>>([]),
-        Targets = [new("bed", "rest", "", 1, Known(20.0), default, default, Known(.002)),
-            new("rice", "food", "Rice", 10, Known(10.0), Known(20.0), Known(.2), default),
-            new("pin", "joy", "", 1, Known(15.0), default, default, Known(.002))],
+        Pawn = "pawn", State = "eligible", Awake = true, SleepThreshold = .75, WakeThreshold = 1d, SleepBlockedUntilTicks = 0d,
+        Mood = NeedsFixtures.Mood with { Level = .5, Target = .5, BreakThreshold = .3, Memories = [] },
+        Needs = [NeedsFixtures.Rate("rest", .2, .0005, .28),
+            NeedsFixtures.Rate("food", .5, .0001, .3),
+            NeedsFixtures.Rate("joy", .4, .0001, .3)],
+        Targets = [NeedsFixtures.Service("bed", "rest", 20.0, .002),
+            NeedsFixtures.Food("rice", "Rice", 10, 10.0, 20.0, .2),
+            NeedsFixtures.Service("pin", "joy", 15.0, .002)],
     };
     private static ForecastNeedChoice Sleep(double start = 0, double end = 400) => new("sleep", "pawn", "rest", "bed", "", 0,
         start, start + 20, end, (end - start - 20) * .002, []);
@@ -39,9 +39,9 @@ public sealed class ForecastNeedsTests
         // The native portfolio selected materially worse rest trajectories because
         // irrelevant joy breakpoints changed earlier food metrics below log precision.
         var pawn = Pawn() with { Needs =
-            [new("food", Known(.257004916667938), Known(.0000166666676249588), Known(.3)),
-             new("rest", Known(.875153124332428), Known(.0000169642857142857), Known(.3)),
-             new("joy", Known(.1), Known(.00000833333376795053), Known(.3))] };
+            [NeedsFixtures.Rate("food", .257004916667938, .0000166666676249588, .3),
+             NeedsFixtures.Rate("rest", .875153124332428, .0000169642857142857, .3),
+             NeedsFixtures.Rate("joy", .1, .00000833333376795053, .3)] };
         var input = Input(60000);
         var baseline = ForecastNeeds.ForecastNeedsTimeline(pawn, input, []);
         var joy = new ForecastNeedChoice("joy", "pawn", "joy", "pin", "", 0, start, start, end, .5, []);
@@ -54,10 +54,10 @@ public sealed class ForecastNeedsTests
     [Fact]
     public void SleepAndItsNativeWakeBreakpointCannotPerturbUnchangedFoodTrajectory()
     {
-        var pawn = Pawn() with { SleepWhileStarving = Known(false), Needs =
-            [new("food", Known(.528273165225983), Known(.0000166666676249588), Known(.3)),
-             new("rest", Known(.25), Known(.0000169642857142857), Known(.3)),
-             new("joy", Known(.1), Known(.00000833333376795053), Known(.3))] };
+        var pawn = Pawn() with { SleepWhileStarving = false, Needs =
+            [NeedsFixtures.Rate("food", .528273165225983, .0000166666676249588, .3),
+             NeedsFixtures.Rate("rest", .25, .0000169642857142857, .3),
+             NeedsFixtures.Rate("joy", .1, .00000833333376795053, .3)] };
         var input = Input(60000);
         var baseline = ForecastNeeds.ForecastNeedsTimeline(pawn, input, []);
         var sleep = Sleep(97.325204571088, 1280.2626);
@@ -74,7 +74,7 @@ public sealed class ForecastNeedsTests
     public void ATimelineWithoutMoodHasTheSameNeedsAndCapacity()
     {
         // #3467: the search's physiology timeline reads only capacity, so it skips the mood timeline.
-        var pawn = Pawn() with { ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]), MoodUnclampedTarget = Known(.5), MoodIntervalTicks = Known(150d), LocalHour = Known(12.0) };
+        var pawn = Pawn() with { Mood = Pawn().Mood! with { Conditional = new ConditionalMood.Modeled([]), UnclampedTarget = .5 }, LocalHour = 12.0 };
         var choices = new[] { Sleep(), new ForecastNeedChoice("meal", "pawn", "food", "rice", "Rice", 1, 500, 520, 600, .2, []) };
         var full = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), choices);
         var physical = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), choices, mood: false);
@@ -93,7 +93,7 @@ public sealed class ForecastNeedsTests
     [InlineData(1, 140, 66)]
     public void SaturationCutsRemainDistinctAcrossRecoveryDecayAndRepeatedCalls(double threshold, double exposure, double depth)
     {
-        var pawn = Pawn() with { Needs = [new("joy", Known(.2), Known(.01), Known(threshold))] };
+        var pawn = Pawn() with { Needs = [NeedsFixtures.Rate("joy", .2, .01, threshold)] };
         var recovery = new ForecastNeedChoice("joy", "pawn", "joy", "pin", "", 0, 0, 0, 100, 2, []);
         var first = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(200), [recovery]);
         var metric = Assert.Single(first.Needs);
@@ -112,7 +112,7 @@ public sealed class ForecastNeedsTests
     {
         var facts = WorkResourceTestFacts.Create("pawn");
         facts = facts with { ForecastObserved = facts.ForecastObserved with
-        { Needs = new() { Tick = 100, Pawns = [Pawn()] } } };
+        { Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [Pawn()] } } };
         var reviewed = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         var choices = Assert.IsType<ForecastNeedsReview>(reviewed.NeedsAlternatives).Alternatives["pawn"].Choices;
         Assert.Contains(choices, c => c.Kind == "food" && c.Count == 1);
@@ -162,25 +162,23 @@ public sealed class ForecastNeedsTests
     [Fact]
     public void EqualCurrentMoodHasDifferentExpiringMemoryConsequencesAndMealEffects()
     {
-        var a = Pawn() with { Memories = Known<EquatableArray<NeedMemory>>([new("happy", 10, Known(100.0), false)]) };
-        var b = a with { Memories = Known<EquatableArray<NeedMemory>>([new("happy", 10, Known(2000.0), false)]) };
+        var a = Pawn() with { Mood = Pawn().Mood! with { Memories = [NeedsFixtures.Memory("happy", 10, 100.0, false)] }};
+        var b = a with { Mood = a.Mood! with { Memories = [NeedsFixtures.Memory("happy", 10, 2000.0, false)] }};
         Assert.Equal(.4, ForecastNeeds.ForecastNeedsTimeline(a, Input(), []).MemoryAdjustedMoodTarget.Value, 8);
         Assert.Equal(.5, ForecastNeeds.ForecastNeedsTimeline(b, Input(), []).MemoryAdjustedMoodTarget.Value, 8);
         var meal = new ForecastNeedChoice("eat", "pawn", "food", "fine", "FineMeal", 1, 0, 10, 100, .6,
-            [new("fine_meal", 5, Known(2000.0), false)]);
+            [NeedsFixtures.Memory("fine_meal", 5, 2000.0, false)]);
         Assert.Equal(.55, ForecastNeeds.ForecastNeedsTimeline(b, Input(), [meal]).MemoryAdjustedMoodTarget.Value, 8);
     }
 
     [Fact]
-    public void UnknownMechanicsNeverGiveFreeWorkAndMissingRoutesDoNotMakeInstantMeals()
+    public void ATargetWithoutItsNeedGivesNoChoiceAndAMoodlessPawnNoMoodTarget()
     {
-        var pawn = Pawn() with { Needs = [new("rest", Known(.2), default, Known(.28))] };
-        Assert.False(ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), []).Capacity.Capacity.Windows.IsKnown);
-        var targets = Pawn() with { Targets = [Pawn().Targets[1] with { TravelTicks = default }] };
+        var targets = Pawn() with { Needs = [.. Pawn().Needs.Where(n => n.Kind != "food")], Targets = [Pawn().Targets[1]] };
         var generated = ForecastNeeds.GenerateNeedsAlternatives(targets, ForecastCapacity.ForecastPawnCapacityOf(Input()), 1000);
         Assert.Empty(generated.Choices);
         Assert.Contains("unknown_need_target:rice", generated.Findings);
-        Assert.False(ForecastNeeds.ForecastNeedsTimeline(Pawn() with { Memories = default }, Input(), []).MemoryAdjustedMoodTarget.IsKnown);
+        Assert.False(ForecastNeeds.ForecastNeedsTimeline(Pawn() with { Mood = null }, Input(), []).MemoryAdjustedMoodTarget.IsKnown);
     }
 
     [Fact]
@@ -201,10 +199,10 @@ public sealed class ForecastNeedsTests
     {
         var input = Input();
         var fast = ForecastNeeds.GenerateNeedsAlternatives(Pawn(), ForecastCapacity.ForecastPawnCapacityOf(input), 1000);
-        var slow = ForecastNeeds.GenerateNeedsAlternatives(Pawn() with { Targets = [Pawn().Targets[0] with { GainPerTick = Known(.00001) }] }, ForecastCapacity.ForecastPawnCapacityOf(input), 1000);
+        var slow = ForecastNeeds.GenerateNeedsAlternatives(Pawn() with { Targets = [Pawn().Targets[0] with { Recovery = new NeedRecovery.Rate(.00001) }] }, ForecastCapacity.ForecastPawnCapacityOf(input), 1000);
         Assert.Contains(fast.Choices, c => c.Kind == "rest" && c.Gain > .5);
         Assert.DoesNotContain(slow.Choices, c => c.Gain > .5);
-        var far = ForecastNeeds.GenerateNeedsAlternatives(Pawn() with { Targets = [Pawn().Targets[1] with { TravelTicks = Known(999.0) }] }, ForecastCapacity.ForecastPawnCapacityOf(input), 1000);
+        var far = ForecastNeeds.GenerateNeedsAlternatives(Pawn() with { Targets = [Pawn().Targets[1] with { TravelTicks = 999.0 }] }, ForecastCapacity.ForecastPawnCapacityOf(input), 1000);
         Assert.Empty(far.Choices);
         var bounded = ForecastNeeds.GenerateNeedsAlternatives(Pawn(), ForecastCapacity.ForecastPawnCapacityOf(input), 1000, budget: 2);
         Assert.Equal(2, bounded.Choices.Count); Assert.True(bounded.Truncated);
@@ -215,10 +213,10 @@ public sealed class ForecastNeedsTests
     {
         // #3167: food sorts before rest, and meals plus a 16-count rice stack spent all 32 units before the bed was reached,
         // so a tired cook had no rest alternative (no_feasible_need_choice:rest) and kept cooking.
-        var pawn = Pawn() with { Needs = [new("rest", Known(.06), Known(.0000169), Known(.3)), new("food", Known(.2), Known(.0000166), Known(.3))],
-            Targets = [.. Enumerable.Range(0, 4).Select(i => new NeedTarget("meal" + i, "food", "MealSimple", 3, Known(40.0 + i), Known(300.0), Known(.9), default)),
-                new("rice", "food", "RawRice", 75, Known(60.0), Known(300.0), Known(.05), default),
-                new("bed", "rest", "", 1, Known(55.0), default, default, Known(.0000381))] };
+        var pawn = Pawn() with { Needs = [NeedsFixtures.Rate("rest", .06, .0000169, .3), NeedsFixtures.Rate("food", .2, .0000166, .3)],
+            Targets = [.. Enumerable.Range(0, 4).Select(i => NeedsFixtures.Food("meal" + i, "MealSimple", 3, 40.0 + i, 300.0, .9)),
+                NeedsFixtures.Food("rice", "RawRice", 75, 60.0, 300.0, .05),
+                NeedsFixtures.Service("bed", "rest", 55.0, .0000381)] };
         var generated = ForecastNeeds.GenerateNeedsAlternatives(pawn, ForecastCapacity.ForecastPawnCapacityOf(Input(60000)), 60000, budget: 32);
         Assert.Contains(generated.Choices, c => c.Kind == "rest" && c.Target == "bed");
         Assert.Contains(generated.Choices, c => c.Kind == "food");
@@ -229,15 +227,13 @@ public sealed class ForecastNeedsTests
     }
 
     [Fact]
-    public void UnknownOrRepeatedMealMemoriesDoNotBecomeKnownMoodAndPermanentIsExplicit()
+    public void RepeatedMealMemoriesDoNotBecomeKnownMoodAndPermanentIsExplicit()
     {
         var first = new ForecastNeedChoice("eat", "pawn", "food", "fine", "FineMeal", 1, 0, 10, 100, .2,
-            [new("fine_meal", 5, Known(2000.0), false)]);
+            [NeedsFixtures.Memory("fine_meal", 5, 2000.0, false)]);
         var second = first with { Id = "eat2", Depart = 200, Start = 210, End = 300 };
         Assert.False(ForecastNeeds.ForecastNeedsTimeline(Pawn(), Input(), [first, second]).MemoryAdjustedMoodTarget.IsKnown);
-        Assert.False(ForecastNeeds.ForecastNeedsTimeline(Pawn(), Input(), [first with { Thoughts = [new("unknown", 5, default, false)] }]).MemoryAdjustedMoodTarget.IsKnown);
-        Assert.Equal(.5, ForecastNeeds.ForecastNeedsTimeline(Pawn() with { Memories = Known<EquatableArray<NeedMemory>>(
-            [new("permanent", 10, default, false) { Permanent = true }]) }, Input(), []).MemoryAdjustedMoodTarget.Value, 8);
+        Assert.Equal(.5, ForecastNeeds.ForecastNeedsTimeline(Pawn() with { Mood = Pawn().Mood! with { Memories = [NeedsFixtures.Memory("permanent", 10, null, false)] }}, Input(), []).MemoryAdjustedMoodTarget.Value, 8);
         Assert.Throws<DomainException>(() => ForecastNeeds.ForecastNeedsTimeline(Pawn(), Input() with
         { CurrentWork = new(new("pawn"), Known(true), default, Known(500.0)) }, [Sleep()]));
     }
@@ -257,14 +253,18 @@ public sealed class ForecastNeedsTests
     }
 
     [Fact]
-    public void NativeNeedsWireRoundTripsKnownUnknownAndPermanentFacts()
+    public void NativeNeedsWireRoundTripsEveryCaseExactly()
     {
-        var source = new NeedsForecastRead { Tick = 100, Pawns = [Pawn() with
-        { VoluntaryControlBlockers = ["unsupported_psyfocus"], Memories = Known<EquatableArray<NeedMemory>>([new("permanent", 3, default, false) { Permanent = true }]) }] };
+        var source = NeedsFixtures.Empty with { Tick = new(100), RainRate = .4, MapArea = 62500, Pawns = [Pawn() with
+        {
+            VoluntaryControlBlockers = ["unsupported_psyfocus"], Outdoors = new NeedLevel.Has(.6),
+            Mood = Pawn().Mood! with { Memories = [NeedsFixtures.Memory("permanent", 3, null, false), NeedsFixtures.Memory("fading", -2, 500d, true, 3)] },
+            ThoughtStages = [new("SleptOutside", "outdoors", 0, -4, NeedsFixtures.Lasting(GameTime.TicksPerDay, false, 1)), new("NeedOutdoors", "need_outdoors", 3, -5, NeedsFixtures.Situational)],
+        }, Pawn() with
+        {
+            Pawn = "owl", Mood = Pawn().Mood! with { Conditional = new ConditionalMood.Unmodeled(["NightOwl"]) },
+        }, Pawn() with { Pawn = "moodless", Mood = null, Targets = [NeedsFixtures.Food("rice", "Rice", 3, 40, 500, .9)] }] };
         var text = RimGovernor.Contracts.Wire.WireJson.Serialize(source);
-        var copy = RimGovernor.Contracts.Wire.WireJson.Deserialize<NeedsForecastRead>(text);
-        Assert.Equal(source, copy);
-        var unknown = source with { Pawns = [Pawn() with { Memories = default, Mood = default }] };
-        Assert.Equal(unknown, RimGovernor.Contracts.Wire.WireJson.Deserialize<NeedsForecastRead>(RimGovernor.Contracts.Wire.WireJson.Serialize(unknown)));
+        Assert.Equal(source, RimGovernor.Contracts.Wire.WireJson.Deserialize<NeedsForecastRead>(text));
     }
 }

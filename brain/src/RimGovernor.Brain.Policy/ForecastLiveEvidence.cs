@@ -59,23 +59,24 @@ public static class ForecastLiveEvidence
     {
         var key = prediction.Key;
         Fact<double> value = default;
+        double? observed = null;
         var reason = "observation_unavailable";
         if (key.Metric is ForecastMetric.FoodLevel or ForecastMetric.RestLevel or ForecastMetric.Mood)
         {
-            var pawn = needs?.Tick == tick ? needs.Pawns.FirstOrDefault(p => p.Pawn == key.Subject) : null;
-            value = key.Metric == ForecastMetric.Mood ? pawn?.Mood ?? default
-                : pawn?.Needs.FirstOrDefault(n => n.Kind == (key.Metric == ForecastMetric.FoodLevel ? "food" : "rest"))?.Level ?? default;
-            reason = needs?.Tick != tick ? "fresh_needs_unavailable" : pawn is null ? "pawn_unobserved" : "need_value_unknown";
+            var pawn = needs?.Tick.Value == tick ? needs.Pawns.FirstOrDefault(p => p.Pawn == key.Subject) : null;
+            observed = key.Metric == ForecastMetric.Mood ? pawn?.Mood?.Level
+                : pawn?.Needs.FirstOrDefault(n => n.Kind == (key.Metric == ForecastMetric.FoodLevel ? "food" : "rest"))?.Level;
+            reason = needs?.Tick.Value != tick ? "fresh_needs_unavailable" : pawn is null ? "pawn_unobserved" : "need_value_unknown";
         }
         else if (key.Metric == ForecastMetric.ShelterTemperature)
         {
-            var room = context?.Needs.Tick == tick ? context.Shelters.FirstOrDefault(s => Geometry(s.Interior) == key.Scope) : null;
+            var room = context?.Needs.Tick.Value == tick ? context.Shelters.FirstOrDefault(s => Geometry(s.Interior) == key.Scope) : null;
             reason = room is null ? "shelter_geometry_unobserved" : "temperature_coverage_incomplete";
             if (room is not null && room.Interior.Count > 0 && context?.Thermal is { } thermal)
             {
                 var temperatures = room.Interior.Select(c => thermal.Cells.FirstOrDefault(s => s.Cell == c)?.Temperature).ToArray();
                 if (temperatures.All(t => t is not null) && temperatures.Distinct().Count() == 1)
-                    value = Known(temperatures[0]!.Value);
+                    observed = temperatures[0];
             }
         }
         else if (key.Metric == ForecastMetric.FoodStock)
@@ -84,6 +85,7 @@ public static class ForecastLiveEvidence
             if (key.Scope == ForecastStockScope.Food && food is not null)
             { value = ForecastStockScope.Count(food, new(key.Subject)); reason = "food_stock_census_or_eligibility_unknown"; }
         }
+        if (observed is { } seen) value = Known(seen);
         return new(key, tick, value, value.IsKnown ? "" : reason, execution, ForecastCompletion.NotApplicable,
             default, default, "rounds_native_observation");
     }

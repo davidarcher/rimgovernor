@@ -827,7 +827,7 @@ than success, death and failure, and surgeries on non-colonists. Two planned hos
 *Who moves first (#3656).* A vacant bedroom bed, standing or planned, goes to the unhoused colonist with the largest priced gain
 from it (`ForecastHousing.LargestGainFirst`, a stable sort, so ties keep id order). The gain is read before the search, from
 station facts alone (`BedroomGainFacts.Of`, which the clustering's bed merge also reads): `ForecastHousing.BedroomGain` runs the
-observed `MoodUnclampedTarget` and `BreakThreshold`, held flat over tier 1's horizon, through `MoodBreakModel.AddTierTicks` and
+observed `NeedMood.UnclampedTarget` and `BreakThreshold`, held flat over tier 1's horizon, through `MoodBreakModel.AddTierTicks` and
 then `GainPerDay` with `BedroomMoodDelta`. The stage is a standing bed's room stage now (the pawn's rest target), or a planned
 bedroom's predicted stage when every stuff predicts the same one. When any candidate's gain is unread the order stays id order and
 each such pawn is named `bedroom_order_unpriced:<pawn>` in the coupled findings. An ascetic is housed by its NeverUpgrade room only

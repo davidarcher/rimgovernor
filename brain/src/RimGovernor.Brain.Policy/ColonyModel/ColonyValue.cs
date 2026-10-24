@@ -398,7 +398,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
             return 0;
         }
 
-        var gameDay = ((double)context.Needs.Tick / GameTime.TicksPerDay) + day;
+        var gameDay = ((double)context.Needs.Tick.Value / GameTime.TicksPerDay) + day;
         return context.Value.GoalWorthOn(goal.Importance, goal.DeadlineDay, gameDay) * (horizonDays - day) / horizonDays;
     }
 
@@ -453,11 +453,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         var total = 0.0;
         foreach (var row in rows.Values.OrderBy(r => r.Pawn, StringComparer.Ordinal))
         {
-            if (!row.MalnutritionSeverity.TryGetValue(out var severity) || ForecastValue.Levels(row) is not { } levels)
-            {
-                findings.Add("capacities_unobserved:" + row.Pawn);
-                return null;
-            }
+            var (severity, levels) = (row.MalnutritionSeverity, ForecastValue.Levels(row));
 
             var course = new ForecastValue.Course(table, levels, movingMin, severity);
             var clock = 0.0;

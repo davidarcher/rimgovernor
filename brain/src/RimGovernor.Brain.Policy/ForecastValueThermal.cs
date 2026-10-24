@@ -46,7 +46,7 @@ public static partial class ForecastValue
             return null;
         }
 
-        if (seen is null || !seen.Pawn.HypothermiaSeverity.TryGetValue(out var cold) || !seen.Pawn.HeatstrokeSeverity.TryGetValue(out var hot) || seen.Levels is not { } levels)
+        if (seen is not { Pawn: { HypothermiaSeverity: var cold, HeatstrokeSeverity: var hot }, Levels: var levels })
         {
             findings.Add("capacities_unobserved:" + pawn);
             return null;

@@ -55,7 +55,7 @@ public sealed class ForecastEvidenceMeasurementTests
                     var fresh = Owner(); fresh.Review(Scope, 100, context.Needs, context);
                     for (ulong i = 1; i <= 4; i++) fresh.Capture(Scope, 100, i, selection, context, ForecastAdmission.Selected, [], "");
                     return fresh;
-                }, fresh => fresh.Review(Scope, 60100, context.Needs with { Tick = 60100 }, context));
+                }, fresh => fresh.Review(Scope, 60100, context.Needs with { Tick = new(60100) }, context));
             }
             var log = Path.Combine(path, "logs.jsonl");
             var reader = Measure(() => ForecastEvidenceReader.Read(log));

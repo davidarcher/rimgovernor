@@ -15,7 +15,7 @@ public sealed class ApparelCreditTests
     private const double Horizon = 10;
 
     private static NeedThoughtStage Stage(string thought, string role, int stage, double offset)
-        => new(thought, role, stage, offset, Known(Day), false);
+        => new(thought, role, stage, offset, NeedsFixtures.Lasting(Day, false));
 
     private static GearOption Shirt(double condition) => new()
     {
@@ -29,7 +29,7 @@ public sealed class ApparelCreditTests
         ThoughtStages = EquatableArray.From(stages), Apparel = apparel,
     };
 
-    private static readonly NeedApparel Warm = new(Gender.Male, true, true);
+    private static readonly NeedApparel Warm = NeedsFixtures.Apparel(Gender.Male, true, true);
 
     private static readonly NeedThoughtStage[] Tattered =
         [Stage("ApparelDamaged", ForecastApparel.Damaged, 0, -3), Stage("ApparelDamaged", ForecastApparel.Damaged, 1, -5)];
@@ -118,7 +118,7 @@ public sealed class ApparelCreditTests
     {
         // PsychologicallyNude: a female pawn is nude without a shirt or without pants, so neither alone ends it.
         var pants = Shirt(1) with { ID = "pants", Definition = new("Apparel_Pants"), Slot = GearSlot.SkinLegs, Groups = ["Legs"] };
-        var pawn = Pawn(new(Gender.Female, true, true), Stage("Naked", ForecastApparel.Naked, 0, -6));
+        var pawn = Pawn(NeedsFixtures.Apparel(Gender.Female, true, true), Stage("Naked", ForecastApparel.Naked, 0, -6));
         Assert.Equal(0, ForecastApparel.MoodDelta(pawn, [], [Shirt(1)]));
         Assert.Equal(0, ForecastApparel.MoodDelta(pawn, [], [pants]));
         var context = Context(pawn);

@@ -163,18 +163,18 @@ public sealed class BedMergePriceTests
         Assert.Equal("builders", Fails(Price(Wood(Calm), IceSheet) with { Builders = default }).Fact);
 
         // One sleeper's gain unread leaves every gain unread; no catalog leaves the stages unread.
-        var unread = Gains(Pawn("a", 0.8), Pawn("b", 0.8), new NeedsForecastPawn { Pawn = "c" }).BedMerge(Levels);
+        var unread = Gains(Pawn("a", 0.8), Pawn("b", 0.8), NeedsFixtures.Pawn() with { Pawn = "c" }).BedMerge(Levels);
         Assert.False(unread.Sleepers.IsKnown);
         Assert.False(Gains(Pawn("a", 0.8)).BedMerge(new ImpressivenessLevels()).Levels.IsKnown);
         Assert.Equal("sleeper_mood", Fails(Price(Wood(unread), IceSheet)).Fact);
     }
 
     // a and b are calm; c sits under its break threshold, which a bedroom's +2 lifts it clear of and a barracks' -2 does not.
-    private static NeedThoughtStage Stage(string thought, string role, double offset, int stage = 0) => new(thought, role, stage, offset, Known((double)GameTime.TicksPerDay), false);
+    private static NeedThoughtStage Stage(string thought, string role, double offset, int stage = 0) => new(thought, role, stage, offset, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false));
 
-    private static NeedsForecastPawn Pawn(string id, double target) => new()
+    private static NeedsForecastPawn Pawn(string id, double target) => NeedsFixtures.Pawn() with
     {
-        Pawn = id, MoodUnclampedTarget = Known(target), BreakThreshold = Known(0.35), Sleep = SleepFixtures.Ground(),
+        Pawn = id, Mood = NeedsFixtures.Mood with { UnclampedTarget = target, BreakThreshold = 0.35 }, Sleep = SleepFixtures.Ground(),
         ThoughtStages = [.. Enumerable.Range(0, Levels.StageCount).SelectMany(s => new[] { Stage("SleptInBedroom", "slept_in_bedroom", 2, s), Stage("SleptInBarracks", "slept_in_barracks", -2, s) })],
     };
 
@@ -355,8 +355,8 @@ public sealed class BedMergePriceTests
     public void APlannedBarracksCreditsEveryOccupantAtTheBarracksThought()
     {
         // A non-ascetic gains slept_in_barracks over the bed thought it has; an ascetic gains nothing and loses its Ascetic thought.
-        var stages = EquatableArray.From(new[] { Stage("SleptInBedroom", "slept_in_bedroom", 2), Stage("SleptInBarracks", "slept_in_barracks", -2), new NeedThoughtStage("Ascetic", "ascetic", 0, 3, Known((double)GameTime.TicksPerDay), false) });
-        var plain = new NeedsForecastPawn { Pawn = "a", ThoughtStages = stages, Sleep = SleepFixtures.Ground() };
+        var stages = EquatableArray.From(new[] { Stage("SleptInBedroom", "slept_in_bedroom", 2), Stage("SleptInBarracks", "slept_in_barracks", -2), new NeedThoughtStage("Ascetic", "ascetic", 0, 3, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false)) });
+        var plain = NeedsFixtures.Pawn() with { Pawn = "a", ThoughtStages = stages, Sleep = SleepFixtures.Ground() };
         var ascetic = plain with { Pawn = "b", Ascetic = true };
         Assert.Equal(Known(-2.0), ForecastHousing.BedroomMoodDelta(plain, Known(0), default, barracks: true));
         Assert.Equal(Known(2.0), ForecastHousing.BedroomMoodDelta(plain, Known(0), default));

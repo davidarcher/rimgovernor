@@ -29,7 +29,7 @@ public sealed record ForecastObservedIncumbent(PlanId Plan, PawnActivities Batch
 public static class ForecastIncumbentPreparation
 {
     private sealed record IncumbentServiceProjection(string Assignment, string Method, long Revision,
-        string Target, string Kind, Cell Location, Fact<double> RemainingTicks, Fact<double> GainPerTick,
+        string Target, string Kind, Cell Location, double RemainingTicks, double GainPerTick,
         EquatableArray<string> Unsupported);
 
     /// <summary>Conditional comparison only. The original review's admission claims remain authoritative
@@ -41,8 +41,8 @@ public static class ForecastIncumbentPreparation
         var original = facts.WorkView;
         var needs = facts.ForecastObserved.Needs;
         if (original is null || needs is null || actions.Truncated || original.Claims.Truncated
-            || original.Evidence.Tick != facts.Tick || needs.Tick != facts.Tick.Value
-            || facts.ForecastObserved.Coupled?.Tick != needs.Tick
+            || original.Evidence.Tick != facts.Tick || needs.Tick != facts.Tick
+            || facts.ForecastObserved.Coupled?.Tick != needs.Tick.Value
             || !original.Evidence.WorkResources.TryGetValue(out var native)
             || !original.Evidence.Pawns.TryGetValue(out var availability)) return Protected();
 
@@ -75,11 +75,11 @@ public static class ForecastIncumbentPreparation
             var available = availability.Where(p => p.Pawn == order.Pawn).ToArray();
             if (observations.Length != 1 || physical.Length != 1 || available.Length != 1
                 || observations[0].State != "eligible" || observations[0].VoluntaryControlBlockers.Count != 0
-                || observations[0].Location is not { } start
                 || available[0].Available != Known(true) || available[0].Applies != Known(true)
                 || physical[0].CarriedCount != 0 || physical[0].CarriedThing.Length != 0 || physical[0].CarriedResource.Length != 0
                 || physical[0].Bill.Length != 0 || physical[0].Unfinished.Length != 0
                 || physical[0].Assignment != order.Assignment || physical[0].Revision != order.Revision) continue;
+            var start = observations[0].Location;
             IncumbentServiceProjection service;
             double wait = 0, travel = 0;
             if (order.Preparing)
@@ -92,11 +92,11 @@ public static class ForecastIncumbentPreparation
                         || s.Recipe is not null || s.Medicine.Length != 0 || s.Container.Length != 0)) continue;
                 var targets = observations[0].Targets.Where(t => t.Id == task.Step.Target).ToArray();
                 if (targets.Length != 1 || targets[0].Kind != (task.Step.Kind == PawnActivityKind.Sleep ? "rest" : "joy")
-                    || targets[0].Location != task.Location || !targets[0].TravelTicks.TryGetValue(out travel)
-                    || !double.IsFinite(travel) || travel < 0) continue;
+                    || targets[0].Location != task.Location || targets[0].Recovery is not NeedRecovery.Rate { GainPerTick: var gain }
+                    || !double.IsFinite(travel = targets[0].TravelTicks) || travel < 0) continue;
                 wait = task.DepartTick - facts.Tick.Value;
                 service = new(order.Assignment, order.Method, order.Revision, task.Step.Target, targets[0].Kind,
-                    task.Location, Known(task.Step.Deadline - task.DepartTick - travel), targets[0].GainPerTick,
+                    task.Location, task.Step.Deadline - task.DepartTick - travel, gain,
                     targets[0].Unsupported);
             }
             else
@@ -109,8 +109,8 @@ public static class ForecastIncumbentPreparation
             }
             if (task.Step.Deadline - facts.Tick.Value > GameTime.TicksPerDay || wait + travel > GameTime.TicksPerDay
                 || service.Assignment != order.Assignment || service.Method != order.Method || service.Revision != order.Revision
-                || service.Target != task.Step.Target || !service.RemainingTicks.TryGetValue(out var remaining)
-                || !service.GainPerTick.TryGetValue(out var rate) || !double.IsFinite(remaining) || remaining <= 0
+                || service.Target != task.Step.Target || service is not { RemainingTicks: var remaining, GainPerTick: var rate }
+                || !double.IsFinite(remaining) || remaining <= 0
                 || remaining > GameTime.TicksPerDay || remaining > task.Step.Deadline - facts.Tick.Value
                 || !double.IsFinite(rate) || rate <= 0 || !double.IsFinite(rate * remaining)) continue;
             eligible.Add((row, service, new(order.Pawn, order.Assignment, order.Method, order.Revision, physical[0].State),
@@ -163,7 +163,7 @@ public static class ForecastIncumbentPreparation
             var service = entry.Service; var pawn = entry.Owner.Pawn;
             var location = "cell/" + service.Location.X + "/" + service.Location.Z;
             var startLocation = "cell/" + entry.Start.X + "/" + entry.Start.Z;
-            var duration = service.RemainingTicks.Value;
+            var duration = service.RemainingTicks;
             // Native positively observed this stationary participant (serving or waiting).
             // Only routes from that observed start cell can be aliased without another probe.
             foreach (var route in routes.Values.Where(r => r.Pawn == pawn && r.From == "start").ToArray())
@@ -185,7 +185,7 @@ public static class ForecastIncumbentPreparation
             routes[(pawn, "start", "start")] = new(pawn, "start", "start", Known(0d));
             routes[(pawn, "start", startLocation)] = new(pawn, "start", startLocation, Known(0d));
             routes[(pawn, "start", location)] = new(pawn, "start", location, Known(entry.Travel));
-            needTasks.Add(new(id, pawn, service.Kind, service.Target, default, 0, Known(service.GainPerTick.Value * duration), [])
+            needTasks.Add(new(id, pawn, service.Kind, service.Target, default, 0, Known(service.GainPerTick * duration), [])
                 { MaxPawns = needs.Pawns.SelectMany(p => p.Targets).FirstOrDefault(t => t.Id == service.Target)?.MaxPawns ?? default });
             retained.Add(new(id, []) { ActivityCompletions = [id] });
             incumbents.Add(new(entry.Row.Plan, entry.Row.Action.PawnActivities!, id, entry.Owner)

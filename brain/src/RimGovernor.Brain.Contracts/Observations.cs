@@ -4831,7 +4831,7 @@ public sealed record PatientForecast
 
 public sealed record ForecastFacts
 {
-    public NeedsForecastRead? Needs { get; init; }
+    public required NeedsForecastRead Needs { get; init; }
     public CoupledForecastRead? Coupled { get; init; }
 
     public FoodSupplyFacts? CombinedFoodSupply { get; init; }

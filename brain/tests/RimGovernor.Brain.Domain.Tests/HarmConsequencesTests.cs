@@ -11,11 +11,11 @@ public sealed class HarmConsequencesTests
 {
     private const double Day = GameTime.TicksPerDay;
 
-    private static NeedsForecastPawn Pawn(Fact<double>? shock = null) => new()
+    private static NeedsForecastPawn Pawn() => NeedsFixtures.Pawn() with
     {
         Pawn = "pawn",
-        Consciousness = Known(1d), Moving = Known(1d), Manipulation = Known(1d), Sight = Known(1d), Talking = Known(1d),
-        PainShockThreshold = shock ?? Known(0.8), HealthScale = Known(1d), IncomingDamageFactor = Known(1d), InjuryHealingFactor = Known(1d),
+        Consciousness = 1d, Moving = 1d, Manipulation = 1d, Sight = 1d, Talking = 1d,
+        PainShockThreshold = 0.8, HealthScale = 1d, IncomingDamageFactor = 1d, InjuryHealingFactor = 1d,
     };
 
     private static HediffPenaltyTable BloodLoss() => new()
@@ -111,16 +111,6 @@ public sealed class HarmConsequencesTests
         Assert.DoesNotContain("capacity_penalty_table_unknown:WoundInfection", with.Findings);
         Assert.True(Mean(without) > 0);
         Assert.True(Mean(with) > Mean(without));
-    }
-
-    [Fact]
-    public void AnUnknownPainShockThresholdMakesTheWholeDistributionUnknown()
-    {
-        var d = Of(new HitRange(3, 3, 3), pawn: Pawn(shock: default(Fact<double>)));
-
-        Assert.False(d.Known);
-        Assert.Empty(d.Points);
-        Assert.Contains("capacities_unobserved:pawn", d.Findings);
     }
 
     [Fact]

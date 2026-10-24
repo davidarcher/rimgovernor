@@ -22,7 +22,7 @@ public sealed class InvestmentCreditTests
     private static ForecastCoupledContext Context(IReadOnlyDictionary<string, double> investment) => new()
     {
         Activities = new() { Activities = [new("tend/1", "bed", "bed", []) { Inputs = [new(new Resource(Medicine), Known(1d))] }] },
-        Needs = new(), Resources = ForecastValueTests.Resources(), Investment = investment,
+        Needs = NeedsFixtures.Empty, Resources = ForecastValueTests.Resources(), Investment = investment,
     };
 
     /// <summary>The doctor's tend, its learning projected by <see cref="ForecastProductiveWorkPolicy"/> from <paramref name="todayXp"/> already learned today.</summary>

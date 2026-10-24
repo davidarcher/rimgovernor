@@ -170,9 +170,8 @@ public static class HarmConsequences
         CapacityPenaltyTables tables, Care care, ForecastValuePolicy policy, double horizon, SortedSet<string> findings)
     {
         findings.UnionWith(["adaptation_feedback_unassessed", "rescue_labor_unassessed", "injury_part_effects_unassessed", "bleed_part_factors_unobserved"]);
-        if (!pawn.PainShockThreshold.TryGetValue(out var shock) || !pawn.HealthScale.TryGetValue(out var healthScale)
-            || !pawn.IncomingDamageFactor.TryGetValue(out var incoming) || !pawn.InjuryHealingFactor.TryGetValue(out var healing)
-            || ForecastValue.Levels(pawn) is not { } levels || !(healthScale > 0))
+        var (shock, healthScale, incoming, healing, levels) = (pawn.PainShockThreshold, pawn.HealthScale, pawn.IncomingDamageFactor, pawn.InjuryHealingFactor, ForecastValue.Levels(pawn));
+        if (!(healthScale > 0))
         {
             findings.Add("capacities_unobserved:" + pawn.Pawn);
             return null;
@@ -234,7 +233,8 @@ public static class HarmConsequences
     /// </summary>
     public static Fact<double> Treatments(HitRange hits, IReadOnlyList<WeaponBin> bins, IReadOnlyList<ArmorResponse> response, NeedsForecastPawn pawn)
     {
-        if (Mix.Of(bins, response) is not { } mix || !pawn.IncomingDamageFactor.TryGetValue(out var incoming))
+        var incoming = pawn.IncomingDamageFactor;
+        if (Mix.Of(bins, response) is not { } mix)
         {
             return default;
         }

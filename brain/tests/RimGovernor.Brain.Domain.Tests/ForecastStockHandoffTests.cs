@@ -31,7 +31,7 @@ public sealed class ForecastStockHandoffTests
         var input = ProjectGraphTests.Colony() with { OtherNutritionPerDay = ForecastStockScope.OtherDemand(Known(facts.Food), []), Stocks = new() { Materials = Known(physical), Nutrition = ForecastStockScope.Nutrition(facts.Food), Medicine = Known<EquatableArray<Amount>>([new(Medicine, 5)]) }, Pawns = Known<EquatableArray<ModelPawn>>([]) };
         return new() { Origin = new("map", 0), HorizonDays = 1, Facts = facts, Coupled = new()
         {
-            Activities = new(), Needs = new(), ModelBasis = new(input, new()),
+            Activities = new(), Needs = NeedsFixtures.Empty, ModelBasis = new(input, new()),
             FoodUses = [new("animal", Meal.Value, new(1, 1), Known(true), Known(.5), Known(10d), 1, Known(120000d))],
             Resources = new(new() { Stock = Known(physical), Construction = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()), Reservations = Known<EquatableArray<IngredientReservation>>([]), Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) }, new([], [], [], []), default)
         } };

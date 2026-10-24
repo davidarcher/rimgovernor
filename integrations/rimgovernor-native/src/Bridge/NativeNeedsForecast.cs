@@ -29,25 +29,25 @@ internal static class NativeNeedsForecast
         foreach (var pawn in people.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
         {
             var needs = new List<Obs.NeedRate>();
-            if (pawn.needs?.food is { } food) needs.Add(new("food", K(food.CurLevelPercentage),
-                K(food.FoodFallPerTick / food.MaxLevel), K(food.PercentageThreshHungry))
-                { Unsupported = ["food_category_and_bed_rate_changes"] });
-            if (pawn.needs?.rest is { } rest) needs.Add(new("rest", K(rest.CurLevelPercentage),
-                K(rest.RestFallPerTick * pawn.GetStatValue(StatDefOf.RestFallRateFactor)), K(Need_Rest.ThreshTired))
+            if (pawn.needs?.food is { } food) needs.Add(new("food", F(food.CurLevelPercentage, "food level"),
+                F(food.FoodFallPerTick / food.MaxLevel, "food fall"), F(food.PercentageThreshHungry, "hungry threshold"))
+                { UnservedGainPerTick = 0, GainPerTickPerEffectiveness = 0, Unsupported = ["food_category_and_bed_rate_changes"] });
+            if (pawn.needs?.rest is { } rest) needs.Add(new("rest", F(rest.CurLevelPercentage, "rest level"),
+                F(rest.RestFallPerTick * pawn.GetStatValue(StatDefOf.RestFallRateFactor), "rest fall"), Need_Rest.ThreshTired)
                 {
-                    UnservedGainPerTick = K(Need_Rest.BaseRestGainPerTick * RestEffectiveness(null) * pawn.GetStatValue(StatDefOf.RestRateMultiplier)),
+                    UnservedGainPerTick = F(Need_Rest.BaseRestGainPerTick * RestEffectiveness(null) * pawn.GetStatValue(StatDefOf.RestRateMultiplier), "unserved rest gain"),
                     GainPerTickPerEffectiveness = Need_Rest.BaseRestGainPerTick * pawn.GetStatValue(StatDefOf.RestRateMultiplier),
                     Unsupported = ["rest_category_rate_changes", "involuntary_sleep_risk"],
                 });
             if (pawn.needs?.joy is { } joy)
             {
-                var decay = typeof(Need_Joy).GetProperty("FallPerInterval", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(joy);
+                var decay = typeof(Need_Joy).GetProperty("FallPerInterval", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(joy) as float?
+                    ?? throw new InvalidOperationException("Need_Joy.FallPerInterval is not readable.");
                 var thresholds = BridgeCommon.PrivateInstanceField(typeof(Need), "threshPercents")?.GetValue(joy) as List<float>;
-                needs.Add(new("joy", K(joy.CurLevelPercentage), decay is float fall
-                    ? K(fall / 150.0 * pawn.GetStatValue(StatDefOf.JoyFallRateFactor)) : default,
-                    thresholds is { Count: > 1 } ? K(thresholds[1]) : default)
+                if (thresholds is not { Count: > 1 }) throw new InvalidOperationException("Need.threshPercents is not readable for joy.");
+                needs.Add(new("joy", F(joy.CurLevelPercentage, "joy level"), F(decay / 150.0 * pawn.GetStatValue(StatDefOf.JoyFallRateFactor), "joy fall"), thresholds[1])
                     {
-                        UnservedGainPerTick = K(NativeRecreation.UnservedGainPerTick(pawn)),
+                        UnservedGainPerTick = F(NativeRecreation.UnservedGainPerTick(pawn), "unserved joy gain"), GainPerTickPerEffectiveness = 0,
                         OutdoorShareByTwelfth = EquatableArray.From(NativeRecreation.OutdoorShares(pawn, map, outdoorClimate ??= new(map))),
                         Unsupported = ["joy_category_rate_changes", "future_tolerance_changes", "skygaze_condition_gain"],
                     });
@@ -79,7 +79,7 @@ internal static class NativeNeedsForecast
                     var (maxPawns, stackCount) = ServiceReservation(kind, target, count);
                     if (!pawn.CanReserveAndReach(target, PathEndMode.Touch, Danger.None, maxPawns, stackCount)) continue;
                     if (legs.Cost(pawn, pawn.Position, target, PathEndMode.Touch) is not { } route) continue;
-                    var travel = K(route);
+                    var travel = F(route, "route cost");
                     if (group == "food")
                     {
                         var nutrition = FoodUtility.NutritionForEater(pawn, target) / pawn.needs!.food.MaxLevel;
@@ -88,67 +88,73 @@ internal static class NativeNeedsForecast
                         var thoughts = FoodUtility.ThoughtsFromIngesting(pawn, target, target.def)
                             .Select(t => MealMemory(pawn, t)).ToArray();
                         targets.Add(new(target.GetUniqueLoadID(), "food", target.def.defName, target.def.ingestible.maxNumToIngestAtOnce > 0 ? Math.Min(target.stackCount, target.def.ingestible.maxNumToIngestAtOnce) : target.stackCount,
-                            travel, K(service), K(nutrition), default) { MealThoughts = EquatableArray.From(thoughts), Location = new(target.Position.x, target.Position.z), StockCount = K(target.stackCount), MaxPawns = Capacity(IngestMaxPawns),
+                            travel, new Obs.NeedRecovery.Ingest(F(service, "ingest ticks"), F(nutrition, "nutrition")))
+                            { MealThoughts = EquatableArray.From(thoughts), Location = new(target.Position.x, target.Position.z), StockCount = K(target.stackCount), MaxPawns = Capacity(IngestMaxPawns),
                             FreshTicks = K(target.TryGetComp<CompRottable>()?.TicksUntilRotAtCurrentTemp ?? RimGovernor.Brain.Domain.GameTime.TicksPerDay),
-                            Cell = CellAt(map, target.Position), Deterioration = DeteriorationOf(map, target),
+                            Cell = CellAt(map, target.Position), Bed = null, Deterioration = DeteriorationOf(map, target),
                             Unsupported = ["chew_spot_travel", "ingestion_outcomes_and_poisoning", "meal_memory_stacking"] });
                     }
-                    else if (group == "rest") targets.Add(new(target.GetUniqueLoadID(), "rest", "", 1, travel, default, default,
-                        K(Need_Rest.BaseRestGainPerTick * RestEffectiveness((Building_Bed)target) * pawn.GetStatValue(StatDefOf.RestRateMultiplier))) { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(((Building_Bed)target).SleepingSlotsCount),
-                            Cell = CellAt(map, target.Position), Bed = BedRoomOf((Building_Bed)target) });
+                    else if (group == "rest") targets.Add(new(target.GetUniqueLoadID(), "rest", "", 1, travel,
+                        new Obs.NeedRecovery.Rate(F(Need_Rest.BaseRestGainPerTick * RestEffectiveness((Building_Bed)target) * pawn.GetStatValue(StatDefOf.RestRateMultiplier), "bed rest gain")))
+                        { MealThoughts = [], Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(((Building_Bed)target).SleepingSlotsCount),
+                            Cell = CellAt(map, target.Position), Bed = BedRoomOf((Building_Bed)target), Deterioration = null, Unsupported = [] });
                     else
                     {
                         var job = NativeRecreation.GiverFor(target)!.jobDef;
                         // Native JoyTickCheckEnd conversion, projected at observed tolerance only; future tolerance is explicit.
-                        targets.Add(new(target.GetUniqueLoadID(), "joy", "", 1, travel, default, default, K(NativeRecreation.GainPerTick(pawn, target, job)))
-                            { Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(job.joyMaxParticipants), Cell = CellAt(map, target.Position),
-                                Unsupported = ["play_position_travel", "future_tolerance_changes"] });
+                        targets.Add(new(target.GetUniqueLoadID(), "joy", "", 1, travel, new Obs.NeedRecovery.Rate(F(NativeRecreation.GainPerTick(pawn, target, job), "joy gain")))
+                            { MealThoughts = [], Location = new(target.Position.x,target.Position.z), MaxPawns = Capacity(job.joyMaxParticipants), Cell = CellAt(map, target.Position),
+                                Bed = null, Deterioration = null, Unsupported = ["play_position_travel", "future_tolerance_changes"] });
                     }
                 }
             }
             var live = PawnSettingsRead.LiveMemories(pawn);
-            var memories = live?.OfType<Thought_Memory>().Select(m => new Obs.NeedMemory(m.def.defName,
-                m.MoodOffset(), m.permanent ? default : K(Math.Max(0, m.DurationTicks - m.age)), m.def.lerpMoodToZero) { Permanent = m.permanent, StackLimit = m.def.stackLimit });
+            var memories = (live ?? new List<Thought>()).OfType<Thought_Memory>().Select(m => new Obs.NeedMemory(m.def.defName,
+                F(m.MoodOffset(), "memory offset"), m.permanent ? new Obs.MemoryLife.Permanent() : new Obs.MemoryLife.Expires(Math.Max(0, m.DurationTicks - m.age)),
+                m.def.lerpMoodToZero) { StackLimit = m.def.stackLimit });
             var unsupported = pawn.needs?.AllNeeds.Where(n => n is not Need_Food && n is not Need_Rest && n is not Need_Joy && n is not Need_Mood)
                 .Select(n => "unsupported_need:" + n.def.defName).ToList() ?? new List<string>();
             unsupported.Add("disease_and_relationship_changes");
-            var conditionalMood = NativeConditionalMood.Read(pawn, unsupported);
-            rows.Add(conditionalMood with { Pawn = pawn.GetUniqueLoadID(), State = state, Location = new(pawn.Position.x, pawn.Position.z),
+            var sleep = NativeConditionalMood.ReadSleep(pawn);
+            var moodRead = NativeConditionalMood.ReadMood(pawn, EquatableArray.From(memories), unsupported);
+            var health = pawn.health ?? throw new InvalidOperationException("colonist without a health tracker: " + pawn.GetUniqueLoadID());
+            rows.Add(new() { Pawn = pawn.GetUniqueLoadID(), State = state, Location = new(pawn.Position.x, pawn.Position.z),
                 CurrentService = voluntary ? CurrentService(pawn) : null,
-                ComfortableMin = K(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin)), ComfortableMax = K(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax)),
+                LocalHour = F(GenLocalDate.HourFloat(pawn), "local hour"), Awake = pawn.Awake(),
+                SleepThreshold = sleep.SleepThreshold, WakeThreshold = sleep.WakeThreshold, SleepBlocked = sleep.Blocked,
+                SleepBlockedUntilTicks = sleep.BlockedUntilTicks, SleepWhileStarving = sleep.WhileStarving, Mood = moodRead,
+                ComfortableMin = F(pawn.GetStatValue(StatDefOf.ComfyTemperatureMin), "comfortable min"), ComfortableMax = F(pawn.GetStatValue(StatDefOf.ComfyTemperatureMax), "comfortable max"),
                 SleepComfortableMin = SleepComfortable(pawn, StatDefOf.ComfyTemperatureMin), SleepComfortableMax = SleepComfortable(pawn, StatDefOf.ComfyTemperatureMax),
                 Sleep = SleepOf(pawn, map), Needs = EquatableArray.From(needs),
-                Mood = pawn.needs?.mood is { } mood ? K(mood.CurLevelPercentage) : default,
-                MoodTarget = pawn.needs?.mood is { } targetMood ? K(targetMood.CurInstantLevel) : default,
-                BreakThreshold = pawn.mindState?.mentalBreaker is { } breaker ? K(breaker.BreakThresholdMinor) : default,
-                Memories = memories is null ? default : Fact.Known(EquatableArray.From(memories)),
                 Targets = EquatableArray.From(targets.OrderBy(t => t.Id, StringComparer.Ordinal).GroupBy(t => t.Kind).SelectMany(g => g)), Unsupported = EquatableArray.From(unsupported), VoluntaryControlBlockers = blockers,
-                OutdoorsLevel = pawn.needs?.outdoors is { } outdoors ? K(outdoors.CurLevel) : default,
+                Outdoors = pawn.needs?.outdoors is { } outdoors ? new Obs.NeedLevel.Has(F(outdoors.CurLevel, "outdoors level")) : new Obs.NeedLevel.Lacks(),
                 OutdoorsDisabled = pawn.needs?.outdoors != null && pawn.needs.PrefersIndoors,
                 OwnedBed = pawn.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
                 OwnedBedRoom = pawn.ownership?.OwnedBed is { } ownedBed ? BedRoomOf(ownedBed) : null,
                 Ascetic = pawn.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true, RivalRooms = RivalRoomsOf(pawn, map),
                 ThoughtStages = ThoughtStagesOf(pawn, map), Apparel = ApparelOf(pawn),
-                Consciousness = Capacity(pawn, PawnCapacityDefOf.Consciousness), Moving = Capacity(pawn, PawnCapacityDefOf.Moving),
-                Manipulation = Capacity(pawn, PawnCapacityDefOf.Manipulation), Sight = Capacity(pawn, PawnCapacityDefOf.Sight),
-                Talking = Capacity(pawn, PawnCapacityDefOf.Talking),
-                MalnutritionSeverity = Severity(pawn, HediffDefOf.Malnutrition), FoodPoisoningSeverity = Severity(pawn, HediffDefOf.FoodPoisoning),
-                HypothermiaSeverity = Severity(pawn, HediffDefOf.Hypothermia), HeatstrokeSeverity = Severity(pawn, HediffDefOf.Heatstroke),
-                PainShockThreshold = HealthStat(pawn, StatDefOf.PainShockThreshold), HealthScale = HealthScaleOf(pawn),
-                IncomingDamageFactor = HealthStat(pawn, StatDefOf.IncomingDamageFactor), InjuryHealingFactor = HealthStat(pawn, StatDefOf.InjuryHealingFactor),
-                ResearchSpeed = K(pawn.GetStatValue(StatDefOf.ResearchSpeed) * Find.Storyteller.difficulty.researchSpeedFactor),
-                PlantWorkSpeed = K(pawn.GetStatValue(StatDefOf.PlantWorkSpeed)), Disease = NativeDiseaseFacts.ReadPawn(pawn),
+                Consciousness = Capacity(health, PawnCapacityDefOf.Consciousness), Moving = Capacity(health, PawnCapacityDefOf.Moving),
+                Manipulation = Capacity(health, PawnCapacityDefOf.Manipulation), Sight = Capacity(health, PawnCapacityDefOf.Sight),
+                Talking = Capacity(health, PawnCapacityDefOf.Talking),
+                MalnutritionSeverity = Severity(health, HediffDefOf.Malnutrition), FoodPoisoningSeverity = Severity(health, HediffDefOf.FoodPoisoning),
+                HypothermiaSeverity = Severity(health, HediffDefOf.Hypothermia), HeatstrokeSeverity = Severity(health, HediffDefOf.Heatstroke),
+                PainShockThreshold = F(pawn.GetStatValue(StatDefOf.PainShockThreshold), "pain shock threshold"), HealthScale = F(pawn.HealthScale, "health scale"),
+                IncomingDamageFactor = F(pawn.GetStatValue(StatDefOf.IncomingDamageFactor), "incoming damage factor"),
+                InjuryHealingFactor = F(pawn.GetStatValue(StatDefOf.InjuryHealingFactor), "injury healing factor"),
+                ResearchSpeed = F(pawn.GetStatValue(StatDefOf.ResearchSpeed) * Find.Storyteller.difficulty.researchSpeedFactor, "research speed"),
+                PlantWorkSpeed = F(pawn.GetStatValue(StatDefOf.PlantWorkSpeed), "plant work speed"),
+                Disease = NativeDiseaseFacts.ReadPawn(pawn) is { } disease ? disease with { ImmunityGainSpeed = F(disease.ImmunityGainSpeed, "immunity gain speed") } : throw new InvalidOperationException("colonist without an immunity handler: " + pawn.GetUniqueLoadID()),
                 CorpseThoughts = CorpseThoughtsOf(pawn), SightingTicks = sightings?.Covered(pawn.thingIDNumber, now) ?? 0,
-                Upkeep = UpkeepOf(pawn, conditionalMood.MoodUnclampedTarget), Deathrest = DeathresterOf(pawn) });
+                Upkeep = UpkeepOf(pawn, moodRead), Deathrest = DeathresterOf(pawn) });
         }
         var benches = map.listerBuildings.AllBuildingsColonistOfClass<Building_ResearchBench>()
             .Where(b => b.Spawned && (b.GetComp<CompPowerTrader>()?.PowerOn ?? true))
             .OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal)
             .Select(b => new Obs.ResearchBenchRead(b.GetUniqueLoadID(), b.def.defName, new(b.Position.x, b.Position.z), b.GetStatValue(StatDefOf.ResearchSpeedFactor))).ToArray();
         var weather = map.weatherManager.CurWeatherLerped;
-        return new() { Tick = Find.TickManager.TicksGame, Pawns = EquatableArray.From(rows),
+        return new() { Tick = new(Find.TickManager.TicksGame), Pawns = EquatableArray.From(rows),
             WeatherThought = weather?.weatherThought?.defName ?? "", WeatherThoughtStages = weather?.weatherThought?.stages?.Count ?? 0,
-            RainRate = K(map.weatherManager.RainRate), MapArea = Fact.Known(map.Area), Deterioration = DeteriorationPart(), ResearchBenches = EquatableArray.From(benches),
+            RainRate = F(map.weatherManager.RainRate, "rain rate"), MapArea = map.Area, Deterioration = DeteriorationPart(), ResearchBenches = EquatableArray.From(benches),
             Corpses = CorpsesInSight(map, people, sightings, now), Deathrest = DeathrestDefs() };
     }
     /// <summary>
@@ -184,7 +190,7 @@ internal static class NativeNeedsForecast
     /// disabled for it; the work types it is incapable of; its food fall at the Fed category over a day; its mood target and minor
     /// break threshold, null without a mood need or a mental breaker. A mood need whose target was not read is a broken read.
     /// </summary>
-    private static Obs.PawnUpkeepRead UpkeepOf(Pawn pawn, Fact<double> moodTarget)
+    private static Obs.PawnUpkeepRead UpkeepOf(Pawn pawn, Obs.NeedMood? needMood)
     {
         var names = RimGovernor.Brain.Bridge.DefinitionCatalog.UpkeepStatNames(DefDatabase<RecipeDef>.AllDefsListForReading);
         var speeds = new List<Obs.WorkSpeedRead>();
@@ -195,12 +201,7 @@ internal static class NativeNeedsForecast
         }
         var incapable = DefDatabase<WorkTypeDef>.AllDefsListForReading.Where(pawn.WorkTypeIsDisabled).Select(w => w.defName).OrderBy(n => n, StringComparer.Ordinal);
         var food = pawn.needs?.food is { } need ? need.FoodFallPerTickAssumingCategory(HungerCategory.Fed) * GenDate.TicksPerDay : 0;
-        Obs.PawnMoodRead? mood = null;
-        if (pawn.needs?.mood != null && pawn.mindState?.mentalBreaker is { } breaker)
-        {
-            if (!moodTarget.TryGetValue(out var target)) throw new InvalidOperationException("mood target unread for " + pawn.GetUniqueLoadID());
-            mood = new(target, breaker.BreakThresholdMinor);
-        }
+        var mood = needMood is null ? null : new Obs.PawnMoodRead(needMood.UnclampedTarget, needMood.BreakThreshold);
         return new() { Speeds = EquatableArray.From(speeds), IncapableWork = EquatableArray.From(incapable), FoodPerDay = food, Mood = mood };
     }
     /// <summary>
@@ -265,8 +266,8 @@ internal static class NativeNeedsForecast
     internal static Obs.NeedCell CellAt(Map map, IntVec3 cell)
     {
         var roof = map.roofGrid.RoofAt(cell);
-        return new(Fact.Known(roof != null), Fact.Known(roof?.isThickRoof == true), Fact.Known(roof?.isNatural == true),
-            Fact.Known(cell.UsesOutdoorTemperature(map)), Fact.Known(cell.GetRoom(map)?.PsychologicallyOutdoors ?? true));
+        return new(roof != null, roof?.isThickRoof == true, roof?.isNatural == true,
+            cell.UsesOutdoorTemperature(map), cell.GetRoom(map)?.PsychologicallyOutdoors ?? true);
     }
     /// <summary>
     /// The bed's room as ApplyBedThoughts reads it: Room.Role and RoomStatDefOf.Impressiveness.GetScoreStageIndex(room.GetStat(Impressiveness));
@@ -276,11 +277,12 @@ internal static class NativeNeedsForecast
     private static Obs.NeedBedRoom BedRoomOf(Building_Bed bed)
     {
         var room = bed.GetRoom();
-        var stage = room == null ? default : Fact.Known(RoomStatDefOf.Impressiveness.GetScoreStageIndex(room.GetStat(RoomStatDefOf.Impressiveness)));
-        return new(room?.Role?.defName ?? "", stage, bed.ForPrisoners)
+        var stage = room == null ? throw new InvalidOperationException("bed without a room: " + bed.GetUniqueLoadID())
+            : RoomStatDefOf.Impressiveness.GetScoreStageIndex(room.GetStat(RoomStatDefOf.Impressiveness));
+        return new(room.Role?.defName ?? "", stage, bed.ForPrisoners)
         {
-            PsychologicallyOutdoors = room?.PsychologicallyOutdoors ?? true, Costless = bed.CostListAdjusted().Count == 0,
-            InfectionChanceFactor = room?.GetStat(RoomStatDefOf.InfectionChanceFactor) ?? RoomStatDefOf.InfectionChanceFactor.roomlessScore,
+            PsychologicallyOutdoors = room.PsychologicallyOutdoors, Costless = bed.CostListAdjusted().Count == 0,
+            InfectionChanceFactor = room.GetStat(RoomStatDefOf.InfectionChanceFactor),
             SurgerySuccessFactor = bed.GetStatValue(StatDefOf.SurgerySuccessChanceFactor),
             ImmunityGainSpeedFactor = bed.GetStatValue(StatDefOf.ImmunityGainSpeedFactor),
         };
@@ -335,7 +337,7 @@ internal static class NativeNeedsForecast
     private static Obs.NeedDeterioration? DeteriorationOf(Map map, Thing thing)
     {
         if (!thing.def.useHitPoints || !thing.def.CanEverDeteriorate) return null;
-        return new(thing.HitPoints, K(SteadyEnvironmentEffects.FinalDeteriorationRate(thing)), thing.def.deteriorateFromEnvironmentalEffects,
+        return new(thing.HitPoints, F(SteadyEnvironmentEffects.FinalDeteriorationRate(thing), "deterioration rate"), thing.def.deteriorateFromEnvironmentalEffects,
             thing.Position.GetTerrain(map)?.extraDeteriorationFactor ?? 0, SteadyEnvironmentEffects.ProtectedByEdifice(thing.Position, map));
     }
     /// <summary>
@@ -355,13 +357,12 @@ internal static class NativeNeedsForecast
             {
                 if (def.stages[stage] == null)
                 {
-                    if (nullStagesInactive) rows.Add(new(def.defName, role, stage, 0, def.IsMemory ? K(def.DurationTicks) : default, def.IsMemory && def.lerpMoodToZero));
+                    if (nullStagesInactive) rows.Add(new(def.defName, role, stage, 0, Lasting(def)));
                     continue;
                 }
                 var offset = can ? StageOffset(pawn, def, stage) : 0;
                 if (!double.IsFinite(offset)) continue;
-                rows.Add(new(def.defName, role, stage, offset,
-                    def.IsMemory ? K(def.DurationTicks) : default, def.IsMemory && def.lerpMoodToZero));
+                rows.Add(new(def.defName, role, stage, offset, Lasting(def)));
             }
         }
         Rows(ThoughtDefOf.SleptOutside, "slept_outside");
@@ -428,6 +429,9 @@ internal static class NativeNeedsForecast
                 Rows(def, "deathrest_chamber", nullStagesInactive: true);
         return EquatableArray.From(rows);
     }
+    /// <summary>How long a thought of <paramref name="def"/> lasts: a memory's DurationTicks, lerpMoodToZero and stackLimit, else situational.</summary>
+    private static Obs.ThoughtLasting Lasting(ThoughtDef def) => def.IsMemory
+        ? new Obs.ThoughtLasting.Memory(def.DurationTicks, def.lerpMoodToZero, def.stackLimit) : new Obs.ThoughtLasting.Situational();
     /// <summary>
     /// The Impressiveness of each room another pawn owns, as ThoughtWorker_BedroomJealous compares the pawn's own room against
     /// them (#3826): every spawned pawn of the player faction but this one, without a host faction, by its ownership.OwnedRoom,
@@ -550,7 +554,7 @@ internal static class NativeNeedsForecast
         var full = Math.Max(1, Math.Floor((0.9999 - joy.CurLevel) / gain) + 1);
         var remaining = Math.Min(driver.ticksLeftThisToil, Math.Min(step.Deadline - Find.TickManager.TicksGame, full));
         return new(execution.Assignment, execution.Method, execution.Revision, step.Target, "joy",
-            new(pawn.Position.x, pawn.Position.z), K(remaining), K(gain))
+            new(pawn.Position.x, pawn.Position.z), remaining, gain)
         { Unsupported = ["current_rate_completion_projection", "future_tolerance_changes", "ownership_release_requires_observation"] };
     }
     /// <summary>Supported-state observation, not a job selector. Exact types prevent a mod subclass with
@@ -594,7 +598,7 @@ internal static class NativeNeedsForecast
         // Unattached native memory: inspect the native stage/stat/trait multiplier, never add it to the pawn.
         var thought = ThoughtMaker.MakeThought(source.thought, source.fromPrecept);
         thought.pawn = pawn;
-        return new(source.thought.defName, thought.MoodOffset(), K(thought.DurationTicks), source.thought.lerpMoodToZero) { StackLimit = source.thought.stackLimit };
+        return new(source.thought.defName, F(thought.MoodOffset(), "meal memory offset"), new Obs.MemoryLife.Expires(thought.DurationTicks), source.thought.lerpMoodToZero) { StackLimit = source.thought.stackLimit };
     }
     /// <summary>The maxPawns literal JobDriver_Ingest passes to Reserve for a meal stack (decompiled 1.7; vanilla exposes no symbol for it).</summary>
     internal const int IngestMaxPawns = 10;
@@ -614,14 +618,11 @@ internal static class NativeNeedsForecast
         PawnActivityKind.Recreation when NativeRecreation.GiverFor(target) is { } giver => (giver.jobDef.joyMaxParticipants, 0),
         _ => (1, -1),
     };
-    /// <summary>The capacity's level now (#3519); unknown without a health tracker.</summary>
-    private static Fact<double> Capacity(Pawn pawn, PawnCapacityDef capacity) =>
-        pawn.health?.capacities == null ? default : K(pawn.health.capacities.GetLevel(capacity));
-    /// <summary>The hediff's current severity, 0 when the pawn has none (#3519); unknown without a health tracker.</summary>
-    private static Fact<double> Severity(Pawn pawn, HediffDef hediff) =>
-        pawn.health?.hediffSet == null ? default : K(pawn.health.hediffSet.GetFirstHediffOfDef(hediff)?.Severity ?? 0);
-    /// <summary>The pawn's value of a health stat (#3544); unknown without a health tracker.</summary>
-    private static Fact<double> HealthStat(Pawn pawn, StatDef stat) => pawn.health == null ? default : K(pawn.GetStatValue(stat));
-    private static Fact<double> HealthScaleOf(Pawn pawn) => pawn.health == null ? default : K(pawn.HealthScale);
+    /// <summary>The capacity's level now (#3519).</summary>
+    private static double Capacity(Pawn_HealthTracker health, PawnCapacityDef capacity) => F(health.capacities.GetLevel(capacity), capacity.defName);
+    /// <summary>The hediff's current severity, 0 when the pawn has none (#3519).</summary>
+    private static double Severity(Pawn_HealthTracker health, HediffDef hediff) => F(health.hediffSet.GetFirstHediffOfDef(hediff)?.Severity ?? 0, hediff.defName);
     private static Fact<double> K(double value) => double.IsFinite(value) ? Fact.Known(value) : default;
+    /// <summary>A finite read; a non-finite one is a broken read and throws.</summary>
+    private static double F(double value, string what) => double.IsFinite(value) ? value : throw new InvalidOperationException(what + " is not finite.");
 }

@@ -76,7 +76,7 @@ public sealed class ForecastHandoffProjectTests
     }
 
     private static ForecastCoupledContext Context(ForecastActivity[] tasks) => new()
-    { Activities = new() { Activities = tasks }, Needs = new(), Resources = new(new(), new([], [], [], []), default) };
+    { Activities = new() { Activities = tasks }, Needs = NeedsFixtures.Empty, Resources = new(new(), new([], [], [], []), default) };
 
     [Fact]
     public void HarvestUsesNativeFieldCellIdentityAndRemovesItsAlreadyPaidCropCycle()

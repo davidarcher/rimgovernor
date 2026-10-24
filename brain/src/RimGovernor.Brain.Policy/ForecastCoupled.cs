@@ -246,7 +246,7 @@ public static partial class ForecastCoupled
         ColonyForecastDelta proposed)
     {
         if (facts.Tick.Value != origin.ObservedTick || demand.Work.Tick != facts.Tick
-            || facts.ForecastObserved.Needs is not { } needs || needs.Tick != facts.Tick.Value
+            || facts.ForecastObserved.Needs is not { } needs || needs.Tick != facts.Tick
             || facts.WorkView is not { } resources || resources.Evidence.Tick != facts.Tick)
             throw new DomainException("coupled forecast requires one observed review frame");
         return new()
@@ -285,7 +285,7 @@ public static partial class ForecastCoupled
         if (commitments.Values.Any(c => c.ActivityCompletions.Count != 0 && c.StockChanges.Count != 0))
             throw new DomainException("coupled commitments have one timed effect source");
         var horizon = request.HorizonDays * GameTime.TicksPerDay;
-        if (horizon > GameTime.TicksPerDay || context.Needs.Tick != request.Origin.ObservedTick
+        if (horizon > GameTime.TicksPerDay || context.Needs.Tick.Value != request.Origin.ObservedTick
             || context.Resources.Evidence.Tick.Value != request.Origin.ObservedTick)
             throw new DomainException("coupled forecast needs one observed tick and at most one day");
         var all = cache.Tasks(context.Activities);

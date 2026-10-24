@@ -82,8 +82,7 @@ internal static class ColonyModelFixtures
                     new MedicineStackRow { Id = "m2", Definition = new Resource("MedicineIndustrial"), Count = 9, Forbidden = true },
                 })),
             },
-            NeedsAlternatives = new ForecastNeedsReview(new NeedsForecastRead
-            {
+            NeedsAlternatives = new ForecastNeedsReview(NeedsFixtures.Empty with {
                 Pawns = [Pawn()],
                 ResearchBenches = [new("bench", "SimpleResearchBench", new(0, 0), 1.0)],
             }, new Dictionary<string, ForecastNeedsCandidates>()),
@@ -119,29 +118,29 @@ internal static class ColonyModelFixtures
     /// </summary>
     internal static EquatableArray<double> OutdoorShares => EquatableArray.From(new[] { 0, 0, 0.2, 0.5, 0.7, 0.8, 0.8, 0.8, 0.7, 0.5, 0.2, 0 });
 
-    private static NeedsForecastPawn Pawn() => new()
+    private static NeedsForecastPawn Pawn() => NeedsFixtures.Pawn() with
     {
         Pawn = "Anna",
         Needs =
         [
-            new NeedRate("food", Known(0.6), Known(0.00002), Known(0.3)),
-            new NeedRate("rest", Known(0.8), Known(0.00001), Known(0.28)),
-            new NeedRate("joy", Known(0.5), Known(0.00001), Known(0.3)) { OutdoorShareByTwelfth = OutdoorShares },
+            NeedsFixtures.Rate("food", 0.6, 0.00002, 0.3),
+            NeedsFixtures.Rate("rest", 0.8, 0.00001, 0.28),
+            NeedsFixtures.Rate("joy", 0.5, 0.00001, 0.3) with { OutdoorShareByTwelfth = OutdoorShares },
         ],
         Targets =
         [
-            new NeedTarget("meal", "food", "MealSimple", 1, Known(40.0), Known(300.0), Known(0.9), Known(0.003)),
-            new NeedTarget("bed", "rest", "", 1, Known(60.0), default, default, Known(0.00002)),
-            new NeedTarget("tv", "joy", "", 1, Known(80.0), default, default, Known(0.00015)),
+            NeedsFixtures.Food("meal", "MealSimple", 1, 40.0, 300.0, 0.9),
+            NeedsFixtures.Service("bed", "rest", 60.0, 0.00002),
+            NeedsFixtures.Service("tv", "joy", 80.0, 0.00015),
         ],
-        ComfortableMin = Known(16.0),
-        ComfortableMax = Known(26.0),
-        Consciousness = Known(1.0),
-        Moving = Known(1.0),
-        Manipulation = Known(1.0),
-        Sight = Known(1.0),
-        Talking = Known(1.0),
-        ResearchSpeed = Known(1.0),
-        PlantWorkSpeed = Known(1.0),
+        ComfortableMin = 16.0,
+        ComfortableMax = 26.0,
+        Consciousness = 1.0,
+        Moving = 1.0,
+        Manipulation = 1.0,
+        Sight = 1.0,
+        Talking = 1.0,
+        ResearchSpeed = 1.0,
+        PlantWorkSpeed = 1.0,
     };
 }

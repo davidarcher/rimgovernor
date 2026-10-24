@@ -368,10 +368,10 @@ public sealed class CoordinatedConstructionTests
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {
             Location = new(1, 1),
-            SleepThreshold = Known(.9), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(0d), SleepWhileStarving = Known(false),
-            Needs = [new(kind, Known(.8), Known(.0001), Known(.3))],
-            Targets = [kind == "rest" ? new("target-pawn", "rest", "", 1, Known(10d), default, default, Known(.001)) { Location = new(1, 1) }
-                : new("target-pawn", "food", "MealSimple", 1, Known(10d), Known(10d), Known(.9), default) { Location = new(1, 1) }]
+            SleepThreshold = .9, WakeThreshold = 1d, SleepBlockedUntilTicks = 0d, SleepWhileStarving = false,
+            Needs = [NeedsFixtures.Rate(kind, .8, .0001, .3)],
+            Targets = [kind == "rest" ? NeedsFixtures.Service("target-pawn", "rest", 10d, .001) with { Location = new(1, 1) }
+                : NeedsFixtures.Food("target-pawn", "MealSimple", 1, 10d, 10d, .9) with { Location = new(1, 1) }]
         };
         var helper = pawn with { Pawn = "helper", Targets = [pawn.Targets[0] with { Id = "target-helper" }] };
         facts = facts with { WorkResources = roster.WorkResources, Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("WoodLog"), 20)]),

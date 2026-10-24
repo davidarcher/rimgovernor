@@ -13,17 +13,17 @@ public sealed class BedroomCreditTests
     private const double Day = GameTime.TicksPerDay;
     private const double Horizon = 10;
     private static readonly Cell Inside = new(1, 1);
-    private static readonly NeedCell IndoorCell = new(Known(true), Known(false), Known(false), Known(false), Known(false));
+    private static readonly NeedCell IndoorCell = new(true, false, false, false, false);
 
     private static NeedThoughtStage Stage(string thought, string role, int stage, double offset)
-        => new(thought, role, stage, offset, Known(Day), false);
+        => new(thought, role, stage, offset, NeedsFixtures.Lasting(Day, false));
 
     private static readonly NeedThoughtStage[] BedStages =
     [
         Stage("SleptOutside", "slept_outside", 0, -4),
         Stage("SleptInBedroom", "slept_in_bedroom", 0, -4), Stage("SleptInBedroom", "slept_in_bedroom", 2, 2),
         Stage("SleptInBarracks", "slept_in_barracks", 0, -7), Stage("SleptInBarracks", "slept_in_barracks", 2, -4),
-        Stage("Ascetic", "ascetic", 0, 5), Stage("Ascetic", "ascetic", 2, 0), new("Ascetic", "ascetic", 4, 0, default, false),
+        Stage("Ascetic", "ascetic", 0, 5), Stage("Ascetic", "ascetic", 2, 0), new("Ascetic", "ascetic", 4, 0, NeedsFixtures.Situational),
     ];
 
     /// <summary>The pawn owns a bed in a barracks at <paramref name="barracksStage"/>, or no bed when null.</summary>
@@ -33,7 +33,7 @@ public sealed class BedroomCreditTests
         Ascetic = ascetic, OwnedBed = barracksStage is null ? "" : "bunk",
         ThoughtStages = EquatableArray.From(BedStages),
         Targets = barracksStage is not { } stage ? [] :
-            [new("bunk", "rest", "", 1, Known(0d), default, default, Known(.00005)) { Bed = new("Barracks", Known(stage), false), Cell = IndoorCell, Location = new(9, 9) }],
+            [NeedsFixtures.Service("bunk", "rest", 0d, .00005) with { Bed = NeedsFixtures.BedRoom("Barracks", stage, false), Cell = IndoorCell, Location = new(9, 9) }],
     };
 
     private static ForecastCoupledContext Context(NeedsForecastPawn pawn, int bedroomStage, params MoodThought[] observed)
@@ -137,14 +137,14 @@ public sealed class BedroomCreditTests
     /// A colonist of the case sleeping on its own sleeping spot outdoors at 21 °C: the spot is costless (SleptOnGround), its
     /// room psychologically outdoors (SleptOutside), Comfort 0.4 (SleepingSpotBase) and without BedRestEffectiveness (the
     /// stat's valueIfMissing 0.8). The rows are the vanilla defs' (Thoughts_Memory_Misc, Thoughts_Memory_RoomStats,
-    /// Thoughts_Situation_Needs), the sleep range the human's ComfyTemperatureMin/Max (16, 26).
+    /// Thoughts_Situation_Needs}, the sleep range the human's ComfyTemperatureMin/Max (16, 26).
     /// </summary>
     private static NeedsForecastPawn CaseColonist(string id) => ForecastValueTests.Pawn() with
     {
         Pawn = id, OwnedBed = "spot-" + id, SleepComfortableMin = 16, SleepComfortableMax = 26,
-        Needs = [new("rest", Known(1d), Known(RestFall), Known(.28)) { UnservedGainPerTick = Known(RestGain * .8), GainPerTickPerEffectiveness = RestGain }],
+        Needs = [NeedsFixtures.Rate("rest", 1d, RestFall, .28) with { UnservedGainPerTick = RestGain * .8, GainPerTickPerEffectiveness = RestGain }],
         Sleep = new("spot-" + id, true, true, RestGain * .8, .4, 21),
-        Targets = [new("spot-" + id, "rest", "", 1, Known(0d), default, default, Known(RestGain * .8)) { Bed = new("", Known(0), false), Location = new(9, 9) }],
+        Targets = [NeedsFixtures.Service("spot-" + id, "rest", 0d, RestGain * .8) with { Bed = NeedsFixtures.BedRoom("", 0, false), Location = new(9, 9) }],
         ThoughtStages =
         [
             Stage("SleptOutside", "slept_outside", 0, -4), Stage("SleptOnGround", "slept_on_ground", 0, -4),
@@ -176,7 +176,7 @@ public sealed class BedroomCreditTests
         var curve = new NeedCurve(.5, .6, .04, false);
         var context = ForecastValueTests.Context(pawns[0]) with
         {
-            Needs = new() { Pawns = EquatableArray.From(pawns) },
+            Needs = NeedsFixtures.Empty with { Pawns = EquatableArray.From(pawns) },
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Barracks },
             Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [], PlannedRoomPredictionTests.Closed("1", "WoodLog", "Barracks", 30d, stage, 25, 0, false))],
             BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = EquatableArray.From(ids) },

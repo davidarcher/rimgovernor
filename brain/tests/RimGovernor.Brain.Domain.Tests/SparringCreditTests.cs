@@ -43,7 +43,7 @@ public sealed class SparringCreditTests
         PlannedRoomCreditTests.Context(PlannedRoomCredits.Shipped) with
         {
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.SparringRing, [2] = PlannedRole.Workshop },
-            Needs = new() { Pawns = [ForecastValueTests.HarmPawn()] },
+            Needs = NeedsFixtures.Empty with { Pawns = [ForecastValueTests.HarmPawn()] },
             CapacityPenalties = ForecastValueTests.HarmTables(),
             Harm = harm ?? Raids(),
             Outfits = new Dictionary<string, EquatableArray<GearOption>> { ["pawn"] = ForecastValueTests.Cloth },

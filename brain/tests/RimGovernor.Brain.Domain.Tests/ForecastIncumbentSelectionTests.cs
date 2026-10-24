@@ -16,9 +16,9 @@ public sealed class ForecastIncumbentSelectionTests
         var original = facts.CoupledAlternatives!;
         var pawn = original.Context.Needs.Pawns[0] with
         {
-            Needs = [new("food", Known(food), Known(fall), Known(.3)),
-                new("rest", Known(1d), Known(0d), Known(.3)),
-                new("joy", Known(.5), Known(0d), Known(.3))]
+            Needs = [NeedsFixtures.Rate("food", food, fall, .3),
+                NeedsFixtures.Rate("rest", 1d, 0d, .3),
+                NeedsFixtures.Rate("joy", .5, 0d, .3)]
         };
         ForecastCommitment current = new("current-joy", []) { ActivityCompletions = ["ongoing-joy"] };
         ForecastCommitment eat = new("eat", []) { ActivityCompletions = ["meal"] };
@@ -55,7 +55,7 @@ public sealed class ForecastIncumbentSelectionTests
         context = context with
         {
             Needs = context.Needs with { Pawns = [pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n =>
-                n.Kind == "joy" ? n with { Level = Known(.1), FallPerTick = Known(.001) } : n)) }] },
+                n.Kind == "joy" ? n with { Level = .1, FallPerTick = .001 } : n)) }] },
             NeedTasks = [.. context.NeedTasks, new("future-joy", "pawn", "joy", "horseshoes", new(""), 0, Known(.25), [])],
             Activities = context.Activities with
             {
@@ -136,10 +136,10 @@ public sealed class ForecastIncumbentSelectionTests
     public void TheForecastAndAdmissionAgreeOnAHaulAndAnEatFromOneStack(double eatStart, bool fits)
     {
         var (request, candidates) = Problem(1, 0, meal: false);
-        var rice = new NeedTarget("rice", "food", "Rice", 2, Known(0d), Known(10d), Known(0d), Known(.01)) { StockCount = Known(20d), MaxPawns = Known(10) };
+        var rice = NeedsFixtures.Food("rice", "Rice", 2, 0d, 10d, 0d) with { StockCount = Known(20d), MaxPawns = Known(10) };
         var facts = WorkResourceTestFacts.Create("pawn", "helper");
         facts = facts with { ForecastObserved = facts.ForecastObserved with
-            { Needs = new() { Tick = 100, Pawns = [new() { Pawn = "pawn", Targets = [rice] }, new() { Pawn = "helper", Targets = [rice] }] } } };
+            { Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [NeedsFixtures.Pawn() with { Pawn = "pawn", Targets = [rice] }, NeedsFixtures.Pawn() with { Pawn = "helper", Targets = [rice] }] } } };
         var view = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])).WorkView!;
         var bindings = new Dictionary<(string, string), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate>
         {

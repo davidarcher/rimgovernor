@@ -229,10 +229,10 @@ public sealed class PawnValueTests
         var pawn = input.Pawns.Value[0];
         var free = PawnCycle.FreeHoursByPawn(input, 30)[pawn.Pawn];
         var joy = pawn.Needs.Single(n => n.Kind == "joy");
-        Assert.Equal(ColonyModelInputTests.Walk, joy.Gain.Value);
+        Assert.Equal(ColonyModelInputTests.Walk, joy.Gain);
         Assert.Equal(ColonyModelFixtures.OutdoorShares, joy.OutdoorShares);
         Assert.Equal(0, joy.ShelteredGain);
-        var walk = 24 * joy.Fall.Value / (joy.Fall.Value + joy.Gain.Value);
+        var walk = 24 * joy.Fall / (joy.Fall + joy.Gain);
         Assert.Equal(0.8 * walk, PawnCycle.Of(input, pawn, 6).RecreationHours.Value, 9);
         Assert.Contains("joy_unserved:" + pawn.Pawn, PawnCycle.Of(input, pawn, 0).Findings);
         double Free(double share) => PawnCycle.FreeHoursByPawn(input with { Pawns = Known(EquatableArray.From(new[] { pawn with
@@ -286,7 +286,7 @@ public sealed class PawnValueTests
             {
                 Needs = needs with
                 {
-                    Pawns = [needs.Pawns[0] with { Upkeep = new() { Speeds = [new("ConstructionSpeed", 1.0), new("CookSpeed", 1.0), new("MoveSpeed", 4.6), new("CarryingCapacity", 75)], FoodPerDay = 1.6, Mood = new(0.6, 0.35) } }],
+                    Pawns = [needs.Pawns[0] with { Upkeep = NeedsFixtures.Upkeep with { Speeds = [new("ConstructionSpeed", 1.0), new("CookSpeed", 1.0), new("MoveSpeed", 4.6), new("CarryingCapacity", 75)], FoodPerDay = 1.6, Mood = new(0.6, 0.35) } }],
                 },
                 Coupled = observed with
                 {

@@ -29,7 +29,7 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         var outfits = Wearers.Take(wearers).ToDictionary(name => name, _ => ForecastValueTests.Cloth, StringComparer.Ordinal);
         return ForecastValueTests.Context(pawns[0], ForecastValueTests.HarmTables(), harm ?? ForecastValueTests.RaidDay(), outfits) with
         {
-            Needs = new() { Pawns = [.. pawns] },
+            Needs = NeedsFixtures.Empty with { Pawns = [.. pawns] },
         };
     }
 
@@ -158,7 +158,7 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         var context = new ForecastCoupledContext
         {
             Activities = new() { Activities = [new("research/Anna/bench", "bench", "bench", []) { ProjectProgress = new("Devilstrand", ProjectGraph.ResearchPointsPerWorkTick) }] },
-            Needs = new(), Resources = ForecastValueTests.Resources(), Investment = marginals.PerUnit,
+            Needs = NeedsFixtures.Empty, Resources = ForecastValueTests.Resources(), Investment = marginals.PerUnit,
         };
 
         ForecastValueResult Ledger(double researchTicks) => ForecastValue.Of(

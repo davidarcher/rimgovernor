@@ -39,7 +39,7 @@ public sealed class ForecastPortfolioChoiceTests
             {
                 WorkPawns = roster.ForecastObserved.WorkPawns,
                 Needs = needs with { Pawns = helper ? [needs.Pawns[0], needs.Pawns[0] with { Pawn = "helper",
-                    Needs = EquatableArray.From(needs.Pawns[0].Needs.Select(n => n with { Level = Known(1d), FallPerTick = Known(0d) })) }] : needs.Pawns },
+                    Needs = EquatableArray.From(needs.Pawns[0].Needs.Select(n => n with { Level = 1d, FallPerTick = 0d })) }] : needs.Pawns },
                 Coupled = new()
                 {
                     Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Construction = ConstructionFixtures.NoConstruction(),

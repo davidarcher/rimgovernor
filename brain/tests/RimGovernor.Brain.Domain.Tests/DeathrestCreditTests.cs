@@ -32,7 +32,7 @@ public sealed class DeathrestCreditTests
     {
         Pawn = id,
         Deathrest = new(capacity, efficiency, chamberStage),
-        ThoughtStages = EquatableArray.From(ChamberOffsets.Select((o, i) => new NeedThoughtStage("DeathrestChamber", ForecastDeathrest.ChamberThoughtRole, i, o, default, false))),
+        ThoughtStages = EquatableArray.From(ChamberOffsets.Select((o, i) => new NeedThoughtStage("DeathrestChamber", ForecastDeathrest.ChamberThoughtRole, i, o, NeedsFixtures.Situational))),
     };
 
     private static readonly EquatableArray<DeathrestPiece> CasketAndAccelerator = [new("DeathrestCasket", 1), new("DeathrestAccelerator", 1)];
@@ -40,7 +40,7 @@ public sealed class DeathrestCreditTests
     private static ForecastCoupledContext Context(NeedsForecastPawn pawn, EquatableArray<DeathrestPiece> furniture, double impressiveness = 35, DeathrestDefsRead? defs = null)
         => ForecastValueTests.Context(pawn) with
         {
-            Needs = new() { Pawns = [pawn], Deathrest = defs ?? Defs },
+            Needs = NeedsFixtures.Empty with { Pawns = [pawn], Deathrest = defs ?? Defs },
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.DeathrestChamber },
             Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [],
                 PlannedRoomPredictionTests.Closed("1", "WoodLog", "DeathrestChamber", impressiveness, 2, 12, 0, false))],
@@ -120,7 +120,7 @@ public sealed class DeathrestCreditTests
         var b = Deathrester("b", capacity: 3);
         var context = ForecastValueTests.Context(a) with
         {
-            Needs = new() { Pawns = [a, b], Deathrest = Defs },
+            Needs = NeedsFixtures.Empty with { Pawns = [a, b], Deathrest = Defs },
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.DeathrestChamber },
             Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [], PlannedRoomPredictionTests.Closed("1", "WoodLog", "DeathrestChamber", 35, 2, 12, 0, false))],
             DeathrestFurniture = [new("DeathrestCasket", 1), new("DeathrestAccelerator", 3), new("HemogenAmplifier", 1)],
@@ -178,7 +178,7 @@ public sealed class DeathrestCreditTests
         var a = Worker(new P.PawnDeathrest { Capacity = Known(3) });
         var furniture = Staged(Defs, a, a with { Id = new("b") });
         Assert.Equal([new DeathrestPiece("DeathrestCasket", 2), new DeathrestPiece("DeathrestAccelerator", 4)], furniture.Items);
-        var context = Context(Deathrester("a", capacity: 3), furniture) with { Needs = new() { Pawns = [Deathrester("a", capacity: 3), Deathrester("b", capacity: 3)], Deathrest = Defs } };
+        var context = Context(Deathrester("a", capacity: 3), furniture) with { Needs = NeedsFixtures.Empty with { Pawns = [Deathrester("a", capacity: 3), Deathrester("b", capacity: 3)], Deathrest = Defs } };
         var gains = ForecastDeathrest.ChamberCredit(new(1, "WoodLog", 0), Serving(0), context, Day);
         Assert.Equal(["a", "b"], gains.Select(g => g.Pawn));
         Assert.All(gains, g => Assert.Equal(Share(1) - Share(1.1 * 1.2 * 1.2), g.PerDay, 12));
@@ -190,7 +190,7 @@ public sealed class DeathrestCreditTests
         Assert.Empty(Staged(Defs, Worker(null)));
         var furniture = Staged(null, Worker(null));
         Assert.Empty(furniture);
-        var context = Context(ForecastValueTests.Pawn(), furniture) with { Needs = new() { Pawns = [ForecastValueTests.Pawn()] } };
+        var context = Context(ForecastValueTests.Pawn(), furniture) with { Needs = NeedsFixtures.Empty with { Pawns = [ForecastValueTests.Pawn()] } };
         Assert.Empty(Rows(context, Serving(0)));
     }
 
@@ -205,7 +205,7 @@ public sealed class DeathrestCreditTests
         var colony = ColonyFactsCoreTests.Projection() with
         {
             WorkPawns = Known(EquatableArray.From([worker])),
-            Facts = new() { ForecastObserved = new() { Needs = new() { Pawns = [Deathrester()], Deathrest = Defs } } },
+            Facts = new() { ForecastObserved = new() { Needs = NeedsFixtures.Empty with { Pawns = [Deathrester()], Deathrest = Defs } } },
             Definitions = [Row("DeathrestCasket", FurnitureRole.DeathrestCasket), Row("DeathrestAccelerator", FurnitureRole.DeathrestAccelerator), Row("HemogenAmplifier", FurnitureRole.DeathrestAccelerator)],
         };
         var furniture = RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(colony);

@@ -45,7 +45,7 @@ public sealed class MaterialChargeTests
                     new(Refuel, "stack", "stove", []) { Inputs = [new(def, Known(5d))] },
                 ],
             },
-            Needs = new(), Resources = ForecastValueTests.Resources(),
+            Needs = NeedsFixtures.Empty, Resources = ForecastValueTests.Resources(),
             PlannedSites = [new("planned/room1/wall/WoodLog", 1, "WoodLog", [Delivery, "planned/room1/wall/WoodLog/finish"], [])],
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom },
             RoomCredits = priced ? PlannedRoomCredits.Shipped : new Dictionary<PlannedRole, RoomCredit>(),

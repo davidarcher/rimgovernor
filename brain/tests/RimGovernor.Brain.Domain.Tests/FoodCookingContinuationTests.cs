@@ -97,20 +97,18 @@ public sealed class FoodCookingContinuationTests
         Assert.Equal(intent.Tasks, wire.Batch.Tasks);
     }
 
-    [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void FreshDemandCanRetireProductiveWorkButUnknownDoesNotCertifyRecovery(bool known)
+    [Fact]
+    public void FreshDemandCanRetireProductiveWork()
     {
         var supply = ActivityContinuationFixtures.Cooking();
         supply = supply with { Tasks = EquatableArray.From(supply.Tasks.Select(t => t.Step.Kind == PawnActivityKind.Recipe
             ? new BoundRecipeTask(t, 100d) : t).Append(new("eat", "pawn", [],
                 new(PawnActivityKind.Eat, "meal", "", "", 1, 500), new(8, 9), 200))) };
-        var read = Done(supply) with { Needs = new() { Tick = 200, Pawns = [new() { Pawn = "pawn", State = "eligible",
-            Needs = [new("food", known ? Known(1d) : default, Known(0d), Known(.3))] }] } };
+        var read = Done(supply) with { Needs = NeedsFixtures.Empty with { Tick = new(200), Pawns = [NeedsFixtures.Pawn() with { Pawn = "pawn", State = "eligible",
+            Needs = [NeedsFixtures.Rate("food", 1d, 0d, .3)] }] } };
         var need = ForecastServiceInvestments.ReviewServiceActivityNeed(supply, Known(true), read);
-        Assert.Equal(Known(!known), need);
-        if (known) Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, need, read)!.Orders[0].Release);
+        Assert.Equal(Known(false), need);
+        Assert.True(CoordinatedActivitiesRules.ContinueCoordinatedActivity(supply, need, read)!.Orders[0].Release);
         var active = read with { Pawns = EquatableArray.From(read.Pawns.Select(p => p with { Execution = p.Execution! with { State = "started" } })) };
         Assert.Equal(Known(true), ForecastServiceInvestments.ReviewServiceActivityNeed(supply, Known(true), active));
     }

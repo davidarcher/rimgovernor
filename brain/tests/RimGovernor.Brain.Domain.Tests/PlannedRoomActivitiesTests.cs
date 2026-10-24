@@ -85,16 +85,11 @@ public sealed class PlannedRoomActivitiesTests
         });
     }
 
-    private static NeedsForecastPawn Idle(string pawn, double level = 1, double fall = 0) => new()
+    private static NeedsForecastPawn Idle(string pawn, double level = 1, double fall = 0) => NeedsFixtures.Pawn() with
     {
-        Pawn = pawn, State = "eligible", Mood = Known(.5), MoodTarget = Known(.5),
-        MoodUnclampedTarget = Known(.5), LocalHour = Known(6d), Awake = Known(true),
-        MoodRisePerTick = Known(.12 / GameTime.TicksPerHour), MoodFallPerTick = Known(.08 / GameTime.TicksPerHour),
-        MoodIntervalTicks = Known(150d), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
-        ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
-        Memories = Known<EquatableArray<NeedMemory>>([]),
-        Needs = [new("food", Known(level), Known(fall), Known(.3)),
-            new("rest", Known(1d), Known(0d), Known(.3))],
+        Pawn = pawn, State = "eligible", Mood = NeedsFixtures.Mood with { Level = .5, Target = .5, UnclampedTarget = .5, RisePerTick = .12 / GameTime.TicksPerHour, FallPerTick = .08 / GameTime.TicksPerHour, FreezesWhileAsleep = true, BreakThreshold = .3, Conditional = new ConditionalMood.Modeled([]), Memories = [] }, LocalHour = 6d, Awake = true,
+        Needs = [NeedsFixtures.Rate("food", level, fall, .3),
+            NeedsFixtures.Rate("rest", 1d, 0d, .3)],
     };
 
     /// <summary>
@@ -114,7 +109,7 @@ public sealed class PlannedRoomActivitiesTests
             PlannedSites = Known(PlannedFacts(planned, routes)),
             ForecastObserved = facts.ForecastObserved with
             {
-                Needs = new() { Tick = 100, Pawns = EquatableArray.From(others.Select(p => Idle(p)).Append(Idle(Pawn, level, fall))) },
+                Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = EquatableArray.From(others.Select(p => Idle(p)).Append(Idle(Pawn, level, fall))) },
                 Coupled = new()
                 {
                     Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing,
@@ -785,7 +780,7 @@ public sealed class PlannedRoomActivitiesTests
             PlannedShelters = [room],
             ForecastObserved = facts.ForecastObserved with
             {
-                Needs = facts.ForecastObserved.Needs! with { RainRate = Known(0d), MapArea = Known(62500), Deterioration = new(.5, .5, 0) },
+                Needs = facts.ForecastObserved.Needs! with { RainRate = 0d, MapArea = 62500, Deterioration = new(.5, .5, 0) },
             },
         };
         var served = new ForecastRoomService(1, "WoodLog", Horizon);
@@ -893,9 +888,9 @@ public sealed class PlannedRoomActivitiesTests
 
     private static readonly NeedThoughtStage[] BedroomStages =
     [
-        new("SleptInBedroom", "slept_in_bedroom", 0, -4, Known((double)GameTime.TicksPerDay), false),
-        new("SleptInBedroom", "slept_in_bedroom", 2, 2, Known((double)GameTime.TicksPerDay), false),
-        new("SleptInBarracks", "slept_in_barracks", 0, -7, Known((double)GameTime.TicksPerDay), false),
+        new("SleptInBedroom", "slept_in_bedroom", 0, -4, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false)),
+        new("SleptInBedroom", "slept_in_bedroom", 2, 2, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false)),
+        new("SleptInBarracks", "slept_in_barracks", 0, -7, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false)),
     ];
 
     /// <summary>
@@ -909,12 +904,12 @@ public sealed class PlannedRoomActivitiesTests
         IReadOnlyDictionary<string, double> material, string role, int stage, bool inside)
     {
         var facts = Review(planned);
-        var indoors = new NeedCell(Known(true), Known(false), Known(false), Known(false), Known(false));
+        var indoors = new NeedCell(true, false, false, false, false);
         var pawns = facts.ForecastObserved.Needs!.Pawns.Select(p => p.Pawn != Pawn ? p : SleepFixtures.Sleeping(p, SleepFixtures.InBed("bed")) with
         {
             ThoughtStages = EquatableArray.From(BedroomStages),
             OwnedBed = "bed",
-            Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.00005)) { Bed = new(role, Known(stage), false), Cell = indoors, Location = Interior[4] }],
+            Targets = [NeedsFixtures.Service("bed", "rest", 0d, .00005) with { Bed = NeedsFixtures.BedRoom(role, stage, false), Cell = indoors, Location = Interior[4] }],
         });
         facts = facts with
         {
@@ -955,7 +950,7 @@ public sealed class PlannedRoomActivitiesTests
         var facts = Review([Ring(OpKind.WallIn, "WoodLog", 60, count: 10, available: 50)]);
         var pawns = facts.ForecastObserved.Needs!.Pawns.Select(p => p with
         {
-            Consciousness = Known(1d), Moving = Known(1d), Manipulation = Known(1d), Sight = Known(1d), Talking = Known(1d), FoodPoisoningSeverity = Known(0d),
+            Consciousness = 1d, Moving = 1d, Manipulation = 1d, Sight = 1d, Talking = 1d, FoodPoisoningSeverity = 0d,
         });
         var coupled = facts.ForecastObserved.Coupled! with
         {
@@ -1102,12 +1097,12 @@ public sealed class PlannedRoomActivitiesTests
         Dictionary<int, string> occupants, int? builders, int[] open, int colonists = 1, IReadOnlyDictionary<string, double>? material = null)
     {
         var facts = Review(planned, horizon: Day, colonists: colonists);
-        var indoors = new NeedCell(Known(true), Known(false), Known(false), Known(false), Known(false));
+        var indoors = new NeedCell(true, false, false, false, false);
         var pawns = facts.ForecastObserved.Needs!.Pawns.Select(p => SleepFixtures.Sleeping(p, SleepFixtures.InBed("bed-" + p.Pawn)) with
         {
             ThoughtStages = EquatableArray.From(BedroomStages),
             OwnedBed = "bed-" + p.Pawn,
-            Targets = [new("bed-" + p.Pawn, "rest", "", 1, Known(0d), default, default, Known(.00005)) { Bed = new("Barracks", Known(0), false), Cell = indoors, Location = Start }],
+            Targets = [NeedsFixtures.Service("bed-" + p.Pawn, "rest", 0d, .00005) with { Bed = NeedsFixtures.BedRoom("Barracks", 0, false), Cell = indoors, Location = Start }],
         });
         facts = facts with
         {

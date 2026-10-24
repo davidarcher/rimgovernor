@@ -38,16 +38,11 @@ public sealed class ForecastCoupledSelectionTests
             Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([]),
             ForecastObserved = facts.ForecastObserved with
             {
-                Needs = new() { Tick = 100, Pawns = [new()
+                Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [NeedsFixtures.Pawn() with
                 {
-                    Pawn = "pawn", State = "eligible", Mood = Known(.5), MoodTarget = Known(.5),
-                    MoodUnclampedTarget = Known(.5), LocalHour = Known(6d), Awake = Known(true),
-                    MoodRisePerTick = Known(.12 / GameTime.TicksPerHour), MoodFallPerTick = Known(.08 / GameTime.TicksPerHour),
-                    MoodIntervalTicks = Known(150d), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
-                    ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
-                    Memories = Known<EquatableArray<NeedMemory>>([]),
-                    Needs = [new("food", Known(level), Known(fall), Known(.3)),
-                        new("rest", Known(1d), Known(0d), Known(.3))],
+                    Pawn = "pawn", State = "eligible", Mood = NeedsFixtures.Mood with { Level = .5, Target = .5, UnclampedTarget = .5, RisePerTick = .12 / GameTime.TicksPerHour, FallPerTick = .08 / GameTime.TicksPerHour, FreezesWhileAsleep = true, BreakThreshold = .3, Conditional = new ConditionalMood.Modeled([]), Memories = [] }, LocalHour = 6d, Awake = true,
+                    Needs = [NeedsFixtures.Rate("food", level, fall, .3),
+                        NeedsFixtures.Rate("rest", 1d, 0d, .3)],
                 }] },
                 Coupled = new()
                 {
@@ -75,8 +70,8 @@ public sealed class ForecastCoupledSelectionTests
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {
             Location = new(1, 1),
-            Needs = [new("joy", Known(.2), Known(.003), Known(.3))],
-            Targets = [new("shared-service", "joy", "", 1, Known(0d), Known(10d), Known(0d), Known(.01))
+            Needs = [NeedsFixtures.Rate("joy", .2, .003, .3)],
+            Targets = [NeedsFixtures.Service("shared-service", "joy", 0d, .01) with
                 { Location = new(1, 1) }]
         };
         facts = facts with { WorkResources = roster.WorkResources, ForecastObserved = facts.ForecastObserved with
@@ -141,8 +136,8 @@ public sealed class ForecastCoupledSelectionTests
     /// <summary>Two pawns with their own food needs and, each, a harvest-and-eat root per plant (#3724): "pawn" starves at
     /// <paramref name="pawnLevel"/> and "worker" at <paramref name="workerLevel"/>, both falling .003 a tick against the .3 threshold,
     /// so a portfolio feeding only one of them keeps the other's baseline zero time. <paramref name="workerRest"/> gives the worker a
-    /// bed and a falling rest need; <paramref name="workerFallUnknown"/> leaves the worker's food fall unobserved.</summary>
-    internal static RoundsFacts TwoPawnReview(double pawnLevel = .2, double workerLevel = .5, bool workerRest = false, bool workerFallUnknown = false,
+    /// bed and a falling rest need.</summary>
+    internal static RoundsFacts TwoPawnReview(double pawnLevel = .2, double workerLevel = .5, bool workerRest = false,
         double harvest = 10, int sourceCount = 2, double horizon = Horizon)
     {
         var facts = Review(level: pawnLevel, harvest: harvest, sourceCount: sourceCount, horizon: horizon);
@@ -151,10 +146,10 @@ public sealed class ForecastCoupledSelectionTests
         var worker = pawn with
         {
             Pawn = "worker",
-            Needs = [new("food", Known(workerLevel), workerFallUnknown ? default : Known(.003), Known(.3)),
-                new("rest", Known(workerRest ? .2 : 1d), Known(workerRest ? .0004 : 0d), Known(.3))],
-            SleepThreshold = Known(.75), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(0d),
-            Targets = workerRest ? [new("bed", "rest", "", 1, Known(0d), default, default, Known(.0005)) { Location = new(1, 1) }] : [],
+            Needs = [NeedsFixtures.Rate("food", workerLevel, .003, .3),
+                NeedsFixtures.Rate("rest", workerRest ? .2 : 1d, workerRest ? .0004 : 0d, .3)],
+            SleepThreshold = .75, WakeThreshold = 1d, SleepBlockedUntilTicks = 0d,
+            Targets = workerRest ? [NeedsFixtures.Service("bed", "rest", 0d, .0005) with { Location = new(1, 1) }] : [],
         };
         var coupled = facts.ForecastObserved.Coupled!;
         facts = facts with
@@ -348,14 +343,12 @@ public sealed class ForecastCoupledSelectionTests
     // (the plan's sleep can leave rest unassessed), a baseline zero time unknown, goal values (every evaluated outcome reports its routes).
     [Theory]
     [InlineData("rest", "rest_service_in_closure")]
-    [InlineData("unknown-fall", "baseline_zero_unassessed")]
     [InlineData("goals", "goal_routes")]
     public void AnUnavailableBoundIsReportedAndPrunesNothing(string graph, string reason)
     {
         var facts = graph switch
         {
             "rest" => TwoPawnReview(workerRest: true),
-            "unknown-fall" => TwoPawnReview(workerFallUnknown: true),
             "goals" => TwoPawnReview(),
             _ => throw new ArgumentOutOfRangeException(nameof(graph)),
         };
@@ -516,11 +509,11 @@ public sealed class ForecastCoupledSelectionTests
     {
         var facts = Review(1, 0);
         var candidates = facts.CoupledAlternatives!;
-        var pawn = candidates.Context.Needs.Pawns[0] with { Location = new(8, 9), Needs = [new("food", default, Known(0d), Known(.3))] };
+        var pawn = candidates.Context.Needs.Pawns[0] with { Location = new(8, 9), Needs = [NeedsFixtures.Rate("food", default, 0d, .3)] };
         facts = facts with { CoupledAlternatives = candidates with { Alternatives = [], Context = candidates.Context with
         { Needs = candidates.Context.Needs with { Pawns = [pawn] } } } };
         Assert.Empty(Select(facts).Deferred);
-        pawn = pawn with { Needs = [new("food", Known(1d), Known(0d), Known(.3))] };
+        pawn = pawn with { Needs = [NeedsFixtures.Rate("food", 1d, 0d, .3)] };
         facts = facts with { CoupledAlternatives = candidates with { Alternatives = [], Context = candidates.Context with
         { Needs = candidates.Context.Needs with { Pawns = [pawn] }, Resources = candidates.Context.Resources with
         { Claims = candidates.Context.Resources.Claims with { Pawns = ["pawn"] } } } } };
@@ -535,8 +528,8 @@ public sealed class ForecastCoupledSelectionTests
         foreach (var blocked in new[]
         {
             pawn with { VoluntaryControlBlockers = ["unsupported_psyfocus"] },
-            pawn with { Needs = [new("food", Known(1d), Known(double.NaN), Known(.3))] },
-            pawn with { Needs = [new("food", Known(1d), Known(0d), Known(double.PositiveInfinity))] },
+            pawn with { Needs = [NeedsFixtures.Rate("food", 1d, double.NaN, .3)] },
+            pawn with { Needs = [NeedsFixtures.Rate("food", 1d, 0d, double.PositiveInfinity)] },
         })
         {
             var candidates = original with { Alternatives = [], Context = original.Context with
@@ -556,8 +549,8 @@ public sealed class ForecastCoupledSelectionTests
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {
             State = "unsupported_voluntary_state", VoluntaryControlBlockers = ["chemical_need:Chemical_Smokeleaf"], Location = new(1, 1),
-            Needs = [new("food", Known(.02), Known(.003), Known(.3)), new("rest", Known(1d), Known(0d), Known(.3))],
-            Targets = [new("meal", "food", "MealSimple", 1, Known(0d), Known(10d), Known(.9), default)
+            Needs = [NeedsFixtures.Rate("food", .02, .003, .3), NeedsFixtures.Rate("rest", 1d, 0d, .3)],
+            Targets = [NeedsFixtures.Food("meal", "MealSimple", 1, 0d, 10d, .9) with
                 { Location = new(1, 1), StockCount = Known(1d), MaxPawns = Known(1), FreshTicks = Known(100000d) }]
         };
         facts = facts with { Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("MealSimple"), 1)]), ForecastObserved = facts.ForecastObserved with
@@ -650,18 +643,16 @@ public sealed class ForecastCoupledSelectionTests
     }
 
     [Theory]
-    [InlineData(.28, true, true)]
-    [InlineData(.9, true, false)]
-    [InlineData(.28, false, false)]
-    public void MoodMemoryWinsOnlyWhereItLowersBreakRisk(double mood, bool thresholdKnown, bool wins)
+    [InlineData(.28, true)]
+    [InlineData(.9, false)]
+    public void MoodMemoryWinsOnlyWhereItLowersBreakRisk(double mood, bool wins)
     {
         // Two equal-labor harvests; one grants a +4, eight-day memory at completion (the sarcophagus thought).
         var facts = Review(level: 1, fall: 0);
         var candidates = facts.CoupledAlternatives!;
-        var pawn = candidates.Context.Needs.Pawns[0] with { Mood = Known(mood), MoodTarget = Known(mood), MoodUnclampedTarget = Known(mood),
-            BreakThreshold = thresholdKnown ? Known(.3) : default };
+        var pawn = candidates.Context.Needs.Pawns[0] with { Mood = candidates.Context.Needs.Pawns[0].Mood! with { Level = mood, Target = mood, UnclampedTarget = mood, BreakThreshold = .3 }};
         var harvest = new ForecastCommitment("plain", []) { ActivityCompletions = [SourceTask(facts, "plant-a")] };
-        var memory = new NeedMemory("KnowBuriedInSarcophagus", 4, Known(8d * GameTime.TicksPerDay), false);
+        var memory = NeedsFixtures.Memory("KnowBuriedInSarcophagus", 4, 8d * GameTime.TicksPerDay, false);
         facts = facts with { CoupledAlternatives = candidates with
         {
             Alternatives = [harvest with { Id = "mood", MoodMemories = [new("pawn", memory)] }, harvest],
@@ -669,21 +660,21 @@ public sealed class ForecastCoupledSelectionTests
         } };
         var result = Select(facts);
         Assert.Equal(Known(true), result.Selected.Feasible);
-        Assert.Equal(thresholdKnown, result.BaselineVector.BreakRisk.IsKnown);
-        Assert.Equal(!thresholdKnown, result.BaselineVector.Unknown.Contains("mental_break_probability_unassessed"));
-        Assert.Equal(!thresholdKnown, result.Baseline.Needs["pawn"].Findings.Contains("mental_break_probability_unassessed"));
+        Assert.True(result.BaselineVector.BreakRisk.IsKnown);
+        Assert.DoesNotContain("mental_break_probability_unassessed", result.BaselineVector.Unknown);
+        Assert.DoesNotContain("mental_break_probability_unassessed", result.Baseline.Needs["pawn"].Findings);
         if (wins)
         {
             Assert.Equal(["mood"], result.Selection.Selected);
             Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
             return;
         }
-        // No break risk to remove (or none assessed): the memory ties no-change and the incumbent is kept.
+        // No break risk to remove: the memory ties no-change and the incumbent is kept.
         Assert.Empty(result.Selection.Selected);
-        if (thresholdKnown) Assert.Equal(0, result.BaselineVector.BreakRisk.Value);
+        Assert.Equal(0, result.BaselineVector.BreakRisk.Value);
         // The memory still lowers raw mood pressure; that is not break risk and does not rank.
         var evaluated = result.Rejected.First(r => r.Commitments.SequenceEqual(["mood"])).Consequences!;
-        Assert.True(!thresholdKnown || evaluated.MoodDepth.Value < result.BaselineVector.MoodDepth.Value);
+        Assert.True(evaluated.MoodDepth.Value < result.BaselineVector.MoodDepth.Value);
     }
 
     [Theory]
@@ -694,7 +685,7 @@ public sealed class ForecastCoupledSelectionTests
         // A labor-free commitment removing an active -11 situational thought (a dead man's parka) from the forecast start.
         var facts = Review(level: 1, fall: 0);
         var candidates = facts.CoupledAlternatives!;
-        var pawn = candidates.Context.Needs.Pawns[0] with { Mood = Known(mood), MoodTarget = Known(mood), MoodUnclampedTarget = Known(mood) };
+        var pawn = candidates.Context.Needs.Pawns[0] with { Mood = candidates.Context.Needs.Pawns[0].Mood! with { Level = mood, Target = mood, UnclampedTarget = mood }};
         var change = new ForecastCommitment("gear", []) { SituationalChanges = [new("pawn", "DeadMansApparel", 11)] };
         facts = facts with { CoupledAlternatives = candidates with
         {
@@ -724,8 +715,8 @@ public sealed class ForecastCoupledSelectionTests
     {
         var facts = Review(level: 1, fall: 0);
         var candidates = facts.CoupledAlternatives!;
-        var pawn = candidates.Context.Needs.Pawns[0] with { Mood = Known(.28), MoodTarget = Known(.28), MoodUnclampedTarget = Known(.28) };
-        var memory = new NeedMemory("KnowBuriedInSarcophagus", 4, Known(8d * GameTime.TicksPerDay), false);
+        var pawn = candidates.Context.Needs.Pawns[0] with { Mood = candidates.Context.Needs.Pawns[0].Mood! with { Level = .28, Target = .28, UnclampedTarget = .28 }};
+        var memory = NeedsFixtures.Memory("KnowBuriedInSarcophagus", 4, 8d * GameTime.TicksPerDay, false);
         facts = facts with { CoupledAlternatives = candidates with
         {
             Alternatives = [new ForecastCommitment("memory", []) { MoodMemories = [new("pawn", memory)] }],
@@ -804,7 +795,7 @@ public sealed class ForecastCoupledSelectionTests
         var candidates = facts.CoupledAlternatives!;
         var mood = nearBreak ? .28 : .9;
         var pawn = candidates.Context.Needs.Pawns[0] with
-        { Mood = Known(mood), MoodTarget = Known(mood), MoodUnclampedTarget = Known(mood), ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) };
+        { Mood = candidates.Context.Needs.Pawns[0].Mood! with { Level = mood, Target = mood, UnclampedTarget = mood }, ComfortableMin = 10.0, ComfortableMax = 30.0 };
         // The mild forecast has no thermal cells; the cold one is -10 C at every task cell, with the outdoor work on offer.
         var cells = candidates.Context.Activities.Activities.SelectMany(t => new[] { t.Location, t.EndLocation })
             .Where(l => l.StartsWith("cell/", StringComparison.Ordinal)).Distinct().Select(l => l.Split('/'))
@@ -835,7 +826,7 @@ public sealed class ForecastCoupledSelectionTests
         var facts = Review(level: 1, fall: 0);
         var candidates = facts.CoupledAlternatives!;
         var pawn = candidates.Context.Needs.Pawns[0] with
-        { Mood = Known(mood), MoodTarget = Known(mood), MoodUnclampedTarget = Known(mood), ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) };
+        { Mood = candidates.Context.Needs.Pawns[0].Mood! with { Level = mood, Target = mood, UnclampedTarget = mood }, ComfortableMin = 10.0, ComfortableMax = 30.0 };
         var cells = candidates.Context.Activities.Activities.SelectMany(t => new[] { t.Location, t.EndLocation })
             .Where(l => l.StartsWith("cell/", StringComparison.Ordinal)).Distinct().Select(l => l.Split('/'))
             .Select(p => new Cell(int.Parse(p[1], System.Globalization.CultureInfo.InvariantCulture), int.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture)));
@@ -1015,7 +1006,7 @@ public sealed class ForecastCoupledSelectionTests
         };
         var candidates = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!;
         var wearer = template with
-        { Mood = Known(mood), MoodTarget = Known(mood), MoodUnclampedTarget = Known(mood), ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) };
+        { Mood = template.Mood! with { Level = mood, Target = mood, UnclampedTarget = mood }, ComfortableMin = 10.0, ComfortableMax = 30.0 };
         var cells = candidates.Context.Activities.Activities.SelectMany(t => new[] { t.Location, t.EndLocation })
             .Where(l => l.StartsWith("cell/", StringComparison.Ordinal)).Distinct().Select(l => l.Split('/'))
             .Select(p => new Cell(int.Parse(p[1], System.Globalization.CultureInfo.InvariantCulture), int.Parse(p[2], System.Globalization.CultureInfo.InvariantCulture)));
@@ -1027,7 +1018,7 @@ public sealed class ForecastCoupledSelectionTests
             Alternatives = EquatableArray.From(parkas),
             Context = candidates.Context with
             {
-                Needs = candidates.Context.Needs with { Pawns = [wearer, template with { Pawn = "tailor", Mood = Known(.9), MoodTarget = Known(.9), MoodUnclampedTarget = Known(.9) }] },
+                Needs = candidates.Context.Needs with { Pawns = [wearer, template with { Pawn = "tailor", Mood = template.Mood! with { Level = .9, Target = .9, UnclampedTarget = .9 }}] },
                 Shelters = [],
                 Thermal = CoupledThermalTests.NoThermal with { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, -10.0, "none", false, false, "", false, false, 0, false))) },
                 Cards = new Dictionary<string, MechanicCard> { ["EnvironmentCold"] = MechanicCards.ByDef["EnvironmentCold"] with { Status = status } },

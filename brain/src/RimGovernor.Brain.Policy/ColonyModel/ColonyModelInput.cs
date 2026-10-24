@@ -93,10 +93,10 @@ public sealed record ModelNeed
 {
     public string Kind { get; init; } = "";
 
-    public Fact<double> Fall { get; init; }
+    public required double Fall { get; init; }
 
-    /// <summary>The best observed service's gain per tick; unknown while no service is observed.</summary>
-    public Fact<double> Gain { get; init; }
+    /// <summary>The best gain per tick among the observed services and the pawn's unserved recovery; 0 while nothing serves it at a rate.</summary>
+    public required double Gain { get; init; }
 
     /// <summary>
     /// For joy, the share of each twelfth in which the outdoor recreation of <see cref="Gain"/> (a walk or skygazing, #3825 D7) can
@@ -107,7 +107,7 @@ public sealed record ModelNeed
     /// <summary>The best gain per tick of a building that serves the need in any weather (0 with none), the joy the pawn takes outside <see cref="OutdoorShares"/>.</summary>
     public double ShelteredGain { get; init; }
 
-    public Fact<double> Threshold { get; init; }
+    public required double Threshold { get; init; }
 
     /// <summary>The need level one use of the best observed service gives (a meal's nutrition); unknown while no service is observed or the service is continuous.</summary>
     public Fact<double> GainPerUse { get; init; }
@@ -424,8 +424,8 @@ public sealed record ColonyModelInput
             var missing = new List<string>();
             foreach (var need in pawn.Needs)
             {
-                if (need.Kind.Length == 0 || !need.Fall.TryGetValue(out var fall) || !Number(fall) || !need.Threshold.TryGetValue(out var threshold) || !Number(threshold)
-                    || !Nonnegative(need.Gain) || !Nonnegative(need.GainPerUse) || !Nonnegative(need.ServiceTicks) || !Nonnegative(need.ApproachTicks)
+                if (need.Kind.Length == 0 || !Number(need.Fall) || !Number(need.Threshold)
+                    || !(need.Gain >= 0) || !Nonnegative(need.GainPerUse) || !Nonnegative(need.ServiceTicks) || !Nonnegative(need.ApproachTicks)
                     || need.OutdoorShares.Count is not (0 or 12) || need.OutdoorShares.Any(s => !(s >= 0 && s <= 1)) || !(need.ShelteredGain >= 0) || double.IsInfinity(need.ShelteredGain))
                 {
                     missing.Add($"need '{need.Kind}'");

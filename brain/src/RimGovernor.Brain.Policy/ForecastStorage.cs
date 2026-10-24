@@ -71,8 +71,8 @@ public static class ForecastStorage
     {
         if (row.Deterioration is not { Environmental: true } d || !double.IsFinite(d.RatePerDay) || d.RatePerDay <= 0 || d.MaxHitPoints <= 0) return 0;
         var read = context.Needs;
-        if (read.Deterioration is not { } part || ForecastRoofConsequences.DeteriorationRain(read) is not { } rain
-            || ForecastRoofConsequences.DeteriorationVisits(read) is not { } visits) return null;
+        var rain = ForecastRoofConsequences.DeteriorationRain(read);
+        if (read.Deterioration is not { } part || ForecastRoofConsequences.DeteriorationVisits(read) is not { } visits) return null;
         var now = ForecastRoofConsequences.EnvironmentalFactor(part, rain, d.Roofed, d.Outdoors, d.TerrainFactor, d.Protected);
         var there = ForecastRoofConsequences.EnvironmentalFactor(part, rain, roofed: !yard, outdoors: yard, d.TerrainFactor, d.Protected);
         if (now <= there) return 0;

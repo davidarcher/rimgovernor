@@ -64,7 +64,7 @@ public sealed class CapabilityMaintenanceTests
         {
             WorkPawns = Known(EquatableArray.From(roster)),
             Needs = facts.ForecastObserved.Needs! with { Pawns = EquatableArray.From(facts.ForecastObserved.Needs!.Pawns.Select(p => p with
-            { Needs = EquatableArray.From(p.Needs.Select(n => n with { Level = Known(1d), FallPerTick = Known(0d) })) })) },
+            { Needs = EquatableArray.From(p.Needs.Select(n => n with { Level = 1d, FallPerTick = 0d })) })) },
             Coupled = facts.ForecastObserved.Coupled! with { Practice = new() { Known = true, Workers = EquatableArray.From(workers) } }
         } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 300)!;

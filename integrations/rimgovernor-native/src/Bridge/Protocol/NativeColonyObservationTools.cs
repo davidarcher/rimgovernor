@@ -99,7 +99,7 @@ namespace HomeBridge.BridgeTools
             Span("cf.fc.facts");
             var coupled = NativeCoupledForecast.Read(map, context, needs);
             mark = System.Diagnostics.Stopwatch.GetTimestamp();
-            var forecast = new Obs.ForecastSection { Outcome = Forecast(forecastFacts) with { Needs = needs, Coupled = coupled } };
+            var forecast = new Obs.ForecastSection { Outcome = Forecast(forecastFacts, needs) with { Coupled = coupled } };
             Span("cf.fc.wrap");
             var upkeep = ReadUpkeep(map, things, routePathBudgetMs);
             Span("cf.upkeep");
@@ -466,9 +466,9 @@ namespace HomeBridge.BridgeTools
         private static Common.Cell Cell(IntVec3 c) => new Common.Cell { X = c.x, Z = c.z };
         private static Obs.MapSize Size(Map map) => new Obs.MapSize { Width = (uint)map.Size.x, Height = (uint)map.Size.z };
         private static double Finite(double v) => double.IsNaN(v) || double.IsInfinity(v) ? throw new InvalidOperationException("Nonfinite fact.") : v;
-        private static Obs.ForecastFacts Forecast(ForecastFacts.Snapshot source)
+        private static Obs.ForecastFacts Forecast(ForecastFacts.Snapshot source, Obs.NeedsForecastRead needs)
         {
-            var result = new Obs.ForecastFacts { CombinedFoodSupply = Food(source.combinedFoodSupply),
+            var result = new Obs.ForecastFacts { Needs = needs, CombinedFoodSupply = Food(source.combinedFoodSupply),
                 };
             foreach (var patient in source.patients) {
                 var row = new Obs.PatientForecast { PawnId = patient.id };

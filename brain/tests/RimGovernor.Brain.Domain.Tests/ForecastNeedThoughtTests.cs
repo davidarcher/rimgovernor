@@ -21,11 +21,9 @@ public sealed class ForecastNeedThoughtTests
 
     private static NeedsForecastPawn Pawn(double moodTarget) => ForecastValueTests.Pawn() with
     {
-        LocalHour = Known(12d), Mood = Known(moodTarget), MoodTarget = Known(moodTarget), MoodUnclampedTarget = Known(moodTarget),
-        BreakThreshold = Known(.35), MoodRisePerTick = Known(.12 / Hour), MoodFallPerTick = Known(.08 / Hour),
-        MoodIntervalTicks = Known(150d), MoodFreezesWhileAsleep = Known(true),
-        ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
-        Needs = [new("rest", Known(1d), Known(0d), Known(.28)) { UnservedGainPerTick = Known(1 / 1500d) }, new("food", Known(.25), Known(Fall), Known(.3))],
+        LocalHour = 12d,
+        Mood = NeedsFixtures.Mood with { Level = moodTarget, Target = moodTarget, UnclampedTarget = moodTarget, BreakThreshold = .35, RisePerTick = .12 / Hour, FallPerTick = .08 / Hour, FreezesWhileAsleep = true, Conditional = new ConditionalMood.Modeled([]) },
+        Needs = [NeedsFixtures.Rate("rest", 1d, 0d, .28) with { UnservedGainPerTick = 1 / 1500d }, NeedsFixtures.Rate("food", .25, Fall, .3)],
     };
 
     private static ForecastCapacityInput Input(double horizon = H) => new()
@@ -63,7 +61,7 @@ public sealed class ForecastNeedThoughtTests
     public void TheRestThoughtStagesAtTheTiredVeryTiredAndExhaustedLevels()
     {
         // Rest falls from .3 by .01 every 1000 ticks: tired below .28 at 2000, very tired below .14 at 16000, exhausted below .01 at 29000.
-        var pawn = Pawn(.5) with { Needs = [new("rest", Known(.3), Known(.01 / 1000), Known(.28))] };
+        var pawn = Pawn(.5) with { Needs = [NeedsFixtures.Rate("rest", .3, .01 / 1000, .28)] };
 
         var rest = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(Day), [], mood: false).Needs.Single(n => n.Kind == "rest");
 
@@ -115,7 +113,7 @@ public sealed class ForecastNeedThoughtTests
     }
 
     // A pawn that ate without a table carries AteWithoutTable; its next meal renews it (stackLimit 1) rather than adding a second.
-    private static NeedMemory WithoutTable(double remaining, int stackLimit = 1) => new("AteWithoutTable", -3, Known(remaining), false) { StackLimit = stackLimit };
+    private static NeedMemory WithoutTable(double remaining, int stackLimit = 1) => NeedsFixtures.Memory("AteWithoutTable", -3, remaining, false) with { StackLimit = stackLimit };
 
     private static ForecastNeedChoice MealWith(double start, NeedMemory thought) => Meal(start) with { Id = "eat@" + start, Thoughts = [thought] };
 
@@ -123,7 +121,7 @@ public sealed class ForecastNeedThoughtTests
     public void AMealRenewsTheStackLimitOneMemoryItRepeats()
     {
         // Observed -3 with 30000 ticks left; the meal ending at 9000 renews it, so the horizon still holds one -3, not two.
-        var pawn = Pawn(.5) with { Memories = Known<EquatableArray<NeedMemory>>([WithoutTable(30000)]) };
+        var pawn = Pawn(.5) with { Mood = Pawn(.5).Mood! with { Memories = [WithoutTable(30000)] }};
 
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), [MealWith(8000, WithoutTable(Day))]);
 
@@ -144,7 +142,7 @@ public sealed class ForecastNeedThoughtTests
     [Fact]
     public void AMealSharingAStackingDefStaysUnassessed()
     {
-        var pawn = Pawn(.5) with { Memories = Known<EquatableArray<NeedMemory>>([WithoutTable(30000, stackLimit: 3)]) };
+        var pawn = Pawn(.5) with { Mood = Pawn(.5).Mood! with { Memories = [WithoutTable(30000, stackLimit: 3)] }};
 
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), [MealWith(8000, WithoutTable(Day, stackLimit: 3))]);
 
@@ -156,8 +154,8 @@ public sealed class ForecastNeedThoughtTests
     public void StackedObservedMemoriesExpireOneByOneAndNameTheApproximation()
     {
         // Two -5 memories of one def, one expiring inside the horizon: mood stays assessed, each expiry counted on its own.
-        var pawn = Pawn(.5) with { Memories = Known<EquatableArray<NeedMemory>>([
-            new("Insulted", -5, Known(5000d), false), new("Insulted", -5, Known(Day), false), new("Chitchat", 0, Known(100d), false), new("Chitchat", 0, Known(200d), false)]) };
+        var pawn = Pawn(.5) with { Mood = Pawn(.5).Mood! with { Memories = [
+            NeedsFixtures.Memory("Insulted", -5, 5000d, false), NeedsFixtures.Memory("Insulted", -5, Day, false), NeedsFixtures.Memory("Chitchat", 0, 100d, false), NeedsFixtures.Memory("Chitchat", 0, 200d, false)] }};
 
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), [Meal(8000)]);
 

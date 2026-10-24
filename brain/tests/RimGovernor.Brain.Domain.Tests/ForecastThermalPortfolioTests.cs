@@ -28,13 +28,11 @@ public sealed class ForecastThermalPortfolioTests
         };
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {
-            Awake = Known(true), LocalHour = Known(6d), SleepThreshold = Known(.75), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(200d),
-            ComfortableMin = Known(10d), ComfortableMax = Known(30d),
-            MoodUnclampedTarget = Known(.5), MoodIntervalTicks = Known(150d), MoodRisePerTick = Known(.12 / GameTime.TicksPerHour),
-            MoodFallPerTick = Known(.08 / GameTime.TicksPerHour), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
-            ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
-            Needs = [new("food", Known(1d), Known(0d), Known(.3)), new("rest", Known(restDemand ? .2 : .6), Known(restDemand ? .0004 : 0d), Known(.3))],
-            Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.0005)) { Location = bed }],
+            Awake = true, LocalHour = 6d, SleepThreshold = .75, WakeThreshold = 1d, SleepBlockedUntilTicks = 200d,
+            ComfortableMin = 10d, ComfortableMax = 30d,
+            Mood = NeedsFixtures.Mood with { UnclampedTarget = .5, RisePerTick = .12 / GameTime.TicksPerHour, FallPerTick = .08 / GameTime.TicksPerHour, FreezesWhileAsleep = true, BreakThreshold = .3, Conditional = new ConditionalMood.Modeled([]) },
+            Needs = [NeedsFixtures.Rate("food", 1d, 0d, .3), NeedsFixtures.Rate("rest", restDemand ? .2 : .6, restDemand ? .0004 : 0d, .3)],
+            Targets = [NeedsFixtures.Service("bed", "rest", 0d, .0005) with { Location = bed }],
         };
         facts = facts with
         {
@@ -118,13 +116,11 @@ public sealed class ForecastThermalPortfolioTests
         };
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {
-            Awake = Known(true), LocalHour = Known(6d), SleepThreshold = Known(.75), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(sleepAt),
-            ComfortableMin = Known(10d), ComfortableMax = Known(30d),
-            MoodUnclampedTarget = Known(.5), MoodIntervalTicks = Known(150d), MoodRisePerTick = Known(.12 / GameTime.TicksPerHour),
-            MoodFallPerTick = Known(.08 / GameTime.TicksPerHour), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
-            ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
-            Needs = [new("food", Known(1d), Known(0d), Known(.3)), new("rest", Known(.2), Known(.0004), Known(.3))],
-            Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.0005)) { Location = bed }],
+            Awake = true, LocalHour = 6d, SleepThreshold = .75, WakeThreshold = 1d, SleepBlockedUntilTicks = sleepAt,
+            ComfortableMin = 10d, ComfortableMax = 30d,
+            Mood = NeedsFixtures.Mood with { UnclampedTarget = .5, RisePerTick = .12 / GameTime.TicksPerHour, FallPerTick = .08 / GameTime.TicksPerHour, FreezesWhileAsleep = true, BreakThreshold = .3, Conditional = new ConditionalMood.Modeled([]) },
+            Needs = [NeedsFixtures.Rate("food", 1d, 0d, .3), NeedsFixtures.Rate("rest", .2, .0004, .3)],
+            Targets = [NeedsFixtures.Service("bed", "rest", 0d, .0005) with { Location = bed }],
         };
         facts = facts with
         {

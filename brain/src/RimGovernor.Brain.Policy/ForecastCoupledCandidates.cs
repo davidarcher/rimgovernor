@@ -37,7 +37,7 @@ public sealed partial record ForecastCoupledCandidates
         using var span = Spans.StartActivity("coupled.generate");
         if (facts.ForecastObserved.Coupled is not { } read || facts.ForecastObserved.Needs is not { } needs
             || facts.WorkView is not { } resources) return null;
-        if (read.Tick != facts.Tick.Value || needs.Tick != read.Tick || resources.Evidence.Tick.Value != read.Tick)
+        if (read.Tick != facts.Tick.Value || needs.Tick.Value != read.Tick || resources.Evidence.Tick.Value != read.Tick)
             return null; // A mixed frame cannot certify a consequence; caller retains absence explicitly.
         // A gate is keyed by its owner, a migrated family's NeedId (#3250).
         bool NeedEnabled(NeedId need) => !facts.AvailableNeeds.TryGetValue(out var available) || available.Contains(need);
@@ -90,8 +90,8 @@ public sealed partial record ForecastCoupledCandidates
     .Concat(read.Support.Deliveries.Select(d => Lot(d.Target, Location(d.Source), d.Resource, d.Available)))
     .Concat(read.Support.Workers.Where(w => w.Medicine.Length != 0 && w.MedicineLocation is not null)
         .Select(w => Lot(w.Medicine, Location(w.MedicineLocation!.Value), w.MedicineResource, w.MedicineAvailable)))
-    .Concat(needs.Pawns.SelectMany(p => p.Targets).Where(t => t.Kind == "food" && t.Location is not null)
-        .Select(t => new ForecastMaterialLot(t.Id, Location(t.Location!.Value), new(t.Resource), t.StockCount) { Perishable = true, FreshTicks = t.FreshTicks }))
+    .Concat(needs.Pawns.SelectMany(p => p.Targets).Where(t => t.Kind == "food")
+        .Select(t => new ForecastMaterialLot(t.Id, Location(t.Location), new(t.Resource), t.StockCount) { Perishable = true, FreshTicks = t.FreshTicks }))
     .Concat(planned.Lots)
     .GroupBy(l => (l.Lot, l.Location, l.Resource)).Select(g => g.Select(l => l.Count).Distinct().Count() == 1 ? g.First() : g.First() with { Count = default }).ToArray();
         var needTasks = new List<ForecastNeedTask>(); var alternatives = new List<ForecastCommitment>();
@@ -173,7 +173,7 @@ public sealed partial record ForecastCoupledCandidates
         else findings.Add("unknown_clothing_requirements");
         var practice = Methods.Generation.PracticeMethodCandidates.Generate(facts, read.Practice, horizon, CapabilityMaintenanceRules.AssignedCombatCapabilities(facts.Ideology),
             facts.Hostiles.IsKnown && facts.Hostiles.Value == 0 && facts.CriticalPatients.IsKnown && facts.CriticalPatients.Value == 0
-            && !needs.Pawns.SelectMany(p => p.Needs).Any(n => n.Kind is "food" or "rest" && n.Level.IsKnown && n.Level.Value <= 0));
+            && !needs.Pawns.SelectMany(p => p.Needs).Any(n => n.Kind is "food" or "rest" && n.Level <= 0));
         tasks.AddRange(practice.Tasks); options.AddRange(practice.Options); alternatives.AddRange(practice.Roots);
         foreach (var binding in practice.Bindings) bindings.Add(binding.Key, binding.Value);
         foreach (var route in practice.Routes) Route(route.Pawn, route.From, route.To, route.Ticks);
@@ -208,8 +208,7 @@ public sealed partial record ForecastCoupledCandidates
                 if (!Space(1)) break;
                 var id = choice.Id;
                 var target = targets.Single(t => t.Id == choice.Target);
-                var location = target.Location is { } cell ? Location(cell) : choice.Target;
-                if (target.Location is null) findings.Add("unknown_need_target_location:" + target.Id);
+                var location = Location(target.Location);
                 tasks.Add(choice.Activity with
                 {
                     NotBefore = choice.Start,

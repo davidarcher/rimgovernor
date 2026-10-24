@@ -92,13 +92,13 @@ public sealed class FirstPlanHeldTests
             {
                 if (offsets[s] is not null || nullStageRow)
                 {
-                    stages.Add(new(def, role, s, offsets[s] ?? 0, Known((double)GameTime.TicksPerDay), false));
+                    stages.Add(new(def, role, s, offsets[s] ?? 0, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false)));
                 }
             }
         }
         Rows("SleptInBedroom", "slept_in_bedroom", BedroomOffsets);
         Rows("SleptInBarracks", "slept_in_barracks", BarracksOffsets);
-        return new NeedsForecastPawn { Pawn = id, MoodUnclampedTarget = Known(0.6), BreakThreshold = Known(0.35), ThoughtStages = EquatableArray.From(stages), Sleep = SleepFixtures.Ground() };
+        return NeedsFixtures.Pawn() with { Pawn = id, Mood = NeedsFixtures.Mood with { UnclampedTarget = 0.6, BreakThreshold = 0.35 }, ThoughtStages = EquatableArray.From(stages), Sleep = SleepFixtures.Ground() };
     }
 
     private static BedMergeFacts FreshSleepers(bool nullStageRow) => new BedroomGainFacts

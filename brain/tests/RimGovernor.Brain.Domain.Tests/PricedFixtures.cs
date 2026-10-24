@@ -23,23 +23,11 @@ internal static class PricedFixtures
         var context = candidates.Context;
         return candidates with { Context = context with
         {
-            Needs = context.Needs with { Pawns = EquatableArray.From(context.Needs.Pawns.Select(Equipped)) },
             CapacityPenalties = context.CapacityPenalties.Malnutrition.Valid() ? context.CapacityPenalties : Tables(),
             MoodBreaks = context.MoodBreaks.Tiers.Count != 0 ? context.MoodBreaks : new() { Threshold = 0.3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
             Value = context.Value with { TieResolution = context.Value.TieResolution * horizon / GameTime.TicksPerDay },
         } };
     }
-
-    public static NeedsForecastPawn Equipped(NeedsForecastPawn pawn) => pawn with
-    {
-        Consciousness = pawn.Consciousness.IsKnown ? pawn.Consciousness : Known(1d), Moving = pawn.Moving.IsKnown ? pawn.Moving : Known(1d),
-        Manipulation = pawn.Manipulation.IsKnown ? pawn.Manipulation : Known(1d), Sight = pawn.Sight.IsKnown ? pawn.Sight : Known(1d),
-        Talking = pawn.Talking.IsKnown ? pawn.Talking : Known(1d),
-        MalnutritionSeverity = pawn.MalnutritionSeverity.IsKnown ? pawn.MalnutritionSeverity : Known(0d),
-        FoodPoisoningSeverity = pawn.FoodPoisoningSeverity.IsKnown ? pawn.FoodPoisoningSeverity : Known(0d),
-        HypothermiaSeverity = pawn.HypothermiaSeverity.IsKnown ? pawn.HypothermiaSeverity : Known(0d),
-        HeatstrokeSeverity = pawn.HeatstrokeSeverity.IsKnown ? pawn.HeatstrokeSeverity : Known(0d),
-    };
 
     // Any starving or poisoned or frozen stretch halves consciousness: the tests need a price, not the game's stage table.
     public static CapacityPenaltyTables Tables() => new()

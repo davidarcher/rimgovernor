@@ -16,9 +16,9 @@ public sealed class ColonyModelTests
         Pawn = name,
         Needs = EquatableArray.From(new[]
         {
-            new ModelNeed { Kind = "rest", Fall = Known(0.00001), Gain = Known(0.00002), Threshold = Known(0.28) },
-            new ModelNeed { Kind = "food", Fall = Known(0.00002), Threshold = Known(0.3), GainPerUse = Known(0.6), ServiceTicks = Known(400.0), ApproachTicks = Known(100.0) },
-            new ModelNeed { Kind = "joy", Fall = Known(0.00001), Gain = Known(0.00015), Threshold = Known(0.3) },
+            new ModelNeed { Kind = "rest", Fall = 0.00001, Gain = 0.00002, Threshold = 0.28 },
+            new ModelNeed { Kind = "food", Fall = 0.00002, Threshold = 0.3, GainPerUse = Known(0.6), ServiceTicks = Known(400.0), ApproachTicks = Known(100.0), Gain = 0 },
+            new ModelNeed { Kind = "joy", Fall = 0.00001, Gain = 0.00015, Threshold = 0.3 },
         }),
         Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Plants", Level = 10 } })),
         ComfortableMin = Known(16.0),

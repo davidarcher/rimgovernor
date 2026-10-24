@@ -43,8 +43,8 @@ public sealed class ForecastIncumbentPreparationTests
             ForecastObserved = facts.ForecastObserved with { Needs = needs with { Pawns = [needs.Pawns[0] with
             {
                 Location = new(1, 1),
-                CurrentService = new("joy-assignment", "joy-method", 1, "pin", "joy", new(1, 1), Known(100d), Known(.001)),
-                Needs = [.. needs.Pawns[0].Needs, new("joy", Known(.2), Known(.0001), Known(.3))]
+                CurrentService = new("joy-assignment", "joy-method", 1, "pin", "joy", new(1, 1), 100d, .001) { Unsupported = [] },
+                Needs = [.. needs.Pawns[0].Needs, NeedsFixtures.Rate("joy", .2, .0001, .3)]
             }] } }
         };
         return (facts, new([row]));
@@ -86,7 +86,6 @@ public sealed class ForecastIncumbentPreparationTests
     }
 
     [Theory]
-    [InlineData("unknown")]
     [InlineData("revision")]
     [InlineData("carry")]
     [InlineData("stale")]
@@ -99,9 +98,9 @@ public sealed class ForecastIncumbentPreparationTests
     {
         var (facts, actions) = Current();
         var needs = facts.ForecastObserved.Needs!;
-        if (reason is "unknown" or "revision")
+        if (reason == "revision")
             facts = facts with { ForecastObserved = facts.ForecastObserved with { Needs = needs with { Pawns = [needs.Pawns[0] with
-            { CurrentService = needs.Pawns[0].CurrentService! with { RemainingTicks = reason == "unknown" ? default : Known(100d), Revision = reason == "revision" ? 2 : 1 } }] } } };
+            { CurrentService = needs.Pawns[0].CurrentService! with { Revision = 2 } }] } } };
         if (reason == "carry") facts = facts with { WorkView = facts.WorkView! with { Evidence = facts.WorkView!.Evidence with
             { WorkResources = Known<EquatableArray<WorkResourcePawn>>([new("pawn", "joy-assignment", 1, "started", "rice", "Rice", 1) { LocalHour = 12 }]) } } };
         if (reason == "stale") facts = facts with { Tick = new(101) };
@@ -121,7 +120,7 @@ public sealed class ForecastIncumbentPreparationTests
         Assert.Contains("pawn", prepared.WorkView!.Claims.Pawns);
     }
 
-    private static (RoundsFacts Facts, WorkActionCensus Actions) FutureRest(bool knownRoute = true, bool tombstone = false)
+    private static (RoundsFacts Facts, WorkActionCensus Actions) FutureRest(bool tombstone = false)
     {
         var (facts, initial) = Current();
         var row = initial.Actions[0]; var batch = row.Action.PawnActivities!;
@@ -139,11 +138,11 @@ public sealed class ForecastIncumbentPreparationTests
         var view = WorkRules.WorkResourcesOf(evidence, NoBatches, [row]);
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {
-            CurrentService = null, SleepThreshold = Known(.9), WakeThreshold = Known(1d),
-            SleepBlockedUntilTicks = Known(0d), SleepWhileStarving = Known(false),
-            Needs = [new("food", Known(.2), Known(.001), Known(.3)),
-                new("rest", Known(.8), Known(.0001), Known(.3))],
-            Targets = [new("bed", "rest", "", 1, knownRoute ? Known(10d) : default, default, default, Known(.001))
+            CurrentService = null, SleepThreshold = .9, WakeThreshold = 1d,
+            SleepBlockedUntilTicks = 0d, SleepWhileStarving = false,
+            Needs = [NeedsFixtures.Rate("food", .2, .001, .3),
+                NeedsFixtures.Rate("rest", .8, .0001, .3)],
+            Targets = [NeedsFixtures.Service("bed", "rest", 10d, .001) with
                 { Location = task.Location }]
         };
         return (facts with { WorkView = view, WorkClaims = view.Claims, WorkResources = evidence.WorkResources,
@@ -172,16 +171,6 @@ public sealed class ForecastIncumbentPreparationTests
         var execution = ForecastCoupledExecution.ReviewCoupledExecution(selected, incumbents, facts.Tick.Value);
         Assert.Single(execution.Releases);
         Assert.Null(execution.Dispatch); // Replacement cannot create a second native owner before release.
-        Assert.Same(facts.WorkView, prepared.WorkView);
-        Assert.Contains("pawn", prepared.WorkView!.Claims.Pawns);
-    }
-
-    [Fact]
-    public void UnknownFutureRouteKeepsTheExistingOwnerProtected()
-    {
-        var (facts, actions) = FutureRest(knownRoute: false);
-        var (prepared, incumbents) = ForecastIncumbentPreparation.PrepareCoupledIncumbents(facts, NoBatches, actions);
-        Assert.Empty(incumbents);
         Assert.Same(facts.WorkView, prepared.WorkView);
         Assert.Contains("pawn", prepared.WorkView!.Claims.Pawns);
     }
@@ -368,7 +357,7 @@ public sealed class ForecastIncumbentPreparationTests
             batch = batch with { Orders = [order], Tasks = [batch.Tasks[0] with { Pawn = pawn }] };
             var action = DomainAction.NewPawnActivitiesAction(new("action" + i), batch);
             rows.Add(new(new("plan" + i), action, original.Progress with { Action = action.Id }));
-            needs.Add(facts.ForecastObserved.Needs!.Pawns[0] with { Pawn = pawn, CurrentService = new(order.Assignment, order.Method, 1, "pin", "joy", new(1, 1), Known(100d), Known(.001)) });
+            needs.Add(facts.ForecastObserved.Needs!.Pawns[0] with { Pawn = pawn, CurrentService = new(order.Assignment, order.Method, 1, "pin", "joy", new(1, 1), 100d, .001) { Unsupported = [] } });
             native.Add(new(pawn, order.Assignment, 1, "started", "", "", 0) { LocalHour = 12 });
             capacity.Add(facts.WorkView!.Evidence.Pawns.Value[0] with { Pawn = pawn });
         }

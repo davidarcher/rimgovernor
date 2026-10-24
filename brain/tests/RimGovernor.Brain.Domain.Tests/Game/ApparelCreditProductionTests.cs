@@ -77,7 +77,7 @@ public sealed class ApparelCreditProductionTests
         };
     }
 
-    private static O.NeedThoughtStage Stage(int stage, double offset) => new("ApparelDamaged", ForecastApparel.Damaged, stage, offset, Known((double)GameTime.TicksPerDay), false);
+    private static O.NeedThoughtStage Stage(int stage, double offset) => new("ApparelDamaged", ForecastApparel.Damaged, stage, offset, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false));
 
     // The pawn's needs row as the native read writes it, with or without the apparel facts, and the shirt bill the clothing
     // read observes running.
@@ -119,17 +119,17 @@ public sealed class ApparelCreditProductionTests
     public void ARetainedShirtBillOverATatteredShirtShiftsTheWearersBreaksByTheTatteredStage()
     {
         Assert.Single(ClothingActivitiesRules.ClothingActivityRequirements(Census()));
-        var context = Generate(new(D.Gender.Male, true, true));
+        var context = Generate(NeedsFixtures.Apparel(D.Gender.Male, true, true));
         Assert.Equal([0.05], context.ApparelShifts["pawn"]);
     }
 
     // #3836: the title's unmet-requirement thought, read for every pawn under Royalty (inactive without a requirement).
-    private static readonly O.NeedThoughtStage TitleStage = new("TitleApparelRequirementNotMet", ForecastApparel.TitleApparel, 0, -4, default, false);
+    private static readonly O.NeedThoughtStage TitleStage = new("TitleApparelRequirementNotMet", ForecastApparel.TitleApparel, 0, -4, NeedsFixtures.Situational);
 
     [Fact]
     public void AnUndressedTitledColonistsRequiredShirtBillShiftsTheirBreaksByTheRequirementThought()
     {
-        var titled = new O.NeedApparel(D.Gender.Male, true, true) { Requirements = [new(ForecastApparel.TitleApparel, [ShirtDef])] };
+        var titled = NeedsFixtures.Apparel(D.Gender.Male, true, true) with { Requirements = [new(ForecastApparel.TitleApparel, [ShirtDef])] };
         Assert.Equal([0.04], Generate(titled, dressed: false).ApparelShifts["pawn"]);
     }
 
@@ -138,7 +138,7 @@ public sealed class ApparelCreditProductionTests
     {
         // A fresh colony's colonist has no title and no role: the native read writes no requirement, and the shirt changes
         // only what the other workers read (a male pawn's torso is no nakedness), so it shifts nothing.
-        var context = Generate(new(D.Gender.Male, true, true), dressed: false);
+        var context = Generate(NeedsFixtures.Apparel(D.Gender.Male, true, true), dressed: false);
         Assert.False(context.ApparelShifts.ContainsKey("pawn"));
     }
 
@@ -150,9 +150,9 @@ public sealed class ApparelCreditProductionTests
     }
 
     // #3841: the title's minimum-quality thought, read for every pawn under Royalty (inactive with no title in effect).
-    private static readonly O.NeedThoughtStage QualityStage = new("TitleApparelMinQualityNotMet", ForecastApparel.TitleApparelQuality, 0, -4, default, false);
+    private static readonly O.NeedThoughtStage QualityStage = new("TitleApparelMinQualityNotMet", ForecastApparel.TitleApparelQuality, 0, -4, NeedsFixtures.Situational);
 
-    private static readonly O.NeedApparel Knight = new(D.Gender.Male, true, true) { MinimumQuality = D.QualityCategory.Normal };
+    private static readonly O.NeedApparel Knight = NeedsFixtures.Apparel(D.Gender.Male, true, true) with { MinimumQuality = D.QualityCategory.Normal };
 
     [Fact]
     public void ATitledColonistsNormalShirtBillOverAPoorShirtShiftsTheirBreaksByTheMinimumQualityThought()
@@ -167,7 +167,7 @@ public sealed class ApparelCreditProductionTests
     public void AFreshColonysUntitledColonistInAPoorShirtGetsNothingFromTheMinimumQualityThought()
     {
         // No title in effect: the native read writes the Awful minimum, which no garment is below.
-        var context = Generate(new(D.Gender.Male, true, true), worn: Option("worn-shirt", GearSource.Worn, 1, quality: D.QualityCategory.Poor));
+        var context = Generate(NeedsFixtures.Apparel(D.Gender.Male, true, true), worn: Option("worn-shirt", GearSource.Worn, 1, quality: D.QualityCategory.Poor));
         Assert.False(context.ApparelShifts.ContainsKey("pawn"));
     }
 
@@ -202,11 +202,11 @@ public sealed class ApparelCreditProductionTests
     [Fact]
     public void AFreshColonysShirtBillLiftsAnExcellentMinimumOnlyAsAChanceAndAnUntitledColonistGetsNothing()
     {
-        var count = new O.NeedApparel(D.Gender.Male, true, true) { MinimumQuality = D.QualityCategory.Excellent };
+        var count = NeedsFixtures.Apparel(D.Gender.Male, true, true) with { MinimumQuality = D.QualityCategory.Excellent };
         var good = Option("worn-shirt", GearSource.Worn, 1, quality: D.QualityCategory.Good);
         // The fresh colony's crafter may make an Excellent shirt: a candidate whose lifting outcome is the thought's shift.
         Assert.Single(ClothingActivitiesRules.ClothingActivityRequirements(Census(worn: good)));
         Assert.Equal([0.04], Generate(count, worn: good).ApparelShifts["pawn"]);
-        Assert.False(Generate(new(D.Gender.Male, true, true), worn: good).ApparelShifts.ContainsKey("pawn"));
+        Assert.False(Generate(NeedsFixtures.Apparel(D.Gender.Male, true, true), worn: good).ApparelShifts.ContainsKey("pawn"));
     }
 }

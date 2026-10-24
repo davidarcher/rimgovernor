@@ -25,16 +25,16 @@ public sealed class HospitalCreditTests
 
     private static readonly FurnitureBed Bed = new() { Def = "HospitalBed", ImmunityGainSpeedFactor = 1.25, SurgerySuccessChanceFactor = 1.1 };
 
-    private static NeedThoughtStage Row(string role, int stage, double offset) => new(role, role, stage, offset, default, false);
+    private static NeedThoughtStage Row(string role, int stage, double offset) => new(role, role, stage, offset, NeedsFixtures.Situational);
 
     /// <summary>A colonist in a dirty bedroom (InfectionChanceFactor 1.4, its sleep thought -2), who would gain +3 in the hospital at stage 2.</summary>
     private static NeedsForecastPawn Patient(double gain = 1) => ForecastValueTests.HarmPawn() with
     {
         OwnedBed = "bed",
-        OwnedBedRoom = new("Bedroom", Known(0), false) { InfectionChanceFactor = 1.4, SurgerySuccessFactor = 0.8, ImmunityGainSpeedFactor = 1 },
+        OwnedBedRoom = NeedsFixtures.BedRoom("Bedroom", 0, false) with { InfectionChanceFactor = 1.4, SurgerySuccessFactor = 0.8, ImmunityGainSpeedFactor = 1 },
         ThoughtStages = [Row("slept_in_bedroom", 0, -2), Row("slept_outside", 0, -5), Row("slept_on_ground", 0, -4),
             Row(ForecastHospital.PatientRole, 0, 0), Row(ForecastHospital.PatientRole, 1, 1), Row(ForecastHospital.PatientRole, 2, 3)],
-        Disease = new PawnDiseaseFacts { ImmunityGainSpeed = gain, Contracts = [new DiseaseContract("Disease_Flu", 1)] },
+        Disease = NeedsFixtures.Disease with { ImmunityGainSpeed = gain, Contracts = [new DiseaseContract("Disease_Flu", 1)] },
     };
 
     private static CapacityPenaltyTables Tables() => ForecastValueTests.HarmTables() with

@@ -132,7 +132,7 @@ public sealed class KnowledgeValueTests
         var worn = EquatableArray.From(new[] { ForecastValueTests.Duster(0.3) with { Slot = GearSlot.Outer } });
         var pawn = ForecastValueTests.HarmPawn() with { Pawn = "Anna" };
         var context = ForecastValueTests.Context(pawn, ForecastValueTests.HarmTables(), ForecastValueTests.RaidDay(), new Dictionary<string, EquatableArray<GearOption>>(StringComparer.Ordinal) { ["Anna"] = worn })
-            with { Needs = new() { Pawns = [pawn] } };
+            with { Needs = NeedsFixtures.Empty with { Pawns = [pawn] } };
         var policy = new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = ProjectGraph.Standing(input, options, default) };
         return ProjectMarginalValue.Of(input, policy, new ColonyValue(context, options, CalendarRules.YearDays, default, new ItemFacts()));
     }

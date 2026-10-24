@@ -137,13 +137,14 @@ public sealed record PawnCycle
     private static Fact<double> Split(ModelPawn pawn, string kind, int twelfth, SortedSet<string> findings)
     {
         var need = Need(pawn, kind);
-        if (need is null || !need.Fall.TryGetValue(out var fall) || fall < 0 || double.IsNaN(fall))
+        if (need is not { Fall: var fall } || fall < 0 || double.IsNaN(fall))
         {
             findings.Add($"{kind}_fall_unknown:{pawn.Pawn}");
             return Unknown<double>();
         }
 
-        if (!need.Gain.TryGetValue(out var gain) || !(gain >= 0))
+        var gain = need.Gain;
+        if (!(gain >= 0))
         {
             findings.Add($"{kind}_gain_unknown:{pawn.Pawn}");
             return Unknown<double>();
@@ -169,7 +170,7 @@ public sealed record PawnCycle
     private static Fact<double> Eating(ModelPawn pawn, SortedSet<string> findings)
     {
         var need = Need(pawn, "food");
-        if (need is null || !need.Fall.TryGetValue(out var fall) || fall < 0)
+        if (need is not { Fall: var fall } || fall < 0)
         {
             findings.Add($"food_fall_unknown:{pawn.Pawn}");
             return Unknown<double>();

@@ -133,7 +133,7 @@ public sealed class ColonyModelInputTests
     private static ColonyProjection WithWorkRead(ColonyProjection projection, double[] benchFactors, double researchSpeed, double plantWorkSpeed)
     {
         var review = projection.Facts.NeedsAlternatives!;
-        var pawn = review.Observation.Pawns[0] with { ResearchSpeed = Known(researchSpeed), PlantWorkSpeed = Known(plantWorkSpeed) };
+        var pawn = review.Observation.Pawns[0] with { ResearchSpeed = researchSpeed, PlantWorkSpeed = plantWorkSpeed };
         var observation = review.Observation with { Pawns = [pawn], ResearchBenches = EquatableArray.From(benchFactors.Select((factor, i) => new RimGovernor.Contracts.Wire.Observations.ResearchBenchRead("bench" + i, "SimpleResearchBench", new(i, 0), factor))) };
         return projection with { Facts = projection.Facts with { NeedsAlternatives = review with { Observation = observation } } };
     }
@@ -167,8 +167,8 @@ public sealed class ColonyModelInputTests
         var (input, unknowns) = RoundsColonyModel.InputOf(NoBedNoRecreation(ColonyModelFixtures.Projection(), Walk));
 
         var needs = input.Pawns.Value[0].Needs;
-        Assert.Equal(0.00002, needs.Single(n => n.Kind == "rest").Gain.Value);
-        Assert.Equal(Walk, needs.Single(n => n.Kind == "joy").Gain.Value);
+        Assert.Equal(0.00002, needs.Single(n => n.Kind == "rest").Gain);
+        Assert.Equal(Walk, needs.Single(n => n.Kind == "joy").Gain);
         Assert.Empty(unknowns);
         Assert.True(input.Valid());
     }
@@ -199,8 +199,8 @@ public sealed class ColonyModelInputTests
             Targets = [.. pawn.Targets.Where(t => t.Kind == "food")],
             Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind switch
             {
-                "rest" => n with { UnservedGainPerTick = Known(0.00002) },
-                "joy" => n with { UnservedGainPerTick = Known(walk) },
+                "rest" => n with { UnservedGainPerTick = 0.00002 },
+                "joy" => n with { UnservedGainPerTick = walk },
                 _ => n,
             })),
         };

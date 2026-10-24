@@ -10,19 +10,15 @@ public sealed class ForecastConditionalMoodTests
 {
     private const double Hour = GameTime.TicksPerHour;
     private const double Day = GameTime.TicksPerDay;
-    private static NeedsForecastPawn Pawn(bool conditional = true) => new()
+    private static NeedsForecastPawn Pawn(bool conditional = true) => NeedsFixtures.Pawn() with
     {
-        Pawn = "pawn", State = "eligible", LocalHour = Known(6d), Awake = Known(true),
-        SleepThreshold = Known(.75), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(0d),
-        Mood = Known(.5), MoodTarget = Known(.5), MoodUnclampedTarget = Known(.5), BreakThreshold = Known(.45),
-        MoodRisePerTick = Known(.12 / Hour), MoodFallPerTick = Known(.08 / Hour),
-        MoodIntervalTicks = Known(150d), MoodFreezesWhileAsleep = Known(true),
-        ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>(conditional
+        Pawn = "pawn", State = "eligible", LocalHour = 6d, Awake = true,
+        SleepThreshold = .75, WakeThreshold = 1d, SleepBlockedUntilTicks = 0d,
+        Mood = NeedsFixtures.Mood with { Level = .5, Target = .5, UnclampedTarget = .5, BreakThreshold = .45, RisePerTick = .12 / Hour, FallPerTick = .08 / Hour, FreezesWhileAsleep = true, Conditional = new ConditionalMood.Modeled(conditional
             ? [new(11, 18, true, -10, 0), new(23, 6, true, 16, 0)]
-            : []),
-        Memories = Known<EquatableArray<NeedMemory>>([]),
-        Needs = [new("rest", Known(.3), Known(0d), Known(.28))],
-        Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.7 / (7 * Hour)))],
+            : []), Memories = [] },
+        Needs = [NeedsFixtures.Rate("rest", .3, 0d, .28)],
+        Targets = [NeedsFixtures.Service("bed", "rest", 0d, .7 / (7 * Hour))],
     };
     internal static ForecastNeedChoice SleepProbe(string id, double from, double to) => Sleep(id, from, to);
     internal static NeedsForecastPawn PawnProbe() => Pawn();
@@ -115,23 +111,19 @@ public sealed class ForecastConditionalMoodTests
     [InlineData(.2, 1 / 1.05)]
     public void BreakRiskIntegratesEachTiersRenewalRateOverTheTargetTrajectory(double target, double perDay)
     {
-        var pawn = Pawn(false) with { MoodUnclampedTarget = Known(target), MoodTarget = Known(target) };
+        var pawn = Pawn(false) with { Mood = Pawn(false).Mood! with { UnclampedTarget = target, Target = target }};
         var result = ForecastMood.ForecastMoodTimeline(pawn, Day, []);
         Assert.Equal(perDay, result.BreakRisk.Value, 8);
         Assert.DoesNotContain("mental_break_probability_unassessed", result.Findings);
         // A fading -10 memory lifts the target across the minor threshold halfway: in that tier for half the horizon.
-        var fading = ForecastMood.ForecastMoodTimeline(Pawn(false) with { MoodUnclampedTarget = Known(.4), MoodTarget = Known(.4),
-            Memories = Known<EquatableArray<NeedMemory>>([new("sting", -10, Known(Day), true)]) }, Day, []);
+        var fading = ForecastMood.ForecastMoodTimeline(Pawn(false) with { Mood = Pawn(false).Mood! with { UnclampedTarget = .4, Target = .4, Memories = [NeedsFixtures.Memory("sting", -10, Day, true)] }}, Day, []);
         Assert.Equal(.5 / 4.25, fading.BreakRisk.Value, 4);
-        var unknown = ForecastMood.ForecastMoodTimeline(pawn with { BreakThreshold = default }, Day, []);
-        Assert.False(unknown.BreakRisk.IsKnown);
-        Assert.Contains("mental_break_probability_unassessed", unknown.Findings);
     }
 
     [Fact]
     public void ActualMoodRespondsGraduallyAndSleepFreezesActualRatherThanOnlyRemovingThought()
     {
-        var pawn = Pawn(false) with { Mood = Known(.2), MoodUnclampedTarget = Known(.8), MoodTarget = Known(.8) };
+        var pawn = Pawn(false) with { Mood = Pawn(false).Mood! with { Level = .2, UnclampedTarget = .8, Target = .8 }};
         var awake = ForecastMood.ForecastMoodTimeline(pawn, Hour, []);
         var asleep = ForecastMood.ForecastMoodTimeline(pawn, Hour, [Sleep("sleep", 0, Hour)]);
         Assert.Equal(.8, awake.Trajectory[0].Target.Value, 8);
@@ -146,9 +138,7 @@ public sealed class ForecastConditionalMoodTests
     [Fact]
     public void WrappedWindowReappearsAfterMorningBoundaryWithoutDuplicateCurrentCredit()
     {
-        var pawn = Pawn() with { LocalHour = Known(1d), MoodTarget = Known(.66), MoodUnclampedTarget = Known(.66),
-            ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>(
-                [new(23, 6, true, 16, 16)]) };
+        var pawn = Pawn() with { LocalHour = 1d, Mood = Pawn(false).Mood! with { Target = .66, UnclampedTarget = .66, Conditional = new ConditionalMood.Modeled([new(23, 6, true, 16, 16)]) }};
         var result = ForecastMood.ForecastMoodTimeline(pawn, Day, []);
         Assert.Equal(.66, result.Trajectory[0].Target.Value, 8);
         Assert.Equal(.5, At(result, 5 * Hour).Target.Value, 8);
@@ -173,38 +163,31 @@ public sealed class ForecastConditionalMoodTests
     }
 
     [Fact]
-    public void MemoryExpiryChangesTargetOnceWhileUnknownExpiryKeepsMoodUnassessed()
+    public void MemoryExpiryChangesTargetOnce()
     {
-        var pawn = Pawn(false) with { MoodUnclampedTarget = Known(.6), MoodTarget = Known(.6),
-            Memories = Known<EquatableArray<NeedMemory>>([new("memory", 10, Known(1000d), false)]) };
+        var pawn = Pawn(false) with { Mood = Pawn(false).Mood! with { UnclampedTarget = .6, Target = .6, Memories = [NeedsFixtures.Memory("memory", 10, 1000d, false)] }};
         var result = ForecastMood.ForecastMoodTimeline(pawn, Hour, []);
         Assert.Equal(.6, result.Trajectory[0].Target.Value, 8);
         Assert.Equal(.5, At(result, 1000).Target.Value, 8);
-        var unknown = ForecastMood.ForecastMoodTimeline(pawn with { Memories = Known<EquatableArray<NeedMemory>>([new("memory", 10, default, false)]) }, Hour, []);
-        Assert.False(unknown.PressureTicks.IsKnown);
-        Assert.False(unknown.TerminalMood.IsKnown);
-        Assert.Contains("unknown_conditional_mood_mechanics", unknown.Findings);
     }
 
     [Fact]
     public void UnclampedObservedTargetPreservesOverflowWhenCurrentEffectEnds()
     {
-        var pawn = Pawn(false) with { LocalHour = Known(1d), MoodTarget = Known(1d), MoodUnclampedTarget = Known(1.1),
-            ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([new(23, 6, true, 16, 16)]) };
+        var pawn = Pawn(false) with { LocalHour = 1d, Mood = Pawn(false).Mood! with { Target = 1d, UnclampedTarget = 1.1, Conditional = new ConditionalMood.Modeled([new(23, 6, true, 16, 16)]) }};
         var result = ForecastMood.ForecastMoodTimeline(pawn, Day, []);
         Assert.Equal(1, result.Trajectory[0].Target.Value);
         Assert.Equal(.94, At(result, 5 * Hour).Target.Value, 8);
     }
 
     [Fact]
-    public void UnknownResponseDoesNotEraseKnownTargetAndUnknownConditionalsCannotCreateBenefit()
+    public void UnmodeledConditionalsCannotCreateBenefit()
     {
-        var result = ForecastMood.ForecastMoodTimeline(Pawn(false) with { MoodRisePerTick = default }, Hour, []);
-        Assert.True(result.PressureTicks.IsKnown);
-        Assert.False(result.TerminalMood.IsKnown);
-        var unknown = ForecastMood.ForecastMoodTimeline(Pawn() with { ConditionalThoughts = default }, Hour, []);
+        var unknown = ForecastMood.ForecastMoodTimeline(Pawn() with { Mood = Pawn().Mood! with
+            { Conditional = new ConditionalMood.Unmodeled(["NightOwl"]) } }, Hour, []);
         Assert.False(unknown.PressureTicks.IsKnown);
         Assert.False(unknown.TerminalMood.IsKnown);
+        Assert.Equal(["unknown_conditional_mood_mechanics:NightOwl"], unknown.Findings);
     }
 
     [Fact]
@@ -223,9 +206,9 @@ public sealed class ForecastConditionalMoodTests
     [Fact]
     public void NativeWakeEndsRecoveryAndThoughtSuppressionAtSamePhysicalInstant()
     {
-        var pawn = Pawn() with { LocalHour = Known(11d), MoodUnclampedTarget = Known(.4),
-            ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([new(11, 18, true, -10, -10)]),
-            WakeThreshold = Known(.8), Needs = [new("rest", Known(.3), Known(0d), Known(.28))] };
+        var pawn = Pawn() with { LocalHour = 11d,
+            Mood = Pawn(false).Mood! with { UnclampedTarget = .4, Conditional = new ConditionalMood.Modeled([new(11, 18, true, -10, -10)]) },
+            WakeThreshold = .8, Needs = [NeedsFixtures.Rate("rest", .3, 0d, .28)] };
         var sleep = new ForecastNeedChoice("long", "pawn", "rest", "bed", "", 0, 0, 0, 1000, 1, []);
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity() with { HorizonTicks = 1000 }, [sleep]);
         Assert.Equal(.8, result.Needs.Single(n => n.Kind == "rest").FinalLevel.Value, 8);
@@ -238,13 +221,13 @@ public sealed class ForecastConditionalMoodTests
     [Fact]
     public void DelayedGenerationRecalculatesWakeTimeInsteadOfSlowingTheObservedRecoveryRate()
     {
-        var pawn = Pawn() with { WakeThreshold = Known(.8), Needs = [new("rest", Known(.3), Known(.00001), Known(.28))] };
+        var pawn = Pawn() with { WakeThreshold = .8, Needs = [NeedsFixtures.Rate("rest", .3, .00001, .28)] };
         var generated = ForecastNeeds.GenerateNeedsAlternatives(pawn, ForecastCapacity.ForecastPawnCapacityOf(Capacity()), Day);
         Assert.All(generated.Choices, choice =>
         {
             var before = Math.Max(0, .3 - .00001 * choice.Start);
             Assert.True(before + choice.Gain <= .8 + .00000001);
-            Assert.Equal(pawn.Targets[0].GainPerTick.Value, choice.Gain / (choice.End - choice.Start), 10);
+            Assert.Equal(Assert.IsType<NeedRecovery.Rate>(pawn.Targets[0].Recovery).GainPerTick, choice.Gain / (choice.End - choice.Start), 10);
         });
         Assert.Contains(generated.Choices, c => c.Start > 0 && Math.Abs(Math.Max(0, .3 - .00001 * c.Start) + c.Gain - .8) < .000001);
     }
@@ -252,29 +235,29 @@ public sealed class ForecastConditionalMoodTests
     [Fact]
     public void UnsupportedSleepActivationCannotCreateKnownRestOrMoodBenefits()
     {
-        var pawn = Pawn() with { SleepBlockedUntilTicks = default };
+        var pawn = Pawn() with { SleepBlocked = true };
         Assert.Empty(ForecastNeeds.GenerateNeedsAlternatives(pawn, ForecastCapacity.ForecastPawnCapacityOf(Capacity()), Day).Choices);
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity(), [Sleep("unknown", 0, Hour)]);
         Assert.False(result.Needs.Single(n => n.Kind == "rest").FinalLevel.IsKnown);
         Assert.False(result.Mood!.PressureTicks.IsKnown);
-        Assert.False(ForecastMood.ForecastMoodTimeline(Pawn() with { Awake = Known(false) }, Day, []).PressureTicks.IsKnown);
-        var continuation = ForecastMood.ForecastMoodTimeline(Pawn() with { Awake = Known(false) }, Day, [Sleep("continue", 0, Hour)]);
+        Assert.False(ForecastMood.ForecastMoodTimeline(Pawn() with { Awake = false }, Day, []).PressureTicks.IsKnown);
+        var continuation = ForecastMood.ForecastMoodTimeline(Pawn() with { Awake = false }, Day, [Sleep("continue", 0, Hour)]);
         Assert.True(continuation.PressureTicks.IsKnown);
     }
 
     [Fact]
     public void StarvingSleepRequiresCompletedMealAndInterruptedEatingCannotUnlockIt()
     {
-        var pawn = Pawn() with { SleepWhileStarving = Known(false),
-            Needs = [new("rest", Known(.3), Known(0d), Known(.28)),
-                new("food", Known(0d), Known(0d), Known(.2))] };
+        var pawn = Pawn() with { SleepWhileStarving = false,
+            Needs = [NeedsFixtures.Rate("rest", .3, 0d, .28),
+                NeedsFixtures.Rate("food", 0d, 0d, .2)] };
         var sleep = Sleep("sleep", 200, 1000);
         var meal = new ForecastNeedChoice("meal", "pawn", "food", "food", "Rice", 1, 0, 0, 100, .5, []);
         Assert.False(ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity(), [sleep]).Needs.Single(n => n.Kind == "rest").FinalLevel.IsKnown);
         Assert.True(ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity(), [meal, sleep]).Needs.Single(n => n.Kind == "rest").FinalLevel.IsKnown);
         Assert.False(ForecastNeeds.ForecastNeedsTimeline(pawn, Capacity(), [meal, sleep], new Dictionary<string, double> { ["meal"] = 50 })
             .Needs.Single(n => n.Kind == "rest").FinalLevel.IsKnown);
-        Assert.True(ForecastNeeds.ForecastNeedsTimeline(pawn with { SleepWhileStarving = Known(true) }, Capacity(), [sleep])
+        Assert.True(ForecastNeeds.ForecastNeedsTimeline(pawn with { SleepWhileStarving = true }, Capacity(), [sleep])
             .Needs.Single(n => n.Kind == "rest").FinalLevel.IsKnown);
     }
     private static (ForecastCoupledCandidates Candidates, ForecastCoupledSelection Result) SelectObserved(NeedsForecastPawn pawn, double horizon = Day)
@@ -283,7 +266,7 @@ public sealed class ForecastConditionalMoodTests
         pawn = pawn with { Targets = EquatableArray.From(pawn.Targets.Select(t => t with { Location = new(1, 1) })) };
         facts = facts with { ForecastObserved = facts.ForecastObserved with
         {
-            Needs = new() { Tick = 100, Pawns = [pawn] },
+            Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [pawn] },
             Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Food = new(), Construction = ConstructionFixtures.NoConstruction(), Routes = [new("pawn", new(1, 1), new(1, 1), Known(0d)) { FromStart = true }] },
         } };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
@@ -307,7 +290,7 @@ public sealed class ForecastConditionalMoodTests
         var (_, control) = SelectObserved(Pawn(false));
         Assert.Empty(control.Selection.Selected);
         // Rest that reaches zero within minutes breaks the zero floor unless a sleep starts before it does.
-        var (_, urgent) = SelectObserved(Pawn() with { Needs = [new("rest", Known(.27), Known(.00054), Known(.28))] });
+        var (_, urgent) = SelectObserved(Pawn() with { Needs = [NeedsFixtures.Rate("rest", .27, .00054, .28)] });
         Assert.InRange(Assert.Single(urgent.Selected.Plan.Allocations).Start, 0, .27 / .00054);
         Assert.Equal(0d, urgent.SelectedVector.Value.UrgentZero.Excess);
         Assert.True(urgent.BaselineVector.Value.UrgentZero.Excess > 0);
@@ -315,16 +298,11 @@ public sealed class ForecastConditionalMoodTests
         Assert.Empty(shortHorizon.Selection.Selected);
     }
     [Fact]
-    public void NativeThresholdAndDisturbanceDelayActivationAndTinyResponseIntervalAddsNoSegments()
+    public void NativeThresholdAndDisturbanceDelayActivation()
     {
-        var pawn = Pawn() with { Needs = [new("rest", Known(.9), Known(.00001), Known(.28))], SleepBlockedUntilTicks = Known(20000d) };
+        var pawn = Pawn() with { Needs = [NeedsFixtures.Rate("rest", .9, .00001, .28)], SleepBlockedUntilTicks = 20000d };
         var generated = ForecastNeeds.GenerateNeedsAlternatives(pawn, ForecastCapacity.ForecastPawnCapacityOf(Capacity()), Day);
         Assert.NotEmpty(generated.Choices);
         Assert.All(generated.Choices, c => Assert.True(c.Start >= 20000 && Math.Max(0, .9 - .00001 * c.Start) < .75));
-        // Mood moves in exact segments between events (#3468); the native response interval adds none.
-        var tiny = ForecastMood.ForecastMoodTimeline(Pawn() with { MoodIntervalTicks = Known(.000001) }, Day, []);
-        var native = ForecastMood.ForecastMoodTimeline(Pawn(), Day, []);
-        Assert.Equal(native.Trajectory.Count, tiny.Trajectory.Count);
-        Assert.Equal(native.TerminalMood, tiny.TerminalMood);
     }
 }

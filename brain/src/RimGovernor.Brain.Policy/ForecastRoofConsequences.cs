@@ -24,8 +24,7 @@ public sealed record ForecastPlacedPiece(string Site, EquatableArray<string> Fin
 internal sealed record ForecastClosedRoom(EquatableArray<Cell> Interior, PlannedRoomPrediction Prediction, double ClosedAt, double RoofedAt);
 
 /// <summary>A cell's roof and room state at one tick: the observed NeedCell, changed where a planned room closes or is roofed over it.</summary>
-internal readonly record struct ForecastCellState(Fact<bool> Roofed, Fact<bool> ThickRoof, Fact<bool> NaturalRoof,
-    Fact<bool> OutdoorTemperature, Fact<bool> PsychologicallyOutdoors);
+internal readonly record struct ForecastCellState(bool Roofed, bool ThickRoof, bool NaturalRoof, bool OutdoorTemperature, bool PsychologicallyOutdoors);
 
 /// <summary>The roof and room thoughts of one pawn over one schedule (#3339); Unassessed names why the pawn's mood is unknown ("" assessed).</summary>
 internal sealed record ForecastRoofMood(IReadOnlyList<ForecastMemoryRenewal> Renewals,
@@ -126,23 +125,23 @@ public static class ForecastRoofConsequences
     /// <summary>
     /// A cell's state at <paramref name="time"/>: inside a closed planned room the room's own (open roof cells from the
     /// prediction, none once its roof is done; Room.PsychologicallyOutdoors and UsesOutdoorTemperature mirrored), and a
-    /// roof done over it is a constructed roof. Elsewhere, or before closure, the observed cell. Unknown when unread.
+    /// roof done over it is a constructed roof. Elsewhere, or before closure, the observed cell.
     /// </summary>
-    internal static ForecastCellState CellStateAt(NeedCell? observed, Cell? cell, double time, IReadOnlyList<ForecastClosedRoom> rooms)
+    internal static ForecastCellState CellStateAt(NeedCell observed, Cell at, double time, IReadOnlyList<ForecastClosedRoom> rooms)
     {
-        var state = observed is null ? default : new ForecastCellState(observed.Roofed, observed.ThickRoof, observed.NaturalRoof,
+        var state = new ForecastCellState(observed.Roofed, observed.ThickRoof, observed.NaturalRoof,
             observed.OutdoorTemperature, observed.PsychologicallyOutdoors);
-        if (cell is not { } at || rooms.FirstOrDefault(r => r.Interior.Contains(at)) is not { } room) return state;
+        if (rooms.FirstOrDefault(r => r.Interior.Contains(at)) is not { } room) return state;
         var roofDone = room.RoofedAt <= time;
-        if (roofDone) state = state with { Roofed = Known(true), ThickRoof = Known(false), NaturalRoof = Known(false) };
+        if (roofDone) state = state with { Roofed = true, ThickRoof = false, NaturalRoof = false };
         if (room.ClosedAt > time) return state;
         var prediction = room.Prediction;
         var open = roofDone ? 0 : prediction.OpenRoofCells;
         return state with
         {
-            PsychologicallyOutdoors = Known(ClosedPsychologicallyOutdoors(prediction, open)),
-            OutdoorTemperature = Known(prediction.TouchesMapEdge
-                || open >= Math.Ceiling(prediction.Cells * ForecastRoofConsequences.OutdoorTemperatureOpenFraction)),
+            PsychologicallyOutdoors = ClosedPsychologicallyOutdoors(prediction, open),
+            OutdoorTemperature = prediction.TouchesMapEdge
+                || open >= Math.Ceiling(prediction.Cells * ForecastRoofConsequences.OutdoorTemperatureOpenFraction),
         };
     }
 
@@ -166,7 +165,9 @@ public static class ForecastRoofConsequences
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var unassessed = "";
         void Unknown(string reason) { if (unassessed.Length == 0) unassessed = reason; }
-        NeedMemory Memory(NeedThoughtStage row) => new(row.Thought, row.Offset, row.DurationTicks, row.Fades);
+        // A situational stage is not a memory a renewal can give.
+        NeedMemory? Memory(NeedThoughtStage row) => row.Lasting is ThoughtLasting.Memory m
+            ? new(row.Thought, row.Offset, new MemoryLife.Expires(m.DurationTicks), m.Fades) { StackLimit = m.StackLimit } : null;
         var targets = pawn.Targets.GroupBy(t => t.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         var stages = pawn.ThoughtStages;
         var wakes = ForecastNeeds.SleepServiceEnds(pawn, choices, null, new SortedSet<string>(StringComparer.Ordinal));
@@ -177,21 +178,19 @@ public static class ForecastRoofConsequences
         foreach (var rest in choices.Where(c => c.Kind == "rest").OrderBy(c => c.Start))
         {
             if (wakes is null || !wakes.TryGetValue(rest.Id, out var wake)) break;
-            if (!targets.TryGetValue(rest.Target, out var bed) || bed.Bed is null || bed.Cell is null || bed.Location is null || bedDefs.Length == 0)
+            if (!targets.TryGetValue(rest.Target, out var bed) || bed.Bed is null || bedDefs.Length == 0)
             { findings.Add("sleep_room_thoughts_unread:" + rest.Target); continue; }
-            var continuing = rest.Start == 0 && pawn.Awake == Known(false);
+            var continuing = rest.Start == 0 && !pawn.Awake;
             var slept = wake - rest.Start;
             if (!continuing && slept < ForecastRoofConsequences.BedThoughtsEarliestTicks) continue;
             if (slept < ForecastRoofConsequences.BedThoughtsLatestTicks) { Unknown("sleep_bed_thoughts_onset_unassessed:" + rest.Id); continue; }
             var closed = rooms.FirstOrDefault(r => r.ClosedAt <= wake && r.Prediction.Beds.Contains(bed.Id));
-            var role = closed is null ? bed.Bed.Role : closed.Prediction.Role;
-            var outside = CellStateAt(bed.Cell, bed.Location, wake, rooms).PsychologicallyOutdoors;
+            var (role, stage) = closed is null ? (bed.Bed.Role, bed.Bed.Stage) : (closed.Prediction.Role, closed.Prediction.Stage);
             var gains = new List<NeedMemory>();
-            if (!outside.TryGetValue(out var isOutside)) { Unknown("sleep_room_outdoors_unknown:" + rest.Id); continue; }
-            if (isOutside)
+            if (CellStateAt(bed.Cell, bed.Location, wake, rooms).PsychologicallyOutdoors)
             {
-                if (stages.FirstOrDefault(r => r.Role == "slept_outside" && r.Stage == 0) is not { } row) { Unknown("sleep_outside_unpriced"); continue; }
-                gains.Add(Memory(row));
+                if (stages.FirstOrDefault(r => r.Role == "slept_outside" && r.Stage == 0) is not { } row || Memory(row) is not { } memory) { Unknown("sleep_outside_unpriced"); continue; }
+                gains.Add(memory);
             }
             if (bed.Id == pawn.OwnedBed && !pawn.Ascetic && !bed.Bed.ForPrisoners)
             {
@@ -199,11 +198,8 @@ public static class ForecastRoofConsequences
                 var thought = role == BedroomRole ? "slept_in_bedroom" : role == BarracksRole ? "slept_in_barracks" : "";
                 if (thought.Length != 0)
                 {
-                    var index = 0;
-                    if (closed is not null) index = closed.Prediction.Stage;
-                    else if (!bed.Bed.Stage.TryGetValue(out index)) { Unknown("sleep_room_stage_unknown:" + rest.Id); continue; }
-                    if (stages.FirstOrDefault(r => r.Role == thought && r.Stage == index) is not { } row) { Unknown("sleep_room_stage_unpriced:" + rest.Id); continue; }
-                    gains.Add(Memory(row));
+                    if (stages.FirstOrDefault(r => r.Role == thought && r.Stage == stage) is not { } row || Memory(row) is not { } memory) { Unknown("sleep_room_stage_unpriced:" + rest.Id); continue; }
+                    gains.Add(memory);
                 }
             }
             renewals.Add(new(wake, EquatableArray.From(bedDefs), EquatableArray.From(gains)));
@@ -214,7 +210,7 @@ public static class ForecastRoofConsequences
         var spans = new List<(double Start, double End, NeedTarget Target, bool Asleep, bool InBed)>();
         foreach (var choice in choices.Where(c => c.Kind is "joy" or "rest"))
         {
-            if (!targets.TryGetValue(choice.Target, out var target) || target.Cell is null || target.Location is null) continue;
+            if (!targets.TryGetValue(choice.Target, out var target)) continue;
             if (choice.Kind == "joy") { spans.Add((choice.Start, choice.End, target, false, false)); continue; }
             if (wakes is null || !wakes.TryGetValue(choice.Id, out var wake)) continue;
             if (wake > choice.Start) spans.Add((choice.Start, wake, target, true, true));
@@ -229,15 +225,14 @@ public static class ForecastRoofConsequences
             var single = read.WeatherThoughtStages == 1;
             foreach (var span in spans)
             {
-                if (!CellStateAt(span.Target.Cell, span.Target.Location, span.Start, rooms).Roofed.TryGetValue(out var roofed))
-                { Unknown("weather_roof_unknown"); break; }
+                var roofed = CellStateAt(span.Target.Cell, span.Target.Location, span.Start, rooms).Roofed;
                 if (roofed && single) continue;
                 var index = single || roofed ? 0 : 1;
-                if (stages.FirstOrDefault(r => r.Role == "weather" && r.Thought == read.WeatherThought && r.Stage == index) is not { } row)
+                if (stages.FirstOrDefault(r => r.Role == "weather" && r.Thought == read.WeatherThought && r.Stage == index) is not { } row || Memory(row) is not { } memory)
                 { Unknown("weather_thought_unpriced"); break; }
                 // Renewed through the span: one renewal where it starts and one where it ends (adjacent spans share one).
                 foreach (var at in new[] { span.Start, span.End }.Where(t => t < horizon))
-                    if (!renewals.Any(r => r.At == at && r.Ends.Contains(row.Thought))) renewals.Add(new(at, [row.Thought], [Memory(row)]));
+                    if (!renewals.Any(r => r.At == at && r.Ends.Contains(row.Thought))) renewals.Add(new(at, [row.Thought], [memory]));
             }
         }
 
@@ -246,7 +241,7 @@ public static class ForecastRoofConsequences
         double Current(string def) => thoughts.Where(t => t.Def == def).Sum(t => t.Offset);
 
         // The outdoors need along the known spans (Need_Outdoors.NeedInterval), its category held between them.
-        if (pawn.OutdoorsLevel.TryGetValue(out var level) && !pawn.OutdoorsDisabled && stages.Any(r => r.Role == "need_outdoors" && r.Offset != 0))
+        if (pawn.Outdoors is NeedLevel.Has { Level: var level } && !pawn.OutdoorsDisabled && stages.Any(r => r.Role == "need_outdoors" && r.Offset != 0))
         {
             findings.Add("outdoors_need_constant_outside_known_location");
             var changes = new List<(double At, int Stage)>();
@@ -255,9 +250,8 @@ public static class ForecastRoofConsequences
             foreach (var span in awake)
             {
                 var state = CellStateAt(span.Target.Cell, span.Target.Location, span.Start, rooms);
-                if (!state.OutdoorTemperature.TryGetValue(out var outdoors) || !state.Roofed.TryGetValue(out var roofed)
-                    || roofed && !state.ThickRoof.IsKnown) { Unknown("outdoors_need_cell_unknown"); break; }
-                var thick = roofed && state.ThickRoof.Value;
+                var (outdoors, roofed) = (state.OutdoorTemperature, state.Roofed);
+                var thick = roofed && state.ThickRoof;
                 var delta = outdoors ? !roofed ? ForecastRoofConsequences.OutdoorsOutdoorsNoRoof : thick ? ForecastRoofConsequences.OutdoorsOutdoorsThickRoof : ForecastRoofConsequences.OutdoorsOutdoorsThinRoof
                     : !roofed ? ForecastRoofConsequences.OutdoorsIndoorsNoRoof : thick ? ForecastRoofConsequences.OutdoorsIndoorsThickRoof : ForecastRoofConsequences.OutdoorsIndoorsThinRoof;
                 var floor = !outdoors && thick ? 0 : ForecastRoofConsequences.OutdoorsFallFloor;
@@ -309,9 +303,8 @@ public static class ForecastRoofConsequences
                 var rowsOut = new List<(double Start, double End, double OffsetDelta)>();
                 foreach (var span in awake)
                 {
-                    var state = CellStateAt(span.Target.Cell, span.Target.Location, span.Start, rooms);
-                    if (!state.OutdoorTemperature.TryGetValue(out var outdoors) || !state.Roofed.TryGetValue(out var roofed)
-                        || !state.NaturalRoof.TryGetValue(out var natural)) { Unknown("undergrounder_cell_unknown"); break; }
+                    var s = CellStateAt(span.Target.Cell, span.Target.Location, span.Start, rooms);
+                    var (outdoors, roofed, natural) = (s.OutdoorTemperature, s.Roofed, s.NaturalRoof);
                     var active = role switch
                     {
                         "undergrounder_indoors" => !outdoors && roofed && !natural,
@@ -338,8 +331,9 @@ public static class ForecastRoofConsequences
     /// </summary>
     internal static double? DeterioratedAt(NeedTarget stack, NeedsForecastRead read, IReadOnlyList<ForecastClosedRoom> rooms, double until)
     {
-        if (stack.Deterioration is not { } d || stack.Location is not { } cell) return double.PositiveInfinity;
-        if (!d.RatePerDay.TryGetValue(out var observedRate) || !double.IsFinite(observedRate) || DeteriorationVisits(read) is not { } visits) return null;
+        if (stack.Deterioration is not { } d) return double.PositiveInfinity;
+        var (cell, observedRate) = (stack.Location, d.RatePerDay);
+        if (DeteriorationVisits(read) is not { } visits) return null;
         if (observedRate <= 0) return double.PositiveInfinity;
         var room = rooms.FirstOrDefault(r => r.Interior.Contains(cell));
         var times = new SortedSet<double> { 0 };
@@ -348,10 +342,9 @@ public static class ForecastRoofConsequences
         var points = times.Append(until).ToArray();
         double? Factor(double time)
         {
+            if (read.Deterioration is not { } part) return null;
             var state = CellStateAt(stack.Cell, cell, time, rooms);
-            if (read.Deterioration is not { } part || DeteriorationRain(read) is not { } rain
-                || !state.Roofed.TryGetValue(out var roofed) || !state.OutdoorTemperature.TryGetValue(out var outdoors)) return null;
-            return EnvironmentalFactor(part, rain, roofed, outdoors, d.TerrainFactor, d.Protected);
+            return EnvironmentalFactor(part, DeteriorationRain(read), state.Roofed, state.OutdoorTemperature, d.TerrainFactor, d.Protected);
         }
         var now = d.Environmental && room is not null ? Factor(0) : 1;
         if (now is null) return null;
@@ -375,13 +368,13 @@ public static class ForecastRoofConsequences
 
     /// <summary>
     /// The share of the map SteadyEnvironmentEffects visits a tick: Ceil(MapArea × 0.0006) cells over the area (#3339, #3798).
-    /// Null while the area is unread or empty.
+    /// Null while the area is empty.
     /// </summary>
     internal static double? DeteriorationVisits(NeedsForecastRead read) =>
-        read.MapArea.TryGetValue(out var area) && area > 0 ? Math.Ceiling(area * ForecastRoofConsequences.SteadyCellsFractionPerTick) / area : null;
+        read.MapArea is var area && area > 0 ? Math.Ceiling(area * ForecastRoofConsequences.SteadyCellsFractionPerTick) / area : null;
 
-    /// <summary>The map's rain rate now, held over the horizon (#3339); null while unread.</summary>
-    internal static double? DeteriorationRain(NeedsForecastRead read) => read.RainRate.TryGetValue(out var rain) ? rain : null;
+    /// <summary>The map's rain rate now, held over the horizon (#3339).</summary>
+    internal static double DeteriorationRain(NeedsForecastRead read) => read.RainRate;
 
     /// <summary>
     /// StatPart_EnvironmentalEffects' factor at a cell (#3339, #3798): the unroofed offset, the outdoors offset (the cell

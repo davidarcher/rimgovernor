@@ -22,7 +22,7 @@ public sealed class GoalValueTests
     private static ForecastCoupledContext Context(Importance importance, int? deadline = null, long tick = 0) => new()
     {
         Activities = new() { Activities = [new("research/pawn/bench", "bench", "bench", []) { ProjectProgress = new("Smithing", 1) }] },
-        Needs = new() { Tick = tick }, Resources = Resources(),
+        Needs = NeedsFixtures.Empty with { Tick = new(tick) }, Resources = Resources(),
         GoalValues = [new("goals/research-project/1", importance, deadline) { Research = [new("Smithing", 1.0 / 5000)] }],
     };
 

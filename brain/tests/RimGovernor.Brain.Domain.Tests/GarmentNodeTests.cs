@@ -49,7 +49,7 @@ public sealed class GarmentNodeTests
         var worn = EquatableArray.From(new[] { ForecastValueTests.Duster(0.3) with { Slot = GearSlot.Outer } });
         var context = ForecastValueTests.Context(pawns[0], ForecastValueTests.HarmTables(), ForecastValueTests.RaidDay(), wearers.ToDictionary(n => n, _ => worn, StringComparer.Ordinal)) with
         {
-            Needs = new() { Pawns = [.. pawns] },
+            Needs = NeedsFixtures.Empty with { Pawns = [.. pawns] },
         };
         return new ColonyValue(context, options, horizon, default, new ItemFacts());
     }

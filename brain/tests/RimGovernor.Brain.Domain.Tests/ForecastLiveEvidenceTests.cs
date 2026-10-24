@@ -12,8 +12,8 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class ForecastLiveEvidenceTests
 {
     private static readonly GenerationSnapshot Scope = new(new("colony"), new(1), new("load"), new("root"), new(1), new(1));
-    private static NeedsForecastRead Needs(long tick, double food = .6) => new() { Tick = tick, Pawns = [new() {
-        Pawn = "pawn", Mood = Known(.7), MoodTarget = Known(.99), Needs = [new("food", Known(food), default, default), new("rest", Known(.8), default, default)] }] };
+    private static NeedsForecastRead Needs(long tick, double food = .6) => NeedsFixtures.Empty with { Tick = new(tick), Pawns = [NeedsFixtures.Pawn() with {
+        Pawn = "pawn", Mood = NeedsFixtures.Mood with { Level = .7, Target = .99 }, Needs = [NeedsFixtures.Rate("food", food, default, default), NeedsFixtures.Rate("rest", .8, default, default)] }] };
     private static ForecastCoupledContext Context(long tick) => new() { Activities = new(), Needs = Needs(tick), Resources = new(new(), new([], [], [], []), default) };
     private static ForecastCoupledSelection Selection()
     {

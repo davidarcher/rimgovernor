@@ -16,9 +16,9 @@ public sealed class PawnCycleTests
         Pawn = name,
         Needs = EquatableArray.From(new[]
         {
-            new ModelNeed { Kind = "rest", Fall = Known(0.00001), Gain = Known(0.00002), Threshold = Known(0.28) },
-            new ModelNeed { Kind = "food", Fall = Known(0.000025), Threshold = Known(0.3), GainPerUse = Known(0.6), ServiceTicks = Known(400.0), ApproachTicks = Known(100.0) },
-            new ModelNeed { Kind = "joy", Fall = Known(0.00001), Gain = Known(0.00015), Threshold = Known(0.3) },
+            new ModelNeed { Kind = "rest", Fall = 0.00001, Gain = 0.00002, Threshold = 0.28 },
+            new ModelNeed { Kind = "food", Fall = 0.000025, Threshold = 0.3, GainPerUse = Known(0.6), ServiceTicks = Known(400.0), ApproachTicks = Known(100.0), Gain = 0 },
+            new ModelNeed { Kind = "joy", Fall = 0.00001, Gain = 0.00015, Threshold = 0.3 },
         }),
         Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Plants", Level = 10 } })),
         ComfortableMin = Known(16.0),
@@ -61,27 +61,11 @@ public sealed class PawnCycleTests
     }
 
     [Fact]
-    public void AnUnknownRestGainLeavesTheCycleUnknownWithTheFinding()
-    {
-        var pawn = Pawn();
-        pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "rest" ? n with { Gain = default } : n)) };
-
-        var cycle = PawnCycle.Of(Input(pawn), pawn, 5);
-
-        Assert.False(cycle.SleepHours.IsKnown);
-        Assert.False(cycle.FreeHours.IsKnown);
-        Assert.False(cycle.OutdoorHours.IsKnown);
-        Assert.False(cycle.Valid());
-        Assert.Contains("rest_gain_unknown:Anna", cycle.Findings);
-        Assert.Equal(0.5, cycle.EatingHours.Value, 9);
-    }
-
-    [Fact]
     public void AJoyNeedNothingServesNowTakesNoHoursAndIsNamed()
     {
         // #3825: no recreation building and no walk the giver allows (JoyGiver.CanBeGivenTo): the read's joy gain is 0, a real state.
         var pawn = Pawn();
-        pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "joy" ? n with { Gain = Known(0d) } : n)) };
+        pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "joy" ? n with { Gain = 0d } : n)) };
 
         var cycle = PawnCycle.Of(Input(pawn), pawn, 5);
 
@@ -170,7 +154,7 @@ public sealed class PawnCycleTests
     public void ADayOverbookedByItsOverheadsHasNoFreeHours()
     {
         var pawn = Pawn();
-        pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "rest" ? n with { Fall = Known(0.001) } : n)) };
+        pawn = pawn with { Needs = EquatableArray.From(pawn.Needs.Select(n => n.Kind == "rest" ? n with { Fall = 0.001 } : n)) };
 
         var cycle = PawnCycle.Of(Input(pawn), pawn, 5);
 

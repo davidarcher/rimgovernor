@@ -30,7 +30,7 @@ public sealed partial class Rounder
         // Routes between the answered sites (#3313): their sources and clearing are known only once the sites are;
         // and between them and the need targets a pawn eats or sleeps at in between (#3676).
         var needTargets = (colony.Facts.ForecastObserved.Needs?.Pawns ?? []).SelectMany(p => p.Targets)
-            .Where(t => t.Location is not null).Select(t => t.Location!.Value).ToHashSet();
+            .Select(t => t.Location).ToHashSet();
         var probes = PlannedRules.PlannedRouteProbes(joined.Sites, needTargets);
         var routes = probes.Count == 0 ? null
             : await ReadPlannedAsync(new O.ConstructionActivityRequest(Boundary.Identity(snapshot), []) { Routes = probes }, ct).ConfigureAwait(false);

@@ -240,8 +240,7 @@ internal static class CoordinatedActivityBinding
 
     private static bool NeedsService(ActivityTaskRead read, string pawn) =>
         read.Needs.Pawns.FirstOrDefault(p => p.Pawn == pawn) is { } observed
-        && observed.Needs.Any(n => n.Kind is "rest" or "food" && n.Level.TryGetValue(out var level)
-            && n.Threshold.TryGetValue(out var threshold) && level <= threshold);
+        && observed.Needs.Any(n => n.Kind is "rest" or "food" && n.Level <= n.Threshold);
 
     /// <summary>The set a completed set order leaves (#3613): the members the order did not carry, Count their number.</summary>
     private static PawnActivityStep RemainingSet(PawnActivityStep step, PawnActivityStep worked)

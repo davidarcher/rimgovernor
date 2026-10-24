@@ -42,9 +42,9 @@ public sealed class ClothingChoiceTests
     { ID = "tattered-shirt", Source = GearSource.Worn, Sharp = 0, Condition = 0.1, CareIfDamaged = true, CountsAsClothingForNudity = true };
     private static NeedThoughtStage[] ApparelStages =>
     [
-        new("ApparelDamaged", ForecastApparel.Damaged, 0, -3, Known((double)GameTime.TicksPerDay), false),
-        new("ApparelDamaged", ForecastApparel.Damaged, 1, -5, Known((double)GameTime.TicksPerDay), false),
-        new("Naked", ForecastApparel.Naked, 0, -6, Known((double)GameTime.TicksPerDay), false),
+        new("ApparelDamaged", ForecastApparel.Damaged, 0, -3, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false)),
+        new("ApparelDamaged", ForecastApparel.Damaged, 1, -5, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false)),
+        new("Naked", ForecastApparel.Naked, 0, -6, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false)),
     ];
     private static RecipeIngredientObservation Input(string id, string stuff, int count = 10, double travel = 5) =>
         new(id, stuff, count, new(id == "a-far" ? 50 : id == "c-near" ? 6 : 5, 5), count) { Capacity = 75, ApproachTicks = travel, CarryTicks = 5.0, ReturnTicks = 5.0 };
@@ -65,7 +65,7 @@ public sealed class ClothingChoiceTests
         return facts with { Gear = Known(census), WorkView = resources, MoodBreak = new() { Threshold = 0.3, Tiers = [new(1, 2), new(1, 3), new(1, 5)] }, ForecastObserved = facts.ForecastObserved with
         {
             Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Pawn = "tailor" }, template with { Pawn = "helper" },
-                template with { Pawn = "wearer", Apparel = new(RimGovernor.Contracts.Wire.Defs.Gender.Male, true, true), ThoughtStages = [.. template.ThoughtStages, .. ApparelStages] }] },
+                template with { Pawn = "wearer", Apparel = NeedsFixtures.Apparel(RimGovernor.Contracts.Wire.Defs.Gender.Male, true, true), ThoughtStages = [.. template.ThoughtStages, .. ApparelStages] }] },
             Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Tick = 100, Clothing = read, Construction = ConstructionFixtures.NoConstruction() }
         } };
     }

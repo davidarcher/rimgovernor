@@ -223,8 +223,8 @@ public sealed class ForecastActivityCompositionTests
             Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 4)]),
             ForecastObserved = facts.ForecastObserved with
             {
-                Needs = new() { Tick = 100, Pawns = [new() { Pawn = "pawn", State = "eligible",
-                    Needs = [new("food", Known(.2), Known(.001), Known(.3))] }] },
+                Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [NeedsFixtures.Pawn() with { Pawn = "pawn", State = "eligible",
+                    Needs = [NeedsFixtures.Rate("food", .2, .001, .3)] }] },
                 Coupled = new() { Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Tick = 100, Food = new(),
                     FoodSources = [new("a", "Rice", new(1, 1), 2, Known(1000d)), new("b", "Rice", new(1, 1), 2, Known(1000d)), new("unused-unknown", "Rice", new(9, 9), 2, default),
                         new("unrelated-meal", "Meal", new(9, 9), 1, existingMealFreshness < 0 ? default : Known(existingMealFreshness))],

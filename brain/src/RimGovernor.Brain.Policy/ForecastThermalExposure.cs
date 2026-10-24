@@ -47,7 +47,7 @@ public sealed partial record ForecastThermalExposure
         var cells = context.Thermal is { } thermal ? CellsByLocation.GetValue(thermal, static t => t.Cells.ToDictionary(c => Methods.Generation.ForecastLocations.Of(c.Cell))) : NoCells;
         double assessed = 0;
         spans.Clear();
-        if (pawn.ComfortableMin.TryGetValue(out var min) && pawn.ComfortableMax.TryGetValue(out var max))
+        var (min, max) = (pawn.ComfortableMin, pawn.ComfortableMax);
         {
             foreach (var allocation in allocations)
             {

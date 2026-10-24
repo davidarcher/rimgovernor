@@ -158,7 +158,7 @@ unknown completion leaves that pawn's mood, or thermal exposure, unassessed.
 - `SituationalChanges` add `OffsetDelta` to the pawn's mood target from that
   tick; removing an active -11 thought is +11. Every other situational thought
   but the banded ones (temperature, roof, food and rest, below)
-  stays constant inside `MoodUnclampedTarget`, so the
+  stays constant inside `NeedMood.UnclampedTarget`, so the
   `unmodeled_situational_thoughts_constant` finding remains. Changing one
   thought twice for a pawn is `unsupported_situational_change_stacking`.
   `BreakRisk` values the change like any other target movement.
@@ -190,7 +190,7 @@ the pawn's choices instead of staying at their observed stage.
   observed one.
 - `ForecastMood.NeedThoughts` turns them into banded rows covering the horizon:
   each span adds its stage's mood less the observed stage's, which
-  `MoodUnclampedTarget` already holds. The stage moods are the defs' `baseMoodEffect`
+  `NeedMood.UnclampedTarget` already holds. The stage moods are the defs' `baseMoodEffect`
   ([kept constants](kept-constants.md#mirrored-game-literals-need-thoughts-3598)).
   `ForecastNeedsTimeline` and the coupled evaluation add them to the caller's
   banded thoughts, so `BreakRisk`, `BreakTierTicks` and `PressureTicks` carry
@@ -253,13 +253,35 @@ hand-written temperature-mood constants, and mood is valued only as `BreakRisk`.
 
 The needs read carries the facts the roof and room consequences use (#3339; the
 model is in [ColonyForecast](../architecture/colony-forecast.md#roof-and-room-consequences)).
-Every field is unknown, or null, when unread; nothing is capped.
+Nothing is capped. Every member of the needs read is required and plain (#3781): a
+number the game gives as not finite, or a colonist without the tracker a member
+reads (health, mood breaker, immunity), refuses the read rather than sending an
+unknown. What the game does not have is a case, never an unknown:
+
+- `NeedsForecastPawn.Mood` (`NeedMood`) is null for a pawn without a mood need; it
+  carries the level, target, unclamped target, rise and fall rates a tick, whether
+  sleep freezes it, the minor break threshold, the memories and `Conditional`:
+  `Modeled` with the conditional thoughts the forecast models (the NightOwl
+  worker), or `Unmodeled` naming the defs it cannot (another worker, a def it
+  cannot price), which leaves the mood timeline unknown with one
+  `unknown_conditional_mood_mechanics:<def>` finding per named def.
+- `NeedMemory.Life` is `Permanent` or `Expires` with the ticks left;
+  `NeedThoughtStage.Lasting` is a `Memory` (duration, whether it fades, stack
+  limit) or `Situational`.
+- `NeedTarget.Recovery` is `Ingest` (service ticks, gain a unit: a meal) or `Rate`
+  (gain a tick: a bed, a recreation building); `TravelTicks` is the route cost.
+- `NeedsForecastPawn.Outdoors` is `NeedLevel.Has` or `Lacks` (no outdoors need).
+- `LocalHour` is the pawn's local hour; `SleepBlocked` is a pawn that cannot fall
+  asleep voluntarily or has a hediff that blocks sleep, `SleepBlockedUntilTicks`
+  the disturbance wait, 0 when none.
+
+`NeedTarget.StockCount`, `MaxPawns` and `FreshTicks` are still facts (#3783).
 
 - `NeedsForecastRead`: the current weather's `WeatherThought` and its stage count,
   `RainRate`, `MapArea`, and `Deterioration`, the DeteriorationRate stat's
   `StatPart_EnvironmentalEffects` def data (unroofed and outdoors offsets, edifice
   protection factor).
-- `NeedsForecastPawn`: `OutdoorsLevel` and `OutdoorsDisabled` (Need\_Outdoors),
+- `NeedsForecastPawn`: `Outdoors` and `OutdoorsDisabled` (Need\_Outdoors),
   `OwnedBed` and `Ascetic` (the two pawn facts `ApplyBedThoughts` reads), and
   `ThoughtStages`, one `NeedThoughtStage` per thought stage the pawn can get, priced
   by the game's `MoodOffset` for this pawn, with its duration. `Role` names why the
@@ -323,7 +345,7 @@ pawn's `ForecastThermalExposure.Spans`: exact piecewise integration of the giver
   tier mixes give the mean days a break of each tier lasts.
 - `NeedsForecastPawn`: `Consciousness`, `Moving`, `Manipulation`, `Sight` and
   `Talking` (`health.capacities.GetLevel`), and `MalnutritionSeverity`, `HypothermiaSeverity`, `HeatstrokeSeverity` and
-  `FoodPoisoningSeverity` (0 when absent), each unknown without a health tracker.
+  `FoodPoisoningSeverity` (0 when absent).
   Each capacity ratio of the ledger is the level a stage leaves against the
   observed one.
 - The ledger reads them through `ForecastCoupledContext` (`CapacityPenalties`,
@@ -341,7 +363,7 @@ an effect, are mirrored in
 The harm model's fifth step ([harm model](../architecture/forecast-value.md#harm-model)).
 
 - `NeedsForecastPawn.PainShockThreshold`, `HealthScale`, `IncomingDamageFactor` and `InjuryHealingFactor` (`StatDefOf` stats and
-  `pawn.HealthScale`) are unknown without a health tracker.
+  `pawn.HealthScale`); a colonist without a health tracker refuses the needs read.
 - `CapacityPenaltyTables.BloodLoss` and `WoundInfection` are decoded like the other tables; `HediffPenaltyTable.Immunizable`
   (`HediffCompProperties_Immunizable`) and `SeverityPerDayTended` (`HediffCompProperties_TendDuration`) carry the infection's course.
   They are not part of `CapacityPenaltyTables.Valid()`; an unknown one leaves its part unassessed.
@@ -352,7 +374,7 @@ The harm model's fifth step ([harm model](../architecture/forecast-value.md#harm
   room factor are the mean over services); first care is `FirstCareTicks`; otherwise the pawn is untended (`harm_untended`). An internal
   overload takes the care as a plain `HarmConsequences.Care` (the hospital credit's, #3804), and `HarmConsequences.Wounds` prices a
   surgery failure's damage dealt at one wound severity the same way.
-  An unobserved pain shock threshold, health scale, incoming-damage or healing factor, capacity or weapon mix makes the distribution unknown
+  A health scale that is not positive or an unobserved weapon mix makes the distribution unknown
   (`capacities_unobserved:<pawn>`, `weapon_mix_unobserved`). Unassessed parts are findings: `adaptation_feedback_unassessed`,
   `rescue_labor_unassessed`, `injury_part_effects_unassessed`, `bleed_part_factors_unobserved`,
   `capacity_penalty_table_unknown:BloodLoss` or `:WoundInfection`, and for infection `infection_immunity_gain_speed_unobserved`,
@@ -462,7 +484,7 @@ costs each pawn.
   (`HarmDistribution.Replacements`, no further loss; the hospital's surgeries a day = incidents a day × its probability); otherwise
   it is a named `SurgeryWantReason` (`PartShort`, `NoDoctor`, `BedShort`) and the loss lasts to the horizon. Uniform draws are a 4-point midpoint grid; the death chance in the immunity factor is exact.
   Deaths cost the horizon's rest plus `DeathTerminalValue`; survivors their capability-days. `PatientDays` (days from first care to
-  the end) and `Treatments` (tends) are its expectations. Unknown with `illness_unobserved:<pawn>`, `capacities_unobserved:<pawn>`,
+  the end) and `Treatments` (tends) are its expectations. Unknown with `capacities_unobserved:<pawn>` (a pawn without a needs row),
   `capacity_penalty_table_unknown:MovingMinForCapable` or `disease_contract_unobserved:<pawn>:<def>`. Findings of what is left
   out: `illness_untended`, `illness_prior_immunity_unassessed` (an earlier immunity record),
   `disease_severity_factors_unpriced:<hediff>`, `disease_part_stage_death_unmodelled:<hediff>` (a stage offset that kills is priced

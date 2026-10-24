@@ -10,15 +10,15 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class WorkTargetCapacityClaimsTests
 {
     private static NeedTarget Stack(double quantity, Fact<int> maxPawns) =>
-        new("stack", "food", "Rice", 10, Known(0d), Known(10d), Known(0d), Known(.01)) { StockCount = Known(quantity), MaxPawns = maxPawns };
+        NeedsFixtures.Food("stack", "Rice", 10, 0d, 10d, 0d) with { StockCount = Known(quantity), MaxPawns = maxPawns };
     private static NeedTarget Service(string id, string kind, Fact<int> maxPawns) =>
-        new(id, kind, "", 1, Known(0d), Known(10d), Known(0d), Known(.01)) { MaxPawns = maxPawns };
+        NeedsFixtures.Service(id, kind, 0d, .01) with { MaxPawns = maxPawns };
 
     private static RoundsFacts Facts(params NeedTarget[] targets)
     {
         var facts = WorkResourceTestFacts.Create("a", "b", "c", "d");
         return facts with { ForecastObserved = facts.ForecastObserved with
-            { Needs = new() { Tick = 100, Pawns = [new() { Pawn = "a", Targets = EquatableArray.From(targets) }] } } };
+            { Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [NeedsFixtures.Pawn() with { Pawn = "a", Targets = EquatableArray.From(targets) }] } } };
     }
 
     private static PawnActivityOrder Order(PawnActivityKind kind, string pawn, string target, int count = 0) =>

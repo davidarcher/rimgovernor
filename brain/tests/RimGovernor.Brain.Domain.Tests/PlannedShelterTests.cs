@@ -71,13 +71,11 @@ public sealed class PlannedShelterTests
         }
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
         {
-            Awake = Known(true), LocalHour = Known(6d), SleepThreshold = Known(.75), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(200d),
-            ComfortableMin = Known(10d), ComfortableMax = Known(30d),
-            MoodUnclampedTarget = Known(.5), MoodIntervalTicks = Known(150d), MoodRisePerTick = Known(.12 / GameTime.TicksPerHour),
-            MoodFallPerTick = Known(.08 / GameTime.TicksPerHour), MoodFreezesWhileAsleep = Known(true), BreakThreshold = Known(.3),
-            ConditionalThoughts = Known<EquatableArray<NeedConditionalThought>>([]),
-            Needs = [new("food", Known(1d), Known(0d), Known(.3)), new("rest", Known(.2), Known(.0004), Known(.3))],
-            Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.0005)) { Location = Inside }],
+            Awake = true, LocalHour = 6d, SleepThreshold = .75, WakeThreshold = 1d, SleepBlockedUntilTicks = 200d,
+            ComfortableMin = 10d, ComfortableMax = 30d,
+            Mood = NeedsFixtures.Mood with { UnclampedTarget = .5, RisePerTick = .12 / GameTime.TicksPerHour, FallPerTick = .08 / GameTime.TicksPerHour, FreezesWhileAsleep = true, BreakThreshold = .3, Conditional = new ConditionalMood.Modeled([]) },
+            Needs = [NeedsFixtures.Rate("food", 1d, 0d, .3), NeedsFixtures.Rate("rest", .2, .0004, .3)],
+            Targets = [NeedsFixtures.Service("bed", "rest", 0d, .0005) with { Location = Inside }],
         };
         facts = facts with
         {
@@ -161,13 +159,13 @@ public sealed class PlannedShelterTests
 
         // The barracks credit (#3658): the sleeper's spot is outdoors in no room (slept_outside -10), the barracks it is booked to
         // at stage 0 gives slept_in_barracks -2.
-        var outdoors = new NeedCell(Known(false), Known(false), Known(false), Known(true), Known(true));
+        var outdoors = new NeedCell(false, false, false, true, true);
         var sleeper = SleepFixtures.Sleeping(facts.ForecastObserved.Needs!.Pawns[0], SleepFixtures.InBed("bed", outside: true) with { Temperature = 20 }) with
         {
-            ThoughtStages = [new("SleptOutside", "slept_outside", 0, -10, Known((double)GameTime.TicksPerDay), false),
-                new("SleptInBarracks", "slept_in_barracks", 0, -2, Known((double)GameTime.TicksPerDay), false)],
+            ThoughtStages = [new("SleptOutside", "slept_outside", 0, -10, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false)),
+                new("SleptInBarracks", "slept_in_barracks", 0, -2, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false))],
             OwnedBed = "bed",
-            Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.0005)) { Bed = new("", Known(0), false), Cell = outdoors, Location = Inside }],
+            Targets = [NeedsFixtures.Service("bed", "rest", 0d, .0005) with { Bed = NeedsFixtures.BedRoom("", 0, false), Cell = outdoors, Location = Inside }],
         };
         var barracks = facts with
         {
@@ -204,13 +202,13 @@ public sealed class PlannedShelterTests
         Assert.All(unpriced.Rejected.Where(e => e.Consequences is not null && e.Commitments.Any(id => id.StartsWith("planned/room1/", StringComparison.Ordinal))),
             e => Assert.Equal(unpriced.BaselineVector.Development, e.Consequences!.Development));
 
-        var outdoors = new NeedCell(Known(false), Known(false), Known(false), Known(true), Known(true));
+        var outdoors = new NeedCell(false, false, false, true, true);
         var sleeper = SleepFixtures.Sleeping(facts.ForecastObserved.Needs!.Pawns[0], SleepFixtures.InBed("bed", outside: true) with { Temperature = 20 }) with
         {
-            ThoughtStages = [new("SleptOutside", "slept_outside", 0, -4, Known((double)GameTime.TicksPerDay), false),
-                new("SleptInBarracks", "slept_in_barracks", 0, -2, Known((double)GameTime.TicksPerDay), false)],
+            ThoughtStages = [new("SleptOutside", "slept_outside", 0, -4, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false)),
+                new("SleptInBarracks", "slept_in_barracks", 0, -2, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false))],
             OwnedBed = "bed",
-            Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.0005)) { Bed = new("", Known(0), false), Cell = outdoors, Location = Inside }],
+            Targets = [NeedsFixtures.Service("bed", "rest", 0d, .0005) with { Bed = NeedsFixtures.BedRoom("", 0, false), Cell = outdoors, Location = Inside }],
         };
         var barracks = facts with
         {

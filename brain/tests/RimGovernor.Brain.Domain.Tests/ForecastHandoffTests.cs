@@ -24,7 +24,7 @@ public sealed class ForecastHandoffTests
         return new() { Origin = new("map", 0), HorizonDays = 1,
             Facts = new() { Stock = Known(stock), Food = new() { Complete = Known(true), Stocks = [new() { DefName = Food, Count = Known(10L), Nutrition = Known(5d) }] }, Items = new() { Nutrition = new Dictionary<Resource, double> { [Food] = .5 } } },
             Coupled = new() { Activities = new() { Activities = [new("research", "", "", []) { ProjectProgress = new("Research", 1) }] },
-                ModelBasis = new(input, policy), Needs = new(), Resources = new(evidence, new([], [], [], []), default),
+                ModelBasis = new(input, policy), Needs = NeedsFixtures.Empty, Resources = new(evidence, new([], [], [], []), default),
                 InitialLots = [new("meal", "", Food, Known(10d)) { Perishable = true, FreshTicks = Known(120000d) }] } };
     }
     private static ForecastCoupledOutcome Outcome() => new(new([new("research", "pawn", 0, 0, 0, 50, 0, 0, 50, 0, 0)], 50, 0), Known(true),

@@ -92,7 +92,7 @@ internal static class RoundsColonyModel
             else if (marginals.Goals[goal].CompletionDay is { } day)
             {
                 // The game day, counted the way the deadline is (days passed since the game began).
-                etas[goal] = (int)((context.Needs.Tick + (long)(day * GameTime.TicksPerDay)) / GameTime.TicksPerDay);
+                etas[goal] = (int)((context.Needs.Tick.Value + (long)(day * GameTime.TicksPerDay)) / GameTime.TicksPerDay);
                 notes.Add($"{goal}=day:{etas[goal]}");
             }
             else
@@ -313,7 +313,7 @@ internal static class RoundsColonyModel
         }
 
         // The best bench is the one the researcher takes, so the bench factor joins the pawn's stat here, as the points a tick at speed 1 does in the model.
-        var bestBench = review.Observation.ResearchBenches.Count == 0 ? Unknown<double>() : Known(review.Observation.ResearchBenches.Max(b => b.Factor));
+        var bestBench = review.Observation.ResearchBenches.Count == 0 ? (double?)null : review.Observation.ResearchBenches.Max(b => b.Factor);
         var pawns = new List<ModelPawn>();
         foreach (var pawn in review.Observation.Pawns)
         {
@@ -322,8 +322,7 @@ internal static class RoundsColonyModel
             {
                 // A pawn with no usable service still recovers where it stands when the need has such a recovery (rest on the ground).
                 var gain = need.UnservedGainPerTick;
-                var perUse = Unknown<double>();
-                var service = Unknown<double>();
+                NeedRecovery.Ingest? meal = null;
                 var approach = new List<double>();
                 // Joy's recovery without a building is a walk, taken only while the weather allows it (#3825 D7): the read says when.
                 if (need.Kind == "joy" && need.OutdoorShareByTwelfth.Count != 12)
@@ -339,25 +338,18 @@ internal static class RoundsColonyModel
                         continue;
                     }
 
-                    if (target.GainPerTick.TryGetValue(out var g))
+                    if (target.Recovery is NeedRecovery.Rate { GainPerTick: var g })
                     {
                         sheltered = Math.Max(sheltered, g);
-                        if (!gain.TryGetValue(out var best) || g > best)
-                        {
-                            gain = Known(g);
-                        }
+                        gain = Math.Max(gain, g);
                     }
 
-                    if (target.GainPerUnit.TryGetValue(out var unit) && target.ServiceTicks.TryGetValue(out var ticks) && (!perUse.TryGetValue(out var bestUnit) || unit > bestUnit))
+                    if (target.Recovery is NeedRecovery.Ingest ingest && (meal is null || ingest.GainPerUnit > meal.GainPerUnit))
                     {
-                        perUse = Known(unit);
-                        service = Known(ticks);
+                        meal = ingest;
                     }
 
-                    if (target.TravelTicks.TryGetValue(out var travel))
-                    {
-                        approach.Add(travel);
-                    }
+                    approach.Add(target.TravelTicks);
                 }
 
                 needs.Add(new ModelNeed
@@ -368,8 +360,8 @@ internal static class RoundsColonyModel
                     OutdoorShares = need.OutdoorShareByTwelfth,
                     ShelteredGain = sheltered,
                     Threshold = need.Threshold,
-                    GainPerUse = perUse,
-                    ServiceTicks = service,
+                    GainPerUse = meal is null ? Unknown<double>() : Known(meal.GainPerUnit),
+                    ServiceTicks = meal is null ? Unknown<double>() : Known(meal.ServiceTicks),
                     ApproachTicks = approach.Count == 0 ? Unknown<double>() : Known(approach.Average()),
                 });
             }
@@ -379,15 +371,15 @@ internal static class RoundsColonyModel
                 Pawn = pawn.Pawn,
                 Needs = EquatableArray.From(needs),
                 Skills = skills.GetValueOrDefault(pawn.Pawn),
-                Consciousness = pawn.Consciousness,
-                Moving = pawn.Moving,
-                Manipulation = pawn.Manipulation,
-                Sight = pawn.Sight,
-                Talking = pawn.Talking,
-                ComfortableMin = pawn.ComfortableMin,
-                ComfortableMax = pawn.ComfortableMax,
-                ResearchSpeed = pawn.ResearchSpeed.TryGetValue(out var researching) && bestBench.TryGetValue(out var factor) ? Known(researching * factor) : Unknown<double>(),
-                PlantWorkSpeed = pawn.PlantWorkSpeed,
+                Consciousness = Known(pawn.Consciousness),
+                Moving = Known(pawn.Moving),
+                Manipulation = Known(pawn.Manipulation),
+                Sight = Known(pawn.Sight),
+                Talking = Known(pawn.Talking),
+                ComfortableMin = Known(pawn.ComfortableMin),
+                ComfortableMax = Known(pawn.ComfortableMax),
+                ResearchSpeed = bestBench is { } factor ? Known(pawn.ResearchSpeed * factor) : Unknown<double>(),
+                PlantWorkSpeed = Known(pawn.PlantWorkSpeed),
                 Hunts = hunters.GetValueOrDefault(pawn.Pawn),
                 SkillStatCurves = curves.GetValueOrDefault(pawn.Pawn),
             });

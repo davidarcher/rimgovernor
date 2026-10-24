@@ -636,7 +636,7 @@ namespace HomeBridge.BridgeTools
     }
 
     // A staged mood target (StagePawn.MoodTarget, #3680): one permanent DebugBad memory carries the whole mood points
-    // that bring the pawn's native baseline (as NativeConditionalMood reads MoodUnclampedTarget) to the target, and after
+    // that bring the pawn's native baseline (as NativeConditionalMood reads the mood's UnclampedTarget) to the target, and after
     // each needs tick its offset is recomputed, so the target holds while expectations, the room the pawn stands in or a
     // meal's memory move the other thoughts. For the test game only, like FrozenNeeds.
     public static class HeldMood

@@ -1177,15 +1177,15 @@ public sealed partial record ForecastCoupledSelection
         var result = new List<string>();
         foreach (var pawn in context.Needs.Pawns.OrderBy(p => p.Pawn, StringComparer.Ordinal))
         {
-            if (pawn.State != "eligible" || pawn.VoluntaryControlBlockers.Count != 0 || pawn.Location is null || selected.Contains(pawn.Pawn)
+            if (pawn.State != "eligible" || pawn.VoluntaryControlBlockers.Count != 0 || selected.Contains(pawn.Pawn)
                 || context.Resources.Claims.Pawns.Contains(pawn.Pawn) || pawn.Needs.Count == 0) continue;
             var capacity = ForecastNeeds.NeedsWorkCapacity(context.Resources, pawn.Pawn, limit).Capacity;
             if (!capacity.Windows.TryGetValue(out var windows) || !windows.Any(w => w.Start <= 0 && w.End > 0)) continue;
             var duration = Math.Min(limit, windows.Where(w => w.Start <= 0).Max(w => w.End));
             foreach (var need in pawn.Needs)
             {
-                if (!need.Level.TryGetValue(out var level) || !need.FallPerTick.TryGetValue(out var fall)
-                    || !need.Threshold.TryGetValue(out var threshold) || !double.IsFinite(level)
+                var (level, fall, threshold) = (need.Level, need.FallPerTick, need.Threshold);
+                if (!double.IsFinite(level)
                     || !double.IsFinite(fall) || !double.IsFinite(threshold) || threshold < 0 || threshold > 1 || fall < 0 || level <= threshold)
                 { duration = 0; break; }
                 if (fall > 0) duration = Math.Min(duration, (level - threshold) / fall);

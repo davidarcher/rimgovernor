@@ -387,7 +387,7 @@ public sealed record StagePawn
 
     /// <summary>
     /// The mood target the pawn's thoughts hold (#3680): the native baseline plus every thought's offset, as the needs
-    /// forecast reads MoodUnclampedTarget. One permanent DebugBad memory carries the whole mood points that make it up,
+    /// forecast reads the mood's UnclampedTarget. One permanent DebugBad memory carries the whole mood points that make it up,
     /// recomputed after each needs tick so the target holds as the other thoughts move. Null leaves the thoughts.
     /// </summary>
     public float? MoodTarget { get; init; }

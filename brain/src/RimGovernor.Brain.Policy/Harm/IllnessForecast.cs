@@ -116,24 +116,14 @@ public static class IllnessForecast
     /// <summary>
     /// What one disease incident costs <paramref name="pawn"/> given <paramref name="care"/>, its immunity gained in a bed of
     /// <paramref name="bedImmunity"/> ImmunityGainSpeedFactor (StatPart_BedStat, #3804; 1 without a bed): for each disease, its share
-    /// × the chance the pawn is a victim (drawn and contracting it) × its course, and the rest a point at 0. Unknown when the pawn's
-    /// illness reads, capacities or the Moving minimum are unobserved.
+    /// × the chance the pawn is a victim (drawn and contracting it) × its course, and the rest a point at 0. Unknown when the Moving
+    /// minimum is unobserved.
     /// </summary>
     internal static HarmDistribution Of(IllnessSchedule schedule, NeedsForecastPawn pawn, CapacityPenaltyTables tables,
         HarmConsequences.Care care, double bedImmunity, ForecastValuePolicy policy, double horizon)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
-        if (pawn.Disease is not { } disease || !double.IsFinite(disease.ImmunityGainSpeed))
-        {
-            findings.Add("illness_unobserved:" + pawn.Pawn);
-            return new HarmDistribution { Findings = [.. findings] };
-        }
-
-        if (ForecastValue.Levels(pawn) is not { } levels)
-        {
-            findings.Add("capacities_unobserved:" + pawn.Pawn);
-            return new HarmDistribution { Findings = [.. findings] };
-        }
+        var (disease, levels) = (pawn.Disease, ForecastValue.Levels(pawn));
 
         if (tables.MovingMinForCapable is not { } movingMin)
         {

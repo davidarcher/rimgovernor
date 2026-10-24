@@ -22,7 +22,7 @@ public sealed class ProductiveDemandTests
         facts = facts with { ForecastObserved = facts.ForecastObserved with
         {
             Needs = needs with { Pawns = EquatableArray.From(needs.Pawns.Select(p => p with
-            { Needs = EquatableArray.From(p.Needs.Select(n => n.Kind == "food" ? n with { Level = Known(saturated ? 1d : .4), FallPerTick = Known(0d) } : n)) })) }
+            { Needs = EquatableArray.From(p.Needs.Select(n => n.Kind == "food" ? n with { Level = saturated ? 1d : .4, FallPerTick = 0d } : n)) })) }
         } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts, 700)!;
         var batch = generated.Alternatives.Single(c => c.Id.StartsWith("food/", StringComparison.Ordinal) && c.ActivityCompletions.Count == 2);

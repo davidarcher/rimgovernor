@@ -207,7 +207,7 @@ public static partial class ForecastValue
     internal const double MalnutritionSeverityPerDay = 0.453;
 
     /// <summary>One observed pawn as the ledger reads it: the row, and its five capacity levels (null when any is unobserved).</summary>
-    private sealed record ObservedPawn(NeedsForecastPawn Pawn, double[]? Levels);
+    private sealed record ObservedPawn(NeedsForecastPawn Pawn, double[] Levels);
 
     /// <summary>A search prices thousands of outcomes against one context, so what the ledger reads from it is indexed once (#3468):
     /// its pawns by id with their capacity levels, and which penalty tables are valid.</summary>
@@ -395,7 +395,7 @@ public static partial class ForecastValue
             if (!index.RawEats.TryGetValue((allocation.Activity, allocation.Pawn), out var eat) || !eat.Gain.TryGetValue(out var gain)) continue;
             NeedRate? food = null;
             if (index.Rows.TryGetValue(allocation.Pawn, out var row)) foreach (var need in row.Needs) if (need.Kind == "food") { food = need; break; }
-            if (food is null || !food.FallPerTick.TryGetValue(out var fall) || fall <= 0)
+            if (food is not { FallPerTick: var fall and > 0 })
             { findings.Add("raw_ingredient_loss_unassessed:" + allocation.Pawn); known = false; continue; }
             sum += gain * (context.CookedNutritionRatio[eat.Resource] - 1) / (fall * GameTime.TicksPerDay);
         }
@@ -507,7 +507,7 @@ public static partial class ForecastValue
             var share = (goal.Priced ? 0 : goal.Research.Sum(r => progress.GetValueOrDefault(r.Project) * r.SharePerPoint))
                 + goal.Wearers.Where(Dressed).Sum(w => w.Share);
             share = Math.Min(1, share);
-            var worth = context.Value.GoalWorth(goal.Importance, goal.DeadlineDay, context.Needs.Tick);
+            var worth = context.Value.GoalWorth(goal.Importance, goal.DeadlineDay, context.Needs.Tick.Value);
             // A priced goal's progress is paid at tier 2's marginal value per unit, which already carries the deadline's decay at the modelled day.
             var priced = goal.Units.Sum(u => progress.GetValueOrDefault(u.Project) * u.Value);
             var value = (share * worth) + priced;
@@ -609,9 +609,9 @@ public static partial class ForecastValue
         var food = Need(result, "food");
         if (food is null) return 0;
         if (!food.ZeroTicks.IsKnown) { findings.Add("hunger_unassessed:" + pawn); return null; }
-        if (seen is null || !seen.Pawn.MalnutritionSeverity.TryGetValue(out var severity) || seen.Levels is not { } levels)
+        if (seen is null)
         { findings.Add("capacities_unobserved:" + pawn); return null; }
-        var course = new Course(table, levels, movingMin, severity);
+        var course = new Course(table, seen.Levels, movingMin, seen.Pawn.MalnutritionSeverity);
         double cursor = 0;
         var spans = food.ZeroSpans;
         Span<int> order = spans.Count <= 64 ? stackalloc int[spans.Count] : new int[spans.Count];
@@ -646,9 +646,9 @@ public static partial class ForecastValue
         if (spans.Count == 0) return 0;
         NeedRate? rate = null;
         if (row is not null) foreach (var need in row.Needs) if (need.Kind == "rest") { rate = need; break; }
-        if (row is null || rate is null || !rate.UnservedGainPerTick.TryGetValue(out var gain) || gain <= 0 || !row.WakeThreshold.TryGetValue(out var wake))
+        if (row is null || rate is not { UnservedGainPerTick: var gain and > 0 })
         { findings.Add("rest_collapse_unassessed:" + pawn); return null; }
-        var asleep = wake / gain;
+        var asleep = row.WakeThreshold / gain;
         Span<int> order = spans.Count <= 64 ? stackalloc int[spans.Count] : new int[spans.Count];
         ByStart(spans, order);
         double awake = 1, lost = 0;
@@ -732,10 +732,10 @@ public static partial class ForecastValue
         double sum = 0;
         foreach (var (pawn, _) in pawns)
         {
-            if (!observed.TryGetValue(pawn, out var seen) || seen.Levels is not { } levels)
+            if (!observed.TryGetValue(pawn, out var seen))
             { findings.Add("capacities_unobserved:" + pawn); return null; }
             // The pawn's own current poisoning, if any, is the stage its capacities already carry.
-            var course = new Course(table, levels, movingMin, seen.Pawn.FoodPoisoningSeverity.ValueOrDefault) { Severity = table.InitialSeverity };
+            var course = new Course(table, seen.Levels, movingMin, seen.Pawn.FoodPoisoningSeverity) { Severity = table.InitialSeverity };
             course.Advance(length, table.SeverityPerDay ?? 0);
             course.Report(pawn, findings);
             sum += course.LostTicks / GameTime.TicksPerDay;
@@ -743,13 +743,8 @@ public static partial class ForecastValue
         return sum / pawns.Length;
     }
 
-    /// <summary>The pawn's five observed capacity levels, in <see cref="Capacities"/> order; null when any is unobserved.</summary>
-    internal static double[]? Levels(NeedsForecastPawn pawn) =>
-        pawn.Consciousness.TryGetValue(out var consciousness) && pawn.Moving.TryGetValue(out var moving)
-            && pawn.Manipulation.TryGetValue(out var manipulation) && pawn.Sight.TryGetValue(out var sight)
-            && pawn.Talking.TryGetValue(out var talking)
-            ? [consciousness, moving, manipulation, sight, talking]
-            : null;
+    /// <summary>The pawn's five observed capacity levels, in <see cref="Capacities"/> order.</summary>
+    internal static double[] Levels(NeedsForecastPawn pawn) => [pawn.Consciousness, pawn.Moving, pawn.Manipulation, pawn.Sight, pawn.Talking];
 
     /// <summary>
     /// The capability factor of <paramref name="after"/> levels against the <paramref name="observed"/> ones: 1 for a pawn downed now, 0

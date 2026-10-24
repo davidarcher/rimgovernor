@@ -23,7 +23,7 @@ internal static class ConstructionFixtures
     /// <summary>An activity-task read that bound nothing.</summary>
     internal static ActivityTaskRead NoTasks(long tick = 0) => new()
     {
-        Context = Context(tick), Truncated = false, Bindings = [], Pawns = [], SatisfiedTasks = [], Needs = new() { Tick = tick },
+        Context = Context(tick), Truncated = false, Bindings = [], Pawns = [], SatisfiedTasks = [], Needs = NeedsFixtures.Empty with { Tick = new(tick) },
     };
 
     /// <summary>A planned site's answer with no rows and no clearing.</summary>

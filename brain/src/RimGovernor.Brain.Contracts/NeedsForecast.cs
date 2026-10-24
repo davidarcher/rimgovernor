@@ -3,36 +3,40 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Contracts.Wire.Observations;
 
-/// <summary>Bounded, read-only mechanics and target census. Null read is unknown, never no needs.</summary>
+/// <summary>
+/// The needs forecast read (#3781), read whole: every colonist given with its needs mechanics and the targets that serve
+/// them, the map's weather and deterioration inputs, its powered research benches and the corpses in sight. The native
+/// read throws when it cannot read a member; it never returns a partial record.
+/// </summary>
 public sealed record NeedsForecastRead
 {
-    public long Tick { get; init; }
+    public required Tick Tick { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedsForecastPawn>))]
-    public EquatableArray<NeedsForecastPawn> Pawns { get; init; }
+    public required EquatableArray<NeedsForecastPawn> Pawns { get; init; }
     /// <summary>The map's current weather (WeatherManager.CurWeatherLerped): its weatherThought def ("" none) and that def's stage count (#3339).</summary>
-    public string WeatherThought { get; init; } = "";
-    public int WeatherThoughtStages { get; init; }
-    /// <summary>WeatherManager.RainRate now; unknown when unread. Held over the horizon (#3339).</summary>
-    public Fact<double> RainRate { get; init; }
+    public required string WeatherThought { get; init; }
+    public required int WeatherThoughtStages { get; init; }
+    /// <summary>WeatherManager.RainRate now, held over the horizon (#3339).</summary>
+    public required double RainRate { get; init; }
     /// <summary>Map.Area, the cell count SteadyEnvironmentEffects cycles over (#3339).</summary>
-    public Fact<int> MapArea { get; init; }
+    public required int MapArea { get; init; }
     /// <summary>The DeteriorationRate stat's StatPart_EnvironmentalEffects def data (#3339); null when the stat has no such part.</summary>
-    public NeedDeteriorationPart? Deterioration { get; init; }
+    public required NeedDeteriorationPart? Deterioration { get; init; }
     /// <summary>
     /// Every spawned research bench with power (or none needed), in bench id order: the benches a researcher can work at whatever
     /// the current project is (#3567), each with its <c>StatDefOf.ResearchSpeedFactor</c> now (#3800). Empty means none observed.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<ResearchBenchRead>))]
-    public EquatableArray<ResearchBenchRead> ResearchBenches { get; init; }
+    public required EquatableArray<ResearchBenchRead> ResearchBenches { get; init; }
     /// <summary>
     /// Every unfogged spawned corpse whose sighting raises an observed-corpse event (#3806: <c>Corpse.GiveObservedHistoryEvent</c>
     /// is ObservedLayingCorpse or ObservedLayingRottingCorpse, so a humanlike out of storage), in corpse id order, with each
     /// colonist's sightings of it. Empty means none lies in sight.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<CorpseSightingRead>))]
-    public EquatableArray<CorpseSightingRead> Corpses { get; init; }
+    public required EquatableArray<CorpseSightingRead> Corpses { get; init; }
     /// <summary>The deathrest defs the deathrest chamber credit reads (#3810); null without Biotech, where no pawn deathrests.</summary>
-    public DeathrestDefsRead? Deathrest { get; init; }
+    public required DeathrestDefsRead? Deathrest { get; init; }
 }
 /// <summary>
 /// The deathrest defs (#3810): <c>Need_Deathrest.FallPerDay</c> and <c>GainPerDayDeathresting</c> (the need a day awake loses, and a
@@ -80,9 +84,9 @@ public sealed record ResearchBenchRead(string Bench, string Def, Cell Position, 
 public sealed record NeedDeteriorationPart(double UnroofedOffset, double OutdoorsOffset, double ProtectedFactor);
 /// <summary>
 /// One cell's roof and room facts now (#3339): Roofed and the roof def's isThickRoof/isNatural, the cell room's
-/// UsesOutdoorTemperature and PsychologicallyOutdoors (no room reads as outdoors, as BeautyUtility does). Unknown when unread.
+/// UsesOutdoorTemperature and PsychologicallyOutdoors (no room reads as outdoors, as BeautyUtility does).
 /// </summary>
-public sealed record NeedCell(Fact<bool> Roofed, Fact<bool> ThickRoof, Fact<bool> NaturalRoof, Fact<bool> OutdoorTemperature, Fact<bool> PsychologicallyOutdoors);
+public sealed record NeedCell(bool Roofed, bool ThickRoof, bool NaturalRoof, bool OutdoorTemperature, bool PsychologicallyOutdoors);
 /// <summary>
 /// Where JobGiver_GetRest lays the pawn now and what Toils_LayDown gives it there (#3840): the bed RestUtility.FindBedFor
 /// picks (its rest target id, the owned bed first), else the ground at the pawn's cell (TryFindGroundSleepSpotFor's first
@@ -95,27 +99,40 @@ public sealed record NeedCell(Fact<bool> Roofed, Fact<bool> ThickRoof, Fact<bool
 /// </summary>
 public sealed record NeedSleep(string Bed, bool Outside, bool Ground, double GainPerTick, double Comfort, double Temperature);
 /// <summary>A bed's room now (#3339): its RoomRoleDef ("" none), its Impressiveness score stage and ForPrisoners.</summary>
-public sealed record NeedBedRoom(string Role, Fact<int> Stage, bool ForPrisoners)
+public sealed record NeedBedRoom(string Role, int Stage, bool ForPrisoners)
 {
     /// <summary>
     /// The care a patient lying in the bed gets from it now (#3804): whether the bed is costless (CostListAdjusted empty, a sleeping
-    /// spot: ApplyBedThoughts gives SleptOnGround), its room's PsychologicallyOutdoors (true without a room),
-    /// RoomStatDefOf.InfectionChanceFactor (the stat's roomlessScore without a room; HediffComp_Infecter.CompTended stores it),
-    /// and the bed's own StatDefOf.SurgerySuccessChanceFactor and StatDefOf.ImmunityGainSpeedFactor (the SurgeryOutcomeComp_BedAndRoomQuality
-    /// and StatPart_BedStat reads: the bed's def, its facilities and its room's cleanliness factor).
+    /// spot: ApplyBedThoughts gives SleptOnGround), its room's PsychologicallyOutdoors, RoomStatDefOf.InfectionChanceFactor
+    /// (HediffComp_Infecter.CompTended stores it), and the bed's own StatDefOf.SurgerySuccessChanceFactor and
+    /// StatDefOf.ImmunityGainSpeedFactor (the SurgeryOutcomeComp_BedAndRoomQuality and StatPart_BedStat reads: the bed's def, its
+    /// facilities and its room's cleanliness factor).
     /// </summary>
-    public bool Costless { get; init; }
-    public bool PsychologicallyOutdoors { get; init; }
-    public double InfectionChanceFactor { get; init; }
-    public double SurgerySuccessFactor { get; init; }
-    public double ImmunityGainSpeedFactor { get; init; }
+    public required bool Costless { get; init; }
+    public required bool PsychologicallyOutdoors { get; init; }
+    public required double InfectionChanceFactor { get; init; }
+    public required double SurgerySuccessFactor { get; init; }
+    public required double ImmunityGainSpeedFactor { get; init; }
 }
 /// <summary>
 /// A food stack's deterioration inputs (#3339): its HitPoints, SteadyEnvironmentEffects.FinalDeteriorationRate now (every
 /// DeteriorationRate part applied at its cell), whether StatPart_EnvironmentalEffects applies (deteriorateFromEnvironmentalEffects),
 /// the cell terrain's extraDeteriorationFactor and SteadyEnvironmentEffects.ProtectedByEdifice.
 /// </summary>
-public sealed record NeedDeterioration(double HitPoints, Fact<double> RatePerDay, bool Environmental, double TerrainFactor, bool Protected);
+public sealed record NeedDeterioration(double HitPoints, double RatePerDay, bool Environmental, double TerrainFactor, bool Protected);
+/// <summary>How long a thought lasts once the pawn has it (#3781): a memory's duration and whether it fades, or a situational thought, which lasts while its condition holds.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ThoughtLasting.Memory), "memory")]
+[JsonDerivedType(typeof(ThoughtLasting.Situational), "situational")]
+public abstract record ThoughtLasting
+{
+    private protected ThoughtLasting() { }
+
+    /// <summary>A memory thought: its def's DurationTicks, whether its offset fades to zero over them (lerpMoodToZero), and its stackLimit.</summary>
+    public sealed record Memory(double DurationTicks, bool Fades, int StackLimit) : ThoughtLasting;
+
+    public sealed record Situational : ThoughtLasting;
+}
 /// <summary>
 /// A thought this pawn can get (ThoughtUtility.CanGetThought) at one stage, priced by the game's own MoodOffset for this
 /// pawn (#3339). Role names why it is read: slept_outside, slept_in_bedroom, slept_in_barracks, slept_on_ground,
@@ -135,10 +152,8 @@ public sealed record NeedDeterioration(double HitPoints, Fact<double> RatePerDay
 /// of its role is unmet; and title_apparel_quality_unmet (ThoughtWorker_RoyalTitleApparelMinQualityNotMet, #3841), active while
 /// a worn garment that has a quality is below <see cref="NeedApparel.MinimumQuality"/>. Then need_comfort (ThoughtWorker_NeedComfort,
 /// read only for a pawn with a comfort need, #3840), the comfort a bed gives over the day. A stage the game cannot price is left out.
-/// Memories carry their duration; situational thoughts none.
 /// </summary>
-public sealed record NeedThoughtStage(string Thought, string Role, int Stage, double Offset,
-    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> DurationTicks, bool Fades);
+public sealed record NeedThoughtStage(string Thought, string Role, int Stage, double Offset, ThoughtLasting Lasting);
 /// <summary>
 /// The pawn facts the apparel thought workers read beside the worn apparel (#3816): pawn.gender, whether any not-missing
 /// body part is in the Legs group (a legless pawn counts as wearing pants), whether GenTemperature.SafeTemperatureRange
@@ -148,7 +163,7 @@ public sealed record NeedThoughtStage(string Thought, string Role, int Stage, do
 public sealed record NeedApparel(Defs.Gender Gender, bool Legs, bool SafeAmbient)
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> KindRequired { get; init; }
+    public required EquatableArray<string> KindRequired { get; init; }
     /// <summary>
     /// The pawn's active apparel requirements whose unmet thought it can have (#3836): its royal titles' in effect while
     /// pawn.royalty.allowApparelRequirements, and its ideoligion role's while the role is active and the pawn a free non-slave
@@ -156,13 +171,13 @@ public sealed record NeedApparel(Defs.Gender Gender, bool Legs, bool SafeAmbient
     /// and no role, or without Royalty and Ideology.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedApparelRequirement>))]
-    public EquatableArray<NeedApparelRequirement> Requirements { get; init; }
+    public required EquatableArray<NeedApparelRequirement> Requirements { get; init; }
     /// <summary>
     /// The highest RoyalTitleDef.requiredMinimumApparelQuality of the pawn's titles in effect (#3841), the quality
     /// ThoughtWorker_RoyalTitleApparelMinQualityNotMet holds every worn garment that has one to; Awful, which no garment is
     /// below, with no title in effect or without Royalty.
     /// </summary>
-    public Defs.QualityCategory MinimumQuality { get; init; }
+    public required Defs.QualityCategory MinimumQuality { get; init; }
 }
 /// <summary>
 /// One active apparel requirement (#3836): the stage-row role of the thought it raises while unmet (title_apparel_unmet or
@@ -171,19 +186,16 @@ public sealed record NeedApparel(Defs.Gender Gender, bool Legs, bool SafeAmbient
 /// </summary>
 public sealed record NeedApparelRequirement(string Thought,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<string>))] EquatableArray<string> Meets);
-public sealed record NeedRate(string Kind,
-    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> Level,
-    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> FallPerTick,
-    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> Threshold)
+/// <summary>One need's level, its fall a tick and its threshold (food: hungry, rest: tired, joy: the second threshold), at current conditions.</summary>
+public sealed record NeedRate(string Kind, double Level, double FallPerTick, double Threshold)
 {
     /// <summary>
     /// The need's gain per tick with no service object: resting on the ground when the colony has no usable bed
     /// (<c>StatDefOf.BedRestEffectiveness.valueIfMissing</c>, as <c>Toils_LayDown</c> applies it), and for joy the best of going for a walk
     /// and skygazing (#3825), taken only while <c>JoyUtility.EnjoyableOutsideNow</c> holds (<see cref="OutdoorShareByTwelfth"/>).
-    /// Unknown for a need that has no such recovery.
+    /// 0 for food: hunger never recovers without eating.
     /// </summary>
-    [JsonConverter(typeof(ObservedNumberJsonConverter))]
-    public Fact<double> UnservedGainPerTick { get; init; }
+    public required double UnservedGainPerTick { get; init; }
     /// <summary>
     /// For joy, the expected share of each twelfth of the coming year, indexed by twelfth (the current one from now to its end), in
     /// which <c>JoyUtility.EnjoyableOutsideNow</c> holds for the pawn and so a walk or skygazing can serve it (#3825 D7): the hours whose
@@ -197,156 +209,193 @@ public sealed record NeedRate(string Kind,
     /// The rest need's gain per tick per unit of rest effectiveness (#3840): <c>Need_Rest.BaseRestGainPerTick</c> times the pawn's
     /// <c>StatDefOf.RestRateMultiplier</c>, which <c>Need_Rest.TickResting</c> multiplies by the bed's effectiveness. 0 for any other need.
     /// </summary>
-    public double GainPerTickPerEffectiveness { get; init; }
+    public required double GainPerTickPerEffectiveness { get; init; }
     /// <summary>Current-rate approximation; observed threshold crossings require fresh native rates.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Unsupported { get; init; }
+    public required EquatableArray<string> Unsupported { get; init; }
 }
-public sealed record NeedMemory(string Id, double Offset,
-    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> RemainingTicks, bool Fades)
+/// <summary>How long a memory has left (#3781): a permanent memory never expires; any other expires after its remaining ticks.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(MemoryLife.Permanent), "permanent")]
+[JsonDerivedType(typeof(MemoryLife.Expires), "expires")]
+public abstract record MemoryLife
 {
-    public bool Permanent { get; init; }
-    /// <summary>The def's native stackLimit (ThoughtDef.stackLimit, default 1); 0 when not read. At 1 a new memory of the def renews the
-    /// existing one (Thought_Memory.TryMergeWithExistingMemory) instead of adding to it (#3598).</summary>
-    public int StackLimit { get; init; }
+    private protected MemoryLife() { }
+
+    public sealed record Permanent : MemoryLife;
+
+    /// <summary>Thought_Memory.DurationTicks less its age, at least 0.</summary>
+    public sealed record Expires(double RemainingTicks) : MemoryLife;
 }
-/// <summary>Native mood-point contribution in a half-open local-hour window; EndHour less than StartHour wraps midnight. CurrentOffset is already present in MoodUnclampedTarget.</summary>
+/// <summary>
+/// A memory: its def, the game's MoodOffset for the pawn, how long it has left and whether it fades over that time
+/// (lerpMoodToZero). StackLimit is the def's stackLimit (ThoughtDef.stackLimit): at 1 a new memory of the def renews the existing
+/// one (Thought_Memory.TryMergeWithExistingMemory) instead of adding to it (#3598).
+/// </summary>
+public sealed record NeedMemory(string Id, double Offset, MemoryLife Life, bool Fades)
+{
+    public required int StackLimit { get; init; }
+}
+/// <summary>Native mood-point contribution in a half-open local-hour window; EndHour less than StartHour wraps midnight. CurrentOffset is already present in UnclampedTarget.</summary>
 public sealed record NeedConditionalThought(double StartHour, double EndHour, bool AwakeOnly,
     double Offset, double CurrentOffset);
+/// <summary>
+/// The hour-conditional thoughts the pawn can get (#3781): every one modeled (the verified night owl workers), or the defs of
+/// those whose worker or definition the forecast does not model, when it does not forecast the pawn's mood.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ConditionalMood.Modeled), "modeled")]
+[JsonDerivedType(typeof(ConditionalMood.Unmodeled), "unmodeled")]
+public abstract record ConditionalMood
+{
+    private protected ConditionalMood() { }
+
+    public sealed record Modeled(
+        [property: JsonConverter(typeof(EquatableArrayJsonConverter<NeedConditionalThought>))] EquatableArray<NeedConditionalThought> Thoughts) : ConditionalMood;
+
+    public sealed record Unmodeled(
+        [property: JsonConverter(typeof(EquatableArrayJsonConverter<string>))] EquatableArray<string> Thoughts) : ConditionalMood;
+}
+/// <summary>
+/// A pawn's mood need now (#3781): Need_Mood.CurLevelPercentage, its CurInstantLevel target, the unclamped target in normalized
+/// mood units (including each conditional thought's CurrentOffset once), Need_Seeker's rise and fall a tick (def.seeker{Rise,Fall}PerHour),
+/// whether it freezes while asleep, the mental breaker's minor threshold, its hour-conditional thoughts and its live memories.
+/// </summary>
+public sealed record NeedMood
+{
+    public required double Level { get; init; }
+    public required double Target { get; init; }
+    public required double UnclampedTarget { get; init; }
+    public required double RisePerTick { get; init; }
+    public required double FallPerTick { get; init; }
+    public required bool FreezesWhileAsleep { get; init; }
+    public required double BreakThreshold { get; init; }
+    public required ConditionalMood Conditional { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<NeedMemory>))]
+    public required EquatableArray<NeedMemory> Memories { get; init; }
+}
 /// <summary>Exact observed continuous service. RemainingTicks is a current-mechanics projection,
 /// not a release guarantee; journal ownership still requires observed continuation/release.</summary>
 public sealed record NeedCurrentService(string Assignment, string Method, long Revision, string Target,
-    string Kind, Cell Location,
-    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> RemainingTicks,
-    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> GainPerTick)
+    string Kind, Cell Location, double RemainingTicks, double GainPerTick)
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Unsupported { get; init; }
+    public required EquatableArray<string> Unsupported { get; init; }
 }
 public sealed record NeedsForecastPawn
 {
-    public string Pawn { get; init; } = "";
-    public string State { get; init; } = "unknown";
-    public Cell? Location { get; init; }
+    public required string Pawn { get; init; }
+    /// <summary>eligible, unsupported_voluntary_state, dead, downed, mental_state, drafted, player_authority or player_work.</summary>
+    public required string State { get; init; }
+    public required Cell Location { get; init; }
     /// <summary>Null means no supported observed continuous incumbent, not a free pawn.</summary>
-    public NeedCurrentService? CurrentService { get; init; }
+    public required NeedCurrentService? CurrentService { get; init; }
     /// <summary>Observed requirements outside supported voluntary control. Empty means none observed;
     /// a missing need census has an explicit blocker. Passive consequence uncertainty stays in Unsupported.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> VoluntaryControlBlockers { get; init; }
-    [JsonConverter(typeof(ObservedConditionalThoughtsJsonConverter))]
-    public Fact<EquatableArray<NeedConditionalThought>> ConditionalThoughts { get; init; }
-    public Fact<double> LocalHour { get; init; }
-    public Fact<bool> Awake { get; init; }
-    public Fact<double> SleepThreshold { get; init; }
-    public Fact<double> WakeThreshold { get; init; }
-    /// <summary>Earliest possible sleep relative to observation tick; unknown for blockers with no known recovery bound.</summary>
-    public Fact<double> SleepBlockedUntilTicks { get; init; }
-    public Fact<bool> SleepWhileStarving { get; init; }
-    /// <summary>Unclamped native target in normalized mood units, including CurrentOffset contributions once.</summary>
-    public Fact<double> MoodUnclampedTarget { get; init; }
-    public Fact<double> MoodRisePerTick { get; init; }
-    public Fact<double> MoodFallPerTick { get; init; }
-    public Fact<double> MoodIntervalTicks { get; init; }
-    public Fact<bool> MoodFreezesWhileAsleep { get; init; }
-    public Fact<double> ComfortableMin { get; init; }
-    public Fact<double> ComfortableMax { get; init; }
+    public required EquatableArray<string> VoluntaryControlBlockers { get; init; }
+    /// <summary>GenLocalDate.HourFloat at the pawn.</summary>
+    public required double LocalHour { get; init; }
+    public required bool Awake { get; init; }
+    /// <summary>RestUtility's FallAsleepMaxLevel and WakeThreshold for the pawn.</summary>
+    public required double SleepThreshold { get; init; }
+    public required double WakeThreshold { get; init; }
+    /// <summary>A hediff blocks sleeping or the life stage cannot sleep voluntarily: no recovery bound is read, so the forecast plans no sleep.</summary>
+    public required bool SleepBlocked { get; init; }
+    /// <summary>The ticks before the pawn may fall asleep after its last disturbance (400 after mindState.lastDisturbanceTick), at least 0.</summary>
+    public required double SleepBlockedUntilTicks { get; init; }
+    public required bool SleepWhileStarving { get; init; }
+    /// <summary>The pawn's mood need; null for a pawn without one.</summary>
+    public required NeedMood? Mood { get; init; }
+    public required double ComfortableMin { get; init; }
+    public required double ComfortableMax { get; init; }
     /// <summary>
     /// The comfortable range ApplyBedThoughts compares the sleeping ambient temperature with (#3840): the race's
     /// <c>ComfyTemperatureMin</c>/<c>Max</c> (<c>def.GetStatValueAbstract</c>, no apparel) plus each active gene's offsets under Biotech;
     /// below it the pawn gains SleptInCold, above it SleptInHeat.
     /// </summary>
-    public double SleepComfortableMin { get; init; }
-    public double SleepComfortableMax { get; init; }
+    public required double SleepComfortableMin { get; init; }
+    public required double SleepComfortableMax { get; init; }
     /// <summary>Where the pawn sleeps now (#3840); null for a pawn without a rest need, a wild man or one not spawned.</summary>
-    public NeedSleep? Sleep { get; init; }
-    [JsonConverter(typeof(ObservedNumberJsonConverter))]
-    public Fact<double> Mood { get; init; }
-    [JsonConverter(typeof(ObservedNumberJsonConverter))]
-    public Fact<double> MoodTarget { get; init; }
-    [JsonConverter(typeof(ObservedNumberJsonConverter))]
-    public Fact<double> BreakThreshold { get; init; }
+    public required NeedSleep? Sleep { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedRate>))]
-    public EquatableArray<NeedRate> Needs { get; init; }
-    [JsonConverter(typeof(ObservedMemoriesJsonConverter))]
-    public Fact<EquatableArray<NeedMemory>> Memories { get; init; }
+    public required EquatableArray<NeedRate> Needs { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedTarget>))]
-    public EquatableArray<NeedTarget> Targets { get; init; }
+    public required EquatableArray<NeedTarget> Targets { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Unsupported { get; init; }
-    /// <summary>Need_Outdoors.CurLevel; unknown without the need. Disabled (PrefersIndoors) holds it at 1 (#3339).</summary>
-    public Fact<double> OutdoorsLevel { get; init; }
-    public bool OutdoorsDisabled { get; init; }
+    public required EquatableArray<string> Unsupported { get; init; }
+    /// <summary>Need_Outdoors.CurLevel, or Lacks without the need. Disabled (PrefersIndoors) holds it at 1 (#3339).</summary>
+    public required NeedLevel Outdoors { get; init; }
+    public required bool OutdoorsDisabled { get; init; }
     /// <summary>ownership.OwnedBed's load id ("" none) and the Ascetic trait, the two pawn facts ApplyBedThoughts reads (#3339).</summary>
-    public string OwnedBed { get; init; } = "";
+    public required string OwnedBed { get; init; }
     /// <summary>The owned bed's room and care (#3804, <see cref="NeedBedRoom"/>); null without an owned bed.</summary>
-    public NeedBedRoom? OwnedBedRoom { get; init; }
-    public bool Ascetic { get; init; }
+    public required NeedBedRoom? OwnedBedRoom { get; init; }
+    public required bool Ascetic { get; init; }
     /// <summary>
     /// The Impressiveness of each room another pawn owns, ascending, as ThoughtWorker_BedroomJealous compares the pawn's own
     /// room against them (#3826): every spawned player-faction pawn but this one without a host faction, by its OwnedRoom,
     /// each room once. Empty when no other pawn owns a room.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<double>))]
-    public EquatableArray<double> RivalRooms { get; init; }
+    public required EquatableArray<double> RivalRooms { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedThoughtStage>))]
-    public EquatableArray<NeedThoughtStage> ThoughtStages { get; init; }
+    public required EquatableArray<NeedThoughtStage> ThoughtStages { get; init; }
     /// <summary>The apparel thought workers' pawn facts (#3816); null without an apparel tracker.</summary>
-    public NeedApparel? Apparel { get; init; }
-    /// <summary>pawn.health.capacities.GetLevel of the five capacities a pawn-day is counted in (#3519); unknown when the pawn has no health tracker.</summary>
-    public Fact<double> Consciousness { get; init; }
-    public Fact<double> Moving { get; init; }
-    public Fact<double> Manipulation { get; init; }
-    public Fact<double> Sight { get; init; }
-    public Fact<double> Talking { get; init; }
+    public required NeedApparel? Apparel { get; init; }
+    /// <summary>pawn.health.capacities.GetLevel of the five capacities a pawn-day is counted in (#3519).</summary>
+    public required double Consciousness { get; init; }
+    public required double Moving { get; init; }
+    public required double Manipulation { get; init; }
+    public required double Sight { get; init; }
+    public required double Talking { get; init; }
     /// <summary>The current severity of each hediff the capacity penalty tables decode; 0 when the pawn does not have it (#3519).</summary>
-    public Fact<double> MalnutritionSeverity { get; init; }
-    public Fact<double> FoodPoisoningSeverity { get; init; }
-    public Fact<double> HypothermiaSeverity { get; init; }
-    public Fact<double> HeatstrokeSeverity { get; init; }
-    /// <summary>The health reads of a raid's consequences (#3544): StatDefOf.PainShockThreshold, pawn.HealthScale, StatDefOf.IncomingDamageFactor and StatDefOf.InjuryHealingFactor; unknown without a health tracker.</summary>
-    public Fact<double> PainShockThreshold { get; init; }
-    public Fact<double> HealthScale { get; init; }
-    public Fact<double> IncomingDamageFactor { get; init; }
-    public Fact<double> InjuryHealingFactor { get; init; }
+    public required double MalnutritionSeverity { get; init; }
+    public required double FoodPoisoningSeverity { get; init; }
+    public required double HypothermiaSeverity { get; init; }
+    public required double HeatstrokeSeverity { get; init; }
+    /// <summary>The health reads of a raid's consequences (#3544): StatDefOf.PainShockThreshold, pawn.HealthScale, StatDefOf.IncomingDamageFactor and StatDefOf.InjuryHealingFactor.</summary>
+    public required double PainShockThreshold { get; init; }
+    public required double HealthScale { get; init; }
+    public required double IncomingDamageFactor { get; init; }
+    public required double InjuryHealingFactor { get; init; }
     /// <summary>
     /// The pawn's work speeds whatever it is doing (#3567): <c>StatDefOf.ResearchSpeed</c> times the difficulty's researchSpeedFactor (the
     /// points a tick at bench factor 1 per <c>ResearchManager.ResearchPerformed</c>'s 0.00825) and <c>StatDefOf.PlantWorkSpeed</c> (sow work per tick).
-    /// Unknown without the stat.
     /// </summary>
-    public Fact<double> ResearchSpeed { get; init; }
-    public Fact<double> PlantWorkSpeed { get; init; }
-    /// <summary>The pawn's illness reads (#3824); null when the pawn has no health tracker.</summary>
-    public PawnDiseaseFacts? Disease { get; init; }
+    public required double ResearchSpeed { get; init; }
+    public required double PlantWorkSpeed { get; init; }
+    /// <summary>The pawn's illness reads (#3824).</summary>
+    public required PawnDiseaseFacts Disease { get; init; }
     /// <summary>The memories the pawn's ideo gives it on seeing a corpse lying (#3806); empty when none would (no ideo, no such precept, no mood).</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<CorpseThoughtRead>))]
-    public EquatableArray<CorpseThoughtRead> CorpseThoughts { get; init; }
+    public required EquatableArray<CorpseThoughtRead> CorpseThoughts { get; init; }
     /// <summary>The ticks before the read the pawn's sighting record covers (#3806): since its first observer pass, at most two days; 0 with no record.</summary>
-    public int SightingTicks { get; init; }
+    public required int SightingTicks { get; init; }
     /// <summary>What the pawn's value reads of it (#3825), every number plain.</summary>
-    public PawnUpkeepRead Upkeep { get; init; } = new();
+    public required PawnUpkeepRead Upkeep { get; init; }
     /// <summary>The pawn's deathrest (#3810); null when it has no deathrest gene.</summary>
-    public DeathresterRead? Deathrest { get; init; }
+    public required DeathresterRead? Deathrest { get; init; }
 }
 /// <summary>
 /// What a pawn's value (<c>PawnValueRules</c>, #3825) reads of one pawn: its work speed at each stat a job driver or recipe the
 /// catalog maps applies and its MoveSpeed and CarryingCapacity, which its food's hauling walks and carries at (#3849;
 /// <c>DefinitionCatalog.UpkeepStatNames</c>; 0 where <c>StatWorker.IsDisabledFor</c> the pawn), the work types it
 /// is incapable of (<c>Pawn.WorkTypeIsDisabled</c>), the nutrition it eats a day (<c>Need_Food.FoodFallPerTickAssumingCategory</c> at
-/// Fed, a day of ticks; 0 without a food need) and its mood (null without a mood need or a mental breaker: it never breaks).
+/// Fed, a day of ticks; 0 without a food need) and its mood (null without a mood need: it never breaks).
 /// </summary>
 public sealed record PawnUpkeepRead
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<WorkSpeedRead>))]
-    public EquatableArray<WorkSpeedRead> Speeds { get; init; }
+    public required EquatableArray<WorkSpeedRead> Speeds { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> IncapableWork { get; init; }
-    public double FoodPerDay { get; init; }
-    public PawnMoodRead? Mood { get; init; }
+    public required EquatableArray<string> IncapableWork { get; init; }
+    public required double FoodPerDay { get; init; }
+    public required PawnMoodRead? Mood { get; init; }
 }
 /// <summary>A pawn's value of one work speed stat (<c>Pawn.GetStatValue</c>).</summary>
 public sealed record WorkSpeedRead(string Stat, double Value);
-/// <summary>The pawn's unclamped mood target (as <see cref="NeedsForecastPawn.MoodUnclampedTarget"/>) and its minor break threshold (<c>MentalBreaker.BreakThresholdMinor</c>).</summary>
+/// <summary>The pawn's unclamped mood target (as <see cref="NeedMood.UnclampedTarget"/>) and its minor break threshold (<c>MentalBreaker.BreakThresholdMinor</c>).</summary>
 public sealed record PawnMoodRead(double Target, double Threshold);
 /// <summary>
 /// What a disease incident's course and victim draw read of one pawn (#3824): <c>StatDefOf.ImmunityGainSpeed</c> without the bed it lies
@@ -362,18 +411,32 @@ public sealed record PawnMoodRead(double Target, double Threshold);
 /// </summary>
 public sealed record PawnDiseaseFacts
 {
-    public double ImmunityGainSpeed { get; init; }
+    public required double ImmunityGainSpeed { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<DiseaseContract>))]
-    public EquatableArray<DiseaseContract> Contracts { get; init; }
-    public double BloodPumping { get; init; }
-    public double Breathing { get; init; }
-    public double BloodFiltration { get; init; }
+    public required EquatableArray<DiseaseContract> Contracts { get; init; }
+    public required double BloodPumping { get; init; }
+    public required double Breathing { get; init; }
+    public required double BloodFiltration { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<DiseasePartRead>))]
-    public EquatableArray<DiseasePartRead> Parts { get; init; }
+    public required EquatableArray<DiseasePartRead> Parts { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<OrganReplacementRead>))]
-    public EquatableArray<OrganReplacementRead> Replacements { get; init; }
+    public required EquatableArray<OrganReplacementRead> Replacements { get; init; }
 }
 public sealed record DiseaseContract(string Incident, double Chance);
+/// <summary>How a need target restores its need (#3781): eating a stack (the ingest duration and the need a unit restores) or a service a tick (resting or recreation).</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(NeedRecovery.Ingest), "ingest")]
+[JsonDerivedType(typeof(NeedRecovery.Rate), "rate")]
+public abstract record NeedRecovery
+{
+    private protected NeedRecovery() { }
+
+    /// <summary>baseIngestTicks over the eating speed, and NutritionForEater a unit over the food need's MaxLevel.</summary>
+    public sealed record Ingest(double ServiceTicks, double GainPerUnit) : NeedRecovery;
+
+    /// <summary>The need gained a tick of service at current tolerance.</summary>
+    public sealed record Rate(double GainPerTick) : NeedRecovery;
+}
 /// <summary>
 /// One body part of a def a DiseaseHuman incident affects (#3830): its def, coverageAbs,
 /// <c>PawnCapacityUtility.CalculatePartEfficiency</c> (0 when missing), and the incidents whose hediff HediffGiverUtility.TryApply
@@ -383,7 +446,7 @@ public sealed record DiseaseContract(string Incident, double Chance);
 public sealed record DiseasePartRead(string Part, double Coverage, double Efficiency)
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Incidents { get; init; }
+    public required EquatableArray<string> Incidents { get; init; }
 }
 /// <summary>
 /// One install recipe that would replace a missing part of <see cref="Part"/>'s def (#3830), read as the surgery block reads an
@@ -409,15 +472,11 @@ public sealed record OrganReplacementRead(string Part, string Recipe)
     public double Quality { get; init; }
 }
 /// <summary>Native legality and mechanics, not a selected need action. Travel is an observed route cost.</summary>
-public sealed record NeedTarget(string Id, string Kind, string Resource, int AvailableCount,
-    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> TravelTicks,
-    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> ServiceTicks,
-    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> GainPerUnit,
-    [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> GainPerTick)
+public sealed record NeedTarget(string Id, string Kind, string Resource, int AvailableCount, double TravelTicks, NeedRecovery Recovery)
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<NeedMemory>))]
-    public EquatableArray<NeedMemory> MealThoughts { get; init; }
-    public Cell? Location { get; init; }
+    public required EquatableArray<NeedMemory> MealThoughts { get; init; }
+    public required Cell Location { get; init; }
     /// <summary>Stack quantity that claims sum against (vanilla ingest reserves a stack by count); unknown when unread.</summary>
     public Fact<double> StockCount { get; init; }
     /// <summary>Simultaneous claimants vanilla lets reserve this target (ReservationManager maxPawns); unknown when unreadable, never a guess.
@@ -425,11 +484,11 @@ public sealed record NeedTarget(string Id, string Kind, string Resource, int Ava
     public Fact<int> MaxPawns { get; init; }
     public Fact<double> FreshTicks { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Unsupported { get; init; }
-    /// <summary>The target cell's roof and room now (#3339); null when unread.</summary>
-    public NeedCell? Cell { get; init; }
-    /// <summary>A rest target's room role and stage (#3339).</summary>
-    public NeedBedRoom? Bed { get; init; }
-    /// <summary>A food target's deterioration inputs (#3339); null when it cannot deteriorate or is unread.</summary>
-    public NeedDeterioration? Deterioration { get; init; }
+    public required EquatableArray<string> Unsupported { get; init; }
+    /// <summary>The target cell's roof and room now (#3339).</summary>
+    public required NeedCell Cell { get; init; }
+    /// <summary>A rest target's room role and stage (#3339); null for a food or recreation target.</summary>
+    public required NeedBedRoom? Bed { get; init; }
+    /// <summary>A food target's deterioration inputs (#3339); null when it cannot deteriorate.</summary>
+    public required NeedDeterioration? Deterioration { get; init; }
 }

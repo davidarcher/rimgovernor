@@ -35,7 +35,7 @@ public sealed class SharedStackRemainderTests
         NeedsForecastPawn Hungry(string id) => facts.ForecastObserved.Needs!.Pawns[0] with
         {
             Pawn = id, Location = new(1, 1),
-            Targets = [new(Stack, "food", "Rice", 20, Known(0d), Known(10d), Known(.05), default)
+            Targets = [NeedsFixtures.Food(Stack, "Rice", 20, 0d, 10d, .05) with
                 { Location = new(2, 2), StockCount = Known(stock), MaxPawns = Known(10), FreshTicks = Known(100000d) }],
         };
         return facts with
@@ -47,7 +47,7 @@ public sealed class SharedStackRemainderTests
             ForecastObserved = facts.ForecastObserved with
             {
                 WorkPawns = roster.ForecastObserved.WorkPawns,
-                Needs = facts.ForecastObserved.Needs! with { Tick = tick, Pawns = [Hungry("pawn"), Hungry("helper")] },
+                Needs = facts.ForecastObserved.Needs! with { Tick = new(tick), Pawns = [Hungry("pawn"), Hungry("helper")] },
                 Coupled = facts.ForecastObserved.Coupled! with
                 {
                     Tick = tick, Food = new(), FoodUses = [],

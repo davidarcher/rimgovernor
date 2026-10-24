@@ -17,7 +17,7 @@ public static class ForecastServiceInvestments
     private static bool ProductiveFoodDemandEnded(PawnActivities batch, ActivityTaskRead read)
     {
         var needs = read.Needs;
-        if (read.Context.Tick != needs.Tick
+        if (read.Context.Tick != needs.Tick.Value
             || batch.Tasks.Any(t => t.Step.Kind is not (PawnActivityKind.Recipe or PawnActivityKind.Deliver or PawnActivityKind.Eat)
                 && !(t.Step.Kind == PawnActivityKind.Work && t.Step.Job == "Harvest"))
             || batch.Orders.Any(o => !o.Release && read.Pawns.FirstOrDefault(p => p.Pawn == o.Pawn)?.Execution?.State is not ("completed" or "holding" or "failed"))) return false;
@@ -26,14 +26,14 @@ public static class ForecastServiceInvestments
         foreach (var eater in eaters)
         {
             var observed = needs.Pawns.SingleOrDefault(p => p.Pawn == eater.Key);
-            var horizon = eater.Max(t => t.Step.Deadline) - needs.Tick;
+            var horizon = eater.Max(t => t.Step.Deadline) - needs.Tick.Value;
             if (observed is null || horizon <= 0 || horizon > GameTime.TicksPerDay) return false;
             var trajectory = ForecastNeeds.ForecastNeedsTimeline(observed, new ForecastCapacityInput
             {
                 Pawn = new() { Id = new(eater.Key), Available = Known(true), Applies = Known(true) },
-                Location = "current", LocalHour = observed.LocalHour, HorizonTicks = horizon, ProtectTimetable = false,
+                Location = "current", LocalHour = Known(observed.LocalHour), HorizonTicks = horizon, ProtectTimetable = false,
                 CurrentWork = new(new(eater.Key), Known(false), default, Known(0d)),
-                Occupancy = Known<EquatableArray<ForecastOccupancy>>([]), OpportunityCostPerTick = Known(1d)
+                Occupancy = ForecastCoupled.CoupledSearchCache.NoOccupancy, OpportunityCostPerTick = Known(1d)
             }, [], mood: false);
             var food = trajectory.Needs.SingleOrDefault(n => n.Kind == "food");
             if (food?.ThresholdExposureTicks != Known(0d)) return false;

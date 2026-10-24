@@ -207,7 +207,7 @@ internal static class FoodMethodCandidates
                 if (use.Eligible != Known(true) || !use.Nutrition.TryGetValue(out var gain) || gain <= 0 || !use.ChewTicks.IsKnown) continue;
                 var pawn = needs.Pawns.SingleOrDefault(p => p.Pawn == use.Pawn);
                 var food = pawn?.Needs.SingleOrDefault(n => n.Kind == "food");
-                if (food is null || !food.Level.IsKnown || !food.FallPerTick.IsKnown || !food.Threshold.IsKnown) continue;
+                if (food is null) continue;
                 var serving = Math.Min((int)units, use.MaxCount > 0 ? use.MaxCount : (int)Math.Ceiling(1 / gain));
                 // Each produced lot can serve an early or later demand event. Pinning every single-meal
                 // recipe to event zero hid productive multi-session allocations and forced overfeeding.
@@ -216,8 +216,8 @@ internal static class FoodMethodCandidates
                 {
                     if (!Space(1)) break;
                     var count = Math.Min((int)units, serving); var id = supply + "/eat/" + use.Pawn + "/" + meal;
-                    var earliest = food.FallPerTick.Value > 0 ? Math.Max(0,
-                        (food.Level.Value - food.Threshold.Value + meal * serving * gain) / food.FallPerTick.Value - use.ChewTicks.Value) : 0;
+                    var earliest = food.FallPerTick > 0 ? Math.Max(0,
+                        (food.Level - food.Threshold + meal * serving * gain) / food.FallPerTick - use.ChewTicks.Value) : 0;
                     if (earliest + use.ChewTicks.Value > horizon) continue;
                     tasks.Add(new(id, Location(cell), Location(cell), [supply])
                     { Inputs = [new(resource, Known((double)count)) { Lot = freshFrom }], NotBefore = earliest });

@@ -41,7 +41,7 @@ public sealed class StorageCreditTests
         {
             Needs = context.Needs with
             {
-                RainRate = Known(0d), MapArea = Known(Area), Deterioration = new(.5, .5, 0),
+                RainRate = 0d, MapArea = Area, Deterioration = new(.5, .5, 0),
                 Pawns = [food is null ? pawn : pawn with { Targets = [food] }],
             },
             StoreStock = new Dictionary<int, PlannedStock> { [1] = new(cells, EquatableArray.From(rows)) },
@@ -73,7 +73,7 @@ public sealed class StorageCreditTests
     [Fact]
     public void AFoodLotHungerAlreadyDebitsAddsNothing()
     {
-        var food = new NeedTarget(Rice, "food", "RawRice", 10, Known(0d), default, default, default) { Deterioration = new(70, Known(1d), true, 0, false) };
+        var food = NeedsFixtures.Target(Rice, "food", "RawRice", 10, 0d, new NeedRecovery.Rate(0)) with { Deterioration = new(70, 1d, true, 0, false) };
         var rows = SteelAndCloth.Append(Row(Rice, "RawRice", 75, OpenAir(1, 70))).ToArray();
         var credited = Credits(Ledger(Context(rows, food: food)));
         Assert.Equal(["storage/1/" + Cloth], credited.Select(r => r.Key));
@@ -87,12 +87,8 @@ public sealed class StorageCreditTests
         var ledger = Ledger(Context(SteelAndCloth, cloth: false));
         Assert.Contains("storage_credit_unassessed:1", ledger.Findings);
         Assert.Empty(Credits(ledger));
-        // An unread stock, or an unread map fact, is unassessed too, never thrown.
+        // An unread stock is unassessed too, never thrown.
         ledger = Ledger(Context(SteelAndCloth) with { StoreStock = null });
-        Assert.Contains("storage_credit_unassessed:1", ledger.Findings);
-        Assert.Empty(Credits(ledger));
-        var context = Context(SteelAndCloth);
-        ledger = Ledger(context with { Needs = context.Needs with { RainRate = Unknown<double>() } });
         Assert.Contains("storage_credit_unassessed:1", ledger.Findings);
         Assert.Empty(Credits(ledger));
     }

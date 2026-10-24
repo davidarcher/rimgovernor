@@ -80,7 +80,7 @@ public sealed record BedroomGainFacts
 
     /// <summary>A standing bed's room stage now, as <paramref name="pawn"/>'s rest target for it reads it; unknown without one.</summary>
     public Fact<int> BedStage(string pawn, string bed) => Pawns.TryGetValue(pawn, out var row)
-        && row.Targets.FirstOrDefault(t => t.Id == bed && t.Bed is not null) is { Bed: { } room } ? room.Stage : default;
+        && row.Targets.FirstOrDefault(t => t.Id == bed && t.Bed is not null) is { Bed: { } room } ? Known(room.Stage) : default;
 }
 
 /// <summary>
@@ -249,7 +249,8 @@ public static class ForecastHousing
     internal static double RestDaysFreed(NeedRate rest, double now, double planned)
     {
         if (now == planned) return 0;
-        if (!rest.FallPerTick.TryGetValue(out var fall) || fall < 0 || now <= 0 || planned <= 0) throw new RequiredFactException("rest fall and gain per tick");
+        var fall = rest.FallPerTick;
+        if (fall < 0 || now <= 0 || planned <= 0) throw new RequiredFactException("rest fall and gain per tick");
         return fall / (fall + now) - fall / (fall + planned);
     }
 
@@ -285,8 +286,7 @@ public static class ForecastHousing
     {
         var thought = room.ForPrisoners ? "" : room.Role == ForecastRoofConsequences.BedroomRole ? "slept_in_bedroom" : room.Role == ForecastRoofConsequences.BarracksRole ? "slept_in_barracks" : "";
         if (thought.Length == 0) return 0;
-        if (!room.Stage.TryGetValue(out var at)) return null;
-        return stages.FirstOrDefault(r => r.Role == thought && r.Stage == at)?.Offset;
+        return stages.FirstOrDefault(r => r.Role == thought && r.Stage == room.Stage)?.Offset;
     }
 
     /// <summary>
@@ -316,8 +316,8 @@ public static class ForecastHousing
     public static double? BedroomGain(NeedsForecastPawn pawn, Fact<int> stage, Fact<EquatableArray<MoodThought>> observed, MoodBreakModel breaks, double wellbeingWeight, bool barracks = false)
     {
         if (!BedroomMoodDelta(pawn, stage, observed, barracks).TryGetValue(out var delta)
-            || !pawn.MoodUnclampedTarget.TryGetValue(out var target) || !double.IsFinite(target)
-            || !pawn.BreakThreshold.TryGetValue(out var threshold) || !QuestCapacityForecast.FinitePositive(threshold)) return null;
+            || pawn.Mood is not { UnclampedTarget: var target, BreakThreshold: var threshold } || !double.IsFinite(target)
+            || !QuestCapacityForecast.FinitePositive(threshold)) return null;
         var model = new MoodBreakModel { Threshold = threshold };
         var horizon = ForecastCoupled.TierOneHorizonDays * GameTime.TicksPerDay;
         double[] TierTicks(double level)

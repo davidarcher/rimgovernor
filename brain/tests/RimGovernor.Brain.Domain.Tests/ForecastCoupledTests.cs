@@ -21,13 +21,13 @@ public sealed class ForecastCoupledTests
             Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([]),
             ForecastObserved = facts.ForecastObserved with
             {
-                Needs = new()
+                Needs = NeedsFixtures.Empty with
                 {
-                    Tick = 100,
-                    Pawns = [new() { Pawn = "pawn", State = "eligible", Mood = Known(.5), MoodTarget = Known(.5),
-                Memories = Known<EquatableArray<NeedMemory>>([]),
-                Needs = [new("food", Known(foodLevel), Known(.001), Known(.3)),
-                    new("rest", Known(1.0), Known(0.0), Known(.3))] }]
+                    Tick = new(100),
+                    Pawns = [NeedsFixtures.Pawn() with { Pawn = "pawn", State = "eligible",
+                Mood = NeedsFixtures.Mood with { Level = .5, Target = .5, Memories = [] },
+                Needs = [NeedsFixtures.Rate("food", foodLevel, .001, .3),
+                    NeedsFixtures.Rate("rest", 1.0, 0.0, .3)] }]
                 },
                 Coupled = new()
                 {
@@ -100,7 +100,7 @@ public sealed class ForecastCoupledTests
     {
         // #3598: a harvested-rice meal's AteRawFood is known before the rice exists, so the pawn's mood stays assessed.
         var facts = Review();
-        var rawFood = new NeedMemory("AteRawFood", -7, Known((double)GameTime.TicksPerDay), false) { StackLimit = 1 };
+        var rawFood = NeedsFixtures.Memory("AteRawFood", -7, (double)GameTime.TicksPerDay, false) with { StackLimit = 1 };
         var read = facts.ForecastObserved.Coupled!;
         var known = facts with { ForecastObserved = facts.ForecastObserved with
             { Coupled = read with { FoodUses = [read.FoodUses[0] with { Thoughts = Known<EquatableArray<NeedMemory>>([rawFood]) }] } } };
@@ -303,7 +303,7 @@ public sealed class ForecastCoupledTests
                 Needs = facts.ForecastObserved.Needs! with
                 {
                     Pawns = [facts.ForecastObserved.Needs!.Pawns[0] with
-                { Needs = [new("food",Known(1.0),Known(0.0),Known(.3)),new("rest",Known(1.0),Known(0.0),Known(.3))] }]
+                { Needs = [NeedsFixtures.Rate("food", 1.0, 0.0, .3),NeedsFixtures.Rate("rest", 1.0, 0.0, .3)] }]
                 },
                 Coupled = facts.ForecastObserved.Coupled with
                 {
@@ -372,7 +372,7 @@ public sealed class ForecastCoupledTests
             new(new(1,1),-10.0,"thin",false,false,"",false,false,0,false),
             new(new(5,5),-10.0,"none",false,false,"",false,false,0,false)]
             },
-            Needs = context.Needs with { Pawns = [context.Needs.Pawns[0] with { ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) }] }
+            Needs = context.Needs with { Pawns = [context.Needs.Pawns[0] with { ComfortableMin = 10.0, ComfortableMax = 30.0 }] }
         };
         var projection = ForecastShelterPolicy.ForecastShelters([room], new([], 0, 0), 300);
         ForecastThermalExposure Exposure(string location, params (double, double, double)[] comfort)
@@ -397,7 +397,7 @@ public sealed class ForecastCoupledTests
         context = context with
         {
             Shelters = [], Thermal = thermal,
-            Needs = context.Needs with { Pawns = [context.Needs.Pawns[0] with { ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) }] }
+            Needs = context.Needs with { Pawns = [context.Needs.Pawns[0] with { ComfortableMin = 10.0, ComfortableMax = 30.0 }] }
         };
         ForecastActivityAllocation[] work = [new("work", "pawn", 100, 100, 100, 200, 0, 0, 100, 100, 0)];
         var tasks = new Dictionary<string, ForecastActivity> { ["work"] = new("work", "cell/5/5", "cell/5/5", []) };
@@ -425,7 +425,7 @@ public sealed class ForecastCoupledTests
             {
                 Shelters = [],
                 Thermal = CoupledThermalTests.NoThermal with { Cells = EquatableArray.From(cells.Select(c => new ThermalCell(c, -10.0, "none", false, false, "", false, false, 0, false))) },
-                Needs = generated.Context.Needs with { Pawns = [generated.Context.Needs.Pawns[0] with { ComfortableMin = Known(10.0), ComfortableMax = Known(30.0) }] }
+                Needs = generated.Context.Needs with { Pawns = [generated.Context.Needs.Pawns[0] with { ComfortableMin = 10.0, ComfortableMax = 30.0 }] }
             }
         };
         facts = facts with { CoupledAlternatives = generated };
@@ -485,7 +485,7 @@ public sealed class ForecastCoupledTests
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = facts.ForecastObserved.Needs! with
-                { Pawns = [facts.ForecastObserved.Needs!.Pawns[0] with { Memories = Known<EquatableArray<NeedMemory>>([new("happy", 10, Known(expiry), false)]) }] }
+                { Pawns = [facts.ForecastObserved.Needs!.Pawns[0] with { Mood = facts.ForecastObserved.Needs!.Pawns[0].Mood! with { Memories = [NeedsFixtures.Memory("happy", 10, expiry, false)] }}] }
             }
         };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));
@@ -609,7 +609,7 @@ public sealed class ForecastCoupledTests
         Assert.Equal(100, facts.Tick.Value);
         Assert.Equal(facts.Tick, facts.WorkView!.Evidence.Tick);
         Assert.Equal(facts.Tick, demand.Work.Tick);
-        Assert.Equal(facts.Tick.Value, facts.CoupledAlternatives!.Context.Needs.Tick);
+        Assert.Equal(facts.Tick.Value, facts.CoupledAlternatives!.Context.Needs.Tick.Value);
         Assert.Throws<DomainException>(() => ForecastCoupled.CoupledForecastRequestOf(new("world", 101), .01, facts, demand, [], new()));
     }
 
@@ -622,7 +622,7 @@ public sealed class ForecastCoupledTests
             ForecastObserved = facts.ForecastObserved with
             {
                 Needs = facts.ForecastObserved.Needs! with
-                { Pawns = [facts.ForecastObserved.Needs!.Pawns[0] with { Memories = default }] }
+                { Pawns = [facts.ForecastObserved.Needs!.Pawns[0] with { Mood = null }] }
             }
         };
         facts = ForecastCoupledCandidates.ReviewCoupledActivities(WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([])));

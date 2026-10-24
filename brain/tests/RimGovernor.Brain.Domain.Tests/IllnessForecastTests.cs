@@ -14,11 +14,11 @@ public sealed class IllnessForecastTests
     private const double Day = GameTime.TicksPerDay;
     private const double Horizon = 30 * Day;
 
-    private static NeedsForecastPawn Pawn(double gain = 1, params DiseaseContract[] contracts) => new()
+    private static NeedsForecastPawn Pawn(double gain = 1, params DiseaseContract[] contracts) => NeedsFixtures.Pawn() with
     {
         Pawn = "pawn",
-        Consciousness = Known(1d), Moving = Known(1d), Manipulation = Known(1d), Sight = Known(1d), Talking = Known(1d),
-        Disease = new PawnDiseaseFacts { ImmunityGainSpeed = gain, Contracts = EquatableArray.From(contracts) },
+        Consciousness = 1d, Moving = 1d, Manipulation = 1d, Sight = 1d, Talking = 1d,
+        Disease = NeedsFixtures.Disease with { ImmunityGainSpeed = gain, Contracts = EquatableArray.From(contracts) },
     };
 
     private static readonly CapacityPenaltyTables Tables = new() { MovingMinForCapable = 0.15 };
@@ -289,15 +289,6 @@ public sealed class IllnessForecastTests
         Assert.Equal(0.25 * 0.5, d.DeathProbability, 9);
         Assert.False(missing.Known);
         Assert.Contains("disease_contract_unobserved:pawn:Disease_Flu", missing.Findings);
-    }
-
-    [Fact]
-    public void APawnWithoutItsIllnessReadIsUnknownWithAFinding()
-    {
-        var d = IllnessForecast.Of(Schedule(Flu()), Pawn() with { Disease = null }, Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon);
-
-        Assert.False(d.Known);
-        Assert.Equal(["illness_unobserved:pawn"], d.Findings);
     }
 
     // ----- the schedule

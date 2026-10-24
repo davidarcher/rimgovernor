@@ -67,9 +67,9 @@ public static class ColonyModel
         for (var i = 0; i < pawns.Count; i++)
         {
             var food = pawns[i].Needs.FirstOrDefault(n => n.Kind == "food");
-            if (food is not null && food.Fall.TryGetValue(out var fall) && fall >= 0)
+            if (food is { Fall: >= 0 })
             {
-                fallPerDay[i] = fall * GameTime.TicksPerDay;
+                fallPerDay[i] = food.Fall * GameTime.TicksPerDay;
             }
             else
             {

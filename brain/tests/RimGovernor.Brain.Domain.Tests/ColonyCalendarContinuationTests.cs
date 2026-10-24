@@ -14,7 +14,7 @@ public sealed class ColonyCalendarContinuationTests
         Climate = Known(ColonyModelFixtures.Climate() with { CurrentTwelfth = 11, TicksToNextTwelfth = 2 * GameTime.TicksPerDay }),
         Pawns = Known(EquatableArray.From(new[] { new ModelPawn
         {
-            Pawn = "Anna", Needs = EquatableArray.From(new[] { new ModelNeed { Kind = "food", Fall = Known(1d / GameTime.TicksPerDay) } }),
+            Pawn = "Anna", Needs = EquatableArray.From(new[] { new ModelNeed { Kind = "food", Fall = 1d / GameTime.TicksPerDay, Gain = 0, Threshold = .3 } }),
             Skills = Known(EquatableArray.From<WorkSkill>([])),
         } })),
         Stocks = new ModelStocks { Nutrition = Known(nutrition), Materials = Known(EquatableArray.From<Amount>([])), Medicine = Known(EquatableArray.From<Amount>([])) },

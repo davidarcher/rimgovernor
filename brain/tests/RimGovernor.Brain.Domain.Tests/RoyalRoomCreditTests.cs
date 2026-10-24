@@ -15,7 +15,7 @@ public sealed class RoyalRoomCreditTests
     private const double Horizon = 10;
     private static readonly Cell Inside = new(1, 1);
 
-    private static NeedThoughtStage Stage(string thought, string role, double offset) => new(thought, role, 0, offset, default, false);
+    private static NeedThoughtStage Stage(string thought, string role, double offset) => new(thought, role, 0, offset, NeedsFixtures.Situational);
 
     /// <summary>The title room thoughts' stage rows as the needs forecast reads them for a titled colonist.</summary>
     private static readonly NeedThoughtStage[] TitleStages =
@@ -187,7 +187,7 @@ public sealed class RoyalRoomCreditTests
 
     /// <summary>Core's Greedy rows (ThoughtWorker_Greedy: stage 0 without a room, else the room's Impressiveness stage + 1; stages 5-10 null, rows at 0).</summary>
     private static NeedThoughtStage[] GreedyStages(bool greedy) =>
-        [.. new double[] { -8, -8, -8, -6, -4, 0, 0, 0, 0, 0, 0 }.Select((o, i) => new NeedThoughtStage("Greedy", ForecastHousing.GreedyRole, i, greedy ? o : 0, default, false))];
+        [.. new double[] { -8, -8, -8, -6, -4, 0, 0, 0, 0, 0, 0 }.Select((o, i) => new NeedThoughtStage("Greedy", ForecastHousing.GreedyRole, i, greedy ? o : 0, NeedsFixtures.Situational))];
 
     /// <summary>Core's Jealous row (ThoughtWorker_BedroomJealous); 0 for a colonist without the trait (CanGetThought refuses it).</summary>
     private static NeedThoughtStage JealousStage(bool jealous) => Stage("Jealous", ForecastHousing.JealousRole, jealous ? -8 : 0);

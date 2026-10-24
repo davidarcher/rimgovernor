@@ -34,7 +34,7 @@ public sealed class MedicineValueTests
     private static readonly NeedsForecastPawn Anna = ForecastValueTests.HarmPawn() with
     {
         Pawn = "Anna",
-        Disease = new() { ImmunityGainSpeed = 1, Contracts = [new("Disease_Flu", 1), new("Disease_GutWorms", 1), new("Disease_OrganDecay", 1)] },
+        Disease = NeedsFixtures.Disease with { Contracts = [new("Disease_Flu", 1), new("Disease_GutWorms", 1), new("Disease_OrganDecay", 1)] },
     };
 
     private static ColonyValue Value(ColonyModelInput input, HarmInputs? harm = null)

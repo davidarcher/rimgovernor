@@ -4,14 +4,7 @@ using RimGovernor.Brain.Domain;
 
 namespace RimGovernor.Contracts.Wire;
 
-/// <summary>Wire unknown is JSON null; a known number remains a number. Does not serialize Fact's guarded getter.</summary>
-public sealed class ObservedNumberJsonConverter : JsonConverter<Fact<double>>
-{
-    public override Fact<double> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        => reader.TokenType == JsonTokenType.Null ? default : Fact.Known(reader.GetDouble());
-    public override void Write(Utf8JsonWriter writer, Fact<double> value, JsonSerializerOptions options)
-    { if (value.TryGetValue(out var number)) writer.WriteNumberValue(number); else writer.WriteNullValue(); }
-}
+/// <summary>Wire unknown is JSON null; known memories remain an array. Does not serialize Fact's guarded getter.</summary>
 public sealed class ObservedMemoriesJsonConverter : JsonConverter<Fact<EquatableArray<Observations.NeedMemory>>>
 {
     private static readonly EquatableArrayJsonConverter<Observations.NeedMemory> Items = new();

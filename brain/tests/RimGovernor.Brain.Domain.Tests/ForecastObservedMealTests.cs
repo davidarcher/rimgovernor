@@ -13,7 +13,7 @@ public sealed class ForecastObservedMealTests
     {
         var facts = ForecastCoupledSelectionTests.Review(level: .2, fall: 1.5 / Day);
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with { Targets =
-            [new("meal-stack", "food", "Meal", count, Known(0d), Known(10d), Known(.9), default)
+            [NeedsFixtures.Food("meal-stack", "Meal", count, 0d, 10d, .9) with
                 { Location = new(1, 1), StockCount = Known((double)count), FreshTicks = Known(expiry) }] };
         facts = facts with
         {

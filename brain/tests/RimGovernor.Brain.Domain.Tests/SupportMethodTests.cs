@@ -18,8 +18,8 @@ public sealed class SupportMethodTests
             Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), 4), new(new("Chunk"), 20)]),
             ForecastObserved = facts.ForecastObserved with
             {
-                Needs = new() { Tick = 100, Pawns = [basePawn, basePawn with { Pawn = "helper", Needs =
-                    [new("food", Known(1d), Known(0d), Known(.3)), new("rest", Known(1d), Known(0d), Known(.3))] }] },
+                Needs = NeedsFixtures.Empty with { Tick = new(100), Pawns = [basePawn, basePawn with { Pawn = "helper", Needs =
+                    [NeedsFixtures.Rate("food", 1d, 0d, .3), NeedsFixtures.Rate("rest", 1d, 0d, .3)] }] },
                 Coupled = new()
                 {
                     Research = ActivityContinuationFixtures.NoResearch, Hunt = HuntFixtures.NoHunt, Clothing = ClothingFixtures.NoClothing, Construction = ConstructionFixtures.NoConstruction(),

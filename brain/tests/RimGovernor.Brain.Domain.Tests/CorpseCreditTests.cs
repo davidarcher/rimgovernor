@@ -33,7 +33,7 @@ public sealed class CorpseCreditTests
     private static ForecastCoupledContext Context(NeedsForecastPawn pawn, PlannedRole role = PlannedRole.Morgue, params CorpseSightingRead[] corpses) =>
         ForecastValueTests.Context(pawn) with
         {
-            Needs = new() { Pawns = [pawn], Corpses = EquatableArray.From(corpses) },
+            Needs = NeedsFixtures.Empty with { Pawns = [pawn], Corpses = EquatableArray.From(corpses) },
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = role },
             InvestmentHorizonDays = Horizon,
         };

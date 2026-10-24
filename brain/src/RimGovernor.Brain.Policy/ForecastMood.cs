@@ -43,7 +43,7 @@ public static class ForecastMood
         if (renewals is null || renewals.Count == 0) return (ends, gains);
         var ordered = renewals.OrderBy(r => r.At).ToArray();
         if (ordered.Any(r => !double.IsFinite(r.At) || r.At < 0 || r.Gains.Any(g => !r.Ends.Contains(g.Id)
-            || !g.Permanent && !g.RemainingTicks.IsKnown || !double.IsFinite(g.Offset))))
+            || !double.IsFinite(g.Offset))))
             return null;
         var renewed = ordered.SelectMany(r => r.Ends).ToHashSet(StringComparer.Ordinal);
         if (mealIds.Any(renewed.Contains)) return null;
@@ -91,6 +91,12 @@ public static class ForecastMood
     /// timer and are summed. Native values a stack as its mean offset times the stacked multipliers
     /// (ThoughtHandler.MoodOffsetOfGroup), so one member's expiry moves mood by less than its own offset: the finding names
     /// the approximation. Zero-offset memories (opinion-only social ones) do not count toward it.</summary>
+    /// <summary>A memory's offset at an elapsed time, live or expired as at the state's elapsed time.</summary>
+    internal static double MemoryAt(NeedMemory m, double elapsed, double state) =>
+        m.Life is not MemoryLife.Expires { RemainingTicks: var r } ? m.Offset : state >= r ? 0 : m.Fades ? m.Offset * (1 - elapsed / r) : m.Offset;
+    /// <summary>The ticks until a memory expires; null for a permanent one.</summary>
+    internal static double? ExpiresIn(NeedMemory m) => m.Life is MemoryLife.Expires e ? e.RemainingTicks : null;
+
     internal static string? StackedMemoryFinding(IReadOnlyList<NeedMemory> memories) =>
         memories.Where(m => m.Offset != 0).GroupBy(m => m.Id, StringComparer.Ordinal).Any(g => g.Count() > 1)
             ? "stacked_memory_expiry_additive" : null;
@@ -100,7 +106,7 @@ public static class ForecastMood
     /// memories (a commitment's MoodMemories) start at their tick like a completed meal's thoughts. A situational
     /// change adds its offset delta from its tick. A banded thought (#3327) adds its delta inside each of its spans and
     /// stays at the observed constant outside them, naming itself in a finding when they do not cover the horizon.
-    /// Every other situational thought stays inside MoodUnclampedTarget. Without trajectory the per-point mood is left
+    /// Every other situational thought stays inside the mood's UnclampedTarget. Without trajectory the per-point mood is left
     /// empty: the search reads only the integrated results (#3467).</summary>
     public static ForecastMoodResult ForecastMoodTimeline(NeedsForecastPawn pawn, double horizon,
         IReadOnlyList<ForecastNeedChoice> selected, IReadOnlyDictionary<string, double>? interruptedAt = null,
@@ -124,25 +130,25 @@ public static class ForecastMood
         var events = new SortedSet<double> { 0, horizon };
         var intervals = selected.Select(c => (Choice: c, End: interruptedAt is not null && interruptedAt.TryGetValue(c.Id, out var at)
             ? Math.Clamp(at, c.Depart, c.End) : c.End)).ToArray();
-        if (pawn.Awake != Known(true) && !intervals.Any(r => r.Choice.Kind == "rest" && r.Choice.Start == 0))
+        if (!pawn.Awake && !intervals.Any(r => r.Choice.Kind == "rest" && r.Choice.Start == 0))
             return new([], default, default, default, default, default, ["observed_sleep_continuation_unassessed"]);
         var sleepEnds = ForecastNeeds.SleepServiceEnds(pawn, selected, interruptedAt, unknown);
         if (sleepEnds is null) return new([], default, default, default, default, default, EquatableArray.From(unknown));
         foreach (var end in sleepEnds.Values) events.Add(end);
         foreach (var row in intervals) { events.Add(row.Choice.Start); events.Add(row.End); }
-        var supported = pawn.ConditionalThoughts.TryGetValue(out var effects) && pawn.LocalHour.IsKnown
-            && pawn.MoodUnclampedTarget.IsKnown && pawn.Memories.TryGetValue(out var memories);
-        memories = pawn.Memories.ValueOrDefault;
-        if (!supported || memories.Any(m => !m.Permanent && !m.RemainingTicks.IsKnown))
-            return new([], default, default, default, default, default, ["unknown_conditional_mood_mechanics"]);
+        if (pawn.Mood is not { } mood) return new([], default, default, default, default, default, ["unknown_conditional_mood_mechanics"]);
+        // Each conditional def the native read cannot price names itself in the finding.
+        if (mood.Conditional is not ConditionalMood.Modeled { Thoughts: var effects })
+            return new([], default, default, default, default, default, EquatableArray.From(((ConditionalMood.Unmodeled)mood.Conditional).Thoughts
+                .Select(t => "unknown_conditional_mood_mechanics:" + t).ToArray()));
+        var memories = mood.Memories;
         if (StackedMemoryFinding(memories) is { } stacked) unknown.Add(stacked);
         foreach (var boundary in ConditionalThoughtTransitions(pawn, horizon)) events.Add(boundary);
-        foreach (var memory in memories.Where(m => !m.Permanent && m.RemainingTicks.IsKnown))
-            if (memory.RemainingTicks.Value > 0 && memory.RemainingTicks.Value < horizon) events.Add(memory.RemainingTicks.Value);
+        foreach (var memory in memories)
+            if (ExpiresIn(memory) is { } expiry && expiry > 0 && expiry < horizon) events.Add(expiry);
         var meals = intervals.Where(r => r.Choice.Kind == "food" && r.End == r.Choice.End)
             .SelectMany(r => r.Choice.Thoughts.Select(t => (Thought: t, Start: r.End))).Concat(granted ?? []).ToArray();
-        if (meals.Any(m => !m.Thought.Permanent && !m.Thought.RemainingTicks.IsKnown)
-            || PlannedMemoryEnds(memories, meals) is not { } planned
+        if (PlannedMemoryEnds(memories, meals) is not { } planned
             || RenewalSchedule(memories, renewals, meals.Select(m => m.Thought.Id)) is not { } schedule)
             return new([], default, default, default, default, default, ["unsupported_memory_renewal_or_stacking"]);
         var (observedEnds, renewed) = schedule;
@@ -151,27 +157,23 @@ public static class ForecastMood
         for (var i = 0; i < meals.Length; i++)
         {
             var meal = meals[i];
-            if (!meal.Thought.Permanent && meal.Start + meal.Thought.RemainingTicks.Value < horizon)
-                events.Add(meal.Start + meal.Thought.RemainingTicks.Value);
+            if (ExpiresIn(meal.Thought) is { } mealExpiry && meal.Start + mealExpiry < horizon) events.Add(meal.Start + mealExpiry);
             if (mealEnds[i] < horizon) events.Add(mealEnds[i]);
         }
         foreach (var gain in renewed)
         {
             events.Add(gain.Start);
             if (gain.End < horizon) events.Add(gain.End);
-            if (!gain.Thought.Permanent && gain.Start + gain.Thought.RemainingTicks.Value < horizon)
-                events.Add(gain.Start + gain.Thought.RemainingTicks.Value);
+            if (ExpiresIn(gain.Thought) is { } gainExpiry && gain.Start + gainExpiry < horizon) events.Add(gain.Start + gainExpiry);
         }
         foreach (var end in observedEnds.Values) if (end > 0 && end < horizon) events.Add(end);
         foreach (var change in situational) if (change.Start > 0 && change.Start < horizon) events.Add(change.Start);
         foreach (var bound in banded.SelectMany(b => b.Spans).SelectMany(s => new[] { s.Start, s.End }))
             if (bound > 0 && bound < horizon) events.Add(bound);
-        var actualKnown = pawn.Mood.IsKnown && pawn.MoodRisePerTick.IsKnown && pawn.MoodFallPerTick.IsKnown
-            && pawn.MoodFreezesWhileAsleep.IsKnown;
-        var actual = pawn.Mood.ValueOrDefault;
+        var actual = mood.Level;
         double targetExposure = 0, targetDepth = 0, actualExposure = 0, actualDepth = 0, pressure = 0;
-        var thresholdKnown = pawn.BreakThreshold.TryGetValue(out var threshold);
-        var breakKnown = thresholdKnown && QuestCapacityForecast.FinitePositive(threshold);
+        var threshold = mood.BreakThreshold;
+        var breakKnown = QuestCapacityForecast.FinitePositive(threshold);
         if (!breakKnown) unknown.Add("mental_break_probability_unassessed");
         // The observed threshold is the pawn's minor-break level, the model's base for every tier.
         var breakModel = new MoodBreakModel { Threshold = threshold };
@@ -180,13 +182,8 @@ public static class ForecastMood
         var shiftedTicks = shifts.Count == 0 ? [] : new double[shifts.Count * LayoutMoodRules.MoodTierCount];
         // Actual mood chases the target continuously, in exact segments (#3468); native's discrete updates, whose phase
         // is not observed, are the held approximation.
-        if (!pawn.MoodIntervalTicks.TryGetValue(out var interval) || !double.IsFinite(interval) || interval <= 0)
-        { actualKnown = false; unknown.Add("unknown_mood_response_interval"); }
         if (events.Count > 4096) return new([], default, default, default, default, default, ["mood_event_budget_truncated"]);
         var ticks = events.Where(t => t >= 0 && t <= horizon).ToArray();
-        // A memory's value at an elapsed time, live or expired as at the state's elapsed time.
-        double Memory(NeedMemory m, double elapsed, double state) => m.Permanent ? m.Offset : state >= m.RemainingTicks.Value ? 0
-            : m.Fades ? m.Offset * (1 - elapsed / m.RemainingTicks.Value) : m.Offset;
         bool Asleep(double time)
         {
             foreach (var row in intervals)
@@ -200,19 +197,19 @@ public static class ForecastMood
         // state time: inside a segment that is its midpoint, so a rounded boundary tick cannot flip the segment.
         double Unclamped(double time, bool asleep, double state)
         {
-            var hour = (pawn.LocalHour.Value + state / GameTime.TicksPerHour) % 24;
+            var hour = (pawn.LocalHour + state / GameTime.TicksPerHour) % 24;
             double conditional = 0, changedMemories = 0, mealMemories = 0;
             foreach (var effect in effects)
                 conditional += (!effect.AwakeOnly || !asleep) && InHours(hour, effect.StartHour, effect.EndHour) ? effect.Offset : 0;
-            foreach (var memory in memories) changedMemories += (state < observedEnds[memory.Id] ? Memory(memory, time, state) : 0) - memory.Offset;
+            foreach (var memory in memories) changedMemories += (state < observedEnds[memory.Id] ? MemoryAt(memory, time, state) : 0) - memory.Offset;
             for (var i = 0; i < meals.Length; i++)
-                if (meals[i].Start <= state && state < mealEnds[i]) mealMemories += Memory(meals[i].Thought, time - meals[i].Start, state - meals[i].Start);
+                if (meals[i].Start <= state && state < mealEnds[i]) mealMemories += MemoryAt(meals[i].Thought, time - meals[i].Start, state - meals[i].Start);
             foreach (var gain in renewed)
-                if (gain.Start <= state && state < gain.End) mealMemories += Memory(gain.Thought, time - gain.Start, state - gain.Start);
+                if (gain.Start <= state && state < gain.End) mealMemories += MemoryAt(gain.Thought, time - gain.Start, state - gain.Start);
             changedMemories += mealMemories;
             foreach (var change in situational) if (change.Start <= state) changedMemories += change.OffsetDelta;
             foreach (var span in bandedSpans) if (span.Start <= state && state < span.End) changedMemories += span.OffsetDelta;
-            return pawn.MoodUnclampedTarget.Value + (conditional - currentConditionalOffset + changedMemories) / 100;
+            return mood.UnclampedTarget + (conditional - currentConditionalOffset + changedMemories) / 100;
         }
         // Actual mood over a piece whose target moves linearly from one value to another: it moves at the rise or fall
         // rate toward the target, then follows it while the target moves no faster than that rate.
@@ -220,10 +217,10 @@ public static class ForecastMood
         {
             if (frozen)
             {
-                if (thresholdKnown) Integrate(threshold - actual, threshold - actual, duration, ref actualExposure, ref actualDepth);
+                Integrate(threshold - actual, threshold - actual, duration, ref actualExposure, ref actualDepth);
                 return;
             }
-            var (rise, fall, slope) = (pawn.MoodRisePerTick.Value, pawn.MoodFallPerTick.Value, (to - from) / duration);
+            var (rise, fall, slope) = (mood.RisePerTick, mood.FallPerTick, (to - from) / duration);
             double elapsed = 0;
             // At most an approach and then a follow; the last step takes whatever remains.
             for (var step = 0; elapsed < duration; step++)
@@ -240,7 +237,7 @@ public static class ForecastMood
                     if (step < 2 && gap != 0 && meet > 0 && meet < remaining) { piece = meet; next = from + slope * (elapsed + meet); }
                     else next = actual + rate * remaining;
                 }
-                if (thresholdKnown) Integrate(threshold - actual, threshold - next, piece, ref actualExposure, ref actualDepth);
+                Integrate(threshold - actual, threshold - next, piece, ref actualExposure, ref actualDepth);
                 actual = next; elapsed += piece;
             }
         }
@@ -248,7 +245,7 @@ public static class ForecastMood
         for (var i = 0; i < ticks.Length; i++)
         {
             var from = ticks[i]; var asleep = Asleep(from); var target = Target(from, asleep);
-            if (trajectory) points.Add(new(from, Known(target), actualKnown ? Known(actual) : default, asleep));
+            if (trajectory) points.Add(new(from, Known(target), Known(actual), asleep));
             if (i == ticks.Length - 1) break;
             var duration = ticks[i + 1] - from;
             // The target is linear between events except where the clamp cuts it at 0 or 1.
@@ -269,9 +266,9 @@ public static class ForecastMood
                 var piece = duration * (cuts[c + 1] - cuts[c]);
                 if (piece <= 0) continue;
                 pressure += (1 - (a + b) / 2) * piece;
-                if (thresholdKnown) Integrate(threshold - a, threshold - b, piece, ref targetExposure, ref targetDepth);
+                Integrate(threshold - a, threshold - b, piece, ref targetExposure, ref targetDepth);
                 if (breakKnown) breakModel.AddTierTicks(a, b, piece, tierTicks);
-                if (actualKnown) Chase(a, b, piece, asleep && pawn.MoodFreezesWhileAsleep.Value);
+                Chase(a, b, piece, asleep && mood.FreezesWhileAsleep);
             }
             // Each shifted target (#3655) has its own clamp cuts.
             for (var k = 0; k < shifts.Count; k++)
@@ -293,9 +290,9 @@ public static class ForecastMood
             }
         }
         unknown.Add("mood_response_interval_phase_unassessed");
-        return new(EquatableArray.From(points), thresholdKnown ? Known(targetExposure) : default,
-            thresholdKnown ? Known(targetDepth) : default, actualKnown && thresholdKnown ? Known(actualExposure) : default,
-            actualKnown && thresholdKnown ? Known(actualDepth) : default, actualKnown ? Known(actual) : default, EquatableArray.From(unknown))
+        return new(EquatableArray.From(points), Known(targetExposure),
+            Known(targetDepth), Known(actualExposure),
+            Known(actualDepth), Known(actual), EquatableArray.From(unknown))
         {
             PressureTicks = Known(pressure),
             BreakRisk = breakKnown ? Known(MoodBreakModel.Breaks(tierTicks)) : default,
@@ -314,7 +311,7 @@ public static class ForecastMood
 
     /// <summary>
     /// The food and rest thoughts along the needs timeline (#3598), as banded rows covering the horizon: each stage span adds
-    /// the stage's mood less the observed stage's, which <see cref="NeedsForecastPawn.MoodUnclampedTarget"/> already holds.
+    /// the stage's mood less the observed stage's, which <see cref="NeedMood.UnclampedTarget"/> already holds.
     /// The thoughts are named by def (Policy cannot reference ThoughtDefOf). A need with no stage spans stays constant.
     /// </summary>
     internal static IEnumerable<(string Thought, IReadOnlyList<(double Start, double End, double OffsetDelta)> Spans)> NeedThoughts(IEnumerable<ForecastNeedMetric> needs)
@@ -383,7 +380,8 @@ public static class ForecastMood
 
     internal static IEnumerable<double> ConditionalThoughtTransitions(NeedsForecastPawn pawn, double horizon)
     {
-        if (!pawn.ConditionalThoughts.TryGetValue(out var effects) || !pawn.LocalHour.TryGetValue(out var hour)) yield break;
+        if (pawn.Mood is not { Conditional: ConditionalMood.Modeled { Thoughts: var effects } }) yield break;
+        var hour = pawn.LocalHour;
         foreach (var effect in effects)
             foreach (var boundary in new[] { effect.StartHour, effect.EndHour })
             {

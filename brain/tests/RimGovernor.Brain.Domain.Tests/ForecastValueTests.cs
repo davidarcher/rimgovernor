@@ -14,14 +14,13 @@ public sealed class ForecastValueTests
     // The ground sleep a collapse takes: wake threshold 1 over the pawn's ground gain.
     private const double Asleep = 1500;
 
-    internal static NeedsForecastPawn Pawn(double foodLevel = 1, double fall = 0, double consciousness = 1) => new()
+    internal static NeedsForecastPawn Pawn(double foodLevel = 1, double fall = 0, double consciousness = 1) => NeedsFixtures.Pawn() with
     {
-        Pawn = "pawn", State = "eligible", Awake = Known(true), SleepThreshold = Known(.75), WakeThreshold = Known(1d), SleepBlockedUntilTicks = Known(0d),
-        Mood = Known(.5), MoodTarget = Known(.5), BreakThreshold = Known(.3),
-        Needs = [new("rest", Known(1d), Known(0d), Known(.28)) { UnservedGainPerTick = Known(1 / Asleep) }, new("food", Known(foodLevel), Known(fall), Known(.3))],
-        Memories = Known<EquatableArray<NeedMemory>>([]),
-        Consciousness = Known(consciousness), Moving = Known(1d), Manipulation = Known(1d), Sight = Known(1d), Talking = Known(1d),
-        MalnutritionSeverity = Known(0d), FoodPoisoningSeverity = Known(0d), HypothermiaSeverity = Known(0d), HeatstrokeSeverity = Known(0d),
+        Pawn = "pawn", State = "eligible", Awake = true, SleepThreshold = .75, WakeThreshold = 1d, SleepBlockedUntilTicks = 0d,
+        Mood = NeedsFixtures.Mood with { Level = .5, Target = .5, BreakThreshold = .3, Memories = [] },
+        Needs = [NeedsFixtures.Rate("rest", 1d, 0d, .28) with { UnservedGainPerTick = 1 / Asleep }, NeedsFixtures.Rate("food", foodLevel, fall, .3)],
+        Consciousness = consciousness, Moving = 1d, Manipulation = 1d, Sight = 1d, Talking = 1d,
+        MalnutritionSeverity = 0d, FoodPoisoningSeverity = 0d, HypothermiaSeverity = 0d, HeatstrokeSeverity = 0d,
     };
 
     private static ForecastCapacityInput Input() => new()
@@ -71,7 +70,7 @@ public sealed class ForecastValueTests
     internal static ForecastCoupledContext Context(NeedsForecastPawn pawn, CapacityPenaltyTables? tables = null, HarmInputs? harm = null,
         IReadOnlyDictionary<string, EquatableArray<GearOption>>? outfits = null, ForecastValuePolicy? policy = null) => new()
     {
-        Activities = new(), Needs = new() { Pawns = [pawn] }, Resources = Resources(),
+        Activities = new(), Needs = NeedsFixtures.Empty with { Pawns = [pawn] }, Resources = Resources(),
         CapacityPenalties = tables ?? Tables(), MoodBreaks = Breaks(),
         Harm = harm ?? new() { Schedule = new() { MajorThreatsPerDay = Known(0d), RaidFraction = Known(1d) } },
         Outfits = outfits ?? new Dictionary<string, EquatableArray<GearOption>>(),
@@ -107,8 +106,8 @@ public sealed class ForecastValueTests
 
     internal static NeedsForecastPawn HarmPawn() => Pawn() with
     {
-        PainShockThreshold = Known(0.8), HealthScale = Known(1d), IncomingDamageFactor = Known(1d), InjuryHealingFactor = Known(1d),
-        Disease = new() { ImmunityGainSpeed = 1 },
+        PainShockThreshold = 0.8, HealthScale = 1d, IncomingDamageFactor = 1d, InjuryHealingFactor = 1d,
+        Disease = NeedsFixtures.Disease,
     };
 
     internal static CapacityPenaltyTables HarmTables() => Tables() with
@@ -176,7 +175,7 @@ public sealed class ForecastValueTests
     public void AnExhaustedPawnLosesTheGroundSleepOfItsExpectedCollapse()
     {
         // The timeline's own zero span: rest reaches zero 20000 ticks before the day ends.
-        var pawn = Pawn() with { Needs = [Pawn().Needs[0] with { Level = Known(.5), FallPerTick = Known(.5 / (Day - 20000)) }, Pawn().Needs[1]] };
+        var pawn = Pawn() with { Needs = [Pawn().Needs[0] with { Level = .5, FallPerTick = .5 / (Day - 20000) }, Pawn().Needs[1]] };
         var timeline = Timeline(pawn) with { Mood = Mood(0, [0, 0, 0]) };
         var span = Assert.Single(Assert.Single(timeline.Needs, n => n.Kind == "rest").ZeroSpans);
         Assert.Equal(Day - 20000, span.Start, 3);
@@ -232,7 +231,7 @@ public sealed class ForecastValueTests
         Assert.Equal(0.4, raw.LossAgainst(meal).Value, 9);
         // An eater whose food fall is unobserved leaves the term unknown.
         var unobserved = Pawn() with { Needs = [Pawn().Needs[0], Pawn().Needs[1] with { FallPerTick = default }] };
-        var unknown = ForecastValue.Of(Eating("eat"), context with { Needs = new() { Pawns = [unobserved] } }, Day, Outcome(Calm()));
+        var unknown = ForecastValue.Of(Eating("eat"), context with { Needs = NeedsFixtures.Empty with { Pawns = [unobserved] } }, Day, Outcome(Calm()));
         Assert.False(unknown.RawIngredients.IsKnown);
         Assert.Contains("raw_ingredient_loss_unassessed:pawn", unknown.Findings);
     }
@@ -444,7 +443,7 @@ public sealed class ForecastValueTests
         // From severity 0.5 (the pawn already carries stage 1's 0.5 consciousness), 1,000 ticks inside comfort decay it by
         // exp(-0.027 / 60 * t) to 0.5 * exp(-0.45), then the floor gain of 0.00075 per 60 ticks reaches stage 2 (0.6, post 0.4: consciousness 0.8 of what it is, still awake).
         var table = Thermal("Hypothermia", Stage(0, Post(0.5)), Stage(0.6, Post(0.4)));
-        var pawn = Pawn(consciousness: 0.5) with { HypothermiaSeverity = Known(0.5) };
+        var pawn = Pawn(consciousness: 0.5) with { HypothermiaSeverity = 0.5 };
         var recovered = 0.5 * Math.Exp(-0.027 / 60 * 1000);
         var reach = (0.6 - recovered) / (0.00075 / 60);
 
@@ -460,7 +459,7 @@ public sealed class ForecastValueTests
     {
         // At 0.9 the floor gain reaches the lethal 1 in 8,000 ticks; the pawn already carries the only stage, so nothing is lost before.
         var table = Thermal("Hypothermia", Stage(0, Post(0.5)));
-        var pawn = Pawn(consciousness: 0.5) with { HypothermiaSeverity = Known(0.9) };
+        var pawn = Pawn(consciousness: 0.5) with { HypothermiaSeverity = 0.9 };
 
         var value = Thermally(pawn, ThermalTables(table), Span(0, 20000, -10, -10));
 
@@ -661,7 +660,7 @@ public sealed class ForecastValueTests
             Table = new() { Known = true, Hediff = "Flu", InitialSeverity = 0.2, LethalSeverity = 1, Immunizable = new(0.25, 0.2, -0.5), Stages = [Stage(0, Half("Consciousness"))] },
         };
         var illness = new IllnessSchedule { Assessed = true, Comps = [(0, 0.1)], Incidents = [new IllnessIncident("Disease_Flu", 1, 1, course)] };
-        var pawn = HarmPawn() with { Disease = new() { ImmunityGainSpeed = 1, Contracts = [new("Disease_Flu", 1)] } };
+        var pawn = HarmPawn() with { Disease = NeedsFixtures.Disease with { Contracts = [new("Disease_Flu", 1)] } };
         ForecastValueResult Value(IllnessSchedule schedule)
         {
             var context = Context(pawn, HarmTables(), RaidDay() with { Illness = schedule }, new Dictionary<string, EquatableArray<GearOption>> { ["pawn"] = Cloth });

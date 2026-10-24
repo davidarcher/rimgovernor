@@ -12,14 +12,14 @@ public sealed class BedroomOrderTests
     private const string Bed = "Bed";
     private static readonly PawnId A = new("a");
     private static readonly PawnId B = new("b");
-    private static readonly NeedCell IndoorCell = new(Known(true), Known(false), Known(false), Known(false), Known(false));
+    private static readonly NeedCell IndoorCell = new(true, false, false, false, false);
 
     // An unplanned room the game scores a Barracks: its beds house no one.
     private static readonly PlannedRoom Hall = new() { Id = 1, Region = RegionRules.RectRegion(new Policy.Rectangle(0, 0, 5, 5)) };
     private static readonly PlannedRoom Bedroom = new() { Id = 3, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new Policy.Rectangle(20, 0, 4, 4)) };
 
     private static NeedThoughtStage Stage(string thought, string role, int stage, double offset)
-        => new(thought, role, stage, offset, Known((double)GameTime.TicksPerDay), false);
+        => new(thought, role, stage, offset, NeedsFixtures.Lasting((double)GameTime.TicksPerDay, false));
 
     // Barracks stage 2 (-4) to bedroom stage 2 (+2) is a delta of 6; an ascetic's stage-2 bedroom gives it the same 6.
     private static readonly NeedThoughtStage[] BedStages =
@@ -28,14 +28,14 @@ public sealed class BedroomOrderTests
     ];
 
     /// <summary>A colonist owning hall bed <paramref name="owned"/> (a barracks at stage 2) who can also sleep in bedroom bed v (stage 2).</summary>
-    private static NeedsForecastPawn Pawn(PawnId id, string owned, double target, Fact<double> threshold, bool ascetic = false) => new()
+    private static NeedsForecastPawn Pawn(PawnId id, string owned, double target, double? threshold, bool ascetic = false) => NeedsFixtures.Pawn() with
     {
-        Pawn = id.Value, MoodUnclampedTarget = Known(target), BreakThreshold = threshold, Ascetic = ascetic, OwnedBed = owned, Sleep = SleepFixtures.InBed(owned),
+        Pawn = id.Value, Mood = threshold is { } minor ? NeedsFixtures.Mood with { UnclampedTarget = target, BreakThreshold = minor } : null, Ascetic = ascetic, OwnedBed = owned, Sleep = SleepFixtures.InBed(owned),
         ThoughtStages = EquatableArray.From(BedStages),
         Targets =
         [
-            new(owned, "rest", "", 1, Known(0d), default, default, default) { Bed = new("Barracks", Known(2), false), Cell = IndoorCell },
-            new("v", "rest", "", 1, Known(0d), default, default, default) { Bed = new("Bedroom", Known(2), false), Cell = IndoorCell },
+            NeedsFixtures.Service(owned, "rest", 0d, 0) with { Bed = NeedsFixtures.BedRoom("Barracks", 2, false), Cell = IndoorCell },
+            NeedsFixtures.Service("v", "rest", 0d, 0) with { Bed = NeedsFixtures.BedRoom("Bedroom", 2, false), Cell = IndoorCell },
         ],
     };
 
@@ -74,7 +74,7 @@ public sealed class BedroomOrderTests
     public void TheVacantBedroomBedGoesToTheColonistNearItsBreakThreshold()
     {
         // a is calm; b sits just under its break threshold, and the bedroom's +6 lifts it clear.
-        var gains = Gains(Pawn(A, "s1", 0.8, Known(0.35)), Pawn(B, "s2", 0.33, Known(0.35)));
+        var gains = Gains(Pawn(A, "s1", 0.8, 0.35), Pawn(B, "s2", 0.33, 0.35));
         Assert.True(gains.Gain("b", Known(2)) > gains.Gain("a", Known(2)));
 
         var move = Step(Sharing, gains);
@@ -90,7 +90,7 @@ public sealed class BedroomOrderTests
     public void AnAsceticAndANonAsceticWithEqualGainsKeepIdOrder()
     {
         // a is an ascetic in the shared hall: its NeverUpgrade room houses it only when it owns that room alone.
-        var gains = Gains(Pawn(A, "s1", 0.8, Known(0.35), ascetic: true), Pawn(B, "s2", 0.8, Known(0.35)));
+        var gains = Gains(Pawn(A, "s1", 0.8, 0.35, ascetic: true), Pawn(B, "s2", 0.8, 0.35));
         Assert.Equal(gains.Gain("a", Known(2)), gains.Gain("b", Known(2)));
         var move = Step(Sharing, gains, new Dictionary<string, RoomTarget> { ["hall"] = new() { NeverUpgrade = true } });
         Assert.Equal((BedroomStepKind.Move, A, "v", 2), (move.Kind, move.Pawn, move.Bed, move.Unhoused));
@@ -108,8 +108,8 @@ public sealed class BedroomOrderTests
     [Fact]
     public void AnUnreadGainKeepsIdOrderAndIsNamed()
     {
-        // b is near its break, but a's threshold is unread: id order, and a is named.
-        var gains = Gains(Pawn(A, "s1", 0.8, default), Pawn(B, "s2", 0.33, Known(0.35)));
+        // b is near its break, but a has no mood need to price: id order, and a is named.
+        var gains = Gains(Pawn(A, "s1", 0.8, null), Pawn(B, "s2", 0.33, 0.35));
         Assert.Null(gains.Gain("a", Known(2)));
         Assert.Equal(A, Step(Sharing, gains).Pawn);
 
