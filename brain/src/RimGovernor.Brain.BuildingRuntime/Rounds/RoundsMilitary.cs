@@ -367,7 +367,7 @@ public sealed class MilitaryRounds
 
     private static Verdict NoMethod(NeedId need) => AwaitingPlan(need.Value, "no_method");
 
-    /// <summary>The range's stands (one per Shooting holder) and the ring's markers (one per Melee trainee, #3813: none
+    /// <summary>The range's stands (for every Shooting trainee, #3846) and the ring's markers (one per Melee trainee, #3813: none
     /// under two, who have nobody to spar with) the review wants, read from the projection's work pawns; unknown while they are.</summary>
     internal static (Fact<int> Stands, Fact<int> Rings) TrainingDemand(Observation.ColonyProjection facts)
     {
@@ -375,7 +375,7 @@ public sealed class MilitaryRounds
         {
             return (Unknown<int>(), Unknown<int>());
         }
-        return (Known(review.ShootingBelow > 0 ? LayoutRangeRules.RangeStandsFor(review.Holders) : 0),
+        return (Known(review.ShootingTrainees > 0 ? LayoutRangeRules.RangeStandsFor(review.ShootingTrainees) : 0),
             Known(review.MeleeTrainees >= 2 ? LayoutRingRules.RingMarkersFor(review.MeleeTrainees) : 0));
     }
 }

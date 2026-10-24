@@ -13,8 +13,8 @@ Unfilled assignments are acquisition. No target is saved.
 
 Normal coupled generation proposes bounded range sessions for each admitted pawn and exact
 two-pawn sparring sessions for each admitted pair. A session competes with other work on value
-(the skill XP it applies, priced by tier 2) like any other activity. The sparring ring's room
-credit prices the facility by the harm its trainees' Melee saves ([forecast value](../architecture/forecast-value.md)).
+(the skill XP it applies, priced by tier 2) like any other activity. The sparring ring's and the training range's room
+credits price the facility by the harm its trainees' Melee or Shooting saves (#3813, #3846) ([forecast value](../architecture/forecast-value.md)).
 The common schedule charges both participants' travel, waiting and work, holds exact
 stands/dummies/markers, and compares the same needs and mood trajectory as other work.
 Observed hostiles, critical patients or exhausted food/rest postpone practice; unknown

@@ -302,20 +302,20 @@ namespace HomeBridge.BridgeTools
                 return FixtureKit.Reply(new Fx.SkillLearningProbeRead { Samples = samples, Failures = failures });
             }, cancellationToken);
         }
-        [Tool("test/skill_stat_curve_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Clear two Medicine- and Melee-capable colonists' hediffs and inspiration, compare the first's biography medical and MeleeDPS stat curves with live native stat calls at each level (temporarily set and restored), then anesthetize the second so its medical pipeline disqualifies. Test builds only.")]
+        [Tool("test/skill_stat_curve_prepare", Description = "UNSAFE FOR MODEL EXECUTION. Clear two Medicine-, Melee- and Shooting-capable colonists' hediffs and inspiration, compare the first's biography medical, MeleeDPS and ranged defense curves with live native stat calls at each level (temporarily set and restored), then anesthetize the second so its medical pipeline disqualifies. Test builds only.")]
         public async Task<object> SkillStatCurvePrepare(IRimBridgeContext ctx, CancellationToken cancellationToken)
         {
             return await ctx.MainThread.InvokeAsync<object>(() => {
                 var map = FixtureKit.CurrentMap();
-                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => p.skills?.GetSkill(SkillDefOf.Medicine).TotallyDisabled == false && !p.skills.GetSkill(SkillDefOf.Melee).TotallyDisabled).Take(2).ToArray();
-                if (pawns.Length < 2) throw new InvalidOperationException("Two Medicine- and Melee-capable colonists are required.");
+                var pawns = map.mapPawns.FreeColonistsSpawned.Where(p => p.skills?.GetSkill(SkillDefOf.Medicine).TotallyDisabled == false && !p.skills.GetSkill(SkillDefOf.Melee).TotallyDisabled && !p.skills.GetSkill(SkillDefOf.Shooting).TotallyDisabled).Take(2).ToArray();
+                if (pawns.Length < 2) throw new InvalidOperationException("Two Medicine-, Melee- and Shooting-capable colonists are required.");
                 foreach (var pawn in pawns)
                 {
                     foreach (var hediff in pawn.health.hediffSet.hediffs.ToList()) pawn.health.RemoveHediff(hediff);
                     if (pawn.Inspired) pawn.mindState.inspirationHandler.EndInspiration(pawn.Inspiration);
                 }
                 var (qualified, disqualified) = (pawns[0], pawns[1]);
-                var records = new[] { SkillDefOf.Medicine, SkillDefOf.Melee }.Select(d => qualified.skills.GetSkill(d)).ToArray();
+                var records = new[] { SkillDefOf.Medicine, SkillDefOf.Melee, SkillDefOf.Shooting }.Select(d => qualified.skills.GetSkill(d)).ToArray();
                 var before = records.Select(r => (r.levelInt, r.xpSinceLastLevel, r.xpSinceMidnight)).ToArray();
                 var biography = NativePawnDetails.Biography(qualified);
                 var failures = biography.SkillStatFindings.ToList();
@@ -325,7 +325,10 @@ namespace HomeBridge.BridgeTools
                 {
                     foreach (var curve in biography.SkillStatCurves)
                     {
-                        var stat = DefDatabase<StatDef>.GetNamed(curve.Stat); // the curve names its stat and skill by defName across the wire
+                        // The curve names its stat and skill by defName across the wire; the ranged defense curve (#3846) is the
+                        // live ranged DPS at the live hit factor, which reads the pawn's ShootingAccuracyPawn.
+                        var ranged = curve.Stat == RimGovernor.Contracts.Wire.Observations.SkillStatCurve.RangedDefenseDps;
+                        var stat = ranged ? null : DefDatabase<StatDef>.GetNamed(curve.Stat);
                         var skill = records.Single(r => r.def.defName == curve.Skill);
                         var saved = skill.levelInt;
                         try
@@ -334,7 +337,8 @@ namespace HomeBridge.BridgeTools
                             {
                                 // Disposable fixture mutation only: evaluate the actual native level without stat caching.
                                 skill.levelInt = level.StoredLevel;
-                                var actual = stat.Worker.GetValue(StatRequest.For(qualified));
+                                var actual = ranged ? (float)(NativeDefenseStats.PawnRangedDps(qualified) * NativeDefenseStats.PawnRangedHitFactor(qualified))
+                                    : stat.Worker.GetValue(StatRequest.For(qualified));
                                 samples++;
                                 if (Math.Abs(level.Value - actual) > 1e-4 * Math.Max(1, Math.Abs(actual)))
                                     failures.Add($"{curve.Stat}/{level.StoredLevel}: {level.Value} vs {actual}");

@@ -8,9 +8,6 @@ public sealed record ForecastMaintenanceConsequence(string Requirement, Fact<dou
 
 public static class ForecastMaintenancePolicy
 {
-    /// <summary>No activity completed: a maintenance forecast of decay alone (the training review's).</summary>
-    public static readonly IReadOnlyDictionary<string, Fact<bool>> NoneCompleted = new Dictionary<string, Fact<bool>>();
-
     public static EquatableArray<ForecastMaintenanceConsequence> ForecastMaintenance(
         EquatableArray<ForecastMaintenanceRequirement> requirements, EquatableArray<ForecastPracticeTask> practice,
         ForecastActivityPlan plan, IReadOnlyDictionary<string, Fact<bool>> completed, double horizon)

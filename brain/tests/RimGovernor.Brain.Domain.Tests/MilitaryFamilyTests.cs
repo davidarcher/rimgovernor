@@ -58,7 +58,7 @@ public sealed class MilitaryFamilyTests
         var met = Derive(new MilitaryFacts { Training = Known(new TrainingReview { Capable = 3 }) }, MilitaryFamily.Training);
         Assert.Equal((Satisfaction.Met, NeedTier.Development), (met.Satisfaction, met.Tier));
 
-        var unmet = Derive(new MilitaryFacts { Training = Known(new TrainingReview { Capable = 4, Below = 1, ShootingBelow = 1 }) }, MilitaryFamily.Training);
+        var unmet = Derive(new MilitaryFacts { Training = Known(new TrainingReview { Capable = 4, Below = 1, ShootingTrainees = 1 }) }, MilitaryFamily.Training);
         Assert.Equal((Satisfaction.Unmet, 0.25), (unmet.Satisfaction, unmet.Deficit.Value));
 
         Assert.Equal("training review", Assert.Throws<RequiredFactException>(() => Derive(new MilitaryFacts(), MilitaryFamily.Training)).Fact);

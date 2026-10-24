@@ -370,7 +370,7 @@ public sealed partial record ForecastCoupledCandidates
             Worship = facts.Worship,
             PenHerds = facts.PlannedPens,
             Roamers = facts.AnimalUpkeep.Roamers,
-            Sparring = practice.Trainees,
+            Sparring = practice.Sparring, Range = practice.Range,
             InitialLots = EquatableArray.From(lots),
             FoodUses = read.FoodUses,
             Bindings = bindings,

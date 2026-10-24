@@ -34,6 +34,9 @@ public sealed record SkillLearning
     public bool PracticeCapable { get; init; }
     public Fact<int> PracticeCeiling { get; init; }
     public Fact<double> RangeAppliedBudget { get; init; }
+    /// <summary>The range drill's daily cap of applied XP (#3846, native RangeTraining.DailyXpBudget) for Shooting; 0 for every
+    /// other skill.</summary>
+    public double RangeDailyBudget { get; init; }
 }
 
 public sealed record SkillLevelMechanics(int Level, double RequiredXp, double DecayXp);
@@ -67,9 +70,15 @@ public sealed record ProductiveWorkStage(double WorkAmount, double RateFactor, F
     double WorkQuantum = 0, bool HoldRateUntilQuantum = false);
 public sealed record SkillWorkRate(int StoredLevel, Fact<double> WorkPerTick);
 
-/// <summary>A pawn's native stat value at each stored skill level (0-20) at one frame. Capacities and every other
-/// observed condition are held; the skill term alone is replaced. Pawns whose pipeline does not qualify carry a
-/// finding instead (<see cref="PawnBiography.SkillStatFindings"/>).</summary>
+/// <summary>A pawn's native stat value at each stored skill level (0-20) at one frame, the stat named by its defName or, for
+/// a value no stat holds, by a constant here. Capacities and every other observed condition are held; the skill term alone is
+/// replaced. Pawns whose pipeline does not qualify carry a finding instead (<see cref="PawnBiography.SkillStatFindings"/>).</summary>
 public sealed record SkillStatCurve(string Stat, string Skill,
-    [property: JsonConverter(typeof(EquatableArrayJsonConverter<SkillStatLevel>))] EquatableArray<SkillStatLevel> Levels, string Provenance);
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<SkillStatLevel>))] EquatableArray<SkillStatLevel> Levels, string Provenance)
+{
+    /// <summary>The ranged damage the defense capacity counts (#3846): the primary's ranged DPS (<see cref="PawnEquipment.RangedDps"/>)
+    /// at the hit factor (<see cref="PawnEquipment.RangedHitFactor"/>) the ShootingAccuracyPawn of each stored Shooting level
+    /// gives; 0 at every level without a ranged primary.</summary>
+    public const string RangedDefenseDps = "RangedDefenseDps";
+}
 public sealed record SkillStatLevel(int StoredLevel, double Value);

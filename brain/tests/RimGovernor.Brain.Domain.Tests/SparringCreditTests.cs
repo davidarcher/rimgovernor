@@ -28,8 +28,8 @@ public sealed class SparringCreditTests
 
     internal static readonly SkillStatCurve MeleeDps = new("MeleeDPS", "Melee", EquatableArray.From(Enumerable.Range(0, 3).Select(l => new SkillStatLevel(l, 2 + 2 * l))), "test");
 
-    private static SparringTrainee Trainee(string pawn, int stored = 0) =>
-        new(pawn, Melee(stored), 2, EquatableArray.From(MeleeDps.Levels.Select(l => (double)l.Value)), 1);
+    private static PracticeTrainee Trainee(string pawn, int stored = 0) =>
+        new(pawn, Melee(stored), 2, EquatableArray.From(MeleeDps.Levels.Select(l => (double)l.Value)));
 
     private static ExposureTable Exposure() => new(RaidExposure.Schema,
     [
@@ -39,7 +39,7 @@ public sealed class SparringCreditTests
 
     private static HarmInputs Raids(double raidsPerDay = 1) => ForecastValueTests.RaidDay(Exposure(), raidsPerDay) with { DefenseCapacity = Known(990d) };
 
-    private static ForecastCoupledContext Context(SparringTrainees? trainees, HarmInputs? harm = null) =>
+    private static ForecastCoupledContext Context(PracticeTrainees? trainees, HarmInputs? harm = null) =>
         PlannedRoomCreditTests.Context(PlannedRoomCredits.Shipped) with
         {
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.SparringRing, [2] = PlannedRole.Workshop },
@@ -50,7 +50,7 @@ public sealed class SparringCreditTests
             Sparring = trainees,
         };
 
-    private static SparringTrainees Two(params SparringTrainee[] extra) => new([Trainee("a"), Trainee("b"), .. extra], [], 0);
+    private static PracticeTrainees Two(params PracticeTrainee[] extra) => new([Trainee("a"), Trainee("b"), .. extra], [], 0);
 
     private static ForecastCoupledOutcome Stub() => new(new([], 0, 0), default, new Dictionary<string, ForecastNeedsResult>(), []);
 
@@ -87,7 +87,7 @@ public sealed class SparringCreditTests
         // One capable pawn has nobody to spar with.
         Assert.Empty(ForecastSparring.RingCredit(ring, Stub(), Context(new([Trainee("a")], [], 0)), Day));
         // Two standing Melee targets: the colony already spars without the ring.
-        Assert.Empty(ForecastSparring.RingCredit(ring, Stub(), Context(Two() with { Markers = 2 }), Day));
+        Assert.Empty(ForecastSparring.RingCredit(ring, Stub(), Context(Two() with { Targets = 2 }), Day));
         // Trainees already at the ceiling gain nothing.
         Assert.Empty(ForecastSparring.RingCredit(ring, Stub(), Context(new([Trainee("a", 2), Trainee("b", 2)], [], 0)), Day));
         // No raid to expect: the Melee saves no harm.
@@ -126,7 +126,8 @@ public sealed class SparringCreditTests
         var capable = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From([Capable(pawns[0], "a"), Capable(pawns[0], "b")])) } };
         var context = ForecastCoupledCandidates.GenerateCoupledActivities(capable)!.Context;
         Assert.Equal(["a", "b"], context.Sparring!.Trainees.Select(t => t.Pawn));
-        Assert.All(context.Sparring.Trainees, t => Assert.Equal((2, 0.5, 6d), (t.Ceiling, t.Health, t.MeleeDps[2])));
+        // Melee power is MeleeDPS x health: 6 x 0.5 at Melee 2.
+        Assert.All(context.Sparring.Trainees, t => Assert.Equal((2, 3d), (t.Ceiling, t.Power[2])));
         // A capable pawn without a MeleeDPS curve is a named not-modelled finding, not a trainee.
         var uncurved = capable with { ForecastObserved = capable.ForecastObserved with { WorkPawns = Known(EquatableArray.From([Capable(pawns[0], "a") with { SkillStatCurves = [] }])) } };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(uncurved)!;

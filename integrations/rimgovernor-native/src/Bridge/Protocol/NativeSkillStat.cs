@@ -32,21 +32,41 @@ internal static class NativeSkillStat
     private static readonly MethodInfo? BaseBonusAtLevel =
         typeof(SkillNeed_BaseBonus).GetMethod("ValueAtLevel", BindingFlags.Instance | BindingFlags.NonPublic);
 
-    /// <summary>The biography's curves for a pawn with skills, plus one finding per stat that does not qualify.</summary>
+    /// <summary>The RangedDefenseDps curve's provenance (#3846): Shooting moves only ShootingAccuracyPawn, which ShotReport's
+    /// shooter factor reads, so each level's value is the observed ranged DPS at the hit factor that level's accuracy gives.</summary>
+    internal const string RangedProvenance = "NativeDefenseStats.PawnRangedDps x PawnRangedHitFactor; ShootingAccuracyPawn at each stored Shooting level -> StatWorker.FinalizeValue -> ShotReport.HitFactorFromShooter; observed weapon, distance and conditions held";
+
+    /// <summary>The biography's curves for a pawn with skills, plus one finding per stat that does not qualify: the stat
+    /// curves, then the ranged damage the defense capacity counts (<see cref="Obs.SkillStatCurve.RangedDefenseDps"/>, #3846).</summary>
     internal static Obs.PawnBiography Curves(Pawn pawn, Obs.PawnBiography row)
     {
         foreach (var (stat, skill) in Biography.Select(s => (s.Stat(), s.Skill())))
         {
             var melee = stat == StatDefOf.MeleeDPS;
             var values = melee ? MeleeDpsLevels(pawn, out var finding) : Levels(pawn, stat, skill, out finding);
-            row = values == null
-                ? row with { SkillStatFindings = [.. row.SkillStatFindings, stat.defName + ": " + finding] }
-                : values.Any(v => float.IsNaN(v) || float.IsInfinity(v))
-                    ? row with { SkillStatFindings = [.. row.SkillStatFindings, stat.defName + ": non-finite value"] }
-                    : row with { SkillStatCurves = [.. row.SkillStatCurves, new Obs.SkillStatCurve(stat.defName, skill.defName,
-                        EquatableArray.From(values.Select((v, level) => new Obs.SkillStatLevel(level, v)).ToArray()), melee ? MeleeProvenance : Provenance)] };
+            row = Curve(row, stat.defName, skill, values, finding, melee ? MeleeProvenance : Provenance);
         }
-        return row;
+        return Curve(row, Obs.SkillStatCurve.RangedDefenseDps, SkillDefOf.Shooting, RangedDefenseDpsLevels(pawn, out var ranged), ranged, RangedProvenance);
+    }
+
+    private static Obs.PawnBiography Curve(Obs.PawnBiography row, string name, SkillDef skill, float[]? values, string finding, string provenance) =>
+        values == null
+            ? row with { SkillStatFindings = [.. row.SkillStatFindings, name + ": " + finding] }
+            : values.Any(v => float.IsNaN(v) || float.IsInfinity(v))
+                ? row with { SkillStatFindings = [.. row.SkillStatFindings, name + ": non-finite value"] }
+                : row with { SkillStatCurves = [.. row.SkillStatCurves, new Obs.SkillStatCurve(name, skill.defName,
+                    EquatableArray.From(values.Select((v, level) => new Obs.SkillStatLevel(level, v)).ToArray()), provenance)] };
+
+    /// <summary>The pawn's defense-capacity ranged DPS at each stored Shooting level (see <see cref="RangedProvenance"/>): its
+    /// primary's ranged DPS times the hit factor of the ShootingAccuracyPawn at the level. Zero at every level without a
+    /// ranged primary (it lands no shots); null with the accuracy's finding when its pipeline does not qualify.</summary>
+    internal static float[]? RangedDefenseDpsLevels(Pawn pawn, out string finding)
+    {
+        finding = "";
+        var dps = NativeDefenseStats.PawnRangedDps(pawn);
+        if (NativeDefenseStats.PawnRangedHitFactor(pawn) == 0) return new float[SkillRecord.MaxLevel + 1];
+        var accuracy = Levels(pawn, StatDefOf.ShootingAccuracyPawn, SkillDefOf.Shooting, out finding);
+        return accuracy?.Select(a => (float)(dps * NativeDefenseStats.PawnRangedHitFactor(pawn, a))).ToArray();
     }
 
     /// <summary>The pawn's MeleeDPS at each stored Melee level (see <see cref="MeleeProvenance"/>): the observed MeleeDPS times
@@ -103,7 +123,8 @@ internal static class NativeSkillStat
 
     private static string? Disqualified(Pawn pawn, StatDef stat, SkillDef skill)
     {
-        if (stat.Worker.GetType() != typeof(StatWorker)) return "custom stat worker";
+        // StatWorker_ShootingAccuracy overrides only the explanation text; its value pipeline is StatWorker's.
+        if (stat.Worker.GetType() != typeof(StatWorker) && stat.Worker.GetType() != typeof(StatWorker_ShootingAccuracy)) return "custom stat worker";
         var record = pawn.skills?.GetSkill(skill);
         if (record == null || record.TotallyDisabled) return "skill disabled or absent";
         if (BaseBonusAtLevel == null) return "SkillNeed_BaseBonus.ValueAtLevel not found";

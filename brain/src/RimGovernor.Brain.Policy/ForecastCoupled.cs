@@ -123,7 +123,10 @@ public sealed record ForecastCoupledContext
     public IReadOnlyList<PenRoamer>? Roamers { get; init; }
     /// <summary>The pawns a sparring ring trains (PracticeMethodCandidates.TraineesOf, #3813); null when the work pawns were not
     /// read, which a served ring's credit raises as a required fact.</summary>
-    public SparringTrainees? Sparring { get; init; }
+    public PracticeTrainees? Sparring { get; init; }
+    /// <summary>The pawns a training range trains (PracticeMethodCandidates.TraineesOf, #3846); null when the work pawns were not
+    /// read, which a served range's credit raises as a required fact.</summary>
+    public PracticeTrainees? Range { get; init; }
     /// <summary>The bench a planned laboratory is furnished with (RoundsFacts.LaboratoryBench, #3800); "" none.</summary>
     public string LaboratoryBench { get; init; } = "";
     /// <summary>

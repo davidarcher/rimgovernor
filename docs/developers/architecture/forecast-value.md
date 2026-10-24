@@ -489,7 +489,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812), `DeathrestChamber` (#3810), `Hospital` (#3804), `ContainmentCell` (#3811) and `SparringRing` (#3813).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812), `DeathrestChamber` (#3810), `Hospital` (#3804), `ContainmentCell` (#3811), `SparringRing` (#3813) and `TrainingRange` (#3846).
 Each fueled source with a steady burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 whose native supply is `HeatSupply.Burning`, with its `Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
@@ -722,6 +722,24 @@ as not modelled with each served ring (`PlannedRoomCredits.Unmodelled`): sparrin
 bout's recreation (`sparring_recreation_unmodelled`) and the time practice takes from other work (`sparring_work_time_unmodelled`;
 the sessions' own scheduling prices that); and with each assigned role, its skill requirement
 (`ideology_role_skill_requirement_not_modelled:<id>`).
+
+*Training range credit (#3846).* A planned training range the outcome serves is credited (`ForecastTrainingRange.RangeCredit`)
+under `training_range/<room>/<pawn>` by the raid harm its trainees' Shooting saves, the same walk as the ring
+(`ForecastPractice.Credit`). The trainees (`ForecastCoupledContext.Range`, `PracticeMethodCandidates.TraineesOf`) are every
+work pawn the one practice eligibility rule admits for Shooting (`SkillLearning.PracticeCapable`), with its native learning,
+the range ceiling (`PracticeCeiling`) and its biography's `RangedDefenseDps` curve: the ranged DPS defense capacity counts
+(`PawnRangedDps` × `PawnRangedHitFactor`, #3845) at the ShootingAccuracyPawn each stored Shooting level gives
+(`NativeSkillStat.RangedDefenseDpsLevels`; ShotReport.HitFactorFromShooter takes that accuracy, every other shooter factor
+held), all zeros without a ranged primary. Ranged damage is not health-scaled. From the service day to tier 2's horizon, each
+day every trainee below the ceiling drills the game's daily range budget (`SkillLearning.RangeDailyBudget`, native
+`RangeTraining.DailyXpBudget`, applied XP on the range path); without the range its Shooting only decays. The budget is taken
+once per credit day, not at the game's own reset phase. A day's stored levels read the curve; the power they add shifts the
+defense capacity in the harm ledger, whose raid loss without the range less with it is the day's saving, shared by the added
+power. The lowest-id range takes the trainees. No capable pawn, a standing Shooting practice target or no raid to expect earn
+nothing. Unread trainees, learning mechanics or raid harm raise `RequiredFactException`; a capable pawn without the curve is the
+finding `training_range_shooting_not_modelled:<pawn>`. Named as not modelled with each served range: the time practice takes
+from other work (`range_work_time_unmodelled`), more trainees than stands (`range_stand_capacity_unmodelled`) and a weapon
+the pawn may equip later (`range_future_weapon_unmodelled`).
 
 *Containment cell credit (#3811).* A planned containment cell the outcome serves is credited through the same seam
 (`ForecastContainment.CellCredit`) under `containment-cell/<room>/<entity>`, for the entity it holds

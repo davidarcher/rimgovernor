@@ -11,7 +11,7 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
     ForecastActivityRoute[] Routes, ForecastCommitment[] Roots,
     IReadOnlyDictionary<(string Task, string Pawn), ActivityTaskCandidate> Bindings,
     EquatableArray<ForecastPracticeTask> Practice, EquatableArray<ForecastMaintenanceRequirement> Requirements,
-    EquatableArray<string> Findings, SparringTrainees? Trainees)
+    EquatableArray<string> Findings, PracticeTrainees? Sparring, PracticeTrainees? Range)
 {
     internal static PracticeMethodCandidates Generate(RoundsFacts facts, PracticeActivityRead read, double horizon, EquatableArray<AssignedCapability> assigned, bool admitted)
     {
@@ -55,9 +55,9 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
             Add(id + "/b", second, first, start);
             roots.Add(new(id, []) { ActivityCompletions = [id + "/a", id + "/b"] });
         }
-        var trainees = TraineesOf(facts, read, findings);
+        var sparring = TraineesOf(facts, read, findings, "Melee"); var range = TraineesOf(facts, read, findings, "Shooting");
         return new(tasks.ToArray(), options.ToArray(), routes.ToArray(), roots.ToArray(), bindings,
-            EquatableArray.From(practice), EquatableArray.From(requirements), EquatableArray.From(findings), trainees);
+            EquatableArray.From(practice), EquatableArray.From(requirements), EquatableArray.From(findings), sparring, range);
 
         void Add(string id, PracticeWorker worker, PracticeWorker? partner, double start)
         {
@@ -76,26 +76,33 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
     }
 
     /// <summary>
-    /// The pawns a sparring ring trains (#3813): each work pawn whose Melee the one practice eligibility rule admits
-    /// (<see cref="SkillLearning.PracticeCapable"/>), with its learning, the sparring ceiling, its MeleeDPS at each stored Melee
-    /// level and its health; the standing Melee practice targets. A trainee without a MeleeDPS curve (a pipeline the curve
-    /// does not qualify) is a named not-modelled finding and earns nothing; one whose skills, health or ceiling were not
-    /// read is listed unread. Null when the work pawns were not read.
+    /// The pawns a practice room trains (#3813, #3846): each work pawn whose <paramref name="skill"/> (Melee for the sparring
+    /// ring, Shooting for the training range) the one practice eligibility rule admits (<see cref="SkillLearning.PracticeCapable"/>),
+    /// with its learning, the skill's practice ceiling and the defense power it fights with at each stored level: MeleeDPS
+    /// (its biography's curve) x health for Melee, as the defense capacity counts melee power; its ranged DPS at its hit factor
+    /// (the biography's <see cref="SkillStatCurve.RangedDefenseDps"/> curve) for Shooting, as the capacity counts ranged
+    /// damage. The standing practice targets of the skill. A trainee without its curve (a pipeline the curve does not
+    /// qualify) is a named not-modelled finding and earns nothing; one whose skills, health or ceiling were not read is
+    /// listed unread. Null when the work pawns were not read.
     /// </summary>
-    internal static SparringTrainees? TraineesOf(RoundsFacts facts, PracticeActivityRead read, SortedSet<string> findings)
+    internal static PracticeTrainees? TraineesOf(RoundsFacts facts, PracticeActivityRead read, SortedSet<string> findings, string skill)
     {
         if (!facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)) return null;
-        var trainees = new List<SparringTrainee>(); var unread = new List<string>();
+        var melee = skill == "Melee";
+        var (stat, finding) = melee ? ("MeleeDPS", "sparring_ring_melee_not_modelled:") : (SkillStatCurve.RangedDefenseDps, "training_range_shooting_not_modelled:");
+        var trainees = new List<PracticeTrainee>(); var unread = new List<string>();
         foreach (var pawn in pawns.OrderBy(p => p.Id.Value, StringComparer.Ordinal))
         {
             if (!pawn.Skills.TryGetValue(out var skills)) { unread.Add(pawn.Id.Value); continue; }
-            if (skills.FirstOrDefault(s => s.Name == "Melee")?.Learning is not { PracticeCapable: true } learning) continue;
-            if (!pawn.Health.TryGetValue(out var health) || !learning.PracticeCeiling.TryGetValue(out var ceiling)) { unread.Add(pawn.Id.Value); continue; }
-            if (pawn.SkillStatCurves.FirstOrDefault(c => c.Stat == "MeleeDPS" && c.Skill == "Melee") is not { } curve)
-            { findings.Add("sparring_ring_melee_not_modelled:" + pawn.Id.Value); continue; }
-            trainees.Add(new(pawn.Id.Value, learning, ceiling, EquatableArray.From(curve.Levels.OrderBy(l => l.StoredLevel).Select(l => (double)l.Value)), health));
+            if (skills.FirstOrDefault(s => s.Name == skill)?.Learning is not { PracticeCapable: true } learning) continue;
+            // Ranged damage counts at full health in the defense capacity; melee power scales with it.
+            var health = 1d;
+            if (melee && !pawn.Health.TryGetValue(out health) || !learning.PracticeCeiling.TryGetValue(out var ceiling)) { unread.Add(pawn.Id.Value); continue; }
+            if (pawn.SkillStatCurves.FirstOrDefault(c => c.Stat == stat && c.Skill == skill) is not { } curve)
+            { findings.Add(finding + pawn.Id.Value); continue; }
+            trainees.Add(new(pawn.Id.Value, learning, ceiling, EquatableArray.From(curve.Levels.OrderBy(l => l.StoredLevel).Select(l => health * l.Value))));
         }
-        var markers = read.Workers.Where(w => w.Skill == "Melee").Select(w => w.Target).Distinct(StringComparer.Ordinal).Count();
-        return new(EquatableArray.From(trainees), EquatableArray.From(unread), markers);
+        var targets = read.Workers.Where(w => w.Skill == skill).Select(w => w.Target).Distinct(StringComparer.Ordinal).Count();
+        return new(EquatableArray.From(trainees), EquatableArray.From(unread), targets);
     }
 }

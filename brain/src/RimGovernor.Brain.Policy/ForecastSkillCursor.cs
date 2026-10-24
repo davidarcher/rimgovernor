@@ -62,6 +62,14 @@ internal sealed class ForecastSkillCursor
     {
         if (unsaturated > 0 && midnight < threshold) Learn((threshold - midnight) / unsaturated, SkillXpPath.NormalTracker);
     }
+    /// <summary>A day of the range drill (#3846): the drill's direct Learn applies XP up to the daily budget
+    /// (RangeTraining.DailyXpBudget, <see cref="SkillLearning.RangeDailyBudget"/>), so the day's budget is refilled and the raw XP
+    /// that takes at the direct learn rate applied. Nothing at no direct learn rate.</summary>
+    internal void LearnRangeDay()
+    {
+        budget = mechanics.RangeDailyBudget;
+        if (direct > 0) Learn(budget / direct, SkillXpPath.Range);
+    }
     internal SkillLearning Rebase(int tick) => mechanics with
     {
         StoredLevel = Known(level), Xp = Known(xp), XpSinceMidnight = Known(midnight),

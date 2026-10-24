@@ -796,7 +796,7 @@ Policy/ForecastHandoffProjects.cs|Fact|14
 Policy/ForecastHousing.cs|Fact|32
 Policy/ForecastIncumbentPreparation.cs|Fact|35
 Policy/ForecastLiveEvidence.cs|Fact|11
-Policy/ForecastMaintenance.cs|Fact|19
+Policy/ForecastMaintenance.cs|Fact|17
 Policy/ForecastMaterialChoices.cs|Fact|8
 Policy/ForecastMaterialValue.cs|Fact|8
 Policy/ForecastMood.cs|Fact|54
@@ -1246,8 +1246,8 @@ Policy/TradeRoutine.cs|Unknown|3
 Policy/TradeSelect.cs|Fact|2
 Policy/TrafficFindings.cs|Fact|1
 Policy/TrafficOverlay.cs|Discard|1
-Policy/Training.cs|Fact|10
-Policy/Training.cs|Unknown|3
+Policy/Training.cs|Fact|7
+Policy/Training.cs|Unknown|2
 Policy/TrainingRange.cs|Discard|1
 Policy/TreePlantation.cs|Fact|25
 Policy/TreePlantation.cs|Unknown|2

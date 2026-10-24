@@ -38,15 +38,17 @@ namespace HomeBridge.BridgeTools
         // PawnRangedHitFactor is the pawn's hit chance with its primary over
         // the reference gunner's (#3845): the factor its ranged DPS counts
         // for in defense capacity. 0 without a ranged primary: a pawn that
-        // cannot shoot lands no shots.
-        internal static double PawnRangedHitFactor(Pawn pawn)
+        // cannot shoot lands no shots. With an accuracy (the ShootingAccuracyPawn
+        // another Shooting level gives, #3846) ShotReport uses it in place of the
+        // pawn's own, every other shooter factor held.
+        internal static double PawnRangedHitFactor(Pawn pawn, float? accuracy = null)
         {
             var weapon = pawn.equipment?.Primary;
             var verb = pawn.equipment?.PrimaryEq?.PrimaryVerb;
             if (weapon == null || verb == null || verb.IsMeleeAttack) return 0;
             var props = verb.verbProps;
             var distance = EngagementDistance(props);
-            var shooter = props.canGoWild ? ShotReport.HitFactorFromShooter(pawn, distance) : 1f;
+            var shooter = props.canGoWild ? ShotReport.HitFactorFromShooter(pawn, distance, accuracy) : 1f;
             return StandardHitChance(shooter, props.GetHitChanceFactor(weapon, distance)) / ReferenceHitChance();
         }
 

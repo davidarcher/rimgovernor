@@ -75,6 +75,7 @@ internal static class NativeSkillLearning
             PracticeCapable = practice && RangeTraining.CanTrain(pawn, skill.def),
             PracticeCeiling = practice ? Known(RangeTraining.CeilingFor(skill.def)) : default,
             RangeAppliedBudget = skill.def == SkillDefOf.Shooting ? Known((double)RangeTraining.Remaining(pawn)) : default,
+            RangeDailyBudget = skill.def == SkillDefOf.Shooting ? RangeTraining.DailyXpBudget : 0,
         };
     }
 }

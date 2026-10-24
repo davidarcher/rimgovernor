@@ -187,6 +187,10 @@ health, equipment and environment fixed; they are not a forecast of those. Regis
 `lab/skill-stat-curve` compares each curve level with the live native stat at that level
 (set temporarily by the fixture only) and checks that an anesthetized colonist carries
 findings, not curves. Valuing the curves is #3635.
+It also carries MeleeDPS against Melee (#3813) and `RangedDefenseDps` against Shooting (#3846): the
+primary's ranged DPS times its hit factor at each level's ShootingAccuracyPawn, all zeros without a
+ranged primary. Shooting's `SkillLearning.RangeDailyBudget` is the native `RangeTraining.DailyXpBudget`
+(0 for other skills), the applied XP a range day may teach.
 
 ## Old writer and heuristic audit (#3167)
 
@@ -197,7 +201,7 @@ selected Method exists yet; documented, not shadowed).
 | Path (file:line) | Class | Evidence |
 | --- | --- | --- |
 | Brain `TrainingTier` / `SparringTier` ladders with `UnlockedTrainingTier` / `UnlockedSparringTier`, and the `RangeWeaponDef` constant (Policy) | removed | No consumer; the native `DefModExtension` XML owns the ladders. |
-| Training demand: `ReviewTraining` (`Policy/Training.cs`), `RoundsMilitary.TrainingWorkAsync` | keep | Sizes the range from forecast shortfalls of held Shooting role requirements (#3846 prices the range) and the sparring ring from every pawn `PracticeCapable` for Melee below the sparring ceiling, two or more (#3813). Writes no pawn order. |
+| Training demand: `ReviewTraining` (`Policy/Training.cs`), `RoundsMilitary.TrainingWorkAsync` | keep | Sizes the range from every pawn `PracticeCapable` for Shooting below the range ceiling (#3846, which also prices it) and the sparring ring from every pawn `PracticeCapable` for Melee below the sparring ceiling, two or more (#3813). Writes no pawn order. |
 | `RimGovernorTraining` work-matrix row (`Policy/WorkAssignment.cs:94`) | keep | Capable pawns take priority 3 so the player's work tab stays honest; the roster assigns no training slot. |
 | Selected install: `NativePracticeActivities.Job` / `Legal`, `SparringBouts.SelectPair` | keep | Hands-owned exact roster and stand/marker; native drivers keep attacks, budget, stop rules and real-weapon restoration. |
 | Native `WorkGiver_TrainRange` / `WorkGiver_Spar` initiation on a map the brain does not control (`RangeTraining.MigratedScope` `:22`; `TrainRangeWorkGiver.cs:20,38`; `SparringWorkGiver.cs:17,27`; `SparringBouts.PlanFor` `:135`, `Free` `:146`, `Form` `:184`) | unsupported-owner | Skipped for every controlled colonist, so no second writer runs under the brain. Uncontrolled maps keep the mod's own player-enabled work type. The prepared `lab/training-*` and `lab/sparring-*` cases drive native mechanics through it; removal first needs those cases moved to selected installs. |

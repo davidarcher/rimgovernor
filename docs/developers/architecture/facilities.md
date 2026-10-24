@@ -1212,11 +1212,10 @@ embedder keeps it where it stands unless the switching price pays for a move; th
 in-place widening is gone. `RangeTemplate(room)` turns the layout into
 the `[]WantedPiece` the room reconciler builds.
 
-The `military/training` Need requests facilities only for actual assigned capability requirements
-threatened by bounded native decay. Held Ideology role requirements preserve OR skill
-branches; unlocked tiers constrain feasibility rather than desired proficiency. A range
-serves supported Shooting maintenance; a ring provides at least two markers when an
-assigned melee holder needs a partner. Existing facilities remain grow-only.
+The `military/training` Need requests a range with a stand per pawn capable of Shooting practice below
+the range ceiling (#3846), and a ring with a marker per pawn capable of Melee practice below the
+sparring ceiling when two or more are (#3813). Unlocked tiers constrain feasibility rather than
+desired proficiency. Existing facilities remain grow-only.
 The military family's training work step (`MilitaryRounds`) reconciles those facilities. Shared coupled selection chooses the
 actual sessions, participants and opportunity costs through ordinary Method/Hands actions.
 See [assigned capability maintenance](../contracts/capability-maintenance.md).
