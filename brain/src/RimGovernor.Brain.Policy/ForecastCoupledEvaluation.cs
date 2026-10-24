@@ -1065,7 +1065,7 @@ public static partial class ForecastCoupled
             var key = (needsResult.Id, moodResult.Id, roofMood.Id);
             if (projected.TryGetValue(key, out var result)) return result;
             var (mood, roof) = (moodResult.Value, roofMood.Value);
-            result = needsResult.Value with { Mood = mood, Findings = mood.BreakRisk.IsKnown ? needsResult.Value.Findings
+            result = needsResult.Value with { Mood = mood, Findings = mood is ForecastMoodResult.Projected { Breaks: ForecastMoodBreaks.Assessed } ? needsResult.Value.Findings
                 : EquatableArray.From(needsResult.Value.Findings.Append("mental_break_probability_unassessed").Distinct().Order(StringComparer.Ordinal)) };
             if (roof.Findings.Count > 0) result = result with { Findings = EquatableArray.From(result.Findings.Concat(roof.Findings).Distinct().Order(StringComparer.Ordinal)) };
             projected.Add(key, result);

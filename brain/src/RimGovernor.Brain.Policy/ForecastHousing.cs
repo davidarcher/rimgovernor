@@ -264,16 +264,20 @@ public static class ForecastHousing
     /// <summary>
     /// The capability-days a mood delta gains a day: WellbeingWeight times delta / 100, plus the break days a day the
     /// target mood shifted by delta / 100 loses fewer than the unshifted one over the tier-1 horizon
-    /// (<see cref="ForecastMoodResult.ShiftedBreakTierTicks"/>). Null when the mood or a break result is unknown.
+    /// (<see cref="ForecastMoodBreaks.Assessed.Shifted"/>). Null when the mood is unprojected, its breaks unassessed or a break
+    /// result unknown.
     /// </summary>
-    public static double? GainPerDay(double delta, ForecastMoodResult? mood, MoodBreakModel breaks, double wellbeingWeight, double horizonDays)
+    public static double? GainPerDay(double delta, ForecastMoodResult? mood, MoodBreakModel breaks, double wellbeingWeight, double horizonDays) =>
+        mood is ForecastMoodResult.Projected { Breaks: ForecastMoodBreaks.Assessed assessed } ? GainPerDay(delta, assessed, breaks, wellbeingWeight, horizonDays) : null;
+
+    private static double? GainPerDay(double delta, ForecastMoodBreaks.Assessed mood, MoodBreakModel breaks, double wellbeingWeight, double horizonDays)
     {
-        if (horizonDays <= 0 || mood is not { BreakRisk.IsKnown: true } || breaks.DaysLost(mood.BreakTierTicks) is not { } before) return null;
+        if (horizonDays <= 0 || breaks.DaysLost(mood.TierTicks) is not { } before) return null;
         var after = before;
         if (delta != 0)
         {
             var shift = delta / 100;
-            if (mood.ShiftedBreakTierTicks.FirstOrDefault(s => s.Shift == shift) is not { } shifted || breaks.DaysLost(shifted.TierTicks) is not { } lost) return null;
+            if (mood.Shifted.FirstOrDefault(s => s.Shift == shift) is not { } shifted || breaks.DaysLost(shifted.TierTicks) is not { } lost) return null;
             after = lost;
         }
         return wellbeingWeight * delta / 100 + (before - after) / horizonDays;
@@ -300,11 +304,8 @@ public static class ForecastHousing
             return ticks;
         }
         var flat = TierTicks(target);
-        var mood = new ForecastMoodResult([], default, default, default, default, default, [])
-        {
-            BreakRisk = Known(MoodBreakModel.Breaks(flat)), BreakTierTicks = EquatableArray.From(flat),
-            ShiftedBreakTierTicks = [new(delta / 100, EquatableArray.From(TierTicks(target + delta / 100)))],
-        };
+        var mood = new ForecastMoodBreaks.Assessed(MoodBreakModel.Breaks(flat), EquatableArray.From(flat),
+            [new(delta / 100, EquatableArray.From(TierTicks(target + delta / 100)))]);
         return GainPerDay(delta, mood, breaks, wellbeingWeight, ForecastCoupled.TierOneHorizonDays);
     }
 

@@ -44,8 +44,7 @@ Policy|ForecastMoodPoint.Actual
 Policy|ForecastMoodPoint.Asleep
 Policy|ForecastMoodPoint.Target
 Policy|ForecastMoodPoint.Tick
-Policy|ForecastMoodResult.TargetDepthTicks
-Policy|ForecastMoodResult.Trajectory
+Policy|ForecastMoodResult.Projected.Trajectory
 Policy|ForecastNeedMetric.DeficitTicks
 Policy|ForecastNeedMetric.WastedGain
 Policy|ForecastNeedWindow.Due

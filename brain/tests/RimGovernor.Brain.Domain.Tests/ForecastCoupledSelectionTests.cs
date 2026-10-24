@@ -472,7 +472,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.True(result.SelectedVector.Urgent[0].Value < result.BaselineVector.Urgent[0].Value);
         Assert.True(result.SelectedVector.Value.Ledger.LossAgainst(result.BaselineVector.Value.Ledger) < 0);
         // Unknown future meal thoughts must not veto known relief of urgent hunger.
-        Assert.True(result.Baseline.Needs["pawn"].Mood!.PressureTicks.IsKnown);
+        result.Baseline.Needs["pawn"].Mood.Projected();
     }
 
     [Fact]
@@ -715,7 +715,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.True(vector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
         var moodResult = result.Selected.Needs["pawn"].Mood!;
         // The change counts from the forecast start; every other situational thought is still held constant.
-        Assert.Equal(mood + .11, moodResult.Trajectory[0].Target.Value, 9);
+        Assert.Equal(mood + .11, moodResult.Projected().Trajectory[0].Target, 9);
         Assert.Contains("unmodeled_situational_thoughts_constant", moodResult.Findings);
     }
 
@@ -734,7 +734,7 @@ public sealed class ForecastCoupledSelectionTests
         var result = Select(facts);
         Assert.Equal(["memory"], result.Selection.Selected);
         var needs = result.Selected.Needs["pawn"];
-        Assert.Equal(.32, needs.Mood!.Trajectory[0].Target.Value, 9);
+        Assert.Equal(.32, needs.Mood!.Projected().Trajectory[0].Target, 9);
         Assert.True(result.SelectedVector.BreakRisk.Value < result.BaselineVector.BreakRisk.Value);
     }
 
@@ -743,7 +743,7 @@ public sealed class ForecastCoupledSelectionTests
     {
         var pawn = Review().CoupledAlternatives!.Context.Needs.Pawns[0];
         var mood = ForecastMood.ForecastMoodTimeline(pawn, Horizon, [], situational: [("DeadMansApparel", 11, 0), ("DeadMansApparel", 11, 10)]);
-        Assert.False(mood.BreakRisk.IsKnown);
+        Assert.IsType<ForecastMoodResult.Unprojected>(mood);
         Assert.Equal(["unsupported_situational_change_stacking"], mood.Findings);
     }
 
@@ -874,10 +874,10 @@ public sealed class ForecastCoupledSelectionTests
         var cold = Outcome(facts, work).Needs["pawn"].Mood!;
         var warm = Outcome(facts, work, gear).Needs["pawn"].Mood!;
         // Without the shift the card along the work matches the observed -12: today's constant.
-        Assert.All(cold.Trajectory, p => Assert.Equal(.28, p.Target.Value, 9));
-        Assert.Contains(warm.Trajectory, p => Math.Abs(p.Target.Value - .40) < 1e-9);
-        Assert.All(warm.Trajectory, p => Assert.True(p.Target.Value >= .28 - 1e-9));
-        Assert.True(warm.BreakRisk.Value < cold.BreakRisk.Value);
+        Assert.All(cold.Projected().Trajectory, p => Assert.Equal(.28, p.Target, 9));
+        Assert.Contains(warm.Projected().Trajectory, p => Math.Abs(p.Target - .40) < 1e-9);
+        Assert.All(warm.Projected().Trajectory, p => Assert.True(p.Target >= .28 - 1e-9));
+        Assert.True(warm.Assessed().Risk < cold.Assessed().Risk);
         // Every tick after the work is at its temperature (#3673), so the exposure covers the horizon the card is read over.
         Assert.DoesNotContain("situational_thought_constant_outside_exposure:EnvironmentCold", warm.Findings);
     }
@@ -957,8 +957,8 @@ public sealed class ForecastCoupledSelectionTests
         var idle = Outcome(Unread(facts), gear).Needs["pawn"].Mood!;
         var plain = Outcome(Unread(today), gear).Needs["pawn"].Mood!;
         Assert.Equal(0, Outcome(Unread(facts), gear).ThermalExposure.Single().AssessedTicks);
-        Assert.Equal(plain.Trajectory, idle.Trajectory);
-        Assert.Equal(plain.BreakRisk, idle.BreakRisk);
+        Assert.Equal(plain.Projected().Trajectory, idle.Projected().Trajectory);
+        Assert.Equal(plain.Projected().Breaks, idle.Projected().Breaks);
         Assert.Contains("situational_thought_constant_outside_exposure:EnvironmentCold", idle.Findings);
         Assert.DoesNotContain(plain.Findings, f => f.StartsWith("situational_thought_constant_outside_exposure:", StringComparison.Ordinal));
         // A card no probe verified prices nothing, even along the work.

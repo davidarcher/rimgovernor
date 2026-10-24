@@ -57,11 +57,7 @@ public sealed class DiningRecCreditTests
     private static ForecastCoupledOutcome Serving(string[] pawns, double[] shifts, params (int Room, double At)[] served) =>
         new(new([], 0, 0), Known(true), pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], default, default, new(new(p, "", new ForecastCapacityWindows.Unread(), 0), []), [])
         {
-            Mood = new([], default, default, default, default, default, [])
-            {
-                PressureTicks = Known(0d), BreakRisk = Known(0d), BreakTierTicks = [Day, 0, 0],
-                ShiftedBreakTierTicks = [.. shifts.Select(s => new ForecastShiftedBreaks(s, [0, 0, 0]))],
-            },
+            Mood = MoodResults.Flat(0d, [Day, 0, 0], [.. shifts.Select(s => new ForecastShiftedBreaks(s, [0, 0, 0]))]),
         }), [])
         { ServedRooms = [.. served.Select(s => new ForecastRoomService(s.Room, "WoodLog", s.At))] };
 

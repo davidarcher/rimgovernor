@@ -108,7 +108,7 @@ public sealed class ForecastRoofConsequencesTests
         var forecast = CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), Horizon / GameTime.TicksPerDay, facts, 
             new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, []), roots);
         var moods = forecast.Proposed.Coupled!.Alternatives.Where(a => a.Feasible == Known(true))
-            .Select(a => a.Needs["pawn"].Mood).Where(m => m is { Trajectory.Count: > 0 }).Select(m => m!.Trajectory[^1].Target.Value).ToArray();
+            .Select(a => a.Needs["pawn"].Mood).OfType<ForecastMoodResult.Projected>().Where(m => m.Trajectory.Count > 0).Select(m => m.Trajectory[^1].Target).ToArray();
         Assert.NotEmpty(moods);
         return moods;
     }

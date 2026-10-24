@@ -47,11 +47,7 @@ public sealed class ApparelCreditTests
         {
             ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
-                Mood = new([], default, default, default, default, default, [])
-                {
-                    PressureTicks = Known(0d), BreakRisk = Known(0d), BreakTierTicks = [Day, 0, 0],
-                    ShiftedBreakTierTicks = [new(shift, [0, 0, 0])],
-                },
+                Mood = MoodResults.Flat(0d, [Day, 0, 0], [new(shift, [0, 0, 0])]),
             },
         }, [])
         { OutfitTicks = [new("craft", at)] };

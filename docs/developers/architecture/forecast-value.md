@@ -595,7 +595,7 @@ Ascetic thought it has, #3658). The pricing is `ForecastHousing`, which the pric
   capability-days the faster rest frees (`RestDaysFreed`: the steady day spends fall / (fall + gain) asleep). A pawn without a
   rest need never lies down and changes none of them. Darkness and rain give no sleeping thought, so they are no term.
 - *Gain per day* (`GainPerDay`): `WellbeingWeight × delta / 100`, plus the break days a day the tier-1 target mood shifted by
-  `delta / 100` saves against the unshifted one (`MoodBreaks.DaysLost` on `BreakTierTicks` and `ShiftedBreakTierTicks`, the
+  `delta / 100` saves against the unshifted one (`MoodBreaks.DaysLost` on the assessed breaks' `TierTicks` and `Shifted`, the
   timeline integrating each shift with its own clamp at 0 and 1), plus the rest's freed capability-days.
 - *Credit*: the gain × (H − service day), H tier 2's `HorizonDays` (`ForecastCoupledContext.InvestmentHorizonDays`); a gain, so negative.
 

@@ -301,10 +301,7 @@ public sealed class PlannedRoomCreditTests
         Assert.NotEmpty(pawns);
         var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), pawns.ToDictionary(p => p, p => new ForecastNeedsResult([], default, default, new(new(p, "", new ForecastCapacityWindows.Unread(), 0), []), [])
         {
-            Mood = new([], default, default, default, default, default, [])
-            {
-                PressureTicks = Known(0d), BreakRisk = Known(0d), BreakTierTicks = [0, 0, 0], ShiftedBreakTierTicks = [new(0, [Day, 0, 0])],
-            },
+            Mood = MoodResults.Flat(0d, [0, 0, 0], [new(0, [Day, 0, 0])]),
         }), []);
         RunsEveryShippedCredit(generated, outcome, Day);
     }
@@ -325,8 +322,8 @@ public sealed class PlannedRoomCreditTests
             { Coupled = coupled with { FoodUses = EquatableArray.From(coupled.FoodUses.Select(u => u with { Thoughts = [cannibal] })) } } };
         var (generated, outcome) = Selected(WithEveryShippedRoom(cooking), 150);
         Assert.Contains(generated.NeedTasks, n => n.Kind == "food" && n.Resource.Value == "Meal" && outcome.Plan.Allocations.Any(a => a.Activity == n.Task));
-        var mood = Assert.IsType<ForecastMoodResult>(outcome.Needs["pawn"].Mood);
-        Assert.True(mood.BreakRisk.IsKnown);
+        var mood = outcome.Needs["pawn"].Mood.Projected();
+        mood.Assessed();
         // The ingredient memory is priced: the same meal without it leaves a higher thought offset at the horizon.
         var plain = cooking with { ForecastObserved = cooking.ForecastObserved with { Coupled = coupled } };
         var (_, unflavoured) = Selected(WithEveryShippedRoom(plain), 150);
@@ -367,7 +364,7 @@ public sealed class PlannedRoomCreditTests
             Assert.All(eaten, n => Assert.Empty(n.Thoughts));
         }
         else Assert.All(meals, n => Assert.Equal([cannibal], n.Thoughts.ToArray()));
-        Assert.True(Assert.IsType<ForecastMoodResult>(outcome.Needs["pawn"].Mood).BreakRisk.IsKnown);
+        outcome.Needs["pawn"].Mood.Projected().Assessed();
         RunsEveryShippedCredit(generated, outcome, 150);
     }
 
@@ -397,7 +394,7 @@ public sealed class PlannedRoomCreditTests
         var spars = generated.NeedTasks.Where(n => n.Kind == "joy" && outcome.Plan.Allocations.Any(a => a.Activity == n.Task)).ToArray();
         Assert.NotEmpty(spars);
         Assert.All(spars, s => Assert.Equal([trainedWith], s.Thoughts.ToArray()));
-        Assert.All(spars, s => Assert.True(Assert.IsType<ForecastMoodResult>(outcome.Needs[s.Pawn].Mood).BreakRisk.IsKnown));
+        Assert.All(spars, s => outcome.Needs[s.Pawn].Mood.Projected().Assessed());
         RunsEveryShippedCredit(generated, outcome, 300);
     }
 
@@ -427,10 +424,10 @@ public sealed class PlannedRoomCreditTests
             Assert.Equal(without.Plan.Allocations, outcome.Plan.Allocations);
             Assert.DoesNotContain(outcome.Findings, f => f.Reason == "commitment_completion_unassessed");
             Assert.True(outcome.Feasible.IsKnown);
-            var mood = Assert.IsType<ForecastMoodResult>(outcome.Needs["pawn"].Mood);
-            Assert.True(mood.BreakRisk.IsKnown);
+            var mood = outcome.Needs["pawn"].Mood.Projected();
+            mood.Assessed();
             // The memory lifts the mood from the site's completion on; a site that does not complete inside the day grants nothing.
-            var lifted = mood.TerminalMood.Value - Assert.IsType<ForecastMoodResult>(without.Needs["pawn"].Mood).TerminalMood.Value;
+            var lifted = mood.Projected().TerminalMood - without.Needs["pawn"].Mood.Projected().TerminalMood;
             Assert.True(lifted >= -1e-9, "memory lowered the mood by " + lifted);
             if (lifted > 1e-9) granted++;
             RunsEveryShippedCredit(generated.Context, outcome, Day);
@@ -490,7 +487,7 @@ public sealed class PlannedRoomCreditTests
         Assert.Contains(outcomes, o => o.Plan.Allocations.Any(a => a.Activity.StartsWith(ForecastRoofConsequencesTests.Wall, StringComparison.Ordinal)));
         foreach (var outcome in outcomes)
         {
-            Assert.True(Assert.IsType<ForecastMoodResult>(outcome.Needs["pawn"].Mood).BreakRisk.IsKnown);
+            outcome.Needs["pawn"].Mood.Projected().Assessed();
             RunsEveryShippedCredit(generated.Context, outcome, ForecastRoofConsequencesTests.Horizon);
         }
     }
@@ -520,14 +517,14 @@ public sealed class PlannedRoomCreditTests
         Assert.Contains(outcomes, o => o.Plan.Allocations.Any(a => a.Activity.StartsWith(ForecastRoofConsequencesTests.Wall, StringComparison.Ordinal)));
         foreach (var outcome in outcomes)
         {
-            Assert.True(Assert.IsType<ForecastMoodResult>(outcome.Needs["pawn"].Mood).BreakRisk.IsKnown);
+            outcome.Needs["pawn"].Mood.Projected().Assessed();
             RunsEveryShippedCredit(generated.Context, outcome, ForecastRoofConsequencesTests.Horizon);
         }
         // Sent no order, the pawn sleeps on in its lie-down until its rest reaches the wake threshold (0.8 at 0.00005 a tick).
         var baseline = CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [])).Baseline.Coupled!.Alternatives.Single(o => o.Plan.Allocations.Length == 0);
         Assert.Equal(1, baseline.Needs["pawn"].Needs.Single(n => n.Kind == "rest").FinalLevel.Value, 9);
-        Assert.True(Assert.IsType<ForecastMoodResult>(baseline.Needs["pawn"].Mood).BreakRisk.IsKnown);
+        baseline.Needs["pawn"].Mood.Projected().Assessed();
     }
 
     /// <summary>
@@ -556,7 +553,7 @@ public sealed class PlannedRoomCreditTests
         var baseline = CoupledForecastKit.Forecast(ForecastCoupled.CoupledForecastRequestOf(new(100), ForecastRoofConsequencesTests.Horizon / GameTime.TicksPerDay,
             facts, new() { Work = ForecastWorkInputs.ForecastWorkInputsOf(facts) }, [])).Baseline.Coupled!.Alternatives.Single(o => o.Plan.Allocations.Length == 0);
         Assert.Equal(rest, baseline.Needs["pawn"].Needs.Single(n => n.Kind == "rest").FinalLevel.Value, 9);
-        Assert.True(Assert.IsType<ForecastMoodResult>(baseline.Needs["pawn"].Mood).BreakRisk.IsKnown);
+        baseline.Needs["pawn"].Mood.Assessed();
         Assert.DoesNotContain(baseline.Findings, f => f.Reason == "deathrest_continuation_unassessed");
         Assert.Equal(wakes, baseline.Findings.Any(f => f.Reason == "deathrest_chamber_thought_at_wake_not_modelled"));
         Assert.Equal(state == "sunlit", baseline.Findings.Any(f => f.Reason == "deathrest_sunlight_weather_not_modelled"));
@@ -576,11 +573,11 @@ public sealed class PlannedRoomCreditTests
         bool Ordered(ForecastCoupledOutcome o) => RimGovernor.Brain.Policy.Methods.Binding.CoordinatedActivityBinding.OrderedAtStart(
             ["selected"], o.Plan.Allocations, context.Bindings, context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal)).Contains("pawn");
         var woken = outcomes.First(Ordered).Needs["pawn"].Mood!;
-        Assert.NotEqual(woken.Trajectory[0].Actual, woken.Trajectory.First(p => p.Tick > 0).Actual);
+        Assert.NotEqual(woken.Projected().Trajectory[0].Actual, woken.Projected().Trajectory.First(p => p.Tick > 0).Actual);
         var distant = outcomes.First(o => !Ordered(o));
         var asleep = distant.Needs["pawn"].Mood!;
-        Assert.True(asleep.BreakRisk.IsKnown);
-        Assert.Equal(asleep.Trajectory[0].Actual, asleep.Trajectory.First(p => p.Tick >= distant.Plan.Allocations[0].Depart).Actual);
+        asleep.Assessed();
+        Assert.Equal(asleep.Projected().Trajectory[0].Actual, asleep.Projected().Trajectory.First(p => p.Tick >= distant.Plan.Allocations[0].Depart).Actual);
     }
 
     /// <summary>The builder asleep in its bed gaining 0.00002 rest a tick, its bed thoughts given, and the forecast outcomes of each
@@ -643,8 +640,8 @@ public sealed class PlannedRoomCreditTests
             Assert.Equal(started is null, outcome.Findings.Contains(new ForecastFinding("dispatch_allocation_unbound", "cook")));
             if (started is null) { Assert.Equal(Known(false), outcome.Feasible); return; }
             var mood = outcome.Needs["pawn"].Mood!;
-            Assert.True(mood.BreakRisk.IsKnown);
-            Assert.Equal(ordered, mood.Trajectory[0].Actual != mood.Trajectory.First(p => p.Tick > 0).Actual);
+            mood.Assessed();
+            Assert.Equal(ordered, mood.Projected().Trajectory[0].Actual != mood.Projected().Trajectory.First(p => p.Tick > 0).Actual);
         }
         Dictionary<(string Task, string Pawn), RimGovernor.Brain.Policy.Methods.ActivityTaskCandidate> Bindings(bool cookBound, bool waits)
         {
@@ -724,8 +721,8 @@ public sealed class PlannedRoomCreditTests
                 return;
             }
             var mood = forecast.Needs["pawn"].Mood!;
-            Assert.True(mood.BreakRisk.IsKnown);
-            Assert.Equal(ordered, mood.Trajectory[0].Actual != mood.Trajectory.First(p => p.Tick > 0).Actual);
+            mood.Assessed();
+            Assert.Equal(ordered, mood.Projected().Trajectory[0].Actual != mood.Projected().Trajectory.First(p => p.Tick > 0).Actual);
         }
         Agree(false, null, [commitment.Id, "incumbent/service"], [Incumbent("pawn")], context, rest, cooking);
         Agree(true, null, [commitment.Id, "incumbent/service"], [Incumbent("helper")], context, rest, service);
@@ -769,7 +766,7 @@ public sealed class PlannedRoomCreditTests
         var (_, alone) = Drill(company: false);
         foreach (var pawn in drills.Select(d => d.Worker.Pawn).Distinct())
         {
-            Assert.True(Assert.IsType<ForecastMoodResult>(outcome.Needs[pawn].Mood).BreakRisk.IsKnown);
+            outcome.Needs[pawn].Mood.Projected().Assessed();
             Assert.True(outcome.Needs[pawn].ThoughtOffsetAtHorizon.Value > alone.Needs[pawn].ThoughtOffsetAtHorizon.Value);
         }
         RunsEveryShippedCredit(generated, outcome, 300);

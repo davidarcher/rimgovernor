@@ -56,11 +56,7 @@ public sealed class NurseryCreditTests
         {
             ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
-                Mood = new([], default, default, default, default, default, [])
-                {
-                    PressureTicks = Known(0d), BreakRisk = Known(0d), BreakTierTicks = [0, 0, 0],
-                    ShiftedBreakTierTicks = [.. PlannedRoomCredits.BreakShifts(context).GetValueOrDefault("pawn", []).Select(s => new ForecastShiftedBreaks(s, [s < 0 ? Day : 0, 0, 0]))],
-                },
+                Mood = MoodResults.Flat(0d, [0, 0, 0], [.. PlannedRoomCredits.BreakShifts(context).GetValueOrDefault("pawn", []).Select(s => new ForecastShiftedBreaks(s, [s < 0 ? Day : 0, 0, 0]))]),
             },
         }, [])
         { ServedRooms = [Served] };

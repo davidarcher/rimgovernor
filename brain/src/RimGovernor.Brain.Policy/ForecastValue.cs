@@ -343,7 +343,7 @@ public static partial class ForecastValue
             var known = true;
             foreach (var (_, result) in pawns)
             {
-                if (result.Mood is { BreakRisk.IsKnown: true } mood && context.MoodBreaks.DaysLost(mood.BreakTierTicks) is { } days) sum += days;
+                if (result.Mood is ForecastMoodResult.Projected { Breaks: ForecastMoodBreaks.Assessed breakTiers } && context.MoodBreaks.DaysLost(breakTiers.TierTicks) is { } days) sum += days;
                 else { findings.Add("mental_break_probability_unassessed"); known = false; }
             }
             breaks = LedgerTerm.Of(sum, known);
@@ -358,7 +358,7 @@ public static partial class ForecastValue
             var known = true;
             foreach (var (pawn, result) in pawns)
             {
-                if (result.Mood?.PressureTicks.TryGetValue(out var pressure) == true && baseline.Needs.GetValueOrDefault(pawn)?.Mood?.PressureTicks.TryGetValue(out var before) == true)
+                if (result.Mood is ForecastMoodResult.Projected { PressureTicks: var pressure } && baseline.Needs.GetValueOrDefault(pawn)?.Mood is ForecastMoodResult.Projected { PressureTicks: var before })
                     // Mood-days are (horizon - pressure) / a day, so the loss against the baseline is the extra pressure.
                     sum += context.Value.WellbeingWeight * (pressure - before) / GameTime.TicksPerDay;
                 else { findings.Add("wellbeing_unassessed:" + pawn); known = false; }
@@ -586,7 +586,7 @@ public static partial class ForecastValue
             var assessed = days > 0 && outcome.Needs.Count > 0;
             foreach (var result in outcome.Needs.Values)
             {
-                if (result.Mood is { BreakRisk: { IsKnown: true } risk } && days > 0) worst = Math.Max(worst, risk.Value / days - policy.BreakRiskCap);
+                if (result.Mood is ForecastMoodResult.Projected { Breaks: ForecastMoodBreaks.Assessed { Risk: var risk } } && days > 0) worst = Math.Max(worst, risk / days - policy.BreakRiskCap);
                 else assessed = false;
             }
             harm = HarmLedger.Of(outcome, context, horizon, index.Harm, index.Rows, commitments, index.Illness);

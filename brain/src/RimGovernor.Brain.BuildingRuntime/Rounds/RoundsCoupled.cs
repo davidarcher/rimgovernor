@@ -157,12 +157,16 @@ public sealed partial class Rounder
                         ["kind"] = n.Kind, ["terminal"] = Number(n.FinalLevel), ["threshold_ticks"] = Number(n.ThresholdExposureTicks),
                         ["depth_ticks"] = Number(n.ThresholdDepthTicks), ["zero_ticks"] = Number(n.ZeroTicks)
                     }).ToArray(),
-                    ["mood"] = p.Value.Mood is { } mood ? new Dictionary<string, object?>
-                    {
-                        ["target_pressure_ticks"] = Number(mood.PressureTicks), ["target_exposure_ticks"] = Number(mood.TargetExposureTicks),
-                        ["actual_exposure_ticks"] = Number(mood.ActualExposureTicks), ["actual_depth_ticks"] = Number(mood.ActualDepthTicks),
-                        ["terminal"] = Number(mood.TerminalMood), ["unknown"] = mood.Findings.ToArray()
-                    } : null
+                    ["mood"] = p.Value.Mood is ForecastMoodResult.Projected mood ? new Dictionary<string, object?>
+                        {
+                            ["target_pressure_ticks"] = mood.PressureTicks, ["target_exposure_ticks"] = mood.TargetExposureTicks,
+                            ["actual_exposure_ticks"] = mood.ActualExposureTicks, ["actual_depth_ticks"] = mood.ActualDepthTicks,
+                            ["terminal"] = mood.TerminalMood, ["unknown"] = mood.Findings.ToArray()
+                        } : p.Value.Mood is { } unprojected ? new Dictionary<string, object?>
+                        {
+                            ["target_pressure_ticks"] = null, ["target_exposure_ticks"] = null, ["actual_exposure_ticks"] = null,
+                            ["actual_depth_ticks"] = null, ["terminal"] = null, ["unknown"] = unprojected.Findings.ToArray()
+                        } : null
                 }).ToArray(),
                 ["service_investments"] = selection.ServiceInvestments.Select(i => new Dictionary<string, object?>
                 { ["owner"] = i.Target.Owner.Value, ["predicate"] = i.Target.Predicate, ["horizon_ticks"] = i.HorizonTicks,

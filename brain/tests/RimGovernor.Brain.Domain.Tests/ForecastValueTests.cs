@@ -34,10 +34,8 @@ public sealed class ForecastValueTests
 
     internal static ForecastNeedsResult Timeline(NeedsForecastPawn pawn) => ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), [], mood: false);
 
-    private static ForecastMoodResult Mood(double pressure, double[]? tiers) => new([], default, default, default, default, default, [])
-    {
-        PressureTicks = Known(pressure), BreakRisk = tiers is null ? default : Known(0.0), BreakTierTicks = tiers is null ? default : EquatableArray.From(tiers),
-    };
+    private static ForecastMoodResult.Projected Mood(double pressure, double[]? tiers) => new([], 0, 0, 0, 0, pressure,
+        tiers is null ? new ForecastMoodBreaks.Unassessed() : new ForecastMoodBreaks.Assessed(0, EquatableArray.From(tiers), []), []);
 
     // By default the pawn's whole day is assessed with no span outside its comfort range, so the thermal term is a known 0.
     private static ForecastCoupledOutcome Outcome(ForecastNeedsResult needs, double poisonCases = 0, ForecastThermalExposure? exposure = null) =>
@@ -784,7 +782,7 @@ public sealed class ForecastValueTests
         // The break-risk cap: five expected breaks a day against the calm pawn's none.
         var context = Context(Pawn());
         var calm = Staged(reference, context, reference);
-        var breaking = Staged(Outcome(Calm() with { Mood = Mood(0, [0, 0, 0]) with { BreakRisk = Known(5d) } }), context, reference);
+        var breaking = Staged(Outcome(Calm() with { Mood = Mood(0, [0, 0, 0]) with { Breaks = new ForecastMoodBreaks.Assessed(5, [0, 0, 0], []) } }), context, reference);
         Assert.True(breaking.BreakRisk.Excess > 0, "break excess " + breaking.BreakRisk);
         Assert.True(ForecastCoupledSelection.CompareConsequences(breaking, calm, out stage) > 0, "breaking against calm at " + stage);
         Assert.Equal(ForecastCoupledSelection.BreakRiskStage, stage);
@@ -815,11 +813,11 @@ public sealed class ForecastValueTests
     [Fact]
     public void ATermOnlyOneSidePricesIsLeftOutOfTheLazyLedgerComparisonExactlyAsTheEagerOne()
     {
-        // The wellbeing term is unknown for the outcome whose mood pressure is, and known for the other: the lazy comparison prices
+        // The wellbeing term is unknown for the outcome whose mood is unprojected, and known for the other: the lazy comparison prices
         // both ledgers and compares the terms both assess, so the poisoning difference decides and the skipped term is never read as 0.
         var context = Context(Pawn());
         var reference = Outcome(Calm());
-        var unpressured = Outcome(Calm() with { Mood = Mood(0, [0, 0, 0]) with { PressureTicks = default } }, poisonCases: 0);
+        var unpressured = Outcome(Calm() with { Mood = new ForecastMoodResult.Unprojected([]) }, poisonCases: 0);
         var poisoned = Outcome(Calm(), poisonCases: 2);
         var a = Staged(unpressured, context, reference);
         var b = Staged(poisoned, context, reference);

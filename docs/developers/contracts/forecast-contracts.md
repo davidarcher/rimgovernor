@@ -128,7 +128,7 @@ The coupled comparator prices forecast mood as expected mental breaks (#3221), a
 `MoodBreakModel.BreaksPerDay` (`LayoutMood.cs`, the one owner of the break math)
 gives a level's tier one break per renewal cycle of the tier's MTB (4, 0.8 or 0.5
 days) plus the 15,000-tick post-recovery cooldown. The pawn's observed minor-break
-threshold sets the tier levels. `ForecastMoodResult.BreakRisk` integrates that
+threshold sets the tier levels. A projected mood's `ForecastMoodBreaks.Assessed.Risk` integrates that
 rate over the piecewise-linear target trajectory, cut at the tier thresholds. The
 2,000-tick wait below a threshold before a break can fire and the break's own
 duration are not modelled. Actual mood and layout's work-day/watt price are not used.
@@ -193,7 +193,7 @@ the pawn's choices instead of staying at their observed stage.
   `NeedMood.UnclampedTarget` already holds. The stage moods are the defs' `baseMoodEffect`
   ([kept constants](kept-constants.md#mirrored-game-literals-need-thoughts-3598)).
   `ForecastNeedsTimeline` and the coupled evaluation add them to the caller's
-  banded thoughts, so `BreakRisk`, `BreakTierTicks` and `PressureTicks` carry
+  banded thoughts, so the projected mood's `PressureTicks` and its assessed breaks carry
   them and the ledger prices them as `MoodBreaks` and `Wellbeing`.
 - Not modelled: a nullified thought (trait, hediff, precept or gene), and the
   malnutrition stages past the first while starving (the thought stays at
@@ -431,7 +431,7 @@ pawn's `ForecastThermalExposure.Spans`: exact piecewise integration of the giver
   observed one.
 - The ledger reads them through `ForecastCoupledContext` (`CapacityPenalties`,
   `MoodBreaks`, `Value`); `ForecastNeedMetric.ZeroSpans` gives the spans a need
-  is zero (food: starving) and `ForecastMoodResult.BreakTierTicks` the ticks in
+  is zero (food: starving) and `ForecastMoodBreaks.Assessed.TierTicks` the ticks in
   each break tier. `coupled_selection` reports the ledger of the baseline and the
   selection (`value`); nothing ranks on it yet.
 

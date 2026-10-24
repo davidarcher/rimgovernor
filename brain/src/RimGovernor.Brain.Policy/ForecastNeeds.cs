@@ -406,7 +406,7 @@ public static class ForecastNeeds
         findings.AddRange(core.Findings);
         findings.AddRange(capacity.Findings);
         if (unknownProtection) findings.Add("unknown_protected_time");
-        if (timeline is { BreakRisk.IsKnown: false }) findings.Add("mental_break_probability_unassessed");
+        if (timeline is ForecastMoodResult.Unprojected or ForecastMoodResult.Projected { Breaks: ForecastMoodBreaks.Unassessed }) findings.Add("mental_break_probability_unassessed");
         findings.Sort(StringComparer.Ordinal);
         var distinct = 0;
         for (var i = 0; i < findings.Count; i++) if (i == 0 || findings[i] != findings[i - 1]) findings[distinct++] = findings[i];

@@ -44,11 +44,7 @@ public sealed class CorpseCreditTests
         {
             ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
-                Mood = new([], default, default, default, default, default, [])
-                {
-                    PressureTicks = Known(0d), BreakRisk = Known(0d), BreakTierTicks = [0, 0, 0],
-                    ShiftedBreakTierTicks = [new(shift, [Day, 0, 0])],
-                },
+                Mood = MoodResults.Flat(0d, [0, 0, 0], [new(shift, [Day, 0, 0])]),
             },
         }, [])
         { ServedRooms = rooms.Length != 0 ? [.. rooms] : [new(1, "", servedAt)] };

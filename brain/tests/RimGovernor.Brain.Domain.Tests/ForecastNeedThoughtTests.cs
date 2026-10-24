@@ -126,8 +126,8 @@ public sealed class ForecastNeedThoughtTests
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), [MealWith(8000, WithoutTable(Day))]);
 
         Assert.Equal(0, result.ThoughtOffsetAtHorizon.Value);
-        Assert.True(result.Mood!.BreakRisk.IsKnown);
-        Assert.DoesNotContain("unsupported_memory_renewal_or_stacking", result.Mood.Findings);
+        result.Mood!.Assessed();
+        Assert.DoesNotContain("unsupported_memory_renewal_or_stacking", result.Mood!.Findings);
     }
 
     [Fact]
@@ -136,7 +136,7 @@ public sealed class ForecastNeedThoughtTests
         var result = ForecastNeeds.ForecastNeedsTimeline(Pawn(.5), Input(), [MealWith(2000, WithoutTable(Day)), MealWith(12000, WithoutTable(Day))]);
 
         Assert.Equal(-3, result.ThoughtOffsetAtHorizon.Value);
-        Assert.True(result.Mood!.BreakRisk.IsKnown);
+        result.Mood!.Assessed();
     }
 
     [Fact]
@@ -160,8 +160,8 @@ public sealed class ForecastNeedThoughtTests
         var result = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), [Meal(8000)]);
 
         Assert.Equal(5, result.ThoughtOffsetAtHorizon.Value);
-        Assert.True(result.Mood!.BreakRisk.IsKnown);
-        Assert.Contains("stacked_memory_expiry_additive", result.Mood.Findings);
+        result.Mood!.Assessed();
+        Assert.Contains("stacked_memory_expiry_additive", result.Mood!.Findings);
         Assert.Single(result.Findings, "stacked_memory_expiry_additive");
     }
 }

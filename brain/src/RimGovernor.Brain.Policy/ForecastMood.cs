@@ -2,19 +2,43 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-public sealed record ForecastMoodPoint(double Tick, Fact<double> Target, Fact<double> Actual, bool Asleep);
-public sealed record ForecastMoodResult(EquatableArray<ForecastMoodPoint> Trajectory,
-    Fact<double> TargetExposureTicks, Fact<double> TargetDepthTicks, Fact<double> ActualExposureTicks,
-    Fact<double> ActualDepthTicks, Fact<double> TerminalMood, EquatableArray<string> Findings)
+public sealed record ForecastMoodPoint(double Tick, double Target, double Actual, bool Asleep);
+
+/// <summary>
+/// A pawn's mood over the horizon (#3897): <see cref="Projected"/> with its integrated target and actual mood, or
+/// <see cref="Unprojected"/> when the timeline refuses its inputs (stacked changes, unmodeled conditional thoughts, an
+/// unsupported renewal, the event budget), the findings naming why.
+/// </summary>
+public abstract record ForecastMoodResult(EquatableArray<string> Findings)
 {
-    public Fact<double> PressureTicks { get; init; }
-    /// <summary>Expected mental breaks over the horizon from the target trajectory (MoodBreakModel.BreaksPerDay); unknown without an observed threshold.</summary>
-    public Fact<double> BreakRisk { get; init; }
-    /// <summary>The ticks the target mood spends in each break tier, mildest first, that <see cref="BreakRisk"/> sums; empty when BreakRisk is unknown. The capability-days ledger prices each tier's breaks by the mean days they last (#3520).</summary>
-    public EquatableArray<double> BreakTierTicks { get; init; }
-    /// <summary>Per break shift the timeline was given (#3655), the <see cref="BreakTierTicks"/> of the target shifted by it (a housing
-    /// move's mood delta over 100), clamped at 0 and 1 on its own; empty without shifts or when BreakRisk is unknown.</summary>
-    public EquatableArray<ForecastShiftedBreaks> ShiftedBreakTierTicks { get; init; }
+    /// <summary>The projected mood: the trajectory (empty when the search asked for integrals only), the target's ticks below the
+    /// break threshold, the actual mood's ticks below it and their depth, the actual mood at the horizon, the target's pressure ticks and
+    /// its break state.</summary>
+    public sealed record Projected(EquatableArray<ForecastMoodPoint> Trajectory,
+        double TargetExposureTicks, double ActualExposureTicks,
+        double ActualDepthTicks, double TerminalMood, double PressureTicks, ForecastMoodBreaks Breaks,
+        EquatableArray<string> Findings) : ForecastMoodResult(Findings);
+
+    /// <summary>The timeline refused its inputs; <see cref="ForecastMoodResult.Findings"/> name why.</summary>
+    public sealed record Unprojected(EquatableArray<string> Findings) : ForecastMoodResult(Findings);
+}
+
+/// <summary>
+/// The target mood's mental breaks over the horizon: <see cref="Assessed"/> against the pawn's observed break threshold, or
+/// <see cref="Unassessed"/> when the threshold is not a finite positive level.
+/// </summary>
+public abstract record ForecastMoodBreaks
+{
+    private protected ForecastMoodBreaks() { }
+
+    /// <summary>Expected breaks (MoodBreakModel.BreaksPerDay summed over the target trajectory); the ticks the target spends in
+    /// each break tier, mildest first, that the capability-days ledger prices by each tier's mean break days (#3520); and per
+    /// break shift the timeline was given (#3655), the tier ticks of the target shifted by it (a housing move's mood delta
+    /// over 100), clamped at 0 and 1 on its own.</summary>
+    public sealed record Assessed(double Risk, EquatableArray<double> TierTicks, EquatableArray<ForecastShiftedBreaks> Shifted) : ForecastMoodBreaks;
+
+    /// <summary>No finite positive break threshold was observed.</summary>
+    public sealed record Unassessed : ForecastMoodBreaks;
 }
 
 /// <summary>The break tier ticks of a mood target shifted by <paramref name="Shift"/> (#3655).</summary>
@@ -150,7 +174,7 @@ public static class ForecastMood
         var changed = situational.Select(s => s.Thought).Concat(banded.Select(b => b.Thought)).ToArray();
         if (changed.Distinct(StringComparer.Ordinal).Count() != changed.Length
             || situational.Any(s => !double.IsFinite(s.OffsetDelta)) || banded.Any(b => b.Spans.Any(s => !double.IsFinite(s.OffsetDelta))))
-            return new([], default, default, default, default, default, ["unsupported_situational_change_stacking"]);
+            return new ForecastMoodResult.Unprojected(["unsupported_situational_change_stacking"]);
         var unknown = new SortedSet<string>(StringComparer.Ordinal) { "unmodeled_situational_thoughts_constant" };
         foreach (var thought in banded.Where(b => b.Spans.Sum(s => s.End - s.Start) < horizon))
             unknown.Add("situational_thought_constant_outside_exposure:" + thought.Thought);
@@ -159,13 +183,13 @@ public static class ForecastMood
         var intervals = selected.Select(c => (Choice: c, End: interruptedAt is not null && interruptedAt.TryGetValue(c.Id, out var at)
             ? Math.Clamp(at, c.Depart, c.End) : c.End)).ToArray();
         var sleepEnds = ForecastNeeds.SleepServiceEnds(pawn, selected, interruptedAt, unknown);
-        if (sleepEnds is null) return new([], default, default, default, default, default, EquatableArray.From(unknown));
+        if (sleepEnds is null) return new ForecastMoodResult.Unprojected(EquatableArray.From(unknown));
         foreach (var end in sleepEnds.Values) events.Add(end);
         foreach (var row in intervals) { events.Add(row.Choice.Start); events.Add(row.End); }
-        if (pawn.Mood is not { } mood) return new([], default, default, default, default, default, ["unknown_conditional_mood_mechanics"]);
+        if (pawn.Mood is not { } mood) return new ForecastMoodResult.Unprojected(["unknown_conditional_mood_mechanics"]);
         // Each conditional def the native read cannot price names itself in the finding.
         if (mood.Conditional is not ConditionalMood.Modeled { Thoughts: var effects })
-            return new([], default, default, default, default, default, EquatableArray.From(((ConditionalMood.Unmodeled)mood.Conditional).Thoughts
+            return new ForecastMoodResult.Unprojected(EquatableArray.From(((ConditionalMood.Unmodeled)mood.Conditional).Thoughts
                 .Select(t => "unknown_conditional_mood_mechanics:" + t).ToArray()));
         var memories = mood.Memories;
         if (StackedMemoryFinding(memories) is { } stacked) unknown.Add(stacked);
@@ -176,7 +200,7 @@ public static class ForecastMood
             .SelectMany(r => r.Choice.Thoughts.Select(t => (Thought: t, Start: r.End))).Concat(granted ?? []).ToArray();
         if (PlannedMemoryEnds(memories, meals) is not { } planned
             || RenewalSchedule(memories, renewals, meals.Select(m => m.Thought.Id)) is not { } schedule)
-            return new([], default, default, default, default, default, ["unsupported_memory_renewal_or_stacking"]);
+            return new ForecastMoodResult.Unprojected(["unsupported_memory_renewal_or_stacking"]);
         var (observedShares, renewed) = schedule;
         foreach (var (id, at) in planned.ObservedEnds) observedShares[id].Cut(at, 0);
         var mealEnds = planned.Ends;
@@ -209,7 +233,7 @@ public static class ForecastMood
         var shiftedTicks = shifts.Count == 0 ? [] : new double[shifts.Count * LayoutMoodRules.MoodTierCount];
         // Actual mood chases the target continuously, in exact segments (#3468); native's discrete updates, whose phase
         // is not observed, are the held approximation.
-        if (events.Count > 4096) return new([], default, default, default, default, default, ["mood_event_budget_truncated"]);
+        if (events.Count > 4096) return new ForecastMoodResult.Unprojected(["mood_event_budget_truncated"]);
         var ticks = events.Where(t => t >= 0 && t <= horizon).ToArray();
         bool Asleep(double time)
         {
@@ -272,7 +296,7 @@ public static class ForecastMood
         for (var i = 0; i < ticks.Length; i++)
         {
             var from = ticks[i]; var asleep = Asleep(from); var target = Target(from, asleep);
-            if (trajectory) points.Add(new(from, Known(target), Known(actual), asleep));
+            if (trajectory) points.Add(new(from, target, actual, asleep));
             if (i == ticks.Length - 1) break;
             var duration = ticks[i + 1] - from;
             // The target is linear between events except where the clamp cuts it at 0 or 1.
@@ -293,7 +317,7 @@ public static class ForecastMood
                 var piece = duration * (cuts[c + 1] - cuts[c]);
                 if (piece <= 0) continue;
                 pressure += (1 - (a + b) / 2) * piece;
-                Integrate(threshold - a, threshold - b, piece, ref targetExposure, ref targetDepth);
+                Integrate(threshold - a, threshold - b, piece, ref targetExposure, ref targetDepth); // the target's depth is not read
                 if (breakKnown) breakModel.AddTierTicks(a, b, piece, tierTicks);
                 Chase(a, b, piece, asleep && mood.FreezesWhileAsleep);
             }
@@ -317,16 +341,13 @@ public static class ForecastMood
             }
         }
         unknown.Add("mood_response_interval_phase_unassessed");
-        return new(EquatableArray.From(points), Known(targetExposure),
-            Known(targetDepth), Known(actualExposure),
-            Known(actualDepth), Known(actual), EquatableArray.From(unknown))
-        {
-            PressureTicks = Known(pressure),
-            BreakRisk = breakKnown ? Known(MoodBreakModel.Breaks(tierTicks)) : default,
-            BreakTierTicks = breakKnown ? EquatableArray.From(tierTicks.ToArray()) : default,
-            ShiftedBreakTierTicks = EquatableArray.From(shifts.Select((shift, k) => new ForecastShiftedBreaks(shift,
-                EquatableArray.From(shiftedTicks.AsSpan(k * LayoutMoodRules.MoodTierCount, LayoutMoodRules.MoodTierCount).ToArray())))),
-        };
+        ForecastMoodBreaks breaks = breakKnown
+            ? new ForecastMoodBreaks.Assessed(MoodBreakModel.Breaks(tierTicks), EquatableArray.From(tierTicks.ToArray()),
+                EquatableArray.From(shifts.Select((shift, k) => new ForecastShiftedBreaks(shift,
+                    EquatableArray.From(shiftedTicks.AsSpan(k * LayoutMoodRules.MoodTierCount, LayoutMoodRules.MoodTierCount).ToArray())))))
+            : new ForecastMoodBreaks.Unassessed();
+        return new ForecastMoodResult.Projected(EquatableArray.From(points), targetExposure, actualExposure, actualDepth, actual,
+            pressure, breaks, EquatableArray.From(unknown));
     }
 
     // The need thoughts' baseMoodEffect by stage (Core ThoughtDefs/Thoughts_Situation_Needs.xml, NeedFood and NeedRest): no

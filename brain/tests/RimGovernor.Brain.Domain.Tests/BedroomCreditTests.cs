@@ -54,11 +54,7 @@ public sealed class BedroomCreditTests
         {
             ["pawn"] = new([], default, default, new(new("pawn", "", new ForecastCapacityWindows.Unread(), 0), []), [])
             {
-                Mood = new([], default, default, default, default, default, [])
-                {
-                    PressureTicks = Known(0d), BreakRisk = Known(0d), BreakTierTicks = [Day, 0, 0],
-                    ShiftedBreakTierTicks = [new(shift, [0, 0, 0])],
-                },
+                Mood = MoodResults.Flat(0d, [Day, 0, 0], [new(shift, [0, 0, 0])]),
             },
         }, [])
         { ServedRooms = [new(1, "WoodLog", closedAt)] };
@@ -196,11 +192,7 @@ public sealed class BedroomCreditTests
         var shifts = ForecastHousing.BreakShifts(context);
         var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), ids.ToDictionary(id => id, id => new ForecastNeedsResult([], default, default, new(new(id, "", new ForecastCapacityWindows.Unread(), 0), []), [])
         {
-            Mood = new([], default, default, default, default, default, [])
-            {
-                PressureTicks = Known(0d), BreakRisk = Known(0d), BreakTierTicks = [0, 0, 0],
-                ShiftedBreakTierTicks = [.. shifts[id].Select(s => new ForecastShiftedBreaks(s, [0, 0, 0]))],
-            },
+            Mood = MoodResults.Flat(0d, [0, 0, 0], [.. shifts[id].Select(s => new ForecastShiftedBreaks(s, [0, 0, 0]))]),
         }, StringComparer.Ordinal), []) { ServedRooms = [new(1, "WoodLog", 0)] };
         var rows = ForecastValue.Of(outcome, context, Day).InvestmentContributions
             .Where(r => ids.Any(id => r.Key == PlannedRoomCredits.Key(PlannedRole.Barracks, 1, id))).ToArray();
@@ -226,9 +218,9 @@ public sealed class BedroomCreditTests
         var sleep = ForecastConditionalMoodTests.SleepProbe("sleep", 17 * GameTime.TicksPerHour, Day);
         var shifted = ForecastMood.ForecastMoodTimeline(pawn, Day, [sleep], breakShifts: [0.1]);
         var moved = ForecastMood.ForecastMoodTimeline(pawn, Day, [sleep], situational: [("Moved", 10, 0)]);
-        var row = Assert.Single(shifted.ShiftedBreakTierTicks);
+        var row = Assert.Single(shifted.Assessed().Shifted);
         Assert.Equal(0.1, row.Shift);
-        Assert.Equal(moved.BreakTierTicks.ToArray(), row.TierTicks.ToArray());
-        Assert.NotEqual(shifted.BreakTierTicks.ToArray(), row.TierTicks.ToArray());
+        Assert.Equal(moved.Assessed().TierTicks.ToArray(), row.TierTicks.ToArray());
+        Assert.NotEqual(shifted.Assessed().TierTicks.ToArray(), row.TierTicks.ToArray());
     }
 }

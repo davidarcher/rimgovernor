@@ -1010,9 +1010,9 @@ public sealed partial record ForecastCoupledSelection
         double exposure = 0, pressure = 0, breaks = 0;
         foreach (var needs in rows.Values)
         {
-            if (needs.Mood is not { } m || !m.TargetExposureTicks.IsKnown || !m.PressureTicks.IsKnown) { moodKnown = false; break; }
-            exposure += m.TargetExposureTicks.Value; pressure += m.PressureTicks.Value;
-            if (m.BreakRisk.TryGetValue(out var risk)) breaks += risk; else breakKnown = false;
+            if (needs.Mood is not ForecastMoodResult.Projected m) { moodKnown = false; break; }
+            exposure += m.TargetExposureTicks; pressure += m.PressureTicks;
+            if (m.Breaks is ForecastMoodBreaks.Assessed assessed) breaks += assessed.Risk; else breakKnown = false;
         }
         breakKnown &= moodKnown;
         if (!moodKnown) unknown.Add("unassessed_mood");

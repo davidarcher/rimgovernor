@@ -79,12 +79,12 @@ public sealed class ForecastNeedsTests
         var full = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), choices);
         var physical = ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), choices, mood: false);
         Assert.NotNull(full.Mood);
-        Assert.NotEmpty(full.Mood.Trajectory);
+        Assert.NotEmpty(full.Mood.Projected().Trajectory);
         Assert.Null(physical.Mood);
         Assert.Equal(full.Needs, physical.Needs);
         Assert.Equal(full.Capacity.Capacity, physical.Capacity.Capacity);
         Assert.Equal(full.UsefulFoodGain, physical.UsefulFoodGain);
-        Assert.Empty(ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), choices, moodTrajectory: false).Mood!.Trajectory);
+        Assert.Empty(ForecastNeeds.ForecastNeedsTimeline(pawn, Input(), choices, moodTrajectory: false).Mood!.Projected().Trajectory);
     }
 
     [Theory]
