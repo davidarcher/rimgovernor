@@ -259,8 +259,7 @@ Executor/Intent.cs|Discard|1
 Executor/SnapshotFirebreak.cs|Fact|4
 Executor/SnapshotRounds.cs|Fact|1
 Executor/SnapshotRounds.cs|Unknown|1
-Host/HostProviders.cs|Fact|2
-Host/HostProviders.cs|Unknown|1
+Host/HostProviders.cs|Fact|1
 Host/HostSnapshots.cs|Fact|1
 Host/SchedulerLoop.cs|Discard|1
 Observation/Acquisition.cs|Fact|3
@@ -305,8 +304,7 @@ Observation/SleepingUpkeep.cs|Fact|5
 Observation/StuffChoice.cs|Discard|1
 Observation/StuffChoice.cs|Fact|7
 Observation/StuffChoice.cs|Unknown|1
-PlayerApi/PlayerProviders.cs|Fact|1
-PlayerApi/ReadProjections.cs|Fact|12
+PlayerApi/ReadProjections.cs|Fact|10
 Policy/Acquisition.cs|Fact|15
 Policy/AcquisitionCatalog.cs|Fact|2
 Policy/Admission.cs|Fact|2

@@ -333,6 +333,6 @@ public static class Boundary
             reason,
             cls == PbCommon.RefusalClass.Permanent ? RefusalClass.Permanent
             : cls == PbCommon.RefusalClass.Transient ? RefusalClass.Transient
-            : cls is PbCommon.RefusalClass.Unspecified or PbCommon.RefusalClass.Unknown ? RefusalClass.Unknown
+            : cls == PbCommon.RefusalClass.Unclassified ? RefusalClass.Unknown
             : throw new DomainException($"undefined refusal class {cls}"));
 }
