@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// <summary>
 /// An animal's read is total (#3786): its pregnancy is an <see cref="AnimalPregnancy"/> and its next life stage an
 /// <see cref="AnimalNextLifeStage"/>, and every setting is a plain value. It round-trips through <c>WireJsonContext</c>
-/// exactly.
+/// exactly. A food-channels gather row names its <see cref="AnimalYield"/> the same way.
 /// </summary>
 public sealed class AnimalStateWireTests
 {
@@ -68,5 +68,23 @@ public sealed class AnimalStateWireTests
         var json = WireJson.Serialize(Cow).Replace("\"pregnancy\":{\"type\":\"gestating\",\"ticksToBirth\":120000},", "", StringComparison.Ordinal);
 
         Assert.ThrowsAny<System.Text.Json.JsonException>(() => WireJson.Deserialize<AnimalState>(json));
+    }
+
+    [Fact]
+    public void AGatherRowNamesItsYield()
+    {
+        var milk = new GatherableAnimal { PawnId = "Thing_Cow1", Race = "Cow", Fullness = 0.5, Resource = "Milk", HandlerReachable = true, Yield = new AnimalYield.Producing(0.7, 40, 1) };
+        foreach (var (row, yield) in new (GatherableAnimal, string)[]
+        {
+            (milk, """{"type":"producing","nutritionPerDay":0.7,"workPerDay":40,"leadDays":1}"""),
+            (milk with { Yield = new AnimalYield.Stalled() }, """{"type":"stalled"}"""),
+            (milk with { Yield = new AnimalYield.Inactive() }, """{"type":"inactive"}"""),
+        })
+        {
+            var json = WireJson.Serialize(row);
+
+            Assert.Contains("\"yield\":" + yield, json);
+            Assert.Equal(json, WireJson.Serialize(WireJson.Deserialize<GatherableAnimal>(json)));
+        }
     }
 }

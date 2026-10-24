@@ -24,7 +24,7 @@ public sealed record AnimalFeedInputs
     public Fact<FoodForecast> Forecast { get; init; }
 
     /// <summary>The pens' worst-season pasture rates (PenGrazing).</summary>
-    public Fact<EquatableArray<PenGrazing>> Pens { get; init; }
+    public EquatableArray<PenGrazing> Pens { get; init; }
 
     public AnimalRaceCatalog Races { get; init; } = new();
 
@@ -294,8 +294,8 @@ public static class AnimalFeedRunwayRules
         }
 
         var supplyKnown = input.Food.TryGetValue(out var supply);
-        var pk = input.Pens.TryGetValue(out var pens);
-        if (!supplyKnown || !pk)
+        var pens = input.Pens;
+        if (!supplyKnown)
         {
             return UnknownFeedRunway();
         }
@@ -322,14 +322,12 @@ public static class AnimalFeedRunwayRules
         var pasture = 0.0;
         foreach (var p in pens)
         {
-            var dk = p.DemandPerDay.TryGetValue(out var d);
-            var yk = p.PasturePerDay.TryGetValue(out var y);
-            if (!dk || !yk || !FoodForecastRules.FoodNumber(d) || !FoodForecastRules.FoodNumber(y))
+            if (!FoodForecastRules.FoodNumber(p.DemandPerDay) || !FoodForecastRules.FoodNumber(p.PasturePerDay))
             {
                 return UnknownFeedRunway();
             }
 
-            pasture += Math.Min(d, y);
+            pasture += Math.Min(p.DemandPerDay, p.PasturePerDay);
         }
 
         var byRace = new Dictionary<Resource, FeedGroupBuilder>();

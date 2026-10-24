@@ -7,11 +7,11 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record PenGrazing
 {
-    public Fact<double> DemandPerDay { get; init; }
+    public double DemandPerDay { get; init; }
 
-    public Fact<double> PasturePerDay { get; init; }
+    public double PasturePerDay { get; init; }
 
-    public Fact<double> StoredNutrition { get; init; }
+    public double StoredNutrition { get; init; }
 }
 
 /// <summary>Native's raw per-animal flags the slaughter exclusion reads; Designatable is Designator_Slaughter's own acceptance.</summary>
@@ -67,11 +67,10 @@ public static class AnimalFoodExtensions
 
 public static class AnimalFoodRules
 {
-    public static Fact<double> HayNutritionNeed(Fact<EquatableArray<PenGrazing>> pens, Fact<double> gap)
+    public static Fact<double> HayNutritionNeed(EquatableArray<PenGrazing> rows, Fact<double> gap)
     {
-        var known = pens.TryGetValue(out var rows);
         var dk0 = gap.TryGetValue(out var days);
-        if (!known || !dk0 || !FoodForecastRules.FoodNumber(days))
+        if (!dk0 || !FoodForecastRules.FoodNumber(days))
         {
             return Unknown<double>();
         }
@@ -79,15 +78,12 @@ public static class AnimalFoodRules
         var need = 0.0;
         foreach (var p in rows)
         {
-            var dk = p.DemandPerDay.TryGetValue(out var d);
-            var yk = p.PasturePerDay.TryGetValue(out var y);
-            var sk = p.StoredNutrition.TryGetValue(out var s);
-            if (!dk || !yk || !sk || !FoodForecastRules.FoodNumber(d) || !FoodForecastRules.FoodNumber(y) || !FoodForecastRules.FoodNumber(s))
+            if (!FoodForecastRules.FoodNumber(p.DemandPerDay) || !FoodForecastRules.FoodNumber(p.PasturePerDay) || !FoodForecastRules.FoodNumber(p.StoredNutrition))
             {
                 return Unknown<double>();
             }
 
-            need += Math.Max(0, (days * (d - y)) - s);
+            need += Math.Max(0, (days * (p.DemandPerDay - p.PasturePerDay)) - p.StoredNutrition);
         }
 
         return Known(need);

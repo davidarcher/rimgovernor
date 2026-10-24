@@ -2,17 +2,15 @@ using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Observation;
 
 /// <summary>
-/// Native source potential, read whole every colony read. It does not select work. The census can contain
-/// animals with unknown component values.
+/// Native source potential, read whole every colony read. It does not select work.
 /// </summary>
 public sealed record FoodChannels
 {
     /// <summary>Null without Odyssey.</summary>
     public FishableWater? FishableWater { get; init; }
 
-    public IReadOnlyList<GatherableAnimal> Gatherable { get; init; } = [];
-
-    public IReadOnlyList<EggLayerAnimal> EggLayer { get; init; } = [];
+    /// <summary>The producing milk and egg yields; an inactive or stalled comp contributes nothing and has no row. Eggs need no handler.</summary>
+    public IReadOnlyList<AnimalProduct> Products { get; init; } = [];
 
     public IReadOnlyList<O.PasteDispenser> PasteDispenser { get; init; } = [];
 
@@ -21,21 +19,6 @@ public sealed record FoodChannels
     public PastureTable Pasture { get; init; } = new(new Dictionary<string, double>());
 
     public IReadOnlyList<SlaughterFoodAnimal> Slaughter { get; init; } = [];
-
-    /// <summary>Keeps native unknown rates unknown. Non-food comps and inactive animals have no nutrition to contribute; eggs require no handler gathering.</summary>
-    public IReadOnlyList<AnimalProduct> AnimalProducts()
-    {
-        var rows = new List<AnimalProduct>();
-        foreach (var a in Gatherable)
-        {
-            rows.Add(new AnimalProduct { Pawn = a.PawnID, Race = a.Race, Active = a.Active, Reachable = a.HandlerReachable, NutritionPerDay = a.NutritionPerDay, WorkPerDay = a.WorkPerDay, LeadDays = a.LeadDays });
-        }
-        foreach (var a in EggLayer)
-        {
-            rows.Add(new AnimalProduct { Pawn = a.PawnID, Race = a.Race, Active = a.Active, Reachable = Known(true), NutritionPerDay = a.NutritionPerDay, WorkPerDay = Known(0.0), LeadDays = a.LeadDays });
-        }
-        return rows;
-    }
 }
 
 public sealed record FishableWater
@@ -80,45 +63,6 @@ public sealed record FishableRegion
     public Fact<double> DistanceSquared { get; init; }
 }
 
-public sealed record GatherableAnimal
-{
-    public string PawnID { get; init; } = "";
-
-    public string Race { get; init; } = "";
-
-    public Fact<double> Fullness { get; init; }
-
-    public Fact<bool> HandlerReachable { get; init; }
-
-    public Fact<double> NutritionPerDay { get; init; }
-
-    public Fact<double> WorkPerDay { get; init; }
-
-    public Fact<double> LeadDays { get; init; }
-
-    public Fact<bool> Active { get; init; }
-}
-
-public sealed record EggLayerAnimal
-{
-    public string PawnID { get; init; } = "";
-
-    public string Race { get; init; } = "";
-
-    public Fact<bool> CanLayNow { get; init; }
-
-    public Fact<double> Progress { get; init; }
-
-    public Fact<double> NutritionPerDay { get; init; }
-
-    public Fact<double> LeadDays { get; init; }
-
-    public Fact<bool> Active { get; init; }
-
-    /// <summary>The hen's next egg is the fertilized def (CompEggLayer fertilizationCount &gt; 0).</summary>
-    public Fact<bool> Fertilized { get; init; }
-}
-
 public static class FoodChannelsReads
 {
     /// <summary>Called only after the colony boundary validator has checked the section.</summary>
@@ -127,12 +71,7 @@ public static class FoodChannelsReads
         var grazing = new List<PenGrazing>();
         foreach (var row in v.Grazing)
         {
-            grazing.Add(new PenGrazing
-            {
-                DemandPerDay = ColonyDecodeReads.Optional(row.DemandPerDay is not null, row.DemandPerDay.GetValueOrDefault()),
-                PasturePerDay = ColonyDecodeReads.Optional(row.PasturePerDay is not null, row.PasturePerDay.GetValueOrDefault()),
-                StoredNutrition = ColonyDecodeReads.Optional(row.StoredNutrition is not null, row.StoredNutrition.GetValueOrDefault()),
-            });
+            grazing.Add(new PenGrazing { DemandPerDay = row.DemandPerDay, PasturePerDay = row.PasturePerDay, StoredNutrition = row.StoredNutrition });
         }
         var pasture = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var row in v.PastureTerrain)
@@ -144,68 +83,48 @@ public static class FoodChannelsReads
         {
             slaughter.Add(SlaughterFood(row, pawns, races));
         }
-        var gatherable = new List<GatherableAnimal>();
+        var products = new List<AnimalProduct>();
         foreach (var row in v.Gatherable)
         {
-            gatherable.Add(new GatherableAnimal
+            if (row.Yield is O.AnimalYield.Producing p)
             {
-                PawnID = row.PawnId,
-                Race = row.Race,
-                Fullness = ColonyDecodeReads.Optional(row.Fullness is not null, row.Fullness.GetValueOrDefault()),
-                HandlerReachable = ColonyDecodeReads.Optional(row.HandlerReachable is not null, row.HandlerReachable.GetValueOrDefault()),
-                NutritionPerDay = ColonyDecodeReads.Optional(row.NutritionPerDay is not null, row.NutritionPerDay.GetValueOrDefault()),
-                WorkPerDay = ColonyDecodeReads.Optional(row.WorkPerDay is not null, row.WorkPerDay.GetValueOrDefault()),
-                LeadDays = ColonyDecodeReads.Optional(row.LeadDays is not null, row.LeadDays.GetValueOrDefault()),
-                Active = ColonyDecodeReads.Optional(row.Active is not null, row.Active.GetValueOrDefault()),
-            });
+                products.Add(new AnimalProduct { Pawn = row.PawnId, Race = row.Race, Reachable = row.HandlerReachable, NutritionPerDay = p.NutritionPerDay, WorkPerDay = p.WorkPerDay, LeadDays = p.LeadDays });
+            }
         }
-        var eggs = new List<EggLayerAnimal>();
         foreach (var row in v.EggLayer)
         {
-            eggs.Add(new EggLayerAnimal
+            if (row.Yield is O.AnimalYield.Producing p)
             {
-                PawnID = row.PawnId,
-                Race = row.Race,
-                CanLayNow = ColonyDecodeReads.Optional(row.CanLayNow is not null, row.CanLayNow.GetValueOrDefault()),
-                Progress = ColonyDecodeReads.Optional(row.Progress is not null, row.Progress.GetValueOrDefault()),
-                NutritionPerDay = ColonyDecodeReads.Optional(row.NutritionPerDay is not null, row.NutritionPerDay.GetValueOrDefault()),
-                LeadDays = ColonyDecodeReads.Optional(row.LeadDays is not null, row.LeadDays.GetValueOrDefault()),
-                Active = ColonyDecodeReads.Optional(row.Active is not null, row.Active.GetValueOrDefault()),
-                Fertilized = ColonyDecodeReads.Optional(row.Fertilized is not null, row.Fertilized.GetValueOrDefault()),
-            });
+                products.Add(new AnimalProduct { Pawn = row.PawnId, Race = row.Race, Reachable = true, NutritionPerDay = p.NutritionPerDay, WorkPerDay = p.WorkPerDay, LeadDays = p.LeadDays });
+            }
         }
         return new FoodChannels
         {
             Grazing = [.. grazing],
             Pasture = new PastureTable(pasture),
             Slaughter = slaughter,
-            Gatherable = gatherable,
-            EggLayer = eggs,
+            Products = products,
             PasteDispenser = [.. v.PasteDispenser],
             FishableWater = v.FishableWater is { } water ? ColonyFishableWater(water) : null,
         };
     }
 
     /// <summary>
-    /// The meat, feed and reproduction numbers of one animal the colony would eat. Native sends only the animal's
-    /// live MeatAmount, and only when the colony eats the meat; the race row gives the meat's nutrition, the life
-    /// stage's hunger scales the adult feed (for a plant eater), and the egg interval or the gestation is the
+    /// The meat, feed and reproduction numbers of one animal the colony would eat. Native sends the animal's live
+    /// MeatAmount only when the colony eats the meat; the race row gives the meat's nutrition, the life stage's
+    /// hunger scales the adult feed (for a plant eater), and the egg interval or the gestation is the
     /// reproduction period.
     /// </summary>
     private static SlaughterFoodAnimal SlaughterFood(O.FoodSlaughterAnimal row, Pawns pawns, AnimalRaceCatalog races)
     {
         var output = new SlaughterFoodAnimal { ID = new PawnId(row.PawnId), Race = new Resource(row.Race) };
-        if (row.MeatAmount is null)
-        {
-            return output;
-        }
         if (!races.Race(output.Race, out var race))
         {
             return output;
         }
         if (race.MeatNutritionPerUnit.TryGetValue(out var per))
         {
-            output = output with { MeatNutrition = Known(row.MeatAmount.GetValueOrDefault() * per) };
+            output = output with { MeatNutrition = Known(row.MeatAmount * per) };
         }
         if (race.EatsPlant && StageFeedPerDay(race, pawns, row.PawnId, out var feed))
         {

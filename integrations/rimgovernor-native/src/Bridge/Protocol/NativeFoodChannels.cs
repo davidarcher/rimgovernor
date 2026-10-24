@@ -15,7 +15,6 @@ namespace HomeBridge.BridgeTools
         private static readonly FieldInfo? EggProgress = BridgeCommon.PrivateInstanceField(typeof(CompEggLayer), "eggProgress");
         private static readonly PropertyInfo? Resource = typeof(CompHasGatherableBodyResource).GetProperty("ResourceDef", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly PropertyInfo? GatherActive = typeof(CompHasGatherableBodyResource).GetProperty("Active", BindingFlags.Instance | BindingFlags.NonPublic);
-        private static readonly FieldInfo? EggFertilization = BridgeCommon.PrivateInstanceField(typeof(CompEggLayer), "fertilizationCount");
         private static readonly PropertyInfo? EggActive = typeof(CompEggLayer).GetProperty("Active", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly PropertyInfo? EggStopped = typeof(CompEggLayer).GetProperty("ProgressStoppedBecauseUnfertilized", BindingFlags.Instance | BindingFlags.NonPublic);
 
@@ -37,54 +36,44 @@ namespace HomeBridge.BridgeTools
                 var comps = animal.AllComps.OfType<CompHasGatherableBodyResource>().ToList();
                 var pen = AnimalPenUtility.GetCurrentPenOf(animal, false);
                 if (pen != null) pens.Add(pen);
-                // The game's computed MeatAmount of this animal, sent only when the
-                // colony eats the meat; the brain derives nutrition, feed and reproduction.
-                var meat = animal.RaceProps.meatDef != null && humanFood(animal.RaceProps.meatDef) ? Finite(animal.GetStatValue(StatDefOf.MeatAmount)) : (double?)null;
-                slaughterRows.Add(new Obs.FoodSlaughterAnimal { PawnId = id, Race = race, MeatAmount = meat });
-                if (comps.Count == 0) gatherRows.Add(new Obs.GatherableAnimal { PawnId = id, Race = race, HandlerReachable = reachable, Active = false });
+                // The game's computed MeatAmount of an animal whose meat the colony
+                // eats; the brain derives nutrition, feed and reproduction.
+                if (animal.RaceProps.meatDef != null && humanFood(animal.RaceProps.meatDef))
+                    slaughterRows.Add(new Obs.FoodSlaughterAnimal { PawnId = id, Race = race, MeatAmount = Finite(animal.GetStatValue(StatDefOf.MeatAmount)) });
+                var speed = PawnUtility.BodyResourceGrowthSpeed(animal);
                 foreach (var comp in comps)
                 {
-                    var row = new Obs.GatherableAnimal { PawnId = id, Race = race, HandlerReachable = reachable, Fullness = Finite(comp.Fullness) };
-                    if (Resource?.GetValue(comp) is ThingDef resource) row = row with { Resource = resource.defName };
-                    if (!(comp is CompMilkable)) row = row with { Active = false };
-                    if (comp is CompMilkable milk && GatherActive?.GetValue(comp) is bool active)
+                    var resource = Reflected<ThingDef>(Resource, comp, "ResourceDef");
+                    Obs.AnimalYield yield = new Obs.AnimalYield.Inactive();
+                    if (comp is CompMilkable milk && Reflected<bool>(GatherActive, comp, "Active") && humanFood(milk.Props.milkDef))
                     {
-                        row = row with { Active = active && humanFood(milk.Props.milkDef) };
-                        var speed = PawnUtility.BodyResourceGrowthSpeed(animal);
                         if (milk.Props.milkIntervalDays > 0 && speed > 0)
                         {
                             var days = milk.Props.milkIntervalDays / (double)speed;
-                            row = row with { NutritionPerDay = row.Active.GetValueOrDefault() ? Finite(milk.Props.milkAmount * milk.Props.milkDef.GetStatValueAbstract(StatDefOf.Nutrition) / days) : 0 };
-                            // JobDriver_Milk.WorkTotal, in native work units. Travel is not included.
-                            row = row with { WorkPerDay = row.Active.GetValueOrDefault() ? 400 / days : 0 };
-                            row = row with { LeadDays = Finite((1 - comp.Fullness) * days) };
+                            // JobDriver_Milk.WorkTotal (400) per interval, in native work units. Travel is not included.
+                            yield = new Obs.AnimalYield.Producing(Finite(milk.Props.milkAmount * milk.Props.milkDef.GetStatValueAbstract(StatDefOf.Nutrition) / days), Finite(400 / days), Finite((1 - comp.Fullness) * days));
                         }
+                        else yield = new Obs.AnimalYield.Stalled();
                     }
-                    gatherRows.Add(row);
+                    gatherRows.Add(new Obs.GatherableAnimal { PawnId = id, Race = race, HandlerReachable = reachable, Fullness = Finite(comp.Fullness), Resource = resource.defName, Yield = yield });
                 }
                 var egg = animal.GetComp<CompEggLayer>();
-                var eggRow = new Obs.EggLayerAnimal { PawnId = id, Race = race };
-                if (egg == null) eggRow = eggRow with { Active = false };
                 if (egg != null)
                 {
-                    eggRow = eggRow with { CanLayNow = egg.CanLayNow };
-                    if (EggProgress?.GetValue(egg) is float progress) eggRow = eggRow with { Progress = Finite(progress) };
-                    // The next egg is the fertilized def exactly when NextEggType picks it.
-                    if (EggFertilization?.GetValue(egg) is int fertilization) eggRow = eggRow with { Fertilized = fertilization > 0 };
-                    if (EggActive?.GetValue(egg) is bool active && EggStopped?.GetValue(egg) is bool stopped)
+                    var next = egg.NextEggType();
+                    Obs.AnimalYield yield = new Obs.AnimalYield.Inactive();
+                    if (Reflected<bool>(EggActive, egg, "Active") && !Reflected<bool>(EggStopped, egg, "ProgressStoppedBecauseUnfertilized") && next != null && humanFood(next))
                     {
-                        var resource = egg.NextEggType();
-                        eggRow = eggRow with { Active = active && !stopped && resource != null && humanFood(resource) };
-                        var speed = PawnUtility.BodyResourceGrowthSpeed(animal);
-                        if (egg.Props.eggLayIntervalDays > 0 && speed > 0 && resource != null)
+                        if (egg.Props.eggLayIntervalDays > 0 && speed > 0)
                         {
                             var days = egg.Props.eggLayIntervalDays / (double)speed;
-                            eggRow = eggRow with { NutritionPerDay = eggRow.Active.GetValueOrDefault() ? Finite((egg.Props.eggCountRange.min + egg.Props.eggCountRange.max) * 0.5 * resource.GetStatValueAbstract(StatDefOf.Nutrition) / days) : 0 };
-                            if (eggRow.Progress is not null) eggRow = eggRow with { LeadDays = Finite((1 - eggRow.Progress.GetValueOrDefault()) * days) };
+                            var progress = Reflected<float>(EggProgress, egg, "eggProgress");
+                            yield = new Obs.AnimalYield.Producing(Finite((egg.Props.eggCountRange.min + egg.Props.eggCountRange.max) * 0.5 * next.GetStatValueAbstract(StatDefOf.Nutrition) / days), 0, Finite((1 - progress) * days));
                         }
+                        else yield = new Obs.AnimalYield.Stalled();
                     }
+                    eggRows.Add(new Obs.EggLayerAnimal { PawnId = id, Race = race, Yield = yield });
                 }
-                eggRows.Add(eggRow);
             }
             var grazing = new List<Obs.PenGrazing>();
             foreach (var pen in pens.OrderBy(p => p.parent.thingIDNumber))
@@ -187,6 +176,13 @@ namespace HomeBridge.BridgeTools
                     ResearchPointsPerWorkTick = Finite(ResearchManager.ResearchPointsPerWorkTick), ResearchDifficultySpeedFactor = Finite(Find.Storyteller.difficulty.researchSpeedFactor) };
             }
             return water;
+        }
+
+        // A private member the census reads; a renamed or retyped member throws and fails the colony read.
+        private static T Reflected<T>(MemberInfo? member, object target, string name)
+        {
+            var value = member switch { FieldInfo f => f.GetValue(target), PropertyInfo p => p.GetValue(target), _ => null };
+            return value is T typed ? typed : throw new InvalidOperationException(target.GetType().Name + "." + name + " is not readable as " + typeof(T).Name);
         }
 
         private static double Finite(double value) { if (double.IsNaN(value) || double.IsInfinity(value)) throw new InvalidOperationException(); return value; }

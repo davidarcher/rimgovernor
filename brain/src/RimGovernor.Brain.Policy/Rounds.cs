@@ -168,7 +168,7 @@ public sealed record RoundsFacts
 
     public Fact<EquatableArray<FoodIngredientSlot>> TradeMealIngredients { get; init; }
 
-    public Fact<EquatableArray<PenGrazing>> PenGrazing { get; init; }
+    public EquatableArray<PenGrazing> PenGrazing { get; init; }
 
     /// <summary>What a cell of each terrain grows for grazing in the worst quadrum, the per-cell term of the game's pen food sum (PastureTable).</summary>
     public Fact<PastureTable> Pasture { get; init; }

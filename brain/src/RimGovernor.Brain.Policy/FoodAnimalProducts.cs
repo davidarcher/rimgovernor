@@ -1,7 +1,7 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// One observed production comp, not harvested stock. Rates already incorporate the native interval, resource
+/// One producing comp, not harvested stock. Rates already incorporate the native interval, resource
 /// nutrition and growth speed. FeedPerDay is the animal's own daily feed, which the channel nets out.
 /// </summary>
 public sealed record AnimalProduct
@@ -10,15 +10,13 @@ public sealed record AnimalProduct
 
     public string Race { get; init; } = "";
 
-    public Fact<bool> Active { get; init; }
+    public bool Reachable { get; init; }
 
-    public Fact<bool> Reachable { get; init; }
+    public double NutritionPerDay { get; init; }
 
-    public Fact<double> NutritionPerDay { get; init; }
+    public double WorkPerDay { get; init; }
 
-    public Fact<double> WorkPerDay { get; init; }
-
-    public Fact<double> LeadDays { get; init; }
+    public double LeadDays { get; init; }
 
     public Fact<double> FeedPerDay { get; init; }
 }
@@ -60,34 +58,25 @@ public static class FoodAnimalProductsRules
         var byRace = new Dictionary<string, AnimalAggregate>(StringComparer.Ordinal);
         foreach (var a in animals)
         {
-            var ak = a.Active.TryGetValue(out var active);
-            if (ak && !active)
-            {
-                continue;
-            }
             if (!byRace.TryGetValue(a.Race, out var r))
             {
                 r = new AnimalAggregate();
                 byRace[a.Race] = r;
             }
-            var nk = a.NutritionPerDay.TryGetValue(out var n);
-            var wk = a.WorkPerDay.TryGetValue(out var w);
-            var lk = a.LeadDays.TryGetValue(out var l);
             var fk = a.FeedPerDay.TryGetValue(out var f);
-            var rk = a.Reachable.TryGetValue(out var reachable);
-            if (!FoodForecastRules.FoodId(a.Pawn) || !FoodForecastRules.FoodId(a.Race) || (nk && !FoodForecastRules.FoodNumber(n)) || (wk && !FoodForecastRules.FoodNumber(w)) || (lk && !FoodForecastRules.FoodNumber(l)) || (fk && !FoodForecastRules.FoodNumber(f)))
+            if (!FoodForecastRules.FoodId(a.Pawn) || !FoodForecastRules.FoodId(a.Race) || !FoodForecastRules.FoodNumber(a.NutritionPerDay) || !FoodForecastRules.FoodNumber(a.WorkPerDay) || !FoodForecastRules.FoodNumber(a.LeadDays) || (fk && !FoodForecastRules.FoodNumber(f)))
             {
                 r.Nutrition = double.NaN;
             }
-            if (!ak || !nk || !wk || !lk || !fk || !rk || !reachable)
+            if (!fk || !a.Reachable)
             {
                 r.Unknown = true;
                 continue;
             }
-            r.Nutrition += n;
-            r.Work += w;
+            r.Nutrition += a.NutritionPerDay;
+            r.Work += a.WorkPerDay;
             r.Feed += f;
-            r.Lead = Math.Min(r.Lead, l);
+            r.Lead = Math.Min(r.Lead, a.LeadDays);
             r.Pawns.Add(a.Pawn);
         }
         var channels = new List<SupplyCandidate>();

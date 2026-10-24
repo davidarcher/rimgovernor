@@ -114,26 +114,19 @@ public static class HerdSurplusRules
     /// <summary>A predator, or a race whose failed tame turns manhunter at least HerdTameDanger of the time. Such a race is never tamed.</summary>
     internal static bool HerdDangerous(UpkeepAnimal a) => a.Herd.Predator || a.Herd.ManhunterOnTameFail >= HerdTameDanger;
 
-    /// <summary>Pasture supply over pen demand; not ok when any pen fact is unknown, or no pen has demand.</summary>
-    internal static (double Ratio, bool Ok) HerdPastureRatio(Fact<EquatableArray<PenGrazing>> pens)
+    /// <summary>Pasture supply over pen demand; not ok when a pen figure is not a finite food number, or no pen has demand.</summary>
+    internal static (double Ratio, bool Ok) HerdPastureRatio(EquatableArray<PenGrazing> rows)
     {
-        if (!pens.TryGetValue(out var rows))
-        {
-            return (0, false);
-        }
         double supply = 0.0;
         double demand = 0.0;
         foreach (var p in rows)
         {
-            var dk = p.DemandPerDay.TryGetValue(out var d);
-            var gk = p.PasturePerDay.TryGetValue(out var g);
-            var sk = p.StoredNutrition.TryGetValue(out var s);
-            if (!dk || !gk || !sk || !FoodForecastRules.FoodNumber(d) || !FoodForecastRules.FoodNumber(g) || !FoodForecastRules.FoodNumber(s))
+            if (!FoodForecastRules.FoodNumber(p.DemandPerDay) || !FoodForecastRules.FoodNumber(p.PasturePerDay) || !FoodForecastRules.FoodNumber(p.StoredNutrition))
             {
                 return (0, false);
             }
-            supply += g + s / HerdStoredFeedDays;
-            demand += d;
+            supply += p.PasturePerDay + p.StoredNutrition / HerdStoredFeedDays;
+            demand += p.DemandPerDay;
         }
         if (demand <= 0)
         {

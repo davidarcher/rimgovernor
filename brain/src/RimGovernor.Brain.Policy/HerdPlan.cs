@@ -44,7 +44,7 @@ public sealed record HerdPlanInput
     public required AnimalRaceCatalog Races { get; init; }
     public Fact<double> Budget { get; init; }
     public Fact<WealthFacts> Wealth { get; init; }
-    public Fact<EquatableArray<PenGrazing>> Pens { get; init; }
+    public EquatableArray<PenGrazing> Pens { get; init; }
     public Fact<FoodPlan> Food { get; init; }
 
     /// <summary>Races a trader offers or a quest rewards now; they count as obtainable (the buying and reward hooks).</summary>

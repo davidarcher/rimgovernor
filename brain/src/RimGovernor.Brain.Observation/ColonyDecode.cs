@@ -235,7 +235,7 @@ public static class ColonyDecodeReads
             Monolith = AnomalyColonyReads.MonolithFacts(v.Anomaly),
         };
         r = r with { Raids = r.Threat.Raids };
-        f = f with { PenGrazing = Known(r.FoodChannels.Grazing), Pasture = Known(r.FoodChannels.Pasture) };
+        f = f with { PenGrazing = r.FoodChannels.Grazing, Pasture = Known(r.FoodChannels.Pasture) };
         if (v.Development?.Outcome is { } development && Resolved(buildings, development.Power, row => row.Building))
         {
             var power = new List<PowerBuilding>(development.Power.Count);

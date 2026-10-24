@@ -5987,8 +5987,8 @@ public sealed record LootSection
 
 /// <summary>
 /// Food source potential, independent of acquisition instances and policy.
-/// Animal rows cover every tame animal: absent components leave their scalars
-/// absent. Water rows aggregate fishable cells by native water body; population
+/// Gather rows are one per gatherable comp and egg rows one per egg layer; slaughter
+/// rows cover the animals whose meat the colony eats. Water rows aggregate fishable cells by native water body; population
 /// is shared by that body, not multiplied by its shallow cells. FishableWater
 /// is absent without Odyssey. Pollution uses the clipped center +/-22 window.
 /// Raw fishing facts; policy chooses the footprint, verdicts and research lead.
@@ -6088,44 +6088,51 @@ public sealed record FishableWater
     public double? BaseFishingDurationTicks { get; init; }
 }
 
+/// <summary>
+/// What one animal body resource yields the colony now: inactive (not a milk comp, the comp is inactive, or the
+/// colony does not eat the product), stalled (active, but the interval or PawnUtility.BodyResourceGrowthSpeed is
+/// zero), or producing nutrition per day, handling work per day (JobDriver_Milk.WorkTotal per interval, travel
+/// excluded; zero for eggs) and the days until the next yield.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(AnimalYield.Inactive), "inactive")]
+[JsonDerivedType(typeof(AnimalYield.Stalled), "stalled")]
+[JsonDerivedType(typeof(AnimalYield.Producing), "producing")]
+public abstract record AnimalYield
+{
+    private protected AnimalYield() { }
+
+    public sealed record Inactive : AnimalYield;
+
+    public sealed record Stalled : AnimalYield;
+
+    public sealed record Producing(double NutritionPerDay, double WorkPerDay, double LeadDays) : AnimalYield;
+}
+
+/// <summary>One gatherable body resource comp (CompHasGatherableBodyResource) of a player animal.</summary>
 public sealed record GatherableAnimal
 {
     public required string PawnId { get; init; }
 
     public required string Race { get; init; }
 
-    public double? Fullness { get; init; }
+    public required double Fullness { get; init; }
 
-    public string? Resource { get; init; }
+    public required string Resource { get; init; }
 
-    public bool? HandlerReachable { get; init; }
+    public required bool HandlerReachable { get; init; }
 
-    public double? NutritionPerDay { get; init; }
-
-    public double? WorkPerDay { get; init; }
-
-    public double? LeadDays { get; init; }
-
-    public bool? Active { get; init; }
+    public required AnimalYield Yield { get; init; }
 }
 
+/// <summary>A player animal with a CompEggLayer; eggs need no handler.</summary>
 public sealed record EggLayerAnimal
 {
     public required string PawnId { get; init; }
 
     public required string Race { get; init; }
 
-    public bool? CanLayNow { get; init; }
-
-    public double? Progress { get; init; }
-
-    public double? NutritionPerDay { get; init; }
-
-    public double? LeadDays { get; init; }
-
-    public bool? Active { get; init; }
-
-    public bool? Fertilized { get; init; }
+    public required AnimalYield Yield { get; init; }
 }
 
 /// <summary>A player nutrient paste dispenser: its power and the eligible feed nutrition in its hoppers.</summary>
@@ -6142,13 +6149,14 @@ public sealed record ForagePlant
     public required string DefName { get; init; }
 }
 
+/// <summary>One player pen's PenFoodCalculator: its daily demand, the worst quadrum's pasture per day and the stockpiled nutrition.</summary>
 public sealed record PenGrazing
 {
-    public double? DemandPerDay { get; init; }
+    public required double DemandPerDay { get; init; }
 
-    public double? PasturePerDay { get; init; }
+    public required double PasturePerDay { get; init; }
 
-    public double? StoredNutrition { get; init; }
+    public required double StoredNutrition { get; init; }
 }
 
 /// <summary>
@@ -6165,13 +6173,14 @@ public sealed record PastureTerrain
     public required double WorstQuadrumPerDay { get; init; }
 }
 
+/// <summary>A player animal whose meat the colony eats, with its live MeatAmount stat; other animals have no row.</summary>
 public sealed record FoodSlaughterAnimal
 {
     public required string PawnId { get; init; }
 
     public required string Race { get; init; }
 
-    public double? MeatAmount { get; init; }
+    public required double MeatAmount { get; init; }
 }
 
 /// <summary>The food source census, read whole every colony read; FishableWater is null without Odyssey.</summary>
