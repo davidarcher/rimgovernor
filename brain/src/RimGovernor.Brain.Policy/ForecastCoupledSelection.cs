@@ -405,7 +405,7 @@ public sealed partial record ForecastCoupledSelection
         var unplaced = candidates.Context.PlannedSites.SelectMany(s => s.Activities).ToHashSet(StringComparer.Ordinal);
         // A placed shell (#3537): the placed ring sites of a priced planned room close it as its planned ring sites do, so their
         // construction roots are the room's as a planned site root is, by ExclusiveOutcome.
-        var pricedRooms = candidates.Context.PlannedRoomRoles.Where(r => candidates.Context.PricedRoomRoles.Contains(r.Value)).Select(r => r.Key).ToHashSet();
+        var pricedRooms = candidates.Context.PlannedRoomRoles.Keys.Where(candidates.Context.Priced).ToHashSet();
         var placedRings = candidates.Context.Closures.Where(c => pricedRooms.Contains(c.Room) && c.Placed.Count != 0)
             .Select(c => (c.Ring, Placed: c.Placed.Select(p => ConstructionOutcome + p.Site).ToArray())).ToArray();
         var placedRing = placedRings.SelectMany(c => c.Placed).ToHashSet(StringComparer.Ordinal);
@@ -987,17 +987,19 @@ public sealed partial record ForecastCoupledSelection
             Metric(rows, unknown, "food", Term.ZeroAtHorizon), Metric(rows, unknown, "rest", Term.ZeroAtHorizon)
         };
         // Delivered clothing is development, not wearing or physiological thermal protection. Planned development counts
-        // what the schedule completes, whichever root built it, each physical site once (#3334), but not a priced room's (#3651).
+        // what the schedule completes, whichever root built it, each physical site once (#3334), but not a priced room's, its
+        // floors and removals included (#3651, #3796).
+        var priced = context is null ? null : PlannedRoomCredits.PricedUnits(context);
         Dictionary<string, double>? relief = null;
         foreach (var c in commitments)
         {
             if (c.Outcome?.Requirements is not { } requirements) continue;
             foreach (var r in requirements.Relief)
-                if (goalRelief?.Contains(r.Need) != true) (relief ??= new(StringComparer.Ordinal))[r.Need] = relief.GetValueOrDefault(r.Need) + r.Fraction;
+                if (goalRelief?.Contains(r.Need) != true && priced?.Contains(r.Need) != true) (relief ??= new(StringComparer.Ordinal))[r.Need] = relief.GetValueOrDefault(r.Need) + r.Fraction;
         }
         double delivered = 0;
         if (relief is not null) foreach (var fraction in relief.Values) delivered += Math.Min(1, fraction);
-        var development = delivered + UnpricedDevelopment(outcome.RequestedDevelopment, context);
+        var development = delivered + UnpricedDevelopment(outcome.RequestedDevelopment, priced);
         var moodKnown = rows.Count > 0; var breakKnown = true;
         double exposure = 0, pressure = 0, breaks = 0;
         foreach (var needs in rows.Values)
@@ -1069,19 +1071,14 @@ public sealed partial record ForecastCoupledSelection
     }
 
     /// <summary>
-    /// The completed planned units the development tiebreak counts (#3651, #3647 decision 3): every unit except a site, or the
-    /// <c>planned/room{R}/roof</c> unit, of a room whose role (ForecastCoupledContext.PlannedRoomRoles) is priced
-    /// (ForecastCoupledContext.PricedRoomRoles). Every unit counts without a context or a priced role.
+    /// The completed planned units the development tiebreak counts (#3651, #3647 decision 3): every unit except a priced
+    /// room's (<paramref name="priced"/>, PlannedRoomCredits.PricedUnits, #3796). Every unit counts without a context.
     /// </summary>
-    private static int UnpricedDevelopment(EquatableArray<string> units, ForecastCoupledContext? context)
+    private static int UnpricedDevelopment(EquatableArray<string> units, IReadOnlySet<string>? priced)
     {
-        if (context is null || context.PricedRoomRoles.Count == 0 || units.Count == 0) return units.Count;
-        var priced = context.PlannedRoomRoles.Where(r => context.PricedRoomRoles.Contains(r.Value)).Select(r => r.Key).ToHashSet();
-        if (priced.Count == 0) return units.Count;
-        var skipped = context.PlannedSites.Where(s => priced.Contains(s.Room)).Select(s => s.Site)
-            .Concat(priced.Select(room => FormattableString.Invariant($"planned/room{room}/roof"))).ToHashSet(StringComparer.Ordinal);
+        if (priced is null || priced.Count == 0) return units.Count;
         var count = 0;
-        foreach (var unit in units) if (!skipped.Contains(unit)) count++;
+        foreach (var unit in units) if (!priced.Contains(unit)) count++;
         return count;
     }
 

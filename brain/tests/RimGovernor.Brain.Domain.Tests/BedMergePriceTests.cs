@@ -361,7 +361,7 @@ public sealed class BedMergePriceTests
         Assert.Equal(Known(2.0), ForecastHousing.BedroomMoodDelta(plain, Known(0), default));
         var observed = Known(EquatableArray.From(new[] { new MoodThought("Ascetic", 3) }));
         Assert.Equal(Known(-3.0), ForecastHousing.BedroomMoodDelta(ascetic, Known(0), observed, barracks: true));
-        Assert.Contains(PlannedRole.Barracks, ForecastPlannedSite.PricedRoomRoles);
+        Assert.True(PlannedRoomCredits.Shipped.ContainsKey(PlannedRole.Barracks));
     }
 
     // The game's wall and door: 135 and 850 work, five and 25 stuff; wood builds them at 0.7 work, granite blocks at 2.

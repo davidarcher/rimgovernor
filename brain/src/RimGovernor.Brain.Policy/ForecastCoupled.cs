@@ -32,25 +32,13 @@ public sealed record ForecastPlannedSite(string Site, int Room, string Stuff, Eq
     /// <summary>The Need of a planned site root's outcome, which marks the root as one: the selection exempts its closure
     /// from the thermal-relief gate (#3651). The units are counted from the evaluated outcome (ForecastCoupledOutcome.RequestedDevelopment).</summary>
     public const string DevelopmentNeed = "requested-development";
-
-    /// <summary>
-    /// The planned room roles that carry a priced value of their own (#3651, #3647 decision 3): their completed units are
-    /// still emitted and exempt, but no longer count as development in the ranking's late tiebreak, and their deliveries are
-    /// charged the material they consume (ForecastValue.ChargedMaterialActivities, #3653). Each priced role is added here:
-    /// Bedroom, valued by the housed pawn's mood gain (ForecastValue.BedroomCredits, #3655), and Barracks, by each sleeper's
-    /// (#3658); the rest follow (#3650).
-    /// </summary>
-    public static readonly IReadOnlySet<PlannedRole> PricedRoomRoles = new HashSet<PlannedRole> { PlannedRole.Bedroom, PlannedRole.Barracks };
 }
-
-/// <summary>A planned room one schedule closes (#3655): the room, the ring stuff it closes in and the tick it closes at.</summary>
-public sealed record ForecastRoomClosure(int Room, string Stuff, double ClosedAt);
 
 /// <summary>
 /// What one schedule completes of a planned room: the planned sites (ids) whose finish completes inside the horizon,
 /// and the room alternatives all of whose sites do. A room with completed sites and no complete alternative reports
-/// its later effect unassessed (planned_room_effect_unassessed), never as zero, unless its open ring's closure is
-/// projected (#3744), which assesses it.
+/// its later effect unassessed (planned_room_effect_unassessed), never as zero, unless its service day is projected
+/// (PlannedRoomCredits.ServiceDays, #3796), which assesses it.
 /// </summary>
 public sealed record ForecastPlannedRoomOutcome(int Room, EquatableArray<string> CompletedSites, EquatableArray<string> Complete);
 
@@ -72,27 +60,31 @@ public sealed record ForecastCoupledContext
     public EquatableArray<PlannedRoomAlternative> PlannedRooms { get; init; }
     /// <summary>Each planned room's role, from the layout plan (#3651); a room without a row counts as development.</summary>
     public IReadOnlyDictionary<int, PlannedRole> PlannedRoomRoles { get; init; } = new Dictionary<int, PlannedRole>();
-    /// <summary>The roles whose units the development count skips (#3651); the shipped set by default, tests inject one.</summary>
-    public IReadOnlySet<PlannedRole> PricedRoomRoles { get; init; } = ForecastPlannedSite.PricedRoomRoles;
+    /// <summary>The credit of each priced room role (#3796): a role is priced when it has one (PlannedRoomCredits). The shipped
+    /// credits by default; tests inject one.</summary>
+    public IReadOnlyDictionary<PlannedRole, RoomCredit> RoomCredits { get; init; } = PlannedRoomCredits.Shipped;
     /// <summary>The closed-room predictions of the planned rooms (#3339): what each room is once its ring of one stuff stands.</summary>
     public EquatableArray<ForecastPlannedClosure> Closures { get; init; }
-    /// <summary>The builders an unfinished ring's closure is projected over (#3744): the free colonists of the needs census
+    /// <summary>The builders a room's owed work is projected over (#3744, #3796): the free colonists of the needs census
     /// capable of Construction (LayoutClusterRules.BuildersOf). None (none free, or their work facts unread) projects nothing.</summary>
     public int PlannedBuilders { get; init; }
-    /// <summary>The ring work in ticks (#3744) of each planned ring, vent and roof site (by site id: the least finish,
-    /// FinishTicks or a roof's RoofCellWorkTicks per cell, plus the least delivery haul it was generated with) and of each
-    /// placed ring site (by thing id: the least work of its FinishFrame tasks). A ring with a site without a row is not projected.</summary>
-    public IReadOnlyDictionary<string, double> RingWork { get; init; } = new Dictionary<string, double>(StringComparer.Ordinal);
+    /// <summary>The owed work in ticks (#3744, #3796) of each planned site (by site id: the least finish, FinishTicks or a
+    /// roof's RoofCellWorkTicks per cell, plus the least delivery haul and clearing it was generated with) and of each placed
+    /// site and standing removal (by its id: the least work of its finishes). A room owing an item without a row is not projected.</summary>
+    public IReadOnlyDictionary<string, double> OwedWork { get; init; } = new Dictionary<string, double>(StringComparer.Ordinal);
+    /// <summary>The placed sites and standing removals the planned rooms hold (#3796, epic #3650 P4), by the rooms whose
+    /// interior or ring cells hold them: part of those rooms' owed work.</summary>
+    public EquatableArray<ForecastRoomItem> RoomItems { get; init; }
     /// <summary>The open planned rooms (#3744, #3754): observed started (RoundsBuildingPlanner.PlannedRoomStartedOf) and not
-    /// done (PlannedRules.PlannedRoomDone, as their latest reconcile found). Their open rings close first in the projection.
-    /// Set by the round beside <see cref="InvestmentHorizonDays"/>; none by default.</summary>
+    /// done (PlannedRules.PlannedRoomDone, as their latest reconcile found). Their owed work is done first in the service-day
+    /// projection (#3796). Set by the round beside <see cref="InvestmentHorizonDays"/>; none by default.</summary>
     public IReadOnlySet<int> OpenRooms { get; init; } = new HashSet<int>();
     /// <summary>Per planned bedroom, the colonists the bedroom step would move into it (SleepingRules.PlannedBedroomOccupants,
     /// #3655, #3656: one, or a couple), by pawn id; a bedroom without a row houses nobody and earns no credit.</summary>
     public IReadOnlyDictionary<int, EquatableArray<string>> BedroomOccupants { get; init; } = new Dictionary<int, EquatableArray<string>>();
-    /// <summary>The days a closed bedroom's credit runs to (#3655): the horizon tier 2 ran over (ColonyModelPolicy.HorizonDays),
-    /// set beside <see cref="Investment"/>; unknown before tier 2 ran, which credits nothing.</summary>
-    public Fact<double> InvestmentHorizonDays { get; init; }
+    /// <summary>The days a served room's credit runs to (#3655, #3796): the horizon tier 2 ran over (ColonyModelPolicy.HorizonDays),
+    /// set beside <see cref="Investment"/>; 0 before tier 2 ran, which credits nothing.</summary>
+    public double InvestmentHorizonDays { get; init; }
     public EquatableArray<ForecastMaterialLot> InitialLots { get; init; }
     public EquatableArray<CoupledFoodUse> FoodUses { get; init; }
     public EquatableArray<ForecastNeedTask> NeedTasks { get; init; }
@@ -141,12 +133,14 @@ public sealed record ForecastCoupledOutcome(ForecastActivityPlan Plan, Fact<bool
     public EquatableArray<string> CompletedDevelopmentSites { get; init; }
     /// <summary>Per planned room with a site completed inside the horizon: its completed sites and complete alternatives.</summary>
     public EquatableArray<ForecastPlannedRoomOutcome> PlannedRooms { get; init; }
-    /// <summary>The planned rooms the schedule closes inside the horizon (ForecastRoofConsequences.PlannedClosedRooms, #3655),
-    /// and the open rings it leaves at their projected closure past the horizon (#3744).</summary>
-    public EquatableArray<ForecastRoomClosure> ClosedRooms { get; init; }
+    /// <summary>The planned rooms the schedule serves (PlannedRoomCredits.ServiceDays, #3796): inside the horizon once it
+    /// finishes their owed work, past it at their projected service day.</summary>
+    public EquatableArray<ForecastRoomService> ServedRooms { get; init; }
+    /// <summary>The planned rooms the schedule touches whose service day is unassessed (no builders, or owed work without a row).</summary>
+    public EquatableArray<int> UnassessedRooms { get; init; }
     /// <summary>The planned development units completed inside the horizon (#3334): each planned site once, and a planned
     /// room's per-cell roof as its <c>planned/room{R}/roof</c> unit. One unit each of requested development, except a unit
-    /// of a room whose role is priced (ForecastCoupledContext.PricedRoomRoles, #3651), which the ranking does not count.</summary>
+    /// of a priced room (PlannedRoomCredits.PricedUnits, #3651, #3796), which the ranking does not count.</summary>
     public EquatableArray<string> RequestedDevelopment { get; init; }
     /// <summary>Known stationary-location exposure avoided relative to the same occupancy without proposed room changes.
     /// Unobserved transit/idle receive no benefit.</summary>

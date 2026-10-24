@@ -88,6 +88,9 @@ public static partial class PlannedRules
         return [.. placed.Where(s => s.Id.Length != 0 && s.Building is { } b && ring.Contains(b.Cell)).OrderBy(s => s.Id, StringComparer.Ordinal)];
     }
 
+    /// <summary>A planned room's interior and ring cells (#3796, epic #3650 P4): a placed site or removal on one is the room's.</summary>
+    internal static IReadOnlySet<Cell> RoomFootprint(PlannedRoom room) => RectCells(PlannedRoom.RoomWalls(room)).Concat(room.Region.Cells()).ToHashSet();
+
     /// <summary>A planned room's ring stuffs in read order; one "" when its ring sites name none.</summary>
     internal static IReadOnlyList<string> RingStuffs(IEnumerable<PlannedBuildSite> ring)
     {

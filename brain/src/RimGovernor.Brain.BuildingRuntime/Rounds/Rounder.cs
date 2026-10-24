@@ -749,7 +749,7 @@ public sealed partial class Rounder
             // A goal tier 2 priced is paid at its marginal value, not the flat share (#3505); the clothing runway demands the stuff it chose (#3623).
             reading = reading.WithFacts(rf => rf with
             {
-                CoupledAlternatives = coupled with { Context = coupled.Context with { ModelBasis = model.Basis, Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = Known(model.HorizonDays), BedroomOccupants = occupants, OpenRooms = open, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
+                CoupledAlternatives = coupled with { Context = coupled.Context with { ModelBasis = model.Basis, Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = model.HorizonDays, BedroomOccupants = occupants, OpenRooms = open, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
                 ClothingStuff = model.ClothingStuff,
             });
             ClockEvents.Event("routine", ColonyModelTelemetry.Kind, "colony model ran", [.. model.Attrs()]);
@@ -1142,7 +1142,7 @@ partial class Rounder
             var stands = ReconcileRules.Reconcile(input with { Ground = PlannedRules.RingStandsGround(input.Ground, now) }).Owed;
             // Once a priced room's ring stands, its walls are owed as swaps (#3657): the sites offer each other ring stuff
             // as a wall upgrade, which the selection prices against the room's value. An unpriced room is offered none.
-            IReadOnlyList<Operation> swaps = ForecastPlannedSite.PricedRoomRoles.Contains(room.Role)
+            IReadOnlyList<Operation> swaps = PlannedRoomCredits.Shipped.ContainsKey(room.Role)
                 ? [.. ReconcileRules.Reconcile(input with { WallUpgrade = _ => true }).Owed.Where(o => o.Kind == OpKind.WallUp)]
                 : [];
             sited.Add((room, [.. PlannedRules.PlannedSitedOps(now, stands), .. swaps]));

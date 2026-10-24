@@ -360,7 +360,7 @@ public static partial class ForecastValue
         foreach (var contribution in contributions) earned += contribution.Value;
         var goals = Known(-earned);
         var investmentRows = InvestmentOf(outcome, context, index, horizon, findings);
-        ForecastHousing.BedroomCredits(outcome, context, horizon, investmentRows, findings);
+        PlannedRoomCredits.Credit(outcome, context, horizon, investmentRows, findings);
         double invested = 0;
         foreach (var row in investmentRows) invested += row.Value;
         var investment = Known(invested);
@@ -434,8 +434,8 @@ public static partial class ForecastValue
     /// <see cref="ForecastCoupledContext.MaterialValues"/> (#3653): one priced at market value is named
     /// material_value_market, one unpriced is named material_value_unpriced and adds no row. Each fueled source of a shelter whose
     /// shell the outcome completes inside the horizon (<see cref="FueledShelters"/>, #3673, #3679) is charged its burn from then,
-    /// FuelPerTick × (horizon − complete) units of its fuel, the same way, on a row of that source with no pawn. A closed planned bedroom's credit
-    /// (<see cref="ForecastHousing.BedroomCredits"/>, #3655) is added beside these rows.
+    /// FuelPerTick × (horizon − complete) units of its fuel, the same way, on a row of that source with no pawn. A served priced room's credit
+    /// (<see cref="PlannedRoomCredits.Credit"/>, #3655, #3796) is added beside these rows.
     /// </summary>
     private static List<ForecastInvestmentContribution> InvestmentOf(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index,
         double horizon, SortedSet<string> findings)

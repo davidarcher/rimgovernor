@@ -28,16 +28,15 @@ public static partial class ForecastValue
 
     /// <summary>
     /// The activities whose consumed inputs the ledger charges as material: the composed realizations of the planned sites
-    /// of rooms whose role is priced (<see cref="ForecastCoupledContext.PricedRoomRoles"/>). Every other construction root,
+    /// of priced rooms (<see cref="PlannedRoomCredits.Priced"/>: their role has a credit, #3796). Every other construction root,
     /// placed sites included, stays free until its role is priced (#3653 decision 1). Of a site's realizations only its
     /// deliveries consume anything; a refuel or support draw on the same stack is another activity and is not charged.
     /// </summary>
     internal static HashSet<string> ChargedMaterialActivities(ForecastCoupledContext context)
     {
         var charged = new HashSet<string>(StringComparer.Ordinal);
-        if (context.PricedRoomRoles.Count == 0) return charged;
         foreach (var site in context.PlannedSites)
-            if (context.PlannedRoomRoles.TryGetValue(site.Room, out var role) && context.PricedRoomRoles.Contains(role))
+            if (context.Priced(site.Room))
                 charged.UnionWith(site.Activities);
         return charged;
     }

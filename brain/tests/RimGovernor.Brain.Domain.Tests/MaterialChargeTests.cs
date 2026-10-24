@@ -48,7 +48,7 @@ public sealed class MaterialChargeTests
             Needs = new(), Resources = ForecastValueTests.Resources(),
             PlannedSites = [new("planned/room1/wall/WoodLog", 1, "WoodLog", [Delivery, "planned/room1/wall/WoodLog/finish"], [])],
             PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom },
-            PricedRoomRoles = priced ? new HashSet<PlannedRole> { PlannedRole.Bedroom } : new HashSet<PlannedRole>(),
+            RoomCredits = priced ? PlannedRoomCredits.Shipped : new Dictionary<PlannedRole, RoomCredit>(),
             MaterialValues = values,
         };
         var plan = new ForecastActivityPlan(

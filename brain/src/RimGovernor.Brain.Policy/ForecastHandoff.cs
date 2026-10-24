@@ -14,7 +14,8 @@ public sealed record ForecastHandoff(ColonyModelState State, EquatableArray<Fore
     public EquatableArray<ForecastTerminalEffect> ActiveEffects { get; init; }
     public EquatableArray<ForecastShelterOutcome> Shelters { get; init; }
     public EquatableArray<ForecastShelterPlan> ShelterPlans { get; init; }
-    public EquatableArray<ForecastRoomClosure> ClosedRooms { get; init; }
+    /// <summary>The planned rooms the selected schedule serves (#3796), at their service days.</summary>
+    public EquatableArray<ForecastRoomService> ServedRooms { get; init; }
 }
 
 /// <summary>The same evaluation's compact accounting. Expensive model/skill projection is deferred until selection.</summary>
@@ -146,7 +147,7 @@ public static class ForecastHandoffPolicy
                     SupplyTicks = s.SupplyTicks.IsKnown ? Known(Math.Max(0, s.SupplyTicks.Value -
                         (day * GameTime.TicksPerDay - outcome.Shelters.Single(o => o.Room == p.Room).CompleteAt.Value))) : default })) }));
         return new(state, EquatableArray.From(needs), EquatableArray.From(dates), EquatableArray.From(gaps))
-        { Graph = projected.Graph, ActiveEffects = active, Shelters = outcome.Shelters, ShelterPlans = shelterPlans, ClosedRooms = outcome.ClosedRooms };
+        { Graph = projected.Graph, ActiveEffects = active, Shelters = outcome.Shelters, ShelterPlans = shelterPlans, ServedRooms = outcome.ServedRooms };
     }
 
     private static bool SameStocks(Fact<EquatableArray<Amount>> a, Fact<EquatableArray<Amount>> b) => a.IsKnown && b.IsKnown

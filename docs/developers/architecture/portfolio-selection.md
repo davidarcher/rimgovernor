@@ -57,9 +57,31 @@ A planned site finished inside the horizon is one unit of requested development,
 the lowest tier, whichever root built it: its own site root, a room alternative or a
 shelter. A planned room's per-cell native roof cells are together that room's one
 roof unit, earned when every cell completes. A whole planned room carries no value
-of its own. A room whose role carries a priced value (`PricedRoomRoles`: a
-bedroom, credited its occupant's mood, #3651, #3655) leaves this count; its sites are still
-emitted and exempt. Work in the closure of a selected planned site root, or of
+of its own. A room whose role carries a credit (a priced room, below) leaves this
+count: its sites, its roof unit and the `flooring/` and `removal/` relief of the
+floors and removals on its interior or ring cells (a shared wall's leaves when
+either room is priced); its sites are still emitted and exempt.
+
+*Planned-room credit seam (#3796, epic #3650 P2/P3).* A role is priced exactly when
+`ForecastCoupledContext.RoomCredits` (`PlannedRoomCredits.Shipped`: `Bedroom` and
+`Barracks`, both `ForecastHousing.BedroomCredit`) holds a credit for it:
+
+- `delegate IReadOnlyList<RoomGain>? RoomCredit(ForecastRoomService room, outcome, context, horizonTicks)`
+  returns the room's gains per served day (`RoomGain(Subject, Pawn, PerDay)`); null is unassessed.
+- `context.Priced(room)` is the derived priced test, `PlannedRoomCredits.PricedUnits(context)`
+  the development units and relief needs a priced room takes out of the count. Material charges,
+  Selection's placed-ring roots and the Rounder's wall swaps read the same derived set.
+- `PlannedRoomCredits.ServiceDays(context, finishedAt, horizon)` gives each room its service day:
+  the day its one reconcile owes nothing (sites, placed ring pieces, floors and removals on its
+  cells, all one job). Inside the schedule it is the last item's finish; left owing, it is the
+  cumulative owed work (`Context.OwedWork`: finished work first, then started rooms, then the
+  rest, each by its remaining work) over `PlannedBuilders`, never before the horizon.
+- `PlannedRoomCredits.Credit` books each gain as one Investment row `{role}/{room}/{subject}`
+  of `PerDay × RingClosure.CreditDays(InvestmentHorizonDays, serviceDay)` units. A priced room
+  with no builders, an unknown owed work or a null credit is named `{role}_credit_unassessed:{room}`
+  and credited nothing.
+
+Work in the closure of a selected planned site root, or of
 a commitment that carries relief, is exempt from the thermal-relief gate on
 construction allocations.
 
@@ -340,7 +362,7 @@ no answer yet is open. The open rooms are the forecast's `OpenRooms`.
   stuff (`SelectedRingStuff`). The blueprints then start the room, and the rest
   of it is placed as before.
 
-A standing priced room (a `PricedRoomRoles` role) is offered its walls swapped to
+A standing priced room (a role in `PlannedRoomCredits.Shipped`) is offered its walls swapped to
 each other ring stuff (#3657): one `planned/room{id}/wallup/{stuff}` site per stuff
 over the walls not already in it, costed at that stuff's material and the swap's
 labor and valued by the stage the swap predicts (the bedroom credit). The record

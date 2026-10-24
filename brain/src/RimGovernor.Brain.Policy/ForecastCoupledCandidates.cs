@@ -274,8 +274,8 @@ public sealed partial record ForecastCoupledCandidates
         // A placed ring site's finishes are its FinishFrame tasks, any one of them (#3537).
         var placedFinishes = bindings.Values.Where(b => b.Kind == PawnActivityKind.Work && b.Job == "FinishFrame").GroupBy(b => b.Target, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => EquatableArray.From(g.Select(b => b.Id).Distinct().Order(StringComparer.Ordinal)), StringComparer.Ordinal);
-        // The ring work (#3744): a planned ring or roof site's, the least work of each of its work groups' options, summed;
-        // a placed ring site's, the least work of its finishes. A site with a group of no option with work has no row.
+        // The owed work (#3744, #3796): a planned site's, the least work of each of its work groups' options, summed; a room
+        // item's, the least work of its finishes. A site with a group of no option with work has no row.
         double LeastWork(IEnumerable<string> activities)
         {
             var of = activities.ToHashSet(StringComparer.Ordinal);
@@ -284,14 +284,25 @@ public sealed partial record ForecastCoupledCandidates
                 if (option.WorkTicks.TryGetValue(out var ticks)) least = Math.Min(least, ticks);
             return least;
         }
-        var ringWork = new Dictionary<string, double>(StringComparer.Ordinal);
+        var owedWork = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var site in planned.Sites.Where(s => s.WorkGroups.Length > 0))
         {
             var groups = site.WorkGroups.Select(g => LeastWork(g.SelectMany(id => composed.Realizations.GetValueOrDefault(id) ?? []))).ToArray();
-            if (groups.All(double.IsFinite)) ringWork[site.Site] = groups.Sum();
+            if (groups.All(double.IsFinite)) owedWork[site.Site] = groups.Sum();
         }
+        // The room items (#3796, epic #3650 P4): each generated placed site's finish and standing removal, by its site or
+        // designation id, owed by the planned rooms whose interior or ring cells hold its cell or set cells.
+        var footprints = (shelterEnabled ? facts.PlannedShelters : []).Where(r => r.Id > 0).GroupBy(r => r.Id)
+            .Select(g => (Room: g.Key, Cells: PlannedRules.RoomFootprint(g.First()))).ToArray();
+        var roomItems = construction.Bindings.Values.Where(b => b.Kind != PawnActivityKind.Supply).GroupBy(b => b.Target, StringComparer.Ordinal)
+            .OrderBy(g => g.Key, StringComparer.Ordinal).Select(g => new ForecastRoomItem(g.Key,
+                EquatableArray.From(footprints.Where(f => g.Any(b => f.Cells.Contains(b.Location) || b.Cells.Any(f.Cells.Contains))).Select(f => f.Room)),
+                EquatableArray.From(g.Select(b => b.Id).Distinct().SelectMany(id => composed.Realizations.GetValueOrDefault(id) ?? []).Distinct().Order(StringComparer.Ordinal))))
+            .Where(i => i.Rooms.Count != 0).ToArray();
+        foreach (var item in roomItems)
+            if (LeastWork(item.Finishes) is var work && double.IsFinite(work)) owedWork[item.Item] = work;
         foreach (var (site, finishes) in placedFinishes)
-            if (LeastWork(finishes) is var work && double.IsFinite(work)) ringWork[site] = work;
+            if (!owedWork.ContainsKey(site) && LeastWork(finishes) is var work && double.IsFinite(work)) owedWork[site] = work;
         var closures = shelterEnabled ? ForecastRoofConsequences.PlannedClosuresOf(allPlannedSites, facts.PlannedShelters, facts.PlannedRoomPredictions,
             facts.CurrentConstruction.TryGetValue(out var placedSites) ? placedSites.Sites : [], placedFinishes) : [];
         ForecastRoofConsequences.AddClosedBenchVariants(closures, productiveRoots, plannedRealized, tasks, options, bindings, alternatives,
@@ -338,7 +349,7 @@ public sealed partial record ForecastCoupledCandidates
             Closures = closures,
             PlannedBuilders = LayoutClusterRules.BuildersOf(facts.ForecastObserved.WorkPawns,
                 pawn => needs.Pawns.Any(p => p.Pawn == pawn) && !resources.Claims.Pawns.Contains(pawn)).TryGetValue(out var builders) ? builders : 0,
-            RingWork = ringWork,
+            OwedWork = owedWork,
             InitialLots = EquatableArray.From(lots),
             FoodUses = read.FoodUses,
             Bindings = bindings,

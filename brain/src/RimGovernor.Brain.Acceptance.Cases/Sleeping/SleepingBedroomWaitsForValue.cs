@@ -17,7 +17,8 @@ internal static class SleepingBedroomWaitsForValue
     private const string Project = "Brewing";
     // Any room's credit: the first hourly replan sites the unbuilt bedroom again under a new id (tile_sited_again), so
     // the case reads the room from the credit key, not the injected id.
-    private const string BedroomKey = "bedroom/";
+    // A bedroom's or a barracks' credit row (#3796: keyed by the room's role).
+    private static bool BedroomKey(string key) => key.StartsWith("bedroom/", StringComparison.Ordinal) || key.StartsWith("barracks/", StringComparison.Ordinal);
 
     // A 16x8 site: the roofed 8x5 barracks with both colonists' beds at its west end, the planned bedroom's 3x3 interior at
     // (12..14, 2..4) with its door south, and the research bench, the logs and the meals between them.
@@ -78,7 +79,7 @@ internal static class SleepingBedroomWaitsForValue
         Run = RunAsync,
     };
 
-    private static bool Bedroom(CoupledOutcome outcome) => outcome.Contributions?.Any(c => c.Key.StartsWith(BedroomKey, StringComparison.Ordinal)) == true;
+    private static bool Bedroom(CoupledOutcome outcome) => outcome.Contributions?.Any(c => BedroomKey(c.Key)) == true;
 
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
@@ -110,7 +111,7 @@ internal static class SleepingBedroomWaitsForValue
         }, cancellationToken).ConfigureAwait(false);
 
         var row = priced ?? throw new AcceptanceException("no coupled selection priced the planned bedroom's credit");
-        var credit = (row.Rejected.Prepend(row.Selected).First(Bedroom).Contributions ?? []).First(c => c.Key.StartsWith(BedroomKey, StringComparison.Ordinal));
+        var credit = (row.Rejected.Prepend(row.Selected).First(Bedroom).Contributions ?? []).First(c => BedroomKey(c.Key));
         s.Record("selection", string.Create(CultureInfo.InvariantCulture,
             $"{row.Verdict} ids=[{string.Join(' ', row.SelectedIds)}] goals={row.Selected.Goals} investment={row.Selected.Investment} bedroom={credit.Key}:{credit.Value} unknown=[{string.Join(' ', row.Selected.Unknown ?? [])}]"));
         if (!(credit.Value < 0))

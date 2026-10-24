@@ -400,8 +400,8 @@ cooking) moves a stock tier 2 valued gains `-(applied XP × value per XP)` under
 input an allocation consumes that tier 2 holds as a medicine kind is charged `+(units × value per unit)` under `medicine/<kind>`. Real
 work of every kind earns the same credit per XP; a key without a marginal adds nothing, so with no marginals the term is unchanged.
 
-*Construction material (#3653, #3647 decision 2).* A delivery composed for a planned room whose role is in `PricedRoomRoles`
-consumes its material, and the Investment term charges `+(units × value per unit)` under `material/<def>`, one
+*Construction material (#3653, #3647 decision 2).* A delivery composed for a priced planned room (`ForecastCoupledContext.Priced`: its role has a
+credit in `RoomCredits`, #3796) consumes its material, and the Investment term charges `+(units × value per unit)` under `material/<def>`, one
 `investment_contributions` row each. Every other construction root, placed sites included, stays free until its role is priced
 (#3650): a cost with no credit would stop it. Refuel and support draws on the same stack are other activities and are not
 charged. The value per unit is the work to replace one unit (`ForecastValue.MaterialValueOf`), priced once per review before the
@@ -410,15 +410,17 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped `PricedRoomRoles` holds `Bedroom` (#3655) and `Barracks` (#3658).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655) and `Barracks` (#3658).
 Each fueled source with a known burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 with the native `ThermalSource.Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
 pawn; each fuel is one of
 `ForecastValue.ChargedMaterials` and priced the same way. The climate watts model does not charge fuel.
 
-*Bedroom credit (#3655, #3647).* A schedule that closes a planned bedroom (`ForecastRoofConsequences.PlannedClosedRooms`, logged
-on the outcome as `ClosedRooms`) is credited, in the Investment term under `bedroom/<room>/<pawn>`, the mood gain of the colonist
+*Bedroom credit (#3655, #3647).* A planned bedroom the outcome serves (`PlannedRoomCredits.ServiceDays`, logged on the outcome
+as `ServedRooms`; #3796, the day its reconcile owes nothing, furniture included) is credited through the room credit seam
+(`ForecastHousing.BedroomCredit`, `PlannedRoomCredits.Credit`), in the Investment term under `bedroom/<room>/<pawn>`
+(`barracks/<room>/<pawn>` for a barracks), the mood gain of the colonist
 the bedroom step would move into it (`SleepingRules.PlannedBedroomOccupants`, `ForecastCoupledContext.BedroomOccupants`, room →
 pawns: the step's order, the unhoused taking the vacant bedroom beds, then the planned barracks' bunks in id order, then the owed
 rooms in plan order, a bedroom its colonist and that colonist's waiting partner, a barracks one per missing bed slot), else the one
@@ -435,10 +437,11 @@ Ascetic thought it has, #3658). The pricing is `ForecastHousing`, which the pric
 - *Gain per day* (`GainPerDay`): `WellbeingWeight × delta / 100`, plus the break days a day the tier-1 target mood shifted by
   `delta / 100` saves against the unshifted one (`MoodBreaks.DaysLost` on `BreakTierTicks` and `ShiftedBreakTierTicks`, the
   timeline integrating each shift with its own clamp at 0 and 1).
-- *Credit*: the gain × (H − closure day), H tier 2's `HorizonDays` (`ForecastCoupledContext.InvestmentHorizonDays`); a gain, so negative.
+- *Credit*: the gain × (H − service day), H tier 2's `HorizonDays` (`ForecastCoupledContext.InvestmentHorizonDays`); a gain, so negative.
 
-An occupant whose stage, bed, observed thoughts or mood is unread is named `bedroom_credit_unassessed:<pawn>` and earns nothing. A
-bedroom with no occupant, or one that does not close inside the tier-1 horizon, pays its material with no credit and waits.
+A room any of whose occupants' stage, bed, observed thoughts or mood is unread, or whose service day is unknown, is named
+`bedroom_credit_unassessed:<room>` (`barracks_credit_unassessed:<room>`) and earns nothing. A bedroom with no occupant, or one
+not served before tier 2's horizon, pays its material with no credit and waits.
 
 *Who moves first (#3656).* A vacant bedroom bed, standing or planned, goes to the unhoused colonist with the largest priced gain
 from it (`ForecastHousing.LargestGainFirst`, a stable sort, so ties keep id order). The gain is read before the search, from

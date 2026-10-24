@@ -655,7 +655,7 @@ public sealed class PlannedRoomActivitiesTests
         var bedroom = facts with { PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Bedroom)] }) };
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(bedroom, Horizon)!.Priced();
         Assert.Equal(PlannedRole.Bedroom, generated.Context.PlannedRoomRoles[1]);
-        Assert.Contains(PlannedRole.Bedroom, generated.Context.PricedRoomRoles);
+        Assert.True(generated.Context.Priced(1));
         var priced = bedroom with { CoupledAlternatives = generated };
         var result = Select(priced);
         string[] roomSites = ["planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"];
@@ -688,7 +688,7 @@ public sealed class PlannedRoomActivitiesTests
             result.Rejected.Where(e => e.Consequences is not null).Select(e => e.Consequences!).Append(result.SelectedVector);
         var values = new Dictionary<Resource, ConstructionMaterialValue> { [new("WoodLog")] = new(MaterialValueBasis.Labor, perUnit) };
 
-        var unpriced = Select(bedroom with { CoupledAlternatives = generated with { Context = generated.Context with { PricedRoomRoles = new HashSet<PlannedRole>(), MaterialValues = values } } });
+        var unpriced = Select(bedroom with { CoupledAlternatives = generated with { Context = generated.Context with { RoomCredits = new Dictionary<PlannedRole, RoomCredit>(), MaterialValues = values } } });
         Assert.All(Vectors(unpriced), v => Assert.DoesNotContain(v.Value.Ledger.InvestmentContributions, c => c.Key.StartsWith("material/", StringComparison.Ordinal)));
 
         var context = generated.Context with { MaterialValues = values };
@@ -743,7 +743,7 @@ public sealed class PlannedRoomActivitiesTests
                 Context = generated.Context with
                 {
                     BedroomOccupants = inside ? new Dictionary<int, EquatableArray<string>>() : new Dictionary<int, EquatableArray<string>> { [1] = [Pawn] },
-                    InvestmentHorizonDays = Known(10d),
+                    InvestmentHorizonDays = 10d,
                     MaterialValues = material.ToDictionary(m => new Resource(m.Key), m => new ConstructionMaterialValue(MaterialValueBasis.Labor, m.Value)),
                 },
             },
@@ -883,7 +883,7 @@ public sealed class PlannedRoomActivitiesTests
                 Context = generated.Context with
                 {
                     BedroomOccupants = occupants.ToDictionary(o => o.Key, o => EquatableArray.From([o.Value])),
-                    InvestmentHorizonDays = Known(10d),
+                    InvestmentHorizonDays = 10d,
                     PlannedBuilders = builders ?? 0,
                     OpenRooms = open.ToHashSet(),
                     Value = generated.Context.Value with { WellbeingWeight = 1 },
@@ -893,7 +893,7 @@ public sealed class PlannedRoomActivitiesTests
         };
     }
 
-    private static ForecastRoomClosure ClosureOf(ForecastCoupledOutcome outcome, int room) => Assert.Single(outcome.ClosedRooms, c => c.Room == room);
+    private static ForecastRoomService ClosureOf(ForecastCoupledOutcome outcome, int room) => Assert.Single(outcome.ServedRooms, c => c.Room == room);
 
     /// <summary>
     /// #3744 acceptance (a): one builder, bedroom ring A (room 1) started with two days of ring work left, which no
@@ -910,7 +910,7 @@ public sealed class PlannedRoomActivitiesTests
         var facts = Rings([Ring(OpKind.WallIn, "WoodLog", 2 * Day), b], roles, bedroom, builders: 1, open: [1]);
         var result = Select(facts, Day);
         Assert.False(PlannedSelected(result, b.Id), Why(facts, result));
-        Assert.Equal(2 * Day, ClosureOf(result.Baseline, 1).ClosedAt);
+        Assert.Equal(2 * Day, ClosureOf(result.Baseline, 1).ServedAt);
         Assert.Contains(BedroomCredits(result), c => c.Key == "bedroom/1/" + Pawn && c.Value < 0);
         // The delay is what holds B: unprojected, A's ring carries no credit for B to delay and B's development opens it.
         var unprojected = Rings([Ring(OpKind.WallIn, "WoodLog", 2 * Day), b], roles, bedroom, builders: null, open: [1]);
@@ -937,10 +937,10 @@ public sealed class PlannedRoomActivitiesTests
             new Dictionary<int, string> { [1] = Pawn, [2] = "colonist-01" }, builders: 3, open: [1], colonists: 2);
         var result = Select(facts, Day);
         Assert.True(PlannedSelected(result, b.Id), Why(facts, result));
-        var work = facts.CoupledAlternatives!.Context.RingWork[b.Id];
-        Assert.Equal(2 * Day, ClosureOf(result.Baseline, 1).ClosedAt);
-        Assert.Equal(2 * Day + (work / 3), ClosureOf(result.Selected, 1).ClosedAt, 6);
-        Assert.True(ClosureOf(result.Selected, 2).ClosedAt < Day);
+        var work = facts.CoupledAlternatives!.Context.OwedWork[b.Id];
+        Assert.Equal(2 * Day, ClosureOf(result.Baseline, 1).ServedAt);
+        Assert.Equal(2 * Day + (work / 3), ClosureOf(result.Selected, 1).ServedAt, 6);
+        Assert.True(ClosureOf(result.Selected, 2).ServedAt < Day);
         Assert.Contains(BedroomCredits(result), c => c.Key == "bedroom/2/colonist-01" && c.Value < 0);
     }
 
@@ -963,9 +963,9 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Equal([1], context.PlannedRooms.Select(a => a.Room).Distinct());
         var result = Select(facts, Day);
         Assert.True(PlannedSelected(result, ring[0].Id), Why(facts, result));
-        var work = context.PlannedSites.Sum(s => context.RingWork[s.Site]);
+        var work = context.PlannedSites.Sum(s => context.OwedWork[s.Site]);
         Assert.True(work > 3 * Day);
-        Assert.Equal(work, ClosureOf(result.Selected, 1).ClosedAt, 6);
+        Assert.Equal(work, ClosureOf(result.Selected, 1).ServedAt, 6);
         Assert.DoesNotContain(result.Selected.Findings, f => f.Reason == "planned_room_effect_unassessed");
         Assert.Contains(BedroomCredits(result), c => c.Key == "bedroom/1/" + Pawn && c.Value < 0);
         var record = PlannedRules.PlannedSelectionOf(facts.CoupledAlternatives, result, facts.PlannedSites)!;

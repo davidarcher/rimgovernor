@@ -751,7 +751,8 @@ public static partial class ForecastCoupled
             // Temperature mood (#3327): each Live temperature card along the pawn's assessed exposure spans, comfort shifts included.
             var temperatureCards = TemperatureCards(context);
             var needsByPawn = new Dictionary<string, ForecastNeedsResult>(pawns.Pawns.Length, StringComparer.Ordinal);
-            var closedRooms = ForecastRoofConsequences.PlannedClosedRooms(context, finishedAt, horizon);
+            var closedRooms = ForecastRoofConsequences.PlannedClosedRooms(context, finishedAt);
+            var service = PlannedRoomCredits.ServiceDays(context, finishedAt, horizon);
             // A bedroom occupant's mood also integrates breaks at its move's shift (#3655); constant per pawn, so the mood key holds.
             var breakShifts = ForecastHousing.BreakShifts(context);
             HashSet<string>? rejectedWork = null;
@@ -881,9 +882,9 @@ public static partial class ForecastCoupled
             var developmentId = pairKeys.Id(developmentRows);
             if (!plannedByDevelopment.TryGetValue(developmentId, out var planned))
                 plannedByDevelopment.Add(developmentId, planned = PlannedOf(plan));
-            // A room whose open ring is projected (#3744) is assessed by its projected closure.
+            // A room with a service day (#3796) is assessed by it.
             foreach (var room in planned.Unassessed)
-                if (!closedRooms.Any(r => r.Projected && "planned/room" + r.Room == room)) Finding("planned_room_effect_unassessed", room, horizon);
+                if (!service.Served.Any(r => "planned/room" + r.Room == room)) Finding("planned_room_effect_unassessed", room, horizon);
             var servicesId = allocs.Id(serviceRows);
             if (pawns.Support is not { } support && !supportByServices.TryGetValue(servicesId, out support))
                 supportByServices.Add(servicesId, support = ForecastSupport.ForecastSupportConsequencesOf(context, plan, completed, horizon));
@@ -903,7 +904,7 @@ public static partial class ForecastCoupled
                 PlannedRooms = EquatableArray.Wrap(planned.Rooms),
                 RequestedDevelopment = EquatableArray.Wrap(planned.Development),
                 CompletedDevelopmentSites = EquatableArray.Wrap(planned.Sites),
-                ClosedRooms = EquatableArray.From(closedRooms.Select(r => new ForecastRoomClosure(r.Room, r.Stuff, r.ClosedAt))),
+                ServedRooms = service.Served, UnassessedRooms = service.Unassessed,
             };
             return outcome with { Terminal = new(request, commitments, new Dictionary<Resource, Fact<double>>(inventoryWalk.Terminal), new Dictionary<string, double>(finishedAt, StringComparer.Ordinal), holds)
                 { Lots = TerminalLots(), FoodComplete = request.Facts.Food.Complete, MedicineComplete = request.Facts.Medicine.Items.IsKnown && physicalCensusComplete,

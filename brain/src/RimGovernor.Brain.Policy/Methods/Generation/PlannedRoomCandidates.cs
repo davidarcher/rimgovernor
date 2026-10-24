@@ -3,9 +3,9 @@ using RimGovernor.Contracts.Wire.Observations;
 namespace RimGovernor.Brain.Policy.Methods.Generation;
 
 /// <summary>
-/// The composition operations one planned site was generated as, and its finish. WorkGroups (#3744) are a ring or roof
-/// site's ring work: its finish, then its deliveries (the alternative sources as one group, or each stack of its set as
-/// its own); the ring work is the sum over groups of the least work of a group's options. None for any other site.
+/// The composition operations one planned site was generated as, and its finish. WorkGroups (#3744, #3796) are its owed
+/// work: its finish, then its deliveries (the alternative sources as one group, or each stack of its set as its own),
+/// then each clearing; the owed work is the sum over groups of the least work of a group's options.
 /// </summary>
 internal sealed record PlannedSiteOperations(string Site, int Room, string Stuff, string[] Operations, string Finish)
 {
@@ -240,7 +240,7 @@ internal static class PlannedRoomCandidates
                     { Producer = finish, Lot = site.Id, Kind = ForecastRequirementKind.Reusable, Provenance = "planned-finish-site:" + site.Id }]));
                 ids.Add(finish); finishes[site.Id] = finish;
                 roomSitesOps.Add(new(site.Id, site.Room, ring ? site.Stuff : "", [.. ids], finish)
-                    { WorkGroups = ring || site.Op == OpKind.RoofIn ? [[finish], .. hauls] : [] });
+                    { WorkGroups = [[finish], .. hauls, .. site.Clearing.Where(c => ids.Contains(c.Id)).Select(c => new[] { c.Id })] });
             }
             if (operations.Count + roomOperations.Count > OperationBudget)
             {

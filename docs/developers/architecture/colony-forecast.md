@@ -284,26 +284,29 @@ read as the thermal read, for each unplaced planned room closed in each ring stu
 `PlannedClosuresOf` joins each answer to the room's ring (wall and door sites of that
 stuff) and roof sites. In a schedule a room closes when the last of its ring sites
 finishes, earliest stuff first, and is roofed when its roof site (or the planned
-shelter's roof cells) has finished. A ring the schedule leaves open gets a projected
-closure past the horizon instead of none (#3744, `ProjectedClosures`, D6): a ring
-is open when its room is open (`Context.OpenRooms`: observed started, from
-`PlannedRoomStartedOf`, and not done, `PlannedRoomDone` as its latest reconcile
-found, `Rounder.DoneRooms`; #3754) or the schedule finished one of its planned sites. Its
-remaining ring work, per stuff, is the ring work (`Context.RingWork`, by site id)
-of its unfinished ring, vent and roof sites (the least finish option, FinishTicks or
-a roof's `RoofCellWorkTicks` times its cells, plus the least delivery option of each
-of its `PlannedSiteOperations.WorkGroups`) and of its unfinished placed ring sites
-(the least work of their FinishFrame tasks); the least stuff wins, and a ring with
-a site without a ring-work row is not projected. The builders
-(`Context.PlannedBuilders`: the needs census's free colonists capable of
-Construction, `LayoutClusterRules.BuildersOf`; none, or their work facts unread,
-projects nothing) first spend the ring work the schedule finished, then the started
-rings, then the rings the schedule opened, each group by its remaining work; the
-k-th closes at the cumulative work over the builders (`RingClosure.ClosedAt`, the
-estimate the bed merge sizes rooms with, #3748), never before the horizon, and its
-roof is not done. Only the outcome's final read projects; the reads inside the
-schedule keep the scheduled closures. The bedroom credit runs from the closure,
-scheduled or projected, to tier 2's horizon (`RingClosure.CreditDays`), none at or
+shelter's roof cells) has finished. These physical closures drive the per-tick
+reads inside the schedule only. A room's credit runs instead from its service day
+(#3796, epic #3650 P2, `PlannedRoomCredits.ServiceDays`, replacing #3744's ring
+projection): the day its one reconcile owes nothing. Its owed items, per stuff, are
+its planned sites (ring, roof, furniture, floors), its placed ring pieces, and the
+placed floor blueprints and removals on its interior or ring cells
+(`Context.RoomItems`; a shared-wall cell's are both rooms'), all one job. A room whose
+every item of one stuff finished in the schedule serves at the last finish, earliest
+stuff first. Otherwise it is owing when it is open (`Context.OpenRooms`: observed started, from
+`PlannedRoomStartedOf`, and not done, `PlannedRoomDone` as its latest reconcile found,
+`Rounder.DoneRooms`; #3754) or the schedule finished one of its items. Its remaining
+work is the owed work (`Context.OwedWork`, by item id) of its unfinished items (a
+planned site's least finish option, FinishTicks or a roof's `RoofCellWorkTicks` times
+its cells, plus the least option of each of its `PlannedSiteOperations.WorkGroups`,
+deliveries and clearings; a placed item's least work over its bound tasks); the least
+stuff wins, and a room with an item without an owed-work row is unassessed. The
+builders (`Context.PlannedBuilders`: the needs census's free colonists capable of
+Construction, `LayoutClusterRules.BuildersOf`; none, or their work facts unread, makes
+every owing room unassessed) first spend the owed work the schedule finished, then the
+open rooms, then the rooms the schedule opened, each group by its remaining work;
+the k-th serves at the cumulative work over the builders (`RingClosure.ClosedAt`, the
+estimate the bed merge sizes rooms with, #3748), never before the horizon. The credit
+runs from the service day to tier 2's horizon (`RingClosure.CreditDays`), none at or
 past it. Between those times a cell's state is the
 mirrored `Room` formulas over the predicted cell and open-roof counts:
 PsychologicallyOutdoors (300 open roof cells, or half open at the map edge) and
@@ -705,8 +708,8 @@ temperature safety is enabled (the placed-site gate; `planned_sites_unknown` whe
    the evaluated outcome (`RequestedDevelopment`): each planned site whose finish completes is one unit, the
    lowest tier, whichever root built it, and a planned shelter's per-cell native roof cells together are the
    room's one `planned/room{id}/roof` unit. The count skips the units of a room whose role
-   (`Context.PlannedRoomRoles`, from `PlannedSiteFacts.Roles`) is in `Context.PricedRoomRoles`
-   (`ForecastPlannedSite.PricedRoomRoles`: `Bedroom`, priced by its occupant's credit, #3651, #3655). Each alternative is also a root,
+   (`Context.PlannedRoomRoles`, from `PlannedSiteFacts.Roles`) has a credit in `Context.RoomCredits`
+   (`PlannedRoomCredits.PricedUnits`, #3796: `Bedroom` and `Barracks`, priced by their occupants' credit). Each alternative is also a root,
    `planned/room{id}[/{stuff}]/{scope}`, which requires all its sites' finishes and is not exempt;
    alternatives of a room exclude each other. Ring site roots of different stuffs, and the other stuffs'
    alternatives, are excluded from each other (`Outcome.Excludes`). Planned roots get no after-production

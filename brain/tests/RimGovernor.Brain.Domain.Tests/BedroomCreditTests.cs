@@ -42,7 +42,7 @@ public sealed class BedroomCreditTests
             Closures = [new(1, "WoodLog", [Inside], ["planned/room1/wall/WoodLog"], [],
                 new("1", "WoodLog", "Bedroom", Known(30d), Known(bedroomStage), 4, 0, false))],
             BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = ["pawn"] },
-            InvestmentHorizonDays = Known(Horizon),
+            InvestmentHorizonDays = Horizon,
             ObservedThoughts = new Dictionary<string, Fact<EquatableArray<MoodThought>>> { ["pawn"] = Known(EquatableArray.From(observed)) },
         };
 
@@ -59,7 +59,7 @@ public sealed class BedroomCreditTests
                 },
             },
         }, [])
-        { ClosedRooms = [new(1, "WoodLog", closedAt)] };
+        { ServedRooms = [new(1, "WoodLog", closedAt)] };
 
     private static ForecastInvestmentContribution Credit(ForecastCoupledContext context, ForecastCoupledOutcome outcome)
         => Assert.Single(ForecastValue.Of(outcome, context, Day).InvestmentContributions, r => r.Key.StartsWith("bedroom/", StringComparison.Ordinal));
@@ -90,7 +90,7 @@ public sealed class BedroomCreditTests
 
     /// <summary>
     /// #3744 acceptance (d): an open bedroom ring with <paramref name="ringDays"/> of ring work left and one builder is
-    /// projected to close then, and its credit runs from that day to tier 2's horizon: none at or past it.
+    /// projected to serve then (#3796: its owed work done), and its credit runs from that day to tier 2's horizon: none at or past it.
     /// </summary>
     [Theory]
     [InlineData(3, 7)]
@@ -101,13 +101,13 @@ public sealed class BedroomCreditTests
         var context = Context(Pawn(ascetic: false, barracksStage: 2), bedroomStage: 2) with
         {
             PlannedSites = [new("planned/room1/wall/WoodLog", 1, "WoodLog", [], ["planned/room1/wall/WoodLog/finish"])],
-            RingWork = new Dictionary<string, double> { ["planned/room1/wall/WoodLog"] = ringDays * Day },
+            OwedWork = new Dictionary<string, double> { ["planned/room1/wall/WoodLog"] = ringDays * Day },
             OpenRooms = new HashSet<int> { 1 },
             PlannedBuilders = 1,
         };
-        var closed = Assert.Single(ForecastRoofConsequences.PlannedClosedRooms(context, new Dictionary<string, double>(), Day));
-        Assert.Equal(ringDays * Day, closed.ClosedAt);
-        var rows = ForecastValue.Of(Closing(closed.ClosedAt, 0.06), context, Day).InvestmentContributions
+        var closed = Assert.Single(PlannedRoomCredits.ServiceDays(context, new Dictionary<string, double>(), Day).Served);
+        Assert.Equal(ringDays * Day, closed.ServedAt);
+        var rows = ForecastValue.Of(Closing(closed.ServedAt, 0.06), context, Day).InvestmentContributions
             .Where(r => r.Key.StartsWith("bedroom/", StringComparison.Ordinal)).ToArray();
         if (units == 0)
         {
@@ -123,7 +123,7 @@ public sealed class BedroomCreditTests
         var context = Context(Pawn(ascetic: false, barracksStage: 1), bedroomStage: 2);
         var ledger = ForecastValue.Of(Closing(0, 0.06), context, Day);
         Assert.DoesNotContain(ledger.InvestmentContributions, r => r.Key.StartsWith("bedroom/", StringComparison.Ordinal));
-        Assert.Contains("bedroom_credit_unassessed:pawn", ledger.Findings);
+        Assert.Contains("bedroom_credit_unassessed:1", ledger.Findings);
     }
 
     [Fact]

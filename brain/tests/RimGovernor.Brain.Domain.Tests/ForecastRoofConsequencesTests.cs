@@ -167,7 +167,7 @@ public sealed class ForecastRoofConsequencesTests
     }
 
     private static ForecastClosedRoom Room(double closedAt, double roofedAt, int open = 4)
-        => new(1, "WoodLog", [Inside], new("1", "WoodLog", "Bedroom", Known(30d), Known(2), 4, open, false), closedAt, roofedAt);
+        => new([Inside],new("1", "WoodLog", "Bedroom", Known(30d), Known(2), 4, open, false), closedAt, roofedAt);
 
     [Fact]
     public void ForAPawnWhoNeedsTheOutdoorsAPlannedRoofIsACost()

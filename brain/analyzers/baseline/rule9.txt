@@ -119,7 +119,7 @@ BuildingRuntime/PlayerExpeditionHandoff.cs|Fact|4
 BuildingRuntime/PlayerExpeditionHandoff.cs|Unknown|1
 BuildingRuntime/ReviewMemory.cs|Fact|7
 BuildingRuntime/ReviewMemory.cs|Unknown|3
-BuildingRuntime/Rounds/Rounder.cs|Fact|52
+BuildingRuntime/Rounds/Rounder.cs|Fact|51
 BuildingRuntime/Rounds/Rounder.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsAcquisition.cs|Fact|41
 BuildingRuntime/Rounds/RoundsAcquisition.cs|Unknown|4
@@ -817,7 +817,7 @@ Policy/ForecastClaims.cs|Fact|55
 Policy/ForecastComposedCandidates.cs|Fact|9
 Policy/ForecastConstruction.cs|Fact|50
 Policy/ForecastConstruction.cs|Unknown|1
-Policy/ForecastCoupled.cs|Fact|19
+Policy/ForecastCoupled.cs|Fact|18
 Policy/ForecastCoupledCandidates.cs|Fact|41
 Policy/ForecastCoupledEvaluation.cs|Fact|176
 Policy/ForecastCoupledExecution.cs|Fact|1
@@ -832,7 +832,7 @@ Policy/ForecastGoalValue.cs|Discard|1
 Policy/ForecastGoalValue.cs|NullableValue|1
 Policy/ForecastHandoff.cs|Fact|78
 Policy/ForecastHandoffProjects.cs|Fact|14
-Policy/ForecastHousing.cs|Fact|37
+Policy/ForecastHousing.cs|Fact|36
 Policy/ForecastIncumbentPreparation.cs|Fact|35
 Policy/ForecastLiveEvidence.cs|Fact|12
 Policy/ForecastMaintenance.cs|Fact|26

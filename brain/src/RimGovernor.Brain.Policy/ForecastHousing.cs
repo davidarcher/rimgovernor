@@ -87,8 +87,6 @@ public static class ForecastHousing
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, Moves> Cache = new();
 
-    /// <summary>The Investment key a closed bedroom credits its occupant under.</summary>
-    public static string BedroomKey(int room, string pawn) => FormattableString.Invariant($"bedroom/{room}/{pawn}");
 
     /// <summary>
     /// The mood delta of moving <paramref name="pawn"/> into a bedroom at Impressiveness stage <paramref name="stage"/>. A
@@ -219,7 +217,7 @@ public static class ForecastHousing
         var pawns = c.Needs.Pawns.GroupBy(p => p.Pawn, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First(), StringComparer.Ordinal);
         foreach (var closure in c.Closures)
         {
-            if (!c.PlannedRoomRoles.TryGetValue(closure.Room, out var role) || role is not (PlannedRole.Bedroom or PlannedRole.Barracks) || !c.PricedRoomRoles.Contains(role)) continue;
+            if (!c.PlannedRoomRoles.TryGetValue(closure.Room, out var role) || role is not (PlannedRole.Bedroom or PlannedRole.Barracks) || !c.RoomCredits.ContainsKey(role)) continue;
             var barracks = role == PlannedRole.Barracks;
             // The bedroom step's occupants, else the colonists owning a bed in the room: a bedroom's one owner (a standing
             // bedroom's wall upgrade, #3657: its delta is the stage the swap predicts against the stage its owner sleeps at
@@ -237,28 +235,21 @@ public static class ForecastHousing
     }
 
     /// <summary>
-    /// The bedroom investment credit (#3655): per priced planned bedroom (or barracks, #3658) the outcome closes and per occupant, its
-    /// <see cref="GainPerDay"/> times the days from closure to tier 2's horizon (RingClosure.CreditDays, #3744: the scheduled
-    /// closure, or the projected one of a ring the schedule leaves open; none at or past the horizon), a gain (negative) under
-    /// <see cref="BedroomKey"/>. An occupant whose delta or mood is unknown is named bedroom_credit_unassessed and credited nothing.
+    /// The bedroom and barracks credit (#3655, #3658, on the room credit seam since #3796): per occupant of the served room
+    /// in its stuff (<see cref="BedroomDeltas"/>), its <see cref="GainPerDay"/> under its own pawn id. None without occupants;
+    /// null (unassessed) when any occupant's delta or mood is unknown.
     /// </summary>
-    internal static void BedroomCredits(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
-        List<ForecastInvestmentContribution> rows, SortedSet<string> findings)
+    internal static IReadOnlyList<RoomGain>? BedroomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
     {
-        if (!context.InvestmentHorizonDays.TryGetValue(out var days)) return;
-        if (outcome.ClosedRooms.Count == 0) return;
-        var deltas = BedroomDeltas(context);
-        foreach (var closed in outcome.ClosedRooms)
+        if (!BedroomDeltas(context).TryGetValue((room.Room, room.Stuff), out var moves)) return [];
+        var gains = new List<RoomGain>(moves.Length);
+        foreach (var move in moves)
         {
-            if (!deltas.TryGetValue((closed.Room, closed.Stuff), out var moves)) continue;
-            foreach (var move in moves)
-            {
-                var gain = !move.Delta.TryGetValue(out var delta) ? null
-                    : GainPerDay(delta, outcome.Needs.GetValueOrDefault(move.Pawn)?.Mood, context.MoodBreaks, context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay);
-                if (gain is not { } perDay) { findings.Add("bedroom_credit_unassessed:" + move.Pawn); continue; }
-                var units = RingClosure.CreditDays(days, closed.ClosedAt);
-                if (units > 0) rows.Add(new("", move.Pawn, BedroomKey(closed.Room, move.Pawn), units, -perDay * units));
-            }
+            var gain = !move.Delta.TryGetValue(out var delta) ? null
+                : GainPerDay(delta, outcome.Needs.GetValueOrDefault(move.Pawn)?.Mood, context.MoodBreaks, context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay);
+            if (gain is not { } perDay) return null;
+            gains.Add(new(move.Pawn, move.Pawn, perDay));
         }
+        return gains;
     }
 }

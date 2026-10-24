@@ -19,7 +19,7 @@ public static class ForecastHandoffReader
         ["active_outfits"] = handoff.ActiveEffects.Sum(c => c.Effect.OutfitChanges.Count),
         ["shelters"] = handoff.Shelters.Count(s => s.CompleteAt.IsKnown),
         ["shelter_mechanics"] = handoff.ShelterPlans.Count,
-        ["closed_rooms"] = handoff.ClosedRooms.Count,
+        ["served_rooms"] = handoff.ServedRooms.Count,
         ["needs_known"] = handoff.Needs.Count(n => n.Level.IsKnown), ["needs"] = handoff.Needs.Count,
         ["completed"] = handoff.Completed.Select(c => string.Create(CultureInfo.InvariantCulture, $"{c.Project}@{c.Day:R}")).ToArray(),
     };

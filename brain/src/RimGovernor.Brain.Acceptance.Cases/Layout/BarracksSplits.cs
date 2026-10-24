@@ -28,7 +28,8 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 internal static class LayoutBarracksSplits
 {
     private const int Colonists = 3;
-    private const string BedroomKey = "bedroom/";
+    // A bedroom's or a barracks' credit row (#3796: keyed by the room's role).
+    private static bool BedroomKey(string key) => key.StartsWith("bedroom/", StringComparison.Ordinal) || key.StartsWith("barracks/", StringComparison.Ordinal);
     private static readonly string[] Beds = ["bed-a", "bed-b", "bed-c"];
     private const float NearBreak = 0.32f;
 
@@ -132,7 +133,7 @@ internal static class LayoutBarracksSplits
                     bedRoom = rooms.Count > 0 ? rooms[0] : new Observations.RoomState();
                 }
             }
-            started ??= CoupledSelections.Of(s, before).FirstOrDefault(r => (r.Selected.Contributions ?? []).Any(c => c.Key.StartsWith(BedroomKey, StringComparison.Ordinal)
+            started ??= CoupledSelections.Of(s, before).FirstOrDefault(r => (r.Selected.Contributions ?? []).Any(c => BedroomKey(c.Key)
                 && r.SelectedIds.Any(id => id.StartsWith("planned/room" + c.Key.Split('/')[1] + "/", StringComparison.Ordinal))));
             var row = await TypedPawnOps.PawnAsync(s, "pawn", pawn, ct).ConfigureAwait(false);
             owned = row?.OwnedBed?.Id ?? "";

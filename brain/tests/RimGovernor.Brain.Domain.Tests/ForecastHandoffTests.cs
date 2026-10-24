@@ -93,7 +93,7 @@ public sealed class ForecastHandoffTests
                 [new("heater", new(1, 1), false, Known(.1), Known(20d), Known(90000d))], [])] } };
         var commitment = new ForecastCommitment("warm", []) { ActivityCompletions = ["research"], ComfortShifts = [new("pawn", -5, 2)] };
         var outcome = Outcome() with { Findings = [new("thermal_relief_unassessed", "", default, default, default)],
-            ClosedRooms = [new(1, "Wood", 50)], Shelters = [new(new(ForecastShelterSource.Planned, "1"), Known(50d), Known(20d), [], [])] };
+            ServedRooms = [new(1, "Wood", 50)], Shelters = [new(new(ForecastShelterSource.Planned, "1"), Known(50d), Known(20d), [], [])] };
         var handoff = Handoff(request, new Dictionary<Resource, Fact<double>> { [Steel] = Known(20d), [Food] = Known(10d), [Medicine] = Known(3d) }, outcome,
             new Dictionary<string, ForecastCommitment> { [commitment.Id] = commitment });
         Assert.Empty(handoff.Gaps);
@@ -101,7 +101,7 @@ public sealed class ForecastHandoffTests
         Assert.Equal(32, Assert.Single(handoff.State.Pawns.Value).ComfortableMax.Value);
         Assert.Equal(50d / GameTime.TicksPerDay, Assert.Single(handoff.ActiveEffects).Day);
         Assert.Empty(Assert.Single(handoff.ActiveEffects).Effect.ActivityCompletions);
-        Assert.Single(handoff.ClosedRooms);
+        Assert.Single(handoff.ServedRooms);
         Assert.Single(handoff.Shelters);
         var shelter = Assert.Single(handoff.ShelterPlans);
         Assert.Equal(20, shelter.InitialTemperature.Value);
