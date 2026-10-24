@@ -6,10 +6,10 @@ individually named Request and Reply record.
 
 ## Food source channels
 
-`ColonyFactsSnapshot.food_channels` is an independent census, with unavailable
-outcomes for failed or oversized reads. It does not select food policy.
-`NativeFoodChannels` reads it; `observation.ColonyProjection.FoodChannels` retains
-optional values as `domain.Fact` after bridge validation.
+`ColonyFactsSnapshot.food_channels` is the required `FoodChannelsFacts` census, read
+whole every colony read; a read that cannot be produced fails the colony read. It does
+not select food policy. `NativeFoodChannels` reads it; `observation.ColonyProjection.FoodChannels`
+retains the per-animal optional values as `domain.Fact` after bridge validation.
 
 Every tame animal has gatherable and egg rows; missing components leave production
 values unknown and mark activity false. Unreadable activity stays unknown. Multiple
@@ -20,11 +20,9 @@ milk also reports gathering work/day. Inactive comps contribute no food. Pen
 rows carry demand, worst-quadrum pasture production and stored nutrition, once
 per enclosed pen. Slaughter rows carry native meat nutrition, grazing demand
 and reproduction interval; policy owns the removal opt-in and safety selection.
-Paste dispensers report power, eligible hopper nutrition and the interaction
-cell's room. Pollution counts the map-clipped center +/-22 planning window.
-Forage lists biome wild plants with human-edible harvest products and native
-average-temperature growing twelfths (0..11); these are seasonal potential,
-not harvestable instances. Acquisition retains ownership of plant instances.
+Paste dispensers report power and eligible hopper nutrition.
+Forage lists biome wild plants with human-edible harvest products; these are
+potential, not harvestable instances. Acquisition retains ownership of plant instances.
 
 Fishing is absent without Odyssey. With Odyssey, each fish-bearing water body
 has one row for its visible passable water cells, body-wide population/capacity,

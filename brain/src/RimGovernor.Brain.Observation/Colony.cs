@@ -199,7 +199,7 @@ public sealed partial record ColonyProjection
 
     public Fact<EquatableArray<FoodField>> FoodFields { get; init; }
 
-    public Fact<FoodChannels> FoodChannels { get; init; }
+    public FoodChannels FoodChannels { get; init; } = new();
 
     public Fact<EquatableArray<ProductionBench>> ProductionBenches { get; init; }
 

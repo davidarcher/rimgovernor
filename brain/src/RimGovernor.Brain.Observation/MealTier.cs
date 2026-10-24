@@ -118,17 +118,12 @@ public sealed partial record ColonyProjection
         {
             r = r with { Previous = MealRules.ObservedMealTier(benches) };
         }
-        if (FoodChannels.TryGetValue(out var channels))
+        foreach (var dispenser in FoodChannels.PasteDispenser)
         {
-            foreach (var dispenser in channels.PasteDispenser)
+            if (dispenser.Powered && dispenser.HopperNutrition > 0)
             {
-                var pk = dispenser.Powered.TryGetValue(out var powered);
-                var nk = dispenser.HopperNutrition.TryGetValue(out var nutrition);
-                if (pk && powered && nk && nutrition > 0)
-                {
-                    r = r with { Previous = MealTier.Paste };
-                    break;
-                }
+                r = r with { Previous = MealTier.Paste };
+                break;
             }
         }
         foreach (var d in Definitions)

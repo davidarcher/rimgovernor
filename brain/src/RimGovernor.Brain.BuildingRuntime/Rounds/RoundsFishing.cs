@@ -98,16 +98,8 @@ public sealed partial class Rounder
                 return needs;
             }
 
-            var ck = p.FoodChannels.TryGetValue(out var c);
-            var wk = false;
-            FishableWater w = default!;
-            if (ck)
-            {
-                wk = c!.FishableWater.TryGetValue(out w!);
-            }
-
             var pk = p.Facts.FoodPlan.TryGetValue(out var plan);
-            if (ck && wk && pk)
+            if (p.FoodChannels.FishableWater is { } w && pk)
             {
                 var target = FishingRules.FishingResearchRequest(plan!, w.FishingResearched);
                 if (target.Length != 0)
@@ -138,8 +130,7 @@ public sealed partial class RoundsFieldPlanner
     {
         var p = read.Projection;
         var pk = p.Facts.FoodPlan.TryGetValue(out var plan);
-        var ck = p.FoodChannels.TryGetValue(out var census);
-        if (!pk || !ck || !census!.FishableWater.TryGetValue(out var water)
+        if (!pk || p.FoodChannels.FishableWater is not { } water
             || !water.FishingResearched.TryGetValue(out var researched) || !researched)
         {
             return (new RoundsFieldResult(), false);

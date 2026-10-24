@@ -6103,25 +6103,25 @@ public sealed record LootSection
 /// </summary>
 public sealed record FishableCell
 {
-    public Common.Cell? Cell { get; init; }
+    public required Cell Cell { get; init; }
 
-    public bool? Reachable { get; init; }
+    public required bool Reachable { get; init; }
 
-    public double? DistanceSquared { get; init; }
+    public required double DistanceSquared { get; init; }
 }
 
 public sealed record FishingZoneFacts
 {
-    public bool? Allowed { get; init; }
+    public required bool Allowed { get; init; }
 
-    public bool? DoForever { get; init; }
+    public required bool DoForever { get; init; }
 
-    public bool? HasFishableCells { get; init; }
+    public required bool HasFishableCells { get; init; }
 }
 
 public sealed record FishableRegion
 {
-    public Common.Cell? Root { get; init; }
+    public required Cell Root { get; init; }
 
     public double? Population { get; init; }
 
@@ -6144,10 +6144,10 @@ public sealed record FishableRegion
     public double? NearestDistanceSquared { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<FishableCell>))]
-    public EquatableArray<FishableCell> Cells { get; init; }
+    public required EquatableArray<FishableCell> Cells { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<FishingZoneFacts>))]
-    public EquatableArray<FishingZoneFacts> Zones { get; init; }
+    public required EquatableArray<FishingZoneFacts> Zones { get; init; }
 
     public double? YieldCurveValue { get; init; }
 }
@@ -6160,15 +6160,15 @@ public sealed record FishableRegion
 /// </summary>
 public sealed record FisherFacts
 {
-    public double? FishingYield { get; init; }
+    public required double FishingYield { get; init; }
 
-    public double? FishingSpeed { get; init; }
+    public required double FishingSpeed { get; init; }
 }
 
 public sealed record FishableWater
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<FishableRegion>))]
-    public EquatableArray<FishableRegion> Regions { get; init; }
+    public required EquatableArray<FishableRegion> Regions { get; init; }
 
     public bool? FishingResearched { get; init; }
 
@@ -6179,23 +6179,23 @@ public sealed record FishableWater
     public double? ResearchCostFactor { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<double>))]
-    public EquatableArray<double> ResearcherSpeeds { get; init; }
+    public required EquatableArray<double> ResearcherSpeeds { get; init; }
 
     public double? ResearchPointsPerWorkTick { get; init; }
 
     public double? ResearchDifficultySpeedFactor { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<FisherFacts>))]
-    public EquatableArray<FisherFacts> Fishers { get; init; }
+    public required EquatableArray<FisherFacts> Fishers { get; init; }
 
     public double? BaseFishingDurationTicks { get; init; }
 }
 
 public sealed record GatherableAnimal
 {
-    public string? PawnId { get; init; }
+    public required string PawnId { get; init; }
 
-    public string? Race { get; init; }
+    public required string Race { get; init; }
 
     public double? Fullness { get; init; }
 
@@ -6214,9 +6214,9 @@ public sealed record GatherableAnimal
 
 public sealed record EggLayerAnimal
 {
-    public string? PawnId { get; init; }
+    public required string PawnId { get; init; }
 
-    public string? Race { get; init; }
+    public required string Race { get; init; }
 
     public bool? CanLayNow { get; init; }
 
@@ -6231,29 +6231,18 @@ public sealed record EggLayerAnimal
     public bool? Fertilized { get; init; }
 }
 
+/// <summary>A player nutrient paste dispenser: its power and the eligible feed nutrition in its hoppers.</summary>
 public sealed record PasteDispenser
 {
-    public string? BuildingId { get; init; }
+    public required bool Powered { get; init; }
 
-    public bool? Powered { get; init; }
-
-    public double? HopperNutrition { get; init; }
-
-    public string? AdjacentRoomId { get; init; }
+    public required double HopperNutrition { get; init; }
 }
 
-/// <summary>
-/// Native twelfths (0..11) whose average tile temperature permits growth.
-/// The window is climate potential, not a promise of harvestable instances.
-/// </summary>
+/// <summary>A biome wild plant whose harvest product the colony eats.</summary>
 public sealed record ForagePlant
 {
-    public string? DefName { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<int>))]
-    public EquatableArray<int> GrowingTwelfths { get; init; }
-
-    public bool? GrowingNow { get; init; }
+    public required string DefName { get; init; }
 }
 
 public sealed record PenGrazing
@@ -6274,52 +6263,45 @@ public sealed record PenGrazing
 /// </summary>
 public sealed record PastureTerrain
 {
-    public string? TerrainDef { get; init; }
+    public required string TerrainDef { get; init; }
 
-    public double? WorstQuadrumPerDay { get; init; }
+    public required double WorstQuadrumPerDay { get; init; }
 }
 
 public sealed record FoodSlaughterAnimal
 {
-    public string? PawnId { get; init; }
+    public required string PawnId { get; init; }
 
-    public string? Race { get; init; }
+    public required string Race { get; init; }
 
     public double? MeatAmount { get; init; }
 }
 
+/// <summary>The food source census, read whole every colony read; FishableWater is null without Odyssey.</summary>
 public sealed record FoodChannelsFacts
 {
-    public FishableWater? FishableWater { get; init; }
+    public required FishableWater? FishableWater { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<GatherableAnimal>))]
-    public EquatableArray<GatherableAnimal> Gatherable { get; init; }
+    public required EquatableArray<GatherableAnimal> Gatherable { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<EggLayerAnimal>))]
-    public EquatableArray<EggLayerAnimal> EggLayer { get; init; }
+    public required EquatableArray<EggLayerAnimal> EggLayer { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PasteDispenser>))]
-    public EquatableArray<PasteDispenser> PasteDispenser { get; init; }
-
-    public uint? PollutedCells { get; init; }
+    public required EquatableArray<PasteDispenser> PasteDispenser { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ForagePlant>))]
-    public EquatableArray<ForagePlant> Forage { get; init; }
+    public required EquatableArray<ForagePlant> Forage { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PenGrazing>))]
-    public EquatableArray<PenGrazing> Grazing { get; init; }
+    public required EquatableArray<PenGrazing> Grazing { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<FoodSlaughterAnimal>))]
-    public EquatableArray<FoodSlaughterAnimal> Slaughter { get; init; }
+    public required EquatableArray<FoodSlaughterAnimal> Slaughter { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PastureTerrain>))]
-    public EquatableArray<PastureTerrain> PastureTerrain { get; init; }
-}
-
-public sealed record FoodChannelsSection
-{
-    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
-    public FoodChannelsFacts? Observed { get; init; }
+    public required EquatableArray<PastureTerrain> PastureTerrain { get; init; }
 }
 
 /// <summary>
@@ -6601,7 +6583,7 @@ public sealed record ColonyFactsSnapshot
     [JsonConverter(typeof(EquatableArrayJsonConverter<JoinerLetter>))]
     public EquatableArray<JoinerLetter> JoinerLetters { get; init; }
 
-    public required FoodChannelsSection FoodChannels { get; init; }
+    public required FoodChannelsFacts FoodChannels { get; init; }
 
     public required DeepResources DeepResources { get; init; }
 

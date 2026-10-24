@@ -23,12 +23,7 @@ public sealed partial class RoundsBuildingPlanner
             return (this, default);
         }
 
-        if (!p.FoodChannels.TryGetValue(out var channels))
-        {
-            return (this, FieldUnavailable("food_channels"));
-        }
-
-        if (channels.PasteDispenser.Count > 0)
+        if (p.FoodChannels.PasteDispenser.Count > 0)
         {
             return (this, BuildingReasonExistingFacility);
         }

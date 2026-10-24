@@ -178,9 +178,9 @@ public static class AnimalUpkeepReads
     }
 
     /// <summary>Copies each player animal's meat and grazing demand from the colony food channels, matched by animal ID.</summary>
-    internal static Fact<EquatableArray<UpkeepAnimal>> MergeHerdFoodFacts(Fact<EquatableArray<UpkeepAnimal>> animals, Fact<FoodChannels> channels)
+    internal static Fact<EquatableArray<UpkeepAnimal>> MergeHerdFoodFacts(Fact<EquatableArray<UpkeepAnimal>> animals, FoodChannels food)
     {
-        if (!animals.TryGetValue(out var rows) || !channels.TryGetValue(out var food))
+        if (!animals.TryGetValue(out var rows))
         {
             return animals;
         }

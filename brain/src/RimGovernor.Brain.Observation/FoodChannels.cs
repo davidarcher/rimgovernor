@@ -2,22 +2,19 @@ using RimGovernor.Brain.Policy;
 namespace RimGovernor.Brain.Observation;
 
 /// <summary>
-/// Native source potential. It does not select work. A known census can contain animals with unknown
-/// component values.
+/// Native source potential, read whole every colony read. It does not select work. The census can contain
+/// animals with unknown component values.
 /// </summary>
 public sealed record FoodChannels
 {
-    public Fact<FishableWater> FishableWater { get; init; }
+    /// <summary>Null without Odyssey.</summary>
+    public FishableWater? FishableWater { get; init; }
 
     public IReadOnlyList<GatherableAnimal> Gatherable { get; init; } = [];
 
     public IReadOnlyList<EggLayerAnimal> EggLayer { get; init; } = [];
 
-    public IReadOnlyList<PasteDispenser> PasteDispenser { get; init; } = [];
-
-    public Fact<uint> PollutedCells { get; init; }
-
-    public IReadOnlyList<ForagePlant> Forage { get; init; } = [];
+    public IReadOnlyList<O.PasteDispenser> PasteDispenser { get; init; } = [];
 
     public EquatableArray<PenGrazing> Grazing { get; init; }
 
@@ -122,36 +119,11 @@ public sealed record EggLayerAnimal
     public Fact<bool> Fertilized { get; init; }
 }
 
-public sealed record PasteDispenser
-{
-    public string BuildingID { get; init; } = "";
-
-    public Fact<bool> Powered { get; init; }
-
-    public Fact<double> HopperNutrition { get; init; }
-
-    public Fact<string> AdjacentRoomID { get; init; }
-}
-
-public sealed record ForagePlant
-{
-    public string DefName { get; init; } = "";
-
-    public IReadOnlyList<int> GrowingTwelfths { get; init; } = [];
-
-    public Fact<bool> GrowingNow { get; init; }
-}
-
 public static class FoodChannelsReads
 {
     /// <summary>Called only after the colony boundary validator has checked the section.</summary>
-    internal static Fact<FoodChannels> ColonyFoodChannels(O.FoodChannelsSection? section, Pawns pawns, AnimalRaceCatalog races)
+    internal static FoodChannels ColonyFoodChannels(O.FoodChannelsFacts v, Pawns pawns, AnimalRaceCatalog races)
     {
-        var v = section?.Observed;
-        if (v is null)
-        {
-            return Unknown<FoodChannels>();
-        }
         var grazing = new List<PenGrazing>();
         foreach (var row in v.Grazing)
         {
@@ -162,11 +134,10 @@ public static class FoodChannelsReads
                 StoredNutrition = ColonyDecodeReads.Optional(row.StoredNutrition is not null, row.StoredNutrition.GetValueOrDefault()),
             });
         }
-        Dictionary<string, double>? pasture = null;
+        var pasture = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var row in v.PastureTerrain)
         {
-            pasture ??= new Dictionary<string, double>(StringComparer.Ordinal);
-            pasture[row.TerrainDef ?? ""] = row.WorstQuadrumPerDay.GetValueOrDefault();
+            pasture[row.TerrainDef] = row.WorstQuadrumPerDay;
         }
         var slaughter = new List<SlaughterFoodAnimal>();
         foreach (var row in v.Slaughter)
@@ -178,8 +149,8 @@ public static class FoodChannelsReads
         {
             gatherable.Add(new GatherableAnimal
             {
-                PawnID = row.PawnId ?? "",
-                Race = row.Race ?? "",
+                PawnID = row.PawnId,
+                Race = row.Race,
                 Fullness = ColonyDecodeReads.Optional(row.Fullness is not null, row.Fullness.GetValueOrDefault()),
                 HandlerReachable = ColonyDecodeReads.Optional(row.HandlerReachable is not null, row.HandlerReachable.GetValueOrDefault()),
                 NutritionPerDay = ColonyDecodeReads.Optional(row.NutritionPerDay is not null, row.NutritionPerDay.GetValueOrDefault()),
@@ -193,8 +164,8 @@ public static class FoodChannelsReads
         {
             eggs.Add(new EggLayerAnimal
             {
-                PawnID = row.PawnId ?? "",
-                Race = row.Race ?? "",
+                PawnID = row.PawnId,
+                Race = row.Race,
                 CanLayNow = ColonyDecodeReads.Optional(row.CanLayNow is not null, row.CanLayNow.GetValueOrDefault()),
                 Progress = ColonyDecodeReads.Optional(row.Progress is not null, row.Progress.GetValueOrDefault()),
                 NutritionPerDay = ColonyDecodeReads.Optional(row.NutritionPerDay is not null, row.NutritionPerDay.GetValueOrDefault()),
@@ -203,38 +174,16 @@ public static class FoodChannelsReads
                 Fertilized = ColonyDecodeReads.Optional(row.Fertilized is not null, row.Fertilized.GetValueOrDefault()),
             });
         }
-        var paste = new List<PasteDispenser>();
-        foreach (var row in v.PasteDispenser)
+        return new FoodChannels
         {
-            paste.Add(new PasteDispenser
-            {
-                BuildingID = row.BuildingId ?? "",
-                Powered = ColonyDecodeReads.Optional(row.Powered is not null, row.Powered.GetValueOrDefault()),
-                HopperNutrition = ColonyDecodeReads.Optional(row.HopperNutrition is not null, row.HopperNutrition.GetValueOrDefault()),
-                AdjacentRoomID = ColonyDecodeReads.Optional(row.AdjacentRoomId is not null, row.AdjacentRoomId ?? ""),
-            });
-        }
-        var forage = new List<ForagePlant>();
-        foreach (var row in v.Forage)
-        {
-            forage.Add(new ForagePlant { DefName = row.DefName ?? "", GrowingTwelfths = [.. row.GrowingTwelfths], GrowingNow = ColonyDecodeReads.Optional(row.GrowingNow is not null, row.GrowingNow.GetValueOrDefault()) });
-        }
-        var channels = new FoodChannels
-        {
-            PollutedCells = ColonyDecodeReads.Optional(v.PollutedCells is not null, v.PollutedCells.GetValueOrDefault()),
             Grazing = [.. grazing],
-            Pasture = new PastureTable(pasture ?? new Dictionary<string, double>()),
+            Pasture = new PastureTable(pasture),
             Slaughter = slaughter,
             Gatherable = gatherable,
             EggLayer = eggs,
-            PasteDispenser = paste,
-            Forage = forage,
+            PasteDispenser = [.. v.PasteDispenser],
+            FishableWater = v.FishableWater is { } water ? ColonyFishableWater(water) : null,
         };
-        if (v.FishableWater is { } water)
-        {
-            channels = channels with { FishableWater = Known(ColonyFishableWater(water)) };
-        }
-        return Known(channels);
     }
 
     /// <summary>
@@ -245,7 +194,7 @@ public static class FoodChannelsReads
     /// </summary>
     private static SlaughterFoodAnimal SlaughterFood(O.FoodSlaughterAnimal row, Pawns pawns, AnimalRaceCatalog races)
     {
-        var output = new SlaughterFoodAnimal { ID = new PawnId((row.PawnId ?? "")), Race = new Resource((row.Race ?? "")) };
+        var output = new SlaughterFoodAnimal { ID = new PawnId(row.PawnId), Race = new Resource(row.Race) };
         if (row.MeatAmount is null)
         {
             return output;
@@ -258,7 +207,7 @@ public static class FoodChannelsReads
         {
             output = output with { MeatNutrition = Known(row.MeatAmount.GetValueOrDefault() * per) };
         }
-        if (race.EatsPlant && StageFeedPerDay(race, pawns, (row.PawnId ?? ""), out var feed))
+        if (race.EatsPlant && StageFeedPerDay(race, pawns, row.PawnId, out var feed))
         {
             output = output with { FeedPerDay = Known(feed) };
         }
@@ -316,14 +265,14 @@ public static class FoodChannelsReads
         var fishers = new List<Fisher>(water.Fishers.Count);
         foreach (var f in water.Fishers)
         {
-            fishers.Add(new Fisher(f.FishingYield.GetValueOrDefault(), f.FishingSpeed.GetValueOrDefault()));
+            fishers.Add(new Fisher(f.FishingYield, f.FishingSpeed));
         }
         var regions = new List<FishableRegion>();
         foreach (var row in water.Regions)
         {
             var region = new FishableRegion
             {
-                Root = new Cell(row.Root?.X ?? 0, row.Root?.Z ?? 0),
+                Root = row.Root,
                 Population = ColonyDecodeReads.Optional(row.Population is not null, row.Population.GetValueOrDefault()),
                 MaxPopulation = ColonyDecodeReads.Optional(row.MaxPopulation is not null, row.MaxPopulation.GetValueOrDefault()),
                 Zoned = ColonyDecodeReads.Optional(row.Zoned is not null, row.Zoned.GetValueOrDefault()),
@@ -338,7 +287,7 @@ public static class FoodChannelsReads
             var cells = new List<FishingCell>(row.Cells.Count);
             foreach (var c in row.Cells)
             {
-                cells.Add(new FishingCell { Cell = new Cell(c.Cell?.X ?? 0, c.Cell?.Z ?? 0), Reachable = c.Reachable.GetValueOrDefault(), DistanceSquared = c.DistanceSquared.GetValueOrDefault() });
+                cells.Add(new FishingCell { Cell = c.Cell, Reachable = c.Reachable, DistanceSquared = c.DistanceSquared });
             }
             var proposed = FishingFactsRules.FishingFootprint(cells, fishers.Count);
             region = region with
@@ -349,7 +298,7 @@ public static class FoodChannelsReads
             var zones = new List<FishingZoneState>(row.Zones.Count);
             foreach (var z in row.Zones)
             {
-                zones.Add(new FishingZoneState(z.Allowed.GetValueOrDefault(), z.DoForever.GetValueOrDefault(), z.HasFishableCells.GetValueOrDefault()));
+                zones.Add(new FishingZoneState(z.Allowed, z.DoForever, z.HasFishableCells));
             }
             region = region with
             {

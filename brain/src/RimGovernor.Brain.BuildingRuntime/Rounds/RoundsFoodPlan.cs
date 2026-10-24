@@ -197,7 +197,7 @@ partial class Rounder
             }
         }
 
-        if (p.FoodChannels.TryGetValue(out var census) && census.FishableWater.TryGetValue(out var water))
+        if (p.FoodChannels.FishableWater is { } water)
         {
             var regions = water.Regions.Select(region => new FishingRegion
             {
@@ -225,10 +225,7 @@ partial class Rounder
             }
         }
 
-        if (p.FoodChannels.TryGetValue(out var animals))
-        {
-            channels.AddRange(FoodAnimalProductsRules.AnimalProductChannels(FoodAnimalProductsRules.WithFeed(animals.AnimalProducts(), p.Facts.AnimalUpkeep.Animals)));
-        }
+        channels.AddRange(FoodAnimalProductsRules.AnimalProductChannels(FoodAnimalProductsRules.WithFeed(p.FoodChannels.AnimalProducts(), p.Facts.AnimalUpkeep.Animals)));
 
         channels.AddRange(MealRules.StockIngredientChannels(supply));
         if (p.FoodFields.TryGetValue(out var fields))
@@ -272,10 +269,7 @@ partial class Rounder
         if (plan.GapPerDay > 0)
         {
             var offers = new List<SupplyCandidate>();
-            if (p.FoodChannels.TryGetValue(out animals))
-            {
-                offers.AddRange(AnimalFoodRules.SlaughterFoodChannels(animals.Slaughter, p.Facts.AnimalUpkeep.Animals, HerdPlans.HerdPolicyOf(p.Facts, plan)));
-            }
+            offers.AddRange(AnimalFoodRules.SlaughterFoodChannels(p.FoodChannels.Slaughter, p.Facts.AnimalUpkeep.Animals, HerdPlans.HerdPolicyOf(p.Facts, plan)));
 
             offers.AddRange(TradePolicyRules.TradeFoodChannels(trade.Offers, trade.Silver, trade.Reserve, plan.GapPerDay * plan.HorizonDays));
             var acquire = new AnimalAcquisition

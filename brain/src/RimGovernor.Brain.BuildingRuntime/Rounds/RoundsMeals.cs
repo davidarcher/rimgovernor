@@ -19,17 +19,10 @@ public sealed partial class Rounder
 
         if (review.Tier == MealTier.Paste)
         {
-            if (!p.FoodChannels.TryGetValue(out var channels))
-            {
-                return p;
-            }
-
             var pasteReady = false;
-            foreach (var dispenser in channels.PasteDispenser)
+            foreach (var dispenser in p.FoodChannels.PasteDispenser)
             {
-                var pk = dispenser.Powered.TryGetValue(out var powered);
-                var nk = dispenser.HopperNutrition.TryGetValue(out var nutrition);
-                pasteReady = pasteReady || (pk && powered && nk && nutrition > 0);
+                pasteReady = pasteReady || (dispenser.Powered && dispenser.HopperNutrition > 0);
             }
 
             return p with { Facts = p.Facts with { Cooking = Known(pasteReady) } };
