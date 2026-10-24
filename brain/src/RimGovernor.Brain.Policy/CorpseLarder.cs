@@ -45,6 +45,9 @@ public static class CorpseLarderRules
 
     private static bool DenseCorpse(double meat, double size) => meat > 225 || (size <= 0.75 && meat > 75);
 
+    private static (double Meat, double Size) Body(FoodStock s) =>
+        s.Form is FoodForm.Corpse { MeatAmount: var meat, BodySize: var size } ? (meat, size) : throw new DomainException($"food stock {s.Id} is no corpse");
+
     /// <summary>
     /// Changes at most one corpse per review. A warm corpse is never held; frozen dense corpses release in
     /// expiry/identity order. A quarter-day rot margin leaves time for ordinary butchering and hauling.
@@ -53,10 +56,11 @@ public static class CorpseLarderRules
     public static CorpseLarderMethod SelectCorpseLarder(FoodStorageObservation v)
     {
         var none = new CorpseLarderMethod();
-        if (!v.Stocks.TryGetValue(out var stocks) || !v.Larder.TryGetValue(out var larder))
+        if (!v.Stocks.TryGetValue(out var stocks))
         {
             return none;
         }
+        var larder = v.Larder;
         DomainException.Require(FoodForecastRules.FoodNumber(larder.RawMeatNutrition) && FoodForecastRules.FoodNumber(larder.CookDemandNutrition), "invalid corpse larder");
         v.Validate();
         var handling = new Dictionary<string, CorpseHandling>(StringComparer.Ordinal);
@@ -74,18 +78,11 @@ public static class CorpseLarderRules
             {
                 continue;
             }
-            var fk = s.Forbidden.TryGetValue(out var forbidden);
-            var mk = s.MeatAmount.TryGetValue(out var meat);
-            var bk = s.BodySize.TryGetValue(out var size);
-            var nk = s.Nutrition.TryGetValue(out var nutrition);
-            if (!fk || !mk || !bk || !nk)
-            {
-                return none;
-            }
+            var (meat, size) = Body(s);
             DomainException.Require(FoodForecastRules.FoodNumber(meat) && FoodForecastRules.FoodNumber(size) && meat > 0 && size > 0, "invalid corpse yield");
-            if (!forbidden)
+            if (!s.Forbidden)
             {
-                available += nutrition;
+                available += s.Nutrition;
             }
             corpses.Add(s);
         }
@@ -101,18 +98,15 @@ public static class CorpseLarderRules
             {
                 continue;
             }
-            s.Forbidden.TryGetValue(out var forbidden);
-            var rk = s.Roofed.TryGetValue(out var roof);
-            var tk = s.TemperatureC.TryGetValue(out var temp);
-            s.MeatAmount.TryGetValue(out var meat);
-            s.BodySize.TryGetValue(out var size);
-            if (!rk || !tk || s.Rot is not FoodRot.Rots { Ticks: var ticks })
+            // A carried corpse is not held in a larder.
+            if (s.Place is not FoodPlace.Stands { Roofed: var roof } || s.Rot is not FoodRot.Rots { Ticks: var ticks })
             {
                 continue;
             }
-            var frozen = roof && temp <= 0;
+            var (meat, size) = Body(s);
+            var frozen = roof && s.TemperatureC <= 0;
             var dense = DenseCorpse(meat, size);
-            if (forbidden && (!frozen || !dense || ticks <= LarderRotMargin || available < larder.CookDemandNutrition))
+            if (s.Forbidden && (!frozen || !dense || ticks <= LarderRotMargin || available < larder.CookDemandNutrition))
             {
                 return new CorpseLarderMethod { Kind = "allow", Stock = s, Handling = row };
             }
@@ -123,23 +117,14 @@ public static class CorpseLarderRules
             {
                 continue;
             }
-            s.Forbidden.TryGetValue(out var forbidden);
-            if (forbidden)
+            if (s.Forbidden || s.Place is not FoodPlace.Stands { Roofed: var roof } || s.Rot is not FoodRot.Rots { Ticks: var ticks })
             {
                 continue;
             }
-            var rk = s.Roofed.TryGetValue(out var roof);
-            var tk = s.TemperatureC.TryGetValue(out var temp);
-            s.MeatAmount.TryGetValue(out var meat);
-            s.BodySize.TryGetValue(out var size);
-            s.Nutrition.TryGetValue(out var nutrition);
-            if (!rk || !tk || s.Rot is not FoodRot.Rots { Ticks: var ticks })
+            if (roof && s.TemperatureC <= 0)
             {
-                continue;
-            }
-            if (roof && temp <= 0)
-            {
-                if (DenseCorpse(meat, size) && ticks > LarderRotMargin && available - nutrition >= larder.CookDemandNutrition)
+                var (meat, size) = Body(s);
+                if (DenseCorpse(meat, size) && ticks > LarderRotMargin && available - s.Nutrition >= larder.CookDemandNutrition)
                 {
                     return new CorpseLarderMethod { Kind = "forbid", Stock = s, Handling = row };
                 }

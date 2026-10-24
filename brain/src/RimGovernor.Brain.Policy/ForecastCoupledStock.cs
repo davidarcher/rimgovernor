@@ -5,7 +5,7 @@ public static partial class ForecastCoupled
     internal sealed partial class CoupledSearchCache
     {
         private readonly Dictionary<string, ForecastTerminalLot> census = new(StringComparer.Ordinal);
-        private FoodSupply food = new();
+        private FoodSupply food = new() { Larder = new() };
         private ItemFacts items = new();
         private FoodConsumer[] otherConsumers = [];
         private double consumedUntil;
@@ -50,14 +50,13 @@ public static partial class ForecastCoupled
             otherConsumers = food.Consumers.Where(c => !context.Needs.Pawns.Any(p => p.Pawn == c.Id.Value)).OrderBy(c => c.Id.Value, StringComparer.Ordinal).ToArray();
             foreach (var row in food.Stocks.Concat(food.Barred))
             {
-                var count = row.Count.IsKnown ? Known((double)row.Count.Value) : default;
+                var count = Known((double)row.Count);
                 var fresh = Known(row.Rot is FoodRot.Rots { Ticks: var rot } ? (double)rot : double.PositiveInfinity);
-                var nutrition = row.Nutrition.IsKnown && row.Count.IsKnown && row.Count.Value > 0
-                    ? Known(row.Nutrition.Value / row.Count.Value) : default;
+                var nutrition = row.Count > 0 ? Known(row.Nutrition / row.Count) : default;
                 var barred = food.Barred.Any(s => s.Id == row.Id);
-                census[row.Id] = new(row.Id, row.DefName, count, fresh, barred ? Known(false) : ForecastStockScope.Eligible(row, food), nutrition,
-                    EquatableArray.From(row.Eaters.Where(e => (row.Holder.IsKnown && (row.Holder.Value.IsEmpty || row.Holder.Value == e))
-                        && (!(row.IsHumanMeat || row.IsHumanlike) || food.Consumers.Any(c => c.Id == e && c.HumanMeatAcceptable == Known(true))))), false);
+                census[row.Id] = new(row.Id, row.DefName, count, fresh, Known(!barred && ForecastStockScope.Eligible(row, food)), nutrition,
+                    EquatableArray.From(row.Eaters.Where(e => (row.Holder.IsEmpty || row.Holder == e)
+                        && (!(row.IsHumanMeat || row.IsHumanlike) || food.Consumers.Any(c => c.Id == e && c.HumanMeatAcceptable)))), false);
                 Include(row.Id, row.DefName, count, fresh);
                 if (physical is null || !physical.Contains(row.Id)) outsidePhysical.Add(row.Id);
             }
@@ -121,7 +120,8 @@ public static partial class ForecastCoupled
                 var span = (end - consumedUntil) / GameTime.TicksPerDay;
                 foreach (var consumer in otherConsumers)
                 {
-                    if (!consumer.NutritionPerDay.TryGetValue(out var rate) || !double.IsFinite(rate) || rate < 0)
+                    var rate = consumer.NutritionPerDay;
+                    if (!double.IsFinite(rate) || rate < 0)
                     {
                         foreach (var key in lots.Keys.Where(k => census.TryGetValue(k.Lot, out var l) && l.Eaters.Contains(consumer.Id)).ToArray())
                         {

@@ -970,7 +970,7 @@ public static partial class ForecastCoupled
                 ServedRooms = service,
             };
             return outcome with { Terminal = new(request, commitments, new Dictionary<Resource, Fact<double>>(inventoryWalk.Terminal), new Dictionary<string, double>(finishedAt, StringComparer.Ordinal), holds)
-                { Lots = TerminalLots(), FoodComplete = request.Facts.Food.Complete, MedicineComplete = request.Facts.Medicine.Items.IsKnown && physicalCensusComplete,
+                { Lots = TerminalLots(), FoodUnread = request.Facts.FoodUnread, MedicineComplete = request.Facts.Medicine.Items.IsKnown && physicalCensusComplete,
                     PhysicalCensusComplete = physicalCensusComplete } };
         }
 

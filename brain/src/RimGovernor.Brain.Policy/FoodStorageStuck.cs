@@ -41,7 +41,7 @@ public static class FoodStorageStuckRules
             {
                 continue;
             }
-            if (entry.Stock.Forbidden.TryGetValue(out var forbidden) && forbidden)
+            if (entry.Stock.Forbidden)
             {
                 return FoodStuckReason.Forbidden;
             }

@@ -9,10 +9,31 @@ public sealed record FoodConsumer
 {
     public PawnId Id { get; init; }
 
-    public Fact<double> NutritionPerDay { get; init; }
+    public required double NutritionPerDay { get; init; }
 
-    /// <summary>Includes animals whose native diet accepts it. Unknown is not consent.</summary>
-    public Fact<bool> HumanMeatAcceptable { get; init; }
+    /// <summary>Includes animals whose native diet accepts it.</summary>
+    public bool HumanMeatAcceptable { get; init; }
+}
+
+/// <summary>What a food stock is: an item stack, or a corpse whose food is its meat yield.</summary>
+public abstract record FoodForm
+{
+    private protected FoodForm() { }
+
+    public sealed record Item : FoodForm;
+
+    /// <summary>A corpse: MeatAmount is its native meat yield before butcher efficiency, BodySize its inner pawn's body size.</summary>
+    public sealed record Corpse(double MeatAmount, double BodySize) : FoodForm;
+}
+
+/// <summary>Where a food stock is: standing on the map (roofed or not, in Room, "" outside any room) or carried, unspawned.</summary>
+public abstract record FoodPlace
+{
+    private protected FoodPlace() { }
+
+    public sealed record Stands(bool Roofed, string Room) : FoodPlace;
+
+    public sealed record Carried : FoodPlace;
 }
 
 /// <summary>How a food stock spoils: a thing rots exactly while it has a rot deadline.</summary>
@@ -40,56 +61,46 @@ public sealed record FoodStock
 
     public bool Vegetable { get; init; }
 
-    public Fact<FoodIngredientClass> RawClass { get; init; }
+    public FoodIngredientClass RawClass { get; init; }
 
     /// <summary>Forbidden pemmican or survival meals; eligibility is after release.</summary>
     public bool Reserve { get; init; }
 
-    /// <summary>Known empty holder means shared stock. Unknown ownership is not shared.</summary>
-    public Fact<PawnId> Holder { get; init; }
+    /// <summary>The pawn whose inventory holds the stock; empty for a shared stock.</summary>
+    public PawnId Holder { get; init; }
 
-    public Fact<double> Nutrition { get; init; }
+    /// <summary>The nutrition the stock gives its eaters (a corpse's: its meat yield's).</summary>
+    public required double Nutrition { get; init; }
 
     public IReadOnlyList<PawnId> Eaters { get; init; } = [];
 
     /// <summary>Whether the stock keeps or rots, and in how many ticks at its current temperature.</summary>
     public required FoodRot Rot { get; init; }
 
-    /// <summary>
-    /// DefName and Count are only needed to select a specific feed resource (the animal feed runway's item
-    /// choice); ForecastFood itself never reads them, so unknown/zero values never affect forecast validity.
-    /// </summary>
+    /// <summary>DefName and Count select a specific feed resource (the animal feed runway's item choice); ForecastFood never reads them.</summary>
     public Resource DefName { get; init; }
 
-    public Fact<long> Count { get; init; }
+    public long Count { get; init; }
 
     /// <summary>The catalog mass used only for caravan packing.</summary>
-    public Fact<double> UnitMass { get; init; }
+    public double UnitMass { get; init; }
 
-    /// <summary>
-    /// Roofed, TemperatureC and Room describe where the stock sits at observation time; ForecastFood ignores
-    /// them, storage upkeep and refrigeration policy read them.
-    /// </summary>
-    public Fact<bool> Roofed { get; init; }
+    /// <summary>Where the stock is at observation time; ForecastFood ignores it, storage upkeep and refrigeration policy read it.</summary>
+    public required FoodPlace Place { get; init; }
 
-    public Fact<double> TemperatureC { get; init; }
+    /// <summary>The ambient temperature where the stock is.</summary>
+    public double TemperatureC { get; init; }
 
-    public Fact<string> Room { get; init; }
+    /// <summary>An item stack or a corpse. Forbidden corpses remain observable reserves but do not extend the food runway.</summary>
+    public required FoodForm Form { get; init; }
 
-    /// <summary>Corpse nutrition is its native meat yield. Forbidden corpses remain observable reserves but do not extend the food runway.</summary>
-    public bool Corpse { get; init; }
+    public bool Corpse => Form is FoodForm.Corpse;
 
-    public Fact<bool> Forbidden { get; init; }
-
-    public Fact<double> MeatAmount { get; init; }
-
-    public Fact<double> BodySize { get; init; }
+    public bool Forbidden { get; init; }
 }
 
 public sealed record FoodSupply
 {
-    public Fact<bool> Complete { get; init; }
-
     public IReadOnlyList<FoodConsumer> Consumers { get; init; } = [];
 
     public IReadOnlyList<FoodStock> Stocks { get; init; } = [];
@@ -97,7 +108,7 @@ public sealed record FoodSupply
     /// <summary>Forbidden ordinary food stacks: census rows for the storage review only, never forecast or reserve input.</summary>
     public IReadOnlyList<FoodStock> Barred { get; init; } = [];
 
-    public Fact<FoodLarder> Larder { get; init; }
+    public required FoodLarder Larder { get; init; }
 }
 
 public sealed record ConsumerFoodForecast
@@ -205,22 +216,18 @@ public static class FoodForecastRules
     /// </summary>
     public static FoodForecast ForecastFood(FoodSupply supply, IReadOnlyList<PawnId>? selected)
     {
-        if (!supply.Complete.TryGetValue(out var complete) || !complete)
-        {
-            throw new FoodFactsException();
-        }
         var demand = new Dictionary<PawnId, double>();
         var humanMeat = new Dictionary<PawnId, bool>();
         var ids = new List<PawnId>(supply.Consumers.Count);
         foreach (var consumer in supply.Consumers)
         {
-            var known = consumer.NutritionPerDay.TryGetValue(out var rate);
-            if (demand.ContainsKey(consumer.Id) || !FoodId(consumer.Id.Value) || !known || !FoodNumber(rate))
+            var rate = consumer.NutritionPerDay;
+            if (demand.ContainsKey(consumer.Id) || !FoodId(consumer.Id.Value) || !FoodNumber(rate))
             {
                 throw new FoodFactsException();
             }
             demand[consumer.Id] = rate;
-            humanMeat[consumer.Id] = consumer.HumanMeatAcceptable.ValueOrDefault;
+            humanMeat[consumer.Id] = consumer.HumanMeatAcceptable;
             ids.Add(consumer.Id);
         }
         ids.Sort();
@@ -245,10 +252,10 @@ public static class FoodForecastRules
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var input in supply.Stocks)
         {
-            var ak = input.Nutrition.TryGetValue(out var amount);
-            var hk = input.Holder.TryGetValue(out var holder);
-            if (!FoodId(input.Id) || seen.Contains(input.Id) || !ak || !FoodNumber(amount) || !hk
-                ||(input.Eaters.Count == 0 && !input.Corpse && !input.IsHumanMeat) || input.Eaters.Count > ids.Count)
+            var amount = input.Nutrition;
+            var holder = input.Holder;
+            if (!FoodId(input.Id) || seen.Contains(input.Id) || !FoodNumber(amount)
+                || (input.Eaters.Count == 0 && !input.Corpse && !input.IsHumanMeat) || input.Eaters.Count > ids.Count)
             {
                 throw new FoodFactsException();
             }
@@ -288,16 +295,9 @@ public static class FoodForecastRules
             {
                 throw new FoodFactsException();
             }
-            if (input.Corpse)
+            if (input.Corpse && input.Forbidden)
             {
-                if (!input.Forbidden.TryGetValue(out var forbidden))
-                {
-                    throw new FoodFactsException();
-                }
-                if (forbidden)
-                {
-                    continue;
-                }
+                continue;
             }
             if (!input.Reserve)
             {

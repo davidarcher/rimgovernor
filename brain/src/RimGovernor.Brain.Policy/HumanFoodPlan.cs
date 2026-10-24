@@ -38,15 +38,14 @@ public static class HumanFoodPlanRules
         double tradeSurplus = 0.0;
         foreach (var stock in supply.Stocks)
         {
-            var k = stock.Nutrition.TryGetValue(out var n);
-            var hk = stock.Holder.TryGetValue(out var holder);
-            if (!k || !hk || !holder.IsEmpty)
+            var n = stock.Nutrition;
+            if (!stock.Holder.IsEmpty)
             {
                 continue;
             }
             if (stock.Corpse)
             {
-                if (!stock.Forbidden.TryGetValue(out var forbidden) || forbidden)
+                if (stock.Forbidden)
                 {
                     continue;
                 }
@@ -86,7 +85,7 @@ public static class HumanFoodPlanRules
         var accepts = new Dictionary<PawnId, bool>();
         foreach (var c in supply.Consumers)
         {
-            accepts[c.Id] = c.HumanMeatAcceptable.ValueOrDefault;
+            accepts[c.Id] = c.HumanMeatAcceptable;
         }
         double feed = 0.0;
         double meals = 0.0;
@@ -173,7 +172,7 @@ public static class HumanFoodPlanRules
             }
             foreach (var c in humans)
             {
-                if (!c.HumanMeatAcceptable.TryGetValue(out var accept) || !accept)
+                if (!c.HumanMeatAcceptable)
                 {
                     return [];
                 }
@@ -184,9 +183,8 @@ public static class HumanFoodPlanRules
         var veg = false;
         foreach (var s in supply.Stocks)
         {
-            var hk = s.Holder.TryGetValue(out var holder);
-            var nk = s.Nutrition.TryGetValue(out var n);
-            if (!hk || !holder.IsEmpty || !nk || n <= 0 || s.Corpse || s.Reserve)
+            var n = s.Nutrition;
+            if (!s.Holder.IsEmpty || n <= 0 || s.Corpse || s.Reserve)
             {
                 continue;
             }
@@ -262,9 +260,8 @@ public static class HumanFoodPlanRules
         double veg = 0.0;
         foreach (var s in supply.Stocks)
         {
-            var hk = s.Holder.TryGetValue(out var holder);
-            var nk = s.Nutrition.TryGetValue(out var n);
-            if (!hk || !holder.IsEmpty || !nk || s.Corpse || s.Reserve)
+            var n = s.Nutrition;
+            if (!s.Holder.IsEmpty || s.Corpse || s.Reserve)
             {
                 continue;
             }

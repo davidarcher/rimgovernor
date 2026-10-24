@@ -230,8 +230,8 @@ public static class AnimalFeedRunwayRules
                 continue;
             }
 
-            s.Count.TryGetValue(out var count);
-            s.Nutrition.TryGetValue(out var nutrition);
+            var count = s.Count;
+            var nutrition = s.Nutrition;
             if (!found || s.DefName < item || (s.DefName == item && string.CompareOrdinal(s.Id, bestId) < 0))
             {
                 item = s.DefName;
@@ -364,8 +364,7 @@ public static class AnimalFeedRunwayRules
             {
                 if (GroupEats(stock, g.Animals))
                 {
-                    stock.Nutrition.TryGetValue(out var nutrition);
-                    g.StockNutrition += nutrition;
+                    g.StockNutrition += stock.Nutrition;
                 }
             }
 
@@ -411,18 +410,15 @@ public static class AnimalFeedRunwayRules
         };
     }
 
-    /// <summary>Unheld stock with positive known count and nutrition that every one of the animals can eat.</summary>
+    /// <summary>Unheld stock with positive count and nutrition that every one of the animals can eat.</summary>
     internal static bool GroupEats(FoodStock s, IReadOnlyList<PawnId> animals)
     {
-        var hk = s.Holder.TryGetValue(out var holder);
-        if (!hk || !holder.IsEmpty || s.DefName.IsEmpty || !AdmissionRules.ValidResource(s.DefName))
+        if (!s.Holder.IsEmpty || s.DefName.IsEmpty || !AdmissionRules.ValidResource(s.DefName))
         {
             return false;
         }
 
-        var ck = s.Count.TryGetValue(out var count);
-        var nk = s.Nutrition.TryGetValue(out var nutrition);
-        if (!ck || count <= 0 || !nk || !FoodForecastRules.FoodNumber(nutrition) || nutrition <= 0)
+        if (s.Count <= 0 || !FoodForecastRules.FoodNumber(s.Nutrition) || s.Nutrition <= 0)
         {
             return false;
         }

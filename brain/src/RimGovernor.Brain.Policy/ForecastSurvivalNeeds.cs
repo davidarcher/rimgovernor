@@ -26,7 +26,8 @@ public sealed partial record ForecastSurvivalNeeds
             throw new DomainException("invalid survival roster");
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var food = new Dictionary<PawnId, ConsumerFoodForecast>();
-        try
+        if (request.Facts.FoodUnread) findings.Add("unknown_survival_food");
+        else try
         {
             food = FoodForecastRules.ForecastFood(request.Facts.Food, pawns.Select(p => p.Id).ToArray()).Consumers.ToDictionary(p => p.Id);
         }

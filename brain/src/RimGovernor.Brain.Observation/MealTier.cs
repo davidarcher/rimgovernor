@@ -13,39 +13,30 @@ public sealed partial record ColonyProjection
         if (CombinedFoodSupply.TryGetValue(out var supply))
         {
             var kept = new List<FoodStock>();
-            var complete = true;
             foreach (var stock in supply.Stocks)
             {
-                if (!stock.RawClass.TryGetValue(out var kind))
-                {
-                    complete = false;
-                    break;
-                }
-                if (kind != FoodIngredientClass.None && !stock.Reserve && !stock.Corpse)
+                if (stock.RawClass != FoodIngredientClass.None && !stock.Reserve && !stock.Corpse)
                 {
                     kept.Add(stock);
                 }
             }
-            if (complete)
+            try
             {
-                try
+                var f = FoodForecastRules.ForecastFood(supply with { Stocks = kept }, null);
+                if (FoodSupply.TryGetValue(out var human))
                 {
-                    var f = FoodForecastRules.ForecastFood(supply with { Stocks = kept }, null);
-                    if (FoodSupply.TryGetValue(out var human))
+                    var ids = new List<PawnId>(human.Consumers.Count);
+                    foreach (var c in human.Consumers)
                     {
-                        var ids = new List<PawnId>(human.Consumers.Count);
-                        foreach (var c in human.Consumers)
-                        {
-                            ids.Add(c.Id);
-                        }
-                        f = f.GateOnColonists(ids, minDays);
+                        ids.Add(c.Id);
                     }
-                    r = r with { RawRunwayDays = f.RunwayDays };
+                    f = f.GateOnColonists(ids, minDays);
                 }
-                catch (DomainException)
-                {
-                    // A forecast the policy refuses leaves the raw runway unknown.
-                }
+                r = r with { RawRunwayDays = f.RunwayDays };
+            }
+            catch (DomainException)
+            {
+                // A forecast the policy refuses leaves the raw runway unknown.
             }
         }
         if (WorkPawns.TryGetValue(out var pawns))

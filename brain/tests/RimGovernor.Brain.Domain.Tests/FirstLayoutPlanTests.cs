@@ -116,8 +116,8 @@ public sealed class FirstLayoutPlanTests
         Rest = RestSchedule.Of([]),
         Food = Fact.Known(new FoodSupply
         {
-            Complete = Fact.Known(true),
-            Consumers = [.. Enumerable.Range(0, (int)colonists).Select(i => new FoodConsumer { Id = new PawnId("c" + i), NutritionPerDay = Fact.Known(1.6) })],
+            Larder = new(),
+            Consumers = [.. Enumerable.Range(0, (int)colonists).Select(i => new FoodConsumer { Id = new PawnId("c" + i), NutritionPerDay = 1.6 })],
         }),
         Orders = Fact.Known(EquatableArray.From<OrderSpec>([])),
         Stock = Fact.Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),

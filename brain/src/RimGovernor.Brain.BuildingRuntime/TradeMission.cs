@@ -99,9 +99,9 @@ async
             var mass = double.MaxValue;
             foreach (var stock in supply?.Stocks ?? [])
             {
-                if (stock.DefName.Value == item.Definition && stock.UnitMass.TryGetValue(out var unit))
+                if (stock.DefName.Value == item.Definition)
                 {
-                    mass = Math.Min(mass, unit);
+                    mass = Math.Min(mass, stock.UnitMass);
                 }
             }
             if (mass == double.MaxValue)

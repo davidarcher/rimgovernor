@@ -427,7 +427,7 @@ public static class QuestExpedition
     internal static (IReadOnlyList<CargoItem> Cargo, QuestSkipReason Reason) ExpeditionFood(FoodSupply supply, IReadOnlyList<PawnId> crew, double days, double homeDays, double capacity)
     {
         IReadOnlyList<CargoItem> none = [];
-        if (!supply.Complete.TryGetValue(out var complete) || !complete || !TradePolicyRules.Finite(days) || days < 1)
+        if (!TradePolicyRules.Finite(days) || days < 1)
         {
             return (none, "food_unknown");
         }
@@ -439,7 +439,8 @@ public static class QuestExpedition
             if (crew.Contains(consumer.Id))
             {
                 crewSeen.Add(consumer.Id);
-                if (!consumer.NutritionPerDay.TryGetValue(out var rate) || !TradePolicyRules.Finite(rate) || rate <= 0)
+                var rate = consumer.NutritionPerDay;
+                if (!TradePolicyRules.Finite(rate) || rate <= 0)
                 {
                     return (none, "food_unknown");
                 }
@@ -462,14 +463,11 @@ public static class QuestExpedition
         foreach (var index in indices)
         {
             var stock = stocks[index];
-            var owned = stock.Holder.TryGetValue(out var holder);
-            var ck = stock.Count.TryGetValue(out var count);
-            var nk = stock.Nutrition.TryGetValue(out var nutrition);
-
-            var fk = stock.Forbidden.TryGetValue(out var forbidden);
-            var mk = stock.UnitMass.TryGetValue(out var mass);
-            if (!owned || !holder.IsEmpty || !ck || count <= 0 || !nk || !TradePolicyRules.Finite(nutrition) || nutrition <= 0 || stock.Corpse || stock.IsHumanMeat || stock.RawMeat
-                || !fk || forbidden || stock.Reserve || stock.DefName.Value.Length == 0 || !mk || !TradePolicyRules.Finite(mass) || mass < 0)
+            var count = stock.Count;
+            var nutrition = stock.Nutrition;
+            var mass = stock.UnitMass;
+            if (!stock.Holder.IsEmpty || count <= 0 || !TradePolicyRules.Finite(nutrition) || nutrition <= 0 || stock.Corpse || stock.IsHumanMeat || stock.RawMeat
+                || stock.Forbidden || stock.Reserve || stock.DefName.Value.Length == 0 || !TradePolicyRules.Finite(mass) || mass < 0)
             {
                 continue;
             }
@@ -502,7 +500,7 @@ public static class QuestExpedition
             while (lo < hi)
             {
                 var mid = lo + (hi - lo + 1) / 2;
-                stocks[index] = stock with { Count = Known(count - mid), Nutrition = Known(nutrition - mid * unit) };
+                stocks[index] = stock with { Count = count - mid, Nutrition = nutrition - mid * unit };
                 var runwayKnown = false;
                 var runway = 0.0;
                 try
@@ -522,7 +520,7 @@ public static class QuestExpedition
                     hi = mid - 1;
                 }
             }
-            stocks[index] = stock with { Count = Known(count - lo), Nutrition = Known(nutrition - lo * unit) };
+            stocks[index] = stock with { Count = count - lo, Nutrition = nutrition - lo * unit };
             packed[stock.DefName.Value] = packed.GetValueOrDefault(stock.DefName.Value) + (ulong)lo;
             need -= lo * unit;
             capacity -= lo * mass;

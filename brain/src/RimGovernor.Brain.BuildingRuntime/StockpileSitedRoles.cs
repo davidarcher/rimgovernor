@@ -92,11 +92,7 @@ internal static class StockpileSitedRoles
         var total = 0.0;
         foreach (var c in s.Consumers)
         {
-            if (!c.NutritionPerDay.TryGetValue(out var need))
-            {
-                return (0, false);
-            }
-            total += need;
+            total += c.NutritionPerDay;
         }
         return (total / mealNutrition, true);
     }

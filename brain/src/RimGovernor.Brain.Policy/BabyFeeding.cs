@@ -66,8 +66,8 @@ public static class BabyFeedingRules
                 continue;
             }
 
-            var known = c.NutritionPerDay.TryGetValue(out var rate);
-            DomainException.Require(known && FoodForecastRules.FoodNumber(rate), "food facts unavailable");
+            var rate = c.NutritionPerDay;
+            DomainException.Require(FoodForecastRules.FoodNumber(rate), "food facts unavailable");
             perDay += rate;
             found++;
         }
@@ -76,10 +76,9 @@ public static class BabyFeedingRules
         var stockNutrition = 0.0;
         foreach (var s in supply.Stocks)
         {
-            var hk = s.Holder.TryGetValue(out var holder);
-            var nk = s.Nutrition.TryGetValue(out var amount);
-            DomainException.Require(hk && nk && FoodForecastRules.FoodNumber(amount), "food facts unavailable");
-            if (!holder.IsEmpty || s.Corpse)
+            var amount = s.Nutrition;
+            DomainException.Require(FoodForecastRules.FoodNumber(amount), "food facts unavailable");
+            if (!s.Holder.IsEmpty || s.Corpse)
             {
                 continue;
             }

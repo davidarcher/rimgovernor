@@ -31,7 +31,7 @@ public sealed class ForecastTerminalAccounting
     internal IReadOnlyDictionary<string, double> Finished { get; }
     internal ForecastCoupledMaterials.MaterialHolds? Holds { get; }
     public EquatableArray<ForecastTerminalLot> Lots { get; init; }
-    public Fact<bool> FoodComplete { get; init; }
+    public bool FoodUnread { get; init; }
     public bool MedicineComplete { get; init; }
     public bool PhysicalCensusComplete { get; init; }
 }
@@ -155,7 +155,7 @@ public static class ForecastHandoffPolicy
 
     private static Fact<double> Nutrition(ForecastTerminalAccounting terminal, SortedSet<string> gaps)
     {
-        if (terminal.FoodComplete != Known(true)) { gaps.Add("terminal_food_census_unknown"); return default; }
+        if (terminal.FoodUnread) { gaps.Add("terminal_food_census_unknown"); return default; }
         double total = 0;
         foreach (var lot in terminal.Lots)
         {

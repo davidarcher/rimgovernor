@@ -295,8 +295,8 @@ public static partial class LayoutLightRules
             return (0, 0, false);
         }
         var colonists = f.Colonists;
-        var (nutrition, nk) = LayoutStationPlanRules.HumanNutritionPerDay(supply);
-        if (colonists <= 0 || !nk)
+        var nutrition = LayoutStationPlanRules.HumanNutritionPerDay(supply);
+        if (colonists <= 0)
         {
             return (0, 0, false);
         }

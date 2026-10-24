@@ -15,16 +15,16 @@ public sealed class ForecastStockHandoffTests
     private static readonly Resource Medicine = new("Medicine");
     private static FoodStock Stock(string id, long count, long rot = 120000) => new()
     {
-        Id = id, DefName = Meal, Count = Known(count), Nutrition = Known(count * .5), Holder = Known(new PawnId("")),
+        Id = id, DefName = Meal, Count = count, Nutrition = count * .5, Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(),
         Rot = new FoodRot.Rots(rot), Eaters = [new("animal")]
     };
     private static ColonyForecastRequest Request(params FoodStock[] stocks)
     {
-        EquatableArray<Amount> physical = [new(Meal, stocks.Where(s => !s.Reserve && s.Holder.IsKnown && s.Holder.Value.IsEmpty).Sum(s => s.Count.Value)), new(Medicine, 5)];
+        EquatableArray<Amount> physical = [new(Meal, stocks.Where(s => !s.Reserve && s.Holder.IsEmpty).Sum(s => s.Count)), new(Medicine, 5)];
         var facts = new ColonyForecastFacts
         {
-            Stock = Known(physical), ResourceThings = Known(EquatableArray.From(stocks.Where(s => !s.Reserve && s.Holder.IsKnown && s.Holder.Value.IsEmpty).Select(s => s.Id).Append("med"))),
-            Food = new() { Complete = Known(true), Stocks = stocks, Consumers = [new() { Id = new("animal"), NutritionPerDay = Known(1d) }] },
+            Stock = Known(physical), ResourceThings = Known(EquatableArray.From(stocks.Where(s => !s.Reserve && s.Holder.IsEmpty).Select(s => s.Id).Append("med"))),
+            Food = new() { Larder = new(), Stocks = stocks, Consumers = [new() { Id = new("animal"), NutritionPerDay = 1d }] },
             Medicine = new() { Items = Known<EquatableArray<MedicineStackRow>>([new() { Id = "med", Definition = Medicine, Count = 5, Perishable = Known(false) }, new() { Id = "barred-med", Definition = Medicine, Count = 100, Forbidden = true, Perishable = Known(false) }]) },
             Items = new() { Nutrition = new Dictionary<Resource, double> { [Meal] = .5 }, MedicalPotency = new Dictionary<Resource, double> { [Medicine] = 1 } }
         };
@@ -43,7 +43,7 @@ public sealed class ForecastStockHandoffTests
     public void FullEligibleCensusConsumesOtherPawnDemandAndExpiresOnlyRemainingUnits()
     {
         var request = Request(Stock("early", 4, 30000), Stock("late", 10), Stock("reserve", 100) with { Reserve = true },
-            Stock("held", 2) with { Holder = Known(new PawnId("animal")) });
+            Stock("held", 2) with { Holder = new PawnId("animal") });
         var result = Evaluate(request);
         var handoff = ForecastHandoffPolicy.Project(result)!;
         Assert.Empty(handoff.Gaps);
@@ -126,10 +126,9 @@ public sealed class ForecastStockHandoffTests
     }
 
     [Fact]
-    public void UnknownNativeEligibilityAndDifferentCensusScopeRemainExplicit()
+    public void ADifferentCensusScopeRemainsExplicit()
     {
-        var supply = Request(Stock("unknown", 5) with { Holder = default }).Facts.Food;
-        Assert.False(ForecastStockScope.Count(supply, Meal).IsKnown);
+        var supply = Request(Stock("food", 5)).Facts.Food;
         var key = new ForecastEvidenceKey("r", "l", "m", "review", "sample", ForecastMetric.FoodStock, Meal.Value, "total", "items", "", "", 0);
         var prediction = new ForecastPrediction(key, 0, 1, Known(5d), "", ForecastAdmission.Continued);
         Assert.Equal("food_stock_scope_mismatch", ForecastLiveEvidence.Observe(prediction, 1, null, null, ForecastExecution.Unknown, supply).UnknownReason);

@@ -6,34 +6,23 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// Wraps an observed <see cref="FoodStock"/> (reused as-is from FoodForecast.cs). Whether the stock counts as
-/// adequately stored is derived per review from its Roofed/TemperatureC facts and Rot by <see cref="Stored"/>,
+/// adequately stored is derived per review from its place, temperature and rot by <see cref="Stored"/>,
 /// so the storage and refrigeration policies share one definition.
 /// </summary>
 public sealed record FoodStorageStock(FoodStock Stock)
 {
+    /// <summary>A stock a pawn carries is in no storage: the storage review and refrigeration leave it out.</summary>
+    internal bool Carried => Stock.Place is FoodPlace.Carried;
+
     /// <summary>
-    /// Whether a perishable stock sits in adequate storage: roofed, and either
+    /// Whether a standing perishable stock sits in adequate storage: roofed, and either
     /// chilled to chilledMaxC or with at least SafeRotDays of runway left at its current temperature. A
     /// roofed-but-warm stockpile is adequate for food that will be eaten long before it rots; only warm food
-    /// close to spoiling is at risk. Unknown when any needed fact is unknown.
+    /// close to spoiling is at risk.
     /// </summary>
-    internal Fact<bool> Stored(double chilledMaxC, FoodStoragePolicy p)
-    {
-        if (!Stock.Roofed.TryGetValue(out var roofed))
-        {
-            return Unknown<bool>();
-        }
-        if (!roofed)
-        {
-            return Known(false);
-        }
-        var tk = Stock.TemperatureC.TryGetValue(out var temperature);
-        if (!tk)
-        {
-            return Unknown<bool>();
-        }
-        return Known(temperature <= chilledMaxC || Stock.Rot is FoodRot.Keeps || Stock.Rot is FoodRot.Rots { Ticks: var ticks } && ticks >= p.SafeRotDays * GameTime.TicksPerDay);
-    }
+    internal bool Stored(double chilledMaxC, FoodStoragePolicy p) =>
+        Stock.Place is FoodPlace.Stands { Roofed: true }
+        && (Stock.TemperatureC <= chilledMaxC || Stock.Rot is FoodRot.Keeps || Stock.Rot is FoodRot.Rots { Ticks: var ticks } && ticks >= p.SafeRotDays * GameTime.TicksPerDay);
 }
 
 /// <summary>
@@ -44,7 +33,8 @@ public sealed record FoodStorageObservation
 {
     public Fact<EquatableArray<FoodStorageStock>> Stocks { get; init; }
 
-    public Fact<FoodLarder> Larder { get; init; }
+    /// <summary>The larder facts beside the census; read only while Stocks is known.</summary>
+    public FoodLarder Larder { get; init; } = new();
 
     /// <summary>
     /// The storage temperature at or below which perishable stock counts as refrigerated: the catalog's
@@ -65,9 +55,9 @@ public sealed record FoodStorageObservation
         {
             var s = entry.Stock;
             DomainException.Require(FoodForecastRules.FoodId(s.Id) && seen.Add(s.Id), "invalid food storage facts");
-            DomainException.Require(!(s.Nutrition.TryGetValue(out var nutrition) && !FoodForecastRules.FoodNumber(nutrition)), "invalid food storage facts");
+            DomainException.Require(FoodForecastRules.FoodNumber(s.Nutrition), "invalid food storage facts");
             DomainException.Require(s.Rot is not FoodRot.Rots { Ticks: < 0 }, "invalid food storage facts");
-            DomainException.Require(!(s.TemperatureC.TryGetValue(out var temperature) && !FoodStorageUpkeepRules.Celsius(temperature)), "invalid food storage facts");
+            DomainException.Require(FoodStorageUpkeepRules.Celsius(s.TemperatureC), "invalid food storage facts");
         }
     }
 }
@@ -197,14 +187,14 @@ public static class FoodStorageUpkeepRules
     /// <summary>Accepts any finite temperature, below zero included.</summary>
     internal static bool Celsius(double n) => !double.IsNaN(n) && !double.IsInfinity(n);
 
-    /// <summary>Whether a stock is known perishable, not yet rotted and known not adequately stored under p and the census's chilledMaxC.</summary>
+    /// <summary>Whether a standing stock is perishable, not yet rotted and not adequately stored under p and the census's chilledMaxC.</summary>
     public static bool FoodStorageUnstored(FoodStorageStock s, double chilledMaxC, FoodStoragePolicy p)
     {
         if (s.Stock.Rot is not FoodRot.Rots { Ticks: > 0 })
         {
             return false;
         }
-        return s.Stored(chilledMaxC, p).TryGetValue(out var stored) && !stored;
+        return !s.Carried && !s.Stored(chilledMaxC, p);
     }
 
     public static FoodStoragePolicy DefaultFoodStoragePolicy() =>
@@ -247,15 +237,12 @@ public static class FoodStorageUpkeepRules
         foreach (var entry in stocks)
         {
             var s = entry.Stock;
-            var nk = s.Nutrition.TryGetValue(out var nutrition);
-            if (!nk || s.Rot is not FoodRot.Rots { Ticks: > 0 })
+            var nutrition = s.Nutrition;
+            if (entry.Carried || s.Rot is not FoodRot.Rots { Ticks: > 0 })
             {
                 continue;
             }
-            if (!entry.Stored(v.ChilledMaxC, p).TryGetValue(out var storedFact))
-            {
-                return r;
-            }
+            var storedFact = entry.Stored(v.ChilledMaxC, p);
             DomainException.Require(!(total > double.MaxValue - nutrition), "invalid food storage facts or thresholds");
             total += nutrition;
             if (storedFact)

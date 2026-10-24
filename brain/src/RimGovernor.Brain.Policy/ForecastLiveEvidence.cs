@@ -20,11 +20,11 @@ public static class ForecastLiveEvidence
         {
             var resources = terminal.Request.Facts.Food.Stocks.Select(s => s.DefName)
                 .Concat(terminal.Lots.Where(l => l.FoodEligible != Known(false)).Select(l => l.Resource)).Where(r => !string.IsNullOrEmpty(r.Value)).Distinct().OrderBy(r => r.Value, StringComparer.Ordinal).ToArray();
-            if (resources.Length == 0 && terminal.FoodComplete != Known(true))
+            if (resources.Length == 0 && terminal.FoodUnread)
                 yield return Row(ForecastMetric.FoodStock, "unavailable", ForecastStockScope.Food, "items", default, "food_stock_census_unknown");
             foreach (var resource in resources)
                 yield return Row(ForecastMetric.FoodStock, resource.Value, ForecastStockScope.Food, "items",
-                    terminal.FoodComplete == Known(true) ? ForecastStockScope.Count(terminal.Lots, resource) : default, "food_stock_census_or_lot_unknown");
+                    terminal.FoodUnread ? default : ForecastStockScope.Count(terminal.Lots, resource), "food_stock_census_or_lot_unknown");
         }
         else yield return Row(ForecastMetric.FoodStock, "unavailable", ForecastStockScope.Food, "items", default, "food_stock_prediction_unavailable");
         foreach (var pawn in context.Needs.Pawns)

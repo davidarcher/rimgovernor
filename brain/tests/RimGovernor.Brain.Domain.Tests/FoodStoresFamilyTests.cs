@@ -22,11 +22,11 @@ public sealed class FoodStoresFamilyTests
     {
         Id = id,
         DefName = new(def),
-        Nutrition = Known(nutrition),
+        Nutrition = nutrition,
         Rot = new FoodRot.Rots((long)GameTime.TicksPerDay),
-        Roofed = Known(roofed),
-        TemperatureC = Known(roofed ? 0.0 : 20.0),
-        Forbidden = Known(false),
+        Place = new FoodPlace.Stands(roofed, ""),
+        TemperatureC = roofed ? 0.0 : 20.0,
+        Form = new FoodForm.Item(),
     });
 
     /// <summary>A forbidden warm corpse the larder allows again, lying unroofed at (3, 4).</summary>
@@ -34,20 +34,18 @@ public sealed class FoodStoresFamilyTests
     {
         Id = "corpse-1",
         DefName = new("Corpse_Muffalo"),
-        Corpse = true,
-        Nutrition = Known(10.0),
+        Nutrition = 10.0,
         Rot = new FoodRot.Rots((long)GameTime.TicksPerDay),
-        Roofed = Known(false),
-        TemperatureC = Known(20.0),
-        Forbidden = Known(true),
-        MeatAmount = Known(100.0),
-        BodySize = Known(1.0),
+        Place = new FoodPlace.Stands(false, ""),
+        TemperatureC = 20.0,
+        Forbidden = true,
+        Form = new FoodForm.Corpse(100.0, 1.0),
     });
 
     private static FoodStorageObservation Census(params FoodStorageStock[] stocks) => new()
     {
         Stocks = Known(EquatableArray.From(stocks)),
-        Larder = Known(new FoodLarder { Corpses = stocks.Any(s => s.Stock.Corpse) ? [new CorpseHandling { Id = "corpse-1", Cell = new(3, 4) }] : [] }),
+        Larder = new FoodLarder { Corpses = stocks.Any(s => s.Stock.Corpse) ? [new CorpseHandling { Id = "corpse-1", Cell = new(3, 4) }] : [] },
         ChilledMaxC = 10,
     };
 
@@ -60,12 +58,11 @@ public sealed class FoodStoresFamilyTests
     {
         Id = id,
         DefName = new("RawFungus"),
-        Nutrition = Known(nutrition),
+        Nutrition = nutrition,
         Rot = new FoodRot.Rots(2L * GameTime.TicksPerDay),
-        Roofed = Known(true),
-        TemperatureC = Known(celsius),
-        Forbidden = Known(false),
-        Room = Known("r1"),
+        Place = new FoodPlace.Stands(true, "r1"),
+        TemperatureC = celsius,
+        Form = new FoodForm.Item(),
     });
 
     private static Need Refrigeration(FoodStoresFacts facts) => Assert.Single(new FoodStoresFamily(Policy, false, true).Derive(facts));
@@ -91,10 +88,8 @@ public sealed class FoodStoresFamilyTests
         Assert.Equal(Satisfaction.Unmet, closet.Satisfaction);
         Assert.True(closet.Deficit.TryGetValue(out var owed) && owed >= 0.5);
 
-        // An unread census, or a warm stock of unknown temperature, is unknown, never met.
+        // An unread census is unknown, never met.
         Assert.Equal("refrigeration census", Assert.Throws<RequiredFactException>(() => Refrigeration(new())).Fact);
-        var unmeasured = Census(new FoodStorageStock(Warm("a", Policy.AtRiskNutritionThreshold, 20).Stock with { TemperatureC = Unknown<double>() }));
-        Assert.Equal("refrigeration census", Assert.Throws<RequiredFactException>(() => Refrigeration(new() { Storage = unmeasured })).Fact);
     }
 
     [Fact]

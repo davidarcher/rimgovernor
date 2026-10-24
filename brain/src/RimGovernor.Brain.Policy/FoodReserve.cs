@@ -78,7 +78,7 @@ public static class FoodReserveRules
             Stocks =
             [
                 .. supply.Stocks.Select(stock =>
-                    stock.Holder.TryGetValue(out var holder) && holder.IsEmpty && ReserveFoodDefinition(stock.DefName) ? stock with { Reserve = true } : stock
+                    stock.Holder.IsEmpty && ReserveFoodDefinition(stock.DefName) ? stock with { Reserve = true } : stock
                 ),
             ],
         };
@@ -120,7 +120,7 @@ public static class FoodReserveRules
             {
                 continue;
             }
-            if (!stock.Holder.TryGetValue(out var holder) || !holder.IsEmpty)
+            if (!stock.Holder.IsEmpty)
             {
                 continue;
             }
@@ -133,7 +133,7 @@ public static class FoodReserveRules
                 }
                 continue;
             }
-            var amount = stock.Nutrition.ValueOrDefault;
+            var amount = stock.Nutrition;
             if (stock.Rot is FoodRot.Rots { Ticks: var ticks } && (double)ticks / GameTime.TicksPerDay <= reserveDays)
             {
                 continue;

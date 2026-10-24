@@ -28,75 +28,67 @@ public static class FoodSupplyReads
 
     private static FoodSupply DecodeFoodSupply(O.FoodSupplyFacts v, IReadOnlyDictionary<string, O.Thing> rows, DefinitionCatalog catalog)
     {
-        var supply = new FoodSupply { Complete = Known(true) };
-        if (v.Larder is { } l)
+        var corpses = new List<CorpseHandling>(v.Larder.Corpses.Count);
+        foreach (var row in v.Larder.Corpses)
         {
-            var corpses = new List<CorpseHandling>(l.Corpses.Count);
-            foreach (var row in l.Corpses)
+            corpses.Add(new CorpseHandling
             {
-                corpses.Add(new CorpseHandling
-                {
-                    Id = row.StockId,
-                    Cell = ColonyDecodeReads.CellOf(row.Cell),
-                    Hauler = new PawnId((row.HaulerId ?? "")),
-                    FrozenDestination = row.FrozenDestination,
-                });
-            }
-            supply = supply with
-            {
-                Larder = Known(new FoodLarder
-                {
-                    RawMeatNutrition = l.RawMeatNutrition,
-                    CookDemandNutrition = l.CookDemandNutrition,
-                    Corpses = EquatableArray.From(corpses),
-                }),
-            };
+                Id = row.StockId,
+                Cell = ColonyDecodeReads.CellOf(row.Cell),
+                Hauler = new PawnId((row.HaulerId ?? "")),
+                FrozenDestination = row.FrozenDestination,
+            });
         }
+        var larder = new FoodLarder
+        {
+            RawMeatNutrition = v.Larder.RawMeatNutrition,
+            CookDemandNutrition = v.Larder.CookDemandNutrition,
+            Corpses = EquatableArray.From(corpses),
+        };
         var consumers = new List<FoodConsumer>(v.Consumers.Count);
         foreach (var row in v.Consumers)
         {
             consumers.Add(new FoodConsumer
             {
-                Id = new PawnId((row.PawnId ?? "")),
-                NutritionPerDay = ColonyDecodeReads.Optional(row.NutritionPerDay is not null, row.NutritionPerDay.GetValueOrDefault()),
-                HumanMeatAcceptable = ColonyDecodeReads.Optional(row.HumanMeatAcceptable is not null, row.HumanMeatAcceptable.GetValueOrDefault()),
+                Id = new PawnId(row.PawnId),
+                NutritionPerDay = row.NutritionPerDay,
+                HumanMeatAcceptable = row.HumanMeatAcceptable,
             });
         }
         var stocks = new List<FoodStock>();
         var barredStocks = new List<FoodStock>();
         foreach (var s in v.Stocks)
         {
-            // The join holds every stock's row.
-            var row = rows[s.Item?.Id ?? ""];
+            // The join holds every stock's row, and a stock's row carries the food facts of an ingestible or a corpse.
+            var row = rows[s.Item.Id ?? ""];
             var def = row.Entity.DefName;
             var defFacts = FoodDefFactsOf(catalog, def, row.Corpse);
+            var food = $"food stock {s.Item.Id}";
+            FoodForm form = row.Corpse
+                ? new FoodForm.Corpse(row.MeatAmount ?? throw new ObservationContractException($"{food} is a corpse without its meat amount"), row.BodySize ?? throw new ObservationContractException($"{food} is a corpse without its body size"))
+                : new FoodForm.Item();
+            // A spawned stock stands where its roof is read; a stock in an inventory is carried.
+            FoodPlace place = row.Roofed is { } roofed ? new FoodPlace.Stands(roofed, row.Room?.Id ?? "") : new FoodPlace.Carried();
             // A thing rots exactly while it has a rot deadline.
             var stock = new FoodStock
             {
-                Id = s.Item?.Id ?? "",
-                IsHumanMeat = row.IsHumanMeat.GetValueOrDefault(),
+                Id = s.Item.Id ?? "",
+                IsHumanMeat = row.IsHumanMeat ?? throw new ObservationContractException($"{food} has no human meat fact"),
                 RawMeat = defFacts.RawMeat,
                 IsHumanlike = defFacts.Humanlike,
                 Vegetable = defFacts.Vegetable,
-                RawClass = Known(defFacts.Class),
-                Holder = Known(new PawnId(s.Holder?.Id ?? "")),
-                Nutrition = ColonyDecodeReads.Optional(s.Nutrition is not null, s.Nutrition.GetValueOrDefault()),
+                RawClass = defFacts.Class,
+                Holder = new PawnId(s.Holder?.Id ?? ""),
+                Nutrition = s.Nutrition,
                 Rot = row.RotTicks is { } rot ? new FoodRot.Rots(rot) : new FoodRot.Keeps(),
                 DefName = new Resource(def),
-                Roofed = ColonyDecodeReads.Optional(row.Roofed is not null, row.Roofed.GetValueOrDefault()),
-                TemperatureC = ColonyDecodeReads.Optional(row.TemperatureC is not null, row.TemperatureC.GetValueOrDefault()),
-                Room = ColonyDecodeReads.OptionalRef(row.Room),
+                Place = place,
+                TemperatureC = row.TemperatureC ?? throw new ObservationContractException($"{food} has no ambient temperature"),
+                Count = row.StackCount,
+                UnitMass = catalog.StatValue(def, "", CatalogStats.Mass),
+                Form = form,
+                Forbidden = row.Forbidden,
             };
-            stock = stock with { Count = Known(row.StackCount) };
-            try
-            {
-                stock = stock with { UnitMass = PlanningViewReads.FiniteFact((float)catalog.StatValue(def, "", CatalogStats.Mass)) };
-            }
-            catch (DomainException)
-            {
-                // A def with no readable mass leaves the unit mass unknown.
-            }
-            stock = stock with { Corpse = row.Corpse };
             // A forbidden stack is the travel reserve when its def is one; any other forbidden stack has no
             // eaters and counts only as human meat.
             var barred = false;
@@ -106,12 +98,6 @@ public static class FoodSupplyReads
                 stock = stock with { Reserve = reserve };
                 barred = !reserve;
             }
-            stock = stock with
-            {
-                Forbidden = Known(row.Forbidden),
-                MeatAmount = ColonyDecodeReads.Optional(row.MeatAmount is not null, row.MeatAmount.GetValueOrDefault()),
-                BodySize = ColonyDecodeReads.Optional(row.BodySize is not null, row.BodySize.GetValueOrDefault()),
-            };
             if (barred && !stock.IsHumanMeat)
             {
                 // Census-only row (Barred): no eaters, outside the forecast.
@@ -129,6 +115,6 @@ public static class FoodSupplyReads
             }
             stocks.Add(stock);
         }
-        return supply with { Consumers = consumers, Stocks = stocks, Barred = barredStocks };
+        return new FoodSupply { Consumers = consumers, Stocks = stocks, Barred = barredStocks, Larder = larder };
     }
 }

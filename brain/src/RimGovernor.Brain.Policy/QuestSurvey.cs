@@ -128,17 +128,16 @@ public static class QuestSurvey
             {
                 continue;
             }
-            var ck = row.Count.TryGetValue(out var count);
-            var nk = row.Nutrition.TryGetValue(out var nutrition);
-            if (!ck || !nk || count <= 0)
+            var count = row.Count;
+            if (count <= 0)
             {
                 continue;
             }
             var take = Math.Min(count, remaining);
             stocks[i] = row with
             {
-                Count = Known(count - take),
-                Nutrition = Known(nutrition * ((double)(count - take) / count)),
+                Count = count - take,
+                Nutrition = row.Nutrition * ((double)(count - take) / count),
             };
             packed[row.DefName.Value] -= take;
         }

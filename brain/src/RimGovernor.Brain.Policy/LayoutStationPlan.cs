@@ -208,11 +208,7 @@ public sealed record StationFacts
         {
             throw new RequiredFactException("food census");
         }
-        var (nutrition, nutritionOk) = LayoutStationPlanRules.HumanNutritionPerDay(supply);
-        if (!nutritionOk)
-        {
-            throw new RequiredFactException("nutrition per day");
-        }
+        var nutrition = LayoutStationPlanRules.HumanNutritionPerDay(supply);
         if (!Orders.TryGetValue(out var orders))
         {
             throw new RequiredFactException("work ledger orders");
@@ -521,23 +517,15 @@ public static partial class LayoutStationPlanRules
         return n;
     }
 
-    /// <summary>The nutrition the colonists eat a day: the sum of the consumers' rates. Ok is false when the census is incomplete or any rate is unknown.</summary>
-    public static (double Total, bool Ok) HumanNutritionPerDay(FoodSupply supply)
+    /// <summary>The nutrition the colonists eat a day: the sum of the consumers' rates.</summary>
+    public static double HumanNutritionPerDay(FoodSupply supply)
     {
-        if (supply.Complete.TryGetValue(out var complete) && !complete)
-        {
-            return (0, false);
-        }
         var total = 0.0;
         foreach (var c in supply.Consumers)
         {
-            if (!c.NutritionPerDay.TryGetValue(out var rate))
-            {
-                return (0, false);
-            }
-            total += rate;
+            total += c.NutritionPerDay;
         }
-        return (total, true);
+        return total;
     }
 
     /// <summary>Reports a rebuild in flight: a successor pending in the plan or a pinned room not yet standing (as rebuildInFlight reads the census).</summary>

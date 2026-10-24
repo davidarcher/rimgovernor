@@ -335,7 +335,7 @@ partial class Rounder
         if (p.CombinedFoodSupply.TryGetValue(out var supply))
         {
             stocks = supply.Stocks;
-            complete = supply.Complete == Known(true);
+            complete = true;
         }
 
         delivered[HuntCreditRules.HuntSource] = credit.HuntDelivered(ledger.Kills, ledger.Butchers, stocks, complete);

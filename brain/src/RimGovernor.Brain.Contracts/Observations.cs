@@ -4926,11 +4926,11 @@ public abstract record PackRoute
 
 public sealed record FoodConsumer
 {
-    public string? PawnId { get; init; }
+    public required string PawnId { get; init; }
 
-    public double? NutritionPerDay { get; init; }
+    public required double NutritionPerDay { get; init; }
 
-    public bool? HumanMeatAcceptable { get; init; }
+    public required bool HumanMeatAcceptable { get; init; }
 }
 
 /// <summary>
@@ -4942,11 +4942,11 @@ public sealed record FoodConsumer
 /// </summary>
 public sealed record FoodStock
 {
-    public Common.Ref? Item { get; init; }
+    public required Common.Ref Item { get; init; }
 
     public Common.Ref? Holder { get; init; }
 
-    public double? Nutrition { get; init; }
+    public required double Nutrition { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
     public EquatableArray<Common.Ref> Eaters { get; init; }
@@ -4981,7 +4981,7 @@ public sealed record FoodSupplyFacts
     [JsonConverter(typeof(EquatableArrayJsonConverter<FoodStock>))]
     public EquatableArray<FoodStock> Stocks { get; init; }
 
-    public FoodLarderFacts? Larder { get; init; }
+    public required FoodLarderFacts Larder { get; init; }
 }
 
 public sealed record PatientForecast

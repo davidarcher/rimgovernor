@@ -68,7 +68,6 @@ HttpChannel/HttpChannelServer.cs|HttpChannelServer.ServeAsync
 Observation/ColonyDecode.cs|ColonyDecodeReads.DecodeColony
 Observation/ColonyProduction.cs|ColonyProductionReads.ProductionProductOf
 Observation/Definitions.cs|DefinitionsReads.ReadDefinitionFacts
-Observation/FoodSupply.cs|FoodSupplyReads.DecodeFoodSupply
 Observation/MealTier.cs|ColonyProjection.MealRequest
 Observation/RoundsRead.cs|RoundsReads.FrameQuests
 Observation/StuffChoice.cs|ColonyProjection.BulkBuildStuffExcept

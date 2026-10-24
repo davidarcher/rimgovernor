@@ -10,12 +10,11 @@ public static partial class MealRules
         var amounts = new Dictionary<CandidateKind, double>();
         foreach (var stock in s.Stocks)
         {
-            var ck = stock.RawClass.TryGetValue(out var rawClass);
-            var ak = stock.Nutrition.TryGetValue(out var amount);
-            var hk = stock.Holder.TryGetValue(out var holder);
+            var rawClass = stock.RawClass;
+            var amount = stock.Nutrition;
             // Human stock belongs to its gated routing row; it cannot certify protein availability for an
             // unrestricted shared meal bill.
-            if (!ck || !ak || !hk || !holder.IsEmpty || stock.Reserve || stock.Corpse || stock.IsHumanMeat || amount <= 0)
+            if (!stock.Holder.IsEmpty || stock.Reserve || stock.Corpse || stock.IsHumanMeat || amount <= 0)
             {
                 continue;
             }

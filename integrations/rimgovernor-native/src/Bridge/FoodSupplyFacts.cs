@@ -134,7 +134,7 @@ namespace HomeBridge.BridgeTools
 
         // Shared typed source for the protobuf projections.
         internal sealed class Snapshot {
-            internal FoodLarderFacts.Snapshot? larder;
+            internal FoodLarderFacts.Snapshot larder = new FoodLarderFacts.Snapshot();
             public bool readable { get; set; }
             public List<ConsumerFacts> consumers { get; set; } = new List<ConsumerFacts>();
             public List<StockFacts> stocks { get; set; } = new List<StockFacts>();

@@ -24,11 +24,12 @@ namespace HomeBridge.BridgeTools
         internal static bool Frozen(IntVec3 cell, Map map) => cell.Roofed(map)
             && cell.GetRoom(map)?.ProperRoom == true && cell.GetTemperature(map) <= 0;
 
-        internal static Snapshot? Read(List<Pawn> people, List<Thing> shared, List<FoodSupplyFacts.StockFacts> stocks)
+        // A census with no pawn on a map has no cooks or haulers: its larder is empty.
+        internal static Snapshot Read(List<Pawn> people, List<Thing> shared, List<FoodSupplyFacts.StockFacts> stocks)
         {
-            var map = people.FirstOrDefault()?.Map;
-            if (map == null) return null;
             var result = new Snapshot();
+            var map = people.FirstOrDefault()?.Map;
+            if (map == null) return result;
             var ids = new HashSet<string>(stocks.Where(s => s.corpse && !s.isHumanlike).Select(s => s.id!));
             if (ids.Count == 0) return result;
             var meatDefs = DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.IsMeat && d.IsNutritionGivingIngestible).ToList();

@@ -478,18 +478,15 @@ namespace HomeBridge.BridgeTools
         }
         private static Obs.FoodSupplyFacts Food(FoodSupplyFacts.Snapshot source)
         {
-            var result = new Obs.FoodSupplyFacts { };
-            if (source.larder != null) {
-                var corpses = new List<Obs.CorpseHandling>();
-                foreach (var corpse in source.larder.Corpses) {
-                    var row = new Obs.CorpseHandling { StockId = corpse.ID, Cell = Cell(corpse.Cell), FrozenDestination = corpse.FrozenDestination };
-                    if (corpse.Hauler != null) row = row with { HaulerId = corpse.Hauler };
-                    corpses.Add(row);
-                }
-                result = result with { Larder = new Obs.FoodLarderFacts { RawMeatNutrition = Finite(source.larder.RawMeatNutrition), CookDemandNutrition = Finite(source.larder.CookDemandNutrition), Corpses = [.. corpses] } };
+            var corpses = new List<Obs.CorpseHandling>();
+            foreach (var corpse in source.larder.Corpses) {
+                var handling = new Obs.CorpseHandling { StockId = corpse.ID, Cell = Cell(corpse.Cell), FrozenDestination = corpse.FrozenDestination };
+                if (corpse.Hauler != null) handling = handling with { HaulerId = corpse.Hauler };
+                corpses.Add(handling);
             }
+            var result = new Obs.FoodSupplyFacts { Larder = new Obs.FoodLarderFacts { RawMeatNutrition = Finite(source.larder.RawMeatNutrition), CookDemandNutrition = Finite(source.larder.CookDemandNutrition), Corpses = [.. corpses] } };
             foreach (var consumer in source.consumers)
-                result = result with { Consumers = [.. result.Consumers, new Obs.FoodConsumer { PawnId = consumer.id, NutritionPerDay = Finite(consumer.nutritionPerDay), HumanMeatAcceptable = consumer.humanMeatAcceptable }] };
+                result = result with { Consumers = [.. result.Consumers, new Obs.FoodConsumer { PawnId = consumer.id!, NutritionPerDay = Finite(consumer.nutritionPerDay), HumanMeatAcceptable = consumer.humanMeatAcceptable }] };
             foreach (var stock in source.stocks) {
                 // The stock's thing is a things table row.
                 var row = new Obs.FoodStock { Item = NativeRef.Thing(stock.thing!), Nutrition = Finite(stock.nutrition) };

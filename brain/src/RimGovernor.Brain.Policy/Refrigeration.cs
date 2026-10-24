@@ -146,44 +146,16 @@ public sealed record RefrigerationProposal
 public static partial class RefrigerationRules
 {
     /// <summary>
-    /// A stock's contribution to the review: known perishable, unrotted, roofed, with a known room, whose
-    /// temperature exceeds limit and whose rot runway is shorter than SafeRotDays. Known is false when a
-    /// needed fact is unknown.
+    /// A stock's contribution to the review: perishable, unrotted, standing roofed, whose temperature exceeds
+    /// limit and whose rot runway is shorter than SafeRotDays.
     /// </summary>
-    internal static (bool Warm, bool Known) WarmAtRisk(this FoodStorageStock s, FoodStoragePolicy p, double limit)
-    {
-        // A non-perishable stock (a survival meal, pemmican) never rots: it is not at risk.
-        if (s.Stock.Rot is not FoodRot.Rots { Ticks: var ticks })
-        {
-            return (false, true);
-        }
-        if (ticks <= 0)
-        {
-            return (false, true);
-        }
-        // Food a pawn holds (carried or in inventory) has no storage cell to cool: it is not at risk here, and
-        // its unknown roof/room facts must not blank the review while a cook or hauler walks a stack across
-        // the map.
-        if (s.Stock.Holder.TryGetValue(out var holder) && !holder.IsEmpty)
-        {
-            return (false, true);
-        }
-        if (!s.Stock.Roofed.TryGetValue(out var roofed))
-        {
-            return (false, false);
-        }
-        if (!roofed)
-        {
-            return (false, true);
-        }
-        var tmk = s.Stock.TemperatureC.TryGetValue(out var temperature);
-        var roomKnown = s.Stock.Room.TryGetValue(out _);
-        if (!tmk || !roomKnown)
-        {
-            return (false, false);
-        }
-        return (temperature > limit && (double)ticks < p.SafeRotDays * GameTime.TicksPerDay, true);
-    }
+    internal static bool WarmAtRisk(this FoodStorageStock s, FoodStoragePolicy p, double limit) =>
+        // A non-perishable stock (a survival meal, pemmican) never rots, and food a pawn carries (in hand or in
+        // inventory) has no storage cell to cool: neither is at risk here.
+        s.Stock.Rot is FoodRot.Rots { Ticks: > 0 and var ticks }
+        && s.Stock.Holder.IsEmpty
+        && s.Stock.Place is FoodPlace.Stands { Roofed: true }
+        && s.Stock.TemperatureC > limit && (double)ticks < p.SafeRotDays * GameTime.TicksPerDay;
 
     /// <summary>
     /// Active while the roofed at-risk nutrition warmer than ChilledExitC (the exit bar) reaches
@@ -210,22 +182,12 @@ public static partial class RefrigerationRules
         var rooms = new HashSet<string>(StringComparer.Ordinal);
         foreach (var entry in stocks)
         {
-            var (warm, known) = entry.WarmAtRisk(p, limit);
-            if (!known)
-            {
-                return new RefrigerationReview { WarmNutrition = Unknown<double>() };
-            }
-            if (!warm)
+            if (!entry.WarmAtRisk(p, limit) || entry.Stock.Place is not FoodPlace.Stands { Room: var room })
             {
                 continue;
             }
-            if (!entry.Stock.Nutrition.TryGetValue(out var nutrition))
-            {
-                return new RefrigerationReview { WarmNutrition = Unknown<double>() };
-            }
-            total += nutrition;
-            entry.Stock.Room.TryGetValue(out var room);
-            rooms.Add(room ?? "");
+            total += entry.Stock.Nutrition;
+            rooms.Add(room);
         }
         var isActive = total >= p.AtRiskNutritionThreshold;
         return new RefrigerationReview

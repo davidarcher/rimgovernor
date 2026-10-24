@@ -22,8 +22,8 @@ public sealed class ForecastFoodCandidatesTests
                 Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Cooking", Level = skill } })) } })) } },
         Facts = new ColonyForecastFacts { Stock = Known(default(EquatableArray<Amount>)),
             Items = new ItemFacts { Nutrition = new Dictionary<Resource, double> { [Raw] = 0.01, [Meal] = 0.1 } },
-            Food = new FoodSupply { Complete = Known(true), Consumers = [new() { Id = Pawn, NutritionPerDay = Known(1.0) }],
-                Stocks = [new() { Id = "existing", Holder = Known(default(RimGovernor.Brain.Domain.PawnId)), Nutrition = Known(1000.0 / GameTime.TicksPerDay),
+            Food = new FoodSupply { Larder = new(), Consumers = [new() { Id = Pawn, NutritionPerDay = 1.0 }],
+                Stocks = [new() { Id = "existing", Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), Nutrition = 1000.0 / GameTime.TicksPerDay,
                     Rot = new FoodRot.Keeps(), Eaters = [Pawn] }] } },
     };
     private static ForecastActivityProblem Capacity() => new()
@@ -47,8 +47,8 @@ public sealed class ForecastFoodCandidatesTests
         Workers = [new("worker", Known(true), Known(true), Known(10.0), Known(10.0), Known(0.0))],
         Transfers = [new("plant", "home", "worker", Raw, Known(4.0), Known(10.0)),
             new("plant", "bench", "worker", Raw, Known(4.0), Known(10.0)), new("bench", "home", "worker", Meal, Known(2.0), Known(10.0))],
-        EdibleAtDestination = new Dictionary<Resource, FoodStock> { [Raw] = new() { Holder = Known(default(RimGovernor.Brain.Domain.PawnId)), Rot = new FoodRot.Keeps(), Eaters = [Pawn] },
-            [Meal] = new() { Holder = Known(default(RimGovernor.Brain.Domain.PawnId)), Rot = new FoodRot.Keeps(), Eaters = [Pawn] } },
+        EdibleAtDestination = new Dictionary<Resource, FoodStock> { [Raw] = new() { Nutrition = 0, Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), Rot = new FoodRot.Keeps(), Eaters = [Pawn] },
+            [Meal] = new() { Nutrition = 0, Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), Rot = new FoodRot.Keeps(), Eaters = [Pawn] } },
     };
     private static ForecastActivityOutcomeComparison Compare(ColonyForecastRequest frame, ForecastFoodCandidateInputs input, ForecastActivityProblem? capacity = null)
     {

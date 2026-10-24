@@ -7,7 +7,10 @@ public sealed record ColonyForecastFacts
     public Fact<EquatableArray<Amount>> Stock { get; init; }
     public Fact<EquatableArray<string>> ResourceThings { get; init; }
 
-    public FoodSupply Food { get; init; } = new();
+    public FoodSupply Food { get; init; } = new() { Larder = new() };
+
+    /// <summary>The frame read no food census: Food stays empty and every food result of the projection is unknown.</summary>
+    public bool FoodUnread { get; init; }
     public MedicalReserveObservation Medicine { get; init; } = new();
 
     public IReadOnlyList<PowerNetworkFact> Power { get; init; } = [];

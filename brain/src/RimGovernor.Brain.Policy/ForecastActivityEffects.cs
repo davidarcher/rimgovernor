@@ -65,7 +65,7 @@ public static class ForecastActivityEffects
                 return Unknown("unknown_edible_output");
             if (!double.IsFinite(nutrition) || nutrition < 0 || !double.IsFinite(quantity * nutrition))
                 throw new DomainException("invalid edible nutrition");
-            var stock = effect.Eligibility with { Id = group.Key.Completion, Nutrition = Known(quantity * nutrition) };
+            var stock = effect.Eligibility with { Id = group.Key.Completion, Nutrition = quantity * nutrition };
             var expiry = stock.Rot is FoodRot.Rots { Ticks: var rot } ? Math.Min(horizon, rot) : horizon;
             try
             {
