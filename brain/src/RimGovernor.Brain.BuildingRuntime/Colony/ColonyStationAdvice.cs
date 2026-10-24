@@ -34,18 +34,25 @@ public sealed partial class Rounder
     }
 
     /// <summary>
-    /// The bed merge's facts over the live colony (#3658): the sleepers' losses (BedroomGainFacts.BedMerge) and the
-    /// capability-days of one wall cell and one door of a bedroom's ring (BedMergeShell), each priced by
-    /// LayoutClusterRules.ShellPiecePrice from its WorkToBuild for its stuff and cost list. A piece the catalog shows no work
+    /// The bed merge's facts over the live colony (#3658, #3748): the sleepers' gains per Impressiveness stage and the
+    /// catalog's stages (BedroomGainFacts.BedMerge), and the capability-days and work to build of one wall cell and one door
+    /// of a bedroom's ring (BedMergeShell), each priced by LayoutClusterRules.ShellPiecePrice from its WorkToBuild for its
+    /// stuff and cost list. A piece the catalog shows no work
     /// or cost list for is unknown, which the chain waits on (#3747).
     /// </summary>
     internal async Task<BedMergeFacts> BedMergeFactsAsync(GenerationSnapshot snapshot, ColonyProjection projection, CancellationToken ct)
     {
-        var facts = BedroomGainFacts.Of(projection.Facts).BedMerge();
+        var facts = BedroomGainFacts.Of(projection.Facts).BedMerge(projection.Impressiveness);
         var (wall, door) = BedMergeShell(projection);
         var materials = new[] { wall, door }.SelectMany(p => p?.Costs ?? []).Select(a => a.Resource);
         var values = await MaterialValuesAsync(snapshot, materials, projection.Stations, projection.Facts.Items, ct).ConfigureAwait(false);
-        return facts with { WallCell = LayoutClusterRules.ShellPiecePrice(wall, values), Door = LayoutClusterRules.ShellPiecePrice(door, values) };
+        return facts with
+        {
+            WallCell = LayoutClusterRules.ShellPiecePrice(wall, values),
+            Door = LayoutClusterRules.ShellPiecePrice(door, values),
+            WallWork = wall is { } w ? Known(w.Work) : default,
+            DoorWork = door is { } d ? Known(d.Work) : default,
+        };
     }
 
     /// <summary>

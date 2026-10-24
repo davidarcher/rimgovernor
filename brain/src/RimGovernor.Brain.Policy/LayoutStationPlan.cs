@@ -115,7 +115,7 @@ public sealed record StationFacts
 
     /// <summary>
     /// The bed merge's price (#3658): the colony's facts, the outdoor curve, the work-day's watts (unknown while
-    /// StationWorkPrice gives none), the bed slots of the plan's largest barracks as the incumbent, and the plan's committed barracks and
+    /// StationWorkPrice gives none), the colonists able to build (#3748), the bed slots of the plan's largest barracks as the incumbent, and the plan's committed barracks and
     /// bedrooms with what of each shell stands (#3661, #3675): a room standing or under construction (StandingIds), a
     /// superseded one counted once, as its successor. A room on paper alone is not committed.
     /// </summary>
@@ -128,6 +128,7 @@ public sealed record StationFacts
             Facts = BedMerge,
             OutdoorCurve = OutdoorCurve,
             WorkDayW = QuestCapacityForecast.FinitePositive(workDay) ? Known(workDay) : default,
+            Builders = LayoutClusterRules.BuildersOf(WorkPawns),
             Incumbent = Furniture is null ? 0 : Plan.RoomsOf(PlannedRole.Barracks).Select(r => SleepingRules.BedSlotsOf(Plan, r, Furniture)?.Count ?? 0).DefaultIfEmpty(0).Max(),
             Committed = EquatableArray.From(Plan.RoomsOf(PlannedRole.Barracks).Concat(Plan.RoomsOf(PlannedRole.Bedroom))
                 .Where(r => standing.Contains(r.Id) && !Plan.Rooms.Any(o => o.Replaces == r.Id && standing.Contains(o.Id)))
@@ -298,7 +299,7 @@ public sealed record StationFacts
             parts.Add(new("population", KeyText.Of(input.Population)));
             parts.Add(new("suites", KeyText.Of(input.Suites)));
             parts.Add(new("pasture", KeyText.Of(input.Pasture)));
-            parts.Add(new("barracks", KeyText.Of(BarracksSize(input))));
+            parts.Add(new("barracks", BarracksKey(input)));
         }
         catch (StationFactsException e)
         {
@@ -308,19 +309,21 @@ public sealed record StationFacts
     }
 
     /// <summary>
-    /// The barracks size the chain's clustering gives the free-bed pool (#3658, LayoutClusterRules.BarracksSizeOf over the
-    /// graph's bed nodes alone), so the replan key changes when the priced choice does and not with every drift of a loss;
-    /// null when no pool is priced, a required price fact is unread (#3747) or the beds cannot be clustered.
+    /// The barracks size and room areas the chain's clustering gives the free-bed pool (#3658, #3748,
+    /// LayoutClusterRules.BedMergeChoiceOf over the graph's bed nodes alone), so the replan key changes when the priced
+    /// choice does and not with every drift of a gain; nil when no pool is priced, a required price fact is unread (#3747)
+    /// or the beds cannot be clustered.
     /// </summary>
-    private int? BarracksSize(StationGraphInput input)
+    private string BarracksKey(StationGraphInput input)
     {
         try
         {
-            return LayoutClusterRules.BarracksSizeOf(new ClusterInput { Graph = StationGraph.SleepGraph(input), Catalog = Catalog, RoofDistance = RoofDistance, BedMerge = BedMergePriceOf() });
+            var choice = LayoutClusterRules.BedMergeChoiceOf(new ClusterInput { Graph = StationGraph.SleepGraph(input), Catalog = Catalog, RoofDistance = RoofDistance, BedMerge = BedMergePriceOf() });
+            return choice is null ? KeyText.Of([null]) : KeyText.Of(choice.Size, choice.Area, choice.SingleArea);
         }
         catch (DomainException)
         {
-            return null;
+            return KeyText.Of([null]);
         }
     }
 

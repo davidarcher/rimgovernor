@@ -407,9 +407,12 @@ public static partial class LayoutRegroupRules
         {
             return default;
         }
-        var p = new WorkPrice(LayoutLightRules.StationWorkDayW(f), ticks / CombatManhunterRules.ColonistMoveSpeed / GameTime.TicksPerDay);
+        var p = new WorkPrice(LayoutLightRules.StationWorkDayW(f), CellWalkDays(ticks));
         return p.Valid() ? p : default;
     }
+
+    /// <summary>The work-days a colonist spends walking one cell at the game's ticks a second (WorkPrice.CellWalkDays).</summary>
+    internal static double CellWalkDays(double ticksPerSecond) => ticksPerSecond / CombatManhunterRules.ColonistMoveSpeed / GameTime.TicksPerDay;
 
     /// <summary>
     /// Searches the room groups: the seed clustering, then the best move that lowers the priced total, until none does

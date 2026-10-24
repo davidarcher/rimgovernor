@@ -274,7 +274,7 @@ Policy/ResourceLabor.cs|ResourceRules.ResidualSupplyLabor|20000
 Policy/RoomQualityBeauty.cs|RoomQualityRules.PackedSculptureDefinition|"MinifiedThing"
 Policy/RoomQualityBed.cs|RoomQualityRules.ReplacementBedSizes|"Bed"
 Policy/RoomQualityBed.cs|RoomQualityRules.ReplacementBedSizes|"RoyalBed"
-Policy/RoomQualityUpgrade.cs|RoomQualityRules.WeakestRoomStat|1500
+Policy/RoomSpace.cs|RoomSpaceRules.WealthScale|1500
 Policy/Routes.cs|RoutesRules.DefaultRoutesPolicy|"Door"
 Policy/Routes.cs|RoutesRules.DefaultRoutesPolicy|"WoodLog"
 Policy/SiteType.cs|SiteRules.SiteSteelUnit|"Steel"

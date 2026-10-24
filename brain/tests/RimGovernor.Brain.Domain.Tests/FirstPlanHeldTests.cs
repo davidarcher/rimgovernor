@@ -65,7 +65,7 @@ public sealed class FirstPlanHeldTests
         var s = FirstLayoutPlanTests.Survey("cold");
         var priced = FirstLayoutPlanTests.Priced(FirstLayoutPlanTests.Facts(s, 3), "cold");
 
-        var mood = Assert.Throws<StationFactsException>(() => LayoutDeriveRules.DeriveLayoutPlan(s, priced with { BedMerge = priced.BedMerge with { Losses = default } }, []));
+        var mood = Assert.Throws<StationFactsException>(() => LayoutDeriveRules.DeriveLayoutPlan(s, priced with { BedMerge = priced.BedMerge with { Sleepers = default } }, []));
         Assert.Equal("sleeper_mood", mood.Fact);
         var curve = Assert.Throws<StationFactsException>(() => LayoutDeriveRules.DeriveLayoutPlan(s, priced with { OutdoorCurve = default }, []));
         Assert.Equal("outdoor_curve", curve.Fact);

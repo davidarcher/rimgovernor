@@ -25,11 +25,7 @@ public sealed record ImpressivenessLevels
     /// </summary>
     public int Stage(double score)
     {
-        var stages = Stages;
-        if (stages.Count == 0)
-        {
-            stages = [0, Dull, Mediocre, Decent, SlightlyImpressive];
-        }
+        var stages = Scores();
         var stage = 0;
         for (var i = 1; i < stages.Count; i++)
         {
@@ -40,6 +36,11 @@ public sealed record ImpressivenessLevels
         }
         return stage;
     }
+
+    /// <summary>How many stages <see cref="Stage"/> can give: the catalog's, else the four named levels above awful.</summary>
+    public int StageCount => Scores().Count;
+
+    private EquatableArray<double> Scores() => Stages.Count == 0 ? [0, Dull, Mediocre, Decent, SlightlyImpressive] : Stages;
 
     /// <summary>The colony-wide floor by tech tier, one native stage per tier: Camp asks nothing, Masonry dull, Powered mediocre, Industrial decent, Spacer slightly impressive.</summary>
     public double Baseline(TechTier tier)

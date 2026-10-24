@@ -696,7 +696,7 @@ public static partial class LayoutClusterRules
                 Id = gi,
                 Footprint = e.Footprint,
                 Clearance = e.Clearance,
-                Area = e.Area,
+                Area = e.FreeBeds && !e.Suite ? c.FurnishedArea(members[r]!, e) : e.Area, // a bed room the placer can furnish (#3748)
                 Kept = e.Kept,
                 Role = e.Role,
                 Planned = e.PlannedRole(),
@@ -1121,6 +1121,12 @@ internal sealed partial class Clusterer
             e.Clearance = Math.Max(e.Clearance, e.Floor - e.Footprint);
         }
         e.Area = e.Footprint + e.Clearance;
+        foreach (var u in us)
+        {
+            // A free-bed unit's room takes the interior its priced bed merge chose (#3748) over its footprint, clearance and door threshold.
+            var size = _in.Catalog.Stations[Node(u).Def].Shape.Size;
+            e.Area += BedAreaExtra(u, (u.Count * ((size.X * size.Z) + 1)) + 1);
+        }
         if (e.Filth)
         {
             e.Cleaning = _in.Catalog.Filth.CleaningWorkDays(e.Runs);

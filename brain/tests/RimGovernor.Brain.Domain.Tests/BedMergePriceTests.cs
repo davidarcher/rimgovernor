@@ -9,8 +9,8 @@ using static RimGovernor.Brain.Domain.Fact;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// The clustering prices the bed merge (#3658): the free-bed pool takes the barracks size whose saved rooms (walls, door
-/// and heat over the horizon) beat the sleepers' losses, cheapest first; an unread price fact fails the chain naming it
+/// The clustering prices the bed merge (#3658, #3748): the free-bed pool takes the barracks size and room areas whose
+/// sleepers' gains from each ring's closure, less the rooms' walls, door, floor and heat, are largest; an unread price fact fails the chain naming it
 /// (#3747), the shell is priced in the stuff the ring is placed in, a pawn near its break keeps its bedroom, the plan's barracks holds within the tie resolution, and
 /// a planned barracks credits its sleepers.
 /// </summary>
@@ -71,7 +71,25 @@ public sealed class BedMergePriceTests
     internal static readonly BedMergeFacts Calm = CalmOf(3);
 
     /// <summary>The losses of <paramref name="colonists"/> calm colonists: the plan's sleep slots count them exactly (#3749).</summary>
-    internal static BedMergeFacts CalmOf(int colonists) => new() { Losses = Known(EquatableArray.From(Enumerable.Repeat(0.004, colonists).ToArray())) };
+    internal static BedMergeFacts CalmOf(int colonists) => Flat(Enumerable.Repeat(0.004, colonists).ToArray());
+
+    /// <summary>The game's Impressiveness stages up to slightly impressive: awful, dull 20, mediocre 30, decent 40, 50.</summary>
+    internal static ImpressivenessLevels Levels => new() { Dull = 20, Mediocre = 30, Decent = 40, SlightlyImpressive = 50 };
+
+    /// <summary>
+    /// Sleepers who gain nothing in a bedroom and lose their loss a day in a barracks, at every stage, so a room's size buys
+    /// no mood; with the game's stages and a wood ring's work (a wall cell 135 x 0.7 ticks, the door 850 x 0.7).
+    /// </summary>
+    internal static BedMergeFacts Flat(params double[] losses) => Staged(losses.Select(l => (new double[Levels.StageCount], Enumerable.Repeat(-l, Levels.StageCount).ToArray())).ToArray());
+
+    /// <summary>Sleepers with these gains a day per stage, in a bedroom and in a barracks, at the game's stages and a wood ring's work.</summary>
+    internal static BedMergeFacts Staged(params (double[] Bedroom, double[] Barracks)[] sleepers) => new()
+    {
+        Sleepers = Known(EquatableArray.From(sleepers.Select(s => new SleeperGains(EquatableArray.From(s.Bedroom), EquatableArray.From(s.Barracks))).ToArray())),
+        Levels = Known(Levels),
+        WallWork = Known(135 * 0.7),
+        DoorWork = Known(850 * 0.7),
+    };
 
     // Wood walls at the game's numbers: a wall cell is 135 x 0.7 work and 5 logs, a door 850 x 0.7 work and 25 logs; the
     // work alone is 0.0016 and 0.0099 capability-days.
@@ -87,6 +105,7 @@ public sealed class BedMergePriceTests
         Facts = facts,
         OutdoorCurve = curve is null ? default : Known(EquatableArray.From(curve)),
         WorkDayW = Known(8000.0), // a colonist's work-day at the game's rice (the key test's facts give the same)
+        Builders = Known(1),
     };
 
     /// <summary>The walls alone decide: a temperate room's heat priced at a work-day so dear that it costs nothing.</summary>
@@ -138,19 +157,24 @@ public sealed class BedMergePriceTests
         Assert.Equal("wall_price", Fails(Price(Calm, IceSheet)).Fact);
         Assert.Equal("door_price", Fails(Price(Wood(Calm) with { Door = default }, IceSheet)).Fact);
 
-        // One sleeper's gain unread leaves every loss unread.
-        var unread = Gains(Pawn("a", 0.8), Pawn("b", 0.8), new NeedsForecastPawn { Pawn = "c" }).BedMerge();
-        Assert.False(unread.Losses.IsKnown);
+        Assert.Equal("impressiveness_levels", Fails(Price(Wood(Calm) with { Levels = default }, IceSheet)).Fact);
+        Assert.Equal("ring_work", Fails(Price(Wood(Calm) with { DoorWork = default }, IceSheet)).Fact);
+        Assert.Equal("builders", Fails(Price(Wood(Calm), IceSheet) with { Builders = default }).Fact);
+
+        // One sleeper's gain unread leaves every gain unread; no catalog leaves the stages unread.
+        var unread = Gains(Pawn("a", 0.8), Pawn("b", 0.8), new NeedsForecastPawn { Pawn = "c" }).BedMerge(Levels);
+        Assert.False(unread.Sleepers.IsKnown);
+        Assert.False(Gains(Pawn("a", 0.8)).BedMerge(new ImpressivenessLevels()).Levels.IsKnown);
         Assert.Equal("sleeper_mood", Fails(Price(Wood(unread), IceSheet)).Fact);
     }
 
     // a and b are calm; c sits under its break threshold, which a bedroom's +2 lifts it clear of and a barracks' -2 does not.
-    private static NeedThoughtStage Stage(string thought, string role, double offset) => new(thought, role, 0, offset, Known((double)GameTime.TicksPerDay), false);
+    private static NeedThoughtStage Stage(string thought, string role, double offset, int stage = 0) => new(thought, role, stage, offset, Known((double)GameTime.TicksPerDay), false);
 
     private static NeedsForecastPawn Pawn(string id, double target) => new()
     {
         Pawn = id, MoodUnclampedTarget = Known(target), BreakThreshold = Known(0.35),
-        ThoughtStages = [Stage("SleptInBedroom", "slept_in_bedroom", 2), Stage("SleptInBarracks", "slept_in_barracks", -2)],
+        ThoughtStages = [.. Enumerable.Range(0, Levels.StageCount).SelectMany(s => new[] { Stage("SleptInBedroom", "slept_in_bedroom", 2, s), Stage("SleptInBarracks", "slept_in_barracks", -2, s) })],
     };
 
     private static BedroomGainFacts Gains(params NeedsForecastPawn[] pawns) => new()
@@ -163,8 +187,9 @@ public sealed class BedMergePriceTests
     [Fact]
     public void APawnNearItsBreakKeepsItsBedroomWhileTheOthersMerge()
     {
-        var facts = Gains(Pawn("a", 0.8), Pawn("b", 0.8), Pawn("c", 0.34)).BedMerge();
-        var losses = facts.Losses.Value;
+        var facts = Gains(Pawn("a", 0.8), Pawn("b", 0.8), Pawn("c", 0.34)).BedMerge(Levels) with { WallWork = Known(135 * 0.7), DoorWork = Known(850 * 0.7) };
+        Assert.All(facts.Sleepers.Value, s => Assert.Equal(Levels.StageCount, s.Bedroom.Count));
+        var losses = facts.Sleepers.Value.Select(s => s.Bedroom[0] - s.Barracks[0]).ToList();
         Assert.Equal(0.004, losses[0], 6);
         Assert.Equal(0.004, losses[1], 6);
         Assert.True(losses[2] > 0.05, $"c loses {losses[2]} a day");
@@ -177,18 +202,74 @@ public sealed class BedMergePriceTests
     }
 
     [Fact]
+    public void ThreeCalmSleepersAndOneBuilderAtTheLabsWoodPriceShareOneRoomyBarracks()
+    {
+        // No tree in reach: logs at the market price the ring, and one builder raises the rooms in turn (#3748). Three
+        // bedrooms' walls, doors and floor cost more than the barracks loses in mood, so the three share one room,
+        // sized past the bare four cells.
+        var choice = LayoutClusterRules.BedMergeChoiceOf(Input(3, Price(MarketWood(Calm), Temperate)))!;
+        Assert.Equal(3, choice.Size);
+        Assert.True(choice.Area > 4, $"the barracks' interior is {choice.Area} cells");
+
+        var g = Assert.Single(LayoutClusterRules.ClusterStations(Input(3, Price(MarketWood(Calm), Temperate))).Groups);
+        Assert.Equal((RoomRole.Barracks, 3), (g.Role, g.Stations.Single().Count));
+        Assert.Equal(choice.Area, g.Area);
+    }
+
+    [Fact]
+    public void ThreeBuildersAndAHighLossKeepEverySleeperInABedroom()
+    {
+        // The same map with three builders, each sleeper losing 0.05 a day in a barracks: the bedrooms pay.
+        var c = LayoutClusterRules.ClusterStations(Input(3, Price(MarketWood(Flat(0.05, 0.05, 0.05)), Temperate) with { Builders = Known(3) }));
+
+        Assert.Equal([1, 1, 1], Rooms(c));
+        Assert.All(c.Groups, g => Assert.Equal(RoomRole.Bedroom, g.Role));
+    }
+
+    [Fact]
+    public void ABedroomGrowsWhenItsWallsCheapenAndShrinksWhenTheyDearen()
+    {
+        // One sleeper gains 0.01 a day more in a dull bedroom than an awful one: the bare room turns dull at 21 cells
+        // (RoomSpaceRules), which takes more wall cells. The chooser holds no size: the wall price alone moves the area.
+        var gains = Staged(([0, 0.01, 0.01, 0.01, 0.01], [0, 0, 0, 0, 0]));
+        BedMergeChoice At(double wall) => LayoutClusterRules.BedMergeChoiceOf(Input(1, WallsAlone(gains with { WallCell = Known(wall), Door = Known(0.023) })))!;
+
+        var cheap = At(0.02);
+        var dear = At(0.1);
+        Assert.True(cheap.Area > dear.Area, $"{cheap.Area} cells at cheap walls, {dear.Area} at dear");
+        Assert.True(RoomSpaceRules.BareImpressiveness(cheap.Area) >= Levels.Dull);
+        Assert.True(RoomSpaceRules.BareImpressiveness(dear.Area) < Levels.Dull);
+
+        // The cluster's room takes the chosen area.
+        var g = Assert.Single(LayoutClusterRules.ClusterStations(Input(1, WallsAlone(gains with { WallCell = Known(0.02), Door = Known(0.023) }))).Groups);
+        Assert.Equal(cheap.Area, g.Area);
+    }
+    [Fact]
     public void ThePlansBarracksHoldsUnlessTheNewSizeBeatsItByMoreThanTheTieResolution()
     {
-        // Walls alone: one saved bedroom is worth 1.0. Three beds (the spare, a and b) are worth 2 - 0.48 = 1.52; with c
-        // the fourth is worth 3 - 0.48 - 60L.
-        BedMergePrice Near(double c, int incumbent) => WallsAlone(new BedMergeFacts { Losses = Known(EquatableArray.From([0.004, 0.004, c])), WallCell = Known(0.08), Door = Known(0.12) }) with { Incumbent = incumbent };
+        // Walls alone and dear: the spare, a and b share a barracks, and c's loss decides whether it joins them (four beds)
+        // or takes a bedroom (three). Four beds' value falls about 60 a day of c's loss against three's.
+        int Size(double c, int incumbent) => LayoutClusterRules.BedMergeChoiceOf(Input(4, WallsAlone(Flat(0.004, 0.004, c) with { WallCell = Known(0.08), Door = Known(0.12) }) with { Incumbent = incumbent }))!.Size;
 
-        // Four beds stand planned and three are better by 0.005: the plan's four hold.
-        Assert.Equal(4, LayoutClusterRules.BarracksSizeOf(Input(4, Near(1.005 / 60, 4))));
-        // With no barracks planned, three win.
-        Assert.Equal(3, LayoutClusterRules.BarracksSizeOf(Input(4, Near(1.005 / 60, 0))));
-        // Better by 0.05, three replace the plan's four.
-        Assert.Equal(3, LayoutClusterRules.BarracksSizeOf(Input(4, Near(1.05 / 60, 4))));
+        // With four beds planned, the loss at which three replace them: the line where three beat four by the tie resolution.
+        var (held, switched) = (0.004, 0.2);
+        Assert.Equal((4, 3), (Size(held, 4), Size(switched, 4)));
+        for (var i = 0; i < 60; i++)
+        {
+            var mid = (held + switched) / 2;
+            (held, switched) = Size(mid, 4) == 4 ? (mid, switched) : (held, mid);
+        }
+
+        // Just short of the line three are the better by nearly the tie resolution, yet the plan's four hold; a plan of
+        // three holds its three.
+        Assert.Equal(4, Size(held, 4));
+        Assert.Equal(3, Size(held, 3));
+        // A loss of 0.015 less over the horizon, four are the better by about 0.005: a plan of three holds; 0.025 less,
+        // four beat it by more than the tie resolution and replace it.
+        Assert.Equal(3, Size(held - (0.015 / 60), 3));
+        Assert.Equal(4, Size(held - (0.025 / 60), 3));
+        // Better by 0.05 more, three replace the plan's four.
+        Assert.Equal(3, Size(switched + (0.05 / 60), 4));
     }
 
     [Fact]
@@ -197,11 +278,11 @@ public sealed class BedMergePriceTests
         // Walls alone, three calm sleepers: the plan's three-bed barracks is worth 2 - 0.48 = 1.52, four beds 3 - 0.72 =
         // 2.28 less the spend on the one committed room four beds give up (#3675). The barracks stands whole.
         var barracks = new ShellPieces(17, 1);
-        int Size(params ShellPieces[] bedroom) => LayoutClusterRules.BarracksSizeOf(Input(4, WallsAlone(Calm with { WallCell = Known(0.08), Door = Known(0.12) }) with
+        int Size(params ShellPieces[] bedroom) => LayoutClusterRules.BedMergeChoiceOf(Input(4, WallsAlone(Calm with { WallCell = Known(0.08), Door = Known(0.12) }) with
         {
             Incumbent = 3,
             Committed = EquatableArray.From(bedroom.Prepend(barracks)),
-        }))!.Value;
+        }))!.Size;
 
         // A bedroom on paper is not committed: it is free to drop, and the beds merge.
         Assert.Equal(4, Size());
@@ -238,7 +319,9 @@ public sealed class BedMergePriceTests
         Assert.True(f.BedMergePriceOf().WorkDayW.IsKnown);
 
         string Key(StationFacts facts) => facts.InputsKeyParts().Single(p => p.Key == "barracks").Value;
-        Assert.Equal("6;", Key(f));
+        // The key carries the size and both areas.
+        Assert.StartsWith("6;", Key(f));
+        Assert.Equal(3, Key(f).TrimEnd(';').Split(';').Length);
         // The outdoor curve unread on this cold map (#3747): no size is keyed, and the chain fails naming the curve, so
         // the replan is skipped as facts_unknown and the next hourly check tries again.
         var unread = f with { OutdoorCurve = default };

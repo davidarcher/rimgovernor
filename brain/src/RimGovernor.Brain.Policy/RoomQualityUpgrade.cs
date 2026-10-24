@@ -51,18 +51,18 @@ public sealed record RoomUpgrade
 public static partial class RoomQualityRules
 {
     /// <summary>
-    /// Divides each stat by the native normaliser RoomStatWorker_Impressiveness uses before combining (wealth
-    /// 1500, beauty 3, space 125, cleanliness 2.5 after the +2.5 shift), so the weakest stat is compared on
+    /// Divides each stat by the native normaliser RoomStatWorker_Impressiveness uses before combining (RoomSpaceRules:
+    /// wealth, beauty, space, and cleanliness after the shift by its scale), so the weakest stat is compared on
     /// the game's own footing.
     /// </summary>
     public static RoomStat WeakestRoomStat(RoomQuality q)
     {
         (RoomStat Stat, double V)[] scores =
         [
-            (RoomStat.Wealth, q.Wealth / 1500),
-            (RoomStat.Beauty, q.Beauty / 3),
-            (RoomStat.Space, q.Space / 125),
-            (RoomStat.Cleanliness, (q.Cleanliness + 2.5) / 2.5),
+            (RoomStat.Wealth, q.Wealth / RoomSpaceRules.WealthScale),
+            (RoomStat.Beauty, q.Beauty / RoomSpaceRules.BeautyScale),
+            (RoomStat.Space, q.Space / RoomSpaceRules.SpaceScale),
+            (RoomStat.Cleanliness, (q.Cleanliness + RoomSpaceRules.CleanlinessScale) / RoomSpaceRules.CleanlinessScale),
         ];
         var best = scores[0];
         foreach (var s in scores.Skip(1))

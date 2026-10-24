@@ -66,10 +66,19 @@ public sealed class FirstRoomPlanTests
     [Fact]
     public void ATreelessTemperateFirstPlanHousesThreeCalmColonistsInOneBarracks()
     {
-        var plan = Derive(Facts(BedMergePriceTests.Temperate, "mild", treeless: true));
+        var f = Facts(BedMergePriceTests.Temperate, "mild", treeless: true);
+        var (derived, advice) = LayoutDeriveRules.DeriveLayoutPlan(f.Survey, f, []);
+        var plan = derived.Value;
 
-        Assert.Single(plan.RoomsOf(PlannedRole.Barracks));
+        var barracks = Assert.Single(plan.RoomsOf(PlannedRole.Barracks));
         Assert.Empty(plan.RoomsOf(PlannedRole.Bedroom));
+        // The chosen area is one the placer furnishes (#3748): every room with stations tiles with every piece placed,
+        // the barracks' three beds and whatever shares its room. (The yard, which holds none, is no room to furnish.)
+        var tiled = Assert.IsType<TileResult>(advice.Tiled);
+        var furnished = advice.Clustering.Groups.Where(g => g.Stations.Count > 0).ToList();
+        Assert.DoesNotContain(tiled.Unfit(), furnished.Select(g => g.Id).Contains);
+        Assert.All(furnished, g => Assert.Equal(g.Stations.Sum(s => s.Count), tiled.Pieces[tiled.Rooms[g.Id]].Count));
+        Assert.Equal(3, plan.Pieces[barracks.Id].Count(p => p.Def == "Bed"));
     }
 
     [Fact]

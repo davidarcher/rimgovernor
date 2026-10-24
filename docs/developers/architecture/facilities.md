@@ -159,7 +159,13 @@ power and wiring stay with the refrigeration planner; exposure to cold outside
 air is advised beside the cooler (see Climate model below) and the thermal benefit of thick roof belongs to the climate envelope
 (#2880). Area is the stations'
 catalog footprints plus the placer's clearance (one open cell per station and
-the door threshold); the limit is the largest room the roof support distance
+the door threshold), the minimum; a free-bed room takes the interior area the
+priced bed merge chose (#3748, below) and, merged with other stations (a dining
+table), grows to the least area whose squarest block (`BlockShapes`) the placer
+furnishes the whole group in (`Clusterer.FurnishedArea`: the beds, a barracks
+bed's clear cell, the other stations and their clearance, behind a door at the
+middle of one side), so no planned bed room is one the tiler cannot furnish;
+the limit is the largest room the roof support distance
 and the shell bounds (3844 interior, 255 wall cells) allow. A group carries its
 stations, area, predicted role, environment requirements (cold, clean,
 enclosed, open sky) and links to other groups, required ones marked. Rooms of a
@@ -791,29 +797,50 @@ seats with the largest bed-merge loss (`CrowdedOut`) is unhoused, owed the
 split's bedroom and credited as its occupant.
 
 The clustering prices the bed merge (#3658, `LayoutBedMerge.cs`): no pair rule
-joins two rooms of free beds (`cluster_beds_priced_apart`); the split
-(`Clusterer.BarracksSize`) sorts the free-bed pool's sleepers by the capability-days
-a day each loses in a barracks (`BedroomGainFacts.BedMerge`: its bedroom gain less
-its barracks gain, `slept_in_barracks` at the planned stage, an ascetic gaining
-nothing), the spare beds losing nothing, and
-takes the k beds that maximise (k − 1) × one bedroom saved less the k cheapest
-losses over `ColonyModelPolicy.HorizonDays`. One bedroom saved is its ring of the
-squarest rectangle (less the door cell) and its door in the stuff a planned
-room's base ring sites are read in (`BedMergeShell`: the first of
-`PlannedRingStuffs`: the cheapest stocked, else the wood the window's standing
-trees give, else the blocks of its natural rock's stone, `RingStuffSourcesOf`,
-#3747; work plus `MaterialValueOf`, which charges logs at chop labor only where
-a tree is in reach and at market value otherwise), and its heat over the
-horizon: the `ClimateLoad` of the room in the living band behind a closed door
-to the outdoors, at the work-day's watts (`StationWorkPrice`). Every one of
-these is a required planner input on every map (#3747): an unread sleeper's
-loss, wall or door price, outdoor curve, work-day (`StationWorkDayW`'s zero) or
-living band fails the chain with `StationFactsException` naming it
-(`sleeper_mood`, `wall_price`, `door_price`, `outdoor_curve`, `work_day`,
-`living_band`, `bedroom_heat`), so the replan is skipped as `facts_unknown` and
-the next hourly check tries again; no plan is made on a guessed price. The plan's largest barracks (its bed slots) is the incumbent and holds
-unless beaten by more than `TieResolution`, and the replan key carries the chosen
-size (`barracks`), so a drifting loss does not replan. A standing barracks splits
+joins two rooms of free beds (`cluster_beds_priced_apart`); the chooser
+(`Clusterer.ChooseBeds`, #3748) takes the barracks size k (1 to the pool's beds;
+1 builds every bed a bedroom) and the interior areas whose value less cost is
+largest. A room of interior area A takes the squarest block within the roof's
+depth (`LayoutEmbedRules.BlockShapes`); its Space and Impressiveness at the
+bare-room baseline (`RoomSpaceRules`, transcribed from the game's
+`RoomStatWorker_Space` and `RoomStatWorker_Impressiveness`: 1.4 a standable
+cell, and Beauty, Cleanliness and Wealth zero as no floor or furniture is
+predicted) give its stage (`ImpressivenessLevels.Stage`). Each sleeper gains a
+day its `ForecastHousing.BedroomGain` at that stage in a bedroom or a barracks
+(`BedroomGainFacts.BedMerge`: per sleeper, per stage, an ascetic gaining
+nothing), the spare beds nothing; the k with the least loss sleeping in the
+barracks share it, the rest each get a bedroom. A room's value a day, less its
+heat (the `ClimateLoad` of the room in the living band behind a closed door to
+the outdoors, at the work-day's watts, `StationWorkPrice`), accrues only from
+its ring's closure to `ColonyModelPolicy.HorizonDays`: the rooms are built in
+the order that loses the least (the most value a day per tick of ring work
+first), each ring's work its wall cells and door at the catalog's work to build,
+and a ring closes when the cumulative work over the builders (`BuildersOf`: the
+available pawns capable of an enabled Construction row, at least one) is done.
+A room costs its ring (the block's ring less the door cell, and the door) in the
+stuff a planned room's base ring sites are read in (`BedMergeShell`: the first
+of `PlannedRingStuffs`: the cheapest stocked, else the wood the window's
+standing trees give, else the blocks of its natural rock's stone,
+`RingStuffSourcesOf`, #3747; work plus `MaterialValueOf`, which charges logs at
+chop labor only where a tree is in reach and at market value otherwise), and
+its interior cells at the embedding's footprint and plain soil weights in
+work-days at a walked cell's (`LayoutRegroupRules.CellWalkDays`). Areas run from
+the footprint minimum to the area limit, a block counting only when the placer
+furnishes its beds in it (`Furnishes`); the singles' area is the one all singles
+are best at, and each larger size takes its best area beside them. The chosen
+area is the group's `Area`. The chooser holds no size constant: a cheaper wall
+grows a room, a dearer one shrinks it. Every one of these is a required
+planner input on every map (#3747): an unread sleeper's gain, stage table, wall
+or door price, ring work, builder count, outdoor curve, work-day
+(`StationWorkDayW`'s zero) or living band fails the chain with
+`StationFactsException` naming it (`sleeper_mood`, `impressiveness_levels`,
+`wall_price`, `door_price`, `ring_work`, `builders`, `outdoor_curve`,
+`work_day`, `living_band`, `bedroom_heat`), so the replan is skipped as
+`facts_unknown` and the next hourly check tries again; no plan is made on a
+guessed price. The plan's largest barracks (its bed slots) is the incumbent
+(with none, every bed single) and holds unless beaten by more than
+`TieResolution`, and the replan key carries the chosen size and both areas
+(`barracks`), so a drifting gain does not replan. A standing barracks splits
 by replan (#3661) and by the same price: the barracks keeps the beds that stay
 (the embedding holds it where it stands for the smaller group) and each bed taken
 out gets a new bedroom, so the switch costs that bedroom's shell and heat and is
