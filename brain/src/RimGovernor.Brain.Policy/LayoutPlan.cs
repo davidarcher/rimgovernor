@@ -47,6 +47,13 @@ public sealed partial record PlannedRoom
     /// <summary>Maps the definition of a worked bench of the room to the work chair the comfort pricing chose for it (ChooseComfort, #2978); the furnisher stands one on each such bench's interaction cell. Absent: no chair is chosen or priced.</summary>
     public IReadOnlyDictionary<string, string> WorkChairs { get; init; } = new Dictionary<string, string>();
 
+    /// <summary>
+    /// The butchering load of each filthy node of the station group that became the room (RoomGroup.FilthRuns, #3797), by
+    /// node id, set by the tiler on every replan; empty for a room that is not a station group or has no filth station.
+    /// The planned room's steady-state cleanliness reads it (PlannedRoomCleanlinessRules).
+    /// </summary>
+    public IReadOnlyDictionary<string, FilthRuns> FilthRuns { get; init; } = new Dictionary<string, FilthRuns>();
+
     /// <summary>The herd a pen belongs to: the race of its unit, empty for the misc unit and for every other room.</summary>
     public string Herd { get; init; } = "";
 

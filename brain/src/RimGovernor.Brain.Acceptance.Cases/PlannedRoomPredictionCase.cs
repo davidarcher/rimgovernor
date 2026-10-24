@@ -16,6 +16,10 @@ internal static class PlannedRoomPredictionCase
 {
     private const string Stuff = "WoodLog";
     private const string Impressiveness = "Impressiveness";
+    private const string Cleanliness = "Cleanliness";
+
+    // A cleanliness-positive floor (Cleanliness 0.6) the floored prediction lays on every interior cell (#3797).
+    private const string Floor = "SterileTile";
 
     // A 7x7 clear, unroofed site with a wooden bed at (3,2): the planned room is the 3x3 interior (2..4, 2..4) closed by
     // the ring of the 5x5 rect at (1,1), its door at (3,1).
@@ -38,9 +42,10 @@ internal static class PlannedRoomPredictionCase
     {
         Name = "observations/planned-room-prediction",
         Scope = "A wooden bed in an open 3x3 patch: the construction activity read's room prediction, asked for that patch closed by a wood "
-            + "wall ring with a door, predicts the role, impressiveness (within 1e-3), cell and open-roof counts the game's own room reports "
-            + "through observations_list_rooms once test/stage builds that ring, and lists the bed. Does not prove Rounds composition, the bed "
-            + "thought or selection.",
+            + "wall ring with a door, predicts the role, impressiveness and cleanliness (within 1e-3), cell and open-roof counts the game's own "
+            + "room reports through observations_list_rooms once test/stage builds that ring, and lists the bed; asked again with sterile tile "
+            + "floor pieces on the interior, it predicts the same impressiveness and the cleanliness the built room reports once test/stage lays "
+            + "that floor. Does not prove Rounds composition, the bed thought or selection.",
         Ticks = 0,
         Tier = CaseTier.OnDemand,
         Start = new LabStart { Colonists = 1 },
@@ -59,19 +64,24 @@ internal static class PlannedRoomPredictionCase
         var door = At(3, 1);
         var interior = (from z in Enumerable.Range(2, 3) from x in Enumerable.Range(2, 3) select At(x, z)).ToList();
         var ring = (from z in Enumerable.Range(1, 5) from x in Enumerable.Range(1, 5) where x is 1 or 5 || z is 1 or 5 select At(x, z)).ToList();
-        var pieces = ring.Select(c => new Observations.PlannedRoomPiece(c, c == door ? "Door" : "Wall", Stuff));
+        var pieces = ring.Select(c => new Observations.PlannedRoomPiece(c, c == door ? "Door" : "Wall", Stuff)).ToList();
+        var floored = pieces.Concat(interior.Select(c => new Observations.PlannedRoomPiece(c, Floor, "")));
 
         var read = await s.CallAsync(
             "predict",
             NativeOps.ReadConstructionActivity,
             new Observations.ConstructionActivityRequest(s.Identity, default)
             {
-                RoomPredictions = [new("1", Stuff, EquatableArray.From(interior), EquatableArray.From(pieces))],
+                RoomPredictions =
+                [
+                    new("1", Stuff, EquatableArray.From(interior), EquatableArray.From(pieces)),
+                    new("2", Stuff, EquatableArray.From(interior), EquatableArray.From(floored)),
+                ],
             },
             cancellationToken).ConfigureAwait(false);
-        if (read.RoomPredictions is not [var prediction])
+        if (read.RoomPredictions is not [var prediction, var floor])
         {
-            throw new AcceptanceException($"predict: want one room prediction, got {read.RoomPredictions.Count}; findings {string.Join(",", read.Findings)}");
+            throw new AcceptanceException($"predict: want two room predictions, got {read.RoomPredictions.Count}; findings {string.Join(",", read.Findings)}");
         }
 
         // The ring the prediction was asked for, built: the same 5x5 rect in absolute cells, unroofed.
@@ -81,19 +91,40 @@ internal static class PlannedRoomPredictionCase
             cancellationToken).ConfigureAwait(false);
 
         var corner = new Common.Cell { X = interior[0].X, Z = interior[0].Z };
-        var rooms = await s.CallAsync(
-            "room",
-            NativeOps.ListRooms,
-            new Observations.ListRoomsRequest { Scope = s.Scope, Region = new Observations.Rectangle { Minimum = corner, Maximum = corner } },
-            cancellationToken).ConfigureAwait(false);
-        var observed = TypedReads.Observed("room", NativeOps.ListRooms, rooms, rooms.Outcome?.Observed);
-        if (observed.Rooms is not [var room])
+        async Task<Observations.RoomState> RoomAsync(string step)
         {
-            throw new AcceptanceException($"room: want the one built room at {corner.X},{corner.Z}, got {observed.Rooms.Count}");
+            var rooms = await s.CallAsync(
+                step,
+                NativeOps.ListRooms,
+                new Observations.ListRoomsRequest { Scope = s.Scope, Region = new Observations.Rectangle { Minimum = corner, Maximum = corner } },
+                cancellationToken).ConfigureAwait(false);
+            var observed = TypedReads.Observed(step, NativeOps.ListRooms, rooms, rooms.Outcome?.Observed);
+            return observed.Rooms is [var one] ? one : throw new AcceptanceException($"{step}: want the one built room at {corner.X},{corner.Z}, got {observed.Rooms.Count}");
         }
+        var room = await RoomAsync("room").ConfigureAwait(false);
+
+        // The same room with the planned floor laid on its interior.
+        _ = await s.StageAsync(
+            "floor",
+            new Fx.StageSpec { Paused = true, Cells = [new Fx.StageCells { Rect = new Fx.StageRect(interior[0].X, interior[0].Z, 3, 3), Terrain = Floor }] },
+            cancellationToken).ConfigureAwait(false);
+        var tiled = await RoomAsync("floored").ConfigureAwait(false);
 
         var actual = room.Stats.FirstOrDefault(st => st.DefName == Impressiveness)?.Value;
         var problems = new List<string>();
+        void Near(string what, double predicted, Observations.RoomState built, string stat)
+        {
+            if (built.Stats.FirstOrDefault(st => st.DefName == stat)?.Value is not double value || Math.Abs(predicted - value) > 1e-3)
+            {
+                problems.Add(string.Create(CultureInfo.InvariantCulture, $"{what} {predicted}, room {built.Stats.FirstOrDefault(st => st.DefName == stat)?.Value}"));
+            }
+        }
+        Near("cleanliness", prediction.Cleanliness, room, Cleanliness);
+        Near("floored cleanliness", floor.Cleanliness, tiled, Cleanliness);
+        if (!floor.Impressiveness.Equals(prediction.Impressiveness))
+        {
+            problems.Add($"floored impressiveness {floor.Impressiveness}, unfloored {prediction.Impressiveness}");
+        }
         if (prediction.Role != room.Role)
         {
             problems.Add($"role {prediction.Role}, room {room.Role}");
@@ -120,7 +151,9 @@ internal static class PlannedRoomPredictionCase
         }
 
         s.RecordWire("prediction", prediction);
+        s.RecordWire("floored", floor);
         s.RecordWire("room", room);
+        s.RecordWire("tiled", tiled);
         if (problems.Count > 0)
         {
             throw new AcceptanceException("prediction disagrees with the built room: " + string.Join("; ", problems));

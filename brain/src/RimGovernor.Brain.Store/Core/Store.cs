@@ -38,8 +38,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 33 adds the <c>PollutionSupplies</c> cohort to the rounds review (#3317): the forbidden wastepacks the biotech/pollution Need may allow.
     /// Version 34 adds the step's <c>FullLoad</c> and <c>Collect</c> to journaled activity steps (#3046): a remote Supply's full carry.
     /// Version 35 adds <c>CancelsBlueprint</c> to the journaled deconstruction action (#3742): a retired room's blueprint is cancelled.
+    /// Version 36 adds <c>FilthRuns</c> to the planned room (#3797): the station group's butchering load the room's cleanliness reads.
     /// </summary>
-    public const int SchemaVersion = 35;
+    public const int SchemaVersion = 36;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

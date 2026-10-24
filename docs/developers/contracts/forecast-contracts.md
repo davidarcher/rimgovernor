@@ -752,7 +752,9 @@ and supply are unknown. The brain charges the fuel as material
 `ConstructionActivityRequest.RoomPredictions` asks (#3339), per planned room and ring
 stuff, for the room as it would stand once its ring is built: a `PlannedRoomShape` is
 the room id, the stuff, the interior cells and the ring `PlannedRoomPiece`s (cell,
-definition, stuff) the planned wall and door sites would build. Rounds ask it in the
+definition, stuff) the planned wall and door sites would build, plus one piece per
+cell of the room's planned `FloorIn` sites (the floor's `TerrainDef`, no stuff, in
+every ring stuff, #3797). Rounds ask it in the
 same read as the thermal read, for every enclosed unplaced planned room with ring
 sites, once per ring stuff (`PlannedRoomPredictionRequestOf`); nothing is capped.
 `ConstructionActivityRead.RoomPredictions` answers one `PlannedRoomPrediction` per
@@ -763,7 +765,16 @@ shape:
   `None` at the map edge or over 60 regions, "" when unknown.
 - `Impressiveness` and `Stage`: `RoomStatWorker_Impressiveness` over the predicted
   Wealth, Beauty, Space and Cleanliness (the game's worker bodies run over the planned
-  interior with the planned pieces counted), and `RoomStatDef.GetScoreStageIndex`.
+  interior with the planned ring pieces counted), and `RoomStatDef.GetScoreStageIndex`.
+  The planned floor is not counted here.
+- `Cleanliness`: `RoomStatWorker_Cleanliness` over the same room with each planned
+  floor piece's terrain in place of its cell's (things contained or adjacent times
+  their stack count, plus each cell's terrain stat, over the cells; natural soil is -1),
+  and no filth beyond what stands now; the stat's `roomlessScore` for a `None` room, 0
+  for an unread one. A piece naming neither a `ThingDef` nor a `TerrainDef` leaves the
+  row unread (`Role` ""). The steady state with the room's stations' filth is the
+  policy's (`PlannedRoomCleanlinessRules.Steady`,
+  [facilities](../architecture/facilities.md)).
 - `Cells`, `OpenRoofCells`, `TouchesMapEdge`: what PsychologicallyOutdoors and
   UsesOutdoorTemperature read once closed.
 - `Beds`: the beds inside; `Benches`: the bill-giving buildings inside, each with
@@ -772,9 +783,11 @@ shape:
 The unregistered room is never added to the map. The staged
 `observations/planned-room-prediction` case predicts an open 3x3 patch with a wooden
 bed closed by a wood ring and door, stages that ring, and requires the prediction's
-role, impressiveness (within 0.001), cell and open-roof counts and bed to equal the
-game's own room as `observations_list_rooms` reads it (the room read has no stage, so
-the stage follows from the impressiveness).
+role, impressiveness and cleanliness (within 0.001), cell and open-roof counts and bed
+to equal the game's own room as `observations_list_rooms` reads it (the room read has
+no stage, so the stage follows from the impressiveness); a second shape with sterile
+tile floor pieces must predict the same impressiveness and the cleanliness the room
+reports once the stage lays that floor.
 
 ## Food reserve components
 

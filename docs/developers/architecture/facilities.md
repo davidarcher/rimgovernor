@@ -331,6 +331,15 @@ Not priced: the game's 300-tick cooldown between disturbances (the price is an
 upper bound) and the spread of the sleepers' gains (their mean is used); a
 freezer's cold against the beds stays the environment conflict.
 
+The tiler keeps each group's runs on its room (`PlannedRoom.FilthRuns`, by node, refreshed on
+every replan, #3797), so a planned room's **steady-state cleanliness** is priced by the same
+model after the layout: `PlannedRoomCleanlinessRules.Steady` adds the units of those runs
+standing at once (`LayoutFilthRules.Standing`, the `Residual` above) times the filth def's
+`Cleanliness` over the room's cells to the native prediction's `Cleanliness`, which counts
+the room's planned floor ([planned room prediction](../contracts/forecast-contracts.md#planned-room-prediction-read)).
+A None room keeps the stat's roomless score; an unread prediction or filth model is a
+`RequiredFactException`. The room roles that value cleanliness read it (#3802 and its siblings).
+
 The total is in embedding score points, no new constant: `-Score.Total()` plus
 the conflicts. `RoomGroup.Costs` ticks a day become work-days (`TicksPerDay`),
 and a work-day is `planWeights.Walk / WorkPrice.CellWalkDays` points: the score

@@ -14,7 +14,7 @@ public sealed class BedStationPriceTests
 {
     private const string Pool = "Bed/sleep";
     private const string Stove = "Stove/work";
-    private const string Butcher = "TableButcher/work";
+    internal const string Butcher = "TableButcher/work";
     private const string Lab = "ResearchBench/work";
 
     private static Station Bench(string def, RoomRole role) => new()
@@ -28,14 +28,14 @@ public sealed class BedStationPriceTests
     private static readonly MemoryThought Disturbed = new(-1, 1, 3, 1);
 
     /// <summary>A break curve in the game's shape: the minor threshold 0.35, each tier's mean break days.</summary>
-    private static readonly MoodModel Mood = new()
+    internal static readonly MoodModel Mood = new()
     {
         Break = new MoodBreakModel { Threshold = 0.35, Tiers = [new(1, 2), new(1, 3), new(1, 5)] },
         SleepDisturbed = Disturbed,
     };
 
     /// <summary>Filth_Blood's cleanliness a unit, the FoodPoisoning hediff's work and the 600 ticks filth stands before it may be cleaned.</summary>
-    private static readonly FilthModel Filth = new()
+    internal static readonly FilthModel Filth = new()
     {
         Def = "Filth_Blood",
         Cleanliness = -10,
@@ -65,7 +65,7 @@ public sealed class BedStationPriceTests
     private static IReadOnlyList<string> Timetable(Func<int, string> slot) => [.. Enumerable.Range(0, 24).Select(slot)];
 
     /// <summary>Three sleepers who sleep the night and take their leisure by day, and a cook working at night or by day.</summary>
-    private static RestSchedule? Colony(bool nightCook) => RestSchedule.Of(
+    internal static RestSchedule? Colony(bool nightCook) => RestSchedule.Of(
     [
         Timetable(h => Night(h) ? PawnRules.ScheduleSleep : PawnRules.ScheduleJoy),
         Timetable(h => Night(h) ? PawnRules.ScheduleSleep : PawnRules.ScheduleJoy),
@@ -82,7 +82,7 @@ public sealed class BedStationPriceTests
     };
 
     /// <summary>Three calm sleepers whom the market price of wood merges into one barracks (BedMergePriceTests), and a station the beds' sleepers walk to <paramref name="walks"/> times a day.</summary>
-    private static ClusterInput Cluster(StationNode station, double walks, RestSchedule? rest, MoodModel mood, BedMergeFacts? facts = null, double[]? curve = null) => new()
+    internal static ClusterInput Cluster(StationNode station, double walks, RestSchedule? rest, MoodModel mood, BedMergeFacts? facts = null, double[]? curve = null) => new()
     {
         Graph = new StationGraph
         {
@@ -97,7 +97,7 @@ public sealed class BedStationPriceTests
 
     private static StationNode Cook => new() { Id = Stove, Def = "Stove", Purpose = StationPurpose.Work, Count = 1, DailyWork = 20000 };
 
-    private static StationNode Butchery(double runs) => new() { Id = Butcher, Def = "TableButcher", Purpose = StationPurpose.Work, Count = 1, Filth = true, FilthRuns = runs, FilthWork = 1500 };
+    internal static StationNode Butchery(double runs) => new() { Id = Butcher, Def = "TableButcher", Purpose = StationPurpose.Work, Count = 1, Filth = true, FilthRuns = runs, FilthWork = 1500 };
 
     /// <summary>
     /// A barren map whose only ground is three 8 x 8 pockets far apart, zoned as a first plan zones it: the barracks

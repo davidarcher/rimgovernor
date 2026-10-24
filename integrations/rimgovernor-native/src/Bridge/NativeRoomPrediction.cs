@@ -17,8 +17,10 @@ namespace HomeBridge.BridgeTools;
 /// would contain or touch (the role workers read only ContainedAndAdjacentThings). The four base stats are the
 /// RoomStatWorker bodies of Wealth, Beauty, Space and Cleanliness run over the planned interior with the planned
 /// pieces counted (Room.Cells needs a registered region grid, so they cannot run on the unregistered room); the
-/// Impressiveness score is the game's worker over those stats and the stage RoomStatDef.GetScoreStageIndex. The
-/// unregistered room is never added to the map's room lookup and touches no game state.
+/// Impressiveness score is the game's worker over those stats and the stage RoomStatDef.GetScoreStageIndex. A piece
+/// naming a TerrainDef is a planned floor (#3797): it replaces its room cell's terrain in the reported Cleanliness only,
+/// not in the stats Impressiveness reads. The unregistered room is never added to the map's room lookup and touches no
+/// game state.
 /// </summary>
 internal static class NativeRoomPrediction
 {
@@ -56,11 +58,19 @@ internal static class NativeRoomPrediction
     private static Obs.PlannedRoomPrediction Predict(Map map, Obs.PlannedRoomShape shape)
     {
         var pieces = new Dictionary<IntVec3, Piece>();
+        var floors = new Dictionary<IntVec3, TerrainDef>();
         var unknown = false;
         foreach (var p in shape.Pieces)
         {
             var cell = new IntVec3(p.Cell.X, 0, p.Cell.Z);
-            if (!cell.InBounds(map) || DefDatabase<ThingDef>.GetNamedSilentFail(p.Definition) is not { } def) { unknown = true; continue; }
+            if (!cell.InBounds(map)) { unknown = true; continue; }
+            if (DefDatabase<ThingDef>.GetNamedSilentFail(p.Definition) is not { } def)
+            {
+                // A planned floor (a FloorIn site's terrain); a name that is neither def leaves the row unread.
+                if (DefDatabase<TerrainDef>.GetNamedSilentFail(p.Definition) is { } floor) floors[cell] = floor;
+                else unknown = true;
+                continue;
+            }
             var stuff = string.IsNullOrEmpty(p.Stuff) ? null : DefDatabase<ThingDef>.GetNamedSilentFail(p.Stuff);
             if (def.MadeFromStuff && stuff == null) { unknown = true; continue; }
             pieces[cell] = new(cell, def, stuff);
@@ -111,22 +121,24 @@ internal static class NativeRoomPrediction
             .Where(_ => StatDefOf.WorkTableWorkSpeedFactor.parts?.Any(p => p is StatPart_WorkTableOutdoors) == true)
             .Select(t => new Obs.PlannedRoomBench(t.GetUniqueLoadID(), StatPart_WorkTableOutdoors.Applies(t)))
             .OrderBy(b => b.Bench, StringComparer.Ordinal);
-        Obs.PlannedRoomPrediction Row(string role, Fact<double> score, Fact<int> stage) =>
+        Obs.PlannedRoomPrediction Row(string role, Fact<double> score, Fact<int> stage, double clean) =>
             new(shape.Room, shape.Stuff, role, score, stage, cells.Count, openRoof, edge)
-                { Beds = EquatableArray.From(beds), Benches = EquatableArray.From(benches) };
+                { Beds = EquatableArray.From(beds), Benches = EquatableArray.From(benches), Cleanliness = clean };
 
-        if (cells.Count == 0 || unknown) return Row("", default, default);
-        // Room.ProperRoom and Room.UpdateRoomStatsAndRole: no role nor stats at the map edge or over 60 regions.
-        if (edge || regions > MaxRegionsForRole) return Row(RoomRoleDefOf.None.defName, default, default);
-        if (BeautyCellCurve?.GetValue(null) is not SimpleCurve curve) return Row("", default, default);
+        if (cells.Count == 0 || unknown) return Row("", default, default, 0);
+        // Room.ProperRoom and Room.UpdateRoomStatsAndRole: no role nor stats at the map edge or over 60 regions, where
+        // Room.GetStat answers the stat's roomlessScore.
+        if (edge || regions > MaxRegionsForRole) return Row(RoomRoleDefOf.None.defName, default, default, RoomStatDefOf.Cleanliness.roomlessScore);
+        if (BeautyCellCurve?.GetValue(null) is not SimpleCurve curve) return Row("", default, default, 0);
 
         var wealth = Wealth(map, cells, things, touching);
         var beauty = Beauty(map, cells, cellSet, adjacent, touching, psychOutdoors, curve);
         var space = psychOutdoors ? SpaceCap : Math.Min(cells.Sum(c => c.Standable(map) ? SpaceStandable : c.WalkableByNormal(map) ? SpaceWalkable : 0f), SpaceCap);
-        var cleanliness = Cleanliness(map, cells, things, touching);
+        var cleanliness = Cleanliness(map, cells, things, touching, NoFloors);
+        var floored = Cleanliness(map, cells, things, touching, floors);
 
         var room = Unregistered(map, things, edge);
-        if (room == null) return Row("", default, default);
+        if (room == null) return Row("", default, default, 0);
         var stats = new DefMap<RoomStatDef, float>();
         stats[RoomStatDefOf.Wealth] = wealth; stats[RoomStatDefOf.Beauty] = beauty;
         stats[RoomStatDefOf.Space] = space; stats[RoomStatDefOf.Cleanliness] = cleanliness;
@@ -136,8 +148,10 @@ internal static class NativeRoomPrediction
         catch (Exception) { role = ""; }
         RoomRole!.SetValue(room, DefDatabase<RoomRoleDef>.GetNamedSilentFail(role));
         var impressiveness = RoomStatDefOf.Impressiveness.Worker.GetScore(room);
-        return Row(role, Fact.Known((double)impressiveness), Fact.Known(RoomStatDefOf.Impressiveness.GetScoreStageIndex(impressiveness)));
+        return Row(role, Fact.Known((double)impressiveness), Fact.Known(RoomStatDefOf.Impressiveness.GetScoreStageIndex(impressiveness)), floored);
     }
+
+    private static readonly Dictionary<IntVec3, TerrainDef> NoFloors = new();
 
     // An unregistered Room -> District -> Region whose region lists the given things; null when a member was renamed.
     private static Room? Unregistered(Map map, List<Thing> things, bool edge)
@@ -171,15 +185,16 @@ internal static class NativeRoomPrediction
         return sum;
     }
 
-    // RoomStatWorker_Cleanliness: buildings, items, filth and plants contained or adjacent, plus terrain, per room cell.
-    private static float Cleanliness(Map map, List<IntVec3> cells, List<Thing> things, List<Piece> pieces)
+    // RoomStatWorker_Cleanliness: buildings, items, filth and plants contained or adjacent, plus terrain, per room cell; a
+    // room cell with a planned floor counts that floor's terrain instead.
+    private static float Cleanliness(Map map, List<IntVec3> cells, List<Thing> things, List<Piece> pieces, Dictionary<IntVec3, TerrainDef> floors)
     {
         var sum = 0f;
         foreach (var t in things)
             if (t.def.category is ThingCategory.Building or ThingCategory.Item or ThingCategory.Filth or ThingCategory.Plant)
                 sum += t.stackCount * t.GetStatValue(StatDefOf.Cleanliness);
         foreach (var p in pieces) sum += p.Def.GetStatValueAbstract(StatDefOf.Cleanliness, p.Stuff);
-        foreach (var c in cells) sum += c.GetTerrain(map).GetStatValueAbstract(StatDefOf.Cleanliness);
+        foreach (var c in cells) sum += (floors.TryGetValue(c, out var floor) ? floor : c.GetTerrain(map)).GetStatValueAbstract(StatDefOf.Cleanliness);
         return sum / cells.Count;
     }
 

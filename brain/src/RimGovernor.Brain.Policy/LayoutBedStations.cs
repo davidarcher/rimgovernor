@@ -181,13 +181,7 @@ internal sealed partial class Clusterer
         }
         // The stages and the sleepers' gains at each are the bed merge's, read when it chose the free-bed pool's rooms.
         var (levels, gains) = _stageGains ?? throw new RequiredFactException("sleeper_mood");
-        double units = 0, exposure = 0;
-        foreach (var r in e.Runs.Values)
-        {
-            var (standing, share) = LayoutFilthRules.Residual(r.Runs * LayoutFilthRules.FilthGameJudgment.UnitsPerRun, r.Ticks, filth.StandTicks);
-            units += standing;
-            exposure = Math.Max(exposure, share);
-        }
+        var (units, exposure) = LayoutFilthRules.Standing(e.Runs.Values, filth.StandTicks);
         var space = RoomSpaceRules.Space(e.Area);
         var clean = levels.Stage(RoomSpaceRules.Impressiveness(space, 0, 0, 0));
         var dirty = levels.Stage(RoomSpaceRules.Impressiveness(space, 0, units * filth.Cleanliness / e.Area, 0));

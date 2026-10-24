@@ -289,4 +289,20 @@ public static partial class LayoutFilthRules
         var exposure = Math.Min(1, batches * (((batch - 1) * runTicks) + stand) / GameTime.TicksPerDay);
         return (units, exposure);
     }
+
+    /// <summary>
+    /// The filth of a room's filthy nodes standing at once: each node's <see cref="Residual"/> units (its runs x
+    /// FilthGame.UnitsPerRun) summed, and the longest share of the day any of it stands.
+    /// </summary>
+    internal static (double Units, double Exposure) Standing(IEnumerable<FilthRuns> runs, double stand)
+    {
+        double units = 0, exposure = 0;
+        foreach (var r in runs)
+        {
+            var (standing, share) = Residual(r.Runs * FilthGameJudgment.UnitsPerRun, r.Ticks, stand);
+            units += standing;
+            exposure = Math.Max(exposure, share);
+        }
+        return (units, exposure);
+    }
 }

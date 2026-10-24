@@ -24,8 +24,9 @@ public sealed record ConstructionActivityRequest(Identity Identity,
     public EquatableArray<PlannedRoomShape> RoomPredictions { get; init; }
 }
 /// <summary>
-/// One planned room closed in one ring stuff (#3339): its interior cells and the unbuilt ring pieces (walls, doors) its
-/// planned sites would build there. The read counts the pieces as built; every other cell and thing is as observed.
+/// One planned room closed in one ring stuff (#3339): its interior cells, the unbuilt ring pieces (walls, doors) its
+/// planned sites would build there and its planned floors (a TerrainDef piece on an interior cell, #3797). The read counts
+/// the pieces as built; every other cell and thing is as observed.
 /// </summary>
 public sealed record PlannedRoomShape(string Room, string Stuff,
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Interior,
@@ -41,6 +42,13 @@ public sealed record PlannedRoomPiece(Cell Cell, string Definition, string Stuff
 public sealed record PlannedRoomPrediction(string Room, string Stuff, string Role, Fact<double> Impressiveness, Fact<int> Stage,
     int Cells, int OpenRoofCells, bool TouchesMapEdge)
 {
+    /// <summary>
+    /// RoomStatWorker_Cleanliness of the closed room with the shape's planned floor pieces (TerrainDef pieces) laid in
+    /// place of their cells' terrain and no filth beyond what stands now (#3797); the stat's roomlessScore for a None
+    /// room; 0 when Role is "" (unread). Impressiveness reads the cleanliness without the planned floor.
+    /// </summary>
+    public double Cleanliness { get; init; }
+
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> Beds { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlannedRoomBench>))]

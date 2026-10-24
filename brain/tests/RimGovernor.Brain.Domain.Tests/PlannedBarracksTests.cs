@@ -18,10 +18,10 @@ public sealed class PlannedBarracksTests
     private static readonly PawnId A = new("a");
     private static readonly PawnId B = new("b");
     private static readonly InteriorPieceDef BedShape = new(Bed, new Cell(1, 2), RoomRole.Bedroom, null);
-    private static readonly RoomFurniture Furniture = new() { Beds = [new FurnitureBed { Def = Bed, Slots = 1 }] };
+    internal static readonly RoomFurniture Furniture = new() { Beds = [new FurnitureBed { Def = Bed, Slots = 1 }] };
 
     /// <summary>A humanlike bed as the catalog scores it: a lone free one a bedroom, several a barracks.</summary>
-    private static readonly StationCatalog Catalog = new()
+    internal static readonly StationCatalog Catalog = new()
     {
         Stations = new Dictionary<string, Station>
         {
@@ -40,7 +40,7 @@ public sealed class PlannedBarracksTests
         },
     };
 
-    private static RoomGroup BarracksGroup => new()
+    internal static RoomGroup BarracksGroup => new()
     {
         Id = 0,
         Role = RoomRole.Barracks,
@@ -48,7 +48,7 @@ public sealed class PlannedBarracksTests
         Stations = [new GroupStation("bed", Bed, StationPurpose.Sleep, 3)],
     };
 
-    private static MapSurvey OpenMap() => new()
+    internal static MapSurvey OpenMap() => new()
     {
         Bounds = new Bounds(40, 30),
         Cells = [.. Enumerable.Range(0, 40).SelectMany(x => Enumerable.Range(0, 30).Select(z => new SurveyCell { Cell = new Cell(x, z), Walkable = true, Footing = Footing.Firm }))],

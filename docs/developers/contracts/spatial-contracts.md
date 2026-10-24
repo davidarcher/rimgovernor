@@ -234,7 +234,9 @@ Hot and NextRoomID.
   a standing wall is opened last (`ChooseCuttingLinks`), only when the standing doors
   have not already joined the room to the corridor.
   A room packed in with no door onto the ground is joined through a neighbour. Each
-  tiled room carries `PlannedRoom.Crossing` (`RoomCrossing`), read from its station
+  tiled room carries `PlannedRoom.FilthRuns` (its station group's butchering load by
+  filthy node, #3797; the room's steady-state cleanliness reads it,
+  [facilities](../architecture/facilities.md)) and `PlannedRoom.Crossing` (`RoomCrossing`), read from its station
   group, not its role: `Cold` (a cooled room: door temperature equalization leaks the
   cold), `Beds` (player-faction beds: clamor within 7 cells gives the sleeper the
   SleepDisturbed memory, -1 mood) and `Clean` (a station's effect scales with room

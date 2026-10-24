@@ -46,14 +46,17 @@ public static partial class PlannedRules
     /// door site, or a standing one offered a wall swap (#3657), or whose ring a placed blueprint or frame stands on (#3537),
     /// once per ring stuff (PlannedRoomAlternatives' stuffs), its interior the room's region and its pieces the cells of its
     /// wall, door and swap sites in that stuff (a stuff-less ring site in every stuff) and of its placed ring sites
-    /// (<see cref="PlacedRing"/>, in their own stuff); native counts a piece in place of what stands on its cell. Nothing is
-    /// capped (#3341).
+    /// (<see cref="PlacedRing"/>, in their own stuff), plus in every stuff the cells of its FloorIn sites with their terrain
+    /// (#3797), which native counts in the room's Cleanliness only; native counts a piece in place of what stands on its
+    /// cell. Nothing is capped (#3341).
     /// </summary>
     public static EquatableArray<PlannedRoomShape> PlannedRoomPredictionRequestOf(IEnumerable<PlannedRoom> rooms, IEnumerable<PlannedBuildSite> sites,
         IEnumerable<ConstructionSite> placed)
     {
         var shapes = new List<PlannedRoomShape>();
-        var closing = sites.Where(s => s.Room > 0 && s.Zone.Length == 0 && s.Op is OpKind.WallIn or OpKind.DoorIn or OpKind.WallUp).ToLookup(s => s.Room);
+        var owned = sites.Where(s => s.Room > 0 && s.Zone.Length == 0).ToList();
+        var closing = owned.Where(s => s.Op is OpKind.WallIn or OpKind.DoorIn or OpKind.WallUp).ToLookup(s => s.Room);
+        var floors = owned.Where(s => s.Op == OpKind.FloorIn).ToLookup(s => s.Room);
         var standing = placed.ToList();
         foreach (var room in rooms.Where(r => !r.Outdoor && r.Id > 0).OrderBy(r => r.Id))
         {
@@ -66,6 +69,7 @@ public static partial class PlannedRules
                 var pieces = ring.Where(s => s.Stuff.Length == 0 || s.Stuff == stuff)
                     .SelectMany(s => s.Positions.Select(p => new PlannedRoomPiece(p, s.Definition, s.Stuff)))
                     .Concat(placedRing.Select(s => new PlannedRoomPiece(s.Building!.Cell, s.Building.Definition, s.Building.Stuff)))
+                    .Concat(floors[room.Id].SelectMany(s => s.Positions.Select(p => new PlannedRoomPiece(p, s.Definition, ""))))
                     .OrderBy(p => p.Cell.X).ThenBy(p => p.Cell.Z);
                 shapes.Add(new PlannedRoomShape(room.Id.ToString(System.Globalization.CultureInfo.InvariantCulture), stuff, interior, EquatableArray.From(pieces)));
             }

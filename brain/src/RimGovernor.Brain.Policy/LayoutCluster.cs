@@ -168,6 +168,9 @@ public sealed record RoomGroup
     /// </summary>
     public double Cleaning { get; set; }
 
+    /// <summary>Each filthy node's butchering load in the group (GroupEval.Runs), by node id; the tiler keeps it on the room (PlannedRoom.FilthRuns).</summary>
+    public IReadOnlyDictionary<string, FilthRuns> FilthRuns { get; set; } = new Dictionary<string, FilthRuns>();
+
     /// <summary>
     /// Counts the door each required link opens: tiling opens a door on every adjacent required pair, and a
     /// door keeps the cell inside it clear, so the group's floor grows by one threshold per required link
@@ -717,6 +720,7 @@ public static partial class LayoutClusterRules
                 LostEffects = e.Effects,
                 Filth = e.FilthCosts,
                 Cleaning = e.Cleaning,
+                FilthRuns = new Dictionary<string, FilthRuns>(e.Runs, StringComparer.Ordinal),
             };
             var byNode = new Dictionary<int, int>();
             foreach (var m in members[r]!)
