@@ -178,9 +178,9 @@ public sealed record RaceProduct
 
     public Resource Def { get; init; }
 
-    public Fact<double> Amount { get; init; }
+    public double Amount { get; init; }
 
-    public Fact<double> IntervalDays { get; init; }
+    public double IntervalDays { get; init; }
 
     /// <summary>The Nutrition stat of Def (catalog def stat table); unknown for a def the game shows none for, wool.</summary>
     public Fact<double> NutritionPerUnit { get; init; }
@@ -205,8 +205,8 @@ public sealed record RaceProduct
 public sealed record SourceProduct(Resource Def, double Amount);
 
 /// <summary>
-/// The static facts of one animal race, the same for every animal of it and fixed for a map load. An unread
-/// value is unknown, never zero.
+/// The static facts of one animal race, the same for every animal of it and fixed for a map load. A value the
+/// stat table does not show is unknown, never zero.
 /// </summary>
 public sealed record AnimalRace
 {
@@ -234,12 +234,12 @@ public sealed record AnimalRace
     public EquatableArray<RaceFeedItem> FeedItems { get; init; }
 
     /// <summary>RaceProperties.lifeExpectancy in years.</summary>
-    public Fact<double> LifeExpectancy { get; init; }
+    public double LifeExpectancy { get; init; }
 
     /// <summary>RaceProperties.manhunterOnTameFailChance.</summary>
     public double ManhunterOnTameFail { get; init; }
 
-    public Fact<double> ManhunterOnDamage { get; init; }
+    public double ManhunterOnDamage { get; init; }
 
     /// <summary>RaceProperties.predator.</summary>
     public bool Predator { get; init; }
@@ -257,10 +257,10 @@ public sealed record AnimalRace
     public EquatableArray<string> Edible { get; init; }
 
     /// <summary>RaceProperties.mateMtbHours: the mean hours between mating attempts of an eligible pair.</summary>
-    public Fact<double> MateMtbHours { get; init; }
+    public double MateMtbHours { get; init; }
 
     /// <summary>Pawn_AgeTracker.AdultMinAgeTicks: the lead of a young animal before it is adult.</summary>
-    public Fact<long> AdultMinAgeTicks { get; init; }
+    public long AdultMinAgeTicks { get; init; }
 
     /// <summary>The first life stage that breeds (unknown when no stage does).</summary>
     public Fact<long> ReproductiveMinAgeTicks { get; init; }
@@ -272,7 +272,7 @@ public sealed record AnimalRace
     /// The game's wildness curve at the race's Wildness: what a tame attempt's chance is multiplied by, before
     /// the tamer's TameAnimalChance, bond, prison and venerated-animal factors.
     /// </summary>
-    public Fact<double> TameChanceFactor { get; init; }
+    public double TameChanceFactor { get; init; }
 
     /// <summary>The MeatAmount stat of the race def, before butcher efficiency.</summary>
     public Fact<double> MeatAmount { get; init; }
@@ -306,16 +306,16 @@ public sealed record RaceLifeStage(long MinAgeTicks, double HungerRateFactor, do
 
 /// <summary>
 /// The game's constants of one animal interaction job (taming, training): per interaction three talks of
-/// TalkTicks and Feeds feeds of FeedTicks. The job's three talk toils are game code structure, not a value the
-/// game exposes.
+/// TalkTicks and Feeds feeds of FeedTicks, each positive (the catalog refuses a game whose constants are not). The
+/// job's three talk toils are game code structure, not a value the game exposes.
 /// </summary>
 public sealed record AnimalInteraction
 {
-    public Fact<int> TalkTicks { get; init; }
+    public int TalkTicks { get; init; }
 
-    public Fact<int> FeedTicks { get; init; }
+    public int FeedTicks { get; init; }
 
-    public Fact<int> Feeds { get; init; }
+    public int Feeds { get; init; }
 }
 
 /// <summary>One producible feed item and its nutrition per item.</summary>

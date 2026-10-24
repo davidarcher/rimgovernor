@@ -100,7 +100,7 @@ internal static class ColonyModelFixtures
             CurrentConstruction = Known(new CurrentConstruction()),
             PlannedSites = Known(new PlannedSiteFacts()),
         },
-        CombinedFoodSupply = Known(new FoodSupply { Complete = Known(true), Consumers = [new() { Id = new("Anna"), NutritionPerDay = Known(1d) }], Stocks = [new RimGovernor.Brain.Policy.FoodStock { Id = "meal", Nutrition = Known(12.5), Holder = Known(new PawnId("")), Perishable = Known(false), Eaters = [new("Anna")] }] }),
+        CombinedFoodSupply = Known(new FoodSupply { Complete = Known(true), Consumers = [new() { Id = new("Anna"), NutritionPerDay = Known(1d) }], Stocks = [new RimGovernor.Brain.Policy.FoodStock { Id = "meal", Nutrition = Known(12.5), Holder = Known(new PawnId("")), Rot = new FoodRot.Keeps(), Eaters = [new("Anna")] }] }),
         Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new Resource("Steel")] = 120, [new Resource(Cloth)] = 0 }),
         Definitions = [CropRow()],
         Farms = [ZoneFixtures.Growing("zone1", Crop)],

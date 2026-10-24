@@ -32,7 +32,7 @@ Bridge/Catalog/Items.cs|Unknown|1
 Bridge/Catalog/MapSurvey.cs|ValueOrDefault|5
 Bridge/Catalog/Power.cs|Fact|9
 Bridge/Catalog/Power.cs|Unknown|3
-Bridge/Catalog/Races.cs|Fact|32
+Bridge/Catalog/Races.cs|Fact|15
 Bridge/Catalog/Races.cs|Unknown|4
 Bridge/Catalog/RecipeLearning.cs|Fact|1
 Bridge/Catalog/RecipeView.cs|Fact|3
@@ -392,7 +392,7 @@ Host/HostProviders.cs|Unknown|2
 Host/HostSnapshots.cs|Fact|8
 Host/HostSnapshots.cs|Unknown|2
 Host/SchedulerLoop.cs|Discard|1
-Observation/Acquisition.cs|Fact|8
+Observation/Acquisition.cs|Fact|6
 Observation/Acquisition.cs|Unknown|1
 Observation/AnimalUpkeep.cs|Fact|8
 Observation/AnomalyColony.cs|Fact|10
@@ -422,8 +422,8 @@ Observation/Construction.cs|Unknown|4
 Observation/Decode.cs|Fact|3
 Observation/Definitions.cs|Fact|8
 Observation/Facts/Store.cs|Discard|2
-Observation/FoodChannels.cs|Fact|6
-Observation/FoodSupply.cs|Fact|7
+Observation/FoodChannels.cs|Fact|5
+Observation/FoodSupply.cs|Fact|6
 Observation/Fuel.cs|Fact|1
 Observation/GearDefinitions.cs|Fact|1
 Observation/MealTier.cs|Fact|15
@@ -465,13 +465,13 @@ Policy/AcquisitionCatalog.cs|Fact|19
 Policy/AcquisitionCatalog.cs|Unknown|2
 Policy/ActivityContinuation.cs|Fact|2
 Policy/Admission.cs|Fact|25
-Policy/AnimalAcquire.cs|Fact|43
+Policy/AnimalAcquire.cs|Fact|38
 Policy/AnimalAcquire.cs|Unknown|3
 Policy/AnimalFeedRunway.cs|Fact|20
 Policy/AnimalFeedRunway.cs|Unknown|1
 Policy/AnimalFood.cs|Fact|30
 Policy/AnimalFood.cs|Unknown|3
-Policy/AnimalUpkeep.cs|Fact|34
+Policy/AnimalUpkeep.cs|Fact|24
 Policy/AnimalsFamily.cs|Fact|18
 Policy/AnomalyFamily.cs|Fact|6
 Policy/ApparelPolicy.cs|Discard|1
@@ -608,7 +608,7 @@ Policy/ContainmentCell.cs|Fact|12
 Policy/ControlledEnvironment.cs|Fact|27
 Policy/ControlledEnvironment.cs|Unknown|2
 Policy/CoordinatedActivities.cs|Fact|5
-Policy/CorpseLarder.cs|Fact|21
+Policy/CorpseLarder.cs|Fact|17
 Policy/CoupleBed.cs|Fact|1
 Policy/CreepJoiner.cs|Fact|39
 Policy/CreepJoiner.cs|Unknown|6
@@ -694,7 +694,7 @@ Policy/Flooring.cs|ValueOrDefault|6
 Policy/Food.cs|Fact|17
 Policy/FoodAnimalProducts.cs|Fact|16
 Policy/FoodAnimalProducts.cs|Unknown|1
-Policy/FoodForecast.cs|Fact|29
+Policy/FoodForecast.cs|Fact|25
 Policy/FoodForecast.cs|Unknown|2
 Policy/FoodForecast.cs|ValueOrDefault|1
 Policy/FoodOrders.cs|Discard|1
@@ -705,9 +705,9 @@ Policy/FoodPlan.cs|Unknown|6
 Policy/FoodPolicy.cs|Discard|1
 Policy/FoodPolicy.cs|Fact|12
 Policy/FoodReserve.cs|Fact|13
-Policy/FoodReserve.cs|ValueOrDefault|3
+Policy/FoodReserve.cs|ValueOrDefault|1
 Policy/FoodStorageStuck.cs|Fact|4
-Policy/FoodStorageUpkeep.cs|Fact|34
+Policy/FoodStorageUpkeep.cs|Fact|28
 Policy/FoodStorageUpkeep.cs|UnknownMember|1
 Policy/FoodStorageUpkeep.cs|Unknown|2
 Policy/FoodStores.cs|Fact|16
@@ -716,7 +716,7 @@ Policy/ForecastActivities.cs|Fact|41
 Policy/ForecastActivities.cs|NullableValue|2
 Policy/ForecastActivities.cs|Unknown|2
 Policy/ForecastActivityComposition.cs|Fact|46
-Policy/ForecastActivityEffects.cs|Fact|28
+Policy/ForecastActivityEffects.cs|Fact|26
 Policy/ForecastActivityOutcomes.cs|Fact|28
 Policy/ForecastCapacity.cs|Fact|24
 Policy/ForecastClaims.cs|Fact|55
@@ -730,7 +730,7 @@ Policy/ForecastCoupledExecution.cs|Fact|1
 Policy/ForecastCoupledMaterials.cs|Fact|31
 Policy/ForecastCoupledSelection.cs|Discard|1
 Policy/ForecastCoupledSelection.cs|Fact|77
-Policy/ForecastCoupledStock.cs|Fact|106
+Policy/ForecastCoupledStock.cs|Fact|101
 Policy/ForecastCurrentWork.cs|Fact|11
 Policy/ForecastFoodCandidates.cs|Fact|42
 Policy/ForecastFoodCandidates.cs|ValueOrDefault|1
@@ -758,7 +758,7 @@ Policy/ForecastSkill.cs|Fact|64
 Policy/ForecastSkillCursor.cs|Fact|33
 Policy/ForecastSupport.cs|Fact|18
 Policy/ForecastSurvivalNeeds.cs|Fact|19
-Policy/ForecastTerminalStock.cs|Fact|51
+Policy/ForecastTerminalStock.cs|Fact|46
 Policy/ForecastThermalExposure.cs|Fact|7
 Policy/ForecastValue.cs|Fact|72
 Policy/ForecastWorkInputs.cs|Fact|8
@@ -800,14 +800,14 @@ Policy/Harm/ThreatSchedule.cs|Fact|6
 Policy/HerdMaster.cs|Fact|4
 Policy/HerdPen.cs|Fact|2
 Policy/HerdPlan.cs|Discard|1
-Policy/HerdPlan.cs|Fact|25
+Policy/HerdPlan.cs|Fact|23
 Policy/HerdPrecepts.cs|Discard|1
 Policy/HerdPrecepts.cs|Fact|10
 Policy/HerdPrecepts.cs|Unknown|1
 Policy/HerdRemoval.cs|Fact|4
 Policy/HerdSale.cs|Fact|7
 Policy/HerdSterilize.cs|Fact|4
-Policy/HerdSurplus.cs|Fact|16
+Policy/HerdSurplus.cs|Fact|11
 Policy/HerdSurplus.cs|Unknown|1
 Policy/HerdWard.cs|Fact|5
 Policy/HerdWard.cs|Unknown|1
@@ -825,7 +825,7 @@ Policy/HumanFoodPlan.cs|Fact|21
 Policy/HumanFoodPlan.cs|ValueOrDefault|3
 Policy/HuntAdmission.cs|Fact|2
 Policy/HuntAlternatives.cs|Fact|4
-Policy/HuntCredit.cs|Fact|7
+Policy/HuntCredit.cs|Fact|5
 Policy/HuntCredit.cs|ValueOrDefault|1
 Policy/HuntPlanning.cs|Fact|12
 Policy/HuntPlanning.cs|Unknown|1
@@ -887,7 +887,7 @@ Policy/LayoutJoyNodes.cs|Fact|4
 Policy/LayoutJoyNodes.cs|Unknown|1
 Policy/LayoutLight.cs|Fact|1
 Policy/LayoutMood.cs|Discard|1
-Policy/LayoutPenNodes.cs|Fact|7
+Policy/LayoutPenNodes.cs|Fact|5
 Policy/LayoutPenNodes.cs|Unknown|1
 Policy/LayoutPerimeter.cs|Fact|2
 Policy/LayoutPerimeterSites.cs|NullableValue|1
@@ -1015,7 +1015,7 @@ Policy/QuestCoreSite.cs|Fact|2
 Policy/QuestDecrees.cs|Discard|1
 Policy/QuestDecrees.cs|Fact|22
 Policy/QuestDeparture.cs|Fact|33
-Policy/QuestExpedition.cs|Fact|42
+Policy/QuestExpedition.cs|Fact|40
 Policy/QuestGravInspection.cs|Fact|2
 Policy/QuestHack.cs|Fact|9
 Policy/QuestHospitality.cs|Fact|21
@@ -1041,7 +1041,7 @@ Policy/RecoveryMethod.cs|Unknown|6
 Policy/RecoveryQueue.cs|Fact|18
 Policy/RecoveryQueue.cs|Unknown|3
 Policy/Refrigeration.cs|Discard|2
-Policy/Refrigeration.cs|Fact|18
+Policy/Refrigeration.cs|Fact|16
 Policy/Refrigeration.cs|UnknownMember|1
 Policy/Refrigeration.cs|Unknown|3
 Policy/RefusalBudget.cs|Discard|1

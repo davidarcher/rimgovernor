@@ -20,9 +20,8 @@ public static class ForecastStockScope
     internal static Fact<bool> Eligible(FoodStock stock, FoodSupply supply)
     {
         if (stock.Reserve || stock.Corpse && stock.Forbidden == Known(true)) return Known(false);
-        if (!stock.Holder.IsKnown || !stock.Perishable.IsKnown || stock.Corpse && !stock.Forbidden.IsKnown) return default;
-        if (stock.Perishable.Value && !stock.RotTicks.IsKnown) return default;
-        if (stock.Perishable.Value && stock.RotTicks.Value <= 0) return Known(false);
+        if (!stock.Holder.IsKnown || stock.Corpse && !stock.Forbidden.IsKnown) return default;
+        if (stock.Rot is FoodRot.Rots { Ticks: <= 0 }) return Known(false);
         var unknown = false;
         foreach (var eater in stock.Eaters)
         {

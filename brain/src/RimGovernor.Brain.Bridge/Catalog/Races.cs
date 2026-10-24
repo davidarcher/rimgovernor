@@ -55,9 +55,9 @@ public sealed partial class DefinitionCatalog
             Def = new P.Resource(name),
             Predator = props.predator,
             BodySize = Known((double)props.baseBodySize),
-            LifeExpectancy = Known((double)props.lifeExpectancy),
+            LifeExpectancy = props.lifeExpectancy,
             ManhunterOnTameFail = props.manhunterOnTameFailChance,
-            ManhunterOnDamage = Known((double)props.manhunterOnDamageChance),
+            ManhunterOnDamage = props.manhunterOnDamageChance,
             Edible = new([.. facts.EdibleDefs]),
             Trainables = new([.. RaceTrainables(props)]),
 
@@ -67,13 +67,13 @@ public sealed partial class DefinitionCatalog
             GestationDays = props.gestationPeriodDays,
             CarryingCapacity = ShownFact(name, CatalogStats.CarryingCapacity),
             Wildness = ShownFact(name, CatalogStats.Wildness),
-            MateMtbHours = Known((double)props.mateMtbHours),
-            AdultMinAgeTicks = Known(ages.Adult),
+            MateMtbHours = props.mateMtbHours,
+            AdultMinAgeTicks = ages.Adult,
             ReproductiveMinAgeTicks = ages.Reproductive is { } r ? Known(r) : default,
             MilkableMinAgeTicks = ages.Milkable is { } m ? Known(m) : default,
             LifeStages = new([.. RaceLifeStages(props)]),
             LitterSize = LitterSizeMean(props.litterSizeCurve),
-            TameChanceFactor = Known((double)facts.TameChanceFactor),
+            TameChanceFactor = facts.TameChanceFactor,
             AdultFeedPerDay = facts.AdultFeedPerDay is > 0 and { } feed ? Known(feed) : default,
             CombatPower = power.TryGetValue(name, out var p) ? Known(p) : default,
         };
@@ -193,17 +193,15 @@ public sealed partial class DefinitionCatalog
         return area <= 0 ? Unknown<double>() : Known(Math.Max(1, moment / area / 3));
     }
 
-    // The game's animal interaction job constants.
+    // The game's animal interaction job constants, each positive.
     private static P.AnimalInteraction AnimalInteraction() => new()
     {
-        TalkTicks = PositiveFact(GameConstants.AnimalTalkDuration),
-        FeedTicks = PositiveFact(GameConstants.AnimalFeedDuration),
-        Feeds = PositiveFact(JobDriver_InteractAnimal.FeedCount),
+        TalkTicks = Positive(GameConstants.AnimalTalkDuration, nameof(GameConstants.AnimalTalkDuration)),
+        FeedTicks = Positive(GameConstants.AnimalFeedDuration, nameof(GameConstants.AnimalFeedDuration)),
+        Feeds = Positive(JobDriver_InteractAnimal.FeedCount, nameof(JobDriver_InteractAnimal.FeedCount)),
     };
 
-    private static Fact<int> PositiveFact(int value) => value > 0 ? Known(value) : default;
-
-    private static Fact<double> PositiveFact(float value) => value > 0 ? Known((double)value) : default;
+    private static int Positive(int value, string name) => value > 0 ? value : throw new CatalogException($"animal interaction constant {name} is {value}, not positive");
 
     // The highest PawnKindDef.combatPower of each race.
     private Dictionary<string, double> CombatPowers()
@@ -231,12 +229,12 @@ public sealed partial class DefinitionCatalog
         var products = new List<P.RaceProduct>();
         if (row.GetCompProperties<CompProperties_Milkable>() is { milkDef: { } milk } milkable)
         {
-            products.Add(new P.RaceProduct { Kind = "milk", Def = new P.Resource(milk.defName), Amount = Known((double)milkable.milkAmount), IntervalDays = Known((double)milkable.milkIntervalDays) });
+            products.Add(new P.RaceProduct { Kind = "milk", Def = new P.Resource(milk.defName), Amount = milkable.milkAmount, IntervalDays = milkable.milkIntervalDays });
         }
 
         if (row.GetCompProperties<CompProperties_Shearable>() is { woolDef: { } wool } shearable)
         {
-            products.Add(new P.RaceProduct { Kind = "wool", Def = new P.Resource(wool.defName), Amount = Known((double)shearable.woolAmount), IntervalDays = Known((double)shearable.shearIntervalDays) });
+            products.Add(new P.RaceProduct { Kind = "wool", Def = new P.Resource(wool.defName), Amount = shearable.woolAmount, IntervalDays = shearable.shearIntervalDays });
         }
 
         if (row.GetCompProperties<CompProperties_EggLayer>() is { } egg && (egg.eggUnfertilizedDef ?? egg.eggFertilizedDef) is { } eggDef)
@@ -245,8 +243,8 @@ public sealed partial class DefinitionCatalog
             {
                 Kind = "eggs",
                 Def = new P.Resource(eggDef.defName),
-                Amount = Known((egg.eggCountRange.min + egg.eggCountRange.max) * 0.5),
-                IntervalDays = Known((double)egg.eggLayIntervalDays),
+                Amount = (egg.eggCountRange.min + egg.eggCountRange.max) * 0.5,
+                IntervalDays = egg.eggLayIntervalDays,
                 FertilizationCountMax = egg.eggFertilizationCountMax,
                 FemaleOnly = egg.eggLayFemaleOnly,
             };
@@ -268,7 +266,7 @@ public sealed partial class DefinitionCatalog
         if (row.GetCompProperties<CompProperties_Spawner>() is { thingToSpawn: { } spawned } spawner)
         {
             var ticks = (spawner.spawnIntervalRange.min + spawner.spawnIntervalRange.max) * 0.5;
-            products.Add(new P.RaceProduct { Kind = "spawner", Def = new P.Resource(spawned.defName), Amount = Known((double)spawner.spawnCount), IntervalDays = Known(ticks / GameTime.TicksPerDay) });
+            products.Add(new P.RaceProduct { Kind = "spawner", Def = new P.Resource(spawned.defName), Amount = spawner.spawnCount, IntervalDays = ticks / GameTime.TicksPerDay });
         }
 
         return products;

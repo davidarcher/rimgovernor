@@ -152,19 +152,10 @@ public static partial class RefrigerationRules
     /// </summary>
     internal static (bool Warm, bool Known) WarmAtRisk(this FoodStorageStock s, FoodStoragePolicy p, double limit)
     {
-        if (!s.Stock.Perishable.TryGetValue(out var perishable))
-        {
-            return (false, false);
-        }
-        // A known non-perishable stock (a survival meal, pemmican) never rots, so native reports no rot runway
-        // for it; that is not an unknown fact.
-        if (!perishable)
+        // A non-perishable stock (a survival meal, pemmican) never rots: it is not at risk.
+        if (s.Stock.Rot is not FoodRot.Rots { Ticks: var ticks })
         {
             return (false, true);
-        }
-        if (!s.Stock.RotTicks.TryGetValue(out var ticks))
-        {
-            return (false, false);
         }
         if (ticks <= 0)
         {

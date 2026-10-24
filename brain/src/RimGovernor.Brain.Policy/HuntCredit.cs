@@ -77,9 +77,7 @@ public static class DeliveryCreditHuntExtensions
     /// <summary>The share of a corpse's rot clock left: its rot ticks over the most seen for it, carried in peak into the next call.</summary>
     private static double RotFraction(DeliveryCredit d, FoodStock s, Dictionary<string, long> peak)
     {
-        var pk = s.Perishable.TryGetValue(out var perishable);
-        var tk = s.RotTicks.TryGetValue(out var ticks);
-        if (!pk || !perishable || !tk)
+        if (s.Rot is not FoodRot.Rots { Ticks: var ticks })
         {
             return 1;
         }

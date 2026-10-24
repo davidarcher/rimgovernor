@@ -91,8 +91,8 @@ public static class CorpseLarderRules
         }
         DomainException.Require(FoodForecastRules.FoodNumber(available), "corpse nutrition overflow");
         var ordered = corpses
-            .OrderBy(s => s.RotTicks.IsKnown ? 0 : 1)
-            .ThenBy(s => s.RotTicks.TryGetValue(out var t) ? t : 0)
+            .OrderBy(s => s.Rot is FoodRot.Rots ? 0 : 1)
+            .ThenBy(s => s.Rot is FoodRot.Rots { Ticks: var t } ? t : 0)
             .ThenBy(s => s.Id, StringComparer.Ordinal)
             .ToList();
         foreach (var s in ordered)
@@ -104,10 +104,9 @@ public static class CorpseLarderRules
             s.Forbidden.TryGetValue(out var forbidden);
             var rk = s.Roofed.TryGetValue(out var roof);
             var tk = s.TemperatureC.TryGetValue(out var temp);
-            var ek = s.RotTicks.TryGetValue(out var ticks);
             s.MeatAmount.TryGetValue(out var meat);
             s.BodySize.TryGetValue(out var size);
-            if (!rk || !tk || !ek)
+            if (!rk || !tk || s.Rot is not FoodRot.Rots { Ticks: var ticks })
             {
                 continue;
             }
@@ -131,11 +130,10 @@ public static class CorpseLarderRules
             }
             var rk = s.Roofed.TryGetValue(out var roof);
             var tk = s.TemperatureC.TryGetValue(out var temp);
-            var ek = s.RotTicks.TryGetValue(out var ticks);
             s.MeatAmount.TryGetValue(out var meat);
             s.BodySize.TryGetValue(out var size);
             s.Nutrition.TryGetValue(out var nutrition);
-            if (!rk || !tk || !ek)
+            if (!rk || !tk || s.Rot is not FoodRot.Rots { Ticks: var ticks })
             {
                 continue;
             }

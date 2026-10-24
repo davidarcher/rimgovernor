@@ -12,7 +12,7 @@ namespace RimGovernor.Brain.Policy;
 public sealed record HerdFacts
 {
     public double AgeYears { get; init; }
-    public Fact<double> LifeExpectancy { get; init; }
+    public double LifeExpectancy { get; init; }
     public double ManhunterOnTameFail { get; init; }
     public Fact<double> MeatNutrition { get; init; }
     public Fact<double> FeedPerDay { get; init; }
@@ -89,10 +89,10 @@ public static class HerdSurplusRules
             {
                 continue;
             }
-            var mk = race.MateMtbHours.TryGetValue(out var mtb);
-            var ck = p.Amount.TryGetValue(out var count);
-            var ik = p.IntervalDays.TryGetValue(out var interval);
-            if (!mk || !ck || !ik || mtb <= 0 || count <= 0 || interval <= 0 || p.FertilizationCountMax <= 0)
+            var mtb = race.MateMtbHours;
+            var count = p.Amount;
+            var interval = p.IntervalDays;
+            if (mtb <= 0 || count <= 0 || interval <= 0 || p.FertilizationCountMax <= 0)
             {
                 return (new HerdLayer { HensPerRooster = Unknown<double>() }, true);
             }
@@ -105,8 +105,8 @@ public static class HerdSurplusRules
 
     internal static bool HerdOld(UpkeepAnimal a)
     {
-        var lk = a.Herd.LifeExpectancy.TryGetValue(out var life);
-        return lk && life > 0 && a.Herd.AgeYears > HerdOldFraction * life;
+        var life = a.Herd.LifeExpectancy;
+        return life > 0 && a.Herd.AgeYears > HerdOldFraction * life;
     }
 
     internal static bool HerdJuvenile(UpkeepAnimal a) => !a.Herd.Adult;

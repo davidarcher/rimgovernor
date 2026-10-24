@@ -15,6 +15,18 @@ public sealed record FoodConsumer
     public Fact<bool> HumanMeatAcceptable { get; init; }
 }
 
+/// <summary>How a food stock spoils: a thing rots exactly while it has a rot deadline.</summary>
+public abstract record FoodRot
+{
+    private protected FoodRot() { }
+
+    /// <summary>Never rots: a survival meal, pemmican, or a stock whose def has no rot clock.</summary>
+    public sealed record Keeps : FoodRot;
+
+    /// <summary>Rots in Ticks at its current temperature; zero or less has already rotted.</summary>
+    public sealed record Rots(long Ticks) : FoodRot;
+}
+
 public sealed record FoodStock
 {
     public string Id { get; init; } = "";
@@ -40,9 +52,8 @@ public sealed record FoodStock
 
     public IReadOnlyList<PawnId> Eaters { get; init; } = [];
 
-    public Fact<bool> Perishable { get; init; }
-
-    public Fact<long> RotTicks { get; init; }
+    /// <summary>Whether the stock keeps or rots, and in how many ticks at its current temperature.</summary>
+    public required FoodRot Rot { get; init; }
 
     /// <summary>
     /// DefName and Count are only needed to select a specific feed resource (the animal feed runway's item
@@ -236,9 +247,8 @@ public static class FoodForecastRules
         {
             var ak = input.Nutrition.TryGetValue(out var amount);
             var hk = input.Holder.TryGetValue(out var holder);
-            var pk = input.Perishable.TryGetValue(out var perishable);
-            if (!FoodId(input.Id) || seen.Contains(input.Id) || !ak || !FoodNumber(amount) || !hk || !pk
-                || (input.Eaters.Count == 0 && !input.Corpse && !input.IsHumanMeat) || input.Eaters.Count > ids.Count)
+            if (!FoodId(input.Id) || seen.Contains(input.Id) || !ak || !FoodNumber(amount) || !hk
+                ||(input.Eaters.Count == 0 && !input.Corpse && !input.IsHumanMeat) || input.Eaters.Count > ids.Count)
             {
                 throw new FoodFactsException();
             }
@@ -248,10 +258,9 @@ public static class FoodForecastRules
                 throw new FoodFactsException();
             }
             var entry = new ForecastStock { Id = input.Id, Holder = holder, Amount = amount, Expiry = double.PositiveInfinity };
-            if (perishable)
+            if (input.Rot is FoodRot.Rots { Ticks: var ticks })
             {
-                var tk = input.RotTicks.TryGetValue(out var ticks);
-                if (!tk || ticks < 0)
+                if (ticks < 0)
                 {
                     throw new FoodFactsException();
                 }

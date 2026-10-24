@@ -134,13 +134,9 @@ public static class FoodReserveRules
                 continue;
             }
             var amount = stock.Nutrition.ValueOrDefault;
-            if (stock.Perishable.ValueOrDefault)
+            if (stock.Rot is FoodRot.Rots { Ticks: var ticks } && (double)ticks / GameTime.TicksPerDay <= reserveDays)
             {
-                var ticks = stock.RotTicks.ValueOrDefault;
-                if ((double)ticks / GameTime.TicksPerDay <= reserveDays)
-                {
-                    continue;
-                }
+                continue;
             }
             var eligible = false;
             foreach (var eater in stock.Eaters)

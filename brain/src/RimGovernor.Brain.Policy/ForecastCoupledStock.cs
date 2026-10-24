@@ -51,8 +51,7 @@ public static partial class ForecastCoupled
             foreach (var row in food.Stocks.Concat(food.Barred))
             {
                 var count = row.Count.IsKnown ? Known((double)row.Count.Value) : default;
-                var fresh = row.Perishable == Known(false) ? Known(double.PositiveInfinity)
-                    : row.Perishable == Known(true) && row.RotTicks.IsKnown ? Known((double)row.RotTicks.Value) : default;
+                var fresh = Known(row.Rot is FoodRot.Rots { Ticks: var rot } ? (double)rot : double.PositiveInfinity);
                 var nutrition = row.Nutrition.IsKnown && row.Count.IsKnown && row.Count.Value > 0
                     ? Known(row.Nutrition.Value / row.Count.Value) : default;
                 var barred = food.Barred.Any(s => s.Id == row.Id);

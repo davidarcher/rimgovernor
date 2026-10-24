@@ -22,7 +22,7 @@ public sealed class ForecastHandoffTests
         var evidence = new WorkAdmissionEvidence { Stock = Known(stock), Construction = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long>()),
             Reservations = Known<EquatableArray<IngredientReservation>>([]), Promises = Known<EquatableArray<ProductionMaterialPromise>>([]) };
         return new() { Origin = new("map", 0), HorizonDays = 1,
-            Facts = new() { Stock = Known(stock), Food = new() { Complete = Known(true), Stocks = [new() { DefName = Food, Count = Known(10L), Nutrition = Known(5d) }] }, Items = new() { Nutrition = new Dictionary<Resource, double> { [Food] = .5 } } },
+            Facts = new() { Stock = Known(stock), Food = new() { Complete = Known(true), Stocks = [new() { DefName = Food, Count = Known(10L), Nutrition = Known(5d), Rot = new FoodRot.Keeps() }] }, Items = new() { Nutrition = new Dictionary<Resource, double> { [Food] = .5 } } },
             Coupled = new() { Activities = new() { Activities = [new("research", "", "", []) { ProjectProgress = new("Research", 1) }] },
                 ModelBasis = new(input, policy), Needs = NeedsFixtures.Empty, Resources = new(evidence, new([], [], [], []), default),
                 InitialLots = [new("meal", "", Food, Known(10d)) { Perishable = true, FreshTicks = Known(120000d) }] } };

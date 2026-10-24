@@ -86,7 +86,9 @@ partial class GraphBuilder
                 {
                     continue;
                 }
-                if (!p.Amount.TryGetValue(out var amount) || !p.IntervalDays.TryGetValue(out var interval) || amount <= 0 || interval <= 0)
+                var amount = p.Amount;
+                var interval = p.IntervalDays;
+                if (amount <= 0 || interval <= 0)
                 {
                     continue;
                 }

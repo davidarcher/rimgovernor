@@ -16,7 +16,7 @@ public sealed class ForecastStockHandoffTests
     private static FoodStock Stock(string id, long count, long rot = 120000) => new()
     {
         Id = id, DefName = Meal, Count = Known(count), Nutrition = Known(count * .5), Holder = Known(new PawnId("")),
-        Perishable = Known(true), RotTicks = Known(rot), Eaters = [new("animal")]
+        Rot = new FoodRot.Rots(rot), Eaters = [new("animal")]
     };
     private static ColonyForecastRequest Request(params FoodStock[] stocks)
     {

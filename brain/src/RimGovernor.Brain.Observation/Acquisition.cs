@@ -38,7 +38,7 @@ public static class AcquisitionReads
         foreach (var row in v.Acquisition)
         {
             var source = tables.Entity(row.Source);
-            races.Race(new Resource(source?.DefName ?? ""), out var race);
+            var raceKnown = races.Race(new Resource(source?.DefName ?? ""), out var race);
             var hunt = row.Kind as O.AcquisitionKind.Hunt;
             var plant = row.Kind as O.AcquisitionKind.Plant;
             var offered = new AcquisitionSource
@@ -66,11 +66,11 @@ public static class AcquisitionReads
                 // The race row's own flags and numbers: an inedible hunt is only ever a pest; the meat's
                 // nutrition is the live MeatAmount stat times the meat def's Nutrition.
                 offered = offered with { Food = !race.Pest, Predator = race.Predator };
-                if (!race.ManhunterOnDamage.TryGetValue(out var chance))
+                if (!raceKnown)
                 {
                     return unknown;
                 }
-                offered = offered with { RevengeChance = chance };
+                offered = offered with { RevengeChance = race.ManhunterOnDamage };
                 if (!race.Pest)
                 {
                     if (!race.MeatNutritionPerUnit.TryGetValue(out var perUnit))
@@ -136,7 +136,7 @@ public static class AcquisitionReads
         {
             return true;
         }
-        if (!race.ManhunterOnDamage.TryGetValue(out var chance) || chance != 0)
+        if (race.ManhunterOnDamage != 0)
         {
             return false;
         }

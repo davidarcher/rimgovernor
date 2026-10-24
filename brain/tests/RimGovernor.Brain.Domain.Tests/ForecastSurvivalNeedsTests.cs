@@ -22,7 +22,7 @@ public sealed class ForecastSurvivalNeedsTests
         Facts = new ColonyForecastFacts { Items = new ItemFacts { Nutrition = new Dictionary<Resource, double> { [new("TestFood")] = 1 } }, Food = new FoodSupply { Complete = Known(true),
             Consumers = [new() { Id = Builder, NutritionPerDay = Known(1.0) }, new() { Id = Helper, NutritionPerDay = Known(1.0) }],
             Stocks = [new() { Id = "food", Nutrition = Known(2 * foodTicks / GameTime.TicksPerDay),
-                Holder = Known(default(RimGovernor.Brain.Domain.PawnId)), Perishable = Known(false), Eaters = [Builder, Helper] }] } },
+                Holder = Known(default(RimGovernor.Brain.Domain.PawnId)), Rot = new FoodRot.Keeps(), Eaters = [Builder, Helper] }] } },
     };
     // Work/travel estimates remain supplied. The changed inputs below are observed native-shaped facts.
     private static ForecastActivityProblem Work() => new()
@@ -35,7 +35,7 @@ public sealed class ForecastSurvivalNeedsTests
         Deadline = Known(2000.0), AlternativeLaborCost = Known(1900.0), ExpansionBudget = 4096,
     };
     private static ForecastActivityRelief[] Effects() =>
-        [new("shelter", "cold/builder", "build") { Shelter = new("site", ["deliver", "build"], Known(true), Known(true), Known(10.0), Known(20.0), Known(2000.0)) }, new("food", "food/builder", "harvest") { Food = new(new("TestFood"), new FoodStock { Holder = Known(default(RimGovernor.Brain.Domain.PawnId)), Perishable = Known(false), Eaters = [Builder, Helper] }) }];
+        [new("shelter", "cold/builder", "build") { Shelter = new("site", ["deliver", "build"], Known(true), Known(true), Known(10.0), Known(20.0), Known(2000.0)) }, new("food", "food/builder", "harvest") { Food = new(new("TestFood"), new FoodStock { Holder = Known(default(RimGovernor.Brain.Domain.PawnId)), Rot = new FoodRot.Keeps(), Eaters = [Builder, Helper] }) }];
 
     [Fact]
     public void ObservedFoodStockReversesTheChoiceWithoutInventedLossWeights()
@@ -66,7 +66,7 @@ public sealed class ForecastSurvivalNeedsTests
         var faster = supply with { Consumers = [supply.Consumers[0], supply.Consumers[1] with { NutritionPerDay = Known(3.0) }] };
         var needs = ForecastSurvivalNeeds.SurvivalNeedsOf(frame with { Facts = frame.Facts with { Food = faster } });
         Assert.Equal(750, needs.Needs.Single(n => n.Id == "food/builder").Window.Value.Ticks, 6);
-        var rotting = supply with { Stocks = [supply.Stocks[0] with { Perishable = Known(true), RotTicks = Known(950L) }] };
+        var rotting = supply with { Stocks = [supply.Stocks[0] with { Rot = new FoodRot.Rots(950L) }] };
         var result = ForecastSurvivalNeeds.CompareSurvivalActivities(frame with { Facts = frame.Facts with { Food = rotting } }, Work(), Effects());
         Assert.Equal(["food"], result.Selected);
     }
@@ -150,7 +150,7 @@ public sealed class ForecastSurvivalNeedsTests
         effects[1] = effects[1] with { Food = effects[1].Food! with { Eligibility = effects[1].Food!.Eligibility with { Eaters = [Helper] } } };
         Assert.Empty(ForecastSurvivalNeeds.CompareSurvivalActivities(frame, problem, effects).Selected);
         effects = Effects();
-        effects[1] = effects[1] with { Food = effects[1].Food! with { Eligibility = effects[1].Food!.Eligibility with { Perishable = Known(true), RotTicks = Known(1200L) } } };
+        effects[1] = effects[1] with { Food = effects[1].Food! with { Eligibility = effects[1].Food!.Eligibility with { Rot = new FoodRot.Rots(1200L) } } };
         Assert.Empty(ForecastSurvivalNeeds.CompareSurvivalActivities(frame, problem, effects).Selected);
     }
 

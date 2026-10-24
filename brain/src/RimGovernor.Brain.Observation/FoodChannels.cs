@@ -125,9 +125,9 @@ public static class FoodChannelsReads
         var days = race.GestationDays;
         foreach (var product in race.Products)
         {
-            if (product.Kind == "eggs" && product.IntervalDays.TryGetValue(out var interval))
+            if (product.Kind == "eggs")
             {
-                days = interval;
+                days = product.IntervalDays;
             }
         }
         if (days > 0)

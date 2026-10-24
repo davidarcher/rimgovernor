@@ -74,7 +74,7 @@ public sealed record AnimalAcquisition
                     stage = race.ReproductiveMinAgeTicks;
                     if (!stage.IsKnown)
                     {
-                        stage = race.AdultMinAgeTicks;
+                        stage = Known(race.AdultMinAgeTicks);
                     }
 
                     break;
@@ -84,8 +84,8 @@ public sealed record AnimalAcquisition
                     continue;
             }
 
-            var ak = p.Amount.TryGetValue(out var amount);
-            var ik = p.IntervalDays.TryGetValue(out var interval);
+            var amount = p.Amount;
+            var interval = p.IntervalDays;
             var nk = p.NutritionPerUnit.TryGetValue(out var nutrition);
             var (days, sk) = Lead(stage);
             if (!sk)
@@ -93,7 +93,7 @@ public sealed record AnimalAcquisition
                 continue;
             }
 
-            if (!ak || !ik || !nk || interval <= 0)
+            if (!nk || interval <= 0)
             {
                 return false;
             }
@@ -116,8 +116,8 @@ public sealed record AnimalAcquisition
 
         var mk = race.MeatAmount.TryGetValue(out var meatAmount);
         var pk = race.MeatNutritionPerUnit.TryGetValue(out var per);
-        var (leadDays, ak2) = Lead(race.AdultMinAgeTicks);
-        if (!mk || !pk || !ak2)
+        var leadDays = Math.Max(0, (race.AdultMinAgeTicks - ageTicks) / GameTime.TicksPerDay);
+        if (!mk || !pk)
         {
             return false;
         }
@@ -218,26 +218,21 @@ public static class AnimalAcquireRules
             return [];
         }
 
-        var tk = input.Races.Interaction.TalkTicks.TryGetValue(out var talk);
-        var fk = input.Races.Interaction.FeedTicks.TryGetValue(out var feedTicks);
-        var sk = input.Races.Interaction.Feeds.TryGetValue(out var feeds);
-        if (!tk || !fk || !sk)
-        {
-            return [];
-        }
+        var talk = input.Races.Interaction.TalkTicks;
+        var feedTicks = input.Races.Interaction.FeedTicks;
+        var feeds = input.Races.Interaction.Feeds;
 
         var output = new List<SupplyCandidate>();
         foreach (var a in wild)
         {
             var rk = input.Races.Race(a.Definition, out var race);
-            var ck = race.TameChanceFactor.TryGetValue(out var factor);
+            var factor = race.TameChanceFactor;
             var years = a.Herd.AgeYears;
             a.MinimumHandlingSkill.TryGetValue(out var minimum);
             if (
                 !a.Tameable
                 || a.Tame
                 || !rk
-                || !ck
                 || !(factor > 0)
                 || HerdSurplusRules.HerdDangerous(a)
                 || !input.Room(a.Definition)

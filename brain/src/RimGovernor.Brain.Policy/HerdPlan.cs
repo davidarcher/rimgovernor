@@ -264,14 +264,12 @@ public static class HerdPlanRules
                 continue;
             }
             capable = true;
-            var ak = p.Amount.TryGetValue(out var amount);
-            var ik = p.IntervalDays.TryGetValue(out var interval);
-            if (!ak || !ik || interval <= 0)
+            if (p.IntervalDays <= 0)
             {
                 known = false;
                 continue;
             }
-            value += amount / interval;
+            value += p.Amount / p.IntervalDays;
         }
         return (value, capable, known && value > 0);
     }

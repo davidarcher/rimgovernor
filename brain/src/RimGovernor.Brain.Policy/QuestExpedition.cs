@@ -457,16 +457,15 @@ public static class QuestExpedition
             var owned = stock.Holder.TryGetValue(out var holder);
             var ck = stock.Count.TryGetValue(out var count);
             var nk = stock.Nutrition.TryGetValue(out var nutrition);
-            var pk = stock.Perishable.TryGetValue(out var perishable);
-            var rotk = stock.RotTicks.TryGetValue(out var rot);
+
             var fk = stock.Forbidden.TryGetValue(out var forbidden);
             var mk = stock.UnitMass.TryGetValue(out var mass);
-            if (!owned || !holder.IsEmpty || !ck || count <= 0 || !nk || !TradePolicyRules.Finite(nutrition) || nutrition <= 0 || !pk || stock.Corpse || stock.IsHumanMeat || stock.RawMeat
+            if (!owned || !holder.IsEmpty || !ck || count <= 0 || !nk || !TradePolicyRules.Finite(nutrition) || nutrition <= 0 || stock.Corpse || stock.IsHumanMeat || stock.RawMeat
                 || !fk || forbidden || stock.Reserve || stock.DefName.Value.Length == 0 || !mk || !TradePolicyRules.Finite(mass) || mass < 0)
             {
                 continue;
             }
-            if (perishable && (!rotk || rot <= days * GameTime.TicksPerDay))
+            if (stock.Rot is FoodRot.Rots { Ticks: var rot } && rot <= days * GameTime.TicksPerDay)
             {
                 continue;
             }
