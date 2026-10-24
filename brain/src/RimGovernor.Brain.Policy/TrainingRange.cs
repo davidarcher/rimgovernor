@@ -35,38 +35,23 @@ public static partial class TrainingRules
     /// <summary>
     /// Places the range template inside room's Interior: stands side by side on the row at the stand end and a
     /// dummy directly across from each, RangeDistance cells away at the dummy end (the room's Facing). Pieces come
-    /// column by column (stand, dummy). A room whose Facing is not a direction has none.
+    /// column by column (stand, dummy). An Unturned room has none.
     /// </summary>
     public static IReadOnlyList<RangePiece> RangeLayout(PlannedRoom room)
     {
+        if (room.Facing is not Heading.Toward { Side: var side })
+        {
+            return [];
+        }
         var interior = room.Region.Bounds();
         var n = PlannedRoom.RangeStandCount(room);
         var pieces = new List<RangePiece>(2 * n);
         for (var i = 0; i < n; i++)
         {
-            Cell stand;
-            Cell dummy;
-            switch (room.Facing)
-            {
-                case Rotation.North:
-                    stand = new Cell(interior.X + i, interior.Z);
-                    dummy = new Cell(stand.X, interior.Z + RangeDistance);
-                    break;
-                case Rotation.South:
-                    stand = new Cell(interior.X + i, interior.Z + RangeDistance);
-                    dummy = new Cell(stand.X, interior.Z);
-                    break;
-                case Rotation.East:
-                    stand = new Cell(interior.X, interior.Z + i);
-                    dummy = new Cell(interior.X + RangeDistance, stand.Z);
-                    break;
-                case Rotation.West:
-                    stand = new Cell(interior.X + RangeDistance, interior.Z + i);
-                    dummy = new Cell(interior.X, stand.Z);
-                    break;
-                default:
-                    return [];
-            }
+            var (stand, dummy) = side == Rotation.North ? (new Cell(interior.X + i, interior.Z), new Cell(interior.X + i, interior.Z + RangeDistance))
+                : side == Rotation.South ? (new Cell(interior.X + i, interior.Z + RangeDistance), new Cell(interior.X + i, interior.Z))
+                : side == Rotation.East ? (new Cell(interior.X, interior.Z + i), new Cell(interior.X + RangeDistance, interior.Z + i))
+                : (new Cell(interior.X + RangeDistance, interior.Z + i), new Cell(interior.X, interior.Z + i));
             pieces.Add(new RangePiece(RangePieceKind.Stand, stand));
             pieces.Add(new RangePiece(RangePieceKind.Dummy, dummy));
         }

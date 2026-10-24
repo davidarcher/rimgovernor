@@ -114,7 +114,7 @@ public sealed class PlannedBarracksTests
 
     private static readonly PlannedRoom Barracks = new()
     {
-        Id = 2, Role = PlannedRole.Barracks, Region = RegionRules.RectRegion(new Rectangle(10, 0, 5, 4)), Door = new Cell(12, -1), DoorRot = Rotation.South,
+        Id = 2, Role = PlannedRole.Barracks, Region = RegionRules.RectRegion(new Rectangle(10, 0, 5, 4)), Door = new Cell(12, -1), DoorSide = new DoorSide.Doored(Rotation.South),
     };
 
     private static InteriorPiece Slot(int x) => new() { Slot = "bed", Def = Bed, Size = BedShape.Size, Rot = Rotation.South, Rect = new Rectangle(x, 2, 1, 2) };

@@ -114,7 +114,7 @@ public static partial class LayoutPowerNodesRules
             var pad = t.Turned ? new Rectangle { Width = 2, Height = WindPathWidth } : new Rectangle { Width = WindPathWidth, Height = 2 };
             var (centre, rot) = LayoutUtilityRules.TurbinePlacement(pad, t.LowRow);
             var lane = new SiteLane { Id = "wind", Region = RegionRules.RegionOf(LayoutUtilityRules.TurbineWindCells(centre, rot)), Reason = ReasonWindLane, Wind = true };
-            shapes.Add(new SiteNode { Id = id, Footprint = RegionRules.RectRegion(pad), Lanes = [lane], Rotation = rot });
+            shapes.Add(new SiteNode { Id = id, Footprint = RegionRules.RectRegion(pad), Lanes = [lane], Rotation = new Heading.Toward(rot) });
         }
         return shapes[0] with { Alts = shapes.Skip(1).ToList(), Kind = NodeTurbine, Reason = ReasonPowerSite };
     }
@@ -182,7 +182,7 @@ partial record LayoutPlan
             }
             n++;
             var area = r.Area.Bounds();
-            nodes.Add(new SiteNode { Id = LayoutPowerNodesRules.GeothermalNodeId(n), Footprint = RegionRules.RectRegion(new Rectangle { Width = area.Width, Height = area.Height }), Anchor = new Cell(area.X, area.Z), Reason = LayoutPowerNodesRules.ReasonPowerSite });
+            nodes.Add(new SiteNode { Id = LayoutPowerNodesRules.GeothermalNodeId(n), Footprint = RegionRules.RectRegion(new Rectangle { Width = area.Width, Height = area.Height }), Anchor = new SiteAnchor.Fixed(new Cell(area.X, area.Z)), Reason = LayoutPowerNodesRules.ReasonPowerSite });
         }
         return nodes;
     }

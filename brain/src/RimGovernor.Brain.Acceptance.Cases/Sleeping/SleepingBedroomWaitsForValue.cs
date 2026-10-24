@@ -95,7 +95,7 @@ internal static class SleepingBedroomWaitsForValue
                     Role = PlannedRole.Bedroom,
                     Region = RegionRules.RectRegion(new(site.X + 12, site.Z + 2, 3, 3)),
                     Door = new(site.X + 13, site.Z + 1),
-                    DoorRot = Rotation.South,
+                    DoorSide = new DoorSide.Doored(Rotation.South),
                 },
             ],
         }, cancellationToken).ConfigureAwait(false);

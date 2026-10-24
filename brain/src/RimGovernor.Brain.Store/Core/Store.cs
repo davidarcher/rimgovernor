@@ -50,8 +50,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 45 reads the construction census whole (#3879): the work-admission evidence's frozen census is one StandingConstruction record, its standing buildings and owed material written together under the same Standing and Construction keys, or both null when no routine frame read it.
     /// Version 46 reads a combat role by duty (#3911): a role's post and standby cell are present or free, its fire is its own, a mortar crew (mortar, aim and shell together) or a ground shot, and its repair a door or none; the memory's sapper breach is guarded or not. A role writes Shell only for a mortar crew.
     /// Version 47 reads a colonist's mood whole (#3897): a mood persists as has (level and the forecast's target) or lacks, its thoughts as a plain list, and a mood method's need benefit as a plain number without the never-set mood benefit.
+    /// Version 48 reads plan geometry whole (#3914): a planned room's door side is doored or doorless, a training range's facing and a planned site's rotation are toward a side or unturned, each absent from the record for the doorless or unturned state.
     /// </summary>
-    public const int SchemaVersion = 47;
+    public const int SchemaVersion = 48;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

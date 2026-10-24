@@ -126,14 +126,14 @@ public static partial class LayoutPowerDeriveRules
         }
         foreach (var n in nodes)
         {
-            if (n.Anchor is not null)
+            if (n.Anchor is SiteAnchor.Fixed)
             {
                 run.Place(n);
             }
         }
         foreach (var n in nodes)
         {
-            if (n.Anchor is null)
+            if (n.Anchor is SiteAnchor.Free)
             {
                 run.Place(n);
             }

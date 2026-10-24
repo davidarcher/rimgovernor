@@ -157,8 +157,10 @@ partial record PlannedRoom
         return (null, false);
     }
 
-    /// <summary>The room's shell: its region walled round, the door where the plan put it. Any region the footprint rules accept (4-connected, at most 3844 cells, a ring of at most 255) shells, rectangular or not.</summary>
-    public RoomFootprint Footprint() => new(this.Region.Cells(), this.Door, this.DoorRot ?? default);
+    /// <summary>The room's shell: its region walled round, the door where the plan put it. Any region the footprint rules accept (4-connected, at most 3844 cells, a ring of at most 255) shells, rectangular or not. Throws <see cref="DomainException"/> for a doorless room, which has no shell.</summary>
+    public RoomFootprint Footprint() => this.DoorSide is DoorSide.Doored doored
+        ? new(this.Region.Cells(), this.Door, doored.Side)
+        : throw new DomainException("a doorless room has no shell");
 }
 
 partial record LayoutPlan

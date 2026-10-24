@@ -163,7 +163,6 @@ BuildingRuntime/Rounds/RoundsImmediate.cs|Fact|3
 BuildingRuntime/Rounds/RoundsImmediate.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsJoiners.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsLapInputs.cs|Fact|1
-BuildingRuntime/Rounds/RoundsLayout.cs|Fact|2
 BuildingRuntime/Rounds/RoundsLayout.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsLedger.cs|Fact|6
 BuildingRuntime/Rounds/RoundsLedger.cs|Unknown|5
@@ -238,7 +237,7 @@ BuildingRuntime/RoundsSleepingUpkeep.cs|Fact|7
 BuildingRuntime/RoundsSleepingUpkeep.cs|Unknown|1
 BuildingRuntime/RoundsStockpiles.cs|Fact|32
 BuildingRuntime/RoundsStockpiles.cs|Unknown|16
-BuildingRuntime/RoundsStoneShell.cs|Fact|9
+BuildingRuntime/RoundsStoneShell.cs|Fact|7
 BuildingRuntime/RoundsSurgery.cs|Fact|3
 BuildingRuntime/RoundsTemperature.cs|Discard|1
 BuildingRuntime/RoundsTemperature.cs|Fact|4
@@ -505,8 +504,7 @@ Policy/EventLoot.cs|Fact|6
 Policy/EventLoot.cs|Unknown|1
 Policy/ExportOrders.cs|Fact|21
 Policy/ExtentEligibility.cs|Fact|10
-Policy/FacilityUpkeep.cs|Fact|7
-Policy/FacilityUpkeep.cs|Unknown|1
+Policy/FacilityUpkeep.cs|Fact|4
 Policy/FieldCapacity.cs|Fact|19
 Policy/FieldCapacity.cs|Unknown|7
 Policy/FieldResource.cs|Fact|15
@@ -585,8 +583,7 @@ Policy/HerdRemoval.cs|Fact|4
 Policy/HerdSale.cs|Fact|7
 Policy/HerdSterilize.cs|Fact|2
 Policy/HerdSurplus.cs|Fact|5
-Policy/HomeArea.cs|Fact|5
-Policy/HomeArea.cs|Unknown|1
+Policy/HomeArea.cs|Fact|3
 Policy/HomeUpkeep.cs|Fact|12
 Policy/Hospital.cs|Fact|20
 Policy/Hospital.cs|Unknown|2
@@ -633,18 +630,14 @@ Policy/Labor.cs|Unknown|1
 Policy/Layout.cs|Fact|8
 Policy/LayoutBedMerge.cs|Fact|10
 Policy/LayoutComfortChoose.cs|Fact|1
-Policy/LayoutEmbed.cs|NullableValue|1
 Policy/LayoutFieldNodes.cs|Fact|6
 Policy/LayoutFieldReplan.cs|Fact|2
 Policy/LayoutGraph.cs|Fact|1
 Policy/LayoutLight.cs|Fact|1
 Policy/LayoutPenNodes.cs|Fact|1
-Policy/LayoutPerimeterSites.cs|NullableValue|1
-Policy/LayoutPlan.cs|NullableValue|2
 Policy/LayoutRegroup.cs|Fact|2
 Policy/LayoutRoof.cs|Fact|2
 Policy/LayoutRooms.cs|Fact|5
-Policy/LayoutSiteNodes.cs|NullableValue|3
 Policy/LayoutStationPlan.cs|Fact|14
 Policy/LayoutTile.cs|Fact|2
 Policy/LayoutTileAirlock.cs|Fact|1
@@ -861,7 +854,6 @@ Policy/TradeRoutine.cs|Fact|31
 Policy/TradeRoutine.cs|Unknown|3
 Policy/Training.cs|Fact|5
 Policy/Training.cs|Unknown|2
-Policy/TrainingRange.cs|Discard|1
 Policy/TreePlantation.cs|Fact|22
 Policy/TreePlantation.cs|Unknown|1
 Policy/TunnelSite.cs|Fact|6

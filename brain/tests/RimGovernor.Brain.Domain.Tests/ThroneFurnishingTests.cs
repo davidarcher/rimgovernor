@@ -61,7 +61,7 @@ public sealed class ThroneFurnishingTests
         Role = PlannedRole.Throne,
         Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 7, Height = 6 }),
         Door = new Cell(13, 9),
-        DoorRot = Rotation.South,
+        DoorSide = new DoorSide.Doored(Rotation.South),
     };
 
     private static CurrentBuilding Standing(WantedPiece p) => new()

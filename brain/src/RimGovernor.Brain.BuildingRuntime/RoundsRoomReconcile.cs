@@ -380,9 +380,9 @@ partial class RoundsBuildingPlanner
     {
         foreach (var s in plan.LiveSites(Pol.NodeKind.Vent))
         {
-            if (s.Origin == cell && s.Rotation != null)
+            if (s.Origin == cell && s.Rotation is Pol.Heading.Toward toward)
             {
-                return s.Rotation.Value;
+                return toward.Side;
             }
         }
         return Rotation.North;

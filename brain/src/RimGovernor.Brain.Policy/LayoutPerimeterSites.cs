@@ -32,7 +32,7 @@ public sealed record PlannedSite
     public Cell Origin { get; init; }
     public Region Footprint { get; init; } = new();
     public IReadOnlyList<SiteLane> Lanes { get; init; } = [];
-    public Rotation? Rotation { get; init; }
+    public Heading Rotation { get; init; } = new Heading.Unturned();
     public bool Anchored { get; init; }
     public int Replaces { get; init; }
     public NodeKind Kind { get; init; }

@@ -147,7 +147,7 @@ public sealed class SleepingPlannerTests
 
     // #3743: a 5x5 bedroom, its door south, furnished to the bedroom template's one bed.
     private const string BedDef = "Bed";
-    private static readonly PlannedRoom Ringed = Planned(5, LayoutSurveyRules.PlannedBedroom, Rect(30, 5, 5)) with { Door = new Cell(32, -1), DoorRot = Rotation.South };
+    private static readonly PlannedRoom Ringed = Planned(5, LayoutSurveyRules.PlannedBedroom, Rect(30, 5, 5)) with { Door = new Cell(32, -1), DoorSide = new DoorSide.Doored(Rotation.South) };
 
     private static PieceShapes BedShapes
     {

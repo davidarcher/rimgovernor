@@ -125,7 +125,7 @@ partial record LayoutPlan
             new() { Node = id, Footprint = RegionRules.RectRegion(r), Kind = kind };
         return new LayoutPlan
         {
-            Rooms = [new PlannedRoom { Id = 1, Role = PlannedRole.Storage, Region = RegionRules.RectRegion(new Rectangle(10, 10, 6, 4)), Door = new Cell(12, 14), DoorRot = Rotation.South }],
+            Rooms = [new PlannedRoom { Id = 1, Role = PlannedRole.Storage, Region = RegionRules.RectRegion(new Rectangle(10, 10, 6, 4)), Door = new Cell(12, 14), DoorSide = new DoorSide.Doored(Rotation.South) }],
             NextRoomId = 2,
             Sites = [Site("killbox", NodeKind.Killbox, killbox), Site("killbox_approach-00", NodeKind.Approach, approach)],
         };

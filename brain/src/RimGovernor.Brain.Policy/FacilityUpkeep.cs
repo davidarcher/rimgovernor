@@ -22,13 +22,16 @@ public static class FacilityUpkeepRules
         return true;
     }
 
-    /// <summary>Throws <see cref="DomainException"/>.</summary>
-    public static Fact<EquatableArray<string>> ReviewStoneShell(Fact<EquatableArray<ConstructionClaim>> owned, Fact<EquatableArray<RepairStructure>> structures)
+    /// <summary>
+    /// The flammable owned walls a stone upgrade is owed, in id order. Throws <see cref="RequiredFactException"/> when the
+    /// owned construction (<c>current_construction</c>) or the structure census (<c>stone_structures</c>) is unread, and
+    /// <see cref="DomainException"/> on an invalid read.
+    /// </summary>
+    public static EquatableArray<string> ReviewStoneShell(Fact<EquatableArray<ConstructionClaim>> owned, Fact<EquatableArray<RepairStructure>> structures)
     {
-        var unknown = Unknown<EquatableArray<string>>();
         if (!owned.TryGetValue(out var buildings))
         {
-            return unknown;
+            throw new RequiredFactException("current_construction");
         }
         var walls = new HashSet<string>(StringComparer.Ordinal);
         foreach (var b in buildings)
@@ -40,11 +43,11 @@ public static class FacilityUpkeepRules
         }
         if (walls.Count == 0)
         {
-            return Known<EquatableArray<string>>([]);
+            return [];
         }
         if (!structures.TryGetValue(out var rows))
         {
-            return unknown;
+            throw new RequiredFactException("stone_structures");
         }
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var result = new List<string>();
@@ -68,9 +71,9 @@ public static class FacilityUpkeepRules
         // evidence that its stone upgrade recovered.
         if (walls.Any(id => !seen.Contains(id)))
         {
-            return unknown;
+            throw new RequiredFactException("stone_structures");
         }
         result.Sort(StringComparer.Ordinal);
-        return Known(EquatableArray.From(result));
+        return EquatableArray.From(result);
     }
 }

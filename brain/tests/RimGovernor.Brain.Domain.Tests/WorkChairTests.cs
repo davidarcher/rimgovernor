@@ -31,7 +31,7 @@ public sealed class WorkChairTests
         Role = PlannedRole.Workshop,
         Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 6, Height = 6 }),
         Door = new Cell(12, 9),
-        DoorRot = Rotation.South,
+        DoorSide = new DoorSide.Doored(Rotation.South),
         WorkChairs = chairs,
     };
 

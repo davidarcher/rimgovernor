@@ -41,7 +41,7 @@ public sealed class DefensePerimeterRecutTests
             Role = role,
             Region = RegionRules.RectRegion(new Rectangle(x, z, w, h)),
             Door = new Cell(x + (w / 2), z + h + 1),
-            DoorRot = Rotation.South,
+            DoorSide = new DoorSide.Doored(Rotation.South),
         };
         int cx = (s.Bounds.Width / 2) - 12, cz = (s.Bounds.Height / 2) - 3;
         var plan = new LayoutPlan

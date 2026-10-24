@@ -399,7 +399,7 @@ internal sealed partial class Tiler(TileInput input)
             };
             if (role == LayoutRangeRules.PlannedTrainingRange && LayoutTrainingNodesRules.AwayReference(In.Groups, placed) is { } reference)
             {
-                room = room with { Facing = LayoutTrainingNodesRules.DummyFacing(b.Interior, reference) };
+                room = room with { Facing = new Heading.Toward(LayoutTrainingNodesRules.DummyFacing(b.Interior, reference)) };
             }
             room = room with { Dug = scorer.G.Dug(room) };
             rooms.Add(room);
@@ -1090,7 +1090,7 @@ internal sealed partial class Tiler(TileInput input)
                 continue;
             }
             var (rot, _) = InteriorRules.DoorSide(r.Region.Bounds(), door);
-            rooms[i] = r with { Door = door, DoorRot = rot };
+            rooms[i] = r with { Door = door, DoorSide = new DoorSide.Doored(rot) };
         }
         LayoutSiteGroundRules.SortCells(entrances);
         var compact = new List<Cell>();

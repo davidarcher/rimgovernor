@@ -24,7 +24,7 @@ public sealed class TombTests
         Role = PlannedRole.Tomb,
         Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 5, Height = 4 }),
         Door = new Cell(12, 9),
-        DoorRot = Rotation.South,
+        DoorSide = new DoorSide.Doored(Rotation.South),
     };
 
     private static readonly LayoutPlan Plan = new() { Rooms = [TombRoom], NextRoomId = 2 };

@@ -1633,12 +1633,12 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
             Role = e.Get<PlannedRole>("Role", o),
             Region = e.Get<Region>("Region", o),
             Door = e.Get<Cell>("Door", o),
-            DoorRot = e.GetOr<Rotation?>("DoorRot", null, o),
+            DoorSide = e.Has("DoorRot") ? new DoorSide.Doored(e.Get<Rotation>("DoorRot", o)) : new DoorSide.Doorless(),
             Crossing = e.GetOr<RoomCrossing?>("Crossing", null, o),
             Through = e.Bool("Through"),
             Dug = e.Bool("Dug"),
             Outdoor = e.Bool("Outdoor"),
-            Facing = e.GetOr<Rotation?>("Facing", null, o),
+            Facing = e.Has("Facing") ? new Heading.Toward(e.Get<Rotation>("Facing", o)) : new Heading.Unturned(),
             Markers = e.I32("Markers"),
             Parent = e.I32("Parent"),
             Herd = e.Str("Herd"),
@@ -1654,9 +1654,9 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
         w.Put("Role", v.Role, o);
         w.Put("Region", v.Region, o);
         w.Put("Door", v.Door, o);
-        if (v.DoorRot is { } vDoorRot)
+        if (v.DoorSide is DoorSide.Doored doored)
         {
-            w.Put("DoorRot", vDoorRot, o);
+            w.Put("DoorRot", doored.Side, o);
         }
         if (v.Crossing is { } vCrossing)
         {
@@ -1665,9 +1665,9 @@ internal sealed class PlannedRoomConverter : ObjectCodec<PlannedRoom>
         w.WriteBoolean("Through", v.Through);
         w.WriteBoolean("Dug", v.Dug);
         w.WriteBoolean("Outdoor", v.Outdoor);
-        if (v.Facing is { } vFacing)
+        if (v.Facing is Heading.Toward facing)
         {
-            w.Put("Facing", vFacing, o);
+            w.Put("Facing", facing.Side, o);
         }
         w.WriteNum("Markers", v.Markers);
         w.WriteNum("Parent", v.Parent);
@@ -1703,7 +1703,7 @@ internal sealed class PlannedSiteConverter : ObjectCodec<PlannedSite>
             Origin = e.Get<Cell>("Origin", o),
             Footprint = e.Get<Region>("Footprint", o),
             Lanes = e.Get<IReadOnlyList<SiteLane>>("Lanes", o),
-            Rotation = e.GetOr<Rotation?>("Rotation", null, o),
+            Rotation = e.Has("Rotation") ? new Heading.Toward(e.Get<Rotation>("Rotation", o)) : new Heading.Unturned(),
             Anchored = e.Bool("Anchored"),
             Replaces = e.I32("Replaces"),
             Kind = e.Get<NodeKind>("Kind", o),
@@ -1719,9 +1719,9 @@ internal sealed class PlannedSiteConverter : ObjectCodec<PlannedSite>
         w.Put("Origin", v.Origin, o);
         w.Put("Footprint", v.Footprint, o);
         w.Put("Lanes", v.Lanes, o);
-        if (v.Rotation is { } vRotation)
+        if (v.Rotation is Heading.Toward turned)
         {
-            w.Put("Rotation", vRotation, o);
+            w.Put("Rotation", turned.Side, o);
         }
         w.WriteBoolean("Anchored", v.Anchored);
         w.WriteNum("Replaces", v.Replaces);

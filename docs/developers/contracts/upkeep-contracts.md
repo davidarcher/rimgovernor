@@ -97,7 +97,9 @@ exclusion beyond the margin, and restoration of a removed corridor cell.
 ### Stone shell and deconstruction
 
 The `layout/stone-shell` Need admits wall upgrades (one `wall-<digest>` Method per wall, side by side by claims) once the `layout/climate-envelope` Need is met, from currently observed
-colony walls only.
+colony walls only. `ReviewStoneShell` is total: an unread owned construction (`current_construction`) or
+structure census (`stone_structures`, including an owned wall the same-tick census lacks) raises a required fact,
+and the read or step skips with a `required_fact` decision.
 
 - A straight-wall bundle reserves three stone backup walls, guarded removal of the original,
   one permanent stone wall and guarded cleanup of each backup. Exterior cells must be empty,

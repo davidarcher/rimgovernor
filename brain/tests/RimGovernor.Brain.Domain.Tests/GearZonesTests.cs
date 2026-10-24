@@ -7,7 +7,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 public sealed class GearZonesTests
 {
     private static PlannedRoom Room(int id, PlannedRole role, int x, int z, int width, int height) =>
-        new() { Id = id, Role = role, Region = RegionRules.RectRegion(new Rectangle { X = x, Z = z, Width = width, Height = height }), Door = new Cell(x, z - 1), DoorRot = Rotation.South };
+        new() { Id = id, Role = role, Region = RegionRules.RectRegion(new Rectangle { X = x, Z = z, Width = width, Height = height }), Door = new Cell(x, z - 1), DoorSide = new DoorSide.Doored(Rotation.South) };
 
     private static LayoutPlan Plan(params PlannedRoom[] rooms) => new() { Rooms = rooms, NextRoomId = rooms.Length + 1 };
 

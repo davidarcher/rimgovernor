@@ -2,7 +2,7 @@ namespace RimGovernor.Brain.Policy;
 
 // PlannedRole.Airlock (wire name "airlock") is a vestibule child room: one walled cell outside its parent's
 // door with a second door beyond it, so the parent never opens straight onto the cold. The room's Region is the
-// vestibule cell, its Door the outer door on the far side and DoorRot the way both doors face; the cells to the
+// vestibule cell, its Door the outer door on the far side and DoorSide the way both doors face; the cells to the
 // vestibule's left and right are walls. The parent's wall ring owns the walls and the outer door
 // (AirlockCells), so the child owes no ring of its own (Unfenced). Any parent door takes one (AttachAirlock,
 // where the tiler prices one, LayoutTileAirlock).
@@ -37,7 +37,7 @@ partial record PlannedRoom
             Role = PlannedRole.Airlock,
             Region = RegionRules.RectRegion(new Rectangle(v.X, v.Z, 1, 1)),
             Door = LayoutAirlockRules.Outside(v, rot),
-            DoorRot = rot,
+            DoorSide = new DoorSide.Doored(rot),
         };
     }
 
@@ -56,7 +56,7 @@ partial record PlannedRoom
             return [];
         }
         var v = this.Vestibule();
-        if (this.DoorRot is Rotation.East or Rotation.West)
+        if (this.DoorSide is DoorSide.Doored { Side: Rotation.East or Rotation.West })
         {
             return [new Cell(v.X, v.Z - 1), new Cell(v.X, v.Z + 1)];
         }

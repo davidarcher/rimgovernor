@@ -20,7 +20,7 @@ public sealed class GraveSitingTests
         Role = PlannedRole.Storage,
         Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 5, Height = 5 }),
         Door = new Cell(12, 9),
-        DoorRot = Rotation.South,
+        DoorSide = new DoorSide.Doored(Rotation.South),
     };
 
     private static readonly Cell Entrance = new(12, 8);

@@ -17,7 +17,7 @@ public sealed class StaleFurnitureTests
         Role = role,
         Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 5, Height = 5 }),
         Door = new Cell(12, 9),
-        DoorRot = Rotation.South,
+        DoorSide = new DoorSide.Doored(Rotation.South),
     };
 
     private static ClearanceTarget Row(string id, string def, Cell cell, Cell? max = null) => new()

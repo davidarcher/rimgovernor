@@ -24,7 +24,7 @@ public sealed class RetiredBlueprintsTests
     private static readonly LayoutPlan Plan = new()
     {
         NextRoomId = 2,
-        Rooms = [new PlannedRoom { Id = 1, Role = PlannedRole.Storage, Region = RegionRules.RectRegion(new Rectangle(14, 10, 3, 3)), Door = new Cell(17, 11), DoorRot = Rotation.East }],
+        Rooms = [new PlannedRoom { Id = 1, Role = PlannedRole.Storage, Region = RegionRules.RectRegion(new Rectangle(14, 10, 3, 3)), Door = new Cell(17, 11), DoorSide = new DoorSide.Doored(Rotation.East) }],
         RetiredGround = [RegionRules.RectRegion(Retired)],
     };
 

@@ -68,7 +68,7 @@ internal static class ClearanceRetiredGround
                     Role = PlannedRole.Storage,
                     Region = RegionRules.RectRegion(new Rectangle { X = site.X + 9, Z = site.Z + 2, Width = 3, Height = 3 }),
                     Door = new Cell(site.X + 8, site.Z + 3),
-                    DoorRot = Rotation.West,
+                    DoorSide = new DoorSide.Doored(Rotation.West),
                 },
             ],
             RetiredGround = [RegionRules.RectRegion(new Rectangle { X = site.X, Z = site.Z, Width = 7, Height = 7 })],

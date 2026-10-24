@@ -373,7 +373,7 @@ internal sealed partial class Tiler
         {
             var site = LayoutPerimeterSitesRules.NewSite($"vent_{v.Cell.X}_{v.Cell.Z}", LayoutTileVentRules.NodeVent, RegionRules.RectRegion(new Rectangle { X = v.Cell.X, Z = v.Cell.Z, Width = 1, Height = 1 }), v.Reason);
             var (rot, _) = InteriorRules.DoorSide(Rooms[v.Room].Rect, v.Cell);
-            output.Add(site with { Rotation = rot });
+            output.Add(site with { Rotation = new Heading.Toward(rot) });
         }
         return output;
     }

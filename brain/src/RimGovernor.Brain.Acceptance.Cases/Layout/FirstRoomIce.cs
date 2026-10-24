@@ -76,8 +76,8 @@ internal static class LayoutFirstRoomIce
             NextRoomId = 3,
             Rooms =
             [
-                new PlannedRoom { Id = BarracksId, Role = PlannedRole.Barracks, Region = RegionRules.RectRegion(interior), Door = new(site.X + 3, site.Z), DoorRot = Rotation.South },
-                new PlannedRoom { Id = BedroomId, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new(site.X + 11, site.Z + 1, 3, 3)), Door = new(site.X + 12, site.Z), DoorRot = Rotation.South },
+                new PlannedRoom { Id = BarracksId, Role = PlannedRole.Barracks, Region = RegionRules.RectRegion(interior), Door = new(site.X + 3, site.Z), DoorSide = new DoorSide.Doored(Rotation.South) },
+                new PlannedRoom { Id = BedroomId, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new(site.X + 11, site.Z + 1, 3, 3)), Door = new(site.X + 12, site.Z), DoorSide = new DoorSide.Doored(Rotation.South) },
             ],
             Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>>
             {

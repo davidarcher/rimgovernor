@@ -32,14 +32,14 @@ public sealed class PlannedRoomGateTests
     private static readonly PlannedRoom Room = new()
     {
         Id = 1, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new Rectangle { X = 5, Z = 5, Width = 3, Height = 3 }),
-        Door = new Cell(6, 4), DoorRot = Rotation.South,
+        Door = new Cell(6, 4), DoorSide = new DoorSide.Doored(Rotation.South),
     };
 
     /// <summary>Room 2: the next owed bedroom, a 3x3 interior at (20,5), its door south at (21,4).</summary>
     private static readonly PlannedRoom Next = new()
     {
         Id = 2, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new Rectangle { X = 20, Z = 5, Width = 3, Height = 3 }),
-        Door = new Cell(21, 4), DoorRot = Rotation.South,
+        Door = new Cell(21, 4), DoorSide = new DoorSide.Doored(Rotation.South),
     };
 
     private static readonly LayoutPlan Plan = new() { Rooms = [Room, Next], NextRoomId = 3 };

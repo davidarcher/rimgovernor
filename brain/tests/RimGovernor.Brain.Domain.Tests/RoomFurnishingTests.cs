@@ -42,7 +42,7 @@ public sealed class RoomFurnishingTests
         Role = PlannedRole.Bedroom,
         Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 5, Height = 5 }),
         Door = new Cell(12, 9),
-        DoorRot = Rotation.South,
+        DoorSide = new DoorSide.Doored(Rotation.South),
     };
 
     private static InteriorRoom Interior(PlannedRoom room)
@@ -85,7 +85,7 @@ public sealed class RoomFurnishingTests
         Role = LayoutSurveyRules.PlannedHospital,
         Region = RegionRules.RectRegion(new Rectangle { X = 10, Z = 10, Width = 7, Height = 5 }),
         Door = new Cell(12, 9),
-        DoorRot = Rotation.South,
+        DoorSide = new DoorSide.Doored(Rotation.South),
     };
 
     [Fact]

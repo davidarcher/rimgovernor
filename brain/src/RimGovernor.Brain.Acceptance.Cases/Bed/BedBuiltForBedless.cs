@@ -84,7 +84,7 @@ internal static class BedBuiltForBedless
                     Role = PlannedRole.Barracks,
                     Region = RegionRules.RectRegion(new(site.X + 1, site.Z + 1, 4, 3)),
                     Door = new(site.X + 5, site.Z + 2),
-                    DoorRot = Rotation.East,
+                    DoorSide = new DoorSide.Doored(Rotation.East),
                 },
             ],
             Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [1] = [Slot(1), Slot(3)] },

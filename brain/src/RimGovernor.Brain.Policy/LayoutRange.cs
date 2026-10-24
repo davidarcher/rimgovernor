@@ -76,8 +76,8 @@ partial record PlannedRoom
 {
     /// <summary>The stands a planned range holds: the length of its rows.</summary>
     public static int RangeStandCount(PlannedRoom r) =>
-        r.Facing is Rotation.North or Rotation.South ? r.Region.Bounds().Width
-        : r.Facing is Rotation.East or Rotation.West ? r.Region.Bounds().Height
+        r.Facing is Heading.Toward { Side: Rotation.North or Rotation.South } ? r.Region.Bounds().Width
+        : r.Facing is Heading.Toward ? r.Region.Bounds().Height
         : 0; // a room without a facing is no range
 
     /// <summary>The footprint an unfenced range blocks: its interior with a one-cell margin. A stray practice shot cannot hit a pawn, so nothing behind the dummies is kept free.</summary>
@@ -91,7 +91,7 @@ partial record PlannedRoom
         {
             ins = ins with { Width = TrainingRules.RangeDistance + 1, Height = stands };
         }
-        return new PlannedRoom { Role = LayoutRangeRules.PlannedTrainingRange, Region = RegionRules.RectRegion(ins), Outdoor = true, Facing = facing };
+        return new PlannedRoom { Role = LayoutRangeRules.PlannedTrainingRange, Region = RegionRules.RectRegion(ins), Outdoor = true, Facing = new Heading.Toward(facing) };
     }
 
     /// <summary>The furniture template of a planned range: RangeLayout, one WantedPiece per building.</summary>

@@ -109,7 +109,7 @@ public sealed class BarracksSwitchTests
         var k = first.RoomsOf(PlannedRole.Kitchen).Single();
         var bounds = k.Region.Bounds();
         var door = new Cell(bounds.X - 1, bounds.Z + (bounds.Height / 2));
-        var plan = first with { Rooms = [.. first.Rooms.Select(r => r.Id == k.Id ? r with { Door = door, DoorRot = InteriorRules.DoorSide(bounds, door).Item1 } : r)] };
+        var plan = first with { Rooms = [.. first.Rooms.Select(r => r.Id == k.Id ? r with { Door = door, DoorSide = new DoorSide.Doored(InteriorRules.DoorSide(bounds, door).Item1) } : r)] };
         var ground = new GroundCensus();
         var kitchen = plan.RoomsOf(PlannedRole.Kitchen).Single();
         foreach (var c in kitchen.WallRing().Cells())

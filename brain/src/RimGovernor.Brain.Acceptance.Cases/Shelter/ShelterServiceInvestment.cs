@@ -58,7 +58,7 @@ internal static class ShelterServiceInvestment
                     Role = PlannedRole.Barracks,
                     Region = RegionRules.RectRegion(new(room.X, room.Z, 3, 3)),
                     Door = new(room.DoorX, room.DoorZ),
-                    DoorRot = Rotation.East,
+                    DoorSide = new DoorSide.Doored(Rotation.East),
                 },
             ],
         }, cancellationToken).ConfigureAwait(false);

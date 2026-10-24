@@ -3,6 +3,27 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>A door in the wall two rooms share: A and B are their room ids (A below B) and Cell the wall cell, which lies on both rooms' walls.</summary>
 public readonly record struct RoomLink(int A, int B, Cell Cell);
 
+/// <summary>The side a planned room's primary door faces: Doored, or Doorless for an unfenced room, which has no ring and so no door.</summary>
+public abstract record DoorSide
+{
+    private DoorSide() { }
+
+    /// <summary>The door faces Side.</summary>
+    public sealed record Doored(Rotation Side) : DoorSide;
+
+    public sealed record Doorless : DoorSide;
+}
+
+/// <summary>The way a planned piece faces: Toward a side (a training range's dummies, a turbine's wind side, a vent's outlet), or Unturned for a piece that has no facing.</summary>
+public abstract record Heading
+{
+    private Heading() { }
+
+    public sealed record Toward(Rotation Side) : Heading;
+
+    public sealed record Unturned : Heading;
+}
+
 /// <summary>One planned room.</summary>
 public sealed partial record PlannedRoom
 {
@@ -20,8 +41,8 @@ public sealed partial record PlannedRoom
     /// <summary>The primary door: the one furniture frames and rock planning use.</summary>
     public Cell Door { get; init; }
 
-    /// <summary>The door's side; null where there is no rotation (an unfenced room has no door).</summary>
-    public Rotation? DoorRot { get; init; }
+    /// <summary>The door's side; Doorless for an unfenced room, which has no door. A room built without one is doorless.</summary>
+    public DoorSide DoorSide { get; init; } = new DoorSide.Doorless();
 
     /// <summary>What walking through the room costs, read from the station group that became it (RoomCrossing); null for a room that is not a station group, which keeps its role's noThroughfare rule.</summary>
     public RoomCrossing? Crossing { get; init; }
@@ -35,8 +56,8 @@ public sealed partial record PlannedRoom
     /// <summary>An open room: a fence and a gate ring (RingDefs, the pen) or none (Unfenced), no roof and no floor owed (the animal pen).</summary>
     public bool Outdoor { get; init; }
 
-    /// <summary>The direction an unfenced training range's dummies lie from its stands (Unfenced); null for every other room.</summary>
-    public Rotation? Facing { get; init; }
+    /// <summary>The direction an unfenced training range's dummies lie from its stands (Unfenced); Unturned for every other room.</summary>
+    public Heading Facing { get; init; } = new Heading.Unturned();
 
     /// <summary>The marker count of a sparring ring (RingSlot orders the slots); 0 for every other room.</summary>
     public int Markers { get; init; }
@@ -79,7 +100,7 @@ public sealed partial record PlannedRoom
         && Equals(Crossing, o.Crossing)
         && Region.Bounds() == o.Region.Bounds()
         && Door == o.Door
-        && DoorRot == o.DoorRot
+        && DoorSide == o.DoorSide
         && Dug == o.Dug
         && Outdoor == o.Outdoor
         && Facing == o.Facing
@@ -252,7 +273,7 @@ public sealed partial record LayoutPlan
         return fp.Width != 0 ? fp : null;
     }
 
-    /// <summary>Whether the plan is one a store may persist: at least one room, non-empty rectangles and runs, and a real door rotation.</summary>
+    /// <summary>Whether the plan is one a store may persist: at least one room, non-empty rectangles and runs, and a door side on every fenced room.</summary>
     public bool Valid()
     {
         if (Rooms.Count == 0)
@@ -286,9 +307,9 @@ public sealed partial record LayoutPlan
             {
                 return false;
             }
-            if (r.DoorRot is null && !r.Unfenced())
+            if (r.DoorSide is DoorSide.Doorless && !r.Unfenced())
             {
-                // an unfenced room has no door
+                // only an unfenced room is doorless
                 return false;
             }
         }

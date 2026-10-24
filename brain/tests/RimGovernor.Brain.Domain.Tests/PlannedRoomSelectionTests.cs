@@ -13,7 +13,7 @@ public sealed class PlannedRoomSelectionTests
     private static PlannedRoom Room(int id, int x) => new()
     {
         Id = id, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new Rectangle { X = x, Z = 5, Width = 3, Height = 3 }),
-        Door = new Cell(x + 1, 4), DoorRot = Rotation.South,
+        Door = new Cell(x + 1, 4), DoorSide = new DoorSide.Doored(Rotation.South),
     };
 
     private static readonly LayoutPlan Plan = new()

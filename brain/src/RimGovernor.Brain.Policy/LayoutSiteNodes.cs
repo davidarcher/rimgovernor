@@ -16,6 +16,16 @@ public sealed record SiteLane
     public double WindOutput() => LayoutPowerNodesRules.WindOutput(Blocked);
 }
 
+/// <summary>Where a site node's origin lands: Fixed on Cell (a geothermal vent), or Free anywhere the envelope and its band allow.</summary>
+public abstract record SiteAnchor
+{
+    private SiteAnchor() { }
+
+    public sealed record Fixed(Cell Cell) : SiteAnchor;
+
+    public sealed record Free : SiteAnchor;
+}
+
 /// <summary>A site element of the station graph.</summary>
 public sealed record SiteNode
 {
@@ -27,8 +37,8 @@ public sealed record SiteNode
     /// <summary>The cells the node stands on, relative to its origin.</summary>
     public Region Footprint { get; init; } = new();
 
-    /// <summary>The cell the origin must land on; null for a node that goes anywhere the envelope and its band allow.</summary>
-    public Cell? Anchor { get; init; }
+    /// <summary>Where the origin lands: Fixed on a cell, or Free for a node that goes anywhere the envelope and its band allow.</summary>
+    public SiteAnchor Anchor { get; init; } = new SiteAnchor.Free();
 
     public IReadOnlyList<SiteLane> Lanes { get; init; } = [];
 
@@ -37,8 +47,8 @@ public sealed record SiteNode
 
     public string Reason { get; init; } = "";
 
-    /// <summary>The way the node faces (a turbine's wind side); null where there is no rotation.</summary>
-    public Rotation? Rotation { get; init; }
+    /// <summary>The way the node faces (a turbine's wind side); Unturned for a node with no facing.</summary>
+    public Heading Rotation { get; init; } = new Heading.Unturned();
 
     /// <summary>The other shapes the same node may take, its turns: only Footprint, Lanes and Rotation are read from them. A free node takes the shape and origin of least price.</summary>
     public IReadOnlyList<SiteNode> Alts { get; init; } = [];
@@ -51,7 +61,7 @@ public sealed record SitePlacement
     public Cell Origin { get; init; }
     public Region Footprint { get; init; } = new();
     public IReadOnlyList<SiteLane> Lanes { get; init; } = [];
-    public Rotation? Rotation { get; init; }
+    public Heading Rotation { get; init; } = new Heading.Unturned();
     public bool Anchored { get; init; }
     public int Replaces { get; init; }
 }

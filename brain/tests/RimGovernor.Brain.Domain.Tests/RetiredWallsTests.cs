@@ -19,7 +19,7 @@ public sealed class RetiredWallsTests
     private static readonly LayoutPlan Plan = new()
     {
         NextRoomId = 2,
-        Rooms = [new PlannedRoom { Id = 1, Role = PlannedRole.Storage, Region = RegionRules.RectRegion(new Rectangle(30, 30, 3, 3)), Door = new Cell(29, 31), DoorRot = Rotation.West }],
+        Rooms = [new PlannedRoom { Id = 1, Role = PlannedRole.Storage, Region = RegionRules.RectRegion(new Rectangle(30, 30, 3, 3)), Door = new Cell(29, 31), DoorSide = new DoorSide.Doored(Rotation.West) }],
         RetiredGround = [RegionRules.RectRegion(Hut)],
     };
 

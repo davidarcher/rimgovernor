@@ -262,8 +262,10 @@ Hot and NextRoomID.
   built bare: it is dropped (`dropped`/`tile_unfit`, naming the group and the placer's
   refusal) and the other rooms are tiled again without it; its group stays in `Owed`, so
   the next replan tries it again. A standing room is already built and stays pinned
-  (`unsatisfied`/`tile_unfit`, the refusal noted). An unfenced room has no door and is
-  not furnished. The tiled plan's `Owed` lists one
+  (`unsatisfied`/`tile_unfit`, the refusal noted). An unfenced room has no door (its
+  `DoorSide` is `Doorless`; every fenced room is `Doored` on a side) and is not furnished. A
+  training range's dummies and a planned site's rotation are a `Heading` (`Toward` a side or
+  `Unturned`), and a site node's origin is a `SiteAnchor` (`Fixed` on a cell or `Free`). The tiled plan's `Owed` lists one
   room role per station group, and the hard tier's Missing term counts a room per
   entry instead of per role (empty keeps `coreBaseRooms`).
   **Interior search (#2869).** When `TileInput.Graph` is set, `furnish` improves each

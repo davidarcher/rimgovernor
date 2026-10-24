@@ -35,11 +35,7 @@ public sealed partial class LayoutRounds
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, claims, call).ConfigureAwait(false);
         var projection = read.Projection;
         var owned = ConstructionOwnershipRules.OwnedConstructions(claims, projection.Facts.CurrentConstruction);
-        var targets = FacilityUpkeepRules.ReviewStoneShell(owned, projection.Facts.Upkeep.Structures);
-        if (!targets.TryGetValue(out var walls))
-        {
-            return FieldUnavailable(owned.TryGetValue(out _) ? "stone_structures" : "current_construction");
-        }
+        var walls = FacilityUpkeepRules.ReviewStoneShell(owned, projection.Facts.Upkeep.Structures);
         var candidates = new List<string>();
         var working = false;
         foreach (var wall in walls)

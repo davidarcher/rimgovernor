@@ -60,7 +60,7 @@ internal static class WallRemotePickup
                 Role = PlannedRole.Barracks,
                 Region = RegionRules.RectRegion(new(ix, iz, 3, 3)),
                 Door = new(staged.Door!.X, staged.Door.Z),
-                DoorRot = Rotation.South,
+                DoorSide = new DoorSide.Doored(Rotation.South),
             });
             await TypedLayoutPlan.InjectAsync(s, new LayoutPlan
             {

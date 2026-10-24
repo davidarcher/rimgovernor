@@ -24,7 +24,7 @@ public sealed class RetiredGroundReplanTests
             Role = PlannedRole.Hospital,
             Region = RegionRules.RectRegion(new Rectangle(east, south, 3, 3)),
             Door = new Cell(east - 1, south + 1),
-            DoorRot = Rotation.West,
+            DoorSide = new DoorSide.Doored(Rotation.West),
         };
         var prev = first with { Rooms = [.. first.Rooms, hospital], NextRoomId = first.NextRoomId + 1 };
         Assert.True(prev.Valid());
@@ -59,7 +59,7 @@ public sealed class RetiredGroundReplanTests
             Role = PlannedRole.Hospital,
             Region = RegionRules.RectRegion(new Rectangle(east, south, 3, 3)),
             Door = new Cell(east - 1, south + 1),
-            DoorRot = Rotation.West,
+            DoorSide = new DoorSide.Doored(Rotation.West),
         };
         var prev = first with { Rooms = [.. first.Rooms, hospital], NextRoomId = first.NextRoomId + 1 };
         // The first plan's rooms stand; the hospital is not built.

@@ -230,7 +230,7 @@ partial record LayoutPlan
         {
             foreach (var s in plan.LiveSites(LayoutPowerNodesRules.NodeTurbine))
             {
-                var turn = LayoutPowerNodesRules.TurbineTurns.FirstOrDefault(t => t.Rot == s.Rotation);
+                var turn = s.Rotation is Heading.Toward toward ? LayoutPowerNodesRules.TurbineTurns.FirstOrDefault(t => t.Rot == toward.Side) : default;
                 if (turn == default)
                 {
                     continue;

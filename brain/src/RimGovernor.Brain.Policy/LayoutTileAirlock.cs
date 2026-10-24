@@ -203,7 +203,7 @@ internal sealed partial class Tiler
                 NoteAirlock(g.Id, LayoutTileRules.ReasonTileAirlockNotPaid, LayoutTileRules.TileUnsatisfied);
                 continue;
             }
-            var rot = room.DoorRot!.Value;
+            var rot = room.DoorSide is DoorSide.Doored doored ? doored.Side : throw new DomainException("a fenced room has no door side");
             var child = PlannedRoom.AttachAirlock(room.Door, rot);
             var ground = new List<Cell>(child.AirlockWalls()) { child.Vestibule(), child.Door };
             if (ground.Any(c => !Free.Contains(c) || claimed.Contains(c)) || !Free.Contains(LayoutAirlockRules.Outside(child.Door, rot)))

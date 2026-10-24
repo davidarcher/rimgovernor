@@ -348,7 +348,7 @@ internal static class StationAdviceLog
             }
             else if (d.Verdict != LayoutEmbedRules.EmbedPlace)
             {
-                issues.Add(new Dictionary<string, object?> { ["group"] = d.Group, ["other"] = d.Other, ["verdict"] = d.Verdict, ["reason"] = d.Reason, ["requirement"] = d.Requirement is { } requirement ? Wire.Name(requirement) : "", ["field"] = d.Field });
+                issues.Add(new Dictionary<string, object?> { ["group"] = d.Group, ["other"] = d.Other, ["verdict"] = d.Verdict, ["reason"] = d.Reason, ["requirement"] = d.Requirement, ["field"] = d.Field });
             }
         }
         var sites = new List<Dictionary<string, object?>>();
@@ -359,7 +359,7 @@ internal static class StationAdviceLog
             {
                 if (l.Wind)
                 {
-                    row["rotation"] = p.Rotation is { } rotation ? Wire.Name(rotation) : "";
+                    row["rotation"] = p.Rotation is Heading.Toward toward ? Wire.Name(toward.Side) : "";
                     row["blocked"] = l.Blocked;
                     row["output"] = l.WindOutput();
                 }
@@ -392,7 +392,7 @@ internal static class StationAdviceLog
             }
             foreach (var v in a.Tiled.Plan.LiveSites(LayoutTileVentRules.NodeVent))
             {
-                vents.Add(new Dictionary<string, object?> { ["x"] = v.Origin.X, ["z"] = v.Origin.Z, ["rotation"] = v.Rotation is { } ventRotation ? Wire.Name(ventRotation) : "", ["reason"] = v.Reason });
+                vents.Add(new Dictionary<string, object?> { ["x"] = v.Origin.X, ["z"] = v.Origin.Z, ["rotation"] = v.Rotation is Heading.Toward ventToward ? Wire.Name(ventToward.Side) : "", ["reason"] = v.Reason });
             }
             foreach (var d in a.Tiled.Decisions)
             {

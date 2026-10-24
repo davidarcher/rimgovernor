@@ -350,7 +350,7 @@ public sealed class SiteRun
     /// <summary>Puts a node on its anchor, or at the cheapest origin; a node no ground holds is left out with its decision.</summary>
     public void Place(SiteNode n)
     {
-        if (n.Anchor is { } anchor)
+        if (n.Anchor is SiteAnchor.Fixed { Cell: var anchor })
         {
             var p = new SitePlacement { Node = n.Id, Replaces = n.Replaces, Rotation = n.Rotation, Origin = anchor, Anchored = true, Footprint = n.Footprint.Translate(anchor.X, anchor.Z) };
             var (verdict, reason) = (LayoutEmbedRules.EmbedPlace, LayoutSiteNodesRules.ReasonSiteAnchored);
@@ -453,7 +453,7 @@ public static partial class LayoutSiteRunRules
         {
             r.Admit(n);
         }
-        foreach (var n in input.Nodes.OrderByDescending(n => n.Anchor is not null))
+        foreach (var n in input.Nodes.OrderByDescending(n => n.Anchor is SiteAnchor.Fixed))
         {
             r.Place(n);
         }

@@ -52,18 +52,17 @@ public static class HomeAreaRules
     /// <summary>How far (Chebyshev) an extent region may lie from the largest one and still be home; farther regions are outposts, not base.</summary>
     public const int HomeAreaOutlier = 16;
 
-    /// <summary>Derives the home-area diff. Unknown when the extent is unknown or no Home census was read.</summary>
-    public static Fact<HomeAreaPlan> PlanHomeArea(
+    /// <summary>Derives the home-area diff. Throws <see cref="RequiredFactException"/> when no Home census was read or the colony extent is unread.</summary>
+    public static HomeAreaPlan PlanHomeArea(
         Fact<Bounds> bounds,
         CurrentConstruction? construction,
         Fact<EquatableArray<ConstructionClaim>> claims,
         HomeCoverageFacts? home
     )
     {
-        var unknown = Unknown<HomeAreaPlan>();
         if (home is null)
         {
-            return unknown;
+            throw new RequiredFactException("home coverage");
         }
         var extent = ColonyExtentRules.DeriveColonyExtent(
             new ColonyExtentRequest
@@ -77,7 +76,7 @@ public static class HomeAreaRules
         );
         if (!extent.TryGetValue(out var value))
         {
-            return unknown;
+            throw new RequiredFactException("colony extent");
         }
         var target = HomeBase(value);
         var set = new List<Cell>();
@@ -104,14 +103,12 @@ public static class HomeAreaRules
         var order = Comparer<Cell>.Create((a, b) => ColonyExtentRules.ExtentCellLess(a, b) ? -1 : ColonyExtentRules.ExtentCellLess(b, a) ? 1 : 0);
         set.Sort(order);
         clear.Sort(order);
-        return Known(
-            new HomeAreaPlan
-            {
-                AutoOff = home.AutoHomeArea,
-                Set = EquatableArray.From(set),
-                Clear = EquatableArray.From(clear),
-            }
-        );
+        return new HomeAreaPlan
+        {
+            AutoOff = home.AutoHomeArea,
+            Set = EquatableArray.From(set),
+            Clear = EquatableArray.From(clear),
+        };
     }
 
     /// <summary>The base footprint of an extent: its largest region and every region within HomeAreaOutlier of it.</summary>

@@ -111,8 +111,8 @@ public sealed record EmbedDecision
 
     public string Reason { get; init; } = string.Empty;
 
-    /// <summary>Names the environment of an unsatisfied requirement.</summary>
-    public EnvRequirement? Requirement { get; init; }
+    /// <summary>Names the environment of an unsatisfied requirement (its EnvRequirement wire name); empty for every other decision.</summary>
+    public string Requirement { get; init; } = string.Empty;
 
     /// <summary>Names the field of a field decision (Group is -1 then).</summary>
     public string Field { get; init; } = string.Empty;
@@ -975,7 +975,7 @@ internal sealed partial class EmbedRun
             {
                 if (req == EnvRequirement.Clean)
                 {
-                    output.Decisions.Add(new EmbedDecision { Group = i, Other = -1, Verdict = LayoutEmbedRules.EmbedUnsatisfied, Reason = LayoutEmbedRules.ReasonEmbedNoSiteSignal, Requirement = req });
+                    output.Decisions.Add(new EmbedDecision { Group = i, Other = -1, Verdict = LayoutEmbedRules.EmbedUnsatisfied, Reason = LayoutEmbedRules.ReasonEmbedNoSiteSignal, Requirement = Wire.Name(req) });
                 }
             }
             foreach (var l in g.Links)

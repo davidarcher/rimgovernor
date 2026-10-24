@@ -84,7 +84,7 @@ internal static class CoordinatedWork
                         Role = PlannedRole.Barracks,
                         Region = RegionRules.RectRegion(new(prepared.X, prepared.Z, 3, 3)),
                         Door = new(prepared.DoorX, prepared.DoorZ),
-                        DoorRot = Rotation.South,
+                        DoorSide = new DoorSide.Doored(Rotation.South),
                     },
                 ],
                 Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>>

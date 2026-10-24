@@ -114,21 +114,11 @@ public sealed partial class LayoutRounds
             var f = read.Projection.Facts;
             if (_needs.HomeCoverage)
             {
-                // The plan's own unread inputs (the geometry, Home cells, auto-expand state) are HomeArea's to harden.
-                facts = facts with
-                {
-                    HomeCoverage = HomeAreaRules.PlanHomeArea(f.MapBounds, f.CurrentConstruction, claims, f.HomeCoverage).TryGetValue(out var plan)
-                        ? plan : throw new RequiredFactException("home area plan"),
-                };
+                facts = facts with { HomeCoverage = HomeAreaRules.PlanHomeArea(f.MapBounds, f.CurrentConstruction, claims, f.HomeCoverage) };
             }
             if (_needs.StoneShell)
             {
-                // The owned construction and the structure census are FacilityUpkeep's reads to harden.
-                facts = facts with
-                {
-                    StoneShell = FacilityUpkeepRules.ReviewStoneShell(ConstructionOwnershipRules.OwnedConstructions(claims, f.CurrentConstruction), f.Upkeep.Structures).TryGetValue(out var walls)
-                        ? walls : throw new RequiredFactException("flammable walls"),
-                };
+                facts = facts with { StoneShell = FacilityUpkeepRules.ReviewStoneShell(ConstructionOwnershipRules.OwnedConstructions(claims, f.CurrentConstruction), f.Upkeep.Structures) };
             }
         }
         if (_needs.ClimateEnvelope || _needs.Routes)

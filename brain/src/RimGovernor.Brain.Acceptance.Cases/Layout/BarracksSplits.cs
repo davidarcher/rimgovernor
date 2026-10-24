@@ -107,7 +107,7 @@ internal static class LayoutBarracksSplits
                     Role = PlannedRole.Barracks,
                     Region = RegionRules.RectRegion(new(site.X + 1, site.Z + 1, 6, 3)),
                     Door = new(site.X + 7, site.Z + 2),
-                    DoorRot = Rotation.East,
+                    DoorSide = new DoorSide.Doored(Rotation.East),
                 },
             ],
             Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [1] = [Slot(1), Slot(3), Slot(5)] },

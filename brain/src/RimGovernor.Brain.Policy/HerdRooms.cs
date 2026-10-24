@@ -71,7 +71,7 @@ public sealed partial record LayoutPlan
             Outdoor = role.IsOutdoor(),
             Herd = herd,
             Door = new Cell(inner.X + (inner.Width / 2), inner.Z - 1),
-            DoorRot = Rotation.South,
+            DoorSide = new DoorSide.Doored(Rotation.South),
         };
     }
 

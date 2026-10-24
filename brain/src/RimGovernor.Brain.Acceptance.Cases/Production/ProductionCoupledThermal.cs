@@ -87,7 +87,7 @@ internal static class ProductionCoupledThermal
                     Role = PlannedRole.Bedroom,
                     Region = RegionRules.RectRegion(new(room.X, room.Z, room.Width, room.Height)),
                     Door = new(room.X + room.Width, room.Z + 1),
-                    DoorRot = Rotation.East,
+                    DoorSide = new DoorSide.Doored(Rotation.East),
                 },
             ],
         }, cancellationToken).ConfigureAwait(false);
