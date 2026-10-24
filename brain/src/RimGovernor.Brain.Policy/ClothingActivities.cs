@@ -37,8 +37,9 @@ public static class ClothingActivitiesRules
             {
                 // Warmth is a comfort shift from the craft's completion, priced by the forecast's temperature cards as break
                 // risk (#3330); armor is the outfit change the harm term prices from the delivery (#3621); the apparel thoughts it
-                // changes are its investment credit (#3816). A garment the policy requires and the wearer lacks (a worn-count
-                // goal's, stamped into the policy) is a candidate too, so a goal can be met. Any other is not.
+                // changes are its investment credit (#3816). A garment the policy requires and the wearer lacks (its title's or
+                // role's, whose unmet-requirement thought it lifts, #3836, or a worn-count goal's, stamped into the policy) is a
+                // candidate too, so the requirement or goal can be met. Any other is not.
                 var (cold, heat) = GearLoadoutRules.GearInsulation([option]);
                 var replaced = input.Worn.Where(w => GearLoadoutRules.GearConflicts(w, option)).ToArray();
                 var (wornCold, wornHeat) = GearLoadoutRules.GearInsulation(replaced);

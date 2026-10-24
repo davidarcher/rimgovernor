@@ -132,6 +132,49 @@ public sealed class ApparelCreditTests
         Assert.Equal(-perDay * (Horizon - 2), row.Value, 12);
     }
 
+    // #3836: a title's or role's unmet apparel requirement thought, active while no worn garment's def meets one of the pawn's
+    // active requirements (ApparelRequirement.IsMet).
+    private static readonly NeedThoughtStage[] RequirementThoughts =
+        [Stage("TitleApparelRequirementNotMet", ForecastApparel.TitleApparel, 0, -4), Stage("IdeoRoleApparelRequirementNotMet", ForecastApparel.RoleApparel, 0, -4)];
+
+    private static GearOption Crown() => Shirt(1) with
+    { ID = "crown", Definition = new("Apparel_Crown"), Slot = GearSlot.Headgear, Layers = ["Overhead"], Groups = ["UpperHead"] };
+
+    [Fact]
+    public void ATitledPawnMissingTheirRequiredApparelGainsTheRequirementThoughtsMoodWhenItIsDelivered()
+    {
+        var titled = Warm with { Requirements = [new(ForecastApparel.TitleApparel, ["Apparel_Crown", "Apparel_Coronet"])] };
+        var context = Context(Pawn(titled, RequirementThoughts), Shirt(1));
+        Assert.Equal(4, ForecastApparel.MoodDelta(context.Needs.Pawns[0], context.Outfits["pawn"], [Crown()]));
+        Assert.Equal([0.04], ForecastApparel.BreakShifts(context.Needs, context.Outfits, [Craft(Crown())])["pawn"]);
+        var row = Assert.Single(Value(context, Crown(), shift: 0.04).InvestmentContributions, r => r.Key.StartsWith("apparel/", StringComparison.Ordinal));
+        var perDay = context.Value.WellbeingWeight * 4 / 100 + context.MoodBreaks.DaysLost([Day, 0, 0])!.Value;
+        Assert.Equal((ForecastApparel.CreditKey("pawn", "Apparel_Crown"), Horizon - 0.5), (row.Key, row.Units));
+        Assert.Equal(-perDay * (Horizon - 0.5), row.Value, 12);
+        // A requirement already met by a worn garment raises no thought to lift.
+        Assert.Equal(0, ForecastApparel.MoodDelta(context.Needs.Pawns[0], [Crown() with { ID = "worn-crown" }], [Crown()]));
+    }
+
+    [Fact]
+    public void ARoleHoldersRequiredApparelLiftsOnlyTheRoleThought()
+    {
+        var holder = Warm with { Requirements = [new(ForecastApparel.RoleApparel, ["Apparel_Crown"]), new(ForecastApparel.RoleApparel, ["Apparel_Robe"])] };
+        // Both role requirements must be met for Thought_IdeoRoleApparelRequirementNotMet to lift; the title thought has none.
+        Assert.Equal(0, ForecastApparel.MoodDelta(Pawn(holder, RequirementThoughts), [], [Crown()]));
+        var robe = Shirt(1) with { ID = "robe", Definition = new("Apparel_Robe"), Slot = GearSlot.Outer, Layers = ["Shell"], Groups = ["Torso"] };
+        Assert.Equal(4, ForecastApparel.MoodDelta(Pawn(holder, RequirementThoughts), [Crown()], [robe]));
+    }
+
+    [Fact]
+    public void APawnWithNoRequirementGainsNothingFromTheGarment()
+    {
+        // No title and no role (or neither DLC): the native read lists no requirement, a named state worth zero.
+        var context = Context(Pawn(Warm, RequirementThoughts), Shirt(1));
+        Assert.Equal(0, ForecastApparel.MoodDelta(context.Needs.Pawns[0], context.Outfits["pawn"], [Crown()]));
+        Assert.DoesNotContain(Value(context, Crown()).InvestmentContributions, r => r.Key.StartsWith("apparel/", StringComparison.Ordinal));
+        Assert.DoesNotContain(ForecastApparel.CreditUnassessed + "pawn", Value(context, Crown()).Findings);
+    }
+
     [Fact]
     public void AWearerWithUnreadApparelFactsIsNamedAndNotCredited()
     {

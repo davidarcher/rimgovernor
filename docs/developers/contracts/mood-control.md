@@ -89,8 +89,9 @@ so dominant apparel pressure names that Need and adds no new action. The clothin
 garment by the apparel thoughts it changes (#3816, [equipment upkeep](equipment-upkeep.md)): the native
 needs read carries the stage rows of `ApparelDamaged`, `DeadMansApparel`, `Naked` (without Ideology) and the
 ideoligion's covering precepts (`groin_uncovered` through `any_body_part_but_hair_or_face_covered`, by worker
-class, only for a precept the pawn's ideoligion holds), and `NeedsForecastPawn.Apparel` the facts their
-workers read beyond the outfit. Cosmetic preferences stay unowned. The pain and
+class, only for a precept the pawn's ideoligion holds), the title's and role's unmet apparel requirement
+thoughts (`title_apparel_unmet`, `role_apparel_unmet`, #3836), and `NeedsForecastPawn.Apparel` the facts their
+workers read beyond the outfit, the pawn's active apparel requirements among them. Cosmetic preferences stay unowned. The pain and
 sickness thoughts `Pain`, `Sick` and `BabySick` are owned by the `medical/care` Need:
 tending, disease rest, the hospital bed and the medicine stock it holds already treat
 their causes (injuries, infections, infant illness), so dominant pain or sickness

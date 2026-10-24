@@ -350,14 +350,23 @@ A garment relieves no requirement (#3816): it is priced by the apparel thoughts
 and the armor it changes. Its outfit change (below) overlays the worn outfit from
 its delivery, or from a retained bill's completion; the apparel thoughts the
 outfit then gives (`ForecastApparel.MoodOf`: `ApparelDamaged`, `Naked` without
-Ideology, `DeadMansApparel`, and the ideoligion's covering precepts, each stage
+Ideology, `DeadMansApparel`, the ideoligion's covering precepts, and a royal
+title's or ideoligion role's unmet-requirement thought (#3836), each stage
 priced by the pawn's own native thought rows) less the worn outfit's are its
 investment credit, `apparel/<pawn>/<garment>`, as a bedroom's mood is
 ([bedroom credit](../architecture/forecast-value.md)): wellbeing plus the break
 days the shifted mood saves, from the delivery to tier 2's horizon. Several
 garments for one pawn are credited in delivery order, each the gain its delivery
 adds, so a female pawn's shirt and pants share the nakedness they end together.
-A wearer whose apparel facts (`NeedsForecastPawn.Apparel`: gender, legs, safe
+Apparel a title or role requires is worth the thought it lifts: the native read
+lists the pawn's active requirements (`NeedApparel.Requirements`: its titles in
+effect, and its role's when the role is active and the pawn a free non-slave
+colonist), each with every apparel def that meets it, and the thought is active
+while one of its source's requirements has no worn garment of those defs. A pawn
+with no title and no role has none, a requirement thought worth zero. The game
+gates no role ability or work on its apparel, so the thought is the whole value;
+the title's minimum-quality thought (`TitleApparelMinQualityNotMet`) is not
+modelled. A wearer whose apparel facts (`NeedsForecastPawn.Apparel`: gender, legs, safe
 ambient temperature, kind-required apparel), outfit, mood, tick or shift is
 unread is named `apparel_credit_unassessed:<pawn>` and credited nothing. The
 delivery is no unit of development.

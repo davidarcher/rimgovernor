@@ -51,7 +51,7 @@ public sealed class ApparelCreditProductionTests
         new() { Id = id, DefName = ShirtDef, Stuff = "Cloth", Quality = 2, Source = source, Condition = condition };
 
     // The census of one colonist in a tattered shirt, decoded by the observation read.
-    private static GearObservation Census()
+    private static GearObservation Census(bool dressed = true)
     {
         var row = new O.GearLoadout
         {
@@ -61,7 +61,7 @@ public sealed class ApparelCreditProductionTests
             Gender = D.Gender.Male,
             ComfortableMinC = 10,
             ComfortableMaxC = 30,
-            LoadoutModel = new O.GearLoadoutModel { Worn = [Option("worn-shirt", "worn", 0.1)], Options = [Option("bill-shirt", "bill", 1)] },
+            LoadoutModel = new O.GearLoadoutModel { Worn = dressed ? [Option("worn-shirt", "worn", 0.1)] : [], Options = [Option("bill-shirt", "bill", 1)] },
         };
         var defs = new GearDefinitions { Catalog = Catalog(), Finished = Known<IReadOnlySet<string>>(new HashSet<string>()) };
         var model = ColonyGearReads.GearLoadoutModelFacts(defs, new Tables(default, default, Things.Of([])), 20, row,
@@ -77,7 +77,7 @@ public sealed class ApparelCreditProductionTests
 
     // The pawn's needs row as the native read writes it, with or without the apparel facts, and the shirt bill the clothing
     // read observes running.
-    private static ForecastCoupledContext Generate(O.NeedApparel? apparel)
+    private static ForecastCoupledContext Generate(O.NeedApparel? apparel, bool dressed = true)
     {
         var facts = ForecastCoupledSelectionTests.Review(level: 1, fall: 0);
         var template = facts.ForecastObserved.Needs!.Pawns[0];
@@ -88,10 +88,10 @@ public sealed class ApparelCreditProductionTests
         };
         facts = facts with
         {
-            Gear = Known(Census()),
+            Gear = Known(Census(dressed)),
             ForecastObserved = facts.ForecastObserved with
             {
-                Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Apparel = apparel, ThoughtStages = [Stage(0, -3), Stage(1, -5)] }] },
+                Needs = facts.ForecastObserved.Needs with { Pawns = [template with { Apparel = apparel, ThoughtStages = [Stage(0, -3), Stage(1, -5), TitleStage] }] },
                 Coupled = facts.ForecastObserved.Coupled! with { Clothing = clothing },
             },
         };
@@ -115,6 +115,25 @@ public sealed class ApparelCreditProductionTests
         Assert.Single(ClothingActivitiesRules.ClothingActivityRequirements(Census()));
         var context = Generate(new(D.Gender.Male, true, true));
         Assert.Equal([0.05], context.ApparelShifts["pawn"]);
+    }
+
+    // #3836: the title's unmet-requirement thought, read for every pawn under Royalty (inactive without a requirement).
+    private static readonly O.NeedThoughtStage TitleStage = new("TitleApparelRequirementNotMet", ForecastApparel.TitleApparel, 0, -4, default, false);
+
+    [Fact]
+    public void AnUndressedTitledColonistsRequiredShirtBillShiftsTheirBreaksByTheRequirementThought()
+    {
+        var titled = new O.NeedApparel(D.Gender.Male, true, true) { Requirements = [new(ForecastApparel.TitleApparel, [ShirtDef])] };
+        Assert.Equal([0.04], Generate(titled, dressed: false).ApparelShifts["pawn"]);
+    }
+
+    [Fact]
+    public void AFreshColonysUntitledColonistGetsNothingFromTheRequirementThought()
+    {
+        // A fresh colony's colonist has no title and no role: the native read writes no requirement, and the shirt changes
+        // only what the other workers read (a male pawn's torso is no nakedness), so it shifts nothing.
+        var context = Generate(new(D.Gender.Male, true, true), dressed: false);
+        Assert.False(context.ApparelShifts.ContainsKey("pawn"));
     }
 
     [Fact]

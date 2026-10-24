@@ -288,6 +288,11 @@ internal static class NativeNeedsForecast
         foreach (var (worker, role) in ApparelPrecepts)
             foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == worker && PreceptAllows(pawn, d)))
                 Rows(def, role);
+        // The required-apparel thoughts a garment a title or role requires lifts (#3836). No ThoughtDefOf field names the
+        // title's; its worker class is the typed route. Without Royalty (or Ideology) neither def is loaded and no row is read.
+        foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_RoyalTitleApparelRequirementNotMet)))
+            Rows(def, TitleApparelRole);
+        Rows(ThoughtDefOf.IdeoRoleApparelRequirementNotMet, RoleApparelRole);
         // The title room thoughts a planned throne room or suite relieves (#3807); no ThoughtDefOf field names them, their
         // worker classes are the typed route. Without Royalty no def has these workers and no row is read.
         foreach (var (worker, role) in TitleRoomThoughts)
@@ -335,7 +340,36 @@ internal static class NativeNeedsForecast
         var legs = pawn.health.hediffSet.GetNotMissingParts().Any(p => p.IsInGroup(BodyPartGroupDefOf.Legs));
         var safe = GenTemperature.SafeTemperatureRange(pawn.def).Includes(pawn.AmbientTemperature);
         return new((RimGovernor.Contracts.Wire.Defs.Gender)(int)pawn.gender, legs, safe)
-            { KindRequired = EquatableArray.From((pawn.kindDef?.apparelRequired ?? new List<ThingDef>()).Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal)) };
+            { KindRequired = EquatableArray.From((pawn.kindDef?.apparelRequired ?? new List<ThingDef>()).Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal)),
+              Requirements = ApparelRequirementsOf(pawn) };
+    }
+    /// <summary>The stage-row roles of the required-apparel thoughts (ForecastApparel.TitleApparel and RoleApparel).</summary>
+    private const string TitleApparelRole = "title_apparel_unmet", RoleApparelRole = "role_apparel_unmet";
+    /// <summary>
+    /// The active apparel requirements whose unmet thought the pawn can have (#3836), each with every apparel def that meets it:
+    /// ThoughtWorker_RoyalTitleApparelRequirementNotMet.Validate's titles in effect, and the role Precept_Role.SituationThoughtsToAdd
+    /// gives Thought_IdeoRoleApparelRequirementNotMet for (an active role of a free non-slave colonist who is no quest lodger).
+    /// </summary>
+    private static EquatableArray<Obs.NeedApparelRequirement> ApparelRequirementsOf(Pawn pawn)
+    {
+        var rows = new List<Obs.NeedApparelRequirement>();
+        var active = pawn.apparel.ActiveRequirementsForReading;
+        void Add(ApparelRequirement requirement, string thought)
+        {
+            if (!active.Contains(requirement)) return;
+            // ApparelMeetsRequirement reads the def's tags past a requiredDefs match, as IsMet does of a worn garment's.
+            var meets = DefDatabase<ThingDef>.AllDefsListForReading.Where(d => d.IsApparel
+                && (d.apparel.tags != null || requirement.requiredDefs?.Contains(d) == true) && requirement.ApparelMeetsRequirement(d, false));
+            rows.Add(new(thought, EquatableArray.From(meets.Select(d => d.defName).OrderBy(d => d, StringComparer.Ordinal))));
+        }
+        if (pawn.royalty is { allowApparelRequirements: true } royalty)
+            foreach (var title in royalty.AllTitlesInEffectForReading)
+                foreach (var requirement in title.def.requiredApparel ?? new List<ApparelRequirement>())
+                    Add(requirement, TitleApparelRole);
+        if (ModsConfig.IdeologyActive && pawn.Ideo?.GetRole(pawn) is { Active: true } role && pawn.IsFreeNonSlaveColonist && !pawn.IsQuestLodger())
+            foreach (var requirement in role.apparelRequirements ?? new List<PreceptApparelRequirement>())
+                if (requirement.requirement != null) Add(requirement.requirement, RoleApparelRole);
+        return EquatableArray.From(rows);
     }
     /// <summary>The title room thoughts' worker classes and the stage-row roles the brain reads them by (ForecastHousing.Title*Role).</summary>
     private static readonly (Type Worker, string Role)[] TitleRoomThoughts =

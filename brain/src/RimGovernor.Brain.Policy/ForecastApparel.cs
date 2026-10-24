@@ -20,6 +20,9 @@ public static class ForecastApparel
     public const string AnyCovered = "any_body_part_covered";
     public const string AnyButGroinCovered = "any_body_part_but_groin_covered";
     public const string AnyButHairOrFaceCovered = "any_body_part_but_hair_or_face_covered";
+    /// <summary>A royal title's and an ideoligion role's unmet apparel requirement thoughts (#3836); see <see cref="NeedApparel.Requirements"/>.</summary>
+    public const string TitleApparel = "title_apparel_unmet";
+    public const string RoleApparel = "role_apparel_unmet";
 
     /// <summary>The finding for a pawn whose garment credit an unread fact leaves unpriced.</summary>
     public const string CreditUnassessed = "apparel_credit_unassessed:";
@@ -27,7 +30,7 @@ public static class ForecastApparel
     private static readonly HashSet<string> Roles = new(StringComparer.Ordinal)
     {
         Damaged, Naked, DeadMans, GroinUncovered, GroinOrChestUncovered, GroinChestOrHairUncovered, GroinChestHairOrFaceUncovered,
-        AnyCovered, AnyButGroinCovered, AnyButHairOrFaceCovered,
+        AnyCovered, AnyButGroinCovered, AnyButHairOrFaceCovered, TitleApparel, RoleApparel,
     };
 
     // BodyPartGroupDefOf's defNames, as the catalog's apparel rows carry them (GearRules.GearCoreGroups reads the same strings).
@@ -69,7 +72,8 @@ public static class ForecastApparel
     /// <summary>
     /// Whether overlaying <paramref name="garments"/> on <paramref name="worn"/> changes anything the apparel workers read of the
     /// outfit (the groups covered, the clothing and its groups, the damaged garments' condition, the tainted count): when it does
-    /// not, its <see cref="MoodDelta"/> is zero for every pawn.
+    /// not, its <see cref="MoodDelta"/> is zero for every pawn it meets no apparel requirement of (a pawn's own fact; the policy's
+    /// required defs keep such a garment a candidate).
     /// </summary>
     public static bool ChangesThoughts(IEnumerable<GearOption> worn, EquatableArray<GearOption> garments)
     {
@@ -77,14 +81,22 @@ public static class ForecastApparel
         return Signature(before) != Signature(new ForecastOutfitChange("", garments) { Overlay = true }.Apply(before));
     }
 
-    private static string Signature(IEnumerable<GearOption> outfit)
+    /// <summary>
+    /// What the apparel workers read of <paramref name="outfit"/>; with <paramref name="facts"/>, also which of the pawn's apparel
+    /// requirements it meets (a requirement names its own defs, so only a pawn's facts tell whether a garment meets one).
+    /// </summary>
+    private static string Signature(IEnumerable<GearOption> outfit, NeedApparel? facts = null)
     {
         var worn = outfit.Where(o => o.Slot != GearSlot.Primary).ToArray();
         var least = worn.Where(o => o.CareIfDamaged && !o.Locked).Select(o => o.Condition).DefaultIfEmpty(999).Min();
         return string.Join(",", worn.SelectMany(o => o.Groups).Distinct().Order(StringComparer.Ordinal)) + ";"
             + string.Join(",", worn.Where(o => o.CountsAsClothingForNudity).Select(o => o.Definition.Value + ":" + string.Join("+", o.Groups)).Order(StringComparer.Ordinal))
-            + ";" + (least < 0.2 ? 1 : least < 0.5 ? 0 : -1) + ";" + worn.Count(o => o.Tainted) + ";" + (worn.Length > 0);
+            + ";" + (least < 0.2 ? 1 : least < 0.5 ? 0 : -1) + ";" + worn.Count(o => o.Tainted) + ";" + (worn.Length > 0)
+            + ";" + string.Concat((facts?.Requirements ?? []).Select(r => Met(r, worn) ? '1' : '0'));
     }
+
+    /// <summary>ApparelRequirement.IsMet: some worn garment's def meets <paramref name="requirement"/>.</summary>
+    private static bool Met(NeedApparelRequirement requirement, GearOption[] worn) => worn.Any(o => requirement.Meets.Contains(o.Definition.Value));
 
     /// <summary>The worker's active stage for <paramref name="role"/>, -1 when inactive.</summary>
     private static int StageOf(string role, NeedApparel facts, GearOption[] worn)
@@ -123,6 +135,10 @@ public static class ForecastApparel
                 return facts.SafeAmbient && worn.Any(o => Unrequired(o) && (o.Groups.Contains(Torso) || !o.Groups.Contains(Legs))) ? 0 : -1;
             case AnyButHairOrFaceCovered:
                 return worn.Any(o => o.CountsAsClothingForNudity && (o.Groups.Contains(Torso) || !o.Groups.Contains(UpperHead) && !o.Groups.Contains(FullHead))) ? 0 : -1;
+            case TitleApparel or RoleApparel:
+                // ThoughtWorker_RoyalTitleApparelRequirementNotMet and Thought_IdeoRoleApparelRequirementNotMet: active while any of
+                // the pawn's active requirements of the source is unmet, IsMet by any worn garment.
+                return facts.Requirements.Any(r => r.Thought == role && !Met(r, worn)) ? 0 : -1;
             default:
                 return -1;
         }
@@ -143,7 +159,7 @@ public static class ForecastApparel
         {
             if (!pawns.TryGetValue(group.Key, out var pawn) || !outfits.TryGetValue(group.Key, out var worn) || MoodOf(pawn, worn) is not { } before) continue;
             var changes = group.Select(c => c.Items).Distinct().ToArray();
-            var seen = new HashSet<string>(StringComparer.Ordinal) { Signature(worn) };
+            var seen = new HashSet<string>(StringComparer.Ordinal) { Signature(worn, pawn.Apparel) };
             var queue = new Queue<EquatableArray<GearOption>>([worn]);
             var shifts = new SortedSet<double>();
             while (queue.Count > 0 && seen.Count < ReachableCap)
@@ -152,7 +168,7 @@ public static class ForecastApparel
                 foreach (var items in changes)
                 {
                     var next = new ForecastOutfitChange(group.Key, items) { Overlay = true }.Apply(outfit);
-                    if (!seen.Add(Signature(next))) continue;
+                    if (!seen.Add(Signature(next, pawn.Apparel))) continue;
                     queue.Enqueue(next);
                     if (MoodOf(pawn, next) is { } mood && mood != before) shifts.Add((mood - before) / 100);
                 }

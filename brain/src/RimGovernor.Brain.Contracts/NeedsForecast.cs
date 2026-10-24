@@ -81,8 +81,10 @@ public sealed record NeedDeterioration(double HitPoints, Fact<double> RatePerDay
 /// worker inactive), is a row at 0. Then apparel_damaged, naked, dead_mans_apparel, and the ideoligion's apparel precept thoughts by
 /// worker (#3816): groin_uncovered, groin_or_chest_uncovered, groin_chest_or_hair_uncovered, groin_chest_hair_or_face_uncovered,
 /// any_body_part_covered, any_body_part_but_groin_covered, any_body_part_but_hair_or_face_covered, each read only when
-/// ThoughtWorker_Precept's ideoligion gate lets the pawn have it. A stage the game cannot price is left out. Memories carry
-/// their duration; situational thoughts none.
+/// ThoughtWorker_Precept's ideoligion gate lets the pawn have it. Then the required-apparel thoughts (#3836):
+/// title_apparel_unmet (ThoughtWorker_RoyalTitleApparelRequirementNotMet) and role_apparel_unmet
+/// (ThoughtDefOf.IdeoRoleApparelRequirementNotMet), each active while one of the pawn's <see cref="NeedApparel.Requirements"/>
+/// of its role is unmet. A stage the game cannot price is left out. Memories carry their duration; situational thoughts none.
 /// </summary>
 public sealed record NeedThoughtStage(string Thought, string Role, int Stage, double Offset,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> DurationTicks, bool Fades);
@@ -96,7 +98,22 @@ public sealed record NeedApparel(Defs.Gender Gender, bool Legs, bool SafeAmbient
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> KindRequired { get; init; }
+    /// <summary>
+    /// The pawn's active apparel requirements whose unmet thought it can have (#3836): its royal titles' in effect while
+    /// pawn.royalty.allowApparelRequirements, and its ideoligion role's while the role is active and the pawn a free non-slave
+    /// colonist who is no quest lodger; each IsActive (Pawn_ApparelTracker.ActiveRequirementsForReading). Empty with no title
+    /// and no role, or without Royalty and Ideology.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<NeedApparelRequirement>))]
+    public EquatableArray<NeedApparelRequirement> Requirements { get; init; }
 }
+/// <summary>
+/// One active apparel requirement (#3836): the stage-row role of the thought it raises while unmet (title_apparel_unmet or
+/// role_apparel_unmet), and every apparel def whose wearing meets it (ApparelRequirement.ApparelMeetsRequirement with
+/// allowUnmatched false, the test ApparelRequirement.IsMet applies to each worn garment).
+/// </summary>
+public sealed record NeedApparelRequirement(string Thought,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<string>))] EquatableArray<string> Meets);
 public sealed record NeedRate(string Kind,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> Level,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> FallPerTick,
