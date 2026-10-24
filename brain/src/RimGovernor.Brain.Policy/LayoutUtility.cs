@@ -1,16 +1,13 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// One planned battery or generator placement: the native centre and rotation, and the footprint the preview must
-/// match. Block is the stone block between a battery and the one before it on its side (zero for the first row and for
-/// generators).
+/// One planned generator placement: the native centre and rotation, and the footprint the preview must match.
 /// </summary>
 public sealed record PlannedPowerSite
 {
     public Cell Cell { get; init; }
     public Rotation Rotation { get; init; }
     public Rectangle Area { get; init; }
-    public Rectangle Block { get; init; }
 }
 
 /// <summary>Marks the cells a utility site may not take.</summary>
@@ -122,15 +119,12 @@ internal sealed partial class UtilityGrid
 }
 
 /// <summary>
-/// Utility reservations. The plan holds a battery room (a room like any other), wind
-/// turbines and solar plots as stored site nodes and a stone enclosure around each geyser's generator. The generator never
-/// builds over a reservation.
+/// Utility reservations. The plan holds wind turbines and solar plots as stored site nodes and a stone enclosure
+/// around each geyser's generator. The generator never builds over a reservation. Batteries have no planned site: the
+/// store method places each on a roofed cell (power-contracts.md).
 /// </summary>
 public static partial class LayoutUtilityRules
 {
-    /// <summary>The battery room: 5 wide, a 1-cell walkway from the door down the middle, batteries (1x2) along both sides with a stone block between each, roofed, stone door.</summary>
-    public static PlannedRole PlannedBattery => PlannedRole.Battery;
-
     // A turbine's long side is the wind path's width.
     internal const int TurbineWidth = 7;
     internal const int SolarSide = 4;
@@ -204,32 +198,6 @@ public static partial class LayoutUtilityRules
 
 partial record PlannedRoom
 {
-    /// <summary>
-    /// A battery room's battery footprints (1x2 across the walkway on each side), nearest the door first; the rows
-    /// between them hold the stone blocks. A room on a crossing (east or west door) is the same room transposed: 1x2
-    /// slots along z, rows stepping along x.
-    /// </summary>
-    public static List<Rectangle> BatterySlots(PlannedRoom r)
-    {
-        if (r.DoorRot == Rotation.East || r.DoorRot == Rotation.West)
-        {
-            return [.. BatterySlots(TransposeRoom(r)).Select(s => new Rectangle { X = s.Z, Z = s.X, Width = s.Height, Height = s.Width })];
-        }
-        var inner = r.Region.Bounds();
-        var output = new List<Rectangle>();
-        foreach (var i in InteriorHelpersRules.AisleRows(inner.Height, 2))
-        {
-            var z = inner.Z + i;
-            if (r.DoorRot == Rotation.North) // door on the north wall
-            {
-                z = inner.Z + inner.Height - 1 - i;
-            }
-            output.Add(new Rectangle { X = inner.X, Z = z, Width = 2, Height = 1 });
-            output.Add(new Rectangle { X = inner.X + inner.Width - 2, Z = z, Width = 2, Height = 1 });
-        }
-        return output;
-    }
-
     /// <summary>The cells a room's walls and interior take. A ring is its block, a range its range block; any other unfenced room blocks its interior.</summary>
     /// <summary>A barn's or pen's outline: its interior with the ring.</summary>
     internal Rectangle Outline() => LayoutPerimeterRules.Pad(this.Region.Bounds(), 1);
@@ -252,44 +220,13 @@ partial record PlannedRoom
 partial record LayoutPlan
 {
     /// <summary>
-    /// The plan's sites for definition: batteries in the battery room's slots (1x2 turned east, or facing north in a
-    /// room on a crossing), wind turbines on their pads (TurbinePlacement), solar on its plots. Empty for any other
-    /// definition or a plan with no such site.
+    /// The plan's sites for definition: wind turbines on their pads (TurbinePlacement), solar on its plots, the
+    /// geothermal generator in its enclosure. Empty for any other definition or a plan with no such site.
     /// </summary>
     public static List<PlannedPowerSite> PlannedPowerSites(LayoutPlan plan, string definition)
     {
         var output = new List<PlannedPowerSite>();
-        if (definition == PowerRules.BatteryDefinition)
-        {
-            foreach (var r in plan.Rooms)
-            {
-                if (r.Role != LayoutUtilityRules.PlannedBattery)
-                {
-                    continue;
-                }
-                var slots = PlannedRoom.BatterySlots(r);
-                for (var i = 0; i < slots.Count; i++)
-                {
-                    var s = slots[i];
-
-                    // A 1x2 battery turned east spans x..x+1; facing north z..z+1.
-                    var rot = s.Height == 2 ? Rotation.North : Rotation.East;
-                    var site = new PlannedPowerSite { Cell = new Cell(s.X, s.Z), Rotation = rot, Area = s };
-                    if (i >= 2)
-                    {
-                        var prev = slots[i - 2];
-                        site = site with
-                        {
-                            Block = rot == Rotation.North
-                                ? new Rectangle { X = (s.X + prev.X) / 2, Z = s.Z, Width = 1, Height = s.Height }
-                                : new Rectangle { X = s.X, Z = (s.Z + prev.Z) / 2, Width = s.Width, Height = 1 },
-                        };
-                    }
-                    output.Add(site);
-                }
-            }
-        }
-        else if (definition == PowerRules.WindTurbineDefinition)
+        if (definition == PowerRules.WindTurbineDefinition)
         {
             foreach (var s in plan.LiveSites(LayoutPowerNodesRules.NodeTurbine))
             {

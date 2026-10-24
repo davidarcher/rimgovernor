@@ -205,7 +205,7 @@ public sealed partial class RoundsBuildingPlanner
 
     internal async Task<(IReadOnlyList<Preview> Previews, StockObservation Stock, Verdict Verdict)> PreviewPowerOrSearchAsync(GenerationSnapshot snapshot, ColonyProjection facts, IReadOnlyList<Cell> protectedCells, long missing, Action check, CancellationToken call)
     {
-        if (Power is not null && Power.Method is PowerMethod.Generate or PowerMethod.Store)
+        if (Power is not null && Power.Method is PowerMethod.Generate)
         {
             var (selected, stock, ok) = await PreviewPlannedPowerAsync(snapshot, facts, protectedCells, missing, check, call).ConfigureAwait(false);
             if (ok)
@@ -247,29 +247,13 @@ public sealed partial class RoundsBuildingPlanner
             }
         }
 
-        var roofed = new HashSet<Cell>();
-        foreach (var c in facts.Cells)
-        {
-            if (c.Roofed.TryGetValue(out var v) && v)
-            {
-                roofed.Add(c.Cell);
-            }
-        }
-
-        var wallStuff = "";
-        var style = RoundsTierStyle.ShellStyleOf(facts);
-        if (style != "")
-        {
-            wallStuff = style;
-        }
-
         var n = 0;
         var merged = 0;
 async 
-        Task<(Preview Preview, bool Ok)> PreviewOneAsync(string name, Cell c, Rotation rot, string stuff, Rectangle area)
+        Task<(Preview Preview, bool Ok)> PreviewOneAsync(Cell c, Rotation rot, Rectangle area)
         {
             check();
-            var b = new Building(name, c, rot, stuff);
+            var b = new Building(Definition, c, rot, Stuff);
             var a = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{n}"), b, ConstructionTierRules.PlannerTier(Concern, Phase));
             n++;
             var p = await Native.PreviewBuildingAsync(a, snapshot, ct).ConfigureAwait(false);
@@ -278,12 +262,12 @@ async
             var ck = v.CanPlace.TryGetValue(out var can);
             var sk = v.SafeToPlace.TryGetValue(out var safe);
             var mk = v.MadeFromStuff.TryGetValue(out var made);
-            if (!fk || !ck || !sk || !mk || !can || !safe || made != (stuff != "") || !RoundsBuildingPlanner.SameCells(footprint!, LayoutUtilityRules.RectangleCells(area)))
+            if (!fk || !ck || !sk || !mk || !can || !safe || made != (Stuff != "") || !RoundsBuildingPlanner.SameCells(footprint!, LayoutUtilityRules.RectangleCells(area)))
             {
                 return (default!, false);
             }
 
-            if (name == PowerRules.WindTurbineDefinition && (!v.WindBlockedCells.TryGetValue(out var w) || w > 0))
+            if (Definition == PowerRules.WindTurbineDefinition && (!v.WindBlockedCells.TryGetValue(out var w) || w > 0))
             {
                 return (default!, false);
             }
@@ -306,7 +290,7 @@ async
             var free = true;
             foreach (var c in cells)
             {
-                free = free && !blocked.Contains(c) && !built.Contains(c) && (Definition != PowerRules.BatteryDefinition || roofed.Contains(c));
+                free = free && !blocked.Contains(c) && !built.Contains(c);
             }
 
             if (!free)
@@ -314,7 +298,7 @@ async
                 continue;
             }
 
-            var (v, ok) = await PreviewOneAsync(Definition, s.Cell, s.Rotation, Stuff, s.Area).ConfigureAwait(false);
+            var (v, ok) = await PreviewOneAsync(s.Cell, s.Rotation, s.Area).ConfigureAwait(false);
             if (!ok)
             {
                 continue;
@@ -322,19 +306,6 @@ async
 
             selected.Add(v);
             placed++;
-            foreach (var c in LayoutUtilityRules.RectangleCells(s.Block))
-            {
-                if (built.Contains(c) || blocked.Contains(c))
-                {
-                    continue;
-                }
-
-                var (w, wok) = await PreviewOneAsync("Wall", c, Rotation.North, wallStuff, new Rectangle(c.X, c.Z, 1, 1)).ConfigureAwait(false);
-                if (wok)
-                {
-                    selected.Add(w);
-                }
-            }
         }
 
         if (placed < missing)

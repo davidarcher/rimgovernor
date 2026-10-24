@@ -517,7 +517,7 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   `LayoutPowerNodes.cs`); the sites land in the tiled plan and `PlannedPowerSites`,
   `TurbinePlacement` and `TurbineCatchZone` are the read API the power rounds use
   (`RoundsPower.cs`). A turbine is a 7x2 footprint with four turns and a wind lane; a geothermal
-  node is anchored on its enclosure; the battery room stays a planned room. The lane is
+  node is anchored on its enclosure. The lane is
   priced only as the game prices it (`windGround`; constants in
   `LayoutPowerNodesRules`, read from `CompPowerPlantWind`): a path cell that is off the map, under thick
   roof, in a fenced room or under another footprint removes 20% of the output
@@ -527,8 +527,8 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   **How many (#2999).** A first plan owes the sites its planned demand needs, not a number:
   `StationFacts.powerSites` adds turbines and solar plots one at a time, re-quoting each at its
   cheapest site, until `ComputePowerBudget(...).GenerationShortfallW <= 0` against the demand
-  (`Station.BaseW` over the groups, plus lamps from group area over the catalog lamp's reach) and
-  the planned battery room's storage. Turbines come first while their price per delivered watt is
+  (`Station.BaseW` over the groups, plus lamps from group area over the catalog lamp's reach); the
+  bank size does not enter the generation shortfall. Turbines come first while their price per delivered watt is
   least; solar fills the rest. Every site is priced in sustained watts (`SitePrice`): the output its
   lane loses, the conduit cells to the nearest room or footprint, the ring wall it adds, and the soil it
   covers (`unitsW`). There is no distance band. The generator, conduit and wall rows are
@@ -544,7 +544,7 @@ met. Each owed room's wave is its own Method, admitted beside the others by clai
   infestation cell by weighted random over every candidate, so a dark room does not steer
   it (#2944).
 
-**Room sizes and ground.** The room sizes are `RoomSizeTable`
+**Room sizes and ground.** The tomb and morgue sizes are `RoomSizeTable`
 (`LayoutTrips.cs`). The ground the embedder reads is `buildGround`
 (`LayoutBuildGround.cs`: the core and rock cells, the soil costs and the obstacle levels)
 and `LayoutSiteGround.cs` (the siting seeds), that `Embed` uses with `FieldGain`.

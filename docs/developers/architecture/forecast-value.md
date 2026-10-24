@@ -421,7 +421,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Battery` (#3814, at zero), `Pen` (#3812) and `DeathrestChamber` (#3810).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812) and `DeathrestChamber` (#3810).
 Each fueled source with a steady burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 whose native supply is `HeatSupply.Burning`, with its `Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no

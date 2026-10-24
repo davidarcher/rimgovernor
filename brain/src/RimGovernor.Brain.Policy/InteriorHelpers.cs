@@ -50,7 +50,7 @@ public static class InteriorHelpersRules
     }
 
     /// <summary>
-    /// The rows of a double-sided room (the battery room, the tomb): a piece on each side of a 1-cell aisle
+    /// The rows of a double-sided room (the tomb): a piece on each side of a 1-cell aisle
     /// straight in from the door, one every pitch cells of depth, nearest the door first.
     /// </summary>
     public static IReadOnlyList<int> AisleRows(int depth, int pitch)

@@ -259,7 +259,7 @@ BuildingRuntime/Rounds/RoundsPlannedSites.cs|Fact|5
 BuildingRuntime/Rounds/RoundsPlannedSites.cs|Unknown|5
 BuildingRuntime/Rounds/RoundsPlannedSites.cs|ValueOrDefault|1
 BuildingRuntime/Rounds/RoundsPlannedThermal.cs|Fact|5
-BuildingRuntime/Rounds/RoundsPower.cs|Fact|25
+BuildingRuntime/Rounds/RoundsPower.cs|Fact|24
 BuildingRuntime/Rounds/RoundsPowerDig.cs|Fact|4
 BuildingRuntime/Rounds/RoundsPrisoners.cs|Discard|1
 BuildingRuntime/Rounds/RoundsPrisoners.cs|Fact|5
@@ -949,7 +949,6 @@ Policy/LayoutDerive.cs|Unknown|1
 Policy/LayoutEmbed.cs|NullableValue|1
 Policy/LayoutFieldNodes.cs|Fact|6
 Policy/LayoutFieldReplan.cs|Fact|2
-Policy/LayoutGeometry.cs|Discard|1
 Policy/LayoutGraph.cs|Discard|2
 Policy/LayoutGraph.cs|Fact|2
 Policy/LayoutJoyNodes.cs|Fact|4

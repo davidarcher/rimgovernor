@@ -10,10 +10,10 @@ namespace RimGovernor.Brain.Policy;
 //
 // Topology: one net grows. The first power site is the root; every later site, then every consuming room,
 // routes from its own cells to the nearest cell of the net so far (the root's cells and every laid path), so
-// cells are shared and no star forms on any node, the battery room included.
+// cells are shared and no star forms on any node.
 /// <summary>
 /// Names one end of a link: "room:&lt;id&gt;" for a planned room or "site:&lt;node id&gt;" for a site: a stored
-/// turbine or solar plot by its node id, a geothermal enclosure or battery-room reservation by
+/// turbine or solar plot by its node id, a geothermal enclosure reservation by
 /// ReservationSiteID.
 /// </summary>
 public readonly record struct ConduitRef(string Value)
@@ -135,8 +135,8 @@ public static partial class LayoutConduitRules
     public const string ReasonConduitBlocked = "conduit_no_route";
     public const string ReasonConduitNoSource = "conduit_no_source";
 
-    /// <summary>The reservations that stand on the power net: the geothermal enclosures and the battery room. The turbines and solar plots are stored sites (PowerSiteNodes).</summary>
-    internal static readonly IReadOnlyList<ReservationKind> PowerSiteKinds = [ReservationKind.BatteryRoom, ReservationKind.Geothermal];
+    /// <summary>The reservations that stand on the power net: the geothermal enclosures. The turbines and solar plots are stored sites (PowerSiteNodes).</summary>
+    internal static readonly IReadOnlyList<ReservationKind> PowerSiteKinds = [ReservationKind.Geothermal];
 
     /// <summary>The ref of the site node with the given id.</summary>
     public static ConduitRef SiteRef(string node) => ConduitRef.ForSite(node);

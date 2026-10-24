@@ -22,14 +22,6 @@ public sealed record PowerModel
     internal bool Known() =>
         Wind.Known() && Solar.Known() && QuestCapacityForecast.FinitePositive(Conduit) && QuestCapacityForecast.FinitePositive(Wall)
         && QuestCapacityForecast.FinitePositive(Battery.CapacityWD) && QuestCapacityForecast.FinitePositive(Battery.Efficiency);
-
-    /// <summary>The storage of the planned battery room: its slots at the catalog battery's capacity.</summary>
-    internal double BatteryRoomCapacityWD()
-    {
-        var table = LayoutTripsRules.RoomSizes;
-        var room = new PlannedRoom { Role = LayoutUtilityRules.PlannedBattery, Region = RegionRules.RectRegion(new Rectangle { Width = table.Battery[0], Height = table.Battery[1] }), DoorRot = Rotation.South };
-        return PlannedRoom.BatterySlots(room).Count * Battery.CapacityWD;
-    }
 }
 
 /// <summary>
@@ -203,7 +195,7 @@ public static partial class LayoutPowerDeriveRules
         }
     }
 
-    /// <summary>The power budget of the demand against the sites placed so far: each turbine at the output its lane leaves, each solar plot by the day curve, and the planned battery room as the bank.</summary>
+    /// <summary>The power budget of the demand against the sites placed so far: each turbine at the output its lane leaves, each solar plot by the day curve. The count reads only its generation shortfall, which no bank size changes; the store method adds the batteries the storage needs.</summary>
     private static PowerBudget SiteBudget(this StationFacts f, SiteRun run, IReadOnlyList<SiteNode> nodes, double demand)
     {
         var p = f.Catalog.Power;
@@ -226,7 +218,7 @@ public static partial class LayoutPowerDeriveRules
                 producers.Add(new PowerProducer { NominalW = p.Solar.NominalW, Profile = p.Solar.Profile });
             }
         }
-        var input = new PowerBudgetInput { DemandW = demand, CapacityWD = p.BatteryRoomCapacityWD(), ChargeEfficiency = p.Battery.Efficiency, StorageMargin = PowerRules.DefaultPowerPlanning().StorageMargin, Producers = producers };
+        var input = new PowerBudgetInput { DemandW = demand, ChargeEfficiency = p.Battery.Efficiency, StorageMargin = PowerRules.DefaultPowerPlanning().StorageMargin, Producers = producers };
         return PowerRules.ComputePowerBudget(input);
     }
 }

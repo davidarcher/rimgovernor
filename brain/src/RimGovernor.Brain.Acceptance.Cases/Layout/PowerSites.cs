@@ -7,25 +7,23 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 
 /// <summary>
 /// <c>layout/power-sites</c> (#838): the footprint conventions <see cref="LayoutUtilityRules.PlannedPowerSites"/> assumes
-/// for battery and solar sites, against the cells RimWorld's placement_preview reports at the same centre and rotation.
+/// for solar sites, against the cells RimWorld's placement_preview reports at the same centre and rotation.
 /// The plan is not needed: only the def sizes and the game's rotation math decide the footprint, and only a live game
 /// has them.
 /// </summary>
 internal static class LayoutPowerSites
 {
     // Each planned convention: the def, its centre and rotation on the site, and the area the plan books for it.
-    // A battery facing north spans z..z+1, turned east x..x+1; a solar site's centre is its area's corner plus (1, 1).
+    // A solar site's centre is its area's corner plus (1, 1).
     private static readonly (string Def, Fx.StageCell Cell, Placement.Rotation Rotation, Fx.StageRect Area)[] Sites =
     [
-        (PowerRules.BatteryDefinition, new(2, 2), Placement.Rotation.North, new(2, 2, 1, 2)),
-        (PowerRules.BatteryDefinition, new(2, 6), Placement.Rotation.East, new(2, 6, 2, 1)),
         (LayoutUtilityRules.SolarDefinition, new(7, 3), Placement.Rotation.North, new(6, 2, 4, 4)),
     ];
 
     internal static TypedCase Case() => new()
     {
         Name = "layout/power-sites",
-        Scope = "placement_preview of a Battery facing north and turned east and a SolarGenerator facing north on a staged "
+        Scope = "placement_preview of a SolarGenerator facing north on a staged "
             + "clear site: each native footprint is exactly the area PlannedPowerSites books for that centre and rotation "
             + "(#838). Read-only.",
         Ticks = 0,

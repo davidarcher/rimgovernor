@@ -121,7 +121,7 @@ public static partial class LayoutPowerNodesRules
 
     /// <summary>
     /// The placed turbines and solar plots as the plan's stored sites, in node order. A geothermal enclosure is
-    /// anchored on the reservation the plan already holds and a battery room is a room, so neither is stored again; a
+    /// anchored on the reservation the plan already holds, so it is not stored again; a
     /// node that found no ground (no placement) is left out.
     /// </summary>
     public static List<PlannedSite> PowerSitesOf(IEnumerable<SiteNode> nodes, SiteEmbedding placed)

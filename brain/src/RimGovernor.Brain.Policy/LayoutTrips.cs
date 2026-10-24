@@ -68,11 +68,7 @@ public static partial class LayoutTripsRules
     {
         Tomb = [5, 5],
         Morgue = [5, 4],
-        Battery = [5, 7],
     };
-
-    /// <summary>The interior (width, depth) of the rooms whose size the tiler does not derive from a station set.</summary>
-    public static RoomSizeTable RoomSizes => RoomSizeTableValue;
 
     /// <summary>The role's interior from the room size table; {0, 0} for a role the table does not size.</summary>
     internal static int[] RoomSize(PlannedRole role)
@@ -85,10 +81,6 @@ public static partial class LayoutTripsRules
         if (role == LayoutSurveyRules.PlannedMorgue)
         {
             return t.Morgue;
-        }
-        if (role == LayoutUtilityRules.PlannedBattery)
-        {
-            return t.Battery;
         }
         return [0, 0];
     }
@@ -115,7 +107,6 @@ public sealed record RoomSizeTable
 {
     public int[] Tomb { get; init; } = [0, 0];
     public int[] Morgue { get; init; } = [0, 0];
-    public int[] Battery { get; init; } = [0, 0];
 }
 
 /// <summary>

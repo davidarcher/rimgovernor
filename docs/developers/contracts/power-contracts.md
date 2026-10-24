@@ -90,9 +90,9 @@ check on the model: a consumer that actually loses power is a deficit whatever t
   - No available generator reports `no_affordable_generator`, or the research gate that would make one
     available (the research ladder places `GeothermalPower` after `Batteries`).
 - **`store`:** one `Battery` on a roofed cell within six cells of the draining consumer (an unroofed
-  battery short-circuits in rain or snow). `PlannedPowerSites(Battery)` lists the battery room's slots.
-  Since every battery is roofed with or without that room, the room's planned-room credit is zero
-  (`ForecastBattery.BatteryCredit`, #3814): its fire containment is fire harm, not modelled yet.
+  battery short-circuits in rain or snow): the placement search keeps only roofed cells. The layout plans
+  no battery room and no battery site (#3814): an enclosing room changes no rain exposure, and the fire it
+  would contain is fire harm, not modelled yet.
 - **`shelter_power`:** a bounded enclosure around exposed vulnerable equipment; recovery requires the
   observed roof. See [electrical safety](../architecture/facilities.md#electrical-safety).
 
@@ -109,14 +109,13 @@ what budget, and the `connect` contract above is unchanged. No action kind carri
 
 - **Refs.** `From`/`To` are tagged: `room:<id>` for a planned room, `site:<node id>` for a site: a
   turbine or solar plot site node (`NodeTurbine`, `NodeSolar`) by its node id, or a
-  `battery_room` or `geothermal` reservation, named `<kind>-<index in Reservations>`
+  `geothermal` reservation, named `<kind>-<index in Reservations>`
   (`ReservationSiteID`).
 - **Consumers.** Planned rooms holding a station whose def draws power (`Station.BaseW < 0`, read from the
   power comp into the station catalog); the cells are those stations' footprints, else the whole room.
   There is no role table.
 - **Topology.** One net grows. The first power site is the root; each later site, then each consumer, routes
-  from its own cells to the nearest cell of the net so far, cells shared. No star forms on any node, the
-  battery room included. A node that cannot reach the net gets a `conduit_no_route` decision and no link;
+  from its own cells to the nearest cell of the net so far, cells shared. No star forms on any node. A node that cannot reach the net gets a `conduit_no_route` decision and no link;
   with no power site every consumer gets `conduit_no_source`; a routed link is `conduit_routed`
   (`TileResult.ConduitDecisions`, journalled as `layout_conduit` on a derive and on a replan).
 - **Replan (#2966).** A replan routes against the links the colony holds (`TileInput.Conduits`): a node

@@ -63,9 +63,6 @@ public enum PlannedRole
     [WireName("suite")]
     Suite,
 
-    [WireName("battery")]
-    Battery,
-
     [WireName("yard")]
     Yard,
 
@@ -213,9 +210,6 @@ public enum ReservationKind
 {
     [WireName("")]
     None,
-
-    [WireName("battery_room")]
-    BatteryRoom,
 
     [WireName("geothermal")]
     Geothermal,

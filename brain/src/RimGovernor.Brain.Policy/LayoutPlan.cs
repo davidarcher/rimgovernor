@@ -544,7 +544,6 @@ public static partial class LayoutPlanRules
     public static ZoneKind ZoneWood => ZoneKind.Wood;
     public static ZoneKind ZoneNoGo => ZoneKind.NoGo;
 
-    public static ReservationKind ReserveBatteryRoom => ReservationKind.BatteryRoom;
     public static ReservationKind ReserveGeothermal => ReservationKind.Geothermal;
 
     /// <summary>The bounding rectangle of the non-empty rects; null when there are none.</summary>

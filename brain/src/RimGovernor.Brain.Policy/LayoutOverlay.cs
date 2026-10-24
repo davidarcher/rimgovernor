@@ -88,7 +88,6 @@ public static partial class LayoutOverlayRules
             [LayoutSurveyRules.PlannedDining] = St(PlanAmber, "dining"),
             [LayoutSurveyRules.PlannedRec] = St(PlanPink, "rec room"),
             [LayoutSurveyRules.PlannedLab] = St(PlanViolet, "research"),
-            [LayoutUtilityRules.PlannedBattery] = St(PlanCyan, "battery room"),
             [LayoutSurveyRules.PlannedHospital] = St(PlanWhite, "hospital"),
             [LayoutSurveyRules.PlannedPrison] = St(PlanDarkPurple, "jail"),
             [LayoutSurveyRules.PlannedKitchen] = St(PlanYellow, "kitchen"),
@@ -117,7 +116,6 @@ public static partial class LayoutOverlayRules
 
         public static readonly Dictionary<ReservationKind, OverlayStyleOf> Reservation = new()
         {
-            [LayoutPlanRules.ReserveBatteryRoom] = St(PlanCyan, "battery room"),
             [LayoutPlanRules.ReserveGeothermal] = St(PlanCyan, "geothermal"),
         };
 
