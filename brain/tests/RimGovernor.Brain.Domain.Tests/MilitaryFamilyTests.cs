@@ -110,7 +110,7 @@ public sealed class MilitaryFamilyTests
     public void EquipmentIsUnmetByAShellShortageAndOtherwiseUnknownWithoutTheGearReview()
     {
         Assert.Equal("gear review", Assert.Throws<RequiredFactException>(() => Derive(new MilitaryFacts(), MilitaryFamily.Equipment)).Fact);
-        Assert.Equal("gear review", Assert.Throws<RequiredFactException>(() => Derive(new MilitaryFacts { Gear = Known(new GearObservation()) }, MilitaryFamily.Equipment)).Fact);
+        Assert.Equal("gear review", Assert.Throws<RequiredFactException>(() => Derive(new MilitaryFacts { Gear = Known(ColonyModelFixtures.NoGear()) }, MilitaryFamily.Equipment)).Fact);
 
         var shells = Derive(new MilitaryFacts { ShellsShort = Known(true) }, MilitaryFamily.Equipment);
         Assert.Equal((Satisfaction.Unmet, 1.0), (shells.Satisfaction, shells.Deficit.Value));
@@ -122,7 +122,7 @@ public sealed class MilitaryFamilyTests
     public void EquipmentProposesNothingWithoutAGearCensus()
     {
         Assert.Empty(MilitaryFamily.EquipmentMethods(default));
-        Assert.Empty(MilitaryFamily.EquipmentMethods(Known(new GearObservation())));
+        Assert.Empty(MilitaryFamily.EquipmentMethods(Known(ColonyModelFixtures.NoGear())));
     }
 
     private static DomainAction Dress(string id, string pawn, string def = "Apparel_Parka") =>

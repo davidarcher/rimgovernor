@@ -99,7 +99,7 @@ public sealed class ColonyFactsCoreTests
     [Fact]
     public void PlanningReadHandsPlannerItsFacts()
     {
-        var planning = new PlanningFacts { Crops = [new EdibleCrop { DefName = "Plant_Rice" }] };
+        var planning = new PlanningFacts { Gear = GearFixtures.NoSnapshot, Crops = [new EdibleCrop { DefName = "Plant_Rice" }] };
         var facts = Snapshot() with { Planning = new Planning.Requested(planning) };
         Assert.Same(planning, PlanningWindowReads.RequirePlanning(facts));
     }
@@ -112,7 +112,7 @@ public sealed class ColonyFactsCoreTests
             Snapshot(),
             Snapshot() with
             {
-                Planning = new Planning.Requested(new PlanningFacts { Crops = [new EdibleCrop { DefName = "Plant_Rice" }] }),
+                Planning = new Planning.Requested(new PlanningFacts { Gear = GearFixtures.NoSnapshot, Crops = [new EdibleCrop { DefName = "Plant_Rice" }] }),
                 SleepingTemperature = new SleepingTemperature.Indoor(12.5, 21),
                 PendingFoodNutrition = 3.5,
                 PendingHunts = 2,

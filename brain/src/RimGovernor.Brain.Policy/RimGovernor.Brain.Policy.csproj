@@ -35,5 +35,8 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations.PawnPolicyInputs" Alias="PawnPolicyInputs" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.PawnIdeo" Alias="PawnIdeo" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.GuestState" Alias="GuestState" />
+    <!-- The gear census's climate and option source (#3777). -->
+    <Using Include="RimGovernor.Contracts.Wire.Observations.GearClimate" Alias="GearClimate" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.GearSource" Alias="GearSource" />
   </ItemGroup>
 </Project>

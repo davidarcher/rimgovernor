@@ -24,12 +24,12 @@ public static class GearSurplusRules
     /// <summary>
     /// The serviceable stored apparel above demand. Demand is the gear planners' own: the stored garments the
     /// loadout model assigns to a gap, the replacements the census still asks for (best quality first) and the
-    /// spare the clothing runway keeps for the worn garments about to wear out. Known is false while the census,
-    /// the storage rows or any replacement is unread, or the loadout model refuses a pawn: nothing is then surplus.
+    /// spare the clothing runway keeps for the worn garments about to wear out. Known is false while the census
+    /// or any replacement is unread, or the loadout model refuses a pawn: nothing is then surplus.
     /// </summary>
     public static (IReadOnlyList<GearStock> Rows, bool Known) ApparelSurplus(ClothingDemandInput input)
     {
-        if (!input.Gear.TryGetValue(out var gear) || !gear.Stored.TryGetValue(out var stored))
+        if (!input.Gear.TryGetValue(out var gear))
         {
             return ([], false);
         }
@@ -42,7 +42,7 @@ public static class GearSurplusRules
         {
             return ([], false);
         }
-        var left = GearStockRules.UnassignedGearStock(stored, review.Loadouts).Where(s => s.Serviceable() && s.Count > 0).ToList();
+        var left = GearStockRules.UnassignedGearStock(gear.Stored, review.Loadouts).Where(s => s.Serviceable() && s.Count > 0).ToList();
         // The best of a kind is claimed first, so the cheapest is what remains.
         left = left
             .OrderBy(s => s.Definition.Value, StringComparer.Ordinal)

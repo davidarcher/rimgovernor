@@ -874,35 +874,52 @@ public sealed record SurgeryOperation
 }
 
 /// <summary>
-/// One equipped, worn or stocked item. Stuff, quality and the hit points are absent when the def has none.
+/// An item's quality: <see cref="Graded"/> at its QualityCategory (TryGetQuality), or <see cref="Qualityless"/> for a def
+/// without CompQuality, which counts toward no royal title's minimum apparel quality (#3841).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ItemQuality.Graded), "graded")]
+[JsonDerivedType(typeof(ItemQuality.Qualityless), "qualityless")]
+public abstract record ItemQuality
+{
+    private protected ItemQuality() { }
+
+    public sealed record Graded(Defs.QualityCategory Category) : ItemQuality;
+
+    public sealed record Qualityless : ItemQuality;
+}
+
+/// <summary>
+/// One equipped, worn or stocked item. Its condition is its hit points over their maximum, 1 for a def without hit
+/// points (nothing wears it down).
 /// </summary>
 public sealed record GearItem
 {
-    public Common.Ref Thing { get; init; } = new();
+    public required Common.Ref Thing { get; init; }
 
-    public Defs.QualityCategory? Quality { get; init; }
+    public required ItemQuality Quality { get; init; }
 
-    public double? ConditionFraction { get; init; }
+    public required double ConditionFraction { get; init; }
 
     /// <summary>
     /// Worn apparel the outfit cannot drop automatically (the forced handler's own test); false for other gear.
     /// </summary>
-    public bool Forced { get; init; }
+    public required bool Forced { get; init; }
 
     /// <summary>
     /// Worn apparel the player locked; false for other gear.
     /// </summary>
-    public bool Locked { get; init; }
+    public required bool Locked { get; init; }
 
     /// <summary>
     /// Native pawn ID, only when the coded owner still exists.
     /// </summary>
-    public string? BiocodedTo { get; init; }
+    public required string? BiocodedTo { get; init; }
 
     /// <summary>
     /// True also when the coded owner reference was lost.
     /// </summary>
-    public bool Biocoded { get; init; }
+    public required bool Biocoded { get; init; }
 }
 
 /// <summary>
@@ -914,15 +931,15 @@ public sealed record PawnEquipment
     /// <summary>
     /// The equipped primary's load id; absent when the pawn is unarmed.
     /// </summary>
-    public string? PrimaryId { get; init; }
+    public required string? PrimaryId { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearItem>))]
-    public EquatableArray<GearItem> Equipped { get; init; }
+    public required EquatableArray<GearItem> Equipped { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearItem>))]
-    public EquatableArray<GearItem> Apparel { get; init; }
+    public required EquatableArray<GearItem> Apparel { get; init; }
 
-    public bool Armed { get; init; }
+    public required bool Armed { get; init; }
 
     /// <summary>
     /// Defense capacity: the primary ranged verb's damage per second
@@ -940,7 +957,7 @@ public sealed record PawnEquipment
     /// (<c>ShootingAccuracyPawn.noSkillOffset</c>, a level-8 shooter) with a normal assault rifle. 0 without a ranged
     /// primary.
     /// </summary>
-    public double RangedHitFactor { get; init; }
+    public required double RangedHitFactor { get; init; }
 
     public double? MeleeDps { get; init; }
 }
@@ -4258,80 +4275,102 @@ public abstract record RecipesReplyOutcome
     public static implicit operator RecipesReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
+/// <summary>One loose garment a pawn could wear: the item and the game's apparel score gain over what it wears now.</summary>
 public sealed record GearCandidate
 {
-    public GearItem? Item { get; init; }
+    public required GearItem Item { get; init; }
 
-    public double? Gain { get; init; }
+    public required double Gain { get; init; }
 }
 
 /// <summary>
-/// candidates are every eligible loose item, best gain first (then thing id).
-/// The pawn's wear inputs (gender, developmental_stage, body_part_groups) are
-/// what the definition catalog's apparel rows cannot say: the brain applies the wear
-/// filter (gender, stage, body part groups) from those rows. developmental_stage
-/// is the pawn's single DevelopmentalStage (the apparel filter's flag bit);
-/// body_part_groups are the BodyPartGroupDef names for which the pawn has a
-/// part that is not missing.
+/// One free colonist's loadout read. Token is the loadout's CAS token (the pawn, its outfit and its worn apparel's
+/// forced and locked state). Candidates are every eligible loose item, best gain first (then thing id); a pawn that
+/// cannot change apparel now (<see cref="Blocked"/>: unavailable, drafted, without manipulation or an outfit) has none.
+/// The pawn's wear inputs (gender, developmental stage, body part groups) are what the definition catalog's apparel
+/// rows cannot say: the brain applies the wear filter from those rows. The developmental stage is the pawn's single
+/// DevelopmentalStage (the apparel filter's flag bit); body part groups are the BodyPartGroupDef names for which the
+/// pawn has a part that is not missing. A pawn without an outfit tracker has no <see cref="ApparelPolicy"/>.
 /// </summary>
 public sealed record GearLoadout
 {
-    public SnapshotRef? Snapshot { get; init; }
+    public required string Token { get; init; }
 
-    public Common.Ref? Pawn { get; init; }
+    public required PawnId Pawn { get; init; }
 
-    public PawnEquipment? Equipment { get; init; }
+    public required PawnEquipment Equipment { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearCandidate>))]
-    public EquatableArray<GearCandidate> Candidates { get; init; }
+    public required EquatableArray<GearCandidate> Candidates { get; init; }
 
-    public double? ComfortableMinC { get; init; }
+    public required double ComfortableMinC { get; init; }
 
-    public double? ComfortableMaxC { get; init; }
+    public required double ComfortableMaxC { get; init; }
 
-    public string? Blocker { get; init; }
+    public required bool Blocked { get; init; }
 
-    public ApparelPolicyState? ApparelPolicy { get; init; }
+    public required ApparelPolicyState? ApparelPolicy { get; init; }
 
-    public GearLoadoutModel? LoadoutModel { get; init; }
+    public required GearLoadoutModel LoadoutModel { get; init; }
 
-    public Defs.Gender? Gender { get; init; }
+    public required Defs.Gender Gender { get; init; }
 
-    public Defs.DevelopmentalStage? DevelopmentalStage { get; init; }
+    public required Defs.DevelopmentalStage DevelopmentalStage { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> BodyPartGroups { get; init; }
+    public required EquatableArray<string> BodyPartGroups { get; init; }
 }
 
 /// <summary>
-/// One apparel option the loadout model may choose. Layers, body part
-/// groups and the def x stuff stats come from the catalog (def rows and stat
-/// table); the option carries the instance: id is the thing id for
-/// worn/loose/stored items, bill:&lt;def&gt;/&lt;stuff&gt; for a producible definition.
-/// source is worn, loose, stored or bill. A bill option's recipe research and
-/// ingredients and the def's smoke-pop verb are brain rules over the catalog rows.
+/// Where a loadout option comes from: worn now, loose on the map, in valid storage, or a bill to make it. The declaration
+/// order is the planner's tie-break rank (worn first).
+/// </summary>
+[JsonConverter(typeof(WireEnumConverter<GearSource>))]
+public enum GearSource
+{
+    [WireName("worn")]
+    Worn,
+
+    [WireName("loose")]
+    Loose,
+
+    [WireName("stored")]
+    Stored,
+
+    [WireName("bill")]
+    Bill,
+}
+
+/// <summary>
+/// One apparel option the loadout model may choose. Layers, body part groups and the def x stuff stats come from the
+/// catalog (def rows and stat table); the option carries the instance: the id is the thing id for worn, loose and stored
+/// items, bill:&lt;def&gt;/&lt;stuff&gt; for a producible definition. Stuff is absent for a def not made from stuff. A
+/// bill option's recipe research and ingredients and the def's smoke-pop verb are brain rules over the catalog rows.
 /// </summary>
 public sealed record GearLoadoutOption
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public string? Stuff { get; init; }
+    public required string? Stuff { get; init; }
 
     /// <summary>
-    /// The item's QualityCategory (TryGetQuality), a bill's Normal (its crafted quality is its <see cref="Crafters"/>'); absent
-    /// for apparel without quality (the def has no CompQuality), which counts toward no royal title's minimum apparel quality (#3841).
+    /// The item's quality; a bill's is Normal, its crafted quality being its <see cref="Crafters"/>' (a qualityless def's
+    /// bill is qualityless).
     /// </summary>
-    public int? Quality { get; init; }
+    public required ItemQuality Quality { get; init; }
 
-    public string? Source { get; init; }
+    public required GearSource Source { get; init; }
 
-    public double? Condition { get; init; }
+    /// <summary>The item's hit points over their maximum, at most 1; 1 for a bill and for a def without hit points.</summary>
+    public required double Condition { get; init; }
 
-    public bool? Tainted { get; init; }
+    /// <summary>Worn by a corpse once; false for a bill.</summary>
+    public required bool Tainted { get; init; }
 
-    public bool? Locked { get; init; }
+    /// <summary>A worn garment the pawn cannot drop (locked, or forced by its outfit); false for every unworn option.</summary>
+    public required bool Locked { get; init; }
 
     /// <summary>
     /// A bill option's crafters (#3850): the distinct facts <c>QualityUtility.GenerateQualityCreatedByPawn</c> reads of each
@@ -4340,7 +4379,7 @@ public sealed record GearLoadoutOption
     /// whose crafter sets nothing.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearCrafter>))]
-    public EquatableArray<GearCrafter> Crafters { get; init; }
+    public required EquatableArray<GearCrafter> Crafters { get; init; }
 }
 
 /// <summary>
@@ -4350,56 +4389,57 @@ public sealed record GearLoadoutOption
 public sealed record GearCrafter(int Skill, bool Inspired, int QualityOffset);
 
 /// <summary>
-/// The loadout model's per-pawn inputs: present only when the producer read the
-/// whole catalog. worn is every worn garment; options are the eligible loose or
-/// stored candidates (best native gain first) and the producible definitions
-/// whose recipe research is finished, one stuff each, at most 64 in total.
+/// The loadout model's per-pawn inputs. Worn is every worn garment; options are the eligible loose or stored candidates
+/// (best native gain first) and the producible definitions whose recipe research is finished, one per allowed stuff.
 /// </summary>
 public sealed record GearLoadoutModel
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<Trait>))]
-    public EquatableArray<Trait> Traits { get; init; }
+    public required EquatableArray<Trait> Traits { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearLoadoutOption>))]
-    public EquatableArray<GearLoadoutOption> Worn { get; init; }
+    public required EquatableArray<GearLoadoutOption> Worn { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearLoadoutOption>))]
-    public EquatableArray<GearLoadoutOption> Options { get; init; }
+    public required EquatableArray<GearLoadoutOption> Options { get; init; }
 }
 
 /// <summary>
-/// Temperatures are indexed by native Twelfth (0..11), in degrees Celsius.
-/// Absent climate fields retain ambient-only planning for older producers.
+/// The gear census: every free colonist's loadout, the map's seasonal climate, the stored apparel and the locked bills
+/// (one row per apparel def whose recipe, the first by defName that makes it, is not available now, so no pawn's bill
+/// options list it: who could craft it once it is, #3850).
 /// </summary>
 public sealed record GearSnapshot
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearLoadout>))]
-    public EquatableArray<GearLoadout> Pawns { get; init; }
+    public required EquatableArray<GearLoadout> Pawns { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<float>))]
-    public EquatableArray<float> OutdoorTemperatureByTwelfthC { get; init; }
+    public required GearClimate Climate { get; init; }
 
-    /// <summary>
-    /// Hours of daylight (<c>GenCelestial.IsDaytime</c> at the tile) on the sampled day of each twelfth, indexed like
-    /// <see cref="OutdoorTemperatureByTwelfthC"/>; empty when unread.
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<float>))]
-    public EquatableArray<float> DaylightHoursByTwelfth { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<GearStock>))]
+    public required EquatableArray<GearStock> StoredApparel { get; init; }
 
-    public uint? CurrentTwelfth { get; init; }
-
-    public int? TicksToNextTwelfth { get; init; }
-
-    public GearWeatherCondition? ActiveWeather { get; init; }
-
-    public GearStorage? StoredApparel { get; init; }
-
-    /// <summary>
-    /// One row per apparel def whose recipe (the first by defName that makes it) is not available now, so no pawn's bill
-    /// options list it: who could craft it once it is (#3850).
-    /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearLockedBill>))]
-    public EquatableArray<GearLockedBill> LockedBills { get; init; }
+    public required EquatableArray<GearLockedBill> LockedBills { get; init; }
+}
+
+/// <summary>
+/// The map's seasonal climate the gear planner dresses for: the outdoor temperature from season at the middle of each
+/// local twelfth (0..11, degrees Celsius, without weather or indoor heating), the hours of daylight
+/// (<c>GenCelestial.IsDaytime</c> at the tile) on the same sampled days, the current local twelfth and the ticks to the
+/// next, and the strongest temperature condition affecting the map, absent when none is.
+/// </summary>
+public sealed record GearClimate
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<double>))]
+    public required EquatableArray<double> Temperatures { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<double>))]
+    public required EquatableArray<double> DaylightHours { get; init; }
+
+    public required int CurrentTwelfth { get; init; }
+
+    public required long TicksToNextTwelfth { get; init; }
 }
 
 /// <summary>
@@ -4409,53 +4449,30 @@ public sealed record GearSnapshot
 /// </summary>
 public sealed record GearLockedBill
 {
-    public string DefName { get; init; } = "";
+    public required string DefName { get; init; }
 
-    public bool Craftable { get; init; }
+    public required bool Craftable { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<GearCrafter>))]
-    public EquatableArray<GearCrafter> Crafters { get; init; }
+    public required EquatableArray<GearCrafter> Crafters { get; init; }
 }
 
 /// <summary>
-/// Aggregate only usable, untainted, unforbidden apparel in valid storage.
-/// hp_band is floor(condition * 10), clamped to 0..9; band 5 is &gt;50%.
+/// Stored apparel of one (def, stuff, quality, hit-point band), aggregated over usable, untainted, unforbidden apparel in
+/// valid storage over half its hit points. The band is floor(condition x 10), at most 9 (9 for a def without hit points).
+/// Stuff is absent for a def not made from stuff.
 /// </summary>
 public sealed record GearStock
 {
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public string? Stuff { get; init; }
+    public required string? Stuff { get; init; }
 
-    public int? Quality { get; init; }
+    public required ItemQuality Quality { get; init; }
 
-    public int? HpBand { get; init; }
+    public required int HpBand { get; init; }
 
-    public int? Count { get; init; }
-}
-
-public sealed record GearStorage
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<GearStock>))]
-    public EquatableArray<GearStock> Rows { get; init; }
-}
-
-public sealed record GearWeatherCondition
-{
-    /// <summary>
-    /// ColdSnap or HeatWave
-    /// </summary>
-    public string? DefName { get; init; }
-
-    /// <summary>
-    /// -1 denotes permanent
-    /// </summary>
-    public long? RemainingTicks { get; init; }
-
-    /// <summary>
-    /// Native condition offset, not ambient.
-    /// </summary>
-    public float? TemperatureOffsetC { get; init; }
+    public required int Count { get; init; }
 }
 
 /// <summary>
@@ -5456,7 +5473,7 @@ public sealed record EdibleCrop
 /// </summary>
 public sealed record PlanningFacts
 {
-    public GearSnapshot? Gear { get; init; }
+    public required GearSnapshot Gear { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }

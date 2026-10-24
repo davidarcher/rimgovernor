@@ -552,10 +552,9 @@ Kept, reason recorded:
 | GearLoadout | message | 1232 | 12 | state | Pawn equipment, gear candidates and wear inputs |  |  |
 | GearLoadoutOption | message | 1240 | 11 | mixed | Apparel option for the loadout model | research;ingredients;smokepop | RecipeDef.researchPrerequisite(s); RecipeDef.ingredients + ThingDef.costList/costStuffCount; smokepop = ThingDef verbs (VerbProperties) not in defs yet |
 | GearLoadoutModel | message | 1251 | 3 | code | Loadout model inputs: traits, worn, options |  |  |
-| GearSnapshot | message | 1254 | 7 | state | Gear per pawn, climate by twelfth, active weather, stored apparel |  |  |
+| GearSnapshot | message | 1254 | 4 | state | Gear per pawn, seasonal climate, stored apparel, locked bills |  |  |
 | GearStock | message | 1265 | 5 | state | Aggregated stored apparel row |  |  |
-| GearStorage | message | 1266 | 1 | state | Stored apparel aggregate |  |  |
-| GearWeatherCondition | message | 1267 | 3 | state | Active cold snap or heat wave |  |  |
+| GearClimate | message | 1266 | 4 | state | Outdoor temperature and daylight by twelfth, current twelfth |  |  |
 | GearRequest | message | 1272 | 2 | state | Read request parameters |  |  |
 | GearReply | message | 1273 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | Trader | message | 1274 | 10 | state | Trader row |  |  |

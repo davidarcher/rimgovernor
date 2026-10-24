@@ -31,6 +31,9 @@ internal static class ColonyModelFixtures
         DaylightHours = EquatableArray.From(new[] { 9.0, 10, 11.5, 13, 14.5, 15.5, 15, 14, 12.5, 11, 9.5, 8.5 }),
     };
 
+    /// <summary>A gear census of no colonist under the fixture climate.</summary>
+    internal static GearObservation NoGear() => new() { Climate = Climate() };
+
     internal static PlanningDefinition CropRow() => new()
     {
         Name = Crop,
@@ -58,7 +61,7 @@ internal static class ColonyModelFixtures
         Facts = new RoundsFacts
         {
             ResourceThings = Known<EquatableArray<string>>(["m1"]),
-            Gear = Known(new GearObservation { Pawns = [new GearPawn { Climate = Climate() }] }),
+            Gear = Known(NoGear() with { Pawns = [new GearPawn()] }),
             Calendar = Known(new Calendar { GrowingYear = EquatableArray.From(Enumerable.Repeat(true, CalendarRules.YearDays)), Season = "Spring", DayOfYear = 12, GrowingDays = 40, GrowingDaysRemaining = 25, GrowingDaysUntil = 0, NonGrowingDays = 0 }),
             Research = Known(new ResearchFacts
             {

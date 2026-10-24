@@ -46,10 +46,10 @@ public sealed class EffectSourceCandidatesTests
     };
 
     /// <summary>The gear census of one pawn, as the rounds read it.</summary>
-    internal static GearObservation Census(EffectSourcePawn pawn) => new()
+    internal static GearObservation Census(EffectSourcePawn pawn) => ColonyModelFixtures.NoGear() with
     {
-        Stored = Known<EquatableArray<GearStock>>([]),
-        Pawns = [new GearPawn { Pawn = new(pawn.Pawn), LoadoutModel = Known(pawn.Gear), Candidates = Known<EquatableArray<GearCandidate>>([]) }],
+        Stored = [],
+        Pawns = [new GearPawn { Pawn = new(pawn.Pawn), LoadoutModel = Known(pawn.Gear), Candidates = [] }],
     };
 
     internal static EffectSourceFacts Facts(int budget = 32, params EffectSourcePawn[] pawns) =>
@@ -162,7 +162,7 @@ public sealed class EffectSourceCandidatesTests
     {
         var model = Pawn().Gear;
         model = model with { Role = model.Role with { Work = model.Role.Work with { Traits = Known<EquatableArray<PawnTrait>>([new() { Name = "Kind" }]) } } };
-        var gear = new GearObservation { Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = Known(model) }, new GearPawn { Pawn = new("blocked"), Blocked = true }] };
+        var gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = Known(model) }, new GearPawn { Pawn = new("blocked"), Blocked = true }] };
         var care = new CarePawn { Id = new("pawn"), Conditions = Known<EquatableArray<CareCondition>>([new() { DefName = Known("Flu") }]) };
 
         var facts = EffectSourcesRules.EffectSourceFactsOf(gear, Known<EquatableArray<CarePawn>>([care]));
@@ -187,7 +187,7 @@ public sealed class EffectSourceCandidatesTests
             Current = new(new("pawn"), "t", "pawn", ["Apparel_pants", "Apparel_parka", "Apparel_shirt"], .51, 1, 2, 6),
             ExcludesTainted = true,
         };
-        var pawn = new GearPawn { Pawn = new("pawn"), Policy = Known(state), LoadoutModel = Known(model) };
+        var pawn = new GearPawn { Pawn = new("pawn"), Policy = state, LoadoutModel = Known(model) };
 
         Assert.False(ApparelPolicyRules.DesiredApparelPolicy(pawn, out _));
         Assert.DoesNotContain(GearLoadoutRules.PlanColonyGear([pawn])[0].Target, o => o.ID == "parka");
@@ -203,10 +203,10 @@ public sealed class EffectSourceCandidatesTests
     public void AnAllowedPawnInATaintedParkaGetsNoReplacementBillDemandAndNoOrder()
     {
         var model = Pawn().Gear with { Options = [Garment("new-parka", GearSlot.Outer, "Shell", "Torso", 30, source: GearSource.Bill)] };
-        var gear = new GearObservation
+        var gear = ColonyModelFixtures.NoGear() with
         {
-            Stored = Known<EquatableArray<GearStock>>([]),
-            Pawns = [new GearPawn { Pawn = new("pawn"), Loadout = "worker", LoadoutModel = Known(model), Candidates = Known<EquatableArray<GearCandidate>>([]) }],
+            Stored = [],
+            Pawns = [new GearPawn { Pawn = new("pawn"), Loadout = "worker", LoadoutModel = Known(model), Candidates = [] }],
         };
         var facts = new RoundsFacts { Gear = Known(gear) };
 

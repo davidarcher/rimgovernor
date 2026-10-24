@@ -29,11 +29,11 @@ public sealed class ClothingChoiceTests
         Cost = 20,
         Sharp = 0.2
     };
-    private static GearObservation Census(double ambient = 20, params GearOption[] options) => new()
+    private static GearObservation Census(double ambient = 20, params GearOption[] options) => ColonyModelFixtures.NoGear() with
     {
-        Stored = Known(default(EquatableArray<GearStock>)),
+        Stored = [],
         Pawns = [new() { Pawn = new("wearer"), Loadout = "load",
-        Candidates = Known(default(EquatableArray<GearCandidate>)), Apparel = Known(default(EquatableArray<GearApparel>)),
+        Candidates = [], Apparel = [],
         LoadoutModel = Known(new GearLoadoutInput { Ambient = ambient, ComfortableMin = 10, ComfortableMax = 30, Worn = [Tattered],
             Options = options.Length == 0 ? [Garment("Shirt", "Cloth"), Garment("Shirt", "Wool", 15)] : EquatableArray.From(options) }) }]
     };
@@ -195,12 +195,11 @@ public sealed class ClothingChoiceTests
     }
 
     [Fact]
-    public void UnknownStockHidesRequirementsAndPhysicalReplacementsCompeteWithCrafting()
+    public void PhysicalReplacementsCompeteWithCrafting()
     {
         var census = Census();
-        Assert.Empty(ClothingActivitiesRules.ClothingActivityRequirements(census with { Stored = default }));
         // #3621: a physical replacement no longer withholds the craft; the comparison weighs the swap against it.
-        var physical = census with { Pawns = [census.Pawns[0] with { Candidates = Known<EquatableArray<GearCandidate>>([new("stored-shirt", 1, new("Shirt"))]) }] };
+        var physical = census with { Pawns = [census.Pawns[0] with { Candidates = [new("stored-shirt", 1, new("Shirt"))] }] };
         Assert.Equal(ClothingActivitiesRules.ClothingActivityRequirements(census), ClothingActivitiesRules.ClothingActivityRequirements(physical));
         Assert.NotEmpty(ClothingActivitiesRules.ClothingActivityRequirements(physical));
     }

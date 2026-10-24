@@ -79,11 +79,7 @@ public static partial class PopulationRules
         }
         foreach (var p in g.Pawns)
         {
-            if (!p.Apparel.TryGetValue(out var apparel))
-            {
-                continue;
-            }
-            if (apparel.Any(a => PopulationRules.LanceDefs.GetValueOrDefault(a.Definition)))
+            if (p.Apparel.Any(a => PopulationRules.LanceDefs.GetValueOrDefault(a.Definition)))
             {
                 return true;
             }

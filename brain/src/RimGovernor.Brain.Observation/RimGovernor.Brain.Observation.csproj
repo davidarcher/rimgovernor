@@ -35,6 +35,8 @@
     <Using Include="RimGovernor.Brain.Domain.PawnId" Alias="PawnId" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.RoomRole" Alias="RoomRole" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.RoomState" Alias="RoomState" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.GearClimate" Alias="GearClimate" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.GearSource" Alias="GearSource" />
     <!-- Observation-local type names for policy values. -->
     <Using Include="RimGovernor.Brain.Policy.RoleScore" Alias="RoleContribution" />
     <!-- Package-level functions with no owning type live on one static partial class per package. -->

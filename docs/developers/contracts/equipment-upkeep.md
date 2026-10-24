@@ -128,15 +128,17 @@ wear; armor is the Soldier outfit
 tag without Worker, and a def covers the body with a Torso or Legs group.
 The brain derives each option's slot from its layers and groups,
 takes the role from the apparel-policy read and narrows unworn options to
-the definitions that role's apparel policy permits. A census row the
-model cannot be built for (no model, comfortable temperatures, gender or outdoor
-temperature, a definition the catalog lacks) or whose bounds the model refuses (for
-example two worn garments on one slot) is not judged by a weaker rule: the pawn's
+the definitions that role's apparel policy permits. The census row is whole
+(#3777): every colonist has one, and each carries its model, comfortable
+temperatures, gender, stage and body-part groups. A row whose bounds the model
+refuses (a definition the catalog lacks, or two worn garments on one slot) is not
+judged by a weaker rule: the pawn's
 `GearPawn.LoadoutModel` is unknown with the cause in `GearPawn.ModelRefusal`, and
 planning the colony fails with an error naming the pawn and the cause. A pawn with no
 apparel policy (it cannot wear apparel) is unknown with no cause and is skipped when
-blocked, an error otherwise. A frame without the definition catalog, finished research,
-stock census or outdoor temperature leaves the whole census unknown.
+blocked, an error otherwise. A frame without the definition catalog, finished research
+or stock census leaves the whole census unknown; a census missing a colonist raises
+`RequiredFactException`.
 
 Each bill option carries the day its stuff arrives (`GearOption.Arrival`, from
 `policy.StuffArrival`, #2467/#3619), and it is eligible to plan or craft only when that day
@@ -185,17 +187,17 @@ the knowledge bill read (`ColonyGearReads.KnowledgeBillOptions`) prices a bill
 from it, offers none for a def no colonist could craft, and raises
 `RequiredFactException` for a def without a row.
 
-The optional seasonal observation carries 12 outdoor temperatures sampled at local
-twelfth midpoints and indexed by native Twelfth, the current twelfth and ticks to
-its next boundary, 12 daylight hours (`GenCelestial.IsDaytime` at the tile over the
-sampled day of each twelfth, for the tier-2 pawn cycle; empty when unread), and at most one
-ColdSnap/HeatWave row with its native temperature offset and remaining ticks
-(-1 for permanent). The clothing family's temperature range covers the current
-and next two twelfths for both cold and heat, retaining current ambient extremes.
-Weather extends the range only over twelfths it overlaps, including beyond the
-normal lookahead when its duration is longer. Missing seasonal fields retain the
-ambient-only range. The complete product-catalog requirement still applies to
-modeled loadouts.
+The census's climate (`GearSnapshot.Climate`, always read) carries 12 outdoor
+temperatures sampled at local twelfth midpoints and indexed by native Twelfth, the
+current twelfth and ticks to its next boundary, and 12 daylight hours
+(`GenCelestial.IsDaytime` at the tile over the sampled day of each twelfth, for the
+tier-2 pawn cycle). No temperature game condition is read: nothing priced one (#3777).
+The complete product-catalog requirement still applies to modeled loadouts.
+
+An item's quality is a named state (`ItemQuality`): `Graded` at its QualityCategory,
+or `Qualityless` for a def without CompQuality, which stored stock counts as Normal.
+An option's source is `GearSource` (worn, loose, stored or bill), and its condition
+is 1 for a def without hit points.
 
 Targets cover skin torso, skin legs, middle torso, outer, belt, headgear and
 primary weapon. An exact bounded ensemble search rejects shared layer AND body

@@ -110,7 +110,7 @@ public sealed class JoinersAnomalyFamilyTests
             Entities = Known<EquatableArray<CapturableEntity>>([.. entities]),
         },
         Research = Known(Researched),
-        Gear = Known(new GearObservation()),
+        Gear = Known(ColonyModelFixtures.NoGear()),
         Monolith = Known(new MonolithFacts()),
     };
 

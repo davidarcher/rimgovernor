@@ -29,7 +29,7 @@ internal static class PawnFixtures
         Job = new O.JobEvidence(),
         Needs = PawnNeedsTests.NoNeeds,
         Health = new O.PawnHealth { SummaryFraction = 1 },
-        Equipment = new O.PawnEquipment(),
+        Equipment = GearFixtures.NoEquipment,
         Biography = new O.PawnBiography
         {
             BiologicalAgeYears = 30,

@@ -46,8 +46,8 @@ public sealed record GearApparel
 
 public sealed record GearPawn
 {
-    public GearClimate? Climate { get; init; }
-    public Fact<ApparelPolicyState> Policy { get; init; }
+    /// <summary>The pawn's outfit census; null for a pawn without an outfit (it cannot wear apparel).</summary>
+    public ApparelPolicyState? Policy { get; init; }
 
     /// <summary>
     /// Unknown only for a pawn that cannot wear apparel (Blocked, no apparel policy) or one the model refused,
@@ -74,19 +74,23 @@ public sealed record GearPawn
     /// <summary>Deficit and Replacements are projected from the loadout model's gaps (ModeledGearObservation); a census decoder never sets them.</summary>
     public Fact<bool> Deficit { get; init; }
 
-    public Fact<EquatableArray<GearCandidate>> Candidates { get; init; }
+    public EquatableArray<GearCandidate> Candidates { get; init; }
     public Fact<EquatableArray<GearReplacement>> Replacements { get; init; }
-    public Fact<EquatableArray<GearApparel>> Apparel { get; init; }
+    public EquatableArray<GearApparel> Apparel { get; init; }
 
 }
 
 public sealed record GearObservation
 {
     public IReadOnlyList<GearPawn> Pawns { get; init; } = [];
-    public Fact<EquatableArray<GearStock>> Stored { get; init; }
+
+    /// <summary>The map's seasonal climate the census dresses for.</summary>
+    public required GearClimate Climate { get; init; }
+
+    public EquatableArray<GearStock> Stored { get; init; }
 
     /// <summary>Every outfit policy's load id; one no pawn keeps (OutfitKeep) is owed a prune.</summary>
-    public Fact<EquatableArray<string>> Outfits { get; init; }
+    public EquatableArray<string> Outfits { get; init; }
 
     /// <summary>
     /// The bill options of apparel only unfinished knowledge projects (Anomaly) keep from the colony (#3848). No pawn's options hold
@@ -98,54 +102,48 @@ public sealed record GearObservation
     public IReadOnlyList<string> OutfitsToPrune()
     {
         var settled = ApparelPolicyRules.OutfitKeep(Pawns, out var keep);
-        if (!settled || !Outfits.TryGetValue(out var all))
+        if (!settled)
         {
             return [];
         }
-        return all.Where(id => !keep.ContainsKey(id)).ToList();
+        return Outfits.Where(id => !keep.ContainsKey(id)).ToList();
     }
 
     /// <summary>Throws <see cref="DomainException"/>.</summary>
     public void Validate()
     {
-        if (Stored.TryGetValue(out var stored))
+        var seen = new HashSet<GearStock>();
+        foreach (var row in Stored)
         {
-            var seen = new HashSet<GearStock>();
-            foreach (var row in stored)
-            {
-                var key = row with { Count = 0 };
-                DomainException.Require(
-                    AdmissionRules.ValidResource(row.Definition)
-                        && (string.IsNullOrEmpty(row.Stuff.Value) || AdmissionRules.ValidResource(row.Stuff))
-                        && row.Quality >= 0
-                        && row.Quality <= 6
-                        && row.HPBand >= 5
-                        && row.HPBand <= 9
-                        && row.Count > 0
-                        && seen.Add(key),
-                    "invalid gear storage"
-                );
-            }
+            var key = row with { Count = 0 };
+            DomainException.Require(
+                AdmissionRules.ValidResource(row.Definition)
+                    && (string.IsNullOrEmpty(row.Stuff.Value) || AdmissionRules.ValidResource(row.Stuff))
+                    && row.Quality >= 0
+                    && row.Quality <= 6
+                    && row.HPBand >= 5
+                    && row.HPBand <= 9
+                    && row.Count > 0
+                    && seen.Add(key),
+                "invalid gear storage"
+            );
         }
+        Climate.Validate();
         var pawns = new HashSet<PawnId>();
         foreach (var p in Pawns)
         {
-            p.Climate.Validate();
             DomainException.Require(FoodForecastRules.FoodId(p.Pawn.Value) && FoodForecastRules.FoodId(p.Loadout) && pawns.Add(p.Pawn), "invalid gear pawn or loadout");
             if (p.LoadoutModel.TryGetValue(out var model))
             {
                 model.Validate();
             }
-            if (p.Candidates.TryGetValue(out var candidates))
+            var targets = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var c in p.Candidates)
             {
-                var targets = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var c in candidates)
-                {
-                    DomainException.Require(
-                        FoodForecastRules.FoodId(c.Target) && AdmissionRules.ValidResource(c.Definition) && FoodForecastRules.FoodNumber(c.Gain) && c.Gain > 0 && targets.Add(c.Target),
-                        "invalid gear candidate"
-                    );
-                }
+                DomainException.Require(
+                    FoodForecastRules.FoodId(c.Target) && AdmissionRules.ValidResource(c.Definition) && FoodForecastRules.FoodNumber(c.Gain) && c.Gain > 0 && targets.Add(c.Target),
+                    "invalid gear candidate"
+                );
             }
             if (p.Replacements.TryGetValue(out var needs))
             {
@@ -160,12 +158,9 @@ public sealed record GearObservation
                     );
                 }
             }
-            if (p.Apparel.TryGetValue(out var apparel))
+            foreach (var a in p.Apparel)
             {
-                foreach (var a in apparel)
-                {
-                    DomainException.Require(a.Valid(), "invalid gear apparel");
-                }
+                DomainException.Require(a.Valid(), "invalid gear apparel");
             }
         }
     }
@@ -523,7 +518,7 @@ public static class GearRules
         {
             demand[n.Need.Definition] = demand.GetValueOrDefault(n.Need.Definition) + 1;
         }
-        var stored = GearStockRules.UnassignedGearStock(v.Stored.ValueOrDefault, review.Loadouts);
+        var stored = GearStockRules.UnassignedGearStock(v.Stored, review.Loadouts);
         foreach (var row in stored)
         {
             if (row.HPBand >= 5 && row.Quality >= 2 && demand.TryGetValue(row.Definition, out var owed))

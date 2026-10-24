@@ -73,25 +73,6 @@ public sealed record GearRoleInput
     public bool UnrevealedCreepjoiner { get; init; }
 }
 
-/// <summary>Where a gear option comes from; the declaration order is the planner's tie-break rank (worn first).</summary>
-public enum GearSource
-{
-    [WireName("")]
-    Unset = 0,
-
-    [WireName("worn")]
-    Worn,
-
-    [WireName("loose")]
-    Loose,
-
-    [WireName("stored")]
-    Stored,
-
-    [WireName("bill")]
-    Bill,
-}
-
 /// <summary>
 /// Stats are for this def x stuff at Normal quality, before condition. The provider resolves native material
 /// factors, eligibility and production gates; the model never invents materials, recipes or modded definition stats.
@@ -180,7 +161,6 @@ public sealed record GearOption
 
 public sealed record GearLoadoutInput
 {
-    public GearClimate? Climate { get; init; }
     public GearRoleInput Role { get; init; } = new();
     public bool Female { get; init; }
     public bool Nudist { get; init; }
@@ -205,7 +185,6 @@ public sealed record GearLoadoutInput
     /// <summary>Throws <see cref="DomainException"/>.</summary>
     public void Validate()
     {
-        Climate.Validate();
         DomainException.Require(double.IsFinite(Ambient) && double.IsFinite(ComfortableMin) && double.IsFinite(ComfortableMax), "invalid gear temperature");
         DomainException.Require(ComfortableMin <= ComfortableMax, "invalid gear comfort band");
         // Every pawn's input is validated on each observation, so the checks below reuse their sets and read
@@ -1022,13 +1001,13 @@ public static class GearLoadoutRules
                     p with
                     {
                         Deficit = Known(false),
-                        Candidates = Known<EquatableArray<GearCandidate>>([]),
+                        Candidates = [],
                         Replacements = Known<EquatableArray<GearReplacement>>([]),
                     }
                 );
                 continue;
             }
-            var native = p.Candidates.ValueOrDefault;
+            var native = p.Candidates;
             var candidates = new List<GearCandidate>();
             var needs = new List<GearReplacement>();
             var deficit = false;
@@ -1056,7 +1035,7 @@ public static class GearLoadoutRules
                 p with
                 {
                     Deficit = Known(deficit),
-                    Candidates = Known(EquatableArray.From(candidates)),
+                    Candidates = EquatableArray.From(candidates),
                     Replacements = Known(EquatableArray.From(needs)),
                 }
             );

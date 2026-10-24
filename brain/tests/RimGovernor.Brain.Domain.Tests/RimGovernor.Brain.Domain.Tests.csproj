@@ -12,6 +12,8 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations.RoomRole" Alias="RoomRole" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.RoomState" Alias="RoomState" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.ClearanceFloor" Alias="ClearanceFloor" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.GearClimate" Alias="GearClimate" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.GearSource" Alias="GearSource" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />

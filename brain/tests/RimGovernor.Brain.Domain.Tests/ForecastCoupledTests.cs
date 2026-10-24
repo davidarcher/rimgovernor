@@ -535,11 +535,11 @@ public sealed class ForecastCoupledTests
             facts = facts with
             {
                 Resources = Known<EquatableArray<RimGovernor.Brain.Policy.Amount>>([new(new("Rice"), rice), new(new("Cloth"), 10)]),
-                Gear = Known(new GearObservation
+                Gear = Known(ColonyModelFixtures.NoGear() with
                 {
-                    Stored = Known<EquatableArray<RimGovernor.Brain.Policy.GearStock>>([]),
+                    Stored = [],
                     Pawns = [new() { Pawn = new("wearer"), Loadout = "load",
-                    Candidates = Known<EquatableArray<RimGovernor.Brain.Policy.GearCandidate>>([]), Apparel = Known<EquatableArray<GearApparel>>([]),
+                    Candidates = [], Apparel = [],
                     LoadoutModel = Known(new GearLoadoutInput { Ambient = 0, ComfortableMin = 10, ComfortableMax = 30, Options = [Garment("Rice"),Garment("Cloth")] }) }]
                 }),
                 ForecastObserved = facts.ForecastObserved with

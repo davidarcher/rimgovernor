@@ -393,7 +393,7 @@ public static class ColonyDecodeReads
             };
             f = f with { Calendar = ColonyProductionReads.ColonyCalendar(climate) };
         }
-        EquatableArray<float>? curve = v.Planning is O.Planning.Requested { Facts.Gear: { } planningGear } ? planningGear.OutdoorTemperatureByTwelfthC : null;
+        EquatableArray<double>? curve = v.Planning is O.Planning.Requested { Facts.Gear: { } planningGear } ? planningGear.Climate.Temperatures : null;
         if (curve is { } curveTemps && curveTemps.Count == 12)
         {
             var temps = new double[curveTemps.Count];

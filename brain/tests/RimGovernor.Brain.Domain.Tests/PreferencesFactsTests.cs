@@ -155,7 +155,7 @@ public sealed class PreferencesFactsTests
                 StuffCategories = new Dictionary<Resource, IReadOnlyList<string>> { [cloth] = ["Fabric"], [PreferenceRules.HumanLeather] = ["Leathery"] },
                 StuffBeauty = new Dictionary<Resource, double> { [cloth] = 1.0, [PreferenceRules.HumanLeather] = 1.0 },
             },
-            Gear = Known(new GearObservation
+            Gear = Known(ColonyModelFixtures.NoGear() with
             {
                 Pawns = [new GearPawn { Pawn = new PawnId("p"), LoadoutModel = Known(new GearLoadoutInput { Options = EquatableArray.From([option, plain]) }) }],
             }),

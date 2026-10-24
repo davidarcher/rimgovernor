@@ -15,7 +15,7 @@ public sealed class DefenseCapacityHitChanceTests
     // The rows of a colonist with these combat facts, as the pawn read gives them.
     private static O.PawnState Row(string id, double rangedDps, double hitFactor, double meleeDps) => PawnFixtures.Row(id) with
     {
-        Equipment = new O.PawnEquipment { RangedDps = rangedDps, RangedHitFactor = hitFactor, MeleeDps = meleeDps },
+        Equipment = GearFixtures.NoEquipment with { RangedDps = rangedDps, RangedHitFactor = hitFactor, MeleeDps = meleeDps },
     };
 
     private static double Capacity(params O.PawnState[] rows)

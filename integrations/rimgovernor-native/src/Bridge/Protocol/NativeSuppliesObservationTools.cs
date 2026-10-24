@@ -212,9 +212,7 @@ namespace HomeBridge.BridgeTools
                 }
                 row = row with { Items = [.. row.Items, Item(entry.Thing, entry.Position)] };
                 if (entry.Thing.def.IsWeapon) {
-                    var weapon = new Obs.GearItem { Thing = NativeRef.Thing(entry.Thing) };
-                    weapon = NativeGearFacts.Biocode(entry.Thing, weapon);
-                    row = row with { WeaponItems = [.. row.WeaponItems, weapon] };
+                    row = row with { WeaponItems = [.. row.WeaponItems, NativeGearFacts.Gear(entry.Thing)] };
                 }
                 if (entry.Holder != null) row = row with { Holders = [.. row.Holders, new Obs.HeldStock { Holder = NativeRef.Thing(entry.Holder), HolderKind = NativeEnums.Holder(entry.HolderKind!), Units = units }] };
             }

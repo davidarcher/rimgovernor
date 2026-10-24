@@ -9,32 +9,35 @@ public static class ColonyGearReads
     /// Decodes the gear census against the frame's definitions: the catalog's apparel rows and stat table give every
     /// garment's layers, groups and stats, and the finished research its bill options need. Each bill option carries the
     /// arrival of its stuff (<see cref="StuffArrivalFacts"/>), counting the growing <paramref name="fields"/> of the
-    /// <paramref name="crops"/>' plants. A frame without a catalog, finished research, stock census or outdoor temperature
-    /// leaves the census unknown; a pawn the loadout model refuses carries the cause in GearPawn.ModelRefusal.
+    /// <paramref name="crops"/>' plants. A frame without a catalog, finished research or stock census leaves the census
+    /// unknown; a census whose rows are not the frame's colonists raises <see cref="RequiredFactException"/>. A pawn the
+    /// loadout model refuses carries the cause in GearPawn.ModelRefusal.
     /// </summary>
     public static Fact<GearObservation> GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs, Fact<EquatableArray<FoodField>> fields, IReadOnlyList<PlanningDefinition> crops)
     {
         var gear = PlanningWindowReads.RequirePlanning(v).Gear;
-        if (gear is null || defs.Catalog is not { } catalog || !defs.Finished.TryGetValue(out var finished) || (uint)gear.Pawns.Count != v.ColonistCount
-            || !ColonyDecodeReads.StockCensus(v).TryGetValue(out var stock))
+        if (defs.Catalog is not { } catalog || !defs.Finished.TryGetValue(out var finished) || !ColonyDecodeReads.StockCensus(v).TryGetValue(out var stock))
         {
             return Unknown<GearObservation>();
         }
+        if ((uint)gear.Pawns.Count != v.ColonistCount)
+        {
+            throw new RequiredFactException("gear census of every colonist");
+        }
         var arrival = StuffArrivalFacts(v, tables, catalog, stock, fields, crops);
-        var threat = RaidThreatFacts(v.Threat.Observed, defs.Catalog);
+        var threat = RaidThreatFacts(v.Threat.Observed, catalog);
         var pawns = new List<GearPawn>(gear.Pawns.Count);
         foreach (var p in gear.Pawns)
         {
-            var policy = ApparelPolicyFacts(p, defs.Catalog);
+            var policy = ApparelPolicyFacts(p, catalog);
             var row = new GearPawn
             {
-                Pawn = new PawnId(p.Pawn?.Id ?? ""),
-                Loadout = p.Snapshot?.Token ?? "",
-                Blocked = p.Blocker is not null,
-                Candidates = GearCandidateFacts(p, tables, defs.Catalog),
-                Apparel = GearApparelFacts(p.Equipment, tables, defs.Catalog),
+                Pawn = p.Pawn,
+                Loadout = p.Token,
+                Blocked = p.Blocked,
+                Candidates = GearCandidateFacts(p, tables, catalog),
+                Apparel = GearApparelFacts(p.Equipment, tables, catalog),
                 Policy = policy,
-                Climate = GearClimateFacts(gear),
             };
             try
             {
@@ -49,7 +52,8 @@ public static class ColonyGearReads
         var result = new GearObservation
         {
             Pawns = pawns,
-            Stored = GearStorageFacts(gear),
+            Climate = gear.Climate,
+            Stored = GearStorageFacts(gear.StoredApparel),
             Outfits = OutfitIds(v.Policies),
             KnowledgeBills = KnowledgeBillOptions(catalog, finished, gear.LockedBills),
         };
@@ -87,10 +91,11 @@ public static class ColonyGearReads
                 // A craftable def with a quality always has a crafter; one without CompQuality lists none (GearLockedBill).
                 var row = new O.GearLoadoutOption
                 {
-                    Id = $"bill:{def}/{stuff}", DefName = def, Source = "bill", Condition = 1, Crafters = bill.Crafters,
-                    Quality = bill.Crafters.Count == 0 ? null : (int)D.QualityCategory.Normal,
+                    Id = $"bill:{def}/{stuff}", DefName = def, Stuff = stuff.Length == 0 ? null : stuff, Source = GearSource.Bill, Condition = 1,
+                    Tainted = false, Locked = false, Crafters = bill.Crafters,
+                    Quality = bill.Crafters.Count == 0 ? new O.ItemQuality.Qualityless() : new O.ItemQuality.Graded(D.QualityCategory.Normal),
                 };
-                if (GearLoadoutOption(stuff.Length == 0 ? row : row with { Stuff = stuff }, catalog) is { } option)
+                if (GearLoadoutOption(row, catalog) is { } option)
                 {
                     options.Add(option);
                 }
@@ -165,45 +170,34 @@ public static class ColonyGearReads
     /// Maps one pawn's loadout-model inputs. The role is the apparel-policy role (with the model's traits), and
     /// unworn options are narrowed to the definitions that role's apparel policy permits, so the model never plans a
     /// garment DesiredApparelPolicy would forbid. A pawn with no apparel policy cannot wear apparel: unknown with no
-    /// error. Any other pawn the model cannot be built for (no model, role or temperatures, a garment the catalog
+    /// error. Any other pawn the model cannot be built for (no catalog or finished research, a garment the catalog
     /// lacks a row or stat values for, or a model outside PlanGearLoadout's bounds such as two worn garments on one
     /// slot) throws a <see cref="DomainException"/> naming the cause. Each option carries its <see cref="GearOption.Arrival"/>
     /// by <paramref name="arrival"/>.
     /// </summary>
-    public static Fact<GearLoadoutInput> GearLoadoutModelFacts(GearDefinitions defs, Tables tables, double outdoor, O.GearLoadout p, Fact<ApparelPolicyState> state, Fact<RaidThreat> threat, StuffArrival arrival)
+    public static Fact<GearLoadoutInput> GearLoadoutModelFacts(GearDefinitions defs, Tables tables, double outdoor, O.GearLoadout p, ApparelPolicyState? role, Fact<RaidThreat> threat, StuffArrival arrival)
     {
-        var unknown = Unknown<GearLoadoutInput>();
         var m = p.LoadoutModel;
-        if (p.ApparelPolicy is null)
+        if (role is null)
         {
-            return unknown;
+            return Unknown<GearLoadoutInput>();
         }
-        var known = state.TryGetValue(out var role);
-        defs.Finished.TryGetValue(out var finished);
         var catalog = defs.Catalog ?? throw new DomainException("gear loadout model needs a definition catalog");
-        if (m is null)
+        if (!defs.Finished.TryGetValue(out var finished))
         {
-            throw new DomainException("the producer sent no loadout model");
+            throw new DomainException("gear loadout model needs the finished research");
         }
-        if (!known || role is null)
-        {
-            throw new DomainException("apparel policy facts unavailable (wearer inputs or definition catalog)");
-        }
-        if (p.Gender is null || p.ComfortableMinC is null || p.ComfortableMaxC is null)
-        {
-            throw new DomainException("missing gender, comfortable temperatures or outdoor temperature");
-        }
-        var research = new List<string>(finished ?? new HashSet<string>());
+        var research = new List<string>(finished);
         research.Sort(StringComparer.Ordinal);
         var input = new GearLoadoutInput
         {
             Role = role.Role,
-            Female = p.Gender.GetValueOrDefault() == D.Gender.Female,
+            Female = p.Gender == D.Gender.Female,
             Research = EquatableArray.From(research),
             Threat = threat,
             Ambient = outdoor,
-            ComfortableMin = p.ComfortableMinC.GetValueOrDefault(),
-            ComfortableMax = p.ComfortableMaxC.GetValueOrDefault(),
+            ComfortableMin = p.ComfortableMinC,
+            ComfortableMax = p.ComfortableMaxC,
         };
         var traits = new List<PawnTrait>();
         foreach (var t in m.Traits)
@@ -241,7 +235,7 @@ public static class ColonyGearReads
         var options = new List<GearOption>();
         foreach (var x in m.Options)
         {
-            if (GearLoadoutOption(x, catalog) is { } option && (allowed is null || allowed.Contains((x.DefName ?? ""))))
+            if (GearLoadoutOption(x, catalog) is { } option && (allowed is null || allowed.Contains(x.DefName)))
             {
                 options.Add(option with { Arrival = arrival.Of(option) });
             }
@@ -256,27 +250,35 @@ public static class ColonyGearReads
     /// census already carries: the exposure role is its only consumer (<c>HarmLedger.RoleOf</c>), so it carries the def and
     /// whether the def's verb is ranged. Null for an unarmed pawn; throws for a primary the frame's tables or the catalog cannot resolve.
     /// </summary>
-    private static GearOption? PrimaryWeaponOption(O.PawnEquipment? equipment, Tables tables, DefinitionCatalog catalog)
+    private static GearOption? PrimaryWeaponOption(O.PawnEquipment equipment, Tables tables, DefinitionCatalog catalog)
     {
-        var id = equipment?.PrimaryId ?? "";
-        if (id.Length == 0)
+        if (equipment.PrimaryId is not { } id)
         {
             return null;
         }
-        var item = equipment!.Equipped.FirstOrDefault(e => e.Thing?.Id == id);
-        var def = tables.Entity(item?.Thing)?.DefName ?? throw new DomainException($"primary weapon {id}: the frame holds no row for it");
+        var item = equipment.Equipped.FirstOrDefault(e => e.Thing.Id == id) ?? throw new DomainException($"primary weapon {id}: not among the pawn's equipment");
+        var def = tables.Entity(item.Thing)?.DefName ?? throw new DomainException($"primary weapon {id}: the frame holds no row for it");
+        var (quality, qualityless) = QualityOf(item.Quality);
         return new GearOption
         {
             ID = id,
             Definition = new Resource(def),
             Stuff = new Resource(""),
-            Quality = (int)item!.Quality.GetValueOrDefault(D.QualityCategory.Normal),
+            Quality = quality,
+            Qualityless = qualityless,
             Slot = GearSlot.Primary,
             Source = GearSource.Worn,
-            Condition = item.ConditionFraction ?? 1,
+            Condition = item.ConditionFraction,
             Ranged = catalog.WeaponOf(def).Ranged,
         };
     }
+
+    /// <summary>
+    /// An item's quality as the loadout model rates it: its QualityCategory index, and a qualityless item (no CompQuality)
+    /// rated at Normal and flagged, since it counts toward no royal title's minimum apparel quality (#3841).
+    /// </summary>
+    private static (int Quality, bool Qualityless) QualityOf(O.ItemQuality quality) =>
+        quality is O.ItemQuality.Graded graded ? ((int)graded.Category, false) : ((int)D.QualityCategory.Normal, true);
 
     /// <summary>
     /// Maps one native option against the catalog: its layers and groups from the def's apparel row, its stats from
@@ -286,20 +288,21 @@ public static class ColonyGearReads
     /// </summary>
     private static GearOption? GearLoadoutOption(O.GearLoadoutOption x, DefinitionCatalog catalog)
     {
-        var def = x.DefName ?? "";
+        var def = x.DefName;
         var stuff = x.Stuff ?? "";
-        if (ApparelShapeOf(catalog, def, x.Id ?? "") is not { } shape)
+        if (ApparelShapeOf(catalog, def, x.Id) is not { } shape)
         {
             return null;
         }
-        var source = ColonyDecodeReads.WireParse<GearSource>(x.Source);
+        var source = x.Source;
+        var (quality, qualityless) = QualityOf(x.Quality);
         EquatableArray<string> research = default;
         EquatableArray<Amount> ingredients = default;
         if (source == GearSource.Bill)
         {
             if (catalog.ApparelBill(def, stuff) is not var (needs, costs))
             {
-                throw new DomainException($"gear option {(x.Id ?? "")}: no recipe makes {def}");
+                throw new DomainException($"gear option {x.Id}: no recipe makes {def}");
             }
             var amounts = new Amount[costs.Count];
             for (var i = 0; i < amounts.Length; i++)
@@ -311,23 +314,23 @@ public static class ColonyGearReads
         }
         return new GearOption
         {
-            ID = x.Id ?? "",
+            ID = x.Id,
             Definition = new Resource(def),
             Stuff = new Resource(stuff),
-            Quality = x.Quality ?? (int)D.QualityCategory.Normal,
-            Qualityless = x.Quality is null,
+            Quality = quality,
+            Qualityless = qualityless,
             // A crafted garment comes out at its best crafter's quality odds (#3850); a bill names at least one crafter.
-            QualityOdds = source == GearSource.Bill && x.Quality is not null ? EquatableArray.From(CraftedQualityRules.BestOdds(x.Crafters)) : [],
+            QualityOdds = source == GearSource.Bill && !qualityless ? EquatableArray.From(CraftedQualityRules.BestOdds(x.Crafters)) : [],
             Slot = shape.Slot,
             Layers = shape.Layers,
             Groups = shape.Groups,
             Source = source,
-            Condition = x.Condition.GetValueOrDefault(),
+            Condition = x.Condition,
             WearPerDay = shape.WearPerDay,
             MoveSpeed = shape.MoveSpeed,
-            Tainted = x.Tainted.GetValueOrDefault(),
+            Tainted = x.Tainted,
             SlaveOnly = shape.SlaveOnly,
-            Locked = x.Locked.GetValueOrDefault(),
+            Locked = x.Locked,
             Shield = shape.Shield,
             Psychic = shape.Psychic,
             Smokepop = shape.Smokepop,
@@ -413,40 +416,18 @@ public static class ColonyGearReads
         return true;
     }
 
-    /// <summary>The stored apparel stock; unknown when the producer sent none.</summary>
-    public static Fact<EquatableArray<GearStock>> GearStorageFacts(O.GearSnapshot gear)
+    /// <summary>
+    /// The stored apparel stock. A qualityless garment is stocked as a Normal one: it meets the stores' quality floor
+    /// (<see cref="GearStock.Serviceable"/>) the way the loadout model rates it at Normal.
+    /// </summary>
+    public static EquatableArray<GearStock> GearStorageFacts(EquatableArray<O.GearStock> stored)
     {
-        if (gear.StoredApparel is null)
+        var rows = new List<GearStock>(stored.Count);
+        foreach (var row in stored)
         {
-            return Unknown<EquatableArray<GearStock>>();
+            rows.Add(new GearStock { Definition = new Resource(row.DefName), Stuff = new Resource(row.Stuff ?? ""), Quality = QualityOf(row.Quality).Quality, HPBand = row.HpBand, Count = row.Count });
         }
-        var rows = new List<GearStock>();
-        foreach (var row in gear.StoredApparel.Rows)
-        {
-            rows.Add(new GearStock { Definition = new Resource((row.DefName ?? "")), Stuff = new Resource((row.Stuff ?? "")), Quality = (int)row.Quality.GetValueOrDefault(), HPBand = (int)row.HpBand.GetValueOrDefault(), Count = (int)row.Count.GetValueOrDefault() });
-        }
-        return Known(EquatableArray.From(rows));
-    }
-
-    /// <summary>Maps a validated optional seasonal observation. Older producers omit the entire group, preserving ambient-only policy.</summary>
-    public static GearClimate? GearClimateFacts(O.GearSnapshot? gear)
-    {
-        if (gear is null || gear.OutdoorTemperatureByTwelfthC.Count == 0)
-        {
-            return null;
-        }
-        var climate = new GearClimate
-        {
-            CurrentTwelfth = (int)gear.CurrentTwelfth.GetValueOrDefault(),
-            TicksToNextTwelfth = (long)gear.TicksToNextTwelfth.GetValueOrDefault(),
-            Temperatures = EquatableArray.From(gear.OutdoorTemperatureByTwelfthC.Select(n => (double)n)),
-            DaylightHours = EquatableArray.From(gear.DaylightHoursByTwelfth.Select(n => (double)n)),
-        };
-        if (gear.ActiveWeather is { } w)
-        {
-            climate = climate with { Weather = new GearWeather { Definition = w.DefName ?? "", RemainingTicks = w.RemainingTicks.GetValueOrDefault(), TemperatureOffset = w.TemperatureOffsetC.GetValueOrDefault() } };
-        }
-        return climate;
+        return EquatableArray.From(rows);
     }
 
     /// <summary>
@@ -454,51 +435,45 @@ public static class ColonyGearReads
     /// GiveJobIntent Wear) can target. A def the catalog does not know as apparel is skipped: the wear operation
     /// looks its target up among loose apparel only, so a plan proposing one was refused on every attempt and held
     /// its development slot for the run. A candidate whose things table row the frame lacks, or whose def the
-    /// catalog lacks, leaves them unknown.
+    /// catalog lacks, raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static Fact<EquatableArray<GearCandidate>> GearCandidateFacts(O.GearLoadout p, Tables tables, DefinitionCatalog catalog)
+    public static EquatableArray<GearCandidate> GearCandidateFacts(O.GearLoadout p, Tables tables, DefinitionCatalog catalog)
     {
         var candidates = new List<GearCandidate>();
         foreach (var c in p.Candidates)
         {
-            var item = c.Item;
-            var head = tables.Entity(item?.Thing);
-            if (head is null || catalog.FindThing((head.DefName ?? "")) is null)
-            {
-                return Unknown<EquatableArray<GearCandidate>>();
-            }
-            if (GearDefinitionsReads.ApparelRow(catalog, (head.DefName ?? "")).Apparel is null)
+            var def = GearRowDef(tables, catalog, c.Item.Thing);
+            if (GearDefinitionsReads.ApparelRow(catalog, def).Apparel is null)
             {
                 continue;
             }
-            candidates.Add(new GearCandidate(item?.Thing?.Id ?? "", c.Gain.GetValueOrDefault(), new Resource((head.DefName ?? ""))));
+            candidates.Add(new GearCandidate(c.Item.Thing.Id, c.Gain, new Resource(def)));
         }
-        return Known(EquatableArray.From(candidates));
+        return EquatableArray.From(candidates);
     }
 
     /// <summary>
-    /// Decodes one pawn's worn apparel from the loadout's equipment read: unknown while a garment's row or catalog
-    /// apparel is missing, otherwise each garment's definition, condition fraction (1 without hit points) and
-    /// body-part groups.
+    /// Decodes one pawn's worn apparel from the loadout's equipment read: each garment's definition, condition fraction
+    /// (1 without hit points) and body-part groups. A garment whose things table row the frame lacks, or whose def the
+    /// catalog does not know as apparel, raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static Fact<EquatableArray<GearApparel>> GearApparelFacts(O.PawnEquipment? equipment, Tables tables, DefinitionCatalog catalog)
+    public static EquatableArray<GearApparel> GearApparelFacts(O.PawnEquipment equipment, Tables tables, DefinitionCatalog catalog)
     {
-        if (equipment is null || !ColonyDecodeReads.Headed(tables, equipment.Apparel, item => item.Thing))
-        {
-            return Unknown<EquatableArray<GearApparel>>();
-        }
-        var apparel = new List<GearApparel>();
+        var apparel = new List<GearApparel>(equipment.Apparel.Count);
         foreach (var item in equipment.Apparel)
         {
-            var def = tables.Entity(item.Thing)?.DefName ?? "";
-            var worn = GearDefinitionsReads.ApparelRow(catalog, def).Apparel;
-            if (worn is null)
-            {
-                return Unknown<EquatableArray<GearApparel>>();
-            }
-            apparel.Add(new GearApparel { Definition = new Resource(def), Condition = item.ConditionFraction is not null ? item.ConditionFraction.GetValueOrDefault() : 1, Groups = GearDefinitionsReads.Distinct((worn.bodyPartGroups ?? []).Select(g => g.defName)) });
+            var def = GearRowDef(tables, catalog, item.Thing);
+            var worn = GearDefinitionsReads.ApparelRow(catalog, def).Apparel ?? throw new RequiredFactException($"apparel row of worn {def}");
+            apparel.Add(new GearApparel { Definition = new Resource(def), Condition = item.ConditionFraction, Groups = GearDefinitionsReads.Distinct((worn.bodyPartGroups ?? []).Select(g => g.defName)) });
         }
-        return Known(EquatableArray.From(apparel));
+        return EquatableArray.From(apparel);
+    }
+
+    /// <summary>The def of a gear item by its frame row, which the catalog must know.</summary>
+    private static string GearRowDef(Tables tables, DefinitionCatalog catalog, C.Ref thing)
+    {
+        var def = tables.Entity(thing)?.DefName ?? throw new RequiredFactException($"frame row of gear item {thing.Id}");
+        return catalog.FindThing(def) is null ? throw new RequiredFactException($"catalog row of gear def {def}") : def;
     }
 
     internal static Fact<GearObservation> RoundsGear(Fact<GearObservation> v, EmergencyFacts emergency)
@@ -526,14 +501,14 @@ public static class ColonyGearReads
     }
 
     /// <summary>Every outfit policy's load id.</summary>
-    public static Fact<EquatableArray<string>> OutfitIds(O.Policies p)
+    public static EquatableArray<string> OutfitIds(O.Policies p)
     {
         var ids = new List<string>();
         foreach (var row in p.Outfit)
         {
             ids.Add(row.Id);
         }
-        return Known(EquatableArray.From(ids));
+        return EquatableArray.From(ids);
     }
 
     internal static ColonyProjection StampGearCreepjoinersOn(ColonyProjection p, O.PawnSnapshot? pawns, CreepJoinerDownsides downsides) =>
@@ -564,9 +539,9 @@ public static class ColonyGearReads
             {
                 continue;
             }
-            if (g.Policy.TryGetValue(out var state))
+            if (g.Policy is { } state)
             {
-                g = g with { Policy = Known(state with { Role = state.Role with { UnrevealedCreepjoiner = true } }) };
+                g = g with { Policy = state with { Role = state.Role with { UnrevealedCreepjoiner = true } } };
             }
             if (g.LoadoutModel.TryGetValue(out var model))
             {
@@ -578,14 +553,14 @@ public static class ColonyGearReads
     }
 
     /// <summary>
-    /// The pawn's outfit census: unknown without an apparel policy, wearer inputs or catalog.
+    /// The pawn's outfit census; null for a pawn without an outfit.
     /// </summary>
-    public static Fact<ApparelPolicyState> ApparelPolicyFacts(O.GearLoadout p, DefinitionCatalog? catalog)
+    public static ApparelPolicyState? ApparelPolicyFacts(O.GearLoadout p, DefinitionCatalog catalog)
     {
         var v = p.ApparelPolicy;
         if (v is null)
         {
-            return Unknown<ApparelPolicyState>();
+            return null;
         }
         var s = new ApparelPolicyState
         {
@@ -598,13 +573,8 @@ public static class ColonyGearReads
             Role = new GearRoleInput { Child = v.Child, Slave = v.Slave, IncapableOfViolence = v.IncapableOfViolence, DraftedSquad = v.Drafted },
             Current = new ApparelPolicySpec(default, "", v.Name, v.AllowedDefs, v.MinHitPoints, v.MaxHitPoints, v.MinQuality, v.MaxQuality),
         };
-        var wearer = GearDefinitionsReads.WearerOf(p);
-        if (wearer is null || catalog is null)
-        {
-            return Unknown<ApparelPolicyState>();
-        }
-        s = s with { Definitions = GearDefinitionsReads.ApparelDefinitions(catalog, wearer) };
-        foreach (var a in p.Equipment?.Apparel ?? [])
+        s = s with { Definitions = GearDefinitionsReads.ApparelDefinitions(catalog, GearDefinitionsReads.WearerOf(p)) };
+        foreach (var a in p.Equipment.Apparel)
         {
             s = s with { Overrides = s.Overrides || a.Forced || a.Locked };
         }
@@ -628,7 +598,7 @@ public static class ColonyGearReads
             }
             work = work with { Skills = Known(EquatableArray.From(skills)) };
         }
-        return Known(s with { Role = s.Role with { Work = work } });
+        return s with { Role = s.Role with { Work = work } };
     }
 
     /// <summary>
@@ -645,7 +615,7 @@ public static class ColonyGearReads
         var allowed = new HashSet<string>(StringComparer.Ordinal);
         foreach (var p in observed.Pawns)
         {
-            if (p.Policy.TryGetValue(out var state))
+            if (p.Policy is { } state)
             {
                 foreach (var name in ApparelPolicyRules.RoleApparelDefinitions(GearLoadoutRules.DeriveGearRole(state.Role), state))
                 {

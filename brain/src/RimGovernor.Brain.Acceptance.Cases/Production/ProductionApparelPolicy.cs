@@ -46,13 +46,13 @@ internal static class ProductionApparelPolicy
         {
             var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = true }, cancellationToken).ConfigureAwait(false);
             var gear = facts.Planning is Observations.Planning.Requested { Facts.Gear: { } planned } ? planned : throw new AcceptanceException($"{label}: no planning gear section");
-            return gear.Pawns.FirstOrDefault(p => p.Pawn?.Id == subject.Pawn) ?? throw new AcceptanceException($"{label}: no gear row for {subject.Pawn}");
+            return gear.Pawns.FirstOrDefault(p => p.Pawn.Value == subject.Pawn) ?? throw new AcceptanceException($"{label}: no gear row for {subject.Pawn}");
         }
 
         var setup = await ReadAsync("setup").ConfigureAwait(false);
         s.RecordWire("setup", setup.ApparelPolicy);
         var outfit = setup.ApparelPolicy?.PolicyId;
-        if (outfit is null || setup.Equipment?.Apparel.Any(a => a is { Forced: true, Locked: true }) != true)
+        if (outfit is null || !setup.Equipment.Apparel.Any(a => a is { Forced: true, Locked: true }))
         {
             throw new AcceptanceException($"setup: want a player outfit and a forced, locked shirt, got {setup.ApparelPolicy} / {setup.Equipment}");
         }
@@ -116,7 +116,7 @@ internal static class ProductionApparelPolicy
                 problems.Add("tainted apparel allowed");
             }
 
-            if (after.Equipment?.Apparel.Any(a => a.Forced == true || a.Locked == true) != false)
+            if (after.Equipment.Apparel.Any(a => a.Forced || a.Locked))
             {
                 problems.Add($"forced or locked apparel left: {after.Equipment}");
             }

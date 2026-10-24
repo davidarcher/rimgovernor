@@ -127,7 +127,6 @@ public static class GearOrdersRules
             return (null, null, Cause.UnreadBenches);
         }
         r.Observation.TryGetValue(out var observed);
-        if (!observed!.Stored.IsKnown) return (null, null, Cause.UnreadGearDemand);
         return (review, GearLoadoutRules.ModeledGearObservation(observed!, review.Loadouts), null);
     }
 
@@ -161,8 +160,7 @@ public static class GearOrdersRules
         var pending = false;
         foreach (var p in v.Pawns)
         {
-            p.Candidates.TryGetValue(out var candidates);
-            pending = pending || candidates.Count > 0;
+            pending = pending || p.Candidates.Count > 0;
         }
         var done = new HashSet<Resource>();
         foreach (var n in needs)

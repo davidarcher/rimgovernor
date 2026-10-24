@@ -40,10 +40,10 @@ public static class PreferenceRules
         }
         GearPawn Stamp(GearPawn p)
         {
-            if (p.Policy.TryGetValue(out var state) && apparel != ApparelPreference.Dressed)
+            if (p.Policy is { } state && apparel != ApparelPreference.Dressed)
             {
                 state = state with { Preference = apparel };
-                p = p with { Policy = Known(state) };
+                p = p with { Policy = state };
                 // The model's options were cut by the Dressed outfit rule; the preference's rule only narrows it.
                 if (p.LoadoutModel.TryGetValue(out var model))
                 {
@@ -65,7 +65,7 @@ public static class PreferenceRules
         var wearable = new HashSet<string>(StringComparer.Ordinal);
         foreach (var p in gear.Pawns)
         {
-            if (p.Policy.TryGetValue(out var state))
+            if (p.Policy is { } state)
             {
                 wearable.UnionWith(ApparelPolicyRules.RoleApparelDefinitions(GearLoadoutRules.DeriveGearRole(state.Role), state));
             }

@@ -129,22 +129,9 @@ internal static class RoundsColonyModel
         return (input, input.Unknowns());
     }
 
-    /// <summary>The seasonal curve is the map's, so every pawn's gear read carries the same one; the first is the colony's.</summary>
-    internal static Fact<GearClimate> ClimateOf(Fact<GearObservation> gear)
-    {
-        if (gear.TryGetValue(out var observation))
-        {
-            foreach (var pawn in observation.Pawns)
-            {
-                if (pawn.Climate is { } climate)
-                {
-                    return Known(climate);
-                }
-            }
-        }
-
-        return Unknown<GearClimate>();
-    }
+    /// <summary>The map's seasonal curve, as the gear census reads it.</summary>
+    internal static Fact<GearClimate> ClimateOf(Fact<GearObservation> gear) =>
+        gear.TryGetValue(out var observation) ? Known(observation.Climate) : Unknown<GearClimate>();
 
     /// <summary>
     /// Each growing zone's cells and each planned field's cells (the layout plan's field zones off the standing zones), with their

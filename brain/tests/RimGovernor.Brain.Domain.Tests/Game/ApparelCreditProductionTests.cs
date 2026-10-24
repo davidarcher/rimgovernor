@@ -47,8 +47,12 @@ public sealed class ApparelCreditProductionTests
         return new([Cloth, shirt, new TerrainDef { defName = "Soil" }, recipe], table, new CatalogDerived("Cloth", "Wort", 10f));
     }
 
-    private static O.GearLoadoutOption Option(string id, string source, double condition, int? quality = 2) =>
-        new() { Id = id, DefName = ShirtDef, Stuff = "Cloth", Quality = quality, Source = source, Condition = condition };
+    private static O.GearLoadoutOption Option(string id, GearSource source, double condition, D.QualityCategory? quality = D.QualityCategory.Normal) =>
+        GearFixtures.Option(id, ShirtDef, "Cloth", source) with
+        {
+            Condition = condition,
+            Quality = quality is { } graded ? new O.ItemQuality.Graded(graded) : new O.ItemQuality.Qualityless(),
+        };
 
     // A fresh colony's crafter as the native bill row carries it (#3850): a middling Crafting skill, uninspired, no role.
     private static readonly O.GearCrafter Crafter = new(6, false, 0);
@@ -58,23 +62,18 @@ public sealed class ApparelCreditProductionTests
     private static GearObservation Census(bool dressed = true, O.GearLoadoutOption? worn = null, EquatableArray<O.GearCrafter>? crafters = null,
         O.GearLoadoutOption? bill = null)
     {
-        var row = new O.GearLoadout
+        var row = GearFixtures.Loadout("pawn") with
         {
-            Pawn = new C.Ref { Id = "pawn" },
-            Equipment = new O.PawnEquipment(),
             ApparelPolicy = PoliciesTests.EmptyOutfit,
-            Gender = D.Gender.Male,
-            ComfortableMinC = 10,
-            ComfortableMaxC = 30,
-            LoadoutModel = new O.GearLoadoutModel { Worn = dressed ? [worn ?? Option("worn-shirt", "worn", 0.1)] : [], Options = [bill ?? Option("bill-shirt", "bill", 1) with { Crafters = crafters ?? [Crafter] }] },
+            LoadoutModel = GearFixtures.NoModel with { Worn = dressed ? [worn ?? Option("worn-shirt", GearSource.Worn, 0.1)] : [], Options = [bill ?? Option("bill-shirt", GearSource.Bill, 1) with { Crafters = crafters ?? [Crafter] }] },
         };
         var defs = new GearDefinitions { Catalog = Catalog(), Finished = Known<IReadOnlySet<string>>(new HashSet<string>()) };
         var model = ColonyGearReads.GearLoadoutModelFacts(defs, new Tables(default, default, Things.Of([])), 20, row,
-            Known(new RimGovernor.Brain.Policy.ApparelPolicyState()), Unknown<RaidThreat>(), new StuffArrival(new Dictionary<Resource, long> { [new("Cloth")] = 100 }, []));
-        return new GearObservation
+            new RimGovernor.Brain.Policy.ApparelPolicyState(), Unknown<RaidThreat>(), new StuffArrival(new Dictionary<Resource, long> { [new("Cloth")] = 100 }, []));
+        return ColonyModelFixtures.NoGear() with
         {
-            Stored = Known(default(EquatableArray<GearStock>)),
-            Pawns = [new GearPawn { Pawn = new("pawn"), Loadout = "load", Candidates = Known(default(EquatableArray<GearCandidate>)), Apparel = Known(default(EquatableArray<GearApparel>)), LoadoutModel = model }],
+            Stored = [],
+            Pawns = [new GearPawn { Pawn = new("pawn"), Loadout = "load", Candidates = [], Apparel = [], LoadoutModel = model }],
         };
     }
 
@@ -157,7 +156,7 @@ public sealed class ApparelCreditProductionTests
     [Fact]
     public void ATitledColonistsNormalShirtBillOverAPoorShirtShiftsTheirBreaksByTheMinimumQualityThought()
     {
-        var poor = Option("worn-shirt", "worn", 1, quality: (int)D.QualityCategory.Poor);
+        var poor = Option("worn-shirt", GearSource.Worn, 1, quality: D.QualityCategory.Poor);
         // The same def and groups at a higher quality is a candidate: the worker reads the lowest worn quality.
         Assert.Single(ClothingActivitiesRules.ClothingActivityRequirements(Census(worn: poor)));
         Assert.Equal([0.04], Generate(Knight, worn: poor).ApparelShifts["pawn"]);
@@ -167,14 +166,14 @@ public sealed class ApparelCreditProductionTests
     public void AFreshColonysUntitledColonistInAPoorShirtGetsNothingFromTheMinimumQualityThought()
     {
         // No title in effect: the native read writes the Awful minimum, which no garment is below.
-        var context = Generate(new(D.Gender.Male, true, true), worn: Option("worn-shirt", "worn", 1, quality: (int)D.QualityCategory.Poor));
+        var context = Generate(new(D.Gender.Male, true, true), worn: Option("worn-shirt", GearSource.Worn, 1, quality: D.QualityCategory.Poor));
         Assert.False(context.ApparelShifts.ContainsKey("pawn"));
     }
 
     [Fact]
     public void AQualitylessWornGarmentDecodesAsQualitylessAndCountsTowardNoMinimum()
     {
-        var plain = Option("worn-shirt", "worn", 1, quality: null);
+        var plain = Option("worn-shirt", GearSource.Worn, 1, quality: null);
         var worn = Assert.Single(Census(worn: plain).Pawns[0].LoadoutModel.Value.Worn);
         Assert.True(worn.Qualityless);
         // The quality-less shirt counts neither way; the only shift is the crafted bill replacement's chance of falling
@@ -194,7 +193,7 @@ public sealed class ApparelCreditProductionTests
         // A bill with a quality and no crafter is an unread fact (the native read offers no bill nobody can craft).
         Assert.Throws<RequiredFactException>(() => Census(crafters: []));
         // A bill without quality is at none.
-        var plain = Assert.Single(Census(bill: Option("bill-shirt", "bill", 1, quality: null)).Pawns[0].LoadoutModel.Value.Options);
+        var plain = Assert.Single(Census(bill: Option("bill-shirt", GearSource.Bill, 1, quality: null)).Pawns[0].LoadoutModel.Value.Options);
         Assert.True(plain.Qualityless);
         Assert.Empty(plain.QualityOdds);
     }
@@ -203,7 +202,7 @@ public sealed class ApparelCreditProductionTests
     public void AFreshColonysShirtBillLiftsAnExcellentMinimumOnlyAsAChanceAndAnUntitledColonistGetsNothing()
     {
         var count = new O.NeedApparel(D.Gender.Male, true, true) { MinimumQuality = D.QualityCategory.Excellent };
-        var good = Option("worn-shirt", "worn", 1, quality: (int)D.QualityCategory.Good);
+        var good = Option("worn-shirt", GearSource.Worn, 1, quality: D.QualityCategory.Good);
         // The fresh colony's crafter may make an Excellent shirt: a candidate whose lifting outcome is the thought's shift.
         Assert.Single(ClothingActivitiesRules.ClothingActivityRequirements(Census(worn: good)));
         Assert.Equal([0.04], Generate(count, worn: good).ApparelShifts["pawn"]);

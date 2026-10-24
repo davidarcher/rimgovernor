@@ -109,11 +109,6 @@ public sealed partial class RoundsBuildingPlanner
         List<Pol.Resource> products = [];
         if (GearLadder())
         {
-            var gear = PlanningWindowReads.RequirePlanning(observed).Gear;
-            if (gear is null)
-            {
-                return (null, FieldUnavailable("gear_census"));
-            }
             var things = await RoundsGear.FrameThingsOfAsync(Native, identity, call).ConfigureAwait(false);
             var (facts, factsKnown) = RoundsGear.GearObservationFacts(observed, new Tables(Buildings.Of(), Pawns.Of(), things), defs);
             if (!factsKnown)
@@ -122,7 +117,7 @@ public sealed partial class RoundsBuildingPlanner
             }
             foreach (var pawn in facts.Pawns)
             {
-                if (!pawn.Candidates.TryGetValue(out var candidates) || candidates.Count > 0)
+                if (pawn.Candidates.Count > 0)
                 {
                     return (null, BuildingReasonExistingWork);
                 }

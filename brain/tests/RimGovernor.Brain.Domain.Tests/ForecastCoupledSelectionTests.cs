@@ -986,11 +986,11 @@ public sealed class ForecastCoupledSelectionTests
             ID = product, Definition = new(product), Stuff = new("Cloth"), Slot = slot, Layers = [layer], Groups = ["Torso"],
             Source = source, Quality = 2, Condition = 1, Cold = cold, Cost = 20
         };
-        var census = new GearObservation
+        var census = ColonyModelFixtures.NoGear() with
         {
-            Stored = Known(default(EquatableArray<RimGovernor.Brain.Policy.GearStock>)),
+            Stored = default(EquatableArray<RimGovernor.Brain.Policy.GearStock>),
             Pawns = [new() { Pawn = new("pawn"), Loadout = "load",
-                Candidates = Known(default(EquatableArray<RimGovernor.Brain.Policy.GearCandidate>)),
+                Candidates = default(EquatableArray<RimGovernor.Brain.Policy.GearCandidate>),
                 LoadoutModel = Known(new GearLoadoutInput { Ambient = -10, ComfortableMin = 10, ComfortableMax = 30,
                     Worn = shirt ? [Garment("Shirt", GearSlot.SkinTorso, "OnSkin", 2, GearSource.Worn), Garment("Jacket", GearSlot.Outer, "Shell", 5, GearSource.Worn)] : [],
                     Options = [Garment("Parka", GearSlot.Outer, "Shell", 20, GearSource.Bill)] }) }]
@@ -1102,7 +1102,7 @@ public sealed class ForecastCoupledSelectionTests
         model = model with { Role = model.Role with { Work = model.Role.Work with { Traits = Known<EquatableArray<PawnTrait>>([]) } } };
         var facts = Review() with
         {
-            Gear = Known(new GearObservation { Stored = Known<EquatableArray<RimGovernor.Brain.Policy.GearStock>>([]), Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = Known(model), Candidates = Known<EquatableArray<RimGovernor.Brain.Policy.GearCandidate>>([]) }] }),
+            Gear = Known(ColonyModelFixtures.NoGear() with { Stored = [], Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = Known(model), Candidates = [] }] }),
             MedicalPawns = Known<EquatableArray<CarePawn>>([new() { Id = new("pawn"), Conditions = Known<EquatableArray<CareCondition>>([]) }]),
         };
         var gear = ForecastCoupledCandidates.GenerateCoupledActivities(facts, Horizon)!.Alternatives.Where(a => a.ExclusiveOutcome == "gear/pawn").ToArray();

@@ -57,31 +57,22 @@ public sealed class PrimaryWeaponRoleTests
     // The census of one colonist wielding <paramref name="def"/> (or unarmed), decoded by the observation read.
     private static GearObservation Census(string? def)
     {
-        var equipment = new O.PawnEquipment();
+        var equipment = GearFixtures.NoEquipment;
         var things = new List<O.Thing>();
         if (def is not null)
         {
             const string id = "Weapon_1";
-            equipment = equipment with { Armed = true, PrimaryId = id, Equipped = [new O.GearItem { Thing = new C.Ref { Id = id }, Quality = D.QualityCategory.Good, ConditionFraction = 0.8 }] };
+            equipment = equipment with { Armed = true, PrimaryId = id, Equipped = [GearFixtures.Item(id, new O.ItemQuality.Graded(D.QualityCategory.Good)) with { ConditionFraction = 0.8 }] };
             things.Add(new O.Thing { Entity = new O.EntityRef { Id = id, DefName = def, Label = def, Place = new O.EntityPlace.Unplaced() } });
         }
         var tables = new Tables(default, default, Things.Of(things));
-        var row = new O.GearLoadout
-        {
-            Pawn = new C.Ref { Id = "pawn" },
-            Equipment = equipment,
-            ApparelPolicy = PoliciesTests.EmptyOutfit,
-            Gender = D.Gender.Male,
-            ComfortableMinC = 10,
-            ComfortableMaxC = 30,
-            LoadoutModel = new O.GearLoadoutModel(),
-        };
+        var row = GearFixtures.Loadout("pawn") with { Equipment = equipment, ApparelPolicy = PoliciesTests.EmptyOutfit };
         var defs = new GearDefinitions { Catalog = Catalog(), Finished = Known<IReadOnlySet<string>>(new HashSet<string>()) };
-        var model = ColonyGearReads.GearLoadoutModelFacts(defs, tables, 20, row, Known(new RimGovernor.Brain.Policy.ApparelPolicyState()), Unknown<RaidThreat>(), new StuffArrival(new Dictionary<Resource, long>(), []));
-        return new GearObservation
+        var model = ColonyGearReads.GearLoadoutModelFacts(defs, tables, 20, row, new RimGovernor.Brain.Policy.ApparelPolicyState(), Unknown<RaidThreat>(), new StuffArrival(new Dictionary<Resource, long>(), []));
+        return ColonyModelFixtures.NoGear() with
         {
-            Stored = Known(default(EquatableArray<GearStock>)),
-            Pawns = [new GearPawn { Pawn = new("pawn"), Loadout = "load", Candidates = Known(default(EquatableArray<GearCandidate>)), Apparel = Known(default(EquatableArray<GearApparel>)), LoadoutModel = model }],
+            Stored = [],
+            Pawns = [new GearPawn { Pawn = new("pawn"), Loadout = "load", Candidates = [], Apparel = [], LoadoutModel = model }],
         };
     }
 

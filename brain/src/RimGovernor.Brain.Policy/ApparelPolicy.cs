@@ -158,7 +158,7 @@ public static class ApparelPolicyRules
     public static bool DesiredApparelPolicy(GearPawn p, out ApparelPolicy? desired)
     {
         desired = null;
-        if (!p.Policy.TryGetValue(out var state) || p.Blocked)
+        if (p.Policy is not { } state || p.Blocked)
         {
             return false;
         }
@@ -223,7 +223,7 @@ public static class ApparelPolicyRules
         keepSet = new Dictionary<string, bool>();
         foreach (var p in pawns)
         {
-            if (!p.Policy.TryGetValue(out var state) || p.Blocked || state.PolicyID.Length == 0)
+            if (p.Policy is not { } state || p.Blocked || state.PolicyID.Length == 0)
             {
                 return false;
             }

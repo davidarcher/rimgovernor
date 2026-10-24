@@ -492,7 +492,7 @@ public static partial class GoalRules
     /// <summary>The colonists who can wear <paramref name="garment"/> and are not soldiers, children or prisoners, in pawn id order: the outfit rule's candidates.</summary>
     private static List<GearPawn> EligibleWearers(GearObservation gear, Resource garment) =>
         [.. gear.Pawns
-            .Where(p => !p.Blocked && p.Policy.TryGetValue(out var state)
+            .Where(p => !p.Blocked && p.Policy is { } state
                 && GearLoadoutRules.DeriveGearRole(state.Role) is not (GearRole.Soldier or GearRole.Child or GearRole.Prisoner)
                 && state.Definitions.Items.Any(d => d.Name == garment.Value && d.Adult))
             .OrderBy(p => p.Pawn.Value, StringComparer.Ordinal)];
@@ -778,8 +778,8 @@ public static partial class GoalRules
         }
         if (required.Count > 0)
         {
-            GearPawn Add(GearPawn p) => required.TryGetValue(p.Pawn, out var names) && p.Policy.TryGetValue(out var state)
-                ? p with { Policy = Fact.Known(state with { Required = EquatableArray.From(state.Required.Items.Union(names, StringComparer.Ordinal)) }) }
+            GearPawn Add(GearPawn p) => required.TryGetValue(p.Pawn, out var names) && p.Policy is { } state
+                ? p with { Policy = state with { Required = EquatableArray.From(state.Required.Items.Union(names, StringComparer.Ordinal)) } }
                 : p;
             f = f with { Gear = Fact.Known(gear with { Pawns = [.. gear.Pawns.Select(Add)] }) };
         }

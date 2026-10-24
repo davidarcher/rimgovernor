@@ -19,17 +19,17 @@ public sealed class WornCountGoalTests
     {
         Pawn = new(id),
         Blocked = blocked,
-        Policy = Known(new ApparelPolicyState
+        Policy = new ApparelPolicyState
         {
             Role = role ?? new(),
             Definitions = canWear ? [new() { Name = Duster, Adult = true, CoversBody = true }, new() { Name = "Apparel_Shirt", Adult = true, CoversBody = true }] : [new() { Name = "Apparel_Shirt", Adult = true, CoversBody = true }],
-        }),
+        },
         LoadoutModel = Known(new GearLoadoutInput { Worn = wearing ? [new GearOption { Definition = new(Duster), Stuff = Devilstrand, Condition = 1 }] : [] }),
     };
 
     private static RoundsFacts Facts(params GearPawn[] pawns) => new()
     {
-        Gear = Known(new GearObservation { Pawns = pawns }),
+        Gear = Known(ColonyModelFixtures.NoGear() with { Pawns = pawns }),
         Resources = Known<EquatableArray<Amount>>([]),
         Items = new ItemFacts { StuffCategories = new Dictionary<Resource, IReadOnlyList<string>> { [Devilstrand] = ["Fabric"] } },
         Garments = [new ClothingGarment { Definition = new(Duster), Groups = ["Torso"], Slots = [[new Amount(Devilstrand, 60)]] }],
@@ -46,7 +46,7 @@ public sealed class WornCountGoalTests
     };
 
     private static IReadOnlyList<string> Required(RoundsFacts f) =>
-        [.. f.Gear.Value.Pawns.Select(p => string.Join(",", p.Policy.Value.Required.Items))];
+        [.. f.Gear.Value.Pawns.Select(p => string.Join(",", p.Policy!.Required.Items))];
 
     [Fact]
     public void TheGarmentIsRequiredForTheFirstEligibleColonistsByPawnId()
@@ -60,7 +60,7 @@ public sealed class WornCountGoalTests
             Pawn("p6"));
         var stamped = GoalRules.Stamp(rounds, GoalRules.DemandOf(GoalFacts(rounds)));
         // p4, p1 and p6 are eligible; the first two by id are p1 and p4. The soldier, the child and the pawn who cannot wear it get nothing.
-        Assert.Equal(["p1", "p4"], stamped.Gear.Value.Pawns.Where(p => p.Policy.Value.Required.Items.Contains(Duster)).Select(p => p.Pawn.Value).Order());
+        Assert.Equal(["p1", "p4"], stamped.Gear.Value.Pawns.Where(p => p.Policy!.Required.Items.Contains(Duster)).Select(p => p.Pawn.Value).Order());
     }
 
     [Fact]
@@ -81,7 +81,7 @@ public sealed class WornCountGoalTests
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(Goal(), facts).State);
         var stamped = GoalRules.Stamp(rounds, GoalRules.DemandOf(facts));
         Assert.Empty(stamped.ClothingRunway().Needs);
-        Assert.Equal(2, stamped.Gear.Value.Pawns.Count(p => p.Policy.Value.Required.Items.Contains(Duster)));
+        Assert.Equal(2, stamped.Gear.Value.Pawns.Count(p => p.Policy!.Required.Items.Contains(Duster)));
     }
 
     [Fact]

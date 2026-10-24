@@ -354,10 +354,9 @@ namespace HomeBridge.BridgeTools
 
         private static Obs.PlanningFacts Planning(Map map, IntVec3 center, Obs.ColonyFactsRequest request, Common.ObservationContext context)
         {
-            var result = new Obs.PlanningFacts { };
+            // A failed gear read fails the colony facts read (#3777): the census is whole or absent.
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
-            try { result = result with { Gear = NativeGearFacts.Read(map, context) }; }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); result = result with { Issues = [.. result.Issues, Issue("gear", Common.UnavailableReason.ReadFailed, "Complete native loadout upkeep is unavailable.")] }; }
+            var result = new Obs.PlanningFacts { Gear = NativeGearFacts.Read(map) };
             ObservationWork.Detail("cf.gear", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             began = System.Diagnostics.Stopwatch.GetTimestamp();
             result = result with { Crops = [.. result.Crops, .. Crops(map)] };

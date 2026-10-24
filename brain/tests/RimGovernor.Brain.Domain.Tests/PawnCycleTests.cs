@@ -25,10 +25,10 @@ public sealed class PawnCycleTests
         ComfortableMax = Known(26.0),
     };
 
-    private static ColonyModelInput Input(ModelPawn pawn, bool daylight = true)
+    private static ColonyModelInput Input(ModelPawn pawn)
     {
         var input = ColonyModelFixtures.Devilstrand();
-        var climate = input.Climate.Value with { DaylightHours = daylight ? EquatableArray.From(Daylight) : default };
+        var climate = input.Climate.Value with { DaylightHours = EquatableArray.From(Daylight) };
         return input with { Climate = Known(climate), Pawns = Known(EquatableArray.From(new[] { pawn })) };
     }
 
@@ -96,10 +96,10 @@ public sealed class PawnCycleTests
     {
         var pawn = Pawn() with { Needs = default, Skills = default, ComfortableMin = default };
 
-        var cycle = PawnCycle.Of(Input(pawn, daylight: false), pawn, 5);
+        var cycle = PawnCycle.Of(Input(pawn), pawn, 5);
 
         Assert.Equal(
-            ["comfort_range_unknown:Anna", "daylight_unknown", "food_fall_unknown:Anna", "joy_fall_unknown:Anna", "rest_fall_unknown:Anna"],
+            ["comfort_range_unknown:Anna", "food_fall_unknown:Anna", "joy_fall_unknown:Anna", "rest_fall_unknown:Anna"],
             cycle.Findings);
         Assert.False(cycle.OutdoorThermal.IsKnown);
     }

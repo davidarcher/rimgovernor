@@ -19,7 +19,7 @@ public sealed class ClothingChosenStuffTests
     // p1 wears a tattered plain-leather parka; the parka takes 80 of any leather.
     private static RoundsFacts Facts(params (GearSlot Slot, Resource Stuff)[] chosen) => new()
     {
-        Gear = Known(new GearObservation
+        Gear = Known(ColonyModelFixtures.NoGear() with
         {
             Pawns =
             [

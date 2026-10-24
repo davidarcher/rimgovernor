@@ -183,14 +183,11 @@ public static class ClothingDemandRules
         }
 
         var spare = new Dictionary<Resource, int>();
-        if (gear.Stored.TryGetValue(out var stored))
+        foreach (var s in gear.Stored)
         {
-            foreach (var s in stored)
+            if (s.Serviceable())
             {
-                if (s.Serviceable())
-                {
-                    spare[s.Definition] = spare.GetValueOrDefault(s.Definition) + s.Count;
-                }
+                spare[s.Definition] = spare.GetValueOrDefault(s.Definition) + s.Count;
             }
         }
 

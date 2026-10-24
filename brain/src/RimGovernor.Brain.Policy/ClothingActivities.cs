@@ -23,7 +23,6 @@ public static class ClothingActivitiesRules
     /// </summary>
     public static EquatableArray<ClothingActivityRequirement> ClothingActivityRequirements(GearObservation census)
     {
-        if (!census.Stored.IsKnown) return [];
         var result = new List<ClothingActivityRequirement>();
         foreach (var pawn in census.Pawns.OrderBy(p => p.Pawn.Value, StringComparer.Ordinal))
         {
@@ -31,7 +30,7 @@ public static class ClothingActivitiesRules
             if (!pawn.LoadoutModel.TryGetValue(out var input)) continue;
             foreach (var trait in input.Role.Work.Traits.ValueOrDefault)
                 input = input with { Nudist = input.Nudist || trait.Effects.Nudist };
-            var required = pawn.Policy.TryGetValue(out var policy) ? policy.Required : [];
+            var required = pawn.Policy is { } policy ? policy.Required : [];
             foreach (var option in input.Options.Where(o => o.Source == GearSource.Bill && !GearArmorRules.ArmoryArmor(o.Definition)
                 && GearLoadoutRules.GearEligible(input, o)))
             {

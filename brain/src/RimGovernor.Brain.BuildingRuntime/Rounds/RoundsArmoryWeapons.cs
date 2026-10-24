@@ -120,14 +120,14 @@ partial class RoundsArmoryPlanner
     internal static ArmoryPrimary? ArmoryPrimaryOf(O.PawnState row, Things things, DefinitionCatalog catalog)
     {
         var equipment = row.Equipment;
-        var id = equipment?.PrimaryId ?? "";
-        if (equipment is null || id == "")
+        if (equipment.PrimaryId is not { } id)
         {
             return null;
         }
         foreach (var item in equipment.Equipped)
         {
-            if (item.Thing is not { } thing || (thing.Id ?? "") != id)
+            var thing = item.Thing;
+            if (thing.Id != id)
             {
                 continue;
             }
@@ -137,11 +137,8 @@ partial class RoundsArmoryPlanner
                 continue;
             }
             var facts = catalog.WeaponOf(def);
-            var quality = 2; // QualityCategory.Normal
-            if (item.Quality is not null)
-            {
-                quality = (int)item.Quality.GetValueOrDefault();
-            }
+            // A qualityless weapon counts as Normal.
+            var quality = item.Quality is O.ItemQuality.Graded graded ? (int)graded.Category : (int)RimGovernor.Contracts.Wire.Defs.QualityCategory.Normal;
             return new ArmoryPrimary { Definition = def, Ranged = facts.Ranged, Quality = quality, Facts = facts };
         }
         return null;
