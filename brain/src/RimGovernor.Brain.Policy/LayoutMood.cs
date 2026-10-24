@@ -200,12 +200,48 @@ public sealed record MoodBreakModel
 /// <summary>One stage of a ThoughtDef; a null stage (the game keeps unused ones null) is not Present and carries no mood.</summary>
 public readonly record struct MoodStage(double Effect, bool Present);
 
+/// <summary>
+/// A memory thought as the game stacks it (ThoughtDef, MemoryThoughtHandler.TryGainMemory, ThoughtHandler.MoodOffsetOfGroup):
+/// the mood of its one stage, the days a memory lasts, the most memories of the def a pawn holds (a new one past it renews
+/// the oldest; negative is no limit) and the factor each further memory's share is multiplied by.
+/// </summary>
+public sealed record MemoryThought(double Effect, double DurationDays, int StackLimit, double StackedMultiplier)
+{
+    /// <summary>
+    /// The mood a pawn holds while it gains the memory <paramref name="perDay"/> times a day: the memories alive at once
+    /// (the gains of DurationDays, at most StackLimit), the first at Effect and each further one at StackedMultiplier
+    /// times the one before, a fraction of a memory counting its share of the next.
+    /// </summary>
+    public double Mood(double perDay)
+    {
+        if (!(perDay > 0) || !(DurationDays > 0))
+        {
+            return 0;
+        }
+        var held = perDay * DurationDays;
+        if (StackLimit >= 0)
+        {
+            held = Math.Min(held, StackLimit);
+        }
+        double sum = 0, share = 1;
+        for (var i = 0; i < Math.Floor(held); i++)
+        {
+            sum += share;
+            share *= StackedMultiplier;
+        }
+        return Effect * (sum + ((held - Math.Floor(held)) * share));
+    }
+}
+
 /// <summary>Everything the mood price reads from the catalog: the break curve and the stages of the thoughts the planner prices.</summary>
 public sealed record MoodModel
 {
     public MoodBreakModel Break { get; init; } = new();
 
     public IReadOnlyDictionary<string, IReadOnlyList<MoodStage>> Stages { get; init; } = new Dictionary<string, IReadOnlyList<MoodStage>>();
+
+    /// <summary>The game's SleepDisturbed memory (ThoughtDefOf.SleepDisturbed), read by a bed group's disturbed-sleep price (#3750); null when the catalog lacks the def, which fails that price with a RequiredFactException.</summary>
+    public MemoryThought? SleepDisturbed { get; init; }
 
     /// <summary>The mood a thought gives at a stage index, clamped to the stages it has; a null stage gives none. False when the thought is unknown.</summary>
     public (double Effect, bool Ok) StageEffect(string thought, int stage)

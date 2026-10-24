@@ -296,9 +296,34 @@ judgments. The floor's `Cleanliness` and `CleaningTimeFactor` and the dirt
 pawns track in (`Pawn_FilthTracker`, `FilthRate` a cell entered) are not
 priced: the floor is laid after the layout and the cells entered are the
 embedding's traffic. No thought reads room cleanliness (only `Impressiveness`
-does), so the impressiveness shift stays recorded only (#2954). `FilthModel.
-Priced` (a merge is proposed) needs the poisoning and the stand ticks, not the
-cleaning inputs.
+does), so the impressiveness shift is priced only where a sleeper's thought reads
+it, in a bed group (below). `FilthModel.Priced` (a merge is proposed) needs the
+poisoning and the stand ticks, not the cleaning inputs.
+
+A **bed-station merge** (#3750, epic #3738 D9) puts beds in one room with a
+kitchen, dining, butchery or freezer station (a `Dine` or `StoreCold` node, or a
+work station the game alone reads as a Kitchen or DiningRoom) only when the walk
+saved beats what the sleepers lose (`LayoutBedStations.cs`); no table forbids it.
+`Clusterer.Eval` adds two lost effects to such a group, each only when it costs
+something, so the seed keeps the pair apart (`cluster_lost_effect`) and the
+regrouping proposes the merge (`regroup_bed_station_merge_walk_beats_loss`, or a
+`kept` row `regroup_bed_station_merge_loss_beats_walk` naming the effects).
+**Disturbed sleep** (`sleep_disturbed`): the group's station visits a day (its
+graph movements to or from a hosted station, at the group's share of the node)
+times the share of them made while a worker sleeps (`RestSchedule`, the colony's
+workers' timetables: Work and Anything hours visit, Sleep hours sleep) keep that
+many `SleepDisturbed` memories alive (the ThoughtDef's stage mood, duration and
+stacking, `MemoryThought.Mood`), priced like any lost mood by `PriceMood` for
+each sleeper. **Impressiveness** (`impressiveness`): the filth of the group's
+runs standing at once (`Residual`) lowers the room's Cleanliness over its cells
+and so perhaps its stage (`RoomSpaceRules`, `ImpressivenessLevels`); the sleepers
+lose their bed thought's difference between the stages
+(`BedMergeFacts.Sleepers`, `ForecastHousing.BedroomGain`) for the share of the
+day the filth stands, in work-days. An unread rest schedule, `SleepDisturbed`
+def, filth model or sleeper gains, where needed, is a `RequiredFactException`.
+Not priced: the game's 300-tick cooldown between disturbances (the price is an
+upper bound) and the spread of the sleepers' gains (their mean is used); a
+freezer's cold against the beds stays the environment conflict.
 
 The total is in embedding score points, no new constant: `-Score.Total()` plus
 the conflicts. `RoomGroup.Costs` ticks a day become work-days (`TicksPerDay`),

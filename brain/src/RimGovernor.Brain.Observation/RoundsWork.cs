@@ -137,6 +137,31 @@ public static class RoundsWorkReads
         return trait with { Effects = catalog.TraitEffects(trait.Name, trait.Degree) };
     }
 
+    /// <summary>
+    /// The colony's rest schedule (#3750) from its workers' timetables: the colonists whose settings say they work. Null,
+    /// unread, when a colonist has no settings or no work flag, or a worker's timetable is not read (RestSchedule.Of).
+    /// </summary>
+    internal static RestSchedule? RoundsRest(O.PawnSnapshot snapshot)
+    {
+        var timetables = new List<IReadOnlyList<string>>();
+        foreach (var row in snapshot.Pawns)
+        {
+            if (!row.Colonist)
+            {
+                continue;
+            }
+            if (row.Settings is not { WorkApplies: { } works } s)
+            {
+                return null;
+            }
+            if (works)
+            {
+                timetables.Add([.. s.Schedule.Select(slot => slot.AssignmentDefName)]);
+            }
+        }
+        return RestSchedule.Of(timetables);
+    }
+
     private static WorkPawn WorkPawnRowFrom(O.PawnState row)
     {
         var w = new WorkPawn { Id = new PawnId(row.Pawn.Id ?? ""), ConstructionAble = ColonyDecodeReads.Optional(row.ConstructionCapable is not null, row.ConstructionCapable.GetValueOrDefault()) };

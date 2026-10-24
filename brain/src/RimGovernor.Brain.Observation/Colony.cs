@@ -224,6 +224,9 @@ public sealed partial record ColonyProjection
 
     public Fact<EquatableArray<WorkPawn>> WorkPawns { get; init; }
 
+    /// <summary>The colony's rest schedule from its workers' timetables (#3750); null while unread.</summary>
+    public RestSchedule? Rest { get; init; }
+
     /// <summary>The Biotech catalog's mech kinds; the zero value without Biotech.</summary>
     public MechCatalog MechCatalog { get; init; } = new();
 

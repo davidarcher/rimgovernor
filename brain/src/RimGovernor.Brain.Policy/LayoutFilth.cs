@@ -107,7 +107,7 @@ public sealed record FilthModel
 /// Notify_EnteredNewCell: FilthRate times 0.005 a cell entered), are not priced: the floor is laid after the
 /// layout and the cells entered are the embedding's traffic, neither known in the station chain. No ThoughtDef
 /// reads room cleanliness (only the Impressiveness stat does, recorded as ImpressivenessInputPerUnit), so the
-/// cleanliness mood is record-only.
+/// cleanliness is priced only through a bed group's impressiveness stage (#3750, Clusterer.FilthStage).
 /// </summary>
 public sealed record FilthGame
 {

@@ -50,6 +50,9 @@ public sealed record StationFacts
     /// <summary>Says who is a baby.</summary>
     public Fact<EquatableArray<WorkPawn>> WorkPawns { get; init; }
 
+    /// <summary>The colony's rest schedule from its workers' timetables (#3750); null while unread, which fails the disturbed-sleep price that needs it.</summary>
+    public RestSchedule? Rest { get; init; }
+
     /// <summary>The colonists' food census; its consumers' rates sum to the nutrition a day.</summary>
     public Fact<FoodSupply> Food { get; init; }
 
@@ -285,6 +288,7 @@ public sealed record StationFacts
             new("child", KeyText.Of(Child)),
             new("plan", KeyText.Of(Plan)),
             new("host_build", KeyText.Of(HostBuild)),
+            new("rest", KeyText.Of(Rest)),
         };
         try
         {
@@ -589,7 +593,7 @@ public static partial class LayoutStationPlanRules
         var built = LayoutPlan.BuiltRegions(f.Plan, f.StandingIds()!);
         var regrouped = LayoutRegroupRules.Regroup(new RegroupInput
         {
-            Cluster = new ClusterInput { Graph = graph, Catalog = f.Catalog, RoofDistance = f.RoofDistance, BedMerge = f.BedMergePriceOf() },
+            Cluster = new ClusterInput { Graph = graph, Catalog = f.Catalog, RoofDistance = f.RoofDistance, BedMerge = f.BedMergePriceOf(), Rest = f.Rest },
             Embed = new EmbedInput
             {
                 Zones = f.Plan.Zones,

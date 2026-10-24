@@ -17,11 +17,19 @@ public sealed record RegroupPrice
     public MoodModel Mood { get; init; } = new();
     public Fact<double> Expected { get; init; }
 
-    /// <summary>A lost role effect in score points: its mood points taken from each pawn at the planned room's stage, as break risk. 0 while the mood is not priced.</summary>
+    /// <summary>
+    /// A lost role effect in score points: its mood points taken from each pawn at the planned room's stage, as break risk. A
+    /// bed group's hosting cost (#3750) carries its own amount: the disturbed sleep's mood points each sleeper loses, as
+    /// break risk, and the impressiveness stage's capability-days a day, as work-days. 0 while the mood is not priced.
+    /// </summary>
     internal double EffectPoints(LostRoleEffect l)
     {
+        if (l.Effect == RoleEffect.Impressiveness)
+        {
+            return Work.Points(l.Days);
+        }
         var known = Expected.TryGetValue(out var level);
-        var (lost, ok) = Mood.LostPoints(l, LayoutMoodRules.MoodJudgment.PlannedStage);
+        var (lost, ok) = l.Effect == RoleEffect.SleepDisturbed ? (l.Points, true) : Mood.LostPoints(l, LayoutMoodRules.MoodJudgment.PlannedStage);
         if (!known || !ok)
         {
             return 0;
@@ -89,6 +97,9 @@ public sealed record RegroupDecision
     public double Walk { get; init; }
     public double Poison { get; init; }
     public double Clean { get; init; }
+
+    /// <summary>The lost effects (RoleEffect wire names) of the room the move's pair shares after it, sorted; empty when the pair shares no room.</summary>
+    public IReadOnlyList<string> Effects { get; init; } = [];
 }
 
 /// <summary>The groups the search ended on. Embed is the embedding's input over those groups, Embedding its result.</summary>
@@ -292,6 +303,17 @@ internal sealed class Regrouper(RegroupInput input)
             }
             Add(new RegroupProposal(LayoutRegroupRules.RegroupMerge, LayoutRegroupRules.ReasonRegroupFilthMerge, d.A, d.B, [new NodePair(d.A, d.B, PairRule.Together)]));
         }
+
+        // merge: beds kept from a kitchen, dining, butchery or freezer station for the sleepers' cost alone (#3750) share the room when the walk saved outweighs it.
+        foreach (var d in cur.Clustering.Decisions)
+        {
+            if (d.Verdict != LayoutClusterRules.ClusterKeep || d.Reason != LayoutClusterRules.ReasonClusterLostEffect || d.LostEffects.Count == 0 || !d.LostEffects.All(l => LayoutRegroupRules.BedStationEffect(l.Effect))
+                || d.A == "" || d.B == "" || d.A == d.B || LayoutRegroupRules.RuleOf(cur.Pairs, d.A, d.B) != PairRule.None)
+            {
+                continue;
+            }
+            Add(new RegroupProposal(LayoutRegroupRules.RegroupMerge, LayoutRegroupRules.ReasonRegroupBedStationMerge, d.A, d.B, [new NodePair(d.A, d.B, PairRule.Together)]));
+        }
         var groups = cur.Clustering.Groups;
         foreach (var g in groups)
         {
@@ -395,6 +417,15 @@ public static partial class LayoutRegroupRules
     /// <summary>The butcher stayed a closet because the poisoning costs more than the walk saved.</summary>
     public const string ReasonRegroupFilthKept = "regroup_filth_merge_poison_beats_walk";
 
+    /// <summary>Beds and a kitchen, dining, butchery or freezer station share a room because the walk saved outweighs the sleepers' cost (#3750).</summary>
+    public const string ReasonRegroupBedStationMerge = "regroup_bed_station_merge_walk_beats_loss";
+
+    /// <summary>The beds stayed apart from the station because the sleepers' cost (the decision's Effects) is more than the walk saved (#3750).</summary>
+    public const string ReasonRegroupBedStationKept = "regroup_bed_station_merge_loss_beats_walk";
+
+    /// <summary>A sleepers' cost of hosting stations (#3750), which a bed-station merge is proposed past.</summary>
+    internal static bool BedStationEffect(RoleEffect e) => e is RoleEffect.SleepDisturbed or RoleEffect.Impressiveness;
+
     // The search budget, as SiteSearchTop / SiteSearchIters bound the embedding's: moves tried a round and rounds, each trial one clustering and one embedding.
     internal const int RegroupProposals = LayoutSiteGroundRules.SiteSearchTop;
     internal const int RegroupRounds = LayoutSiteGroundRules.SiteSearchTop / 2;
@@ -439,9 +470,9 @@ public static partial class LayoutRegroupRules
             foreach (var m in Sample(cands, RegroupProposals, rng))
             {
                 var t = r.Evaluate(WithRules(cur.Pairs, m.Rules));
-                if (m.Reason == ReasonRegroupFilthMerge && t.Signature() != cur.Signature() && !t.Better(cur))
+                if (m.Reason is ReasonRegroupFilthMerge or ReasonRegroupBedStationMerge && t.Signature() != cur.Signature() && !t.Better(cur))
                 {
-                    refused[PairKey(m.A, m.B)] = MoveDecision(m, cur, t, RegroupKept, ReasonRegroupFilthKept);
+                    refused[PairKey(m.A, m.B)] = MoveDecision(m, cur, t, RegroupKept, m.Reason == ReasonRegroupFilthMerge ? ReasonRegroupFilthKept : ReasonRegroupBedStationKept);
                 }
                 if (t.Signature() == cur.Signature() || !t.Better(cur) || (best is not null && !t.Better(best)))
                 {
@@ -493,6 +524,7 @@ public static partial class LayoutRegroupRules
             Walk = to.EmbedPts - from.EmbedPts,
             Poison = to.PoisonPts - from.PoisonPts,
             Clean = to.CleanPts - from.CleanPts,
+            Effects = [.. to.Clustering.Groups.Where(g => HoldsNode(g, m.A) && HoldsNode(g, m.B)).SelectMany(g => g.LostEffects).Select(l => Wire.Name(l.Effect)).Distinct().Order(StringComparer.Ordinal)],
         };
 
     /// <summary>At most n of the moves, in their listed order: all of them, or n drawn from the seeded stream.</summary>

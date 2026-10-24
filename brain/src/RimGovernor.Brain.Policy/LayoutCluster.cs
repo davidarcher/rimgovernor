@@ -73,6 +73,9 @@ public sealed record ClusterInput
 
     /// <summary>The bed merge's price (#3658): the free-bed pool's barracks size is chosen by it. Null keeps every bed single.</summary>
     public BedMergePrice? BedMerge { get; init; }
+
+    /// <summary>The colony's rest schedule (the workers' timetables), read by the disturbed-sleep price of a bed group hosting stations (#3750); null, unread, fails that price with a RequiredFactException.</summary>
+    public RestSchedule? Rest { get; init; }
 }
 
 /// <summary>A per-pair override of the merge.</summary>
@@ -231,9 +234,18 @@ public sealed record ConflictCost
 /// <summary>
 /// A role effect (sleep, patient or prison mood, throne, worship) a room does not give, with the sleepers the
 /// graph puts in it. Got is the role the room is scored as instead. Its mood is priced by MoodModel.LostPoints
-/// and PriceMood (#2954).
+/// and PriceMood (#2954). A bed group's cost of hosting other stations (#3750) carries its own amount: Points, the
+/// SleepDisturbed mood each sleeper loses (priced by PriceMood), or Days, the capability-days a day the sleepers lose
+/// to the Impressiveness stage the room's filth costs.
 /// </summary>
-public sealed record LostRoleEffect(RoleEffect Effect, RoomRole Role, RoomRole Got, int Pawns);
+public sealed record LostRoleEffect(RoleEffect Effect, RoomRole Role, RoomRole Got, int Pawns)
+{
+    /// <summary>The mood points each of Pawns loses (SleepDisturbed); 0 for every other effect.</summary>
+    public double Points { get; init; }
+
+    /// <summary>The capability-days a day the room's sleepers lose together (Impressiveness); 0 for every other effect.</summary>
+    public double Days { get; init; }
+}
 
 /// <summary>One clustering decision for the caller to journal. A is a graph node; B is the other node of a merge or keep.</summary>
 public sealed record ClusterDecision
@@ -1135,6 +1147,7 @@ internal sealed partial class Clusterer
         {
             e.FilthCosts = _in.Catalog.Filth.FilthCosts(e.Filthy, e.Exposed, e.Area, e.Meals, e.Runs);
         }
+        BedStationEffects(us, e);
         return e;
     }
 

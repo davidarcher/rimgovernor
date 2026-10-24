@@ -206,6 +206,7 @@ internal static class StationAdviceLog
             ["poison"] = d.Poison,
             ["clean"] = d.Clean,
             ["lost_effects"] = d.Lost,
+            ["effects"] = d.Effects,
         },
     };
 
@@ -455,6 +456,7 @@ internal static class StationFactsBuilder
             Races = projection.Facts.AnimalUpkeep.AnimalRaces,
             Pasture = projection.Facts.Pasture,
             WorkPawns = projection.WorkPawns,
+            Rest = projection.Rest,
             Food = projection.FoodSupply,
             Orders = Unknown<EquatableArray<OrderSpec>>(),
             Stock = needs,

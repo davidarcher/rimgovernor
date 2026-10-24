@@ -179,6 +179,7 @@ public static class RoundsReads
         p = p with
         {
             WorkPawns = default,
+            Rest = null,
             Facts = p.Facts with { Armed = default, Unarmed = default, DefenseCapacity = default, MedicalPawns = default, MoodPawns = default },
         };
         if (pawns is not null)
@@ -194,6 +195,7 @@ public static class RoundsReads
                 },
                 MechCatalog = catalog?.Biotech?.MechCatalog() ?? new(),
                 WorkPawns = RoundsWorkReads.RoundsWork(colony, emergency, pawns, catalog, frame.Tables.Things),
+                Rest = RoundsWorkReads.RoundsRest(pawns),
                 MeditateAvailable = ColonyDecodeReads.Optional(pawns.MeditateAssignmentAvailable is not null, pawns.MeditateAssignmentAvailable.GetValueOrDefault()),
             };
             p = p with { Facts = p.Facts with { MedicalPawns = RoundsContainmentReads.RoundsMedical(colony, emergency, pawns, ColonyDecodeReads.RequireCatalog(catalog)) } };

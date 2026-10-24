@@ -295,6 +295,7 @@ internal sealed partial class Clusterer
         {
             throw new RequiredFactException("sleeper_mood");
         }
+        _stageGains = new StageGains(levels, sleepers);
         var rooms = new BedRooms(this, price, levels, sleepers, count, wall, door, wallWork, doorWork, Math.Max(1, builders),
             (PlanWeights.Footprint + (PlanWeights.Soil * BuildGround.SoilCostNormal)) * walk / PlanWeights.Walk);
         var depth = LayoutClusterRules.RoomLimits(_in.RoofDistance).Depth;

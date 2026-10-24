@@ -59,6 +59,20 @@ public enum RoleEffect
     /// <summary>A work table's rate times its NotInRoomRoleFactor (StatPart_WorkTableRoomRole).</summary>
     [WireName("bench_speed")]
     BenchSpeed,
+
+    /// <summary>
+    /// What a room's sleepers lose to the other stations it hosts (#3750): the SleepDisturbed memory of the visits to
+    /// them in the sleepers' rest hours. Not a role's effect: the room keeps its role and its sleepers pay.
+    /// </summary>
+    [WireName("sleep_disturbed")]
+    SleepDisturbed,
+
+    /// <summary>
+    /// What a room's sleepers lose to the filth its butchery spawns (#3750): the room's Cleanliness, and so its
+    /// Impressiveness stage, falls while the filth stands, and the bed thought is read at the lower stage.
+    /// </summary>
+    [WireName("impressiveness")]
+    Impressiveness,
 }
 
 /// <summary>A role effect a room does not get.</summary>

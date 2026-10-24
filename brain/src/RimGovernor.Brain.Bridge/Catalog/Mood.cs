@@ -56,7 +56,20 @@ public sealed partial class DefinitionCatalog
             }
         }
 
-        return new P.MoodModel { Break = new P.MoodBreakModel { Threshold = Decimal32(stat.defaultBaseValue), Tiers = tiers }, Stages = stages };
+        return new P.MoodModel { Break = new P.MoodBreakModel { Threshold = Decimal32(stat.defaultBaseValue), Tiers = tiers }, Stages = stages, SleepDisturbed = SleepDisturbed() };
+    }
+
+    // The SleepDisturbed memory a sleeping colonist gains when another pawn disturbs it (Pawn.CheckForDisturbedSleep):
+    // its one stage's mood and how it stacks. Null when the catalog lacks the def or its stage.
+    private P.MemoryThought? SleepDisturbed()
+    {
+        // ThoughtDefOf.SleepDisturbed names the row; the field itself is null outside the game, so the catalog looks it up by its nameof.
+        if (DefRow<ThoughtDef>(nameof(ThoughtDefOf.SleepDisturbed)) is not { } row || row.stages.Seq().FirstOrDefault() is not { } stage)
+        {
+            return null;
+        }
+
+        return new P.MemoryThought(Decimal32(stage.baseMoodEffect), Decimal32(row.durationDays), row.stackLimit, Decimal32(row.stackedEffectMultiplier));
     }
 
     // The mean days a break takes its colonist out of work.

@@ -112,6 +112,7 @@ public sealed class FirstLayoutPlanTests
         Patients = Fact.Known(EquatableArray.From<CarePawn>([])),
         Prisoners = Fact.Known(0),
         WorkPawns = Fact.Known(EquatableArray.From<WorkPawn>([])),
+        Rest = RestSchedule.Of([]),
         Food = Fact.Known(new FoodSupply
         {
             Complete = Fact.Known(true),
