@@ -86,13 +86,14 @@ public static class PresentationRoutes
                         AlertLimit = 40,
                     },
                     token).ConfigureAwait(false);
-                if ((snapshot.Letters?.Outcome?.Observed is null && snapshot.Letters?.Outcome?.Unavailable is null)
-                    || (snapshot.Messages?.Outcome?.Observed is null && snapshot.Messages?.Outcome?.Unavailable is null)
-                    || (snapshot.Alerts?.Outcome?.Observed is null && snapshot.Alerts?.Outcome?.Unavailable is null))
+                if (snapshot.Letters is null || snapshot.Messages is null || snapshot.Alerts is null)
                 {
                     throw new InvalidOperationException("requested notification section missing");
                 }
 
+                Require("letters", snapshot.Letters.Outcome.Observed, snapshot.Letters.Outcome.Unavailable);
+                Require("messages", snapshot.Messages.Outcome.Observed, snapshot.Messages.Outcome.Unavailable);
+                Require("alerts", snapshot.Alerts.Outcome.Observed, snapshot.Alerts.Outcome.Unavailable);
                 return (snapshot, snapshot.Context);
             }, ct), Bounded));
         }
@@ -103,6 +104,15 @@ public static class PresentationRoutes
         }
 
         return new ReadRoutes.Registrations(registrations);
+    }
+
+    /// <summary>A requested notification section the game could not read fails the route with the reason it gave.</summary>
+    private static void Require(string section, object? observed, Unavailable? unavailable)
+    {
+        if (observed is null)
+        {
+            throw new InvalidOperationException($"{section} unavailable: {unavailable?.Reason} {unavailable?.Detail}");
+        }
     }
 
     private static async Task<ChannelResponse> ReadAsync<TReply>(
@@ -195,12 +205,12 @@ public static class PresentationRoutes
                 new RenderDemand { Viewer = new PlayerIdentity { Identity = Wire(identity) }, LeaseSeconds = seconds },
                 ct).ConfigureAwait(false);
             ct.ThrowIfCancellationRequested();
-            var status = reply.Outcome?.Status;
+            var status = reply.Outcome.Status ?? throw new InvalidOperationException("render demand answered no status");
             return ChannelResponse.Json(200, PlayerJson.Serialize(new RenderStatusDto(
-                status?.Supported ?? false,
-                status?.Suspended ?? false,
-                status?.WindowVisible ?? false,
-                status?.RemainingLeaseMs ?? 0)));
+                status.Supported,
+                status.Suspended,
+                status.WindowVisible,
+                status.RemainingLeaseMs)));
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

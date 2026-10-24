@@ -65,7 +65,7 @@ internal static class LifecycleQuietStoryteller
                         var snapshot = await s.CallAsync(
                             "day-letters",
                             NativeOps.ReadNotifications,
-                            new Presentation.NotificationsRequest { Identity = loaded, IncludeMessages = false, IncludeAlerts = false },
+                            new Presentation.NotificationsRequest { Identity = loaded, IncludeLetters = true, IncludeMessages = false, IncludeAlerts = false, LetterLimit = 40, MessageLimit = 12, AlertLimit = 40 },
                             ct).ConfigureAwait(false);
                         var letters = snapshot.Letters?.Outcome?.Observed?.Items
                             ?? throw new AcceptanceException($"day-letters: no letter section: {WireJson.Serialize(snapshot)}");

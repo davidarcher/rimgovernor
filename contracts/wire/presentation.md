@@ -40,7 +40,7 @@ numeric screen and duration value must be finite.
 - Viewer IDs: 1..100 characters, no NUL. Other opaque IDs use the common 256 UTF-8-byte/no-NUL rule.
   Shared diagnostic text uses the common 4096 Unicode-scalar bound.
 - Render demand lease is 1..30 real seconds (read is a separate tool).
-- Notifications default limits are 40 letters, 12 messages, 40 alerts; the per-section hard ceiling is
-  256. Preserve actual counts/omissions. Unavailable or unrequested
-  sections are distinct from an observed complete empty list. Inclusion defaults true; an explicit
-  false omits that section, while a requested failed read has an unavailable arm.
+- A notifications request names every limit (at least 1) and every inclusion flag; the per-section hard
+  ceiling is 256. Preserve actual counts/omissions. Unavailable or unrequested
+  sections are distinct from an observed complete empty list. An inclusion flag of false omits that
+  section, while a requested failed read has an unavailable arm.

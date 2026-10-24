@@ -43,12 +43,8 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task<PbPresentation.RenderReply> DemandRenderingAsync(PbPresentation.RenderDemand request, CancellationToken cancellationToken)
     {
-        if (request is null || request.Viewer is null)
-        {
-            throw BridgeContractException.Contract("render demand viewer required");
-        }
-
-        if (request.LeaseSeconds.GetValueOrDefault() > 30)
+        ArgumentNullException.ThrowIfNull(request);
+        if (request.LeaseSeconds > 30)
         {
             throw BridgeContractException.Contract("render demand lease exceeds 30 seconds");
         }
@@ -63,18 +59,14 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// Only observes. Partial listings and unknown optional facts remain partial or
-    /// unknown; this read never acknowledges or dismisses anything.
+    /// Only observes. Partial listings stay partial (the listing says so); this read never acknowledges or dismisses anything.
     /// </summary>
     internal Task<PbPresentation.NotificationsSnapshot> ReadNotificationsAsync(PbPresentation.NotificationsRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        foreach (var limit in new[] { request.LetterLimit, request.MessageLimit, request.AlertLimit })
+        if (request.LetterLimit < 1 || request.MessageLimit < 1 || request.AlertLimit < 1)
         {
-            if (limit is < 1)
-            {
-                throw BridgeContractException.Contract("notification limit below 1");
-            }
+            throw BridgeContractException.Contract("notification limit below 1");
         }
 
         return Facade.ReadNotificationsAsync(request, cancellationToken);

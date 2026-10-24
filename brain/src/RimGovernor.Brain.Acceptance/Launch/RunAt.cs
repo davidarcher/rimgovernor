@@ -124,7 +124,7 @@ public static class RunAt
         var snapshot = await h.CallAsync(
             label + "-letters",
             NativeOps.ReadNotifications,
-            new Wp.NotificationsRequest { Identity = identity, IncludeMessages = false, IncludeAlerts = false },
+            new Wp.NotificationsRequest { Identity = identity, IncludeLetters = true, IncludeMessages = false, IncludeAlerts = false, LetterLimit = 40, MessageLimit = 12, AlertLimit = 40 },
             cancellationToken).ConfigureAwait(false);
         var observed = snapshot.Letters?.Outcome?.Observed
             ?? throw new AcceptanceException($"{label}: letter section not observed: {WireJson.Serialize(snapshot)}");

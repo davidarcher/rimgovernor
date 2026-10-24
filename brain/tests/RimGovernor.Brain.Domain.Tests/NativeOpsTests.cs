@@ -32,6 +32,9 @@ public sealed class NativeOpsTests
                 : ReferenceEquals(op, NativeOps.ReadDefenseSite) ? """{"scope":{},"region":{}}"""
                 : ReferenceEquals(op, NativeOps.ReadLinesOfFire) ? """{"scope":{},"firingCells":[],"approachCells":[],"budgetMs":0}"""
                 : ReferenceEquals(op, NativeOps.ReadSpatialAccess) ? """{"scope":{},"blockedCells":[],"targetCells":[],"pawnIds":[],"budgetMs":0}"""
+                : ReferenceEquals(op, NativeOps.ApplyOverlay) ? """{"identity":{"colonyId":"","loadToken":"","mapId":0},"layerId":"","enabled":false,"shapes":[],"labels":[]}"""
+                : ReferenceEquals(op, NativeOps.DemandRendering) ? """{"viewer":{"identity":{"colonyId":"","loadToken":"","mapId":0}},"leaseSeconds":0}"""
+                : ReferenceEquals(op, NativeOps.ReadNotifications) ? """{"identity":{"colonyId":"","loadToken":"","mapId":0},"letterLimit":0,"messageLimit":0,"alertLimit":0,"includeLetters":false,"includeMessages":false,"includeAlerts":false}"""
                 : ReferenceEquals(op, NativeOps.ListSupplies) ? """{"filter":{"category":"STOCK_CATEGORY_HAULABLE","ownership":"STOCK_OWNERSHIP_OURS","includeHeld":true}}""" : "{}";
             _ = op.InvokeJsonAsync(facade, body, CancellationToken.None);
         }

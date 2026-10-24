@@ -26,30 +26,27 @@ namespace HomeBridge.BridgeTools
         internal static Presentation.RenderReply HandleDemandRendering(Presentation.RenderDemand parsed)
         {
             if (!ValidateDemand(parsed, out var failure0)) return new Presentation.RenderReply { Outcome = new Presentation.RenderReplyOutcome.FailureCase(failure0) };
-            if (!ProtoBoundary.ValidateViewedIdentity(parsed?.Viewer?.Identity, out var context, out var error))
+            if (!ProtoBoundary.ValidateViewedIdentity(parsed.Viewer.Identity, out var context, out var error))
                 return new Presentation.RenderReply { Outcome = error };
-            var status = RenderDemandDriver.Lease((int)(parsed?.LeaseSeconds).GetValueOrDefault());
+            var status = RenderDemandDriver.Lease((int)parsed.LeaseSeconds);
             return new Presentation.RenderReply { Outcome = Status(context, status) };
         }
 
-        private static Presentation.RenderStatus Status(Common.ObservationContext context, RenderDemandStatus status)
+        // An unsupported renderer (headless) reports Suspended with no window and no lease; the driver's status already says so.
+        private static Presentation.RenderStatus Status(Common.ObservationContext context, RenderDemandStatus status) => new Presentation.RenderStatus
         {
-            var result = new Presentation.RenderStatus { Context = context, Supported = status.Supported };
-            if (!status.Supported)
-            {
-                return result with { Suspended = true };
-            }
-            result = result with { Suspended = status.Suspended };
-            result = result with { WindowVisible = status.WindowVisible };
-            result = result with { RemainingLeaseMs = (uint)Math.Max(0, Mathf.RoundToInt(status.RemainingSeconds * 1000f)) };
-            return result;
-        }
+            Context = context,
+            Supported = status.Supported,
+            Suspended = status.Suspended,
+            WindowVisible = status.WindowVisible,
+            RemainingLeaseMs = (uint)Math.Max(0, Mathf.RoundToInt(status.RemainingSeconds * 1000f)),
+        };
 
         private static bool ValidateDemand(Presentation.RenderDemand request, out Common.Failure failure)
         {
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Exact viewer identity and a lease of 0-30 seconds are required.");
             if (request?.Viewer?.Identity == null) return false;
-            if (request.LeaseSeconds.GetValueOrDefault() > 30) return false;
+            if (request.LeaseSeconds > 30) return false;
             if (request.Viewer.ViewerId is not null && !ProtoBoundary.IsIdentifier(request.Viewer.ViewerId)) return false;
             return true;
         }

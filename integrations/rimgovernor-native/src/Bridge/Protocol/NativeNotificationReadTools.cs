@@ -23,10 +23,6 @@ namespace HomeBridge.BridgeTools
     /// </summary>
     internal static class NativeNotificationReadTools
     {
-        private const int DefaultLetterLimit = 40;
-        private const int DefaultMessageLimit = 12;
-        private const int DefaultAlertLimit = 40;
-
         private static readonly FieldInfo? ActiveAlertsField = BridgeCommon.PrivateInstanceField(typeof(AlertsReadout), "activeAlerts");
         private static readonly FieldInfo? LiveMessagesField = BridgeCommon.PrivateStaticField(typeof(Messages), "liveMessages");
 
@@ -37,14 +33,14 @@ namespace HomeBridge.BridgeTools
             try
             {
                 var snapshot = new Presentation.NotificationsSnapshot { Context = context };
-                if (request.IncludeLetters ?? true)
-                    snapshot = snapshot with { Letters = Section(() => ReadLetters(Limit(request.LetterLimit, DefaultLetterLimit)),
+                if (request.IncludeLetters)
+                    snapshot = snapshot with { Letters = Section(() => ReadLetters(Limit(request.LetterLimit)),
                         (Presentation.Letters v) => new Presentation.LetterSection { Outcome = v }, u => new Presentation.LetterSection { Outcome = u }) };
-                if (request.IncludeMessages ?? true)
-                    snapshot = snapshot with { Messages = Section(() => ReadMessages(Limit(request.MessageLimit, DefaultMessageLimit)),
+                if (request.IncludeMessages)
+                    snapshot = snapshot with { Messages = Section(() => ReadMessages(Limit(request.MessageLimit)),
                         (Presentation.Messages v) => new Presentation.MessageSection { Outcome = v }, u => new Presentation.MessageSection { Outcome = u }) };
-                if (request.IncludeAlerts ?? true)
-                    snapshot = snapshot with { Alerts = Section(() => ReadAlerts(Limit(request.AlertLimit, DefaultAlertLimit)),
+                if (request.IncludeAlerts)
+                    snapshot = snapshot with { Alerts = Section(() => ReadAlerts(Limit(request.AlertLimit)),
                         (Presentation.Alerts v) => new Presentation.AlertSection { Outcome = v }, u => new Presentation.AlertSection { Outcome = u }) };
                 return snapshot;
             }
@@ -60,13 +56,12 @@ namespace HomeBridge.BridgeTools
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Exact identity is required.");
             if (request?.Identity == null) return false;
             failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Notification limits must be at least 1.");
-            foreach (var limit in new[] { (request.LetterLimit is not null, request.LetterLimit.GetValueOrDefault()), (request.MessageLimit is not null, request.MessageLimit.GetValueOrDefault()), (request.AlertLimit is not null, request.AlertLimit.GetValueOrDefault()) })
-                if (limit.Item1 && (limit.Item2 < 1)) return false;
+            if (request.LetterLimit < 1 || request.MessageLimit < 1 || request.AlertLimit < 1) return false;
             failure = null!;
             return true;
         }
 
-        private static int Limit(uint? value, int fallback) => value is { } v ? (int)Math.Min(v, (uint)int.MaxValue) : fallback;
+        private static int Limit(uint value) => (int)Math.Min(value, (uint)int.MaxValue);
 
         // A section whose native read throws is unavailable on its own; the
         // other sections still answer.
@@ -86,19 +81,23 @@ namespace HomeBridge.BridgeTools
             var stack = Find.LetterStack ?? throw new NativeComponentMissing("Find.LetterStack is unavailable.");
             var letters = (stack.LettersListForReading ?? new List<Verse.Letter>()).Where(l => l != null).ToList();
             letters.Reverse(); // newest first, the order the game draws the stack
-            var result = new Presentation.Letters { Listing = Listing(letters.Count, Math.Min(letters.Count, limit)) };
-            result = result with { Items = [.. letters.Take(limit).Select(letter => ReadLetter(letter))] };
-            RequireUnique(result.Items.Select(l => l.Id ?? ""), "letter");
+            var result = new Presentation.Letters
+            {
+                Listing = Listing(letters.Count, Math.Min(letters.Count, limit)),
+                Items = [.. letters.Take(limit).Select(letter => ReadLetter(letter))],
+            };
+            RequireUnique(result.Items.Select(l => l.Id), "letter");
             return result;
         }
 
-        private static Presentation.Letter ReadLetter(Verse.Letter letter)
+        private static Presentation.Letter ReadLetter(Verse.Letter letter) => new Presentation.Letter
         {
-            var row = new Presentation.Letter { Id = Id(letter.GetUniqueLoadID()), NativeType = Id(letter.GetType().FullName!),
-                Label = Diagnostic(letter.Label.ToString()), ArrivalTick = letter.arrivalTick };
-            if (letter.def != null && ProtoBoundary.IsIdentifier(letter.def.defName)) row = row with { DefName = letter.def.defName };
-            return row;
-        }
+            Id = Id(letter.GetUniqueLoadID()),
+            NativeType = Id(letter.GetType().FullName!),
+            DefName = Id((letter.def ?? throw new InvalidOperationException("Native letter has no def.")).defName),
+            Label = Diagnostic(letter.Label.ToString()),
+            ArrivalTick = letter.arrivalTick,
+        };
 
         // ============================================================= messages
 
@@ -107,7 +106,6 @@ namespace HomeBridge.BridgeTools
             var field = LiveMessagesField ?? throw new NativeComponentMissing("Verse.Messages.liveMessages was not found on this build.");
             var live = (field.GetValue(null) as List<Verse.Message> ?? throw new NativeComponentMissing("Verse.Messages.liveMessages is not a message list.")).Where(m => m != null).ToList();
             return new Presentation.Messages { Listing = Listing(live.Count, Math.Min(live.Count, limit)) };
-
         }
 
         // =============================================================== alerts

@@ -6,8 +6,6 @@ namespace RimGovernor.Contracts.Wire.Presentation;
 [JsonConverter(typeof(WireEnumConverter<OverlayStyle>))]
 public enum OverlayStyle
 {
-    [WireName("OVERLAY_STYLE_UNSPECIFIED")]
-    Unspecified = 0,
     /// <summary>
     /// Every cell filled.
     /// </summary>
@@ -31,22 +29,22 @@ public sealed record ReadRequest
 
 public sealed record Listing
 {
-    public uint? TotalCount { get; init; }
+    public required uint TotalCount { get; init; }
 
-    public uint? ReturnedCount { get; init; }
+    public required uint ReturnedCount { get; init; }
 
-    public bool? Complete { get; init; }
+    public required bool Complete { get; init; }
 }
 
 public sealed record MapRect
 {
-    public int? MinX { get; init; }
+    public required int MinX { get; init; }
 
-    public int? MinZ { get; init; }
+    public required int MinZ { get; init; }
 
-    public int? MaxX { get; init; }
+    public required int MaxX { get; init; }
 
-    public int? MaxZ { get; init; }
+    public required int MaxZ { get; init; }
 }
 
 public sealed record CameraState
@@ -83,41 +81,41 @@ public sealed record ColonistRoster
 
 public sealed record Letter
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public string? NativeType { get; init; }
+    public required string NativeType { get; init; }
 
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public string? Label { get; init; }
+    public required string Label { get; init; }
 
-    public long? ArrivalTick { get; init; }
+    public required long ArrivalTick { get; init; }
 }
 
 public sealed record Letters
 {
     [JsonPropertyName("letters")]
     [JsonConverter(typeof(EquatableArrayJsonConverter<Letter>))]
-    public EquatableArray<Letter> Items { get; init; }
+    public required EquatableArray<Letter> Items { get; init; }
 
-    public Listing? Listing { get; init; }
+    public required Listing Listing { get; init; }
 }
 
 public sealed record Messages
 {
-    public Listing? Listing { get; init; }
+    public required Listing Listing { get; init; }
 }
 
 public sealed record Alerts
 {
-    public Listing? Listing { get; init; }
+    public required Listing Listing { get; init; }
 
-    public string? SnapshotFingerprint { get; init; }
+    public required string SnapshotFingerprint { get; init; }
 }
 
 public sealed record LetterSection
 {
-    public LetterSectionOutcome Outcome { get; init; } = null!;
+    public required LetterSectionOutcome Outcome { get; init; }
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="LetterSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -147,7 +145,7 @@ public abstract record LetterSectionOutcome
 
 public sealed record MessageSection
 {
-    public MessageSectionOutcome Outcome { get; init; } = null!;
+    public required MessageSectionOutcome Outcome { get; init; }
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="MessageSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -177,7 +175,7 @@ public abstract record MessageSectionOutcome
 
 public sealed record AlertSection
 {
-    public AlertSectionOutcome Outcome { get; init; } = null!;
+    public required AlertSectionOutcome Outcome { get; init; }
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="AlertSection"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -223,20 +221,21 @@ public sealed record NotificationsRequest
 {
     public Common.Identity? Identity { get; init; }
 
-    public uint? LetterLimit { get; init; }
+    /// <summary>The newest letters to list, at least 1; read only when <see cref="IncludeLetters"/> is set.</summary>
+    public required uint LetterLimit { get; init; }
 
-    public uint? MessageLimit { get; init; }
+    public required uint MessageLimit { get; init; }
 
-    public uint? AlertLimit { get; init; }
+    public required uint AlertLimit { get; init; }
 
     /// <summary>
-    /// Inclusion defaults true; explicit false omits that section.
+    /// False omits that section from the snapshot.
     /// </summary>
-    public bool? IncludeLetters { get; init; }
+    public required bool IncludeLetters { get; init; }
 
-    public bool? IncludeMessages { get; init; }
+    public required bool IncludeMessages { get; init; }
 
-    public bool? IncludeAlerts { get; init; }
+    public required bool IncludeAlerts { get; init; }
 }
 
 /// <summary>
@@ -253,25 +252,25 @@ public sealed record RenderStatus
 {
     public Common.ObservationContext? Context { get; init; }
 
-    public bool? Supported { get; init; }
+    public required bool Supported { get; init; }
 
-    public bool? Suspended { get; init; }
+    public required bool Suspended { get; init; }
 
-    public bool? WindowVisible { get; init; }
+    public required bool WindowVisible { get; init; }
 
-    public uint? RemainingLeaseMs { get; init; }
+    public required uint RemainingLeaseMs { get; init; }
 }
 
 public sealed record RenderDemand
 {
-    public PlayerIdentity? Viewer { get; init; }
+    public required PlayerIdentity Viewer { get; init; }
 
-    public uint? LeaseSeconds { get; init; }
+    public required uint LeaseSeconds { get; init; }
 }
 
 public sealed record RenderReply
 {
-    public RenderReplyOutcome Outcome { get; init; } = null!;
+    public required RenderReplyOutcome Outcome { get; init; }
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="RenderReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
@@ -307,13 +306,13 @@ public abstract record RenderReplyOutcome
 /// </summary>
 public sealed record OverlayColor
 {
-    public float? R { get; init; }
+    public required float R { get; init; }
 
-    public float? G { get; init; }
+    public required float G { get; init; }
 
-    public float? B { get; init; }
+    public required float B { get; init; }
 
-    public float? A { get; init; }
+    public required float A { get; init; }
 }
 
 /// <summary>
@@ -321,33 +320,33 @@ public sealed record OverlayColor
 /// </summary>
 public sealed record OverlayRun
 {
-    public int? X { get; init; }
+    public required int X { get; init; }
 
-    public int? Z { get; init; }
+    public required int Z { get; init; }
 
-    public int? Length { get; init; }
+    public required int Length { get; init; }
 }
 
 public sealed record OverlayShape
 {
-    public OverlayColor? Color { get; init; }
+    public required OverlayColor Color { get; init; }
 
-    public OverlayStyle Style { get; init; }
+    public required OverlayStyle Style { get; init; }
 
     /// <summary>
     /// Inclusive.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<MapRect>))]
-    public EquatableArray<MapRect> Rects { get; init; }
+    public required EquatableArray<MapRect> Rects { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<OverlayRun>))]
-    public EquatableArray<OverlayRun> Runs { get; init; }
+    public required EquatableArray<OverlayRun> Runs { get; init; }
 
     /// <summary>
     /// Drawn centre to centre in the shape's color.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<OverlayLine>))]
-    public EquatableArray<OverlayLine> Lines { get; init; }
+    public required EquatableArray<OverlayLine> Lines { get; init; }
 }
 
 /// <summary>
@@ -355,11 +354,11 @@ public sealed record OverlayShape
 /// </summary>
 public sealed record OverlayLine
 {
-    public Common.Cell? From { get; init; }
+    public required Common.Cell From { get; init; }
 
-    public Common.Cell? To { get; init; }
+    public required Common.Cell To { get; init; }
 
-    public bool? Arrow { get; init; }
+    public required bool Arrow { get; init; }
 }
 
 /// <summary>
@@ -367,32 +366,32 @@ public sealed record OverlayLine
 /// </summary>
 public sealed record OverlayLabel
 {
-    public string? Text { get; init; }
+    public required string Text { get; init; }
 
-    public Common.Cell? Cell { get; init; }
+    public required Common.Cell Cell { get; init; }
 }
 
 public sealed record OverlayRequest
 {
-    public Common.Identity? Identity { get; init; }
+    public required Common.Identity Identity { get; init; }
 
-    public string? LayerId { get; init; }
+    public required string LayerId { get; init; }
 
     /// <summary>
     /// false removes the layer.
     /// </summary>
-    public bool? Enabled { get; init; }
+    public required bool Enabled { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<OverlayShape>))]
-    public EquatableArray<OverlayShape> Shapes { get; init; }
+    public required EquatableArray<OverlayShape> Shapes { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<OverlayLabel>))]
-    public EquatableArray<OverlayLabel> Labels { get; init; }
+    public required EquatableArray<OverlayLabel> Labels { get; init; }
 }
 
 public sealed record OverlayReply
 {
-    public OverlayReplyOutcome Outcome { get; init; } = null!;
+    public required OverlayReplyOutcome Outcome { get; init; }
 }
 
 /// <summary>The <c>outcome</c> choice of <see cref="OverlayReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>

@@ -117,12 +117,14 @@ public sealed partial class FacadeNativeClient
     /// </summary>
     internal async Task DrawOverlayAsync(PbCommon.Identity identity, string layerId, LayoutOverlay overlay, bool enabled, CancellationToken cancellationToken)
     {
-        var request = new PbPresentation.OverlayRequest { Identity = identity, LayerId = layerId, Enabled = enabled };
+        var shapes = new List<PbPresentation.OverlayShape>();
+        var labels = new List<PbPresentation.OverlayLabel>();
         if (enabled)
         {
-            var (shapes, labels) = PlacementRequests.OverlayRequest(overlay);
-            request = request with { Shapes = [.. shapes], Labels = [.. labels] };
+            (shapes, labels) = PlacementRequests.OverlayRequest(overlay);
         }
+
+        var request = new PbPresentation.OverlayRequest { Identity = identity, LayerId = layerId, Enabled = enabled, Shapes = [.. shapes], Labels = [.. labels] };
         var reply = await Facade.ApplyOverlayAsync(request, cancellationToken).ConfigureAwait(false);
         if (reply.Outcome.Failure is { } failure)
         {
