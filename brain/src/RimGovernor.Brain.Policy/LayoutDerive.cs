@@ -20,9 +20,9 @@ public sealed record RoomGrowth
     public HashSet<int> InUse { get; init; } = [];
 
     /// <summary>
-    /// The interiors of every planned room with anything of ours on it (FixedRooms), set on every replan once
-    /// the census is known (null while it is not: every room is then kept). A replan re-sites only the rooms
-    /// outside it.
+    /// The ids of every planned room with anything of ours on it (FixedRooms), set on every replan once
+    /// the census is known (null while it is not: every room is then kept). A replan pins them (TilePinned): a
+    /// started room with a node keeps its id and site and moves only at a built room's switching price.
     /// </summary>
     public HashSet<int>? Fixed { get; init; }
 
@@ -271,7 +271,7 @@ partial record LayoutPlan
     public static (LayoutPlan Prev, StationFacts Facts) ReplanFacts(LayoutPlan prev, StationFacts f, MapSurvey s, IReadOnlyList<PowerGeyser> geysers, RoomGrowth growth)
     {
         prev = prev.WithRoomIDs();
-        f = f with { Plan = prev, Pinned = TilePinned(prev, growth), Pens = growth.Pens };
+        f = f with { Plan = prev, Pinned = TilePinned(prev, growth), Held = HeldRooms(prev, growth), Pens = growth.Pens };
         return (prev, LayoutReplanTiledRules.ReplanTileFacts(f, s, geysers));
     }
 

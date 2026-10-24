@@ -118,24 +118,29 @@ public static partial class LayoutReplanTiledRules
 partial record LayoutPlan
 {
     /// <summary>
-    /// The rooms the tiled replan holds where they stand (#3004, decision 3 of #2965): the rooms the colony holds
-    /// (HeldRooms) and the pairs of a rebuild in flight. Nothing else is pinned: a standing room with no node in the
-    /// new embedding is retirement-eligible, and one that has a node moves only at the embedder's switching price
-    /// (#2877).
+    /// The rooms the tiled replan holds where they stand, the embedding's pin set (#3004, decision 3 of #2965, D2 of
+    /// #3738): the started rooms (growth.Fixed: a ring standing as planned, or anything of ours on a room's walls or
+    /// floor), the rooms the colony holds (HeldRooms) and the pairs of a rebuild in flight. A pinned room stands for the
+    /// embedding, keeps its id and site, and moves only at the switching price of a built room (#2877,
+    /// PlannedRoom.SwitchThreshold); one not yet built is a rebuild in flight, which holds every built room. A started
+    /// room with no node in the new embedding is not kept (KeepHeld keeps only HeldRooms): it leaves the plan. With the
+    /// census unknown (growth.Fixed null) every room is pinned.
     /// </summary>
     public static HashSet<int> TilePinned(LayoutPlan plan, RoomGrowth growth)
     {
         var pins = SuccessorPinned(plan);
         pins.UnionWith(HeldRooms(plan, growth));
+        pins.UnionWith(growth.Fixed ?? []);
         return pins;
     }
 
     /// <summary>
-    /// The rooms the colony holds: the rooms an open journal plan works on (growth.InFlight), the superseded bedrooms
+    /// The rooms the colony holds, kept in the plan with or without a node (KeepHeld) and held as obstacles by the
+    /// embedding (StationFacts.Held): the rooms an open journal plan works on (growth.InFlight), the superseded bedrooms
     /// and suites a pawn still owns a bed in (growth.Slept) and the rooms of an ended role still in use (growth.InUse).
     /// With the census unknown (growth.Fixed null) every room is held.
     /// </summary>
-    internal static HashSet<int> HeldRooms(LayoutPlan plan, RoomGrowth growth)
+    public static HashSet<int> HeldRooms(LayoutPlan plan, RoomGrowth growth)
     {
         if (growth.Fixed is null)
         {

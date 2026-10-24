@@ -17,6 +17,7 @@ public sealed partial class Rounder
             BedMerge = bedMerge,
             HostBuild = hostBuild ?? new Dictionary<string, double>(),
             Pinned = LayoutPlan.TilePinned(plan, growth),
+            Held = LayoutPlan.HeldRooms(plan, growth),
             ThroneArea = Known(growth.ThroneArea),
             Demand = growth.Demand,
             Child = LayoutChildRoomsRules.ChildRoomShapes(RoundsSleepingUpkeepPlanner.ChildRoomNeeds(projection), RoundsSleepingUpkeepPlanner.FurnitureDefinitions(projection)),

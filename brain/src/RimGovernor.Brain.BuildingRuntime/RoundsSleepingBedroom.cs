@@ -127,13 +127,12 @@ partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>
-    /// Prefixes a bedroom room's reconcile methods. The "bedroom-shell-room&lt;id&gt;" stem is the one the sleeping
-    /// acceptance cases read the journal by; the build side appends the wave (removal, install, build).
+    /// Prefixes every planned room's reconcile methods: "&lt;role&gt;-shell-room&lt;id&gt;". The in-flight census reads a
+    /// room's open work back by this stem (Rounder.RoomMethodIds), so a room keeps its history across a re-site; the
+    /// sleeping acceptance cases read the journal by the bedroom's. The build side appends the wave (removal, install, build).
     /// </summary>
-    internal static string BedroomReconcileName(Pol.PlannedRoom room)
-    {
-        return string.Create(CultureInfo.InvariantCulture, $"bedroom-shell-room{room.Id}");
-    }
+    internal static string RoomReconcileName(string role, Pol.PlannedRoom room) =>
+        string.Create(CultureInfo.InvariantCulture, $"{role}-shell-room{room.Id}");
 
     /// <summary>A bedroom shell's short why: the colonists still outside a bedroom.</summary>
     internal static string BedroomShellReason(Pol.BedroomStep step) =>
@@ -190,7 +189,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         {
             return new RoundsBuildingResult { Verdict = NoSpace("bedroom_template") };
         }
-        return await Building.ReconcileRoomAsync(state, review, goal, reading, stock, new RoomReconcile { Room = step.Room, Template = furnishing.Pieces, Name = BedroomReconcileName(step.Room), Reason = BedroomShellReason(step) }, call, epoch).ConfigureAwait(false);
+        return await Building.ReconcileRoomAsync(state, review, goal, reading, stock, new RoomReconcile { Room = step.Room, Template = furnishing.Pieces, Name = RoomReconcileName("bedroom", step.Room), Reason = BedroomShellReason(step) }, call, epoch).ConfigureAwait(false);
     }
 
     /// <summary>

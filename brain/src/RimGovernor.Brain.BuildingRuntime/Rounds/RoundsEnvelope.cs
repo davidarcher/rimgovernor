@@ -33,7 +33,7 @@ public sealed partial class LayoutRounds
         var working = false;
         foreach (var room in rooms)
         {
-            var rr = new RoomReconcile { Room = room, Name = RoundsBurialFacts.RoomName("envelope", room), Reason = "envelope", RingOnly = true, ClimateOnly = true };
+            var rr = new RoomReconcile { Room = room, Name = RoundsSleepingUpkeepPlanner.RoomReconcileName("envelope", room), Reason = "envelope", RingOnly = true, ClimateOnly = true };
             var result = await _building.ReconcileRoomAsync(state, review, work.Owner, reading, null, rr, call, work.Epoch).ConfigureAwait(false);
             verdict = result.Verdict;
             if (verdict.Outcome == Outcome.Admitted)

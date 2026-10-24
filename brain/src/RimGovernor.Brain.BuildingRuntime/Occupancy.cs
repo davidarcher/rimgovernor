@@ -14,8 +14,9 @@ partial class Rounder
     [GeneratedRegex(@"^(?:plan-dig-[^-]+-[^-]+|bedroom-[^-]+|[^-]+-shell|(?:tomb|jail)-place)-([0-9]+)-([0-9]+)(?:-.*)?\z", RegexOptions.CultureInvariant)]
     private static partial Regex RoomMethodPattern();
 
-    // Matches the method ids of the plans keyed by a planned room's id: its ring and bedroom shells.
-    [GeneratedRegex(@"^[^-]+-shell-room([0-9]+)(?:-.*)?\z", RegexOptions.CultureInvariant)]
+    // Matches the method ids of the plans keyed by a planned room's id: every room reconcile (RoomReconcileName,
+    // "<role>-shell-room<id>"), whose role may itself hold a dash (isolation-room).
+    [GeneratedRegex(@"^.+?-shell-room([0-9]+)(?:-.*)?\z", RegexOptions.CultureInvariant)]
     private static partial Regex RoomIdPattern();
 
     /// <summary>The ids of the planned rooms an open (not retired) plan's shell method works on; a re-sited room keeps its id, so its work is still found.</summary>

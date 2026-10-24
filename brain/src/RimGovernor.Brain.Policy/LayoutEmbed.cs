@@ -57,9 +57,9 @@ public sealed record EmbedInput
     public IReadOnlyList<BuiltRegion> Built { get; init; } = [];
 
     /// <summary>
-    /// The pinned standing rooms that must stay whether or not a group carries them (#3019): each one that is
+    /// The held standing rooms (StationFacts.Held) that must stay whether or not a group carries them (#3019): each one that is
     /// not a group's home block is an obstacle no block overlaps and comes back as Embedding.Held, until the
-    /// caller stops pinning it. Role is unused; Planned is the room's planned role.
+    /// caller stops holding it. Role is unused; Planned is the room's planned role.
     /// </summary>
     public IReadOnlyList<BuiltRegion> Standing { get; init; } = [];
 
@@ -319,10 +319,9 @@ internal sealed partial class Embedder : EmbedFixed
     private readonly IReadOnlyList<Cell> _seeds = [];
 
     // The built world: per group the standing room that is its block (zero Width for none)
-    // and its id, whether it must not move, the retired ground under the map (rich soil is Rich).
+    // and its id, the retired ground under the map (rich soil is Rich).
     private List<Rectangle> _home;
     private List<int> _homeRoom;
-    private readonly bool[] _pinned;
     private readonly bool _inFlight;
 
     // The group needs more floor than its standing rooms give.
@@ -350,7 +349,6 @@ internal sealed partial class Embedder : EmbedFixed
         _core = [.. lg.Core];
         LayoutSiteGroundRules.SortCells(_core);
         _inFlight = input.InFlight;
-        _pinned = new bool[input.Groups.Count];
         var (home, homeRoom, outgrown, report) = LayoutBuiltRules.BuiltHomes([.. input.Groups.Take(_nRooms)], input.Built);
         _outgrown = outgrown;
         _builtReport = [.. report];
@@ -364,16 +362,6 @@ internal sealed partial class Embedder : EmbedFixed
                 _builtReport.Add(new EmbedDecision { Group = i, Other = -1, Verdict = LayoutBuiltRules.EmbedKeep, Reason = LayoutBuiltRules.ReasonEmbedBuiltOffMap, Room = _homeRoom[i] });
                 _home[i] = default;
                 _homeRoom[i] = 0;
-            }
-        }
-        foreach (var b in input.Built)
-        {
-            for (var i = 0; i < _homeRoom.Count; i++)
-            {
-                if (_homeRoom[i] == b.Room)
-                {
-                    _pinned[i] = b.Pinned;
-                }
             }
         }
         HoldStanding(input.Standing);

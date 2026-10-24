@@ -14,7 +14,7 @@ namespace RimGovernor.Brain.Policy;
 //
 // One rebuild at a time: at most one room moves, the best (bad ground before score gain, then the larger
 // margin, ties to the lower group), and none while a rebuild is in flight (EmbedInput.InFlight). A pinned room
-// (TilePinned), one the colony holds, never moves. Ground the plan retired but has not cleared
+// (TilePinned: started, or one the colony holds) is priced like any built room. Ground the plan retired but has not cleared
 // (EmbedInput.RetiredGround) is closed to new blocks. A moved room's block carries Replaces, the successor
 // path's id of the room it supersedes; the old room is not in the embedding, it stands until the new one does.
 // Conflict pricing (merge, split, lost room effects) is #2878.
@@ -52,7 +52,7 @@ internal sealed partial class Embedder
     internal IReadOnlyList<EmbedDecision> BuiltReport => _builtReport;
 
     /// <summary>
-    /// Keeps the pinned standing rooms that are no group's home block (a surplus room beside the one a group
+    /// Keeps the held standing rooms (StationFacts.Held) that are no group's home block (a surplus room beside the one a group
     /// keeps, a room of a role no group has left, an outdoor room or one with no native role) as obstacles: the
     /// room is a rectangle the blocks avoid, whether or not a group carries it (#3019). A room that is no
     /// rectangle, or whose ring is off the map, is reported and not held.
@@ -114,7 +114,7 @@ internal sealed partial class Embedder
         for (var i = 0; i < _nRooms; i++)
         {
             var h = _home[i];
-            if (h.Width == 0 || _pinned[i] || _inFlight)
+            if (h.Width == 0 || _inFlight)
             {
                 continue;
             }
@@ -209,11 +209,7 @@ internal sealed partial class Embedder
                 continue;
             }
             var d = new EmbedDecision { Group = i, Other = -1, Verdict = LayoutBuiltRules.EmbedKeep, Reason = LayoutBuiltRules.ReasonEmbedBuiltKept, Room = _homeRoom[i] };
-            if (_pinned[i])
-            {
-                d = d with { Reason = LayoutBuiltRules.ReasonEmbedBuiltPinned };
-            }
-            else if (_inFlight)
+            if (_inFlight)
             {
                 d = d with { Reason = LayoutBuiltRules.ReasonEmbedBuiltInFlight };
             }
@@ -259,7 +255,6 @@ public static partial class LayoutBuiltRules
     public const string EmbedMove = "move";
 
     public const string ReasonEmbedBuiltKept = "embed_built_kept";
-    public const string ReasonEmbedBuiltPinned = "embed_built_pinned";
     public const string ReasonEmbedBuiltInFlight = "embed_built_in_flight";
     public const string ReasonEmbedBuiltBelow = "embed_built_below_threshold";
     public const string ReasonEmbedBuiltDeferred = "embed_built_one_rebuild_at_a_time";

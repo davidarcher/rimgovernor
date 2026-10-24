@@ -78,8 +78,11 @@ public sealed record StationFacts
     /// <summary>What of each planned room's own shell stands (LayoutPlan.ShellStanding), read with Built: the spend a bed merge charges for a committed room it gives up (#3675).</summary>
     public IReadOnlyDictionary<int, ShellPieces> ShellStanding { get; init; } = new Dictionary<int, ShellPieces>();
 
-    /// <summary>The rooms the replan holds where they stand (TilePinned): a pinned room stands where it is in the embedding, and one not yet built is a rebuild in flight, which holds every built room.</summary>
+    /// <summary>The rooms the replan holds where they stand (TilePinned): a pinned room stands for the embedding and moves only at a built room's switching price, and one not yet built is a rebuild in flight, which holds every built room.</summary>
     public IReadOnlySet<int> Pinned { get; init; } = new HashSet<int>();
+
+    /// <summary>The rooms the colony holds (HeldRooms): a held standing room stays in the embedding as an obstacle whether or not a group carries it; a pinned room no group carries and the colony does not hold leaves the plan.</summary>
+    public IReadOnlySet<int> Held { get; init; } = new HashSet<int>();
 
     /// <summary>The map the plan was grown over.</summary>
     public MapSurvey Survey { get; init; } = default!;
@@ -251,8 +254,8 @@ public sealed record StationFacts
 
     /// <summary>
     /// Names the structural facts a replan varies with (#3739): the graph's population, suites and pasture (or the
-    /// unknown fact), the dining furniture and roof distance, the demand, and the plan with the rooms standing and
-    /// pinned. The facts that drift by the hour (stock, orders, expected mood, nutrition, food reserve, crops, the
+    /// unknown fact), the dining furniture and roof distance, the demand, and the plan with the rooms standing,
+    /// pinned and held. The facts that drift by the hour (stock, orders, expected mood, nutrition, food reserve, crops, the
     /// outdoor curve) feed the chain but are left out: the hourly check's daily floor (LayoutPlanning.ReplanDaily)
     /// carries them to the plan. The definitions (Catalog, Furniture, Items, Recipes) are the load's, so the caller
     /// keys the load beside it.
@@ -279,6 +282,7 @@ public sealed record StationFacts
             new("roof_distance", KeyText.Of(RoofDistance)),
             new("built", KeyText.Of(Built)),
             new("pinned", KeyText.Of(Pinned)),
+            new("held", KeyText.Of(Held)),
             new("mismatches", KeyText.Of(Mismatches)),
             new("derive", KeyText.Of(Derive)),
             new("throne_area", KeyText.Of(ThroneArea)),
@@ -375,9 +379,10 @@ public sealed record StationFacts
     }
 
     /// <summary>
-    /// The pinned standing rooms (StationFacts.Pinned) as the embedding holds them (EmbedInput.Standing): every built
-    /// room that is pinned, whatever its role or whether a group carries it, bar the attached rooms and a room whose
-    /// successor stands (the pair is one room, as in BuiltRegions).
+    /// The held standing rooms (StationFacts.Held) as the embedding holds them (EmbedInput.Standing): every standing
+    /// room the colony holds, whatever its role or whether a group carries it, bar the attached rooms and a room whose
+    /// successor stands (the pair is one room, as in BuiltRegions). A room only started (pinned, not held) is no
+    /// obstacle: with no group to carry it, it leaves the plan.
     /// </summary>
     internal List<BuiltRegion> StandingRooms()
     {
@@ -386,9 +391,9 @@ public sealed record StationFacts
         var output = new List<BuiltRegion>();
         foreach (var r in Plan.Rooms)
         {
-            if (built.Contains(r.Id) && Pinned.Contains(r.Id) && !r.Attached() && !replaced.Contains(r.Id))
+            if (built.Contains(r.Id) && Held.Contains(r.Id) && !r.Attached() && !replaced.Contains(r.Id))
             {
-                output.Add(new BuiltRegion { Room = r.Id, Planned = r.Role, Region = r.Region, Pinned = true });
+                output.Add(new BuiltRegion { Room = r.Id, Planned = r.Role, Region = r.Region });
             }
         }
         return output;
@@ -439,14 +444,13 @@ public sealed record StationAdvice
     public IReadOnlyList<ComfortChoice> Comfort { get; init; } = [];
 }
 
-/// <summary>A planned room that stands as planned, with the role the game gives its furniture. Planned is the planned role of a room the native role does not tell apart (MatchedPlanned): the freezer and the butchery; empty otherwise. Pinned: the colony holds the room (TilePinned); the embedding keeps it where it stands. Set by the caller, never by BuiltRegions.</summary>
+/// <summary>A planned room that stands as planned, with the role the game gives its furniture. Planned is the planned role of a room the native role does not tell apart (MatchedPlanned): the freezer and the butchery; empty otherwise.</summary>
 public sealed record BuiltRegion
 {
     public int Room { get; init; }
     public RoomRole Role { get; init; }
     public PlannedRole Planned { get; init; }
     public Region Region { get; init; } = new();
-    public bool Pinned { get; init; }
 
     /// <summary>The herd key of a pen.</summary>
     public string Herd { get; init; } = string.Empty;
@@ -589,7 +593,7 @@ public static partial class LayoutStationPlanRules
             throw UnknownStationFact("roof support distance");
         }
         var graph = StationGraph.BuildStationGraph(input);
-        var built = LayoutPlan.BuiltRegions(f.Plan, f.StandingIds()!).Select(b => b with { Pinned = f.Pinned.Contains(b.Room) }).ToList();
+        var built = LayoutPlan.BuiltRegions(f.Plan, f.StandingIds()!);
         var regrouped = LayoutRegroupRules.Regroup(new RegroupInput
         {
             Cluster = new ClusterInput { Graph = graph, Catalog = f.Catalog, RoofDistance = f.RoofDistance, BedMerge = f.BedMergePriceOf() },

@@ -97,7 +97,7 @@ public static partial class LayoutTripsRules
 partial record PlannedRoom
 {
     /// <summary>
-    /// The score a move of built room r must gain: the replan gain plus what building the room twice costs (the walls,
+    /// The score a move of built or started (pinned, TilePinned) room r must gain: the replan gain plus what building the room twice costs (the walls,
     /// floor and furniture built again), so a replan never flickers between near-equal layouts.
     /// </summary>
     internal static int SwitchThreshold(PlannedRoom r) => PlanWeights.ReplanGain + PlanWeights.BuiltSwitch + (PlanWeights.BuiltSwitchCell * r.Region.Area());

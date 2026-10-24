@@ -144,9 +144,9 @@ public sealed partial class AdminRounds
                 {
                     return RoundsBurialFacts.MorgueAwaitingRoom(reading.Projection) ? WaitFor(Cause.MethodUsed, "morgue_room") : BuildingReasonNoDeficit;
                 }
-                return (await _building.ReconcileRoomAsync(state, review, work.Owner, reading, stock, new RoomReconcile { Room = morgue, Name = RoundsBurialFacts.RoomName("morgue", morgue), Reason = "morgue" }, call, work.Epoch).ConfigureAwait(false)).Verdict;
+                return (await _building.ReconcileRoomAsync(state, review, work.Owner, reading, stock, new RoomReconcile { Room = morgue, Name = RoundsSleepingUpkeepPlanner.RoomReconcileName("morgue", morgue), Reason = "morgue" }, call, work.Epoch).ConfigureAwait(false)).Verdict;
             case TombStepKind.Reconcile:
-                return (await _building.ReconcileRoomAsync(state, review, work.Owner, reading, stock, new RoomReconcile { Room = step.Room, Template = step.Template, Name = RoundsBurialFacts.RoomName("tomb", step.Room), Reason = "tomb" }, call, work.Epoch).ConfigureAwait(false)).Verdict;
+                return (await _building.ReconcileRoomAsync(state, review, work.Owner, reading, stock, new RoomReconcile { Room = step.Room, Template = step.Template, Name = RoundsSleepingUpkeepPlanner.RoomReconcileName("tomb", step.Room), Reason = "tomb" }, call, work.Epoch).ConfigureAwait(false)).Verdict;
             case TombStepKind.Grave:
                 return await PlaceGraveAsync(work, reading.Projection, step, call).ConfigureAwait(false);
             case TombStepKind.Full:

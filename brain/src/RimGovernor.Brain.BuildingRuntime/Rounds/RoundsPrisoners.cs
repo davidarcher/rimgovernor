@@ -79,7 +79,7 @@ public sealed class PrisonersRounds
             {
                 var stock = new PackedStock(_reviewer.Native, Boundary.Identity(state.Snapshot));
                 var room = step.Room ?? throw new ControlException("prisoners jail: reconcile step without a room");
-                var rr = new RoomReconcile { Room = room, Template = step.Template, Name = RoundsBurialFacts.RoomName("jail", room), Reason = "jail" };
+                var rr = new RoomReconcile { Room = room, Template = step.Template, Name = RoundsSleepingUpkeepPlanner.RoomReconcileName("jail", room), Reason = "jail" };
                 return (await _building.ReconcileRoomAsync(state, review, work.Owner, reading, stock, rr, call, work.Epoch).ConfigureAwait(false)).Verdict;
             }
             case JailStepKind.Mark:

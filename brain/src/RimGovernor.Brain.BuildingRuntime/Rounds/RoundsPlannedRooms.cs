@@ -146,7 +146,7 @@ partial class RoundsBuildingPlanner
     }
 
     internal static MethodId PlannedRoomMethod(PlannedRoom room) =>
-        new($"{Wire.Name(room.Role)}-shell-room{room.Id}");
+        new(RoundsSleepingUpkeepPlanner.RoomReconcileName(Wire.Name(room.Role), room));
 
     internal static IReadOnlyList<InteriorRoom> PlannedInteriorRooms(ColonyProjection facts, Func<PlannedRoom, bool> keep)
     {

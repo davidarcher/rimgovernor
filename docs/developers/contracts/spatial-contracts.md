@@ -522,7 +522,7 @@ and `LayoutSiteGround.cs` (the siting seeds), that `Embed` uses with `FieldGain`
 
 **Entry points and what a replan does.** `DeriveLayoutPlan` (`LayoutDerive.cs`) sets
 `StationFacts.Derive` and runs `TileStations`, then merges the field zones and plans the
-perimeter (`PlanMountainPockets(PlanPerimeter(...))`). `ReplanLayout` pins the rooms growth holds
+perimeter (`PlanMountainPockets(PlanPerimeter(...))`). `ReplanLayout` pins the started rooms and the rooms growth holds
 (`TilePinned`, `ReplanTileFacts`) and runs `TileStations` again, so the next plan is the
 tiled plan wholesale, except that an unbuilt, unpinned room keeps its site and id unless the new embedding beats the held arrangement by `ReplanGain` (#3740), and a room tiled on the interior it had keeps its id either way. It then puts back the held rooms the tiler left out (`keepHeld`),
 retires the ground of a standing room that has no node (`retiredGround`), carries the
