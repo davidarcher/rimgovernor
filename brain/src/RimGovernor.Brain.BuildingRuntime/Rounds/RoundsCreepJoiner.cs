@@ -11,6 +11,7 @@ internal static class RoundsCreepJoiner
     internal static CreepJoinerWork CreepJoinerWorkOf(ColonyProjection facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog, CreepJoinerRecord record)
     {
         var owed = Unknown<bool>();
+        var due = false;
         var work = new CreepJoinerWork();
         if (CreepJoinerHands(frame) is { } hands)
         {
@@ -21,14 +22,14 @@ internal static class RoundsCreepJoiner
             var inspections = downsides.Inspections(hands, defs.SurgicalInspectionRecipes(), record);
             if (inspections.Owed(record))
             {
-                owed = Known(true);
+                due = true;
             }
             facts.Facts.IsolationArea.TryGetValue(out var area);
             var projection = facts with { Isolation = CreepJoinerIsolation(facts, frame, catalog, record) };
             var isolation = downsides.IsolationMoves(hands, inspections.Record, area ?? "", IsolationReady(projection));
             if (isolation.Count > 0)
             {
-                owed = Known(true);
+                due = true;
             }
             work = work with { Drops = drops, Inspections = inspections, Isolation = isolation };
         }
@@ -47,10 +48,10 @@ internal static class RoundsCreepJoiner
             work = work with { Disarm = disarm };
             if (disarm.Orders.Count > 0)
             {
-                owed = Known(true);
+                due = true;
             }
         }
-        return work with { Owed = owed };
+        return work with { Owed = due ? Known(true) : owed };
     }
 
     /// <summary>The hands of the colonists when the frame's pawn census is complete; null otherwise.</summary>
@@ -106,6 +107,36 @@ internal static class RoundsCreepJoiner
             output = output with { Pawns = defs.CreepJoinerDownsides().Isolated(hands, record) };
         }
         return output;
+    }
+
+    /// <summary>
+    /// The isolation credit's creepjoiners (#3844): each one the projection holds apart (<see cref="ColonyProjection.Isolation"/>)
+    /// with the days since its tracker's joinedTick, and the catalog's downside table. Unknown while the held-apart census or
+    /// the pawn rows are unread.
+    /// </summary>
+    internal static CreepJoinerForecast CreepJoinerForecastOf(ColonyProjection facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog)
+    {
+        if (!facts.Isolation.Pawns.TryGetValue(out var pawns) || frame.Pawns is null)
+        {
+            return new CreepJoinerForecast { Unread = "the held-apart creepjoiner census is unread" };
+        }
+        if (pawns.Count == 0)
+        {
+            return new CreepJoinerForecast { Unread = "", Held = EquatableArray.From(Array.Empty<HeldCreepJoiner>()) };
+        }
+        var defs = catalog ?? throw new ControlException("creepJoinerForecast: no definition catalog");
+        var joined = new Dictionary<PawnId, int>();
+        foreach (var row in frame.Pawns.Pawns)
+        {
+            if (row.Anomaly is PbObservations.PawnAnomalyState.Active { Facts.Creepjoiner: { } tracker })
+            {
+                joined[new PawnId(row.Pawn.Id ?? "")] = tracker.JoinedTick;
+            }
+        }
+        var now = facts.Identity.Tick.Value;
+        var held = pawns.Select(p => new HeldCreepJoiner(p.Value, Math.Max(0, now - (joined.TryGetValue(p, out var tick)
+            ? tick : throw new ControlException($"creepJoinerForecast: held pawn {p.Value} has no creepjoiner tracker"))) / (double)GameTime.TicksPerDay));
+        return new CreepJoinerForecast { Unread = "", Held = EquatableArray.From(held), Table = defs.CreepJoinerDownsideTable() };
     }
 
     internal static bool IsolationReady(ColonyProjection facts)

@@ -439,8 +439,13 @@ internal sealed partial class Embedder : EmbedFixed
             {
                 return false;
             }
+            // The isolation room stands out of a pulse's reach of every other room (#3844 D10); a field is no room.
+            if (!IsField(j) && IsolationRoomRules.KeptApart(_groups[i].Planned, _groups[j].Planned) && !IsolationRoomRules.ApartFromIsolation(r, blocks[j]))
+            {
+                return false;
+            }
         }
-        return !HitsHeld(r);
+        return !HitsHeld(r, _groups[i].Planned);
     }
 
     /// <summary>The objective's share of group i at r: cell terms and every link to a placed block. Higher is worse.</summary>

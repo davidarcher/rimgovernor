@@ -7315,11 +7315,14 @@ public sealed record PawnAnomaly
 
 /// <summary>
 /// A creepjoiner's facts. downside_triggered is the tracker's triggeredDownside, true once the game has shown the
-/// downside; the downside def itself is hidden information and is never read.
+/// downside; joined_tick is its public joinedTick, the tick it joined the colony (Notify_ChangedFaction), from which its
+/// downside's timers run (#3844). The downside def itself is hidden information and is never read.
 /// </summary>
 public sealed record CreepJoinerState
 {
     public required bool DownsideTriggered { get; init; }
+
+    public required int JoinedTick { get; init; }
 }
 
 /// <summary>

@@ -81,6 +81,33 @@ public static class HarmConsequences
     private const double PainFull = 1;
     private const double PainMaxPenalty = 0.4;
 
+    /// <summary>The consciousness a pawn at <paramref name="consciousness"/> keeps under <paramref name="pain"/> (PawnCapacityWorker_Consciousness).</summary>
+    internal static double PainConsciousness(double consciousness, double pain) =>
+        consciousness - Math.Clamp((pain - PainFree) / (PainFull - PainFree) * PainMaxPenalty, 0, PainMaxPenalty);
+
+    /// <summary>
+    /// The share of capability a pawn at <paramref name="consciousness"/> keeps under <paramref name="pain"/>: 0 when the pain
+    /// downs it (at its <paramref name="shock"/> threshold, or consciousness under <see cref="ForecastValue.AwakeConsciousness"/>),
+    /// 1 for one already down.
+    /// </summary>
+    internal static double PainFactor(double consciousness, double shock, double pain, out bool downed)
+    {
+        downed = false;
+        if (consciousness < ForecastValue.AwakeConsciousness || consciousness <= 0)
+        {
+            return 1;
+        }
+
+        var level = PainConsciousness(consciousness, pain);
+        if (pain >= shock || level < ForecastValue.AwakeConsciousness)
+        {
+            downed = true;
+            return 0;
+        }
+
+        return level / consciousness;
+    }
+
     // Hediff_Injury.AgeTicksToStopBleeding: an untended wound stops bleeding after 90000 + Lerp(0, 90000, InverseLerp(1, 30, severity)) ticks.
     private const double StopBleedingBaseDays = 1.5;
     private const double StopBleedingExtraDays = 1.5;
@@ -557,27 +584,9 @@ public static class HarmConsequences
 
         private double Pain(double severity) => PainPerSeverity * severity / healthScale;
 
-        private double Level(double pain) =>
-            levels[0] - Math.Clamp((pain - PainFree) / (PainFull - PainFree) * PainMaxPenalty, 0, PainMaxPenalty);
+        private double Level(double pain) => PainConsciousness(levels[0], pain);
 
-        // The share of capability left at a pain level: 0 when the pain downs the pawn, 1 for one already down.
-        private double Factor(double pain, out bool downed)
-        {
-            downed = false;
-            if (levels[0] < ForecastValue.AwakeConsciousness || levels[0] <= 0)
-            {
-                return 1;
-            }
-
-            var level = Level(pain);
-            if (pain >= shock || level < ForecastValue.AwakeConsciousness)
-            {
-                downed = true;
-                return 0;
-            }
-
-            return level / levels[0];
-        }
+        private double Factor(double pain, out bool downed) => PainFactor(levels[0], shock, pain, out downed);
 
         // The chance some wound infects and, if so, the capability-days its course loses over the horizon.
         private double Infection(double severity, out double loss, out double? diedAt, out bool downed)

@@ -315,6 +315,8 @@ public sealed class PlannedRoomCreditTests
         var generated = ForecastCoupledCandidates.GenerateCoupledActivities(facts)!.Context;
         var context = generated with
         {
+            // The round reads no creepjoiner held apart (RoundsCreepJoiner.CreepJoinerForecastOf, #3844).
+            CreepJoiners = new() { Unread = "", Held = [] },
             InvestmentHorizonDays = Horizon, Tending = new ForecastTending(true, 0.6), CapacityPenalties = ForecastValueTests.Tables(),
             Harm = ForecastValueTests.RaidDay(raidsPerDay: 0) with { Illness = new IllnessSchedule { Assessed = true }, Containment = generated.Harm.Containment },
         };

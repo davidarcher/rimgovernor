@@ -530,7 +530,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812), `DeathrestChamber` (#3810), `Hospital` (#3804), `ContainmentCell` (#3811), `SparringRing` (#3813) and `TrainingRange` (#3846).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Pen` (#3812), `DeathrestChamber` (#3810), `Hospital` (#3804), `ContainmentCell` (#3811), `IsolationRoom` (#3844), `SparringRing` (#3813) and `TrainingRange` (#3846).
 Each fueled source with a steady burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 whose native supply is `HeatSupply.Burning`, with its `Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
@@ -803,6 +803,22 @@ prediction are required facts. The served cell names what is not modelled (`Plan
 `containment_escape_join_unmodelled` (other held entities joining an escape), `containment_captivity_growth_unmodelled` (the days
 held growing over the horizon), `containment_cell_cold_unmodelled` (the cell's temperature) and
 `containment_study_activity_unmodelled` (an entity's activity level and an attached electroharvester).
+
+*Isolation room credit (#3844).* A planned isolation room stands out of an agony pulse's reach of every other planned room but
+the circulation corridors (`IsolationRoomRules.ApartFromIsolation`: the nearest cells more than the worker's 14.9 apart; no room
+where the map has no such site). It is credited through the same seam (`ForecastIsolation.IsolationCredit`) under
+`isolation-room/<room>/<pawn>`, once per creepjoiner the colony holds apart (`ForecastCoupledContext.CreepJoiners`: the
+admin's isolated pawns, with the days since the tracker's `joined_tick`, and the catalog's downside table): the chance its
+downside is `CreepJoinerWorker_PsychicAgony` and first fires between the room's service day and the horizon, given it has not
+shown yet (`FirstPulseChance`: `CreepJoinerUtility.GetRandom`'s draw by weight over the drawable downsides that add no trait,
+each one's `triggersAfterDays` timer and `triggerMtbDays` past `triggerMinDays` checked every quarter day), times one pulse's
+capability-days over every other colonist (`PulseLoss`: AgonyPulse's severity course through its stages' pain, a downed stretch
+costing it all). No creepjoiner held apart earns a named zero (`isolation_no_creepjoiner_held`), as do downsides with no pulse
+(`isolation_no_agony_downside`); unread held creepjoiners, a pulse the catalog cannot read, a downside gated on combat points
+and a form or benefit whose requires list names a downside are required facts. The served room names
+`isolation_passers_by_unmodelled`, `isolation_release_unmodelled`, `isolation_nonColonists_unmodelled`,
+`isolation_pulse_pain_mood_unmodelled`, `isolation_trigger_conditions_unmodelled` and
+`creepjoiner_downside_list_edit_unmodelled` (GetRandom's excludes loop edits the def list a later draw reads).
 
 *Hospital credit (#3804).* A planned hospital the outcome serves is credited through the same seam
 (`ForecastHospital.HospitalCredit`) what a patient gains lying in its bed instead of the bed it owns now (none: the ground, at the

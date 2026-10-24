@@ -52,7 +52,7 @@ public static class PlannedRoomCredits
     /// chamber mood its caskets and accelerators give each deathrester (#3810); Hospital by the infection, illness, sleep mood
     /// and queued surgery failures its bed relieves (#3804); ContainmentCell by the escapes its strength stops and the study it adds
     /// for the entity it holds, or the study less the escapes of the entity it captures (#3811); SparringRing by the raid harm its
-    /// trainees' Melee saves (#3813); TrainingRange by the raid harm its trainees' Shooting saves (#3846).</summary>
+    /// trainees' Melee saves (#3813); TrainingRange by the raid harm its trainees' Shooting saves (#3846); IsolationRoom by the first agony pulse a held creepjoiner keeps from the other colonists (#3844).</summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> Shipped = new Dictionary<PlannedRole, RoomCredit>
     {
         [PlannedRole.Bedroom] = ForecastHousing.BedroomCredit,
@@ -75,12 +75,14 @@ public static class PlannedRoomCredits
         [PlannedRole.ContainmentCell] = ForecastContainment.CellCredit,
         [PlannedRole.SparringRing] = ForecastSparring.RingCredit,
         [PlannedRole.TrainingRange] = ForecastTrainingRange.RangeCredit,
+        [PlannedRole.IsolationRoom] = ForecastIsolation.IsolationCredit,
     };
 
     /// <summary>
     /// The mechanics a role's credit leaves out, named with each room of it served (<see cref="RoomFindings"/>): the hospital's
     /// (#3804); the containment cell's, with its held entity's unpriced knowledge category (#3811); the worship room's demand
-    /// requirements and ritual outcomes it cannot predict (#3835); the sparring ring's (#3813); the training range's (#3846).
+    /// requirements and ritual outcomes it cannot predict (#3835); the sparring ring's (#3813); the training range's (#3846);
+    /// the isolation room's, or the named state it earns nothing in (#3844).
     /// </summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomFindings> Unmodelled = new Dictionary<PlannedRole, RoomFindings>
     {
@@ -89,6 +91,7 @@ public static class PlannedRoomCredits
         [PlannedRole.ContainmentCell] = ForecastContainment.CellFindings,
         [PlannedRole.SparringRing] = (_, _, _, _) => ForecastSparring.Unmodelled,
         [PlannedRole.TrainingRange] = (_, _, _, _) => ForecastTrainingRange.Unmodelled,
+        [PlannedRole.IsolationRoom] = ForecastIsolation.Findings,
     };
 
     /// <summary>

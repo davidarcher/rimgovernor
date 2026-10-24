@@ -87,13 +87,13 @@ internal sealed partial class Embedder
         _held.AddRange(sorted);
     }
 
-    /// <summary>Reports a block that touches a held room.</summary>
+    /// <summary>Reports a block that touches a held room, or a room block (<paramref name="room"/> its role; null for a field) within a pulse of a held one it must stand apart from (#3844 D10).</summary>
     // A loop, not Any with a lambda over r: Fits asks this for every candidate, and the closure was allocated per call.
-    private bool HitsHeld(Rectangle r)
+    private bool HitsHeld(Rectangle r, PlannedRole? room)
     {
         foreach (var h in _held)
         {
-            if (LayoutEmbedRules.Collides(r, h.Interior))
+            if (LayoutEmbedRules.Collides(r, h.Interior) || (room is { } role && IsolationRoomRules.KeptApart(role, h.Role) && !IsolationRoomRules.ApartFromIsolation(r, h.Interior)))
             {
                 return true;
             }

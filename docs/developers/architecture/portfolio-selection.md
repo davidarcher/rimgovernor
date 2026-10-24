@@ -73,7 +73,8 @@ priced), since its credit already counts them. Its sites are still emitted and e
 `MealCloset`, `Reserve` and `Yard`, all `ForecastStorage.StorageCredit`, #3798; `Morgue` and `Tomb`,
 `ForecastCorpses.MorgueCredit` and `TombCredit`, #3806; `Worship`, `ForecastWorship.WorshipCredit`, #3808; `Pen`,
 `ForecastPens.PenCredit`, #3812; `DeathrestChamber`, `ForecastDeathrest.ChamberCredit`, #3810; `Hospital`,
-`ForecastHospital.HospitalCredit`, #3804; `ContainmentCell`, `ForecastContainment.CellCredit`, #3811; `SparringRing`,
+`ForecastHospital.HospitalCredit`, #3804; `ContainmentCell`, `ForecastContainment.CellCredit`, #3811; `IsolationRoom`,
+`ForecastIsolation.IsolationCredit`, #3844; `SparringRing`,
 `ForecastSparring.RingCredit`, #3813; `TrainingRange`, `ForecastTrainingRange.RangeCredit`, #3846) holds a credit for it:
 
 - `delegate IReadOnlyList<RoomGain>? RoomCredit(ForecastRoomService room, outcome, context, horizonTicks)`

@@ -1142,7 +1142,10 @@ is empty. There are no shell or place steps: the ring, floors and pieces are
 whatever the diff leaves, installed from packed stock first. A refused
 placement means wait: the jail and the morgue let their concern go on, the tomb
 returns the wait. The isolation room is a child-room need (`IsolationRoomNeed`)
-and converts with the child rooms.
+and converts with the child rooms. The embedding places it out of an agony
+pulse's reach (`IsolationRoomRules.ApartFromIsolation`, more than 14.9 cells
+between the nearest cells) of every other planned or held room but the
+circulation corridors (#3844); a map with no such site has no isolation room.
 
 ### Bestowing ceremony and title claim
 

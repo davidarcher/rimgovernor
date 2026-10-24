@@ -151,6 +151,9 @@ public sealed record ForecastCoupledContext
     /// <summary>The planned containment cells, their predicted strength and the entity each already holds (#3811,
     /// <see cref="ForecastContainment.CellsOf"/>); none without a planned cell. Set by the round beside <see cref="DeathrestFurniture"/>.</summary>
     public EquatableArray<PlannedContainmentCell> ContainmentCells { get; init; }
+    /// <summary>The creepjoiners the colony holds apart and the catalog's downside table (#3844, <see cref="ForecastIsolation"/>);
+    /// unread until the round reads them. Set by the round beside <see cref="ContainmentCells"/>.</summary>
+    public CreepJoinerForecast CreepJoiners { get; init; } = new();
     /// <summary>The days a served room's credit runs to (#3655, #3796): the horizon tier 2 ran over (ColonyModelPolicy.HorizonDays),
     /// set beside <see cref="Investment"/>; 0 before tier 2 ran, which credits nothing.</summary>
     public double InvestmentHorizonDays { get; init; }

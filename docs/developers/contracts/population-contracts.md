@@ -100,7 +100,8 @@ shows the colonist is a risk and holds no weapon. The downside has shown when th
 in the definition catalog adds (`policy.CreepJoinerDownsides`, built from the catalog's downside rows;
 no def name is written in the brain, and the colonist's own downside def is never read). Unread facts leave
 the answer unknown, and unknown holds the colonist back; a colonist with no Anomaly block is no
-creepjoiner.
+creepjoiner. The tracker's `joined_tick` (`Pawn_CreepJoinerTracker.joinedTick`, #3844) dates the downside's timers for the
+isolation room credit ([forecast value](../architecture/forecast-value.md)).
 
 - **`admin/creep-joiners`** (Wellbeing Need of the colony admin family, `policy.AdminFamily`, #3264):
   each family run reads the owned census's colonist rows (complete roster only) and the stored record,

@@ -33,6 +33,35 @@ public static class IsolationRoomRules
     public const string IsolationAreaLabel = IsolationAreaKey;
 
     /// <summary>
+    /// The reach of a psychic agony pulse (#3844 D10): CreepJoinerWorker_PsychicAgony.DoResponse pulses every spawned pawn whose
+    /// Position.InHorDistOf(creepjoiner, Range) holds, Range a private const 14.9 (ilspycmd). The layout keeps every other
+    /// planned room out of it (<see cref="ApartFromIsolation"/>); the credit reads the game's own value through the catalog
+    /// and fails when it outgrows this one (<see cref="ForecastIsolation"/>).
+    /// </summary>
+    public const double AgonyRange = 14.9;
+
+    /// <summary>
+    /// Whether two interiors stand out of a pulse's reach of each other (#3844 D10): the nearest two cells, one of each, are
+    /// farther than <see cref="AgonyRange"/> apart (InHorDistOf is dx² + dz² ≤ range²), so no pawn inside one is pulsed from
+    /// the other.
+    /// </summary>
+    public static bool ApartFromIsolation(Rectangle a, Rectangle b)
+    {
+        long dx = Math.Max(0, LayoutEmbedRules.AxisGap(a.X, a.Width, b.X, b.Width) + 1);
+        long dz = Math.Max(0, LayoutEmbedRules.AxisGap(a.Z, a.Height, b.Z, b.Height) + 1);
+        return dx * dx + dz * dz > AgonyRange * AgonyRange;
+    }
+
+    /// <summary>
+    /// Whether a room of <paramref name="role"/> and one of <paramref name="other"/> must stand apart (#3844 D10): one is the
+    /// isolation room and the other a planned room but a circulation corridor, which pawns only walk (passers-by are named
+    /// not modelled by the credit).
+    /// </summary>
+    public static bool KeptApart(PlannedRole role, PlannedRole other) =>
+        (role == PlannedRole.IsolationRoom) != (other == PlannedRole.IsolationRoom)
+        && role != PlannedRole.Circulation && other != PlannedRole.Circulation;
+
+    /// <summary>
     /// The room the isolated creepjoiners owe: one bed in its own room (one bed however many creepjoiners; they
     /// are rare). No isolated creepjoiner, an unread census, or a bed that is not buildable yet or has no known
     /// size owes nothing.

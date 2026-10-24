@@ -107,7 +107,7 @@ internal sealed partial class Embedder
                 return false;
             }
         }
-        return !HitsHeld(r);
+        return !HitsHeld(r, null);
     }
 
     /// <summary>A field's centre and edge terms, the mean per cell.</summary>
