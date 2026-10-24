@@ -170,7 +170,7 @@ public sealed partial class FacadeNativeClient
 
     /// <summary>
     /// The planning window rect from the snapshot stream's whole-map grid; a
-    /// client without a stream serves none (unavailable) and the caller falls back to whatever window it holds.
+    /// frame read that finds none is unavailable and the caller falls back to whatever window it holds.
     /// </summary>
     internal async Task<PlanningWindowRead> ReadPlanningWindowAsync(PbCommon.Identity identity, P.Rectangle rect, CancellationToken cancellationToken)
     {
@@ -178,14 +178,7 @@ public sealed partial class FacadeNativeClient
         {
             throw BridgeContractException.Contract("invalid planning window rect");
         }
-        RequireFrames("the planning window");
-        var served = await FrameReadAsync(
-            GridFrameMethod,
-            identity,
-            fallback: false,
-            view => new FrameLookup<FrameView>(view.Snapshot.Grid is not null, view, view.Snapshot.Grid is not null),
-            cancellationToken).ConfigureAwait(false);
-        var frame = served.Value!;
+        var frame = await FrameReadAsync(GridFrameMethod, identity, view => view.Snapshot.Grid is not null ? view : null, cancellationToken).ConfigureAwait(false);
         if (frame.Grid is not { } grid || !WireValidation.SameIdentity(frame.Snapshot.Context?.Identity, identity))
         {
             throw new BridgeUnavailableException("no snapshot frame grid for this world");

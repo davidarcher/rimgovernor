@@ -21,16 +21,12 @@ public sealed partial class FacadeNativeClient
 
     /// <summary>
     /// Decodes the routine census of the newest frame past this client's last write
-    /// against the load's definition catalog. Without a stream it is unavailable.
+    /// against the load's definition catalog.
     /// </summary>
     internal async Task<RoundsFrame> ReadRoundsFrameAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        if (!UseFrames)
-        {
-            throw new BridgeUnavailableException("the routine census is served only by the snapshot stream");
-        }
         var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
-        var view = await FrameSectionAsync(RoundsFrameMethod, identity, frame => frame, cancellationToken).ConfigureAwait(false);
+        var view = await FrameReadAsync(RoundsFrameMethod, identity, frame => frame, cancellationToken).ConfigureAwait(false);
         var routine = DecodeRoundsFrame(view.Snapshot, catalog, view.Prepared);
         if (routine.Buildings is { } census)
         {
@@ -154,20 +150,15 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>
-    /// The combat state from the newest frame past this client's last write. There is no
-    /// live read behind it: without a stream it is unavailable.
+    /// The combat state from the newest frame past this client's last write.
     /// </summary>
     internal async Task<Combat> ReadCombatAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
     {
-        if (!UseFrames)
-        {
-            throw new BridgeUnavailableException("combat state is served only by the snapshot stream");
-        }
         if (identity is null)
         {
             throw BridgeContractException.Contract("combat read without an identity");
         }
-        var view = await FrameSectionAsync(CombatFrameMethod, identity, frame => frame, cancellationToken).ConfigureAwait(false);
+        var view = await FrameReadAsync(CombatFrameMethod, identity, frame => frame, cancellationToken).ConfigureAwait(false);
         var combat = DecodeCombat(view);
         // The weapons' facts, the mech guard orders and a fight's race flags resolve against the catalog of the load.
         var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);

@@ -299,12 +299,6 @@ public sealed partial class FacadeNativeClient : IDisposable
     /// <summary>Where a frame read that gave up writes its <c>native_frame</c> miss row; null for a bare client.</summary>
     internal TelemetryEmitter? Telemetry { get; set; }
 
-    /// <summary>
-    /// Whether reads are served from the snapshot stream. Off, the routine, combat,
-    /// planning-window and table reads are unavailable and the colony facts, status and entity lists are read live.
-    /// </summary>
-    internal bool UseFrames { get; init; } = true;
-
     private FrameFeed Feed => LazyInitializer.EnsureInitialized(ref _frameFeed, () => new FrameFeed(Facade.Frames))!;
 
     /// <summary>
@@ -390,26 +384,18 @@ public sealed partial class FacadeNativeClient : IDisposable
         }
     }
 
-    /// <summary>What a frame answers for one read: whether it carries the answer, the answer, and whether the frame carries the method in another shape.</summary>
-    internal readonly record struct FrameLookup<T>(bool Found, T? Value, bool Carries);
-
-    /// <summary>The outcome of a frame read: served by a frame, or not (the caller reads live).</summary>
-    internal readonly record struct FrameServed<T>(bool Served, T? Value);
-
     /// <summary>
-    /// Waits for the newest frame that answers the read
-    /// (<paramref name="lookup"/>) and returns the answer. A frame carrying a Failure is a
+    /// Waits for the newest frame that answers the read (<paramref name="section"/> returns non-null) and returns the
+    /// answer; a frame without it is waited past. A frame carrying a Failure is a
     /// <see cref="Bridge.Contracts.ReadRefusedException"/> naming the section; a frame of another world is <see cref="BridgeRefusedException"/>;
-    /// no frame within <see cref="FrameReadTimeout"/> is <see cref="BridgeUnavailableException"/>. With
-    /// <paramref name="fallback"/>, a frame of the same world that carries the method only in another shape, while
-    /// no subscription change is pending, is not served and the caller reads live.
+    /// no frame within <see cref="FrameReadTimeout"/> is <see cref="BridgeUnavailableException"/>.
     /// </summary>
-    internal async Task<FrameServed<T>> FrameReadAsync<T>(
+    internal async Task<T> FrameReadAsync<T>(
         string name,
         PbCommon.Identity identity,
-        bool fallback,
-        Func<FrameView, FrameLookup<T>> lookup,
+        Func<FrameView, T?> section,
         CancellationToken cancellationToken)
+        where T : class
     {
         var waitStarted = Stopwatch.GetTimestamp();
         using var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -421,11 +407,6 @@ public sealed partial class FacadeNativeClient : IDisposable
             {
                 token.ThrowIfCancellationRequested();
                 await EnsureFramesAsync(token).ConfigureAwait(false);
-                bool pending;
-                lock (_frameGate)
-                {
-                    pending = _frameStale;
-                }
                 var frame = await Feed.LatestAsync(token).ConfigureAwait(false);
                 long after = 0;
                 if (frame is not null)
@@ -440,18 +421,13 @@ public sealed partial class FacadeNativeClient : IDisposable
                     {
                         throw new Bridge.Contracts.ReadRefusedException(decoded.Tool, decoded.Cause, NoReceipt);
                     }
-                    var found = lookup(frame);
-                    if (found.Found)
+                    if (section(frame) is { } found)
                     {
-                        return new FrameServed<T>(true, found.Value);
+                        return found;
                     }
                     if (prepared.World is not null && !WireValidation.SameIdentity(prepared.World, identity))
                     {
                         throw new BridgeRefusedException($"{name} asked for another world than the snapshot frames describe");
-                    }
-                    if (prepared.World is not null && fallback && found.Carries && !pending)
-                    {
-                        return new FrameServed<T>(false, default);
                     }
                 }
                 if (!await Feed.WaitNewerAsync(after, FrameWriteWait, token).ConfigureAwait(false) && Feed.Completed)
@@ -483,29 +459,5 @@ public sealed partial class FacadeNativeClient : IDisposable
                 ]);
             throw new BridgeUnavailableException(detail);
         }
-    }
-
-    /// <summary>
-    /// A frame read of one whole section: found when <paramref name="section"/> returns it, and a frame without it
-    /// is waited past.
-    /// </summary>
-    internal async Task<T> FrameSectionAsync<T>(
-        string name,
-        PbCommon.Identity identity,
-        Func<FrameView, T?> section,
-        CancellationToken cancellationToken)
-        where T : class
-    {
-        var served = await FrameReadAsync(
-            name,
-            identity,
-            fallback: true,
-            view =>
-            {
-                var value = section(view);
-                return new FrameLookup<T>(value is not null, value, value is not null);
-            },
-            cancellationToken).ConfigureAwait(false);
-        return served.Value!;
     }
 }
