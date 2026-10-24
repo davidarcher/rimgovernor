@@ -1,3 +1,6 @@
+using BuildingHitPoints = RimGovernor.Contracts.Wire.Observations.BuildingHitPoints;
+using ConditionDuration = RimGovernor.Contracts.Wire.Observations.ConditionDuration;
+
 namespace RimGovernor.Brain.Policy;
 
 public enum DisasterPhase
@@ -10,8 +13,14 @@ public enum DisasterPhase
     Recovering,
     [WireName("restored")]
     Restored,
-    [WireName("unknown")]
-    Unknown,
+
+    /// <summary>
+    /// The review could not judge the episode: the condition census was unread, or a survival service's finding was
+    /// unread with no deficit standing. The disaster/services Need raises <see cref="RequiredFactException"/> on it and
+    /// the service selection plans nothing.
+    /// </summary>
+    [WireName("unread")]
+    Unread,
 }
 
 public enum DisasterService
@@ -37,10 +46,9 @@ public enum DisasterService
 }
 
 /// <summary>
-/// One native game condition affecting the colony map. TicksLeft is the native remaining duration when the
-/// condition is timed and that read was available; it is null for a permanent condition or when native did not
-/// report one. Remaining time is planning evidence only: an episode ends when the condition is no longer
-/// observed, never when the count runs out.
+/// One native game condition affecting the colony map: permanent, or timed with the native remaining duration.
+/// Remaining time is planning evidence only: an episode ends when the condition is no longer observed, never when
+/// the count runs out.
 /// </summary>
 public sealed record DisasterCondition
 {
@@ -48,48 +56,61 @@ public sealed record DisasterCondition
 
     public string Definition { get; init; } = "";
 
-    public bool Permanent { get; init; }
-
-    public long? TicksLeft { get; init; }
+    public required ConditionDuration Duration { get; init; }
 
     /// <summary>The game's ElectricityDisabled for the condition: its def's class is GameCondition_DisableElectricity or derives from it.</summary>
     public bool DisablesPower { get; init; }
-
-    /// <summary>Reports the observed remaining duration when known.</summary>
-    public Fact<long> RemainingTicks() => TicksLeft is { } t ? Known(t) : Unknown<long>();
 }
 
 public sealed record DisasterEvidence(DisasterService Service, Finding Finding);
 
 public sealed record RecoveryWork(string Building, RecoveryMethod Method);
 
+/// <summary>A recovery building's fuel: a building without a refuelable comp, or its fuel level and the target it is refuelled to.</summary>
+public abstract record RecoveryFuel
+{
+    private protected RecoveryFuel()
+    {
+    }
+
+    public sealed record NotRefuelable : RecoveryFuel;
+
+    public sealed record Refuelable(double Level, double Target) : RecoveryFuel;
+}
+
+/// <summary>A building the disaster services restore, read whole from its building row.</summary>
 public sealed record RecoveryBuilding
 {
-    public string Id { get; init; } = "";
+    public required string Id { get; init; }
 
-    public Fact<bool> UsesHitPoints { get; init; }
+    /// <summary>Untracked for a definition without hit points.</summary>
+    public required BuildingHitPoints HitPoints { get; init; }
 
-    public Fact<bool> Broken { get; init; }
+    public required bool Broken { get; init; }
 
-    public Fact<bool> Forbidden { get; init; }
+    public required bool Forbidden { get; init; }
 
-    public Fact<bool> Burning { get; init; }
+    public required bool Burning { get; init; }
 
-    public Fact<long> HitPoints { get; init; }
+    public required RecoveryFuel Fuel { get; init; }
+}
 
-    public Fact<long> MaxHitPoints { get; init; }
+/// <summary>The latest short circuit a disaster history has seen: none yet, or the tick it happened.</summary>
+public abstract record DisasterShortCircuit
+{
+    private protected DisasterShortCircuit()
+    {
+    }
 
-    public Fact<double> Fuel { get; init; }
+    public sealed record NoneSeen : DisasterShortCircuit;
 
-    public Fact<double> FuelTarget { get; init; }
-
-    public Fact<bool> Refuelable { get; init; }
+    public sealed record Seen(Tick Tick) : DisasterShortCircuit;
 }
 
 /// <summary>Observed disruption evidence. It grants neither orders nor recovery from elapsed time, disappeared buildings or an expired game condition.</summary>
 public sealed record DisasterHistory
 {
-    public long? ShortCircuitTick { get; init; }
+    public DisasterShortCircuit ShortCircuit { get; init; } = new DisasterShortCircuit.NoneSeen();
 
     public bool WorkKnown { get; init; }
 
@@ -117,14 +138,14 @@ public sealed record DisasterHistory
         {
             throw new DomainException("invalid disaster history bounds");
         }
-        if (ShortCircuitTick is { } sc && (sc < 0 || sc > Observed.Value))
+        if (ShortCircuit is DisasterShortCircuit.Seen { Tick: var sc } && (sc.Value < 0 || sc > Observed))
         {
             throw new DomainException("invalid short circuit history");
         }
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var c in Conditions)
         {
-            if (!FoodForecastRules.FoodId(c.Id) || !FoodForecastRules.FoodId(c.Definition) || seen.Contains(c.Id) || (c.TicksLeft is { } left && (c.Permanent || left < 0)))
+            if (!FoodForecastRules.FoodId(c.Id) || !FoodForecastRules.FoodId(c.Definition) || seen.Contains(c.Id) || c.Duration is ConditionDuration.Timed { Ticks: < 0 })
             {
                 throw new DomainException("invalid disaster condition");
             }
@@ -154,11 +175,11 @@ public sealed record DisasterHistory
                 throw new DomainException("invalid affected service");
             }
         }
-        bool deficit = false, unknown = false;
+        bool deficit = false, unread = false;
         foreach (var e in Services)
         {
             deficit = deficit || e.Finding == Finding.Unmet;
-            unknown = unknown || e.Finding == Finding.Unclear;
+            unread = unread || e.Finding == Finding.Unclear;
             if (e.Finding == Finding.Unmet && !services.Contains(e.Service))
             {
                 throw new DomainException("untracked disaster deficit");
@@ -176,8 +197,8 @@ public sealed record DisasterHistory
                 throw new DomainException("invalid recovery work method");
             }
         }
-        if (Phase != DisasterPhase.Unknown
-            && ((unknown && !deficit)
+        if (Phase != DisasterPhase.Unread
+            && ((unread && !deficit)
                 || ((Phase == DisasterPhase.Disrupted || Phase == DisasterPhase.Recovering) != deficit)
                 || ((Phase == DisasterPhase.Disrupted || Phase == DisasterPhase.Survival) != (Conditions.Count > 0))))
         {
@@ -204,10 +225,10 @@ public static class DisasterRules
     public const string ConditionToxicFallout = "ToxicFallout";
 
     /// <summary>
-    /// The longest observed remaining duration of any listed condition definition that is active with a native
-    /// TicksLeft read: zero when the census is known and no listed condition carries one, unknown while the
-    /// condition census itself is unknown. A listed condition without a remaining-duration read contributes
-    /// nothing: the reviews that consult this plan against a duration, never against the bare presence of a condition.
+    /// The longest remaining duration of any listed condition definition that is active and timed: zero when the
+    /// census is known and no listed condition is timed, unknown while the condition census itself is unknown. A
+    /// permanent listed condition contributes nothing: the reviews that consult this plan against a duration,
+    /// never against the bare presence of a condition.
     /// </summary>
     public static Fact<long> ConditionRemainingTicks(Fact<EquatableArray<DisasterCondition>> conditions, params string[] definitions) =>
         ConditionRemaining(conditions, c => definitions.Contains(c.Definition));
@@ -221,11 +242,7 @@ public static class DisasterRules
         long longest = 0;
         foreach (var c in rows)
         {
-            if (!match(c))
-            {
-                continue;
-            }
-            if (c.RemainingTicks().TryGetValue(out var ticks))
+            if (match(c) && c.Duration is ConditionDuration.Timed { Ticks: var ticks })
             {
                 longest = Math.Max(longest, ticks);
             }
@@ -234,17 +251,16 @@ public static class DisasterRules
     }
 
     /// <summary>
-    /// Reports an active condition that disables electricity (a solar flare) with a known remaining duration:
-    /// every powered building is off until it ends, so power and refrigeration development is suspended (the
-    /// goals stay open with no method) rather than answered with generators or coolers for an outage measured in hours.
+    /// Reports an active timed condition that disables electricity (a solar flare): every powered building is off
+    /// until it ends, so power and refrigeration development is suspended (the goals stay open with no method)
+    /// rather than answered with generators or coolers for an outage measured in hours.
     /// </summary>
     public static bool PowerOutageHold(Fact<EquatableArray<DisasterCondition>> conditions) =>
         ConditionRemaining(conditions, c => c.DisablesPower).TryGetValue(out var ticks) && ticks > 0;
 
     /// <summary>
-    /// Reports an active eclipse with a known remaining duration: the sky gives no light by day for as long as
-    /// it lasts, so an unroofed work cell measured dark is a lighting deficit a torch answers rather than the
-    /// nightly flap the roofed-only census avoids.
+    /// Reports an active timed eclipse: the sky gives no light by day for as long as it lasts, so an unroofed work
+    /// cell measured dark is a lighting deficit a torch answers rather than the nightly flap the roofed-only census avoids.
     /// </summary>
     public static bool EclipseHold(Fact<EquatableArray<DisasterCondition>> conditions) =>
         ConditionRemainingTicks(conditions, ConditionEclipse).TryGetValue(out var ticks) && ticks > 0;
@@ -263,98 +279,55 @@ public static class DisasterRules
     }
 
     /// <summary>
-    /// Lists measured ordinary work. Native eligibility and resource previews remain mandatory at action
-    /// admission; protected buildings are skipped. Throws on an invalid row.
+    /// Lists measured ordinary work: a broken-down building, a building below its maximum hit points and a
+    /// refuelable building under a quarter of its fuel target, refuels first. Forbidden and burning buildings are
+    /// skipped. Native eligibility and resource previews remain mandatory at action admission. Throws on an invalid row.
     /// </summary>
-    public static Fact<EquatableArray<RecoveryWork>> RecoveryPending(Fact<EquatableArray<RecoveryBuilding>> observed)
+    public static EquatableArray<RecoveryWork> RecoveryPending(IReadOnlyList<RecoveryBuilding> rows)
     {
-        if (!observed.TryGetValue(out var rows))
-        {
-            return Unknown<EquatableArray<RecoveryWork>>();
-        }
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var work = new List<RecoveryWork>();
-        var complete = true;
         foreach (var row in rows)
         {
             if (!FoodForecastRules.FoodId(row.Id) || !seen.Add(row.Id))
             {
                 throw new DomainException("invalid recovery identity");
             }
-            foreach (var f in new[] { row.Fuel, row.FuelTarget })
+            if (row.Fuel is RecoveryFuel.Refuelable fuel && (!FoodForecastRules.FoodNumber(fuel.Level) || !FoodForecastRules.FoodNumber(fuel.Target)))
             {
-                if (f.TryGetValue(out var v) && !FoodForecastRules.FoodNumber(v))
-                {
-                    throw new DomainException("invalid recovery fuel");
-                }
+                throw new DomainException("invalid recovery fuel");
             }
-            foreach (var f in new[] { row.HitPoints, row.MaxHitPoints })
-            {
-                if (f.TryGetValue(out var v) && v < 0)
-                {
-                    throw new DomainException("invalid recovery hit points");
-                }
-            }
-            var hk = row.HitPoints.TryGetValue(out var hp);
-            var mk = row.MaxHitPoints.TryGetValue(out var maximum);
-            if (hk && mk && (maximum <= 0 || hp > maximum))
+            if (row.HitPoints is BuildingHitPoints.Tracked hp && (hp.Current < 0 || hp.Maximum <= 0 || hp.Current > hp.Maximum))
             {
                 throw new DomainException("inconsistent recovery hit points");
             }
-            var fk = row.Forbidden.TryGetValue(out var forbidden);
-            var bk = row.Burning.TryGetValue(out var burning);
-            if (forbidden || burning)
+            if (row.Forbidden || row.Burning)
             {
                 continue;
             }
-            if (!fk || !bk)
-            {
-                complete = false;
-                continue;
-            }
-            var brokenKnown = row.Broken.TryGetValue(out var broken);
-            var uk = row.UsesHitPoints.TryGetValue(out var uses);
-            var rk = row.Refuelable.TryGetValue(out var refuel);
-            complete = complete && brokenKnown && uk && rk;
-            if (broken)
+            if (row.Broken)
             {
                 work.Add(new RecoveryWork(row.Id, RecoveryMethod.Breakdown));
             }
-            if (uk && uses)
+            if (row.HitPoints is BuildingHitPoints.Tracked damaged && damaged.Current < damaged.Maximum)
             {
-                if (!hk || !mk)
-                {
-                    complete = false;
-                }
-                else if (hp < maximum)
-                {
-                    work.Add(new RecoveryWork(row.Id, RecoveryMethod.Repair));
-                }
+                work.Add(new RecoveryWork(row.Id, RecoveryMethod.Repair));
             }
-            if (rk && refuel)
+            if (row.Fuel is RecoveryFuel.Refuelable low && low.Level < low.Target * .25)
             {
-                var fuelKnown = row.Fuel.TryGetValue(out var fuel);
-                var tk = row.FuelTarget.TryGetValue(out var target);
-                if (!fuelKnown || !tk)
-                {
-                    complete = false;
-                }
-                else if (fuel < target * .25)
-                {
-                    work.Add(new RecoveryWork(row.Id, RecoveryMethod.Refuel));
-                }
+                work.Add(new RecoveryWork(row.Id, RecoveryMethod.Refuel));
             }
-        }
-        if (!complete)
-        {
-            return Unknown<EquatableArray<RecoveryWork>>();
         }
         var sorted = work
             .OrderByDescending(w => w.Method == RecoveryMethod.Refuel)
             .ThenBy(w => w.Building, StringComparer.Ordinal)
             .ToList();
-        return Known(EquatableArray.From(sorted));
+        return EquatableArray.From(sorted);
     }
+
+    /// <summary>Whether a building stands whole: at its maximum hit points (or untracked) and not broken down.</summary>
+    private static bool Whole(RecoveryBuilding b) =>
+        (b.HitPoints is not BuildingHitPoints.Tracked hp || hp.Current == hp.Maximum) && !b.Broken;
 
     /// <summary>
     /// Uses the same survival gates as routine planning. The store resets history on world replacement or rewind
@@ -386,9 +359,10 @@ public static class DisasterRules
             {
                 throw new DomainException("invalid short circuit observation");
             }
-            newIncident = knownIncident && (previous is null || previous.ShortCircuitTick is null || incident.Value > previous.ShortCircuitTick);
+            newIncident = knownIncident && (previous?.ShortCircuit is not DisasterShortCircuit.Seen { Tick: var last } || incident > last);
         }
-        var workFact = RecoveryPending(buildings);
+        var census = buildings.TryGetValue(out var rows);
+        var pendingList = census ? RecoveryPending(rows).ToList() : [];
         var known = conditions.TryGetValue(out var current);
         var currentRows = known ? current : EquatableArray.From(new List<DisasterCondition>());
         var seenConditions = new HashSet<string>(StringComparer.Ordinal);
@@ -398,7 +372,7 @@ public static class DisasterRules
             {
                 throw new DomainException("invalid environmental condition");
             }
-            if (c.TicksLeft is { } left && (c.Permanent || left < 0))
+            if (c.Duration is ConditionDuration.Timed { Ticks: < 0 })
             {
                 throw new DomainException("invalid environmental condition duration");
             }
@@ -408,7 +382,7 @@ public static class DisasterRules
         {
             if (h is not null && h.Phase != DisasterPhase.Restored)
             {
-                h = h with { Phase = DisasterPhase.Unknown, Observed = tick };
+                h = h with { Phase = DisasterPhase.Unread, Observed = tick };
             }
             return h;
         }
@@ -428,34 +402,26 @@ public static class DisasterRules
             }
             h = new DisasterHistory { Started = tick };
         }
-        var shortCircuitTick = h.ShortCircuitTick;
+        var shortCircuitSeen = h.ShortCircuit;
         if (newIncident)
         {
-            shortCircuitTick = incident.Value;
+            shortCircuitSeen = new DisasterShortCircuit.Seen(incident);
         }
-        if (shortCircuitTick is null && previous is not null)
+        if (shortCircuitSeen is DisasterShortCircuit.NoneSeen && previous is not null)
         {
-            shortCircuitTick = previous.ShortCircuitTick;
+            shortCircuitSeen = previous.ShortCircuit;
         }
         var tracked = new HashSet<string>(h.Damaged, StringComparer.Ordinal);
-        if (newIncident)
+        if (newIncident && census)
         {
-            if (buildings.TryGetValue(out var rows))
+            foreach (var b in rows)
             {
-                foreach (var b in rows)
+                if (!Whole(b))
                 {
-                    var hk = b.HitPoints.TryGetValue(out var hp);
-                    var mk = b.MaxHitPoints.TryGetValue(out var maximum);
-                    var bk = b.Broken.TryGetValue(out var broken);
-                    if ((hk && mk && hp < maximum) || (bk && broken))
-                    {
-                        tracked.Add(b.Id);
-                    }
+                    tracked.Add(b.Id);
                 }
             }
         }
-        var complete = workFact.TryGetValue(out var pending);
-        var pendingList = complete ? pending.ToList() : [];
         foreach (var w in pendingList)
         {
             if (w.Method != RecoveryMethod.Refuel)
@@ -463,51 +429,28 @@ public static class DisasterRules
                 tracked.Add(w.Building);
             }
         }
-        var infrastructure = Unknown<bool>();
-        if (complete)
+        var infrastructure = Finding.Unclear;
+        if (census)
         {
-            var recovered = pendingList.Count == 0;
-            var observedOk = new Dictionary<string, bool>(StringComparer.Ordinal);
-            if (buildings.TryGetValue(out var rows))
-            {
-                foreach (var b in rows)
-                {
-                    var uk = b.UsesHitPoints.TryGetValue(out var uses);
-                    var hk = b.HitPoints.TryGetValue(out var hp);
-                    var mk = b.MaxHitPoints.TryGetValue(out var maximum);
-                    var bk = b.Broken.TryGetValue(out var broken);
-                    observedOk[b.Id] = uk && (!uses || (hk && mk && hp == maximum)) && bk && !broken;
-                }
-            }
-            foreach (var id in tracked)
-            {
-                recovered = recovered && observedOk.GetValueOrDefault(id);
-            }
-            infrastructure = Known(recovered);
+            var whole = rows.ToDictionary(b => b.Id, Whole, StringComparer.Ordinal);
+            var recovered = pendingList.Count == 0 && tracked.All(id => whole.GetValueOrDefault(id));
+            infrastructure = recovered ? Finding.Met : Finding.Unmet;
         }
-        var facts = DisasterServices.Select(s => services.GetValueOrDefault(s)).ToList();
-        facts[^1] = infrastructure;
         var evidence = new List<DisasterEvidence>();
         var affected = new HashSet<DisasterService>(h.Affected);
-        bool deficit = false, unknown = false;
-        for (var i = 0; i < facts.Count; i++)
+        bool deficit = false, unread = false;
+        foreach (var service in DisasterServices)
         {
-            var need = Finding.Unclear;
-            if (facts[i].TryGetValue(out var value))
+            var need = service == DisasterService.Infrastructure
+                ? infrastructure
+                : services.GetValueOrDefault(service).TryGetValue(out var value) ? (value ? Finding.Met : Finding.Unmet) : Finding.Unclear;
+            if (need == Finding.Unmet)
             {
-                need = Finding.Met;
-                if (!value)
-                {
-                    need = Finding.Unmet;
-                    deficit = true;
-                    affected.Add(DisasterServices[i]);
-                }
+                deficit = true;
+                affected.Add(service);
             }
-            else
-            {
-                unknown = true;
-            }
-            evidence.Add(new DisasterEvidence(DisasterServices[i], need));
+            unread = unread || need == Finding.Unclear;
+            evidence.Add(new DisasterEvidence(service, need));
         }
         var phase = DisasterPhase.Restored;
         if (currentRows.Count > 0 && deficit)
@@ -518,9 +461,9 @@ public static class DisasterRules
         {
             phase = DisasterPhase.Recovering;
         }
-        else if (unknown)
+        else if (unread)
         {
-            phase = DisasterPhase.Unknown;
+            phase = DisasterPhase.Unread;
         }
         else if (currentRows.Count > 0)
         {
@@ -528,10 +471,10 @@ public static class DisasterRules
         }
         var result = h with
         {
-            ShortCircuitTick = shortCircuitTick,
+            ShortCircuit = shortCircuitSeen,
             Observed = tick,
             Conditions = EquatableArray.From(currentRows.OrderBy(c => c.Id, StringComparer.Ordinal)),
-            WorkKnown = complete,
+            WorkKnown = census,
             Work = EquatableArray.From(pendingList),
             Damaged = EquatableArray.From(tracked.OrderBy(id => id, StringComparer.Ordinal)),
             Services = EquatableArray.From(evidence),

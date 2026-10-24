@@ -50,7 +50,7 @@ internal static class RecoveryArea
         var hazard = observed.Environment.FirstOrDefault(row => row.DefName == "ToxicFallout")
             ?? throw new AcceptanceException($"environment-census: no ToxicFallout row in {string.Join("; ", observed.Environment)}");
         s.RecordWire("environment_hazard", hazard);
-        if (hazard.Permanent == true || hazard.TicksLeft is not > 0 || string.IsNullOrEmpty(hazard.Id))
+        if (hazard.Duration is not Observations.ConditionDuration.Timed { Ticks: > 0 } || hazard.Id.Length == 0)
         {
             throw new AcceptanceException($"environment-census: the hazard row lacks a timed remaining duration: {hazard}");
         }

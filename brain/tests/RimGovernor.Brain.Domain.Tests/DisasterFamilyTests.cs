@@ -4,6 +4,7 @@ using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
+using ConditionDuration = RimGovernor.Contracts.Wire.Observations.ConditionDuration;
 using Journal = RimGovernor.Brain.Store.Store;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -36,20 +37,20 @@ public sealed class DisasterFamilyTests
         Started = new(1),
         Observed = new(1),
         Phase = DisasterPhase.Disrupted,
-        Conditions = [new DisasterCondition { Id = "condition-1", Definition = "Flare" }],
+        Conditions = [new DisasterCondition { Id = "condition-1", Definition = "Flare", Duration = new ConditionDuration.Timed { Ticks = 2500 } }],
         Services = [.. AllServices.Select(s => new DisasterEvidence(s, s == DisasterService.Infrastructure ? Finding.Unmet : Finding.Met))],
         Affected = [DisasterService.Infrastructure],
     };
 
     [Fact]
-    public void ShelteringIsUnmetWhileAMoveIsOwedAndUnknownWhileATriggerIsUnknown()
+    public void ShelteringIsUnmetWhileAMoveIsOwedAndAnUnknownTriggerRaisesOnTheRead()
     {
-        Assert.Equal("sheltering triggers", Assert.Throws<RequiredFactException>(() => Derive(new DisasterFacts(), DisasterFamily.Sheltering)).Fact);
+        Assert.Equal("sheltering triggers", Assert.Throws<RequiredFactException>(() => DisasterFacts.From(new RoundsFacts(), null)).Fact);
 
-        var owed = Derive(new DisasterFacts { Changes = Known<EquatableArray<AllowedAreaChange>>([Move("a", "Safe"), Move("b", "Safe")]) }, DisasterFamily.Sheltering);
+        var owed = Derive(new DisasterFacts { Changes = [Move("a", "Safe"), Move("b", "Safe")] }, DisasterFamily.Sheltering);
         Assert.Equal((Satisfaction.Unmet, 2.0), (owed.Satisfaction, owed.Deficit.Value));
 
-        var none = Derive(new DisasterFacts { Changes = Known<EquatableArray<AllowedAreaChange>>([]) }, DisasterFamily.Sheltering);
+        var none = Derive(new DisasterFacts { Changes = [] }, DisasterFamily.Sheltering);
         Assert.Equal((Satisfaction.Met, 0.0), (none.Satisfaction, none.Deficit.Value));
     }
 
@@ -57,12 +58,12 @@ public sealed class DisasterFamilyTests
     public void ServicesFollowTheDisasterHistoryAndWaitOnSheltering()
     {
         Assert.Equal("disaster conditions", Assert.Throws<RequiredFactException>(() => Derive(new DisasterFacts(), DisasterFamily.Services)).Fact);
-        Assert.Equal("sheltering triggers", Assert.Throws<RequiredFactException>(() => new DisasterFamily().Derive(new DisasterFacts { ConditionsKnown = true })).Fact);
+        Assert.Equal([Satisfaction.Met, Satisfaction.Met], new DisasterFamily().Derive(new DisasterFacts { ConditionsKnown = true }).Select(n => n.Satisfaction));
         Assert.Equal(Satisfaction.Met, Derive(new DisasterFacts { ConditionsKnown = true }, DisasterFamily.Services).Satisfaction);
         var unmet = Derive(new DisasterFacts { Disaster = Disrupted() }, DisasterFamily.Services);
         Assert.Equal((Satisfaction.Unmet, NeedTier.Wellbeing), (unmet.Satisfaction, unmet.Tier));
         Assert.Equal([DisasterFamily.Sheltering], unmet.Preconditions);
-        Assert.Equal("disaster service finding", Assert.Throws<RequiredFactException>(() => Derive(new DisasterFacts { Disaster = Disrupted() with { Phase = DisasterPhase.Unknown } }, DisasterFamily.Services)).Fact);
+        Assert.Equal("disaster service finding", Assert.Throws<RequiredFactException>(() => Derive(new DisasterFacts { Disaster = Disrupted() with { Phase = DisasterPhase.Unread } }, DisasterFamily.Services)).Fact);
         Assert.Empty(new DisasterFamily().Propose([unmet], new DisasterFacts()));
     }
 
@@ -120,7 +121,7 @@ public sealed class DisasterFamilyTests
         var path = Path.Combine(Path.GetTempPath(), "rg-disaster-recovery-" + Guid.NewGuid().ToString("N") + ".db");
         var facts = WorkResourceTestFacts.Create("a") with
         {
-            DisasterConditions = Known<EquatableArray<DisasterCondition>>([new DisasterCondition { Id = "condition-1", Definition = "Flare" }]),
+            DisasterConditions = Known<EquatableArray<DisasterCondition>>([new DisasterCondition { Id = "condition-1", Definition = "Flare", Duration = new ConditionDuration.Timed { Ticks = 2500 } }]),
         };
         RoundsResult Review(Journal journal, long tick) => journal.ReviewRounds(new RoundsRequest
         {
@@ -167,7 +168,7 @@ public sealed class DisasterFamilyTests
         var ct = TestContext.Current.CancellationToken;
         using var journal = Journal.Open(Path.Combine(Path.GetTempPath(), "rg-disaster-progress-" + Guid.NewGuid().ToString("N") + ".db"), ct);
         journal.ReviewRounds(new RoundsRequest { Current = World, Tick = new(100), Enabled = true, Policy = RoundsRules.DefaultRoundsPolicy(), Facts = WorkResourceTestFacts.Create("a") }, ct);
-        var facts = new DisasterFacts { Changes = Known<EquatableArray<AllowedAreaChange>>([Move("a", "Safe")]), Disaster = Disrupted() };
+        var facts = new DisasterFacts { Changes = [Move("a", "Safe")], Disaster = Disrupted() };
         var runner = new FamilyRunner<DisasterFacts>(new DisasterFamily(), (_, _) => Task.FromResult(facts), DisasterRounds.Schedule);
 
         var immediate = await runner.RunAsync(new FamilyStep { Journal = journal, World = World, Immediate = true }, ct);

@@ -6,8 +6,8 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record DisasterFacts
 {
-    /// <summary>The allowed-area moves <see cref="ShelterRules.PlanSheltering"/> wants now; unknown while a trigger is not known clear.</summary>
-    public Fact<EquatableArray<AllowedAreaChange>> Changes { get; init; }
+    /// <summary>The allowed-area moves <see cref="ShelterRules.PlanSheltering"/> wants now.</summary>
+    public EquatableArray<AllowedAreaChange> Changes { get; init; } = [];
 
     /// <summary>The review's disaster history; null when none was observed, or none is open after a restore.</summary>
     public DisasterHistory? Disaster { get; init; }
@@ -21,13 +21,20 @@ public sealed record DisasterFacts
     /// <summary>The colonists' work rows: the area step's live pawns and the service step's running jobs.</summary>
     public Fact<EquatableArray<WorkPawn>> Workers { get; init; }
 
-    /// <summary>The family's facts from one reading of the colony and the review's <paramref name="history"/>.</summary>
+    /// <summary>
+    /// The family's facts from one reading of the colony and the review's <paramref name="history"/>; a shelter
+    /// trigger not known clear raises <see cref="RequiredFactException"/>.
+    /// </summary>
     public static DisasterFacts From(RoundsFacts f, DisasterHistory? history)
     {
         var (_, known) = ShelterRules.ShelterTriggerOf(f);
+        if (!known)
+        {
+            throw new RequiredFactException("sheltering triggers");
+        }
         return new DisasterFacts
         {
-            Changes = known ? Fact.Known(EquatableArray.From(ShelterRules.PlanSheltering(f))) : default,
+            Changes = EquatableArray.From(ShelterRules.PlanSheltering(f)),
             Disaster = history,
             ConditionsKnown = f.DisasterConditions.IsKnown,
             Planning = new RecoveryPlanning { Safety = f.RecoverySafety, Workers = f.RecoveryWorkers, Buildings = f.RecoveryBuildings },
@@ -70,13 +77,9 @@ public sealed class DisasterFamily : IFamily<DisasterFacts>
     /// <summary>Nothing pure: both steps fence and commit the read they act on.</summary>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, DisasterFacts facts) => [];
 
-    /// <summary>Unmet while any area move is owed, met otherwise; a trigger not known clear raises <see cref="RequiredFactException"/>.</summary>
-    public static Need ShelteringNeed(Fact<EquatableArray<AllowedAreaChange>> changes)
+    /// <summary>Unmet while any area move is owed, met otherwise.</summary>
+    public static Need ShelteringNeed(IReadOnlyList<AllowedAreaChange> owed)
     {
-        if (!changes.TryGetValue(out var owed))
-        {
-            throw new RequiredFactException("sheltering triggers");
-        }
         return new Need
         {
             Id = Sheltering,

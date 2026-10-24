@@ -85,10 +85,7 @@ public sealed partial class DisasterRounds
     /// </summary>
     internal Verdict ShelteringWork(NeedWork work, DisasterFacts facts, CancellationToken call)
     {
-        if (!facts.Changes.TryGetValue(out var changes))
-        {
-            return FieldUnavailable("shelter_trigger");
-        }
+        var changes = facts.Changes;
         var p = _reviewer.Player;
         facts.Workers.TryGetValue(out var workers);
         foreach (var method in work.Owner.Methods)

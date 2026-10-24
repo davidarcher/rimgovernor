@@ -46,8 +46,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 41 reads recipe facts whole (#3873): the work-admission evidence's recipe input persists its slots and unfinished-item flag as plain values and adds its products and work amount.
     /// Version 42 reads a pawn's Biotech block whole (#3789): stage, genes, mechanitor, mech (work mode, energy, control group) and deathrest persist as plain values, absent records as null.
     /// Version 43 reads bill reservations whole (#3881): a journaled work admission's reservations persist as a plain list and each reservation's bill as a plain id.
+    /// Version 44 reads disaster and recovery facts whole (#3888): a condition persists as permanent or timed, a short circuit as seen or none, and a recovery building's and candidate's flags as plain booleans with their hit points and fuel absent for an untracked or unrefuelable building.
     /// </summary>
-    public const int SchemaVersion = 43;
+    public const int SchemaVersion = 44;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

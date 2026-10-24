@@ -2,6 +2,7 @@ using System.Text.Json;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
+using BuildingHitPoints = RimGovernor.Contracts.Wire.Observations.BuildingHitPoints;
 
 namespace RimGovernor.Brain.Store;
 
@@ -156,8 +157,10 @@ public sealed class RecoveryCandidateConverter : ObjectCodec<RecoveryCandidate>
             Pawn = new PawnId(e.Str("Pawn")),
             Building = e.Str("Building"),
             Method = e.Get<RecoveryMethod>("Method", o),
-            HitPoints = e.GetNullable<long>("HitPoints", o),
-            Fuel = e.GetNullable<double>("Fuel", o),
+            HitPoints = e.GetNullable<int>("HitPoints", o) is { } current
+                ? new BuildingHitPoints.Tracked { Current = current, Maximum = e.I32("MaxHitPoints") }
+                : new BuildingHitPoints.Untracked(),
+            Fuel = e.GetNullable<double>("Fuel", o) is { } level ? new RecoveryFuel.Refuelable(level, e.Dbl("FuelTarget")) : new RecoveryFuel.NotRefuelable(),
             PriorArea = e.Has("PriorArea") ? e.Str("PriorArea") : null,
         };
 
@@ -168,8 +171,16 @@ public sealed class RecoveryCandidateConverter : ObjectCodec<RecoveryCandidate>
         w.WriteString("Pawn", v.Pawn.Value);
         w.WriteString("Building", v.Building);
         w.Put("Method", v.Method, o);
-        w.PutNullable("HitPoints", v.HitPoints, o);
-        w.PutNullable("Fuel", v.Fuel, o);
+        if (v.HitPoints is BuildingHitPoints.Tracked hp)
+        {
+            w.WriteNum("HitPoints", hp.Current);
+            w.WriteNum("MaxHitPoints", hp.Maximum);
+        }
+        if (v.Fuel is RecoveryFuel.Refuelable fuel)
+        {
+            w.WriteNum("Fuel", fuel.Level);
+            w.WriteNum("FuelTarget", fuel.Target);
+        }
         if (v.PriorArea is null)
         {
             w.WriteNull("PriorArea");
@@ -187,13 +198,11 @@ public sealed class RoundsRecoveryBuildingConverter : ObjectCodec<RoundsRecovery
         new()
         {
             Id = e.Str("ID"),
-            UsesHitPoints = e.GetNullable<bool>("UsesHitPoints", o),
-            Broken = e.GetNullable<bool>("Broken", o),
-            Forbidden = e.GetNullable<bool>("Forbidden", o),
-            Burning = e.GetNullable<bool>("Burning", o),
-            Refuelable = e.GetNullable<bool>("Refuelable", o),
-            HitPoints = e.GetNullable<long>("HitPoints", o),
-            MaxHitPoints = e.GetNullable<long>("MaxHitPoints", o),
+            Broken = e.Bool("Broken"),
+            Forbidden = e.Bool("Forbidden"),
+            Burning = e.Bool("Burning"),
+            HitPoints = e.GetNullable<int>("HitPoints", o),
+            MaxHitPoints = e.GetNullable<int>("MaxHitPoints", o),
             Fuel = e.GetNullable<double>("Fuel", o),
             FuelTarget = e.GetNullable<double>("FuelTarget", o),
         };
@@ -201,11 +210,9 @@ public sealed class RoundsRecoveryBuildingConverter : ObjectCodec<RoundsRecovery
     protected override void WriteFields(Utf8JsonWriter w, RoundsRecoveryBuilding v, Codecs o)
     {
         w.WriteString("ID", v.Id);
-        w.PutNullable("UsesHitPoints", v.UsesHitPoints, o);
-        w.PutNullable("Broken", v.Broken, o);
-        w.PutNullable("Forbidden", v.Forbidden, o);
-        w.PutNullable("Burning", v.Burning, o);
-        w.PutNullable("Refuelable", v.Refuelable, o);
+        w.WriteBoolean("Broken", v.Broken);
+        w.WriteBoolean("Forbidden", v.Forbidden);
+        w.WriteBoolean("Burning", v.Burning);
         w.PutNullable("HitPoints", v.HitPoints, o);
         w.PutNullable("MaxHitPoints", v.MaxHitPoints, o);
         w.PutNullable("Fuel", v.Fuel, o);

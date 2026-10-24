@@ -155,7 +155,7 @@ BuildingRuntime/Rounds/RoundsDefenseTier.cs|Fact|1
 BuildingRuntime/Rounds/RoundsDefenseTiers.cs|Fact|1
 BuildingRuntime/Rounds/RoundsDefenseWait.cs|Fact|4
 BuildingRuntime/Rounds/RoundsDisaster.cs|Discard|1
-BuildingRuntime/Rounds/RoundsDisaster.cs|Fact|7
+BuildingRuntime/Rounds/RoundsDisaster.cs|Fact|6
 BuildingRuntime/Rounds/RoundsDisaster.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsDisease.cs|Fact|3
 BuildingRuntime/Rounds/RoundsDisease.cs|Unknown|1
@@ -320,7 +320,7 @@ Contracts/Json/FactJsonConverter.cs|Fact|5
 Contracts/Lifecycle.cs|NullableValue|42
 Contracts/Lifecycle.cs|UnknownMember|6
 Contracts/NeedsForecast.cs|Fact|3
-Contracts/Observations.cs|NullableValue|88
+Contracts/Observations.cs|NullableValue|86
 Contracts/Observations.cs|UnknownMember|3
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
@@ -384,7 +384,7 @@ Observation/Colony.cs|Fact|82
 Observation/Colony.cs|Unknown|4
 Observation/ColonyDecode.cs|Fact|54
 Observation/ColonyDecode.cs|Unknown|5
-Observation/ColonyFrames.cs|Fact|27
+Observation/ColonyFrames.cs|Fact|20
 Observation/ColonyFrames.cs|Unknown|3
 Observation/ColonyGear.cs|Fact|23
 Observation/ColonyGear.cs|Unknown|4
@@ -616,11 +616,9 @@ Policy/DefenseTiers.cs|Fact|5
 Policy/DefenseTurrets.cs|Discard|1
 Policy/DefenseTurrets.cs|Fact|10
 Policy/DeliveryCredit.cs|Fact|6
-Policy/Disaster.cs|Fact|60
-Policy/Disaster.cs|NullableValue|2
-Policy/Disaster.cs|Unknown|6
-Policy/Disaster.cs|UnknownMember|1
-Policy/DisasterFamily.cs|Fact|8
+Policy/Disaster.cs|Fact|23
+Policy/Disaster.cs|Unknown|2
+Policy/DisasterFamily.cs|Fact|4
 Policy/DiseaseRest.cs|Fact|2
 Policy/DoorControl.cs|Fact|4
 Policy/DrugPolicyPlan.cs|Discard|1
@@ -983,9 +981,8 @@ Policy/ReadyWork.cs|Unknown|1
 Policy/Reconcile.cs|Discard|2
 Policy/RecoveryBatch.cs|Fact|2
 Policy/RecoveryMethod.cs|Discard|1
-Policy/RecoveryMethod.cs|Fact|25
-Policy/RecoveryMethod.cs|NullableValue|2
-Policy/RecoveryMethod.cs|Unknown|6
+Policy/RecoveryMethod.cs|Fact|20
+Policy/RecoveryMethod.cs|Unknown|4
 Policy/RecoveryQueue.cs|Fact|18
 Policy/RecoveryQueue.cs|Unknown|3
 Policy/Refrigeration.cs|Discard|2

@@ -5597,15 +5597,33 @@ public sealed record DevelopmentFacts
     public EquatableArray<SteamGeyser> Geysers { get; init; }
 }
 
+/// <summary>An active game condition affecting the map: its unique id, its def and how long it lasts.</summary>
 public sealed record EnvironmentCondition
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public bool? Permanent { get; init; }
+    public required ConditionDuration Duration { get; init; }
+}
 
-    public long? TicksLeft { get; init; }
+/// <summary>
+/// How long a game condition lasts: <see cref="Permanent"/> (GameCondition.Permanent) or <see cref="Timed"/> with the
+/// game's remaining ticks (GameCondition.TicksLeft, never below zero).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ConditionDuration.Permanent), "permanent")]
+[JsonDerivedType(typeof(ConditionDuration.Timed), "timed")]
+public abstract record ConditionDuration
+{
+    private protected ConditionDuration() { }
+
+    public sealed record Permanent : ConditionDuration;
+
+    public sealed record Timed : ConditionDuration
+    {
+        public required long Ticks { get; init; }
+    }
 }
 
 /// <summary>

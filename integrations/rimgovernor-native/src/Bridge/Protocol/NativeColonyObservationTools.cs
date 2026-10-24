@@ -204,15 +204,11 @@ namespace HomeBridge.BridgeTools
 
         // The game-condition census: every condition affecting the map, with
         // the native remaining duration so the brain can plan for the length of a
-        // fallout or volcanic winter. A permanent condition has no ticks_left;
+        // fallout or volcanic winter. A permanent condition is untimed;
         // its class and label are the GameConditionDef row's.
-        internal static Obs.EnvironmentCondition EnvironmentCondition(GameCondition condition)
-        {
-            var row = new Obs.EnvironmentCondition { Id = condition.uniqueID.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                DefName = condition.def.defName, Permanent = condition.Permanent };
-            if (!condition.Permanent) row = row with { TicksLeft = Math.Max(0, condition.TicksLeft) };
-            return row;
-        }
+        internal static Obs.EnvironmentCondition EnvironmentCondition(GameCondition condition) =>
+            new() { Id = condition.uniqueID.ToString(System.Globalization.CultureInfo.InvariantCulture), DefName = condition.def.defName,
+                Duration = condition.Permanent ? new Obs.ConditionDuration.Permanent() : new Obs.ConditionDuration.Timed { Ticks = Math.Max(0, condition.TicksLeft) } };
 
         // Colony wealth and raid points: the WealthWatcher split (its
         // own lazy recount; never ForceRecount on a read path), the wealth

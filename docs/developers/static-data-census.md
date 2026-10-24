@@ -598,7 +598,7 @@ Kept, reason recorded:
 | DevelopmentPower | message | 1423 | 3 | state | Power consumer/battery roof and turret dps (capacity deleted, #2657; stored energy is the network's) |  | turret_dps kept: the live gun's verb output |
 | SteamGeyser | message | 1431 | 3 | state | Steam geyser cells and occupancy |  |  |
 | DevelopmentFacts | message | 1432 | 5 | state | Development power, furniture, networks, geysers |  |  |
-| EnvironmentCondition | message | 1433 | 4 | state | Active game condition with id, def name and ticks left (class and label deleted, #2657) |  |  |
+| EnvironmentCondition | message | 1433 | 3 | state | Active game condition with id, def name and a permanent or timed duration (class and label deleted, #2657; duration a named state, #3888) |  |  |
 | FoodClimate | message | 1444 | 8 | code | Growing-day calendar computed from biome temperatures and season |  |  |
 | GrowLight | message | 1466 | 8 | mixed | Sun lamp state: powered, lit, grown cells, net | power_w | CompProperties_Power.basePowerConsumption on the building def |
 | PlantGrower | message | 1467 | 11 | mixed | Hydroponics basin state: powered, fertility, cells, sow tag | power_w; sow_tag | power_w = CompProperties_Power.basePowerConsumption; sow_tag = building def sowTag (verify field in ThingDef) |

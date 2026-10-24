@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
 using RimGovernor.Brain.Domain;
+using BuildingHitPoints = RimGovernor.Contracts.Wire.Observations.BuildingHitPoints;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -39,7 +40,10 @@ public sealed record RecoveryPlanning
     /// <summary>Throws when the planning facts are inconsistent.</summary>
     public void Validate()
     {
-        DisasterRules.RecoveryPending(Buildings);
+        if (Buildings.TryGetValue(out var buildings))
+        {
+            DisasterRules.RecoveryPending(buildings);
+        }
         if (Safety.TryGetValue(out var s))
         {
             var pawns = new HashSet<PawnId>();
@@ -109,9 +113,11 @@ public sealed record RecoveryCandidate
 
     public RecoveryMethod Method { get; init; }
 
-    public long? HitPoints { get; init; }
+    /// <summary>The building's hit points when selected: part of the id, so a repair that changed them is a new candidate.</summary>
+    public required BuildingHitPoints HitPoints { get; init; }
 
-    public double? Fuel { get; init; }
+    /// <summary>The building's fuel when selected: part of the id, as the hit points are.</summary>
+    public required RecoveryFuel Fuel { get; init; }
 
     public string? PriorArea { get; init; }
 
@@ -122,8 +128,8 @@ public sealed record RecoveryCandidate
             + ",\"Pawn\":" + GearRules.GoJsonString(Pawn.Value)
             + ",\"Building\":" + GearRules.GoJsonString(Building)
             + ",\"Method\":" + GearRules.GoJsonString(Wire.Name(Method))
-            + ",\"HitPoints\":" + (HitPoints is { } h ? h.ToString(CultureInfo.InvariantCulture) : "null")
-            + ",\"Fuel\":" + (Fuel is { } f ? RecoveryRules.GoJsonFloat(f) : "null")
+            + ",\"HitPoints\":" + (HitPoints is BuildingHitPoints.Tracked h ? h.Current.ToString(CultureInfo.InvariantCulture) : "null")
+            + ",\"Fuel\":" + (Fuel is RecoveryFuel.Refuelable f ? RecoveryRules.GoJsonFloat(f.Level) : "null")
             + ",\"PriorArea\":" + (PriorArea is { } a ? GearRules.GoJsonString(a) : "null") + "}";
         var hash = SHA256.HashData(Encoding.UTF8.GetBytes(json));
         return new MethodId("recovery-" + Convert.ToHexStringLower(hash.AsSpan(0, 16)));
@@ -161,13 +167,13 @@ public sealed record RecoverySelection
             {
                 throw new DomainException("invalid recovery candidate identity");
             }
-            if ((c.HitPoints is < 0) || (c.Fuel is { } fuel && !FoodForecastRules.FoodNumber(fuel)))
+            if (c.HitPoints is BuildingHitPoints.Tracked { Current: < 0 } || (c.Fuel is RecoveryFuel.Refuelable fuel && !FoodForecastRules.FoodNumber(fuel.Level)))
             {
                 throw new DomainException("invalid recovery candidate state");
             }
             if (c.Kind != RecoveryProposalKind.ServiceWork || !FoodForecastRules.FoodId(c.Building)
                 || (c.Method != RecoveryMethod.Refuel && c.Method != RecoveryMethod.Breakdown && c.Method != RecoveryMethod.Repair)
-                || (c.Method == RecoveryMethod.Refuel && c.Fuel is null) || (c.Method == RecoveryMethod.Repair && c.HitPoints is null))
+                || (c.Method == RecoveryMethod.Refuel && c.Fuel is not RecoveryFuel.Refuelable) || (c.Method == RecoveryMethod.Repair && c.HitPoints is not BuildingHitPoints.Tracked))
             {
                 throw new DomainException("invalid recovery service proposal");
             }
@@ -228,7 +234,7 @@ public static partial class RecoveryRules
         {
             return Finding.Unclear;
         }
-        if (h is not null && h.Phase == DisasterPhase.Unknown)
+        if (h is not null && h.Phase == DisasterPhase.Unread)
         {
             return Finding.Unclear;
         }
@@ -250,20 +256,7 @@ public static partial class RecoveryRules
         {
             return Unknown<bool>();
         }
-        var targetBuildings = observed.Where(b => b.Id == service.Thing).ToList();
-        Fact<EquatableArray<RecoveryWork>> pending;
-        try
-        {
-            pending = DisasterRules.RecoveryPending(Known(EquatableArray.From(targetBuildings)));
-        }
-        catch (DomainException)
-        {
-            return Unknown<bool>();
-        }
-        if (!pending.TryGetValue(out var work))
-        {
-            return Unknown<bool>();
-        }
+        var work = DisasterRules.RecoveryPending([.. observed.Where(b => b.Id == service.Thing)]);
         var needed = false;
         foreach (var need in work)
         {
@@ -336,11 +329,10 @@ public static partial class RecoveryRules
         {
             return output with { Reason = RecoverySelectionReason.NoWork };
         }
-        var pending = DisasterRules.RecoveryPending(p.Buildings);
-        var wk = pending.TryGetValue(out var work);
+        var wk = p.Buildings.TryGetValue(out var buildings);
         var sk = p.Safety.TryGetValue(out var safety);
         var pk = p.Workers.TryGetValue(out var workers);
-        if (!sk || !pk || h.Phase == DisasterPhase.Unknown)
+        if (!sk || !pk || h.Phase == DisasterPhase.Unread)
         {
             return output;
         }
@@ -399,12 +391,8 @@ public static partial class RecoveryRules
         {
             return output;
         }
-        var byBuilding = new Dictionary<string, RecoveryBuilding>(StringComparer.Ordinal);
-        p.Buildings.TryGetValue(out var buildings);
-        foreach (var b in buildings)
-        {
-            byBuilding[b.Id] = b;
-        }
+        var work = DisasterRules.RecoveryPending(buildings);
+        var byBuilding = buildings.ToDictionary(b => b.Id, StringComparer.Ordinal);
         foreach (var w in eligible)
         {
             if (candidates.Count >= 8)
@@ -417,15 +405,15 @@ public static partial class RecoveryRules
                 {
                     break;
                 }
-                var b = byBuilding.GetValueOrDefault(job.Building) ?? new RecoveryBuilding();
+                var b = byBuilding[job.Building];
                 Add(new RecoveryCandidate
                 {
                     Kind = RecoveryProposalKind.ServiceWork,
                     Pawn = w.Pawn,
                     Building = job.Building,
                     Method = job.Method,
-                    HitPoints = b.HitPoints.TryGetValue(out var hp) ? hp : null,
-                    Fuel = b.Fuel.TryGetValue(out var fuel) ? fuel : null,
+                    HitPoints = b.HitPoints,
+                    Fuel = b.Fuel,
                     PriorArea = restrictions[w.Pawn],
                 });
             }

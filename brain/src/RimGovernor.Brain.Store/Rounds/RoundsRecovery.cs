@@ -1,6 +1,7 @@
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store.Codec;
+using BuildingHitPoints = RimGovernor.Contracts.Wire.Observations.BuildingHitPoints;
 
 namespace RimGovernor.Brain.Store;
 
@@ -29,28 +30,55 @@ public sealed record RoundsRecoveryWorker
     public bool PlayerForced { get; init; }
 }
 
-/// <summary>A persisted building's observed state; every observation is unknown (null) or a value.</summary>
+/// <summary>
+/// A persisted building's observed state, read whole: the hit points are null for a definition without them, the
+/// fuel and its target null for a building without a refuelable comp.
+/// </summary>
 public sealed record RoundsRecoveryBuilding
 {
     public string Id { get; init; } = "";
 
-    public bool? UsesHitPoints { get; init; }
+    public bool Broken { get; init; }
 
-    public bool? Broken { get; init; }
+    public bool Forbidden { get; init; }
 
-    public bool? Forbidden { get; init; }
+    public bool Burning { get; init; }
 
-    public bool? Burning { get; init; }
+    public int? HitPoints { get; init; }
 
-    public bool? Refuelable { get; init; }
-
-    public long? HitPoints { get; init; }
-
-    public long? MaxHitPoints { get; init; }
+    public int? MaxHitPoints { get; init; }
 
     public double? Fuel { get; init; }
 
     public double? FuelTarget { get; init; }
+
+    /// <summary>The policy row this record persists.</summary>
+    internal RecoveryBuilding Building() => new()
+    {
+        Id = Id,
+        HitPoints = (HitPoints, MaxHitPoints) is ({ } current, { } maximum)
+            ? new BuildingHitPoints.Tracked { Current = current, Maximum = maximum }
+            : new BuildingHitPoints.Untracked(),
+        Broken = Broken,
+        Forbidden = Forbidden,
+        Burning = Burning,
+        Fuel = (Fuel, FuelTarget) is ({ } level, { } target) ? new RecoveryFuel.Refuelable(level, target) : new RecoveryFuel.NotRefuelable(),
+    };
+
+    /// <summary>The record persisting a policy row.</summary>
+    internal static RoundsRecoveryBuilding Of(RecoveryBuilding b)
+    {
+        var r = new RoundsRecoveryBuilding { Id = b.Id, Broken = b.Broken, Forbidden = b.Forbidden, Burning = b.Burning };
+        if (b.HitPoints is BuildingHitPoints.Tracked hp)
+        {
+            r = r with { HitPoints = hp.Current, MaxHitPoints = hp.Maximum };
+        }
+        if (b.Fuel is RecoveryFuel.Refuelable fuel)
+        {
+            r = r with { Fuel = fuel.Level, FuelTarget = fuel.Target };
+        }
+        return r;
+    }
 }
 
 /// <summary>
@@ -116,23 +144,7 @@ public sealed record RoundsRecovery
         {
             planning = planning with
             {
-                Buildings = Fact.Known(
-                    EquatableArray.From(
-                        buildings.Select(v => new RecoveryBuilding
-                        {
-                            Id = v.Id,
-                            UsesHitPoints = PersistedFact.Of(v.UsesHitPoints),
-                            Broken = PersistedFact.Of(v.Broken),
-                            Forbidden = PersistedFact.Of(v.Forbidden),
-                            Burning = PersistedFact.Of(v.Burning),
-                            Refuelable = PersistedFact.Of(v.Refuelable),
-                            HitPoints = PersistedFact.Of(v.HitPoints),
-                            MaxHitPoints = PersistedFact.Of(v.MaxHitPoints),
-                            Fuel = PersistedFact.Of(v.Fuel),
-                            FuelTarget = PersistedFact.Of(v.FuelTarget),
-                        })
-                    )
-                ),
+                Buildings = Fact.Known(EquatableArray.From(buildings.Select(v => v.Building()))),
             };
         }
         return planning;
@@ -176,21 +188,7 @@ public sealed partial class Store
         {
             r = r with
             {
-                Buildings = EquatableArray.From(
-                    buildings.Select(v => new RoundsRecoveryBuilding
-                    {
-                        Id = v.Id,
-                        UsesHitPoints = PersistedFact.Value(v.UsesHitPoints),
-                        Broken = PersistedFact.Value(v.Broken),
-                        Forbidden = PersistedFact.Value(v.Forbidden),
-                        Burning = PersistedFact.Value(v.Burning),
-                        Refuelable = PersistedFact.Value(v.Refuelable),
-                        HitPoints = PersistedFact.Value(v.HitPoints),
-                        MaxHitPoints = PersistedFact.Value(v.MaxHitPoints),
-                        Fuel = PersistedFact.Value(v.Fuel),
-                        FuelTarget = PersistedFact.Value(v.FuelTarget),
-                    })
-                ),
+                Buildings = EquatableArray.From(buildings.Select(RoundsRecoveryBuilding.Of)),
             };
         }
         return r;

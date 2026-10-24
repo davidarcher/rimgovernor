@@ -17,18 +17,13 @@ public static class ColonyFramesReads
         var conditions = new List<DisasterCondition>(v.Environment.Count);
         foreach (var row in v.Environment)
         {
-            var condition = new DisasterCondition
+            conditions.Add(new DisasterCondition
             {
-                Id = row.Id ?? "",
-                Definition = row.DefName ?? "",
-                Permanent = row.Permanent.GetValueOrDefault(),
-                DisablesPower = ColonyDecodeReads.RequireCatalog(catalog).DisablesElectricity((row.DefName ?? "")),
-            };
-            if (row.TicksLeft is not null && !condition.Permanent && row.TicksLeft.GetValueOrDefault() >= 0)
-            {
-                condition = condition with { TicksLeft = row.TicksLeft };
-            }
-            conditions.Add(condition);
+                Id = row.Id,
+                Definition = row.DefName,
+                Duration = row.Duration,
+                DisablesPower = ColonyDecodeReads.RequireCatalog(catalog).DisablesElectricity(row.DefName),
+            });
         }
         return (EquatableArray.From(conditions), true);
     }
@@ -72,23 +67,17 @@ public static class ColonyFramesReads
                 throw new BridgeContractException($"recovery building {reference.Id}: the frame holds no row for it");
             }
             var s = row.Service;
-            var b = new RecoveryBuilding
+            rows.Add(new RecoveryBuilding
             {
                 Id = reference.Id ?? "",
-                UsesHitPoints = Known(row.HitPoints is O.BuildingHitPoints.Tracked),
-                Broken = Known(s.BrokenDown),
-                Forbidden = Known(row.Settings.Forbidden),
-                Burning = Known(row.Burning),
-                Fuel = ColonyDecodeReads.Optional(s.Fuel is not null, s.Fuel.GetValueOrDefault()),
-                FuelTarget = ColonyDecodeReads.Optional(s.TargetFuel is not null, s.TargetFuel.GetValueOrDefault()),
-                Refuelable = Known(s.Fuel is not null),
-            };
-            if (row.HitPoints is O.BuildingHitPoints.Tracked hitPoints)
-            {
-                b = b with { HitPoints = Known((long)hitPoints.Current), MaxHitPoints = Known((long)hitPoints.Maximum) };
-            }
-
-            rows.Add(b);
+                HitPoints = row.HitPoints,
+                Broken = s.BrokenDown,
+                Forbidden = row.Settings.Forbidden,
+                Burning = row.Burning,
+                Fuel = s.Fuel is { } fuel
+                    ? new RecoveryFuel.Refuelable(fuel, s.TargetFuel ?? throw new BridgeContractException($"recovery building {reference.Id}: a refuelable building carries no fuel target"))
+                    : new RecoveryFuel.NotRefuelable(),
+            });
         }
         return facts with { RecoveryBuildings = Known(EquatableArray.From(rows)) };
     }

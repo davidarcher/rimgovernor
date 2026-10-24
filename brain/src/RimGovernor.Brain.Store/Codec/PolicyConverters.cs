@@ -708,8 +708,9 @@ internal sealed class DisasterConditionConverter : ObjectCodec<DisasterCondition
         {
             Id = e.Str("Id"),
             Definition = e.Str("Definition"),
-            Permanent = e.Bool("Permanent"),
-            TicksLeft = e.GetOr<long?>("TicksLeft", null, o),
+            Duration = e.Bool("Permanent")
+                ? new RimGovernor.Contracts.Wire.Observations.ConditionDuration.Permanent()
+                : new RimGovernor.Contracts.Wire.Observations.ConditionDuration.Timed { Ticks = e.I64("TicksLeft") },
             DisablesPower = e.Bool("DisablesPower"),
         };
 
@@ -717,10 +718,10 @@ internal sealed class DisasterConditionConverter : ObjectCodec<DisasterCondition
     {
         w.WriteString("Id", v.Id);
         w.WriteString("Definition", v.Definition);
-        w.WriteBoolean("Permanent", v.Permanent);
-        if (v.TicksLeft is { } vTicksLeft)
+        w.WriteBoolean("Permanent", v.Duration is RimGovernor.Contracts.Wire.Observations.ConditionDuration.Permanent);
+        if (v.Duration is RimGovernor.Contracts.Wire.Observations.ConditionDuration.Timed timed)
         {
-            w.WriteNum("TicksLeft", vTicksLeft);
+            w.WriteNum("TicksLeft", timed.Ticks);
         }
         w.WriteBoolean("DisablesPower", v.DisablesPower);
     }
@@ -746,7 +747,9 @@ internal sealed class DisasterHistoryConverter : ObjectCodec<DisasterHistory>
     protected override DisasterHistory Read(JsonElement e, Codecs o) =>
         new()
         {
-            ShortCircuitTick = e.GetOr<long?>("ShortCircuitTick", null, o),
+            ShortCircuit = e.Has("ShortCircuitTick")
+                ? new DisasterShortCircuit.Seen(e.Get<Tick>("ShortCircuitTick", o))
+                : new DisasterShortCircuit.NoneSeen(),
             WorkKnown = e.Bool("WorkKnown"),
             Work = e.Get<EquatableArray<RecoveryWork>>("Work", o),
             Started = e.Get<Tick>("Started", o),
@@ -760,9 +763,9 @@ internal sealed class DisasterHistoryConverter : ObjectCodec<DisasterHistory>
 
     protected override void WriteFields(Utf8JsonWriter w, DisasterHistory v, Codecs o)
     {
-        if (v.ShortCircuitTick is { } vShortCircuitTick)
+        if (v.ShortCircuit is DisasterShortCircuit.Seen seen)
         {
-            w.WriteNum("ShortCircuitTick", vShortCircuitTick);
+            w.Put("ShortCircuitTick", seen.Tick, o);
         }
         w.WriteBoolean("WorkKnown", v.WorkKnown);
         w.Put("Work", v.Work, o);
