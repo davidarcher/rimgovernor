@@ -199,5 +199,10 @@ The landing report answers each in a line.
    journal actions own claims between reviews. Pending building placements and food activities now share this boundary ([live work resources](colony-forecast.md#shared-live-work-resources)). Terrain work, indefinite production and
    trade/export paths retain the planner-local exception. Per-target construction
    finishing settings do not reserve ingredients.
-9. **Unknown is never a number.** Use `Fact<T>`/unknown, not a sentinel,
-   a zero or a clamp.
+9. **There is no unknown.** A planner input is a read value or a named state
+   (a union case or an enum member with a meaning, such as `Unreachable` or
+   `Never`); a fact that cannot be read raises `RequiredFactException`. Never a
+   default, a zero, a sentinel or a clamp: read the fact, name the state, or
+   drop the option from planning and file an issue
+   ([#3753](https://github.com/davidarcher/rimgovernor/issues/3753)). `Fact<T>`
+   is being burned down family by family; do not add new uses.

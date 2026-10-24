@@ -2,14 +2,14 @@
 
 [Documentation](../../README.md) · [Architecture](overview.md) · Reference
 
-Each department owns its stockpiles. A Department that holds stock is a
-`policy.StoreOwner` (registered in `storeOwners`): it declares its `Stores` (a
+Each store owner owns its stockpiles. A store owner is a
+`policy.IStoreOwner` (registered in `StoreOwners`): it declares its `Stores` (a
 `policy.Store`: role, planned room or rectangle, filter, priority) and its
 `RoomDemand` (the yard's further room is asked from runway; see Headroom). The `admin/stockpiles` Need is
 the one applier, through the ordinary zone create, cell-edit, patch and delete actions; the
 standing zones are the only record (see
 [persistence contracts](../contracts/persistence-contracts.md)). Rooms stay
-layout's job. The stores are declared per department: Storage (warehouse, yard), Food, Medical, Industry (bench ingredients), Military (the weapons and apparel zones),
+layout's job. The stores are declared per owner: Storage (warehouse, yard), Food, Medical, Industry (bench ingredients), Military (the weapons and apparel zones),
 People (tomb, morgue); the
 animal feed store belongs to Husbandry.
 
@@ -42,7 +42,7 @@ separate rectangle drags and excluded from growth.
 | Materials yard | `yard` | One zone over the whole interior of each planned yard, an Outdoor room (13x9 interior, unfenced: no ring, gate or floor) beside the core inside its ring (`ReserveYard`, planned from the start) | Low | The `outdoor_safe_waste` preset, the one outdoor store: items that neither spoil nor deteriorate outdoors, plus what is already rotten (rot-capable defs with allow-fresh off: rotting corpses) and waste (dissolving defs: the toxic wastepack), left there to wear away. Defined natively from the def database, never a list in the brain |
 | Workstation stockpiles | `ingredients:*` | A free roofed 2x2 patch in the bench's room nearest the bench, one per bench with an active bill (the kitchen and butcher excepted) | Important | That bench's recipe ingredients (`policy.DeriveBenchInputs`); a stonecutter's is its stone chunks |
 | Meal store | `meals:*` | The planned meal closet whole, a 2x2 in the freezer at its dining door, or one cell beside the dining table off the chairs (the one store sited from a built fact, the table); each from plan time | Critical | Prepared meals |
-| Freezer shelves | `rawmeat:*`, `rawveg:*`, `corpses:*`, `perishables:*` | Three 2x2 shelves in the planned freezer (raw meat and raw vegetables nearest the kitchen door, carcasses by the butchery door) and the perishables cover over the rest, all declared by the Food department from plan time on open ground (a rock or unseen interior defers the create; no room census) | Critical, perishables Preferred | Raw meat, raw vegetables, the corpse larder, the perishables catch-all |
+| Freezer shelves | `rawmeat:*`, `rawveg:*`, `corpses:*`, `perishables:*` | Three 2x2 shelves in the planned freezer (raw meat and raw vegetables nearest the kitchen door, carcasses by the butchery door) and the perishables cover over the rest, all declared by the Food owner from plan time on open ground (a rock or unseen interior defers the create; no room census) | Critical, perishables Preferred | Raw meat, raw vegetables, the corpse larder, the perishables catch-all |
 | Medicine store | `medicine:*` | A 2x2 in the planned hospital, nearest the template's bed slots by walking distance (nearest the door without slots), from plan time | Important | Medicine |
 | Tomb | `tomb:*` | The tomb room | Critical | Tomb corpses |
 | Gear | `apparel`, `weapons` | A 3x3 patch each inside the first planned warehouse, which leaves the cells out (weapons: clear of every prison) | Preferred | Clothing, and weapons with armor |
@@ -57,7 +57,7 @@ in older saves are deleted.
 
 ## Gear zones
 
-Gear has no rooms of its own: the Military department declares an `apparel` and a `weapons` store as fixed
+Gear has no rooms of its own: the Military owner declares an `apparel` and a `weapons` store as fixed
 patches of the warehouse (`policy.GearPatchesOf`) and the warehouse zone leaves their cells out. A prison
 within reach of weapons is a hazard, so the weapons patch takes no cell within the prison weapon clearance
 (six cells of any prison cell, walls included); a warehouse with no such square hosts no weapons zone and the
@@ -93,7 +93,7 @@ small colony filling its yard in a day asks long before a large one filling it
 in a month at the same fill. Unknown stays unknown: an unread inflow with no
 stranded stock asks nothing, and a draining yard never asks. The ask needs the
 loot census and the occupancy ring, so it is decided over the stockpile
-request rather than the department's `StoreView`. The new room's zone is
+request rather than the owners' `StoreView`. The new room's zone is
 created once it is planned and open.
 
 ### Stranded stock

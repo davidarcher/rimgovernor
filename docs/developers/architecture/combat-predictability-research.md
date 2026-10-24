@@ -242,7 +242,7 @@ flowchart LR
 
 Begin with forecasts such as “this pawn is warming up at this target” and
 “this route is expected to reach cover before that warmup ends.” Represent
-an earliest/latest tick or explicit unknown, the supporting observation tick,
+an earliest/latest tick or a named state ([rule 9](rules.md#review-items)), the supporting observation tick,
 and invalidating facts. A job target, aim target and last-shot target need
 separate meanings; absence is not proof that a pawn will not attack.
 

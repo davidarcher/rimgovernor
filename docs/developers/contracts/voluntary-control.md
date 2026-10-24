@@ -165,7 +165,7 @@ epic (#3124).
 | `control/activity-*` | Keep save/load, ownership, revision, continuation and release mechanics. |
 | `control/pawn-activity-cooking` | Keep exact recipe/input execution and unavailable/reserved-target refusal. |
 | `control/pawn-activity-delivery` | Keep exact quantities, blocked destination/filter legality and observed delivery. |
-| `observations/pawn-activity`, `observations/planned-room-prediction` | Keep native schema, coherent observations and explicit unknowns; none proves dispatch. |
+| `observations/pawn-activity`, `observations/planned-room-prediction` | Keep native schema and coherent observations; a fact that cannot be read fails the case ([rule 9](../architecture/rules.md#review-items)); none proves dispatch. |
 | `needs/freeze` | Keep fixture control mechanics; production outcome cases must explicitly leave the needs they exercise live. |
 | `medical/tend-gates` | Keep native doctor/patient eligibility and care protection. |
 | `pawn/drug-policy` | Rewrite as explicit native policy creation/assignment and readback on a luciferium-addicted colonist, followed by scheduled-drug unsupported-state evidence (absorbs `pawn/drug-addiction`). The policy contents come from the drug-policy planner's Medical entries (#3498). |

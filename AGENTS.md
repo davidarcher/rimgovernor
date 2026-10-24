@@ -51,11 +51,12 @@ pushes), or edit the main checkout. Details: [landing](docs/developers/developme
 - RimWorld owns simulation and legality. Discover native schemas; editor and
   cheat operations stay outside model execution. Models use local LM Studio
   only, with no paid-provider fallback.
-- Extend the shared Concern/Method/action system. Hands owns game-order writes;
-  advisers neither write orders nor own colony invariants. Do not copy the
-  existing combat bypass into new work.
+- Extend the shared model: Families derive Needs; Methods hold Claims; Hands
+  writes orders. Advisers neither write orders nor own colony invariants. Do
+  not copy the existing combat bypass into new work.
 - Keep policy pure and orchestration free of decision math. Use typed boundary
-  contracts, explicit ownership and explicit unknowns. The five mechanical
+  contracts and explicit ownership. There is no unknown: read the fact, name the
+  state, or don't plan the option (rule 9). The five mechanical
   [architecture gates](docs/developers/architecture/rules.md) have shrink-only
   baselines; never add exemptions to make a change pass.
 - Reference game and repo symbols in ways the compiler checks. Use `DefOf`
@@ -67,7 +68,7 @@ pushes), or edit the main checkout. Details: [landing](docs/developers/developme
 - Before adding a fallback, retry, cache, wrapper or parallel path, check whether
   removing an earlier layer solves the problem. New behavior must trace to the
   task or issue; identify assumptions. Review orchestration, shared demand and
-  unknown handling against rules 7–9.
+  missing facts against rules 7–9.
 - State has one owner: [persistence table](docs/developers/contracts/persistence-contracts.md).
   Amend that table before adding a store or second copy. Game intent lives in the
   save, the session journal in SQLite, derived state in memory, telemetry in
@@ -83,9 +84,10 @@ pushes), or edit the main checkout. Details: [landing](docs/developers/developme
   `LayoutPlan`, so planned-rooms-only scope is correct. CAS tokens are stale-read
   guards (re-read and retry), never ownership marks. Prefer frequent adjustment
   over set-once geometry.
-- Use current vocabulary: Rounds inspect Concerns in Departments; Types are
-  Standard, Project and Incident. Safeguards veto admission. See the
-  [glossary](docs/developers/glossary.md).
+- Use current vocabulary: a Family derives Needs (met or unmet, each with a
+  tier) and proposes Methods for them; a Method holds Claims; Safeguards veto
+  admission. Rounds, Concerns, Departments and the Standard, Project and Incident
+  types are retired. See the [glossary](docs/developers/glossary.md).
 
 ## Evidence and diagnostics
 

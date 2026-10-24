@@ -70,9 +70,9 @@ solution is turned off once, in `brain/.editorconfig`, with a one-line reason.
 | `select` | `Task.WhenAny` or `Channel` readers with the token |
 | `defer` | `try`/`finally`, `using` |
 | `panic` for programmer error | `InvalidOperationException`; never for domain failure |
-| zero value is valid ("unknown") | `Fact<T>` default is unknown; other types have no zero value, use `T?` or a named `Unknown`/`None` member |
+| zero value is valid ("unknown") | Superseded by [rule 9](rules.md#review-items) (#3753): there is no unknown; a value is read or a named state |
 | `nil` pointer/slice/map | `null` only for "absent"; collections are never null (empty) |
-| `Fact[T]`, `Known(v)`, `Unknown[T]()`, `v, ok := f.Value()` | `Fact<T>`, `Known(v)`, `Unknown<T>()`, `f.TryGetValue(out var v)`; Unknown stays a value, never an exception |
+| `Fact[T]`, `Known(v)`, `Unknown[T]()`, `v, ok := f.Value()` | Was `Fact<T>`; superseded by [rule 9](rules.md#review-items) (#3753): a fact that cannot be read raises `RequiredFactException` |
 | defined `string` type with consts (`type Stage string`) | `enum Stage`; the Go string is the member's wire name (snake_case of the member unless `[WireName("x")]`), read with `Wire.Name` / `Wire.TryParse`; add `None = 0` with `[WireName("")]` when Go's empty string is a legal state; order members so `default` means what Go's zero meant |
 | defined `string` type used as an id (`type PawnID string`) | `readonly record struct PawnId(string Value)` with ordinal equality, `CompareTo` and `<`; `default` is the empty id; `ID` becomes `Id` |
 | defined integer type (`type Tick int64`) | `readonly record struct Tick(long Value)` with comparison operators |
@@ -144,11 +144,12 @@ order, not completion order. Producer/consumer goroutines become a `Channel<T>` 
 reader `Task`. The planner worker thread never calls game APIs that touch world state;
 game data comes from the snapshot frames and the load's def stat table (the Go `stateval` is replaced, not ported).
 
-### Unknown and Unclear
+### No unknown
 
-Explicit unknowns stay values: `Fact<T>`, `Finding.Unclear`, `Effect.Unknown`,
-`Receipt.Unknown`, `RefusalClass.Unknown`. Do not turn them into `null`, a default or an
-exception, and do not collapse an unknown into a known value.
+There is no unknown ([rule 9](rules.md#review-items), #3753). A planner input is a read value
+or a named state; a fact that cannot be read raises `RequiredFactException`. Never turn a
+missing read into `null`, a default, a zero or a sentinel. The `Fact<T>` and `Unknown`
+members still in the code are burned down family by family; do not add new ones.
 
 ## Per-package port checklist
 
@@ -252,7 +253,7 @@ types; it never mirrors a Def. Conventions that differ from the Go code:
   in the game fails at the first call rather than returning nothing.
 - Where Go distinguished "unset" from zero on the wire, the answer is the game's own value (an unset trader
   `countRange` is the zero range and answers "no").
-- An unreadable or inconsistent def throws `CatalogException`; unknown-but-legal answers are `Fact<T>`.
+- An unreadable or inconsistent def throws `CatalogException`; a legal answer is a read value or a named state ([rule 9](rules.md#review-items)).
 
 **Unavailable builds.** The project compiles against `Assembly-CSharp.dll`, `UnityStubs.dll` and
 `Waylith.dll` from `RimWorldDir`. Where that directory has no `Assembly-CSharp.dll` the project builds

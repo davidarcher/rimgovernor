@@ -37,19 +37,19 @@ flowchart LR
 ### Need
 
 A Need is derived fresh on every review from current facts. Nothing about it is
-stored: not its finding, not an episode, not a settled flag. It replaces the
-Concern registry row, the Rounds assessment and the Standard episode.
+stored: not its finding, not an episode, not a settled flag. It replaced the
+retired Concern registry row, Rounds assessment and Standard episode.
 
 | Field | Meaning |
 | --- | --- |
 | Id (`NeedId`) | `family/kind[/subject]`, stable across reviews and loads, for example `food-stores/refrigeration` or `medical/critical/<pawn>`. The family segment is the owning Family's id. A subject names one occurrence or target: a pawn, an event, a building. The id must be reproducible from facts alone; never hash a load token or tick into it. |
-| Evidence | The facts the finding rests on, with explicit unknowns. |
-| Satisfaction predicate | `met`, `unmet` or `unknown` over what stands now. Unknown never counts as met. |
+| Evidence | The read facts the finding rests on. |
+| Satisfaction predicate | `met` or `unmet` over what stands now. There is no unknown: a Family whose facts are missing raises `RequiredFactException` and derives no Need ([rule 9](rules.md#review-items), #3753; #3758 deletes the remaining `Unknown` case described below). |
 | Deficit | How far from met, in the family's own unit; used by selection and explain. |
 | Tier | `SeriousHarm`, `Wellbeing` or `Development`. Selection orders by tier first; `SeriousHarm` Needs also run in the [immediate pass](#scheduling-and-the-immediate-pass). |
 | Preconditions | Optional: other NeedIds whose predicate must be met before this Need is proposed for ([below](#preconditions)). |
 
-The old forms map onto this one shape:
+The retired forms map onto this one shape:
 
 - A **Standard** (a held target) is a Need whose predicate is the target.
 - An **Incident** is a Need whose subject is the occurrence (a pawn, an event).

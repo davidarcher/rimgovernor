@@ -30,7 +30,7 @@ methods. They neither swap live equipment nor change skills. Those are condition
 cycles: misses, movement, repairs, injuries and interrupted work can yield less learning.
 Sparring's native gathering delay consumes time before its callbacks and recreation. Its joy
 rate uses the current native tolerance; future tolerance is unassessed. Company memories,
-injury probability and recovery duration remain explicit unknowns. Accounted schedule labor
+injury probability and recovery duration remain unassessed. Accounted schedule labor
 excludes unassessed injury recovery; it is not a zero-risk estimate. Existing pain, bleeding,
 exchange, ceiling and daily-budget stops are unchanged.
 

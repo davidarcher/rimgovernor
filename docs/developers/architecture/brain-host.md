@@ -464,7 +464,7 @@ one passing colony-review day of the same colony):
   `tradeexport` 17 p50, max 70 (194). `derive` 60 p50 (66), p95 221 (147) on `derive/incumbents` p95 136 reviews.
   Rounds 1275 ms p50 (1291), p95 3047 (2970).
 - **What is left.** The mark (`derive` + `d_stock` under 100 ms p50) is at 137 ms. The plan's 45 ms is now the one
-  index build plus the departments' edits over the real colony's zones; the census refresh still costs a frame for
+  index build plus the store owners' edits over the real colony's zones; the census refresh still costs a frame for
   the bills and one for the recipes when the bench table is stale. The trade export's gap-open reviews are two frame
   waves (trader kinds, then supply and sources) and the ingredient list depends on the first, so nothing further
   overlaps there.

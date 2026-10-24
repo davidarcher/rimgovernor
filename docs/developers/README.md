@@ -33,7 +33,7 @@ verify and land the change.
 | [Space and resources](architecture/space-and-resources.md) | Placement and material accounting |
 | [Supply model](architecture/supply-model.md) | Demand, acquisition and forecasts |
 | [Facilities](architecture/facilities.md) | Room functions and construction prerequisites |
-| [Storage](architecture/storage.md) | Department-owned stockpiles |
+| [Storage](architecture/storage.md) | Declared stores and the stockpile Need |
 | [Combat](architecture/combat-game-ai.md) | Native combat behavior and the brain tactics |
 | [Hazard bounds](architecture/hazard-detection-bounds.md) | Detection cadence and clock stops |
 | [Launcher](architecture/launcher.md) | UI, session controls and in-process host client |

@@ -572,7 +572,7 @@ No new OpKind; the native ClearanceTargets request stays rectangles.
 
 ### Stockpile maintenance
 
-The `admin/stockpiles` Need (#3304; toggle `stockpiles`) applies the stores the departments declare
+The `admin/stockpiles` Need (#3304; toggle `stockpiles`) applies the stores the store owners declare
 (`policy.DeclareStores`; see [storage](../architecture/storage.md)) against the colony's
 own zones (`store.OwnedZone`, role-keyed) every review cycle, at any tier. The Need is unmet while the
 review proposes an edit, room or shelf, and unknown until the review planned this world. Its zones are
@@ -587,7 +587,7 @@ zone over its declared site; the edits are:
 | create | a declared store has no zone and its room interior is open ground; admitted alone, once no other edit stands |
 | patch | the store's desired filter or priority differs from the last applied (`store.StockpilePatches`) |
 | grow | a whole-footprint store has reachable cleared cells within its site; add them to the first owned zone by native ID |
-| delete | the department declares the store `Retired` (its purpose is gone); a moved store's new zone is admitted first |
+| delete | the owner declares the store `Retired` (its purpose is gone); a moved store's new zone is admitted first |
 | consolidate | after growth settles, delete compatible adjacent owned fragments; add their freed cells to the survivor next review |
 | shrink | a zone holds cells outside every serving site's room region, on an `Avoid` cell, or under furniture (a non-shelf building, blueprint or frame); remove exactly those cells (`zone_cell_edit` remove). Stock there drains by vanilla hauling: no haul action. A zone left with no cell is moved or deleted instead |
 

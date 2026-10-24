@@ -623,7 +623,7 @@ other work for that pawn. Checkbox mode enables only those rest work types.
 - RimWorld selects a reachable medical bed for medical rest, falling back to the
   pawn's ordinary bed under native rules. Medical beds cannot be assigned by the
   bed-ownership operation. The hospital planner supplies them (the Medical
-  department declares their medicine store); the sleeping planner assigns ordinary beds.
+  store owner declares their medicine store); the sleeping planner assigns ordinary beds.
 
 
 ## Combat extensions

@@ -7,7 +7,7 @@
 selection independently. The baseline policy revision is
 `3d130260b6bded4b5e24f48fead51d9caca34188` (#3164), with only the test harness and
 expectations added. It preserved the 16,384 default, plain cardinality traversal,
-scheduler bounds, all generated roots and options, and explicit unknowns. #3197
+scheduler bounds, all generated roots and options, and unknown inputs. #3197
 then changed the traversal to be incumbent-seeded ([below](#incumbent-seeded-extension-3197));
 the default budget, scheduler bound, roots, options and unknowns are unchanged. The
 sections before it record the plain-cardinality measurements as history. This is

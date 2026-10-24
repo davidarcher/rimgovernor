@@ -44,7 +44,7 @@ concern can select a fresh method at the next review.
 The catalog's base work and bench-speed observations remain available to existing
 production families. Ordinary clothing instead uses the exact native recipe's
 stuff-adjusted work, worker speed, bench speed and routes in the shared activity
-comparison described below. Missing estimates remain explicit unknowns.
+comparison described below. Missing estimates stay unassessed and never read as zero.
 
 Observed eligible replacements inform loadout requirements. Clothing demand generates
 competing garment recipes, stuffs, quantities and exact input allocations; only

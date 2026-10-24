@@ -44,7 +44,7 @@ admission checks its resources and dependencies; vanilla priorities schedule paw
    allow-list store of that bench's recipe ingredients
    (`policy.DeriveBenchInputs`) on the free roofed 2x2 patch in the bench's room
    nearest it; hauling brings the inputs to the bench. All stores are declared by
-   their departments and applied by the `admin/stockpiles` Need: see
+   their store owners and applied by the `admin/stockpiles` Need: see
    [storage](storage.md). Once ComplexFurniture is researched and no zone edit
    stands, `RoundsStockpilePlanner` upgrades the warehouse (the general store)
    with a Shelf inside it, up to a third of its footprint, one at a time. The Need patches each built shelf with its zone's filter and
@@ -1144,7 +1144,7 @@ template and the foreign things on the interior. Its blocked footprint
 (`roomWalls`) is the interior with a one-cell margin; no ground behind the dummies
 is kept free, since the drill's shots never hit a pawn (#2938). It is demand-sized:
 `RoomDemand.Ranges` (the stand count, merged by the
-store department; `StoreView.TrainingStands`) sizes its room node (`TrainingRoomNodes`) and the
+store owners; `StoreView.TrainingStands`) sizes its room node (`TrainingRoomNodes`) and the
 tiler places it on free ground. A site on a side of the core faces away from it; when
 the sites on the dummy axis are taken (map edge, cliff, water), a site beside the
 core faces along its rows toward the end farther from the core, and none faces

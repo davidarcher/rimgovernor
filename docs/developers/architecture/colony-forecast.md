@@ -1048,7 +1048,7 @@ introduced: all valuation inputs and results are caller-owned derived data.
 `MaterialValueTests` demonstrates an urgent machine beating two optional jobs,
 a satisfied need changing the winner, capped overlapping relief, better materials
 winning only when their extra benefit pays for material/work costs, postponement
-when net value is nonpositive, explicit unknowns, bounded search and hard stock
+when net value is nonpositive, unread inputs that never count as zero, bounded search and hard stock
 limits. An end-to-end pure selector scenario generates the exact material filters:
 a sculpture uses better material alone but switches to wood alongside the urgent
 machine. These tests prove choices under supplied assumptions, not observed
@@ -1209,7 +1209,7 @@ this effect assessment owns that check for survival selection.
 Food moved through a chain must be consumed and re-emitted rather than invented
 again at each stage. An intermediate edible output consumed later by the selected
 plan cannot also receive food-relief credit. Consuming resources already counted
-in the baseline food census returns an explicit unknown pending timed food
+in the baseline food census returns unknown pending timed food
 reallocation; it cannot reuse the same nutrition as both baseline meals and recipe
 inputs. Expiry-order allocation is conservative and does not revisit an early
 skipped delivery after later food extends coverage. Partial relief receives no
