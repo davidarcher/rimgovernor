@@ -4,29 +4,42 @@ using System.Text;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// What the biotech family reads (#3261): whether a mech is owed (MechGestationOwed over the gestation read),
-/// whether one more charger or gene bank is owed, and the pollution census with the packs an earlier haul of the
-/// pollution Need could not store and the polluted cells the planning window shows. Without Biotech the family
-/// derives no Needs.
+/// What the biotech family reads (#3261). Inactive without the Biotech expansion (and in the immediate pass, which
+/// reads nothing): the family derives no Needs. Active carries the colony's Biotech section (its gene buildings
+/// answer whether a gene bank is owed, its wastepacks and uncovered cells are the pollution census), whether a mech
+/// is owed (MechGestationOwed over the gestation read) and whether one more charger is owed (MechChargerOwed), the
+/// packs an earlier haul of the pollution Need could not store and the polluted cells the planning window shows.
 /// </summary>
-public sealed record BiotechFacts
+public abstract record BiotechFacts
 {
-    /// <summary>Whether the Biotech expansion is active (<see cref="RoundsFacts.BiotechInstalled"/>).</summary>
-    public bool Installed { get; init; }
+    private protected BiotechFacts() { }
 
-    public Fact<bool> MechsOwed { get; init; }
+    /// <summary>The Biotech expansion is not active, or nothing was read.</summary>
+    public sealed record Inactive : BiotechFacts;
 
-    public Fact<bool> MechChargerOwed { get; init; }
+    /// <summary>The Biotech expansion is active.</summary>
+    public sealed record Active : BiotechFacts
+    {
+        public required RimGovernor.Contracts.Wire.Observations.BiotechColonyFacts Colony { get; init; }
 
-    public Fact<bool> GeneBankOwed { get; init; }
+        /// <summary>Whether the mechanitors are owed one more mech; false when the mechs Need is not composed (it is then never derived).</summary>
+        public required bool MechsOwed { get; init; }
 
-    public Fact<PollutionFacts> Pollution { get; init; }
+        /// <summary>Whether the colony owes one more charger; false when the mech-charger Need is not composed (it is then never derived).</summary>
+        public required bool MechChargerOwed { get; init; }
 
-    /// <summary>The wastepacks whose haul by an unretired pollution Method ended unsuccessful (no stockpile took them): not ordered again.</summary>
-    public EquatableArray<string> PollutionRefused { get; init; }
+        /// <summary>The wastepacks whose haul by an unretired pollution Method ended unsuccessful (no stockpile took them): not ordered again.</summary>
+        public EquatableArray<string> PollutionRefused { get; init; } = [];
 
-    /// <summary>The polluted cells of the planning window (PollutedWindowCells).</summary>
-    public EquatableArray<Cell> PollutedCells { get; init; }
+        /// <summary>The polluted cells of the planning window (PollutedWindowCells).</summary>
+        public EquatableArray<Cell> PollutedCells { get; init; } = [];
+
+        /// <summary>Whether more genepacks lie loose than the standing gene banks have room for.</summary>
+        public bool GeneBankOwed => GeneBankConcernRules.GeneBankOwed(Colony);
+
+        /// <summary>The pollution census of the section.</summary>
+        public PollutionFacts Pollution => PollutionRules.PollutionOf(Colony);
+    }
 }
 
 /// <summary>The biotech Needs a composition derives; each toggle is the old planner flag.</summary>
@@ -47,12 +60,12 @@ public sealed record BiotechNeeds
 /// The biotech family (#3261). It replaced the MaintainMechs, EnsureMechCharger, MaintainGeneBank and
 /// ManagePollution Concerns, their inspections and planners:
 /// <list type="bullet">
-/// <item><c>biotech/mech-charger</c> (Development): the colony owes no further mech charger (MechChargerNeed). Its
+/// <item><c>biotech/mech-charger</c> (Development): the colony owes no further mech charger (MechChargerOwed). Its
 /// work step builds one, <c>mech-charger-&lt;def&gt;-&lt;chargers standing&gt;</c>.</item>
 /// <item><c>biotech/mechs</c> (Development): no mech is owed inside the mechanitors' bandwidth (MechGestationOwed).
 /// It waits on <c>biotech/mech-charger</c> when that Need is composed: chargers come before more mechs. Its remedy
 /// is the gestation bill the work ledger places (<c>MechBillDeclarer</c>), filed under the Need.</item>
-/// <item><c>biotech/gene-bank</c> (Development): the standing gene banks hold every loose genepack (GeneBankNeed).
+/// <item><c>biotech/gene-bank</c> (Development): the standing gene banks hold every loose genepack (GeneBankOwed).
 /// Its work step builds one, <c>gene-bank-&lt;def&gt;-&lt;banks standing&gt;</c>.</item>
 /// <item><c>biotech/pollution</c> (Wellbeing): no wastepack lies exposed or forbidden and no polluted cell is outside
 /// the pollution-clear area (PollutionDeficit). Its pure Method, <c>pollution-&lt;hash of the work&gt;</c>, allows the
@@ -81,33 +94,33 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
 
     public IReadOnlyList<Need> Derive(BiotechFacts facts)
     {
-        if (!facts.Installed)
+        if (facts is not BiotechFacts.Active active)
         {
             return [];
         }
-        var output = MechNeeds(facts);
+        var output = MechNeeds(active);
         if (_needs.GeneBank)
         {
-            output.Add(Owed(GeneBank, NeedTier.Development, "gene_bank_owed", facts.GeneBankOwed));
+            output.Add(Owed(GeneBank, NeedTier.Development, active.GeneBankOwed));
         }
         if (_needs.Pollution)
         {
-            output.Add(BiotechFamilyRules.PollutionNeedOf(facts));
+            output.Add(BiotechFamilyRules.PollutionNeedOf(active));
         }
         return output;
     }
 
     /// <summary>The mech-charger and mechs Needs, the ones composed, in derivation order.</summary>
-    private List<Need> MechNeeds(BiotechFacts facts)
+    private List<Need> MechNeeds(BiotechFacts.Active facts)
     {
         var output = new List<Need>(4);
         if (_needs.MechCharger)
         {
-            output.Add(Owed(MechCharger, NeedTier.Development, "mech_charger_owed", facts.MechChargerOwed));
+            output.Add(Owed(MechCharger, NeedTier.Development, facts.MechChargerOwed));
         }
         if (_needs.Mechs)
         {
-            output.Add(Owed(Mechs, NeedTier.Development, "mech_owed", facts.MechsOwed) with
+            output.Add(Owed(Mechs, NeedTier.Development, facts.MechsOwed) with
             {
                 Preconditions = _needs.MechCharger ? [MechCharger] : [],
             });
@@ -120,9 +133,13 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
     public IReadOnlyList<NeedMethod> Propose(IReadOnlyList<Need> ready, BiotechFacts facts)
     {
         var output = new List<NeedMethod>();
+        if (facts is not BiotechFacts.Active active)
+        {
+            return output;
+        }
         foreach (var need in ready)
         {
-            if (need.Id == Pollution && facts.Pollution.TryGetValue(out var pollution) && PollutionMethod(pollution, facts) is { } method)
+            if (need.Id == Pollution && PollutionMethod(active.Pollution, active) is { } method)
             {
                 output.Add(method);
             }
@@ -134,7 +151,7 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
     /// The pollution Need's one Method for this read: the allows, the clear-area edit and the hauls SelectPollutionWork
     /// orders, named by a hash of that work so the same work continues its open Method. Null when nothing is to be ordered.
     /// </summary>
-    internal static NeedMethod? PollutionMethod(PollutionFacts pollution, BiotechFacts facts)
+    internal static NeedMethod? PollutionMethod(PollutionFacts pollution, BiotechFacts.Active facts)
     {
         var refused = facts.PollutionRefused.ToDictionary(id => id, _ => true, StringComparer.Ordinal);
         var work = PollutionRules.SelectPollutionWork(pollution, refused, [.. facts.PollutedCells]);
@@ -177,21 +194,19 @@ public sealed class BiotechFamily(BiotechNeeds needs) : IFamily<BiotechFacts>
         });
     }
 
+    /// <summary>Whether the composition derives the mech-charger Need (the mechs Need's precondition).</summary>
+    public bool ComposesMechCharger => _needs.MechCharger;
+
     /// <summary>Whether the mechs Need is ready over the gestation read: composed, unmet, and its charger precondition met.</summary>
-    public bool MechsReady(BiotechFacts facts) =>
+    public bool MechsReady(BiotechFacts.Active facts) =>
         NeedsRules.NeedStandings(FamilyId, MechNeeds(facts)).Any(s => s.Need.Id == Mechs && s.Readiness == NeedReadiness.Ready);
 
-    private static Need Owed(NeedId id, NeedTier tier, string fact, Fact<bool> owed) =>
-        FoodRules.WholeNeed(id, tier, owed.TryGetValue(out var o) ? !o : throw new RequiredFactException(fact));
+    private static Need Owed(NeedId id, NeedTier tier, bool owed) => FoodRules.WholeNeed(id, tier, !owed);
 }
 
 public static class BiotechFamilyRules
 {
-    /// <summary>
-    /// The pollution Need: unmet while PollutionDeficit finds an exposed or forbidden pack or an uncovered polluted
-    /// cell, met once every verdict is known and none is; an unread verdict raises <see cref="RequiredFactException"/>.
-    /// </summary>
-    public static Need PollutionNeedOf(BiotechFacts facts) =>
-        FoodRules.WholeNeed(BiotechFamily.Pollution, NeedTier.Wellbeing,
-            PollutionRules.PollutionDeficit(facts.Pollution).TryGetValue(out var owed) ? !owed : throw new RequiredFactException("pollution census"));
+    /// <summary>The pollution Need: unmet while PollutionDeficit finds an exposed or forbidden pack or an uncovered polluted cell.</summary>
+    public static Need PollutionNeedOf(BiotechFacts.Active facts) =>
+        FoodRules.WholeNeed(BiotechFamily.Pollution, NeedTier.Wellbeing, !PollutionRules.PollutionDeficit(facts.Pollution));
 }

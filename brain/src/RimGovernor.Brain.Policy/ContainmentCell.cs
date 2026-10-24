@@ -37,22 +37,46 @@ public sealed record BuiltHolder
     public required EquatableArray<AnomalyDoor> Doors { get; init; }
 }
 
-/// <summary>The projection's containment inputs. Each unknown fact stops the cell with its own reason.</summary>
+/// <summary>
+/// The containment prediction's def inputs: Inactive without the Anomaly expansion (no platform def exists),
+/// Unread when a shell def, the shell's shared stuff or a catalog def could not be read (Reason says which), Read
+/// with the defs.
+/// </summary>
+public abstract record ContainmentDefsRead
+{
+    private protected ContainmentDefsRead() { }
+
+    /// <summary>The Anomaly expansion is not active.</summary>
+    public sealed record Inactive : ContainmentDefsRead;
+
+    /// <summary>The defs could not be read; Reason says why.</summary>
+    public sealed record Unread(string Reason) : ContainmentDefsRead;
+
+    /// <summary>The defs the prediction reads.</summary>
+    public sealed record Read(ContainmentDefs Defs) : ContainmentDefsRead;
+
+    /// <summary>Why <paramref name="defs"/> are not read, in plain English, when they are Inactive or Unread.</summary>
+    public static string NotReadWhy(ContainmentDefsRead defs) =>
+        defs is Unread { Reason: var reason } ? reason : "the Anomaly expansion is not active";
+}
+
+/// <summary>
+/// The projection's containment inputs, read whole from the routine frame. Without the Anomaly expansion no pawn is
+/// an entity and no building is a platform: the demand is zero, the holder and entity lists are empty and the defs
+/// are <see cref="ContainmentDefsRead.Inactive"/>.
+/// </summary>
 public sealed record ContainmentPlanning
 {
-    public Fact<ContainmentDemand> Demand { get; init; }
+    public ContainmentDemand Demand { get; init; } = new();
 
-    /// <summary>The standing platforms; unknown without a building census.</summary>
-    public Fact<EquatableArray<BuiltHolder>> Holders { get; init; }
+    /// <summary>The standing platforms.</summary>
+    public EquatableArray<BuiltHolder> Holders { get; init; } = [];
 
     /// <summary>The prediction's inputs.</summary>
-    public Fact<ContainmentDefs> Defs { get; init; }
+    public ContainmentDefsRead Defs { get; init; } = new ContainmentDefsRead.Inactive();
 
-    /// <summary>Says in plain English why Defs are unknown.</summary>
-    public string DefsReason { get; init; } = "";
-
-    /// <summary>The entity pawn rows the capture rule decides; unknown without Anomaly.</summary>
-    public Fact<EquatableArray<CapturableEntity>> Entities { get; init; }
+    /// <summary>The entity pawn rows the capture rule decides.</summary>
+    public EquatableArray<CapturableEntity> Entities { get; init; } = [];
 
     /// <summary>The held and waiting entities' escape and study facts and the game's containment curves, which the escape term and the cell credit read (#3811).</summary>
     public ContainmentForecast Forecast { get; init; } = new();
@@ -71,7 +95,7 @@ public static class ContainmentCellRules
 
     /// <summary>
     /// The cell the entities owe: one platform in its own room. No demand, or a standing available platform
-    /// whose native strength reaches the demand, owes nothing; so do an unknown fact, an unavailable platform, or a
+    /// whose native strength reaches the demand, owes nothing; so do defs that are not read, an unavailable platform, or a
     /// design whose predicted strength falls short (no facility that adds strength is planned) owes nothing.
     /// </summary>
     public static ChildRoomNeed? ContainmentCellNeed(
@@ -79,11 +103,12 @@ public static class ContainmentCellRules
         IReadOnlyList<FurnitureDefinition> furniture,
         FlooringFacts floors)
     {
-        if (!p.Demand.TryGetValue(out var demand) || demand.Entities == 0
-            || !p.Holders.TryGetValue(out var holders) || DefsOf(p) is not { } defs)
+        if (p.Demand.Entities == 0 || p.Defs is not ContainmentDefsRead.Read { Defs: var defs })
         {
             return null;
         }
+        var demand = p.Demand;
+        var holders = p.Holders;
         // A cell is owed for what the capture rule would take: the need plus its margin, so a cell is never
         // built for an entity that would then be killed.
         double margin;
@@ -150,9 +175,6 @@ public static class ContainmentCellRules
         return strength < required ? null : need;
     }
 
-    /// <summary>The prediction's def inputs; null when they are unread (<see cref="ContainmentPlanning.DefsReason"/> says why).</summary>
-    private static ContainmentDefs? DefsOf(ContainmentPlanning p) => p.Defs.TryGetValue(out var defs) ? defs : null;
-
     /// <summary>The layout plan's containment cells; none while the plan is unread.</summary>
     public static IEnumerable<PlannedRoom> PlannedCells(FlooringFacts floors) =>
         floors.Layout.TryGetValue(out var plan) && plan is not null ? plan.Rooms.Where(r => r.Role == PlannedRole.ContainmentCell) : [];
@@ -165,9 +187,9 @@ public static class ContainmentCellRules
     /// </summary>
     public static (double Strength, string Reason) PlannedCellStrength(ContainmentPlanning p, FlooringFacts floors, PlannedRoom room)
     {
-        if (DefsOf(p) is not { } defs)
+        if (p.Defs is not ContainmentDefsRead.Read { Defs: var defs })
         {
-            return (0, p.DefsReason.Length != 0 ? p.DefsReason : "the containment defs are unread");
+            return (0, ContainmentDefsRead.NotReadWhy(p.Defs));
         }
         try
         {

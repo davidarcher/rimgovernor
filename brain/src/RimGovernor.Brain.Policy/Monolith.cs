@@ -3,6 +3,21 @@ using System.Globalization;
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
+/// The colony's Anomaly read, by the colony section's Anomaly gate: Inactive without the expansion (the anomaly
+/// family derives no Needs), Active with the monolith's state.
+/// </summary>
+public abstract record AnomalyState
+{
+    private protected AnomalyState() { }
+
+    /// <summary>The Anomaly expansion is not active.</summary>
+    public sealed record Inactive : AnomalyState;
+
+    /// <summary>The Anomaly expansion is active: GameComponent_Anomaly's monolith state.</summary>
+    public sealed record Active(MonolithFacts Monolith) : AnomalyState;
+}
+
+/// <summary>
 /// The monolith's observed state: GameComponent_Anomaly's AmbientHorror and level, and the monolith thing's own
 /// read (null unless it is spawned).
 /// </summary>
@@ -143,13 +158,9 @@ public static partial class MonolithRules
     public const double AwakenStrengthFactor = 1.25;
 
     /// <summary>Decides the monolith's next step.</summary>
-    public static MonolithAdvance MonolithAdvanceOwed(Fact<MonolithFacts> m, AwakenGate gate)
+    public static MonolithAdvance MonolithAdvanceOwed(MonolithFacts f, AwakenGate gate)
     {
         var none = new MonolithAdvance();
-        if (!m.TryGetValue(out var f))
-        {
-            return none;
-        }
         if (f.Thing is not { } thing || f.AmbientHorror)
         {
             return none;
@@ -234,14 +245,6 @@ public static partial class MonolithRules
     private static (bool Stable, string Reason, List<string> Unread) ContainmentStable(ContainmentPlanning p)
     {
         var unread = new List<string>();
-        if (!p.Entities.TryGetValue(out var entities))
-        {
-            return (false, "", ["the entities are unread"]);
-        }
-        if (!p.Holders.IsKnown)
-        {
-            return (false, "", ["the holding platforms are unread"]);
-        }
         var reason = "";
         var upkeep = EntityUpkeepRules.ContainmentDoorUpkeep(p);
         foreach (var issue in upkeep.Issues)
@@ -252,7 +255,7 @@ public static partial class MonolithRules
         {
             reason = "a cell door stands open";
         }
-        foreach (var e in entities)
+        foreach (var e in p.Entities)
         {
             if (e.Dead || reason != "")
             {
@@ -272,7 +275,7 @@ public static partial class MonolithRules
     }
 
     /// <summary>Whether the monolith is spawned and its questline runs (not Ambient Horror mode): the only time the rule reads anything further.</summary>
-    public static bool MonolithInPlay(Fact<MonolithFacts> m) => m.TryGetValue(out var f) && f.Spawned && !f.AmbientHorror;
+    public static bool MonolithInPlay(MonolithFacts f) => f.Spawned && !f.AmbientHorror;
 
     /// <summary>The advance gate the facts give.</summary>
     public static AwakenGate MonolithGate(RoundsFacts f) =>

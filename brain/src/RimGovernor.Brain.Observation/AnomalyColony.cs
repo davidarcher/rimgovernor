@@ -3,21 +3,22 @@ namespace RimGovernor.Brain.Observation;
 public static class AnomalyColonyReads
 {
     /// <summary>
-    /// The monolith rule's input: GameComponent_Anomaly's level state and the monolith's own read (null while it is
-    /// not spawned). Unknown without Anomaly; a monolith read that disagrees with MonolithSpawned breaks the contract.
+    /// The colony's Anomaly read: Inactive without Anomaly; Active with GameComponent_Anomaly's level state and the
+    /// monolith's own read (null while it is not spawned). A monolith read that disagrees with MonolithSpawned breaks
+    /// the contract.
     /// </summary>
-    internal static Fact<MonolithFacts> MonolithFacts(O.AnomalySection section)
+    public static AnomalyState AnomalyOf(O.AnomalySection section)
     {
         if (section is not O.AnomalySection.Active { Facts: var a })
         {
-            return Unknown<MonolithFacts>();
+            return new AnomalyState.Inactive();
         }
         var i = a.Incidents;
         if (i.MonolithSpawned != (a.Monolith is not null))
         {
             throw new BridgeContractException($"monolith_spawned is {i.MonolithSpawned} but the monolith block is {(a.Monolith is null ? "absent" : "present")}");
         }
-        return Known(new MonolithFacts
+        return new AnomalyState.Active(new MonolithFacts
         {
             AmbientHorror = i.AmbientHorrorMode,
             Level = i.Level,

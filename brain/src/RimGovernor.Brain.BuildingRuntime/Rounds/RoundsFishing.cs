@@ -20,30 +20,6 @@ partial class RoundsFieldPlanner
 
         return [];
     }
-
-    /// <summary>
-    /// The DarkStudy owner the held entities owe; an unread held or studiable fact is logged loudly and
-    /// leaves the requirement unknown, so the work planner waits.
-    /// </summary>
-    internal static Fact<EquatableArray<WorkRequirement>> StudyWork(ColonyProjection p, CancellationToken ct)
-    {
-        var (work, reason) = EntityStudyRules.StudyWork(p.Facts.Containment);
-        if (!work.IsKnown)
-        {
-            Tel.Decide(new Decision
-            {
-                Kind = "routine_skip",
-                Component = "routine-work",
-                Level = TelemetryLevel.Warn,
-                Verdict = "waiting",
-                Reason = "entity_study_unread",
-                Target = "entity_study",
-                Attrs = new Dictionary<string, object?> { ["detail"] = reason },
-            });
-        }
-
-        return work;
-    }
 }
 
 public sealed partial class Rounder

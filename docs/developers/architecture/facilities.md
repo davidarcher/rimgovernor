@@ -808,9 +808,8 @@ holding target's containment mode is not Study, or while `frequencyTicks` has
 not passed since `lastStudiedTick`, and `WorkGiver_DarkStudyInteract` offers no
 job then, so no owner is owed between studies and nothing forces a job.
 Capture leaves the mode at Study (`CompHoldingPlatformTarget`); no write sets
-a mode. A held entity whose held or studiable fact is unread makes the
-requirement unknown: the work review reports `study_work` unavailable and
-files a `routine_skip` row (`entity_study_unread`) at warn.
+a mode. The entity rows are read whole (`ContainmentPlanning`); without Anomaly
+there are none and nothing is owed.
 
 **Monolith rule.** `policy.MonolithAdvanceOwed` decides the void
 monolith's next advance for the `anomaly/monolith` Need, which holds it as

@@ -176,10 +176,12 @@ public sealed class ContainmentCreditTests
         var defs = new ContainmentDefs { Holder = "HoldingPlatform", HolderFactor = 1, HolderBase = 25, FloorStrength = 0, WallHP = 300, DoorHP = 160 };
         var room = new PlannedRoom { Id = 4, Role = PlannedRole.ContainmentCell, Region = RegionRules.RectRegion(new Policy.Rectangle(4, 4, 3, 3)) };
         var floors = new FlooringFacts { Layout = Known(new LayoutPlan { Rooms = [room], NextRoomId = 5 }) };
-        var planning = new ContainmentPlanning { Defs = Known(defs), Forecast = new() { Entities = [Entity(), Entity("entity9") with { Platform = new(new(40, 40), Now) }] } };
+        var planning = new ContainmentPlanning { Defs = new ContainmentDefsRead.Read(defs), Forecast = new() { Entities = [Entity(), Entity("entity9") with { Platform = new(new(40, 40), Now) }] } };
         Assert.Equal([new PlannedContainmentCell(4, defs.Predict(new ContainmentRoom()), "entity1")], ForecastContainment.CellsOf(planning, floors));
-        Assert.Equal([new PlannedContainmentCell(4, 0, "entity1", "the containment defs are unread")],
-            ForecastContainment.CellsOf(planning with { Defs = default }, floors));
+        Assert.Equal([new PlannedContainmentCell(4, 0, "entity1", "the Anomaly expansion is not active")],
+            ForecastContainment.CellsOf(planning with { Defs = new ContainmentDefsRead.Inactive() }, floors));
+        Assert.Equal([new PlannedContainmentCell(4, 0, "entity1", "Wall is not among the planning definitions")],
+            ForecastContainment.CellsOf(planning with { Defs = new ContainmentDefsRead.Unread("Wall is not among the planning definitions") }, floors));
     }
 
     private static O.PawnState Row(string id, bool held = false, bool entity = true, bool capturable = true) => PawnFixtures.Row(id) with

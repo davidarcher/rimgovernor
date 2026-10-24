@@ -49,9 +49,6 @@ public sealed record MechanitorInput
     public PawnId Id { get; init; }
     public required PawnMechanitor Mechanitor { get; init; }
 
-    /// <summary>Where the mechanitor stands; unknown plans no guard orders.</summary>
-    public Fact<Cell> Cell { get; init; }
-
     public int UsedBandwidth => Mechanitor.UsedBandwidth;
     public int TotalBandwidth => Mechanitor.TotalBandwidth;
     public int ControlGroups => Mechanitor.ControlGroups;
@@ -63,7 +60,10 @@ public sealed record MechInput
     public PawnId Id { get; init; }
     public string Kind { get; init; } = "";
     public required PawnMech Mech { get; init; }
-    public Fact<Cell> Cell { get; init; }
+
+    /// <summary>Where the mech stands: on the colony map, or unplaced (carried, in a caravan), which plans no guard order.</summary>
+    public required RimGovernor.Contracts.Wire.Observations.EntityPlace Place { get; init; }
+
     public bool Downed { get; init; }
     public bool Drafted { get; init; }
 
@@ -81,6 +81,9 @@ public sealed record MechFleet
 {
     public IReadOnlyList<MechanitorInput> Mechanitors { get; init; } = [];
     public IReadOnlyList<MechInput> Mechs { get; init; } = [];
+
+    /// <summary>The cell of each mechanitor standing on the colony map, by pawn id; an unplaced one has none.</summary>
+    public IReadOnlyDictionary<string, Cell> OverseerCells { get; init; } = new Dictionary<string, Cell>(StringComparer.Ordinal);
 }
 
 /// <summary>A hostile a guard may be ordered at.</summary>
@@ -324,21 +327,13 @@ public static partial class MechRules
     /// <summary>
     /// Orders every standing guard mech at the hostile nearest to it among those within MechCommandRange of its
     /// overseer, drafting it first when it is not. A guard already attacking that hostile, a downed guard, a guard
-    /// whose overseer or position is unread or is no input mechanitor, and a hostile out of the overseer's range
-    /// are left alone.
+    /// that is unplaced or whose overseer is not on the map (no entry in <paramref name="overseers"/>), and a hostile
+    /// out of the overseer's range are left alone.
     /// </summary>
-    public static MechGuardPlan PlanMechGuards(MechCatalog catalog, IReadOnlyList<MechanitorInput> mechanitors, IReadOnlyList<MechInput> mechs, IReadOnlyList<MechHostile> hostiles)
+    public static MechGuardPlan PlanMechGuards(MechCatalog catalog, IReadOnlyDictionary<string, Cell> overseers, IReadOnlyList<MechInput> mechs, IReadOnlyList<MechHostile> hostiles)
     {
         var drafts = new List<PawnId>();
         var orders = new List<CombatOrder>();
-        var overseers = new Dictionary<string, Cell>(StringComparer.Ordinal);
-        foreach (var m in mechanitors)
-        {
-            if (m.Cell.TryGetValue(out var cell))
-            {
-                overseers[m.Id.Value] = cell;
-            }
-        }
         var ordered = mechs.ToList();
         SortMechs(ordered);
         foreach (var mech in ordered)
@@ -348,11 +343,11 @@ public static partial class MechRules
                 throw new DomainException($"mech {mech.Id} kind {mech.Kind} is not in the catalog");
             }
             var hok = overseers.TryGetValue(mech.Overseer, out var home);
-            var aok = mech.Cell.TryGetValue(out var at);
-            if (kind.Role != MechRole.Guard || mech.Downed || !hok || !aok)
+            if (kind.Role != MechRole.Guard || mech.Downed || !hok || mech.Place is not RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap { Cell: var place })
             {
                 continue;
             }
+            var at = new Cell(place.X, place.Z);
             MechHostile? best = null;
             foreach (var h in hostiles)
             {

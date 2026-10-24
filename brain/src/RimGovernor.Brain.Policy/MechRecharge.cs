@@ -73,18 +73,16 @@ public static partial class MechRules
 
     /// <summary>
     /// Whether the colony owes one more charger: a mechanitor exists and every standing charger is charging a mech
-    /// (none standing counts as all busy). An unread charger list owes nothing, and neither does
-    /// a charger full of waste: emptying it is owned by waste management, not a reason to build. An idle unpowered
+    /// (none standing counts as all busy). A charger full of waste owes nothing: emptying it is owned by waste
+    /// management, not a reason to build. An idle unpowered
     /// charger owes nothing either, though MechChargerReady does not count it ready: the power planner covers every
     /// power consumer (PowerCoverage, connectLiveBeforeUpgrade), so wiring it is the power goal's and a second
     /// charger would stand unpowered too. Gestation waits on MechChargerReady meanwhile.
     /// </summary>
-    public static bool MechChargerOwed(int mechanitors, Fact<EquatableArray<MechCharger>> chargers)
-    {
-        if (!chargers.TryGetValue(out var rows) || mechanitors == 0)
-        {
-            return false;
-        }
-        return rows.All(c => c.Charging && !c.FullOfWaste);
-    }
+    public static bool MechChargerOwed(int mechanitors, IReadOnlyList<MechCharger> chargers) =>
+        mechanitors > 0 && chargers.All(c => c.Charging && !c.FullOfWaste);
+
+    /// <summary>The Biotech section's chargers as the recharge policy reads them: charging is a mech attached.</summary>
+    public static IReadOnlyList<MechCharger> MechChargersOf(RimGovernor.Contracts.Wire.Observations.BiotechColonyFacts biotech) =>
+        [.. biotech.Chargers.Select(c => new MechCharger { Powered = c.Powered, FullOfWaste = c.FullOfWaste, Charging = c.ChargingMechId is not null })];
 }

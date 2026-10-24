@@ -33,7 +33,7 @@ public static partial class LayoutRoomsRules
     /// <summary>
     /// The add-on roles whose need is known to be gone: every pawn's stage (and, for the deathrest chamber, deathrest)
     /// is known and none owes the room; the ideoligion is known and requires no building; the containment demand is
-    /// known to be zero entities. needs are the rooms still owed.
+    /// zero entities. needs are the rooms still owed.
     /// </summary>
     public static List<PlannedRole> EndedRoomRoles(Fact<EquatableArray<WorkPawn>> pawns, Fact<Ideoligion> ideology, ContainmentPlanning containment, IsolationPlanning isolation, IReadOnlyList<ChildRoomNeed> needs)
     {
@@ -53,8 +53,7 @@ public static partial class LayoutRoomsRules
         Add(listKnown && list.Count > 0, PlannedRole.Nursery, PlannedRole.Classroom);
         Add(listKnown && list.Count > 0, PlannedRole.DeathrestChamber);
         Add(ideology.TryGetValue(out _), PlannedRole.Worship);
-        var demandKnown = containment.Demand.TryGetValue(out var demand);
-        Add(demandKnown && demand!.Entities == 0, PlannedRole.ContainmentCell);
+        Add(containment.Demand.Entities == 0, PlannedRole.ContainmentCell);
         var isolatedKnown = isolation.Pawns.TryGetValue(out var isolated);
         Add(isolatedKnown && isolated!.Count == 0, PlannedRole.IsolationRoom);
         return ended;

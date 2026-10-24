@@ -66,7 +66,7 @@ partial class Rounder
         {
             g = g with { Coverage = roster };
         }
-        return g with { Mechanitors = mechanitors, Gestators = BiotechColonyReads.GestatorFacts(colony), Wastepacks = BiotechColonyReads.WastepackFacts(colony), Chargers = BiotechColonyReads.MechChargerRows(colony) };
+        return g with { Mechanitors = mechanitors, Gestators = BiotechColonyReads.GestatorFacts(colony), Wastepacks = BiotechColonyReads.WastepackFacts(colony), Chargers = MechRules.MechChargersOf(colony) };
     }
 
     /// <summary>The part benches with each recipe's mech kind carried over from the gear census.</summary>

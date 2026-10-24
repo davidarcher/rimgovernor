@@ -107,24 +107,23 @@ public sealed class JoinersAnomalyFamilyTests
 
     private static RoundsFacts Containment(BuiltHolder[] holders, params CapturableEntity[] entities) => new()
     {
-        AnomalyInstalled = true,
+        Anomaly = NoMonolith,
         Containment = new ContainmentPlanning
         {
-            Holders = Known<EquatableArray<BuiltHolder>>([.. holders]),
-            Entities = Known<EquatableArray<CapturableEntity>>([.. entities]),
+            Holders = [.. holders],
+            Entities = [.. entities],
         },
         Research = Known(Researched),
         Gear = Known(ColonyModelFixtures.NoGear()),
-        Monolith = Known(new MonolithFacts { AmbientHorror = false, Level = 0, Thing = null }),
     };
 
-    private static Need Anomaly(RoundsFacts f, NeedId id) => Assert.Single(new AnomalyFamily().Derive(AnomalyFacts.From(f with { AnomalyInstalled = true })), n => n.Id == id);
+    private static Need Anomaly(RoundsFacts f, NeedId id) => Assert.Single(new AnomalyFamily().Derive(AnomalyFacts.From(f)), n => n.Id == id);
 
     [Fact]
     public void AnomalyNeedsAreMetUnmetOrUnknownByTheirCensus()
     {
         var met = Containment([Holder("e1", 1, holdOpen: false)], Held("e1", flag: true));
-        Assert.All(new AnomalyFamily().Derive(AnomalyFacts.From(met with { AnomalyInstalled = true })), n =>
+        Assert.All(new AnomalyFamily().Derive(AnomalyFacts.From(met)), n =>
         {
             Assert.Equal(Satisfaction.Met, n.Satisfaction);
             Assert.Equal(AnomalyFamily.FamilyId, n.Id.Family);
@@ -137,13 +136,26 @@ public sealed class JoinersAnomalyFamilyTests
         Assert.Equal((Satisfaction.Unmet, 2.0), (doors.Satisfaction, doors.Deficit.Value));
         Assert.Equal((Satisfaction.Unmet, 2.0), (Anomaly(unmet, AnomalyFamily.Bioferrite).Satisfaction, Anomaly(unmet, AnomalyFamily.Bioferrite).Deficit.Value));
 
-        // Without Anomaly the family derives nothing; with it, unread containment, research, gear or monolith facts
-        // raise for the whole family, never reading as met.
+        // Without Anomaly (Inactive) the family derives nothing, whatever the containment read holds; with it, unread
+        // research or gear raises for the whole family, never reading as met.
         Assert.Empty(new AnomalyFamily().Derive(new AnomalyFacts()));
-        Assert.Equal("containment holders", Assert.Throws<RequiredFactException>(() => new AnomalyFamily().Derive(new AnomalyFacts { Rounds = new RoundsFacts { AnomalyInstalled = true } })).Fact);
+        Assert.Empty(new AnomalyFamily().Derive(AnomalyFacts.From(unmet with { Anomaly = new AnomalyState.Inactive() })));
         Assert.Equal("whether BioferriteExtraction is researched is unread", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Research = default }, AnomalyFamily.Bioferrite)).Fact);
         Assert.Equal("gear", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Gear = default }, AnomalyFamily.Lance)).Fact);
-        Assert.Equal("monolith", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Monolith = default }, AnomalyFamily.Monolith)).Fact);
+    }
+
+    /// <summary>The Anomaly read of a colony with the expansion and no monolith spawned.</summary>
+    private static readonly AnomalyState NoMonolith = new AnomalyState.Active(new MonolithFacts { AmbientHorror = false, Level = 0, Thing = null });
+
+    [Fact]
+    public void TheAnomalyReadIsInactiveWithoutTheSectionAndActiveWithTheMonolith()
+    {
+        Assert.IsType<AnomalyState.Inactive>(RimGovernor.Brain.Observation.AnomalyColonyReads.AnomalyOf(AnomalySectionTests.NoAnomaly));
+        Assert.IsType<AnomalyState.Inactive>(new RoundsFacts().Anomaly);
+        Assert.IsType<ContainmentDefsRead.Inactive>(new ContainmentPlanning().Defs);
+        Assert.Empty(new ContainmentPlanning().Holders);
+        Assert.Equal(0, new ContainmentPlanning().Demand.Entities);
+        Assert.Empty(EntityStudyRules.StudyWork(new ContainmentPlanning()));
     }
 
     [Fact]

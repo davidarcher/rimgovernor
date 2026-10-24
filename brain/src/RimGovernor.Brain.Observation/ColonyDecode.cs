@@ -229,7 +229,6 @@ public static class ColonyDecodeReads
             DaysPassed = Known(r.Threat.DaysPassed),
             Wealth = Known(new WealthFacts(r.Threat.WealthItems, r.Threat.WealthTotal)),
             Disease = r.Threat.Disease,
-            Monolith = AnomalyColonyReads.MonolithFacts(v.Anomaly),
         };
         r = r with { Raids = r.Threat.Raids };
         f = f with { PenGrazing = r.FoodChannels.Grazing, Pasture = Known(r.FoodChannels.Pasture) };
@@ -439,7 +438,7 @@ public static class ColonyDecodeReads
                 Roamers = AnimalUpkeepReads.ColonyRoamers(v),
             },
         };
-        f = f with { Waste = ColonyFramesReads.ColonyWaste(v, tables), Pollution = BiotechColonyReads.Pollution(r.BiotechSection) };
+        f = f with { Waste = ColonyFramesReads.ColonyWaste(v, tables), Biotech = v.Biotech };
         f = f with { Upkeep = ColonyUpkeepReads.ColonyUpkeep(v, tables, catalog) };
         if (f.Upkeep.Lighting.IsKnown && !outdoorsDark.IsKnown)
         {

@@ -18,7 +18,7 @@ internal static class RoundsMech
             hostile = hostile || (t.Kind == ThreatKind.Hostile && !t.Dead && !t.Downed);
         }
 
-        var chargerReady = read.Projection.BiotechSection is PbObservations.BiotechSection.Active { Facts: var biotech } && MechRules.MechChargerReady(BiotechColonyReads.MechChargerRows(biotech));
+        var chargerReady = read.Projection.BiotechSection is PbObservations.BiotechSection.Active { Facts: var biotech } && MechRules.MechChargerReady(MechRules.MechChargersOf(biotech));
         return MechRules.PlanMechControl(MechCatalogOf(read.Catalog), fleet.Mechanitors, fleet.Mechs, hostile, chargerReady);
     }
 
@@ -44,6 +44,6 @@ internal static class RoundsMech
             }
         }
 
-        return MechRules.PlanMechGuards(MechCatalogOf(combat.Catalog), fleet.Mechanitors, fleet.Mechs, hostiles);
+        return MechRules.PlanMechGuards(MechCatalogOf(combat.Catalog), fleet.OverseerCells, fleet.Mechs, hostiles);
     }
 }

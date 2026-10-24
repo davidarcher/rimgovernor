@@ -4,6 +4,7 @@ using RimGovernor.Brain.Store;
 using Xunit;
 using static RimGovernor.Brain.Domain.Fact;
 using Journal = RimGovernor.Brain.Store.Store;
+using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
@@ -26,7 +27,19 @@ public sealed class BiotechRoyaltyFamilyTests
             MechCharger = id == BiotechFamily.MechCharger,
             GeneBank = id == BiotechFamily.GeneBank,
             Pollution = id == BiotechFamily.Pollution,
-        }).Derive(facts with { Installed = true }), n => n.Id == id);
+        }).Derive(facts), n => n.Id == id);
+
+    /// <summary>A Biotech section with nothing owed: no wastepack, no polluted cell, no gene bank or genepack.</summary>
+    private static readonly O.BiotechColonyFacts Settled = BiotechSectionTests.Colony with
+    {
+        PollutedUncoveredCells = 0,
+        Wastepacks = [],
+        GeneBanks = [],
+        Genepacks = [],
+    };
+
+    private static BiotechFacts.Active Bio(O.BiotechColonyFacts? colony = null, bool mechsOwed = false, bool chargerOwed = false) =>
+        new() { Colony = colony ?? Settled, MechsOwed = mechsOwed, MechChargerOwed = chargerOwed };
 
     private static Need Royalty(RoyaltyFamilyFacts facts, NeedId id) =>
         Assert.Single(new RoyaltyFamily(id == RoyaltyFamily.Permits, id == RoyaltyFamily.Psylink).Derive(facts));
@@ -38,12 +51,13 @@ public sealed class BiotechRoyaltyFamilyTests
     [Fact]
     public void WithoutTheExpansionBiotechAndRoyaltyDeriveNothing()
     {
-        Assert.Empty(new BiotechFamily(AllBiotech).Derive(new BiotechFacts()));
+        Assert.Empty(new BiotechFamily(AllBiotech).Derive(new BiotechFacts.Inactive()));
+        Assert.Empty(new BiotechFamily(AllBiotech).Propose([], new BiotechFacts.Inactive()));
         Assert.Empty(new RoyaltyFamily().Derive(NoRoyalty));
         Assert.Empty(new RoyaltyFamily().Derive(NoRoyalty with { PsylinkOwed = true }));
         Assert.Empty(new RoyaltyFamily().Propose([], NoRoyalty));
         Assert.Empty(new IdeologyFamily().Derive(new IdeologyFacts()));
-        Assert.False(new RoundsFacts().AnomalyInstalled);
+        Assert.IsType<AnomalyState.Inactive>(new RoundsFacts().Anomaly);
         Assert.Empty(new AnomalyFamily().Derive(new AnomalyFacts()));
     }
 
@@ -51,26 +65,25 @@ public sealed class BiotechRoyaltyFamilyTests
     [InlineData("mech-charger")]
     [InlineData("mechs")]
     [InlineData("gene-bank")]
-    public void TheOwedNeedsAreMetUnmetOrUnknownByTheirOwedFact(string kind)
+    public void TheOwedNeedsAreMetOrUnmetByTheirOwedFact(string kind)
     {
         var id = NeedId.Of(BiotechFamily.FamilyId, kind);
-        BiotechFacts With(Fact<bool> owed) => kind switch
+        var looseGenepack = Settled with { Genepacks = [new O.GenepackState { BankId = null }] };
+        BiotechFacts With(bool owed) => kind switch
         {
-            "mech-charger" => new BiotechFacts { MechChargerOwed = owed },
-            "mechs" => new BiotechFacts { MechsOwed = owed },
-            _ => new BiotechFacts { GeneBankOwed = owed },
+            "mech-charger" => Bio(chargerOwed: owed),
+            "mechs" => Bio(mechsOwed: owed),
+            _ => Bio(owed ? looseGenepack : Settled),
         };
-        var owed = Biotech(With(Known(true)), id);
+        var owed = Biotech(With(true), id);
         Assert.Equal((Satisfaction.Unmet, NeedTier.Development, 1.0), (owed.Satisfaction, owed.Tier, owed.Deficit.Value));
-        Assert.Equal(Satisfaction.Met, Biotech(With(Known(false)), id).Satisfaction);
-        var fact = kind switch { "mech-charger" => "mech_charger_owed", "mechs" => "mech_owed", _ => "gene_bank_owed" };
-        Assert.Equal(fact, Assert.Throws<RequiredFactException>(() => Biotech(With(Unknown<bool>()), id)).Fact);
+        Assert.Equal(Satisfaction.Met, Biotech(With(false), id).Satisfaction);
     }
 
     [Fact]
     public void MechsWaitOnTheChargerWhenItIsComposed()
     {
-        var settled = Polluted(0) with { MechsOwed = Known(false), MechChargerOwed = Known(false), GeneBankOwed = Known(false) };
+        var settled = Polluted(0);
         var needs = new BiotechFamily(AllBiotech).Derive(settled);
         Assert.Equal([BiotechFamily.MechCharger], Assert.Single(needs, n => n.Id == BiotechFamily.Mechs).Preconditions);
         Assert.All(needs.Where(n => n.Id != BiotechFamily.Mechs), n => Assert.Empty(n.Preconditions));
@@ -78,31 +91,33 @@ public sealed class BiotechRoyaltyFamilyTests
 
         // The gestation bill is declared only while the mechs Need is ready: owed, with no charger owed.
         var family = new BiotechFamily(AllBiotech);
-        Assert.True(family.MechsReady(new BiotechFacts { MechsOwed = Known(true), MechChargerOwed = Known(false) }));
-        Assert.False(family.MechsReady(new BiotechFacts { MechsOwed = Known(true), MechChargerOwed = Known(true) }));
-        Assert.Equal("mech_charger_owed", Assert.Throws<RequiredFactException>(() => family.MechsReady(new BiotechFacts { MechsOwed = Known(true), MechChargerOwed = Unknown<bool>() })).Fact);
-        Assert.False(family.MechsReady(new BiotechFacts { MechsOwed = Known(false), MechChargerOwed = Known(false) }));
-        Assert.True(new BiotechFamily(new BiotechNeeds { Mechs = true }).MechsReady(new BiotechFacts { MechsOwed = Known(true) }));
+        Assert.True(family.ComposesMechCharger);
+        Assert.True(family.MechsReady(Bio(mechsOwed: true)));
+        Assert.False(family.MechsReady(Bio(mechsOwed: true, chargerOwed: true)));
+        Assert.False(family.MechsReady(Bio()));
+        var alone = new BiotechFamily(new BiotechNeeds { Mechs = true });
+        Assert.False(alone.ComposesMechCharger);
+        Assert.True(alone.MechsReady(Bio(mechsOwed: true)));
     }
 
-    private static Wastepack Pack(string id, bool forbidden = false) => new()
+    private static O.Wastepack Pack(string id, bool forbidden = false) => new()
     {
-        Id = id,
-        Definition = "Wastepack",
-        Cell = new Cell(1, 2),
+        ThingId = id,
+        DefName = "Wastepack",
+        Position = new Cell(1, 2),
+        Count = 1,
         Frozen = false,
         InAtomizer = false,
         Forbidden = forbidden,
     };
 
-    private static BiotechFacts Polluted(uint uncovered, params Wastepack[] packs) =>
-        new() { Installed = true, Pollution = Known(new PollutionFacts { Wastepacks = packs, UncoveredCells = uncovered }), PollutedCells = [new Cell(3, 4)] };
+    private static BiotechFacts.Active Polluted(uint uncovered, params O.Wastepack[] packs) =>
+        Bio(Settled with { PollutedUncoveredCells = uncovered, Wastepacks = [.. packs] }) with { PollutedCells = [new Cell(3, 4)] };
 
     [Fact]
-    public void PollutionIsMetUnmetOrUnknownAndItsMethodNamesItsWork()
+    public void PollutionIsMetOrUnmetAndItsMethodNamesItsWork()
     {
         Assert.Equal((Satisfaction.Met, NeedTier.Wellbeing), (Biotech(Polluted(0), BiotechFamily.Pollution).Satisfaction, Biotech(Polluted(0), BiotechFamily.Pollution).Tier));
-        Assert.Equal("pollution census", Assert.Throws<RequiredFactException>(() => Biotech(new BiotechFacts(), BiotechFamily.Pollution)).Fact);
 
         var owed = Polluted(2, Pack("w1"));
         var need = Biotech(owed, BiotechFamily.Pollution);
@@ -139,11 +154,11 @@ public sealed class BiotechRoyaltyFamilyTests
             Tick = new(100),
             Enabled = true,
             Policy = RoundsRules.DefaultRoundsPolicy(),
-            Facts = WorkResourceTestFacts.Create("a", "b") with { Pollution = forbidden.Pollution },
+            Facts = WorkResourceTestFacts.Create("a", "b") with { Biotech = new O.BiotechSection.Active(forbidden.Colony) },
         }, ct).Review;
         Assert.Equal("w2", Assert.Single(review.PollutionSupplies).Thing);
 
-        var facts = forbidden;
+        BiotechFacts facts = forbidden;
         var runner = new FamilyRunner<BiotechFacts>(new BiotechFamily(new BiotechNeeds { Pollution = true }), (_, _) => Task.FromResult(facts), BiotechRounds.Schedule);
         FamilyRun Run() => runner.RunAsync(new FamilyStep { Journal = journal, World = World }, ct).GetAwaiter().GetResult();
         var first = Run();
@@ -271,7 +286,7 @@ public sealed class BiotechRoyaltyFamilyTests
     [Fact]
     public void EachFamilyIsOneDueQueueEntryAndTheOldPlannersAreGone()
     {
-        var biotech = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<BiotechFacts>(new BiotechFamily(AllBiotech), (_, _) => Task.FromResult(new BiotechFacts()), BiotechRounds.Schedule));
+        var biotech = ClockPlannerCatalog.FamilyEntry(new FamilyRunner<BiotechFacts>(new BiotechFamily(AllBiotech), (_, _) => Task.FromResult<BiotechFacts>(new BiotechFacts.Inactive()), BiotechRounds.Schedule));
         Assert.Equal("biotech", biotech.Name);
         Assert.Contains(ActionKind.Building, biotech.Kinds);
         Assert.Contains(ActionKind.Area, biotech.Kinds);

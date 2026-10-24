@@ -21,16 +21,12 @@ public sealed record MechChargerSiteFacts
 /// </summary>
 public static partial class MechRules
 {
-    /// <summary>RoundsFacts.MechChargerOwed's value: whether the colony owes one more charger, unknown while the mechs or the charger list are unread.</summary>
-    public static Fact<bool> MechChargerNeed(Fact<MechFleet> fleet, Fact<EquatableArray<MechCharger>> chargers)
-    {
-        var fleetKnown = fleet.TryGetValue(out var f);
-        if (!chargers.IsKnown || !fleetKnown)
-        {
-            return Unknown<bool>();
-        }
-        return Known(MechChargerOwed(f!.Mechanitors.Count, chargers));
-    }
+    /// <summary>
+    /// The biotech/mech-charger Need's verdict over the Biotech section's chargers and the review's mech fleet
+    /// (MechChargerOwed); an unread fleet raises <see cref="RequiredFactException"/>.
+    /// </summary>
+    public static bool MechChargerOwed(Fact<MechFleet> fleet, RimGovernor.Contracts.Wire.Observations.BiotechColonyFacts biotech) =>
+        fleet.TryGetValue(out var f) ? MechChargerOwed(f.Mechanitors.Count, MechChargersOf(biotech)) : throw new RequiredFactException("mech fleet");
 
     /// <summary>
     /// Ranks every width x height footprint lying wholly on known free ground (walkable, unoccupied, covered by no

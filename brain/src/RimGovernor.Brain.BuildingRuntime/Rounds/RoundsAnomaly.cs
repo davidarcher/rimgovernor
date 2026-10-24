@@ -158,9 +158,9 @@ public sealed partial class AnomalyRounds
         {
             DefensePipeline.DefenseAction(Component, TelemetryLevel.Warn, "refused", "bioferrite_harvest_unread", "bioferrite", new Dictionary<string, object?> { ["detail"] = reason }, ct);
         }
-        if (MonolithRules.MonolithInPlay(f.Monolith))
+        if (f.Anomaly is AnomalyState.Active { Monolith: var monolith } && MonolithRules.MonolithInPlay(monolith))
         {
-            foreach (var issue in MonolithRules.MonolithAdvanceOwed(f.Monolith, MonolithRules.MonolithGate(f)).Issues)
+            foreach (var issue in MonolithRules.MonolithAdvanceOwed(monolith, MonolithRules.MonolithGate(f)).Issues)
             {
                 DefensePipeline.DefenseAction(Component, TelemetryLevel.Warn, "refused", "monolith_advance_unread", "monolith", new Dictionary<string, object?> { ["detail"] = issue }, ct);
             }

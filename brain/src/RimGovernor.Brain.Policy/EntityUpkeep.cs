@@ -27,19 +27,14 @@ public static class EntityUpkeepRules
     /// <summary>
     /// Reads every holder that holds a pawn. A door held open is closed; a
     /// door that is breached but is not held open and is blocked open is an issue (an order cannot clear what
-    /// stands in it); a holder whose doors are unknown is an issue. A door open and not held open closes by itself and is
-    /// left alone.
+    /// stands in it). A door open and not held open closes by itself and is left alone.
     /// </summary>
     public static ContainmentUpkeep ContainmentDoorUpkeep(ContainmentPlanning p)
     {
-        if (!p.Holders.TryGetValue(out var holders))
-        {
-            return new ContainmentUpkeep();
-        }
         var close = new List<Cell>();
         var issues = new List<UpkeepIssue>();
         var seen = new HashSet<Cell>();
-        foreach (var h in holders)
+        foreach (var h in p.Holders)
         {
             if (h.HeldPawn.Length == 0)
             {
@@ -77,13 +72,9 @@ public static class EntityUpkeepRules
     /// </summary>
     public static Domain.PawnId? EntityTendTarget(ContainmentPlanning p)
     {
-        if (!p.Entities.TryGetValue(out var entities))
-        {
-            return null;
-        }
         Domain.PawnId best = default;
         var bestBleeding = false;
-        foreach (var e in entities)
+        foreach (var e in p.Entities)
         {
             if (e.Dead || e.Target is not { Held: true, NeedsTend: true } target)
             {

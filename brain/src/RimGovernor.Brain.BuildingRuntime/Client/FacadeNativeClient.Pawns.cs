@@ -87,7 +87,7 @@ public sealed partial class FacadeNativeClient
             {
                 throw BridgeContractException.Contract($"mech {id}: not a mechanoid");
             }
-            if (!BiotechFactsRules.PawnBiotech(row.Biotech).TryGetValue(out var biotech) || biotech.Mech is not { } mech)
+            if (row.Biotech is not PbObservations.PawnBiotechState.Active { Facts: var block } || RimGovernor.Brain.Policy.PawnBiotech.Of(block).Mech is not { } mech)
             {
                 throw BridgeContractException.Contract($"mech {id}: no Biotech mech block");
             }
@@ -96,6 +96,7 @@ public sealed partial class FacadeNativeClient
                 Id = new PawnId(id),
                 Kind = row.KindDefName,
                 Mech = mech,
+                Place = row.Pawn.Place,
                 Downed = row.Downed,
                 Drafted = row.Drafted,
             });

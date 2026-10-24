@@ -18,7 +18,7 @@ public sealed class BiotechSectionTests
     /// <summary>The section of a game without Biotech: the section every test without Biotech carries.</summary>
     internal static readonly O.BiotechSection NoBiotech = new O.BiotechSection.Inactive();
 
-    private static readonly O.BiotechColonyFacts Colony = new()
+    internal static readonly O.BiotechColonyFacts Colony = new()
     {
         PollutedUncoveredCells = 7,
         Wastepacks = [new O.Wastepack { ThingId = "Thing_Wastepack1", DefName = "Wastepack", Position = new Cell(3, 4), Count = 5, Frozen = false, InAtomizer = false, Forbidden = true }],
@@ -83,34 +83,39 @@ public sealed class BiotechSectionTests
     [Fact]
     public void AnActiveSectionLiftsWholeIntoThePolicyInputs()
     {
-        O.BiotechSection section = new O.BiotechSection.Active(Colony);
-
-        Assert.True(BiotechColonyReads.Pollution(section).TryGetValue(out var pollution));
+        var pollution = PollutionRules.PollutionOf(Colony);
         Assert.Equal(7u, pollution.UncoveredCells);
         Assert.True(Assert.Single(pollution.Wastepacks).Forbidden);
         Assert.Equal([true, false], BiotechColonyReads.GestatorFacts(Colony).Select(g => g.Active));
-        Assert.False(Assert.Single(BiotechColonyReads.MechChargerFact(section).Value).Charging);
-        var banks = BiotechColonyReads.GeneBankFact(section).Value;
-        Assert.Equal((4, 1), (banks.Banks[0].Capacity, banks.Banks[0].Held));
-        Assert.Equal([false, true], banks.Packs);
+        Assert.False(Assert.Single(MechRules.MechChargersOf(Colony)).Charging);
+
+        // One bank of four holds one pack: three free slots hold the one loose pack, so no bank is owed; four loose packs overflow it.
+        Assert.False(GeneBankConcernRules.GeneBankOwed(Colony));
+        Assert.True(GeneBankConcernRules.GeneBankOwed(Colony with { Genepacks = [.. Enumerable.Repeat(new O.GenepackState { BankId = null }, 4)] }));
+
+        // A charger is owed only with a mechanitor and every charger busy and clear of waste.
+        Assert.False(MechRules.MechChargerOwed(1, MechRules.MechChargersOf(Colony)));
+        var busy = Colony with { Chargers = [new O.MechChargerState { Powered = true, FullOfWaste = false, ChargingMechId = "Thing_Mech1" }] };
+        Assert.True(MechRules.MechChargerOwed(1, MechRules.MechChargersOf(busy)));
+        Assert.False(MechRules.MechChargerOwed(0, MechRules.MechChargersOf(busy)));
     }
 
     [Fact]
     public void InactiveDlcSectionsDeriveNoNeeds()
     {
-        Assert.False(BiotechColonyReads.Pollution(NoBiotech).IsKnown);
-        Assert.False(BiotechColonyReads.MechChargerFact(NoBiotech).IsKnown);
-        Assert.False(BiotechColonyReads.GeneBankFact(NoBiotech).IsKnown);
+        Assert.Empty(PollutionRules.PollutionAllowSupplies(NoBiotech));
+        Assert.Equal("Thing_Wastepack1", Assert.Single(PollutionRules.PollutionAllowSupplies(new O.BiotechSection.Active(Colony))).Thing);
 
         // Every DLC section of the core snapshot is inactive: no expansion counts as installed, and no family derives.
         var facts = DlcSectionReads.Installed(new RoundsFacts(), ColonyFactsCoreTests.Snapshot());
-        Assert.Equal((false, false, false), (facts.Royalty is RoyaltyState.Active, facts.AnomalyInstalled, facts.BiotechInstalled));
+        Assert.Equal((false, false, false), (facts.Royalty is RoyaltyState.Active, facts.Anomaly is AnomalyState.Active, facts.Biotech is O.BiotechSection.Active));
+        Assert.IsType<O.BiotechSection.Inactive>(new RoundsFacts().Biotech);
         Assert.Empty(new BiotechFamily(new BiotechNeeds { Mechs = true, MechCharger = true, GeneBank = true, Pollution = true })
-            .Derive(new BiotechFacts { Installed = facts.BiotechInstalled }));
+            .Derive(new BiotechFacts.Inactive()));
         Assert.Empty(new RoyaltyFamily().Derive(new RoyaltyFamilyFacts { Royalty = facts.Royalty, PsylinkOwed = false }));
         Assert.Empty(new AnomalyFamily().Derive(AnomalyFacts.From(facts)));
 
         var active = DlcSectionReads.Installed(new RoundsFacts(), ColonyFactsCoreTests.Snapshot() with { Biotech = new O.BiotechSection.Active(Colony) });
-        Assert.True(active.BiotechInstalled);
+        Assert.Equal(new O.BiotechSection.Active(Colony), active.Biotech);
     }
 }

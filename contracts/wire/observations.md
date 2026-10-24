@@ -527,8 +527,8 @@ requirements come from the game defs through the native read, not the brain
 tables. A held entity's strength and need stay on its rows (`HeldState`,
 `EntityHolderState`, `PawnAnomaly.min_containment_strength`). Selection is by
 the game's own types, never name lists. A failed read fails the colony read.
-The brain lifts the section into the monolith rule's facts
-(`observation.AnomalyColonyReads.MonolithFacts`). Derived state held in memory
+The brain lifts the section into the Anomaly read (`observation.AnomalyColonyReads.AnomalyOf`):
+`policy.AnomalyState` Inactive without Anomaly, Active with the monolith rule's facts. Derived state held in memory
 (persistence-contracts.md); it adds no store. Active game conditions (for
 example the gray pall) are not here: the shared condition read lives in the
 Odyssey section today.
@@ -575,12 +575,12 @@ Verdicts come from the game (comps, buildings, `ChildcareUtility`), never
 def-name lists. `ColonyProjection.BiotechSection` carries the section as read;
 `observation.BiotechColonyReads` lifts it into the policy inputs (the recharge
 policy's chargers, the gestation review's gestators and wastepacks, the
-gene-bank Need's banks and packs, `RoundsFacts.Pollution`). Every one of them
-is unknown when the section is inactive, so no Biotech Need derives on a colony
-without Biotech. Derived state held in memory (persistence-contracts.md); it
+gene-bank Need's banks and packs, the pollution census). `RoundsFacts.Biotech`
+carries the section itself: the biotech family matches `Active` and derives no
+Need on a colony without Biotech. Derived state held in memory (persistence-contracts.md); it
 adds no store.
 
-`RoundsFacts.Pollution` (`policy.PollutionFacts`) projects the wastepack
+`policy.PollutionRules.PollutionOf` (`policy.PollutionFacts`) projects the wastepack
 verdicts and the uncovered count for the `biotech/pollution` Need (Wellbeing,
 labor Hauling, #3261). Its Method is the forbidden packs' `supply_allow`, the
 pollution-clear `AreaIntent` edit (polluted cells of the planning window) and

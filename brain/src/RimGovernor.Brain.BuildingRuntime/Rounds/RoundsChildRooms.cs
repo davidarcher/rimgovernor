@@ -46,7 +46,7 @@ partial class RoundsSleepingUpkeepPlanner
 
     internal static IReadOnlyList<string> ContainmentDefinitions(ColonyProjection facts)
     {
-        if (facts.Facts.Containment.Defs.TryGetValue(out var defs))
+        if (facts.Facts.Containment.Defs is ContainmentDefsRead.Read { Defs: var defs })
         {
             var output = new List<string> { defs.Holder, ContainmentCellRules.ContainmentLampDefinition };
             if (defs.Floor.Def != "")

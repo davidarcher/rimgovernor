@@ -44,6 +44,12 @@ public sealed class AnomalySectionTests
         Assert.Equal(section, WireJson.Deserialize<AnomalySection>(json));
         Assert.Equal("""{"type":"inactive"}""", WireJson.Serialize(NoAnomaly));
         Assert.Equal(NoAnomaly, WireJson.Deserialize<AnomalySection>("""{"type":"inactive"}"""));
+
+        // The colony read lifts the active section into the Anomaly state whole; a monolith block that disagrees with MonolithSpawned breaks the contract.
+        var read = Assert.IsType<RimGovernor.Brain.Policy.AnomalyState.Active>(RimGovernor.Brain.Observation.AnomalyColonyReads.AnomalyOf(section));
+        Assert.Equal((1, false, "Thing_VoidMonolith1", "Embraced", 2u), (read.Monolith.Level, read.Monolith.AmbientHorror, read.Monolith.Thing!.Id, read.Monolith.Thing.NextLevel, read.Monolith.Thing.CodexShortfall));
+        var active = (AnomalySection.Active)section;
+        Assert.Throws<RimGovernor.Brain.Bridge.Contracts.BridgeContractException>(() => RimGovernor.Brain.Observation.AnomalyColonyReads.AnomalyOf(active with { Facts = active.Facts with { Monolith = null } }));
     }
 
     [Fact]

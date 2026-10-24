@@ -307,4 +307,36 @@ public sealed class CreepJoinerHarmTests
         var unseen = frame with { Emergency = new(null, new EmergencyFacts { Colonists = [EmergencyFixtures.Colonist("cj")] }) };
         Assert.NotEqual("", RoundsCreepJoiner.CreepJoinerHarmOf(projection, unseen, catalog).Unread);
     }
+
+    [Fact]
+    public void AHandReadsItsWeaponAndHungerWholeAndAnUnrevealedCreepjoinerDropsItsWeapon()
+    {
+        var hungry = new O.FoodNeed.Has(0.1, RimGovernor.Contracts.Wire.Defs.HungerCategory.Hungry);
+        var fed = new O.FoodNeed.Has(0.9, RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed);
+        O.PawnState With(O.PawnState row, bool armed, string? primary, O.FoodNeed food) =>
+            row with { Equipment = row.Equipment with { Armed = armed, PrimaryId = primary }, Needs = row.Needs with { Food = food } };
+        var cj = Row("cj", creepjoiner: true);
+
+        // The weapon is the primary's thing id, null for none; a pawn is hungry below the fed band and never without a food need.
+        var armed = RoundsCreepJoiner.CreepJoinerHandOf(With(cj, true, "Thing_Gun1", hungry));
+        Assert.Equal(("Thing_Gun1", true), (armed.Weapon, armed.Hungry));
+        var unarmed = RoundsCreepJoiner.CreepJoinerHandOf(With(cj, false, null, new O.FoodNeed.Lacks()));
+        Assert.Equal(((string?)null, false), (unarmed.Weapon, unarmed.Hungry));
+        Assert.False(RoundsCreepJoiner.CreepJoinerHandOf(With(cj, false, null, fed)).Hungry);
+        // An armed pawn without a primary id breaks the contract.
+        Assert.Throws<RimGovernor.Brain.Bridge.Contracts.BridgeContractException>(() => RoundsCreepJoiner.CreepJoinerHandOf(With(cj, true, null, fed)));
+
+        // An unrevealed creepjoiner holding a weapon drops it; an unarmed one or a plain colonist does not.
+        var downsides = new CreepJoinerDownsides();
+        var colonist = RoundsCreepJoiner.CreepJoinerHandOf(With(Row("pawn", creepjoiner: false), true, "Thing_Gun2", fed));
+        Assert.Equal([new WeaponDrop(armed.Pawn)], downsides.WeaponDrops([armed, unarmed with { Pawn = new("cj2") }, colonist]));
+        Assert.Empty(downsides.WeaponDrops([unarmed, colonist]));
+
+        // A held-apart creepjoiner moves into the isolation area only while fed, and a hungry one there is released.
+        var record = new CreepJoinerRecord();
+        var fedHand = armed with { Hungry = false };
+        Assert.Equal([new IsolationMove(armed.Pawn, "Area_1")], downsides.IsolationMoves([fedHand], record, "Area_1", ready: true));
+        Assert.Empty(downsides.IsolationMoves([armed], record, "Area_1", ready: true));
+        Assert.Equal([new IsolationMove(armed.Pawn, "")], downsides.IsolationMoves([armed with { Area = "Area_1" }], record, "Area_1", ready: true));
+    }
 }

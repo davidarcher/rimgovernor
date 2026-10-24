@@ -61,13 +61,26 @@ public sealed record PollutionWork
 public static partial class PollutionRules
 {
     /// <summary>
-    /// The binary pollution signal: any exposed or forbidden pack, or polluted cell outside the area, is a
-    /// deficit. Unknown while the section is unread.
+    /// The biotech/pollution Need's read off the Biotech colony section: each wastepack with the game's verdicts and
+    /// the count of polluted cells outside the pollution-clear area.
     /// </summary>
-    public static Fact<bool> PollutionDeficit(Fact<PollutionFacts> facts) =>
-        facts.TryGetValue(out var f)
-            ? Known(f.UncoveredCells > 0 || f.Wastepacks.Any(w => w.Forbidden || w.Exposed))
-            : Unknown<bool>();
+    public static PollutionFacts PollutionOf(RimGovernor.Contracts.Wire.Observations.BiotechColonyFacts biotech) => new()
+    {
+        UncoveredCells = biotech.PollutedUncoveredCells,
+        Wastepacks = [.. biotech.Wastepacks.Select(w => new Wastepack
+        {
+            Id = w.ThingId,
+            Definition = w.DefName,
+            Cell = w.Position,
+            Frozen = w.Frozen,
+            InAtomizer = w.InAtomizer,
+            Forbidden = w.Forbidden,
+        })],
+    };
+
+    /// <summary>The binary pollution signal: any exposed or forbidden pack, or polluted cell outside the area, is a deficit.</summary>
+    public static bool PollutionDeficit(PollutionFacts f) =>
+        f.UncoveredCells > 0 || f.Wastepacks.Any(w => w.Forbidden || w.Exposed);
 
     /// <summary>
     /// Derives the work. A forbidden pack is allowed first and hauled on a later cycle, once it stands
@@ -113,11 +126,11 @@ public static partial class PollutionRules
 
     /// <summary>
     /// The review's pollution cohort: the allow of every forbidden pack SelectPollutionWork would order, the only
-    /// supply allows method admission takes from the biotech/pollution Need. Empty while the read is unknown.
+    /// supply allows method admission takes from the biotech/pollution Need. Empty without Biotech.
     /// </summary>
-    public static IReadOnlyList<StartingSupply> PollutionAllowSupplies(Fact<PollutionFacts> facts) =>
-        facts.TryGetValue(out var f)
-            ? [.. SelectPollutionWork(f, null, []).Allow.Select(w => new StartingSupply { Thing = w.Id, Definition = w.Definition, Cell = w.Cell })]
+    public static IReadOnlyList<StartingSupply> PollutionAllowSupplies(RimGovernor.Contracts.Wire.Observations.BiotechSection biotech) =>
+        biotech is RimGovernor.Contracts.Wire.Observations.BiotechSection.Active { Facts: var colony }
+            ? [.. SelectPollutionWork(PollutionOf(colony), null, []).Allow.Select(w => new StartingSupply { Thing = w.Id, Definition = w.Definition, Cell = w.Cell })]
             : [];
 
     /// <summary>

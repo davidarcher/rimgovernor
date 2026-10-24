@@ -648,9 +648,7 @@ public sealed partial class Rounder
                 required = RoundsProjectBill.MergeWorkRequirements([.. required ?? []], rows ?? []);
                 required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsProjectBill.RoundsResearchWork(needs, reading.Projection.Facts.Research));
                 required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsFieldPlanner.FishingWork(reading.Projection));
-                var studyKnown = RoundsFieldPlanner.StudyWork(reading.Projection, ct).TryGetValue(out var study);
-                required = RoundsProjectBill.MergeWorkRequirements([.. required], study);
-                known = known && studyKnown;
+                required = RoundsProjectBill.MergeWorkRequirements([.. required], EntityStudyRules.StudyWork(reading.Projection.Facts.Containment));
             }
             if (known)
             {

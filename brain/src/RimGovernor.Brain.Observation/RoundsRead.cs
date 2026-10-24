@@ -210,8 +210,6 @@ public static class RoundsReads
         {
             Facts = p.Facts with
             {
-                MechChargerOwed = MechRules.MechChargerNeed(p.Mechs, BiotechColonyReads.MechChargerFact(p.BiotechSection)),
-                GeneBankOwed = GeneBankConcernRules.GeneBankNeed(BiotechColonyReads.GeneBankFact(p.BiotechSection)),
                 RecoveryWorkers = ColonyFramesReads.RecoveryWorkers(p.Facts.MoodPawns),
                 Gear = ColonyGearReads.RoundsGear(p.Facts.Gear, emergency),
                 Research = Known(FrameResearch(ResearchSection(frame), catalog)),

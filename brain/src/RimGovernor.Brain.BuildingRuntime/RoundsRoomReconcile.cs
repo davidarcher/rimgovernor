@@ -259,7 +259,7 @@ partial class RoundsBuildingPlanner
             Layout = facts.LayoutPlan,
             Observation = facts.Facts.Upkeep.Flooring,
         };
-        if (facts.Facts.Containment.Defs.TryGetValue(out var defs))
+        if (facts.Facts.Containment.Defs is ContainmentDefsRead.Read { Defs: var defs })
         {
             flooring = flooring with { ContainmentFloor = defs.Floor };
         }

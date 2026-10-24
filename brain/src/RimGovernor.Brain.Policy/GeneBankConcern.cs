@@ -1,24 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>One standing bank: its capacity as the game reports it and how many packs it already holds.</summary>
-public sealed record GeneBankSlot
-{
-    public required int Capacity { get; init; }
-
-    public required int Held { get; init; }
-}
-
-/// <summary>
-/// The gene-building rows the need reads: the standing banks and, per pack, whether it lies loose on the map (a
-/// pack held by a bank is not loose).
-/// </summary>
-public sealed record GeneBankFacts
-{
-    public required IReadOnlyList<GeneBankSlot> Banks { get; init; }
-
-    public required IReadOnlyList<bool> Packs { get; init; }
-}
-
 public static class GeneBankConcernRules
 {
     // The biotech/gene-bank Need adds capacity for loose genepacks, which deteriorate outside powered banks.
@@ -26,17 +7,13 @@ public static class GeneBankConcernRules
     // CompProperties_GenepackContainer.
 
     /// <summary>
-    /// RoundsFacts.GeneBankOwed's value: whether more packs lie loose than the banks'
-    /// free slots hold. Unknown while the section is unread.
+    /// Whether more packs lie loose (held by no bank) than the standing banks' free slots hold, over the Biotech
+    /// colony section's banks and genepacks.
     /// </summary>
-    public static Fact<bool> GeneBankNeed(Fact<GeneBankFacts> section)
+    public static bool GeneBankOwed(RimGovernor.Contracts.Wire.Observations.BiotechColonyFacts biotech)
     {
-        if (!section.TryGetValue(out var f))
-        {
-            return Unknown<bool>();
-        }
-        var free = f.Banks.Sum(b => Math.Max(b.Capacity - b.Held, 0));
-        var loose = f.Packs.Count(isLoose => isLoose);
-        return Known(loose > free);
+        var free = biotech.GeneBanks.Sum(b => Math.Max(b.Capacity - b.PackIds.Count, 0));
+        var loose = biotech.Genepacks.Count(p => p.BankId is null);
+        return loose > free;
     }
 }

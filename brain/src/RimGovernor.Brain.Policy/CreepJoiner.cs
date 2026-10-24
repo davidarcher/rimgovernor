@@ -36,35 +36,10 @@ public sealed record CreepJoinerDownsides
 
     /// <summary>
     /// The drops the colony owes: every available colonist held back from arms who holds a weapon, sorted by
-    /// pawn id. Owed is known true with a drop, known false when none is owed and every held colonist was
-    /// read, and unknown when none is owed but a held colonist's weapon is unread.
+    /// pawn id. A drop is owed exactly when the list is not empty.
     /// </summary>
-    public (IReadOnlyList<WeaponDrop> Drops, Fact<bool> Owed) WeaponDrops(IReadOnlyList<CreepJoinerHand> hands)
-    {
-        var unread = false;
-        var drops = new List<WeaponDrop>();
-        foreach (var h in hands)
-        {
-            if (ArmsHold(h.Facts).Length == 0)
-            {
-                continue;
-            }
-            if (!h.Weapon.TryGetValue(out var weapon))
-            {
-                unread = true;
-            }
-            else if (weapon.Length != 0 && h.Available)
-            {
-                drops.Add(new WeaponDrop(h.Pawn));
-            }
-        }
-        var sorted = drops.OrderBy(d => d.Pawn).ToList();
-        if (sorted.Count > 0)
-        {
-            return (sorted, Known(true));
-        }
-        return ([], unread ? Unknown<bool>() : Known(false));
-    }
+    public IReadOnlyList<WeaponDrop> WeaponDrops(IReadOnlyList<CreepJoinerHand> hands) =>
+        [.. hands.Where(h => ArmsHold(h.Facts).Length != 0 && h.Weapon is not null && h.Available).Select(h => new WeaponDrop(h.Pawn)).OrderBy(d => d.Pawn)];
 
     /// <summary>
     /// Whether the colony holds the creepjoiner apart: its downside is known not to have shown and the record
@@ -81,8 +56,7 @@ public sealed record CreepJoinerDownsides
     /// The allowed-area changes the colony owes its creepjoiners, sorted by pawn id. <paramref name="area"/> is
     /// the Isolation area's load id (empty if the map has none); <paramref name="ready"/> is whether the
     /// isolation room stands with its bed. A creepjoiner held apart, available and not hungry is moved into the
-    /// area once ready; one in the area that is no longer held apart, or is hungry, is released. A pawn whose
-    /// hunger is unread is moved in never, and released only when no longer held apart.
+    /// area once ready; one in the area that is no longer held apart, or is hungry, is released.
     /// </summary>
     public IReadOnlyList<IsolationMove> IsolationMoves(IReadOnlyList<CreepJoinerHand> hands, CreepJoinerRecord record, string area, bool ready)
     {
@@ -98,12 +72,11 @@ public sealed record CreepJoinerDownsides
                 continue;
             }
             var apart = HoldsApart(h, record);
-            var hk = h.Hungry.TryGetValue(out var hungry);
-            if (h.Area == area && (!apart || (hk && hungry)))
+            if (h.Area == area && (!apart || h.Hungry))
             {
                 result.Add(new IsolationMove(h.Pawn, ""));
             }
-            else if (h.Area != area && ready && apart && hk && !hungry && h.Available)
+            else if (h.Area != area && ready && apart && !h.Hungry && h.Available)
             {
                 result.Add(new IsolationMove(h.Pawn, area));
             }
@@ -188,7 +161,7 @@ public sealed record CreepJoinerPawn
 
 /// <summary>
 /// One colonist's facts for the weapon drop and the inspection: the downside check's facts, whether the
-/// colonist can take an order now, the thing id of the weapon in its hands (known empty for none), its
+/// colonist can take an order now, the thing id of the weapon in its hands (null for none), its
 /// available surgical operations and its queued surgery bills.
 /// </summary>
 public sealed record CreepJoinerHand
@@ -199,7 +172,8 @@ public sealed record CreepJoinerHand
 
     public required bool Available { get; init; }
 
-    public Fact<string> Weapon { get; init; }
+    /// <summary>The thing id of the equipped primary; null when the colonist is unarmed.</summary>
+    public required string? Weapon { get; init; }
 
     /// <summary>The colonist's native operations; a dead colonist has none.</summary>
     public required EquatableArray<SurgeryOperation> Operations { get; init; }
@@ -211,8 +185,8 @@ public sealed record CreepJoinerHand
     /// <summary>The load id of the colonist's allowed area (empty when unrestricted).</summary>
     public required string Area { get; init; }
 
-    /// <summary>Whether it is below the game's fed band.</summary>
-    public Fact<bool> Hungry { get; init; }
+    /// <summary>Whether it is below the game's fed band; false for a pawn with no food need.</summary>
+    public required bool Hungry { get; init; }
 
     /// <summary>Whether the pawn has no inspection bill queued.</summary>
     internal bool InspectionEnded(IReadOnlySet<string> recipes) => QueuedSurgeries == 0 || !QueuedRecipes.Any(recipes.Contains);

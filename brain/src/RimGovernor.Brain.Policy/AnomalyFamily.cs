@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// What the anomaly family reads (#3302): the review's facts, whose containment planning (holders, doors and held
 /// entities), research, monolith, gear and custody census its predicates read. Without Anomaly
-/// (<see cref="RoundsFacts.AnomalyInstalled"/>) the family derives no Needs; with it, an unread fact raises
+/// (<see cref="RoundsFacts.Anomaly"/> Inactive) the family derives no Needs; with it, an unread fact raises
 /// <see cref="RequiredFactException"/>.
 /// </summary>
 public sealed record AnomalyFacts
@@ -74,31 +74,19 @@ public sealed class AnomalyFamily : IFamily<AnomalyFacts>
     public IReadOnlyList<Need> Derive(AnomalyFacts facts)
     {
         var f = facts.Rounds;
-        if (!f.AnomalyInstalled)
+        if (f.Anomaly is not AnomalyState.Active { Monolith: var state })
         {
             return [];
         }
         var p = f.Containment;
-        if (!p.Holders.TryGetValue(out _))
-        {
-            throw new RequiredFactException("containment holders");
-        }
-        if (!p.Entities.TryGetValue(out _))
-        {
-            throw new RequiredFactException("containment entities");
-        }
-        if (!f.Monolith.TryGetValue(out _))
-        {
-            throw new RequiredFactException("monolith");
-        }
         var harvest = EntityBioferriteRules.BioferriteHarvestOwed(p, f.Research);
-        var monolith = MonolithRules.MonolithAdvanceOwed(f.Monolith, MonolithRules.MonolithGate(f));
+        var monolith = MonolithRules.MonolithAdvanceOwed(state, MonolithRules.MonolithGate(f));
         // A rule an unread fact kept from deciding names its issues; it raises, never reads as met.
         if (harvest.Enable.Count == 0 && harvest.Issues.Count > 0)
         {
             throw new RequiredFactException(string.Join("; ", harvest.Issues));
         }
-        if (monolith.Order == MonolithOrder.None && MonolithRules.MonolithInPlay(f.Monolith) && monolith.Issues.Count > 0)
+        if (monolith.Order == MonolithOrder.None && MonolithRules.MonolithInPlay(state) && monolith.Issues.Count > 0)
         {
             throw new RequiredFactException(string.Join("; ", monolith.Issues));
         }

@@ -64,13 +64,13 @@ public sealed class MechGestationPlanningTests
     [Fact]
     public void FreeBandwidthOwesAMech()
     {
-        Assert.Equal(Known(true), MechRules.MechGestationOwed(Gestation(Overseer(6, 0))));
+        Assert.True(MechRules.MechGestationOwed(Gestation(Overseer(6, 0))));
     }
 
     [Fact]
     public void UsedUpBandwidthOwesNoMech()
     {
-        Assert.Equal(Known(false), MechRules.MechGestationOwed(Gestation(Overseer(6, 6))));
+        Assert.False(MechRules.MechGestationOwed(Gestation(Overseer(6, 6))));
     }
 
     [Fact]
@@ -107,6 +107,7 @@ public sealed class MechGestationPlanningTests
             Id = new PawnId(id),
             Kind = kind,
             Mech = new PawnMech { Overseer = Mechanitor.Value, Group = new PawnMechGroup(0, 0.1, 1), WorkMode = "SelfShutdown", Energy = new MechEnergy.Level(1) },
+            Place = new RimGovernor.Contracts.Wire.Observations.EntityPlace.Unplaced(),
         };
         var lifter = Mech("lifter", "Mech_Lifter");
         var militor = Mech("militor", "Mech_Militor");
@@ -121,5 +122,30 @@ public sealed class MechGestationPlanningTests
             ],
             plan
         );
+    }
+
+    [Fact]
+    public void AGuardOnTheMapAttacksTheNearestHostileAndAnUnplacedOneIsLeftAlone()
+    {
+        static MechInput Guard(string id, RimGovernor.Contracts.Wire.Observations.EntityPlace place) => new()
+        {
+            Id = new PawnId(id),
+            Kind = "Mech_Militor",
+            Mech = new PawnMech { Overseer = Mechanitor.Value, Group = new PawnMechGroup(0, 0.1, 1), WorkMode = "RoleEscort", Energy = new MechEnergy.Level(1) },
+            Place = place,
+        };
+        var onMap = Guard("guard-a", new RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap(0, new RimGovernor.Contracts.Wire.Common.Cell { X = 10, Z = 10 }));
+        var unplaced = Guard("guard-b", new RimGovernor.Contracts.Wire.Observations.EntityPlace.Unplaced());
+        var overseers = new Dictionary<string, Cell> { [Mechanitor.Value] = new Cell(10, 12) };
+        MechHostile[] hostiles = [new() { Id = new PawnId("far"), Cell = new Cell(20, 10) }, new() { Id = new PawnId("near"), Cell = new Cell(12, 10) }];
+
+        var plan = MechRules.PlanMechGuards(Catalog, overseers, [onMap, unplaced], hostiles);
+
+        Assert.Equal([onMap.Id], plan.Drafts);
+        var order = Assert.Single(plan.Orders);
+        Assert.Equal((onMap.Id, new PawnId("near")), (order.Pawn, order.Target));
+
+        // An overseer off the map (no cell) orders none of its guards.
+        Assert.Empty(MechRules.PlanMechGuards(Catalog, new Dictionary<string, Cell>(), [onMap], hostiles).Orders);
     }
 }

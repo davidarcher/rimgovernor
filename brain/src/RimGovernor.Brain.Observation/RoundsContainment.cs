@@ -5,22 +5,16 @@ public static class RoundsContainmentReads
 {
     /// <summary>
     /// The containment cell's inputs from the frame: the entities' demand from the pawn table, the standing holders
-    /// from the building table and the prediction's def inputs from the catalog. All stay unknown without Anomaly.
+    /// from the building table and the prediction's def inputs from the catalog. Without Anomaly no pawn is an entity
+    /// and no building a platform: no demand, no holders or entities, and the defs Inactive.
     /// </summary>
     internal static ContainmentPlanning ContainmentPlanningOf(RoundsFrame frame, DefinitionCatalog? catalog, IReadOnlyList<PlanningDefinition> definitions)
     {
-        var output = new ContainmentPlanning
-        {
-            Demand = Unknown<ContainmentDemand>(),
-            Holders = Unknown<EquatableArray<BuiltHolder>>(),
-            Defs = Unknown<ContainmentDefs>(),
-            Entities = Unknown<EquatableArray<CapturableEntity>>(),
-        };
         if (!ColonyDecodeReads.RequireCatalog(catalog).HasAnomaly())
         {
-            return output;
+            return new ContainmentPlanning();
         }
-        output = output with
+        var output = new ContainmentPlanning
         {
             Demand = ContainmentDemandOf(frame.Tables.Pawns.Table.Values()),
             Holders = BuiltHolders(frame.Tables.Buildings.Table.Values()),
@@ -59,7 +53,7 @@ public static class RoundsContainmentReads
                     {
                         output = output with
                         {
-                            Defs = Known(catalog!.ContainmentDefs(ContainmentCellRules.ShellWallDefinition, stuff, ContainmentCellRules.ShellDoorDefinition, stuff)),
+                            Defs = new ContainmentDefsRead.Read(catalog!.ContainmentDefs(ContainmentCellRules.ShellWallDefinition, stuff, ContainmentCellRules.ShellDoorDefinition, stuff)),
                         };
                     }
                     catch (DomainException e)
@@ -69,14 +63,14 @@ public static class RoundsContainmentReads
                 }
             }
         }
-        return output with { DefsReason = reason };
+        return reason == "" ? output : output with { Defs = new ContainmentDefsRead.Unread(reason) };
     }
 
     /// <summary>
     /// Counts the living entities the game lets the colony capture that no platform holds, and the strength the
     /// most demanding needs. A pawn that is no entity, or an entity with no holding-platform target, asks nothing.
     /// </summary>
-    private static Fact<ContainmentDemand> ContainmentDemandOf(IEnumerable<O.PawnState> rows)
+    private static ContainmentDemand ContainmentDemandOf(IEnumerable<O.PawnState> rows)
     {
         var demand = new ContainmentDemand();
         foreach (var row in rows)
@@ -91,7 +85,7 @@ public static class RoundsContainmentReads
             }
             demand = demand with { Entities = demand.Entities + 1, Required = Math.Max(demand.Required, a.MinContainmentStrength) };
         }
-        return Known(demand);
+        return demand;
     }
 
     /// <summary>The catalog's containment curves (#3811); a failed read leaves them empty with its reason.</summary>
@@ -153,7 +147,7 @@ public static class RoundsContainmentReads
     }
 
     /// <summary>The standing holding platforms' native strength, availability, held pawn and room doors.</summary>
-    private static Fact<EquatableArray<BuiltHolder>> BuiltHolders(IEnumerable<O.BuildingState> rows)
+    private static EquatableArray<BuiltHolder> BuiltHolders(IEnumerable<O.BuildingState> rows)
     {
         var holders = new List<BuiltHolder>();
         foreach (var row in rows)
@@ -163,7 +157,7 @@ public static class RoundsContainmentReads
                 holders.Add(new BuiltHolder { Strength = h.ContainmentStrength, Available = h.Available, HeldPawn = h.HeldPawn?.Id ?? "", Doors = h.Doors });
             }
         }
-        return Known(EquatableArray.From(holders));
+        return EquatableArray.From(holders);
     }
 
 
@@ -172,7 +166,7 @@ public static class RoundsContainmentReads
     /// reads. A pawn with no holding-platform target block is one the colony cannot capture; its held entity's facts
     /// do not apply.
     /// </summary>
-    private static Fact<EquatableArray<CapturableEntity>> CapturableEntities(IEnumerable<O.PawnState> rows)
+    private static EquatableArray<CapturableEntity> CapturableEntities(IEnumerable<O.PawnState> rows)
     {
         var output = new List<CapturableEntity>();
         foreach (var row in rows)
@@ -204,38 +198,38 @@ public static class RoundsContainmentReads
                     : null,
             });
         }
-        return Known(EquatableArray.From(output));
+        return EquatableArray.From(output);
     }
 
 
     /// <summary>
     /// Lifts the pawn table's living mechanitors (a colonist with a mechanitor block) and mechs (a mechanoid with a
-    /// mech block) into the mech planners' inputs. A row whose biotech read failed is skipped: its facts are
-    /// unknown, so nothing is planned for it.
+    /// mech block) into the mech planners' inputs. A row without Biotech has neither.
     /// </summary>
     public static MechFleet MechFleetOf(IEnumerable<O.PawnState> rows)
     {
         var mechanitors = new List<MechanitorInput>();
         var mechs = new List<MechInput>();
+        var overseers = new Dictionary<string, Cell>(StringComparer.Ordinal);
         foreach (var row in rows)
         {
-            if (row is null || row.Dead)
+            if (row is null || row.Dead || row.Biotech is not O.PawnBiotechState.Active { Facts: var block })
             {
                 continue;
             }
-            if (!BiotechFactsRules.PawnBiotech(row.Biotech).TryGetValue(out var bt))
-            {
-                continue;
-            }
+            var bt = PawnBiotech.Of(block);
             var id = new PawnId(row.Pawn.Id ?? "");
-            var cell = RitualSitesReads.RowCell(row.Pawn.Place);
             if (bt.Mechanitor is { } m && row.Colonist)
             {
-                mechanitors.Add(new MechanitorInput { Id = id, Mechanitor = m, Cell = cell });
+                mechanitors.Add(new MechanitorInput { Id = id, Mechanitor = m });
+                if (row.Pawn.Place is O.EntityPlace.OnMap { Cell: var at })
+                {
+                    overseers[id.Value] = new Cell(at.X, at.Z);
+                }
             }
             if (bt.Mech is { } mm && row.Mechanoid)
             {
-                var mech = new MechInput { Id = id, Kind = row.KindDefName, Mech = mm, Cell = cell, Downed = row.Downed, Drafted = row.Drafted };
+                var mech = new MechInput { Id = id, Kind = row.KindDefName, Mech = mm, Place = row.Pawn.Place, Downed = row.Downed, Drafted = row.Drafted };
                 if (row.Job.TargetA?.Target?.Entity is { } target)
                 {
                     mech = mech with { Target = new PawnId(target.Id ?? "") };
@@ -243,7 +237,7 @@ public static class RoundsContainmentReads
                 mechs.Add(mech);
             }
         }
-        return new MechFleet { Mechanitors = mechanitors, Mechs = mechs };
+        return new MechFleet { Mechanitors = mechanitors, Mechs = mechs, OverseerCells = overseers };
     }
 
     /// <summary>The pawn row's position.</summary>

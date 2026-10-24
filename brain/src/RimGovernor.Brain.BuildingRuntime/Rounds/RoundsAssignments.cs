@@ -79,11 +79,7 @@ public sealed partial class RoundsWorkPlanner
         needs = _reviewer.CensusResearchNeeds(needs);
         required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsProjectBill.RoundsResearchWork(needs, read.Projection.Facts.Research));
         required = RoundsProjectBill.MergeWorkRequirements([.. required], RoundsFieldPlanner.FishingWork(read.Projection));
-        if (!RoundsFieldPlanner.StudyWork(read.Projection, call).TryGetValue(out var study))
-        {
-            return Existing(FieldUnavailable("study_work"));
-        }
-        required = RoundsProjectBill.MergeWorkRequirements([.. required], study);
+        required = RoundsProjectBill.MergeWorkRequirements([.. required], EntityStudyRules.StudyWork(read.Projection.Facts.Containment));
         var demand = RoundsDisease.RoundsDiseaseDemand(read.Projection, definitions, review, state.Snapshot);
         var sharedWork = p.Journal.WorkResources(state.Snapshot, call);
         demand = demand with { CommittedPawns = sharedWork.Claims.Pawns, WorkClaimsTruncated = sharedWork.Claims.Truncated };

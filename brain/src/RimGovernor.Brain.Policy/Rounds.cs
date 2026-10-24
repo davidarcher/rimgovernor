@@ -360,11 +360,14 @@ public sealed record RoundsFacts
     /// <summary>Whether the Ideology expansion is active; unknown when the frame does not say.</summary>
     public Fact<bool> IdeologyInstalled { get; init; }
 
-    /// <summary>Whether the Anomaly expansion is active (the colony read's Anomaly section is active): without it the anomaly family derives no Needs.</summary>
-    public bool AnomalyInstalled { get; init; }
+    /// <summary>The colony read's Anomaly section: Inactive without the expansion (the default before the read), and then the anomaly family derives no Needs; Active carries the monolith's state.</summary>
+    public AnomalyState Anomaly { get; init; } = new AnomalyState.Inactive();
 
-    /// <summary>Whether the Biotech expansion is active (the colony read's Biotech section is active): without it the biotech family derives no Needs.</summary>
-    public bool BiotechInstalled { get; init; }
+    /// <summary>
+    /// The colony read's Biotech section: Inactive without the expansion (the default before the read), and then the
+    /// biotech family derives no Needs; Active carries the chargers, gene buildings and wastepacks.
+    /// </summary>
+    public RimGovernor.Contracts.Wire.Observations.BiotechSection Biotech { get; init; } = new RimGovernor.Contracts.Wire.Observations.BiotechSection.Inactive();
 
 
     /// <summary>The bestowing-ceremony quests the title claim gate allows to accept now (ClaimQuests); the review fills it once the plan, rooms and royalty read are known.</summary>
@@ -395,9 +398,6 @@ public sealed record RoundsFacts
     /// <summary>The colony's disease facts (#3824); null when the threat section or its disease read was not observed.</summary>
     public RimGovernor.Contracts.Wire.Observations.DiseaseFacts? Disease { get; init; }
 
-    /// <summary>The void monolith's state; unknown without Anomaly.</summary>
-    public Fact<MonolithFacts> Monolith { get; init; }
-
     /// <summary>The built mortars' shell targets (ArmoryShellsRules.MortarShellTargets), read once per review: ShellsShort and the armory declarer's shell orders derive from them (#3566). Empty without a built mortar or a known threat.</summary>
     public Fact<EquatableArray<Amount>> ShellTargets { get; init; }
 
@@ -418,15 +418,6 @@ public sealed record RoundsFacts
 
     /// <summary>The food/blight Need's blighted-plant census (the colony read's plant things of the planning window), for BlightDeficit to detect and SelectBlightCuts to designate from.</summary>
     public Fact<EquatableArray<BlightedPlant>> Blight { get; init; }
-
-    /// <summary>The biotech/pollution Need's wastepack verdicts and the polluted cells outside the clear area (the Biotech colony section); unknown without Biotech or when the read failed, and then the need is unknown.</summary>
-    public Fact<PollutionFacts> Pollution { get; init; }
-
-    /// <summary>Whether the colony owes one more mech charger (MechChargerNeed); unknown without Biotech, mechs or chargers read, and then the biotech/mech-charger Need is unknown.</summary>
-    public Fact<bool> MechChargerOwed { get; init; }
-
-    /// <summary>Whether more genepacks lie loose than the standing gene banks have room for (GeneBankNeed); unknown without Biotech or a complete gene-building read, and then the biotech/gene-bank Need is unknown.</summary>
-    public Fact<bool> GeneBankOwed { get; init; }
 
     /// <summary>Counts the owned stockpile zones by role kind for the colony status census; unknown until the zone claims are read.</summary>
     public Fact<EquatableArray<StockpileRoleCount>> StockpileZones { get; init; }

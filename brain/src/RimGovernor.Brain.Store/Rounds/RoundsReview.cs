@@ -331,7 +331,7 @@ public sealed partial class Store
             }
             r = r with { ReserveSupplies = EquatableArray.From(reserveSupplies) };
             // The biotech/pollution Need's allows are admitted against this cohort (AdmitSupplyMethod).
-            r = r with { PollutionSupplies = EquatableArray.From(PollutionRules.PollutionAllowSupplies(request.Facts.Pollution).Take(MaxPollutionSupplies)) };
+            r = r with { PollutionSupplies = EquatableArray.From(PollutionRules.PollutionAllowSupplies(request.Facts.Biotech).Take(MaxPollutionSupplies)) };
             var choice = CorpseLarderRules.SelectCorpseLarder(request.Facts.FoodStorageUpkeep);
             if (choice is { Kind: "allow" or "forbid", Stock: { } stock, Handling: { } handling })
             {

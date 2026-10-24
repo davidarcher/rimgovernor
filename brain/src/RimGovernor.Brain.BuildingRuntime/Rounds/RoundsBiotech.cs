@@ -54,7 +54,7 @@ public sealed partial class BiotechRounds
     {
         if (scope.Immediate)
         {
-            return new BiotechFacts();
+            return new BiotechFacts.Inactive();
         }
         var started = _reviewer.Clock.Now();
         var journal = _reviewer.Player.Journal;
@@ -67,22 +67,25 @@ public sealed partial class BiotechRounds
         var claims = journal.ConstructionClaims(scope.World, expected.Tick, ct);
         var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, claims, ct).ConfigureAwait(false);
         var projection = reading.Projection;
-        var facts = new BiotechFacts
+        if (projection.Facts.Biotech is not PbObservations.BiotechSection.Active { Facts: var colony })
         {
-            Installed = projection.Facts.BiotechInstalled,
-            MechChargerOwed = projection.Facts.MechChargerOwed,
-            GeneBankOwed = projection.Facts.GeneBankOwed,
-            Pollution = projection.Facts.Pollution,
+            return new BiotechFacts.Inactive();
+        }
+        var mechsOwed = false;
+        if (_needs.Mechs)
+        {
+            var gestation = await Rounder.MechGestationAsync(_reviewer.Native, Boundary.Identity(scope.World), projection, ct).ConfigureAwait(false)
+                ?? throw new RequiredFactException("mech gestation");
+            mechsOwed = MechRules.MechGestationOwed(gestation);
+        }
+        var facts = new BiotechFacts.Active
+        {
+            Colony = colony,
+            MechsOwed = mechsOwed,
+            MechChargerOwed = _needs.MechCharger && MechRules.MechChargerOwed(projection.Mechs, colony),
             PollutedCells = [.. PollutionRules.PollutedWindowCells(projection.Cells)],
+            PollutionRefused = _needs.Pollution ? PollutionRefused(journal, scope.World, ct) : [],
         };
-        if (_needs.Mechs && await Rounder.MechGestationAsync(_reviewer.Native, Boundary.Identity(scope.World), projection, ct).ConfigureAwait(false) is { } gestation)
-        {
-            facts = facts with { MechsOwed = MechRules.MechGestationOwed(gestation) };
-        }
-        if (_needs.Pollution)
-        {
-            facts = facts with { PollutionRefused = PollutionRefused(journal, scope.World, ct) };
-        }
         var elapsed = _reviewer.Clock.Now() - started;
         if (elapsed < TimeSpan.Zero || elapsed > _reviewer.MaxAge)
         {
@@ -151,17 +154,13 @@ public sealed partial class BiotechRounds
         var started = _reviewer.Clock.Now();
         var read = await StepReadingAsync(_reviewer, work, call).ConfigureAwait(false);
         var f = read.Projection;
-        if (!f.Facts.MechChargerOwed.TryGetValue(out var owed))
-        {
-            return FieldUnavailable("mech_chargers");
-        }
-        if (!owed)
-        {
-            return BuildingReasonNoDeficit;
-        }
         if (f.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var biotech })
         {
             return FieldUnavailable("biotech");
+        }
+        if (!MechRules.MechChargerOwed(f.Mechs, biotech))
+        {
+            return BuildingReasonNoDeficit;
         }
         var defs = MechChargerDefinitions(ref read);
         f = read.Projection;
@@ -213,17 +212,13 @@ public sealed partial class BiotechRounds
         var started = _reviewer.Clock.Now();
         var read = await StepReadingAsync(_reviewer, work, call).ConfigureAwait(false);
         var f = read.Projection;
-        if (!f.Facts.GeneBankOwed.TryGetValue(out var owed))
-        {
-            return FieldUnavailable("gene_banks");
-        }
-        if (!owed)
-        {
-            return BuildingReasonNoDeficit;
-        }
         if (f.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var biotech })
         {
             return FieldUnavailable("biotech");
+        }
+        if (!GeneBankConcernRules.GeneBankOwed(biotech))
+        {
+            return BuildingReasonNoDeficit;
         }
         var (defs, withDefs) = GeneBankDefinitions(read);
         f = withDefs.Projection;
@@ -356,7 +351,16 @@ public sealed class MechBillDeclarer : IOrderDeclarer
     /// <summary>The gestation bill while the mechs Need is ready over <paramref name="gestation"/> and the projection's charger fact, else nothing.</summary>
     internal static Declared Declare(BiotechFamily family, ColonyProjection projection, MechGestation gestation, IReadOnlyList<GearBench> benches)
     {
-        var facts = new BiotechFacts { MechsOwed = MechRules.MechGestationOwed(gestation), MechChargerOwed = projection.Facts.MechChargerOwed };
+        if (projection.BiotechSection is not PbObservations.BiotechSection.Active { Facts: var colony })
+        {
+            return new Declared();
+        }
+        var facts = new BiotechFacts.Active
+        {
+            Colony = colony,
+            MechsOwed = MechRules.MechGestationOwed(gestation),
+            MechChargerOwed = family.ComposesMechCharger && MechRules.MechChargerOwed(projection.Mechs, colony),
+        };
         if (!family.MechsReady(facts))
         {
             return new Declared();

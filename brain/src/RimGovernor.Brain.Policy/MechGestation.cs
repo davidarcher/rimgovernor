@@ -129,14 +129,14 @@ public static partial class MechRules
     /// kinds stand in for the recipes a gestator offers here; the bill planner narrows to the recipes it can
     /// actually queue.
     /// </summary>
-    public static Fact<bool> MechGestationOwed(MechGestation g)
+    public static bool MechGestationOwed(MechGestation g)
     {
         if (g.Gestators.Count == 0 || UnclearedWaste(g) || !MechChargerReady(g.Chargers) || g.Gestators.Any(gestator => gestator.Active))
         {
-            return Known(false);
+            return false;
         }
         var (_, ok) = NextMech(g, _ => true);
-        return Known(ok);
+        return ok;
     }
 
     /// <summary>

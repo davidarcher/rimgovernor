@@ -34,13 +34,9 @@ public static class EntityBioferriteRules
     /// </summary>
     public static BioferriteHarvest BioferriteHarvestOwed(ContainmentPlanning p, Fact<ResearchFacts> research)
     {
-        if (!p.Entities.TryGetValue(out var entities))
-        {
-            return new BioferriteHarvest();
-        }
         var issues = new List<string>();
         var held = new List<(Domain.PawnId Pawn, PlatformTarget Target)>();
-        foreach (var e in entities)
+        foreach (var e in p.Entities)
         {
             if (!e.Dead && e.Target is { Held: true } target)
             {

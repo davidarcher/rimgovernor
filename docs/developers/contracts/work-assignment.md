@@ -315,8 +315,8 @@ not add a mech first. The charger definitions are the catalog rows with
 `observation.MechChargerDefs`.
 
 `biotech/mech-charger` (`BiotechFamily.cs`, `RoundsBiotech.cs`, #3261) is the Need
-for that: known only where the Biotech colony read and the mechs are known
-(`RoundsFacts.MechChargerOwed`), unmet while a charger is owed, and a precondition of
+for that: derived only while the Biotech colony section is active (the mech fleet is required,
+`MechRules.MechChargerOwed`), unmet while a charger is owed, and a precondition of
 `biotech/mechs`. Its one Method per charger count builds the first catalog-flagged,
 researched charger on the first footprint native previews as legal, safe and
 reachable, ranked by `MechChargerSites` over the polluting-machine rule
@@ -330,10 +330,9 @@ the `biotech/pollution` Need's.
 `biotech/gene-bank` (`GeneBankConcern.cs`, `RoundsBiotech.cs`, #3261) keeps every genepack in a
 gene bank: a Genepack deteriorates unless it
 sits in a powered bank (4 packs each). A Need over the Colony fact family, read
-from the keyed Biotech colony section: `GeneBankNeed` is unknown while the section, a bank's
-capacity or a pack's whereabouts (map position or bank id) are unread, and
-otherwise owed while more packs lie loose than the standing banks have free
-slots (`RoundsFacts.GeneBankOwed`; a pack with no bank at all owes one). Its
+from the keyed Biotech colony section: derived only while the section is active, and owed while
+more packs lie loose than the standing banks have free slots
+(`GeneBankConcernRules.GeneBankOwed`; a pack with no bank at all owes one). Its
 one Method per bank count builds the first available catalog bank (the def carrying
 `CompProperties_GenepackContainer`, `bridge.GeneBanks`, never a name) on the
 first free footprint native previews as legal, safe and reachable, searched

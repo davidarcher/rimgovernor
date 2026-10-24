@@ -6,10 +6,10 @@ namespace RimGovernor.Brain.Observation;
 /// </summary>
 public static class DlcSectionReads
 {
-    /// <summary>The installed flags of the review's facts, read from the colony snapshot's DLC sections.</summary>
+    /// <summary>The review's DLC sections, read from the colony snapshot.</summary>
     public static RoundsFacts Installed(RoundsFacts facts, O.ColonyFactsSnapshot colony) => facts with
     {
-        AnomalyInstalled = colony.Anomaly is O.AnomalySection.Active,
-        BiotechInstalled = colony.Biotech is O.BiotechSection.Active,
+        Anomaly = AnomalyColonyReads.AnomalyOf(colony.Anomaly),
+        Biotech = colony.Biotech,
     };
 }

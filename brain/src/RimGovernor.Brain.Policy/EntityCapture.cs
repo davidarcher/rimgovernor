@@ -95,12 +95,8 @@ public static class EntityCaptureRules
     /// </summary>
     public static IReadOnlyList<EntityVerdict> EntityVerdicts(ContainmentPlanning p)
     {
-        if (!p.Entities.TryGetValue(out var entities))
-        {
-            return [];
-        }
         var result = new List<EntityVerdict>();
-        foreach (var e in entities)
+        foreach (var e in p.Entities)
         {
             var v = EntityVerdictFor(p, e);
             if (v is not null)
@@ -123,13 +119,9 @@ public static class EntityCaptureRules
             return new EntityVerdict(e.Pawn, EntityDecision.Kill, "the game does not let the colony capture it");
         }
         var need = e.Need;
-        if (!p.Holders.TryGetValue(out var holders))
+        if (p.Defs is not ContainmentDefsRead.Read { Defs: var defs })
         {
-            return Refuse("the standing holding platforms are unread");
-        }
-        if (!p.Defs.TryGetValue(out var defs))
-        {
-            return Refuse($"the margin cannot be read from the definitions: {p.DefsReason}");
+            return Refuse($"the margin cannot be read from the definitions: {ContainmentDefsRead.NotReadWhy(p.Defs)}");
         }
         double margin;
         try
@@ -142,7 +134,7 @@ public static class EntityCaptureRules
         }
         var best = 0.0;
         var found = false;
-        foreach (var h in holders)
+        foreach (var h in p.Holders)
         {
             if (h.Available && (!found || h.Strength > best))
             {

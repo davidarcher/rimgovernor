@@ -6,19 +6,19 @@ internal static class RoundsCreepJoiner
     /// <summary>
     /// The creepjoiner work a census owes against the stored inspection record (#3264): weapon drops, inspections and
     /// isolation moves while the colonist census is complete, and disarm orders for arrested creepjoiners. Owed is
-    /// unknown while the census or a creepjoiner's facts cannot be read and nothing is known owed.
+    /// unknown while the colonist census is incomplete and nothing is known owed.
     /// </summary>
     internal static CreepJoinerWork CreepJoinerWorkOf(ColonyProjection facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog, CreepJoinerRecord record)
     {
-        var owed = Unknown<bool>();
+        var hands = CreepJoinerHands(frame);
         var due = false;
         var work = new CreepJoinerWork();
-        if (CreepJoinerHands(frame) is { } hands)
+        if (hands is not null)
         {
             var defs = catalog ?? throw new ControlException("creepJoiner review: no definition catalog");
             var downsides = defs.CreepJoinerDownsides();
-            var (drops, dropsOwed) = downsides.WeaponDrops(hands);
-            owed = dropsOwed;
+            var drops = downsides.WeaponDrops(hands);
+            due = drops.Count > 0;
             var inspections = downsides.Inspections(hands, defs.SurgicalInspectionRecipes(), record);
             if (inspections.Owed(record))
             {
@@ -51,7 +51,7 @@ internal static class RoundsCreepJoiner
                 due = true;
             }
         }
-        return work with { Owed = due ? Known(true) : owed };
+        return work with { Owed = due || hands is not null ? Known(due) : Unknown<bool>() };
     }
 
     /// <summary>The hands of the colonists when the frame's pawn census is complete; null otherwise.</summary>
@@ -78,26 +78,18 @@ internal static class RoundsCreepJoiner
             Pawn = new PawnId(row.Pawn.Id ?? ""),
             Facts = CreepJoinerFacts.CreepJoinerPawn(row),
             Available = !row.Dead && !row.Downed && !row.Drafted && row.MentalState is null,
-            Weapon = Unknown<string>(),
+            // An armed pawn's primary is always read (PawnEquipment.PrimaryId).
+            Weapon = row.Equipment.Armed
+                ? row.Equipment.PrimaryId ?? throw BridgeContractException.Contract($"armed colonist {row.Pawn.Id} without a primary id")
+                : null,
             Operations = surgery.Operations,
             QueuedSurgeries = surgery.SurgeryBills.Count,
             QueuedRecipes = EquatableArray.From(SurgeryFactsRules.QueuedSurgeryRecipes(surgery)),
             // An unset allowed area is an unrestricted pawn (native AllowedArea).
             Area = row.Settings.AllowedAreaId ?? "",
-            Hungry = Unknown<bool>(),
+            // A pawn with no food need is never hungry.
+            Hungry = row.Needs.Food is RimGovernor.Contracts.Wire.Observations.FoodNeed.Has food && food.Hunger != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed,
         };
-        if (row.Needs.Food is RimGovernor.Contracts.Wire.Observations.FoodNeed.Has food)
-        {
-            hand = hand with { Hungry = Known(food.Hunger != RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed) };
-        }
-        if (!row.Equipment.Armed)
-        {
-            hand = hand with { Weapon = Known("") };
-        }
-        else if (row.Equipment.PrimaryId is { } primary)
-        {
-            hand = hand with { Weapon = Known(primary) };
-        }
         return hand;
     }
 
