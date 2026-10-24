@@ -1,3 +1,4 @@
+#nullable enable
 namespace HomeBridge.BridgeTools
 {
     internal static class NativeQuestTargetIdentity

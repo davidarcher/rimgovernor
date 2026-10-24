@@ -10,7 +10,8 @@ internal static class RoundsQuestMonumentClaims
             return [];
         }
 
-        var markers = new Dictionary<string, QuestMonument>();
+        var markers = new Dictionary<string, O.QuestMonument>();
+
         foreach (var offer in rows)
         {
             if (offer.State != "Ongoing")
@@ -20,14 +21,9 @@ internal static class RoundsQuestMonumentClaims
 
             foreach (var objective in offer.Objectives)
             {
-                if (objective.Monument.TryGetValue(out var m))
+                if (objective.Monument is { State: not O.QuestMonumentState.Installed } m)
                 {
-                    if (m.Installed.TryGetValue(out var installed) && installed)
-                    {
-                        continue;
-                    }
-
-                    markers[m.Marker] = m;
+                    markers[m.MarkerId] = m;
                 }
             }
         }

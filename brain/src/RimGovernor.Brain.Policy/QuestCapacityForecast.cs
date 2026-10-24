@@ -212,25 +212,26 @@ public static class QuestCapacityForecast
                 continue;
             }
             var known = objective.Workload.TryGetValue(out var work);
-            if (objective.Monument.TryGetValue(out var marker))
+            if (objective.Monument is { } marker)
             {
-                if (marker.AllDone.TryGetValue(out var allDone) && allDone)
+                if (marker.State is Pb.QuestMonumentState.Installed { AllDone: true })
                 {
                     continue;
                 }
                 var amount = 0.0;
                 foreach (var piece in marker.Pieces)
                 {
-                    if (piece.Built.TryGetValue(out var built) && built)
+                    if (QuestMonumentPolicy.PieceBuilt(piece))
                     {
                         continue;
                     }
-                    if (piece.BuildOptions.Count == 0)
+                    if (piece.Options.Count == 0)
                     {
-                        return ([], "deadline_unknown");
+                        // A stuffed piece whose stuff categories allow no stuff cannot be built.
+                        return ([], "monument_piece_unbuildable");
                     }
                     var largest = 0.0;
-                    foreach (var option in piece.BuildOptions)
+                    foreach (var option in piece.Options)
                     {
                         largest = Math.Max(largest, option.Work);
                     }

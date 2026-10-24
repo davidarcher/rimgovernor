@@ -70,13 +70,16 @@ public sealed record JoinerOffer
 /// <summary>Carries the typed native requirement and its observed progress.</summary>
 public sealed record QuestObjective
 {
-    public IReadOnlyList<QuestHackTarget> HackTargets { get; init; } = [];
+    public IReadOnlyList<Pb.QuestHackTarget> HackTargets { get; init; } = [];
 
-    public Fact<QuestHackRisk> HackRisk { get; init; }
+    /// <summary>The worshipped terminal's site faction; null when the objective names none.</summary>
+    public Pb.QuestHackRisk? HackRisk { get; init; }
 
-    public Fact<QuestGiftRequest> Gift { get; init; }
+    /// <summary>The beg-for-items request; null for an objective that is not one.</summary>
+    public Pb.QuestGiftRequest? Gift { get; init; }
 
-    public Fact<QuestMonument> Monument { get; init; }
+    /// <summary>The monument marker; null for an objective that is not a monument or whose quest holds no live marker.</summary>
+    public Pb.QuestMonument? Monument { get; init; }
 
     public Pb.QuestGravEngine? GravEngine { get; init; }
 

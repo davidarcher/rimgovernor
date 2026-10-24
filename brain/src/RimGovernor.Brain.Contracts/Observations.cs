@@ -3616,50 +3616,82 @@ public sealed record QuestObjective
     public QuestHackRisk? HackRisk { get; init; }
 }
 
+/// <summary>
+/// One thing a hack objective names: its load id, CompHackable's LockedOut and Autohack, whether the objective counts
+/// it done (hacked, or destroyed where the quest's filter accepts destruction) and where it is.
+/// </summary>
 public sealed record QuestHackTarget
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public int? MapId { get; init; }
+    public required bool LockedOut { get; init; }
 
-    public bool Spawned { get; init; }
+    public required bool Autohack { get; init; }
 
-    /// <summary>CompHackable.LockedOut and Autohack.</summary>
-    public bool LockedOut { get; init; }
+    public required bool Satisfied { get; init; }
 
-    public bool Autohack { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> EligiblePawnIds { get; init; }
-
-    public bool Satisfied { get; init; }
+    public required QuestHackTargetPlace Place { get; init; }
 }
 
+/// <summary>
+/// Where a hack target is: spawned on a map, with the colonists who can hack it now (sorted by load id), or not spawned
+/// (still on an unvisited site, carried, or destroyed).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestHackTargetPlace.OnMap), "on_map")]
+[JsonDerivedType(typeof(QuestHackTargetPlace.Unspawned), "unspawned")]
+public abstract record QuestHackTargetPlace
+{
+    private protected QuestHackTargetPlace() { }
+
+    public sealed record OnMap(int MapId,
+        [property: JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))] EquatableArray<PawnId> EligibleHackers) : QuestHackTargetPlace;
+
+    public sealed record Unspawned : QuestHackTargetPlace;
+}
+
+/// <summary>
+/// One beg-for-items request: the pawn the item goes to, the requested def, the beggar group, and whether the
+/// recipient is asking for it now.
+/// </summary>
 public sealed record QuestGiftRequest
 {
-    public string? RecipientId { get; init; }
+    public required PawnId Recipient { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> PawnIds { get; init; }
+    public required string DefName { get; init; }
 
-    public string? Def { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> Pawns { get; init; }
 
-    public long? Remaining { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> HaulingPawnIds { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> EligiblePawnIds { get; init; }
-
-    public int? MapId { get; init; }
+    public required QuestGiftAsk Ask { get; init; }
 }
 
+/// <summary>
+/// Whether a gift recipient is asking: not spawned yet (still travelling to the colony), spawned on a map but its lord
+/// is not waiting for this item, or waiting for it with the units still owed, the colonists already giving
+/// (GiveToPawn jobs of its lord) and the colonists who could give it now (sorted by load id).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestGiftAsk.Away), "away")]
+[JsonDerivedType(typeof(QuestGiftAsk.NotAsking), "not_asking")]
+[JsonDerivedType(typeof(QuestGiftAsk.Asking), "asking")]
+public abstract record QuestGiftAsk
+{
+    private protected QuestGiftAsk() { }
+
+    public sealed record Away : QuestGiftAsk;
+
+    public sealed record NotAsking : QuestGiftAsk;
+
+    public sealed record Asking(int MapId, long Remaining,
+        [property: JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))] EquatableArray<PawnId> Haulers,
+        [property: JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))] EquatableArray<PawnId> EligibleGivers) : QuestGiftAsk;
+}
+
+/// <summary>Whether the faction holding a worshipped terminal's site is hostile to the player.</summary>
 public sealed record QuestHackRisk
 {
-    public string? FactionId { get; init; }
-
-    public bool? Hostile { get; init; }
+    public required bool Hostile { get; init; }
 }
 
 /// <summary>A survey quest's scanner hold at a site: the native hold length, the scanner's condition, the hold clock and native completion.</summary>
@@ -3983,66 +4015,107 @@ public sealed record QuestLodgerMood
     public double? Mood { get; init; }
 }
 
+/// <summary>
+/// A monument quest's marker: its load id, def and map, where it stands (<see cref="QuestMonumentState"/>), the sketch
+/// pieces, the loose unstored material on the map with the haulers who could store it, and the reachable unforbidden
+/// material the colony could build it from.
+/// </summary>
 public sealed record QuestMonument
 {
-    public string? MarkerId { get; init; }
+    public required string MarkerId { get; init; }
 
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public int? MapId { get; init; }
+    public required int MapId { get; init; }
 
-    public bool? Packed { get; init; }
-
-    public bool? Installed { get; init; }
-
-    public Common.Cell? Cell { get; init; }
-
-    public bool? AllDone { get; init; }
-
-    public string? DisallowedBuildingId { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> InstallCells { get; init; }
+    public required QuestMonumentState State { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestMonumentPiece>))]
-    public EquatableArray<QuestMonumentPiece> Pieces { get; init; }
+    public required EquatableArray<QuestMonumentPiece> Pieces { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestMonumentResource>))]
-    public EquatableArray<QuestMonumentResource> Resources { get; init; }
+    public required EquatableArray<QuestMonumentResource> Resources { get; init; }
 
-    public bool? Offered { get; init; }
-
-    /// <summary>
-    /// Legal marker placements observed against the complete sketch footprint.
-    /// </summary>
-    public bool? ClearSite { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
-    public EquatableArray<Quantity> SuppliedResources { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
-    public EquatableArray<Quantity> AvailableResources { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<QuestMonumentMaterial>))]
+    public required EquatableArray<QuestMonumentMaterial> AvailableResources { get; init; }
 }
 
+/// <summary>
+/// Where a monument marker stands. Offered: the quest is not accepted and the marker waits in its drop pods, with the
+/// material the pods supply. Packed: minified on the map. Both carry the legal install cells (at most 32, nearest the map
+/// centre first) checked against the whole sketch footprint; none means no clear site. Installed: placed at
+/// <see cref="Installed.Cell"/>, whether every sketch piece is built, and the first building standing where the sketch
+/// disallows one (null when none).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestMonumentState.Offered), "offered")]
+[JsonDerivedType(typeof(QuestMonumentState.Packed), "packed")]
+[JsonDerivedType(typeof(QuestMonumentState.Installed), "installed")]
+public abstract record QuestMonumentState
+{
+    private protected QuestMonumentState() { }
+
+    public sealed record Offered(
+        [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> InstallCells,
+        [property: JsonConverter(typeof(EquatableArrayJsonConverter<QuestMonumentMaterial>))] EquatableArray<QuestMonumentMaterial> Supplied) : QuestMonumentState;
+
+    public sealed record Packed(
+        [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> InstallCells) : QuestMonumentState;
+
+    public sealed record Installed(Cell Cell, bool AllDone, string? DisallowedBuildingId) : QuestMonumentState;
+}
+
+/// <summary>
+/// One sketch buildable of a monument: its def, offset and rotation in the sketch, the sketch cells it covers, its
+/// progress once the marker is installed, and one build option per stuff it can be made of (the chosen stuff, every
+/// allowed stuff when the sketch leaves it open, or one option without stuff for a def not made from stuff).
+/// </summary>
 public sealed record QuestMonumentPiece
 {
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public string? Stuff { get; init; }
+    public required Cell Offset { get; init; }
 
-    public Common.Cell? Offset { get; init; }
+    public required Rotation Rotation { get; init; }
 
-    public int? Rotation { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))]
+    public required EquatableArray<Cell> Footprint { get; init; }
 
-    public bool? Built { get; init; }
+    public required QuestMonumentPieceSite Site { get; init; }
 
-    public bool? Queued { get; init; }
-
-    public bool? Allowed { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Footprint { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<QuestMonumentBuildOption>))]
+    public required EquatableArray<QuestMonumentBuildOption> Options { get; init; }
 }
+
+/// <summary>
+/// A piece's progress: unplaced while the marker is not installed; once placed, whether the exact piece is built,
+/// whether it is built or queued as a blueprint or frame, and whether a blueprint for it may be placed now.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestMonumentPieceSite.Unplaced), "unplaced")]
+[JsonDerivedType(typeof(QuestMonumentPieceSite.Placed), "placed")]
+public abstract record QuestMonumentPieceSite
+{
+    private protected QuestMonumentPieceSite() { }
+
+    public sealed record Unplaced : QuestMonumentPieceSite;
+
+    public sealed record Placed(bool Built, bool Queued, bool Allowed) : QuestMonumentPieceSite;
+}
+
+/// <summary>One way to build a piece: the stuff (null for a def not made from stuff), its adjusted cost list and WorkToBuild.</summary>
+public sealed record QuestMonumentBuildOption
+{
+    public required string? Stuff { get; init; }
+
+    [JsonConverter(typeof(EquatableArrayJsonConverter<QuestMonumentMaterial>))]
+    public required EquatableArray<QuestMonumentMaterial> Costs { get; init; }
+
+    public required double Work { get; init; }
+}
+
+/// <summary>Units of one thing def.</summary>
+public sealed record QuestMonumentMaterial(string DefName, long Units);
 
 public sealed record QuestWorker
 {
@@ -4073,18 +4146,17 @@ public sealed record QuestWorkRate
     public double? Rate { get; init; }
 }
 
+/// <summary>One loose unstored stack of monument material: its load id, def, cell and the haulers who could store it.</summary>
 public sealed record QuestMonumentResource
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public Common.Cell? Cell { get; init; }
+    public required Cell Cell { get; init; }
 
-    public bool? InStorage { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> EligibleHaulers { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> EligibleHaulers { get; init; }
 }
 
 public sealed record QuestShuttleState

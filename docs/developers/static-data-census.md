@@ -142,7 +142,7 @@ Converted (Go evaluates the rule over the mirrored `ThingDef`/`TerrainDef` rows;
 - `UpkeepStructure.repair_priority`: `RepairPriority` (a `CompTempControl` or `CompPowerPlant` comp, or a medical bed, is 0; `holdsRoof`, a `Building_WorkTable` or a bed class is 1; otherwise 2). The medical flag stays the live `UpkeepBed.medical`.
 - `LampState.glow_radius`: `GlowRadius` (`CompProperties_Glower.glowRadius`).
 - `ThreatBuilding.mortar`: `IsMortar`, the `BuildingProperties.IsMortar` rule over the gun's verb projectile and fixed-storage filter (shell def registered as `policy.MortarProbeShells`).
-- `WallUpgradeSite.replacement_materials` and `QuestMonumentPiece.allowed_stuffs`/`build_options`: `StuffMaterials`/`AllowedStuffs`, `AdjustedCosts` and `StatValue(WorkToBuild)` (terrain pieces use `TerrainAdjustedCosts`/`TerrainWorkToBuild`).
+- `WallUpgradeSite.replacement_materials`: `StuffMaterials`/`AllowedStuffs`, `AdjustedCosts` and `StatValue(WorkToBuild)` (terrain pieces use `TerrainAdjustedCosts`/`TerrainWorkToBuild`). `QuestMonumentPiece.options` is read natively instead (#3864): `GenStuff.AllowedStuffs`, `CostListAdjusted` and `WorkToBuild` per stuff on the sketch buildable.
 - `TradeLine.food` and `category`: `TradeFood` now reads the `Nutrition` stat from the row too.
 
 Deleted as dead (no Go reader): `ConstructionState.total_work` (work left and percent complete remain live), `ThreatBuilding.max_hit_points`, `UpkeepItem.hit_points`/`max_hit_points`/`deterioration_rate`, `UpkeepBed.slots`, `UpkeepStructure.holds_roof`, `WallUpgradeSite.costs`, and `DefenseSiteSnapshot.cover_threshold` (always 0, now the Go constant `defenseCoverFillThreshold`: any positive fill blocks).

@@ -81,7 +81,6 @@ Policy/MedicineCarry.cs|MedicineCarryRules.MedicineCarryChanges
 Policy/PawnNames.cs|PawnRules.NicknameChanges
 Policy/QuestCoreSite.cs|QuestCoreSite.CoreSiteJoiner
 Policy/QuestDecrees.cs|QuestDecrees.PlanDecreeProduction
-Policy/QuestMonument.cs|QuestMonument.SelectQuestMonument
 Policy/StoreMedicine.cs|StoreView.MedicineStore
 Executor/SnapshotLater.cs|SnapshotLaterReplay.Later
 Store/Core/StoreTransaction.cs|StoreTransaction.Dispose

@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Domain;
 using static RimGovernor.Brain.Domain.Fact;
+using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -18,7 +19,7 @@ public sealed record QuestMonumentMethod
     public string Reason { get; init; } = "";
 }
 
-public sealed partial record QuestMonument
+public static class QuestMonumentPolicy
 {
     public static bool MonumentDeficit(RoundsFacts f)
     {
@@ -34,7 +35,7 @@ public sealed partial record QuestMonument
             }
             foreach (var objective in offer.Objectives)
             {
-                if (objective.Monument.TryGetValue(out _))
+                if (objective.Monument is not null)
                 {
                     return true;
                 }
@@ -62,117 +63,127 @@ public sealed partial record QuestMonument
             }
             foreach (var objective in offer.Objectives)
             {
-                if (!objective.Monument.TryGetValue(out var marker) || marker.Map != home)
+                if (objective.Monument is not { } marker || new MapId(marker.MapId) != home)
                 {
                     continue;
                 }
                 var step = new QuestMonumentMethod { Quest = offer.Quest };
-                if (marker.DisallowedBuilding.Length != 0)
+                if (marker.State is Pb.QuestMonumentState.Packed packed)
                 {
-                    return step with { Reason = "disallowed_building" };
+                    return Install(step, marker, packed.InstallCells, protectedRects);
                 }
-                if (marker.AllDone.TryGetValue(out var done) && done)
+                if (marker.State is not Pb.QuestMonumentState.Installed installed)
                 {
-                    return step with { Kind = "protect" };
-                }
-                if (marker.Packed.TryGetValue(out var packed) && packed)
-                {
-                    foreach (var cell in marker.InstallCells)
-                    {
-                        var blocked = false;
-                        foreach (var rect in protectedRects)
-                        {
-                            foreach (var piece in marker.Pieces)
-                            {
-                                foreach (var occupied in piece.Footprint)
-                                {
-                                    if (InteriorWalkRules.RectContains(rect, new Cell(cell.X + occupied.X, cell.Z + occupied.Z)))
-                                    {
-                                        blocked = true;
-                                    }
-                                }
-                            }
-                        }
-                        if (blocked)
-                        {
-                            continue;
-                        }
-                        try
-                        {
-                            return step with { Kind = "install", Move = new MoveBuilding(marker.Marker, marker.Def, cell, Rotation.North) };
-                        }
-                        catch (DomainException)
-                        {
-                        }
-                    }
-                    return step with { Reason = "install_site_unavailable" };
-                }
-                if (!marker.Installed.TryGetValue(out var installed) || !installed)
-                {
+                    // An offered marker still waits in its drop pods.
                     return step with { Reason = "marker_unavailable" };
                 }
-                foreach (var resource in marker.Resources)
-                {
-                    if (!resource.InStorage.TryGetValue(out var stored) || stored || resource.Haulers.Count == 0)
-                    {
-                        continue;
-                    }
-                    var hauler = resource.Haulers.Min();
-                    try
-                    {
-                        return step with { Kind = "haul", Haul = new Haul((Domain.PawnId)hauler, resource.Id, resource.Def, resource.Cell) };
-                    }
-                    catch (DomainException)
-                    {
-                    }
-                }
-                foreach (var piece in marker.Pieces)
-                {
-                    var bk = piece.Built.TryGetValue(out var built);
-                    var qk = piece.Queued.TryGetValue(out var queued);
-                    var ak = piece.Allowed.TryGetValue(out var allowed);
-                    if (!bk || !qk || !ak)
-                    {
-                        return step with { Reason = "sketch_unknown" };
-                    }
-                    if (built || queued)
-                    {
-                        continue;
-                    }
-                    if (!allowed)
-                    {
-                        return step with { Reason = "sketch_placement_refused" };
-                    }
-                    var stuff = piece.Stuff;
-                    if (stuff.Length == 0 && piece.AllowedStuffs.Count > 0)
-                    {
-                        foreach (var candidate in piece.AllowedStuffs.OrderBy(s => s, StringComparer.Ordinal))
-                        {
-                            var have = stock.GetValueOrDefault(new Resource(candidate));
-                            if (have > 0 && (stuff.Length == 0 || have > stock.GetValueOrDefault(new Resource(stuff))))
-                            {
-                                stuff = candidate;
-                            }
-                        }
-                        if (stuff.Length == 0)
-                        {
-                            return step with { Reason = "monument_materials" };
-                        }
-                    }
-                    try
-                    {
-                        var build = new Building(piece.Def, new Cell(marker.Cell.X + piece.Offset.X, marker.Cell.Z + piece.Offset.Z), piece.Rotation, stuff);
-                        return step with { Kind = "build", Build = build };
-                    }
-                    catch (DomainException)
-                    {
-                        return step with { Reason = "sketch_invalid" };
-                    }
-                }
-                return step with { Kind = "wait" };
+                return Build(step, marker, installed, stock);
             }
         }
         return new QuestMonumentMethod();
+    }
+
+    /// <summary>The first legal install cell whose sketch footprint stays clear of the protected rectangles.</summary>
+    private static QuestMonumentMethod Install(QuestMonumentMethod step, Pb.QuestMonument marker, EquatableArray<Cell> installCells, IReadOnlyList<Rectangle> protectedRects)
+    {
+        foreach (var cell in installCells)
+        {
+            var blocked = false;
+            foreach (var rect in protectedRects)
+            {
+                foreach (var piece in marker.Pieces)
+                {
+                    foreach (var occupied in piece.Footprint)
+                    {
+                        if (InteriorWalkRules.RectContains(rect, new Cell(cell.X + occupied.X, cell.Z + occupied.Z)))
+                        {
+                            blocked = true;
+                        }
+                    }
+                }
+            }
+            if (!blocked)
+            {
+                return step with { Kind = "install", Move = new MoveBuilding(marker.MarkerId, marker.DefName, cell, Rotation.North) };
+            }
+        }
+        return step with { Reason = "install_site_unavailable" };
+    }
+
+    /// <summary>Hauls loose material to storage first, then places the first unbuilt, unqueued piece of the installed sketch.</summary>
+    private static QuestMonumentMethod Build(QuestMonumentMethod step, Pb.QuestMonument marker, Pb.QuestMonumentState.Installed installed, IReadOnlyDictionary<Resource, long> stock)
+    {
+        if (installed.DisallowedBuildingId is not null)
+        {
+            return step with { Reason = "disallowed_building" };
+        }
+        if (installed.AllDone)
+        {
+            return step with { Kind = "protect" };
+        }
+        foreach (var resource in marker.Resources)
+        {
+            if (resource.EligibleHaulers.Count == 0)
+            {
+                continue;
+            }
+            return step with { Kind = "haul", Haul = new Haul(resource.EligibleHaulers.Min(), resource.Id, resource.DefName, resource.Cell) };
+        }
+        foreach (var piece in marker.Pieces)
+        {
+            if (piece.Site is not Pb.QuestMonumentPieceSite.Placed site)
+            {
+                throw new RequiredFactException($"quest monument {marker.MarkerId} piece {piece.DefName} progress");
+            }
+            if (site.Built || site.Queued)
+            {
+                continue;
+            }
+            if (!site.Allowed)
+            {
+                return step with { Reason = "sketch_placement_refused" };
+            }
+            if (PieceStuff(piece, stock) is not { } stuff)
+            {
+                return step with { Reason = "monument_materials" };
+            }
+            try
+            {
+                var build = new Building(piece.DefName, new Cell(installed.Cell.X + piece.Offset.X, installed.Cell.Z + piece.Offset.Z), piece.Rotation, stuff);
+                return step with { Kind = "build", Build = build };
+            }
+            catch (DomainException)
+            {
+                return step with { Reason = "sketch_invalid" };
+            }
+        }
+        return step with { Kind = "wait" };
+    }
+
+    /// <summary>
+    /// The stuff to build a piece from: its single option's stuff ("" for a def not made from stuff), or, when the
+    /// sketch leaves the stuff open, the allowed stuff the colony holds most of (ties by name); null when it holds none.
+    /// </summary>
+    private static string? PieceStuff(Pb.QuestMonumentPiece piece, IReadOnlyDictionary<Resource, long> stock)
+    {
+        if (piece.Options.Count == 1)
+        {
+            return piece.Options[0].Stuff ?? "";
+        }
+        string? best = null;
+        foreach (var option in piece.Options.OrderBy(o => o.Stuff, StringComparer.Ordinal))
+        {
+            if (option.Stuff is not { } candidate)
+            {
+                continue;
+            }
+            var have = stock.GetValueOrDefault(new Resource(candidate));
+            if (have > 0 && (best is null || have > stock.GetValueOrDefault(new Resource(best))))
+            {
+                best = candidate;
+            }
+        }
+        return best;
     }
 
     public static QuestSkipReason MonumentAdmission(JoinerOffer offer, RoundsFacts f)
@@ -185,15 +196,15 @@ public sealed partial record QuestMonument
         {
             return "";
         }
-        QuestMonument? marker = null;
+        Pb.QuestMonument? marker = null;
         var timed = false;
         foreach (var objective in offer.Objectives)
         {
-            if (objective.Monument.TryGetValue(out var m))
+            if (objective.Monument is { } m)
             {
                 if (marker is not null)
                 {
-                    return "monument_unknown";
+                    return "monument_ambiguous";
                 }
                 marker = m;
                 var d = objective.DeadlineTicks.TryGetValue(out _);
@@ -203,13 +214,10 @@ public sealed partial record QuestMonument
         }
         if (marker is null)
         {
-            return "monument_unknown";
+            return "monument_absent";
         }
-        if (!marker.ClearSite.TryGetValue(out var clear))
-        {
-            return "monument_site_unknown";
-        }
-        if (!clear || marker.InstallCells.Count == 0)
+        // An installed marker already stands on its site; one not yet installed needs a legal install cell.
+        if (marker.State is Pb.QuestMonumentState.Offered { InstallCells.Count: 0 } or Pb.QuestMonumentState.Packed { InstallCells.Count: 0 })
         {
             return "monument_site";
         }
@@ -224,11 +232,14 @@ public sealed partial record QuestMonument
         var available = new Dictionary<Resource, long>();
         foreach (var a in marker.AvailableResources)
         {
-            available[a.Resource] = available.GetValueOrDefault(a.Resource) + a.Count;
+            available[new Resource(a.DefName)] = available.GetValueOrDefault(new Resource(a.DefName)) + a.Units;
         }
-        foreach (var a in marker.SuppliedResources)
+        if (marker.State is Pb.QuestMonumentState.Offered offered)
         {
-            available[a.Resource] = available.GetValueOrDefault(a.Resource) + a.Count;
+            foreach (var a in offered.Supplied)
+            {
+                available[new Resource(a.DefName)] = available.GetValueOrDefault(new Resource(a.DefName)) + a.Units;
+            }
         }
         foreach (var (resource, count) in deficits)
         {
@@ -255,7 +266,7 @@ public sealed partial record QuestMonument
             }
             foreach (var o in q.Objectives)
             {
-                if (o.Monument.TryGetValue(out var m) && !FundMonument(m, available))
+                if (o.Monument is { } m && !FundMonument(m, available))
                 {
                     return "monument_materials";
                 }
@@ -281,21 +292,24 @@ public sealed partial record QuestMonument
         return "";
     }
 
-    private static bool FundMonument(QuestMonument marker, Dictionary<Resource, long> available)
+    /// <summary>Whether a piece is built on the installed marker.</summary>
+    public static bool PieceBuilt(Pb.QuestMonumentPiece piece) => piece.Site is Pb.QuestMonumentPieceSite.Placed { Built: true };
+
+    private static bool FundMonument(Pb.QuestMonument marker, Dictionary<Resource, long> available)
     {
         foreach (var piece in marker.Pieces)
         {
-            if (piece.Built.TryGetValue(out var built) && built)
+            if (PieceBuilt(piece))
             {
                 continue;
             }
             var funded = false;
-            foreach (var option in piece.BuildOptions.OrderBy(o => o.Stuff, StringComparer.Ordinal))
+            foreach (var option in piece.Options.OrderBy(o => o.Stuff, StringComparer.Ordinal))
             {
                 var costs = new Dictionary<Resource, long>();
                 foreach (var c in option.Costs)
                 {
-                    costs[c.Resource] = costs.GetValueOrDefault(c.Resource) + c.Count;
+                    costs[new Resource(c.DefName)] = costs.GetValueOrDefault(new Resource(c.DefName)) + c.Units;
                 }
                 var enough = true;
                 foreach (var (r, n) in costs)

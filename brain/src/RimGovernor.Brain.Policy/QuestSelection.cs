@@ -178,7 +178,7 @@ public static class QuestSelection
         {
             return (false, r);
         }
-        if (!(r = QuestMonument.MonumentAdmission(offer, f)).IsNone)
+        if (!(r = QuestMonumentPolicy.MonumentAdmission(offer, f)).IsNone)
         {
             return (false, r);
         }

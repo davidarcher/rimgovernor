@@ -3,32 +3,6 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
-// The projection of a frame's world progression census.
-public static class WorldProgressionDecode
-{
-    private static bool MonumentCellKnown([System.Diagnostics.CodeAnalysis.NotNullWhen(true)] Cell? cell) => cell is not null;
-
-    /// <summary>
-    /// A marker that is neither packed nor installed (and not an offered unpacked
-    /// one), or an installed marker without a cell, is no executable construction target, so it is dropped.
-    /// </summary>
-    internal static QuestMonument? QuestMonumentTarget(QuestMonument? m)
-    {
-        if (m is null
-            || m.Packed is null
-            || m.Installed is null
-            || (m.Packed.GetValueOrDefault() == m.Installed.GetValueOrDefault() && !(m.Offered.GetValueOrDefault() && !m.Packed.GetValueOrDefault())))
-        {
-            return null;
-        }
-        if (m.Installed.GetValueOrDefault() && !MonumentCellKnown(m.Cell))
-        {
-            return null;
-        }
-        return m;
-    }
-}
-
 partial record WorldProgressionRead
 {
 
@@ -172,7 +146,7 @@ partial record QuestObjectiveFact
         PawnIds = [.. objective.PawnIds],
         Active = objective.Active,
         MinimumMood = objective.MinimumMood,
-        Monument = WorldProgressionDecode.QuestMonumentTarget(objective.Monument),
+        Monument = objective.Monument,
         HackTargets = [.. objective.HackTargets],
         Gift = objective.GiftRequest,
         HackRisk = objective.HackRisk,

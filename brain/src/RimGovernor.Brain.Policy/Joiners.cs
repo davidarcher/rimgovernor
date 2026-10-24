@@ -76,7 +76,7 @@ public sealed class JoinersFamily : IFamily<JoinersFacts>
             Ceremonies(f),
             Quest(Quests, known, () => QuestSelection.QuestDeficit(f).ValueOrDefault || QuestRefugees.RefugeeDeficit(f)),
             Quest(Decrees, known, () => QuestDecrees.DecreeDeficit(f)),
-            Quest(Monuments, known, () => QuestMonument.MonumentDeficit(f)),
+            Quest(Monuments, known, () => QuestMonumentPolicy.MonumentDeficit(f)),
             Quest(Departures, known, () => QuestDeparture.DepartureDeficit(f)),
             Quest(GravInspection, known, () => QuestGravInspection.GravInspectionDeficit(f)),
         ];

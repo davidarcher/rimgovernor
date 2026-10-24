@@ -6,7 +6,8 @@ public sealed partial class JoinersRounds
     internal async Task<(Verdict Verdict, bool Handled)> AdmitMonumentAsync(NeedWork work, Rounds review, RoundsReading read, DateTimeOffset started, CancellationToken call)
     {
         var state = work.State;
-        var cells = reviewer.FieldProtected(state, review, read.Projection, Unknown<EquatableArray<ConstructionClaim>>(), call);
+        var claims = reviewer.Player.Journal.ConstructionClaims(state.Snapshot, read.Projection.Identity.Tick, call);
+        var cells = reviewer.FieldProtected(state, review, read.Projection, claims, call);
         var protectedRects = cells.Select(c => new Rectangle(c.X, c.Z, 1, 1)).ToList();
         var stock = new Dictionary<Resource, long>();
         if (read.Projection.Facts.Resources.TryGetValue(out var rows))
@@ -17,7 +18,7 @@ public sealed partial class JoinersRounds
             }
         }
 
-        var choice = QuestMonument.SelectQuestMonument(read.Projection.Facts.QuestOffers, read.Projection.Identity.Map, stock, protectedRects);
+        var choice = QuestMonumentPolicy.SelectQuestMonument(read.Projection.Facts.QuestOffers, read.Projection.Identity.Map, stock, protectedRects);
         if (choice.Quest.IsEmpty)
         {
             return (default, false);

@@ -467,7 +467,6 @@ public static class RoundsReads
                     Def = objective.Def,
                     Stuff = objective.Stuff,
                     MinimumMood = ColonyDecodeReads.Optional(objective.MinimumMood.HasValue, objective.MinimumMood.GetValueOrDefault()),
-                    Monument = QuestReads.QuestMonumentOf(objective.Monument, catalog),
                     GravEngine = objective.GravEngine,
                     SurveyScanner = objective.SurveyScanner,
                     DurationTicks = ColonyDecodeReads.Optional(objective.DurationTicks.HasValue, objective.DurationTicks.GetValueOrDefault()),
@@ -478,8 +477,12 @@ public static class RoundsReads
                     Produced = objective.Produced is { } produced ? Known(produced) : default,
                     DeadlineTicks = objective.DeadlineTicks is { } deadline ? Known(deadline) : default,
                     PawnIds = [.. objective.PawnIds.Select(i => new PawnId(i))],
+                    Monument = objective.Monument,
+                    HackTargets = objective.HackTargets,
+                    HackRisk = objective.HackRisk,
+                    Gift = objective.Gift,
                 };
-                objectives.Add(QuestReads.QuestHackGift(objective, row));
+                objectives.Add(row);
             }
             var shuttles = new List<QuestShuttleState>();
             foreach (var shuttle in quest.Shuttles)

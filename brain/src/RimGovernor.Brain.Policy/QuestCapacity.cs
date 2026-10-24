@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Domain;
 using static RimGovernor.Brain.Domain.Fact;
+using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -107,20 +108,21 @@ public static class QuestCapacity
             var seen = false;
             foreach (var objective in offer.Objectives)
             {
-                if (!objective.Gift.TryGetValue(out var request))
+                if (objective.Gift is not { } request)
                 {
                     continue;
                 }
                 seen = true;
-                if (!request.Remaining.TryGetValue(out var remaining))
+                if (request.Ask is not Pb.QuestGiftAsk.Asking ask)
                 {
-                    return result with { Reason = "gift_request_unknown" };
+                    return result with { Reason = "gift_not_asked" };
                 }
+                var remaining = ask.Remaining;
                 if (remaining <= 0)
                 {
                     continue;
                 }
-                if (request.Map != currentMap)
+                if (new MapId(ask.MapId) != currentMap)
                 {
                     return result with { Reason = "off_map" };
                 }
@@ -128,11 +130,11 @@ public static class QuestCapacity
                 {
                     return result with { Reason = "stock_unknown" };
                 }
-                if (!DefTablesRules.QuestGiftDefs.Contains(request.Def))
+                if (!DefTablesRules.QuestGiftDefs.Contains(request.DefName))
                 {
                     return result with { Reason = "gift_def_unsupported" };
                 }
-                var def = new Resource(request.Def);
+                var def = new Resource(request.DefName);
                 if (!f.Items.Market.TryGetValue(def, out var value) || !TradePolicyRules.Finite(value) || value <= 0)
                 {
                     return result with { Reason = "gift_value_unknown" };
@@ -155,21 +157,20 @@ public static class QuestCapacity
                 {
                     return result with { Reason = "gift_unaffordable" };
                 }
-                if (request.HaulingPawnIds.Count > 0)
+                if (ask.Haulers.Count > 0)
                 {
                     return result;
                 }
-                if (request.EligiblePawnIds.Count == 0)
+                if (ask.EligibleGivers.Count == 0)
                 {
                     return result with { Reason = "hauler_unavailable" };
                 }
-                var actor = request.EligiblePawnIds.Min();
-                var intent = new GiveItem((Domain.PawnId)actor, (Domain.PawnId)request.Recipient, request.Def, remaining);
+                var intent = new GiveItem(ask.EligibleGivers.Min(), request.Recipient, request.DefName, remaining);
                 return result with { Gift = intent };
             }
             if (!seen)
             {
-                result = result with { Reason = "gift_request_unknown" };
+                result = result with { Reason = "gift_request_absent" };
             }
             return result;
         }

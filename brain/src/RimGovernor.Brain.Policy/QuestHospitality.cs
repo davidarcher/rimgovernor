@@ -274,9 +274,9 @@ public static class QuestHospitality
             }
             foreach (var objective in offer.Objectives)
             {
-                if (objective.Gift.TryGetValue(out var gift))
+                if (objective.Gift is { } gift)
                 {
-                    foreach (var id in gift.PawnIds)
+                    foreach (var id in gift.Pawns)
                     {
                         ids.Add(id);
                     }
