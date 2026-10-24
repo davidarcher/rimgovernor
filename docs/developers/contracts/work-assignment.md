@@ -381,11 +381,13 @@ carries `OrderSpec.Product` and `Class` beside the spec (not in `Key`); with the
 stock target is a rate-model order. Its deficit is target minus the projection's
 stock count, its demand deficit over the class refill window, its per-bench capacity
 the recipe work and bench work speed over an average eligible worker's hours and
-speed (`DispatchWorkers`: available pawns with the recipe's work type enabled), and
-the benches wanted `BenchesWanted`, capped at the usable benches that offer the
+speed (`TryDispatchWorkers`: available pawns with the recipe's work type enabled), and
+the benches wanted `BenchRateRules.Wanted`, capped at the usable benches that offer the
 recipe and at the workers. That count (plus calibration widening, at least one) is
-`ReconcileLedger`'s copy count for the spec; an unsized order (not a stock target,
-or stock, schedule or recipe work unread) stands on one bench. `PlaceLedgerOrders`
+`ReconcileLedger`'s copy count for the spec. An order the model leaves
+`DispatchSizing.Unsized` (not a stock target, or stock, schedule or recipe work unread)
+stands on one bench, as does one whose positive demand meets zero capacity
+(`BenchesWanted.NoCapacity`: no worker, or a bench that makes nothing). `PlaceLedgerOrders`
 puts each copy on the fastest eligible bench (work speed, then fewest bills, then
 id) that does not already carry it and has fewer than `LedgerBenchSlots` readback
 bills; a copy no bench takes is unplaced. Calibration keeps a rolling one-game-day

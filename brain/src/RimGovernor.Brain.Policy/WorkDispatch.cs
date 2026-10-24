@@ -42,24 +42,38 @@ public sealed record UnmetThroughput
     public UnmetReason Reason { get; init; }
 }
 
+/// <summary>How the rate model sized one order.</summary>
+public abstract record DispatchSizing
+{
+    private DispatchSizing()
+    {
+    }
+
+    /// <summary>
+    /// The model does not size the order, which wants one bench: it is no stock target, no usable bench offers its
+    /// recipe, or the stock census, the recipe's work or a worker's work hours is unread.
+    /// </summary>
+    public sealed record Unsized : DispatchSizing;
+
+    /// <summary>
+    /// The product's stock, the units per day that clear its deficit and the mean units per day of one eligible bench
+    /// with an average worker.
+    /// </summary>
+    public sealed record Sized(long Stock, double Demand, double Capacity) : DispatchSizing;
+}
+
 /// <summary>The rate model's answer for one order.</summary>
 public sealed record OrderDispatch
 {
-    /// <summary>How many benches should carry the order: the rate model's benches wanted plus calibration widening, within one and the eligible benches (one when the model is unknown).</summary>
-    public int Copies { get; init; }
+    /// <summary>How many benches should carry the order: the rate model's benches wanted plus calibration widening, within one and the eligible benches (one when the model does not size it or no capacity meets it).</summary>
+    public required int Copies { get; init; }
 
-    public int Eligible { get; init; }
+    public required int Eligible { get; init; }
 
-    /// <summary>Units per day to clear the deficit.</summary>
-    public Fact<double> Demand { get; init; }
-
-    /// <summary>Units per day of one bench with an average worker.</summary>
-    public Fact<double> Capacity { get; init; }
-
-    public Fact<int> Wanted { get; init; }
+    public required DispatchSizing Sizing { get; init; }
 
     /// <summary>The units per day the eligible benches cannot make when the model wants more benches than exist.</summary>
-    public double NoBenchShort { get; init; }
+    public required double NoBenchShort { get; init; }
 }
 
 /// <summary>One order's rolling calibration window. It is memory only: a world change empties it.</summary>
@@ -97,7 +111,7 @@ public sealed record ThroughputObservation
 {
     public long Tick { get; init; }
 
-    public Fact<long> Stock { get; init; }
+    public long Stock { get; init; }
 
     public long Target { get; init; }
 
@@ -108,7 +122,7 @@ public sealed record ThroughputObservation
     public int Eligible { get; init; }
 
     /// <summary>Units per day of one bench.</summary>
-    public Fact<double> Capacity { get; init; }
+    public double Capacity { get; init; }
 
     /// <summary>Every carrying bill is known active.</summary>
     public bool Active { get; init; }
@@ -157,35 +171,32 @@ public static partial class WorkRules
         [.. benches.Where(b => b.Def == order.BenchKind && BenchOffers(b, order.Recipe)).OrderBy(b => b.Id, StringComparer.Ordinal)];
 
     /// <summary>
-    /// Sizes one order. Orders the model cannot size (not a stock target, stock, workers or recipe work unknown) want
-    /// one bench. widen is the calibration's extra benches. The workers are the pawns that can work the recipe
-    /// (DispatchWorkers).
+    /// Sizes one order. An order the model does not size (DispatchSizing.Unsized), and one no capacity meets
+    /// (BenchesWanted.NoCapacity), wants one bench. widen is the calibration's extra benches. The workers are the pawns
+    /// that can work the recipe (TryDispatchWorkers).
     /// </summary>
     public static OrderDispatch DispatchOrder(OrderSpec order, Fact<IReadOnlyDictionary<Resource, long>> stock, IReadOnlyList<GearBench> benches, IReadOnlyList<WorkPawn> pawns, int widen)
     {
         var eligible = EligibleBenches(order, benches);
-        var d = new OrderDispatch { Copies = 1, Eligible = eligible.Count };
-        if (!order.Stocked() || eligible.Count == 0)
+        var d = new OrderDispatch { Copies = 1, Eligible = eligible.Count, Sizing = new DispatchSizing.Unsized(), NoBenchShort = 0 };
+        if (!order.Stocked() || eligible.Count == 0 || !stock.TryGetValue(out var have))
         {
             return d;
         }
-        if (!stock.TryGetValue(out var have))
-        {
-            return d;
-        }
-        d = d with { Demand = BenchRateRules.DemandRate(Known((double)((long)order.Target - have.GetValueOrDefault(order.Product))), order.Class) };
         RecipeOf(eligible[0], order.Recipe).RequiredWork.TryGetValue(out var required);
-        var workers = DispatchWorkers(pawns, required);
-        d = d with { Capacity = MeanCapacity(order, eligible, AverageWorker(workers)) };
-        d = d with { Wanted = BenchRateRules.BenchesWanted(d.Demand, d.Capacity) };
-        if (!d.Wanted.TryGetValue(out var n))
+        if (!TryDispatchWorkers(pawns, required, out var workers) || !TryMeanCapacity(order, eligible, AverageWorker(workers), out var capacity))
         {
             return d;
         }
-        d.Capacity.TryGetValue(out var capacity);
+        var held = have.GetValueOrDefault(order.Product);
+        var demand = BenchRateRules.DemandRate((long)order.Target - held, order.Class);
+        d = d with { Sizing = new DispatchSizing.Sized(held, demand, capacity) };
+        if (BenchRateRules.Wanted(demand, capacity) is not BenchesWanted.Count { Benches: var n })
+        {
+            return d;
+        }
         if (n > eligible.Count)
         {
-            d.Demand.TryGetValue(out var demand);
             d = d with { NoBenchShort = demand - (eligible.Count * capacity) };
         }
         if (workers.Count > 0 && n > workers.Count)
@@ -211,51 +222,50 @@ public static partial class WorkRules
         return new GearRecipe();
     }
 
-    // The mean units per day one eligible bench makes with the worker; unknown when any bench's is.
-    private static Fact<double> MeanCapacity(OrderSpec order, IReadOnlyList<GearBench> eligible, BenchWorker worker)
+    // The mean units per day one eligible bench makes with the worker; false while any bench's recipe work is unread.
+    private static bool TryMeanCapacity(OrderSpec order, IReadOnlyList<GearBench> eligible, BenchWorker worker, out double capacity)
     {
         double sum = 0;
+        capacity = 0;
         foreach (var b in eligible)
         {
-            var recipe = new BenchRecipe { WorkPerUnit = RecipeOf(b, order.Recipe).WorkAmount, BenchWorkSpeed = b.WorkSpeed };
-            if (!BenchRateRules.BenchCapacity(recipe, [worker]).TryGetValue(out var c))
+            if (!RecipeOf(b, order.Recipe).WorkAmount.TryGetValue(out var work) || !b.WorkSpeed.TryGetValue(out var speed))
             {
-                return Unknown<double>();
+                return false;
             }
-            sum += c;
+            sum += BenchRateRules.BenchCapacity(new BenchRecipe { WorkPerUnit = work, BenchWorkSpeed = speed }, [worker]);
         }
-        return Known(sum / eligible.Count);
+        capacity = sum / eligible.Count;
+        return true;
     }
 
-    /// <summary>The mean of the workers. Any unknown input makes the mean unknown; no workers is a worker of zero hours.</summary>
+    /// <summary>The mean of the workers; no workers is a worker of zero hours.</summary>
     public static BenchWorker AverageWorker(IReadOnlyList<BenchWorker> workers)
     {
         if (workers.Count == 0)
         {
-            return new BenchWorker { WorkHoursPerDay = Known(0.0), WorkSpeed = Known(0.0) };
+            return new BenchWorker { WorkHoursPerDay = 0, WorkSpeed = 0 };
         }
         double hours = 0;
         double speed = 0;
         foreach (var w in workers)
         {
-            if (!w.WorkHoursPerDay.TryGetValue(out var h) || !w.WorkSpeed.TryGetValue(out var s))
-            {
-                return new BenchWorker { WorkHoursPerDay = Unknown<double>(), WorkSpeed = Unknown<double>() };
-            }
-            hours += h;
-            speed += s;
+            hours += w.WorkHoursPerDay;
+            speed += w.WorkSpeed;
         }
         double n = workers.Count;
-        return new BenchWorker { WorkHoursPerDay = Known(hours / n), WorkSpeed = Known(speed / n) };
+        return new BenchWorker { WorkHoursPerDay = hours / n, WorkSpeed = speed / n };
     }
 
     /// <summary>
-    /// The pawns that can work a bench: available, with work hours and speed known, and (when the recipe names work
-    /// types) with one of them enabled. Speed is the global work speed, one plus the pawn's summed WorkSpeedGlobal offset.
+    /// The pawns that can work a bench: available and (when the recipe names work types) with one of them enabled.
+    /// Speed is the global work speed, one plus the pawn's summed WorkSpeedGlobal offset. False while such a pawn's
+    /// work hours are unread.
     /// </summary>
-    public static IReadOnlyList<BenchWorker> DispatchWorkers(IReadOnlyList<WorkPawn> pawns, IReadOnlyList<WorkRequirement> work)
+    public static bool TryDispatchWorkers(IReadOnlyList<WorkPawn> pawns, IReadOnlyList<WorkRequirement> work, out IReadOnlyList<BenchWorker> workers)
     {
         var output = new List<BenchWorker>();
+        workers = output;
         foreach (var p in pawns)
         {
             if (!p.Available.TryGetValue(out var avail) || !avail)
@@ -267,14 +277,14 @@ public static partial class WorkRules
                 continue;
             }
             var profile = PawnRules.BuildProfile(p);
-            var w = new BenchWorker { WorkHoursPerDay = Unknown<double>(), WorkSpeed = Known(Math.Max(1 + profile.Effects.WorkSpeed, 0)) };
-            if (profile.WorkHours.TryGetValue(out var h))
+            if (!profile.WorkHours.TryGetValue(out var h))
             {
-                w = w with { WorkHoursPerDay = Known((double)h) };
+                workers = [];
+                return false;
             }
-            output.Add(w);
+            output.Add(new BenchWorker { WorkHoursPerDay = h, WorkSpeed = Math.Max(1 + profile.Effects.WorkSpeed, 0) });
         }
-        return output;
+        return true;
     }
 
     private static bool PawnWorks(WorkPawn p, IReadOnlyList<WorkRequirement> work)
@@ -329,9 +339,9 @@ public static partial class WorkRules
     /// </summary>
     public static (ThroughputWindow Window, Calibration Calibration) CalibrateThroughput(ThroughputWindow w, ThroughputObservation o)
     {
-        var stockKnown = o.Stock.TryGetValue(out var stock);
-        var capKnown = o.Capacity.TryGetValue(out var capacity);
-        if (!stockKnown || !capKnown || o.Carrying == 0)
+        var stock = o.Stock;
+        var capacity = o.Capacity;
+        if (o.Carrying == 0)
         {
             return (new ThroughputWindow(), new Calibration());
         }
@@ -402,19 +412,17 @@ public static partial class WorkRules
         var output = new List<UnmetThroughput>();
         foreach (var order in unplaced)
         {
-            var d = dispatch.GetValueOrDefault(order.Key()) ?? new OrderDispatch();
+            var sized = dispatch.TryGetValue(order.Key(), out var d) ? d.Sizing as DispatchSizing.Sized : null;
             var u = new UnmetThroughput { BenchKind = order.BenchKind, Reason = UnmetReason.SlotsFull };
-            double shortPerDay;
             if (EligibleBenches(order, benches).Count == 0)
             {
-                u = u with { Reason = UnmetReason.NoBench };
-                d.Demand.TryGetValue(out shortPerDay);
+                u = u with { Reason = UnmetReason.NoBench, ShortPerDay = sized?.Demand ?? 0 };
             }
             else
             {
-                d.Capacity.TryGetValue(out shortPerDay);
+                u = u with { ShortPerDay = sized?.Capacity ?? 0 };
             }
-            output.Add(u with { ShortPerDay = shortPerDay });
+            output.Add(u);
         }
         return output;
     }

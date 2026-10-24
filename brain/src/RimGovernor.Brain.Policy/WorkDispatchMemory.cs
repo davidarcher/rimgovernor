@@ -47,7 +47,13 @@ public sealed class DispatchMemory
             {
                 continue;
             }
-            var (window, cal) = WorkRules.CalibrateThroughput(Windows.GetValueOrDefault(k) ?? new ThroughputWindow(), WorkRules.ObserveOrder(order, d, input));
+            if (d.Sizing is not DispatchSizing.Sized sized)
+            {
+                // An unsized order has no prediction to calibrate against: its window starts over.
+                Windows[k] = new ThroughputWindow();
+                continue;
+            }
+            var (window, cal) = WorkRules.CalibrateThroughput(Windows.GetValueOrDefault(k) ?? new ThroughputWindow(), WorkRules.ObserveOrder(order, d.Eligible, sized, input));
             Windows[k] = window;
             if (cal.Closed && cal.Widen)
             {
@@ -109,23 +115,19 @@ public sealed class DispatchMemory
 public static partial class WorkRules
 {
     /// <summary>Reads one stock-target order off the Round: the benches carrying it, whether its bills are active and a pawn works them, and whether the recipe's ingredients are in stock.</summary>
-    public static ThroughputObservation ObserveOrder(OrderSpec order, OrderDispatch d, DispatchInputs input)
+    public static ThroughputObservation ObserveOrder(OrderSpec order, int eligibleCount, DispatchSizing.Sized sized, DispatchInputs input)
     {
         var key = order.Key();
         var o = new ThroughputObservation
         {
             Tick = input.Tick,
             Target = order.Target,
-            Eligible = d.Eligible,
-            Capacity = d.Capacity,
-            Stock = Unknown<long>(),
+            Eligible = eligibleCount,
+            Capacity = sized.Capacity,
+            Stock = sized.Stock,
             Active = true,
             Ingredients = Unknown<bool>(),
         };
-        if (input.Stock.TryGetValue(out var have))
-        {
-            o = o with { Stock = Known(have.GetValueOrDefault(order.Product)) };
-        }
         var carrying = new List<string>();
         foreach (var b in input.Benches)
         {

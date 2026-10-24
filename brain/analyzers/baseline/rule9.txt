@@ -508,9 +508,6 @@ Policy/BabyFeeding.cs|Fact|6
 Policy/BasicComfort.cs|Fact|6
 Policy/BasicComfort.cs|Unknown|2
 Policy/BasicDefense.cs|Fact|6
-Policy/BenchRate.cs|Discard|1
-Policy/BenchRate.cs|Fact|25
-Policy/BenchRate.cs|Unknown|11
 Policy/BillDemand.cs|Fact|3
 Policy/BillWanted.cs|Fact|4
 Policy/BiotechFamily.cs|Fact|8
@@ -649,7 +646,7 @@ Policy/DashPlan.cs|Unknown|1
 Policy/DeepDrill.cs|Fact|1
 Policy/DefenseArrivals.cs|Fact|4
 Policy/DefenseBlock.cs|Discard|1
-Policy/DefenseBlock.cs|Fact|6
+Policy/DefenseBlock.cs|Fact|4
 Policy/DefenseBlock.cs|Unknown|2
 Policy/DefenseBudget.cs|Fact|18
 Policy/DefenseBudget.cs|Unknown|1
@@ -1218,10 +1215,9 @@ Policy/WorkAssignment.cs|Discard|1
 Policy/WorkAssignment.cs|Fact|49
 Policy/WorkChair.cs|Fact|4
 Policy/WorkChair.cs|Unknown|1
-Policy/WorkDispatch.cs|Fact|35
-Policy/WorkDispatch.cs|Unknown|4
-Policy/WorkDispatchMemory.cs|Fact|12
-Policy/WorkDispatchMemory.cs|Unknown|3
+Policy/WorkDispatch.cs|Fact|13
+Policy/WorkDispatchMemory.cs|Fact|10
+Policy/WorkDispatchMemory.cs|Unknown|2
 Policy/WorkLedger.cs|Discard|2
 Policy/WorkLedger.cs|Fact|8
 Policy/WorkResources.cs|Fact|106

@@ -7,6 +7,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public enum ResourceClass
 {
+    /// <summary>An order the rate model does not size (a bill read back from a bench, the beer reserve): it has no refill window.</summary>
     None,
 
     /// <summary>Spoils and is eaten daily: refill within a day.</summary>
@@ -22,20 +23,34 @@ public enum ResourceClass
 /// </summary>
 public sealed record BenchWorker
 {
-    public Fact<double> WorkHoursPerDay { get; init; }
+    public required double WorkHoursPerDay { get; init; }
 
-    public Fact<double> WorkSpeed { get; init; }
+    public required double WorkSpeed { get; init; }
 }
 
 /// <summary>
 /// The recipe and bench side of the capacity model: the work amount one unit of product takes (RimWorld work
-/// ticks at speed 1) and the bench's effective work speed factor.
+/// ticks at speed 1) and the bench's effective work speed factor. Both are def stats, always read.
 /// </summary>
 public sealed record BenchRecipe
 {
-    public Fact<double> WorkPerUnit { get; init; }
+    public required double WorkPerUnit { get; init; }
 
-    public Fact<double> BenchWorkSpeed { get; init; }
+    public required double BenchWorkSpeed { get; init; }
+}
+
+/// <summary>How many benches an order wants: a count, or none can serve it because no bench makes anything.</summary>
+public abstract record BenchesWanted
+{
+    private BenchesWanted()
+    {
+    }
+
+    /// <summary>The benches that clear the demand at the capacity (zero for no demand).</summary>
+    public sealed record Count(int Benches) : BenchesWanted;
+
+    /// <summary>Positive demand against zero capacity: no number of benches meets it (no worker, or a bench that makes nothing).</summary>
+    public sealed record NoCapacity : BenchesWanted;
 }
 
 public static class BenchRateRules
@@ -44,102 +59,90 @@ public static class BenchRateRules
     public const double FoodRefillWindowDays = 1.0;
     public const double MaterialRefillWindowDays = 3.0;
 
-    /// <summary>The class's default refill window; unknown for a class the model does not name.</summary>
-    public static Fact<double> RefillWindowDays(ResourceClass c) =>
-        c switch
-        {
-            ResourceClass.Food => Known(FoodRefillWindowDays),
-            ResourceClass.Material => Known(MaterialRefillWindowDays),
-            _ => Unknown<double>(),
-        };
-
-    /// <summary>
-    /// Units per day needed to clear <paramref name="deficit"/> within the class's refill window. A
-    /// non-positive deficit needs nothing. Unknown when the deficit or the class window is unknown.
-    /// </summary>
-    public static Fact<double> DemandRate(Fact<double> deficit, ResourceClass resourceClass)
+    /// <summary>The class's default refill window. An unsized order has none: sizing one is a caller error.</summary>
+    public static double RefillWindowDays(ResourceClass c)
     {
-        if (!deficit.TryGetValue(out var d) || double.IsNaN(d) || double.IsInfinity(d))
+        switch (c)
         {
-            return Unknown<double>();
+            case ResourceClass.Food:
+                return FoodRefillWindowDays;
+            case ResourceClass.Material:
+                return MaterialRefillWindowDays;
+            case ResourceClass.None:
+                throw new DomainException("an order the rate model does not size has no refill window");
         }
 
-        if (!RefillWindowDays(resourceClass).TryGetValue(out var w))
-        {
-            return Unknown<double>();
-        }
-
-        return Known(Math.Max(d, 0) / w);
+        throw new DomainException($"undefined resource class {(int)c}");
     }
 
     /// <summary>
-    /// The units per day one bench produces with the given workers at the table: sum over workers of hours x
-    /// ticks per hour x worker speed, times bench speed, divided by the recipe's work per unit. Unknown when
-    /// any input is unknown, the recipe work or bench speed is not positive, or a worker's hours or speed is
-    /// negative or not finite. No workers is a known zero capacity.
+    /// Units per day needed to clear <paramref name="deficit"/> within the class's refill window. A non-positive deficit
+    /// needs nothing. Throws on a deficit that is not finite.
     /// </summary>
-    public static Fact<double> BenchCapacity(BenchRecipe r, IEnumerable<BenchWorker> workers)
+    public static double DemandRate(double deficit, ResourceClass resourceClass)
     {
-        if (!r.WorkPerUnit.TryGetValue(out var work) || !PositiveFinite(work))
+        if (!double.IsFinite(deficit))
         {
-            return Unknown<double>();
+            throw new DomainException($"invalid deficit {deficit}");
         }
 
-        if (!r.BenchWorkSpeed.TryGetValue(out var bench) || !PositiveFinite(bench))
+        return Math.Max(deficit, 0) / RefillWindowDays(resourceClass);
+    }
+
+    /// <summary>
+    /// The units per day one bench produces with the given workers at the table: sum over workers of hours x ticks
+    /// per hour x worker speed, times bench speed, divided by the recipe's work per unit. No workers is a zero
+    /// capacity. Throws when the recipe work or bench speed is not positive and finite, or a worker's hours or speed
+    /// is negative or not finite: each is a read the game always has.
+    /// </summary>
+    public static double BenchCapacity(BenchRecipe r, IEnumerable<BenchWorker> workers)
+    {
+        if (!PositiveFinite(r.WorkPerUnit) || !PositiveFinite(r.BenchWorkSpeed))
         {
-            return Unknown<double>();
+            throw new DomainException($"invalid bench recipe work {r.WorkPerUnit} at speed {r.BenchWorkSpeed}");
         }
 
         var ticks = 0.0;
         foreach (var w in workers)
         {
-            if (!w.WorkHoursPerDay.TryGetValue(out var h) || !NonNegativeFinite(h))
+            if (!NonNegativeFinite(w.WorkHoursPerDay) || !NonNegativeFinite(w.WorkSpeed))
             {
-                return Unknown<double>();
+                throw new DomainException($"invalid bench worker {w.WorkHoursPerDay} h at speed {w.WorkSpeed}");
             }
 
-            if (!w.WorkSpeed.TryGetValue(out var s) || !NonNegativeFinite(s))
-            {
-                return Unknown<double>();
-            }
-
-            ticks += h * GameTime.TicksPerHour * s;
+            ticks += w.WorkHoursPerDay * GameTime.TicksPerHour * w.WorkSpeed;
         }
 
-        return Known(ticks * bench / work);
+        return ticks * r.BenchWorkSpeed / r.WorkPerUnit;
     }
 
     /// <summary>
-    /// ceil(demand / capacity) for demand and per-bench capacity in units per day. Zero demand wants no
-    /// benches whatever the capacity; positive demand against zero capacity is unknown, not infinite.
+    /// ceil(demand / capacity) for demand and per-bench capacity in units per day. Zero demand wants no benches
+    /// whatever the capacity; positive demand against zero capacity is <see cref="BenchesWanted.NoCapacity"/>. Throws
+    /// on a negative or non-finite input.
     /// </summary>
-    public static Fact<int> BenchesWanted(Fact<double> demand, Fact<double> capacity)
+    public static BenchesWanted Wanted(double demand, double capacity)
     {
-        if (!demand.TryGetValue(out var d) || !NonNegativeFinite(d))
+        if (!NonNegativeFinite(demand) || !NonNegativeFinite(capacity))
         {
-            return Unknown<int>();
+            throw new DomainException($"invalid bench demand {demand} at capacity {capacity}");
         }
 
-        if (!capacity.TryGetValue(out var c) || !NonNegativeFinite(c))
+        if (demand == 0)
         {
-            return Unknown<int>();
+            return new BenchesWanted.Count(0);
         }
 
-        if (d == 0)
+        if (capacity == 0)
         {
-            return Known(0);
+            return new BenchesWanted.NoCapacity();
         }
 
-        if (c == 0)
-        {
-            return Unknown<int>();
-        }
-
-        var n = Math.Ceiling((d / c) - 1e-9);
-        return n > int.MaxValue ? Unknown<int>() : Known((int)n);
+        var n = Math.Ceiling((demand / capacity) - 1e-9);
+        return n > int.MaxValue ? new BenchesWanted.NoCapacity() : new BenchesWanted.Count((int)n);
     }
 
-    internal static bool PositiveFinite(double v) => v > 0 && !double.IsInfinity(v) && !double.IsNaN(v);
+    internal static bool PositiveFinite(double v) => v > 0 && double.IsFinite(v);
 
-    internal static bool NonNegativeFinite(double v) => v >= 0 && !double.IsInfinity(v) && !double.IsNaN(v);
+    internal static bool NonNegativeFinite(double v) => v >= 0 && double.IsFinite(v);
 }

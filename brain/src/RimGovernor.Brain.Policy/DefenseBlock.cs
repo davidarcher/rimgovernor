@@ -214,17 +214,16 @@ public static class DefenseBlock
     /// </summary>
     public static Fact<double> ColonistWorkTicksPerDay(IReadOnlyList<WorkPawn> pawns)
     {
-        var workers = WorkRules.DispatchWorkers(pawns, []);
-        if (workers.Count == 0)
+        if (!WorkRules.TryDispatchWorkers(pawns, [], out var workers) || workers.Count == 0)
         {
             return Unknown<double>();
         }
         var mean = WorkRules.AverageWorker(workers);
-        if (!mean.WorkHoursPerDay.TryGetValue(out var hours) || !mean.WorkSpeed.TryGetValue(out var speed) || !QuestCapacityForecast.FinitePositive(hours * speed))
+        if (!QuestCapacityForecast.FinitePositive(mean.WorkHoursPerDay * mean.WorkSpeed))
         {
             return Unknown<double>();
         }
-        return Known(hours * GameTime.TicksPerHour * speed);
+        return Known(mean.WorkHoursPerDay * GameTime.TicksPerHour * mean.WorkSpeed);
     }
 
     private sealed record BlockedTier(DefenseTierName Name, Dictionary<Cell, CoverThing> Blocked, List<Building> Standing);
