@@ -27,7 +27,7 @@ public static class ItemFactsFixtureRules
             Nutrition = ByDef(("RawRice", 0.05)),
             MedicalPotency = ByDef(("MedicineHerbal", 0.6), ("MedicineIndustrial", 1.0), ("MedicineUltratech", 1.6)),
             MedicalQualityMax = ByDef(("MedicineHerbal", 0.7), ("MedicineIndustrial", 1.0), ("MedicineUltratech", 1.3)),
-            NoMedicinePotency = Known(0.3), NoMedicineQualityMax = Known(0.7),
+            Unmedicated = new UnmedicatedTend(0.3, 0.7),
             StuffBeauty = ByDef(
                 ("WoodLog", 1.0), ("Steel", 1.0), ("Plasteel", 1.0), ("Uranium", 0.5), ("Silver", 2.0), ("Gold", 4.0), ("Jade", 2.5),
                 ("BlocksSandstone", 1.1), ("BlocksGranite", 1.0), ("BlocksLimestone", 1.0), ("BlocksSlate", 1.1), ("BlocksMarble", 1.35)),

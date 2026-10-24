@@ -67,19 +67,19 @@ public sealed record FieldHarvest
 /// When a stuff is in hand (#2467), in days from now: the stock covers the units at once; otherwise the supply candidates
 /// that yield the stuff (a growing field at its harvest lead, a huntable animal's butchery at the hunt's lead, a stored
 /// corpse's butchery at its butchering work) are taken in lead order and the stuff arrives with the candidate whose yield,
-/// added to the stock, covers the units. Unknown when no known source covers them: a stuff only a recipe chain makes is
-/// valued in tier 2, not here.
+/// added to the stock, covers the units. <see cref="GearArrival.NoKnownDay"/> when no source covers them: a stuff only a
+/// recipe chain makes is valued in tier 2, not here.
 /// </summary>
 public sealed class StuffArrival(IReadOnlyDictionary<Resource, long> stock, IReadOnlyList<SupplyCandidate> supply)
 {
-    /// <summary>The day <paramref name="units"/> (at least one) of <paramref name="stuff"/> are in hand, or unknown.</summary>
-    public Fact<double> Of(Resource stuff, long units)
+    /// <summary>The day <paramref name="units"/> (at least one) of <paramref name="stuff"/> are in hand, or <see cref="GearArrival.NoKnownDay"/>.</summary>
+    public GearArrival Of(Resource stuff, long units)
     {
         var want = Math.Max(1, units);
         double have = stock.GetValueOrDefault(stuff);
         if (have >= want)
         {
-            return Known(0.0);
+            return new GearArrival.InDays(0);
         }
         var sources = new List<(double Lead, long Units)>();
         foreach (var c in supply)
@@ -95,18 +95,18 @@ public sealed class StuffArrival(IReadOnlyDictionary<Resource, long> stock, IRea
             have += yielded;
             if (have >= want)
             {
-                return Known(lead);
+                return new GearArrival.InDays(lead);
             }
         }
-        return Unknown<double>();
+        return new GearArrival.NoKnownDay();
     }
 
     /// <summary>
     /// The arrival of a gear option's stuff: now for a worn, loose or stored item and for a def made from no stuff;
     /// for a bill, the arrival of the units of its stuff its ingredients take.
     /// </summary>
-    public Fact<double> Of(GearOption o) =>
-        o.Source != GearSource.Bill || o.Stuff.IsEmpty ? Known(0.0) : Of(o.Stuff, o.Ingredients.Where(a => a.Resource == o.Stuff).Sum(a => a.Count));
+    public GearArrival Of(GearOption o) =>
+        o.Source != GearSource.Bill || o.Stuff.IsEmpty ? new GearArrival.InDays(0) : Of(o.Stuff, o.Ingredients.Where(a => a.Resource == o.Stuff).Sum(a => a.Count));
 }
 
 public static class ClothingDemandRules

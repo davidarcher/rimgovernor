@@ -14,8 +14,7 @@ public static class FuelReads
         {
             return new FuelConsumer();
         }
-        var burn = catalog.RefuelBurn(definition);
-        if (!burn.IsKnown)
+        if (catalog.RefuelBurn(definition) is not { } burn)
         {
             return new FuelConsumer();
         }
@@ -34,7 +33,7 @@ public static class FuelReads
             OutOfFuel = b.OutOfFuel,
             SwitchedOn = b.SwitchedOn,
             Powered = b.Powered,
-            Burn = burn,
+            Burn = Known(burn),
             Fuels = fuels,
         };
     }

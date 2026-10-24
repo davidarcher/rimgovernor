@@ -32,7 +32,7 @@ public sealed class GearStuffChoiceTests
 
     private static StuffArrival Arrival(Dictionary<Resource, long> stock, params SupplyCandidate?[] supply) => new(stock, [.. supply.Select(c => c!)]);
 
-    private static GearOption Arrived(GearOption o, StuffArrival arrival) => o with { Arrival = arrival.Of(o).TryGetValue(out var days) ? new GearArrival.InDays(days) : new GearArrival.NoKnownDay() };
+    private static GearOption Arrived(GearOption o, StuffArrival arrival) => o with { Arrival = arrival.Of(o) };
 
     private static Resource? Planned(params GearOption[] options) =>
         GearLoadoutRules.PlanGearLoadout(new GearLoadoutInput { Threat = ColonyModelFixtures.NoThreat, Ambient = 20, ComfortableMin = 10, ComfortableMax = 30, Options = EquatableArray.From(options) })
@@ -41,10 +41,10 @@ public sealed class GearStuffChoiceTests
     [Fact]
     public void StockCoveringTheBillArrivesNow()
     {
-        Assert.Equal(Known(0.0), Arrival(new() { [Plasteel] = 50 }).Of(Shirt("Plasteel", .5)));
-        Assert.False(Arrival(new() { [Plasteel] = 49 }).Of(Shirt("Plasteel", .5)).IsKnown);
+        Assert.Equal(new GearArrival.InDays(0), Arrival(new() { [Plasteel] = 50 }).Of(Shirt("Plasteel", .5)));
+        Assert.IsType<GearArrival.NoKnownDay>(Arrival(new() { [Plasteel] = 49 }).Of(Shirt("Plasteel", .5)));
         // An item, and a bill of a def made from no stuff, are in hand.
-        Assert.Equal(Known(0.0), Arrival(new()).Of(Shirt("Plasteel", .5) with { Source = GearSource.Stored }));
+        Assert.Equal(new GearArrival.InDays(0), Arrival(new()).Of(Shirt("Plasteel", .5) with { Source = GearSource.Stored }));
     }
 
     [Fact]
@@ -52,8 +52,8 @@ public sealed class GearStuffChoiceTests
     {
         var field = ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 30, Known(3.5));
         // The stock and the standing crop together cover the 50 units at the harvest.
-        Assert.Equal(Known(3.5), Arrival(new() { [Cloth] = 20 }, field).Of(Shirt("Cloth", .1)));
-        Assert.False(Arrival(new() { [Cloth] = 10 }, field).Of(Shirt("Cloth", .1)).IsKnown);
+        Assert.Equal(new GearArrival.InDays(3.5), Arrival(new() { [Cloth] = 20 }, field).Of(Shirt("Cloth", .1)));
+        Assert.IsType<GearArrival.NoKnownDay>(Arrival(new() { [Cloth] = 10 }, field).Of(Shirt("Cloth", .1)));
         Assert.Null(ClothingDemandRules.GrowingFieldCandidate(Cloth, "zone1", 30, Unknown<double>()));
     }
 
@@ -63,9 +63,9 @@ public sealed class GearStuffChoiceTests
         var deer = new AcquisitionSource { Id = "deer", Hunt = true, Products = [new SourceProduct(Leather, 30)] };
         var hunt = ClothingDemandRules.HuntYieldCandidate(deer);
         Assert.Equal(new CandidateLead.Days(0), hunt!.Lead);
-        Assert.Equal(Known(0.0), Arrival(new(), hunt, ClothingDemandRules.HuntYieldCandidate(deer with { Id = "doe" })).Of(Shirt(Leather.Value, .1)));
+        Assert.Equal(new GearArrival.InDays(0), Arrival(new(), hunt, ClothingDemandRules.HuntYieldCandidate(deer with { Id = "doe" })).Of(Shirt(Leather.Value, .1)));
         // One deer's leather is short of the bill.
-        Assert.False(Arrival(new(), hunt).Of(Shirt(Leather.Value, .1)).IsKnown);
+        Assert.IsType<GearArrival.NoKnownDay>(Arrival(new(), hunt).Of(Shirt(Leather.Value, .1)));
         Assert.Null(ClothingDemandRules.HuntYieldCandidate(deer with { Hunt = false }));
     }
 
@@ -75,8 +75,8 @@ public sealed class GearStuffChoiceTests
         // A deer corpse's race yields 30 leather; one butchering's 450 work at speed 1 is 0.0075 days.
         var lead = 450.0 / GameTime.TicksPerDay;
         var corpse = ClothingDemandRules.CorpseYieldCandidate("corpse1", [new SourceProduct(Leather, 30)], lead);
-        Assert.Equal(Known(lead), Arrival(new() { [Leather] = 20 }, corpse).Of(Shirt(Leather.Value, .1)));
-        Assert.False(Arrival(new(), corpse).Of(Shirt(Leather.Value, .1)).IsKnown);
+        Assert.Equal(new GearArrival.InDays(lead), Arrival(new() { [Leather] = 20 }, corpse).Of(Shirt(Leather.Value, .1)));
+        Assert.IsType<GearArrival.NoKnownDay>(Arrival(new(), corpse).Of(Shirt(Leather.Value, .1)));
         Assert.Null(ClothingDemandRules.CorpseYieldCandidate("corpse1", [], lead));
     }
 
@@ -86,7 +86,7 @@ public sealed class GearStuffChoiceTests
         GearOption[] options = [Shirt("Plasteel", .5), Shirt("Steel", .2)];
         Assert.Equal(Plasteel, Planned(options)); // Stats alone pick the plasteel.
         var arrival = Arrival(new() { [Steel] = 100 });
-        Assert.False(arrival.Of(options[0]).IsKnown);
+        Assert.IsType<GearArrival.NoKnownDay>(arrival.Of(options[0]));
         Assert.Equal(Steel, Planned([.. options.Select(o => Arrived(o, arrival))]));
     }
 

@@ -177,16 +177,16 @@ public sealed partial class DefinitionCatalog
     /// <summary>The item a mineable def yields when mined (its building.mineableThing), empty when the def has no row or yields nothing. A long-range scanner aimed at a mineable is aimed at that yield.</summary>
     public string MineableYield(string mineable) => FindThing(mineable)?.building?.mineableThing?.defName ?? string.Empty;
 
-    /// <summary>The burn the named def's CompProperties_Refuelable states: unknown for a def without the comp, so a building that cannot be refueled is not a fuel consumer.</summary>
-    public Fact<P.FuelBurn> RefuelBurn(string name)
+    /// <summary>The burn the named def's CompProperties_Refuelable states: null for a def without the comp, so a building that cannot be refueled is not a fuel consumer.</summary>
+    public P.FuelBurn? RefuelBurn(string name)
     {
         var row = ThingRow(name);
         if (row.GetCompProperties<CompProperties_Refuelable>() is not { } fuel)
         {
-            return Unknown<P.FuelBurn>();
+            return null;
         }
 
-        return Known(new P.FuelBurn
+        return new P.FuelBurn
         {
             PerDay = fuel.fuelConsumptionRate,
             UnitsPerItem = GameMembers.FuelMultiplier(fuel),
@@ -195,7 +195,7 @@ public sealed partial class DefinitionCatalog
             WhenPowered = fuel.consumeFuelOnlyWhenPowered,
             Flickable = HasComp<CompProperties_Flickable>(row),
             Difficulty = fuel.factorByDifficulty,
-        });
+        };
     }
 
     /// <summary><c>PlantProperties.IsTree</c> of def's row: a wood-harvest tag, or forceIsTree. False for a def without plant properties.</summary>

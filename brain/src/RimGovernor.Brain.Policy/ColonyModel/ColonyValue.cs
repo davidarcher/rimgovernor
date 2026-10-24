@@ -320,13 +320,18 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
             best = Math.Max(best, at.Value);
         }
 
-        var (potency, cap) = kind is { } held
-            ? (medicine.MedicalPotency.TryGetValue(held, out var p) ? Known(p) : default, medicine.MedicalQualityMax.TryGetValue(held, out var m) ? Known(m) : default)
-            : (medicine.NoMedicinePotency, medicine.NoMedicineQualityMax);
-        if (!potency.TryGetValue(out var factor) || !cap.TryGetValue(out var max))
+        double factor, max;
+        if (kind is { } held)
         {
-            findings.Add("medicine_potency_unknown:" + (kind?.Value ?? "none"));
-            return null;
+            if (!medicine.MedicalPotency.TryGetValue(held, out factor) | !medicine.MedicalQualityMax.TryGetValue(held, out max))
+            {
+                findings.Add("medicine_potency_unknown:" + held.Value);
+                return null;
+            }
+        }
+        else
+        {
+            (factor, max) = (medicine.NoMedicinePotency, medicine.NoMedicineQualityMax);
         }
 
         return Math.Clamp(best * factor, 0, max);

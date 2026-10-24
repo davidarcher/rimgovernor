@@ -28,10 +28,14 @@ public sealed record ItemFacts
     /// <summary>The game's MedicalQualityMax of every medicine def: the highest tend quality it allows (#3635).</summary>
     public IReadOnlyDictionary<Resource, double> MedicalQualityMax { get; init; } = new Dictionary<Resource, double>();
 
-    /// <summary>The potency and tend quality cap of tending without medicine (<c>TendUtility.NoMedicinePotency</c>, <c>NoMedicineQualityMax</c>).</summary>
-    public Fact<double> NoMedicinePotency { get; init; }
+    /// <summary>The potency and tend quality cap of tending without medicine (<c>TendUtility.NoMedicinePotency</c>, <c>NoMedicineQualityMax</c>); none on a frame without a catalog.</summary>
+    public UnmedicatedTend? Unmedicated { get; init; }
 
-    public Fact<double> NoMedicineQualityMax { get; init; }
+    /// <summary>The potency of tending without medicine; a frame without a catalog throws.</summary>
+    public double NoMedicinePotency => (Unmedicated ?? throw new DomainException("the catalog has no unmedicated tend numbers")).Potency;
+
+    /// <summary>The tend quality cap of tending without medicine; a frame without a catalog throws.</summary>
+    public double NoMedicineQualityMax => (Unmedicated ?? throw new DomainException("the catalog has no unmedicated tend numbers")).QualityMax;
 
     /// <summary>Each stuff's Beauty stat factor (stuffProps.statFactors, 1 when absent); the stuff's own statBases Beauty is never it.</summary>
     public IReadOnlyDictionary<Resource, double> StuffBeauty { get; init; } = new Dictionary<Resource, double>();
@@ -211,6 +215,9 @@ public sealed record ItemFacts
         return best;
     }
 }
+
+/// <summary>The numbers of tending without medicine: its potency and the tend quality it caps at.</summary>
+public sealed record UnmedicatedTend(double Potency, double QualityMax);
 
 /// <summary>One art recipe: the building it makes, the building's footprint, the stuff it takes and its work (the recipe's workAmount, else the product's WorkToMake).</summary>
 public sealed record Sculpture(string Recipe, string Def, Cell Size, long Cost, double Work)

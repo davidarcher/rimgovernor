@@ -15,9 +15,6 @@ Bridge.Contracts/Facts/WireEnums.cs|Discard|3
 Bridge.Contracts/Foundation/Families.cs|Discard|1
 Bridge/Catalog/DefenseCensus.cs|Fact|2
 Bridge/Catalog/DefenseCensus.cs|ValueOrDefault|4
-Bridge/Catalog/ItemFacts.cs|Fact|2
-Bridge/Catalog/Items.cs|Fact|2
-Bridge/Catalog/Items.cs|Unknown|1
 Bridge/Catalog/MapSurvey.cs|ValueOrDefault|5
 Bridge/Catalog/Trade.cs|Fact|11
 Bridge/Catalog/Trade.cs|Unknown|7
@@ -286,7 +283,7 @@ Observation/ColonyDecode.cs|Fact|37
 Observation/ColonyDecode.cs|Unknown|3
 Observation/ColonyFrames.cs|Fact|15
 Observation/ColonyFrames.cs|Unknown|3
-Observation/ColonyGear.cs|Fact|16
+Observation/ColonyGear.cs|Fact|15
 Observation/ColonyGear.cs|Unknown|4
 Observation/ColonyGear.cs|ValueOrDefault|1
 Observation/ColonyProduction.cs|Fact|31
@@ -351,8 +348,7 @@ Policy/Calendar.cs|Fact|39
 Policy/Calendar.cs|Unknown|5
 Policy/ChildRooms.cs|Fact|2
 Policy/Climate.cs|Fact|1
-Policy/ClothingDemand.cs|Fact|9
-Policy/ClothingDemand.cs|Unknown|1
+Policy/ClothingDemand.cs|Fact|4
 Policy/ColonyAdmin.cs|Fact|14
 Policy/ColonyAdmin.cs|NullableValue|5
 Policy/ColonyAdmin.cs|Unknown|4
@@ -366,7 +362,7 @@ Policy/ColonyModel/ColonyModelInput.cs|Fact|60
 Policy/ColonyModel/ColonyModelPolicy.cs|Fact|1
 Policy/ColonyModel/ColonyModelState.cs|Fact|18
 Policy/ColonyModel/ColonyTrajectory.cs|NullableValue|1
-Policy/ColonyModel/ColonyValue.cs|Fact|22
+Policy/ColonyModel/ColonyValue.cs|Fact|18
 Policy/ColonyModel/CropGrowthModel.cs|Fact|15
 Policy/ColonyModel/GoalPaths.cs|Discard|1
 Policy/ColonyModel/GoalPaths.cs|Fact|6
@@ -503,8 +499,6 @@ Policy/HusbandryUpkeep.cs|Fact|12
 Policy/HusbandryUpkeep.cs|Unknown|2
 Policy/IdeologyConversion.cs|Fact|4
 Policy/InteriorOpen.cs|Fact|1
-Policy/ItemFacts.cs|Fact|2
-Policy/ItemFactsFixture.cs|Fact|2
 Policy/Joiners.cs|Fact|3
 Policy/KitchenSeparation.cs|Fact|6
 Policy/KitchenSeparation.cs|Unknown|1
@@ -618,8 +612,7 @@ Policy/RecoveryQueue.cs|Unknown|1
 Policy/Refrigeration.cs|Fact|10
 Policy/Refrigeration.cs|Unknown|1
 Policy/Refrigeration.cs|UnknownMember|1
-Policy/RemoteHold.cs|Discard|1
-Policy/RemoteHold.cs|Fact|10
+Policy/RemoteHold.cs|Fact|9
 Policy/RemoteHold.cs|Unknown|1
 Policy/RemoteLoot.cs|Fact|6
 Policy/ResearchFacts.cs|Fact|10

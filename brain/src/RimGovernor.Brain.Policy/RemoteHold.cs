@@ -52,18 +52,23 @@ public static partial class RemoteRules
         {
             return Known(true);
         }
-        if (f.Disaster is not null)
+        return Known(f.Disaster is not null && Disrupting(f.Disaster.Phase));
+    }
+
+    /// <summary>Whether a disaster in this phase still disrupts a colony service; an unread phase disrupts nothing it can name.</summary>
+    private static bool Disrupting(DisasterPhase phase)
+    {
+        switch (phase)
         {
-            switch (f.Disaster.Phase)
-            {
-                case DisasterPhase.Disrupted:
-                case DisasterPhase.Survival:
-                    return Known(true);
-                default:
-                    break;
-            }
+            case DisasterPhase.Disrupted:
+            case DisasterPhase.Survival:
+                return true;
+            case DisasterPhase.Recovering:
+            case DisasterPhase.Restored:
+            case DisasterPhase.Unread:
+                return false;
         }
-        return Known(false);
+        throw new ArgumentOutOfRangeException(nameof(phase), phase, "unknown disaster phase");
     }
 
     /// <summary>

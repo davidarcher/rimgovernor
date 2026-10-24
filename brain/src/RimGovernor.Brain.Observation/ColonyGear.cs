@@ -224,7 +224,7 @@ public static class ColonyGearReads
         {
             if (GearLoadoutOption(x, catalog) is { } option && (allowed is null || allowed.Contains(x.DefName)))
             {
-                options.Add(option with { Arrival = arrival.Of(option).TryGetValue(out var days) ? new GearArrival.InDays(days) : new GearArrival.NoKnownDay() });
+                options.Add(option with { Arrival = arrival.Of(option) });
             }
         }
         input = input with { Worn = EquatableArray.From(worn), Options = EquatableArray.From(options) };
