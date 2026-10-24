@@ -178,8 +178,8 @@ public sealed class IllnessForecastTests
         return new(pawn.Pawn, IllnessForecast.Of(schedule, pawn, Tables, HarmConsequences.CareOf(null), 1, new ForecastValuePolicy(), horizon), schedule.IncidentsPerDay(horizon / Day));
     }
 
-    // The replacement surgeries a day the hospital credit is fed (ForecastHospital.IllnessSurgeries).
-    private static double SurgeriesPerDay(IllnessPawn p) => ForecastHospital.IllnessSurgeries(p.Pawn, p.Distribution, p.IncidentsPerDay).Sum(r => r.PerDay);
+    // The replacement surgeries a day the hospital credit is fed (ForecastHospital.Surgeries).
+    private static double SurgeriesPerDay(IllnessPawn p) => ForecastHospital.Surgeries(p.Pawn, p.Distribution.Replacements, p.IncidentsPerDay).Sum(r => r.PerDay);
 
     private static double Mean(HarmDistribution d) => d.Points.Sum(p => p.Loss * p.Probability);
 

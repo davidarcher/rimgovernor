@@ -140,7 +140,11 @@ public static class RoundsReads
                 CapacityPenalties = catalog.CapacityPenalties(),
                 ThreatTable = catalog.ThreatSchedule(),
                 DiseaseTable = catalog.DiseaseTable(),
-                HarmCatalog = new() { Raid = catalog.RaidFactions(), Coverage = catalog.BodyCoverage(), Natural = catalog.NaturalArmor() },
+                HarmCatalog = new()
+                {
+                    Raid = catalog.RaidFactions(), Coverage = catalog.BodyCoverage(), Natural = catalog.NaturalArmor(),
+                    Parts = new() { Rules = catalog.PartHitRules(), Recipes = catalog.PartReplacementRecipes() },
+                },
                 MoodBreak = p.Stations.Mood.Break,
                 ResearchBenchSpeeds = catalog.ResearchBenchSpeeds(),
                 LaboratoryBench = p.Shapes.Furniture.BenchFor(RoomRole.Laboratory),

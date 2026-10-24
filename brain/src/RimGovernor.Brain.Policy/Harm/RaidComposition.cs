@@ -69,7 +69,8 @@ public sealed record RaidComposition
 /// by selection weight among the kinds whose combat power fits the faction's cost curve at these points (the cheapest kind
 /// when none does), as <c>PawnGroupMakerUtility.ChoosePawnGenOptionsByPoints</c> draws. A group's pawn count is the points
 /// over the weighted mean combat power of those kinds. A kind's weapon is drawn from its tag-matched weapons by commonality.
-/// The weapons collapse into bins by armor category, ranged or melee, and damage decile of the whole raid.
+/// The weapons collapse into bins by armor category, ranged or melee, and damage decile of the whole raid; a bin keeps its members'
+/// damage defs by weight (#3847).
 /// </summary>
 public static class RaidCompositionRules
 {
@@ -235,6 +236,10 @@ public static class RaidCompositionRules
                 Damage = g.Value.Sum(e => e.Weight * e.Weapon.Damage) / weight,
                 ArmorPenetration = g.Value.Sum(e => e.Weight * e.Weapon.AP) / weight,
                 Weight = weight / total,
+                Ranged = g.Key.Ranged,
+                Damages = EquatableArray.From(g.Value.SelectMany(e => e.Weapon.Damages.Select(d => (d.Def, Share: e.Weight * d.Share)))
+                    .GroupBy(d => d.Def, StringComparer.Ordinal).OrderBy(d => d.Key, StringComparer.Ordinal)
+                    .Select(d => new WeaponDamage(d.Key, d.Sum(x => x.Share) / weight))),
             };
         })];
     }

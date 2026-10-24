@@ -367,19 +367,38 @@ The harm model's fifth step ([harm model](../architecture/forecast-value.md#harm
 - `CapacityPenaltyTables.BloodLoss` and `WoundInfection` are decoded like the other tables; `HediffPenaltyTable.Immunizable`
   (`HediffCompProperties_Immunizable`) and `SeverityPerDayTended` (`HediffCompProperties_TendDuration`) carry the infection's course.
   They are not part of `CapacityPenaltyTables.Valid()`; an unknown one leaves its part unassessed.
-- `HarmConsequences.Of(hits, bins, response, pawn, tables, support, policy, horizon)` is pure. It returns a `HarmDistribution`:
+- `HarmConsequences.Of(hits, bins, response, parts, pawn, tables, support, policy, horizon)` is pure. It returns a `HarmDistribution`:
   `Points` (capability-days lost, probability) summing to 1, `DownProbability`, `DeathProbability`, `PatientDays` (the tended wounds'
-  expected days from first care to healed, 0 untended; #3804), `Findings`. Deaths carry the remaining
+  expected days from first care to healed, 0 untended; #3804), `Replacements` (the raid's destroyed parts, #3847), `Findings`. Deaths carry the remaining
   horizon plus `DeathTerminalValue`. Tended means the support serves a care (`CareServices`) with an observed `TendQuality` (quality and
   room factor are the mean over services); first care is `FirstCareTicks`; otherwise the pawn is untended (`harm_untended`). An internal
   overload takes the care as a plain `HarmConsequences.Care` (the hospital credit's, #3804), and `HarmConsequences.Wounds` prices a
   surgery failure's damage dealt at one wound severity the same way.
   A health scale that is not positive or an unobserved weapon mix makes the distribution unknown
   (`capacities_unobserved:<pawn>`, `weapon_mix_unobserved`). Unassessed parts are findings: `adaptation_feedback_unassessed`,
-  `rescue_labor_unassessed`, `injury_part_effects_unassessed`, `bleed_part_factors_unobserved`,
+  `rescue_labor_unassessed`, `injury_part_efficiency_unassessed` (an injured part's lost efficiency short of its loss;
+  `HarmConsequences.Wounds` names `injury_part_effects_unassessed`), `bleed_part_factors_unobserved`,
   `capacity_penalty_table_unknown:BloodLoss` or `:WoundInfection`, and for infection `infection_immunity_gain_speed_unobserved`,
   `infection_difficulty_factor_unobserved`, `infection_onset_delay_unmodelled`, `infection_room_factor_unobserved`.
   Mirrored rules: [kept constants](kept-constants.md#mirrored-game-rules-raid-health-consequences-3544).
+- Raid part loss (#3847, `RaidPartLoss`): `NeedsForecastPawn.PartLoss` (`PawnPartLossFacts`, required: the native read throws for a colonist without a hediff set) carries
+  `InstantKillChance` (`Difficulty.allowInstantKillChance` for a colonist, 1 otherwise), one `BodyPartLossRead` per not-missing part
+  with coverageAbs above 0 (def, coverage, apparel groups, Outside, core, parent row, `GetPartHealth`, max health,
+  `destroyableByDamage`, whether its loss kills by the `ShouldBeDead` rules, and the five capacity levels with it and its children
+  missing, from a copy of the hediff set), and per def of a destroyable part whose loss does not kill each install recipe as an
+  `OrganReplacementRead` (read as the illness's are). `WeaponBin.Ranged` and `WeaponBin.Damages` (the members' `WeaponDef.Damages`
+  by weight: a ranged weapon's projectile damage def, a melee weapon's verbs' `meleeDamageDef`s) name what a hit deals.
+  `HarmCatalog.Parts` (`RaidPartCatalog`) carries each damage def's `PartHitRule` (from the classes declaring its worker's
+  `ChooseHitPart` and `ApplySpecialEffectsToPart`) and each part def's install recipe tiers. A part's per-hit loss chance is the draw
+  (coverage × hit chance factor, ranged hits at any depth, melee and Cut/Blunt/Scratch/Bite on Outside parts, a stab forced inside)
+  × the armor outcomes of its groups (`ArmorResponseRules.Outcomes`) × the destroy rule; over a raid it is lost with
+  1 − e^(−hits × q) at the exposure range's three points. A loss that kills adds death at `InstantKillChance`; another is booked at no
+  loss when `SurgeryRules.RestorePick` would queue its replacement (`HarmDistribution.Replacements`, priced by the hospital credit),
+  otherwise it costs its capacity loss to the horizon with the named `SurgeryWantReason`. The losses split each surviving point as if
+  independent of its damage. Unread facts throw: `weapon_bin_damage`, `part_hit_rule:<def>`,
+  `organ_replacement_tier:<recipe>`. Named: `raid_part_loss_spread_unmodelled`, `raid_part_loss_hit_accumulation_unmodelled`,
+  `raid_part_loss_fresh_wound_unmodelled`, `raid_part_loss_damage_independence_unmodelled`, `raid_part_replacement_wait_unmodelled`,
+  `raid_part_hit_unmodelled:<def>` (a modded worker). Mirrored rules: [kept constants](kept-constants.md#mirrored-game-rules-raid-part-loss-3847).
 
 ### Harm term and death floor (#3546)
 
@@ -388,7 +407,7 @@ The ledger's `Harm` term and the `Death` floor read `ForecastCoupledContext.Harm
 
 - `HarmInputs`: `Schedule` (`ThreatSchedule.Of` at the observed storyteller, days passed and raid points), `Composition`
   (`RaidCompositionRules.Of` at the observed `RaidPoints` and `HostileFactions`, over `RoundsFacts.HarmCatalog.Raid`), `RaidPoints`,
-  `DefenseCapacity`, `Exposure` (the embedded `exposure.json` unless injected), `Coverage` and `Natural` (`HarmCatalog`, from the
+  `DefenseCapacity`, `Exposure` (the embedded `exposure.json` unless injected), `Coverage`, `Natural` and `Parts` (`HarmCatalog`, from the
   catalog), and `Illness` (`IllnessSchedule.Of` over `RoundsFacts.DiseaseTable` and `RoundsFacts.Disease`; see
   [illness term](#illness-term-3824)), and `Containment` (`ContainmentPlanning.Forecast`; see [escape term](#escape-term-3811)).
   Each defaults to unknown, `Containment` to no entity. The hediff tables are `CapacityPenalties`.

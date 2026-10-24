@@ -36,7 +36,7 @@ public sealed class HarmConsequencesTests
         BloodLoss = BloodLoss(), WoundInfection = infection ? WoundInfection() : new(), MovingMinForCapable = 0.15,
     };
 
-    private static WeaponBin[] Bins(double damage) => [new() { Damage = damage, Category = ArmorCategory.Sharp, Weight = 1 }];
+    private static WeaponBin[] Bins(double damage) => [RaidPartLossTests.Gun(damage)];
 
     private static ArmorResponse[] Response(double damage, double bleed) => [new() { ExpectedDamage = damage, BleedChance = bleed }];
 
@@ -47,7 +47,7 @@ public sealed class HarmConsequencesTests
 
     private static HarmDistribution Of(HitRange hits, double damage = 2, double bleed = 0.8, NeedsForecastPawn? pawn = null,
         CapacityPenaltyTables? tables = null, ForecastSupportConsequences? support = null) =>
-        HarmConsequences.Of(hits, Bins(damage), Response(damage, bleed), pawn ?? Pawn(), tables ?? Tables(false), support, new ForecastValuePolicy(), 5 * Day);
+        HarmConsequences.Of(hits, Bins(damage), Response(damage, bleed), new RaidPartInputs { Catalog = RaidPartLossTests.Catalog }, pawn ?? Pawn(), tables ?? Tables(false), support, new ForecastValuePolicy(), 5 * Day);
 
     private static double Mean(HarmDistribution d) => d.Points.Sum(p => p.Loss * p.Probability);
 

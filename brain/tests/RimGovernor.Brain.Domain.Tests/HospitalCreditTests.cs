@@ -120,7 +120,7 @@ public sealed class HospitalCreditTests
         var row = Assert.Single(Credits(ledger));
         Assert.Equal((PlannedRoomCredits.Key(PlannedRole.Hospital, 1, "pawn"), "pawn", Horizon), (row.Key, row.Pawn, row.Units));
         Assert.Equal(-(infection + 0 + (0.5 * mood)) * Horizon, row.Value, 9);
-        Assert.Contains("hospital_raid_surgery_unmodelled", ledger.Findings);
+        Assert.DoesNotContain("hospital_raid_surgery_unmodelled", ledger.Findings);
     }
 
     [Fact]
@@ -252,6 +252,27 @@ public sealed class HospitalCreditTests
         var stockedContext = Context(0);
         var once = (((1 - 0.72) * 0.5) - ((1 - 0.98) * 0.5)) * (Horizon + stockedContext.Value.DeathTerminalValue);
         Assert.Equal(-(1 / 30.0) * once * Horizon, Credit(true) - Credit(false), 9);
+    }
+
+    [Fact]
+    public void ARaidsArmLossBooksItsReplacementSurgeriesADayAtTheRaidRate()
+    {
+        // #3847: the raid's 10-damage rifle takes the 5-health arm with the per-raid chance the hospital-tended raid gives it; a stocked
+        // natural arm is queued on every loss, so a raid a day books that many surgeries a day, each saving the 0.72-to-0.98 success gain.
+        // The same loss with a bill outside the hospital's environment books none, its harm alike.
+        NeedsForecastPawn Armed(bool environment) => Patient() with { PartLoss = RaidPartLossTests.ArmLoss(environment) };
+        double Credit(bool environment)
+        {
+            // The patient-days' mood shift is the same in both: the bill's environment moves no harm.
+            var context = Context(1, pawn: Armed(environment));
+            return Credits(ForecastValue.Of(Served(PlannedRoomCredits.BreakShifts(context)["pawn"].Single()), context, Day)).Sum(r => r.Value);
+        }
+
+        var context = Context(1, pawn: Armed(true));
+        var perRaid = Assert.Single(HarmLedger.RaidOn(context, Armed(true), Tended(0.5), Horizon * Day).Replacements).Probability;
+        Assert.True(perRaid > 0);
+        var once = (((1 - 0.72) * 0.5) - ((1 - 0.98) * 0.5)) * (Horizon + context.Value.DeathTerminalValue);
+        Assert.Equal(-perRaid * once * Horizon, Credit(true) - Credit(false), 9);
     }
 
     [Fact]

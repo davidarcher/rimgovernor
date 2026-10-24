@@ -19,4 +19,13 @@ public sealed record WeaponBin
     public double ArmorPenetration { get; init; }
     public ArmorCategory Category { get; init; }
     public double Weight { get; init; }
+
+    /// <summary>Ranged weapons' bin: a projectile hit lands at any depth, a melee one on an Outside part (#3847).</summary>
+    public bool Ranged { get; init; }
+
+    /// <summary>The damage defs the bin's hits deal, their shares summing to 1 (#3847): the members' <see cref="WeaponDef.Damages"/> by weight.</summary>
+    public EquatableArray<WeaponDamage> Damages { get; init; }
 }
+
+/// <summary>One damage def a weapon's hits deal and its share of them (#3847).</summary>
+public sealed record WeaponDamage(string Def, double Share);

@@ -64,6 +64,12 @@ public sealed record WeaponDef
     /// </summary>
     public ArmorCategory? ArmorCategory { get; init; }
 
+    /// <summary>
+    /// The damage defs its hits deal, each with its share (#3847): a ranged weapon's projectile damage def alone, a melee weapon's
+    /// verbs' meleeDamageDefs by the game's selection weight. Empty for a def that states no damage.
+    /// </summary>
+    public EquatableArray<WeaponDamage> Damages { get; init; }
+
     /// <summary>An accuracy curve that peaks at medium range or beyond.</summary>
     public bool Precision { get; init; }
 

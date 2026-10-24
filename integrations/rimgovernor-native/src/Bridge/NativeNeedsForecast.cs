@@ -144,6 +144,7 @@ internal static class NativeNeedsForecast
                 ResearchSpeed = F(pawn.GetStatValue(StatDefOf.ResearchSpeed) * Find.Storyteller.difficulty.researchSpeedFactor, "research speed"),
                 PlantWorkSpeed = F(pawn.GetStatValue(StatDefOf.PlantWorkSpeed), "plant work speed"),
                 Disease = NativeDiseaseFacts.ReadPawn(pawn) is { } disease ? disease with { ImmunityGainSpeed = F(disease.ImmunityGainSpeed, "immunity gain speed") } : throw new InvalidOperationException("colonist without an immunity handler: " + pawn.GetUniqueLoadID()),
+                PartLoss = NativePartLossFacts.ReadPawn(pawn) ?? throw new InvalidOperationException("colonist without a hediff set: " + pawn.GetUniqueLoadID()),
                 CorpseThoughts = CorpseThoughtsOf(pawn), SightingTicks = sightings?.Covered(pawn.thingIDNumber, now) ?? 0,
                 Upkeep = UpkeepOf(pawn, moodRead), Deathrest = DeathresterOf(pawn) });
         }

@@ -97,9 +97,9 @@ public sealed class ForecastValueTests
     internal static HarmInputs RaidDay(ExposureTable? exposure = null, double raidsPerDay = 1) => new()
     {
         Schedule = new() { Assessed = true, MajorThreatsPerDay = raidsPerDay, RaidFraction = 1 },
-        Composition = new() { Pawns = Known(5d), Bins = [new() { Damage = 10, Category = ArmorCategory.Sharp, Weight = 1 }] },
+        Composition = new() { Pawns = Known(5d), Bins = [RaidPartLossTests.Gun(10)] },
         RaidPoints = Known(1000d), DefenseCapacity = Known(1000d),
-        Exposure = exposure ?? Exposure(), Coverage = Torso, Natural = new(),
+        Exposure = exposure ?? Exposure(), Coverage = Torso, Natural = new(), Parts = RaidPartLossTests.Catalog,
         // A colony the storyteller sends no disease (random diseases off): an assessed schedule without incidents.
         Illness = new() { Assessed = true },
     };
@@ -632,9 +632,10 @@ public sealed class ForecastValueTests
     public void ARiskWeightOfZeroPricesTheMeanAndOneThePolicysCvar()
     {
         var context = HarmContext(Cloth);
-        var response = ArmorResponseRules.OfOutfit(Cloth, new NaturalArmor(), Torso, [new WeaponBin { Damage = 10, Category = ArmorCategory.Sharp, Weight = 1 }]);
-        var distribution = HarmConsequences.Of(new HitRange(5, 3, 20), [new WeaponBin { Damage = 10, Category = ArmorCategory.Sharp, Weight = 1 }],
-            response, HarmPawn(), HarmTables(), new ForecastSupportConsequences(), new ForecastValuePolicy(), Day);
+        WeaponBin[] bins = [RaidPartLossTests.Gun(10)];
+        var response = ArmorResponseRules.OfOutfit(Cloth, new NaturalArmor(), Torso, bins);
+        var distribution = HarmConsequences.Of(new HitRange(5, 3, 20), bins,
+            response, HarmLedger.PartsOf(context.Harm, Cloth), HarmPawn(),HarmTables(), new ForecastSupportConsequences(), new ForecastValuePolicy(), Day);
         var (mean, cvar) = HarmLedger.Moments(distribution, context.Value.HarmRiskAlpha);
 
         Assert.True(cvar > mean);

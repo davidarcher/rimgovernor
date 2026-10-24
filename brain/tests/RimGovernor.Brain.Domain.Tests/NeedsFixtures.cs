@@ -30,7 +30,7 @@ internal static class NeedsFixtures
         Consciousness = 1, Moving = 1, Manipulation = 1, Sight = 1, Talking = 1,
         MalnutritionSeverity = 0, FoodPoisoningSeverity = 0, HypothermiaSeverity = 0, HeatstrokeSeverity = 0,
         PainShockThreshold = .8, HealthScale = 1, IncomingDamageFactor = 1, InjuryHealingFactor = 1, ResearchSpeed = 1, PlantWorkSpeed = 1,
-        Disease = Disease, CorpseThoughts = [], SightingTicks = 0, Upkeep = Upkeep, Deathrest = null,
+        Disease = Disease, PartLoss = PartLoss, CorpseThoughts = [], SightingTicks = 0, Upkeep = Upkeep, Deathrest = null,
     };
 
     /// <summary>No work speeds, no incapable work, no food and no mood.</summary>
@@ -41,6 +41,9 @@ internal static class NeedsFixtures
     {
         ImmunityGainSpeed = 1, Contracts = [], BloodPumping = 1, Breathing = 1, BloodFiltration = 1, Parts = [], Replacements = [],
     };
+
+    /// <summary>A body with no part a raid hit can destroy (#3847): no part rows, no replacements.</summary>
+    public static PawnPartLossFacts PartLoss => new() { InstantKillChance = 1, Parts = [], Replacements = [] };
 
     /// <summary>A mood need at 0.5 aimed at 0.5, the vanilla seeker rates, minor break at 0.35, no conditional thoughts or memories.</summary>
     public static NeedMood Mood => new()

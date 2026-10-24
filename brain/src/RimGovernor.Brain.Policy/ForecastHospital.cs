@@ -30,8 +30,8 @@ public sealed record ForecastTending(bool Tended, double Quality);
 /// totalDamage dealt as wounds (HarmConsequences.Wounds), tended in the room the surgery was in.</item>
 /// <item>Future surgery, a day (<see cref="SurgeryRate"/>, #3830): each surgery a future event queues on the colonist, at its rate a
 /// day, gains as a queued bill does: the replacements the autopilot would queue for the organs illness destroys (incidents a day ×
-/// the stocked replacement's probability in one incident, <see cref="HarmDistribution.Replacements"/>), at the replacement recipe's
-/// outcomes and its best doctor's quality.</item>
+/// the stocked replacement's probability in one incident) and for the parts a raid destroys (raids a day × its probability in one
+/// raid, #3847), <see cref="HarmDistribution.Replacements"/>, at the replacement recipe's outcomes and its best doctor's quality.</item>
 /// </list>
 /// A shape whose ring closes no room (no prediction row) relieves nothing. Throws a RequiredFactException when a fact the
 /// credit reads is unread: the room's layout room, the filth model's
@@ -53,14 +53,13 @@ internal static class ForecastHospital
     internal const double SurgeryBleedShare = 19d / 24;
 
     /// <summary>
-    /// The mechanics the credit leaves out, named with every served hospital: the surgeries a raid's part losses queue (HarmLedger
-    /// does not forecast part loss, #3847), the vitals monitor and other facilities a planned bed would link, the BotchedMySurgery
+    /// The mechanics the credit leaves out, named with every served hospital: the vitals monitor and other facilities a planned bed would link, the BotchedMySurgery
     /// thought, the temperature sleep thoughts, the medical beds the colony already has (#3817), the surgery outcome classes other
     /// than success, death and failure, and the surgeries on non-colonists.
     /// </summary>
     internal static readonly string[] Unmodelled =
     [
-        "hospital_raid_surgery_unmodelled", "hospital_bed_facilities_unmodelled", "surgery_botched_thought_unmodelled",
+        "hospital_bed_facilities_unmodelled", "surgery_botched_thought_unmodelled",
         "hospital_sleep_temperature_unmodelled", "hospital_standing_medical_beds_unmodelled", "surgery_other_outcomes_unmodelled",
         "hospital_noncolonist_surgery_unmodelled",
     ];
@@ -78,16 +77,19 @@ internal static class ForecastHospital
     internal sealed record SurgeryModel(IReadOnlyList<SurgeryOutcomeRead> Outcomes, double QualityMin, double QualityMax, double Quality);
 
     /// <summary>
-    /// Surgeries a future event queues on <see cref="Patient"/> at <see cref="PerDay"/> a day (#3830): the replacements of the organs
-    /// illness destroys; #3847 adds a raid's part losses. Each is credited at the rate, as a queued bill's once gain a day.
+    /// Surgeries a future event queues on <see cref="Patient"/> at <see cref="PerDay"/> a day: the replacements of the organs illness
+    /// destroys (#3830) and of the parts a raid destroys (#3847). Each is credited at the rate, as a queued bill's once gain a day.
     /// </summary>
     internal sealed record SurgeryRate(string Patient, SurgeryModel Surgery, double PerDay);
 
-    /// <summary>The surgery rates of one pawn's illness (#3830): incidents a day × each stocked replacement's probability, by recipe.</summary>
-    internal static IEnumerable<SurgeryRate> IllnessSurgeries(string pawn, HarmDistribution illness, double incidentsPerDay) =>
-        illness.Replacements.Where(r => r.Recipe is { Environment: true, Outcomes.Count: > 0 })
+    /// <summary>
+    /// The surgery rates of one pawn's event (an illness's, #3830, or a raid's, #3847): events a day × each stocked replacement's
+    /// probability in one event, by recipe.
+    /// </summary>
+    internal static IEnumerable<SurgeryRate> Surgeries(string pawn, IReadOnlyList<OrganReplacement> replacements, double eventsPerDay) =>
+        replacements.Where(r => r.Recipe is { Environment: true, Outcomes.Count: > 0 })
             .GroupBy(r => r.Recipe!.Recipe, StringComparer.Ordinal)
-            .Select(g => new SurgeryRate(pawn, ModelOf(g.First().Recipe!), incidentsPerDay * g.Sum(r => r.Probability)));
+            .Select(g => new SurgeryRate(pawn, ModelOf(g.First().Recipe!), eventsPerDay * g.Sum(r => r.Probability)));
 
     private static SurgeryModel ModelOf(OrganReplacementRead read) => new(read.Outcomes, read.QualityMin, read.QualityMax, read.Quality);
 
@@ -272,6 +274,7 @@ internal static class ForecastHospital
             {
                 var hospital = HarmLedger.RaidOn(context, pawn, Care(HospitalInfection()), horizon);
                 patientDays += raidsPerDay * hospital.PatientDays;
+                rates.AddRange(Surgeries(pawn.Pawn, hospital.Replacements, raidsPerDay));
                 if (tending.Tended)
                 {
                     infection = raidsPerDay * (HarmLedger.RaidOn(context, pawn, Care(InfectionNow(pawn)), horizon).Risk - hospital.Risk);
@@ -291,7 +294,7 @@ internal static class ForecastHospital
 
                 illness = incidents * (Risk(now) - Risk(hospital));
                 patientDays += incidents * hospital.PatientDays;
-                rates.AddRange(IllnessSurgeries(pawn.Pawn, now, incidents));
+                rates.AddRange(Surgeries(pawn.Pawn, now.Replacements, incidents));
             }
 
             patients.Add(new(pawn.Pawn, infection, illness, patientDays, patientDays > 0 ? MoodDelta(pawn, prediction) : 0));

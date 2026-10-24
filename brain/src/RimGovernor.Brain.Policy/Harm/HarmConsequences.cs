@@ -30,14 +30,14 @@ public sealed record HarmDistribution
     /// <summary>The expected tends of one event; filled by the illness forecast (a raid's treatments are <see cref="HarmConsequences.Treatments"/>).</summary>
     public double Treatments { get; init; }
 
-    /// <summary>The organs one event destroys and what follows (#3830), filled by the illness forecast; a raid's part loss is #3847.</summary>
+    /// <summary>The organs and parts one event destroys and what follows: an illness's (#3830), a raid's whose loss does not kill (#3847).</summary>
     public IReadOnlyList<OrganReplacement> Replacements { get; init; } = [];
 
     public IReadOnlyList<string> Findings { get; init; } = [];
 }
 
 /// <summary>
-/// One organ an event destroys with <see cref="Probability"/> (#3830): of def <see cref="Part"/>, and the replacement the autopilot
+/// One organ or part an event destroys with <see cref="Probability"/> (#3830, #3847): of def <see cref="Part"/>, and the replacement the autopilot
 /// would queue (<see cref="SurgeryRules.RestorePick"/>), or null with the reason none would be (the loss then lasts the horizon).
 /// </summary>
 public sealed record OrganReplacement(string Part, OrganReplacementRead? Recipe, SurgeryWantReason Reason, double Probability);
@@ -56,9 +56,9 @@ public static class HarmConsequences
 
     // Pearson-Tukey three-point weights for the 5th, 50th and 95th percentiles (Keefer and Bodily 1983): the range's
     // low, mean and high stand for the 90% range the exposure table holds.
-    private const double LowWeight = 0.185;
-    private const double MeanWeight = 0.63;
-    private const double HighWeight = 0.185;
+    internal const double LowWeight = 0.185;
+    internal const double MeanWeight = 0.63;
+    internal const double HighWeight = 0.185;
 
     // Pawn_HealthTracker.ShouldBeDeadFromLethalDamageThreshold: total injury severity at which the pawn dies, per health scale.
     private const double LethalDamagePerHealthScale = 150;
@@ -135,15 +135,16 @@ public static class HarmConsequences
     /// <param name="hits">Hits the pawn takes in a raid, as the exposure table's 90% range.</param>
     /// <param name="bins">The weapon bins of the raid's composition, weighted by <see cref="WeaponBin.Weight"/>.</param>
     /// <param name="response">The armor response to each of <paramref name="bins"/> (<see cref="ArmorResponseRules.OfOutfit"/>).</param>
+    /// <param name="parts">The outfit, armor and catalog tables the raid's part loss reads (<see cref="RaidPartLoss"/>, #3847).</param>
     /// <param name="tables">The catalog's penalty tables; blood loss and wound infection are read, an unknown one leaves its part unassessed.</param>
     /// <param name="support">The outcome's care facts; null is unknown, which means untended.</param>
     /// <param name="horizon">Ticks the loss is counted over.</param>
-    public static HarmDistribution Of(HitRange hits, IReadOnlyList<WeaponBin> bins, IReadOnlyList<ArmorResponse> response, NeedsForecastPawn pawn,
+    public static HarmDistribution Of(HitRange hits, IReadOnlyList<WeaponBin> bins, IReadOnlyList<ArmorResponse> response, RaidPartInputs parts, NeedsForecastPawn pawn,
         CapacityPenaltyTables tables, ForecastSupportConsequences? support, ForecastValuePolicy policy, double horizon) =>
-        Of(hits, bins, response, pawn, tables, CareOf(support), policy, horizon);
+        Of(hits, bins, response, parts, pawn, tables, CareOf(support), policy, horizon);
 
     /// <summary>The consequences of <paramref name="hits"/> raid hits on <paramref name="pawn"/> given <paramref name="care"/> (#3804); see the class summary.</summary>
-    internal static HarmDistribution Of(HitRange hits, IReadOnlyList<WeaponBin> bins, IReadOnlyList<ArmorResponse> response, NeedsForecastPawn pawn,
+    internal static HarmDistribution Of(HitRange hits, IReadOnlyList<WeaponBin> bins, IReadOnlyList<ArmorResponse> response, RaidPartInputs parts, NeedsForecastPawn pawn,
         CapacityPenaltyTables tables, Care care, ForecastValuePolicy policy, double horizon)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
@@ -153,6 +154,9 @@ public static class HarmConsequences
         }
 
         var (model, mix) = built;
+        // An injured part's lost efficiency (short of its loss) is not priced; the parts the raid destroys are (#3847).
+        findings.Add("injury_part_efficiency_unassessed");
+        model.Losses(RaidPartLoss.Of(hits, bins, parts, pawn, model.Levels, model.MovingMin, model.Incoming, model.Days, findings));
 
         var (mass, step) = Mass(hits, mix);
         var points = new List<HarmPoint>();
@@ -165,7 +169,10 @@ public static class HarmConsequences
             }
         }
 
-        return new HarmDistribution { Known = true, Points = points, DownProbability = down, DeathProbability = death, PatientDays = patient, Findings = [.. findings] };
+        return new HarmDistribution
+        {
+            Known = true, Points = points, DownProbability = down, DeathProbability = death, PatientDays = patient, Replacements = model.Replacements(), Findings = [.. findings],
+        };
     }
 
     /// <summary>
@@ -176,7 +183,7 @@ public static class HarmConsequences
     internal static HarmDistribution Wounds(double damage, double woundSeverity, double bleedChance, NeedsForecastPawn pawn,
         CapacityPenaltyTables tables, Care care, ForecastValuePolicy policy, double horizon)
     {
-        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        var findings = new SortedSet<string>(StringComparer.Ordinal) { "injury_part_effects_unassessed" };
         var severity = Math.Max(woundSeverity, 1e-9);
         if (ModelOf([new WeaponBin { Damage = severity, Category = ArmorCategory.Sharp, Weight = 1 }],
                 [new ArmorResponse { ExpectedDamage = severity, BleedChance = bleedChance }], pawn, tables, care, policy, horizon, findings) is not { } built)
@@ -196,7 +203,7 @@ public static class HarmConsequences
     private static (Model Model, Mix Mix)? ModelOf(IReadOnlyList<WeaponBin> bins, IReadOnlyList<ArmorResponse> response, NeedsForecastPawn pawn,
         CapacityPenaltyTables tables, Care care, ForecastValuePolicy policy, double horizon, SortedSet<string> findings)
     {
-        findings.UnionWith(["adaptation_feedback_unassessed", "rescue_labor_unassessed", "injury_part_effects_unassessed", "bleed_part_factors_unobserved"]);
+        findings.UnionWith(["adaptation_feedback_unassessed", "rescue_labor_unassessed", "bleed_part_factors_unobserved"]);
         var (shock, healthScale, incoming, healing, levels) = (pawn.PainShockThreshold, pawn.HealthScale, pawn.IncomingDamageFactor, pawn.InjuryHealingFactor, ForecastValue.Levels(pawn));
         if (!(healthScale > 0))
         {
@@ -423,6 +430,54 @@ public static class HarmConsequences
         private readonly bool bleedingPriced;
         private readonly bool infectionPriced;
 
+        // The raid's part losses (#3847), merged by outcome: the chance a raid kills through one, and each loss in capability-days with its chance.
+        private double partDeath;
+        private (double Loss, double Probability)[] partLosses = [];
+        private double partShare;
+        private double partScale = 1;
+        private List<PartLossEvent> partEvents = [];
+        private double alive;
+
+        public double[] Levels => levels;
+        public double MovingMin => movingMin;
+        public double Incoming => incoming;
+        public double Days => days;
+
+        /// <summary>Sets the raid's part losses (<see cref="RaidPartLoss.Of"/>): each grid point's survivors then split over them, as if independent of its damage.</summary>
+        public void Losses(List<PartLossEvent> events)
+        {
+            var total = events.Sum(e => e.Probability);
+            var scale = total > 1 ? 1 / total : 1;
+            partEvents = events;
+            partScale = scale;
+            partDeath = events.Where(e => e.Kills).Sum(e => e.Probability) * scale;
+            partLosses = [.. events.Where(e => !e.Kills).GroupBy(e => e.Loss).Select(g => (g.Key, g.Sum(e => e.Probability) * scale)).OrderBy(l => l.Item1)];
+            partShare = partDeath + partLosses.Sum(l => l.Probability);
+        }
+
+        /// <summary>The parts whose loss does not kill, each at its chance a raid times the share of the raid's mass alive to lose it.</summary>
+        public IReadOnlyList<OrganReplacement> Replacements() =>
+            [.. partEvents.Where(e => !e.Kills).Select(e => new OrganReplacement(e.Part, e.Pick, e.Reason, e.Probability * partScale * alive))];
+
+        // A point the raid's injuries leave alive at `loss`: its part losses split it (#3847); returns the share that lives.
+        private double Alive(List<HarmPoint> points, double loss, double mass, ref double death)
+        {
+            alive += mass;
+            points.Add(new HarmPoint(loss, mass * Math.Max(0, 1 - partShare)));
+            if (partDeath > 0)
+            {
+                points.Add(new HarmPoint(DeathLoss(0), mass * partDeath));
+                death += mass * partDeath;
+            }
+
+            foreach (var (lost, probability) in partLosses)
+            {
+                points.Add(new HarmPoint(Math.Min(days, loss + lost), mass * probability));
+            }
+
+            return 1 - partDeath;
+        }
+
         public Model(Mix mix, double[] levels, double movingMin, double shock, double healthScale, double incoming, double healing,
             CapacityPenaltyTables tables, Care care, ForecastValuePolicy policy, double horizon, SortedSet<string> findings)
         {
@@ -482,7 +537,7 @@ public static class HarmConsequences
             var severity = damage * incoming;
             if (severity <= 0)
             {
-                points.Add(new HarmPoint(0, mass));
+                Alive(points, 0, mass, ref death);
                 return;
             }
 
@@ -508,13 +563,13 @@ public static class HarmConsequences
             var infected = Infection(severity, out var infectionLoss, out var infectionDiedAt, out var infectionDowned);
             if (infected <= 0)
             {
-                points.Add(new HarmPoint(baseLoss, mass));
-                down += downed ? mass : 0;
+                var lives = Alive(points, baseLoss, mass, ref death);
+                down += downed ? mass * lives : 0;
                 return;
             }
 
-            points.Add(new HarmPoint(baseLoss, mass * (1 - infected)));
-            down += downed ? mass * (1 - infected) : 0;
+            var survives = Alive(points, baseLoss, mass * (1 - infected), ref death);
+            down += downed ? mass * (1 - infected) * survives : 0;
             if (infectionDiedAt is { } infectionAt)
             {
                 points.Add(new HarmPoint(DeathLoss(infectionAt), mass * infected));
@@ -522,8 +577,8 @@ public static class HarmConsequences
                 return;
             }
 
-            points.Add(new HarmPoint(Math.Min(days, baseLoss + infectionLoss), mass * infected));
-            down += downed || infectionDowned ? mass * infected : 0;
+            var lasts = Alive(points, Math.Min(days, baseLoss + infectionLoss), mass * infected, ref death);
+            down += downed || infectionDowned ? mass * infected * lasts : 0;
         }
 
         private double DeathLoss(double atDay) => Math.Max(0, days - atDay) + policy.DeathTerminalValue;

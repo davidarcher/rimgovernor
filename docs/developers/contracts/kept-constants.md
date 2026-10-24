@@ -270,6 +270,27 @@ The model's own choices, not game rules: the sum of the hits is a 32-point damag
 5th, 50th and 95th percentiles with the Pearson-Tukey weights 0.185, 0.63 and 0.185 (Keefer and Bodily 1983); a hit's damage is its bin's
 armor-adjusted expectation and bleeds with the bin's bleed chance at the bin's full damage; healing is integrated in 48 steps.
 
+## Mirrored game rules: raid part loss (#3847)
+
+`RaidPartLoss` (`brain/src/RimGovernor.Brain.Policy/Harm/RaidPartLoss.cs`) and the catalog's `PartHitRules`
+(`brain/src/RimGovernor.Brain.Bridge/Catalog/PartLoss.cs`) mirror the part rules no def carries. Read with ilspycmd (1.7). The overkill
+range, stab, cut, blunt and scratch fields, hit chance factors and part health come from the defs and the pawn.
+
+| Literal | Value | 1.7 member |
+| --- | --- | --- |
+| Hit part draw | a not-missing part by coverageAbs × `GetHitChanceFactorFor` (0 conceptual), coverage alone when that leaves none; a projectile at any depth, a melee hit and Cut, Blunt, Scratch and Bite on Outside parts | `HediffSet.GetRandomNotMissingPart`, `DamageWorker_AddInjury.ChooseHitPart` and overrides |
+| Stab forced internal | a hit on a part that is not Inside moves with `stabChanceOfForcedInternal` to an Inside child | `DamageWorker_Stab.ChooseHitPart` |
+| Stab inner share | 0.4 of the damage on a part inside the Outside part it was stabbed through (`RaidPartLoss.StabInnerFactor`) | `DamageWorker_Stab.ApplySpecialEffectsToPart` |
+| Part destroyed | damage ≥ part health destroys it, never the core part nor one not `destroyableByDamage`; on a preserved Outside part only with `InverseLerp(overkill min, max, (damage − health) ÷ max health)` | `DamageWorker_AddInjury.ReduceDamageToPreserveOutsideParts`, `HediffSet.AddDirect` |
+| Cut split | `RoundRandom(cutExtraTargetsCurve(Rand.Value))` extra targets; none preserves the whole damage, k of them give total × (1 + cleave) ÷ (k + 1 + cleave) unpreserved | `DamageWorker_Cut.ApplySpecialEffectsToPart` |
+| Blunt split | never preserved; with `bluntInnerHitChance` a fraction drawn from `bluntInnerHitDamageFractionToConvert` moves inward | `DamageWorker_Blunt.ApplySpecialEffectsToPart` |
+| Scratch split | `scratchSplitPercentage` of the damage on the hit part, preserved | `DamageWorker_Scratch.ApplySpecialEffectsToPart` |
+| Instant-kill protection | a colonist's lethal hit is let through with `allowInstantKillChance`, otherwise its severity is cut and the part kept | `DamageWorker_AddInjury.FinalizeAndAddInjury` |
+
+The model's own choices, not game rules: the cut curve is expected over a 1000-point midpoint grid and the blunt fraction over 4;
+the hits are Poisson at the exposure range's three Pearson-Tukey points; the extra targets', inner parts' and parents' losses, hits
+accumulating on a part, and the dependence of a part's loss on the raid's total damage are not modelled (named findings).
+
 ## Mirrored game rules: food hauling (#3849)
 
 `FoodHaulRules` (`brain/src/RimGovernor.Brain.Policy/FoodHaul.cs`) mirrors the hauling rules no def carries. A pawn's food

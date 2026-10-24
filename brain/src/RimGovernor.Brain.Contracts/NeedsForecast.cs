@@ -367,6 +367,8 @@ public sealed record NeedsForecastPawn
     public required double PlantWorkSpeed { get; init; }
     /// <summary>The pawn's illness reads (#3824).</summary>
     public required PawnDiseaseFacts Disease { get; init; }
+    /// <summary>The pawn's raid part-loss reads (#3847).</summary>
+    public required PawnPartLossFacts PartLoss { get; init; }
     /// <summary>The memories the pawn's ideo gives it on seeing a corpse lying (#3806); empty when none would (no ideo, no such precept, no mood).</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<CorpseThoughtRead>))]
     public required EquatableArray<CorpseThoughtRead> CorpseThoughts { get; init; }
@@ -436,6 +438,45 @@ public abstract record NeedRecovery
 
     /// <summary>The need gained a tick of service at current tolerance.</summary>
     public sealed record Rate(double GainPerTick) : NeedRecovery;
+}
+/// <summary>
+/// What a raid's part loss reads of one pawn (#3847): the chance a hit whose part loss would kill is let through
+/// (DamageWorker_AddInjury.FinalizeAndAddInjury's instant-kill protection: <c>Difficulty.allowInstantKillChance</c> for a colonist, 1
+/// for any other pawn), every body part a hit can land on (<see cref="BodyPartLossRead"/>), and per def of a destroyable part whose loss
+/// does not kill, each install recipe that would replace it once missing (<see cref="OrganReplacementRead"/>, read as the illness's are).
+/// </summary>
+public sealed record PawnPartLossFacts
+{
+    public double InstantKillChance { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<BodyPartLossRead>))]
+    public EquatableArray<BodyPartLossRead> Parts { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<OrganReplacementRead>))]
+    public EquatableArray<OrganReplacementRead> Replacements { get; init; }
+}
+/// <summary>
+/// One not-missing body part with a coverageAbs above 0 (#3847), in <c>BodyDef.AllParts</c> order: its def, coverageAbs, the apparel
+/// body-part groups it sits in, whether its depth is Outside, whether it is the body's core part, the row of its parent (-1 for none or
+/// one not read), <c>HediffSet.GetPartHealth</c> and <c>BodyPartDef.GetMaxHealth</c>, <c>BodyPartDef.destroyableByDamage</c>, whether
+/// its loss kills (<c>Pawn_HealthTracker.WouldDieAfterAddingHediff</c> of MissingBodyPart), and the Consciousness, Moving, Manipulation,
+/// Sight and Talking levels with it and every part under it missing (<c>PawnCapacityUtility.CalculateCapacityLevel</c> over a copy of the
+/// hediff set, the missing parts no longer fresh).
+/// </summary>
+public sealed record BodyPartLossRead(string Part, double Coverage)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> Groups { get; init; }
+    public bool Outside { get; init; }
+    public bool Core { get; init; }
+    public int Parent { get; init; }
+    public double Health { get; init; }
+    public double MaxHealth { get; init; }
+    public bool Destroyable { get; init; }
+    public bool Kills { get; init; }
+    public double Consciousness { get; init; }
+    public double Moving { get; init; }
+    public double Manipulation { get; init; }
+    public double Sight { get; init; }
+    public double Talking { get; init; }
 }
 /// <summary>
 /// One body part of a def a DiseaseHuman incident affects (#3830): its def, coverageAbs,

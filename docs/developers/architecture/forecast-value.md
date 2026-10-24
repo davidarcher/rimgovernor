@@ -838,10 +838,9 @@ finish before the hospital serves adds a `Once` gain under `hospital/<room>/surg
 surgeon's quality (`SupportWorker.SurgeryQuality`, every other outcome comp applied), the outcomes walked in
 `SurgeryOutcomeEffectDef.GetOutcome`'s order (`SupportDemand.SurgeryOutcomes`): death the horizon's rest and `DeathTerminalValue`,
 a failure its `totalDamage` dealt as wounds of the read mean severity, bleeding at 19/24 of the model rate (`HarmConsequences.Wounds`), tended in
-the surgery's room. A future surgery is a rate (`ForecastHospital.SurgeryRate`: patient, outcome model, surgeries a day): an illness's stocked organ replacements (#3830) come at incidents a day × their probability (`ForecastHospital.IllnessSurgeries`), by recipe, each credited per day the same failure cost saved, read from the replacement's `OrganReplacementRead` outcomes and best doctor's quality. No raid, disease or surgery to expect credits nothing. An unread fact throws a `RequiredFactException`: the
+the surgery's room. A future surgery is a rate (`ForecastHospital.SurgeryRate`: patient, outcome model, surgeries a day): an illness's stocked organ replacements (#3830) come at incidents a day × their probability, and a raid's stocked part replacements (#3847, `RaidPartLoss`) at raids a day × their probability in one hospital-tended raid (`ForecastHospital.Surgeries`), by recipe, each credited per day the same failure cost saved, read from the replacement's `OrganReplacementRead` outcomes and best doctor's quality. No raid, disease or surgery to expect credits nothing. An unread fact throws a `RequiredFactException`: the
 prediction, layout room, filth curves, threat or disease schedule, tending, hospital bed, a colonist's harm reads, outfit, owned
-bed room or thought rows, or a patient's mood. Named as not modelled with each served hospital: the surgeries raid part loss
-queues (`hospital_raid_surgery_unmodelled`, #3847), a planned bed's linked facilities (`hospital_bed_facilities_unmodelled`), the
+bed room or thought rows, or a patient's mood. Named as not modelled with each served hospital: a planned bed's linked facilities (`hospital_bed_facilities_unmodelled`), the
 `BotchedMySurgery` thought, the temperature sleep thoughts, the colony's standing medical beds (#3817), outcome classes other
 than success, death and failure, and surgeries on non-colonists. Two planned hospitals each credit every patient.
 

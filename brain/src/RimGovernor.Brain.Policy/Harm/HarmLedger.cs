@@ -3,12 +3,13 @@ using RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>The catalog's decoded harm tables (#3546): the raid factions, where a hit lands and the race's own armor. Empty without a catalog.</summary>
+/// <summary>The catalog's decoded harm tables (#3546): the raid factions, where a hit lands, the race's own armor and the part-loss tables (#3847). Empty without a catalog.</summary>
 public sealed record HarmCatalog
 {
     public RaidTable Raid { get; init; } = new();
     public BodyCoverage Coverage { get; init; } = new();
     public NaturalArmor Natural { get; init; } = new();
+    public RaidPartCatalog Parts { get; init; } = new();
 }
 
 /// <summary>
@@ -33,6 +34,9 @@ public sealed record HarmInputs
     public BodyCoverage Coverage { get; init; } = new();
     public NaturalArmor Natural { get; init; } = new();
 
+    /// <summary>The damage rules and replacement tiers a raid's part loss reads (#3847); empty by default, which throws where read.</summary>
+    public RaidPartCatalog Parts { get; init; } = new();
+
     /// <summary>The colony's disease incidents (<see cref="IllnessSchedule.Of"/>, #3824); unassessed by default.</summary>
     public IllnessSchedule Illness { get; init; } = new();
 
@@ -50,6 +54,7 @@ public sealed record HarmInputs
         DefenseCapacity = facts.DefenseCapacity,
         Coverage = facts.HarmCatalog.Coverage,
         Natural = facts.HarmCatalog.Natural,
+        Parts = facts.HarmCatalog.Parts,
         Illness = IllnessSchedule.Of(facts.DiseaseTable, facts.Disease),
         Containment = facts.Containment.Forecast,
     };
@@ -243,7 +248,7 @@ internal static class HarmLedger
             if (!cache.TryGetValue(key, out var distribution))
             {
                 var response = ArmorResponseRules.OfOutfit(outfit, inputs.Natural, inputs.Coverage, bins);
-                cache[key] = distribution = HarmConsequences.Of(hits, bins, response, row, context.CapacityPenalties, outcome.Support, context.Value, horizon);
+                cache[key] = distribution = HarmConsequences.Of(hits, bins, response, PartsOf(inputs, outfit), row, context.CapacityPenalties, outcome.Support, context.Value, horizon);
             }
 
             findings.UnionWith(distribution.Findings);
@@ -412,12 +417,17 @@ internal static class HarmLedger
     internal static WeaponBin[]? BinsOf(HarmInputs inputs) =>
         inputs.Composition.Pawns.IsKnown && inputs.Composition.Bins.ToArray() is { Length: > 0 } bins ? bins : null;
 
+    /// <summary>What a raid's part loss reads of <paramref name="outfit"/> and the inputs (#3847).</summary>
+    internal static RaidPartInputs PartsOf(HarmInputs inputs, EquatableArray<GearOption> outfit) =>
+        new() { Outfit = outfit, Natural = inputs.Natural, Layers = inputs.Coverage.Layers, Catalog = inputs.Parts };
+
     /// <summary>
     /// One raid's harm on <paramref name="row"/> in its worn outfit given <paramref name="care"/> (#3804, the hospital credit): its
-    /// risk-transformed loss (<see cref="Risk"/>) and expected patient-days (<see cref="HarmDistribution.PatientDays"/>). Throws a
+    /// risk-transformed loss (<see cref="Risk"/>), expected patient-days (<see cref="HarmDistribution.PatientDays"/>) and the parts it
+    /// destroys that the autopilot would or would not replace (<see cref="HarmDistribution.Replacements"/>, #3847). Throws a
     /// RequiredFactException when the composition, the points ratio, the pawn's outfit, its exposure cell or its harm reads are unread.
     /// </summary>
-    internal static (double Risk, double PatientDays) RaidOn(ForecastCoupledContext context, NeedsForecastPawn row, HarmConsequences.Care care, double horizon)
+    internal static (double Risk, double PatientDays, IReadOnlyList<OrganReplacement> Replacements) RaidOn(ForecastCoupledContext context, NeedsForecastPawn row, HarmConsequences.Care care, double horizon)
     {
         var inputs = context.Harm;
         var bins = BinsOf(inputs) ?? throw new RequiredFactException(CompositionUnknown);
@@ -432,7 +442,7 @@ internal static class HarmLedger
             throw new RequiredFactException("raid_exposure:" + row.Pawn);
         }
 
-        var distribution = HarmConsequences.Of(hits, bins, ArmorResponseRules.OfOutfit(wearing, inputs.Natural, inputs.Coverage, bins), row,
+        var distribution = HarmConsequences.Of(hits, bins, ArmorResponseRules.OfOutfit(wearing, inputs.Natural, inputs.Coverage, bins), PartsOf(inputs, wearing), row,
             context.CapacityPenalties, care, context.Value, horizon);
         if (!distribution.Known)
         {
@@ -440,7 +450,7 @@ internal static class HarmLedger
         }
 
         var (mean, tail) = Moments(distribution, context.Value.HarmRiskAlpha);
-        return (Risk(mean, tail, context.Value.HarmRiskWeight), distribution.PatientDays);
+        return (Risk(mean, tail, context.Value.HarmRiskWeight), distribution.PatientDays, distribution.Replacements);
     }
 
     /// <summary>The risk transform of one raid's loss: (1 − w) × mean + w × CVaR.</summary>

@@ -73,13 +73,41 @@ public static class ArmorResponseRules
             return;
         }
 
+        Span<double> first = stackalloc double[outfit.Count + 1];
+        Span<double> afterHalve = stackalloc double[outfit.Count + 1];
+        var n = Layers(outfit, natural, coverage.Layers, bin, groups, first, afterHalve);
+        var tally = default(Tally);
+        Walk(first[..n], afterHalve[..n], 0, bin, false, bin.Damage, probability, ref tally);
+        total.Damage += tally.Damage;
+        total.Bleed += tally.Bleed;
+        total.Deflect += tally.Deflect;
+    }
+
+    /// <summary>
+    /// The damages one <paramref name="bin"/> hit on a part in <paramref name="groups"/> gets through with, each with its chance (#3847):
+    /// the walk's leaves short of a deflection, added to <paramref name="into"/>; the chances sum to 1 less the deflection's.
+    /// </summary>
+    internal static void Outcomes(IReadOnlyList<GearOption> outfit, NaturalArmor natural, EquatableArray<string> layers, WeaponBin bin, EquatableArray<string> groups,
+        List<(double Damage, double Probability)> into)
+    {
+        Span<double> first = stackalloc double[outfit.Count + 1];
+        Span<double> afterHalve = stackalloc double[outfit.Count + 1];
+        var n = Layers(outfit, natural, layers, bin, groups, first, afterHalve);
+        Leaves(first[..n], afterHalve[..n], 0, bin, false, bin.Damage, 1, into);
+    }
+
+    // The effective armor of each layer over a part in `groups`, outermost first, then natural: as the hit's own category in `first`,
+    // and as blunt once a sharp hit is halved in `afterHalve`; returns the layer count.
+    private static int Layers(IReadOnlyList<GearOption> outfit, NaturalArmor natural, EquatableArray<string> layers, WeaponBin bin, EquatableArray<string> groups,
+        Span<double> first, Span<double> afterHalve)
+    {
         // Garments covering the part, innermost first by their outermost layer.
         Span<int> order = stackalloc int[outfit.Count];
         Span<int> depth = stackalloc int[outfit.Count];
         var n = 0;
         for (var i = 0; i < outfit.Count; i++)
         {
-            var d = Depth(outfit[i], coverage.Layers);
+            var d = Depth(outfit[i], layers);
             if (d < 0 || !Covers(outfit[i], groups))
             {
                 continue;
@@ -97,10 +125,7 @@ public static class ArmorResponseRules
             depth[at] = d;
         }
 
-        // Armor per layer, outermost first, then natural: as the hit's own category, and as blunt once a sharp hit is halved.
         var afterCategory = bin.Category == ArmorCategory.Sharp ? ArmorCategory.Blunt : bin.Category;
-        Span<double> first = stackalloc double[n + 1];
-        Span<double> afterHalve = stackalloc double[n + 1];
         for (var k = 0; k < n; k++)
         {
             var o = outfit[order[n - 1 - k]];
@@ -110,11 +135,27 @@ public static class ArmorResponseRules
 
         first[n] = Effective(Rating(natural, bin.Category), bin);
         afterHalve[n] = Effective(Rating(natural, afterCategory), bin);
-        var tally = default(Tally);
-        Walk(first, afterHalve, 0, bin, false, bin.Damage, probability, ref tally);
-        total.Damage += tally.Damage;
-        total.Bleed += tally.Bleed;
-        total.Deflect += tally.Deflect;
+        return n + 1;
+    }
+
+    // The walk's leaves short of a deflection: each damage that gets through and its chance.
+    private static void Leaves(ReadOnlySpan<double> first, ReadOnlySpan<double> afterHalve, int layer, WeaponBin bin, bool converted, double damage, double probability,
+        List<(double Damage, double Probability)> into)
+    {
+        if (probability <= 0)
+        {
+            return;
+        }
+
+        if (layer == first.Length)
+        {
+            into.Add((damage, probability));
+            return;
+        }
+
+        var effective = converted ? afterHalve[layer] : first[layer];
+        Leaves(first, afterHalve, layer + 1, bin, converted || bin.Category == ArmorCategory.Sharp, damage / 2, probability * effective / 2, into);
+        Leaves(first, afterHalve, layer + 1, bin, converted, damage, probability * (1 - effective), into);
     }
 
     // converted: a sharp hit a layer halved, now blunt.

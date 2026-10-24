@@ -146,6 +146,7 @@ public sealed partial class DefinitionCatalog
             AP = penetration,
             Damage = amount,
             ArmorCategory = ArmorCategoryOf(damage),
+            Damages = Domain.EquatableArray.From([new P.WeaponDamage(damage.defName, 1)]),
             DPS = cycle > 0 ? amount * burst / cycle : weapon.DPS,
         };
     }
@@ -160,6 +161,7 @@ public sealed partial class DefinitionCatalog
         var cooldownFactor = StatBase(row, StatMeleeCooldown);
         double weight = 0, dps = 0, penetration = 0, damageSum = 0, reach = weapon.Reach;
         var categoryWeights = new Dictionary<P.ArmorCategory, double>();
+        var damageWeights = new SortedDictionary<string, double>(StringComparer.Ordinal);
         foreach (var tool in row.tools)
         {
             double power = tool.power;
@@ -186,6 +188,11 @@ public sealed partial class DefinitionCatalog
                         categoryWeights[category] = categoryWeights.GetValueOrDefault(category) + w;
                     }
 
+                    if (verb.meleeDamageDef is { } damage)
+                    {
+                        damageWeights[damage.defName] = damageWeights.GetValueOrDefault(damage.defName) + w;
+                    }
+
                     dps += w * power * (1 + ap) * verb.accuracyTouch / cycle;
                     penetration += w * ap;
                 }
@@ -195,7 +202,11 @@ public sealed partial class DefinitionCatalog
         // The family most swings resolve against (ties break to the lower family, so the answer does not depend on tool order).
         P.ArmorCategory? dominant = categoryWeights.Count > 0 ? categoryWeights.OrderByDescending(c => c.Value).ThenBy(c => c.Key).First().Key : null;
         return weight > 0
-            ? weapon with { Reach = reach, DPS = dps / weight, AP = penetration / weight, Damage = damageSum / weight, ArmorCategory = dominant }
+            ? weapon with
+            {
+                Reach = reach, DPS = dps / weight, AP = penetration / weight, Damage = damageSum / weight, ArmorCategory = dominant,
+                Damages = Domain.EquatableArray.From(damageWeights.Select(d => new P.WeaponDamage(d.Key, d.Value / weight))),
+            }
             : weapon with { Reach = reach };
     }
 
