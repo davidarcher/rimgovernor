@@ -63,6 +63,10 @@ improvement that preserves known mood benefits is admitted. Complete believer
 coverage must demonstrate an assigned work restriction or an observed mood
 penalty removed by the change. Mood relief must exceed the candidate's worst
 known penalty across all believers; losing an observed positive thought holds.
+With no believers, or a current design the options cannot value, no swap is judged and the
+design stays (`Unchanged`). A believer without a mood row leaves the thoughts `Unjudged`: no
+mood relief or loss is claimed. A pawn census that misses a believer the ideoligion counts
+raises `RequiredFactException`.
 No score component may worsen. Unknown eligibility,
 effect costs or safety holds; ties retain the current design. Eligibility comes
 from the keyed section's fluid mode, points, reform count and next threshold.
@@ -175,10 +179,10 @@ game's `AppliesTo`, `BuildingPresent` and `RequirementsSatisfied` computed witho
 and the class name of any kind the brain cannot predict in `unread`; `policy.BuildingDemand`), the free non-slave colonists on
 the map holding it (`believer_pawns`, `WorshipFacts.Believers`), the style category names, the venerated animals'
 ThingDef names, and the reform state (`fluid`, `can_reform`, development
-points, reform count, next reform points; `policy.IdeoDevelopment`). The
-believers are not a second read: `Ideoligion.BelieverList` projects the pawn
-rows' `policy_inputs` (`ideo_id`, `ideo_certainty`) into the colonists holding the
-ideoligion, unknown when a row lacks its inputs. The section is absent, with no watermark, without Ideology or a primary ideoligion; the brain then holds
+points, reform count, next reform points; `policy.IdeoDevelopment`; a fixed
+ideoligion is `IdeoDevelopment.Fixed`, never an unread state). The
+believers are not a second read: the pawn rows' `policy_inputs` (`ideo_id`,
+`ideo_certainty`) say who holds the ideoligion. The section is absent, with no watermark, without Ideology or a primary ideoligion; the brain then holds
 `Facts.Ideology` unknown.
 
 `bridge.DecodeIdeology` resolves every def name against the catalog rows and
@@ -195,11 +199,13 @@ required buildings).
 
 `policy.ActionStance(facts.Ideology, action, subject)` answers whether the precepts in force
 allow, approve, penalise or forbid an action, for the colony or one pawn. The action is the
-`HistoryEventDef` it raises (callers bind their action to the event; no def is listed in policy), or
-`Apparel`. The verdict carries the stance, the doer's and witnesses' mood cost (worst stage of each
+`HistoryEventDef` it raises (callers bind their action to the event; no def is listed in policy);
+apparel stays native, so a `PreceptAction` carries only the event. The verdict carries the stance,
+the doer's and witnesses' mood cost (worst stage of each
 penalising thought), the refusal chance of unwilling effects (cancelled by the pawn's nullifying
-traits and hediffs) and the effects behind it. An unread ideoligion, or an `APPAREL` effect (no
-payload on the wire), is `unknown`: callers hold. There is no `required` stance yet: the apparel, burial and room comps are
+traits and hediffs; an unwilling effect without a chance is certain, `PreceptEffect.Certain`) and the effects behind it. An unread ideoligion is `unknown`: callers hold. An
+effect kind the rule does not read (apparel, mental break, development points, goodwill situation) is
+unsupported in the catalog, so a precept carrying one is not offered as a design. There is no `required` stance yet: the apparel, burial and room comps are
 in the rows, no stance reads them.
 
 Consumers: slavery (`EnslavedPrisoner`), organ harvest and sale
@@ -238,8 +244,10 @@ apply. A role that disables work skips a pawn whose selected work it would
 disable (#3644): an enabled priority-1 row, a step of a live coupled order
 (any non-retired activity Method of the current authority: its work giver's
 type, Hauling for a delivery or supply) or a nonzero row of an open
-admin/work-assignments priority write; a pawn whose rows or order givers are
-unread is skipped too. The rounds review admits its coupled selection before
+admin/work-assignments priority write; a pawn with an order step whose work
+giver the catalog lacks is skipped too (`PawnCommitment.GiverMissing`), and a
+cut-off action census (`WorkCommitments.Truncated`) gives no work-disabling role
+to anyone. The rounds review admits its coupled selection before
 the planner wave, so the role read sees it; a priority write the same wave
 commits after the read is not seen (#3678).
 Weighing a role's mood against the lost work is not done yet (#3693). A pawn that holds a role is never moved. Each owed role is its own Method, `ideorole-<pawn>-<role>`, with the role as its
@@ -297,7 +305,8 @@ routine family.
 
 An unmet `Believers` goal (`GoalKind.Believers`; count 0 means every free colonist) makes the family derive one
 Development Need, `ideology/convert/<pawn>` (#3501), for the free colonist of another ideoligion with the lowest
-certainty (unknown certainty last, ties by pawn id). The shortfall counts free colonists (no guest status) against the
+certainty (a colonist of no ideoligion last, ties by pawn id). With a `Believers` goal, an unread ideoligion or
+pawn census raises `RequiredFactException` rather than reading as no shortfall. The shortfall counts free colonists (no guest status) against the
 goal; guests, slaves, babies (under `ConversionRules.MinTargetAge`) and unavailable pawns are not targets. The Need
 has the `ideology/roles` Need as its precondition, so a missing moral guide waits on role assignment.
 

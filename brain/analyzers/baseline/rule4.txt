@@ -50,7 +50,6 @@ BuildingRuntime/Rounds/RoundsBabyFeeding.cs|Rounder.ReviewBabyFeeding
 BuildingRuntime/Rounds/RoundsDefenseLayoutTiers.cs|RoundsDefenseLayoutPlanner.ProposeAsync
 BuildingRuntime/Rounds/RoundsDefenseTiers.cs|RoundsDefenseLayoutPlanner.AdviseBlocksAsync
 BuildingRuntime/Rounds/RoundsFoodReserve.cs|Rounder.ReviewReserve
-BuildingRuntime/Rounds/RoundsIdeoligion.cs|Rounder.ReformChoice
 BuildingRuntime/RoundsTradeAcquisition.cs|Rounder.PlanFoodAcquisitionAsync
 BuildingRuntime/Worker.cs|Worker.Flush
 BuildingRuntime/Worker.cs|Worker.RunStep

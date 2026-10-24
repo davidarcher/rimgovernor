@@ -1,6 +1,5 @@
 using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
 using BridgeCatalog = RimGovernor.Brain.Bridge.DefinitionCatalog;
 using P = RimGovernor.Brain.Policy;
 
@@ -19,7 +18,7 @@ internal static class IdeologyDecoder
         // The Policy reform state spells a fixed ideoligion as not fluid, with no points and no reform cost.
         var development = v.Development is PbObservations.IdeoDevelopment.Fluid fluid
             ? new P.IdeoDevelopment(true, fluid.CanReform, fluid.ReformCount, fluid.Points, fluid.NextReformPoints)
-            : new P.IdeoDevelopment(false, false, 0, 0, 0);
+            : P.IdeoDevelopment.Fixed;
         var facts = new P.IdeoligionFacts
         {
             IdeoId = v.IdeoId,
@@ -28,7 +27,7 @@ internal static class IdeologyDecoder
             StyleCategories = [.. v.StyleCategories],
             VeneratedAnimals = [.. v.VeneratedAnimals],
             BelieverPawns = [.. v.BelieverPawns],
-            Development = Known(development),
+            Development = development,
         };
 
         var precepts = new List<P.HeldPrecept>();

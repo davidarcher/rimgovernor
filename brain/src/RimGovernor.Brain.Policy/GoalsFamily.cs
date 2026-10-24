@@ -147,7 +147,7 @@ public sealed record GoalsFacts
     public Fact<EquatableArray<WorkPawn>> Pawns { get; init; }
 
     /// <summary>The reform the ideoligion goals plan (#3500); unknown while the ideoligion or catalog is unread.</summary>
-    public Fact<DesignChoice> Reform { get; init; }
+    public DesignChoice? Reform { get; init; }
 
     /// <summary>The goal the reform in flight serves: the pending record's, else the chosen reform's.</summary>
     public int? ReformGoal { get; init; }
@@ -716,7 +716,7 @@ public static partial class GoalRules
                     break;
             }
         }
-        var believers = ConversionRules.Shortfall(f.Goals, f.Ideology, f.Pawns).TryGetValue(out var lacking) && lacking > 0;
+        var believers = f.IdeologyInstalled.TryGetValue(out var installed) && installed && ConversionRules.Shortfall(f.Goals, f.Ideology, f.Pawns) > 0;
         return new GoalDemand { Research = [.. research], Stock = stock, Colonists = colonists, Animals = animals, Prisoners = prisoners, Quests = quests, Believers = believers, Worn = worn, Build = new GoalBuildDemand { Rooms = EquatableArray.From(rooms), HospitalBeds = hospitalBeds, Turrets = turrets }, Values = ValuesOf(f), Training = EquatableArray.From(training), Surgeries = EquatableArray.From(surgeries) };
     }
 
@@ -792,10 +792,8 @@ public static partial class GoalRules
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "missing_dlc", default, Fact.Known(1.0));
         }
-        if (!ConversionRules.Shortfall([goal], f.Ideology, f.Pawns).TryGetValue(out var lacking) || !ConversionRules.Owed([goal], f.Ideology, f.Pawns).TryGetValue(out var owed))
-        {
-            throw new RequiredFactException("ideoligion or pawns");
-        }
+        var lacking = ConversionRules.Shortfall([goal], f.Ideology, f.Pawns);
+        var owed = ConversionRules.Owed([goal], f.Ideology, f.Pawns);
         if (lacking == 0)
         {
             return new GoalStatus(goal, Satisfaction.Met, GoalState.Met, "", default, Fact.Known(0.0));
@@ -845,19 +843,13 @@ public static partial class GoalRules
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unavailable", default, unmet);
         }
-        if (!ideo.Facts.Development.TryGetValue(out var development))
-        {
-            throw new RequiredFactException("ideoligion development");
-        }
+        var development = ideo.Facts.Development;
         if (!development.Fluid)
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "not fluid", default, unmet);
         }
         var owner = IdeologyFamily.Reform;
-        if (!f.Reform.TryGetValue(out var reform))
-        {
-            throw new RequiredFactException("ideoligion reform design");
-        }
+        var reform = f.Reform ?? throw new RequiredFactException("ideoligion reform design");
         if (reform.Blocked.TryGetValue(goal.Id, out var missing))
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.Blocked, missing, owner, unmet);

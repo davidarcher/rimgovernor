@@ -19,7 +19,7 @@ public sealed class CapabilityMaintenanceTests
     };
     internal static Ideoligion Ideology(params string[] holders) => new(new() { Roles = new Dictionary<string, RoleDef>
     { ["soldier"] = new(2, [new([new("Shooting", 1), new("Melee", 1)])]) } },
-        new() { Roles = [new("role", "soldier", true, holders.Select(h => new PawnId(h)).ToArray())] });
+        new() { Development = RimGovernor.Brain.Policy.IdeoDevelopment.Fixed, Roles = [new("role", "soldier", true, holders.Select(h => new PawnId(h)).ToArray())] });
 
     [Fact]
     public void OnlyAssignedActiveRequirementsAuthorizeMaintenanceAndPreserveOr()
@@ -28,7 +28,7 @@ public sealed class CapabilityMaintenanceTests
         var requirement = Assert.Single(CapabilityMaintenanceRules.AssignedCombatCapabilities(Known(Ideology("pawn"))));
         Assert.Equal(2, requirement.Alternatives.Count);
         Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(default));
-        var inactive = Ideology("pawn") with { Facts = new() { Roles = [new("role", "soldier", false, [new("pawn")])] } };
+        var inactive = Ideology("pawn") with { Facts = new() { Development = RimGovernor.Brain.Policy.IdeoDevelopment.Fixed, Roles = [new("role", "soldier", false, [new("pawn")])] } };
         Assert.Empty(CapabilityMaintenanceRules.AssignedCombatCapabilities(Known(inactive)));
     }
 

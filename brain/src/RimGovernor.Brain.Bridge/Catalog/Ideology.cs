@@ -149,7 +149,7 @@ public sealed partial class DefinitionCatalog
         P.PreceptEffect Thought(P.PreceptEffect effect, ThoughtDef? thought) =>
             effect with { Thought = thought?.defName ?? string.Empty, StageMoods = ThoughtMoods(thought?.defName ?? string.Empty) };
 
-        P.PreceptEffect Unwilling(HistoryEventDef? evt, IEnumerable<TraitRequirement>? traits, IEnumerable<HediffDef>? hediffs, Fact<double> chance = default) =>
+        P.PreceptEffect Unwilling(HistoryEventDef? evt, IEnumerable<TraitRequirement>? traits, IEnumerable<HediffDef>? hediffs, double chance = P.PreceptEffect.Certain) =>
             new()
             {
                 Kind = P.PreceptEffectKind.Unwilling,
@@ -170,7 +170,7 @@ public sealed partial class DefinitionCatalog
             case PreceptComp_BedThought bed:
                 return Thought(new P.PreceptEffect { Kind = P.PreceptEffectKind.Bed }, bed.thought);
             case PreceptComp_UnwillingToDo_Chance chance:
-                return Unwilling(chance.eventDef, chance.nullifyingTraits, chance.nullifyingHediffs, Known(Decimal32(chance.chance)));
+                return Unwilling(chance.eventDef, chance.nullifyingTraits, chance.nullifyingHediffs, Decimal32(chance.chance));
             case PreceptComp_UnwillingToDo unwilling:
                 return Unwilling(unwilling.eventDef, unwilling.nullifyingTraits, unwilling.nullifyingHediffs);
             case PreceptComp_Apparel:
@@ -366,7 +366,7 @@ public sealed partial class DefinitionCatalog
                             // Preserve it during reform without granting speculative credit to creation candidates.
                             potentialBenefit += benefit;
                             break;
-                        default:
+                        case P.PreceptEffectKind.Apparel or P.PreceptEffectKind.MentalBreak or P.PreceptEffectKind.DevelopmentPoints or P.PreceptEffectKind.GoodwillSituation:
                             supported = false;
                             break;
                     }

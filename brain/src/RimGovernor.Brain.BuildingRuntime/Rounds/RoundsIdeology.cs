@@ -58,16 +58,20 @@ public sealed class IdeologyReader
         var read = await _reviewer.ObserveOwnedAsync(_reviewer.Native, expected, Unknown<EquatableArray<ConstructionClaim>>(), call).ConfigureAwait(false);
         var projection = read.Projection;
         var facts = new IdeologyFacts { Installed = IdeologyFamilyRules.Installed(projection.Facts) };
+        if (!facts.Installed)
+        {
+            return facts;
+        }
+        var ideology = projection.Facts.Ideology.TryGetValue(out var held) ? held : throw new RequiredFactException("ideoligion");
+        var pawns = projection.WorkPawns.TryGetValue(out var rows) ? rows : throw new RequiredFactException("pawn rows");
         if (_roles)
         {
-            facts = facts with { Roles = IdeologyRolesRules.RoleAssignments(projection.Facts.Ideology, projection.WorkPawns, SelectedWork(read, scope.World, call)) };
+            facts = facts with { Roles = IdeologyRolesRules.RoleAssignments(ideology, pawns, SelectedWork(read, scope.World, call)) };
         }
         if (_rituals)
         {
-            facts = facts with
-            {
-                Rituals = RitualRules.PlanRituals(projection.Facts.Ideology, projection.WorkPawns, projection.Facts.RitualSites, projection.Identity.Tick, Rounder.RoundsCalm(read, scope.World)),
-            };
+            var plans = RitualRules.PlanRituals(projection.Facts.Ideology, projection.WorkPawns, projection.Facts.RitualSites, projection.Identity.Tick, Rounder.RoundsCalm(read, scope.World));
+            facts = facts with { Rituals = plans.TryGetValue(out var planned) ? planned : throw new RequiredFactException("ritual plans") };
         }
         if (_reform)
         {
@@ -92,7 +96,7 @@ public sealed class IdeologyReader
     /// does not disable work a review selected. The rounds review admits its coupled selection before the planner wave
     /// reads this; a priority write the same wave commits after this read is not seen.
     /// </summary>
-    private Fact<IReadOnlyDictionary<PawnId, Fact<EquatableArray<WorkType>>>> SelectedWork(RoundsReading read, GenerationSnapshot world, CancellationToken call)
+    private WorkCommitments SelectedWork(RoundsReading read, GenerationSnapshot world, CancellationToken call)
     {
         var journal = _reviewer.Player.Journal;
         var pending = journal.LoadNeed(AdminFamily.WorkAssignments, world, call).Methods
@@ -118,62 +122,35 @@ public sealed class IdeologyReader
         var goals = _reviewer.Goals ? (await journal.LoadGoalsAsync(Player.PlayerWorld(world), call).ConfigureAwait(false)).Goals : [];
         var choice = Rounder.ReformChoice(read, world, GoalRules.IdeoTargets(goals));
         var pending = (await journal.LoadIdeologyReformAsync(Player.PlayerWorld(world), call).ConfigureAwait(false))?.Reform;
-        var ideoKnown = read.Projection.Facts.Ideology.TryGetValue(out var ideo);
-        var current = ideoKnown && read.Catalog is { } catalog ? CurrentDesign(ideo!, catalog) : null;
-        if (ideoKnown)
-        {
-            facts = facts with { Development = ideo!.Facts.Development };
-        }
+        var ideo = read.Projection.Facts.Ideology.TryGetValue(out var held) ? held : throw new RequiredFactException("ideoligion");
+        var current = Rounder.CurrentDesign(ideo, read.Catalog ?? throw new RequiredFactException("definition catalog"));
+        var state = ideo.Facts.Development;
+        facts = facts with { Development = state };
         if (pending is not null)
         {
-            if (current is null)
-            {
-                return facts with { Reform = Unknown<DesignChoice>() };
-            }
-            if (Rounder.ObservedReform(ideo!, current, pending).TryGetValue(out var complete) && complete)
+            if (Rounder.ObservedReform(ideo, current, pending))
             {
                 await journal.ClearIdeologyReformAsync(call).ConfigureAwait(false);
                 return facts with { Reform = choice, ReformObserved = true };
             }
-            if (ideo!.Facts.Development.TryGetValue(out var state)
-                && (state.ReformCount != pending.Count || IdeoligionDesign.CanonicalIdeoligionDesign(current) != pending.Expected || ideo.Facts.IdeoId != pending.IdeoId))
+            if (state.ReformCount != pending.Count || IdeoligionDesign.CanonicalIdeoligionDesign(current) != pending.Expected || ideo.Facts.IdeoId != pending.IdeoId)
             {
                 await journal.ClearIdeologyReformAsync(call).ConfigureAwait(false);
                 pending = null;
             }
         }
         facts = facts with { Reform = choice };
-        if (!choice.TryGetValue(out var chosen) || chosen.Design.Memes.Count == 0 || chosen.Comparison?.Decision != DesignDecision.Improves || current is null)
+        if (choice.Design.Memes.Count == 0 || choice.Comparison?.Decision != DesignDecision.Improves)
         {
             return facts;
         }
-        ideo!.Facts.Development.TryGetValue(out var development);
-        var intent = new IdeoligionReform(ideo.Facts.IdeoId, current, chosen.Design, development.ReformCount);
-        if (pending is not null && pending.IdeoId == ideo.Facts.IdeoId && pending.Count == development.ReformCount
-            && IdeoligionDesign.CanonicalIdeoligionDesign(current) == pending.Expected && pending.Design == chosen.Design)
+        var intent = new IdeoligionReform(ideo.Facts.IdeoId, current, choice.Design, state.ReformCount);
+        if (pending is not null && pending.IdeoId == ideo.Facts.IdeoId && pending.Count == state.ReformCount
+            && IdeoligionDesign.CanonicalIdeoligionDesign(current) == pending.Expected && pending.Design == choice.Design)
         {
             intent = pending;
         }
         return facts with { Intent = intent };
-    }
-
-    /// <summary>The ideoligion's current design: its memes and the plain precepts the catalog resolves; null when a precept's def is unread.</summary>
-    private static IdeoligionDesign? CurrentDesign(Ideoligion ideo, DefinitionCatalog catalog)
-    {
-        var precepts = new List<string>();
-        foreach (var held in ideo.Facts.Precepts)
-        {
-            var def = catalog.DefRow<RimWorld.PreceptDef>(held.Def);
-            if (def is null)
-            {
-                return null;
-            }
-            if (def.preceptClass == typeof(RimWorld.Precept))
-            {
-                precepts.Add(held.Def);
-            }
-        }
-        return new IdeoligionDesign([.. ideo.Facts.Memes], [.. precepts], true, [.. ideo.Facts.VeneratedAnimals], [.. ideo.Facts.StyleCategories]);
     }
 
     /// <summary>
@@ -199,7 +176,7 @@ public sealed class IdeologyReader
         {
             return none;
         }
-        var goal = facts.Reform.TryGetValue(out var chosen) ? chosen.Goal : null;
+        int? goal = facts.Reform?.Serves is ReformServes.Goal serves ? serves.Id : null;
         await journal.SaveIdeologyReformAsync(new IdeologyReformRecord { World = world, Reform = intent, Goal = goal }, call).ConfigureAwait(false);
         return none;
     }

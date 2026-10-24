@@ -48,7 +48,7 @@ public sealed class IdeoligionStartingDesignTests
     [Fact]
     public void WithoutATargetTheDesignIsAnInitialFluidOneWithOneNormalMeme()
     {
-        var design = IdeoligionDesignRules.ChooseStartingIdeoligion(Options()).Value.Design;
+        var design = IdeoligionDesignRules.ChooseStartingIdeoligion(Options())!.Design;
 
         Assert.Equal([Rancher, Structure], design.Memes);
         Assert.Equal([Despised, Covered], design.Precepts);
@@ -59,7 +59,7 @@ public sealed class IdeoligionStartingDesignTests
     [Fact]
     public void ATwoMemeThemeIsHeldWholeByAFixedDesign()
     {
-        var design = IdeoligionDesignRules.ChooseStartingIdeoligion(Options(), NakedCannibals).Value.Design;
+        var design = IdeoligionDesignRules.ChooseStartingIdeoligion(Options(), NakedCannibals)!.Design;
 
         Assert.Equal([Cannibal, Nudism, Structure], design.Memes);
         Assert.Equal([Preferred, Mandatory], design.Precepts);
@@ -70,7 +70,7 @@ public sealed class IdeoligionStartingDesignTests
     [Fact]
     public void AOneMemeThemeOfAnInitialFluidMemeStaysFluid()
     {
-        var design = IdeoligionDesignRules.ChooseStartingIdeoligion(Options(), [new(1, IdeoGoalKind.Meme, Rancher), new(2, IdeoGoalKind.Precept, Preferred)]).Value.Design;
+        var design = IdeoligionDesignRules.ChooseStartingIdeoligion(Options(), [new(1, IdeoGoalKind.Meme, Rancher), new(2, IdeoGoalKind.Precept, Preferred)])!.Design;
 
         Assert.Equal([Rancher, Structure], design.Memes);
         Assert.Equal([Preferred, Covered], design.Precepts);
@@ -78,12 +78,12 @@ public sealed class IdeoligionStartingDesignTests
     }
 
     [Fact]
-    public void ATargetNoLegalDesignHoldsIsUnknown()
+    public void ATargetNoLegalDesignHoldsHasNone()
     {
         // The mandatory nudity precept needs Nudism, which the theme does not name.
-        Assert.False(IdeoligionDesignRules.ChooseStartingIdeoligion(Options(), [new(1, IdeoGoalKind.Meme, Rancher), new(2, IdeoGoalKind.Precept, Mandatory)]).IsKnown);
-        Assert.False(IdeoligionDesignRules.ChooseStartingIdeoligion(Options(), [new(1, IdeoGoalKind.Animal, "Thrumbo")]).IsKnown);
-        Assert.False(IdeoligionDesignRules.ChooseStartingIdeoligion(Options(), [new(1, IdeoGoalKind.Animal, "Monkey"), new(2, IdeoGoalKind.Animal, "Muffalo")]).IsKnown);
-        Assert.False(IdeoligionDesignRules.ChooseStartingIdeoligion(Options(), [new(1, IdeoGoalKind.Meme, "Transhumanist")]).IsKnown);
+        Assert.Null(IdeoligionDesignRules.ChooseStartingIdeoligion(Options(), [new(1, IdeoGoalKind.Meme, Rancher), new(2, IdeoGoalKind.Precept, Mandatory)]));
+        Assert.Null(IdeoligionDesignRules.ChooseStartingIdeoligion(Options(), [new(1, IdeoGoalKind.Animal, "Thrumbo")]));
+        Assert.Null(IdeoligionDesignRules.ChooseStartingIdeoligion(Options(), [new(1, IdeoGoalKind.Animal, "Monkey"), new(2, IdeoGoalKind.Animal, "Muffalo")]));
+        Assert.Null(IdeoligionDesignRules.ChooseStartingIdeoligion(Options(), [new(1, IdeoGoalKind.Meme, "Transhumanist")]));
     }
 }

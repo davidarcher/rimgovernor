@@ -13,7 +13,7 @@ public sealed class IdeologyRoleWorkTests
     private const string Ours = "Ideo_ours";
 
     // A ProductionSpecialist-like role: Crafting at 4, disabling ManualDumb's Hauling and Cleaning.
-    private static Fact<Ideoligion> Ideo() => Known(new Ideoligion(
+    private static Ideoligion Ideo() => new Ideoligion(
         new IdeologyDefs
         {
             Roles = new Dictionary<string, RoleDef>
@@ -21,7 +21,7 @@ public sealed class IdeologyRoleWorkTests
                 ["Specialist"] = new(1, [new([new("Crafting", 4)])]) { DisabledWork = [WorkType.Hauling, WorkType.Cleaning] },
             },
         },
-        new IdeoligionFacts { IdeoId = Ours, Roles = [new("role-1", "Specialist", true, [])] }));
+        new IdeoligionFacts { IdeoId = Ours, Development = IdeoDevelopment.Fixed, Roles = [new("role-1", "Specialist", true, [])] });
 
     private static WorkPawn Colonist(string id, int crafting, params WorkPriority[] work) => PawnFixtures.Worker(id) with
     {
@@ -30,12 +30,11 @@ public sealed class IdeologyRoleWorkTests
         PolicyInputs = PawnFixtures.Inputs(Ours, 0.5),
     };
 
-    private static Fact<EquatableArray<WorkPawn>> Pawns(params WorkPawn[] rows) => Known(EquatableArray.From(rows));
+    private static EquatableArray<WorkPawn> Pawns(params WorkPawn[] rows) => EquatableArray.From(rows);
 
-    private static readonly Fact<IReadOnlyDictionary<PawnId, Fact<EquatableArray<WorkType>>>> NoneSelected =
-        Known<IReadOnlyDictionary<PawnId, Fact<EquatableArray<WorkType>>>>(new Dictionary<PawnId, Fact<EquatableArray<WorkType>>>());
+    private static readonly WorkCommitments NoneSelected = new WorkCommitments.Listed(new Dictionary<PawnId, PawnCommitment>());
 
-    private static PawnId Assigned(Fact<EquatableArray<RoleAssignment>> owed) => Assert.Single(owed.Value).Pawn;
+    private static PawnId Assigned(EquatableArray<RoleAssignment> owed) => Assert.Single(owed).Pawn;
 
     private static WorkActionCensus Delivery(string pawn)
     {
@@ -75,7 +74,15 @@ public sealed class IdeologyRoleWorkTests
             [new PawnActivityStep(PawnActivityKind.Work, "Plant_1", "PlantsCut", "CutPlant", 1, 1000)]);
         var action = DomainAction.NewPawnActivitiesAction(new ActionId("p-0"), new PawnActivities(1, [order]));
         var unread = IdeologyRolesRules.SelectedWork(new([new WorkAction(new PlanId("p"), action, new ProgressView { Action = action.Id, Stage = Stage.Pending })]), [], NoGiver);
-        Assert.False(unread.Value[new PawnId("a")].IsKnown);
+        Assert.IsType<PawnCommitment.GiverMissing>(Assert.IsType<WorkCommitments.Listed>(unread).ByPawn[new PawnId("a")]);
         Assert.Equal(new PawnId("b"), Assigned(IdeologyRolesRules.RoleAssignments(Ideo(), Pawns(Colonist("a", 10), Colonist("b", 6)), unread)));
+    }
+
+    [Fact]
+    public void ATruncatedActionCensusGivesNoWorkDisablingRoleToAnyone()
+    {
+        var truncated = IdeologyRolesRules.SelectedWork(new([]) { Truncated = true }, [], NoGiver);
+        Assert.IsType<WorkCommitments.Truncated>(truncated);
+        Assert.Empty(IdeologyRolesRules.RoleAssignments(Ideo(), Pawns(Colonist("a", 10), Colonist("b", 6)), truncated));
     }
 }

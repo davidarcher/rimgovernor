@@ -23,13 +23,13 @@ public sealed class BelieverConversionTests
 
     private static Fact<EquatableArray<WorkPawn>> Pawns(params WorkPawn[] rows) => Known(EquatableArray.From(rows));
 
-    private static Fact<Ideoligion> Ideo(params HeldRole[] roles) => Known(new Ideoligion(new IdeologyDefs(), new IdeoligionFacts { IdeoId = Ours, Roles = roles }));
+    private static Fact<Ideoligion> Ideo(params HeldRole[] roles) => Known(new Ideoligion(new IdeologyDefs(), new IdeoligionFacts { IdeoId = Ours, Development = IdeoDevelopment.Fixed, Roles = roles }));
 
     private static HeldRole Guide(string pawn, bool ready = true, bool active = true) =>
         new("role-1", "IdeoRole_Moralist", active, pawn.Length == 0 ? [] : [new PawnId(pawn)]) { Converts = true, ConvertReady = ready };
 
     private static IdeologyFacts Facts(Fact<Ideoligion> ideo, Fact<EquatableArray<WorkPawn>> pawns, params GoalRecord[] goals) =>
-        new() { Installed = true, Roles = Known<EquatableArray<RoleAssignment>>([]), Conversion = ConversionRules.Owed(goals, ideo, pawns) };
+        new() { Installed = true, Roles = [], Conversion = ConversionRules.Owed(goals, ideo, pawns) };
 
     private static readonly WorkPawn Believer = Colonist("guide", Ours, 0.9);
 
@@ -61,7 +61,7 @@ public sealed class BelieverConversionTests
 
         var noGoal = Facts(Ideo(Guide("guide")), Pawns(Believer, Colonist("a", "Ideo_other", 0.5)));
         Assert.DoesNotContain(family.Derive(noGoal), n => n.Id.Kind == IdeologyFamily.ConvertKind);
-        Assert.False(new IdeologyFacts().Conversion.TryGetValue(out _));
+        Assert.False(new IdeologyFacts().Conversion.IsOwed);
         Assert.DoesNotContain(family.Derive(new IdeologyFacts()), n => n.Id.Kind == IdeologyFamily.ConvertKind);
     }
 
@@ -74,14 +74,13 @@ public sealed class BelieverConversionTests
             Colonist("baby", "Ideo_other", 0.1, age: 1),
             Colonist("down", "Ideo_other", 0.1, available: false),
             Colonist("ok", "Ideo_other", 0.9));
-        var owed = ConversionRules.Owed([Everyone], Ideo(Guide("guide")), pawns);
-        Assert.True(owed.TryGetValue(out var next));
+        var next = ConversionRules.Owed([Everyone], Ideo(Guide("guide")), pawns);
         Assert.Equal(new PawnId("ok"), next.Target);
 
         // Two believers of three free colonists wanted: one more is lacking until the count is reached.
         var two = new GoalRecord { Id = 5, Kind = GoalKind.Believers, Count = 2 };
-        Assert.Equal(1, ConversionRules.Shortfall([two], Ideo(), Pawns(Believer, Colonist("x", "Ideo_other", 0.5))).Value);
-        Assert.Equal(0, ConversionRules.Shortfall([two], Ideo(), Pawns(Believer, Colonist("x", Ours, 0.5), Colonist("y", "Ideo_other", 0.5))).Value);
+        Assert.Equal(1, ConversionRules.Shortfall([two], Ideo(), Pawns(Believer, Colonist("x", "Ideo_other", 0.5))));
+        Assert.Equal(0, ConversionRules.Shortfall([two], Ideo(), Pawns(Believer, Colonist("x", Ours, 0.5), Colonist("y", "Ideo_other", 0.5))));
     }
 
     [Fact]
@@ -117,8 +116,19 @@ public sealed class BelieverConversionTests
         var met = GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), Pawns(Believer, Colonist("a", Ours, 0.3))));
         Assert.Equal(GoalState.Met, met.State);
 
-        // An unread pawn census raises rather than block the goal.
-        Assert.Equal("ideoligion or pawns", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), default))).Fact);
+        // An unread pawn census or ideoligion raises rather than block the goal.
+        Assert.Equal("pawn rows", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(Everyone, GoalFacts(Ideo(Guide("guide")), default))).Fact);
+        Assert.Equal("ideoligion", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(Everyone, GoalFacts(default, pawns))).Fact);
+    }
+
+    [Fact]
+    public void ShortfallAndOwedRaiseOnlyWhileABelieversGoalReadsUnreadInputs()
+    {
+        var other = new GoalRecord { Id = 6, Kind = GoalKind.Meme, Target = "Meme_x" };
+        Assert.Equal(0, ConversionRules.Shortfall([other], default, default));
+        Assert.Equal(ConversionOwed.None, ConversionRules.Owed([other], default, default));
+        Assert.Equal("ideoligion", Assert.Throws<RequiredFactException>(() => ConversionRules.Shortfall([Everyone], default, Pawns())).Fact);
+        Assert.Equal("pawn rows", Assert.Throws<RequiredFactException>(() => ConversionRules.Owed([Everyone], Ideo(), default)).Fact);
     }
 
     [Fact]

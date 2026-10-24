@@ -3,13 +3,13 @@ namespace RimGovernor.Brain.Policy;
 // The shared precept rule. One pure function answers: given the ideoligion, does a precept in force allow,
 // approve, penalise or forbid an action, for one pawn or for the colony, and what mood does it cost? Callers
 // name the action by the game's HistoryEventDef (the event the action raises, which precept effects react
-// to), so no def name is listed here and a modded precept answers like a vanilla one. Unknown stays
-// unknown: the rule never guesses a stance it cannot read.
+// to), so no def name is listed here and a modded precept answers like a vanilla one. The rule never guesses a
+// stance it cannot read.
 
 /// <summary>The ideoligion's answer to an action.</summary>
 public enum PreceptStance
 {
-    /// <summary>Holds the action: the ideoligion is unread, or an effect bears on the action in a way the contract does not type.</summary>
+    /// <summary>Holds the action: the ideoligion fact is unread (a caller still holding a Fact; #3927).</summary>
     Unknown,
 
     /// <summary>No precept in force reacts to the action.</summary>
@@ -25,8 +25,8 @@ public enum PreceptStance
     Forbidden,
 }
 
-/// <summary>The action asked about: the HistoryEventDef it raises, or Apparel for what a pawn wears (apparel precepts carry no history event).</summary>
-public readonly record struct PreceptAction(string HistoryEvent, bool Apparel);
+/// <summary>The action asked about: the HistoryEventDef it raises.</summary>
+public readonly record struct PreceptAction(string HistoryEvent);
 
 /// <summary>
 /// Who acts. The default is the colony: no pawn's traits are known, so no refusal is cancelled. For a pawn,
@@ -93,24 +93,15 @@ public sealed partial record Ideoligion
     /// <summary>Evaluates action by subject under the ideoligion.</summary>
     public PreceptVerdict ActionStance(PreceptAction action, PreceptSubject subject)
     {
-        if (!action.Apparel && string.IsNullOrEmpty(action.HistoryEvent))
+        if (string.IsNullOrEmpty(action.HistoryEvent))
         {
-            return new PreceptVerdict { Stance = PreceptStance.Unknown };
+            throw new ArgumentException("a precept action names the history event it raises", nameof(action));
         }
         double doerMoodCost = 0, witnessMoodCost = 0, refusalChance = 0;
         var approved = false;
         foreach (var e in EffectsInForce())
         {
-            if (action.Apparel)
-            {
-                if (e.Kind == PreceptEffectKind.Apparel)
-                {
-                    // The apparel effect carries no requirement on the wire.
-                    return new PreceptVerdict { Stance = PreceptStance.Unknown };
-                }
-                continue;
-            }
-            if (e.HistoryEvent != action.HistoryEvent || e.Kind == PreceptEffectKind.Apparel || (e.OnlyForNonSlaves && subject.Slave))
+            if (e.HistoryEvent != action.HistoryEvent || (e.OnlyForNonSlaves && subject.Slave))
             {
                 continue;
             }
@@ -120,12 +111,7 @@ public sealed partial record Ideoligion
                 {
                     continue;
                 }
-                var chance = 1.0;
-                if (e.Chance.TryGetValue(out var c))
-                {
-                    chance = Math.Min(c, 1);
-                }
-                refusalChance = Math.Max(refusalChance, chance);
+                refusalChance = Math.Max(refusalChance, Math.Min(e.Chance, 1));
             }
             else if (e.Penalises())
             {
@@ -177,7 +163,7 @@ public sealed partial record Ideoligion
         {
             held.Add(new HeldPrecept(n.ToString(System.Globalization.CultureInfo.InvariantCulture), precepts[n]));
         }
-        return new Ideoligion(Defs, new IdeoligionFacts { IdeoId = Facts.IdeoId, Precepts = held });
+        return new Ideoligion(Defs, new IdeoligionFacts { IdeoId = Facts.IdeoId, Precepts = held, Development = Facts.Development });
     }
 
     /// <summary>The worst and the best stance over the events, in the order approved, allowed, penalised, forbidden, unknown.</summary>
@@ -189,13 +175,14 @@ public sealed partial record Ideoligion
             PreceptStance.Allowed => 1,
             PreceptStance.Penalised => 2,
             PreceptStance.Forbidden => 3,
-            _ => 4,
+            PreceptStance.Unknown => 4,
+            PreceptStance other => throw new InvalidOperationException($"precept stance {other} is not named"),
         };
         var worst = PreceptStance.Approved;
         var best = PreceptStance.Unknown;
         foreach (var e in events)
         {
-            var s = ActionStance(new PreceptAction(e, false), new PreceptSubject()).Stance;
+            var s = ActionStance(new PreceptAction(e), new PreceptSubject()).Stance;
             if (Rank(s) > Rank(worst))
             {
                 worst = s;

@@ -3,6 +3,34 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>One pawn taking one role precept. Role is the role precept's id (the thing Assign targets); Def its def.</summary>
 public sealed record RoleAssignment(PawnId Pawn, string Role, string Def);
 
+/// <summary>What the journal commits one pawn to outside its live work rows.</summary>
+public abstract record PawnCommitment
+{
+    private protected PawnCommitment()
+    {
+    }
+
+    /// <summary>The work types of the pawn's live orders and pending priority writes.</summary>
+    public sealed record Work(EquatableArray<WorkType> Types) : PawnCommitment;
+
+    /// <summary>A step of the pawn's orders names a work giver the catalog lacks, so its work is not listed: no role that disables work is given to the pawn.</summary>
+    public sealed record GiverMissing : PawnCommitment;
+}
+
+/// <summary>What the journal commits the pawns to: each pawn's work, or that the action census was cut off.</summary>
+public abstract record WorkCommitments
+{
+    private protected WorkCommitments()
+    {
+    }
+
+    /// <summary>The census of live actions is complete: each pawn it lists, by pawn id; a pawn it does not list has no commitment.</summary>
+    public sealed record Listed(IReadOnlyDictionary<PawnId, PawnCommitment> ByPawn) : WorkCommitments;
+
+    /// <summary>The census was cut off, so no pawn's commitments are listed: no role that disables work is given to anyone.</summary>
+    public sealed record Truncated : WorkCommitments;
+}
+
 public static class IdeologyRolesRules
 {
     /// <summary>
@@ -45,15 +73,16 @@ public static class IdeologyRolesRules
     /// The work each pawn is committed to outside its live work rows (#3644): the work types of its live coupled orders
     /// (a step's work giver's type, Hauling for a delivery, a supply or an output delivery) and of the nonzero rows of a
     /// pending work-priority write. <paramref name="giverWork"/> gives a work giver's work type (None for a giver with
-    /// none), null when it is unread: the pawn's work is then unknown. A released order and an absent action
-    /// (<see cref="WorkRules.ActionAbsent"/>) own nothing; a truncated census is unknown for every pawn.
+    /// none), null when the catalog lacks the giver: the pawn is then <see cref="PawnCommitment.GiverMissing"/>. A released
+    /// order and an absent action (<see cref="WorkRules.ActionAbsent"/>) own nothing; a truncated census is
+    /// <see cref="WorkCommitments.Truncated"/>.
     /// </summary>
-    public static Fact<IReadOnlyDictionary<PawnId, Fact<EquatableArray<WorkType>>>> SelectedWork(WorkActionCensus activities,
+    public static WorkCommitments SelectedWork(WorkActionCensus activities,
         IEnumerable<WorkAssignment> pending, Func<string, WorkType?> giverWork)
     {
         if (activities.Truncated)
         {
-            return Unknown<IReadOnlyDictionary<PawnId, Fact<EquatableArray<WorkType>>>>();
+            return new WorkCommitments.Truncated();
         }
         var work = new Dictionary<PawnId, SortedSet<WorkType>>();
         var unknown = new HashSet<PawnId>();
@@ -114,8 +143,8 @@ public static class IdeologyRolesRules
                 Of(assignment.Pawn).Add(Wire.TryParse<WorkType>(setting.Definition, out var type) ? type : WorkType.Unrecognized);
             }
         }
-        return Known<IReadOnlyDictionary<PawnId, Fact<EquatableArray<WorkType>>>>(work.Keys.Concat(unknown).Distinct().ToDictionary(pawn => pawn,
-            pawn => unknown.Contains(pawn) ? Unknown<EquatableArray<WorkType>>() : Known(EquatableArray.From(work[pawn].ToArray()))));
+        return new WorkCommitments.Listed(work.Keys.Concat(unknown).Distinct().ToDictionary(pawn => pawn,
+            pawn => unknown.Contains(pawn) ? (PawnCommitment)new PawnCommitment.GiverMissing() : new PawnCommitment.Work(EquatableArray.From(work[pawn].ToArray()))));
     }
 
     /// <summary>
@@ -123,18 +152,14 @@ public static class IdeologyRolesRules
     /// MaxCount, the best-fitting available believer who holds no role, by fit, then certainty, then id.
     /// The pawn row must show the ideoligion's id and no role; its skills must be read. A role that disables
     /// work (<see cref="RoleDef.DisabledWork"/>) skips a pawn whose enabled priority-1 rows or
-    /// <paramref name="selected"/> work (<see cref="SelectedWork"/>) it would disable, or whose either is unread (#3644).
-    /// Unknown without the ideoligion or the pawn rows; a role whose def is missing from the catalog fails the
+    /// <paramref name="selected"/> work (<see cref="SelectedWork"/>) it would disable, or whose work is not listed
+    /// (<see cref="PawnCommitment.GiverMissing"/>, <see cref="WorkCommitments.Truncated"/>; #3644).
+    /// A role whose def is missing from the catalog fails the
     /// decode, so none reaches here. At most one pawn is chosen per role and per call, so a role with several
     /// places fills over successive calls as the section shows each holder. Sorted by role id.
     /// </summary>
-    public static Fact<EquatableArray<RoleAssignment>> RoleAssignments(Fact<Ideoligion> ideology, Fact<EquatableArray<WorkPawn>> pawns,
-        Fact<IReadOnlyDictionary<PawnId, Fact<EquatableArray<WorkType>>>> selected)
+    public static EquatableArray<RoleAssignment> RoleAssignments(Ideoligion ideo, EquatableArray<WorkPawn> rows, WorkCommitments selected)
     {
-        if (!ideology.TryGetValue(out var ideo) || !pawns.TryGetValue(out var rows))
-        {
-            return Unknown<EquatableArray<RoleAssignment>>();
-        }
         var pool = new List<(PawnId Id, IReadOnlyList<WorkSkill> Skills, double Certainty, HashSet<WorkType>? Work)>();
         foreach (var row in rows)
         {
@@ -142,11 +167,12 @@ public static class IdeologyRolesRules
             {
                 var certainty = member.Certainty;
                 HashSet<WorkType>? work = null;
-                var chosen = !selected.TryGetValue(out var committedWork) ? Unknown<EquatableArray<WorkType>>()
-                    : committedWork.TryGetValue(row.Id, out var fact) ? fact : Known<EquatableArray<WorkType>>([]);
-                if (chosen.TryGetValue(out var committed))
+                var commitment = selected is WorkCommitments.Listed listed
+                    ? listed.ByPawn.TryGetValue(row.Id, out var found) ? found : new PawnCommitment.Work([])
+                    : null;
+                if (commitment is PawnCommitment.Work committed)
                 {
-                    work = [.. row.Work.Priorities().Where(p => p.Priority == 1 && !p.Disabled).Select(p => p.Work), .. committed];
+                    work = [.. row.Work.Priorities().Where(p => p.Priority == 1 && !p.Disabled).Select(p => p.Work), .. committed.Types];
                 }
                 pool.Add((row.Id, row.Skills, certainty, work));
             }
@@ -187,6 +213,6 @@ public static class IdeologyRolesRules
                 output.Add(new RoleAssignment(best.Id, role.Id, role.Def));
             }
         }
-        return Known(EquatableArray.From(output));
+        return EquatableArray.From(output);
     }
 }

@@ -81,7 +81,7 @@ public sealed class RoomRoleGoalTests
         var none = Facts(goal) with { IdeologyInstalled = Known(false) };
         Assert.Equal((GoalState.NoMethod, "missing_dlc"), (GoalRules.Evaluate(goal, none).State, GoalRules.Evaluate(goal, none).Reason));
 
-        var bare = Facts(goal) with { IdeologyInstalled = Known(true), Ideology = Known(new Ideoligion(new IdeologyDefs(), new IdeoligionFacts())) };
+        var bare = Facts(goal) with { IdeologyInstalled = Known(true), Ideology = Known(new Ideoligion(new IdeologyDefs(), new IdeoligionFacts { Development = IdeoDevelopment.Fixed })) };
         Assert.Equal((GoalState.NoMethod, "no_required_buildings"), (GoalRules.Evaluate(goal, bare).State, GoalRules.Evaluate(goal, bare).Reason));
 
         // The worship room itself is the ideoligion's need, so the goal asks for no child room of its own.

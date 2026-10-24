@@ -41,7 +41,11 @@ public sealed record PreceptEffect
 
     public IReadOnlyList<string> NullifyingHediffs { get; init; } = [];
 
-    public Fact<double> Chance { get; init; }
+    /// <summary>The chance of an unwilling effect's refusal. A comp without a chance refuses outright (<see cref="Certain"/>).</summary>
+    public double Chance { get; init; } = Certain;
+
+    /// <summary>The chance of a refusal that always holds.</summary>
+    public const double Certain = 1;
 
     /// <summary>Reports a thought effect with a stage that costs mood.</summary>
     public bool Penalises() => StageMoods.Any(mood => mood < 0);
@@ -269,7 +273,7 @@ public sealed record IdeoligionFacts
     /// <summary>The free non-slave colonists on the frame's map holding the ideoligion, by pawn id, sorted.</summary>
     public IReadOnlyList<PawnId> BelieverPawns { get; init; } = [];
 
-    public Fact<IdeoDevelopment> Development { get; init; }
+    public required IdeoDevelopment Development { get; init; }
 
     /// <summary>The ThingStyleCategoryDef names of the ideoligion's styles, sorted.</summary>
     public IReadOnlyList<string> StyleCategories { get; init; } = [];
@@ -282,35 +286,15 @@ public sealed record IdeoligionFacts
 /// The reform state. DevelopmentPoints and NextReformPoints (what the next reform costs) are 0 for a non-fluid
 /// ideoligion, which cannot reform.
 /// </summary>
-public readonly record struct IdeoDevelopment(bool Fluid, bool CanReform, int ReformCount, int DevelopmentPoints, int NextReformPoints);
-
-/// <summary>A colonist holding the ideoligion with the certainty the pawn row read.</summary>
-public sealed record Believer(PawnId Id, double Certainty);
+public readonly record struct IdeoDevelopment(bool Fluid, bool CanReform, int ReformCount, int DevelopmentPoints, int NextReformPoints)
+{
+    /// <summary>A fixed ideoligion: it cannot reform, so it has no points and no reform cost.</summary>
+    public static readonly IdeoDevelopment Fixed = new(false, false, 0, 0, 0);
+}
 
 /// <summary>The ideoligion with the defs its rows resolve against.</summary>
 public sealed partial record Ideoligion(IdeologyDefs Defs, IdeoligionFacts Facts)
 {
-    /// <summary>
-    /// The colonists whose pawn row shows this ideoligion, by pawn id, with their certainty; the rest are
-    /// non-believers. Unknown when the pawn rows are unread or any row lacks its policy inputs.
-    /// </summary>
-    public Fact<EquatableArray<Believer>> BelieverList(Fact<EquatableArray<WorkPawn>> pawns)
-    {
-        if (!pawns.TryGetValue(out var rows))
-        {
-            return Unknown<EquatableArray<Believer>>();
-        }
-        var output = new List<Believer>();
-        foreach (var row in rows)
-        {
-            var inputs = row.PolicyInputs;
-            if (inputs.Ideo is PawnIdeo.Member member && member.IdeoId == Facts.IdeoId)
-            {
-                output.Add(new Believer(row.Id, member.Certainty));
-            }
-        }
-        return Known(EquatableArray.From(output.OrderBy(b => b.Id)));
-    }
 
     /// <summary>
     /// Lists the effects of every precept in force, in precept id order. A held precept missing from the

@@ -80,8 +80,7 @@ public sealed class IdeologyReadsTests
 
         Assert.Equal(["Rustic", "Totemic"], ideo.Facts.StyleCategories);
         Assert.Equal(["Muffalo", "Thrumbo"], ideo.Facts.VeneratedAnimals);
-        Assert.True(ideo.Facts.Development.TryGetValue(out var development));
-        Assert.Equal(new IdeoDevelopment(true, true, 2, 7, 12), development);
+        Assert.Equal(new IdeoDevelopment(true, true, 2, 7, 12), ideo.Facts.Development);
     }
 
     [Fact]
@@ -89,36 +88,8 @@ public sealed class IdeologyReadsTests
     {
         var ideo = IdeologyDecoder.Decode(NoPrecepts, Catalog());
 
-        Assert.True(ideo.Facts.Development.TryGetValue(out var development));
-        Assert.Equal(new IdeoDevelopment(false, false, 0, 0, 0), development);
+        Assert.Equal(IdeoDevelopment.Fixed, ideo.Facts.Development);
         Assert.Empty(ideo.Facts.StyleCategories);
-    }
-
-    [Fact]
-    public void BelieverListReportsCertaintiesAndSkipsTheNonBeliever()
-    {
-        var ideo = IdeologyDecoder.Decode(NoPrecepts with { Believers = 3 }, Catalog());
-        var pawns = Known(EquatableArray.From(new[]
-        {
-            Pawn("a", "Ideo_1", 0.8),
-            Pawn("b", "Ideo_2", 0.5),
-            Pawn("c", "Ideo_1", 0.25),
-            Pawn("d", "Ideo_1", 0),
-        }));
-
-        Assert.True(ideo.BelieverList(pawns).TryGetValue(out var believers));
-
-        Assert.Equal(["a", "c", "d"], believers.Select(b => b.Id.Value));
-        Assert.Equal(0.8, believers[0].Certainty);
-        Assert.Equal(0, believers[2].Certainty);
-    }
-
-    [Fact]
-    public void BelieverListIsUnknownWithoutThePawnRead()
-    {
-        var ideo = IdeologyDecoder.Decode(NoPrecepts, Catalog());
-
-        Assert.False(ideo.BelieverList(default).TryGetValue(out _));
     }
 
     [Fact]

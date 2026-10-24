@@ -5,31 +5,34 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>
 /// What the ideology family reads (#3260): the owed role assignments, the rituals that can begin now, and the
 /// reform the colony's ideoligion owes. The reform's intent is what a Method commits: the pending record's intent
-/// when it still matches the colony and the chosen design, otherwise a fresh one; null while nothing is owed or the
-/// ideoligion or catalog is unread. Without Ideology the family derives no Needs.
+/// when it still matches the colony and the chosen design, otherwise a fresh one; null while nothing is owed. Without
+/// Ideology the family derives no Needs, and an unread ideoligion, catalog or census fails the read with
+/// <see cref="RequiredFactException"/>.
 /// </summary>
 public sealed record IdeologyFacts
 {
     /// <summary>Whether the Ideology expansion is active (<see cref="IdeologyFamilyRules.Installed"/>).</summary>
     public bool Installed { get; init; }
 
-    public Fact<EquatableArray<RoleAssignment>> Roles { get; init; }
+    /// <summary>The role assignments owed now; the reader fills it when the roles Need is derived.</summary>
+    public EquatableArray<RoleAssignment> Roles { get; init; }
 
-    public Fact<EquatableArray<RitualPlan>> Rituals { get; init; }
+    /// <summary>The rituals that can begin now; the reader fills it when the rituals Need is derived.</summary>
+    public EquatableArray<RitualPlan> Rituals { get; init; }
 
-    /// <summary>The design the policy chooses (<c>ChooseIdeoligionReform</c>); unknown while any input is unread.</summary>
-    public Fact<DesignChoice> Reform { get; init; }
+    /// <summary>The design the policy chooses (<c>ChooseIdeoligionReform</c>); the reader fills it when the reform Need is derived.</summary>
+    public DesignChoice? Reform { get; init; }
 
     /// <summary>The pending reform record was observed complete: the ideoligion now holds its design.</summary>
     public bool ReformObserved { get; init; }
 
     public IdeoligionReform? Intent { get; init; }
 
-    /// <summary>The conversion the player's believer goals owe (<see cref="ConversionRules.Owed"/>); unknown while the ideoligion, a pawn row or the goals are unread.</summary>
-    public Fact<ConversionOwed> Conversion { get; init; }
+    /// <summary>The conversion the player's believer goals owe (<see cref="ConversionRules.Owed"/>); the reader fills it when the conversion Need is derived.</summary>
+    public ConversionOwed Conversion { get; init; } = ConversionOwed.None;
 
-    /// <summary>The ideoligion's development state: what a reform waiting for points reports.</summary>
-    public Fact<IdeoDevelopment> Development { get; init; }
+    /// <summary>The ideoligion's development state: what a reform waiting for points reports. The reader fills it with the reform.</summary>
+    public IdeoDevelopment Development { get; init; }
 }
 
 /// <summary>
@@ -62,8 +65,8 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
     /// <summary>The stable refusal subject of an unmet rituals Need.</summary>
     public const string UnsupportedRitual = "unsupported_forecast_ritual";
 
-    /// <summary>The hold of an owed reform whose ideoligion or catalog is unread.</summary>
-    public const string ReformUnread = "ideoligion";
+    /// <summary>The hold of an owed reform that has no intent to commit.</summary>
+    public const string NoReformIntent = "no_reform_intent";
 
     /// <summary>The stable hold subject of a goal's reform waiting for points; the counts follow as <c>:&lt;points&gt;/&lt;cost&gt;</c>.</summary>
     public const string DevelopmentPoints = "development_points";
@@ -83,21 +86,21 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
         var needs = new List<Need>(3);
         if (roles)
         {
-            needs.Add(Owed(Roles, facts.Roles.TryGetValue(out var owed) ? owed.Count : throw new RequiredFactException("owed_roles")));
+            needs.Add(Owed(Roles, facts.Roles.Count));
         }
         if (rituals)
         {
-            needs.Add(Owed(Rituals, facts.Rituals.TryGetValue(out var plans) ? plans.Count : throw new RequiredFactException("ritual_plans")));
+            needs.Add(Owed(Rituals, facts.Rituals.Count));
         }
         if (reform)
         {
             needs.Add(IdeologyFamilyRules.ReformNeedOf(facts));
         }
-        if (convert && facts.Conversion.TryGetValue(out var conversion) && conversion.IsOwed)
+        if (convert && facts.Conversion.IsOwed)
         {
             needs.Add(new Need
             {
-                Id = ConversionRules.NeedOf(conversion.Target),
+                Id = ConversionRules.NeedOf(facts.Conversion.Target),
                 Tier = NeedTier.Development,
                 Satisfaction = Satisfaction.Unmet,
                 Deficit = Known(1.0),
@@ -114,9 +117,9 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
         var output = new List<NeedMethod>();
         foreach (var need in ready)
         {
-            if (need.Id == Roles && facts.Roles.TryGetValue(out var owed))
+            if (need.Id == Roles)
             {
-                output.AddRange(owed.Select(RoleMethod));
+                output.AddRange(facts.Roles.Select(RoleMethod));
             }
             else if (need.Id == Rituals)
             {
@@ -124,19 +127,19 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
             }
             else if (need.Id == Reform)
             {
-                if (facts.Reform.TryGetValue(out var awaited) && awaited.Comparison?.Decision == DesignDecision.Awaiting && facts.Development.TryGetValue(out var development))
+                if (facts.Reform is { Comparison.Decision: DesignDecision.Awaiting })
                 {
-                    output.Add(NeedMethod.Held(Reform, FormattableString.Invariant($"{DevelopmentPoints}:{development.DevelopmentPoints}/{development.NextReformPoints}"), "The next reform waits for development points."));
+                    output.Add(NeedMethod.Held(Reform, FormattableString.Invariant($"{DevelopmentPoints}:{facts.Development.DevelopmentPoints}/{facts.Development.NextReformPoints}"), "The next reform waits for development points."));
                     continue;
                 }
-                output.Add(facts.Intent is { } intent && facts.Reform.TryGetValue(out var choice) && choice.Comparison is { } comparison
+                output.Add(facts.Intent is { } intent && facts.Reform is { Comparison: { } comparison }
                     ? new NeedMethod(Reform, ReformMethodId(intent), ReformReason(comparison), id =>
                         new PlanSpec(id, new PlanRevision(1), [DomainAction.NewIdeoligionReformAction(new ActionId($"{id.Value}-0"), intent)]))
-                    : NeedMethod.Held(Reform, ReformUnread, "The ideoligion or its catalog is unread."));
+                    : NeedMethod.Held(Reform, NoReformIntent, "No reform intent was built."));
             }
-            else if (need.Id.Family == FamilyId && need.Id.Kind == ConvertKind && facts.Conversion.TryGetValue(out var conversion) && conversion.IsOwed && need.Id == ConversionRules.NeedOf(conversion.Target))
+            else if (need.Id.Family == FamilyId && need.Id.Kind == ConvertKind && facts.Conversion.IsOwed && need.Id == ConversionRules.NeedOf(facts.Conversion.Target))
             {
-                output.Add(ConversionMethod(need.Id, conversion));
+                output.Add(ConversionMethod(need.Id, facts.Conversion));
             }
         }
         return output;
@@ -160,7 +163,8 @@ public sealed class IdeologyFamily(bool roles = true, bool rituals = true, bool 
             new PlanSpec(id, new PlanRevision(1), [DomainAction.NewConversionAction(new ActionId($"{id.Value}-0"), new Conversion(owed.Guide, owed.Target))])),
         ConversionBlock.NoGuideRole => NeedMethod.Held(need, NoGuideRole, "The ideoligion has no role that grants the Convert ability."),
         ConversionBlock.Charging => NeedMethod.Held(need, ConversionCharging, "The moral guide's Convert ability is not charged."),
-        _ => NeedMethod.Held(need, "moral_guide_unassigned", "No pawn holds the moral guide's role."),
+        ConversionBlock.Unassigned => NeedMethod.Held(need, "moral_guide_unassigned", "No pawn holds the moral guide's role."),
+        ConversionBlock block => throw new InvalidOperationException($"conversion block {block} is not named"),
     };
 
     private static NeedMethod RoleMethod(RoleAssignment role)
@@ -193,7 +197,7 @@ public static class IdeologyFamilyRules
     /// </summary>
     public static Need ReformNeedOf(IdeologyFacts f)
     {
-        var choice = f.Reform.TryGetValue(out var c) ? c : throw new RequiredFactException("ideoligion reform design");
+        var choice = f.Reform ?? throw new RequiredFactException("ideoligion reform design");
         var owed = !f.ReformObserved && choice.Design.Memes.Count > 0 && choice.Comparison?.Decision is DesignDecision.Improves or DesignDecision.Awaiting;
         return FoodRules.WholeNeed(IdeologyFamily.Reform, NeedTier.Development, !owed);
     }

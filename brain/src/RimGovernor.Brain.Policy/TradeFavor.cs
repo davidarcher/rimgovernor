@@ -86,7 +86,7 @@ public static partial class TradePolicyRules
     /// proceeds.
     /// </summary>
     public static bool FavorPrisonersHeld(IdeologyRead ideology) =>
-        ideology.ActionStance(new PreceptAction(SoldPrisonerEvent, false), new PreceptSubject()).Stance is not (PreceptStance.Allowed or PreceptStance.Approved);
+        ideology.ActionStance(new PreceptAction(SoldPrisonerEvent), new PreceptSubject()).Stance is not (PreceptStance.Allowed or PreceptStance.Approved);
 
     /// <summary>
     /// The prisoners (by pawn id) the colony can sell to the tribute collector: living, not recruitable-wanted

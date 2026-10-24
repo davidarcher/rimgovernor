@@ -51,6 +51,7 @@ public sealed class WorshipCreditTests
         new IdeoligionFacts
         {
             IdeoId = "Ideo_1",
+            Development = RimGovernor.Brain.Policy.IdeoDevelopment.Fixed,
             BelieverPawns = [new PawnId("pawn")],
             Buildings = demand is null ? [] : [new HeldBuilding(Altar) { Demand = demand }],
             Rituals = [.. rituals.Select((_, i) => new HeldRitual { Id = "Ritual_" + i, Pattern = "Pattern" + i })],

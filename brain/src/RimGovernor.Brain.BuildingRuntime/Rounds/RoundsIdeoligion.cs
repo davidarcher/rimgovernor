@@ -3,16 +3,19 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class Rounder
 {
-    /// <summary>The reform the colony's ideoligion owes, or unknown while any input is unread or the pawns disagree on one faction.</summary>
-    internal static Fact<DesignChoice> ReformChoice(RoundsReading read, GenerationSnapshot snapshot, IReadOnlyList<IdeoGoalTarget> targets)
+    /// <summary>
+    /// The reform the colony's ideoligion owes. An unread ideoligion, catalog, pawn frame, precept def, emergency
+    /// snapshot, option set or believer census, or colonists of different or no factions, raises
+    /// <see cref="RequiredFactException"/>.
+    /// </summary>
+    internal static DesignChoice ReformChoice(RoundsReading read, GenerationSnapshot snapshot, IReadOnlyList<IdeoGoalTarget> targets)
     {
-        if (!read.Projection.Facts.Ideology.TryGetValue(out var ideo) || read.Catalog is not { } catalog || read.Frame.Pawns is null)
-        {
-            return Unknown<DesignChoice>();
-        }
+        var ideo = read.Projection.Facts.Ideology.TryGetValue(out var held) ? held : throw new RequiredFactException("ideoligion");
+        var catalog = read.Catalog ?? throw new RequiredFactException("definition catalog");
+        var frame = read.Frame.Pawns ?? throw new RequiredFactException("pawn frame");
 
         var faction = "";
-        foreach (var pawn in read.Frame.Pawns.Pawns)
+        foreach (var pawn in frame.Pawns)
         {
             if (!pawn.FreeColonist || pawn.Dead)
             {
@@ -22,7 +25,7 @@ public sealed partial class Rounder
             var name = pawn.FactionDefName ?? "";
             if (name.Length == 0 || (faction.Length != 0 && faction != name))
             {
-                return Unknown<DesignChoice>();
+                throw new RequiredFactException("colonist faction");
             }
 
             faction = name;
@@ -35,66 +38,67 @@ public sealed partial class Rounder
         }
         catch (DomainException)
         {
-            return Unknown<DesignChoice>();
+            throw new RequiredFactException("ideoligion design options");
         }
 
-        options = options with { Needs = IdeoligionDesignRules.IdeoligionNeeds(ideo.Facts, read.Projection.WorkPawns, read.Projection.Facts.MoodPawns) };
+        var current = CurrentDesign(ideo, catalog);
+        var tick = read.Projection.Identity.Tick;
+        bool calm;
+        try
+        {
+            var emergency = EmergencySnapshot.New(snapshot, tick, read.Emergency);
+            var (hostiles, patients) = EmergencyNeedsRules.EmergencyNeeds(emergency, snapshot, tick);
+            calm = RitualRules.RitualCalm(hostiles, patients).TryGetValue(out var safe) ? safe : throw new RequiredFactException("colony calm");
+        }
+        catch (DomainException)
+        {
+            throw new RequiredFactException("emergency snapshot");
+        }
+
+        // The believers' needs are read only when the improvement search runs.
+        DesignNeeds Needs() => IdeoligionDesignRules.IdeoligionNeeds(
+            ideo.Facts,
+            read.Projection.WorkPawns.TryGetValue(out var workers) ? workers : throw new RequiredFactException("work pawns"),
+            read.Projection.Facts.MoodPawns.TryGetValue(out var moods) ? moods : []);
+        return IdeoligionDesignRules.ChooseIdeoligionReform(options, current, ideo.Facts.Development, calm, Needs, targets);
+    }
+
+    /// <summary>The ideoligion's current design: its memes and the plain precepts the catalog resolves. A precept whose def the catalog lacks raises <see cref="RequiredFactException"/>.</summary>
+    internal static IdeoligionDesign CurrentDesign(Ideoligion ideo, DefinitionCatalog catalog)
+    {
         var precepts = new List<string>();
         foreach (var held in ideo.Facts.Precepts)
         {
-            var def = catalog.DefRow<RimWorld.PreceptDef>(held.Def);
-            if (def is null)
-            {
-                return Unknown<DesignChoice>();
-            }
-
+            var def = catalog.DefRow<RimWorld.PreceptDef>(held.Def) ?? throw new RequiredFactException("precept def");
             if (def.preceptClass == typeof(RimWorld.Precept))
             {
                 precepts.Add(held.Def);
             }
         }
 
-        var current = new IdeoligionDesign([.. ideo.Facts.Memes], [.. precepts], true, [.. ideo.Facts.VeneratedAnimals], [.. ideo.Facts.StyleCategories]);
-        var calm = Unknown<bool>();
-        var tick = read.Projection.Identity.Tick;
-        try
-        {
-            var emergency = EmergencySnapshot.New(snapshot, tick, read.Emergency);
-            var (hostiles, patients) = EmergencyNeedsRules.EmergencyNeeds(emergency, snapshot, tick);
-            calm = RitualRules.RitualCalm(hostiles, patients);
-        }
-        catch (DomainException)
-        {
-            // No emergency snapshot leaves calm unknown.
-        }
-
-        return IdeoligionDesignRules.ChooseIdeoligionReform(options, current, ideo.Facts.Development, calm, targets);
+        return new IdeoligionDesign([.. ideo.Facts.Memes], [.. precepts], true, [.. ideo.Facts.VeneratedAnimals], [.. ideo.Facts.StyleCategories]);
     }
 }
 
 partial class Rounder
 {
-    /// <summary>Whether the colony's ideoligion now matches the intended design: unknown when the ideo or its development is unread, false while the reform count has not advanced.</summary>
-    internal static Fact<bool> ObservedReform(Ideoligion ideo, IdeoligionDesign actual, IdeoligionReform intent)
+    /// <summary>Whether the colony's ideoligion now matches the intended design: false while the reform count has not advanced, for another ideoligion, or for a design that has no canonical form.</summary>
+    internal static bool ObservedReform(Ideoligion ideo, IdeoligionDesign actual, IdeoligionReform intent)
     {
-        if (!ideo.Facts.Development.TryGetValue(out var state) || ideo.Facts.IdeoId != intent.IdeoId)
+        var state = ideo.Facts.Development;
+        if (ideo.Facts.IdeoId != intent.IdeoId || state.ReformCount != intent.Count + 1)
         {
-            return Unknown<bool>();
-        }
-
-        if (state.ReformCount != intent.Count + 1)
-        {
-            return Known(false);
+            return false;
         }
 
         try
         {
             var canonical = IdeoligionDesign.CanonicalIdeoligionDesign(actual with { Fluid = state.Fluid });
-            return Known(canonical == intent.Design);
+            return canonical == intent.Design;
         }
         catch (DomainException)
         {
-            return Unknown<bool>();
+            return false;
         }
     }
 }

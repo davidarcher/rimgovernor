@@ -81,7 +81,7 @@ namespace HomeBridge.BridgeTools
                     targets = GoalRules.IdeoTargets(PresetRules.Resolve(preset, catalog, new ThemeRecord { Name = preset.Name, Preset = preset.Id }).Goals());
                 }
                 var options = catalog.IdeoligionOptions(faction!);
-                if (!IdeoligionDesignRules.ChooseStartingIdeoligion(options, targets).TryGetValue(out var choice))
+                if (IdeoligionDesignRules.ChooseStartingIdeoligion(options, targets) is not { } choice)
                     throw new InvalidOperationException(theme == null
                         ? "No supported legal ideoligion design can be established."
                         : "No supported legal ideoligion design holds the " + theme + " theme's memes, precepts and animals.");

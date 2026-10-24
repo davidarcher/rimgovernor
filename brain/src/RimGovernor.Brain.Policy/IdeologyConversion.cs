@@ -35,46 +35,44 @@ public static class ConversionRules
     /// <summary>
     /// How many believers the Believers goals still lack: the largest shortfall among them, with no goal 0. A goal's
     /// count is the believers it wants, 0 for every free colonist; believers and colonists are counted over the free
-    /// colonists whose rows show an ideoligion. Unknown while the ideoligion or a pawn row is unread.
+    /// colonists whose rows show an ideoligion. With a Believers goal, an unread ideoligion or pawn census raises
+    /// <see cref="RequiredFactException"/>.
     /// </summary>
-    public static Fact<int> Shortfall(IEnumerable<GoalRecord> goals, Fact<Ideoligion> ideology, Fact<EquatableArray<WorkPawn>> pawns)
+    public static int Shortfall(IEnumerable<GoalRecord> goals, Fact<Ideoligion> ideology, Fact<EquatableArray<WorkPawn>> pawns)
     {
         var wanted = goals.Where(g => g.Kind == GoalKind.Believers).Select(g => g.Count).ToList();
         if (wanted.Count == 0)
         {
-            return Known(0);
+            return 0;
         }
-        if (!Colonists(ideology, pawns, out var believers, out var colonists))
-        {
-            return Unknown<int>();
-        }
-        return Known(wanted.Max(w => Math.Max(0, (w == 0 ? colonists : w) - believers)));
+        var (ideo, rows) = Inputs(ideology, pawns);
+        return Lacking(wanted, ideo, rows);
     }
 
     /// <summary>
     /// The conversion the goals owe now: none while no believer is lacking; otherwise the free colonist of another
-    /// ideoligion with the lowest certainty (unknown last, then pawn id) who is able to be talked to, and the moral
-    /// guide who converts. With nobody convertible the target is empty. Unknown while the ideoligion or a pawn row is
-    /// unread.
+    /// ideoligion with the lowest certainty (a colonist of no ideoligion last, then pawn id) who is able to be talked
+    /// to, and the moral guide who converts. With nobody convertible the target is empty. With a Believers goal, an
+    /// unread ideoligion or pawn census raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static Fact<ConversionOwed> Owed(IEnumerable<GoalRecord> goals, Fact<Ideoligion> ideology, Fact<EquatableArray<WorkPawn>> pawns)
+    public static ConversionOwed Owed(IEnumerable<GoalRecord> goals, Fact<Ideoligion> ideology, Fact<EquatableArray<WorkPawn>> pawns)
     {
-        if (!Shortfall(goals, ideology, pawns).TryGetValue(out var lacking))
+        var wanted = goals.Where(g => g.Kind == GoalKind.Believers).Select(g => g.Count).ToList();
+        if (wanted.Count == 0)
         {
-            return Unknown<ConversionOwed>();
+            return ConversionOwed.None;
         }
-        if (lacking == 0)
+        var (ideo, rows) = Inputs(ideology, pawns);
+        if (Lacking(wanted, ideo, rows) == 0)
         {
-            return Known(ConversionOwed.None);
+            return ConversionOwed.None;
         }
-        ideology.TryGetValue(out var ideo);
-        pawns.TryGetValue(out var rows);
         var target = default(PawnId);
         var certainty = double.PositiveInfinity;
         foreach (var row in rows)
         {
             var inputs = row.PolicyInputs;
-            if (inputs.Guest is GuestState.Hosted || inputs.Ideo is PawnIdeo.Member { IdeoId: var believed } && believed == ideo!.Facts.IdeoId)
+            if (inputs.Guest is GuestState.Hosted || inputs.Ideo is PawnIdeo.Member { IdeoId: var believed } && believed == ideo.Facts.IdeoId)
             {
                 continue;
             }
@@ -91,32 +89,32 @@ public static class ConversionRules
         }
         if (target.IsEmpty)
         {
-            return Known(ConversionOwed.None);
+            return ConversionOwed.None;
         }
-        var guides = ideo!.Facts.Roles.Where(r => r.Converts).ToList();
+        var guides = ideo.Facts.Roles.Where(r => r.Converts).ToList();
         if (guides.Count == 0)
         {
-            return Known(new ConversionOwed(target, default, ConversionBlock.NoGuideRole));
+            return new ConversionOwed(target, default, ConversionBlock.NoGuideRole);
         }
         var held = guides.FirstOrDefault(r => r.Active && r.Pawns.Count > 0);
         if (held is null)
         {
-            return Known(new ConversionOwed(target, default, ConversionBlock.Unassigned));
+            return new ConversionOwed(target, default, ConversionBlock.Unassigned);
         }
-        return Known(new ConversionOwed(target, held.Pawns[0], held.ConvertReady ? ConversionBlock.None : ConversionBlock.Charging));
+        return new ConversionOwed(target, held.Pawns[0], held.ConvertReady ? ConversionBlock.None : ConversionBlock.Charging);
     }
 
     /// <summary>The Need that converts <paramref name="target"/>: <c>ideology/convert/&lt;pawn&gt;</c>.</summary>
     public static NeedId NeedOf(PawnId target) => NeedId.Of(IdeologyFamily.FamilyId, IdeologyFamily.ConvertKind, target.Value);
 
-    private static bool Colonists(Fact<Ideoligion> ideology, Fact<EquatableArray<WorkPawn>> pawns, out int believers, out int colonists)
+    private static (Ideoligion Ideology, EquatableArray<WorkPawn> Pawns) Inputs(Fact<Ideoligion> ideology, Fact<EquatableArray<WorkPawn>> pawns) =>
+        (ideology.TryGetValue(out var ideo) ? ideo : throw new RequiredFactException("ideoligion"),
+         pawns.TryGetValue(out var rows) ? rows : throw new RequiredFactException("pawn rows"));
+
+    private static int Lacking(IReadOnlyList<int> wanted, Ideoligion ideo, EquatableArray<WorkPawn> rows)
     {
-        believers = 0;
-        colonists = 0;
-        if (!ideology.TryGetValue(out var ideo) || !pawns.TryGetValue(out var rows))
-        {
-            return false;
-        }
+        var believers = 0;
+        var colonists = 0;
         foreach (var row in rows)
         {
             var inputs = row.PolicyInputs;
@@ -130,6 +128,6 @@ public static class ConversionRules
                 believers++;
             }
         }
-        return true;
+        return wanted.Max(w => Math.Max(0, (w == 0 ? colonists : w) - believers));
     }
 }

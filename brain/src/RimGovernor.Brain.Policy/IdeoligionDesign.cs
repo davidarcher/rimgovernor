@@ -88,17 +88,44 @@ public sealed record DesignOptions
 
     /// <summary>The most animals an ideoligion may venerate.</summary>
     public int MaxVeneratedAnimals { get; init; }
-
-    public Fact<DesignNeeds> Needs { get; init; }
 }
 
+/// <summary>What the believers' own mood says about a precept swap: the thoughts they hold, or that their moods are not all read.</summary>
+public abstract record BelieverThoughts
+{
+    private protected BelieverThoughts()
+    {
+    }
+
+    /// <summary>Every believer's mood row is read: the thoughts they hold.</summary>
+    public sealed record Held(EquatableArray<MoodThought> Thoughts) : BelieverThoughts;
+
+    /// <summary>A believer has no mood row, so no precept swap is judged by mood and a precept that could still give mood is kept.</summary>
+    public sealed record Unjudged : BelieverThoughts;
+}
+
+/// <summary>The believers' assigned work and mood: what a precept swap could relieve.</summary>
 public sealed record DesignNeeds
 {
     public IReadOnlyList<string> WorkTypes { get; init; } = [];
 
-    public Fact<EquatableArray<MoodThought>> Thoughts { get; init; }
+    public required BelieverThoughts Thoughts { get; init; }
 
     public int Believers { get; init; }
+}
+
+/// <summary>What a reform serves: a goal's step, or no goal.</summary>
+public abstract record ReformServes
+{
+    private protected ReformServes()
+    {
+    }
+
+    /// <summary>No goal asked for the reform.</summary>
+    public sealed record NoGoal : ReformServes;
+
+    /// <summary>The goal (#3500) whose step the reform is.</summary>
+    public sealed record Goal(int Id) : ReformServes;
 }
 
 public sealed record DesignChoice
@@ -109,8 +136,8 @@ public sealed record DesignChoice
 
     public DesignComparison? Comparison { get; init; }
 
-    /// <summary>The goal (#3500) whose step this reform is; null for a reform no goal asked for.</summary>
-    public int? Goal { get; init; }
+    /// <summary>The goal whose step this reform is.</summary>
+    public ReformServes Serves { get; init; } = new ReformServes.NoGoal();
 
     /// <summary>Each unmet goal with no reachable step, by goal id, with the first missing prerequisite.</summary>
     public IReadOnlyDictionary<int, string> Blocked { get; init; } = new Dictionary<int, string>();
@@ -159,15 +186,15 @@ public sealed record DesignComparison
 
 public static class IdeoligionDesignRules
 {
-    /// <summary>Assigned work and mood with complete believer coverage.</summary>
-    public static Fact<DesignNeeds> IdeoligionNeeds(IdeoligionFacts ideo, Fact<EquatableArray<WorkPawn>> workers, Fact<EquatableArray<MoodPawn>> moods)
+    /// <summary>
+    /// Assigned work and mood with complete believer coverage. The work rows must show every believer the ideoligion
+    /// counts (<see cref="RequiredFactException"/> otherwise); the thoughts are <see cref="BelieverThoughts.Unjudged"/>
+    /// when the mood rows lack a believer.
+    /// </summary>
+    public static DesignNeeds IdeoligionNeeds(IdeoligionFacts ideo, EquatableArray<WorkPawn> rows, EquatableArray<MoodPawn> moodRows)
     {
-        if (!workers.TryGetValue(out var rows) || ideo.Believers <= 0)
-        {
-            return Unknown<DesignNeeds>();
-        }
         var workTypes = new List<string>();
-        var moodKnown = moods.TryGetValue(out var moodRows);
+        var moodKnown = true;
 
         var thoughts = new List<MoodThought>();
         var believers = 0;
@@ -198,15 +225,15 @@ public static class IdeoligionDesignRules
         }
         if (believers != ideo.Believers)
         {
-            return Unknown<DesignNeeds>();
+            throw new RequiredFactException("ideoligion believers");
         }
         workTypes.Sort(StringComparer.Ordinal);
-        return Known(new DesignNeeds
+        return new DesignNeeds
         {
             WorkTypes = workTypes,
-            Thoughts = moodKnown ? Known(EquatableArray.From(thoughts)) : default,
+            Thoughts = moodKnown ? new BelieverThoughts.Held(EquatableArray.From(thoughts)) : new BelieverThoughts.Unjudged(),
             Believers = ideo.Believers,
-        });
+        };
     }
 
     internal static bool DesignOverlap(IReadOnlyList<string> a, IReadOnlyList<string> b)
@@ -268,13 +295,14 @@ public static class IdeoligionDesignRules
         }
     }
 
-    public static Fact<DesignScore> ScoreIdeoligion(DesignOptions options, IdeoligionDesign design)
+    public static bool TryScoreIdeoligion(DesignOptions options, IdeoligionDesign design, out DesignScore score)
     {
         if (!TryCanonicalDesign(design, out _))
         {
-            return Unknown<DesignScore>();
+            score = default;
+            return false;
         }
-        var score = new DesignScore();
+        score = new DesignScore();
         var exclusions = new List<string>();
         int structures = 0, normal = 0;
         foreach (var name in design.Memes)
@@ -282,7 +310,8 @@ public static class IdeoligionDesignRules
             var m = options.Memes.FirstOrDefault(x => x.Name == name);
             if (m is null || !m.Supported || !m.Allowed)
             {
-                return Unknown<DesignScore>();
+                score = default;
+                return false;
             }
             if (m.Structure)
             {
@@ -294,7 +323,8 @@ public static class IdeoligionDesignRules
             }
             if (DesignOverlap(exclusions, m.Exclusions))
             {
-                return Unknown<DesignScore>();
+                score = default;
+                return false;
             }
             exclusions.AddRange(m.Exclusions);
             score = score with { Obligations = score.Obligations + m.Obligations };
@@ -302,19 +332,22 @@ public static class IdeoligionDesignRules
             {
                 if (!DesignOverlap(group, design.Precepts))
                 {
-                    return Unknown<DesignScore>();
+                    score = default;
+                    return false;
                 }
             }
         }
         if (structures != 1 || normal < 1 || normal > 4)
         {
-            return Unknown<DesignScore>();
+            score = default;
+            return false;
         }
         foreach (var name in options.RequiredMemes)
         {
             if (!design.Memes.Contains(name))
             {
-                return Unknown<DesignScore>();
+                score = default;
+                return false;
             }
         }
         exclusions = [];
@@ -324,11 +357,13 @@ public static class IdeoligionDesignRules
             var p = options.Precepts.FirstOrDefault(x => x.Name == name);
             if (p is null)
             {
-                return Unknown<DesignScore>();
+                score = default;
+                return false;
             }
             if (!p.Allowed || !p.Supported || seen.Contains(p.Issue) || DesignOverlap(exclusions, p.Exclusions) || DesignOverlap(design.Memes, p.ConflictingMemes) || (p.RequiredMemes.Count > 0 && !DesignOverlap(design.Memes, p.RequiredMemes)))
             {
-                return Unknown<DesignScore>();
+                score = default;
+                return false;
             }
             seen.Add(p.Issue);
             exclusions.AddRange(p.Exclusions);
@@ -338,10 +373,11 @@ public static class IdeoligionDesignRules
         {
             if (p.Default && !seen.Contains(p.Issue))
             {
-                return Unknown<DesignScore>();
+                score = default;
+                return false;
             }
         }
-        return Known(score);
+        return true;
     }
 
     /// <summary>
@@ -350,10 +386,10 @@ public static class IdeoligionDesignRules
     /// its meme targets, with the faction's required memes, are the memes; each precept target is its issue's precept;
     /// the animal targets are the venerated animals. A design with one initial-fluid normal meme is fluid and one with
     /// more is fixed, since the game's initial fluid ideoligion holds one normal meme
-    /// (<c>IdeoFoundation.MemeCountRangeFluidAbsolute</c>). Unknown when no supported legal design holds every target;
+    /// (<c>IdeoFoundation.MemeCountRangeFluidAbsolute</c>). Null when no supported legal design holds every target;
     /// native rechecks every request. A count guard bounds pathological catalogs without returning a partial best.
     /// </summary>
-    public static Fact<DesignChoice> ChooseStartingIdeoligion(DesignOptions options, IReadOnlyList<IdeoGoalTarget>? targets = null)
+    public static DesignChoice? ChooseStartingIdeoligion(DesignOptions options, IReadOnlyList<IdeoGoalTarget>? targets = null)
     {
         targets ??= [];
         var memes = options.Memes.OrderBy(m => m.Name, StringComparer.Ordinal).ToList();
@@ -363,7 +399,7 @@ public static class IdeoligionDesignRules
         if (animals.Count > options.MaxVeneratedAnimals || animals.Any(a => !options.VeneratedAnimals.Contains(a))
             || memeTargets.Any(n => !memes.Any(m => m.Name == n && m.Allowed && m.Supported)))
         {
-            return Unknown<DesignChoice>();
+            return null;
         }
         var pinned = new Dictionary<string, DesignPrecept>(StringComparer.Ordinal);
         foreach (var name in Targeted(IdeoGoalKind.Precept))
@@ -371,14 +407,14 @@ public static class IdeoligionDesignRules
             var p = options.Precepts.FirstOrDefault(x => x.Name == name);
             if (p is null || !p.Allowed || !p.Supported || !pinned.TryAdd(p.Issue, p))
             {
-                return Unknown<DesignChoice>();
+                return null;
             }
         }
         var structureTargets = memes.Where(m => m.Structure && memeTargets.Contains(m.Name)).ToList();
         var normalTargets = memeTargets.Where(n => !structureTargets.Any(m => m.Name == n)).ToList();
         if (structureTargets.Count > 1)
         {
-            return Unknown<DesignChoice>();
+            return null;
         }
         IReadOnlyList<IReadOnlyList<DesignMeme>> normalSets = normalTargets.Count == 0
             ? [.. memes.Where(m => !m.Structure && m.Allowed && m.Supported && m.InitialFluid).Select(m => (IReadOnlyList<DesignMeme>)[m])]
@@ -493,7 +529,7 @@ public static class IdeoligionDesignRules
                         {
                             return;
                         }
-                        if (!ScoreIdeoligion(options, design).TryGetValue(out var evaluated))
+                        if (!TryScoreIdeoligion(options, design, out var evaluated))
                         {
                             return;
                         }
@@ -524,15 +560,11 @@ public static class IdeoligionDesignRules
                 Walk(0, [], [], new DesignScore(0, 0, chosenMemes.Sum(m => m.Obligations), 0));
                 if (exhausted)
                 {
-                    return Unknown<DesignChoice>();
+                    return null;
                 }
             }
         }
-        if (best is null)
-        {
-            return Unknown<DesignChoice>();
-        }
-        return Known(best);
+        return best;
     }
 
     private readonly record struct GoalStep(int Goal, IdeoligionDesign Design);
@@ -556,7 +588,8 @@ public static class IdeoligionDesignRules
             {
                 IdeoGoalKind.Meme => current.Memes.Contains(target.Def),
                 IdeoGoalKind.Precept => current.Precepts.Contains(target.Def),
-                _ => current.VeneratedAnimals.Contains(target.Def),
+                IdeoGoalKind.Animal => current.VeneratedAnimals.Contains(target.Def),
+                IdeoGoalKind kind => throw new InvalidOperationException($"ideology goal kind {kind} is not a design target"),
             };
             if (held)
             {
@@ -566,7 +599,8 @@ public static class IdeoligionDesignRules
             {
                 IdeoGoalKind.Meme => AddMeme(options, current, target.Def, wanted),
                 IdeoGoalKind.Precept => StepToPrecept(options, current, target.Def, targets),
-                _ => AddVeneratedAnimal(options, current, target.Def),
+                IdeoGoalKind.Animal => AddVeneratedAnimal(options, current, target.Def),
+                IdeoGoalKind kind => throw new InvalidOperationException($"ideology goal kind {kind} is not a design target"),
             };
             if (design is null)
             {
@@ -659,32 +693,29 @@ public static class IdeoligionDesignRules
     }
 
     private static (IdeoligionDesign? Design, string Reason) Validated(DesignOptions options, IdeoligionDesign design, string reason) =>
-        TryCanonicalDesign(design, out var canonical) && ScoreIdeoligion(options, canonical).TryGetValue(out _) ? (canonical, "") : (null, reason);
+        TryCanonicalDesign(design, out var canonical) && TryScoreIdeoligion(options, canonical, out _) ? (canonical, "") : (null, reason);
 
     /// <summary>
     /// Keeps memes and special instances when their transition cost cannot be valued. Plain-precept changes
     /// may improve known restrictions/mood while preserving obligations and every unvalued effect.
     /// </summary>
-    public static Fact<DesignChoice> ChooseIdeoligionReform(DesignOptions options, IdeoligionDesign current, Fact<IdeoDevelopment> development, Fact<bool> calm, IReadOnlyList<IdeoGoalTarget> targets)
+    public static DesignChoice ChooseIdeoligionReform(DesignOptions options, IdeoligionDesign current, IdeoDevelopment state, bool safe, Func<DesignNeeds> believerNeeds, IReadOnlyList<IdeoGoalTarget> targets)
     {
-        if (!development.TryGetValue(out var state) || !calm.TryGetValue(out var safe))
-        {
-            return Unknown<DesignChoice>();
-        }
         if (!safe || !state.Fluid)
         {
-            return Known(new DesignChoice { Design = current, Comparison = new DesignComparison { Decision = safe ? DesignDecision.Ineligible : DesignDecision.Unsafe } });
+            return new DesignChoice { Design = current, Comparison = new DesignComparison { Decision = safe ? DesignDecision.Ineligible : DesignDecision.Unsafe } };
         }
         var (step, blocked) = PlanGoals(options, current, targets);
         if (step is { } next)
         {
-            var baseline = ScoreIdeoligion(options, current).TryGetValue(out var held) ? held : default;
-            var candidate = ScoreIdeoligion(options, next.Design).TryGetValue(out var scored) ? scored : default;
-            return Known(new DesignChoice
+            // A goal's step is a design the catalog scored (PlanGoals validates it); a current design the options cannot value scores nothing.
+            TryScoreIdeoligion(options, current, out var baseline);
+            TryScoreIdeoligion(options, next.Design, out var candidate);
+            return new DesignChoice
             {
                 Design = next.Design,
                 Score = candidate,
-                Goal = next.Goal,
+                Serves = new ReformServes.Goal(next.Goal),
                 Blocked = blocked,
                 Comparison = new DesignComparison
                 {
@@ -692,30 +723,23 @@ public static class IdeoligionDesignRules
                     Current = baseline,
                     Candidate = candidate,
                 },
-            });
+            };
         }
         var choice = state.CanReform
-            ? ChooseImprovement(options, current)
-            : Known(new DesignChoice { Design = current, Comparison = new DesignComparison { Decision = DesignDecision.Ineligible } });
-        if (choice.TryGetValue(out var chosen))
-        {
-            return Known(chosen with { Blocked = blocked });
-        }
-        // The goals' blockers stand whether or not the improvement search could read the believers' needs.
-        return blocked.Count == 0
-            ? choice
-            : Known(new DesignChoice { Design = current, Blocked = blocked, Comparison = new DesignComparison { Decision = DesignDecision.Unchanged } });
+            ? ChooseImprovement(options, current, believerNeeds())
+            : new DesignChoice { Design = current, Comparison = new DesignComparison { Decision = DesignDecision.Ineligible } };
+        return choice with { Blocked = blocked };
     }
 
-    private static Fact<DesignChoice> ChooseImprovement(DesignOptions options, IdeoligionDesign current)
+    /// <summary>
+    /// The one-precept swap that best relieves the believers' work or mood. With no believers to relieve, or a current
+    /// design the options cannot value, no swap is judged and the design stays.
+    /// </summary>
+    private static DesignChoice ChooseImprovement(DesignOptions options, IdeoligionDesign current, DesignNeeds needs)
     {
-        if (!options.Needs.TryGetValue(out var needs) || needs.Believers <= 0)
+        if (needs.Believers <= 0 || !TryScoreIdeoligion(options, current, out var baseline))
         {
-            return Unknown<DesignChoice>();
-        }
-        if (!ScoreIdeoligion(options, current).TryGetValue(out var baseline))
-        {
-            return Unknown<DesignChoice>();
+            return new DesignChoice { Design = current, Comparison = new DesignComparison { Decision = DesignDecision.Unchanged } };
         }
         DesignChoice? best = null;
         for (var i = 0; i < current.Precepts.Count; i++)
@@ -734,8 +758,8 @@ public static class IdeoligionDesignRules
                 }
                 var workImproves = DesignOverlap(oldPrecept.WorkTypes, needs.WorkTypes) && !DesignOverlap(p.WorkTypes, needs.WorkTypes);
                 double penalty = 0, benefit = 0;
-                var thoughtsKnown = needs.Thoughts.TryGetValue(out var thoughts);
-                foreach (var thought in thoughts)
+                var thoughtsKnown = needs.Thoughts is BelieverThoughts.Held;
+                foreach (var thought in needs.Thoughts is BelieverThoughts.Held held ? held.Thoughts : [])
                 {
                     if (oldPrecept.Thoughts.Contains(thought.Def) && !p.Thoughts.Contains(thought.Def))
                     {
@@ -762,7 +786,7 @@ public static class IdeoligionDesignRules
                 var precepts = current.Precepts.ToArray();
                 precepts[i] = p.Name;
                 var next = current with { Precepts = EquatableArray.From(precepts) };
-                if (!ScoreIdeoligion(options, next).TryGetValue(out var score)
+                if (!TryScoreIdeoligion(options, next, out var score)
                     || score.Compare(baseline) >= 0 || score.MoodBenefit < baseline.MoodBenefit || score.MoodCost > baseline.MoodCost
                     || score.Obligations > baseline.Obligations || score.Restrictions > baseline.Restrictions)
                 {
@@ -793,8 +817,8 @@ public static class IdeoligionDesignRules
         }
         if (best is null)
         {
-            return Known(new DesignChoice { Design = current, Comparison = new DesignComparison { Decision = DesignDecision.Unchanged, Current = baseline, Candidate = baseline } });
+            return new DesignChoice { Design = current, Comparison = new DesignComparison { Decision = DesignDecision.Unchanged, Current = baseline, Candidate = baseline } };
         }
-        return Known(best);
+        return best;
     }
 }

@@ -112,15 +112,12 @@ public sealed class AnimalsIdeologyFamilyTests
     }
 
     [Fact]
-    public void RolesAndRitualsAreMetUnmetOrUnknownByWhatIsOwed()
+    public void RolesAndRitualsAreMetOrUnmetByWhatIsOwed()
     {
-        var owed = Ideology(new IdeologyFacts { Roles = Known<EquatableArray<RoleAssignment>>([new(new("a"), "role-1", "Leader")]) }, IdeologyFamily.Roles);
+        var owed = Ideology(new IdeologyFacts { Roles = [new(new("a"), "role-1", "Leader")] }, IdeologyFamily.Roles);
         Assert.Equal((Satisfaction.Unmet, 1.0), (owed.Satisfaction, owed.Deficit.Value));
-        Assert.Equal(Satisfaction.Met, Ideology(new IdeologyFacts { Roles = Known<EquatableArray<RoleAssignment>>([]) }, IdeologyFamily.Roles).Satisfaction);
-        Assert.Equal("owed_roles", Assert.Throws<RequiredFactException>(() => Ideology(new IdeologyFacts(), IdeologyFamily.Roles)).Fact);
-
-        Assert.Equal(Satisfaction.Met, Ideology(new IdeologyFacts { Rituals = Known<EquatableArray<RitualPlan>>([]) }, IdeologyFamily.Rituals).Satisfaction);
-        Assert.Equal("ritual_plans", Assert.Throws<RequiredFactException>(() => Ideology(new IdeologyFacts(), IdeologyFamily.Rituals)).Fact);
+        Assert.Equal(Satisfaction.Met, Ideology(new IdeologyFacts { Roles = [] }, IdeologyFamily.Roles).Satisfaction);
+        Assert.Equal(Satisfaction.Met, Ideology(new IdeologyFacts { Rituals = [] }, IdeologyFamily.Rituals).Satisfaction);
         var rituals = new Need { Id = IdeologyFamily.Rituals, Tier = NeedTier.Development, Satisfaction = Satisfaction.Unmet };
         Assert.Equal(IdeologyFamily.UnsupportedRitual, Assert.Single(new IdeologyFamily().Propose([rituals], new IdeologyFacts())).Hold!.Subject);
     }
@@ -129,8 +126,8 @@ public sealed class AnimalsIdeologyFamilyTests
 
     private static readonly IdeoligionDesign Target = new(["MemeB"], ["PreceptB"], true);
 
-    private static Fact<DesignChoice> Choice(DesignDecision decision) =>
-        Known(new DesignChoice { Design = Target, Comparison = new DesignComparison { Decision = decision } });
+    private static DesignChoice Choice(DesignDecision decision) =>
+        new() { Design = Target, Comparison = new DesignComparison { Decision = decision } };
 
     [Fact]
     public void TheReformIsUnmetWhileAnImprovingDesignIsChosenAndMetOnceObserved()
@@ -146,7 +143,7 @@ public sealed class AnimalsIdeologyFamilyTests
         var need = Ideology(owed, IdeologyFamily.Reform);
         var method = Assert.Single(new IdeologyFamily().Propose([need], owed));
         Assert.Equal("ideoligion-3", method.Method.Value);
-        Assert.Equal(IdeologyFamily.ReformUnread, Assert.Single(new IdeologyFamily().Propose([need], owed with { Intent = null })).Hold!.Subject);
+        Assert.Equal(IdeologyFamily.NoReformIntent, Assert.Single(new IdeologyFamily().Propose([need], owed with { Intent = null })).Hold!.Subject);
     }
 
     private sealed class Colony : IDisposable
@@ -181,7 +178,7 @@ public sealed class AnimalsIdeologyFamilyTests
         return colony;
     }
 
-    private static IdeologyFacts Roles(params RoleAssignment[] roles) => new() { Installed = true, Roles = Known<EquatableArray<RoleAssignment>>([.. roles]) };
+    private static IdeologyFacts Roles(params RoleAssignment[] roles) => new() { Installed = true, Roles = [.. roles] };
 
     [Fact]
     public void RoleMethodsRunSideBySideAndAShareOfARoleIsHeldByItsClaim()

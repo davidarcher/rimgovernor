@@ -135,8 +135,6 @@ Policy|StoreOptions.Role
 Policy|StoreOptions.Zones
 Policy|UpkeepAnimal.FollowFieldwork
 Policy|UpkeepAnimal.Pen
-Policy|Believer.Certainty
-Policy|Believer.Id
 Policy|MemeDef.ForbiddenPrecepts
 Policy|MemeDef.RequireOne
 Policy|MemeGate.Conflicting
