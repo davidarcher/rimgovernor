@@ -161,6 +161,22 @@ partial class RoundsBuildingPlanner
         return PlannedRules.PlannedRoomStarted(plan, room, ground, sites, standing);
     }
 
+    /// <summary>The AwaitingPlan subject of an unstarted ringed room the portfolio assessed and did not select (#3278).</summary>
+    internal const string PortfolioHeld = "portfolio_selection";
+
+    /// <summary>The AwaitingPlan subject of an unstarted ringed room no comparison the record keeps assessed (#3754).</summary>
+    internal const string PortfolioUnassessed = "portfolio_unassessed";
+
+    /// <summary>
+    /// The owed template pieces no builder can work now (#3754, PlannedRoomDone): a def native does not read available
+    /// with its research finished (DefenseDefinitionAvailable: missing research, or a def the census does not describe,
+    /// is no option to work), or one made from stuff none of which the colony stocks or the map offers as wood or rock
+    /// blocks (the one stuff chooser, PlannedRingStuffsOf, reads none).
+    /// </summary>
+    internal static Func<Pol.WantedPiece, bool> PieceBlockedOf(Observation.RoundsReading reading) =>
+        piece => !RoundsDefenseLayoutPlanner.DefenseDefinitionAvailable(reading, piece.DefName)
+            || Rounder.PlannedRingStuffsOf(reading.Projection, piece.DefName, "").Count == 0;
+
     /// <summary>The mirror cells inside ground: the room's foreign things are read from them.</summary>
     internal static List<Pol.SiteCell> CellsOn(IEnumerable<Pol.SiteCell> cells, Pol.Rectangle ground) =>
         [.. cells.Where(c => c.Cell.X >= ground.X && c.Cell.X < ground.X + ground.Width && c.Cell.Z >= ground.Z && c.Cell.Z < ground.Z + ground.Height)];
@@ -462,11 +478,13 @@ public sealed partial class RoundsBuildingPlanner
         {
             return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
         }
-        // An unstarted planned room the portfolio assessed is placed only as it selected (#3278).
-        var (gate, selected) = PlannedRules.PlannedRoomGateOf(Reviewer.RoomSelection.Get(review.Snapshot), rr.Room.Id, PlannedRoomStartedOf(facts, plan, rr.Room) != false);
+        // An unstarted ringed planned room opens its ring only as the portfolio selected it (#3278, #3754): an unknown
+        // census counts as started, and a room no comparison assessed waits for one.
+        var record = Reviewer.RoomSelection.Get(review.Snapshot);
+        var (gate, selected) = PlannedRules.PlannedRoomGateOf(record, rr.Room, PlannedRoomStartedOf(facts, plan, rr.Room) != false);
         if (gate == Pol.PlannedRoomGate.Hold)
         {
-            return new RoundsBuildingResult { Verdict = AwaitingPlan("portfolio_selection", rr.Name) };
+            return new RoundsBuildingResult { Verdict = AwaitingPlan(record.Assessed.Contains(rr.Room.Id) ? PortfolioHeld : PortfolioUnassessed, rr.Name) };
         }
         if (gate == Pol.PlannedRoomGate.Selected && PlannedRules.SelectedRingStuff(selected) is { } ring)
         {
@@ -510,7 +528,17 @@ public sealed partial class RoundsBuildingPlanner
             }
             input = input with { Stock = left };
         }
-        var (ops, holds) = ReconcileRules.ReconcileRoomHolds(input);
+        var (ops, holds, owed) = ReconcileRules.ReconcileRoomHolds(input);
+        if (!rr.ClimateOnly)
+        {
+            // Done when the diff owes nothing a builder can do now (#3754); the climate envelope's call sees only vents and roofs.
+            var finished = PlannedRules.PlannedRoomDone(owed, PieceBlockedOf(reading));
+            Reviewer.DoneRooms.Update(review.Snapshot, rooms =>
+            {
+                var others = rooms.Where(id => id != rr.Room.Id);
+                return EquatableArray.From((finished ? others.Append(rr.Room.Id) : others).Order());
+            });
+        }
         if (gate == Pol.PlannedRoomGate.Selected)
         {
             ops = PlannedRules.SelectedPlannedOps(ops, selected);

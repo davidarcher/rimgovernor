@@ -432,9 +432,9 @@ public sealed class BedMergePriceTests
     }
 
     [Fact]
-    public void AnUnassessedPlannedRoomIsPlacedInTheStuffItsRingIsPricedIn()
+    public void AStartedPlannedRoomIsPlacedInTheStuffItsRingIsPricedIn()
     {
-        // Only a little wood stocked and no trees in reach (#3677): the unselected ring is placed in wood, not in the blocks the colony lacks.
+        // Only a little wood stocked and no trees in reach (#3677): a started ring the record selected nothing of is placed in wood, not in the blocks the colony lacks.
         var wood = new Resource("WoodLog");
         var granite = new Resource("BlocksGranite");
         Obs.PlanningDefinition Def(string name, double work, long count) => new()

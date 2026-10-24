@@ -17,7 +17,10 @@ states a tier; defense is Secure and promoted (#2527).
 | 4 | Expand | `TierExpand` |
 | 5 | Secure | `TierSecure` |
 
-Tier orders construction only; the tech ladder is `TechTier`.
+Tier orders construction only; the tech ladder is `TechTier`. The tier table
+does not order ring opening: which planned rooms open their rings, and in what
+order open rings close, is the portfolio comparison's priced delay
+([planned rooms](../architecture/portfolio-selection.md#planned-rooms), #3754).
 Absent means ungated vanilla behavior (a build the game or player placed), and
 is distinct from tier 0.
 

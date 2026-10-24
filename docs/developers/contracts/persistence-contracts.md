@@ -231,8 +231,12 @@ stays the only input.
 - **Planned-room selection (memory only).** The Rounder remembers, per world, the latest known coupled
   comparison's assessed planned rooms and selected planned sites (`Rounder.RoomSelection`); the room
   reconcile gates unstarted rooms on it. It is not saved: a restart or a world change empties it, and
-  unstarted rooms place as before until the next comparison
+  unstarted ringed rooms are held until the next comparison
   ([planned rooms](../architecture/portfolio-selection.md#planned-rooms)).
+- **Planned-room done record (memory only).** The Rounder remembers, per world, the planned rooms whose
+  latest reconcile owed nothing a builder can do now (`Rounder.DoneRooms`, #3754); a started room not in
+  it is open, and the forecast orders open rings first. It is not saved: a restart or a world change
+  empties it, and every started room is open until its next reconcile.
 - **Defense verification (memory only).** The Rounder remembers, per world (colony, load, map), whether
   the `layout/defense` step verified the stored layout complete, at which tick and against which fight,
   and when it last probed the turret siting (`Rounder.DefenseVerification`, #3008). It drives the Need's

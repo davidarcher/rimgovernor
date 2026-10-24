@@ -8,7 +8,7 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
 /// #3744: the closure of a planned ring one schedule leaves open is projected from the ring work left over the builders
-/// (epic #3738 D6): the work the schedule spent on rings first, then the started rings, then the rings it opened, each
+/// (epic #3738 D6): the work the schedule spent on rings first, then the open rings (started and not done), then the rings it opened, each
 /// group by its remaining work. The schedule here is the finish ticks given; its horizon is one day.
 /// </summary>
 public sealed class RingClosureProjectionTests
@@ -25,12 +25,12 @@ public sealed class RingClosureProjectionTests
         new(room, "WoodLog", [new(room, room)], EquatableArray.From(ring.Where(s => s.Planned.Stuff.Length > 0).Select(s => s.Planned.Site)),
             EquatableArray.From(ring.Where(s => s.Planned.Stuff.Length == 0).Select(s => s.Planned.Site)), new(room.ToString(System.Globalization.CultureInfo.InvariantCulture), "WoodLog", "Bedroom", Known(30d), Known(2), 1, 0, false));
 
-    private static ForecastCoupledContext Context(int builders, int[] started, Piece[] sites, params ForecastPlannedClosure[] closures) =>
+    private static ForecastCoupledContext Context(int builders, int[] open, Piece[] sites, params ForecastPlannedClosure[] closures) =>
         ForecastValueTests.Context(ForecastValueTests.Pawn()) with
         {
             PlannedSites = EquatableArray.From(sites.Select(s => s.Planned)), Closures = EquatableArray.From(closures),
             RingWork = sites.Where(s => s.Work is not null).ToDictionary(s => s.Planned.Site, s => s.Work!.Value, StringComparer.Ordinal),
-            PlannedBuilders = builders, StartedRooms = started.ToHashSet(),
+            PlannedBuilders = builders, OpenRooms = open.ToHashSet(),
         };
 
     private static Dictionary<string, double> Finished(params (Piece Site, double At)[] done) =>
@@ -39,7 +39,7 @@ public sealed class RingClosureProjectionTests
     private static IReadOnlyList<ForecastClosedRoom> Project(ForecastCoupledContext context, Dictionary<string, double> finished) =>
         ForecastRoofConsequences.PlannedClosedRooms(context, finished, Day);
 
-    /// <summary>Acceptance (a): one builder, ring A started with two days left; finishing B's ring work in the schedule moves A's closure later by B's work.</summary>
+    /// <summary>Acceptance (a): one builder, ring A open with two days left; finishing B's ring work in the schedule moves A's closure later by B's work.</summary>
     [Fact]
     public void OpeningBDelaysTheOpenRingAByBsWorkOverOneBuilder()
     {
@@ -65,7 +65,7 @@ public sealed class RingClosureProjectionTests
 
     /// <summary>
     /// A ring the schedule opens (its wall finished) and does not close is projected at its whole ring work, the roof's
-    /// included, never inside the horizon; a ring neither started nor opened, or with no builders, is not.
+    /// included, never inside the horizon; a ring neither open nor opened, or with no builders, is not.
     /// </summary>
     [Fact]
     public void AnOpenedRingIsProjectedAtItsRingWorkAndAnUnopenedOneIsNot()
@@ -85,9 +85,9 @@ public sealed class RingClosureProjectionTests
         Assert.Equal(Day, Assert.Single(Project(quick, Finished((Site(1, "wall", 60), 60)))).ClosedAt);
     }
 
-    /// <summary>The started rings close first, by their remaining work, then the rings the schedule opens, by theirs.</summary>
+    /// <summary>The open rings close first, by their remaining work, then the rings the schedule opens, by theirs.</summary>
     [Fact]
-    public void StartedRingsCloseBeforeTheRingsTheScheduleOpens()
+    public void OpenRingsCloseBeforeTheRingsTheScheduleOpens()
     {
         var a = Site(1, "wall", 2 * Day);
         var c = Site(3, "wall", Day);

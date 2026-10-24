@@ -177,6 +177,9 @@ public readonly partial record struct Verdict(Outcome Outcome, Refusal Refusal =
     /// <summary>A shell attempt that leaves the usual placement to go on: its method already used, no verified space, or a fact it needs unknown.</summary>
     internal bool SkipsToPlacement => Is(Cause.MethodUsed) || Is(Cause.NoSpace) || Is(Cause.FieldUnavailable);
 
+    /// <summary>A planned room's ring the portfolio holds (#3278, #3754): unselected, or not yet assessed by a comparison.</summary>
+    internal bool PortfolioHolds => Is(Cause.AwaitingPlan) && Refusal.Subject is RoundsBuildingPlanner.PortfolioHeld or RoundsBuildingPlanner.PortfolioUnassessed;
+
     /// <summary>
     /// A wait only wall-clock time ends: a choice dialog's interactivity grace (#3697). No tick, event or invalidation
     /// signals its end and the dialog force-pauses the clock, so the due queue keeps the entry marked and a cadence run

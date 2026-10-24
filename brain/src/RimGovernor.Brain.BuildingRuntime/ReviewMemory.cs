@@ -42,6 +42,17 @@ internal sealed class ReviewMemory<T>(T empty)
             return _snapshot != snapshot ? _empty : _value;
         }
     }
+
+    /// <summary>Applies <paramref name="change"/> to <paramref name="snapshot"/>'s value (empty for another world) and keeps the result for that world.</summary>
+    public void Update(GenerationSnapshot snapshot, Func<T, T> change)
+    {
+        lock (_mu)
+        {
+            _value = change(_snapshot != snapshot || !_set ? _empty : _value);
+            _snapshot = snapshot;
+            _set = true;
+        }
+    }
 }
 
 /// <summary>

@@ -314,7 +314,7 @@ public sealed class PlannedShelterTests
         var record = Record(shelter);
         Assert.Equal([OpKind.Build, OpKind.DoorIn, OpKind.RoofIn, OpKind.WallIn], record.Sites.Select(s => s.Op));
         Assert.Equal(record, Record([.. sites.Where(id => candidates.Alternatives.Any(c => c.Id == id))]));
-        var (gate, selected) = PlannedRules.PlannedRoomGateOf(record, 1, started: false);
+        var (gate, selected) = PlannedRules.PlannedRoomGateOf(record, new PlannedRoom { Id = 1 }, started: false);
         Assert.Equal(PlannedRoomGate.Selected, gate);
         var heater = new WantedPiece { DefName = "Heater", Minimum = Inside, Maximum = Inside, Size = new(1, 1), Rot = Rotation.North };
         IReadOnlyList<Operation> ops =

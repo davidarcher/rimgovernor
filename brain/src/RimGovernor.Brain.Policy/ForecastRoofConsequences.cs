@@ -137,11 +137,11 @@ public static class ForecastRoofConsequences
 
     /// <summary>
     /// The projected closures of the rings one schedule leaves open (#3744, epic #3738 D6). A ring is open when its room is
-    /// observed started (<see cref="ForecastCoupledContext.StartedRooms"/>) or the schedule finished one of its planned
+    /// open (<see cref="ForecastCoupledContext.OpenRooms"/>: started and not done) or the schedule finished one of its planned
     /// sites. Its remaining ring work, per stuff, is the ring work (<see cref="ForecastCoupledContext.RingWork"/>) of its
     /// unfinished ring, vent and roof sites in that stuff or none, and of its unfinished placed ring sites; the least such
     /// stuff is the one it closes in, and a ring with a site without a ring-work row is not projected. The builders
-    /// first spend the ring work the schedule finished, then work the started rings, then the rings this schedule opens,
+    /// first spend the ring work the schedule finished, then work the open rings, then the rings this schedule opens,
     /// each group by its remaining work: the k-th closes at RingClosure.ClosedAt of the cumulative work over
     /// <see cref="ForecastCoupledContext.PlannedBuilders"/>, never before <paramref name="horizon"/> (inside it, the
     /// schedule is exact). No builders project nothing. Its roof is not done.
@@ -155,12 +155,12 @@ public static class ForecastRoofConsequences
         bool Done(EquatableArray<string> finishes) => finishes.Any(finishedAt.ContainsKey);
         var spent = context.PlannedSites.Where(s => work.ContainsKey(s.Site) && Done(s.Finishes)).Sum(s => work[s.Site])
             + context.Closures.SelectMany(c => c.Placed).DistinctBy(p => p.Site).Where(p => work.ContainsKey(p.Site) && Done(p.Finishes)).Sum(p => work[p.Site]);
-        var queue = new List<(bool Started, double Remaining, ForecastPlannedClosure Closure)>();
+        var queue = new List<(bool Open, double Remaining, ForecastPlannedClosure Closure)>();
         foreach (var room in open)
         {
-            var started = context.StartedRooms.Contains(room.Key);
+            var holding = context.OpenRooms.Contains(room.Key);
             var own = context.PlannedSites.Where(s => s.Room == room.Key).ToArray();
-            if (!started && !own.Any(s => Done(s.Finishes))) continue;
+            if (!holding && !own.Any(s => Done(s.Finishes))) continue;
             (double Remaining, ForecastPlannedClosure Closure)? best = null;
             foreach (var closure in room.Where(c => c.Ring.Count + c.Placed.Count > 0))
             {
@@ -170,11 +170,11 @@ public static class ForecastRoofConsequences
                     + closure.Placed.Where(p => !Done(p.Finishes)).Sum(p => work[p.Site]);
                 if (best is null || remaining < best.Value.Remaining) best = (remaining, closure);
             }
-            if (best is { } chosen) queue.Add((started, chosen.Remaining, chosen.Closure));
+            if (best is { } chosen) queue.Add((holding, chosen.Remaining, chosen.Closure));
         }
         var cumulative = spent;
         var projected = new List<ForecastClosedRoom>(queue.Count);
-        foreach (var (_, remaining, closure) in queue.OrderBy(q => q.Started ? 0 : 1).ThenBy(q => q.Remaining).ThenBy(q => q.Closure.Room))
+        foreach (var (_, remaining, closure) in queue.OrderBy(q => q.Open ? 0 : 1).ThenBy(q => q.Remaining).ThenBy(q => q.Closure.Room))
         {
             cumulative += remaining;
             projected.Add(new(closure.Room, closure.Stuff, closure.Interior, closure.Prediction,

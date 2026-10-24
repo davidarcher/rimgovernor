@@ -11,9 +11,10 @@ using Journal = RimGovernor.Brain.Store.Store;
 namespace RimGovernor.Brain.Domain.Tests;
 
 /// <summary>
-/// The room reconcile's portfolio gate (#3278): an unstarted planned room the latest comparison assessed is held unless
-/// it selected some of the room's sites, which are placed exactly, in their stuff; a started room or one never assessed
-/// is placed as before. The record is the Rounder's in-memory RoomSelection, set here as the review would set it.
+/// The room reconcile's portfolio gate (#3278, #3754): an unstarted ringed planned room is held unless the latest
+/// comparison selected some of the room's sites, which are placed exactly, in their stuff; one no comparison assessed is
+/// held too; a started room is placed as before. The record is the Rounder's in-memory RoomSelection, set here as the
+/// review would set it. Each reconcile records whether the room is done (DoneRooms).
 /// </summary>
 public sealed class PlannedRoomGateTests
 {
@@ -215,15 +216,92 @@ public sealed class PlannedRoomGateTests
     private static void Select(Colony colony, params SelectedPlannedSite[] sites) =>
         colony.Planner.Reviewer.RoomSelection.Set(World, new PlannedSelection { Assessed = [1], Sites = [.. sites] });
 
+    /// <summary>A colony-built wall on <paramref name="cell"/>: on a room's own ring it starts the room.</summary>
+    private static CurrentBuilding Built(string def, Cell cell) =>
+        new() { Id = def + cell.X + "_" + cell.Z, Building = new Building(def, cell, Rotation.North, "WoodLog"), Cells = [cell] };
+
+    /// <summary>
+    /// #3754: after a restart the record is empty, so no comparison has assessed the unstarted bedroom: its ring is held
+    /// (portfolio_unassessed) and nothing is placed until the first comparison selects it.
+    /// </summary>
     [Fact]
-    public async Task AnUnassessedRoomIsPlacedAsBefore()
+    public async Task ARestartPlacesNoNewRingUntilTheFirstComparison()
     {
         using var colony = Open();
-        var run = await colony.RunAsync();
-        Assert.Equal(Outcome.Admitted, Colony.Report(run).Outcome);
-        var placed = colony.Placed(run);
-        Assert.Equal(16, placed.Count);
-        Assert.All(placed, b => Assert.Equal("WoodLog", b.Stuff));
+        var held = await colony.RunAsync();
+        Assert.Empty(held.Methods);
+        var verdict = Assert.IsType<Verdict>(colony.Reconciled);
+        Assert.True(verdict.PortfolioHolds, verdict.ToString());
+        Assert.Equal(RoundsBuildingPlanner.PortfolioUnassessed, verdict.Refusal.Subject);
+
+        // The first comparison selects the room's whole ring: it is placed.
+        Select(colony, Site(OpKind.WallIn, "WoodLog", [.. Room.WallRing().Cells().Where(c => c != Room.Door)]), Site(OpKind.DoorIn, "WoodLog", Room.Door));
+        var placed = await colony.RunAsync();
+        Assert.Equal(Outcome.Admitted, Colony.Report(placed).Outcome);
+        Assert.Equal(16, colony.Placed(placed).Count);
+    }
+
+    /// <summary>
+    /// #3754: a started room is open while its reconcile owes a wall, and done once the ring stands whole and nothing is
+    /// owed: the next review's ring-closure projection reads it from DoneRooms.
+    /// </summary>
+    [Fact]
+    public async Task AStartedRoomIsOpenWhileItOwesAWallAndDoneWhenItOwesNothing()
+    {
+        using var colony = Open();
+        var ring = Room.WallRing().Cells().Where(c => c != Room.Door).ToList();
+        colony.Census = Known(new CurrentConstruction { Colony = true, Buildings = [Built(ContainmentCellRules.ShellWallDefinition, ring[0])] });
+        await colony.RunAsync();
+        Assert.DoesNotContain(Room.Id, colony.Planner.Reviewer.DoneRooms.Get(World));
+
+        colony.Census = Known(new CurrentConstruction
+        {
+            Colony = true,
+            Buildings = [.. ring.Select(c => Built(ContainmentCellRules.ShellWallDefinition, c)), Built(ContainmentCellRules.ShellDoorDefinition, Room.Door)],
+        });
+        var done = await colony.RunAsync();
+        Assert.Empty(done.Methods);
+        Assert.Contains(Room.Id, colony.Planner.Reviewer.DoneRooms.Get(World));
+    }
+
+    /// <summary>
+    /// #3754 (D3, option b): a started room whose diff owes only a bed blocked on ComplexFurniture is not open: no builder
+    /// can work the bed until the research finishes, so the room frees them; once it has, the bed keeps the room open, and
+    /// a wall still owed keeps it open regardless. A bed whose stuff the colony neither stocks nor finds on the map is
+    /// blocked too.
+    /// </summary>
+    [Fact]
+    public void ABedBlockedOnComplexFurnitureLeavesTheRoomDone()
+    {
+        var bed = new WantedPiece { DefName = "Bed", Minimum = new(5, 5), Maximum = new(5, 6), Size = new(1, 2), Rot = Rotation.North };
+        IReadOnlyList<Operation> owed = [new Operation { Kind = OpKind.Build, Pieces = [bed] }];
+        IReadOnlyList<Operation> walled = [new Operation { Kind = OpKind.WallIn, Cells = [new(4, 6)] }, .. owed];
+        RoundsReading Reading(long wood, params string[] finished)
+        {
+            var projection = new ColonyProjection
+            {
+                Definitions =
+                [
+                    new PlanningDefinition
+                    {
+                        Name = "Bed", Available = Known(true), Research = ["ComplexFurniture"],
+                        StuffOptions = [new StuffOption { Stuff = "WoodLog", Value = 1, Common = true, Costs = [new RimGovernor.Brain.Policy.Amount(new("WoodLog"), 45)] }],
+                    },
+                ],
+                Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("WoodLog")] = wood }),
+                RingSources = Known(new RingStuffSources()),
+            };
+            projection = projection with
+            {
+                Facts = projection.Facts with { Research = Known(new ResearchFacts { Finished = [.. finished.Select(f => new ResearchProjectId(f))] }) },
+            };
+            return new RoundsReading { Emergency = new(), Frame = new(), Reading = new ColonyReading { Projection = projection } };
+        }
+
+        Assert.True(PlannedRules.PlannedRoomDone(owed, RoundsBuildingPlanner.PieceBlockedOf(Reading(100))));
+        Assert.False(PlannedRules.PlannedRoomDone(walled, RoundsBuildingPlanner.PieceBlockedOf(Reading(100))));
+        Assert.False(PlannedRules.PlannedRoomDone(owed, RoundsBuildingPlanner.PieceBlockedOf(Reading(100, "ComplexFurniture"))));
+        Assert.True(PlannedRules.PlannedRoomDone(owed, RoundsBuildingPlanner.PieceBlockedOf(Reading(0, "ComplexFurniture"))));
     }
 
     [Fact]
@@ -267,13 +345,14 @@ public sealed class PlannedRoomGateTests
     public async Task ABedroomStepFallsThroughARoomThePortfolioHoldsToTheNextOwedRoom()
     {
         // #3743: owed rooms [1, 2]; the comparison assessed room 1 and selected none of it, so it is held. The step
-        // does not stop there: room 2, never assessed, is reconciled instead.
+        // does not stop there: room 2, started by a wall on its own ring, is reconciled instead.
         using var colony = Open(owed: [Room, Next]);
+        colony.Census = Known(new CurrentConstruction { Colony = true, Buildings = [Built(ContainmentCellRules.ShellWallDefinition, new(19, 8))] });
         Select(colony);
         var run = await colony.RunAsync();
         Assert.Equal(Outcome.Admitted, Colony.Report(run).Outcome);
         var placed = colony.Placed(run);
-        Assert.Equal(16, placed.Count);
+        Assert.Equal(15, placed.Count);
         var ring = Next.Region.Walls().Cells().ToHashSet();
         Assert.All(placed, b => Assert.Contains(b.Cell, ring));
     }
@@ -312,6 +391,7 @@ public sealed class PlannedRoomGateTests
         // Shared admission refused the storage room's ring by throwing past the stockpile step, so the step never reached
         // its zone edits. A refusal is an outcome: the reconcile returns it, and the step decides what goes on.
         using var colony = Open(f => f with { WorkAdmission = f.WorkAdmission with { Buildings = Known<EquatableArray<WorkBuildingCost>>([]) } });
+        colony.Census = Known(new CurrentConstruction { Colony = true, Buildings = [Built(ContainmentCellRules.ShellWallDefinition, new(4, 8))] });
         var run = await colony.RunAsync();
         Assert.Empty(run.Methods);
         var verdict = Assert.IsType<Verdict>(colony.Reconciled);

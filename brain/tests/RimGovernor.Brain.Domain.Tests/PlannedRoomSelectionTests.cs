@@ -62,15 +62,15 @@ public sealed class PlannedRoomSelectionTests
         // Observed placement clears the room's sites; the room stays assessed, and the reconcile places it as started.
         var placed = PlannedRules.PlannedSelectionMemory(previous, null, room => room == 1);
         Assert.Equal([Wall(2, "WoodLog")], placed.Sites);
-        Assert.Equal(PlannedRoomGate.Place, PlannedRules.PlannedRoomGateOf(placed, 1, started: true).Gate);
-        Assert.Equal(PlannedRoomGate.Selected, PlannedRules.PlannedRoomGateOf(placed, 2, started: false).Gate);
-        Assert.Equal(PlannedRoomGate.Place, PlannedRules.PlannedRoomGateOf(placed, 3, started: false).Gate);
+        Assert.Equal(PlannedRoomGate.Place, PlannedRules.PlannedRoomGateOf(placed, new PlannedRoom { Id = 1 }, started: true).Gate);
+        Assert.Equal(PlannedRoomGate.Selected, PlannedRules.PlannedRoomGateOf(placed, new PlannedRoom { Id = 2 }, started: false).Gate);
+        Assert.Equal(PlannedRoomGate.Hold, PlannedRules.PlannedRoomGateOf(placed, new PlannedRoom { Id = 3 }, started: false).Gate);
     }
 
     /// <summary>
     /// A review whose comparison could not reach a room (#3676; a running method held every colonist, so no planned
     /// room was a candidate) has not reassessed it: the room keeps its selected sites, in their stuff, rather than reading
-    /// as never assessed, which the reconcile places whole in the default stuff. A room it did reassess follows the latest;
+    /// as never assessed, which the reconcile holds. A room it did reassess follows the latest;
     /// a started room or one the plan dropped is not carried.
     /// </summary>
     [Fact]
@@ -80,13 +80,13 @@ public sealed class PlannedRoomSelectionTests
         var none = new PlannedSelection();
         var kept = PlannedRules.PlannedSelectionMemory(previous, none, _ => false);
         Assert.Equal(previous, kept);
-        Assert.Equal(PlannedRoomGate.Selected, PlannedRules.PlannedRoomGateOf(kept, 2, started: false).Gate);
+        Assert.Equal(PlannedRoomGate.Selected, PlannedRules.PlannedRoomGateOf(kept, new PlannedRoom { Id = 2 }, started: false).Gate);
         // Room 1 reassessed and held; room 2 started; room 3 left the plan.
         var latest = new PlannedSelection { Assessed = [1] };
         var next = PlannedRules.PlannedSelectionMemory(previous, latest, room => room == 2, room => room != 3);
         Assert.Equal([1], next.Assessed);
         Assert.Empty(next.Sites);
-        Assert.Equal(PlannedRoomGate.Hold, PlannedRules.PlannedRoomGateOf(next, 1, started: false).Gate);
+        Assert.Equal(PlannedRoomGate.Hold, PlannedRules.PlannedRoomGateOf(next, new PlannedRoom { Id = 1 }, started: false).Gate);
     }
 
     [Fact]
@@ -118,5 +118,63 @@ public sealed class PlannedRoomSelectionTests
 
         Assert.Equal(("BlocksGranite", "BlocksGranite"), PlannedRules.SelectedRingStuff(sites));
         Assert.Null(PlannedRules.SelectedRingStuff([sites[1]]));
+    }
+
+    /// <summary>
+    /// #3754: an unstarted ringed room no comparison assessed is held, not placed; a ringless role (a training range) has
+    /// no ring to open and is placed; a started room is placed whatever the record says.
+    /// </summary>
+    [Fact]
+    public void AnUnassessedRingedRoomIsHeldARangeIsPlacedAndAStartedRoomIsPlaced()
+    {
+        var empty = new PlannedSelection();
+        Assert.Equal((PlannedRoomGate.Hold, 0), Gate(empty, Plan.Rooms[0], started: false));
+        Assert.Equal((PlannedRoomGate.Place, 0), Gate(empty, Plan.Rooms[0] with { Role = PlannedRole.TrainingRange }, started: false));
+        Assert.Equal((PlannedRoomGate.Place, 0), Gate(empty, Plan.Rooms[0], started: true));
+        var held = new PlannedSelection { Assessed = [1] };
+        Assert.Equal((PlannedRoomGate.Place, 0), Gate(held, Plan.Rooms[0], started: true));
+    }
+
+    private static (PlannedRoomGate, int) Gate(PlannedSelection record, PlannedRoom room, bool started)
+    {
+        var (gate, sites) = PlannedRules.PlannedRoomGateOf(record, room, started);
+        return (gate, sites.Count);
+    }
+
+    /// <summary>Room 1 alone, its ring standing but for <paramref name="missing"/>, its template one bed (none without <paramref name="bed"/>).</summary>
+    private static IReadOnlyList<Operation> Owed(bool bed = true, params Cell[] missing)
+    {
+        var room = Plan.Rooms[0];
+        var plan = Plan with { Rooms = [room], NextRoomId = 2 };
+        var doors = plan.ShellDoors(room).ToHashSet();
+        var ground = new GroundCensus
+        {
+            Walls = [.. room.WallRing().Cells().Where(c => !doors.Contains(c) && !missing.Contains(c))],
+            Doors = [.. doors.Where(c => !missing.Contains(c))],
+        };
+        IReadOnlyList<WantedPiece> furniture = bed ? [Plan.Pieces[1][0].Wanted()] : [];
+        return ReconcileRules.Reconcile(new ReconcileInput { Plan = plan, Room = room, Ground = ground, Furniture = furniture }).Owed;
+    }
+
+    /// <summary>
+    /// #3754 (D3): a started room is open until its reconcile owes nothing a builder can do now. Owing only a bed no
+    /// builder can work (its research missing), it is done and frees its builders; the same bed workable keeps it open;
+    /// owing a wall as well, it is open; owing nothing, it is done. The runtime's blocked reading is
+    /// PlannedRoomGateTests.ABedBlockedOnComplexFurnitureLeavesTheRoomDone.
+    /// </summary>
+    [Fact]
+    public void ARoomOwingOnlyABlockedBedIsDoneAndOneOwingAWallIsOpen()
+    {
+        static bool BedBlocked(WantedPiece piece) => piece.DefName == "Bed";
+        var bedOnly = Owed();
+        Assert.Equal([OpKind.Build], bedOnly.Select(op => op.Kind));
+        Assert.True(PlannedRules.PlannedRoomDone(bedOnly, BedBlocked));
+        Assert.False(PlannedRules.PlannedRoomDone(bedOnly, _ => false));
+        var wall = Owed(true, new Cell(4, 6));
+        Assert.Contains(wall, op => op.Kind == OpKind.WallIn);
+        Assert.False(PlannedRules.PlannedRoomDone(wall, BedBlocked));
+        Assert.Empty(Owed(bed: false));
+        Assert.True(PlannedRules.PlannedRoomDone(Owed(bed: false), _ => false));
+        Assert.True(PlannedRules.PlannedRoomDone([], _ => false));
     }
 }

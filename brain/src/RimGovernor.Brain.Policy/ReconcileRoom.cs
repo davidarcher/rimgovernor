@@ -54,8 +54,8 @@ public static partial class ReconcileRules
     /// </summary>
     public static IReadOnlyList<Operation> ReconcileRoom(ReconcileInput input) => ReconcileRoomHolds(input).Operations;
 
-    /// <summary>ReconcileRoom with the foreign things the room leaves standing.</summary>
-    public static (IReadOnlyList<Operation> Operations, IReadOnlyList<ReconcileHold> Holds) ReconcileRoomHolds(ReconcileInput input)
+    /// <summary>ReconcileRoom with the foreign things the room leaves standing and everything it owes (Reconciliation.Owed, ready or not).</summary>
+    public static (IReadOnlyList<Operation> Operations, IReadOnlyList<ReconcileHold> Holds, IReadOnlyList<Operation> Owed) ReconcileRoomHolds(ReconcileInput input)
     {
         var output = new List<Operation>();
         var rec = Reconcile(input);
@@ -67,7 +67,7 @@ public static partial class ReconcileRules
             }
             output.Add(op);
         }
-        return (output, rec.Holds);
+        return (output, rec.Holds, rec.Owed);
     }
 
     /// <summary>

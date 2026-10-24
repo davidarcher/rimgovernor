@@ -286,8 +286,9 @@ stuff) and roof sites. In a schedule a room closes when the last of its ring sit
 finishes, earliest stuff first, and is roofed when its roof site (or the planned
 shelter's roof cells) has finished. A ring the schedule leaves open gets a projected
 closure past the horizon instead of none (#3744, `ProjectedClosures`, D6): a ring
-is open when its room is observed started (`Context.StartedRooms`, from
-`PlannedRoomStartedOf`) or the schedule finished one of its planned sites. Its
+is open when its room is open (`Context.OpenRooms`: observed started, from
+`PlannedRoomStartedOf`, and not done, `PlannedRoomDone` as its latest reconcile
+found, `Rounder.DoneRooms`; #3754) or the schedule finished one of its planned sites. Its
 remaining ring work, per stuff, is the ring work (`Context.RingWork`, by site id)
 of its unfinished ring, vent and roof sites (the least finish option, FinishTicks or
 a roof's `RoofCellWorkTicks` times its cells, plus the least delivery option of each

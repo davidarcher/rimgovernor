@@ -20,10 +20,13 @@ public sealed record PlannedSelection
 /// <summary>How the room reconcile treats a planned room (#3278).</summary>
 public enum PlannedRoomGate
 {
-    /// <summary>Started, or assessed by no comparison the record keeps: the reconcile places it as before.</summary>
+    /// <summary>Started, or a ringless role (Unfenced: no ring to open): the reconcile places it as before.</summary>
     Place = 0,
 
-    /// <summary>Unstarted, assessed, and none of its sites selected: nothing is placed.</summary>
+    /// <summary>
+    /// Unstarted and ringed with none of its sites selected, whether the record's comparison assessed it or none did
+    /// (#3754): nothing is placed.
+    /// </summary>
     Hold,
 
     /// <summary>Unstarted with selected sites: exactly those are placed, in their stuff.</summary>
@@ -71,7 +74,7 @@ public static partial class PlannedRules
     /// (WallUp, #3657) is a standing room's own and stays: it is what the reconcile swaps the room's walls to. An unstarted
     /// room of the plan (<paramref name="planned"/>) the previous record assessed and the latest comparison did not keeps
     /// its previous verdict and sites (#3676): a review whose free colonists could not reach it (a running method holds
-    /// them) has not reassessed it, and treating it as never assessed would place it whole in the default stuff.
+    /// them) has not reassessed it, and treating it as never assessed would hold a room it had selected.
     /// </summary>
     public static PlannedSelection PlannedSelectionMemory(PlannedSelection previous, PlannedSelection? latest, Func<int, bool> started,
         Func<int, bool>? planned = null)
@@ -119,18 +122,32 @@ public static partial class PlannedRules
     }
 
     /// <summary>
-    /// The gate of one planned room (#3278): a started room, or one the latest comparison did not assess, is placed as
-    /// before; an assessed unstarted room is held, unless the comparison selected some of its sites, which are returned.
+    /// The gate of one planned room (#3278, #3754): a started room, or a ringless role (Unfenced: range, ring, yard,
+    /// airlock), is placed as before. An unstarted ringed room opens its ring only on the portfolio's verdict: it is held
+    /// unless the record's comparison selected some of its sites, which are returned. A room no comparison the record
+    /// keeps assessed is held too (the restart window before the first comparison, urgent reviews, rooms the comparison's
+    /// budget cut), so no ring opens unpriced.
     /// </summary>
-    public static (PlannedRoomGate Gate, IReadOnlyList<SelectedPlannedSite> Sites) PlannedRoomGateOf(PlannedSelection record, int room, bool started)
+    public static (PlannedRoomGate Gate, IReadOnlyList<SelectedPlannedSite> Sites) PlannedRoomGateOf(PlannedSelection record, PlannedRoom room, bool started)
     {
-        if (started || !record.Assessed.Contains(room))
+        if (started || room.Unfenced())
         {
             return (PlannedRoomGate.Place, []);
         }
-        var sites = record.Sites.Where(s => s.Room == room).ToArray();
+        var sites = record.Sites.Where(s => s.Room == room.Id).ToArray();
         return sites.Length == 0 ? (PlannedRoomGate.Hold, []) : (PlannedRoomGate.Selected, sites);
     }
+
+    /// <summary>
+    /// Whether a started room is done (#3754, epic #3738 D3): its reconcile owes nothing a builder can do now. Every owed
+    /// operation (<see cref="Reconciliation.Owed"/>: ring, fence, roof, vent, floor, template pieces, removals and
+    /// clearing) keeps it open, except template pieces to build that are all <paramref name="blocked"/> (missing research,
+    /// or no stuff the colony stocks or can obtain: RoundsBuildingPlanner.PieceBlockedOf): while only those remain the
+    /// room frees its builders, and it is open again once one of them can be worked. A started room is open while it is
+    /// not done; the open rings close first in the ring-closure projection (ForecastCoupledContext.OpenRooms).
+    /// </summary>
+    public static bool PlannedRoomDone(IReadOnlyList<Operation> owed, Func<WantedPiece, bool> blocked) =>
+        owed.All(op => op.Kind == OpKind.Build && op.Pieces.All(blocked));
 
     /// <summary>
     /// The reconcile's operations narrowed to the selected sites (#3278): ring, floor and roof cells a selected site of the

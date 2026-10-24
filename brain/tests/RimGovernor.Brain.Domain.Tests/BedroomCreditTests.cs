@@ -89,7 +89,7 @@ public sealed class BedroomCreditTests
     }
 
     /// <summary>
-    /// #3744 acceptance (d): a started bedroom ring with <paramref name="ringDays"/> of ring work left and one builder is
+    /// #3744 acceptance (d): an open bedroom ring with <paramref name="ringDays"/> of ring work left and one builder is
     /// projected to close then, and its credit runs from that day to tier 2's horizon: none at or past it.
     /// </summary>
     [Theory]
@@ -102,7 +102,7 @@ public sealed class BedroomCreditTests
         {
             PlannedSites = [new("planned/room1/wall/WoodLog", 1, "WoodLog", [], ["planned/room1/wall/WoodLog/finish"])],
             RingWork = new Dictionary<string, double> { ["planned/room1/wall/WoodLog"] = ringDays * Day },
-            StartedRooms = new HashSet<int> { 1 },
+            OpenRooms = new HashSet<int> { 1 },
             PlannedBuilders = 1,
         };
         var closed = Assert.Single(ForecastRoofConsequences.PlannedClosedRooms(context, new Dictionary<string, double>(), Day));

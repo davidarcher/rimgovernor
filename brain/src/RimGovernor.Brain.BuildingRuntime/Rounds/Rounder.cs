@@ -67,6 +67,13 @@ public sealed partial class Rounder
     /// </summary>
     internal ReviewMemory<PlannedSelection> RoomSelection = new(new());
 
+    /// <summary>
+    /// The planned rooms whose latest room reconcile owed nothing a builder can do now (#3754, PlannedRules.PlannedRoomDone;
+    /// derived state, none until a reconcile after a restart): a started room not in it is open, and its ring closes first
+    /// in the ring-closure projection (ForecastCoupledContext.OpenRooms).
+    /// </summary>
+    internal ReviewMemory<EquatableArray<int>> DoneRooms = new([]);
+
     /// <summary>The urgent placements that wait for a review to compare their sites (#3537); the clock stays held meanwhile.</summary>
     internal UrgentBuilds UrgentBuilds { get; } = new();
 
@@ -734,14 +741,15 @@ public sealed partial class Rounder
             var materials = await MaterialValuesAsync(state.Snapshot, coupled.Context, reading.Projection.Stations, reading.Projection.Facts.Items, ct).ConfigureAwait(false);
             var occupantFindings = new SortedSet<string>(coupled.Context.Findings, StringComparer.Ordinal);
             var occupants = RoundsSleepingUpkeepPlanner.BedroomOccupantsOf(reading.Projection, occupantFindings);
-            // The started planned rooms, whose open rings close first in the ring-closure projection (#3744), of the plan
-            // the layout review read (a later retired-ground drop leaves its rooms as they are).
-            var started = layoutPlan is null ? []
-                : layoutPlan.Rooms.Where(r => RoundsBuildingPlanner.PlannedRoomStartedOf(reading.Projection, layoutPlan, r) == true).Select(r => r.Id).ToHashSet();
+            // The open planned rooms, whose rings close first in the ring-closure projection (#3744, #3754): started and not
+            // done by their latest reconcile, of the plan the layout review read (a later retired-ground drop leaves its rooms as they are).
+            var done = DoneRooms.Get(state.Snapshot);
+            var open = layoutPlan is null ? []
+                : layoutPlan.Rooms.Where(r => !done.Contains(r.Id) && RoundsBuildingPlanner.PlannedRoomStartedOf(reading.Projection, layoutPlan, r) == true).Select(r => r.Id).ToHashSet();
             // A goal tier 2 priced is paid at its marginal value, not the flat share (#3505); the clothing runway demands the stuff it chose (#3623).
             reading = reading.WithFacts(rf => rf with
             {
-                CoupledAlternatives = coupled with { Context = coupled.Context with { ModelBasis = model.Basis, Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = Known(model.HorizonDays), BedroomOccupants = occupants, StartedRooms = started, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
+                CoupledAlternatives = coupled with { Context = coupled.Context with { ModelBasis = model.Basis, Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = Known(model.HorizonDays), BedroomOccupants = occupants, OpenRooms = open, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
                 ClothingStuff = model.ClothingStuff,
             });
             ClockEvents.Event("routine", ColonyModelTelemetry.Kind, "colony model ran", [.. model.Attrs()]);

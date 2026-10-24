@@ -298,9 +298,9 @@ the sites the day starts and valued by its projected closure (below).
 
 A ring's value accrues from its closure day, including days past the one-day
 horizon (#3744, epic #3738 D6; [roof and room consequences](colony-forecast.md#roof-and-room-consequences)).
-A ring the schedule leaves open, started or opened by a site the schedule
+A ring the schedule leaves open, open now or opened by a site the schedule
 finishes, closes at its projected day: the builders work the ring work the
-schedule finished, then the started rings, then the rings the schedule opens,
+schedule finished, then the open rings, then the rings the schedule opens,
 each by its remaining ring work, and the k-th ring closes at the cumulative
 work over the builders. The bedroom credit runs from that day to tier 2's
 horizon. Opening ring B while ring A is open puts B's scheduled work ahead of
@@ -311,16 +311,28 @@ builders a second bedroom opens beside an open one when its own credit
 outweighs a third of its work. No tier table or cap decides how many rings are
 open; the priced delay does.
 
+A room is open while it is started and not done (#3754). Done means its
+reconcile owes nothing a builder can do now (`PlannedRoomDone`): every owed
+operation is a template piece whose definition is unresearched, undescribed or
+has no obtainable stuff (`PieceBlockedOf`), so a bed waiting on
+ComplexFurniture does not keep its builders on the room, while an owed wall,
+door, floor or roof does. Each room reconcile records its room's answer
+(`Rounder.DoneRooms`, latest wins, envelope calls excluded); a started room with
+no answer yet is open. The open rooms are the forecast's `OpenRooms`.
+
 `ReconcileRoomAsync` gates an unstarted planned room on that record
 (`PlannedRoomGateOf`):
 
-- **Place**: the room is started, or no comparison the record keeps assessed it.
-  It reconciles as before, its ring placed in the base ring stuff its planned
+- **Place**: the room is started (an unknown census counts as started), or its
+  role has no ring (`Unfenced`, a training range). It reconciles as before, its ring placed in the base ring stuff its planned
   sites are priced in (the first ring stuff: the cheapest stocked, else the
   map's wood, else its rock blocks; #3677, #3747).
-- **Hold**: assessed, none of its sites selected. The verdict is
-  `AwaitingPlan`, subject `portfolio_selection`; nothing is placed, not even template
-  pieces, until a later comparison selects it. Planned sites rank as requested
+- **Hold**: none of its sites selected. The verdict is `AwaitingPlan`, subject
+  `portfolio_selection` when a comparison assessed it and `portfolio_unassessed`
+  when none did (after a restart, while reviews are urgent, or when the budget
+  cut it from the candidates; #3754). Nothing is placed, not even template
+  pieces, until a later comparison selects it: a ring opens only when priced.
+  A room the latest comparison did not reach keeps its earlier selection (#3676). Planned sites rank as requested
   development, below urgent needs, so a hungry colony holds its rooms.
 - **Selected**: the reconcile's operations narrow to the selected sites
   (`SelectedPlannedOps`: their ring, floor and roof cells, pieces at their
@@ -340,8 +352,8 @@ A room is started when a colony-built wall, door, fence or gate stands on a
 ring cell that belongs to it alone, a blueprint or frame stands on its ring or
 ground, or a template piece stands at its anchor (`PlannedRoomStarted`). Shared
 ring cells and natural rock do not count. The record is derived and not saved:
-after a restart unstarted assessed rooms place as before until the first
-comparison ([persistence](../contracts/persistence-contracts.md)). The forecast side is
+after a restart unstarted rooms are held until the first comparison, and
+started rooms are open until their first reconcile ([persistence](../contracts/persistence-contracts.md)). The forecast side is
 [planned room activities](colony-forecast.md#planned-room-activities).
 
 A room's closure and roof are valued through their consequences, not only as

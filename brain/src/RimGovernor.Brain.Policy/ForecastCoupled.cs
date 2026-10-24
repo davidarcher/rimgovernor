@@ -83,9 +83,10 @@ public sealed record ForecastCoupledContext
     /// FinishTicks or a roof's RoofCellWorkTicks per cell, plus the least delivery haul it was generated with) and of each
     /// placed ring site (by thing id: the least work of its FinishFrame tasks). A ring with a site without a row is not projected.</summary>
     public IReadOnlyDictionary<string, double> RingWork { get; init; } = new Dictionary<string, double>(StringComparer.Ordinal);
-    /// <summary>The planned rooms observed started (#3744, RoundsBuildingPlanner.PlannedRoomStartedOf): their open rings close
-    /// first in the projection. Set by the round beside <see cref="InvestmentHorizonDays"/>; none by default.</summary>
-    public IReadOnlySet<int> StartedRooms { get; init; } = new HashSet<int>();
+    /// <summary>The open planned rooms (#3744, #3754): observed started (RoundsBuildingPlanner.PlannedRoomStartedOf) and not
+    /// done (PlannedRules.PlannedRoomDone, as their latest reconcile found). Their open rings close first in the projection.
+    /// Set by the round beside <see cref="InvestmentHorizonDays"/>; none by default.</summary>
+    public IReadOnlySet<int> OpenRooms { get; init; } = new HashSet<int>();
     /// <summary>Per planned bedroom, the colonists the bedroom step would move into it (SleepingRules.PlannedBedroomOccupants,
     /// #3655, #3656: one, or a couple), by pawn id; a bedroom without a row houses nobody and earns no credit.</summary>
     public IReadOnlyDictionary<int, EquatableArray<string>> BedroomOccupants { get; init; } = new Dictionary<int, EquatableArray<string>>();

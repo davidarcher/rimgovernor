@@ -486,11 +486,14 @@ public sealed partial class RoundsBuildingPlanner
             if (owed)
             {
                 var ring = await r.ReconcileRoomAsync(state, review, goal, new Observation.RoundsReading { Reading = reading, Frame = new BridgeRoundsFrame(), Emergency = new EmergencyFacts() }, null, new RoomReconcile { RingOnly = true, Room = room, Name = PlannedRoomMethod(room).Value }, call, epoch).ConfigureAwait(false);
-                if (!ring.Verdict.SkipsToPlacement)
+                // A ring the portfolio holds is no failure of the station (#3754): the stove or bench takes the usual
+                // placement, off the held room's interior, so its blueprint there does not start the room unpriced.
+                var held = ring.Verdict.PortfolioHolds;
+                if (!ring.Verdict.SkipsToPlacement && !held)
                 {
                     return ring;
                 }
-                if (HostsInPlannedRoom(plannedModule))
+                if (!held && HostsInPlannedRoom(plannedModule))
                 {
                     var kitchen = r.Copy();
                     kitchen.Cells = PlannedRoomInterior(room);
