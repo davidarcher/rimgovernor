@@ -36,7 +36,8 @@ public static class PlannedRoomCredits
     /// <summary>The shipped credits: Bedroom by its occupant's mood gain (#3655), Barracks by each sleeper's (#3658), Lab by
     /// the research speed its room gives the bench (#3800), Throne and Suite by the title room thoughts their colonist loses once
     /// the room meets its title's requirement (#3807), Kitchen and Butchery by the food poisoning they prevent (#3802); Storage,
-    /// Meal closet, Reserve and Yard by the stock they keep from deteriorating (#3798).</summary>
+    /// Meal closet, Reserve and Yard by the stock they keep from deteriorating (#3798); Morgue and Tomb by the corpse moods they
+    /// remove (#3806).</summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> Shipped = new Dictionary<PlannedRole, RoomCredit>
     {
         [PlannedRole.Bedroom] = ForecastHousing.BedroomCredit,
@@ -50,7 +51,20 @@ public static class PlannedRoomCredits
         [PlannedRole.MealCloset] = ForecastStorage.StorageCredit,
         [PlannedRole.Reserve] = ForecastStorage.StorageCredit,
         [PlannedRole.Yard] = ForecastStorage.StorageCredit,
+        [PlannedRole.Morgue] = ForecastCorpses.MorgueCredit,
+        [PlannedRole.Tomb] = ForecastCorpses.TombCredit,
     };
+
+    /// <summary>
+    /// Per pawn, the distinct shifts (mood delta / 100) its mood timeline integrates breaks at, so each mood credit's
+    /// <see cref="ForecastHousing.GainPerDay"/> finds its shifted break ticks: the bedroom moves' (#3655) and the corpse
+    /// credits' (#3806). Constant per context, so the mood cache key holds.
+    /// </summary>
+    internal static IReadOnlyDictionary<string, double[]> BreakShifts(ForecastCoupledContext context) => Shifts.GetValue(context, c =>
+        ForecastHousing.BreakShifts(c).Concat(ForecastCorpses.BreakShifts(c)).GroupBy(p => p.Key, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.SelectMany(p => p.Value).Distinct().Order().ToArray(), StringComparer.Ordinal));
+
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, IReadOnlyDictionary<string, double[]>> Shifts = new();
 
     /// <summary>
     /// Whether <paramref name="room"/> is priced: its role has a credit, or it is a connector (<see cref="ConnectorsOf"/>) of a

@@ -410,7 +410,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), and `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), and `Morgue` and `Tomb` (#3806).
 Each fueled source with a known burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 with the native `ThermalSource.Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
@@ -514,6 +514,43 @@ earns its points over the horizon's days / its bench's factor now × the factor 
 project. No research allocation of a valued project earns nothing. The temperature part and the bookcase reading bonus are held at
 1 and facility offsets (multi-analyzer) are not modelled. A room with no closure prediction, an unread prediction or filth model,
 an unread stat part, or a research bench without a bench row or model is named `lab_credit_unassessed:<room>`.
+
+*Morgue and tomb credit (#3806).* A planned morgue or tomb the outcome serves is credited through the same seam
+(`ForecastCorpses.MorgueCredit`, `TombCredit`) under `morgue/<room>/<pawn>` (`tomb/<room>/<pawn>`): the observed-corpse moods
+the room removes by taking the corpses that lie in sight. The facts ride on the needs read: `NeedsForecastRead.Corpses` (each
+spawned, unfogged corpse that raises an observed-corpse event, `Corpse.GiveObservedHistoryEvent`, so none in storage and none of
+a fresh ritual kill: its rot stage, whether it was a colonist, and per colonist the ticks ago of each observer pass that saw it
+from the corpse's cell) and per colonist `CorpseThoughts` (the memories its ideo gives for `ObservedLayingCorpse` and
+`ObservedLayingRottingCorpse`, read from the `PreceptComp_SelfTookMemoryThought` comps keyed by those events with their
+`onlyForNonSlaves` and `minExpectation` gates, each built with `ThoughtMaker.MakeThought` and its `MoodOffset` taken only when
+`CanGetThought` allows, so a nullifying trait or precept gives 0, with the def's `DurationTicks`, `stackLimit` and
+`stackedEffectMultiplier`) and `SightingTicks` (how long its sighting record covers). The record is the native `SightingLog`
+(`TrafficState.Sightings`): a prefix on `PawnObserver.ObserveSurroundingThings` logs the tick and cell of each pass a free
+colonist observes from (awake, sighted, with mood, the game's own early-outs). A pass sees a corpse within 5 cells in line of
+sight (`PawnObserver.ObservationRadius`, `PossibleToObserve`); the read replays that test on each logged cell.
+
+The renewal model, from the game's mechanics: `Need_Mood.NeedInterval` runs every 150 ticks and the observer looks every
+4 ± 1 intervals, so a colonist observes at most once every 450 ticks. A sighting gives each memory the event raises;
+`Thought_MemoryObservation` merges with the memory of the same corpse and renews it instead of adding one, so one corpse's memory
+is active from a sighting for its `DurationTicks` (half a day in Core) or until the next sighting renews it. The colonist's
+routine is taken to repeat: the whole days the record covers are one cycle, a memory running past the cycle's end wrapping to its
+start. At each moment the n active memories of one thought count as `ThoughtHandler.MoodOffsetOfGroup` with
+`MemoryThoughtHandler`'s stack limit does, `offset × Σ_{i<min(n, stackLimit)} stackedEffectMultiplier^i`; the colonist's corpse
+mood is that sum's mean over the cycle, summed over the thoughts (`ForecastCorpses.CorpseMood`). Two fresh corpses by the
+kitchen door seen once a day cost a Core colonist `-4 × (1 + 0.5)` half the day, -3.
+
+The forecast's mood timeline renews no observation memory, so it already holds the colony with the corpses out of sight; the
+room's gain a day is minus `ForecastHousing.GainPerDay` of the corpse mood (wellbeing and the break days the timeline shifted by
+`mood / 100` costs), credited × (H − service day). A tomb takes the colonist corpses; a morgue takes the strangers', and the
+colonists' too while no priced tomb is planned; with several rooms of a role the lowest id takes them. A fresh colony (no corpse,
+no record) credits nothing. A colonist whose record covers less than a whole day names `morgue_credit_unassessed:<room>`
+(`tomb_credit_unassessed:<room>`). Not modelled: PawnObserver's region-traversal bound (only the radius and line of sight are
+replayed), a corpse moving before the room takes it, the rot stage changing over the horizon, a grave outside a room taking a
+colonist corpse first, a tomb's sarcophagus count, and the exposure a morgue's own haulers still meet.
+
+The sighting log is bounded: one ring per free colonist of its observer passes in the last 2 days (120000 ticks), at most
+120000 / 450 + 1 = 267 entries (about 2 KB a colonist), pruned to the free colonists every game hour and not saved; a load
+starts the record afresh, so the credits read unassessed for a day.
 
 *Who moves first (#3656).* A vacant bedroom bed, standing or planned, goes to the unhoused colonist with the largest priced gain
 from it (`ForecastHousing.LargestGainFirst`, a stable sort, so ties keep id order). The gain is read before the search, from

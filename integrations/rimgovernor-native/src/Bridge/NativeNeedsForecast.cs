@@ -18,6 +18,8 @@ internal static class NativeNeedsForecast
     {
         legs ??= new(map);
         var rows = new List<Obs.NeedsForecastPawn>();
+        var sightings = map.GetComponent<TrafficState>()?.Sightings;
+        var now = Find.TickManager.TicksGame;
         // The candidates, read once for every colonist; only each pawn's survivors are sorted, by id then grouped by kind.
         (Thing Thing, string Kind)[]? possible = null;
         foreach (var pawn in people.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
@@ -123,7 +125,8 @@ internal static class NativeNeedsForecast
                 PainShockThreshold = HealthStat(pawn, StatDefOf.PainShockThreshold), HealthScale = HealthScaleOf(pawn),
                 IncomingDamageFactor = HealthStat(pawn, StatDefOf.IncomingDamageFactor), InjuryHealingFactor = HealthStat(pawn, StatDefOf.InjuryHealingFactor),
                 ResearchSpeed = K(pawn.GetStatValue(StatDefOf.ResearchSpeed) * Find.Storyteller.difficulty.researchSpeedFactor),
-                PlantWorkSpeed = K(pawn.GetStatValue(StatDefOf.PlantWorkSpeed)) });
+                PlantWorkSpeed = K(pawn.GetStatValue(StatDefOf.PlantWorkSpeed)),
+                CorpseThoughts = CorpseThoughtsOf(pawn), SightingTicks = sightings?.Covered(pawn.thingIDNumber, now) ?? 0 });
         }
         var benches = map.listerBuildings.AllBuildingsColonistOfClass<Building_ResearchBench>()
             .Where(b => b.Spawned && (b.GetComp<CompPowerTrader>()?.PowerOn ?? true))
@@ -132,7 +135,68 @@ internal static class NativeNeedsForecast
         var weather = map.weatherManager.CurWeatherLerped;
         return new() { Tick = Find.TickManager.TicksGame, Pawns = EquatableArray.From(rows),
             WeatherThought = weather?.weatherThought?.defName ?? "", WeatherThoughtStages = weather?.weatherThought?.stages?.Count ?? 0,
-            RainRate = K(map.weatherManager.RainRate), MapArea = Fact.Known(map.Area), Deterioration = DeteriorationPart(), ResearchBenches = EquatableArray.From(benches) };
+            RainRate = K(map.weatherManager.RainRate), MapArea = Fact.Known(map.Area), Deterioration = DeteriorationPart(), ResearchBenches = EquatableArray.From(benches),
+            Corpses = CorpsesInSight(map, people, sightings, now) };
+    }
+    /// <summary>PawnObserver.ObservationRadius (a private const in 1.7): the observer sees a thing within this many cells (InHorDistOf).</summary>
+    internal const float ObservationRadius = 5f;
+    /// <summary>
+    /// The corpses a sighting raises an observed-corpse event for (#3806), each with every colonist's sightings of it: the
+    /// colonist's recorded observer passes (<see cref="SightingLog"/>) from whose cell PawnObserver.PossibleToObserve sees the
+    /// corpse where it lies now. Corpse.GiveObservedHistoryEvent ignores its observer; the first colonist is passed.
+    /// </summary>
+    private static EquatableArray<Obs.CorpseSightingRead> CorpsesInSight(Map map, List<Pawn> people, SightingLog? log, int now)
+    {
+        if (people.Count == 0) return default;
+        var rows = new List<Obs.CorpseSightingRead>();
+        var corpses = map.listerThings.ThingsInGroup(ThingRequestGroup.Corpse).OfType<Corpse>()
+            .Where(c => c.Spawned && c.InnerPawn != null && !c.Position.Fogged(map)).OrderBy(c => c.GetUniqueLoadID(), StringComparer.Ordinal);
+        var passes = people.ToDictionary(p => p, p => log?.Passes(p.thingIDNumber, now) ?? new List<(int Tick, int Cell)>());
+        foreach (var corpse in corpses)
+        {
+            var ev = corpse.GiveObservedHistoryEvent(people[0]);
+            if (ev != HistoryEventDefOf.ObservedLayingCorpse && ev != HistoryEventDefOf.ObservedLayingRottingCorpse) continue;
+            var seen = new List<Obs.CorpseSightings>();
+            foreach (var pawn in people.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal))
+            {
+                var ago = new List<int>();
+                foreach (var (tick, index) in passes[pawn])
+                {
+                    var cell = map.cellIndices.IndexToCell(index);
+                    if (corpse.Position.InHorDistOf(cell, ObservationRadius) && GenSight.LineOfSight(corpse.Position, cell, map, skipFirstCell: true)) ago.Add(now - tick);
+                }
+                if (ago.Count != 0) seen.Add(new(pawn.GetUniqueLoadID(), EquatableArray.From(ago)));
+            }
+            rows.Add(new(ev == HistoryEventDefOf.ObservedLayingRottingCorpse,
+                corpse.InnerPawn.Faction == Faction.OfPlayer, EquatableArray.From(seen)));
+        }
+        return EquatableArray.From(rows);
+    }
+    /// <summary>
+    /// The memories the pawn's ideo gives it on an observed-corpse event (#3806), as IdeoUtility.Notify_HistoryEvent dispatches it
+    /// to the doer's ideo: each precept's PreceptComp_SelfTookMemoryThought keyed by the event, skipped where its
+    /// Notify_MemberTookAction would (no mood, a slave under onlyForNonSlaves, below the thought's minExpectation), priced by the
+    /// game's MoodOffset of the unattached memory (zero where MemoryThoughtHandler.TryGainMemory's CanGetThought refuses it).
+    /// </summary>
+    private static EquatableArray<Obs.CorpseThoughtRead> CorpseThoughtsOf(Pawn pawn)
+    {
+        if (pawn.needs?.mood == null || pawn.Ideo is not { } ideo) return default;
+        var rows = new List<Obs.CorpseThoughtRead>();
+        foreach (var precept in ideo.PreceptsListForReading)
+            foreach (var comp in precept.def.comps.OfType<PreceptComp_SelfTookMemoryThought>())
+            {
+                var rotting = comp.eventDef == HistoryEventDefOf.ObservedLayingRottingCorpse;
+                if (!rotting && comp.eventDef != HistoryEventDefOf.ObservedLayingCorpse || comp.thought is not { } def) continue;
+                if (comp.onlyForNonSlaves && pawn.IsSlave) continue;
+                if (def.minExpectation != null && ExpectationsUtility.CurrentExpectationFor(pawn).order < def.minExpectation.order) continue;
+                // Unattached memory: inspect the game's own offset, never add it to the pawn.
+                var thought = ThoughtMaker.MakeThought(def, precept);
+                thought.pawn = pawn;
+                var offset = ThoughtUtility.CanGetThought(pawn, def) ? thought.MoodOffset() : 0;
+                if (!double.IsFinite(offset)) continue;
+                rows.Add(new(rotting, def.defName, offset, thought.DurationTicks, def.stackLimit, def.stackedEffectMultiplier));
+            }
+        return EquatableArray.From(rows);
     }
     /// <summary>The cell's roof and room as Need_Outdoors, the undergrounder workers, ApplyBedThoughts and SteadyEnvironmentEffects read them (#3339).</summary>
     internal static Obs.NeedCell CellAt(Map map, IntVec3 cell)

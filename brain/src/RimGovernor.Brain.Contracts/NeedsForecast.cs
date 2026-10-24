@@ -24,7 +24,31 @@ public sealed record NeedsForecastRead
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<ResearchBenchRead>))]
     public EquatableArray<ResearchBenchRead> ResearchBenches { get; init; }
+    /// <summary>
+    /// Every unfogged spawned corpse whose sighting raises an observed-corpse event (#3806: <c>Corpse.GiveObservedHistoryEvent</c>
+    /// is ObservedLayingCorpse or ObservedLayingRottingCorpse, so a humanlike out of storage), in corpse id order, with each
+    /// colonist's sightings of it. Empty means none lies in sight.
+    /// </summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<CorpseSightingRead>))]
+    public EquatableArray<CorpseSightingRead> Corpses { get; init; }
 }
+/// <summary>
+/// One corpse lying in sight (#3806): whether its event is ObservedLayingRottingCorpse (not fresh), whether its inner pawn was
+/// the player's (a colonist corpse, which a tomb takes), and per colonist with a sighting the ticks before the read of each of
+/// that colonist's observer passes that saw it (the native side replays PawnObserver.PossibleToObserve, within 5 cells in line of
+/// sight, from the corpse's cell to each logged pass cell).
+/// </summary>
+public sealed record CorpseSightingRead(bool Rotting, bool Colonist,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<CorpseSightings>))] EquatableArray<CorpseSightings> Sightings);
+/// <summary>One colonist's sightings of a corpse (#3806): the ticks before the read of each observer pass that saw it, oldest first.</summary>
+public sealed record CorpseSightings(string Pawn, [property: JsonConverter(typeof(EquatableArrayJsonConverter<int>))] EquatableArray<int> TicksAgo);
+/// <summary>
+/// A memory the pawn's ideo gives it on an observed-corpse event (#3806): each precept comp
+/// <c>PreceptComp_SelfTookMemoryThought</c> keyed by ObservedLayingCorpse (fresh) or ObservedLayingRottingCorpse (<paramref name="Rotting"/>),
+/// its thought, the game's MoodOffset for this pawn (0 when ThoughtUtility.CanGetThought refuses it), its DurationTicks, stackLimit
+/// (negative is none) and stackedEffectMultiplier.
+/// </summary>
+public sealed record CorpseThoughtRead(bool Rotting, string Thought, double Offset, double DurationTicks, int StackLimit, double StackedMultiplier);
 /// <summary>
 /// One research bench now (#3567, #3800): its thing id (the research activities' bench), its def, its Position cell (the
 /// cell whose room its stat parts read) and its <c>StatDefOf.ResearchSpeedFactor</c> with every part applied.
@@ -182,6 +206,11 @@ public sealed record NeedsForecastPawn
     /// </summary>
     public Fact<double> ResearchSpeed { get; init; }
     public Fact<double> PlantWorkSpeed { get; init; }
+    /// <summary>The memories the pawn's ideo gives it on seeing a corpse lying (#3806); empty when none would (no ideo, no such precept, no mood).</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<CorpseThoughtRead>))]
+    public EquatableArray<CorpseThoughtRead> CorpseThoughts { get; init; }
+    /// <summary>The ticks before the read the pawn's sighting record covers (#3806): since its first observer pass, at most two days; 0 with no record.</summary>
+    public int SightingTicks { get; init; }
 }
 /// <summary>Native legality and mechanics, not a selected need action. Travel is an observed route cost.</summary>
 public sealed record NeedTarget(string Id, string Kind, string Resource, int AvailableCount,

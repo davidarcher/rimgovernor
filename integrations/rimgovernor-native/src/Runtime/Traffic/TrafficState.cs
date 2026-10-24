@@ -21,8 +21,13 @@ namespace HomeBridge.BridgeTools
         private static Map? lastMap;
         private static TrafficState? last;
         private static readonly AccessTools.FieldRef<Pawn_PathFollower, Pawn> followerPawn = AccessTools.FieldRefAccess<Pawn_PathFollower, Pawn>("pawn");
+        private static readonly AccessTools.FieldRef<PawnObserver, Pawn> observerPawn = AccessTools.FieldRefAccess<PawnObserver, Pawn>("pawn");
 
         public readonly TrafficCounts Counts;
+
+        // Each free colonist's own observer passes (#3806), the corpse credit's
+        // exposure record; SightingLog states its bound.
+        public readonly SightingLog Sightings = new SightingLog();
 
         public TrafficState(Map map) : base(map)
         {
@@ -34,15 +39,41 @@ namespace HomeBridge.BridgeTools
         {
             var tick = Find.TickManager.TicksGame;
             if (tick % DecayInterval == 0) Counts.Decay(DecayInterval);
+            if (tick % GenDate.TicksPerHour == 0) RetainColonists();
+        }
+
+        // RetainColonists drops the sighting rings of pawns no longer free
+        // colonists spawned here (dead, gone, captured).
+        public void RetainColonists()
+        {
+            var here = new System.Collections.Generic.HashSet<int>();
+            foreach (var pawn in map.mapPawns.FreeColonistsSpawned) here.Add(pawn.thingIDNumber);
+            Sightings.Retain(here.Contains);
         }
 
         private static void Install()
         {
             if (installed) return;
             installed = true;
-            new Harmony("rimgovernor.traffic").Patch(AccessTools.Method(typeof(Pawn_PathFollower), "TryEnterNextPathCell"),
+            var harmony = new Harmony("rimgovernor.traffic");
+            harmony.Patch(AccessTools.Method(typeof(Pawn_PathFollower), "TryEnterNextPathCell"),
                 prefix: new HarmonyMethod(typeof(TrafficState), nameof(Before)),
                 postfix: new HarmonyMethod(typeof(TrafficState), nameof(After)));
+            // PawnObserver's pass is private; Harmony names it by string (no typed route reaches a private method).
+            harmony.Patch(AccessTools.Method(typeof(PawnObserver), "ObserveSurroundingThings"),
+                prefix: new HarmonyMethod(typeof(TrafficState), nameof(Observing)));
+        }
+
+        // Observing records a free colonist's pass when it observes at all:
+        // ObserveSurroundingThings returns before looking while the pawn is
+        // blind, asleep or has no mood (1.7), so those passes see nothing.
+        private static void Observing(PawnObserver __instance)
+        {
+            var pawn = observerPawn(__instance);
+            var map = pawn.Map;
+            if (map == null || !pawn.IsFreeColonist || PawnUtility.IsBiologicallyOrArtificiallyBlind(pawn) || !pawn.Awake() || pawn.needs?.mood == null) return;
+            if (map != lastMap) { last = map.GetComponent<TrafficState>(); lastMap = map; }
+            last?.Sightings.Record(pawn.thingIDNumber, Find.TickManager.TicksGame, map.cellIndices.CellToIndex(pawn.Position));
         }
 
         private static void Before(Pawn_PathFollower __instance, out IntVec3 __state) => __state = followerPawn(__instance).Position;
