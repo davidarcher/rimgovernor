@@ -379,7 +379,7 @@ public static class GearLoadoutRules
     /// <summary>
     /// The gear role a work type dresses for, per the wiki's work descriptions: hunters need a ranged weapon;
     /// benches, beds and research happen indoors; everything else (building, mining, growing, hauling, handling,
-    /// fishing) is outdoor labour.
+    /// fishing, the mod's range drills and sparring) is outdoor labour.
     /// </summary>
     private static GearRole GearWorkRole(WorkType w)
     {
@@ -391,7 +391,7 @@ public static class GearLoadoutRules
                 return GearRole.Indoor;
             case WorkType.None or WorkType.Construction or WorkType.Mining or WorkType.PlantCutting or WorkType.Hauling or WorkType.Cleaning or WorkType.Basic
                 or WorkType.Handling or WorkType.Firefighter or WorkType.Fishing or WorkType.Growing or WorkType.Patient or WorkType.PatientBedRest
-                or WorkType.BedRest or WorkType.Childcare or WorkType.DarkStudy or WorkType.Violent:
+                or WorkType.BedRest or WorkType.Childcare or WorkType.DarkStudy or WorkType.Violent or WorkType.Training:
                 return GearRole.Worker;
         }
         throw new DomainException($"undefined work type {(int)w}");

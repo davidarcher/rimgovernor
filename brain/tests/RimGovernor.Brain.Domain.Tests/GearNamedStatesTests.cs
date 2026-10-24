@@ -27,6 +27,19 @@ public sealed class GearNamedStatesTests
         new() { Threat = ColonyModelFixtures.NoThreat, Ambient = 20, ComfortableMin = 10, ComfortableMax = 30, Options = [option] };
 
     [Fact]
+    public void EveryPlannedWorkTypeDressesForARole()
+    {
+        // #3923: the mod's Training work type, which every colonist has, dresses for outdoor labour; a missing arm threw at tick 0.
+        foreach (var work in Enum.GetValues<WorkType>().Where(w => w != WorkType.Unrecognized))
+        {
+            var role = GearLoadoutRules.DeriveGearRole(new GearRoleInput { Work = [new WorkPriority { Work = work, Priority = 1 }] });
+            Assert.True(Enum.IsDefined(role), work.ToString());
+        }
+
+        Assert.Equal(GearRole.Worker, GearLoadoutRules.DeriveGearRole(new GearRoleInput { Work = [new WorkPriority { Work = WorkType.Training, Priority = 1 }] }));
+    }
+
+    [Fact]
     public void AWornFloorReadsTheWornInsulationAndAChosenFloorItsOwnValue()
     {
         Assert.Equal(-4.0, new InsulationFloor.Worn().Or(-4));
