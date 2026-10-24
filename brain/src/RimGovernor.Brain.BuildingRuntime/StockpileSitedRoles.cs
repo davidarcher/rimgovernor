@@ -39,7 +39,7 @@ internal static class StockpileSitedRoles
         IReadOnlyList<Cell>? adjacent = null;
         foreach (var planned in dining)
         {
-            foreach (var s in comfort.Surfaces)
+            foreach (var s in comfort.Census.Surfaces)
             {
                 if (s.Adjacent.Count > 0 && InRectangle(planned.Region.Bounds(), s.Adjacent[0]))
                 {

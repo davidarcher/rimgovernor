@@ -1,53 +1,28 @@
+using ComfortFacts = RimGovernor.Contracts.Wire.Observations.ComfortFacts;
+using ComfortHost = RimGovernor.Contracts.Wire.Observations.ComfortHost;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// A dining or recreation facility. RoomId names the proper indoor room hosting the facility, as the native
-/// room census identifies it; empty when the facility stands outdoors.
+/// The native comfort census (<see cref="Census"/>) with the catalog rows the comfort rules plan from.
 /// </summary>
-public sealed record ComfortFacility
+public sealed record ComfortObservation
 {
-    public string Id { get; init; } = "";
-
-    public string RoomId { get; init; } = "";
-
-    public string Kind { get; init; } = "";
-
-    public EquatableArray<PawnId> AccessibleTo { get; init; }
-
-    public EquatableArray<PawnId> Users { get; init; }
-}
-
-public sealed record DiningSurface
-{
-    public string Id { get; init; } = "";
-
-    public string RoomId { get; init; } = "";
-
-    public EquatableArray<Cell> Adjacent { get; init; }
-}
-
-public sealed partial record ComfortObservation
-{
-    public EquatableArray<PawnId> People { get; init; }
-
-    public EquatableArray<DiningSurface> Surfaces { get; init; }
-
-    public EquatableArray<ComfortFacility> Dining { get; init; }
-
-    public EquatableArray<ComfortFacility> Recreation { get; init; }
-
-    public RecreationCensus? Joy { get; init; }
+    public required ComfortFacts Census { get; init; }
 
     /// <summary>
     /// The joy building the first recreation facility is (DefinitionCatalog.RecreationFoothold). WatchBuildings
     /// are the defs whose placement needs watch cells every colonist can reach. Both come from the catalog rows.
     /// </summary>
-    public string RecreationFoothold { get; init; } = "";
+    public required string RecreationFoothold { get; init; }
 
-    public EquatableArray<string> WatchBuildings { get; init; }
+    public required EquatableArray<string> WatchBuildings { get; init; }
 
     /// <summary>The dining chair, table and recreation foothold the catalog rows name; RecreationFoothold is its pin.</summary>
-    public DiningFurniture Furniture { get; init; } = new();
+    public required DiningFurniture Furniture { get; init; }
+
+    /// <summary>The joy buildings the catalog can build, in its preference order (JoyBuildings).</summary>
+    public required EquatableArray<JoyBuildingMethod> JoyMethods { get; init; }
 
     /// <summary>Reports whether <paramref name="method"/> builds the recreation foothold.</summary>
     public bool IsFoothold(ComfortMethod method) => RecreationFoothold.Length != 0 && method.Value == RecreationFoothold;
@@ -58,44 +33,7 @@ public sealed partial record ComfortObservation
         DomainException.Require(RecreationFoothold.Length != 0, "comfort census names no recreation foothold");
         return new ComfortMethod(RecreationFoothold);
     }
-
-    public void Validate()
-    {
-        ValidateJoy();
-        var people = new HashSet<PawnId>();
-        foreach (var id in People)
-        {
-            DomainException.Require(FoodForecastRules.FoodId(id.Value) && people.Add(id), "invalid comfort pawn");
-        }
-        var surfaces = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var s in Surfaces)
-        {
-            DomainException.Require(FoodForecastRules.FoodId(s.Id) && surfaces.Add(s.Id), "invalid dining surface");
-            var seen = new HashSet<Cell>();
-            foreach (var c in s.Adjacent)
-            {
-                DomainException.Require(!(c.X < 0 || c.Z < 0 || c.X >= 4096 || c.Z >= 4096 || !seen.Add(c)), "invalid dining adjacency");
-            }
-        }
-        foreach (var facilities in new[] { Dining, Recreation })
-        {
-            var seen = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var f in facilities)
-            {
-                DomainException.Require(FoodForecastRules.FoodId(f.Id) && seen.Add(f.Id), "invalid comfort facility");
-                foreach (var ids in new[] { f.AccessibleTo, f.Users })
-                {
-                    var found = new HashSet<PawnId>();
-                    foreach (var id in ids)
-                    {
-                        DomainException.Require(people.Contains(id) && found.Add(id), "invalid comfort facility pawn");
-                    }
-                }
-            }
-        }
-    }
 }
-
 public readonly record struct ComfortUse(string Facility, Tick Tick);
 
 public readonly record struct ComfortHistory(ComfortUse Dining, ComfortUse Recreation)
@@ -175,8 +113,7 @@ public static class ComfortRules
         {
             return r;
         }
-        v.Validate();
-        (ComfortNeed Need, ComfortUse Proof) Assess(IReadOnlyList<ComfortFacility> facilities, ComfortUse proof)
+        (ComfortNeed Need, ComfortUse Proof) Assess(IEnumerable<(string Id, EquatableArray<PawnId> AccessibleTo, EquatableArray<PawnId> Users)> facilities, ComfortUse proof)
         {
             var available = new HashSet<PawnId>();
             // A stable tie-break makes simultaneous observed uses replayable.
@@ -202,18 +139,18 @@ public static class ComfortRules
             {
                 seenUse = seenUse || (f.Id == proof.Facility && f.AccessibleTo.Count > 0);
             }
-            if (v.People.Count > available.Count)
+            if (v.Census.People.Count > available.Count)
             {
                 return (ComfortNeed.Capacity, proof);
             }
-            if (v.People.Count > 0 && !seenUse)
+            if (v.Census.People.Count > 0 && !seenUse)
             {
                 return (ComfortNeed.UseNeeded, proof);
             }
             return (ComfortNeed.Recovered, proof);
         }
-        var (dining, diningProof) = Assess(v.Dining, r.History.Dining);
-        var (recreation, recreationProof) = Assess(v.Recreation, r.History.Recreation);
+        var (dining, diningProof) = Assess(v.Census.Dining.Select(f => (f.Id, f.AccessibleTo, f.Users)), r.History.Dining);
+        var (recreation, recreationProof) = Assess(v.Census.Recreation.Select(f => (f.Id, f.AccessibleTo, f.Users)), r.History.Recreation);
         return r with
         {
             Dining = dining,
@@ -224,15 +161,14 @@ public static class ComfortRules
 
     public static ComfortMethod SelectComfortMethod(ComfortObservation v, ComfortReview r)
     {
-        v.Validate();
         DomainException.Require(r.Dining != ComfortNeed.Unknown && r.Recreation != ComfortNeed.Unknown, "comfort evidence unavailable");
         if (r.Dining == ComfortNeed.Capacity)
         {
-            if (v.Dining.Count > 0)
+            if (v.Census.Dining.Count > 0)
             {
                 return ComfortMethod.AccessBlocked;
             }
-            if (v.Surfaces.Count == 0)
+            if (v.Census.Surfaces.Count == 0)
             {
                 return v.Furniture.TableMethod();
             }
@@ -240,7 +176,7 @@ public static class ComfortRules
         }
         if (r.Recreation == ComfortNeed.Capacity)
         {
-            if (v.Recreation.Count > 0)
+            if (v.Census.Recreation.Count > 0)
             {
                 return ComfortMethod.AccessBlocked;
             }
@@ -272,15 +208,14 @@ public static class ComfortRules
             }
             return f.Hosts(room!.Role);
         }
-        return new ComfortObservation
+        return v with
         {
-            People = v.People,
-            RecreationFoothold = v.RecreationFoothold,
-            WatchBuildings = v.WatchBuildings,
-            Furniture = v.Furniture,
-            Surfaces = EquatableArray.From(v.Surfaces.Where(s => Hosted(dining, s.RoomId))),
-            Dining = EquatableArray.From(v.Dining.Where(f => Hosted(dining, f.RoomId))),
-            Recreation = EquatableArray.From(v.Recreation.Where(f => Hosted(recreation, f.RoomId))),
+            Census = v.Census with
+            {
+                Surfaces = EquatableArray.From(v.Census.Surfaces.Where(s => Hosted(dining, s.Room))),
+                Dining = EquatableArray.From(v.Census.Dining.Where(f => Hosted(dining, f.Room))),
+                Recreation = EquatableArray.From(v.Census.Recreation.Where(f => f.Host is ComfortHost.Indoors { Room: var room } && Hosted(recreation, room))),
+            },
         };
     }
 }

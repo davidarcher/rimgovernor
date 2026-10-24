@@ -242,11 +242,10 @@ namespace HomeBridge.BridgeTools
         private static Obs.UpkeepSection ReadComfort(Map map, List<Thing> things, uint? routePathBudgetMs)
         {
             var began = System.Diagnostics.Stopwatch.GetTimestamp();
-            var result = new Obs.UpkeepFacts { HomeCoverage = NativeUpkeepFacts.ReadHomeCoverage(map) };
+            var home = NativeUpkeepFacts.ReadHomeCoverage(map);
             ObservationWork.Detail("cf.upkeep.home_coverage", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             began = System.Diagnostics.Stopwatch.GetTimestamp();
-            try { result = result with { Comfort = new Obs.ComfortSection { Observed = ComfortFacts.ReadProtocol(map) } }; }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); ReadFailureLog.Note("comfort", error); result = result with { Comfort = new Obs.ComfortSection() }; }
+            var result = new Obs.UpkeepFacts { HomeCoverage = home, Comfort = ComfortFacts.ReadProtocol(map) };
             ObservationWork.Detail("cf.upkeep.comfort", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             result = NativeUpkeepFacts.Populate(map, things, result, routePathBudgetMs);
             foreach (var field in new[] { "construction", "storage_cells", "storage_capacity", "protected_cells", "hauling", "wall_removal" })

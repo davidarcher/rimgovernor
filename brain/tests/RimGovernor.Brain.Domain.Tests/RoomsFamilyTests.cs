@@ -29,8 +29,6 @@ public sealed class RoomsFamilyTests
         : id == RoomsFamily.WorkChairs ? RoomsFamily.WorkChairsNeed(facts)
         : RoomsFamily.GatheringsNeed(facts, partySpot: true);
 
-    private static readonly ComfortObservation NoComfortOwed = new() { People = [], Surfaces = [], Dining = [], Recreation = [], WatchBuildings = [], Joy = new() { Kinds = [], Pawns = [], Methods = [] } };
-
     /// <summary>Every fact of the full composition read, with nothing owed.</summary>
     private static readonly RoomsFacts Settled = new()
     {
@@ -38,7 +36,7 @@ public sealed class RoomsFamilyTests
         Flooring = Known(new FlooringReview { Known = true }),
         Profiles = Known<EquatableArray<PawnProfile>>([]),
         SculptureRoomsOwed = Known(false),
-        BasicComfort = Known(NoComfortOwed),
+        BasicComfort = Known(ComfortTests.NoComfortObservation),
         HostingRecovered = Known(true),
         HostingDeficit = Known(0.0),
         PartySpotOwed = Known(false),
@@ -104,17 +102,15 @@ public sealed class RoomsFamilyTests
     [Fact]
     public void TheComfortNeedIsTheBasicComfortReview()
     {
-        var empty = new ComfortObservation { People = [], Surfaces = [], Dining = [], Recreation = [], WatchBuildings = [], Joy = new() { Kinds = [], Pawns = [], Methods = [] } };
+        var empty = ComfortTests.NoComfortObservation;
         var met = Of(new() { BasicComfort = Known(empty) }, RoomsFamily.Comfort);
         Assert.Equal((RoomsFamily.Comfort, NeedTier.Wellbeing, Satisfaction.Met, Known(0.0)), (met.Id, met.Tier, met.Satisfaction, met.Deficit));
         Assert.Empty(met.Preconditions);
 
         // A colonist with no seat nor recreation: both halves short.
-        var bare = Of(new() { BasicComfort = Known(empty with { People = [new PawnId("a")] }) }, RoomsFamily.Comfort);
+        var bare = Of(new() { BasicComfort = Known(empty with { Census = empty.Census with { People = [new PawnId("a")] } }) }, RoomsFamily.Comfort);
         Assert.Equal((Satisfaction.Unmet, Known(1.0)), (bare.Satisfaction, bare.Deficit));
 
-        // The variety catalog unread with the core met is unknown, never met.
-        Assert.Equal("basic comfort census", Assert.Throws<RequiredFactException>(() => Of(new() { BasicComfort = Known(empty with { Joy = null }) }, RoomsFamily.Comfort)).Fact);
         Assert.Equal("basic comfort census", Assert.Throws<RequiredFactException>(() => Of(new(), RoomsFamily.Comfort)).Fact);
     }
 
@@ -192,7 +188,7 @@ public sealed class RoomsFamilyTests
         public RoomsFacts Facts { get; set; } = new()
         {
             Lighting = Known(new LightingReview { Known = true, Active = true }),
-            BasicComfort = Known(new ComfortObservation { People = [new PawnId("a")], Surfaces = [], Dining = [], Recreation = [], WatchBuildings = [] }),
+            BasicComfort = Known(ComfortTests.NoComfortObservation with { Census = ComfortTests.NoComfort with { People = [new PawnId("a")] } }),
             HostingRecovered = Known(true),
             HostingDeficit = Known(0.0),
             PartySpotOwed = Known(false),

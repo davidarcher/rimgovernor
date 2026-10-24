@@ -15,16 +15,9 @@ public sealed record BasicComfortReview
 
     public int MissingVariety { get; init; }
 
-    public bool VarietyKnown { get; init; }
-
     public Fact<bool> Recovered()
     {
         if (Dining == ComfortNeed.Unknown || Recreation == ComfortNeed.Unknown)
-        {
-            return Unknown<bool>();
-        }
-
-        if (CoreRecovered() && !VarietyKnown)
         {
             return Unknown<bool>();
         }
@@ -35,11 +28,6 @@ public sealed record BasicComfortReview
     public Fact<double> Deficit()
     {
         if (Dining == ComfortNeed.Unknown || Recreation == ComfortNeed.Unknown)
-        {
-            return Unknown<double>();
-        }
-
-        if (CoreRecovered() && !VarietyKnown)
         {
             return Unknown<double>();
         }
@@ -81,7 +69,7 @@ public static class BasicComfortRules
         };
         if (observed.TryGetValue(out var v))
         {
-            r = r with { MissingVariety = RecreationRules.RecreationVarietyMissing(v), VarietyKnown = v.Joy is not null };
+            r = r with { MissingVariety = RecreationRules.RecreationVarietyMissing(v) };
         }
 
         return r;
@@ -94,21 +82,20 @@ public static class BasicComfortRules
     /// </summary>
     public static ComfortMethod SelectBasicComfortMethod(ComfortObservation v, BasicComfortReview r)
     {
-        v.Validate();
         DomainException.Require(r.Dining != ComfortNeed.Unknown && r.Recreation != ComfortNeed.Unknown, "comfort evidence unavailable");
         if (r.Dining == ComfortNeed.Capacity)
         {
-            if (v.Dining.Count > 0)
+            if (v.Census.Dining.Count > 0)
             {
                 return ComfortMethod.AccessBlocked;
             }
 
-            return v.Surfaces.Count == 0 ? v.Furniture.TableMethod() : v.Furniture.ChairMethod();
+            return v.Census.Surfaces.Count == 0 ? v.Furniture.TableMethod() : v.Furniture.ChairMethod();
         }
 
         if (r.Recreation == ComfortNeed.Capacity)
         {
-            return v.Recreation.Count > 0 ? ComfortMethod.AccessBlocked : v.FootholdMethod();
+            return v.Census.Recreation.Count > 0 ? ComfortMethod.AccessBlocked : v.FootholdMethod();
         }
 
         return ComfortMethod.NoMethod;

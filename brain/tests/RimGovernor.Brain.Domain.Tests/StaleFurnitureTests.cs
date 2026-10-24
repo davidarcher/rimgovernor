@@ -104,7 +104,7 @@ public sealed class StaleFurnitureTests
 
     private static Func<string, bool> Carried() => ReconcileRules.CarriedOver(
         ["TorchLamp", "StandingLamp"],
-        new ComfortObservation
+        ComfortTests.NoComfortObservation with
         {
             Furniture = new DiningFurniture
             {

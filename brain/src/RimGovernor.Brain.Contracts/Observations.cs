@@ -5018,71 +5018,71 @@ public sealed record ForecastFacts
     public EquatableArray<PatientForecast> Patients { get; init; }
 }
 
-public sealed record ComfortSurface
+/// <summary>
+/// The comfort census (#3771), read whole: the free, conscious colonists able to manipulate (sorted by load id), every
+/// indoor eating surface, every indoor dining seat beside one, every recreation source (a joy building not burning and,
+/// when powered, switched on), and the joy tolerance matrix. The native read throws when it cannot read the census.
+/// </summary>
+public sealed record ComfortFacts
 {
-    public string? Id { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> People { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Adjacent { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<ComfortSurface>))]
+    public required EquatableArray<ComfortSurface> Surfaces { get; init; }
 
-    public Common.Ref? Room { get; init; }
-}
+    [JsonConverter(typeof(EquatableArrayJsonConverter<DiningSeat>))]
+    public required EquatableArray<DiningSeat> Dining { get; init; }
 
-public sealed record ComfortFacility
-{
-    public string? Id { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RecreationSource>))]
+    public required EquatableArray<RecreationSource> Recreation { get; init; }
 
-    public string? Kind { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> AccessibleTo { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Users { get; init; }
-
-    public Common.Ref? Room { get; init; }
+    public required RecreationCensus Joy { get; init; }
 }
 
 /// <summary>
-/// Complete building-backed kind census. Parallel tolerance/bored arrays follow
-/// kinds; pawns without a joy need are omitted. Absent census means unavailable.
+/// An indoor eating surface: the proper indoor room hosting it (the room census's Room.ID) and its standable, unbuilt
+/// cardinal neighbours, sorted by z then x.
 /// </summary>
-public sealed record JoyTolerance
+public sealed record ComfortSurface(string Room,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Adjacent);
+
+/// <summary>
+/// An indoor seat beside an eating surface, in the proper indoor room hosting it: who of the census people can safely
+/// reach it and who is eating at it now.
+/// </summary>
+public sealed record DiningSeat(string Id, string Room,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))] EquatableArray<PawnId> AccessibleTo,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))] EquatableArray<PawnId> Users);
+
+/// <summary>A recreation source of joy kind <paramref name="Kind"/>, indoors in a proper room or outdoors: who can reach it and who is using it now.</summary>
+public sealed record RecreationSource(string Id, string Kind, ComfortHost Host,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))] EquatableArray<PawnId> AccessibleTo,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))] EquatableArray<PawnId> Users);
+
+/// <summary>Where a recreation source stands: in a proper indoor room (the room census's Room.ID), or outdoors.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ComfortHost.Indoors), "indoors")]
+[JsonDerivedType(typeof(ComfortHost.Outdoors), "outdoors")]
+public abstract record ComfortHost
 {
-    public string Pawn { get; init; } = "";
+    private protected ComfortHost() { }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<double>))]
-    public EquatableArray<double> Tolerance { get; init; }
+    public sealed record Indoors(string Room) : ComfortHost;
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<bool>))]
-    public EquatableArray<bool> Bored { get; init; }
+    public sealed record Outdoors : ComfortHost;
 }
 
-public sealed record RecreationCensus
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Kinds { get; init; }
+/// <summary>
+/// The joy kinds of the recreation sources (sorted by def name) and, for every census colonist with a joy need, whether
+/// the colonist is bored of each kind (the vector follows <see cref="Kinds"/>).
+/// </summary>
+public sealed record RecreationCensus(
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<string>))] EquatableArray<string> Kinds,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<JoyTolerance>))] EquatableArray<JoyTolerance> Pawns);
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<JoyTolerance>))]
-    public EquatableArray<JoyTolerance> Pawns { get; init; }
-}
-
-public sealed record ComfortFacts
-{
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> People { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ComfortSurface>))]
-    public EquatableArray<ComfortSurface> Surfaces { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ComfortFacility>))]
-    public EquatableArray<ComfortFacility> Dining { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<ComfortFacility>))]
-    public EquatableArray<ComfortFacility> Recreation { get; init; }
-
-    public RecreationCensus? Joy { get; init; }
-}
+public sealed record JoyTolerance(PawnId Pawn,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<bool>))] EquatableArray<bool> Bored);
 
 /// <summary>
 /// One loose player or unowned item an upkeep concern may haul: its stack
@@ -5739,14 +5739,6 @@ public sealed record ChoiceDialog
     public bool? Interactive { get; init; }
 }
 
-/// <summary>
-/// Independently unavailable helper sections never masquerade as empty arrays.
-/// </summary>
-public sealed record ComfortSection
-{
-    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
-    public ComfortFacts? Observed { get; init; }
-}
 
 public sealed record FoodSupplySection
 {
@@ -5986,7 +5978,7 @@ public sealed record UpkeepFacts
     /// <summary>
     /// storage_cells (5) and protected_cells (10) were never read.
     /// </summary>
-    public ComfortSection? Comfort { get; init; }
+    public required ComfortFacts Comfort { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<UpkeepItem>))]
     public EquatableArray<UpkeepItem> Items { get; init; }

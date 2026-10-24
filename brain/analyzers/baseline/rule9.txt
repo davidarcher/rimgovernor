@@ -444,7 +444,7 @@ Observation/Colony.cs|Unknown|4
 Observation/ColonyDecode.cs|Fact|56
 Observation/ColonyDecode.cs|Unknown|5
 Observation/ColonyFrames.cs|Fact|32
-Observation/ColonyFrames.cs|Unknown|5
+Observation/ColonyFrames.cs|Unknown|4
 Observation/ColonyGear.cs|Fact|48
 Observation/ColonyGear.cs|Unknown|13
 Observation/ColonyGear.cs|ValueOrDefault|2
@@ -532,7 +532,7 @@ Policy/Art.cs|Unknown|1
 Policy/ArtOrders.cs|Fact|18
 Policy/BabyFeeding.cs|Fact|6
 Policy/BasicComfort.cs|Fact|6
-Policy/BasicComfort.cs|Unknown|4
+Policy/BasicComfort.cs|Unknown|2
 Policy/BasicDefense.cs|Fact|6
 Policy/BenchRate.cs|Discard|1
 Policy/BenchRate.cs|Fact|25

@@ -1,7 +1,9 @@
 #nullable enable
 using System;
 using System.Linq;
-using System.Text;
+using System.Collections.Generic;
+using PawnId = RimGovernor.Brain.Domain.PawnId;
+using DomainCell = RimGovernor.Brain.Domain.Cell;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -30,20 +32,7 @@ namespace HomeBridge.BridgeTools
             return people.Count > 0 && people.All(p => cells.Any(c => WatchCellAccessible(p, c)));
         }
 
-        internal static object Read(Map map)
-        {
-            var v = ReadProtocol(map);
-            return new {
-                people = v.People.ToList(),
-                surfaces = v.Surfaces.Select(s => new { id = (s.Id ?? ""), roomId = (s.Room?.Id ?? ""),
-                    adjacent = s.Adjacent.Select(c => new { x = c.X, z = c.Z }).ToList() }).ToList(),
-                dining = v.Dining.Select(f => new { id = (f.Id ?? ""), roomId = (f.Room?.Id ?? ""),
-                    accessibleTo = f.AccessibleTo.ToList(), users = f.Users.ToList() }).ToList(),
-                recreation = v.Recreation.Select(f => new { id = (f.Id ?? ""), kind = (f.Kind ?? ""), roomId = (f.Room?.Id ?? ""),
-                    accessibleTo = f.AccessibleTo.ToList(), users = f.Users.ToList() }).ToList()
-            };
-        }
-
+        // The comfort census, read whole: a failed read throws and the upkeep section fails with it (#3771).
         internal static Obs.ComfortFacts ReadProtocol(Map map)
         {
             var people = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed
@@ -57,72 +46,49 @@ namespace HomeBridge.BridgeTools
                     || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position]);
             bool Indoors(Building b) => b.GetRoom() != null && b.GetRoom().ProperRoom
                 && !b.GetRoom().PsychologicallyOutdoors && b.OccupiedRect().All(c => c.Roofed(map));
-            // The hosting room is the same Room.ID the typed room census reports, so
-            // the controller can join a facility to that room's native role. Only a
-            // proper indoor room is named; an outdoor facility has no host.
-            string? HostRoom(Building b) => Indoors(b) ? Id(b.GetRoom().ID.ToString(System.Globalization.CultureInfo.InvariantCulture)) : null;
+            // The hosting room is the same Room.ID the typed room census reports, so the controller can join a
+            // facility to that room's native role. Only a proper indoor room hosts; an outdoor facility has none.
+            string HostRoom(Building b) => Id(b.GetRoom().ID.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            RimGovernor.Brain.Domain.EquatableArray<PawnId> Pawns(IEnumerable<Pawn> pawns) => [.. pawns.Select(p => new PawnId(Id(p.GetUniqueLoadID())))];
             var seats = buildings.Where(b => b.def.building.isSittable && Indoors(b)
                 && b.OccupiedRect().Any(c => GenAdj.CardinalDirections.Any(d => (c+d).InBounds(map)
                     && (c+d).GetEdifice(map)?.def.surfaceType == SurfaceType.Eat))).ToList();
             var play = buildings.Where(b => b.def.building.joyKind != null && !b.IsBurning()
                 && (b.TryGetComp<CompPowerTrader>() == null || b.TryGetComp<CompPowerTrader>().PowerOn)).ToList();
-            var surfaces = buildings.Where(b => b.def.surfaceType == SurfaceType.Eat && Indoors(b)).ToList();
-            var result = new Obs.ComfortFacts { };
-            result = result with { People = [.. result.People, .. people.Select(p => Id(p.GetUniqueLoadID()))] };
-            foreach (var b in surfaces) {
+            var surfaces = buildings.Where(b => b.def.surfaceType == SurfaceType.Eat && Indoors(b)).Select(b => {
                 var adjacent = b.OccupiedRect().SelectMany(c => GenAdj.CardinalDirections.Select(d => c+d)).Distinct()
                     .Where(c => c.InBounds(map) && c.Standable(map) && c.GetEdifice(map) == null)
-                    .OrderBy(c => c.z).ThenBy(c => c.x).ToList();
-                var row = new Obs.ComfortSurface { Id = Id(b.GetUniqueLoadID()) };
-                if (HostRoom(b) is string surfaceRoom) row = row with { Room = NativeRef.Of(surfaceRoom) };
-                row = row with { Adjacent = [.. row.Adjacent, .. adjacent.Select(Cell)] }; result = result with { Surfaces = [.. result.Surfaces, row] };
-            }
-            foreach (var b in seats) {
-                var row = new Obs.ComfortFacility { Id = Id(b.GetUniqueLoadID()) };
-                if (HostRoom(b) is string seatRoom) row = row with { Room = NativeRef.Of(seatRoom) };
-                row = row with { AccessibleTo = [.. row.AccessibleTo, .. NativeRef.All(people.Where(p => Safe(p, b)).Select(p => Id(p.GetUniqueLoadID())))] };
-                row = row with { Users = [.. row.Users, .. NativeRef.All(people.Where(p => p.CurJob?.def == JobDefOf.Ingest && b.OccupiedRect().Contains(p.Position))
-                    .Select(p => Id(p.GetUniqueLoadID())))] };
-                result = result with { Dining = [.. result.Dining, row] };
-            }
-            foreach (var b in play) {
+                    .OrderBy(c => c.z).ThenBy(c => c.x);
+                return new Obs.ComfortSurface(HostRoom(b), [.. adjacent.Select(c => new DomainCell(c.x, c.z))]);
+            });
+            var dining = seats.Select(b => new Obs.DiningSeat(Id(b.GetUniqueLoadID()), HostRoom(b),
+                Pawns(people.Where(p => Safe(p, b))),
+                Pawns(people.Where(p => p.CurJob?.def == JobDefOf.Ingest && b.OccupiedRect().Contains(p.Position)))));
+            var recreation = play.Select(b => {
                 var watchCells = UsesWatchCells(b.def)
                     ? WatchBuildingUtility.CalculateWatchCells(b.def, b.Position, b.Rotation, map).ToList() : null;
-                var row = new Obs.ComfortFacility { Id = Id(b.GetUniqueLoadID()), Kind = Id(b.def.building.joyKind.defName) };
-                if (HostRoom(b) is string playRoom) row = row with { Room = NativeRef.Of(playRoom) };
-                row = row with { AccessibleTo = [.. row.AccessibleTo, .. NativeRef.All(people.Where(p => !b.IsForbidden(p) && b.IsSociallyProper(p)
-                    && p.CanReach(b, PathEndMode.Touch, Danger.None)
-                    && (watchCells == null || watchCells.Any(c => WatchCellAccessible(p, c)))
-                    && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position]))
-                    .Select(p => Id(p.GetUniqueLoadID())))] };
-                row = row with { Users = [.. row.Users, .. NativeRef.All(people.Where(p => p.CurJob?.def.joyKind != null && p.CurJob.targetA.Thing == b)
-                    .Select(p => Id(p.GetUniqueLoadID())))] };
-                result = result with { Recreation = [.. result.Recreation, row] };
-            }
-            result = result with { Joy = ReadJoy(people, play) };
-            return result;
+                Obs.ComfortHost host = Indoors(b) ? new Obs.ComfortHost.Indoors(HostRoom(b)) : new Obs.ComfortHost.Outdoors();
+                return new Obs.RecreationSource(Id(b.GetUniqueLoadID()), Id(b.def.building.joyKind.defName), host,
+                    Pawns(people.Where(p => !b.IsForbidden(p) && b.IsSociallyProper(p)
+                        && p.CanReach(b, PathEndMode.Touch, Danger.None)
+                        && (watchCells == null || watchCells.Any(c => WatchCellAccessible(p, c)))
+                        && (p.playerSettings?.AreaRestrictionInPawnCurrentMap == null || p.playerSettings.AreaRestrictionInPawnCurrentMap[b.Position]))),
+                    Pawns(people.Where(p => p.CurJob?.def.joyKind != null && p.CurJob.targetA.Thing == b)));
+            });
+            return new Obs.ComfortFacts {
+                People = Pawns(people), Surfaces = [.. surfaces], Dining = [.. dining], Recreation = [.. recreation],
+                Joy = ReadJoy(people, play)
+            };
         }
 
-        // The whole joy tolerance matrix; an unreadable tolerance drops it rather than cut it.
-        private static Obs.RecreationCensus? ReadJoy(System.Collections.Generic.List<Pawn> people,
-            System.Collections.Generic.List<Building> play)
+        // The whole joy boredom matrix.
+        private static Obs.RecreationCensus ReadJoy(List<Pawn> people, List<Building> play)
         {
             var kinds = play.Select(b => b.def.building.joyKind).Distinct()
                 .OrderBy(k => k.defName, StringComparer.Ordinal).ToList();
-            var pawns = people.Where(p => p.needs?.joy != null).ToList();
-            var result = new Obs.RecreationCensus();
-            result = result with { Kinds = [.. result.Kinds, .. kinds.Select(k => Id(k.defName))] };
-            foreach (var p in pawns) {
-                var row = new Obs.JoyTolerance { Pawn = Id(p.GetUniqueLoadID()) };
-                foreach (var k in kinds) {
-                    var value = p.needs.joy.tolerances[k];
-                    if (float.IsNaN(value) || float.IsInfinity(value) || value < 0 || value > 1) return null;
-                    row = row with { Tolerance = [.. row.Tolerance, value] };
-                    row = row with { Bored = [.. row.Bored, p.needs.joy.tolerances.BoredOf(k)] };
-                }
-                result = result with { Pawns = [.. result.Pawns, row] };
-            }
-            return result;
+            var pawns = people.Where(p => p.needs?.joy != null).Select(p => new Obs.JoyTolerance(
+                new PawnId(Id(p.GetUniqueLoadID())), [.. kinds.Select(k => p.needs.joy.tolerances.BoredOf(k))]));
+            return new Obs.RecreationCensus([.. kinds.Select(k => Id(k.defName))], [.. pawns]);
         }
     }
 }

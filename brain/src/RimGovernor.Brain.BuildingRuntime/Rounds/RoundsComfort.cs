@@ -127,7 +127,7 @@ public sealed partial class RoundsBuildingPlanner
         if (v.Furniture.IsChair(method.Value))
         {
             var adjacent = new List<Cell>(Adjacent);
-            foreach (var s in v.Surfaces)
+            foreach (var s in v.Census.Surfaces)
             {
                 adjacent.AddRange(s.Adjacent);
             }
@@ -146,10 +146,7 @@ public sealed partial class RoundsBuildingPlanner
         }
         var review = BasicComfortRules.ReviewBasicComfort(facts.Facts.BasicComfort);
         var method = BasicComfortRules.SelectBasicComfortMethod(v, review);
-        if (method == Pol.ComfortMethod.NoMethod && !review.VarietyKnown)
-        {
-            return (null, FieldUnavailable("comfort_variety"));
-        }
+
         if (method == Pol.ComfortMethod.NoMethod && review.MissingVariety > 0)
         {
             method = RecreationRules.SelectRecreationVariety(v, m =>
@@ -179,14 +176,11 @@ public sealed partial class RoundsBuildingPlanner
         }
         var resolved = Copy();
         resolved.Definition = method.Value;
-        if (v.Joy is not null)
+        foreach (var m in v.JoyMethods)
         {
-            foreach (var m in v.Joy.Methods)
+            if (m.Definition == resolved.Definition)
             {
-                if (m.Definition == resolved.Definition)
-                {
-                    resolved.RecreationPowerW = m.PowerW;
-                }
+                resolved.RecreationPowerW = m.PowerW;
             }
         }
         resolved.Environment = Pol.PlacementEnvironment.Indoors;
@@ -197,7 +191,7 @@ public sealed partial class RoundsBuildingPlanner
         if (v.Furniture.IsChair(method.Value))
         {
             var adjacent = new List<Cell>(Adjacent);
-            foreach (var s in v.Surfaces)
+            foreach (var s in v.Census.Surfaces)
             {
                 adjacent.AddRange(s.Adjacent);
             }
