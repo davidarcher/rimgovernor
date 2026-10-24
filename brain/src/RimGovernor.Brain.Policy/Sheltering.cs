@@ -155,10 +155,10 @@ public static partial class ShelterRules
         var tempKnown = true;
         if (weather)
         {
-            var ok = f.OutdoorTemperature.TryGetValue(out var outside);
+            var outside = f.OutdoorTemperature;
             var lk = f.SleepingMin.TryGetValue(out var lo);
             var hk0 = f.SleepingMax.TryGetValue(out var hi);
-            tempKnown = ok && lk && hk0;
+            tempKnown = lk && hk0;
             if (tempKnown && (outside < lo || outside > hi))
             {
                 return (ShelterTrigger.Temperature, true);

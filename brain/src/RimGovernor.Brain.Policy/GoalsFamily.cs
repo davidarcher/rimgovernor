@@ -182,7 +182,7 @@ public sealed record GoalsFacts
 
     public IReadOnlyList<ThemeRecord> Themes { get; init; } = [];
 
-    public Fact<ResearchFacts> Research { get; init; }
+    public ResearchFacts? Research { get; init; }
 
     public Fact<TechTier> Tier { get; init; }
 
@@ -699,7 +699,7 @@ public static partial class GoalRules
         var projects = new SortedSet<string>(StringComparer.Ordinal);
         if (goal.Kind == GoalKind.ResearchProject)
         {
-            if (goal.Target != "" && Evaluate(goal, f).State != GoalState.Met && f.Research.TryGetValue(out _))
+            if (goal.Target != "" && Evaluate(goal, f).State != GoalState.Met && f.Research is not null)
             {
                 projects.Add(goal.Target);
             }
@@ -750,7 +750,7 @@ public static partial class GoalRules
                 case GoalKind.WornCount when goal.Target != "" && goal.Count > 0:
                     worn.Add(new WornGoal(new Resource(goal.Target), new Resource(goal.Qualifier), goal.Count));
                     // The stuff's own research (devilstrand: the plant's sowing project) joins the research-wanted set while the goal is unmet.
-                    if (goal.Qualifier != "" && f.Research.TryGetValue(out var census) && Evaluate(goal, f).State is not GoalState.Met && f.StuffResearch.TryGetValue(goal.Qualifier, out var projects))
+                    if (goal.Qualifier != "" && f.Research is { } census && Evaluate(goal, f).State is not GoalState.Met && f.StuffResearch.TryGetValue(goal.Qualifier, out var projects))
                     {
                         research.UnionWith(projects.Where(p => !census.Finished.Contains(new ResearchProjectId(p))));
                     }
@@ -945,9 +945,9 @@ public static partial class GoalRules
         ];
 
     /// <summary>Whether the project is finished; null while the census does not list it. An unread census raises <see cref="RequiredFactException"/>.</summary>
-    private static Standing? ProjectMet(string project, Fact<ResearchFacts> research)
+    private static Standing? ProjectMet(string project, ResearchFacts? research)
     {
-        var facts = research.TryGetValue(out var r) ? r : throw new RequiredFactException("research census");
+        var facts = research ?? throw new RequiredFactException("research census");
         if (project == "" || !facts.Projects.Any(p => p.Value == project))
         {
             return null;
@@ -967,9 +967,9 @@ public static partial class GoalRules
     }
 
     /// <summary>The unfinished projects at the tech level <paramref name="target"/> names; none when it names no level or the census is unread.</summary>
-    private static IReadOnlyList<string> LevelProjects(string target, Fact<ResearchFacts> research)
+    private static IReadOnlyList<string> LevelProjects(string target, ResearchFacts? facts)
     {
-        if (!Enum.TryParse<TechLevel>(target, true, out var level) || !Enum.IsDefined(level) || !research.TryGetValue(out var facts))
+        if (!Enum.TryParse<TechLevel>(target, true, out var level) || !Enum.IsDefined(level) || facts is null)
         {
             return [];
         }
@@ -978,9 +978,9 @@ public static partial class GoalRules
     }
 
     /// <summary>A tech level that is not a construction tier: met once no listed project at that level is unfinished; null when the target names no level.</summary>
-    private static Standing? LevelMet(string target, Fact<ResearchFacts> research)
+    private static Standing? LevelMet(string target, ResearchFacts? research)
     {
-        if (!research.TryGetValue(out _))
+        if (research is null)
         {
             throw new RequiredFactException("research census");
         }

@@ -15,8 +15,8 @@ public sealed class ShelterFamilyTests
     private static readonly ShelterFacts Housed = new()
     {
         SleepingRecovered = Known(true),
-        SleepingMin = Known(20.0),
-        SleepingMax = Known(22.0),
+        SleepingMin = 20.0,
+        SleepingMax = 22.0,
         TemperatureOwed = Known(false),
         HeatDoorOwed = Known(false),
         SafeAreaOwed = Known(false),
@@ -63,12 +63,11 @@ public sealed class ShelterFamilyTests
     [Fact]
     public void TemperatureIsAPlainThresholdAtTheExitBars()
     {
-        Assert.Equal(Satisfaction.Unmet, Of(Housed with { SleepingMin = Known(9.9) }, ShelterFamily.Temperature).Satisfaction);
-        Assert.Equal(Satisfaction.Met, Of(Housed with { SleepingMin = Known(10.0) }, ShelterFamily.Temperature).Satisfaction);
-        Assert.Equal(Satisfaction.Unmet, Of(Housed with { SleepingMax = Known(30.1) }, ShelterFamily.Temperature).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Of(Housed with { SleepingMin = 9.9 }, ShelterFamily.Temperature).Satisfaction);
+        Assert.Equal(Satisfaction.Met, Of(Housed with { SleepingMin = 10.0 }, ShelterFamily.Temperature).Satisfaction);
+        Assert.Equal(Satisfaction.Unmet, Of(Housed with { SleepingMax = 30.1 }, ShelterFamily.Temperature).Satisfaction);
         Assert.Equal(Satisfaction.Unmet, Of(Housed with { TemperatureOwed = Known(true) }, ShelterFamily.Temperature).Satisfaction);
         Assert.Equal(Satisfaction.Unmet, Of(Housed with { HeatDoorOwed = Known(true) }, ShelterFamily.Temperature).Satisfaction);
-        Assert.Equal("sleeping room temperature", Assert.Throws<RequiredFactException>(() => Of(Housed with { SleepingMin = Unknown<double>() }, ShelterFamily.Temperature)).Fact);
     }
 
     [Fact]

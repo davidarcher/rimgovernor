@@ -45,7 +45,7 @@ public sealed class KnowledgeValueTests
         IReadOnlyDictionary<string, string> overflow)
     {
         var summary = EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog, overflow));
-        var research = RoundsColonyModel.InputOf(ColonyModelFixtures.Projection() with { Facts = ColonyModelFixtures.Projection().Facts with { Research = Known(summary) } }).Input.Research;
+        var research = RoundsColonyModel.InputOf(ColonyModelFixtures.Projection() with { Facts = ColonyModelFixtures.Projection().Facts with { Research = summary } }).Input.Research;
         var input = ProjectGraphTests.Colony() with { Research = research };
         var policy = new ColonyModelPolicy { MedicineTendsPerDay = Known(0.0), Projects = ProjectGraph.Standing(input, [], ColonyModelFixtures.NoThreat) };
         return (input, ProjectMarginalValue.Of(input, policy, new Completion(ProjectGraph.ResearchId(new ResearchProjectId(Bioferrite)))));
@@ -116,7 +116,7 @@ public sealed class KnowledgeValueTests
     internal static ProjectMarginals Priced(Obs.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectFacts> catalog, IReadOnlyDictionary<string, string> overflow, IReadOnlyList<GearOption> options)
     {
         var summary = EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog, overflow));
-        var research = RoundsColonyModel.InputOf(ColonyModelFixtures.Projection() with { Facts = ColonyModelFixtures.Projection().Facts with { Research = Known(summary) } }).Input.Research;
+        var research = RoundsColonyModel.InputOf(ColonyModelFixtures.Projection() with { Facts = ColonyModelFixtures.Projection().Facts with { Research = summary } }).Input.Research;
         var recipe = new ProductionRecipeInput($"Make_{Unlocked}", EquatableArray.From(new[] { EquatableArray.From(new[] { new Amount(Cloth, 80) }) }), false)
         {
             Products = EquatableArray.From(new[] { new Amount(new Resource(Unlocked), 1) }),

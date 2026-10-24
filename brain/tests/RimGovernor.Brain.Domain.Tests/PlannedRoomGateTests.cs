@@ -300,7 +300,7 @@ public sealed class PlannedRoomGateTests
             };
             projection = projection with
             {
-                Facts = projection.Facts with { Research = Known(new ResearchFacts { Finished = [.. finished.Select(f => new ResearchProjectId(f))] }) },
+                Facts = projection.Facts with { Research = new ResearchFacts { Finished = [.. finished.Select(f => new ResearchProjectId(f))] } },
             };
             return new RoundsReading { Emergency = new(), Frame = new(), Reading = new ColonyReading { Projection = projection } };
         }
@@ -328,7 +328,7 @@ public sealed class PlannedRoomGateTests
             Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("WoodLog")] = wood }),
             RingSources = Known(new RingStuffSources()),
         };
-        return projection with { Facts = projection.Facts with { Research = researchRead ? Known(new ResearchFacts()) : default } };
+        return projection with { Facts = projection.Facts with { Research = researchRead ? new ResearchFacts() : null } };
     }
 
     /// <summary>
@@ -350,7 +350,7 @@ public sealed class PlannedRoomGateTests
         Assert.True(Done(BlockedFacts(Known(true), researchRead: true)));
         // Researched, nothing stocked: blocked only when the stock was read and the map offers no wood or blocks.
         var read = BlockedFacts(Known(true), researchRead: true, wood: 0);
-        var researched = read with { Facts = read.Facts with { Research = Known(new ResearchFacts { Finished = [new ResearchProjectId("ComplexFurniture")] }) } };
+        var researched = read with { Facts = read.Facts with { Research = new ResearchFacts { Finished = [new ResearchProjectId("ComplexFurniture")] } } };
         Assert.True(Done(researched));
         Assert.False(Done(researched with { Resources = default }));
         Assert.False(Done(researched with { RingSources = default }));

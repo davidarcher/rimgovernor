@@ -66,7 +66,7 @@ internal static class ColonyModelFixtures
             ResourceThings = Known<EquatableArray<string>>(["m1"]),
             Gear = Known(NoGear() with { Pawns = [new GearPawn { LoadoutModel = new GearModel.NoOutfit() }] }),
             Calendar = Known(new Calendar { GrowingYear = EquatableArray.From(Enumerable.Repeat(true, CalendarRules.YearDays)), Season = "Spring", DayOfYear = 12, GrowingDays = 40, GrowingDaysRemaining = 25, GrowingDaysUntil = 0, NonGrowingDays = 0 }),
-            Research = Known(new ResearchFacts
+            Research = new ResearchFacts
             {
                 Current = new ResearchProjectId(Project),
                 Finished = [new ResearchProjectId(Prerequisite)],
@@ -76,7 +76,7 @@ internal static class ColonyModelFixtures
                     [Prerequisite] = new() { Cost = 650 },
                     [Project] = new() { Cost = 800, Prerequisites = [new ResearchProjectId(Prerequisite)], Progress = 0.25 },
                 },
-            }),
+            },
             MedicalReserve = new MedicalReserveObservation
             {
                 Items = Known(EquatableArray.From(new[]

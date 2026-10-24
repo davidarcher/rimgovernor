@@ -95,7 +95,7 @@ public static class ArmoryRules
     /// <summary>Selects the armory tier from the raid threat and the research census a routine frame read; a frame without the census throws (D3).</summary>
     public static ArmoryAssessment AssessArmory(RoundsFacts f)
     {
-        if (!f.Research.TryGetValue(out var research))
+        if (f.Research is not { } research)
         {
             throw new RequiredFactException("research");
         }

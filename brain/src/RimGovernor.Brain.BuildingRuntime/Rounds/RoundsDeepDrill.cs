@@ -129,7 +129,7 @@ public sealed partial class RoundsResourcePlanner
         {
             finishedNames.Add(new ResearchProjectId(name));
         }
-        f = f with { Facts = f.Facts with { Research = Known(new ResearchFacts { Finished = [.. finishedNames] }) } };
+        f = f with { Facts = f.Facts with { Research = new ResearchFacts { Finished = [.. finishedNames] } } };
         PlannerSnapshot.RecordStepRead("deepdrill", EconomyFamily.Resource.FilingKey, state.Snapshot, f);
         var output = new DeepDrillReading { Native = deepNative, F = f };
         output.Sites = DeepDrillSites(f, review.ResourceRunwayState(), items);

@@ -158,9 +158,9 @@ public sealed partial class EconomyFamily(bool research = true, bool resource = 
     public static Need ResearchNeed(EconomyFacts f)
     {
         var needs = f.ResearchNeeds;
-        var census = f.Research.TryGetValue(out var read) ? Known(EconomyRules.ResearchSummary(read!)) : Unknown<ResearchFacts>();
+        var census = f.Research.TryGetValue(out var read) ? EconomyRules.ResearchSummary(read!) : null;
         var (target, derived) = ResearchRules.ResearchConcern(needs, census);
-        var pick = census.TryGetValue(out var summary) ? summary!.KnowledgePick.Value : "";
+        var pick = census?.KnowledgePick.Value ?? "";
         // An empty Anomaly knowledge slot with a project to fund is a spending need of its own: a full deficit.
         var (met, deficit) = pick.Length != 0 && needs.Count != 0 ? (false, 1.0) : ResearchRules.ResearchTargetNeed(target, derived, census);
         return new Need
@@ -372,7 +372,7 @@ public static class EconomyRules
     /// </summary>
     internal static (string Project, NeedHold? Hold) ResearchNext(IReadOnlyList<string> needs, ResearchCensus read)
     {
-        var (target, _) = ResearchRules.ResearchConcern(needs, Known(ResearchSummary(read)));
+        var (target, _) = ResearchRules.ResearchConcern(needs, ResearchSummary(read));
         if (target.Length == 0)
         {
             return ("", null);

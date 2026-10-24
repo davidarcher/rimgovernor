@@ -118,7 +118,7 @@ public static class RoundsMoodReads
                 Population = new Held<PrisonerCensus> { Value = population, AsOf = tick, Complete = true, Source = "rimgovernor/observations_read_population" },
             };
         }
-        if (projection.Facts.Research.TryGetValue(out var research))
+        if (projection.Facts.Research is { } research)
         {
             output = output with { Research = new Held<ResearchFacts> { Value = research, AsOf = tick, Complete = true, Source = "rimgovernor/observations_read_research" } };
         }

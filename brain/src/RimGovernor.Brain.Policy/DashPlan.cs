@@ -40,7 +40,7 @@ public sealed record DashRequest
 {
     public Tick Now { get; init; }
 
-    public Fact<double> Temperature { get; init; }
+    public double Temperature { get; init; }
 
     public Fact<double> ComfortMin { get; init; }
 
@@ -113,11 +113,11 @@ public static class DashPlanRules
     /// <summary>Selects the trips for one pawn. Unknown inputs open nothing.</summary>
     public static DashPlan PlanDash(DashRequest r)
     {
-        var tk = r.Temperature.TryGetValue(out var temp);
+        var temp = r.Temperature;
         var ck = r.ComfortMin.TryGetValue(out var comfort);
         var sk = r.Severity.TryGetValue(out var sev);
         var vk = r.Speed.TryGetValue(out var speed);
-        if (!tk || !ck || !sk || !vk || double.IsNaN(speed) || speed <= 0)
+        if (!ck || !sk || !vk || double.IsNaN(speed) || speed <= 0)
         {
             return new DashPlan();
         }

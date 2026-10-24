@@ -302,7 +302,7 @@ partial record struct RoundsProjectBill
     /// without it AssignWork leaves Research unowned and the development rank reports labor_unavailable. Empty
     /// when no target is owed or it is already finished.
     /// </summary>
-    internal static IReadOnlyList<Pol.WorkRequirement> RoundsResearchWork(IReadOnlyList<string> needs, Fact<Pol.ResearchFacts> research)
+    internal static IReadOnlyList<Pol.WorkRequirement> RoundsResearchWork(IReadOnlyList<string> needs, Pol.ResearchFacts? research)
     {
         var (target, _) = ResearchRules.ResearchConcern(needs, research);
         if (target == "")
@@ -310,7 +310,7 @@ partial record struct RoundsProjectBill
             return [];
         }
         // The goal recovers as soon as the project is current; the researcher is owed until it is finished.
-        if (research.TryGetValue(out var facts))
+        if (research is { } facts)
         {
             foreach (var name in facts.Finished)
             {

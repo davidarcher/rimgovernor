@@ -150,7 +150,7 @@ public sealed class EconomyRounds
         var demand = _reviewer.Demand.Get(scope.World);
         var claims = _reviewer.Player.Journal.ConstructionClaims(scope.World, expected.Tick, ct);
         var reading = await _reviewer.ObserveRoomsAsync(_reviewer.Native, expected, claims, ct).ConfigureAwait(false);
-        var research = economy.Research.TryGetValue(out var census) ? Known(EconomyRules.ResearchSummary(census!)) : Unknown<ResearchFacts>();
+        var research = economy.Research.TryGetValue(out var census) ? EconomyRules.ResearchSummary(census!) : null;
         var observed = reading.Projection.Facts with
         {
             ResourceRunways = review.ResourceRunwayState(),

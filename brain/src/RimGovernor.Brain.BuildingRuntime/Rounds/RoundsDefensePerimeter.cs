@@ -72,7 +72,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     }
 
     internal static bool DefenseResearched(ColonyProjection projection, string project) =>
-        projection.Facts.Research.TryGetValue(out var research) && research.Finished.Contains(new ResearchProjectId(project));
+        projection.Facts.Research is { } research && research.Finished.Contains(new ResearchProjectId(project));
 
     internal static string DefenseBuildingKey(DefenseBuilding b) =>
         string.Create(CultureInfo.InvariantCulture, $"{b.Definition}@{b.Cell.X},{b.Cell.Z}/{b.Stuff}");

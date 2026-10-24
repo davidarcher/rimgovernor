@@ -66,9 +66,7 @@ public sealed record HarmInputs
         HarmRaid raid = facts.DefenseCapacity.TryGetValue(out var capacity) ? new HarmRaid.Assessed(new RaidDefense(points, capacity))
             : new HarmRaid.Unassessed("defense_capacity_unobserved");
         RaidComposition composition = RaidCompositionRules.Of(points, [.. facts.HostileFactions], facts.HarmCatalog.Raid);
-        var schedule = !facts.Storyteller.TryGetValue(out var storyteller) ? ThreatSchedule.Unobserved("storyteller_unobserved")
-            : !facts.DaysPassed.TryGetValue(out var days) ? ThreatSchedule.Unobserved("days_passed_unobserved")
-            : ThreatSchedule.Of(facts.ThreatTable, storyteller, days, points);
+        var schedule = ThreatSchedule.Of(facts.ThreatTable, facts.Storyteller, facts.DaysPassed, points);
         return new()
         {
             Schedule = schedule,

@@ -35,10 +35,7 @@ public static partial class OutdoorHazardRules
     public static Fact<EquatableArray<OutdoorHazard>> OutdoorHazardsOf(RoundsFacts f)
     {
         var conditions = f.DisasterConditions;
-        if (!f.OutdoorTemperature.TryGetValue(out var temp))
-        {
-            return Unknown<EquatableArray<OutdoorHazard>>();
-        }
+        var temp = f.OutdoorTemperature;
         var result = new List<OutdoorHazard>();
         if (conditions.Any(c => c.Definition == DisasterRules.ConditionToxicFallout))
         {

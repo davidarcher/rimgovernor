@@ -23,7 +23,7 @@ public static partial class GoalRules
         {
             var research = new List<ForecastGoalResearch>();
             var wearers = new List<ForecastGoalWearer>();
-            if (goal.Kind is GoalKind.ResearchProject or GoalKind.ResearchTier && f.Research.TryGetValue(out var census))
+            if (goal.Kind is GoalKind.ResearchProject or GoalKind.ResearchTier && f.Research is { } census)
             {
                 var open = ResearchOf(goal, f).Where(p => census.Details.TryGetValue(p, out var d) && d.Cost > 0).ToList();
                 foreach (var project in open)

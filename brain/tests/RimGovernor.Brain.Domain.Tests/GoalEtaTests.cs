@@ -169,7 +169,7 @@ public sealed class GoalEtaTests
         var facts = new GoalsFacts
         {
             Goals = [goal],
-            Research = Known(new ResearchFacts { Projects = [new("Smithing")], Finished = [] }),
+            Research = new ResearchFacts { Projects = [new("Smithing")], Finished = [] },
             Tier = Known(TechTier.Camp),
             Etas = new Dictionary<string, int> { [GoalRules.NeedOf(goal).Value] = 45 },
         };

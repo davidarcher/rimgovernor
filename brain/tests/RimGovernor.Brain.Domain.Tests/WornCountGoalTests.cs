@@ -41,7 +41,7 @@ public sealed class WornCountGoalTests
     {
         Goals = [Goal()],
         Rounds = rounds,
-        Research = Known(new ResearchFacts { Finished = [.. finished.Select(f => new ResearchProjectId(f))] }),
+        Research = new ResearchFacts { Finished = [.. finished.Select(f => new ResearchProjectId(f))] },
         StuffResearch = new Dictionary<string, IReadOnlyList<string>> { [Devilstrand.Value] = ["Devilstrand"] },
     };
 

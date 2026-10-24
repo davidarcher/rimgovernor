@@ -13,9 +13,9 @@ public sealed record ShelterFacts
     public Fact<bool> SleepingRecovered { get; init; }
 
     /// <summary>The coldest and warmest sleeping room, each read as the outdoor temperature when no sleeping room is measured.</summary>
-    public Fact<double> SleepingMin { get; init; }
+    public double SleepingMin { get; init; }
 
-    public Fact<double> SleepingMax { get; init; }
+    public double SleepingMax { get; init; }
 
     /// <summary>A heat campfire owes its refuel switch, or a sleeping room sits below its sleepers' band.</summary>
     public Fact<bool> TemperatureOwed { get; init; }
@@ -40,8 +40,8 @@ public sealed record ShelterFacts
             ColdExit = p.ColdExit,
             HotExit = p.HotExit,
             SleepingRecovered = f.SleepingRecovered,
-            SleepingMin = RoundsRules.Fallback(f.SleepingMin, f.OutdoorTemperature),
-            SleepingMax = RoundsRules.Fallback(f.SleepingMax, f.OutdoorTemperature),
+            SleepingMin = f.SleepingMin.TryGetValue(out var coldest) ? coldest : f.OutdoorTemperature,
+            SleepingMax = f.SleepingMax.TryGetValue(out var warmest) ? warmest : f.OutdoorTemperature,
             TemperatureOwed = f.TemperatureOwed,
             HeatDoorOwed = f.Upkeep.Rooms.IsKnown ? Known(DoorControlRules.DoorChanges(f.Upkeep.Rooms, f.Upkeep.Routes, p).Any(d => d.Heat)) : Unknown<bool>(),
             SafeAreaOwed = f.SafeAreaOwed,
@@ -112,13 +112,13 @@ public static partial class ShelterRules
     /// The sleeping rooms' temperature, a plain threshold at the exit bars (decision 16): unmet while the coldest
     /// sleeping room (outdoors when none is measured) is below <see cref="RoundsPolicy.ColdExit"/> or the warmest above
     /// <see cref="RoundsPolicy.HotExit"/>, or while a refuel switch, an unheated sleeping room or a venting door is
-    /// owed; met otherwise, and an unread temperature raises <see cref="RequiredFactException"/>. Its deficit is whole.
+    /// owed; met otherwise. Its deficit is whole.
     /// </summary>
     public static Need TemperatureNeedOf(ShelterFacts f)
     {
-        var band = RoundsRules.AllFacts(RoundsRules.Measured(f.SleepingMin, v => v >= f.ColdExit), RoundsRules.Measured(f.SleepingMax, v => v <= f.HotExit));
-        var met = RoundsRules.Positive(f.TemperatureOwed) || RoundsRules.Positive(f.HeatDoorOwed) ? Known(false) : band;
-        return Whole(ShelterFamily.Temperature, NeedTier.Wellbeing, met, "sleeping room temperature");
+        var band = f.SleepingMin >= f.ColdExit && f.SleepingMax <= f.HotExit;
+        var met = !RoundsRules.Positive(f.TemperatureOwed) && !RoundsRules.Positive(f.HeatDoorOwed) && band;
+        return FoodRules.WholeNeed(ShelterFamily.Temperature, NeedTier.Wellbeing, met);
     }
 
     /// <summary>

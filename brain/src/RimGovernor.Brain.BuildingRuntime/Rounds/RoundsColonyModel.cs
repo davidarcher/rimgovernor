@@ -223,9 +223,9 @@ internal static class RoundsColonyModel
         return crops.Count == 0 ? Unknown<EquatableArray<CropChoice>>() : Known(EquatableArray.From(crops));
     }
 
-    private static Fact<ModelResearch> ResearchOf(Fact<ResearchFacts> research, NeedsForecastRead? needs)
+    private static Fact<ModelResearch> ResearchOf(ResearchFacts? facts, NeedsForecastRead? needs)
     {
-        if (!research.TryGetValue(out var facts))
+        if (facts is null)
         {
             return Unknown<ModelResearch>();
         }

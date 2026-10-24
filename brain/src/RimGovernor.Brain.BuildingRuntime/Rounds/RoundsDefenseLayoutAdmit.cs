@@ -239,7 +239,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
 
     internal static string DefensePerimeterBridge(ColonyProjection projection)
     {
-        if (projection.Facts.Research.TryGetValue(out var research) && research.Finished.Contains(new ResearchProjectId(LayoutDefenseRules.PerimeterHeavyResearch)))
+        if (projection.Facts.Research is { } research && research.Finished.Contains(new ResearchProjectId(LayoutDefenseRules.PerimeterHeavyResearch)))
         {
             return LayoutDefenseRules.PerimeterHeavyBridge;
         }

@@ -98,7 +98,7 @@ public sealed class RoundsLapInputsTests
         {
             FoodDays = new FoodRunway.Days(1.0), FieldCoverage = Known(1.0), Colonists = 1L, HousingTarget = Known(1L), BedCapacity = 1L,
             IndoorCapacity = 1L, GrowingCells = Known(1L), Armed = Known(1L), Unarmed = Known(1L), Wood = Known(1L), Hostiles = Known(1L),
-            CriticalPatients = Known(1L), UrgentPatients = Known(1L), SleepingMin = Known(1.0), SleepingMax = Known(1.0), OutdoorTemperature = Known(1.0),
+            CriticalPatients = Known(1L), UrgentPatients = Known(1L), SleepingMin = Known(1.0), SleepingMax = Known(1.0), OutdoorTemperature = 1.0,
             PowerHeadroom = Known(1.0), OutdoorsDark = true, Tick = new Tick(5), DisasterTick = new Tick(5), BedroomsOwed = Known(true),
             MealClosetOwed = Known(true), CampfireRetireOwed = Known(true), TemperatureOwed = Known(true), ButcherTableAffordable = Known(true),
             CleanupPawns = Known(true), WorkCoverage = Known(true),

@@ -32,7 +32,7 @@ public static class EntityBioferriteRules
     /// Decides every held, living entity. Research that is not finished owes
     /// nothing; research that is unread is an issue whenever an entity is held.
     /// </summary>
-    public static BioferriteHarvest BioferriteHarvestOwed(ContainmentPlanning p, Fact<ResearchFacts> research)
+    public static BioferriteHarvest BioferriteHarvestOwed(ContainmentPlanning p, ResearchFacts? facts)
     {
         var issues = new List<string>();
         var held = new List<(Domain.PawnId Pawn, PlatformTarget Target)>();
@@ -47,7 +47,7 @@ public static class EntityBioferriteRules
         {
             return new BioferriteHarvest { Issues = issues };
         }
-        if (!research.TryGetValue(out var facts))
+        if (facts is null)
         {
             issues.Add("whether BioferriteExtraction is researched is unread");
             return new BioferriteHarvest { Issues = issues };

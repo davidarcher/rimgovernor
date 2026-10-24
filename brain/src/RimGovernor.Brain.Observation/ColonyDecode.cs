@@ -213,7 +213,7 @@ public static class ColonyDecodeReads
             IndoorCapacity = v.IndoorSleepingCapacity,
             SleepingMin = Optional(indoor, sleepingMin),
             SleepingMax = Optional(indoor, sleepingMax),
-            OutdoorTemperature = Known(v.OutdoorTemperatureC),
+            OutdoorTemperature = v.OutdoorTemperatureC,
         };
         f = f with
         {
@@ -224,8 +224,8 @@ public static class ColonyDecodeReads
             IsolationArea = AllowedAreaID(r.Policies, IsolationRoomRules.IsolationAreaLabel),
             RaidPoints = r.Threat.RaidPoints,
             HostileFactions = r.Threat.HostileFactions,
-            Storyteller = Known(r.Threat.Storyteller),
-            DaysPassed = Known(r.Threat.DaysPassed),
+            Storyteller = r.Threat.Storyteller,
+            DaysPassed = r.Threat.DaysPassed,
             Wealth = Known(new WealthFacts(r.Threat.WealthItems, r.Threat.WealthTotal)),
             Disease = r.Threat.Disease,
         };

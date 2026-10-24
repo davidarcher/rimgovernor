@@ -208,7 +208,7 @@ public static class RoundsReads
             {
                 RecoveryWorkers = ColonyFramesReads.RecoveryWorkers(p.Facts.MoodPawns),
                 Gear = ColonyGearReads.RoundsGear(p.Facts.Gear, emergency),
-                Research = Known(FrameResearch(ResearchSection(frame), catalog)),
+                Research = FrameResearch(ResearchSection(frame), catalog),
                 BuiltBuildings = BuiltBuildingsOf(frame.Buildings),
             },
         };
@@ -429,8 +429,8 @@ public static class RoundsReads
     }
 
     /// <summary>The finished project list of a known research census, the input TechTier is selected from.</summary>
-    public static Fact<EquatableArray<ResearchProjectId>> FinishedResearch(Fact<ResearchFacts> research) =>
-        research.TryGetValue(out var facts) ? Known(facts.Finished) : Unknown<EquatableArray<ResearchProjectId>>();
+    public static Fact<EquatableArray<ResearchProjectId>> FinishedResearch(ResearchFacts? research) =>
+        research is { } facts ? Known(facts.Finished) : Unknown<EquatableArray<ResearchProjectId>>();
 }
 
 public sealed partial record ColonyProjection

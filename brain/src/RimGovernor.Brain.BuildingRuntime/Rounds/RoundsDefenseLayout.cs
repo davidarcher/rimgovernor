@@ -73,7 +73,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     /// </summary>
     internal static DefinitionReadiness DefinitionReadinessOf(ColonyProjection projection, string name)
     {
-        var rk = projection.Facts.Research.TryGetValue(out var research);
+        var research = projection.Facts.Research;
         foreach (var d in projection.Definitions)
         {
             if (d.Name != name)
@@ -88,7 +88,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             {
                 return DefinitionReadiness.Blocked;
             }
-            if (d.Research.Count > 0 && !rk)
+            if (d.Research.Count > 0 && research is null)
             {
                 return DefinitionReadiness.Unread;
             }

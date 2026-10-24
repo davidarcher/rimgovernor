@@ -385,10 +385,10 @@ public sealed record RoundsFacts
     public EquatableArray<string> HostileFactions { get; init; }
 
     /// <summary>The running storyteller def name (Find.Storyteller.def); the threat schedule (#3539) looks its comps up by it.</summary>
-    public Fact<string> Storyteller { get; init; }
+    public string Storyteller { get; init; } = "";
 
     /// <summary>GenDate.DaysPassedFloat: the days into the game the storyteller's comps gate on.</summary>
-    public Fact<double> DaysPassed { get; init; }
+    public double DaysPassed { get; init; }
 
     /// <summary>The storyteller defs' threat comps from the catalog (#3539), read by ThreatSchedule.Of; empty without a catalog.</summary>
     public ThreatScheduleTable ThreatTable { get; init; } = new();
@@ -527,7 +527,7 @@ public sealed record RoundsFacts
 
     public Fact<double> SleepingMax { get; init; }
 
-    public Fact<double> OutdoorTemperature { get; init; }
+    public double OutdoorTemperature { get; init; }
 
     public Fact<double> PowerHeadroom { get; init; }
 
@@ -585,8 +585,8 @@ public sealed record RoundsFacts
     /// <summary>The colony wealth split the economy/caravan Need's wealth-driven surplus keys on; unknown leaves that surplus out.</summary>
     public Fact<WealthFacts> Wealth { get; init; }
 
-    /// <summary>The native research state read inside the same paused identity bracket as the other routine facts. Unknown when the source cannot read research; missing facts never meet the economy/research Need.</summary>
-    public Fact<ResearchFacts> Research { get; init; }
+    /// <summary>The native research state read inside the same paused identity bracket as the other routine facts; every routine frame reads it, so null only on a projection no routine frame built.</summary>
+    public ResearchFacts? Research { get; init; }
 
     /// <summary>The sorted ResearchProjectDefs other goals' recorded evidence is waiting on (the workshop ladder's research rung); the first unfinished one is the economy/research Need.s target.</summary>
     public EquatableArray<string> ResearchNeeds { get; init; }
@@ -916,12 +916,16 @@ public static partial class RoundsRules
                 throw new DomainException("invalid routine count");
             }
         }
-        foreach (var fact in new[] { f.FieldCoverage, f.SleepingMin, f.SleepingMax, f.OutdoorTemperature, f.PowerHeadroom })
+        foreach (var fact in new[] { f.FieldCoverage, f.SleepingMin, f.SleepingMax, f.PowerHeadroom })
         {
             if (fact.TryGetValue(out var v) && (double.IsNaN(v) || double.IsInfinity(v)))
             {
                 throw new DomainException("nonfinite routine fact");
             }
+        }
+        if (!double.IsFinite(f.OutdoorTemperature))
+        {
+            throw new DomainException("nonfinite routine fact");
         }
         if (f.FieldCoverage.TryGetValue(out var coverage) && coverage < 0)
         {

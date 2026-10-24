@@ -149,7 +149,7 @@ public sealed class GoalValueTests
         var facts = new GoalsFacts
         {
             Goals = [goal],
-            Research = Known(new ResearchFacts { Projects = [new("Smithing")], Finished = [] }),
+            Research = new ResearchFacts { Projects = [new("Smithing")], Finished = [] },
             Tier = Known(TechTier.Camp),
         };
         Assert.Equal(GoalState.Pursuing, GoalRules.Evaluate(goal, facts).State);
@@ -160,7 +160,7 @@ public sealed class GoalValueTests
         Assert.Equal(Satisfaction.Unmet, status.Satisfaction);
 
         // A met goal is not reported infeasible.
-        var done = infeasible with { Research = Known(new ResearchFacts { Projects = [new("Smithing")], Finished = [new("Smithing")] }) };
+        var done = infeasible with { Research = new ResearchFacts { Projects = [new("Smithing")], Finished = [new("Smithing")] } };
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, done).State);
     }
 
@@ -173,11 +173,11 @@ public sealed class GoalValueTests
         {
             Goals = [goal with { ImportanceOverride = Importance.High }],
             Themes = [theme],
-            Research = Known(new ResearchFacts
+            Research = new ResearchFacts
             {
                 Projects = [new("Smithing")], Finished = [],
                 Details = new Dictionary<string, ResearchProjectFacts> { ["Smithing"] = new() { Cost = 800, Progress = .5 } },
-            }),
+            },
             Tier = Known(TechTier.Camp),
         };
         var row = Assert.Single(GoalRules.ValuesOf(facts));

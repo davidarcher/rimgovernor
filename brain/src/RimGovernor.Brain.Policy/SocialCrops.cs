@@ -2,9 +2,9 @@ namespace RimGovernor.Brain.Policy;
 
 public static partial class SocialCropsRules
 {
-    public static bool BrewingFinished(Fact<ResearchFacts> research)
+    public static bool BrewingFinished(ResearchFacts? research)
     {
-        if (research.TryGetValue(out var facts))
+        if (research is { } facts)
         {
             foreach (var project in facts.Finished)
             {

@@ -113,7 +113,7 @@ public sealed class JoinersAnomalyFamilyTests
             Holders = [.. holders],
             Entities = [.. entities],
         },
-        Research = Known(Researched),
+        Research = Researched,
         Gear = Known(ColonyModelFixtures.NoGear()),
     };
 
@@ -140,7 +140,7 @@ public sealed class JoinersAnomalyFamilyTests
         // research or gear raises for the whole family, never reading as met.
         Assert.Empty(new AnomalyFamily().Derive(new AnomalyFacts()));
         Assert.Empty(new AnomalyFamily().Derive(AnomalyFacts.From(unmet with { Anomaly = new AnomalyState.Inactive() })));
-        Assert.Equal("whether BioferriteExtraction is researched is unread", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Research = default }, AnomalyFamily.Bioferrite)).Fact);
+        Assert.Equal("whether BioferriteExtraction is researched is unread", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Research = null }, AnomalyFamily.Bioferrite)).Fact);
         Assert.Equal("gear", Assert.Throws<RequiredFactException>(() => Anomaly(unmet with { Gear = default }, AnomalyFamily.Lance)).Fact);
     }
 

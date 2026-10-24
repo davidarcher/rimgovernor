@@ -29,7 +29,7 @@ public sealed class GoalsFamilyTests
     private static GoalsFacts Facts(params GoalRecord[] goals) => new()
     {
         Goals = goals,
-        Research = Known(Research()),
+        Research = Research(),
         Tier = Known(TechTier.Camp),
         Stock = Known<EquatableArray<Amount>>([new Amount(new Resource("Steel"), 40)]),
         Colonists = 5L,
@@ -61,7 +61,7 @@ public sealed class GoalsFamilyTests
         Assert.Equal(Satisfaction.Unmet, Derive(open, goal).Satisfaction);
         Assert.Equal(["Smithing"], GoalRules.DemandOf(open).Research);
 
-        var done = open with { Research = Known(Research("Smithing")) };
+        var done = open with { Research = Research("Smithing") };
         Assert.Equal((Satisfaction.Met, 0.0), (Derive(done, goal).Satisfaction, Derive(done, goal).Deficit));
         Assert.Empty(GoalRules.DemandOf(done).Research);
 
@@ -69,7 +69,7 @@ public sealed class GoalsFamilyTests
         var unlisted = Goal(1, GoalKind.ResearchProject, "Nope");
         var missing = GoalRules.Evaluate(unlisted, Facts(unlisted));
         Assert.Equal((Satisfaction.Unmet, GoalState.NoMethod, "unknown_target"), (missing.Satisfaction, missing.State, missing.Reason));
-        Assert.Equal("research census", Assert.Throws<RequiredFactException>(() => Derive(open with { Research = default }, goal)).Fact);
+        Assert.Equal("research census", Assert.Throws<RequiredFactException>(() => Derive(open with { Research = null }, goal)).Fact);
     }
 
     [Fact]
@@ -85,12 +85,12 @@ public sealed class GoalsFamilyTests
 
     private static GoalsFacts WithLevels(GoalsFacts facts, string[] finished, params (string Project, RimGovernor.Contracts.Wire.Defs.TechLevel Level)[] levels) => facts with
     {
-        Research = Known(new ResearchFacts
+        Research = new ResearchFacts
         {
             Projects = [.. levels.Select(l => new ResearchProjectId(l.Project))],
             Finished = [.. finished.Select(f => new ResearchProjectId(f))],
             Levels = levels.ToDictionary(l => new ResearchProjectId(l.Project), l => l.Level),
-        }),
+        },
     };
 
     [Fact]
@@ -121,7 +121,7 @@ public sealed class GoalsFamilyTests
         var done = WithLevels(open, ["Smithing", "Smelting"], ("Smithing", medieval), ("Smelting", medieval));
         Assert.Equal(Satisfaction.Met, Derive(done, goal).Satisfaction);
         Assert.Empty(GoalRules.DemandOf(done).Research);
-        Assert.Equal("research census", Assert.Throws<RequiredFactException>(() => Derive(open with { Research = default }, goal)).Fact);
+        Assert.Equal("research census", Assert.Throws<RequiredFactException>(() => Derive(open with { Research = null }, goal)).Fact);
     }
 
     [Fact]

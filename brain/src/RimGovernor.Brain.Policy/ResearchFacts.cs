@@ -52,13 +52,13 @@ public static partial class ResearchRules
     /// need the native research census lists and has not finished. Unknown facts keep the first derived
     /// need so the deficit stays unknown rather than recovered; no need at all is no target.
     /// </summary>
-    public static string ResearchConcernTarget(string configured, IReadOnlyList<string> derived, Fact<ResearchFacts> facts)
+    public static string ResearchConcernTarget(string configured, IReadOnlyList<string> derived, ResearchFacts? f)
     {
         if (configured != "" || derived.Count == 0)
         {
             return configured;
         }
-        if (!facts.TryGetValue(out var f))
+        if (f is null)
         {
             return derived[0];
         }
@@ -87,7 +87,7 @@ public static partial class ResearchRules
     /// the workshop ladder gates, a planner waiting on research, the fishing and furniture requests). With no
     /// need nothing is researched. Derived is true for any target found.
     /// </summary>
-    public static (string Target, bool Derived) ResearchConcern(IReadOnlyList<string> needs, Fact<ResearchFacts> facts)
+    public static (string Target, bool Derived) ResearchConcern(IReadOnlyList<string> needs, ResearchFacts? facts)
     {
         var target = ResearchConcernTarget("", needs, facts);
         return (target, target != "");
@@ -97,13 +97,13 @@ public static partial class ResearchRules
     /// Names the first project of required that the native census has not finished: the research a goal's
     /// only method waits on. Unknown facts keep the first requirement; none unfinished is no gate.
     /// </summary>
-    public static string ResearchGate(IReadOnlyList<string> required, Fact<ResearchFacts> facts)
+    public static string ResearchGate(IReadOnlyList<string> required, ResearchFacts? f)
     {
         if (required.Count == 0)
         {
             return "";
         }
-        if (!facts.TryGetValue(out var f))
+        if (f is null)
         {
             return required[0];
         }
@@ -130,13 +130,13 @@ public static partial class ResearchRules
     /// clock for ticks while any project is current, until it is finished. An unread census, or a target the census
     /// does not list, raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static (bool Recovered, double Deficit) ResearchTargetNeed(string target, bool derived, Fact<ResearchFacts> facts)
+    public static (bool Recovered, double Deficit) ResearchTargetNeed(string target, bool derived, ResearchFacts? f)
     {
         if (target == "")
         {
             return (true, 0.0);
         }
-        if (!facts.TryGetValue(out var f))
+        if (f is null)
         {
             throw new RequiredFactException("research census");
         }

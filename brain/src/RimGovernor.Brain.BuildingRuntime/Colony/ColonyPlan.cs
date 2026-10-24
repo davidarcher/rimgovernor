@@ -129,8 +129,8 @@ internal static class LayoutPlanning
     /// <summary>The tier and sorted finished research a plan is grown for.</summary>
     public static string GrownFor(ColonyProjection projection)
     {
-        var research = RoundsReads.FinishedResearch(projection.Facts.Research).TryGetValue(out var finished)
-            ? finished.Select(id => id.Value).Order(StringComparer.Ordinal).ToList()
+        var research = projection.Facts.Research is { } census
+            ? census.Finished.Select(id => id.Value).Order(StringComparer.Ordinal).ToList()
             : [];
         return string.Create(CultureInfo.InvariantCulture, $"{(int)LayoutTier(projection)}|{string.Join(",", research)}");
     }
