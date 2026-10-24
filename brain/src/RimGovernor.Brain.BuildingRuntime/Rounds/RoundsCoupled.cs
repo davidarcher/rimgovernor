@@ -40,7 +40,17 @@ public sealed partial class Rounder
         {
             Capture(ForecastAdmission.Selected);
             // Selected planned sites start no order: the room reconcile places them from the review's RoomSelection (#3278).
-            if (selection.Selected.PlannedRooms.Count > 0) RecordCoupledSelection(selection, facts.Tick.Value, "planned_unplaced");
+            if (selection.Selected.PlannedRooms.Count > 0)
+            {
+                RecordCoupledSelection(selection, facts.Tick.Value, PlannedUnplacedTarget);
+                // The comparison's room verdicts, in a row the payload cap cannot drop (#3828).
+                Tel.Decide(new Decision
+                {
+                    Kind = TelemetryKinds.PlannedRoomSelectionKind, Component = "rounds", Target = PlannedUnplacedTarget, Verdict = "selected",
+                    Reason = selection.Selection.SearchTruncated ? "best_found_bounded" : "shared_consequences",
+                    Attrs = PlannedRoomSelectionAttrs(selection, candidates, facts.Tick.Value)
+                });
+            }
             return;
         }
         Player.Current(call, epoch);
@@ -155,6 +165,109 @@ public sealed partial class Rounder
                         ["provenance"] = learning.Provenance
                     } : null }).ToArray()
             };
+
+    /// <summary>The target of a selection of planned sites that starts no order (#3278).</summary>
+    internal const string PlannedUnplacedTarget = "planned_unplaced";
+
+    /// <summary>The characters the <c>planned_room_selection</c> row's ids and findings may spend: a quarter of the 64 KiB
+    /// payload cap is left for keys, numbers and JSON punctuation, so the row is never truncated (#3828).</summary>
+    internal const int PlannedRoomSelectionBudget = 48 << 10;
+
+    /// <summary>Per candidate root, the planned rooms whose site activities its completions reach through their prerequisites.</summary>
+    private static Dictionary<string, int[]> RootRooms(ForecastCoupledCandidates candidates)
+    {
+        var context = candidates.Context;
+        var siteRoom = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (var site in context.PlannedSites)
+            foreach (var activity in site.Activities.Concat(site.Finishes)) siteRoom.TryAdd(activity, site.Room);
+        var activities = context.Activities.Activities.ToDictionary(a => a.Id, StringComparer.Ordinal);
+        var result = new Dictionary<string, int[]>(StringComparer.Ordinal);
+        foreach (var root in candidates.Alternatives.Concat(candidates.Incumbents))
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var rooms = new SortedSet<int>();
+            var stack = new Stack<string>(root.ActivityCompletions);
+            while (stack.Count > 0)
+            {
+                var id = stack.Pop();
+                if (!seen.Add(id)) continue;
+                if (siteRoom.TryGetValue(id, out var room)) rooms.Add(room);
+                if (activities.TryGetValue(id, out var activity)) foreach (var prerequisite in activity.Prerequisites) stack.Push(prerequisite);
+            }
+            if (rooms.Count != 0) result.TryAdd(root.Id, [.. rooms]);
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// The <c>planned_room_selection</c> row's attrs (#3828; docs/developers/contracts/otel-signals.md): the compact companion of a
+    /// <c>planned_unplaced</c> <c>coupled_selection</c> row, whose vectors can pass the payload cap and drop every field. It keeps,
+    /// within <see cref="PlannedRoomSelectionBudget"/>: the selected ids and planned rooms; per planned room with a valued
+    /// alternative or a root among the candidates its alternatives, root count and whether it is selected; the ledger total and
+    /// development of the baseline and the selection; the selection findings that name a planned room or a truncation; and the
+    /// rejected subsets once each (ids and reason, with the ledger total and development when priced), first the earliest touching
+    /// each room, then the rest in search order, counting what the budget left out.
+    /// </summary>
+    internal static Dictionary<string, object?> PlannedRoomSelectionAttrs(ForecastCoupledSelection selection, ForecastCoupledCandidates candidates, long tick)
+    {
+        var left = PlannedRoomSelectionBudget;
+        bool Spend(IEnumerable<string> strings, int overhead)
+        {
+            var cost = overhead + strings.Sum(s => s.Length + 3);
+            if (cost > left) return false;
+            left -= cost;
+            return true;
+        }
+        static Dictionary<string, object?> ValueOf(ForecastConsequenceVector vector) => new()
+        {
+            ["total"] = Number(vector.Value.Ledger.Total), ["investment"] = Number(vector.Value.Ledger.Investment), ["development"] = vector.Development,
+        };
+        var rootRooms = RootRooms(candidates);
+        int[] RoomsOf(string id) => rootRooms.GetValueOrDefault(id) ?? [];
+        var selected = selection.Selection.Selected.ToArray();
+        Spend(selected, 64);
+        var selectedRooms = selection.Selected.PlannedRooms.Select(r => r.Room).Concat(selected.SelectMany(RoomsOf)).ToHashSet();
+        var plannedRooms = selection.Selected.PlannedRooms.Select(r => new Dictionary<string, object?>
+        { ["room"] = r.Room, ["completed_sites"] = r.CompletedSites.ToArray(), ["complete"] = r.Complete.ToArray() }).ToArray();
+        Spend(selection.Selected.PlannedRooms.SelectMany(r => r.CompletedSites.Concat(r.Complete)), 64 * plannedRooms.Length);
+        var alternatives = candidates.Context.PlannedRooms.ToLookup(a => a.Room, a => a.Id);
+        var roots = rootRooms.Values.SelectMany(r => r).ToLookup(r => r);
+        var rooms = alternatives.Select(g => g.Key).Concat(roots.Select(g => g.Key)).Distinct().Order().ToArray();
+        var roomRows = rooms.Select(room => new Dictionary<string, object?>
+        {
+            ["room"] = room, ["assessed"] = alternatives[room].Any(), ["alternatives"] = alternatives[room].ToArray(),
+            ["roots"] = roots[room].Count(), ["selected"] = selectedRooms.Contains(room),
+        }).ToArray();
+        Spend(rooms.SelectMany(r => alternatives[r]), 96 * rooms.Length);
+        // Findings that name a planned room, then the truncations that say what the comparison never saw.
+        var findings = selection.Selection.Findings.Where(f => f.Contains("room", StringComparison.Ordinal) || f.Contains("planned", StringComparison.Ordinal))
+            .Concat(selection.Selection.Findings.Where(f => f.Contains("truncated", StringComparison.Ordinal)))
+            .Distinct(StringComparer.Ordinal).ToList();
+        var uncertainty = findings.TakeWhile(f => Spend([f], 0)).ToArray();
+        // Each rejected subset once (a subset rescheduled under one reason repeats), the earliest touching each room first.
+        var distinct = selection.Rejected.DistinctBy(r => (string.Join("\n", r.Commitments.Order(StringComparer.Ordinal)), r.Reason)).ToList();
+        var first = rooms.Select(room => distinct.FindIndex(r => r.Commitments.Any(id => RoomsOf(id).Contains(room)))).Where(i => i >= 0).Distinct().Order().ToList();
+        var order = first.Concat(Enumerable.Range(0, distinct.Count).Where(i => !first.Contains(i)));
+        var rejected = new List<Dictionary<string, object?>>();
+        foreach (var index in order)
+        {
+            var row = distinct[index];
+            if (!Spend([.. row.Commitments, row.Reason], 96)) break;
+            rejected.Add(new()
+            {
+                ["ids"] = row.Commitments.ToArray(), ["reason"] = row.Reason,
+                ["total"] = row.Consequences is { } v ? Number(v.Value.Ledger.Total) : null, ["development"] = row.Consequences?.Development,
+            });
+        }
+        return new()
+        {
+            ["observed_tick"] = tick, ["selected_ids"] = selected, ["planned_rooms"] = plannedRooms, ["rooms"] = roomRows,
+            ["baseline"] = ValueOf(selection.BaselineVector), ["selected"] = ValueOf(selection.SelectedVector),
+            ["uncertainty"] = uncertainty, ["uncertainty_omitted"] = findings.Count - uncertainty.Length,
+            ["rejected"] = rejected.ToArray(), ["rejected_distinct"] = distinct.Count, ["rejected_omitted"] = distinct.Count - rejected.Count,
+            ["generation_truncated"] = selection.GenerationTruncated, ["search_truncated"] = selection.Selection.SearchTruncated,
+        };
+    }
 
     private static object[] ThermalAttrs(ForecastCoupledOutcome outcome) => outcome.ThermalExposure.Select(e => (object)new Dictionary<string, object?>
     {

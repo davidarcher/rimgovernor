@@ -50,6 +50,12 @@ public static class TelemetryKinds
     /// <summary>One review's coupled selection: the chosen tasks and the value each outcome was ranked by (<see cref="CoupledSelectionKind"/>).</summary>
     public static readonly TelemetryKind CoupledSelection = new(CoupledSelectionKind);
 
+    /// <summary>The kind of the compact companion of a <c>planned_unplaced</c> coupled selection (#3828).</summary>
+    public const string PlannedRoomSelectionKind = "planned_room_selection";
+
+    /// <summary>One planned-unplaced selection's room verdicts within the payload cap (<see cref="PlannedRoomSelectionKind"/>).</summary>
+    public static readonly TelemetryKind PlannedRoomSelection = new(PlannedRoomSelectionKind);
+
     /// <summary>The kind the stockpile, field and building layout decisions are emitted under.</summary>
     public const string LayoutEditKind = "layout_edit";
 
