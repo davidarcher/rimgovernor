@@ -82,7 +82,7 @@ public static class CeremonyRules
                 var (need, needOk) = ThroneRules.RungRequirement(rung);
                 if (needOk)
                 {
-                    return need with { Holder = c.Pawn, Titled = ThroneRules.HoldsTitle(f, c.Pawn) };
+                    return need with { Holder = c.Pawn, Titled = ThroneRules.HoldsTitle(f, c.Pawn), Held = ThroneRules.HeldRequirement(f, c.Pawn) };
                 }
             }
         }

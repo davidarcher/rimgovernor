@@ -741,7 +741,7 @@ public sealed partial class Rounder
             goalEtas = model.Etas;
             var materials = await MaterialValuesAsync(state.Snapshot, coupled.Context, reading.Projection.Stations, reading.Projection.Facts.Items, ct).ConfigureAwait(false);
             var occupantFindings = new SortedSet<string>(coupled.Context.Findings, StringComparer.Ordinal);
-            var occupants = RoundsSleepingUpkeepPlanner.BedroomOccupantsOf(reading.Projection, occupantFindings);
+            var (occupants, royal) = RoundsSleepingUpkeepPlanner.PlannedOccupantsOf(reading.Projection, occupantFindings);
             // The open planned rooms, whose rings close first in the ring-closure projection (#3744, #3754): started and not
             // done by their latest reconcile, of the plan the layout review read (a later retired-ground drop leaves its rooms as they are).
             var done = DoneRooms.Get(state.Snapshot);
@@ -762,7 +762,7 @@ public sealed partial class Rounder
             // A goal tier 2 priced is paid at its marginal value, not the flat share (#3505); the clothing runway demands the stuff it chose (#3623).
             reading = reading.WithFacts(rf => rf with
             {
-                CoupledAlternatives = coupled with { Context = coupled.Context with { ModelBasis = model.Basis, Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = model.HorizonDays, BedroomOccupants = occupants, OpenRooms = open, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
+                CoupledAlternatives = coupled with { Context = coupled.Context with { ModelBasis = model.Basis, Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = model.HorizonDays, BedroomOccupants = occupants, RoyalRooms = royal, OpenRooms = open, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
                 ClothingStuff = model.ClothingStuff,
             });
             ClockEvents.Event("routine", ColonyModelTelemetry.Kind, "colony model ran", [.. model.Attrs()]);

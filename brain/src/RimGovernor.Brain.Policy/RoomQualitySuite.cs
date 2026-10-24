@@ -212,6 +212,29 @@ public static partial class RoomQualityRules
         return output;
     }
 
+    /// <summary>
+    /// Per planned suite, the colonist it houses once built (#3807), following <see cref="NextSuiteStep"/>: a standing suite's
+    /// sole owner, and the claims taking the vacant suites in order.
+    /// </summary>
+    public static IReadOnlyDictionary<int, PawnId> PlannedSuiteOccupants(LayoutPlan plan, RoomObservation rooms, SleepingObservation sleeping, IReadOnlyList<SuiteClaim> claims)
+    {
+        var output = new Dictionary<int, PawnId>();
+        var owners = SoloBedrooms(sleeping).GroupBy(s => s.Room, StringComparer.Ordinal).Where(g => g.Count() == 1).ToDictionary(g => g.Key, g => g.Single().Owner, StringComparer.Ordinal);
+        foreach (var (id, suite) in PlannedRoomIds(plan, rooms, PlannedRole.Suite))
+        {
+            if (owners.TryGetValue(id, out var owner))
+            {
+                output[suite.Id] = owner;
+            }
+        }
+        var vacant = VacantSuites(plan, rooms, sleeping);
+        for (var i = 0; i < Math.Min(claims.Count, vacant.Count); i++)
+        {
+            output[vacant[i].Id] = claims[i].Pawn;
+        }
+        return output;
+    }
+
     /// <summary>How many suites the plan holds.</summary>
     public static int SuiteRooms(this LayoutPlan p)
     {

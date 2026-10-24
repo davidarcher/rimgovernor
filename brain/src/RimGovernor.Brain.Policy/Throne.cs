@@ -97,6 +97,12 @@ public sealed record ThroneNeed : ThroneRequirements
 
     /// <summary>Whether the holder holds a title already: native lets only a titled colonist own a throne, so assignment waits for it.</summary>
     public bool Titled { get; init; }
+
+    /// <summary>
+    /// The throne-room requirement of the most senior title the holder holds now (Pawn_RoyaltyTracker.HighestTitleWithThroneRoomRequirements),
+    /// whose unmet requirements give its title throne-room thoughts (#3807); null when it holds none asking for a throne.
+    /// </summary>
+    public ThroneRequirements? Held { get; init; }
 }
 
 /// <summary>A throne definition as the native catalog describes it.</summary>
@@ -257,7 +263,7 @@ public static partial class ThroneRules
                 {
                     continue;
                 }
-                need = need with { Holder = id, Titled = HoldsTitle(f, id) };
+                need = need with { Holder = id, Titled = HoldsTitle(f, id), Held = HeldRequirement(f, id) };
                 if (!found || need.MinArea > best.MinArea || (need.MinArea == best.MinArea && need.MinImpressiveness > best.MinImpressiveness))
                 {
                     best = need;
@@ -368,6 +374,25 @@ public static partial class ThroneRules
     }
 
     /// <summary>Whether id holds an Empire title now.</summary>
+    /// <summary>The throne-room requirement of the most senior title <paramref name="id"/> holds that asks for a throne (RungRequirement), null when none does.</summary>
+    internal static ThroneRequirements? HeldRequirement(RoyaltyFacts f, PawnId id)
+    {
+        ThroneRequirements? held = null;
+        if (!f.Holders.TryGetValue(id, out var holdings))
+        {
+            return held;
+        }
+        var titles = holdings.Select(h => h.Title).Where(t => t.Length != 0).ToHashSet(StringComparer.Ordinal);
+        foreach (var rung in f.Ladder)
+        {
+            if (titles.Contains(rung.Title) && RungRequirement(rung) is (var need, true))
+            {
+                held = need;
+            }
+        }
+        return held;
+    }
+
     internal static bool HoldsTitle(RoyaltyFacts f, PawnId id)
     {
         if (!f.Holders.TryGetValue(id, out var holdings))

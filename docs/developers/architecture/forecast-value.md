@@ -410,7 +410,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655) and `Barracks` (#3658).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807).
 Each fueled source with a known burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 with the native `ThermalSource.Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
@@ -442,6 +442,21 @@ Ascetic thought it has, #3658). The pricing is `ForecastHousing`, which the pric
 A room any of whose occupants' stage, bed, observed thoughts or mood is unread, or whose service day is unknown, is named
 `bedroom_credit_unassessed:<room>` (`barracks_credit_unassessed:<room>`) and earns nothing. A bedroom with no occupant, or one
 not served before tier 2's horizon, pays its material with no credit and waits.
+
+*Throne room and suite credit (#3807).* A planned throne room or suite is credited, through the same seam
+(`ForecastHousing.RoyalRoomCredit`), under `throne/<room>/<pawn>` (`suite/<room>/<pawn>`), with the mood its titled colonist
+stops losing to the title's room thoughts. The room's colonist is `ForecastCoupledContext.RoyalRooms`
+(`RoyalRoomRules.PlannedRoyalRooms`): a suite's occupant from `RoomQualityRules.PlannedSuiteOccupants` (a standing suite's sole
+owner, else the suite claims in order over the vacant planned suites) with that colonist's title's `BedroomMinArea` and
+`BedroomMinImpressiveness`; the throne room for the throne holder (`ThroneNeed`) with `ThroneNeed.Held`, the throne-room
+requirement of the most senior title held now. The relieved mood is minus the def offsets (native `NeedsForecast` rows
+`title_bedroom_unmet` and `title_no_bedroom` for a suite, `title_throne_unmet` and `title_no_throne` for a throne room, from the
+thought defs by worker class) of those of the room's two thoughts the colonist has now. The credit applies only when the
+prediction meets both requirements (`Cells >= MinArea`, `round(Impressiveness) >= MinImpressiveness`, the game's
+`RoomRequirement_Area` and `RoomRequirement_Impressiveness`); a partial match earns nothing. The gain per day and credit are the
+bedroom's (`GainPerDay` × (H − service day)). A room serving no title (no Royalty, no titled colonist, no throne owed), or one
+whose colonist has neither thought now, is credited 0; unread observed thoughts or an unread Impressiveness, when a thought is
+held, is `throne_credit_unassessed:<room>` (`suite_credit_unassessed:<room>`).
 
 *Laboratory credit (#3800).* A planned lab the outcome serves is credited through the same seam (`ForecastLaboratory.LaboratoryCredit`)
 under `lab/<room>/<pawn>`: the research speed the closed room gives the bench. `BenchSpeedModel` (the bridge's

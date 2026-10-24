@@ -85,6 +85,9 @@ public sealed record ForecastCoupledContext
     /// <summary>Per planned bedroom, the colonists the bedroom step would move into it (SleepingRules.PlannedBedroomOccupants,
     /// #3655, #3656: one, or a couple), by pawn id; a bedroom without a row houses nobody and earns no credit.</summary>
     public IReadOnlyDictionary<int, EquatableArray<string>> BedroomOccupants { get; init; } = new Dictionary<int, EquatableArray<string>>();
+    /// <summary>Per planned throne room or suite, the titled colonist it would serve and its title's requirement of that room
+    /// (#3807, RoundsSleepingUpkeepPlanner.PlannedOccupantsOf); a room without a row serves no title and earns no credit.</summary>
+    public IReadOnlyDictionary<int, RoyalRoomNeed> RoyalRooms { get; init; } = new Dictionary<int, RoyalRoomNeed>();
     /// <summary>The layout plan's rooms by id (RoundsFacts.PlannedShelters, #3800): what a planned room's predicted
     /// cleanliness reads beside its closure prediction (PlannedRoomCleanlinessRules.Steady).</summary>
     public IReadOnlyDictionary<int, PlannedRoom> LayoutRooms { get; init; } = new Dictionary<int, PlannedRoom>();

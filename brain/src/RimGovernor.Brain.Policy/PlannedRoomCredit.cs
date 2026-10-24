@@ -34,12 +34,15 @@ public delegate IReadOnlyList<RoomGain>? RoomCredit(ForecastRoomService room, Fo
 public static class PlannedRoomCredits
 {
     /// <summary>The shipped credits: Bedroom by its occupant's mood gain (#3655), Barracks by each sleeper's (#3658), Lab by
-    /// the research speed its room gives the bench (#3800).</summary>
+    /// the research speed its room gives the bench (#3800), Throne and Suite by the title room thoughts their colonist loses once
+    /// the room meets its title's requirement (#3807).</summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> Shipped = new Dictionary<PlannedRole, RoomCredit>
     {
         [PlannedRole.Bedroom] = ForecastHousing.BedroomCredit,
         [PlannedRole.Barracks] = ForecastHousing.BedroomCredit,
         [PlannedRole.Lab] = ForecastLaboratory.LaboratoryCredit,
+        [PlannedRole.Throne] = ForecastHousing.RoyalRoomCredit,
+        [PlannedRole.Suite] = ForecastHousing.RoyalRoomCredit,
     };
 
     /// <summary>

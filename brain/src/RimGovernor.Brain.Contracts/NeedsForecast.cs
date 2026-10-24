@@ -49,7 +49,8 @@ public sealed record NeedDeterioration(double HitPoints, Fact<double> RatePerDay
 /// A thought this pawn can get (ThoughtUtility.CanGetThought) at one stage, priced by the game's own MoodOffset for this
 /// pawn (#3339). Role names why it is read: slept_outside, slept_in_bedroom, slept_in_barracks, weather, need_outdoors,
 /// undergrounder_indoors (constructed roof), undergrounder_underground (natural roof), undergrounder_outdoors, ascetic
-/// (ThoughtWorker_Ascetic's own-room thought by Impressiveness stage, #3655). A null stage of a bed or ascetic thought,
+/// (ThoughtWorker_Ascetic's own-room thought by Impressiveness stage, #3655), and the title room thoughts a throne room or
+/// suite relieves (#3807): title_bedroom_unmet, title_no_bedroom, title_throne_unmet, title_no_throne. A null stage of a bed or ascetic thought,
 /// where the game gives none (Toils_LayDown.ApplyBedThoughts at SleptInBedroom's dull stage, #3822; the ascetic worker
 /// inactive), is a row at 0. A stage the game cannot price is left out. Memories carry their duration; situational thoughts none.
 /// </summary>

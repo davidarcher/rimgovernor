@@ -9,6 +9,13 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ForecastHousingDelta(string Pawn, Fact<double> Delta);
 
 /// <summary>
+/// The titled colonist a planned throne room or suite would serve (#3807) and its title's requirement of that room: the
+/// RoomRequirement_Area cells and the RoomRequirement_Impressiveness (0: none) of its most senior title's throneRoomRequirements,
+/// or of its bedroomRequirements less those its precepts waive.
+/// </summary>
+public sealed record RoyalRoomNeed(string Pawn, int MinArea, int MinImpressiveness);
+
+/// <summary>
 /// The station facts a bedroom move's priced gain reads before the search (#3656): per pawn its needs-forecast row and
 /// observed thoughts (a pawn with two rows has neither), the break curve, the pace's wellbeing weight and each planned
 /// room's predicted Impressiveness stage. The bedroom step, the planned occupants and the clustering's bed merge read
@@ -36,7 +43,7 @@ public sealed record BedroomGainFacts
         PlannedStages = facts.PlannedRoomPredictions.TryGetValue(out var rows)
             ? rows.Where(r => int.TryParse(r.Room, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out _))
                 .GroupBy(r => int.Parse(r.Room, System.Globalization.CultureInfo.InvariantCulture))
-                .ToDictionary(g => g.Key, g => g.All(r => r.Stage.IsKnown) && g.Select(r => r.Stage.Value).Distinct().Count() == 1 ? g.First().Stage : default)
+                .ToDictionary(g => g.Key, g => g.Select(r => r.Stage).Distinct().Count() == 1 ? g.First().Stage : default)
             : new Dictionary<int, Fact<int>>(),
     };
 
@@ -82,8 +89,25 @@ public sealed record BedroomGainFacts
 /// </summary>
 public static class ForecastHousing
 {
-    /// <summary>A context's bedroom deltas and, per pawn, their break shifts; built once per context, as the search reads them per outcome.</summary>
-    private sealed record Moves(IReadOnlyDictionary<(int Room, string Stuff), ForecastHousingDelta[]> Deltas, IReadOnlyDictionary<string, double[]> Shifts);
+    /// <summary>
+    /// A context's bedroom deltas, its royal rooms' (<see cref="RoyalRoomCredit"/>: per assessed throne room or suite closure, its
+    /// colonist and the mood the room relieves, 0 for none) and, per pawn, their break shifts; built once per context, as the
+    /// search reads them per outcome.
+    /// </summary>
+    private sealed record Moves(IReadOnlyDictionary<(int Room, string Stuff), ForecastHousingDelta[]> Deltas,
+        IReadOnlyDictionary<(int Room, string Stuff), (string Pawn, double Delta)> Royal, IReadOnlyDictionary<string, double[]> Shifts);
+
+    /// <summary>The <see cref="NeedThoughtStage.Role"/> of the title thought an unmet bedroom requirement gives (ThoughtWorker_BedroomRequirementsNotMet).</summary>
+    public const string TitleBedroomUnmetRole = "title_bedroom_unmet";
+
+    /// <summary>The role of the title thought a colonist without a personal bedroom has (ThoughtWorker_NoPersonalBedroom).</summary>
+    public const string TitleNoBedroomRole = "title_no_bedroom";
+
+    /// <summary>The role of the title thought an unmet throne-room requirement gives (ThoughtWorker_ThroneRoomRequirementsNotMet).</summary>
+    public const string TitleThroneUnmetRole = "title_throne_unmet";
+
+    /// <summary>The role of the title thought a colonist without an assigned throne has (ThoughtWorker_NoThroneroom).</summary>
+    public const string TitleNoThroneRole = "title_no_throne";
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, Moves> Cache = new();
 
@@ -229,9 +253,56 @@ public static class ForecastHousing
             deltas[(closure.Room, closure.Stuff)] = [.. occupants.Select(occupant => new ForecastHousingDelta(occupant, pawns.TryGetValue(occupant, out var pawn)
                 ? BedroomMoodDelta(pawn, closure.Prediction.Stage, c.ObservedThoughts.GetValueOrDefault(occupant), barracks) : default))];
         }
-        var shifts = deltas.Values.SelectMany(d => d).Where(d => d.Delta.TryGetValue(out var delta) && delta != 0).GroupBy(d => d.Pawn, StringComparer.Ordinal)
-            .ToDictionary(g => g.Key, g => g.Select(d => d.Delta.Value / 100).Distinct().Order().ToArray(), StringComparer.Ordinal);
-        return new(deltas, shifts);
+        var royal = RoyalDeltasOf(c, pawns);
+        var gains = new List<(string Pawn, double Delta)>(royal.Values);
+        foreach (var move in deltas.Values.SelectMany(d => d))
+            if (move.Delta.TryGetValue(out var delta)) gains.Add((move.Pawn, delta));
+        var shifts = gains.Where(m => m.Delta != 0).GroupBy(m => m.Pawn, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.Select(m => m.Delta / 100).Distinct().Order().ToArray(), StringComparer.Ordinal);
+        return new(deltas, royal, shifts);
+    }
+
+    /// <summary>
+    /// Per throne room or suite closure with a titled colonist (<see cref="ForecastCoupledContext.RoyalRooms"/>) whose role is
+    /// priced, the mood the room relieves (#3807, epic #3650 P7): when the closed room's cell count and its predicted
+    /// Impressiveness, rounded as RoomRequirement_Impressiveness rounds it, meet the title's requirement, minus the offset of each
+    /// title room thought the colonist has now (observed) for that room kind: TitleBedroomRequirementsNotMet and
+    /// TitleNoPersonalBedroom for a suite, TitleThroneroomRequirementsNotMet and TitleNoThroneRoom for a throne room, each the
+    /// game's stage offset for the pawn (<see cref="NeedsForecastPawn.ThoughtStages"/>). A room short of either requirement
+    /// relieves nothing (0). A closure whose colonist, observed thoughts or predicted Impressiveness is unread is left out (unassessed).
+    /// </summary>
+    private static Dictionary<(int, string), (string, double)> RoyalDeltasOf(ForecastCoupledContext c, Dictionary<string, NeedsForecastPawn> pawns)
+    {
+        var royal = new Dictionary<(int, string), (string, double)>();
+        foreach (var closure in c.Closures)
+        {
+            if (!c.RoyalRooms.TryGetValue(closure.Room, out var need) || !c.PlannedRoomRoles.TryGetValue(closure.Room, out var role)
+                || role is not (PlannedRole.Throne or PlannedRole.Suite) || !c.RoomCredits.ContainsKey(role) || !pawns.TryGetValue(need.Pawn, out var pawn)) continue;
+            if (!c.ObservedThoughts.GetValueOrDefault(need.Pawn).TryGetValue(out var thoughts)) continue;
+            string[] roles = role == PlannedRole.Throne ? [TitleThroneUnmetRole, TitleNoThroneRole] : [TitleBedroomUnmetRole, TitleNoBedroomRole];
+            var relieved = -pawn.ThoughtStages.Where(r => r.Stage == 0 && roles.Contains(r.Role, StringComparer.Ordinal) && thoughts.Any(t => t.Def == r.Thought))
+                .DistinctBy(r => r.Thought).Sum(r => r.Offset);
+            if (relieved == 0) { royal[(closure.Room, closure.Stuff)] = (need.Pawn, 0); continue; }
+            if (!closure.Prediction.Impressiveness.TryGetValue(out var impressiveness)) continue;
+            var meets = closure.Prediction.Cells >= need.MinArea && Math.Round(impressiveness) >= need.MinImpressiveness;
+            royal[(closure.Room, closure.Stuff)] = (need.Pawn, meets ? relieved : 0);
+        }
+        return royal;
+    }
+
+    /// <summary>
+    /// The throne room and suite credit (#3807, on the room credit seam from #3796): the served room's colonist's
+    /// <see cref="GainPerDay"/> of the mood the room relieves in its stuff (<see cref="RoyalDeltasOf"/>), under its own pawn id.
+    /// None for a room serving no title, one short of the requirement, or a colonist without a title room thought now; null
+    /// (unassessed) when the colonist's thoughts, the room's predicted Impressiveness or the mood is unread.
+    /// </summary>
+    internal static IReadOnlyList<RoomGain>? RoyalRoomCredit(ForecastRoomService room, ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon)
+    {
+        if (!context.RoyalRooms.ContainsKey(room.Room)) return [];
+        if (!Cache.GetValue(context, MovesOf).Royal.TryGetValue((room.Room, room.Stuff), out var move)) return null;
+        if (move.Delta == 0) return [];
+        return GainPerDay(move.Delta, outcome.Needs.GetValueOrDefault(move.Pawn)?.Mood, context.MoodBreaks, context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay)
+            is { } perDay ? [new(move.Pawn, move.Pawn, perDay)] : null;
     }
 
     /// <summary>

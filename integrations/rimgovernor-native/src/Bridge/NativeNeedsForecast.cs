@@ -209,8 +209,19 @@ internal static class NativeNeedsForecast
         // No ThoughtDefOf field names the Ascetic thought; its worker class is the typed route (#3655).
         foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_Ascetic)))
             Rows(def, "ascetic", nullStagesInactive: true);
+        // The title room thoughts a planned throne room or suite relieves (#3807); no ThoughtDefOf field names them, their
+        // worker classes are the typed route. Without Royalty no def has these workers and no row is read.
+        foreach (var (worker, role) in TitleRoomThoughts)
+            foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == worker))
+                Rows(def, role);
         return EquatableArray.From(rows);
     }
+    /// <summary>The title room thoughts' worker classes and the stage-row roles the brain reads them by (ForecastHousing.Title*Role).</summary>
+    private static readonly (Type Worker, string Role)[] TitleRoomThoughts =
+    [
+        (typeof(ThoughtWorker_BedroomRequirementsNotMet), "title_bedroom_unmet"), (typeof(ThoughtWorker_NoPersonalBedroom), "title_no_bedroom"),
+        (typeof(ThoughtWorker_ThroneRoomRequirementsNotMet), "title_throne_unmet"), (typeof(ThoughtWorker_NoThroneroom), "title_no_throne"),
+    ];
     private static readonly FieldInfo? SituationalStage = BridgeCommon.PrivateInstanceField(typeof(Thought_Situational), "curStageIndex");
     /// <summary>Thought.MoodOffset of an unattached thought at one stage: a memory forced to the stage, a situational thought with its stage set.</summary>
     private static double StageOffset(Pawn pawn, ThoughtDef def, int stage)

@@ -22,16 +22,25 @@ partial class RoundsSleepingUpkeepPlanner
     }
 
     /// <summary>
-    /// Per planned bedroom, the colonists the bedroom step would move into it (#3655), the largest priced gain first (#3656);
-    /// none without the layout plan, the room census or the sleeping census. An unread gain is named in <paramref name="findings"/>.
+    /// Per planned bedroom, the colonists the bedroom step would move into it (#3655), the largest priced gain first (#3656); and
+    /// per planned throne room or suite, the titled colonist it serves and its title's requirement (#3807,
+    /// RoyalRoomRules.PlannedRoyalRooms: the suite step's claims in its order, the owed throne room's holder). None without the
+    /// layout plan, the room census or the sleeping census. An unread gain is named in <paramref name="findings"/>.
     /// </summary>
-    internal static IReadOnlyDictionary<int, EquatableArray<string>> BedroomOccupantsOf(Observation.ColonyProjection facts, ISet<string> findings)
+    internal static (IReadOnlyDictionary<int, EquatableArray<string>> Bedrooms, IReadOnlyDictionary<int, Pol.RoyalRoomNeed> Royal) PlannedOccupantsOf(
+        Observation.ColonyProjection facts, ISet<string> findings)
     {
         if (!facts.LayoutPlan.TryGetValue(out var plan) || !facts.Rooms.TryGetValue(out var rooms) || !facts.Facts.Sleeping.TryGetValue(out var sleeping))
         {
-            return new Dictionary<int, EquatableArray<string>>();
+            return (new Dictionary<int, EquatableArray<string>>(), new Dictionary<int, Pol.RoyalRoomNeed>());
         }
-        return SleepingRules.PlannedBedroomOccupants(plan!, rooms!, sleeping!, BedroomTargets(facts), Pol.BedroomGainFacts.Of(facts.Facts), findings);
+        var targets = BedroomTargets(facts);
+        // The suite queue as SuiteWishesOf orders it; an unread trait census only drops the ascetic skip, and an ascetic has no title room thought.
+        var claims = RoomQualityRules.SuiteClaims(plan!, rooms!, sleeping!, targets ?? new Dictionary<string, Pol.RoomTarget>(),
+            SleepingTraits(facts) ?? new Dictionary<PawnId, Pol.TraitEffects>(), SuitePressure(facts) ?? new Dictionary<PawnId, double>());
+        var (throne, owed) = ThroneNeed(facts);
+        return (SleepingRules.PlannedBedroomOccupants(plan!, rooms!, sleeping!, targets, Pol.BedroomGainFacts.Of(facts.Facts), findings),
+            Pol.RoyalRoomRules.PlannedRoyalRooms(plan!, rooms!, sleeping!, claims, owed ? throne : null));
     }
 
     /// <summary>The projection's next wing migration step: none without the layout plan, the room census or the sleeping census.</summary>

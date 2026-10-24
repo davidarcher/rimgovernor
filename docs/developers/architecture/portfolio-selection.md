@@ -64,7 +64,8 @@ either room is priced); its sites are still emitted and exempt.
 
 *Planned-room credit seam (#3796, epic #3650 P2/P3).* A role is priced exactly when
 `ForecastCoupledContext.RoomCredits` (`PlannedRoomCredits.Shipped`: `Bedroom` and
-`Barracks`, both `ForecastHousing.BedroomCredit`; `Lab`, `ForecastLaboratory.LaboratoryCredit`) holds a credit for it:
+`Barracks`, both `ForecastHousing.BedroomCredit`; `Lab`, `ForecastLaboratory.LaboratoryCredit`; `Throne` and
+`Suite`, both `ForecastHousing.RoyalRoomCredit`) holds a credit for it:
 
 - `delegate IReadOnlyList<RoomGain>? RoomCredit(ForecastRoomService room, outcome, context, horizonTicks)`
   returns the room's gains per served day (`RoomGain(Subject, Pawn, PerDay)`); null is unassessed.

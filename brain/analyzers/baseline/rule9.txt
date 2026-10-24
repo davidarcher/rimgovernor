@@ -821,7 +821,7 @@ Policy/ForecastGoalValue.cs|Discard|1
 Policy/ForecastGoalValue.cs|NullableValue|1
 Policy/ForecastHandoff.cs|Fact|78
 Policy/ForecastHandoffProjects.cs|Fact|14
-Policy/ForecastHousing.cs|Fact|36
+Policy/ForecastHousing.cs|Fact|35
 Policy/ForecastIncumbentPreparation.cs|Fact|35
 Policy/ForecastLiveEvidence.cs|Fact|12
 Policy/ForecastMaintenance.cs|Fact|26

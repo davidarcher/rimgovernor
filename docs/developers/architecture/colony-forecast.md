@@ -712,7 +712,7 @@ temperature safety is enabled (the placed-site gate; `planned_sites_unknown` whe
    lowest tier, whichever root built it, and a planned shelter's per-cell native roof cells together are the
    room's one `planned/room{id}/roof` unit. The count skips the units of a room whose role
    (`Context.PlannedRoomRoles`, from `PlannedSiteFacts.Roles`) has a credit in `Context.RoomCredits`
-   (`PlannedRoomCredits.PricedUnits`, #3796: `Bedroom` and `Barracks`, priced by their occupants' credit). Each alternative is also a root,
+   (`PlannedRoomCredits.PricedUnits`, #3796: `Bedroom` and `Barracks`, priced by their occupants' credit; `Throne` and `Suite`, #3807, by their titled colonist's). Each alternative is also a root,
    `planned/room{id}[/{stuff}]/{scope}`, which requires all its sites' finishes and is not exempt;
    alternatives of a room exclude each other. Ring site roots of different stuffs, and the other stuffs'
    alternatives, are excluded from each other (`Outcome.Excludes`). Planned roots get no after-production
