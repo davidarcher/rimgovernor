@@ -337,7 +337,7 @@ public sealed class ForecastCoupledTests
                     FoodSources = [new("rice-stack", "Rice", new(1, 1), 8, Known(1000.0))],
                     FoodConversions = [new("rice-stack","pawn","bench","CookMeal","Rice",4,"Meal",1,new(1,1),new(1,1),new(1,1),
                     Known(0.0),Known(10.0),Known(20.0),Known(10.0),8,8) { RequiresHarvest = false, Bill = "bill", WorkGiver = "Cook" }],
-                    FoodUses = [new("pawn", "Meal", new(1, 1), Known(true), Known(.8), Known(10.0), 1, Known(1000.0)) { Thoughts = [] }]
+                    FoodUses = [new("pawn", "Meal", new(1, 1), Known(true), Known(.8), Known(10.0), 1, Known(1000.0)) { Thoughts = [], Ingredient = "Rice" }]
                 }
             }
         };
@@ -582,7 +582,7 @@ public sealed class ForecastCoupledTests
                     Food = new(),
                     FoodSources = [new("rice", "Rice", cells[0], 4, Known(1000.0))],
                     FoodConversions = [cook, cook with { Pawn = "helper", CanCook = false, CarryingCapacity = capacity, SupplyTicks = Known(travel), DeliveryTicks = Known(travel) }],
-                    FoodUses = [new("pawn", "Meal", cells[2], Known(true), Known(.8), Known(10.0), 1, Known(1000.0)) { Thoughts = [] }],
+                    FoodUses = [new("pawn", "Meal", cells[2], Known(true), Known(.8), Known(10.0), 1, Known(1000.0)) { Thoughts = [], Ingredient = "Rice" }],
                     Routes = EquatableArray.From(roster.ForecastObserved.WorkPawns.Value.Select(p => p.Id.Value).SelectMany(p => cells.SelectMany(a => cells.Where(b => b != a)
                         .Select(b => new CoupledRoute(p, a, b, Known(p == "helper" && a == cells[1] && b == cells[0] ? travel : 1.0))))
                         .Concat(cells.Select(c => new CoupledRoute(p, new(0, 0), c, Known(1.0)) { FromStart = true }))))

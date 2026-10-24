@@ -311,8 +311,8 @@ public sealed class PlannedRoomCreditTests
 
     /// <summary>
     /// #3858 acceptance: a colony cooking meals, the production way (GenerateCoupledActivities, then the comparison selecting
-    /// the cook-and-eat portfolio). The meal carries the thoughts native reads over the colony's ingredient mix (here human meat
-    /// as an ingredient), so the eater's mood forecast stays whole, and every shipped credit runs on that outcome without a throw.
+    /// the cook-and-eat portfolio). The meal carries the thoughts native reads for its batch's ingredient (here human meat as an
+    /// ingredient), so the eater's mood forecast stays whole, and every shipped credit runs on that outcome without a throw.
     /// </summary>
     [Fact]
     public void AColonyCookingMealsKeepsItsMoodForecastAndRunsEveryShippedCredit()
@@ -331,6 +331,43 @@ public sealed class PlannedRoomCreditTests
         var plain = cooking with { ForecastObserved = cooking.ForecastObserved with { Coupled = coupled } };
         var (_, unflavoured) = Selected(WithEveryShippedRoom(plain), 150);
         Assert.True(outcome.Needs["pawn"].ThoughtOffsetAtHorizon.Value < unflavoured.Needs["pawn"].ThoughtOffsetAtHorizon.Value);
+        RunsEveryShippedCredit(generated, outcome, 150);
+    }
+
+    /// <summary>
+    /// #3872 acceptance: one bill allows rice and human meat and the colony stocks both, the production way. A governor batch is
+    /// cooked from the one ingredient its recipe step is supplied, so native reads a meal use per ingredient: the rice meal has no
+    /// ingredient thought, the human-meat meal the cannibal one. Each batch is priced with its own; the rice batch is the quicker
+    /// cook, the comparison chooses it, and the eaten meal carries no human-meat thought (the union mix gave it one). With only
+    /// human meat stocked, the meal carries it.
+    /// </summary>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ACookedBatchCarriesTheThoughtsOfItsOwnIngredientNotEveryIngredientItsBillAllows(bool riceStocked)
+    {
+        var cannibal = NeedsFixtures.Memory("AteHumanMeatAsIngredient", -15, Day, false) with { StackLimit = 1 };
+        var meat = ForecastPortfolioChoiceTests.Conversion("meat", "Meat_Human", "CookMeal", 80);
+        var rice = ForecastPortfolioChoiceTests.Conversion("rice", "Rice", "CookMeal", 10);
+        Assert.Equal(meat.Bill, rice.Bill);
+        var cooking = ForecastPortfolioChoiceTests.Observed(riceStocked ? [meat, rice] : [meat],
+            riceStocked ? [new("meat", "Meat_Human", new(1, 1), 4, Known(1000d)), new("rice", "Rice", new(1, 1), 4, Known(1000d))]
+                : [new("meat", "Meat_Human", new(1, 1), 4, Known(1000d))]);
+        var coupled = cooking.ForecastObserved.Coupled!;
+        cooking = cooking with { ForecastObserved = cooking.ForecastObserved with { Coupled = coupled with { FoodUses = EquatableArray.From(
+            coupled.FoodUses.Select(u => u.Ingredient == "Meat_Human" ? u with { Thoughts = [cannibal] } : u)) } } };
+        var (generated, outcome) = Selected(WithEveryShippedRoom(cooking), 150);
+        var meals = generated.NeedTasks.Where(n => n.Kind == "food" && n.Resource.Value == "Meal").ToArray();
+        var eaten = meals.Where(n => outcome.Plan.Allocations.Any(a => a.Activity == n.Task)).ToArray();
+        Assert.NotEmpty(eaten);
+        Assert.Contains(meals, n => n.Thoughts.Contains(cannibal));
+        if (riceStocked)
+        {
+            Assert.Contains(meals, n => n.Thoughts.Count == 0);
+            Assert.All(eaten, n => Assert.Empty(n.Thoughts));
+        }
+        else Assert.All(meals, n => Assert.Equal([cannibal], n.Thoughts.ToArray()));
+        Assert.True(Assert.IsType<ForecastMoodResult>(outcome.Needs["pawn"].Mood).BreakRisk.IsKnown);
         RunsEveryShippedCredit(generated, outcome, 150);
     }
 

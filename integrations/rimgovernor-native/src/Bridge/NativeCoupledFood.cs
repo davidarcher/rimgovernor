@@ -35,9 +35,8 @@ internal static class NativeCoupledFood
         var loose = map.listerThings.ThingsInGroup(ThingRequestGroup.HaulableEver).Where(t => t.Spawned && t.def.IsNutritionGivingIngestible)
             .OrderBy(t => t.GetUniqueLoadID(),StringComparer.Ordinal).ToArray();
         var sources = plants.Concat(loose);
-        // Each cooked product's uses wait for its ingredient mix: every source ingredient a bill making it accepts (#3858).
-        var mixes = new Dictionary<ThingDef, SortedDictionary<string, ThingDef>>();
-        var cooked = new List<(ThingDef Product, Cell Location)>();
+        // A governor meal is cooked from the one ingredient its batch is supplied (#3872): a use per product, location and ingredient.
+        var cooked = new List<(ThingDef Product, Cell Location, ThingDef Ingredient)>();
         foreach (var source in sources)
         {
             var plant = source as Plant; var raw = plant?.def.plant.harvestedThingDef ?? source.def;
@@ -107,17 +106,15 @@ internal static class NativeCoupledFood
                                 Fact.Known((double)approach), Fact.Known((double)supply),
                                 speed > 0 ? Fact.Known(recipe.WorkAmountTotal(null) / (double)speed) : default, deliveryTicks, capacity, availableInput) { WorkGiver = giver.defName, Bill = bill.GetUniqueLoadID(), RequiresHarvest = plant != null, CanCook = canCook, CanSupply = canHaul, CanDeliver = canHaul && productCapacity > 0,
                                     SkillWork = skillWork, FoodPoisonChance = poison });
-                            if (!mixes.TryGetValue(product.thingDef, out var mix)) mixes[product.thingDef] = mix = new(StringComparer.Ordinal);
-                            mix[raw.defName] = raw;
-                            cooked.Add((product.thingDef, new(destination.x, destination.z)));
+                            cooked.Add((product.thingDef, new(destination.x, destination.z), raw));
                         }
                     }
                 }
             }
         }
-        foreach (var (product, location) in cooked.Distinct()) AddUses(product, location, CookedUnit(product, mixes[product].Values));
+        foreach (var (product, location, ingredient) in cooked.Distinct()) AddUses(product, location, CookedUnit(product, ingredient), ingredient.defName);
         return (conversions.ToArray(), uses.Distinct().ToArray(), sourceRows.ToArray());
-        void AddUses(ThingDef resource, Cell location, Thing unit)
+        void AddUses(ThingDef resource, Cell location, Thing unit, string ingredient = "")
         {
             foreach (var pawn in consumers)
             {
@@ -138,7 +135,7 @@ internal static class NativeCoupledFood
                     Fact.Known(pawn.WillEat(resource) && pawn.foodRestriction?.GetCurrentRespectedRestriction(pawn)?.filter.Allows(resource) != false),
                     Fact.Known((double)nutrition / pawn.needs.food.MaxLevel),
                     Fact.Known(resource.ingestible.baseIngestTicks / (double)(resource.ingestible.useEatingSpeedStat ? pawn.GetStatValue(StatDefOf.EatingSpeed) : 1)),
-                    resource.ingestible.maxNumToIngestAtOnce, fresh) { Thoughts = thoughts });
+                    resource.ingestible.maxNumToIngestAtOnce, fresh) { Thoughts = thoughts, Ingredient = ingredient });
             }
         }
     }
@@ -152,18 +149,19 @@ internal static class NativeCoupledFood
     }
 
     /// <summary>
-    /// A fresh unit of a cooked product as GenRecipe.MakeRecipeProducts makes it (#3858): CompIngredients.RegisterIngredient for
-    /// each ingredient, here the colony's mix for the product, every source ingredient a bill making it accepts (the recipe's
-    /// ingredient filters and the bill's IsFixedOrAllowedIngredient over the stock and the harvests). FoodUtility.ThoughtsFromIngesting
-    /// then reads that list: the cannibal and insect ingredient thoughts, the precepts on human meat, fungus and plants, and the
-    /// meat and vegetarian food kinds.
+    /// A fresh unit of a cooked product as GenRecipe.MakeRecipeProducts makes it: CompIngredients.RegisterIngredient for each
+    /// ingredient thing's def. A governor recipe step hands JobDriver_DoBill its batch's ingredient stacks (job.targetQueueB from
+    /// NativeActivityRecipe.Resolve: one def, never a substitute search), so WorkGiver_DoBill's ingredient search never runs and
+    /// the meal holds exactly <paramref name="ingredient"/> (#3872). FoodUtility.ThoughtsFromIngesting then reads that list: the
+    /// cannibal and insect ingredient thoughts, the precepts on human meat, fungus and plants, and the meat and vegetarian food
+    /// kinds. The unit is shared per product, so the caller reads its thoughts before the next call registers another ingredient.
     /// </summary>
-    private static Thing CookedUnit(ThingDef product, IEnumerable<ThingDef> mix)
+    private static Thing CookedUnit(ThingDef product, ThingDef ingredient)
     {
         var unit = FreshUnit(product);
         if (unit.TryGetComp<CompIngredients>() is not { } ingredients) return unit;
         ingredients.ingredients.Clear();
-        foreach (var ingredient in mix) ingredients.RegisterIngredient(ingredient);
+        ingredients.RegisterIngredient(ingredient);
         return unit;
     }
 }

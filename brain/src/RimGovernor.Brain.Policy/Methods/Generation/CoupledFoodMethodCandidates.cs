@@ -138,7 +138,7 @@ internal static class FoodMethodCandidates
                     product.Resource, Units(product.Units), Location(first.BenchCell), ForecastRequirementKind.Consumed,
                     Known<EquatableArray<string>>([YieldId(cook, product.Resource)]), Known(0d), Known(horizon))).ToArray();
                 deliveries.Add(deliver); previous = cook;
-                foreach (var product in products) AddEating(deliver, product.Resource, product.Units, first.Destination, cook);
+                foreach (var product in products) AddEating(deliver, product.Resource, product.Units, first.Destination, cook, first.Ingredient);
             }
             Outcome(id, deliveries.ToArray());
         }
@@ -199,10 +199,12 @@ internal static class FoodMethodCandidates
         }).ToArray();
         return new(options.ToArray(), routes.Values.ToArray(), needTasks.ToArray(), alternatives.ToArray(), bindings, truncated)
             { Operations = EquatableArray.From(operations), Observed = EquatableArray.From(observed), Findings = EquatableArray.From(findings) };
-        void AddEating(string supply, Resource resource, Fact<double> quantity, Cell cell, string freshFrom)
+        // A cooked batch is eaten with the thoughts of its own ingredient (#3872); anything else as it is.
+        void AddEating(string supply, Resource resource, Fact<double> quantity, Cell cell, string freshFrom, string ingredient = "")
         {
             if (!quantity.TryGetValue(out var units)) return;
-            foreach (var use in read.FoodUses.Where(u => u.Resource == resource.Value && u.Location == cell).OrderBy(u => u.Pawn, StringComparer.Ordinal))
+            foreach (var use in read.FoodUses.Where(u => u.Resource == resource.Value && u.Location == cell && u.Ingredient == ingredient)
+                .OrderBy(u => u.Pawn, StringComparer.Ordinal))
             {
                 if (use.Eligible != Known(true) || !use.Nutrition.TryGetValue(out var gain) || gain <= 0 || !use.ChewTicks.IsKnown) continue;
                 var pawn = needs.Pawns.SingleOrDefault(p => p.Pawn == use.Pawn);

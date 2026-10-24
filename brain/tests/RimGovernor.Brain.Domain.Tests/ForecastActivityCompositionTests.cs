@@ -24,7 +24,7 @@ public sealed class ForecastActivityCompositionTests
             Food = facts.ForecastObserved.Coupled!.Food with { Options = [] },
             FoodSources = [new("empty-source", "Rice", new(1, 1), 0, Known(1000d))],
             FoodConversions = EquatableArray.From(conversions),
-            FoodUses = [new("pawn", "Meal", new(3, 1), Known(true), Known(.8), Known(10d), 1, Known(1000d)) { Thoughts = [] }],
+            FoodUses = [new("pawn", "Meal", new(3, 1), Known(true), Known(.8), Known(10d), 1, Known(1000d)) { Thoughts = [], Ingredient = "Rice" }],
             Support = new() { Known = true,
                 Demands = [new("patient-care", "care", "patient", new(1, 1), default, Known(0d))],
                 Workers = [new("patient-care", "pawn", "patient", "TendPatient", "Tend", new(1, 1), Known(0d), Known(10d))] }
@@ -232,7 +232,7 @@ public sealed class ForecastActivityCompositionTests
                     Construction = ConstructionFixtures.NoConstruction() with { Context = context,
                         Options = [new Row("shared-stock-frame", "TestWall", new(3, 1), "pawn", "Rice", "a", new(1, 1), 2, 4, "Finish",
                             Known(0d), Known(10d), Known(10d)) { AvailableInput = Known(2d), SiteApproachTicks = Known(0d) }] },
-                    FoodUses = [new("pawn", "Meal", new(2, 1), Known(true), Known(.8), Known(10d), 1, Known(1000d)) { Thoughts = [] }] },
+                    FoodUses = [new("pawn", "Meal", new(2, 1), Known(true), Known(.8), Known(10d), 1, Known(1000d)) { Thoughts = [], Ingredient = "Rice" }] },
             },
         };
         facts = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));

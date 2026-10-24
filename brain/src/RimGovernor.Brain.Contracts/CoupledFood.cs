@@ -23,11 +23,14 @@ public sealed record CoupledFoodUse(string Pawn, string Resource, Cell Location,
     Fact<double> Nutrition, Fact<double> ChewTicks, int MaxCount, Fact<double> FreshTicks)
 {
     /// <summary>The memories eating a fresh unit of the resource gives the pawn (FoodUtility.ThoughtsFromIngesting on an
-    /// unspawned unit), as a food target's MealThoughts (#3598). A resource with ingredients (a cooked meal) is a unit holding
-    /// the colony's ingredient mix for it: every stocked or harvestable ingredient a bill making it accepts (#3858). Empty for a
-    /// consumer without a mood.</summary>
+    /// unspawned unit), as a food target's MealThoughts (#3598). A cooked meal's unit holds its <see cref="Ingredient"/> (#3872).
+    /// Empty for a consumer without a mood.</summary>
     [System.Text.Json.Serialization.JsonConverter(typeof(EquatableArrayJsonConverter<NeedMemory>))]
     public required EquatableArray<NeedMemory> Thoughts { get; init; }
+    /// <summary>The source ingredient a governor batch cooks this resource from: a conversion's Ingredient, one def per batch
+    /// (the recipe step supplies its ingredient stacks), so each batch the forecast can choose has its own row (#3872). Empty for a
+    /// resource eaten as it is (a harvest, a carcass's meat, a stocked meal with its own ingredients).</summary>
+    public string Ingredient { get; init; } = "";
 }
 
 
