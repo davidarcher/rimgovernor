@@ -726,7 +726,6 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Observations.LightingFacts), TypeInfoPropertyName = "ObservationsLightingFacts")]
 [JsonSerializable(typeof(EquatableArray<Observations.WorkLightCell>), TypeInfoPropertyName = "EquatableArrayObservationsWorkLightCell")]
 [JsonSerializable(typeof(EquatableArray<Observations.LampState>), TypeInfoPropertyName = "EquatableArrayObservationsLampState")]
-[JsonSerializable(typeof(Observations.LightingSection), TypeInfoPropertyName = "ObservationsLightingSection")]
 [JsonSerializable(typeof(Observations.FloorCell), TypeInfoPropertyName = "ObservationsFloorCell")]
 [JsonSerializable(typeof(Observations.FloorRoom), TypeInfoPropertyName = "ObservationsFloorRoom")]
 [JsonSerializable(typeof(EquatableArray<Observations.FloorCell>), TypeInfoPropertyName = "EquatableArrayObservationsFloorCell")]

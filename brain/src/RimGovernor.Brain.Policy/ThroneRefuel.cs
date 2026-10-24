@@ -24,8 +24,7 @@ public static partial class ThroneRules
     /// <summary>
     /// The refuel due for the throne room's unlit lights: some lamp of a glowing definition standing inside the
     /// title's room that the census reads unlit and out of fuel, with a hauler to refuel it (the rearm's pick).
-    /// None while the room is not planned and standing, without a hauler, or when no unlit lamp is measured empty
-    /// (an unknown fuel state is neither a deficit nor a refuel).
+    /// None while the room is not planned and standing, without a hauler, or when no unlit lamp is measured empty.
     /// </summary>
     public static ThroneStep NextThroneRefuel(
         LayoutPlan plan,
@@ -47,7 +46,7 @@ public static partial class ThroneRules
         }
         var glow = need.GlowDefNames();
         var unlit = lamps.Any(l => glow.Contains(l.Definition) && LayoutPerimeterRules.Contains(room.Region.Bounds(), l.Cell) && !l.Lit
-            && l.OutOfFuel.TryGetValue(out var empty) && empty);
+            && l.Fuel == LampFuel.Empty);
         if (!unlit || !DefenseRearm.DefenseRearmPawn(workers, out _))
         {
             return new ThroneStep();

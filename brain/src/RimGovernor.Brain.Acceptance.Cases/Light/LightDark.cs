@@ -73,7 +73,7 @@ internal static class LightDark
         var before = await ReadAsync(s, "lighting-before", cancellationToken).ConfigureAwait(false);
         s.RecordWire("lighting_before", before);
         var bench = Bench(before, stoveId);
-        if (bench.Roofed != true || !(bench.Glow < lighting.LitGlow) || bench.Cell is not { } at || at.X != cell.X || at.Z != cell.Z || bench.PlantDefs.Count != 0)
+        if (!bench.Roofed || !(bench.Glow < lighting.LitGlow) || bench.Cell.X != cell.X || bench.Cell.Z != cell.Z || bench.PlantDefs.Count != 0)
         {
             throw new AcceptanceException($"lighting-before: the staged stove is not a roofed dark work cell at {cell}: {bench}");
         }
@@ -86,20 +86,20 @@ internal static class LightDark
         _ = await s.ServeUntilAsync("light-dark", s.TicksLeft, async ct =>
         {
             var now = await ReadAsync(s, "lighting-release", ct).ConfigureAwait(false);
-            var glow = Bench(now, stoveId).Glow ?? 0;
+            var glow = Bench(now, stoveId).Glow;
             return (Wait.Signature(glow, now.Lamps.Count), glow >= lighting.LitGlow);
         }, cancellationToken).ConfigureAwait(false);
 
         // The independent read once the service has let go: exactly the one lamp, lit, standing where a lamp may go.
         var after = await ReadAsync(s, "lighting-after", cancellationToken).ConfigureAwait(false);
         s.RecordWire("lighting_after", after);
-        var glow = Bench(after, stoveId).Glow ?? 0;
+        var glow = Bench(after, stoveId).Glow;
         if (glow < lighting.LitGlow)
         {
             throw new AcceptanceException(string.Create(CultureInfo.InvariantCulture, $"lighting-after: stove cell glow {glow:F2} is under {lighting.LitGlow:F2}"));
         }
 
-        if (after.Lamps.ToList() is not [{ Lit: true, Building.Id: { } lampId }])
+        if (after.Lamps.ToList() is not [{ Lit: true, Building: var lampId }])
         {
             throw new AcceptanceException($"lighting-after: want exactly one lit lamp, got {string.Join("; ", after.Lamps)}");
         }
@@ -124,11 +124,11 @@ internal static class LightDark
     }
 
     private static Observations.WorkLightCell Bench(Observations.LightingFacts facts, string stoveId) =>
-        facts.WorkCells.FirstOrDefault(c => c.Bench?.Id == stoveId) ?? throw new AcceptanceException($"the lighting census lists no work cell for the stove {stoveId}");
+        facts.WorkCells.FirstOrDefault(c => c.Bench == stoveId) ?? throw new AcceptanceException($"the lighting census lists no work cell for the stove {stoveId}");
 
     private static async Task<Observations.LightingFacts> ReadAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-        return facts.Upkeep?.Outcome?.Lighting?.Outcome ?? throw new AcceptanceException($"{label}: the lighting facts are unavailable");
+        return facts.Upkeep?.Outcome?.Lighting ?? throw new AcceptanceException($"{label}: the lighting facts are unavailable");
     }
 }

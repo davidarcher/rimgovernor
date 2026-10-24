@@ -59,10 +59,7 @@ public static class ColonyUpkeepReads
                 r = r with { Structures = Known(EquatableArray.From(rows)) };
             }
         }
-        if (!ColonyDecodeReads.HasIssue(u.Issues, "lighting"))
-        {
-            r = r with { Lighting = ColonyLighting(u.Lighting, buildings, catalog) };
-        }
+        r = r with { Lighting = Known(ColonyLighting(u.Lighting, buildings, catalog)) };
         if (!ColonyDecodeReads.HasIssue(u.Issues, "routes"))
         {
             r = r with { Routes = ColonyRoutes(u.Routes) };
@@ -229,46 +226,22 @@ public static class ColonyUpkeepReads
     }
 
     /// <summary>
-    /// Decodes the lighting section; any row missing a measured glow, roof or lit flag leaves the whole census
-    /// unknown so the rooms/lighting Need reads unknown instead of reasoning from half a map.
+    /// Joins the native lighting census to the building rows and catalog rows the lighting rules plan from: each lamp's
+    /// def, cell, glow radius and service state, and the census plants that die to light. A lamp the building table
+    /// does not hold, or a def the catalog cannot answer for, throws.
     /// </summary>
-    private static Fact<LightingObservation> ColonyLighting(O.LightingSection? section, Buildings buildings, DefinitionCatalog? catalog)
+    private static LightingObservation ColonyLighting(O.LightingFacts census, Buildings buildings, DefinitionCatalog? catalog)
     {
-        var l = section?.Outcome;
-        if (l is null)
-        {
-            return default;
-        }
-        var cells = new List<WorkLightCell>();
-        foreach (var row in l.WorkCells)
-        {
-            if (row.Glow is null || row.Roofed is null || buildings.Entity(row.Bench) is not { } head)
-            {
-                return default;
-            }
-            var sensitive = false;
-            foreach (var plant in row.PlantDefs)
-            {
-                sensitive = sensitive || ColonyDecodeReads.RequireCatalog(catalog).PlantDiesToLight(plant);
-            }
-            cells.Add(new WorkLightCell
-            {
-                Bench = row.Bench?.Id ?? "",
-                Cell = ColonyDecodeReads.CellOf(row.Cell),
-                Glow = row.Glow.GetValueOrDefault(),
-                Roofed = row.Roofed.GetValueOrDefault(),
-                LightSensitive = sensitive,
-            });
-        }
+        var required = ColonyDecodeReads.RequireCatalog(catalog);
         var lamps = new List<Lamp>();
-        foreach (var row in l.Lamps)
+        foreach (var row in census.Lamps)
         {
-            if (!buildings.TryGetRow(row.Building, out var b) || row.Lit is null || b is null)
+            if (!buildings.TryGetValue(row.Building, out var b))
             {
-                return default;
+                throw new ObservationContractException($"lighting census lamp {row.Building} has no building row");
             }
             var reference = b.Building;
-            var radius = ColonyDecodeReads.RequireCatalog(catalog).GlowRadius(reference.DefName)
+            var radius = required.GlowRadius(reference.DefName)
                 ?? throw new DomainException($"lamp {reference.Id}: def {reference.DefName} has no glower comp");
             var s = b.Service;
             lamps.Add(new Lamp
@@ -277,12 +250,13 @@ public static class ColonyUpkeepReads
                 Definition = reference.DefName,
                 Cell = ColonyDecodeReads.CellOf(reference.Position),
                 Radius = radius,
-                Lit = row.Lit.GetValueOrDefault(),
-                SwitchedOn = Known(s.SwitchedOn),
-                OutOfFuel = ColonyDecodeReads.Optional(s.OutOfFuel is not null, s.OutOfFuel.GetValueOrDefault()),
-                BrokenDown = Known(s.BrokenDown),
+                Lit = row.Lit,
+                SwitchedOn = s.SwitchedOn,
+                BrokenDown = s.BrokenDown,
+                Fuel = s.OutOfFuel switch { null => LampFuel.Unfueled, true => LampFuel.Empty, false => LampFuel.Fueled },
             });
         }
-        return Known(new LightingObservation { WorkCells = cells, Lamps = lamps });
+        var plants = census.WorkCells.SelectMany(c => c.PlantDefs).Distinct(StringComparer.Ordinal).Where(required.PlantDiesToLight);
+        return new LightingObservation { Census = census, DiesToLight = EquatableArray.From(plants), Lamps = lamps };
     }
 }

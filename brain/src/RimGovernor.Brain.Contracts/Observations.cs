@@ -5803,51 +5803,31 @@ public sealed record HomeExtentGeometry(
     [property: JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))] EquatableArray<Cell> Zone);
 
 /// <summary>
-/// Lighting facts: the measured ground glow at every colonist work bench
-/// interaction cell plus the colony's glowing fixtures, so the rooms/lighting Need
-/// reasons from illumination at the cell a pawn actually stands on rather than
-/// from fixture counts. Glow follows the native GlowGrid (0..1; RimWorld treats
-/// &gt;= 0.3 as lit). A lamp is lit only when native currently emits light. A work
-/// cell lists plant_defs: the defs of the plants standing in its proper room,
-/// and of the plants its growing zones are set to. A lamp's radius is its
-/// def's CompProperties_Glower row. The brain reads PlantProperties.diesToLight off
-/// each def (cave fungus): lighting such a room would kill the crop, so the cell
-/// is never a lighting deficit.
+/// The lighting census (#3831), read whole: the measured ground glow at every colonist work bench interaction cell
+/// plus the colony's glowing fixtures, so the rooms/lighting Need reasons from illumination at the cell a pawn
+/// actually stands on rather than from fixture counts. Both lists are sorted by thing id. The native read throws when
+/// it cannot read the census.
 /// </summary>
-public sealed record WorkLightCell
-{
-    public Common.Ref? Bench { get; init; }
-
-    public Common.Cell? Cell { get; init; }
-
-    public double? Glow { get; init; }
-
-    public bool? Roofed { get; init; }
-
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> PlantDefs { get; init; }
-}
-
-public sealed record LampState
-{
-    public Common.Ref? Building { get; init; }
-
-    public bool? Lit { get; init; }
-}
-
 public sealed record LightingFacts
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<WorkLightCell>))]
-    public EquatableArray<WorkLightCell> WorkCells { get; init; }
+    public required EquatableArray<WorkLightCell> WorkCells { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<LampState>))]
-    public EquatableArray<LampState> Lamps { get; init; }
+    public required EquatableArray<LampState> Lamps { get; init; }
 }
 
-public sealed record LightingSection
-{
-    public LightingFacts Outcome { get; init; } = null!;
-}
+/// <summary>
+/// A work bench's interaction cell: its ground glow on the native GlowGrid (0..1; RimWorld treats &gt;= 0.3 as lit),
+/// whether it is roofed, and the defs of the plants its proper room grows, standing or set in its growing zones (empty
+/// outside a proper room), sorted. The brain reads PlantProperties.diesToLight off each def (cave fungus): lighting
+/// such a room would kill the crop, so the cell is never a lighting deficit.
+/// </summary>
+public sealed record WorkLightCell(string Bench, Cell Cell, double Glow, bool Roofed,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<string>))] EquatableArray<string> PlantDefs);
+
+/// <summary>A glowing fixture: lit only while native currently emits light. Its radius is its def's CompProperties_Glower row.</summary>
+public sealed record LampState(string Building, bool Lit);
 
 /// <summary>
 /// Flooring facts: every proper indoor home room with the terrain under each
@@ -6001,7 +5981,7 @@ public sealed record UpkeepFacts
 
     public required HomeCoverageFacts HomeCoverage { get; init; }
 
-    public LightingSection? Lighting { get; init; }
+    public required LightingFacts Lighting { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<AnimalFeed>))]
     public EquatableArray<AnimalFeed> WildAnimals { get; init; }

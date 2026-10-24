@@ -369,7 +369,7 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|654
+Contracts/Observations.cs|NullableValue|651
 Contracts/Observations.cs|UnknownMember|13
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
@@ -453,7 +453,7 @@ Observation/ColonyProduction.cs|Unknown|12
 Observation/ColonyRead.cs|Fact|3
 Observation/ColonySurgery.cs|Fact|2
 Observation/ColonyUpkeep.cs|Discard|1
-Observation/ColonyUpkeep.cs|Fact|14
+Observation/ColonyUpkeep.cs|Fact|11
 Observation/Combat.cs|Fact|2
 Observation/Construction.cs|Discard|3
 Observation/Construction.cs|Fact|26
@@ -975,7 +975,7 @@ Policy/LayoutTile.cs|Fact|2
 Policy/LayoutTileAirlock.cs|Fact|1
 Policy/LayoutTileVent.cs|Fact|2
 Policy/LedgerMaterialChoices.cs|Fact|10
-Policy/Lighting.cs|Fact|36
+Policy/Lighting.cs|Fact|29
 Policy/Lighting.cs|UnknownMember|1
 Policy/Lighting.cs|Unknown|1
 Policy/LootRelease.cs|Fact|6
@@ -1231,7 +1231,6 @@ Policy/TendThreat.cs|Fact|2
 Policy/ThemePresets.cs|Discard|1
 Policy/ThemePresets.cs|NullableValue|6
 Policy/Throne.cs|Fact|7
-Policy/ThroneRefuel.cs|Fact|1
 Policy/TierStyle.cs|Discard|1
 Policy/TitleClaim.cs|Fact|17
 Policy/TitleClaim.cs|UnknownMember|1

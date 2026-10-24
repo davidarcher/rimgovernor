@@ -245,9 +245,14 @@ namespace HomeBridge.BridgeTools
             var home = NativeUpkeepFacts.ReadHomeCoverage(map);
             ObservationWork.Detail("cf.upkeep.home_coverage", System.Diagnostics.Stopwatch.GetTimestamp() - began);
             began = System.Diagnostics.Stopwatch.GetTimestamp();
-            var result = new Obs.UpkeepFacts { HomeCoverage = home, Comfort = ComfortFacts.ReadProtocol(map) };
+            var comfort = ComfortFacts.ReadProtocol(map);
             ObservationWork.Detail("cf.upkeep.comfort", System.Diagnostics.Stopwatch.GetTimestamp() - began);
-            result = NativeUpkeepFacts.Populate(map, things, result, routePathBudgetMs);
+            var sets = NativeUpkeepFacts.ThingSets.Of(map, things);
+            began = System.Diagnostics.Stopwatch.GetTimestamp();
+            var lighting = NativeUpkeepFacts.ReadLighting(map, sets);
+            ObservationWork.Detail("cf.upkeep.lighting", System.Diagnostics.Stopwatch.GetTimestamp() - began);
+            var result = new Obs.UpkeepFacts { HomeCoverage = home, Comfort = comfort, Lighting = lighting };
+            result = NativeUpkeepFacts.Populate(map, sets, result, routePathBudgetMs);
             foreach (var field in new[] { "construction", "storage_cells", "storage_capacity", "protected_cells", "hauling", "wall_removal" })
                 result = result with { Issues = [.. result.Issues, Issue(field, Common.UnavailableReason.Unsupported, "Upkeep section is not yet projected.")] };
             return new Obs.UpkeepSection { Outcome = result };

@@ -1,5 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
+using LightingCensus = RimGovernor.Contracts.Wire.Observations.LightingFacts;
+using WorkLightCell = RimGovernor.Contracts.Wire.Observations.WorkLightCell;
 
 namespace RimGovernor.Brain.Policy;
 
@@ -52,62 +54,48 @@ public sealed record LampDefinition
     public bool Powered { get; init; }
 }
 
-/// <summary>The native lighting census: every colonist bench's interaction cell with its measured glow, and every glowing fixture.</summary>
+/// <summary>
+/// The native lighting census (<see cref="Census"/>) joined with the building rows and catalog rows the lighting rules
+/// plan from: every glowing fixture with its def, cell, radius and service state, and the census's light-dying plants.
+/// </summary>
 public sealed record LightingObservation
 {
-    public IReadOnlyList<WorkLightCell> WorkCells { get; init; } = [];
-    public IReadOnlyList<Lamp> Lamps { get; init; } = [];
+    public required LightingCensus Census { get; init; }
 
-    public void Validate()
-    {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var c in WorkCells)
-        {
-            if (!FoodForecastRules.FoodId(c.Bench) || seen.Contains(c.Bench) || double.IsNaN(c.Glow) || c.Glow < 0 || c.Glow > 1)
-            {
-                throw new DomainException("invalid work light cell");
-            }
-            seen.Add(c.Bench);
-        }
-        var lamps = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var l in Lamps)
-        {
-            if (!FoodForecastRules.FoodId(l.Id) || lamps.Contains(l.Id) || double.IsNaN(l.Radius) || l.Radius < 0)
-            {
-                throw new DomainException("invalid lamp");
-            }
-            lamps.Add(l.Id);
-        }
-    }
-}
+    /// <summary>The census's plant defs that die to light (PlantProperties.diesToLight: cave fungus), from the catalog rows.</summary>
+    public required EquatableArray<string> DiesToLight { get; init; }
 
-public sealed record WorkLightCell
-{
-    public string Bench { get; init; } = "";
-    public Cell Cell { get; init; }
-    public double Glow { get; init; }
-    public bool Roofed { get; init; }
+    public required IReadOnlyList<Lamp> Lamps { get; init; }
 
     /// <summary>
-    /// Native's word that the cell's room grows a plant that dies to light (cave fungus); such a room is protected
-    /// and the cell is never a lighting deficit however dark it measures.
+    /// Whether <paramref name="cell"/>'s room grows a plant that dies to light; such a room is protected and the cell is
+    /// never a lighting deficit however dark it measures.
     /// </summary>
-    public bool LightSensitive { get; init; }
+    public bool LightSensitive(WorkLightCell cell) => cell.PlantDefs.Any(DiesToLight.Contains);
 }
 
+/// <summary>A census lamp joined with its building row and its def's glow radius.</summary>
 public sealed record Lamp
 {
-    public string Id { get; init; } = "";
-    public string Definition { get; init; } = "";
-    public Cell Cell { get; init; }
-    public double Radius { get; init; }
+    public required string Id { get; init; }
+    public required string Definition { get; init; }
+    public required Cell Cell { get; init; }
+    public required double Radius { get; init; }
 
     /// <summary>Native's own "currently emits light" flag, false while the fixture is unpowered, out of fuel, switched off or broken down.</summary>
-    public bool Lit { get; init; }
+    public required bool Lit { get; init; }
 
-    public Fact<bool> SwitchedOn { get; init; }
-    public Fact<bool> OutOfFuel { get; init; }
-    public Fact<bool> BrokenDown { get; init; }
+    public required bool SwitchedOn { get; init; }
+    public required bool BrokenDown { get; init; }
+    public required LampFuel Fuel { get; init; }
+}
+
+/// <summary>A lamp's fuel: it burns none (an electric lamp), it holds fuel, or it is out of fuel.</summary>
+public enum LampFuel
+{
+    Unfueled,
+    Fueled,
+    Empty,
 }
 
 /// <summary>
@@ -239,11 +227,10 @@ public static class LightingRules
         {
             throw new DomainException("outdoors darkness is unknown");
         }
-        v.Validate();
         var dark = new List<string>();
-        foreach (var c in v.WorkCells)
+        foreach (var c in v.Census.WorkCells)
         {
-            if ((c.Roofed || skyDark) && !c.LightSensitive && c.Glow < p.LitGlow)
+            if ((c.Roofed || skyDark) && !v.LightSensitive(c) && c.Glow < p.LitGlow)
             {
                 dark.Add(c.Bench);
             }
@@ -274,7 +261,6 @@ public static class LightingRules
         {
             return new LightingProposal { Method = LightingMethod.Unknown };
         }
-        v.Validate();
         var cells = new Dictionary<Cell, SiteCell>();
         foreach (var c in facts.Cells)
         {
@@ -290,7 +276,7 @@ public static class LightingRules
         }
         var work = new Dictionary<string, WorkLightCell>(StringComparer.Ordinal);
         var occupied = new HashSet<Cell>();
-        foreach (var c in v.WorkCells)
+        foreach (var c in v.Census.WorkCells)
         {
             work[c.Bench] = c;
             occupied.Add(c.Cell);
@@ -401,27 +387,23 @@ public static class LightingRules
     private static LightingMethod FirstLightingReason(LightingMethod current, LightingMethod next) =>
         current == LightingMethod.None || current == LightingMethod.Unknown ? next : current;
 
-    /// <summary>Classifies why an in-range lamp is dark, most specific first. Unknown service facts fall through to the generic power outcome.</summary>
+    /// <summary>Classifies why an in-range lamp is dark, most specific first; an unfueled lamp that is neither broken nor switched off needs power.</summary>
     private static LightingMethod LampService(Lamp l)
     {
-        if (l.BrokenDown.TryGetValue(out var broken) && broken)
+        if (l.BrokenDown)
         {
             return LightingMethod.RepairNeeded;
         }
-        if (l.OutOfFuel.TryGetValue(out var outOfFuel) && outOfFuel)
+        if (l.Fuel == LampFuel.Empty)
         {
             return LightingMethod.FuelNeeded;
         }
-        if (l.SwitchedOn.TryGetValue(out var on) && !on)
+        if (!l.SwitchedOn)
         {
             return LightingMethod.SwitchedOff;
         }
-        if (l.OutOfFuel.IsKnown)
-        {
-            // A fueled lamp with fuel that still does not glow is refuel scheduling, not construction.
-            return LightingMethod.FuelNeeded;
-        }
-        return LightingMethod.PowerNeeded;
+        // A fueled lamp with fuel that still does not glow is refuel scheduling, not construction.
+        return l.Fuel == LampFuel.Fueled ? LightingMethod.FuelNeeded : LightingMethod.PowerNeeded;
     }
 
     /// <summary>

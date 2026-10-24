@@ -497,13 +497,14 @@ under it; it has no latch, and unknown temperature or room facts leave it unknow
 ### Lighting and flooring
 
 `rooms/lighting` is a plain threshold over measured ground glow at each work table and research bench
-interaction cell (`UpkeepFacts.lighting`, with every glowing fixture's radius, lit flag and
-service state).
+interaction cell (`UpkeepFacts.lighting`, a total `LightingFacts` record the native read builds
+whole or throws, with every glowing fixture's lit flag; the brain joins each fixture's radius and
+service state from the catalog and building rows).
 
 - A roofed work cell under 0.3 marks its bench dark. Unroofed cells are ignored except under an
   eclipse (`policy.EclipseHold`), when every cell is measured and such benches clear after
-  it ends. An unknown census or sky reads the Need unknown. A cell whose room grows a light-sensitive
-  plant (`WorkLightCell.light_sensitive`) is never dark.
+  it ends. A cell whose room grows a plant that dies to light (`WorkLightCell.plantDefs`
+  against the catalog's `diesToLight`) is never dark.
 - The method first looks for a fixture reaching the cell: one not lit defers
   (`lamp_power_needed`, `lamp_fuel_needed`, `lamp_repair_needed`, `lamp_switched_off`); a lit
   one within placement radius that leaves the cell dark is blocked; one reaching only from

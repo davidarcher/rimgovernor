@@ -84,11 +84,37 @@ namespace HomeBridge.BridgeTools
             };
         }
 
+        // The lighting census, read whole: a failed read throws and the upkeep section fails with it (#3831).
+        // Work cells are the interaction cells of colonist benches (work tables and research benches): the cell a
+        // pawn stands on while working, which is what RimWorld's darkness penalties measure.
+        internal static Obs.LightingFacts ReadLighting(Map map, ThingSets sets)
+        {
+            var benches = sets.PlayerBuildings.Where(b => b.def.hasInteractionCell
+                && (b is Building_WorkTable || b is Building_ResearchBench)).OrderBy(b => b.thingIDNumber);
+            var lamps = sets.PlayerBuildings.Where(b => b.TryGetComp<CompGlower>() != null).OrderBy(b => b.thingIDNumber);
+            return new Obs.LightingFacts {
+                WorkCells = [.. benches.Select(b => {
+                    var cell = b.InteractionCell;
+                    return new Obs.WorkLightCell(Id(b.GetUniqueLoadID()), Spot(cell), Number(map.glowGrid.GroundGlowAt(cell)), cell.Roofed(map), [.. PlantDefs(map, cell)]);
+                })],
+                Lamps = [.. lamps.Select(b => new Obs.LampState(Id(b.GetUniqueLoadID()), b.TryGetComp<CompGlower>().Glows))]
+            };
+        }
+
+        // The plants a proper room grows, standing or set in its growing zones: the brain reads which die to light
+        // (cave fungus) off their def rows. Outside a proper room there are none.
+        private static IEnumerable<string> PlantDefs(Map map, IntVec3 cell)
+        {
+            var room = cell.GetRoom(map);
+            if (room == null || !room.ProperRoom) return Enumerable.Empty<string>();
+            return room.Cells.SelectMany(c => new[] { c.GetPlant(map)?.def, (c.GetZone(map) as Zone_Growing)?.GetPlantDefToGrow() })
+                .Where(d => d?.plant != null).Select(d => d!.defName).Distinct().OrderBy(n => n, StringComparer.Ordinal);
+        }
+
         private static DomainCell Spot(IntVec3 c) => new DomainCell(c.x, c.z);
 
-        internal static Obs.UpkeepFacts Populate(Map map, List<Thing> things, Obs.UpkeepFacts result, uint? routePathBudgetMs = null)
+        internal static Obs.UpkeepFacts Populate(Map map, ThingSets sets, Obs.UpkeepFacts result, uint? routePathBudgetMs = null)
         {
-            var sets = ThingSets.Of(map, things);
             // The sections below rebind the captured `result` (records are immutable).
             void Read(string field, Action read)
             {
@@ -140,37 +166,6 @@ namespace HomeBridge.BridgeTools
                     Home = b.OccupiedRect().All(c => map.areaManager.Home[c])
                 }).ToList();
                 result = result with { Structures = [.. result.Structures, .. values] };
-            });
-            Read("lighting", () => {
-                // Work cells are the interaction cells of colonist benches (work
-                // tables and research benches): the cell a pawn stands on while
-                // working, which is what RimWorld's darkness penalties measure.
-                var benches = sets.PlayerBuildings.Where(b => b.def.hasInteractionCell
-                    && (b is Building_WorkTable || b is Building_ResearchBench)).OrderBy(b => b.thingIDNumber).ToList();
-                var lamps = sets.PlayerBuildings.Where(b => b.TryGetComp<CompGlower>() != null)
-                    .OrderBy(b => b.thingIDNumber).ToList();
-                var facts = new Obs.LightingFacts();
-                foreach (var b in benches) {
-                    var cell = b.InteractionCell;
-                    var row = new Obs.WorkLightCell { Bench = NativeBuildingObservationTools.Ref(b), Cell = Cell(cell), Glow = Number(map.glowGrid.GroundGlowAt(cell)), Roofed = cell.Roofed(map) };
-                    var room = cell.GetRoom(map);
-                    if (room != null)
-                    {
-                        // The plants a proper room grows, standing or set in its
-                        // growing zones: the brain reads which die to light (cave
-                        // fungus) off their def rows.
-                        if (room.ProperRoom)
-                            row = row with { PlantDefs = [.. row.PlantDefs, .. room.Cells.SelectMany(c => new[] { c.GetPlant(map)?.def, (c.GetZone(map) as Zone_Growing)?.GetPlantDefToGrow() })
-                                .Where(d => d?.plant != null).Select(d => d!.defName).Distinct().OrderBy(n => n, StringComparer.Ordinal)] };
-                    }
-                    facts = facts with { WorkCells = [.. facts.WorkCells, row] };
-                }
-                foreach (var b in lamps) {
-                    var glower = b.TryGetComp<CompGlower>();
-                    var row = new Obs.LampState { Building = NativeBuildingObservationTools.Ref(b), Lit = glower.Glows };
-                    facts = facts with { Lamps = [.. facts.Lamps, row] };
-                }
-                result = result with { Lighting = new Obs.LightingSection { Outcome = facts } };
             });
             Read("flooring", () => {
                 // Every proper indoor room the colony lives in (any cell in
