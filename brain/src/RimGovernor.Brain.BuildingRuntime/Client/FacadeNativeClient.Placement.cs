@@ -215,7 +215,7 @@ public sealed partial class FacadeNativeClient
                 safeToPlace = Fact.Known(safe);
                 foreach (var material in known.Rows)
                 {
-                    stocks.Add(new Stock(new Resource(material.DefName ?? ""), material.Available is { } available ? Fact.Known((long)available) : Fact.Unknown<long>()));
+                    stocks.Add(new Stock(new Resource(material.DefName), material.Available));
                 }
             }
             else if (!safe)

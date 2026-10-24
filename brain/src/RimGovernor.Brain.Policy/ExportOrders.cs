@@ -111,9 +111,9 @@ internal sealed class HorizonGuard
         _runways = runways;
         foreach (var s in supply)
         {
-            if (s.Available.TryGetValue(out var have) && have >= 0)
+            if (s.Available >= 0)
             {
-                _have[s.Resource] = have;
+                _have[s.Resource] = s.Available;
             }
         }
         foreach (var (r, n) in draws)

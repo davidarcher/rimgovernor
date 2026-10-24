@@ -203,19 +203,17 @@ public static class FoodPlanRules
                 TargetDays = r.TargetDays,
                 EmergencyDays = r.EmergencyDays,
             });
-            var req = new SupplyPlanRequest { Demands = Known<EquatableArray<SupplyDemand>>([demand]), Labor = r.Labor, Candidates = Unknown<EquatableArray<SupplyCandidate>>() };
-            if (r.Channels.TryGetValue(out var rows))
+            // The supply plan budgets known channels against a known labor budget: either unread fails the food plan.
+            var rows = r.Channels.TryGetValue(out var channels) ? channels : throw new FoodPlanFactsException();
+            var labor = r.Labor.TryGetValue(out var budget) ? budget : throw new FoodPlanFactsException();
+            foreach (var c in rows)
             {
-                foreach (var c in rows)
+                if (!ValidFoodChannelKind(c.Kind) || c.Yields.Count == 0 || c.Yields[0].Good != SupplyPlanRules.NutritionKey)
                 {
-                    if (!ValidFoodChannelKind(c.Kind) || c.Yields.Count == 0 || c.Yields[0].Good != SupplyPlanRules.NutritionKey)
-                    {
-                        throw new FoodPlanFactsException();
-                    }
+                    throw new FoodPlanFactsException();
                 }
-                req = req with { Candidates = Known(rows) };
             }
-            plan = SupplyPlanRules.PlanSupply(req);
+            plan = SupplyPlanRules.PlanSupply(new SupplyPlanRequest { Demands = [demand], Candidates = rows, Labor = labor });
         }
         catch (DomainException e) when (e is not FoodPlanFactsException)
         {

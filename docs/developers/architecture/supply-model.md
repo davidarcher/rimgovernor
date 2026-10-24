@@ -106,11 +106,10 @@ charged once however many yields it has: a deer's meat counts toward Nutrition
 and its leather toward Leather under one charge. The labor budget
 (`workers * 20000` ticks per day) is shared by every demand.
 
-Unknown labor returns a usable plan: new commitments Hold with
-`unknown_capacity`, including candidates with zero estimated cost. Existing
-designations remain committed without gaining delivery credit; observed delivery
-and independently established surplus closure remain available. Labor-excess
-terms require a known budget. Known zero is an exhausted budget, not uncertainty.
+The request is read whole (#3877): demands, candidates and the labor budget are
+plain, and a planner without a read budget throws before it plans (the food plan
+throws `FoodPlanFactsException`, resource supply `RequiredFactException`). Known
+zero is an exhausted budget.
 
 Resource supply uses pure `ResidualSupplyLabor`: effective workers times 20000,
 less each selected or retained food commitment's `LaborPerDay`, floored at zero
@@ -146,8 +145,7 @@ credit (`uncredited_until_delivered`) until it delivers.
 Hold reasons are stable words: `no risk-adjusted <good>`, `lead exceeds
 runway`, `target covered`, `labor budget`, `no_demand`, `no_storage_headroom`,
 `competing_urgent_work` (urgent work stands and no matched demand is an emergency),
-`unknown: <facts>` for a candidate missing a fact and `unknown_demand_or_cost`
-when the demand itself is unknown. Explain terms are `risk_discount`,
+`unknown: <facts>` for a candidate missing a fact. Explain terms are `risk_discount`,
 `<good>_per_day` (`<good>_units` for a stock demand), `work_per_day`,
 `lead_days`, `target_cover` and `labor_excess`.
 

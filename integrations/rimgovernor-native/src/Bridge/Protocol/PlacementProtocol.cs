@@ -101,8 +101,8 @@ namespace HomeBridge.BridgeTools
             {
                 if (!ProtoBoundary.IsIdentifier(row.defName) || row.available < 0)
                     throw new InvalidOperationException("Invalid native material stock.");
-                var stock = new Wire.PlacementMaterialStock { DefName = row.defName };
-                if (row.available.HasValue) stock = stock with { Available = row.available.Value };
+                // A complete scan counts every row; a row with no count marks the scan unreadable above.
+                var stock = new Wire.PlacementMaterialStock { DefName = row.defName, Available = row.available ?? throw new InvalidOperationException("Uncounted native material stock.") };
                 known = known with { Rows = [.. known.Rows, stock] };
             }
             return known;

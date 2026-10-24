@@ -359,7 +359,7 @@ public static partial class RecoveryRules
 
     /// <summary>
     /// The resources below their effective stock target (the targets carry the derived resource needs): the
-    /// short set tier 2 ranks by. An unknown demand leaves none short. Throws on an invalid demand.
+    /// short set tier 2 ranks by. An unread stock census leaves none short. Throws on an invalid demand.
     /// </summary>
     private static HashSet<Resource> RecoveryShortResources(RoundsPolicy p, RoundsFacts f)
     {
@@ -374,29 +374,25 @@ public static partial class RecoveryRules
                 }
             }
         }
-        var input = new ResourceDemandInput { EconomicFloors = new Dictionary<string, long>(), Targets = EquatableArray.From(targets) };
-        if (f.Resources.TryGetValue(out var stock))
-        {
-            var rows = new List<ResourceQuantity>();
-            foreach (var amount in stock)
-            {
-                if (amount.Count > 0)
-                {
-                    rows.Add(new ResourceQuantity { Key = new ResourceKey { Def = amount.Resource }, Count = amount.Count });
-                }
-            }
-            input = input with { Stock = Known(EquatableArray.From(rows)) };
-        }
-        var demand = ResourceRules.BuildResourceDemand(input);
         var output = new HashSet<Resource>();
-        if (demand.TryGetValue(out var demandRows))
+        if (!f.Resources.TryGetValue(out var stock))
         {
-            foreach (var d in demandRows)
+            return output;
+        }
+        var rows = new List<ResourceQuantity>();
+        foreach (var amount in stock)
+        {
+            if (amount.Count > 0)
             {
-                if (d.Count > 0)
-                {
-                    output.Add(d.Key.Def);
-                }
+                rows.Add(new ResourceQuantity { Key = new ResourceKey { Def = amount.Resource }, Count = amount.Count });
+            }
+        }
+        var input = new ResourceDemandInput { EconomicFloors = new Dictionary<string, long>(), Targets = EquatableArray.From(targets), Stock = EquatableArray.From(rows) };
+        foreach (var d in ResourceRules.BuildResourceDemand(input))
+        {
+            if (d.Count > 0)
+            {
+                output.Add(d.Key.Def);
             }
         }
         return output;

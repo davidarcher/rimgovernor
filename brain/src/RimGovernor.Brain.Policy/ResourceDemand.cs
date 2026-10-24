@@ -28,7 +28,7 @@ public sealed record ResourceDemand
 /// <summary>
 /// Combines acquisition targets and economic stock floors. EconomicFloors is EconomicReserves's result;
 /// PlannedConstruction must exclude commitments already included in those floors and materials already
-/// delivered. Stock is a complete usable census: an absent key means zero only when known. Pending
+/// delivered. Stock is a complete usable census: an absent key means zero. Pending
 /// acquisition is not stock and cannot certify a satisfied shortage.
 /// </summary>
 public sealed record ResourceDemandInput
@@ -39,7 +39,7 @@ public sealed record ResourceDemandInput
 
     public EquatableArray<ResourceDemand> PlannedConstruction { get; init; }
 
-    public Fact<EquatableArray<ResourceQuantity>> Stock { get; init; }
+    public required EquatableArray<ResourceQuantity> Stock { get; init; }
 }
 
 public static partial class ResourceRules
@@ -73,10 +73,8 @@ public static partial class ResourceRules
     /// Exact-stuff obligations take precedence over any-stuff obligations. Output is canonical and contains no zero rows. Throws
     /// <see cref="DomainException"/> on invalid input.
     /// </summary>
-    public static Fact<EquatableArray<ResourceDemand>> BuildResourceDemand(ResourceDemandInput input)
+    public static EquatableArray<ResourceDemand> BuildResourceDemand(ResourceDemandInput input)
     {
-        var unknown = Unknown<EquatableArray<ResourceDemand>>();
-        var known = input.Stock.TryGetValue(out var stock);
         var wanted = new Dictionary<ResourceKey, ResourceDemand>();
         foreach (var target in input.Targets)
         {
@@ -129,7 +127,7 @@ public static partial class ResourceRules
             wanted[planned.Key] = merged;
         }
         var available = new Dictionary<ResourceKey, long>();
-        foreach (var s in known ? stock : default)
+        foreach (var s in input.Stock)
         {
             if (!ValidAcquisitionKey(s.Key) || !ValidAcquisitionCount(s.Count))
             {
@@ -139,10 +137,6 @@ public static partial class ResourceRules
             {
                 throw new DomainException("duplicate acquisition stock");
             }
-        }
-        if (!known)
-        {
-            return unknown;
         }
         var keys = wanted.Keys.OrderBy(k => k, Comparer<ResourceKey>.Create((a, b) => AcquisitionKeyLess(a, b) ? -1 : AcquisitionKeyLess(b, a) ? 1 : 0)).ToList();
         var remainingByDef = new Dictionary<Resource, long>();
@@ -167,6 +161,6 @@ public static partial class ResourceRules
                 result.Add(d);
             }
         }
-        return Known(EquatableArray.From(result));
+        return EquatableArray.From(result);
     }
 }

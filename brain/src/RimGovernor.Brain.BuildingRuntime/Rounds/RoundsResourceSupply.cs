@@ -390,10 +390,11 @@ public sealed partial class Rounder
 
 public sealed partial class RoundsResourcePlanner
 {
-    internal static Fact<double> ResourceLabor(ColonyProjection p)
+    /// <summary>The labor the food plan leaves the resource supply; the planner needs it read (RequiredFactException).</summary>
+    internal static double ResourceLabor(ColonyProjection p)
     {
         var workers = p.WorkPawns.TryGetValue(out var pawns) ? ResearchRules.RoundsWorkers(pawns) : Known(p.Workers);
-        return ResourceRules.ResidualSupplyLabor(workers, p.Facts.FoodPlan);
+        return ResourceRules.ResidualSupplyLabor(workers, p.Facts.FoodPlan).TryGetValue(out var labor) ? labor : throw new RequiredFactException("resource supply labor");
     }
 
     internal static (Fact<int> Slots, bool NoHunter) HuntSlots(ColonyProjection projection)

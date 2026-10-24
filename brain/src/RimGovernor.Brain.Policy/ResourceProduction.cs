@@ -99,7 +99,6 @@ public enum ResourceMethodKind
 {
     [WireName("")]
     None = 0,
-    Unknown,
     Recovered,
     Produce,
     [WireName("wait_for_existing_work")]
@@ -413,13 +412,14 @@ public static partial class ResourceRules
     /// chose rather than one hardcoded definition. It covers only the bench/recipe production path of the
     /// resource method; a resource no standing bench makes is produced by a catalog recipe with no bench (Crafts,
     /// #3659), and one with no producing recipe at all and no covering bill is simply Blocked. It
-    /// issues no game orders and does not reserve resources. Throws <see cref="DomainException"/> on an invalid history.
+    /// issues no game orders and does not reserve resources. Throws <see cref="DomainException"/> on an invalid request,
+    /// history or bill id.
     /// </summary>
     public static ResourceMethod SelectResourceMethod(ResourceMethodRequest r)
     {
         if (!AdmissionRules.ValidResource(r.Resource) || r.Target <= 0 || r.Target > int.MaxValue)
         {
-            return new ResourceMethod { Kind = ResourceMethodKind.Unknown };
+            throw new DomainException($"invalid resource method request \"{r.Resource}\" x{r.Target}");
         }
         var seen = new HashSet<MethodId>();
         foreach (var id in r.Seen)
@@ -458,8 +458,8 @@ public static partial class ResourceRules
                 {
                     return new ResourceMethod { Kind = ResourceMethodKind.Wait };
                 }
-                // A matching bill with an unreadable state or id leaves the method unknown; the first inactive
-                // one is the one the native replacement operation reuses.
+                // A matching bill with no id is an invalid census; the first inactive one is the one the native
+                // replacement operation reuses.
                 foreach (var bill in b.Bills)
                 {
                     if (bill.Recipe != recipe.Definition)
@@ -468,7 +468,7 @@ public static partial class ResourceRules
                     }
                     if (!FoodForecastRules.FoodId(bill.Id))
                     {
-                        return new ResourceMethod { Kind = ResourceMethodKind.Unknown };
+                        throw new DomainException($"invalid bill id on bench \"{b.Id}\"");
                     }
                     if (!bill.Active)
                     {

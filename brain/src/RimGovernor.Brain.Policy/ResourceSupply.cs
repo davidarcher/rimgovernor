@@ -68,7 +68,7 @@ public static partial class ResourceRules
     /// day; what the food plan leaves of workers * 20000). A candidate listed under two resources keeps its
     /// first listing.
     /// </summary>
-    public static ResourceSupply PlanResourceSupply(IReadOnlyList<ResourceSupplyInput> inputs, Fact<double> labor)
+    public static ResourceSupply PlanResourceSupply(IReadOnlyList<ResourceSupplyInput> inputs, double labor)
     {
         var demands = new List<SupplyDemand>();
         var candidates = new List<SupplyCandidate>();
@@ -106,8 +106,8 @@ public static partial class ResourceRules
         var spendable = keys.Select(k => new ResourceQuantity { Key = k, Count = usable[k] }).ToList();
         var plan = SupplyPlanRules.PlanSupply(new SupplyPlanRequest
         {
-            Demands = Known(EquatableArray.From(demands)),
-            Candidates = Known(EquatableArray.From(candidates)),
+            Demands = EquatableArray.From(demands),
+            Candidates = EquatableArray.From(candidates),
             Labor = labor,
             Usable = EquatableArray.From(spendable),
         });

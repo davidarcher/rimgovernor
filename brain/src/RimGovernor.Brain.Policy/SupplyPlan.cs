@@ -59,11 +59,11 @@ public sealed record NutritionDemandInput
 /// </summary>
 public sealed record SupplyPlanRequest
 {
-    public Fact<EquatableArray<SupplyDemand>> Demands { get; init; }
+    public required EquatableArray<SupplyDemand> Demands { get; init; }
 
-    public Fact<EquatableArray<SupplyCandidate>> Candidates { get; init; }
+    public required EquatableArray<SupplyCandidate> Candidates { get; init; }
 
-    public Fact<double> Labor { get; init; }
+    public required double Labor { get; init; }
 
     public bool Urgent { get; init; }
 
@@ -396,19 +396,17 @@ public static partial class SupplyPlanRules
     ///
     /// Delivering candidates keep their observed contribution even over the labor budget (the excess is a Hold
     /// with a labor_excess term), and a strict surplus closes the least efficient first. Closed candidates over
-    /// budget add nothing. Unknown labor holds new commitments without changing observed delivery or reporting
-    /// numeric labor excess; independently established surplus still closes.
+    /// budget add nothing.
     /// </summary>
     public static SupplyPlan PlanSupply(SupplyPlanRequest r)
     {
-        var known = r.Candidates.TryGetValue(out var rows);
-        var lk = r.Labor.TryGetValue(out var labor);
-        var dk = r.Demands.TryGetValue(out var demandRows);
-        if (!known || (lk && !FoodForecastRules.FoodNumber(labor)))
+        var rows = r.Candidates;
+        var labor = r.Labor;
+        if (!FoodForecastRules.FoodNumber(labor))
         {
             throw new SupplyPlanFactsException();
         }
-        var demands = new List<SupplyDemand>(dk ? demandRows! : []);
+        var demands = new List<SupplyDemand>(r.Demands);
         demands.Sort((a, b) => AcquisitionKeyCompare(a.Good, b.Good));
         for (var i = 0; i < demands.Count; i++)
         {
@@ -444,7 +442,7 @@ public static partial class SupplyPlanRules
         var unknown = new List<SupplyEntry>();
         var cands = new List<SupplyCand>();
         var identities = new HashSet<(CandidateKind, string)>();
-        foreach (var row in rows!)
+        foreach (var row in rows)
         {
             var (c, missing) = NewSupplyCand(row, identities);
             foreach (var q in c.C.UpfrontCost.Resources)
@@ -454,13 +452,9 @@ public static partial class SupplyPlanRules
                     missing.Add(GoodName(q.Key) + "_usable");
                 }
             }
-            if (missing.Count > 0 || !dk)
+            if (missing.Count > 0)
             {
                 c.Entry.Reason = "unknown: " + string.Join(", ", missing);
-                if (!dk)
-                {
-                    c.Entry.Reason = "unknown_demand_or_cost";
-                }
                 unknown.Add(c.Entry);
                 continue;
             }
@@ -518,14 +512,10 @@ public static partial class SupplyPlanRules
         {
             if (c.Open)
             {
-                if (c.Entry.Decision != SupplyDecision.Close && lk && used > labor)
+                if (c.Entry.Decision != SupplyDecision.Close && used > labor)
                 {
                     c.Entry.AddTerm("labor_excess", used - labor);
                 }
-            }
-            else if (!lk)
-            {
-                c.Entry.Reason = "unknown_capacity";
             }
             else
             {

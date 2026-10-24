@@ -109,8 +109,7 @@ public static class AcquisitionCatalogRules
     /// <summary>
     /// Per supplied ingredient, the stock a bill may spend: the usable census (Available), or the runway row's
     /// own stock when lower, less the protected line: the row's reserve plus its observed use over the
-    /// projection horizon, and nothing for an ingredient without a row or with an unread rate. An ingredient
-    /// whose census is unobserved is left out, so a bill that draws on it is unknown. Prospective ore never
+    /// projection horizon, and nothing for an ingredient without a row or with an unread rate. Prospective ore never
     /// funds a bill.
     /// </summary>
     public static IReadOnlyList<ResourceQuantity> UsableIngredients(IReadOnlyList<ResourceRunway> runways, IEnumerable<Stock> supply)
@@ -118,7 +117,8 @@ public static class AcquisitionCatalogRules
         var output = new List<ResourceQuantity>();
         foreach (var s in supply)
         {
-            if (!s.Available.TryGetValue(out var have) || have < 0)
+            var have = s.Available;
+            if (have < 0)
             {
                 continue;
             }

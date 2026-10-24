@@ -502,14 +502,14 @@ public sealed partial class RoundsFieldPlanner
 
     internal static bool FieldAffordable(IReadOnlyDictionary<Resource, long> spent, Preview v, StockObservation stock)
     {
-        var available = new Dictionary<Resource, Fact<long>>();
+        var available = new Dictionary<Resource, long>();
         foreach (var s in stock.Values)
         {
             available[s.Resource] = s.Available;
         }
         foreach (var cost in FieldCosts(v))
         {
-            if (available.TryGetValue(cost.Resource, out var fact) && fact.TryGetValue(out var have) && spent.GetValueOrDefault(cost.Resource) + cost.Count > have)
+            if (available.TryGetValue(cost.Resource, out var have) && spent.GetValueOrDefault(cost.Resource) + cost.Count > have)
             {
                 return false;
             }

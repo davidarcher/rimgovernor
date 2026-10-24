@@ -105,7 +105,7 @@ partial class RoundsBuildingPlanner
             }
             if (index.TryGetValue(v.Resource, out var at))
             {
-                values[at] = values[at] with { Available = LowerStock(values[at].Available, v.Available) };
+                values[at] = values[at] with { Available = Math.Min(values[at].Available, v.Available) };
             }
             else
             {
@@ -116,12 +116,4 @@ partial class RoundsBuildingPlanner
         return stock with { NativeConstruction = nativeConstruction, Values = [.. values] };
     }
 
-    internal static Fact<long> LowerStock(Fact<long> a, Fact<long> b)
-    {
-        if (!a.TryGetValue(out var x) || !b.TryGetValue(out var y))
-        {
-            return Unknown<long>();
-        }
-        return Known<long>(Math.Min(x, y));
-    }
 }

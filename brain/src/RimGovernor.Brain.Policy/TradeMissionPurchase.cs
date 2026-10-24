@@ -198,9 +198,9 @@ public static partial class TradePolicyRules
         var plan = SupplyPlanRules.PlanSupply(
             new SupplyPlanRequest
             {
-                Demands = Known(EquatableArray.From(demands)),
-                Candidates = Known(EquatableArray.From(candidates)),
-                Labor = Known(m.SilverBudget * AcquisitionCatalogRules.TradeLaborPerSilver),
+                Demands = EquatableArray.From(demands),
+                Candidates = EquatableArray.From(candidates),
+                Labor = m.SilverBudget * AcquisitionCatalogRules.TradeLaborPerSilver,
             }
         );
         var lines = new List<TradeLine>();

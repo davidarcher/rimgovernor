@@ -36,7 +36,7 @@ public sealed record Amount(Resource Resource, long Count)
     }
 }
 
-public sealed record Stock(Resource Resource, Fact<long> Available);
+public sealed record Stock(Resource Resource, long Available);
 
 public readonly record struct Bounds(int Width, int Height);
 
@@ -283,10 +283,7 @@ public static class AdmissionRules
         foreach (var stock in r.Stock.Values)
         {
             DomainException.Require(ValidResource(stock.Resource) && resources.Add(stock.Resource), "invalid or duplicate stock resource");
-            if (stock.Available.TryGetValue(out var n))
-            {
-                DomainException.Require(n >= 0, "negative stock");
-            }
+            DomainException.Require(stock.Available >= 0, "negative stock");
         }
 
         return new Input(r with { Candidates = EquatableArray.From(candidates), Held = EquatableArray.From(held) });

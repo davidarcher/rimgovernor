@@ -81,7 +81,7 @@ public sealed partial class FacadeNativeClient
         {
             if (!seenOut.Contains(name))
             {
-                stocks.Add(new P.Stock(new P.Resource(name), Fact.Known(0L)));
+                stocks.Add(new P.Stock(new P.Resource(name), 0));
             }
         }
         return stocks;
@@ -104,7 +104,7 @@ public sealed partial class FacadeNativeClient
         foreach (var row in snapshot.Stocks)
         {
             seenOut.Add(row.DefName);
-            output.Add(new P.Stock(new P.Resource(row.DefName), Fact.Known(row.OursUnforbidden)));
+            output.Add(new P.Stock(new P.Resource(row.DefName), row.OursUnforbidden));
         }
     }
 

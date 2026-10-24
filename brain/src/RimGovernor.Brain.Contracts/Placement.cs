@@ -166,12 +166,12 @@ public sealed record PlacementMaterials
 
 public sealed record PlacementMaterialStock
 {
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
     /// <summary>
-    /// Absent means unknown; a present zero is known empty stock.
+    /// The unforbidden, unclaimed count; zero is known empty stock. An incomplete scan sends no materials at all.
     /// </summary>
-    public int? Available { get; init; }
+    public required int Available { get; init; }
 }
 
 public sealed record PlacementRotation
