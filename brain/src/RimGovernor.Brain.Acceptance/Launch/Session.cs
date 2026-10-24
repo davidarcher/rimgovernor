@@ -206,7 +206,7 @@ public static class GameSessions
 
     /// <summary>
     /// Waits until the game serves its channel: the process is alive, its endpoint file names it, <c>GET /api/health</c>
-    /// answers and a first native read gets a reply (a refusal counts: the game answered). <paramref name="budget"/> counts
+    /// answers and a first native read gets a reply (a refusal, or NotLoaded from a game at the menu, counts: the game answered). <paramref name="budget"/> counts
     /// from the game's launch, not from this call, and every connect gets at least <see cref="AttachBudget"/>: a kept game
     /// that is alive but answers nothing fails in seconds rather than at the boot budget. A process that exits meanwhile
     /// fails the connect at once with its exit code and the end of its log.
@@ -256,7 +256,7 @@ public static class GameSessions
     }
 
     /// <summary>One readiness round, bounded by <paramref name="round"/>: null when the channel answers, else why not.</summary>
-    private static async Task<string?> ProbeAsync(HttpNativeTransport transport, HttpClient http, string address, CancellationToken round, CancellationToken cancellationToken)
+    internal static async Task<string?> ProbeAsync(HttpNativeTransport transport, HttpClient http, string address, CancellationToken round, CancellationToken cancellationToken)
     {
         try
         {
@@ -285,9 +285,9 @@ public static class GameSessions
                 round).ConfigureAwait(false);
             return null;
         }
-        catch (Exception e) when (e is NativeRefusedException or NativeFailureException or BridgeUnavailableException)
+        catch (Exception e) when (e is NativeRefusedException or NativeFailureException or NotLoadedException)
         {
-            // The game answered, which is all a connect asks: a game still at the menu answers NotLoaded.
+            // The game answered, which is all a connect asks: a game still at the menu answers NotLoaded (#3821).
             return null;
         }
         catch (NativeTransportException e)

@@ -217,6 +217,31 @@ public sealed class AcceptanceFailFastTests : IDisposable
     }
 
     [Fact]
+    public async Task ConnectProbeCountsAGameAtTheMenuAnsweringNotLoadedAsConnected()
+    {
+        // #3821: since #3761 an identity read on a game still at the main menu is a 503 NotLoaded, not an unloaded arm.
+        var transport = Transport(_ => Unavailable(nameof(RimGovernor.Contracts.Wire.Common.UnavailableReason.NotLoaded)));
+        using var http = new HttpClient(new Handler(_ => Reply(HttpStatusCode.OK)));
+
+        var problem = await GameSessions.ProbeAsync(transport, http, "http://127.0.0.1:1", TestContext.Current.CancellationToken, TestContext.Current.CancellationToken);
+
+        Assert.Null(problem);
+    }
+
+    [Fact]
+    public async Task ConnectProbeDoesNotSwallowAnotherUnavailableReason()
+    {
+        var transport = Transport(_ => Unavailable(nameof(RimGovernor.Contracts.Wire.Common.UnavailableReason.ReadFailed)));
+        using var http = new HttpClient(new Handler(_ => Reply(HttpStatusCode.OK)));
+
+        _ = await Assert.ThrowsAsync<RimGovernor.Brain.Bridge.Contracts.NativeUnavailableException>(() =>
+            GameSessions.ProbeAsync(transport, http, "http://127.0.0.1:1", TestContext.Current.CancellationToken, TestContext.Current.CancellationToken));
+    }
+
+    private static HttpResponseMessage Unavailable(string reason) =>
+        new((HttpStatusCode)NativeRoutes.UnavailableStatus) { Content = new StringContent($$"""{"code":"{{reason}}","detail":"No current colony map is loaded."}""") };
+
+    [Fact]
     public void HeldClockFailsTheRateGuardAfterOneWindow()
     {
         var rate = new ClockRate(30, TimeSpan.FromSeconds(60));
