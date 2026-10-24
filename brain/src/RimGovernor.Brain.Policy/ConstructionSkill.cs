@@ -18,18 +18,11 @@ public static class ConstructionSkillRules
         var found = false;
         foreach (var pawn in workers)
         {
-            var ak = pawn.Applies.TryGetValue(out var applies);
-            var vk = pawn.ConstructionAble.TryGetValue(out var available);
-            if ((ak && !applies) || (vk && !available))
+            if (!pawn.ConstructionAble || pawn.Work is not PawnWorkTable.Works { Rows: var work })
             {
                 continue;
             }
-            var sk = pawn.Skills.TryGetValue(out var skills);
-            var pk = pawn.Work.TryGetValue(out var work);
-            if (!ak || !vk || !sk || !pk)
-            {
-                return [];
-            }
+            var skills = pawn.Skills;
             var profile = PawnRules.BuildProfile(pawn);
             if (profile.Forbidden(WorkType.Construction) || profile.Incapable.GetValueOrDefault(WorkType.Construction))
             {

@@ -7,24 +7,30 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class WorkOccupancyTests
 {
-    private static WorkPawn Pawn(string id, int cooking = 10, int building = 10) => new()
+    private static WorkPawn Pawn(string id, int cooking = 10, int building = 10) => PawnFixtures.Worker(id) with
     {
-        Id = new RimGovernor.Brain.Domain.PawnId(id), Available = Known(true), Applies = Known(true),
-        Manual = Known(true), Ranged = Known(false), Job = Known(new PawnJob()),
-        Schedule = Known(EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))),
-        Skills = Known<EquatableArray<WorkSkill>>([
-            new() { Name = "Cooking", Level = cooking }, new() { Name = "Construction", Level = building }]),
-        Work = Known<EquatableArray<WorkPriority>>([
+        Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24)),
+        Skills = [new() { Name = "Cooking", Level = cooking }, new() { Name = "Construction", Level = building }],
+        Work = new PawnWorkTable.Works(true, [
             new() { Work = WorkType.Cooking, Skill = "Cooking", Order = 10, Priority = 3 },
             new() { Work = WorkType.Construction, Skill = "Construction", Order = 5, Priority = 3 }]),
     };
-    private static WorkPawn Cooking(WorkPawn pawn) => pawn with { Job = Known(new PawnJob { Def = "TestCook", Work = WorkType.Cooking }) };
+    private static WorkPawn WithRows(WorkPawn pawn, IEnumerable<WorkPriority> rows) => pawn with { Work = new PawnWorkTable.Works(true, EquatableArray.From(rows)) };
+    private static WorkPawn Cooking(WorkPawn pawn) => pawn with { Job = new PawnJob { Def = "TestCook", Work = WorkType.Cooking } };
+    /// <summary>The capacity forecast over the pawn's own roster row and current job.</summary>
+    private static ForecastCapacityInput Input(WorkPawn pawn, Fact<double> remaining = default) => new()
+    {
+        Pawn = new() { Id = pawn.Id, Available = Known(pawn.Available), Applies = Known(pawn.Applies), Schedule = pawn.Schedule },
+        CurrentWork = ForecastCurrentWork.ForecastCurrentWorkOf(pawn, remaining),
+        Location = "home", HorizonTicks = 100, LocalHour = Known(12.0),
+        Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
+    };
     private static int Priority(WorkDecision decision, string pawn, WorkType work) =>
         decision.Assignments.Single(a => a.Pawn.Value == pawn).Priorities.Single(p => p.Work == work).Priority;
     private static WorkDecision Plan(params WorkPawn[] pawns) => WorkRules.PlanWork(pawns, [], new());
     private static WorkPawn Apply(WorkPawn pawn, WorkDecision decision) => pawn with
     {
-        Work = Known(EquatableArray.From(pawn.Work.Value.Select(w => w with { Priority = Priority(decision, pawn.Id.Value, w.Work) }))),
+        Work = new PawnWorkTable.Works(true, EquatableArray.From(pawn.Work.Priorities().Select(w => w with { Priority = Priority(decision, pawn.Id.Value, w.Work) }))),
     };
 
     [Fact]
@@ -37,9 +43,8 @@ public sealed class WorkOccupancyTests
         Assert.NotEqual(1, Priority(decision, "cook", WorkType.Construction));
         Assert.Equal(1, Priority(decision, "free", WorkType.Construction));
         Assert.Equal(2, decision.Coverage.Single(c => c.Work == WorkType.Construction).Capable);
-        Assert.True(decision.Capacity.Value);
         var repeated = Plan(Apply(cook, decision), Apply(free, decision));
-        Assert.True(repeated.Matches.Value);
+        Assert.True(repeated.Matches);
         Assert.Equal(1, Priority(repeated, "free", WorkType.Construction));
     }
 
@@ -51,10 +56,9 @@ public sealed class WorkOccupancyTests
         var building = busy.Coverage.Single(c => c.Work == WorkType.Construction);
         Assert.Equal(1, building.Capable);
         Assert.Equal(0, building.Owners);
-        Assert.False(busy.Capacity.Value);
         Assert.Equal(2, Priority(busy, "both", WorkType.Construction));
         // Completion and cancellation both arrive as a fresh job read. No saved hold needs clearing.
-        var idle = Plan(Apply(pawn, busy) with { Job = Known(new PawnJob()) });
+        var idle = Plan(Apply(pawn, busy) with { Job = new PawnJob() });
         Assert.Equal(1, Priority(idle, "both", WorkType.Construction));
     }
 
@@ -65,44 +69,32 @@ public sealed class WorkOccupancyTests
         var raised = WorkRules.PlanWork([pawn], [new() { Work = WorkType.Cooking, Skill = "Cooking", Minimum = 8 }], new());
         Assert.Equal(1, Priority(raised, "both", WorkType.Construction));
         Assert.Equal(0, Priority(raised, "both", WorkType.Cooking));
-        var disabled = pawn with { Work = Known(EquatableArray.From(pawn.Work.Value.Select(w =>
-            w.Work == WorkType.Cooking ? w with { Priority = 0 } : w))) };
+        var disabled = WithRows(pawn, pawn.Work.Priorities().Select(w =>
+            w.Work == WorkType.Cooking ? w with { Priority = 0 } : w));
         Assert.Equal(1, Priority(Plan(disabled), "both", WorkType.Construction));
-        var incapable = pawn with { Work = Known(EquatableArray.From(pawn.Work.Value.Select(w =>
-            w.Work == WorkType.Cooking ? w with { Disabled = true } : w))) };
+        var incapable = WithRows(pawn, pawn.Work.Priorities().Select(w =>
+            w.Work == WorkType.Cooking ? w with { Disabled = true } : w));
         Assert.Equal(1, Priority(Plan(incapable), "both", WorkType.Construction));
     }
 
     [Fact]
-    public void UnknownJobDoesNotInventTimeOrBlockIndependentWorker()
+    public void AnUnavailablePawnHasNoTimeAndDoesNotBlockAnIndependentWorker()
     {
-        var unknown = Pawn("unknown") with { Job = Unknown<PawnJob>() };
+        var away = Pawn("away") with { Available = false };
         var free = Pawn("free");
-        var decision = Plan(unknown, free);
+        var decision = Plan(away, free);
         Assert.Contains(decision.Assignments, a => a.Pawn == free.Id);
-        var input = new ForecastCapacityInput
-        {
-            Pawn = unknown, Location = "home", HorizonTicks = 100, LocalHour = Known(12.0),
-            Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
-        };
-        Assert.False(ForecastCapacity.ForecastPawnCapacityOf(input).Capacity.Windows.IsKnown);
-        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(input with { Pawn = free }).Capacity.Windows.Value.Sum(w => w.End - w.Start));
-        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(input with { Pawn = free with { Available = Known(false) } }).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Input(free)).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Input(away)).Capacity.Windows.Value.Sum(w => w.End - w.Start));
     }
 
     [Fact]
     public void RosterAndForecastAgreeOnIdleAndOngoingWorkWithoutInventingDuration()
     {
-        var pawn = Pawn("pawn") with { Job = Known(new PawnJob { Def = "Wait_Wander" }) };
-        var input = new ForecastCapacityInput
-        {
-            Pawn = pawn, Location = "home", HorizonTicks = 100, LocalHour = Known(12.0),
-            Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
-        };
-        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(input).Capacity.Windows.Value.Sum(w => w.End - w.Start));
-        var busy = input with { Pawn = Cooking(pawn) };
-        Assert.Contains("unknown_current_job_remaining", ForecastCapacity.ForecastPawnCapacityOf(busy).Findings);
-        Assert.Equal(60, ForecastCapacity.ForecastPawnCapacityOf(busy with { CurrentJobRemainingTicks = Known(40.0) }).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        var pawn = Pawn("pawn") with { Job = new PawnJob { Def = "Wait_Wander" } };
+        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Input(pawn)).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        Assert.Contains("unknown_current_job_remaining", ForecastCapacity.ForecastPawnCapacityOf(Input(Cooking(pawn))).Findings);
+        Assert.Equal(60, ForecastCapacity.ForecastPawnCapacityOf(Input(Cooking(pawn), Known(40.0))).Capacity.Windows.Value.Sum(w => w.End - w.Start));
         Assert.Throws<DomainException>(() => ForecastCurrentWork.ForecastCurrentWorkOf(pawn, Known(-1.0)));
     }
 
@@ -110,18 +102,13 @@ public sealed class WorkOccupancyTests
     [Fact]
     public void PreemptibleVanillaJobIsUnoccupiedButKeepsItsRole()
     {
-        var cook = Pawn("cook", building: 20) with { Job = Known(new PawnJob { Def = "DoBill", Work = WorkType.Cooking, Preemptible = true }) };
+        var cook = Pawn("cook", building: 20) with { Job = new PawnJob { Def = "DoBill", Work = WorkType.Cooking, Preemptible = true } };
         var current = ForecastCurrentWork.ForecastCurrentWorkOf(cook);
         Assert.Equal(Known(false), current.Occupied);
         Assert.Equal(Known(WorkType.Cooking), current.Work);
         Assert.Equal(Known(0.0), current.RemainingTicks);
-        Assert.True(ConstructionHelpersRules.IdleJob(cook.Job.Value));
-        var input = new ForecastCapacityInput
-        {
-            Pawn = cook, Location = "home", HorizonTicks = 100, LocalHour = Known(12.0),
-            Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
-        };
-        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(input).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        Assert.True(ConstructionHelpersRules.IdleJob(cook.Job));
+        Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Input(cook)).Capacity.Windows.Value.Sum(w => w.End - w.Start));
         var decision = Plan(cook, Pawn("free", cooking: 5));
         Assert.Equal(1, Priority(decision, "cook", WorkType.Cooking));
         Assert.NotEqual(1, Priority(decision, "cook", WorkType.Construction));
@@ -130,7 +117,7 @@ public sealed class WorkOccupancyTests
     [Fact]
     public void ConstructionSkillOrderingStillWinsAmongEligibleBuilders()
     {
-        var working = Pawn("working", building: 6) with { Job = Known(new PawnJob { Def = "TestBuild", Work = WorkType.Construction }) };
+        var working = Pawn("working", building: 6) with { Job = new PawnJob { Def = "TestBuild", Work = WorkType.Construction } };
         var skilled = Pawn("skilled", building: 15);
         var decision = Plan(working, skilled);
         Assert.Equal(1, Priority(decision, "skilled", WorkType.Construction));
@@ -166,9 +153,9 @@ public sealed class WorkOccupancyTests
         // Two reviews per claim state: before the fix each toggle admitted a write and the repeat refused it.
         var rounds = Enumerable.Range(0, 8).Select(i => Step(i / 2 % 2 == 0 ? ["cook"] : [])).ToList();
         Assert.All(rounds, r => Assert.Equal("field_unavailable", r));
-        Assert.Equal(1, pawns[0].Work.Value.Single(w => w.Work == WorkType.Cooking).Priority);
+        Assert.Equal(1, pawns[0].Work.Priorities().Single(w => w.Work == WorkType.Cooking).Priority);
         var claimed = WorkRules.PlanWork(pawns, [], new() { CommittedPawns = ["cook"] });
-        Assert.True(claimed.Matches.Value);
+        Assert.True(claimed.Matches);
         Assert.Equal(1, claimed.Coverage.Single(c => c.Work == WorkType.Cooking).Owners);
     }
 
@@ -178,9 +165,9 @@ public sealed class WorkOccupancyTests
         var pawn = Cooking(Pawn("doctor"));
         pawn = pawn with
         {
-            Work = Known<EquatableArray<WorkPriority>>([.. pawn.Work.Value,
+            Work = new PawnWorkTable.Works(true, [.. pawn.Work.Priorities(),
                 new() { Work = WorkType.Doctor, Skill = "Medicine", Order = 20, Priority = 3 }]),
-            Skills = Known<EquatableArray<WorkSkill>>([.. pawn.Skills.Value, new() { Name = "Medicine", Level = 10 }]),
+            Skills = [.. pawn.Skills, new() { Name = "Medicine", Level = 10 }],
         };
         Assert.Equal(1, Priority(Plan(pawn), "doctor", WorkType.Doctor));
         var rest = WorkRules.PlanWork([pawn], [], new() { Resting = [new(pawn.Id, ["TestDisease"])] });

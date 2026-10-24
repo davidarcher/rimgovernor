@@ -65,7 +65,7 @@ public static class DrugPolicyPlanRules
         var assign = new List<PawnSettings>();
         foreach (var pawn in pawns)
         {
-            if (!pawn.PolicyInputs.TryGetValue(out var inputs) || inputs.Guest is GuestState.Hosted { Status: GuestStatus.Slave or GuestStatus.Prisoner } || held.Contains(pawn.Id))
+            if (pawn.PolicyInputs.Guest is GuestState.Hosted { Status: GuestStatus.Slave or GuestStatus.Prisoner } || held.Contains(pawn.Id))
             {
                 continue;
             }

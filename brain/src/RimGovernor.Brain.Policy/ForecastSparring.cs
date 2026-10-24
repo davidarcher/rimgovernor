@@ -26,7 +26,6 @@ internal static class ForecastSparring
     {
         if (context.PlannedRoomRoles.Where(p => p.Value == PlannedRole.SparringRing).Min(p => p.Key) != room.Room) return [];
         var sparring = context.Sparring ?? throw new RequiredFactException("work pawns");
-        if (sparring.Unread.Count > 0) throw new RequiredFactException("sparring trainees: " + string.Join(", ", sparring.Unread));
         if (sparring.Trainees.Count < 2 || sparring.Targets >= 2 || horizon <= 0) return [];
         return ForecastPractice.Credit(sparring, context, room.ServedAt, outcome.Support, horizon, "Melee", static (cursors, below) =>
         {

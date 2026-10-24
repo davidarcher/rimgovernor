@@ -265,7 +265,7 @@ public static partial class WorkRules
         workers = output;
         foreach (var p in pawns)
         {
-            if (!p.Available.TryGetValue(out var avail) || !avail)
+            if (!p.Available)
             {
                 continue;
             }
@@ -287,11 +287,7 @@ public static partial class WorkRules
 
     private static bool PawnWorks(WorkPawn p, IReadOnlyList<WorkRequirement> work)
     {
-        if (!p.Work.TryGetValue(out var rows))
-        {
-            return false;
-        }
-        foreach (var row in rows)
+        foreach (var row in p.Work.Priorities())
         {
             if (row.Priority <= 0 || row.Disabled)
             {
@@ -313,13 +309,9 @@ public static partial class WorkRules
     {
         foreach (var p in pawns)
         {
-            if (!p.Job.TryGetValue(out var job) || !job.Target.TryGetValue(out var target))
-            {
-                continue;
-            }
             foreach (var b in benches)
             {
-                if (target.Thing == b)
+                if (p.Job.Target.Thing == b)
                 {
                     return true;
                 }

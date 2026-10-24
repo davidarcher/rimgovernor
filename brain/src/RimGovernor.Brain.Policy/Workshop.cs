@@ -4,9 +4,12 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>What an economy/resource deficit needs from the building ladder before a bill can be dispatched for it.</summary>
 public enum WorkshopMethod
 {
-    /// <summary>A native fact the choice depends on is unobserved.</summary>
-    [WireName("")]
-    Unknown,
+    /// <summary>
+    /// A candidate bench definition is missing from the planning census, or its availability, power need or
+    /// construction skill is unread there, so no rung of the ladder can be chosen.
+    /// </summary>
+    [WireName("definition_unread")]
+    DefinitionUnread,
 
     /// <summary>A usable bench already hosts an available recipe for the resource; the bill path owns the deficit from here.</summary>
     [WireName("existing")]
@@ -66,7 +69,7 @@ public sealed record WorkshopRequest
 
 public sealed record WorkshopChoice
 {
-    public WorkshopMethod Method { get; init; }
+    public required WorkshopMethod Method { get; init; }
 
     public string Definition { get; init; } = "";
 
@@ -116,7 +119,7 @@ public static partial class WorkRules
         return output;
     }
 
-    /// <summary>The highest Construction skill level among the pawns that are available, apply to work assignment and have the skill enabled; unknown when the roster or any such pawn's skills are unobserved.</summary>
+    /// <summary>The highest Construction skill level among the pawns that are available, apply to work assignment and have the skill enabled; unknown while the roster is unread.</summary>
     public static Fact<int> BuilderSkill(Fact<EquatableArray<WorkPawn>> pawns)
     {
         if (!pawns.TryGetValue(out var rows))
@@ -126,20 +129,11 @@ public static partial class WorkRules
         var best = 0;
         foreach (var pawn in rows)
         {
-            var ak = pawn.Available.TryGetValue(out var available);
-            var pk = pawn.Applies.TryGetValue(out var applies);
-            if (!ak || !pk)
-            {
-                return Unknown<int>();
-            }
-            if (!available || !applies)
+            if (!pawn.Available || !pawn.Applies)
             {
                 continue;
             }
-            if (!pawn.Skills.TryGetValue(out var skills))
-            {
-                return Unknown<int>();
-            }
+            var skills = pawn.Skills;
             foreach (var skill in skills)
             {
                 if (skill.Name == "Construction" && !skill.Disabled)
@@ -221,7 +215,7 @@ public static partial class WorkRules
         var powerKnown = r.Power.TryGetValue(out var power);
         var builderKnown = r.BuilderSkill.TryGetValue(out var builder);
         bool Buildable(int skill) => skill == 0 || (builderKnown && skill <= builder);
-        var unknown = false;
+        var unread = false;
 
         // Buildable now: unpowered first, then powered when a generator can be built for it.
         foreach (var allowPower in new[] { false, true })
@@ -239,7 +233,7 @@ public static partial class WorkRules
                 var exists = byName.TryGetValue(name, out var d);
                 if (!exists || !d!.Available.TryGetValue(out var available) || !d.NeedsPower.TryGetValue(out var powered) || !d.ConstructionSkill.TryGetValue(out var skill))
                 {
-                    unknown = true;
+                    unread = true;
                     continue;
                 }
                 if (available && powered == allowPower && Buildable(skill))
@@ -265,7 +259,7 @@ public static partial class WorkRules
                 var exists = byName.TryGetValue(name, out var d);
                 if (!exists || !d!.Available.TryGetValue(out var available) || !d.NeedsPower.TryGetValue(out var powered) || !d.ConstructionSkill.TryGetValue(out var skill))
                 {
-                    unknown = true;
+                    unread = true;
                     continue;
                 }
                 if (!Buildable(skill) || (powered && !(powerKnown && power)))
@@ -305,7 +299,7 @@ public static partial class WorkRules
                 };
             }
         }
-        return new WorkshopChoice { Method = unknown ? WorkshopMethod.Unknown : WorkshopMethod.Unavailable };
+        return new WorkshopChoice { Method = unread ? WorkshopMethod.DefinitionUnread : WorkshopMethod.Unavailable };
     }
 
     private static string WorkshopRecipe(Resource resource, IReadOnlyList<RecipeHost> hosts, string bench)

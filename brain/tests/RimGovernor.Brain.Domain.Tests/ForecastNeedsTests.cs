@@ -10,10 +10,10 @@ public sealed class ForecastNeedsTests
 {
     private static ForecastCapacityInput Input(double horizon = 1000) => new()
     {
-        Pawn = new() { Id = new("pawn"), Available = Known(true), Applies = Known(true), Job = Known(new PawnJob()),
-            Schedule = Known(EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24))) },
+        Pawn = new() { Id = new("pawn"), Available = Known(true), Applies = Known(true),
+            Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24)) },
         Location = "start", HorizonTicks = horizon, LocalHour = Known(12.0), OpportunityCostPerTick = Known(1.0),
-        CurrentJobRemainingTicks = Known(0.0), Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
+        CurrentWork = new(new("pawn"), Known(false), default, Known(0.0)), Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
         LocationAfterProtectedTime = Known("bed"), ProtectTimetable = false,
     };
     private static NeedsForecastPawn Pawn() => NeedsFixtures.Pawn() with

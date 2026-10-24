@@ -3,36 +3,20 @@ namespace RimGovernor.Brain.Observation;
 public static class RoundsWorkReads
 {
     /// <summary>
-    /// The def facts of the primary weapon a pawn's equipment names. A gear
-    /// reference carries no def name, so the weapon resolves through the frame's things table; false while the
-    /// equipment does not say (no armed flag, no primary id), the primary is not among the equipped items, or the
-    /// table does not hold its row yet. An unarmed pawn is known with the empty weapon.
+    /// The def facts of the primary weapon a pawn's equipment names; the empty weapon for an unarmed pawn. A gear
+    /// reference carries no def name, so the weapon resolves through the frame's things table; a primary that is not
+    /// among the equipped items, or that the table holds no row for, throws (ColonyGear.PrimaryWeaponOption).
     /// </summary>
-    private static bool PrimaryWeapon(DefinitionCatalog catalog, O.PawnEquipment equipment, Things things, out WeaponDef weapon)
+    private static WeaponDef PrimaryWeapon(DefinitionCatalog catalog, O.PawnEquipment equipment, Things things)
     {
-        weapon = new WeaponDef();
-        if (!equipment.Armed)
+        if (equipment.PrimaryId is not { } id)
         {
-            return true;
+            return new WeaponDef();
         }
-        if (equipment.PrimaryId is null)
-        {
-            return false;
-        }
-        foreach (var item in equipment.Equipped)
-        {
-            if ((item.Thing?.Id ?? "") != (equipment.PrimaryId ?? ""))
-            {
-                continue;
-            }
-            if (item.Thing is null || !things.TryRow(item.Thing, out var row))
-            {
-                return false;
-            }
-            weapon = catalog.WeaponOf(row.Entity.DefName);
-            return true;
-        }
-        return false;
+        var item = equipment.Equipped.FirstOrDefault(e => e.Thing.Id == id) ?? throw new DomainException($"primary weapon {id}: not among the pawn's equipment");
+        return things.TryRow(item.Thing, out var row)
+            ? catalog.WeaponOf(row.Entity.DefName)
+            : throw new DomainException($"primary weapon {id}: the frame holds no row for it");
     }
 
     internal static Fact<EquatableArray<WorkPawn>> RoundsWork(
@@ -57,17 +41,14 @@ public static class RoundsWorkReads
                 return Unknown<EquatableArray<WorkPawn>>();
             }
             var w = WorkPawnRow(row, catalog, things);
-            if (w.Biotech.TryGetValue(out var bt))
+            if (w.Biotech is PawnBiotechStatus.Active { Facts: var bt })
             {
                 if (bt.IsChild())
                 {
-                    var ages = RequireBiotech(biotech).WorkMinAges(row.Pawn.DefName ?? "");
-                    bt = bt with { WorkMinAges = Known(ages) };
-                    w = w with { Biotech = Known(bt) };
+                    bt = bt with { WorkMinAges = Known(RequireBiotech(biotech).WorkMinAges(row.Pawn.DefName ?? "")) };
                 }
-                var effects = RequireBiotech(biotech).GeneEffects(bt.Genes);
-                bt = bt with { Effects = Known(effects) };
-                w = w with { Biotech = Known(bt) };
+                bt = bt with { Effects = Known(RequireBiotech(biotech).GeneEffects(bt.Genes)) };
+                w = w with { Biotech = new PawnBiotechStatus.Active(bt) };
             }
             rows.Add(w);
         }
@@ -78,21 +59,81 @@ public static class RoundsWorkReads
         biotech ?? throw new DomainException("biotech work facts need the Biotech catalog, which was not loaded");
 
     /// <summary>
-    /// Lifts one pawn row into the planner's WorkPawn: availability from the vital flags, manual mode, timetable,
-    /// priorities, care and policy inputs from the settings block, skills, traits, incapable work types and age from
-    /// the biography, and whether the primary weapon is ranged (its def rows, found through the frame's things table:
-    /// unknown until the table holds the weapon). Work rows and traits are resolved against the catalog, which every
-    /// row needs; a trait the catalog lacks is an error.
+    /// Lifts one pawn row into the planner's WorkPawn: availability from the vital flags, the work table, timetable,
+    /// care and policy inputs from the settings block, skills, traits, incapable work types and age from the
+    /// biography, and whether the primary weapon is ranged or hunts (its def rows, found through the frame's things
+    /// table). Work rows and traits are resolved against the catalog, which every row needs; a trait the catalog lacks
+    /// is an error.
     /// </summary>
     public static WorkPawn WorkPawnRow(O.PawnState row, DefinitionCatalog? catalog, Things things)
     {
         var defs = ColonyDecodeReads.RequireCatalog(catalog);
-        var w = WorkPawnRowFrom(row, defs);
-        if (PrimaryWeapon(defs, row.Equipment, things, out var weapon))
+        var weapon = PrimaryWeapon(defs, row.Equipment, things);
+        var s = row.Settings;
+        var bio = row.Biography;
+        var n = row.Needs;
+        var biotech = row.Biotech is O.PawnBiotechState.Active { Facts: var facts }
+            ? new PawnBiotechStatus.Active(PawnBiotech.Of(facts))
+            : (PawnBiotechStatus)new PawnBiotechStatus.Inactive();
+        var deathresting = biotech is PawnBiotechStatus.Active { Facts: var bt } && bt.IsDeathresting();
+        return new WorkPawn
         {
-            w = w with { Ranged = Known(weapon.Ranged), Hunts = Known(weapon.Hunts()) };
+            Id = new PawnId(row.Pawn.Id ?? ""),
+            ConstructionAble = row.ConstructionCapable,
+            Available = !row.Dead && !row.Downed && !row.Drafted && row.MentalState is null && !deathresting,
+            Work = WorkTable(s.Work, defs),
+            Ranged = weapon.Ranged,
+            Hunts = weapon.Hunts(),
+            // Native sends the 24 hourly slots hour 0 first, or none for a pawn without a timetable.
+            Schedule = EquatableArray.From(s.Schedule.Select(slot => slot.AssignmentDefName)),
+            FoodPolicyRespected = s.FoodPolicyRespected,
+            Care = s.Care,
+            PolicyInputs = s.PolicyInputs,
+            Body = s.Body,
+            Job = Job(row.Job),
+            Skills = EquatableArray.From(bio.Skills.Select(entry => new WorkSkill { Learning = entry.Learning, Name = entry.DefName, Level = entry.Level, Stored = entry.StoredLevel, Disabled = entry.Disabled, Passion = SkillPassion(entry.Passion) })),
+            SkillStatCurves = bio.SkillStatCurves,
+            WorkSpeeds = bio.WorkSpeeds,
+            // Traits, incapable work types and age feed the pawn profile.
+            Traits = EquatableArray.From(bio.Traits.Select(entry => ResolveTrait(defs, new PawnTrait { Name = entry.DefName, Degree = entry.Degree }))),
+            Incapable = EquatableArray.From(bio.IncapableWorkTypes.Select(name => ColonyDecodeReads.WireParseOpen(name, WorkType.Unrecognized))),
+            Age = bio.BiologicalAgeYears,
+            ViolenceCapable = !bio.DisabledWorkTags.Contains("Violent"),
+            Inspiration = row.Inspiration ?? "",
+            Biotech = biotech,
+            BloodLoss = row.Health.BloodLoss,
+            SeriousBloodLoss = defs.SeriousBloodLoss(),
+            Health = row.Health.SummaryFraction,
+            Rest = n.Rest,
+            Mood = n.Mood,
+            Food = n.Food,
+            BreakThreshold = n.BreakThresholdMinor,
+            // Level 0 is no psylink (Psylink.cs).
+            PsylinkLevel = n.PsylinkLevel,
+            HighExpectations = row.Social.HighExpectations,
+        };
+    }
+
+    /// <summary>
+    /// The planner's work table from the settings block. Another mod's work type has no planner meaning and nothing to
+    /// write back: it is left out of the rows.
+    /// </summary>
+    private static PawnWorkTable WorkTable(O.PawnWork work, DefinitionCatalog defs)
+    {
+        if (work is O.PawnWork.Works works)
+        {
+            var rows = new List<WorkPriority>();
+            foreach (var entry in works.Rows)
+            {
+                if (ColonyDecodeReads.WireParseOpen(entry.DefName, WorkType.Unrecognized) == WorkType.Unrecognized)
+                {
+                    continue;
+                }
+                rows.Add(defs.ResolveWorkRow(new WorkPriority { Work = ColonyDecodeReads.WireParse<WorkType>(entry.DefName), Priority = entry.Priority, Disabled = entry.Disabled }));
+            }
+            return new PawnWorkTable.Works(works.ManualPriorities, EquatableArray.From(rows));
         }
-        return w with { SeriousBloodLoss = defs.SeriousBloodLoss() };
+        return work is O.PawnWork.Uninitialized ? new PawnWorkTable.Uninitialized() : new PawnWorkTable.NeverWorks();
     }
 
     /// <summary>Returns the trait with its Effects set from the catalog.</summary>
@@ -107,22 +148,14 @@ public static class RoundsWorkReads
 
     /// <summary>
     /// The colony's rest schedule (#3750) from its workers' timetables: the colonists whose settings say they work. Null,
-    /// unread, when a colonist has no work flag, or a worker's timetable is not read (RestSchedule.Of).
+    /// unread, when a worker's timetable is not read (RestSchedule.Of).
     /// </summary>
     internal static RestSchedule? RoundsRest(O.PawnSnapshot snapshot)
     {
         var timetables = new List<IReadOnlyList<string>>();
         foreach (var row in snapshot.Pawns)
         {
-            if (!row.Colonist)
-            {
-                continue;
-            }
-            if (row.Settings.WorkApplies is not { } works)
-            {
-                return null;
-            }
-            if (works)
+            if (row.Colonist && row.Settings.Work is not O.PawnWork.NeverWorks)
             {
                 timetables.Add([.. row.Settings.Schedule.Select(slot => slot.AssignmentDefName)]);
             }
@@ -130,134 +163,36 @@ public static class RoundsWorkReads
         return RestSchedule.Of(timetables);
     }
 
-    private static WorkPawn WorkPawnRowFrom(O.PawnState row, DefinitionCatalog defs)
+    /// <summary>
+    /// JobRow: a pawn with no job carries no def; a job always carries its def, its targetA and, when a work giver
+    /// issued it, that giver's work type. A preemptible pawn's job is its vanilla job (#3670).
+    /// </summary>
+    private static PawnJob Job(O.JobEvidence j)
     {
-        var w = new WorkPawn { Id = new PawnId(row.Pawn.Id ?? ""), ConstructionAble = ColonyDecodeReads.Optional(row.ConstructionCapable is not null, row.ConstructionCapable.GetValueOrDefault()) };
-        w = w with { Available = Known(!row.Dead && !row.Downed && !row.Drafted && row.MentalState is null) };
-        var s = row.Settings;
-        var b = s.Body;
-        w = w with
+        if (j.DefName is null)
         {
-            FoodPolicyRespected = Known(s.FoodPolicyRespected),
-            PolicyInputs = Known(s.PolicyInputs),
-            Body = Known(new PawnBody
-            {
-                ComfortableMinC = ColonyDecodeReads.Optional(b.ComfortableMinC is not null, b.ComfortableMinC.GetValueOrDefault()),
-                ComfortableMaxC = ColonyDecodeReads.Optional(b.ComfortableMaxC is not null, b.ComfortableMaxC.GetValueOrDefault()),
-                MoveSpeed = ColonyDecodeReads.Optional(b.MoveSpeed is not null, b.MoveSpeed.GetValueOrDefault()),
-                CellTemperatureC = ColonyDecodeReads.Optional(b.CellTemperatureC is not null, b.CellTemperatureC.GetValueOrDefault()),
-                Hypothermia = ColonyDecodeReads.Optional(b.Hypothermia is not null, b.Hypothermia.GetValueOrDefault()),
-            }),
-        };
-        if (s.Care is O.PawnCare.Configured care)
-        {
-            w = w with { MedicalCare = Known(WireEnums.MedicalCareName(care.MedicalCare)) };
-            if (WireEnums.HostilityName(care.HostilityResponse) is { } hostility)
-            {
-                w = w with { Hostility = Known(hostility) };
-            }
+            return new PawnJob { Preemptible = j.Preemptible };
         }
-        w = w with { Applies = ColonyDecodeReads.Optional(s.WorkApplies is not null, s.WorkApplies.GetValueOrDefault()), Manual = ColonyDecodeReads.Optional(s.ManualWorkPriorities is not null, s.ManualWorkPriorities.GetValueOrDefault()) };
-        // Native sends the 24 hourly slots hour 0 first, or none for a pawn without a timetable.
-        if (s.Schedule.Count == 24)
-        {
-            w = w with { Schedule = Known(EquatableArray.From(s.Schedule.Select(slot => slot.AssignmentDefName))) };
-        }
-        // Work rows exist only for a pawn that works.
-        if (s.WorkApplies == true)
-        {
-            var work = new List<WorkPriority>();
-            foreach (var entry in s.Work)
-            {
-                // Another mod's work type has no planner meaning and nothing to write back: it is left out of the rows.
-                if (ColonyDecodeReads.WireParseOpen(entry.DefName, WorkType.Unrecognized) == WorkType.Unrecognized)
-                {
-                    continue;
-                }
-                work.Add(defs.ResolveWorkRow(new WorkPriority { Work = ColonyDecodeReads.WireParse<WorkType>(entry.DefName), Priority = entry.Priority, Disabled = entry.Disabled }));
-            }
-            w = w with { Work = Known(EquatableArray.From(work)) };
-        }
-        // JobRow: a pawn with no job carries no def; a job always carries its def and, when a work giver issued
-        // it, that giver's work type. A preemptible pawn's job is its vanilla job (#3670).
-        var j = row.Job;
-        w = w with
-        {
-            Job = Known(j.DefName is null
-                ? new PawnJob { Preemptible = j.Preemptible }
-                : new PawnJob { Def = j.DefName, Work = ColonyDecodeReads.WireParseOpen(j.WorkTypeDefName, WorkType.Unrecognized), Target = JobTarget(j.TargetA, j.TargetACell), Preemptible = j.Preemptible }),
-        };
-        var bio = row.Biography;
-        var incapable = new List<WorkType>();
-        foreach (var name in bio.IncapableWorkTypes)
-        {
-            incapable.Add(ColonyDecodeReads.WireParseOpen(name, WorkType.Unrecognized));
-        }
-        var violent = true;
-        foreach (var tag in bio.DisabledWorkTags)
-        {
-            violent = violent && tag != "Violent";
-        }
-        w = w with
-        {
-            Skills = Known(EquatableArray.From(bio.Skills.Select(entry => new WorkSkill { Learning = entry.Learning, Name = entry.DefName, Level = entry.Level, Stored = entry.StoredLevel, Disabled = entry.Disabled, Passion = SkillPassion(entry.Passion) }))),
-            SkillStatCurves = bio.SkillStatCurves,
-            WorkSpeeds = bio.WorkSpeeds,
-            // Traits, incapable work types and age feed the pawn profile.
-            Traits = Known(EquatableArray.From(bio.Traits.Select(entry => ResolveTrait(defs, new PawnTrait { Name = entry.DefName, Degree = entry.Degree })))),
-            Incapable = Known(EquatableArray.From(incapable)),
-            Age = Known(bio.BiologicalAgeYears),
-            ViolenceCapable = Known(violent),
-        };
-        w = w with { Inspiration = ColonyDecodeReads.Optional(row.Inspiration is not null, (row.Inspiration ?? "")), Biotech = BiotechFactsRules.PawnBiotech(row.Biotech) };
-        if (w.Biotech.TryGetValue(out var bt) && bt.IsDeathresting())
-        {
-            w = w with { Available = Known(false) };
-        }
-        var n = row.Needs;
-        // A psylink level is known only for a psycaster: level 0 is no psylink (Psylink.cs).
-        return w with
-        {
-            BloodLoss = Known(row.Health.BloodLoss),
-            Health = Known(row.Health.SummaryFraction),
-            Rest = ColonyDecodeReads.Optional(n.Rest is O.NeedLevel.Has, n.Rest is O.NeedLevel.Has rest ? rest.Level : 0),
-            Mood = ColonyDecodeReads.Optional(n.Mood is O.NeedLevel.Has, n.Mood is O.NeedLevel.Has mood ? mood.Level : 0),
-            Hunger = ColonyDecodeReads.Optional(n.Food is O.FoodNeed.Has, n.Food is O.FoodNeed.Has food ? food.Hunger : default),
-            BreakThreshold = Known(n.BreakThresholdMinor),
-            PsylinkLevel = ColonyDecodeReads.Optional(n.PsylinkLevel > 0, n.PsylinkLevel),
-            HighExpectations = Known(row.Social.HighExpectations),
-        };
+        return new PawnJob { Def = j.DefName, Work = ColonyDecodeReads.WireParseOpen(j.WorkTypeDefName, WorkType.Unrecognized), Target = Target(j), Preemptible = j.Preemptible };
     }
 
-    /// <summary>Reads a job's targetA. An absent field is an older producer (unknown); an unavailable target is a job with none.</summary>
-    private static Fact<JobTarget> JobTarget(O.TargetRef? t, C.Cell? at)
+    /// <summary>
+    /// A job's targetA: a thing target is spawned at its cell or held, a cell target is ground, an unavailable target
+    /// is a job with none. Native writes targetA on every job, so a job without one is an error.
+    /// </summary>
+    private static JobTarget Target(O.JobEvidence j)
     {
-        if (t is null)
+        var t = j.TargetA?.Target ?? throw new DomainException($"job {j.DefName}: no targetA");
+        if (t.Entity is { } e)
         {
-            return Unknown<JobTarget>();
+            var id = e.Id is { Length: > 0 } thing ? thing : throw new DomainException($"job {j.DefName}: a thing target without an id");
+            return j.TargetACell is { } at ? new JobTarget.Spawned(id, new Cell(at.X, at.Z)) : new JobTarget.Held(id);
         }
-        if (t.Target?.Entity is { } e)
+        if (t.Cell is { } c)
         {
-            var target = new JobTarget { Thing = e.Id ?? "" };
-            if (at is not null)
-            {
-                target = target with { Cell = Known(new Cell(at.X, at.Z)) };
-            }
-            if (target.Thing.Length == 0 && !target.Cell.TryGetValue(out _))
-            {
-                return Unknown<JobTarget>();
-            }
-            return Known(target);
+            return new JobTarget.Ground(new Cell(c.X, c.Z));
         }
-        if (t.Target?.Cell is { } c)
-        {
-            return Known(new JobTarget { Cell = Known(new Cell(c.X, c.Z)) });
-        }
-        if (t.Target?.Unavailable is not null)
-        {
-            return Known(new JobTarget());
-        }
-        return Unknown<JobTarget>();
+        return t.Unavailable is not null ? new JobTarget.None() : throw new DomainException($"job {j.DefName}: an unread targetA");
     }
 
     /// <summary>The passion name policy reads; native sends "None" for no passion, which policy reads as "".</summary>

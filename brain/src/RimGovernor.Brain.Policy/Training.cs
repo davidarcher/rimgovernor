@@ -36,7 +36,7 @@ public static partial class TrainingRules
         var shooting = new HashSet<string>(StringComparer.Ordinal); var melee = new HashSet<string>(StringComparer.Ordinal); var unknown = false;
         foreach (var pawn in pawns)
         {
-            if (!pawn.Skills.TryGetValue(out var skills)) { unknown = true; continue; }
+            var skills = pawn.Skills;
             foreach (var (name, trainees) in new[] { ("Shooting", shooting), ("Melee", melee) })
             {
                 if (skills.FirstOrDefault(s => s.Name == name) is not { Learning.Practice: SkillPractice.Drill { Capable: true, Ceiling: var ceiling } } skill) continue;

@@ -18,8 +18,8 @@ public sealed class ForecastFoodCandidatesTests
         Origin = new("test", 42), HorizonDays = 4000.0 / GameTime.TicksPerDay,
         Demand = new DerivedDemand { Work = new ForecastWorkInputs { Tick = new(42),
             IngredientReservations = [],
-            Pawns = Known(EquatableArray.From(new[] { new WorkPawn { Id = Pawn, Available = Known(true),
-                Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Cooking", Level = skill } })) } })) } },
+            Pawns = Known(EquatableArray.From(new[] { PawnFixtures.Worker(Pawn) with {
+                Skills = [new WorkSkill { Name = "Cooking", Level = skill }] } })) } },
         Facts = new ColonyForecastFacts { Stock = Known(default(EquatableArray<Amount>)),
             Items = new ItemFacts { Nutrition = new Dictionary<Resource, double> { [Raw] = 0.01, [Meal] = 0.1 } },
             Food = new FoodSupply { Larder = new(), Consumers = [new() { Id = Pawn, NutritionPerDay = 1.0 }],
@@ -182,7 +182,7 @@ public sealed class ForecastFoodCandidatesTests
     }
 
     [Fact]
-    public void MissingRecipeCountsDoNotInventMealsAndUnknownAvailabilityCannotHarvest()
+    public void MissingRecipeCountsDoNotInventMealsAndAnUnavailableWorkerCannotHarvest()
     {
         var input = Inputs();
         var missing = input with { Recipes = Known(EquatableArray.From(input.Recipes.Value.Select(r => r with { Products = default }))) };
@@ -194,10 +194,9 @@ public sealed class ForecastFoodCandidatesTests
         Assert.DoesNotContain(unusableBench.Bindings, b => b.Recipe != "");
         var frame = Frame();
         frame = frame with { Demand = frame.Demand with { Work = frame.Demand.Work with
-            { Pawns = Known(EquatableArray.From(frame.Demand.Work.Pawns.Value.Select(p => p with { Available = default }))) } } };
+            { Pawns = Known(EquatableArray.From(frame.Demand.Work.Pawns.Value.Select(p => p with { Available = false }))) } } };
         var unavailable = ForecastFoodCandidates.GenerateFoodActivities(frame, Capacity(), input);
         Assert.Empty(unavailable.Problem!.Options);
-        Assert.Contains("unknown_food_worker_availability:worker", unavailable.Findings);
         Assert.Empty(ForecastSurvivalNeeds.CompareSurvivalActivities(frame, unavailable.Problem, unavailable.Relief).Selected);
     }
 

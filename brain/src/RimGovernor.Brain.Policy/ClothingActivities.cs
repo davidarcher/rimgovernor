@@ -28,7 +28,7 @@ public static class ClothingActivitiesRules
         {
             if (pawn.Blocked) continue;
             if (pawn.Model is not { } input) continue;
-            foreach (var trait in input.Role.Work.Traits.ValueOrDefault)
+            foreach (var trait in input.Role.Traits)
                 input = input with { Nudist = input.Nudist || trait.Effects.Nudist };
             var required = pawn.Policy is { } policy ? policy.Required : [];
             foreach (var option in input.Options.Where(o => o.Source == GearSource.Bill && !GearArmorRules.ArmoryArmor(o.Definition)

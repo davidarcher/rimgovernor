@@ -259,22 +259,14 @@ partial class RoundsBuildingPlanner
     {
         foreach (var pawn in pawns)
         {
-            if (pawn.Available != Known(true) || pawn.Applies != Known(true))
-            {
-                continue;
-            }
-            if (!pawn.Work.TryGetValue(out var settings))
+            if (!pawn.Available || pawn.Work is not PawnWorkTable.Works { Rows: var settings })
             {
                 continue;
             }
             if (minimum > 0)
             {
-                if (!pawn.Skills.TryGetValue(out var skills))
-                {
-                    continue;
-                }
                 var qualified = false;
-                foreach (var skill in skills)
+                foreach (var skill in pawn.Skills)
                 {
                     if (skill.Name == "Construction" && !skill.Disabled && skill.Level >= minimum)
                     {

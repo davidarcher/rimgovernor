@@ -83,14 +83,11 @@ public static class LaborRules
         var labor = new Dictionary<WorkType, int>();
         foreach (var p in pawns)
         {
-            var known = p.Available.TryGetValue(out var available);
-            var appliesKnown = p.Applies.TryGetValue(out var applies);
-            if ((known && !available) || (appliesKnown && !applies))
+            if (!p.Available || p.Work is not PawnWorkTable.Works { Rows: var work })
             {
                 continue;
             }
-            var workKnown = p.Work.TryGetValue(out var work);
-            if (!known || !appliesKnown || !workKnown || work!.Count == 0)
+            if (work.Count == 0)
             {
                 return Unknown<IReadOnlyDictionary<WorkType, int>>();
             }

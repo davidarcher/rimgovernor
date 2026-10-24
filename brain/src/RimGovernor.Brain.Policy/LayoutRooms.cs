@@ -50,20 +50,8 @@ public static partial class LayoutRoomsRules
             }
         }
         var listKnown = pawns.TryGetValue(out var list);
-
-        var stages = listKnown;
-        var deathrests = listKnown;
-        foreach (var p in list)
-        {
-            if (!p.Biotech.IsKnown)
-            {
-                stages = false;
-                deathrests = false;
-                break;
-            }
-        }
-        Add(stages && list.Count > 0, PlannedRole.Nursery, PlannedRole.Classroom);
-        Add(deathrests && list.Count > 0, PlannedRole.DeathrestChamber);
+        Add(listKnown && list.Count > 0, PlannedRole.Nursery, PlannedRole.Classroom);
+        Add(listKnown && list.Count > 0, PlannedRole.DeathrestChamber);
         Add(ideology.TryGetValue(out _), PlannedRole.Worship);
         var demandKnown = containment.Demand.TryGetValue(out var demand);
         Add(demandKnown && demand!.Entities == 0, PlannedRole.ContainmentCell);

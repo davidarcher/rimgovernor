@@ -74,7 +74,7 @@ public sealed class ColonyModelWiringTests
             {
                 anna with
                 {
-                    Skills = Known(EquatableArray.From(anna.Skills.Value.Append(new WorkSkill { Name = "Medicine", Level = 3, Learning = SkillStockTests.Mechanics(3, 0) }))),
+                    Skills = EquatableArray.From(anna.Skills.Append(new WorkSkill { Name = "Medicine", Level = 3, Learning = SkillStockTests.Mechanics(3, 0) })),
                     SkillStatCurves = EquatableArray.From(new[] { tend }),
                 },
             })),

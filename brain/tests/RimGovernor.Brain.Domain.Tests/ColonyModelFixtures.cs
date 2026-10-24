@@ -108,7 +108,7 @@ internal static class ColonyModelFixtures
         Definitions = [CropRow()],
         Farms = [ZoneFixtures.Growing("zone1", Crop)],
         Cells = [.. Enumerable.Range(0, 4).Select(x => new SiteCell { Cell = new Cell(x, 0), Zone = Known(true), ZoneId = Known("zone1"), Fertility = Known(0.5 + (0.1 * x)) })],
-        WorkPawns = Known(EquatableArray.From(new[] { new WorkPawn { Id = new PawnId("Anna"), Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Plants", Level = 10 } })) } })),
+        WorkPawns = Known(EquatableArray.From(new[] { PawnFixtures.Worker("Anna") with { Skills = [new WorkSkill { Name = "Plants", Level = 10 }] } })),
         Acquisition = Known(EquatableArray.From(Array.Empty<AcquisitionSource>())),
     };
 

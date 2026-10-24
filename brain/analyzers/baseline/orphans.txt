@@ -180,8 +180,6 @@ Policy|MechanicCardField.Follows
 Policy|MechanicCardField.Writers
 Policy|MechanicCardSite.Writers
 Policy|MechanicCardWriter.Guards
-Policy|PawnBody.CellTemperatureC
-Policy|PawnBody.ComfortableMaxC
 Policy|PrisonerMedicineRules.CareOp.Part
 Policy|PrisonerMedicineRules.CareOp.Pawn
 Policy|PrisonerMedicineRules.CareOp.Recipe

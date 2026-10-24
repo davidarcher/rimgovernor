@@ -16,19 +16,9 @@ public static class CropResilienceRules
         var c = 0;
         foreach (var pawn in pawns)
         {
-            if (!pawn.Available.TryGetValue(out var available))
-            {
-                return default;
-            }
-            var wk = pawn.Work.TryGetValue(out var work);
-            if (!available)
+            if (!pawn.Available || pawn.Work is not PawnWorkTable.Works { Rows: var work })
             {
                 continue;
-            }
-            var sk = pawn.Skills.IsKnown;
-            if (!wk || !sk)
-            {
-                return default;
             }
             var profile = PawnRules.BuildProfile(pawn);
             foreach (var row in work)

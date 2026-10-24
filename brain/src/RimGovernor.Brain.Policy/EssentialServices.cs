@@ -214,12 +214,10 @@ public static class EssentialServicesRules
                     var capable = false;
                     foreach (var worker in workers.Where(w => "pawn/" + w.Id.Value != excluded))
                     {
-                        if (!worker.Available.IsKnown || !worker.Applies.IsKnown || !worker.Work.IsKnown || !worker.Skills.IsKnown)
-                        { unknown = true; continue; }
-                        if (!worker.Available.Value || !worker.Applies.Value || facts.WorkClaims?.Pawns.Contains(worker.Id.Value) == true) continue;
-                        var work = worker.Work.Value.FirstOrDefault(w => w.Work == WorkType.Cooking);
+                        if (!worker.Available || worker.Work is not PawnWorkTable.Works { Rows: var rows } || facts.WorkClaims?.Pawns.Contains(worker.Id.Value) == true) continue;
+                        var work = rows.FirstOrDefault(w => w.Work == WorkType.Cooking);
                         if (work is null || work.Disabled || work.Priority <= 0) continue;
-                        var skill = worker.Skills.Value.FirstOrDefault(s => s.Name == work.Skill);
+                        var skill = worker.Skills.FirstOrDefault(s => s.Name == work.Skill);
                         if (skill is null) { unknown = true; continue; }
                         if (!skill.Disabled && skill.Level >= floor) capable = true;
                     }

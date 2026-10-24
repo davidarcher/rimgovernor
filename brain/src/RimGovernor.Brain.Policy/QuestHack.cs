@@ -188,13 +188,11 @@ public static class QuestHackPolicy
         }
         foreach (var worker in workers!)
         {
-            var ak = worker.Available.TryGetValue(out var available);
-            var pk = worker.Work.TryGetValue(out var work);
-            if (!ak || !pk || !available || !spare.Contains(worker.Id))
+            if (!worker.Available || !spare.Contains(worker.Id))
             {
                 continue;
             }
-            foreach (var assignment in work!)
+            foreach (var assignment in worker.Work.Priorities())
             {
                 if (assignment.Work == WorkType.Research && !assignment.Disabled && assignment.Priority > 0)
                 {

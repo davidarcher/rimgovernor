@@ -26,10 +26,10 @@ public sealed class ForecastConditionalMoodTests
         => new(id, "pawn", "rest", "bed", "", 0, from, from, to, (to - from) * .7 / (7 * Hour), []);
     private static ForecastCapacityInput Capacity() => new()
     {
-        Pawn = new() { Id = new("pawn"), Available = Known(true), Applies = Known(true), Job = Known(new PawnJob()),
-            Schedule = Known(EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24))) },
+        Pawn = new() { Id = new("pawn"), Available = Known(true), Applies = Known(true),
+            Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24)) },
         Location = "bed", HorizonTicks = Day, LocalHour = Known(6d), OpportunityCostPerTick = Known(1d),
-        CurrentJobRemainingTicks = Known(0d), Occupancy = Known<EquatableArray<ForecastOccupancy>>([]),
+        CurrentWork = new(new("pawn"), Known(false), default, Known(0d)), Occupancy = Known<EquatableArray<ForecastOccupancy>>([]),
         LocationAfterProtectedTime = Known("bed"), ProtectTimetable = false,
     };
     private static ForecastMoodPoint At(ForecastMoodResult result, double tick)

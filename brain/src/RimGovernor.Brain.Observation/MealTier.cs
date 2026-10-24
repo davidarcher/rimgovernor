@@ -45,26 +45,17 @@ public sealed partial record ColonyProjection
         if (WorkPawns.TryGetValue(out var pawns))
         {
             var cooks = new List<MealCook>();
-            var complete = true;
             foreach (var pawn in pawns)
             {
-                var ak = pawn.Available.TryGetValue(out var available);
-                var wk = pawn.Work.TryGetValue(out var work);
-                var sk = pawn.Skills.TryGetValue(out var skills);
-                if (!ak || !wk || !sk)
-                {
-                    complete = false;
-                    break;
-                }
-                if (!available)
+                if (!pawn.Available)
                 {
                     continue;
                 }
-                foreach (var w in work)
+                foreach (var w in pawn.Work.Priorities())
                 {
                     if (w.Work == WorkType.Cooking && w.Priority > 0 && !w.Disabled)
                     {
-                        foreach (var s in skills)
+                        foreach (var s in pawn.Skills)
                         {
                             if (s.Name == "Cooking" && !s.Disabled)
                             {
@@ -74,10 +65,7 @@ public sealed partial record ColonyProjection
                     }
                 }
             }
-            if (complete)
-            {
-                r = r with { Cooks = Known(EquatableArray.From(cooks)) };
-            }
+            r = r with { Cooks = Known(EquatableArray.From(cooks)) };
         }
         if (Facts.MoodPawns.TryGetValue(out var moodPawns))
         {

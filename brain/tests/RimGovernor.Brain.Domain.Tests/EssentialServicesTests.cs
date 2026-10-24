@@ -95,9 +95,9 @@ public sealed class EssentialServicesTests
         EssentialInputs = new() { Benches = Known<EquatableArray<ProductionBench>>([
             new() { Id = "stove", Token = "stove-token", Usable = true, Recipes = secondChain ? [Recipe("advanced-meal", 6), Recipe("basic-meal", 0)] : [Recipe("advanced-meal", 6)] }]) },
     };
-    private static WorkPawn Cook(string id, int level) => new() { Id = new(id), Applies = Known(true), Available = Known(true),
-        Work = Known<EquatableArray<WorkPriority>>([new() { Work = WorkType.Cooking, Skill = "Cooking", Priority = 1 }]),
-        Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Cooking", Level = level }]) };
+    private static WorkPawn Cook(string id, int level) => PawnFixtures.Worker(id) with {
+        Work = new PawnWorkTable.Works(true, [new() { Work = WorkType.Cooking, Skill = "Cooking", Priority = 1 }]),
+        Skills = [new() { Name = "Cooking", Level = level }] };
     private static ProductionRecipe Recipe(string id, int floor) => new() { Name = id, Role = RecipeRole.OrdinaryMeal, Available = true,
         Food = new RecipeFood.Food(0, 0, new RecipeCooking.FromRaw(1, [], floor)) };
 

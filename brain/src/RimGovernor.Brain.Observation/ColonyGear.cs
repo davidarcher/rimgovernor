@@ -201,17 +201,7 @@ public static class ColonyGearReads
         {
             traits.Add(RoundsWorkReads.ResolveTrait(catalog, new PawnTrait { Name = t.DefName, Degree = (int)t.Degree }));
         }
-        var work = input.Role.Work with { Traits = Known(EquatableArray.From(traits)) };
-        if (work.Work.TryGetValue(out var rows))
-        {
-            var resolved = new List<WorkPriority>(rows.Count);
-            foreach (var entry in rows)
-            {
-                resolved.Add(catalog.ResolveWorkRow(entry));
-            }
-            work = work with { Work = Known(EquatableArray.From(resolved)) };
-        }
-        input = input with { Role = input.Role with { Work = work } };
+        input = input with { Role = input.Role with { Traits = EquatableArray.From(traits), Work = EquatableArray.From(input.Role.Work.Select(catalog.ResolveWorkRow)) } };
         HashSet<string>? allowed = null;
         if (role.Definitions.Count > 0)
         {
@@ -584,18 +574,8 @@ public static class ColonyGearReads
             }
             priorities.Add(new WorkPriority { Work = ColonyDecodeReads.WireParse<WorkType>(w.DefName), Priority = (int)w.Priority, Disabled = w.Disabled });
         }
-        var work = s.Role.Work with { Work = Known(EquatableArray.From(priorities)) };
-        // An older producer omits skills; the role then splits on priorities alone.
-        if (v.Skills.Count > 0)
-        {
-            var skills = new List<WorkSkill>();
-            foreach (var sk in v.Skills)
-            {
-                skills.Add(new WorkSkill { Learning = sk.Learning, Name = sk.DefName, Level = (int)sk.Level, Passion = RoundsWorkReads.SkillPassion(sk.Passion), Disabled = sk.Disabled });
-            }
-            work = work with { Skills = Known(EquatableArray.From(skills)) };
-        }
-        return s with { Role = s.Role with { Work = work } };
+        var skills = v.Skills.Select(sk => new WorkSkill { Learning = sk.Learning, Name = sk.DefName, Level = (int)sk.Level, Passion = RoundsWorkReads.SkillPassion(sk.Passion), Disabled = sk.Disabled });
+        return s with { Role = s.Role with { Work = EquatableArray.From(priorities), Skills = EquatableArray.From(skills) } };
     }
 
     /// <summary>

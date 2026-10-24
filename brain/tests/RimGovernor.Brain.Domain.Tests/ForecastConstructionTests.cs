@@ -22,8 +22,7 @@ public sealed class ForecastConstructionTests
         QualitySensitive = true, Gate = new O.ConstructionGate.Tiered { Tier = ConstructionTier.Sustain },
     };
     private static ForecastConstructionWorker Worker(string id = "worker", int skill = 8) => new(
-        new WorkPawn { Id = new RimGovernor.Brain.Domain.PawnId(id), Available = Known(true), Applies = Known(true), ConstructionAble = Known(true),
-            Skills = Known(EquatableArray.From(new[] { new WorkSkill { Name = "Construction", Level = skill } })) },
+        PawnFixtures.Worker(id) with { Skills = [new WorkSkill { Name = "Construction", Level = skill }] },
         new(id, "stock", Known(EquatableArray.From(new[] { new ForecastTimeWindow(0, 1000) })), Known(1.0)), Known(1.0));
     private static ForecastCommitment Commitment(ConstructionSite site) => new(site.Id, default)
     { Construction = site.Building, AlternativeLaborCost = Known(2000.0) };
@@ -146,7 +145,7 @@ public sealed class ForecastConstructionTests
         Assert.Equal("already_built", Assert.Single(ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Census = complete } }).Proposed.Construction).Reason);
         Assert.Equal("construction_gone", Assert.Single(ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Census = CurrentConstruction.Empty } }).Proposed.Construction).Reason);
         var worker = Worker();
-        var unavailable = request with { Construction = request.Construction with { Workers = [worker with { Observed = worker.Observed with { Available = Known(false) } }] } };
+        var unavailable = request with { Construction = request.Construction with { Workers = [worker with { Observed = worker.Observed with { Available = false } }] } };
         Assert.Null(Assert.Single(ColonyForecastRules.ForecastColony(unavailable).Proposed.Construction).Comparison!.Selected);
         var remaining = site with { WorkLeft = 20.0, MaterialsOwed = default, ResourcesComplete = true };
         var revised = ColonyForecastRules.ForecastColony(request with { Construction = request.Construction with { Census = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { remaining }) } } });

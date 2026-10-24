@@ -192,14 +192,15 @@ public sealed class HuntPlanningTests
     [Fact]
     public void AColonistIsTooHungryToHuntFromTheClocksHungerHold()
     {
-        static WorkPawn Pawn(string id, Fact<RimGovernor.Contracts.Wire.Defs.HungerCategory> hunger) => new() { Id = new PawnId(id), Hunger = hunger };
+        static WorkPawn Pawn(string id, FoodNeed food) => PawnFixtures.Worker(id) with { Food = food };
+        static FoodNeed Has(RimGovernor.Contracts.Wire.Defs.HungerCategory hunger) => new FoodNeed.Has(0.2, hunger);
         var hungry = HuntPlanningRules.Hungry(
         [
-            Pawn("fed", Known(RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed)),
-            Pawn("peckish", Known(RimGovernor.Contracts.Wire.Defs.HungerCategory.Hungry)),
-            Pawn("urgent", Known(HazardThresholdsRules.HungerHoldCategory)),
-            Pawn("starving", Known(RimGovernor.Contracts.Wire.Defs.HungerCategory.Starving)),
-            Pawn("unread", Unknown<RimGovernor.Contracts.Wire.Defs.HungerCategory>()),
+            Pawn("fed", Has(RimGovernor.Contracts.Wire.Defs.HungerCategory.Fed)),
+            Pawn("peckish", Has(RimGovernor.Contracts.Wire.Defs.HungerCategory.Hungry)),
+            Pawn("urgent", Has(HazardThresholdsRules.HungerHoldCategory)),
+            Pawn("starving", Has(RimGovernor.Contracts.Wire.Defs.HungerCategory.Starving)),
+            Pawn("no-food-need", new FoodNeed.Lacks()),
         ]);
         Assert.Equal(["starving", "urgent"], hungry.Order(StringComparer.Ordinal));
     }

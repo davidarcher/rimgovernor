@@ -94,21 +94,17 @@ public static class ForecastConstruction
                 var pawn = worker.Observed;
                 var estimate = estimates.SingleOrDefault(e => e.Pawn == pawn.Id.Value);
                 if (estimate is null) { eligibilityUnknown = true; continue; }
-                if (!pawn.Available.TryGetValue(out var available) || !pawn.Applies.TryGetValue(out var applies))
-                { eligibilityUnknown = true; continue; }
-                if (!available || !applies) continue;
+                if (!pawn.Available || !pawn.Applies) continue;
                 if (needs.Length != 0)
                 {
                     if (!estimate.DeliveryAllowed.TryGetValue(out var delivery)) eligibilityUnknown = true;
                     else if (delivery) options.Add(new("deliver", pawn.Id.Value, estimate.DeliveryTicks, estimate.RecoveryLaborTicks)
                         { Equipment = estimate.DeliveryEquipment });
                 }
-                if (!estimate.FinishAllowed.TryGetValue(out var finish) || !pawn.ConstructionAble.TryGetValue(out var able)
-                    || !pawn.Skills.TryGetValue(out var skills)
-                    || (site.QualitySensitive && site.Minimum is null))
+                if (!estimate.FinishAllowed.TryGetValue(out var finish) || (site.QualitySensitive && site.Minimum is null))
                 { eligibilityUnknown = true; continue; }
                 var minimum = Math.Max(site.NativeFinishingSkill, site.Minimum?.Skill ?? 0);
-                if (!finish || !able || !skills.Any(s => s.Name == "Construction" && !s.Disabled && s.Level >= minimum)) continue;
+                if (!finish || !pawn.ConstructionAble || !pawn.Skills.Any(s => s.Name == "Construction" && !s.Disabled && s.Level >= minimum)) continue;
                 var duration = Unknown<double>();
                 if (worker.WorkPerTick.TryGetValue(out var rate))
                 {

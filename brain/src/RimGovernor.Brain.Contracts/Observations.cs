@@ -1125,16 +1125,8 @@ public sealed record PawnSettings
     /// </summary>
     public required string? AllowedAreaId { get; init; }
 
-    /// <summary>
-    /// One row per work type WorkSettingsIntent writes; empty when the pawn never works or its work settings are
-    /// uninitialized. Hardening the work block waits on the work planner's Fact copy (#3787).
-    /// </summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<WorkSetting>))]
-    public EquatableArray<WorkSetting> Work { get; init; }
-
-    public bool? WorkApplies { get; init; }
-
-    public bool? ManualWorkPriorities { get; init; }
+    /// <summary>The pawn's work settings: whether it ever works, and for one whose tracker is initialized, its priorities.</summary>
+    public required PawnWork Work { get; init; }
 
     /// <summary>
     /// The 24 hourly slots, hour 0 first; empty for a pawn without a timetable (an animal, another faction's pawn).
@@ -1152,6 +1144,27 @@ public sealed record PawnSettings
 
     /// <summary>Body stats for outdoor dash planning and nearby hazard planners.</summary>
     public required PawnBodyStats Body { get; init; }
+}
+
+/// <summary>
+/// A pawn's work settings (Pawn_WorkSettings): <see cref="NeverWorks"/> for a pawn without them or whose EverWork is
+/// false; <see cref="Uninitialized"/> for a working pawn whose tracker is not initialized yet (GetPriority would
+/// initialize it, so nothing more is read); <see cref="Works"/> with the game's manual-priorities setting and one row
+/// per work type WorkSettingsIntent writes.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(PawnWork.NeverWorks), "never_works")]
+[JsonDerivedType(typeof(PawnWork.Uninitialized), "uninitialized")]
+[JsonDerivedType(typeof(PawnWork.Works), "works")]
+public abstract record PawnWork
+{
+    private protected PawnWork() { }
+
+    public sealed record NeverWorks : PawnWork;
+
+    public sealed record Uninitialized : PawnWork;
+
+    public sealed record Works(bool ManualPriorities, [property: JsonConverter(typeof(EquatableArrayJsonConverter<WorkSetting>))] EquatableArray<WorkSetting> Rows) : PawnWork;
 }
 
 /// <summary>
@@ -1175,20 +1188,19 @@ public abstract record PawnCare
 /// (the game's own stat and hediff evaluation, never derived in the brain). ComfortableMinC and ComfortableMaxC
 /// are StatDefOf.ComfyTemperatureMin/Max (degrees C, apparel included); MoveSpeed is StatDefOf.MoveSpeed in cells
 /// per second, with the current Moving capacity. CellTemperatureC is Thing.AmbientTemperature (the pawn's cell, or
-/// its holder's). Hypothermia is the highest Hypothermia hediff severity, 0 when the pawn has none. Native writes
-/// every scalar; making them required waits on the work planner's Fact copy (#3787).
+/// its holder's). Hypothermia is the highest Hypothermia hediff severity, 0 when the pawn has none.
 /// </summary>
 public sealed record PawnBodyStats
 {
-    public double? ComfortableMinC { get; init; }
+    public required double ComfortableMinC { get; init; }
 
-    public double? ComfortableMaxC { get; init; }
+    public required double ComfortableMaxC { get; init; }
 
-    public double? MoveSpeed { get; init; }
+    public required double MoveSpeed { get; init; }
 
-    public double? CellTemperatureC { get; init; }
+    public required double CellTemperatureC { get; init; }
 
-    public double? Hypothermia { get; init; }
+    public required double Hypothermia { get; init; }
 }
 
 /// <summary>
@@ -1523,7 +1535,7 @@ public sealed record PawnState
     /// Alive, standing colony builder with native finishing work-type and required
     /// capacities. Jobs, draft, schedule and skill level do not change this fact.
     /// </summary>
-    public bool? ConstructionCapable { get; init; }
+    public required bool ConstructionCapable { get; init; }
 }
 
 /// <summary>An animal's facts, or <see cref="NotAnimal"/> for a pawn whose race is no animal.</summary>

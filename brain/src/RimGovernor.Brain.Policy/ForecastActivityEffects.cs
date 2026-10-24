@@ -102,9 +102,9 @@ public static class ForecastActivityEffects
                 var body = request.Demand.Work.Pawns.Value.Single(p => p.Id == need.Pawn).Body;
                 if (!shelter.Enclosed.TryGetValue(out var enclosed) || !shelter.Roofed.TryGetValue(out var roofed)
                     || !shelter.MinC.TryGetValue(out var low) || !shelter.MaxC.TryGetValue(out var high)
-                    || !shelter.ThroughTicks.TryGetValue(out var through) || !body.TryGetValue(out var stats)
-                    || !stats.ComfortableMinC.TryGetValue(out var minimum) || !stats.ComfortableMaxC.TryGetValue(out var maximum))
+                    || !shelter.ThroughTicks.TryGetValue(out var through))
                     return Unknown("unknown_shelter_protection:" + effect.Id);
+                var (minimum, maximum) = (body.ComfortableMinC, body.ComfortableMaxC);
                 if (!double.IsFinite(low) || !double.IsFinite(high) || !double.IsFinite(through)
                     || !double.IsFinite(minimum) || !double.IsFinite(maximum) || low > high || minimum > maximum || through < 0)
                     throw new DomainException("invalid shelter temperature envelope");

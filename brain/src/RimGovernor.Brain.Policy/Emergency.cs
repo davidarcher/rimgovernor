@@ -1,5 +1,4 @@
 using ColonistDistance = RimGovernor.Contracts.Wire.Observations.ColonistDistance;
-using FoodNeed = RimGovernor.Contracts.Wire.Observations.FoodNeed;
 
 namespace RimGovernor.Brain.Policy;
 

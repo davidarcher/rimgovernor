@@ -50,7 +50,7 @@ public sealed class SparringCreditTests
             Sparring = trainees,
         };
 
-    private static PracticeTrainees Two(params PracticeTrainee[] extra) => new([Trainee("a"), Trainee("b"), .. extra], [], 0);
+    private static PracticeTrainees Two(params PracticeTrainee[] extra) => new([Trainee("a"), Trainee("b"), .. extra], 0);
 
     private static ForecastCoupledOutcome Stub() => new(new([], 0, 0), default, new Dictionary<string, ForecastNeedsResult>(), []);
 
@@ -82,13 +82,13 @@ public sealed class SparringCreditTests
     {
         ForecastRoomService ring = new(1, "", Served * Day);
         // No capable pawn: nobody to train is a named zero.
-        Assert.Empty(ForecastSparring.RingCredit(ring, Stub(), [], Context(new([], [], 0)), Day));
+        Assert.Empty(ForecastSparring.RingCredit(ring, Stub(), [], Context(new([], 0)), Day));
         // One capable pawn has nobody to spar with.
-        Assert.Empty(ForecastSparring.RingCredit(ring, Stub(), [], Context(new([Trainee("a")], [], 0)), Day));
+        Assert.Empty(ForecastSparring.RingCredit(ring, Stub(), [], Context(new([Trainee("a")], 0)), Day));
         // Two standing Melee targets: the colony already spars without the ring.
         Assert.Empty(ForecastSparring.RingCredit(ring, Stub(), [], Context(Two() with { Targets = 2 }), Day));
         // Trainees already at the ceiling gain nothing.
-        Assert.Empty(ForecastSparring.RingCredit(ring, Stub(), [], Context(new([Trainee("a", 2), Trainee("b", 2)], [], 0)), Day));
+        Assert.Empty(ForecastSparring.RingCredit(ring, Stub(), [], Context(new([Trainee("a", 2), Trainee("b", 2)], 0)), Day));
         // No raid to expect: the Melee saves no harm.
         Assert.Empty(ForecastSparring.RingCredit(ring, Stub(), [], Context(Two(), Raids(0)), Day));
         // A second ring takes no trainees: the lowest id does.
@@ -98,13 +98,12 @@ public sealed class SparringCreditTests
     }
 
     [Fact]
-    public void UnreadTraineesMechanicsOrHarmAreRequiredFacts()
+    public void UnreadWorkPawnsMechanicsOrHarmAreRequiredFacts()
     {
         ForecastRoomService ring = new(1, "", Served * Day);
         Assert.Equal("work pawns", Assert.Throws<RequiredFactException>(() => ForecastSparring.RingCredit(ring, Stub(), [], Context(null), Day)).Fact);
-        Assert.StartsWith("sparring trainees", Assert.Throws<RequiredFactException>(() => ForecastSparring.RingCredit(ring, Stub(), [], Context(new([Trainee("a"), Trainee("b")], ["c"], 0)), Day)).Fact, StringComparison.Ordinal);
         var unread = Trainee("b") with { Learning = Melee() with { Xp = double.NaN } };
-        Assert.StartsWith("melee learning b", Assert.Throws<RequiredFactException>(() => ForecastSparring.RingCredit(ring, Stub(), [], Context(new([Trainee("a"), unread], [], 0)), Day)).Fact, StringComparison.Ordinal);
+        Assert.StartsWith("melee learning b", Assert.Throws<RequiredFactException>(() => ForecastSparring.RingCredit(ring, Stub(), [], Context(new([Trainee("a"), unread], 0)), Day)).Fact, StringComparison.Ordinal);
         Assert.StartsWith("raid harm", Assert.Throws<RequiredFactException>(() => ForecastSparring.RingCredit(ring, Stub(), [], Context(Two(), Raids() with { RaidPoints = default }), Day)).Fact, StringComparison.Ordinal);
     }
 
@@ -118,8 +117,8 @@ public sealed class SparringCreditTests
         var pawns = facts.ForecastObserved.WorkPawns.Value;
         WorkPawn Capable(WorkPawn pawn, string id) => pawn with
         {
-            Id = new(id), Health = Known(0.5),
-            Skills = Known(EquatableArray.From([new WorkSkill { Name = "Melee", Level = 0, Learning = Melee() }])),
+            Id = new(id), Health = 0.5,
+            Skills = [new WorkSkill { Name = "Melee", Level = 0, Learning = Melee() }],
             SkillStatCurves = [MeleeDps],
         };
         var capable = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From([Capable(pawns[0], "a"), Capable(pawns[0], "b")])) } };
@@ -133,7 +132,7 @@ public sealed class SparringCreditTests
         Assert.Empty(generated.Context.Sparring!.Trainees);
         Assert.Contains("sparring_ring_melee_not_modelled:a", generated.Findings);
         // A fresh colony (its colonist's skills read, none capable of Melee practice) credits its planned ring nothing and throws nothing.
-        var shooter = pawns[0] with { Skills = Known(EquatableArray.From([new WorkSkill { Name = "Shooting", Level = 3, Learning = Melee() }, new WorkSkill { Name = "Melee", Disabled = true, Learning = Melee() with { Practice = new SkillPractice.Sparring(false, true, 2) } }])) };
+        var shooter = pawns[0] with { Skills = [new WorkSkill { Name = "Shooting", Level = 3, Learning = Melee() }, new WorkSkill { Name = "Melee", Disabled = true, Learning = Melee() with { Practice = new SkillPractice.Sparring(false, true, 2) } }] };
         var fresh = ForecastCoupledCandidates.GenerateCoupledActivities(facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From([shooter])) } })!.Context;
         Assert.Empty(fresh.Sparring!.Trainees);
         Assert.Empty(ForecastSparring.RingCredit(new(1, "", 0), Stub(), [], fresh with { PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.SparringRing } }, Day));

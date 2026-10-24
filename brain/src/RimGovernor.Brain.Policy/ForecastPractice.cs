@@ -12,10 +12,10 @@ namespace RimGovernor.Brain.Policy;
 public sealed record PracticeTrainee(string Pawn, SkillLearning Learning, int Ceiling, EquatableArray<double> Power);
 
 /// <summary>
-/// A practice room's trainees (#3813, #3846, PracticeMethodCandidates.TraineesOf): the pawns it trains, the capable pawns whose
-/// skills, health or ceiling were not read, and the standing practice targets of its skill (sparring markers, range stands).
+/// A practice room's trainees (#3813, #3846, PracticeMethodCandidates.TraineesOf): the pawns it trains and the standing practice
+/// targets of its skill (sparring markers, range stands).
 /// </summary>
-public sealed record PracticeTrainees(EquatableArray<PracticeTrainee> Trainees, EquatableArray<string> Unread, int Targets);
+public sealed record PracticeTrainees(EquatableArray<PracticeTrainee> Trainees, int Targets);
 
 /// <summary>
 /// The raid harm a practice room's trained skill saves (#3813, #3846, epic #3650 P1), shared by the sparring ring

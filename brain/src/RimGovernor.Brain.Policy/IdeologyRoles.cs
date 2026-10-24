@@ -138,20 +138,17 @@ public static class IdeologyRolesRules
         var pool = new List<(PawnId Id, IReadOnlyList<WorkSkill> Skills, double Certainty, HashSet<WorkType>? Work)>();
         foreach (var row in rows)
         {
-            if (row.Available.TryGetValue(out var available) && available
-                && row.PolicyInputs.TryGetValue(out var inputs)
-                && row.Skills.TryGetValue(out var skills)
-                && inputs.Ideo is PawnIdeo.Member { Role: null } member && member.IdeoId == ideo.Facts.IdeoId)
+            if (row.Available && row.PolicyInputs.Ideo is PawnIdeo.Member { Role: null } member && member.IdeoId == ideo.Facts.IdeoId)
             {
                 var certainty = member.Certainty;
                 HashSet<WorkType>? work = null;
                 var chosen = !selected.TryGetValue(out var committedWork) ? Unknown<EquatableArray<WorkType>>()
                     : committedWork.TryGetValue(row.Id, out var fact) ? fact : Known<EquatableArray<WorkType>>([]);
-                if (row.Work.TryGetValue(out var priorities) && chosen.TryGetValue(out var committed))
+                if (chosen.TryGetValue(out var committed))
                 {
-                    work = [.. priorities.Where(p => p.Priority == 1 && !p.Disabled).Select(p => p.Work), .. committed];
+                    work = [.. row.Work.Priorities().Where(p => p.Priority == 1 && !p.Disabled).Select(p => p.Work), .. committed];
                 }
-                pool.Add((row.Id, skills, certainty, work));
+                pool.Add((row.Id, row.Skills, certainty, work));
             }
         }
         var roles = ideo.Facts.Roles.OrderBy(r => r.Id, StringComparer.Ordinal).ToList();

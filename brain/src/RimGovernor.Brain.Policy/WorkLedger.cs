@@ -169,26 +169,25 @@ public static partial class WorkRules
     public const int LedgerBenchSlots = 15;
 
     /// <summary>The string of a bill mode.</summary>
-    internal static string BillModeName(BillMode m) =>
-        m switch
+    internal static string BillModeName(BillMode m)
+    {
+        switch (m)
         {
-            BillMode.FoodTarget => "food_target",
-            BillMode.ButcherForever => "butcher_forever",
-            BillMode.HumanButcherForever => "human_butcher_forever",
-            BillMode.StockTarget => "stock_target",
-            BillMode.GearBatch => "gear_batch",
-            BillMode.BeerReserve => "beer_reserve",
-            _ => "",
-        };
+            case BillMode.FoodTarget: return "food_target";
+            case BillMode.ButcherForever: return "butcher_forever";
+            case BillMode.HumanButcherForever: return "human_butcher_forever";
+            case BillMode.StockTarget: return "stock_target";
+            case BillMode.GearBatch: return "gear_batch";
+            case BillMode.BeerReserve: return "beer_reserve";
+        }
+        throw new DomainException("undefined bill mode");
+    }
 
     /// <summary>The bill mode native reads back for m: one of GearBatch (count), ButcherForever (forever) and StockTarget (target).</summary>
     internal static BillMode WireClass(BillMode m) =>
-        m switch
-        {
-            BillMode.HumanButcherForever => BillMode.ButcherForever,
-            BillMode.FoodTarget or BillMode.BeerReserve => BillMode.StockTarget,
-            _ => m,
-        };
+        m is BillMode.HumanButcherForever ? BillMode.ButcherForever
+        : m is BillMode.FoodTarget or BillMode.BeerReserve ? BillMode.StockTarget
+        : m;
 
     /// <summary>A declaration that abstains on the fact.</summary>
     public static Declared Abstaining(Cause fact) => new Declared().Unread(fact);

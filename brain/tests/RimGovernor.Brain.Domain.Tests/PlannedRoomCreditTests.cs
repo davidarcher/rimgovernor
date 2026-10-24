@@ -382,7 +382,7 @@ public sealed class PlannedRoomCreditTests
         var trainedWith = NeedsFixtures.Memory("RimGovernor_TrainedWith", 3, Day, false) with { StackLimit = 1 };
         var facts = ForecastPortfolioChoiceTests.Observed([], [], helper: true);
         var learning = CapabilityMaintenanceTests.Learning() with { Xp = 0d };
-        var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Melee", Level = 1, Learning = learning }]) }).ToArray();
+        var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = [new() { Name = "Melee", Level = 1, Learning = learning }] }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Melee", "target/" + i, new(i + 1, 1), "RimGovernor_Spar", "RimGovernor_Spar",
             0d, 100d, learning) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = .0001, Thoughts = [trainedWith], Equipment = [], Findings = [] }).ToArray();
         facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), ForecastObserved = facts.ForecastObserved with
@@ -694,7 +694,7 @@ public sealed class PlannedRoomCreditTests
         {
             var facts = ForecastPortfolioChoiceTests.Observed([], [], helper: true);
             var learning = CapabilityMaintenanceTests.Learning() with { Xp = 0d };
-            var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Shooting", Level = 1, Learning = learning }]) }).ToArray();
+            var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = [new() { Name = "Shooting", Level = 1, Learning = learning }] }).ToArray();
             var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Shooting", "stand/" + i, new(i + 1, 1), "RimGovernor_TrainRange", "RimGovernor_TrainShooting",
                 0d, 100d, learning) { CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [trainedWith], Equipment = [], Findings = [],
                     Company = company ? ["stand/" + (1 - i)] : [] }).ToArray();
@@ -741,7 +741,7 @@ public sealed class PlannedRoomCreditTests
         {
             // RoundsWork reads each work pawn's skills (a fresh colonist with none it could practise) and health.
             ForecastObserved = review.ForecastObserved with { WorkPawns = Known(EquatableArray.From(review.ForecastObserved.WorkPawns.Value
-                .Select(p => p with { Skills = p.Skills.IsKnown ? p.Skills : Known<EquatableArray<WorkSkill>>([]), Health = Known(1d) }))) },
+                .Select(p => p with { Health = 1d }))) },
             PlannedShelters = [.. review.PlannedShelters, .. roles.Select(r => new PlannedRoom { Id = r.Room, Role = r.Role,
                 Region = RegionRules.RectRegion(new RimGovernor.Brain.Policy.Rectangle { X = 5 + (10 * r.Room), Z = 5, Width = 3, Height = 3 }) })],
             PlannedRoomPredictions = EquatableArray.From(review.PlannedRoomPredictions.Concat(roles.Select(r => PlannedRoomPredictionTests.Closed(

@@ -73,11 +73,12 @@ public static class ConversionRules
         var certainty = double.PositiveInfinity;
         foreach (var row in rows)
         {
-            if (!row.PolicyInputs.TryGetValue(out var inputs) || inputs.Guest is GuestState.Hosted || inputs.Ideo is PawnIdeo.Member { IdeoId: var believed } && believed == ideo!.Facts.IdeoId)
+            var inputs = row.PolicyInputs;
+            if (inputs.Guest is GuestState.Hosted || inputs.Ideo is PawnIdeo.Member { IdeoId: var believed } && believed == ideo!.Facts.IdeoId)
             {
                 continue;
             }
-            if (!row.Available.TryGetValue(out var available) || !available || !row.Age.TryGetValue(out var age) || age < MinTargetAge)
+            if (!row.Available || row.Age < MinTargetAge)
             {
                 continue;
             }
@@ -118,10 +119,7 @@ public static class ConversionRules
         }
         foreach (var row in rows)
         {
-            if (!row.PolicyInputs.TryGetValue(out var inputs))
-            {
-                return false;
-            }
+            var inputs = row.PolicyInputs;
             if (inputs.Guest is GuestState.Hosted)
             {
                 continue;

@@ -238,7 +238,7 @@ public static class ChildRoomsRules
         var bound = new SortedDictionary<string, int>(StringComparer.Ordinal);
         foreach (var p in pawns)
         {
-            if (!p.Biotech.TryGetValue(out var bt))
+            if (p.Biotech is not PawnBiotechStatus.Active { Facts: var bt })
             {
                 continue;
             }

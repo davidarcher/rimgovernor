@@ -14,12 +14,11 @@ public sealed class BelieverConversionTests
 
     private static readonly GoalRecord Everyone = new() { Id = 4, Kind = GoalKind.Believers };
 
-    private static WorkPawn Colonist(string id, string ideo, double certainty, RimGovernor.Contracts.Wire.Defs.GuestStatus? guest = null, bool available = true, double age = 30) => new()
+    private static WorkPawn Colonist(string id, string ideo, double certainty, RimGovernor.Contracts.Wire.Defs.GuestStatus? guest = null, bool available = true, double age = 30) => PawnFixtures.Worker(id) with
     {
-        Id = new PawnId(id),
-        Available = Known(available),
-        Age = Known(age),
-        PolicyInputs = Known(PawnFixtures.Inputs(ideo, certainty, guest: guest)),
+        Available = available,
+        Age = age,
+        PolicyInputs = PawnFixtures.Inputs(ideo, certainty, guest: guest),
     };
 
     private static Fact<EquatableArray<WorkPawn>> Pawns(params WorkPawn[] rows) => Known(EquatableArray.From(rows));

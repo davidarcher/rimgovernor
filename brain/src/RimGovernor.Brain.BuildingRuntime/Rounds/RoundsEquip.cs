@@ -31,15 +31,9 @@ internal static class EquipCandidates
         };
         var work = RoundsWorkReads.WorkPawnRow(row, catalog, things);
         facts = facts with { Profile = PawnRules.BuildProfile(work) };
-        if (work.Work.TryGetValue(out var rows))
+        if (work.Work.Priorities().Any(w => w.Work == WorkType.Hunting && w.Priority > 0 && !w.Disabled))
         {
-            foreach (var w in rows)
-            {
-                if (w.Work == WorkType.Hunting && w.Priority > 0 && !w.Disabled)
-                {
-                    facts = facts with { Role = WeaponRole.Hunter };
-                }
-            }
+            facts = facts with { Role = WeaponRole.Hunter };
         }
         if (row.RaidArmor is O.RaidArmor.Rated armor)
         {

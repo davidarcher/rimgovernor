@@ -37,14 +37,16 @@ public static class StockArrivalReads
 
         var benches = bills.Benches.Select(b => new StockBench(b.BenchDef, b.Usable, b.WorkSpeed)).ToArray();
         var crafters = new List<StockCrafter>();
-        foreach (var row in (pawns?.Pawns ?? []).Where(r => r.Colonist && !r.Dead && !r.Downed && !r.Drafted && r.MentalState is null && r.Settings.WorkApplies == true))
+        foreach (var row in (pawns?.Pawns ?? []).Where(r => r.Colonist && !r.Dead && !r.Downed && !r.Drafted && r.MentalState is null && r.Settings.Work is not O.PawnWork.NeverWorks))
         {
             if (PawnRules.WorkHours([.. row.Settings.Schedule.Select(slot => slot.AssignmentDefName)]) is not { } hours)
             {
                 return new StockArrival { Unread = "stock_arrival_schedule:" + row.Pawn.Id };
             }
 
-            var works = row.Settings.Work.Where(w => w.Priority > 0 && !w.Disabled)
+            // An uninitialized tracker has no rows yet.
+            var rows = row.Settings.Work is O.PawnWork.Works { Rows: var read } ? read : [];
+            var works = rows.Where(w => w.Priority > 0 && !w.Disabled)
                 .Select(w => ColonyDecodeReads.WireParseOpen(w.DefName, WorkType.Unrecognized)).Where(w => w != WorkType.Unrecognized);
             crafters.Add(new StockCrafter(row.Pawn.Id ?? "", hours, EquatableArray.From(works),
                 EquatableArray.From(row.Biography.Skills.Select(s => new SkillLevel(s.DefName, s.Level))), row.Biography.WorkSpeeds));

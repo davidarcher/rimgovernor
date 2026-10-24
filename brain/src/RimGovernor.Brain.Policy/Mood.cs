@@ -1,5 +1,3 @@
-using NeedLevel = RimGovernor.Contracts.Wire.Observations.NeedLevel;
-
 namespace RimGovernor.Brain.Policy;
 
 public enum MoodNeed

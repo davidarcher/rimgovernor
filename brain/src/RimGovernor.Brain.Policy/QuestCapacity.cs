@@ -44,10 +44,7 @@ public static class QuestCapacity
         }
         foreach (var pawn in pawns)
         {
-            if (!pawn.Skills.TryGetValue(out var skills))
-            {
-                return (default, false);
-            }
+            var skills = pawn.Skills;
             priorities[pawn.Id] = 0;
             foreach (var skill in skills)
             {
@@ -200,7 +197,7 @@ public static class QuestCapacity
     {
         var wk = workers.TryGetValue(out var pawns);
         var mk = mood.TryGetValue(out var states);
-        if (!roster.Capacity.TryGetValue(out _) || !wk || !mk)
+        if (!roster.Planned || !wk || !mk)
         {
             return ([], 0, false);
         }
@@ -230,11 +227,7 @@ public static class QuestCapacity
         var floor = 0;
         foreach (var pawn in pawns!)
         {
-            if (!pawn.Available.TryGetValue(out var available))
-            {
-                return ([], 0, false);
-            }
-            if (!available)
+            if (!pawn.Available)
             {
                 continue;
             }

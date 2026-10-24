@@ -19,13 +19,11 @@ public sealed class HomeFireTests
     [Fact]
     public void WorkAssignmentsPinFirefighterForEveryCapablePawn()
     {
-        WorkPawn Pawn(string id, bool pyromaniac) => new()
+        WorkPawn Pawn(string id, bool pyromaniac) => PawnFixtures.Worker(id) with
         {
-            Id = new PawnId(id), Available = Known(true), Applies = Known(true),
-            Manual = Known(true), Ranged = Known(false), Job = Known(new PawnJob()),
-            Schedule = Known(EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))),
-            Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Construction", Level = 8 }]),
-            Work = Known<EquatableArray<WorkPriority>>([
+            Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24)),
+            Skills = [new() { Name = "Construction", Level = 8 }],
+            Work = new PawnWorkTable.Works(true, [
                 new() { Work = WorkType.Firefighter, Order = 1, Priority = 0, Disabled = pyromaniac },
                 new() { Work = WorkType.Construction, Skill = "Construction", Order = 5, Priority = 3 }]),
         };

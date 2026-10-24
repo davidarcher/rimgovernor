@@ -305,7 +305,7 @@ public sealed class ForecastIncumbentSelectionTests
         var (request, candidates) = Problem(1, 0, meal: false);
         var facts = WorkResourceTestFacts.Create("pawn", "helper");
         facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From(facts.ForecastObserved.WorkPawns.Value
-            .Select(p => p.Id.Value == "helper" ? p with { Available = Known(false) } : p))) } };
+            .Select(p => p.Id.Value == "helper" ? p with { Available = false } : p))) } };
         var roster = WorkRules.ReviewWorkResources(facts, Known<EquatableArray<ProductionBatch>>([]), new([]));
         var context = candidates.Context;
         context = context with

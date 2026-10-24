@@ -425,11 +425,7 @@ public static partial class GoalRules
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, NotAColonist, default, default);
         }
-        if (!pawn.Skills.TryGetValue(out var skills))
-        {
-            throw new RequiredFactException("skills of " + goal.Target);
-        }
-        var skill = skills.FirstOrDefault(s => s.Name == goal.Qualifier);
+        var skill = pawn.Skills.FirstOrDefault(s => s.Name == goal.Qualifier);
         if (skill is null)
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_skill", default, default);

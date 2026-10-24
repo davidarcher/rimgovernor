@@ -39,17 +39,10 @@ public static partial class ResearchRules
         var count = 0;
         foreach (var p in pawns)
         {
-            var known = p.Available.TryGetValue(out var available);
-            var appliesKnown = p.Applies.TryGetValue(out var applies);
-            if ((known && !available) || (appliesKnown && !applies))
+            if (p.Available && p.Applies)
             {
-                continue;
+                count++;
             }
-            if (!known || !appliesKnown)
-            {
-                return Unknown<int>();
-            }
-            count++;
         }
         return Known(count);
     }

@@ -23,13 +23,11 @@ public sealed class IdeologyRoleWorkTests
         },
         new IdeoligionFacts { IdeoId = Ours, Roles = [new("role-1", "Specialist", true, [])] }));
 
-    private static WorkPawn Colonist(string id, int crafting, params WorkPriority[] work) => new()
+    private static WorkPawn Colonist(string id, int crafting, params WorkPriority[] work) => PawnFixtures.Worker(id) with
     {
-        Id = new PawnId(id),
-        Available = Known(true),
-        Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Crafting", Level = crafting }]),
-        Work = Known(EquatableArray.From(work)),
-        PolicyInputs = Known(PawnFixtures.Inputs(Ours, 0.5)),
+        Skills = [new() { Name = "Crafting", Level = crafting }],
+        Work = new PawnWorkTable.Works(true, EquatableArray.From(work)),
+        PolicyInputs = PawnFixtures.Inputs(Ours, 0.5),
     };
 
     private static Fact<EquatableArray<WorkPawn>> Pawns(params WorkPawn[] rows) => Known(EquatableArray.From(rows));

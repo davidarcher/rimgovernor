@@ -35,6 +35,11 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations.PawnPolicyInputs" Alias="PawnPolicyInputs" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.PawnIdeo" Alias="PawnIdeo" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.GuestState" Alias="GuestState" />
+    <!-- The pawn table's needs, care and body blocks the WorkPawn carries (#3876). -->
+    <Using Include="RimGovernor.Contracts.Wire.Observations.NeedLevel" Alias="NeedLevel" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.FoodNeed" Alias="FoodNeed" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnCare" Alias="PawnCare" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.PawnBodyStats" Alias="PawnBodyStats" />
     <!-- The DLC colony sections and pawn blocks (#3773). -->
     <Using Include="RimGovernor.Contracts.Wire.Observations.PawnRoyalHolding" Alias="PawnRoyalHolding" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.PawnPsylink" Alias="PawnPsylink" />

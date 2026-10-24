@@ -326,18 +326,20 @@ public sealed record PawnProfile
 public static class WorkPawnProfileExtensions
 {
     /// <summary>
-    /// How many hours of the pawn's timetable are Work or Anything. Unknown when the schedule is unread, is
-    /// not 24 hours, or holds an assignment this does not classify.
+    /// How many hours of the pawn's timetable are Work or Anything. Unknown when the timetable is not 24 hours (a pawn
+    /// without one) or holds an assignment this does not classify.
     /// </summary>
-    public static Fact<int> WorkHoursPerDay(this WorkPawn w) =>
-        w.Schedule.TryGetValue(out var rows) && PawnRules.WorkHours(rows) is { } n ? Known(n) : Unknown<int>();
+    public static Fact<int> WorkHoursPerDay(this WorkPawn w) => WorkHoursPerDay(w.Schedule);
+
+    /// <summary>The Work or Anything hours of a timetable, one TimeAssignmentDef per hour (WorkHoursPerDay above).</summary>
+    public static Fact<int> WorkHoursPerDay(EquatableArray<string> rows) => PawnRules.WorkHours(rows) is { } n ? Known(n) : Unknown<int>();
 }
 
 public static partial class PawnRules
 {
     /// <summary>
-    /// Reads the profile from a WorkPawn; unknown traits, incapable rows or age leave those parts empty
-    /// rather than making the profile unknown, since the planner degrades to skill-only ordering without them.
+    /// Reads the profile from a WorkPawn: skills, traits, incapable work types, age, the weapon and Biotech facts, and
+    /// the work skill of each work type the pawn has a row for.
     /// </summary>
     public static PawnProfile BuildProfile(WorkPawn pawn)
     {
@@ -345,45 +347,27 @@ public static partial class PawnRules
         var incapable = new Dictionary<WorkType, bool>();
         var workSkill = new Dictionary<WorkType, string>();
         var effects = new TraitEffects();
-        IReadOnlyList<PawnTrait> traitRows = [];
-        var age = 0.0;
         var genesEffects = new GeneEffects();
         var child = false;
         IReadOnlyDictionary<WorkType, int> workMinAge = new Dictionary<WorkType, int>();
-        if (pawn.Work.TryGetValue(out var rows))
+        foreach (var row in pawn.Work.Priorities())
         {
-            foreach (var row in rows)
-            {
-                workSkill[row.Work] = row.Skill;
-            }
+            workSkill[row.Work] = row.Skill;
         }
-        if (pawn.Skills.TryGetValue(out var skills))
+        foreach (var s in pawn.Skills)
         {
-            foreach (var s in skills)
-            {
-                skillsByName[s.Name] = new ProfileSkill { Name = s.Name, Level = s.Level, Stored = s.Stored, Passion = s.Passion, Disabled = s.Disabled };
-            }
+            skillsByName[s.Name] = new ProfileSkill { Name = s.Name, Level = s.Level, Stored = s.Stored, Passion = s.Passion, Disabled = s.Disabled };
         }
-        if (pawn.Traits.TryGetValue(out var traits))
+        IReadOnlyList<PawnTrait> traitRows = [.. pawn.Traits];
+        foreach (var t in pawn.Traits)
         {
-            traitRows = [.. traits];
-            foreach (var t in traits)
-            {
-                effects = effects.Add(t.Effects);
-            }
+            effects = effects.Add(t.Effects);
         }
-        if (pawn.Incapable.TryGetValue(out var incapableWork))
+        foreach (var w in pawn.Incapable)
         {
-            foreach (var w in incapableWork)
-            {
-                incapable[w] = true;
-            }
+            incapable[w] = true;
         }
-        if (pawn.Age.TryGetValue(out var a))
-        {
-            age = a;
-        }
-        if (pawn.Biotech.TryGetValue(out var bt))
+        if (pawn.Biotech is PawnBiotechStatus.Active { Facts: var bt })
         {
             if (bt.Effects.TryGetValue(out var genes))
             {
@@ -400,8 +384,6 @@ public static partial class PawnRules
                 workMinAge = ages;
             }
         }
-        pawn.Ranged.TryGetValue(out var ranged);
-        pawn.Hunts.TryGetValue(out var hunts);
         return new PawnProfile
         {
             Id = pawn.Id,
@@ -410,14 +392,14 @@ public static partial class PawnRules
             Effects = effects,
             Incapable = incapable,
             WorkSkill = workSkill,
-            Age = age,
+            Age = pawn.Age,
             Child = child,
-            Biotech = pawn.Biotech,
+            Biotech = pawn.Biotech is PawnBiotechStatus.Active { Facts: var facts } ? Known(facts) : default,
             Genes = genesEffects,
             WorkMinAge = workMinAge,
-            Ranged = ranged,
-            Hunts = hunts,
-            Inspiration = pawn.Inspiration,
+            Ranged = pawn.Ranged,
+            Hunts = pawn.Hunts,
+            Inspiration = Known(pawn.Inspiration),
             WorkHours = pawn.WorkHoursPerDay(),
         };
     }

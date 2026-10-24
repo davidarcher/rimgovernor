@@ -76,10 +76,9 @@ public static partial class ProductionRules
                     // Standing blueprints are optional work, not reservations: admitted actions below own stock.
                     new Dictionary<Resource, long>()) : null,
             Pawns = facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)
-                ? Known(EquatableArray.From(pawns.Select(p => new WorkPawnAvailability(p.Id.Value, p.Available, p.Applies,
-                    ForecastCurrentWork.ForecastCurrentWorkOf(p).Occupied, p.Job.TryGetValue(out var job) && job.Target.TryGetValue(out var target)
-                        ? Known(target.Thing) : default)
-                    { Schedule = p.Schedule, Preemptible = p.Job.TryGetValue(out var held) && held.Preemptible, LocalHour = facts.WorkResources.TryGetValue(out var native)
+                ? Known(EquatableArray.From(pawns.Select(p => new WorkPawnAvailability(p.Id.Value, Known(p.Available), Known(p.Applies),
+                    ForecastCurrentWork.ForecastCurrentWorkOf(p).Occupied, Known(p.Job.Target.Thing))
+                    { Schedule = Known(p.Schedule), Preemptible = p.Job.Preemptible, LocalHour = facts.WorkResources.TryGetValue(out var native)
                         && native.SingleOrDefault(n => n.Pawn == p.Id.Value)?.LocalHour is { } hour ? Known(hour) : default }))) : default,
             Stock = facts.Resources,
             Reservations = facts.BillReservations,

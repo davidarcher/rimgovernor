@@ -28,8 +28,8 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
         {
             findings.Add("ideology_role_skill_requirement_not_modelled:" + requirement.Id);
             var pawn = pawns.FirstOrDefault(p => p.Id == requirement.Pawn);
-            if (pawn is null || !pawn.Skills.TryGetValue(out var skills)) { findings.Add("maintenance_skills_unknown:" + requirement.Id); continue; }
-            requirements.Add(new(requirement, EquatableArray.From(skills)));
+            if (pawn is null) { findings.Add("maintenance_skills_unknown:" + requirement.Id); continue; }
+            requirements.Add(new(requirement, pawn.Skills));
         }
         if (!admitted) findings.Add("practice_held_essential_emergency_or_unknown");
         var eligible = read.Workers.Where(w => admitted && w.Skill is "Shooting" or "Melee"
@@ -80,27 +80,24 @@ internal sealed record PracticeMethodCandidates(ForecastActivity[] Tasks, Foreca
     /// (its biography's curve) x health for Melee, as the defense capacity counts melee power; its ranged DPS at its hit factor
     /// (the biography's <see cref="SkillStatCurve.RangedDefenseDps"/> curve) for Shooting, as the capacity counts ranged
     /// damage. The standing practice targets of the skill. A trainee without its curve (a pipeline the curve does not
-    /// qualify) is a named not-modelled finding and earns nothing; one whose skills, health or ceiling were not read is
-    /// listed unread. Null when the work pawns were not read.
+    /// qualify) is a named not-modelled finding and earns nothing. Null when the work pawns were not read.
     /// </summary>
     internal static PracticeTrainees? TraineesOf(RoundsFacts facts, PracticeActivityRead read, SortedSet<string> findings, string skill)
     {
         if (!facts.ForecastObserved.WorkPawns.TryGetValue(out var pawns)) return null;
         var melee = skill == "Melee";
         var (stat, finding) = melee ? ("MeleeDPS", "sparring_ring_melee_not_modelled:") : (SkillStatCurve.RangedDefenseDps, "training_range_shooting_not_modelled:");
-        var trainees = new List<PracticeTrainee>(); var unread = new List<string>();
+        var trainees = new List<PracticeTrainee>();
         foreach (var pawn in pawns.OrderBy(p => p.Id.Value, StringComparer.Ordinal))
         {
-            if (!pawn.Skills.TryGetValue(out var skills)) { unread.Add(pawn.Id.Value); continue; }
-            if (skills.FirstOrDefault(s => s.Name == skill)?.Learning is not { Practice: SkillPractice.Drill { Capable: true, Ceiling: var ceiling } } learning) continue;
+            if (pawn.Skills.FirstOrDefault(s => s.Name == skill)?.Learning is not { Practice: SkillPractice.Drill { Capable: true, Ceiling: var ceiling } } learning) continue;
             // Ranged damage counts at full health in the defense capacity; melee power scales with it.
-            var health = 1d;
-            if (melee && !pawn.Health.TryGetValue(out health)) { unread.Add(pawn.Id.Value); continue; }
+            var health = melee ? pawn.Health : 1d;
             if (pawn.SkillStatCurves.FirstOrDefault(c => c.Stat == stat && c.Skill == skill) is not { } curve)
             { findings.Add(finding + pawn.Id.Value); continue; }
             trainees.Add(new(pawn.Id.Value, learning, ceiling, EquatableArray.From(curve.Levels.OrderBy(l => l.StoredLevel).Select(l => health * l.Value))));
         }
         var targets = read.Workers.Where(w => w.Skill == skill).Select(w => w.Target).Distinct(StringComparer.Ordinal).Count();
-        return new(EquatableArray.From(trainees), EquatableArray.From(unread), targets);
+        return new(EquatableArray.From(trainees), targets);
     }
 }

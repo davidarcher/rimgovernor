@@ -279,10 +279,7 @@ public static partial class RecoveryRules
             {
                 continue;
             }
-            if (!pawn.Job.TryGetValue(out var job))
-            {
-                return Unknown<bool>();
-            }
+            var job = pawn.Job;
             var name = service.Method switch
             {
                 RecoveryMethod.Repair => "Repair",
@@ -294,11 +291,7 @@ public static partial class RecoveryRules
             {
                 return Known(false);
             }
-            if (!job.Target.TryGetValue(out var target))
-            {
-                return Unknown<bool>();
-            }
-            return Known(target.Thing == service.Thing);
+            return Known(job.Target.Thing == service.Thing);
         }
         return Known(false);
     }

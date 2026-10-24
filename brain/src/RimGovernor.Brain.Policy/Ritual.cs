@@ -110,9 +110,7 @@ public static partial class RitualRules
         var pool = new List<(PawnId Id, double Certainty)>();
         foreach (var row in rows)
         {
-            var ak = row.Available.TryGetValue(out var available);
-            var nk = row.PolicyInputs.TryGetValue(out var inputs);
-            if (ak && available && nk && inputs!.Ideo is PawnIdeo.Member member && member.IdeoId == ideo!.Facts.IdeoId)
+            if (row.Available && row.PolicyInputs.Ideo is PawnIdeo.Member member && member.IdeoId == ideo!.Facts.IdeoId)
             {
                 var certainty = member.Certainty;
                 pool.Add((row.Id, certainty));

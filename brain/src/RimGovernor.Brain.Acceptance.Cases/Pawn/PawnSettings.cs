@@ -102,7 +102,7 @@ internal static class PawnSettings
     {
         var colonists = await TypedPawns.ListAsync(s, "colonists", new Observations.PawnFilter { Colonist = true, Downed = false }, cancellationToken).ConfigureAwait(false);
         var doctor = colonists.OrderBy(p => p.Pawn.Id, StringComparer.Ordinal)
-            .FirstOrDefault(p => p.Settings.Work.Any(w => w.DefName == "Doctor" && !w.Disabled))
+            .FirstOrDefault(p => p.Settings.Work is Observations.PawnWork.Works { Rows: var rows } && rows.Any(w => w.DefName == "Doctor" && !w.Disabled))
             ?? throw new AcceptanceException("no doctor-capable colonist");
         var id = doctor.Pawn.Id;
         foreach (var on in new[] { false, true })

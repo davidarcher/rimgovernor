@@ -17,8 +17,9 @@ A `PawnState` row is read whole: every section (needs, health, equipment, biogra
 animal state, the DLC blocks) is present for every pawn, and the cases a section can lack are named
 states rather than absent members: `not_animal`, `inactive` for an absent DLC, `none` for no care
 policy, ideoligion or nearest colonist, `no_hostiles` for raid armor, `free` for a pawn that is not
-a guest. `PawnSettings.work_applies` distinguishes inapplicable pawns from unread work tables;
-`manual_work_priorities` distinguishes numbered and checkbox mode. `WorkSetting.priority` is native
+a guest. `PawnSettings.work` is `never_works` for a pawn without work settings, `uninitialized` for
+a working pawn whose tracker the game has not initialized, or `works` with `manualPriorities`
+(numbered or checkbox mode) and the rows. `WorkSetting.priority` is native
 effective priority: 0–4 in numbered mode and 0 or 3 in checkbox mode. Reads never initialize a work
 tracker or grant permission to change settings.
 

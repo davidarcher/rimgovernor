@@ -43,10 +43,7 @@ public static partial class PsylinkRules
         }
         foreach (var pawn in rows!)
         {
-            var ak = pawn.Available.TryGetValue(out var available);
-            var nk = pawn.Rest.TryGetValue(out _);
-            var lk = pawn.PsylinkLevel.TryGetValue(out _);
-            if (ak && available && nk && !lk)
+            if (pawn.Available && pawn.Rest is NeedLevel.Has && pawn.PsylinkLevel == 0)
             {
                 output.Add(pawn.Id);
             }
@@ -76,10 +73,8 @@ public static partial class PsylinkRules
         }
         foreach (var pawn in rows!)
         {
-            var ak = pawn.Available.TryGetValue(out var available);
-            var nk = pawn.Rest.TryGetValue(out _);
-            var lk = pawn.PsylinkLevel.TryGetValue(out var level);
-            if (ak && available && nk && lk && level < PsylinkRules.MaxPsylinkLevel && !Titled(facts, pawn.Id))
+            var level = pawn.PsylinkLevel;
+            if (pawn.Available && pawn.Rest is NeedLevel.Has && level > 0 && level < PsylinkRules.MaxPsylinkLevel && !Titled(facts, pawn.Id))
             {
                 output.Add(pawn.Id);
             }

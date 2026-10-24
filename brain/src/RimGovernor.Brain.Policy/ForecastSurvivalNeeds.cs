@@ -43,11 +43,9 @@ public sealed partial record ForecastSurvivalNeeds
             var foodWindow = food.TryGetValue(pawn.Id, out var row) ? Window(row.RunwayDays * GameTime.TicksPerDay) : default;
             needs.Add(new("food/" + pawn.Id.Value, pawn.Id, "eligible_food_exhaustion", foodWindow));
             Fact<ForecastNeedWindow> coldWindow = default;
-            if (pawn.Body.TryGetValue(out var body)
-                && body.CellTemperatureC.TryGetValue(out var temperature) && double.IsFinite(temperature)
-                && body.ComfortableMinC.TryGetValue(out var comfort) && double.IsFinite(comfort)
-                && double.IsFinite(comfort - temperature)
-                && body.Hypothermia.TryGetValue(out var severity) && double.IsFinite(severity) && severity >= 0 && severity <= 1)
+            var (temperature, comfort, severity) = (pawn.Body.CellTemperatureC, pawn.Body.ComfortableMinC, pawn.Body.Hypothermia);
+            if (double.IsFinite(temperature) && double.IsFinite(comfort) && double.IsFinite(comfort - temperature)
+                && double.IsFinite(severity) && severity >= 0 && severity <= 1)
             {
                 // Already serious requires immediate attention even if the current cell is warm.
                 if (severity >= DashEstimateRules.HypothermiaSerious) coldWindow = Window(0);

@@ -1100,7 +1100,7 @@ public sealed class ForecastCoupledSelectionTests
     {
         // #3285: the shipped (verified) DeadMansApparel card over the gear census, behind the equipment Need's enablement.
         var model = EffectSourceCandidatesTests.Pawn().Gear;
-        model = model with { Role = model.Role with { Work = model.Role.Work with { Traits = Known<EquatableArray<PawnTrait>>([]) } } };
+        model = model with { Role = model.Role with { Traits = [] } };
         var facts = Review() with
         {
             Gear = Known(ColonyModelFixtures.NoGear() with { Stored = [], Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = new GearModel.Modeled(model), Candidates = [] }] }),

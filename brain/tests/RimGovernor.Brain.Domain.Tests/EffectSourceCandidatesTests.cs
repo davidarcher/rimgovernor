@@ -161,7 +161,7 @@ public sealed class EffectSourceCandidatesTests
     public void CensusFactsReadHediffsFromTheMedicalRead()
     {
         var model = Pawn().Gear;
-        model = model with { Role = model.Role with { Work = model.Role.Work with { Traits = Known<EquatableArray<PawnTrait>>([new() { Name = "Kind" }]) } } };
+        model = model with { Role = model.Role with { Traits = [new() { Name = "Kind" }] } };
         var gear = ColonyModelFixtures.NoGear() with { Pawns = [new GearPawn { Pawn = new("pawn"), LoadoutModel = new GearModel.Modeled(model) }, new GearPawn { Pawn = new("blocked"), Blocked = true, LoadoutModel = new GearModel.NoOutfit() }] };
         var care = CareFixtures.Patient("pawn", [CareFixtures.Condition("Flu")]);
 

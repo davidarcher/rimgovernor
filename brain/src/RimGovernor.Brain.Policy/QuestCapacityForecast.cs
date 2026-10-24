@@ -270,11 +270,7 @@ public static class QuestCapacityForecast
 
     private static bool QuestWorkEnabled(WorkPawn p, WorkType work)
     {
-        if (!p.Work.TryGetValue(out var rows))
-        {
-            return false;
-        }
-        foreach (var w in rows)
+        foreach (var w in p.Work.Priorities())
         {
             if (w.Work == work)
             {

@@ -44,7 +44,7 @@ public sealed class PracticeHarmTests
         return new ColonyValue(context, [], CalendarRules.YearDays, input.Pawns, ItemFactsFixtureRules.CoreItemFacts());
     }
 
-    private static PracticeTrainees Of(params PracticeTrainee[] trainees) => new(EquatableArray.From(trainees), [], 0);
+    private static PracticeTrainees Of(params PracticeTrainee[] trainees) => new(EquatableArray.From(trainees), 0);
 
     private static ColonyModelPolicy Policy() => new() { MedicineTendsPerDay = Known(0d) };
 
@@ -68,16 +68,14 @@ public sealed class PracticeHarmTests
     }
 
     [Fact]
-    public void NoRaidAPawnIncapableOfTheSkillOrAnUnreadTraineeIsANamedState()
+    public void NoRaidAPawnIncapableOfTheSkillOrUnreadWorkPawnsIsANamedState()
     {
         // No raid to expect: a fighter's level saves no harm.
         Assert.Equal(0, Marginals(Value(Colony(), Of(Trainee()), Of(Trainee()), Raids(0))).PerUnit[MeleeKey]);
         // A pawn no practice eligibility rule admits (Melee disabled, a pacifist) adds no defense by the skill.
         var none = Marginals(Value(Colony(), Of(), Of()));
         Assert.Equal((0d, 0d), (none.PerUnit[MeleeKey], none.PerUnit[ShootingKey]));
-        // Unread trainees or work pawns are required facts.
-        var unread = new PracticeTrainees([], ["Anna"], 0);
-        Assert.Equal("melee trainees: Anna", Assert.Throws<RequiredFactException>(() => Marginals(Value(Colony(), unread, Of()))).Fact);
+        // Unread work pawns are a required fact.
         Assert.Equal("work pawns", Assert.Throws<RequiredFactException>(() => Marginals(Value(Colony(), Of(), null))).Fact);
         var truncated = Trainee() with { Power = [2, 2, 2] };
         Assert.StartsWith("melee power curve", Assert.Throws<RequiredFactException>(() => Marginals(Value(Colony(), Of(truncated), Of()))).Fact, StringComparison.Ordinal);
@@ -127,7 +125,7 @@ public sealed class PracticeHarmTests
         // (Rounder sets ForecastCoupledContext.Investment from them) price the XP. No Ideology role holds a requirement here.
         var facts = ForecastPortfolioChoiceTests.Observed([], [], helper: true);
         var learning = CapabilityMaintenanceTests.Learning() with { Xp = 0d };
-        var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = "Melee", Level = 1, Learning = learning }]) }).ToArray();
+        var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = [new() { Name = "Melee", Level = 1, Learning = learning }] }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, "Melee", "target/" + i, new(i + 1, 1), "RimGovernor_Spar", "RimGovernor_Spar",
             0d, 100d, learning) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [], Equipment = [], Findings = [] }).ToArray();
         facts = facts with { Hostiles = Known(0L), CriticalPatients = Known(0L), ForecastObserved = facts.ForecastObserved with

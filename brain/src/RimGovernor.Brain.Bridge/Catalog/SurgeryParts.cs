@@ -41,18 +41,18 @@ public sealed partial class DefinitionCatalog
 
     /// <summary>
     /// The BloodLoss severity from which a pawn is seriously bleeding: the minSeverity of the hediff's "moderate"
-    /// stage, where blood loss first costs consciousness heavily. Unknown for a catalog with no BloodLoss row; a BloodLoss
-    /// row with no such stage is an error.
+    /// stage, where blood loss first costs consciousness heavily. A catalog with no BloodLoss row, or a BloodLoss
+    /// row with no such stage, is an error.
     /// </summary>
-    public Fact<double> SeriousBloodLoss()
+    public double SeriousBloodLoss()
     {
         if (DefRow<HediffDef>(BloodLossHediff) is not { } row)
         {
-            return Unknown<double>();
+            throw new CatalogException($"hediff {BloodLossHediff} has no row");
         }
 
         return row.stages.Seq().FirstOrDefault(s => s.label == BloodLossSeriousStage) is { } stage
-            ? Known(Decimal32(stage.minSeverity))
+            ? Decimal32(stage.minSeverity)
             : throw new CatalogException($"hediff {BloodLossHediff} has no \"{BloodLossSeriousStage}\" stage");
     }
 

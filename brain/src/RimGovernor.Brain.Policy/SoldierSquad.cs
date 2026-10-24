@@ -44,14 +44,8 @@ public sealed record SoldierSquad
     /// </summary>
     private static (int Score, bool Ok, bool Known) SoldierScore(WorkPawn p)
     {
-        var ak = p.Age.TryGetValue(out var age);
-        var ik = p.Incapable.TryGetValue(out var incapable);
-        var sk = p.Skills.TryGetValue(out var skills);
-        if (!ak || !ik || !sk)
-        {
-            return (0, false, false);
-        }
-        if (age < HostilityRules.ChildAge)
+        var (incapable, skills) = (p.Incapable, p.Skills);
+        if (p.Age < HostilityRules.ChildAge)
         {
             return (0, false, true);
         }

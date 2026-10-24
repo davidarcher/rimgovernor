@@ -49,9 +49,8 @@ internal static class WorkResourceTestFacts
         CurrentConstruction = CurrentConstruction.Empty,
         BillReservations = [],
         WorkResources = Known(EquatableArray.From(pawns.Select(p => new WorkResourcePawn(p, "", 0, "", "", "", 0) { LocalHour = 12 }))),
-        ForecastObserved = new() { WorkPawns = Known(EquatableArray.From(pawns.Select(p => new WorkPawn
-        { Id = new(p), Available = Known(true), Applies = Known(true), Job = Known(new PawnJob()),
-            Schedule = Known(EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))) }))) },
+        ForecastObserved = new() { WorkPawns = Known(EquatableArray.From(pawns.Select(p => PawnFixtures.Worker(p) with
+        { Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24)) }))) },
         WorkAdmission = new()
         {
             Buildings = Known<EquatableArray<WorkBuildingCost>>([new("TestWall", "Rice", Known<EquatableArray<Amount>>([new(new("Rice"), 6)]))]),
@@ -231,8 +230,8 @@ public sealed class WorkResourcesTests
         {
             var facts = WorkResourceTestFacts.Create("cook-builder", "helper");
             return facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From(facts.ForecastObserved.WorkPawns.Value
-                .Select(p => p.Id.Value != "helper" ? p : p with { Job = Known(new PawnJob { Def = "HaulToCell", Work = WorkType.Hauling,
-                    Target = Known(new JobTarget { Thing = "stack" }), Preemptible = preemptible }) }))) } };
+                .Select(p => p.Id.Value != "helper" ? p : p with { Job = new PawnJob { Def = "HaulToCell", Work = WorkType.Hauling,
+                    Target = new JobTarget.Spawned("stack", new Cell(1, 1)), Preemptible = preemptible } }))) } };
         }
         PlanSpec Approach(string target) => Plan("approach", DomainAction.NewPawnActivitiesAction(new("approach-0"), new(1,
             [new("cook-builder", "m/cook-builder", "m", 0, 1, false,
@@ -281,12 +280,12 @@ public sealed class WorkResourcesTests
     {
         var facts = WorkResourceTestFacts.Create("cook-builder", "helper");
         facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From(
-            facts.ForecastObserved.WorkPawns.Value.Select(p => p.Id.Value == "cook-builder" ? p with { Job = Known(new PawnJob { Def = "DoBill" }) } : p))) } };
+            facts.ForecastObserved.WorkPawns.Value.Select(p => p.Id.Value == "cook-builder" ? p with { Job = new PawnJob { Def = "DoBill" } } : p))) } };
         var view = View(facts);
         Assert.Contains("unknown_current_job_remaining", view.Capacity["cook-builder"].Findings);
         Assert.True(view.Capacity["helper"].Capacity.Windows.IsKnown);
         facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known(EquatableArray.From(
-            facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Available = Known(false) }))) } };
+            facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Available = false }))) } };
         Assert.Equal(0, View(facts).Capacity["helper"].Capacity.Windows.Value.Sum(w => w.End - w.Start));
     }
 
@@ -354,7 +353,7 @@ public sealed class WorkResourcesTests
         var facts = WorkResourceTestFacts.Create("cook-builder") with { Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 100)]) };
         Assert.False(WorkRules.WorkResourcesFit(View(facts), Plan("double-bench", Craft("first"), Craft("second"))));
         var busy = facts.ForecastObserved.WorkPawns.Value[0] with
-        { Job = Known(new PawnJob { Def = "DoBill", Target = Known(new JobTarget { Thing = "bench" }) }) };
+        { Job = new PawnJob { Def = "DoBill", Target = new JobTarget.Spawned("bench", new Cell(1, 1)) } };
         facts = facts with { ForecastObserved = facts.ForecastObserved with { WorkPawns = Known<EquatableArray<WorkPawn>>([busy]) } };
         Assert.False(WorkRules.WorkResourcesFit(View(facts), Plan("busy-bench", Craft("first"))));
         Assert.True(WorkRules.WorkResourcesFit(View(facts), Plan("other-work", Building("wall"))));

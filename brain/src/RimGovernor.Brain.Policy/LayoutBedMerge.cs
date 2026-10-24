@@ -111,17 +111,9 @@ public static partial class LayoutClusterRules
             {
                 continue;
             }
-            if (!pawn.Available.TryGetValue(out var available))
-            {
-                return default;
-            }
-            if (!available)
+            if (!pawn.Available || pawn.Work is not PawnWorkTable.Works { Rows: var work })
             {
                 continue;
-            }
-            if (!pawn.Work.TryGetValue(out var work))
-            {
-                return default;
             }
             var profile = PawnRules.BuildProfile(pawn);
             if (work.Any(row => row.Work == WorkType.Construction && !row.Disabled && profile.Capable(row.Work, 0)))

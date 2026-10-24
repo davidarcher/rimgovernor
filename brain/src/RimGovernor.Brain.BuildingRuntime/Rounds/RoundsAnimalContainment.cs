@@ -4,39 +4,10 @@ namespace RimGovernor.Brain.BuildingRuntime;
 internal static class RoundsAnimalContainment
 {
     /// <summary>
-    /// Whether a free colonist can take animal handling work: unknown while any pawn's availability or work
-    /// settings are unread.
+    /// Whether a free colonist can take animal handling work (a pawn whose work tracker is not initialized has none yet).
     /// </summary>
-    internal static Fact<bool> AnimalHandlerAvailable(IReadOnlyList<WorkPawn> pawns)
-    {
-        var known = true;
-        var available = false;
-        foreach (var p in pawns)
-        {
-            if (!p.Available.TryGetValue(out var avail))
-            {
-                known = false;
-                continue;
-            }
-            if (!avail)
-            {
-                continue;
-            }
-            if (!p.Work.TryGetValue(out var work))
-            {
-                known = false;
-                continue;
-            }
-            foreach (var w in work)
-            {
-                if (Wire.Name(w.Work) == "Handling" && !w.Disabled && w.Priority > 0)
-                {
-                    available = true;
-                }
-            }
-        }
-        return known ? Known(available) : Unknown<bool>();
-    }
+    internal static Fact<bool> AnimalHandlerAvailable(IReadOnlyList<WorkPawn> pawns) =>
+        Known(pawns.Any(p => p.Available && p.Work.Priorities().Any(w => Wire.Name(w.Work) == "Handling" && !w.Disabled && w.Priority > 0)));
 
     internal static PlanningDefinition? AnimalContainmentDefinition(IReadOnlyList<PlanningDefinition> definitions, string name)
     {

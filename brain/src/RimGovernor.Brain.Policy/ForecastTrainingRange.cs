@@ -30,7 +30,6 @@ internal static class ForecastTrainingRange
     {
         if (context.PlannedRoomRoles.Where(p => p.Value == PlannedRole.TrainingRange).Min(p => p.Key) != room.Room) return [];
         var range = context.Range ?? throw new RequiredFactException("work pawns");
-        if (range.Unread.Count > 0) throw new RequiredFactException("range trainees: " + string.Join(", ", range.Unread));
         if (range.Trainees.Count == 0 || range.Targets > 0 || horizon <= 0) return [];
         return ForecastPractice.Credit(range, context, room.ServedAt, outcome.Support, horizon, "Shooting", static (cursors, below) =>
         {

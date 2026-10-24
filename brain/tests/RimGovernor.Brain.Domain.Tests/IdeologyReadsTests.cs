@@ -114,12 +114,10 @@ public sealed class IdeologyReadsTests
     }
 
     [Fact]
-    public void BelieverListIsUnknownWhenAPawnRowLacksPolicyInputs()
+    public void BelieverListIsUnknownWithoutThePawnRead()
     {
         var ideo = IdeologyDecoder.Decode(NoPrecepts, Catalog());
-        var unread = new WorkPawn { Id = new PawnId("a") };
 
-        Assert.False(ideo.BelieverList(Known(EquatableArray.From(new[] { unread }))).TryGetValue(out _));
         Assert.False(ideo.BelieverList(default).TryGetValue(out _));
     }
 
@@ -166,10 +164,9 @@ public sealed class IdeologyReadsTests
     }
 
     private static WorkPawn Pawn(string id, string ideo, double certainty) =>
-        new()
+        PawnFixtures.Worker(id) with
         {
-            Id = new PawnId(id),
-            PolicyInputs = Known(PawnFixtures.Inputs(ideo, certainty)),
+            PolicyInputs = PawnFixtures.Inputs(ideo, certainty),
         };
 
     private static DefinitionCatalog Catalog()

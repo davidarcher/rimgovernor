@@ -14,10 +14,10 @@ public sealed class ForecastSurvivalNeedsTests
         Origin = new("test", 42), HorizonDays = 2000.0 / GameTime.TicksPerDay,
         Demand = new DerivedDemand { Work = new ForecastWorkInputs { Tick = new(42),
             Pawns = Known(EquatableArray.From(new[] {
-                new WorkPawn { Id = Builder, Body = Known(new PawnBody { CellTemperatureC = Known(temperature),
-                    ComfortableMinC = Known(comfort), ComfortableMaxC = Known(30.0), Hypothermia = Known(0.335) }) },
-                new WorkPawn { Id = Helper, Body = Known(new PawnBody { CellTemperatureC = Known(20.0),
-                    ComfortableMinC = Known(0.0), ComfortableMaxC = Known(30.0), Hypothermia = Known(0.0) }) },
+                PawnFixtures.Worker(Builder) with { Body = PawnFixtures.Body with { CellTemperatureC = temperature,
+                    ComfortableMinC = comfort, ComfortableMaxC = 30.0, Hypothermia = 0.335 } },
+                PawnFixtures.Worker(Helper) with { Body = PawnFixtures.Body with { CellTemperatureC = 20.0,
+                    ComfortableMinC = 0.0, ComfortableMaxC = 30.0, Hypothermia = 0.0 } },
             })) } },
         Facts = new ColonyForecastFacts { Items = new ItemFacts { Nutrition = new Dictionary<Resource, double> { [new("TestFood")] = 1 } }, Food = new FoodSupply { Larder = new(), Consumers = [new() { Id = Builder, NutritionPerDay = 1.0 }, new() { Id = Helper, NutritionPerDay = 1.0 }],
             Stocks = [new() { Id = "food", Place = new FoodPlace.Stands(true, ""), Form = new FoodForm.Item(), Nutrition = 2 * foodTicks / GameTime.TicksPerDay,
@@ -71,16 +71,13 @@ public sealed class ForecastSurvivalNeedsTests
     }
 
     [Fact]
-    public void UnknownFoodAndBodyNeverBecomeAZeroDeadlineOrFreeBenefit()
+    public void UnknownFoodNeverBecomesAZeroDeadlineOrFreeBenefit()
     {
         var frame = Frame();
-        var unknown = frame with { Facts = frame.Facts with { Food = new() { Larder = new() }, FoodUnread = true },
-            Demand = frame.Demand with { Work = frame.Demand.Work with { Pawns = Known(EquatableArray.From(
-                frame.Demand.Work.Pawns.Value.Select(p => p with { Body = default }))) } } };
+        var unknown = frame with { Facts = frame.Facts with { Food = new() { Larder = new() }, FoodUnread = true } };
         var result = ForecastSurvivalNeeds.CompareSurvivalActivities(unknown, Work(), Effects());
-        Assert.Empty(result.Selected);
+        Assert.DoesNotContain("food", result.Selected);
         Assert.Contains("unknown_survival_food", result.Findings);
-        Assert.Contains("unknown_need_window:cold/builder", result.Findings);
     }
 
     [Fact]
@@ -109,7 +106,7 @@ public sealed class ForecastSurvivalNeedsTests
     {
         var frame = Frame(temperature: 20);
         var pawns = frame.Demand.Work.Pawns.Value.Select(p => p.Id == Builder
-            ? p with { Body = Known(p.Body.Value with { Hypothermia = Known(DashEstimateRules.HypothermiaSerious) }) } : p);
+            ? p with { Body = p.Body with { Hypothermia = DashEstimateRules.HypothermiaSerious } } : p);
         frame = frame with { Demand = frame.Demand with { Work = frame.Demand.Work with { Pawns = Known(EquatableArray.From(pawns)) } } };
         Assert.Equal(0, ForecastSurvivalNeeds.SurvivalNeedsOf(frame).Needs.Single(n => n.Id == "cold/builder").Window.Value.Ticks);
         var result = ForecastSurvivalNeeds.CompareSurvivalActivities(frame, Work(), Effects());

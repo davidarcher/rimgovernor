@@ -147,13 +147,7 @@ public static class FoodPolicyRules
     /// <summary>The mood tier: near the minor break threshold or under high expectations; unknown mood reads count as content.</summary>
     private static bool FineMeals(WorkPawn pawn)
     {
-        if (pawn.HighExpectations.TryGetValue(out var high) && high)
-        {
-            return true;
-        }
-        var mk = pawn.Mood.TryGetValue(out var mood);
-        var tk = pawn.BreakThreshold.TryGetValue(out var threshold);
-        return mk && tk && mood < threshold + MoodTierMargin;
+        return pawn.HighExpectations || pawn.Mood is NeedLevel.Has { Level: var mood } && mood < pawn.BreakThreshold + MoodTierMargin;
     }
 
     // The history events each diet fact reads the ideoligion on (the game's HistoryEventDefOf members), for the shared precept rule.
@@ -163,16 +157,10 @@ public static class FoodPolicyRules
     private static readonly string[] NonMeatEvents = ["AteNonMeat"];
     private static readonly string[] FungusEvents = ["AteFungus", "AteFungusAsIngredient"];
 
-    /// <summary>Reads the pawn's diet; unknown while its traits or policy inputs are, or, for a pawn with precepts, the ideoligion defs.</summary>
+    /// <summary>Reads the pawn's diet; unknown for a pawn with precepts while the ideoligion defs are.</summary>
     public static (Diet Diet, bool Ok) PawnDiet(WorkPawn pawn, Fact<Ideoligion> ideology, PreferencesRecord preferences)
     {
-        var ok = pawn.Traits.TryGetValue(out var traits);
-        var known = pawn.PolicyInputs.TryGetValue(out var inputs);
-        if (!ok || !known)
-        {
-            return (new Diet(), false);
-        }
-        var (d, dok) = DietOf(traits!, inputs!.Ideo is PawnIdeo.Member member ? member.Precepts : [], ideology, preferences);
+        var (d, dok) = DietOf(pawn.Traits, pawn.PolicyInputs.Ideo is PawnIdeo.Member member ? member.Precepts : [], ideology, preferences);
         if (!dok)
         {
             return (new Diet(), false);
@@ -348,7 +336,7 @@ public static class FoodPolicyRules
         var rows = new List<(PawnId Id, IReadOnlyList<string> Want)>();
         foreach (var pawn in pawns)
         {
-            if (!pawn.FoodPolicyRespected.TryGetValue(out var respected) || !respected)
+            if (!pawn.FoodPolicyRespected)
             {
                 continue;
             }
@@ -357,8 +345,7 @@ public static class FoodPolicyRules
             {
                 continue;
             }
-            _ = pawn.PolicyInputs.TryGetValue(out var inputs);
-            if (inputs?.Guest is GuestState.Hosted { Status: RimGovernor.Contracts.Wire.Defs.GuestStatus.Slave or RimGovernor.Contracts.Wire.Defs.GuestStatus.Prisoner })
+            if (pawn.PolicyInputs.Guest is GuestState.Hosted { Status: RimGovernor.Contracts.Wire.Defs.GuestStatus.Slave or RimGovernor.Contracts.Wire.Defs.GuestStatus.Prisoner })
             {
                 rows.Add((pawn.Id, CaptiveFoods(diet, foods)));
             }

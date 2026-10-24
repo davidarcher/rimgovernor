@@ -287,13 +287,13 @@ public sealed partial class RoundsBuildingPlanner
                 resource = product.Resource;
             }
         }
-        if (choice.Method != Pol.WorkshopMethod.Unknown)
+        if (choice.Method != Pol.WorkshopMethod.DefinitionUnread)
         {
             RecordWorkshopLadder(state, review, resource, choice, call);
         }
         switch (choice.Method)
         {
-            case Pol.WorkshopMethod.Unknown:
+            case Pol.WorkshopMethod.DefinitionUnread:
                 return (null, FieldUnavailable("workshop"));
             case Pol.WorkshopMethod.Existing:
                 return (null, BuildingReasonExistingFacility);

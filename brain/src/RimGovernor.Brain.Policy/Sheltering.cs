@@ -66,11 +66,7 @@ public static partial class ShelterRules
         var output = new List<PawnId>();
         foreach (var w in rows)
         {
-            if (!w.Work.TryGetValue(out var work))
-            {
-                return Unknown<EquatableArray<PawnId>>();
-            }
-            foreach (var p in work)
+            foreach (var p in w.Work.Priorities())
             {
                 if (p.Work == WorkType.Hauling && !p.Disabled && p.Priority > 0)
                 {

@@ -251,7 +251,7 @@ public static class DashPlanRules
         }
         if (!held.Pawn.IsEmpty)
         {
-            if (held.OpenAt(now) && rows.Any(w => w.Id == held.Pawn && w.Available.TryGetValue(out var up) && up))
+            if (held.OpenAt(now) && rows.Any(w => w.Id == held.Pawn && w.Available))
             {
                 return Known(held);
             }
@@ -262,21 +262,18 @@ public static class DashPlanRules
         var bestValue = 0.0;
         foreach (var w in rows)
         {
-            if (!w.Available.TryGetValue(out var up) || !up)
+            if (!w.Available)
             {
                 continue;
             }
-            if (!w.Body.TryGetValue(out var body))
-            {
-                continue;
-            }
+            var body = w.Body;
             var plan = PlanDash(new DashRequest
             {
                 Now = now,
                 Temperature = f.OutdoorTemperature,
-                ComfortMin = body.ComfortableMinC,
-                Severity = body.Hypothermia,
-                Speed = body.MoveSpeed,
+                ComfortMin = Known(body.ComfortableMinC),
+                Severity = Known(body.Hypothermia),
+                Speed = Known(body.MoveSpeed),
                 Candidates = EquatableArray.From(candidates),
                 Tuning = tuning,
             });

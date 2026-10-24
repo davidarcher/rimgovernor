@@ -123,12 +123,12 @@ public static partial class WorkRules
     public static ForecastCapacityResult WorkCapacityOf(WorkResourceView view, string pawn, double horizon, bool protectTimetable = true)
     {
         var observed = view.Evidence.Pawns.TryGetValue(out var rows) ? rows.SingleOrDefault(p => p.Pawn == pawn) : null;
-        var work = new WorkPawn
+        var work = new ForecastCapacityPawn
         {
             Id = new(pawn),
             Available = observed?.Available ?? default,
             Applies = observed?.Applies ?? default,
-            Schedule = observed?.Schedule ?? default
+            Schedule = observed is not null && observed.Schedule.TryGetValue(out var schedule) ? schedule : [],
         };
         return ForecastCapacity.ForecastPawnCapacityOf(new()
         {
@@ -139,7 +139,7 @@ public static partial class WorkRules
             LocalHour = observed?.LocalHour ?? default,
             OpportunityCostPerTick = Known(1.0),
             CurrentWork = new(work.Id, observed?.Occupied ?? default, default,
-                observed is { Occupied.IsKnown: true, Occupied.Value: false } ? Known(0.0) : default),
+                observed?.Occupied == Known(false) ? Known(0.0) : default),
             Occupancy = view.Claims.Truncated ? default : Known<EquatableArray<ForecastOccupancy>>(view.Claims.Pawns.Contains(pawn)
                 ? [new("journal", pawn, Known(0.0), default, ForecastOccupancyState.Active)] : [])
         });

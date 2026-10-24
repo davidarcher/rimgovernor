@@ -144,23 +144,19 @@ public static partial class MedicineCarryRules
     /// </summary>
     public static MedicineCarryPawn ToMedicineCarryPawn(this WorkPawn w)
     {
-        var p = new MedicineCarryPawn { Id = w.Id, Care = w.MedicalCare };
-        if (w.PolicyInputs.TryGetValue(out var inputs))
+        var p = new MedicineCarryPawn { Id = w.Id, Care = w.Care is PawnCare.Configured care ? Known(Wire.Name(WorkRules.MedicalCareOf(care.MedicalCare))) : default };
+        var current = 0;
+        foreach (var s in w.PolicyInputs.InventoryStock)
         {
-            var current = Known(0);
-            foreach (var s in inputs.InventoryStock)
+            if (s.Group == "Medicine")
             {
-                if (s.Group == "Medicine")
-                {
-                    current = Known(s.Count);
-                }
+                current = s.Count;
             }
-            p = p with { Current = current };
         }
-        w.Work.TryGetValue(out var work);
+        p = p with { Current = Known(current) };
         var doctor = false;
         var hunter = false;
-        foreach (var x in work)
+        foreach (var x in w.Work.Priorities())
         {
             if (x.Disabled || x.Priority <= 0)
             {
@@ -169,8 +165,6 @@ public static partial class MedicineCarryRules
             doctor = doctor || x.Work == WorkType.Doctor;
             hunter = hunter || x.Work == WorkType.Hunting;
         }
-        var vk = w.ViolenceCapable.TryGetValue(out var violent);
-        var rk = w.Ranged.TryGetValue(out var ranged);
-        return p with { Doctor = doctor, Field = hunter || (vk && violent && rk && ranged) };
+        return p with { Doctor = doctor, Field = hunter || (w.ViolenceCapable && w.Ranged) };
     }
 }

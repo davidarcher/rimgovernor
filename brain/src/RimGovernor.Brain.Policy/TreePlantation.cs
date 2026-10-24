@@ -125,19 +125,13 @@ public static partial class TreePlantationRules
         var best = 0;
         foreach (var pawn in pawns)
         {
-            var ak = pawn.Available.TryGetValue(out var available);
-            var wk = pawn.Work.TryGetValue(out var work);
-            var sk = pawn.Skills.TryGetValue(out var skills);
-            if (!ak || (available && (!wk || !sk)))
-            {
-                return Unknown<int>();
-            }
-            if (!available)
+            if (!pawn.Available || pawn.Work is not PawnWorkTable.Works { Rows: var work })
             {
                 continue;
             }
+            var skills = pawn.Skills;
             var profile = PawnRules.BuildProfile(pawn);
-            foreach (var row in work!)
+            foreach (var row in work)
             {
                 if (row.Work != WorkType.Growing || row.Disabled || !profile.Capable(row.Work, 0))
                 {

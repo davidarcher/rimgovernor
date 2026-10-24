@@ -102,11 +102,6 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
 
         var fact = track.Skill.ToLowerInvariant();
         var trainees = (track.Skill == MeleeSkill ? context.Sparring : context.Range) ?? throw new RequiredFactException("work pawns");
-        if (trainees.Unread.Contains(track.Pawn))
-        {
-            throw new RequiredFactException(fact + " trainees: " + track.Pawn);
-        }
-
         if (trainees.Trainees.FirstOrDefault(t => t.Pawn == track.Pawn) is not { } trainee)
         {
             return null;

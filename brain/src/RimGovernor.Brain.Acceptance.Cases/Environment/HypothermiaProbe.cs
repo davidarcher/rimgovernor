@@ -115,10 +115,11 @@ internal static class HypothermiaProbe
         var observed = reply;
         var state = observed.Pawns.SingleOrDefault(p => p.Pawn.Id == pawn) ?? throw new AcceptanceException($"{read}: pawn {pawn} missing from the pawn read");
         var body = state.Settings.Body;
-        if (observed.Context is not { } context || body?.CellTemperatureC is not { } cell || body.ComfortableMinC is not { } comfyMin || body.Hypothermia is not { } severity)
+        if (observed.Context is not { } context)
         {
-            throw new AcceptanceException($"{read}: the pawn read carried no tick, cell temperature, comfortable minimum or hypothermia severity");
+            throw new AcceptanceException($"{read}: the pawn read carried no tick");
         }
+        var (cell, comfyMin, severity) = (body.CellTemperatureC, body.ComfortableMinC, body.Hypothermia);
 
         if (Math.Abs(comfyMin - cell - Deficit) > DeficitTolerance)
         {

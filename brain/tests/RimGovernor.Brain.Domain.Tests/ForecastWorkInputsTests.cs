@@ -7,15 +7,14 @@ namespace RimGovernor.Brain.Domain.Tests;
 
 public sealed class ForecastWorkInputsTests
 {
-    private static WorkPawn Pawn(string id = "cook-builder") => new()
+    private static ForecastCapacityPawn Pawn(string id = "cook-builder") => new()
     {
         Id = new RimGovernor.Brain.Domain.PawnId(id), Available = Known(true), Applies = Known(true),
-        Job = Known(new PawnJob()),
-        Schedule = Known(EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))),
+        Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24)),
     };
-    private static ForecastCapacityInput Capacity(WorkPawn? pawn = null) => new()
+    private static ForecastCapacityInput Capacity(ForecastCapacityPawn? pawn = null) => new()
     {
-        Pawn = pawn ?? Pawn(), Location = "home", HorizonTicks = 100, LocalHour = Known(12.0),
+        Pawn = pawn ?? Pawn(), CurrentWork = new((pawn ?? Pawn()).Id, Known(false), default, Known(0.0)), Location = "home", HorizonTicks = 100, LocalHour = Known(12.0),
         OpportunityCostPerTick = Known(1.0), Occupancy = Known(default(EquatableArray<ForecastOccupancy>)),
         LocationAfterProtectedTime = Known("home"),
     };
@@ -108,17 +107,18 @@ public sealed class ForecastWorkInputsTests
         Assert.False(ForecastCapacity.ForecastPawnCapacityOf(Capacity() with { Occupancy = default }).Capacity.Windows.IsKnown);
         Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Available = Known(false) })).Capacity.Windows.Value.Sum(w => w.End - w.Start));
         Assert.False(ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Available = default })).Capacity.Windows.IsKnown);
-        var sleeping = Pawn() with { Schedule = Known(EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24))) };
+        var sleeping = Pawn() with { Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleSleep, 24)) };
         Assert.Equal(0, ForecastCapacity.ForecastPawnCapacityOf(Capacity(sleeping)).Capacity.Windows.Value.Sum(w => w.End - w.Start));
         Assert.Equal(100, ForecastCapacity.ForecastPawnCapacityOf(Capacity()).Capacity.Windows.Value.Sum(w => w.End - w.Start));
         var slots = Enumerable.Repeat(PawnRules.ScheduleAnything, 24).ToArray();
         slots[13] = PawnRules.ScheduleSleep;
-        var shifted = ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Schedule = Known(EquatableArray.From(slots)) }) with
+        var shifted = ForecastCapacity.ForecastPawnCapacityOf(Capacity(Pawn() with { Schedule = EquatableArray.From(slots) }) with
         { LocalHour = Known(12.5), HorizonTicks = GameTime.TicksPerHour });
         Assert.Equal(GameTime.TicksPerHour / 2.0, shifted.Capacity.Windows.Value.Sum(w => w.End - w.Start));
-        var busy = Capacity(Pawn() with { Job = Known(new PawnJob { Def = "UsefulWork" }) });
+        var worker = PawnFixtures.Worker("cook-builder") with { Job = new PawnJob { Def = "UsefulWork" } };
+        var busy = Capacity() with { CurrentWork = ForecastCurrentWork.ForecastCurrentWorkOf(worker) };
         Assert.False(ForecastCapacity.ForecastPawnCapacityOf(busy).Capacity.Windows.IsKnown);
-        Assert.Equal(80, ForecastCapacity.ForecastPawnCapacityOf(busy with { CurrentJobRemainingTicks = Known(20.0) }).Capacity.Windows.Value.Sum(w => w.End - w.Start));
+        Assert.Equal(80, ForecastCapacity.ForecastPawnCapacityOf(busy with { CurrentWork = ForecastCurrentWork.ForecastCurrentWorkOf(worker, Known(20.0)) }).Capacity.Windows.Value.Sum(w => w.End - w.Start));
     }
 
     private static RoundsFacts Facts()
@@ -130,7 +130,7 @@ public sealed class ForecastWorkInputsTests
         {
             Tick = new Tick(100), CurrentConstruction = CurrentConstruction.Empty with { Sites = EquatableArray.From(new[] { site }) },
             ConstructionClaims = Known(EquatableArray.From(new[] { claim, claim })),
-            ForecastObserved = new() { WorkPawns = Known(EquatableArray.From(new[] { Pawn() })) },
+            ForecastObserved = new() { WorkPawns = Known(EquatableArray.From(new[] { PawnFixtures.Worker("cook-builder") with { Schedule = Pawn().Schedule } })) },
             BillReservations = [],
             ProductionPromises = Known(default(EquatableArray<ForecastCommitment>)),
             Resources = Known(default(EquatableArray<Amount>)),

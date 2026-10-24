@@ -88,7 +88,7 @@ public sealed partial class RoundsWorkPlanner
         var sharedWork = p.Journal.WorkResources(state.Snapshot, call);
         demand = demand with { CommittedPawns = sharedWork.Claims.Pawns, WorkClaimsTruncated = sharedWork.Claims.Truncated };
         var decision = WorkRules.PlanWork(pawns, required, demand);
-        if (!decision.Capacity.IsKnown)
+        if (!decision.Planned)
         {
             return Existing(FieldUnavailable("work_capacity"));
         }
@@ -97,9 +97,7 @@ public sealed partial class RoundsWorkPlanner
         foreach (var assignment in decision.Assignments)
         {
             var pawn = byId[assignment.Pawn];
-            var mk = pawn.Manual.TryGetValue(out var manual);
-            var ck = pawn.Work.IsKnown;
-            if (!mk || !ck || !manual)
+            if (pawn.Work is not PawnWorkTable.Works { Manual: true })
             {
                 continue;
             }

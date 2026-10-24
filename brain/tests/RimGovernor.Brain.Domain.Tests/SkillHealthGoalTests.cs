@@ -14,14 +14,12 @@ public sealed class SkillHealthGoalTests
     private static GoalRecord Goal(GoalKind kind, string pawn, string qualifier, int count = 0) =>
         new() { Id = 1, Kind = kind, Target = pawn, Qualifier = qualifier, Count = count };
 
-    private static WorkPawn Pawn(string id, int cooking, int building, bool cookingDisabled = false) => new()
+    private static WorkPawn Pawn(string id, int cooking, int building, bool cookingDisabled = false) => PawnFixtures.Worker(id) with
     {
-        Id = new PawnId(id), Available = Known(true), Applies = Known(true),
-        Manual = Known(true), Ranged = Known(false), Job = Known(new PawnJob()), Age = Known(30.0),
-        Schedule = Known(EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24))),
-        Skills = Known<EquatableArray<WorkSkill>>([
-            new() { Name = "Cooking", Level = cooking, Disabled = cookingDisabled }, new() { Name = "Construction", Level = building }]),
-        Work = Known<EquatableArray<WorkPriority>>([
+        Schedule = EquatableArray.From(Enumerable.Repeat(PawnRules.ScheduleAnything, 24)),
+        Skills = [
+            new() { Name = "Cooking", Level = cooking, Disabled = cookingDisabled }, new() { Name = "Construction", Level = building }],
+        Work = new PawnWorkTable.Works(true, [
             new() { Work = WorkType.Cooking, Skill = "Cooking", Order = 10, Priority = 3 },
             new() { Work = WorkType.Construction, Skill = "Construction", Order = 5, Priority = 3 }]),
     };
@@ -41,7 +39,6 @@ public sealed class SkillHealthGoalTests
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, SkillFacts(goal, Pawn("trainee", 12, 18))).State);
 
         Assert.Equal("pawn census", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, new GoalsFacts { Goals = [goal] })).Fact);
-        Assert.Equal("skills of trainee", Assert.Throws<RequiredFactException>(() => GoalRules.Evaluate(goal, SkillFacts(goal, Pawn("trainee", 6, 18) with { Skills = default }))).Fact);
         Assert.Equal((GoalState.NoMethod, "not_a_colonist"), Reason(GoalRules.Evaluate(goal, SkillFacts(goal, Pawn("other", 6, 18)))));
         Assert.Equal((GoalState.NoMethod, "unknown_skill"), Reason(GoalRules.Evaluate(goal with { Qualifier = "Taming" }, SkillFacts(goal, Pawn("trainee", 6, 18)))));
         Assert.Equal((GoalState.NoMethod, "incapable"), Reason(GoalRules.Evaluate(goal, SkillFacts(goal, Pawn("trainee", 6, 18, cookingDisabled: true)))));
@@ -71,7 +68,7 @@ public sealed class SkillHealthGoalTests
     [Fact]
     public void ALearnerWithoutAPassionIsAllowedTextbooks()
     {
-        var pawn = Pawn("trainee", 6, 18) with { PolicyInputs = Known(PawnFixtures.Inputs(readingPolicyId: "rp1")) };
+        var pawn = Pawn("trainee", 6, 18) with { PolicyInputs = PawnFixtures.Inputs(readingPolicyId: "rp1") };
         OwnedName[] names = [new() { PawnId = pawn.Id, ShortName = "Tess", ThingId = 1 }];
         ReadingPolicyEntry[] policies = [new() { Id = "rp1", Label = "Tess", Allowed = ["Novel"] }];
         Book[] books = [new("Novel", BookKind.Novel), new("Textbook", BookKind.Textbook)];

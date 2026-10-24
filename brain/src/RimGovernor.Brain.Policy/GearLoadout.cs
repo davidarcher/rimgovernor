@@ -64,7 +64,10 @@ public enum GearRole
 /// </summary>
 public sealed record GearRoleInput
 {
-    public WorkPawn Work { get; init; } = new();
+    /// <summary>The gear census's work rows (catalog-resolved), skills and traits.</summary>
+    public EquatableArray<WorkPriority> Work { get; init; } = [];
+    public EquatableArray<WorkSkill> Skills { get; init; } = [];
+    public EquatableArray<PawnTrait> Traits { get; init; } = [];
     public bool Child { get; init; }
     public bool Slave { get; init; }
     public bool IncapableOfViolence { get; init; }
@@ -320,15 +323,7 @@ public static class GearLoadoutRules
         {
             return GearRole.Prisoner;
         }
-        var incapableOfViolence = p.IncapableOfViolence;
-        foreach (var w in p.Work.Incapable.ValueOrDefault)
-        {
-            if (w == WorkType.Violent)
-            {
-                incapableOfViolence = true;
-            }
-        }
-        if (incapableOfViolence)
+        if (p.IncapableOfViolence)
         {
             return GearRole.NonCombatant;
         }
@@ -341,20 +336,17 @@ public static class GearLoadoutRules
         // indoor, so a generalist whose every work type shares one priority (a fresh tribal pawn) stays a worker
         // unless a skill marks it otherwise.
         var skills = new Dictionary<string, int>(StringComparer.Ordinal);
-        if (p.Work.Skills.TryGetValue(out var known))
+        foreach (var s in p.Skills)
         {
-            foreach (var s in known)
+            if (!s.Disabled)
             {
-                if (!s.Disabled)
-                {
-                    skills[s.Name] = s.Level * 3 + GearPassionRank(s.Passion);
-                }
+                skills[s.Name] = s.Level * 3 + GearPassionRank(s.Passion);
             }
         }
         var best = 5;
         var counts = new Dictionary<GearRole, int>();
         var skill = new Dictionary<GearRole, int>();
-        foreach (var w in p.Work.Work.ValueOrDefault)
+        foreach (var w in p.Work)
         {
             if (w.Disabled || w.Priority <= 0 || w.Priority > WorkAssignmentConstants.MaxPriority)
             {
@@ -474,7 +466,7 @@ public static class GearLoadoutRules
 
     private static bool GearMelee(GearLoadoutInput p)
     {
-        foreach (var t in p.Role.Work.Traits.ValueOrDefault)
+        foreach (var t in p.Role.Traits)
         {
             if (t.Effects.MeleeOnly)
             {
@@ -483,7 +475,7 @@ public static class GearLoadoutRules
         }
         int melee = 0,
             shooting = 0;
-        foreach (var s in p.Role.Work.Skills.ValueOrDefault)
+        foreach (var s in p.Role.Skills)
         {
             if (!s.Disabled)
             {
@@ -513,7 +505,7 @@ public static class GearLoadoutRules
     {
         var best = 5;
         var medic = false;
-        foreach (var w in p.Role.Work.Work.ValueOrDefault)
+        foreach (var w in p.Role.Work)
         {
             if (w.Disabled || w.Priority <= 0 || w.Priority > WorkAssignmentConstants.MaxPriority)
             {
@@ -821,7 +813,7 @@ public static class GearLoadoutRules
     {
         var limit = floor ?? (0, 0);
         p.Validate();
-        foreach (var t in p.Role.Work.Traits.ValueOrDefault)
+        foreach (var t in p.Role.Traits)
         {
             p = p with { Nudist = p.Nudist || t.Effects.Nudist };
         }

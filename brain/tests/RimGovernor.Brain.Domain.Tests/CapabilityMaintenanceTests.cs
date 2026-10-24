@@ -57,7 +57,7 @@ public sealed class CapabilityMaintenanceTests
         var skill = melee ? "Melee" : "Shooting";
         var requirement = new RoleDef(1,[new([new(skill, 1)])]);
         var ideology = Ideology("pawn") with { Defs = new() { Roles = new Dictionary<string, RoleDef> { ["soldier"] = requirement } } };
-        var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = skill, Level = 1, Learning = Learning() }]) }).ToArray();
+        var roster = facts.ForecastObserved.WorkPawns.Value.Select(p => p with { Skills = [new() { Name = skill, Level = 1, Learning = Learning() }] }).ToArray();
         var workers = roster.Select((p, i) => new PracticeWorker(p.Id.Value, skill, "target/" + i, new(i + 1, 1),
             melee ? "RimGovernor_Spar" : "RimGovernor_TrainRange", melee ? "RimGovernor_Spar" : "RimGovernor_TrainShooting",
             0d, 100d, Learning()) { Company = [], CallbackIntervalTicks = 10d, RawXpPerCallback = 10d, PreparationTicks = 0, JoyGainPerTick = 0, Thoughts = [], Equipment = [], Findings = [] }).ToArray();
@@ -93,7 +93,7 @@ public sealed class CapabilityMaintenanceTests
         var absent = ConstructionFixtures.NoTasks();
         Assert.Equal(Known(true), ForecastServiceInvestments.ReviewServiceActivityNeed(batch, Known(true), absent));
         var satisfied = facts with { ForecastObserved = facts.ForecastObserved with
-        { WorkPawns = Known(EquatableArray.From(roster.Select(p => p with { Skills = Known<EquatableArray<WorkSkill>>([new() { Name = skill, Level = 1, Learning = Learning() with { Xp = 100d } }]) }))) } };
+        { WorkPawns = Known(EquatableArray.From(roster.Select(p => p with { Skills = [new() { Name = skill, Level = 1, Learning = Learning() with { Xp = 100d } }] }))) } };
         var recovered = ForecastCoupledCandidates.GenerateCoupledActivities(satisfied, 300)!;
         Assert.Empty(ForecastCoupledSelection.CompareActivityOutcomes(request with { Coupled = recovered.Context }, recovered).Selection.Selected);
     }

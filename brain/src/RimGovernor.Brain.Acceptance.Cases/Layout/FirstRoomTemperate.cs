@@ -103,6 +103,6 @@ internal static class FirstRoomReads
             Filter = new() { Colonist = true },
         }, cancellationToken).ConfigureAwait(false);
         var observed = reply;
-        return observed.Pawns.ToDictionary(p => p.Pawn.Id, p => p.Settings.Body.Hypothermia ?? 0, StringComparer.Ordinal);
+        return observed.Pawns.ToDictionary(p => p.Pawn.Id, p => p.Settings.Body.Hypothermia, StringComparer.Ordinal);
     }
 }

@@ -5,17 +5,28 @@ public enum ForecastOccupancyState { Active, Completed, Cancelled }
 /// <summary>Relative ticks, including travel. Active intervals protect useful work or needs; no sunk work is charged.</summary>
 public sealed record ForecastOccupancy(string Id, string Pawn, Fact<double> Start, Fact<double> End, ForecastOccupancyState State);
 
+/// <summary>
+/// The pawn a capacity forecast times: whether it is available and ever works, each unknown while its evidence is,
+/// and its timetable, one TimeAssignmentDef per hour (hour 0 first; empty for a pawn without one).
+/// </summary>
+public sealed record ForecastCapacityPawn
+{
+    public required PawnId Id { get; init; }
+    public required Fact<bool> Available { get; init; }
+    public required Fact<bool> Applies { get; init; }
+    public EquatableArray<string> Schedule { get; init; } = [];
+}
+
 public sealed record ForecastCapacityInput
 {
     public bool ProtectTimetable { get; init; } = true;
-    public required WorkPawn Pawn { get; init; }
+    public required ForecastCapacityPawn Pawn { get; init; }
     public required string Location { get; init; }
     public double HorizonTicks { get; init; }
     public Fact<double> LocalHour { get; init; }
     public Fact<double> OpportunityCostPerTick { get; init; }
-    /// <summary>Remaining useful current-job time, not total duration or sunk effort; required when a job is observed.</summary>
-    public Fact<double> CurrentJobRemainingTicks { get; init; }
-    public ForecastCurrentWork? CurrentWork { get; init; }
+    /// <summary>The pawn's current job: occupied or free, with its remaining useful time (ForecastCurrentWork.ForecastCurrentWorkOf).</summary>
+    public required ForecastCurrentWork CurrentWork { get; init; }
     /// <summary>Explicit endpoint assumption for gaps after protected activity. Missing endpoints block route evaluation.</summary>
     public Fact<string> LocationAfterProtectedTime { get; init; }
     /// <summary>Known empty means no additional needs/protected work. Unknown is not a free day.</summary>
@@ -36,9 +47,9 @@ public static class ForecastCapacity
         var pawn = input.Pawn;
         if ((pawn.Available.TryGetValue(out var available) && !available) || (pawn.Applies.TryGetValue(out var applies) && !applies))
             return Result(Known(default(EquatableArray<ForecastTimeWindow>)), "pawn_unavailable");
-        var current = input.CurrentWork ?? ForecastCurrentWork.ForecastCurrentWorkOf(pawn, input.CurrentJobRemainingTicks);
+        var current = input.CurrentWork;
         if (current.Pawn != pawn.Id) throw new DomainException("capacity current work names another pawn");
-        if (!pawn.Available.IsKnown || !pawn.Applies.IsKnown || !current.Occupied.TryGetValue(out var occupied) || (input.ProtectTimetable && !pawn.WorkHoursPerDay().IsKnown)
+        if (!pawn.Available.IsKnown || !pawn.Applies.IsKnown || !current.Occupied.TryGetValue(out var occupied) || (input.ProtectTimetable && !WorkPawnProfileExtensions.WorkHoursPerDay(pawn.Schedule).IsKnown)
             || !input.LocalHour.TryGetValue(out var hour) || !input.Occupancy.TryGetValue(out var occupancy))
             return Result(default, "unknown_capacity_inputs");
         if (!double.IsFinite(hour) || hour < 0 || hour >= 24) throw new DomainException("invalid local hour");
@@ -75,7 +86,7 @@ public static class ForecastCapacity
             if (tick >= input.HorizonTicks) break;
             var slot = (int)local % 24;
             var end = Math.Min(input.HorizonTicks, (local + 1 - hour) * GameTime.TicksPerHour);
-            var assignment = pawn.Schedule.Value[slot];
+            var assignment = pawn.Schedule[slot];
             if (assignment is not (PawnRules.ScheduleWork or PawnRules.ScheduleAnything)) blocked.Add(new(tick, end));
         }
         // Equal blocks are one block, so the sort's instability changes nothing.

@@ -51,16 +51,12 @@ public static partial class ReadingPolicyRules
     /// <summary>
     /// The book definitions pawn should be allowed: a child learning books (textbooks) only; an adult novels
     /// for joy, textbooks when it has a passion to grow or a skill goal to train (<paramref name="learning"/>, #3508)
-    /// and schematics when it researches. Anomaly tomes are never allowed. Unknown when the pawn's age is.
+    /// and schematics when it researches. Anomaly tomes are never allowed.
     /// </summary>
-    public static (IReadOnlyList<string> Defs, bool Known) ReadingBooks(WorkPawn pawn, IReadOnlyList<Book> books, bool learning)
+    public static IReadOnlyList<string> ReadingBooks(WorkPawn pawn, IReadOnlyList<Book> books, bool learning)
     {
-        if (!pawn.Age.TryGetValue(out var age))
-        {
-            return ([], false);
-        }
         var want = new HashSet<BookKind>();
-        if (age < HostilityRules.ChildAge)
+        if (pawn.Age < HostilityRules.ChildAge)
         {
             want.Add(BookKind.Textbook);
         }
@@ -71,29 +67,22 @@ public static partial class ReadingPolicyRules
             {
                 want.Add(BookKind.Textbook);
             }
-            if (pawn.Skills.TryGetValue(out var skills))
+            foreach (var s in pawn.Skills)
             {
-                foreach (var s in skills)
+                if (!s.Disabled && s.Passion.Length != 0 && s.Passion != "None")
                 {
-                    if (!s.Disabled && s.Passion.Length != 0 && s.Passion != "None")
-                    {
-                        want.Add(BookKind.Textbook);
-                    }
+                    want.Add(BookKind.Textbook);
                 }
             }
-            if (pawn.Work.TryGetValue(out var work))
+            foreach (var w in pawn.Work.Priorities())
             {
-                foreach (var w in work)
+                if (w.Work == WorkType.Research && !w.Disabled && w.Priority > 0)
                 {
-                    if (w.Work == WorkType.Research && !w.Disabled && w.Priority > 0)
-                    {
-                        want.Add(BookKind.Schematic);
-                    }
+                    want.Add(BookKind.Schematic);
                 }
             }
         }
-        var defs = books.Where(b => want.Contains(b.Kind)).Select(b => b.Def).Distinct(StringComparer.Ordinal).OrderBy(d => d, StringComparer.Ordinal).ToList();
-        return (defs, true);
+        return books.Where(b => want.Contains(b.Kind)).Select(b => b.Def).Distinct(StringComparer.Ordinal).OrderBy(d => d, StringComparer.Ordinal).ToList();
     }
 
     /// <summary>
@@ -115,17 +104,12 @@ public static partial class ReadingPolicyRules
         var output = new List<ReadingPolicyChange>();
         foreach (var pawn in pawns)
         {
-            var ok = pawn.PolicyInputs.TryGetValue(out var inputs);
             var name = shortNames.GetValueOrDefault(pawn.Id) ?? "";
-            if (!ok || inputs!.ReadingPolicyId is null || name.Length == 0 || count.GetValueOrDefault(name.ToLowerInvariant()) != 1)
+            if (pawn.PolicyInputs.ReadingPolicyId is null || name.Length == 0 || count.GetValueOrDefault(name.ToLowerInvariant()) != 1)
             {
                 continue;
             }
-            var (want, known) = ReadingBooks(pawn, books, learners.Contains(pawn.Id));
-            if (!known)
-            {
-                continue;
-            }
+            var want = ReadingBooks(pawn, books, learners.Contains(pawn.Id));
             var own = policies.Where(p => p.Label == name).ToList();
             if (own.Count > 1)
             {
@@ -139,7 +123,7 @@ public static partial class ReadingPolicyRules
                 {
                     write = new ReadingPolicy(name, want);
                 }
-                if (own.Count == 0 || inputs!.ReadingPolicyId != own[0].Id)
+                if (own.Count == 0 || pawn.PolicyInputs.ReadingPolicyId != own[0].Id)
                 {
                     assign = PawnSettings.NewReadingPolicySetting((Domain.PawnId)pawn.Id, name);
                 }

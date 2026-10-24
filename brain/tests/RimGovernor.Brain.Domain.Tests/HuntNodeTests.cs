@@ -117,7 +117,7 @@ public sealed class HuntNodeTests
     }
 
     [Fact]
-    public void TheReviewFrameCarriesTheWildlifeCensusAndAnUnreadHuntingWeaponStaysUnknown()
+    public void TheReviewFrameCarriesTheWildlifeCensusAndAnUnarmedPawnIsNoHunter()
     {
         var projection = ColonyModelFixtures.Projection() with { Acquisition = Known(EquatableArray.From(Herd(2))) };
 
@@ -126,7 +126,7 @@ public sealed class HuntNodeTests
         Assert.Empty(unknowns);
         var herd = Assert.Single(input.Wildlife.Value);
         Assert.Equal((Deer.Def, 2, 2 * FoodPlanRules.FoodHuntWorkTicks), (herd.Race, herd.Animals, herd.Work));
-        Assert.False(Assert.Single(input.Pawns.Value).Hunts.IsKnown);
+        Assert.Equal(Known(false), Assert.Single(input.Pawns.Value).Hunts);
         Assert.StartsWith("wildlife:", Assert.Single(RoundsColonyModel.InputOf(projection with { Acquisition = default }).Unknowns));
     }
 }

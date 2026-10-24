@@ -297,7 +297,7 @@ internal static class RoundsColonyModel
             return Unknown<EquatableArray<ModelPawn>>();
         }
 
-        var skills = new Dictionary<string, Fact<EquatableArray<WorkSkill>>>(StringComparer.Ordinal);
+        var skills = new Dictionary<string, EquatableArray<WorkSkill>>(StringComparer.Ordinal);
         var hunters = new Dictionary<string, Fact<bool>>(StringComparer.Ordinal);
         var curves = new Dictionary<string, EquatableArray<SkillStatCurve>>(StringComparer.Ordinal);
         if (colony.WorkPawns.TryGetValue(out var workers))
@@ -308,11 +308,10 @@ internal static class RoundsColonyModel
                 curves[worker.Id.Value] = worker.SkillStatCurves;
             }
 
-            // The hunt planner's armed hunter: a hunting weapon and the Hunting work; an unread weapon leaves it unknown.
-            var unread = workers.Where(w => !w.Hunts.IsKnown).Select(w => w.Id).ToHashSet();
+            // The hunt planner's armed hunter: a hunting weapon and the Hunting work.
             foreach (var profile in PawnRules.Profiles(workers))
             {
-                hunters[profile.Id.Value] = unread.Contains(profile.Id) ? Unknown<bool>() : Known(HuntSquadRules.ArmedHunter(profile));
+                hunters[profile.Id.Value] = Known(HuntSquadRules.ArmedHunter(profile));
             }
         }
 
@@ -374,7 +373,7 @@ internal static class RoundsColonyModel
             {
                 Pawn = pawn.Pawn,
                 Needs = EquatableArray.From(needs),
-                Skills = skills.GetValueOrDefault(pawn.Pawn),
+                Skills = skills.TryGetValue(pawn.Pawn, out var workerSkills) ? Known(workerSkills) : default,
                 Consciousness = Known(pawn.Consciousness),
                 Moving = Known(pawn.Moving),
                 Manipulation = Known(pawn.Manipulation),

@@ -88,9 +88,9 @@ public static class TendFacts
         {
             facts = facts with { ExistingJobDef = Known(jobDef) };
         }
-        if (row.Settings.WorkApplies == true)
+        if (row.Settings.Work is PbObservations.PawnWork.Works works)
         {
-            var (enabled, overrideDisabled) = DoctorWorkFacts(row.Settings.Work);
+            var (enabled, overrideDisabled) = DoctorWorkFacts(works.Rows);
             facts = facts with { DoctorWorkEnabled = enabled, DoctorWorkOverrideDisabled = overrideDisabled };
         }
         return facts;

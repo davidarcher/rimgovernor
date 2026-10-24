@@ -1,3 +1,4 @@
+using RimGovernor.Brain.Policy;
 using O = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Domain.Tests;
@@ -23,6 +24,49 @@ internal static class PawnFixtures
         BedId = null,
         Snapshot = new O.SnapshotRef(),
         Surgery = new O.PawnSurgery { SurgeryBills = [], MissingParts = [], Operations = [] },
+    };
+
+    /// <summary>A body at 21 C inside a 16-26 C comfort range, walking at 4.6 cells a second, with no hypothermia.</summary>
+    public static readonly O.PawnBodyStats Body = new() { ComfortableMinC = 16, ComfortableMaxC = 26, MoveSpeed = 4.6, CellTemperatureC = 21, Hypothermia = 0 };
+
+    /// <summary>
+    /// A planner pawn: an available adult colonist in manual-priorities mode with no work rows, skills, traits, job,
+    /// timetable, needs or Biotech, at full health; a test changes it with <c>with</c>.
+    /// </summary>
+    public static WorkPawn Worker(string id) => Worker(new PawnId(id));
+
+    /// <inheritdoc cref="Worker(string)"/>
+    public static WorkPawn Worker(PawnId id) => new()
+    {
+        Id = id,
+        ConstructionAble = true,
+        Available = true,
+        Work = new PawnWorkTable.Works(true, []),
+        Ranged = false,
+        Hunts = false,
+        Skills = [],
+        SkillStatCurves = [],
+        Traits = [],
+        Incapable = [],
+        Age = 30,
+        Schedule = [],
+        FoodPolicyRespected = false,
+        Care = new O.PawnCare.None(),
+        PolicyInputs = Inputs(),
+        Body = Body,
+        Job = new PawnJob(),
+        Inspiration = "",
+        Biotech = new PawnBiotechStatus.Inactive(),
+        ViolenceCapable = true,
+        BloodLoss = 0,
+        SeriousBloodLoss = 0.4,
+        Health = 1,
+        Rest = new O.NeedLevel.Lacks(),
+        Mood = new O.NeedLevel.Lacks(),
+        Food = new O.FoodNeed.Lacks(),
+        BreakThreshold = 0.35,
+        HighExpectations = false,
+        PsylinkLevel = 0,
     };
 
     /// <summary>A live, standing colonist with nothing else read into it: no job, needs, conditions, gear or ideoligion.</summary>
@@ -65,7 +109,8 @@ internal static class PawnFixtures
             Schedule = [],
             FoodPolicyRespected = false,
             PolicyInputs = Inputs(),
-            Body = new O.PawnBodyStats(),
+            Body = Body,
+            Work = new O.PawnWork.Works(true, []),
         },
         Social = new O.PawnSocial { HighExpectations = false, ExpectationDefName = "", Memories = [], Situational = [], SituationalCacheStale = false },
         AnimalState = new O.PawnAnimalState.NotAnimal(),
@@ -75,6 +120,7 @@ internal static class PawnFixtures
         LordToilClass = null,
         RaidArmor = new O.RaidArmor.NoHostiles(),
         Fogged = false,
+        ConstructionCapable = true,
         Inspiration = null,
         PawnSnapshot = null,
         Biotech = new O.PawnBiotechState.Inactive(),

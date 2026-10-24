@@ -408,8 +408,6 @@ namespace HomeBridge.BridgeTools
                 // null when unrestricted (the AllowedArea{Clear} write) or without player settings.
                 AllowedAreaId = settings?.AreaRestrictionInPawnCurrentMap is Area area ? Id(area.GetUniqueLoadID()) : null,
                 Work = Work(pawn),
-                WorkApplies = pawn.workSettings?.EverWork==true,
-                ManualWorkPriorities = Manual(pawn),
                 Schedule = Schedule(pawn),
                 FoodPolicyRespected = NativeFoodPolicy.Respected(pawn),
                 PolicyInputs = NativePolicyFacts.Inputs(pawn),
@@ -426,22 +424,17 @@ namespace HomeBridge.BridgeTools
                 NativeEnums.Hostility(settings.hostilityResponse));
         }
 
-        // One row per work type for a working pawn with an initialized tracker; GetPriority can initialize an
-        // unread tracker, so it is never read then.
-        private static RimGovernor.Brain.Domain.EquatableArray<Obs.WorkSetting> Work(Pawn pawn)
+        // The pawn's work settings: it never works without a tracker or EverWork; an uninitialized tracker is read
+        // no further, since GetPriority can initialize it; an initialized one carries the game's manual-priorities
+        // setting and one row per work type.
+        private static Obs.PawnWork Work(Pawn pawn)
         {
             var work=pawn.workSettings;
-            if(work==null || !work.EverWork || !work.Initialized) return [];
-            return [.. DefDatabase<WorkTypeDef>.AllDefsListForReading
-                .Select(def => new Obs.WorkSetting {DefName=Id(def.defName),Priority=work.GetPriority(def),Disabled=pawn.WorkTypeIsDisabled(def)})];
-        }
-
-        // The game's manual-priorities setting, for a working pawn with an initialized tracker; null otherwise.
-        private static bool? Manual(Pawn pawn)
-        {
-            var work=pawn.workSettings;
-            if(work==null || !work.EverWork || !work.Initialized) return null;
-            return PawnSettingsRead.ManualPriorities() ?? throw new InvalidOperationException("A pawn read has no game play settings.");
+            if(work==null || !work.EverWork) return new Obs.PawnWork.NeverWorks();
+            if(!work.Initialized) return new Obs.PawnWork.Uninitialized();
+            var manual=PawnSettingsRead.ManualPriorities() ?? throw new InvalidOperationException("A pawn read has no game play settings.");
+            return new Obs.PawnWork.Works(manual, [.. DefDatabase<WorkTypeDef>.AllDefsListForReading
+                .Select(def => new Obs.WorkSetting {DefName=Id(def.defName),Priority=work.GetPriority(def),Disabled=pawn.WorkTypeIsDisabled(def)})]);
         }
 
         // The body stats the outdoor dash planner reads: the game's own stat

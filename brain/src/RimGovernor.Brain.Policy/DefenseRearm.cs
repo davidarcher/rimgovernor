@@ -88,9 +88,7 @@ public static class DefenseRearm
         var found = false;
         foreach (var w in workers)
         {
-            if (!w.Available.TryGetValue(out var available) || !available
-                || !w.Applies.TryGetValue(out var applies) || !applies
-                || !w.Work.TryGetValue(out var work))
+            if (!w.Available || w.Work is not PawnWorkTable.Works { Rows: var work })
             {
                 continue;
             }

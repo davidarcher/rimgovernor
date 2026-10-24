@@ -303,10 +303,7 @@ public sealed partial record Ideoligion(IdeologyDefs Defs, IdeoligionFacts Facts
         var output = new List<Believer>();
         foreach (var row in rows)
         {
-            if (!row.PolicyInputs.TryGetValue(out var inputs))
-            {
-                return Unknown<EquatableArray<Believer>>();
-            }
+            var inputs = row.PolicyInputs;
             if (inputs.Ideo is PawnIdeo.Member member && member.IdeoId == Facts.IdeoId)
             {
                 output.Add(new Believer(row.Id, member.Certainty));

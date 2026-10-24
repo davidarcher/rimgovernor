@@ -11,20 +11,20 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>One colonist's hostility inputs.</summary>
 public sealed record HostilityPawn
 {
-    public PawnId ID { get; init; }
+    public required PawnId ID { get; init; }
 
-    /// <summary>The pawn's hostility response; unknown where the read did not carry it (no configurable response), which is never written.</summary>
-    public Fact<HostilityResponse> Current { get; init; }
+    /// <summary>The pawn's hostility response; unknown for a pawn without care settings (no configurable response), which is never written.</summary>
+    public required Fact<HostilityResponse> Current { get; init; }
 
-    public Fact<bool> ViolenceCapable { get; init; }
-    public Fact<double> Age { get; init; }
-    public Fact<double> BloodLoss { get; init; }
+    public required bool ViolenceCapable { get; init; }
+    public required double Age { get; init; }
+    public required double BloodLoss { get; init; }
 
-    /// <summary>The BloodLoss severity from which a pawn flees; unknown without a catalog, which leaves blood loss undecided.</summary>
-    public Fact<double> SeriousBloodLoss { get; init; }
+    /// <summary>The BloodLoss severity from which a pawn flees, from the catalog.</summary>
+    public required double SeriousBloodLoss { get; init; }
 
-    public Fact<double> Health { get; init; }
-    public Fact<PawnJob> Job { get; init; }
+    public required double Health { get; init; }
+    public required PawnJob Job { get; init; }
 }
 
 public static class HostilityRules
@@ -42,54 +42,25 @@ public static class HostilityRules
     public const int StealthCells = 15;
 
     /// <summary>
-    /// The pawn's standing response: Flee for a pawn that cannot or should not fight, Attack otherwise. Not ok
-    /// when a deciding fact is unknown.
+    /// The pawn's standing response: Flee for a pawn that cannot or should not fight, Attack otherwise.
     /// </summary>
-    public static (HostilityResponse Response, bool Ok) DefaultHostility(HostilityPawn p)
-    {
-        var vk = p.ViolenceCapable.TryGetValue(out var violent);
-        if (vk && !violent)
-        {
-            return (HostilityResponse.Flee, true);
-        }
-        var ak = p.Age.TryGetValue(out var age);
-        if (ak && age < ChildAge)
-        {
-            return (HostilityResponse.Flee, true);
-        }
-        var lk = p.BloodLoss.TryGetValue(out var loss);
-        if (p.SeriousBloodLoss.TryGetValue(out var serious) && lk && loss >= serious)
-        {
-            return (HostilityResponse.Flee, true);
-        }
-        var hk = p.Health.TryGetValue(out var health);
-        if (hk && health < SeriousInjuryHealth)
-        {
-            return (HostilityResponse.Flee, true);
-        }
-        if (!vk || !ak || !hk)
-        {
-            return (default, false);
-        }
-        return (HostilityResponse.Attack, true);
-    }
+    public static HostilityResponse DefaultHostility(HostilityPawn p) =>
+        !p.ViolenceCapable || p.Age < ChildAge || p.BloodLoss >= p.SeriousBloodLoss || p.Health < SeriousInjuryHealth
+            ? HostilityResponse.Flee
+            : HostilityResponse.Attack;
 
     /// <summary>
     /// Reports a work-giver job whose target cell stands within StealthCells of a known-passive hostile with no
-    /// engaging hostile within that reach. A job no work giver issued (a forced order, rest, a meal), an unknown
-    /// target is never stealth work.
+    /// engaging hostile within that reach. A job no work giver issued (a forced order, rest, a meal), or one without
+    /// a target cell, is never stealth work.
     /// </summary>
-    public static bool StealthJob(Fact<PawnJob> job, IReadOnlyList<EmergencyThreat> threats)
+    public static bool StealthJob(PawnJob j, IReadOnlyList<EmergencyThreat> threats)
     {
-        if (!job.TryGetValue(out var j) || string.IsNullOrEmpty(j.Def) || j.Work == WorkType.None)
+        if (string.IsNullOrEmpty(j.Def) || j.Work == WorkType.None)
         {
             return false;
         }
-        if (!j.Target.TryGetValue(out var target))
-        {
-            return false;
-        }
-        if (!target.Cell.TryGetValue(out var cell))
+        if (!j.Target.CellOf(out var cell))
         {
             return false;
         }
@@ -121,18 +92,10 @@ public static class HostilityRules
     }
 
     /// <summary>The response the pawn should hold now: Ignore on stealth work for a pawn that would otherwise Attack, else its default. A Flee pawn keeps fleeing beside sleeping hostiles.</summary>
-    public static (HostilityResponse Response, bool Ok) WantHostility(HostilityPawn p, IReadOnlyList<EmergencyThreat> threats)
+    public static HostilityResponse WantHostility(HostilityPawn p, IReadOnlyList<EmergencyThreat> threats)
     {
-        var (mode, ok) = DefaultHostility(p);
-        if (!ok)
-        {
-            return (default, false);
-        }
-        if (mode == HostilityResponse.Attack && StealthJob(p.Job, threats))
-        {
-            return (HostilityResponse.Ignore, true);
-        }
-        return (mode, true);
+        var mode = DefaultHostility(p);
+        return mode == HostilityResponse.Attack && StealthJob(p.Job, threats) ? HostilityResponse.Ignore : mode;
     }
 
     /// <summary>The settings to write: every pawn whose known response differs from the one it should hold.</summary>
@@ -141,9 +104,8 @@ public static class HostilityRules
         var @out = new List<PawnSettings>();
         foreach (var p in pawns)
         {
-            var ck = p.Current.TryGetValue(out var current);
-            var (want, ok) = WantHostility(p, threats);
-            if (!ck || !ok || current == want)
+            var want = WantHostility(p, threats);
+            if (!p.Current.TryGetValue(out var current) || current == want)
             {
                 continue;
             }

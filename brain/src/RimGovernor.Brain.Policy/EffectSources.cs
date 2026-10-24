@@ -96,11 +96,8 @@ public static class EffectSourcesRules
         {
             hediffs = Known(EquatableArray.From(care.Conditions.Select(c => c.DefName).Distinct().Order(StringComparer.Ordinal)));
         }
-        var traits = input.Role.Work.Traits.TryGetValue(out var observed)
-            ? Known(EquatableArray.From(observed.Select(t => t.Name))) : Unknown<EquatableArray<string>>();
-        var precepts = input.Role.Work.PolicyInputs.TryGetValue(out var policy)
-            ? Known<EquatableArray<string>>(policy.Ideo is PawnIdeo.Member member ? member.Precepts : []) : Unknown<EquatableArray<string>>();
-        return new CardPawnFacts { Traits = traits, Hediffs = hediffs, AnomalyActive = Unknown<bool>(), IdeologyActive = ideologyActive, Precepts = precepts };
+        var traits = Known(EquatableArray.From(input.Role.Traits.Select(t => t.Name)));
+        return new CardPawnFacts { Traits = traits, Hediffs = hediffs, AnomalyActive = Unknown<bool>(), IdeologyActive = ideologyActive };
     }
 
     /// <summary>

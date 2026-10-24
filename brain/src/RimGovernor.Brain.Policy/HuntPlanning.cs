@@ -42,10 +42,10 @@ public static class HuntPlanningRules
     /// <summary>
     /// The colonists whose hunger takes them off a hunt: at the hunger the clock holds for
     /// (<see cref="HazardThresholdsRules.HungerHoldCategory"/>) or past it. A drafted gunner does not eat, so a hunt that
-    /// keeps him starves him; one whose hunger is unread is not counted.
+    /// keeps him starves him; a pawn without a food need is not counted.
     /// </summary>
     public static IReadOnlySet<string> Hungry(IEnumerable<WorkPawn> pawns) =>
-        pawns.Where(p => p.Hunger.TryGetValue(out var hunger) && hunger >= HazardThresholdsRules.HungerHoldCategory).Select(p => p.Id.Value).ToHashSet(StringComparer.Ordinal);
+        pawns.Where(p => p.Food is FoodNeed.Has { Hunger: var hunger } && hunger >= HazardThresholdsRules.HungerHoldCategory).Select(p => p.Id.Value).ToHashSet(StringComparer.Ordinal);
 
     /// <summary>
     /// The formation channel of the chosen roster: its estimated meat (already net of the chance the prey is not

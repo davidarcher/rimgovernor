@@ -48,11 +48,7 @@ partial class Rounder
         var mechanitors = new List<MechanitorInput>();
         foreach (var p in pawns)
         {
-            if (!p.Biotech.TryGetValue(out var bt))
-            {
-                continue;
-            }
-            if (bt.Mechanitor is { } m)
+            if (p.Biotech is PawnBiotechStatus.Active { Facts.Mechanitor: { } m })
             {
                 mechanitors.Add(new MechanitorInput { Id = p.Id, Mechanitor = m });
                 ids.AddRange(m.ControlledMechs);

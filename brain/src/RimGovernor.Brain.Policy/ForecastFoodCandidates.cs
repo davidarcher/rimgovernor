@@ -57,11 +57,8 @@ public sealed partial record ForecastFoodCandidates
         var workers = input.Workers.Where(w =>
         {
             var pawn = roster.Single(p => p.Id.Value == w.Pawn);
-            if (!pawn.Available.TryGetValue(out var available))
-            { findings.Add("unknown_food_worker_availability:" + w.Pawn); return false; }
             if (!w.HarvestAllowed.IsKnown || !w.HaulAllowed.IsKnown) findings.Add("unknown_food_worker_eligibility:" + w.Pawn);
-            if (!pawn.Skills.IsKnown) findings.Add("unknown_food_worker_skills:" + w.Pawn);
-            return available;
+            return pawn.Available;
         }).ToArray();
         bool Spend()
         {
@@ -148,8 +145,7 @@ public sealed partial record ForecastFoodCandidates
                     foreach (var worker in workers)
                     {
                         var pawn = roster.Single(p => p.Id.Value == worker.Pawn);
-                        if (!pawn.Available.TryGetValue(out var available) || !available || !pawn.Skills.TryGetValue(out var skills)
-                            || !skills.Any(s => s.Name == "Cooking" && !s.Disabled && s.Level >= floor)) continue;
+                        if (!pawn.Available || !pawn.Skills.Any(s => s.Name == "Cooking" && !s.Disabled && s.Level >= floor)) continue;
                         options.Add(new(cook, worker.Pawn, Duration(Known(exact.WorkAmount * batches), worker.CookWorkPerTick), worker.RecoveryLaborTicks)
                             { Equipment = EquatableArray.From(new[] { bench.Id }) });
                     }

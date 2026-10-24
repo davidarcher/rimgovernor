@@ -83,10 +83,7 @@ internal static class TemperatureProbe
 
             // The deficit the read itself carries: the brain's body stats at the read tick, the same ones the evaluator will read.
             var body = state.Settings.Body;
-            if (body?.CellTemperatureC is not { } cell || body.ComfortableMinC is not { } comfyMin || body.ComfortableMaxC is not { } comfyMax)
-            {
-                throw new AcceptanceException($"{label}: the pawn read carried no cell temperature or comfy range");
-            }
+            var (cell, comfyMin, comfyMax) = (body.CellTemperatureC, body.ComfortableMinC, body.ComfortableMaxC);
 
             var comfy = side == "hot" ? comfyMax : comfyMin;
             var read = side == "hot" ? cell - comfy : comfy - cell;

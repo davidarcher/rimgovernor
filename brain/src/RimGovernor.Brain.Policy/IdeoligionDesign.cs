@@ -173,19 +173,13 @@ public static class IdeoligionDesignRules
         var believers = 0;
         foreach (var pawn in rows)
         {
-            if (!pawn.PolicyInputs.TryGetValue(out var inputs))
-            {
-                return Unknown<DesignNeeds>();
-            }
+            var inputs = pawn.PolicyInputs;
             if (inputs.Ideo is not PawnIdeo.Member { IdeoId: var believed } || believed != ideo.IdeoId)
             {
                 continue;
             }
             believers++;
-            if (!pawn.Work.TryGetValue(out var work))
-            {
-                return Unknown<DesignNeeds>();
-            }
+            var work = pawn.Work.Priorities();
             foreach (var assignment in work)
             {
                 var name = Wire.Name(assignment.Work);
