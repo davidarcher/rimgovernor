@@ -56,7 +56,7 @@ public sealed partial class RoundsWorkPlanner
         {
             return Existing(FieldUnavailable("work_pawns"));
         }
-        var construction = ConstructionSkillRules.ConstructionSkillChoices(read.Projection.Facts.CurrentConstruction, read.Projection.WorkPawns).ToList();
+        var construction = ConstructionSkillRules.ConstructionSkillChoices(read.Projection.Facts.CurrentConstruction, pawns).ToList();
         if (construction.Count > 8)
         {
             construction = construction[..8];
@@ -354,7 +354,7 @@ partial class RoundsWorkPlanner
         return false;
     }
 
-    internal static List<HostilityPawn> HostilityRows(IReadOnlyList<WorkPawn> pawns) => [.. pawns.Select(p => p.HostilityPawn())];
+    internal static List<HostilityPawn> HostilityRows(IReadOnlyList<WorkPawn> pawns) => [.. pawns.Select(p => p.HostilityPawn()).OfType<HostilityPawn>()];
 
     internal static Fact<EquatableArray<HostilityPawn>> HostilityPawns(Fact<EquatableArray<WorkPawn>> pawns) =>
         pawns.TryGetValue(out var rows) ? Known<EquatableArray<HostilityPawn>>([.. HostilityRows(rows)]) : Unknown<EquatableArray<HostilityPawn>>();

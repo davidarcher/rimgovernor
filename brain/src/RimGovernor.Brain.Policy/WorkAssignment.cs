@@ -249,12 +249,12 @@ public sealed record WorkPawn
     /// <summary>The psylink level; 0 without a psylink.</summary>
     public required int PsylinkLevel { get; init; }
 
-    /// <summary>The pawn's hostility inputs.</summary>
-    public HostilityPawn HostilityPawn() =>
-        new()
+    /// <summary>The pawn's hostility inputs; null for a pawn without care settings, which has no configurable response.</summary>
+    public HostilityPawn? HostilityPawn() =>
+        Care is not PawnCare.Configured care ? null : new()
         {
             ID = Id,
-            Current = Care is PawnCare.Configured care ? Known(WorkRules.HostilityOf(care.HostilityResponse)) : default,
+            Current = WorkRules.HostilityOf(care.HostilityResponse),
             ViolenceCapable = ViolenceCapable,
             Age = Age,
             BloodLoss = BloodLoss,

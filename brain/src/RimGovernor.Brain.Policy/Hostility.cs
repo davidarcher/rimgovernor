@@ -13,8 +13,8 @@ public sealed record HostilityPawn
 {
     public required PawnId ID { get; init; }
 
-    /// <summary>The pawn's hostility response; unknown for a pawn without care settings (no configurable response), which is never written.</summary>
-    public required Fact<HostilityResponse> Current { get; init; }
+    /// <summary>The pawn's configured hostility response. A pawn without care settings has no row.</summary>
+    public required HostilityResponse Current { get; init; }
 
     public required bool ViolenceCapable { get; init; }
     public required double Age { get; init; }
@@ -98,14 +98,14 @@ public static class HostilityRules
         return mode == HostilityResponse.Attack && StealthJob(p.Job, threats) ? HostilityResponse.Ignore : mode;
     }
 
-    /// <summary>The settings to write: every pawn whose known response differs from the one it should hold.</summary>
+    /// <summary>The settings to write: every pawn whose response differs from the one it should hold.</summary>
     public static IReadOnlyList<PawnSettings> HostilityChanges(IReadOnlyList<HostilityPawn> pawns, IReadOnlyList<EmergencyThreat> threats)
     {
         var @out = new List<PawnSettings>();
         foreach (var p in pawns)
         {
             var want = WantHostility(p, threats);
-            if (!p.Current.TryGetValue(out var current) || current == want)
+            if (p.Current == want)
             {
                 continue;
             }

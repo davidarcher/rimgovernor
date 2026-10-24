@@ -474,7 +474,6 @@ Policy/ConstructionOwnership.cs|Fact|4
 Policy/ConstructionOwnership.cs|Unknown|1
 Policy/ConstructionProjection.cs|Fact|4
 Policy/ConstructionProjection.cs|Unknown|3
-Policy/ConstructionSkill.cs|Fact|2
 Policy/ContainmentCell.cs|Fact|11
 Policy/ControlledEnvironment.cs|Fact|27
 Policy/ControlledEnvironment.cs|Unknown|2
@@ -638,7 +637,7 @@ Policy/HomeUpkeep.cs|Fact|12
 Policy/Hospital.cs|Fact|20
 Policy/Hospital.cs|Unknown|2
 Policy/Hospital.cs|UnknownMember|1
-Policy/Hostility.cs|Fact|6
+Policy/Hostility.cs|Fact|4
 Policy/Hostility.cs|Unknown|1
 Policy/HumanFood.cs|Fact|23
 Policy/HumanFood.cs|Unknown|2
@@ -943,7 +942,7 @@ Policy/WealthBudget.cs|Fact|9
 Policy/WealthBudget.cs|Unknown|1
 Policy/WeaponAssignment.cs|Fact|1
 Policy/WeaponDef.cs|NullableValue|1
-Policy/WorkAssignment.cs|Fact|6
+Policy/WorkAssignment.cs|Fact|5
 Policy/WorkDispatch.cs|Fact|5
 Policy/WorkDispatchMemory.cs|Fact|6
 Policy/WorkDispatchMemory.cs|Unknown|2

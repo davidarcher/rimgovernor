@@ -8,9 +8,9 @@ public static class ConstructionSkillRules
     /// Adopts each unconfigured quality site once. Current jobs, timetable, priorities and sleep do not reduce
     /// construction capability.
     /// </summary>
-    public static IReadOnlyList<ConstructionSkillChoice> ConstructionSkillChoices(CurrentConstruction? census, Fact<EquatableArray<WorkPawn>> pawns)
+    public static IReadOnlyList<ConstructionSkillChoice> ConstructionSkillChoices(CurrentConstruction? census, IReadOnlyList<WorkPawn> workers)
     {
-        if (census is null || !pawns.TryGetValue(out var workers))
+        if (census is null)
         {
             return [];
         }

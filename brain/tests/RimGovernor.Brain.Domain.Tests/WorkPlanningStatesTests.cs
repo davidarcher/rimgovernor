@@ -154,11 +154,11 @@ public sealed class WorkPlanningStatesTests
         Assert.Throws<DomainException>(() => WorkRules.MedicalCareOf(Ops.MedicalCare.Unspecified));
         Assert.Throws<DomainException>(() => WorkRules.HostilityOf(Ops.HostilityResponse.Unspecified));
 
-        // A pawn without care settings has no current hostility response to change.
+        // A pawn without care settings has no hostility row: it has no response to change.
         var pawn = PawnFixtures.Worker("pawn");
-        Assert.False(pawn.HostilityPawn().Current.IsKnown);
+        Assert.Null(pawn.HostilityPawn());
         var flees = pawn with { Care = new O.PawnCare.Configured(Ops.MedicalCare.Best, false, Ops.HostilityResponse.Flee) };
-        Assert.Equal(Known(HostilityResponse.Flee), flees.HostilityPawn().Current);
+        Assert.Equal(HostilityResponse.Flee, flees.HostilityPawn()!.Current);
     }
 
     [Fact]

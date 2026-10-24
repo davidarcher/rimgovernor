@@ -659,7 +659,7 @@ public sealed partial class Rounder
                 {
                     var work = WorkRules.PlanWork(pawns, required!, demand);
                     reading = reading.WithFacts(rf => rf with { WorkCoverage = work.Planned ? Known(work.Matches) : default });
-                    if (ConstructionSkillRules.ConstructionSkillChoices(reading.Projection.Facts.CurrentConstruction, reading.Projection.WorkPawns).Count > 0)
+                    if (ConstructionSkillRules.ConstructionSkillChoices(reading.Projection.Facts.CurrentConstruction, pawns).Count > 0)
                     {
                         reading = reading.WithFacts(rf => rf with { WorkCoverage = Known(false) });
                     }
