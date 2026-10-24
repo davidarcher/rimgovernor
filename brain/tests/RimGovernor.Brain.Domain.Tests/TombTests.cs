@@ -14,7 +14,7 @@ public sealed class TombTests
 
     private static readonly PieceShapes Shapes = new()
     {
-        Defs = new Dictionary<string, InteriorPieceDef> { [Sarcophagus] = new(Sarcophagus, new Cell(1, 2), RoomRole.None, null) },
+        Defs = new Dictionary<string, InteriorPieceDef> { [Sarcophagus] = new(Sarcophagus, new Cell(1, 2), RoomRole.None, new InteractionCell.None()) },
         Furniture = new RoomFurniture { Sarcophagus = Sarcophagus },
     };
 

@@ -17,7 +17,7 @@ public sealed class PlannedBarracksTests
     private const string Bed = "Bed";
     private static readonly PawnId A = new("a");
     private static readonly PawnId B = new("b");
-    private static readonly InteriorPieceDef BedShape = new(Bed, new Cell(1, 2), RoomRole.Bedroom, null);
+    private static readonly InteriorPieceDef BedShape = new(Bed, new Cell(1, 2), RoomRole.Bedroom, new InteractionCell.None());
     internal static readonly RoomFurniture Furniture = new() { Beds = [new FurnitureBed { Def = Bed, Slots = 1 }] };
 
     /// <summary>A humanlike bed as the catalog scores it: a lone free one a bedroom, several a barracks.</summary>

@@ -38,9 +38,9 @@ internal static class RoundsMech
                 continue;
             }
 
-            if (RoundsContainmentReads.RowCellOf(row).TryGetValue(out var cell))
+            if (row.Pawn.Place is PbObservations.EntityPlace.OnMap { Cell: var at })
             {
-                hostiles.Add(new MechHostile { Id = new PawnId(id), Cell = cell });
+                hostiles.Add(new MechHostile { Id = new PawnId(id), Cell = new Cell(at.X, at.Z) });
             }
         }
 

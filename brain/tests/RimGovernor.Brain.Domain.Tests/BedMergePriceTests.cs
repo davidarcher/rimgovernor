@@ -31,7 +31,7 @@ public sealed class BedMergePriceTests
         {
             [Bed] = new()
             {
-                Shape = new InteriorPieceDef(Bed, new Cell(1, 2), RoomRole.Bedroom, null),
+                Shape = new InteriorPieceDef(Bed, new Cell(1, 2), RoomRole.Bedroom, new InteractionCell.None()),
                 EmptyCountsForBarracks = true,
                 Capacity = new StationCapacity { Kind = CapacityKind.Sleepers, Slots = 1 },
                 Contributions =

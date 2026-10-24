@@ -14,7 +14,7 @@ public sealed record RegionWant
     public Cell Size { get; init; }
 
     /// <summary>The definition's interaction cell at North.</summary>
-    public Cell? Interaction { get; init; }
+    public InteractionCell Interaction { get; init; } = new InteractionCell.None();
 
     public int Count { get; init; }
 
@@ -216,11 +216,7 @@ public static partial class RegionRules
     private static InteriorPiece RegionPiece(RegionWant w, string slot, Rotation rot, Cell corner)
     {
         var p = InteriorHelpersRules.NewInteriorPiece(slot, w.Def, w.Size, rot, corner) with { Row = w.Slot, Beside = w.Beside, Clear = w.Clear };
-        if (w.Interaction is { } off)
-        {
-            p = p with { InteractionOffset = off };
-        }
-        return p;
+        return p with { InteractionOffset = w.Interaction };
     }
 
     /// <summary>The want's Open piece: the fitting stand that seats the most pieces beside it, the nearest a door, then the first rotation and corner.</summary>

@@ -345,11 +345,11 @@ public static partial class ThroneRules
                 var sk = d.Size.TryGetValue(out var size);
                 if (ak && available && sk && size.Width > 0 && size.Height > 0)
                 {
-                    return (new InteriorPieceDef(d.Name, new Cell(size.Width, size.Height), default, null), true);
+                    return (new InteriorPieceDef(d.Name, new Cell(size.Width, size.Height), default, new InteractionCell.None()), true);
                 }
             }
         }
-        return (new InteriorPieceDef("", default, default, null), false);
+        return (new InteriorPieceDef("", default, default, new InteractionCell.None()), false);
     }
 
     /// <summary>The standing throne of need inside r's interior.</summary>

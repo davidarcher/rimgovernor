@@ -54,8 +54,7 @@ public static partial class LayoutRoomsRules
         Add(listKnown && list.Count > 0, PlannedRole.DeathrestChamber);
         Add(true, PlannedRole.Worship);
         Add(containment.Demand.Entities == 0, PlannedRole.ContainmentCell);
-        var isolatedKnown = isolation.Pawns.TryGetValue(out var isolated);
-        Add(isolatedKnown && isolated!.Count == 0, PlannedRole.IsolationRoom);
+        Add(isolation.Pawns is IsolationCensus.Counted { Held.Count: 0 }, PlannedRole.IsolationRoom);
         return ended;
     }
 }

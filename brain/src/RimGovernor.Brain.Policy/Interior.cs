@@ -74,8 +74,8 @@ public sealed record InteriorPiece
 
     public Rectangle Rect { get; init; }
 
-    /// <summary>The definition's interaction cell offset at rotation North, from the anchor; null for pieces without one.</summary>
-    public Cell? InteractionOffset { get; init; }
+    /// <summary>The definition's interaction cell offset at rotation North, from the anchor; None for pieces without one.</summary>
+    public InteractionCell InteractionOffset { get; init; } = new InteractionCell.None();
 
     /// <summary>Names the want the piece was placed for (RegionWant.Slot).</summary>
     public string Row { get; init; } = string.Empty;
@@ -95,7 +95,7 @@ public sealed record InteriorPiece
     /// <summary>The cell the worker stands on, if the piece has one.</summary>
     public (Cell Cell, bool Ok) Interaction()
     {
-        if (InteractionOffset is not { } offset)
+        if (InteractionOffset is not InteractionCell.At { Offset: var offset })
         {
             return (default, false);
         }

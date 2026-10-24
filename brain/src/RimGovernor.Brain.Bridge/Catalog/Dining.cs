@@ -37,7 +37,7 @@ public sealed partial class DefinitionCatalog
     private P.InteriorPieceDef PieceShape(string def)
     {
         var size = ThingRow(def).size;
-        return new P.InteriorPieceDef(def, new Domain.Cell(size.x, size.z), P.PlanRole.NoFamily, null);
+        return new P.InteriorPieceDef(def, new Domain.Cell(size.x, size.z), P.PlanRole.NoFamily, new P.InteractionCell.None());
     }
 
     /// <summary>The sittable building with the most comfort per cost.</summary>

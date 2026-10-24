@@ -158,10 +158,10 @@ public sealed class SleepingPlannerTests
             {
                 Defs = new Dictionary<string, InteriorPieceDef>
                 {
-                    [BedDef] = new(BedDef, new Cell(1, 2), RoomRole.Bedroom, null),
-                    ["EndTable"] = new("EndTable", new Cell(1, 1), RoomRole.None, null),
-                    ["Dresser"] = new("Dresser", new Cell(1, 1), RoomRole.None, null),
-                    [lamp] = new(lamp, new Cell(1, 1), RoomRole.None, null),
+                    [BedDef] = new(BedDef, new Cell(1, 2), RoomRole.Bedroom, new InteractionCell.None()),
+                    ["EndTable"] = new("EndTable", new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
+                    ["Dresser"] = new("Dresser", new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
+                    [lamp] = new(lamp, new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
                 },
                 Furniture = new RoomFurniture
                 {

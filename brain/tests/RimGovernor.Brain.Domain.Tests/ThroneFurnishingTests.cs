@@ -38,10 +38,10 @@ public sealed class ThroneFurnishingTests
             {
                 Defs = new Dictionary<string, InteriorPieceDef>
                 {
-                    ["Bed"] = new("Bed", new Cell(1, 2), RoomRole.Bedroom, null),
-                    ["EndTable"] = new("EndTable", new Cell(1, 1), RoomRole.None, null),
-                    ["Dresser"] = new("Dresser", new Cell(1, 1), RoomRole.None, null),
-                    [lamp] = new(lamp, new Cell(1, 1), RoomRole.None, null),
+                    ["Bed"] = new("Bed", new Cell(1, 2), RoomRole.Bedroom, new InteractionCell.None()),
+                    ["EndTable"] = new("EndTable", new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
+                    ["Dresser"] = new("Dresser", new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
+                    [lamp] = new(lamp, new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
                 },
                 Furniture = new RoomFurniture
                 {
@@ -79,10 +79,10 @@ public sealed class ThroneFurnishingTests
     {
         var (inRoom, ok) = InteriorRules.InteriorRoomFromLayout(Room(), Shapes);
         Assert.True(ok);
-        var def = new InteriorPieceDef(Throne, new Cell(1, 1), default, null);
+        var def = new InteriorPieceDef(Throne, new Cell(1, 1), default, new InteractionCell.None());
         var required = new List<RequiredPiece>(inRoom!.Required);
-        required.AddRange(Enumerable.Range(0, 2).Select(i => new RequiredPiece($"anyofcount0.{i}", new InteriorPieceDef(Brazier, new Cell(1, 1), default, null))));
-        required.AddRange(Enumerable.Range(0, 2).Select(i => new RequiredPiece($"count0.{i}", new InteriorPieceDef(Column, new Cell(1, 1), default, null))));
+        required.AddRange(Enumerable.Range(0, 2).Select(i => new RequiredPiece($"anyofcount0.{i}", new InteriorPieceDef(Brazier, new Cell(1, 1), default, new InteractionCell.None()))));
+        required.AddRange(Enumerable.Range(0, 2).Select(i => new RequiredPiece($"count0.{i}", new InteriorPieceDef(Column, new Cell(1, 1), default, new InteractionCell.None()))));
         var (interior, planned) = InteriorRegionRules.PlanRoomInterior(inRoom with { Required = required }, def);
         Assert.True(planned);
         var taken = built.SelectMany(b => b.Cells).ToHashSet();

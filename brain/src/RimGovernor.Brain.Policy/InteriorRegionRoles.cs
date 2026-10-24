@@ -60,7 +60,7 @@ public static class InteriorRegionRolesRules
     internal static IReadOnlyList<RegionWant> WorkChair(this InteriorRoom r, RegionWant benches, InteriorPieceDef bench)
     {
         var (chair, ok) = r.Shapes.Get(r.WorkChairs.GetValueOrDefault(bench.Def) ?? string.Empty);
-        if (!ok || bench.Interaction is null || chair!.Size != new Cell(1, 1))
+        if (!ok || bench.Interaction is InteractionCell.None || chair!.Size != new Cell(1, 1))
         {
             return NoWants;
         }

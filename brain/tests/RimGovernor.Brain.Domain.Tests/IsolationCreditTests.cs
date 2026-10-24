@@ -208,7 +208,7 @@ public sealed class IsolationCreditTests
         var projection = ColonyFactsCoreTests.Projection() with
         {
             Identity = new() { Tick = new((long)(3.5 * Day)) },
-            Isolation = new IsolationPlanning { Pawns = Known(EquatableArray.From([new PawnId("cj")])) },
+            Isolation = new IsolationPlanning { Pawns = new IsolationCensus.Counted(EquatableArray.From([new PawnId("cj")])) },
         };
         var forecast = RoundsCreepJoiner.CreepJoinerForecastOf(projection, frame, catalog);
         Assert.Equal("", forecast.Unread);
@@ -217,7 +217,7 @@ public sealed class IsolationCreditTests
         Assert.Single(ForecastIsolation.IsolationCredit(Room, Outcome(), [], Context(forecast), Day));
 
         // A fresh colony holds no creepjoiner apart: a named zero, nothing thrown.
-        var fresh = RoundsCreepJoiner.CreepJoinerForecastOf(projection with { Isolation = new IsolationPlanning { Pawns = Known(EquatableArray.From(Array.Empty<PawnId>())) } }, frame, catalog);
+        var fresh = RoundsCreepJoiner.CreepJoinerForecastOf(projection with { Isolation = new IsolationPlanning { Pawns = new IsolationCensus.Counted(EquatableArray.From(Array.Empty<PawnId>())) } }, frame, catalog);
         Assert.Empty(ForecastIsolation.IsolationCredit(Room, Outcome(), [], Context(fresh), Day));
         Assert.Equal([ForecastIsolation.NoneHeld], ForecastIsolation.Findings(Room, Outcome(), [], Context(fresh), Day));
         // An unread census of the held apart is unread.

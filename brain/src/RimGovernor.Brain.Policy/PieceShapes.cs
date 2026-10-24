@@ -25,7 +25,7 @@ public sealed record PieceShapes
     /// edifice) is no plannable piece and comes back with only its name, in no family.
     /// </summary>
     internal InteriorPieceDef Standing(string def) =>
-        Defs.TryGetValue(def, out var shape) ? shape : new InteriorPieceDef(def, default, RoomRole.None, null);
+        Defs.TryGetValue(def, out var shape) ? shape : new InteriorPieceDef(def, default, RoomRole.None, new InteractionCell.None());
 
     /// <summary>
     /// Checks every shape is a footprint a template can lay out (a positive size), that the furniture rules

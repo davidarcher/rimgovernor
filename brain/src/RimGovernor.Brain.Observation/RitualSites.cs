@@ -41,8 +41,4 @@ public static class RitualSitesReads
         }
         return Known(EquatableArray.From(output));
     }
-
-    /// <summary>A row head's cell as the policy's cell fact: unknown for an unplaced head.</summary>
-    internal static Fact<Cell> RowCell(O.EntityPlace place) =>
-        place is O.EntityPlace.OnMap at ? Known(new Cell(at.Cell.X, at.Cell.Z)) : Unknown<Cell>();
 }

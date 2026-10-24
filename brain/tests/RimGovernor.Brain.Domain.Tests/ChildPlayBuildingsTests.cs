@@ -23,7 +23,7 @@ public sealed class ChildPlayBuildingsTests
         {
             [Crib] = new()
             {
-                Shape = new InteriorPieceDef(Crib, new Cell(1, 1), RoomRole.Nursery, null),
+                Shape = new InteriorPieceDef(Crib, new Cell(1, 1), RoomRole.Nursery, new InteractionCell.None()),
                 Capacity = new StationCapacity { Kind = CapacityKind.Sleepers, Slots = 1 },
                 Contributions =
                 [
@@ -34,7 +34,7 @@ public sealed class ChildPlayBuildingsTests
             },
             [ToyBox] = new()
             {
-                Shape = new InteriorPieceDef(ToyBox, new Cell(1, 1), RoomRole.Playroom, null),
+                Shape = new InteriorPieceDef(ToyBox, new Cell(1, 1), RoomRole.Playroom, new InteractionCell.None()),
                 Contributions = [new() { Role = RoomRole.Playroom, When = RoleCondition.Always, Weight = 8, Additive = true }],
             },
         },

@@ -19,7 +19,7 @@ public sealed class BedStationPriceTests
 
     private static Station Bench(string def, RoomRole role) => new()
     {
-        Shape = new InteriorPieceDef(def, new Cell(3, 1), RoomRole.None, null),
+        Shape = new InteriorPieceDef(def, new Cell(3, 1), RoomRole.None, new InteractionCell.None()),
         Contributions = [new RoleScore { Role = role, Weight = 1 }],
         Capacity = new StationCapacity { Kind = CapacityKind.Workers, Slots = 1 },
     };

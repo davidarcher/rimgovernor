@@ -34,9 +34,9 @@ public sealed record FurnitureRoom
         {
             var b = new InteriorPiece { Slot = p.Thing, Def = p.Def, Size = p.Size, Rot = p.Rot, Rect = p.Rect };
             var (shape, ok) = Room.Shapes.Get(p.Def);
-            if (ok && shape!.Interaction is { } interaction)
+            if (ok)
             {
-                b = b with { InteractionOffset = interaction };
+                b = b with { InteractionOffset = shape!.Interaction };
             }
             built.Add(b);
         }

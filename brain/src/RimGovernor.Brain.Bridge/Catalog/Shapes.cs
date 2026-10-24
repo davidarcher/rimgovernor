@@ -33,7 +33,7 @@ public sealed partial class DefinitionCatalog
                 continue;
             }
 
-            Domain.Cell? interaction = row.hasInteractionCell ? new Domain.Cell(row.interactionCellOffset.x, row.interactionCellOffset.z) : null;
+            P.InteractionCell interaction = row.hasInteractionCell ? new P.InteractionCell.At(new Domain.Cell(row.interactionCellOffset.x, row.interactionCellOffset.z)) : new P.InteractionCell.None();
             defs[name] = new P.InteriorPieceDef(name, new Domain.Cell(row.size.x, row.size.z), PieceFamily(row), interaction);
         }
 

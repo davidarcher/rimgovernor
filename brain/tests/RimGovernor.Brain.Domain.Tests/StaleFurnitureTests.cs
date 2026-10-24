@@ -108,9 +108,9 @@ public sealed class StaleFurnitureTests
         {
             Furniture = new DiningFurniture
             {
-                Chair = new InteriorPieceDef("DiningChair", new Cell(1, 1), RoomRole.None, null),
-                Table = new InteriorPieceDef("DiningTable", new Cell(2, 1), RoomRole.None, null),
-                Pin = new InteriorPieceDef("DiningPin", new Cell(1, 1), RoomRole.None, null),
+                Chair = new InteriorPieceDef("DiningChair", new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
+                Table = new InteriorPieceDef("DiningTable", new Cell(2, 1), RoomRole.None, new InteractionCell.None()),
+                Pin = new InteriorPieceDef("DiningPin", new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
             },
             WatchBuildings = EquatableArray.From(WatchOnly),
             RecreationFoothold = "BilliardsFoothold",
@@ -209,7 +209,7 @@ public sealed class StaleFurnitureTests
             Building = new Building(HerdPenRules.PenMarkerDefinition, new Cell(12, 12), Rotation.North, ""),
             Cells = [new Cell(12, 12)],
         };
-        var (piece, ok) = HerdPenRules.PenMarkerPiece(pen, new InteriorPieceDef(HerdPenRules.PenMarkerDefinition, new Cell(1, 1), RoomRole.None, null), [marker], new HashSet<Cell>());
+        var (piece, ok) = HerdPenRules.PenMarkerPiece(pen, new InteriorPieceDef(HerdPenRules.PenMarkerDefinition, new Cell(1, 1), RoomRole.None, new InteractionCell.None()), [marker], new HashSet<Cell>());
         Assert.True(ok);
         var rows = new[] { Row("marker", HerdPenRules.PenMarkerDefinition, new Cell(12, 12)), Row("stray", Stray, new Cell(13, 13)) };
         Assert.Equal(["stray"], OwnerRemovals(pen, rows, [piece], NothingCarried));
@@ -249,9 +249,9 @@ public sealed class StaleFurnitureTests
         {
             Defs = new Dictionary<string, InteriorPieceDef>
             {
-                ["Bed"] = new("Bed", new Cell(1, 2), RoomRole.Bedroom, null),
-                ["Bedroll"] = new("Bedroll", new Cell(1, 2), RoomRole.None, null),
-                ["EndTable"] = new("EndTable", new Cell(1, 1), RoomRole.None, null),
+                ["Bed"] = new("Bed", new Cell(1, 2), RoomRole.Bedroom, new InteractionCell.None()),
+                ["Bedroll"] = new("Bedroll", new Cell(1, 2), RoomRole.None, new InteractionCell.None()),
+                ["EndTable"] = new("EndTable", new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
             },
             Furniture = new RoomFurniture
             {
@@ -282,7 +282,7 @@ public sealed class StaleFurnitureTests
         var prison = Room(PlannedRole.Prison);
         var shapes = new PieceShapes
         {
-            Defs = new Dictionary<string, InteriorPieceDef> { ["Bed"] = new("Bed", new Cell(1, 2), RoomRole.Bedroom, null) },
+            Defs = new Dictionary<string, InteriorPieceDef> { ["Bed"] = new("Bed", new Cell(1, 2), RoomRole.Bedroom, new InteractionCell.None()) },
             Furniture = new RoomFurniture { Beds = [new FurnitureBed { Def = "Bed", Slots = 1 }] },
         };
         var standing = new[] { Built("Bed", 10, 10, 1, 2), Built("Bed", 12, 10, 1, 2) };
@@ -299,7 +299,7 @@ public sealed class StaleFurnitureTests
         var tomb = Room(PlannedRole.Tomb);
         var shapes = new PieceShapes
         {
-            Defs = new Dictionary<string, InteriorPieceDef> { ["Sarcophagus"] = new("Sarcophagus", new Cell(1, 2), RoomRole.None, null) },
+            Defs = new Dictionary<string, InteriorPieceDef> { ["Sarcophagus"] = new("Sarcophagus", new Cell(1, 2), RoomRole.None, new InteractionCell.None()) },
             Furniture = new RoomFurniture { Sarcophagus = "Sarcophagus" },
         };
         var standing = new[] { Built("Sarcophagus", 10, 10, 1, 2), Built("Sarcophagus", 12, 10, 1, 2) };
@@ -315,7 +315,7 @@ public sealed class StaleFurnitureTests
         var room = Room(PlannedRole.Hospital);
         var shapes = new PieceShapes
         {
-            Defs = new Dictionary<string, InteriorPieceDef> { ["Bed"] = new("Bed", new Cell(1, 2), RoomRole.Bedroom, null), ["VitalsMonitor"] = new("VitalsMonitor", new Cell(1, 1), RoomRole.None, null) },
+            Defs = new Dictionary<string, InteriorPieceDef> { ["Bed"] = new("Bed", new Cell(1, 2), RoomRole.Bedroom, new InteractionCell.None()), ["VitalsMonitor"] = new("VitalsMonitor", new Cell(1, 1), RoomRole.None, new InteractionCell.None()) },
             Furniture = new RoomFurniture { Beds = [new FurnitureBed { Def = "Bed", Slots = 1 }], Monitor = new FacilityLink { Def = "VitalsMonitor" } },
         };
         var (inner, ok) = InteriorRules.InteriorRoomFromLayout(room, shapes);

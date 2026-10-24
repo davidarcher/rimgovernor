@@ -9,7 +9,7 @@ public sealed class RoomFurnishingTests
     private const string Bed = "Bed";
     private const string Lever = "SculptureSmall";
 
-    private static readonly InteriorPieceDef BedShape = new(Bed, new Cell(1, 2), RoomRole.Bedroom, null);
+    private static readonly InteriorPieceDef BedShape = new(Bed, new Cell(1, 2), RoomRole.Bedroom, new InteractionCell.None());
 
     private static PieceShapes Shapes
     {
@@ -21,9 +21,9 @@ public sealed class RoomFurnishingTests
                 Defs = new Dictionary<string, InteriorPieceDef>
                 {
                     [Bed] = BedShape,
-                    ["EndTable"] = new("EndTable", new Cell(1, 1), RoomRole.None, null),
-                    ["Dresser"] = new("Dresser", new Cell(1, 1), RoomRole.None, null),
-                    [lamp] = new(lamp, new Cell(1, 1), RoomRole.None, null),
+                    ["EndTable"] = new("EndTable", new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
+                    ["Dresser"] = new("Dresser", new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
+                    [lamp] = new(lamp, new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
                 },
                 Furniture = new RoomFurniture
                 {
@@ -69,8 +69,8 @@ public sealed class RoomFurnishingTests
         Defs = new Dictionary<string, InteriorPieceDef>
         {
             [Bed] = BedShape,
-            ["VitalsMonitor"] = new("VitalsMonitor", new Cell(1, 1), RoomRole.Hospital, null),
-            ["AnimalBed"] = new("AnimalBed", new Cell(1, 1), RoomRole.None, null),
+            ["VitalsMonitor"] = new("VitalsMonitor", new Cell(1, 1), RoomRole.Hospital, new InteractionCell.None()),
+            ["AnimalBed"] = new("AnimalBed", new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
         },
         Furniture = new RoomFurniture
         {

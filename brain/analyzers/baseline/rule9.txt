@@ -86,8 +86,8 @@ BuildingRuntime/Rounds/RoundsComfort.cs|Fact|10
 BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Fact|12
 BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsCoupled.cs|Fact|12
-BuildingRuntime/Rounds/RoundsCreepJoiner.cs|Fact|5
-BuildingRuntime/Rounds/RoundsCreepJoiner.cs|Unknown|2
+BuildingRuntime/Rounds/RoundsCreepJoiner.cs|Fact|3
+BuildingRuntime/Rounds/RoundsCreepJoiner.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsDeepDrill.cs|Fact|12
 BuildingRuntime/Rounds/RoundsDefenseEntities.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsDefenseLayout.cs|Fact|7
@@ -139,7 +139,7 @@ BuildingRuntime/Rounds/RoundsLighting.cs|Fact|7
 BuildingRuntime/Rounds/RoundsMaintainShelter.cs|Fact|15
 BuildingRuntime/Rounds/RoundsMaintainShelter.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsMeals.cs|Fact|3
-BuildingRuntime/Rounds/RoundsMech.cs|Fact|2
+BuildingRuntime/Rounds/RoundsMech.cs|Fact|1
 BuildingRuntime/Rounds/RoundsMedical.cs|Fact|7
 BuildingRuntime/Rounds/RoundsMedicalFamily.cs|Fact|1
 BuildingRuntime/Rounds/RoundsMedicalFamily.cs|Unknown|2
@@ -306,9 +306,9 @@ Observation/PlanningView.cs|Unknown|2
 Observation/Quest.cs|Fact|16
 Observation/Quest.cs|Unknown|5
 Observation/Refrigeration.cs|Fact|3
-Observation/RitualSites.cs|Fact|6
-Observation/RitualSites.cs|Unknown|2
-Observation/RoundsContainment.cs|Fact|3
+Observation/RitualSites.cs|Fact|4
+Observation/RitualSites.cs|Unknown|1
+Observation/RoundsContainment.cs|Fact|2
 Observation/RoundsContainment.cs|Unknown|1
 Observation/RoundsMood.cs|Fact|17
 Observation/RoundsMood.cs|Unknown|4
@@ -502,10 +502,7 @@ Policy/HumanFoodPlan.cs|Fact|2
 Policy/HusbandryUpkeep.cs|Fact|12
 Policy/HusbandryUpkeep.cs|Unknown|2
 Policy/IdeologyConversion.cs|Fact|4
-Policy/Interior.cs|NullableValue|1
 Policy/InteriorOpen.cs|Fact|1
-Policy/InteriorSlot.cs|NullableValue|1
-Policy/IsolationRoom.cs|Fact|2
 Policy/ItemFacts.cs|Fact|2
 Policy/ItemFactsFixture.cs|Fact|2
 Policy/Joiners.cs|Fact|3
@@ -521,7 +518,7 @@ Policy/LayoutFieldReplan.cs|Fact|2
 Policy/LayoutLight.cs|Fact|1
 Policy/LayoutRegroup.cs|Fact|2
 Policy/LayoutRoof.cs|Fact|2
-Policy/LayoutRooms.cs|Fact|3
+Policy/LayoutRooms.cs|Fact|2
 Policy/LayoutStationPlan.cs|Fact|13
 Policy/LayoutTile.cs|Fact|2
 Policy/LayoutTileAirlock.cs|Fact|1
@@ -621,7 +618,6 @@ Policy/RecoveryQueue.cs|Unknown|1
 Policy/Refrigeration.cs|Fact|10
 Policy/Refrigeration.cs|Unknown|1
 Policy/Refrigeration.cs|UnknownMember|1
-Policy/RegionPlacer.cs|NullableValue|1
 Policy/RemoteHold.cs|Discard|1
 Policy/RemoteHold.cs|Fact|10
 Policy/RemoteHold.cs|Unknown|1

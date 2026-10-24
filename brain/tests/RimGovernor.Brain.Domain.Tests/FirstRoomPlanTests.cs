@@ -25,12 +25,12 @@ public sealed class FirstRoomPlanTests
         // The game's crafting spot: no room role, half speed, free to build. The smithy is a workshop bench at full speed.
         stations[Spot] = new Station
         {
-            Shape = new InteriorPieceDef(Spot, new Cell(1, 1), RoomRole.None, null),
+            Shape = new InteriorPieceDef(Spot, new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
             Capacity = new StationCapacity { Kind = CapacityKind.Workers, Slots = 1, Recipes = [new RecipeWorkAmount(Knife, 1000)], WorkSpeed = 0.5 },
         };
         stations[Smithy] = new Station
         {
-            Shape = new InteriorPieceDef(Smithy, new Cell(3, 1), RoomRole.None, null),
+            Shape = new InteriorPieceDef(Smithy, new Cell(3, 1), RoomRole.None, new InteractionCell.None()),
             Contributions = [new RoleScore { Role = RoomRole.Workshop, Weight = 27, Additive = true }],
             Capacity = new StationCapacity { Kind = CapacityKind.Workers, Slots = 1, Recipes = [new RecipeWorkAmount(Knife, 1000)], WorkSpeed = 1 },
         };

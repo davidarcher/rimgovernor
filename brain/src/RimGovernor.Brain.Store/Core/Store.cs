@@ -54,8 +54,9 @@ public sealed partial class Store : IAsyncDisposable, IDisposable
     /// Version 49 reads threat, disaster and recovery containers whole (#3931): a disaster history no longer persists WorkKnown, and a recovery record persists its safety (restrictions with a plain area id, empty for none) and buildings always, never null for an unread census.
     /// Version 50 drops the never-read <c>Observed</c> deficit fraction from a concern's progress and the <c>Alternative</c> text from a ready work (#3962).
     /// Version 51 reads a need target's claimant capacity and quantity whole (#3895): a persisted target capacity is its claimant count and, only for a stack, its units.
+    /// Version 52 reads a building's interaction cell whole (#3957): a piece persists its InteractionOffset only when the building has one, and a piece read without the key has none.
     /// </summary>
-    public const int SchemaVersion = 51;
+    public const int SchemaVersion = 52;
 
     /// <summary>The <c>PRAGMA application_id</c> ("RGO1").</summary>
     public const int ApplicationId = 0x52474f31;

@@ -20,8 +20,8 @@ public sealed class WorkChairTests
     {
         Defs = new Dictionary<string, InteriorPieceDef>
         {
-            [Bench] = new(Bench, new Cell(3, 1), RoomRole.Workshop, new Cell(0, -1)),
-            [Chair] = new(Chair, new Cell(1, 1), RoomRole.None, null),
+            [Bench] = new(Bench, new Cell(3, 1), RoomRole.Workshop, new InteractionCell.At(new Cell(0, -1))),
+            [Chair] = new(Chair, new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
         },
     };
 

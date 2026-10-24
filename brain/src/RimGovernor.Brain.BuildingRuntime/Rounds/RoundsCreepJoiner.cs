@@ -94,11 +94,11 @@ internal static class RoundsCreepJoiner
 
     internal static IsolationPlanning CreepJoinerIsolation(ColonyProjection facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog, CreepJoinerRecord record)
     {
-        var output = new IsolationPlanning { Pawns = Unknown<EquatableArray<PawnId>>(), Beds = facts.Shapes.Furniture.SleepingBeds() };
+        var output = new IsolationPlanning { Beds = facts.Shapes.Furniture.SleepingBeds() };
         if (CreepJoinerHands(frame) is { } hands)
         {
             var defs = catalog ?? throw new ControlException("creepJoinerIsolation: no definition catalog");
-            output = output with { Pawns = Known(defs.CreepJoinerDownsides().Isolated(hands, record)) };
+            output = output with { Pawns = new IsolationCensus.Counted(defs.CreepJoinerDownsides().Isolated(hands, record)) };
         }
         return output;
     }
@@ -110,7 +110,7 @@ internal static class RoundsCreepJoiner
     /// </summary>
     internal static CreepJoinerForecast CreepJoinerForecastOf(ColonyProjection facts, BridgeRoundsFrame frame, DefinitionCatalog? catalog)
     {
-        if (!facts.Isolation.Pawns.TryGetValue(out var pawns) || frame.Pawns is null)
+        if (facts.Isolation.Pawns is not IsolationCensus.Counted { Held: var pawns } || frame.Pawns is null)
         {
             return new CreepJoinerForecast { Unread = "the held-apart creepjoiner census is unread" };
         }

@@ -1575,7 +1575,7 @@ internal sealed class InteriorPieceConverter : ObjectCodec<InteriorPiece>
             Size = e.Get<Cell>("Size", o),
             Rot = e.Get<Rotation>("Rot", o),
             Rect = e.Get<Rectangle>("Rect", o),
-            InteractionOffset = e.GetOr<Cell?>("InteractionOffset", null, o),
+            InteractionOffset = e.Has("InteractionOffset") ? new InteractionCell.At(e.Get<Cell>("InteractionOffset", o)) : new InteractionCell.None(),
             Row = e.Str("Row"),
             Beside = e.Str("Beside"),
             Clear = e.I32("Clear"),
@@ -1588,7 +1588,7 @@ internal sealed class InteriorPieceConverter : ObjectCodec<InteriorPiece>
         w.Put("Size", v.Size, o);
         w.Put("Rot", v.Rot, o);
         w.Put("Rect", v.Rect, o);
-        if (v.InteractionOffset is { } offset)
+        if (v.InteractionOffset is InteractionCell.At { Offset: var offset })
         {
             w.Put("InteractionOffset", offset, o);
         }

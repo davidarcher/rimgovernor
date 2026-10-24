@@ -54,30 +54,30 @@ public sealed class FirstLayoutPlanTests
             {
                 ["Bed"] = new Station
                 {
-                    Shape = new InteriorPieceDef("Bed", new Cell(1, 2), RoomRole.None, null),
+                    Shape = new InteriorPieceDef("Bed", new Cell(1, 2), RoomRole.None, new InteractionCell.None()),
                     Contributions = [new RoleScore { Role = RoomRole.Bedroom, Weight = 1 }],
                     Capacity = new StationCapacity { Kind = CapacityKind.Sleepers, Slots = 1 },
                     EmptyCountsForBarracks = true,
                 },
                 ["Stove"] = new Station
                 {
-                    Shape = new InteriorPieceDef("Stove", new Cell(3, 1), RoomRole.None, null),
+                    Shape = new InteriorPieceDef("Stove", new Cell(3, 1), RoomRole.None, new InteractionCell.None()),
                     Contributions = [new RoleScore { Role = RoomRole.Kitchen, Weight = 1 }],
                     Capacity = new StationCapacity { Kind = CapacityKind.Workers, Slots = 1, Recipes = [new RecipeWorkAmount("CookMeal", 300)] },
                 },
                 ["Table2x2c"] = new Station
                 {
-                    Shape = new InteriorPieceDef("Table2x2c", new Cell(2, 2), RoomRole.None, null),
+                    Shape = new InteriorPieceDef("Table2x2c", new Cell(2, 2), RoomRole.None, new InteractionCell.None()),
                     Contributions = [new RoleScore { Role = RoomRole.DiningRoom, Weight = 1 }],
                 },
                 ["ResearchBench"] = new Station
                 {
-                    Shape = new InteriorPieceDef("ResearchBench", new Cell(3, 1), RoomRole.None, null),
+                    Shape = new InteriorPieceDef("ResearchBench", new Cell(3, 1), RoomRole.None, new InteractionCell.None()),
                     Contributions = [new RoleScore { Role = RoomRole.Laboratory, Weight = 60, Additive = true }],
                 },
                 ["Shelf"] = new Station
                 {
-                    Shape = new InteriorPieceDef("Shelf", new Cell(2, 1), RoomRole.None, null),
+                    Shape = new InteriorPieceDef("Shelf", new Cell(2, 1), RoomRole.None, new InteractionCell.None()),
                     Contributions = [new RoleScore { Role = RoomRole.Storeroom, Weight = 1 }],
                     Capacity = new StationCapacity { Kind = CapacityKind.Items, Slots = 6 },
                 },
@@ -105,9 +105,9 @@ public sealed class FirstLayoutPlanTests
         Races = new AnimalRaceCatalog(),
         Dining = new DiningFurniture
         {
-            Chair = new InteriorPieceDef("DiningChair", new Cell(1, 1), RoomRole.None, null),
-            Table = new InteriorPieceDef("Table2x2c", new Cell(2, 2), RoomRole.None, null),
-            Pin = new InteriorPieceDef("DiningPin", new Cell(1, 1), RoomRole.None, null),
+            Chair = new InteriorPieceDef("DiningChair", new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
+            Table = new InteriorPieceDef("Table2x2c", new Cell(2, 2), RoomRole.None, new InteractionCell.None()),
+            Pin = new InteriorPieceDef("DiningPin", new Cell(1, 1), RoomRole.None, new InteractionCell.None()),
         },
         Colonists = colonists,
         Patients = Fact.Known(EquatableArray.From<CarePawn>([])),

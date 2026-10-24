@@ -41,7 +41,7 @@ public static class InteriorHelpersRules
     /// </summary>
     internal static bool FrontInteraction(InteriorPieceDef def)
     {
-        if (def.Interaction is not { } o)
+        if (def.Interaction is not InteractionCell.At { Offset: var o })
         {
             return false;
         }

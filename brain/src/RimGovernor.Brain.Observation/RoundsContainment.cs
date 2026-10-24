@@ -240,9 +240,6 @@ public static class RoundsContainmentReads
         return new MechFleet { Mechanitors = mechanitors, Mechs = mechs, OverseerCells = overseers };
     }
 
-    /// <summary>The pawn row's position.</summary>
-    public static Fact<Cell> RowCellOf(O.PawnState row) => RitualSitesReads.RowCell(row.Pawn.Place);
-
 
     internal static Fact<EquatableArray<CarePawn>> RoundsMedical(O.ColonyFactsSnapshot? colony, EmergencyFacts emergency, O.PawnSnapshot? snapshot, DefinitionCatalog catalog)
     {

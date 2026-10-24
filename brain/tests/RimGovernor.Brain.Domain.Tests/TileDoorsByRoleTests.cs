@@ -22,7 +22,7 @@ public sealed class TileDoorsByRoleTests
         {
             [Bed] = new()
             {
-                Shape = new InteriorPieceDef(Bed, new Cell(1, 2), RoomRole.Bedroom, null),
+                Shape = new InteriorPieceDef(Bed, new Cell(1, 2), RoomRole.Bedroom, new InteractionCell.None()),
                 Contributions = [new() { Role = RoomRole.Bedroom, When = RoleCondition.BedFree, Weight = 100000 }],
             },
         },

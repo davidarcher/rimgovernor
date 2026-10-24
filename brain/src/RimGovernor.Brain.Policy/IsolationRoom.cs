@@ -15,13 +15,23 @@ namespace RimGovernor.Brain.Policy;
 // The isolation room's plan role is PlannedRole.IsolationRoom (wire name "isolation-room").
 /// <summary>
 /// The projection's isolation inputs: the creepjoiners the colony holds apart and the bed definitions the room
-/// can be furnished from. Pawns is unknown until the pawn rows are read (and without Anomaly).
+/// can be furnished from. Pawns is Uncounted until the pawn rows are read (and without Anomaly).
 /// </summary>
 public sealed record IsolationPlanning
 {
-    public Fact<EquatableArray<PawnId>> Pawns { get; init; }
+    public IsolationCensus Pawns { get; init; } = new IsolationCensus.Uncounted();
 
     public IReadOnlyList<string> Beds { get; init; } = [];
+}
+
+/// <summary>The creepjoiners the colony holds apart: Counted from the complete colonist census, or Uncounted on a projection no creepjoiner review built (an incomplete census, or without Anomaly).</summary>
+public abstract record IsolationCensus
+{
+    private IsolationCensus() { }
+
+    public sealed record Counted(EquatableArray<PawnId> Held) : IsolationCensus;
+
+    public sealed record Uncounted : IsolationCensus;
 }
 
 public static class IsolationRoomRules
@@ -68,7 +78,7 @@ public static class IsolationRoomRules
     /// </summary>
     public static (ChildRoomNeed Need, bool Ok) IsolationRoomNeed(IsolationPlanning p, IReadOnlyList<FurnitureDefinition> furniture)
     {
-        if (!p.Pawns.TryGetValue(out var pawns) || pawns.Count == 0 || p.Beds.Count == 0)
+        if (p.Pawns is not IsolationCensus.Counted { Held.Count: > 0 } || p.Beds.Count == 0)
         {
             return (default!, false);
         }
