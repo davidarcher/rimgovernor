@@ -536,7 +536,8 @@ public sealed partial class Rounder
         reading = reading.WithFacts(rf => rf with
         {
             PlannedConstruction = PlannedConstructionOf(reading.Projection, plannedOwed),
-            PlannedShelters = reading.Projection.LayoutPlan.TryGetValue(out var layout) ? EquatableArray.From(layout.Rooms.Where(r => !r.Outdoor)) : []
+            PlannedShelters = reading.Projection.LayoutPlan.TryGetValue(out var layout) ? EquatableArray.From(layout.Rooms.Where(r => !r.Outdoor)) : [],
+            PlannedLinks = EquatableArray.From(layout?.Links ?? []),
         });
         // The firebreak review reads nothing the planned sites answer, so its tile reads share frames with the site reads.
         fine.Mark();

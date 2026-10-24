@@ -75,6 +75,9 @@ public sealed record ForecastCoupledContext
     /// <summary>The placed sites and standing removals the planned rooms hold (#3796, epic #3650 P4), by the rooms whose
     /// interior or ring cells hold them: part of those rooms' owed work.</summary>
     public EquatableArray<ForecastRoomItem> RoomItems { get; init; }
+    /// <summary>The connectors among the planned rooms (#3815, epic #3650 P4): each circulation corridor or airlock, by room, and
+    /// the rooms it reaches or seals (PlannedRoomCredits.ConnectorsOf). Its owed work is part of each of those rooms'.</summary>
+    public IReadOnlyDictionary<int, EquatableArray<int>> Connectors { get; init; } = new Dictionary<int, EquatableArray<int>>();
     /// <summary>The open planned rooms (#3744, #3754): observed started (RoundsBuildingPlanner.PlannedRoomStartedOf) and not
     /// done (PlannedRules.PlannedRoomDone, as their latest reconcile found). Their owed work is done first in the service-day
     /// projection (#3796). Set by the round beside <see cref="InvestmentHorizonDays"/>; none by default.</summary>

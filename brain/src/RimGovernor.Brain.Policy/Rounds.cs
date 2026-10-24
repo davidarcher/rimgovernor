@@ -494,6 +494,8 @@ public sealed record RoundsFacts
     public ForecastNeedsReview? NeedsAlternatives { get; init; }
     public ForecastCoupledCandidates? CoupledAlternatives { get; init; }
     public EquatableArray<PlannedRoom> PlannedShelters { get; init; }
+    /// <summary>The layout plan's door graph between the <see cref="PlannedShelters"/> (LayoutPlan.Links): the rooms a circulation corridor reaches (#3815).</summary>
+    public EquatableArray<RoomLink> PlannedLinks { get; init; }
     /// <summary>
     /// The urgent build this review compares (#3537): the buildings of the sleeping shelter or bed placements whose blueprints
     /// stand since the last review, which the clock was held for. While it is set the coupled comparison leaves routine

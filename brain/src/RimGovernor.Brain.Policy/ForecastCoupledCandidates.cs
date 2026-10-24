@@ -346,6 +346,7 @@ public sealed partial record ForecastCoupledCandidates
             PlannedSites = plannedRealized,
             PlannedRooms = EquatableArray.From(planned.Rooms),
             PlannedRoomRoles = PlannedRoomRolesOf(facts),
+            Connectors = PlannedRoomCredits.ConnectorsOf(facts.PlannedShelters, facts.PlannedLinks),
             Closures = closures,
             PlannedBuilders = LayoutClusterRules.BuildersOf(facts.ForecastObserved.WorkPawns,
                 pawn => needs.Pawns.Any(p => p.Pawn == pawn) && !resources.Claims.Pawns.Contains(pawn)).TryGetValue(out var builders) ? builders : 0,

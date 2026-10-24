@@ -290,7 +290,10 @@ reads inside the schedule only. A room's credit runs instead from its service da
 projection): the day its one reconcile owes nothing. Its owed items, per stuff, are
 its planned sites (ring, roof, furniture, floors), its placed ring pieces, and the
 placed floor blueprints and removals on its interior or ring cells
-(`Context.RoomItems`; a shared-wall cell's are both rooms'), all one job. A room whose
+(`Context.RoomItems`; a shared-wall cell's are both rooms'), with the owed items of each
+connector serving it (#3815: an airlock its parent, a circulation corridor each room a
+layout door joins it to, `Context.Connectors`; every way of the connector's, the room
+keeping its own stuff), all one job. A room whose
 every item of one stuff finished in the schedule serves at the last finish, earliest
 stuff first. Otherwise it is owing when it is open (`Context.OpenRooms`: observed started, from
 `PlannedRoomStartedOf`, and not done, `PlannedRoomDone` as its latest reconcile found,

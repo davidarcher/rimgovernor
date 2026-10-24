@@ -40,9 +40,31 @@ public static class PlannedRoomCredits
         [PlannedRole.Barracks] = ForecastHousing.BedroomCredit,
     };
 
-    /// <summary>Whether <paramref name="room"/>'s role has a credit.</summary>
+    /// <summary>
+    /// Whether <paramref name="room"/> is priced: its role has a credit, or it is a connector (<see cref="ConnectorsOf"/>) of a
+    /// priced room (#3815, epic #3650 P4). A connector has no credit of its own; its work is the rooms' it serves.
+    /// </summary>
     public static bool Priced(this ForecastCoupledContext context, int room) =>
-        context.PlannedRoomRoles.TryGetValue(room, out var role) && context.RoomCredits.ContainsKey(role);
+        context.PlannedRoomRoles.TryGetValue(room, out var role) && context.RoomCredits.ContainsKey(role)
+        || context.Connectors.TryGetValue(room, out var served) && served.Any(context.Priced);
+
+    /// <summary>
+    /// The connectors among <paramref name="rooms"/> (#3815, epic #3650 P4), each a prerequisite of the rooms it serves: an
+    /// attached airlock seals its parent; a circulation corridor reaches each room a door of <paramref name="links"/> joins
+    /// it to, other connectors aside. A corridor serving several rooms counts for each, as a shared wall does.
+    /// </summary>
+    public static IReadOnlyDictionary<int, EquatableArray<int>> ConnectorsOf(IReadOnlyList<PlannedRoom> rooms, IReadOnlyList<RoomLink> links)
+    {
+        var connector = rooms.Where(r => r.Attached() || r.Role == PlannedRole.Circulation).Select(r => r.Id).ToHashSet();
+        var connectors = new Dictionary<int, EquatableArray<int>>();
+        foreach (var room in rooms.Where(r => r.Id > 0 && connector.Contains(r.Id)).DistinctBy(r => r.Id))
+        {
+            int[] served = room.Attached() ? room.Parent > 0 ? [room.Parent] : []
+                : [.. links.Where(l => l.A == room.Id || l.B == room.Id).Select(l => l.A == room.Id ? l.B : l.A).Where(o => !connector.Contains(o)).Distinct().Order()];
+            if (served.Length != 0) connectors[room.Id] = EquatableArray.From(served);
+        }
+        return connectors;
+    }
 
     /// <summary>The Investment key of one credit row: <c>{role}/{room}/{subject}</c>, the role by its wire name.</summary>
     public static string Key(PlannedRole role, int room, string subject) => FormattableString.Invariant($"{Wire.Name(role)}/{room}/{subject}");
@@ -75,7 +97,7 @@ public static class PlannedRoomCredits
     }
 
     /// <summary>
-    /// The development units of priced rooms, which the count skips (#3651, #3796): each planned site, the
+    /// The development units of priced rooms (<see cref="Priced"/>, a priced room's connectors included, #3815), which the count skips (#3651, #3796): each planned site, the
     /// <c>planned/room{R}/roof</c> unit, and the flooring and removal relief of each placed site or removal they own; cached per context.
     /// </summary>
     internal static IReadOnlySet<string> PricedUnits(ForecastCoupledContext context) => Cache.GetValue(context, OwedOf).PricedUnits;
@@ -102,17 +124,32 @@ public static class PlannedRoomCredits
         var sites = context.PlannedSites.ToLookup(s => s.Room);
         var items = context.RoomItems.SelectMany(i => i.Rooms.Select(r => (Room: r, i.Item))).ToLookup(p => p.Room, p => p.Item);
         var closures = context.Closures.ToLookup(c => c.Room);
-        var rooms = new List<(int, Way[])>();
-        foreach (var room in sites.Select(g => g.Key).Concat(closures.Select(g => g.Key)).Concat(items.Select(g => g.Key)).Distinct().Order())
+        Way[] OwnWays(int room)
         {
             var stuffs = closures[room].Any() ? closures[room].Select(c => c.Stuff).Distinct().ToArray()
                 : sites[room].Select(s => s.Stuff).Where(s => s.Length != 0).Distinct().DefaultIfEmpty("").ToArray();
-            var ways = stuffs.Select(stuff => new Way(stuff, [.. sites[room].Where(s => s.Stuff.Length == 0 || s.Stuff == stuff).Select(s => s.Site)
+            return [.. stuffs.Select(stuff => new Way(stuff, [.. sites[room].Where(s => s.Stuff.Length == 0 || s.Stuff == stuff).Select(s => s.Site)
                     .Concat(closures[room].Where(c => c.Stuff == stuff).SelectMany(c => c.Placed).Select(p => p.Site))
-                    .Concat(items[room]).Distinct(StringComparer.Ordinal)]))
-                .Where(w => w.Items.Length != 0).ToArray();
-            if (ways.Length != 0) rooms.Add((room, ways));
+                    .Concat(items[room]).Distinct(StringComparer.Ordinal)]))];
         }
+        // A connector's work is part of each room it serves (#3815, P4): a room's ways are its own, each joined with each way
+        // of every connector serving it, the room keeping its own ring stuff.
+        var serving = context.Connectors.SelectMany(c => c.Value.Select(s => (Served: s, Connector: c.Key))).ToLookup(p => p.Served, p => p.Connector);
+        var resolved = new Dictionary<int, Way[]>();
+        Way[] WaysOf(int room)
+        {
+            if (resolved.TryGetValue(room, out var known)) return known;
+            resolved[room] = [];
+            IEnumerable<Way> ways = OwnWays(room);
+            foreach (var connector in serving[room].Distinct().Order())
+                if (WaysOf(connector) is { Length: > 0 } theirs)
+                    ways = ways.SelectMany(mine => theirs.Select(their => new Way(mine.Stuff, [.. mine.Items.Concat(their.Items).Distinct(StringComparer.Ordinal)])));
+            return resolved[room] = [.. ways.Where(w => w.Items.Length != 0)];
+        }
+        var rooms = new List<(int, Way[])>();
+        foreach (var room in sites.Select(g => g.Key).Concat(closures.Select(g => g.Key)).Concat(items.Select(g => g.Key))
+            .Concat(context.Connectors.Values.SelectMany(s => s)).Distinct().Order())
+            if (WaysOf(room) is { Length: > 0 } ways) rooms.Add((room, ways));
         var priced = new HashSet<string>(StringComparer.Ordinal);
         foreach (var room in context.PlannedRoomRoles.Keys.Where(context.Priced))
         {
@@ -132,7 +169,7 @@ public static class PlannedRoomCredits
     /// service day is unassessed (#3796, epic #3650 P2, replacing #3744's ring closure). A room is built by its one
     /// reconcile: per ring stuff (its closure predictions', else its sites'), it owes its planned sites in that stuff or
     /// none, the placed ring sites of that stuff's closure and the room items it holds (<see cref="ForecastCoupledContext.RoomItems"/>),
-    /// as one job. It serves at the latest finish once the schedule finishes all of one stuff's, the earliest stuff
+    /// with every way of each connector serving it (<see cref="ForecastCoupledContext.Connectors"/>, #3815), as one job. It serves at the latest finish once the schedule finishes all of one stuff's, the earliest stuff
     /// winning. A room the schedule leaves owing is projected when it is open
     /// (<see cref="ForecastCoupledContext.OpenRooms"/>: started, and not done by its latest reconcile, #3754) or the schedule finished one of its items: its remaining work is
     /// the owed work (<see cref="ForecastCoupledContext.OwedWork"/>) of its unfinished items in the stuff that leaves the

@@ -76,6 +76,13 @@ either room is priced); its sites are still emitted and exempt.
   cells, all one job). Inside the schedule it is the last item's finish; left owing, it is the
   cumulative owed work (`Context.OwedWork`: finished work first, then started rooms, then the
   rest, each by its remaining work) over `PlannedBuilders`, never before the horizon.
+- Connectors (#3815, P4) have no credit: a circulation corridor and an airlock are prerequisites
+  of the rooms they reach or seal (`Context.Connectors`, `PlannedRoomCredits.ConnectorsOf`: an
+  attached airlock its parent, a corridor each non-connector room a layout door joins it to). A
+  connector's owed work joins each served room's, so it delays that room's service day, and a
+  connector of a priced room is priced with it (`context.Priced`): its units leave the count and
+  its deliveries are charged. A corridor serving several rooms counts for each, as a shared wall
+  does; one serving no priced room stays in the count like any unpriced room.
 - `PlannedRoomCredits.Credit` books each gain as one Investment row `{role}/{room}/{subject}`
   of `PerDay × RingClosure.CreditDays(InvestmentHorizonDays, serviceDay)` units. A priced room
   with no builders, an unknown owed work or a null credit is named `{role}_credit_unassessed:{room}`

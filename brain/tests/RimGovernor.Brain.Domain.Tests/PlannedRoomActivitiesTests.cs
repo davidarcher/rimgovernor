@@ -674,6 +674,28 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     /// <summary>
+    /// #3815: generated the production way, from the round's planned rooms and the layout's doors, a corridor (room 1) that
+    /// a planned bedroom (room 2) opens on is that bedroom's connector, priced with it: its sites leave the development
+    /// count. With no layout read (a fresh colony) there are no connectors and nothing is required.
+    /// </summary>
+    [Fact]
+    public void ACorridorABedroomOpensOnIsPricedWithTheBedroom()
+    {
+        var facts = Review([Ring(OpKind.WallIn, "WoodLog", 200), Ring(OpKind.DoorIn, "WoodLog", 60)]);
+        var corridor = facts with { PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Circulation)] }) };
+        Assert.Empty(ForecastCoupledCandidates.GenerateCoupledActivities(corridor, Horizon)!.Context.Connectors);
+        var joined = corridor with
+        {
+            PlannedShelters = [new PlannedRoom { Id = 1, Role = PlannedRole.Circulation }, new PlannedRoom { Id = 2, Role = PlannedRole.Bedroom }],
+            PlannedLinks = [new RoomLink(1, 2, DoorCell)],
+        };
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(joined, Horizon)!.Priced();
+        Assert.Equal([2], generated.Context.Connectors[1]);
+        Assert.True(generated.Context.Priced(1));
+        Assert.Contains("planned/room1/wall/WoodLog", PlannedRoomCredits.PricedUnits(generated.Context));
+    }
+
+    /// <summary>
     /// #3653: the composed delivery of a priced room's wall consumes its logs, and every evaluated outcome that schedules
     /// it is charged them under material/WoodLog. The same room with no priced role is charged nothing.
     /// </summary>

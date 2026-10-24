@@ -122,6 +122,102 @@ public sealed class PlannedRoomCreditTests
         Assert.Equal(2 * Day, Assert.Single(Outcome(context with { OwedWork = new Dictionary<string, double> { [Shelf] = 2 * Day, ["floor-1"] = 0 } }).ServedRooms).ServedAt);
     }
 
+    private const string BedWall = "planned/room1/wall/WoodLog", CorridorWall = "planned/room2/wall/WoodLog";
+
+    /// <summary>The test-only bedroom credit: one capability-day a served day.</summary>
+    private static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> BedroomCredit = new Dictionary<PlannedRole, RoomCredit>
+    {
+        [PlannedRole.Bedroom] = (_, _, _, _) => [new("rest", "", 1)],
+    };
+
+    /// <summary>
+    /// #3815: room 1 a started bedroom whose wood ring is two builder-days, and its connector, room 2 of
+    /// <paramref name="role"/>: a day of corridor wall (none for an airlock, whose walls are its parent's ring) and half a
+    /// day of floor on its cells. One builder.
+    /// </summary>
+    private static ForecastCoupledContext Connected(PlannedRole role, IReadOnlyDictionary<PlannedRole, RoomCredit> credits)
+    {
+        var corridor = role == PlannedRole.Circulation;
+        return ForecastValueTests.Context(ForecastValueTests.Pawn()) with
+        {
+            PlannedRoomRoles = new Dictionary<int, PlannedRole> { [1] = PlannedRole.Bedroom, [2] = role },
+            RoomCredits = credits,
+            PlannedSites = corridor ? [new(BedWall, 1, "WoodLog", [], [BedWall + "/finish"]), new(CorridorWall, 2, "WoodLog", [], [CorridorWall + "/finish"])]
+                : [new(BedWall, 1, "WoodLog", [], [BedWall + "/finish"])],
+            Closures = [new(1, "WoodLog", [new(1, 1)], [BedWall], [], new("1", "WoodLog", "Bedroom", Known(10d), Known(1), 4, 0, false))],
+            RoomItems = [new("connector-floor", [2], ["site-9-finish"])],
+            OwedWork = new Dictionary<string, double> { [BedWall] = 2 * Day, [CorridorWall] = Day, ["connector-floor"] = Day / 2 },
+            Connectors = new Dictionary<int, EquatableArray<int>> { [2] = [1] },
+            OpenRooms = new HashSet<int> { 1 },
+            PlannedBuilders = 1,
+            InvestmentHorizonDays = Horizon,
+        };
+    }
+
+    private static double ConnectedDevelopment(ForecastCoupledContext context)
+    {
+        var outcome = new ForecastCoupledOutcome(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), [])
+        { RequestedDevelopment = [BedWall, CorridorWall] };
+        ForecastCommitment[] relief = [new("flooring/connector-floor", [])
+        {
+            Outcome = new("flooring/connector-floor", "construction-method", "flooring/connector-floor", Known(Day), default)
+            { Requirements = new([new("flooring/connector-floor", ProductionNeedPriority.Maintenance, 1.0)], default, default) },
+        }];
+        return ForecastCoupledSelection.CoupledConsequences(outcome, relief, context, Day, outcome, null).Development;
+    }
+
+    [Fact]
+    public void ABedroomReachedThroughACorridorServesAfterTheCorridorsWorkAndTakesItsUnitsOutOfDevelopment()
+    {
+        var context = Connected(PlannedRole.Circulation, BedroomCredit);
+        // The ring's two days, then the corridor's wall and floor: a day and a half later.
+        var served = PlannedRoomCredits.ServiceDays(context, new Dictionary<string, double>(), Day).Served;
+        Assert.Equal(new ForecastRoomService(1, "WoodLog", 3.5 * Day), Assert.Single(served, s => s.Room == 1));
+        Assert.Equal(2 * Day, Assert.Single(PlannedRoomCredits.ServiceDays(context with { Connectors = new Dictionary<int, EquatableArray<int>>() },
+            new Dictionary<string, double>(), Day).Served).ServedAt);
+        // Both rooms' sites and the corridor's floor leave the count with the priced bedroom; the corridor earns no credit.
+        Assert.True(context.Priced(2));
+        Assert.Equal(0, ConnectedDevelopment(context));
+        Assert.Contains(CorridorWall, PlannedRoomCredits.PricedUnits(context));
+        Assert.Contains("flooring/connector-floor", PlannedRoomCredits.PricedUnits(context));
+        // A corridor serving no priced room counts toward nothing: it stays development like any unpriced room.
+        var unpriced = Connected(PlannedRole.Circulation, new Dictionary<PlannedRole, RoomCredit>());
+        Assert.False(unpriced.Priced(2));
+        Assert.Equal(3, ConnectedDevelopment(unpriced));
+    }
+
+    [Fact]
+    public void AnAirlockSealingABedroomServesItAfterTheAirlocksWorkAndLeavesDevelopmentWithIt()
+    {
+        var context = Connected(PlannedRole.Airlock, BedroomCredit);
+        var served = PlannedRoomCredits.ServiceDays(context, new Dictionary<string, double>(), Day).Served;
+        Assert.Equal(2.5 * Day, Assert.Single(served, s => s.Room == 1).ServedAt);
+        // Inside the schedule the bedroom serves when the later of its ring and the airlock's floor finishes.
+        var finished = new Dictionary<string, double> { [BedWall + "/finish"] = 300, ["site-9-finish"] = 700 };
+        Assert.Equal(700, Assert.Single(PlannedRoomCredits.ServiceDays(context, finished, Day).Served, s => s.Room == 1).ServedAt);
+        Assert.True(context.Priced(2));
+        Assert.Contains("flooring/connector-floor", PlannedRoomCredits.PricedUnits(context));
+        Assert.Equal(1, ConnectedDevelopment(context)); // the corridor wall of no room left
+    }
+
+    [Fact]
+    public void ConnectorsAreReadFromTheLayoutPlansRoomsAndDoors()
+    {
+        // Bedroom 1 and workshop 4 open on corridor 2, which also meets corridor 5; airlock 3 seals bedroom 1.
+        PlannedRoom[] rooms =
+        [
+            new() { Id = 1, Role = PlannedRole.Bedroom }, new() { Id = 2, Role = PlannedRole.Circulation },
+            PlannedRoom.AttachAirlock(new(5, 5), Rotation.South) with { Id = 3, Parent = 1 },
+            new() { Id = 4, Role = PlannedRole.Workshop }, new() { Id = 5, Role = PlannedRole.Circulation },
+        ];
+        RoomLink[] links = [new(1, 2, new(1, 1)), new(2, 4, new(2, 2)), new(2, 5, new(3, 3))];
+        var connectors = PlannedRoomCredits.ConnectorsOf(rooms, links);
+        Assert.Equal([2, 3], connectors.Keys.Order());
+        Assert.Equal([1, 4], connectors[2]);
+        Assert.Equal([1], connectors[3]);
+        Assert.Empty(PlannedRoomCredits.ConnectorsOf([], []));
+    }
+
     [Fact]
     public void APricedRoomWithoutBuildersOrWithAnUnknownCreditIsUnassessedAndCreditedNothing()
     {
