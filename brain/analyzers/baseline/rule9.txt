@@ -78,7 +78,6 @@ BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Unknown|4
 BuildingRuntime/Client/FacadeNativeClient.Resources.cs|Fact|1
 BuildingRuntime/Client/FacadeNativeClient.Resources.cs|Unknown|1
 BuildingRuntime/Client/FacadeNativeClient.RoundsFrame.cs|Fact|4
-BuildingRuntime/Client/FacadeNativeClient.Sites.cs|Discard|1
 BuildingRuntime/Client/FacadeNativeClient.World.cs|Fact|2
 BuildingRuntime/Client/FacadeNativeClient.World.cs|Unknown|2
 BuildingRuntime/Client/GearRecipeCatalogAdapter.cs|Fact|3
@@ -114,7 +113,7 @@ BuildingRuntime/PlayerExpeditionHandoff.cs|Fact|4
 BuildingRuntime/PlayerExpeditionHandoff.cs|Unknown|1
 BuildingRuntime/ReviewMemory.cs|Fact|7
 BuildingRuntime/ReviewMemory.cs|Unknown|3
-BuildingRuntime/Rounds/Rounder.cs|Fact|49
+BuildingRuntime/Rounds/Rounder.cs|Fact|48
 BuildingRuntime/Rounds/Rounder.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsAcquisition.cs|Fact|40
 BuildingRuntime/Rounds/RoundsAcquisition.cs|Unknown|4
@@ -154,7 +153,7 @@ BuildingRuntime/Rounds/RoundsBurialFacts.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsCensus.cs|Fact|27
 BuildingRuntime/Rounds/RoundsCensus.cs|Unknown|2
 BuildingRuntime/Rounds/RoundsChildRooms.cs|Fact|5
-BuildingRuntime/Rounds/RoundsClearance.cs|Fact|12
+BuildingRuntime/Rounds/RoundsClearance.cs|Fact|11
 BuildingRuntime/Rounds/RoundsClearance.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsColonyModel.cs|Fact|67
 BuildingRuntime/Rounds/RoundsColonyModel.cs|Unknown|18
@@ -196,7 +195,6 @@ BuildingRuntime/Rounds/RoundsDisease.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsEnvelope.cs|Fact|1
 BuildingRuntime/Rounds/RoundsEnvelope.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsEquip.cs|Fact|7
-BuildingRuntime/Rounds/RoundsExcavation.cs|Discard|1
 BuildingRuntime/Rounds/RoundsExcavation.cs|Fact|1
 BuildingRuntime/Rounds/RoundsField.cs|Discard|1
 BuildingRuntime/Rounds/RoundsField.cs|Fact|19
@@ -298,7 +296,7 @@ BuildingRuntime/Rounds/RoundsRoyalty.cs|Fact|7
 BuildingRuntime/Rounds/RoundsRoyalty.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsShelterFamily.cs|Fact|1
 BuildingRuntime/Rounds/RoundsShelterFamily.cs|Unknown|4
-BuildingRuntime/RoundsRoomReconcile.cs|Fact|17
+BuildingRuntime/RoundsRoomReconcile.cs|Fact|16
 BuildingRuntime/RoundsRoomStall.cs|Fact|5
 BuildingRuntime/RoundsRoutes.cs|Discard|1
 BuildingRuntime/RoundsRoutes.cs|Fact|5
@@ -374,8 +372,8 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|705
-Contracts/Observations.cs|UnknownMember|17
+Contracts/Observations.cs|NullableValue|691
+Contracts/Observations.cs|UnknownMember|14
 Contracts/Operations.cs|NullableValue|93
 Contracts/Operations.cs|UnknownMember|16
 Contracts/PawnActivities.cs|NullableValue|1
@@ -443,9 +441,7 @@ Observation/AnomalyColony.cs|Fact|39
 Observation/AnomalyColony.cs|Unknown|8
 Observation/BiotechColony.cs|Fact|78
 Observation/BiotechColony.cs|Unknown|3
-Observation/Clearance.cs|Discard|1
-Observation/Clearance.cs|Fact|6
-Observation/Clearance.cs|Unknown|1
+Observation/Clearance.cs|Fact|4
 Observation/Colony.cs|Fact|90
 Observation/Colony.cs|Unknown|4
 Observation/ColonyDecode.cs|Fact|56
@@ -740,7 +736,6 @@ Policy/EssentialServices.cs|Fact|56
 Policy/EssentialServices.cs|UnknownMember|2
 Policy/EventLoot.cs|Fact|6
 Policy/EventLoot.cs|Unknown|1
-Policy/ExcavationAdmit.cs|UnknownMember|1
 Policy/ExportOrders.cs|Fact|37
 Policy/ExportOrders.cs|ValueOrDefault|2
 Policy/ExtentEligibility.cs|Fact|10

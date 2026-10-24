@@ -1,13 +1,5 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>The native site-level counterfactual support answer.</summary>
-public enum ExcavationSupport : byte
-{
-    Unknown,
-    Supported,
-    Unsupported,
-}
-
 public static class ExcavationAdmitRules
 {
     /// <summary>

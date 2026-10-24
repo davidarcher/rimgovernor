@@ -98,7 +98,7 @@ public sealed class PlannedRoomSelectionTests
         [
             new() { Kind = OpKind.WallIn, Cells = [new(4, 4), new(4, 5), new(8, 5)] },
             new() { Kind = OpKind.DoorIn, Cells = [new(6, 4)] },
-            new() { Kind = OpKind.FloorIn, Floors = [new() { Cell = new(5, 5), DefName = "WoodPlankFloor" }, new() { Cell = new(6, 6), DefName = "WoodPlankFloor" }] },
+            new() { Kind = OpKind.FloorIn, Floors = [new() { Cell = new(5, 5), DefName = "WoodPlankFloor", Designated = false }, new() { Cell = new(6, 6), DefName = "WoodPlankFloor", Designated = false }] },
             new() { Kind = OpKind.Build, Pieces = [piece, other] },
             new() { Kind = OpKind.Cut, Targets = [new() { EntityId = "plant-1", Minimum = new(4, 5), Maximum = new(4, 5) }, new() { EntityId = "plant-2", Minimum = new(7, 7), Maximum = new(7, 7) }] },
             new() { Kind = OpKind.WallUp, Cells = [new(4, 4)] },

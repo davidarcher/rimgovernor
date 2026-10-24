@@ -355,15 +355,14 @@ Kept, reason recorded:
 | Completeness | message | 28 | 1 | state | Count of rows a query filter excluded |  |  |
 | ReadIssue | message | 31 | 2 | state | Per-field read problem marker |  |  |
 | Rectangle | message | 32 | 2 | state | Cell-rect helper |  |  |
-| ClearanceClass | enum | 36 | 5 | code | Tag for how a clearance target is classified |  | Go rule over ClearanceTarget.def_name |
-| ClearanceTarget | message | 43 | 12 | mixed | Non-player building touching Home with deconstruction facts | class; deconstructible | class: Go rule over def_name (ThingDef.defName); deconstructible: constant true (native writes it unconditionally) or ThingDef.building deconstructible flag |
+| ClearanceClass | enum | 36 | 4 | code | Tag for how a clearance target is classified |  | Go rule over ClearanceTarget.def_name |
+| ClearanceTarget | message | 43 | 11 | mixed | Building touching Home (or a player building on the requested ground) with deconstruction facts | class | class: Go rule over def_name (ThingDef.defName); deconstructible deleted (#3774: native wrote it unconditionally) |
 | ClearanceFloor | message | 65 | 3 | state | Constructed floor cell on planned ground with designation flag |  |  |
 | SalvageYield | message | 70 | 4 | code | Computed salvage yield per def with count value and storage headroom |  |  |
 | SalvageEvidence | message | 76 | 5 | code | Native-computed salvage safety path length labor and yields |  |  |
 | ClearanceChunk | message | 88 | 6 | state | Rock or slag chunk stack on a Home cell with haul flags |  |  |
 | ClearanceTargetsRequest | message | 102 | 7 | code | Request with planned ground and Go-supplied salvage time budgets |  |  |
 | ClearanceTargetsSnapshot | message | 116 | 4 | state | Snapshot of clearance targets chunks and floors |  |  |
-| ClearanceTargetsReply | message | 122 | 3 | state | Reply envelope oneof snapshot or unavailable or failure |  |  |
 | MapSize | message | 195 | 2 | state | Map width and height |  |  |
 | DefinitionRef | message | 196 | 1 | state | Def name reference (label deleted, #2657) |  |  |
 | EntityRef | message | 197 | 5 | state | Instance id def name label map id and position |  |  |
@@ -475,12 +474,10 @@ Kept, reason recorded:
 | ExcavationCell | message | 900 | 7 | code | Per-cell excavation eligibility and blocker |  |  |
 | ExcavationSiteSnapshot | message | 906 | 9 | code | Excavation certification: support, collapse, workers, access |  |  |
 | ExcavationSiteRequest | message | 912 | 3 | state | Read request parameters |  |  |
-| ExcavationSiteReply | message | 913 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | StuffOption | message | 916 | 2 | static | A stuff and the cost list for building from it | stuff;costs | Go rule over ThingDef.costList + costStuffCount for stuffCategories stuff rows |
 | WallUpgradeSite | message | 917 | 16 | mixed | Wall upgrade planning row: target, backups, workers, geometry | costs;replacement_materials | Go rule over ThingDef.costList/costStuffCount/stuffCategories rows |
 | WallUpgradeSnapshot | message | 930 | 2 | state | Snapshot table of rows for the read |  |  |
 | WallUpgradeSitesRequest | message | 931 | 2 | state | Read request parameters |  |  |
-| WallUpgradeSitesReply | message | 932 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | ResourceSource | message | 933 | 17 | state | Resource source row: yield, reachability, designation, depletion |  |  |
 | StorageCapacity | message | 943 | 8 | mixed | Storage capacity for a resource: capacity, stored, haulers | stack_limit | ThingDef.stackLimit |
 | ResourceSourcesSnapshot | message | 948 | 6 | state | Resource sources, storage and development for a resource |  |  |

@@ -224,7 +224,8 @@ internal sealed class ReconcileItem
 
     public ClearanceTarget Target { get; set; } = new();
 
-    public ClearanceFloor Floor { get; set; } = new();
+    /// <summary>The floor a FloorOut or FloorIn item moves; an empty floor on every other kind.</summary>
+    public ClearanceFloor Floor { get; set; } = new() { Cell = default, DefName = "", Designated = false };
 
     public WantedPiece Piece { get; set; } = new();
 
@@ -514,9 +515,9 @@ public static partial class ReconcileRules
                 }
                 if (has)
                 {
-                    floorOut.Add(Add(new ReconcileItem { Kind = OpKind.FloorOut, Cell = c, Floor = new ClearanceFloor { Cell = c, DefName = have! } }));
+                    floorOut.Add(Add(new ReconcileItem { Kind = OpKind.FloorOut, Cell = c, Floor = new ClearanceFloor { Cell = c, DefName = have!, Designated = false } }));
                 }
-                floorIn.Add(Add(new ReconcileItem { Kind = OpKind.FloorIn, Cell = c, Floor = new ClearanceFloor { Cell = c, DefName = want } }));
+                floorIn.Add(Add(new ReconcileItem { Kind = OpKind.FloorIn, Cell = c, Floor = new ClearanceFloor { Cell = c, DefName = want, Designated = false } }));
             }
         }
 

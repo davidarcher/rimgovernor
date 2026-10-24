@@ -725,12 +725,13 @@ settings.
 
 `Observations.GetClearanceTargets` is a read-only census of spawned, visible,
 deconstructible non-player buildings whose occupied rectangle touches Home. Each row
-records the complete occupied rectangle, nullable faction, classification, whether
-every occupied cell is in Home, sealed ancient-danger membership, and the current
-deconstruct designation with brain ownership.
+records the complete occupied rectangle, classification, sealed ancient-danger
+membership, the current deconstruct designation, whether it is a player row on the
+requested ground (and whether that row encloses a room), and the salvage union
+(`not_requested`, `skipped` or `computed`). Every member is required; a census the
+native cannot read completely throws.
 
-Haulable rock chunks and slag are items, never targets. The same read lists them as
-`chunks` (every chunk-category stack on a Home cell, bounded to 256).
+Haulable rock chunks and slag are items, never targets.
 
 A missing roof blocker means removing this building alone preserves roof support;
 blocked or unknown geometry carries a reason. It does not authorize removal, prove

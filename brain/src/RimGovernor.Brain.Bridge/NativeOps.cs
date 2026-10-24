@@ -123,7 +123,7 @@ public static class NativeOps
     public static readonly NativeOp<Obs.DefinitionCatalogRequest, Obs.DefinitionCatalogAck> ReadDefinitionCatalog = Op<Obs.DefinitionCatalogRequest, Obs.DefinitionCatalogAck>("observations_read_definition_catalog", (f, r, c) => f.ReadDefinitionCatalogAsync(r, c));
     public static readonly NativeOp<Obs.BillsRequest, Obs.BillsReply> ReadBills = Op<Obs.BillsRequest, Obs.BillsReply>("observations_read_bills", (f, r, c) => f.ReadBillsAsync(r, c));
     public static readonly NativeOp<Obs.RecipesRequest, Obs.RecipesReply> ReadRecipes = Op<Obs.RecipesRequest, Obs.RecipesReply>("observations_read_recipes", (f, r, c) => f.ReadRecipesAsync(r, c));
-    public static readonly NativeOp<Obs.ClearanceTargetsRequest, Obs.ClearanceTargetsReply> ReadClearanceTargets = Op<Obs.ClearanceTargetsRequest, Obs.ClearanceTargetsReply>("observations_get_clearance_targets", (f, r, c) => f.ReadClearanceTargetsAsync(r, c));
+    public static readonly NativeOp<Obs.ClearanceTargetsRequest, Obs.ClearanceTargetsSnapshot> ReadClearanceTargets = Op<Obs.ClearanceTargetsRequest, Obs.ClearanceTargetsSnapshot>("observations_get_clearance_targets", (f, r, c) => f.ReadClearanceTargetsAsync(r, c));
     public static readonly NativeOp<Mirror.CombatGeometryRequest, Mirror.CombatGeometryReply> ReadCombatGeometry = Op<Mirror.CombatGeometryRequest, Mirror.CombatGeometryReply>("combat_geometry", (f, r, c) => f.ReadCombatGeometryAsync(r, c));
     public static readonly NativeOp<Obs.ConsumptionRequest, Obs.ConsumptionReply> ReadConsumption = Op<Obs.ConsumptionRequest, Obs.ConsumptionReply>("observations_read_consumption", (f, r, c) => f.ReadConsumptionAsync(r, c));
     public static readonly NativeOp<Obs.StorageOccupancyRequest, Obs.StorageOccupancyReply> ReadStorageOccupancy = Op<Obs.StorageOccupancyRequest, Obs.StorageOccupancyReply>("observations_read_storage_occupancy", (f, r, c) => f.ReadStorageOccupancyAsync(r, c));
@@ -136,11 +136,11 @@ public static class NativeOps
     public static readonly NativeOp<Obs.TradersRequest, Obs.TradersReply> ListTraders = Op<Obs.TradersRequest, Obs.TradersReply>("observations_list_traders", (f, r, c) => f.ListTradersAsync(r, c));
     public static readonly NativeOp<Obs.TradeSessionRequest, Obs.TradeSessionReply> ReadTradeSession = Op<Obs.TradeSessionRequest, Obs.TradeSessionReply>("observations_read_trade_session", (f, r, c) => f.ReadTradeSessionAsync(r, c));
     public static readonly NativeOp<Obs.TradeSheetRequest, Obs.TradeSheetReply> ReadTradeSheet = Op<Obs.TradeSheetRequest, Obs.TradeSheetReply>("observations_read_trade_sheet", (f, r, c) => f.ReadTradeSheetAsync(r, c));
-    public static readonly NativeOp<Obs.WallUpgradeSitesRequest, Obs.WallUpgradeSitesReply> ListWallUpgradeSites = Op<Obs.WallUpgradeSitesRequest, Obs.WallUpgradeSitesReply>("observations_list_wall_upgrade_sites", (f, r, c) => f.ListWallUpgradeSitesAsync(r, c));
+    public static readonly NativeOp<Obs.WallUpgradeSitesRequest, Obs.WallUpgradeSnapshot> ListWallUpgradeSites = Op<Obs.WallUpgradeSitesRequest, Obs.WallUpgradeSnapshot>("observations_list_wall_upgrade_sites", (f, r, c) => f.ListWallUpgradeSitesAsync(r, c));
     public static readonly NativeOp<Obs.WorldRequest, Obs.WorldReply> ReadWorld = Op<Obs.WorldRequest, Obs.WorldReply>("observations_read_world", (f, r, c) => f.ReadWorldAsync(r, c));
     public static readonly NativeOp<Obs.WorldProgressionRequest, Obs.WorldProgressionReply> ReadWorldProgression = Op<Obs.WorldProgressionRequest, Obs.WorldProgressionReply>("observations_read_world_progression", (f, r, c) => f.ReadWorldProgressionAsync(r, c));
     public static readonly NativeOp<Obs.ListZonesRequest, Obs.ZonesSnapshot> ListZones = Op<Obs.ListZonesRequest, Obs.ZonesSnapshot>("observations_list_zones", (f, r, c) => f.ListZonesAsync(r, c));
-    public static readonly NativeOp<Obs.ExcavationSiteRequest, Obs.ExcavationSiteReply> ReadExcavationSite = Op<Obs.ExcavationSiteRequest, Obs.ExcavationSiteReply>("observations_read_excavation_site", (f, r, c) => f.ReadExcavationSiteAsync(r, c));
+    public static readonly NativeOp<Obs.ExcavationSiteRequest, Obs.ExcavationSiteSnapshot> ReadExcavationSite = Op<Obs.ExcavationSiteRequest, Obs.ExcavationSiteSnapshot>("observations_read_excavation_site", (f, r, c) => f.ReadExcavationSiteAsync(r, c));
 
     // Operations and receipts.
     public static readonly NativeOp<Operations.ApplyRequest, Operations.ApplyReply> Apply = Op<Operations.ApplyRequest, Operations.ApplyReply>("operations_apply", (f, r, c) => f.ApplyAsync(r, c));

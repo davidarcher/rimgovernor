@@ -13,7 +13,7 @@ namespace RimGovernor.Brain.BuildingRuntime;
 public sealed partial class FacadeNativeClient :
     IRoundsSource,
     IResearchSource,
-    IGroundClearanceSource,
+    IClearanceSource,
     IRefrigerationSource,
     IZonesNative,
     IClockNative,
@@ -71,11 +71,8 @@ public sealed partial class FacadeNativeClient :
     Task<RoundsFrame> IRoundsSource.ReadRoundsFrameAsync(C.Identity identity, CancellationToken cancellationToken) =>
         ReadRoundsFrameAsync(identity, cancellationToken);
 
-    Task<O.ClearanceTargetsReply> IClearanceSource.ReadClearanceTargetsAsync(C.Identity identity, bool includeSalvage, CancellationToken cancellationToken) =>
-        ReadClearanceTargetsAsync(identity, includeSalvage, cancellationToken);
-
-    Task<O.ClearanceTargetsReply> IGroundClearanceSource.ReadClearanceTargetsOnGroundAsync(C.Identity identity, bool includeSalvage, IReadOnlyList<O.Rectangle> ground, CancellationToken cancellationToken) =>
-        ReadClearanceTargetsOnGroundAsync(identity, includeSalvage, ground, cancellationToken);
+    Task<O.ClearanceTargetsSnapshot> IClearanceSource.ReadClearanceAsync(Identity expected, bool includeSalvage, IReadOnlyList<Rectangle> ground, CancellationToken cancellationToken) =>
+        ReadClearanceAsync(expected, includeSalvage, ground, cancellationToken);
 
     Task<O.ListBuildingsReply> IRefrigerationSource.ReadConstructionBuildingsAsync(C.Identity identity, IReadOnlyList<string> ids, CancellationToken cancellationToken) =>
         ReadConstructionBuildingsAsync(identity, ids, cancellationToken);

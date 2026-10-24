@@ -497,12 +497,8 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
             }
-            var read = await ClearanceReads.ObserveClearanceCensusOnGround(source, facts.Identity, false, [rr.Room.RoomGround()], call).ConfigureAwait(false);
-            if (!read.TryGetValue(out var census))
-            {
-                return new RoundsBuildingResult { Verdict = FieldUnavailable("room_ground") };
-            }
-            var (_, player) = ClearanceGroundRules.SplitGroundRows(census.Targets, facts.Facts.Preferences);
+            var census = await source.ReadClearanceAsync(facts.Identity, false, [rr.Room.RoomGround()], call).ConfigureAwait(false);
+            var (_, player) = ClearanceGroundRules.SplitGroundRows(ClearanceReads.Targets(census), facts.Facts.Preferences);
             var stamped = HomeUpkeepReader.StampPacking(player, facts);
             input = input with { Rows = ReconcileRules.OwnerRows(rr.Room, stamped, rr.Template, rr.Forbidden, CarriedOver(facts)), Floors = census.Floors, Furniture = rr.Template };
             // A wall stands in the stuff it was built in; it is swapped only to a priced upgrade the comparison selected (#3657).

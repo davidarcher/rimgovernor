@@ -64,7 +64,9 @@
     <Using Include="RimGovernor.Brain.Bridge.Contracts.EmergencyObservation" Alias="BridgeEmergencyObservation" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.EquipCandidate" Alias="BridgeEquipCandidate" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.EquipRead" Alias="BridgeEquipRead" />
-    <Using Include="RimGovernor.Brain.Bridge.Contracts.ExcavationSite" Alias="BridgeExcavationSite" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.ExcavationSiteSnapshot" Alias="ExcavationSiteSnapshot" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.ExcavationSupport" Alias="ExcavationSupport" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.ClearanceFloor" Alias="ClearanceFloor" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.GrowerCropTarget" Alias="BridgeGrowerCropTarget" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.LinesOfFire" Alias="BridgeLinesOfFire" />
     <Using Include="RimGovernor.Brain.Bridge.Contracts.MapBounds" Alias="BridgeMapBounds" />

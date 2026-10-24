@@ -194,7 +194,7 @@ namespace HomeBridge.BridgeTools
 
         // The remaining native tools (#3100).
 
-        public Task<Obs.ClearanceTargetsReply> ReadClearanceTargetsAsync(Obs.ClearanceTargetsRequest request, CancellationToken cancellationToken)
+        public Task<Obs.ClearanceTargetsSnapshot> ReadClearanceTargetsAsync(Obs.ClearanceTargetsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadClearanceTargets, request, () => NativeClearanceObservationTools.HandleRead(request), cancellationToken);
 
         public Task<Mirror.CombatGeometryReply> ReadCombatGeometryAsync(Mirror.CombatGeometryRequest request, CancellationToken cancellationToken)
@@ -236,7 +236,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.TradeSheetReply> ReadTradeSheetAsync(Obs.TradeSheetRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadTradeSheet, request, () => NativeTradeObservationTools.HandleReadTradeSheet(request), cancellationToken);
 
-        public Task<Obs.WallUpgradeSitesReply> ListWallUpgradeSitesAsync(Obs.WallUpgradeSitesRequest request, CancellationToken cancellationToken)
+        public Task<Obs.WallUpgradeSnapshot> ListWallUpgradeSitesAsync(Obs.WallUpgradeSitesRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ListWallUpgradeSites, request, () => NativeWallUpgradeObservationTools.HandleListWallUpgradeSites(request), cancellationToken);
 
         public Task<Obs.WorldReply> ReadWorldAsync(Obs.WorldRequest request, CancellationToken cancellationToken)
@@ -248,7 +248,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.ZonesSnapshot> ListZonesAsync(Obs.ListZonesRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ListZones, request, () => NativeZoneObservationTools.HandleListZones(request), cancellationToken);
 
-        public Task<Obs.ExcavationSiteReply> ReadExcavationSiteAsync(Obs.ExcavationSiteRequest request, CancellationToken cancellationToken)
+        public Task<Obs.ExcavationSiteSnapshot> ReadExcavationSiteAsync(Obs.ExcavationSiteRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadExcavationSite, request, () => NativeObservationTools.HandleReadExcavationSite(request), cancellationToken);
 
         public Task<Lifecycle.LoadReply> StartLoadAsync(Lifecycle.LoadRequest request, CancellationToken cancellationToken)

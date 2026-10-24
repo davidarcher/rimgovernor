@@ -371,7 +371,7 @@ public sealed class PlannedShelterTests
             new() { Kind = OpKind.DoorIn, Cells = [DoorCell] },
             new() { Kind = OpKind.RoofIn, Cells = [Inside] },
             new() { Kind = OpKind.Build, Pieces = [heater] },
-            new() { Kind = OpKind.FloorIn, Floors = [new() { Cell = Inside, DefName = "WoodPlankFloor" }] },
+            new() { Kind = OpKind.FloorIn, Floors = [new() { Cell = Inside, DefName = "WoodPlankFloor", Designated = false }] },
         ];
         Assert.Equal([OpKind.WallIn, OpKind.DoorIn, OpKind.RoofIn, OpKind.Build], PlannedRules.SelectedPlannedOps(ops, selected).Select(o => o.Kind));
     }

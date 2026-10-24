@@ -28,7 +28,7 @@ public sealed partial class RoundsBuildingPlanner
         return latest;
     }
 
-    internal async Task<BridgeExcavationSite> ReadExcavationSiteAsync(GenerationSnapshot snapshot, Tick tick, string purpose, ExcavationTarget target, IReadOnlyList<Cell> cells, Cell access, Action check, CancellationToken call)
+    internal async Task<ExcavationSiteSnapshot> ReadExcavationSiteAsync(GenerationSnapshot snapshot, Tick tick, string purpose, ExcavationTarget target, IReadOnlyList<Cell> cells, Cell access, Action check, CancellationToken call)
     {
         check();
         var site = await Excavation!.ReadExcavationSiteAsync(Boundary.Identity(snapshot), cells, access, call).ConfigureAwait(false);
@@ -36,7 +36,7 @@ public sealed partial class RoundsBuildingPlanner
         try
         {
             var current = Boundary.Context(site.Context, snapshot);
-            if (current.Native != snapshot.Native || new Tick(site.Context?.Tick ?? 0) < tick)
+            if (current.Native != snapshot.Native || new Tick(site.Context.Tick) < tick)
             {
                 throw new ControlException("readExcavationSite: err != nil || current.Native != snapshot.Native || domain.Tick(site.Context.GetTick()) < tick");
             }
@@ -74,7 +74,10 @@ public sealed partial class RoundsBuildingPlanner
         var definitions = new Dictionary<Cell, string>();
         foreach (var cell in site.Cells)
         {
-            definitions[cell.Cell] = cell.Definition;
+            if (cell.Definition is { } rock)
+            {
+                definitions[cell.Cell] = rock;
+            }
         }
         var (review, reason, door) = ExcavationNext(s.Target, site);
         if (door)
@@ -89,21 +92,12 @@ public sealed partial class RoundsBuildingPlanner
         if (site.Support != ExcavationSupport.Supported)
         {
             var stageSite = await ReadExcavationSiteAsync(snapshot, s.Facts.Identity.Tick, "stage-support", s.Target, next, s.Target.Access, Check, call).ConfigureAwait(false);
-            switch (stageSite.Support)
+            if (stageSite.Support == ExcavationSupport.Unsupported)
             {
-                case ExcavationSupport.Supported:
-                    break;
-                case ExcavationSupport.Unsupported:
-                    if (stageSite.CollapsePending)
-                    {
-                        return new RoundsBuildingResult { Verdict = CollapsePending("excavation_site") };
-                    }
-                    return new RoundsBuildingResult { Verdict = ExcavationBlocked("roof_unsupported") };
-                default:
-                    return new RoundsBuildingResult { Verdict = FieldUnavailable("excavation_support") };
+                return new RoundsBuildingResult { Verdict = stageSite.CollapsePending ? CollapsePending("excavation_site") : ExcavationBlocked("roof_unsupported") };
             }
         }
-        if (!site.WorkerAvailable)
+        if (site.Workers.Count == 0)
         {
             return new RoundsBuildingResult { Verdict = NoWorker("excavation") };
         }
@@ -222,9 +216,9 @@ public sealed partial class RoundsBuildingPlanner
 
 partial class RoundsBuildingPlanner
 {
-    internal static bool ExcavationVerified(ExcavationTarget target, BridgeExcavationSite site)
+    internal static bool ExcavationVerified(ExcavationTarget target, ExcavationSiteSnapshot site)
     {
-        if ((site.Support == ExcavationSupport.Unsupported && !site.CollapsePending) || !site.AccessReachable || !site.WorkerAvailable)
+        if ((site.Support == ExcavationSupport.Unsupported && !site.CollapsePending) || !site.AccessReachable || site.Workers.Count == 0)
         {
             return false;
         }
@@ -232,12 +226,12 @@ partial class RoundsBuildingPlanner
         return review.Kept.Count == 0 && review.Corridor;
     }
 
-    internal static List<ExcavationCellState> ExcavationStates(BridgeExcavationSite site)
+    internal static List<ExcavationCellState> ExcavationStates(ExcavationSiteSnapshot site)
     {
         var states = new List<ExcavationCellState>(site.Cells.Count);
         foreach (var cell in site.Cells)
         {
-            var cleared = !cell.Fogged && cell.Definition == "" && cell.Walkable;
+            var cleared = !cell.Fogged && cell.Definition is null && cell.Walkable;
             states.Add(new ExcavationCellState
             {
                 Cell = cell.Cell,
@@ -253,7 +247,7 @@ partial class RoundsBuildingPlanner
     internal static Verdict ExcavationBlocked(string why) => SiteBlocked("excavation_site", why);
 
     /// <summary>The next excavation stage; a verdict when the site blocks it, and the door flag when the corridor is complete.</summary>
-    internal static (ExcavationReview Review, Verdict Reason, bool Door) ExcavationNext(ExcavationTarget target, BridgeExcavationSite site)
+    internal static (ExcavationReview Review, Verdict Reason, bool Door) ExcavationNext(ExcavationTarget target, ExcavationSiteSnapshot site)
     {
         var review = ExcavationReviewRules.ReviewExcavation(target, ExcavationStates(site), RoundsBuildingPlanner.ExcavationStageLimit);
         if (site.CollapsePending)

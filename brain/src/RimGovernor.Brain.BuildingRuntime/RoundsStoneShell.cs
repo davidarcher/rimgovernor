@@ -104,7 +104,7 @@ public sealed partial class LayoutRounds
         {
             throw new ControlException("propose: err != nil || current.Native != state.Snapshot.Native || domain.Tick(sites.Context.GetTick()) < projection");
         }
-        if (current.Native != state.Snapshot.Native || new Tick(sites.Context?.Tick ?? 0) < projection.Identity.Tick)
+        if (current.Native != state.Snapshot.Native || new Tick(sites.Context.Tick) < projection.Identity.Tick)
         {
             throw new ControlException("propose: err != nil || current.Native != state.Snapshot.Native || domain.Tick(sites.Context.GetTick()) < projection");
         }
@@ -113,10 +113,11 @@ public sealed partial class LayoutRounds
             return none;
         }
         var site = sites.Sites[0];
-        if (!site.Eligible())
+        if (site.Blocker is not null)
         {
             return none;
         }
+        var targetId = site.Target.Id ?? throw new ObservationContractException("wall upgrade site target without an id");
         var catalog = await RoundsEquipPawn.PawnCatalogAsync(_stone!, Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         if (catalog is null)
         {
@@ -177,15 +178,14 @@ public sealed partial class LayoutRounds
             first = false;
             backupIds.Add(actionId);
         }
-        var siteCell = new Cell(site.X, site.Z);
-        var removal = new WallRemoval(site.TargetId, default, siteCell);
+        var removal = new WallRemoval(targetId, default, site.Origin);
         var demolishId = new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-demolish"));
         var demolish = DomainAction.NewWallRemovalAction(demolishId, removal);
         actions.Add(demolish);
-        var permanentBuilding = new Building("Wall", siteCell, Rotation.North, material.Stuff);
+        var permanentBuilding = new Building("Wall", site.Origin, Rotation.North, material.Stuff);
         var permanentId = new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-replace"));
         var permanent = DomainAction.NewBuildingAction(permanentId, permanentBuilding, ConstructionTier.Survive);
-        if (await PreviewWallAsync(permanent, snapshot, siteCell, call).ConfigureAwait(false) is not { } permanentPreview)
+        if (await PreviewWallAsync(permanent, snapshot, site.Origin, call).ConfigureAwait(false) is not { } permanentPreview)
         {
             return none;
         }

@@ -6,16 +6,6 @@ namespace RimGovernor.Brain.Policy;
 // for a wall in place, so the enclosure holds), then the roof and the walls and doors holding it, then the
 // floors once the cells are clear.
 
-/// <summary>One constructed floor cell on planned ground.</summary>
-public sealed record ClearanceFloor
-{
-    public Cell Cell { get; init; }
-
-    public string DefName { get; init; } = "";
-
-    public bool Designated { get; init; }
-}
-
 /// <summary>The stage a planned room's ground clearance is in.</summary>
 public enum GroundPhase
 {

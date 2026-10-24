@@ -54,13 +54,20 @@ namespace HomeBridge.BridgeTools
         }
 
         // On the game thread: the typed core of the tool.
-        internal static Obs.ExcavationSiteReply HandleReadExcavationSite(Obs.ExcavationSiteRequest parsed)
+        // A refused request throws NativeRefusedException; a site that cannot be read completely throws an unavailable fault.
+        internal static Obs.ExcavationSiteSnapshot HandleReadExcavationSite(Obs.ExcavationSiteRequest parsed)
         {
-            if (!NativeExcavationSite.Validate(parsed, out var failure0)) return new Obs.ExcavationSiteReply { Outcome = failure0 };
+            if (!NativeExcavationSite.Validate(parsed, out var invalid)) throw NativeFaults.Refused(invalid);
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
-                return new Obs.ExcavationSiteReply { Outcome = failure };
-            try { return new Obs.ExcavationSiteReply { Outcome = NativeExcavationSite.Read(map, parsed, context) }; }
-            catch (Exception) { return new Obs.ExcavationSiteReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Native excavation site facts could not be read completely.") }; }
+                throw NativeFaults.Refused(failure);
+            if (!NativeExcavationSite.OnMap(parsed, map, out var offMap)) throw NativeFaults.Refused(offMap);
+            try { return NativeExcavationSite.Read(map, parsed, context); }
+            catch (Exception readError)
+            {
+                ModLog.Error("observe", "Excavation site read failed: " + readError);
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                    Detail = PlacementPreviewOperation.Diagnostic("Native excavation site facts could not be read completely: " + readError.GetType().Name + ": " + readError.Message) });
+            }
         }
 
 

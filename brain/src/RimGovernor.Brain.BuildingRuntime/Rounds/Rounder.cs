@@ -697,20 +697,17 @@ public sealed partial class Rounder
                 throw new ControlException("step: !ok");
             }
             var ground = PlannedGround(reading.Projection);
-            var clearance = await ClearanceReads.ObserveClearanceCensusOnGround(clearanceSource, expected, true, ground, ct).ConfigureAwait(false);
-            if (clearance.TryGetValue(out var census))
+            var census = await clearanceSource.ReadClearanceAsync(expected, true, ground, ct).ConfigureAwait(false);
+            var blueprints = HomeUpkeepReader.GroundBlueprints(reading.Projection);
+            var (others, player) = ClearanceGroundRules.SplitGroundRows(ClearanceReads.Targets(census).Concat(blueprints ?? []), reading.Projection.Facts.Preferences);
+            reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Clearance = Known<EquatableArray<ClearanceTarget>>([.. others]) } });
+            reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { RoomObstructions = RecoveryRules.RoomObstructionIDs(others, ground) } });
+            // Retired ground is clear only once its blueprints are known gone too (#3742).
+            if (blueprints is not null)
             {
-                var blueprints = HomeUpkeepReader.GroundBlueprints(reading.Projection);
-                var (others, player) = ClearanceGroundRules.SplitGroundRows(census.Targets.Concat(blueprints ?? []), reading.Projection.Facts.Preferences);
-                reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { Clearance = Known<EquatableArray<ClearanceTarget>>([.. others]) } });
-                reading = reading.WithFacts(rf => rf with { Upkeep = rf.Upkeep with { RoomObstructions = RecoveryRules.RoomObstructionIDs(others, ground) } });
-                // Retired ground is clear only once its blueprints are known gone too (#3742).
-                if (blueprints is not null)
-                {
-                    reading = reading.WithProjection(DropClearedRetiredGround(state.Snapshot, reading.Projection, player, census.Floors, ct));
-                }
-                reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
+                reading = reading.WithProjection(DropClearedRetiredGround(state.Snapshot, reading.Projection, player, census.Floors, ct));
             }
+            reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
         }
         Lap("d_clear");
         fine.Mark();
@@ -1125,7 +1122,7 @@ partial class Rounder
         {
             foreach (var cell in observed.Rooms.SelectMany(r => r.Cells))
             {
-                floors.Add(new ClearanceFloor { Cell = cell.Cell, DefName = cell.Pending.Length > 0 ? cell.Pending : cell.Terrain });
+                floors.Add(new ClearanceFloor { Cell = cell.Cell, DefName = cell.Pending.Length > 0 ? cell.Pending : cell.Terrain, Designated = false });
             }
         }
         var owed = new List<(PlannedRoom, IReadOnlyList<Operation>)>();

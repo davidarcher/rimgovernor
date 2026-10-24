@@ -133,40 +133,16 @@ public sealed partial class FacadeNativeClient
         return new ConstructionDeficitRead { Context = observed.Context, StillNeed = stillNeed, Structures = structures };
     }
 
-    /// <summary>Lists current wall-upgrade candidate sites, optionally scoped to one original wall's identity.</summary>
-    internal async Task<WallUpgradeSites> ReadWallUpgradeSitesAsync(PbCommon.Identity identity, string targetId, CancellationToken cancellationToken)
-    {
-        var request = new PbObservations.WallUpgradeSitesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
-        if (targetId.Length != 0)
-        {
-            request = request with { TargetId = targetId };
-        }
-        var reply = await Facade.ListWallUpgradeSitesAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        if (reply.Outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-        var observed = reply.Outcome.Observed!;
-        var buildings = await PlacementFrameBuildingsAsync(identity, cancellationToken).ConfigureAwait(false);
-        var sites = BuildingDecode.DecodeWallUpgradeSites(observed, buildings);
-        return new WallUpgradeSites { Context = observed.Context, Sites = sites };
-    }
-
-    // The no-stream path: the player building table read through the building list. The frame
-    // stream's copy of the table is not consulted here; this is the same list the frames carry.
-    private async Task<Buildings> PlacementFrameBuildingsAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
-    {
-        var request = new PbObservations.ListBuildingsRequest
+    /// <summary>
+    /// Lists current wall-upgrade candidate sites, optionally scoped to one original wall's identity. Throws when the
+    /// native refuses the request (no colonist wall with that id) or cannot read the census.
+    /// </summary>
+    internal Task<PbObservations.WallUpgradeSnapshot> ReadWallUpgradeSitesAsync(PbCommon.Identity identity, string targetId, CancellationToken cancellationToken) =>
+        Facade.ListWallUpgradeSitesAsync(new PbObservations.WallUpgradeSitesRequest
         {
             Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
-        };
-        var reply = await Facade.ListBuildingsAsync(request, cancellationToken).ConfigureAwait(false);
-        return Buildings.FromSnapshot(BuildingDecode.UnwrapBuildings(reply));
-    }
+            TargetId = targetId.Length != 0 ? targetId : null,
+        }, cancellationToken);
 
     internal static class BuildingDecode
     {
@@ -185,35 +161,6 @@ public sealed partial class FacadeNativeClient
                 throw Unavailable(unavailable);
             }
             return reply.Outcome.Observed!;
-        }
-
-        /// <summary>Decodes the sites, each original wall's cell taken from its building row.</summary>
-        internal static IReadOnlyList<WallUpgradeSite> DecodeWallUpgradeSites(PbObservations.WallUpgradeSnapshot value, Buildings buildings)
-        {
-            var rows = new List<WallUpgradeSite>(value.Sites.Count);
-            foreach (var row in value.Sites)
-            {
-                var x = 0;
-                var z = 0;
-
-                // The original wall's cell is its building row's.
-                if (buildings.TryRow(row.Original, out var original) && original.Building.Position is { } position)
-                {
-                    (x, z) = (position.X, position.Z);
-                }
-                rows.Add(new WallUpgradeSite
-                {
-                    TargetId = row.Target.Id ?? "",
-                    TargetPresent = row.TargetPresent,
-                    Blocker = row.Blocker ?? "",
-                    X = x,
-                    Z = z,
-                    NX = row.Normal.X,
-                    NZ = row.Normal.Z,
-                    BackupCells = [.. row.BackupCells.Select(cell => new Cell(cell.X, cell.Z))],
-                });
-            }
-            return rows;
         }
     }
 }

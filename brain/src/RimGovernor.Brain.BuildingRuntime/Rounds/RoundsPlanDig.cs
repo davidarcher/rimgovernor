@@ -62,12 +62,12 @@ public sealed partial class RoundsBuildingPlanner
             foreach (var cell in site.Cells)
             {
                 designated = designated || cell.MineDesignated;
-                if (!cell.Eligible || cell.MineDesignated || cell.Definition == "")
+                if (!cell.Eligible || cell.MineDesignated || cell.Definition is not { } mineable)
                 {
                     continue;
                 }
 
-                excavations.Add(new Excavation(cell.Cell, cell.Definition));
+                excavations.Add(new Excavation(cell.Cell, mineable));
             }
 
             if (buildings.Count == 0)
@@ -85,7 +85,7 @@ public sealed partial class RoundsBuildingPlanner
                 return (new RoundsBuildingResult(), false);
             }
 
-            if (site.CollapsePending || site.Support == ExcavationSupport.Unsupported || !site.WorkerAvailable)
+            if (site.CollapsePending || site.Support == ExcavationSupport.Unsupported || site.Workers.Count == 0)
             {
                 var cause = "dig_no_worker";
                 if (site.CollapsePending)

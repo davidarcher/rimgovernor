@@ -68,12 +68,8 @@ public sealed partial class HomeUpkeepReader
             return facts;
         }
         var ground = Rounder.PlannedGround(colony.Projection);
-        var read = await ClearanceReads.ObserveClearanceCensusOnGround(_native, expected, true, ground, call).ConfigureAwait(false);
-        if (!read.TryGetValue(out var census))
-        {
-            return facts;
-        }
-        var (others, player) = ClearanceGroundRules.SplitGroundRows(census.Targets.Concat(GroundBlueprints(colony.Projection) ?? []), colony.Projection.Facts.Preferences);
+        var census = await _native.ReadClearanceAsync(expected, true, ground, call).ConfigureAwait(false);
+        var (others, player) = ClearanceGroundRules.SplitGroundRows(ClearanceReads.Targets(census).Concat(GroundBlueprints(colony.Projection) ?? []), colony.Projection.Facts.Preferences);
         var wants = _reviewer.ClearFloors(colony.Projection);
         facts = facts with
         {

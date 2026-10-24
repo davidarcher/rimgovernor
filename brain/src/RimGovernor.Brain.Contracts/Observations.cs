@@ -5,21 +5,15 @@ namespace RimGovernor.Contracts.Wire.Observations;
 
 /// <summary>
 /// Complete census of visible, deconstructible non-player buildings touching Home.
-/// Absence of roof_blocker means safe removal.
+/// A null roof_blocker means safe removal.
 /// </summary>
 [JsonConverter(typeof(WireEnumConverter<ClearanceClass>))]
 public enum ClearanceClass
 {
-    [WireName("CLEARANCE_CLASS_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("CLEARANCE_CLASS_ANCIENT_WALL_DOOR")]
-    AncientWallDoor = 1,
-    [WireName("CLEARANCE_CLASS_SHIP_CHUNK")]
-    ShipChunk = 2,
-    [WireName("CLEARANCE_CLASS_ANCIENT_CASKET")]
-    AncientCasket = 3,
-    [WireName("CLEARANCE_CLASS_OTHER")]
-    Other = 4,
+    AncientWallDoor,
+    ShipChunk,
+    AncientCasket,
+    Other,
 }
 
 [JsonConverter(typeof(WireEnumConverter<SurgeryKind>))]
@@ -184,19 +178,13 @@ public enum CoverKind
 /// Excavation reads certify a requested set of rock cells for staged room/corridor
 /// excavation. Unlike surface mining, roofed cells are admissible; support is a
 /// counterfactual check that every remaining roof stays within the native support
-/// radius of a holder after all requested cells are removed. Fogged cells are unknown.
+/// radius of a holder after all requested cells are removed, judged through fog.
 /// </summary>
 [JsonConverter(typeof(WireEnumConverter<ExcavationSupport>))]
 public enum ExcavationSupport
 {
-    [WireName("EXCAVATION_SUPPORT_UNSPECIFIED")]
-    Unspecified = 0,
-    [WireName("EXCAVATION_SUPPORT_SUPPORTED")]
-    Supported = 1,
-    [WireName("EXCAVATION_SUPPORT_UNKNOWN")]
-    Unknown = 2,
-    [WireName("EXCAVATION_SUPPORT_UNSUPPORTED")]
-    Unsupported = 3,
+    Supported,
+    Unsupported,
 }
 
 [JsonConverter(typeof(WireEnumConverter<QuestObjectiveKind>))]
@@ -395,40 +383,62 @@ public sealed record Rectangle
     public Common.Cell? Maximum { get; init; }
 }
 
+/// <summary>
+/// One deconstructible building of the clearance census: every non-player building touching Home or deconstructible
+/// anywhere, and the player's own buildings on planned ground. Its whole footprint is in bounds and unfogged.
+/// </summary>
 public sealed record ClearanceTarget
 {
-    public string? EntityId { get; init; }
+    public required string EntityId { get; init; }
 
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public Rectangle? Occupied { get; init; }
+    /// <summary>The footprint's minimum corner.</summary>
+    public required Cell Minimum { get; init; }
 
-    public bool? Deconstructible { get; init; }
+    /// <summary>The footprint's maximum corner, inclusive.</summary>
+    public required Cell Maximum { get; init; }
 
-    public ClearanceClass Class { get; init; }
+    public required ClearanceClass Class { get; init; }
 
-    public string? RoofBlocker { get; init; }
+    /// <summary>Why removing the building would collapse roof; null when removal is safe.</summary>
+    public required string? RoofBlocker { get; init; }
 
-    public bool? AncientDanger { get; init; }
+    public required bool AncientDanger { get; init; }
 
     /// <summary>
     /// A standing Deconstruct designation; the controller adopts it (no ownership ledger).
     /// </summary>
-    public bool? Designated { get; init; }
+    public required bool Designated { get; init; }
 
-    public SalvageEvidence? Salvage { get; init; }
-
-    /// <summary>
-    /// Set when the salvage time budget ran out before native computed this row:
-    /// salvage is absent because it was not computed, not because none exists.
-    /// </summary>
-    public bool? SalvageSkipped { get; init; }
+    /// <summary>The building is the player's own (reported only on planned ground).</summary>
+    public required bool Player { get; init; }
 
     /// <summary>
-    /// Player-faction rows only (planned ground): the building is a wall or door
-    /// on the boundary of a room that is not outdoors.
+    /// The building is a player wall or door on the boundary of a room that is not outdoors; false for every
+    /// non-player row.
     /// </summary>
-    public bool? EnclosesRoom { get; init; }
+    public required bool EnclosesRoom { get; init; }
+
+    public required ClearanceSalvage Salvage { get; init; }
+}
+
+/// <summary>A clearance row's salvage evidence: not asked for, past the read's time budget, or computed.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ClearanceSalvage.NotRequested), "not_requested")]
+[JsonDerivedType(typeof(ClearanceSalvage.Skipped), "skipped")]
+[JsonDerivedType(typeof(ClearanceSalvage.Computed), "computed")]
+public abstract record ClearanceSalvage
+{
+    private protected ClearanceSalvage() { }
+
+    /// <summary>The read did not ask for salvage (include_salvage false).</summary>
+    public sealed record NotRequested : ClearanceSalvage;
+
+    /// <summary>The salvage time budget ran out before native computed this row; the frame refresher fills it later.</summary>
+    public sealed record Skipped : ClearanceSalvage;
+
+    public sealed record Computed(SalvageEvidence Evidence) : ClearanceSalvage;
 }
 
 /// <summary>
@@ -438,34 +448,34 @@ public sealed record ClearanceTarget
 /// </summary>
 public sealed record ClearanceFloor
 {
-    public Common.Cell? Cell { get; init; }
+    public required Cell Cell { get; init; }
 
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public bool? Designated { get; init; }
+    public required bool Designated { get; init; }
 }
 
 public sealed record SalvageYield
 {
-    public string DefName { get; init; } = "";
+    public required string DefName { get; init; }
 
-    public long Count { get; init; }
+    public required long Count { get; init; }
 
-    public double UnitValue { get; init; }
+    public required double UnitValue { get; init; }
 
-    public long StorageHeadroom { get; init; }
+    public required long StorageHeadroom { get; init; }
 }
 
 public sealed record SalvageEvidence
 {
-    public bool Safe { get; init; }
+    public required bool Safe { get; init; }
 
-    public double PathLength { get; init; }
+    public required double PathLength { get; init; }
 
-    public double Labor { get; init; }
+    public required double Labor { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<SalvageYield>))]
-    public EquatableArray<SalvageYield> Yields { get; init; }
+    public required EquatableArray<SalvageYield> Yields { get; init; }
 }
 
 /// <summary>
@@ -490,7 +500,7 @@ public sealed record ClearanceTargetsRequest
     /// salvage_max_age_ticks is recomputed; the frame refresher spends at most
     /// salvage_frame_budget_ms per update; a read computes rows with no cache
     /// entry up to salvage_inline_budget_ms, or salvage_census_budget_ms when its
-    /// cache starts empty. Rows past the budget carry salvage_skipped.
+    /// cache starts empty. Rows past the budget carry the skipped salvage case.
     /// </summary>
     public int SalvageMaxAgeTicks { get; init; }
 
@@ -503,55 +513,16 @@ public sealed record ClearanceTargetsRequest
 
 public sealed record ClearanceTargetsSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ClearanceTarget>))]
-    public EquatableArray<ClearanceTarget> Targets { get; init; }
+    public required EquatableArray<ClearanceTarget> Targets { get; init; }
 
     /// <summary>
     /// Only cells inside the request's planned_ground.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<ClearanceFloor>))]
-    public EquatableArray<ClearanceFloor> Floors { get; init; }
-}
-
-public sealed record ClearanceTargetsReply
-{
-    public ClearanceTargetsReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ClearanceTargetsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ClearanceTargetsReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(ClearanceTargetsReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(ClearanceTargetsReplyOutcome.FailureCase), "failure")]
-public abstract record ClearanceTargetsReplyOutcome
-{
-    private protected ClearanceTargetsReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ClearanceTargetsSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(ClearanceTargetsSnapshot Value) : ClearanceTargetsReplyOutcome;
-
-    public static implicit operator ClearanceTargetsReplyOutcome(ClearanceTargetsSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : ClearanceTargetsReplyOutcome;
-
-    public static implicit operator ClearanceTargetsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : ClearanceTargetsReplyOutcome;
-
-    public static implicit operator ClearanceTargetsReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public required EquatableArray<ClearanceFloor> Floors { get; init; }
 }
 
 public sealed record MapSize
@@ -3042,44 +3013,53 @@ public abstract record LinesOfFireReplyOutcome
     public static implicit operator LinesOfFireReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
+/// <summary>One requested cell of an excavation site read, in request order.</summary>
 public sealed record ExcavationCell
 {
-    public bool? Fogged { get; init; }
+    public required Cell Cell { get; init; }
 
-    public string? MineableDefName { get; init; }
+    public required bool Fogged { get; init; }
 
-    public bool? Walkable { get; init; }
+    /// <summary>The mineable rock standing on the cell; null when none does.</summary>
+    public required string? Definition { get; init; }
 
-    public bool? MineDesignated { get; init; }
+    /// <summary>False for a cell outside the map.</summary>
+    public required bool Walkable { get; init; }
 
-    public bool? Eligible { get; init; }
+    public required bool MineDesignated { get; init; }
 
-    public string? Blocker { get; init; }
+    /// <summary>Native accepts a mining designation on the cell.</summary>
+    public required bool Eligible { get; init; }
 }
 
+/// <summary>
+/// The site-level answer for one ordered cell set: the counterfactual roof support once every requested cell is
+/// gone (unsupported while a collapse is pending), plus worker access to the access cell.
+/// </summary>
 public sealed record ExcavationSiteSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ExcavationCell>))]
-    public EquatableArray<ExcavationCell> Cells { get; init; }
+    public required EquatableArray<ExcavationCell> Cells { get; init; }
 
-    public ExcavationSupport SupportAfterRemoval { get; init; }
+    public required ExcavationSupport Support { get; init; }
 
-    public uint? RoofCellsChecked { get; init; }
+    /// <summary>Why the site is unsupported; null when nothing names a blocker.</summary>
+    public required string? SupportBlocker { get; init; }
 
-    public string? SupportBlocker { get; init; }
+    public required bool CollapsePending { get; init; }
 
-    public bool? CollapsePending { get; init; }
-
-    public bool? WorkerAvailable { get; init; }
-
+    /// <summary>The free colonists who can mine from the access; empty when the access is unreachable.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> WorkerIds { get; init; }
+    public required EquatableArray<string> Workers { get; init; }
 
-    public bool? AccessReachable { get; init; }
+    public required bool AccessReachable { get; init; }
 }
 
+/// <summary>
+/// One or more unique nonnegative cells, at least one of them on the map, and the access cell a miner works from.
+/// </summary>
 public sealed record ExcavationSiteRequest
 {
     public ReadScope? Scope { get; init; }
@@ -3090,89 +3070,55 @@ public sealed record ExcavationSiteRequest
     public Common.Cell? AccessCell { get; init; }
 }
 
-public sealed record ExcavationSiteReply
-{
-    public ExcavationSiteReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ExcavationSiteReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ExcavationSiteReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(ExcavationSiteReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(ExcavationSiteReplyOutcome.FailureCase), "failure")]
-public abstract record ExcavationSiteReplyOutcome
-{
-    private protected ExcavationSiteReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ExcavationSiteSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(ExcavationSiteSnapshot Value) : ExcavationSiteReplyOutcome;
-
-    public static implicit operator ExcavationSiteReplyOutcome(ExcavationSiteSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : ExcavationSiteReplyOutcome;
-
-    public static implicit operator ExcavationSiteReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : ExcavationSiteReplyOutcome;
-
-    public static implicit operator ExcavationSiteReplyOutcome(Common.Failure value) => new FailureCase(value);
-}
-
 /// <summary>
 /// One wall-upgrade site: the target wall a stone upgrade replaces (the original itself, or a cleanup's first
 /// completed backup), the original wall, its two colonist-wall supports, the outward normal and the backup cells.
 /// </summary>
 public sealed record WallUpgradeSite
 {
-    public Common.Ref Target { get; init; } = new();
+    public required Common.Ref Target { get; init; }
 
-    public bool TargetPresent { get; init; }
+    /// <summary>The original wall's cell.</summary>
+    public required Cell Origin { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> BackupCells { get; init; }
+    /// <summary>The outward normal, a unit step (diagonal at a corner).</summary>
+    public required Cell Normal { get; init; }
 
-    public string? Blocker { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))]
+    public required EquatableArray<Cell> BackupCells { get; init; }
 
-    public bool Designated { get; init; }
+    /// <summary>Why the site cannot proceed (roof support, corner access); null when nothing blocks it.</summary>
+    public required string? Blocker { get; init; }
 
-    public string? RemovalId { get; init; }
+    public required bool Designated { get; init; }
 
-    public Common.Cell Normal { get; init; } = new();
+    /// <summary>The pending removal record that claims the target's designation; null when none does.</summary>
+    public required string? RemovalId { get; init; }
 
-    public Common.Ref Original { get; init; } = new();
+    public required Common.Ref Original { get; init; }
 
-    public Common.Ref LeftSupport { get; init; } = new();
+    public required Common.Ref LeftSupport { get; init; }
 
-    public Common.Ref RightSupport { get; init; } = new();
+    public required Common.Ref RightSupport { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> CompletedBackups { get; init; }
+    public required EquatableArray<Common.Ref> CompletedBackups { get; init; }
 
-    public Common.Ref? Replacement { get; init; }
+    /// <summary>A cleanup site's completed stone wall; null on a replacement site.</summary>
+    public required Common.Ref? Replacement { get; init; }
 
     /// <summary>
     /// The target's CAS token for the upgrade's guarded operations.
     /// </summary>
-    public SnapshotRef? TargetSnapshot { get; init; }
+    public required SnapshotRef TargetSnapshot { get; init; }
 }
 
 public sealed record WallUpgradeSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<WallUpgradeSite>))]
-    public EquatableArray<WallUpgradeSite> Sites { get; init; }
+    public required EquatableArray<WallUpgradeSite> Sites { get; init; }
 }
 
 public sealed record WallUpgradeSitesRequest
@@ -3180,45 +3126,6 @@ public sealed record WallUpgradeSitesRequest
     public ReadScope? Scope { get; init; }
 
     public string? TargetId { get; init; }
-}
-
-public sealed record WallUpgradeSitesReply
-{
-    public WallUpgradeSitesReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="WallUpgradeSitesReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(WallUpgradeSitesReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(WallUpgradeSitesReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(WallUpgradeSitesReplyOutcome.FailureCase), "failure")]
-public abstract record WallUpgradeSitesReplyOutcome
-{
-    private protected WallUpgradeSitesReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public WallUpgradeSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(WallUpgradeSnapshot Value) : WallUpgradeSitesReplyOutcome;
-
-    public static implicit operator WallUpgradeSitesReplyOutcome(WallUpgradeSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : WallUpgradeSitesReplyOutcome;
-
-    public static implicit operator WallUpgradeSitesReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : WallUpgradeSitesReplyOutcome;
-
-    public static implicit operator WallUpgradeSitesReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 public sealed record ResourceSource

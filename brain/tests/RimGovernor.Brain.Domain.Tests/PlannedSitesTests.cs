@@ -41,7 +41,7 @@ public sealed class PlannedSitesTests
         new Operation { Kind = OpKind.WallIn, Cells = [new(3, 0), new(-1, 0), new(-1, 1)] },
         new Operation { Kind = OpKind.DoorIn, Cells = [new(1, -1)] },
         new Operation { Kind = OpKind.FloorIn, Cells = [new(0, 0), new(1, 0)],
-            Floors = [new ClearanceFloor { Cell = new(0, 0), DefName = "WoodPlankFloor" }, new ClearanceFloor { Cell = new(1, 0), DefName = "WoodPlankFloor" }] },
+            Floors = [new ClearanceFloor { Cell = new(0, 0), DefName = "WoodPlankFloor", Designated = false }, new ClearanceFloor { Cell = new(1, 0), DefName = "WoodPlankFloor", Designated = false }] },
         new Operation { Kind = OpKind.Build, Cells = [new(1, 1)], Pieces = [Bench] },
         new Operation { Kind = OpKind.RoofIn, Cells = [new(0, 0), new(1, 0), new(2, 0)] },
     ]);

@@ -68,7 +68,7 @@ namespace HomeBridge.BridgeTools
         internal static string? MiningBlocker(Thing t, Map map)
         {
             if (t.Faction != null) return "Faction-owned extraction target is protected";
-            if (!CollapsePending(map) && ExcavationSafety.Check(map, new[] { t.Position }, out _, out _, throughFog: true) != ExcavationSafety.Support.Supported)
+            if (!CollapsePending(map) && ExcavationSafety.Check(map, new[] { t.Position }, out _, throughFog: true) != ExcavationSafety.Support.Supported)
                 return "Roof support requires a supported excavation plan";
             if (GenAdj.CellsAdjacent8WayAndInside(t).Any(cell => !cell.InBounds(map))) return "Map edge excavation is protected";
             return null;

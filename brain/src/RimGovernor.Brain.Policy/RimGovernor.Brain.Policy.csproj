@@ -29,5 +29,7 @@
     <Using Include="RimGovernor.Contracts.Wire.Observations.RoomRole" Alias="RoomRole" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.RoomState" Alias="RoomState" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.RoomDoor" Alias="RoomDoor" />
+    <!-- The native clearance census floor rows (#3774). -->
+    <Using Include="RimGovernor.Contracts.Wire.Observations.ClearanceFloor" Alias="ClearanceFloor" />
   </ItemGroup>
 </Project>

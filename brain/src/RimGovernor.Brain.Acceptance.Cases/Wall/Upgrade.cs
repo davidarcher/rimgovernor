@@ -47,8 +47,7 @@ internal static class WallUpgrade
     /// <summary>The census rows for <paramref name="target"/> (null: the cleanup census).</summary>
     internal static async Task<Observations.WallUpgradeSnapshot> CensusAsync(TypedSession s, string label, string? target, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ListWallUpgradeSites, new Observations.WallUpgradeSitesRequest { Scope = s.Scope, TargetId = target }, cancellationToken).ConfigureAwait(false);
-        var snapshot = TypedReads.Observed(label, NativeOps.ListWallUpgradeSites, reply, reply.Outcome?.Observed);
+        var snapshot = await s.CallAsync(label, NativeOps.ListWallUpgradeSites, new Observations.WallUpgradeSitesRequest { Scope = s.Scope, TargetId = target }, cancellationToken).ConfigureAwait(false);
         s.RecordWire(label, snapshot);
         return snapshot;
     }
@@ -64,7 +63,7 @@ internal static class WallUpgrade
         {
             if (row.Replacement is null || row.CompletedBackups.Count == 0)
             {
-                throw new AcceptanceException($"cleanup row without a permanent replacement and remaining backups: {row.Target?.Id}");
+                throw new AcceptanceException($"cleanup row without a permanent replacement and remaining backups: {row.Target.Id}");
             }
         }
 
@@ -86,11 +85,7 @@ internal static class WallUpgrade
         s.Record("straight_sites", straight);
         foreach (var (label, target, code) in new[] { ("blank-target", " ", Common.FailureCode.InvalidRequest), ("unknown-target", "Thing_NoSuchWall0", Common.FailureCode.NotFound) })
         {
-            var reply = await s.CallAsync(label, NativeOps.ListWallUpgradeSites, new Observations.WallUpgradeSitesRequest { Scope = s.Scope, TargetId = target }, cancellationToken).ConfigureAwait(false);
-            if (reply.Outcome?.Failure?.Code != code)
-            {
-                throw new AcceptanceException($"{label}: want {code}, got {reply.Outcome}");
-            }
+            await TypedLifecycle.ExpectRefusedAsync(label, () => s.CallAsync(label, NativeOps.ListWallUpgradeSites, new Observations.WallUpgradeSitesRequest { Scope = s.Scope, TargetId = target }, cancellationToken), code).ConfigureAwait(false);
         }
 
         var after = await CensusAsync(s, "cleanup-census-after", null, cancellationToken).ConfigureAwait(false);
@@ -103,17 +98,17 @@ internal static class WallUpgrade
     /// <summary>Asserts a per-target row is a complete replacement site of <paramref name="wall"/>.</summary>
     private static void Check(string wall, Observations.WallUpgradeSite row)
     {
-        if (row.Target?.Id != wall || row.Original?.Id != wall || string.IsNullOrEmpty(row.TargetSnapshot?.Token) || row.TargetPresent != true)
+        if (row.Target.Id != wall || row.Original.Id != wall || string.IsNullOrEmpty(row.TargetSnapshot.Token))
         {
-            throw new AcceptanceException($"{wall}: a replacement row must target the present original wall with a CAS token: {row}");
+            throw new AcceptanceException($"{wall}: a replacement row must target the original wall with a CAS token: {row}");
         }
 
-        if (row.Normal is not { X: { } x, Z: { } z } || (x == 0 && z == 0))
+        if (row.Normal is { X: 0, Z: 0 })
         {
             throw new AcceptanceException($"{wall}: site without a normal: {row}");
         }
 
-        if (string.IsNullOrEmpty(row.LeftSupport?.Id) || string.IsNullOrEmpty(row.RightSupport?.Id))
+        if (string.IsNullOrEmpty(row.LeftSupport.Id) || string.IsNullOrEmpty(row.RightSupport.Id))
         {
             throw new AcceptanceException($"{wall}: site without both supports: {row}");
         }

@@ -78,7 +78,7 @@ internal static class NativeSetActivities
     {
         if (rock is not Mineable || !rock.def.mineable) return "not mineable rock";
         if (ExcavationTools.CellBlocker(rock.Position, rock.Map) is { } cell) return cell;
-        if (ExcavationSafety.Check(rock.Map, new[] { rock.Position }, out _, out var support, throughFog: true) != ExcavationSafety.Support.Supported)
+        if (ExcavationSafety.Check(rock.Map, new[] { rock.Position }, out var support, throughFog: true) != ExcavationSafety.Support.Supported)
             return support ?? "roof support is unproven";
         if (rock.IsForbidden(pawn)) return "forbidden";
         if (!pawn.CanReserveAndReach(rock, PathEndMode.Touch, Danger.Some)) return "cannot be reserved or reached";

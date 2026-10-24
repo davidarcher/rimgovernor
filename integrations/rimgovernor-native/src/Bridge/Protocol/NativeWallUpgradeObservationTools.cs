@@ -7,7 +7,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using RimWorld;
 using Verse;
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Host.Sdk;
 using Common = RimGovernor.Contracts.Wire.Common;
+using DomainCell = RimGovernor.Brain.Domain.Cell;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
@@ -31,25 +34,26 @@ namespace HomeBridge.BridgeTools
     // budget); cells come through GetCells.
     internal static class NativeWallUpgradeObservationTools
     {
-        internal static Obs.WallUpgradeSitesReply HandleListWallUpgradeSites(Obs.WallUpgradeSitesRequest request)
+        // A refused request (invalid, or a target id no colonist wall carries) throws NativeRefusedException; a census
+        // that cannot be read completely throws an unavailable fault.
+        internal static Obs.WallUpgradeSnapshot HandleListWallUpgradeSites(Obs.WallUpgradeSitesRequest request)
         {
-            if (!Validate(request, out var failure))
-                return new Obs.WallUpgradeSitesReply { Outcome = new Obs.WallUpgradeSitesReplyOutcome.FailureCase(failure) };
+            if (!Validate(request, out var failure)) throw NativeFaults.Refused(failure);
             if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                return new Obs.WallUpgradeSitesReply { Outcome = error };
+                throw NativeFaults.Refused(error);
+            if (Faction.OfPlayerSilentFail == null || map.listerBuildings == null || map.roofGrid == null || map.zoneManager == null)
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Player faction or map structure trackers are unavailable." });
+            var walls = map.listerBuildings.allBuildingsColonist.Where(b => b.def == ThingDefOf.Wall && b.Spawned).ToList();
+            Building? target = null;
+            if (request.TargetId is not null && (target = walls.ById(request.TargetId)) == null)
+                throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned colonist wall with that id is on the current map."));
             try
             {
-                if (Faction.OfPlayerSilentFail == null || map.listerBuildings == null || map.roofGrid == null || map.zoneManager == null)
-                    return new Obs.WallUpgradeSitesReply { Outcome = Unavailable(Common.UnavailableReason.NativeComponentMissing, "Player faction or map structure trackers are unavailable.") };
-                var walls = map.listerBuildings.allBuildingsColonist.Where(b => b.def == ThingDefOf.Wall && b.Spawned).ToList();
                 var rows = new List<Obs.WallUpgradeSite>();
-                if (request.TargetId is not null)
+                if (target != null)
                 {
-                    var wall = walls.ById(request.TargetId);
-                    if (wall == null)
-                        return new Obs.WallUpgradeSitesReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.NotFound, "No spawned colonist wall with that id is on the current map.") };
                     foreach (var normal in WallUpgradeSafety.Directions)
-                        if (Replacement(map, wall, normal, context) is Obs.WallUpgradeSite row) rows.Add(row);
+                        if (Replacement(map, target, normal, context) is Obs.WallUpgradeSite row) rows.Add(row);
                 }
                 else
                 {
@@ -57,11 +61,14 @@ namespace HomeBridge.BridgeTools
                         foreach (var normal in WallUpgradeSafety.Directions.Where(n => !WallUpgradeSafety.Corner(n)))
                             if (Cleanup(map, wall, normal, context) is Obs.WallUpgradeSite row) rows.Add(row);
                 }
-                var snapshot = new Obs.WallUpgradeSnapshot { Context = context};
-                snapshot = snapshot with { Sites = [.. snapshot.Sites, .. rows] };
-                return new Obs.WallUpgradeSitesReply { Outcome = snapshot };
+                return new Obs.WallUpgradeSnapshot { Context = context, Sites = [.. rows] };
             }
-            catch (Exception) { return new Obs.WallUpgradeSitesReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Wall, room or roof facts could not be read completely.") }; }
+            catch (Exception readError)
+            {
+                ModLog.Error("observe", "Wall upgrade census read failed: " + readError);
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                    Detail = PlacementPreviewOperation.Diagnostic("Wall, room or roof facts could not be read completely: " + readError.GetType().Name + ": " + readError.Message) });
+            }
         }
 
         internal static bool Validate(Obs.WallUpgradeSitesRequest request, out Common.Failure failure)
@@ -114,9 +121,7 @@ namespace HomeBridge.BridgeTools
             // within support range) is not a site, and no backups are ever
             // committed to it.
             else blocker = RoofSupportSafety.Blocker(wall, backups == null ? cells : null, out _);
-            var row = Site(map, wall, wall, normal, cells, context, backups);
-            if (blocker != null) row = row with { Blocker = blocker };
-            return row;
+            return Site(map, wall, wall, normal, cells, context, backups, null, blocker);
         }
 
         private static bool Open(Map map, IntVec3 cell) => cell.Standable(map) && map.zoneManager.ZoneAt(cell) == null
@@ -139,35 +144,31 @@ namespace HomeBridge.BridgeTools
             var cells = WallUpgradeSafety.BackupCells(origin, normal).ToList();
             var backups = cells.Select(c => ColonistWall(map, c)).Where(b => b != null && WallUpgradeSafety.Stone(b) && b.Stuff == permanent.Stuff).Select(b => b!).ToList();
             if (backups.Count == 0) return null;
-            var row = Site(map, backups[0], permanent, normal, cells, context, backups);
-            row = row with { Replacement = NativeBuildingObservationTools.Ref(permanent) };
-            var blocker = RoofSupportSafety.Blocker(backups[0], out _);
-            if (blocker != null) row = row with { Blocker = blocker };
-            return row;
+            return Site(map, backups[0], permanent, normal, cells, context, backups, permanent, RoofSupportSafety.Blocker(backups[0], out _));
         }
 
-        private static Obs.WallUpgradeSite Site(Map map, Building target, Building original, IntVec3 normal, List<IntVec3> cells, Common.ObservationContext context, List<Building>? backups)
-        {
-            var row = new Obs.WallUpgradeSite { TargetPresent = true, Normal = new Common.Cell { X = normal.x, Z = normal.z },
+        private static Obs.WallUpgradeSite Site(Map map, Building target, Building original, IntVec3 normal, List<IntVec3> cells, Common.ObservationContext context, List<Building>? backups, Building? replacement, string? blocker) =>
+            new Obs.WallUpgradeSite {
+                Target = NativeBuildingObservationTools.Ref(target),
+                Origin = new DomainCell(original.Position.x, original.Position.z),
+                Normal = new DomainCell(normal.x, normal.z),
+                BackupCells = [.. cells.Select(c => new DomainCell(c.x, c.z))],
+                Blocker = blocker,
+                Designated = map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct) != null,
+                RemovalId = WallUpgradeSafety.Pending(target)?.Id,
                 Original = NativeBuildingObservationTools.Ref(original),
                 LeftSupport = NativeBuildingObservationTools.Ref(ColonistWall(map, WallUpgradeSafety.LeftCell(original.Position, normal))!),
-                RightSupport = NativeBuildingObservationTools.Ref(ColonistWall(map, WallUpgradeSafety.RightCell(original.Position, normal))!) };
-            row = row with { Target = NativeBuildingObservationTools.Ref(target) };
-            row = row with { TargetSnapshot = NativeBuildingObservationTools.Token(target, context) };
-            foreach (var cell in cells) row = row with { BackupCells = [.. row.BackupCells, new Common.Cell { X = cell.x, Z = cell.z }] };
-            foreach (var backup in backups ?? new List<Building>()) row = row with { CompletedBackups = [.. row.CompletedBackups, NativeBuildingObservationTools.Ref(backup)] };
-            var designation = map.designationManager.DesignationOn(target, DesignationDefOf.Deconstruct);
-            var pending = WallUpgradeSafety.Pending(target);
-            row = row with { Designated = designation != null };
-            if (pending != null) row = row with { RemovalId = pending.Id };
-            return row;
-        }
+                RightSupport = NativeBuildingObservationTools.Ref(ColonistWall(map, WallUpgradeSafety.RightCell(original.Position, normal))!),
+                CompletedBackups = [.. (backups ?? new List<Building>()).Select(NativeBuildingObservationTools.Ref)],
+                Replacement = replacement == null ? null : NativeBuildingObservationTools.Ref(replacement),
+                TargetSnapshot = NativeBuildingObservationTools.Token(target, context),
+            };
 
         // SiteToken is the wall removal receipt's site version: the target's
         // own token plus the site's geometry, designation and backups.
         internal static string SiteToken(Obs.WallUpgradeSite row, Common.ObservationContext context) =>
             NativeObservationSnapshot.Snapshot("wall-site", context, row.Target.Id ?? "", w => {
-                w.Write(row.Original.Id ?? ""); w.Write(row.Normal.X); w.Write(row.Normal.Z); w.Write(row.TargetSnapshot?.Token ?? "");
+                w.Write(row.Original.Id ?? ""); w.Write(row.Normal.X); w.Write(row.Normal.Z); w.Write(row.TargetSnapshot.Token ?? "");
                 w.Write(row.Designated); w.Write(row.RemovalId ?? "");
                 w.Write(row.LeftSupport.Id ?? ""); w.Write(row.RightSupport.Id ?? "");
                 foreach (var backup in row.CompletedBackups) w.Write(backup.Id ?? "");
@@ -177,7 +178,5 @@ namespace HomeBridge.BridgeTools
         internal static List<ThingDef> StonyStuffs() =>
             GenStuff.AllowedStuffsFor(ThingDefOf.Wall).Where(s => s.stuffProps?.categories?.Contains(StuffCategoryDefOf.Stony) == true)
                 .OrderBy(s => s.defName, StringComparer.Ordinal).ToList();
-
-        private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
     }
 }

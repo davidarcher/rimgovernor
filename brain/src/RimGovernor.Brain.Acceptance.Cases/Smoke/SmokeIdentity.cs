@@ -50,10 +50,9 @@ internal static class SmokeIdentity
             throw new AcceptanceException($"the lab is not blank: {any.Count - player.Count} buildings of another faction");
         }
 
-        var reply = await s.CallAsync("clearance", NativeOps.ReadClearanceTargets, new Observations.ClearanceTargetsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var clearance = TypedReads.Observed("clearance", NativeOps.ReadClearanceTargets, reply, reply.Outcome?.Observed);
+        var clearance = await s.CallAsync("clearance", NativeOps.ReadClearanceTargets, new Observations.ClearanceTargetsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
         s.RecordWire("clearance", clearance);
-        if (clearance.Context?.Identity != s.Identity)
+        if (clearance.Context.Identity != s.Identity)
         {
             throw new AcceptanceException($"clearance: the read is not for the observed world: {clearance.Context}");
         }

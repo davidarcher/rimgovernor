@@ -6,6 +6,7 @@ using RimWorld;
 using Verse;
 using Verse.AI;
 using Common = RimGovernor.Contracts.Wire.Common;
+using DomainCell = RimGovernor.Brain.Domain.Cell;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 using Operations = RimGovernor.Contracts.Wire.Operations;
 using Receipts = RimGovernor.Contracts.Wire.Receipts;
@@ -27,43 +28,40 @@ namespace HomeBridge.BridgeTools
         }
         private static bool HasCell(Common.Cell? cell) => cell != null && cell.X >= 0 && cell.Z >= 0;
 
-        internal static Obs.ExcavationCell Row(IntVec3 cell, Map map, Common.ObservationContext context)
+        internal static Obs.ExcavationCell Row(IntVec3 cell, Map map)
         {
-            var row = new Obs.ExcavationCell { Fogged = false, MineDesignated = false, Eligible = false };
-            if (!cell.InBounds(map)) { row = row with { Eligible = false }; row = row with { Blocker = "Cell is outside the map" }; return row; }
-            row = row with { Fogged = cell.Fogged(map) };
-            row = row with { Walkable = cell.Walkable(map) };
-            row = row with { MineDesignated = ExcavationTools.Designated(cell, map) };
-            var rock = ExcavationTools.RockAt(cell, map);
-            if (rock != null)
-            {
-                row = row with { MineableDefName = rock.def.defName };
-            }
-            var blocker = ExcavationTools.CellBlocker(cell, map);
-            row = row with { Eligible = blocker == null && ExcavationTools.Eligible(cell, map) };
-            if (blocker != null) row = row with { Blocker = blocker };
-            else if (!row.Eligible.GetValueOrDefault()) row = row with { Blocker = "Native mining designation is not accepted at this cell" };
-            return row;
+            if (!cell.InBounds(map))
+                return new Obs.ExcavationCell { Cell = new DomainCell(cell.x, cell.z), Fogged = false, Definition = null, Walkable = false, MineDesignated = false, Eligible = false };
+            var eligible = ExcavationTools.Eligible(cell, map);
+            return new Obs.ExcavationCell {
+                Cell = new DomainCell(cell.x, cell.z),
+                Fogged = cell.Fogged(map),
+                Definition = ExcavationTools.RockAt(cell, map)?.def.defName,
+                Walkable = cell.Walkable(map),
+                MineDesignated = ExcavationTools.Designated(cell, map),
+                Eligible = eligible,
+            };
+        }
+
+        // A request with no cell on the map is refused before Read: the site has no geometry to judge.
+        internal static bool OnMap(Obs.ExcavationSiteRequest request, Map map, out Common.Failure failure)
+        {
+            failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "At least one requested excavation cell must be on the map.");
+            return request.Cells.Any(c => new IntVec3(c.X, 0, c.Z).InBounds(map));
         }
 
         internal static Obs.ExcavationSiteSnapshot Read(Map map, Obs.ExcavationSiteRequest request, Common.ObservationContext context)
         {
             var cells = request.Cells.Select(c => new IntVec3(c.X, 0, c.Z)).ToList();
-            var access = new IntVec3((request.AccessCell?.X).GetValueOrDefault(), 0, (request.AccessCell?.Z).GetValueOrDefault());
-            var snapshot = new Obs.ExcavationSiteSnapshot { Context = context, CollapsePending = map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0 };
-            foreach (var cell in cells) snapshot = snapshot with { Cells = [.. snapshot.Cells, Row(cell, map, context)] };
+            var access = new IntVec3(request.AccessCell!.X, 0, request.AccessCell.Z);
+            var collapsePending = map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0;
+            var rows = cells.Select(c => Row(c, map)).ToList();
             var known = cells.Where(c => c.InBounds(map)).ToList();
-            if (known.Count == 0) { snapshot = snapshot with { SupportAfterRemoval = Obs.ExcavationSupport.Unknown }; snapshot = snapshot with { SupportBlocker = "Unknown excavation geometry" }; }
-            else
-            {
-                var support = ExcavationSafety.Check(map, known, out var checkedRoofs, out var blocker, throughFog: true);
-                snapshot = snapshot with { RoofCellsChecked = (uint)checkedRoofs };
-                snapshot = snapshot with { SupportAfterRemoval = support == ExcavationSafety.Support.Supported ? Obs.ExcavationSupport.Supported
-                    : support == ExcavationSafety.Support.Unknown ? Obs.ExcavationSupport.Unknown : Obs.ExcavationSupport.Unsupported };
-                if (blocker != null) snapshot = snapshot with { SupportBlocker = blocker };
-            }
-            if (snapshot.CollapsePending.GetValueOrDefault())
-            { snapshot = snapshot with { SupportAfterRemoval = Obs.ExcavationSupport.Unsupported }; snapshot = snapshot with { SupportBlocker = "Roof collapse is already pending" }; }
+            // Through fog the support check judges every roof it walks, so it never answers Unknown.
+            var check = ExcavationSafety.Check(map, known, out var supportBlocker, throughFog: true);
+            if (check == ExcavationSafety.Support.Unknown) throw new InvalidOperationException("Excavation support through fog answered unknown.");
+            var support = check == ExcavationSafety.Support.Supported ? Obs.ExcavationSupport.Supported : Obs.ExcavationSupport.Unsupported;
+            if (collapsePending) { support = Obs.ExcavationSupport.Unsupported; supportBlocker = "Roof collapse is already pending"; }
             // The access cell may itself be rock (single-cell dispatch reads pass
             // the target): a miner stands on any visible walkable neighbour.
             var stand = ExcavationTools.StandingCell(access, map);
@@ -71,21 +69,22 @@ namespace HomeBridge.BridgeTools
             // pocket beyond it enclosed) is not reachable access; only mobile
             // colonists can say so, an all-downed colony leaves it standing.
             var mobile = map.mapPawns.FreeColonistsSpawned.Where(p => !p.Dead && !p.Downed).ToList();
-            snapshot = snapshot with { AccessReachable = stand.IsValid && (mobile.Count == 0 || mobile.Any(p => p.CanReach(stand, PathEndMode.OnCell, Danger.None))) };
+            var reachable = stand.IsValid && (mobile.Count == 0 || mobile.Any(p => p.CanReach(stand, PathEndMode.OnCell, Danger.None)));
             // A door threshold still inside the mountain has no standing
             // cell, but the dig runs from the open front: a miner mines the
             // rock beside any open cell it reaches, then the next cell
             //.
-            if (!snapshot.AccessReachable.GetValueOrDefault() && mobile.Count > 0)
+            if (!reachable && mobile.Count > 0)
             {
-                var fronts = cells.Where(c => c.InBounds(map)).SelectMany(c => GenAdj.CardinalDirections.Select(o => c + o))
+                var fronts = known.SelectMany(c => GenAdj.CardinalDirections.Select(o => c + o))
                     .Where(n => n.InBounds(map) && !n.Fogged(map) && n.Walkable(map) && mobile.Any(p => p.CanReach(n, PathEndMode.OnCell, Danger.None))).Take(1).ToList();
-                if (fronts.Count > 0) { stand = fronts[0]; snapshot = snapshot with { AccessReachable = true }; }
+                if (fronts.Count > 0) { stand = fronts[0]; reachable = true; }
             }
-            var workers = snapshot.AccessReachable.GetValueOrDefault() ? ExcavationTools.Workers(map, stand) : new List<Pawn>();
-            snapshot = snapshot with { WorkerAvailable = workers.Count > 0 };
-            foreach (var worker in workers) snapshot = snapshot with { WorkerIds = [.. snapshot.WorkerIds, worker.GetUniqueLoadID()] };
-            return snapshot;
+            var workers = reachable ? ExcavationTools.Workers(map, stand) : new List<Pawn>();
+            return new Obs.ExcavationSiteSnapshot {
+                Context = context, Cells = [.. rows], Support = support, SupportBlocker = supportBlocker,
+                CollapsePending = collapsePending, Workers = [.. workers.Select(w => w.GetUniqueLoadID())], AccessReachable = reachable,
+            };
         }
     }
 }

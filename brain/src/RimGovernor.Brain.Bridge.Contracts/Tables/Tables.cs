@@ -81,9 +81,6 @@ public readonly record struct Buildings(Table<BuildingState> Table)
         return new Buildings(table);
     }
 
-    /// <summary>Indexes the snapshot's rows by id; a null snapshot is an empty table.</summary>
-    public static Buildings FromSnapshot(BuildingsSnapshot? snapshot) => snapshot is null ? default : Of(snapshot.Buildings);
-
     /// <summary>The table with <paramref name="row"/> added or replaced under <paramref name="id"/>.</summary>
     public Buildings With(string id, BuildingState row) => new(Table.Set(id, row));
 

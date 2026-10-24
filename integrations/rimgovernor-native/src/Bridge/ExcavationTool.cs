@@ -25,17 +25,16 @@ namespace HomeBridge.BridgeTools
         // Shortcut settles a roof by a holder beside it without the flood;
         // the result is the same. test/colony_facts_equality turns it off.
         internal static bool Shortcut = true;
-        internal static Support Check(Map map, ICollection<IntVec3> removed, out int checkedRoofs, out string? blocker, bool throughFog = false)
+        internal static Support Check(Map map, ICollection<IntVec3> removed, out string? blocker, bool throughFog = false)
         {
-            checkedRoofs = 0; blocker = null;
+            blocker = null;
             var radius = RoofCollapseUtility.RoofMaxSupportDistance;
             var removedSet = new HashSet<IntVec3>(removed);
             // One removed cell whose every nearby roof has a holder beside it
             // is Supported whatever order the roofs are checked in, so the
             // common single-rock check skips the set, the sort and the
             // floods; anything else takes the full walk below.
-            if (Shortcut && removed.Count == 1 && AllHeldBeside(map, removedSet, radius, throughFog, out checkedRoofs)) return Support.Supported;
-            checkedRoofs = 0;
+            if (Shortcut && removed.Count == 1 && AllHeldBeside(map, removedSet, radius, throughFog)) return Support.Supported;
             var roots = new HashSet<IntVec3>();
             // The roof over a removed holder stays up and needs support like
             // any other: a room whose surroundings were levelled keeps its
@@ -45,7 +44,6 @@ namespace HomeBridge.BridgeTools
                     if (near.InBounds(map) && (throughFog || !near.Fogged(map)) && near.Roofed(map)) roots.Add(near);
             var result = Support.Supported;
             foreach (var root in roots.OrderBy(c => c.x).ThenBy(c => c.z)) {
-                checkedRoofs++;
                 if (map.roofCollapseBuffer.IsMarkedToCollapse(root)) { blocker = "Roof collapse is already pending"; return Support.Unsupported; }
                 // The flood's first step alone: a holder beside the root
                 // supports it, the common case under rock, without the
@@ -79,13 +77,11 @@ namespace HomeBridge.BridgeTools
             return result;
         }
 
-        private static bool AllHeldBeside(Map map, HashSet<IntVec3> removedSet, float radius, bool throughFog, out int roofs)
+        private static bool AllHeldBeside(Map map, HashSet<IntVec3> removedSet, float radius, bool throughFog)
         {
-            roofs = 0;
             foreach (var cell in removedSet)
                 foreach (var root in GenRadial.RadialCellsAround(cell, radius, true)) {
                     if (!root.InBounds(map) || (!throughFog && root.Fogged(map)) || !root.Roofed(map)) continue;
-                    roofs++;
                     if (map.roofCollapseBuffer.IsMarkedToCollapse(root) || !HolderBeside(map, root, radius, removedSet, throughFog)) return false;
                 }
             return true;

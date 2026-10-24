@@ -9,11 +9,12 @@ public sealed partial class FacadeNativeClient
 {
     /// <summary>
     /// Reads the excavation site for the ordered cell set plus its access cell. Reply
-    /// rows echo the request order so callers can index stages positionally.
+    /// rows echo the request order. Throws when the native refuses the request (no cell on the map) or cannot read it.
     /// </summary>
-    internal async Task<ExcavationSite> ReadExcavationSiteAsync(PbCommon.Identity identity, IReadOnlyList<Cell> cells, Cell access, CancellationToken cancellationToken)
+    internal async Task<PbObservations.ExcavationSiteSnapshot> ReadExcavationSiteAsync(PbCommon.Identity identity, IReadOnlyList<Cell> cells, Cell access, CancellationToken cancellationToken)
     {
-        if (cells.Count == 0 || !ExcavationSiteRules.ExcavationCellValid(access))
+        static bool OnGrid(Cell cell) => cell.X >= 0 && cell.Z >= 0;
+        if (cells.Count == 0 || !OnGrid(access))
         {
             throw BridgeContractException.Contract("invalid excavation site request");
         }
@@ -21,7 +22,7 @@ public sealed partial class FacadeNativeClient
         var seen = new HashSet<Cell>();
         foreach (var cell in cells)
         {
-            if (!ExcavationSiteRules.ExcavationCellValid(cell) || !seen.Add(cell))
+            if (!OnGrid(cell) || !seen.Add(cell))
             {
                 throw BridgeContractException.Contract("invalid excavation site request");
             }
@@ -33,73 +34,50 @@ public sealed partial class FacadeNativeClient
             AccessCell = new PbCommon.Cell { X = access.X, Z = access.Z },
             Cells = [.. requested],
         };
-        var reply = await Facade.ReadExcavationSiteAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Unavailable is { } unavailable)
+        var site = await Facade.ReadExcavationSiteAsync(request, cancellationToken).ConfigureAwait(false);
+        if (site.Cells.Count != cells.Count)
         {
-            throw Unavailable(unavailable);
+            throw BridgeContractException.Contract("excavation site rows do not echo the request");
         }
-        if (reply.Outcome.Failure is { } failure)
+        for (var i = 0; i < cells.Count; i++)
         {
-            throw Failure(failure);
+            if (site.Cells[i].Cell != cells[i])
+            {
+                throw BridgeContractException.Contract("excavation site rows do not echo the request");
+            }
         }
-        var snapshot = reply.Outcome.Observed!;
-        var items = new List<ExcavationSiteCell>(cells.Count);
-        for (var i = 0; i < snapshot.Cells.Count; i++)
-        {
-            var row = snapshot.Cells[i];
-            items.Add(
-                new ExcavationSiteCell
-                {
-                    Cell = cells[i],
-                    Fogged = row.Fogged.GetValueOrDefault(),
-                    Definition = row.MineableDefName ?? "",
-                    Walkable = row.Walkable.GetValueOrDefault(),
-                    MineDesignated = row.MineDesignated.GetValueOrDefault(),
-                    Eligible = row.Eligible.GetValueOrDefault(),
-                    Blocker = row.Blocker ?? "",
-                }
-            );
-        }
-        var support = snapshot.SupportAfterRemoval switch
-        {
-            PbObservations.ExcavationSupport.Supported => ExcavationSupport.Supported,
-            PbObservations.ExcavationSupport.Unsupported => ExcavationSupport.Unsupported,
-            _ => ExcavationSupport.Unknown,
-        };
-        return new ExcavationSite
-        {
-            Context = snapshot.Context,
-            Cells = items,
-            Support = support,
-            RoofCellsChecked = snapshot.RoofCellsChecked.GetValueOrDefault(),
-            SupportBlocker = snapshot.SupportBlocker ?? "",
-            CollapsePending = snapshot.CollapsePending.GetValueOrDefault(),
-            WorkerAvailable = snapshot.WorkerAvailable.GetValueOrDefault(),
-            Workers = [.. snapshot.WorkerIds],
-            AccessReachable = snapshot.AccessReachable.GetValueOrDefault(),
-        };
+        return site;
     }
 
-    /// <summary>Read-only and requires no authority. An unsupported native stub is unavailable, never a successful empty census.</summary>
-    internal Task<PbObservations.ClearanceTargetsReply> ReadClearanceTargetsAsync(PbCommon.Identity identity, bool includeSalvage, CancellationToken cancellationToken) =>
-        ReadClearanceTargetsOnGroundAsync(identity, includeSalvage, [], cancellationToken);
-
     /// <summary>
-    /// Widens the census to planned ground: on those rectangles native also
-    /// reports the player's own buildings (with encloses_room) and constructed floors, one row per cell.
+    /// The clearance census, read-only and requiring no authority. Non-empty <paramref name="ground"/> widens it: on
+    /// those rectangles native also reports the player's own buildings (Player, EnclosesRoom) and constructed
+    /// floors, one row per cell. Throws when the native cannot read it.
     /// </summary>
-    internal async Task<PbObservations.ClearanceTargetsReply> ReadClearanceTargetsOnGroundAsync(PbCommon.Identity identity, bool includeSalvage, IReadOnlyList<PbObservations.Rectangle> planned, CancellationToken cancellationToken)
+    internal async Task<PbObservations.ClearanceTargetsSnapshot> ReadClearanceAsync(Identity expected, bool includeSalvage, IReadOnlyList<Rectangle> ground, CancellationToken cancellationToken)
     {
-        foreach (var rect in planned)
+        expected.Validate();
+        if (!ColonyReads.SameColonyContext(expected, expected))
         {
+            throw new ObservationContractException("expected identity lacks a native generation");
+        }
+        var planned = new List<PbObservations.Rectangle>(ground.Count);
+        foreach (var g in ground)
+        {
+            var rect = new PbObservations.Rectangle
+            {
+                Minimum = new PbCommon.Cell { X = g.X, Z = g.Z },
+                Maximum = new PbCommon.Cell { X = g.X + g.Width - 1, Z = g.Z + g.Height - 1 },
+            };
             if (!PlacementChecks.RectangleValid(rect, 4096))
             {
                 throw BridgeContractException.Contract("invalid planned ground rectangle");
             }
+            planned.Add(rect);
         }
         var request = new PbObservations.ClearanceTargetsRequest
         {
-            Scope = new PbObservations.ReadScope { ExpectedIdentity = identity },
+            Scope = new PbObservations.ReadScope { ExpectedIdentity = new PbCommon.Identity { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value } },
             IncludeSalvage = includeSalvage,
             SalvageMaxAgeTicks = SiteBudgets.SalvageMaxAgeTicks,
             SalvageFrameBudgetMs = SiteBudgets.SalvageFrameBudgetMs,
@@ -107,16 +85,12 @@ public sealed partial class FacadeNativeClient
             SalvageCensusBudgetMs = SiteBudgets.SalvageCensusBudgetMs,
             PlannedGround = [.. planned],
         };
-        var reply = await Facade.ReadClearanceTargetsAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Unavailable is { } unavailable)
+        var census = await Facade.ReadClearanceTargetsAsync(request, cancellationToken).ConfigureAwait(false);
+        if (!ColonyReads.SameColonyContext(DecodeReads.ContextIdentity(census.Context), expected))
         {
-            throw Unavailable(unavailable);
+            throw new ObservationChangedException();
         }
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-        return reply;
+        return census;
     }
 
     internal static class SiteBudgets
@@ -125,7 +99,7 @@ public sealed partial class FacadeNativeClient
         // about 1 ms of colonist pathing per ruin, so these are main-thread guards: a cached row older than
         // SalvageMaxAgeTicks (four game hours) is recomputed, the frame refresher spends SalvageFrameBudgetMs per
         // update, a read computes rows with no cache entry up to SalvageInlineBudgetMs, and the first read (empty
-        // cache) up to SalvageCensusBudgetMs. Rows past the budget carry salvage_skipped.
+        // cache) up to SalvageCensusBudgetMs. Rows past the budget carry the skipped salvage case.
         internal const int SalvageMaxAgeTicks = 4 * 2500;
         internal const double SalvageFrameBudgetMs = 1.5;
         internal const double SalvageInlineBudgetMs = 5;

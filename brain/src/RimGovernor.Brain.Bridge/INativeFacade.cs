@@ -127,7 +127,7 @@ public interface INativeFacade
 
     // The remaining native tools (#3100): each runs the tool's own typed core, validation included.
 
-    Task<Obs.ClearanceTargetsReply> ReadClearanceTargetsAsync(Obs.ClearanceTargetsRequest request, CancellationToken cancellationToken);
+    Task<Obs.ClearanceTargetsSnapshot> ReadClearanceTargetsAsync(Obs.ClearanceTargetsRequest request, CancellationToken cancellationToken);
 
     Task<Mirror.CombatGeometryReply> ReadCombatGeometryAsync(Mirror.CombatGeometryRequest request, CancellationToken cancellationToken);
 
@@ -155,7 +155,7 @@ public interface INativeFacade
 
     Task<Obs.TradeSheetReply> ReadTradeSheetAsync(Obs.TradeSheetRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.WallUpgradeSitesReply> ListWallUpgradeSitesAsync(Obs.WallUpgradeSitesRequest request, CancellationToken cancellationToken);
+    Task<Obs.WallUpgradeSnapshot> ListWallUpgradeSitesAsync(Obs.WallUpgradeSitesRequest request, CancellationToken cancellationToken);
 
     Task<Obs.WorldReply> ReadWorldAsync(Obs.WorldRequest request, CancellationToken cancellationToken);
 
@@ -163,7 +163,7 @@ public interface INativeFacade
 
     Task<Obs.ZonesSnapshot> ListZonesAsync(Obs.ListZonesRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.ExcavationSiteReply> ReadExcavationSiteAsync(Obs.ExcavationSiteRequest request, CancellationToken cancellationToken);
+    Task<Obs.ExcavationSiteSnapshot> ReadExcavationSiteAsync(Obs.ExcavationSiteRequest request, CancellationToken cancellationToken);
 
     Task<Lifecycle.LoadReply> StartLoadAsync(Lifecycle.LoadRequest request, CancellationToken cancellationToken);
 

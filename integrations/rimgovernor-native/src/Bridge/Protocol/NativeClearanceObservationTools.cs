@@ -8,99 +8,108 @@ using System.Threading.Tasks;
 using RimWorld;
 using Verse;
 using Verse.AI;
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Host.Sdk;
 using Common = RimGovernor.Contracts.Wire.Common;
+using DomainCell = RimGovernor.Brain.Domain.Cell;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
     internal static class NativeClearanceObservationTools
     {
-        internal static Obs.ClearanceTargetsReply HandleRead(Obs.ClearanceTargetsRequest request)
+        // A refused request throws NativeRefusedException; a census that cannot be read completely throws an
+        // unavailable fault.
+        internal static Obs.ClearanceTargetsSnapshot HandleRead(Obs.ClearanceTargetsRequest request)
         {
             if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                return new Obs.ClearanceTargetsReply { Outcome = error };
-            try {
-                var player = Faction.OfPlayerSilentFail;
-                if (player == null || map.areaManager?.Home == null || map.listerThings == null || map.designationManager == null || map.roofGrid == null || map.roofCollapseBuffer == null)
-                    return Missing(Common.UnavailableReason.NativeComponentMissing, "Player, Home, building or roof trackers unavailable.");
-                // Scoped to Home: a hilly map carries tens of thousands of
-                // natural-rock buildings map-wide, so the census walks
-                // the Home cells (bounded by the grid) and collects the
-                // non-player buildings standing in them.
-                var home = map.areaManager.Home;
-                var began = Now();
-                var buildings = new Dictionary<int, Building>();
-                foreach (var cell in home.ActiveCells)
-                    foreach (var thing in cell.GetThingList(map)) {
-                        if (thing is Building b && b.Spawned && b.Faction != player) buildings[b.thingIDNumber] = b;
-                    }
-                foreach (var b in map.listerThings.AllThings.OfType<Building>())
-                    if (b.Spawned && b.Faction != player && !b.def.IsNonResourceNaturalRock && !b.def.mineable && b.DeconstructibleBy(player)) buildings[b.thingIDNumber] = b;
-                // Planned ground: on those cells only, the player's
-                // own buildings are targets too and constructed floors are
-                // reported one cell at a time.
-                var planned = PlannedCells(map, request.PlannedGround);
-                var floors = new List<Obs.ClearanceFloor>();
-                foreach (var cell in planned) {
-                    foreach (var thing in cell.GetThingList(map))
-                        if (thing is Building b && b.Spawned && b.Faction == player) buildings[b.thingIDNumber] = b;
-                    if (cell.Fogged(map)) continue;
-                    var top = map.terrainGrid.TopTerrainAt(cell);
-                    if (top == null || top.natural || !map.terrainGrid.CanRemoveTopLayerAt(cell)) continue;
-                    floors.Add(new Obs.ClearanceFloor { Cell = Cell(cell.x, cell.z), DefName = Id(top.defName), Designated = map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFloor) != null });
-                }
-                ObservationWork.Captured("clearanceScan", Now() - began, buildings.Count);
-                var snapshot = new Obs.ClearanceTargetsSnapshot { Context = context };
-                snapshot = snapshot with { Floors = [.. snapshot.Floors, .. floors] };
-                var salvage = request.IncludeSalvage ? SalvageRead.Begin(map, request) : null;
-                long dangerTicks = 0, roofTicks = 0, salvageTicks = 0, salvageRows = 0;
-                began = Now();
-                var triggers = TempleTriggers(map);
-                dangerTicks += Now() - began;
-                foreach (var building in buildings.Values.OrderBy(b => b.thingIDNumber)) {
-                    var rect = building.OccupiedRect();
-                    if (rect.Any(c => !c.InBounds(map) || c.Fogged(map))) continue;
-                    // OfPlayerSilentFail was checked above: the native method
-                    // cannot reach its missing-player Log.Error/pause branch.
-                    if (!building.DeconstructibleBy(player)) continue;
-                    var designated = map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) != null;
-                    var row = new Obs.ClearanceTarget {
-                        EntityId = Id(building.GetUniqueLoadID()), DefName = Id(building.def.defName),
-                        Occupied = new Obs.Rectangle { Minimum = Cell(rect.minX, rect.minZ), Maximum = Cell(rect.maxX, rect.maxZ) },
-                        Deconstructible = true, Class = Classify(building),
-                        Designated = designated
-                    };
-                    var phase = Now();
-                    row = row with { AncientDanger = AncientDanger(map, building, player, triggers) };
-                    dangerTicks += Now() - phase;
-                    if (building.Faction == player) row = row with { EnclosesRoom = EnclosesRoom(map, building) };
-                    phase = Now();
-                    var blocker = RoofSupportSafety.Blocker(building, out _);
-                    roofTicks += Now() - phase;
-                    if (blocker != null) row = row with { RoofBlocker = blocker };
-                    if (salvage != null) {
-                        phase = Now();
-                        var evidence = salvage.Evidence(building);
-                        if (evidence != null) row = row with { Salvage = evidence };
-                        else row = row with { SalvageSkipped = true };
-                        salvageTicks += Now() - phase;
-                        salvageRows++;
-                    }
-                    snapshot = snapshot with { Targets = [.. snapshot.Targets, row] };
-                }
-                salvage?.End();
-                // per-phase main-thread cost of the target rows; the
-                // row remainder is fog/footprint checks, designations and
-                // proto construction.
-                var targetTicks = Now() - began;
-                ObservationWork.Captured("clearanceAncientDanger", dangerTicks, snapshot.Targets.Count);
-                ObservationWork.Captured("clearanceRoofBlocker", roofTicks, snapshot.Targets.Count);
-                ObservationWork.Captured("clearanceSalvage", salvageTicks, salvageRows);
-                ObservationWork.Captured("clearanceTargetRows", targetTicks - dangerTicks - roofTicks - salvageTicks, snapshot.Targets.Count);
-                var count = (ulong)snapshot.Targets.Count;
-                return new Obs.ClearanceTargetsReply { Outcome = snapshot };
+                throw NativeFaults.Refused(error);
+            var player = Faction.OfPlayerSilentFail;
+            if (player == null || map.areaManager?.Home == null || map.listerThings == null || map.designationManager == null || map.roofGrid == null || map.roofCollapseBuffer == null)
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NativeComponentMissing, Detail = "Player, Home, building or roof trackers unavailable." });
+            try { return Read(map, request, context, player); }
+            catch (Exception readError)
+            {
+                ModLog.Error("observe", "Clearance census read failed: " + readError);
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                    Detail = PlacementPreviewOperation.Diagnostic("Clearance facts could not be read completely: " + readError.GetType().Name + ": " + readError.Message) });
             }
-            catch (Exception) { return Missing(Common.UnavailableReason.ReadFailed, "Clearance facts could not be read completely."); }
+        }
+
+        private static Obs.ClearanceTargetsSnapshot Read(Map map, Obs.ClearanceTargetsRequest request, Common.ObservationContext context, Faction player)
+        {
+            // Scoped to Home: a hilly map carries tens of thousands of
+            // natural-rock buildings map-wide, so the census walks
+            // the Home cells (bounded by the grid) and collects the
+            // non-player buildings standing in them.
+            var home = map.areaManager.Home;
+            var began = Now();
+            var buildings = new Dictionary<int, Building>();
+            foreach (var cell in home.ActiveCells)
+                foreach (var thing in cell.GetThingList(map)) {
+                    if (thing is Building b && b.Spawned && b.Faction != player) buildings[b.thingIDNumber] = b;
+                }
+            foreach (var b in map.listerThings.AllThings.OfType<Building>())
+                if (b.Spawned && b.Faction != player && !b.def.IsNonResourceNaturalRock && !b.def.mineable && b.DeconstructibleBy(player)) buildings[b.thingIDNumber] = b;
+            // Planned ground: on those cells only, the player's
+            // own buildings are targets too and constructed floors are
+            // reported one cell at a time.
+            var planned = PlannedCells(map, request.PlannedGround);
+            var floors = new List<Obs.ClearanceFloor>();
+            foreach (var cell in planned) {
+                foreach (var thing in cell.GetThingList(map))
+                    if (thing is Building b && b.Spawned && b.Faction == player) buildings[b.thingIDNumber] = b;
+                if (cell.Fogged(map)) continue;
+                var top = map.terrainGrid.TopTerrainAt(cell);
+                if (top == null || top.natural || !map.terrainGrid.CanRemoveTopLayerAt(cell)) continue;
+                floors.Add(new Obs.ClearanceFloor { Cell = new DomainCell(cell.x, cell.z), DefName = Id(top.defName), Designated = map.designationManager.DesignationAt(cell, DesignationDefOf.RemoveFloor) != null });
+            }
+            ObservationWork.Captured("clearanceScan", Now() - began, buildings.Count);
+            var targets = new List<Obs.ClearanceTarget>();
+            var salvage = request.IncludeSalvage ? SalvageRead.Begin(map, request) : null;
+            long dangerTicks = 0, roofTicks = 0, salvageTicks = 0, salvageRows = 0;
+            began = Now();
+            var triggers = TempleTriggers(map);
+            dangerTicks += Now() - began;
+            foreach (var building in buildings.Values.OrderBy(b => b.thingIDNumber)) {
+                var rect = building.OccupiedRect();
+                if (rect.Any(c => !c.InBounds(map) || c.Fogged(map))) continue;
+                // OfPlayerSilentFail was checked above: the native method
+                // cannot reach its missing-player Log.Error/pause branch.
+                if (!building.DeconstructibleBy(player)) continue;
+                var designated = map.designationManager.DesignationOn(building, DesignationDefOf.Deconstruct) != null;
+                var phase = Now();
+                var danger = AncientDanger(map, building, player, triggers);
+                dangerTicks += Now() - phase;
+                var own = building.Faction == player;
+                phase = Now();
+                var blocker = RoofSupportSafety.Blocker(building, out _);
+                roofTicks += Now() - phase;
+                Obs.ClearanceSalvage salvaged = new Obs.ClearanceSalvage.NotRequested();
+                if (salvage != null) {
+                    phase = Now();
+                    var evidence = salvage.Evidence(building);
+                    salvaged = evidence != null ? new Obs.ClearanceSalvage.Computed(evidence) : new Obs.ClearanceSalvage.Skipped();
+                    salvageTicks += Now() - phase;
+                    salvageRows++;
+                }
+                targets.Add(new Obs.ClearanceTarget {
+                    EntityId = Id(building.GetUniqueLoadID()), DefName = Id(building.def.defName),
+                    Minimum = new DomainCell(rect.minX, rect.minZ), Maximum = new DomainCell(rect.maxX, rect.maxZ),
+                    Class = Classify(building), RoofBlocker = blocker, AncientDanger = danger, Designated = designated,
+                    Player = own, EnclosesRoom = own && EnclosesRoom(map, building), Salvage = salvaged,
+                });
+            }
+            salvage?.End();
+            // per-phase main-thread cost of the target rows; the
+            // row remainder is fog/footprint checks, designations and
+            // proto construction.
+            var targetTicks = Now() - began;
+            ObservationWork.Captured("clearanceAncientDanger", dangerTicks, targets.Count);
+            ObservationWork.Captured("clearanceRoofBlocker", roofTicks, targets.Count);
+            ObservationWork.Captured("clearanceSalvage", salvageTicks, salvageRows);
+            ObservationWork.Captured("clearanceTargetRows", targetTicks - dangerTicks - roofTicks - salvageTicks, targets.Count);
+            return new Obs.ClearanceTargetsSnapshot { Context = context, Targets = [.. targets], Floors = [.. floors] };
         }
 
         // yields memoizes, per def within one read, the probe item and its storage
@@ -108,7 +117,7 @@ namespace HomeBridge.BridgeTools
         private static Obs.SalvageEvidence Salvage(Map map, Building building, EventLootFacts.HaulingSafety safety, Dictionary<ThingDef, (Thing item, long headroom)> yields)
         {
             var safe = !building.IsForbidden(Faction.OfPlayer) && !building.IsBurning() && safety.Safe(building) == true;
-            var result = new Obs.SalvageEvidence { Safe = safe, PathLength = Math.Max(0, safety.PathLength), Labor = building.GetStatValue(StatDefOf.WorkToBuild) };
+            var result = new Obs.SalvageEvidence { Safe = safe, PathLength = Math.Max(0, safety.PathLength), Labor = building.GetStatValue(StatDefOf.WorkToBuild), Yields = [] };
             foreach (var cost in building.def.CostListAdjusted(building.Stuff, false)) {
                 var count = (long)Math.Floor(cost.count * building.def.resourcesFractionWhenDeconstructed);
                 if (count <= 0) continue;
@@ -325,7 +334,7 @@ namespace HomeBridge.BridgeTools
             var cells = new HashSet<IntVec3>();
             foreach (var r in rects) {
                 if (r?.Minimum == null || r.Maximum == null) throw new InvalidOperationException("Planned ground rectangle incomplete.");
-                var rect = CellRect.FromLimits(r.Minimum.X, r.Minimum.Z, r.Maximum.X, r.Maximum.Z).ClipInsideMap(map);
+                var rect = Verse.CellRect.FromLimits(r.Minimum.X, r.Minimum.Z, r.Maximum.X, r.Maximum.Z).ClipInsideMap(map);
                 foreach (var c in rect) cells.Add(c);
             }
             return cells.OrderBy(c => c.z).ThenBy(c => c.x).ToList();
@@ -388,8 +397,6 @@ namespace HomeBridge.BridgeTools
             return false;
         }
         private static long Now() => System.Diagnostics.Stopwatch.GetTimestamp();
-        private static Common.Cell Cell(int x, int z) => new Common.Cell { X = x, Z = z };
         private static string Id(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Native identifier unavailable.");
-        private static Obs.ClearanceTargetsReply Missing(Common.UnavailableReason reason, string detail) => new Obs.ClearanceTargetsReply { Outcome = new Common.Unavailable { Reason = reason, Detail = detail } };
     }
 }

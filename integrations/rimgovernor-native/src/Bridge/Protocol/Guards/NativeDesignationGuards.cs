@@ -107,7 +107,7 @@ namespace HomeBridge.BridgeTools
         // ---- mine_safety ----
         private static bool CollapsePending(Map map) => map.roofCollapseBuffer.CellsMarkedToCollapse.Count > 0;
         private static string? MineSafety(GuardSubject s) => MineSafetyRule.Check(CollapsePending(s.Map), () => ExcavationTools.CellBlocker(s.Cell, s.Map),
-            () => ExcavationSafety.Check(s.Map, new[] { s.Cell }, out _, out var support, throughFog: true) == ExcavationSafety.Support.Supported ? null : support ?? "Roof support is unproven.");
+            () => ExcavationSafety.Check(s.Map, new[] { s.Cell }, out var support, throughFog: true) == ExcavationSafety.Support.Supported ? null : support ?? "Roof support is unproven.");
 
         // ---- enclosure ----
         private static string? Enclosure(Building target) =>
@@ -125,7 +125,7 @@ namespace HomeBridge.BridgeTools
             if (!target.def.holdsRoof) return null;
             var cells = target.OccupiedRect().Cells.ToList();
             if (cells.Any(c => !RoofSupportSafety.GeometryKnown(target.Map, c))) return "Unknown roof support geometry.";
-            return ExcavationSafety.Check(target.Map, cells, out _, out var blocker) == ExcavationSafety.Support.Supported ? null : blocker ?? "Roof support is unproven.";
+            return ExcavationSafety.Check(target.Map, cells, out var blocker) == ExcavationSafety.Support.Supported ? null : blocker ?? "Roof support is unproven.";
         }
         // The permanent blockers only; roof collapse is RoofWait's transient hold.
         private static string? Safety(Building target)

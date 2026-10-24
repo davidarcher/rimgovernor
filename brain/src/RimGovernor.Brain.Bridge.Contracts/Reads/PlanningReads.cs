@@ -59,37 +59,6 @@ public sealed record TradeSessionRead
     public bool Open { get; init; }
 }
 
-/// <summary>One wall segment a stone upgrade would replace.</summary>
-public sealed record WallUpgradeSite
-{
-    public string TargetId { get; init; } = "";
-
-    public bool TargetPresent { get; init; }
-
-    public string Blocker { get; init; } = "";
-
-    public int X { get; init; }
-
-    public int Z { get; init; }
-
-    public int NX { get; init; }
-
-    public int NZ { get; init; }
-
-    public IReadOnlyList<DomainCell> BackupCells { get; init; } = [];
-
-    /// <summary>Whether the site names a present target and nothing blocks it.</summary>
-    public bool Eligible() => TargetId.Length != 0 && TargetPresent && Blocker.Length == 0;
-}
-
-/// <summary>The wall upgrade sites over one wall.</summary>
-public sealed record WallUpgradeSites
-{
-    public ObservationContext? Context { get; init; }
-
-    public IReadOnlyList<WallUpgradeSite> Sites { get; init; } = [];
-}
-
 /// <summary>Whether one target cell is reachable natively and in the projected layout.</summary>
 public sealed record AccessTarget
 {

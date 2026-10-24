@@ -61,15 +61,6 @@ public sealed record ClearanceTarget
     public long Count { get; init; }
 }
 
-/// <summary>One native clearance read: the buildings in Home and the planned ground's constructed floors.</summary>
-public sealed record ClearanceCensus
-{
-    public EquatableArray<ClearanceTarget> Targets { get; init; }
-
-    /// <summary>The constructed floor cells on the planned ground the read asked for (#1365); none without it.</summary>
-    public EquatableArray<ClearanceFloor> Floors { get; init; }
-}
-
 public static class ClearanceRules
 {
     /// <summary>

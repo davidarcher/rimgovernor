@@ -38,8 +38,8 @@ public sealed class SnapshotPlanner
     internal bool IsEmpty => Excavation.Count + Sites.Count + ResourceMethods.Count + Workshops.Count == 0;
 }
 
-/// <summary>One native excavation site read: what was asked (Purpose names the planner's question) and the reply without its observation context.</summary>
-public sealed record ExcavationRead(string Purpose, ExcavationTarget Target, IReadOnlyList<Cell> Cells, ExcavationSite Site);
+/// <summary>One native excavation site read: what was asked (Purpose names the planner's question) and the reply.</summary>
+public sealed record ExcavationRead(string Purpose, ExcavationTarget Target, IReadOnlyList<Cell> Cells, O.ExcavationSiteSnapshot Site);
 
 /// <summary>Collects one step's <see cref="SnapshotPlanner"/>; the recording scope of the step that started it.</summary>
 public sealed class PlannerRecorder : IDisposable
@@ -142,11 +142,8 @@ public static class SnapshotPlannerReplay
     public static void NoteExcavation(ExcavationSiteRequest r) => Add(p => p.Excavation.Add(r));
 
     /// <summary>Records a native excavation site read.</summary>
-    public static void NoteSite(string purpose, ExcavationTarget target, IReadOnlyList<Cell> cells, ExcavationSite site)
-    {
-        site = site with { Context = null };
+    public static void NoteSite(string purpose, ExcavationTarget target, IReadOnlyList<Cell> cells, O.ExcavationSiteSnapshot site) =>
         Add(p => p.Sites.Add(new ExcavationRead(purpose, target, [.. cells], site)));
-    }
 
     /// <summary>Records a production bill selection's request.</summary>
     public static void NoteResourceMethod(ResourceMethodRequest r) => Add(p => p.ResourceMethods.Add(r));

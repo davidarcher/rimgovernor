@@ -94,13 +94,12 @@ internal static class ProductionBuriedSteel
 
         async Task<Observations.ExcavationSiteSnapshot> ReadAsync(string label, IEnumerable<Fx.StageCell> cells)
         {
-            var reply = await s.CallAsync(label, NativeOps.ReadExcavationSite, new Observations.ExcavationSiteRequest
+            var snapshot = await s.CallAsync(label, NativeOps.ReadExcavationSite, new Observations.ExcavationSiteRequest
             {
                 Scope = s.Scope,
                 Cells = [.. cells.Select(c => new Common.Cell { X = c.X, Z = c.Z })],
                 AccessCell = access,
             }, cancellationToken).ConfigureAwait(false);
-            var snapshot = TypedReads.Observed(label, NativeOps.ReadExcavationSite, reply, reply.Outcome?.Observed);
             s.RecordWire(label, snapshot);
             return snapshot;
         }
@@ -108,13 +107,13 @@ internal static class ProductionBuriedSteel
         var problems = new List<string>();
         void Deposit(string name, Observations.ExcavationSiteSnapshot read, bool fogged)
         {
-            if (read.SupportAfterRemoval != Observations.ExcavationSupport.Supported)
+            if (read.Support != Observations.ExcavationSupport.Supported)
             {
-                problems.Add($"{name}: want SUPPORTED, got {read.SupportAfterRemoval} ({read.SupportBlocker})");
+                problems.Add($"{name}: want SUPPORTED, got {read.Support} ({read.SupportBlocker})");
             }
 
             problems.AddRange(read.Cells
-                .Where(c => c.MineableDefName != "MineableSteel" || c.Fogged != fogged)
+                .Where(c => c.Definition != "MineableSteel" || c.Fogged != fogged)
                 .Select(c => $"{name}: want MineableSteel fogged={fogged}, got {c}"));
         }
 
@@ -125,9 +124,9 @@ internal static class ProductionBuriedSteel
         var hollow = await ReadAsync("hollow", from x in Enumerable.Range(site.X + BlockX + 1, BlockSide - 2)
                                                from z in Enumerable.Range(site.Z + 1, BlockSide - 2)
                                                select new Fx.StageCell(x, z)).ConfigureAwait(false);
-        if (hollow.SupportAfterRemoval != Observations.ExcavationSupport.Unsupported)
+        if (hollow.Support != Observations.ExcavationSupport.Unsupported)
         {
-            problems.Add($"hollowed block: want UNSUPPORTED, got {hollow.SupportAfterRemoval}");
+            problems.Add($"hollowed block: want UNSUPPORTED, got {hollow.Support}");
         }
 
         if (problems.Count > 0)
@@ -211,18 +210,18 @@ internal static class ProductionBuriedSteel
         Observations.BuildingState? wall = null;
         _ = await s.RunUntilAsync("mined", 15000, async ct =>
         {
-            var reply = await s.CallAsync("ore-cell", NativeOps.ReadExcavationSite, new Observations.ExcavationSiteRequest
+            var site = await s.CallAsync("ore-cell", NativeOps.ReadExcavationSite, new Observations.ExcavationSiteRequest
             {
                 Scope = s.Scope,
                 Cells = [cell],
                 AccessCell = cell,
             }, ct).ConfigureAwait(false);
-            row = TypedReads.Observed("ore-cell", NativeOps.ReadExcavationSite, reply, reply.Outcome?.Observed).Cells.Single();
+            row = site.Cells.Single();
             var buildings = await s.BuildingsAsync("blueprints", new Observations.ListBuildingsRequest(), ct).ConfigureAwait(false);
             wall = buildings.FirstOrDefault(b => b is { Status: Observations.BuildingStatus.Blueprint, BuildDefName: "Wall" }
                 && b.Building?.Position?.X == at.X && b.Building?.Position?.Z == at.Z);
-            var mined = row.MineableDefName is null;
-            return (Wait.Signature(row.MineDesignated, row.MineableDefName, wall?.Building?.Id), mined && wall is not null);
+            var mined = row.Definition is null;
+            return (Wait.Signature(row.MineDesignated, row.Definition, wall?.Building?.Id), mined && wall is not null);
         }, cancellationToken).ConfigureAwait(false);
         s.RecordWire("ore_cell", row);
         s.RecordWire("wall", wall);

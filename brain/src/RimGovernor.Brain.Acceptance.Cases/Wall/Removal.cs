@@ -49,7 +49,7 @@ internal static class WallRemoval
         }
 
         var (target, site) = found ?? throw new AcceptanceException("no wall of the staged room offers a straight site with three open backup cells");
-        var normal = site.Normal!;
+        var normal = site.Normal;
         var cell = await CellAsync(s, "site-cell", target, cancellationToken).ConfigureAwait(false);
         s.Record("site_wall", target);
 
@@ -76,7 +76,7 @@ internal static class WallRemoval
         }
 
         // Completed backups: granite walls in the three backup cells make the site demolition ready.
-        var backups = (await StageWallsAsync(s, "backups", site.BackupCells, cancellationToken).ConfigureAwait(false)).ToList();
+        var backups = (await StageWallsAsync(s, "backups", site.BackupCells.Select(c => new Common.Cell { X = c.X, Z = c.Z }), cancellationToken).ConfigureAwait(false)).ToList();
         var ready = await RowAsync("ready-census", target).ConfigureAwait(false);
         if (ready.CompletedBackups.Count != 3 || !string.IsNullOrEmpty(ready.Blocker) || ready.Designated == true)
         {
@@ -111,7 +111,7 @@ internal static class WallRemoval
         // A standing permanent granite wall turns the backups into cleanup sites.
         var permanent = (await StageWallsAsync(s, "permanent", [cell], cancellationToken).ConfigureAwait(false)).Single();
         var cleanup = await RowAsync("cleanup-census", null).ConfigureAwait(false);
-        var first = cleanup.Target?.Id ?? "";
+        var first = cleanup.Target.Id ?? "";
         if (!backups.Contains(first) || cleanup.Replacement?.Id != permanent || cleanup.CompletedBackups.Count != 3)
         {
             throw new AcceptanceException($"cleanup-census: want a backup target and the permanent replacement {permanent}, got {cleanup}");

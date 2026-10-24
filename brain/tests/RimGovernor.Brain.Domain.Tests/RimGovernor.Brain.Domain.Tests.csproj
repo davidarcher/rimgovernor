@@ -11,6 +11,7 @@
   <ItemGroup>
     <Using Include="RimGovernor.Contracts.Wire.Observations.RoomRole" Alias="RoomRole" />
     <Using Include="RimGovernor.Contracts.Wire.Observations.RoomState" Alias="RoomState" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.ClearanceFloor" Alias="ClearanceFloor" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
