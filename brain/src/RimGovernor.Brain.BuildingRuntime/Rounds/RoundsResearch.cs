@@ -118,7 +118,7 @@ public sealed class EconomyRounds
                 throw new ControlException("economy read: research read older than the review");
             }
             var catalog = await _native.DefinitionCatalogAsync(Boundary.Identity(scope.World), ct).ConfigureAwait(false);
-            facts = facts with { Research = Known(EconomyRules.ResearchCensusOf(read, catalog.Research)) };
+            facts = facts with { Research = Known(EconomyRules.ResearchCensusOf(read, catalog.Research, catalog.KnowledgeOverflow)) };
         }
         if (_resource is not null)
         {

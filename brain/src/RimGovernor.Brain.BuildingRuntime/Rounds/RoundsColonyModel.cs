@@ -251,10 +251,19 @@ internal static class RoundsColonyModel
                 Cost = detail?.Cost ?? 0,
                 Progress = detail?.Progress ?? default,
                 Prerequisites = detail?.Prerequisites ?? default,
+                KnowledgeCategory = detail?.KnowledgeCategory ?? "",
             });
         }
 
-        return Known(new ModelResearch { Current = facts.Current, Finished = facts.Finished, Projects = EquatableArray.From(projects), Benches = BenchesOf(needs) });
+        // An empty knowledge slot is filled by the research Need with the project it funds first, so that is where the category's points go.
+        var done = facts.Finished.Select(p => p.Value).ToHashSet(StringComparer.Ordinal);
+        var knowledge = facts.Knowledge.Select(slot => new ModelKnowledge
+        {
+            Category = slot.Category,
+            Project = slot.Current.IsEmpty ? new ResearchProjectId(ResearchRules.KnowledgeFunding(facts.Details, done, slot.Category)) : slot.Current,
+            Overflow = slot.Overflow,
+        });
+        return Known(new ModelResearch { Current = facts.Current, Finished = facts.Finished, Projects = EquatableArray.From(projects), Benches = BenchesOf(needs), Knowledge = EquatableArray.From(knowledge) });
     }
 
     /// <summary>The research benches the needs read counts, whatever the current project is; unknown without the read.</summary>

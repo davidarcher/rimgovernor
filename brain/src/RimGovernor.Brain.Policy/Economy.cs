@@ -239,10 +239,12 @@ public static class EconomyRules
     /// The research census of a native research read: every project's static facts from the definition catalog
     /// (<paramref name="catalog"/>) with the read's rows over them. A listed row carries its lock reasons and
     /// progress; a project the read does not list is unfinished with no progress, or finished (full progress). Only
-    /// the ordinary slot's project is the current project; the knowledge slots are sorted by category. A row the
-    /// catalog does not hold is a contract violation (<see cref="DomainException"/>).
+    /// the ordinary slot's project is the current project; the knowledge slots are sorted by category, each with its
+    /// overflow category from <paramref name="overflow"/> (the catalog's KnowledgeCategoryDef.overflowCategory by
+    /// category). A row or a knowledge slot the catalog does not hold is a contract violation (<see cref="DomainException"/>).
     /// </summary>
-    public static ResearchCensus ResearchCensusOf(RimGovernor.Contracts.Wire.Observations.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectFacts> catalog)
+    public static ResearchCensus ResearchCensusOf(RimGovernor.Contracts.Wire.Observations.ResearchSnapshot read, IReadOnlyDictionary<string, ResearchProjectFacts> catalog,
+        IReadOnlyDictionary<string, string> overflow)
     {
         var finished = new HashSet<string>(read.Finished, StringComparer.Ordinal);
         var projects = new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal);
@@ -272,12 +274,17 @@ public static class EconomyRules
             }
         }
         var knowledge = read.Slots.Where(slot => slot.Category.Length != 0)
-            .Select(slot => new KnowledgeSlot { Category = slot.Category, Current = new ResearchProjectId(slot.CurrentProject) })
+            .Select(slot => new KnowledgeSlot
+            {
+                Category = slot.Category,
+                Current = new ResearchProjectId(slot.CurrentProject),
+                Overflow = overflow.TryGetValue(slot.Category, out var into) ? into : throw new DomainException($"knowledge category {slot.Category} outside the definition catalog"),
+            })
             .OrderBy(slot => slot.Category, StringComparer.Ordinal);
         return new ResearchCensus { Current = current, Projects = projects, Finished = read.Finished, Knowledge = [.. knowledge] };
     }
 
-    /// <summary>The review-shaped summary of a research census: current project and its bench lock, listed and finished projects, and the knowledge pick.</summary>
+    /// <summary>The review-shaped summary of a research census: current project and its bench lock, listed and finished projects, the knowledge slots and pick.</summary>
     public static ResearchFacts ResearchSummary(ResearchCensus read)
     {
         var projects = read.Projects.Keys.Select(name => new ResearchProjectId(name)).ToList();
@@ -289,6 +296,7 @@ public static class EconomyRules
             Projects = EquatableArray.From(projects),
             Finished = [.. read.Finished.Select(name => new ResearchProjectId(name))],
             KnowledgePick = new ResearchProjectId(ResearchRules.KnowledgePick(read.Projects, read.Finished, read.Knowledge)),
+            Knowledge = read.Knowledge,
             Levels = read.Projects.ToDictionary(p => new ResearchProjectId(p.Key), p => p.Value.TechLevel),
             Details = read.Projects,
         };

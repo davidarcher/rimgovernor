@@ -11,7 +11,7 @@ namespace RimGovernor.Brain.Policy;
 // Skills and medicine (#3634, #3344): each pawn's stock of each skill is run again one stored level higher, its XP toward the next level
 // kept; the value of that level divided by the native XP it takes is the value of one XP. A stock at the top level, or one the value
 // does not read (ITrajectoryValue.Reads, #3664), is worth nothing more by XP and is not run. Each medicine kind held is run again
-// with one more unit.
+// with one more unit. Each knowledge category (#3843) is priced by finishing the project its points fund (ProjectGraph.KnowledgeProject).
 
 /// <summary>What a tier-2 trajectory is worth (<see cref="ColonyValue"/>; a test may price it otherwise).</summary>
 public interface ITrajectoryValue
@@ -46,7 +46,8 @@ public sealed record ProjectMarginals
     /// <summary>
     /// Capability-days a unit of the project's progress adds, by <see cref="ProjectGraph.ProgressKey"/>: per research point, per
     /// cell sown; per XP of a skill stock (<see cref="ProjectGraph.SkillKey"/>) and per unit of a medicine kind
-    /// (<see cref="ProjectGraph.MedicineKey"/>). This is what tier 1 multiplies the progress of a task by (<see cref="ForecastCoupledContext.Investment"/>).
+    /// (<see cref="ProjectGraph.MedicineKey"/>); per knowledge point of each knowledge category (<see cref="ProjectGraph.KnowledgeKey"/>, every
+    /// category the colony has, zero for one that funds no project). This is what tier 1 multiplies the progress of a task by (<see cref="ForecastCoupledContext.Investment"/>).
     /// </summary>
     public IReadOnlyDictionary<string, double> PerUnit { get; init; } = new Dictionary<string, double>();
 
@@ -106,12 +107,18 @@ public static class ProjectMarginalValue
 
         if (value.Value.TryGetValue(out var asIs))
         {
+            // The value a unit of <amount> injected at time zero on the node or stock <node> adds; null when that run cannot be priced.
+            double? Gain(string node, double amount) =>
+                valuation.Price(ColonyModel.Run(input, start, cycles, policy with { Injected = new InjectedProgress(node, amount) })).Value.TryGetValue(out var after)
+                    ? (Math.Abs(after - asIs) < Negligible ? 0 : after - asIs) / amount
+                    : null;
+
             // A stock the value cannot price (ColonyValueResult.Unpriced) is left out with its findings: its marginal is not a number.
             void Perturb(string key, double amount)
             {
-                if (!value.Unpriced.Contains(key) && valuation.Price(ColonyModel.Run(input, start, cycles, policy with { Injected = new InjectedProgress(key, amount) })).Value.TryGetValue(out var after))
+                if (!value.Unpriced.Contains(key) && Gain(key, amount) is { } gain)
                 {
-                    perUnit[key] = (Math.Abs(after - asIs) < Negligible ? 0 : after - asIs) / amount;
+                    perUnit[key] = gain;
                 }
             }
 
@@ -136,6 +143,31 @@ public static class ProjectMarginalValue
             foreach (var kind in baseline.MedicineKinds)
             {
                 Perturb(ProjectGraph.MedicineKey(kind), 1);
+            }
+
+            // Each knowledge category's point (#3843) funds its node (ProjectGraph.Funding). Study is not in the run, so that node completes
+            // only once all its points are given: it is run again with them given now, and a point is worth its share of what finishing the
+            // project now adds. A category that funds no project, or one whose points are all given, is worth nothing a point. Two
+            // categories funding one project (Advanced overflowing into Basic's) share its run.
+            var perPoint = new Dictionary<string, double?>(StringComparer.Ordinal);
+            foreach (var funding in policy.Projects.Funding)
+            {
+                var key = ProjectGraph.KnowledgeKey(funding.Category);
+                if (policy.Projects.Nodes.FirstOrDefault(n => n.Kind == ProjectKind.Knowledge && n.Id == funding.Node) is not { Work: > 0 } node)
+                {
+                    perUnit[key] = 0;
+                    continue;
+                }
+
+                if (!perPoint.TryGetValue(node.Id, out var point))
+                {
+                    perPoint[node.Id] = point = Gain(node.Id, node.Work);
+                }
+
+                if (point is { } price)
+                {
+                    perUnit[key] = price;
+                }
             }
         }
 

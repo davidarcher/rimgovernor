@@ -8,6 +8,12 @@ public enum ProjectKind
     /// <summary>Research points to spend; the work is points remaining.</summary>
     Research,
 
+    /// <summary>
+    /// An Anomaly knowledge project (#3843): the work is knowledge points remaining, which only study gives. Study is not in the run
+    /// (its yield is the containment credit's, #3811), so the node takes no labor and completes only once its points are given.
+    /// </summary>
+    Knowledge,
+
     /// <summary>Sowing the cells of a field; the work is cells times the crop's sow work.</summary>
     Sow,
 
@@ -30,6 +36,9 @@ public enum ProjectKind
     Milestone,
 }
 
+/// <summary>A knowledge category (#3843) and the id of the <see cref="ProjectKind.Knowledge"/> node its points fund; empty when it funds none.</summary>
+public sealed record CategoryFunding(string Category, string Node);
+
 /// <summary>
 /// One node of the project graph. A node starts when every prerequisite is complete. The graph's order is the labor
 /// allocation's priority order and is visible in the trajectory.
@@ -47,7 +56,7 @@ public sealed record ProjectNode
     /// <summary>Ids of the nodes that must complete first.</summary>
     public EquatableArray<string> Prerequisites { get; init; }
 
-    /// <summary>Research: points remaining. Sow, Harvest, Craft, Construction, Hunt: work units. Grow: unused.</summary>
+    /// <summary>Research: points remaining. Knowledge: knowledge points remaining. Sow, Harvest, Craft, Construction, Hunt: work units. Grow: unused.</summary>
     public double Work { get; init; }
 
     /// <summary>Hunt: the meat's nutrition, which joins the nutrition stock at completion.</summary>

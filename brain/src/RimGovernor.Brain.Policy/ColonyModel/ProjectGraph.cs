@@ -12,11 +12,18 @@ public sealed record ProjectGraph
     /// <summary>A gap in the facts the nodes were built from, one finding each.</summary>
     public EquatableArray<string> Findings { get; init; }
 
-    /// <summary>This graph followed by <paramref name="next"/>; the nodes keep their order and a node already here is not added twice (two goals share a research prerequisite), the findings are sorted and distinct.</summary>
+    /// <summary>Each knowledge category of the colony and the node its points fund (<see cref="Knowledge"/>, #3843), in category order.</summary>
+    public EquatableArray<CategoryFunding> Funding { get; init; }
+
+    /// <summary>
+    /// This graph followed by <paramref name="next"/>; the nodes keep their order and a node already here is not added twice (two goals
+    /// share a research prerequisite), the findings are sorted and distinct, and a category already funded here keeps its node.
+    /// </summary>
     public ProjectGraph Then(ProjectGraph next) => new()
     {
         Nodes = EquatableArray.From(Nodes.Concat(next.Nodes.Where(n => Nodes.All(have => have.Id != n.Id)))),
         Findings = EquatableArray.From(Findings.Concat(next.Findings).Distinct().Order(StringComparer.Ordinal)),
+        Funding = EquatableArray.From(Funding.Concat(next.Funding.Where(f => Funding.All(have => have.Category != f.Category)))),
     };
 
     private const string ResearchPrefix = "research:";
@@ -44,14 +51,62 @@ public sealed record ProjectGraph
     public static string MedicineKey(Resource kind) => $"medicine/{kind}";
 
     /// <summary>
+    /// The key of a knowledge category (#3843, Anomaly; the KnowledgeCategoryDef's defName, as a study's CompStudiable names it): its
+    /// marginal value is per knowledge point under this key (<see cref="ProjectMarginalValue.Of"/>), so a study's yield of that category is
+    /// priced at <c>ForecastCoupledContext.Investment[KnowledgeKey(category)]</c>.
+    /// </summary>
+    public static string KnowledgeKey(string category) => $"knowledge/{category}";
+
+    /// <summary>
+    /// The project a knowledge point of <paramref name="category"/> funds (ResearchManager.ApplyKnowledge): the category's
+    /// <see cref="ModelKnowledge.Project"/>, or while it has none its overflow category's, followed until a category has one. None
+    /// when no category on the way has one (the point is lost), or the category is not the colony's.
+    /// </summary>
+    private static ResearchProjectId? KnowledgeProject(ModelResearch research, string category)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        while (seen.Add(category) && research.Knowledge.FirstOrDefault(k => k.Category == category) is { } slot)
+        {
+            if (!slot.Project.IsEmpty)
+            {
+                return slot.Project;
+            }
+
+            category = slot.Overflow;
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// The knowledge projects the colony's categories fund (<see cref="KnowledgeProject"/>), each with its unfinished prerequisites, and
+    /// each category's <see cref="Funding"/>: the project's node, or none when it funds no project; no category without Anomaly.
+    /// </summary>
+    private static ProjectGraph Knowledge(ColonyModelInput input, ModelResearch research)
+    {
+        var graph = new ProjectGraph();
+        var funding = new List<CategoryFunding>();
+        foreach (var category in research.Knowledge.Select(k => k.Category))
+        {
+            var project = KnowledgeProject(research, category);
+            funding.Add(new(category, project is { } funded ? ResearchId(funded) : ""));
+            graph = project is { } chain ? graph.Then(ResearchChain(input, chain)) : graph;
+        }
+
+        return graph with { Funding = EquatableArray.From(funding) };
+    }
+
+    /// <summary>
     /// What a review runs: the research chain of the project being researched, and each field with a crop set, from sowing to
     /// harvest, gated on the research the crop's sowing waits on (<see cref="CropChoice.Research"/>). Then each herd of huntable
     /// wildlife is hunted and butchered (<see cref="Hunts"/>). Last, the garments the colony can make from the stuffs it holds or those
-    /// nodes yield (<see cref="Garments"/>), so the harm model prices what wearing each avoids from the day it is made.
+    /// nodes yield (<see cref="Garments"/>), so the harm model prices what wearing each avoids from the day it is made. Then the knowledge
+    /// projects the colony's knowledge categories fund (<see cref="Knowledge"/>), whose points are priced per category.
     /// </summary>
     public static ProjectGraph Standing(ColonyModelInput input, IReadOnlyList<GearOption> options, Fact<RaidThreat> threat)
     {
         var graph = input.Research.TryGetValue(out var research) && !research.Current.IsEmpty ? ResearchChain(input, research.Current) : new ProjectGraph();
+        var knowledge = research is null ? new ProjectGraph() : Knowledge(input, research);
         if (input.Land.TryGetValue(out var land))
         {
             foreach (var field in land.Where(f => f.Crop.Length > 0))
@@ -62,7 +117,7 @@ public sealed record ProjectGraph
         }
 
         graph = graph.Then(Hunts(input));
-        return graph.Then(Garments(input, graph, options, threat));
+        return graph.Then(Garments(input, graph, options, threat)).Then(knowledge);
     }
 
     /// <summary>The id of the garment node of a stuff in a gear slot.</summary>
@@ -189,7 +244,8 @@ public sealed record ProjectGraph
 
     /// <summary>
     /// The unfinished research the project needs: its unfinished prerequisites first, then the project, each a node with the
-    /// points still to spend (cost less the researched fraction). An unread progress counts the whole cost and is named.
+    /// points still to spend (cost less the researched fraction). A knowledge project (Anomaly) is a <see cref="ProjectKind.Knowledge"/>
+    /// node of the knowledge points still to give.
     /// </summary>
     public static ProjectGraph ResearchChain(ColonyModelInput input, ResearchProjectId project)
     {
@@ -224,7 +280,7 @@ public sealed record ProjectGraph
             nodes.Add(new ProjectNode
             {
                 Id = ResearchId(id),
-                Kind = ProjectKind.Research,
+                Kind = listed.KnowledgeCategory.Length == 0 ? ProjectKind.Research : ProjectKind.Knowledge,
                 Prerequisites = EquatableArray.From(listed.Prerequisites.Where(p => !done.Contains(p)).Select(ResearchId)),
                 Work = listed.Cost * (1 - listed.Progress),
             });

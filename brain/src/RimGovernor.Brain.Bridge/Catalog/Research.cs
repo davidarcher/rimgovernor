@@ -43,6 +43,10 @@ public sealed partial class DefinitionCatalog
         return facts;
     }
 
+    // Where a category's knowledge goes while its slot funds no project (ResearchManager.ApplyKnowledge): Advanced into Basic.
+    private Dictionary<string, string> BuildKnowledgeOverflow() =>
+        Rows<KnowledgeCategoryDef>().Values.ToDictionary(row => row.defName, row => row.overflowCategory?.defName ?? string.Empty, StringComparer.Ordinal);
+
     private static Domain.EquatableArray<P.ResearchProjectId> ProjectIds(IEnumerable<ResearchProjectDef>? projects) =>
         new([.. projects.Seq().Select(project => new P.ResearchProjectId(project.defName))]);
 

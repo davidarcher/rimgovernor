@@ -33,6 +33,24 @@ public sealed record ModelProject
     public double Progress { get; init; }
 
     public EquatableArray<ResearchProjectId> Prerequisites { get; init; }
+
+    /// <summary>The project's knowledge category (Anomaly, ResearchProjectDef.knowledgeCategory); empty for a project researched at a bench. A knowledge project's cost is its knowledgeCost in knowledge points, which only study gives.</summary>
+    public string KnowledgeCategory { get; init; } = "";
+}
+
+/// <summary>
+/// One knowledge category (Anomaly) as the model reads it: the project a knowledge point of it funds now, and where the point goes
+/// while it funds none (ResearchManager.ApplyKnowledge).
+/// </summary>
+public sealed record ModelKnowledge
+{
+    public string Category { get; init; } = "";
+
+    /// <summary>The category slot's project, or for an empty slot the project the research Need funds into it (<see cref="ResearchRules.KnowledgeFunding"/>); empty when there is neither.</summary>
+    public ResearchProjectId Project { get; init; }
+
+    /// <summary>KnowledgeCategoryDef.overflowCategory; empty when the category has none and a point it cannot fund is lost.</summary>
+    public string Overflow { get; init; } = "";
 }
 
 /// <summary>The research state: what is being researched, what is done and what is left to do.</summary>
@@ -51,6 +69,9 @@ public sealed record ModelResearch
     /// factor of its bench, so only the count limits the labor.
     /// </summary>
     public Fact<int> Benches { get; init; }
+
+    /// <summary>Every knowledge category, sorted by category; empty without Anomaly.</summary>
+    public EquatableArray<ModelKnowledge> Knowledge { get; init; }
 }
 
 /// <summary>The colony's stocks the model moves: nutrition, materials and medicine. Research points are per project (<see cref="ModelProject.Progress"/>); power is not a stock in v1.</summary>

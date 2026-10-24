@@ -379,6 +379,17 @@ reads is run (`ITrajectoryValue.Reads`, #3664): for `ColonyValue` that is each d
 perturbed by one unit. The values per XP and per unit go to `PerUnit` under the stock key and `medicine/<kind>`; the `colony_model` event logs each stock's
 value per XP (`skill_per_xp`), and `production/skill-marginal` (#3663) proves a live review prices the staged colonist's Medicine stock.
 
+*Anomaly knowledge (#3843).* A knowledge project (a `ResearchProjectDef` with a `knowledgeCategory`) is a `Knowledge` node of the
+knowledge points still to give (its `knowledgeCost` less the progress the research read gives from `anomalyKnowledge`). Each knowledge
+category's point funds one project (`ResearchManager.ApplyKnowledge`, `ProjectGraph.KnowledgeProject`): its slot's project; for an empty
+slot the project the research Need funds into it first (`ResearchRules.KnowledgeFunding`); while it funds none, its overflow category's
+(`KnowledgeCategoryDef.overflowCategory`, from the catalog: Advanced into Basic). `ProjectGraph.Standing` adds those projects with their
+unfinished prerequisites. Study is not in the run (its yield is the containment credit's, #3811), so a knowledge node takes no labor and
+completes only once its points are given: it is run again with all of them given at time zero, and a point is worth its share of what
+finishing the project now adds. The value goes to `PerUnit` under `knowledge/<category>` (`ProjectGraph.KnowledgeKey`) for every category
+the colony has; a category that funds no project, or a project whose points are all given, is worth 0 a point. Without Anomaly the research
+read has no knowledge slot and there is no category. A study's yield of a category is priced at `Investment[KnowledgeKey(category)]`.
+
 *Raid tending (#3635).* `ColonyValue` subtracts the colony's raid harm over the run at the tending the run gives it. The run is cut
 at each doctor's level dates and at each medicine kind's run-out (between events the stock falls at a constant rate, best kind
 first, from `ColonyTrajectory.StartMedicine`); each span costs its days × raids a day × each raid's loss through `HarmLedger`

@@ -306,15 +306,18 @@ public sealed class EconomyFamilyTests
         {
             ["Smithing"] = new() { Cost = 700 }, ["Stonecutting"] = new() { Cost = 300 }, ["Brewing"] = new() { Cost = 500 },
         };
-        var census = EconomyRules.ResearchCensusOf(read, catalog);
+        var overflow = new Dictionary<string, string>(StringComparer.Ordinal) { ["Basic"] = "" };
+        var census = EconomyRules.ResearchCensusOf(read, catalog, overflow);
         Assert.Equal("Smithing", census.Current);
         Assert.Equal((.25, true, true), (census.Projects["Smithing"].Progress, census.Projects["Smithing"].Census, census.Projects["Smithing"].Hidden));
         // A project the read does not list is finished or unstarted.
         Assert.Equal((1.0, false), (census.Projects["Stonecutting"].Progress, census.Projects["Stonecutting"].Census));
         Assert.Equal(0.0, census.Projects["Brewing"].Progress);
-        Assert.Equal("Basic", Assert.Single(census.Knowledge).Category);
-        Assert.Throws<DomainException>(() => EconomyRules.ResearchCensusOf(read, new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal)));
-        Assert.Empty(EconomyRules.ResearchCensusOf(NoResearch, catalog).Current);
+        Assert.Equal(("Basic", ""), (Assert.Single(census.Knowledge).Category, census.Knowledge[0].Overflow));
+        Assert.Throws<DomainException>(() => EconomyRules.ResearchCensusOf(read, new Dictionary<string, ResearchProjectFacts>(StringComparer.Ordinal), overflow));
+        // A knowledge slot of a category the catalog does not hold is a contract violation too.
+        Assert.Throws<DomainException>(() => EconomyRules.ResearchCensusOf(read, catalog, new Dictionary<string, string>(StringComparer.Ordinal)));
+        Assert.Empty(EconomyRules.ResearchCensusOf(NoResearch, catalog, overflow).Current);
     }
 
     /// <summary>A world read of the home tile with no settlement in range.</summary>

@@ -534,7 +534,7 @@ public static class RoundsReads
         frame.Research ?? throw new BridgeUnavailableException("The frame holds no research section.");
 
     internal static ResearchFacts FrameResearch(O.ResearchSnapshot read, DefinitionCatalog catalog) =>
-        EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog.Research));
+        EconomyRules.ResearchSummary(EconomyRules.ResearchCensusOf(read, catalog.Research, catalog.KnowledgeOverflow));
 
     /// <summary>The primary ideoligion; unknown when the frame carries no ideology section.</summary>
     internal static Fact<Ideoligion> FrameIdeology(Ideoligion? read) => read is null ? Unknown<Ideoligion>() : Known(read);

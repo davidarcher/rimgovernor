@@ -138,6 +138,11 @@ internal sealed class ProjectRun
                 live.Remaining = 0;
                 live.Rate = 1;
             }
+            else if (live.Node.Kind == ProjectKind.Knowledge)
+            {
+                // No study in the run: the project finishes now when its points were given, else it waits.
+                live.Rate = live.Remaining <= 0 ? 1 : 0;
+            }
             else if (live.Node.Kind == ProjectKind.Grow)
             {
                 Grow(live, twelfth, boundary);
