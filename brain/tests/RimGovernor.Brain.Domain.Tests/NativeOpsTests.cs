@@ -19,7 +19,9 @@ public sealed class NativeOpsTests
         var recorder = (RecordingFacade)(object)facade;
         foreach (var op in NativeOps.All.Where(op => op.OnFacade))
         {
-            _ = op.InvokeJsonAsync(facade, "{}", CancellationToken.None);
+            // A request with a required member does not read from an empty body.
+            var body = ReferenceEquals(op, NativeOps.ReadDefinitionCatalog) ? """{"scope":{}}""" : "{}";
+            _ = op.InvokeJsonAsync(facade, body, CancellationToken.None);
         }
 
         // Opening the colony events hands over an in-process reader, so no op routes it.

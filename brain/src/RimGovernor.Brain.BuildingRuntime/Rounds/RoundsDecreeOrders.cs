@@ -50,11 +50,7 @@ public sealed partial class JoinersRounds
             {
                 catalogErr = new InvalidOperationException("decree recipes: the native source serves no definitions");
             }
-            if (catalog is null)
-            {
-                catalogErr ??= new InvalidOperationException("decree recipes: the native source serves no definitions");
-            }
-            else if (catalogErr is null)
+            if (catalog is not null)
             {
                 declared = QuestDecrees.DeclareDecreeOrders(request with { Recipes = objective => DecreeRecipes(benches, catalog, objective) });
             }

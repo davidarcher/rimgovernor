@@ -354,7 +354,7 @@ BuildingRuntime/StockpileSitedRoles.cs|Fact|6
 BuildingRuntime/StockpileZones.cs|Fact|8
 BuildingRuntime/TradeMission.cs|Fact|14
 BuildingRuntime/TradeMissionDriver.cs|Fact|6
-BuildingRuntime/TradeMissionDriver.cs|Unknown|4
+BuildingRuntime/TradeMissionDriver.cs|Unknown|3
 BuildingRuntime/TradeMissionOptions.cs|Fact|3
 BuildingRuntime/TradeTarget.cs|Discard|1
 BuildingRuntime/Worker.cs|Discard|1

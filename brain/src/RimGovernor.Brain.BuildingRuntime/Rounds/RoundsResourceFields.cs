@@ -39,7 +39,7 @@ public sealed partial class Rounder
         }
 
         var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), call).ConfigureAwait(false);
-        return catalog is null ? [] : catalog.SowableCrops();
+        return catalog.SowableCrops();
     }
 
     internal ResourceFieldPlanner NewResourceFieldPlanner(ControlState state, Rounds review, Identity expected, ColonyProjection projection, CancellationToken call)

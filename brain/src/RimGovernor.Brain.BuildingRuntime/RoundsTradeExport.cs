@@ -215,7 +215,7 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
             return Pol.WorkRules.Abstaining(Pol.Cause.UnreadNativeRead);
         }
         var identity = Boundary.Identity(snapshot);
-        Bridge.DefinitionCatalog? catalog;
+        Bridge.DefinitionCatalog catalog;
         try
         {
             catalog = await native.DefinitionCatalogAsync(identity, ct).ConfigureAwait(false);
@@ -223,10 +223,6 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         catch (Exception e) when (e is not OperationCanceledException)
         {
             return RoundsGearPlanner.AbstainOnRead(Pol.Cause.UnreadDefinitions, e, ct);
-        }
-        if (catalog is null)
-        {
-            return RoundsGearPlanner.AbstainOnRead(Pol.Cause.UnreadDefinitions, null, ct);
         }
         var (kinds, known) = await TraderKindsAsync(native, snapshot, identity, ct).ConfigureAwait(false);
         if (!known)

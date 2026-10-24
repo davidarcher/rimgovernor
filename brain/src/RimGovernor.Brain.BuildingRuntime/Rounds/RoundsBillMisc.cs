@@ -19,7 +19,7 @@ public sealed partial class Rounder
         {
             return [];
         }
-        var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false) ?? throw new InvalidOperationException("native served no definition catalog");
+        var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
         var withSlots = new List<OpenBill>(bills.Count);
         foreach (var bill in bills)
         {

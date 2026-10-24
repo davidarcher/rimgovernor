@@ -163,8 +163,7 @@ public sealed partial class RoundsResourcePlanner
             throw new InvalidOperationException("roof rules: the native source serves no definitions");
         }
 
-        var catalog = await definitions.DefinitionCatalogAsync(identity, call).ConfigureAwait(false)
-            ?? throw new InvalidOperationException("roof rules: the native source returned no definition catalog");
+        var catalog = await definitions.DefinitionCatalogAsync(identity, call).ConfigureAwait(false);
         var roofs = catalog.RoofRules();
         if (!facts.Center().TryGetValue(out var anchor))
         {

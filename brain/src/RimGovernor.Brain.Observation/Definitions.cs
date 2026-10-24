@@ -4,7 +4,8 @@ namespace RimGovernor.Brain.Observation;
 /// <summary>Serves the load's definition catalog. A colony source without it reads no definitions; one that is also a <see cref="IResearchSource"/> makes a definition available by its finished research.</summary>
 public interface IDefinitionSource
 {
-    Task<DefinitionCatalog?> DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken);
+    /// <summary>The load's catalog; a catalog that cannot be read throws.</summary>
+    Task<DefinitionCatalog> DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken);
 }
 
 /// <summary>The research read whose finished projects make a definition available.</summary>
@@ -99,7 +100,7 @@ public static class DefinitionsReads
 
     /// <summary>
     /// Reads the catalog and finished research through <paramref name="source"/>; null when it serves no
-    /// definitions (no catalog). A research read that fails leaves the finished projects unknown.
+    /// definitions. A research read that fails leaves the finished projects unknown.
     /// </summary>
     internal static async Task<DefinitionFacts?> ReadDefinitionFacts(object source, C.Identity id, O.PlanningFacts? planning, CancellationToken cancellationToken)
     {
@@ -108,10 +109,6 @@ public static class DefinitionsReads
             return null;
         }
         var catalog = await native.DefinitionCatalogAsync(id, cancellationToken).ConfigureAwait(false);
-        if (catalog is null)
-        {
-            return null;
-        }
         var finished = default(Fact<IReadOnlySet<string>>);
         if (source is IResearchSource research)
         {

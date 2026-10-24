@@ -224,11 +224,13 @@ a depleted drill for removal from the deep drill step's recorded read.
 
 ## Catalog rows and constants
 
-The definition catalog reply (`DefinitionCatalog` in `Observations.cs`) no longer carries def rows or game
-constants. The brain's `DefinitionCatalog` (`Bridge/Catalog`) is built in the mod over the game's own `Def` objects
-(`NativeCatalogFactory.Create`, installed as `BrainCompositionOptions.CatalogFactory`; see
-[brain-host](../../docs/developers/architecture/brain-host.md)), and the wire catalog supplies only what the game
-computes in code (`derived`, `CatalogDerived`); the wire `DefinitionCatalog` itself is an empty record.
+The definition catalog read carries no def rows or game constants. `DefinitionCatalogRequest` (its `Scope` is
+required) only has native prepare the load's def stat table and race facts on the game thread. It answers the empty
+`DefinitionCatalogAck`; a refused or unavailable prepare throws (`NativeFaults`). The brain's `DefinitionCatalog`
+(`Bridge/Catalog`) is then built in the mod over the game's own `Def` objects (`NativeCatalogFactory.Create`,
+installed as `BrainCompositionOptions.CatalogFactory`; see
+[brain-host](../../docs/developers/architecture/brain-host.md)), and what the game computes in code
+(`CatalogDerived`) is read in process.
 
 The brain catalog's currency (`ThingDefOf.Silver`, the def `Tradeable.IsCurrency` tests, read as
 `ItemFacts.Currency`; an empty value or a def with no row is refused) and wort (`ThingDefOf.Wort`) def names

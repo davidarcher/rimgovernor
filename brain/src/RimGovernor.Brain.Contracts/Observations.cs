@@ -8161,15 +8161,11 @@ public sealed record AnomalyDoor
 
 public sealed record DefinitionCatalogRequest
 {
-    public ReadScope? Scope { get; init; }
+    public required ReadScope Scope { get; init; }
 }
 
-/// <summary>The catalog prepare reply: the load is prepared when neither <see cref="Unavailable"/> nor <see cref="Failure"/> is set.</summary>
-public sealed record DefinitionCatalogReply
-{
-    public Common.Unavailable? Unavailable { get; init; }
-    public Common.Failure? Failure { get; init; }
-}
+/// <summary>What the catalog prepare answers: the load's stat table and race facts are ready. A refused or unavailable prepare throws.</summary>
+public sealed record DefinitionCatalogAck;
 
 /// <summary>The stream open reply: opened when <see cref="Unavailable"/> is absent.</summary>
 public sealed record SnapshotStreamReply

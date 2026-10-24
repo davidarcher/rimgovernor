@@ -806,7 +806,7 @@ Kept, reason recorded:
 | EntityHolderState | message | 2739 | 4 | excluded | Anomaly holder state |  | excluded owner #2631 owner Anomaly |
 | AnomalyDoor | message | 2745 | 5 | excluded | Anomaly holder door state |  | excluded owner #2631 owner Anomaly |
 | DefinitionCatalogRequest | message | 2746 | 2 | state | Request envelope for the catalog read |  |  |
-| DefinitionCatalogReply | message | 2749 | 4 | state | Unavailable or Failure of the catalog prepare |  |  |
+| DefinitionCatalogAck | message | 2749 | 0 | state | Empty ack of the catalog prepare; a refusal or unavailability throws |  |  |
 | SnapshotStreamReply | message | 2755 | 3 | state | Unavailable when the stream could not open |  |  |
 | FlushSnapshotRequest | message | 2758 | 0 | state | Flush request (empty) |  |  |
 | FlushSnapshotReply | message | 2759 | 2 | state | Outcome oneof of flush |  |  |

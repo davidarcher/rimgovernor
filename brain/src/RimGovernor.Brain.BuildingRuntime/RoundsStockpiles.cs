@@ -260,7 +260,7 @@ public sealed partial class Rounder
             return Unknown<int>();
         }
         var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
-        if (catalog is null || !catalog.StationCatalog().Stations.TryGetValue(StorageRules.ShelfDefinition, out var shelf) || shelf.Capacity.Kind != Pol.CapacityKind.Items)
+        if (!catalog.StationCatalog().Stations.TryGetValue(StorageRules.ShelfDefinition, out var shelf) || shelf.Capacity.Kind != Pol.CapacityKind.Items)
         {
             return Unknown<int>();
         }

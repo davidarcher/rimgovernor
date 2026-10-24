@@ -144,7 +144,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.ResearchReply> ReadResearchAsync(Obs.ResearchRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadResearch, request, () => NativeResearchObservationTools.HandleReadResearch(request), cancellationToken);
 
-        public Task<Obs.DefinitionCatalogReply> ReadDefinitionCatalogAsync(Obs.DefinitionCatalogRequest request, CancellationToken cancellationToken)
+        public Task<Obs.DefinitionCatalogAck> ReadDefinitionCatalogAsync(Obs.DefinitionCatalogRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadDefinitionCatalog, request, () => NativeDefinitionCatalogTool.HandleReadDefinitionCatalog(request), cancellationToken);
 
         public Task<Obs.BillsReply> ReadBillsAsync(Obs.BillsRequest request, CancellationToken cancellationToken)

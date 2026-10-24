@@ -231,7 +231,7 @@ public sealed partial class Rounder
         {
             throw new InvalidOperationException("layout survey: no definitions or planning window");
         }
-        var catalog = await source.DefinitionCatalogAsync(Control.ControlIdentity(snapshot), ct).ConfigureAwait(false) ?? throw new InvalidOperationException("layout survey: native served no definition catalog");
+        var catalog = await source.DefinitionCatalogAsync(Control.ControlIdentity(snapshot), ct).ConfigureAwait(false);
         return (catalog.SurveyFromCells(projection.Cells, projection.Bounds), catalog);
     }
 

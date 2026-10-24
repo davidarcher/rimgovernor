@@ -82,12 +82,8 @@ partial class RoundsTradePlanner
 
     internal static Fact<T> MissionOptional<T>(T v, bool known) => known ? Fact.Known(v) : Fact.Unknown<T>();
 
-    internal static Fact<double> MissionCatalogStat(Bridge.DefinitionCatalog? catalog, string def, Bridge.CatalogStat stat)
+    internal static Fact<double> MissionCatalogStat(Bridge.DefinitionCatalog catalog, string def, Bridge.CatalogStat stat)
     {
-        if (catalog is null)
-        {
-            return Fact.Unknown<double>();
-        }
         try
         {
             // A stat the game does not show for the def is unknown, not an exception per definition.

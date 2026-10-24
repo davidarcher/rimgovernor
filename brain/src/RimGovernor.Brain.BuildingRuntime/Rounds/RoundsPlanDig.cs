@@ -29,7 +29,7 @@ public sealed partial class RoundsBuildingPlanner
         }
 
         var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
-        return (catalog ?? throw new ControlException("roof rules: no definition catalog")).RoofRules();
+        return catalog.RoofRules();
     }
 
     internal async Task<(RoundsBuildingResult Result, bool Handled)> DigPlannedAsync(ExcavationStep s, IReadOnlyList<Cell> rock, Cell access, MethodId method, IReadOnlyList<Building> buildings, Action check, CancellationToken call, CancellationToken epoch) =>

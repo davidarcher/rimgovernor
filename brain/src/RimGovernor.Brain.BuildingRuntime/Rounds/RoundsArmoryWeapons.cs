@@ -42,7 +42,7 @@ public sealed partial class RoundsArmoryPlanner
         }
         var pawns = new List<EquipCandidatePawn>();
         var primaries = new Dictionary<Domain.PawnId, ArmoryPrimary>();
-        var catalog = await source.DefinitionCatalogAsync(identity, ct).ConfigureAwait(false) ?? throw new InvalidOperationException("native served no definition catalog");
+        var catalog = await source.DefinitionCatalogAsync(identity, ct).ConfigureAwait(false);
         foreach (var p in observed.Pawns)
         {
             pawns.Add(EquipCandidates.EquipCandidatePawnFacts(p, catalog, things));

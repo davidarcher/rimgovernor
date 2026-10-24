@@ -62,8 +62,8 @@ public sealed partial class FacadeNativeClient :
     Task<LifecyclePb.LoadedTick> ISource.TickAsync(CancellationToken cancellationToken) =>
         TickAsync(cancellationToken);
 
-    async Task<BridgeCatalog?> IDefinitionSource.DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken) =>
-        await DefinitionCatalogAsync(id, cancellationToken).ConfigureAwait(false);
+    Task<BridgeCatalog> IDefinitionSource.DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken) =>
+        DefinitionCatalogAsync(id, cancellationToken);
 
     Task<ResearchRead> IResearchSource.ReadResearchAsync(C.Identity id, CancellationToken cancellationToken) =>
         ReadResearchAsync(id, cancellationToken);

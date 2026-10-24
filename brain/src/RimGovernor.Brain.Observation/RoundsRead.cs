@@ -73,8 +73,8 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
         return new Held<ZonesRead> { Value = read, AsOf = read.AsOf, Complete = true, Source = "native_frame" };
     }
 
-    /// <summary>The load's catalog, null for a source without one.</summary>
-    public Task<DefinitionCatalog?> DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken) => inner.DefinitionCatalogAsync(id, cancellationToken);
+    /// <summary>The load's catalog.</summary>
+    public Task<DefinitionCatalog> DefinitionCatalogAsync(C.Identity id, CancellationToken cancellationToken) => inner.DefinitionCatalogAsync(id, cancellationToken);
 
     /// <summary>The frame's research section.</summary>
     public Task<ResearchRead> ReadResearchAsync(C.Identity id, CancellationToken cancellationToken)
@@ -132,32 +132,29 @@ public static class RoundsReads
         var p = reading.Projection;
         var colony = frame.Colony;
         var emergency = frame.Emergency.Facts;
-        if (catalog is not null)
+        // Room-role furniture rides every routine reading: the catalog names which definitions the planners
+        // furnish rooms from.
+        var roleRows = catalog.RoomRoleRows();
+        p = p with { Shapes = catalog.PieceShapes(), Stations = catalog.StationCatalog() };
+        var names = definitions.Concat(roleRows).Concat(p.Shapes.Furniture.Definitions());
+        p = p with { Definitions = FrameDefinitionFacts(frame, catalog).AppendDefinitions([.. p.Definitions], names) };
+        p = p with
         {
-            // Room-role furniture rides every routine reading: the catalog names which definitions the planners
-            // furnish rooms from.
-            var roleRows = catalog.RoomRoleRows();
-            p = p with { Shapes = catalog.PieceShapes(), Stations = catalog.StationCatalog() };
-            var names = definitions.Concat(roleRows).Concat(p.Shapes.Furniture.Definitions());
-            p = p with { Definitions = FrameDefinitionFacts(frame, catalog).AppendDefinitions([.. p.Definitions], names) };
-            p = p with
+            Facts = p.Facts with { Items = catalog.ItemFacts() },
+        };
+        p = p with
+        {
+            Facts = p.Facts with
             {
-                Facts = p.Facts with { Items = catalog.ItemFacts() },
-            };
-            p = p with
-            {
-                Facts = p.Facts with
-                {
-                    MedicalReserve = p.Facts.MedicalReserve with { Catalog = p.Facts.Items },
-                    Recipes = catalog.RecipeFacts(),
-                    CapacityPenalties = catalog.CapacityPenalties(),
-                    ThreatTable = catalog.ThreatSchedule(),
-                    HarmCatalog = new() { Raid = catalog.RaidFactions(), Coverage = catalog.BodyCoverage(), Natural = catalog.NaturalArmor() },
-                    MoodBreak = p.Stations.Mood.Break,
-                    Crafts = frame.Research is { } research ? catalog.CraftRecipes(new HashSet<string>(research.Finished, StringComparer.Ordinal)) : default,
-                },
-            };
-        }
+                MedicalReserve = p.Facts.MedicalReserve with { Catalog = p.Facts.Items },
+                Recipes = catalog.RecipeFacts(),
+                CapacityPenalties = catalog.CapacityPenalties(),
+                ThreatTable = catalog.ThreatSchedule(),
+                HarmCatalog = new() { Raid = catalog.RaidFactions(), Coverage = catalog.BodyCoverage(), Natural = catalog.NaturalArmor() },
+                MoodBreak = p.Stations.Mood.Break,
+                Crafts = frame.Research is { } research ? catalog.CraftRecipes(new HashSet<string>(research.Finished, StringComparer.Ordinal)) : default,
+            },
+        };
         p = p with { Facts = p.Facts with { Containment = RoundsContainmentReads.ContainmentPlanningOf(frame, catalog, p.Definitions) } };
         if (p.Facts.Sleeping.TryGetValue(out var sleeping))
         {
@@ -184,7 +181,7 @@ public static class RoundsReads
         };
         if (pawns is not null)
         {
-            var (armed, unarmed) = RoundsMoodReads.RoundsArmed(colony, emergency, pawns, ColonyDecodeReads.RequireCatalog(catalog).CreepJoinerDownsides());
+            var (armed, unarmed) = RoundsMoodReads.RoundsArmed(colony, emergency, pawns, catalog.CreepJoinerDownsides());
             p = p with
             {
                 Facts = p.Facts with
@@ -193,14 +190,14 @@ public static class RoundsReads
                     Unarmed = unarmed,
                     DefenseCapacity = DefenseCapacityPolicy.DefenseCapacity(RoundsMoodReads.RoundsDefenders(colony, emergency, pawns), p.DefenseTurrets),
                 },
-                MechCatalog = catalog?.Biotech?.MechCatalog() ?? new(),
+                MechCatalog = catalog.Biotech?.MechCatalog() ?? new(),
                 WorkPawns = RoundsWorkReads.RoundsWork(colony, emergency, pawns, catalog, frame.Tables.Things),
                 Rest = RoundsWorkReads.RoundsRest(pawns),
                 MeditateAvailable = ColonyDecodeReads.Optional(pawns.MeditateAssignmentAvailable is not null, pawns.MeditateAssignmentAvailable.GetValueOrDefault()),
             };
-            p = p with { Facts = p.Facts with { MedicalPawns = RoundsContainmentReads.RoundsMedical(colony, emergency, pawns, ColonyDecodeReads.RequireCatalog(catalog)) } };
+            p = p with { Facts = p.Facts with { MedicalPawns = RoundsContainmentReads.RoundsMedical(colony, emergency, pawns, catalog) } };
             p = p with { Facts = p.Facts with { MoodPawns = RoundsMoodReads.RoundsMood(colony, emergency, pawns) } };
-            var thoughtFacts = catalog?.AllThoughtFacts() ?? new Dictionary<string, ThoughtFacts>();
+            var thoughtFacts = catalog.AllThoughtFacts();
             p = p with { Facts = p.Facts with { MoodLedger = RoundsMoodReads.RoundsMoodLedger(p.Facts.MoodPawns, pawns, thoughtFacts) } };
         }
         else if (emergency.ColonistsComplete.TryGetValue(out var complete) && complete && emergency.Colonists.Count == 0 && colony.ColonistCount == 0)
@@ -261,7 +258,7 @@ public static class RoundsReads
             },
         };
         p = p with { Facts = p.Facts with { RitualSites = RitualSitesReads.RitualSitesOf(frame.Buildings, p.Facts.Ideology) } };
-        var ideologyDefs = ColonyDecodeReads.RequireCatalog(catalog).IdeologyDefs();
+        var ideologyDefs = catalog.IdeologyDefs();
         p = p with
         {
             Facts = p.Facts with
@@ -274,7 +271,7 @@ public static class RoundsReads
         Fact<RoyaltyFacts> royalty;
         try
         {
-            royalty = p.RoyaltyOf(pawns, ColonyDecodeReads.RequireCatalog(catalog));
+            royalty = p.RoyaltyOf(pawns, catalog);
         }
         catch (DomainException)
         {
@@ -328,7 +325,7 @@ public static class RoundsReads
             if (roomCensus is not null)
             {
                 temperature = TemperatureRoomsReads.TemperatureRooms(roomCensus, frame.RoomCells, p.Facts.Sleeping);
-                if (temperature.TryGetValue(out var planned) && catalog is not null)
+                if (temperature.TryGetValue(out var planned))
                 {
                     planned = planned with { Dining = catalog.DiningFurniture(), Shapes = p.Shapes };
                     temperature = Known(planned);
@@ -348,7 +345,7 @@ public static class RoundsReads
             throw new ObservationStaleException();
         }
         cancellationToken.ThrowIfCancellationRequested();
-        p = ColonyGearReads.StampGearCreepjoinersOn(p, pawns, ColonyDecodeReads.RequireCatalog(catalog).CreepJoinerDownsides());
+        p = ColonyGearReads.StampGearCreepjoinersOn(p, pawns, catalog.CreepJoinerDownsides());
         p = p with { Facts = QuestReads.StampQuestGuestProtection(p.Facts) };
         p = p with { Facts = QuestReads.StampQuestRefugees(p.Facts) };
         return new RoundsReading

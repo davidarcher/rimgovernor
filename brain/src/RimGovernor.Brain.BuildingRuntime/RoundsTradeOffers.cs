@@ -109,13 +109,11 @@ public sealed partial class RoundsTradePlanner
         {
             return;
         }
-        var catalog = Native is Observation.IDefinitionSource definitions
-            ? await definitions.DefinitionCatalogAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false)
-            : null;
-        if (catalog is null)
+        if (Native is not Observation.IDefinitionSource definitions)
         {
-            throw new ControlException("recordOffers: no definition catalog");
+            throw new ControlException("recordOffers: the native source serves no definitions");
         }
+        var catalog = await definitions.DefinitionCatalogAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         var rows = new List<Pol.TradeOffer>();
         foreach (var row in sheet.Rows)
         {

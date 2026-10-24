@@ -190,7 +190,7 @@ public sealed partial class Rounder
             return new ItemFacts();
         }
         var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
-        return catalog is null ? new ItemFacts() : catalog.ItemFacts();
+        return catalog.ItemFacts();
     }
 
     /// <summary>The load's combat drugs in catalog preference order.</summary>

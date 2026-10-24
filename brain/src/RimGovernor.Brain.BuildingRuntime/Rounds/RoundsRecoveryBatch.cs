@@ -62,7 +62,7 @@ public sealed partial class HomeUpkeepReader
         }
 
         var catalog = await definitions.DefinitionCatalogAsync(identity, call).ConfigureAwait(false);
-        return (catalog ?? throw new InvalidOperationException("roof rules: no definition catalog")).RoofRules();
+        return catalog.RoofRules();
     }
 
     internal static RoofSupportGrid ColonyRoofGrid(ColonyProjection colony)

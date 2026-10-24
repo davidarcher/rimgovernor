@@ -74,23 +74,6 @@ public enum HungerCategory
     Starving = 3,
 }
 
-[JsonConverter(typeof(WireEnumConverter<PriceType>))]
-public enum PriceType
-{
-    [WireName("PRICE_TYPE_UNDEFINED")]
-    Undefined = 0,
-    [WireName("PRICE_TYPE_VERY_CHEAP")]
-    VeryCheap = 1,
-    [WireName("PRICE_TYPE_CHEAP")]
-    Cheap = 2,
-    [WireName("PRICE_TYPE_NORMAL")]
-    Normal = 3,
-    [WireName("PRICE_TYPE_EXPENSIVE")]
-    Expensive = 4,
-    [WireName("PRICE_TYPE_EXORBITANT")]
-    Exorbitant = 5,
-}
-
 [JsonConverter(typeof(WireEnumConverter<QualityCategory>))]
 public enum QualityCategory
 {

@@ -25,7 +25,7 @@ internal static class RoundsArmoryShells
         {
             return new MortarShells();
         }
-        var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false) ?? throw new InvalidOperationException("native served no definition catalog");
+        var catalog = await source.DefinitionCatalogAsync(Boundary.Identity(snapshot), ct).ConfigureAwait(false);
         return catalog.MortarShells(CombatMortarRules.MortarSafeRadius);
     }
 

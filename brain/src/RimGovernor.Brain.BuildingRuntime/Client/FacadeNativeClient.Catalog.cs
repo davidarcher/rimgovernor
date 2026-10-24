@@ -35,7 +35,8 @@ public sealed partial class FacadeNativeClient
             }
         }
 
-        await CatalogPrepareAsync(identity, cancellationToken).ConfigureAwait(false);
+        // Native prepares the load's stat table and race facts on the game thread; a refused or unavailable prepare throws.
+        _ = await Facade.ReadDefinitionCatalogAsync(new PbObservations.DefinitionCatalogRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } }, cancellationToken).ConfigureAwait(false);
         var factory = CatalogFactory ?? throw new InvalidOperationException("no definition catalog factory is installed: the game's Defs are not on the wire");
         var catalog = factory(identity);
         lock (_catalogGate)
@@ -45,21 +46,5 @@ public sealed partial class FacadeNativeClient
         }
 
         return catalog;
-    }
-
-    /// <summary>Has native prepare the load's stat table and race facts on the game thread; refuses on a failed or unavailable read.</summary>
-    private async Task CatalogPrepareAsync(PbCommon.Identity identity, CancellationToken cancellationToken)
-    {
-        var request = new PbObservations.DefinitionCatalogRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity } };
-        var reply = await Facade.ReadDefinitionCatalogAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-
-        if (reply.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
     }
 }

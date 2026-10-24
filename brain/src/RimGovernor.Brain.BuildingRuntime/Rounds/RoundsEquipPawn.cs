@@ -10,7 +10,7 @@ internal static class RoundsEquipPawn
         {
             throw new InvalidOperationException("native serves no definition catalog for the recreation foothold");
         }
-        var catalog = await source.DefinitionCatalogAsync(identity, ct).ConfigureAwait(false) ?? throw new InvalidOperationException("native serves no definition catalog for the recreation foothold");
+        var catalog = await source.DefinitionCatalogAsync(identity, ct).ConfigureAwait(false);
         var furniture = catalog.DiningFurniture();
         var joy = catalog.JoyBuildings().Select(m => m.Definition).ToList();
         return (furniture, joy);
