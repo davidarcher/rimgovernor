@@ -194,10 +194,10 @@ advice, on a derive too); `ClusterStations` groups it into rooms; `Embed` places
 groups and the power sites; `TileEmbedding` turns the embedding into the plan;
 `AdviseStations` returns the `StationAdvice` (graph, groups, embedding, comfort, matched
 rooms) that `TileStations` hands to the tiler. `CheckRoutes` proves the plan routes.
-The tiler runs, in order: field zones, link doors (`chooseLinks`), exterior doors
-(`chooseExteriors`), sealed-room joins (`joinSealed`), kept routes, vents (`chooseVents`),
-the build, the furnishing with the interior search, `PlanRoofed`, airlocks, lamps and the
-conduit routes (`routeTileConduits`). The plan holds Rooms, Links, Entrances, Owed, Trips,
+The tiler runs, in order: field zones, link doors (`chooseLinks`, required then flow),
+exterior doors (`chooseExteriors`), sealed-room joins (`joinSealed`), kept routes, vents
+(`chooseVents`), the build, the furnishing with the interior search, `PlanRoofed`, airlocks,
+lamps and the conduit routes (`routeTileConduits`). The plan holds Rooms, Links, Entrances, Owed, Trips,
 OutsideTrips, Zones, Reservations, Sites, RetiredGround, Roofed, Lamps, Conduits, Cold
 Hot and NextRoomID.
 
@@ -209,6 +209,13 @@ Hot and NextRoomID.
   persisted in `family/layout_plan`); `PlannedRoom.Door` is the room's exterior door.
   `Entrances` are the outside
   cells beside an exterior door, and `CheckRoutes` walks the open ground between them.
+  Only a room of an outdoor-facing role (`ExteriorRoles`: airlock, circulation, pen, yard,
+  storage) or a room with no link door gets an exterior door (#3745); a private room such
+  as a bedroom or kitchen is reached over its link doors. A link group that no exterior
+  door reaches gets one exterior door (`joinSealed`, before it joins a still sealed room
+  through a reached neighbour), on its cheapest room to cross (`throughRank`), sleeping rooms last, ties to the heavier
+  `Outside` trip weight, then the lowest index; a bedroom carries it only when no other
+  room of its group can.
   An exterior door opens only onto open ground (`TileOpenGround`): the free core cells
   outside every room ring that join the largest such area, where ground a pawn crosses
   but no room is sited on (a river, a marsh: walkable or the colony's own building, no
@@ -228,7 +235,9 @@ Hot and NextRoomID.
   cleanliness: a cook, a tending or operating bed, a research bench). A room that
   triggers none is walked freely; a cold room is never crossed; any other is not walked
   through unless the plan marks it `Through`, which the tiler does only when no link
-  door can be dropped (`MayBeThrough`). A sealed room is joined through the neighbour
+  door can be dropped (`MayBeThrough`). A link door is dropped only when its two rooms stay
+  joined over the other link doors (exterior doors do not count), so no room loses its last
+  link door. A sealed room is joined through the neighbour
   triggering the fewest mechanisms (`throughRank`). `CheckRoutes` also demands every
   tiled room be reachable from an entrance without crossing a closed room. A room with no
   `Crossing` (a room a plan holds without a station
@@ -237,9 +246,13 @@ Hot and NextRoomID.
   `LayoutPlan.Trips` and scoring walks them (`tripWalk`); a plan without trips keeps the
   `routeTrips` role-pair table. A group's area
   counts the exterior door and one door threshold per required link
-  (`RoomGroup.AddRequiredDoors`); other link doors open, after the exterior and
-  sealed-room doors, only where the placer still furnishes both rooms (a room it
-  cannot furnish stands bare: `TileResult.Unfit`). The tiled plan's `Owed` lists one
+  (`RoomGroup.AddRequiredDoors`); flow link doors open only where the placer still
+  furnishes both rooms. A room the placer cannot furnish behind its final doors is never
+  built bare: it is dropped (`dropped`/`tile_unfit`, naming the group and the placer's
+  refusal) and the other rooms are tiled again without it; its group stays in `Owed`, so
+  the next replan tries it again. A standing room is already built and stays pinned
+  (`unsatisfied`/`tile_unfit`, the refusal noted). An unfenced room has no door and is
+  not furnished. The tiled plan's `Owed` lists one
   room role per station group, and the hard tier's Missing term counts a room per
   entry instead of per role (empty keeps `coreBaseRooms`).
   **Interior search (#2869).** When `TileInput.Graph` is set, `furnish` improves each

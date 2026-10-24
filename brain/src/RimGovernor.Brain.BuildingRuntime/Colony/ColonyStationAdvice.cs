@@ -359,8 +359,14 @@ internal static class StationAdviceLog
         // The tiled plan's vents and why a room has none.
         var vents = new List<Dictionary<string, object?>>();
         var ventIssues = new List<Dictionary<string, object?>>();
+        var dropped = new List<Dictionary<string, object?>>();
         if (a.Tiled is not null)
         {
+            // The rooms the tiler left out because the placer could not furnish them (#3745); their groups stay owed.
+            foreach (var d in a.Tiled.Decisions.Where(d => d.Verdict == LayoutTileRules.TileDropped))
+            {
+                dropped.Add(new Dictionary<string, object?> { ["group"] = d.Group, ["verdict"] = d.Verdict, ["reason"] = d.Reason, ["why"] = d.Why });
+            }
             foreach (var v in a.Tiled.Plan.LiveSites(LayoutTileVentRules.NodeVent))
             {
                 vents.Add(new Dictionary<string, object?> { ["x"] = v.Origin.X, ["z"] = v.Origin.Z, ["rotation"] = v.Rotation is { } ventRotation ? Wire.Name(ventRotation) : "", ["reason"] = v.Reason });
@@ -396,6 +402,7 @@ internal static class StationAdviceLog
             ["site_issues"] = siteIssues,
             ["vents"] = vents,
             ["vent_issues"] = ventIssues,
+            ["dropped"] = dropped,
             ["comfort"] = comfort,
             ["embed"] = new Dictionary<string, object?>
             {

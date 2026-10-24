@@ -76,7 +76,7 @@ public sealed class FirstRoomPlanTests
         // the barracks' three beds and whatever shares its room. (The yard, which holds none, is no room to furnish.)
         var tiled = Assert.IsType<TileResult>(advice.Tiled);
         var furnished = advice.Clustering.Groups.Where(g => g.Stations.Count > 0).ToList();
-        Assert.DoesNotContain(tiled.Unfit(), furnished.Select(g => g.Id).Contains);
+        Assert.DoesNotContain(tiled.Decisions, d => d.Reason == LayoutTileRules.ReasonTileUnfit && furnished.Any(g => g.Id == d.Group));
         Assert.All(furnished, g => Assert.Equal(g.Stations.Sum(s => s.Count), tiled.Pieces[tiled.Rooms[g.Id]].Count));
         Assert.Equal(3, plan.Pieces[barracks.Id].Count(p => p.Def == "Bed"));
     }

@@ -44,7 +44,7 @@ public sealed record TileInput
 /// second group of a link decision, -1 otherwise. Field names the field of a field decision (Group is -1 then). DoorW
 /// and AirlockW are an airlock decision's priced options: the plain door's and the airlock's total sustained watts
 /// (operating plus build). DarkW and LampW are a lamp decision's priced options in sustained watts. Move is a kept
-/// interior search move (SearchMove.Reason).
+/// interior search move (SearchMove.Reason). Why is a dropped room's cause: the placer's refusal.
 /// </summary>
 public sealed record TileDecision
 {
@@ -52,6 +52,7 @@ public sealed record TileDecision
     public string Verdict { get; init; } = "";
     public string Reason { get; init; } = "";
     public string Move { get; init; } = "";
+    public string Why { get; init; } = "";
 }
 
 /// <summary>
@@ -76,9 +77,6 @@ public sealed class TileResult
 
     /// <summary>The lamp cells of each lit room by room id.</summary>
     public Dictionary<int, List<PlannedLamp>> Lamps { get; } = [];
-
-    /// <summary>The groups whose room the placer could not furnish.</summary>
-    public List<int> Unfit() => [.. Decisions.Where(d => d.Reason == LayoutTileRules.ReasonTileNoFit).Select(d => d.Group)];
 }
 
 /// <summary>ErrTile: an embedding that cannot be tiled into a valid plan. Partial is the result as far as the tiling got.</summary>
@@ -107,12 +105,15 @@ internal readonly record struct TileRoom(int Group, Rectangle Rect);
 /// freezer); a group whose role no planned room carries stops the tiler with TileRoleException. The embedding's
 /// rectangles are the rooms; walls are the ring around them, shared where two blocks stand a wall apart. A door joins
 /// two blocks that share a wall when the groups have a required link, and for the heaviest flows otherwise as a
-/// maximum spanning forest over the adjacent linked pairs, so no loop of doors opens shortcuts. Every room gets one
-/// door onto open ground when its wall has a cell whose outside neighbour is free, buildable and joined to the map's
-/// largest free area. A room that costs something to cross is never a thoroughfare: CheckRoutes finds a violation and
-/// the tiler drops the crossed room's lightest link door that leaves every room joined to an exterior door, required
-/// links last; when none can go, a room that MayBeThrough is marked Through. After the routes are kept, vents are
-/// placed where the climate model prices them under holding the doors alone.
+/// maximum spanning forest over the adjacent linked pairs, so no loop of doors opens shortcuts. A room of an
+/// outdoor-facing role (ExteriorRoles) or with no link door gets one door onto open ground when its wall has a cell
+/// whose outside neighbour is free, buildable and joined to the map's largest free area; a private room keeps its link
+/// doors instead. A link group no exterior door reaches gets one, on its cheapest room to cross,
+/// sleeping rooms last (OpenSealedGroup); a room still sealed is joined by a link door to a reached neighbour. A room that costs something to cross is never a thoroughfare: CheckRoutes finds a violation and the
+/// tiler drops the crossed room's lightest link door whose rooms stay joined over the other link doors, required links
+/// last; when none can go, a room that MayBeThrough is marked Through. After the routes are kept, vents are placed
+/// where the climate model prices them under holding the doors alone. A room the placer cannot furnish behind its
+/// doors is dropped (ReasonTileUnfit) and the rest tiled again; its group stays owed. A standing room is kept.
 /// </summary>
 public static partial class LayoutTileRules
 {
@@ -122,6 +123,9 @@ public static partial class LayoutTileRules
     /// <summary>Verdict of a tiling decision: the thing cannot be satisfied.</summary>
     public const string TileUnsatisfied = "unsatisfied";
 
+    /// <summary>Verdict of a tiling decision: the room is left out of the plan.</summary>
+    public const string TileDropped = "dropped";
+
     public const string ReasonTileRoom = "tile_room";
     public const string ReasonTileRoomBuilt = "tile_room_built";
     public const string ReasonTileRoomMoved = "tile_room_successor";
@@ -130,7 +134,7 @@ public static partial class LayoutTileRules
     public const string ReasonTileSealedRoom = "tile_sealed_room";
     public const string ReasonTileLinkDropped = "tile_link_dropped_thoroughfare";
     public const string ReasonTileWallStation = "tile_wall_station_not_set";
-    public const string ReasonTileNoFit = "tile_no_fit";
+    public const string ReasonTileUnfit = "tile_unfit";
     public const string ReasonTileRoutes = "tile_routes";
     public const string ReasonTileNoLink = "tile_required_link_not_adjacent";
     public const string ReasonTilePassThrough = "tile_pass_through";
@@ -143,6 +147,16 @@ public static partial class LayoutTileRules
     public const string ReasonTileAirlockNoGround = "tile_airlock_no_ground";
     public const string ReasonTileAirlockUnpriced = "tile_airlock_unpriced";
     public const string ReasonTileAirlockTemperate = "tile_airlock_temperate";
+
+    /// <summary>The roles whose room needs a door to the outside of its own (#3745): every other room has one only when it has no link door.</summary>
+    internal static readonly IReadOnlySet<PlannedRole> ExteriorRoles = new HashSet<PlannedRole>
+    {
+        PlannedRole.Airlock,
+        PlannedRole.Circulation,
+        PlannedRole.Pen,
+        PlannedRole.Yard,
+        PlannedRole.Storage,
+    };
 
     /// <summary>Whether the group's room is kept cold: it needs cold or holds a cooler or cold storage.</summary>
     internal static bool GroupCold(RoomGroup g) =>
@@ -168,21 +182,34 @@ public static partial class LayoutTileRules
     /// <summary>
     /// Tiles the embedding into a plan. Groups the embedding could not place are left out (the embedding reports
     /// them). A room that cannot be reached throws a TileException carrying the partial result. A room the placer
-    /// cannot furnish stands bare with a TileUnsatisfied decision (TileResult.Unfit).
+    /// cannot furnish behind its doors is never built bare: it is dropped with a TileDropped/ReasonTileUnfit decision
+    /// naming its group and the placer's refusal, and the other rooms are tiled again without it. Its group stays in
+    /// the plan's Owed, so the next replan tries it again. A standing room stays where it stands, with a
+    /// TileUnsatisfied/ReasonTileUnfit decision instead.
     /// </summary>
     public static TileResult TileEmbedding(TileInput input)
     {
-        var t = new Tiler(input);
-        try
+        var dropped = new List<TileDecision>();
+        while (true)
         {
-            t.Run();
+            var t = new Tiler(input) { Dropped = [.. dropped.Select(d => d.Group)] };
+            try
+            {
+                t.Run();
+            }
+            catch (TileException e)
+            {
+                t.Out.Decisions.InsertRange(0, dropped);
+                e.Partial ??= t.Out;
+                throw;
+            }
+            if (t.Unfit.Count == 0)
+            {
+                t.Out.Decisions.InsertRange(0, dropped);
+                return t.Out;
+            }
+            dropped.AddRange(t.Unfit.Select(u => new TileDecision { Group = u.Group, Verdict = TileDropped, Reason = ReasonTileUnfit, Why = u.Why }));
         }
-        catch (TileException e)
-        {
-            e.Partial ??= t.Out;
-            throw;
-        }
-        return t.Out;
     }
 
     /// <summary>
@@ -304,11 +331,17 @@ internal sealed partial class Tiler(TileInput input)
     internal LayoutPlan Plan { get; set; } = new();
     internal TileResult Out { get; } = new();
 
+    /// <summary>The groups an earlier pass found unfit: their blocks are left out of this one.</summary>
+    internal HashSet<int> Dropped { get; init; } = [];
+
+    /// <summary>The groups whose room the placer could not furnish behind its doors in this pass, with the placer's refusal.</summary>
+    internal List<(int Group, string Why)> Unfit { get; } = [];
+
     internal void Run()
     {
         var scorer = new PlanScorer(In.Zones, In.Reservations, In.Survey);
         var index = new Dictionary<int, int>();
-        var blocks = In.Blocks.ToList();
+        var blocks = In.Blocks.Where(b => !Dropped.Contains(b.Group)).ToList();
         var placed = LayoutTrainingNodesRules.PlacedBlocks(In.Groups, blocks);
         blocks = [.. blocks.OrderBy(b => b.Group)];
         Plan = new LayoutPlan { Zones = In.Zones, Reservations = In.Reservations, Sites = [.. In.Sites], NextRoomId = In.NextRoomId };
@@ -427,10 +460,12 @@ internal sealed partial class Tiler(TileInput input)
             }
         }
         Parent = [.. Enumerable.Range(0, Rooms.Count)];
+        // Every link door is chosen before the exterior doors: a room with a link door has none to the outside unless
+        // its role faces outdoors (ExteriorRoles).
         ChooseLinks(true);
+        ChooseLinks(false);
         ChooseExteriors(scorer);
         JoinSealed();
-        ChooseLinks(false);
         KeepRoutes();
         ChooseVents();
         Out.Plan = Build();
@@ -439,6 +474,10 @@ internal sealed partial class Tiler(TileInput input)
             throw new TileException("the tiled plan is not valid");
         }
         Furnish();
+        if (Unfit.Count > 0)
+        {
+            return; // TileEmbedding tiles again without them
+        }
         var roof = LayoutPlan.PlanRoofed(Out.Plan, RoofInputOf());
         Out.Plan = Out.Plan with { Roofed = roof.Roofed };
         if (PlaceAirlocks())
@@ -568,7 +607,10 @@ internal sealed partial class Tiler(TileInput input)
         return (Sleeps(k.Item1) || Sleeps(k.Item2)) && !Circulation(k.Item1) && !Circulation(k.Item2);
     }
 
-    /// <summary>Gives every room the door nearest the middle of the blocks whose outside cell is open ground.</summary>
+    /// <summary>
+    /// Gives a room of an outdoor-facing role (ExteriorRoles) or with no link door the door nearest the middle of the
+    /// blocks whose outside cell is open ground. Every other room is reached over its link doors (#3745).
+    /// </summary>
     internal void ChooseExteriors(PlanScorer scorer)
     {
         var occupied = new HashSet<Cell>();
@@ -583,72 +625,84 @@ internal sealed partial class Tiler(TileInput input)
             cx += r.Rect.X + (r.Rect.Width / 2);
             cz += r.Rect.Z + (r.Rect.Height / 2);
         }
-        var open = LayoutTileRules.TileOpenGround(scorer, occupied);
-        Free = open;
-        var centre = default(Cell);
+        Free = LayoutTileRules.TileOpenGround(scorer, occupied);
         long n = Rooms.Count;
-        if (n > 0)
-        {
-            centre = new Cell((int)(cx / n), (int)(cz / n));
-        }
+        Centre = n > 0 ? new Cell((int)(cx / n), (int)(cz / n)) : default;
         ExtDoor = [.. Enumerable.Repeat((Cell?)null, Rooms.Count)];
         ExtOut = [.. Enumerable.Repeat(default(Cell), Rooms.Count)];
         for (var i = 0; i < Rooms.Count; i++)
         {
-            var r = Rooms[i];
-            var cands = new List<(Cell Door, Cell Out)>();
-            var rc = r.Rect;
-            for (var x = rc.X; x < rc.X + rc.Width; x++)
-            {
-                cands.Add((new Cell(x, rc.Z - 1), new Cell(x, rc.Z - 2)));
-                cands.Add((new Cell(x, rc.Z + rc.Height), new Cell(x, rc.Z + rc.Height + 1)));
-            }
-            for (var z = rc.Z; z < rc.Z + rc.Height; z++)
-            {
-                cands.Add((new Cell(rc.X - 1, z), new Cell(rc.X - 2, z)));
-                cands.Add((new Cell(rc.X + rc.Width, z), new Cell(rc.X + rc.Width + 1, z)));
-            }
-            cands.RemoveAll(c => !open.Contains(c.Out));
-            cands.Sort((a, b) =>
-            {
-                var da = PlannedRules.SquaredDistance(a.Door, centre);
-                var db = PlannedRules.SquaredDistance(b.Door, centre);
-                if (da != db)
-                {
-                    return da < db ? -1 : 1;
-                }
-                return CombatManhunterRules.CellLess(a.Door, b.Door) ? -1 : CombatManhunterRules.CellLess(b.Door, a.Door) ? 1 : 0;
-            });
-            if (cands.Count == 0 || Open(i))
+            if (LinkCells(i).Count > 0 && !LayoutTileRules.ExteriorRoles.Contains(Plan.Rooms[i].Role))
             {
                 continue;
             }
+            OpenExterior(i);
+        }
+    }
 
-            // The placer is the judge of a door: each door keeps its threshold clear, so the first door, nearest the
-            // middle, that leaves the group's stations a place is taken, else the nearest. A standing room keeps the
-            // door it stands with while its outside is open (#3680): a door moved off the plan's cell unbuilds the room.
-            var pick = cands[0];
-            var links = LinkCells(i);
-            var held = Standing.Contains(i) ? cands.FindIndex(c => In.StandingDoors.Contains(c.Door)) : -1;
-            if (held >= 0)
+    /// <summary>The middle of the blocks, as ChooseExteriors found it: an exterior door is taken nearest it.</summary>
+    internal Cell Centre { get; set; }
+
+    /// <summary>
+    /// Gives room i the door nearest the middle of the blocks whose outside cell is open ground; false when its wall has
+    /// no such cell or the room is unfenced.
+    /// </summary>
+    internal bool OpenExterior(int i)
+    {
+        var r = Rooms[i];
+        var links = LinkCells(i);
+        var cands = new List<(Cell Door, Cell Out)>();
+        var rc = r.Rect;
+        for (var x = rc.X; x < rc.X + rc.Width; x++)
+        {
+            cands.Add((new Cell(x, rc.Z - 1), new Cell(x, rc.Z - 2)));
+            cands.Add((new Cell(x, rc.Z + rc.Height), new Cell(x, rc.Z + rc.Height + 1)));
+        }
+        for (var z = rc.Z; z < rc.Z + rc.Height; z++)
+        {
+            cands.Add((new Cell(rc.X - 1, z), new Cell(rc.X - 2, z)));
+            cands.Add((new Cell(rc.X + rc.Width, z), new Cell(rc.X + rc.Width + 1, z)));
+        }
+        cands.RemoveAll(c => !Free.Contains(c.Out));
+        cands.Sort((a, b) =>
+        {
+            var da = PlannedRules.SquaredDistance(a.Door, Centre);
+            var db = PlannedRules.SquaredDistance(b.Door, Centre);
+            if (da != db)
             {
-                pick = cands[held];
+                return da < db ? -1 : 1;
             }
-            else
+            return CombatManhunterRules.CellLess(a.Door, b.Door) ? -1 : CombatManhunterRules.CellLess(b.Door, a.Door) ? 1 : 0;
+        });
+        if (cands.Count == 0 || Open(i))
+        {
+            return false;
+        }
+
+        // The placer is the judge of a door: each door keeps its threshold clear, so the first door, nearest the
+        // middle, that leaves the group's stations a place is taken, else the nearest. A standing room keeps the
+        // door it stands with while its outside is open (#3680): a door moved off the plan's cell unbuilds the room.
+        var pick = cands[0];
+        var held = Standing.Contains(i) ? cands.FindIndex(c => In.StandingDoors.Contains(c.Door)) : -1;
+        if (held >= 0)
+        {
+            pick = cands[held];
+        }
+        else
+        {
+            foreach (var c in cands)
             {
-                foreach (var c in cands)
+                if (Furnishes(i, [c.Door, .. links]))
                 {
-                    if (Furnishes(i, [c.Door, .. links]))
-                    {
-                        pick = c;
-                        break;
-                    }
+                    pick = c;
+                    break;
                 }
             }
-            ExtDoor[i] = pick.Door;
-            ExtOut[i] = pick.Out;
-            Note(r.Group, -1, LayoutTileRules.TilePlace, LayoutTileRules.ReasonTileExteriorDoor);
         }
+        ExtDoor[i] = pick.Door;
+        ExtOut[i] = pick.Out;
+        Note(r.Group, -1, LayoutTileRules.TilePlace, LayoutTileRules.ReasonTileExteriorDoor);
+        return true;
     }
 
     /// <summary>The link doors of room i.</summary>
@@ -733,14 +787,23 @@ internal sealed partial class Tiler(TileInput input)
     }
 
     /// <summary>
-    /// Opens a link door from every room no exterior door reaches into an adjacent room that is reached, preferring a
-    /// neighbour a room may be walked through (ThroughRank), then the heavier flow.
+    /// Reaches every room no exterior door reaches. A link group of such rooms first gets its one exterior door
+    /// (OpenSealedGroup, #3745); a room still not reached gets a link door into an adjacent room that is reached,
+    /// preferring a neighbour a room may be walked through (ThroughRank), then the heavier flow.
     /// </summary>
     internal void JoinSealed()
     {
+        var tried = new HashSet<int>();
         while (true)
         {
             var ok = Reach();
+            var sealedGroup = Enumerable.Range(0, Rooms.Count).FirstOrDefault(i => !ok[i] && !tried.Contains(i) && LinkCells(i).Count > 0, -1);
+            if (sealedGroup >= 0)
+            {
+                tried.UnionWith(Enumerable.Range(0, Rooms.Count).Where(j => Linked(sealedGroup, j)));
+                OpenSealedGroup(sealedGroup);
+                continue;
+            }
             (int, int) best = default;
             double bestScore = 0;
             long bestThrough = -1;
@@ -801,7 +864,47 @@ internal sealed partial class Tiler(TileInput input)
         }
     }
 
-    /// <summary>Tiles until CheckRoutes accepts the plan: a pass-through room loses its lightest link door that strands no room.</summary>
+    /// <summary>
+    /// Gives the sealed link group of room i, which no exterior door reaches, its one exterior door (#3745): on the group's cheapest room to cross (ThroughRank), sleeping rooms last,
+    /// ties to the heavier Outside trip weight, then the lowest index. A bedroom carries it only when no other room of
+    /// its group can. False when no room of the group has open ground beside its wall.
+    /// </summary>
+    internal bool OpenSealedGroup(int i)
+    {
+        bool Sleeps(int j) => Plan.Rooms[j].Crossing is { Beds: > 0 };
+        var group = Enumerable.Range(0, Rooms.Count)
+            .Where(j => Linked(i, j))
+            .OrderBy(Sleeps)
+            .ThenByDescending(j => PlannedRoom.ThroughRank(Plan.Rooms[j]))
+            .ThenByDescending(j => In.Groups[Rooms[j].Group].Outside)
+            .ThenBy(j => j);
+        return group.Any(OpenExterior);
+    }
+
+    /// <summary>Whether rooms a and b are joined over the link doors alone; the exterior doors do not count (#3745).</summary>
+    internal bool Linked(int a, int b)
+    {
+        var seen = new HashSet<int> { a };
+        var queue = new List<int> { a };
+        for (var h = 0; h < queue.Count; h++)
+        {
+            foreach (var k in Links.Keys)
+            {
+                var next = k.Item1 == queue[h] ? k.Item2 : k.Item2 == queue[h] ? k.Item1 : -1;
+                if (next >= 0 && seen.Add(next))
+                {
+                    queue.Add(next);
+                }
+            }
+        }
+        return seen.Contains(b);
+    }
+
+    /// <summary>
+    /// Tiles until CheckRoutes accepts the plan: a pass-through room loses its lightest link door whose two rooms stay
+    /// joined over the other link doors, so no room is left reached only through an exterior door and no room loses its
+    /// last link door.
+    /// </summary>
     internal void KeepRoutes()
     {
         while (true)
@@ -846,7 +949,7 @@ internal sealed partial class Tiler(TileInput input)
             {
                 var cell = Links[k];
                 Links.Remove(k);
-                if (Reach().Contains(false))
+                if (!Linked(k.Item1, k.Item2))
                 {
                     Links[k] = cell;
                     continue;
@@ -966,6 +1069,10 @@ internal sealed partial class Tiler(TileInput input)
         for (var i = 0; i < Out.Plan.Rooms.Count; i++)
         {
             var room = Out.Plan.Rooms[i];
+            if (room.Unfenced())
+            {
+                continue; // no door opens into an unfenced room: the placer furnishes none, and it is never unfit
+            }
             var g = In.Groups[Rooms[i].Group];
             var doors = new List<Cell> { room.Door };
             doors.AddRange(Out.Plan.LinkCells(room.Id));
@@ -988,11 +1095,18 @@ internal sealed partial class Tiler(TileInput input)
             {
                 (pieces, moves) = LayoutTileRules.PlaceAndSearch(req);
             }
-            catch (DomainException)
+            catch (DomainException e)
             {
-                // The group's area undercounts what the placer needs: the room stands without furniture and the
-                // decision says so.
-                Note(g.Id, -1, LayoutTileRules.TileUnsatisfied, LayoutTileRules.ReasonTileNoFit);
+                // The group's area undercounts what the placer needs: the room is dropped, never built bare. A standing
+                // room is already built and stays pinned where it stands (D2 of #3738): it is kept with the refusal noted.
+                if (Standing.Contains(i))
+                {
+                    Out.Decisions.Add(new TileDecision { Group = g.Id, Verdict = LayoutTileRules.TileUnsatisfied, Reason = LayoutTileRules.ReasonTileUnfit, Why = e.Message });
+                }
+                else
+                {
+                    Unfit.Add((Rooms[i].Group, e.Message));
+                }
                 continue;
             }
             Out.Pieces[room.Id] = pieces;
