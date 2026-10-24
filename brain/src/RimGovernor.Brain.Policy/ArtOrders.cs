@@ -12,7 +12,7 @@ public sealed record ArtOrderRequest
 {
     public EquatableArray<GearBench> Benches { get; init; }
 
-    public Fact<EquatableArray<PawnProfile>> Profiles { get; init; }
+    public EquatableArray<PawnProfile> Profiles { get; init; }
 
     public long Colonists { get; init; }
 
@@ -29,17 +29,12 @@ public static class ArtOrdersRules
     /// The rooms/art Need's wanted sculpture orders. While the need is open (an inspired artist or a bedroom below
     /// target) every active sculpture bill pinned to a current artist is declared as it stands, and each artist
     /// lacking one is given the bill the art selectors choose; a need known to be gone declares nothing, so the
-    /// ledger removes the sculptures. Abstain while the artists or the need are unread.
+    /// ledger removes the sculptures. An unread need still declares the inspired artists' bills.
     /// </summary>
     public static Declared DeclareArtOrders(ArtOrderRequest r)
     {
-        if (!r.Profiles.TryGetValue(out var profiles))
-        {
-            return WorkRules.Abstaining(Cause.UnreadArtists);
-        }
-
-        var artists = ArtRules.Artists(profiles);
-        var inspired = ArtRules.InspiredArtists(profiles);
+        var artists = ArtRules.Artists(r.Profiles);
+        var inspired = ArtRules.InspiredArtists(r.Profiles);
         var owedKnown = r.RoomsOwed.TryGetValue(out var owed);
         var sculpt = owedKnown && owed;
         var open = sculpt || inspired.Count > 0;

@@ -15,7 +15,7 @@ partial class RoundsSleepingUpkeepPlanner
             return Unknown<bool>();
         }
         facts.TechTier.TryGetValue(out var tier);
-        return ArtRules.SculptureRoomsOwed(facts.Facts.Sleeping, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells));
+        return Known(ArtRules.SculptureRoomsOwed(obs!, UpgradeTargetsOf(facts, RoomQualityRules.RoomQualityTargets(obs!, traits, tier, facts.Impressiveness)), FurnitureRoomsRules.FurnitureRooms(rooms!, census, facts.Cells)));
     }
 
     /// <summary>The policy view of packed sculpture stock.</summary>
@@ -59,10 +59,6 @@ partial class RoundsSleepingUpkeepPlanner
         var native = source as FacadeNativeClient;
         var hk = facts.Facts.WealthBudget().TryGetValue(out var h);
         if (native is null || !hk || h >= 0)
-        {
-            return Unknown<long>();
-        }
-        if (!facts.Rooms.TryGetValue(out _))
         {
             return Unknown<long>();
         }

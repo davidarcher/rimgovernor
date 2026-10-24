@@ -35,22 +35,18 @@ public sealed class RoundsArtPlanner : IPurposeReporter
     internal Declared DeclareOrdersAll(GenerationSnapshot snapshot, ColonyProjection projection, IReadOnlyList<GearBench> benches, CancellationToken ct)
     {
         var sculpting = ArtOrdersRules.SculptureInProgress(benches);
+        var pawns = projection.WorkPawns.TryGetValue(out var rows) ? rows : throw new RequiredFactException("pawn rows");
+        var profiles = PawnRules.Profiles(pawns);
         var request = new ArtOrderRequest
         {
             Benches = [.. benches],
-            Demand = new ArtDemand(),
+            Demand = ArtDemand(projection, profiles),
             Colonists = projection.Facts.Colonists,
             Items = projection.Facts.Items,
             RoomsOwed = projection.Facts.SculptureRoomsOwed,
-            Profiles = Unknown<EquatableArray<PawnProfile>>(),
+            Profiles = [.. profiles],
         };
-        if (projection.WorkPawns.TryGetValue(out var pawns))
-        {
-            var profiles = PawnRules.Profiles(pawns);
-            request = request with { Profiles = Known<EquatableArray<PawnProfile>>([.. profiles]) };
-            request = request with { Demand = ArtDemand(projection, profiles) };
-        }
-        var need = RoomsFamily.ArtNeed(new RoomsFacts { Profiles = request.Profiles, SculptureRoomsOwed = request.RoomsOwed });
+        var need = RoomsFamily.ArtNeed(new RoomsFacts { Profiles = Known(request.Profiles), SculptureRoomsOwed = request.RoomsOwed });
         lock (_mu)
         {
             _sculpting = sculpting;
@@ -81,13 +77,12 @@ public sealed class RoundsArtPlanner : IPurposeReporter
 
     internal static ArtDemand ArtDemand(ColonyProjection facts, IReadOnlyList<PawnProfile> profiles)
     {
-        facts.Resources.TryGetValue(out var known);
-        IReadOnlyDictionary<Resource, long> stock = known ?? new Dictionary<Resource, long>();
-        if (!facts.Rooms.TryGetValue(out var rooms) || facts.Facts.CurrentConstruction is not { } census || !facts.Facts.Sleeping.TryGetValue(out var obs) || RoundsSleepingUpkeepPlanner.SleepingTraits(facts) is not { } traits)
-        {
-            return ArtRules.NewArtDemand(Unknown<SleepingObservation>(), new Dictionary<string, RoomTarget>(), [], stock, profiles, facts.Facts.Items);
-        }
+        var stock = facts.Resources.TryGetValue(out var known) ? known : throw new RequiredFactException("resources");
+        var rooms = facts.Rooms.TryGetValue(out var room) ? room : throw new RequiredFactException("rooms");
+        var census = facts.Facts.CurrentConstruction ?? throw new RequiredFactException("construction census");
+        var obs = facts.Facts.Sleeping.TryGetValue(out var sleeping) ? sleeping : throw new RequiredFactException("sleeping census");
+        var traits = RoundsSleepingUpkeepPlanner.SleepingTraits(facts) ?? throw new RequiredFactException("sleeping traits");
         facts.TechTier.TryGetValue(out var tier);
-        return ArtRules.NewArtDemand(facts.Facts.Sleeping, RoomQualityRules.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), FurnitureRoomsRules.FurnitureRooms(rooms, census, facts.Cells), stock, profiles, facts.Facts.Items);
+        return ArtRules.NewArtDemand(obs, RoomQualityRules.RoomQualityTargets(obs, traits, tier, facts.Impressiveness), FurnitureRoomsRules.FurnitureRooms(rooms, census, facts.Cells), stock, profiles, facts.Facts.Items);
     }
 }

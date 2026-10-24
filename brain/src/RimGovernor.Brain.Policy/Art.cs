@@ -298,8 +298,8 @@ public static class ArtRules
 
     /// <summary>Reads the art demand from the first owed sculpture room and the artists' profiles.</summary>
     public static ArtDemand NewArtDemand(
-        Fact<SleepingObservation> obs,
-        IReadOnlyDictionary<string, RoomTarget>? targets,
+        SleepingObservation obs,
+        IReadOnlyDictionary<string, RoomTarget> targets,
         IReadOnlyList<FurnitureRoom> rooms,
         IReadOnlyDictionary<Resource, long> stock,
         IEnumerable<PawnProfile> profiles,
@@ -318,12 +318,7 @@ public static class ArtRules
             Skill = skill,
             Items = items,
         };
-        if (!obs.TryGetValue(out var o) || targets is null)
-        {
-            return d;
-        }
-
-        var due = SculptureRooms(o, targets, rooms);
+        var due = SculptureRooms(obs, targets, rooms);
         if (due.Count == 0)
         {
             return d;
@@ -349,16 +344,9 @@ public static class ArtRules
         return d;
     }
 
-    /// <summary>The review's art deficit input: known true while a bedroom below target, weakest in beauty, has a free cell for a sculpture.</summary>
-    public static Fact<bool> SculptureRoomsOwed(Fact<SleepingObservation> obs, IReadOnlyDictionary<string, RoomTarget>? targets, IReadOnlyList<FurnitureRoom> rooms)
-    {
-        if (!obs.TryGetValue(out var o) || targets is null)
-        {
-            return Unknown<bool>();
-        }
-
-        return Known(SculptureRooms(o, targets, rooms).Count > 0);
-    }
+    /// <summary>The review's art deficit input: true while a bedroom below target, weakest in beauty, has a free cell for a sculpture.</summary>
+    public static bool SculptureRoomsOwed(SleepingObservation obs, IReadOnlyDictionary<string, RoomTarget> targets, IReadOnlyList<FurnitureRoom> rooms) =>
+        SculptureRooms(obs, targets, rooms).Count > 0;
 
     /// <summary>The beauty rooms (by id) with a free cell, each with its impressiveness gap.</summary>
     internal static List<SculptureRoom> SculptureRooms(SleepingObservation obs, IReadOnlyDictionary<string, RoomTarget> targets, IReadOnlyList<FurnitureRoom> rooms)

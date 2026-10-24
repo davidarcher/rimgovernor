@@ -87,28 +87,19 @@ public static partial class RitualRules
     /// Attendees are available believers of the ideoligion: a slot bound to a role precept takes that role's
     /// holders (up to the slot's maximum), a required slot with no role precept takes the most certain
     /// unassigned believer, optional unbound slots stay empty and every other believer attends as a
-    /// spectator. Whether the game accepts a pawn in a slot is its own check when the begin applies. None
-    /// without the Ideology expansion; unknown without the pawn rows, the sites or the calm reading. A held ritual whose pattern the
+    /// spectator. Whether the game accepts a pawn in a slot is its own check when the begin applies. Raises
+    /// <see cref="RequiredFactException"/> without the sites or the calm reading. A held ritual whose pattern the
     /// catalog lacks, or that names no required building, is not planned: nothing says where to hold it.
     /// </summary>
-    public static Fact<EquatableArray<RitualPlan>> PlanRituals(
-        IdeologyMode ideology, Fact<EquatableArray<WorkPawn>> pawns, Fact<EquatableArray<RitualSite>> sites, Tick tick, Fact<bool> calm)
+    public static EquatableArray<RitualPlan> PlanRituals(
+        Ideoligion ideo, EquatableArray<WorkPawn> rows, Fact<EquatableArray<RitualSite>> sites, Tick tick, Fact<bool> calm)
     {
-        if (ideology is not IdeologyMode.Installed { Primary: var ideo })
-        {
-            return Known(EquatableArray.From(new List<RitualPlan>()));
-        }
-        var pk = pawns.TryGetValue(out var rows);
-        var sk = sites.TryGetValue(out var known);
-        var ck = calm.TryGetValue(out var quiet);
-        if (!pk || !sk || !ck)
-        {
-            return Unknown<EquatableArray<RitualPlan>>();
-        }
+        var known = sites.TryGetValue(out var read) ? read : throw new RequiredFactException("ritual sites");
+        var quiet = calm.TryGetValue(out var safe) ? safe : throw new RequiredFactException("colony calm");
         var output = new List<RitualPlan>();
         if (!quiet)
         {
-            return Known(EquatableArray.From(output));
+            return EquatableArray.From(output);
         }
         var pool = new List<(PawnId Id, double Certainty)>();
         foreach (var row in rows)
@@ -219,7 +210,7 @@ public static partial class RitualRules
             }
             output.Add(plan);
         }
-        return Known(EquatableArray.From(output));
+        return EquatableArray.From(output);
     }
 
 }

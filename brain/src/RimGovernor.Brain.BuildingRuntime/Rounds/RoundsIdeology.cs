@@ -70,8 +70,7 @@ public sealed class IdeologyReader
         }
         if (_rituals)
         {
-            var plans = RitualRules.PlanRituals(projection.Facts.Ideology, projection.WorkPawns, projection.Facts.RitualSites, projection.Identity.Tick, Rounder.RoundsCalm(read, scope.World));
-            facts = facts with { Rituals = plans.TryGetValue(out var planned) ? planned : throw new RequiredFactException("ritual plans") };
+            facts = facts with { Rituals = RitualRules.PlanRituals(ideology, pawns, projection.Facts.RitualSites, projection.Identity.Tick, Rounder.RoundsCalm(read, scope.World)) };
         }
         if (_reform)
         {

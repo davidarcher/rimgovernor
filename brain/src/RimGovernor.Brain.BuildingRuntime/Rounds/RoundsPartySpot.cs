@@ -23,13 +23,13 @@ partial class RoundsBuildingPlanner
         return (retire, id) => retire ? used.Contains(RetireMethodId(PartySpotRetirePrefix, id)) : used.Contains(PartySpotPlaceMethod(id));
     }
 
-    internal static Fact<PartySpotNeed> PartySpotReview(ColonyProjection facts, Func<bool, string, bool>? spent)
+    internal static PartySpotNeed PartySpotReview(ColonyProjection facts, Func<bool, string, bool>? spent)
     {
-        var qualities = facts.Facts.Sleeping.TryGetValue(out var sleeping) ? sleeping.Rooms : Unknown<EquatableArray<UpkeepRoom>>();
+        var sleeping = facts.Facts.Sleeping.TryGetValue(out var read) ? read : throw new RequiredFactException("sleeping census");
         return PartySpotRules.ReviewPartySpot(new PartySpotInput
         {
-            Rooms = facts.Rooms,
-            Qualities = qualities,
+            Rooms = facts.Rooms.TryGetValue(out var rooms) ? rooms : throw new RequiredFactException("rooms"),
+            Qualities = sleeping.Rooms.TryGetValue(out var qualities) ? qualities : throw new RequiredFactException("room qualities"),
             Levels = facts.Impressiveness,
             Census = facts.Facts.CurrentConstruction,
             Cells = facts.Cells,
@@ -45,12 +45,7 @@ public sealed partial class Rounder
     internal static Fact<bool> PartySpotOwed(NeedOwner owner, ColonyProjection facts)
     {
         var spent = RoundsBuildingPlanner.PartySpotSpent(owner.Methods.Select(m => m.Method));
-        if (!RoundsBuildingPlanner.PartySpotReview(facts, spent).TryGetValue(out var need))
-        {
-            return Unknown<bool>();
-        }
-
-        return Known(need.Owed);
+        return Known(RoundsBuildingPlanner.PartySpotReview(facts, spent).Owed);
     }
 }
 
@@ -59,7 +54,8 @@ public sealed partial class RoundsBuildingPlanner
     /// <summary>Retires a stale party spot, or resolves the planner to place a new one; the planner is null when the step is already decided.</summary>
     internal async Task<(RoundsBuildingResult Result, RoundsBuildingPlanner? Placing)> PartySpotStepAsync(ControlState state, Rounds review, NeedOwner goal, ColonyReading reading, CancellationToken call, CancellationToken epoch)
     {
-        if (!RoundsBuildingPlanner.PartySpotReview(reading.Projection, RoundsBuildingPlanner.PartySpotSpent(goal.OpenMethods.Select(m => m.Method))).TryGetValue(out var need) || !need.Owed)
+        var need = RoundsBuildingPlanner.PartySpotReview(reading.Projection, RoundsBuildingPlanner.PartySpotSpent(goal.OpenMethods.Select(m => m.Method)));
+        if (!need.Owed)
         {
             return (new RoundsBuildingResult { Verdict = BuildingReasonNoDeficit }, null);
         }

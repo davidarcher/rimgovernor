@@ -1,14 +1,11 @@
-using RimGovernor.Brain.Domain;
-using static RimGovernor.Brain.Domain.Fact;
-
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>What the PartySpot review reads.</summary>
 public sealed record PartySpotInput
 {
-    public Fact<RoomObservation> Rooms { get; init; }
+    public required RoomObservation Rooms { get; init; }
 
-    public Fact<EquatableArray<UpkeepRoom>> Qualities { get; init; }
+    public required EquatableArray<UpkeepRoom> Qualities { get; init; }
 
     public ImpressivenessLevels Levels { get; init; } = new();
 
@@ -62,21 +59,19 @@ public static partial class PartySpotRules
     /// Decides the PartySpot step. The best shared room is the dining or rec room of the highest observed
     /// impressiveness stage, ties broken by cell count. The spot moves only to a room of a strictly higher
     /// stage than the incumbent's room, read from the observed spot; same-stage rooms never move it.
-    /// Duplicates are retired. Unknown rooms, qualities or census leave the need unknown.
+    /// Duplicates are retired. An unread construction census raises <see cref="RequiredFactException"/>.
     /// </summary>
-    public static Fact<PartySpotNeed> ReviewPartySpot(PartySpotInput input)
+    public static PartySpotNeed ReviewPartySpot(PartySpotInput input)
     {
-        if (!input.Rooms.TryGetValue(out var rooms) || !input.Qualities.TryGetValue(out var qualities)
-            || input.Census is not { } census)
-        {
-            return Unknown<PartySpotNeed>();
-        }
+        var rooms = input.Rooms;
+        var qualities = input.Qualities;
+        var census = input.Census ?? throw new RequiredFactException("construction census");
         foreach (var site in census.Sites)
         {
             if (site.Building!.Definition == PartySpotRules.PartySpotDefinition)
             {
                 // A blueprint or frame is the step in flight.
-                return Known(new PartySpotNeed());
+                return new PartySpotNeed();
             }
         }
         var quality = new Dictionary<string, RoomQuality>(StringComparer.Ordinal);
@@ -162,23 +157,23 @@ public static partial class PartySpotRules
             {
                 if (i != keep && !Spent(true, spots[i].Id))
                 {
-                    return Known(new PartySpotNeed { Retire = spots[i] });
+                    return new PartySpotNeed { Retire = spots[i] };
                 }
             }
-            return Known(new PartySpotNeed());
+            return new PartySpotNeed();
         }
         if (spots.Count == 1)
         {
             var (incumbent, scored) = StageOf(spots[0]);
             if (scored && best is not null && best.Stage > incumbent && !Spent(true, spots[0].Id))
             {
-                return Known(new PartySpotNeed { Retire = spots[0] });
+                return new PartySpotNeed { Retire = spots[0] };
             }
-            return Known(new PartySpotNeed());
+            return new PartySpotNeed();
         }
         if (!input.Placeable)
         {
-            return Known(new PartySpotNeed());
+            return new PartySpotNeed();
         }
         var need = new PartySpotNeed { Place = true };
         if (best is not null)
@@ -187,12 +182,12 @@ public static partial class PartySpotRules
         }
         else if (free.Count == 0)
         {
-            return Known(new PartySpotNeed());
+            return new PartySpotNeed();
         }
         if (Spent(false, need.Room))
         {
-            return Known(new PartySpotNeed());
+            return new PartySpotNeed();
         }
-        return Known(need);
+        return need;
     }
 }

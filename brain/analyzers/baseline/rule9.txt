@@ -70,7 +70,6 @@ BuildingRuntime/Rounds/RoundsAnomaly.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsArmory.cs|Fact|1
 BuildingRuntime/Rounds/RoundsArmoryWeapons.cs|Fact|2
 BuildingRuntime/Rounds/RoundsArt.cs|Fact|6
-BuildingRuntime/Rounds/RoundsArt.cs|Unknown|2
 BuildingRuntime/Rounds/RoundsAssignments.cs|Fact|15
 BuildingRuntime/Rounds/RoundsAssignments.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsBabyFeeding.cs|Fact|2
@@ -136,7 +135,7 @@ BuildingRuntime/Rounds/RoundsHerdRooms.cs|Fact|11
 BuildingRuntime/Rounds/RoundsHospital.cs|Fact|2
 BuildingRuntime/Rounds/RoundsHospital.cs|Unknown|2
 BuildingRuntime/Rounds/RoundsIdeoligion.cs|Fact|3
-BuildingRuntime/Rounds/RoundsIdeology.cs|Fact|2
+BuildingRuntime/Rounds/RoundsIdeology.cs|Fact|1
 BuildingRuntime/Rounds/RoundsIdeology.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsImmediate.cs|Fact|3
 BuildingRuntime/Rounds/RoundsImmediate.cs|Unknown|1
@@ -155,8 +154,7 @@ BuildingRuntime/Rounds/RoundsMedicalFamily.cs|Fact|1
 BuildingRuntime/Rounds/RoundsMedicalFamily.cs|Unknown|2
 BuildingRuntime/Rounds/RoundsMilitary.cs|Fact|4
 BuildingRuntime/Rounds/RoundsMilitary.cs|Unknown|3
-BuildingRuntime/Rounds/RoundsPartySpot.cs|Fact|6
-BuildingRuntime/Rounds/RoundsPartySpot.cs|Unknown|2
+BuildingRuntime/Rounds/RoundsPartySpot.cs|Fact|5
 BuildingRuntime/Rounds/RoundsPaste.cs|Fact|5
 BuildingRuntime/Rounds/RoundsPeople.cs|Discard|1
 BuildingRuntime/Rounds/RoundsPeople.cs|Fact|5
@@ -205,7 +203,7 @@ BuildingRuntime/RoundsSleeping.cs|Unknown|2
 BuildingRuntime/RoundsSleepingBedroom.cs|Fact|26
 BuildingRuntime/RoundsSleepingCouple.cs|Fact|5
 BuildingRuntime/RoundsSleepingSculpture.cs|Fact|14
-BuildingRuntime/RoundsSleepingSculpture.cs|Unknown|4
+BuildingRuntime/RoundsSleepingSculpture.cs|Unknown|3
 BuildingRuntime/RoundsSleepingStandIn.cs|Fact|4
 BuildingRuntime/RoundsSleepingUpgrade.cs|Fact|21
 BuildingRuntime/RoundsSleepingUpkeep.cs|Discard|1
@@ -364,9 +362,8 @@ Policy/AnomalyFamily.cs|Fact|2
 Policy/Armory.cs|Fact|1
 Policy/ArmoryShells.cs|Fact|5
 Policy/ArmoryShells.cs|Unknown|1
-Policy/Art.cs|Fact|8
-Policy/Art.cs|Unknown|1
-Policy/ArtOrders.cs|Fact|4
+Policy/Art.cs|Fact|2
+Policy/ArtOrders.cs|Fact|2
 Policy/BasicComfort.cs|Fact|4
 Policy/BasicComfort.cs|Unknown|1
 Policy/BasicDefense.cs|Fact|6
@@ -594,8 +591,7 @@ Policy/OrganHarvest.cs|Fact|22
 Policy/OrganHarvest.cs|Unknown|1
 Policy/OutdoorHazard.cs|Fact|7
 Policy/OutdoorHazard.cs|Unknown|1
-Policy/PartySpot.cs|Fact|16
-Policy/PartySpot.cs|Unknown|1
+Policy/PartySpot.cs|Fact|2
 Policy/PasteSite.cs|Fact|10
 Policy/PawnBiotech.cs|Fact|2
 Policy/PawnNames.cs|Fact|4
@@ -668,8 +664,8 @@ Policy/ResourceOrders.cs|Fact|2
 Policy/ResourceProduction.cs|Fact|4
 Policy/ResourceRunway.cs|Fact|23
 Policy/ResourceRunway.cs|Unknown|1
-Policy/Ritual.cs|Fact|16
-Policy/Ritual.cs|Unknown|2
+Policy/Ritual.cs|Fact|10
+Policy/Ritual.cs|Unknown|1
 Policy/RockStep.cs|Fact|4
 Policy/RoofSupport.cs|Fact|1
 Policy/RoomQualityBeauty.cs|Fact|6
