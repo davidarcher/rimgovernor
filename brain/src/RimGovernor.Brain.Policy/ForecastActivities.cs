@@ -103,7 +103,7 @@ public static class ForecastActivities
     /// <summary>A plan's equipment claims: each allocation's option equipment, in id order, over the allocation's service.</summary>
     public static EquatableArray<ForecastEquipmentClaim> EquipmentClaimsOf(ForecastActivityProblem problem, ForecastActivityPlan plan) =>
         EquatableArray.From(plan.Allocations.SelectMany(a => problem.Options.Single(o => o.Activity == a.Activity && o.Pawn == a.Pawn).Equipment
-            .Order(StringComparer.Ordinal).Select(e => new ForecastEquipmentClaim(e, Known(a.Start), Known(a.End)))));
+            .Order(StringComparer.Ordinal).Select(e => new ForecastEquipmentClaim(e, a.Start, a.End))));
 
     // The (task, pawn) rejections a search reports once each, by kind (#3468): flagged in the loop, named after it.
     private static readonly string[] PairRejections = ["unknown_capacity_or_cost", "unknown_equipment", "equipment_location_mismatch", "capacity_or_deadline", "equipment_occupied"];
@@ -197,7 +197,7 @@ public static class ForecastActivities
                     var location = task.EquipmentLocation.Length == 0 ? task.Location : task.EquipmentLocation;
                     foreach (var id in option.Equipment)
                     {
-                        if (!equipment.TryGetValue(id, out var e) || !e.Windows.IsKnown) { unknownEquipment = true; break; }
+                        if (!equipment.TryGetValue(id, out var e)) { unknownEquipment = true; break; }
                         mismatch |= e.Location != location;
                     }
                     if (unknownEquipment) { Reject(1, taskAt, pawn.Pawn); continue; }
@@ -215,7 +215,7 @@ public static class ForecastActivities
                         shared = [];
                         foreach (var a in assigned)
                             if (options[(a.Activity, a.Pawn)].Equipment.Intersect(option.Equipment).Any()) shared.Add(a);
-                        serviceTimes = option.Equipment.SelectMany(id => equipment[id].Windows.Value.Select(w => w.Start))
+                        serviceTimes = option.Equipment.SelectMany(id => equipment[id].Windows.Select(w => w.Start))
                             .Concat(shared.Select(a => a.End)).Append(ready).Select(t => Math.Max(t, ready)).Distinct().Order().ToArray();
                     }
                     ForecastActivityAllocation? previous = null;
@@ -330,7 +330,7 @@ public static class ForecastActivities
         foreach (var id in option.Equipment)
         {
             var inside = false;
-            foreach (var w in equipment[id].Windows.Value)
+            foreach (var w in equipment[id].Windows)
                 if (start >= w.Start && end <= w.End) { inside = true; break; }
             if (!inside) return true;
         }
@@ -468,9 +468,8 @@ public static class ForecastActivities
         foreach (var equipment in p.Equipment)
         {
             if (!Id(equipment.Id) || !Id(equipment.Location)) throw new DomainException("invalid equipment identity or location");
-            if (!equipment.Windows.TryGetValue(out var windows)) continue;
             double end = 0;
-            foreach (var window in windows)
+            foreach (var window in equipment.Windows)
             {
                 if (!double.IsFinite(window.Start) || !double.IsFinite(window.End) || window.Start < end || window.End < window.Start)
                     throw new DomainException("invalid equipment availability");

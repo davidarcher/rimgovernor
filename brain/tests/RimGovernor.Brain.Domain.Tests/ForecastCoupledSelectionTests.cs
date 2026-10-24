@@ -353,7 +353,7 @@ public sealed class ForecastCoupledSelectionTests
         };
         if (graph == "goals")
             facts = facts with { CoupledAlternatives = facts.CoupledAlternatives! with { Context = facts.CoupledAlternatives!.Context with
-                { GoalValues = [new("goals/worn-count/2", Importance.Normal, null)] } } };
+                { GoalValues = [new("goals/worn-count/2", Importance.Normal, new GoalDeadline.Open())] } } };
         if (graph == "rest") Assert.Contains(facts.CoupledAlternatives!.Context.NeedTasks, t => t.Kind == "rest" && t.Pawn == "worker");
         var (unpruned, pruned) = Both(facts);
         AssertPrunedEquivalent(unpruned, pruned);
@@ -470,7 +470,7 @@ public sealed class ForecastCoupledSelectionTests
         Assert.Contains(result.Selected.Plan.Allocations, a => a.Activity == SourceTask(facts, "plant-b"));
         Assert.Equal(2, result.Selected.Plan.Allocations.Count(a => facts.CoupledAlternatives!.Context.NeedTasks.Any(n => n.Task == a.Activity && n.Kind == "food")));
         Assert.True(result.SelectedVector.Urgent[0].Value < result.BaselineVector.Urgent[0].Value);
-        Assert.True(result.SelectedVector.Value.Ledger.LossAgainst(result.BaselineVector.Value.Ledger).Value < 0);
+        Assert.True(result.SelectedVector.Value.Ledger.LossAgainst(result.BaselineVector.Value.Ledger) < 0);
         // Unknown future meal thoughts must not veto known relief of urgent hunger.
         Assert.True(result.Baseline.Needs["pawn"].Mood!.PressureTicks.IsKnown);
     }

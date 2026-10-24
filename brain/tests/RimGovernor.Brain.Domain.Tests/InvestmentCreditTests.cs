@@ -52,7 +52,7 @@ public sealed class InvestmentCreditTests
         Assert.Equal(-250 * PerXp, xp.Value, 12);
         var medicine = Assert.Single(ledger.InvestmentContributions, c => c.Key == ProjectGraph.MedicineKey(new Resource(Medicine)));
         Assert.Equal((1d, PerMedicine), (medicine.Units, medicine.Value));
-        Assert.Equal((-250 * PerXp) + PerMedicine, ledger.Investment.Value, 12);
+        Assert.Equal((-250 * PerXp) + PerMedicine, ledger.Investment, 12);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public sealed class InvestmentCreditTests
         var saturated = Tend(Marginals, todayXp: 2000);
 
         Assert.Equal(50, saturated.InvestmentContributions.Single(c => c.Key == SkillKey).Units, 12);
-        Assert.Equal((-50 * PerXp) + PerMedicine, saturated.Investment.Value, 12);
+        Assert.Equal((-50 * PerXp) + PerMedicine, saturated.Investment, 12);
     }
 
     [Fact]
@@ -71,9 +71,9 @@ public sealed class InvestmentCreditTests
         var fresh = Tend(new Dictionary<string, double>());
         var saturated = Tend(new Dictionary<string, double>(), todayXp: 2000);
 
-        Assert.Equal(0, fresh.Investment.Value);
+        Assert.Equal(0, fresh.Investment);
         Assert.Empty(fresh.InvestmentContributions);
-        Assert.Equal(0, fresh.LossAgainst(saturated).Value);
+        Assert.Equal(0, fresh.LossAgainst(saturated));
         Assert.Equal(0, ForecastCoupledSelection.CompareConsequences(Vector(fresh), Vector(saturated)));
     }
 

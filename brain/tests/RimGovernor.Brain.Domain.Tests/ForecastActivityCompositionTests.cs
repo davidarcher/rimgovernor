@@ -185,7 +185,7 @@ public sealed class ForecastActivityCompositionTests
             Activities = graph.Activities.ToArray(), Pawns = [new("p", "bench", Known<EquatableArray<ForecastTimeWindow>>([new(0, 100)]), Known(1d)),
                 new("q", "bench", Known<EquatableArray<ForecastTimeWindow>>([new(0, 100)]), Known(1d))],
             Options = graph.Allocations.Select((a, i) => new ForecastActivityOption(a.Operation, i == 0 ? "p" : "q", Known(10d), Known(0d)) { Equipment = [a.Capacity] }).ToArray(),
-            Equipment = [new("station", "bench", Known<EquatableArray<ForecastTimeWindow>>([new(0, 100)]))],
+            Equipment = [new("station", "bench", [new(0, 100)])],
             Deadline = Known(100d), AlternativeLaborCost = Known(100d), ExpansionBudget = 4096,
         };
         var selected = Assert.IsType<ForecastActivityPlan>(ForecastActivities.CompareActivityPlans(problem).Selected);

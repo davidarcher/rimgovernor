@@ -23,7 +23,7 @@ public sealed class GoalValueTests
     {
         Activities = new() { Activities = [new("research/pawn/bench", "bench", "bench", []) { ProjectProgress = new("Smithing", 1) }] },
         Needs = NeedsFixtures.Empty with { Tick = new(tick) }, Resources = Resources(),
-        GoalValues = [new("goals/research-project/1", importance, deadline) { Research = [new("Smithing", 1.0 / 5000)] }],
+        GoalValues = [new("goals/research-project/1", importance, GoalDeadline.Of(deadline)) { Research = [new("Smithing", 1.0 / 5000)] }],
     };
 
     private static ForecastCoupledOutcome Outcome(double researchTicks) =>
@@ -32,6 +32,18 @@ public sealed class GoalValueTests
 
     private static ForecastValueResult Ledger(ForecastCoupledContext context, double researchTicks) =>
         ForecastValue.Of(Outcome(researchTicks), context, GameTime.TicksPerDay, Outcome(0));
+
+    [Fact]
+    public void AGoalWithoutADeadlineIsOpenAndOneWithADeadlineIsDueThatDay()
+    {
+        Assert.IsType<GoalDeadline.Open>(GoalDeadline.Of(null));
+        Assert.Equal(new GoalDeadline.Due(12), GoalDeadline.Of(12));
+        // An open goal keeps its whole worth however late; a due one loses worth only once its day has passed.
+        var policy = new ForecastValuePolicy();
+        Assert.Equal(policy.GoalWorthOn(Importance.Normal, new GoalDeadline.Open(), 0), policy.GoalWorthOn(Importance.Normal, new GoalDeadline.Open(), 400));
+        Assert.Equal(policy.GoalWorthOn(Importance.Normal, new GoalDeadline.Open(), 5), policy.GoalWorthOn(Importance.Normal, new GoalDeadline.Due(12), 5));
+        Assert.True(policy.GoalWorthOn(Importance.Normal, new GoalDeadline.Due(12), 40) < policy.GoalWorthOn(Importance.Normal, new GoalDeadline.Open(), 40));
+    }
 
     [Theory]
     [InlineData(Importance.Low, 0.25)]
@@ -42,10 +54,10 @@ public sealed class GoalValueTests
         var context = Context(importance);
         var research = Ledger(context, Hour);
         var idle = Ledger(context, 0);
-        Assert.Equal(-gained, research.Goals.Value, 9);
-        Assert.Equal(0, idle.Goals.Value);
+        Assert.Equal(-gained, research.Goals, 9);
+        Assert.Equal(0, idle.Goals);
         // The portfolio that spends the hour outranks idle labor by exactly the goal's value.
-        Assert.Equal(-gained, research.LossAgainst(idle).Value, 9);
+        Assert.Equal(-gained, research.LossAgainst(idle), 9);
         var contribution = Assert.Single(research.GoalContributions);
         Assert.Equal(("goals/research-project/1", 0.5, gained * 2, gained), (contribution.Goal, contribution.Progress, contribution.Worth, contribution.Value));
     }
@@ -58,7 +70,7 @@ public sealed class GoalValueTests
         ForecastConsequenceVector Vector(ForecastValueResult goals, double wellbeingLoss) => new(
             EquatableArray.From(Enumerable.Repeat(Known(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat(Known(0d), 6).ToArray()),
             Known(0d), Known(0d), 0, 0, [])
-        { Value = new(goals with { Wellbeing = Known(wellbeingLoss) }, new()) };
+        { Value = new(goals with { Wellbeing = new LedgerTerm.Priced(wellbeingLoss) }, new()) };
 
         var high = Vector(Ledger(Context(Importance.High), Hour), 0);
         var low = Vector(Ledger(Context(Importance.Low), Hour), 0);
@@ -76,14 +88,14 @@ public sealed class GoalValueTests
     {
         var policy = new ForecastValuePolicy();
         const long Day10 = 10L * GameTime.TicksPerDay;
-        Assert.Equal(8, policy.GoalWorth(Importance.High, null, Day10 * 50));
-        Assert.Equal(8, policy.GoalWorth(Importance.High, 10, Day10));
-        Assert.Equal(8, policy.GoalWorth(Importance.High, 11, Day10));
-        Assert.Equal(8 * policy.GoalDeadlineDecay, policy.GoalWorth(Importance.High, 9, Day10), 9);
-        Assert.Equal(8 * Math.Pow(policy.GoalDeadlineDecay, 3), policy.GoalWorth(Importance.High, 7, Day10), 9);
-        Assert.Equal(8 * policy.GoalDeadlineFloor, policy.GoalWorth(Importance.High, 1, 30L * GameTime.TicksPerDay), 9);
+        Assert.Equal(8, policy.GoalWorth(Importance.High, new GoalDeadline.Open(), Day10 * 50));
+        Assert.Equal(8, policy.GoalWorth(Importance.High, new GoalDeadline.Due(10), Day10));
+        Assert.Equal(8, policy.GoalWorth(Importance.High, new GoalDeadline.Due(11), Day10));
+        Assert.Equal(8 * policy.GoalDeadlineDecay, policy.GoalWorth(Importance.High, new GoalDeadline.Due(9), Day10), 9);
+        Assert.Equal(8 * Math.Pow(policy.GoalDeadlineDecay, 3), policy.GoalWorth(Importance.High, new GoalDeadline.Due(7), Day10), 9);
+        Assert.Equal(8 * policy.GoalDeadlineFloor, policy.GoalWorth(Importance.High, new GoalDeadline.Due(1), 30L * GameTime.TicksPerDay), 9);
         // The same hour of research is worth the decayed share, read from the observed tick.
-        Assert.Equal(-4 * policy.GoalDeadlineDecay, Ledger(Context(Importance.High, deadline: 9, tick: Day10), Hour).Goals.Value, 9);
+        Assert.Equal(-4 * policy.GoalDeadlineDecay, Ledger(Context(Importance.High, deadline: 9, tick: Day10), Hour).Goals, 9);
     }
 
     [Fact]
@@ -117,17 +129,17 @@ public sealed class GoalValueTests
         };
         var swap = new ForecastCommitment("gear/pawn/a", []) { OutfitChanges = [new("pawn", [duster with { ID = "stored-duster", Source = GearSource.Stored }])] };
         var other = new ForecastCommitment("gear/other/a", []) { OutfitChanges = [new("other", [duster])] };
-        var context = Context(Importance.Normal) with { GoalValues = [new("goals/worn-count/2", Importance.Normal, null) { Wearers = [new("pawn", "Duster", "", .5)] }] };
+        var context = Context(Importance.Normal) with { GoalValues = [new("goals/worn-count/2", Importance.Normal, new GoalDeadline.Open()) { Wearers = [new("pawn", "Duster", "", .5)] }] };
         var outcome = Outcome(0);
 
         Assert.Equal(0, ForecastCoupledSelection.CoupledConsequences(outcome, [crafted]).Development);
-        Assert.Equal(-1, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [crafted]).Goals.Value, 9);
-        Assert.Equal(-1, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [swap]).Goals.Value, 9);
+        Assert.Equal(-1, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [crafted]).Goals, 9);
+        Assert.Equal(-1, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [swap]).Goals, 9);
         // Once per wearer, and only the wearer the goal names; a goal on another stuff is not met by cloth.
-        Assert.Equal(-1, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [crafted, swap]).Goals.Value, 9);
-        Assert.Equal(0, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [other]).Goals.Value);
-        var devilstrand = context with { GoalValues = [new("goals/worn-count/2", Importance.Normal, null) { Wearers = [new("pawn", "Duster", "DevilstrandCloth", .5)] }] };
-        Assert.Equal(0, ForecastValue.Of(outcome, devilstrand, GameTime.TicksPerDay, Outcome(0), [crafted]).Goals.Value);
+        Assert.Equal(-1, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [crafted, swap]).Goals, 9);
+        Assert.Equal(0, ForecastValue.Of(outcome, context, GameTime.TicksPerDay, Outcome(0), [other]).Goals);
+        var devilstrand = context with { GoalValues = [new("goals/worn-count/2", Importance.Normal, new GoalDeadline.Open()) { Wearers = [new("pawn", "Duster", "DevilstrandCloth", .5)] }] };
+        Assert.Equal(0, ForecastValue.Of(outcome, devilstrand, GameTime.TicksPerDay, Outcome(0), [crafted]).Goals);
     }
 
     [Fact]
@@ -169,7 +181,7 @@ public sealed class GoalValueTests
             Tier = Known(TechTier.Camp),
         };
         var row = Assert.Single(GoalRules.ValuesOf(facts));
-        Assert.Equal(("goals/research-project/4", Importance.High, (int?)30), (row.Goal, row.Importance, row.DeadlineDay));
+        Assert.Equal(("goals/research-project/4", Importance.High, (GoalDeadline)new GoalDeadline.Due(30)), (row.Goal, row.Importance, row.Deadline));
         // Half of 800 points remain, so a point is 1/400 of the goal.
         Assert.Equal(1.0 / 400, Assert.Single(row.Research).SharePerPoint, 12);
         Assert.Empty(GoalRules.ValuesOf(facts with { Goals = [] }));

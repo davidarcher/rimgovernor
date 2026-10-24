@@ -5,9 +5,9 @@ public static partial class GoalRules
     /// <summary>A goal's importance after its theme membership's override (#3503).</summary>
     public static Importance ImportanceOf(GoalRecord goal) => goal.ImportanceOverride ?? goal.Importance;
 
-    /// <summary>A goal's deadline day: its override, else its own, else its theme's (#3503); null for none.</summary>
-    public static int? DeadlineOf(GoalRecord goal, IEnumerable<ThemeRecord> themes) =>
-        goal.DeadlineOverride ?? goal.DeadlineDay ?? themes.FirstOrDefault(t => t.Id == goal.Theme)?.DeadlineDay;
+    /// <summary>A goal's deadline: its override, else its own, else its theme's (#3503); open when none is set.</summary>
+    public static GoalDeadline DeadlineOf(GoalRecord goal, IEnumerable<ThemeRecord> themes) =>
+        GoalDeadline.Of(goal.DeadlineOverride ?? goal.DeadlineDay ?? themes.FirstOrDefault(t => t.Id == goal.Theme)?.DeadlineDay);
 
     /// <summary>
     /// The unmet goals the forecast can price progress on (#3503), in goal id order. Research: the goal's value is split

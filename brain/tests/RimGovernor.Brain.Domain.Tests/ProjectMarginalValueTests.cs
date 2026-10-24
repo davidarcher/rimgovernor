@@ -174,10 +174,10 @@ public sealed class ProjectMarginalValueTests(ITestOutputHelper output)
         var research = Ledger(Hour);
         var idle = Ledger(0);
         // One hour of the pawn's work adds exactly the project's marginal value: a gain, so a negative loss, and the ledger logs it.
-        Assert.Equal(-marginals.PerHour["research:Devilstrand"], research.Investment.Value, 12);
-        Assert.Equal(0, idle.Investment.Value);
-        Assert.True(research.Investment.Value < -context.Value.TieResolution);
-        Assert.Equal(hour * marginals.PerUnit["Devilstrand"], -research.Investment.Value, 12);
+        Assert.Equal(-marginals.PerHour["research:Devilstrand"], research.Investment, 12);
+        Assert.Equal(0, idle.Investment);
+        Assert.True(research.Investment < -context.Value.TieResolution);
+        Assert.Equal(hour * marginals.PerUnit["Devilstrand"], -research.Investment, 12);
 
         Assert.True(ForecastCoupledSelection.CompareConsequences(Vector(research, 0), Vector(idle, 0)) < 0);
         // Food that would reach zero outranks the credit whatever it is worth: the floors are read first.

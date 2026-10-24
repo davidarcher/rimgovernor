@@ -846,7 +846,7 @@ public sealed partial record ForecastCoupledSelection
         var selectedVector = bestVector.Vector;
         // The harm term and the death floor are reported unassessed, with the specific finding, when the chosen outcome could not price
         // them (#3546); a break risk no mood threshold supports leaves that floor unchecked.
-        if (!selectedVector.Value.Ledger.Harm.IsKnown)
+        if (selectedVector.Value.Ledger.Harm is LedgerTerm.Unassessed)
         {
             findings.Add("harm_capability_unassessed");
             findings.UnionWith(selectedVector.Value.Ledger.HarmFindings);
@@ -1109,7 +1109,7 @@ public sealed partial record ForecastCoupledSelection
         stage = BreakRiskStage;
         floor = a.BreakRisk.Excess.CompareTo(b.BreakRisk.Excess); if (floor != 0) return floor;
         stage = LedgerStage;
-        if (a.Vector.Value.Ledger.LossAgainst(b.Vector.Value.Ledger).TryGetValue(out var delta) && Math.Abs(delta) > a.Policy.TieResolution)
+        if (a.Vector.Value.Ledger.LossAgainst(b.Vector.Value.Ledger) is var delta && Math.Abs(delta) > a.Policy.TieResolution)
             return delta.CompareTo(0);
         var (x, y) = (a.Terms, b.Terms);
         stage = "urgent_first_care";

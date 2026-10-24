@@ -13,11 +13,11 @@ public sealed class ForecastComparatorTests
     private static ForecastConsequenceVector Vector(double? hunger = 0, double zeroExcess = 0, double breakExcess = 0, double? wellbeing = 0,
         double? breaks = 0, double development = 0, double labor = 0, bool breakAssessed = true, double deathExcess = 0)
     {
-        static Fact<double> Of(double? value) => value is { } v ? Known(v) : default;
-        var ledger = new ForecastValueResult(default, [])
+        static LedgerTerm Of(double? value) => value is { } v ? new LedgerTerm.Priced(v) : new LedgerTerm.Unassessed();
+        var ledger = new ForecastValueResult(new LedgerTerm.Unassessed(), [])
         {
-            Hunger = Of(hunger), Rest = Known(0d), FoodPoisoning = Known(0d), Thermal = default, MoodBreaks = Of(breaks), Wellbeing = Of(wellbeing),
-            Harm = Known(0d), Investment = Known(0d),
+            Hunger = Of(hunger), Rest = Of(0), FoodPoisoning = Of(0), Thermal = Of(null), MoodBreaks = Of(breaks), Wellbeing = Of(wellbeing),
+            Harm = Of(0), Investment = 0,
         };
         var value = new ForecastValueExplanation(ledger, new())
         {
@@ -25,6 +25,18 @@ public sealed class ForecastComparatorTests
         };
         return new(EquatableArray.From(Enumerable.Repeat(Known(0d), 5).ToArray()), EquatableArray.From(Enumerable.Repeat(Known(0d), 6).ToArray()),
             Known(0d), Known(0d), development, labor, []) { Value = value };
+    }
+
+    [Fact]
+    public void AnUnassessedTermIsLeftOutOfBothSidesAndAPricedOneCounts()
+    {
+        var priced = Vector(hunger: 2, wellbeing: 1).Value.Ledger;
+        var unassessed = Vector(hunger: null, wellbeing: 0.5).Value.Ledger;
+        Assert.Equal(new LedgerTerm.Priced(2), priced.Hunger);
+        Assert.IsType<LedgerTerm.Unassessed>(unassessed.Hunger);
+        // Only wellbeing is priced on both sides, so hunger's loss rewards neither.
+        Assert.Equal(0.5, priced.LossAgainst(unassessed), 9);
+        Assert.Equal(-0.5, unassessed.LossAgainst(priced), 9);
     }
 
     [Fact]
@@ -87,7 +99,7 @@ public sealed class ForecastComparatorTests
         var hidden = Vector(hunger: 1, breaks: null, wellbeing: null);
         var assessed = Vector(hunger: .5, breaks: 9, wellbeing: 9);
         Assert.True(ForecastCoupledSelection.CompareConsequences(assessed, hidden) < 0);
-        Assert.Equal(.5, hidden.Value.Ledger.LossAgainst(assessed.Value.Ledger).Value, 6);
+        Assert.Equal(.5, hidden.Value.Ledger.LossAgainst(assessed.Value.Ledger), 6);
         // Equal on what both assess: the unassessed side does not win or lose.
         Assert.Equal(0, ForecastCoupledSelection.CompareConsequences(Vector(hunger: 1, breaks: null), Vector(hunger: 1, breaks: 9)));
     }

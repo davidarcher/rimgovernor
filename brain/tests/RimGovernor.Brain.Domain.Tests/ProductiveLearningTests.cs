@@ -34,7 +34,7 @@ public sealed class ProductiveLearningTests
                 new ForecastActivityOption(t.Id, "experienced", Known(91d), Known(0d)) { Equipment = ["bench"] },
                 new ForecastActivityOption(t.Id, "developing", Known(100 / speed), Known(0d)) { Equipment = ["bench"], SkillWork = Work(speed, learning) }
             }).ToArray(),
-            Equipment = [new("bench", "stove", Known<EquatableArray<ForecastTimeWindow>>([new(0, deadline)]))],
+            Equipment = [new("bench", "stove", [new(0, deadline)])],
             Deadline = Known(deadline), AlternativeLaborCost = Known(10000d), ExpansionBudget = 4096
         };
     }
@@ -60,7 +60,7 @@ public sealed class ProductiveLearningTests
         var result = ForecastActivities.CompareActivityPlans(problem);
         Assert.NotNull(result.Selected);
         Assert.Equal(260, result.Selected!.CompletedAt);
-        Assert.Equal(260, ForecastActivities.EquipmentClaimsOf(problem, result.Selected).Max(c => c.End.Value));
+        Assert.Equal(260, ForecastActivities.EquipmentClaimsOf(problem, result.Selected).Max(c => c.End));
         Assert.Empty(ForecastActivities.CompareActivityPlans(Meals(3, learning: 0, deadline: 265)).Alternatives);
         Assert.Equal("experienced", ForecastActivities.CompareActivityPlans(Meals(1, deadline: 95)).Selected!.Allocations[0].Pawn);
     }

@@ -75,7 +75,7 @@ public sealed class ForecastClaimsTests
     }
 
     private static ForecastEquipmentCapacity Tool(string id = "tool", double start = 0) =>
-        new(id, "shop", Known<EquatableArray<ForecastTimeWindow>>([new(start, 500)]));
+        new(id, "shop", [new(start, 500)]);
     private static ForecastActivityProblem Jobs() => new()
     {
         Activities = [new("a", "shop", "shop", []), new("b", "shop", "shop", [])],
@@ -93,8 +93,8 @@ public sealed class ForecastClaimsTests
         var one = ForecastActivities.CompareActivityPlans(jobs).Selected!;
         Assert.Equal(200, one.CompletedAt);
         Assert.Equal(200, one.LaborCost);
-        var claims = ForecastActivities.EquipmentClaimsOf(jobs, one).OrderBy(c => c.Start.Value).ToArray();
-        Assert.Equal(claims[0].End.Value, claims[1].Start.Value);
+        var claims = ForecastActivities.EquipmentClaimsOf(jobs, one).OrderBy(c => c.Start).ToArray();
+        Assert.Equal(claims[0].End, claims[1].Start);
         Assert.Null(ForecastActivities.CompareActivityPlans(jobs with { Deadline = Known(150.0) }).Selected);
         var separate = jobs with
         {
@@ -129,7 +129,7 @@ public sealed class ForecastClaimsTests
         {
             Activities = [jobs.Activities[0]],
             Options = [jobs.Options[0], new("a", "two", Known(100.0), Known(0.0))],
-            Equipment = [Tool() with { Windows = default }],
+            Equipment = [],
         };
         var result = ForecastActivities.CompareActivityPlans(jobs);
         Assert.Equal("two", Assert.Single(result.Selected!.Allocations).Pawn);
@@ -140,18 +140,16 @@ public sealed class ForecastClaimsTests
     }
 
     [Fact]
-    public void EquipmentObligationsUnionOnceAndUnknownEndStaysLocal()
+    public void EquipmentObligationsUnionOnceAndLeaveOtherEquipmentWhole()
     {
-        var use = new ForecastEquipmentClaim("tool", Known(20.0), Known(100.0));
-        var result = ForecastClaims.ForecastEquipmentAvailabilityOf([Tool(), Tool("other")], [use, use, new("tool", Known(80.0), Known(150.0))]);
-        var windows = result.Single(e => e.Id == "tool").Windows.Value;
+        var use = new ForecastEquipmentClaim("tool", 20, 100);
+        var result = ForecastClaims.ForecastEquipmentAvailabilityOf([Tool(), Tool("other")], [use, use, new("tool", 80, 150)]);
+        var windows = result.Single(e => e.Id == "tool").Windows;
         Assert.Equal(2, windows.Count);
         Assert.Equal(20, windows[0].End);
         Assert.Equal(150, windows[1].Start);
-        result = ForecastClaims.ForecastEquipmentAvailabilityOf(result, [use with { End = default }]);
-        Assert.False(result.Single(e => e.Id == "tool").Windows.IsKnown);
-        Assert.True(result.Single(e => e.Id == "other").Windows.IsKnown);
-        Assert.Throws<DomainException>(() => ForecastClaims.ForecastEquipmentAvailabilityOf([Tool()], [use with { End = Known(1.0) }]));
+        Assert.Equal([new ForecastTimeWindow(0, 500)], result.Single(e => e.Id == "other").Windows);
+        Assert.Throws<DomainException>(() => ForecastClaims.ForecastEquipmentAvailabilityOf([Tool()], [use with { End = 1 }]));
     }
 
     [Fact]

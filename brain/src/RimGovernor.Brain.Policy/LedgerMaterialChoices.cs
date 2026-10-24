@@ -56,8 +56,9 @@ public static class LedgerMaterialChoicesRules
                 if (spec.Requirements is not null && requirement is null)
                 { findings.Add("requirement_variant_unavailable:" + id); return; }
                 variants.Add(id, placement with { Spec = narrowed });
-                // This live slice maximizes funded declared batches. It does not invent material prices or colony utility.
-                options.Add(new(demand, id, valuation is null ? Known(spec.Requirements is null ? 1.0 : 0.0) : default, cost)
+                // This live slice maximizes funded declared batches. It does not invent material prices or colony utility;
+                // a supplied valuation prices the plan in place of this value.
+                options.Add(new(demand, id, spec.Requirements is null ? 1.0 : 0.0, cost)
                     { Estimate = valuation?.ByOrderKey.GetValueOrDefault(narrowed.Key()), Requirements = requirement?.Assessment });
             }
             Generate(0, new(StringComparer.Ordinal));

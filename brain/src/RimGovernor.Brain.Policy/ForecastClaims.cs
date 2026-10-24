@@ -4,8 +4,9 @@ namespace RimGovernor.Brain.Policy;
 public sealed record ForecastMaterialClaim(Resource Resource, Fact<double> Units, Fact<string> ReservationBill);
 
 /// <summary>Exclusive equipment at one service location. Windows exclude external/native occupancy.</summary>
-public sealed record ForecastEquipmentCapacity(string Id, string Location, Fact<EquatableArray<ForecastTimeWindow>> Windows);
-public sealed record ForecastEquipmentClaim(string Equipment, Fact<double> Start, Fact<double> End);
+public sealed record ForecastEquipmentCapacity(string Id, string Location, EquatableArray<ForecastTimeWindow> Windows);
+/// <summary>One scheduled use of the equipment over [Start, End] ticks.</summary>
+public sealed record ForecastEquipmentClaim(string Equipment, double Start, double End);
 
 public static class ForecastClaims
 {
@@ -104,9 +105,8 @@ public static class ForecastClaims
         {
             if (string.IsNullOrWhiteSpace(item.Id) || string.IsNullOrWhiteSpace(item.Location) || !rows.TryAdd(item.Id, item))
                 throw new DomainException("invalid or duplicate equipment capacity");
-            if (!item.Windows.TryGetValue(out var windows)) continue;
             double end = 0;
-            foreach (var window in windows)
+            foreach (var window in item.Windows)
             {
                 if (!double.IsFinite(window.Start) || !double.IsFinite(window.End) || window.Start < end || window.End < window.Start)
                     throw new DomainException("invalid equipment availability");
@@ -116,21 +116,17 @@ public static class ForecastClaims
         foreach (var claim in claims)
         {
             if (string.IsNullOrWhiteSpace(claim.Equipment)) throw new DomainException("invalid equipment claim identity");
-            if (claim.Start.TryGetValue(out var start) && (!double.IsFinite(start) || start < 0)
-                || claim.End.TryGetValue(out var end) && (!double.IsFinite(end) || end < 0)
-                || claim.Start.IsKnown && claim.End.IsKnown && claim.End.Value < claim.Start.Value)
+            if (!double.IsFinite(claim.Start) || claim.Start < 0 || !double.IsFinite(claim.End) || claim.End < claim.Start)
                 throw new DomainException("invalid equipment claim interval");
-            if (!rows.TryGetValue(claim.Equipment, out var row)) continue;
-            if (!claim.Start.IsKnown || !claim.End.IsKnown) { rows[row.Id] = row with { Windows = default }; continue; }
-            if (!row.Windows.TryGetValue(out var windows) || claim.Start.Value == claim.End.Value) continue;
+            if (!rows.TryGetValue(claim.Equipment, out var row) || claim.Start == claim.End) continue;
             var remaining = new List<ForecastTimeWindow>();
-            foreach (var window in windows)
+            foreach (var window in row.Windows)
             {
-                if (claim.End.Value <= window.Start || claim.Start.Value >= window.End) { remaining.Add(window); continue; }
-                if (window.Start < claim.Start.Value) remaining.Add(window with { End = claim.Start.Value });
-                if (claim.End.Value < window.End) remaining.Add(window with { Start = claim.End.Value });
+                if (claim.End <= window.Start || claim.Start >= window.End) { remaining.Add(window); continue; }
+                if (window.Start < claim.Start) remaining.Add(window with { End = claim.Start });
+                if (claim.End < window.End) remaining.Add(window with { Start = claim.End });
             }
-            rows[row.Id] = row with { Windows = Known(EquatableArray.From(remaining)) };
+            rows[row.Id] = row with { Windows = EquatableArray.From(remaining) };
         }
         return rows.Values.OrderBy(e => e.Id, StringComparer.Ordinal).ToArray();
     }

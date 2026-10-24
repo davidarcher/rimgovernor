@@ -435,7 +435,7 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
         }
 
         var gameDay = ((double)context.Needs.Tick.Value / GameTime.TicksPerDay) + day;
-        return context.Value.GoalWorthOn(goal.Importance, goal.DeadlineDay, gameDay) * (horizonDays - day) / horizonDays;
+        return context.Value.GoalWorthOn(goal.Importance, goal.Deadline, gameDay) * (horizonDays - day) / horizonDays;
     }
 
     /// <summary>

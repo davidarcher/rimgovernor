@@ -12,10 +12,10 @@ public sealed class MaterialValueTests
     private static Fact<IReadOnlyDictionary<Resource, Fact<double>>> Stock => Known<IReadOnlyDictionary<Resource, Fact<double>>>(
         new Dictionary<Resource, Fact<double>> { [Metal] = Known(10.0), [Wood] = Known(10.0) });
     private static ForecastMaterialValuation Values(double urgent = 20, double workRate = 0.1) => new(
-        new Dictionary<string, ForecastNeedValue> { ["urgent"] = new(Known(1.0), Known(urgent)), ["beauty"] = new(Known(10.0), Known(1.0)) },
-        new Dictionary<Resource, Fact<double>> { [Metal] = Known(0.1), [Wood] = Known(0.1) }, Known(workRate));
+        new Dictionary<string, ForecastNeedValue> { ["urgent"] = new(1, urgent), ["beauty"] = new(10, 1) },
+        new Dictionary<Resource, double> { [Metal] = 0.1, [Wood] = 0.1 }, workRate);
     private static ForecastMaterialOption Option(string demand, string id, string need, double units, Resource material, long count, double work = 1) =>
-        new(demand, id, default, [new(material, count)]) { Estimate = new([new(need, Known(units))], Known(work)) };
+        new(demand, id, 0, [new(material, count)]) { Estimate = new([new(need, units)], work) };
 
     [Fact]
     public void UrgentNeedBeatsTwoOptionalJobsAndChangesWhenTheNeedIsSatisfied()
@@ -28,7 +28,7 @@ public sealed class MaterialValueTests
         Assert.Equal(new ForecastMaterialValue(20, 1, 0.1), urgentValue);
         Assert.Equal(18.9, urgentValue!.Net, 8);
         var satisfied = Values() with { Needs = new Dictionary<string, ForecastNeedValue> {
-            ["urgent"] = new(Known(0.0), Known(20.0)), ["beauty"] = new(Known(10.0), Known(1.0)) } };
+            ["urgent"] = new(0, 20), ["beauty"] = new(10, 1) } };
         Assert.Equal(2, ForecastMaterialChoices.CompareMaterialPlans(options, Stock, valuation: satisfied).Selected.Count);
         Assert.Equal(urgent.Selected, ForecastMaterialChoices.CompareMaterialPlans(options.Reverse(), Stock, valuation: Values()).Selected);
     }
@@ -49,10 +49,10 @@ public sealed class MaterialValueTests
     {
         var cheap = Option("art", "wood", "beauty", 4, Wood, 5);
         var better = Option("art", "metal", "beauty", 8, Metal, 5);
-        var expensive = Values() with { MaterialUtilityPerUnit = new Dictionary<Resource, Fact<double>> { [Metal] = Known(1.0), [Wood] = Known(0.1) } };
+        var expensive = Values() with { MaterialUtilityPerUnit = new Dictionary<Resource, double> { [Metal] = 1, [Wood] = 0.1 } };
         Assert.Equal("wood", Assert.Single(ForecastMaterialChoices.CompareMaterialPlans([cheap, better], Stock, valuation: expensive).Selected).Id);
         Assert.Equal("metal", Assert.Single(ForecastMaterialChoices.CompareMaterialPlans([cheap, better], Stock, valuation: Values()).Selected).Id);
-        var slow = better with { Estimate = better.Estimate! with { WorkTicks = Known(100.0) } };
+        var slow = better with { Estimate = better.Estimate! with { WorkTicks = 100 } };
         Assert.Equal("wood", Assert.Single(ForecastMaterialChoices.CompareMaterialPlans([cheap, slow], Stock, valuation: Values()).Selected).Id);
     }
 
@@ -66,15 +66,13 @@ public sealed class MaterialValueTests
     }
 
     [Fact]
-    public void UnknownCostsAndEffectsCannotFallBackToLegacyValue()
+    public void UnestimatedBatchesUnpricedMaterialsAndUnvaluedNeedsCannotFallBackToLegacyValue()
     {
-        var option = Option("job", "job", "urgent", 1, Metal, 1) with { Value = Known(999.0) };
+        var option = Option("job", "job", "urgent", 1, Metal, 1) with { Value = 999 };
         var missing = new[] {
-            (option with { Estimate = null }, Values(), "unknown_estimate:"),
-            (option with { Estimate = option.Estimate! with { WorkTicks = default } }, Values(), "unknown_work:"),
-            (option, Values() with { WorkUtilityPerTick = default }, "unknown_work_value"),
-            (option, Values() with { MaterialUtilityPerUnit = new Dictionary<Resource, Fact<double>>() }, "unknown_material_value:"),
-            (option, Values() with { Needs = new Dictionary<string, ForecastNeedValue>() }, "unknown_need:") };
+            (option with { Estimate = null }, Values(), "unestimated_batch:"),
+            (option, Values() with { MaterialUtilityPerUnit = new Dictionary<Resource, double>() }, "material_unpriced:"),
+            (option, Values() with { Needs = new Dictionary<string, ForecastNeedValue>() }, "need_unvalued:") };
         foreach (var (candidate, values, reason) in missing)
         {
             var result = ForecastMaterialChoices.CompareMaterialPlans([candidate], Stock, valuation: values);
@@ -107,9 +105,9 @@ public sealed class MaterialValueTests
             new("Machine", [[new(Metal, 10)]], false) { Products = [], WorkAmount = 0 }]), Stock);
         string Key(LedgerPlacement p, Resource r) => (p.Spec with { Ingredients = [r.Value] }).Key();
         var estimates = new Dictionary<string, ForecastProductionEstimate> {
-            [Key(art, Metal)] = new([new("beauty", Known(8.0))], Known(1.0)),
-            [Key(art, Wood)] = new([new("beauty", Known(4.0))], Known(1.0)),
-            [Key(machine, Metal)] = new([new("urgent", Known(1.0))], Known(1.0)) };
+            [Key(art, Metal)] = new([new("beauty", 8)], 1),
+            [Key(art, Wood)] = new([new("beauty", 4)], 1),
+            [Key(machine, Metal)] = new([new("urgent", 1)], 1) };
         var valuation = new ForecastProductionValuation(Values(), estimates);
         Assert.Equal(Metal.Value, Assert.Single(LedgerMaterialChoicesRules.SelectLedgerMaterials([art], view, valuation: valuation).Selected).Spec.Ingredients[0]);
         var together = LedgerMaterialChoicesRules.SelectLedgerMaterials([art, machine], view, valuation: valuation);
@@ -119,6 +117,6 @@ public sealed class MaterialValueTests
         estimates.Remove(Key(art, Wood));
         var unknown = LedgerMaterialChoicesRules.SelectLedgerMaterials([art, machine], view, valuation: valuation);
         Assert.Equal("Machine", Assert.Single(unknown.Selected).Spec.Recipe);
-        Assert.Contains(unknown.Comparison.Findings, f => f.StartsWith("unknown_estimate:", StringComparison.Ordinal));
+        Assert.Contains(unknown.Comparison.Findings, f => f.StartsWith("unestimated_batch:", StringComparison.Ordinal));
     }
 }

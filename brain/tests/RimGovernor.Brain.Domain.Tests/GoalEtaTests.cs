@@ -130,7 +130,7 @@ public sealed class GoalEtaTests
         Assert.Null(GoalPaths.Of(stock, Facts(stock), input).Terminal);
 
         // Tier 2 prices nothing it has no terminal for: the flat share stands.
-        var flat = new ForecastGoalValue("goals/research-project/1", Importance.Normal, null) { Research = [new("Smithing", 0.001)] };
+        var flat = new ForecastGoalValue("goals/research-project/1", Importance.Normal, new GoalDeadline.Open()) { Research = [new("Smithing", 0.001)] };
         Assert.Equal(flat, Assert.Single(GoalRules.Priced([flat], new Dictionary<string, GoalProjection>())));
         Assert.Equal(flat, Assert.Single(GoalRules.Priced([flat], new Dictionary<string, GoalProjection> { [flat.Goal] = new() })));
 
@@ -141,7 +141,7 @@ public sealed class GoalEtaTests
     [Fact]
     public void AGoalTierTwoPricedIsPaidPerUnitOfProgressInsteadOfItsFlatShare()
     {
-        var flat = new ForecastGoalValue("goals/research-project/1", Importance.Normal, null) { Research = [new("Devilstrand", 1.0 / 600)] };
+        var flat = new ForecastGoalValue("goals/research-project/1", Importance.Normal, new GoalDeadline.Open()) { Research = [new("Devilstrand", 1.0 / 600)] };
         var projection = new GoalProjection { Priced = true, PerUnit = new Dictionary<string, double> { ["Devilstrand"] = 0.0004 } };
         var priced = Assert.Single(GoalRules.Priced([flat], new Dictionary<string, GoalProjection> { [flat.Goal] = projection }));
 
@@ -158,8 +158,8 @@ public sealed class GoalEtaTests
             context with { GoalValues = [goal] }, GameTime.TicksPerDay, new(new([], 0, 0), Known(true), new Dictionary<string, ForecastNeedsResult>(), []));
 
         // The flat share of 2,500 of 600 points caps at the whole goal's worth; the priced goal pays 2,500 points at its marginal value.
-        Assert.Equal(-2.0, Ledger(flat).Goals.Value, 9);
-        Assert.Equal(-1.0, Ledger(priced).Goals.Value, 9);
+        Assert.Equal(-2.0, Ledger(flat).Goals, 9);
+        Assert.Equal(-1.0, Ledger(priced).Goals, 9);
     }
 
     [Fact]

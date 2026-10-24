@@ -3,7 +3,7 @@ namespace RimGovernor.Brain.Policy;
 public enum ProductionNeedPriority { Maintenance = 1, Required = 2, Safety = 3 }
 public sealed record ForecastRequirementRelief(string Need, ProductionNeedPriority Priority, double Fraction);
 public sealed record ForecastRequirementAssessment(EquatableArray<ForecastRequirementRelief> Relief,
-    Fact<double> MaterialCost, Fact<double> Work);
+    double MaterialCost, double Work);
 public sealed record ProductionRequirementVariant(EquatableArray<string> Ingredients, ForecastRequirementAssessment Assessment);
 public sealed record ProductionRequirements(EquatableArray<ProductionRequirementVariant> Variants);
 public sealed record ForecastRequirementPriority(double Safety = 0, double Required = 0, double Maintenance = 0,
@@ -29,8 +29,7 @@ public static class ForecastRequirements
         foreach (var option in options)
         {
             if (option.Requirements is not { } assessment) continue;
-            if (!assessment.MaterialCost.TryGetValue(out var cost) || !assessment.Work.TryGetValue(out var effort))
-            { findings.Add("unknown_requirement_cost:" + option.Id); return null; }
+            var (cost, effort) = (assessment.MaterialCost, assessment.Work);
             if (!double.IsFinite(cost) || cost < 0 || !double.IsFinite(effort) || effort < 0)
                 throw new DomainException("invalid requirement cost");
             material += cost; work += effort;

@@ -70,7 +70,7 @@ public sealed class PlannedRoomCreditTests
         [.. ReliefNeeds.Select(need => new ForecastCommitment(need, [])
         {
             Outcome = new(need, "construction-method", need, Known(Day), default)
-            { Requirements = new([new(need, ProductionNeedPriority.Maintenance, 1.0)], default, default) },
+            { Requirements = new([new(need, ProductionNeedPriority.Maintenance, 1.0)], 0, 0) },
         })];
 
     internal static double Development(ForecastCoupledContext context) =>
@@ -164,7 +164,7 @@ public sealed class PlannedRoomCreditTests
         ForecastCommitment[] relief = [new("flooring/connector-floor", [])
         {
             Outcome = new("flooring/connector-floor", "construction-method", "flooring/connector-floor", Known(Day), default)
-            { Requirements = new([new("flooring/connector-floor", ProductionNeedPriority.Maintenance, 1.0)], default, default) },
+            { Requirements = new([new("flooring/connector-floor", ProductionNeedPriority.Maintenance, 1.0)], 0, 0) },
         }];
         return ForecastCoupledSelection.CoupledConsequences(outcome, relief, context, Day, outcome).Development;
     }

@@ -18,7 +18,7 @@ public sealed class ServiceInvestmentTests
         Assert.Equal("owner_observed_recovery", proposal.Target.Predicate);
         Assert.Equal(1000, proposal.HorizonTicks);
         Assert.Contains("pawn", proposal.Beneficiaries);
-        Assert.True(proposal.AvoidedExposure.Value > 0);
+        Assert.True(proposal.AvoidedExposure > 0);
         Assert.NotEmpty(proposal.Tasks);
         Assert.Equal(0, selection.SelectedVector.Development);
     }
@@ -86,7 +86,7 @@ public sealed class ServiceInvestmentTests
         var proposal = Assert.Single(Select(facts).ServiceInvestments);
         Assert.Equal(FoodRules.FoodSupplyNeed.FilingKey, proposal.Target.Owner);
         Assert.Equal("pawn", Assert.Single(proposal.Beneficiaries));
-        Assert.True(proposal.AvoidedExposure.Value > 0);
+        Assert.True(proposal.AvoidedExposure > 0);
         Assert.Empty(Select(ForecastCoupledSelectionTests.Review(level: 1, fall: 0)).ServiceInvestments);
     }
 

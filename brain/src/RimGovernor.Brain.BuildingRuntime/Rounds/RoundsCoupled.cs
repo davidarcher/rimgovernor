@@ -167,7 +167,7 @@ public sealed partial class Rounder
                 ["service_investments"] = selection.ServiceInvestments.Select(i => new Dictionary<string, object?>
                 { ["owner"] = i.Target.Owner.Value, ["predicate"] = i.Target.Predicate, ["horizon_ticks"] = i.HorizonTicks,
                     ["beneficiaries"] = i.Beneficiaries.ToArray(), ["tasks"] = i.Tasks.ToArray(),
-                    ["metric"] = i.Metric, ["avoided_exposure"] = Number(i.AvoidedExposure), ["retirement"] = i.Retirement }).ToArray(),
+                    ["metric"] = i.Metric, ["avoided_exposure"] = i.AvoidedExposure, ["retirement"] = i.Retirement }).ToArray(),
                 ["predicted_tasks"] = selection.Selected.Plan.Allocations.Select(a => new Dictionary<string, object?>
                 { ["task"] = a.Activity, ["pawn"] = a.Pawn, ["start"] = a.Start, ["end"] = a.End,
                     ["productive_learning"] = a.Learning is { } learning ? new Dictionary<string, object?>
@@ -234,7 +234,7 @@ public sealed partial class Rounder
         }
         static Dictionary<string, object?> ValueOf(ForecastConsequenceVector vector) => new()
         {
-            ["total"] = Number(vector.Value.Ledger.Total), ["investment"] = Number(vector.Value.Ledger.Investment), ["development"] = vector.Development,
+            ["total"] = Number(vector.Value.Ledger.Total), ["investment"] = vector.Value.Ledger.Investment, ["development"] = vector.Development,
         };
         var rootRooms = RootRooms(candidates);
         int[] RoomsOf(string id) => rootRooms.GetValueOrDefault(id) ?? [];
@@ -293,6 +293,7 @@ public sealed partial class Rounder
     }).ToArray();
 
     private static double? Number(Fact<double> value) => value.IsKnown ? value.Value : null;
+    private static double? Number(LedgerTerm term) => term is LedgerTerm.Priced(var loss) ? loss : null;
 
     /// <summary>What an outcome was ranked by (#3522): the ledger term by term, the floors, and the policy constants.</summary>
     private static Dictionary<string, object?> ValueAttrs(ForecastValueExplanation value) => new()
@@ -327,9 +328,9 @@ public sealed partial class Rounder
                     ["pawn"] = p.Pawn, ["agony"] = p.Agony, ["aggressive"] = p.Aggressive, ["leaves"] = p.Leaves, ["hediffs"] = p.Hediffs,
                 }).ToArray(),
             },
-        } : null, ["investment"] = Number(value.Ledger.Investment),
+        } : null, ["investment"] = value.Ledger.Investment,
         ["investment_contributions"] = value.Ledger.InvestmentContributions.Select(c => new Dictionary<string, object?> { ["activity"] = c.Activity, ["pawn"] = c.Pawn, ["key"] = c.Key, ["units"] = c.Units, ["value"] = c.Value }).ToArray(),
-        ["goals"] = Number(value.Ledger.Goals),
+        ["goals"] = value.Ledger.Goals,
         ["goal_contributions"] = value.Ledger.GoalContributions.Select(c => new Dictionary<string, object?> { ["goal"] = c.Goal, ["progress"] = c.Progress, ["worth"] = c.Worth, ["value"] = c.Value }).ToArray(),
         ["unknown"] = value.Ledger.Findings.ToArray(),
         ["floors"] = new Dictionary<string, object?>

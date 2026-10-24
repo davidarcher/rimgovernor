@@ -197,11 +197,11 @@ public sealed class ForecastConstructionTests
         request = request with
         {
             Commitments = [.. request.Commitments, new("protected", default)
-                { EquipmentClaims = [new("tool", Known(0.0), Known(450.0))] }],
+                { EquipmentClaims = [new("tool", 0, 450)] }],
             Proposed = new() { Remove = ["protected"] },
             Construction = request.Construction with
             {
-                Equipment = [new("tool", "site", Known<EquatableArray<ForecastTimeWindow>>([new(0, 1000)]))],
+                Equipment = [new("tool", "site", [new(0, 1000)])],
                 Estimates = [request.Construction.Estimates[0] with { FinishEquipment = ["tool"] }],
             },
         };
@@ -209,8 +209,8 @@ public sealed class ForecastConstructionTests
         Assert.Null(Assert.Single(forecast.Baseline.Construction).Comparison!.Selected);
         var selected = Assert.Single(forecast.Proposed.Construction).Comparison!.Selected!;
         Assert.Equal(150, selected.CompletedAt);
-        Assert.Equal(150, forecast.Proposed.EquipmentAvailability[0].Windows.Value[1].Start);
-        Assert.Equal(450, forecast.Baseline.EquipmentAvailability[0].Windows.Value[0].Start);
+        Assert.Equal(150, forecast.Proposed.EquipmentAvailability[0].Windows[1].Start);
+        Assert.Equal(450, forecast.Baseline.EquipmentAvailability[0].Windows[0].Start);
     }
 
     [Fact]

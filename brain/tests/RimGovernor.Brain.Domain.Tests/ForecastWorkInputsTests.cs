@@ -138,44 +138,12 @@ public sealed class ForecastWorkInputsTests
     }
 
     [Fact]
-    public void LiveReviewDemandCarriesClaimsAndAssignmentUsesThatSameValue()
-    {
-        var facts = Facts(); var policy = RoundsRules.DefaultRoundsPolicy();
-        var demand = ResourceRules.ResourceDemandOf(facts, policy, new());
-        var commitment = Assert.Single(demand.Work.ConstructionCommitments.Value);
-        Assert.Equal("construction/action", commitment.Id);
-        Assert.False(commitment.AlternativeLaborCost.IsKnown);
-        Assert.Equal(facts.CurrentConstruction, demand.Work.Construction);
-        Assert.Equal(facts.BillReservations, demand.Work.IngredientReservations);
-    }
-
-    [Fact]
-    public void UnknownClaimsAreNotEmptyAndRemovedOrCompletedClaimsStopGeneratingWork()
+    public void LiveReviewDemandCarriesTheObservedRosterAndReservations()
     {
         var facts = Facts();
-        Assert.False(ForecastWorkInputs.ForecastWorkInputsOf(facts with { ConstructionClaims = default }).ConstructionCommitments.IsKnown);
-        var cancelled = facts with { ConstructionClaims = Known(default(EquatableArray<ConstructionClaim>)) };
-        Assert.Empty(ForecastWorkInputs.ForecastWorkInputsOf(cancelled).ConstructionCommitments.Value);
-        var gone = facts with { CurrentConstruction = CurrentConstruction.Empty };
-        Assert.Empty(ForecastWorkInputs.ForecastWorkInputsOf(gone).ConstructionCommitments.Value);
-    }
-
-    [Fact]
-    public void WorkInputsCarryTheSharedProductionPromisesAndNoPlannedRoomClaim()
-    {
-        var resource = new Resource("TestMaterial");
-        var promise = new ForecastCommitment("production/batch", default)
-        { MaterialClaims = [new(resource, Known(10.0), Known(""))] };
-        var facts = Facts() with
-        {
-            ProductionPromises = Known<EquatableArray<ForecastCommitment>>([promise]),
-            PlannedConstruction = Known<IReadOnlyDictionary<int, IReadOnlyDictionary<Resource, long>>>(
-                new Dictionary<int, IReadOnlyDictionary<Resource, long>> { [1] = new Dictionary<Resource, long> { [resource] = 50 } }),
-        };
-        var work = ResourceRules.ResourceDemandOf(facts, RoundsRules.DefaultRoundsPolicy(), new()).Work;
-        Assert.Contains(promise, work.ProductionPromises.Value);
-        // Planned rooms are construction activities in the coupled portfolio (#3276), not a material-only claim.
-        Assert.DoesNotContain(work.ConstructionCommitments.Value, c => c.Id.StartsWith("planned/", StringComparison.Ordinal));
-        Assert.False(ForecastWorkInputs.ForecastWorkInputsOf(facts with { ProductionPromises = default }).ProductionPromises.IsKnown);
+        var demand = ResourceRules.ResourceDemandOf(facts, RoundsRules.DefaultRoundsPolicy(), new());
+        Assert.Equal(facts.Tick, demand.Work.Tick);
+        Assert.Equal(facts.ForecastObserved.WorkPawns, demand.Work.Pawns);
+        Assert.Equal(facts.BillReservations, demand.Work.IngredientReservations);
     }
 }

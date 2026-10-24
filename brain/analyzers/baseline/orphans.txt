@@ -168,13 +168,8 @@ Policy|ForecastSurvivalNeed.Pawn
 Policy|ForecastSurvivalNeed.Window
 Policy|ForecastSurvivalNeeds.Findings
 Policy|ForecastSurvivalNeeds.Needs
-Policy|ForecastWorkInputs.Claims
-Policy|ForecastWorkInputs.Construction
-Policy|ForecastWorkInputs.ConstructionCommitments
 Policy|ForecastWorkInputs.IngredientReservations
 Policy|ForecastWorkInputs.Pawns
-Policy|ForecastWorkInputs.ProductionPromises
-Policy|ForecastWorkInputs.Resources
 Policy|FuelBurn.Difficulty
 Policy|FuelConsumer.Definition
 Policy|FuelProjection.ShortfallDays

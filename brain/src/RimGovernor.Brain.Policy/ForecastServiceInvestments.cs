@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>Explanation of selected physical service work. Derived from the shared comparison;
 /// neither a second demand target nor authorization to execute.</summary>
 public sealed record ForecastServiceInvestment(ServiceTarget Target, EquatableArray<string> Beneficiaries,
-    EquatableArray<string> Tasks, double HorizonTicks, string Metric, Fact<double> AvoidedExposure, string Retirement);
+    EquatableArray<string> Tasks, double HorizonTicks, string Metric, double AvoidedExposure, string Retirement);
 
 public static class ForecastServiceInvestments
 {
@@ -70,15 +70,15 @@ public static class ForecastServiceInvestments
         if (food.Length != 0 && foodTasks.Count != 0)
             result.Add(new(ServiceTarget.ForNeed(FoodRules.FoodSupplyNeed, horizonDays: Known(horizon / GameTime.TicksPerDay)),
                 EquatableArray.From(food), foodTasks, horizon, "food_threshold_ticks",
-                Known(food.Sum(p => baseline.Needs[p].Needs.Single(n => n.Kind == "food").ThresholdExposureTicks.Value
-                    - selected.Needs[p].Needs.Single(n => n.Kind == "food").ThresholdExposureTicks.Value)),
+                food.Sum(p => baseline.Needs[p].Needs.Single(n => n.Kind == "food").ThresholdExposureTicks.Value
+                    - selected.Needs[p].Needs.Single(n => n.Kind == "food").ThresholdExposureTicks.Value),
                 "fresh_food_trajectory_has_no_shortfall_or_chain_is_no_longer_feasible"));
         if (selected.CompletedDevelopmentSites.Count != 0 && selected.StationaryThermalRelief.TryGetValue(out var relief) && relief > 0)
             result.Add(new(ServiceTarget.ForNeed(ShelterFamily.Temperature, "", "owner_observed_recovery", Known(horizon / GameTime.TicksPerDay)),
                 EquatableArray.From(selected.ThermalExposure.Where(t => t.AssessedTicks > 0).Select(t => t.Pawn).Distinct().Order(StringComparer.Ordinal)),
                 Dependencies(selected.Plan.Allocations.Where(a => context.Bindings.TryGetValue((a.Activity, a.Pawn), out var b)
                     && b.Kind == PawnActivityKind.Work && b.Job is "FinishFrame" or "BuildRoof").Select(a => a.Activity)),
-                horizon, "stationary_thermal_degree_ticks", Known(relief),
+                horizon, "stationary_thermal_degree_ticks", relief,
                 "recompare_remaining_physical_work_at_observed_task_boundary"));
         return EquatableArray.From(result);
     }

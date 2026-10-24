@@ -51,7 +51,7 @@ public sealed class KitchenCreditTests
     private static double Price(ForecastCoupledContext context, int room)
     {
         var price = ForecastValue.PoisoningPrice(Serving(room), context, Day);
-        Assert.Equal(ForecastValue.Of(Serving(room, poisonCases: 1), context, Day).FoodPoisoning.Value, price, 12);
+        Assert.Equal(ForecastValue.Of(Serving(room, poisonCases: 1), context, Day).FoodPoisoning.Loss(), price, 12);
         return price;
     }
 

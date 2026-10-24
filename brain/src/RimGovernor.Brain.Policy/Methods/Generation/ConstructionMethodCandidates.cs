@@ -221,7 +221,7 @@ internal static class ConstructionMethodCandidates
             {
                 ProgressUnits = Known(1.0),
                 Requirements = floors.Contains(first.Definition)
-                    ? new([new(FlooringRelief + "/" + first.Site, ProductionNeedPriority.Maintenance, 1.0)], default, default) : null
+                    ? new([new(FlooringRelief + "/" + first.Site, ProductionNeedPriority.Maintenance, 1.0)], 0, 0) : null
             });
         }
         // A standing removal designation (#3557, #3612, #3613, #3614, #3615): the room reconcile stood a Deconstruct over an
@@ -262,7 +262,7 @@ internal static class ConstructionMethodCandidates
             outcomes.Add(new(id, "construction-method", id, Known((double)horizon), default)
             {
                 ProgressUnits = Known(1.0),
-                Requirements = new([new(RemovalRelief + "/" + op.Id, ProductionNeedPriority.Maintenance, 1.0)], default, default),
+                Requirements = new([new(RemovalRelief + "/" + op.Id, ProductionNeedPriority.Maintenance, 1.0)], 0, 0),
             });
         }
         var capacities = workers.Order(StringComparer.Ordinal).Select(pawn => new ForecastPawnCapacity(pawn, "start",

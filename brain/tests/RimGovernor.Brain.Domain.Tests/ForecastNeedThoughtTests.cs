@@ -88,11 +88,11 @@ public sealed class ForecastNeedThoughtTests
         // Neither plan starves or exhausts the pawn: the floors and the physiological terms tie.
         Assert.Equal(0, eat.Value.UrgentZero.Excess);
         Assert.Equal(0, play.Value.UrgentZero.Excess);
-        Assert.Equal(play.Value.Ledger.Hunger.Value, eat.Value.Ledger.Hunger.Value);
-        Assert.Equal(play.Value.Ledger.Rest.Value, eat.Value.Ledger.Rest.Value);
-        Assert.Equal(0, eat.Value.Ledger.MoodBreaks.Value);
-        Assert.True(play.Value.Ledger.MoodBreaks.Value > new ForecastValuePolicy().TieResolution);
-        Assert.True(play.Value.Ledger.Wellbeing.Value > 0);
+        Assert.Equal(play.Value.Ledger.Hunger.Loss(), eat.Value.Ledger.Hunger.Loss());
+        Assert.Equal(play.Value.Ledger.Rest.Loss(), eat.Value.Ledger.Rest.Loss());
+        Assert.Equal(0, eat.Value.Ledger.MoodBreaks.Loss());
+        Assert.True(play.Value.Ledger.MoodBreaks.Loss() > new ForecastValuePolicy().TieResolution);
+        Assert.True(play.Value.Ledger.Wellbeing.Loss() > 0);
         Assert.True(ForecastCoupledSelection.CompareConsequences(eat, play) < 0);
         Assert.True(ForecastCoupledSelection.CompareConsequences(play, eat) > 0);
     }
@@ -107,9 +107,9 @@ public sealed class ForecastNeedThoughtTests
 
         var late = ForecastValue.Of(Outcome(Eats(pawn, 8000)), context, H, early);
 
-        Assert.Equal(0, late.MoodBreaks.Value);
-        Assert.True(late.Wellbeing.Value > 0);
-        Assert.True(late.LossAgainst(ForecastValue.Of(early, context, H, early)).Value > 0);
+        Assert.Equal(0, late.MoodBreaks.Loss());
+        Assert.True(late.Wellbeing.Loss() > 0);
+        Assert.True(late.LossAgainst(ForecastValue.Of(early, context, H, early)) > 0);
     }
 
     // A pawn that ate without a table carries AteWithoutTable; its next meal renews it (stackLimit 1) rather than adding a second.

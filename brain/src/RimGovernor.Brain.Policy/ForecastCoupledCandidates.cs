@@ -320,7 +320,7 @@ public sealed partial record ForecastCoupledCandidates
                 .GroupBy(s => s.Id, StringComparer.Ordinal).ToDictionary(g => g.Key, g => (g.First().Room, g.First().Stuff), StringComparer.Ordinal));
         var equipment = options.SelectMany(o => o.Equipment).Distinct().Order(StringComparer.Ordinal)
             .Select(id => new ForecastEquipmentCapacity(id, tasks.Single(t => t.Id == options.First(o => o.Equipment.Contains(id)).Activity) is var equipmentTask && equipmentTask.EquipmentLocation.Length != 0 ? equipmentTask.EquipmentLocation : equipmentTask.Location, resources.Claims.Targets.Contains(id)
-                ? Known<EquatableArray<ForecastTimeWindow>>([]) : Known<EquatableArray<ForecastTimeWindow>>([new(0, horizon)]))).ToArray();
+                ? [] : EquatableArray.From(new ForecastTimeWindow[] { new(0, horizon) }))).ToArray();
         // A task reached by two generation paths is one task; two different tasks under one id cannot be scheduled.
         var distinctTasks = new List<ForecastActivity>();
         foreach (var group in tasks.GroupBy(t => t.Id, StringComparer.Ordinal))

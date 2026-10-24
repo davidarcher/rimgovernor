@@ -118,7 +118,7 @@ internal static class ClothingMethodCandidates
             Activities = activities.ToArray(),
             Options = options.ToArray(),
             Routes = ForecastLocations.Merge(routes),
-            Equipment = options.SelectMany(o => o.Equipment).Distinct().Select(id => new ForecastEquipmentCapacity(id, activities.Single(t => t.Id == options.First(o => o.Equipment.Contains(id)).Activity).EquipmentLocation, Known<EquatableArray<ForecastTimeWindow>>([new(0, horizon)]))).ToArray(),
+            Equipment = options.SelectMany(o => o.Equipment).Distinct().Select(id => new ForecastEquipmentCapacity(id, activities.Single(t => t.Id == options.First(o => o.Equipment.Contains(id)).Activity).EquipmentLocation, [new(0, horizon)])).ToArray(),
             Pawns = capacities,
             Deadline = Known((double)horizon),
             AlternativeLaborCost = Known((double)horizon)

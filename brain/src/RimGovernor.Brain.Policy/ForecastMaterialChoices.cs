@@ -1,7 +1,8 @@
 namespace RimGovernor.Brain.Policy;
 
-/// <summary>Mutually exclusive ways to serve one demand. Value is supplied utility, not a calibrated game score.</summary>
-public sealed record ForecastMaterialOption(string Demand, string Id, Fact<double> Value, EquatableArray<Amount> Cost)
+/// <summary>Mutually exclusive ways to serve one demand. Value is supplied utility, not a calibrated game score; a supplied
+/// valuation, when the comparison has one, prices the plan instead.</summary>
+public sealed record ForecastMaterialOption(string Demand, string Id, double Value, EquatableArray<Amount> Cost)
 {
     public ForecastProductionEstimate? Estimate { get; init; }
     public ForecastRequirementAssessment? Requirements { get; init; }
@@ -23,7 +24,7 @@ public static class ForecastMaterialChoices
         var rows = options.OrderBy(o => o.Demand, StringComparer.Ordinal).ThenBy(o => o.Id, StringComparer.Ordinal).ToArray();
         if (rows.Select(o => o.Id).Distinct(StringComparer.Ordinal).Count() != rows.Length
             || rows.Any(o => string.IsNullOrWhiteSpace(o.Demand) || string.IsNullOrWhiteSpace(o.Id)
-                || o.Value.TryGetValue(out var v) && (!double.IsFinite(v) || v < 0)
+                || !double.IsFinite(o.Value) || o.Value < 0
                 || o.Cost.Any(c => !AdmissionRules.ValidResource(c.Resource) || c.Count < 0))) throw new DomainException("invalid material option");
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         if (valuation is not null && rows.Any(o => o.Requirements is not null))
@@ -46,8 +47,7 @@ public static class ForecastMaterialChoices
             {
                 if (expansions == expansionBudget) { truncated = true; return; }
                 expansions++;
-                double benefit = 0;
-                if (valuation is null && !option.Value.TryGetValue(out benefit)) { findings.Add("unknown_value:" + option.Id); continue; }
+                var benefit = valuation is null ? option.Value : 0;
                 var next = new Dictionary<Resource, long>(used);
                 foreach (var cost in option.Cost) next[cost.Resource] = checked(next.GetValueOrDefault(cost.Resource) + cost.Count);
                 if (next.Any(c => !budget.GetValueOrDefault(c.Key, Known(0.0)).IsKnown))

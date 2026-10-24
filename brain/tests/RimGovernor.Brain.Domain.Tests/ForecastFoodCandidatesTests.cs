@@ -30,7 +30,7 @@ public sealed class ForecastFoodCandidatesTests
     {
         Pawns = [new("worker", "home", Known(EquatableArray.From(new[] { new ForecastTimeWindow(0, 4000) })), Known(1.0))],
         Routes = [new("worker", "home", "plant", new RouteTicks.Reachable(10.0)), new("worker", "bench", "plant", new RouteTicks.Reachable(10.0))],
-        Equipment = [new("bench", "bench", Known(EquatableArray.From(new[] { new ForecastTimeWindow(0, 4000) })))],
+        Equipment = [new("bench", "bench", EquatableArray.From(new[] { new ForecastTimeWindow(0, 4000) }))],
         Deadline = Known(4000.0), AlternativeLaborCost = Known(3000.0), ExpansionBudget = 4096,
     };
     private static ForecastFoodCandidateInputs Inputs() => new()

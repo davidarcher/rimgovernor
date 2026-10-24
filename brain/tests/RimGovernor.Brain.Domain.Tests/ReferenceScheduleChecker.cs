@@ -90,7 +90,8 @@ internal static class ReferenceScheduleChecker
         // Exclusive equipment (the single stove) is held for the whole service and never double-booked.
         foreach (var piece in known.SelectMany(s => options[(s.Activity, s.Worker)].Equipment.Select(id => (Id: id, Step: s))).GroupBy(x => x.Id))
         {
-            if (!equipment.TryGetValue(piece.Key, out var capacity) || !capacity.Windows.TryGetValue(out var open)) { bad.Add("unknown_equipment:" + piece.Key); continue; }
+            if (!equipment.TryGetValue(piece.Key, out var capacity)) { bad.Add("unknown_equipment:" + piece.Key); continue; }
+            var open = capacity.Windows;
             var ordered = piece.Select(x => x.Step).OrderBy(s => s.Start).ToArray();
             foreach (var step in ordered)
             {

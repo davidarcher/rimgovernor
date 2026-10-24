@@ -187,7 +187,7 @@ public sealed class PortfolioSearchDiagnosisTests
         // Strictly fewer hunger capability-days and one fewer need left at zero than the incumbent; the zero-time floor is equal.
         var single = s.Select([incumbentRoot], Default);
         Assert.Equal(single.SelectedVector.Value.UrgentZero, selection.SelectedVector.Value.UrgentZero);
-        Assert.True(selection.SelectedVector.Value.Ledger.LossAgainst(single.SelectedVector.Value.Ledger).Value < -selection.SelectedVector.Value.Policy.TieResolution);
+        Assert.True(selection.SelectedVector.Value.Ledger.LossAgainst(single.SelectedVector.Value.Ledger) < -selection.SelectedVector.Value.Policy.TieResolution);
         Assert.Equal(2d, single.SelectedVector.Needs[4].Value);
         Assert.Equal(197, single.Selected.Plan.LaborCost);
         Assert.Equal(1d, selection.SelectedVector.Needs[4].Value);
@@ -212,7 +212,7 @@ public sealed class PortfolioSearchDiagnosisTests
         Assert.Equal(2, eats.Count(a => a.Pawn == "pawn"));
         Assert.Equal(2, eats.Count(a => a.Pawn == "diner"));
         Assert.Equal(0d, selection.SelectedVector.Value.UrgentZero.Excess);
-        Assert.Equal(Known(0d), selection.SelectedVector.Value.Ledger.Hunger);
+        Assert.Equal(new LedgerTerm.Priced(0), selection.SelectedVector.Value.Ledger.Hunger);
         // #3624: the scheduler tries the pawn that made a meal for carrying it first, so the cook delivers without a hand waiting: 721, was 947.
         Assert.Equal(721, selection.Selected.Plan.LaborCost);
         Assert.DoesNotContain("selected_activity_budget_truncated", selection.Selection.Findings);
@@ -259,7 +259,7 @@ public sealed class PortfolioSearchDiagnosisTests
             var value = selection.SelectedVector.Value;
             Assert.True(value.UrgentZero.Excess <= incumbent.UrgentZero.Excess, "budget " + budget + " is worse than the one-ingestion incumbent");
             if (value.UrgentZero.Excess == incumbent.UrgentZero.Excess)
-                Assert.True(value.Ledger.LossAgainst(incumbent.Ledger).Value <= value.Policy.TieResolution, "budget " + budget + " loses more capability-days than the incumbent");
+                Assert.True(value.Ledger.LossAgainst(incumbent.Ledger) <= value.Policy.TieResolution, "budget " + budget + " loses more capability-days than the incumbent");
             Assert.True(selection.Selection.SearchTruncated, "budget " + budget + " is still bounded");
         }
     }

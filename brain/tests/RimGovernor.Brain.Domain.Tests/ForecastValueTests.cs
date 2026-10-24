@@ -144,12 +144,12 @@ public sealed class ForecastValueTests
 
         var value = ForecastValue.Of(Outcome(starving), Context(pawn), Day, baseline: Outcome(starving));
 
-        Assert.Equal(0.25, value.Hunger.Value, 9);
-        Assert.Equal(0, value.Rest.Value);
-        Assert.Equal(0, value.FoodPoisoning.Value);
-        Assert.Equal(0, value.MoodBreaks.Value);
-        Assert.Equal(0, value.Wellbeing.Value);
-        Assert.Equal(0.25, value.Total.Value, 9);
+        Assert.Equal(0.25, value.Hunger.Loss(), 9);
+        Assert.Equal(0, value.Rest.Loss());
+        Assert.Equal(0, value.FoodPoisoning.Loss());
+        Assert.Equal(0, value.MoodBreaks.Loss());
+        Assert.Equal(0, value.Wellbeing.Loss());
+        Assert.Equal(0.25, value.Total.Loss(), 9);
     }
 
     [Fact]
@@ -161,7 +161,7 @@ public sealed class ForecastValueTests
 
         var value = ForecastValue.Of(Outcome(starving), Context(pawn, Tables(table)), Day, Outcome(starving));
 
-        Assert.Equal(0.5, value.Hunger.Value, 9);
+        Assert.Equal(0.5, value.Hunger.Loss(), 9);
     }
 
     // A pawn whose rest is zero over the given spans, with nothing else wrong.
@@ -191,9 +191,9 @@ public sealed class ForecastValueTests
             expected += awake * collapse * Math.Min(Asleep, 20000 - atZero);
             awake *= 1 - collapse;
         }
-        Assert.Equal(expected / Day, value.Rest.Value, 9);
-        Assert.InRange(value.Rest.Value, Asleep / Day / 2, Asleep / Day);
-        Assert.Equal(value.Rest.Value, value.Total.Value, 9);
+        Assert.Equal(expected / Day, value.Rest.Loss(), 9);
+        Assert.InRange(value.Rest.Loss(), Asleep / Day / 2, Asleep / Day);
+        Assert.Equal(value.Rest.Loss(), value.Total.Loss(), 9);
         Assert.DoesNotContain(value.Findings, f => f.StartsWith("rest_", StringComparison.Ordinal));
     }
 
@@ -203,7 +203,7 @@ public sealed class ForecastValueTests
         // Two 1600-tick spans, each with four draws at 1% after its first 1000 ticks, well inside the horizon.
         var value = ForecastValue.Of(Outcome(Exhausted(new ForecastNeedSpan(10000, 11600), new ForecastNeedSpan(20000, 21600))), Context(Pawn()), Day, Outcome(Calm()));
 
-        Assert.Equal((1 - Math.Pow(0.99, 8)) * Asleep / Day, value.Rest.Value, 9);
+        Assert.Equal((1 - Math.Pow(0.99, 8)) * Asleep / Day, value.Rest.Loss(), 9);
     }
 
     [Fact]
@@ -226,13 +226,13 @@ public sealed class ForecastValueTests
         var raw = ForecastValue.Of(Eating("eat"), context, Day, Outcome(Calm()));
         var meal = ForecastValue.Of(Eating("meal"), context, Day, Outcome(Calm()));
 
-        Assert.Equal(0.4, raw.RawIngredients.Value, 9);
-        Assert.Equal(0, meal.RawIngredients.Value);
-        Assert.Equal(0.4, raw.LossAgainst(meal).Value, 9);
+        Assert.Equal(0.4, raw.RawIngredients.Loss(), 9);
+        Assert.Equal(0, meal.RawIngredients.Loss());
+        Assert.Equal(0.4, raw.LossAgainst(meal), 9);
         // An eater whose food fall is unobserved leaves the term unknown.
         var unobserved = Pawn() with { Needs = [Pawn().Needs[0], Pawn().Needs[1] with { FallPerTick = default }] };
         var unknown = ForecastValue.Of(Eating("eat"), context with { Needs = NeedsFixtures.Empty with { Pawns = [unobserved] } }, Day, Outcome(Calm()));
-        Assert.False(unknown.RawIngredients.IsKnown);
+        Assert.False(unknown.RawIngredients.IsPriced());
         Assert.Contains("raw_ingredient_loss_unassessed:pawn", unknown.Findings);
     }
 
@@ -243,10 +243,10 @@ public sealed class ForecastValueTests
 
         var value = ForecastValue.Of(Outcome(Exhausted(new ForecastNeedSpan(30000, 50000))), Context(pawn), Day, Outcome(Calm()));
 
-        Assert.False(value.Rest.IsKnown);
+        Assert.False(value.Rest.IsPriced());
         Assert.Contains("rest_collapse_unassessed:pawn", value.Findings);
         // A pawn whose rest never reaches zero needs no gain: its rest costs nothing.
-        Assert.Equal(0, ForecastValue.Of(Outcome(Calm()), Context(pawn), Day, Outcome(Calm())).Rest.Value);
+        Assert.Equal(0, ForecastValue.Of(Outcome(Calm()), Context(pawn), Day, Outcome(Calm())).Rest.Loss());
     }
 
     [Fact]
@@ -267,8 +267,8 @@ public sealed class ForecastValueTests
 
         Assert.Equal(47025, sleep.Value.UrgentZero.Excess, 3);
         Assert.Equal(work.Value.UrgentZero.Excess, sleep.Value.UrgentZero.Excess);
-        Assert.Equal(work.Value.Ledger.Hunger.Value, sleep.Value.Ledger.Hunger.Value, 9);
-        Assert.True(work.Value.Ledger.Rest.Value > sleep.Value.Ledger.Rest.Value + new ForecastValuePolicy().TieResolution);
+        Assert.Equal(work.Value.Ledger.Hunger.Loss(), sleep.Value.Ledger.Hunger.Loss(), 9);
+        Assert.True(work.Value.Ledger.Rest.Loss() > sleep.Value.Ledger.Rest.Loss() + new ForecastValuePolicy().TieResolution);
         Assert.True(ForecastCoupledSelection.CompareConsequences(sleep, work) < 0);
         Assert.True(ForecastCoupledSelection.CompareConsequences(work, sleep) > 0);
     }
@@ -304,8 +304,8 @@ public sealed class ForecastValueTests
 
         var value = ForecastValue.Of(Outcome(unknown), Context(pawn), Day, Outcome(unknown));
 
-        Assert.False(value.Rest.IsKnown);
-        Assert.False(value.Total.IsKnown);
+        Assert.False(value.Rest.IsPriced());
+        Assert.False(value.Total.IsPriced());
         Assert.Contains("rest_unassessed:pawn", value.Findings);
     }
 
@@ -319,7 +319,7 @@ public sealed class ForecastValueTests
 
         var value = ForecastValue.Of(Outcome(needs), Context(Pawn()), Day, Outcome(needs));
 
-        Assert.Equal(expected, value.MoodBreaks.Value, 9);
+        Assert.Equal(expected, value.MoodBreaks.Loss(), 9);
     }
 
     [Fact]
@@ -329,8 +329,8 @@ public sealed class ForecastValueTests
 
         var value = ForecastValue.Of(Outcome(needs), Context(Pawn()), Day, Outcome(needs));
 
-        Assert.False(value.MoodBreaks.IsKnown);
-        Assert.False(value.Total.IsKnown);
+        Assert.False(value.MoodBreaks.IsPriced());
+        Assert.False(value.Total.IsPriced());
         Assert.Contains("mental_break_probability_unassessed", value.Findings);
     }
 
@@ -343,8 +343,8 @@ public sealed class ForecastValueTests
 
         var value = ForecastValue.Of(Outcome(worse), Context(Pawn()), Day, Outcome(baseline));
 
-        Assert.Equal(0.1 * 0.25, value.Wellbeing.Value, 9);
-        Assert.False(ForecastValue.Of(Outcome(worse), Context(Pawn()), Day).Wellbeing.IsKnown);
+        Assert.Equal(0.1 * 0.25, value.Wellbeing.Loss(), 9);
+        Assert.False(ForecastValue.Of(Outcome(worse), Context(Pawn()), Day).Wellbeing.IsPriced());
     }
 
     [Fact]
@@ -365,7 +365,7 @@ public sealed class ForecastValueTests
 
         var value = ForecastValue.Of(Outcome(needs, poisonCases: 2), Context(Pawn(), Tables(poisoning: poisoning)), Day, Outcome(needs));
 
-        Assert.Equal(2 * (0.2 * 0.4 + 0.6 * 0.5 + 0.2 * 0.4), value.FoodPoisoning.Value, 9);
+        Assert.Equal(2 * (0.2 * 0.4 + 0.6 * 0.5 + 0.2 * 0.4), value.FoodPoisoning.Loss(), 9);
     }
 
     [Fact]
@@ -377,13 +377,13 @@ public sealed class ForecastValueTests
         var unknown = ForecastValue.Of(Outcome(needs), Context(Pawn(), new CapacityPenaltyTables()), Day, Outcome(baseline));
         var known = ForecastValue.Of(Outcome(needs, poisonCases: 1), Context(Pawn()), Day, Outcome(baseline));
 
-        Assert.False(unknown.Hunger.IsKnown);
-        Assert.False(unknown.Total.IsKnown);
+        Assert.False(unknown.Hunger.IsPriced());
+        Assert.False(unknown.Total.IsPriced());
         Assert.Contains("capacity_penalty_table_unknown:Malnutrition", unknown.Findings);
         Assert.DoesNotContain("harm_capability_unassessed", known.Findings);
-        Assert.Equal(known.Hunger.Value + known.Rest.Value + known.FoodPoisoning.Value + known.Thermal.Value + known.MoodBreaks.Value + known.Wellbeing.Value
-            + known.Harm.Value + known.Investment.Value, known.Total.Value, 9);
-        Assert.True(known.Total.Value > 0);
+        Assert.Equal(known.Hunger.Loss() + known.Rest.Loss() + known.FoodPoisoning.Loss() + known.Thermal.Loss() + known.MoodBreaks.Loss() + known.Wellbeing.Loss()
+            + known.Harm.Loss() + known.Investment, known.Total.Loss(), 9);
+        Assert.True(known.Total.Loss() > 0);
     }
 
     private static HediffPenaltyTable Thermal(string name, params PenaltyStage[] stages) => new()
@@ -416,9 +416,9 @@ public sealed class ForecastValueTests
         var comfortable = Thermally(Pawn(), ThermalTables(table), Span(0, SixHours, 20, 20));
 
         var inFirstStage = 0.1 / PerTick;
-        Assert.Equal((inFirstStage * 0.2 + (SixHours - inFirstStage) * 0.5) / Day, cold.Thermal.Value, 9);
-        Assert.Equal(0, comfortable.Thermal.Value);
-        Assert.Equal(cold.Thermal.Value, cold.Total.Value, 9);
+        Assert.Equal((inFirstStage * 0.2 + (SixHours - inFirstStage) * 0.5) / Day, cold.Thermal.Loss(), 9);
+        Assert.Equal(0, comfortable.Thermal.Loss());
+        Assert.Equal(cold.Thermal.Loss(), cold.Total.Loss(), 9);
     }
 
     [Fact]
@@ -434,7 +434,7 @@ public sealed class ForecastValueTests
 
         var value = Thermally(Pawn(), ThermalTables(table), Span(0, Length, -20, -60));
 
-        Assert.Equal((u * 0.2 + (Length - u) * 0.5) / Day, value.Thermal.Value, 6);
+        Assert.Equal((u * 0.2 + (Length - u) * 0.5) / Day, value.Thermal.Loss(), 6);
     }
 
     [Fact]
@@ -450,8 +450,8 @@ public sealed class ForecastValueTests
         var withRecovery = Thermally(pawn, ThermalTables(table), Span(0, 1000, 20, 20), Span(1000, 40000, -10, -10));
         var withoutRecovery = Thermally(pawn, ThermalTables(table), Span(1000, 40000, -10, -10));
 
-        Assert.Equal((39000 - reach) * 0.2 / Day, withRecovery.Thermal.Value, 9);
-        Assert.Equal((39000 - 0.1 / (0.00075 / 60)) * 0.2 / Day, withoutRecovery.Thermal.Value, 9);
+        Assert.Equal((39000 - reach) * 0.2 / Day, withRecovery.Thermal.Loss(), 9);
+        Assert.Equal((39000 - 0.1 / (0.00075 / 60)) * 0.2 / Day, withoutRecovery.Thermal.Loss(), 9);
     }
 
     [Fact]
@@ -463,7 +463,7 @@ public sealed class ForecastValueTests
 
         var value = Thermally(pawn, ThermalTables(table), Span(0, 20000, -10, -10));
 
-        Assert.Equal((Day - 0.1 / (0.00075 / 60)) / Day + new ForecastValuePolicy().DeathTerminalValue, value.Thermal.Value, 9);
+        Assert.Equal((Day - 0.1 / (0.00075 / 60)) / Day + new ForecastValuePolicy().DeathTerminalValue, value.Thermal.Loss(), 9);
         Assert.Contains("lethal_severity_reached:Hypothermia:pawn", value.Findings);
     }
 
@@ -478,7 +478,7 @@ public sealed class ForecastValueTests
 
         var value = Thermally(Pawn(), ThermalTables(Thermal("Hypothermia"), hot), Span(0, Length, 65, 65));
 
-        Assert.Equal((first * 0.1 + (Length - first) * 0.5) / Day, value.Thermal.Value, 9);
+        Assert.Equal((first * 0.1 + (Length - first) * 0.5) / Day, value.Thermal.Loss(), 9);
     }
 
     [Fact]
@@ -486,10 +486,10 @@ public sealed class ForecastValueTests
     {
         var value = ForecastValue.Of(Outcome(Calm(), exposure: new("pawn", Day / 2, Day / 2, 0, 0)), Context(Pawn()), Day, Outcome(Calm()));
 
-        Assert.False(value.Thermal.IsKnown);
-        Assert.False(value.Total.IsKnown);
+        Assert.False(value.Thermal.IsPriced());
+        Assert.False(value.Total.IsPriced());
         Assert.Contains("unassessed_thermal_exposure", value.Findings);
-        Assert.True(value.Hunger.IsKnown);
+        Assert.True(value.Hunger.IsPriced());
     }
 
     [Fact]
@@ -497,7 +497,7 @@ public sealed class ForecastValueTests
     {
         var value = ForecastValue.Of(Outcome(Calm()), Context(Pawn(), Tables() with { Hypothermia = new() }), Day, Outcome(Calm()));
 
-        Assert.False(value.Thermal.IsKnown);
+        Assert.False(value.Thermal.IsPriced());
         Assert.Contains("capacity_penalty_table_unknown:Hypothermia/Heatstroke", value.Findings);
     }
 
@@ -515,10 +515,10 @@ public sealed class ForecastValueTests
     {
         var value = Harmed(Cloth);
 
-        Assert.True(value.Harm.IsKnown);
-        Assert.True(value.Harm.Value > 0);
-        Assert.True(double.IsFinite(value.Harm.Value));
-        Assert.True(value.Total.IsKnown);
+        Assert.True(value.Harm.IsPriced());
+        Assert.True(value.Harm.Loss() > 0);
+        Assert.True(double.IsFinite(value.Harm.Loss()));
+        Assert.True(value.Total.IsPriced());
         Assert.NotNull(value.HarmDetail);
         Assert.Equal(1, value.HarmDetail!.RaidsPerDay);
         Assert.Equal(3, value.HarmDetail.ExposureLo);
@@ -533,9 +533,9 @@ public sealed class ForecastValueTests
         var cloth = Harmed(Cloth);
         var swapped = Harmed(Cloth, commitment: Wears(Devilstrand));
 
-        Assert.True(swapped.Harm.Value < cloth.Harm.Value);
-        Assert.True(swapped.LossAgainst(cloth).Value < 0);
-        Assert.Equal(Harmed(Devilstrand).Harm.Value, swapped.Harm.Value, 9);
+        Assert.True(swapped.Harm.Loss() < cloth.Harm.Loss());
+        Assert.True(swapped.LossAgainst(cloth) < 0);
+        Assert.Equal(Harmed(Devilstrand).Harm.Loss(), swapped.Harm.Loss(), 9);
     }
 
     // A crafted devilstrand duster delivered at the given tick: an overlay of the worn outfit, timed by the outcome (#3621).
@@ -550,15 +550,15 @@ public sealed class ForecastValueTests
     [Fact]
     public void ACraftedDustersArmorIsPricedOnlyFromItsDelivery()
     {
-        var cloth = Harmed(Cloth).Harm.Value;
-        var devilstrand = Harmed(Devilstrand).Harm.Value;
+        var cloth = Harmed(Cloth).Harm.Loss();
+        var devilstrand = Harmed(Devilstrand).Harm.Loss();
 
-        Assert.Equal(devilstrand, Crafted(0d).Harm.Value, 9);
+        Assert.Equal(devilstrand, Crafted(0d).Harm.Loss(), 9);
         // Delivered at midday: the cloth duster meets the morning's raids, the devilstrand one the afternoon's.
-        Assert.Equal((cloth + devilstrand) / 2, Crafted(Day / 2).Harm.Value, 9);
-        Assert.Equal(cloth, Crafted(double.PositiveInfinity).Harm.Value, 9);
+        Assert.Equal((cloth + devilstrand) / 2, Crafted(Day / 2).Harm.Loss(), 9);
+        Assert.Equal(cloth, Crafted(double.PositiveInfinity).Harm.Loss(), 9);
         var untimed = Crafted(null);
-        Assert.False(untimed.Harm.IsKnown);
+        Assert.False(untimed.Harm.IsPriced());
         Assert.Contains("outfit_change_timing_unknown:pawn", untimed.Findings);
     }
 
@@ -573,9 +573,9 @@ public sealed class ForecastValueTests
         var cloth = Harmed(Cloth);
         var both = Harmed([.. Cloth, vest]);
 
-        Assert.True(vested.Harm.Value < cloth.Harm.Value);
-        Assert.Equal(both.Harm.Value, vested.Harm.Value, 9);
-        Assert.True(vested.LossAgainst(cloth).Value < 0);
+        Assert.True(vested.Harm.Loss() < cloth.Harm.Loss());
+        Assert.Equal(both.Harm.Loss(), vested.Harm.Loss(), 9);
+        Assert.True(vested.LossAgainst(cloth) < 0);
         Assert.DoesNotContain(vested.InvestmentContributions, r => r.Key.StartsWith("apparel/", StringComparison.Ordinal));
     }
 
@@ -601,18 +601,18 @@ public sealed class ForecastValueTests
     {
         var uncalibrated = Harmed(Cloth, RaidDay(Exposure(trials: 5)));
 
-        Assert.False(uncalibrated.Harm.IsKnown);
+        Assert.False(uncalibrated.Harm.IsPriced());
         Assert.Null(uncalibrated.HarmDetail);
         Assert.Contains("exposure_cell_uncalibrated:1-2/noncombatant", uncalibrated.Findings);
         Assert.DoesNotContain("harm_capability_unassessed", uncalibrated.Findings);
-        Assert.False(uncalibrated.Total.IsKnown);
-        Assert.True(uncalibrated.Hunger.IsKnown);
+        Assert.False(uncalibrated.Total.IsPriced());
+        Assert.True(uncalibrated.Hunger.IsPriced());
         // The terms both sides assess are compared: a hungrier pawn still loses.
         var pawn = Pawn(foodLevel: 0.5, fall: 0.5 / (Day / 2));
         var starving = Timeline(pawn) with { Mood = Mood(0, [0, 0, 0]) };
         var worse = ForecastValue.Of(Outcome(starving), Context(HarmPawn(), HarmTables(), RaidDay(Exposure(trials: 5)),
             new Dictionary<string, EquatableArray<GearOption>> { ["pawn"] = Cloth }), Day, Outcome(Calm()));
-        Assert.True(worse.LossAgainst(uncalibrated).Value > 0);
+        Assert.True(worse.LossAgainst(uncalibrated) > 0);
     }
 
     [Fact]
@@ -624,7 +624,7 @@ public sealed class ForecastValueTests
         Assert.Contains("raid_composition_unknown", Harmed(Cloth, RaidDay() with { Composition = new() }).Findings);
         var noOutfit = ForecastValue.Of(Outcome(Calm()), Context(HarmPawn(), HarmTables(), RaidDay()), Day, Outcome(Calm()));
         Assert.Contains("outfit_unobserved:pawn", noOutfit.Findings);
-        Assert.False(noOutfit.Harm.IsKnown);
+        Assert.False(noOutfit.Harm.IsPriced());
     }
 
     [Fact]
@@ -638,8 +638,8 @@ public sealed class ForecastValueTests
         var (mean, cvar) = HarmLedger.Moments(distribution, context.Value.HarmRiskAlpha);
 
         Assert.True(cvar > mean);
-        Assert.Equal(mean, Harmed(Cloth, policy: new() { HarmRiskWeight = 0 }).Harm.Value, 9);
-        Assert.Equal(cvar, Harmed(Cloth, policy: new() { HarmRiskWeight = 1 }).Harm.Value, 9);
+        Assert.Equal(mean, Harmed(Cloth, policy: new() { HarmRiskWeight = 0 }).Harm.Loss(), 9);
+        Assert.Equal(cvar, Harmed(Cloth, policy: new() { HarmRiskWeight = 1 }).Harm.Loss(), 9);
     }
 
     [Fact]
@@ -647,8 +647,8 @@ public sealed class ForecastValueTests
     {
         var value = Harmed(Cloth, new HarmInputs { Schedule = new() { Assessed = true, MajorThreatsPerDay = 0d, RaidFraction = 1 } });
 
-        Assert.Equal(0, value.Harm.Value);
-        Assert.True(value.Total.IsKnown);
+        Assert.Equal(0, value.Harm.Loss());
+        Assert.True(value.Total.IsPriced());
     }
 
     [Fact]
@@ -676,13 +676,13 @@ public sealed class ForecastValueTests
         Assert.Contains("disease_storyteller_unknown:Cassandra", without.Findings);
         // Unread disease facts throw a required fact instead.
         Assert.Throws<RequiredFactException>(() => Value(IllnessSchedule.Of(new DiseaseTable(), null)));
-        Assert.Equal(without.Harm.Value, without.HarmDetail.RaidLoss, 9);
+        Assert.Equal(without.Harm.Loss(), without.HarmDetail.RaidLoss, 9);
         Assert.Equal(without.HarmDetail.RaidLoss, with.HarmDetail!.RaidLoss, 9);
         var term = with.HarmDetail.Illness;
         Assert.NotNull(term);
         Assert.Equal(0.1, term!.IncidentsPerDay, 12);
         Assert.True(term.Loss > 0);
-        Assert.Equal(with.HarmDetail.RaidLoss + term.Loss, with.Harm.Value, 9);
+        Assert.Equal(with.HarmDetail.RaidLoss + term.Loss, with.Harm.Loss(), 9);
         Assert.Equal("pawn", Assert.Single(term.Pawns).Pawn);
         Assert.DoesNotContain(IllnessForecast.Unmodelled, with.Findings);
     }
@@ -829,10 +829,10 @@ public sealed class ForecastValueTests
         Assert.True(rank < 0);
         Assert.True(a.LedgerPriced);
         Assert.True(b.LedgerPriced);
-        Assert.False(a.Vector.Value.Ledger.Wellbeing.IsKnown);
-        Assert.True(b.Vector.Value.Ledger.Wellbeing.IsKnown);
-        Assert.True(b.Vector.Value.Ledger.FoodPoisoning.Value > a.Vector.Value.Ledger.FoodPoisoning.Value);
-        Assert.Equal(a.Vector.Value.Ledger.FoodPoisoning.Value - b.Vector.Value.Ledger.FoodPoisoning.Value, a.Vector.Value.Ledger.LossAgainst(b.Vector.Value.Ledger).Value, 9);
+        Assert.False(a.Vector.Value.Ledger.Wellbeing.IsPriced());
+        Assert.True(b.Vector.Value.Ledger.Wellbeing.IsPriced());
+        Assert.True(b.Vector.Value.Ledger.FoodPoisoning.Loss() > a.Vector.Value.Ledger.FoodPoisoning.Loss());
+        Assert.Equal(a.Vector.Value.Ledger.FoodPoisoning.Loss() - b.Vector.Value.Ledger.FoodPoisoning.Loss(), a.Vector.Value.Ledger.LossAgainst(b.Vector.Value.Ledger), 9);
         Assert.Equal(rank, ForecastCoupledSelection.CompareConsequences(a.Vector, b.Vector));
         // Ledgers whose shared terms cannot separate the sides fall through to the later stages, still priced on both sides.
         var blind = Context(Pawn(), Tables() with { Malnutrition = new(), FoodPoisoning = new(), Hypothermia = new(), Heatstroke = new() });

@@ -41,15 +41,16 @@ public sealed record ForecastValuePolicy
     public double GoalDeadlineFloor { get; init; } = 0.1;
 
     /// <summary>
-    /// A goal's worth at <paramref name="tick"/>: its importance's value, full until <paramref name="deadlineDay"/> (days
+    /// A goal's worth at <paramref name="tick"/>: its importance's value, full until <paramref name="deadline"/> (days
     /// passed since the game began) and then <see cref="GoalDeadlineDecay"/> per day past it, never under <see cref="GoalDeadlineFloor"/>.
     /// </summary>
-    public double GoalWorth(Importance importance, int? deadlineDay, long tick) => GoalWorthOn(importance, deadlineDay, tick / GameTime.TicksPerDay);
+    public double GoalWorth(Importance importance, GoalDeadline deadline, long tick) => GoalWorthOn(importance, deadline, tick / GameTime.TicksPerDay);
 
     /// <summary>A goal's worth if it is completed on <paramref name="day"/> (game days since the game began, fractions kept): the same curve as <see cref="GoalWorth"/>, which tier 2 reads at its modelled completion day (#3505).</summary>
-    public double GoalWorthOn(Importance importance, int? deadlineDay, double day)
+    public double GoalWorthOn(Importance importance, GoalDeadline deadline, double day)
     {
-        var late = deadlineDay is { } due ? day - due : 0;
+        // An open goal is never late.
+        var late = deadline is GoalDeadline.Due(var due) ? day - due : 0;
         var decay = late <= 0 ? 1 : Math.Max(GoalDeadlineFloor, Math.Pow(GoalDeadlineDecay, late));
         return GoalImportanceValue.Of(importance) * decay;
     }
@@ -87,39 +88,39 @@ public sealed record ForecastValuePolicy
 /// <summary>
 /// One outcome's capability-days lost over the horizon, term by term (#3520). Every term is a loss in capability-days
 /// (one pawn-day at full capability is one), so a lower total is better; the wellbeing term is negative when the outcome
-/// has more mood than the baseline. A term is unknown when its inputs are, and then so is the total; the findings name why.
+/// has more mood than the baseline. A term is unassessed when its inputs are unknown, and then so is the total; the findings name why.
 /// </summary>
-public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<string> Findings)
+public sealed record ForecastValueResult(LedgerTerm Total, EquatableArray<string> Findings)
 {
     /// <summary>Capacity lost to malnutrition while a pawn starves, and for as long as the severity it accrued lasts.</summary>
-    public Fact<double> Hunger { get; init; }
+    public LedgerTerm Hunger { get; init; } = new LedgerTerm.Unassessed();
 
     /// <summary>Capability lost to exhaustion collapse: the expected time a pawn awake at zero rest spends asleep on the ground (#3598). No rest category changes a capacity.</summary>
-    public Fact<double> Rest { get; init; }
+    public LedgerTerm Rest { get; init; } = new LedgerTerm.Unassessed();
 
     /// <summary>Meal nutrition forgone by eating cookable ingredients raw (#3626): each raw eat's level gain times the cooked
-    /// ratio less one, in days of the eater's food fall, one food-day per capability-day. Known, 0 with no raw eat.</summary>
-    public Fact<double> RawIngredients { get; init; } = Known(0d);
+    /// ratio less one, in days of the eater's food fall, one food-day per capability-day. Priced at 0 with no raw eat.</summary>
+    public LedgerTerm RawIngredients { get; init; } = new LedgerTerm.Priced(0);
 
     /// <summary>Expected food-poisoning cases times the capacity one case loses over its course, clipped to the horizon.</summary>
-    public Fact<double> FoodPoisoning { get; init; }
+    public LedgerTerm FoodPoisoning { get; init; } = new LedgerTerm.Unassessed();
 
     /// <summary>Capacity lost to hypothermia and heatstroke over the severity the stationary thermal spans give them, and the remaining horizon plus the terminal value when it reaches lethal.</summary>
-    public Fact<double> Thermal { get; init; }
+    public LedgerTerm Thermal { get; init; } = new LedgerTerm.Unassessed();
 
     /// <summary>Mental-break risk times the mean days a break of its tier takes the colonist out of work.</summary>
-    public Fact<double> MoodBreaks { get; init; }
+    public LedgerTerm MoodBreaks { get; init; } = new LedgerTerm.Unassessed();
 
     /// <summary>The wellbeing weight times the mood-days lost against the baseline outcome.</summary>
-    public Fact<double> Wellbeing { get; init; }
+    public LedgerTerm Wellbeing { get; init; } = new LedgerTerm.Unassessed();
 
     /// <summary>
     /// Raid harm and death (harm model, #3471): raids per day over the horizon times the risk-transformed loss of one raid, summed
-    /// over the pawns. Unknown, with the specific finding, when the schedule, composition, exposure cell, outfits or care are.
+    /// over the pawns. Unassessed, with the specific finding, when the schedule, composition, exposure cell, outfits or care are.
     /// </summary>
-    public Fact<double> Harm { get; init; }
+    public LedgerTerm Harm { get; init; } = new LedgerTerm.Unassessed();
 
-    /// <summary>The per-raid numbers behind <see cref="Harm"/>; null when it is unknown.</summary>
+    /// <summary>The per-raid numbers behind <see cref="Harm"/>; null when it is unassessed.</summary>
     public HarmDetail? HarmDetail { get; init; }
 
     /// <summary>What the harm term found unassessed or qualified (a subset of <see cref="Findings"/>).</summary>
@@ -131,13 +132,13 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
     /// material it consumes (#3653); the sum of
     /// <see cref="InvestmentContributions"/>, 0 with none.
     /// </summary>
-    public Fact<double> Investment { get; init; }
+    public double Investment { get; init; }
 
     /// <summary>Each allocation's rows behind <see cref="Investment"/>: the tier-2 key, the units moved and their loss.</summary>
     public EquatableArray<ForecastInvestmentContribution> InvestmentContributions { get; init; }
 
-    /// <summary>The player's goals the outcome progresses inside the horizon, in capability-days: negative (a gain) by the goals' worth times their progress (#3503). Known, 0 with no goal progressed.</summary>
-    public Fact<double> Goals { get; init; } = Known(0d);
+    /// <summary>The player's goals the outcome progresses inside the horizon, in capability-days: negative (a gain) by the goals' worth times their progress (#3503); 0 with no goal progressed.</summary>
+    public double Goals { get; init; }
 
     /// <summary>Each goal behind <see cref="Goals"/>: its progress, worth and value.</summary>
     public EquatableArray<ForecastGoalContribution> GoalContributions { get; init; }
@@ -145,21 +146,27 @@ public sealed record ForecastValueResult(Fact<double> Total, EquatableArray<stri
     /// <summary>
     /// This outcome's loss minus <paramref name="other"/>'s, summed over the terms BOTH assess (a negative number means this
     /// outcome loses less). A term either side cannot assess is left out of both, so missing data never rewards a side, and
-    /// the comparison is unknown only when no term is shared (#3522). Compare totals directly only when every term is known.
+    /// the investment and goal terms are always assessed, so the comparison always has a shared term (#3522). Compare totals
+    /// directly only when every term is priced.
     /// </summary>
-    public Fact<double> LossAgainst(ForecastValueResult other)
+    public double LossAgainst(ForecastValueResult other)
     {
-        double delta = 0;
-        var shared = false;
+        var delta = Investment - other.Investment + Goals - other.Goals;
         foreach (var (mine, theirs) in new[] { (Hunger, other.Hunger), (Rest, other.Rest), (RawIngredients, other.RawIngredients), (FoodPoisoning, other.FoodPoisoning),
-            (Thermal, other.Thermal), (MoodBreaks, other.MoodBreaks), (Wellbeing, other.Wellbeing), (Harm, other.Harm), (Investment, other.Investment), (Goals, other.Goals) })
-        {
-            if (!mine.TryGetValue(out var a) || !theirs.TryGetValue(out var b)) continue;
-            delta += a - b;
-            shared = true;
-        }
-        return shared ? Known(delta) : default;
+            (Thermal, other.Thermal), (MoodBreaks, other.MoodBreaks), (Wellbeing, other.Wellbeing), (Harm, other.Harm) })
+            if (mine is LedgerTerm.Priced(var a) && theirs is LedgerTerm.Priced(var b)) delta += a - b;
+        return delta;
     }
+}
+
+/// <summary>One term of the capability-days ledger: priced at a loss in capability-days, or unassessed because an input it
+/// needs is unknown (the ledger's findings name which).</summary>
+public abstract record LedgerTerm
+{
+    private LedgerTerm() { }
+    public sealed record Priced(double Loss) : LedgerTerm;
+    public sealed record Unassessed : LedgerTerm;
+    internal static LedgerTerm Of(double sum, bool assessed) => assessed ? new Priced(sum) : new Unassessed();
 }
 
 /// <summary>One row of an outcome's Investment term (#3636): what an allocation moves of a tier-2 key (project progress, applied skill
@@ -188,7 +195,7 @@ public sealed record ForecastValueExplanation(ForecastValueResult Ledger, Foreca
     public ForecastFloor Death { get; init; } = new(false, 0);
 
     /// <summary>The explanation of a vector assembled without a context: an empty ledger under the default constants.</summary>
-    internal static readonly ForecastValueExplanation Empty = new(new(default, []), new());
+    internal static readonly ForecastValueExplanation Empty = new(new(new LedgerTerm.Unassessed(), []), new());
 }
 
 /// <summary>The capability-days ledger: pure, term by term, every number from a game table or a named policy constant (#3520).</summary>
@@ -271,7 +278,7 @@ public static partial class ForecastValue
         var observed = index.Pawns;
         var tables = context.CapacityPenalties;
 
-        var hunger = default(Fact<double>);
+        LedgerTerm hunger = new LedgerTerm.Unassessed();
         if (!index.Malnutrition || tables.MovingMinForCapable is not { } movingMin)
             findings.Add("capacity_penalty_table_unknown:" + nameof(tables.Malnutrition));
         else if (pawns.Length == 0) findings.Add("hunger_unassessed:no_pawns");
@@ -284,10 +291,10 @@ public static partial class ForecastValue
                 if (HungerLoss(pawn, result, observed.GetValueOrDefault(pawn), tables.Malnutrition, movingMin, horizon, findings) is { } lost) sum += lost;
                 else known = false;
             }
-            hunger = known ? Known(sum) : default;
+            hunger = LedgerTerm.Of(sum, known);
         }
 
-        var rest = default(Fact<double>);
+        LedgerTerm rest = new LedgerTerm.Unassessed();
         if (pawns.Length == 0) findings.Add("rest_unassessed:no_pawns");
         else
         {
@@ -298,18 +305,18 @@ public static partial class ForecastValue
                 if (RestLoss(pawn, result, index.Rows.GetValueOrDefault(pawn), horizon, findings) is { } lost) sum += lost;
                 else known = false;
             }
-            rest = known ? Known(sum) : default;
+            rest = LedgerTerm.Of(sum, known);
         }
 
         var rawIngredients = RawIngredientLoss(outcome, context, index, findings);
 
-        var poisoning = default(Fact<double>);
+        LedgerTerm poisoning = new LedgerTerm.Unassessed();
         if (!index.FoodPoisoning || tables.MovingMinForCapable is not { } poisonMoving)
             findings.Add("capacity_penalty_table_unknown:" + nameof(tables.FoodPoisoning));
         else if (PoisoningCaseLoss(pawns, observed, tables.FoodPoisoning, poisonMoving, horizon, findings) is { } perCase)
-            poisoning = Known(outcome.Support.FoodPoisonExposure * perCase);
+            poisoning = new LedgerTerm.Priced(outcome.Support.FoodPoisonExposure * perCase);
 
-        var thermal = default(Fact<double>);
+        LedgerTerm thermal = new LedgerTerm.Unassessed();
         if (!index.Thermal || tables.MovingMinForCapable is not { } thermalMoving)
             findings.Add("capacity_penalty_table_unknown:" + nameof(tables.Hypothermia) + "/" + nameof(tables.Heatstroke));
         else if (pawns.Length == 0) findings.Add("thermal_unassessed:no_pawns");
@@ -325,10 +332,10 @@ public static partial class ForecastValue
                 if (ThermalLoss(pawn, exposure, observed.GetValueOrDefault(pawn), tables, thermalMoving, horizon, context.Value, findings) is { } lost) sum += lost;
                 else known = false;
             }
-            thermal = known ? Known(sum) : default;
+            thermal = LedgerTerm.Of(sum, known);
         }
 
-        var breaks = default(Fact<double>);
+        LedgerTerm breaks = new LedgerTerm.Unassessed();
         if (pawns.Length == 0) findings.Add("mood_breaks_unassessed:no_pawns");
         else
         {
@@ -339,10 +346,10 @@ public static partial class ForecastValue
                 if (result.Mood is { BreakRisk.IsKnown: true } mood && context.MoodBreaks.DaysLost(mood.BreakTierTicks) is { } days) sum += days;
                 else { findings.Add("mental_break_probability_unassessed"); known = false; }
             }
-            breaks = known ? Known(sum) : default;
+            breaks = LedgerTerm.Of(sum, known);
         }
 
-        var wellbeing = default(Fact<double>);
+        LedgerTerm wellbeing = new LedgerTerm.Unassessed();
         if (baseline is null) findings.Add("wellbeing_baseline_missing");
         else if (pawns.Length == 0) findings.Add("wellbeing_unassessed:no_pawns");
         else
@@ -356,38 +363,41 @@ public static partial class ForecastValue
                     sum += context.Value.WellbeingWeight * (pressure - before) / GameTime.TicksPerDay;
                 else { findings.Add("wellbeing_unassessed:" + pawn); known = false; }
             }
-            wellbeing = known ? Known(sum) : default;
+            wellbeing = LedgerTerm.Of(sum, known);
         }
 
         findings.UnionWith(harmTerm.Findings);
-        var harm = harmTerm.Loss;
+        LedgerTerm harm = harmTerm.Loss.TryGetValue(out var harmLoss) ? new LedgerTerm.Priced(harmLoss) : new LedgerTerm.Unassessed();
         double earned = 0;
         foreach (var contribution in contributions) earned += contribution.Value;
-        var goals = Known(-earned);
+        var goals = -earned;
         var investmentRows = InvestmentOf(outcome, context, index, horizon, findings);
         PlannedRoomCredits.Credit(outcome, commitments?.ToArray() ?? [], context, horizon, investmentRows, findings);
         ForecastApparel.Credits(outcome, context, commitments, horizon, investmentRows);
         double invested = 0;
         foreach (var row in investmentRows) invested += row.Value;
-        var investment = Known(invested);
-        var total = hunger.IsKnown && rest.IsKnown && rawIngredients.IsKnown && poisoning.IsKnown && thermal.IsKnown && breaks.IsKnown && wellbeing.IsKnown && harm.IsKnown
-            ? Known(hunger.Value + rest.Value + rawIngredients.Value + poisoning.Value + thermal.Value + breaks.Value + wellbeing.Value + harm.Value + goals.Value + investment.Value) : default;
-        if (!total.IsKnown) findings.Add("capability_value_unassessed");
+        double priced = 0;
+        var assessed = true;
+        foreach (var term in new[] { hunger, rest, rawIngredients, poisoning, thermal, breaks, wellbeing, harm })
+            if (term is LedgerTerm.Priced(var loss)) priced += loss;
+            else assessed = false;
+        var total = LedgerTerm.Of(priced + goals + invested, assessed);
+        if (!assessed) findings.Add("capability_value_unassessed");
         return new(total, EquatableArray.From(findings))
         {
             Hunger = hunger, Rest = rest, RawIngredients = rawIngredients, FoodPoisoning = poisoning, Thermal = thermal, MoodBreaks = breaks, Wellbeing = wellbeing,
-            Harm = harm, HarmDetail = harmTerm.Detail, HarmFindings = EquatableArray.From(harmTerm.Findings), Investment = investment, InvestmentContributions = EquatableArray.From(investmentRows), Goals = goals, GoalContributions = EquatableArray.From(contributions),
+            Harm = harm, HarmDetail = harmTerm.Detail, HarmFindings = EquatableArray.From(harmTerm.Findings), Investment = invested, InvestmentContributions = EquatableArray.From(investmentRows), Goals = goals, GoalContributions = EquatableArray.From(contributions),
         };
     }
 
     /// <summary>
     /// The meal nutrition the outcome's raw eats of cookable ingredients forgo (#3626), in capability-days: per selected food
     /// need task whose resource has a cooked ratio, its level gain times the ratio less one, over the eater's observed food fall
-    /// per day. Unknown, with a finding, when a raw eater's food fall is unobserved.
+    /// per day. Unassessed, with a finding, when a raw eater's food fall is unobserved.
     /// </summary>
-    private static Fact<double> RawIngredientLoss(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index, SortedSet<string> findings)
+    private static LedgerTerm RawIngredientLoss(ForecastCoupledOutcome outcome, ForecastCoupledContext context, LedgerIndex index, SortedSet<string> findings)
     {
-        if (index.RawEats.Count == 0) return Known(0d);
+        if (index.RawEats.Count == 0) return new LedgerTerm.Priced(0);
         double sum = 0;
         var known = true;
         foreach (var allocation in outcome.Plan.Allocations)
@@ -400,7 +410,7 @@ public static partial class ForecastValue
             { findings.Add("raw_ingredient_loss_unassessed:" + allocation.Pawn); known = false; continue; }
             sum += gain * (context.CookedNutritionRatio[eat.Resource] - 1) / (fall * GameTime.TicksPerDay);
         }
-        return known ? Known(sum) : default;
+        return LedgerTerm.Of(sum, known);
     }
 
     /// <summary>Per ingredient the observed conversions cook, the best cooked over raw nutrition per unit, kept above 1 (#3626).
@@ -508,7 +518,7 @@ public static partial class ForecastValue
             var share = (goal.Priced ? 0 : goal.Research.Sum(r => progress.GetValueOrDefault(r.Project) * r.SharePerPoint))
                 + goal.Wearers.Where(Dressed).Sum(w => w.Share);
             share = Math.Min(1, share);
-            var worth = context.Value.GoalWorth(goal.Importance, goal.DeadlineDay, context.Needs.Tick.Value);
+            var worth = context.Value.GoalWorth(goal.Importance, goal.Deadline, context.Needs.Tick.Value);
             // A priced goal's progress is paid at tier 2's marginal value per unit, which already carries the deadline's decay at the modelled day.
             var priced = goal.Units.Sum(u => progress.GetValueOrDefault(u.Project) * u.Value);
             var value = (share * worth) + priced;

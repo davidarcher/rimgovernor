@@ -49,7 +49,6 @@ public sealed class ProductionPromisesTests
         Assert.False(ProductionRules.MaterialBudgetCovers(demand.MaterialAvailability.Value, [new(Material, 5)], 1));
         Assert.True(ProductionRules.MaterialBudgetCovers(demand.MaterialAvailability.Value, [new(Other, 5)], 4));
         Assert.Equal(20, demand.MaterialAvailability.Value[Other].Value);
-        Assert.Equal(facts.ProductionPromises, demand.Work.ProductionPromises);
         // Changing the output's name does not change ingredient contention; this applies to a cooking batch too.
         var cooking = Batch with { Order = new ProductionBill("stove", "TestCookingRecipe", BillMode.GearBatch, 5, Material.Value) };
         Assert.Equal(demand.Needs[Material], ResourceRules.ResourceDemandOf(Facts(Promises(cooking)), RoundsRules.DefaultRoundsPolicy(), new()).Needs[Material]);

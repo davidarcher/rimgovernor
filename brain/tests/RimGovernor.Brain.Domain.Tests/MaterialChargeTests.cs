@@ -71,7 +71,7 @@ public sealed class MaterialChargeTests
         var row = Assert.Single(ledger.InvestmentContributions);
         Assert.Equal((Delivery, "builder", "material/WoodLog", 20d), (row.Activity, row.Pawn, row.Key, row.Units));
         Assert.Equal(20 * perUnit, row.Value, 12);
-        Assert.Equal(20 * perUnit, ledger.Investment.Value, 12);
+        Assert.Equal(20 * perUnit, ledger.Investment, 12);
         Assert.DoesNotContain(ledger.Findings, f => f.StartsWith("material_value_", StringComparison.Ordinal));
     }
 
@@ -83,7 +83,7 @@ public sealed class MaterialChargeTests
         var ledger = Ledger(Wood, 20, new Dictionary<Resource, ConstructionMaterialValue> { [Wood] = value }, priced: false);
 
         Assert.Empty(ledger.InvestmentContributions);
-        Assert.Equal(0, ledger.Investment.Value);
+        Assert.Equal(0, ledger.Investment);
     }
 
     [Fact]
@@ -99,7 +99,7 @@ public sealed class MaterialChargeTests
 
         var row = Assert.Single(ledger.InvestmentContributions);
         Assert.Equal(("material/Steel", 10d), (row.Key, row.Units));
-        Assert.Equal(10 * value.PerUnit, ledger.Investment.Value, 12);
+        Assert.Equal(10 * value.PerUnit, ledger.Investment, 12);
         Assert.Contains("material_value_market:Steel", ledger.Findings);
     }
 
@@ -112,7 +112,7 @@ public sealed class MaterialChargeTests
         var ledger = Ledger(Plasteel, 10, new Dictionary<Resource, ConstructionMaterialValue> { [Plasteel] = value });
 
         Assert.Empty(ledger.InvestmentContributions);
-        Assert.Equal(0, ledger.Investment.Value);
+        Assert.Equal(0, ledger.Investment);
         Assert.Contains("material_value_unpriced:Plasteel", ledger.Findings);
     }
 }

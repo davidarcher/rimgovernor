@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 // flat value of the ledger (#3503) and an unknown ETA, and the reason is named.
 
 /// <summary>A goal's end in the project graph: the nodes that all complete when the goal is met, and what the goal is worth.</summary>
-public sealed record GoalTerminal(string Goal, Importance Importance, int? DeadlineDay, EquatableArray<string> Nodes);
+public sealed record GoalTerminal(string Goal, Importance Importance, GoalDeadline Deadline, EquatableArray<string> Nodes);
 
 /// <summary>A goal's path: the nodes to add to the model's graph and the terminal; <see cref="Unmodelled"/> says why there is none.</summary>
 public sealed record GoalPath(ProjectGraph Graph, GoalTerminal? Terminal, string Unmodelled);

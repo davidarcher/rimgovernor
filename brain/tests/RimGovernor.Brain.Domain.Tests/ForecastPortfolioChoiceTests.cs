@@ -23,7 +23,7 @@ public sealed class ForecastPortfolioChoiceTests
         Assert.Equal(Known(true), selected.Selected.Feasible);
         Assert.NotEmpty(selected.Selection.Selected);
         // The hungry pawn's food reaches zero without the portfolio: it loses fewer capability-days with it.
-        Assert.True(selected.SelectedVector.Value.Ledger.LossAgainst(selected.BaselineVector.Value.Ledger).Value < 0);
+        Assert.True(selected.SelectedVector.Value.Ledger.LossAgainst(selected.BaselineVector.Value.Ledger) < 0);
         return (selected, Assert.IsType<PawnActivities>(ForecastCoupledSelection.StartCoupledActivity(selected, generated, 1, "portfolio-choice", 100)));
     }
     internal static RoundsFacts Observed(CoupledFoodConversion[] conversions, CoupledFoodSource[] sources, bool helper = false)
@@ -136,7 +136,7 @@ public sealed class ForecastPortfolioChoiceTests
                 Assert.All(vector.Urgent, value => Assert.True(value.IsKnown));
                 var value = ForecastValue.Explain(outcome, vector.Urgent[0], generated.Context, horizon, selected.Baseline);
                 if (best is null || value.UrgentZero.Excess < best.UrgentZero.Excess
-                    || value.UrgentZero.Excess == best.UrgentZero.Excess && value.Ledger.LossAgainst(best.Ledger).Value < -value.Policy.TieResolution) best = value;
+                    || value.UrgentZero.Excess == best.UrgentZero.Excess && value.Ledger.LossAgainst(best.Ledger) < -value.Policy.TieResolution) best = value;
                 var tasks = outcome.Plan.Allocations.Select(a => generated.Context.Activities.Activities.Single(t => t.Id == a.Activity)).ToArray();
                 var produced = tasks.SelectMany(t => t.Outputs).Sum(o => o.Units.Value);
                 var consumed = tasks.SelectMany(t => t.Inputs).Sum(i => i.Units.Value);
@@ -145,6 +145,6 @@ public sealed class ForecastPortfolioChoiceTests
         }
         Assert.NotNull(best);
         Assert.Equal(best.UrgentZero, selected.SelectedVector.Value.UrgentZero);
-        Assert.InRange(selected.SelectedVector.Value.Ledger.LossAgainst(best.Ledger).Value, -best.Policy.TieResolution, best.Policy.TieResolution);
+        Assert.InRange(selected.SelectedVector.Value.Ledger.LossAgainst(best.Ledger), -best.Policy.TieResolution, best.Policy.TieResolution);
     }
 }

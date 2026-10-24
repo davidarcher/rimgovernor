@@ -3,12 +3,31 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>The capability-days a whole goal is worth at each importance level (#3503).</summary>
 public sealed record GoalImportanceValues(double Low, double Normal, double High)
 {
-    public double Of(Importance importance) => importance switch
+    public double Of(Importance importance)
     {
-        Importance.Low => Low,
-        Importance.Normal => Normal,
-        _ => High,
-    };
+        switch (importance)
+        {
+            case Importance.Low: return Low;
+            case Importance.Normal: return Normal;
+            case Importance.High: return High;
+        }
+        throw new ArgumentOutOfRangeException(nameof(importance), importance, "undeclared goal importance");
+    }
+}
+
+/// <summary>A goal's deadline (#3503): it has none, or it is due on a game day (days since the game began).</summary>
+public abstract record GoalDeadline
+{
+    private GoalDeadline() { }
+
+    /// <summary>The goal has no deadline: its worth never decays.</summary>
+    public sealed record Open : GoalDeadline;
+
+    /// <summary>The goal is due on <paramref name="Day"/>; its worth decays per day past it.</summary>
+    public sealed record Due(int Day) : GoalDeadline;
+
+    /// <summary>The deadline the player set, where none set is <see cref="Open"/>.</summary>
+    public static GoalDeadline Of(int? day) => day is { } due ? new Due(due) : new Open();
 }
 
 /// <summary>
@@ -28,7 +47,7 @@ public sealed record ForecastGoalUnit(string Project, double Value);
 /// two ways a schedule can progress it. Progress is the fraction of the whole goal; the ledger's goal term is the goal's
 /// worth (<see cref="ForecastValuePolicy.GoalWorth"/>) times the progress the outcome makes inside the horizon.
 /// </summary>
-public sealed record ForecastGoalValue(string Goal, Importance Importance, int? DeadlineDay)
+public sealed record ForecastGoalValue(string Goal, Importance Importance, GoalDeadline Deadline)
 {
     /// <summary>The colonists a worn-count goal still wants wearing its garment.</summary>
     public EquatableArray<ForecastGoalWearer> Wearers { get; init; }

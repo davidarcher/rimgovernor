@@ -121,7 +121,7 @@ public static class ForecastActivityOutcomes
                 { findings.Add("labor_ceiling"); continue; }
                 var unitCost = perUnit ? plan.LaborCost / selected.Single().ProgressUnits.Value : 0;
                 var requirements = requirementsFirst ? ForecastRequirements.RequirementPriorityOf(selected.Select(o =>
-                    new ForecastMaterialOption(o.Need, o.Id, Known(0.0), []) { Requirements = o.Requirements }), findings) : null;
+                    new ForecastMaterialOption(o.Need, o.Id, 0, []) { Requirements = o.Requirements }), findings) : null;
                 if (requirementsFirst && requirements is null) continue;
                 var rank = requirementsFirst
                     ? requirements!.BetterThan(bestRequirements, 0, 0) ? 1 : bestRequirements.BetterThan(requirements!, 0, 0) ? -1 : 0
