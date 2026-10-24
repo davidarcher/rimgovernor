@@ -57,7 +57,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
             actions.Add(action);
             previews.Add(preview.Preview);
-            RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock, actions.Count == 1);
+            RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock);
         }
         if (actions.Count == 0 && placed > 0 && unfloorable.Count == 0)
         {
@@ -157,7 +157,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             Plan = plan,
             Current = snapshot,
             Tick = projection.Identity.Tick,
-            Bounds = Known(projection.Bounds),
+            Bounds = projection.Bounds,
             Stock = stock,
             Previews = previews,
             Purpose = Pol.Purpose.Defense,
@@ -222,15 +222,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
     internal static (BridgeBuildingPreview Preview, bool Ok) ClassifyDefensePreview(BridgeBuildingPreview preview, Cell cell)
     {
         var v = preview.Preview;
-        var fk = v.Footprint.TryGetValue(out var footprint);
-        var lk = v.CanPlace.TryGetValue(out var legal);
-        var sk = v.SafeToPlace.TryGetValue(out var safe);
-        var mk = v.MadeFromStuff.IsKnown;
-        if (!fk || !mk || !lk || !sk)
-        {
-            return (preview with { NativeWorkPending = false, Reason = "" }, false);
-        }
-        if (footprint!.Count != 1 || footprint[0] != cell || !legal || !safe)
+        if (v.Footprint.Count != 1 || v.Footprint[0] != cell || !v.CanPlace || !v.SafeToPlace)
         {
             return (preview, false);
         }

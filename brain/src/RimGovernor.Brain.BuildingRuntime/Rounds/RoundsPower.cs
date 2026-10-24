@@ -139,21 +139,12 @@ public sealed partial class RoundsBuildingPlanner
             var a = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{i}"), b, ConstructionTierRules.PlannerTier(Concern, Phase));
             var p = await Native.PreviewBuildingAsync(a, snapshot, ct).ConfigureAwait(false);
             var v = p.Preview;
-            var fk = v.Footprint.TryGetValue(out var footprint);
-            var ck = v.CanPlace.TryGetValue(out var can);
-            var sk = v.SafeToPlace.TryGetValue(out var safe);
-            var mk = v.MadeFromStuff.TryGetValue(out var made);
-            if (!fk || !ck || !sk || !mk)
-            {
-                return ([], stock, FieldUnavailable("power_preview"));
-            }
-
-            if (footprint!.Count != 1 || footprint[0] != c || !can || !safe || made != (stuff != ""))
+            if (v.Footprint.Count != 1 || v.Footprint[0] != c || !v.CanPlace || !v.SafeToPlace || v.MadeFromStuff != (stuff != ""))
             {
                 return ([], stock, NoSpace("power_shelter_cell"));
             }
 
-            stock = MergeRoundsStock(stock, p.Stock, i == 0);
+            stock = MergeRoundsStock(stock, p.Stock);
             selected.Add(v);
         }
 
@@ -173,17 +164,8 @@ public sealed partial class RoundsBuildingPlanner
         var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
         var preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
         var p = preview.Preview;
-        var fk = p.Footprint.TryGetValue(out var footprint);
-        var mk = p.MadeFromStuff.TryGetValue(out var made);
-        var lk = p.CanPlace.TryGetValue(out var legal);
-        var sk = p.SafeToPlace.TryGetValue(out var safe);
-        if (!fk || !mk || !lk || !sk)
-        {
-            return ([], stock, FieldUnavailable("power_preview"));
-        }
-
         var blocked = protectedCells.ToHashSet();
-        foreach (var c in footprint!)
+        foreach (var c in p.Footprint)
         {
             if (blocked.Contains(c))
             {
@@ -191,12 +173,12 @@ public sealed partial class RoundsBuildingPlanner
             }
         }
 
-        if (made || footprint.Count == 0 || !legal || !safe)
+        if (p.MadeFromStuff || p.Footprint.Count == 0 || !p.CanPlace || !p.SafeToPlace)
         {
             return ([], stock, NoSpace("geyser_site"));
         }
 
-        stock = MergeRoundsStock(stock, preview.Stock, true);
+        stock = MergeRoundsStock(stock, preview.Stock);
         return ([p], stock, default);
     }
 
@@ -255,21 +237,17 @@ async
             n++;
             var p = await Native.PreviewBuildingAsync(a, snapshot, ct).ConfigureAwait(false);
             var v = p.Preview;
-            var fk = v.Footprint.TryGetValue(out var footprint);
-            var ck = v.CanPlace.TryGetValue(out var can);
-            var sk = v.SafeToPlace.TryGetValue(out var safe);
-            var mk = v.MadeFromStuff.TryGetValue(out var made);
-            if (!fk || !ck || !sk || !mk || !can || !safe || made != (Stuff != "") || !RoundsBuildingPlanner.SameCells(footprint!, LayoutUtilityRules.RectangleCells(area)))
+            if (!v.CanPlace || !v.SafeToPlace || v.MadeFromStuff != (Stuff != "") || !RoundsBuildingPlanner.SameCells(v.Footprint, LayoutUtilityRules.RectangleCells(area)))
             {
                 return (default!, false);
             }
 
-            if (Definition == PowerRules.WindTurbineDefinition && (!v.WindBlockedCells.TryGetValue(out var w) || w > 0))
+            if (Definition == PowerRules.WindTurbineDefinition && !PreviewRules.ClearWindTurbine(v))
             {
                 return (default!, false);
             }
 
-            stock = MergeRoundsStock(stock, p.Stock, merged == 0);
+            stock = MergeRoundsStock(stock, p.Stock);
             merged++;
             return (v, true);
         }
@@ -336,22 +314,13 @@ async
             var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{i}"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
             var preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var p = preview.Preview;
-            var fk = p.Footprint.TryGetValue(out var footprint);
-            var mk = p.MadeFromStuff.TryGetValue(out var made);
-            var lk = p.CanPlace.TryGetValue(out var legal);
-            var sk = p.SafeToPlace.TryGetValue(out var safe);
-            if (!fk || !mk || !lk || !sk)
-            {
-                return ([], stock, FieldUnavailable("power_preview"));
-            }
-
-            if (made || footprint!.Count != 1 || footprint[0] != cell || !legal || !safe)
+            if (p.MadeFromStuff || p.Footprint.Count != 1 || p.Footprint[0] != cell || !p.CanPlace || !p.SafeToPlace)
             {
                 return ([], stock, NoSpace("power_route_cell"));
             }
 
             selected.Add(p);
-            stock = MergeRoundsStock(stock, preview.Stock, i == 0);
+            stock = MergeRoundsStock(stock, preview.Stock);
         }
 
         return (selected, stock, default);

@@ -85,7 +85,7 @@ internal static class RefrigerationBuild
 
         var at = (cooler.Building.Place as RimGovernor.Contracts.Wire.Observations.EntityPlace.OnMap)?.Cell ?? throw new AcceptanceException("the cooler has no position");
         var cell = new Cell(at.X, at.Z);
-        if (!room.Walls.Contains(new Fx.StageCell(cell.X, cell.Z)) || cooler.Rotation == Placement.Rotation.Unspecified)
+        if (!room.Walls.Contains(new Fx.StageCell(cell.X, cell.Z)))
         {
             throw new AcceptanceException($"cooler at {cell} facing {cooler.Rotation} is not on a fixture wall cell");
         }

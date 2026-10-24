@@ -149,7 +149,7 @@ public sealed partial class RoundsBuildingPlanner
             Plan = plan,
             Current = snapshot,
             Tick = s.Facts.Identity.Tick,
-            Bounds = Known(s.Facts.Bounds),
+            Bounds = s.Facts.Bounds,
             Stock = stock,
             Previews = previews ?? [],
             Purpose = Purpose.Rounds,

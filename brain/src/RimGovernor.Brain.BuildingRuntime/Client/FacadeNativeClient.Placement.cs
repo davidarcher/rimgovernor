@@ -57,7 +57,7 @@ public sealed partial class FacadeNativeClient
                 X = b.Cell.X,
                 Z = b.Cell.Z,
                 Rotation = PlacementRequests.WireRotation(b.Rotation),
-                IgnoreNaturalRock = overRock ? true : null,
+                IgnoreNaturalRock = overRock,
             });
         }
         var output = new List<BridgeBuildingPreview>(actions.Count);
@@ -134,36 +134,22 @@ public sealed partial class FacadeNativeClient
 
     internal static class PlacementRequests
     {
-        /// <summary>The cardinal rotations; anything else is unspecified and refused by the request check.</summary>
-        internal static PbPlacement.Rotation WireRotation(Rotation rotation) =>
-            rotation switch
-            {
-                Rotation.North => PbPlacement.Rotation.North,
-                Rotation.East => PbPlacement.Rotation.East,
-                Rotation.South => PbPlacement.Rotation.South,
-                Rotation.West => PbPlacement.Rotation.West,
-                _ => PbPlacement.Rotation.Unspecified,
-            };
+        /// <summary>The cardinal rotations; a previewed action names one.</summary>
+        internal static PbPlacement.Rotation WireRotation(Rotation rotation) => Cardinals[(int)rotation];
 
-        internal static void ValidatePlacementRequest(PbPlacement.PlacementRequest? request)
+        private static readonly PbPlacement.Rotation[] Cardinals = [PbPlacement.Rotation.North, PbPlacement.Rotation.East, PbPlacement.Rotation.South, PbPlacement.Rotation.West];
+
+        internal static void ValidatePlacementRequest(PbPlacement.PlacementRequest request)
         {
-            if (request is null || request.Placements.Count < 1 || request.Placements.Count > CombatConstants.PlacementBatchLimit)
+            if (request.Placements.Count < 1 || request.Placements.Count > CombatConstants.PlacementBatchLimit)
             {
                 throw BridgeContractException.Contract("placement count");
             }
             foreach (var v in request.Placements)
             {
-                if (v is null
-                    || v.DefName is null
-                   
-                   
-                    || v.Rotation is null
-                    || v.X < 0
-                    || v.Z < 0
-                    || v.Rotation.GetValueOrDefault() < PbPlacement.Rotation.North
-                    || v.Rotation.GetValueOrDefault() > PbPlacement.Rotation.All)
+                if (v.X < 0 || v.Z < 0)
                 {
-                    throw BridgeContractException.Contract("placement candidate presence/coordinates/rotation");
+                    throw BridgeContractException.Contract("placement candidate coordinates");
                 }
             }
         }
@@ -173,61 +159,50 @@ public sealed partial class FacadeNativeClient
         {
             var b = action.Building!;
             var orientation = evaluation.Rotations[0];
-            var canPlace = evaluation.CanPlace.GetValueOrDefault()
-                && orientation.Accepted.GetValueOrDefault()
-                && evaluation.ResearchFinished.GetValueOrDefault()
-                && evaluation.BuildableByPlayer.GetValueOrDefault();
-            var watch = orientation.WatchCellsAccessible is { } accessible ? Fact.Known(accessible) : Fact.Unknown<bool>();
-            var wind = orientation.WindBlockedCells is { } blocked ? Fact.Known((int)Math.Min(blocked, 4096u)) : Fact.Unknown<int>();
+            var canPlace = evaluation.CanPlace
+                && orientation.Accepted
+                && evaluation.ResearchFinished
+                && evaluation.BuildableByPlayer;
+            // A wind turbine's count caps at the preview's 4096-cell bound.
+            var wind = orientation.Wind is O.BuildingWind.WindTurbine turbine
+                ? new O.BuildingWind.WindTurbine { BlockedCells = Math.Min(turbine.BlockedCells, 4096u) }
+                : orientation.Wind;
             var safe = true;
             var nativeWorkPending = false;
             var blockers = new List<PlacementBlocker>();
             foreach (var blocker in orientation.BlockingThings)
             {
                 var replaceConduit = b.Definition == "HiddenConduit"
-                    && (blocker.DefName ?? "") == "PowerConduit"
-                    && (blocker.Category ?? "") == "Building"
-                    && !blocker.IsBlueprint.GetValueOrDefault()
-                    && !blocker.IsFrame.GetValueOrDefault()
-                    && !blocker.FrameWouldBeCancelled.GetValueOrDefault();
-                if ((blocker.WouldBeWiped.GetValueOrDefault() && !replaceConduit) || blocker.FrameWouldBeCancelled.GetValueOrDefault() || blocker.IsBlueprint.GetValueOrDefault() || blocker.IsFrame.GetValueOrDefault())
+                    && blocker.DefName == "PowerConduit"
+                    && blocker.Category == "Building"
+                    && !blocker.IsBlueprint
+                    && !blocker.IsFrame
+                    && !blocker.FrameWouldBeCancelled;
+                if ((blocker.WouldBeWiped && !replaceConduit) || blocker.FrameWouldBeCancelled || blocker.IsBlueprint || blocker.IsFrame)
                 {
                     safe = false;
                 }
-                nativeWorkPending = nativeWorkPending || blocker.IsBlueprint.GetValueOrDefault() || blocker.IsFrame.GetValueOrDefault();
+                nativeWorkPending = nativeWorkPending || blocker.IsBlueprint || blocker.IsFrame;
                 blockers.Add(new PlacementBlocker
                 {
-                    Category = blocker.Category ?? "",
-                    DefName = blocker.DefName ?? "",
-                    Wiped = blocker.WouldBeWiped.GetValueOrDefault(),
-                    Blueprint = blocker.IsBlueprint.GetValueOrDefault(),
-                    Frame = blocker.IsFrame.GetValueOrDefault(),
-                    Cancelled = blocker.FrameWouldBeCancelled.GetValueOrDefault(),
+                    Category = blocker.Category,
+                    DefName = blocker.DefName,
+                    Wiped = blocker.WouldBeWiped,
+                    Blueprint = blocker.IsBlueprint,
+                    Frame = blocker.IsFrame,
+                    Cancelled = blocker.FrameWouldBeCancelled,
                 });
             }
 
-            // Even a zero-cost evaluation cannot turn an unreadable material scan into authorization. The next
-            // complete preview can release this unknown hold.
-            var nativeConstruction = false;
-            var safeToPlace = Fact.Unknown<bool>();
             var stocks = new List<Stock>();
-            if (evaluation.Materials is { } known)
+            foreach (var material in evaluation.Materials.Rows)
             {
-                nativeConstruction = true;
-                safeToPlace = Fact.Known(safe);
-                foreach (var material in known.Rows)
-                {
-                    stocks.Add(new Stock(new Resource(material.DefName), material.Available));
-                }
-            }
-            else if (!safe)
-            {
-                safeToPlace = Fact.Known(false);
+                stocks.Add(new Stock(new Resource(material.DefName), material.Available));
             }
             var costs = new List<Amount>(evaluation.CostList.Count);
             foreach (var cost in evaluation.CostList)
             {
-                costs.Add(new Amount(new Resource(cost.DefName ?? ""), cost.Count.GetValueOrDefault()));
+                costs.Add(new Amount(new Resource(cost.DefName), cost.Count));
             }
 
             // Claim occupied and interaction cells so later placements cannot block the worker's access to this building.
@@ -247,24 +222,23 @@ public sealed partial class FacadeNativeClient
                 {
                     Action = action,
                     Snapshot = snapshot,
-                    CanPlace = Fact.Known(canPlace),
-                    MadeFromStuff = Fact.Known(evaluation.MadeFromStuff.GetValueOrDefault()),
-                    WatchCellsAccessible = watch,
-                    WindBlockedCells = wind,
-                    SafeToPlace = safeToPlace,
+                    CanPlace = canPlace,
+                    MadeFromStuff = evaluation.MadeFromStuff,
+                    WatchCells = orientation.WatchCells,
+                    Wind = wind,
+                    SafeToPlace = safe,
                     Blockers = EquatableArray.From(blockers),
-                    Costs = Fact.Known(EquatableArray.From(costs)),
-                    Footprint = Fact.Known(EquatableArray.From(footprint)),
+                    Costs = EquatableArray.From(costs),
+                    Footprint = EquatableArray.From(footprint),
                 },
                 Stock = new StockObservation
                 {
                     Snapshot = snapshot,
                     Tick = tick,
-                    NativeConstruction = nativeConstruction,
                     Values = EquatableArray.From(stocks),
                 },
                 NativeWorkPending = nativeWorkPending,
-                Reason = orientation.Reason ?? "",
+                Reason = orientation.Reason,
             };
         }
 

@@ -35,22 +35,22 @@ namespace HomeBridge.BridgeTools
             [NotNullWhen(true)] out NativeConstructionPlan? plan, [NotNullWhen(true)] out Placement.PlacementEvaluated? preview, [NotNullWhen(false)] out Common.Failure? failure)
         {
             plan = null; preview = null;
-            var validation = new Placement.PlacementRequest { Identity = context.Identity };
+            var validation = new Placement.PlacementRequest { Identity = context.Identity, Placements = [] };
             if (candidate != null) validation = validation with { Placements = [.. validation.Placements, candidate] };
             if (!PlacementProtocol.Validate(validation, out failure)) return false;
             if (candidate == null) { failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction requires one placement candidate."); return false; }
-            var query = new PlacementQuery((candidate.DefName ?? ""), candidate.X.GetValueOrDefault(), candidate.Z.GetValueOrDefault(),
-                PlacementProtocol.RotationName(candidate.Rotation.GetValueOrDefault()), candidate.Stuff is not null ? (candidate.Stuff ?? "") : null);
+            var query = new PlacementQuery(candidate.DefName, candidate.X, candidate.Z,
+                PlacementProtocol.RotationName(candidate.Rotation), candidate.Stuff);
             var result = PlacementProtocol.Map(PlacementPreviewOperation.Evaluate(map, query), context);
             if (result.Outcome?.Failure is { } placementFailure) { failure = placementFailure; return false; }
             preview = result.Outcome?.Evaluated;
             if (preview is null) { failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "Placement preview unavailable."); return false; }
-            if (candidate.Rotation.GetValueOrDefault() == Placement.Rotation.All)
+            if (candidate.Rotation == Placement.Rotation.All)
             {
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Construction requires one cardinal rotation.");
                 return false;
             }
-            if (!PlacementPreviewOperation.TryResolveBuildable((candidate.DefName ?? ""), out var definition, out _) || definition == null)
+            if (!PlacementPreviewOperation.TryResolveBuildable(candidate.DefName, out var definition, out _) || definition == null)
             {
                 failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "This construction adapter requires a ThingDef building or a TerrainDef floor.");
                 return false;
@@ -60,10 +60,10 @@ namespace HomeBridge.BridgeTools
                 failure = ProtoBoundary.Fail(Common.FailureCode.Unsupported, "This construction adapter lays floors through an ordinary blueprint and frame only.");
                 return false;
             }
-            if (!preview.CanPlace.GetValueOrDefault())
+            if (!preview.CanPlace)
             {
                 failure = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest,
-                    PlacementPreviewOperation.Diagnostic((preview.Rotations[0].Reason ?? "")));
+                    PlacementPreviewOperation.Diagnostic(preview.Rotations[0].Reason));
                 return false;
             }
             var player = Faction.OfPlayerSilentFail;
@@ -72,10 +72,10 @@ namespace HomeBridge.BridgeTools
                 failure = ProtoBoundary.Fail(Common.FailureCode.Unavailable, "No player faction is available.");
                 return false;
             }
-            var stuff = preview.MadeFromStuff.GetValueOrDefault() ? ((candidate.Stuff ?? "").Length == 0 ? GenStuff.DefaultStuffFor(definition)
-                : PlacementPreviewOperation.ResolveThingDef((candidate.Stuff ?? ""))) : null;
-            plan = new NativeConstructionPlan(map, definition, stuff, new IntVec3(candidate.X.GetValueOrDefault(), 0, candidate.Z.GetValueOrDefault()),
-                new Rot4((int)candidate.Rotation.GetValueOrDefault() - 1), player);
+            var stuff = preview.MadeFromStuff ? (candidate.Stuff.Length == 0 ? GenStuff.DefaultStuffFor(definition)
+                : PlacementPreviewOperation.ResolveThingDef(candidate.Stuff)) : null;
+            plan = new NativeConstructionPlan(map, definition, stuff, new IntVec3(candidate.X, 0, candidate.Z),
+                new Rot4((int)candidate.Rotation - 1), player);
             failure = null;
             return true;
         }

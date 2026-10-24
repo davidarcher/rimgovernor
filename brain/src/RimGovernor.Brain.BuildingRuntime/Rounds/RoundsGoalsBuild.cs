@@ -77,7 +77,7 @@ public sealed partial class GoalsRounds
             }
             sites = FreeSitesRules.FreeSites(new FreeSiteRequest { Bounds = f.Bounds, Anchor = center, Cells = f.Cells, Light = f.LightTerrains }, size.Width, size.Height);
         }
-        var verdict = await BiotechRounds.PlaceAsync(_reviewer, _building, work, f, goal.Target, method, size, sites, SiteTries, "built_count_preview", started, call).ConfigureAwait(false);
+        var verdict = await BiotechRounds.PlaceAsync(_reviewer, _building, work, f, goal.Target, method, size, sites, SiteTries, started, call).ConfigureAwait(false);
         return verdict ?? NoSpace(placer == BuiltPlacer.Geothermal ? "geyser" : "beacon_cell");
     }
 

@@ -76,7 +76,6 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
     // Admission reasons that are not already a Cause above.
     public static readonly Cause NotReady = new("not_ready");
     public static readonly Cause AlreadyReserved = new("already_reserved");
-    public static readonly Cause UnknownFacts = new("unknown_facts");
     public static readonly Cause StaleFacts = new("stale_facts");
     public static readonly Cause UnsafePlacement = new("unsafe_placement");
     public static readonly Cause UnsafeThreat = new("unsafe_threat");
@@ -132,7 +131,7 @@ public readonly partial record struct Cause(string Value) : IComparable<Cause>
         MethodUsed, ExistingWork, ComfortUse, Facility, HospitalConvert,
         SleepingUse, Separation, Dialog, Claim, FacilityAccess, RoomTemperature, RetryBudgetWait, WaitingOnNeed,
         CombatOrders, HoldFallback,
-        NotReady, AlreadyReserved, UnknownFacts, StaleFacts, UnsafePlacement, UnsafeThreat,
+        NotReady, AlreadyReserved, StaleFacts, UnsafePlacement, UnsafeThreat,
         CriticalMedical, MaterialRequired, DependencyBlocked, GeometryBlocked, InvalidHeld,
         ExcavationUnsupported, ExcavationGeometryChanged, UnsafeRoute, RoofSupportRisk, StorageMissing,
         UrgentCompetingWork,
@@ -257,7 +256,6 @@ public static class CauseRules
 
         [Cause.NotReady] = "The action is not ready yet.",
         [Cause.AlreadyReserved] = "Something else already reserved this.",
-        [Cause.UnknownFacts] = "The bot does not know enough yet.",
         [Cause.StaleFacts] = "The bot's information is out of date.",
         [Cause.UnsafePlacement] = "The spot is not safe.",
         [Cause.UnsafeThreat] = "A threat makes this unsafe right now.",

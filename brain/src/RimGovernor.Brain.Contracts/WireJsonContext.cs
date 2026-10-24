@@ -1340,6 +1340,7 @@ namespace RimGovernor.Contracts.Wire;
 [JsonSerializable(typeof(Operations.GatheringIntent), TypeInfoPropertyName = "OperationsGatheringIntent")]
 [JsonSerializable(typeof(Operations.ConversionIntent), TypeInfoPropertyName = "OperationsConversionIntent")]
 [JsonSerializable(typeof(Placement.Rotation), TypeInfoPropertyName = "PlacementRotation")]
+[JsonSerializable(typeof(Placement.WatchAccess), TypeInfoPropertyName = "PlacementWatchAccess")]
 [JsonSerializable(typeof(Placement.PlacementRequest), TypeInfoPropertyName = "PlacementPlacementRequest")]
 [JsonSerializable(typeof(EquatableArray<Placement.PlacementCandidate>), TypeInfoPropertyName = "EquatableArrayPlacementPlacementCandidate")]
 [JsonSerializable(typeof(Placement.PlacementCandidate), TypeInfoPropertyName = "PlacementPlacementCandidate")]

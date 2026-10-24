@@ -44,7 +44,7 @@ internal static class WallConstructionSkill
 
         Operations.BuildingIntent Bed(string target, int? minimum, int tier) => new()
         {
-            Placement = new Placement.PlacementCandidate { DefName = "Bed", Stuff = "WoodLog", X = prepared.X, Z = prepared.Z, Rotation = Placement.Rotation.North },
+            Placement = new Placement.PlacementCandidate { DefName = "Bed", Stuff = "WoodLog", X = prepared.X, Z = prepared.Z, Rotation = Placement.Rotation.North, IgnoreNaturalRock = false },
             MinimumFinishingSkill = minimum,
             Tier = tier,
             ExistingTargetId = target,

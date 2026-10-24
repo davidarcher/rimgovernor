@@ -65,7 +65,7 @@ internal static class WallTierGate
 
         Operations.BuildingIntent SetTier(int tier) => new()
         {
-            Placement = new Placement.PlacementCandidate { DefName = "Wall", Stuff = "Steel", X = b.X, Z = b.Z, Rotation = Placement.Rotation.North },
+            Placement = new Placement.PlacementCandidate { DefName = "Wall", Stuff = "Steel", X = b.X, Z = b.Z, Rotation = Placement.Rotation.North, IgnoreNaturalRock = false },
             Tier = tier,
             ExistingTargetId = b.Target,
         };

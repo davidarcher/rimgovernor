@@ -269,8 +269,8 @@ namespace HomeBridge.BridgeTools
                 result.accepted = false;
                 result.reason = "Rain-sensitive electrical equipment requires a completed roof over its footprint.";
             }
-            try { result.watchCellsAccessible = ComfortFacts.WatchCellsAccessible(map, definition, center, rotation); }
-            catch (Exception) { result.watchCellsAccessible = null; }
+            // Null is a definition no recreation watches; a failed read throws and fails the candidate.
+            result.watchCellsAccessible = ComfortFacts.WatchCellsAccessible(map, definition, center, rotation);
             return result;
         }
 

@@ -793,7 +793,7 @@ public sealed partial class RoundsBuildingPlanner
             Plan = plan,
             Current = a.Snapshot,
             Tick = a.Facts.Identity.Tick,
-            Bounds = Known(a.Facts.Bounds),
+            Bounds = a.Facts.Bounds,
             Stock = a.Stock,
             Previews = a.Selected,
             Purpose = a.Purpose,
@@ -1034,7 +1034,6 @@ public sealed partial class RoundsBuildingPlanner
         }
         var search = new Pol.PlacementSearch(searchRequest);
         var selected = new List<Pol.Preview>();
-        var unknownWatch = false;
         var watchBuildings = facts.Facts.Comfort.TryGetValue(out var comfort) ? comfort.WatchBuildings : [];
         var usedCells = new HashSet<Cell>();
         var stock = new Pol.StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
@@ -1046,13 +1045,10 @@ public sealed partial class RoundsBuildingPlanner
         void Commit()
         {
             selected.Add(pending!.Choice);
-            stock = MergeRoundsStock(stock, pending.Preview.Stock, selected.Count == 1);
-            if (pending.Choice.Footprint.TryGetValue(out var footprint))
+            stock = MergeRoundsStock(stock, pending.Preview.Stock);
+            foreach (var c in pending.Choice.Footprint)
             {
-                foreach (var c in footprint)
-                {
-                    usedCells.Add(c);
-                }
+                usedCells.Add(c);
             }
             pending = null;
         }
@@ -1064,28 +1060,21 @@ public sealed partial class RoundsBuildingPlanner
             var b = new Building(Definition, c, rotation, Stuff);
             var a = DomainAction.NewBuildingAction(new ActionId(id), b, ConstructionTierRules.PlannerTier(Concern, Phase));
             var preview = await Native.PreviewBuildingAsync(a, snapshot, call).ConfigureAwait(false);
-            var madeKnown = preview.Preview.MadeFromStuff.TryGetValue(out var made);
             if ((Phase == Pol.Phase.ComfortRanked || Phase == Pol.Phase.ComfortBasic) && watchBuildings.Contains(Definition))
             {
-                var accessibleKnown = preview.Preview.WatchCellsAccessible.TryGetValue(out var accessible);
-                unknownWatch = unknownWatch || !accessibleKnown;
-                if (!accessibleKnown || !accessible)
+                if (Pol.PreviewRules.WatchUnreachable(preview.Preview))
                 {
                     return (null, false, default);
                 }
             }
-            if (!madeKnown)
-            {
-                return (null, false, FieldUnavailable("made_from_stuff"));
-            }
-            if (made != (Stuff != ""))
+            if (preview.Preview.MadeFromStuff != (Stuff != ""))
             {
                 return (null, false, SiteBlocked(Definition, "stuff_differs_from_native"));
             }
             if (Definition == PowerRules.WindTurbineDefinition)
             {
                 // Only a site whose native catch zone is clear makes the turbine's nominal output; an obstructed one is no site.
-                if (!preview.Preview.WindBlockedCells.TryGetValue(out var blocked) || blocked > 0)
+                if (!Pol.PreviewRules.ClearWindTurbine(preview.Preview))
                 {
                     return (null, false, default);
                 }
@@ -1110,7 +1099,7 @@ public sealed partial class RoundsBuildingPlanner
         // Overlaps refuses a footprint on a site already chosen, or one that cuts a planned room's door-to-door aisle or strands its floor.
         bool Overlaps(Pol.Preview candidate)
         {
-            candidate.Footprint.TryGetValue(out var footprint);
+            var footprint = candidate.Footprint;
             foreach (var c in footprint)
             {
                 if (usedCells.Contains(c))
@@ -1261,10 +1250,6 @@ public sealed partial class RoundsBuildingPlanner
         }
         if (selected.Count != missing)
         {
-            if (unknownWatch)
-            {
-                return (null, new Pol.StockObservation(), FieldUnavailable("watch_cells_accessible"));
-            }
             return (null, new Pol.StockObservation(), NoSpace("placement_site"));
         }
         return (selected, stock, default);
@@ -1333,18 +1318,14 @@ partial class RoundsBuildingPlanner
     /// <summary>Bounds the builds one epoch may stage under the same selection: beds for one owed count, campfires after burn-outs.</summary>
     internal const int SleepingBedsPerEpoch = 8;
 
-    /// <summary>The distinct resources the previews' known costs name, sorted.</summary>
+    /// <summary>The distinct resources the previews' costs name, sorted.</summary>
     internal static List<Pol.Resource> PreviewResources(IReadOnlyList<Pol.Preview> previews)
     {
         var seen = new HashSet<Pol.Resource>();
         var output = new List<Pol.Resource>();
         foreach (var p in previews)
         {
-            if (!p.Costs.TryGetValue(out var costs))
-            {
-                continue;
-            }
-            foreach (var c in costs)
+            foreach (var c in p.Costs)
             {
                 if (c.Count > 0 && seen.Add(c.Resource))
                 {

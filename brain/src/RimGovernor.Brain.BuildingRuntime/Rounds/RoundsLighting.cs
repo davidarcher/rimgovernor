@@ -111,7 +111,6 @@ public sealed partial class RoundsBuildingPlanner
             }
         }
 
-        var unknown = false;
         foreach (var cell in Lighting.Cells)
         {
             if (guarded.Contains(cell))
@@ -123,28 +122,13 @@ public sealed partial class RoundsBuildingPlanner
             var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
             var preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var p = preview.Preview;
-            var fk = p.Footprint.TryGetValue(out var footprint);
-            var mk = p.MadeFromStuff.TryGetValue(out var made);
-            var lk = p.CanPlace.TryGetValue(out var legal);
-            var sk = p.SafeToPlace.TryGetValue(out var safe);
-            if (!fk || !mk || !lk || !sk)
-            {
-                unknown = true;
-                continue;
-            }
-
-            if (made || footprint!.Count != 1 || footprint[0] != cell || !legal || !safe)
+            if (p.MadeFromStuff || p.Footprint.Count != 1 || p.Footprint[0] != cell || !p.CanPlace || !p.SafeToPlace)
             {
                 continue;
             }
 
-            stock = MergeRoundsStock(stock, preview.Stock, true);
+            stock = MergeRoundsStock(stock, preview.Stock);
             return ([p], stock, default);
-        }
-
-        if (unknown)
-        {
-            return (null!, stock, FieldUnavailable("lighting_preview"));
         }
 
         return (null!, stock, NoSpace("light_cell"));

@@ -56,36 +56,62 @@ public enum Purpose
     Shelter,
 }
 
-public sealed record Dependency(ActionId Action, Fact<bool> Completed, GenerationSnapshot Snapshot);
+public sealed record Dependency(ActionId Action, bool Completed, GenerationSnapshot Snapshot);
 
 /// <summary>
-/// Bound to the exact action, including resolved anchor/rotation/stuff. SafeToPlace includes normal-game
-/// legality and absence of destructive side effects; CanPlace alone does not establish that existing objects
-/// will be preserved.
+/// Bound to the exact action, including resolved anchor/rotation/stuff, and read whole from one native evaluation
+/// (or built whole by a planner's stand-in). SafeToPlace includes normal-game legality and absence of destructive
+/// side effects; CanPlace alone does not establish that existing objects will be preserved.
 /// </summary>
 public sealed record Preview
 {
     public required DomainAction Action { get; init; }
 
-    public GenerationSnapshot Snapshot { get; init; }
+    public required GenerationSnapshot Snapshot { get; init; }
 
-    public Fact<bool> CanPlace { get; init; }
+    public required bool CanPlace { get; init; }
 
-    public Fact<bool> SafeToPlace { get; init; }
+    public required bool SafeToPlace { get; init; }
 
-    public Fact<bool> MadeFromStuff { get; init; }
+    public required bool MadeFromStuff { get; init; }
 
-    public Fact<bool> WatchCellsAccessible { get; init; }
+    /// <summary>Whether every eligible colonist can reach a watch cell; <see cref="WatchAccess.NotWatched"/> for a definition no recreation watches.</summary>
+    public required WatchAccess WatchCells { get; init; }
 
-    /// <summary>For a wind turbine, how many cells of its native catch zone are obstructed; unknown for every other definition.</summary>
-    public Fact<int> WindBlockedCells { get; init; }
+    /// <summary>A wind turbine's obstructed catch-zone cells; <see cref="BuildingWind.NotWindTurbine"/> for every other definition.</summary>
+    public required BuildingWind Wind { get; init; }
 
-    public Fact<EquatableArray<Cell>> Footprint { get; init; }
+    /// <summary>The occupied and interaction cells the placement claims; never empty for a native evaluation.</summary>
+    public required EquatableArray<Cell> Footprint { get; init; }
 
-    public Fact<EquatableArray<Amount>> Costs { get; init; }
+    public required EquatableArray<Amount> Costs { get; init; }
 
     /// <summary>Distinguishes deliberate replacement from accidental destruction. Admission still requires SafeToPlace.</summary>
-    public EquatableArray<PlacementBlocker> Blockers { get; init; }
+    public required EquatableArray<PlacementBlocker> Blockers { get; init; }
+}
+
+public static class PreviewRules
+{
+    /// <summary>A zone site a planner previews itself: legal, safe, unwatched, free of stuff, cost and blockers.</summary>
+    public static Preview Zone(DomainAction action, GenerationSnapshot snapshot, EquatableArray<Cell> cells) => new()
+    {
+        Action = action,
+        Snapshot = snapshot,
+        CanPlace = true,
+        SafeToPlace = true,
+        MadeFromStuff = false,
+        WatchCells = WatchAccess.NotWatched,
+        Wind = new BuildingWind.NotWindTurbine(),
+        Footprint = cells,
+        Costs = [],
+        Blockers = [],
+    };
+
+    /// <summary>Whether native found no colonist able to reach a watch cell; a definition nothing watches is never unreachable.</summary>
+    public static bool WatchUnreachable(Preview p) => p.WatchCells == WatchAccess.Unreachable;
+
+    /// <summary>A wind turbine whose native catch zone is clear; every other preview is not one.</summary>
+    public static bool ClearWindTurbine(Preview p) => p.Wind is BuildingWind.WindTurbine { BlockedCells: 0 };
 }
 
 /// <summary>One thing the previewed placement would disturb.</summary>
@@ -124,10 +150,8 @@ public sealed record StockObservation
 
     public Tick Tick { get; init; }
 
-    public EquatableArray<Stock> Values { get; init; }
-
     /// <summary>Available already subtracts the complete native census of remaining blueprint/frame costs, including other controllers.</summary>
-    public bool NativeConstruction { get; init; }
+    public EquatableArray<Stock> Values { get; init; }
 }
 
 /// <summary>
@@ -152,7 +176,7 @@ public sealed record Request
 
     public Tick CurrentTick { get; init; }
 
-    public Fact<Bounds> Bounds { get; init; }
+    public required Bounds Bounds { get; init; }
 
     public EquatableArray<Candidate> Candidates { get; init; }
 
@@ -183,7 +207,6 @@ public readonly partial record struct Reason(string Value)
 
     public static readonly Reason NotReady = new("not_ready");
     public static readonly Reason AlreadyReserved = new("already_reserved");
-    public static readonly Reason UnknownFacts = new("unknown_facts");
     public static readonly Reason StaleFacts = new("stale_facts");
     public static readonly Reason UnsafePlacement = new("unsafe_placement");
     public static readonly Reason UnsafeThreat = new("unsafe_threat");
@@ -220,10 +243,7 @@ public static class AdmissionRules
     {
         r.Current.Validate();
         DomainException.Require(r.CurrentTick.Value >= 0, "negative current tick");
-        if (r.Bounds.TryGetValue(out var b))
-        {
-            DomainException.Require(b.Width > 0 && b.Height > 0, "invalid observed map bounds");
-        }
+        DomainException.Require(r.Bounds.Width > 0 && r.Bounds.Height > 0, "invalid observed map bounds");
 
         var candidates = new List<Candidate>();
         var seen = new HashSet<ActionId>();
@@ -246,13 +266,8 @@ public static class AdmissionRules
                 );
             }
 
-            if (c.Preview.Costs.TryGetValue(out var costs))
-            {
-                ValidAmounts(costs);
-                c = c with { Preview = c.Preview with { Costs = Known(CopyAmounts(costs)) } };
-            }
-
-            candidates.Add(c);
+            ValidAmounts(c.Preview.Costs);
+            candidates.Add(c with { Preview = c.Preview with { Costs = CopyAmounts(c.Preview.Costs) } });
         }
 
         var held = new List<Reservation>();
@@ -410,7 +425,7 @@ public static class AdmissionRules
         }
 
         var candidates = PolicySort.ByLess(r.Candidates, (a, b) => a.Action.Id < b.Action.Id);
-        var boundsKnown = r.Bounds.TryGetValue(out var bounds);
+        var bounds = r.Bounds;
         var stockFresh = r.Stock.Snapshot.Matches(r.Current);
         var occupied = new Dictionary<Cell, int>();
         var heldIds = new HashSet<ActionId>();
@@ -425,7 +440,7 @@ public static class AdmissionRules
 
             result.Held.Add(CopyReservation(h));
             heldIds.Add(h.Action.Id);
-            if (!SameWorld(h.Snapshot, r.Current) || !boundsKnown || !Footprint(h.Footprint, h.Action, bounds))
+            if (!SameWorld(h.Snapshot, r.Current) || !Footprint(h.Footprint, h.Action, bounds))
             {
                 heldInvalid = true;
                 continue;
@@ -502,7 +517,7 @@ public static class AdmissionRules
                 }
             }
 
-            var reason = Assess(c, r, bounds, boundsKnown, stockFresh, space, identities, heldProblem);
+            var reason = Assess(c, r, bounds, stockFresh, space, identities, heldProblem);
             if (!reason.IsEmpty)
             {
                 result.Refused.Add(new Refusal(c.Action.Id, reason, default));
@@ -516,14 +531,12 @@ public static class AdmissionRules
                 result.Held.RemoveAt(replace);
             }
 
-            c.Preview.Costs.TryGetValue(out var costs);
-            c.Preview.Footprint.TryGetValue(out var cells);
-            foreach (var cell in cells)
+            foreach (var cell in c.Preview.Footprint)
             {
                 occupied[cell] = occupied.GetValueOrDefault(cell) + 1;
             }
 
-            result.Admitted.Add(CopyReservation(new Reservation(c.Action, c.Progress, r.Current, costs, cells)));
+            result.Admitted.Add(CopyReservation(new Reservation(c.Action, c.Progress, r.Current, c.Preview.Costs, c.Preview.Footprint)));
         }
 
         return result;
@@ -533,7 +546,6 @@ public static class AdmissionRules
         Candidate c,
         Request r,
         Bounds bounds,
-        bool boundsKnown,
         bool stockFresh,
         Dictionary<Cell, int> occupied,
         HashSet<ActionId> heldIds,
@@ -578,50 +590,35 @@ public static class AdmissionRules
 
         foreach (var dep in c.Dependencies)
         {
-            var known = dep.Completed.TryGetValue(out var complete);
-            if (!known || !complete || !dep.Snapshot.Matches(r.Current))
+            if (!dep.Completed || !dep.Snapshot.Matches(r.Current))
             {
                 return Reason.DependencyBlocked;
             }
         }
 
-        var canKnown = p.CanPlace.TryGetValue(out var canPlace);
-        var safeKnown = p.SafeToPlace.TryGetValue(out var safe);
-        var madeKnown = p.MadeFromStuff.TryGetValue(out var made);
-        if (!canKnown || !safeKnown || !madeKnown)
-        {
-            return Reason.UnknownFacts;
-        }
-
-        if (!canPlace || !safe)
+        if (!p.CanPlace || !p.SafeToPlace)
         {
             return Reason.UnsafePlacement;
         }
 
         var b = c.Action.Building;
-        if (made && (b?.Stuff ?? "").Length == 0)
+        if (p.MadeFromStuff && (b?.Stuff ?? "").Length == 0)
         {
             return Reason.MaterialRequired;
         }
 
-        var cellsKnown = p.Footprint.TryGetValue(out var cells);
-        var costsKnown = p.Costs.TryGetValue(out var costs);
-        if (c.Action.Kind == ActionKind.ZoneCreate && (made || costs.Count > 0))
+        // A zone is free and unstuffed; a priced or stuffed preview is not a zone's.
+        if (c.Action.Kind == ActionKind.ZoneCreate && (p.MadeFromStuff || p.Costs.Count > 0))
         {
-            return Reason.UnknownFacts;
+            return Reason.UnsafePlacement;
         }
 
-        if (!boundsKnown || !cellsKnown || !costsKnown)
-        {
-            return Reason.UnknownFacts;
-        }
-
-        if (!Footprint(cells, c.Action, bounds))
+        if (!Footprint(p.Footprint, c.Action, bounds))
         {
             return Reason.GeometryBlocked;
         }
 
-        foreach (var cell in cells)
+        foreach (var cell in p.Footprint)
         {
             if (occupied.GetValueOrDefault(cell) > 0)
             {

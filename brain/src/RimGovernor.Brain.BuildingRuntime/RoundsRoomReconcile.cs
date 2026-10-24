@@ -937,9 +937,7 @@ public sealed partial class RoundsBuildingPlanner
             var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{selected.Count}")), building, ConstructionTierRules.RoomTier(rr.Room.Role));
             var preview = await ((IRoundsBuildingSource)Native).PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var v = preview.Preview;
-            var ck = v.CanPlace.TryGetValue(out var can);
-            var sk = v.SafeToPlace.TryGetValue(out var safe);
-            if (!ck || !can || !sk || !safe)
+            if (!v.CanPlace || !v.SafeToPlace)
             {
                 if (build.Ring)
                 {
@@ -966,7 +964,7 @@ public sealed partial class RoundsBuildingPlanner
                 }
                 continue;
             }
-            stock = MergeRoundsStock(stock, preview.Stock, previewed == 0);
+            stock = MergeRoundsStock(stock, preview.Stock);
             previewed++;
             selected.Add(v);
             key.Append(CultureInfo.InvariantCulture, $"{build.Def}@{build.Cell.X},{build.Cell.Z};");

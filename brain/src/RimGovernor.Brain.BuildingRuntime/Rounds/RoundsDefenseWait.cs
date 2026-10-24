@@ -60,7 +60,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             }
             actions.Add(action);
             previews.Add(preview.Preview);
-            RoundsBuildingPlanner.MergeRoundsStock(stockSeen, preview.Stock, actions.Count == 1);
+            RoundsBuildingPlanner.MergeRoundsStock(stockSeen, preview.Stock);
         }
         if (actions.Count == 0)
         {
@@ -85,7 +85,7 @@ public sealed partial class RoundsDefenseLayoutPlanner
             Plan = plan,
             Current = snapshot,
             Tick = tick,
-            Bounds = Known(read.Projection.Bounds),
+            Bounds = read.Projection.Bounds,
             Stock = stockSeen,
             Previews = previews,
             Purpose = Purpose.Defense,

@@ -87,9 +87,8 @@ partial class RoundsBuildingPlanner
     /// moves as colonists haul); the bundle is funded from the lowest value any preview saw, and an unknown one
     /// leaves the resource unknown. Returns the merged observation.
     /// </summary>
-    internal static Pol.StockObservation MergeRoundsStock(Pol.StockObservation stock, Pol.StockObservation next, bool first)
+    internal static Pol.StockObservation MergeRoundsStock(Pol.StockObservation stock, Pol.StockObservation next)
     {
-        var nativeConstruction = first ? next.NativeConstruction : stock.NativeConstruction && next.NativeConstruction;
         var values = stock.Values.ToList();
         var index = new Dictionary<Pol.Resource, int>();
         for (var i = 0; i < values.Count; i++)
@@ -113,7 +112,7 @@ partial class RoundsBuildingPlanner
                 index[v.Resource] = values.Count - 1;
             }
         }
-        return stock with { NativeConstruction = nativeConstruction, Values = [.. values] };
+        return stock with { Values = [.. values] };
     }
 
 }

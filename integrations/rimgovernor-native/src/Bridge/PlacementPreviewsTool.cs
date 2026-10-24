@@ -17,13 +17,12 @@ namespace HomeBridge.BridgeTools
             var map = Find.CurrentMap;
             if (!ProtoBoundary.ValidateIdentity(parsed.Identity, map, out var context, out var identityFailure))
                 return new PlacementReply { Outcome = identityFailure };
-            var batch = new PlacementBatch { Context = context };
+            var batch = new PlacementBatch { Context = context, Results = [] };
             foreach (var candidate in parsed.Placements)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var query = new PlacementQuery((candidate.DefName ?? ""), candidate.X.GetValueOrDefault(), candidate.Z.GetValueOrDefault(),
-                    PlacementProtocol.RotationName(candidate.Rotation.GetValueOrDefault()), candidate.Stuff is not null ? (candidate.Stuff ?? "") : null,
-                    candidate.IgnoreNaturalRock is not null && candidate.IgnoreNaturalRock.GetValueOrDefault());
+                var query = new PlacementQuery(candidate.DefName, candidate.X, candidate.Z,
+                    PlacementProtocol.RotationName(candidate.Rotation), candidate.Stuff, candidate.IgnoreNaturalRock);
                 batch = batch with { Results = [.. batch.Results, PlacementProtocol.Map(PlacementPreviewOperation.Evaluate(map, query), context)] };
             }
             return new PlacementReply { Outcome = batch };

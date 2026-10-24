@@ -10,8 +10,6 @@ namespace RimGovernor.Contracts.Wire.Placement;
 [JsonConverter(typeof(WireEnumConverter<Rotation>))]
 public enum Rotation
 {
-    [WireName("ROTATION_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("ROTATION_NORTH")]
     North = 1,
     [WireName("ROTATION_EAST")]
@@ -27,32 +25,32 @@ public enum Rotation
 public sealed record PlacementRequest
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlacementCandidate>))]
-    public EquatableArray<PlacementCandidate> Placements { get; init; }
+    public required EquatableArray<PlacementCandidate> Placements { get; init; }
 
-    public Common.Identity? Identity { get; init; }
+    public required Common.Identity Identity { get; init; }
 }
 
 public sealed record PlacementCandidate
 {
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public int? X { get; init; }
+    public required int X { get; init; }
 
-    public int? Z { get; init; }
+    public required int Z { get; init; }
 
-    public Rotation? Rotation { get; init; }
+    public required Rotation Rotation { get; init; }
 
     /// <summary>
-    /// Absent or empty requests the game's default material.
+    /// Empty requests the game's default material.
     /// </summary>
-    public string? Stuff { get; init; }
+    public required string Stuff { get; init; }
 
     /// <summary>
     /// Previews the placement as though natural rock at the cell were already
     /// mined, for a planned building whose excavation the same plan orders
-    /// first. Dispatch never sets it.
+    /// first. Dispatch sets it false.
     /// </summary>
-    public bool? IgnoreNaturalRock { get; init; }
+    public required bool IgnoreNaturalRock { get; init; }
 }
 
 public sealed record PlacementReply
@@ -87,10 +85,10 @@ public abstract record PlacementReplyOutcome
 
 public sealed record PlacementBatch
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<CandidateReply>))]
-    public EquatableArray<CandidateReply> Results { get; init; }
+    public required EquatableArray<CandidateReply> Results { get; init; }
 }
 
 public sealed record CandidateReply
@@ -125,35 +123,36 @@ public abstract record CandidateReplyOutcome
 
 public sealed record PlacementEvaluated
 {
-    public bool? CanPlace { get; init; }
+    public required bool CanPlace { get; init; }
 
-    public bool? MadeFromStuff { get; init; }
+    public required bool MadeFromStuff { get; init; }
 
-    public bool? ResearchFinished { get; init; }
+    public required bool ResearchFinished { get; init; }
 
-    public bool? BuildableByPlayer { get; init; }
+    public required bool BuildableByPlayer { get; init; }
 
     /// <summary>
     /// Evaluated guarantees a complete cost scan; unreadable/oversized scans fail the candidate.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlacementCost>))]
-    public EquatableArray<PlacementCost> CostList { get; init; }
+    public required EquatableArray<PlacementCost> CostList { get; init; }
 
-    public PlacementMaterials? Materials { get; init; }
+    /// <summary>Evaluated guarantees a complete material scan; an unreadable one fails the candidate.</summary>
+    public required PlacementMaterials Materials { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlacementRotation>))]
-    public EquatableArray<PlacementRotation> Rotations { get; init; }
+    public required EquatableArray<PlacementRotation> Rotations { get; init; }
 }
 
 public sealed record PlacementCost
 {
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public int? Count { get; init; }
+    public required int Count { get; init; }
 }
 
 /// <summary>
-/// Absent on the evaluation when the native material scan could not be read completely.
+/// The complete material scan of an evaluated candidate.
 /// </summary>
 public sealed record PlacementMaterials
 {
@@ -161,7 +160,7 @@ public sealed record PlacementMaterials
     /// Complete rows for all material definitions relevant to the evaluated candidate.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlacementMaterialStock>))]
-    public EquatableArray<PlacementMaterialStock> Rows { get; init; }
+    public required EquatableArray<PlacementMaterialStock> Rows { get; init; }
 }
 
 public sealed record PlacementMaterialStock
@@ -169,32 +168,32 @@ public sealed record PlacementMaterialStock
     public required string DefName { get; init; }
 
     /// <summary>
-    /// The unforbidden, unclaimed count; zero is known empty stock. An incomplete scan sends no materials at all.
+    /// The unforbidden, unclaimed count; zero is known empty stock. An incomplete scan fails the candidate.
     /// </summary>
     public required int Available { get; init; }
 }
 
 public sealed record PlacementRotation
 {
-    public bool? Accepted { get; init; }
+    public required bool Accepted { get; init; }
 
-    public string? Reason { get; init; }
+    /// <summary>Why native refused the rotation; empty when it accepted.</summary>
+    public required string Reason { get; init; }
 
     /// <summary>
     /// Evaluated rotation guarantees complete footprint and blocker scans.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> OccupiedCells { get; init; }
+    public required EquatableArray<Common.Cell> OccupiedCells { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PlacementBlocker>))]
-    public EquatableArray<PlacementBlocker> BlockingThings { get; init; }
+    public required EquatableArray<PlacementBlocker> BlockingThings { get; init; }
 
     /// <summary>
     /// Native watch geometry and allowed-area/reachability checks for every eligible
-    /// colonist. Absent is unavailable/not applicable; false is known unusable.
-    /// Does not change normal-game placement legality or certify future pawn use.
+    /// colonist. Does not change normal-game placement legality or certify future pawn use.
     /// </summary>
-    public bool? WatchCellsAccessible { get; init; }
+    public required WatchAccess WatchCells { get; init; }
 
     /// <summary>
     /// The definition's interaction cell at this rotation (empty when it has
@@ -202,29 +201,39 @@ public sealed record PlacementRotation
     /// later placement there would block.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> InteractionCells { get; init; }
+    public required EquatableArray<Common.Cell> InteractionCells { get; init; }
 
     /// <summary>
     /// Wind turbines only: the cells of the native wind catch zone
     /// (WindTurbineUtility.CalculateWindCells, 7x16 around the footprint) that
-    /// are roofed, off the map or hold a wind-blocking thing. Absent for every
-    /// other definition.
+    /// are roofed, off the map or hold a wind-blocking thing.
+    /// <see cref="Observations.BuildingWind.NotWindTurbine"/> for every other definition.
     /// </summary>
-    public uint? WindBlockedCells { get; init; }
+    public required Observations.BuildingWind Wind { get; init; }
+}
+
+/// <summary>Whether every eligible colonist can reach a watch cell of a placement.</summary>
+[JsonConverter(typeof(WireEnumConverter<WatchAccess>))]
+public enum WatchAccess
+{
+    /// <summary>No recreation watches this definition.</summary>
+    NotWatched,
+    Reachable,
+    Unreachable,
 }
 
 public sealed record PlacementBlocker
 {
-    public string? Category { get; init; }
+    public required string Category { get; init; }
 
-    public bool? IsBlueprint { get; init; }
+    public required bool IsBlueprint { get; init; }
 
-    public bool? IsFrame { get; init; }
+    public required bool IsFrame { get; init; }
 
-    public bool? WouldBeWiped { get; init; }
+    public required bool WouldBeWiped { get; init; }
 
-    public bool? FrameWouldBeCancelled { get; init; }
+    public required bool FrameWouldBeCancelled { get; init; }
 
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 }
 

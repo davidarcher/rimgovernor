@@ -74,14 +74,12 @@ internal sealed partial class RoundsStockpilePlanner
             var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-0")), value, ConstructionTier.Sustain);
             var preview = await _building.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var v = preview.Preview;
-            var ck = v.CanPlace.TryGetValue(out var can);
-            var sk = v.SafeToPlace.TryGetValue(out var safe);
-            if (!ck || !can || !sk || !safe)
+            if (!v.CanPlace || !v.SafeToPlace)
             {
                 continue;
             }
             var stock = new Pol.StockObservation { Snapshot = snapshot, Tick = facts.Identity.Tick };
-            stock = RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock, true);
+            stock = RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock);
             var method = ShelfMethod(shelfZone, index);
             var result = await building.AdmitPreviewsAsync(new RoundsAdmission { State = state, Review = review, Owner = goal, Facts = facts, Method = method, Reason = "shelf for zone " + shelfZone, Snapshot = snapshot, Selected = [v], Stock = stock, Purpose = Pol.Purpose.Rounds }, call, epoch).ConfigureAwait(false);
             return result.Verdict;

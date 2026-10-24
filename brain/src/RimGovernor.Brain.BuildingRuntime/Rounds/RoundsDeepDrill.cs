@@ -179,11 +179,7 @@ public sealed partial class RoundsResourcePlanner
         var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, ConstructionTierRules.PlannerTier(EconomyFamily.Resource.FilingKey, Pol.Phase.None));
         var preview = (await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false));
         var p = preview.Preview;
-        var fk = p.Footprint.TryGetValue(out var footprint);
-        var lk = p.CanPlace.TryGetValue(out var legal);
-        var sk = p.SafeToPlace.TryGetValue(out var safe);
-        var rk = p.WatchCellsAccessible.TryGetValue(out var reachable);
-        if (!fk || !lk || !legal || !sk || !safe || !rk || !reachable || !DeepDrillFootprint(f.Cells, footprint!, site.Centre))
+        if (!p.CanPlace || !p.SafeToPlace || PreviewRules.WatchUnreachable(p) || !DeepDrillFootprint(f.Cells, p.Footprint, site.Centre))
         {
             return (null, false);
         }
@@ -254,7 +250,7 @@ public sealed partial class RoundsResourcePlanner
                 Plan = place.Plan,
                 Current = place.Snapshot,
                 Tick = drill.F.Identity.Tick,
-                Bounds = Known(drill.F.Bounds),
+                Bounds = drill.F.Bounds,
                 Stock = place.Preview.Stock,
                 Previews = [place.Preview.Preview],
                 Purpose = Pol.Purpose.Rounds,

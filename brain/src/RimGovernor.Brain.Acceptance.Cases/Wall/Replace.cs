@@ -51,7 +51,7 @@ internal static class WallReplace
 
         static Operations.BuildingIntent Wall(string def, (int X, int Z) at, bool replace) => new()
         {
-            Placement = new Placement.PlacementCandidate { DefName = def, Stuff = "WoodLog", X = at.X, Z = at.Z, Rotation = Placement.Rotation.North },
+            Placement = new Placement.PlacementCandidate { DefName = def, Stuff = "WoodLog", X = at.X, Z = at.Z, Rotation = Placement.Rotation.North, IgnoreNaturalRock = false },
             ReplaceWall = replace ? true : null,
         };
 

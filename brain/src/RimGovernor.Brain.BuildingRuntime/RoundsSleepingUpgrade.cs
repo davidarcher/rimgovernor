@@ -222,13 +222,11 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{snapshot.Plan}-{i}")), building, ConstructionTier.Sustain);
             var preview = await Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var v = preview.Preview;
-            var ck = v.CanPlace.TryGetValue(out var can);
-            var sk = v.SafeToPlace.TryGetValue(out var safe);
-            if (!ck || !can || !sk || !safe)
+            if (!v.CanPlace || !v.SafeToPlace)
             {
                 continue;
             }
-            stock = RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock, selected.Count == 0);
+            stock = RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock);
             selected.Add(v);
         }
         if (selected.Count == 0)

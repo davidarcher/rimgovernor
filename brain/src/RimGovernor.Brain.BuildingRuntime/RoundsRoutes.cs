@@ -80,7 +80,6 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("previewRoutes: r.routes == nil || r.routes.Method != Pol.RoutesBuild");
         }
         var guarded = new HashSet<Cell>(protectedCells);
-        var missing = "";
         foreach (var cell in routes.Breaches)
         {
             if (guarded.Contains(cell))
@@ -93,34 +92,17 @@ public sealed partial class RoundsBuildingPlanner
                 var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-0"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
                 var preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
                 var p = preview.Preview;
-                var fk = p.Footprint.TryGetValue(out var footprint);
-                var mk = p.MadeFromStuff.TryGetValue(out var made);
-                var lk = p.CanPlace.TryGetValue(out var legal);
-                var sk = p.SafeToPlace.TryGetValue(out var safe);
-                if (!fk || !mk || !lk || !sk)
+                if (!p.SafeToPlace && DeliberateBreach(p))
                 {
-                    if (missing == "")
-                    {
-                        missing = FirstUnknown(["preview_footprint", "preview_made_from_stuff", "preview_can_place", "preview_safe_to_place"], fk, mk, lk, sk);
-                    }
-                    continue;
+                    p = p with { SafeToPlace = true };
                 }
-                if (!safe && DeliberateBreach(p))
-                {
-                    safe = true;
-                    p = p with { SafeToPlace = Known<bool>(true) };
-                }
-                if (!made || footprint!.Count != 1 || footprint[0] != cell || !legal || !safe)
+                if (!p.MadeFromStuff || p.Footprint.Count != 1 || p.Footprint[0] != cell || !p.CanPlace || !p.SafeToPlace)
                 {
                     continue;
                 }
-                stock = MergeRoundsStock(stock, preview.Stock, true);
+                stock = MergeRoundsStock(stock, preview.Stock);
                 return ([p], stock, new Verdict());
             }
-        }
-        if (missing != "")
-        {
-            return (null, stock, FieldUnavailable(missing));
         }
         return (null, stock, NoSpace("breach_door_site"));
     }
@@ -141,18 +123,5 @@ partial class RoundsBuildingPlanner
         }
         var b = p.Blockers[0];
         return b.Category == "Building" && b.Wiped && !b.Blueprint && !b.Frame && !b.Cancelled;
-    }
-
-    /// <summary>Names the first field whose known flag is false.</summary>
-    internal static string FirstUnknown(IReadOnlyList<string> names, params bool[] known)
-    {
-        for (var i = 0; i < known.Length; i++)
-        {
-            if (!known[i])
-            {
-                return names[i];
-            }
-        }
-        return "";
     }
 }

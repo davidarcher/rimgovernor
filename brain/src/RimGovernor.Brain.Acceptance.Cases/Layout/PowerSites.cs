@@ -55,7 +55,7 @@ internal static class LayoutPowerSites
             var reply = await s.CallAsync(label, NativeOps.PreviewPlacement, new Placement.PlacementRequest
             {
                 Identity = s.Identity,
-                Placements = [new Placement.PlacementCandidate { DefName = def, X = site.X + cell.X, Z = site.Z + cell.Z, Rotation = rotation }],
+                Placements = [new Placement.PlacementCandidate { DefName = def, Stuff = "", X = site.X + cell.X, Z = site.Z + cell.Z, Rotation = rotation, IgnoreNaturalRock = false }],
             }, cancellationToken).ConfigureAwait(false);
             var rotations = reply.Outcome?.Batch?.Results.ToList() is [{ Outcome.Evaluated: { } evaluated }] ? evaluated.Rotations.ToList() : [];
             if (rotations is not [var row])

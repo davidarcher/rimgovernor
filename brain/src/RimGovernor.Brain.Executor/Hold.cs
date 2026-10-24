@@ -16,7 +16,6 @@ public sealed partial class Executor
         [Reason.UnsafeThreat] = HeldReason.UnsafeThreat,
         [Reason.CriticalMedical] = HeldReason.CriticalMedical,
         [Reason.StaleFacts] = HeldReason.StaleFacts,
-        [Reason.UnknownFacts] = HeldReason.UnknownFacts,
         [Reason.NotReady] = HeldReason.NotReady,
         [Reason.AlreadyReserved] = HeldReason.AlreadyReserved,
         [Reason.UnsafePlacement] = HeldReason.UnsafePlacement,

@@ -178,17 +178,7 @@ public sealed partial class RoundsFieldPlanner
                 }
 
                 var snapshot = state.Snapshot with { Plan = id, Revision = new PlanRevision(1) };
-                var preview = new Preview
-                {
-                    Action = action,
-                    Snapshot = snapshot,
-                    CanPlace = Known(true),
-                    SafeToPlace = Known(true),
-                    MadeFromStuff = Known(false),
-                    WatchCellsAccessible = Known(true),
-                    Footprint = Known(zone.Cells),
-                    Costs = Known<EquatableArray<Amount>>([]),
-                };
+                var preview = PreviewRules.Zone(action, snapshot, zone.Cells);
                 var decision = await AdmissionLog.AdmitMethodAsync(journal, new BuildingMethodRequest
                 {
                     Owner = goal,
@@ -196,7 +186,7 @@ public sealed partial class RoundsFieldPlanner
                     Plan = spec,
                     Current = snapshot,
                     Tick = p.Identity.Tick,
-                    Bounds = Known(p.Bounds),
+                    Bounds = p.Bounds,
                     Stock = new StockObservation { Snapshot = snapshot, Tick = p.Identity.Tick },
                     Previews = [preview],
                     Purpose = Purpose.Rounds,

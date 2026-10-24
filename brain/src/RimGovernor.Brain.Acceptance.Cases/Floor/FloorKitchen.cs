@@ -71,7 +71,7 @@ internal static class FloorKitchen
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         _ = await TypedApply.AppliedAsync(s, "floor-blueprint", new Operations.BuildingIntent
         {
-            Placement = new Placement.PlacementCandidate { DefName = Floor, X = target.X, Z = target.Z, Rotation = Placement.Rotation.North },
+            Placement = new Placement.PlacementCandidate { DefName = Floor, Stuff = "", X = target.X, Z = target.Z, Rotation = Placement.Rotation.North, IgnoreNaturalRock = false },
         }, cancellationToken).ConfigureAwait(false);
 
         var after = await ReadAsync("flooring-after").ConfigureAwait(false);

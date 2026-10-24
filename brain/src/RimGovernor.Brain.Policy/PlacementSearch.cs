@@ -176,10 +176,11 @@ public sealed class PlacementSearch
             {
                 throw new DomainException("unrequested placement anchor");
             }
-            if (!RoundsRules.Positive(p.CanPlace) || !RoundsRules.Positive(p.SafeToPlace) || !p.Footprint.TryGetValue(out var cells) || cells.Count == 0)
+            if (!p.CanPlace || !p.SafeToPlace || p.Footprint.Count == 0)
             {
                 continue;
             }
+            var cells = p.Footprint;
             bool valid = true, anchor = false;
             var used = new HashSet<Cell>();
             foreach (var c in cells)
@@ -208,12 +209,7 @@ public sealed class PlacementSearch
             return null;
         }
         // Detach the winner's lists from the caller's preview.
-        selected!.Footprint.TryGetValue(out var footprint);
-        var result = selected with { Footprint = Known(EquatableArray.From(footprint!)) };
-        if (result.Costs.TryGetValue(out var costs))
-        {
-            result = result with { Costs = Known<EquatableArray<Amount>>([.. costs]) };
-        }
+        var result = selected! with { Footprint = EquatableArray.From(selected.Footprint), Costs = [.. selected.Costs] };
         return (result, chosen!);
     }
 }

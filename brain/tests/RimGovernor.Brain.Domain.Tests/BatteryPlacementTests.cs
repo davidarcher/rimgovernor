@@ -39,10 +39,14 @@ public sealed class BatteryPlacementTests
             {
                 Action = action,
                 Snapshot = snapshot,
-                CanPlace = Known(true),
-                SafeToPlace = Known(true),
-                MadeFromStuff = Known(false),
-                Footprint = Known<EquatableArray<Cell>>([c, new(c.X, c.Z + 1)]),
+                CanPlace = true,
+                SafeToPlace = true,
+                MadeFromStuff = false,
+                WatchCells = WatchAccess.NotWatched,
+                Wind = new BuildingWind.NotWindTurbine(),
+                Footprint = [c, new(c.X, c.Z + 1)],
+                Costs = [],
+                Blockers = [],
             };
             return Task.FromResult(new BuildingPreview { Preview = preview, Stock = new StockObservation { Snapshot = snapshot, Tick = new(100) } });
         }
@@ -81,8 +85,7 @@ public sealed class BatteryPlacementTests
         Assert.True(verdict.IsZero, verdict.ToString());
         var battery = Assert.Single(previews);
         Assert.Equal(PowerRules.BatteryDefinition, battery.Action.Building!.Definition);
-        Assert.True(battery.Footprint.TryGetValue(out var footprint));
-        Assert.All(footprint, c => Assert.True(Roofed(c), $"battery cell {c} is unroofed"));
+        Assert.All(battery.Footprint, c => Assert.True(Roofed(c), $"battery cell {c} is unroofed"));
         Assert.All(((Native)(object)native).Previewed, c => Assert.True(Roofed(c), $"previewed unroofed anchor {c}"));
     }
 

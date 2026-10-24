@@ -96,7 +96,7 @@ public sealed partial class JoinersRounds
             Plan = plan,
             Current = snapshot,
             Tick = read.Projection.Identity.Tick,
-            Bounds = Known(read.Projection.Bounds),
+            Bounds = read.Projection.Bounds,
             Stock = built.Stock,
             Previews = [built.Preview],
             Purpose = Purpose.Rounds,

@@ -148,7 +148,7 @@ public sealed partial class RoundsBuildingPlanner
                 return (new RoundsBuildingResult { Verdict = reason }, true);
             }
 
-            stock = MergeRoundsStock(stock, next, i == 0);
+            stock = MergeRoundsStock(stock, next);
             previews.AddRange(preview);
             actions.Add(preview[0].Action);
         }

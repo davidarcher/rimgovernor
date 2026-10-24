@@ -199,7 +199,7 @@ public sealed partial class BiotechRounds
             Disposal = [.. biotech.Atomizers.Select(a => a.Position)],
         };
         var sites = MechRules.MechChargerSites(siteFacts, size.Width, size.Height).Select(s => s.Site);
-        var verdict = await PlaceAsync(_reviewer, _building!, work, f, definition, method, size, sites, int.MaxValue, "mech_charger_preview", started, call).ConfigureAwait(false);
+        var verdict = await PlaceAsync(_reviewer, _building!, work, f, definition, method, size, sites, int.MaxValue, started, call).ConfigureAwait(false);
         return verdict ?? NoSpace("charger_cell");
     }
 
@@ -246,36 +246,28 @@ public sealed partial class BiotechRounds
             return BuildingReasonNoLayoutPlan;
         }
         var sites = FreeSitesRules.FreeSites(new FreeSiteRequest { Bounds = f.Bounds, Anchor = anchor, Cells = f.Cells, Light = f.LightTerrains }, size.Width, size.Height);
-        var verdict = await PlaceAsync(_reviewer, _building!, work, f, definition, method, size, sites, GeneBankSiteTries, "gene_bank_preview", started, call).ConfigureAwait(false);
+        var verdict = await PlaceAsync(_reviewer, _building!, work, f, definition, method, size, sites, GeneBankSiteTries, started, call).ConfigureAwait(false);
         return verdict ?? NoSpace("gene_bank_cell");
     }
 
     /// <summary>
     /// Previews <paramref name="definition"/> on each of the first <paramref name="tries"/> sites and admits the first
-    /// whole, legal, safe and reachable one as the Need's building Method. Null when no site fits; a field-unavailable
-    /// verdict when a preview was unread and none fit.
+    /// whole, legal, safe and reachable one as the Need's building Method. Null when no site fits.
     /// </summary>
     internal static async Task<Verdict?> PlaceAsync(Rounder reviewer, RoundsBuildingPlanner planner, NeedWork work, ColonyProjection f, string definition, MethodId method, Bounds size, IEnumerable<Rectangle> sites, int tries,
-        string preview, DateTimeOffset started, CancellationToken call)
+        DateTimeOffset started, CancellationToken call)
     {
         var p = reviewer.Player;
         var state = work.State;
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
-        var unknown = false;
         foreach (var site in sites.Take(tries))
         {
             var building = new Building(definition, InteriorRules.AnchorForRect(site, new Cell(size.Width, size.Height), Rotation.North), Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, ConstructionTier.Expand);
             var got = await planner.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var pv = got.Preview;
-            if (!pv.Footprint.TryGetValue(out var footprint) || !pv.MadeFromStuff.TryGetValue(out var made) || !pv.CanPlace.TryGetValue(out var legal)
-                || !pv.SafeToPlace.TryGetValue(out var safe) || !pv.WatchCellsAccessible.TryGetValue(out var reachable))
-            {
-                unknown = true;
-                continue;
-            }
-            if (made || !legal || !safe || !reachable || !FootprintIsRect(footprint!, site))
+            if (pv.MadeFromStuff || !pv.CanPlace || !pv.SafeToPlace || PreviewRules.WatchUnreachable(pv) || !FootprintIsRect(pv.Footprint, site))
             {
                 continue;
             }
@@ -292,14 +284,14 @@ public sealed partial class BiotechRounds
                 Plan = new PlanSpec(planId, new PlanRevision(1), [action]),
                 Current = snapshot,
                 Tick = f.Identity.Tick,
-                Bounds = Known(f.Bounds),
+                Bounds = f.Bounds,
                 Stock = got.Stock,
                 Previews = [pv],
                 Purpose = Purpose.Rounds,
             }, call).ConfigureAwait(false);
             return decision.Admitted ? BuildingReasonAdmitted : AdmissionLog.AdmissionRefused(decision);
         }
-        return unknown ? FieldUnavailable(preview) : null;
+        return null;
     }
 }
 

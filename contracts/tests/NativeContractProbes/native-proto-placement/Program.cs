@@ -72,19 +72,20 @@ internal static class NativeProtoPlacementProbe
         bridge = Assembly.LoadFrom(Path.GetFullPath(args[0]));
         foreach (var reference in bridge.GetReferencedAssemblies()) Assembly.Load(reference);
         mapper = bridge.GetType("HomeBridge.BridgeTools.PlacementProtocol", true)!;
-        const string row = "{\"defName\":\"SleepingSpot\",\"x\":0,\"z\":0,\"rotation\":\"ROTATION_NORTH\"}";
+        const string row = "{\"defName\":\"SleepingSpot\",\"x\":0,\"z\":0,\"rotation\":\"ROTATION_NORTH\",\"stuff\":\"\",\"ignoreNaturalRock\":false}";
         const string identity = "\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}";
         Func<string, string> request = rows => "{" + identity + ",\"placements\":[" + rows + "]}";
         Assert(Valid(request(row)), "valid zero-coordinate request");
         Assert(Valid(request(row.Replace("NORTH", "ALL"))), "all rotations allowed for preview");
-        Assert(Valid(request(row.Replace("}", ",\"stuff\":\"\"}"))), "empty material means default");
-        Assert(!Valid("{\"placements\":[" + row + "]}"), "identity required");
+        Assert(Valid(request(row)), "empty material means default");
+        Assert(Valid(request(row.Replace("\"stuff\":\"\"", "\"stuff\":\"WoodLog\""))), "explicit material allowed");
+        ParserRefuses("{\"placements\":[" + row + "]}");
         Assert(!Valid(request("")), "empty batch refused");
         Assert(Valid(request(string.Join(",", Enumerable.Repeat(row, 64)))), "sixty-four candidates accepted");
         Assert(!Valid(request(string.Join(",", Enumerable.Repeat(row, 65)))), "sixty-five candidates refused");
-        foreach (var missing in new[] { "\"defName\":\"SleepingSpot\",", "\"x\":0,", "\"z\":0,", ",\"rotation\":\"ROTATION_NORTH\"" })
-            Assert(!Valid(request(row.Replace(missing, ""))), "required candidate field " + missing);
-        Assert(!Valid(request(row.Replace("ROTATION_NORTH", "ROTATION_UNSPECIFIED"))), "zero rotation refused");
+        foreach (var missing in new[] { "\"defName\":\"SleepingSpot\",", "\"x\":0,", "\"z\":0,", ",\"rotation\":\"ROTATION_NORTH\"", ",\"stuff\":\"\"", ",\"ignoreNaturalRock\":false" })
+            ParserRefuses(request(row.Replace(missing, "")));
+        ParserRefuses(request(row.Replace("ROTATION_NORTH", "ROTATION_UNSPECIFIED")));
         Assert(!Valid(request(row.Replace("SleepingSpot", new string('x', 257)))), "identifier byte limit");
         Assert(!Valid(request(row.Replace("SleepingSpot", " "))), "blank definition refused");
         foreach (var malformed in new[] { "{", "[]", "{\"unknown\":1}", "{\"placements\":{}}",
@@ -95,17 +96,31 @@ internal static class NativeProtoPlacementProbe
             request(row.Replace("ROTATION_NORTH", "ROTATION_FUTURE")) }) ParserRefuses(malformed);
         // a JSON null list parsed to no candidates under protobuf; the wire decoder refuses it before Validate runs
         ParserRefuses("{" + identity + ",\"placements\":null}");
-        Assert(!Valid(request(row.Replace("\"x\":0", "\"x\":null"))), "null coordinate does not have presence");
+        ParserRefuses(request(row.Replace("\"x\":0", "\"x\":null")));
         var context = Wire("RimGovernor.Contracts.Wire.Common.ObservationContext", "{" + identity + ",\"tick\":0}");
         var domain = Evaluation();
         var projected = Map(domain, context);
         Assert(Get(projected, "Outcome").GetType().Name == "EvaluatedCase", "false native placement is evaluated");
         var evaluated = Get(Get(projected, "Outcome"), "Evaluated");
         Assert(Get(evaluated, "CanPlace") is false, "explicit false preserved");
-        Assert(Get(Get(evaluated, "Materials"), "Availability").GetType().Name == "KnownCase", "complete empty material list is known");
-        Set(Get(domain, "materials"), "unreadable", true);
-        Assert(Get(Get(Get(Get(Map(domain, context), "Outcome"), "Evaluated"), "Materials"), "Availability").GetType().Name == "UnavailableCase", "unreadable materials remain unavailable");
+        Assert(!((IEnumerable)Get(Get(evaluated, "Materials"), "Rows")).Cast<object>().Any(), "complete empty material list is whole");
+        var mapped = ((IEnumerable)Get(evaluated, "Rotations")).Cast<object>().Single();
+        Assert(Get(mapped, "WatchCells").ToString() == "NotWatched", "a definition nothing watches is not watched");
+        Assert(Get(mapped, "Wind").GetType().Name == "NotWindTurbine", "a definition that is no turbine has no wind catch");
         var rotation = ((IList)Get(domain, "rotations"))[0]!;
+        Set(rotation, "watchCellsAccessible", true);
+        Set(rotation, "windBlockedCells", 3);
+        mapped = ((IEnumerable)Get(Get(Get(Map(domain, context), "Outcome"), "Evaluated"), "Rotations")).Cast<object>().Single();
+        Assert(Get(mapped, "WatchCells").ToString() == "Reachable", "a watch building every colonist reaches is reachable");
+        Assert(Get(mapped, "Wind").GetType().Name == "WindTurbine" && Get(Get(mapped, "Wind"), "BlockedCells") is 3u, "an obstructed turbine catch zone is named");
+        Set(rotation, "watchCellsAccessible", false);
+        mapped = ((IEnumerable)Get(Get(Get(Map(domain, context), "Outcome"), "Evaluated"), "Rotations")).Cast<object>().Single();
+        Assert(Get(mapped, "WatchCells").ToString() == "Unreachable", "a watch building a colonist cannot reach is unreachable");
+        Set(rotation, "watchCellsAccessible", null!);
+        Set(rotation, "windBlockedCells", null!);
+        Set(Get(domain, "materials"), "unreadable", true);
+        Assert(Get(Get(Map(domain, context), "Outcome"), "Failure") != null, "unreadable materials fail the candidate");
+        Set(Get(domain, "materials"), "unreadable", false);
         ((IList)Get(rotation, "occupiedCells")).Clear();
         Assert(Get(Get(Map(domain, context), "Outcome"), "Failure") != null, "empty footprint fails candidate");
         domain = Evaluation();

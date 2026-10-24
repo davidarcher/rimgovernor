@@ -71,15 +71,12 @@ public sealed partial class RoundsBuildingPlanner
             var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{i}"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
             var read = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var v = read.Preview;
-            var lk = v.CanPlace.TryGetValue(out var legal);
-            var sk = v.SafeToPlace.TryGetValue(out var safe);
-            var ck = v.Footprint.TryGetValue(out var cells);
-            if (!lk || !sk || !ck || !legal || !safe || cells!.Count == 0)
+            if (!v.CanPlace || !v.SafeToPlace || v.Footprint.Count == 0)
             {
                 return ([], stock, SiteBlocked("paste_dispenser_site", "preview_refused"));
             }
 
-            foreach (var cell in cells)
+            foreach (var cell in v.Footprint)
             {
                 if (!blocked.Add(cell))
                 {
@@ -87,7 +84,7 @@ public sealed partial class RoundsBuildingPlanner
                 }
             }
 
-            stock = MergeRoundsStock(stock, read.Stock, true);
+            stock = MergeRoundsStock(stock, read.Stock);
             output.Add(v);
         }
 

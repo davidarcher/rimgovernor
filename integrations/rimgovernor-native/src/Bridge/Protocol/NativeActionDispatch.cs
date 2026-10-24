@@ -172,7 +172,7 @@ namespace HomeBridge.BridgeTools
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Invalid construction setting.");
             if (hasSkill)
             {
-                if (intent.Placement == null || !PlacementPreviewOperation.TryResolveBuildable(intent.Placement.DefName ?? "", out var definition, out _)
+                if (intent.Placement == null || !PlacementPreviewOperation.TryResolveBuildable(intent.Placement.DefName, out var definition, out _)
                     || !(definition is ThingDef qualityDef) || !qualityDef.HasComp(typeof(CompQuality)))
                     return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Finishing minimum requires a quality-bearing building.");
             }
@@ -205,9 +205,9 @@ namespace HomeBridge.BridgeTools
         {
             plan = null;
             var candidate = intent.Placement;
-            if (candidate == null || candidate.X is null || candidate.Z is null)
+            if (candidate == null)
                 return ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Wall replacement requires a placement cell.");
-            var wall = WallLayerGuard.BuiltWall(map, new IntVec3(candidate.X.GetValueOrDefault(), 0, candidate.Z.GetValueOrDefault()));
+            var wall = WallLayerGuard.BuiltWall(map, new IntVec3(candidate.X, 0, candidate.Z));
             if (wall == null) return ProtoBoundary.Fail(Common.FailureCode.NoWallToReplace, "No built wall stands at the cell.");
             if (!NativeConstructionPlan.Prepare(map, candidate, context, out plan, out _, out var failure)
                 || !(plan.Definition is ThingDef built) || built.passability != Traversability.Impassable)
@@ -243,16 +243,16 @@ namespace HomeBridge.BridgeTools
         // candidate's definition, stuff and rotation anchored on its cell.
         private static (Thing Thing, BuildableDef Definition)? Existing(Map map, RimGovernor.Contracts.Wire.Placement.PlacementCandidate? candidate)
         {
-            if (candidate == null || candidate.X is null || candidate.Z is null || candidate.DefName is null) return null;
-            if (!PlacementPreviewOperation.TryResolveBuildable((candidate.DefName ?? ""), out var definition, out _) || !(definition is ThingDef thingDef)) return null;
-            var cell = new IntVec3(candidate.X.GetValueOrDefault(), 0, candidate.Z.GetValueOrDefault());
+            if (candidate == null) return null;
+            if (!PlacementPreviewOperation.TryResolveBuildable(candidate.DefName, out var definition, out _) || !(definition is ThingDef thingDef)) return null;
+            var cell = new IntVec3(candidate.X, 0, candidate.Z);
             var player = Faction.OfPlayerSilentFail;
             if (player == null || !cell.InBounds(map)) return null;
             var stuff = thingDef.MadeFromStuff
-                ? (candidate.Stuff is not null && (candidate.Stuff ?? "").Length > 0 ? PlacementPreviewOperation.ResolveThingDef((candidate.Stuff ?? "")) : GenStuff.DefaultStuffFor(thingDef))
+                ? (candidate.Stuff.Length > 0 ? PlacementPreviewOperation.ResolveThingDef(candidate.Stuff) : GenStuff.DefaultStuffFor(thingDef))
                 : null;
-            var rotation = candidate.Rotation is not null && candidate.Rotation.GetValueOrDefault() != RimGovernor.Contracts.Wire.Placement.Rotation.All && candidate.Rotation.GetValueOrDefault() != RimGovernor.Contracts.Wire.Placement.Rotation.Unspecified
-                ? new Rot4((int)candidate.Rotation.GetValueOrDefault() - 1) : Rot4.North;
+            var rotation = candidate.Rotation != RimGovernor.Contracts.Wire.Placement.Rotation.All
+                ? new Rot4((int)candidate.Rotation - 1) : Rot4.North;
             foreach (var thing in map.thingGrid.ThingsListAt(cell))
             {
                 if (thing.Destroyed || thing.Position != cell || thing.Faction != player) continue;

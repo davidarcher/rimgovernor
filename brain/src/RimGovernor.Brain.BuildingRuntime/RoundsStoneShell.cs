@@ -156,7 +156,6 @@ public sealed partial class LayoutRounds
         var actions = new List<DomainAction>();
         var previews = new List<Pol.Preview>();
         var stock = new Pol.StockObservation { Snapshot = snapshot, Tick = projection.Identity.Tick };
-        var first = true;
         var backupIds = new List<ActionId>(backupCount);
         for (var i = 0; i < site.BackupCells.Count; i++)
         {
@@ -170,8 +169,7 @@ public sealed partial class LayoutRounds
             }
             actions.Add(action);
             previews.Add(preview.Preview);
-            stock = RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock, first);
-            first = false;
+            stock = RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock);
             backupIds.Add(actionId);
         }
         var removal = new WallRemoval(targetId, default, site.Origin);
@@ -187,7 +185,7 @@ public sealed partial class LayoutRounds
         }
         actions.Add(permanent);
         previews.Add(permanentPreview.Preview);
-        stock = RoundsBuildingPlanner.MergeRoundsStock(stock, permanentPreview.Stock, first);
+        stock = RoundsBuildingPlanner.MergeRoundsStock(stock, permanentPreview.Stock);
         var dependencies = new List<ActionDependency> { new(permanentId, demolishId) };
         // Native lists a straight site as demolition-ready only once every backup stands; in between it is no site at all.
         foreach (var backupId in backupIds)
@@ -207,7 +205,7 @@ public sealed partial class LayoutRounds
         // permanent replacement), so admission's stock check runs against the combined bundle, not a per-action share.
         for (var i = 0; i < previews.Count; i++)
         {
-            previews[i] = previews[i] with { Costs = Known<EquatableArray<Pol.Amount>>([.. costs]) };
+            previews[i] = previews[i] with { Costs = [.. costs] };
         }
         p.Current(call, epoch);
         if (p.Session.State() != state)
@@ -239,7 +237,7 @@ public sealed partial class LayoutRounds
             Plan = plan,
             Current = snapshot,
             Tick = projection.Identity.Tick,
-            Bounds = Known(projection.Bounds),
+            Bounds = projection.Bounds,
             Stock = stock,
             Previews = previews,
             Purpose = Pol.Purpose.Rounds,
@@ -256,17 +254,9 @@ public sealed partial class LayoutRounds
     {
         var preview = await _stone!.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
         var v = preview.Preview;
-        var fk = v.Footprint.TryGetValue(out var footprint);
-        var mk = v.MadeFromStuff.TryGetValue(out var made);
-        var lk = v.CanPlace.TryGetValue(out var legal);
-        var sk = v.SafeToPlace.TryGetValue(out var safe);
-        if (!fk || !mk || !lk || !sk)
-        {
-            return null;
-        }
         // A Wall is a stuffed building: the preview of one that is not made from stuff is a contract
         // mismatch, not a placeable site.
-        if (!made || footprint!.Count != 1 || footprint[0] != cell || !legal || !safe)
+        if (!v.MadeFromStuff || v.Footprint.Count != 1 || v.Footprint[0] != cell || !v.CanPlace || !v.SafeToPlace)
         {
             return null;
         }

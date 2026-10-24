@@ -69,7 +69,7 @@ internal static class ApplyRefusal
         // Build: the open build cell is walled over after the placement preview accepted it; the building intent is
         // refused with the re-planned placement's own reason. A Campfire, not a wall: the fixture's player wall would
         // otherwise be applied as it stands.
-        var placement = new Placement.PlacementCandidate { DefName = "Campfire", X = buildCell.X, Z = buildCell.Z, Rotation = Placement.Rotation.North };
+        var placement = new Placement.PlacementCandidate { DefName = "Campfire", Stuff = "", X = buildCell.X, Z = buildCell.Z, Rotation = Placement.Rotation.North, IgnoreNaturalRock = false };
 
         async Task<bool> CanPlaceAsync(string label)
         {

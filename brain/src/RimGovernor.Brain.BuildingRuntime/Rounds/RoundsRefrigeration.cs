@@ -278,7 +278,7 @@ public sealed partial class RoundsBuildingPlanner
             return (null!, planned, reason);
         }
 
-        previews[0].Footprint.TryGetValue(out var footprint);
+        var footprint = previews[0].Footprint;
         if (footprint.Count != 1 || footprint[0] != cell)
         {
             return (null!, planned, NoSpace(def + "_wall_footprint"));
@@ -307,26 +307,17 @@ public sealed partial class RoundsBuildingPlanner
         }
 
         var p = preview.Preview;
-        var fk = p.Footprint.TryGetValue(out var footprint);
-        var mk = p.MadeFromStuff.TryGetValue(out var made);
-        var lk = p.CanPlace.TryGetValue(out var legal);
-        var sk = p.SafeToPlace.TryGetValue(out var safe);
-        if (!fk || !mk || !lk || !sk)
-        {
-            return (null!, stock, FieldUnavailable(building.Definition + "_preview"));
-        }
-
-        if (goOpen && !legal && p.Blockers.Count == 0)
+        if (goOpen && !p.CanPlace && p.Blockers.Count == 0)
         {
             throw new ControlException($"rock step: native refused {building.Definition} at {building.Cell} that the frame lists open and names no blocker");
         }
 
-        if (made != (building.Stuff != "") || !footprint!.Contains(building.Cell) || !legal || !safe)
+        if (p.MadeFromStuff != (building.Stuff != "") || !p.Footprint.Contains(building.Cell) || !p.CanPlace || !p.SafeToPlace)
         {
             return (null!, stock, NoSpace("refrigeration_site"));
         }
 
-        stock = MergeRoundsStock(stock, preview.Stock, true);
+        stock = MergeRoundsStock(stock, preview.Stock);
         return ([p], stock, default);
     }
 

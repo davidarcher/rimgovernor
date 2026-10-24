@@ -182,20 +182,13 @@ public sealed partial class AdminRounds
         var planId = PlanIds.MintPlanId();
         var snapshot = state.Snapshot with { Plan = planId, Revision = new PlanRevision(1) };
         var size = new Cell(1, 2);
-        var unknown = false;
         foreach (var site in sites.Take(GraveSiteTries))
         {
             var building = new Building(TombRules.GraveDefinition, InteriorRules.AnchorForRect(site, size, Rotation.North), Rotation.North, "");
             var action = DomainAction.NewBuildingAction(new ActionId(planId.Value + "-0"), building, ConstructionTier.Expand);
             var got = await _building!.Native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
             var pv = got.Preview;
-            if (!pv.Footprint.TryGetValue(out var footprint) || !pv.MadeFromStuff.TryGetValue(out var made) || !pv.CanPlace.TryGetValue(out var legal)
-                || !pv.SafeToPlace.TryGetValue(out var safe) || !pv.WatchCellsAccessible.TryGetValue(out var reachable))
-            {
-                unknown = true;
-                continue;
-            }
-            if (made || !legal || !safe || !reachable || !BiotechRounds.FootprintIsRect(footprint!, site))
+            if (pv.MadeFromStuff || !pv.CanPlace || !pv.SafeToPlace || PreviewRules.WatchUnreachable(pv) || !BiotechRounds.FootprintIsRect(pv.Footprint, site))
             {
                 continue;
             }
@@ -211,13 +204,13 @@ public sealed partial class AdminRounds
                 Plan = new PlanSpec(planId, new PlanRevision(1), [action]),
                 Current = snapshot,
                 Tick = f.Identity.Tick,
-                Bounds = Known(f.Bounds),
+                Bounds = f.Bounds,
                 Stock = got.Stock,
                 Previews = [pv],
                 Purpose = Purpose.Rounds,
             }, call).ConfigureAwait(false);
             return decision.Admitted ? BuildingReasonAdmitted : AdmissionLog.AdmissionRefused(decision);
         }
-        return unknown ? FieldUnavailable("grave_preview") : NoSpace("grave_cell");
+        return NoSpace("grave_cell");
     }
 }

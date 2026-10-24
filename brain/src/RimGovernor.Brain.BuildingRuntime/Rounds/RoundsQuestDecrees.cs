@@ -105,17 +105,7 @@ public sealed partial class JoinersRounds
                         Boundary.Context(reply?.Outcome?.Evaluated?.Context, snapshot);
                         var action = DomainAction.NewZoneCreateAction(new ActionId($"{id}-{i}"), zone);
                         actions.Add(action);
-                        previews.Add(new Preview
-                        {
-                            Action = action,
-                            Snapshot = snapshot,
-                            CanPlace = Known(true),
-                            SafeToPlace = Known(true),
-                            MadeFromStuff = Known(false),
-                            WatchCellsAccessible = Known(true),
-                            Footprint = Known<EquatableArray<Cell>>([.. cells]),
-                            Costs = Known<EquatableArray<Amount>>([]),
-                        });
+                        previews.Add(PreviewRules.Zone(action, snapshot, [.. cells]));
                     }
 
                     break;
@@ -192,7 +182,7 @@ public sealed partial class JoinersRounds
                 Plan = plan,
                 Current = snapshot,
                 Tick = read.Projection.Identity.Tick,
-                Bounds = Known(read.Projection.Bounds),
+                Bounds = read.Projection.Bounds,
                 Stock = new StockObservation { Snapshot = snapshot, Tick = read.Projection.Identity.Tick },
                 Previews = previews,
                 Purpose = Purpose.Rounds,

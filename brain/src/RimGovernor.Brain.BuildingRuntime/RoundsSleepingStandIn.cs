@@ -91,10 +91,10 @@ public sealed partial class RoundsSleepingUpkeepPlanner
         var selected = new List<Pol.Preview>();
         // Each spot is previewed alone, so two whose footprints overlap both preview placeable: keep the picks apart.
         var picks = ShelterRules.PickStandIns([.. cells.Select(c => c.Footprint)], blocked, i =>
-            previews[i].Preview.CanPlace.TryGetValue(out var can) && can && previews[i].Preview.SafeToPlace.TryGetValue(out var safe) && safe, missing);
+            previews[i].Preview.CanPlace && previews[i].Preview.SafeToPlace, missing);
         foreach (var i in picks)
         {
-            stock = RoundsBuildingPlanner.MergeRoundsStock(stock, previews[i].Stock, selected.Count == 0);
+            stock = RoundsBuildingPlanner.MergeRoundsStock(stock, previews[i].Stock);
             selected.Add(previews[i].Preview);
         }
         if (selected.Count == 0)

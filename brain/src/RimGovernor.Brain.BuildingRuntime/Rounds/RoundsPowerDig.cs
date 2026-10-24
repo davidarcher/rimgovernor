@@ -16,7 +16,8 @@ public sealed partial class RoundsBuildingPlanner
         var probe = s.State.Snapshot with { Plan = PlanIds.MintPlanId(), Revision = new PlanRevision(1) };
         var action = DomainAction.NewBuildingAction(new ActionId($"{probe.Plan}-0"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
         var preview = await Native.PreviewBuildingAsync(action, probe, call).ConfigureAwait(false);
-        if (!preview.Preview.Footprint.TryGetValue(out var footprint) || footprint.Count == 0)
+        var footprint = preview.Preview.Footprint;
+        if (footprint.Count == 0)
         {
             return (new RoundsBuildingResult(), false);
         }

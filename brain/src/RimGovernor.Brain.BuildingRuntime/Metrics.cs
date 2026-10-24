@@ -8,7 +8,7 @@ internal static class Metrics
 
     // Every policy Reason; a test keeps it equal to the constants declared in package policy.
     private static readonly Vocabulary RefusalReasonVocabulary = Vocabulary.Words(
-        Reason.NotReady.Value, Reason.AlreadyReserved.Value, Reason.UnknownFacts.Value, Reason.StaleFacts.Value,
+        Reason.NotReady.Value, Reason.AlreadyReserved.Value, Reason.StaleFacts.Value,
         Reason.UnsafePlacement.Value, Reason.UnsafeThreat.Value, Reason.CriticalMedical.Value, Reason.MaterialRequired.Value,
         Reason.DependencyBlocked.Value, Reason.GeometryBlocked.Value, Reason.InvalidHeld.Value,
         "unsafe_route", "roof_support_risk", "missing_storage", "urgent_competing_work");

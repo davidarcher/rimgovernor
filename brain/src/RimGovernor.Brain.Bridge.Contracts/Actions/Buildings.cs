@@ -85,7 +85,7 @@ public static class BuildingsRules
         {
             throw BridgeContractException.Contract("building intent requires a cardinal rotation");
         }
-        var candidate = new WireCandidate { DefName = b.Definition, Stuff = b.Stuff, X = b.Cell.X, Z = b.Cell.Z, Rotation = rotation };
+        var candidate = new WireCandidate { DefName = b.Definition, Stuff = b.Stuff, X = b.Cell.X, Z = b.Cell.Z, Rotation = rotation, IgnoreNaturalRock = false };
         var intent = new Op.BuildingIntent { Placement = candidate };
         if (action.FinishingSkill.TryGetValue(out var minimum))
         {

@@ -20,7 +20,7 @@ public sealed record BuildingMethodRequest
 
     public Tick Tick { get; init; }
 
-    public Fact<Bounds> Bounds { get; init; }
+    public required Bounds Bounds { get; init; }
 
     public StockObservation Stock { get; init; } = new();
 

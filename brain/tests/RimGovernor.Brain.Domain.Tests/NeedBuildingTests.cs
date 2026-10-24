@@ -44,7 +44,7 @@ public sealed class NeedBuildingTests
             var snapshot = (GenerationSnapshot)args[1]!;
             var preview = new BuildingPreview
             {
-                Preview = new Preview { Action = action, Snapshot = snapshot, CanPlace = Known(true), SafeToPlace = Known(true) },
+                Preview = new Preview { Action = action, Snapshot = snapshot, CanPlace = true, SafeToPlace = true, MadeFromStuff = false, WatchCells = WatchAccess.NotWatched, Wind = new BuildingWind.NotWindTurbine(), Footprint = [action.Building!.Cell], Costs = [], Blockers = [] },
                 Stock = new StockObservation { Snapshot = snapshot, Tick = new(100) },
             };
             return Task.FromResult(preview);
@@ -296,7 +296,7 @@ public sealed class NeedBuildingTests
                 var snapshot = World with { Plan = PlanIds.MintPlanId(), Revision = new(1) };
                 var building = cooler ? new Building("Cooler", new(20, 20), Rotation.North, "") : new Building("SimpleResearchBench", new(30, 30), Rotation.North, "WoodLog");
                 var action = DomainAction.NewBuildingAction(new ActionId(snapshot.Plan.Value + "-0"), building, ConstructionTierRules.PlannerTier(work.Need.Id.FilingKey, Phase.None));
-                var preview = new Preview { Action = action, Snapshot = snapshot, CanPlace = Known(true), SafeToPlace = Known(true) };
+                var preview = new Preview { Action = action, Snapshot = snapshot, CanPlace = true, SafeToPlace = true, MadeFromStuff = false, WatchCells = WatchAccess.NotWatched, Wind = new BuildingWind.NotWindTurbine(), Footprint = [action.Building!.Cell], Costs = [], Blockers = [] };
                 var admitted = await planner.AdmitPreviewsAsync(new RoundsAdmission
                 {
                     State = work.State,

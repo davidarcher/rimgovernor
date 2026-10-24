@@ -125,7 +125,6 @@ public sealed partial class RoundsBuildingPlanner
         }
 
         var selected = new List<Preview>();
-        var unknown = false;
         foreach (var cell in Flooring.Cells)
         {
             if (guarded.Contains(cell))
@@ -137,33 +136,18 @@ public sealed partial class RoundsBuildingPlanner
             var action = DomainAction.NewBuildingAction(new ActionId($"{snapshot.Plan}-{selected.Count}"), building, ConstructionTierRules.PlannerTier(Concern, Phase));
             var preview = await Native.PreviewBuildingAsync(action, snapshot, ct).ConfigureAwait(false);
             var p = preview.Preview;
-            var fk = p.Footprint.TryGetValue(out var footprint);
-            var mk = p.MadeFromStuff.TryGetValue(out var made);
-            var lk = p.CanPlace.TryGetValue(out var legal);
-            var sk = p.SafeToPlace.TryGetValue(out var safe);
-            if (!fk || !mk || !lk || !sk)
-            {
-                unknown = true;
-                continue;
-            }
-
-            if (made || footprint!.Count != 1 || footprint[0] != cell || !legal || !safe)
+            if (p.MadeFromStuff || p.Footprint.Count != 1 || p.Footprint[0] != cell || !p.CanPlace || !p.SafeToPlace)
             {
                 continue;
             }
 
-            MergeRoundsStock(stock, preview.Stock, selected.Count == 0);
+            MergeRoundsStock(stock, preview.Stock);
             selected.Add(p);
         }
 
         if (selected.Count > 0)
         {
             return (selected, stock, default);
-        }
-
-        if (unknown)
-        {
-            return ([], stock, FieldUnavailable("flooring_preview"));
         }
 
         return ([], stock, NoSpace("floor_cells"));

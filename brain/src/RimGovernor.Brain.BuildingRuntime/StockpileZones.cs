@@ -90,7 +90,7 @@ internal sealed partial class StockpileZones(Rounder reviewer, FacadeNativeClien
             }
             var action = DomainAction.NewZoneCreateAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{actions.Count}")), value);
             actions.Add(action);
-            previews.Add(new Pol.Preview { Action = action, Snapshot = snapshot, CanPlace = Known(true), SafeToPlace = Known(true), MadeFromStuff = Known(false), WatchCellsAccessible = Known(true), Footprint = Known(value.Cells), Costs = Known<EquatableArray<Pol.Amount>>([]) });
+            previews.Add(Pol.PreviewRules.Zone(action, snapshot, value.Cells));
             admitted.Add(e);
         }
         if (actions.Count == 0)
@@ -111,7 +111,7 @@ internal sealed partial class StockpileZones(Rounder reviewer, FacadeNativeClien
             Plan = plan,
             Current = snapshot,
             Tick = tick,
-            Bounds = Known(projection.Bounds),
+            Bounds = projection.Bounds,
             Stock = new Pol.StockObservation { Snapshot = snapshot, Tick = tick },
             Previews = previews,
             Purpose = Pol.Purpose.Rounds,

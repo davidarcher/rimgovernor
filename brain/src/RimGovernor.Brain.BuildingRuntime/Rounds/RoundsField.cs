@@ -255,17 +255,11 @@ public sealed partial class RoundsFieldPlanner
                 var action = DomainAction.NewBuildingAction(new ActionId(string.Create(CultureInfo.InvariantCulture, $"{id}-{i}")), building, ConstructionTier.Sustain);
                 var preview = await native.PreviewBuildingAsync(action, snapshot, call).ConfigureAwait(false);
                 var v = preview.Preview;
-                var lk = v.CanPlace.TryGetValue(out var legal);
-                var sk = v.SafeToPlace.TryGetValue(out var safe);
-                if (!lk || !sk)
-                {
-                    return (new RoundsFieldResult { Verdict = FieldUnavailable("field_preview") }, false);
-                }
-                if (!legal || !safe)
+                if (!v.CanPlace || !v.SafeToPlace)
                 {
                     return (new RoundsFieldResult { Verdict = NoSpace("field_building_site") }, false);
                 }
-                RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock, i == 0);
+                RoundsBuildingPlanner.MergeRoundsStock(stock, preview.Stock);
                 if (i > 0 && !FieldAffordable(spent, v, preview.Stock))
                 {
                     break;
@@ -326,17 +320,7 @@ public sealed partial class RoundsFieldPlanner
         return await AdmitAsync(state, goal, projection, read, method, id, snapshot, stock, actions, previews, candidate.Kind + " " + crop.Name, call, epoch).ConfigureAwait(false);
     }
 
-    internal static Preview ZonePreview(DomainAction action, GenerationSnapshot snapshot, IReadOnlyList<Cell> cells) => new()
-    {
-        Action = action,
-        Snapshot = snapshot,
-        CanPlace = Known(true),
-        SafeToPlace = Known(true),
-        MadeFromStuff = Known(false),
-        WatchCellsAccessible = Known(true),
-        Footprint = Known(EquatableArray.From(cells)),
-        Costs = Known(EquatableArray.From(new List<Amount>())),
-    };
+    internal static Preview ZonePreview(DomainAction action, GenerationSnapshot snapshot, IReadOnlyList<Cell> cells) => PreviewRules.Zone(action, snapshot, EquatableArray.From(cells));
 
     internal async Task<(RoundsFieldResult Result, bool Tried)> AdmitAsync(ControlState state, NeedOwner goal, ColonyProjection projection, RoundsReading read, MethodId method, PlanId id, GenerationSnapshot snapshot, StockObservation stock, IReadOnlyList<DomainAction> actions, IReadOnlyList<Preview> previews, string what, CancellationToken call, CancellationToken epoch)
     {
@@ -372,7 +356,7 @@ public sealed partial class RoundsFieldPlanner
             Plan = plan,
             Current = snapshot,
             Tick = projection.Identity.Tick,
-            Bounds = Known(projection.Bounds),
+            Bounds = projection.Bounds,
             Stock = stock,
             Previews = previews,
             Purpose = Purpose.Rounds,
@@ -498,7 +482,7 @@ public sealed partial class RoundsFieldPlanner
         return (new RoundsFieldResult { Verdict = BuildingReasonAdmitted, Plan = id }, true);
     }
 
-    internal static List<Amount> FieldCosts(Preview v) => v.Costs.TryGetValue(out var costs) ? costs.ToList() : [];
+    internal static List<Amount> FieldCosts(Preview v) => v.Costs.ToList();
 
     internal static bool FieldAffordable(IReadOnlyDictionary<Resource, long> spent, Preview v, StockObservation stock)
     {
