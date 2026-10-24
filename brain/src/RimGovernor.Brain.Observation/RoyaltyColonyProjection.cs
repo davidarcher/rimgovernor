@@ -69,26 +69,20 @@ public static class RoyaltyColonyProjectionReads
 
 public sealed partial record ColonyProjection
 {
-    /// <summary>The royalty read <paramref name="f"/> completed with the colony section's neuroformers, ceremonies and thrones. Without the section the royalty fact is unknown: planning on a stock, ceremony or throne list that was not read would act on an empty one.</summary>
-    public Fact<RoyaltyFacts> WithRoyaltyColony(RoyaltyFacts f) =>
-        RoyaltyColony.TryGetValue(out var colony) ? Known(f.WithColony(colony)) : Unknown<RoyaltyFacts>();
-
     /// <summary>
     /// The royalty fact: the colonists' own holdings and psycasts from their pawn rows, the ladder and permits
-    /// from the def mirror and the colony section's neuroformers, ceremonies and thrones. The colony section's
-    /// presence is the Royalty-applicable gate, as for the other DLC sections: without it the fact is unknown
-    /// and nothing is read. A pawn row or def the read cannot use throws and the fact stays unknown.
+    /// from the def mirror and the colony <paramref name="section"/>'s neuroformers, ceremonies and thrones. The colony
+    /// section's presence is the Royalty-applicable gate, as for the other DLC sections: without it the fact is unknown
+    /// and nothing is read, since planning on a stock, ceremony or throne list that was not read would act on an empty
+    /// one. A pawn row or def the read cannot use throws and the fact stays unknown.
     /// </summary>
-    public Fact<RoyaltyFacts> RoyaltyOf(O.PawnSnapshot? pawns, DefinitionCatalog catalog)
+    public static Fact<RoyaltyFacts> RoyaltyOf(Fact<RoyaltyColony> section, O.PawnSnapshot? pawns, DefinitionCatalog catalog)
     {
-        if (!RoyaltyColony.TryGetValue(out var colony))
+        if (!section.TryGetValue(out var colony))
         {
             return Unknown<RoyaltyFacts>();
         }
-        colony = catalog.WithNeuroformerDefs(colony);
-        var projection = this with { RoyaltyColony = Known(colony) };
         var facts = RoyaltyFactsRules.PawnRoyaltyFacts(pawns, catalog.Psycast);
-        var mirrored = catalog.WithTitleDefs(facts);
-        return projection.WithRoyaltyColony(mirrored);
+        return Known(catalog.WithTitleDefs(facts).WithColony(catalog.WithNeuroformerDefs(colony)));
     }
 }

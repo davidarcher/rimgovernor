@@ -142,8 +142,7 @@ internal static class ShelterSheltering
     /// <summary>The pawns the colony facts list as restricted to the Safe area; none when the area is gone.</summary>
     private static async Task<HashSet<string>> SafePawnsAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-        var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var policies = facts.Policies?.Observed ?? throw new AcceptanceException($"{label}: policy facts unavailable");
         return policies.AllowedAreas.Items
             .Where(a => a.Label == ShelterRules.SafeAreaLabel)

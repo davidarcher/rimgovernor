@@ -384,12 +384,7 @@ public sealed partial class RoundsTradePlanner
     private async Task<(TradeEconomicPolicy Economic, Pol.TradeSelectionFacts Facts, bool Capacity)> SelectionAsync(ControlState state, Sto.Rounds review, TradeSheetRead sheet, string trader, IReadOnlyList<Pol.TraderFacts> traders, CancellationToken call)
     {
         var identity = Boundary.Identity(state.Snapshot);
-        var reply = await Native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
-        var observed = reply.Outcome?.Observed;
-        if (observed is null)
-        {
-            throw new ControlException("selection: observed == nil");
-        }
+        var observed = await Native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);
@@ -408,10 +403,10 @@ public sealed partial class RoundsTradePlanner
         var medicalFacts = ColonyFramesReads.ColonyMedicalReserve(observed, tables, catalog);
         medicalFacts = medicalFacts with { Catalog = items };
         var medical = Pol.MedicalRules.ReviewMedicalReserve(medicalFacts, review.Latches.MedicalReserve, Reviewer.Policy.MedicalReserve);
-        var projection = ColonyDecodeReads.DecodeColony(reply, new Observation.Identity { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map, Tick = new Tick(observed.Context?.Tick ?? 0) }, tables, catalog);
+        var projection = ColonyDecodeReads.DecodeColony(observed, new Observation.Identity { Colony = state.Snapshot.Colony, Load = state.Snapshot.Load, Map = state.Snapshot.Map, Tick = new Tick(observed.Context.Tick) }, tables, catalog);
         projection = projection with { Facts = projection.Facts with { Items = items } };
         var zoneNative = Native as Observation.IZonesNative;
-        projection = await ZonesReads.FillZones(zoneNative, observed.Context?.Identity ?? identity,projection.Identity, projection, call).ConfigureAwait(false);
+        projection = await ZonesReads.FillZones(zoneNative, observed.Context.Identity, projection.Identity, projection, call).ConfigureAwait(false);
         // The food plan reads the caravans on the census as present, the session's priced by the offers just recorded from this sheet.
         projection = projection with { Facts = projection.Facts with { Traders = Known<EquatableArray<Pol.TraderFacts>>([.. traders]) } };
         Reviewer.PlanFood(ref projection);

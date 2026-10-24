@@ -166,7 +166,11 @@ a depleted drill for removal from the deep drill step's recorded read.
   the floor of the construction tier), and planning definitions/cells
   including per-cell `doorway` (a door, door blueprint or door frame) so indoor
   furnishing keeps entrance aisles clear. Planning definitions are explicit
-  requested open definition names.
+  requested open definition names. Every colony facts member is required:
+  `planning` is `requested` (with the planning facts) or `not_requested` when
+  the request set `planning: false`, and `sleeping_temperature` is `indoor`
+  (min and max) or `no_indoor_bed`. The read returns the record or fails; there
+  is no reply outcome wrapper.
 - `dialog` section: the topmost open force-pausing
   `Verse.Dialog_NodeTree` (window id, type, title, text, interactive) with its
   current node's options in native order, each carrying its index, label,

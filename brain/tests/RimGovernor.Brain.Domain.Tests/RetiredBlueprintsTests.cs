@@ -31,7 +31,7 @@ public sealed class RetiredBlueprintsTests
     private static ConstructionSite Blueprint(string id, Cell c) =>
         new() { Id = id, Stage = ConstructionSite.BlueprintStage, Building = new Building("Wall", c, Rotation.North, "WoodLog") };
 
-    private static ColonyProjection Colony(params ConstructionSite[] sites) => new()
+    private static ColonyProjection Colony(params ConstructionSite[] sites) => ColonyFactsCoreTests.Projection() with
     {
         LayoutPlan = Known(Plan),
         Rooms = Known(new RoomObservation()),

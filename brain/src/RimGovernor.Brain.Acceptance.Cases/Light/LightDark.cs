@@ -128,8 +128,7 @@ internal static class LightDark
 
     private static async Task<Observations.LightingFacts> ReadAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-        var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         return facts.Upkeep?.Outcome?.Lighting?.Outcome ?? throw new AcceptanceException($"{label}: the lighting facts are unavailable");
     }
 }

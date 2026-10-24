@@ -38,7 +38,7 @@ public sealed class StoreStacksTests
 
     private static StockpileZone Zone(Fact<int> shelfStacks, IReadOnlyDictionary<string, List<ShelfRecord>> shelves)
     {
-        var projection = new ColonyProjection { Cells = Census(shelfStacks) };
+        var projection = ColonyFactsCoreTests.Projection() with { Cells = Census(shelfStacks) };
         return Assert.Single(StockpileZones.OwnedStockpileZones(projection, StockpileZones.CensusByCell(projection), [Owned], null, shelves));
     }
 

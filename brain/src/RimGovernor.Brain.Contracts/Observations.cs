@@ -5942,12 +5942,6 @@ public sealed record DevelopmentSection
     public DevelopmentFacts Outcome { get; init; } = null!;
 }
 
-public sealed record PlanningSection
-{
-    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
-    public PlanningFacts? Observed { get; init; }
-}
-
 /// <summary>
 /// Present geometry is complete and independent of the bounded Home write batch.
 /// zone is a stockpile target's full native footprint: colony extent
@@ -6731,21 +6725,58 @@ public sealed record DeliveryLedger
     public required EquatableArray<Butcher> Butchers { get; init; }
 }
 
+/// <summary>
+/// The colony's eligible indoor sleeping places: the min and max room temperature over them (Indoor), or
+/// NoIndoorBed when the colony has no reachable player bed in a roofed, proper indoor room.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(SleepingTemperature.Indoor), "indoor")]
+[JsonDerivedType(typeof(SleepingTemperature.NoIndoorBed), "no_indoor_bed")]
+public abstract record SleepingTemperature
+{
+    private protected SleepingTemperature() { }
+
+    public sealed record Indoor(double MinC, double MaxC) : SleepingTemperature;
+
+    public sealed record NoIndoorBed : SleepingTemperature;
+}
+
+/// <summary>
+/// The planning section of a colony facts read: its facts when the read asked for them
+/// (<see cref="ColonyFactsRequest.Planning"/>), else NotRequested. A planner that needs them and holds a
+/// NotRequested read fails with <c>RequiredFactException("planning")</c>.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(Planning.Requested), "requested")]
+[JsonDerivedType(typeof(Planning.NotRequested), "not_requested")]
+public abstract record Planning
+{
+    private protected Planning() { }
+
+    public sealed record Requested(PlanningFacts Facts) : Planning;
+
+    public sealed record NotRequested : Planning;
+}
+
+/// <summary>
+/// One colony facts read, all of it from one game-thread frame. A read that cannot produce a member fails whole;
+/// the members a later facts family owns keep their section types until it hardens them.
+/// </summary>
 public sealed record ColonyFactsSnapshot
 {
-    /// <summary>Exact thing identities contributing to Resources; null means the resource census was not read.</summary>
-    public EquatableArray<string>? ResourceThings { get; init; }
+    /// <summary>Exact thing identities contributing to Resources.</summary>
+    public required EquatableArray<string> ResourceThings { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<WorkResourcePawn>))]
-    public EquatableArray<WorkResourcePawn>? WorkResources { get; init; }
-    public Common.ObservationContext? Context { get; init; }
+    public required EquatableArray<WorkResourcePawn> WorkResources { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
-    public uint ColonistCount { get; init; }
+    public required uint ColonistCount { get; init; }
 
-    public uint WorkerCount { get; init; }
+    public required uint WorkerCount { get; init; }
 
-    public MapSize MapSize { get; init; } = new();
+    public required MapSize MapSize { get; init; }
 
-    public string Biome { get; init; } = "";
+    public required string Biome { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
     public EquatableArray<Quantity> Resources { get; init; }
@@ -6756,17 +6787,16 @@ public sealed record ColonyFactsSnapshot
 
     public double? FoodRunwayDays { get; init; }
 
-    public double? PendingFoodNutrition { get; init; }
+    /// <summary>The human-edible nutrition of every designated harvest and hunt not yet taken.</summary>
+    public required double PendingFoodNutrition { get; init; }
 
-    public uint BedCapacity { get; init; }
+    public required uint BedCapacity { get; init; }
 
-    public uint IndoorSleepingCapacity { get; init; }
+    public required uint IndoorSleepingCapacity { get; init; }
 
-    public double? SleepingTemperatureMinC { get; init; }
+    public required SleepingTemperature SleepingTemperature { get; init; }
 
-    public double? SleepingTemperatureMaxC { get; init; }
-
-    public double OutdoorTemperatureC { get; init; }
+    public required double OutdoorTemperatureC { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<EnvironmentCondition>))]
     public EquatableArray<EnvironmentCondition> Environment { get; init; }
@@ -6782,31 +6812,30 @@ public sealed record ColonyFactsSnapshot
     [JsonConverter(typeof(EquatableArrayJsonConverter<ButcheringFacts>))]
     public EquatableArray<ButcheringFacts> Butchering { get; init; }
 
-    public FoodSupplySection? FoodSupply { get; init; }
+    public required FoodSupplySection FoodSupply { get; init; }
 
-    public ForecastSection? Forecast { get; init; }
+    public required ForecastSection Forecast { get; init; }
 
-    public UpkeepSection? Upkeep { get; init; }
+    public required UpkeepSection Upkeep { get; init; }
 
-    public DevelopmentSection? Development { get; init; }
+    public required DevelopmentSection Development { get; init; }
 
-    public PlanningSection? Planning { get; init; }
+    public required Planning Planning { get; init; }
 
-    public RecoveryReply? Recovery { get; init; }
+    public required RecoveryReply Recovery { get; init; }
 
-    public WasteReply? Waste { get; init; }
+    public required WasteReply Waste { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ReadIssue>))]
     public EquatableArray<ReadIssue> Issues { get; init; }
 
-    public double? PendingWoodUnits { get; init; }
-
-    public uint? PendingHunts { get; init; }
+    /// <summary>The wild animals designated for hunting.</summary>
+    public required uint PendingHunts { get; init; }
 
     /// <summary>
     /// Player faction TechLevel; the floor of the construction tier.
     /// </summary>
-    public Defs.TechLevel PlayerTechLevel { get; init; }
+    public required Defs.TechLevel PlayerTechLevel { get; init; }
 
     /// <summary>
     /// Present only while exactly one force-pausing choice dialog is open.
@@ -6816,46 +6845,44 @@ public sealed record ColonyFactsSnapshot
     /// <summary>
     /// Colony wealth and raid points (ThreatFacts), or why they could not be read.
     /// </summary>
-    public ThreatSection? Threat { get; init; }
+    public required ThreatSection Threat { get; init; }
 
-    public LootSection? EventLoot { get; init; }
+    public required LootSection EventLoot { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<JoinerLetter>))]
     public EquatableArray<JoinerLetter> JoinerLetters { get; init; }
 
-    public FoodChannelsSection? FoodChannels { get; init; }
+    public required FoodChannelsSection FoodChannels { get; init; }
 
-    public DeepResourcesSection? DeepResources { get; init; }
+    public required DeepResourcesSection DeepResources { get; init; }
 
-    public uint FermentingBarrels { get; init; }
+    public required uint FermentingBarrels { get; init; }
 
     /// <summary>
     /// Every outfit, drug, food and reading policy and every allowed area.
     /// </summary>
-    public PolicySection? Policies { get; init; }
+    public required PolicySection Policies { get; init; }
 
     /// <summary>
-    /// Biotech pollution sources, wastepacks, gestators, chargers and baby care; absent without Biotech.
+    /// Biotech pollution sources, wastepacks, gestators, chargers and baby care; null without Biotech.
     /// </summary>
-    public BiotechSection? Biotech { get; init; }
+    public required BiotechSection? Biotech { get; init; }
 
     /// <summary>
-    /// Anomaly containment, knowledge and incident state; absent without Anomaly.
+    /// Anomaly containment, knowledge and incident state; null without Anomaly.
     /// </summary>
-    public AnomalySection? Anomaly { get; init; }
+    public required AnomalySection? Anomaly { get; init; }
 
     /// <summary>
-    /// Royalty neuroformer stock, bestowing ceremonies and thrones; absent without Royalty.
+    /// Royalty neuroformer stock, bestowing ceremonies and thrones; null without Royalty.
     /// </summary>
-    public RoyaltySection? Royalty { get; init; }
+    public required RoyaltySection? Royalty { get; init; }
 
     /// <summary>Cumulative production-site delivery counters.</summary>
     public required DeliveryLedger DeliveryLedger { get; init; }
 
-    /// <summary>
-    /// Raw hunt facts for policy.HuntGate; always present on a native read.
-    /// </summary>
-    public HuntCensus? HuntCensus { get; init; }
+    /// <summary>Raw hunt facts for policy.HuntGate.</summary>
+    public required HuntCensus HuntCensus { get; init; }
 }
 
 /// <summary>
@@ -7544,48 +7571,10 @@ public sealed record ColonyFactsRequest
 {
     public ReadScope? Scope { get; init; }
 
-    public bool? Planning { get; init; }
+    /// <summary>Whether the read carries the planning facts (<see cref="Observations.Planning.Requested"/>); false when omitted.</summary>
+    public bool Planning { get; init; }
 
     public uint? HerdRadius { get; init; }
-}
-
-public sealed record ColonyFactsReply
-{
-    public ColonyFactsReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ColonyFactsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ColonyFactsReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(ColonyFactsReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(ColonyFactsReplyOutcome.FailureCase), "failure")]
-public abstract record ColonyFactsReplyOutcome
-{
-    private protected ColonyFactsReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ColonyFactsSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(ColonyFactsSnapshot Value) : ColonyFactsReplyOutcome;
-
-    public static implicit operator ColonyFactsReplyOutcome(ColonyFactsSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : ColonyFactsReplyOutcome;
-
-    public static implicit operator ColonyFactsReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : ColonyFactsReplyOutcome;
-
-    public static implicit operator ColonyFactsReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 /// <summary>

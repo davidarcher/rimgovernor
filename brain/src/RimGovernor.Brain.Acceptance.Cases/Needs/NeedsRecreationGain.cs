@@ -45,8 +45,8 @@ internal static class NeedsRecreationGain
     {
         var colonist = s.Staged?.Pawns["colonist"].Id ?? throw new AcceptanceException("the stage made no colonist");
         var board = s.Staged!.Buildings[Board].Ids.Single();
-        var reply = await s.CallAsync("needs", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var needs = TypedReads.Observed("needs", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed).Forecast?.Outcome?.Needs
+        var reply = await s.CallAsync("needs", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var needs = reply.Forecast?.Outcome?.Needs
             ?? throw new AcceptanceException("needs: needs forecast unavailable");
         var row = needs.Pawns.SingleOrDefault(p => p.Pawn == colonist) ?? throw new AcceptanceException($"needs: no row for {colonist}");
         s.RecordWireRows("joy_targets", row.Targets.Where(t => t.Kind == "joy"));

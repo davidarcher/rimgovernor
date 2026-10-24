@@ -203,7 +203,7 @@ public sealed class PolicyController : IFightController
         try
         {
             var colony = RimGovernor.Brain.Observation.RoyaltyColonyProjectionReads.ColonyRoyalty(frame.ColonyFacts?.Royalty);
-            return new RimGovernor.Brain.Observation.ColonyProjection { RoyaltyColony = colony }.RoyaltyOf(frame.Pawns, catalog);
+            return RimGovernor.Brain.Observation.ColonyProjection.RoyaltyOf(colony, frame.Pawns, catalog);
         }
         catch (RimGovernor.Brain.Domain.DomainException)
         {

@@ -27,7 +27,7 @@ public sealed class SnapshotStep
     public string Planner { get; set; } = "";
 
     /// <summary>The step's reading with its Facts; its Zones and Window are not recorded, as in the rounds snapshot.</summary>
-    public ColonyProjection Projection { get; set; } = new();
+    public required ColonyProjection Projection { get; set; }
 }
 
 /// <summary>Names one step read in a stream: step-&lt;planner&gt;-&lt;goal&gt;-&lt;tick&gt;-&lt;seq&gt;.</summary>
@@ -44,8 +44,7 @@ public static class SnapshotStepReplay
     /// <summary>Appends goal's step read to this process's stream in dir, numbered from 1 per planner, goal and tick.</summary>
     public static void RecordStep(string dir, string planner, ConcernId goal, GenerationSnapshot current, ColonyProjection reading)
     {
-        var none = new ColonyProjection();
-        reading = reading with { Zones = none.Zones, Window = none.Window };
+        reading = reading with { Zones = null, Window = null };
         var tick = reading.Identity.Tick;
         var step = new SnapshotStep
         {

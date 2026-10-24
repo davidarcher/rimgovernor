@@ -381,7 +381,7 @@ public sealed class BedMergePriceTests
             Name = name, Available = Known(true),
             StuffOptions = [Option(granite, count * 0.9, work * 2, count), Option(wood, count * 1.2, work * 0.7, count)],
         };
-        var colony = new Obs.ColonyProjection
+        var colony = ColonyFactsCoreTests.Projection() with
         {
             Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
             Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [wood] = 600 }),
@@ -407,7 +407,7 @@ public sealed class BedMergePriceTests
             Name = name, Available = Known(true),
             StuffOptions = [Option(granite, count * 0.9, work * 2, count), Option(wood, count * 1.2, work * 0.7, count)],
         };
-        Obs.ColonyProjection Colony(RingStuffSources map, params Resource[] stocked) => new()
+        Obs.ColonyProjection Colony(RingStuffSources map, params Resource[] stocked) => ColonyFactsCoreTests.Projection() with
         {
             Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
             Resources = Known<IReadOnlyDictionary<Resource, long>>(stocked.ToDictionary(r => r, _ => 300L)),
@@ -442,7 +442,7 @@ public sealed class BedMergePriceTests
             Name = name, Available = Known(true),
             StuffOptions = [Option(granite, count * 0.9, work * 2, count), Option(wood, count * 1.2, work * 0.7, count)],
         };
-        var colony = new Obs.ColonyProjection
+        var colony = ColonyFactsCoreTests.Projection() with
         {
             Definitions = [Def(ContainmentCellRules.ShellWallDefinition, 135, 5), Def(ContainmentCellRules.ShellDoorDefinition, 850, 25)],
             Resources = Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [wood] = 30 }),

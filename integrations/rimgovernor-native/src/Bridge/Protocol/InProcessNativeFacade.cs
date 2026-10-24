@@ -123,7 +123,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.StatusReply> ReadStatusAsync(Obs.StatusRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadStatus, request, () => NativeObservationTools.HandleReadStatus(request), cancellationToken);
 
-        public Task<Obs.ColonyFactsReply> ReadColonyFactsAsync(Obs.ColonyFactsRequest request, CancellationToken cancellationToken)
+        public Task<Obs.ColonyFactsSnapshot> ReadColonyFactsAsync(Obs.ColonyFactsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadColonyFacts, request, () => NativeColonyObservationTools.HandleReadColonyFacts(request), cancellationToken);
 
         public Task<Obs.GetCellsReply> GetCellsAsync(Obs.GetCellsRequest request, CancellationToken cancellationToken)

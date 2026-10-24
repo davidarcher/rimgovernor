@@ -120,12 +120,12 @@ public sealed class ServiceInvestmentTests
         var partial = batch with { Orders = [batch.Orders[0] with { Steps = [task.Step with { Count = 40 }] }] };
         var partialAction = DomainAction.NewPawnActivitiesAction(new("partial"), partial);
         var completedTrip = evidence with { WorkResources = Known<EquatableArray<WorkResourcePawn>>([
-            new("pawn", "assignment", 1, "completed", "", "", 0)]) };
+            new("pawn", "assignment", 1, "completed", "", "", 0) { LocalHour = 12 }]) };
         var partialView = WorkRules.WorkResourcesOf(completedTrip, Known<EquatableArray<ProductionBatch>>([]),
             [new(new("plan"), partialAction, new() { Action = partialAction.Id, Stage = Stage.Pending })]);
         Assert.Equal(60, partialView.Claims.Materials.SelectMany(c => c.MaterialClaims).Sum(c => c.Units.Value));
         var displaced = completedTrip with { WorkResources = Known<EquatableArray<WorkResourcePawn>>([
-            new("pawn", "player", 2, "started", "", "", 0)]) };
+            new("pawn", "player", 2, "started", "", "", 0) { LocalHour = 12 }]) };
         var displacedView = WorkRules.WorkResourcesOf(displaced, Known<EquatableArray<ProductionBatch>>([]),
             [new(new("plan"), partialAction, new() { Action = partialAction.Id, Stage = Stage.Completed, Attempt = new(1), Tick = new(99) })]);
         Assert.Empty(displacedView.Claims.Materials);

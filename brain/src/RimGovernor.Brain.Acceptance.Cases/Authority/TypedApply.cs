@@ -51,8 +51,7 @@ internal static class TypedApply
     /// <summary>The colony facts' upkeep section (observations_read_colony_facts, planning off); an unread section fails the case.</summary>
     internal static async Task<Observations.UpkeepFacts> UpkeepAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-        var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+        var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         return facts.Upkeep?.Outcome ?? throw new AcceptanceException($"{label}: upkeep facts unavailable: {facts.Upkeep?.Outcome}");
     }
 

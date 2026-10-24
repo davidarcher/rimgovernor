@@ -31,12 +31,11 @@ public sealed partial class FacadeNativeClient
         Facade.ReadTickAsync(new PbLifecycle.TickRequest(), cancellationToken);
 
     /// <summary>The colony census: the planning form from the newest frame, the other form read live.</summary>
-    internal async Task<PbObservations.ColonyFactsReply> ReadColonyFactsAsync(PbCommon.Identity identity, bool planning, CancellationToken cancellationToken)
+    internal async Task<PbObservations.ColonyFactsSnapshot> ReadColonyFactsAsync(PbCommon.Identity identity, bool planning, CancellationToken cancellationToken)
     {
         if (planning)
         {
-            var facts = await FrameReadAsync(ReadColonyFactsMethod, identity, view => view.Snapshot.ColonyFacts, cancellationToken).ConfigureAwait(false);
-            return new PbObservations.ColonyFactsReply { Outcome = facts };
+            return await FrameReadAsync(ReadColonyFactsMethod, identity, view => view.Snapshot.ColonyFacts, cancellationToken).ConfigureAwait(false);
         }
         // The stream seeds the colony_facts section under the planning form only, so no frame carries this form.
         var request = ColonyFactsParameters with

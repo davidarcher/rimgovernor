@@ -465,13 +465,13 @@ partial class RoundsAcquisitionPlanner
     /// yield otherwise): a designation nobody took still counts there, and without this the re-plan would see
     /// its own stalled yield as covering the deficit and propose nothing.
     /// </summary>
-    internal static Fact<double> WithoutStalled(Fact<double> pending, Fact<EquatableArray<AcquisitionSource>> sources, HashSet<string> stalled, bool food)
+    internal static Fact<double> WithoutStalled(double pending, Fact<EquatableArray<AcquisitionSource>> sources, HashSet<string> stalled, bool food)
     {
         var known = sources.TryGetValue(out var rows);
-        var pk = pending.TryGetValue(out var outstanding);
-        if (!known || !pk || stalled.Count == 0)
+        var outstanding = pending;
+        if (!known || stalled.Count == 0)
         {
-            return pending;
+            return Known(pending);
         }
         foreach (var row in rows!)
         {

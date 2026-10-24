@@ -9,7 +9,7 @@ public interface IColonyStatusNative
 {
     Task<PbLifecycle.LoadedIdentity> IdentityAsync(CancellationToken ct);
 
-    Task<PbObservations.ColonyFactsReply> ReadColonyFactsAsync(PbCommon.Identity identity, bool full, CancellationToken ct);
+    Task<PbObservations.ColonyFactsSnapshot> ReadColonyFactsAsync(PbCommon.Identity identity, bool full, CancellationToken ct);
 
     Task<PbObservations.ListPawnsReply> ReadHomeColonistsAsync(PbCommon.Identity identity, CancellationToken ct);
 }
@@ -67,7 +67,7 @@ public sealed record ColonyStatusReport
 
     public Fact<double> FoodRunwayDays { get; init; }
 
-    public Fact<double> PendingFoodNutrition { get; init; }
+    public double PendingFoodNutrition { get; init; }
 
     /// <summary>The census's wealth split and raid points; unknown under a native build that does not report the section.</summary>
     public ColonyThreat Threat { get; init; } = new();
@@ -125,20 +125,19 @@ public sealed class ColonyStatus
         var identityReply = await Native.IdentityAsync(call).ConfigureAwait(false);
         var decoded = DecodeReads.DecodeIdentity(identityReply);
         var identity = new PbCommon.Identity { ColonyId = decoded.Colony.Value, LoadToken = decoded.Load.Value, MapId = decoded.Map.Value };
-        var colony = await Native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
-        var observed = colony.Outcome?.Observed ?? throw new ControlException("Read: observed == nil");
+        var observed = await Native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
         var roster = await Native.ReadHomeColonistsAsync(identity, call).ConfigureAwait(false);
         var pawns = roster.Outcome?.Observed ?? throw new ControlException("Read: pawns == nil");
         var report = new ColonyStatusReport
         {
-            Tick = new Tick((long)(observed.Context?.Tick ?? 0)),
+            Tick = new Tick((long)observed.Context.Tick),
             RosterTick = new Tick((long)(pawns.Context?.Tick ?? 0)),
             Colonists = observed.ColonistCount,
             Workers = observed.WorkerCount,
             FoodNutrition = observed.FoodNutrition,
             NutritionPerDay = observed.NutritionPerDay,
             FoodRunwayDays = OptionalFact(observed.FoodRunwayDays is not null, observed.FoodRunwayDays.GetValueOrDefault()),
-            PendingFoodNutrition = OptionalFact(observed.PendingFoodNutrition is not null, observed.PendingFoodNutrition.GetValueOrDefault()),
+            PendingFoodNutrition = observed.PendingFoodNutrition,
             Threat = ColonyThreat.ProjectColonyThreat(observed),
             PlayerTechLevel = observed.PlayerTechLevel,
             TechTier = Unknown<TechTier>(),

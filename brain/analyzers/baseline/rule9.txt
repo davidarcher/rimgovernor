@@ -101,7 +101,7 @@ BuildingRuntime/Colony/ColonyPlanCut.cs|Fact|3
 BuildingRuntime/Colony/ColonyPlanCut.cs|Unknown|2
 BuildingRuntime/Colony/ColonyStationAdvice.cs|Fact|21
 BuildingRuntime/Colony/ColonyStationAdvice.cs|Unknown|4
-BuildingRuntime/Colony/ColonyStatus.cs|Fact|25
+BuildingRuntime/Colony/ColonyStatus.cs|Fact|24
 BuildingRuntime/Colony/ColonyStatus.cs|Unknown|7
 BuildingRuntime/Combat/CombatRestoration.cs|Fact|3
 BuildingRuntime/DraftNeeds.cs|Fact|4
@@ -121,7 +121,7 @@ BuildingRuntime/ReviewMemory.cs|Fact|7
 BuildingRuntime/ReviewMemory.cs|Unknown|3
 BuildingRuntime/Rounds/Rounder.cs|Fact|51
 BuildingRuntime/Rounds/Rounder.cs|Unknown|3
-BuildingRuntime/Rounds/RoundsAcquisition.cs|Fact|41
+BuildingRuntime/Rounds/RoundsAcquisition.cs|Fact|40
 BuildingRuntime/Rounds/RoundsAcquisition.cs|Unknown|4
 BuildingRuntime/Rounds/RoundsAcquisitionFields.cs|Fact|5
 BuildingRuntime/Rounds/RoundsAdmin.cs|Fact|3
@@ -212,7 +212,7 @@ BuildingRuntime/Rounds/RoundsFishing.cs|Fact|22
 BuildingRuntime/Rounds/RoundsFlooring.cs|Discard|1
 BuildingRuntime/Rounds/RoundsFlooring.cs|Fact|12
 BuildingRuntime/Rounds/RoundsFood.cs|Fact|3
-BuildingRuntime/Rounds/RoundsFoodPlan.cs|Fact|41
+BuildingRuntime/Rounds/RoundsFoodPlan.cs|Fact|40
 BuildingRuntime/Rounds/RoundsFoodPlan.cs|Unknown|7
 BuildingRuntime/Rounds/RoundsFoodReserve.cs|Fact|7
 BuildingRuntime/Rounds/RoundsFoodReserve.cs|Unknown|3
@@ -381,7 +381,7 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|763
+Contracts/Observations.cs|NullableValue|755
 Contracts/Observations.cs|UnknownMember|17
 Contracts/Operations.cs|NullableValue|93
 Contracts/Operations.cs|UnknownMember|16
@@ -399,7 +399,6 @@ Contracts/SkillLearning.cs|Fact|24
 Contracts/SowingActivities.cs|Fact|2
 Contracts/SupportActivities.cs|Fact|11
 Contracts/SupportActivities.cs|NullableValue|1
-Contracts/WorkResources.cs|NullableValue|1
 Domain/Actions/Ability.cs|Discard|2
 Domain/Actions/Acquisition.cs|Discard|1
 Domain/Actions/Acquisition.cs|NullableValue|1
@@ -444,7 +443,7 @@ Host/HostProviders.cs|Unknown|2
 Host/HostSnapshots.cs|Fact|8
 Host/HostSnapshots.cs|Unknown|2
 Host/SchedulerLoop.cs|Discard|1
-Observation/Acquisition.cs|Fact|9
+Observation/Acquisition.cs|Fact|8
 Observation/Acquisition.cs|Unknown|1
 Observation/AnimalUpkeep.cs|Fact|34
 Observation/AnimalUpkeep.cs|Unknown|6
@@ -455,9 +454,9 @@ Observation/BiotechColony.cs|Unknown|3
 Observation/Clearance.cs|Discard|1
 Observation/Clearance.cs|Fact|6
 Observation/Clearance.cs|Unknown|1
-Observation/Colony.cs|Fact|95
+Observation/Colony.cs|Fact|91
 Observation/Colony.cs|Unknown|4
-Observation/ColonyDecode.cs|Fact|55
+Observation/ColonyDecode.cs|Fact|54
 Observation/ColonyDecode.cs|Unknown|5
 Observation/ColonyFrames.cs|Fact|32
 Observation/ColonyFrames.cs|Unknown|5
@@ -505,8 +504,8 @@ Observation/RoundsRead.cs|Fact|51
 Observation/RoundsRead.cs|Unknown|16
 Observation/RoundsWork.cs|Fact|43
 Observation/RoundsWork.cs|Unknown|6
-Observation/RoyaltyColonyProjection.cs|Fact|8
-Observation/RoyaltyColonyProjection.cs|Unknown|2
+Observation/RoyaltyColonyProjection.cs|Fact|6
+Observation/RoyaltyColonyProjection.cs|Unknown|1
 Observation/SleepingUpkeep.cs|Fact|13
 Observation/SleepingUpkeep.cs|Unknown|5
 Observation/StuffChoice.cs|Discard|1

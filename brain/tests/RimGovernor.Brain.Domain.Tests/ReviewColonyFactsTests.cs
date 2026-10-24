@@ -26,7 +26,7 @@ public sealed class ReviewColonyFactsTests
     {
         var census = new RoundsCensusStore();
         census.RememberColony(colony);
-        var reading = new RoundsReading { Emergency = new(), Frame = new(), Reading = new ColonyReading { Projection = new ColonyProjection { Identity = At(100) } } };
+        var reading = new RoundsReading { Emergency = new(), Frame = new(), Reading = new ColonyReading { Projection = ColonyFactsCoreTests.Projection() with { Identity = At(100) } } };
         census.Retain(reading, false, Unknown<EquatableArray<ConstructionClaim>>());
         return census;
     }
@@ -34,7 +34,7 @@ public sealed class ReviewColonyFactsTests
     [Fact]
     public void InsideTheWindowServesTheFrameInstance()
     {
-        var colony = new PbObservations.ColonyFactsSnapshot { DeliveryLedger = DeliveryLedgerTests.NoDeliveries };
+        var colony = ColonyFactsCoreTests.Snapshot();
         var census = Retained(colony);
 
         Assert.Same(colony, census.ServedColony(At(130)));
@@ -43,7 +43,7 @@ public sealed class ReviewColonyFactsTests
     [Fact]
     public void AfterInvalidationGoesToNative()
     {
-        var census = Retained(new PbObservations.ColonyFactsSnapshot { DeliveryLedger = DeliveryLedgerTests.NoDeliveries });
+        var census = Retained(ColonyFactsCoreTests.Snapshot());
         census.Invalidate();
 
         Assert.Null(census.ServedColony(At(130)));
@@ -52,7 +52,7 @@ public sealed class ReviewColonyFactsTests
     [Fact]
     public void AnotherGenerationGoesToNative()
     {
-        var census = Retained(new PbObservations.ColonyFactsSnapshot { DeliveryLedger = DeliveryLedgerTests.NoDeliveries });
+        var census = Retained(ColonyFactsCoreTests.Snapshot());
 
         Assert.Null(census.ServedColony(At(130) with { NativeGeneration = Known(new NativeGeneration(8)) }));
     }

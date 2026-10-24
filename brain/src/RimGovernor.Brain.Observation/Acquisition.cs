@@ -16,7 +16,7 @@ public static class AcquisitionReads
     internal static (Fact<EquatableArray<AcquisitionSource>> Sources, IReadOnlyList<HuntHold> Holds) DecodeAcquisition(O.ColonyFactsSnapshot v, Tables tables, DefinitionCatalog? definitions)
     {
         var unknown = (Unknown<EquatableArray<AcquisitionSource>>(), (IReadOnlyList<HuntHold>)[]);
-        if (ColonyDecodeReads.HasIssue(v.Issues, "acquisition") || !ColonyDecodeReads.Headed(tables, v.Acquisition, row => row.Source))
+        if (!ColonyDecodeReads.Headed(tables, v.Acquisition, row => row.Source))
         {
             return unknown;
         }
@@ -177,17 +177,5 @@ public static class AcquisitionReads
     {
         var (sources, holds) = DecodeAcquisition(v, tables, catalog);
         r = r with { Acquisition = sources, HuntHolds = holds };
-        if (!ColonyDecodeReads.HasIssue(v.Issues, "pending_food_nutrition"))
-        {
-            r = r with { PendingFoodNutrition = ColonyDecodeReads.Optional(v.PendingFoodNutrition is not null, v.PendingFoodNutrition.GetValueOrDefault()) };
-        }
-        if (!ColonyDecodeReads.HasIssue(v.Issues, "pending_hunts") && v.PendingHunts is not null)
-        {
-            r = r with { PendingHunts = Known((int)v.PendingHunts.GetValueOrDefault()) };
-        }
-        if (!ColonyDecodeReads.HasIssue(v.Issues, "pending_wood_units"))
-        {
-            r = r with { PendingWoodUnits = ColonyDecodeReads.Optional(v.PendingWoodUnits is not null, v.PendingWoodUnits.GetValueOrDefault()) };
-        }
     }
 }

@@ -89,13 +89,13 @@ public sealed class ShelterFamilyTests
     {
         var memory = new SafeAreaMemory();
         Assert.False(memory.Owed("w").IsKnown);
-        var reviewed = memory.Review("w", new ColonyProjection { Rooms = Known(new RoomObservation()) });
+        var reviewed = memory.Review("w", ColonyFactsCoreTests.Projection() with { Rooms = Known(new RoomObservation()) });
         Assert.True(reviewed.IsKnown);
         Assert.Equal(reviewed, memory.Owed("w"));
         Assert.False(memory.Owed("other").IsKnown);
         memory.Commit("w");
         Assert.Equal(Known(false), memory.Owed("w"));
-        Assert.False(memory.Review("w", new ColonyProjection()).IsKnown);
+        Assert.False(memory.Review("w", ColonyFactsCoreTests.Projection()).IsKnown);
     }
 
     [Fact]

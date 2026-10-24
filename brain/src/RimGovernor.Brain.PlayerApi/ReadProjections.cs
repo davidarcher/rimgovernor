@@ -232,7 +232,7 @@ internal static class ReadProjections
             v.FoodNutrition,
             v.NutritionPerDay,
             Value(v.FoodRunwayDays),
-            Value(v.PendingFoodNutrition),
+            v.PendingFoodNutrition,
             Value(v.Threat.RaidPoints),
             Value(v.Threat.WealthTotal),
             Value(v.Threat.WealthItems),

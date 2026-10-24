@@ -554,12 +554,11 @@ public sealed class GameReuse : IAsyncDisposable
         // unfiltered supplies listing exceeds the native 256-row item limit on an ordinary colony. Forbidden counts come
         // from a supplies read scoped to those definitions and are skipped (-1) when native declines that read as too
         // large as well.
-        var factsReply = await h.CallAsync(
+        var facts = await h.CallAsync(
             label + "-stock",
             NativeOps.ReadColonyFacts,
             new Wo.ColonyFactsRequest { Scope = scope, Planning = false },
             cancellationToken).ConfigureAwait(false);
-        var facts = TypedReads.Observed(label + "-stock", NativeOps.ReadColonyFacts, factsReply, factsReply.Outcome?.Observed);
         var stock = new Dictionary<string, StockCounts>(StringComparer.Ordinal);
         foreach (var row in facts.Resources)
         {

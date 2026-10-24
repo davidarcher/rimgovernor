@@ -29,7 +29,7 @@ public sealed class ForecastIncumbentPreparationTests
         var action = DomainAction.NewPawnActivitiesAction(new("joy-action"), batch);
         var row = new WorkAction(new("joy-plan"), action, new() { Action = action.Id, Stage = Stage.Completed,
             Attempt = new(1), Receipt = Known(Receipt.Accepted), Tick = new(100) });
-        var native = Known<EquatableArray<WorkResourcePawn>>([new("pawn", "joy-assignment", 1, "started", "", "", 0)]);
+        var native = Known<EquatableArray<WorkResourcePawn>>([new("pawn", "joy-assignment", 1, "started", "", "", 0) { LocalHour = 12 }]);
         var evidence = facts.WorkView!.Evidence with
         {
             WorkResources = native,
@@ -103,7 +103,7 @@ public sealed class ForecastIncumbentPreparationTests
             facts = facts with { ForecastObserved = facts.ForecastObserved with { Needs = needs with { Pawns = [needs.Pawns[0] with
             { CurrentService = needs.Pawns[0].CurrentService! with { RemainingTicks = reason == "unknown" ? default : Known(100d), Revision = reason == "revision" ? 2 : 1 } }] } } };
         if (reason == "carry") facts = facts with { WorkView = facts.WorkView! with { Evidence = facts.WorkView!.Evidence with
-            { WorkResources = Known<EquatableArray<WorkResourcePawn>>([new("pawn", "joy-assignment", 1, "started", "rice", "Rice", 1)]) } } };
+            { WorkResources = Known<EquatableArray<WorkResourcePawn>>([new("pawn", "joy-assignment", 1, "started", "rice", "Rice", 1) { LocalHour = 12 }]) } } };
         if (reason == "stale") facts = facts with { Tick = new(101) };
         if (reason == "unaccepted") actions = new([actions.Actions[0] with { Progress = actions.Actions[0].Progress with { Receipt = default } }]);
         if (reason == "truncated") actions = actions with { Truncated = true };
@@ -133,8 +133,8 @@ public sealed class ForecastIncumbentPreparationTests
         batch = batch with { Tasks = [task], Orders = tombstone
             ? [order, new("helper", "old-helper", "joy-method", 1, 2, true, [])] : [order] };
         row = row with { Action = DomainAction.NewPawnActivitiesAction(row.Action.Id, batch) };
-        var native = new List<WorkResourcePawn> { new("pawn", order.Assignment, order.Revision, "holding", "", "", 0) };
-        if (tombstone) native.Add(new("helper", "new-independent-idle", 1, "holding", "", "", 0));
+        var native = new List<WorkResourcePawn> { new("pawn", order.Assignment, order.Revision, "holding", "", "", 0) { LocalHour = 12 } };
+        if (tombstone) native.Add(new("helper", "new-independent-idle", 1, "holding", "", "", 0) { LocalHour = 12 });
         var evidence = facts.WorkView!.Evidence with { WorkResources = Known(EquatableArray.From(native)) };
         var view = WorkRules.WorkResourcesOf(evidence, NoBatches, [row]);
         var pawn = facts.ForecastObserved.Needs!.Pawns[0] with
@@ -242,7 +242,7 @@ public sealed class ForecastIncumbentPreparationTests
             Attempt = new(1), Receipt = Known(Receipt.Accepted), Tick = new(100) });
         WorkAction[] rows = [row];
         var native = facts.WorkView!.Evidence.WorkResources.Value.Select(p => p.Pawn == "pawn" ? p with { Assignment = order.Assignment, Revision = order.Revision, State = state } : p).ToList();
-        if (busy.Length != 0) native.Add(new("busy", "busy-assignment", 1, "started", "", "", 0) { Bill = busy == "shares" ? recipe.Bill : "bill/Other" });
+        if (busy.Length != 0) native.Add(new("busy", "busy-assignment", 1, "started", "", "", 0) { LocalHour = 12, Bill = busy == "shares" ? recipe.Bill : "bill/Other" });
         var evidence = facts.WorkView.Evidence with { WorkResources = Known(EquatableArray.From(native)) };
         var view = WorkRules.WorkResourcesOf(evidence, NoBatches, rows);
         return (facts with { WorkView = view, WorkClaims = view.Claims, WorkResources = evidence.WorkResources }, new(EquatableArray.From(rows)));
@@ -369,7 +369,7 @@ public sealed class ForecastIncumbentPreparationTests
             var action = DomainAction.NewPawnActivitiesAction(new("action" + i), batch);
             rows.Add(new(new("plan" + i), action, original.Progress with { Action = action.Id }));
             needs.Add(facts.ForecastObserved.Needs!.Pawns[0] with { Pawn = pawn, CurrentService = new(order.Assignment, order.Method, 1, "pin", "joy", new(1, 1), Known(100d), Known(.001)) });
-            native.Add(new(pawn, order.Assignment, 1, "started", "", "", 0));
+            native.Add(new(pawn, order.Assignment, 1, "started", "", "", 0) { LocalHour = 12 });
             capacity.Add(facts.WorkView!.Evidence.Pawns.Value[0] with { Pawn = pawn });
         }
         var evidence = facts.WorkView!.Evidence with { Pawns = Known(EquatableArray.From(capacity)), WorkResources = Known(EquatableArray.From(native)) };

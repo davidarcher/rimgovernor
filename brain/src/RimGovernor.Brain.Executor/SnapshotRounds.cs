@@ -99,8 +99,7 @@ public static class SnapshotRoundsReplay
         // Facts ride once; the zone read holds native protobuf messages and the window only repeats Region and
         // Cells, so neither is recorded. The bed price is a function over the catalog and cannot be: a replay
         // prices no bed.
-        var none = new ColonyProjection();
-        reading = reading with { Facts = none.Facts, Zones = none.Zones, Window = none.Window };
+        reading = reading with { Facts = new(), Zones = null, Window = null };
         return new SnapshotRounds
         {
             Projection = reading,

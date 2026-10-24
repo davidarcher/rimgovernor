@@ -65,8 +65,7 @@ internal static class FoodForageUnarmed
         long eaten = 0;
         _ = await s.ServeUntilAsync("forage", s.TicksLeft, async ct =>
         {
-            var reply = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
-            var facts = TypedReads.Observed("colony-facts", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+            var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, ct).ConfigureAwait(false);
             designated.UnionWith(facts.Acquisition.Where(row => row.Designated == true && row.Source?.Id is { } id && bushes.Contains(id)).Select(row => row.Source!.Id!));
 
             // The ring lists completed hours only; a meal shows once its hour closes.

@@ -24,8 +24,7 @@ internal static class UpkeepAutoHomeArea
 
         async Task<bool> ReadAsync(string label)
         {
-            var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-            var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+            var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
             var upkeep = facts.Upkeep?.Outcome ?? throw new AcceptanceException($"{label}: upkeep facts unavailable");
 
             // A set optional is emitted even when false.

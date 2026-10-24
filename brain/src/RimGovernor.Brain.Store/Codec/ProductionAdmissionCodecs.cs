@@ -65,10 +65,10 @@ internal sealed class WorkPawnAvailabilityConverter : ObjectCodec<WorkPawnAvaila
 internal sealed class WorkResourcePawnConverter : ObjectCodec<RimGovernor.Contracts.Wire.Observations.WorkResourcePawn>
 {
     protected override RimGovernor.Contracts.Wire.Observations.WorkResourcePawn Read(JsonElement e, Codecs o) =>
-        new(e.Str("Pawn"), e.Str("Assignment"), e.I64("Revision"), e.Str("State"), e.Str("CarriedThing"), e.Str("CarriedResource"), e.I32("CarriedCount")) { LocalHour = e.Get<double?>("LocalHour", o), Bill = e.Str("Bill"), Target = e.Str("Target") };
+        new(e.Str("Pawn"), e.Str("Assignment"), e.I64("Revision"), e.Str("State"), e.Str("CarriedThing"), e.Str("CarriedResource"), e.I32("CarriedCount")) { LocalHour = e.Get<double?>("LocalHour", o) ?? throw new InvalidDataException(), Bill = e.Str("Bill"), Target = e.Str("Target") };
     protected override void WriteFields(Utf8JsonWriter w, RimGovernor.Contracts.Wire.Observations.WorkResourcePawn v, Codecs o)
     { w.WriteString("Pawn", v.Pawn); w.WriteString("Assignment", v.Assignment); w.WriteNum("Revision", v.Revision);
-      w.WriteString("State", v.State); w.WriteString("CarriedThing", v.CarriedThing); w.WriteString("CarriedResource", v.CarriedResource); w.WriteNum("CarriedCount", v.CarriedCount); w.Put("LocalHour", v.LocalHour, o); w.WriteString("Bill", v.Bill); w.WriteString("Target", v.Target); }
+      w.WriteString("State", v.State); w.WriteString("CarriedThing", v.CarriedThing); w.WriteString("CarriedResource", v.CarriedResource); w.WriteNum("CarriedCount", v.CarriedCount); w.Put<double?>("LocalHour", v.LocalHour, o); w.WriteString("Bill", v.Bill); w.WriteString("Target", v.Target); }
 }
 
 internal sealed class ProductionRecipeInputConverter : ObjectCodec<ProductionRecipeInput>

@@ -138,7 +138,8 @@ partial class Rounder
             return Unknown<FoodPlan>();
         }
 
-        var wk = p.Workers.TryGetValue(out var workers);
+        var workers = p.Workers;
+        var wk = true;
         if (p.WorkPawns.TryGetValue(out var workPawns))
         {
             wk = ResearchRules.RoundsWorkers(workPawns).TryGetValue(out workers);
@@ -185,8 +186,7 @@ partial class Rounder
         onHunt?.Invoke(huntPlan, released);
         channels.AddRange(HuntSquadRules.HuntCandidates(sources, gunners, formation));
         channels.AddRange(HuntPrerequisiteRules.HuntPrerequisiteCandidates(p.HuntHolds));
-        var ledger = p.DeliveryLedger ?? throw new RequiredFactException("delivery_ledger");
-        channels = HuntCreditRules.HuntThroughput(channels, hunters, HuntCreditRules.HuntCadence(ledger.Kills, hunters, p.Identity.Tick.Value)).ToList();
+        channels = HuntCreditRules.HuntThroughput(channels, hunters, HuntCreditRules.HuntCadence(p.DeliveryLedger.Kills, hunters, p.Identity.Tick.Value)).ToList();
         if (p.ProductionBenches.TryGetValue(out var benches) && p.FoodSupply.TryGetValue(out human))
         {
             var ids = human.Consumers.Select(c => c.Id).ToList();
@@ -248,7 +248,7 @@ partial class Rounder
         }
 
         channels = hunt.Apply(channels).ToList();
-        channels = credit.Apply(channels, FoodCreditInput(p, credit, ledger)).ToList();
+        channels = credit.Apply(channels, FoodCreditInput(p, credit)).ToList();
         var seasonal = thresholds.Seasonal(p.Facts.Calendar, p.Facts.DisasterConditions);
         FoodPlan plan;
         try
@@ -328,8 +328,9 @@ partial class Rounder
         return Known(plan with { Portfolio = portfolio });
     }
 
-    internal static CreditInput FoodCreditInput(ColonyProjection p, DeliveryCredit credit, PbObservations.DeliveryLedger ledger)
+    internal static CreditInput FoodCreditInput(ColonyProjection p, DeliveryCredit credit)
     {
+        var ledger = p.DeliveryLedger;
         var delivered = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var count in ledger.Counts)
         {

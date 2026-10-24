@@ -46,7 +46,7 @@ public sealed class ColonyModelInputTests
     [Fact]
     public void TheCalendarAndEveryOtherUnreadSectionAreNamedNotDefaulted()
     {
-        var (input, unknowns) = RoundsColonyModel.InputOf(new ColonyProjection());
+        var (input, unknowns) = RoundsColonyModel.InputOf(ColonyFactsCoreTests.Projection());
 
         Assert.False(input.Valid());
         foreach (var section in new[] { "climate:", "calendar:", "crops:", "research:", "stocks:", "pawns:", "recipes:", "sites:", "wildlife:" })

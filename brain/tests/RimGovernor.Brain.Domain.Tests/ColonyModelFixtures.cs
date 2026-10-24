@@ -53,7 +53,7 @@ internal static class ColonyModelFixtures
         RestingDayFraction = Known(PlantResting.RestingDayFraction),
     };
 
-    internal static ColonyProjection Projection() => new()
+    internal static ColonyProjection Projection() => ColonyFactsCoreTests.Projection() with
     {
         Facts = new RoundsFacts
         {

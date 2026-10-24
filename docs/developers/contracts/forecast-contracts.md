@@ -918,8 +918,8 @@ animal product), `Source` (growing zone or basin id, water body root cell `x,z`,
 def, animal race) and delivered `Def`, with units and human-edible nutrition. Keys are unbounded; the set is
 bounded by the game's defs, zones and water bodies. The `LoadToken` changes on load or restart, so a reader diffs
 within one token and re-baselines on a change. The ledger is always read: a colony facts read that cannot count
-fails ([facts records](interface-contracts.md#facts-records)), and the food plan raises `RequiredFactException`
-(`delivery_ledger`) on a projection without one. The brain maps source to channel from its own
+fails ([facts records](interface-contracts.md#facts-records)), and the projection holds it as a `required`
+member. The brain maps source to channel from its own
 census: the channel builders name their counter group (`Source`: `crop:<zone>`,
 `fish:<x,z>` as `water-<x>-<z>`, `forage:<plant def>`, `animal_product:<race>`, the kind's wire name before
 the colon). The credit lives in memory only.

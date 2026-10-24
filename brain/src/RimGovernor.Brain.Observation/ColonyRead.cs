@@ -9,7 +9,7 @@ public interface IColonySource : ISource
 {
     Task<L.LoadedIdentity> IdentityAsync(CancellationToken cancellationToken);
 
-    Task<O.ColonyFactsReply> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken);
+    Task<O.ColonyFactsSnapshot> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken);
 
     /// <summary>The keyed tables the facts' references resolve against.</summary>
     Task<Tables> FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken);
@@ -21,7 +21,7 @@ public interface IColonySource : ISource
 /// </summary>
 public sealed record ColonyReading
 {
-    public ColonyProjection Projection { get; init; } = new();
+    public required ColonyProjection Projection { get; init; }
 
     public DateTimeOffset StartedAt { get; init; }
 
@@ -66,6 +66,8 @@ public static class ColonyReads
         cancellationToken.ThrowIfCancellationRequested();
         var id = new C.Identity { ColonyId = expected.Colony.Value, LoadToken = expected.Load.Value, MapId = expected.Map.Value };
         var reply = await source.ReadColonyFactsAsync(id, planning, cancellationToken).ConfigureAwait(false);
+        // A planning read needs the planning facts: one served without them raises RequiredFactException("planning").
+        var planningFacts = planning ? PlanningWindowReads.RequirePlanning(reply) : null;
         var tables = await source.FrameTablesAsync(id, cancellationToken).ConfigureAwait(false);
         var catalog = source is IDefinitionSource definitionSource
             ? await definitionSource.DefinitionCatalogAsync(id, cancellationToken).ConfigureAwait(false)
@@ -74,12 +76,12 @@ public static class ColonyReads
         GearDefinitions? gearDefs = null;
         if (planning)
         {
-            projection = await PlanningWindowReads.FillPlanningWindow(reply, id, projection, cancellationToken).ConfigureAwait(false);
+            projection = await PlanningWindowReads.FillPlanningWindow(id, projection, cancellationToken).ConfigureAwait(false);
             if (catalog is not null && projection.Region != default)
             {
                 projection = projection with { RingSources = Known(catalog.RingStuffSourcesOf(projection.Cells)) };
             }
-            var facts = await DefinitionsReads.ReadDefinitionFacts(source, id, reply.Outcome?.Observed?.Planning?.Observed, cancellationToken).ConfigureAwait(false);
+            var facts = await DefinitionsReads.ReadDefinitionFacts(source, id, planningFacts, cancellationToken).ConfigureAwait(false);
             if (facts is not null)
             {
                 var definitions = facts.AppendDefinitions([.. projection.Definitions], DefinitionsReads.StarterDefinitions);
@@ -102,7 +104,7 @@ public static class ColonyReads
         // The gear census follows the zones: its bill options' stuff arrivals count the growing fields.
         if (gearDefs is not null)
         {
-            var gear = ColonyGearReads.GearFacts(reply.Outcome?.Observed!, tables, gearDefs, projection.FoodFields, projection.Definitions);
+            var gear = ColonyGearReads.GearFacts(reply, tables, gearDefs, projection.FoodFields, projection.Definitions);
             projection = projection with { Facts = projection.Facts with { Gear = gear, Garments = EquatableArray.From(ColonyGearReads.ClothingGarments(gearDefs, gear)) } };
         }
         // Colony facts do not carry pause state; that fact is the caller's.

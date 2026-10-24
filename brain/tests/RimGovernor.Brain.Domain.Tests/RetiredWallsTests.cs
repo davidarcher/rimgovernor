@@ -35,7 +35,7 @@ public sealed class RetiredWallsTests
         Rooms = [new Room { Id = "hut", Enclosed = Known(true), Cells = [.. PlannedRules.RectCells(new Rectangle(Hut.X + 1, Hut.Z + 1, 3, 3))] }],
     };
 
-    private static ColonyProjection Colony(Fact<RoomObservation> rooms) => new()
+    private static ColonyProjection Colony(Fact<RoomObservation> rooms) => ColonyFactsCoreTests.Projection() with
     {
         LayoutPlan = Known(Plan),
         Rooms = rooms,

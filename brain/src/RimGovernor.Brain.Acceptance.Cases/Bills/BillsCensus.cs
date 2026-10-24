@@ -60,7 +60,7 @@ internal static class BillsCensus
         }
 
         var facts = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-        var cooking = TypedReads.Observed("colony-facts", NativeOps.ReadColonyFacts, facts, facts.Outcome?.Observed).Cooking.FirstOrDefault(c => c.Bench?.Id == id);
+        var cooking = facts.Cooking.FirstOrDefault(c => c.Bench?.Id == id);
         if (cooking?.BenchSnapshot?.Token != snapshot.Token)
         {
             problems.Add($"census token {snapshot.Token} disagrees with the colony-facts cooking row {cooking?.BenchSnapshot?.Token}");

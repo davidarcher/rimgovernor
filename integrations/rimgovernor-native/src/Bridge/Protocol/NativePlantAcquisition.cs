@@ -1,5 +1,6 @@
 #nullable enable
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -23,8 +24,17 @@ namespace HomeBridge.BridgeTools
         internal static Obs.SnapshotRef Snapshot(Plant plant, Common.ObservationContext context) => new Obs.SnapshotRef {
             Context = context, EntityId = plant.GetUniqueLoadID(), Token = NativeAcquisitionToken.Plant(context.Identity, plant.GetUniqueLoadID(),
                 plant.def.plant.harvestedThingDef.defName, plant.Position.x, plant.Position.z, plant.HarvestableNow, ResourceAcquisitionTools.Designated(plant)) };
-        internal static Obs.ColonyFactsSnapshot Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Func<ThingDef, bool> humanFood, Obs.ColonyFactsRequest request)
+        // The acquisition rows and pending values of one colony read; a read it cannot make throws.
+        internal sealed class Facts
         {
+            internal List<Obs.AcquisitionFacts> Rows = new List<Obs.AcquisitionFacts>();
+            internal double PendingFoodNutrition;
+            internal uint PendingHunts;
+            internal Obs.HuntCensus HuntCensus = new Obs.HuntCensus();
+        }
+        internal static Facts Read(Map map, IntVec3 center, Func<ThingDef, bool> humanFood, Obs.ColonyFactsRequest request, Common.ObservationContext context)
+        {
+            var result = new Facts();
             var plants = map.listerThings.AllThings.OfType<Plant>().Where(p => p.def.plant.harvestedThingDef != null).ToArray();
             // The candidate pool is every eligible plant on the map; pending yield below covers all designations.
             // Medicine-yielding wild plants (healroot) join trees and food so medical/reserves can harvest.
@@ -39,18 +49,17 @@ namespace HomeBridge.BridgeTools
                 var food = humanFood(resource);
                 var designated = ResourceAcquisitionTools.Designated(plant);
                 var row = new Obs.AcquisitionFacts {
-                    Source = NativeRef.Thing(plant), SourceSnapshot = Snapshot(plant, result.Context!),
+                    Source = NativeRef.Thing(plant), SourceSnapshot = Snapshot(plant, context),
                     Resource = resource.defName, Food = food, Yield = yield,
                     Growth = plant.Growth, Plantation = ResourceAcquisitionTools.Plantation(plant),
                     Designated = designated, Hunt = false, Taken = ResourceAcquisitionTools.Taken(plant) };
                 var tick = ResourceAcquisitionTools.DesignatedTick(plant, designated);
                 if (tick.HasValue) row = row with { DesignatedTick = tick.Value };
-                result = result with { Acquisition = [.. result.Acquisition, row] };
+                result.Rows.Add(row);
             }
             var pending = plants.Where(ResourceAcquisitionTools.Designated).ToArray();
-            result = result with { PendingFoodNutrition = pending.Where(p => humanFood(p.def.plant.harvestedThingDef)).Sum(p => (double)p.YieldNow() * p.def.plant.harvestedThingDef.GetStatValueAbstract(StatDefOf.Nutrition)) };
-            result = NativeHuntAcquisition.Read(result, map, center, request);
-            result = result with { PendingWoodUnits = pending.Where(p => p.def.plant.harvestedThingDef == ThingDefOf.WoodLog).Sum(p => (double)p.YieldNow()) };
+            result.PendingFoodNutrition = pending.Where(p => humanFood(p.def.plant.harvestedThingDef)).Sum(p => (double)p.YieldNow() * p.def.plant.harvestedThingDef.GetStatValueAbstract(StatDefOf.Nutrition));
+            NativeHuntAcquisition.Read(result, map, center, request, context);
             return result;
         }
         internal const string Kind = "Plant acquisition";

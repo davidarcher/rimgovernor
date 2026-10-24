@@ -52,7 +52,7 @@ internal static class FarmPlantation
         var oakId = s.Staged!.Plants[Oak].Ids.Single();
         var riceId = s.Staged.Plants[Rice].Ids.Single();
         var reply = await s.CallAsync("plantation-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = true }, cancellationToken).ConfigureAwait(false);
-        var rows = TypedReads.Observed("plantation-facts", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed).Acquisition.ToList();
+        var rows = reply.Acquisition.ToList();
         if (rows.FirstOrDefault(r => r.Source?.Id == riceId) is { } riceRow)
         {
             throw new AcceptanceException($"a rice plant in the growing zone is an acquisition row: {riceRow}");

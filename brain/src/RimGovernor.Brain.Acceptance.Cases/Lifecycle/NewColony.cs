@@ -196,8 +196,7 @@ internal static class LifecycleNewColony
     private static async Task<string> DigestAsync(TypedSession s, string label, Common.Identity identity, CancellationToken cancellationToken)
     {
         var scope = TypedReads.Scope(identity);
-        var factsReply = await s.CallAsync(label + "-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
-        var facts = TypedReads.Observed(label + "-facts", NativeOps.ReadColonyFacts, factsReply, factsReply.Outcome?.Observed);
+        var facts = await s.CallAsync(label + "-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         if (facts.ColonistCount != 3 || facts.MapSize.Width != 150 || facts.MapSize.Height != 150 || !NewColonyStart.Biomes.Contains(facts.Biome, StringComparer.Ordinal))
         {
             throw new AcceptanceException($"{label}: want 3 colonists on a 150x150 map in one of [{string.Join(' ', NewColonyStart.Biomes)}], got {facts.ColonistCount} on {facts.MapSize.Width}x{facts.MapSize.Height} in {facts.Biome}");

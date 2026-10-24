@@ -104,9 +104,11 @@ the option.
   returns a partial or empty one. A throw inside the colony facts read fails that read
   (`NativeColonyObservationTools.Read`); there is no per-section "absent" wrapper.
 - **The container holds the record.** `ColonyFactsSnapshot` carries the section as a `required` member of the
-  record's type. The brain's projection (`ColonyProjection`) holds it as a nullable reference until its own family
-  hardens it; a Policy reader of a null raises `RequiredFactException` naming the fact (`delivery_ledger`), which
-  fails tests ([rule 9](../architecture/rules.md#review-items)).
+  record's type, and the brain's projection (`ColonyProjection`) holds its core (identity, bounds, tech level,
+  workers, pending values, delivery ledger) as `required` members. A state that may legitimately be missing is a
+  named case: `Planning` is `Requested` or `NotRequested`, and a planner that needs planning facts from a read
+  that did not request them raises `RequiredFactException("planning")`; the sleeping range is `Indoor` or
+  `NoIndoorBed` ([rule 9](../architecture/rules.md#review-items)).
 
 ## Prepared profiles
 

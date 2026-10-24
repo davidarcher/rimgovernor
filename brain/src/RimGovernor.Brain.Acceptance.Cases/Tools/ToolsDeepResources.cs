@@ -38,8 +38,7 @@ internal static class ToolsDeepResources
     {
         var seed = await s.FixtureAsync("seed", Seed, "", cancellationToken).ConfigureAwait(false);
         var (ex, ez) = (seed.X, seed.Z);
-        var reply = await s.CallAsync("deep-resources", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var facts = TypedReads.Observed("deep-resources", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+        var facts = await s.CallAsync("deep-resources", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var f = facts.DeepResources?.Observed ?? throw new AcceptanceException($"deep-resources: no observed census: {facts.DeepResources}");
         s.RecordWire("deep_resources", f);
 

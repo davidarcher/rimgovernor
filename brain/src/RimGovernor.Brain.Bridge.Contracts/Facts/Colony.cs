@@ -64,15 +64,3 @@ public sealed record ColonyThreat
         };
     }
 }
-
-// The colony facts read is wire plumbing and not ported; the threat projection and the
-// not-requested planning answer are.
-public static class Colony
-{
-
-    /// <summary>
-    /// The planning section of a colony facts read that did not ask for planning,
-    /// as the native answers it.
-    /// </summary>
-    public static PlanningSection NotRequestedPlanning() => new();
-}

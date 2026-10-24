@@ -30,7 +30,7 @@ public sealed partial class Rounder
         Fact<Pol.RoyaltyFacts> royalty;
         try
         {
-            royalty = projection.RoyaltyOf(reading.Frame.Pawns, catalog);
+            royalty = ColonyProjection.RoyaltyOf(projection.RoyaltyColony, reading.Frame.Pawns, catalog);
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {

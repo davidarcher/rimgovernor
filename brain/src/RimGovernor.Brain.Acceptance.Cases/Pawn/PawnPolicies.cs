@@ -68,7 +68,7 @@ internal static class PawnPolicies
     private static async Task<Observations.ColonyFactsSnapshot> FactsAsync(TypedSession s, string label, bool planning, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = planning }, cancellationToken).ConfigureAwait(false);
-        return TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+        return reply;
     }
 
     private static async Task<Observations.PolicyFacts> PoliciesAsync(TypedSession s, string label, CancellationToken cancellationToken) =>

@@ -87,12 +87,7 @@ public sealed partial class RoundsBuildingPlanner
             throw new ControlException("prepareWorkshop: !ok");
         }
         var identity = Boundary.Identity(state.Snapshot);
-        var reply = await source.ReadColonyFactsAsync(identity, GearLadder(), call).ConfigureAwait(false);
-        var observed = reply.Outcome?.Observed;
-        if (observed is null)
-        {
-            throw new ControlException("prepareWorkshop: observed == nil");
-        }
+        var observed = await source.ReadColonyFactsAsync(identity, GearLadder(), call).ConfigureAwait(false);
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);
@@ -101,7 +96,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             throw new ControlException("prepareWorkshop: err != nil || observed.Context.GetTick() < int64(review.Tick)");
         }
-        if ((observed.Context?.Tick).GetValueOrDefault() < review.Tick.Value)
+        if (observed.Context.Tick < review.Tick.Value)
         {
             throw new ControlException("prepareWorkshop: err != nil || observed.Context.GetTick() < int64(review.Tick)");
         }
@@ -114,7 +109,7 @@ public sealed partial class RoundsBuildingPlanner
         List<Pol.Resource> products = [];
         if (GearLadder())
         {
-            var gear = observed.Planning?.Observed?.Gear;
+            var gear = PlanningWindowReads.RequirePlanning(observed).Gear;
             if (gear is null)
             {
                 return (null, FieldUnavailable("gear_census"));

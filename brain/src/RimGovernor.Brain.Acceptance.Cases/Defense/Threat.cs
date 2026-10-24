@@ -59,8 +59,7 @@ internal static class DefenseThreat
     {
         async Task<Observations.ThreatFacts> ReadAsync(string label)
         {
-            var reply = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
-            var facts = TypedReads.Observed(label, NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+            var facts = await s.CallAsync(label, NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
             var threat = facts.Threat?.Observed ?? throw new AcceptanceException($"{label}: threat section unavailable: {facts.Threat}");
             if (threat.WealthItems is null || threat.WealthBuildings is null || threat.WealthPawns is null || threat.WealthTotal is null
                 || threat.StorytellerWealth is null || threat.RaidPoints is null || threat.AdaptationFactor is null || threat.DifficultyThreatScale is null)

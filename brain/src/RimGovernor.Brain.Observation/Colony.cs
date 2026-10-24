@@ -208,19 +208,17 @@ public sealed partial record ColonyProjection
     /// <summary>The catalog's full-rot temperature, which the climate advice reads.</summary>
     public double FullRotRateC { get; init; }
 
-    public Fact<int> PendingHunts { get; init; }
+    public required int PendingHunts { get; init; }
 
-    /// <summary>Native's cumulative delivery counters; null only on a projection no colony facts read built.</summary>
-    public O.DeliveryLedger? DeliveryLedger { get; init; }
+    /// <summary>Native's cumulative delivery counters.</summary>
+    public required O.DeliveryLedger DeliveryLedger { get; init; }
 
     public Fact<EquatableArray<AcquisitionSource>> Acquisition { get; init; }
 
     /// <summary>The hunt rows HuntGate holds, with the gate that failed.</summary>
     public IReadOnlyList<HuntHold> HuntHolds { get; init; } = [];
 
-    public Fact<double> PendingFoodNutrition { get; init; }
-
-    public Fact<double> PendingWoodUnits { get; init; }
+    public required double PendingFoodNutrition { get; init; }
 
     public Fact<EquatableArray<WorkPawn>> WorkPawns { get; init; }
 
@@ -269,10 +267,10 @@ public sealed partial record ColonyProjection
 
     public Fact<RoomObservation> Rooms { get; init; }
 
-    public Identity Identity { get; init; } = new();
+    public required Identity Identity { get; init; }
 
-    /// <summary>The player faction's native TechLevel; Undefined until a colony facts read.</summary>
-    public RimGovernor.Contracts.Wire.Defs.TechLevel PlayerTechLevel { get; init; }
+    /// <summary>The player faction's native TechLevel.</summary>
+    public required RimGovernor.Contracts.Wire.Defs.TechLevel PlayerTechLevel { get; init; }
 
     /// <summary>The catalog's building defs that pack (minifiedDef); empty without a catalog.</summary>
     public IReadOnlySet<string> Packable { get; init; } = new HashSet<string>();
@@ -288,9 +286,9 @@ public sealed partial record ColonyProjection
 
     public RoundsFacts Facts { get; init; } = new();
 
-    public Fact<int> Workers { get; init; }
+    public required int Workers { get; init; }
 
-    public Bounds Bounds { get; init; }
+    public required Bounds Bounds { get; init; }
 
     /// <summary>The observed planning window; cells absent inside it are fogged, cells outside it were never read.</summary>
     public Rectangle Region { get; init; }

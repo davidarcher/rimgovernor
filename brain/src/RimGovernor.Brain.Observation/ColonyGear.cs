@@ -14,7 +14,7 @@ public static class ColonyGearReads
     /// </summary>
     public static Fact<GearObservation> GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs, Fact<EquatableArray<FoodField>> fields, IReadOnlyList<PlanningDefinition> crops)
     {
-        var gear = v.Planning?.Observed?.Gear;
+        var gear = PlanningWindowReads.RequirePlanning(v).Gear;
         if (gear is null || defs.Catalog is not { } catalog || !defs.Finished.IsKnown || (uint)gear.Pawns.Count != v.ColonistCount
             || !ColonyDecodeReads.StockCensus(v).TryGetValue(out var stock))
         {

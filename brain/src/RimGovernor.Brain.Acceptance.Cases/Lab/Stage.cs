@@ -151,8 +151,8 @@ internal static class LabStage
             $"cook skills {(cook?.Skills is null ? "missing" : string.Join(",", cook.Skills))}, want Plants 10 and Shooting 0");
 
         // The growing climate: every day of the year is inside the crop range, whatever season the tile is in.
-        var colony = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var climate = TypedReads.Observed("colony-facts", NativeOps.ReadColonyFacts, colony, colony.Outcome?.Observed).FoodClimate;
+        var colony = await s.CallAsync("colony-facts", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var climate = colony.FoodClimate;
         Want(climate is { GrowingDaysUntil: 0, NonGrowingDays: 0 } && climate.GrowingDaysRemaining == CalendarRules.YearDays,
             $"foodClimate {climate}, want {CalendarRules.YearDays} growing days remaining and no non-growing stretch");
         Want(reply.Digest.Length > 0 && reply.DigestRows.Count > 0, "no digest");

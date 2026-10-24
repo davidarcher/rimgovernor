@@ -265,7 +265,7 @@ public sealed class NeedBuildingTests
             Frame = new(),
             Reading = new ColonyReading
             {
-                Projection = new ColonyProjection
+                Projection = ColonyFactsCoreTests.Projection() with
                 {
                     Identity = new() { Tick = new(100) },
                     Bounds = new(50, 50),

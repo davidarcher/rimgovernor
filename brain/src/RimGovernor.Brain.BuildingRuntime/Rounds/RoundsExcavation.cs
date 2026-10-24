@@ -9,8 +9,8 @@ internal sealed class ExcavationStep
     public ControlState State;
     public RoundsReview Review = new();
     public required NeedOwner Owner;
-    public ColonyProjection Facts = new();
-    public ColonyReading Read = new();
+    public required ColonyProjection Facts;
+    public required ColonyReading Read;
     public ExcavationTarget Target = new();
 }
 

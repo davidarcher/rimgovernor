@@ -118,8 +118,8 @@ public sealed class WorkResourcesTests
         {
             Resources = Known<EquatableArray<Amount>>([new(new("Rice"), 19)]),
             WorkResources = Known<EquatableArray<WorkResourcePawn>>([
-                new("helper", "helper-assignment", 2, "holding", "", "", 0),
-                new("eater", "", 0, "", "", "", 0)])
+                new("helper", "helper-assignment", 2, "holding", "", "", 0) { LocalHour = 12 },
+                new("eater", "", 0, "", "", "", 0) { LocalHour = 12 }])
         };
         var row = Pending(heldAction) with { Progress = new() { Action = heldAction.Id, Stage = Stage.Completed,
             Attempt = new(1), Receipt = Known(Receipt.Accepted), Tick = new(99) } };
@@ -151,10 +151,10 @@ public sealed class WorkResourcesTests
         Assert.Equal(3, View(facts, Pending(action), Pending(DomainAction.NewPawnActivitiesAction(new("revision"), action.PawnActivities!)))
             .Materials.Value[new("Rice")].Value);
         facts = facts with { WorkResources = Known<EquatableArray<WorkResourcePawn>>([
-            new("helper", "assignment", 1, "started", "carried", "Rice", 4)]) };
+            new("helper", "assignment", 1, "started", "carried", "Rice", 4) { LocalHour = 12 }]) };
         Assert.Equal(7, View(facts, Pending(action)).Materials.Value[new("Rice")].Value);
         facts = facts with { WorkResources = Known<EquatableArray<WorkResourcePawn>>([
-            new("helper", "assignment", 1, "completed", "", "", 0)]) };
+            new("helper", "assignment", 1, "completed", "", "", 0) { LocalHour = 12 }]) };
         Assert.Equal(3, View(facts, Pending(action)).Materials.Value[new("Rice")].Value);
     }
 
@@ -167,7 +167,7 @@ public sealed class WorkResourcesTests
         var facts = WorkResourceTestFacts.Create("tailor");
         Assert.Equal(4, View(facts, Pending(action)).Materials.Value[new("Rice")].Value);
         facts = facts with { WorkResources = Known<EquatableArray<WorkResourcePawn>>([
-            new("tailor", "garment", 1, "started", "", "", 0) { Unfinished = "actual-uft" }]) };
+            new("tailor", "garment", 1, "started", "", "", 0) { LocalHour = 12, Unfinished = "actual-uft" }]) };
         Assert.Equal(10, View(facts, Pending(action)).Materials.Value[new("Rice")].Value);
         Assert.Contains("tailor", View(facts, Pending(action)).Claims.Pawns);
     }
@@ -359,7 +359,7 @@ public sealed class WorkResourcesTests
     {
         var promise = new ForecastCommitment("batch", default)
         { MaterialClaims = [new(new("Rice"), Known(10.0), Known("bill"))] };
-        var native = Known<EquatableArray<WorkResourcePawn>>([new("cook", "", 0, "", "carried", "Rice", 4) { Bill = "bill" }]);
+        var native = Known<EquatableArray<WorkResourcePawn>>([new("cook", "", 0, "", "carried", "Rice", 4) { LocalHour = 12, Bill = "bill" }]);
         var adjusted = WorkRules.CreditCarriedBillInputs(Known<EquatableArray<ForecastCommitment>>([promise]), native).Value;
         Assert.Equal(6, adjusted[0].MaterialClaims[0].Units.Value);
         var iteration = new ForecastCommitment("iteration", default)

@@ -18,7 +18,7 @@ public sealed class RoundsLapInputsTests
     public void NamesTheLapsWhoseEnteringReadingChangedAndTheProperties()
     {
         var inputs = new RoundsLapInputs();
-        var observed = new ColonyProjection { Identity = new Identity { Tick = new Tick(100) } };
+        var observed = ColonyFactsCoreTests.Projection() with { Identity = new Identity { Tick = new Tick(100) } };
         var laid = observed with { Facts = observed.Facts with { FoodDays = Known(3.0) } };
         inputs.Begin(World);
         inputs.Left("observe", observed);
@@ -49,13 +49,13 @@ public sealed class RoundsLapInputsTests
     public void ALapEnteringOnAnIdenticalReadingIsSame()
     {
         var inputs = new RoundsLapInputs();
-        var observed = new ColonyProjection { Identity = new Identity { Tick = new Tick(100) } };
+        var observed = ColonyFactsCoreTests.Projection() with { Identity = new Identity { Tick = new Tick(100) } };
         inputs.Begin(World);
         inputs.Left("observe", observed);
         inputs.Left("layout", observed);
         inputs.Begin(World);
         // A structurally equal reading, not the same instance.
-        inputs.Left("observe", new ColonyProjection { Identity = new Identity { Tick = new Tick(100) } });
+        inputs.Left("observe", ColonyFactsCoreTests.Projection() with { Identity = new Identity { Tick = new Tick(100) } });
         inputs.Left("layout", observed with { Facts = new RoundsFacts() });
         var changed = inputs.Changed();
 
@@ -69,7 +69,7 @@ public sealed class RoundsLapInputsTests
     {
         // Two default projections differ in nothing the comparison sees; the properties whose types compare by
         // reference (the catalog tables a review rebuilds) are named instead.
-        Assert.Empty(RoundsLapInputs.Differences(new ColonyProjection(), new ColonyProjection()));
+        Assert.Empty(RoundsLapInputs.Differences(ColonyFactsCoreTests.Projection(), ColonyFactsCoreTests.Projection()));
         Assert.Contains("Shapes", RoundsLapInputs.Uncompared);
         Assert.Contains("Facts.Items", RoundsLapInputs.Uncompared);
         Assert.True(RoundsLapInputs.HasValueEquality(typeof(Fact<EquatableArray<MoodPawn>>)));
@@ -83,9 +83,9 @@ public sealed class RoundsLapInputsTests
     {
         var inputs = new RoundsLapInputs();
         inputs.Begin(World);
-        inputs.Left("observe", new ColonyProjection());
+        inputs.Left("observe", ColonyFactsCoreTests.Projection());
         inputs.Begin(World with { Map = new(2) });
-        inputs.Left("observe", new ColonyProjection());
+        inputs.Left("observe", ColonyFactsCoreTests.Projection());
         Assert.Null(inputs.Changed());
         Assert.Empty(inputs.Same);
     }
@@ -93,7 +93,7 @@ public sealed class RoundsLapInputsTests
     [Fact]
     public void ManyChangedPropertiesAreCappedWithACount()
     {
-        var was = new ColonyProjection();
+        var was = ColonyFactsCoreTests.Projection();
         var facts = new RoundsFacts
         {
             FoodDays = Known(1.0), FieldCoverage = Known(1.0), Colonists = 1L, HousingTarget = Known(1L), BedCapacity = 1L,

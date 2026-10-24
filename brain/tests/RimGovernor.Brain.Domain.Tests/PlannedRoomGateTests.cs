@@ -176,7 +176,7 @@ public sealed class PlannedRoomGateTests
             Reviewer = new Rounder(player, native, new Clock(), RoundsRules.DefaultRoundsPolicy(), TimeSpan.FromSeconds(30)),
             Native = native,
         };
-        var projection = new ColonyProjection
+        var projection = ColonyFactsCoreTests.Projection() with
         {
             Identity = new() { Tick = new(100) },
             Bounds = new(50, 50),
@@ -280,7 +280,7 @@ public sealed class PlannedRoomGateTests
         IReadOnlyList<Operation> walled = [new Operation { Kind = OpKind.WallIn, Cells = [new(4, 6)] }, .. owed];
         RoundsReading Reading(long wood, params string[] finished)
         {
-            var projection = new ColonyProjection
+            var projection = ColonyFactsCoreTests.Projection() with
             {
                 Definitions =
                 [

@@ -653,7 +653,6 @@ Kept, reason recorded:
 | FoodSupplySection | message | 1564 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
 | ForecastSection | message | 1565 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
 | DevelopmentSection | message | 1566 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
-| PlanningSection | message | 1567 | 2 | state | Section wrapper (observed, absent when the read failed) |  |  |
 | WallRemovalRecord | message | 1568 | 7 | state | Wall removal job progress record |  |  |
 | WallRemovalFacts | message | 1569 | 2 | state | Wall removal records |  |  |
 | WallRemovalSection | message | 1570 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
@@ -744,7 +743,6 @@ Kept, reason recorded:
 | BabyAutofeeder | message | 2074 | 2 | excluded | Baby autofeeder mode |  |  excluded #2630 |
 | JoinerLetter | message | 2076 | 7 | state | Wanderer or creepjoiner join offer letter |  |  |
 | ColonyFactsRequest | message | 2081 | 4 | state | Request parameters, no game data |  |  |
-| ColonyFactsReply | message | 2082 | 3 | state | Reply oneof wrapper |  |  |
 | ThreatPawn | message | 2100 | 15 | mixed | Non-colonist threat pawn facts | predator | RaceProperties.predator via the pawn's race def (join pawn table race) |
 | ThreatBuilding | message | 2112 | 9 | mixed | Hostile building threat facts | mortar; max_hit_points | mortar = Go rule over ThingDef building.IsMortar (turret verb); max_hit_points = stat MaxHitPoints on the def (stuff dependent so partly code) |
 | ThreatsSnapshot | message | 2113 | 2 | state | Threat pawns and hostile buildings |  |  |

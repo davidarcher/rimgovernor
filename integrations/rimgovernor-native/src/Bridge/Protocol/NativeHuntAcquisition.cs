@@ -59,9 +59,9 @@ namespace HomeBridge.BridgeTools
         // policy then decides (policy.HuntGate): native states facts and keeps only physical validity.
         private static bool Candidate(Pawn prey) => prey.Spawned && !prey.Dead && prey.Faction == null && prey.RaceProps.Animal
             && prey.RaceProps.corpseDef != null && (PestRace(prey.RaceProps) || prey.RaceProps.meatDef?.IsNutritionGivingIngestible == true);
-        internal static Obs.ColonyFactsSnapshot Read(Obs.ColonyFactsSnapshot result, Map map, IntVec3 center, Obs.ColonyFactsRequest request)
+        internal static void Read(NativePlantAcquisition.Facts result, Map map, IntVec3 center, Obs.ColonyFactsRequest request, Common.ObservationContext context)
         {
-            result = result with { PendingHunts = (uint)Pending(map) };
+            result.PendingHunts = (uint)Pending(map);
             // Wild animals by distance from the colony anchor, food prey then every pest: a pest row is
             // a hunt of one unit of nothing edible (food false, no nutrition), so the food and wood
             // selections pass it over and only the pest concern takes it. The brain orders its own selection.
@@ -76,7 +76,7 @@ namespace HomeBridge.BridgeTools
             {
                 var designated = Designated(animal);
                 var row = new Obs.AcquisitionFacts {
-                Source = NativeRef.Thing(animal), SourceSnapshot = Snapshot(animal, result.Context!),
+                Source = NativeRef.Thing(animal), SourceSnapshot = Snapshot(animal, context),
                 Resource = animal.RaceProps.corpseDef.defName, Hunt = true,
                 Yield = 1, MeatAmount = MeatAmount(animal), Designated = designated,
                 Downed = animal.Downed, Sleeping = !animal.Awake(),
@@ -86,11 +86,10 @@ namespace HomeBridge.BridgeTools
                     row = row with { HerdSize = (uint)map.mapPawns.AllPawnsSpawned.Count(p => !p.Dead && p.def == animal.def && p.Position.DistanceToSquared(animal.Position) <= herdSquared) };
                 var tick = ResourceAcquisitionTools.DesignatedTick(animal, designated);
                 if (tick.HasValue) row = row with { DesignatedTick = tick.Value };
-                result = result with { Acquisition = [.. result.Acquisition, row] };
+                result.Rows.Add(row);
             }
-            result = result with { HuntCensus = Census(map) };
-            result = result with { PendingFoodNutrition = (result.PendingFoodNutrition ?? 0d) + map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition) };
-            return result;
+            result.HuntCensus = Census(map);
+            result.PendingFoodNutrition += map.mapPawns.AllPawnsSpawned.Where(p => Designated(p) && p.RaceProps.meatDef != null).Sum(Nutrition);
         }
         // Raw facts per free colonist; policy decides who can hunt what.
         private static Obs.HuntCensus Census(Map map)

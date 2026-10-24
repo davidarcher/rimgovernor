@@ -90,8 +90,8 @@ internal static class AnimalsContainment
             throw new AcceptanceException($"the contained cow carries a release or slaughter designation: {cow}");
         }
 
-        var facts = await s.CallAsync("pet-upkeep", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var upkeep = TypedReads.Observed("pet-upkeep", NativeOps.ReadColonyFacts, facts, facts.Outcome?.Observed).Upkeep?.Outcome
+        var facts = await s.CallAsync("pet-upkeep", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
+        var upkeep = facts.Upkeep?.Outcome
             ?? throw new AcceptanceException("pet-upkeep: the upkeep section is unavailable");
         var pet = upkeep.Animals.FirstOrDefault(a => a.Pawn?.Id == petId)
             ?? throw new AcceptanceException($"pet-upkeep: the staged pet {petId} is not in the upkeep census");

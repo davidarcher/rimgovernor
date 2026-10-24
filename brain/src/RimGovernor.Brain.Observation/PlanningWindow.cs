@@ -39,15 +39,18 @@ public static class PlanningWindowReads
     public static IPlanningWindowSource? PlanningWindowFrom() => PlanningWindowScope.Value;
 
     /// <summary>
-    /// Sets the projection's window from the flow's source when a planning reply observed planning facts; a
-    /// reading with no source keeps an empty window, which plans no site.
+    /// The planning facts a planning read needs. A read that did not request them carries
+    /// <see cref="O.Planning.NotRequested"/>, and a planner reading it raises <c>RequiredFactException("planning")</c>.
     /// </summary>
-    internal static async Task<ColonyProjection> FillPlanningWindow(O.ColonyFactsReply reply, C.Identity identity, ColonyProjection projection, CancellationToken cancellationToken)
+    public static O.PlanningFacts RequirePlanning(O.ColonyFactsSnapshot facts) =>
+        facts.Planning is O.Planning.Requested requested ? requested.Facts : throw new RequiredFactException("planning");
+
+    /// <summary>
+    /// Sets the projection's window from the flow's source; a reading with no source keeps an empty window, which
+    /// plans no site.
+    /// </summary>
+    internal static async Task<ColonyProjection> FillPlanningWindow(C.Identity identity, ColonyProjection projection, CancellationToken cancellationToken)
     {
-        if (reply.Outcome?.Observed?.Planning?.Observed is null)
-        {
-            return projection;
-        }
         var source = PlanningWindowFrom();
         if (source is null)
         {

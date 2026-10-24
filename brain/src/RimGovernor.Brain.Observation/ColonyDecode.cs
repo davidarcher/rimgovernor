@@ -94,23 +94,10 @@ public static class ColonyDecodeReads
     /// <paramref name="tables"/> are the frame's keyed tables every building and pawn reference resolves
     /// against; a family with a reference they do not hold is unknown until a later frame.
     /// </summary>
-    public static ColonyProjection DecodeColony(O.ColonyFactsReply? reply, Identity expected, Tables tables, DefinitionCatalog? catalog)
+    public static ColonyProjection DecodeColony(O.ColonyFactsSnapshot v, Identity expected, Tables tables, DefinitionCatalog? catalog)
     {
         var buildings = tables.Buildings;
         expected.Validate();
-        if (reply is null)
-        {
-            throw new ObservationContractException("missing colony facts reply");
-        }
-        if (reply.Outcome?.Unavailable is not null)
-        {
-            throw new BridgeUnavailableException();
-        }
-        if (reply.Outcome?.Failure is not null)
-        {
-            throw new BridgeRefusedException();
-        }
-        var v = reply.Outcome?.Observed ?? throw new ObservationContractException("missing colony facts");
         var identity = DecodeReads.ContextIdentity(v.Context);
         // The colony facts row may come from the step's fact cache at any earlier tick; only another generation
         // changes its world.
@@ -124,6 +111,10 @@ public static class ColonyDecodeReads
             Identity = identity,
             Bounds = new Bounds((int)v.MapSize.Width, (int)v.MapSize.Height),
             PlayerTechLevel = v.PlayerTechLevel,
+            Workers = (int)v.WorkerCount,
+            DeliveryLedger = v.DeliveryLedger,
+            PendingFoodNutrition = v.PendingFoodNutrition,
+            PendingHunts = (int)v.PendingHunts,
             Threat = ColonyThreat.ProjectColonyThreat(v),
         };
         // The race rows are static for a load and come from the catalog; an unbuildable race table fails the reading.
@@ -131,7 +122,6 @@ public static class ColonyDecodeReads
         r = r with
         {
             FoodChannels = FoodChannelsReads.ColonyFoodChannels(v.FoodChannels, tables.Pawns, races),
-            DeliveryLedger = v.DeliveryLedger,
             DeepResources = DeepResourcesReads.ColonyDeepResources(v.DeepResources, catalog),
             Policies = PoliciesReads.ColonyPolicies(v.Policies),
         };
@@ -180,15 +170,17 @@ public static class ColonyDecodeReads
             Anomaly = AnomalyColonyReads.ColonyAnomaly(v.Anomaly),
             RoyaltyColony = RoyaltyColonyProjectionReads.ColonyRoyalty(v.Royalty),
         };
+        // No eligible indoor bed (SleepingTemperature.NoIndoorBed) leaves the rounds' indoor sleeping range unknown.
+        var (indoor, sleepingMin, sleepingMax) = v.SleepingTemperature is O.SleepingTemperature.Indoor(var min, var max) ? (true, min, max) : (false, 0d, 0d);
         var f = new RoundsFacts
         {
             Tick = identity.Tick,
-            WorkResources = v.WorkResources is { } workResources ? Known(workResources) : default,
+            WorkResources = Known(v.WorkResources),
             Colonists = v.ColonistCount,
             BedCapacity = v.BedCapacity,
             IndoorCapacity = v.IndoorSleepingCapacity,
-            SleepingMin = Optional(v.SleepingTemperatureMinC is not null, v.SleepingTemperatureMinC.GetValueOrDefault()),
-            SleepingMax = Optional(v.SleepingTemperatureMaxC is not null, v.SleepingTemperatureMaxC.GetValueOrDefault()),
+            SleepingMin = Optional(indoor, sleepingMin),
+            SleepingMax = Optional(indoor, sleepingMax),
             OutdoorTemperature = Known(v.OutdoorTemperatureC),
         };
         f = f with
@@ -364,7 +356,7 @@ public static class ColonyDecodeReads
             };
             f = f with { Calendar = ColonyProductionReads.ColonyCalendar(climate) };
         }
-        var curve = v.Planning?.Observed?.Gear?.OutdoorTemperatureByTwelfthC;
+        EquatableArray<float>? curve = v.Planning is O.Planning.Requested { Facts.Gear: { } planningGear } ? planningGear.OutdoorTemperatureByTwelfthC : null;
         if (curve is { } curveTemps && curveTemps.Count == 12)
         {
             var temps = new double[curveTemps.Count];
@@ -496,7 +488,6 @@ public static class ColonyDecodeReads
             }
         }
         f = f with { AnimalUpkeep = f.AnimalUpkeep with { Food = r.CombinedFoodSupply } };
-        r = r with { Workers = Known((int)v.WorkerCount) };
         if (!HasIssue(v.Issues, "resources"))
         {
             f = f with { Wood = Known(0L) };
@@ -513,7 +504,7 @@ public static class ColonyDecodeReads
             }
             if (complete)
             {
-                f = f with { Resources = Known(EquatableArray.From(rows)), ResourceThings = v.ResourceThings is { } identities ? Known(identities) : default };
+                f = f with { Resources = Known(EquatableArray.From(rows)), ResourceThings = Known(v.ResourceThings) };
             }
         }
         r = r with { Resources = StockCensus(v) };
@@ -546,7 +537,7 @@ public static class ColonyDecodeReads
             }
             f = f with { EventLoot = Known(EquatableArray.From(rows)) };
         }
-        if (v.Planning?.Observed is { } planningObserved && planningObserved.Environment is { } planningEnvironment
+        if (v.Planning is O.Planning.Requested { Facts: var planningObserved } && planningObserved.Environment is { } planningEnvironment
             && !HasIssue(planningObserved.Issues, "environment")
             && Headed(buildings, planningEnvironment.Lights, l => l.Building) && Headed(buildings, planningEnvironment.Growers, g => g.Building))
         {

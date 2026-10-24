@@ -175,7 +175,7 @@ internal sealed record ColonyStatusDto(
     double? FoodNutrition,
     double? NutritionPerDay,
     double? FoodRunwayDays,
-    double? PendingFoodNutrition,
+    double PendingFoodNutrition,
     double? RaidPoints,
     double? WealthTotal,
     double? WealthItems,

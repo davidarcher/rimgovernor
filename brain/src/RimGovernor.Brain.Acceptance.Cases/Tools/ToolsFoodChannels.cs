@@ -41,8 +41,7 @@ internal static class ToolsFoodChannels
     private static async Task RunAsync(TypedSession s, CancellationToken cancellationToken)
     {
         var cow = s.Staged!.Pawns[Cow].Id;
-        var reply = await s.CallAsync("food-channels", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var facts = TypedReads.Observed("food-channels", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+        var facts = await s.CallAsync("food-channels", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, cancellationToken).ConfigureAwait(false);
         var channels = facts.FoodChannels?.Observed ?? throw new AcceptanceException($"food-channels: no observed food channels: {facts.FoodChannels}");
         s.RecordWire("food_channels", channels);
         if (channels.FishableWater is not null || !channels.Forage.Any(row => row.DefName == "Plant_Berry"))

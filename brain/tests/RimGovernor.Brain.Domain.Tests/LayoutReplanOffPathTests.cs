@@ -35,7 +35,7 @@ public sealed class LayoutReplanOffPathTests
     public void AFinishedReplanIsAdoptedOnlyOverTheWorldAndPlanItStartedFrom()
     {
         var held = new HeldLayout(new LayoutPlan(), new Tick(100));
-        var pending = new PendingLayoutReplan(World, new Tick(120), held, new ColonyProjection(), new MapSurvey(), null!, new RoomGrowth(), 3, "", "terrain", [], new PerimeterWall(default, default), [],
+        var pending = new PendingLayoutReplan(World, new Tick(120), held, ColonyFactsCoreTests.Projection(), new MapSurvey(), null!, new RoomGrowth(), 3, "", "terrain", [], new PerimeterWall(default, default), [],
             Task.FromResult(new LayoutReplanRun { StationRow = new RimGovernor.Brain.Telemetry.Decision { Kind = RimGovernor.Brain.Telemetry.TelemetryKinds.LayoutStationsKind } }));
 
         Assert.True(Rounder.LayoutReplanAdoptable(pending, World, new Tick(130), held, true));

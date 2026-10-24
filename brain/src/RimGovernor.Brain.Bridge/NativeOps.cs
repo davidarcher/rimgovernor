@@ -111,7 +111,7 @@ public static class NativeOps
 
     // Observations.
     public static readonly NativeOp<Obs.StatusRequest, Obs.StatusReply> ReadStatus = Op<Obs.StatusRequest, Obs.StatusReply>("observations_read_status", (f, r, c) => f.ReadStatusAsync(r, c));
-    public static readonly NativeOp<Obs.ColonyFactsRequest, Obs.ColonyFactsReply> ReadColonyFacts = Op<Obs.ColonyFactsRequest, Obs.ColonyFactsReply>("observations_read_colony_facts", (f, r, c) => f.ReadColonyFactsAsync(r, c));
+    public static readonly NativeOp<Obs.ColonyFactsRequest, Obs.ColonyFactsSnapshot> ReadColonyFacts = Op<Obs.ColonyFactsRequest, Obs.ColonyFactsSnapshot>("observations_read_colony_facts", (f, r, c) => f.ReadColonyFactsAsync(r, c));
     public static readonly NativeOp<Obs.GetCellsRequest, Obs.GetCellsReply> GetCells = Op<Obs.GetCellsRequest, Obs.GetCellsReply>("observations_get_cells", (f, r, c) => f.GetCellsAsync(r, c));
     public static readonly NativeOp<Obs.ListBuildingsRequest, Obs.ListBuildingsReply> ListBuildings = Op<Obs.ListBuildingsRequest, Obs.ListBuildingsReply>("observations_list_buildings", (f, r, c) => f.ListBuildingsAsync(r, c));
     public static readonly NativeOp<Obs.ListPawnsRequest, Obs.ListPawnsReply> ListPawns = Op<Obs.ListPawnsRequest, Obs.ListPawnsReply>("observations_list_pawns", (f, r, c) => f.ListPawnsAsync(r, c));

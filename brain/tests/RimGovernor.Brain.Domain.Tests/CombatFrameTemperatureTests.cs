@@ -14,7 +14,7 @@ public sealed class CombatFrameTemperatureTests
     [Fact]
     public void TheCombatStateTakesTheFramesOutdoorTemperatureAndTheCutFrameCarriesNoColonyFacts()
     {
-        var combat = FacadeNativeClient.DecodeCombat(View(new ColonyFactsSnapshot { DeliveryLedger = DeliveryLedgerTests.NoDeliveries, OutdoorTemperatureC = -31.5, ColonistCount = 4 }));
+        var combat = FacadeNativeClient.DecodeCombat(View(ColonyFactsCoreTests.Snapshot() with { OutdoorTemperatureC = -31.5, ColonistCount = 4 }));
         Assert.Equal(Fact.Known(-31.5), combat.OutdoorTemperatureC);
         // No partial colony facts whose other fields would read as zero.
         Assert.Null(combat.Frame!.ColonyFacts);

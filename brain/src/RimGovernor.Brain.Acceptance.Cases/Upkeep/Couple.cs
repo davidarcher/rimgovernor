@@ -40,8 +40,7 @@ internal static class UpkeepCouple
         var couple = new HashSet<string>(StringComparer.Ordinal) { prepared.Pawn, prepared.Partner! };
         _ = await s.ServeUntilAsync("couple", s.TicksLeft, async ct =>
         {
-            var reply = await s.CallAsync("beds", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, ct).ConfigureAwait(false);
-            var facts = TypedReads.Observed("beds", NativeOps.ReadColonyFacts, reply, reply.Outcome?.Observed);
+            var facts = await s.CallAsync("beds", NativeOps.ReadColonyFacts, new Observations.ColonyFactsRequest { Scope = s.Scope, Planning = false }, ct).ConfigureAwait(false);
             var upkeep = facts.Upkeep?.Outcome ?? throw new AcceptanceException("beds: upkeep facts unavailable");
             var row = upkeep.Beds.FirstOrDefault(b => b.Bed.Id == prepared.DoubleBed)
                 ?? throw new AcceptanceException($"double bed {prepared.DoubleBed} missing from the bed facts");

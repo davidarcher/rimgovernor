@@ -48,8 +48,7 @@ public sealed partial class RoundsMedicalPlanner : IOrderDeclarer
 
         var started = reviewer.Clock.Now();
         var identity = Boundary.Identity(state.Snapshot);
-        var reply = await reviewer.ColonyFactsAsync(native, identity, false, call).ConfigureAwait(false);
-        var observed = reply.Outcome?.Observed ?? throw new ControlException("step: observed == nil");
+        var observed = await reviewer.ColonyFactsAsync(native, identity, false, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);

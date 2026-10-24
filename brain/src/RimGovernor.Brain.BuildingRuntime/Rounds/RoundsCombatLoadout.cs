@@ -121,8 +121,7 @@ public sealed partial class RoundsDefensePlanner
 
     internal async Task<List<LoadoutApparel>> LoadoutBeltsAsync(FacadeNativeClient source, C.Identity identity, ControlState state, CancellationToken call)
     {
-        var reply = await _reviewer.ColonyFactsAsync(source, identity, true, call).ConfigureAwait(false);
-        var observed = reply.Outcome?.Observed ?? throw new ControlException("loadoutBelts: observed == nil");
+        var observed = await _reviewer.ColonyFactsAsync(source, identity, true, call).ConfigureAwait(false);
         try
         {
             Boundary.Context(observed.Context, state.Snapshot);
@@ -134,7 +133,7 @@ public sealed partial class RoundsDefensePlanner
         var things = await RoundsGear.FrameThingsOfAsync(source, identity, call).ConfigureAwait(false);
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var output = new List<LoadoutApparel>();
-        foreach (var pawn in observed.Planning?.Observed?.Gear?.Pawns ?? [])
+        foreach (var pawn in PlanningWindowReads.RequirePlanning(observed).Gear?.Pawns ?? [])
         {
             foreach (var candidate in pawn.Candidates)
             {

@@ -392,19 +392,13 @@ public sealed partial class RoundsResourcePlanner
 {
     internal static Fact<double> ResourceLabor(ColonyProjection p)
     {
-        var workers = p.Workers;
-        if (p.WorkPawns.TryGetValue(out var pawns))
-        {
-            workers = ResearchRules.RoundsWorkers(pawns);
-        }
-
+        var workers = p.WorkPawns.TryGetValue(out var pawns) ? ResearchRules.RoundsWorkers(pawns) : Known(p.Workers);
         return ResourceRules.ResidualSupplyLabor(workers, p.Facts.FoodPlan);
     }
 
     internal static (Fact<int> Slots, bool NoHunter) HuntSlots(ColonyProjection projection)
     {
         var slots = Unknown<int>();
-        var pendingKnown = projection.PendingHunts.TryGetValue(out var pending);
         if (projection.WorkPawns.TryGetValue(out var pawns))
         {
             var profiles = PawnRules.Profiles(pawns);
@@ -413,10 +407,7 @@ public sealed partial class RoundsResourcePlanner
                 return (Known(0), true);
             }
 
-            if (pendingKnown)
-            {
-                slots = Known(PawnRules.HuntBudget(profiles, pending!));
-            }
+            slots = Known(PawnRules.HuntBudget(profiles, projection.PendingHunts));
         }
 
         return (slots, false);

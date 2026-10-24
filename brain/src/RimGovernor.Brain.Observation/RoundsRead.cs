@@ -13,7 +13,7 @@ public interface IRoundsSource : IColonySource, IDefinitionSource
 public sealed record RoundsReading
 {
     /// <summary>The colony reading the frame decoded to.</summary>
-    public ColonyReading Reading { get; init; } = new();
+    public required ColonyReading Reading { get; init; }
 
     /// <summary>The embedded reading's projection.</summary>
     public ColonyProjection Projection => Reading.Projection;
@@ -44,8 +44,8 @@ internal sealed class FrameColony(IRoundsSource inner, RoundsFrame frame) : ICol
 
     public Task<L.LoadedIdentity> IdentityAsync(CancellationToken cancellationToken) => inner.IdentityAsync(cancellationToken);
 
-    public Task<O.ColonyFactsReply> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken) =>
-        Task.FromResult(new O.ColonyFactsReply { Outcome = frame.Colony is { } colony ? (O.ColonyFactsReplyOutcome)colony : new C.Unavailable { Reason = C.UnavailableReason.NotObserved, Detail = "The frame holds no colony facts." } });
+    public Task<O.ColonyFactsSnapshot> ReadColonyFactsAsync(C.Identity identity, bool planning, CancellationToken cancellationToken) =>
+        Task.FromResult(frame.Colony ?? throw new BridgeUnavailableException("The frame holds no colony facts."));
 
     public Task<Tables> FrameTablesAsync(C.Identity identity, CancellationToken cancellationToken)
     {
@@ -274,7 +274,7 @@ public static class RoundsReads
         Fact<RoyaltyFacts> royalty;
         try
         {
-            royalty = p.RoyaltyOf(pawns, catalog);
+            royalty = ColonyProjection.RoyaltyOf(p.RoyaltyColony, pawns, catalog);
         }
         catch (DomainException)
         {
@@ -385,7 +385,7 @@ public static class RoundsReads
         new()
         {
             Catalog = catalog,
-            Crops = DefinitionsReads.CropRows(frame.Colony?.Planning?.Observed),
+            Crops = DefinitionsReads.CropRows(frame.Colony?.Planning is O.Planning.Requested requested ? requested.Facts : null),
             Finished = frame.Research is { } research ? DefinitionsReads.FinishedSet(research.Finished) : default,
         };
 
