@@ -79,7 +79,7 @@ public sealed partial class Worker
                     held.Add(waiting);
                     continue;
                 }
-                if (BreakDispatch.BreakCell(row).TryGetValue(out var at) && at == m.Destination)
+                if (BreakDispatch.TryBreakCell(row, out var at) && at == m.Destination)
                 {
                     continue;
                 }

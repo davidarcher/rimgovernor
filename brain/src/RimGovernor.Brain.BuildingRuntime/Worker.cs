@@ -140,16 +140,22 @@ public sealed partial class Worker
     /// kind here already carries its own CAS-admission-guarded executor/boundary pair, so this is an allowlist
     /// of what has that machinery, not a bypass of it.
     /// </summary>
-    internal static bool RoundsExecutableKind(ActionKind kind) => kind switch
-    {
-        ActionKind.Building or ActionKind.OwnedDraft or ActionKind.Subdue
-            or ActionKind.SupplyAllow or ActionKind.SupplyForbid or ActionKind.WorkAssignment or ActionKind.PawnActivities or ActionKind.Acquisition or ActionKind.AcquisitionWithdraw or ActionKind.ZoneCreate
-            or ActionKind.ProductionBill or ActionKind.Tend or ActionKind.Rescue or ActionKind.Capture or ActionKind.UseItem or ActionKind.Haul or ActionKind.Equip or ActionKind.DropEquipment
-            or ActionKind.GearReplace or ActionKind.ApparelPolicy or ActionKind.RecoveryService or ActionKind.Movement or ActionKind.Husbandry
-            or ActionKind.PrisonerInteraction or ActionKind.Repair or ActionKind.MineAcquisition
-            or ActionKind.BuildingTemperature or ActionKind.BedUse or ActionKind.GrowerCrop or ActionKind.ClaimBuilding or ActionKind.AutoRefuel or ActionKind.Surgery or ActionKind.AutoHomeArea or ActionKind.PawnSettings or ActionKind.Area or ActionKind.PolicyPrune or ActionKind.ReadingPolicy or ActionKind.DrugPolicy or ActionKind.FoodPolicy or ActionKind.ZoneDelete or ActionKind.ZoneCellEdit or ActionKind.StockpilePatch or ActionKind.Assign or ActionKind.Conversion or ActionKind.Excavation or ActionKind.DialogAnswer or ActionKind.ResearchSelect or ActionKind.Trade or ActionKind.CommsTradeRequest or ActionKind.Deconstruction or ActionKind.RemoveRoof or ActionKind.BuildRoof or ActionKind.AreaPlantCut or ActionKind.CutPlant or ActionKind.Strip or ActionKind.MoveBuilding or ActionKind.UninstallBuilding or ActionKind.CoverClearance or ActionKind.WastepackHaul or ActionKind.FoundationRemoval or ActionKind.FloorRemoval or ActionKind.QuestAccept or ActionKind.QuestShuttle or ActionKind.HackDesignation or ActionKind.GiveItem or ActionKind.Ritual or ActionKind.IdeoligionReform or ActionKind.Ability or ActionKind.Gathering or ActionKind.RemoveProductionBill or ActionKind.DoorControl or ActionKind.WallRemoval or ActionKind.CaravanDeparture => true,
-        _ => false,
-    };
+    internal static bool RoundsExecutableKind(ActionKind kind) => ExecutableKinds.Contains(kind);
+
+    private static readonly HashSet<ActionKind> ExecutableKinds =
+    [
+        ActionKind.Building, ActionKind.OwnedDraft, ActionKind.Subdue,
+        ActionKind.SupplyAllow, ActionKind.SupplyForbid, ActionKind.WorkAssignment, ActionKind.PawnActivities, ActionKind.Acquisition, ActionKind.AcquisitionWithdraw, ActionKind.ZoneCreate,
+        ActionKind.ProductionBill, ActionKind.Tend, ActionKind.Rescue, ActionKind.Capture, ActionKind.UseItem, ActionKind.Haul, ActionKind.Equip, ActionKind.DropEquipment,
+        ActionKind.GearReplace, ActionKind.ApparelPolicy, ActionKind.RecoveryService, ActionKind.Movement, ActionKind.Husbandry,
+        ActionKind.PrisonerInteraction, ActionKind.Repair, ActionKind.MineAcquisition,
+        ActionKind.BuildingTemperature, ActionKind.BedUse, ActionKind.GrowerCrop, ActionKind.ClaimBuilding, ActionKind.AutoRefuel, ActionKind.Surgery, ActionKind.AutoHomeArea, ActionKind.PawnSettings, ActionKind.Area,
+        ActionKind.PolicyPrune, ActionKind.ReadingPolicy, ActionKind.DrugPolicy, ActionKind.FoodPolicy, ActionKind.ZoneDelete, ActionKind.ZoneCellEdit, ActionKind.StockpilePatch, ActionKind.Assign,
+        ActionKind.Conversion, ActionKind.Excavation, ActionKind.DialogAnswer, ActionKind.ResearchSelect, ActionKind.Trade, ActionKind.CommsTradeRequest, ActionKind.Deconstruction,
+        ActionKind.RemoveRoof, ActionKind.BuildRoof, ActionKind.AreaPlantCut, ActionKind.CutPlant, ActionKind.Strip, ActionKind.MoveBuilding, ActionKind.UninstallBuilding, ActionKind.CoverClearance,
+        ActionKind.WastepackHaul, ActionKind.FoundationRemoval, ActionKind.FloorRemoval, ActionKind.QuestAccept, ActionKind.QuestShuttle, ActionKind.HackDesignation, ActionKind.GiveItem, ActionKind.Ritual,
+        ActionKind.IdeoligionReform, ActionKind.Ability, ActionKind.Gathering, ActionKind.RemoveProductionBill, ActionKind.DoorControl, ActionKind.WallRemoval, ActionKind.CaravanDeparture,
+    ];
 
     private sealed record WorkerCandidate(
         ProgressView View,

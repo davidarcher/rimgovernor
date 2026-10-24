@@ -503,9 +503,11 @@ public sealed class FamilyRunner<TFacts>(IFamily<TFacts> family, Func<FamilyRead
                 var open = commit.Owner.Methods.LastOrDefault(m => m.Method == candidate.Method);
                 return (Verdict.BuildingReasonExistingWork,
                     open is null ? null : new FamilyMethod(candidate.Need, candidate.Method, open.Plan, ClaimOutcome.Continued));
-            default:
+            case ClaimOutcome.Conflict or ClaimOutcome.Refused:
                 return (Verdict.Committed(commit), null);
         }
+
+        throw new DomainException($"unknown claim outcome {commit.Outcome}");
     }
 
     /// <summary>Runs the family's work for one ready Need under its owner and reports the Methods it added.</summary>

@@ -123,6 +123,7 @@ public readonly partial record struct Verdict(Outcome Outcome, Refusal Refusal =
     /// </summary>
     public void Validate()
     {
+        DomainException.Require(Wire.IsDefined(Outcome), $"unknown outcome {Outcome}");
         switch (Outcome)
         {
             case Outcome.None:
@@ -140,8 +141,6 @@ public readonly partial record struct Verdict(Outcome Outcome, Refusal Refusal =
                 DomainException.Require(Refusal.Kind != Cause.SharedAdmission || Refusal.Subject.Length != 0, $"shared admission refusal without the reason it names: {Refusal}");
                 DomainException.Require(Refusal.Kind != Cause.RetriesSpent || Refusal.Subject.Length != 0, $"retry budget refusal without the step it names: {Refusal}");
                 break;
-            default:
-                throw new DomainException($"unknown outcome {Outcome}");
         }
     }
 
@@ -204,21 +203,18 @@ partial record struct Verdict
     /// The verdict an admission refusal files: short production material waits on a plan, anything else is a
     /// shared-admission refusal naming its reason.
     /// </summary>
-    public static Verdict AdmissionRefused(Sto.AdmissionRefusal refusal) => refusal.Kind switch
-    {
-        Sto.RefusalKind.ProductionMaterial => AwaitingPlan("production_material", "insufficient_unknown_or_bounded"),
-        _ => Refuse(Cause.SharedAdmission, refusal.Message, ""),
-    };
+    public static Verdict AdmissionRefused(Sto.AdmissionRefusal refusal) =>
+        refusal.Kind == Sto.RefusalKind.ProductionMaterial ? AwaitingPlan("production_material", "insufficient_unknown_or_bounded")
+        : refusal.Kind == Sto.RefusalKind.SharedAdmission ? Refuse(Cause.SharedAdmission, refusal.Message, "")
+        : throw new DomainException($"unknown admission refusal {refusal.Kind}");
 
     /// <summary>The verdict a claimed commit files: admitted, open work for a continued MethodId, the held claim or the admission refusal.</summary>
-    public static Verdict Committed(Sto.ClaimOutcome outcome, Sto.ClaimConflict? conflict, Sto.AdmissionRefusal? refusal) => outcome switch
-    {
-        Sto.ClaimOutcome.Admitted => BuildingReasonAdmitted,
-        Sto.ClaimOutcome.Continued => BuildingReasonExistingWork,
-        Sto.ClaimOutcome.Conflict => ClaimHeld((conflict ?? throw new DomainException("a held commit names its claim")).Claim),
-        Sto.ClaimOutcome.Refused => AdmissionRefused(refusal ?? throw new DomainException("a refused commit names its refusal")),
-        _ => throw new DomainException($"unknown claim outcome {outcome}"),
-    };
+    public static Verdict Committed(Sto.ClaimOutcome outcome, Sto.ClaimConflict? conflict, Sto.AdmissionRefusal? refusal) =>
+        outcome == Sto.ClaimOutcome.Admitted ? BuildingReasonAdmitted
+        : outcome == Sto.ClaimOutcome.Continued ? BuildingReasonExistingWork
+        : outcome == Sto.ClaimOutcome.Conflict ? ClaimHeld((conflict ?? throw new DomainException("a held commit names its claim")).Claim)
+        : outcome == Sto.ClaimOutcome.Refused ? AdmissionRefused(refusal ?? throw new DomainException("a refused commit names its refusal"))
+        : throw new DomainException($"unknown claim outcome {outcome}");
 
     /// <inheritdoc cref="Committed(Sto.ClaimOutcome, Sto.ClaimConflict?, Sto.AdmissionRefusal?)"/>
     public static Verdict Committed(Sto.NeedCommit commit) => Committed(commit.Outcome, commit.Conflict, commit.Refusal);

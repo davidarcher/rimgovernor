@@ -96,7 +96,7 @@ public sealed class ThemePresetTests
     {
         var preset = ThemePresetCatalog.All.Single(p => p.Id == "fortress");
         var theme = Theme with { RemovedPresetMembers = ["research.Mortars"] };
-        var overrides = new[] { new MemberOverride("built.Turret_Mortar", Importance.Low, 90) };
+        var overrides = new MemberOverride[] { new MemberOverride.ImportanceOf("built.Turret_Mortar", Importance.Low), new MemberOverride.DeadlineOf("built.Turret_Mortar", 90) };
 
         var resolved = PresetRules.Resolve(preset, Catalog(), theme, overrides);
 
@@ -121,7 +121,7 @@ public sealed class ThemePresetTests
         Assert.Contains(precepts, p => p.StartsWith("InsectMeat", StringComparison.Ordinal));
         Assert.Equal("Monkey", resolved.Goals().Single(g => g.Kind == GoalKind.VeneratedAnimal).Target);
         Assert.Single(resolved.Goals(), g => g.Kind == GoalKind.Believers);
-        Assert.Contains(resolved.Members, m => m.Preference?.Apparel == ApparelPreference.Nude);
-        Assert.Contains(resolved.Members, m => m.Preference?.Diet.Contains(DietOverride.Cannibal) == true);
+        Assert.Contains(resolved.Members, m => m.Preference is PresetPreference.Apparel { Preference: ApparelPreference.Nude });
+        Assert.Contains(resolved.Members, m => m.Preference is PresetPreference.Diet diet && diet.Overrides.Contains(DietOverride.Cannibal));
     }
 }

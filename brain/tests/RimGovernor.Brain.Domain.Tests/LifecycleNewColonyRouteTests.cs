@@ -26,7 +26,7 @@ public sealed class LifecycleNewColonyRouteTests
     private sealed class Snapshots : ISnapshotProvider
     {
         public Task<ControllerSnapshot> SnapshotAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(new ControllerSnapshot { Connected = false, Stale = true, Mode = "manual" });
+            Task.FromResult(new ControllerSnapshot { Connected = false, Stale = true, Mode = "manual", World = new ControllerWorld.Unobserved(), Control = new ControllerControl.Unmatched() });
     }
 
     private sealed class Writer(Exception failure) : ILifecycleWriter

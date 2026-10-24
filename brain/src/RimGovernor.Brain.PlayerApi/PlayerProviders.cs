@@ -68,19 +68,55 @@ public sealed record ControllerSnapshot
 
     public string Status { get; init; } = "";
 
-    public Fact<GenerationSnapshot> Generation { get; init; }
+    /// <summary>The world the last good observation found; the tick it reports is the identity's.</summary>
+    public required ControllerWorld World { get; init; }
 
-    public Fact<ObservedIdentity> Identity { get; init; }
-
-    public Fact<Tick> Tick { get; init; }
-
-    public Fact<bool> Paused { get; init; }
-
-    public Fact<DateTimeOffset> ObservedAt { get; init; }
+    /// <summary>Whether the player's control state names the observed world; its generation carries the active plan.</summary>
+    public required ControllerControl Control { get; init; }
 
     public bool Stale { get; init; }
+}
 
-    public Fact<PlanId> ActivePlanId { get; init; }
+/// <summary>What the controller has observed of the game: a world, or none (no game loaded, or no observation yet).</summary>
+public abstract record ControllerWorld
+{
+    private ControllerWorld()
+    {
+    }
+
+    /// <summary>The identity, pause state and read time of the last good observation.</summary>
+    public sealed record Observed(ObservedIdentity Identity, bool Paused, DateTimeOffset ObservedAt) : ControllerWorld;
+
+    /// <summary>No game is loaded, or none has been observed.</summary>
+    public sealed record Unobserved : ControllerWorld;
+}
+
+/// <summary>Whether the player's control state names the world the controller observes.</summary>
+public abstract record ControllerControl
+{
+    private ControllerControl()
+    {
+    }
+
+    /// <summary>The control state names the observed world; <paramref name="Generation"/> is its generation, and its plan the active one.</summary>
+    public sealed record Matching(GenerationSnapshot Generation) : ControllerControl;
+
+    /// <summary>The control state names another world, or none.</summary>
+    public sealed record Unmatched : ControllerControl;
+}
+
+/// <summary>The review cursor's progress: the tick of the most recent review, or no review yet.</summary>
+public abstract record ReviewProgress
+{
+    private ReviewProgress()
+    {
+    }
+
+    /// <summary>A review has run; <paramref name="Tick"/> is the tick it reviewed.</summary>
+    public sealed record Reviewed(Tick Tick) : ReviewProgress;
+
+    /// <summary>No review has run.</summary>
+    public sealed record NotReviewed : ReviewProgress;
 }
 
 /// <summary>Owned snapshots of the controller; implementations honor cancellation.</summary>
@@ -116,7 +152,7 @@ public sealed record RoundsStatus
 
     public IReadOnlyList<string> ActiveFamilies { get; init; } = [];
 
-    public Fact<Tick> LastReviewTick { get; init; }
+    public required ReviewProgress LastReview { get; init; }
 
     /// <summary>Every active concern's progress record from the last review.</summary>
     public IReadOnlyList<ConcernProgress> Progress { get; init; } = [];

@@ -32,24 +32,29 @@ internal static class ReadProjections
             System.Text.Encoding.UTF8.GetByteCount(snapshot.SessionId) <= MaxSessionIdBytes && System.Text.Encoding.UTF8.GetByteCount(snapshot.Status) <= MaxStatusBytes,
             "oversized snapshot metadata");
         GenerationDto? generation = null;
-        if (snapshot.Generation.TryGetValue(out var raw))
+        string? activePlan = null;
+        if (snapshot.Control is ControllerControl.Matching { Generation: var raw })
         {
             raw.Validate();
             generation = new GenerationDto(raw.Colony.Value, raw.Map.Value, raw.Load.Value, raw.Plan.Value, raw.Revision.Value, raw.Native.Value);
+            activePlan = raw.Plan.Value;
         }
 
         IdentityDto? identity = null;
-        if (snapshot.Identity.TryGetValue(out var observed))
+        long? tick = null;
+        bool? paused = null;
+        string? observedAt = null;
+        if (snapshot.World is ControllerWorld.Observed seen)
         {
-            observed.Validate();
-            identity = new IdentityDto(observed.Colony.Value, observed.Map.Value, observed.Load.Value);
+            seen.Identity.Validate();
+            identity = new IdentityDto(seen.Identity.Colony.Value, seen.Identity.Map.Value, seen.Identity.Load.Value);
+            tick = seen.Identity.Tick.Value;
+            DomainException.Require(tick >= 0, "negative tick");
+            paused = seen.Paused;
+            observedAt = seen.ObservedAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'", CultureInfo.InvariantCulture);
         }
 
-        long? tick = snapshot.Tick.TryGetValue(out var t) ? t.Value : null;
-        DomainException.Require(tick is null or >= 0, "negative tick");
-        bool? paused = snapshot.Paused.TryGetValue(out var p) ? p : null;
-        var observedAt = Known(snapshot.ObservedAt, at => at.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'", CultureInfo.InvariantCulture));
-        var stale = snapshot.Stale || !snapshot.Connected || identity is null || tick is null || paused is null || observedAt is null;
+        var stale = snapshot.Stale || !snapshot.Connected || snapshot.World is ControllerWorld.Unobserved;
         return new StateDto(
             snapshot.SessionId,
             snapshot.Connected,
@@ -58,7 +63,7 @@ internal static class ReadProjections
             new GameDto(tick, paused, observedAt, stale),
             generation,
             identity,
-            Known(snapshot.ActivePlanId, id => id.Value));
+            activePlan);
     }
 
     // plan
@@ -127,7 +132,7 @@ internal static class ReadProjections
             v.ReviewsEnabled,
             v.MethodsEnabled,
             [.. v.ActiveFamilies],
-            v.LastReviewTick.TryGetValue(out var last) ? last.Value : null,
+            v.LastReview is ReviewProgress.Reviewed last ? last.Tick.Value : null,
             [.. v.Progress.Select(ConcernProgressRow)],
             v.Roster is { } roster ? Roster(roster) : null,
             [.. v.Sections.Select(x => new RoundsSectionDto(Wire.Name(x.Section), Wire.Name(x.Family), x.AsOf, x.Complete, x.Source, x.StoredAt.UtcDateTime.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFF'Z'", CultureInfo.InvariantCulture)))],

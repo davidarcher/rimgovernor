@@ -327,7 +327,7 @@ public static class LifecycleRoutes
     private static async Task<(WireIdentity Wire, string Mode)?> CurrentIdentityAsync(ISnapshotProvider snapshots, CancellationToken ct)
     {
         var snapshot = await snapshots.SnapshotAsync(ct).ConfigureAwait(false);
-        if (!snapshot.Connected || snapshot.Stale || !snapshot.Identity.TryGetValue(out var identity) || !snapshot.Generation.TryGetValue(out _))
+        if (!snapshot.Connected || snapshot.Stale || snapshot.World is not ControllerWorld.Observed { Identity: var identity } || snapshot.Control is not ControllerControl.Matching)
         {
             return null;
         }

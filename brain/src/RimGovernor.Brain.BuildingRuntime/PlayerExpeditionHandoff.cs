@@ -28,7 +28,7 @@ public sealed partial class Player
         // The census is read only once the cheap identity, control and map checks pass: a step on the same map never pays for it.
         var world = await native.ReadWorldProgressionAsync(identity, call).ConfigureAwait(false);
         var plans = await Task.Run(() => _journal.PlanHistoryWithMethods(256, ["quest-expedition-*", "quest-site-*-return-*"], call), call).ConfigureAwait(false);
-        if (!ExpeditionHandoffTarget(state.Snapshot, world, plans).TryGetValue(out var target) || target.Map != new MapId(identity.MapId))
+        if (!TryExpeditionHandoffTarget(state.Snapshot, world, plans, out var target) || target.Map != new MapId(identity.MapId))
         {
             return false;
         }
@@ -71,7 +71,8 @@ public sealed partial class Player
         return true;
     }
 
-    internal static Fact<GenerationSnapshot> ExpeditionHandoffTarget(GenerationSnapshot current, WorldProgressionRead world, IReadOnlyList<PlanState> plans)
+    /// <summary>The generation of the map an accepted caravan departure's crew now stands on; false when no departure has arrived.</summary>
+    internal static bool TryExpeditionHandoffTarget(GenerationSnapshot current, WorldProgressionRead world, IReadOnlyList<PlanState> plans, out GenerationSnapshot target)
     {
         foreach (var plan in plans)
         {
@@ -127,11 +128,13 @@ public sealed partial class Player
                             continue;
                         }
                     }
-                    return Known(current with { Map = new MapId(m.Id) });
+                    target = current with { Map = new MapId(m.Id) };
+                    return true;
                 }
             }
         }
-        return Unknown<GenerationSnapshot>();
+        target = default;
+        return false;
     }
 
 }

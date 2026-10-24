@@ -153,13 +153,22 @@ public static class Boundary
         return token;
     }
 
-    public static PbReceipts.JobEffect? ReceiptJob(PbReceipts.Receipt? receipt) => receipt?.Outcome switch
+    public static PbReceipts.JobEffect? ReceiptJob(PbReceipts.Receipt? receipt)
     {
-        PbReceipts.ReceiptOutcome.AppliedCase c => c.Value.Observed?.Effect?.Job,
-        PbReceipts.ReceiptOutcome.NoChangeCase c => c.Value.Observed?.Effect?.Job,
-        PbReceipts.ReceiptOutcome.UncertainCase c => c.Value.LastObserved?.Effect?.Job,
-        _ => null,
-    };
+        switch (receipt?.Outcome)
+        {
+            case null:
+                return null;
+            case PbReceipts.ReceiptOutcome.AppliedCase c:
+                return c.Value.Observed?.Effect?.Job;
+            case PbReceipts.ReceiptOutcome.NoChangeCase c:
+                return c.Value.Observed?.Effect?.Job;
+            case PbReceipts.ReceiptOutcome.UncertainCase c:
+                return c.Value.LastObserved?.Effect?.Job;
+        }
+
+        throw new DomainException($"unlisted receipt outcome {receipt?.Outcome}");
+    }
 
     /// <summary>Whether issues names field: the shared "unresolved native issue" check of every pawn-order boundary.</summary>
     public static bool IssueField(IEnumerable<PbObservations.ReadIssue> issues, string field) => issues.Any(issue => (issue.Field ?? "") == field);
@@ -319,10 +328,11 @@ public static class Boundary
 
     /// <summary>A refused receipt's journal record: native's failure code, its reason text and the class it assigned. A refusal naming no class is unknown.</summary>
     private static NativeRefusal NativeRefusalOf(PbCommon.FailureCode code, string reason, PbCommon.RefusalClass cls) =>
-        new(ProtoNames.Of(code), reason, cls switch
-        {
-            PbCommon.RefusalClass.Permanent => RefusalClass.Permanent,
-            PbCommon.RefusalClass.Transient => RefusalClass.Transient,
-            _ => RefusalClass.Unknown,
-        });
+        new(
+            ProtoNames.Of(code),
+            reason,
+            cls == PbCommon.RefusalClass.Permanent ? RefusalClass.Permanent
+            : cls == PbCommon.RefusalClass.Transient ? RefusalClass.Transient
+            : cls is PbCommon.RefusalClass.Unspecified or PbCommon.RefusalClass.Unknown ? RefusalClass.Unknown
+            : throw new DomainException($"undefined refusal class {cls}"));
 }

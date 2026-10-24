@@ -224,7 +224,7 @@ public static class PresentationRoutes
         ct.ThrowIfCancellationRequested();
         var snapshot = await snapshots.SnapshotAsync(ct).ConfigureAwait(false);
         ct.ThrowIfCancellationRequested();
-        if (!snapshot.Connected || snapshot.Stale || !snapshot.Identity.TryGetValue(out var identity))
+        if (!snapshot.Connected || snapshot.Stale || snapshot.World is not ControllerWorld.Observed { Identity: var identity })
         {
             throw new InvalidOperationException("fresh identity unavailable");
         }

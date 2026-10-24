@@ -30,7 +30,7 @@ public sealed class RoundsDiagnostics(StoreJournal journal, bool reviewsEnabled,
             ReviewsEnabled = reviewsEnabled,
             MethodsEnabled = methodsEnabled,
             ActiveFamilies = families,
-            LastReviewTick = review.Revision != 0 ? Known(review.Tick) : Unknown<Tick>(),
+            LastReview = review.Revision != 0 ? new ReviewProgress.Reviewed(review.Tick) : new ReviewProgress.NotReviewed(),
             Sections = sections.Status(),
             LootHolds = review.EventLoot.Held,
         };

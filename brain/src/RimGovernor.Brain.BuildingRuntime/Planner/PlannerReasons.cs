@@ -101,9 +101,12 @@ internal static class PlannerReasons
                 return new PlannerNote { Cause = Cause.CombatOrders };
             case Outcome.HoldFallback:
                 return new PlannerNote { Cause = Cause.HoldFallback };
-            default:
+            case Outcome.Waiting or Outcome.Refused:
                 return new PlannerNote { Cause = v.Refusal.Kind, Subject = CauseRules.BoundSubject(v.Refusal.Subject) };
         }
+
+        // Validate passed and the zero verdict returned above: no outcome is left.
+        throw new DomainException($"unfiled outcome {v.Outcome}");
     }
 
     /// <summary>

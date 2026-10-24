@@ -28,10 +28,10 @@ public sealed class LifecycleMenuRouteTests
             {
                 Connected = true,
                 Mode = "manual",
-                Identity = Fact.Known(new RimGovernor.Brain.Observation.Identity { Colony = new ColonyId(Colony), Load = new LoadId(Load), Map = new MapId(Map), Tick = new Tick(10) }),
-                Generation = Fact.Known(new GenerationSnapshot()),
+                World = new ControllerWorld.Observed(new RimGovernor.Brain.Observation.Identity { Colony = new ColonyId(Colony), Load = new LoadId(Load), Map = new MapId(Map), Tick = new Tick(10) }, false, default),
+                Control = new ControllerControl.Matching(new GenerationSnapshot()),
             }
-            : new ControllerSnapshot { Connected = false, Stale = true, Mode = "manual" });
+            : new ControllerSnapshot { Connected = false, Stale = true, Mode = "manual", World = new ControllerWorld.Unobserved(), Control = new ControllerControl.Unmatched() });
     }
 
     private sealed class Writer(Func<PbLifecycle.MenuReply> reply) : ILifecycleWriter

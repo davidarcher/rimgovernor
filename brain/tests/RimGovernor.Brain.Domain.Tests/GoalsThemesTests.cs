@@ -26,7 +26,7 @@ public sealed class GoalsThemesTests
                     new PresetMember("research.Smithing", new GoalRecord { Kind = GoalKind.ResearchProject, Target = "Smithing" }),
                     new PresetMember("built.Wall", new GoalRecord { Kind = GoalKind.BuiltCount, Target = "Wall", Count = 4 }),
                     new PresetMember("research.Ghost", new GoalRecord { Kind = GoalKind.ResearchProject, Target = "GhostTech" }),
-                    new PresetMember("preference.diet", Preference: new PreferenceFragment { Diet = [DietOverride.Cannibal] }),
+                    new PresetMember("preference.diet", Preference: new PresetPreference.Diet([DietOverride.Cannibal])),
                 ]),
         ],
         new Installed(installed));

@@ -13,15 +13,12 @@ public sealed partial class DefinitionCatalog : P.IPresetCatalog
 {
     /// <summary>Whether the load carries the named definition.</summary>
     public bool Has(P.PresetDefClass kind, string name) =>
-        kind switch
-        {
-            P.PresetDefClass.Thing => _thingDefs.ContainsKey(name),
-            P.PresetDefClass.Research => Research.ContainsKey(name),
-            P.PresetDefClass.Precept => DefRow<RimWorld.PreceptDef>(name) is not null,
-            P.PresetDefClass.Meme => DefRow<MemeDef>(name) is not null,
-            P.PresetDefClass.RoomRole => DefRow<RoomRoleDef>(name) is not null,
-            _ => throw new CatalogException($"unknown preset def class {kind}"),
-        };
+        kind == P.PresetDefClass.Thing ? _thingDefs.ContainsKey(name)
+        : kind == P.PresetDefClass.Research ? Research.ContainsKey(name)
+        : kind == P.PresetDefClass.Precept ? DefRow<RimWorld.PreceptDef>(name) is not null
+        : kind == P.PresetDefClass.Meme ? DefRow<MemeDef>(name) is not null
+        : kind == P.PresetDefClass.RoomRole ? DefRow<RoomRoleDef>(name) is not null
+        : throw new CatalogException($"unknown preset def class {kind}");
 }
 
 /// <summary>The themes the player can adopt, referenced by id from the save.</summary>
@@ -62,7 +59,7 @@ public static class ThemePresetCatalog
 
     private static P.PresetMember Meme(string meme) => new("meme." + meme, Goal(P.GoalKind.Meme, meme));
 
-    private static P.PresetMember Prefer(string key, P.PreferenceFragment fragment) => new("preference." + key, Preference: fragment);
+    private static P.PresetMember Prefer(string key, P.PresetPreference preference) => new("preference." + key, Preference: preference);
 
     // Industrial is a TechLevel name; the research tier kind carries it as text.
     private static P.PresetMember Tier(TechLevel level) => new("tier." + level, Goal(P.GoalKind.ResearchTier, level.ToString()));
@@ -83,8 +80,8 @@ public static class ThemePresetCatalog
                 // PreceptWorker_Animal offers, and the installed catalog check reports it unavailable if absent.
                 new("venerated.Monkey", Goal(P.GoalKind.VeneratedAnimal, "Monkey")),
                 new("believers", Goal(P.GoalKind.Believers)),
-                Prefer("apparel", new() { Apparel = P.ApparelPreference.Nude }),
-                Prefer("diet", new() { Diet = [P.DietOverride.Cannibal, P.DietOverride.InsectMeat] }),
+                Prefer("apparel", new P.PresetPreference.Apparel(P.ApparelPreference.Nude)),
+                Prefer("diet", new P.PresetPreference.Diet([P.DietOverride.Cannibal, P.DietOverride.InsectMeat])),
             ]);
 
     private static P.ThemePreset TranshumanistLab() =>
@@ -107,8 +104,8 @@ public static class ThemePresetCatalog
             "pacifist-farm",
             "Pacifist farm",
             [
-                Prefer("risk", new() { Risk = P.RiskProfile.Cautious }),
-                Prefer("slavery", new() { Forbidden = [P.ForbiddenMethod.Slavery] }),
+                Prefer("risk", new P.PresetPreference.Risk(P.RiskProfile.Cautious)),
+                Prefer("slavery", new P.PresetPreference.Forbid([P.ForbiddenMethod.Slavery])),
                 Precept("Slavery_Abhorrent"),
                 Research("Hydroponics"),
                 Built(nameof(ThingDefOf.HydroponicsBasin), 4),
@@ -177,7 +174,7 @@ public static class ThemePresetCatalog
             "fortress",
             "Fortress",
             [
-                Prefer("risk", new() { Risk = P.RiskProfile.Cautious }),
+                Prefer("risk", new P.PresetPreference.Risk(P.RiskProfile.Cautious)),
                 Research("GunTurrets"),
                 Research(nameof(ResearchProjectDefOf.MicroelectronicsBasics)),
                 Research("Mortars"),

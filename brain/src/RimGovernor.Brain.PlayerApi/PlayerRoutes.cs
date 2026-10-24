@@ -238,6 +238,7 @@ public static class PlayerRoutes
         var request = record.Request;
         DomainException.Require(new PlanId(request.RequestId).IsValid && request.World.IsValid, "invalid control record");
         DomainException.Require(Wire.IsDefined(request.Kind), "unknown control kind");
+        DomainException.Require(Wire.IsDefined(record.Phase), "unknown control phase");
         var generation = record.NativeGeneration.Value;
         switch (record.Phase)
         {
@@ -250,8 +251,6 @@ public static class PlayerRoutes
             case ControlPhase.Pending or ControlPhase.Refused or ControlPhase.Uncertain:
                 DomainException.Require(generation == 0, "invalid control generation");
                 break;
-            default:
-                throw new DomainException("unknown control phase");
         }
     }
 

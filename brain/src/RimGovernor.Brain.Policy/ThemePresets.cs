@@ -19,36 +19,47 @@ public interface IPresetCatalog
     bool Has(PresetDefClass kind, string name);
 }
 
-/// <summary>The standing preferences a preset member sets; a member names only the ones it changes.</summary>
-public sealed record PreferenceFragment
+/// <summary>The one standing preference a preset member sets.</summary>
+public abstract record PresetPreference
 {
-    public RiskProfile? Risk { get; init; }
+    private PresetPreference()
+    {
+    }
 
-    public Pace? Pace { get; init; }
+    /// <summary>The risk profile the member sets.</summary>
+    public sealed record Risk(RiskProfile Profile) : PresetPreference;
 
-    public IReadOnlyList<ForbiddenMethod> Forbidden { get; init; } = [];
+    /// <summary>The methods the member forbids.</summary>
+    public sealed record Forbid(IReadOnlyList<ForbiddenMethod> Methods) : PresetPreference;
 
-    public IReadOnlyList<DietOverride> Diet { get; init; } = [];
+    /// <summary>The diet overrides the member sets.</summary>
+    public sealed record Diet(IReadOnlyList<DietOverride> Overrides) : PresetPreference;
 
-    public ApparelPreference? Apparel { get; init; }
-
-    public DrugPolicyPreference? DrugPolicy { get; init; }
+    /// <summary>The apparel preference the member sets.</summary>
+    public sealed record Apparel(ApparelPreference Preference) : PresetPreference;
 }
 
 /// <summary>
 /// One member of a preset under a stable key: a goal template (importance, deadline and theme are filled in on
-/// resolution) or a preference fragment. A goal's required defs follow from its kind.
+/// resolution) or a preference. A goal's required defs follow from its kind.
 /// </summary>
-public sealed record PresetMember(string Key, GoalRecord? Goal = null, PreferenceFragment? Preference = null);
+public sealed record PresetMember(string Key, GoalRecord? Goal = null, PresetPreference? Preference = null);
 
 /// <summary>A named theme the player can adopt, referenced by <see cref="Id"/>.</summary>
 public sealed record ThemePreset(string Id, string Name, IReadOnlyList<PresetMember> Members);
 
 /// <summary>The player's replacement of one preset member's importance or deadline.</summary>
-public sealed record MemberOverride(string Key, Importance? Importance = null, int? DeadlineDay = null);
+public abstract record MemberOverride(string Key)
+{
+    /// <summary>The member's importance, replacing the theme's.</summary>
+    public sealed record ImportanceOf(string Key, Importance Importance) : MemberOverride(Key);
+
+    /// <summary>The member's deadline day, replacing the theme's.</summary>
+    public sealed record DeadlineOf(string Key, int Day) : MemberOverride(Key);
+}
 
 /// <summary>One preset member as it applies to a theme. <see cref="UnavailableReason"/> names the missing defs; empty when available.</summary>
-public sealed record ResolvedMember(string Key, GoalRecord? Goal, PreferenceFragment? Preference, string UnavailableReason)
+public sealed record ResolvedMember(string Key, GoalRecord? Goal, PresetPreference? Preference, string UnavailableReason)
 {
     public bool Available => UnavailableReason.Length == 0;
 }
@@ -81,12 +92,14 @@ public static class PresetRules
                 continue;
             }
 
-            var over = overrides?.FirstOrDefault(o => string.Equals(o.Key, member.Key, StringComparison.Ordinal));
+            var mine = overrides?.Where(o => string.Equals(o.Key, member.Key, StringComparison.Ordinal)).ToList() ?? [];
+            var importance = mine.OfType<MemberOverride.ImportanceOf>().Select(o => o.Importance).Cast<Importance?>().FirstOrDefault() ?? theme.Importance;
+            var deadline = mine.OfType<MemberOverride.DeadlineOf>().Select(o => o.Day).Cast<int?>().FirstOrDefault() ?? theme.DeadlineDay;
             var goal = member.Goal is { } template
                 ? template with
                 {
-                    Importance = over?.Importance ?? theme.Importance,
-                    DeadlineDay = over?.DeadlineDay ?? theme.DeadlineDay,
+                    Importance = importance,
+                    DeadlineDay = deadline,
                     Theme = theme.Id,
                 }
                 : null;
@@ -100,16 +113,7 @@ public static class PresetRules
     /// <summary>The defs a goal needs the installed game to carry; a kind that names none (counts, tiers, events) needs none.</summary>
     public static IEnumerable<PresetDefRef> Requirements(GoalRecord goal)
     {
-        var target = goal.Kind switch
-        {
-            GoalKind.ResearchProject => (PresetDefClass?)PresetDefClass.Research,
-            GoalKind.StockCount or GoalKind.BuiltCount or GoalKind.WornCount or GoalKind.Animals or GoalKind.VeneratedAnimal => PresetDefClass.Thing,
-            GoalKind.RoomRole => PresetDefClass.RoomRole,
-            GoalKind.Precept => PresetDefClass.Precept,
-            GoalKind.Meme => PresetDefClass.Meme,
-            _ => null,
-        };
-        if (target is { } kind)
+        if (DefClassOf(goal.Kind) is { } kind)
         {
             yield return new PresetDefRef(kind, goal.Target);
         }
@@ -118,5 +122,29 @@ public static class PresetRules
         {
             yield return new PresetDefRef(PresetDefClass.Thing, goal.Qualifier);
         }
+    }
+
+    /// <summary>The class of def a goal kind's target names; null for a kind whose target is no def.</summary>
+    private static PresetDefClass? DefClassOf(GoalKind kind)
+    {
+        switch (kind)
+        {
+            case GoalKind.ResearchProject:
+                return PresetDefClass.Research;
+            case GoalKind.StockCount or GoalKind.BuiltCount or GoalKind.WornCount or GoalKind.Animals or GoalKind.VeneratedAnimal:
+                return PresetDefClass.Thing;
+            case GoalKind.RoomRole:
+                return PresetDefClass.RoomRole;
+            case GoalKind.Precept:
+                return PresetDefClass.Precept;
+            case GoalKind.Meme:
+                return PresetDefClass.Meme;
+            case GoalKind.ResearchTier or GoalKind.Colonists or GoalKind.PowerSurplus or GoalKind.Believers or GoalKind.NamedPrisoner
+                or GoalKind.NamedQuest or GoalKind.Ritual or GoalKind.Skill or GoalKind.Health or GoalKind.Territory
+                or GoalKind.Ending or GoalKind.Caravan:
+                return null;
+        }
+
+        throw new DomainException($"unlisted goal kind {kind}");
     }
 }

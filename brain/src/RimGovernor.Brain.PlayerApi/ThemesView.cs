@@ -31,12 +31,11 @@ internal static class ThemesView
     public const string MissingState = "Not minted";
 
     /// <summary>How much a goal counts toward its theme's progress: its effective importance.</summary>
-    public static int Weight(Importance importance) => importance switch
-    {
-        Importance.Low => 1,
-        Importance.Normal => 2,
-        _ => 4,
-    };
+    public static int Weight(Importance importance) =>
+        importance == Importance.Low ? 1
+        : importance == Importance.Normal ? 2
+        : importance == Importance.High ? 4
+        : throw new DomainException($"undefined importance {importance}");
 
     public static IReadOnlyList<PresetView> Presets(GoalsRecord record, PresetBook? book)
     {
@@ -94,7 +93,14 @@ internal static class ThemesView
         {
             if (member.Goal is { } template && FindGoal(record, theme, template) is { } stored)
             {
-                overrides.Add(new MemberOverride(member.Key, stored.ImportanceOverride, stored.DeadlineOverride));
+                if (stored.ImportanceOverride is { } importance)
+                {
+                    overrides.Add(new MemberOverride.ImportanceOf(member.Key, importance));
+                }
+                if (stored.DeadlineOverride is { } deadline)
+                {
+                    overrides.Add(new MemberOverride.DeadlineOf(member.Key, deadline));
+                }
             }
         }
         var resolved = PresetRules.Resolve(preset, book.Catalog, theme, overrides);
@@ -156,34 +162,21 @@ internal static class ThemesView
         return text.Length == 0 ? kind : kind + " " + text;
     }
 
-    private static string Describe(PreferenceFragment p)
+    private static string Describe(PresetPreference p)
     {
-        var parts = new List<string>();
-        if (p.Risk is { } risk)
+        switch (p)
         {
-            parts.Add("Risk " + risk);
+            case PresetPreference.Risk risk:
+                return "Preference: Risk " + risk.Profile;
+            case PresetPreference.Forbid forbid:
+                return "Preference: Forbid " + string.Join(", ", forbid.Methods);
+            case PresetPreference.Diet diet:
+                return "Preference: Diet " + string.Join(", ", diet.Overrides);
+            case PresetPreference.Apparel apparel:
+                return "Preference: Apparel " + apparel.Preference;
         }
-        if (p.Pace is { } pace)
-        {
-            parts.Add("Pace " + pace);
-        }
-        if (p.Forbidden.Count > 0)
-        {
-            parts.Add("Forbid " + string.Join(", ", p.Forbidden));
-        }
-        if (p.Diet.Count > 0)
-        {
-            parts.Add("Diet " + string.Join(", ", p.Diet));
-        }
-        if (p.Apparel is { } apparel)
-        {
-            parts.Add("Apparel " + apparel);
-        }
-        if (p.DrugPolicy is { } drugs)
-        {
-            parts.Add("Drug policy " + drugs);
-        }
-        return "Preference: " + string.Join("; ", parts);
+
+        throw new DomainException($"unlisted preference {p}");
     }
 }
 

@@ -4,8 +4,18 @@ namespace RimGovernor.Brain.BuildingRuntime;
 /// <summary>Releasing a breaking pawn's work and fencing new dispatch near an aggressive break.</summary>
 internal static class BreakDispatch
 {
-    public static Fact<Cell> BreakCell(PbObservations.PawnState row) =>
-        row.Pawn.Place is PbObservations.EntityPlace.OnMap { Cell: var p } ? Known(new Cell(p.X, p.Z)) : Unknown<Cell>();
+    /// <summary>The cell a pawn stands on; false for a pawn on no map (caravan, transport, the world).</summary>
+    public static bool TryBreakCell(PbObservations.PawnState row, out Cell cell)
+    {
+        if (row.Pawn.Place is PbObservations.EntityPlace.OnMap { Cell: var p })
+        {
+            cell = new Cell(p.X, p.Z);
+            return true;
+        }
+
+        cell = default;
+        return false;
+    }
 
     /// <summary>
     /// Releases the breaking pawn's action claims through ordinary cancellation; dispatched attempts remain
@@ -102,7 +112,8 @@ public sealed partial class Worker
         {
             return held;
         }
-        var positions = new Dictionary<string, Fact<Cell>>(StringComparer.Ordinal);
+        // The cell of every observed pawn that stands on a map; a pawn on none has no entry.
+        var positions = new Dictionary<string, Cell>(StringComparer.Ordinal);
         if (aggressive.Count > 0)
         {
             var reply = await _config.BreakSource.ReadPawnsAsync(Boundary.Identity(current), ids, ct).ConfigureAwait(false);
@@ -114,7 +125,10 @@ public sealed partial class Worker
             _ = Boundary.Context(observed.Context, current);
             foreach (var row in observed.Pawns)
             {
-                positions[row.Pawn.Id ?? ""] = BreakDispatch.BreakCell(row);
+                if (BreakDispatch.TryBreakCell(row, out var standing))
+                {
+                    positions[row.Pawn.Id ?? ""] = standing;
+                }
             }
         }
         foreach (var plan in plans)
@@ -142,39 +156,41 @@ public sealed partial class Worker
                 }
                 foreach (var id in aggressive)
                 {
-                    if (!positions.TryGetValue(id.Value, out var aggressorAt) || !aggressorAt.TryGetValue(out var at))
+                    if (!positions.TryGetValue(id.Value, out var at))
                     {
                         held.Add(action.Id);
                         break;
                     }
                     // An explicit target within the exclusion zone is unsafe even when its assigned worker starts
-                    // outside it. Unknown locations hold conservatively.
-                    var cells = new List<Fact<Cell>> { site.Cell };
+                    // outside it. A pawn on no map holds conservatively.
+                    var cells = new List<Cell>();
+                    if (site.Cell.TryGetValue(out var siteCell))
+                    {
+                        cells.Add(siteCell);
+                    }
                     if (site.Worker.Value.Length != 0)
                     {
-                        if (!positions.TryGetValue(site.Worker.Value, out var workerAt) || !workerAt.IsKnown)
+                        if (positions.TryGetValue(site.Worker.Value, out var workerAt))
+                        {
+                            cells.Add(workerAt);
+                        }
+                        else
                         {
                             held.Add(action.Id);
                         }
-                        cells.Add(workerAt);
                     }
                     if (positions.TryGetValue(site.Target, out var targetAt))
                     {
                         cells.Add(targetAt);
                     }
-                    var located = false;
                     foreach (var cell in cells)
                     {
-                        if (cell.TryGetValue(out var p))
+                        if (BreakResponseRules.InBreakRadius(cell, at))
                         {
-                            located = true;
-                            if (BreakResponseRules.InBreakRadius(p, at))
-                            {
-                                held.Add(action.Id);
-                            }
+                            held.Add(action.Id);
                         }
                     }
-                    if (!located)
+                    if (cells.Count == 0)
                     {
                         held.Add(action.Id);
                     }

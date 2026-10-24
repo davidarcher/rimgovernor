@@ -3,8 +3,8 @@ using RimGovernor.Brain.BuildingRuntime;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Observation;
 using RimGovernor.Brain.PlayerApi;
+using RimGovernor.Brain.Policy;
 using RimGovernor.Brain.Store;
-using static RimGovernor.Brain.Domain.Fact;
 
 namespace RimGovernor.Brain.Host;
 
@@ -19,7 +19,15 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
     private readonly object _mu = new();
     private DateTimeOffset _started;
     private bool _gamePaused;
-    private ControllerSnapshot _snapshot = new() { SessionId = sessionId, Mode = "manual", Status = "Waiting for game observations", Stale = true };
+    private ControllerSnapshot _snapshot = new()
+    {
+        SessionId = sessionId,
+        Mode = "manual",
+        Status = "Waiting for game observations",
+        Stale = true,
+        World = new ControllerWorld.Unobserved(),
+        Control = new ControllerControl.Unmatched(),
+    };
 
     public void Dispose() => _refresh.Dispose();
 
@@ -38,10 +46,12 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
         try
         {
             Reading reading;
+            bool paused;
             try
             {
                 reading = await ObservationReads.Observe(source, clock, cancellationToken).ConfigureAwait(false);
                 reading.Snapshot.CheckFresh(clock.Now(), maxAge, reading.Snapshot.Identity);
+                paused = reading.Snapshot.Status.Paused.TryGetValue(out var read) ? read : throw new RequiredFactException("game_paused");
             }
             catch (NotLoadedException e)
             {
@@ -55,10 +65,7 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
                         Connected = false,
                         Stale = true,
                         Status = "No game is loaded",
-                        Identity = default,
-                        Tick = default,
-                        Paused = default,
-                        ObservedAt = default,
+                        World = new ControllerWorld.Unobserved(),
                     };
                 }
 
@@ -77,16 +84,13 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
             lock (_mu)
             {
                 _started = reading.Snapshot.StartedAt;
-                _gamePaused = reading.Snapshot.Status.Paused.TryGetValue(out var paused) && paused;
+                _gamePaused = paused;
                 _snapshot = _snapshot with
                 {
                     Connected = true,
                     Stale = false,
                     Status = "Read-only observation",
-                    Identity = Known(reading.Snapshot.Identity),
-                    Tick = Known(reading.Snapshot.Identity.Tick),
-                    Paused = reading.Snapshot.Status.Paused,
-                    ObservedAt = Known(reading.Snapshot.ObservedAt),
+                    World = new ControllerWorld.Observed(reading.Snapshot.Identity, paused, reading.Snapshot.ObservedAt),
                 };
             }
         }
@@ -142,17 +146,16 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
                 value = value with { Stale = true };
             }
 
-            if (value.ObservedAt.TryGetValue(out var observedAt) && now < observedAt)
+            if (value.World is ControllerWorld.Observed seen && now < seen.ObservedAt)
             {
                 value = value with { Stale = true };
             }
         }
 
         var control = player.State();
-        value = value with { Mode = "manual", Generation = Unknown<GenerationSnapshot>(), ActivePlanId = Unknown<PlanId>() };
-        var known = value.Identity.TryGetValue(out var identity);
-        var matching = control.ObservationKnown && known
-            && identity!.Colony == control.Snapshot.Colony && identity.Load == control.Snapshot.Load && identity.Map == control.Snapshot.Map;
+        value = value with { Mode = "manual", Control = new ControllerControl.Unmatched() };
+        var matching = control.ObservationKnown && value.World is ControllerWorld.Observed { Identity: var identity }
+            && identity.Colony == control.Snapshot.Colony && identity.Load == control.Snapshot.Load && identity.Map == control.Snapshot.Map;
         if (control.Enabled && matching && value.Connected && !value.Stale)
         {
             value = value with { Mode = "automate", Status = "Player execution enabled" };
@@ -168,7 +171,7 @@ internal sealed class HostSnapshots(string sessionId, ISource source, IClock clo
 
         if (matching)
         {
-            value = value with { Generation = Known(control.Snapshot), ActivePlanId = Known(control.Snapshot.Plan) };
+            value = value with { Control = new ControllerControl.Matching(control.Snapshot) };
         }
 
         return Task.FromResult(value);

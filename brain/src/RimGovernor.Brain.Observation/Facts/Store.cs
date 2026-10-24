@@ -38,15 +38,13 @@ public static class SectionExtensions
     public static IReadOnlyList<Section> Sections() => All;
 
     /// <summary>The fact family whose invalidation the section follows.</summary>
-    public static FactFamily Family(this Section section) => section switch
-    {
-        Section.Colony or Section.PlanningCells or Section.Zones or Section.Buildings or Section.Bills or Section.Ideology => FactFamily.Colony,
-        Section.Population or Section.Pawns => FactFamily.Pawns,
-        Section.Research => FactFamily.Research,
-        Section.Emergency => FactFamily.Emergency,
-        Section.Rooms => FactFamily.Rooms,
-        _ => throw new InvalidOperationException("unknown section"),
-    };
+    public static FactFamily Family(this Section section) =>
+        section is Section.Colony or Section.PlanningCells or Section.Zones or Section.Buildings or Section.Bills or Section.Ideology ? FactFamily.Colony
+        : section is Section.Population or Section.Pawns ? FactFamily.Pawns
+        : section == Section.Research ? FactFamily.Research
+        : section == Section.Emergency ? FactFamily.Emergency
+        : section == Section.Rooms ? FactFamily.Rooms
+        : throw new InvalidOperationException("unknown section");
 
     /// <summary>
     /// Whether the section's rows are cells, so an invalidation narrowed to a rectangle leaves it held when the
@@ -66,12 +64,9 @@ public static class SectionExtensions
     /// <c>Zone_</c> and its number, a thing <c>Thing_</c>, its def and its number. Bills have no load id, and the
     /// cell section is keyed by rectangle, not id.
     /// </summary>
-    public static bool Keyed(this Section section, string id) => section switch
-    {
-        Section.Zones => id.StartsWith("Zone_", StringComparison.Ordinal),
-        Section.Buildings => id.StartsWith("Thing_", StringComparison.Ordinal),
-        _ => false,
-    };
+    public static bool Keyed(this Section section, string id) =>
+        (section == Section.Zones && id.StartsWith("Zone_", StringComparison.Ordinal))
+        || (section == Section.Buildings && id.StartsWith("Thing_", StringComparison.Ordinal));
 }
 
 /// <summary>Inclusive cell bounds. The default Rect is "unknown", which intersects everything.</summary>
