@@ -107,10 +107,6 @@ public sealed partial class Rounder
         if (layout is { Plan: { } layoutPlan })
         {
             projection = projection with { LayoutPlan = Known(layoutPlan) };
-            if (projection.Rooms.TryGetValue(out var rooms))
-            {
-                projection = projection with { Rooms = Known(RoomsRules.MarkEnemyDoors(rooms, layoutPlan.KillboxCells())) };
-            }
         }
 
         if (Needs.Contains(ShelterFamily.SafeArea))

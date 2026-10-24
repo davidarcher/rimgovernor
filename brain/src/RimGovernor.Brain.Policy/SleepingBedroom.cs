@@ -82,7 +82,7 @@ public static partial class SleepingRules
             var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
             if (ok)
             {
-                output.UnionWith(room!.Beds.Where(b => !spots.Contains(b)));
+                output.UnionWith(room!.BedIds().Where(b => !spots.Contains(b)));
             }
         }
         return output;
@@ -122,9 +122,9 @@ public static partial class SleepingRules
         var indoorBeds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var room in rooms.Rooms)
         {
-            if (room.Enclosed.TryGetValue(out var enclosed) && enclosed)
+            if (room.Enclosed())
             {
-                foreach (var id in room.Beds)
+                foreach (var id in room.BedIds())
                 {
                     if (beds.TryGetValue(id, out var b) && b.Humanlike)
                     {
@@ -271,9 +271,9 @@ public static partial class SleepingRules
         var bedroomBed = new Dictionary<string, bool>(StringComparer.Ordinal);
         foreach (var room in rooms.Rooms)
         {
-            if (room.Role.TryGetValue(out var role) && role == RoomRole.Bedroom)
+            if (room.Role == RoomRole.Bedroom)
             {
-                foreach (var b in room.Beds)
+                foreach (var b in room.BedIds())
                 {
                     bedroomBed[b] = !spots.Contains(b);
                 }
@@ -354,7 +354,7 @@ public static partial class SleepingRules
             {
                 continue;
             }
-            var standing = room!.Beds.Where(b => !spots.Contains(b)).ToHashSet(StringComparer.Ordinal);
+            var standing = room!.BedIds().Where(b => !spots.Contains(b)).ToHashSet(StringComparer.Ordinal);
             var owners = sleeping.Beds.Where(b => standing.Contains(b.Id)).SelectMany(b => b.Owners).Distinct().Order().ToList();
             var over = owners.Count - (slots.Count - held);
             if (over <= 0)
@@ -385,7 +385,7 @@ public static partial class SleepingRules
             var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
             if (ok)
             {
-                foreach (var b in room!.Beds)
+                foreach (var b in room!.BedIds())
                 {
                     suiteBed.Add(b);
                 }
@@ -413,7 +413,7 @@ public static partial class SleepingRules
                 continue;
             }
             var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
-            var standing = ok ? room!.Beds.Count(b => !spots.Contains(b)) : 0;
+            var standing = ok ? room!.BedIds().Count(b => !spots.Contains(b)) : 0;
             var slots = BedSlotsOf(plan, r, rooms.Shapes.Furniture)?.Count ?? 1;
             if (standing < slots)
             {

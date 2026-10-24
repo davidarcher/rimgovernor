@@ -161,21 +161,14 @@ public sealed class LayoutReviewTests
     [Fact]
     public void HousingCountsLiveColonistsOwningABedInAnEnclosedBedroomOrBarracks()
     {
-        Observations.RoomState Rooms(string role, string bed, uint openRoof = 0) => new()
-        {
-            Id = bed + "-room",
-            Role = role,
-            ProperRoom = true,
-            OpenRoofCount = openRoof,
-            Beds = EquatableArray.From([new Common.Ref { Id = bed }]),
-        };
+        Observations.RoomState Rooms(RoomRole role, string bed, uint openRoof = 0) => RoomFixtures.State(bed + "-room", role, beds: [bed]) with { OpenRoofCount = openRoof };
         Observations.PawnState Pawn(string? bed, bool dead = false) => new() { Dead = dead, OwnedBed = bed is null ? null : new Common.Ref { Id = bed } };
         var rooms = new[]
         {
-            Rooms(Wire.Name(RoomRole.Bedroom), "b1"),
-            Rooms(Wire.Name(RoomRole.Barracks), "b2", openRoof: 2),
-            Rooms(Wire.Name(RoomRole.Barracks), "b4"),
-            Rooms(Wire.Name(RoomRole.Kitchen), "b3"),
+            Rooms(RoomRole.Bedroom, "b1"),
+            Rooms(RoomRole.Barracks, "b2", openRoof: 2),
+            Rooms(RoomRole.Barracks, "b4"),
+            Rooms(RoomRole.Kitchen, "b3"),
         };
         var pawns = new[] { Pawn("b1"), Pawn("b2"), Pawn("b3"), Pawn("b4"), Pawn("b1", dead: true), Pawn(null) };
 

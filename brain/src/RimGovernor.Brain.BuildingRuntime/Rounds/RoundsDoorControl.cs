@@ -23,7 +23,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 continue;
             }
-            change.Door.HoldOpen.TryGetValue(out var held);
+            var held = change.Door.HoldOpen;
             if (change.Heat && change.Passage)
             {
                 return (new RoundsBuildingResult { Verdict = AwaitingPlan("unsupported_forecast_door_passage",

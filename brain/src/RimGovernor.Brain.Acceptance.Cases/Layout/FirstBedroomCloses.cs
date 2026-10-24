@@ -25,7 +25,7 @@ namespace RimGovernor.Brain.Acceptance.Cases;
 internal static class LayoutFirstBedroomCloses
 {
     private const int Colonists = 3;
-    private static readonly HashSet<string> SleepingRoles = new(["Bedroom", "Barracks"], StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<Observations.RoomRole> SleepingRoles = [Observations.RoomRole.Bedroom, Observations.RoomRole.Barracks];
     private static readonly TelemetryKind[] Read = [TelemetryKinds.LayoutPlan, TelemetryKinds.LayoutReplanTiled, TelemetryKinds.PlannerStep];
 
     internal static TypedCase Case() => new()
@@ -70,11 +70,11 @@ internal static class LayoutFirstBedroomCloses
     private static Observations.RoomState? Enclosing(PlannedRoom r, IEnumerable<Observations.RoomState> rooms)
     {
         var bounds = r.Region.Bounds();
-        return rooms.FirstOrDefault(room => room is { ProperRoom: true, Outdoors: not true, OpenRoofCount: 0, TouchesMapEdge: not true }
+        return rooms.FirstOrDefault(room => room is { ProperRoom: true, Outdoors: false, OpenRoofCount: 0, TouchesMapEdge: false }
             && room.CellCount == (uint)r.Region.Area()
-            && room.Extents is { Minimum: { } min, Maximum: { } max }
+            && room.Extents is { Minimum: var min, Maximum: var max }
             && min.X >= bounds.X && min.Z >= bounds.Z && max.X < bounds.X + bounds.Width && max.Z < bounds.Z + bounds.Height
-            && r.Region.Contains(CellOf(min)) && r.Region.Contains(CellOf(max)));
+            && r.Region.Contains(min) && r.Region.Contains(max));
     }
 
     private sealed record Closed(int Room, PlannedRole Role, long Tick, HashSet<Cell> Ring);
@@ -105,7 +105,7 @@ internal static class LayoutFirstBedroomCloses
                 return ("no plan", false);
             }
             var reply = await s.CallAsync("rooms", NativeOps.ListRooms, new Observations.ListRoomsRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
-            var snapshot = TypedReads.Observed("rooms", NativeOps.ListRooms, reply, reply.Outcome?.Observed);
+            var snapshot = reply;
             var tick = snapshot.Context?.Tick ?? throw new AcceptanceException("the rooms read carries no tick");
             var buildings = await s.BuildingsAsync("buildings", new Observations.ListBuildingsRequest(), ct).ConfigureAwait(false);
             foreach (var r in plan.Rooms)
@@ -173,7 +173,7 @@ internal static class LayoutFirstBedroomCloses
         {
             throw new AcceptanceException($"not every colonist owns a bed in room {first.Room} (census {census?.Id ?? "none"}, beds {string.Join(',', inside)}): {string.Join(' ', owned.Select(kv => $"{kv.Key}={kv.Value}"))}");
         }
-        if (!SleepingRoles.Contains(census.Role ?? ""))
+        if (!SleepingRoles.Contains(census.Role))
         {
             throw new AcceptanceException($"the game's role for room {first.Room} (census {census.Id}) is {census.Role}, not Bedroom or Barracks");
         }

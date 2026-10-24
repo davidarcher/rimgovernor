@@ -5,9 +5,9 @@ namespace RimGovernor.Brain.BuildingRuntime;
 
 public sealed partial class RoundsBuildingPlanner
 {
-    private static readonly HashSet<Pol.RoomRole> FacilityFurnishingRoles =
+    private static readonly HashSet<RoomRole> FacilityFurnishingRoles =
     [
-        Pol.RoomRole.DiningRoom, Pol.RoomRole.RecRoom, Pol.RoomRole.Hospital, Pol.RoomRole.Laboratory, Pol.RoomRole.Workshop,
+        RoomRole.DiningRoom, RoomRole.RecRoom, RoomRole.Hospital, RoomRole.Laboratory, RoomRole.Workshop,
     ];
 
     internal (PlannedRole Role, bool Ok) PlannedRoomModule()

@@ -82,7 +82,7 @@ public interface INativeFacade
 
     Task<Obs.ListSuppliesReply> ListSuppliesAsync(Obs.ListSuppliesRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.ListRoomsReply> ListRoomsAsync(Obs.ListRoomsRequest request, CancellationToken cancellationToken);
+    Task<Obs.RoomsSnapshot> ListRoomsAsync(Obs.ListRoomsRequest request, CancellationToken cancellationToken);
 
     Task<Obs.ResearchReply> ReadResearchAsync(Obs.ResearchRequest request, CancellationToken cancellationToken);
 

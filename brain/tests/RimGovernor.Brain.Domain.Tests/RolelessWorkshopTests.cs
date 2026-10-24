@@ -37,10 +37,7 @@ public sealed class RolelessWorkshopTests
     {
         var region = RegionRules.RectRegion(new Rectangle(0, 0, 3, 3));
         var plan = new LayoutPlan { Rooms = [new PlannedRoom { Id = 1, Role = PlannedRole.Workshop, Region = region }] };
-        var rooms = new RoomObservation
-        {
-            Rooms = [new Room { Id = "r1", Role = Known(RoomRole.Room), Enclosed = Known(true), Cells = EquatableArray.From(region.Cells()) }],
-        };
+        var rooms = RoomFixtures.Census((RoomFixtures.State("r1"), region.Cells()));
         var contents = new[] { new RoomContents { Room = 1, Pieces = [new RoomPiece { Def = Spot }] } };
 
         Assert.Empty(RoomRoleRules.GuardNativeRoles(Catalog, plan, rooms, contents));

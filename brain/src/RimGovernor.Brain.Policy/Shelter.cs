@@ -23,7 +23,7 @@ public sealed record ShelterFacts
     /// <summary>A door held open to vent a hot room, or to close again, is owed.</summary>
     public Fact<bool> HeatDoorOwed { get; init; }
 
-    /// <summary>The bot-owned allowed areas differ from the enclosed roofed rooms and the plan (PlanSafeArea).</summary>
+    /// <summary>The bot-owned allowed areas differ from the enclosed roofed rooms and the plan (SafeAreaCells).</summary>
     public Fact<bool> SafeAreaOwed { get; init; }
 
     /// <summary>The season's comfort band the sleeping rooms are held inside (<see cref="RoundsPolicy.ColdExit"/>, <see cref="RoundsPolicy.HotExit"/>).</summary>

@@ -82,10 +82,7 @@ public static partial class PartySpotRules
         var quality = new Dictionary<string, RoomQuality>(StringComparer.Ordinal);
         foreach (var q in qualities)
         {
-            if (q.Quality.TryGetValue(out var v))
-            {
-                quality[q.Id] = v;
-            }
+            quality[q.Id] = q.Quality;
         }
         var free = new HashSet<Cell>();
         foreach (var c in input.Cells)
@@ -101,15 +98,16 @@ public static partial class PartySpotRules
         var candidates = new List<PartyCandidate>();
         foreach (var room in rooms.Rooms)
         {
-            var known = room.Role.TryGetValue(out var role);
+            var role = room.Role;
             var scored = quality.TryGetValue(room.Id, out var q);
-            if (!known || (role != RoomRole.DiningRoom && role != RoomRole.RecRoom) || !scored)
+            if ((role != RoomRole.DiningRoom && role != RoomRole.RecRoom) || !scored)
             {
                 continue;
             }
             stages[room.Id] = input.Levels.Stage(q!.Impressiveness);
-            var cells = room.Cells.Where(free.Contains).ToList();
-            candidates.Add(new PartyCandidate(room.Id, stages[room.Id], room.Cells.Count, cells));
+            var roomCells = rooms.CellsOf(room);
+            var cells = roomCells.Where(free.Contains).ToList();
+            candidates.Add(new PartyCandidate(room.Id, stages[room.Id], roomCells.Count, cells));
         }
         // The best room with a free cell: highest stage, then the larger room.
         PartyCandidate? best = null;
@@ -132,10 +130,10 @@ public static partial class PartySpotRules
         {
             foreach (var room in rooms.Rooms)
             {
-                if (room.Cells.Contains(b.Cells[0]))
+                if (rooms.CellsOf(room).Contains(b.Cells[0]))
                 {
-                    var known = room.Role.TryGetValue(out var role);
-                    if (!known || (role != RoomRole.DiningRoom && role != RoomRole.RecRoom))
+                    var role = room.Role;
+                    if (role != RoomRole.DiningRoom && role != RoomRole.RecRoom)
                     {
                         return (-1, true);
                     }

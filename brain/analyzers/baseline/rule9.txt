@@ -13,8 +13,6 @@ Bridge.Contracts/Facts/BiotechFacts.cs|Fact|12
 Bridge.Contracts/Facts/BiotechFacts.cs|Unknown|1
 Bridge.Contracts/Facts/CareConditions.cs|Fact|11
 Bridge.Contracts/Facts/CareConditions.cs|Unknown|2
-Bridge.Contracts/Facts/Colony.cs|Fact|15
-Bridge.Contracts/Facts/Colony.cs|Unknown|2
 Bridge.Contracts/Facts/CorpseClass.cs|Discard|1
 Bridge.Contracts/Facts/CreepJoinerFacts.cs|Fact|4
 Bridge.Contracts/Facts/CreepJoinerFacts.cs|Unknown|2
@@ -81,8 +79,7 @@ BuildingRuntime/Client/FacadeNativeClient.Research.cs|Fact|1
 BuildingRuntime/Client/FacadeNativeClient.Research.cs|Unknown|1
 BuildingRuntime/Client/FacadeNativeClient.Resources.cs|Fact|1
 BuildingRuntime/Client/FacadeNativeClient.Resources.cs|Unknown|1
-BuildingRuntime/Client/FacadeNativeClient.RoundsFrame.cs|Fact|6
-BuildingRuntime/Client/FacadeNativeClient.RoundsFrame.cs|Unknown|1
+BuildingRuntime/Client/FacadeNativeClient.RoundsFrame.cs|Fact|4
 BuildingRuntime/Client/FacadeNativeClient.Sites.cs|Discard|1
 BuildingRuntime/Client/FacadeNativeClient.World.cs|Fact|2
 BuildingRuntime/Client/FacadeNativeClient.World.cs|Unknown|2
@@ -103,7 +100,7 @@ BuildingRuntime/Colony/ColonyStationAdvice.cs|Fact|21
 BuildingRuntime/Colony/ColonyStationAdvice.cs|Unknown|4
 BuildingRuntime/Colony/ColonyStatus.cs|Fact|24
 BuildingRuntime/Colony/ColonyStatus.cs|Unknown|7
-BuildingRuntime/Combat/CombatRestoration.cs|Fact|3
+BuildingRuntime/Combat/CombatRestoration.cs|Fact|1
 BuildingRuntime/DraftNeeds.cs|Fact|4
 BuildingRuntime/DraftNeeds.cs|Unknown|1
 BuildingRuntime/ForecastEvidencePending.cs|Fact|3
@@ -119,7 +116,7 @@ BuildingRuntime/PlayerExpeditionHandoff.cs|Fact|4
 BuildingRuntime/PlayerExpeditionHandoff.cs|Unknown|1
 BuildingRuntime/ReviewMemory.cs|Fact|7
 BuildingRuntime/ReviewMemory.cs|Unknown|3
-BuildingRuntime/Rounds/Rounder.cs|Fact|51
+BuildingRuntime/Rounds/Rounder.cs|Fact|49
 BuildingRuntime/Rounds/Rounder.cs|Unknown|3
 BuildingRuntime/Rounds/RoundsAcquisition.cs|Fact|40
 BuildingRuntime/Rounds/RoundsAcquisition.cs|Unknown|4
@@ -167,7 +164,7 @@ BuildingRuntime/Rounds/RoundsCombat.cs|Discard|1
 BuildingRuntime/Rounds/RoundsCombat.cs|Fact|12
 BuildingRuntime/Rounds/RoundsCombatStep.cs|Fact|2
 BuildingRuntime/Rounds/RoundsComfort.cs|Fact|16
-BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Fact|18
+BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Fact|16
 BuildingRuntime/Rounds/RoundsCookingCampfire.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsCoupled.cs|Fact|18
 BuildingRuntime/Rounds/RoundsCreepJoiner.cs|Fact|13
@@ -198,7 +195,6 @@ BuildingRuntime/Rounds/RoundsDisaster.cs|Fact|7
 BuildingRuntime/Rounds/RoundsDisaster.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsDisease.cs|Fact|3
 BuildingRuntime/Rounds/RoundsDisease.cs|Unknown|1
-BuildingRuntime/Rounds/RoundsDoorControl.cs|Fact|1
 BuildingRuntime/Rounds/RoundsEnvelope.cs|Fact|1
 BuildingRuntime/Rounds/RoundsEnvelope.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsEquip.cs|Fact|7
@@ -237,7 +233,7 @@ BuildingRuntime/Rounds/RoundsIdeoligion.cs|Fact|6
 BuildingRuntime/Rounds/RoundsIdeoligion.cs|Unknown|7
 BuildingRuntime/Rounds/RoundsIdeology.cs|Fact|8
 BuildingRuntime/Rounds/RoundsIdeology.cs|Unknown|2
-BuildingRuntime/Rounds/RoundsImmediate.cs|Fact|5
+BuildingRuntime/Rounds/RoundsImmediate.cs|Fact|3
 BuildingRuntime/Rounds/RoundsImmediate.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsJoiners.cs|Unknown|1
 BuildingRuntime/Rounds/RoundsLapInputs.cs|Fact|1
@@ -328,7 +324,7 @@ BuildingRuntime/RoundsSurgery.cs|Fact|3
 BuildingRuntime/RoundsTemperature.cs|Discard|1
 BuildingRuntime/RoundsTemperature.cs|Fact|4
 BuildingRuntime/RoundsTemperature.cs|Unknown|2
-BuildingRuntime/RoundsThrone.cs|Fact|23
+BuildingRuntime/RoundsThrone.cs|Fact|22
 BuildingRuntime/RoundsTierStyle.cs|Fact|8
 BuildingRuntime/RoundsTierStyle.cs|Unknown|1
 BuildingRuntime/RoundsTrade.cs|Fact|12
@@ -381,7 +377,7 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|755
+Contracts/Observations.cs|NullableValue|722
 Contracts/Observations.cs|UnknownMember|17
 Contracts/Operations.cs|NullableValue|93
 Contracts/Operations.cs|UnknownMember|16
@@ -456,7 +452,7 @@ Observation/Clearance.cs|Fact|6
 Observation/Clearance.cs|Unknown|1
 Observation/Colony.cs|Fact|91
 Observation/Colony.cs|Unknown|4
-Observation/ColonyDecode.cs|Fact|54
+Observation/ColonyDecode.cs|Fact|56
 Observation/ColonyDecode.cs|Unknown|5
 Observation/ColonyFrames.cs|Fact|32
 Observation/ColonyFrames.cs|Unknown|5
@@ -500,19 +496,17 @@ Observation/RoundsContainment.cs|Fact|41
 Observation/RoundsContainment.cs|Unknown|20
 Observation/RoundsMood.cs|Fact|43
 Observation/RoundsMood.cs|Unknown|8
-Observation/RoundsRead.cs|Fact|51
-Observation/RoundsRead.cs|Unknown|16
+Observation/RoundsRead.cs|Fact|52
+Observation/RoundsRead.cs|Unknown|17
 Observation/RoundsWork.cs|Fact|43
 Observation/RoundsWork.cs|Unknown|6
 Observation/RoyaltyColonyProjection.cs|Fact|6
 Observation/RoyaltyColonyProjection.cs|Unknown|1
-Observation/SleepingUpkeep.cs|Fact|13
-Observation/SleepingUpkeep.cs|Unknown|5
+Observation/SleepingUpkeep.cs|Fact|6
+Observation/SleepingUpkeep.cs|Unknown|3
 Observation/StuffChoice.cs|Discard|1
 Observation/StuffChoice.cs|Fact|7
 Observation/StuffChoice.cs|Unknown|1
-Observation/TemperatureRooms.cs|Fact|12
-Observation/TemperatureRooms.cs|Unknown|4
 Observation/WorldSites.cs|Fact|10
 Observation/WorldSites.cs|Unknown|3
 PlayerApi/GoalsViewModel.cs|Discard|1
@@ -547,7 +541,7 @@ Policy/Armory.cs|Fact|10
 Policy/Armory.cs|UnknownMember|1
 Policy/ArmoryShells.cs|Fact|6
 Policy/ArmoryShells.cs|Unknown|1
-Policy/Art.cs|Fact|17
+Policy/Art.cs|Fact|16
 Policy/Art.cs|Unknown|1
 Policy/ArtOrders.cs|Fact|18
 Policy/BabyFeeding.cs|Fact|6
@@ -573,7 +567,6 @@ Policy/CapacityPenaltyTables.cs|NullableValue|6
 Policy/CareOrders.cs|Discard|1
 Policy/Ceremony.cs|Fact|9
 Policy/ChildRooms.cs|Fact|6
-Policy/ClearanceGround.cs|Fact|1
 Policy/Climate.cs|Discard|2
 Policy/Climate.cs|Fact|1
 Policy/ClockWatch.cs|Discard|1
@@ -634,7 +627,7 @@ Policy/Combat/CombatThreat.cs|Fact|6
 Policy/Combat/CombatWait.cs|Fact|7
 Policy/CombatAnimals.cs|Fact|15
 Policy/CombatAnomaly.cs|Fact|5
-Policy/CombatBatch.cs|Fact|4
+Policy/CombatBatch.cs|Fact|2
 Policy/CombatBleed.cs|Fact|9
 Policy/CombatBlocking.cs|Fact|7
 Policy/CombatCast.cs|Fact|15
@@ -642,7 +635,7 @@ Policy/CombatDecide.cs|Fact|25
 Policy/CombatDecide.cs|NullableValue|7
 Policy/CombatDecide.cs|UnknownMember|1
 Policy/CombatDoor.cs|Fact|5
-Policy/CombatDoorChoke.cs|Fact|18
+Policy/CombatDoorChoke.cs|Fact|8
 Policy/CombatDrugs.cs|Fact|3
 Policy/CombatExplosives.cs|Fact|4
 Policy/CombatFallback.cs|Fact|3
@@ -659,8 +652,8 @@ Policy/CombatManhunter.cs|Fact|3
 Policy/CombatManhunterChokes.cs|Fact|2
 Policy/CombatMechEmp.cs|Fact|6
 Policy/CombatMechPikemen.cs|Fact|2
-Policy/CombatPods.cs|Fact|9
-Policy/Comfort.cs|Fact|7
+Policy/CombatPods.cs|Fact|5
+Policy/Comfort.cs|Fact|6
 Policy/Comfort.cs|UnknownMember|1
 Policy/Comfort.cs|Unknown|2
 Policy/ConcernProgress.cs|NullableValue|1
@@ -679,7 +672,7 @@ Policy/ControlledEnvironment.cs|Fact|27
 Policy/ControlledEnvironment.cs|Unknown|2
 Policy/CoordinatedActivities.cs|Fact|5
 Policy/CorpseLarder.cs|Fact|21
-Policy/CoupleBed.cs|Fact|3
+Policy/CoupleBed.cs|Fact|1
 Policy/CreepJoiner.cs|Fact|50
 Policy/CreepJoiner.cs|NullableValue|1
 Policy/CreepJoiner.cs|Unknown|6
@@ -723,7 +716,7 @@ Policy/Disaster.cs|Unknown|6
 Policy/DisasterFamily.cs|Fact|8
 Policy/DiseaseRest.cs|Fact|13
 Policy/DiseaseRest.cs|Unknown|2
-Policy/DoorControl.cs|Fact|20
+Policy/DoorControl.cs|Fact|4
 Policy/DrugPolicyPlan.cs|Discard|1
 Policy/DrugPolicyPlan.cs|Fact|1
 Policy/Economy.cs|Fact|18
@@ -850,7 +843,6 @@ Policy/ForecastValueThermal.cs|Fact|2
 Policy/ForecastWorkInputs.cs|Fact|8
 Policy/FuelRunway.cs|Fact|19
 Policy/FuelRunway.cs|Unknown|3
-Policy/FurnitureRooms.cs|Fact|1
 Policy/Gathering.cs|Fact|23
 Policy/Gathering.cs|Unknown|2
 Policy/Gathering.cs|ValueOrDefault|1
@@ -872,7 +864,7 @@ Policy/GoalValues.cs|Fact|4
 Policy/GoalValues.cs|ValueOrDefault|1
 Policy/Goals.cs|NullableValue|9
 Policy/GoalsFamily.cs|Discard|7
-Policy/GoalsFamily.cs|Fact|106
+Policy/GoalsFamily.cs|Fact|105
 Policy/GoalsFamily.cs|NullableValue|1
 Policy/GoalsFamily.cs|Unknown|1
 Policy/GrowerCrop.cs|Fact|9
@@ -908,7 +900,7 @@ Policy/HerdWard.cs|Unknown|1
 Policy/HomeArea.cs|Fact|10
 Policy/HomeArea.cs|Unknown|1
 Policy/HomeUpkeep.cs|Fact|12
-Policy/Hospital.cs|Fact|23
+Policy/Hospital.cs|Fact|22
 Policy/Hospital.cs|UnknownMember|1
 Policy/Hospital.cs|Unknown|2
 Policy/Hostility.cs|Fact|23
@@ -948,7 +940,6 @@ Policy/IdeologyRule.cs|Discard|1
 Policy/IdeologyRule.cs|Fact|6
 Policy/IdeologyRule.cs|UnknownMember|1
 Policy/Interior.cs|Discard|3
-Policy/Interior.cs|Fact|3
 Policy/Interior.cs|NullableValue|1
 Policy/InteriorObjective.cs|Discard|1
 Policy/InteriorOpen.cs|Fact|1
@@ -960,9 +951,8 @@ Policy/ItemFactsFixture.cs|Fact|2
 Policy/Jail.cs|ValueOrDefault|1
 Policy/Joiners.cs|Fact|4
 Policy/Joiners.cs|ValueOrDefault|1
-Policy/KitchenSeparation.cs|Fact|10
+Policy/KitchenSeparation.cs|Fact|6
 Policy/KitchenSeparation.cs|Unknown|1
-Policy/KitchenSeparation.cs|ValueOrDefault|1
 Policy/Labor.cs|Fact|5
 Policy/Labor.cs|Unknown|1
 Policy/Layout.cs|Fact|27
@@ -982,7 +972,6 @@ Policy/LayoutFieldReplan.cs|Fact|2
 Policy/LayoutGeometry.cs|Discard|1
 Policy/LayoutGraph.cs|Discard|2
 Policy/LayoutGraph.cs|Fact|2
-Policy/LayoutGround.cs|Fact|1
 Policy/LayoutJoyNodes.cs|Fact|4
 Policy/LayoutJoyNodes.cs|Unknown|1
 Policy/LayoutLight.cs|Fact|1
@@ -1014,7 +1003,7 @@ Policy/MealStock.cs|Unknown|1
 Policy/MealTier.cs|Discard|2
 Policy/MealTier.cs|Fact|27
 Policy/MealTier.cs|Unknown|2
-Policy/MechChargerConcern.cs|Fact|14
+Policy/MechChargerConcern.cs|Fact|13
 Policy/MechChargerConcern.cs|Unknown|1
 Policy/MechControl.cs|Fact|20
 Policy/MechGestation.cs|Fact|19
@@ -1066,7 +1055,7 @@ Policy/OrganHarvest.cs|Fact|62
 Policy/OrganHarvest.cs|Unknown|1
 Policy/OutdoorHazard.cs|Fact|8
 Policy/OutdoorHazard.cs|Unknown|1
-Policy/PartySpot.cs|Fact|21
+Policy/PartySpot.cs|Fact|18
 Policy/PartySpot.cs|Unknown|1
 Policy/PasteSite.cs|Fact|10
 Policy/PawnBiotech.cs|Fact|39
@@ -1152,7 +1141,7 @@ Policy/RecoveryMethod.cs|Unknown|6
 Policy/RecoveryQueue.cs|Fact|18
 Policy/RecoveryQueue.cs|Unknown|3
 Policy/Refrigeration.cs|Discard|2
-Policy/Refrigeration.cs|Fact|37
+Policy/Refrigeration.cs|Fact|35
 Policy/Refrigeration.cs|UnknownMember|1
 Policy/Refrigeration.cs|Unknown|3
 Policy/RefusalBudget.cs|Discard|1
@@ -1184,15 +1173,14 @@ Policy/Ritual.cs|Fact|20
 Policy/Ritual.cs|Unknown|2
 Policy/RockStep.cs|Fact|4
 Policy/RoofSupport.cs|Fact|1
-Policy/RoomQualityBeauty.cs|Fact|7
-Policy/RoomQualityBed.cs|Fact|8
-Policy/RoomQualitySuite.cs|Fact|3
-Policy/RoomQualitySwap.cs|Fact|3
-Policy/RoomQualityTarget.cs|Fact|4
-Policy/RoomQualityUpgrade.cs|Fact|2
+Policy/RoomQualityBeauty.cs|Fact|6
+Policy/RoomQualityBed.cs|Fact|7
+Policy/RoomQualitySuite.cs|Fact|2
+Policy/RoomQualitySwap.cs|Fact|2
+Policy/RoomQualityTarget.cs|Fact|3
+Policy/RoomQualityUpgrade.cs|Fact|1
 Policy/RoomRole.cs|Discard|1
-Policy/RoomRoleGuard.cs|Fact|1
-Policy/Rooms.cs|Fact|16
+Policy/Rooms.cs|Fact|1
 Policy/RoomsFamily.cs|Fact|17
 Policy/Rounds.cs|Discard|1
 Policy/Rounds.cs|Fact|182
@@ -1203,7 +1191,6 @@ Policy/Routes.cs|Fact|12
 Policy/Routes.cs|UnknownMember|1
 Policy/Royalty.cs|Fact|21
 Policy/RoyaltyFamily.cs|Fact|5
-Policy/SafeArea.cs|Fact|2
 Policy/SafetyOverlay.cs|Fact|2
 Policy/Shelter.cs|Fact|11
 Policy/Shelter.cs|Unknown|1
@@ -1214,13 +1201,12 @@ Policy/SilverGap.cs|Unknown|6
 Policy/SiteHydroponicsUnit.cs|Fact|10
 Policy/SiteType.cs|Discard|2
 Policy/SiteType.cs|Fact|42
-Policy/SleepingBedroom.cs|Fact|17
+Policy/SleepingBedroom.cs|Fact|15
 Policy/SleepingBedroom.cs|Unknown|1
-Policy/SleepingMethod.cs|Fact|20
+Policy/SleepingMethod.cs|Fact|17
 Policy/SleepingMethod.cs|UnknownMember|1
 Policy/SleepingMigrate.cs|Fact|7
-Policy/SleepingRooms.cs|Fact|2
-Policy/SleepingUpkeep.cs|Fact|35
+Policy/SleepingUpkeep.cs|Fact|33
 Policy/SleepingUpkeep.cs|Unknown|1
 Policy/SocialCrops.cs|Fact|8
 Policy/SoldierSquad.cs|Fact|3
@@ -1253,7 +1239,7 @@ Policy/Surgery.cs|Unknown|5
 Policy/SurgeryParts.cs|Fact|22
 Policy/TechTier.cs|Fact|7
 Policy/TechTier.cs|Unknown|1
-Policy/TemperatureMethod.cs|Fact|51
+Policy/TemperatureMethod.cs|Fact|41
 Policy/TemperatureMethod.cs|UnknownMember|1
 Policy/TemperatureMethod.cs|Unknown|2
 Policy/Tend.cs|Fact|46
@@ -1269,8 +1255,8 @@ Policy/TitleClaim.cs|UnknownMember|1
 Policy/TitleClaim.cs|Unknown|2
 Policy/Tomb.cs|Fact|13
 Policy/Tomb.cs|Unknown|3
-Policy/TombCooling.cs|Fact|12
-Policy/TombCooling.cs|Unknown|2
+Policy/TombCooling.cs|Fact|11
+Policy/TombCooling.cs|Unknown|1
 Policy/TradeAcquisition.cs|Discard|1
 Policy/TradeAcquisition.cs|Fact|37
 Policy/TradeFavor.cs|Fact|30

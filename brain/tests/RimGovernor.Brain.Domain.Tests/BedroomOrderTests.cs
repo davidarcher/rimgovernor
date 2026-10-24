@@ -55,10 +55,7 @@ public sealed class BedroomOrderTests
 
     private static SleepingPerson Person(PawnId id, string bed) => new() { Id = id, OwnedBed = Known(bed) };
 
-    private static Room Standing(string id, PlannedRoom room, RoomRole role, params string[] beds) => new()
-    {
-        Id = id, Role = Known(role), Enclosed = Known(true), Cells = [.. room.Region.Cells()], Beds = [.. beds],
-    };
+    private static (RoomState Room, IEnumerable<Cell> Cells) Standing(string id, PlannedRoom room, RoomRole role, params string[] beds) => (RoomFixtures.State(id, role, beds: beds), room.Region.Cells());
 
     // Both colonists sleep in the hall, a barracks; the planned bedroom stands with its bed v vacant.
     private static readonly SleepingObservation Sharing = new()
@@ -67,10 +64,7 @@ public sealed class BedroomOrderTests
         Beds = [SleepingBed("s1", "hall", A), SleepingBed("s2", "hall", B), SleepingBed("v", "bedroom")],
     };
 
-    private static readonly RoomObservation StandingBedroom = new()
-    {
-        Rooms = [Standing("hall", Hall, RoomRole.Barracks, "s1", "s2"), Standing("bedroom", Bedroom, RoomRole.Bedroom, "v")],
-    };
+    private static readonly RoomObservation StandingBedroom = RoomFixtures.Census(Standing("hall", Hall, RoomRole.Barracks, "s1", "s2"), Standing("bedroom", Bedroom, RoomRole.Bedroom, "v"));
 
     private static BedroomStep Step(SleepingObservation sleeping, BedroomGainFacts gains, Dictionary<string, RoomTarget>? targets = null) =>
         SleepingRules.NextBedroomStep(new LayoutPlan { Rooms = [Bedroom], NextRoomId = 4 }, StandingBedroom, sleeping, targets ?? [],
@@ -88,7 +82,7 @@ public sealed class BedroomOrderTests
 
         // Unbuilt, the planned bedroom's occupant is that same colonist, at the bedroom's predicted stage.
         var occupants = SleepingRules.PlannedBedroomOccupants(new LayoutPlan { Rooms = [Bedroom], NextRoomId = 4 },
-            new RoomObservation { Rooms = [Standing("hall", Hall, RoomRole.Barracks, "s1", "s2")] }, Sharing with { Beds = [.. Sharing.Beds.Take(2)] }, null, gains);
+            RoomFixtures.Census(Standing("hall", Hall, RoomRole.Barracks, "s1", "s2")), Sharing with { Beds = [.. Sharing.Beds.Take(2)] }, null, gains);
         Assert.Equal(["b"], Assert.Single(occupants, r => r.Key == Bedroom.Id).Value.ToArray());
     }
 
@@ -121,7 +115,7 @@ public sealed class BedroomOrderTests
 
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         var occupants = SleepingRules.PlannedBedroomOccupants(new LayoutPlan { Rooms = [Bedroom], NextRoomId = 4 },
-            new RoomObservation { Rooms = [Standing("hall", Hall, RoomRole.Barracks, "s1", "s2")] }, Sharing with { Beds = [.. Sharing.Beds.Take(2)] }, null, gains, findings);
+            RoomFixtures.Census(Standing("hall", Hall, RoomRole.Barracks, "s1", "s2")), Sharing with { Beds = [.. Sharing.Beds.Take(2)] }, null, gains, findings);
         Assert.Equal(["a"], occupants[Bedroom.Id].ToArray());
         Assert.Equal(["bedroom_order_unpriced:a"], findings);
     }

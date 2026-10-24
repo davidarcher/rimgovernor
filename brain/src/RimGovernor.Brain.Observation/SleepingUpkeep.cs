@@ -100,7 +100,7 @@ public static class SleepingUpkeepReads
     /// <summary>
     /// The room-quality view of the frame's rooms census: every room holding a colonist bed (humanlike, not
     /// medical, not for prisoners) or carrying a common role (dining, rec room) and not fogged, with its native
-    /// stats. Unknown when a bed's room is unknown; a room missing any quality stat has unknown quality.
+    /// stats. Unknown when a bed's room is unknown
     /// </summary>
     internal static Fact<EquatableArray<UpkeepRoom>> UpkeepRooms(O.RoomsSnapshot? census, EquatableArray<SleepingBed> beds)
     {
@@ -124,25 +124,19 @@ public static class SleepingUpkeepReads
         var rows = new List<UpkeepRoom>();
         foreach (var r in census?.Rooms ?? [])
         {
-            var role = (r.Role ?? "");
-            var held = owned.GetValueOrDefault((r.Id ?? "")) ?? [];
-            if (held.Count == 0 && (r.Fogged.GetValueOrDefault() || (role != "DiningRoom" && role != "RecRoom")))
+            var held = owned.GetValueOrDefault(r.Id) ?? [];
+            if (held.Count == 0 && (r.Fogged || (r.Role != RoomRole.DiningRoom && r.Role != RoomRole.RecRoom)))
             {
                 continue;
             }
-            var cells = r.CellCount is not null ? Known((int)r.CellCount.GetValueOrDefault()) : Unknown<int>();
-            var quality = Unknown<RoomQuality>();
-            var sk = TemperatureRoomsReads.RoomStat(r, "Space").TryGetValue(out var s);
-            var bk = TemperatureRoomsReads.RoomStat(r, "Beauty").TryGetValue(out var b);
-            var ck = TemperatureRoomsReads.RoomStat(r, "Cleanliness").TryGetValue(out var c);
-            var wk = TemperatureRoomsReads.RoomStat(r, "Wealth").TryGetValue(out var w);
-            var ik = TemperatureRoomsReads.RoomStat(r, "Impressiveness").TryGetValue(out var i);
-            if (sk && bk && ck && wk && ik)
-            {
-                quality = Known(new RoomQuality(s, b, c, w, i));
-            }
-            rows.Add(new UpkeepRoom { Id = r.Id ?? "", Role = role, Quality = quality, Cells = cells, Beds = EquatableArray.From(new List<string>(held)) });
+            var quality = new RoomQuality(RoomStat(r, "Space"), RoomStat(r, "Beauty"), RoomStat(r, "Cleanliness"), RoomStat(r, "Wealth"), RoomStat(r, "Impressiveness"));
+            rows.Add(new UpkeepRoom { Id = r.Id, Role = r.Role, Quality = quality, Cells = (int)r.CellCount, Beds = EquatableArray.From(held) });
         }
         return Known(EquatableArray.From(rows));
     }
+
+    /// <summary>One named native room stat; the census carries every quality stat for every room.</summary>
+    private static double RoomStat(O.RoomState room, string name) =>
+        room.Stats.FirstOrDefault(stat => stat.DefName == name)?.Value
+            ?? throw new ObservationContractException($"room {room.Id} carries no {name} stat");
 }

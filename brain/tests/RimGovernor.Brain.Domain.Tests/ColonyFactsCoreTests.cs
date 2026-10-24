@@ -41,7 +41,7 @@ public sealed class ColonyFactsCoreTests
         Recovery = new(),
         Waste = new(),
         PlayerTechLevel = Defs.TechLevel.Neolithic,
-        Threat = new(),
+        Threat = new() { Observed = QuietThreat },
         EventLoot = new(),
         FoodChannels = new(),
         DeepResources = new(),
@@ -61,9 +61,24 @@ public sealed class ColonyFactsCoreTests
         Bounds = default,
         PlayerTechLevel = Defs.TechLevel.Neolithic,
         Workers = 0,
+        Threat = QuietThreat,
         DeliveryLedger = DeliveryLedgerTests.NoDeliveries,
         PendingFoodNutrition = 0,
         PendingHunts = 0,
+    };
+
+    /// <summary>A threat read of a colony with no wealth, no raid points, no hostile faction and no raid on the map.</summary>
+    internal static ThreatFacts QuietThreat { get; } = new()
+    {
+        WealthItems = 0,
+        WealthBuildings = 0,
+        WealthPawns = 0,
+        WealthTotal = 0,
+        RaidPoints = 0,
+        Storyteller = "Cassandra",
+        DaysPassed = 0,
+        HostileFactions = [],
+        Raids = [],
     };
 
     [Fact]

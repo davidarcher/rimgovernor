@@ -72,7 +72,7 @@ public sealed record PieceShapes
             if (w.Family != RoomRole.None && shape.Family != w.Family)
             {
                 throw new DomainException(
-                    $"interior templates plan {w.Def} as a {Wire.Name(w.Family)} piece, its row puts it in family \"{Wire.Name(shape.Family)}\"");
+                    $"interior templates plan {w.Def} as a {w.Family.Name} piece, its row puts it in family \"{shape.Family.Name}\"");
             }
             if (w.Bench && !InteriorHelpersRules.FrontInteraction(shape))
             {
@@ -85,7 +85,7 @@ public sealed record PieceShapes
     /// A definition the interior templates plan: the family it must be in (None: any) and whether it is a
     /// bench a worker uses from the open floor in front of it.
     /// </summary>
-    private sealed record TemplatePiece(string Def, RoomRole Family, bool Bench);
+    private sealed record TemplatePiece(string Def, PlanRole Family, bool Bench);
 
     // The furniture the interior templates plan that no rule of RoomFurniture names. A catalog missing one
     // cannot lay a template out, which Validate names.

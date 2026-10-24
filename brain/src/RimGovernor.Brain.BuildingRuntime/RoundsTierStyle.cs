@@ -46,7 +46,7 @@ internal static class RoundsTierStyle
         facts.Acquisition.TryGetValue(out var sources) && sources.Any(s => s.Resource == TierStyleRules.GuardedWallStuff && !s.Tree);
 
     /// <summary>The floor rule the flooring planner prefers per room role before it scores the census: null at Camp, where no floor is styled.</summary>
-    internal static Func<Pol.RoomRole, (string Def, bool Ok)>? FloorStyle(Observation.ColonyProjection facts)
+    internal static Func<RoomRole, (string Def, bool Ok)>? FloorStyle(Observation.ColonyProjection facts)
     {
         var tier = StyleTier(facts);
         var stock = StyleStock(facts);

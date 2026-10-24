@@ -53,7 +53,7 @@ public sealed record TitleClaimFacts
 
     public LayoutPlan Plan { get; init; } = new();
 
-    public RoomObservation Rooms { get; init; } = new();
+    public required RoomObservation Rooms { get; init; }
 
     public IReadOnlyList<CurrentBuilding> Built { get; init; } = [];
 

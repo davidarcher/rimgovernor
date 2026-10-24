@@ -56,17 +56,19 @@ public sealed partial class RoundsBuildingPlanner
             return (null, FieldUnavailable("lighting"));
         }
 
+        if (!facts.Rooms.TryGetValue(out var rooms))
+        {
+            return (null, FieldUnavailable("rooms"));
+        }
+
         var lighting = new LightingFacts
         {
+            Rooms = rooms,
             Cells = facts.Cells,
             Available = facts.Definitions.ToDictionary(d => d.Name, d => d.Available),
             PoweredSource = RoundsTierStyle.PoweredSource(facts),
             Styled = RoundsTierStyle.LampStyle(facts),
         };
-        if (facts.Rooms.TryGetValue(out var rooms))
-        {
-            lighting = lighting with { Rooms = rooms.Rooms };
-        }
 
         if (facts.LayoutPlan.TryGetValue(out var plan))
         {

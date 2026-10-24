@@ -107,10 +107,7 @@ public static partial class RoomQualityRules
         var quality = new Dictionary<string, RoomQuality>(StringComparer.Ordinal);
         foreach (var r in census)
         {
-            if (r.Quality.TryGetValue(out var q))
-            {
-                quality[r.Id] = q;
-            }
+            quality[r.Id] = r.Quality;
         }
         var furniture = new Dictionary<string, FurnitureRoom>(StringComparer.Ordinal);
         foreach (var r in rooms)

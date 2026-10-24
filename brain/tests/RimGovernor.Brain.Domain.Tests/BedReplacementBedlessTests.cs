@@ -26,8 +26,8 @@ public sealed class BedReplacementBedlessTests
         ],
         Rooms = Known<EquatableArray<UpkeepRoom>>(
         [
-            new UpkeepRoom { Id = "dorm", Role = "Bedroom", Beds = ["bed-owner", "spot"], Quality = Known(new RoomQuality(0, 0, 0, 0, 0)) },
-            new UpkeepRoom { Id = "other-room", Role = "Bedroom", Beds = ["bed-other"], Quality = Known(new RoomQuality(0, 0, 0, 0, 0)) },
+            new UpkeepRoom { Id = "dorm", Role = RoomRole.Bedroom, Beds = ["bed-owner", "spot"], Quality = new RoomQuality(0, 0, 0, 0, 0), Cells = 0 },
+            new UpkeepRoom { Id = "other-room", Role = RoomRole.Bedroom, Beds = ["bed-other"], Quality = new RoomQuality(0, 0, 0, 0, 0), Cells = 0 },
         ]),
     };
 

@@ -18,7 +18,7 @@ public sealed class InteriorFurnitureClearTests
             new GroundCensus(),
             rows,
             [],
-            new RoomObservation(),
+            RoomObservation.NoRooms,
             retired ?? new RetiredGround(),
             null
         );
@@ -51,7 +51,7 @@ public sealed class InteriorFurnitureClearTests
             new GroundCensus(),
             [Row("w", "AncientWall", new Cell(1, 1), "ancient_wall_door")],
             [],
-            new RoomObservation(),
+            RoomObservation.NoRooms,
             new RetiredGround(),
             null
         );

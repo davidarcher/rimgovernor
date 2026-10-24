@@ -64,17 +64,14 @@ public static partial class MechRules
         {
             foreach (var room in rooms.Rooms)
             {
-                if (!room.Role.TryGetValue(out var role))
-                {
-                    continue;
-                }
+                var role = room.Role;
                 if (role == RoomRole.Bedroom || role == RoomRole.Barracks)
                 {
-                    bedroomCells.AddRange(room.Cells);
+                    bedroomCells.AddRange(rooms.CellsOf(room));
                 }
                 else if (role == RoomRole.DiningRoom || role == RoomRole.RecRoom)
                 {
-                    livingCells.AddRange(room.Cells);
+                    livingCells.AddRange(rooms.CellsOf(room));
                 }
             }
         }

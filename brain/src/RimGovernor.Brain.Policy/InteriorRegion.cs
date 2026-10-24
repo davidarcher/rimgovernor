@@ -51,10 +51,10 @@ public static class InteriorRegionRules
         return new RegionFrame(Math.Max(b.Width, b.Height), Math.Min(b.Width, b.Height), Math.Max(b.Width, b.Height) / 2);
     }
 
-    private static readonly Lazy<IReadOnlyDictionary<RoomRole, RegionRole>> RegionRoles = new(() =>
+    private static readonly Lazy<IReadOnlyDictionary<PlanRole, RegionRole>> RegionRoles = new(() =>
     {
         RegionRole child = InteriorRegionRolesRules.ChildRoomWants;
-        return new Dictionary<RoomRole, RegionRole>
+        return new Dictionary<PlanRole, RegionRole>
         {
             [RoomRole.Workshop] = InteriorRegionRolesRules.WorkshopWants,
             [RoomRole.Laboratory] = InteriorRegionRolesRules.LaboratoryWants,
@@ -63,7 +63,7 @@ public static class InteriorRegionRules
             [RoomRole.PrisonCell] = InteriorRegionRolesRules.JailWants,
             [RoomRole.Hospital] = InteriorRegionRolesRules.HospitalWants,
             [RoomRole.Bedroom] = InteriorRegionRolesRules.BedroomWants,
-            [RoomRole.Suite] = InteriorRegionRolesRules.BedroomWants,
+            [PlanRole.Suite] = InteriorRegionRolesRules.BedroomWants,
             [RoomRole.ThroneRoom] = InteriorRegionRolesRules.ThroneWants,
             [RoomRole.DiningRoom] = InteriorRegionRolesRules.DiningWants(false),
             [RoomRole.RecRoom] = InteriorRegionRolesRules.DiningWants(true),
@@ -73,7 +73,7 @@ public static class InteriorRegionRules
             [RoomRole.WorshipRoom] = child,
             [RoomRole.DeathrestChamber] = child,
             [RoomRole.ContainmentCell] = child,
-            [RoomRole.IsolationRoom] = child,
+            [PlanRole.IsolationRoom] = child,
         };
     });
 

@@ -257,7 +257,7 @@ public sealed record RoundsFacts
     /// <summary>A bedroom below target, weakest in beauty, has a free cell for a sculpture (SculptureRoomsOwed); the work ledger's art bills read it. Unknown unless the rooms/art Need is composed.</summary>
     public Fact<bool> SculptureRoomsOwed { get; init; }
 
-    /// <summary>The Safe allowed area differs from the enclosed roofed rooms (PlanSafeArea); it keeps the shelter/safe-area Need unmet. Unknown unless that Need is composed.</summary>
+    /// <summary>The Safe allowed area differs from the enclosed roofed rooms (SafeAreaCells); it keeps the shelter/safe-area Need unmet. Unknown unless that Need is composed.</summary>
     public Fact<bool> SafeAreaOwed { get; init; }
 
 

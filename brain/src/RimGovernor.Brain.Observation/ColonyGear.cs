@@ -21,7 +21,7 @@ public static class ColonyGearReads
             return Unknown<GearObservation>();
         }
         var arrival = StuffArrivalFacts(v, tables, catalog, stock, fields, crops);
-        var threat = RaidThreatFacts(v.Threat?.Observed, defs.Catalog);
+        var threat = RaidThreatFacts(v.Threat.Observed, defs.Catalog);
         var pawns = new List<GearPawn>(gear.Pawns.Count);
         foreach (var p in gear.Pawns)
         {
@@ -101,16 +101,16 @@ public static class ColonyGearReads
 
     /// <summary>
     /// The expected raid the gear planner values armor against (#3545): the composition of the observed raid points from the
-    /// hostile factions, with the catalog's body coverage and the race's natural armor. Unknown without a catalog, raid points
-    /// or hostile factions, or when the composition cannot be decoded.
+    /// hostile factions, with the catalog's body coverage and the race's natural armor. Unknown without a catalog or hostile
+    /// factions, or when the composition cannot be decoded.
     /// </summary>
-    internal static Fact<RaidThreat> RaidThreatFacts(O.ThreatFacts? threat, DefinitionCatalog? catalog)
+    internal static Fact<RaidThreat> RaidThreatFacts(O.ThreatFacts threat, DefinitionCatalog? catalog)
     {
-        if (catalog is null || threat?.RaidPoints is not { } points || threat.HostileFactions.Count == 0)
+        if (catalog is null || threat.HostileFactions.Count == 0)
         {
             return Unknown<RaidThreat>();
         }
-        var composition = RaidCompositionRules.Of(points, [.. threat.HostileFactions], catalog.RaidFactions());
+        var composition = RaidCompositionRules.Of(threat.RaidPoints, [.. threat.HostileFactions], catalog.RaidFactions());
         return composition.Pawns.IsKnown
             ? Known(new RaidThreat { Bins = composition.Bins, Coverage = catalog.BodyCoverage(), Natural = catalog.NaturalArmor() })
             : Unknown<RaidThreat>();

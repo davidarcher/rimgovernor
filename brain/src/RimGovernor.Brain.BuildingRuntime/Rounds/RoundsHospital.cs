@@ -84,7 +84,7 @@ public sealed partial class RoundsBuildingPlanner
                 return (null, BuildingReasonHospitalUnavailable);
         }
 
-        var facility = RoomsRules.Facility(Policy.RoomRole.Hospital);
+        var facility = RoomsRules.Facility(RoomRole.Hospital);
         var resolved = Copy();
         resolved.Definition = choice.Definition;
         resolved.Environment = PlacementEnvironment.Indoors;

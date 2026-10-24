@@ -6,7 +6,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record InteriorRoom
 {
-    public RoomRole Role { get; init; }
+    public PlanRole Role { get; init; }
 
     public Rectangle Interior { get; init; }
 
@@ -168,14 +168,14 @@ public static class InteriorRules
     /// Reads a census room as a plan input under the given role: only a room whose cells fill their
     /// bounding rectangle has an interior, and its doors are the doorways beside that rectangle's sides.
     /// </summary>
-    public static (InteriorRoom? Room, bool Ok) InteriorRoomFromCensus(Room room, RoomRole role, IReadOnlyList<Cell> doorways, PieceShapes shapes)
+    public static (InteriorRoom? Room, bool Ok) InteriorRoomFromCensus(IReadOnlyList<Cell> cells, PlanRole role, IReadOnlyList<Cell> doorways, PieceShapes shapes)
     {
-        if (room.Cells.Count == 0)
+        if (cells.Count == 0)
         {
             return (null, false);
         }
-        var rect = PlacementSearchRules.CellsRectangle(room.Cells);
-        var seen = new HashSet<Cell>(room.Cells);
+        var rect = PlacementSearchRules.CellsRectangle(cells);
+        var seen = new HashSet<Cell>(cells);
         if (seen.Count != (long)rect.Width * rect.Height)
         {
             return (null, false);
@@ -193,11 +193,11 @@ public static class InteriorRules
     }
 
     /// <summary>Maps a layout module to the census role its furniture gives it.</summary>
-    internal static readonly IReadOnlyDictionary<PlannedRole, RoomRole> ModuleRoomRoles = new Dictionary<PlannedRole, RoomRole>
+    internal static readonly IReadOnlyDictionary<PlannedRole, PlanRole> ModuleRoomRoles = new Dictionary<PlannedRole, PlanRole>
     {
         [PlannedRole.Bedroom] = RoomRole.Bedroom,
         [PlannedRole.Barracks] = RoomRole.Barracks,
-        [PlannedRole.Suite] = RoomRole.Suite,
+        [PlannedRole.Suite] = PlanRole.Suite,
         [PlannedRole.Dining] = RoomRole.DiningRoom,
         [PlannedRole.Rec] = RoomRole.RecRoom,
         [PlannedRole.Lab] = RoomRole.Laboratory,
@@ -209,7 +209,7 @@ public static class InteriorRules
         [PlannedRole.Worship] = RoomRole.WorshipRoom,
         [PlannedRole.DeathrestChamber] = RoomRole.DeathrestChamber,
         [PlannedRole.ContainmentCell] = RoomRole.ContainmentCell,
-        [PlannedRole.IsolationRoom] = RoomRole.IsolationRoom,
+        [PlannedRole.IsolationRoom] = PlanRole.IsolationRoom,
         [PlannedRole.Hospital] = RoomRole.Hospital,
         [PlannedRole.Kitchen] = RoomRole.Kitchen,
         [PlannedRole.Workshop] = RoomRole.Workshop,
@@ -390,11 +390,10 @@ public static class InteriorRules
         var purposed = new Dictionary<Cell, string>();
         foreach (var room in rooms.Rooms)
         {
-            var known = room.Role.TryGetValue(out var role);
-            room.Enclosed.TryGetValue(out var enclosed);
-            if (known && enclosed && (!PassThroughRoles.Contains(role) || (f.Role == RoomRole.Kitchen && role == RoomRole.Storeroom)))
+            var role = room.Role;
+            if (room.Enclosed() && (!PassThroughRoles.Contains(role) || (f.Role == RoomRole.Kitchen && role == RoomRole.Storeroom)))
             {
-                foreach (var c in room.Cells)
+                foreach (var c in rooms.CellsOf(room))
                 {
                     purposed[c] = room.Id;
                 }
@@ -403,7 +402,8 @@ public static class InteriorRules
         var output = new List<InteriorRoom>();
         foreach (var room in rooms.Rooms)
         {
-            if (!room.Role.TryGetValue(out var role) || !f.Hosts(role))
+            var role = room.Role;
+            if (!f.Hosts(role))
             {
                 continue;
             }
@@ -411,7 +411,7 @@ public static class InteriorRules
             {
                 role = f.Role;
             }
-            var (planned, ok) = InteriorRoomFromCensus(room, role, doorways, rooms.Shapes);
+            var (planned, ok) = InteriorRoomFromCensus(rooms.CellsOf(room), role, doorways, rooms.Shapes);
             if (!ok)
             {
                 continue;
@@ -429,7 +429,7 @@ public static class InteriorRules
             }
             var standing = new HashSet<string>(StringComparer.Ordinal);
             var standingList = new List<string>();
-            foreach (var c in room.Cells)
+            foreach (var c in rooms.CellsOf(room))
             {
                 if (edifice.TryGetValue(c, out var d) && standing.Add(d))
                 {

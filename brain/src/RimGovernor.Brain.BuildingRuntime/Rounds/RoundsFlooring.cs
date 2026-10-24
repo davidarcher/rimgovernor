@@ -246,7 +246,7 @@ partial class RoundsBuildingPlanner
         var style = RoundsTierStyle.FloorStyle(facts);
         if (style is not null)
         {
-            v = v with { TrafficStyle = style(Pol.RoomRole.None).Item1 };
+            v = v with { TrafficStyle = style(RoomRole.None).Item1 };
         }
 
         return Known(v);

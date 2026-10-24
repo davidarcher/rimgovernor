@@ -34,7 +34,7 @@ public static class ColonyHousing
         var pawnsReply = await h.CallAsync("housing-pawns", NativeOps.ListPawns, new Observations.ListPawnsRequest { Scope = scope, Filter = new() { Colonist = true } }, cancellationToken).ConfigureAwait(false);
         var pawns = TypedReads.Observed("housing-pawns", NativeOps.ListPawns, pawnsReply, pawnsReply.Outcome?.Observed).Pawns;
         var roomsReply = await h.CallAsync("housing-rooms", NativeOps.ListRooms, new Observations.ListRoomsRequest { Scope = scope }, cancellationToken).ConfigureAwait(false);
-        var rooms = TypedReads.Observed("housing-rooms", NativeOps.ListRooms, roomsReply, roomsReply.Outcome?.Observed).Rooms;
+        var rooms = roomsReply.Rooms;
         var (colonists, housed) = Count(pawns, rooms);
         return new JsonObject { { ColonistsKey, colonists }, { HousedKey, housed } };
     }
@@ -45,7 +45,7 @@ public static class ColonyHousing
         ArgumentNullException.ThrowIfNull(pawns);
         ArgumentNullException.ThrowIfNull(rooms);
         var beds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var room in rooms.Where(r => Enclosed(r) && (r.Role == Wire.Name(RoomRole.Bedroom) || r.Role == Wire.Name(RoomRole.Barracks))))
+        foreach (var room in rooms.Where(r => Enclosed(r) && (r.Role == Observations.RoomRole.Bedroom || r.Role == Observations.RoomRole.Barracks)))
         {
             beds.UnionWith(room.Beds.Select(b => b.Id));
         }
@@ -53,8 +53,8 @@ public static class ColonyHousing
         return (live.Count, live.Count(p => p.OwnedBed is { Id: { Length: > 0 } id } && beds.Contains(id)));
     }
 
-    // The census's enclosure (as Observation's TemperatureRooms reads Room.Enclosed): a proper room, no doorway, not
+    // The census's enclosure (as Policy's RoomsRules.Enclosed reads it): a proper room, no doorway, not
     // outdoors or psychologically outdoors, off the map edge and fully roofed.
     private static bool Enclosed(Observations.RoomState r) =>
-        r.ProperRoom == true && r.Doorway != true && r.Outdoors != true && r.PsychologicallyOutdoors != true && r.TouchesMapEdge != true && (r.OpenRoofCount ?? 0) == 0;
+        r.ProperRoom && !r.Doorway && !r.Outdoors && !r.PsychologicallyOutdoors && !r.TouchesMapEdge && r.OpenRoofCount == 0;
 }

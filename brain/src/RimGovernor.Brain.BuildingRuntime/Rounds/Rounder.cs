@@ -458,13 +458,7 @@ public sealed partial class Rounder
         reading = reading.WithProjection(await ReviewLayoutPlanAsync(state.Snapshot, reading.Projection, ct).ConfigureAwait(false));
         Lap("layout");
         reading = reading.WithColonySection(c => c with { LayoutPlan = reading.Projection.LayoutPlan });
-        if (reading.Projection.LayoutPlan.TryGetValue(out var layoutPlan))
-        {
-            if (reading.Projection.Rooms.TryGetValue(out var rooms))
-            {
-                reading = reading.WithProjection(reading.Projection with { Rooms = Known(RoomsRules.MarkEnemyDoors(rooms, layoutPlan.KillboxCells())) });
-            }
-        }
+        reading.Projection.LayoutPlan.TryGetValue(out var layoutPlan);
         Census.RememberLayout(reading.Projection.Identity, reading.Projection.LayoutPlan);
         reading = reading.WithFacts(rf => rf with { TitleClaimQuests = [.. RoundsSleepingUpkeepPlanner.TitleClaimQuests(reading.Projection)] });
         reading = reading.WithFacts(rf => rf with { BedroomsOwed = RoundsSleepingUpkeepPlanner.BedroomsOwedOf(reading.Projection) });

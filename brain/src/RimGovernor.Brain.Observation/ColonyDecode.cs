@@ -115,7 +115,7 @@ public static class ColonyDecodeReads
             DeliveryLedger = v.DeliveryLedger,
             PendingFoodNutrition = v.PendingFoodNutrition,
             PendingHunts = (int)v.PendingHunts,
-            Threat = ColonyThreat.ProjectColonyThreat(v),
+            Threat = v.Threat.Observed,
         };
         // The race rows are static for a load and come from the catalog; an unbuildable race table fails the reading.
         var races = RequireCatalog(catalog).AnimalRaces();
@@ -190,19 +190,15 @@ public static class ColonyDecodeReads
             NoDangerArea = PoliciesReads.AllowedAreaID(r.Policies, ShelterRules.NoDangerAreaLabel),
             AnimalWard = f.AnimalWard with { Area = PoliciesReads.AllowedAreaID(r.Policies, HerdWardRules.HospitalAreaLabel) },
             IsolationArea = PoliciesReads.AllowedAreaID(r.Policies, IsolationRoomRules.IsolationAreaLabel),
-            RaidPoints = r.Threat.RaidPoints,
-            HostileFactions = r.Threat.HostileFactions,
-            Storyteller = r.Threat.Storyteller,
-            DaysPassed = r.Threat.DaysPassed,
+            RaidPoints = Known(r.Threat.RaidPoints),
+            HostileFactions = Known(r.Threat.HostileFactions),
+            Storyteller = Known(r.Threat.Storyteller),
+            DaysPassed = Known(r.Threat.DaysPassed),
+            Wealth = Known(new WealthFacts(r.Threat.WealthItems, r.Threat.WealthTotal)),
             Disease = r.Threat.Disease,
             Monolith = AnomalyColonyReads.MonolithFacts(r.Anomaly),
         };
-        r = r with { Raids = r.Threat.Raids };
-        var threat = r.Threat;
-        if (threat.WealthItems.TryGetValue(out var items) && threat.WealthTotal.TryGetValue(out var total))
-        {
-            f = f with { Wealth = Known(new WealthFacts(items, total)) };
-        }
+        r = r with { Raids = DefenseSiteRules.DecodeRaidTracks(r.Threat.Raids) };
         if (r.FoodChannels.TryGetValue(out var channels))
         {
             f = f with { PenGrazing = Known(channels.Grazing), Pasture = Known(channels.Pasture) };

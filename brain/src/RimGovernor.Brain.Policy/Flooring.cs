@@ -398,7 +398,7 @@ public static class FlooringRules
     /// the room census does not list the room. Inherently dirty rooms and every role outside the two tiers have
     /// no requirement.
     /// </summary>
-    private static FloorTier? FloorTierOf(FloorRoom room, Dictionary<string, Room> census)
+    private static FloorTier? FloorTierOf(FloorRoom room, Dictionary<string, RoomState> census)
     {
         if (room.RequiredTags.Count > 0)
         {
@@ -556,7 +556,7 @@ public static class FlooringRules
             return new FlooringReview();
         }
         v.Validate();
-        var census = new Dictionary<string, Room>(StringComparer.Ordinal);
+        var census = new Dictionary<string, RoomState>(StringComparer.Ordinal);
         if (rooms.TryGetValue(out var rc))
         {
             foreach (var room in rc.Rooms)

@@ -25,5 +25,9 @@
     <!-- Domain.Known / Domain.Unknown, and the package-level consts and functions with no owner type. -->
     <Using Include="RimGovernor.Brain.Domain" />
     <Using Include="RimGovernor.Brain.Domain.Fact" Static="true" />
+    <!-- The native room census rows (#3764): Policy reads rooms through functions over them. -->
+    <Using Include="RimGovernor.Contracts.Wire.Observations.RoomRole" Alias="RoomRole" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.RoomState" Alias="RoomState" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.RoomDoor" Alias="RoomDoor" />
   </ItemGroup>
 </Project>

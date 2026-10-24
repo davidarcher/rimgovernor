@@ -234,9 +234,8 @@ namespace HomeBridge.BridgeTools
             {
                 var rooms = new Obs.ListRoomsRequest { Scope = Scope() };
                 var began = Now();
-                var census = NativeRoomObservationTools.Read(map, rooms, context).Outcome?.Observed;
-                ObservationWork.Captured("rooms", Now() - began, census != null ? census.Rooms.Count : 0);
-                if (census != null) { observed = observed with { Rooms = census }; }
+                observed = observed with { Rooms = SnapshotSectionException.Read("rooms", () => NativeRoomObservationTools.Read(map, rooms, context)) };
+                ObservationWork.Captured("rooms", Now() - began, observed.Rooms?.Rooms.Count ?? 0);
             }
         }
 

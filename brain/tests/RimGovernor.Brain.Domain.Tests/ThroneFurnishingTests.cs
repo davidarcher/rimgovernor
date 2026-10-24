@@ -72,7 +72,7 @@ public sealed class ThroneFurnishingTests
     };
 
     private static ThroneStep Step(IReadOnlyList<CurrentBuilding> built) =>
-        ThroneRules.NextThroneStep(new LayoutPlan { Rooms = [Room()] }, new RoomObservation { Shapes = Shapes }, new GroundCensus(), built, Need, Defs, []);
+        ThroneRules.NextThroneStep(new LayoutPlan { Rooms = [Room()] }, RoomObservation.NoRooms with { Shapes = Shapes }, new GroundCensus(), built, Need, Defs, []);
 
     /// <summary>The template as the hand-built loops listed it: the throne slot, then each requirement's slots in want order.</summary>
     private static List<WantedPiece> HandBuilt(IReadOnlyList<CurrentBuilding> built)

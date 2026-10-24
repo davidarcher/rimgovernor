@@ -116,37 +116,22 @@ public static class HospitalRules
         return (ill, true);
     }
 
-    /// <summary>The beds standing in a room that can host the Hospital function; not ok while a room's role is unread.</summary>
-    private static (HashSet<string> Beds, bool Ok) HostedBeds(RoomObservation rooms)
+    /// <summary>The beds standing in a room that can host the Hospital function.</summary>
+    private static HashSet<string> HostedBeds(RoomObservation rooms)
     {
         var facility = RoomsRules.Facility(RoomRole.Hospital);
-        var hosted = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var room in rooms.Rooms)
-        {
-            if (!room.Role.TryGetValue(out var role))
-            {
-                return ([], false);
-            }
-            if (facility.Hosts(role))
-            {
-                foreach (var bed in room.Beds)
-                {
-                    hosted.Add(bed);
-                }
-            }
-        }
-        return (hosted, true);
+        return new HashSet<string>(rooms.Rooms.Where(room => facility.Hosts(room.Role)).SelectMany(room => room.BedIds()), StringComparer.Ordinal);
     }
 
     /// <summary>Whether a bed counts towards the ward: hosted, humanlike and no prisoner's, and not a sleeping spot while an operation waits on a better bed.</summary>
     private static bool Eligible(SleepingBed bed, HashSet<string> hosted, bool surgical) =>
         hosted.Contains(bed.Id) && !(surgical && bed.Definition.Value == SleepingRules.SleepingSpotDefinition.ToString()) && bed.Humanlike && !bed.Prisoners;
 
-    /// <summary>The hosted medical beds standing; not ok while the room or sleeping census is unread.</summary>
+    /// <summary>The hosted medical beds standing; not ok while the sleeping census is unread.</summary>
     public static (int Beds, bool Ok) HostedMedicalBeds(RoomObservation rooms, Fact<SleepingObservation> sleeping, bool surgical)
     {
-        var (hosted, ok) = HostedBeds(rooms);
-        if (!ok || !sleeping.TryGetValue(out var census))
+        var hosted = HostedBeds(rooms);
+        if (!sleeping.TryGetValue(out var census))
         {
             return (0, false);
         }
@@ -200,11 +185,7 @@ public static class HospitalRules
         {
             return choice with { Method = HospitalMethod.Unknown };
         }
-        var (hosted, hostedKnown) = HostedBeds(rooms!);
-        if (!hostedKnown)
-        {
-            return choice with { Method = HospitalMethod.Unknown };
-        }
+        var hosted = HostedBeds(rooms!);
         var medical = 0;
         var spare = new List<SleepingBed>();
         var owned = new List<SleepingBed>();

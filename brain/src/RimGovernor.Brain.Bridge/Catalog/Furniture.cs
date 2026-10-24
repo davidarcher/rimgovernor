@@ -2,6 +2,7 @@ using RimGovernor.Brain.Domain;
 using RimWorld;
 using Verse;
 using P = RimGovernor.Brain.Policy;
+using RoomRole = RimGovernor.Contracts.Wire.Observations.RoomRole;
 
 namespace RimGovernor.Brain.Bridge;
 
@@ -42,8 +43,8 @@ public sealed partial class DefinitionCatalog
             Sarcophagus = CheapestOfClass<Building_Sarcophagus>(),
         };
         var (spot, bed) = AnimalBeds(beds);
-        var bench = new Dictionary<P.RoomRole, string>();
-        foreach (var role in new[] { P.RoomRole.Kitchen, P.RoomRole.Workshop, P.RoomRole.Laboratory })
+        var bench = new Dictionary<RoomRole, string>();
+        foreach (var role in new[] { RoomRole.Kitchen, RoomRole.Workshop, RoomRole.Laboratory })
         {
             bench[role] = CheapestBench(shapes, role);
         }
@@ -51,7 +52,7 @@ public sealed partial class DefinitionCatalog
         furniture = furniture with { AnimalSpot = spot, AnimalBed = bed, Bench = bench };
         var facilities = Facilities();
         var bedLinks = LinkedFacilities(furniture.PrimaryBed());
-        var benchLinks = LinkedFacilities(bench[P.RoomRole.Workshop]);
+        var benchLinks = LinkedFacilities(bench[RoomRole.Workshop]);
         var medicalLinks = LinkedFacilities([.. beds.All.Where(b => b.Medical).Select(b => b.Def)]);
         furniture = furniture with
         {
@@ -60,7 +61,7 @@ public sealed partial class DefinitionCatalog
             Cabinet = BestFacility("a tool cabinet", facilities, benchLinks, StatWorkTableWorkSpeedFactor, _ => true),
             Monitor = BestFacility("a vitals monitor", facilities, medicalLinks, StatMedicalTendQualityOffset, f => f.Adjacent && !f.CardinalToHead),
         };
-        var (lab, analyzer) = AdvancedLab(shapes, facilities, bench[P.RoomRole.Laboratory]);
+        var (lab, analyzer) = AdvancedLab(shapes, facilities, bench[RoomRole.Laboratory]);
         return furniture with { AdvancedLab = lab, Analyzer = analyzer };
     }
 
@@ -73,7 +74,7 @@ public sealed partial class DefinitionCatalog
         var bestCost = double.PositiveInfinity;
         foreach (var (name, shape) in shapes)
         {
-            if (name == plain || shape.Family != P.RoomRole.Laboratory || !P.InteriorPieceShapeExtensions.WorkedFromFront(shape) || ThingRow(name).building?.workTableRoomRole?.defName != Wire.Name(P.RoomRole.Laboratory))
+            if (name == plain || shape.Family != RoomRole.Laboratory || !P.InteriorPieceShapeExtensions.WorkedFromFront(shape) || ThingRow(name).building?.workTableRoomRole?.defName != Wire.Name(RoomRole.Laboratory))
             {
                 continue;
             }
@@ -229,7 +230,7 @@ public sealed partial class DefinitionCatalog
             .Select(row => row.defName).Order(StringComparer.Ordinal)];
 
     // The cheapest buildable work table of a room role that a worker uses from the floor in front of it, by name when equal.
-    private string CheapestBench(IReadOnlyDictionary<string, P.InteriorPieceDef> shapes, P.RoomRole role) =>
+    private string CheapestBench(IReadOnlyDictionary<string, P.InteriorPieceDef> shapes, RoomRole role) =>
         Cheapest(shapes
             .Where(pair => pair.Value.Family == role && P.InteriorPieceShapeExtensions.WorkedFromFront(pair.Value) && ThingRow(pair.Key).building?.workTableRoomRole?.defName == Wire.Name(role))
             .Select(pair => pair.Key))

@@ -128,8 +128,7 @@ public sealed class ForecastThermalPortfolioTests
         };
         facts = facts with
         {
-            Upkeep = facts.Upkeep with { Rooms = Known(new RoomObservation { Rooms = [new() { Id = "room-1", Cells = EquatableArray.From(interior),
-                Beds = ["bed"], Enclosed = Known(true), Roofed = Known(true) }] }) },
+            Upkeep = facts.Upkeep with { Rooms = Known(RoomFixtures.Census((RoomFixtures.State("room-1", beds: ["bed"]), interior))) },
             PlannedShelters = [],
             ForecastObserved = facts.ForecastObserved with
             {

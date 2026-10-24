@@ -49,7 +49,7 @@ public static partial class SleepingRules
             var (room, ok) = PlannedRoom.CensusRoomIn(r, rooms);
             if (ok)
             {
-                foreach (var b in room!.Beds)
+                foreach (var b in room!.BedIds())
                 {
                     output[b] = r.Role;
                 }
@@ -91,7 +91,7 @@ public static partial class SleepingRules
                 var (room, ok) = PlannedRoom.CensusRoomIn(r, census!);
                 if (ok)
                 {
-                    foreach (var b in room!.Beds)
+                    foreach (var b in room!.BedIds())
                     {
                         slept = slept || owned.Contains(b);
                     }
@@ -167,7 +167,7 @@ public static partial class SleepingRules
             {
                 Append(empty, r.Role, r);
             }
-            foreach (var id in room.Beds)
+            foreach (var id in room.BedIds())
             {
                 if (beds.TryGetValue(id, out var b) && VacantColonistBed(b))
                 {

@@ -59,7 +59,7 @@ public sealed record ChildFurniture
 /// <summary>The room one role is owed and what furnishes it.</summary>
 public sealed record ChildRoomNeed
 {
-    public RoomRole Role { get; init; }
+    public PlanRole Role { get; init; }
 
     public PlannedRole Module { get; init; }
 

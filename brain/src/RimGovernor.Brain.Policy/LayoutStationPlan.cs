@@ -448,7 +448,7 @@ public sealed record StationAdvice
 public sealed record BuiltRegion
 {
     public int Room { get; init; }
-    public RoomRole Role { get; init; }
+    public PlanRole Role { get; init; }
     public PlannedRole Planned { get; init; }
     public Region Region { get; init; } = new();
 
@@ -637,7 +637,7 @@ public static partial class LayoutStationPlanRules
     /// (PlannedRoleOfGroup), not to the plain storage or kitchen groups. A target-sized bedroom (#2939) is matched
     /// only to the suites, so a raised target outgrows its own suite and not an ordinary bedroom.
     /// </summary>
-    internal static IReadOnlyDictionary<PlannedRole, RoomRole> MatchedPlanned => new Dictionary<PlannedRole, RoomRole>
+    internal static IReadOnlyDictionary<PlannedRole, PlanRole> MatchedPlanned => new Dictionary<PlannedRole, PlanRole>
     {
         [LayoutSurveyRules.PlannedFreezer] = RoomRole.Storeroom,
         [LayoutSurveyRules.PlannedButchery] = RoomRole.Kitchen,

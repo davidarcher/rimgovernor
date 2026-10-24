@@ -153,7 +153,7 @@ public sealed class RoomFurnishingTests
                 Player = true,
                 Packable = true,
             }).ToList();
-            var input = new ReconcileInput { Plan = plan, Room = room, Ground = new GroundCensus(), Rows = ReconcileRules.OwnerRows(room, rows, furnishing.Pieces, null, _ => false), Furniture = furnishing.Pieces };
+            var input = new ReconcileInput { Rooms = RoomObservation.NoRooms, Plan = plan, Room = room, Ground = new GroundCensus(), Rows = ReconcileRules.OwnerRows(room, rows, furnishing.Pieces, null, _ => false), Furniture = furnishing.Pieces };
             return [.. ReconcileRules.Reconcile(input).Owed];
         }
 
@@ -216,6 +216,7 @@ public sealed class RoomFurnishingTests
         }).ToList();
         var input = new ReconcileInput
         {
+            Rooms = RoomObservation.NoRooms,
             Plan = plan,
             Room = room,
             Ground = new GroundCensus(),

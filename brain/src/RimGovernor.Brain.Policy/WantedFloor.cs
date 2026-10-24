@@ -49,8 +49,8 @@ public static partial class WantedFloorRules
     // floor must carry (the throne room's title tags, the worship room's presence demand tags, #3808).
     private static (FloorDeficit Deficit, bool Ok) RoomFloorDeficit(PlannedRoom room, IReadOnlyList<string> tags)
     {
-        // A planned role with no census role (morgue, ...) asks for no floor.
-        if (!InteriorRules.ModuleRoomRoles.TryGetValue(room.Role, out var role))
+        // A planned role with no census role (morgue, ...) or a plan-only role (suite, isolation room) asks for no floor.
+        if (!InteriorRules.ModuleRoomRoles.TryGetValue(room.Role, out var planned) || !planned.IsGame(out var role))
         {
             return (new FloorDeficit(), false);
         }

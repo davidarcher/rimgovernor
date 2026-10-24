@@ -48,9 +48,8 @@ public static partial class CombatDoorRules
         var choices = new List<RoomDoor>();
         foreach (var room in view.Rooms.Items)
         {
-            var rk = room.Role.TryGetValue(out var role);
-            var bk = room.Burning.TryGetValue(out var burning);
-            if (!rk || !bk || burning || !room.Roofed || role == RoomRole.PrisonCell || role == RoomRole.PrisonBarracks || role == RoomRole.ContainmentCell || role == RoomRole.IsolationRoom)
+            var role = room.Role;
+            if (room.Burning || !room.Roofed || role == RoomRole.PrisonCell || role == RoomRole.PrisonBarracks || role == RoomRole.ContainmentCell)
             {
                 continue;
             }
@@ -64,12 +63,7 @@ public static partial class CombatDoorRules
                 }
 
                 var door = doors[at];
-                var pk = door.PlayerOwned.TryGetValue(out var owned);
-                var fk = door.Forbidden.TryGetValue(out var forbidden);
-                var ok = door.Open.TryGetValue(out var open);
-                var hk = door.HoldOpen.IsKnown;
-                var ck = door.BlockedOpen.TryGetValue(out var blocked);
-                if (!pk || !owned || !fk || forbidden || !ok || !hk || !ck || (blocked && !open))
+                if (!door.PlayerOwned || door.Forbidden || (door.BlockedOpen && !door.Open))
                 {
                     continue;
                 }
@@ -83,7 +77,7 @@ public static partial class CombatDoorRules
                     }
 
                     var i = IndexOfDoor(doors, other);
-                    if (i < 0 || !DoorFactFalse(doors[i].Open) || !DoorFactFalse(doors[i].HoldOpen))
+                    if (i < 0 || doors[i].Open || doors[i].HoldOpen)
                     {
                         safe = false;
                     }
@@ -142,8 +136,6 @@ public static partial class CombatDoorRules
 
         return -1;
     }
-
-    internal static bool DoorFactFalse(Fact<bool> f) => f.TryGetValue(out var v) && !v;
 
     private static (List<Cell> Blockers, List<Cell> Support) MeleeDoorCells(CombatView view, RoomDoor door)
     {
@@ -284,8 +276,8 @@ public static partial class CombatDoorRules
         }
 
         ready = ready && blockers > 0;
-        var ok = observed.Open.TryGetValue(out var open);
-        if (!ok || !DoorFactFalse(observed.Forbidden))
+        var open = observed.Open;
+        if (observed.Forbidden)
         {
             ready = false;
         }

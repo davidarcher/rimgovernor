@@ -146,29 +146,15 @@ public static class DefenseSiteRules
     internal const int MaxDefenseSiteExtent = 4096;
 
     /// <summary>Decodes the hostile lords of a threat census, one track per lord.</summary>
-    internal static IReadOnlyList<RaidTrack> DecodeRaidTracks(IEnumerable<RimGovernor.Contracts.Wire.Observations.RaidTrack> rows)
-    {
-        var tracks = new List<RaidTrack>();
-        foreach (var row in rows)
+    public static IReadOnlyList<RaidTrack> DecodeRaidTracks(IEnumerable<RimGovernor.Contracts.Wire.Observations.RaidTrack> rows) =>
+        [.. rows.Select(row => new RaidTrack
         {
-            var trail = new List<DomainCell>(row.Trail.Count);
-            foreach (var at in row.Trail)
-            {
-                trail.Add(FactHelpers.ToDomainCell(at));
-            }
-            tracks.Add(
-                new RaidTrack
-                {
-                    LordId = row.LordId ?? "",
-                    FactionDef = row.FactionDef ?? "",
-                    SpawnTick = new Tick(row.SpawnTick.GetValueOrDefault()),
-                    LastTick = new Tick(row.LastTick.GetValueOrDefault()),
-                    Spawn = FactHelpers.ToDomainCell(row.Spawn),
-                    Ground = row.Ground.GetValueOrDefault(),
-                    Trail = trail,
-                }
-            );
-        }
-        return tracks;
-    }
+            LordId = row.LordId,
+            FactionDef = row.FactionDef,
+            SpawnTick = new Tick(row.SpawnTick),
+            LastTick = new Tick(row.LastTick),
+            Spawn = row.Spawn,
+            Ground = row.Ground,
+            Trail = row.Trail,
+        })];
 }

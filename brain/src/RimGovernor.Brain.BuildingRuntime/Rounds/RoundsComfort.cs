@@ -118,10 +118,10 @@ public sealed partial class RoundsBuildingPlanner
         var resolved = Copy();
         resolved.Definition = method.Value;
         resolved.Environment = Pol.PlacementEnvironment.Indoors;
-        var role = Pol.RoomRole.DiningRoom;
+        var role = RoomRole.DiningRoom;
         if (v.IsFoothold(method))
         {
-            role = Pol.RoomRole.RecRoom;
+            role = RoomRole.RecRoom;
         }
         resolved.Facility = RoomsRules.Facility(role);
         if (v.Furniture.IsChair(method.Value))

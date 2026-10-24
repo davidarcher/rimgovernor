@@ -125,10 +125,7 @@ public sealed class PlannedBarracksTests
         Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [Barracks.Id] = [Slot(10), Slot(12), Slot(14)] },
     };
 
-    private static Room Standing(string id, PlannedRoom room, RoomRole role, params string[] beds) => new()
-    {
-        Id = id, Role = Known(role), Enclosed = Known(true), Cells = [.. room.Region.Cells()], Beds = [.. beds],
-    };
+    private static (RoomState Room, IEnumerable<Cell> Cells) Standing(string id, PlannedRoom room, RoomRole role, params string[] beds) => (RoomFixtures.State(id, role, beds: beds), room.Region.Cells());
 
     private static SleepingBed SleepingBed(string id, string room, params PawnId[] owners) => new()
     {
@@ -137,8 +134,8 @@ public sealed class PlannedBarracksTests
 
     private static SleepingPerson Person(PawnId id, string bed) => new() { Id = id, OwnedBed = Known(bed) };
 
-    private static BedroomStep Step(Room[] rooms, SleepingObservation sleeping) =>
-        SleepingRules.NextBedroomStep(Plan, new RoomObservation { Rooms = [.. rooms], Shapes = new PieceShapes { Furniture = Furniture } }, sleeping, new Dictionary<string, RoomTarget>(), new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
+    private static BedroomStep Step((RoomState Room, IEnumerable<Cell> Cells)[] rooms, SleepingObservation sleeping) =>
+        SleepingRules.NextBedroomStep(Plan, RoomFixtures.Census(rooms) with { Shapes = new PieceShapes { Furniture = Furniture } }, sleeping, new Dictionary<string, RoomTarget>(), new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
 
     [Fact]
     public void AnEmptyPlannedBarracksIsOwedItsReconcile()
@@ -185,7 +182,7 @@ public sealed class PlannedBarracksTests
     {
         var bedroom = new PlannedRoom { Id = 3, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new Rectangle(20, 0, 4, 4)) };
         var sleeping = new SleepingObservation { Colonists = 2, People = [Person(A, "s1"), Person(B, "s2")], Beds = [SleepingBed("s1", "hall", A), SleepingBed("s2", "hall", B)] };
-        var rooms = new RoomObservation { Rooms = [Standing("hall", Hall, RoomRole.Barracks, "s1", "s2")], Shapes = new PieceShapes { Furniture = Furniture } };
+        var rooms = RoomFixtures.Census(Standing("hall", Hall, RoomRole.Barracks, "s1", "s2")) with { Shapes = new PieceShapes { Furniture = Furniture } };
 
         var first = SleepingRules.PlannedBedroomOccupants(Plan with { Rooms = [bedroom, Barracks] }, rooms, sleeping, null);
         Assert.Equal(["a"], Assert.Single(first, r => r.Key == 3).Value.ToArray());
@@ -202,7 +199,7 @@ public sealed class PlannedBarracksTests
     {
         var bedroom = new PlannedRoom { Id = 3, Role = PlannedRole.Bedroom, Region = RegionRules.RectRegion(new Rectangle(20, 0, 4, 4)) };
         var split = Plan with { Rooms = [Barracks, bedroom], Pieces = new Dictionary<int, IReadOnlyList<InteriorPiece>> { [Barracks.Id] = [Slot(10), Slot(12)] } };
-        var rooms = new RoomObservation { Rooms = [Standing("barracks", Barracks, RoomRole.Barracks, "k1", "k2")], Shapes = new PieceShapes { Furniture = Furniture } };
+        var rooms = RoomFixtures.Census(Standing("barracks", Barracks, RoomRole.Barracks, "k1", "k2")) with { Shapes = new PieceShapes { Furniture = Furniture } };
         var sleeping = new SleepingObservation { Colonists = 2, People = [Person(A, "k1"), Person(B, "k2")], Beds = [SleepingBed("k1", "barracks", A), SleepingBed("k2", "barracks", B)] };
 
         var step = SleepingRules.NextBedroomStep(split, rooms, sleeping, new Dictionary<string, RoomTarget>(), new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());

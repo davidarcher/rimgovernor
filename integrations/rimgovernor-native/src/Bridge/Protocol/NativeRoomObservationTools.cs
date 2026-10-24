@@ -3,76 +3,75 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
+using DomainCell = RimGovernor.Brain.Domain.Cell;
+using DomainWire = RimGovernor.Brain.Domain.Wire;
 using Obs = RimGovernor.Contracts.Wire.Observations;
 
 namespace HomeBridge.BridgeTools
 {
     internal static class NativeRoomObservationTools
     {
-        // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Obs.ListRoomsReply HandleListRooms(Obs.ListRoomsRequest parsed)
+        // On the game thread: the typed core of the tool, shared with the in-process facade. A refused request
+        // or a census that cannot be read completely throws.
+        internal static Obs.RoomsSnapshot HandleListRooms(Obs.ListRoomsRequest parsed)
         {
-            if (!Validate(parsed, out var invalidRequest)) return new Obs.ListRoomsReply { Outcome = invalidRequest };
+            if (!Validate(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
             if (!ProtoBoundary.ValidateIdentity(parsed.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                return new Obs.ListRoomsReply { Outcome = error };
-            return Read(map, parsed, context);
-        }
-        // On the main thread: the room census for a validated request.
-        internal static Obs.ListRoomsReply Read(Map map, Obs.ListRoomsRequest parsed, Common.ObservationContext context)
-        {
-            try
+                throw NativeFaults.Refused(error);
+            if (parsed.Region != null && (!NativeCell(parsed.Region.Minimum).InBounds(map) || !NativeCell(parsed.Region.Maximum).InBounds(map)))
+                throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Room filter rectangle must be within the current map."));
+            try { return Read(map, parsed, context); }
+            catch (Exception readError)
             {
-                if (parsed.Region != null && (!NativeCell(parsed.Region.Minimum).InBounds(map) || !NativeCell(parsed.Region.Maximum).InBounds(map)))
-                    return new Obs.ListRoomsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Room filter rectangle must be within the current map.") };
-                if (map.regionGrid?.AllRooms == null || map.regionAndRoomUpdater == null || map.zoneManager == null || map.mapPawns == null)
-                    return Unreadable("Room, zone or pawn census is unavailable.");
-                // AllRooms is the raw cache; resolve pending region changes
-                // before taking a complete physical-room census.
-                map.regionAndRoomUpdater.TryRebuildDirtyRegionsAndRooms();
-                if (map.regionAndRoomUpdater.AnythingToRebuild) throw new InvalidOperationException("Native room graph remains dirty.");
-                var source = map.regionGrid.AllRooms.ToList();
-                if (source.Any(r => r == null) || source.Select(r => r.ID).Distinct().Count() != source.Count)
-                    throw new InvalidOperationException("Null or duplicate native room census entry.");
-                var physical = source.Where(HasPhysicalRegions).ToList();
-                if (physical.Any(r => r.Map != map)) throw new InvalidOperationException("Foreign native room census entry.");
-                var pawns = map.mapPawns.AllPawnsSpawned.ToList();
-                var pawnRooms = new Dictionary<Room, List<Pawn>>();
-                foreach (var pawn in pawns)
-                {
-                    if (pawn == null || !pawn.Spawned || pawn.Map != map) throw new InvalidOperationException();
-                    var room = pawn.Position.GetRoom(map);
-                    if (room == null) continue; // Impassable/unregioned cells have no room.
-                    if (!pawnRooms.TryGetValue(room, out var list)) pawnRooms.Add(room, list = new List<Pawn>());
-                    list.Add(pawn);
-                }
-                var snapshot = new Obs.RoomsSnapshot { Context = context };
-                foreach (var room in physical.OrderBy(r => r.ID))
-                {
-                    if (!Selected(parsed, Id(room.ID), room.PsychologicallyOutdoors, room.IsDoorway)) continue;
-                    var cells = new List<IntVec3>();
-                    foreach (var cell in room.Cells)
-                    {
-                        if (!cell.InBounds(map)) throw new InvalidOperationException();
-                        cells.Add(cell);
-                    }
-                    if (cells.Count == 0 || cells.Count != room.CellCount || cells.Distinct().Count() != cells.Count) throw new InvalidOperationException("Incomplete room footprint.");
-                    if (parsed.Region != null && !cells.Any(c => Inside(parsed.Region, c))) continue;
-                    snapshot = snapshot with { Rooms = [.. snapshot.Rooms, Project(room, map, cells, pawnRooms.TryGetValue(room, out var members) ? members : new List<Pawn>(), parsed, context)] };
-                }
-                return new Obs.ListRoomsReply { Outcome = snapshot };
+                ModLog.Error("observe", "Room census read failed: " + readError);
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                    Detail = PlacementPreviewOperation.Diagnostic("Room census, geometry or contents could not be read completely: " + readError.GetType().Name + ": " + readError.Message) });
             }
-            catch (Exception readError) { return Unreadable(PlacementPreviewOperation.Diagnostic("Room census, geometry or contents could not be read completely: " + readError)); }
         }
-        private static Obs.ListRoomsReply Unreadable(string detail)
+        // On the main thread: the room census for a validated request; a census it cannot read completely throws.
+        internal static Obs.RoomsSnapshot Read(Map map, Obs.ListRoomsRequest parsed, Common.ObservationContext context)
         {
-            ReadFailureLog.Note("list_rooms", detail);
-            return new Obs.ListRoomsReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.Unavailable, detail) };
+            if (map.regionGrid?.AllRooms == null || map.regionAndRoomUpdater == null || map.zoneManager == null || map.mapPawns == null)
+                throw new InvalidOperationException("Room, zone or pawn census is unavailable.");
+            // AllRooms is the raw cache; resolve pending region changes
+            // before taking a complete physical-room census.
+            map.regionAndRoomUpdater.TryRebuildDirtyRegionsAndRooms();
+            if (map.regionAndRoomUpdater.AnythingToRebuild) throw new InvalidOperationException("Native room graph remains dirty.");
+            var source = map.regionGrid.AllRooms.ToList();
+            if (source.Any(r => r == null) || source.Select(r => r.ID).Distinct().Count() != source.Count)
+                throw new InvalidOperationException("Null or duplicate native room census entry.");
+            var physical = source.Where(HasPhysicalRegions).ToList();
+            if (physical.Any(r => r.Map != map)) throw new InvalidOperationException("Foreign native room census entry.");
+            var pawns = map.mapPawns.AllPawnsSpawned.ToList();
+            var pawnRooms = new Dictionary<Room, List<Pawn>>();
+            foreach (var pawn in pawns)
+            {
+                if (pawn == null || !pawn.Spawned || pawn.Map != map) throw new InvalidOperationException();
+                var room = pawn.Position.GetRoom(map);
+                if (room == null) continue; // Impassable/unregioned cells have no room.
+                if (!pawnRooms.TryGetValue(room, out var list)) pawnRooms.Add(room, list = new List<Pawn>());
+                list.Add(pawn);
+            }
+            var rows = new List<Obs.RoomState>();
+            foreach (var room in physical.OrderBy(r => r.ID))
+            {
+                if (!Selected(parsed, Id(room.ID), room.PsychologicallyOutdoors, room.IsDoorway)) continue;
+                var cells = new List<IntVec3>();
+                foreach (var cell in room.Cells)
+                {
+                    if (!cell.InBounds(map)) throw new InvalidOperationException();
+                    cells.Add(cell);
+                }
+                if (cells.Count == 0 || cells.Count != room.CellCount || cells.Distinct().Count() != cells.Count) throw new InvalidOperationException("Incomplete room footprint.");
+                if (parsed.Region != null && !cells.Any(c => Inside(parsed.Region, c))) continue;
+                rows.Add(Project(room, map, cells, pawnRooms.TryGetValue(room, out var members) ? members : new List<Pawn>(), parsed));
+            }
+            return new Obs.RoomsSnapshot { Context = context, Rooms = [.. rows] };
         }
         internal static bool Validate(Obs.ListRoomsRequest request, out Common.Failure failure)
         {
@@ -88,63 +87,34 @@ namespace HomeBridge.BridgeTools
         {
             if (!room.Dereferenced) return true;
             // Native AllRooms can retain an empty district with no regions.
-            // It contributes no physical room, but inconsistent geometry is unknown.
+            // It contributes no physical room, but inconsistent geometry fails the read.
             if (room.CellCount != 0 || room.Cells.Any()) throw new InvalidOperationException("Regionless room has physical cells.");
             return false;
         }
         internal static bool Inside(Obs.Rectangle rectangle, IntVec3 cell) => cell.x >= (rectangle.Minimum?.X).GetValueOrDefault() && cell.x <= (rectangle.Maximum?.X).GetValueOrDefault() && cell.z >= (rectangle.Minimum?.Z).GetValueOrDefault() && cell.z <= (rectangle.Maximum?.Z).GetValueOrDefault();
 
-        private static Obs.RoomState Project(Room room, Map map, List<IntVec3> cells, List<Pawn> pawns, Obs.ListRoomsRequest request, Common.ObservationContext context)
+        private static Obs.RoomState Project(Room room, Map map, List<IntVec3> cells, List<Pawn> pawns, Obs.ListRoomsRequest request)
         {
             // Room owns reusable region/thing buffers. Copy before any stat, label or
             // bed projection can read those getters again. Never enumerate Zone.Cells.
             var things = room.ContainedAndAdjacentThings.ToList();
             if (things.Any(t => t == null || !t.Spawned || t.Map != map) || things.Distinct().Count() != things.Count) throw new InvalidOperationException("Invalid or duplicate room thing membership.");
-            var row = new Obs.RoomState { Id = Id(room.ID), ProperRoom = room.ProperRoom, Doorway = room.IsDoorway,
-                Outdoors = room.UsesOutdoorTemperature, PsychologicallyOutdoors = room.PsychologicallyOutdoors,
-                TouchesMapEdge = room.TouchesMapEdge, Fogged = room.Fogged, CellCount = (uint)cells.Count };
             var roof = room.OpenRoofCount;
             if (roof < 0 || roof > cells.Count) throw new InvalidOperationException("Invalid room open roof count.");
-            row = row with { OpenRoofCount = (uint)roof };
-            row = row with { Burning = things.Any(t => t is Fire) };
-            row = row with { TemperatureControl = things.Any(t => t is Building_TempControl || t.TryGetComp<CompHeatPusher>() != null) };
-            row = row with { PerishableContents = things.Any(t => room.ContainsCell(t.Position) && t.TryGetComp<CompRottable>() != null) };
-            try { row = row with { TemperatureC = Finite(room.Temperature) }; }
-            catch (Exception) { } // the temperature stays unobserved
-            try
-            {
-                var role = room.Role;
-                if (role == null) throw new InvalidOperationException();
-                row = row with { Role = Name(role.defName) };
-            }
-            catch (Exception) { } // the role stays unobserved
-            row = row with { Extents = new Obs.Rectangle { Minimum = Cell(new IntVec3(cells.Min(c => c.x), 0, cells.Min(c => c.z))), Maximum = Cell(new IntVec3(cells.Max(c => c.x), 0, cells.Max(c => c.z))) } };
-            row = row with { Center = Cell(Center(cells)) };
+            var role = room.Role ?? throw new InvalidOperationException("Native room has no role.");
             var held = cells.Where(c => !c.Fogged(map)).ToList();
-            if (held.Count > 0) row = row with { GridRoom = held.Min(c => c.z * map.Size.x + c.x) };
-            foreach (var pawn in pawns.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) row = row with { Pawns = [.. row.Pawns, NativeRef.Thing(pawn)] };
-            var buildings = things.OfType<Building>().Where(t => request.IncludeBoundary.GetValueOrDefault() || room.ContainsCell(t.Position)).ToList();
+            var buildings = things.OfType<Building>().Where(t => request.IncludeBoundary || room.ContainsCell(t.Position)).ToList();
             var beds = buildings.OfType<Building_Bed>().ToList();
-            foreach (var bed in beds)
-            {
-                row = row with { Beds = [.. row.Beds, NativeBuildingObservationTools.Ref(bed)] };
-            }
-            var contents = buildings.GroupBy(t => Name(t.def.defName)).OrderBy(g => g.Key, StringComparer.Ordinal).ToList();
-            foreach (var group in contents) row = row with { Contents = [.. row.Contents, new Obs.Quantity { DefName = group.Key, Units = group.LongCount() }] };
+            var stats = new List<Obs.RoomStat>();
             foreach (var definition in new[] { RoomStatDefOf.Cleanliness, RoomStatDefOf.Wealth, RoomStatDefOf.Space, RoomStatDefOf.Beauty, RoomStatDefOf.Impressiveness })
             {
                 if (definition == null) continue;
-                var stat = new Obs.RoomStat { DefName = Name(definition.defName) };
-                try
-                {
-                    var value = room.GetStat(definition); stat = stat with { Value = Finite(value) };
-                }
-                catch (Exception) { stat = stat with { Value = null, Unavailable = Missing(Common.UnavailableReason.ReadFailed, "Native room stat unavailable.") }; }
-                row = row with { Stats = [.. row.Stats, stat] };
+                stats.Add(new Obs.RoomStat { DefName = Name(definition.defName), Value = Finite(room.GetStat(definition)) });
             }
             // Doors in the boundary: the door cell, the cell across it
-            // from this room, and whether that far side is outdoors. A far side
-            // with no room (map edge, impassable) leaves outdoors unknown.
+            // from this room, and whether that far side is an outdoor room. A far side
+            // with no room (map edge, impassable) or this room is not outdoors.
+            var doors = new List<Obs.RoomDoor>();
             foreach (var door in things.OfType<Building_Door>().OrderBy(d => d.Position.z).ThenBy(d => d.Position.x))
             {
                 foreach (var offset in GenAdj.CardinalDirections)
@@ -152,25 +122,47 @@ namespace HomeBridge.BridgeTools
                     var inside = door.Position + offset;
                     if (!inside.InBounds(map) || inside.GetRoom(map) != room) continue;
                     var outside = door.Position - offset;
-                    var entry = new Obs.RoomDoor { Cell = Cell(door.Position), Outside = Cell(outside),
+                    var far = outside.InBounds(map) ? outside.GetRoom(map) : null;
+                    doors.Add(new Obs.RoomDoor { Cell = Cell(door.Position), Outside = Cell(outside),
+                        Outdoors = far != null && far != room && far.PsychologicallyOutdoors,
                         PlayerOwned = door.Faction == Faction.OfPlayerSilentFail,
                         Open = door.Open, HoldOpen = door.HoldOpen, BlockedOpen = door.BlockedOpenMomentary,
-                        Forbidden = door.IsForbidden(Faction.OfPlayerSilentFail) };
-                    var far = outside.InBounds(map) ? outside.GetRoom(map) : null;
-                    if (far != null && far != room) entry = entry with { Outdoors = far.PsychologicallyOutdoors };
-                    row = row with { Doors = [.. row.Doors, entry] };
+                        Forbidden = door.IsForbidden(Faction.OfPlayerSilentFail) });
                     break;
                 }
             }
-            row = row with { Snapshot = NativeObservationSnapshot.Snapshot("room", context, (row.Id ?? ""), w => {
-                w.Write(row.CellCount.GetValueOrDefault()); w.Write(row.OpenRoofCount.GetValueOrDefault()); w.Write(row.Role??""); w.Write(row.Fogged.GetValueOrDefault());
-                w.Write(row.Burning.GetValueOrDefault()); w.Write(row.TemperatureControl.GetValueOrDefault()); w.Write(row.PerishableContents.GetValueOrDefault());
-                foreach (var door in row.Doors) { w.Write((door.Cell?.X).GetValueOrDefault()); w.Write((door.Cell?.Z).GetValueOrDefault()); w.Write((door.Outside?.X).GetValueOrDefault()); w.Write((door.Outside?.Z).GetValueOrDefault()); w.Write(door.Outdoors is not null ? (door.Outdoors.GetValueOrDefault() ? 2 : 1) : 0); w.Write(door.PlayerOwned.GetValueOrDefault()); w.Write(door.Open.GetValueOrDefault()); w.Write(door.HoldOpen.GetValueOrDefault()); w.Write(door.BlockedOpen.GetValueOrDefault()); w.Write(door.Forbidden.GetValueOrDefault()); }
-                foreach (var quantity in row.Contents) { w.Write((quantity.DefName ?? "")); w.Write(quantity.Units.GetValueOrDefault()); }
-                foreach (var bed in beds) { w.Write(bed.GetUniqueLoadID()); foreach (var owner in bed.OwnersForReading.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) w.Write(owner.GetUniqueLoadID()); }
-            }) };
-            return row;
+            var contents = buildings.GroupBy(t => Name(t.def.defName)).OrderBy(g => g.Key, StringComparer.Ordinal)
+                .Select(g => new Obs.RoomContent { DefName = g.Key, Units = g.LongCount() }).ToList();
+            var id = Id(room.ID);
+            var roleName = Name(role.defName);
+            return new Obs.RoomState
+            {
+                Id = id,
+                Role = DomainWire.TryParse<Obs.RoomRole>(roleName, out var parsed) ? parsed : Obs.RoomRole.Unrecognized,
+                ProperRoom = room.ProperRoom,
+                Doorway = room.IsDoorway,
+                Outdoors = room.UsesOutdoorTemperature,
+                PsychologicallyOutdoors = room.PsychologicallyOutdoors,
+                TouchesMapEdge = room.TouchesMapEdge,
+                Fogged = room.Fogged,
+                TemperatureC = Finite(room.Temperature),
+                OpenRoofCount = (uint)roof,
+                CellCount = (uint)cells.Count,
+                Extents = new Obs.RoomExtents { Minimum = new DomainCell(cells.Min(c => c.x), cells.Min(c => c.z)), Maximum = new DomainCell(cells.Max(c => c.x), cells.Max(c => c.z)) },
+                Center = Cell(Center(cells)),
+                Stats = [.. stats],
+                Pawns = [.. pawns.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Select(p => NativeRef.Thing(p))],
+                Beds = [.. beds.Select(NativeBuildingObservationTools.Ref)],
+                Contents = [.. contents],
+                Doors = [.. doors],
+                GridRoom = (held.Count > 0 ? held : cells).Min(c => c.z * map.Size.x + c.x),
+                Burning = things.Any(t => t is Fire),
+                TemperatureControl = TemperatureControl(things),
+                PerishableContents = Perishable(room, things),
+            };
         }
+        private static bool TemperatureControl(List<Thing> things) => things.Any(t => t is Building_TempControl || t.TryGetComp<CompHeatPusher>() != null);
+        private static bool Perishable(Room room, List<Thing> things) => things.Any(t => room.ContainsCell(t.Position) && t.TryGetComp<CompRottable>() != null);
         internal static IntVec3 Center(IReadOnlyList<IntVec3> cells)
         {
             if (cells.Count == 0) throw new InvalidOperationException();
@@ -181,9 +173,8 @@ namespace HomeBridge.BridgeTools
         internal static double Finite(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native room fact.") : value;
         private static bool CellPresent(Common.Cell? cell) => cell != null && cell.X >= 0 && cell.Z >= 0;
         private static IntVec3 NativeCell(Common.Cell? cell) => new IntVec3((cell?.X).GetValueOrDefault(), 0, (cell?.Z).GetValueOrDefault());
-        private static Common.Cell Cell(IntVec3 cell) => new Common.Cell { X = cell.x, Z = cell.z };
+        private static DomainCell Cell(IntVec3 cell) => new DomainCell(cell.x, cell.z);
         private static string Id(int id) => id >= 0 ? id.ToString(CultureInfo.InvariantCulture) : throw new InvalidOperationException("Invalid room ID.");
         private static string Name(string value) => ProtoBoundary.IsIdentifier(value) ? value : throw new InvalidOperationException("Invalid native room identifier.");
-        private static Common.Unavailable Missing(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
     }
 }

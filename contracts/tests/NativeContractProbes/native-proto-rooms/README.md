@@ -21,14 +21,14 @@ Contents are complete building counts, optionally including boundary buildings;
 loose stock belongs ListSupplies. Zone IDs come from the authoritative zone grid.
 Role/stat reads may fill native room caches, but do not change room geometry or
 roof areas. Stats cover native Cleanliness, Wealth, Space, Beauty and Impressiveness.
-Missing temperature/stat facts stay explicitly unavailable. Geometry,
-counts, room membership and contents failures refuse the census. Exact cell lists
-are optional and limited to4096 cells per room. Room/pawn/thing scans are bounded,
+Every row member is read: a temperature, stat, geometry, count, membership
+or contents failure fails the census. A row carries no cells: a reader takes
+them from the frame cell grid by the row's grid room key. Room/pawn/thing scans are bounded,
 results and child collections to256. No frozen cursor is issued.
 
 The census refreshes native dirty regions first. Native room entries with no regions
 are filtered only when both their cell count and cell enumeration prove they are
-empty; inconsistent geometry remains unavailable. Compiled regression checks use
+empty; inconsistent geometry fails the census. Compiled regression checks use
 native room/district objects to cover retained empty entries and conflicting counts.
 
 Native acceptance compares naturally generated indoor rooms with the native

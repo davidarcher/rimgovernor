@@ -1,31 +1,52 @@
-using RimGovernor.Brain.Bridge.Contracts;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using RimGovernor.Contracts.Wire;
 using RimGovernor.Contracts.Wire.Observations;
 using Xunit;
 
 namespace RimGovernor.Brain.Domain.Tests;
 
-// #3539: the three storyteller facts the native threat read adds to ThreatFacts reach the colony threat projection, and a
-// field the native side withheld (absent, empty or non-finite) stays unknown, never zero.
+// #3764: the census's threat section is required and every ThreatFacts member is read (#3539 added the storyteller
+// facts); a threat read the native cannot complete fails the census, so a section missing a member does not decode.
 public sealed class ThreatFactsTests
 {
-    [Fact]
-    public void TheStorytellerAndDaysPassedProject()
+    private static readonly ThreatFacts Raided = ColonyFactsCoreTests.QuietThreat with
     {
-        var threat = ColonyThreat.ProjectColonyThreat(Census(new ThreatFacts { Storyteller = "Cassandra", DaysPassed = 12.5 }));
+        WealthItems = 1200, WealthBuildings = 3400, WealthPawns = 900, WealthTotal = 5500, RaidPoints = 310.5,
+        Storyteller = "Randy", DaysPassed = 12.5, HostileFactions = ["Pirate"],
+        Raids =
+        [
+            new RaidTrack
+            {
+                LordId = "lord-1", FactionDef = "Pirate", SpawnTick = 60000, Spawn = new Cell(0, 40), Ground = true,
+                Trail = [new Cell(0, 40), new Cell(3, 41)], LastTick = 60250,
+            },
+        ],
+    };
 
-        Assert.Equal("Cassandra", threat.Storyteller.Value);
-        Assert.Equal(12.5, threat.DaysPassed.Value);
+    [Fact]
+    public void TheThreatSectionRoundTripsExactly()
+    {
+        var facts = ColonyFactsCoreTests.Snapshot() with { Threat = new ThreatSection { Observed = Raided } };
+        var json = WireJson.Serialize(facts);
+        Assert.Contains("\"trail\":[{\"x\":0,\"z\":40},{\"x\":3,\"z\":41}]", json);
+        var back = WireJson.Deserialize<ColonyFactsSnapshot>(json);
+
+        Assert.Equal(json, WireJson.Serialize(back));
+        Assert.Equal(Raided, back.Threat.Observed);
     }
 
-    [Fact]
-    public void AWithheldFieldIsUnknown()
+    [Theory]
+    [InlineData("storyteller")]
+    [InlineData("daysPassed")]
+    [InlineData("raidPoints")]
+    [InlineData("raids")]
+    public void AThreatMissingAMemberDoesNotDecode(string member)
     {
-        var threat = ColonyThreat.ProjectColonyThreat(Census(new ThreatFacts { Storyteller = "", DaysPassed = double.NaN }));
+        var facts = ColonyFactsCoreTests.Snapshot() with { Threat = new ThreatSection { Observed = Raided } };
+        var node = JsonNode.Parse(WireJson.Serialize(facts))!.AsObject();
+        Assert.True(node["threat"]!["observed"]!.AsObject().Remove(member));
 
-        Assert.False(threat.Storyteller.IsKnown);
-        Assert.False(threat.DaysPassed.IsKnown);
-        Assert.False(ColonyThreat.ProjectColonyThreat(ColonyFactsCoreTests.Snapshot()).Storyteller.IsKnown);
+        Assert.ThrowsAny<JsonException>(() => WireJson.Deserialize<ColonyFactsSnapshot>(node.ToJsonString()));
     }
-
-    private static ColonyFactsSnapshot Census(ThreatFacts facts) => ColonyFactsCoreTests.Snapshot() with { Threat = new ThreatSection { Observed = facts } };
 }

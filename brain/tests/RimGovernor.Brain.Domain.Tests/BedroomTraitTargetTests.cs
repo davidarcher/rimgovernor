@@ -26,8 +26,8 @@ public sealed class BedroomTraitTargetTests
         ],
         Rooms = Known<EquatableArray<UpkeepRoom>>(
         [
-            new UpkeepRoom { Id = "room-owner", Role = "Bedroom", Beds = ["bed-owner"], Quality = Known(new RoomQuality(0, 0, 0, 0, ownerRoom)) },
-            new UpkeepRoom { Id = "room-other", Role = "Bedroom", Beds = ["bed-other"], Quality = Known(new RoomQuality(0, 0, 0, 0, otherRoom)) },
+            new UpkeepRoom { Id = "room-owner", Role = RoomRole.Bedroom, Beds = ["bed-owner"], Quality = new RoomQuality(0, 0, 0, 0, ownerRoom), Cells = 0 },
+            new UpkeepRoom { Id = "room-other", Role = RoomRole.Bedroom, Beds = ["bed-other"], Quality = new RoomQuality(0, 0, 0, 0, otherRoom), Cells = 0 },
         ]),
     };
 

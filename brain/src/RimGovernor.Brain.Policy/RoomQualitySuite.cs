@@ -93,10 +93,7 @@ public static partial class RoomQualityRules
         var quality = new Dictionary<string, RoomQuality>(StringComparer.Ordinal);
         foreach (var r in census)
         {
-            if (r.Quality.TryGetValue(out var rq))
-            {
-                quality[r.Id] = rq;
-            }
+            quality[r.Id] = r.Quality;
         }
         var standard = PlannedRoomIds(plan, rooms, PlannedRole.Bedroom);
         var suites = PlannedRoomIds(plan, rooms, PlannedRole.Suite);
@@ -199,7 +196,7 @@ public static partial class RoomQualityRules
             var taken = false;
             if (ok)
             {
-                foreach (var b in room!.Beds)
+                foreach (var b in room!.BedIds())
                 {
                     taken = taken || owned.Contains(b);
                 }
@@ -334,7 +331,7 @@ public static partial class RoomQualityRules
             {
                 return new BedroomStep { Kind = BedroomStepKind.Reconcile, Room = r };
             }
-            foreach (var id in room.Beds.Order(StringComparer.Ordinal))
+            foreach (var id in room.BedIds().Order(StringComparer.Ordinal))
             {
                 if (beds.TryGetValue(id, out var b) && InteriorHelpersRules.ContainsPawn(b.AccessibleTo, c.Pawn))
                 {

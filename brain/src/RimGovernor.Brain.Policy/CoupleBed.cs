@@ -184,8 +184,8 @@ public static class CoupleBedRules
     public static IReadOnlyList<FurnitureRoom> CoupleBedRooms(RoomObservation rooms, CurrentConstruction census, IReadOnlyList<SiteCell> cells)
     {
         var read = rooms.Rooms.Select(room =>
-            room.Role.TryGetValue(out var role) && role == RoomRole.None && room.Beds.Count == 0
-                ? room with { Role = Known(RoomRole.Bedroom) }
+            room.Role == RoomRole.None && room.Beds.Count == 0
+                ? room with { Role = RoomRole.Bedroom }
                 : room).ToList();
         return FurnitureRoomsRules.FurnitureRooms(rooms with { Rooms = EquatableArray.From(read) }, census, cells);
     }

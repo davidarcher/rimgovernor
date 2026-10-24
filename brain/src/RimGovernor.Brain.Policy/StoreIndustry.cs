@@ -17,7 +17,7 @@ internal sealed class IndustryOwner : IStoreOwner
         {
             foreach (var input in view.BenchInputs)
             {
-                var (room, ok) = RoomHolding(view.Rooms.Rooms, input.Cell);
+                var (room, ok) = RoomHolding(view.Rooms, input.Cell);
                 if (!ok)
                 {
                     continue;
@@ -37,7 +37,7 @@ internal sealed class IndustryOwner : IStoreOwner
                     {
                         Role = StockpileRolesConstants.IngredientsPrefix + input.Bench,
                         Exact = true,
-                        Regions = LayoutPerimeterEnclosureRules.CellRects(StockpileRules.CellSet(room!.Cells)),
+                        Regions = LayoutPerimeterEnclosureRules.CellRects(StockpileRules.CellSet(room)),
                         Width = BenchStoreSize,
                         Height = BenchStoreSize,
                         Roofed = true,
@@ -79,18 +79,16 @@ internal sealed class IndustryOwner : IStoreOwner
 
     public RoomDemand RoomDemand(StoreView v) => new();
 
-    private static (Room? Room, bool Ok) RoomHolding(IReadOnlyList<Room> rooms, Cell cell)
+    private static (IReadOnlyList<Cell> Cells, bool Ok) RoomHolding(RoomObservation rooms, Cell cell)
     {
-        foreach (var room in rooms)
+        foreach (var room in rooms.Rooms)
         {
-            foreach (var c in room.Cells)
+            var cells = rooms.CellsOf(room);
+            if (cells.Contains(cell))
             {
-                if (c == cell)
-                {
-                    return (room, true);
-                }
+                return (cells, true);
             }
         }
-        return (null, false);
+        return ([], false);
     }
 }

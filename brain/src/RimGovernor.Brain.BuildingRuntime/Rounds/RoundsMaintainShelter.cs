@@ -70,7 +70,7 @@ public sealed partial class SafeAreaMemory
         {
             Enter(newWorld);
             edits = [];
-            Plan(SafeAreaRules.SafeAreaKey, SafeAreaRules.SafeAreaCells(rooms, [.. killbox, .. isolation]));
+            Plan(SafeAreaRules.SafeAreaKey, SafeAreaRules.SafeAreaCells(rooms, killbox, [.. killbox, .. isolation]));
             if (hospital.Count > 0)
             {
                 Plan(HerdWardRules.HospitalAreaKey, hospital);

@@ -53,21 +53,21 @@ internal static class RoomsReads
         async Task<List<Observations.RoomState>> ReadAsync(string label, Observations.ListRoomsRequest request)
         {
             var reply = await s.CallAsync(label, NativeOps.ListRooms, request with { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-            var rooms = TypedReads.Observed(label, NativeOps.ListRooms, reply, reply.Outcome?.Observed).Rooms.ToList();
+            var rooms = reply.Rooms.ToList();
             s.RecordWireRows(label, rooms);
             return rooms;
         }
 
         var cell = new Common.Cell { X = inside.X, Z = inside.Z };
         var byCell = await ReadAsync("by-cell", new Observations.ListRoomsRequest { Region = new Observations.Rectangle { Minimum = cell, Maximum = cell } }).ConfigureAwait(false);
-        if (byCell is not [{ Id: { } id } room])
+        if (byCell is not [{ Id: var id } room])
         {
             throw new AcceptanceException($"by-cell: want one room at {inside}, got {byCell.Count}");
         }
 
-        if (room is not { ProperRoom: true, Outdoors: false, Doorway: false, Snapshot: not null })
+        if (room is not { ProperRoom: true, Outdoors: false, Doorway: false })
         {
-            problems.Add($"hut: want a proper indoor room with a snapshot, got {room}");
+            problems.Add($"hut: want a proper indoor room, got {room}");
         }
 
         if (room.CellCount != (uint)interior.Count)
@@ -76,12 +76,13 @@ internal static class RoomsReads
         }
 
         var (minX, minZ, maxX, maxZ) = (interior.Min(c => c.X), interior.Min(c => c.Z), interior.Max(c => c.X), interior.Max(c => c.Z));
-        if (room.Extents is not { Minimum: { } min, Maximum: { } max } || min.X != minX || min.Z != minZ || max.X != maxX || max.Z != maxZ)
+        var (min, max) = (room.Extents.Minimum, room.Extents.Maximum);
+        if (min.X != minX || min.Z != minZ || max.X != maxX || max.Z != maxZ)
         {
             problems.Add($"hut: extents {room.Extents}, want ({minX},{minZ})-({maxX},{maxZ})");
         }
 
-        if (room.Center is not { } center || !interior.Contains(new Fx.StageCell(center.X, center.Z)))
+        if (!interior.Contains(new Fx.StageCell(room.Center.X, room.Center.Z)))
         {
             problems.Add($"hut: center {room.Center} is not an interior cell");
         }
@@ -104,16 +105,21 @@ internal static class RoomsReads
         }
 
         var boundary = await ReadAsync("boundary", exact with { IncludeBoundary = true }).ConfigureAwait(false);
-        static long Units(Observations.RoomState r) => r.Contents.Sum(q => q.Units ?? 0);
+        static long Units(Observations.RoomState r) => r.Contents.Sum(q => q.Units);
         if (boundary is not [var walled] || Units(walled) <= Units(room))
         {
             problems.Add($"boundary: contents {(boundary.Count == 1 ? Units(boundary[0]) : -1)} do not exceed the interior's {Units(room)}");
         }
 
-        var duplicate = await s.CallAsync("duplicate-id", NativeOps.ListRooms, new Observations.ListRoomsRequest { Scope = s.Scope, RoomIds = [id, id] }, cancellationToken).ConfigureAwait(false);
-        if (duplicate.Outcome?.Failure?.Code != Common.FailureCode.InvalidRequest)
+        try
         {
-            problems.Add($"duplicate-id: want INVALID_REQUEST, got {duplicate.Outcome}");
+            var duplicate = await s.CallAsync("duplicate-id", NativeOps.ListRooms, new Observations.ListRoomsRequest { Scope = s.Scope, RoomIds = [id, id] }, cancellationToken).ConfigureAwait(false);
+            problems.Add($"duplicate-id: want a refusal, got {duplicate.Rooms.Count} rooms");
+        }
+        catch (NativeRefusedException refused)
+        {
+            // A duplicated room id is an invalid request: the native refuses the read.
+            s.Record("duplicate-id", refused.Cause);
         }
 
         if (problems.Count > 0)

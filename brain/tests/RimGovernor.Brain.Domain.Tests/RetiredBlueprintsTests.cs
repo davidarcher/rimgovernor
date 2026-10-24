@@ -34,7 +34,7 @@ public sealed class RetiredBlueprintsTests
     private static ColonyProjection Colony(params ConstructionSite[] sites) => ColonyFactsCoreTests.Projection() with
     {
         LayoutPlan = Known(Plan),
-        Rooms = Known(new RoomObservation()),
+        Rooms = Known(RoomObservation.NoRooms),
         Facts = new() { CurrentConstruction = Known(new CurrentConstruction { Colony = true, Sites = [.. sites] }) },
     };
 

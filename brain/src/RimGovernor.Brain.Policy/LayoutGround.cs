@@ -128,7 +128,7 @@ partial record PlannedRoom
     /// region (one cell off, or merged with a neighbour) is not the planned room. Whether the room is built is
     /// GroundMatches.
     /// </summary>
-    public static (Room? Room, bool Ok) CensusRoomIn(PlannedRoom r, RoomObservation rooms)
+    public static (RoomState? Room, bool Ok) CensusRoomIn(PlannedRoom r, RoomObservation rooms)
     {
         if (r.Region.Empty())
         {
@@ -137,17 +137,14 @@ partial record PlannedRoom
         var anchor = r.Region.Anchor();
         foreach (var room in rooms.Rooms)
         {
-            if (room.Cells.Count > r.Region.Area())
-            {
-                continue;
-            }
-            if (!room.Enclosed.TryGetValue(out var enclosed) || !enclosed)
+            var cells = rooms.CellsOf(room);
+            if (cells.Count > r.Region.Area() || !room.Enclosed())
             {
                 continue;
             }
             var hit = false;
             var within = true;
-            foreach (var c in room.Cells)
+            foreach (var c in cells)
             {
                 hit = hit || c == anchor;
                 within = within && r.Region.Contains(c);

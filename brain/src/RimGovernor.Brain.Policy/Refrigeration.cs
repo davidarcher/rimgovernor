@@ -55,7 +55,7 @@ public sealed record RefrigerationCooler
 
 public sealed record RefrigerationObservation
 {
-    public EquatableArray<Room> Rooms { get; init; }
+    public required RoomObservation Rooms { get; init; }
 
     public EquatableArray<RefrigerationCooler> Coolers { get; init; }
 
@@ -72,7 +72,7 @@ public sealed record RefrigerationObservation
 
     public void Validate()
     {
-        new RoomObservation { Rooms = Rooms }.Validate();
+        Rooms.Validate();
         var seen = new HashSet<string>(StringComparer.Ordinal);
         foreach (var c in Coolers)
         {
@@ -287,12 +287,12 @@ public static partial class RefrigerationRules
         {
             return new RefrigerationProposal { Method = RefrigerationMethod.WaitBlackout };
         }
-        var rooms = new Dictionary<string, Room>(StringComparer.Ordinal);
+        var rooms = new Dictionary<string, RoomState>(StringComparer.Ordinal);
         var cellRoom = new Dictionary<Cell, string>();
-        foreach (var room in v.Rooms)
+        foreach (var room in v.Rooms.Rooms)
         {
             rooms[room.Id] = room;
-            foreach (var c in room.Cells)
+            foreach (var c in v.Rooms.CellsOf(room))
             {
                 cellRoom[c] = room.Id;
             }
@@ -309,11 +309,8 @@ public static partial class RefrigerationRules
             {
                 return new RefrigerationProposal { Method = RefrigerationMethod.Unknown };
             }
-            if (!room.Enclosed.TryGetValue(out var enclosed))
-            {
-                return new RefrigerationProposal { Method = RefrigerationMethod.Unknown };
-            }
-            if (!enclosed || room.Cells.Count == 0)
+            var roomCells = v.Rooms.CellsOf(room);
+            if (!room.Enclosed() || roomCells.Count == 0)
             {
                 deferred = FirstReason(deferred, RefrigerationMethod.EnclosureNeeded);
                 continue;
@@ -324,7 +321,7 @@ public static partial class RefrigerationRules
                 .ToList();
             if (serving.Count > 0)
             {
-                var (proposal, method) = ServeRoom(id, serving, rooms, cells, p);
+                var (proposal, method) = ServeRoom(id, serving, rooms, cellRoom, cells, p);
                 if (proposal.Method != RefrigerationMethod.None)
                 {
                     return proposal;
@@ -349,7 +346,7 @@ public static partial class RefrigerationRules
             {
                 taken.Add(cooler.Position);
             }
-            var (cell, rotation, ok) = VentedWall(room, cellRoom, cells, taken);
+            var (cell, rotation, ok) = VentedWall(id, roomCells, cellRoom, cells, taken);
             if (!ok)
             {
                 deferred = FirstReason(deferred, RefrigerationMethod.NoWall);
@@ -378,7 +375,8 @@ public static partial class RefrigerationRules
     internal static (RefrigerationProposal Proposal, RefrigerationMethod Method) ServeRoom(
         string room,
         IReadOnlyList<RefrigerationCooler> coolers,
-        IReadOnlyDictionary<string, Room> rooms,
+        IReadOnlyDictionary<string, RoomState> rooms,
+        IReadOnlyDictionary<Cell, string> cellRoom,
         IReadOnlyDictionary<Cell, SiteCell> cells,
         FoodStoragePolicy p)
     {
@@ -396,7 +394,7 @@ public static partial class RefrigerationRules
                 waiting = FirstReason(waiting, RefrigerationMethod.PowerNeeded);
                 continue;
             }
-            var (blocked, known) = HeatRejectionBlocked(cooler, rooms, cells);
+            var (blocked, known) = HeatRejectionBlocked(cooler, rooms, cellRoom, cells);
             if (!known)
             {
                 return (new RefrigerationProposal { Method = RefrigerationMethod.Unknown }, RefrigerationMethod.None);
@@ -436,7 +434,7 @@ public static partial class RefrigerationRules
             {
                 continue;
             }
-            var (blocked, known) = HeatRejectionBlocked(cooler, rooms, cells);
+            var (blocked, known) = HeatRejectionBlocked(cooler, rooms, cellRoom, cells);
             if (known && !blocked)
             {
                 return (new RefrigerationProposal(), RefrigerationMethod.Wait);
@@ -451,7 +449,7 @@ public static partial class RefrigerationRules
     /// room saturates. Outdoors or unroofed hot sides are never blocked. Known is false when it cannot be told.
     /// </summary>
     internal static (bool Blocked, bool Known) HeatRejectionBlocked(
-        RefrigerationCooler cooler, IReadOnlyDictionary<string, Room> rooms, IReadOnlyDictionary<Cell, SiteCell> cells)
+        RefrigerationCooler cooler, IReadOnlyDictionary<string, RoomState> rooms, IReadOnlyDictionary<Cell, string> cellRoom, IReadOnlyDictionary<Cell, SiteCell> cells)
     {
         var hot = cooler.Hot();
         if (cells.TryGetValue(hot, out var c) && c.Walkable.TryGetValue(out var walkable) && !walkable)
@@ -473,19 +471,10 @@ public static partial class RefrigerationRules
                 return (false, true);
             }
         }
-        // The first room holding the hot cell decides. Rooms do not overlap, so the
-        // lowest id keeps the result independent of dictionary order.
-        foreach (var id in rooms.Keys.Order(StringComparer.Ordinal))
+        // The room holding the hot cell decides; rooms do not overlap.
+        if (cellRoom.TryGetValue(hot, out var id) && rooms.TryGetValue(id, out var room))
         {
-            var room = rooms[id];
-            foreach (var cell in room.Cells)
-            {
-                if (cell == hot)
-                {
-                    var known = room.Enclosed.TryGetValue(out var enclosed);
-                    return (enclosed, known);
-                }
-            }
+            return (room.Enclosed(), true);
         }
         return (false, false);
     }
@@ -506,16 +495,16 @@ public static partial class RefrigerationRules
     /// -> outside.
     /// </summary>
     internal static (Cell Cell, Rotation Rotation, bool Ok) VentedWall(
-        Room room, IReadOnlyDictionary<Cell, string> cellRoom, IReadOnlyDictionary<Cell, SiteCell> cells, ISet<Cell> taken)
+        string id, IReadOnlyList<Cell> room, IReadOnlyDictionary<Cell, string> cellRoom, IReadOnlyDictionary<Cell, SiteCell> cells, ISet<Cell> taken)
     {
         var options = new List<(Cell Cell, Rotation Rotation)>();
-        foreach (var inside in room.Cells)
+        foreach (var inside in room)
         {
             foreach (var rotation in new[] { Rotation.North, Rotation.East, Rotation.South, Rotation.West })
             {
                 var wall = Step(inside, Facing(rotation), 1);
                 var outside = Step(inside, Facing(rotation), 2);
-                if (taken.Contains(wall) || cellRoom.GetValueOrDefault(wall, "") == room.Id || cellRoom.GetValueOrDefault(outside, "") == room.Id)
+                if (taken.Contains(wall) || cellRoom.GetValueOrDefault(wall, "") == id || cellRoom.GetValueOrDefault(outside, "") == id)
                 {
                     continue;
                 }

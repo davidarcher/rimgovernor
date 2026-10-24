@@ -19,15 +19,16 @@ internal static class CoupledShelterCandidates
         var candidates = new List<ForecastShelterGeometry>();
         if (!physical.TryGetValue(out var census)) findings.Add("unknown_observed_shelter_geometry");
         else foreach (var room in census.Rooms
-            .OrderByDescending(r => read?.Sources.Any(s => r.Cells.Contains(s.Cell)) == true)
+            .OrderByDescending(r => read?.Sources.Any(s => census.Cells.TryGetValue(r.Id, out var held) && held.Contains(s.Cell)) == true)
             .ThenByDescending(r => r.Beds.Count > 0 || r.Pawns.Count > 0).ThenBy(r => r.Id, StringComparer.Ordinal))
         {
-            if (room.Id.Length == 0 || room.Cells.Count == 0 || room.Cells.Distinct().Count() != room.Cells.Count)
+            var cells = EquatableArray.From(census.Cells.TryGetValue(room.Id, out var held) ? held : []);
+            if (room.Id.Length == 0 || cells.Count == 0 || cells.Distinct().Count() != cells.Count)
             { findings.Add("unknown_observed_shelter_geometry:" + room.Id); continue; }
-            var x = room.Cells.Min(c => c.X); var z = room.Cells.Min(c => c.Z);
-            var bounds = new Rectangle(x, z, room.Cells.Max(c => c.X) - x + 1, room.Cells.Max(c => c.Z) - z + 1);
+            var x = cells.Min(c => c.X); var z = cells.Min(c => c.Z);
+            var bounds = new Rectangle(x, z, cells.Max(c => c.X) - x + 1, cells.Max(c => c.Z) - z + 1);
             // Enclosed includes a complete roof; requiring it would erase roof-repair opportunities.
-            candidates.Add(new(new(ForecastShelterSource.Observed, room.Id), room.Cells, bounds, default, false));
+            candidates.Add(new(new(ForecastShelterSource.Observed, room.Id), cells, bounds, default, false));
         }
         candidates.AddRange(planned);
         var unique = new List<ForecastShelterGeometry>();

@@ -98,7 +98,7 @@ internal static class PlannedRoomPredictionCase
                 NativeOps.ListRooms,
                 new Observations.ListRoomsRequest { Scope = s.Scope, Region = new Observations.Rectangle { Minimum = corner, Maximum = corner } },
                 cancellationToken).ConfigureAwait(false);
-            var observed = TypedReads.Observed(step, NativeOps.ListRooms, rooms, rooms.Outcome?.Observed);
+            var observed = rooms;
             return observed.Rooms is [var one] ? one : throw new AcceptanceException($"{step}: want the one built room at {corner.X},{corner.Z}, got {observed.Rooms.Count}");
         }
         var room = await RoomAsync("room").ConfigureAwait(false);
@@ -125,7 +125,7 @@ internal static class PlannedRoomPredictionCase
         {
             problems.Add($"floored impressiveness {floor.Impressiveness}, unfloored {prediction.Impressiveness}");
         }
-        if (prediction.Role != room.Role)
+        if (prediction.Role != Wire.Name(room.Role))
         {
             problems.Add($"role {prediction.Role}, room {room.Role}");
         }

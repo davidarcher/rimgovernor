@@ -2,6 +2,7 @@ using RimWorld;
 using Verse;
 using Domain = RimGovernor.Brain.Domain;
 using P = RimGovernor.Brain.Policy;
+using RoomRole = RimGovernor.Contracts.Wire.Observations.RoomRole;
 
 namespace RimGovernor.Brain.Bridge;
 
@@ -50,18 +51,18 @@ public sealed partial class DefinitionCatalog
     }
 
     // The room role the game scores the def's building into, or none.
-    private static P.RoomRole PieceFamily(ThingDef row)
+    private static P.PlanRole PieceFamily(ThingDef row)
     {
         if (row.building?.workTableRoomRole?.defName is { Length: > 0 } role)
         {
-            return Wire.TryParse<P.RoomRole>(role, out var parsed) ? parsed : throw new CatalogException($"{row.defName} names room role {role} the policy does not know");
+            return Wire.TryParse<RoomRole>(role, out var parsed) ? parsed : throw new CatalogException($"{row.defName} names room role {role} the policy does not know");
         }
 
         if (!IsBed(row) || row.building is not { bed_humanlike: true } building)
         {
-            return P.RoomRole.Unset;
+            return P.PlanRole.NoFamily;
         }
 
-        return building.bed_defaultMedical ? P.RoomRole.Hospital : building.bed_countsForBedroomOrBarracks ? P.RoomRole.Bedroom : P.RoomRole.Unset;
+        return building.bed_defaultMedical ? RoomRole.Hospital : building.bed_countsForBedroomOrBarracks ? RoomRole.Bedroom : P.PlanRole.NoFamily;
     }
 }

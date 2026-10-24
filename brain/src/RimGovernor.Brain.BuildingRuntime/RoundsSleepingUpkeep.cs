@@ -343,7 +343,7 @@ public sealed partial class RoundsBuildingPlanner
         {
             return (null, NoSpace("sleeping_cells"));
         }
-        var facility = Pol.RoomsRules.Facility(Pol.RoomRole.Bedroom);
+        var facility = Pol.RoomsRules.Facility(RoomRole.Bedroom);
         var resolved = Copy();
         resolved.Definition = choice.Definition;
         resolved.Environment = Pol.PlacementEnvironment.Indoors;

@@ -120,16 +120,16 @@ public sealed record TemperatureCooling
     /// on its floor, or a wall cooler beside it. A room that holds one needs no
     /// second.
     /// </summary>
-    public bool Conditioned(Room room) => WallCoolerBeside(room) || HeaterIn(room);
+    public bool Conditioned(IReadOnlyList<Cell> cells) => WallCoolerBeside(cells) || HeaterIn(cells);
 
     /// <summary>Whether a powered heater of the catalog's heater definition stands in room.</summary>
-    internal bool HeaterIn(Room room)
+    internal bool HeaterIn(IReadOnlyList<Cell> cells)
     {
         if (!Power.TryGetValue(out var topology) || Heater.Length == 0)
         {
             return false;
         }
-        var inside = new HashSet<Cell>(room.Cells);
+        var inside = new HashSet<Cell>(cells);
         foreach (var b in topology.Buildings)
         {
             if (b.Definition != Heater)
@@ -145,13 +145,13 @@ public sealed record TemperatureCooling
     }
 
     /// <summary>A Cooler in the power census standing on a cell four-adjacent to one of the room's cells: a cooler placed through the room's wall.</summary>
-    internal bool WallCoolerBeside(Room room)
+    internal bool WallCoolerBeside(IReadOnlyList<Cell> cells)
     {
         if (!Power.TryGetValue(out var topology))
         {
             return false;
         }
-        var inside = new HashSet<Cell>(room.Cells);
+        var inside = new HashSet<Cell>(cells);
         foreach (var b in topology.Buildings)
         {
             if (b.Definition != "Cooler")
@@ -199,9 +199,9 @@ public static partial class TemperatureMethodRules
     /// shift each one. Without a sleeper whose range is known banded is false and the band is unknown: nothing is
     /// judged against a range the game did not state.
     /// </summary>
-    private static (double Low, double High, bool Banded) SleepersBand(Room room, IReadOnlyList<SleepingPerson> sleepers)
+    private static (double Low, double High, bool Banded) SleepersBand(RoomState room, IReadOnlyList<SleepingPerson> sleepers)
     {
-        var beds = new HashSet<string>(room.Beds, StringComparer.Ordinal);
+        var beds = new HashSet<string>(room.BedIds(), StringComparer.Ordinal);
         var low = double.NegativeInfinity;
         var high = double.PositiveInfinity;
         var banded = false;
@@ -237,17 +237,16 @@ public static partial class TemperatureMethodRules
         }
         foreach (var room in v.Rooms)
         {
-            var tk = room.Temperature.TryGetValue(out var temperature);
-            var ck = room.Contents.TryGetValue(out var contents);
+            var temperature = room.TemperatureC;
             var (low, _, banded) = SleepersBand(room, cooling.Sleepers);
-            if (!tk || !ck || !banded || temperature >= low)
+            if (!banded || temperature >= low)
             {
                 continue;
             }
             var heated = false;
-            foreach (var q in contents)
+            foreach (var q in room.Contents)
             {
-                heated = heated || (q.Count > 0 && (q.Resource.Value == "Campfire" || q.Resource.Value == "Heater"));
+                heated = heated || (q.Units > 0 && (q.DefName == "Campfire" || q.DefName == "Heater"));
             }
             if (!heated)
             {
@@ -280,14 +279,11 @@ public static partial class TemperatureMethodRules
             var rk = campfire.Room.TryGetValue(out var id);
             var ok = campfire.AutoRefuel.TryGetValue(out var on);
             var (room, found) = v.Room(id ?? "");
-            if (!rk || !ok || !found || room.Beds.Count == 0)
+            if (!rk || !ok || !found || room!.Beds.Count == 0)
             {
                 continue;
             }
-            if (!room.Temperature.TryGetValue(out var temperature))
-            {
-                continue;
-            }
+            var temperature = room.TemperatureC;
             var (low, high, banded) = SleepersBand(room, cooling.Sleepers);
             if (!banded)
             {
@@ -381,25 +377,19 @@ public static partial class TemperatureMethodRules
         foreach (var room in v.Rooms)
         {
             DomainException.Require(FoodForecastRules.FoodId(room.Id) && rooms.Add(room.Id), "invalid temperature room");
-            if (room.Temperature.TryGetValue(out var temperature))
-            {
-                DomainException.Require(!double.IsNaN(temperature) && !double.IsInfinity(temperature), "invalid room temperature");
-            }
-            foreach (var id in room.Beds)
+            DomainException.Require(double.IsFinite(room.TemperatureC), "invalid room temperature");
+            foreach (var id in room.BedIds())
             {
                 DomainException.Require(FoodForecastRules.FoodId(id) && beds.Add(id), "ambiguous sleeping room");
             }
-            foreach (var c in room.Cells)
+            foreach (var c in v.CellsOf(room))
             {
                 DomainException.Require(c.X >= 0 && c.Z >= 0 && c.X < 4096 && c.Z < 4096 && cells.Add(c), "invalid or overlapping room footprint");
             }
-            if (room.Contents.TryGetValue(out var contents))
+            var seen = new HashSet<Resource>();
+            foreach (var q in room.ContentAmounts())
             {
-                var seen = new HashSet<Resource>();
-                foreach (var q in contents)
-                {
-                    DomainException.Require(AdmissionRules.ValidResource(q.Resource) && q.Count >= 0 && seen.Add(q.Resource), "invalid room contents");
-                }
+                DomainException.Require(AdmissionRules.ValidResource(q.Resource) && q.Count >= 0 && seen.Add(q.Resource), "invalid room contents");
             }
         }
     }
@@ -409,8 +399,7 @@ public static partial class TemperatureMethodRules
     /// roofed. UsesOutdoorTemperature holds at 25% open roof and Indoors does not mean roofed, so enclosure alone
     /// proves nothing.
     /// </summary>
-    public static bool ProvesTemperature(this Room r) =>
-        r.Enclosed.TryGetValue(out var enclosed) && enclosed && r.Roofed.TryGetValue(out var roofed) && roofed;
+    public static bool ProvesTemperature(this RoomState r) => r.Enclosed() && r.Roofed();
 
     /// <summary>
     /// Uses actual sleeping rooms, including beds whose safe reachability disappears during a temperature
@@ -443,7 +432,7 @@ public static partial class TemperatureMethodRules
         foreach (var room in v.Rooms)
         {
             var selected = false;
-            foreach (var id in room.Beds)
+            foreach (var id in room.BedIds())
             {
                 if (wanted.Contains(id))
                 {
@@ -455,7 +444,8 @@ public static partial class TemperatureMethodRules
             {
                 continue;
             }
-            if (!room.Temperature.TryGetValue(out var temperature) || !room.ProvesTemperature())
+            var temperature = room.TemperatureC;
+            if (!room.ProvesTemperature())
             {
                 return none;
             }
@@ -476,9 +466,11 @@ public static partial class TemperatureMethodRules
         return none;
     }
 
-    private sealed class ThermalChoice(Room room, string bed, TemperatureMethod method, double temperature)
+    private sealed class ThermalChoice(RoomState room, IReadOnlyList<Cell> cells, string bed, TemperatureMethod method, double temperature)
     {
-        public Room Room { get; } = room;
+        public RoomState Room { get; } = room;
+
+        public IReadOnlyList<Cell> Cells { get; } = cells;
 
         public string Bed { get; } = bed;
 
@@ -523,7 +515,7 @@ public static partial class TemperatureMethodRules
         foreach (var room in v.Rooms)
         {
             var beds = new List<string>();
-            foreach (var id in room.Beds)
+            foreach (var id in room.BedIds())
             {
                 if (wanted.Contains(id))
                 {
@@ -536,13 +528,10 @@ public static partial class TemperatureMethodRules
                 continue;
             }
             beds.Sort(StringComparer.Ordinal);
-            if (!room.Temperature.TryGetValue(out var temperature))
-            {
-                unknown = true;
-                continue;
-            }
+            var temperature = room.TemperatureC;
+            var roomCells = v.CellsOf(room);
             // Placement is not gated on enclosure or a roof; only a room with no cells has nowhere to place.
-            if (room.Cells.Count == 0)
+            if (roomCells.Count == 0)
             {
                 missing = true;
                 continue;
@@ -566,7 +555,7 @@ public static partial class TemperatureMethodRules
             }
             if (method != TemperatureMethod.NoMethod)
             {
-                choices.Add(new ThermalChoice(room, beds[0], method, temperature));
+                choices.Add(new ThermalChoice(room, roomCells, beds[0], method, temperature));
             }
             else if (!room.ProvesTemperature())
             {
@@ -598,7 +587,7 @@ public static partial class TemperatureMethodRules
         {
             foreach (var room in v.Rooms)
             {
-                foreach (var c in room.Cells)
+                foreach (var c in v.CellsOf(room))
                 {
                     cellRoom[c] = room.Id;
                 }
@@ -610,20 +599,15 @@ public static partial class TemperatureMethodRules
         }
         foreach (var choice in choices)
         {
-            if (!choice.Room.Contents.TryGetValue(out var contents))
-            {
-                unknown = true;
-                continue;
-            }
             var method = choice.Method;
             var exists = false;
-            foreach (var q in contents)
+            foreach (var q in choice.Room.Contents)
             {
-                if (q.Count == 0)
+                if (q.Units == 0)
                 {
                     continue;
                 }
-                var name = q.Resource.Value;
+                var name = q.DefName;
                 if (method == TemperatureMethod.Heat)
                 {
                     // With a finite wood stock and power to spare a standing campfire does not hold the room:
@@ -641,9 +625,9 @@ public static partial class TemperatureMethodRules
             // census's Cooler rows beside the room are the facility the room already has.
             if (method == TemperatureMethod.Cool && !exists)
             {
-                exists = cooling.WallCoolerBeside(choice.Room);
+                exists = cooling.WallCoolerBeside(choice.Cells);
             }
-            exists = exists || (method == TemperatureMethod.Heat && cooling.HeaterIn(choice.Room));
+            exists = exists || (method == TemperatureMethod.Heat && cooling.HeaterIn(choice.Cells));
             if (exists)
             {
                 continue;
@@ -652,14 +636,14 @@ public static partial class TemperatureMethodRules
             {
                 // A vented wall cell hosts the powered cooler; a room with no such wall (rock-bound, or ringed
                 // by other rooms) keeps the passive cooler.
-                var (cell, rotation, ok) = RefrigerationRules.VentedWall(choice.Room, cellRoom, cells, new HashSet<Cell>());
+                var (cell, rotation, ok) = RefrigerationRules.VentedWall(choice.Room.Id, choice.Cells, cellRoom, cells, new HashSet<Cell>());
                 if (ok)
                 {
                     return new TemperatureProposal
                     {
                         Method = TemperatureMethod.CoolPowered,
                         Key = ThermalKey(choice.Bed + "/" + Wire.Name(TemperatureMethod.CoolPowered)),
-                        Cells = [.. choice.Room.Cells],
+                        Cells = [.. choice.Cells],
                         Cell = cell,
                         Rotation = rotation,
                     };
@@ -673,7 +657,7 @@ public static partial class TemperatureMethodRules
             {
                 Method = method,
                 Key = ThermalKey(choice.Bed + "/" + Wire.Name(method)),
-                Cells = [.. choice.Room.Cells],
+                Cells = [.. choice.Cells],
             };
         }
         if (seen.Count != wanted.Count || unknown)

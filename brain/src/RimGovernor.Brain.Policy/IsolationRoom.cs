@@ -45,7 +45,7 @@ public static class IsolationRoomRules
         }
         var need = new ChildRoomNeed
         {
-            Role = RoomRole.IsolationRoom,
+            Role = PlanRole.IsolationRoom,
             Module = PlannedRole.IsolationRoom,
             Furniture = [new ChildFurniture { Defs = EquatableArray.From(p.Beds), Count = 1 }],
         };

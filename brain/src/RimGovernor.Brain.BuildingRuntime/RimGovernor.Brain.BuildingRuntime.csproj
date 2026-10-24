@@ -48,6 +48,8 @@
     <Using Include="RimGovernor.Contracts.Wire.Mirror" Alias="PbMirror" />
     <!-- Names two imported namespaces both declare: Policy and Telemetry/Executor shapes win (issue #3111). -->
     <Using Include="RimGovernor.Brain.Domain.PawnId" Alias="PawnId" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.RoomRole" Alias="RoomRole" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.RoomState" Alias="RoomState" />
     <Using Include="RimGovernor.Brain.Policy.Amount" Alias="Amount" />
     <Using Include="RimGovernor.Brain.Telemetry.Decision" Alias="Decision" />
     <Using Include="RimGovernor.Brain.Domain.ControllerSessionId" Alias="ControllerSessionId" />

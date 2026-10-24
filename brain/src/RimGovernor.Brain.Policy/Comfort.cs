@@ -270,7 +270,7 @@ public static class ComfortRules
             {
                 return false;
             }
-            return room.Role.TryGetValue(out var role) && f.Hosts(role);
+            return f.Hosts(room!.Role);
         }
         return new ComfortObservation
         {

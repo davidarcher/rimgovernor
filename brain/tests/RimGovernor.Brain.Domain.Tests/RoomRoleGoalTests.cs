@@ -13,12 +13,12 @@ public sealed class RoomRoleGoalTests
 {
     private static GoalRecord Room(int id, RoomRole role, int count = 0) => new() { Id = id, Kind = GoalKind.RoomRole, Target = Wire.Name(role), Count = count };
 
-    private static Room Standing(RoomRole role, params string[] beds) => new() { Id = "r" + role, Role = Known(role), Beds = [.. beds] };
+    private static RoomState Standing(RoomRole role, params string[] beds) => RoomFixtures.State("r" + role, role, beds: beds);
 
-    private static GoalsFacts Facts(GoalRecord goal, params Room[] rooms) => new()
+    private static GoalsFacts Facts(GoalRecord goal, params RoomState[] rooms) => new()
     {
         Goals = [goal],
-        Rooms = Known(new RoomObservation { Rooms = [.. rooms] }),
+        Rooms = Known(RoomFixtures.Census(rooms)),
         Rounds = new RoundsFacts { Sleeping = Known(new SleepingObservation { Beds = [] }) },
     };
 
@@ -114,7 +114,7 @@ public sealed class RoomRoleGoalTests
         var status = GoalRules.Evaluate(goal, facts);
         Assert.Equal((GoalState.Pursuing, MedicalRules.MedicalCareNeed, 1.0), (status.State, status.Owner, status.Deficit.Value));
 
-        var two = facts with { Rounds = facts.Rounds with { Sleeping = Known(new SleepingObservation { Beds = [Bed("b1", true), Bed("b2", true)] }) }, Rooms = Known(new RoomObservation { Rooms = [Standing(RoomRole.Hospital, "b1", "b2")] }) };
+        var two = facts with { Rounds = facts.Rounds with { Sleeping = Known(new SleepingObservation { Beds = [Bed("b1", true), Bed("b2", true)] }) }, Rooms = Known(RoomFixtures.Census(Standing(RoomRole.Hospital, "b1", "b2"))) };
         Assert.Equal(GoalState.Met, GoalRules.Evaluate(goal, two).State);
     }
 
@@ -122,7 +122,7 @@ public sealed class RoomRoleGoalTests
     {
         Patients = Known<EquatableArray<CarePawn>>([]),
         Sleeping = Known(new SleepingObservation { Beds = [.. beds] }),
-        Rooms = Known(new RoomObservation { Rooms = [Standing(RoomRole.Hospital, [.. beds.Select(b => b.Id)])] }),
+        Rooms = Known(RoomFixtures.Census(Standing(RoomRole.Hospital, [.. beds.Select(b => b.Id)]))),
         Furniture = new RoomFurniture { Beds = [new FurnitureBed { Def = "Bed", Slots = 1 }] },
         Definitions = [new BenchDefinition { Name = "Bed", Available = Known(true) }],
         MinBeds = floor,
@@ -154,7 +154,7 @@ public sealed class RoomRoleGoalTests
     [Fact]
     public void AShortWardKeepsTheCareNeedUnmetWhileNobodyIsSick()
     {
-        var rooms = Known(new RoomObservation { Rooms = [Standing(RoomRole.Hospital, "b1")] });
+        var rooms = Known(RoomFixtures.Census(Standing(RoomRole.Hospital, "b1")));
         var sleeping = Known(new SleepingObservation { Beds = [Bed("b1", true)] });
         Assert.Equal(Known(true), HospitalRules.BedsShort(2, rooms, sleeping, false));
         Assert.Equal(Known(false), HospitalRules.BedsShort(1, rooms, sleeping, false));

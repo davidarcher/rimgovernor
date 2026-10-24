@@ -20,7 +20,7 @@ public sealed partial class RoundsSleepingUpkeepPlanner
             Tags = [.. need.FloorTags.Items],
             Forbidden = need.ForbiddenDefs.Count == 0 ? null : need.ForbiddenDefs.Items.Contains,
             Name = string.Create(CultureInfo.InvariantCulture, $"child-room-{bounds.X}-{bounds.Z}"),
-            Reason = Wire.Name(need.Role),
+            Reason = need.Role.Name,
         }, call, epoch).ConfigureAwait(false);
     }
 }

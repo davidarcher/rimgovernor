@@ -75,7 +75,7 @@ public static class RefrigerationReads
         }
         var result = new RefrigerationObservation
         {
-            Rooms = temperature.Rooms,
+            Rooms = temperature,
             Coolers = rows,
             Cells = EquatableArray.From(projection.Cells),
             CoolerAvailable = Unknown<bool>(),

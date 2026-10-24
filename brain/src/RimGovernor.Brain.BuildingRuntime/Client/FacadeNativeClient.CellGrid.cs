@@ -189,8 +189,8 @@ public sealed partial class FacadeNativeClient
 
     /// <summary>
     /// Resolves each room of the census to its cells in the frame grid,
-    /// the held cells carrying its grid room key, row-major. A room without a key, or whose key the grid does not
-    /// carry, is absent.
+    /// the held cells carrying its grid room key, row-major. A room whose key the grid does not carry (every cell
+    /// fogged) is absent.
     /// </summary>
     internal static IReadOnlyDictionary<string, IReadOnlyList<Cell>> RoomCellsOf(PbObservations.RoomsSnapshot? rooms, FrameCellGrid? grid)
     {
@@ -199,20 +199,12 @@ public sealed partial class FacadeNativeClient
         {
             return result;
         }
-        var keys = new HashSet<int>();
+        var byKey = grid.CellsByRoom(rooms.Rooms.Select(room => room.GridRoom).ToHashSet());
         foreach (var room in rooms.Rooms)
         {
-            if (room.GridRoom is { } key)
+            if (byKey.TryGetValue(room.GridRoom, out var cells))
             {
-                keys.Add(key);
-            }
-        }
-        var byKey = grid.CellsByRoom(keys);
-        foreach (var room in rooms.Rooms)
-        {
-            if (room.GridRoom is { } key && byKey.TryGetValue(key, out var cells))
-            {
-                result[room.Id ?? ""] = cells;
+                result[room.Id] = cells;
             }
         }
         return result;

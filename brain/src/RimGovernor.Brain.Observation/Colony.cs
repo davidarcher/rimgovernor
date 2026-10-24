@@ -324,8 +324,8 @@ public sealed partial record ColonyProjection
     /// <summary>The accessible colony stock census by definition; a definition absent from a known census is known zero.</summary>
     public Fact<IReadOnlyDictionary<Resource, long>> Resources { get; init; }
 
-    /// <summary>The census's wealth split and raid points; every reading is unknown under a native build without the section.</summary>
-    public ColonyThreat Threat { get; init; } = new();
+    /// <summary>The census's threat section: the wealth split, the raid points and the storyteller.</summary>
+    public required O.ThreatFacts Threat { get; init; }
 
     /// <summary>
     /// The middle of the layout plan's core: unknown until a plan exists, so nothing anchors on where the

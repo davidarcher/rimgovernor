@@ -123,17 +123,14 @@ public sealed class RoyalRoomCreditTests
     private static readonly PlannedRoom Suite = new() { Id = 2, Role = PlannedRole.Suite, Region = RegionRules.RectRegion(new() { X = 10, Z = 0, Width = 7, Height = 7 }) };
     private static readonly PlannedRoom ThroneRoom = new() { Id = 3, Role = PlannedRole.Throne, Region = RegionRules.RectRegion(new() { X = 20, Z = 0, Width = 8, Height = 5 }) };
     private static readonly LayoutPlan Plan = new() { Rooms = [Standard, Suite, ThroneRoom], NextRoomId = 4 };
-    private static readonly RoomObservation StandingStandard = new()
-    {
-        Rooms = [new() { Id = "std", Role = Known(RoomRole.Bedroom), Enclosed = Known(true), Cells = [.. Standard.Region.Cells()], Beds = ["b1"] }],
-    };
+    private static readonly RoomObservation StandingStandard = RoomFixtures.Census((RoomFixtures.State("std", RoomRole.Bedroom, beds: ["b1"]), Standard.Region.Cells()));
 
     private static SleepingObservation Sleeping(RoyalTitle? title) => new()
     {
         Colonists = 1,
         People = [new() { Id = A, OwnedBed = Known("b1"), Title = title }],
         Beds = [new() { Id = "b1", Definition = new("Bed"), Humanlike = true, Room = Known("std"), Owners = [A], AccessibleTo = [A] }],
-        Rooms = Known<EquatableArray<UpkeepRoom>>([new() { Id = "std", Quality = Known(new RoomQuality(30, 0, 0, 0, 30)), Cells = Known(12) }]),
+        Rooms = Known<EquatableArray<UpkeepRoom>>([new() { Id = "std", Role = RoomRole.None, Quality = new RoomQuality(30, 0, 0, 0, 30), Cells = 12, Beds = [] }]),
     };
 
     private static IReadOnlyDictionary<int, RoyalRoomNeed> ProductionRooms(SleepingObservation sleeping, RoyaltyFacts? royalty)

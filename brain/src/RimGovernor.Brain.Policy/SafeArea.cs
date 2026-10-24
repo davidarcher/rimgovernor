@@ -7,34 +7,30 @@ public static partial class SafeAreaRules
 
     /// <summary>
     /// The union of the enclosed, fully roofed rooms (every role: workshops keep sheltered pawns working)
-    /// minus the killbox cells; a room with an enemy-facing door is left out unless every roofed room has one:
+    /// minus the excluded cells; a room with a door facing the killbox is left out unless every roofed room has one:
     /// a roof with a door toward the killbox still shelters from fallout, weather and a pack better than no
     /// Safe area at all. Sorted, deduplicated.
     /// </summary>
-    public static List<Cell> SafeAreaCells(RoomObservation rooms, IReadOnlyList<Cell> killbox)
+    public static List<Cell> SafeAreaCells(RoomObservation rooms, IReadOnlyList<Cell> killbox, IReadOnlyList<Cell> excludedCells)
     {
-        var excluded = new HashSet<Cell>(killbox);
+        var excluded = new HashSet<Cell>(excludedCells);
         var inner = new HashSet<Cell>();
         var exposed = new HashSet<Cell>();
         foreach (var room in rooms.Rooms)
         {
-            if (!room.Enclosed.TryGetValue(out var enclosed) || !enclosed)
-            {
-                continue;
-            }
-            if (!room.Roofed.TryGetValue(out var roofed) || !roofed)
+            if (!room.Enclosed() || !room.Roofed())
             {
                 continue;
             }
             var set = inner;
             foreach (var d in room.Doors)
             {
-                if (d.EnemyFacing)
+                if (d.EnemyFacing(killbox))
                 {
                     set = exposed;
                 }
             }
-            foreach (var c in room.Cells)
+            foreach (var c in rooms.CellsOf(room))
             {
                 if (!excluded.Contains(c))
                 {
@@ -43,20 +39,6 @@ public static partial class SafeAreaRules
             }
         }
         return PlannedRules.SortedCells(inner.Count == 0 ? exposed : inner);
-    }
-
-    /// <summary>
-    /// The AreaIntent edits that bring the Safe area from current to the planned cells, and the planned cells.
-    /// With current unknown (process start or reload) it resets: delete, then create with the full set.
-    /// Otherwise it sends only real diffs (set_cells for added cells, clear_cells for removed ones); none when
-    /// the area is stable.
-    /// </summary>
-    public static (List<Area> Edits, List<Cell> Want) PlanSafeArea(
-        RoomObservation rooms, IReadOnlyList<Cell> killbox, IReadOnlyList<Cell> current, bool currentKnown)
-    {
-        var want = SafeAreaCells(rooms, killbox);
-        var edits = PlanBotArea(SafeAreaKey, want, current, currentKnown);
-        return (edits, want);
     }
 
     /// <summary>

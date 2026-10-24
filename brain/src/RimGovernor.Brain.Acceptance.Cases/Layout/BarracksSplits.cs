@@ -129,8 +129,8 @@ internal static class LayoutBarracksSplits
                 {
                     var request = new Observations.ListRoomsRequest { Scope = s.Scope, Region = new Observations.Rectangle { Minimum = at, Maximum = at } };
                     var reply = await s.CallAsync("bed-room", NativeOps.ListRooms, request, ct).ConfigureAwait(false);
-                    var rooms = TypedReads.Observed("bed-room", NativeOps.ListRooms, reply, reply.Outcome?.Observed).Rooms;
-                    bedRoom = rooms.Count > 0 ? rooms[0] : new Observations.RoomState();
+                    var rooms = reply.Rooms;
+                    bedRoom = rooms.Count > 0 ? rooms[0] : null;
                 }
             }
             started ??= CoupledSelections.Of(s, before).FirstOrDefault(r => (r.Selected.Contributions ?? []).Any(c => BedroomKey(c.Key)

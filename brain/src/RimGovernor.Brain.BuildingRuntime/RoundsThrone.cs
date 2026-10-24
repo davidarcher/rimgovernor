@@ -105,10 +105,7 @@ partial class RoundsSleepingUpkeepPlanner
         {
             foreach (var room in upkeep)
             {
-                if (room.Quality.TryGetValue(out var q))
-                {
-                    impressiveness[room.Id] = q.Impressiveness;
-                }
+                impressiveness[room.Id] = room.Quality.Impressiveness;
             }
         }
         var claim = TitleClaimRules.NextTitleClaim(new Pol.TitleClaimFacts

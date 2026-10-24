@@ -93,15 +93,13 @@ internal static class NativeProtoRoomsProbe
         foreach (var value in new[] { -20d, 0d, 100d }) Check((double)Call("Finite", value) == value, "Negative temperature/cleanliness and known zero preserved");
         foreach (var value in new[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity }) Refused(() => Call("Finite", value), "Nonfinite native fact cannot be a number");
         Refused(() => Wire("ListRoomsRequest", "{\"set\":true}"), "Mutation-shaped unknown field rejected");
-        var room = ((IList)Get(Get(Get(Wire("ListRoomsReply", "{\"outcome\":{\"type\":\"observed\",\"value\":{\"rooms\":[{\"id\":\"0\",\"temperatureC\":0,\"outdoors\":false,\"stats\":[{\"defName\":\"Wealth\",\"unavailable\":{\"reason\":\"UNAVAILABLE_REASON_READ_FAILED\"}}]}]}}}"),"Outcome"),"Observed"),"Rooms"))[0]!;
-        Check(Get(room,"TemperatureC") is double temperatureC && temperatureC==0,"Known zero temperature survives decoding");
-        Check(Get(room,"Outdoors") is false,"Known indoor false survives decoding");
-        var stat = ((IList)Get(room,"Stats"))[0]!; Check(Get(stat,"Value")==null && Get(stat,"Unavailable")!=null,"Unavailable stat is not zero");
+        Refused(() => Wire("RoomsSnapshot", "{\"rooms\":[{\"id\":\"0\",\"temperatureC\":0,\"outdoors\":false}]}"), "A room row missing a member fails the read");
+        Refused(() => Wire("RoomStat", "{\"defName\":\"Wealth\"}"), "A stat without a value fails the read");
 
-        // ---- N01.03: Project() fixture -- bed/stockpile membership + CAS token ----
+        // ---- N01.03: Project() fixture -- bed/stockpile membership ----
         // Builds a minimal but real Room/District/Region/Map graph via reflection so
         // Project() runs its actual native-facing code (bed ownership/use/access,
-        // stockpile contents, and the row.Snapshot CAS token) end-to-end, instead of
+        // stockpile contents) end-to-end, instead of
         // only the pure helpers exercised above.
         {
             const BindingFlags NF = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
@@ -115,7 +113,6 @@ internal static class NativeProtoRoomsProbe
                 f.SetValue(f.IsStatic ? null : o, v);
             }
             object ListOf(string elementType) => Activator.CreateInstance(typeof(List<>).MakeGenericType(Ty(elementType)))!;
-            object WireCommon(string name, string json) => WireOf("RimGovernor.Contracts.Wire.Common." + name, json);
             var cell2Type = Ty("Verse.IntVec2");
             object cell2(int x, int z) => Activator.CreateInstance(cell2Type, x, z)!;
             object GetField(object o, string declaringType, string field) => Ty(declaringType).GetField(field, NF)!.GetValue(o)!;
@@ -469,23 +466,11 @@ internal static class NativeProtoRoomsProbe
             foreach (var c in roomCells) ((IList)cellsListTyped).Add(c);
 
             var projectRequest = Wire("ListRoomsRequest", request("\"includeBoundary\":true"));
-            var context = WireCommon("ObservationContext", "{\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}}");
 
-            object ProjectRow() => tools.GetMethod("Project", Flags)!.Invoke(null, new[] { fixRoom, fixMap, cellsListTyped, roomPawns, projectRequest, context })!;
+            object ProjectRow() => tools.GetMethod("Project", Flags)!.Invoke(null, new[] { fixRoom, fixMap, cellsListTyped, roomPawns, projectRequest })!;
 
             var rowFirst = ProjectRow();
-            // CAS token: identical inputs must be deterministic, and a change that
-            // affects bed ownership must invalidate the room's token.
-            var rowSecond = ProjectRow();
-            var tokenFirst = (string)Get(Get(rowFirst, "Snapshot"), "Token");
-            var tokenSecond = (string)Get(Get(rowSecond, "Snapshot"), "Token");
-            Check(tokenFirst == tokenSecond, "Identical Project() inputs produce an identical CAS token");
-
-            var ownerPawn2 = NewColonist(3, 3, spawned: true);
-            ((IList)assignedPawns).Add(ownerPawn2); // mutate bed ownership -- should change the room's layout-derived token.
-            var rowThird = ProjectRow();
-            var tokenThird = (string)Get(Get(rowThird, "Snapshot"), "Token");
-            Check(tokenThird != tokenFirst, "Changed bed ownership invalidates the room's CAS token");
+            Check(Equals(rowFirst, ProjectRow()), "Identical Project() inputs project an identical row");
 
             Console.WriteLine(checks+" compiled room boundary assertions passed; native room acceptance is separate.");return 0;
         }

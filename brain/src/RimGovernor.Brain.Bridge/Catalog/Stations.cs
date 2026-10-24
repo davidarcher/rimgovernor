@@ -2,6 +2,7 @@ using RimWorld;
 using Verse;
 using Domain = RimGovernor.Brain.Domain;
 using P = RimGovernor.Brain.Policy;
+using RoomRole = RimGovernor.Contracts.Wire.Observations.RoomRole;
 
 namespace RimGovernor.Brain.Bridge;
 
@@ -129,7 +130,7 @@ public sealed partial class DefinitionCatalog
     // focus the worship room is built around. Unverified against the live game; recorded in the commit body.
     private static bool IsAltar(ThingDef row) => row.ritualFocus is not null;
 
-    private static void Score(List<P.RoleScore> into, P.RoomRole role, P.RoleCondition when)
+    private static void Score(List<P.RoleScore> into, RoomRole role, P.RoleCondition when)
     {
         if (P.StationCatalogRules.TryRoomRoleScore(role, when, out var score))
         {
@@ -143,10 +144,10 @@ public sealed partial class DefinitionCatalog
         var scores = new List<P.RoleScore>();
         if (row.designationCategory?.defName == DesignationProduction && recipes.Any(MakesHumanFood))
         {
-            Score(scores, P.RoomRole.Kitchen, P.RoleCondition.Always);
+            Score(scores, RoomRole.Kitchen, P.RoleCondition.Always);
         }
 
-        foreach (var role in new[] { P.RoomRole.Workshop, P.RoomRole.Laboratory })
+        foreach (var role in new[] { RoomRole.Workshop, RoomRole.Laboratory })
         {
             if (row.building?.workTableRoomRole?.defName == Wire.Name(role))
             {
@@ -156,15 +157,15 @@ public sealed partial class DefinitionCatalog
 
         if (row.surfaceType == SurfaceType.Eat)
         {
-            Score(scores, P.RoomRole.DiningRoom, P.RoleCondition.Always);
+            Score(scores, RoomRole.DiningRoom, P.RoleCondition.Always);
         }
 
         if (rec.Contains(row.defName))
         {
-            Score(scores, P.RoomRole.RecRoom, P.RoleCondition.Always);
+            Score(scores, RoomRole.RecRoom, P.RoleCondition.Always);
         }
 
-        foreach (var (type, role) in new (Type, P.RoomRole)[] { (typeof(Building_Storage), P.RoomRole.Storeroom), (typeof(Building_Sarcophagus), P.RoomRole.Tomb), (typeof(Building_Throne), P.RoomRole.ThroneRoom) })
+        foreach (var (type, role) in new (Type, RoomRole)[] { (typeof(Building_Storage), RoomRole.Storeroom), (typeof(Building_Sarcophagus), RoomRole.Tomb), (typeof(Building_Throne), RoomRole.ThroneRoom) })
         {
             if (IsClass(row, type))
             {
@@ -175,17 +176,17 @@ public sealed partial class DefinitionCatalog
         BedContributions(scores, row, child);
         if (IsAltar(row))
         {
-            Score(scores, P.RoomRole.WorshipRoom, P.RoleCondition.IdeoAltar);
+            Score(scores, RoomRole.WorshipRoom, P.RoleCondition.IdeoAltar);
         }
 
         if (P.DefTablesRules.GameRoomRoleDefs.TryGetValue(row.defName, out var furniture) && (furniture == P.FurnitureRole.Desk || furniture == P.FurnitureRole.Board))
         {
-            Score(scores, P.RoomRole.Classroom, P.RoleCondition.Always);
+            Score(scores, RoomRole.Classroom, P.RoleCondition.Always);
         }
 
         if (StatBaseOf(row, StatBabyPlayGain) > 1)
         {
-            Score(scores, P.RoomRole.Playroom, P.RoleCondition.Always);
+            Score(scores, RoomRole.Playroom, P.RoleCondition.Always);
         }
 
         if (P.StationCatalogRules.RoomRoleNamedDefs.TryGetValue(row.defName, out var named))
@@ -194,7 +195,7 @@ public sealed partial class DefinitionCatalog
         }
         else if (HasComp<CompProperties_DeathrestBindable>(row))
         {
-            Score(scores, P.RoomRole.DeathrestChamber, P.RoleCondition.Bindable);
+            Score(scores, RoomRole.DeathrestChamber, P.RoleCondition.Bindable);
         }
 
         return [.. scores.OrderBy(s => Wire.Name(s.Role), StringComparer.Ordinal).ThenBy(s => Wire.Name(s.When), StringComparer.Ordinal)];
@@ -210,23 +211,23 @@ public sealed partial class DefinitionCatalog
 
         if (!building.bed_humanlike)
         {
-            Score(scores, P.RoomRole.Barn, P.RoleCondition.Always);
+            Score(scores, RoomRole.Barn, P.RoleCondition.Always);
             return;
         }
 
         if (building.bed_countsForBedroomOrBarracks)
         {
-            Score(scores, P.RoomRole.Bedroom, P.RoleCondition.BedFree);
-            Score(scores, P.RoomRole.Barracks, P.RoleCondition.BedFree);
+            Score(scores, RoomRole.Bedroom, P.RoleCondition.BedFree);
+            Score(scores, RoomRole.Barracks, P.RoleCondition.BedFree);
         }
 
-        Score(scores, P.RoomRole.Hospital, P.RoleCondition.BedMedical);
+        Score(scores, RoomRole.Hospital, P.RoleCondition.BedMedical);
         if (child is not null && building.bed_maxBodySize < child.bodySizeFactor)
         {
-            Score(scores, P.RoomRole.Nursery, P.RoleCondition.BedFree);
+            Score(scores, RoomRole.Nursery, P.RoleCondition.BedFree);
         }
 
-        foreach (var role in new[] { P.RoomRole.PrisonCell, P.RoomRole.PrisonBarracks })
+        foreach (var role in new[] { RoomRole.PrisonCell, RoomRole.PrisonBarracks })
         {
             Score(scores, role, P.RoleCondition.BedPrisoner);
             Score(scores, role, P.RoleCondition.BedPrisonerMedical);
@@ -327,7 +328,7 @@ public sealed partial class DefinitionCatalog
                         needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.Indoors, Factor = StatPart_WorkTableOutdoors.WorkRateFactor });
                         break;
                     case StatPart_WorkTableRoomRole when table:
-                        if (row.building?.workTableRoomRole?.defName is { Length: > 0 } role && Wire.TryParse<P.RoomRole>(role, out var roomRole))
+                        if (row.building?.workTableRoomRole?.defName is { Length: > 0 } role && Wire.TryParse<RoomRole>(role, out var roomRole))
                         {
                             needs.Add(new P.EnvNeed { Kind = P.EnvNeedKind.Role, Role = roomRole, Factor = row.building.workTableNotInRoomRoleFactor });
                         }

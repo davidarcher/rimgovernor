@@ -87,7 +87,7 @@ internal static class FirstRoomReads
     public static async Task<IReadOnlyList<Observations.RoomState>> RoofedRoomsAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
         var reply = await s.CallAsync(label, NativeOps.ListRooms, new Observations.ListRoomsRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var rooms = TypedReads.Observed(label, NativeOps.ListRooms, reply, reply.Outcome?.Observed).Rooms.Items
+        var rooms = reply.Rooms.Items
             .Where(r => r.ProperRoom == true && r.Outdoors != true && r.OpenRoofCount == 0)
             .ToList();
         s.Record(label, string.Join(' ', rooms.Select(r => string.Create(CultureInfo.InvariantCulture, $"{r.Id}:{r.Role}:{r.CellCount}"))));

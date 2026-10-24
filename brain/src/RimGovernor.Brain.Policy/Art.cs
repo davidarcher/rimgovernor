@@ -376,11 +376,8 @@ public static class ArtRules
         {
             foreach (var r in census)
             {
-                if (r.Quality.TryGetValue(out var q))
-                {
-                    var min = targets.TryGetValue(r.Id, out var target) ? target.Min : 0;
-                    gaps[r.Id] = min - q.Impressiveness;
-                }
+                var min = targets.TryGetValue(r.Id, out var target) ? target.Min : 0;
+                gaps[r.Id] = min - r.Quality.Impressiveness;
             }
         }
 

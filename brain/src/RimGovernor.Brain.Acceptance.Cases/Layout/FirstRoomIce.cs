@@ -19,7 +19,7 @@ internal static class LayoutFirstRoomIce
     private const float Outdoor = -30f;
     private const int BarracksId = 1;
     private const int BedroomId = 2;
-    private static readonly HashSet<string> SleepingRoles = new(["Bedroom", "Barracks"], StringComparer.OrdinalIgnoreCase);
+    private static readonly HashSet<Observations.RoomRole> SleepingRoles = [Observations.RoomRole.Bedroom, Observations.RoomRole.Barracks];
 
     // A 16x7 site: the barracks (5x3 interior, ring 7x5) at its west end with its door south, the bedroom's 3x3 interior at
     // (11..13, 1..3), the wood and meals between them.
@@ -100,7 +100,7 @@ internal static class LayoutFirstRoomIce
                 }
             }
             var rooms = await FirstRoomReads.RoofedRoomsAsync(s, "rooms", ct).ConfigureAwait(false);
-            closed = rooms.FirstOrDefault(r => SleepingRoles.Contains(r.Role ?? ""));
+            closed = rooms.FirstOrDefault(r => SleepingRoles.Contains(r.Role));
             var serious = worst.Severity >= DashEstimateRules.HypothermiaSerious;
             return (string.Create(CultureInfo.InvariantCulture, $"selected={first is not null} worst={worst.Pawn}:{worst.Severity:F3} closed={closed?.Id}"), closed is not null || serious);
         }, cancellationToken).ConfigureAwait(false);

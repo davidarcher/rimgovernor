@@ -2,6 +2,7 @@ using RimWorld;
 using Verse;
 using Domain = RimGovernor.Brain.Domain;
 using P = RimGovernor.Brain.Policy;
+using RoomRole = RimGovernor.Contracts.Wire.Observations.RoomRole;
 
 namespace RimGovernor.Brain.Bridge;
 
@@ -47,7 +48,7 @@ public sealed partial class DefinitionCatalog
                     return new P.BenchHeldPart();
                 }
 
-                return Wire.TryParse<P.RoomRole>(role.defName, out var roomRole)
+                return Wire.TryParse<RoomRole>(role.defName, out var roomRole)
                     ? new P.BenchRoomRolePart(roomRole, row.building.workTableNotInRoomRoleFactor)
                     : new P.BenchUnreadPart(nameof(StatPart_WorkTableRoomRole) + ":" + role.defName);
             case StatPart_WorkTableTemperature:

@@ -1,165 +1,18 @@
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
-/// RimWorld's own RoomRoleDef defName, as the native room census reports Room.Role. The game scores every
-/// role worker against a room's contents and picks one: a room with beds is a Bedroom or Barracks whatever
-/// else it holds, so a role is a fact about the whole room, never something the controller assigns. Unset is
-/// the empty string.
+/// The same-tick native room census the planners read: every proper indoor room (the Contracts RoomState row) and
+/// its cells from the frame cell grid. Room identity is ephemeral within the current native room graph.
 /// </summary>
-public enum RoomRole
-{
-    [WireName("")]
-    Unset = 0,
-
-    [WireName("None")]
-    None,
-
-    [WireName("Room")]
-    Room,
-
-    [WireName("Bedroom")]
-    Bedroom,
-
-    [WireName("PrisonCell")]
-    PrisonCell,
-
-    [WireName("DiningRoom")]
-    DiningRoom,
-
-    [WireName("RecRoom")]
-    RecRoom,
-
-    [WireName("Hospital")]
-    Hospital,
-
-    [WireName("Laboratory")]
-    Laboratory,
-
-    [WireName("Workshop")]
-    Workshop,
-
-    [WireName("Storeroom")]
-    Storeroom,
-
-    [WireName("Barracks")]
-    Barracks,
-
-    [WireName("PrisonBarracks")]
-    PrisonBarracks,
-
-    [WireName("Kitchen")]
-    Kitchen,
-
-    [WireName("Tomb")]
-    Tomb,
-
-    [WireName("Barn")]
-    Barn,
-
-    // Royalty
-    [WireName("ThroneRoom")]
-    ThroneRoom,
-
-    // Ideology
-    [WireName("WorshipRoom")]
-    WorshipRoom,
-
-    // Biotech
-    [WireName("Nursery")]
-    Nursery,
-
-    [WireName("Playroom")]
-    Playroom,
-
-    [WireName("Classroom")]
-    Classroom,
-
-    [WireName("DeathrestChamber")]
-    DeathrestChamber,
-
-    // Anomaly
-    [WireName("ContainmentCell")]
-    ContainmentCell,
-
-    [WireName("CeremonialChamber")]
-    CeremonialChamber,
-
-    /// <summary>A plan role only, no game RoomRoleDef: the game scores the furnished room a bedroom, so it has no facility row.</summary>
-    [WireName("IsolationRoom")]
-    IsolationRoom,
-
-    /// <summary>A plan role only: RimWorld has no Suite RoomRoleDef, so the native census reports a furnished suite as a Bedroom.</summary>
-    [WireName("Suite")]
-    Suite,
-
-    /// <summary>A RoomRoleDef this build does not name (another mod's); the observation reads it as this value instead of failing the pass.</summary>
-    [WireName("Unrecognized")]
-    Unrecognized,
-}
-
-/// <summary>
-/// One proper indoor room from the same-tick native census. Only a selected building's admitted footprint
-/// becomes a reservation; room identity is ephemeral within the current native room graph.
-/// </summary>
-public sealed record Room
-{
-    public string Id { get; init; } = "";
-
-    public Fact<RoomRole> Role { get; init; }
-
-    public Fact<bool> Enclosed { get; init; }
-
-    public Fact<double> Temperature { get; init; }
-
-    public EquatableArray<string> Beds { get; init; }
-
-    public Fact<EquatableArray<Amount>> Contents { get; init; }
-
-    public EquatableArray<Cell> Cells { get; init; }
-
-    /// <summary>Every cell roofed (native open roof count zero).</summary>
-    public Fact<bool> Roofed { get; init; }
-
-    /// <summary>The doors in the room's boundary.</summary>
-    public EquatableArray<RoomDoor> Doors { get; init; }
-
-    public Fact<bool> Burning { get; init; }
-
-    public Fact<bool> TemperatureControl { get; init; }
-
-    public Fact<bool> PerishableContents { get; init; }
-
-    public EquatableArray<PawnId> Pawns { get; init; }
-}
-
-/// <summary>
-/// One door in a room's boundary: the door cell and the cell across it from the room. Outdoors is whether
-/// that far side is outdoors; EnemyFacing is set by MarkEnemyDoors.
-/// </summary>
-public sealed record RoomDoor
-{
-    public Cell Cell { get; init; }
-
-    public Cell Outside { get; init; }
-
-    public Fact<bool> Outdoors { get; init; }
-
-    public bool EnemyFacing { get; init; }
-
-    public Fact<bool> PlayerOwned { get; init; }
-
-    public Fact<bool> Open { get; init; }
-
-    public Fact<bool> HoldOpen { get; init; }
-
-    public Fact<bool> BlockedOpen { get; init; }
-
-    public Fact<bool> Forbidden { get; init; }
-}
-
 public sealed record RoomObservation
 {
-    public EquatableArray<Room> Rooms { get; init; }
+    public required EquatableArray<RoomState> Rooms { get; init; }
+
+    /// <summary>Each room's cells in the frame cell grid, by room id. A room whose every cell is fogged has none.</summary>
+    public required IReadOnlyDictionary<string, IReadOnlyList<Cell>> Cells { get; init; }
+
+    /// <summary>A census of a map with no rooms.</summary>
+    public static RoomObservation NoRooms { get; } = new() { Rooms = [], Cells = new Dictionary<string, IReadOnlyList<Cell>>(StringComparer.Ordinal) };
 
     public Fact<EquatableArray<string>> EligibleBeds { get; init; }
 
@@ -170,7 +23,7 @@ public sealed record RoomObservation
     public PieceShapes Shapes { get; init; } = new();
 
     /// <summary>Returns the census row for one native room id.</summary>
-    public (Room Room, bool Ok) Room(string id)
+    public (RoomState? Room, bool Ok) Room(string id)
     {
         foreach (var room in Rooms)
         {
@@ -179,8 +32,11 @@ public sealed record RoomObservation
                 return (room, true);
             }
         }
-        return (new Room(), false);
+        return (null, false);
     }
+
+    /// <summary>The room's cells in the frame cell grid.</summary>
+    public IReadOnlyList<Cell> CellsOf(RoomState room) => Cells.TryGetValue(room.Id, out var cells) ? cells : [];
 }
 
 /// <summary>
@@ -203,6 +59,48 @@ public sealed record FacilityRequirement
 
 public static partial class RoomsRules
 {
+    /// <summary>
+    /// A closed indoor room: a proper room, not a doorway, not outdoors (by temperature or psychologically), off
+    /// the map edge and fully roofed.
+    /// </summary>
+    public static bool Enclosed(this RoomState room) =>
+        room.ProperRoom && !room.Doorway && !room.Outdoors && !room.PsychologicallyOutdoors && !room.TouchesMapEdge && room.OpenRoofCount == 0;
+
+    /// <summary>Every cell roofed (native open roof count zero).</summary>
+    public static bool Roofed(this RoomState room) => room.OpenRoofCount == 0;
+
+    /// <summary>The definitions standing in the room, as amounts.</summary>
+    public static IEnumerable<Amount> ContentAmounts(this RoomState room) =>
+        room.Contents.Select(q => new Amount(new Resource(q.DefName), q.Units));
+
+    /// <summary>The ids of the beds in the room.</summary>
+    public static IEnumerable<string> BedIds(this RoomState room) => room.Beds.Select(b => b.Id);
+
+    /// <summary>The pawns in the room.</summary>
+    public static IEnumerable<PawnId> PawnIds(this RoomState room) => room.Pawns.Select(p => new PawnId(p.Id));
+
+    /// <summary>
+    /// A door that opens outdoors toward the enemy side: its outward direction has a positive dot product toward
+    /// the killbox centre. With no killbox every outdoor-opening door counts.
+    /// </summary>
+    public static bool EnemyFacing(this RoomDoor door, IReadOnlyList<Cell> killbox)
+    {
+        if (!door.Outdoors || killbox.Count == 0)
+        {
+            return door.Outdoors;
+        }
+        double cx = 0, cz = 0;
+        foreach (var c in killbox)
+        {
+            cx += c.X;
+            cz += c.Z;
+        }
+        cx /= killbox.Count;
+        cz /= killbox.Count;
+        double dx = door.Outside.X - door.Cell.X, dz = door.Outside.Z - door.Cell.Z;
+        return (dx * (cx - door.Cell.X)) + (dz * (cz - door.Cell.Z)) > 0;
+    }
+
     /// <summary>The cells of the plan's killbox reservation; empty when the plan reserves none.</summary>
     public static List<Cell> KillboxCells(this LayoutPlan p)
     {
@@ -214,44 +112,6 @@ public static partial class RoomsRules
         }
         return output;
     }
-
-    /// <summary>
-    /// Flags each door that opens outdoors toward the enemy side: its outward direction has a positive dot
-    /// product toward the killbox centre. With no killbox every outdoor-opening door counts.
-    /// </summary>
-    public static RoomObservation MarkEnemyDoors(RoomObservation rooms, IReadOnlyList<Cell> killbox)
-    {
-        double cx = 0, cz = 0;
-        foreach (var c in killbox)
-        {
-            cx += c.X;
-            cz += c.Z;
-        }
-        if (killbox.Count > 0)
-        {
-            cx /= killbox.Count;
-            cz /= killbox.Count;
-        }
-        var output = new List<Room>(rooms.Rooms.Count);
-        foreach (var room in rooms.Rooms)
-        {
-            var doors = new List<RoomDoor>(room.Doors.Count);
-            foreach (var door in room.Doors)
-            {
-                var d = door;
-                var enemyFacing = d.Outdoors.TryGetValue(out var outdoors) && outdoors;
-                if (enemyFacing && killbox.Count > 0)
-                {
-                    double dx = d.Outside.X - d.Cell.X, dz = d.Outside.Z - d.Cell.Z;
-                    enemyFacing = (dx * (cx - d.Cell.X)) + (dz * (cz - d.Cell.Z)) > 0;
-                }
-                doors.Add(d with { EnemyFacing = enemyFacing });
-            }
-            output.Add(room with { Doors = EquatableArray.From(doors) });
-        }
-        return rooms with { Rooms = EquatableArray.From(output) };
-    }
-
     /// <summary>
     /// The per-role catalog: every RoomRoleDef the installed game and expansions define, with the roles that
     /// may host its function. Content-gated roles are only pursued when their definitions are present in the

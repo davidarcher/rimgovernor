@@ -33,8 +33,9 @@
     <!-- The wire message shares this name with the domain value; this project names the domain value. -->
     <Using Include="RimGovernor.Brain.Domain.Cell" Alias="Cell" />
     <Using Include="RimGovernor.Brain.Domain.PawnId" Alias="PawnId" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.RoomRole" Alias="RoomRole" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.RoomState" Alias="RoomState" />
     <!-- Observation-local type names for policy values. -->
-    <Using Include="RimGovernor.Brain.Policy.Room" Alias="ObservedRoom" />
     <Using Include="RimGovernor.Brain.Policy.RoleScore" Alias="RoleContribution" />
     <!-- Package-level functions with no owning type live on one static partial class per package. -->
   </ItemGroup>

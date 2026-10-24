@@ -245,7 +245,7 @@ public sealed partial class RoundsBuildingPlanner
             {
                 return (null, BuildingReasonWorkshopUnavailable);
             }
-            var barrelFacility = Pol.RoomsRules.Facility(Pol.RoomRole.Workshop);
+            var barrelFacility = Pol.RoomsRules.Facility(RoomRole.Workshop);
             var barrel = Copy();
             barrel.Definition = "FermentingBarrel";
             barrel.Environment = Pol.PlacementEnvironment.Indoors;
@@ -305,7 +305,7 @@ public sealed partial class RoundsBuildingPlanner
             case Pol.WorkshopMethod.Unavailable:
                 return (null, BuildingReasonWorkshopUnavailable);
         }
-        var facility = Pol.RoomsRules.Facility(Pol.RoomRole.Workshop);
+        var facility = Pol.RoomsRules.Facility(RoomRole.Workshop);
         var resolved = Copy();
         var selected = Workshop.Copy();
         selected.Resource = resource;

@@ -12,7 +12,7 @@ public static partial class LayoutTripsRules
     public static PlannedRole PlannedSuite => PlannedRole.Suite;
 
     /// <summary>The room role a suite is built for. It is a plan role only: RimWorld has no Suite RoomRoleDef, so the native census reports a furnished suite as a Bedroom.</summary>
-    public static RoomRole RoomRoleSuite => RoomRole.Suite;
+    public static PlanRole RoomRoleSuite => PlanRole.Suite;
 
     private const int SuiteMinWidth = 3;
     private const int SuiteMaxWidth = 7;

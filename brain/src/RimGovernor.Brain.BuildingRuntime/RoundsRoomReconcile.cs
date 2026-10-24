@@ -100,7 +100,7 @@ partial class RoundsBuildingPlanner
         var (buildings, known) = ColonyGround(facts);
         if (!known)
         {
-            return (new Pol.ReconcileInput(), false);
+            return (new Pol.ReconcileInput { Rooms = Pol.RoomObservation.NoRooms }, false);
         }
         var cells = CellsOn(facts.Cells, room.RoomGround());
         // The cells open to the sky: the room's ground and its airlocks' vestibules.

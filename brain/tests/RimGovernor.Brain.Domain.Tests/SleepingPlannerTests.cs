@@ -20,10 +20,7 @@ public sealed class SleepingPlannerTests
     private static PlannedRoom Planned(int id, PlannedRole role, Rectangle r) => new() { Id = id, Role = role, Region = RegionRules.RectRegion(r) };
 
     /// <summary>The planned room standing enclosed in the census, as a native Bedroom (a suite reads as one too).</summary>
-    private static Room Standing(string id, PlannedRoom room, params string[] beds) => new()
-    {
-        Id = id, Role = Known(RoomRole.Bedroom), Enclosed = Known(true), Cells = [.. room.Region.Cells()], Beds = [.. beds],
-    };
+    private static (RoomState Room, IEnumerable<Cell> Cells) Standing(string id, PlannedRoom room, params string[] beds) => (RoomFixtures.State(id, RoomRole.Bedroom, beds: beds), room.Region.Cells());
 
     private static SleepingBed Bed(string id, string room, params PawnId[] owners) => new()
     {
@@ -32,8 +29,8 @@ public sealed class SleepingPlannerTests
 
     private static SleepingPerson Person(PawnId id, string bed) => new() { Id = id, OwnedBed = Known(bed) };
 
-    private static BedroomStep Step(LayoutPlan plan, Room[] rooms, SleepingObservation sleeping, Dictionary<string, RoomTarget>? targets = null) =>
-        SleepingRules.NextBedroomStep(plan, new RoomObservation { Rooms = [.. rooms] }, sleeping, targets ?? [], new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
+    private static BedroomStep Step(LayoutPlan plan, (RoomState Room, IEnumerable<Cell> Cells)[] rooms, SleepingObservation sleeping, Dictionary<string, RoomTarget>? targets = null) =>
+        SleepingRules.NextBedroomStep(plan, RoomFixtures.Census(rooms), sleeping, targets ?? [], new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
 
     // sleeping/bedrooms: an unplanned hall for two the game scores a Barracks, then two bedroom-wing rooms in plan order.
     private static readonly PlannedRoom Hall = new() { Id = 1, Region = RegionRules.RectRegion(Rect(0, 5, 5)) };
@@ -44,7 +41,7 @@ public sealed class SleepingPlannerTests
     [Fact]
     public void OnceEveryoneOwnsAHallBedTheFirstWingRoomIsShelledThenASleeperMovesInLeavingTheHallBed()
     {
-        var hall = Standing("hall", Hall, "s1", "s2") with { Role = Known(RoomRole.Barracks) };
+        var hall = (RoomFixtures.State("hall", RoomRole.Barracks, beds: ["s1", "s2"]), Hall.Region.Cells());
         var housed = new SleepingObservation
         {
             Colonists = 2,
@@ -84,7 +81,7 @@ public sealed class SleepingPlannerTests
     private static readonly PlannedRoom Larger = Planned(3, LayoutTripsRules.PlannedSuite, Rect(20, 7, 8)) with { Replaces = 2 };
 
     private static UpkeepRoom Quality(string id, double impressiveness) =>
-        new() { Id = id, Quality = Known(new RoomQuality(impressiveness, 0, 0, 0, impressiveness)) };
+        new() { Id = id, Role = RoomRole.None, Quality = new RoomQuality(impressiveness, 0, 0, 0, impressiveness), Cells = 0, Beds = [] };
 
     private static RoomTarget Target(double min, params string[] reasons) => new() { Min = min, Reasons = [.. reasons] };
 
@@ -104,7 +101,7 @@ public sealed class SleepingPlannerTests
         var greedyTargets = new Dictionary<string, RoomTarget> { ["std"] = Target(50, "greedy", "tier") };
 
         // The standard room cannot hold the floor Greedy needs: the suite is shelled first.
-        var claim = Assert.Single(RoomQualityRules.SuiteClaims(plan, new RoomObservation { Rooms = [standard] }, greedy, greedyTargets, new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>()));
+        var claim = Assert.Single(RoomQualityRules.SuiteClaims(plan, RoomFixtures.Census(standard), greedy, greedyTargets, new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>()));
         Assert.Equal((A, SuiteClaimReason.Floor), (claim.Pawn, claim.Reason));
         var shell = Step(plan, [standard], greedy, greedyTargets);
         Assert.Equal((BedroomStepKind.Reconcile, Suite.Id), (shell.Kind, shell.Room.Id));
@@ -117,7 +114,8 @@ public sealed class SleepingPlannerTests
 
         // Baron's bedroom floor (70) outgrows the 7x7 suite: the claim is a new suite, and the first suite's wish keeps
         // its own floor, never a second wish that would grow it.
-        var rooms = new RoomObservation { Rooms = [standard, Standing("suite", Suite, "b2")] };
+        (RoomState Room, IEnumerable<Cell> Cells)[] standing = [standard, Standing("suite", Suite, "b2")];
+        var rooms = RoomFixtures.Census(standing);
         var inSuite = new SleepingObservation
         {
             Colonists = 1,
@@ -133,7 +131,7 @@ public sealed class SleepingPlannerTests
         // With the larger successor planned, it is the one shelled; the first suite is not touched and, slept in, stays
         // held where it stands, its plan row unchanged.
         var replanned = plan with { Rooms = [Standard, Suite, Larger], NextRoomId = 4 };
-        var second = Step(replanned, [.. rooms.Rooms], inSuite, baron);
+        var second = Step(replanned, standing, inSuite, baron);
         Assert.Equal((BedroomStepKind.Reconcile, Larger.Id), (second.Kind, second.Room.Id));
         Assert.True(Larger.Region.Area() > Suite.Region.Area());
         var slept = SleepingRules.SleptBedrooms(replanned, Known(rooms), Known(inSuite));
@@ -142,7 +140,7 @@ public sealed class SleepingPlannerTests
 
         // Once the larger suite stands with a bed, the colonist moves on out of the first suite's bed.
         var larger = inSuite with { Beds = [.. inSuite.Beds, Bed("b3", "larger")] };
-        var onward = Step(replanned, [.. rooms.Rooms, Standing("larger", Larger, "b3")], larger, baron);
+        var onward = Step(replanned, [.. standing, Standing("larger", Larger, "b3")], larger, baron);
         Assert.Equal(BedroomStepKind.Move, onward.Kind);
         Assert.Equal((A, "b3", "b2", Larger.Id), (onward.Pawn, onward.Bed, onward.PreviousBed, onward.Room.Id));
     }
@@ -197,6 +195,7 @@ public sealed class SleepingPlannerTests
         }).ToList();
         return ReconcileRules.Reconcile(new ReconcileInput
         {
+            Rooms = RoomObservation.NoRooms,
             Plan = new LayoutPlan { Rooms = [Ringed], NextRoomId = 6 },
             Room = Ringed,
             Ground = ground,
@@ -214,7 +213,7 @@ public sealed class SleepingPlannerTests
         var bed = StandingPiece(Assert.Single(fresh.Pieces));
         var furnished = SleepingRules.BedroomFurnishing(Ringed, BedShapes, BedDef, [bed], null);
         Assert.False(furnished.Absent);
-        Assert.True(SleepingRules.BedroomReconcileOwed(Ringed, new RoomObservation(), furnished));
+        Assert.True(SleepingRules.BedroomReconcileOwed(Ringed, RoomObservation.NoRooms, furnished));
 
         Cell[] missing = [new(29, 1), new(29, 2)];
         var diff = Diff(furnished, RingBut(missing), bed);
@@ -224,7 +223,7 @@ public sealed class SleepingPlannerTests
         Assert.DoesNotContain(diff.Owed, o => o.Kind is OpKind.Build or OpKind.Install or OpKind.Pack or OpKind.PackInUse or OpKind.FurnitureOut);
 
         // Enclosed and furnished: nothing is left to reconcile.
-        var enclosed = new RoomObservation { Rooms = [Standing("ringed", Ringed, "bed")] };
+        var enclosed = RoomFixtures.Census(Standing("ringed", Ringed, "bed"));
         Assert.False(SleepingRules.BedroomReconcileOwed(Ringed, enclosed, furnished));
         // A template slot still empty in the enclosed room is owed.
         Assert.True(SleepingRules.BedroomReconcileOwed(Ringed, enclosed, fresh));
@@ -257,7 +256,7 @@ public sealed class SleepingPlannerTests
     [Fact]
     public void TheBedroomStepCarriesEveryOwedRoomInPlanOrder()
     {
-        var hall = Standing("hall", Hall, "s1", "s2") with { Role = Known(RoomRole.Barracks) };
+        var hall = (RoomFixtures.State("hall", RoomRole.Barracks, beds: ["s1", "s2"]), Hall.Region.Cells());
         var housed = new SleepingObservation
         {
             Colonists = 2,

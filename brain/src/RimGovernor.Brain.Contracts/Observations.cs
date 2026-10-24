@@ -2279,151 +2279,232 @@ public abstract record ListBuildingsReplyOutcome
     public static implicit operator ListBuildingsReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
-public sealed record RoomStat
+/// <summary>
+/// RimWorld's own RoomRoleDef, named by its defName, as the native room census reports a room's role. The game
+/// scores every role worker against a room's contents and picks one: a room with beds is a Bedroom or Barracks
+/// whatever else it holds, so a role is a fact about the whole room, never something the controller assigns.
+/// </summary>
+[JsonConverter(typeof(WireEnumConverter<RoomRole>))]
+public enum RoomRole
 {
-    public string? DefName { get; init; }
+    [WireName("None")]
+    None,
 
-    public double? Value { get; init; }
+    [WireName("Room")]
+    Room,
 
-    public Common.Unavailable? Unavailable { get; init; }
+    [WireName("Bedroom")]
+    Bedroom,
+
+    [WireName("PrisonCell")]
+    PrisonCell,
+
+    [WireName("DiningRoom")]
+    DiningRoom,
+
+    [WireName("RecRoom")]
+    RecRoom,
+
+    [WireName("Hospital")]
+    Hospital,
+
+    [WireName("Laboratory")]
+    Laboratory,
+
+    [WireName("Workshop")]
+    Workshop,
+
+    [WireName("Storeroom")]
+    Storeroom,
+
+    [WireName("Barracks")]
+    Barracks,
+
+    [WireName("PrisonBarracks")]
+    PrisonBarracks,
+
+    [WireName("Kitchen")]
+    Kitchen,
+
+    [WireName("Tomb")]
+    Tomb,
+
+    [WireName("Barn")]
+    Barn,
+
+    // Royalty
+    [WireName("ThroneRoom")]
+    ThroneRoom,
+
+    // Ideology
+    [WireName("WorshipRoom")]
+    WorshipRoom,
+
+    // Biotech
+    [WireName("Nursery")]
+    Nursery,
+
+    [WireName("Playroom")]
+    Playroom,
+
+    [WireName("Classroom")]
+    Classroom,
+
+    [WireName("DeathrestChamber")]
+    DeathrestChamber,
+
+    // Anomaly
+    [WireName("ContainmentCell")]
+    ContainmentCell,
+
+    [WireName("CeremonialChamber")]
+    CeremonialChamber,
+
+    /// <summary>A RoomRoleDef this build does not name (another mod's): the census reports it as this value instead of failing the read.</summary>
+    [WireName("Unrecognized")]
+    Unrecognized,
 }
 
+/// <summary>One of the room stats the native census reads (Cleanliness, Wealth, Space, Beauty, Impressiveness), by defName. A stat that cannot be read fails the census.</summary>
+public sealed record RoomStat
+{
+    public required string DefName { get; init; }
+
+    public required double Value { get; init; }
+}
+
+/// <summary>The cells at the low and high corners of the rectangle around a room's cells.</summary>
+public sealed record RoomExtents
+{
+    public required Cell Minimum { get; init; }
+
+    public required Cell Maximum { get; init; }
+}
+
+/// <summary>The count of one building definition standing in a room (its boundary too when the read asked for it).</summary>
+public sealed record RoomContent
+{
+    public required string DefName { get; init; }
+
+    public required long Units { get; init; }
+}
+
+/// <summary>
+/// One room of the native census. Every member is read; a room the native cannot read completely fails the
+/// census. Its cells are not on the row: a reader takes them from the frame cell grid by <see cref="GridRoom"/>.
+/// </summary>
 public sealed record RoomState
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public string? Role { get; init; }
+    public required RoomRole Role { get; init; }
 
-    public bool? ProperRoom { get; init; }
+    public required bool ProperRoom { get; init; }
 
-    public bool? Doorway { get; init; }
+    public required bool Doorway { get; init; }
 
-    public bool? Outdoors { get; init; }
+    /// <summary>The room uses the outdoor temperature.</summary>
+    public required bool Outdoors { get; init; }
 
-    public bool? PsychologicallyOutdoors { get; init; }
+    public required bool PsychologicallyOutdoors { get; init; }
 
-    public bool? TouchesMapEdge { get; init; }
+    public required bool TouchesMapEdge { get; init; }
 
-    public bool? Fogged { get; init; }
+    public required bool Fogged { get; init; }
 
-    public double? TemperatureC { get; init; }
+    public required double TemperatureC { get; init; }
 
-    public uint? OpenRoofCount { get; init; }
+    public required uint OpenRoofCount { get; init; }
 
-    public uint? CellCount { get; init; }
+    public required uint CellCount { get; init; }
 
-    public Rectangle? Extents { get; init; }
+    public required RoomExtents Extents { get; init; }
 
-    public Common.Cell? Center { get; init; }
+    public required Cell Center { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<RoomStat>))]
-    public EquatableArray<RoomStat> Stats { get; init; }
+    public required EquatableArray<RoomStat> Stats { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Pawns { get; init; }
+    public required EquatableArray<Common.Ref> Pawns { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Beds { get; init; }
+    public required EquatableArray<Common.Ref> Beds { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Quantity>))]
-    public EquatableArray<Quantity> Contents { get; init; }
-
-    public SnapshotRef? Snapshot { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<RoomContent>))]
+    public required EquatableArray<RoomContent> Contents { get; init; }
 
     /// <summary>
     /// Doors in the room's boundary: door cell, the cell it opens onto, and whether that side is outdoors.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<RoomDoor>))]
-    public EquatableArray<RoomDoor> Doors { get; init; }
+    public required EquatableArray<RoomDoor> Doors { get; init; }
 
     /// <summary>
-    /// The room's key in the cell grid (CellGrid.Room): the row-major map
-    /// index of its first unfogged cell; its cells are the grid cells
-    /// carrying it. Absent when every cell is fogged.
+    /// The room's key in the cell grid (CellGrid.Room): the row-major map index of its first unfogged cell, whose
+    /// grid cells carry it. A room whose every cell is fogged keys by its first cell, which no held grid cell
+    /// carries, so it has no grid cells.
     /// </summary>
-    public int? GridRoom { get; init; }
+    public required int GridRoom { get; init; }
 
-    public bool? Burning { get; init; }
+    public required bool Burning { get; init; }
 
     /// <summary>
     /// Temperature-control buildings or heat-pusher comps in this room or its boundary.
     /// </summary>
-    public bool? TemperatureControl { get; init; }
+    public required bool TemperatureControl { get; init; }
 
     /// <summary>
     /// A contained item has CompRottable.
     /// </summary>
-    public bool? PerishableContents { get; init; }
+    public required bool PerishableContents { get; init; }
 }
 
+/// <summary>
+/// One door in a room's boundary: the door cell, the cell across it from the room, and whether that far side is a
+/// psychologically outdoor room. A far side with no room (off the map, impassable) or this room itself is not
+/// outdoors.
+/// </summary>
 public sealed record RoomDoor
 {
-    public Common.Cell? Cell { get; init; }
+    public required Cell Cell { get; init; }
 
-    public Common.Cell? Outside { get; init; }
+    public required Cell Outside { get; init; }
 
-    public bool? Outdoors { get; init; }
+    public required bool Outdoors { get; init; }
 
-    public bool? PlayerOwned { get; init; }
+    public required bool PlayerOwned { get; init; }
 
-    public bool? Open { get; init; }
+    public required bool Open { get; init; }
 
-    public bool? HoldOpen { get; init; }
+    public required bool HoldOpen { get; init; }
 
-    public bool? BlockedOpen { get; init; }
+    public required bool BlockedOpen { get; init; }
 
-    public bool? Forbidden { get; init; }
+    public required bool Forbidden { get; init; }
 }
 
+/// <summary>The native room census: every proper room the request selects. A census the native cannot read fails the read.</summary>
 public sealed record RoomsSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<RoomState>))]
-    public EquatableArray<RoomState> Rooms { get; init; }
-
+    public required EquatableArray<RoomState> Rooms { get; init; }
 }
 
 public sealed record ListRoomsRequest
 {
     public ReadScope? Scope { get; init; }
 
+    /// <summary>Only the rooms with a cell in this rectangle; every room when absent.</summary>
     public Rectangle? Region { get; init; }
 
-    public bool? IncludeBoundary { get; init; }
+    /// <summary>Whether a room's contents and beds count the buildings in its boundary; false when omitted.</summary>
+    public bool IncludeBoundary { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
     public EquatableArray<string> RoomIds { get; init; }
-}
-
-public sealed record ListRoomsReply
-{
-    public ListRoomsReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ListRoomsReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ListRoomsReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(ListRoomsReplyOutcome.FailureCase), "failure")]
-public abstract record ListRoomsReplyOutcome
-{
-    private protected ListRoomsReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public RoomsSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(RoomsSnapshot Value) : ListRoomsReplyOutcome;
-
-    public static implicit operator ListRoomsReplyOutcome(RoomsSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : ListRoomsReplyOutcome;
-
-    public static implicit operator ListRoomsReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 public sealed record ZoneState
@@ -2902,20 +2983,20 @@ public sealed record DefenseCell
 /// </summary>
 public sealed record RaidTrack
 {
-    public string? LordId { get; init; }
+    public required string LordId { get; init; }
 
-    public string? FactionDef { get; init; }
+    public required string FactionDef { get; init; }
 
-    public long? SpawnTick { get; init; }
+    public required long SpawnTick { get; init; }
 
-    public Common.Cell? Spawn { get; init; }
+    public required Cell Spawn { get; init; }
 
-    public bool? Ground { get; init; }
+    public required bool Ground { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Trail { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))]
+    public required EquatableArray<Cell> Trail { get; init; }
 
-    public long? LastTick { get; init; }
+    public required long LastTick { get; init; }
 }
 
 public sealed record DefenseSiteSnapshot
@@ -6234,34 +6315,27 @@ public sealed record UpkeepSection
 /// Threat facts: the colony wealth the storyteller scales raids by
 /// and the raid points a default threat incident would draw right now.
 /// wealth_* are WealthWatcher's lazy recount (items, buildings, pawns,
-/// total); storyteller_wealth is the map's PlayerWealthForStoryteller;
-/// raid_points is StorytellerUtility.DefaultThreatPointsNow for the map,
-/// already scaled by adaptation_factor (the story watcher's
-/// TotalThreatPointsFactor) and difficulty_threat_scale. Read-only.
+/// total); raid_points is StorytellerUtility.DefaultThreatPointsNow for the
+/// map, already scaled by the story watcher's adaptation and the
+/// difficulty's threat scale. Read-only.
 /// </summary>
 public sealed record ThreatFacts
 {
-    public double? WealthItems { get; init; }
+    public required double WealthItems { get; init; }
 
-    public double? WealthBuildings { get; init; }
+    public required double WealthBuildings { get; init; }
 
-    public double? WealthPawns { get; init; }
+    public required double WealthPawns { get; init; }
 
-    public double? WealthTotal { get; init; }
+    public required double WealthTotal { get; init; }
 
-    public double? StorytellerWealth { get; init; }
-
-    public double? RaidPoints { get; init; }
-
-    public double? AdaptationFactor { get; init; }
-
-    public double? DifficultyThreatScale { get; init; }
+    public required double RaidPoints { get; init; }
 
     /// <summary>Find.Storyteller.def.defName: the storyteller whose comps schedule the threats (#3539).</summary>
-    public string? Storyteller { get; init; }
+    public required string Storyteller { get; init; }
 
     /// <summary>GenDate.DaysPassedFloat.</summary>
-    public double? DaysPassed { get; init; }
+    public required double DaysPassed { get; init; }
 
     /// <summary>
     /// The def names of the world's factions that are hostile to the player and have a Combat pawn group maker: the factions a
@@ -6269,13 +6343,13 @@ public sealed record ThreatFacts
     /// their pawn kinds and weapons from the defs.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> HostileFactions { get; init; }
+    public required EquatableArray<string> HostileFactions { get; init; }
 
     /// <summary>
     /// The hostile lords seen on the map since load (RaidArrivalState): the defense layout ranks the approaches by where ground raids crossed its census.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<RaidTrack>))]
-    public EquatableArray<RaidTrack> Raids { get; init; }
+    public required EquatableArray<RaidTrack> Raids { get; init; }
 
     /// <summary>What the storyteller's disease comps read of the colony now (#3824); absent when the native read did not run.</summary>
     public DiseaseFacts? Disease { get; init; }
@@ -6319,10 +6393,10 @@ public sealed record DiseaseIncidentRead(string Incident, int Potential)
     public EquatableArray<string> Blocked { get; init; }
 }
 
+/// <summary>The threat section of the colony census. A threat read that fails fails the census.</summary>
 public sealed record ThreatSection
 {
-    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
-    public ThreatFacts? Observed { get; init; }
+    public required ThreatFacts Observed { get; init; }
 }
 
 /// <summary>
@@ -7873,7 +7947,7 @@ public sealed record BundleSnapshot
 
     /// <summary>
     /// Planning definitions are the definition catalog's.
-    /// list_rooms without outdoor rooms or boundary buildings, with cells:
+    /// list_rooms without outdoor rooms or boundary buildings (cells from the cell grid):
     /// the room census temperature, comfort and hospital planning read.
     /// </summary>
     public RoomsSnapshot? Rooms { get; init; }

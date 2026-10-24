@@ -231,19 +231,19 @@ public sealed class IllnessForecastTests
         Assert.False(IllnessSchedule.Of(new DiseaseTable(), Facts()).Assessed);
     }
 
-    // ----- the production way: the catalog's tables and the wire facts as native fills them, through the colony threat projection
+    // ----- the production way: the catalog's tables and the wire facts as native fills them, through the census threat section
 
     [Fact]
     public void TheCatalogAndTheNativeReadGiveAnAssessedIllnessThroughTheReviewInputs()
     {
         var catalog = DiseaseTableTests.Catalog(DiseaseTableTests.CoreDefs());
-        var census = ColonyFactsCoreTests.Snapshot() with { Threat = new ThreatSection { Observed = new ThreatFacts { Storyteller = "Cassandra", DaysPassed = 20, Disease = Facts(20) } } };
+        var census = ColonyFactsCoreTests.Snapshot() with { Threat = new ThreatSection { Observed = ColonyFactsCoreTests.QuietThreat with { Storyteller = "Cassandra", DaysPassed = 20, Disease = Facts(20) } } };
 
-        var inputs = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Disease = ColonyThreat.ProjectColonyThreat(census).Disease });
+        var inputs = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Disease = census.Threat.Observed.Disease });
         var unread = HarmInputs.Of(new RoundsFacts
         {
             DiseaseTable = catalog.DiseaseTable(),
-            Disease = ColonyThreat.ProjectColonyThreat(ColonyFactsCoreTests.Snapshot() with { Threat = new ThreatSection { Observed = new ThreatFacts() } }).Disease,
+            Disease = ColonyFactsCoreTests.Snapshot().Threat.Observed.Disease,
         });
 
         Assert.True(inputs.Illness.Assessed);

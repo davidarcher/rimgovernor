@@ -18,14 +18,8 @@ public static class KitchenSeparationRules
     internal static readonly IReadOnlySet<Resource> SleepingDefinitions =
         new HashSet<Resource> { new("SleepingSpot"), new("DoubleSleepingSpot"), new("Bed"), new("DoubleBed"), new("RoyalBed") };
 
-    private static bool RoomHolds(Room room, IReadOnlySet<Resource> set)
-    {
-        if (!room.Contents.TryGetValue(out var contents))
-        {
-            return false;
-        }
-        return contents.Any(amount => set.Contains(amount.Resource) && amount.Count > 0);
-    }
+    private static bool RoomHolds(RoomState room, IReadOnlySet<Resource> set) =>
+        room.Contents.Any(q => set.Contains(new Resource(q.DefName)) && q.Units > 0);
 
     /// <summary>
     /// Reports whether room is one the controller keeps clean: an enclosed kitchen, hospital or laboratory, or
@@ -33,13 +27,13 @@ public static class KitchenSeparationRules
     /// inherently dirty -- barns, and any room holding a butcher bench -- are never workspaces, whatever else
     /// they contain: their filth is the cost of the work done there, not a coverage failure.
     /// </summary>
-    public static bool CleanWorkspace(Room room)
+    public static bool CleanWorkspace(RoomState room)
     {
-        if (!room.Enclosed.TryGetValue(out var enclosed) || !enclosed || InherentlyDirty(room))
+        if (!room.Enclosed() || InherentlyDirty(room))
         {
             return false;
         }
-        if (room.Role.TryGetValue(out var role) && role is RoomRole.Kitchen or RoomRole.Hospital or RoomRole.Laboratory)
+        if (room.Role is RoomRole.Kitchen or RoomRole.Hospital or RoomRole.Laboratory)
         {
             return true;
         }
@@ -47,9 +41,9 @@ public static class KitchenSeparationRules
     }
 
     /// <summary>Reports a room whose use produces filth as a matter of course (barn, butchery). Cleaning it is ordinary colonist work, never a controller intervention.</summary>
-    public static bool InherentlyDirty(Room room)
+    public static bool InherentlyDirty(RoomState room)
     {
-        if (room.Role.TryGetValue(out var role) && role == RoomRole.Barn)
+        if (room.Role == RoomRole.Barn)
         {
             return true;
         }
@@ -89,10 +83,10 @@ public static class KitchenSeparationRules
         var cells = new List<Cell>();
         foreach (var room in census.Rooms)
         {
-            var role = room.Role.ValueOrDefault;
+            var role = room.Role;
             if ((butcherPlacement && (role == RoomRole.Bedroom || RoomHolds(room, SleepingDefinitions))) || RoomHolds(room, set) || (butcherPlacement && role == RoomRole.Kitchen))
             {
-                cells.AddRange(room.Cells);
+                cells.AddRange(census.CellsOf(room));
             }
         }
         return cells.SortedBy(CombatManhunterRules.CellLess);

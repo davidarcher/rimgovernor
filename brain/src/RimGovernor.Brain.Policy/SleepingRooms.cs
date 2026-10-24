@@ -2,22 +2,22 @@ namespace RimGovernor.Brain.Policy;
 
 /// <summary>
 /// One row of the upkeep room census: a room holding a colonist bed or carrying a common role (DiningRoom,
-/// RecRoom), with its native quality stats (unknown when the read omitted any of them). Beds lists the
+/// RecRoom), with its native quality stats. Beds lists the
 /// colonist beds (humanlike, not medical, not for prisoners) standing in the room; a bed appears in at most
 /// one room.
 /// </summary>
 public sealed record UpkeepRoom
 {
-    public string Id { get; init; } = "";
+    public required string Id { get; init; }
 
-    /// <summary>The native RoomRoleDef name, empty when the room has none.</summary>
-    public string Role { get; init; } = "";
+    /// <summary>The native room role.</summary>
+    public required RoomRole Role { get; init; }
 
-    public Fact<RoomQuality> Quality { get; init; }
+    public required RoomQuality Quality { get; init; }
 
-    public Fact<int> Cells { get; init; }
+    public required int Cells { get; init; }
 
-    public EquatableArray<string> Beds { get; init; }
+    public required EquatableArray<string> Beds { get; init; }
 }
 
 /// <summary>

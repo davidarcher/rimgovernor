@@ -1,3 +1,2 @@
 # Rule 3 (one owner per exported type): Higher|Name, a public type also declared by a lower one of Domain, Policy, Bridge.Contracts, Bridge, Observation. Delete a line when one owner remains; never add one.
-Policy|RoomDoor
 Policy|ZoneKind

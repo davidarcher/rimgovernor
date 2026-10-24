@@ -22,9 +22,9 @@ public sealed record CombatRoom
 
     public bool Roofed { get; init; }
 
-    public Fact<RoomRole> Role { get; init; }
+    public RoomRole Role { get; init; }
 
-    public Fact<bool> Burning { get; init; }
+    public bool Burning { get; init; }
 
     /// <summary>Reports c on the room's floor.</summary>
     internal bool Contains(Cell c)
@@ -322,7 +322,7 @@ public static partial class CombatPodsRules
             {
                 // A pawn-driven open is an instant trigger: it stands until the door reads open, then is done.
                 var read = view.DoorStates.TryGetValue(out var seen) ? seen.Items.FirstOrDefault(s => s.Cell == d.Cell) : null;
-                var isOpen = read is not null && read.Open.TryGetValue(out var o) && o;
+                var isOpen = read is not null && read.Open;
                 if (isOpen)
                 {
                     return d with { Sent = true };
@@ -345,10 +345,7 @@ public static partial class CombatPodsRules
                         want = d.Mode == DoorMode.Forbid;
                     }
 
-                    if (state.TryGetValue(out var got))
-                    {
-                        d = d with { Sent = got == want };
-                    }
+                    d = d with { Sent = state == want };
                 }
             }
 
@@ -399,7 +396,7 @@ public static partial class CombatPodsRules
                 }
 
                 var index = observed.Items.ToList().FindIndex(d => d.Cell == cell);
-                if (index < 0 || CombatDoorRules.DoorFactFalse(observed[index].HoldOpen))
+                if (index < 0 || !observed[index].HoldOpen)
                 {
                     return true;
                 }

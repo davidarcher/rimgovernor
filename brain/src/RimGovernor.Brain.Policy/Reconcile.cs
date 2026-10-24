@@ -158,7 +158,7 @@ public sealed record ReconcileInput
     /// <summary>The census's constructed floors.</summary>
     public IReadOnlyList<ClearanceFloor> Floors { get; init; } = [];
 
-    public RoomObservation Rooms { get; init; } = new();
+    public required RoomObservation Rooms { get; init; }
 
     /// <summary>The wanted template.</summary>
     public IReadOnlyList<WantedPiece> Furniture { get; init; } = [];

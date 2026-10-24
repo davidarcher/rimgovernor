@@ -403,7 +403,7 @@ costs each pawn.
   outside a biosculpter pod), the free colonists the `minPopulation` gate counts, and per `DiseaseHuman` incident its potential victims
   (`IncidentWorker_Disease.PotentialVictims`) and `Blocked` (`scenario`, `difficulty`, `planet_layer`)), and per needs pawn
   `NeedsForecastPawn.Disease` (`PawnDiseaseFacts`: `ImmunityGainSpeed` and, per incident, `DiseaseContractChanceFactor` of its hediff,
-  0 for a pawn that is no potential victim). `ColonyThreat.Disease` carries the read to `RoundsFacts.Disease`.
+  0 for a pawn that is no potential victim). The colony decode carries `ThreatFacts.Disease` to `RoundsFacts.Disease`.
 - `RoundsFacts.DiseaseTable` (`DiseaseTable`, `Catalog/Disease.cs`): per storyteller its home-map `StorytellerCompProperties_Disease`
   comps of `DiseaseHuman` (their `minDaysPassed`; any other comp that can send the category is unmodelled), per biome its
   `diseaseMtbDays` and commonalities (its own records, then the incidents' `diseaseBiomeRecords`), and per incident its victim rules,
@@ -437,7 +437,7 @@ costs each pawn.
 
 The harm model's first step ([harm model](../architecture/forecast-value.md#harm-model)) reads the storyteller the game is running.
 
-- `ThreatFacts.Storyteller` (`Find.Storyteller.def.defName`), `DaysPassed` (`GenDate.DaysPassedFloat`) are read beside `RaidPoints` and decoded onto `RoundsFacts.Storyteller` and `DaysPassed`; each is unknown when the section or the field is missing. Raid points stay the observed `RaidPoints`
+- `ThreatFacts.Storyteller` (`Find.Storyteller.def.defName`), `DaysPassed` (`GenDate.DaysPassedFloat`) are read beside `RaidPoints` and decoded onto `RoundsFacts.Storyteller` and `DaysPassed`; the section is required, and a threat read the native cannot complete fails the census. Raid points stay the observed `RaidPoints`
   (adaptation and difficulty are inside it); the schedule does not model their growth.
 - `RoundsFacts.ThreatTable` (`ThreatScheduleTable`): per `StorytellerDef`, its home-map threat comps decoded by `Catalog/Storyteller.cs`
   (on-off cycles of `ThreatBig` and random mains with their `ThreatBig` weight share), and the comps it could not model. Empty without a catalog.

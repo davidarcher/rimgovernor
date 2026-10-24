@@ -255,7 +255,7 @@ public sealed partial class RoundsBuildingPlanner
 {
     internal (RoundsBuildingPlanner? Planner, Verdict Verdict) SelectResearchBench(ColonyProjection facts)
     {
-        var bench = facts.Shapes.Furniture.BenchFor(Pol.RoomRole.Laboratory);
+        var bench = facts.Shapes.Furniture.BenchFor(RoomRole.Laboratory);
         if (AdvancedLab)
         {
             var (owed, ok) = AdvancedLabOwed(facts);
@@ -291,7 +291,7 @@ public sealed partial class RoundsBuildingPlanner
             return (null, BuildingReasonResearchBenchUnavailable);
         }
 
-        var facility = RoomsRules.Facility(Pol.RoomRole.Laboratory);
+        var facility = RoomsRules.Facility(RoomRole.Laboratory);
         var resolved = Copy();
         resolved.Definition = bench;
         resolved.Environment = PlacementEnvironment.Indoors;

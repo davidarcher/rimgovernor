@@ -331,13 +331,13 @@ public sealed partial class FacadeNativeClient
         {
             output = output with { OutdoorTemperatureC = Fact.Known(colony.OutdoorTemperatureC) };
         }
-        var doorStates = new List<P.RoomDoor>();
+        var doorStates = new List<PbObservations.RoomDoor>();
         var rooms = new List<P.CombatRoom>();
         foreach (var row in v.Rooms?.Rooms ?? default)
         {
             foreach (var door in row.Doors)
             {
-                doorStates.Add(RoomDoorRules.RoomDoorFacts(door));
+                doorStates.Add(door);
             }
             if (CombatRoom(row) is { } room)
             {
@@ -355,16 +355,18 @@ public sealed partial class FacadeNativeClient
     /// <summary>
     /// A frame room census row as the pods tactic's room: a proper room of at most
     /// <see cref="MaxCombatRoomCells"/> whose cells fill its extents, with the doors in its boundary. A room of any
-    /// other shape is left out. The role is the census row's role string; one the policy does not know is unknown.
+    /// other shape is left out.
     /// </summary>
     private static P.CombatRoom? CombatRoom(PbObservations.RoomState row)
     {
-        var cellCount = row.CellCount.GetValueOrDefault();
-        if (!row.ProperRoom.GetValueOrDefault() || row.Doorway.GetValueOrDefault() || cellCount == 0 || cellCount > MaxCombatRoomCells)
+        var cellCount = row.CellCount;
+        if (!row.ProperRoom || row.Doorway || cellCount == 0 || cellCount > MaxCombatRoomCells)
         {
             return null;
         }
-        if (!TryWireCell(row.Extents?.Minimum, out var low) || !TryWireCell(row.Extents?.Maximum, out var high) || high.X < low.X || high.Z < low.Z)
+        var low = row.Extents.Minimum;
+        var high = row.Extents.Maximum;
+        if (high.X < low.X || high.Z < low.Z)
         {
             return null;
         }
@@ -377,25 +379,12 @@ public sealed partial class FacadeNativeClient
         var room = new P.CombatRoom
         {
             Interior = new P.Rectangle(low.X, low.Z, (int)width, (int)height),
-            Roofed = row.OpenRoofCount is not null && row.OpenRoofCount.GetValueOrDefault() == 0,
+            Roofed = row.OpenRoofCount == 0,
+            Role = row.Role,
+            Burning = row.Burning,
+            Doors = EquatableArray.From(row.Doors.Select(door => door.Cell)),
         };
-        if (row.Role is not null)
-        {
-            room = room with { Role = Wire.TryParse<P.RoomRole>(row.Role, out var role) ? Fact.Known(role) : Fact.Unknown<P.RoomRole>() };
-        }
-        if (row.Burning is { } burning)
-        {
-            room = room with { Burning = Fact.Known(burning) };
-        }
-        var doors = new List<Cell>();
-        foreach (var door in row.Doors)
-        {
-            if (TryWireCell(door.Cell, out var cell))
-            {
-                doors.Add(cell);
-            }
-        }
-        return room with { Doors = EquatableArray.From(doors) };
+        return room;
     }
 
     /// <summary>The cell of a wire cell, false when it is absent or lacks a coordinate (the cell is then the zero cell).</summary>

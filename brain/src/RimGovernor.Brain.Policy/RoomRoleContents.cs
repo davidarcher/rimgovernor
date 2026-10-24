@@ -35,7 +35,7 @@ public static partial class RoomRoleRules
             {
                 continue;
             }
-            var inRoom = new HashSet<Cell>(census!.Cells);
+            var inRoom = new HashSet<Cell>(rooms.CellsOf(census!));
             var pieces = new List<RoomPiece>();
             var known = true;
             foreach (var b in buildings)

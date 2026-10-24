@@ -138,7 +138,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.ListSuppliesReply> ListSuppliesAsync(Obs.ListSuppliesRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ListSupplies, request, () => NativeSuppliesObservationTools.HandleListSupplies(request), cancellationToken);
 
-        public Task<Obs.ListRoomsReply> ListRoomsAsync(Obs.ListRoomsRequest request, CancellationToken cancellationToken)
+        public Task<Obs.RoomsSnapshot> ListRoomsAsync(Obs.ListRoomsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ListRooms, request, () => NativeRoomObservationTools.HandleListRooms(request), cancellationToken);
 
         public Task<Obs.ResearchReply> ReadResearchAsync(Obs.ResearchRequest request, CancellationToken cancellationToken)

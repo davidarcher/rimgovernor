@@ -5,7 +5,7 @@ namespace RimGovernor.Brain.Policy;
 /// </summary>
 public sealed record DoorChange
 {
-    public RoomDoor Door { get; init; } = new();
+    public required RoomDoor Door { get; init; }
 
     public bool HoldOpen { get; init; }
 
@@ -50,49 +50,42 @@ public static class DoorControlRules
                 {
                     continue;
                 }
-                var pk = door.PlayerOwned.TryGetValue(out var owned);
-                var hk = door.HoldOpen.TryGetValue(out var held);
-                var ok = door.Open.TryGetValue(out var open);
-                var fk = door.Forbidden.TryGetValue(out var forbidden);
-                if (!pk || !owned || !hk || !ok || !fk)
+                var held = door.HoldOpen;
+                var open = door.Open;
+                if (!door.PlayerOwned)
                 {
                     continue;
                 }
                 var change = new DoorChange { Door = door };
-                var far = DoorDestination(rooms, door);
-                var blockedKnown = door.BlockedOpen.TryGetValue(out _);
-                if (far is not null && blockedKnown && !forbidden && SafeDoorRoom(room) && SafeDoorRoom(far))
+                var far = DoorDestination(observed, rooms, door);
+                if (far is not null && !door.Forbidden && SafeDoorRoom(room) && SafeDoorRoom(far))
                 {
-                    var ht = room.Temperature.TryGetValue(out var here);
-                    var tt = far.Temperature.TryGetValue(out var there);
-                    if (ht && tt)
+                    var here = room.TemperatureC;
+                    var there = far.TemperatureC;
+                    // Use the existing colony heat band, retaining an active opening until recovery
+                    // rather than oscillating at the entry threshold.
+                    var threshold = held ? p.HotExit : p.HotEnter;
+                    var (hot, cool) = (room, far);
+                    var (from, to) = (here, there);
+                    if (there > here)
                     {
-                        // Use the existing colony heat band, retaining an active opening until recovery
-                        // rather than oscillating at the entry threshold.
-                        var threshold = held ? p.HotExit : p.HotEnter;
-                        var (hot, cool) = (room, far);
-                        var (from, to) = (here, there);
-                        if (there > here)
+                        (hot, cool, from, to) = (far, room, there, here);
+                    }
+                    if (from > threshold && to < from && to >= p.ColdExit && !cool.TemperatureControl
+                        && !(hot.Role == RoomRole.Storeroom && hot.TemperatureControl) && (hot.Pawns.Count > 0 || hot.Beds.Count > 0))
+                    {
+                        change = change with
                         {
-                            (hot, cool, from, to) = (far, room, there, here);
-                        }
-                        hot.Role.TryGetValue(out var hotRole);
-                        if (from > threshold && to < from && to >= p.ColdExit && !RoundsRules.Positive(cool.TemperatureControl)
-                            && !(hotRole == RoomRole.Storeroom && RoundsRules.Positive(hot.TemperatureControl)) && (hot.Pawns.Count > 0 || hot.Beds.Count > 0))
-                        {
-                            change = change with
-                            {
-                                HoldOpen = true,
-                                Heat = true,
-                                Passage = !open,
-                            };
-                        }
-                        else if (travelled.Contains(door.Cell) && LogisticsRoom(room) && LogisticsRoom(far)
-                            && !RoundsRules.Positive(room.TemperatureControl) && !RoundsRules.Positive(far.TemperatureControl)
-                            && here >= p.ColdExit && here <= p.HotExit && there >= p.ColdExit && there <= p.HotExit)
-                        {
-                            change = change with { HoldOpen = true, Passage = !open };
-                        }
+                            HoldOpen = true,
+                            Heat = true,
+                            Passage = !open,
+                        };
+                    }
+                    else if (travelled.Contains(door.Cell) && LogisticsRoom(room) && LogisticsRoom(far)
+                        && !room.TemperatureControl && !far.TemperatureControl
+                        && here >= p.ColdExit && here <= p.HotExit && there >= p.ColdExit && there <= p.HotExit)
+                    {
+                        change = change with { HoldOpen = true, Passage = !open };
                     }
                 }
                 if (held != change.HoldOpen || change.Passage)
@@ -109,15 +102,15 @@ public static class DoorControlRules
             .ToList();
     }
 
-    private static Room? DoorDestination(IReadOnlyList<Room> rooms, RoomDoor door)
+    private static RoomState? DoorDestination(RoomObservation observed, IReadOnlyList<RoomState> rooms, RoomDoor door)
     {
-        if (!door.Outdoors.TryGetValue(out var outside) || outside)
+        if (door.Outdoors)
         {
             return null;
         }
         foreach (var room in rooms)
         {
-            if (room.Cells.Contains(door.Outside))
+            if (observed.CellsOf(room).Contains(door.Outside))
             {
                 return room;
             }
@@ -125,30 +118,17 @@ public static class DoorControlRules
         return null;
     }
 
-    private static bool SafeDoorRoom(Room room)
+    private static bool SafeDoorRoom(RoomState room)
     {
-        var rk = room.Role.TryGetValue(out var role);
-        var ek = room.Enclosed.TryGetValue(out var enclosed);
-        var bk = room.Burning.TryGetValue(out var burning);
-        var pk = room.PerishableContents.TryGetValue(out var perishable);
-        var tk = room.TemperatureControl.TryGetValue(out _);
-        var secure = true;
-        foreach (var door in room.Doors)
-        {
-            var known = door.Outdoors.TryGetValue(out var outdoor);
-            if (!known || (outdoor && (!CombatDoorRules.DoorFactFalse(door.Open) || !CombatDoorRules.DoorFactFalse(door.HoldOpen))))
-            {
-                secure = false;
-            }
-        }
-        return secure && rk && ek && enclosed && bk && !burning && pk && !perishable && tk
-            && role != RoomRole.PrisonCell && role != RoomRole.PrisonBarracks && role != RoomRole.ContainmentCell
-            && role != RoomRole.IsolationRoom && role != RoomRole.Tomb;
+        var secure = room.Doors.All(door => !door.Outdoors || (!door.Open && !door.HoldOpen));
+        return secure && room.Enclosed() && !room.Burning && !room.PerishableContents
+            && room.Role != RoomRole.PrisonCell && room.Role != RoomRole.PrisonBarracks && room.Role != RoomRole.ContainmentCell
+            && room.Role != RoomRole.Tomb;
     }
 
-    private static bool LogisticsRoom(Room room)
+    private static bool LogisticsRoom(RoomState room)
     {
-        room.Role.TryGetValue(out var role);
+        var role = room.Role;
         return role is RoomRole.Workshop or RoomRole.Storeroom or RoomRole.Laboratory or RoomRole.Room or RoomRole.None;
     }
 }

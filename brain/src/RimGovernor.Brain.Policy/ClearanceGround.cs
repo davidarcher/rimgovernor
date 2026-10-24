@@ -360,15 +360,15 @@ public static class ClearanceGroundRules
     {
         var seen = new HashSet<Cell>();
         var output = new List<Cell>();
-        foreach (var room in rooms.Rooms.Items)
+        foreach (var room in rooms.Rooms)
         {
-            var (within, bounded, skip) = RoomWithinBounded(room, walls, ground);
+            var (within, bounded, skip) = RoomWithinBounded(room, rooms.CellsOf(room), walls, ground);
             if (skip || !within || !bounded)
             {
                 continue;
             }
 
-            foreach (var c in room.Cells.Items)
+            foreach (var c in rooms.CellsOf(room))
             {
                 if (seen.Add(c))
                 {
@@ -405,9 +405,9 @@ public static class ClearanceGroundRules
     /// </summary>
     private static bool HoldsStandingRoom(IReadOnlyList<ClearanceTarget> walls, IReadOnlyList<Region> ground, RoomObservation rooms)
     {
-        foreach (var room in rooms.Rooms.Items)
+        foreach (var room in rooms.Rooms)
         {
-            var (within, bounded, skip) = RoomWithinBounded(room, walls, ground);
+            var (within, bounded, skip) = RoomWithinBounded(room, rooms.CellsOf(room), walls, ground);
             if (!skip && !within && bounded)
             {
                 return true;
@@ -418,18 +418,19 @@ public static class ClearanceGroundRules
     }
 
     private static (bool Within, bool Bounded, bool Skip) RoomWithinBounded(
-        Room room,
+        RoomState room,
+        IReadOnlyList<Cell> cells,
         IReadOnlyList<ClearanceTarget> walls,
         IReadOnlyList<Region> ground
     )
     {
-        if ((room.Enclosed.TryGetValue(out var enclosed) && !enclosed) || room.Cells.Count == 0)
+        if (!room.Enclosed() || cells.Count == 0)
         {
             return (false, false, true);
         }
 
         bool within = true, bounded = false;
-        foreach (var c in room.Cells.Items)
+        foreach (var c in cells)
         {
             var isIn = ground.Any(g => g.Contains(c));
             within = within && isIn;

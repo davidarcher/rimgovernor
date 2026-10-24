@@ -30,10 +30,7 @@ public sealed class RetiredWallsTests
             .Select(c => new ClearanceTarget { EntityId = $"Thing_Wall{c.X}_{c.Z}", DefName = "Wall", Minimum = c, Maximum = c, Player = true, Deconstructible = true, EnclosesRoom = true }),
     ];
 
-    private static RoomObservation Rooms() => new()
-    {
-        Rooms = [new Room { Id = "hut", Enclosed = Known(true), Cells = [.. PlannedRules.RectCells(new Rectangle(Hut.X + 1, Hut.Z + 1, 3, 3))] }],
-    };
+    private static RoomObservation Rooms() => RoomFixtures.Census((RoomFixtures.State("hut"), PlannedRules.RectCells(new Rectangle(Hut.X + 1, Hut.Z + 1, 3, 3))));
 
     private static ColonyProjection Colony(Fact<RoomObservation> rooms) => ColonyFactsCoreTests.Projection() with
     {
@@ -62,7 +59,7 @@ public sealed class RetiredWallsTests
         // over the ring: its step is the walls step, with the roof of the whole hut ground (#3681).
         var door = new ClearanceTarget { EntityId = "Thing_Door12_10", DefName = "Door", Minimum = new Cell(12, 10), Maximum = new Cell(12, 10), Player = true, Deconstructible = true, Designated = true, RoofBlocker = "roof would collapse" };
 
-        var (step, ok) = HomeUpkeepReader.PlannedGroundStep(Colony(Known(new RoomObservation())), [door], [], null!);
+        var (step, ok) = HomeUpkeepReader.PlannedGroundStep(Colony(Known(RoomObservation.NoRooms)), [door], [], null!);
 
         Assert.True(ok);
         Assert.Equal(GroundPhase.Walls, step.Phase);

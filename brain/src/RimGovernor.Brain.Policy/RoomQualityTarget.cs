@@ -101,7 +101,7 @@ public static partial class RoomQualityRules
         var floor = levels.Baseline(tier);
         foreach (var room in rooms)
         {
-            if (room.Beds.Count > 0 || (room.Role != Wire.Name(RoomRole.DiningRoom) && room.Role != Wire.Name(RoomRole.RecRoom)))
+            if (room.Beds.Count > 0 || (room.Role != RoomRole.DiningRoom && room.Role != RoomRole.RecRoom))
             {
                 continue;
             }
@@ -148,10 +148,7 @@ public static partial class RoomQualityRules
         var impressiveness = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var room in rooms)
         {
-            if (room.Quality.TryGetValue(out var q))
-            {
-                impressiveness[room.Id] = q.Impressiveness;
-            }
+            impressiveness[room.Id] = room.Quality.Impressiveness;
         }
         var titles = new Dictionary<PawnId, RoyalTitle?>();
         foreach (var p in obs.People)

@@ -69,8 +69,8 @@ public sealed record ColonyStatusReport
 
     public double PendingFoodNutrition { get; init; }
 
-    /// <summary>The census's wealth split and raid points; unknown under a native build that does not report the section.</summary>
-    public ColonyThreat Threat { get; init; } = new();
+    /// <summary>The census's wealth split and raid points.</summary>
+    public required PbObservations.ThreatFacts Threat { get; init; }
 
     /// <summary>The player faction's native TechLevel.</summary>
     public RimGovernor.Contracts.Wire.Defs.TechLevel PlayerTechLevel { get; init; }
@@ -138,7 +138,7 @@ public sealed class ColonyStatus
             NutritionPerDay = observed.NutritionPerDay,
             FoodRunwayDays = OptionalFact(observed.FoodRunwayDays is not null, observed.FoodRunwayDays.GetValueOrDefault()),
             PendingFoodNutrition = observed.PendingFoodNutrition,
-            Threat = ColonyThreat.ProjectColonyThreat(observed),
+            Threat = observed.Threat.Observed,
             PlayerTechLevel = observed.PlayerTechLevel,
             TechTier = Unknown<TechTier>(),
             Stockpiles = Unknown<EquatableArray<StockpileRoleCount>>(),

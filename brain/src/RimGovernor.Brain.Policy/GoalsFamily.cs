@@ -538,7 +538,7 @@ public static partial class GoalRules
     /// </summary>
     private static GoalStatus Room(GoalRecord goal, GoalsFacts f)
     {
-        if (!Wire.TryParse<RoomRole>(goal.Target, out var role) || role == RoomRole.Unset)
+        if (!Wire.TryParse<RoomRole>(goal.Target, out var role))
         {
             return new GoalStatus(goal, Satisfaction.Unmet, GoalState.NoMethod, "unknown_role", default, default);
         }
@@ -560,7 +560,7 @@ public static partial class GoalRules
         }
         else
         {
-            deficit = rooms.Rooms.Any(r => r.Role.TryGetValue(out var have) && have == role) ? 0 : 1;
+            deficit = rooms.Rooms.Any(r => r.Role == role) ? 0 : 1;
         }
         if (deficit == 0)
         {

@@ -62,7 +62,7 @@ public static partial class CombatBatchRules
                             {
                                 case "hold_open":
                                 case "close":
-                                    if (!d.HoldOpen.TryGetValue(out var holdOpen) || holdOpen != (order.Door == "hold_open"))
+                                    if (d.HoldOpen != (order.Door == "hold_open"))
                                     {
                                         return false;
                                     }
@@ -70,7 +70,7 @@ public static partial class CombatBatchRules
                                     break;
                                 case "forbid":
                                 case "allow":
-                                    if (!d.Forbidden.TryGetValue(out var forbidden) || forbidden != (order.Door == "forbid"))
+                                    if (d.Forbidden != (order.Door == "forbid"))
                                     {
                                         return false;
                                     }

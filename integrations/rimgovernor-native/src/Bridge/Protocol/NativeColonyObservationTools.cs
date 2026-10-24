@@ -218,26 +218,19 @@ namespace HomeBridge.BridgeTools
         // own lazy recount; never ForceRecount on a read path), the wealth
         // the storyteller scales by and the points a default threat incident
         // would draw for this map now, with the adaptation and difficulty
-        // factors already inside that figure. Any failure makes the section
-        // unavailable rather than partial.
+        // factors already inside that figure. A failure fails the census.
         internal static Obs.ThreatSection ReadThreat(Map map)
         {
-            try {
-                var wealth = map.wealthWatcher;
-                var facts = new Obs.ThreatFacts {
-                    WealthItems = Finite(wealth.WealthItems), WealthBuildings = Finite(wealth.WealthBuildings), WealthPawns = Finite(wealth.WealthPawns),
-                    WealthTotal = Finite(wealth.WealthTotal), StorytellerWealth = Finite(map.PlayerWealthForStoryteller),
-                    RaidPoints = Finite(StorytellerUtility.DefaultThreatPointsNow(map)),
-                    AdaptationFactor = Finite(Find.StoryWatcher.watcherAdaptation.TotalThreatPointsFactor),
-                    DifficultyThreatScale = Finite(Find.Storyteller.difficulty.threatScale),
-                    HostileFactions = [.. HostileRaidFactions()],
-                    Storyteller = Find.Storyteller.def.defName, DaysPassed = Finite(GenDate.DaysPassedFloat),
-                    Disease = NativeDiseaseFacts.Read(map),
-                };
-                facts = facts with { Raids = [.. facts.Raids, .. NativeDefenseObservationTools.RaidTracks(map)] };
-                return new Obs.ThreatSection { Observed = facts };
-            }
-            catch (Exception error) { ModLog.Error("observe", "Colony facts section failed: " + error); ReadFailureLog.Note("threat", error); return new Obs.ThreatSection(); }
+            var wealth = map.wealthWatcher;
+            var facts = new Obs.ThreatFacts {
+                WealthItems = Finite(wealth.WealthItems), WealthBuildings = Finite(wealth.WealthBuildings), WealthPawns = Finite(wealth.WealthPawns),
+                WealthTotal = Finite(wealth.WealthTotal),
+                RaidPoints = Finite(StorytellerUtility.DefaultThreatPointsNow(map)),
+                HostileFactions = [.. HostileRaidFactions()], Raids = [.. NativeDefenseObservationTools.RaidTracks(map)],
+                Storyteller = Find.Storyteller.def.defName, DaysPassed = Finite(GenDate.DaysPassedFloat),
+                Disease = NativeDiseaseFacts.Read(map),
+            };
+            return new Obs.ThreatSection { Observed = facts };
         }
 
         // The def names of the factions a raid can come from: visible, undefeated, hostile to the player, and with a Combat pawn group maker.

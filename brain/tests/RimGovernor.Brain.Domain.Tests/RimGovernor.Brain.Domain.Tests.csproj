@@ -9,6 +9,10 @@
     <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
   <ItemGroup>
+    <Using Include="RimGovernor.Contracts.Wire.Observations.RoomRole" Alias="RoomRole" />
+    <Using Include="RimGovernor.Contracts.Wire.Observations.RoomState" Alias="RoomState" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit.v3" />

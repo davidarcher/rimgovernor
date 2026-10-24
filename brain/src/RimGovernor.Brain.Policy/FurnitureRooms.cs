@@ -64,11 +64,12 @@ public static class FurnitureRoomsRules
         var @out = new List<FurnitureRoom>();
         foreach (var room in rooms.Rooms)
         {
-            if (!room.Role.TryGetValue(out var role) || room.Id.Length == 0)
+            var role = room.Role;
+            if (room.Id.Length == 0)
             {
                 continue;
             }
-            var (planned, ok) = InteriorRules.InteriorRoomFromCensus(room, role, doorways, rooms.Shapes);
+            var (planned, ok) = InteriorRules.InteriorRoomFromCensus(rooms.CellsOf(room), role, doorways, rooms.Shapes);
             if (!ok)
             {
                 continue;

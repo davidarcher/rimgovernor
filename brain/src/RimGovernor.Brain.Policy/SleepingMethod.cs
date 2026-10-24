@@ -144,10 +144,7 @@ public static partial class SleepingRules
         {
             foreach (var room in rooms)
             {
-                if (room.Quality.TryGetValue(out var q))
-                {
-                    impressiveness[room.Id] = q.Impressiveness;
-                }
+                impressiveness[room.Id] = room.Quality.Impressiveness;
             }
         }
         var quality = new Dictionary<string, double>(StringComparer.Ordinal);
@@ -290,23 +287,16 @@ public static partial class SleepingRules
         var cells = new List<Cell>();
         foreach (var room in rooms.Rooms)
         {
-            if (!room.Role.TryGetValue(out var role))
-            {
-                return choice with { Method = SleepingMethod.Unknown, Missing = "room_role" };
-            }
-            if (!facility.Hosts(role))
+            if (!facility.Hosts(room.Role))
             {
                 continue;
             }
-            if (!room.Temperature.TryGetValue(out var temperature))
-            {
-                return choice with { Method = SleepingMethod.Unknown, Missing = "room_temperature" };
-            }
+            var temperature = room.TemperatureC;
             if (temperature < lo || temperature > hi)
             {
                 continue;
             }
-            cells.AddRange(room.Cells);
+            cells.AddRange(rooms.CellsOf(room));
         }
         var (definition, method) = SleepingDefinition(r.Furniture, r.Definitions, r.Stocked, couple, false);
         choice = choice with { Cells = EquatableArray.From(cells), Definition = definition, Method = method };

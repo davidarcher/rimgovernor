@@ -41,11 +41,7 @@ public static partial class TombRules
             {
                 continue;
             }
-            if (!room!.Temperature.TryGetValue(out var t))
-            {
-                return Unknown<EquatableArray<string>>();
-            }
-            if (t > TombMaxC)
+            if (room!.TemperatureC > TombMaxC)
             {
                 output.Add(room.Id);
             }

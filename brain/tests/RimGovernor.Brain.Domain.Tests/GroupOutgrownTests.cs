@@ -14,7 +14,7 @@ public sealed class GroupOutgrownTests
     private static RoomGroup Suite(int id, int area, int kept) => new()
     {
         Id = id,
-        Role = RoomRole.Suite,
+        Role = RoomRole.Bedroom,
         Planned = PlannedRole.Suite,
         Stations = [new GroupStation("bed" + id, "Bed", StationPurpose.Sleep, 1)],
         Footprint = 2,
@@ -26,7 +26,7 @@ public sealed class GroupOutgrownTests
     private static BuiltRegion Standing(int room, int x) => new()
     {
         Room = room,
-        Role = RoomRole.Suite,
+        Role = PlanRole.Suite,
         Planned = PlannedRole.Suite,
         Region = RegionRules.RectRegion(new(x, 0, 4, 5)),
     };

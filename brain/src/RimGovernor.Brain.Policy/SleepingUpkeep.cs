@@ -525,12 +525,15 @@ public static partial class SleepingRules
                 }
             }
             b.Room.TryGetValue(out var id);
-            var room = rooms.GetValueOrDefault(id ?? "") ?? new UpkeepRoom();
-            if (room.Cells.TryGetValue(out var cells) && cells >= t.BedroomMinArea)
+            if (!rooms.TryGetValue(id ?? "", out var room))
+            {
+                return n;
+            }
+            if (room.Cells >= t.BedroomMinArea)
             {
                 n++;
             }
-            if (room.Quality.TryGetValue(out var q) && q.Impressiveness >= t.BedroomMinImpressiveness)
+            if (room.Quality.Impressiveness >= t.BedroomMinImpressiveness)
             {
                 n++;
             }

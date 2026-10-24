@@ -95,7 +95,7 @@ Converted to rules over the mirrored rows, native copy and proto field deleted, 
 
 Kept, each with its reason:
 
-- `ThreatPawn.predator` (`RaceProps.predator` of a live hostile): the emergency threat decode (`ProjectColonyThreat` and its five other entry points) runs with no definition catalog; a row join needs the catalog threaded through all six, which is its own change (follow-up candidate, not a per-instance fact).
+- `ThreatPawn.predator` (`RaceProps.predator` of a live hostile): the emergency threat decode runs with no definition catalog at its entry points; a row join needs the catalog threaded through each, which is its own change (follow-up candidate, not a per-instance fact).
 - `AcquisitionFacts.food` on plant rows (every eater `WillEat` the harvest), `yield` (`YieldNow`), `growth`, `plantation`, `meat_amount` (the live animal's `MeatAmount` stat, scaled by wounds and malnutrition), `herd_size`, `fogged`, `in_mental_state`, `sleeping`, `downed`, `designated`, `designated_tick`, `taken`: per-instance live state or a game worker's computed output.
 - `HunterFacts` priorities, `has_hunting_weapon` and `ranged_blocking_shield`: pawn state and the verdicts of `WorkGiver_HunterHunt`.
 - `NativeResourceSourcesTool` census rows (reachable, buried, distance, designated, safety, taken, `Storage` capacity, candidate cells): a live map census built from pathing and reservations. The only def copies it carried (method, stack limit) are gone.
@@ -437,11 +437,10 @@ Kept, reason recorded:
 | ListBuildingsReply | message | 729 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | RoomStat | message | 730 | 6 | code | One room stat (value, display) computed by RoomStatDef workers |  |  |
 | StockpileMembership | message | 732 | 2 | state | Stockpile zone in a room with its contents |  |  |
-| RoomState | message | 733 | 28 | state | Room census row: role, temperature, cells, pawns, beds, doors |  |  |
+| RoomState | message | 733 | 22 | state | Room census row: role, temperature, pawns, beds, doors; its cells come from the frame cell grid by grid room key |  |  |
 | RoomDoor | message | 751 | 9 | state | Door in a room boundary with open/forbidden state |  |  |
-| RoomsSnapshot | message | 760 | 3 | state | Rooms table with completeness |  |  |
+| RoomsSnapshot | message | 760 | 2 | state | Rooms table; a census the native cannot read fails the read |  |  |
 | ListRoomsRequest | message | 761 | 5 | state | Read request parameters |  |  |
-| ListRoomsReply | message | 762 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | ZoneState | message | 763 | 14 | state | Zone row: bounds, priority, crop, filter, contents, farm facts |  |  |
 | ZonesSnapshot | message | 771 | 3 | state | Zones table |  |  |
 | ListZonesRequest | message | 772 | 6 | state | Read request parameters |  |  |
@@ -678,8 +677,8 @@ Kept, reason recorded:
 | RoutesSection | message | 1628 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
 | UpkeepFacts | message | 1629 | 20 | state | Upkeep bundle: items, beds, structures, fires, filth, people, animals, sections, home area |  |  |
 | UpkeepSection | message | 1649 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |
-| ThreatFacts | message | 1657 | 10 | code | Colony wealth and raid points computed by the storyteller |  |  |
-| ThreatSection | message | 1658 | 2 | state | Section wrapper (observed, absent when the read failed) |  |  |
+| ThreatFacts | message | 1657 | 9 | code | Colony wealth and raid points computed by the storyteller |  |  |
+| ThreatSection | message | 1658 | 1 | state | Section wrapper (observed; a failed threat read fails the census) |  |  |
 | LootItem | message | 1665 | 6 | code | Haul safety verdict, path length and storage headroom for an item |  |  |
 | LootCensus | message | 1666 | 3 | state | Loot items with free hauler count and storyteller quiet flag |  |  |
 | LootSection | message | 1667 | 2 | state | Unavailable-or-observed oneof wrapper |  |  |

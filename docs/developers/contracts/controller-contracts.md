@@ -486,8 +486,9 @@ next hunt and a second forage waits for the first.
 
 ## Raid-point awareness
 
-The native threat section supplies wealth split, storyteller wealth, current raid
-points, adaptation and difficulty scale; absent or invalid readings are unknown. They are
+The native threat section supplies the wealth split and the current raid points (the
+story watcher's adaptation and the difficulty's threat scale are inside them); the section is
+required, and a threat read the native cannot complete fails the census. They are
 storyteller inputs, not a raid prediction.
 
 - Turret budget from the observed raid shortfall (raid points minus defense capacity): the turrets

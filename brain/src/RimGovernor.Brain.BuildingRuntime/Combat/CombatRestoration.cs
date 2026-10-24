@@ -43,11 +43,7 @@ public sealed partial class RoundsDefensePlanner
                 {
                     continue;
                 }
-                if (!doors![i].HoldOpen.TryGetValue(out var hold) || !doors[i].Forbidden.TryGetValue(out var forbidden))
-                {
-                    continue;
-                }
-                keptDoors.Add(new CombatDoorRestoration(o.Cell, hold, forbidden));
+                keptDoors.Add(new CombatDoorRestoration(o.Cell, doors![i].HoldOpen, doors[i].Forbidden));
             }
             else if (o.Kind == CombatOrderKind.AnimalArea && !keptAnimals.Any(a => a.Pawn == (Domain.PawnId)o.Pawn))
             {

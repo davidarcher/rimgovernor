@@ -131,9 +131,9 @@ namespace HomeBridge.BridgeTools
             var raids = map.GetComponent<RaidArrivalState>();
             if (raids == null) yield break;
             foreach (var track in raids.Tracks.Values.OrderBy(t => t.SpawnTick).ThenBy(t => t.LordId)) {
-                var row = new Obs.RaidTrack { LordId = "lord-" + track.LordId.ToString(System.Globalization.CultureInfo.InvariantCulture), FactionDef = Identifier(track.FactionDef),
-                    SpawnTick = track.SpawnTick, Spawn = new Common.Cell { X = track.Spawn.x, Z = track.Spawn.z }, Ground = track.Ground, LastTick = track.LastTick };
-                yield return row with { Trail = [.. track.Trail.Select(c => new Common.Cell { X = c.x, Z = c.z })] };
+                yield return new Obs.RaidTrack { LordId = "lord-" + track.LordId.ToString(System.Globalization.CultureInfo.InvariantCulture), FactionDef = Identifier(track.FactionDef),
+                    SpawnTick = track.SpawnTick, Spawn = new RimGovernor.Brain.Domain.Cell(track.Spawn.x, track.Spawn.z), Ground = track.Ground, LastTick = track.LastTick,
+                    Trail = [.. track.Trail.Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z))] };
             }
         }
 

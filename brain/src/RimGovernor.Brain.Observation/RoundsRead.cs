@@ -332,12 +332,16 @@ public static class RoundsReads
             var temperature = Unknown<RoomObservation>();
             if (roomCensus is not null)
             {
-                temperature = TemperatureRoomsReads.TemperatureRooms(roomCensus, frame.RoomCells, p.Facts.Sleeping);
-                if (temperature.TryGetValue(out var planned))
+                temperature = Known(new RoomObservation
                 {
-                    planned = planned with { Dining = catalog.DiningFurniture(), Shapes = p.Shapes };
-                    temperature = Known(planned);
-                }
+                    Rooms = roomCensus.Rooms,
+                    Cells = frame.RoomCells,
+                    EligibleBeds = p.Facts.Sleeping.TryGetValue(out var sleepers)
+                        ? Known(EquatableArray.From(sleepers.Beds.Where(bed => bed.Humanlike && !bed.Medical && !bed.Prisoners).Select(bed => bed.Id)))
+                        : Unknown<EquatableArray<string>>(),
+                    Dining = catalog.DiningFurniture(),
+                    Shapes = p.Shapes,
+                });
             }
             var (sleepingMin, sleepingMax) = TemperatureMethodRules.TemperatureRange(temperature);
             p = p with

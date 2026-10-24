@@ -29,6 +29,7 @@ public sealed class PlannedShellDemandTests
     {
         var owed = plan.Rooms.Select(room => (room, ReconcileRules.Reconcile(new ReconcileInput
         {
+            Rooms = RoomObservation.NoRooms,
             Plan = plan,
             Room = room,
             Ground = ground,
@@ -82,7 +83,7 @@ public sealed class PlannedShellDemandTests
         {
             ground.Walls.Add(c);
         }
-        var owed = ReconcileRules.Reconcile(new ReconcileInput { Plan = plan, Room = room, Ground = ground, Rows = [], Unroofed = room.Region.Cells().ToHashSet() }).Owed;
+        var owed = ReconcileRules.Reconcile(new ReconcileInput { Rooms = RoomObservation.NoRooms, Plan = plan, Room = room, Ground = ground, Rows = [], Unroofed = room.Region.Cells().ToHashSet() }).Owed;
         Assert.Equal(9, owed.Single(o => o.Kind == OpKind.RoofIn).Cells.Count);
         Assert.Empty(PlannedRules.PlannedOwedCost([(room, owed)], Price, Price, Price, "Vent", new HashSet<(string, Cell)>()));
     }

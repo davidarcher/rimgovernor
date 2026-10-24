@@ -86,18 +86,15 @@ public sealed class SleepingStandInTests
         Assert.Equal([1, 3, 4], ShelterRules.PickStandIns(footprints, blocked, i => i != 0, 3));
     }
 
-    private static Room Standing(string id, PlannedRoom room, params string[] beds) => new()
-    {
-        Id = id, Role = Known(RoomRole.Bedroom), Enclosed = Known(true), Cells = [.. room.Region.Cells()], Beds = [.. beds],
-    };
+    private static (RoomState Room, IEnumerable<Cell> Cells) Standing(string id, PlannedRoom room, params string[] beds) => (RoomFixtures.State(id, RoomRole.Bedroom, beds: beds), room.Region.Cells());
 
     private static SleepingBed Bed(string id, string def, Fact<string> room, params PawnId[] owners) => new()
     {
         Id = id, Definition = new(def), Humanlike = true, Room = room, Owners = [.. owners], AccessibleTo = [A],
     };
 
-    private static BedroomStep Step(LayoutPlan plan, Room[] rooms, SleepingObservation sleeping) =>
-        SleepingRules.NextBedroomStep(plan, new RoomObservation { Rooms = [.. rooms] }, sleeping, new Dictionary<string, RoomTarget>(), new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
+    private static BedroomStep Step(LayoutPlan plan, (RoomState Room, IEnumerable<Cell> Cells)[] rooms, SleepingObservation sleeping) =>
+        SleepingRules.NextBedroomStep(plan, RoomFixtures.Census(rooms), sleeping, new Dictionary<string, RoomTarget>(), new Dictionary<PawnId, TraitEffects>(), new Dictionary<PawnId, double>());
 
     private static readonly LayoutPlan OneBedroom = new() { Rooms = [Bedroom], NextRoomId = 3 };
 

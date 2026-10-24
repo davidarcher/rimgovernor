@@ -197,7 +197,7 @@ public sealed record LightingProposal
 /// <summary>What SelectLightingMethod needs beyond the census.</summary>
 public sealed record LightingFacts
 {
-    public IReadOnlyList<Room> Rooms { get; init; } = [];
+    public required RoomObservation Rooms { get; init; }
     public IReadOnlyList<SiteCell> Cells { get; init; } = [];
 
     /// <summary>Maps lamp definition names to their planning availability as read with the census; a lamp absent here is unknown.</summary>
@@ -281,9 +281,9 @@ public static class LightingRules
             cells[c.Cell] = c;
         }
         var cellRoom = new Dictionary<Cell, string>();
-        foreach (var room in facts.Rooms)
+        foreach (var room in facts.Rooms.Rooms)
         {
-            foreach (var c in room.Cells)
+            foreach (var c in facts.Rooms.CellsOf(room))
             {
                 cellRoom[c] = room.Id;
             }

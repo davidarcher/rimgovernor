@@ -190,8 +190,8 @@ public static partial class RoomQualityRules
         foreach (var r in census)
         {
             var tk = targets.TryGetValue(r.Id, out var t);
-            var qk = r.Quality.TryGetValue(out var q);
-            if (tk && qk && !t!.NeverUpgrade && t.Min > 0 && q!.Impressiveness < t.Min && (t.Max <= 0 || q.Impressiveness < t.Max) && WeakestRoomStat(q) == RoomStat.Beauty)
+            var q = r.Quality;
+            if (tk && !t!.NeverUpgrade && t.Min > 0 && q!.Impressiveness < t.Min && (t.Max <= 0 || q.Impressiveness < t.Max) && WeakestRoomStat(q) == RoomStat.Beauty)
             {
                 output.Add(r.Id);
             }

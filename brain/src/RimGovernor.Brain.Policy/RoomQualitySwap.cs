@@ -41,10 +41,7 @@ public static partial class RoomQualityRules
         var impressiveness = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var room in rooms)
         {
-            if (room.Quality.TryGetValue(out var q))
-            {
-                impressiveness[room.Id] = q.Impressiveness;
-            }
+            impressiveness[room.Id] = room.Quality.Impressiveness;
         }
         var owned = new Dictionary<string, List<SleepingBed>>(StringComparer.Ordinal);
         foreach (var bed in obs.Beds)
