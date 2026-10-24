@@ -36,9 +36,14 @@ public sealed record IllnessTerm(double IncidentsPerDay, double Loss, IReadOnlyL
 /// ImmunityGainSpeed × the record's seeded factor, is full, then at the immune rate; the SeverityPerDay comp adds its rate; tending
 /// adds severityPerDayTended × tend quality from first care, retended as soon as the TendDuration comp allows. The hediff ends when
 /// its severity reaches 0, the Disappears comp's time passes or the total tend quality reaches disappearsAtTotalTendQuality; it
-/// kills at its lethal severity on a part it threatens; at the max severity HediffComp_DestroyOrgan destroys the part. Uniform
-/// draws (the random factors, the per-day range, the disappear time, the immunity factor) are integrated on a midpoint grid; the
-/// death chance in the immunity factor is exact. The constants it mirrors are in kept-constants, "Mirrored game literals: illness".
+/// kills at its lethal severity on a part it threatens; at the max severity HediffComp_DestroyOrgan destroys the part. A disease
+/// of affected parts strikes one of the pawn's open parts by coverage (HediffGiverUtility.TryApply); on an organ its stages'
+/// partEfficiencyOffset and its loss cost what <see cref="OrganCapacity"/> gives (#3830). A lost organ the autopilot would replace
+/// (<see cref="SurgeryRules.RestorePick"/>: a stocked recipe and a doctor within the cap) costs nothing after the loss and books a
+/// replacement surgery (<see cref="HarmDistribution.Replacements"/>); one it would not costs its capacity loss to the horizon; a loss
+/// that leaves a lethalFlesh capacity incapable kills. Uniform draws (the random factors, the per-day range, the disappear time,
+/// the immunity factor) are integrated on a midpoint grid; the death chance in the immunity factor is exact. The constants it
+/// mirrors are in kept-constants, "Mirrored game literals: illness".
 /// </summary>
 public static class IllnessForecast
 {
@@ -145,6 +150,7 @@ public static class IllnessForecast
         findings.Add("illness_prior_immunity_unassessed");
         var days = horizon / GameTime.TicksPerDay;
         var points = new List<HarmPoint>();
+        var replacements = new Dictionary<(string, string, SurgeryWantReason), OrganReplacement>();
         double none = 1, down = 0, death = 0, patientDays = 0, tends = 0;
         foreach (var incident in schedule.Incidents)
         {
@@ -169,8 +175,15 @@ public static class IllnessForecast
                 continue;
             }
 
+            var branches = Branches(incident, disease, levels, pawn.Pawn, findings);
+            sick *= branches.Sum(b => b.Share);
+            if (!(sick > 0))
+            {
+                continue;
+            }
+
             none -= sick;
-            var course = Course(incident.Course, disease.ImmunityGainSpeed * Math.Max(0, bedImmunity), care, levels, movingMin, policy, days, pawn.Pawn, findings);
+            var course = Course(incident.Course, branches, disease.ImmunityGainSpeed * Math.Max(0, bedImmunity), care, levels, movingMin, policy, days, pawn.Pawn, findings);
             foreach (var outcome in course)
             {
                 points.Add(new HarmPoint(outcome.Loss, sick * outcome.Probability));
@@ -178,6 +191,12 @@ public static class IllnessForecast
                 death += outcome.Died ? sick * outcome.Probability : 0;
                 patientDays += sick * outcome.Probability * outcome.PatientDays;
                 tends += sick * outcome.Probability * outcome.Tends;
+                if (outcome.Replacement is { } lost)
+                {
+                    var key = (lost.Part, lost.Recipe?.Recipe ?? "", lost.Reason);
+                    var probability = sick * outcome.Probability + (replacements.TryGetValue(key, out var seen) ? seen.Probability : 0);
+                    replacements[key] = lost with { Probability = probability };
+                }
             }
         }
 
@@ -189,15 +208,121 @@ public static class IllnessForecast
         return new HarmDistribution
         {
             Known = true, Points = points, DownProbability = down, DeathProbability = death, PatientDays = patientDays, Treatments = tends,
+            Replacements = [.. replacements.Values.OrderBy(r => r.Part, StringComparer.Ordinal).ThenBy(r => r.Recipe?.Recipe ?? "", StringComparer.Ordinal).ThenBy(r => r.Reason)],
             Findings = [.. findings],
         };
     }
 
-    /// <summary>One outcome of a course: its capability-day loss and probability, and its days in care and tends.</summary>
-    internal readonly record struct CourseOutcome(double Loss, double Probability, bool Died, bool Downed, double PatientDays, double Tends);
+    /// <summary>One outcome of a course: its capability-day loss and probability, its days in care and tends, and the organ it destroyed (#3830).</summary>
+    internal readonly record struct CourseOutcome(double Loss, double Probability, bool Died, bool Downed, double PatientDays, double Tends, OrganReplacement? Replacement);
 
-    /// <summary>The outcomes of <paramref name="course"/> for a pawn of <paramref name="gain"/> ImmunityGainSpeed; probabilities sum to 1.</summary>
-    internal static List<CourseOutcome> Course(DiseaseCourse course, double gain, HarmConsequences.Care care, double[] levels, double movingMin,
+    /// <summary>
+    /// One part a disease may strike (#3830): its share of the incidents that take hold, whether the lethal severity kills on it, and
+    /// its organ's capacity effect (null when the part feeds no modelled capacity, or for a disease of the whole body).
+    /// </summary>
+    internal sealed record Branch(double Share, bool Lethal, OrganEffect? Organ);
+
+    /// <summary>
+    /// An organ's capacity effect (#3830): per stage of the course's table the factors its partEfficiencyOffset leaves on the five
+    /// levels (null for a stage that offsets nothing), the factors once the organ is lost (null: the loss kills), and the replacement
+    /// the autopilot would queue (null, with the reason, when none would be).
+    /// </summary>
+    internal sealed record OrganEffect(string Part, double[]?[] Stages, double[]? Lost, OrganReplacementRead? Pick, SurgeryWantReason Reason);
+
+    /// <summary>
+    /// The parts <paramref name="incident"/>'s disease may strike on the pawn: one branch of share 1 for a disease of the whole body;
+    /// otherwise, as HediffGiverUtility.TryApply picks, each part the read lists as open to the incident by its coverage, the shares
+    /// summing to 1 (none when no part is open: the disease does not take). Throws when the pawn's read lists no part of the
+    /// incident's defs, or names a replacement recipe the catalog has no tier for.
+    /// </summary>
+    internal static IReadOnlyList<Branch> Branches(IllnessIncident incident, PawnDiseaseFacts disease, double[] levels, string pawn, SortedSet<string> findings)
+    {
+        var course = incident.Course;
+        var lethal = course.Table.LethalSeverity is not null;
+        if (course.Parts.Count == 0)
+        {
+            return [new Branch(1, lethal, null)];
+        }
+
+        var defs = course.Parts.ToDictionary(p => p.Part, StringComparer.Ordinal);
+        var rows = disease.Parts.Where(r => defs.ContainsKey(r.Part)).ToArray();
+        if (rows.Length == 0)
+        {
+            throw new RequiredFactException("disease_parts:" + pawn + ":" + incident.Incident);
+        }
+
+        var open = rows.Where(r => r.Incidents.Contains(incident.Incident) && r.Coverage > 0).ToArray();
+        var cover = open.Sum(r => r.Coverage);
+        var branches = new List<Branch>(open.Length);
+        foreach (var row in open)
+        {
+            var part = defs[row.Part];
+            branches.Add(new Branch(row.Coverage / cover, lethal && part.Threatened, Organ(course, part, row, rows, disease, levels, findings)));
+        }
+
+        return branches;
+    }
+
+    private static OrganEffect? Organ(DiseaseCourse course, DiseasePart part, DiseasePartRead row, DiseasePartRead[] rows, PawnDiseaseFacts disease,
+        double[] levels, SortedSet<string> findings)
+    {
+        if (part.Capacity.Length == 0)
+        {
+            return null;
+        }
+
+        // The capacity names are PawnCapacityDef defNames the catalog maps the tags to; the policy has no typed route to them.
+        var level = part.Capacity switch
+        {
+            "BloodPumping" => disease.BloodPumping,
+            "Breathing" => disease.Breathing,
+            "BloodFiltration" => disease.BloodFiltration,
+            _ => throw new RequiredFactException("organ_capacity:" + part.Capacity),
+        };
+        var tagged = rows.Where(r => course.Parts.Any(p => p.Part == r.Part && p.Tag == part.Tag)).ToArray();
+        var efficiencies = tagged.Select(r => r.Efficiency).ToArray();
+        var index = Array.IndexOf(tagged, row);
+        double[]? At(double efficiency)
+        {
+            var next = OrganCapacity.Level(level, efficiencies, index, efficiency);
+            return part.Lethal && next <= part.MinForCapable ? null : OrganCapacity.Factors(part.Capacity, level, next, levels[0]);
+        }
+
+        var stages = new double[]?[course.Table.Stages.Count];
+        for (var i = 0; i < stages.Length; i++)
+        {
+            var offset = course.Table.Stages[i].PartEfficiencyOffset;
+            if (offset == 0)
+            {
+                continue;
+            }
+
+            if (At(Math.Max(0, row.Efficiency + offset)) is { } factors)
+            {
+                stages[i] = factors;
+                continue;
+            }
+
+            // A stage that leaves a lethalFlesh capacity incapable kills at once (Pawn_HealthTracker.ShouldBeDead); the walk prices
+            // it as downed for the stage's stretch.
+            findings.Add("disease_part_stage_death_unmodelled:" + course.Table.Hediff);
+            stages[i] = new double[levels.Length];
+        }
+
+        if (!course.DestroysOrgan)
+        {
+            return new OrganEffect(part.Part, stages, null, null, SurgeryWantReason.None);
+        }
+
+        var candidates = disease.Replacements.Where(r => r.Part == part.Part)
+            .Select(r => (r, part.Recipes.TryGetValue(r.Recipe, out var tier) ? tier : throw new RequiredFactException("organ_replacement_tier:" + r.Recipe)))
+            .ToArray();
+        var (pick, reason) = SurgeryRules.RestorePick(candidates);
+        return new OrganEffect(part.Part, stages, At(0), pick, reason);
+    }
+
+    /// <summary>The outcomes of <paramref name="course"/> over its <paramref name="branches"/> (shares normalised) for a pawn of <paramref name="gain"/> ImmunityGainSpeed; probabilities sum to 1.</summary>
+    internal static List<CourseOutcome> Course(DiseaseCourse course, IReadOnlyList<Branch> branches, double gain, HarmConsequences.Care care, double[] levels, double movingMin,
         ForecastValuePolicy policy, double days, string pawn, SortedSet<string> findings)
     {
         var outcomes = new List<CourseOutcome>();
@@ -205,25 +330,27 @@ public static class IllnessForecast
         var immunizable = course.Table.Immunizable;
         var immunityRate = immunizable is null ? 0 : Math.Max(0, immunizable.ImmunityPerDaySick * gain);
         var gone = course.Table.DisappearsAfterTicks is { } ticks ? (ticks.Min / GameTime.TicksPerDay, ticks.Max / GameTime.TicksPerDay) : (double.PositiveInfinity, double.PositiveInfinity);
-        var lethalShare = course.Table.LethalSeverity is null ? 0 : course.LethalPartShare;
-        foreach (var (lethal, branch) in new[] { (true, lethalShare), (false, 1 - lethalShare) })
+        var total = branches.Sum(b => b.Share);
+        foreach (var branch in branches)
         {
-            if (!(branch > 0))
+            if (!(branch.Share > 0))
             {
                 continue;
             }
 
+            var lethal = branch.Lethal;
+            var organ = branch.Organ;
             foreach (var (factor, fw) in Grid(course.NotImmuneFactorMin, course.NotImmuneFactorMax))
             {
                 foreach (var (perDay, pw) in Grid(course.PerDayMin, course.PerDayMax))
                 {
                     foreach (var (goneAt, gw) in Grid(gone.Item1, gone.Item2))
                     {
-                        var weight = branch * fw * pw * gw;
-                        var run = new Run(course, care, factor, perDay, goneAt, lethal, levels, movingMin, days);
+                        var weight = branch.Share / total * fw * pw * gw;
+                        var run = new Run(course, care, factor, perDay, goneAt, lethal, organ, levels, movingMin, days);
                         if (!(immunityRate > 0))
                         {
-                            Add(outcomes, run.Walk(double.PositiveInfinity), weight, policy, days, course, pawn, findings);
+                            Add(outcomes, run.Walk(double.PositiveInfinity), weight, policy, days, course, organ, levels, movingMin, pawn, findings);
                             continue;
                         }
 
@@ -237,7 +364,7 @@ public static class IllnessForecast
                             var dies = Math.Clamp((threshold - ImmunityFactorMin) / (ImmunityFactorMax - ImmunityFactorMin), 0, 1);
                             if (dies > 0)
                             {
-                                Add(outcomes, never, weight * dies, policy, days, course, pawn, findings);
+                                Add(outcomes, never, weight * dies, policy, days, course, organ, levels, movingMin, pawn, findings);
                             }
 
                             lo = Math.Clamp(threshold, ImmunityFactorMin, ImmunityFactorMax);
@@ -251,7 +378,7 @@ public static class IllnessForecast
 
                         foreach (var (u, uw) in Grid(lo, ImmunityFactorMax))
                         {
-                            Add(outcomes, run.Walk(1 / (immunityRate * u)), weight * uw, policy, days, course, pawn, findings);
+                            Add(outcomes, run.Walk(1 / (immunityRate * u)), weight * uw, policy, days, course, organ, levels, movingMin, pawn, findings);
                         }
                     }
                 }
@@ -261,17 +388,51 @@ public static class IllnessForecast
         return outcomes;
     }
 
+    // A course that ends in organ loss (#3830): a loss that leaves a lethalFlesh capacity incapable kills; one the autopilot replaces
+    // costs nothing after it (the wait for the surgery is named, not priced); one it does not costs the lost organ's capability
+    // factor to the horizon.
     private static void Add(List<CourseOutcome> outcomes, Walked walked, double probability, ForecastValuePolicy policy, double days,
-        DiseaseCourse course, string pawn, SortedSet<string> findings)
+        DiseaseCourse course, OrganEffect? organ, double[] levels, double movingMin, string pawn, SortedSet<string> findings)
     {
         walked.Report(pawn, findings);
-        if (walked.OrganLost)
+        var died = walked.Died;
+        var after = 0.0;
+        OrganReplacement? replacement = null;
+        if (walked.OrganLost && organ is null)
         {
-            findings.Add("disease_organ_loss_unpriced:" + course.Table.Hediff);
+            findings.Add("disease_part_capacity_unmodelled:" + course.Table.Hediff);
+        }
+        else if (walked.OrganLost)
+        {
+            (died, after, replacement) = Lost(walked, organ!, probability, levels, movingMin, days, findings);
         }
 
-        var loss = walked.Died ? Math.Max(0, days - walked.End) + policy.DeathTerminalValue : Math.Min(days, walked.LostDays);
-        outcomes.Add(new CourseOutcome(loss, probability, walked.Died, walked.Downed, walked.PatientDays, walked.Tends));
+        var loss = died ? Math.Max(0, days - walked.End) + policy.DeathTerminalValue : Math.Min(days, walked.LostDays + after);
+        outcomes.Add(new CourseOutcome(loss, probability, died, walked.Downed, walked.PatientDays, walked.Tends, replacement));
+    }
+
+    private static (bool Died, double After, OrganReplacement? Replacement) Lost(Walked walked, OrganEffect organ, double probability, double[] levels,
+        double movingMin, double days, SortedSet<string> findings)
+    {
+        if (organ.Lost is not { } lost)
+        {
+            return (true, 0, null);
+        }
+
+        var replacement = new OrganReplacement(organ.Part, organ.Pick, organ.Reason, probability);
+        if (organ.Pick is not null)
+        {
+            findings.Add("illness_organ_replacement_wait_unmodelled");
+            return (false, 0, replacement);
+        }
+
+        Span<double> left = stackalloc double[levels.Length];
+        for (var i = 0; i < levels.Length; i++)
+        {
+            left[i] = levels[i] * lost[i];
+        }
+
+        return (false, Math.Max(0, days - walked.End) * (1 - ForecastValue.CapabilityFactor(levels, left, movingMin)), replacement);
     }
 
     /// <summary>The midpoint grid of a uniform range: one point for a degenerate or infinite range.</summary>
@@ -305,7 +466,7 @@ public static class IllnessForecast
     }
 
     /// <summary>One draw of a course: its random factors fixed; <see cref="Walk"/> runs it to the day immunity comes.</summary>
-    private readonly struct Run(DiseaseCourse course, HarmConsequences.Care care, double factor, double perDay, double goneAt, bool lethal,
+    private readonly struct Run(DiseaseCourse course, HarmConsequences.Care care, double factor, double perDay, double goneAt, bool lethal, OrganEffect? organ,
         double[] levels, double movingMin, double days)
     {
         public Walked Walk(double immuneAt)
@@ -318,7 +479,7 @@ public static class IllnessForecast
             var lethalAt = lethal && table.LethalSeverity is { } l ? l : double.PositiveInfinity;
             var top = Math.Min(lethalAt, course.MaxSeverity);
             var bottom = Math.Max(0, course.MinSeverity);
-            var walked = new Walked { Severity = new ForecastValue.Course(table, levels, movingMin, 0) };
+            var walked = new Walked { Severity = new ForecastValue.Course(table, levels, movingMin, 0) { StageFactors = organ?.Stages } };
             var s = Math.Clamp(table.InitialSeverity, course.MinSeverity, course.MaxSeverity);
             var t = 0.0;
             var quality = 0.0;

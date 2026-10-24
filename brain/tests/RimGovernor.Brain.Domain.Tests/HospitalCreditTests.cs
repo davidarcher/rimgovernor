@@ -195,6 +195,43 @@ public sealed class HospitalCreditTests
     }
 
     [Fact]
+    public void AnIllnessOrganLossBooksItsReplacementSurgeriesADayAtTheRateTheyCome()
+    {
+        // #3830: organ decay on the lungs alone, lost on day 4.995 of the 10-day horizon; a stocked natural lung is queued on every loss, so its surgeries
+        // come at (1/30) a day, each saving what the 0.72-to-0.98 success gain saves once. An unstocked one queues none.
+        const string decay = "Disease_OrganDecay";
+        var course = new DiseaseCourse
+        {
+            Table = new() { Known = true, Hediff = "OrganDecay", InitialSeverity = 0.001, LethalSeverity = 1, Stages = [new PenaltyStage(0, 0, [])] },
+            PerDayMin = 0.2, PerDayMax = 0.2, MaxSeverity = 1, DestroysOrgan = true,
+            Parts = [new() { Part = "Lung", Tag = "BreathingSource", Capacity = "Breathing", Lethal = true, Recipes = new Dictionary<string, double> { ["InstallNaturalLung"] = 1 } }],
+        };
+        var schedule = new IllnessSchedule { Assessed = true, Comps = [(0, 1 / 30.0)], Incidents = [new IllnessIncident(decay, 1, 1, course)] };
+        NeedsForecastPawn Decaying(bool stocked) => Patient() with
+        {
+            Disease = new PawnDiseaseFacts
+            {
+                ImmunityGainSpeed = 1, Contracts = [new DiseaseContract(decay, 1)], BloodPumping = 1, Breathing = 1, BloodFiltration = 1,
+                Parts = [new("Lung", 0.025, 1) { Incidents = [decay] }, new("Lung", 0.025, 1) { Incidents = [decay] }],
+                Replacements = [new("Lung", "InstallNaturalLung")
+                {
+                    IngredientsOnMap = stocked, EligibleDoctors = 1, SuccessChance = 0.9, DoctorSuccessChance = 0.9,
+                    Outcomes = [new("success", 0, 0, 0), new("death", 0.5, 0, 0)], Environment = true, QualityMax = 0.98, Quality = 0.9,
+                }],
+            },
+        };
+        double Credit(bool stocked)
+        {
+            var context = Context(0, pawn: Decaying(stocked)) with { Harm = Context(0).Harm with { Illness = schedule } };
+            return Credits(ForecastValue.Of(Served(0), context, Day)).Sum(r => r.Value);
+        }
+
+        var stockedContext = Context(0);
+        var once = (((1 - 0.72) * 0.5) - ((1 - 0.98) * 0.5)) * (Horizon + stockedContext.Value.DeathTerminalValue);
+        Assert.Equal(-(1 / 30.0) * once * Horizon, Credit(true) - Credit(false), 9);
+    }
+
+    [Fact]
     public void ASurgeryFailuresWoundsArePricedThroughTheHarmModel()
     {
         var context = SurgeryContext(new("success", 0, 0, 0), new("failure", 1, 20, 6));

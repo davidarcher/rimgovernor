@@ -206,6 +206,30 @@ namespace HomeBridge.BridgeTools
             return new Obs.PawnSurgery { SurgeryBills=[.. bills], MissingParts=[.. missingParts], Operations=[.. operations] };
         }
 
+        // #3830: an install recipe on a part as if it were missing, read as Surgery reads an operation (a patient not yet in bed is
+        // scored in the colony's best medical bed), with the outcome model a queued bill's demand carries and the best eligible
+        // doctor's quality before the bed and the clamp (NativeSupportActivities).
+        internal static Obs.OrganReplacementRead Replacement(Pawn pawn,RecipeDef def,BodyPartRecord part,MapFacts facts,Map map)
+        {
+            var recipe=facts.Recipe(def,map);
+            var doctors=recipe.Doctors.Where(p => p!=pawn).ToList();
+            var medicine=facts.Medicine(pawn,def,true);
+            var row=new Obs.OrganReplacementRead(part.def.defName,def.defName) {
+                IngredientsOnMap=recipe.Others && (!recipe.UsesMedicine || medicine!=null), EligibleDoctors=doctors.Count,
+                Violation=def.Worker.IsViolationOnPawn(pawn,part,Faction.OfPlayer), Lethal=Lethal(pawn,def,part) };
+            var bill=new Bill_Medical {recipe=def};
+            if(medicine!=null) bill.consumedMedicine[medicine]=1;
+            if(def.surgeryOutcomeEffect!=null && doctors.Count>0) {
+                var real=facts.BestBed==null?1f:facts.BedFactor;
+                row = row with { SuccessChance = doctors.Max(d => Number(Chance(def,d,pawn,part,medicine,real))),
+                    DoctorSuccessChance = doctors.Max(d => Number(Chance(def,d,pawn,part,medicine,facts.IdealFactor))),
+                    Quality = doctors.Max(d => NativeSupportActivities.SurgeryQualityOf(d,pawn,def,part,bill)) };
+            }
+            var (outcomes,min,max,environment)=NativeSupportActivities.SurgeryModel(pawn,def,part,true);
+            if(outcomes!=null) row = row with { Outcomes = [.. outcomes] };
+            return row with { QualityMin = min, QualityMax = max, Environment = environment };
+        }
+
         // The best-potency medicine on the map that the recipe allows and,
         // when care is set, the patient's care policy too; null when none.
         private static ThingDef? MedicineFor(Pawn pawn,RecipeDef def,System.Collections.Generic.List<Thing> stock,bool care)

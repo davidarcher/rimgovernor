@@ -8,8 +8,11 @@ namespace RimGovernor.Brain.Policy;
 /// <summary>One capacity modifier of a hediff stage: a PawnCapacityDef by name with its offset, its ceiling (null when the stage sets none) and its post factor (1 is none).</summary>
 public sealed record CapacityModifier(string Capacity, double Offset, double? SetMax, double PostFactor);
 
-/// <summary>One stage of a hediff: the severity it starts at, the pain it adds and its capacity modifiers.</summary>
-public sealed record PenaltyStage(double MinSeverity, double PainOffset, IReadOnlyList<CapacityModifier> Modifiers);
+/// <summary>One stage of a hediff: the severity it starts at, the pain it adds, its capacity modifiers and the partEfficiencyOffset it adds to its part (#3830).</summary>
+public sealed record PenaltyStage(double MinSeverity, double PainOffset, IReadOnlyList<CapacityModifier> Modifiers)
+{
+    public double PartEfficiencyOffset { get; init; }
+}
 
 /// <summary>The <c>HediffCompProperties_Immunizable</c> numbers a course needs: immunity gained a day while sick (before the pawn's <c>ImmunityGainSpeed</c>) and the severity a day without and with full immunity.</summary>
 public sealed record ImmunizableProps(double ImmunityPerDaySick, double SeverityPerDayNotImmune, double SeverityPerDayImmune);

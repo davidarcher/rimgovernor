@@ -63,7 +63,7 @@ public sealed partial class DefinitionCatalog
                     Decimal32(s.minSeverity),
                     Decimal32(s.painOffset),
                     [.. s.capMods.Seq().Where(m => m.capacity is not null && PawnDayCapacities.Contains(m.capacity.defName)).Select(m => new P.CapacityModifier(
-                        m.capacity.defName, Decimal32(m.offset), m.SetMaxDefined ? Decimal32(m.setMax) : null, Decimal32(m.postFactor)))])),
+                        m.capacity.defName, Decimal32(m.offset), m.SetMaxDefined ? Decimal32(m.setMax) : null, Decimal32(m.postFactor)))]) { PartEfficiencyOffset = Decimal32(s.partEfficiencyOffset) }),
             ],
         };
     }

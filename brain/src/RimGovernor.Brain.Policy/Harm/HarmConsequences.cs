@@ -30,8 +30,17 @@ public sealed record HarmDistribution
     /// <summary>The expected tends of one event; filled by the illness forecast (a raid's treatments are <see cref="HarmConsequences.Treatments"/>).</summary>
     public double Treatments { get; init; }
 
+    /// <summary>The organs one event destroys and what follows (#3830), filled by the illness forecast; a raid's part loss is #3847.</summary>
+    public IReadOnlyList<OrganReplacement> Replacements { get; init; } = [];
+
     public IReadOnlyList<string> Findings { get; init; } = [];
 }
+
+/// <summary>
+/// One organ an event destroys with <see cref="Probability"/> (#3830): of def <see cref="Part"/>, and the replacement the autopilot
+/// would queue (<see cref="SurgeryRules.RestorePick"/>), or null with the reason none would be (the loss then lasts the horizon).
+/// </summary>
+public sealed record OrganReplacement(string Part, OrganReplacementRead? Recipe, SurgeryWantReason Reason, double Probability);
 
 /// <summary>
 /// The health consequences of a raid's hits (harm model, step 5): injury through pain, the course of healing, bleeding until

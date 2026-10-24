@@ -1,3 +1,5 @@
+using RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -496,7 +498,40 @@ public static partial class SurgeryRules
         var ck = op.SuccessChance.TryGetValue(out var chance);
         var vk = op.Violation.TryGetValue(out var violation);
         var lk = op.Lethal.TryGetValue(out var lethal);
-        return dk && ck && vk && lk && doctors > 0 && 1 - chance <= failureCap + 1e-9 && !violation && !lethal;
+        return dk && ck && vk && lk && SurgeryAcceptable(doctors, chance, violation, lethal, failureCap);
+    }
+
+    private static bool SurgeryAcceptable(int doctors, double chance, bool violation, bool lethal, double failureCap) =>
+        doctors > 0 && 1 - chance <= failureCap + 1e-9 && !violation && !lethal;
+
+    /// <summary>
+    /// The replacement the autopilot would queue on a part an illness destroys (#3830), as <see cref="SelectPartSurgery"/> picks a
+    /// restore: the candidates by tier, best first, the first stocked one within <see cref="RestoreFailureCap"/>; none (with why) when
+    /// no candidate is stocked (PartShort) or none clears the cap (BedShort when the ideal bed would clear it, else NoDoctor).
+    /// </summary>
+    internal static (OrganReplacementRead? Pick, SurgeryWantReason Reason) RestorePick(IEnumerable<(OrganReplacementRead Read, double Tier)> candidates)
+    {
+        var reason = SurgeryWantReason.PartShort;
+        foreach (var (read, _) in candidates.OrderByDescending(c => c.Tier))
+        {
+            if (!read.IngredientsOnMap)
+            {
+                continue;
+            }
+
+            if (SurgeryAcceptable(read.EligibleDoctors, read.SuccessChance, read.Violation, read.Lethal, RestoreFailureCap))
+            {
+                return (read, SurgeryWantReason.None);
+            }
+
+            if (reason != SurgeryWantReason.BedShort)
+            {
+                reason = SurgeryAcceptable(read.EligibleDoctors, read.DoctorSuccessChance, read.Violation, read.Lethal, RestoreFailureCap)
+                    ? SurgeryWantReason.BedShort : SurgeryWantReason.NoDoctor;
+            }
+        }
+
+        return (null, reason);
     }
 
     /// <summary>The operation fails the cap as observed but passes it with the doctor's ideal-bed chance, so the bed or room is the blocker.</summary>

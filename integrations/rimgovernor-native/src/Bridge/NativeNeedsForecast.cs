@@ -17,6 +17,8 @@ internal static class NativeNeedsForecast
     internal static Obs.NeedsForecastRead Read(Map map, List<Pawn> people, NativePathLegs? legs = null)
     {
         legs ??= new(map);
+        // The organ replacement reads (#3830) share one capture's surgery facts.
+        using var surgery = new NativePawnDetails.SurgeryScope();
         var rows = new List<Obs.NeedsForecastPawn>();
         var sightings = map.GetComponent<TrafficState>()?.Sightings;
         var now = Find.TickManager.TicksGame;

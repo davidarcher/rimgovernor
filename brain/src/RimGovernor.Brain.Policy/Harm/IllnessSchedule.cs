@@ -30,10 +30,10 @@ public sealed record TendCourse(double SeverityPerDayTended, double FirstRetendD
 /// <summary>
 /// The course of a disease hediff: its penalty table (stages, lethal and initial severity, the Immunizable and Disappears comps),
 /// the def's severity clamp, the SeverityPerDay comp's rate range (severityPerDay + severityPerDayRange; 0 without the comp), the
-/// Immunizable comp's not-immune random factor range, whether it is tendable and its TendDuration comp (null without), the share
-/// of the incident's affected parts its lethal severity kills on (<c>onlyLifeThreateningTo</c> by coverage; 1 without the list),
-/// and whether reaching the max severity destroys the part (HediffComp_DestroyOrgan). Unmodelled names what the course does
-/// not model and makes it unassessed; Unpriced names effects left out of the price.
+/// Immunizable comp's not-immune random factor range, whether it is tendable and its TendDuration comp (null without), the
+/// incident's affected part defs (<see cref="DiseasePart"/>; empty for a disease of the whole body, whose lethal severity always
+/// kills), and whether reaching the max severity destroys the part (HediffComp_DestroyOrgan). Unmodelled names what the course
+/// does not model and makes it unassessed; Unpriced names effects left out of the price.
 /// </summary>
 public sealed record DiseaseCourse
 {
@@ -55,7 +55,7 @@ public sealed record DiseaseCourse
 
     public TendCourse? Tend { get; init; }
 
-    public double LethalPartShare { get; init; } = 1;
+    public IReadOnlyList<DiseasePart> Parts { get; init; } = [];
 
     public bool DestroysOrgan { get; init; }
 
@@ -68,8 +68,35 @@ public sealed record DiseaseCourse
         Table.Valid() && double.IsFinite(MinSeverity) && !double.IsNaN(MaxSeverity) && MinSeverity <= MaxSeverity
         && double.IsFinite(PerDayMin) && double.IsFinite(PerDayMax) && PerDayMin <= PerDayMax
         && double.IsFinite(NotImmuneFactorMin) && double.IsFinite(NotImmuneFactorMax) && NotImmuneFactorMin <= NotImmuneFactorMax
-        && LethalPartShare is >= 0 and <= 1
+        && Parts.All(p => double.IsFinite(p.MinForCapable) && p.Recipes.Values.All(double.IsFinite))
         && (Tend is null || double.IsFinite(Tend.SeverityPerDayTended) && Tend.FirstRetendDays > 0 && Tend.RetendDays > 0 && !double.IsNaN(Tend.CureAtTotalQuality));
+}
+
+/// <summary>
+/// One part def a disease incident affects (<c>diseasePartsToAffect</c>, #3830): whether its lethal severity kills on it
+/// (<c>onlyLifeThreateningTo</c>; every part without the list), the part tag whose efficiency it gives and the capacity that tag
+/// feeds (BreathingSource: Breathing, BloodPumpingSource: BloodPumping, BloodFiltrationKidney, BloodFiltrationLiver and
+/// BloodFiltrationSource: BloodFiltration; both empty when the def carries another tag or more than one, or when a Human part
+/// outside the affected defs carries the tag), whether the capacity is lethalFlesh (the pawn dies once it is not CapableOf it: its
+/// level at or below minForCapable), its minForCapable, and the
+/// tier (<c>PartTier</c>) of each install recipe that replaces it (Recipe_InstallNaturalBodyPart or
+/// Recipe_InstallArtificialBodyPart naming it in appliedOnFixedBodyParts).
+/// </summary>
+public sealed record DiseasePart
+{
+    public string Part { get; init; } = "";
+
+    public bool Threatened { get; init; }
+
+    public string Tag { get; init; } = "";
+
+    public string Capacity { get; init; } = "";
+
+    public bool Lethal { get; init; }
+
+    public double MinForCapable { get; init; }
+
+    public IReadOnlyDictionary<string, double> Recipes { get; init; } = new Dictionary<string, double>();
 }
 
 /// <summary>

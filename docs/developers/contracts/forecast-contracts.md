@@ -426,12 +426,20 @@ costs each pawn.
   outside a biosculpter pod), the free colonists the `minPopulation` gate counts, and per `DiseaseHuman` incident its potential victims
   (`IncidentWorker_Disease.PotentialVictims`) and `Blocked` (`scenario`, `difficulty`, `planet_layer`)), and per needs pawn
   `NeedsForecastPawn.Disease` (`PawnDiseaseFacts`: `ImmunityGainSpeed` and, per incident, `DiseaseContractChanceFactor` of its hediff,
-  0 for a pawn that is no potential victim). The colony decode carries `ThreatFacts.Disease` to `RoundsFacts.Disease`.
+  0 for a pawn that is no potential victim; its BloodPumping, Breathing and BloodFiltration levels; per body part of a def some incident affects
+  its `DiseasePartRead` (`coverageAbs`, `CalculatePartEfficiency` and the incidents `HediffGiverUtility.TryApply` could still pick it
+  for: not missing, no added part on it or an ancestor, the hediff not already on it); and per `DestroyOrgan` part def each install
+  recipe the autopilot could queue (`AvailableNow`, an install-part worker, `AvailableOnNow`) as an `OrganReplacementRead`: its part and
+  medicine on the map, eligible doctors, the best-bed and ideal success chances, the violation and lethal flags, and the surgery
+  outcome model #3804 reads for a queued bill (#3830)). The colony decode carries `ThreatFacts.Disease` to `RoundsFacts.Disease`.
 - `RoundsFacts.DiseaseTable` (`DiseaseTable`, `Catalog/Disease.cs`): per storyteller its home-map `StorytellerCompProperties_Disease`
   comps of `DiseaseHuman` (their `minDaysPassed`; any other comp that can send the category is unmodelled), per biome its
   `diseaseMtbDays` and commonalities (its own records, then the incidents' `diseaseBiomeRecords`), and per incident its victim rules,
   gates and its hediff's course (`DiseaseCourse`: the penalty table, severity clamp, `SeverityPerDay` range, not-immune random factor,
-  `TendDuration` timing and cure, the lethal part share by coverage of `onlyLifeThreateningTo`, `DestroyOrgan`). A hediff comp, stage
+  `TendDuration` timing and cure, `DestroyOrgan`, and per Human body part of its defs a `DiseasePart`: threatened by `onlyLifeThreateningTo`,
+  its organ tag's capacity (a part whose single tag feeds Breathing, BloodPumping or BloodFiltration and no unaffected part carries;
+  otherwise none, named `disease_part_capacity_unmodelled:<hediff>:<part>` when the part is destroyed or loses efficiency), whether
+  that capacity is `lethalFlesh` and its `minForCapable`, and the install recipes for it by tier). A hediff comp, stage
   death MTB, hediff giver or reversing severity the course does not model makes it unmodelled.
 - `IllnessSchedule.Of(table, facts)`: each comp's rate 1 ÷ (biome MTB × interval factor) a day from its `minDaysPassed` (none with
   random diseases off or the factor at the 100 cutoff); the usable incidents (home map, `earliestDay` on whole days since settling,
@@ -447,12 +455,19 @@ costs each pawn.
   bed's (#3804). The course walks severity from its initial value under the
   Immunizable, SeverityPerDay and tended rates (tended from the support's first care at its tend quality, retended as the
   TendDuration comp allows), ending at 0, the Disappears time, the cure tend quality, the lethal severity on a threatened part, or the
-  max severity with `DestroyOrgan`. Uniform draws are a 4-point midpoint grid; the death chance in the immunity factor is exact.
+  max severity with `DestroyOrgan`. The struck part is drawn by coverage among the pawn's open parts (#3830); a stage's
+  `partEfficiencyOffset` and a destroyed organ cut its capacity (the mean of the tag's parts) and through it Consciousness, Moving,
+  Manipulation and Talking by the PawnCapacityWorker weights, and a lethal capacity at or under `minForCapable` kills. A destroyed
+  organ whose best-tier recipe is stocked and passes `SurgeryRules` at the restore failure cap is a booked replacement
+  (`HarmDistribution.Replacements`, no further loss; the hospital's surgeries a day = incidents a day × its probability); otherwise
+  it is a named `SurgeryWantReason` (`PartShort`, `NoDoctor`, `BedShort`) and the loss lasts to the horizon. Uniform draws are a 4-point midpoint grid; the death chance in the immunity factor is exact.
   Deaths cost the horizon's rest plus `DeathTerminalValue`; survivors their capability-days. `PatientDays` (days from first care to
   the end) and `Treatments` (tends) are its expectations. Unknown with `illness_unobserved:<pawn>`, `capacities_unobserved:<pawn>`,
   `capacity_penalty_table_unknown:MovingMinForCapable` or `disease_contract_unobserved:<pawn>:<def>`. Findings of what is left
   out: `illness_untended`, `illness_prior_immunity_unassessed` (an earlier immunity record),
-  `disease_organ_loss_unpriced:<hediff>`, `disease_part_efficiency_unpriced:<hediff>`, `disease_severity_factors_unpriced:<hediff>`.
+  `disease_severity_factors_unpriced:<hediff>`, `disease_part_stage_death_unmodelled:<hediff>` (a stage offset that kills is priced
+  downed), `illness_organ_replacement_wait_unmodelled` (the days to the replacement surgery). A pawn without part rows for a
+  part-striking incident throws `RequiredFactException` (`disease_parts:<pawn>:<def>`).
 - `HarmDetail.Illness` (`IllnessTerm`: incidents a day, its loss — incidents a day × horizon days × Σ over pawns of the risk transform
   — and per pawn `IllnessPawn` with `PatientDaysPerDay`, `TendsPerDay`, `DeathsPerDay`) is null when unassessed; the term's loss is
   then `HarmDetail.RaidLoss` alone with `illness_unassessed` and the reason. `ColonyValue` prices the doctor and the medicine by the

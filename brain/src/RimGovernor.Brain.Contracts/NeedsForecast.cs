@@ -353,14 +353,61 @@ public sealed record PawnMoodRead(double Target, double Threshold);
 /// in (StatPart_BedStat's CurrentBed ImmunityGainSpeedFactor divided out, #3804: the forecast multiplies the bed it is cared in), and per DiseaseHuman
 /// incident the chance it takes hold: <c>immunity.DiseaseContractChanceFactor</c> of its hediff for a potential victim, 0 for a pawn
 /// <c>IncidentWorker_Disease.PotentialVictims</c> leaves out.
+/// <para>
+/// What its organ loss reads (#3830): the BloodPumping, Breathing and BloodFiltration levels the consciousness and moving workers
+/// lerp in, every body part of a def some DiseaseHuman incident affects (<see cref="DiseasePartRead"/>), and per part def a
+/// HediffComp_DestroyOrgan disease affects, each install recipe that would replace that part once missing
+/// (<see cref="OrganReplacementRead"/>).
+/// </para>
 /// </summary>
 public sealed record PawnDiseaseFacts
 {
     public double ImmunityGainSpeed { get; init; }
     [JsonConverter(typeof(EquatableArrayJsonConverter<DiseaseContract>))]
     public EquatableArray<DiseaseContract> Contracts { get; init; }
+    public double BloodPumping { get; init; }
+    public double Breathing { get; init; }
+    public double BloodFiltration { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<DiseasePartRead>))]
+    public EquatableArray<DiseasePartRead> Parts { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<OrganReplacementRead>))]
+    public EquatableArray<OrganReplacementRead> Replacements { get; init; }
 }
 public sealed record DiseaseContract(string Incident, double Chance);
+/// <summary>
+/// One body part of a def a DiseaseHuman incident affects (#3830): its def, coverageAbs,
+/// <c>PawnCapacityUtility.CalculatePartEfficiency</c> (0 when missing), and the incidents whose hediff HediffGiverUtility.TryApply
+/// could give it (not missing, not already carrying the hediff, no directly added part on it or an ancestor, whatever the hediff's
+/// canAffectBionicOrImplant).
+/// </summary>
+public sealed record DiseasePartRead(string Part, double Coverage, double Efficiency)
+{
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public EquatableArray<string> Incidents { get; init; }
+}
+/// <summary>
+/// One install recipe that would replace a missing part of <see cref="Part"/>'s def (#3830), read as the surgery block reads an
+/// operation (NativePawnDetails.Surgery): whether its part and medicine are on the map, the eligible doctors, the best doctor's
+/// success chance in the colony's best medical bed and with an ideal bed (0 without a doctor or an outcome effect: the surgery block
+/// leaves those unread, which the autopilot refuses), whether it
+/// is a violation or lethal; and its outcome model as a queued bill's (NativeSupportActivities.SurgeryOutcomesOf: the outcomes,
+/// whether the bed and room comp applies, the clamp), with the best eligible doctor's quality before the bed and the clamp.
+/// </summary>
+public sealed record OrganReplacementRead(string Part, string Recipe)
+{
+    public bool IngredientsOnMap { get; init; }
+    public int EligibleDoctors { get; init; }
+    public double SuccessChance { get; init; }
+    public double DoctorSuccessChance { get; init; }
+    public bool Violation { get; init; }
+    public bool Lethal { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<SurgeryOutcomeRead>))]
+    public EquatableArray<SurgeryOutcomeRead> Outcomes { get; init; }
+    public bool Environment { get; init; }
+    public double QualityMin { get; init; }
+    public double QualityMax { get; init; }
+    public double Quality { get; init; }
+}
 /// <summary>Native legality and mechanics, not a selected need action. Travel is an observed route cost.</summary>
 public sealed record NeedTarget(string Id, string Kind, string Resource, int AvailableCount,
     [property: JsonConverter(typeof(ObservedNumberJsonConverter))] Fact<double> TravelTicks,

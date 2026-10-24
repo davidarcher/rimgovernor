@@ -752,6 +752,22 @@ public static partial class ForecastValue
             : null;
 
     /// <summary>
+    /// The capability factor of <paramref name="after"/> levels against the <paramref name="observed"/> ones: 1 for a pawn downed now, 0
+    /// for one the levels down (consciousness under <see cref="AwakeConsciousness"/>, or moving at or below
+    /// <paramref name="movingMin"/>), else the product of each level's share of the observed one, held in [0, 1].
+    /// </summary>
+    internal static double CapabilityFactor(ReadOnlySpan<double> observed, ReadOnlySpan<double> after, double movingMin)
+    {
+        static bool Downed(ReadOnlySpan<double> levels, double movingMin) => levels[0] < AwakeConsciousness || levels[1] <= movingMin;
+        if (Downed(observed, movingMin)) return 1;
+        if (Downed(after, movingMin)) return 0;
+        var factor = 1d;
+        for (var i = 0; i < Capacities.Length; i++)
+            if (observed[i] > 0) factor *= Math.Clamp(after[i] / observed[i], 0, 1);
+        return factor;
+    }
+
+    /// <summary>
     /// One hediff's severity walked over time against the pawn's observed capacities. A stretch in a stage costs
     /// (1 - the capability factor) of its duration, where the factor is the product over the five capacities of the level
     /// the stage leaves (the game's (base + offsets) * post factors, held under the smallest ceiling; PawnCapacityUtility.CalculateCapacityLevel)
@@ -777,6 +793,12 @@ public static partial class ForecastValue
         public double Severity { get; set; } = observedSeverity;
 
         public double LostTicks { get; private set; }
+
+        /// <summary>
+        /// Per stage of the table (in its order), factors on the five levels the stage leaves: the capacity effect of the stage's
+        /// partEfficiencyOffset on the organ the hediff sits on (#3830, <see cref="OrganCapacity"/>); null for none.
+        /// </summary>
+        public double[]?[]? StageFactors { get; init; }
 
         /// <summary>Moves the severity by <paramref name="perDay"/> for <paramref name="ticks"/>, cut at the stage boundaries, at 0 (the hediff is gone) and at the lethal severity (held there).</summary>
         public void Advance(double ticks, double perDay)
@@ -833,6 +855,7 @@ public static partial class ForecastValue
         private readonly double Factor(PenaltyStage stage)
         {
             Span<double> after = stackalloc double[Capacities.Length];
+            var organ = StageFactors is { } factors && IndexOf(stage) is var index and >= 0 && index < factors.Length ? factors[index] : null;
             for (var i = 0; i < Capacities.Length; i++)
             {
                 var (offset, post, max) = Modifiers(current, Capacities[i]);
@@ -841,19 +864,18 @@ public static partial class ForecastValue
                 // ceiling has lost what a stage cannot undo, so it is taken as whole.
                 var level = observed[i];
                 var baseLevel = current is null ? level : level >= max ? 1 : post > 0 ? level / post - offset : level;
-                after[i] = Math.Max(0, Math.Min((baseLevel + nextOffset) * nextPost, nextMax));
+                after[i] = Math.Max(0, Math.Min((baseLevel + nextOffset) * nextPost, nextMax)) * (organ?[i] ?? 1);
             }
 
-            var downedNow = Downed(observed);
-            if (downedNow) return 1;
-            if (Downed(after)) return 0;
-            var factor = 1d;
-            for (var i = 0; i < Capacities.Length; i++)
-                if (observed[i] > 0) factor *= Math.Clamp(after[i] / observed[i], 0, 1);
-            return factor;
+            return CapabilityFactor(observed, after, movingMin);
         }
 
-        private readonly bool Downed(ReadOnlySpan<double> levels) => levels[0] < AwakeConsciousness || levels[1] <= movingMin;
+        private readonly int IndexOf(PenaltyStage stage)
+        {
+            for (var i = 0; i < table.Stages.Count; i++)
+                if (ReferenceEquals(table.Stages[i], stage)) return i;
+            return -1;
+        }
 
         /// <summary>A stage's effect on one capacity as the game applies it: the offsets summed, the post factors multiplied, the smallest ceiling.</summary>
         private static (double Offset, double Post, double Max) Modifiers(PenaltyStage? stage, string capacity)

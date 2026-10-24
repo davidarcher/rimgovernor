@@ -188,11 +188,6 @@ public sealed partial class DefinitionCatalog
             {
                 unmodelled.Add("stageDeathOrGivers");
             }
-
-            if (stage.partEfficiencyOffset != 0)
-            {
-                unpriced.Add("disease_part_efficiency_unpriced:" + hediff.defName);
-            }
         }
 
         // TendTicksBase and TendTicksFull are the comp's own getters (baseTendDurationHours, tendOverlapHours are private); a
@@ -204,6 +199,7 @@ public sealed partial class DefinitionCatalog
             tend.TendIsPermanent ? double.PositiveInfinity : (double)tend.TendTicksFull / GenDate.TicksPerDay,
             tend.disappearsAtTotalTendQuality);
 
+        var destroys = comps.Any(c => c.GetType() == typeof(HediffCompProperties_DestroyOrgan));
         return new P.DiseaseCourse
         {
             Table = PenaltyTable(hediff.defName),
@@ -215,52 +211,92 @@ public sealed partial class DefinitionCatalog
             NotImmuneFactorMax = immunizable is null ? 1 : Decimal32(immunizable.severityPerDayNotImmuneRandomFactor.max),
             Tendable = hediff.tendable,
             Tend = tendCourse,
-            LethalPartShare = LethalPartShare(hediff, parts, body, unmodelled),
-            DestroysOrgan = comps.Any(c => c.GetType() == typeof(HediffCompProperties_DestroyOrgan)),
+            Parts = DiseaseParts(hediff, parts, body, destroys, unmodelled, unpriced),
+            DestroysOrgan = destroys,
             Unmodelled = [.. unmodelled],
             Unpriced = [.. unpriced],
         };
     }
 
-    // Hediff.PostMake: a def with onlyLifeThreateningTo threatens only a part of those defs. HediffGiverUtility.TryApply picks the
-    // part among the affected defs' parts by coverageAbs, so the share is the threatened parts' coverage of the affected parts'.
-    private static double LethalPartShare(HediffDef hediff, List<BodyPartDef>? parts, BodyDef? body, SortedSet<string> unmodelled)
+    // The part tags whose efficiency (PawnCapacityUtility.CalculateTagEfficiency, the mean over the body's parts with the tag) a
+    // capacity worker multiplies in: PawnCapacityWorker_Breathing, _BloodPumping and _BloodFiltration.
+    private static readonly Dictionary<string, string> OrganTagCapacities = new(StringComparer.Ordinal)
     {
-        if (hediff.onlyLifeThreateningTo is null)
+        [nameof(BodyPartTagDefOf.BreathingSource)] = nameof(PawnCapacityDefOf.Breathing),
+        [nameof(BodyPartTagDefOf.BloodPumpingSource)] = nameof(PawnCapacityDefOf.BloodPumping),
+        [nameof(BodyPartTagDefOf.BloodFiltrationKidney)] = nameof(PawnCapacityDefOf.BloodFiltration),
+        [nameof(BodyPartTagDefOf.BloodFiltrationLiver)] = nameof(PawnCapacityDefOf.BloodFiltration),
+        [nameof(BodyPartTagDefOf.BloodFiltrationSource)] = nameof(PawnCapacityDefOf.BloodFiltration),
+    };
+
+    // The incident's affected part defs (#3830). Hediff.PostMake: a def with onlyLifeThreateningTo threatens only a part of those
+    // defs; HediffGiverUtility.TryApply picks the part among the pawn's affected parts by coverageAbs (the policy draws it from the
+    // pawn's read). A part's tag is priced only when every Human part carrying it is an affected one, so the pawn's read holds the
+    // whole tag mean.
+    private List<P.DiseasePart> DiseaseParts(HediffDef hediff, List<BodyPartDef>? parts, BodyDef? body, bool destroys,
+        SortedSet<string> unmodelled, SortedSet<string> unpriced)
+    {
+        if (parts is not { Count: > 0 })
         {
-            return 1;
+            if (hediff.onlyLifeThreateningTo is not null)
+            {
+                unmodelled.Add("onlyLifeThreateningToWithoutParts");
+            }
+
+            return [];
         }
 
-        if (parts is not { Count: > 0 } || body?.corePart is null)
-        {
-            unmodelled.Add("onlyLifeThreateningToWithoutParts");
-            return 0;
-        }
-
-        double all = 0, threatened = 0;
+        var records = new List<BodyPartRecord>();
         var stack = new Stack<BodyPartRecord>();
-        stack.Push(body.corePart);
+        if (body?.corePart is { } core)
+        {
+            stack.Push(core);
+        }
+
         while (stack.Count > 0)
         {
             var record = stack.Pop();
-            if (parts.Contains(record.def))
-            {
-                all += Decimal32(record.coverageAbs);
-                threatened += hediff.onlyLifeThreateningTo.Contains(record.def) ? Decimal32(record.coverageAbs) : 0;
-            }
-
+            records.Add(record);
             foreach (var child in record.parts.Seq())
             {
                 stack.Push(child);
             }
         }
 
-        if (!(all > 0))
+        var rows = new List<P.DiseasePart>();
+        foreach (var part in parts.Where(p => p is not null).DistinctBy(p => p.defName))
         {
-            unmodelled.Add("affectedPartsUncovered");
-            return 0;
+            var tags = part.tags.Seq().Where(t => t is not null).Select(t => t.defName).Distinct(StringComparer.Ordinal).ToArray();
+            var tag = tags.Length == 1 && OrganTagCapacities.ContainsKey(tags[0])
+                && records.All(r => r.def is null || !r.def.tags.Seq().Any(t => t?.defName == tags[0]) || parts.Contains(r.def))
+                ? tags[0] : "";
+            var capacity = tag.Length == 0 ? null : DefRow<PawnCapacityDef>(OrganTagCapacities[tag]);
+            tag = capacity is null ? "" : tag;
+            if (capacity is null && (destroys || hediff.stages.Seq().Any(s => s.partEfficiencyOffset != 0)))
+            {
+                unpriced.Add("disease_part_capacity_unmodelled:" + hediff.defName + ":" + part.defName);
+            }
+
+            rows.Add(new P.DiseasePart
+            {
+                Part = part.defName,
+                Threatened = hediff.onlyLifeThreateningTo is null || hediff.onlyLifeThreateningTo.Contains(part),
+                Tag = tag,
+                Capacity = capacity?.defName ?? "",
+                Lethal = capacity is { lethalFlesh: true },
+                MinForCapable = capacity is null ? 0 : Decimal32(capacity.minForCapable),
+                Recipes = destroys ? ReplacementTiers(part) : new Dictionary<string, double>(),
+            });
         }
 
-        return threatened / all;
+        return rows;
     }
+
+    // The install recipes that put a part back on a missing part of the def (Recipe_InstallNaturalBodyPart and
+    // Recipe_InstallArtificialBodyPart list a missing part among GetPartsToApplyOn), by their tier.
+    private Dictionary<string, double> ReplacementTiers(BodyPartDef part) =>
+        Rows<RecipeDef>().Values
+            .Where(r => r.appliedOnFixedBodyParts.Seq().Contains(part) && r.workerClass is { } worker
+                && (typeof(Recipe_InstallNaturalBodyPart).IsAssignableFrom(worker) || typeof(Recipe_InstallArtificialBodyPart).IsAssignableFrom(worker)))
+            .ToDictionary(r => r.defName, r => PartTier(r.defName), StringComparer.Ordinal);
 }

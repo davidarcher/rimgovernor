@@ -28,6 +28,10 @@ public sealed record ForecastTending(bool Tended, double Quality);
 /// the hospital bed's def factor × the room's SurgerySuccessChanceCleanlinessFactor) at the best surgeon's quality. A failure costs
 /// its outcomes as SurgeryOutcomeEffectDef.GetOutcome tries them: death the rest of the horizon and the terminal value; a failure's
 /// totalDamage dealt as wounds (HarmConsequences.Wounds), tended in the room the surgery was in.</item>
+/// <item>Future surgery, a day (<see cref="SurgeryRate"/>, #3830): each surgery a future event queues on the colonist, at its rate a
+/// day, gains as a queued bill does: the replacements the autopilot would queue for the organs illness destroys (incidents a day ×
+/// the stocked replacement's probability in one incident, <see cref="HarmDistribution.Replacements"/>), at the replacement recipe's
+/// outcomes and its best doctor's quality.</item>
 /// </list>
 /// Throws a RequiredFactException when a fact the credit reads is unread: the room's prediction or layout room, the filth model's
 /// curves, the threat or disease schedule, a colonist's harm reads, outfit or owned bed room, the tending, the hospital bed, a
@@ -61,7 +65,30 @@ internal static class ForecastHospital
     ];
 
     /// <summary>One colonist's per-day parts of a hospital's credit.</summary>
-    private sealed record Patient(string Pawn, double InfectionPerDay, double IllnessPerDay, double PatientDaysPerDay, double MoodDelta);
+    private sealed record Patient(string Pawn, double InfectionPerDay, double IllnessPerDay, double PatientDaysPerDay, double MoodDelta)
+    {
+        public double SurgeryPerDay { get; init; }
+    }
+
+    /// <summary>
+    /// A surgery's outcome model (#3804): its recipe's outcomes in GetOutcome's order, the success clamp and the best surgeon's
+    /// quality before the bed and room comp; one that ignores its environment is never priced.
+    /// </summary>
+    internal sealed record SurgeryModel(IReadOnlyList<SurgeryOutcomeRead> Outcomes, double QualityMin, double QualityMax, double Quality);
+
+    /// <summary>
+    /// Surgeries a future event queues on <see cref="Patient"/> at <see cref="PerDay"/> a day (#3830): the replacements of the organs
+    /// illness destroys; #3847 adds a raid's part losses. Each is credited at the rate, as a queued bill's once gain a day.
+    /// </summary>
+    internal sealed record SurgeryRate(string Patient, SurgeryModel Surgery, double PerDay);
+
+    /// <summary>The surgery rates of one pawn's illness (#3830): incidents a day × each stocked replacement's probability, by recipe.</summary>
+    internal static IEnumerable<SurgeryRate> IllnessSurgeries(string pawn, HarmDistribution illness, double incidentsPerDay) =>
+        illness.Replacements.Where(r => r.Recipe is { Environment: true, Outcomes.Count: > 0 })
+            .GroupBy(r => r.Recipe!.Recipe, StringComparer.Ordinal)
+            .Select(g => new SurgeryRate(pawn, ModelOf(g.First().Recipe!), incidentsPerDay * g.Sum(r => r.Probability)));
+
+    private static SurgeryModel ModelOf(OrganReplacementRead read) => new(read.Outcomes, read.QualityMin, read.QualityMax, read.Quality);
 
     /// <summary>One queued surgery's once gain, and the patient it is booked to.</summary>
     private sealed record Operation(string Demand, string Pawn, double Once);
@@ -84,7 +111,7 @@ internal static class ForecastHospital
                     context.Value.WellbeingWeight, horizon / GameTime.TicksPerDay) ?? throw new RequiredFactException("mood:" + patient.Pawn);
             }
 
-            var perDay = patient.InfectionPerDay + patient.IllnessPerDay + (patient.PatientDaysPerDay * mood);
+            var perDay = patient.InfectionPerDay + patient.IllnessPerDay + patient.SurgeryPerDay + (patient.PatientDaysPerDay * mood);
             if (perDay != 0)
             {
                 gains.Add(new(patient.Pawn, patient.Pawn, perDay));
@@ -233,6 +260,7 @@ internal static class ForecastHospital
         }
 
         var patients = new List<Patient>(pawns.Length);
+        var rates = new List<SurgeryRate>();
         foreach (var pawn in pawns)
         {
             double infection = 0, patientDays = 0;
@@ -259,6 +287,7 @@ internal static class ForecastHospital
 
                 illness = incidents * (Risk(now) - Risk(hospital));
                 patientDays += incidents * hospital.PatientDays;
+                rates.AddRange(IllnessSurgeries(pawn.Pawn, now, incidents));
             }
 
             patients.Add(new(pawn.Pawn, infection, illness, patientDays, patientDays > 0 ? MoodDelta(pawn, prediction) : 0));
@@ -267,6 +296,18 @@ internal static class ForecastHospital
         var rows = pawns.ToDictionary(p => p.Pawn, StringComparer.Ordinal);
         var operations = new List<Operation>();
         double? hospitalSurgery = null;
+        // A surgery fails less in the hospital bed: the failure cost at the owned bed's factor less at the hospital's (see the class summary).
+        double Saved(SurgeryModel surgery, NeedsForecastPawn patient)
+        {
+            var now = patient.OwnedBed.Length == 0
+                ? Roomless(filth.SurgeryCleanliness, filth.SurgeryCleanlinessRoomless, "surgery_cleanliness_curve") : OwnedRoom(patient).SurgerySuccessFactor;
+            hospitalSurgery ??= bed.SurgerySuccessChanceFactor * PlannedRoomCleanlinessRules.SurgeryCleanliness(prediction, runs, filth);
+            return FailureCost(surgery, surgery.Quality * now, patient, context, Care(InfectionNow(patient)), horizon, days)
+                - FailureCost(surgery, surgery.Quality * hospitalSurgery.Value, patient, context, Care(HospitalInfection()), horizon, days);
+        }
+
+        var surgeries = rates.GroupBy(r => r.Patient, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Sum(r => r.PerDay * Saved(r.Surgery, rows[r.Patient])), StringComparer.Ordinal);
+        patients = [.. patients.Select(p => p with { SurgeryPerDay = surgeries.TryGetValue(p.Pawn, out var perDay) ? perDay : 0 })];
         foreach (var demand in context.Support.Demands.Where(d => d.Kind == "surgery").OrderBy(d => d.Id, StringComparer.Ordinal))
         {
             // A surgery on a prisoner, a slave or an animal is no colonist's (named in Unmodelled); one without an outcome effect cannot
@@ -282,13 +323,8 @@ internal static class ForecastHospital
                 continue;
             }
 
-            var quality = surgeons.Max();
-            var now = patient.OwnedBed.Length == 0
-                ? Roomless(filth.SurgeryCleanliness, filth.SurgeryCleanlinessRoomless, "surgery_cleanliness_curve") : OwnedRoom(patient).SurgerySuccessFactor;
-            hospitalSurgery ??= bed.SurgerySuccessChanceFactor * PlannedRoomCleanlinessRules.SurgeryCleanliness(prediction, runs, filth);
-            var once = FailureCost(demand, quality * now, patient, context, Care(InfectionNow(patient)), horizon, days)
-                - FailureCost(demand, quality * hospitalSurgery.Value, patient, context, Care(HospitalInfection()), horizon, days);
-            operations.Add(new(demand.Id, patient.Pawn, once));
+            var surgery = new SurgeryModel(demand.SurgeryOutcomes, demand.SurgeryQualityMin, demand.SurgeryQualityMax, surgeons.Max());
+            operations.Add(new(demand.Id, patient.Pawn, Saved(surgery, patient)));
         }
 
         return new([.. patients], [.. operations]);
@@ -299,14 +335,14 @@ internal static class ForecastHospital
     /// each taking its chance of what the earlier ones left (success at the clamped quality), death costing the rest of the horizon and
     /// the terminal value, a failure its wounds' risk-transformed harm under <paramref name="care"/>.
     /// </summary>
-    private static double FailureCost(SupportDemand demand, double quality, NeedsForecastPawn patient, ForecastCoupledContext context,
+    private static double FailureCost(SurgeryModel surgery, double quality, NeedsForecastPawn patient, ForecastCoupledContext context,
         HarmConsequences.Care care, double horizon, double days)
     {
         var left = 1.0;
         var cost = 0.0;
-        foreach (var outcome in demand.SurgeryOutcomes)
+        foreach (var outcome in surgery.Outcomes)
         {
-            var chance = Math.Clamp(outcome.Kind == "success" ? Math.Clamp(quality, demand.SurgeryQualityMin, demand.SurgeryQualityMax) : outcome.Chance, 0, 1);
+            var chance = Math.Clamp(outcome.Kind == "success" ? Math.Clamp(quality, surgery.QualityMin, surgery.QualityMax) : outcome.Chance, 0, 1);
             var share = left * chance;
             left -= share;
             if (share <= 0)

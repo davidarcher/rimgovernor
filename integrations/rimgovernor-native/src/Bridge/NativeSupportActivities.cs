@@ -119,7 +119,7 @@ internal static class NativeSupportActivities
                         Add(Route(pawn, pawn.Position, source.Position, PathEndMode.Touch), Route(pawn, source.Position, patient.Position, PathEndMode.Touch)),
                         speed > 0 ? Fact.Known((double)bill.recipe.WorkAmountTotal(null) / speed) : default) { Recipe = recipe,
                             Medicine = source.GetUniqueLoadID(), MedicineResource = source.def.defName, MedicineCount = count, MedicineLocation = At(source.Position), MedicineAvailable = source.stackCount, SkillWork = skillWork,
-                            SurgeryQuality = SurgeryQualityOf(pawn, patient, bill) });
+                            SurgeryQuality = SurgeryQualityOf(pawn, patient, bill.recipe, bill.Part, bill) });
                 }
             }
         }
@@ -149,15 +149,25 @@ internal static class NativeSupportActivities
     /// </summary>
     private static Obs.SupportDemand SurgeryOutcomesOf(Obs.SupportDemand demand, Pawn patient, Bill_Medical bill)
     {
-        var recipe = bill.recipe;
-        if (recipe.surgeryOutcomeEffect is not { } effect) return demand with { SurgeryQualityMax = float.MaxValue };
+        var (rows, min, max, environment) = SurgeryModel(patient, bill.recipe, bill.Part, false);
+        if (rows == null) return demand with { SurgeryQualityMax = float.MaxValue };
+        return demand with { SurgeryOutcomes = EquatableArray.From(rows), SurgeryQualityMin = min, SurgeryQualityMax = max, SurgeryEnvironment = environment };
+    }
+
+    /// <summary>
+    /// The outcome model of <paramref name="recipe"/> on <paramref name="part"/> (#3804; null rows without an outcome effect), the part
+    /// taken as missing when <paramref name="partMissing"/> (an organ replacement, #3830).
+    /// </summary>
+    internal static (List<Obs.SurgeryOutcomeRead>? Rows, float Min, float Max, bool Environment) SurgeryModel(Pawn patient, RecipeDef recipe, BodyPartRecord? part, bool partMissing)
+    {
+        if (recipe.surgeryOutcomeEffect is not { } effect) return (null, 0, float.MaxValue, false);
         var comps = effect.comps ?? new List<SurgeryOutcomeComp>();
         var clamp = comps.OfType<SurgeryOutcomeComp_ClampToRange>().LastOrDefault()?.range ?? new FloatRange(0, float.MaxValue);
         var deathless = ModsConfig.BiotechActive && patient.genes != null && patient.genes.HasActiveGene(GeneDefOf.Deathless);
         var rows = new List<Obs.SurgeryOutcomeRead>();
         foreach (var outcome in effect.outcomes ?? new List<SurgeryOutcome>())
         {
-            var wound = WoundSeverity(patient, outcome.applyEffectsToPart ? bill.Part : null);
+            var wound = WoundSeverity(patient, outcome.applyEffectsToPart ? part : null, partMissing);
             rows.Add(outcome switch
             {
                 SurgeryOutcomeSuccess => new("success", 0, outcome.totalDamage, wound),
@@ -167,33 +177,30 @@ internal static class NativeSupportActivities
                 _ => new(outcome.GetType().Name, outcome.chance, outcome.totalDamage, wound),
             });
         }
-        return demand with
-        {
-            SurgeryOutcomes = EquatableArray.From(rows), SurgeryQualityMin = clamp.min, SurgeryQualityMax = clamp.max,
-            SurgeryEnvironment = !recipe.surgeryIgnoreEnvironment && comps.OfType<SurgeryOutcomeComp_BedAndRoomQuality>().Any(),
-        };
+        return (rows, clamp.min, clamp.max, !recipe.surgeryIgnoreEnvironment && comps.OfType<SurgeryOutcomeComp_BedAndRoomQuality>().Any());
     }
 
     /// <summary>
     /// The mean injury GiveRandomSurgeryInjuries deals at a time (#3804): over the parts it may hit (the operated part, its parent and
-    /// children, or every part without one; not conceptual), by coverageAbs, max(3, 0.75 x the part's health).
+    /// children, or every part without one; not conceptual; not the operated part when it is taken as missing), by coverageAbs,
+    /// max(3, 0.75 x the part's health).
     /// </summary>
-    private static double WoundSeverity(Pawn patient, BodyPartRecord? part)
+    private static double WoundSeverity(Pawn patient, BodyPartRecord? part, bool partMissing)
     {
         var parts = patient.health.hediffSet.GetNotMissingParts().Where(p => !p.def.conceptual
-            && (part == null || p == part || p.parent == part || part.parent == p)).ToArray();
+            && (part == null || p == part && !partMissing || p.parent == part && !partMissing || part.parent == p)).ToArray();
         var cover = parts.Sum(p => (double)p.coverageAbs);
         return cover > 0 ? parts.Sum(p => p.coverageAbs * Math.Max(3, 0.75 * patient.health.hediffSet.GetPartHealth(p))) / cover : 3;
     }
 
     /// <summary>The surgeon's quality without the bed and room comp and the clamp (#3804): each other comp that applies, in order.</summary>
-    private static double SurgeryQualityOf(Pawn surgeon, Pawn patient, Bill_Medical bill)
+    internal static double SurgeryQualityOf(Pawn surgeon, Pawn patient, RecipeDef recipe, BodyPartRecord? part, Bill_Medical bill)
     {
         var quality = 1f;
-        foreach (var comp in bill.recipe.surgeryOutcomeEffect?.comps ?? new List<SurgeryOutcomeComp>())
+        foreach (var comp in recipe.surgeryOutcomeEffect?.comps ?? new List<SurgeryOutcomeComp>())
         {
-            if (comp is SurgeryOutcomeComp_BedAndRoomQuality or SurgeryOutcomeComp_ClampToRange || !comp.Affects(bill.recipe, surgeon, patient, bill.Part)) continue;
-            comp.AffectQuality(bill.recipe, surgeon, patient, new List<Thing>(), bill.Part, bill, ref quality);
+            if (comp is SurgeryOutcomeComp_BedAndRoomQuality or SurgeryOutcomeComp_ClampToRange || !comp.Affects(recipe, surgeon, patient, part)) continue;
+            comp.AffectQuality(recipe, surgeon, patient, new List<Thing>(), part, bill, ref quality);
         }
         return quality;
     }

@@ -127,18 +127,155 @@ public sealed class IllnessForecastTests
         Assert.Equal(0, d.DeathProbability);
     }
 
-    [Fact]
-    public void ALethalPartShareKillsOnlyOnThatShare()
+    // ----- organ loss (#3830)
+
+    private const string Decay = "Disease_OrganDecay";
+
+    private static DiseasePart Organ(string part, string capacity, bool threatened = false, params string[] recipes) => new()
     {
-        var decay = new DiseaseCourse
+        Part = part, Threatened = threatened, Tag = part + "Tag", Capacity = capacity, Lethal = true,
+        Recipes = recipes.ToDictionary(r => r, _ => 1.0),
+    };
+
+    // Severity 0.001 rising 0.05 a day reaches the max severity 1 on day 19.98: the heart's death, a lung's or a kidney's loss.
+    private static DiseaseCourse DecayCourse(double offset = 0, params DiseasePart[] parts) => new()
+    {
+        Table = Table("OrganDecay", 0.001, 1) with { Stages = [new PenaltyStage(0, 0, []) { PartEfficiencyOffset = offset }] },
+        PerDayMin = 0.05, PerDayMax = 0.05, MaxSeverity = 1, DestroysOrgan = true,
+        Parts = parts.Length > 0 ? parts : [Organ("Heart", "BloodPumping", true), Organ("Lung", "Breathing", recipes: "InstallNaturalLung"), Organ("Kidney", "BloodFiltration")],
+    };
+
+    private const double LostOn = 0.999 / 0.05;
+
+    // The Human torso's heart 0.02, lungs 0.025 and kidneys 0.017, as the native read lists them.
+    private static DiseasePartRead[] Body(params DiseasePartRead[] rows) => rows.Length > 0 ? rows :
+    [
+        Part("Heart", 0.02), Part("Lung", 0.025), Part("Lung", 0.025), Part("Kidney", 0.017), Part("Kidney", 0.017),
+    ];
+
+    private static DiseasePartRead Part(string part, double coverage, double efficiency = 1, bool open = true) =>
+        new(part, coverage, efficiency) { Incidents = open ? [Decay] : [] };
+
+    private static OrganReplacementRead Replacement(string part, string recipe, bool stocked = true, int doctors = 1, double chance = 0.9) =>
+        new(part, recipe)
         {
-            Table = Table("OrganDecay", 0.001, 1), PerDayMin = 0.05, PerDayMax = 0.05, MaxSeverity = 1, DestroysOrgan = true, LethalPartShare = 0.25,
+            IngredientsOnMap = stocked, EligibleDoctors = doctors, SuccessChance = chance, DoctorSuccessChance = chance,
+            Outcomes = [new("success", 0, 0, 0), new("death", 0.5, 0, 0)], Environment = true, QualityMax = 0.98, Quality = 0.9,
         };
 
-        var d = Of(decay, "Disease_OrganDecay", null);
+    private static NeedsForecastPawn Decaying(DiseasePartRead[] rows, params OrganReplacementRead[] replacements) => Pawn(1, new DiseaseContract(Decay, 1)) with
+    {
+        Disease = new PawnDiseaseFacts
+        {
+            ImmunityGainSpeed = 1, Contracts = [new DiseaseContract(Decay, 1)], BloodPumping = 1, Breathing = 1, BloodFiltration = 1,
+            Parts = EquatableArray.From(rows), Replacements = EquatableArray.From(replacements),
+        },
+    };
 
-        Assert.Equal(0.25, d.DeathProbability, 9);
-        Assert.Contains("disease_organ_loss_unpriced:OrganDecay", d.Findings);
+    private static IllnessPawn Organs(DiseaseCourse course, NeedsForecastPawn pawn, double horizon = Horizon)
+    {
+        var schedule = Schedule(course, Decay);
+        return new(pawn.Pawn, IllnessForecast.Of(schedule, pawn, Tables, HarmConsequences.CareOf(null), 1, new ForecastValuePolicy(), horizon), schedule.IncidentsPerDay(horizon / Day));
+    }
+
+    // The replacement surgeries a day the hospital credit is fed (ForecastHospital.IllnessSurgeries).
+    private static double SurgeriesPerDay(IllnessPawn p) => ForecastHospital.IllnessSurgeries(p.Pawn, p.Distribution, p.IncidentsPerDay).Sum(r => r.PerDay);
+
+    private static double Mean(HarmDistribution d) => d.Points.Sum(p => p.Loss * p.Probability);
+
+    [Fact]
+    public void ADestroyedOrganTheAutopilotCannotReplaceCostsItsCapacityToTheHorizonAndBooksNoSurgery()
+    {
+        var unstocked = Organs(DecayCourse(), Decaying(Body(), Replacement("Lung", "InstallNaturalLung", stocked: false)));
+        var d = unstocked.Distribution;
+
+        // The heart kills on its coverage share; a lung or a kidney is lost on day 19.98, by coverage.
+        double heart = 0.02 / 0.104, lung = 0.05 / 0.104, kidney = 0.034 / 0.104;
+        Assert.True(d.Known);
+        Assert.Equal(heart, d.DeathProbability, 9);
+        // One lung of two halves Breathing: consciousness x (1 - 0.2 x 0.5), moving x (1 + 0.2 x (0.5 - 1)) x that, manipulation and
+        // talking x that. One kidney halves BloodFiltration: consciousness x (1 - 0.1 x 0.5), moving x that.
+        var lungFactor = 0.9 * (0.9 * 0.9) * 0.9 * 0.9;
+        var kidneyFactor = 0.95 * 0.95 * 0.95 * 0.95;
+        var rest = 30 - LostOn;
+        var policy = new ForecastValuePolicy();
+        Assert.Equal((heart * (rest + policy.DeathTerminalValue)) + (lung * rest * (1 - lungFactor)) + (kidney * rest * (1 - kidneyFactor)), Mean(d), 6);
+        Assert.Equal(0, SurgeriesPerDay(unstocked));
+        Assert.Equal([("Kidney", SurgeryWantReason.PartShort, kidney), ("Lung", SurgeryWantReason.PartShort, lung)],
+            d.Replacements.Select(r => (r.Part, r.Reason, Math.Round(r.Probability, 9))).Select(r => (r.Part, r.Reason, r.Item3)).ToArray(),
+            new ReplacementComparer());
+        Assert.All(d.Replacements, r => Assert.Null(r.Recipe));
+        Assert.DoesNotContain(d.Findings, f => f.StartsWith("disease_organ_loss_unpriced", StringComparison.Ordinal));
+    }
+
+    private sealed class ReplacementComparer : IEqualityComparer<(string, SurgeryWantReason, double)>
+    {
+        public bool Equals((string, SurgeryWantReason, double) a, (string, SurgeryWantReason, double) b) =>
+            a.Item1 == b.Item1 && a.Item2 == b.Item2 && Math.Abs(a.Item3 - b.Item3) < 1e-6;
+
+        public int GetHashCode((string, SurgeryWantReason, double) value) => HashCode.Combine(value.Item1, value.Item2);
+    }
+
+    [Fact]
+    public void AStockedReplacementBooksItsSurgeriesADayAndEndsTheLoss()
+    {
+        var stocked = Organs(DecayCourse(), Decaying(Body(), Replacement("Lung", "InstallNaturalLung")));
+        var d = stocked.Distribution;
+
+        // The lung's share books the stocked natural lung; the kidney has no recipe and stays lost.
+        double heart = 0.02 / 0.104, lung = 0.05 / 0.104, kidney = 0.034 / 0.104;
+        var lost = d.Replacements.Single(r => r.Recipe is not null);
+        Assert.Equal(("Lung", "InstallNaturalLung"), (lost.Part, lost.Recipe!.Recipe));
+        Assert.Equal(lung, lost.Probability, 9);
+        Assert.Equal(1 / 30.0 * lung, SurgeriesPerDay(stocked), 12);
+        var rest = 30 - LostOn;
+        var policy = new ForecastValuePolicy();
+        Assert.Equal((heart * (rest + policy.DeathTerminalValue)) + (kidney * rest * (1 - (0.95 * 0.95 * 0.95 * 0.95))), Mean(d), 6);
+        Assert.Contains("illness_organ_replacement_wait_unmodelled", d.Findings);
+
+        // A doctor beyond the 0.20 failure cap queues nothing: the loss stays, named NoDoctor.
+        var refused = Organs(DecayCourse(), Decaying(Body(), Replacement("Lung", "InstallNaturalLung", chance: 0.7))).Distribution;
+        Assert.Equal(SurgeryWantReason.NoDoctor, refused.Replacements.Single(r => r.Part == "Lung").Reason);
+        Assert.True(Mean(refused) > Mean(d));
+    }
+
+    [Fact]
+    public void ACourseWithNoPartLossBooksNoSurgery()
+    {
+        // The flu destroys nothing; organ decay over a 10-day horizon has not reached its max severity.
+        var flu = new IllnessPawn("pawn", Of(Flu(), "Disease_Flu", Care()), 1 / 30.0);
+        var early = Organs(DecayCourse(), Decaying(Body(), Replacement("Lung", "InstallNaturalLung")), horizon: 10 * Day);
+
+        Assert.Empty(flu.Distribution.Replacements);
+        Assert.Equal(0, SurgeriesPerDay(flu));
+        Assert.Empty(early.Distribution.Replacements);
+        Assert.Equal(0, SurgeriesPerDay(early));
+        Assert.Equal(0, early.Distribution.DeathProbability);
+    }
+
+    [Fact]
+    public void AStagesPartEfficiencyOffsetCostsTheOrgansCapacityWhileItLasts()
+    {
+        // A lung at -0.5 leaves Breathing (1 + 0.5) / 2 = 0.75: consciousness x 0.95, moving x 0.95 x 0.95, manipulation and talking x 0.95.
+        var course = DecayCourse(-0.5, Organ("Lung", "Breathing"));
+        var d = Organs(course, Decaying([Part("Lung", 0.025), Part("Lung", 0.025)]), horizon: 10 * Day).Distribution;
+
+        Assert.Equal(10 * (1 - (0.95 * (0.95 * 0.95) * 0.95 * 0.95)), Mean(d), 6);
+    }
+
+    [Fact]
+    public void LosingTheLastKidneyKillsAndAPawnWithNoOpenPartIsSpared()
+    {
+        var course = DecayCourse(0, Organ("Kidney", "BloodFiltration"));
+        var last = Organs(course, Decaying([Part("Kidney", 0.017, efficiency: 0, open: false), Part("Kidney", 0.017)])).Distribution;
+        var none = Organs(course, Decaying([Part("Kidney", 0.017, efficiency: 0, open: false), Part("Kidney", 0.017, open: false)])).Distribution;
+
+        Assert.Equal(1, last.DeathProbability, 9);
+        Assert.Empty(last.Replacements);
+        Assert.True(none.Known);
+        Assert.Equal(0, none.DeathProbability);
+        Assert.Equal(0, Mean(none));
+        Assert.Throws<RequiredFactException>(() => Organs(course, Decaying([])));
     }
 
     [Fact]
@@ -257,5 +394,28 @@ public sealed class IllnessForecastTests
 
         Assert.False(unread.Illness.Assessed);
         Assert.Equal(["disease_facts_unobserved"], unread.Illness.Findings);
+    }
+
+    [Fact]
+    public void AFreshColonyInABiomeThatSendsOrganDecayPricesItsOrgansWithoutThrowing()
+    {
+        // #3830 the production way (#3822): the catalog's organ decay with its heart, lungs and kidneys, a colony settled today, and a
+        // pawn as the native read fills it (the torso's organs open, a natural lung on the map).
+        var catalog = DiseaseTableTests.Catalog(DiseaseTableTests.CoreDefs());
+        var illness = HarmInputs.Of(new RoundsFacts { DiseaseTable = catalog.DiseaseTable(), Disease = Facts(0) with { Biome = "AridShrubland" } }).Illness;
+        Assert.True(illness.Assessed);
+        var decay = Assert.Single(illness.Incidents, i => i.Incident == Decay);
+        Assert.Equal(["Heart", "Lung", "Kidney"], decay.Course.Parts.Select(p => p.Part));
+
+        var pawn = Decaying(Body(), Replacement("Lung", "InstallNaturalLung")) with
+        {
+            Disease = Decaying(Body(), Replacement("Lung", "InstallNaturalLung")).Disease! with
+            {
+                Contracts = [new DiseaseContract("Disease_Flu", 1), new DiseaseContract(Decay, 1)],
+            },
+        };
+        var d = IllnessForecast.Of(illness, pawn, Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon);
+        Assert.True(d.Known);
+        Assert.DoesNotContain(d.Findings, f => f.StartsWith("disease_organ_loss_unpriced", StringComparison.Ordinal));
     }
 }

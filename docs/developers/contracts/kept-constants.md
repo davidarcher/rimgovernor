@@ -176,7 +176,11 @@ ilspycmd (1.7). The comps, biome numbers, incident rules and hediff comps come f
 | Victim count | uniform integer on `RoundToInt(n × min)` to `RoundToInt(n × max)` (banker's rounding), clamped to [1, `diseaseMaxVictims`], taken from the potential victims in random order | `IncidentWorker_DiseaseHuman.ActualVictims` |
 | Immunity factor | `immunityPerDaySick` × `ImmunityGainSpeed` × `Lerp(0.8, 1.2, seeded rand)` while sick (`IllnessForecast.ImmunityFactorMin`/`Max`) | `ImmunityRecord.ImmunityChangePerTick` |
 | Tend timing | first care, then after `TendTicksBase` (a tend is allowed once only the overlap is left), then every `TendTicksFull`; the comp's getters are read, not copied | `HediffComp_TendDuration.AllowTend`, `CompTended` |
-| Lethal part | a def with `onlyLifeThreateningTo` kills only on those parts, the part drawn by `coverageAbs` among the affected defs' parts | `Hediff.PostMake`, `HediffGiverUtility.TryApply` |
+| Struck part | drawn by `coverageAbs` among the affected defs' parts that are not missing, carry no added part on themselves or an ancestor (whatever `canAffectBionicOrImplant`) and lack the hediff; a def with `onlyLifeThreateningTo` kills only on those parts | `HediffGiverUtility.TryApply`, `Hediff.PostMake` |
+| Part efficiency | health ratio × added-part efficiency + Σ stage `partEfficiencyOffset`, floored at 0, 0 under a missing parent; a tag's efficiency is the mean over every part with it (missing as 0), 1 with none (`OrganCapacity.Level`) | `PawnCapacityUtility.CalculatePartEfficiency`, `CalculateTagEfficiency` |
+| Organ tags | `BreathingSource` → Breathing, `BloodPumpingSource` → BloodPumping, `BloodFiltrationKidney`/`Liver`/`Source` → BloodFiltration (`Disease.OrganTagCapacities`) | `PawnCapacityWorker_Breathing`, `_BloodPumping`, `_BloodFiltration` |
+| Capacity weights | Consciousness × Lerp toward min(BloodPumping, 1) at 0.2, Breathing at 0.2, BloodFiltration at 0.1; Moving × Lerp toward Breathing at 0.2 and BloodPumping at 0.2, then × min(Consciousness, 1); Manipulation and Talking × Consciousness; Sight none (`OrganCapacity`) | `PawnCapacityWorker_Consciousness`, `_Moving`, `_Manipulation`, `_Talking` |
+| Organ death | a `lethalFlesh` capacity at or under its `minForCapable` kills | `Pawn_HealthTracker.ShouldBeDead`, `PawnCapacityDef.lethalFlesh` |
 
 The model's own choices, not game rules: each uniform draw (the not-immune random factor, the per-day range, the Disappears time, the
 immunity factor of a survivor) is a 4-point midpoint grid (`IllnessForecast.GridPoints`); the tend quality is its mean, not the
@@ -185,7 +189,7 @@ per-tend draw.
 ## Mirrored game literals: hospital surgery (#3804)
 
 `ForecastHospital` (`brain/src/RimGovernor.Brain.Policy/ForecastHospital.cs`) and the native surgery read
-(`NativeSupportActivities.SurgeryOutcomesOf`) mirror the surgery injury rules no def carries. Read with ilspycmd (1.7).
+(`NativeSupportActivities.SurgeryModel`) mirror the surgery injury rules no def carries. Read with ilspycmd (1.7).
 
 | Literal | Value | 1.7 member |
 | --- | --- | --- |

@@ -17,9 +17,11 @@ public sealed class DiseaseTableTests
     private static readonly IncidentTargetTagDef Home = new() { defName = nameof(IncidentTargetTagDefOf.Map_PlayerHome) };
 
     private static readonly BodyPartDef Torso = new() { defName = "Torso" };
-    private static readonly BodyPartDef Heart = new() { defName = "Heart" };
-    private static readonly BodyPartDef Lung = new() { defName = "Lung" };
-    private static readonly BodyPartDef Kidney = new() { defName = "Kidney" };
+    private static readonly BodyPartDef Heart = Organ("Heart", nameof(BodyPartTagDefOf.BloodPumpingSource));
+    private static readonly BodyPartDef Lung = Organ("Lung", nameof(BodyPartTagDefOf.BreathingSource));
+    private static readonly BodyPartDef Kidney = Organ("Kidney", nameof(BodyPartTagDefOf.BloodFiltrationKidney));
+
+    private static BodyPartDef Organ(string name, string tag) => new() { defName = name, tags = [new BodyPartTagDef { defName = tag }] };
 
     [Fact]
     public void TheCoreStorytellersSendDiseaseFromTheirMinDaysPassed()
@@ -67,7 +69,7 @@ public sealed class DiseaseTableTests
         Assert.Empty(flu.Course.Unmodelled);
         Assert.Equal(1, flu.Course.Table.LethalSeverity);
         Assert.Equal(0.2238, flu.Course.Table.Immunizable!.SeverityPerDayNotImmune, 6);
-        Assert.Equal(1, flu.Course.LethalPartShare);
+        Assert.Empty(flu.Course.Parts);
         Assert.NotNull(flu.Course.Tend);
         Assert.Equal(12 * 2500.0 / 60000, flu.Course.Tend!.FirstRetendDays, 9);
         Assert.Equal((12 + 3) * 2500.0 / 60000, flu.Course.Tend.RetendDays, 9);
@@ -79,17 +81,40 @@ public sealed class DiseaseTableTests
     }
 
     [Fact]
-    public void OrganDecayKillsOnlyOnTheHeartsShareOfTheAffectedPartsAndDestroysTheOrgan()
+    public void OrganDecayThreatensOnlyTheHeartAndGivesEachOrgansCapacityAndReplacements()
     {
         var decay = Table().Incidents["Disease_OrganDecay"];
 
-        // Heart 0.02 of heart, two lungs at 0.025 and two kidneys at 0.017.
-        Assert.Equal(0.02 / (0.02 + 0.05 + 0.034), decay.Course.LethalPartShare, 6);
+        // #3830: the heart alone is life-threatened; each organ feeds the lethalFlesh capacity its tag names, and the lung's natural
+        // install replaces it.
+        Assert.Equal(["Heart", "Lung", "Kidney"], decay.Course.Parts.Select(p => p.Part));
+        Assert.Equal([true, false, false], decay.Course.Parts.Select(p => p.Threatened));
+        Assert.Equal(["BloodPumping", "Breathing", "BloodFiltration"], decay.Course.Parts.Select(p => p.Capacity));
+        Assert.All(decay.Course.Parts, p => Assert.True(p.Lethal));
+        Assert.Equal(1, decay.Course.Parts[1].Recipes["InstallNaturalLung"]);
+        Assert.Empty(decay.Course.Parts[2].Recipes);
+        Assert.Equal(-0.1, decay.Course.Table.Stages[0].PartEfficiencyOffset, 6);
         Assert.True(decay.Course.DestroysOrgan);
+        Assert.True(decay.Course.Valid());
         Assert.Equal(1, decay.MaxVictims);
         Assert.Equal(0.0166, decay.Course.PerDayMin, 6);
         Assert.Equal(0.0334, decay.Course.PerDayMax, 6);
-        Assert.Contains("disease_part_efficiency_unpriced:OrganDecay", decay.Course.Unpriced);
+        Assert.Empty(decay.Course.Unpriced);
+    }
+
+    [Fact]
+    public void APartWhoseTagAnUnaffectedPartAlsoCarriesIsNamedUnpriced()
+    {
+        // A second BreathingSource def the incident does not affect: the lungs' read would not hold the whole tag mean.
+        var gill = Organ("Gill", nameof(BodyPartTagDefOf.BreathingSource));
+        var defs = CoreDefs();
+        var body = (BodyDef)defs.Single(d => d is BodyDef);
+        body.corePart.parts.Add(new BodyPartRecord { def = gill, coverageAbs = 0.01f });
+
+        var decay = Catalog(defs).DiseaseTable().Incidents["Disease_OrganDecay"];
+
+        Assert.Equal("", decay.Course.Parts[1].Capacity);
+        Assert.Contains("disease_part_capacity_unmodelled:OrganDecay:Lung", decay.Course.Unpriced);
     }
 
     [Fact]
@@ -125,6 +150,11 @@ public sealed class DiseaseTableTests
 
         var forest = new BiomeDef { defName = "TemperateForest", diseaseMtbDays = 60 };
         GameMembers.BiomeDiseases(forest) = [new BiomeDiseaseRecord { diseaseInc = fluIncident, commonality = 100 }];
+        // #3830: a biome that sends organ decay.
+        var shrubland = new BiomeDef { defName = "AridShrubland", diseaseMtbDays = 60 };
+        GameMembers.BiomeDiseases(shrubland) = [new BiomeDiseaseRecord { diseaseInc = fluIncident, commonality = 100 }, new BiomeDiseaseRecord { diseaseInc = decayIncident, commonality = 20 }];
+        var lungInstall = new RecipeDef { defName = "InstallNaturalLung", workerClass = typeof(Recipe_InstallNaturalBodyPart), appliedOnFixedBodyParts = [Lung] };
+        static PawnCapacityDef Capacity(string name) => new() { defName = name, lethalFlesh = true };
         wormsIncident.diseaseBiomeRecords = [new BiomeDiseaseRecord { biome = forest, commonality = 30 }];
 
         return
@@ -132,7 +162,8 @@ public sealed class DiseaseTableTests
             Teller("Cassandra", Disease(DiseaseHuman, 9), Disease(DiseaseAnimal, 9), Cycle()),
             Teller("Phoebe", Disease(DiseaseHuman, 12), Cycle()),
             Teller("Randy", Disease(DiseaseHuman, 0)),
-            flu, worms, decay, fluIncident, wormsIncident, decayIncident, forest, HumanBody(),
+            flu, worms, decay, fluIncident, wormsIncident, decayIncident, forest, shrubland, HumanBody(), lungInstall,
+            Capacity(nameof(PawnCapacityDefOf.BloodPumping)), Capacity(nameof(PawnCapacityDefOf.Breathing)), Capacity(nameof(PawnCapacityDefOf.BloodFiltration)),
         ];
     }
 
