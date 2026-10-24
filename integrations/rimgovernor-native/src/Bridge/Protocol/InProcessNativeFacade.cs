@@ -192,7 +192,7 @@ namespace HomeBridge.BridgeTools
         public Task<Presentation.SelectionSnapshot> ReadSelectionAsync(Presentation.ReadRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadSelection, request, () => NativePresentationReadTools.HandleSelection(request), cancellationToken);
 
-        public Task<Presentation.ColonistRosterReply> ReadColonistsAsync(Presentation.ColonistRosterRequest request, CancellationToken cancellationToken)
+        public Task<Presentation.ColonistRoster> ReadColonistsAsync(Presentation.ColonistRosterRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadColonists, request, () => NativePresentationReadTools.HandleColonists(request), cancellationToken);
 
         // The remaining native tools (#3100).
@@ -218,7 +218,7 @@ namespace HomeBridge.BridgeTools
         public Task<Presentation.NotificationsSnapshot> ReadNotificationsAsync(Presentation.NotificationsRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadNotifications, request, () => NativeNotificationReadTools.HandleNotifications(request), cancellationToken);
 
-        public Task<Obs.PopulationReply> ReadPopulationAsync(Obs.PopulationRequest request, CancellationToken cancellationToken)
+        public Task<Obs.PopulationSnapshot> ReadPopulationAsync(Obs.PopulationRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadPopulation, request, () => NativePopulationObservation.HandleReadPopulation(request), cancellationToken);
 
         public Task<Obs.ResourceSourcesSnapshot> ListResourceSourcesAsync(Obs.ResourceSourcesRequest request, CancellationToken cancellationToken)

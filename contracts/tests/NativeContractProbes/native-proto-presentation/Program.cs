@@ -31,14 +31,15 @@ internal static class NativeProtoPresentationProbe
         foreach (var reference in bridge.GetReferencedAssemblies()) Assembly.Load(reference);
         tools = bridge.GetType("HomeBridge.BridgeTools.NativePresentationReadTools", true)!;
         const string identity = "\"identity\":{\"colonyId\":\"colony\",\"loadToken\":\"load\",\"mapId\":0}";
-        foreach (var pair in new[] { new[] { "ValidateRead", "ReadRequest" }, new[] { "ValidateColonists", "ColonistRosterRequest" } })
+        foreach (var pair in new[] { new[] { "ValidateRead", "ReadRequest", "" }, new[] { "ValidateColonists", "ColonistRosterRequest", ",\"currentMapOnly\":false" } })
         {
             var validator = tools.GetMethod(pair[0], Flags)!;
-            Check(!(bool)validator.Invoke(null, new object?[] { Wire(pair[1], "{}"), null })!, "Missing identity refused");
-            Check((bool)validator.Invoke(null, new object?[] { Wire(pair[1], "{" + identity + "}"), null })!, "Identity presence accepted");
+            Check(!(bool)validator.Invoke(null, new object?[] { Wire(pair[1], "{" + pair[2].TrimStart(',') + "}"), null })!, "Missing identity refused");
+            Check((bool)validator.Invoke(null, new object?[] { Wire(pair[1], "{" + identity + pair[2] + "}"), null })!, "Identity presence accepted");
         }
-        var roster = Wire("ColonistRosterRequest", "{" + identity + "}");
-        Check(Get(roster, "CurrentMapOnly") is not true, "Default includes all loaded maps");
+        try { Wire("ColonistRosterRequest", "{" + identity + "}"); throw new Exception("Roster scope defaulted"); }
+        catch (TargetInvocationException e) { Check(e.InnerException is System.Text.Json.JsonException, "Roster scope is required"); }
+        object roster;
         foreach (var value in new[] { "false", "true" })
         {
             roster = Wire("ColonistRosterRequest", "{" + identity + ",\"currentMapOnly\":" + value + "}");

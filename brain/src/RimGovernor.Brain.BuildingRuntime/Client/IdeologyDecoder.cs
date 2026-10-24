@@ -16,60 +16,48 @@ internal static class IdeologyDecoder
     {
         ArgumentNullException.ThrowIfNull(catalog);
         var defs = catalog.IdeologyDefs() ?? throw BridgeContractException.Contract("ideology section without catalog ideology defs");
+        // The Policy reform state spells a fixed ideoligion as not fluid, with no points and no reform cost.
+        var development = v.Development is PbObservations.IdeoDevelopment.Fluid fluid
+            ? new P.IdeoDevelopment(true, fluid.CanReform, fluid.ReformCount, fluid.Points, fluid.NextReformPoints)
+            : new P.IdeoDevelopment(false, false, 0, 0, 0);
         var facts = new P.IdeoligionFacts
         {
-            IdeoId = v.IdeoId ?? "",
+            IdeoId = v.IdeoId,
             Memes = [.. v.Memes],
-            Believers = v.Believers.GetValueOrDefault(),
+            Believers = v.Believers,
             StyleCategories = [.. v.StyleCategories],
             VeneratedAnimals = [.. v.VeneratedAnimals],
-            BelieverPawns = [.. v.BelieverPawns.Select(p => new Domain.PawnId(p.Id ?? ""))],
+            BelieverPawns = [.. v.BelieverPawns],
+            Development = Known(development),
         };
-        if (v.Fluid is not null || v.CanReform is not null || v.DevelopmentPoints is not null || v.ReformCount is not null || v.NextReformPoints is not null)
-        {
-            facts = facts with
-            {
-                Development = Known(new P.IdeoDevelopment(
-                    v.Fluid.GetValueOrDefault(),
-                    v.CanReform.GetValueOrDefault(),
-                    v.ReformCount.GetValueOrDefault(),
-                    v.DevelopmentPoints.GetValueOrDefault(),
-                    v.NextReformPoints.GetValueOrDefault())),
-            };
-        }
 
         var precepts = new List<P.HeldPrecept>();
         foreach (var row in v.Precepts)
         {
-            precepts.Add(new P.HeldPrecept(row.Id ?? "", row.DefName ?? ""));
+            precepts.Add(new P.HeldPrecept(row.Id, row.DefName));
         }
         var roles = new List<P.HeldRole>();
         foreach (var row in v.Roles)
         {
-            var held = new List<Domain.PawnId>();
-            foreach (var pawn in row.Pawns)
-            {
-                held.Add(new Domain.PawnId(pawn.Id ?? ""));
-            }
-            roles.Add(new P.HeldRole(row.Id ?? "", row.DefName ?? "", row.Active.GetValueOrDefault(), held) { Converts = row.Converts.GetValueOrDefault(), ConvertReady = row.ConvertReady.GetValueOrDefault() });
+            roles.Add(new P.HeldRole(row.Id, row.DefName, row.Active, [.. row.Pawns]) { Converts = row.Converts, ConvertReady = row.ConvertReady });
         }
         var rituals = new List<P.HeldRitual>();
         foreach (var row in v.Rituals)
         {
             rituals.Add(new P.HeldRitual
             {
-                Id = row.Id ?? "",
-                Pattern = row.Pattern ?? "",
-                LastFinishedTick = row.LastFinishedTick.GetValueOrDefault(),
-                ActiveObligations = row.ActiveObligations.GetValueOrDefault(),
-                RepeatPenaltyActive = row.RepeatPenaltyActive.GetValueOrDefault(),
-                Running = row.Running.GetValueOrDefault(),
+                Id = row.Id,
+                Pattern = row.Pattern,
+                LastFinishedTick = row.LastFinishedTick,
+                ActiveObligations = row.ActiveObligations,
+                RepeatPenaltyActive = row.RepeatPenaltyActive,
+                Running = row.Running,
             });
         }
         var buildings = new List<P.HeldBuilding>();
         foreach (var row in v.Buildings)
         {
-            buildings.Add(new P.HeldBuilding(row.Building ?? "")
+            buildings.Add(new P.HeldBuilding(row.Building)
             {
                 Demand = new P.BuildingDemand
                 {

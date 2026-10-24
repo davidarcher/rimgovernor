@@ -252,15 +252,14 @@ public sealed class WorshipCreditTests
         Assert.Equal(15, defs.Rituals["Gathering"].IntervalDaysMin);
 
         // The ideology section's presence demand decodes over the same catalog, its forbidden building tags to the defs carrying them.
-        var ideo = IdeologyDecoder.Decode(new Obs.IdeologySnapshot
+        var ideo = IdeologyDecoder.Decode(IdeologyReadsTests.NoPrecepts with
         {
-            IdeoId = "Ideo_1",
-            BelieverPawns = [new() { Id = "pawn" }],
+            BelieverPawns = [new PawnId("pawn")],
             Buildings =
             [
                 new Obs.IdeoBuilding
                 {
-                    Building = Altar, Applies = true, Present = true, MinArea = 25, MinImpressiveness = 60, FloorTags = ["Floor"],
+                    Building = Altar, Applies = true, Present = true, Satisfied = false, MinArea = 25, MinImpressiveness = 60, FloorTags = ["Floor"],
                     Things = [new(Column, 2)], ForbiddenBuildingTags = ["Bed"], Unread = [],
                 },
             ],

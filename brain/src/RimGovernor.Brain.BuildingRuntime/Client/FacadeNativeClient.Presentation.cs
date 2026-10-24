@@ -2,7 +2,7 @@ using RimGovernor.Brain.Bridge.Contracts;
 
 namespace RimGovernor.Brain.BuildingRuntime;
 
-// (PresentationMedia.DemandRendering) and ReadNotifications. The camera, selection, render-state and notification
+// (PresentationMedia.DemandRendering) and ReadNotifications. The camera, selection, roster, render-state and notification
 // reads answer their payload (the facade throws a refusal); a failure arm of the others throws what Failure builds.
 public sealed partial class FacadeNativeClient
 {
@@ -21,21 +21,10 @@ public sealed partial class FacadeNativeClient
     }
 
     /// <summary>The colonist roster.</summary>
-    internal async Task<PbPresentation.ColonistRosterReply> ReadColonistRosterAsync(PbPresentation.ColonistRosterRequest request, CancellationToken cancellationToken)
+    internal Task<PbPresentation.ColonistRoster> ReadColonistRosterAsync(PbPresentation.ColonistRosterRequest request, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
-        if (request.CurrentMapOnly is null)
-        {
-            throw BridgeContractException.Contract("currentMapOnly presence required");
-        }
-
-        var reply = await Facade.ReadColonistsAsync(request, cancellationToken).ConfigureAwait(false);
-        if (reply.Outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-
-        return reply;
+        return Facade.ReadColonistsAsync(request, cancellationToken);
     }
 
     /// <summary>

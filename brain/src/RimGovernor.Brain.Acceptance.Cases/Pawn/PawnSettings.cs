@@ -139,9 +139,8 @@ internal static class PawnSettings
     {
         async Task<Dictionary<string, string>> NamesAsync(string label)
         {
-            var reply = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-            var population = TypedReads.Observed(label, NativeOps.ReadPopulation, reply, reply.Observed);
-            return population.OwnedNames.Where(n => n.PawnId is not null).ToDictionary(n => n.PawnId!, n => n.ShortName ?? "", StringComparer.Ordinal);
+            var population = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+            return population.OwnedNames.ToDictionary(n => n.PawnId.Value, n => n.ShortName, StringComparer.Ordinal);
         }
 
         var pawn = await TypedPawns.FirstColonistAsync(s, "colonist", cancellationToken).ConfigureAwait(false);

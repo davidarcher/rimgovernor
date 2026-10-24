@@ -208,7 +208,7 @@ namespace HomeBridge.BridgeTools
             {
                 var began = Now();
                 observed = observed with { IdeologyActive = ModsConfig.IdeologyActive };
-                try { observed = observed with { Ideology = NativeIdeologyObservation.Build(map) }; } catch (System.Exception ex) { ObservationWork.Failed("ideology", ex); }
+                observed = observed with { Ideology = SnapshotSectionException.Read("ideology", () => NativeIdeologyObservation.Build(map)) };
                 ObservationWork.Captured("ideology", Now() - began, observed.Ideology != null ? observed.Ideology.Precepts.Count : 0);
             }
             {

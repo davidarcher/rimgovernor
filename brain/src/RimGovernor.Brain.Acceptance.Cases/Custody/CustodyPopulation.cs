@@ -67,12 +67,12 @@ internal static class CustodyPopulation
         // Prisoner interaction: the captured candidate.
         await TypedAuthority.GrantAutoAsync(s, cancellationToken).ConfigureAwait(false);
         var prisoner = await PersonAsync(s, "prisoner-before", setup.Candidate, cancellationToken).ConfigureAwait(false);
-        if (prisoner.Resistance is null || prisoner.PrisonerTicks is null)
+        if (prisoner.Custody is not Observations.PersonCustody.Prisoner held)
         {
-            throw new AcceptanceException($"prisoner-before: want native resistance and prisoner ticks, got resistance={prisoner.Resistance} ticks={prisoner.PrisonerTicks}");
+            throw new AcceptanceException($"prisoner-before: want the census to hold {setup.Candidate} as a colony prisoner, got {WireJson.Serialize(prisoner.Custody)}");
         }
 
-        s.Record("prisoner_ticks", prisoner.PrisonerTicks);
+        s.Record("prisoner_ticks", held.HeldTicks);
         await RefusedAsync(s, "interaction-missing", Interaction("Thing_NoSuchPrisoner", Operations.PrisonerInteraction.ReduceResistance), r => r.Code == Common.FailureCode.NotFound, cancellationToken).ConfigureAwait(false);
 
         // A Core mode beyond the routine Recruit/Maintain pair; resending the same intent applies again as it stands.
@@ -127,9 +127,9 @@ internal static class CustodyPopulation
         }
 
         var person = await PersonAsync(s, key + "-read", pawn, cancellationToken).ConfigureAwait(false);
-        if (person.Interaction != def)
+        if (person.Custody is not Observations.PersonCustody.Prisoner { } held || held.Interaction != def)
         {
-            throw new AcceptanceException($"{key}: the census reads interaction {person.Interaction}, want {def}");
+            throw new AcceptanceException($"{key}: the census reads custody {WireJson.Serialize(person.Custody)}, want prisoner interaction {def}");
         }
     }
 
@@ -162,8 +162,7 @@ internal static class CustodyPopulation
     /// <summary>The population census row of <paramref name="pawn"/>.</summary>
     private static async Task<Observations.PopulationPerson> PersonAsync(TypedSession s, string label, string pawn, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var population = TypedReads.Observed(label, NativeOps.ReadPopulation, reply, reply.Observed);
-        return population.Persons.FirstOrDefault(p => p.Pawn?.Id == pawn) ?? throw new AcceptanceException($"{label}: pawn {pawn} missing from the population census");
+        var population = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        return population.Persons.FirstOrDefault(p => p.Pawn.Value == pawn) ?? throw new AcceptanceException($"{label}: pawn {pawn} missing from the population census");
     }
 }

@@ -75,8 +75,8 @@ BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Unknown|4
 BuildingRuntime/Client/FacadeNativeClient.RoundsFrame.cs|Fact|4
 BuildingRuntime/Client/GearRecipeCatalogAdapter.cs|Fact|3
 BuildingRuntime/Client/IdeologyDecoder.cs|Fact|1
-BuildingRuntime/Client/PopulationDecoder.cs|Fact|30
-BuildingRuntime/Client/PopulationDecoder.cs|Unknown|2
+BuildingRuntime/Client/PopulationDecoder.cs|Fact|29
+BuildingRuntime/Client/PopulationDecoder.cs|Unknown|1
 BuildingRuntime/Clock/ClockRunDriver.Decide.cs|Fact|4
 BuildingRuntime/Clock/ClockRunDriver.Decide.cs|Unknown|1
 BuildingRuntime/Clock/ClockScheduler.cs|Discard|1
@@ -363,7 +363,7 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|542
+Contracts/Observations.cs|NullableValue|514
 Contracts/Observations.cs|UnknownMember|10
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
@@ -371,7 +371,7 @@ Contracts/PawnActivities.cs|NullableValue|1
 Contracts/Placement.cs|NullableValue|17
 Contracts/Placement.cs|UnknownMember|1
 Contracts/PracticeActivities.cs|Fact|5
-Contracts/Presentation.cs|NullableValue|30
+Contracts/Presentation.cs|NullableValue|28
 Contracts/Presentation.cs|UnknownMember|1
 Contracts/Receipts.cs|NullableValue|32
 Contracts/Receipts.cs|UnknownMember|5

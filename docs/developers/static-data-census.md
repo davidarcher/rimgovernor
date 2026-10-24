@@ -496,11 +496,10 @@ Kept, reason recorded:
 | RecoveryRestriction | message | 977 | 4 | state | Recovery area restriction/lease on a pawn |  |  |
 | RecoverySnapshot | message | 978 | 3 | state | Recovery restrictions and buildings |  |  |
 | RecoveryReply | message | 980 | 3 | state | Reply envelope (observed, absent when the read failed) |  |  |
-| PopulationPerson | message | 983 | 24 | state | Prisoner/guest/colonist population facts |  |  |
-| PopulationSnapshot | message | 1015 | 11 | state | Population persons, ideology flags and storyteller outlook |  |  |
+| PopulationPerson | message | 983 | 12 | state | Prisoner/guest/colonist population facts, read whole; how the colony holds the person is a PersonCustody (prisoner, guest, none) |  |  |
+| PopulationSnapshot | message | 1015 | 4 | state | Population persons, the colony ideology mode (ColonyIdeology: not installed, or installed with classic mode and primary ideoligion) and owned names |  |  |
 | OwnedName | message | 1032 | 3 | state | Owned pawn short name and thing id |  |  |
 | PopulationRequest | message | 1033 | 1 | state | Read request parameters |  |  |
-| PopulationReply | message | 1034 | 3 | state | Reply envelope (observed, absent when the read failed) |  |  |
 | Settlement | message | 1035 | 13 | state | World settlement row |  |  |
 | WorldTile | message | 1036 | 16 | state | World tile climate and geography row |  |  |
 | WorldSnapshot | message | 1043 | 3 | state | World tile plus settlements |  |  |
@@ -740,10 +739,10 @@ Kept, reason recorded:
 | StatEnv | message | 2377 | 6 | code | Deleted: the game's own `StatWorker` computes every catalog stat in process (`NativeStatTable`, `DefStatTable`), scenario and difficulty included |  |  |
 | StatFactor | message | 2385 | 2 | code | Deleted with StatEnv |  |  |
 | CatalogDerived | message | 2392 | 3 | code | Moved into the native mod: `NativeDefinitionCatalogTool.BrainDerived` computes the currency def, wort def and full rot rate in process as the in-memory `CatalogDerived` record (#3100) |  |  |
-| IdeologySnapshot | message | 2434 | 17 | state | Primary ideoligion: memes, precepts, roles, rituals, believers, reform state, styles, venerated animals |  |  |
+| IdeologySnapshot | message | 2434 | 17 | state | Primary ideoligion: memes, precepts, roles, rituals, believers, reform state (IdeoDevelopment: fixed or fluid), styles, venerated animals |  |  |
 | IdeoPrecept | message | 2443 | 2 | state | Precept in force id and def name |  |  |
 | IdeoRole | message | 2446 | 4 | state | Role precept active flag and holder pawns |  |  |
-| IdeoRitual | message | 2451 | 7 | state | Ritual precept last finished tick, obligations, running |  |  |
+| IdeoRitual | message | 2451 | 6 | state | Ritual precept last finished tick, obligations, running |  |  |
 | IdeoBuilding | message | 2453 | 3 | state | Building precept and ThingDef it takes |  |  |
 | StatEffect | message | 2459 | 3 | excluded | Biotech stat modifier |  | excluded owner #2630 owner Biotech |
 | SkillLevel | message | 2460 | 2 | excluded | Biotech skill level |  | excluded owner #2630 owner Biotech |

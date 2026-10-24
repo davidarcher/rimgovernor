@@ -16,7 +16,7 @@ internal sealed class FacadePlayerAdapter(FacadeNativeClient client) : IPresenta
     public Task<PbPresentation.SelectionSnapshot> ReadSelectionAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken) =>
         client.ReadSelectionAsync(request, cancellationToken);
 
-    public Task<PbPresentation.ColonistRosterReply> ReadColonistRosterAsync(PbPresentation.ColonistRosterRequest request, CancellationToken cancellationToken) =>
+    public Task<PbPresentation.ColonistRoster> ReadColonistRosterAsync(PbPresentation.ColonistRosterRequest request, CancellationToken cancellationToken) =>
         client.ReadColonistRosterAsync(request, cancellationToken);
 
     public Task<PbPresentation.RenderStatus> ReadRenderStateAsync(PbPresentation.ReadRequest request, CancellationToken cancellationToken) =>

@@ -1,5 +1,6 @@
 using RimGovernor.Brain.Bridge;
 using RimGovernor.Brain.BuildingRuntime;
+using RimGovernor.Contracts.Wire;
 using IdeoDevelopment = RimGovernor.Brain.Policy.IdeoDevelopment;
 using WorkPawn = RimGovernor.Brain.Policy.WorkPawn;
 using RimWorld;
@@ -17,18 +18,60 @@ public sealed class IdeologyReadsTests
     private static readonly MemeDef Cannibal = new() { defName = "Cannibalism" };
     private static readonly MemeDef Pure = new() { defName = "Purity" };
 
+    /// <summary>A fixed ideoligion holding nothing: the shared whole section the tests build theirs from.</summary>
+    internal static readonly Obs.IdeologySnapshot NoPrecepts = new()
+    {
+        IdeoId = "Ideo_1",
+        Memes = [],
+        Precepts = [],
+        Roles = [],
+        Rituals = [],
+        Buildings = [],
+        Believers = 0,
+        BelieverPawns = [],
+        Development = new Obs.IdeoDevelopment.Fixed(),
+        StyleCategories = [],
+        VeneratedAnimals = [],
+    };
+
+    [Fact]
+    public void JsonRoundTripIsExact()
+    {
+        var snapshot = NoPrecepts with
+        {
+            Memes = ["Nudism"],
+            Precepts = [new Obs.IdeoPrecept { Id = "Precept_1", DefName = "Nudity_Male_Required" }],
+            Roles = [new Obs.IdeoRole { Id = "Precept_2", DefName = "IdeoRole_Leader", Active = true, Pawns = [new PawnId("Human7")], Converts = false, ConvertReady = false }],
+            Rituals = [new Obs.IdeoRitual { Id = "Precept_3", Pattern = "Gathering", LastFinishedTick = -1, ActiveObligations = 0, RepeatPenaltyActive = false, Running = false }],
+            Buildings =
+            [
+                new Obs.IdeoBuilding
+                {
+                    Building = "Altar", Applies = true, Present = false, Satisfied = false, MinArea = 25, MinImpressiveness = 0, FloorTags = [],
+                    Things = [new("Column", 2)], ForbiddenBuildingTags = [], Unread = [],
+                },
+            ],
+            Believers = 1,
+            BelieverPawns = [new PawnId("Human7")],
+            Development = new Obs.IdeoDevelopment.Fluid(true, 7, 2, 12),
+        };
+
+        var json = WireJson.Serialize(snapshot);
+
+        Assert.Equal(
+            """{"ideoId":"Ideo_1","memes":["Nudism"],"precepts":[{"id":"Precept_1","defName":"Nudity_Male_Required"}],"roles":[{"id":"Precept_2","defName":"IdeoRole_Leader","active":true,"pawns":["Human7"],"converts":false,"convertReady":false}],"rituals":[{"id":"Precept_3","pattern":"Gathering","lastFinishedTick":-1,"activeObligations":0,"repeatPenaltyActive":false,"running":false}],"buildings":[{"building":"Altar","applies":true,"present":false,"satisfied":false,"minArea":25,"minImpressiveness":0,"floorTags":[],"things":[{"def":"Column","count":2}],"forbiddenBuildingTags":[],"unread":[]}],"believers":1,"believerPawns":["Human7"],"development":{"type":"fluid","canReform":true,"points":7,"reformCount":2,"nextReformPoints":12},"styleCategories":[],"veneratedAnimals":[]}""",
+            json);
+        Assert.Equal(snapshot, WireJson.Deserialize<Obs.IdeologySnapshot>(json));
+        Assert.Equal(NoPrecepts, WireJson.Deserialize<Obs.IdeologySnapshot>(WireJson.Serialize(NoPrecepts)));
+    }
+
     [Fact]
     public void SnapshotRoundTripsStylesVeneratedAnimalsAndDevelopment()
     {
-        var snapshot = new Obs.IdeologySnapshot
+        var snapshot = NoPrecepts with
         {
-            IdeoId = "Ideo_1",
             Believers = 3,
-            Fluid = true,
-            CanReform = true,
-            DevelopmentPoints = 7,
-            ReformCount = 2,
-            NextReformPoints = 12,
+            Development = new Obs.IdeoDevelopment.Fluid(true, 7, 2, 12),
             StyleCategories = ["Rustic", "Totemic"],
             VeneratedAnimals = ["Muffalo", "Thrumbo"],
         };
@@ -42,18 +85,19 @@ public sealed class IdeologyReadsTests
     }
 
     [Fact]
-    public void DevelopmentStaysUnknownWhenTheSectionCarriesNone()
+    public void AFixedIdeoligionNeverReforms()
     {
-        var ideo = IdeologyDecoder.Decode(new Obs.IdeologySnapshot { IdeoId = "Ideo_1" }, Catalog());
+        var ideo = IdeologyDecoder.Decode(NoPrecepts, Catalog());
 
-        Assert.False(ideo.Facts.Development.TryGetValue(out _));
+        Assert.True(ideo.Facts.Development.TryGetValue(out var development));
+        Assert.Equal(new IdeoDevelopment(false, false, 0, 0, 0), development);
         Assert.Empty(ideo.Facts.StyleCategories);
     }
 
     [Fact]
     public void BelieverListReportsCertaintiesAndSkipsTheNonBeliever()
     {
-        var ideo = IdeologyDecoder.Decode(new Obs.IdeologySnapshot { IdeoId = "Ideo_1", Believers = 3 }, Catalog());
+        var ideo = IdeologyDecoder.Decode(NoPrecepts with { Believers = 3 }, Catalog());
         var pawns = Known(EquatableArray.From(new[]
         {
             Pawn("a", "Ideo_1", 0.8),
@@ -72,7 +116,7 @@ public sealed class IdeologyReadsTests
     [Fact]
     public void BelieverListIsUnknownWhenAPawnRowLacksPolicyInputs()
     {
-        var ideo = IdeologyDecoder.Decode(new Obs.IdeologySnapshot { IdeoId = "Ideo_1" }, Catalog());
+        var ideo = IdeologyDecoder.Decode(NoPrecepts, Catalog());
         var unread = new WorkPawn { Id = new PawnId("a") };
 
         Assert.False(ideo.BelieverList(Known(EquatableArray.From(new[] { unread }))).TryGetValue(out _));

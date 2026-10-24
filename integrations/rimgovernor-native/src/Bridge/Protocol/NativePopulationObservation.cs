@@ -1,10 +1,7 @@
 #nullable enable
 using System;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
 using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
@@ -24,16 +21,20 @@ namespace HomeBridge.BridgeTools
     // is deferred to whatever candidate search eventually needs one.
     internal static class NativePopulationObservation
     {
-        internal static Obs.PopulationReply HandleReadPopulation(Obs.PopulationRequest request)
+        // On the game thread: the typed core of the tool, shared with the in-process facade. A refused request
+        // or a population that cannot be read completely throws.
+        internal static Obs.PopulationSnapshot HandleReadPopulation(Obs.PopulationRequest request)
         {
-            if (!ValidatePopulation(request, out var failure0)) { ReadFailureLog.Note("population", failure0.Detail); return new Obs.PopulationReply(); }
+            if (!ValidatePopulation(request, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
             if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var failure))
+                throw NativeFaults.Refused(failure);
+            try { return Population(map, request, context); }
+            catch (Exception error)
             {
-                ReadFailureLog.Note("population", failure.Detail);
-                return new Obs.PopulationReply();
+                ModLog.Error("observe", "Population read failed: " + error);
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed,
+                    Detail = PlacementPreviewOperation.Diagnostic("Population could not be read completely: " + error.GetType().Name + ": " + error.Message) });
             }
-            try { return new Obs.PopulationReply { Observed = Population(map, request, context) }; }
-            catch (Exception error) { ModLog.Error("observe", "Population read failed: " + error); ReadFailureLog.Note("population", error); return new Obs.PopulationReply(); }
         }
 
         internal static bool ValidatePopulation(Obs.PopulationRequest request, out Common.Failure failure)
@@ -42,81 +43,85 @@ namespace HomeBridge.BridgeTools
             return request?.Scope?.ExpectedIdentity != null;
         }
 
-        // The population as a frame section: a read that throws fails the frame.
+        // The population as a frame section: a read that throws fails the frame. Every person is read whole.
         internal static Obs.PopulationSnapshot Population(Map map, Obs.PopulationRequest request, Common.ObservationContext context)
         {
             var player = Faction.OfPlayerSilentFail ?? throw new InvalidOperationException("Player faction missing.");
             var people = map.mapPawns.AllPawnsSpawned.Where(p => p.RaceProps.Humanlike).OrderBy(p => p.thingIDNumber).ToList();
-            var snapshot = new Obs.PopulationSnapshot { Context = context };
+            var persons = new System.Collections.Generic.List<Obs.PopulationPerson>(people.Count);
             foreach (var p in people)
             {
-                var person = new Obs.PopulationPerson { Pawn = NativePawnObservationTools.Ref(p), Admitted = p.IsFreeColonist && p.Faction == player, Guest = p.HostFaction == player };
-                if (p.guest != null)
+                var guest = p.guest ?? throw new InvalidOperationException("Humanlike without a guest tracker.");
+                var health = p.health?.summaryHealth ?? throw new InvalidOperationException("Humanlike without a health summary.");
+                persons.Add(new Obs.PopulationPerson
                 {
-                    person = person with { Recruitable = p.guest.Recruitable };
-                    person = person with { Resistance = Number(p.guest.Resistance) };
-                    var interaction = p.guest.ExclusiveInteractionMode?.defName;
-                    if (interaction != null) person = person with { Interaction = NativePawnObservationTools.Id(interaction) };
-                    // Time held so far (the TimeAsPrisoner record, in ticks): the
-                    // routine release path's "held N days with resistance
-                    // unbroken" clock. Only a current prisoner carries it.
-                    if (p.IsPrisoner && p.records != null) person = person with { PrisonerTicks = (long)p.records.GetValue(RecordDefOf.TimeAsPrisoner) };
-                }
-                if (p.Ideo != null) person = person with { IdeoId = NativePawnObservationTools.Id(p.Ideo.GetUniqueLoadID()) };
-                // Prospect facts: the prisoners family weighs a prisoner's
-                // skills, traits, age and health against the free colonists';
-                // a hostile's skills rank it as a lance target.
-                if (p.IsPrisonerOfColony || person.Admitted.GetValueOrDefault() || p.HostileTo(player))
-                {
-                    person = person with { WildMan = p.IsWildMan() };
-                    person = person with { Biography = NativePawnDetails.Biography(p) };
-                    if (p.health?.summaryHealth != null) person = person with { HealthSummary = Number(p.health.summaryHealth.SummaryHealthPercent) };
-                    // After combat: a luciferium addict is stripped and
-                    // finished, not captured; every raider is stripped first.
-                    person = person with { LuciferiumAddicted = CombatMirror.HasHediff(p, "LuciferiumAddiction") };
-                    person = person with { WearingApparel = p.apparel?.WornApparel.Count > 0 };
-                }
-                // Organ harvest facts: a colony prisoner's surgery
-                // facts through the care read's own producer, its home faction
-                // and vanilla's harvest goodwill report (Recipe_RemoveBodyPart
-                // reports -70 to HomeFaction when the pawn has a faction).
-                // Medical care cap inputs: colony prisoners and hosted guests.
-                if (p.IsPrisonerOfColony || (p.HostFaction == player && !p.IsPrisoner && !p.IsSlave))
-                {
-                    if (p.playerSettings != null) person = person with { MedicalCare = NativeEnums.Care(p.playerSettings.medCare) };
-                    person = person with { Conditions = NativePawnDetails.Conditions(p) };
-                }
-                if (p.IsPrisonerOfColony)
-                {
-                    person = person with { Surgery = NativePawnDetails.Surgery(p) };
-                    if (p.playerSettings != null) person = person with { MedicalCare = NativeEnums.Care(p.playerSettings.medCare) };
-                    var home = p.Faction == null ? null : p.HomeFaction;
-                    person = person with { HarvestGoodwillChange = 0 };
-                    if (home != null && !home.IsPlayer)
-                    {
-                        person = person with { Faction = NativeRef.Of(NativePawnObservationTools.Id(home.GetUniqueLoadID())) };
-                        if (player.CanChangeGoodwillFor(home, -70))
-                            person = person with { HarvestGoodwillChange = Math.Max(player.CalculateAdjustedGoodwillChange(home, -70), -100 - player.GoodwillWith(home)) };
-                    }
-                }
-                person = person with { WillJoinIfRescued = p.mindState.WillJoinColonyIfRescued };
-                snapshot = snapshot with { Persons = [.. snapshot.Persons, person] };
+                    Pawn = PawnId(p),
+                    Admitted = p.IsFreeColonist && p.Faction == player,
+                    Guest = p.HostFaction == player,
+                    Recruitable = guest.Recruitable,
+                    IdeoId = p.Ideo == null ? null : NativePawnObservationTools.Id(p.Ideo.GetUniqueLoadID()),
+                    // Prospect facts: the prisoners family weighs a prisoner's skills, traits, age and health against
+                    // the free colonists'; a hostile's skills rank it as a lance target.
+                    WildMan = p.IsWildMan(),
+                    Biography = NativePawnDetails.Biography(p),
+                    HealthSummary = Number(health.SummaryHealthPercent),
+                    // After combat: a luciferium addict is stripped and finished, not captured; every raider is stripped first.
+                    LuciferiumAddicted = CombatMirror.HasHediff(p, "LuciferiumAddiction"),
+                    WearingApparel = p.apparel?.WornApparel.Count > 0,
+                    Custody = Custody(p, player, guest),
+                    WillJoinIfRescued = p.mindState.WillJoinColonyIfRescued,
+                });
             }
             // Owned-pawn names: the census the unique-name planner reads.
-            foreach (var owned in NativePawnSettings.OwnedNamedPawns())
-                snapshot = snapshot with { OwnedNames = [.. snapshot.OwnedNames, new Obs.OwnedName { PawnId = NativePawnObservationTools.Id(owned.GetUniqueLoadID()), ShortName = NativePawnObservationTools.Text(owned.Name.ToStringShort), ThingId = owned.thingIDNumber }] };
-            snapshot = snapshot with { IdeologyActive = ModsConfig.IdeologyActive };
-            if (ModsConfig.IdeologyActive)
+            var names = NativePawnSettings.OwnedNamedPawns().Select(owned => new Obs.OwnedName
             {
-                snapshot = snapshot with { ClassicIdeoMode = Find.IdeoManager.classicMode };
-                var ideo = player.ideos?.PrimaryIdeo;
-                if (ideo != null)
-                {
-                    snapshot = snapshot with { ColonyIdeoId = NativePawnObservationTools.Id(ideo.GetUniqueLoadID()) };
-                }
-            }
-            return snapshot;
+                PawnId = PawnId(owned),
+                ShortName = NativePawnObservationTools.Text(owned.Name.ToStringShort),
+                ThingId = owned.thingIDNumber,
+            }).ToList();
+            Obs.ColonyIdeology ideology = ModsConfig.IdeologyActive
+                ? new Obs.ColonyIdeology.Installed(Find.IdeoManager.classicMode,
+                    player.ideos?.PrimaryIdeo is Ideo ideo ? NativePawnObservationTools.Id(ideo.GetUniqueLoadID()) : null)
+                : new Obs.ColonyIdeology.NotInstalled();
+            return new Obs.PopulationSnapshot { Context = context, Persons = [.. persons], Ideology = ideology, OwnedNames = [.. names] };
         }
 
-        private static double Number(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native fact.") : value;    }
+        // A colony prisoner's custody facts: its resistance and interaction, the time held, its care and surgery
+        // facts through the care read's own producers, its home faction and vanilla's harvest goodwill report
+        // (Recipe_RemoveBodyPart reports -70 to HomeFaction when the pawn has a faction). A hosted guest carries
+        // its medical care cap inputs.
+        private static Obs.PersonCustody Custody(Pawn p, Faction player, Pawn_GuestTracker guest)
+        {
+            if (p.IsPrisonerOfColony)
+            {
+                var settings = p.playerSettings ?? throw new InvalidOperationException("Colony prisoner without player settings.");
+                var interaction = guest.ExclusiveInteractionMode ?? throw new InvalidOperationException("Colony prisoner without an interaction mode.");
+                var records = p.records ?? throw new InvalidOperationException("Colony prisoner without records.");
+                var home = p.Faction == null ? null : p.HomeFaction;
+                var faction = home != null && !home.IsPlayer ? home : null;
+                var goodwill = faction != null && player.CanChangeGoodwillFor(faction, -70)
+                    ? Math.Max(player.CalculateAdjustedGoodwillChange(faction, -70), -100 - player.GoodwillWith(faction))
+                    : 0;
+                return new Obs.PersonCustody.Prisoner(
+                    Number(guest.Resistance),
+                    NativePawnObservationTools.Id(interaction.defName),
+                    (long)records.GetValue(RecordDefOf.TimeAsPrisoner),
+                    NativeEnums.Care(settings.medCare),
+                    NativePawnDetails.Conditions(p),
+                    NativePawnDetails.Surgery(p) ?? throw new InvalidOperationException("Spawned colony prisoner without surgery facts."),
+                    faction == null ? null : NativeRef.Of(NativePawnObservationTools.Id(faction.GetUniqueLoadID())),
+                    goodwill);
+            }
+            if (p.HostFaction == player && !p.IsPrisoner && !p.IsSlave)
+            {
+                var settings = p.playerSettings ?? throw new InvalidOperationException("Colony guest without player settings.");
+                return new Obs.PersonCustody.Guest(NativeEnums.Care(settings.medCare), NativePawnDetails.Conditions(p));
+            }
+            return new Obs.PersonCustody.None();
+        }
+
+        private static RimGovernor.Brain.Domain.PawnId PawnId(Pawn pawn) => new(NativePawnObservationTools.Id(pawn.GetUniqueLoadID()));
+
+        private static double Number(double value) => double.IsNaN(value) || double.IsInfinity(value) ? throw new InvalidOperationException("Nonfinite native fact.") : value;
+    }
 }

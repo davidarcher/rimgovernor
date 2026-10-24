@@ -118,7 +118,7 @@ internal static class MapscopeIsolation
         _ = await s.FixtureAsync("view-home", View, home.MapId, cancellationToken).ConfigureAwait(false);
         var back = await TypedAuthority.StatusAsync(s, "status-back-home", home, cancellationToken).ConfigureAwait(false);
         _ = await TypedAuthority.GrantAsync(s, "regrant-home", home, back.Context?.NativeGeneration ?? throw new AcceptanceException($"status-back-home: no generation: {back}"), cancellationToken).ConfigureAwait(false);
-        var colonist = roster[0].PawnId ?? throw new AcceptanceException("roster: the first colonist has no pawn id");
+        var colonist = roster[0].PawnId.Value;
         var draft = await s.CallAsync(
             "draft",
             NativeOps.Apply,
@@ -150,8 +150,8 @@ internal static class MapscopeIsolation
 
     private static async Task<IReadOnlyList<Presentation.ColonistReference>> RosterAsync(TypedSession s, string label, Presentation.ColonistRosterRequest request, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadColonists, request, cancellationToken).ConfigureAwait(false);
-        return reply.Outcome?.Roster?.Colonists.ToList() ?? throw new AcceptanceException($"{label}: want a roster, got {reply.Outcome}");
+        var roster = await s.CallAsync(label, NativeOps.ReadColonists, request, cancellationToken).ConfigureAwait(false);
+        return roster.Colonists.ToList();
     }
 
     // A STALE_IDENTITY refusal carrying the viewed map's context.

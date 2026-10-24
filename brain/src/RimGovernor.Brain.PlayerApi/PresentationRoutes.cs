@@ -60,8 +60,8 @@ public static class PresentationRoutes
             }, ct), Bounded));
             registrations.Add(routes.Map("GET", ColonistsPath, (request, ct) => ReadAsync(snapshots, request, async (id, token) =>
             {
-                var reply = await reader.ReadColonistRosterAsync(new ColonistRosterRequest { Identity = id, CurrentMapOnly = true }, token).ConfigureAwait(false);
-                return (reply, reply.Outcome?.Roster?.Context);
+                var roster = await reader.ReadColonistRosterAsync(new ColonistRosterRequest { Identity = id, CurrentMapOnly = true }, token).ConfigureAwait(false);
+                return (roster, roster.Context);
             }, ct), Bounded));
             registrations.Add(routes.Map("GET", RenderStatePath, (request, ct) => ReadAsync(snapshots, request, async (id, token) =>
             {

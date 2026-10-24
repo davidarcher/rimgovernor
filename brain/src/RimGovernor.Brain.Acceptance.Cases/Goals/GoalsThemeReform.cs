@@ -84,17 +84,18 @@ internal static class GoalsThemeReform
         _ = await s.ServeUntilAsync("theme-reform", s.TicksLeft, async ct =>
         {
             var ideology = await ReadAsync(s, "observe", ct).ConfigureAwait(false);
-            var done = ideology is { ReformCount: { } count } && count > prepared.Count;
+            var fluid = ideology?.Development as Observations.IdeoDevelopment.Fluid;
+            var done = fluid is not null && fluid.ReformCount > prepared.Count;
             if (done)
             {
                 reformed = ideology;
             }
 
-            return (string.Create(CultureInfo.InvariantCulture, $"{ideology?.ReformCount} {ideology?.DevelopmentPoints}"), done);
+            return (string.Create(CultureInfo.InvariantCulture, $"{fluid?.ReformCount} {fluid?.Points}"), done);
         }, cancellationToken).ConfigureAwait(false);
 
         var added = (reformed ?? throw new AcceptanceException("no reform was observed")).Memes.Except(baseline.Memes)
-            .Concat(reformed.Precepts.Select(p => p.DefName ?? "").Except(baseline.Precepts))
+            .Concat(reformed.Precepts.Select(p => p.DefName).Except(baseline.Precepts))
             .ToList();
         s.Record("added", string.Join(' ', added));
         var rows = preceptIds.SelectMany(id => GoalReviews.Of(s, id)).ToList();

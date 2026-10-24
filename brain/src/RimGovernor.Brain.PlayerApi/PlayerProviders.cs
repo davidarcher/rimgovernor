@@ -150,7 +150,7 @@ public interface IPresentationReader
 
     Task<SelectionSnapshot> ReadSelectionAsync(ReadRequest request, CancellationToken cancellationToken);
 
-    Task<ColonistRosterReply> ReadColonistRosterAsync(ColonistRosterRequest request, CancellationToken cancellationToken);
+    Task<ColonistRoster> ReadColonistRosterAsync(ColonistRosterRequest request, CancellationToken cancellationToken);
 
     Task<RenderStatus> ReadRenderStateAsync(ReadRequest request, CancellationToken cancellationToken);
 }

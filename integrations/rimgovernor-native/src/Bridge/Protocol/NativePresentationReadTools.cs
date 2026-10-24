@@ -50,29 +50,29 @@ namespace HomeBridge.BridgeTools
             throw NativeFaults.Refused(refusal);
         }
 
-        // On the game thread: the typed core of the tool, shared with the in-process facade.
-        internal static Presentation.ColonistRosterReply HandleColonists(Presentation.ColonistRosterRequest parsed)
+        // On the game thread: the colonist roster read of the in-process facade, every spawned free colonist with its map.
+        // A refusal throws.
+        internal static Presentation.ColonistRoster HandleColonists(Presentation.ColonistRosterRequest parsed)
         {
-            if (!ValidateColonists(parsed, out var invalidRequest)) return new Presentation.ColonistRosterReply { Outcome = invalidRequest };
-            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var error))
-                return new Presentation.ColonistRosterReply { Outcome = error };
+            if (!ValidateColonists(parsed, out var invalidRequest)) throw NativeFaults.Refused(invalidRequest);
+            if (!ProtoBoundary.ValidateIdentity(parsed.Identity, out var context, out var error)) throw NativeFaults.Refused(error);
+            Common.Failure refusal;
             try
             {
-                var maps = parsed.CurrentMapOnly.GetValueOrDefault() ? new[] { ProtoBoundary.LoadedMap(context) } : Find.Maps.ToArray();
+                var maps = parsed.CurrentMapOnly ? new[] { ProtoBoundary.LoadedMap(context) } : Find.Maps.ToArray();
                 var pawns = maps.SelectMany(m => m.mapPawns.FreeColonistsSpawned).Distinct().OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).ToList();
-                var roster = new Presentation.ColonistRoster { Context = context };
+                var colonists = new List<Presentation.ColonistReference>(pawns.Count);
                 foreach (var pawn in pawns)
                 {
                     if (!pawn.Spawned || pawn.Map == null || !pawn.Position.InBounds(pawn.Map)) throw new InvalidOperationException("Spawned colonist context unavailable.");
-                    var reference = new Presentation.ColonistReference { PawnId = Id(pawn.GetUniqueLoadID()),
-                        MapId = pawn.Map.uniqueID };
-                    roster = roster with { Colonists = [.. roster.Colonists, reference] };
+                    colonists.Add(new Presentation.ColonistReference { PawnId = new RimGovernor.Brain.Domain.PawnId(Id(pawn.GetUniqueLoadID())), MapId = pawn.Map.uniqueID });
                 }
-                if (roster.Colonists.Select(p => (p.PawnId ?? "")).Distinct(StringComparer.Ordinal).Count() != roster.Colonists.Count)
+                if (colonists.Select(p => p.PawnId).Distinct().Count() != colonists.Count)
                     throw new InvalidOperationException("Native colonist IDs are not unique.");
-                return new Presentation.ColonistRosterReply { Outcome = roster };
+                return new Presentation.ColonistRoster { Context = context, Colonists = [.. colonists] };
             }
-            catch (Exception errorRead) { return new Presentation.ColonistRosterReply { Outcome = ReadFailure(errorRead) }; }
+            catch (Exception errorRead) { refusal = ReadFailure(errorRead); }
+            throw NativeFaults.Refused(refusal);
         }
 
         internal static bool ValidateRead(Presentation.ReadRequest request, out Common.Failure failure)

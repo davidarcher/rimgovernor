@@ -27,12 +27,11 @@ namespace HomeBridge.BridgeTools
         // tested before the base they derive from.
         private static Obs.IdeoBuilding Building(Map map, Precept_Building building)
         {
-            var row = new Obs.IdeoBuilding { Building = building.ThingDef == null ? null : Id(building.ThingDef.defName) };
-            if (building.presenceDemand is not { } demand || building.ThingDef == null) return row;
+            var thing = building.ThingDef ?? throw new InvalidOperationException("Building precept " + building.def.defName + " has no ThingDef.");
+            var demand = building.presenceDemand ?? throw new InvalidOperationException("Building precept " + building.def.defName + " has no presence demand.");
             var requirements = demand.roomRequirements ?? new List<RoomRequirement>();
             var satisfied = requirements.Count == 0 || demand.AllBuildings(map).Any(b => b.GetRoom() != null
                 && demand.GetEffectiveRoom(b) is { } room && requirements.All(r => r.MetOrDisabled(room)));
-            row = row with { Applies = demand.AppliesTo(map), Present = demand.BuildingPresent(map), Satisfied = satisfied };
             int area = 0, impressiveness = 0;
             var floors = new List<string>();
             var things = new List<Obs.IdeoThingCount>();
@@ -51,8 +50,12 @@ namespace HomeBridge.BridgeTools
                     default: unread.Add(requirement?.GetType().Name ?? "null"); break;
                 }
             }
-            return row with
+            return new Obs.IdeoBuilding
             {
+                Building = Id(thing.defName),
+                Applies = demand.AppliesTo(map),
+                Present = demand.BuildingPresent(map),
+                Satisfied = satisfied,
                 MinArea = area,
                 MinImpressiveness = impressiveness,
                 FloorTags = [.. Sorted(floors.Distinct())],
@@ -63,49 +66,62 @@ namespace HomeBridge.BridgeTools
         }
 
         // The player faction's primary ideoligion as it stands; null without
-        // Ideology or a primary ideoligion.
+        // Ideology or a primary ideoligion. A fluid ideoligion without its
+        // development tracker, or a ritual without its pattern, throws.
         internal static Obs.IdeologySnapshot? Build(Map map)
         {
             if (!ModsConfig.IdeologyActive) return null;
             var ideo = Faction.OfPlayerSilentFail?.ideos?.PrimaryIdeo;
             if (ideo == null) return null;
-            var row = new Obs.IdeologySnapshot { IdeoId = Id(ideo.GetUniqueLoadID()),
-                Believers = ideo.ColonistBelieverCountCached,
-                BelieverPawns = [.. map.mapPawns.FreeColonistsSpawned.Where(p => !p.IsSlave && p.Ideo == ideo)
-                    .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Select(Ref)] };
-            row = row with { Memes = [.. Sorted(Names(ideo.memes))] };
-            row = row with { StyleCategories = [.. Sorted(ideo.thingStyleCategories.Where(c => c?.category != null).Select(c => Id(c.category.defName)))] };
-            row = row with { VeneratedAnimals = [.. Sorted(Names(ideo.VeneratedAnimals))] };
-            row = row with { Fluid = ideo.Fluid };
-            if (ideo.Fluid && ideo.development == null) return null;
-            row = row with { CanReform = ideo.Fluid && ideo.development!.CanReformNow };
-            row = row with { DevelopmentPoints = ideo.Fluid ? ideo.development!.Points : 0 };
-            row = row with { ReformCount = ideo.Fluid ? ideo.development!.reformCount : 0 };
-            row = row with { NextReformPoints = ideo.Fluid ? ideo.development!.NextReformationDevelopmentPoints : 0 };
+            Obs.IdeoDevelopment development = new Obs.IdeoDevelopment.Fixed();
+            if (ideo.Fluid)
+            {
+                var d = ideo.development ?? throw new InvalidOperationException("Fluid ideoligion without its development tracker.");
+                development = new Obs.IdeoDevelopment.Fluid(d.CanReformNow, d.Points, d.reformCount, d.NextReformationDevelopmentPoints);
+            }
+            var precepts = new List<Obs.IdeoPrecept>();
+            var roles = new List<Obs.IdeoRole>();
+            var rituals = new List<Obs.IdeoRitual>();
+            var buildings = new List<Obs.IdeoBuilding>();
             foreach (var precept in ideo.PreceptsListForReading.OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal)) {
                 var id = Id(precept.GetUniqueLoadID());
                 var def = Id(precept.def.defName);
                 switch (precept) {
                     case Precept_Role role:
-                        var held = new Obs.IdeoRole { Id = id, DefName = def, Active = role.Active };
                         var holders = role.ChosenPawns().OrderBy(p => p.thingIDNumber).ToList();
-                        held = held with { Pawns = [.. holders.Select(Ref)] };
-                        held = held with { Converts = NativeConversionOperations.Grants(role.def), ConvertReady = holders.Any(NativeConversionOperations.Charged) };
-                        row = row with { Roles = [.. row.Roles, held] };
+                        roles.Add(new Obs.IdeoRole { Id = id, DefName = def, Active = role.Active, Pawns = [.. holders.Select(PawnId)],
+                            Converts = NativeConversionOperations.Grants(role.def), ConvertReady = holders.Any(NativeConversionOperations.Charged) });
                         break;
                     case Precept_Ritual ritual:
-                        row = row with { Rituals = [.. row.Rituals, new Obs.IdeoRitual { Id = id, Pattern = ritual.sourcePattern == null ? null : Id(ritual.sourcePattern.defName),
-                            LastFinishedTick = ritual.lastFinishedTick, ActiveObligations = ritual.activeObligations?.Count ?? 0, RepeatPenaltyActive = ritual.RepeatPenaltyActive, Running = NativeRitualBegin.Running(ritual) }] };
+                        var pattern = ritual.sourcePattern ?? throw new InvalidOperationException("Ritual precept " + def + " has no source pattern.");
+                        rituals.Add(new Obs.IdeoRitual { Id = id, Pattern = Id(pattern.defName), LastFinishedTick = ritual.lastFinishedTick,
+                            ActiveObligations = ritual.activeObligations?.Count ?? 0, RepeatPenaltyActive = ritual.RepeatPenaltyActive, Running = NativeRitualBegin.Running(ritual) });
                         break;
                     case Precept_Building building:
-                        row = row with { Buildings = [.. row.Buildings, Building(map, building)] };
+                        buildings.Add(Building(map, building));
                         break;
                     default:
-                        row = row with { Precepts = [.. row.Precepts, new Obs.IdeoPrecept { Id = id, DefName = def }] };
+                        precepts.Add(new Obs.IdeoPrecept { Id = id, DefName = def });
                         break;
                 }
             }
-            return row;
+            return new Obs.IdeologySnapshot
+            {
+                IdeoId = Id(ideo.GetUniqueLoadID()),
+                Memes = [.. Sorted(Names(ideo.memes))],
+                Precepts = [.. precepts],
+                Roles = [.. roles],
+                Rituals = [.. rituals],
+                Buildings = [.. buildings],
+                Believers = ideo.ColonistBelieverCountCached,
+                BelieverPawns = [.. map.mapPawns.FreeColonistsSpawned.Where(p => !p.IsSlave && p.Ideo == ideo)
+                    .OrderBy(p => p.GetUniqueLoadID(), StringComparer.Ordinal).Select(PawnId)],
+                Development = development,
+                StyleCategories = [.. Sorted(ideo.thingStyleCategories.Where(c => c?.category != null).Select(c => Id(c.category.defName)))],
+                VeneratedAnimals = [.. Sorted(Names(ideo.VeneratedAnimals))],
+            };
         }
+
+        private static RimGovernor.Brain.Domain.PawnId PawnId(Pawn pawn) => new(Id(pawn.GetUniqueLoadID()));
     }
 }

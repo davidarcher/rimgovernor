@@ -63,52 +63,22 @@ public sealed record ColonistRosterRequest
 {
     public Common.Identity? Identity { get; init; }
 
-    public bool? CurrentMapOnly { get; init; }
+    public required bool CurrentMapOnly { get; init; }
 }
 
 public sealed record ColonistReference
 {
-    public string? PawnId { get; init; }
+    public required PawnId PawnId { get; init; }
 
-    public int? MapId { get; init; }
+    public required int MapId { get; init; }
 }
 
 public sealed record ColonistRoster
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ColonistReference>))]
-    public EquatableArray<ColonistReference> Colonists { get; init; }
-}
-
-public sealed record ColonistRosterReply
-{
-    public ColonistRosterReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ColonistRosterReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ColonistRosterReplyOutcome.RosterCase), "roster")]
-[JsonDerivedType(typeof(ColonistRosterReplyOutcome.FailureCase), "failure")]
-public abstract record ColonistRosterReplyOutcome
-{
-    private protected ColonistRosterReplyOutcome() { }
-
-    /// <summary>The <c>Roster</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ColonistRoster? Roster => (this as RosterCase)?.Value;
-
-    public sealed record RosterCase(ColonistRoster Value) : ColonistRosterReplyOutcome;
-
-    public static implicit operator ColonistRosterReplyOutcome(ColonistRoster value) => new RosterCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : ColonistRosterReplyOutcome;
-
-    public static implicit operator ColonistRosterReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public required EquatableArray<ColonistReference> Colonists { get; init; }
 }
 
 public sealed record Letter

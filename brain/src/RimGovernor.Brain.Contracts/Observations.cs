@@ -978,11 +978,11 @@ public sealed record Trait
 
 public sealed record WorkSetting
 {
-    public string DefName { get; init; } = "";
+    public required string DefName { get; init; }
 
-    public int Priority { get; init; }
+    public required int Priority { get; init; }
 
-    public bool Disabled { get; init; }
+    public required bool Disabled { get; init; }
 }
 
 public sealed record TimetableSlot
@@ -1282,7 +1282,7 @@ public sealed record AnimalState
     /// <summary>
     /// Medical care cap inputs, for a player animal: its
     /// MedicalCareCategory name, a Bond relation to any living pawn, and the
-    /// same conditions block PopulationPerson.conditions carries.
+    /// same conditions block the population read's PersonCustody carries.
     /// </summary>
     public Operations.MedicalCare? MedicalCare { get; init; }
 
@@ -3407,100 +3407,110 @@ public sealed record RecoveryReply
 }
 
 /// <summary>
-/// pawn refers to the bundle pawn table row.
+/// One spawned humanlike on the map, joined to its pawn table row by <see cref="Pawn"/>. Admitted is a free colonist
+/// of the player faction; Guest is hosted by the player faction (prisoners and slaves included). Recruitable is
+/// Pawn_GuestTracker.Recruitable. The prospect facts (prisoners/recruit weighs a prisoner's use, a hostile's skills
+/// rank it as a lance target) are read for every person: Verse.WildManUtility.IsWildMan, the skill/trait/age
+/// biography and SummaryHealthPercent. After combat, a LuciferiumAddiction hediff (not worth capturing: stripped and
+/// finished instead) and any worn apparel (every downed raider is stripped before it is captured).
 /// </summary>
 public sealed record PopulationPerson
 {
-    public Common.Ref? Pawn { get; init; }
+    public required PawnId Pawn { get; init; }
 
-    public bool? Admitted { get; init; }
+    public required bool Admitted { get; init; }
 
-    public bool? Guest { get; init; }
+    public required bool Guest { get; init; }
 
-    public bool? Recruitable { get; init; }
+    public required bool Recruitable { get; init; }
 
-    public double? Resistance { get; init; }
+    /// <summary>The pawn's ideoligion load id; null without Ideology or without an ideoligion.</summary>
+    public required string? IdeoId { get; init; }
 
-    public string? Interaction { get; init; }
+    public required bool WildMan { get; init; }
 
-    public long? PrisonerTicks { get; init; }
+    public required PawnBiography Biography { get; init; }
 
-    /// <summary>
-    /// Prisoner prospect facts prisoners/recruit judges a prisoner's use by
-    /// the pawn's ideoligion load
-    /// id, Verse.WildManUtility.IsWildMan, and, for prisoners and free
-    /// colonists, the skill/trait/age biography and SummaryHealthPercent.
-    /// </summary>
-    public string? IdeoId { get; init; }
+    public required double HealthSummary { get; init; }
 
-    public bool? WildMan { get; init; }
+    public required bool LuciferiumAddicted { get; init; }
 
-    public PawnBiography? Biography { get; init; }
+    public required bool WearingApparel { get; init; }
 
-    public double? HealthSummary { get; init; }
+    /// <summary>Whether and how the colony holds the person: a colony prisoner, a colony guest, or neither.</summary>
+    public required PersonCustody Custody { get; init; }
 
-    /// <summary>
-    /// After combat, for a hostile: a LuciferiumAddiction hediff (not
-    /// worth capturing: stripped and finished instead) and any worn apparel
-    /// (every downed raider is stripped before it is captured).
-    /// </summary>
-    public bool? LuciferiumAddicted { get; init; }
+    /// <summary>Pawn_MindState.WillJoinColonyIfRescued.</summary>
+    public required bool WillJoinIfRescued { get; init; }
+}
 
-    public bool? WearingApparel { get; init; }
+/// <summary>
+/// How the colony holds a person. <see cref="Prisoner"/> is a prisoner of the colony: its resistance, the
+/// PrisonerInteractionModeDef it is under, the time held so far (the TimeAsPrisoner record, in ticks: the release
+/// path's "held N days with resistance unbroken" clock), its MedicalCareCategory and care-cap conditions, its surgery
+/// facts as on the pawn care read, its home faction's load id (null for a pawn without a non-player home faction),
+/// and the goodwill change vanilla's Recipe_RemoveBodyPart violation report (-70) would make with it after
+/// CalculateAdjustedGoodwillChange and the -100 floor (0 when the faction's goodwill cannot change or there is none).
+/// <see cref="Guest"/> is hosted by the colony, neither prisoner nor slave: its MedicalCareCategory and care-cap
+/// conditions. <see cref="None"/> is anyone else (a colonist, a slave, a visitor, a hostile).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(PersonCustody.Prisoner), "prisoner")]
+[JsonDerivedType(typeof(PersonCustody.Guest), "guest")]
+[JsonDerivedType(typeof(PersonCustody.None), "none")]
+public abstract record PersonCustody
+{
+    private protected PersonCustody() { }
 
-    /// <summary>
-    /// Organ harvest facts, for a prisoner of the colony on a map only: its
-    /// surgery facts as on the pawn care read, its faction's load
-    /// id, and the goodwill change vanilla's Recipe_RemoveBodyPart violation
-    /// report (-70) would make with it after CalculateAdjustedGoodwillChange and
-    /// the -100 floor; 0 when the faction's goodwill cannot change or none.
-    /// </summary>
-    public PawnSurgery? Surgery { get; init; }
+    public sealed record Prisoner(
+        double Resistance,
+        string Interaction,
+        long HeldTicks,
+        Operations.MedicalCare MedicalCare,
+        PawnConditions Conditions,
+        PawnSurgery Surgery,
+        Common.Ref? Faction,
+        int HarvestGoodwillChange) : PersonCustody;
 
-    public Common.Ref? Faction { get; init; }
+    public sealed record Guest(Operations.MedicalCare MedicalCare, PawnConditions Conditions) : PersonCustody;
 
-    public int? HarvestGoodwillChange { get; init; }
-
-    /// <summary>
-    /// The MedicalCareCategory name, for a colony prisoner or a guest
-    /// of the colony.
-    /// </summary>
-    public Operations.MedicalCare? MedicalCare { get; init; }
-
-    /// <summary>
-    /// Medical care cap inputs, for a colony prisoner or guest.
-    /// </summary>
-    public PawnConditions? Conditions { get; init; }
-
-    public bool? WillJoinIfRescued { get; init; }
+    public sealed record None : PersonCustody;
 }
 
 public sealed record PopulationSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PopulationPerson>))]
-    public EquatableArray<PopulationPerson> Persons { get; init; }
+    public required EquatableArray<PopulationPerson> Persons { get; init; }
+
+    /// <summary>Whether Ideology is installed and, if so, its classic mode and the player faction's primary ideoligion.</summary>
+    public required ColonyIdeology Ideology { get; init; }
 
     /// <summary>
-    /// ModsConfig.IdeologyActive, IdeoManager.classicMode, the player faction's
-    /// primary ideoligion load id;
-    /// absent without Ideology; precepts ride the ideology section.
-    /// </summary>
-    public bool? IdeologyActive { get; init; }
-
-    public bool? ClassicIdeoMode { get; init; }
-
-    public string? ColonyIdeoId { get; init; }
-
-    /// <summary>
-    /// (Organ-use precepts ride the ideology section.)
     /// Owned-pawn names: every living named pawn the colony owns --
     /// player-faction colonists, slaves and animals, and colony prisoners --
     /// on any map, caravan or transporter; unnamed animals are absent.
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<OwnedName>))]
-    public EquatableArray<OwnedName> OwnedNames { get; init; }
+    public required EquatableArray<OwnedName> OwnedNames { get; init; }
+}
+
+/// <summary>
+/// The colony's ideology mode: <see cref="NotInstalled"/> without the Ideology expansion (ModsConfig.IdeologyActive
+/// false), or <see cref="Installed"/> with IdeoManager.classicMode and the player faction's primary ideoligion load id
+/// (null without one). Precepts ride the frame's ideology section.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(ColonyIdeology.NotInstalled), "not_installed")]
+[JsonDerivedType(typeof(ColonyIdeology.Installed), "installed")]
+public abstract record ColonyIdeology
+{
+    private protected ColonyIdeology() { }
+
+    public sealed record NotInstalled : ColonyIdeology;
+
+    public sealed record Installed(bool Classic, string? PrimaryIdeoId) : ColonyIdeology;
 }
 
 /// <summary>
@@ -3509,22 +3519,16 @@ public sealed record PopulationSnapshot
 /// </summary>
 public sealed record OwnedName
 {
-    public string? PawnId { get; init; }
+    public required PawnId PawnId { get; init; }
 
-    public string? ShortName { get; init; }
+    public required string ShortName { get; init; }
 
-    public int? ThingId { get; init; }
+    public required int ThingId { get; init; }
 }
 
 public sealed record PopulationRequest
 {
     public ReadScope? Scope { get; init; }
-}
-
-public sealed record PopulationReply
-{
-    /// <summary>Absent when the native read failed; the native side logs the reason once per read kind.</summary>
-    public PopulationSnapshot? Observed { get; init; }
 }
 
 /// <summary>A settlement's faction as the player sees it.</summary>
@@ -7651,47 +7655,57 @@ public sealed record SnapshotStreamRequest
 /// </summary>
 public sealed record IdeologySnapshot
 {
-    public string? IdeoId { get; init; }
+    public required string IdeoId { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Memes { get; init; }
+    public required EquatableArray<string> Memes { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<IdeoPrecept>))]
-    public EquatableArray<IdeoPrecept> Precepts { get; init; }
+    public required EquatableArray<IdeoPrecept> Precepts { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<IdeoRole>))]
-    public EquatableArray<IdeoRole> Roles { get; init; }
+    public required EquatableArray<IdeoRole> Roles { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<IdeoRitual>))]
-    public EquatableArray<IdeoRitual> Rituals { get; init; }
+    public required EquatableArray<IdeoRitual> Rituals { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<IdeoBuilding>))]
-    public EquatableArray<IdeoBuilding> Buildings { get; init; }
+    public required EquatableArray<IdeoBuilding> Buildings { get; init; }
 
     /// <summary>Ideo.ColonistBelieverCountCached.</summary>
-    public int? Believers { get; init; }
+    public required int Believers { get; init; }
 
-    /// <summary>The free non-slave colonists on the frame's map holding the ideoligion (#3808), each a pawn row ref, by load id.</summary>
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> BelieverPawns { get; init; }
+    /// <summary>The free non-slave colonists on the frame's map holding the ideoligion (#3808), by load id.</summary>
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> BelieverPawns { get; init; }
 
-    public bool? Fluid { get; init; }
-
-    public bool? CanReform { get; init; }
-
-    public int? DevelopmentPoints { get; init; }
-
-    public int? ReformCount { get; init; }
-
-    public int? NextReformPoints { get; init; }
+    /// <summary>Whether the ideoligion is fluid and, if so, its reform state.</summary>
+    public required IdeoDevelopment Development { get; init; }
 
     /// <summary>The ThingStyleCategoryDef names of Ideo.thingStyleCategories, sorted.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> StyleCategories { get; init; }
+    public required EquatableArray<string> StyleCategories { get; init; }
 
     /// <summary>The ThingDef names of Ideo.VeneratedAnimals, sorted.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> VeneratedAnimals { get; init; }
+    public required EquatableArray<string> VeneratedAnimals { get; init; }
+}
+
+/// <summary>
+/// An ideoligion's development: <see cref="Fixed"/> for a non-fluid ideoligion, which never reforms, or
+/// <see cref="Fluid"/> with Ideo.development's CanReformNow, Points, reformCount and
+/// NextReformationDevelopmentPoints (what the next reform costs).
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(IdeoDevelopment.Fixed), "fixed")]
+[JsonDerivedType(typeof(IdeoDevelopment.Fluid), "fluid")]
+public abstract record IdeoDevelopment
+{
+    private protected IdeoDevelopment() { }
+
+    public sealed record Fixed : IdeoDevelopment;
+
+    public sealed record Fluid(bool CanReform, int Points, int ReformCount, int NextReformPoints) : IdeoDevelopment;
 }
 
 /// <summary>
@@ -7699,52 +7713,52 @@ public sealed record IdeologySnapshot
 /// </summary>
 public sealed record IdeoPrecept
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 }
 
 /// <summary>
 /// A role precept: whether it is active (enough believers) and the pawns
-/// holding it (Precept_Role.ChosenPawns), each a pawn row ref.
+/// holding it (Precept_Role.ChosenPawns), by load id.
 /// </summary>
 public sealed record IdeoRole
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public string? DefName { get; init; }
+    public required string DefName { get; init; }
 
-    public bool? Active { get; init; }
+    public required bool Active { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Pawns { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> Pawns { get; init; }
 
     /// <summary>Whether the role grants the Convert ability (the moral guide's).</summary>
-    public bool? Converts { get; init; }
+    public required bool Converts { get; init; }
 
     /// <summary>Whether a holder has a Convert ability that is charged: off cooldown and not already ordered.</summary>
-    public bool? ConvertReady { get; init; }
+    public required bool ConvertReady { get; init; }
 }
 
 /// <summary>
-/// A ritual precept: its PreceptDef and RitualPatternDef (sourcePattern), the
+/// A ritual precept: its id and RitualPatternDef (Precept_Ritual.sourcePattern), the
 /// raw Precept_Ritual.lastFinishedTick, the count of active obligations,
 /// whether the repeat penalty applies and whether a LordJob_Ritual of the
 /// precept is running now.
 /// </summary>
 public sealed record IdeoRitual
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public string? Pattern { get; init; }
+    public required string Pattern { get; init; }
 
-    public int? LastFinishedTick { get; init; }
+    public required int LastFinishedTick { get; init; }
 
-    public int? ActiveObligations { get; init; }
+    public required int ActiveObligations { get; init; }
 
-    public bool? RepeatPenaltyActive { get; init; }
+    public required bool RepeatPenaltyActive { get; init; }
 
-    public bool? Running { get; init; }
+    public required bool Running { get; init; }
 }
 
 /// <summary>
@@ -7758,29 +7772,29 @@ public sealed record IdeoRitual
 /// </summary>
 public sealed record IdeoBuilding
 {
-    public string? Building { get; init; }
+    public required string Building { get; init; }
 
-    public bool Applies { get; init; }
+    public required bool Applies { get; init; }
 
-    public bool Present { get; init; }
+    public required bool Present { get; init; }
 
-    public bool Satisfied { get; init; }
+    public required bool Satisfied { get; init; }
 
-    public int MinArea { get; init; }
+    public required int MinArea { get; init; }
 
-    public int MinImpressiveness { get; init; }
+    public required int MinImpressiveness { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> FloorTags { get; init; }
+    public required EquatableArray<string> FloorTags { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<IdeoThingCount>))]
-    public EquatableArray<IdeoThingCount> Things { get; init; }
+    public required EquatableArray<IdeoThingCount> Things { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> ForbiddenBuildingTags { get; init; }
+    public required EquatableArray<string> ForbiddenBuildingTags { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Unread { get; init; }
+    public required EquatableArray<string> Unread { get; init; }
 }
 
 /// <summary>A room requirement's thing count: at least Count of the ThingDef Def in the room.</summary>

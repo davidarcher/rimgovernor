@@ -229,13 +229,13 @@ internal static class MedicalSurgery
         }
     }
 
-    private static async Task<(Observations.PopulationPerson Person, Observations.SurgeryOperation Harvest)> KidneyHarvestAsync(TypedSession s, string label, string prisoner, CancellationToken cancellationToken)
+    private static async Task<(Observations.PersonCustody.Prisoner Person, Observations.SurgeryOperation Harvest)> KidneyHarvestAsync(TypedSession s, string label, string prisoner, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        var population = TypedReads.Observed(label, NativeOps.ReadPopulation, reply, reply.Observed);
-        var person = population.Persons.FirstOrDefault(p => p.Pawn?.Id == prisoner) ?? throw new AcceptanceException($"{label}: prisoner {prisoner} not in the population read");
+        var population = await s.CallAsync(label, NativeOps.ReadPopulation, new Observations.PopulationRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
+        var person = population.Persons.FirstOrDefault(p => p.Pawn.Value == prisoner)?.Custody as Observations.PersonCustody.Prisoner
+            ?? throw new AcceptanceException($"{label}: prisoner {prisoner} is not a colony prisoner in the population read");
         s.RecordWire("prisoner_surgery", person.Surgery);
-        var harvest = person.Surgery?.Operations.FirstOrDefault(o => o.Kind == Observations.SurgeryKind.Harvest && o.PartDefName == "Kidney")
+        var harvest = person.Surgery.Operations.FirstOrDefault(o => o.Kind == Observations.SurgeryKind.Harvest && o.PartDefName == "Kidney")
             ?? throw new AcceptanceException($"{label}: prisoner {prisoner} has no kidney harvest operation");
         return (person, harvest);
     }
@@ -245,14 +245,14 @@ internal static class MedicalSurgery
         var prisoner = Prisoner(setup);
         var (person, _) = await KidneyHarvestAsync(s, "harvest-population", prisoner, cancellationToken).ConfigureAwait(false);
         s.Record("goodwill", person.HarvestGoodwillChange);
-        if (string.IsNullOrEmpty(person.Faction?.Id))
+        if (person.Faction is null)
         {
             throw new AcceptanceException($"prisoner {prisoner} reads no faction");
         }
 
-        if (person.HarvestGoodwillChange is not <= 0)
+        if (person.HarvestGoodwillChange > 0)
         {
-            throw new AcceptanceException($"prisoner {prisoner} harvest goodwill change {person.HarvestGoodwillChange}, want present and at most zero");
+            throw new AcceptanceException($"prisoner {prisoner} harvest goodwill change {person.HarvestGoodwillChange}, want at most zero");
         }
     }
 

@@ -125,7 +125,7 @@ public interface INativeFacade
 
     Task<Presentation.SelectionSnapshot> ReadSelectionAsync(Presentation.ReadRequest request, CancellationToken cancellationToken);
 
-    Task<Presentation.ColonistRosterReply> ReadColonistsAsync(Presentation.ColonistRosterRequest request, CancellationToken cancellationToken);
+    Task<Presentation.ColonistRoster> ReadColonistsAsync(Presentation.ColonistRosterRequest request, CancellationToken cancellationToken);
 
     // The remaining native tools (#3100): each runs the tool's own typed core, validation included.
 
@@ -143,7 +143,7 @@ public interface INativeFacade
 
     Task<Presentation.NotificationsSnapshot> ReadNotificationsAsync(Presentation.NotificationsRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.PopulationReply> ReadPopulationAsync(Obs.PopulationRequest request, CancellationToken cancellationToken);
+    Task<Obs.PopulationSnapshot> ReadPopulationAsync(Obs.PopulationRequest request, CancellationToken cancellationToken);
 
     Task<Obs.ResourceSourcesSnapshot> ListResourceSourcesAsync(Obs.ResourceSourcesRequest request, CancellationToken cancellationToken);
 
