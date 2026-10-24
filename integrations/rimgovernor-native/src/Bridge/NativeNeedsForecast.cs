@@ -118,6 +118,7 @@ internal static class NativeNeedsForecast
                 OutdoorsLevel = pawn.needs?.outdoors is { } outdoors ? K(outdoors.CurLevel) : default,
                 OutdoorsDisabled = pawn.needs?.outdoors != null && pawn.needs.PrefersIndoors,
                 OwnedBed = pawn.ownership?.OwnedBed?.GetUniqueLoadID() ?? "",
+                OwnedBedRoom = pawn.ownership?.OwnedBed is { } ownedBed ? BedRoomOf(ownedBed) : null,
                 Ascetic = pawn.story?.traits?.HasTrait(TraitDefOf.Ascetic) == true, RivalRooms = RivalRoomsOf(pawn, map),
                 ThoughtStages = ThoughtStagesOf(pawn, map), Apparel = ApparelOf(pawn),
                 Consciousness = Capacity(pawn, PawnCapacityDefOf.Consciousness), Moving = Capacity(pawn, PawnCapacityDefOf.Moving),
@@ -259,12 +260,22 @@ internal static class NativeNeedsForecast
         return new(Fact.Known(roof != null), Fact.Known(roof?.isThickRoof == true), Fact.Known(roof?.isNatural == true),
             Fact.Known(cell.UsesOutdoorTemperature(map)), Fact.Known(cell.GetRoom(map)?.PsychologicallyOutdoors ?? true));
     }
-    /// <summary>The bed's room as ApplyBedThoughts reads it: Room.Role and RoomStatDefOf.Impressiveness.GetScoreStageIndex(room.GetStat(Impressiveness)).</summary>
+    /// <summary>
+    /// The bed's room as ApplyBedThoughts reads it: Room.Role and RoomStatDefOf.Impressiveness.GetScoreStageIndex(room.GetStat(Impressiveness));
+    /// and the care a patient lying in it gets (#3804): whether it is costless (ApplyBedThoughts' SleptOnGround), the room's PsychologicallyOutdoors and InfectionChanceFactor (the roomless
+    /// score without a room), the bed's SurgerySuccessChanceFactor and ImmunityGainSpeedFactor. Read-only.
+    /// </summary>
     private static Obs.NeedBedRoom BedRoomOf(Building_Bed bed)
     {
         var room = bed.GetRoom();
         var stage = room == null ? default : Fact.Known(RoomStatDefOf.Impressiveness.GetScoreStageIndex(room.GetStat(RoomStatDefOf.Impressiveness)));
-        return new(room?.Role?.defName ?? "", stage, bed.ForPrisoners);
+        return new(room?.Role?.defName ?? "", stage, bed.ForPrisoners)
+        {
+            PsychologicallyOutdoors = room?.PsychologicallyOutdoors ?? true, Costless = bed.CostListAdjusted().Count == 0,
+            InfectionChanceFactor = room?.GetStat(RoomStatDefOf.InfectionChanceFactor) ?? RoomStatDefOf.InfectionChanceFactor.roomlessScore,
+            SurgerySuccessFactor = bed.GetStatValue(StatDefOf.SurgerySuccessChanceFactor),
+            ImmunityGainSpeedFactor = bed.GetStatValue(StatDefOf.ImmunityGainSpeedFactor),
+        };
     }
     /// <summary>StatPart_EnvironmentalEffects def data on the DeteriorationRate stat, read by reflection (private fields); null without the part.</summary>
     internal static Obs.NeedDeteriorationPart? DeteriorationPart()
@@ -313,6 +324,7 @@ internal static class NativeNeedsForecast
             }
         }
         Rows(ThoughtDefOf.SleptOutside, "slept_outside");
+        Rows(ThoughtDefOf.SleptOnGround, "slept_on_ground");
         Rows(ThoughtDefOf.SleptInBedroom, "slept_in_bedroom", nullStagesInactive: true);
         Rows(ThoughtDefOf.SleptInBarracks, "slept_in_barracks", nullStagesInactive: true);
         Rows(map.weatherManager.CurWeatherLerped?.weatherThought, "weather");
@@ -334,6 +346,10 @@ internal static class NativeNeedsForecast
             Rows(def, "greedy", nullStagesInactive: true);
         foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_BedroomJealous)))
             Rows(def, "jealous");
+        // The hospital patient's room thought (#3804): ThoughtWorker_HospitalPatientRoomStats, active in a medical bed of a
+        // Hospital room at its Impressiveness stage, inactive at a null stage (rows at 0). No ThoughtDefOf field names it.
+        foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_HospitalPatientRoomStats)))
+            Rows(def, "hospital_patient", nullStagesInactive: true);
         // The apparel thoughts a garment changes (#3816). ThoughtWorker_PsychologicallyNude's Naked is inactive under Ideology,
         // where the precept workers below take its place.
         Rows(ThoughtDefOf.ApparelDamaged, "apparel_damaged");

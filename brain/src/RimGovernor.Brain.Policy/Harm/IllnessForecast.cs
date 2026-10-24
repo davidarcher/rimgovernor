@@ -84,7 +84,8 @@ public static class IllnessForecast
             var key = (pawn, support);
             if (cache is null || !cache.TryGetValue(key, out var distribution))
             {
-                distribution = Of(schedule, row, tables, support, policy, horizon);
+                // A sick pawn rests in the bed it owns (#3804): its immunity gains at that bed's ImmunityGainSpeedFactor.
+                distribution = Of(schedule, row, tables, HarmConsequences.CareOf(support), row.OwnedBedRoom?.ImmunityGainSpeedFactor ?? 1, policy, horizon);
                 if (cache is not null)
                 {
                     cache[key] = distribution;
@@ -108,12 +109,13 @@ public static class IllnessForecast
     }
 
     /// <summary>
-    /// What one disease incident costs <paramref name="pawn"/>: for each disease, its share × the chance the pawn is a victim (drawn
-    /// and contracting it) × its course, and the rest a point at 0. Unknown when the pawn's illness reads, capacities or the Moving
-    /// minimum are unobserved.
+    /// What one disease incident costs <paramref name="pawn"/> given <paramref name="care"/>, its immunity gained in a bed of
+    /// <paramref name="bedImmunity"/> ImmunityGainSpeedFactor (StatPart_BedStat, #3804; 1 without a bed): for each disease, its share
+    /// × the chance the pawn is a victim (drawn and contracting it) × its course, and the rest a point at 0. Unknown when the pawn's
+    /// illness reads, capacities or the Moving minimum are unobserved.
     /// </summary>
-    public static HarmDistribution Of(IllnessSchedule schedule, NeedsForecastPawn pawn, CapacityPenaltyTables tables,
-        ForecastSupportConsequences? support, ForecastValuePolicy policy, double horizon)
+    internal static HarmDistribution Of(IllnessSchedule schedule, NeedsForecastPawn pawn, CapacityPenaltyTables tables,
+        HarmConsequences.Care care, double bedImmunity, ForecastValuePolicy policy, double horizon)
     {
         var findings = new SortedSet<string>(StringComparer.Ordinal);
         if (pawn.Disease is not { } disease || !double.IsFinite(disease.ImmunityGainSpeed))
@@ -134,14 +136,13 @@ public static class IllnessForecast
             return new HarmDistribution { Findings = [.. findings] };
         }
 
-        var care = HarmConsequences.CareOf(support);
         if (!care.Tended)
         {
             findings.Add("illness_untended");
         }
 
-        // The immunity a bed gives (ImmunityGainSpeedFactor) and an earlier immunity record are not in the pawn's read.
-        findings.Add("illness_bed_immunity_unassessed");
+        // An earlier immunity record is not in the pawn's read.
+        findings.Add("illness_prior_immunity_unassessed");
         var days = horizon / GameTime.TicksPerDay;
         var points = new List<HarmPoint>();
         double none = 1, down = 0, death = 0, patientDays = 0, tends = 0;
@@ -169,7 +170,7 @@ public static class IllnessForecast
             }
 
             none -= sick;
-            var course = Course(incident.Course, disease.ImmunityGainSpeed, care, levels, movingMin, policy, days, pawn.Pawn, findings);
+            var course = Course(incident.Course, disease.ImmunityGainSpeed * Math.Max(0, bedImmunity), care, levels, movingMin, policy, days, pawn.Pawn, findings);
             foreach (var outcome in course)
             {
                 points.Add(new HarmPoint(outcome.Loss, sick * outcome.Probability));

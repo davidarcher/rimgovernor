@@ -102,9 +102,9 @@ internal static class HarmLedger
         var raidsPerDay = 0.0;
         var ordered = outcome.Needs.Keys.ToArray();
         Array.Sort(ordered, StringComparer.Ordinal);
-        if (inputs.Schedule.MajorThreatsPerDay.TryGetValue(out var threats) && inputs.Schedule.RaidFraction.TryGetValue(out var raidShare))
+        if (RaidsPerDay(inputs) is { } expected)
         {
-            raidsPerDay = threats * raidShare;
+            raidsPerDay = expected;
             if (raidsPerDay == 0)
             {
                 // A schedule with no raids to expect has no raid harm to price, whatever else is unobserved; illness is priced alone.
@@ -118,8 +118,8 @@ internal static class HarmLedger
             findings.UnionWith(inputs.Schedule.Findings);
         }
 
-        var bins = inputs.Composition.Bins.ToArray();
-        if (!inputs.Composition.Pawns.IsKnown || bins.Length == 0)
+        var bins = BinsOf(inputs) ?? [];
+        if (bins.Length == 0)
         {
             complete = false;
             findings.Add(CompositionUnknown);
@@ -127,17 +127,13 @@ internal static class HarmLedger
         }
 
         var ratio = double.NaN;
-        if (!inputs.RaidPoints.TryGetValue(out var points))
+        if (PointsRatio(inputs) is { } known)
         {
-            findings.Add("raid_points_unobserved");
-        }
-        else if (!inputs.DefenseCapacity.TryGetValue(out var defense) || !(defense > 0))
-        {
-            findings.Add("defense_capacity_unobserved");
+            ratio = known;
         }
         else
         {
-            ratio = points / defense;
+            findings.Add(inputs.RaidPoints.IsKnown ? "defense_capacity_unobserved" : "raid_points_unobserved");
         }
 
         complete &= !double.IsNaN(ratio);
@@ -243,20 +239,17 @@ internal static class HarmLedger
     internal static Fact<double> TreatmentsPerDay(ForecastCoupledContext context, IReadOnlyDictionary<string, NeedsForecastPawn> pawns)
     {
         var inputs = context.Harm;
-        if (!inputs.Schedule.MajorThreatsPerDay.TryGetValue(out var threats) || !inputs.Schedule.RaidFraction.TryGetValue(out var raidShare))
+        if (RaidsPerDay(inputs) is not { } raidsPerDay)
         {
             return default;
         }
 
-        var raidsPerDay = threats * raidShare;
         if (raidsPerDay == 0)
         {
             return Known(0d);
         }
 
-        var bins = inputs.Composition.Bins.ToArray();
-        if (!inputs.Composition.Pawns.IsKnown || bins.Length == 0 || !inputs.RaidPoints.TryGetValue(out var points)
-            || !inputs.DefenseCapacity.TryGetValue(out var defense) || !(defense > 0) || pawns.Count == 0)
+        if (BinsOf(inputs) is not { } bins || PointsRatio(inputs) is not { } ratio || pawns.Count == 0)
         {
             return default;
         }
@@ -265,7 +258,7 @@ internal static class HarmLedger
         foreach (var (pawn, row) in pawns.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
             if (!context.Outfits.TryGetValue(pawn, out var wearing)
-                || !RaidExposure.HitsPerColonist(inputs.Exposure, points / defense, RoleOf(wearing)).Hits.TryGetValue(out var hits)
+                || !RaidExposure.HitsPerColonist(inputs.Exposure, ratio, RoleOf(wearing)).Hits.TryGetValue(out var hits)
                 || !HarmConsequences.Treatments(hits, bins, ArmorResponseRules.OfOutfit(wearing, inputs.Natural, inputs.Coverage, bins), row).TryGetValue(out var one))
             {
                 return default;
@@ -275,6 +268,49 @@ internal static class HarmLedger
         }
 
         return Known(raidsPerDay * treatments);
+    }
+
+    /// <summary>The raids a day the schedule expects: its major threats a day × the raid share; null when either is unread.</summary>
+    internal static double? RaidsPerDay(HarmInputs inputs) =>
+        inputs.Schedule.MajorThreatsPerDay.TryGetValue(out var threats) && inputs.Schedule.RaidFraction.TryGetValue(out var share) ? threats * share : null;
+
+    /// <summary>The raid's points ÷ the colony's defense capacity, the exposure table's ratio; null when either is unread or the capacity is not positive.</summary>
+    internal static double? PointsRatio(HarmInputs inputs) =>
+        inputs.RaidPoints.TryGetValue(out var points) && inputs.DefenseCapacity.TryGetValue(out var defense) && defense > 0 ? points / defense : null;
+
+    /// <summary>The raid composition's weapon bins; null when the composition is unread or has none.</summary>
+    internal static WeaponBin[]? BinsOf(HarmInputs inputs) =>
+        inputs.Composition.Pawns.IsKnown && inputs.Composition.Bins.ToArray() is { Length: > 0 } bins ? bins : null;
+
+    /// <summary>
+    /// One raid's harm on <paramref name="row"/> in its worn outfit given <paramref name="care"/> (#3804, the hospital credit): its
+    /// risk-transformed loss (<see cref="Risk"/>) and expected patient-days (<see cref="HarmDistribution.PatientDays"/>). Throws a
+    /// RequiredFactException when the composition, the points ratio, the pawn's outfit, its exposure cell or its harm reads are unread.
+    /// </summary>
+    internal static (double Risk, double PatientDays) RaidOn(ForecastCoupledContext context, NeedsForecastPawn row, HarmConsequences.Care care, double horizon)
+    {
+        var inputs = context.Harm;
+        var bins = BinsOf(inputs) ?? throw new RequiredFactException(CompositionUnknown);
+        var ratio = PointsRatio(inputs) ?? throw new RequiredFactException("raid_points_ratio");
+        if (!context.Outfits.TryGetValue(row.Pawn, out var wearing))
+        {
+            throw new RequiredFactException("outfit:" + row.Pawn);
+        }
+
+        if (!RaidExposure.HitsPerColonist(inputs.Exposure, ratio, RoleOf(wearing)).Hits.TryGetValue(out var hits))
+        {
+            throw new RequiredFactException("raid_exposure:" + row.Pawn);
+        }
+
+        var distribution = HarmConsequences.Of(hits, bins, ArmorResponseRules.OfOutfit(wearing, inputs.Natural, inputs.Coverage, bins), row,
+            context.CapacityPenalties, care, context.Value, horizon);
+        if (!distribution.Known)
+        {
+            throw new RequiredFactException("raid_harm:" + row.Pawn);
+        }
+
+        var (mean, tail) = Moments(distribution, context.Value.HarmRiskAlpha);
+        return (Risk(mean, tail, context.Value.HarmRiskWeight), distribution.PatientDays);
     }
 
     /// <summary>The risk transform of one raid's loss: (1 − w) × mean + w × CVaR.</summary>

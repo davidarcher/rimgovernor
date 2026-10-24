@@ -72,10 +72,13 @@ priced), since its credit already counts them. Its sites are still emitted and e
 `Suite`, both `ForecastHousing.RoyalRoomCredit`; `Kitchen` and `Butchery`, `KitchenCredits`, #3802; `Storage`,
 `MealCloset`, `Reserve` and `Yard`, all `ForecastStorage.StorageCredit`, #3798; `Morgue` and `Tomb`,
 `ForecastCorpses.MorgueCredit` and `TombCredit`, #3806; `Worship`, `ForecastWorship.WorshipCredit`, #3808; `Pen`,
-`ForecastPens.PenCredit`, #3812; `DeathrestChamber`, `ForecastDeathrest.ChamberCredit`, #3810) holds a credit for it:
+`ForecastPens.PenCredit`, #3812; `DeathrestChamber`, `ForecastDeathrest.ChamberCredit`, #3810; `Hospital`,
+`ForecastHospital.HospitalCredit`, #3804) holds a credit for it:
 
 - `delegate IReadOnlyList<RoomGain>? RoomCredit(ForecastRoomService room, outcome, context, horizonTicks)`
-  returns the room's gains per served day (`RoomGain(Subject, Pawn, PerDay)`); null is unassessed.
+  returns the room's gains per served day (`RoomGain(Subject, Pawn, PerDay)`, with a `Once` gain the room earns when it
+  serves, #3804); null is unassessed (older credits; a new credit throws a `RequiredFactException` instead, #3835). A role's
+  `PlannedRoomCredits.Unmodelled` mechanics are named with each served room of it.
 - `context.Priced(room)` is the derived priced test, `PlannedRoomCredits.PricedRelief(context)`
   the relief needs a priced room takes out of the development count. Material charges,
   Selection's placed-ring roots and the Rounder's wall swaps read the same derived set.

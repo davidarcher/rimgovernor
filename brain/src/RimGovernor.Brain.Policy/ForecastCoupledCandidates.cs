@@ -364,6 +364,7 @@ public sealed partial record ForecastCoupledCandidates
             Filth = facts.Filth,
             ResearchBenchSpeeds = facts.ResearchBenchSpeeds,
             LaboratoryBench = facts.LaboratoryBench,
+            HospitalBed = facts.HospitalBed,
             Worship = facts.Worship,
             PenHerds = facts.PlannedPens,
             Roamers = facts.AnimalUpkeep.Roamers,

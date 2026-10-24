@@ -48,7 +48,7 @@ public sealed class IllnessForecastTests
     };
 
     private static HarmDistribution Of(DiseaseCourse course, string incident, ForecastSupportConsequences? support, double gain = 1) =>
-        IllnessForecast.Of(Schedule(course, incident), Pawn(gain, new DiseaseContract(incident, 1)), Tables, support, new ForecastValuePolicy(), Horizon);
+        IllnessForecast.Of(Schedule(course, incident), Pawn(gain, new DiseaseContract(incident, 1)), Tables, HarmConsequences.CareOf(support), 1, new ForecastValuePolicy(), Horizon);
 
     // The tend times: first care, then the first retend, then every retend.
     private static int TendsBefore(double end, double first, double every)
@@ -146,8 +146,8 @@ public sealed class IllnessForecastTests
     {
         var schedule = Schedule(Flu()) with { Incidents = [new IllnessIncident("Disease_Flu", 1, 0.5, Flu())] };
 
-        var d = IllnessForecast.Of(schedule, Pawn(1, new DiseaseContract("Disease_Flu", 0.5)), Tables, Care(), new ForecastValuePolicy(), Horizon);
-        var missing = IllnessForecast.Of(schedule, Pawn(1), Tables, Care(), new ForecastValuePolicy(), Horizon);
+        var d = IllnessForecast.Of(schedule, Pawn(1, new DiseaseContract("Disease_Flu", 0.5)), Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon);
+        var missing = IllnessForecast.Of(schedule, Pawn(1), Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon);
 
         Assert.Equal(0.25 * 0.5, d.DeathProbability, 9);
         Assert.False(missing.Known);
@@ -157,7 +157,7 @@ public sealed class IllnessForecastTests
     [Fact]
     public void APawnWithoutItsIllnessReadIsUnknownWithAFinding()
     {
-        var d = IllnessForecast.Of(Schedule(Flu()), Pawn() with { Disease = null }, Tables, Care(), new ForecastValuePolicy(), Horizon);
+        var d = IllnessForecast.Of(Schedule(Flu()), Pawn() with { Disease = null }, Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon);
 
         Assert.False(d.Known);
         Assert.Equal(["illness_unobserved:pawn"], d.Findings);
@@ -249,7 +249,7 @@ public sealed class IllnessForecastTests
         Assert.True(inputs.Illness.Assessed);
         Assert.Equal(1 / 60.0, inputs.Illness.IncidentsPerDay(30), 12);
         var flu = IllnessForecast.Of(inputs.Illness, Pawn(1, new DiseaseContract("Disease_Flu", 1), new DiseaseContract("Disease_GutWorms", 1),
-            new DiseaseContract("Disease_OrganDecay", 1)), Tables, Care(), new ForecastValuePolicy(), Horizon);
+            new DiseaseContract("Disease_OrganDecay", 1)), Tables, HarmConsequences.CareOf(Care()), 1, new ForecastValuePolicy(), Horizon);
         Assert.True(flu.Known);
         Assert.True(flu.PatientDays > 0);
         Assert.True(flu.Treatments > 0);

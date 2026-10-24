@@ -333,9 +333,12 @@ The harm model's fifth step ([harm model](../architecture/forecast-value.md#harm
   (`HediffCompProperties_Immunizable`) and `SeverityPerDayTended` (`HediffCompProperties_TendDuration`) carry the infection's course.
   They are not part of `CapacityPenaltyTables.Valid()`; an unknown one leaves its part unassessed.
 - `HarmConsequences.Of(hits, bins, response, pawn, tables, support, policy, horizon)` is pure. It returns a `HarmDistribution`:
-  `Points` (capability-days lost, probability) summing to 1, `DownProbability`, `DeathProbability`, `Findings`. Deaths carry the remaining
+  `Points` (capability-days lost, probability) summing to 1, `DownProbability`, `DeathProbability`, `PatientDays` (the tended wounds'
+  expected days from first care to healed, 0 untended; #3804), `Findings`. Deaths carry the remaining
   horizon plus `DeathTerminalValue`. Tended means the support serves a care (`CareServices`) with an observed `TendQuality` (quality and
-  room factor are the mean over services); first care is `FirstCareTicks`; otherwise the pawn is untended (`harm_untended`).
+  room factor are the mean over services); first care is `FirstCareTicks`; otherwise the pawn is untended (`harm_untended`). An internal
+  overload takes the care as a plain `HarmConsequences.Care` (the hospital credit's, #3804), and `HarmConsequences.Wounds` prices a
+  surgery failure's damage dealt at one wound severity the same way.
   An unobserved pain shock threshold, health scale, incoming-damage or healing factor, capacity or weapon mix makes the distribution unknown
   (`capacities_unobserved:<pawn>`, `weapon_mix_unobserved`). Unassessed parts are findings: `adaptation_feedback_unassessed`,
   `rescue_labor_unassessed`, `injury_part_effects_unassessed`, `bleed_part_factors_unobserved`,
@@ -424,14 +427,17 @@ costs each pawn.
   `disease_comp_unmodelled:<classes>`, `disease_biome_unknown:<def>`, `disease_rate_invalid`, `disease_incident_unknown:<def>`,
   `disease_victims_unobserved:<def>`, `disease_course_unmodelled:<hediff>:<what>` or `disease_course_unknown:<def>`.
 - `IllnessForecast.Of(schedule, pawn, …)`: a `HarmDistribution` of one incident for the pawn, each disease weighted by share ×
-  victim chance × contract chance and the rest a point at 0. The course walks severity from its initial value under the
+  victim chance × contract chance and the rest a point at 0. Immunity gains at the pawn's `ImmunityGainSpeed` read without its bed
+  (native divides `StatPart_BedStat`'s current-bed `ImmunityGainSpeedFactor` out) times the factor of the bed it is cared in: the
+  harm term's is its owned bed's (`NeedsForecastPawn.OwnedBedRoom`, 1 without one), the hospital credit's the planned hospital
+  bed's (#3804). The course walks severity from its initial value under the
   Immunizable, SeverityPerDay and tended rates (tended from the support's first care at its tend quality, retended as the
   TendDuration comp allows), ending at 0, the Disappears time, the cure tend quality, the lethal severity on a threatened part, or the
   max severity with `DestroyOrgan`. Uniform draws are a 4-point midpoint grid; the death chance in the immunity factor is exact.
   Deaths cost the horizon's rest plus `DeathTerminalValue`; survivors their capability-days. `PatientDays` (days from first care to
   the end) and `Treatments` (tends) are its expectations. Unknown with `illness_unobserved:<pawn>`, `capacities_unobserved:<pawn>`,
   `capacity_penalty_table_unknown:MovingMinForCapable` or `disease_contract_unobserved:<pawn>:<def>`. Findings of what is left
-  out: `illness_untended`, `illness_bed_immunity_unassessed` (the bed's `ImmunityGainSpeedFactor` and an earlier immunity record),
+  out: `illness_untended`, `illness_prior_immunity_unassessed` (an earlier immunity record),
   `disease_organ_loss_unpriced:<hediff>`, `disease_part_efficiency_unpriced:<hediff>`, `disease_severity_factors_unpriced:<hediff>`.
 - `HarmDetail.Illness` (`IllnessTerm`: incidents a day, its loss — incidents a day × horizon days × Σ over pawns of the risk transform
   — and per pawn `IllnessPawn` with `PatientDaysPerDay`, `TendsPerDay`, `DeathsPerDay`) is null when unassessed; the term's loss is

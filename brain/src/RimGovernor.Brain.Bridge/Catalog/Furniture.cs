@@ -31,13 +31,18 @@ public sealed partial class DefinitionCatalog
 
     private IReadOnlyDictionary<string, FacilityRow> Facilities() => (_facilities ??= new(ComputeFacilityRows)).Value;
 
+    // A bed def's own value of a bed stat (#3804): its statBases entry, else the stat's default.
+    private double BedStat(string bed, string stat) =>
+        ThingRow(bed).statBases.Seq().LastOrDefault(modifier => modifier.stat?.defName == stat)?.value ?? DefRow<StatDef>(stat)?.defaultBaseValue ?? 1;
+
     /// <summary>The furniture the room planners place for the shapes (the plannable shape of every buildable def).</summary>
     public P.RoomFurniture RoomFurniture(IReadOnlyDictionary<string, P.InteriorPieceDef> shapes)
     {
         var beds = Beds();
         var furniture = new P.RoomFurniture
         {
-            Beds = Domain.EquatableArray.From(beds.Sleeping.Select(b => new P.FurnitureBed { Def = b.Def, Slots = b.Slots, Free = b.Free })),
+            Beds = Domain.EquatableArray.From(beds.Sleeping.Select(b => new P.FurnitureBed { Def = b.Def, Slots = b.Slots, Free = b.Free,
+                ImmunityGainSpeedFactor = BedStat(b.Def, nameof(StatDefOf.ImmunityGainSpeedFactor)), SurgerySuccessChanceFactor = BedStat(b.Def, nameof(StatDefOf.SurgerySuccessChanceFactor)) })),
             Heater = CheapestHeater(),
             FueledHeaters = Domain.EquatableArray.From(FueledHeaters()),
             Sarcophagus = CheapestOfClass<Building_Sarcophagus>(),

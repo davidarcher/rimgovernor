@@ -86,6 +86,18 @@ public sealed class MedicineValueTests
     }
 
     [Fact]
+    public void TheTendingNowIsTheBestDoctorsDayZeroQualityWithTheMedicineHeld()
+    {
+        // #3804: the hospital credit's tending. Anna at level 6 tends at 0.8 with the industrial medicine on hand.
+        var input = Colony(6, 1000);
+        var trajectory = ColonyModel.Run(input, [.. input.Pawns.Value.Select(p => PawnCycle.Year(input, p).ToArray())], Policy());
+        var tending = Value(input).TendingNow(trajectory, new SortedSet<string>(StringComparer.Ordinal));
+        Assert.NotNull(tending);
+        Assert.True(tending.Tended);
+        Assert.Equal(0.8, tending.Quality, 9);
+    }
+
+    [Fact]
     public void NoThreatGivesAZeroMarginal()
     {
         var marginals = Marginals(Colony(3, 100_000), ForecastValueTests.RaidDay(raidsPerDay: 0));

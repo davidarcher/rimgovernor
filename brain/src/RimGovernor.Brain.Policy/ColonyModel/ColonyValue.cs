@@ -132,6 +132,22 @@ public sealed class ColonyValue(ForecastCoupledContext context, IReadOnlyList<Ge
     }
 
     /// <summary>
+    /// The tending a wound gets now (#3804): the tend quality on day 0 (<see cref="TendQuality"/>) with the best medicine the run
+    /// starts with, untended with no pawn who tends. Null, named, when a doctor's curve, level or the medicine's numbers are unread.
+    /// </summary>
+    public ForecastTending? TendingNow(ColonyTrajectory trajectory, SortedSet<string> findings)
+    {
+        if (Doctors(trajectory, findings, new SortedSet<string>(StringComparer.Ordinal)) is not { } doctors)
+        {
+            return null;
+        }
+
+        var kind = Array.FindIndex(trajectory.StartMedicine.ToArray(), held => held > 0);
+        return TendQuality(doctors, 0, kind < 0 ? null : trajectory.MedicineKinds[kind], findings) is not { } quality ? null
+            : quality < 0 ? new ForecastTending(false, 0) : new ForecastTending(true, quality);
+    }
+
+    /// <summary>
     /// The pawns who tend raid wounds: each with a native tend quality curve and its stock of the curve's skill. A pawn without a
     /// curve whose skill is disabled cannot tend; any other is named (<see cref="MedicineSkillValueUnassessed"/>) and its stock
     /// unpriced. Null when no pawn qualifies while one is unassessed, or the pawn census is unknown.

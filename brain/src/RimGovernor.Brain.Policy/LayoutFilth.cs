@@ -22,6 +22,22 @@ public sealed record FilthModel
     /// the map edge or over 60 regions) is poisoned by the room (CompFoodPoisonable.Notify_RecipeProduced, #3802).</summary>
     public double FoodPoisonRoomless { get; init; }
 
+    /// <summary>
+    /// RoomStatDefOf.InfectionChanceFactor's curve over Cleanliness and roomless score (#3804): the factor HediffComp_Infecter stores for
+    /// a wound tended in the room.
+    /// </summary>
+    public IReadOnlyList<CurvePoint> InfectionChance { get; init; } = [];
+
+    public double InfectionChanceRoomless { get; init; }
+
+    /// <summary>
+    /// The SurgerySuccessChanceCleanlinessFactor room stat's curve and roomless score (#3804): the room factor a bed's
+    /// SurgerySuccessChanceFactor multiplies (its StatPart_RoomStat).
+    /// </summary>
+    public IReadOnlyList<CurvePoint> SurgeryCleanliness { get; init; } = [];
+
+    public double SurgeryCleanlinessRoomless { get; init; }
+
     /// <summary>What one poisoned meal costs the eater (the FoodPoisoning hediff); the zero value prices no poisoning.</summary>
     public PoisoningModel Poisoning { get; init; } = new();
 

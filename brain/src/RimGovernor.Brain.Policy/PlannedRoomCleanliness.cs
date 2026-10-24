@@ -51,19 +51,41 @@ public static class PlannedRoomCleanlinessRules
     /// at its <see cref="Steady"/> Cleanliness, dirty for the exposure share of the day and clean otherwise; a None room's,
     /// the stat's roomless score. Throws as <see cref="Steady"/> does, and filth_model without the curve.
     /// </summary>
-    public static double FoodPoisonChance(PlannedRoomPrediction prediction, IEnumerable<FilthRuns> runs, FilthModel filth)
+    public static double FoodPoisonChance(PlannedRoomPrediction prediction, IEnumerable<FilthRuns> runs, FilthModel filth) =>
+        Blend(prediction, runs, filth, filth.FoodPoison, filth.FoodPoisonRoomless, "filth_model");
+
+    /// <summary>
+    /// The InfectionChanceFactor a wound tended in the planned room stores (HediffComp_Infecter.CompTended, #3804) with
+    /// <paramref name="runs"/> standing in it: the stat's curve at its <see cref="Steady"/> Cleanliness, blended over the exposure as
+    /// <see cref="FoodPoisonChance"/> is; a None room's, the roomless score. Throws as <see cref="Steady"/> does, and
+    /// infection_chance_curve without the curve.
+    /// </summary>
+    public static double InfectionChance(PlannedRoomPrediction prediction, IEnumerable<FilthRuns> runs, FilthModel filth) =>
+        Blend(prediction, runs, filth, filth.InfectionChance, filth.InfectionChanceRoomless, "infection_chance_curve");
+
+    /// <summary>
+    /// The room factor of a surgery in the planned room (#3804): the SurgerySuccessChanceCleanlinessFactor room stat a bed's
+    /// SurgerySuccessChanceFactor multiplies (its StatPart_RoomStat), blended as <see cref="InfectionChance"/>; throws
+    /// surgery_cleanliness_curve without the curve.
+    /// </summary>
+    public static double SurgeryCleanliness(PlannedRoomPrediction prediction, IEnumerable<FilthRuns> runs, FilthModel filth) =>
+        Blend(prediction, runs, filth, filth.SurgeryCleanliness, filth.SurgeryCleanlinessRoomless, "surgery_cleanliness_curve");
+
+    // A room stat's curve over the steady Cleanliness, dirty for the exposure share of the day and clean otherwise.
+    private static double Blend(PlannedRoomPrediction prediction, IEnumerable<FilthRuns> runs, FilthModel filth, IReadOnlyList<CurvePoint> curve,
+        double roomless, string unread)
     {
         var steady = Steady(prediction, runs, filth);
         if (prediction.Role == Wire.Name(RoomRole.None))
         {
-            return filth.FoodPoisonRoomless;
+            return roomless;
         }
-        if (filth.FoodPoison.Count == 0)
+        if (curve.Count == 0)
         {
-            throw new RequiredFactException("filth_model");
+            throw new RequiredFactException(unread);
         }
-        return ((1 - steady.Exposure) * LayoutFilthRules.EvaluateCurve(filth.FoodPoison, steady.Clean))
-            + (steady.Exposure * LayoutFilthRules.EvaluateCurve(filth.FoodPoison, steady.Dirty));
+        return ((1 - steady.Exposure) * LayoutFilthRules.EvaluateCurve(curve, steady.Clean))
+            + (steady.Exposure * LayoutFilthRules.EvaluateCurve(curve, steady.Dirty));
     }
 
     /// <summary>Whether <paramref name="filth"/> was read: its filth def, its positive stand ticks and its poisoning curve.</summary>

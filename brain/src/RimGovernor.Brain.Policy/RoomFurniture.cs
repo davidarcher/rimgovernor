@@ -12,6 +12,14 @@ public sealed record FurnitureBed
     public int Slots { get; init; }
 
     public bool Free { get; init; }
+
+    /// <summary>
+    /// The def's own ImmunityGainSpeedFactor and SurgerySuccessChanceFactor (#3804): its statBases values, before the facilities it
+    /// links and (the surgery factor's StatPart_RoomStat) its room's cleanliness factor.
+    /// </summary>
+    public double ImmunityGainSpeedFactor { get; init; } = 1;
+
+    public double SurgerySuccessChanceFactor { get; init; } = 1;
 }
 
 /// <summary>
@@ -94,6 +102,9 @@ public sealed partial record RoomFurniture
     /// planner stages (it checks the stuff on hand, the hospital planner does not).
     /// </summary>
     public IReadOnlyList<string> HospitalBeds() => SleepingBeds().Where(def => !SleepingRules.SleepingBedrolls.Contains(def)).ToList();
+
+    /// <summary>The bed a planned hospital is furnished with (#3804): the first of <see cref="HospitalBeds"/>; no def when the catalog has none.</summary>
+    public FurnitureBed HospitalBed() => HospitalBeds() is [var first, ..] ? Beds.First(b => b.Def == first) : new();
 
     /// <summary>The single bed the planners stage first (the jail's bed, the bedroom and hospital templates' default bed); empty when the catalog has none.</summary>
     public string PrimaryBed()

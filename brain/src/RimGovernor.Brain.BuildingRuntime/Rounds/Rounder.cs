@@ -754,7 +754,7 @@ public sealed partial class Rounder
             // A goal tier 2 priced is paid at its marginal value, not the flat share (#3505); the clothing runway demands the stuff it chose (#3623).
             reading = reading.WithFacts(rf => rf with
             {
-                CoupledAlternatives = coupled with { Context = coupled.Context with { ModelBasis = model.Basis, Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = model.HorizonDays, Bed = bed, BedroomOccupants = occupants, RoyalRooms = royal, DeathrestFurniture = RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(reading.Projection), OpenRooms = open, BlockedItems = blocked, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
+                CoupledAlternatives = coupled with { Context = coupled.Context with { ModelBasis = model.Basis, Investment = model.Marginals.PerUnit, MaterialValues = materials, InvestmentHorizonDays = model.HorizonDays, Tending = model.Tending, Bed = bed, BedroomOccupants = occupants, RoyalRooms = royal, DeathrestFurniture = RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf(reading.Projection), OpenRooms = open, BlockedItems = blocked, Findings = EquatableArray.From(occupantFindings.ToArray()), GoalValues = GoalRules.Priced(coupled.Context.GoalValues, model.Marginals.Goals) } },
                 ClothingStuff = model.ClothingStuff,
             });
             ClockEvents.Event("routine", ColonyModelTelemetry.Kind, "colony model ran", [.. model.Attrs()]);

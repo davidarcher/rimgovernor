@@ -685,6 +685,31 @@ an animal census native could not read raises `RequiredFactException("animal cen
 grace at a new colony and the cooldown after a roam, handlers roping a roamer back before it exits, the animal's future products
 beyond its market value, and pen capacity.
 
+*Hospital credit (#3804).* A planned hospital the outcome serves is credited through the same seam
+(`ForecastHospital.HospitalCredit`) what a patient gains lying in its bed instead of the bed it owns now (none: the ground, at the
+roomless scores), per colonist under `hospital/<room>/<pawn>`. The room adds no tend quality; the doctor's is the one tier 2 reads
+off its trajectory (`ColonyValue.TendingNow`: the best tender's day-0 quality with the best medicine held, untended without a
+tender), first care at once. Three per-day parts, summed:
+wound infection, raids a day × (one raid's risk-transformed harm, `HarmLedger.RaidOn`, tended with the owned bed room's stored
+`InfectionChanceFactor` less with the hospital's, its stat curve at the predicted steady cleanliness,
+`PlannedRoomCleanlinessRules.InfectionChance`); illness, disease incidents a day × (one incident's cost with immunity gained at the
+owned bed's `ImmunityGainSpeedFactor` less at the hospital bed def's, #3824); and mood, the patient-days a day (raids a day × one
+raid's tended days from first care to healed, `HarmDistribution.PatientDays`, plus the illness's) × `GainPerDay` of the sleep
+thoughts the bed trades: `ThoughtWorker_HospitalPatientRoomStats` at the predicted stage when the prediction is a Hospital, against
+the ones `ApplyBedThoughts` gives in the owned bed (`SleptOutside`, `SleptOnGround` for a costless bed or none, the bedroom or
+barracks thought for a non-ascetic), registered in `BreakShifts`. Each queued `Bill_Medical` on a colonist the schedule does not
+finish before the hospital serves adds a `Once` gain under `hospital/<room>/surgery:<demand>`: the failure cost at the owned bed's
+`SurgerySuccessChanceFactor` less at the hospital bed def's × the room's `SurgerySuccessChanceCleanlinessFactor`, at the best
+surgeon's quality (`SupportWorker.SurgeryQuality`, every other outcome comp applied), the outcomes walked in
+`SurgeryOutcomeEffectDef.GetOutcome`'s order (`SupportDemand.SurgeryOutcomes`): death the horizon's rest and `DeathTerminalValue`,
+a failure its `totalDamage` dealt as wounds of the read mean severity, bleeding at 19/24 of the model rate (`HarmConsequences.Wounds`), tended in
+the surgery's room. No raid, disease or surgery to expect credits nothing. An unread fact throws a `RequiredFactException`: the
+prediction, layout room, filth curves, threat or disease schedule, tending, hospital bed, a colonist's harm reads, outfit, owned
+bed room or thought rows, or a patient's mood. Named as not modelled with each served hospital: the surgeries raid part loss
+queues (`hospital_raid_surgery_unmodelled`, #3847), a planned bed's linked facilities (`hospital_bed_facilities_unmodelled`), the
+`BotchedMySurgery` thought, the temperature sleep thoughts, the colony's standing medical beds (#3817), outcome classes other
+than success, death and failure, and surgeries on non-colonists. Two planned hospitals each credit every patient.
+
 *Who moves first (#3656).* A vacant bedroom bed, standing or planned, goes to the unhoused colonist with the largest priced gain
 from it (`ForecastHousing.LargestGainFirst`, a stable sort, so ties keep id order). The gain is read before the search, from
 station facts alone (`BedroomGainFacts.Of`, which the clustering's bed merge also reads): `ForecastHousing.BedroomGain` runs the

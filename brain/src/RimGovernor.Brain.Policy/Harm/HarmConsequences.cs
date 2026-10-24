@@ -23,7 +23,7 @@ public sealed record HarmDistribution
 
     /// <summary>
     /// The expected days in care of one event: from first care to healed, dead or the horizon (H5 of #3804). The illness forecast
-    /// fills it (<see cref="IllnessForecast"/>); a raid distribution reports 0 until the hospital credit (#3804) prices raid patient-days.
+    /// fills it (<see cref="IllnessForecast"/>); a raid's is its tended wounds' days from first care to healed (0 untended, or dead).
     /// </summary>
     public double PatientDays { get; init; }
 
@@ -103,66 +103,114 @@ public static class HarmConsequences
     /// <param name="support">The outcome's care facts; null is unknown, which means untended.</param>
     /// <param name="horizon">Ticks the loss is counted over.</param>
     public static HarmDistribution Of(HitRange hits, IReadOnlyList<WeaponBin> bins, IReadOnlyList<ArmorResponse> response, NeedsForecastPawn pawn,
-        CapacityPenaltyTables tables, ForecastSupportConsequences? support, ForecastValuePolicy policy, double horizon)
+        CapacityPenaltyTables tables, ForecastSupportConsequences? support, ForecastValuePolicy policy, double horizon) =>
+        Of(hits, bins, response, pawn, tables, CareOf(support), policy, horizon);
+
+    /// <summary>The consequences of <paramref name="hits"/> raid hits on <paramref name="pawn"/> given <paramref name="care"/> (#3804); see the class summary.</summary>
+    internal static HarmDistribution Of(HitRange hits, IReadOnlyList<WeaponBin> bins, IReadOnlyList<ArmorResponse> response, NeedsForecastPawn pawn,
+        CapacityPenaltyTables tables, Care care, ForecastValuePolicy policy, double horizon)
     {
-        var findings = new SortedSet<string>(StringComparer.Ordinal)
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        if (ModelOf(bins, response, pawn, tables, care, policy, horizon, findings) is not { } built)
         {
-            "adaptation_feedback_unassessed",
-            "rescue_labor_unassessed",
-            "injury_part_effects_unassessed",
-            "bleed_part_factors_unobserved",
-        };
+            return Unknown(findings);
+        }
+
+        var (model, mix) = built;
+
+        var (mass, step) = Mass(hits, mix);
+        var points = new List<HarmPoint>();
+        double down = 0, death = 0, patient = 0;
+        for (var i = 0; i < mass.Length; i++)
+        {
+            if (mass[i] > 1e-12)
+            {
+                model.Evaluate(i * step, mass[i], points, ref down, ref death, ref patient);
+            }
+        }
+
+        return new HarmDistribution { Known = true, Points = points, DownProbability = down, DeathProbability = death, PatientDays = patient, Findings = [.. findings] };
+    }
+
+    /// <summary>
+    /// The consequences of one surgery failure's injuries on <paramref name="pawn"/> given <paramref name="care"/> (#3804): <paramref name="damage"/>
+    /// of injury dealt in wounds of <paramref name="woundSeverity"/>, a <paramref name="bleedChance"/> share of them bleeding, priced as a
+    /// raid's hits are (bleeding, pain while they heal, wound infection), from the point the wounds are made. Unknown as <see cref="Of(HitRange, IReadOnlyList{WeaponBin}, IReadOnlyList{ArmorResponse}, NeedsForecastPawn, CapacityPenaltyTables, Care, ForecastValuePolicy, double)"/> is.
+    /// </summary>
+    internal static HarmDistribution Wounds(double damage, double woundSeverity, double bleedChance, NeedsForecastPawn pawn,
+        CapacityPenaltyTables tables, Care care, ForecastValuePolicy policy, double horizon)
+    {
+        var findings = new SortedSet<string>(StringComparer.Ordinal);
+        var severity = Math.Max(woundSeverity, 1e-9);
+        if (ModelOf([new WeaponBin { Damage = severity, Category = ArmorCategory.Sharp, Weight = 1 }],
+                [new ArmorResponse { ExpectedDamage = severity, BleedChance = bleedChance }], pawn, tables, care, policy, horizon, findings) is not { } built)
+        {
+            return Unknown(findings);
+        }
+
+        var model = built.Model;
+
+        var points = new List<HarmPoint>();
+        double down = 0, death = 0, patient = 0;
+        model.Evaluate(Math.Max(0, damage), 1, points, ref down, ref death, ref patient);
+        return new HarmDistribution { Known = true, Points = points, DownProbability = down, DeathProbability = death, PatientDays = patient, Findings = [.. findings] };
+    }
+
+    // The model of one pawn's wounds of the mix, or null (unknown, findings say why).
+    private static (Model Model, Mix Mix)? ModelOf(IReadOnlyList<WeaponBin> bins, IReadOnlyList<ArmorResponse> response, NeedsForecastPawn pawn,
+        CapacityPenaltyTables tables, Care care, ForecastValuePolicy policy, double horizon, SortedSet<string> findings)
+    {
+        findings.UnionWith(["adaptation_feedback_unassessed", "rescue_labor_unassessed", "injury_part_effects_unassessed", "bleed_part_factors_unobserved"]);
         if (!pawn.PainShockThreshold.TryGetValue(out var shock) || !pawn.HealthScale.TryGetValue(out var healthScale)
             || !pawn.IncomingDamageFactor.TryGetValue(out var incoming) || !pawn.InjuryHealingFactor.TryGetValue(out var healing)
             || ForecastValue.Levels(pawn) is not { } levels || !(healthScale > 0))
         {
             findings.Add("capacities_unobserved:" + pawn.Pawn);
-            return Unknown(findings);
+            return null;
         }
 
         if (tables.MovingMinForCapable is not { } movingMin)
         {
             findings.Add("capacity_penalty_table_unknown:MovingMinForCapable");
-            return Unknown(findings);
+            return null;
         }
 
         var mix = Mix.Of(bins, response);
         if (mix is null || !(horizon > 0))
         {
             findings.Add("weapon_mix_unobserved");
-            return Unknown(findings);
+            return null;
         }
 
-        var model = new Model(mix, levels, movingMin, shock, healthScale, Math.Max(0, incoming), Math.Max(0, healing), tables, support, policy, horizon, findings);
-        var (mass, step) = Mass(hits, mix);
-        var points = new List<HarmPoint>();
-        double down = 0, death = 0;
-        for (var i = 0; i < mass.Length; i++)
-        {
-            if (mass[i] > 1e-12)
-            {
-                model.Evaluate(i * step, mass[i], points, ref down, ref death);
-            }
-        }
-
-        return new HarmDistribution { Known = true, Points = points, DownProbability = down, DeathProbability = death, Findings = [.. findings] };
+        return (new Model(mix, levels, movingMin, shock, healthScale, Math.Max(0, incoming), Math.Max(0, healing), tables, care, policy, horizon, findings), mix);
     }
 
     private static HarmDistribution Unknown(SortedSet<string> findings) => new() { Findings = [.. findings] };
 
-    /// <summary>The care an outcome's support gives a patient: tended, the tend quality and the days to first care, and the services it is the mean over.</summary>
-    internal readonly record struct Care(bool Tended, double Quality, double FirstCareDays, int Services);
+    /// <summary>
+    /// The care a patient gets (#3804): tended, the tend quality, the days to first care, and the tending room's InfectionChanceFactor
+    /// (<see cref="RoomUnobserved"/> when the outcome's support could not read it: priced at 1 and named).
+    /// </summary>
+    internal readonly record struct Care(bool Tended, double Quality, double FirstCareDays, double RoomFactor)
+    {
+        public bool RoomUnobserved { get; init; }
+    }
 
     /// <summary>
-    /// Tended only when the outcome serves the care (a service, its tend quality observed); the quality the support sums over its
-    /// services is their mean; first care is <see cref="ForecastSupportConsequences.FirstCareTicks"/>.
+    /// Tended only when the outcome serves the care (a service, its tend quality observed); the quality and the room factor the
+    /// support sums over its services are their means; first care is <see cref="ForecastSupportConsequences.FirstCareTicks"/>.
     /// </summary>
     internal static Care CareOf(ForecastSupportConsequences? support)
     {
         var services = support is null || support.CareServices.Length == 0 ? 0 : support.CareServices.Split(';').Length;
-        return support is not null && services > 0 && support.TendQuality.TryGetValue(out var quality)
-            ? new Care(true, Math.Clamp(quality / services, 0, 1), Math.Max(0, support.FirstCareTicks) / GameTime.TicksPerDay, services)
-            : new Care(false, 0, double.PositiveInfinity, services);
+        if (support is null || services == 0 || !support.TendQuality.TryGetValue(out var quality))
+        {
+            return new Care(false, 0, double.PositiveInfinity, 1);
+        }
+
+        var observed = support.CareRoomFactor.TryGetValue(out var room);
+        return new Care(true, Math.Clamp(quality / services, 0, 1), Math.Max(0, support.FirstCareTicks) / GameTime.TicksPerDay,
+            observed ? Math.Max(0, room / services) : 1) { RoomUnobserved = !observed };
     }
 
     // TendUtility.GetOptimalHediffsToTendWithSingleTreatment: with medicine, one treatment tends the first injury and each further
@@ -340,7 +388,7 @@ public static class HarmConsequences
         private readonly bool infectionPriced;
 
         public Model(Mix mix, double[] levels, double movingMin, double shock, double healthScale, double incoming, double healing,
-            CapacityPenaltyTables tables, ForecastSupportConsequences? support, ForecastValuePolicy policy, double horizon, SortedSet<string> findings)
+            CapacityPenaltyTables tables, Care care, ForecastValuePolicy policy, double horizon, SortedSet<string> findings)
         {
             this.mix = mix;
             this.levels = levels;
@@ -356,18 +404,13 @@ public static class HarmConsequences
             firstCareDays = double.PositiveInfinity;
             careRoomFactor = 1;
 
-            // The room factor the support sums over its services is their mean, like the quality (CareOf).
-            var care = CareOf(support);
             if (care.Tended)
             {
                 tended = true;
-                tendQuality = care.Quality;
-                firstCareDays = care.FirstCareDays;
-                if (support!.CareRoomFactor.TryGetValue(out var room))
-                {
-                    careRoomFactor = Math.Max(0, room / care.Services);
-                }
-                else
+                tendQuality = Math.Clamp(care.Quality, 0, 1);
+                firstCareDays = Math.Max(0, care.FirstCareDays);
+                careRoomFactor = Math.Max(0, care.RoomFactor);
+                if (care.RoomUnobserved)
                 {
                     findings.Add("infection_room_factor_unobserved");
                 }
@@ -396,8 +439,9 @@ public static class HarmConsequences
             }
         }
 
-        // One grid point: the raid dealt `damage` of injury severity before the incoming-damage factor.
-        public void Evaluate(double damage, double mass, List<HarmPoint> points, ref double down, ref double death)
+        // One grid point: the raid dealt `damage` of injury severity before the incoming-damage factor; `patient` sums the
+        // point's tended days from first care to healed (#3804).
+        public void Evaluate(double damage, double mass, List<HarmPoint> points, ref double down, ref double death, ref double patient)
         {
             var severity = damage * incoming;
             if (severity <= 0)
@@ -421,7 +465,8 @@ public static class HarmConsequences
                 return;
             }
 
-            var injury = Injury(severity, out var injuryDowned);
+            var injury = Injury(severity, out var injuryDowned, out var healed);
+            patient += tended ? mass * Math.Max(0, healed - Math.Min(firstCareDays, healed)) : 0;
             var baseLoss = Math.Min(days, bleed + injury);
             var downed = bleedDowned || injuryDowned;
             var infected = Infection(severity, out var infectionLoss, out var infectionDiedAt, out var infectionDowned);
@@ -477,14 +522,14 @@ public static class HarmConsequences
 
         // Capability-days lost to pain while the injuries heal: pain takes consciousness, pain shock or a consciousness under
         // the awake level downs the pawn (full loss until the pain falls below it).
-        private double Injury(double severity, out bool downed)
+        private double Injury(double severity, out bool downed, out double healed)
         {
             var heal = healthScale * healing;
             var natural = (Pain(severity) >= shock || Level(Pain(severity)) < ForecastValue.AwakeConsciousness ? LyingHealPerDay : NaturalHealPerDay) * heal;
             var extra = tended ? TendedHealPerDay * (TendedHealBase + tendQuality) * heal : 0;
             var untendedRemaining = Math.Max(0, severity - natural * Math.Min(firstCareDays, days));
             var alone = natural <= 0 ? double.PositiveInfinity : severity / natural;
-            var healed = Math.Min(days, firstCareDays < alone ? firstCareDays + untendedRemaining / (natural + extra) : alone);
+            healed = Math.Min(days, firstCareDays < alone ? firstCareDays + untendedRemaining / (natural + extra) : alone);
             downed = false;
             var lost = 0d;
             var dt = healed / HealingSteps;

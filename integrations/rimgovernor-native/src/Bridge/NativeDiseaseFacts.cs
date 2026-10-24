@@ -29,10 +29,14 @@ internal static class NativeDiseaseFacts
         };
     }
 
-    /// <summary>One pawn's ImmunityGainSpeed and the chance each DiseaseHuman incident's hediff takes hold (0 when it is no potential victim).</summary>
+    /// <summary>
+    /// One pawn's ImmunityGainSpeed without its bed (StatPart_BedStat multiplies CurrentBed's ImmunityGainSpeedFactor while it lies in
+    /// one; it is divided out, #3804) and the chance each DiseaseHuman incident's hediff takes hold (0 when it is no potential victim).
+    /// </summary>
     internal static Obs.PawnDiseaseFacts? ReadPawn(Pawn pawn) =>
         pawn.health?.immunity is not { } immunity ? null : new Obs.PawnDiseaseFacts {
-            ImmunityGainSpeed = pawn.GetStatValue(StatDefOf.ImmunityGainSpeed),
+            ImmunityGainSpeed = pawn.GetStatValue(StatDefOf.ImmunityGainSpeed)
+                / (pawn.InBed() && pawn.CurrentBed() is { } bed && bed.GetStatValue(StatDefOf.ImmunityGainSpeedFactor) is var factor and > 0 ? factor : 1f),
             Contracts = [.. DiseaseIncidents().Select(def => new Obs.DiseaseContract(def.defName,
                 PotentialVictim(def, pawn) ? immunity.DiseaseContractChanceFactor(def.diseaseIncident) : 0))],
         };

@@ -98,6 +98,7 @@ internal static class NativeSupportActivities
             foreach (var bill in patient.BillStack.Bills.OfType<Bill_Medical>().Where(b => b.ShouldDoNow()).OrderBy(b => b.GetUniqueLoadID(), StringComparer.Ordinal))
             {
             var id = AddRoom(patient, patient.Position, "surgery", bill.GetUniqueLoadID());
+            demands[^1] = SurgeryOutcomesOf(demands[^1], patient, bill);
             foreach (var pawn in roster.Where(Available))
             {
                 var giver = DefDatabase<WorkGiverDef>.AllDefsListForReading.FirstOrDefault(d => d.Worker is WorkGiver_DoBill scanner && scanner.ThingIsUsableBillGiver(patient));
@@ -117,7 +118,8 @@ internal static class NativeSupportActivities
                     workers.Add(new(id, pawn.GetUniqueLoadID(), patient.GetUniqueLoadID(), "DoBill", giver.defName, At(patient.Position),
                         Add(Route(pawn, pawn.Position, source.Position, PathEndMode.Touch), Route(pawn, source.Position, patient.Position, PathEndMode.Touch)),
                         speed > 0 ? Fact.Known((double)bill.recipe.WorkAmountTotal(null) / speed) : default) { Recipe = recipe,
-                            Medicine = source.GetUniqueLoadID(), MedicineResource = source.def.defName, MedicineCount = count, MedicineLocation = At(source.Position), MedicineAvailable = source.stackCount, SkillWork = skillWork });
+                            Medicine = source.GetUniqueLoadID(), MedicineResource = source.def.defName, MedicineCount = count, MedicineLocation = At(source.Position), MedicineAvailable = source.stackCount, SkillWork = skillWork,
+                            SurgeryQuality = SurgeryQualityOf(pawn, patient, bill) });
                 }
             }
         }
@@ -140,6 +142,60 @@ internal static class NativeSupportActivities
                 });
             return id;
         }
+    }
+    /// <summary>
+    /// A surgery bill's outcome model (#3804): its recipe's surgeryOutcomeEffect outcomes in GetOutcome's order, whether the bed and
+    /// room comp applies and the clamp range. Read-only: no outcome is applied and no Rand is drawn.
+    /// </summary>
+    private static Obs.SupportDemand SurgeryOutcomesOf(Obs.SupportDemand demand, Pawn patient, Bill_Medical bill)
+    {
+        var recipe = bill.recipe;
+        if (recipe.surgeryOutcomeEffect is not { } effect) return demand with { SurgeryQualityMax = float.MaxValue };
+        var comps = effect.comps ?? new List<SurgeryOutcomeComp>();
+        var clamp = comps.OfType<SurgeryOutcomeComp_ClampToRange>().LastOrDefault()?.range ?? new FloatRange(0, float.MaxValue);
+        var deathless = ModsConfig.BiotechActive && patient.genes != null && patient.genes.HasActiveGene(GeneDefOf.Deathless);
+        var rows = new List<Obs.SurgeryOutcomeRead>();
+        foreach (var outcome in effect.outcomes ?? new List<SurgeryOutcome>())
+        {
+            var wound = WoundSeverity(patient, outcome.applyEffectsToPart ? bill.Part : null);
+            rows.Add(outcome switch
+            {
+                SurgeryOutcomeSuccess => new("success", 0, outcome.totalDamage, wound),
+                SurgeryOutcome_Death => new("death", deathless ? 0 : recipe.deathOnFailedSurgeryChance, outcome.totalDamage, wound),
+                SurgeryOutcome_FailureWithHediff hediff => new("failure", hediff.failedHediff != null && (hediff.applyToRecipes.NullOrEmpty() || hediff.applyToRecipes.Contains(recipe)) ? outcome.chance : 0, outcome.totalDamage, wound),
+                SurgeryOutcome_Failure => new("failure", outcome.chance, outcome.totalDamage, wound),
+                _ => new(outcome.GetType().Name, outcome.chance, outcome.totalDamage, wound),
+            });
+        }
+        return demand with
+        {
+            SurgeryOutcomes = EquatableArray.From(rows), SurgeryQualityMin = clamp.min, SurgeryQualityMax = clamp.max,
+            SurgeryEnvironment = !recipe.surgeryIgnoreEnvironment && comps.OfType<SurgeryOutcomeComp_BedAndRoomQuality>().Any(),
+        };
+    }
+
+    /// <summary>
+    /// The mean injury GiveRandomSurgeryInjuries deals at a time (#3804): over the parts it may hit (the operated part, its parent and
+    /// children, or every part without one; not conceptual), by coverageAbs, max(3, 0.75 x the part's health).
+    /// </summary>
+    private static double WoundSeverity(Pawn patient, BodyPartRecord? part)
+    {
+        var parts = patient.health.hediffSet.GetNotMissingParts().Where(p => !p.def.conceptual
+            && (part == null || p == part || p.parent == part || part.parent == p)).ToArray();
+        var cover = parts.Sum(p => (double)p.coverageAbs);
+        return cover > 0 ? parts.Sum(p => p.coverageAbs * Math.Max(3, 0.75 * patient.health.hediffSet.GetPartHealth(p))) / cover : 3;
+    }
+
+    /// <summary>The surgeon's quality without the bed and room comp and the clamp (#3804): each other comp that applies, in order.</summary>
+    private static double SurgeryQualityOf(Pawn surgeon, Pawn patient, Bill_Medical bill)
+    {
+        var quality = 1f;
+        foreach (var comp in bill.recipe.surgeryOutcomeEffect?.comps ?? new List<SurgeryOutcomeComp>())
+        {
+            if (comp is SurgeryOutcomeComp_BedAndRoomQuality or SurgeryOutcomeComp_ClampToRange || !comp.Affects(bill.recipe, surgeon, patient, bill.Part)) continue;
+            comp.AffectQuality(bill.recipe, surgeon, patient, new List<Thing>(), bill.Part, bill, ref quality);
+        }
+        return quality;
     }
     private static Fact<double> Add(Fact<double> a, Fact<double> b) => a.IsKnown && b.IsKnown ? Fact.Known(a.Value + b.Value) : default;
     private static Cell At(IntVec3 cell) => new(cell.x, cell.z);

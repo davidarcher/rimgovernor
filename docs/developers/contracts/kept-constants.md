@@ -182,6 +182,17 @@ The model's own choices, not game rules: each uniform draw (the not-immune rando
 immunity factor of a survivor) is a 4-point midpoint grid (`IllnessForecast.GridPoints`); the tend quality is its mean, not the
 per-tend draw.
 
+## Mirrored game literals: hospital surgery (#3804)
+
+`ForecastHospital` (`brain/src/RimGovernor.Brain.Policy/ForecastHospital.cs`) and the native surgery read
+(`NativeSupportActivities.SurgeryOutcomesOf`) mirror the surgery injury rules no def carries. Read with ilspycmd (1.7).
+
+| Literal | Value | 1.7 member |
+| --- | --- | --- |
+| Surgery wound severity | the mean of max(3, part health × U(0.5, 1)) per wound, taken as max(3, 0.75 × part health), by `coverageAbs` over the operated part, its parent and children (every part without one) | `HealthUtility.GiveRandomSurgeryInjuries` |
+| Surgery wounds' bleeding | its four damage defs equally, Cut, Scratch and Stab bleeding at 0.06 a severity and Crush at 0.01: (3 × 0.06 + 0.01) / (4 × 0.06) = 19/24 of the harm model's rate (`ForecastHospital.SurgeryBleedShare`) | `HealthUtility.GiveRandomSurgeryInjuries`, `injuryProps.bleedRate` |
+| Outcome order | the effect's outcomes tried in order, success at the quality, death at `deathOnFailedSurgeryChance` (0 for a Deathless patient), a failure at its chance | `SurgeryOutcomeEffectDef.GetOutcome`, `SurgeryOutcome_Death`, `SurgeryOutcome_Failure` |
+
 ## Mirrored game literals: plant resting (#3523)
 
 `PlantResting` (`brain/src/RimGovernor.Brain.Policy/ColonyModel/PlantResting.cs`) mirrors a method-body literal no def carries.

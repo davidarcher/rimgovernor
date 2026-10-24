@@ -13,6 +13,8 @@ internal sealed record ColonyModelReview(ProjectMarginals Marginals, IReadOnlyLi
     IReadOnlyDictionary<(PawnId Pawn, GearSlot Slot), Resource> ClothingStuff)
 {
     internal required ForecastModelBasis Basis { get; init; }
+    /// <summary>The tending a wound gets now (<see cref="ColonyValue.TendingNow"/>, #3804); null when unread.</summary>
+    internal ForecastTending? Tending { get; init; }
     /// <summary>The <see cref="ColonyModelTelemetry.Kind"/> row's attrs.</summary>
     internal IReadOnlyList<(string Key, object? Value)> Attrs()
     {
@@ -100,7 +102,8 @@ internal static class RoundsColonyModel
         }
 
         return new(marginals, unknowns, policy.HorizonDays, clock.Elapsed.TotalMilliseconds, etas, notes,
-            valuation.ClothingStuff(marginals.Trajectory, ClothingDemandRules.ClothingHorizonDays)) { Basis = new(input, policy) };
+            valuation.ClothingStuff(marginals.Trajectory, ClothingDemandRules.ClothingHorizonDays))
+        { Basis = new(input, policy), Tending = valuation.TendingNow(marginals.Trajectory, new SortedSet<string>(StringComparer.Ordinal)) };
     }
 
     /// <summary>The input and the sections it cannot start from, each named with its reason (<see cref="ColonyModelInput.Unknowns"/>).</summary>

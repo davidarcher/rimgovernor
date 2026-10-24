@@ -133,6 +133,10 @@ public sealed record ForecastCoupledContext
     /// <summary>The days a served room's credit runs to (#3655, #3796): the horizon tier 2 ran over (ColonyModelPolicy.HorizonDays),
     /// set beside <see cref="Investment"/>; 0 before tier 2 ran, which credits nothing.</summary>
     public double InvestmentHorizonDays { get; init; }
+    /// <summary>The tending a wound gets now, which tier 2 reads off its trajectory (<see cref="ColonyValue.TendingNow"/>, #3804); null before tier 2 ran or unread.</summary>
+    public ForecastTending? Tending { get; init; }
+    /// <summary>The bed a planned hospital is furnished with (#3804): the first of RoomFurniture.HospitalBeds, with its def's stats; no def without a catalog.</summary>
+    public FurnitureBed HospitalBed { get; init; } = new();
     public EquatableArray<ForecastMaterialLot> InitialLots { get; init; }
     public EquatableArray<CoupledFoodUse> FoodUses { get; init; }
     public EquatableArray<ForecastNeedTask> NeedTasks { get; init; }

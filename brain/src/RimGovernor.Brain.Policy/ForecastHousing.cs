@@ -150,16 +150,27 @@ public static class ForecastHousing
                 if (stages.FirstOrDefault(r => r.Role == "slept_outside" && r.Stage == 0) is not { } row) return default;
                 now += row.Offset;
             }
-            var thought = room.ForPrisoners ? "" : room.Role == ForecastRoofConsequences.BedroomRole ? "slept_in_bedroom" : room.Role == ForecastRoofConsequences.BarracksRole ? "slept_in_barracks" : "";
-            if (thought.Length != 0)
-            {
-                if (!room.Stage.TryGetValue(out var at)) return default;
-                if (stages.FirstOrDefault(r => r.Role == thought && r.Stage == at) is not { } row) return default;
-                now += row.Offset;
-            }
+            if (OwnedRoomThought(room, stages) is not { } thought) return default;
+            now += thought;
         }
         return Known(gained.Offset - now);
     }
+
+    /// <summary>
+    /// The room thought ApplyBedThoughts gives a non-ascetic in the bed it owns, from <paramref name="room"/>: slept_in_bedroom or
+    /// slept_in_barracks at the room's Impressiveness stage, none in a prisoner bed or another room. Null when the stage or its row is unread.
+    /// </summary>
+    internal static double? OwnedRoomThought(NeedBedRoom room, EquatableArray<NeedThoughtStage> stages)
+    {
+        var thought = room.ForPrisoners ? "" : room.Role == ForecastRoofConsequences.BedroomRole ? "slept_in_bedroom" : room.Role == ForecastRoofConsequences.BarracksRole ? "slept_in_barracks" : "";
+        if (thought.Length == 0) return 0;
+        if (!room.Stage.TryGetValue(out var at)) return null;
+        return stages.FirstOrDefault(r => r.Role == thought && r.Stage == at)?.Offset;
+    }
+
+    /// <summary>A planned room's predicted Impressiveness stage; throws a RequiredFactException when the prediction left it unread.</summary>
+    internal static int PlannedStage(PlannedRoomPrediction prediction) =>
+        prediction.Stage.TryGetValue(out var stage) ? stage : throw new RequiredFactException("planned room impressiveness stage");
 
     /// <summary>
     /// The capability-days a mood delta gains a day: WellbeingWeight times delta / 100, plus the break days a day the
@@ -323,7 +334,7 @@ public static class ForecastHousing
             var delta = closure.Prediction.Cells >= need.MinArea && Math.Round(impressiveness) >= need.MinImpressiveness ? relieved : 0;
             if (greedy)
             {
-                if (!closure.Prediction.Stage.TryGetValue(out var stage)) throw new RequiredFactException("planned room impressiveness stage");
+                var stage = PlannedStage(closure.Prediction);
                 var next = Defs(GreedyRole).Select(d => rows.FirstOrDefault(s => s.Thought == d && s.Role == GreedyRole && s.Stage == stage + 1)).ToArray();
                 if (next.Any(s => s is null)) throw new RequiredFactException("greedy thought stage");
                 delta += next.Sum(s => s!.Offset) - Now(GreedyRole);

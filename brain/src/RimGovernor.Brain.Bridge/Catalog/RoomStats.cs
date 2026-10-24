@@ -84,6 +84,13 @@ public sealed partial class DefinitionCatalog
         return new P.PoisoningModel { Initial = hediff.initialSeverity, PerDay = perDay, Stages = [.. stages] };
     }
 
+    private static IReadOnlyList<P.CurvePoint> Curve(RoomStatDef? stat) => [.. stat?.curve?.Points.Select(point => new P.CurvePoint(point.x, point.y)) ?? []];
+
+    // The room stat a bed's SurgerySuccessChanceFactor multiplies (#3804): no RoomStatDefOf field names it; the stat's
+    // StatPart_RoomStat holds it, the typed route.
+    private RoomStatDef? SurgeryRoomStat() => DefRow<StatDef>(nameof(StatDefOf.SurgerySuccessChanceFactor))?.parts.Seq()
+        .OfType<StatPart_RoomStat>().Select(part => GameMembers.RoomStat(part)).FirstOrDefault(stat => stat is not null);
+
     /// <summary>The price of a butchering to a room, from the defs: the humanlike blood filth's Cleanliness stat and the FoodPoisonChance curve. A catalog without either prices nothing (the zero model).</summary>
     public P.FilthModel FilthModel()
     {
@@ -100,6 +107,10 @@ public sealed partial class DefinitionCatalog
             Cleanliness = blood.statBases.Seq().LastOrDefault(modifier => modifier.stat?.defName == StatNames.Cleanliness)?.value ?? 0,
             FoodPoison = [.. stat.curve?.Points.Select(point => new P.CurvePoint(point.x, point.y)) ?? []],
             FoodPoisonRoomless = stat.roomlessScore,
+            InfectionChance = Curve(DefRow<RoomStatDef>(nameof(RoomStatDefOf.InfectionChanceFactor))),
+            InfectionChanceRoomless = DefRow<RoomStatDef>(nameof(RoomStatDefOf.InfectionChanceFactor))?.roomlessScore ?? 0,
+            SurgeryCleanliness = Curve(SurgeryRoomStat()),
+            SurgeryCleanlinessRoomless = SurgeryRoomStat()?.roomlessScore ?? 0,
             CleaningWork = blood.filth?.cleaningWorkToReduceThickness ?? 0,
             CleaningSpeed = DefRow<StatDef>(P.LayoutFilthRules.FilthGameTable().SpeedStat)?.defaultBaseValue ?? 0,
             StandTicks = GameConstants.MinTicksSinceThickened,

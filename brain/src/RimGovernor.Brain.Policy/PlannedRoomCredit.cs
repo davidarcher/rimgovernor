@@ -14,8 +14,14 @@ public sealed record ForecastRoomService(int Room, string Stuff, double ServedAt
 /// </summary>
 public sealed record ForecastRoomItem(string Item, EquatableArray<int> Rooms, EquatableArray<string> Finishes);
 
-/// <summary>One row of a role's credit (#3796): its subject (a bedroom's occupant), the pawn it is booked to ("" none) and the capability-days a served day gains.</summary>
-public readonly record struct RoomGain(string Subject, string Pawn, double PerDay);
+/// <summary>
+/// One row of a role's credit (#3796): its subject (a bedroom's occupant), the pawn it is booked to ("" none), the capability-days a
+/// served day gains, and the capability-days the room gains once when it serves (#3804: a queued surgery it hosts).
+/// </summary>
+public readonly record struct RoomGain(string Subject, string Pawn, double PerDay)
+{
+    public double Once { get; init; }
+}
 
 /// <summary>
 /// A planned room role's credit (#3796): the gains a day of <paramref name="room"/> serving earns in
@@ -39,7 +45,8 @@ public static class PlannedRoomCredits
     /// the room meets its title's requirement (#3807), Kitchen and Butchery by the food poisoning they prevent (#3802); Storage,
     /// Meal closet, Reserve and Yard by the stock they keep from deteriorating (#3798); Morgue and Tomb by the corpse moods they
     /// remove (#3806); Worship by the ideoligion effects it meets for each believer (#3808); Pen by the roamers it keeps from walking off the map (#3812); DeathrestChamber by the work days and
-    /// chamber mood its caskets and accelerators give each deathrester (#3810).</summary>
+    /// chamber mood its caskets and accelerators give each deathrester (#3810); Hospital by the infection, illness, sleep mood
+    /// and queued surgery failures its bed relieves (#3804).</summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> Shipped = new Dictionary<PlannedRole, RoomCredit>
     {
         [PlannedRole.Bedroom] = ForecastHousing.BedroomCredit,
@@ -58,15 +65,22 @@ public static class PlannedRoomCredits
         [PlannedRole.Worship] = ForecastWorship.WorshipCredit,
         [PlannedRole.Pen] = ForecastPens.PenCredit,
         [PlannedRole.DeathrestChamber] = ForecastDeathrest.ChamberCredit,
+        [PlannedRole.Hospital] = ForecastHospital.HospitalCredit,
+    };
+
+    /// <summary>The mechanics a role's credit leaves out, named with each room of it served (#3804: the hospital's).</summary>
+    public static readonly IReadOnlyDictionary<PlannedRole, string[]> Unmodelled = new Dictionary<PlannedRole, string[]>
+    {
+        [PlannedRole.Hospital] = ForecastHospital.Unmodelled,
     };
 
     /// <summary>
     /// Per pawn, the distinct shifts (mood delta / 100) its mood timeline integrates breaks at, so each mood credit's
     /// <see cref="ForecastHousing.GainPerDay"/> finds its shifted break ticks: the bedroom moves' (#3655), the corpse
-    /// credits' (#3806), the worship credit's (#3808) and the deathrest chamber's (#3810). Constant per context, so the mood cache key holds.
+    /// credits' (#3806), the worship credit's (#3808), the deathrest chamber's (#3810) and the hospital's (#3804). Constant per context, so the mood cache key holds.
     /// </summary>
     internal static IReadOnlyDictionary<string, double[]> BreakShifts(ForecastCoupledContext context) => Shifts.GetValue(context, c =>
-        ForecastHousing.BreakShifts(c).Concat(ForecastCorpses.BreakShifts(c)).Concat(ForecastWorship.Shifts(c)).Concat(ForecastDeathrest.Shifts(c)).GroupBy(p => p.Key, StringComparer.Ordinal)
+        ForecastHousing.BreakShifts(c).Concat(ForecastCorpses.BreakShifts(c)).Concat(ForecastWorship.Shifts(c)).Concat(ForecastDeathrest.Shifts(c)).Concat(ForecastHospital.Shifts(c)).GroupBy(p => p.Key, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.SelectMany(p => p.Value).Distinct().Order().ToArray(), StringComparer.Ordinal));
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, IReadOnlyDictionary<string, double[]>> Shifts = new();
@@ -106,7 +120,7 @@ public static class PlannedRoomCredits
     /// <summary>
     /// The credit rows of <paramref name="outcome"/>: per served priced room, its role's gains times the days from its
     /// service day to tier 2's horizon (<see cref="ForecastCoupledContext.InvestmentHorizonDays"/>; none before tier 2
-    /// ran), each a gain (negative). A priced room the projection could not assess, or whose credit is null, is named
+    /// ran) plus its once gain (<see cref="RoomGain.Once"/>), each a gain (negative), and its role's <see cref="Unmodelled"/> mechanics named. A priced room the projection could not assess, or whose credit is null, is named
     /// <see cref="Unassessed"/> and credited nothing.
     /// </summary>
     internal static void Credit(ForecastCoupledOutcome outcome, ForecastCoupledContext context, double horizon,
@@ -122,8 +136,9 @@ public static class PlannedRoomCredits
             if (credit(served, outcome, context, horizon) is not { } gains) { findings.Add(Unassessed(role, served.Room)); continue; }
             var units = RingClosure.CreditDays(days, served.ServedAt);
             if (units <= 0) continue;
+            if (Unmodelled.TryGetValue(role, out var named)) findings.UnionWith(named);
             foreach (var gain in gains)
-                rows.Add(new("", gain.Pawn, Key(role, served.Room, gain.Subject), units, -gain.PerDay * units));
+                rows.Add(new("", gain.Pawn, Key(role, served.Room, gain.Subject), units, -((gain.PerDay * units) + gain.Once)));
         }
     }
 

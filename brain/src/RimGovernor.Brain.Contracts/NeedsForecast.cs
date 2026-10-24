@@ -84,7 +84,21 @@ public sealed record NeedDeteriorationPart(double UnroofedOffset, double Outdoor
 /// </summary>
 public sealed record NeedCell(Fact<bool> Roofed, Fact<bool> ThickRoof, Fact<bool> NaturalRoof, Fact<bool> OutdoorTemperature, Fact<bool> PsychologicallyOutdoors);
 /// <summary>A bed's room now (#3339): its RoomRoleDef ("" none), its Impressiveness score stage and ForPrisoners.</summary>
-public sealed record NeedBedRoom(string Role, Fact<int> Stage, bool ForPrisoners);
+public sealed record NeedBedRoom(string Role, Fact<int> Stage, bool ForPrisoners)
+{
+    /// <summary>
+    /// The care a patient lying in the bed gets from it now (#3804): whether the bed is costless (CostListAdjusted empty, a sleeping
+    /// spot: ApplyBedThoughts gives SleptOnGround), its room's PsychologicallyOutdoors (true without a room),
+    /// RoomStatDefOf.InfectionChanceFactor (the stat's roomlessScore without a room; HediffComp_Infecter.CompTended stores it),
+    /// and the bed's own StatDefOf.SurgerySuccessChanceFactor and StatDefOf.ImmunityGainSpeedFactor (the SurgeryOutcomeComp_BedAndRoomQuality
+    /// and StatPart_BedStat reads: the bed's def, its facilities and its room's cleanliness factor).
+    /// </summary>
+    public bool Costless { get; init; }
+    public bool PsychologicallyOutdoors { get; init; }
+    public double InfectionChanceFactor { get; init; }
+    public double SurgerySuccessFactor { get; init; }
+    public double ImmunityGainSpeedFactor { get; init; }
+}
 /// <summary>
 /// A food stack's deterioration inputs (#3339): its HitPoints, SteadyEnvironmentEffects.FinalDeteriorationRate now (every
 /// DeteriorationRate part applied at its cell), whether StatPart_EnvironmentalEffects applies (deteriorateFromEnvironmentalEffects),
@@ -227,6 +241,8 @@ public sealed record NeedsForecastPawn
     public bool OutdoorsDisabled { get; init; }
     /// <summary>ownership.OwnedBed's load id ("" none) and the Ascetic trait, the two pawn facts ApplyBedThoughts reads (#3339).</summary>
     public string OwnedBed { get; init; } = "";
+    /// <summary>The owned bed's room and care (#3804, <see cref="NeedBedRoom"/>); null without an owned bed.</summary>
+    public NeedBedRoom? OwnedBedRoom { get; init; }
     public bool Ascetic { get; init; }
     /// <summary>
     /// The Impressiveness of each room another pawn owns, ascending, as ThoughtWorker_BedroomJealous compares the pawn's own
@@ -294,7 +310,8 @@ public sealed record WorkSpeedRead(string Stat, double Value);
 /// <summary>The pawn's unclamped mood target (as <see cref="NeedsForecastPawn.MoodUnclampedTarget"/>) and its minor break threshold (<c>MentalBreaker.BreakThresholdMinor</c>).</summary>
 public sealed record PawnMoodRead(double Target, double Threshold);
 /// <summary>
-/// What a disease incident's course and victim draw read of one pawn (#3824): <c>StatDefOf.ImmunityGainSpeed</c>, and per DiseaseHuman
+/// What a disease incident's course and victim draw read of one pawn (#3824): <c>StatDefOf.ImmunityGainSpeed</c> without the bed it lies
+/// in (StatPart_BedStat's CurrentBed ImmunityGainSpeedFactor divided out, #3804: the forecast multiplies the bed it is cared in), and per DiseaseHuman
 /// incident the chance it takes hold: <c>immunity.DiseaseContractChanceFactor</c> of its hediff for a potential victim, 0 for a pawn
 /// <c>IncidentWorker_Disease.PotentialVictims</c> leaves out.
 /// </summary>
