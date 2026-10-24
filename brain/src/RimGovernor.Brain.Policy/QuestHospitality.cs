@@ -130,31 +130,19 @@ public static class QuestHospitality
             if (offer.Shuttles.Count == 1)
             {
                 var shuttle = offer.Shuttles[0];
-                var lk = shuttle.AllRequiredLoaded.TryGetValue(out var loaded);
-                var mk = shuttle.ManualLaunchAvailable.TryGetValue(out var manual);
-                if (!lk || !mk)
+                if (shuttle.AllRequiredLoaded)
                 {
-                    return work with { Reason = "shuttle_unknown" };
-                }
-                if (loaded)
-                {
-                    if (manual)
+                    if (shuttle.ManualLaunchAvailable)
                     {
                         return work with { Shuttle = new QuestShuttle(offer.Quest, ShuttleLoading.LaunchOnly, false, [], true) };
                     }
                     return work with { Waiting = true };
                 }
-                var ak = shuttle.AutoloadAvailable.TryGetValue(out var available);
-                var ek = shuttle.Autoload.TryGetValue(out var enabled);
-                if (!ak || !ek)
-                {
-                    return work with { Reason = "shuttle_unknown" };
-                }
-                if (!available)
+                if (!shuttle.AutoloadAvailable)
                 {
                     return work with { Reason = "autoload_unavailable" };
                 }
-                if (!enabled)
+                if (!shuttle.Autoload)
                 {
                     return work with { Shuttle = new QuestShuttle(offer.Quest, ShuttleLoading.Autoload, true, [], false) };
                 }

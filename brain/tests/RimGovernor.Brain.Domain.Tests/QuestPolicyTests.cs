@@ -113,7 +113,7 @@ public sealed class QuestPolicyTests
         Assert.Equal("complete", QuestDecrees.PlanDecreeProduction(Produce, 0, [Revolver()], stock).Reason);
     }
 
-    private static RoundsFacts Hosting(QuestShuttleState shuttle) => new()
+    private static RoundsFacts Hosting(Pb.QuestShuttleState shuttle) => new()
     {
         QuestOffers = Known<EquatableArray<JoinerOffer>>(
         [
@@ -130,19 +130,22 @@ public sealed class QuestPolicyTests
     [Fact]
     public void AHospitalityShuttleIsAutoloadedThenLaunchedOnceLoaded()
     {
-        var waiting = new QuestShuttleState
+        var waiting = new Pb.QuestShuttleState
         {
-            AutoloadAvailable = Known(true),
-            Autoload = Known(false),
-            AllRequiredLoaded = Known(false),
-            ManualLaunchAvailable = Known(false),
+            AutoloadAvailable = true,
+            Autoload = false,
+            Loading = false,
+            AllRequiredLoaded = false,
+            ManualLaunchAvailable = false,
+            LoadedPawnIds = [],
+            PendingPawnIds = [],
         };
         var load = QuestHospitality.SelectHospitalityWork(Hosting(waiting), new Tick(1)).Shuttle;
         Assert.Equal((new QuestId("hosting"), ShuttleLoading.Autoload, true, false), (load!.Quest, load.Loading, load.Autoload, load.Launch));
 
-        Assert.True(QuestHospitality.SelectHospitalityWork(Hosting(waiting with { Autoload = Known(true) }), new Tick(1)) is { Shuttle: null, Waiting: true });
+        Assert.True(QuestHospitality.SelectHospitalityWork(Hosting(waiting with { Autoload = true }), new Tick(1)) is { Shuttle: null, Waiting: true });
 
-        var launch = QuestHospitality.SelectHospitalityWork(Hosting(waiting with { AllRequiredLoaded = Known(true), ManualLaunchAvailable = Known(true) }), new Tick(1)).Shuttle;
+        var launch = QuestHospitality.SelectHospitalityWork(Hosting(waiting with { AllRequiredLoaded = true, ManualLaunchAvailable = true }), new Tick(1)).Shuttle;
         Assert.Equal((ShuttleLoading.LaunchOnly, true), (launch!.Loading, launch.Launch));
     }
 

@@ -34,7 +34,7 @@ public sealed record JoinerOffer
 
     public IReadOnlyList<QuestObjective> Objectives { get; init; } = [];
 
-    public IReadOnlyList<QuestShuttleState> Shuttles { get; init; } = [];
+    public IReadOnlyList<Pb.QuestShuttleState> Shuttles { get; init; } = [];
 
     public Fact<QuestProfile> Profile { get; init; }
 
@@ -99,7 +99,8 @@ public sealed record QuestObjective
 
     public Fact<long> DurationTicks { get; init; }
 
-    public Fact<QuestWorkload> Workload { get; init; }
+    /// <summary>The work an unfinished produce or harvest objective still needs; null when it needs none or no usable bench hosts its recipe.</summary>
+    public QuestWorkload? Workload { get; init; }
 
     public IReadOnlyList<PawnId> PawnIds { get; init; } = [];
 
@@ -111,23 +112,6 @@ public sealed record QuestObjective
 }
 
 public sealed record QuestLodgerMood(Fact<double> Mood);
-
-public sealed record QuestShuttleState
-{
-    public Fact<bool> AutoloadAvailable { get; init; }
-
-    public Fact<bool> Autoload { get; init; }
-
-    public Fact<bool> Loading { get; init; }
-
-    public Fact<bool> AllRequiredLoaded { get; init; }
-
-    public Fact<bool> ManualLaunchAvailable { get; init; }
-
-    public IReadOnlyList<PawnId> LoadedPawnIds { get; init; } = [];
-
-    public IReadOnlyList<PawnId> PendingPawnIds { get; init; } = [];
-}
 
 /// <summary>The royal favor one QuestAccept reward choice grants.</summary>
 public sealed record QuestFavor(int Choice, int Favor);

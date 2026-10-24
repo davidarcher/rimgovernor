@@ -70,7 +70,7 @@ public static class QuestReads
         }
         for (var i = 0; i < rows.Count; i++)
         {
-            if (rows[i].CanFight.TryGetValue(out var fighting) && !fighting)
+            if (!rows[i].CanFight)
             {
                 rows[i] = rows[i] with { DefensePoints = Known(0.0) };
                 continue;
@@ -166,36 +166,21 @@ public static class QuestReads
             {
                 continue;
             }
-            if (m.QuestWorkers.Count != m.Pawns.Count)
-            {
-                return unknown;
-            }
+            // Native reads the map's pawns and its quest workers from the same FreeColonistsSpawned list.
             var capacity = new List<QuestWorkCapacity>();
             var departures = new List<QuestDeparturePawn>();
-            var present = new HashSet<string>(m.Pawns.Select(pawn => pawn.Pawn.Id), StringComparer.Ordinal);
             foreach (var p in m.QuestWorkers)
             {
-                if (!present.Contains((p.PawnId ?? "")))
-                {
-                    return unknown;
-                }
-                var rates = new Dictionary<string, double>(StringComparer.Ordinal);
-                foreach (var rate in p.Rates)
-                {
-                    rates[(rate.Stat ?? "")] = rate.Rate.GetValueOrDefault();
-                }
-                var row = new QuestWorkCapacity { Pawn = new PawnId((p.PawnId ?? "")), HealthyAdult = ColonyDecodeReads.Optional(p.HealthyAdult is not null, p.HealthyAdult.GetValueOrDefault()), Rates = rates };
-                capacity.Add(row);
+                capacity.Add(new QuestWorkCapacity { Pawn = p.PawnId, HealthyAdult = p.HealthyAdult, Rates = p.Rates.ToDictionary(r => r.Stat, r => r.Rate, StringComparer.Ordinal) });
                 departures.Add(new QuestDeparturePawn
                 {
-                    Id = row.Pawn,
-                    HealthyAdult = row.HealthyAdult,
-                    CanFight = ColonyDecodeReads.Optional(p.CanFight is not null, p.CanFight.GetValueOrDefault()),
-                    CarryCapacity = ColonyDecodeReads.Optional(p.CarryCapacity is not null, p.CarryCapacity.GetValueOrDefault()),
-                    CarriedMass = ColonyDecodeReads.Optional(p.CarriedMass is not null, p.CarriedMass.GetValueOrDefault()),
-                    SocialLevel = ColonyDecodeReads.Optional(p.SocialLevel is not null, p.SocialLevel.GetValueOrDefault()),
-                    FactionLeader = ColonyDecodeReads.Optional(p.FactionLeader is not null, p.FactionLeader.GetValueOrDefault()),
-                    NegotiationAbility = ColonyDecodeReads.Optional(p.NegotiationAbility is not null, p.NegotiationAbility.GetValueOrDefault()),
+                    Id = p.PawnId,
+                    HealthyAdult = p.HealthyAdult,
+                    CanFight = p.CanFight,
+                    CarryCapacity = p.CarryCapacity,
+                    CarriedMass = p.CarriedMass,
+                    FactionLeader = p.FactionLeader,
+                    Negotiation = p.Negotiation,
                 });
             }
             return (Known(EquatableArray.From(capacity)), Known(EquatableArray.From(departures)));
@@ -203,34 +188,23 @@ public static class QuestReads
         return unknown;
     }
 
-    internal static Fact<QuestWorkload> QuestWorkloadOf(O.QuestWorkload? w, O.QuestObjectiveKind kind, DefinitionCatalog? catalog)
+    /// <summary>
+    /// The objective's remaining work with the work type that does it: plant cutting for a harvest, the bill work of the
+    /// recipe for a bill. Native names the recipe only from a usable bench, so a recipe the catalog's benches do not host
+    /// raises <see cref="RequiredFactException"/>.
+    /// </summary>
+    internal static QuestWorkload? QuestWorkloadOf(O.QuestWorkload? w, DefinitionCatalog catalog)
     {
         if (w is null)
         {
-            return Unknown<QuestWorkload>();
+            return null;
         }
         var work = WorkType.PlantCutting;
-        if (kind == O.QuestObjectiveKind.ProduceItem)
+        if (w.Recipe is { } recipe)
         {
-            if (catalog is null)
-            {
-                return Unknown<QuestWorkload>();
-            }
-            try
-            {
-                var facts = catalog.RecipeFacts();
-                var (billWork, billKnown) = facts.BillWorkOf((w.Recipe ?? ""));
-                work = billWork;
-                if (!billKnown)
-                {
-                    return Unknown<QuestWorkload>();
-                }
-            }
-            catch (DomainException)
-            {
-                return Unknown<QuestWorkload>();
-            }
+            var (billWork, hosted) = catalog.RecipeFacts().BillWorkOf(recipe);
+            work = hosted ? billWork : throw new RequiredFactException($"bill work type of quest recipe {recipe}");
         }
-        return Known(new QuestWorkload { Work = work, Stat = w.Stat ?? "", Amount = w.Work.GetValueOrDefault(), RateFactor = w.RateFactor.GetValueOrDefault() });
+        return new QuestWorkload { Work = work, Stat = w.Stat, Amount = w.Work, RateFactor = w.RateFactor };
     }
 }

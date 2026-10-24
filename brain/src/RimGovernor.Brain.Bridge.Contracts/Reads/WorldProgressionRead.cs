@@ -49,7 +49,7 @@ public sealed partial record QuestOffer
 
     public IReadOnlyList<QuestObjectiveFact> Objectives { get; init; } = [];
 
-    public IReadOnlyList<QuestShuttleFact> Shuttles { get; init; } = [];
+    public IReadOnlyList<QuestShuttleState> Shuttles { get; init; } = [];
 
     public long? ExpiresInTicks { get; init; }
 
@@ -122,23 +122,6 @@ public sealed partial record QuestObjectiveFact
 }
 
 public sealed record QuestLodgerMoodFact(double? Mood);
-
-public sealed record QuestShuttleFact
-{
-    public bool? AutoloadAvailable { get; init; }
-
-    public bool? Autoload { get; init; }
-
-    public bool? Loading { get; init; }
-
-    public bool? AllRequiredLoaded { get; init; }
-
-    public bool? ManualLaunchAvailable { get; init; }
-
-    public IReadOnlyList<string> LoadedPawnIds { get; init; } = [];
-
-    public IReadOnlyList<string> PendingPawnIds { get; init; } = [];
-}
 
 /// <summary>The royal favor one reward choice grants in total.</summary>
 public sealed record QuestFavorFact(int Choice, int Favor);

@@ -377,10 +377,9 @@ public static class RoundsReads
 
     /// <summary>
     /// The visible quest census; unknown when the frame carries none. Each offer carries the catalog's ground or
-    /// ship-only class of its quest root (QuestClass), unknown without a catalog or when the catalog cannot
-    /// classify the root.
+    /// ship-only class of its quest root (QuestClass), unknown when the catalog cannot classify the root.
     /// </summary>
-    internal static Fact<EquatableArray<JoinerOffer>> FrameQuests(WorldProgressionRead? read, MapId home, DefinitionCatalog? catalog)
+    internal static Fact<EquatableArray<JoinerOffer>> FrameQuests(WorldProgressionRead? read, MapId home, DefinitionCatalog catalog)
     {
         if (read is null)
         {
@@ -407,24 +406,21 @@ public static class RoundsReads
                 OnMap = quest.MapKnown && new MapId(quest.MapId) == home,
                 Class = Unknown<QuestClass>(),
             };
-            if (catalog is not null)
+            try
             {
-                try
-                {
-                    offer = offer with { Profile = Known(catalog.QuestProfile(quest.ScriptDef)) };
-                }
-                catch (DomainException)
-                {
-                    // The profile stays unknown.
-                }
-                try
-                {
-                    offer = offer with { Class = Known(catalog.QuestClass(quest.ScriptDef)) };
-                }
-                catch (DomainException e)
-                {
-                    offer = offer with { ClassError = e.Message };
-                }
+                offer = offer with { Profile = Known(catalog.QuestProfile(quest.ScriptDef)) };
+            }
+            catch (DomainException)
+            {
+                // The profile stays unknown.
+            }
+            try
+            {
+                offer = offer with { Class = Known(catalog.QuestClass(quest.ScriptDef)) };
+            }
+            catch (DomainException e)
+            {
+                offer = offer with { ClassError = e.Message };
             }
             if (quest.FactionId != "" && hostile.TryGetValue(quest.FactionId, out var value))
             {
@@ -470,7 +466,7 @@ public static class RoundsReads
                     GravEngine = objective.GravEngine,
                     SurveyScanner = objective.SurveyScanner,
                     DurationTicks = ColonyDecodeReads.Optional(objective.DurationTicks.HasValue, objective.DurationTicks.GetValueOrDefault()),
-                    Workload = QuestReads.QuestWorkloadOf(objective.Workload, objective.Kind, catalog),
+                    Workload = QuestReads.QuestWorkloadOf(objective.Workload, catalog),
                     LodgerMoods = [.. objective.LodgerMoods.Select(m => new QuestLodgerMood(ColonyDecodeReads.Optional(m.Mood.HasValue, m.Mood.GetValueOrDefault())))],
                     Count = objective.Count is { } count ? Known(count) : default,
                     Active = objective.Active is { } active ? Known(active) : default,
@@ -484,21 +480,7 @@ public static class RoundsReads
                 };
                 objectives.Add(row);
             }
-            var shuttles = new List<QuestShuttleState>();
-            foreach (var shuttle in quest.Shuttles)
-            {
-                shuttles.Add(new QuestShuttleState
-                {
-                    AutoloadAvailable = ColonyDecodeReads.Optional(shuttle.AutoloadAvailable.HasValue, shuttle.AutoloadAvailable.GetValueOrDefault()),
-                    Autoload = ColonyDecodeReads.Optional(shuttle.Autoload.HasValue, shuttle.Autoload.GetValueOrDefault()),
-                    Loading = ColonyDecodeReads.Optional(shuttle.Loading.HasValue, shuttle.Loading.GetValueOrDefault()),
-                    AllRequiredLoaded = ColonyDecodeReads.Optional(shuttle.AllRequiredLoaded.HasValue, shuttle.AllRequiredLoaded.GetValueOrDefault()),
-                    ManualLaunchAvailable = ColonyDecodeReads.Optional(shuttle.ManualLaunchAvailable.HasValue, shuttle.ManualLaunchAvailable.GetValueOrDefault()),
-                    LoadedPawnIds = [.. shuttle.LoadedPawnIds.Select(i => new PawnId(i))],
-                    PendingPawnIds = [.. shuttle.PendingPawnIds.Select(i => new PawnId(i))],
-                });
-            }
-            offers.Add(offer with { Objectives = objectives, Shuttles = shuttles });
+            offers.Add(offer with { Objectives = objectives, Shuttles = quest.Shuttles });
         }
         return Known(EquatableArray.From(offers));
     }

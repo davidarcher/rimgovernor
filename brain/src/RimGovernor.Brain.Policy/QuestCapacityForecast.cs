@@ -9,18 +9,19 @@ public sealed record QuestWorkCapacity
 
     public IReadOnlyDictionary<string, double> Rates { get; init; } = new Dictionary<string, double>();
 
-    public Fact<bool> HealthyAdult { get; init; }
+    public required bool HealthyAdult { get; init; }
 }
 
+/// <summary>An objective's remaining work: the work type that does it, the speed stat (null: every worker at rate 1), the amount and the bench factor.</summary>
 public sealed record QuestWorkload
 {
-    public WorkType Work { get; init; }
+    public required WorkType Work { get; init; }
 
-    public string Stat { get; init; } = "";
+    public required string? Stat { get; init; }
 
-    public double Amount { get; init; }
+    public required double Amount { get; init; }
 
-    public double RateFactor { get; init; }
+    public required double RateFactor { get; init; }
 }
 
 public static class QuestCapacityForecast
@@ -106,7 +107,7 @@ public static class QuestCapacityForecast
             {
                 continue;
             }
-            if (!p.HealthyAdult.TryGetValue(out var healthy) || !healthy)
+            if (!p.HealthyAdult)
             {
                 continue;
             }
@@ -145,14 +146,9 @@ public static class QuestCapacityForecast
                 {
                     continue;
                 }
-                var rate = 1.0;
-                if (task.Workload.Stat.Length != 0)
-                {
-                    if (!pawn.Rates.TryGetValue(task.Workload.Stat, out rate))
-                    {
-                        return "deadline_unknown";
-                    }
-                }
+                // Native rates every recipe work speed stat, construction and plant work, so a missing one is a broken read.
+                var rate = task.Workload.Stat is not { } stat ? 1.0
+                    : pawn.Rates.TryGetValue(stat, out var measured) ? measured : throw new RequiredFactException($"quest work rate {stat} of {pawn.Pawn}");
                 rate *= task.Workload.RateFactor;
                 if (!FinitePositive(rate))
                 {
@@ -211,7 +207,7 @@ public static class QuestCapacityForecast
             {
                 continue;
             }
-            var known = objective.Workload.TryGetValue(out var work);
+            var work = objective.Workload;
             if (objective.Monument is { } marker)
             {
                 if (marker.State is Pb.QuestMonumentState.Installed { AllDone: true })
@@ -238,13 +234,12 @@ public static class QuestCapacityForecast
                     amount += largest;
                 }
                 work = new QuestWorkload { Work = WorkType.Construction, Stat = "ConstructionSpeed", Amount = amount, RateFactor = 1 };
-                known = true;
             }
-            if (!known)
+            if (work is null)
             {
                 return ([], "deadline_unknown");
             }
-            if (work!.Amount == 0)
+            if (work.Amount == 0)
             {
                 continue;
             }

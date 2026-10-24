@@ -4017,15 +4017,22 @@ public sealed record QuestPeaceTalks
     public required bool IdeologyActive { get; init; }
 }
 
+/// <summary>
+/// The work an unfinished produce or harvest objective still needs: the work amount, the stat that speeds it and
+/// the bench's speed factor.
+/// </summary>
 public sealed record QuestWorkload
 {
-    public string? Recipe { get; init; }
+    /// <summary>The bill recipe that makes the item; null for a harvest, which no bill hosts.</summary>
+    public required string? Recipe { get; init; }
 
-    public string? Stat { get; init; }
+    /// <summary>The work speed stat; null when the recipe names none, so every worker works at rate 1.</summary>
+    public required string? Stat { get; init; }
 
-    public double? Work { get; init; }
+    public required double Work { get; init; }
 
-    public double? RateFactor { get; init; }
+    /// <summary>The bench's work table speed; 1 for a harvest or a recipe without one.</summary>
+    public required double RateFactor { get; init; }
 }
 
 public sealed record QuestLodgerMood
@@ -4135,33 +4142,50 @@ public sealed record QuestMonumentBuildOption
 /// <summary>Units of one thing def.</summary>
 public sealed record QuestMonumentMaterial(string DefName, long Units);
 
+/// <summary>One free colonist spawned on the map as quest staffing reads it.</summary>
 public sealed record QuestWorker
 {
-    public string? PawnId { get; init; }
+    public required PawnId PawnId { get; init; }
 
-    public bool? HealthyAdult { get; init; }
+    /// <summary>CompShuttle.PawnIsHealthyEnoughForShuttle and adulthood (the shuttle's acceptChildren=false).</summary>
+    public required bool HealthyAdult { get; init; }
 
-    public bool? CanFight { get; init; }
+    public required bool CanFight { get; init; }
 
+    /// <summary>Every recipe work speed stat plus ConstructionSpeed and PlantWorkSpeed; 0 for a stat disabled for the pawn.</summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<QuestWorkRate>))]
-    public EquatableArray<QuestWorkRate> Rates { get; init; }
+    public required EquatableArray<QuestWorkRate> Rates { get; init; }
 
-    public double? CarryCapacity { get; init; }
+    public required double CarryCapacity { get; init; }
 
-    public double? CarriedMass { get; init; }
+    public required double CarriedMass { get; init; }
 
-    public int? SocialLevel { get; init; }
+    public required bool FactionLeader { get; init; }
 
-    public bool? FactionLeader { get; init; }
+    public required QuestNegotiation Negotiation { get; init; }
+}
 
-    public double? NegotiationAbility { get; init; }
+/// <summary>
+/// A colonist's diplomacy: the NegotiationAbility stat and Social skill level, or Incapable when the stat is disabled
+/// for the pawn.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(QuestNegotiation.Able), "able")]
+[JsonDerivedType(typeof(QuestNegotiation.Incapable), "incapable")]
+public abstract record QuestNegotiation
+{
+    private protected QuestNegotiation() { }
+
+    public sealed record Able(double Ability, int Social) : QuestNegotiation;
+
+    public sealed record Incapable : QuestNegotiation;
 }
 
 public sealed record QuestWorkRate
 {
-    public string? Stat { get; init; }
+    public required string Stat { get; init; }
 
-    public double? Rate { get; init; }
+    public required double Rate { get; init; }
 }
 
 /// <summary>One loose unstored stack of monument material: its load id, def, cell and the haulers who could store it.</summary>
@@ -4177,23 +4201,27 @@ public sealed record QuestMonumentResource
     public required EquatableArray<PawnId> EligibleHaulers { get; init; }
 }
 
+/// <summary>One shuttle a quest reserves: its loading gizmos and state, and the pawns aboard and still to board.</summary>
 public sealed record QuestShuttleState
 {
-    public bool? AutoloadAvailable { get; init; }
+    /// <summary>Vanilla offers an enabled autoload toggle.</summary>
+    public required bool AutoloadAvailable { get; init; }
 
-    public bool? Autoload { get; init; }
+    public required bool Autoload { get; init; }
 
-    public bool? Loading { get; init; }
+    /// <summary>Transporter.LoadingInProgressOrReadyToLaunch: boarding orders already exist.</summary>
+    public required bool Loading { get; init; }
 
-    public bool? AllRequiredLoaded { get; init; }
+    public required bool AllRequiredLoaded { get; init; }
 
-    public bool? ManualLaunchAvailable { get; init; }
+    /// <summary>Loaded, launchable and offering an enabled send command.</summary>
+    public required bool ManualLaunchAvailable { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> LoadedPawnIds { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> LoadedPawnIds { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> PendingPawnIds { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> PendingPawnIds { get; init; }
 }
 
 public sealed record QuestState

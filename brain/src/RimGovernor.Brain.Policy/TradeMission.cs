@@ -21,15 +21,14 @@ public static partial class TradePolicyRules
                 Comparer<QuestDeparturePawn>.Create(
                     (x, y) =>
                     {
-                        var xk = x.NegotiationAbility.TryGetValue(out var a);
-                        var yk = y.NegotiationAbility.TryGetValue(out var b);
-                        if (xk != yk)
+                        switch (x.Negotiation, y.Negotiation)
                         {
-                            return xk ? -1 : 1;
-                        }
-                        if (a != b)
-                        {
-                            return a > b ? -1 : 1;
+                            case (O.QuestNegotiation.Able a, O.QuestNegotiation.Able b) when a.Ability != b.Ability:
+                                return a.Ability > b.Ability ? -1 : 1;
+                            case (O.QuestNegotiation.Able, O.QuestNegotiation.Incapable):
+                                return -1;
+                            case (O.QuestNegotiation.Incapable, O.QuestNegotiation.Able):
+                                return 1;
                         }
                         return x.Id.CompareTo(y.Id);
                     }
@@ -42,8 +41,7 @@ public static partial class TradePolicyRules
         }
         foreach (var row in rows)
         {
-            var ak = row.NegotiationAbility.TryGetValue(out var ability);
-            if (!ak || !Finite(ability) || ability <= 0 || claimed.Contains(row.Id) || !spare.Contains(row.Id))
+            if (row.Negotiation is not O.QuestNegotiation.Able(var ability, _) || !Finite(ability) || ability <= 0 || claimed.Contains(row.Id) || !spare.Contains(row.Id))
             {
                 continue;
             }
@@ -92,9 +90,8 @@ public static partial class TradePolicyRules
                 {
                     continue;
                 }
-                var ck = row.CarryCapacity.TryGetValue(out var carry);
-                var mk = row.CarriedMass.TryGetValue(out var mass);
-                if (!ck || !mk || !FoodForecastRules.FoodNumber(carry) || !FoodForecastRules.FoodNumber(mass) || carry < mass)
+                var (carry, mass) = (row.CarryCapacity, row.CarriedMass);
+                if (!FoodForecastRules.FoodNumber(carry) || !FoodForecastRules.FoodNumber(mass) || carry < mass)
                 {
                     return (0, false);
                 }

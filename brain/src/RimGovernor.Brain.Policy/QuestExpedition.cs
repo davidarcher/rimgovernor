@@ -404,9 +404,8 @@ public static class QuestExpedition
                 {
                     continue;
                 }
-                var ck = pawn.CarryCapacity.TryGetValue(out var carry);
-                var mk = pawn.CarriedMass.TryGetValue(out var mass);
-                if (!ck || !mk || !TradePolicyRules.Finite(carry) || !TradePolicyRules.Finite(mass) || carry < 0 || mass < 0)
+                var (carry, mass) = (pawn.CarryCapacity, pawn.CarriedMass);
+                if (!TradePolicyRules.Finite(carry) || !TradePolicyRules.Finite(mass) || carry < 0 || mass < 0)
                 {
                     return Fail("mass_unknown");
                 }

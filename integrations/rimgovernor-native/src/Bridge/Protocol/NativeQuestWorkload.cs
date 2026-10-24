@@ -15,7 +15,7 @@ namespace HomeBridge.BridgeTools
             if (objective.Kind == Obs.QuestObjectiveKind.HarvestPlant)
             {
                 var plant = DefDatabase<ThingDef>.GetNamedSilentFail((objective.Def ?? ""))?.plant;
-                return plant == null ? null : new Obs.QuestWorkload { Work = remaining * plant.harvestWork, Stat = StatDefOf.PlantWorkSpeed.defName, RateFactor = 1 };
+                return plant == null ? null : new Obs.QuestWorkload { Recipe = null, Work = remaining * plant.harvestWork, Stat = StatDefOf.PlantWorkSpeed.defName, RateFactor = 1 };
             }
             if (objective.Kind != Obs.QuestObjectiveKind.ProduceItem) return null;
             var map = quest.QuestLookTargets.Select(t => t.Map).FirstOrDefault(m => m != null);
@@ -30,7 +30,7 @@ namespace HomeBridge.BridgeTools
                     var units = recipe.products.Where(p => p.thingDef.defName == (objective.Def ?? "")).Sum(p => p.count);
                     if (units <= 0 || !recipe.AvailableNow) continue;
                     var iterations = Math.Ceiling((double)remaining / units);
-                    return new Obs.QuestWorkload { Recipe = recipe.defName, Stat = recipe.workSpeedStat?.defName ?? "",
+                    return new Obs.QuestWorkload { Recipe = recipe.defName, Stat = recipe.workSpeedStat?.defName,
                         Work = iterations * recipe.WorkAmountForStuff(stuff),
                         RateFactor = recipe.workTableSpeedStat == null ? 1 : bench.GetStatValue(recipe.workTableSpeedStat) };
                 }

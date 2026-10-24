@@ -45,13 +45,13 @@ public static class QuestPeaceTalksPolicy
         {
             return Fail("capacity_unknown");
         }
-        // Native leaves the Social skill out when NegotiationAbility is disabled: that pawn is no diplomat.
+        // A colonist whose NegotiationAbility is disabled is Incapable: that pawn is no diplomat.
         var pawns = new List<PeaceTalksPawn>(departures.Count);
         foreach (var row in departures)
         {
-            if (row.SocialLevel.TryGetValue(out var social) && social >= 0 && row.FactionLeader.TryGetValue(out var leader))
+            if (row.Negotiation is Pb.QuestNegotiation.Able able)
             {
-                pawns.Add(new PeaceTalksPawn { Id = row.Id, Social = social, Leader = leader });
+                pawns.Add(new PeaceTalksPawn { Id = row.Id, Social = able.Social, Leader = row.FactionLeader });
             }
         }
         var (diplomat, reason) = PeaceTalksNegotiator(offer, f, pawns, risk.IdeologyActive);

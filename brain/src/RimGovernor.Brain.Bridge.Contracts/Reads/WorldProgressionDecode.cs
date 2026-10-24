@@ -55,20 +55,6 @@ partial record QuestOffer
                 Items = [.. reward.Items.Select(item => new QuestTradeItemFact(item.DefName, item.Units))],
             });
         }
-        var shuttles = new List<QuestShuttleFact>(row.Shuttles.Count);
-        foreach (var shuttle in row.Shuttles)
-        {
-            shuttles.Add(new QuestShuttleFact
-            {
-                AutoloadAvailable = shuttle.AutoloadAvailable,
-                Autoload = shuttle.Autoload,
-                Loading = shuttle.Loading,
-                AllRequiredLoaded = shuttle.AllRequiredLoaded,
-                ManualLaunchAvailable = shuttle.ManualLaunchAvailable,
-                LoadedPawnIds = [.. shuttle.LoadedPawnIds],
-                PendingPawnIds = [.. shuttle.PendingPawnIds],
-            });
-        }
         return new QuestOffer
         {
             Id = row.Id ?? "",
@@ -89,7 +75,7 @@ partial record QuestOffer
             RewardChoiceParts = row.ChoicePartCount,
             Rewards = rewards,
             Objectives = [.. row.Objectives.Select(QuestObjectiveFact.DecodeObjective)],
-            Shuttles = shuttles,
+            Shuttles = [.. row.Shuttles],
             Favor = [.. favor.Select(pair => new QuestFavorFact(pair.Key, pair.Value)).OrderBy(fact => fact.Choice)],
         };
     }

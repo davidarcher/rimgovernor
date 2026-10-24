@@ -27,9 +27,8 @@ public sealed record QuestShuttle : IActionPayload
             case ShuttleLoading.ExplicitPawns:
                 DomainException.Require(!autoload && rows.Count != 0 && rows.Count <= 256, "explicit shuttle loading requires 1 to 256 pawns");
                 break;
-            default:
-                throw new DomainException("invalid shuttle loading mode");
         }
+        DomainException.Require(Enum.IsDefined(loading), "invalid shuttle loading mode");
         for (var i = 0; i < rows.Count; i++)
         {
             DomainException.Require(rows[i].IsValid && !(i > 0 && rows[i - 1] == rows[i]), "invalid or duplicate shuttle pawn");

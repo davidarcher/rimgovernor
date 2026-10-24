@@ -3,25 +3,25 @@ using Pb = RimGovernor.Contracts.Wire.Observations;
 
 namespace RimGovernor.Brain.Policy;
 
+/// <summary>A colonist on the current map as the departure planners read it: the native quest worker row and its defense points.</summary>
 public sealed record QuestDeparturePawn
 {
-    public PawnId Id { get; init; }
+    public required PawnId Id { get; init; }
 
-    public Fact<bool> HealthyAdult { get; init; }
+    public required bool HealthyAdult { get; init; }
 
-    public Fact<bool> CanFight { get; init; }
+    public required bool CanFight { get; init; }
 
+    /// <summary>Melee power plus ranged DPS in raid points; 0 for a pawn that cannot fight. Unknown while the defender roster (#3789) is.</summary>
     public Fact<double> DefensePoints { get; init; }
 
-    public Fact<double> CarryCapacity { get; init; }
+    public required double CarryCapacity { get; init; }
 
-    public Fact<double> CarriedMass { get; init; }
+    public required double CarriedMass { get; init; }
 
-    public Fact<int> SocialLevel { get; init; }
+    public required bool FactionLeader { get; init; }
 
-    public Fact<bool> FactionLeader { get; init; }
-
-    public Fact<double> NegotiationAbility { get; init; }
+    public required Pb.QuestNegotiation Negotiation { get; init; }
 }
 
 public sealed record QuestDepartureWork
@@ -200,11 +200,7 @@ public static class QuestDeparture
             {
                 continue;
             }
-            if (!pawn.HealthyAdult.TryGetValue(out var healthy))
-            {
-                return (none, "health_unknown");
-            }
-            if (!healthy)
+            if (!pawn.HealthyAdult)
             {
                 continue;
             }
@@ -234,16 +230,9 @@ public static class QuestDeparture
             var dk = pawn.DefensePoints.TryGetValue(out var defense);
             if (profile.Family == QuestFamily.BanditCamp)
             {
-                if (!allowNonfighters)
+                if (!allowNonfighters && !pawn.CanFight)
                 {
-                    if (!pawn.CanFight.TryGetValue(out var fight))
-                    {
-                        return (none, "defense_unknown");
-                    }
-                    if (!fight)
-                    {
-                        continue;
-                    }
+                    continue;
                 }
                 if (!dk || !TradePolicyRules.Finite(defense) || defense < 0)
                 {
@@ -328,16 +317,9 @@ public static class QuestDeparture
                 return result with { Reason = "shuttle_ambiguous" };
             }
             var shuttle = offer.Shuttles[0];
-            var lk = shuttle.AllRequiredLoaded.TryGetValue(out var loaded);
-            var mk = shuttle.ManualLaunchAvailable.TryGetValue(out var manual);
-            var bk = shuttle.Loading.TryGetValue(out var loading);
-            if (!lk || !mk || !bk)
+            if (shuttle.AllRequiredLoaded)
             {
-                return result with { Reason = "shuttle_unknown" };
-            }
-            if (loaded)
-            {
-                if (manual)
+                if (shuttle.ManualLaunchAvailable)
                 {
                     var launch = new QuestShuttle(offer.Quest, ShuttleLoading.LaunchOnly, false, [], true);
                     return result with { Shuttle = launch, Waiting = false };
@@ -346,7 +328,7 @@ public static class QuestDeparture
             }
             // Loading is native evidence that boarding orders already exist. Reissuing another roster could
             // send replacements alongside the original squad.
-            if (loading || shuttle.LoadedPawnIds.Count > 0 || shuttle.PendingPawnIds.Count > 0)
+            if (shuttle.Loading || shuttle.LoadedPawnIds.Count > 0 || shuttle.PendingPawnIds.Count > 0)
             {
                 return result;
             }

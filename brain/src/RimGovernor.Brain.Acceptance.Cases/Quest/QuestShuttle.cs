@@ -58,12 +58,12 @@ internal static class QuestShuttle
             var row = await QuestKit.QuestAsync(s, "shuttle-board-read", quest, ct).ConfigureAwait(false);
             var shuttle = row?.Shuttles.Count == 1 ? row.Shuttles[0] : throw new AcceptanceException($"shuttle-board: expected the quest's one shuttle, got {row}");
             s.RecordWire("shuttle", shuttle);
-            if (shuttle.AllRequiredLoaded == true && !shuttle.LoadedPawnIds.Contains(pawn))
+            if (shuttle.AllRequiredLoaded && !shuttle.LoadedPawnIds.Contains(new RimGovernor.Brain.Domain.PawnId(pawn)))
             {
                 throw new AcceptanceException($"shuttle-board: loaded without {pawn}: {shuttle}");
             }
 
-            return ($"{shuttle.AllRequiredLoaded} {string.Join(",", shuttle.LoadedPawnIds)}", shuttle.AllRequiredLoaded == true);
+            return ($"{shuttle.AllRequiredLoaded} {string.Join(",", shuttle.LoadedPawnIds.Select(p => p.Value))}", shuttle.AllRequiredLoaded);
         }, cancellationToken).ConfigureAwait(false);
 
         await Apply("shuttle-launch", new Operations.QuestShuttleIntent { QuestId = quest, Launch = true }).ConfigureAwait(false);
