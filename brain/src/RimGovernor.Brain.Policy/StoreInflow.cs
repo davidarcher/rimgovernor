@@ -1,26 +1,9 @@
+using Obs = RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
-// Store inflow. Native samples the stacks each storage group holds at every hour's first tick into a saved ring;
-// a store's net inflow is the slope of its groups' held stacks over a recent window.
-
-/// <summary>One ring sample: the stacks a storage group held at the start of Hour.</summary>
-public sealed record OccupancySample
-{
-    public int Hour { get; init; }
-
-    public int Stacks { get; init; }
-}
-
-/// <summary>
-/// One native read: each requested storage group's samples (ascending) inside the inflow window. A group missing
-/// here has no samples; CurrentHour is the hour running when it was read.
-/// </summary>
-public sealed record StoreOccupancy
-{
-    public int CurrentHour { get; init; }
-
-    public IReadOnlyDictionary<string, EquatableArray<OccupancySample>> Groups { get; init; } = new Dictionary<string, EquatableArray<OccupancySample>>();
-}
+// Store inflow. Native samples the stacks each storage group holds at every hour's first tick into a saved ring
+// (Obs.StorageOccupancySnapshot); a store's net inflow is the slope of its groups' held stacks over a recent window.
 
 public static partial class StoreRules
 {
@@ -63,9 +46,9 @@ public static partial class StoreRules
     }
 
     /// <summary>One group's held-stack slope in stacks per day over the window; unknown under a day of samples.</summary>
-    internal static Fact<double> GroupInflow(StoreOccupancy occupancy, string group)
+    internal static Fact<double> GroupInflow(Obs.StorageOccupancySnapshot occupancy, string group)
     {
-        if (!occupancy.Groups.TryGetValue(group, out var samples))
+        if (occupancy.Groups.FirstOrDefault(g => g.Group == group)?.Samples is not { } samples)
         {
             return Unknown<double>();
         }

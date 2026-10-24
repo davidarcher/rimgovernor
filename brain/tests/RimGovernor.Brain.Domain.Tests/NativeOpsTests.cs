@@ -21,7 +21,10 @@ public sealed class NativeOpsTests
         {
             // A request with a required member does not read from an empty body.
             var body = ReferenceEquals(op, NativeOps.ReadDefinitionCatalog) ? """{"scope":{}}"""
-                : ReferenceEquals(op, NativeOps.ReadTendDoctors) ? """{"scope":{},"pawnIds":[],"reachBudgetMs":0}""" : "{}";
+                : ReferenceEquals(op, NativeOps.ReadTendDoctors) ? """{"scope":{},"pawnIds":[],"reachBudgetMs":0}"""
+                : ReferenceEquals(op, NativeOps.ReadConsumption) ? """{"sinceHour":0}"""
+                : ReferenceEquals(op, NativeOps.ReadStorageOccupancy) ? """{"groups":[],"sinceHour":0}"""
+                : ReferenceEquals(op, NativeOps.ListResourceSources) ? """{"resource":""}""" : "{}";
             _ = op.InvokeJsonAsync(facade, body, CancellationToken.None);
         }
 

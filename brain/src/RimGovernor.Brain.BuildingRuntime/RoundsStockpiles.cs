@@ -347,11 +347,11 @@ public sealed partial class Rounder
     /// (<paramref name="plans"/> by zone, the built ones); unknown when the native cannot read it or the read fails
     /// (a store's inflow is then unknown, never zero).
     /// </summary>
-    private async Task<Fact<Pol.StoreOccupancy>> StorageOccupancyAsync(IReadOnlyList<Pol.StockpileZone> zones, IReadOnlyDictionary<string, List<Pol.ShelfRecord>> plans, Tick tick, CancellationToken ct)
+    private async Task<Fact<O.StorageOccupancySnapshot>> StorageOccupancyAsync(IReadOnlyList<Pol.StockpileZone> zones, IReadOnlyDictionary<string, List<Pol.ShelfRecord>> plans, Tick tick, CancellationToken ct)
     {
         if (Native is not FacadeNativeClient reader)
         {
-            return Unknown<Pol.StoreOccupancy>();
+            return Unknown<O.StorageOccupancySnapshot>();
         }
         var groups = new HashSet<string>(StringComparer.Ordinal);
         foreach (var z in zones)
@@ -367,7 +367,7 @@ public sealed partial class Rounder
         }
         if (groups.Count == 0)
         {
-            return Unknown<Pol.StoreOccupancy>();
+            return Unknown<O.StorageOccupancySnapshot>();
         }
         try
         {
@@ -375,7 +375,7 @@ public sealed partial class Rounder
         }
         catch (Exception e) when (e is not OperationCanceledException)
         {
-            return Unknown<Pol.StoreOccupancy>();
+            return Unknown<O.StorageOccupancySnapshot>();
         }
     }
 

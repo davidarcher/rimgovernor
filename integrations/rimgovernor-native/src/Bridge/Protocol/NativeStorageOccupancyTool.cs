@@ -1,8 +1,6 @@
 #nullable enable
-using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
@@ -13,26 +11,24 @@ namespace HomeBridge.BridgeTools
     // after the hour the reader already holds, from the saved StorageOccupancyState ring.
     internal static class NativeStorageOccupancyTool
     {
-
-        internal static Obs.StorageOccupancyReply HandleRead(Obs.StorageOccupancyRequest request)
+        internal static Obs.StorageOccupancySnapshot HandleRead(Obs.StorageOccupancyRequest request)
         {
-            var sinceHour = request.SinceHour ?? -1;
             if (Current.Game == null || Find.TickManager == null)
-                return new Obs.StorageOccupancyReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "No game is loaded." } };
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "No game is loaded." });
             var state = StorageOccupancyState.For(Current.Game);
-            var groups = new List<Obs.StorageOccupancyGroup>();
-            foreach (var group in request.Groups)
+            return new Obs.StorageOccupancySnapshot
             {
-                var id = group?.Id ?? "";
-                var samples = state.After(id, sinceHour);
-                if (id.Length == 0 || samples.Count == 0) continue;
-                groups.Add(new Obs.StorageOccupancyGroup
-                {
-                    Group = new Common.Ref { Id = id },
-                    Samples = [.. samples.Select(s => new Obs.StorageOccupancySample { Hour = s.Key, Stacks = s.Value })],
-                });
-            }
-            return new Obs.StorageOccupancyReply { Outcome = new Obs.StorageOccupancySnapshot { CurrentHour = StorageOccupancyState.HourOf(Find.TickManager.TicksGame), Groups = [.. groups] } };
+                CurrentHour = StorageOccupancyState.HourOf(Find.TickManager.TicksGame),
+                Groups = [.. request.Groups
+                    .Where(id => id.Length != 0)
+                    .Select(id => (Id: id, Samples: state.After(id, request.SinceHour)))
+                    .Where(g => g.Samples.Count != 0)
+                    .Select(g => new Obs.StorageOccupancyGroup
+                    {
+                        Group = g.Id,
+                        Samples = [.. g.Samples.Select(s => new Obs.StorageOccupancySample { Hour = s.Key, Stacks = s.Value })],
+                    })],
+            };
         }
     }
 }

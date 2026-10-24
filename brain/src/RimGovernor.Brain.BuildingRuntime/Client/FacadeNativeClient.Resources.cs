@@ -12,66 +12,18 @@ public sealed partial class FacadeNativeClient
     /// <paramref name="sinceHour"/> (negative: the whole 60-day window), sparse. The ring is game-scoped, not
     /// map-scoped, so the request carries no identity.
     /// </summary>
-    internal async Task<Policy.ConsumptionPage> ReadConsumptionAsync(int sinceHour, CancellationToken cancellationToken)
-    {
-        var request = new PbObservations.ConsumptionRequest { SinceHour = sinceHour >= 0 ? sinceHour : null };
-        var reply = await Facade.ReadConsumptionAsync(request, cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome;
-        if (outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-
-        var snapshot = outcome.Observed!;
-        var hours = new List<Policy.ConsumptionHour>();
-        foreach (var hour in snapshot.Hours)
-        {
-            var rows = new List<Policy.ConsumptionRow>();
-            foreach (var row in hour.Rows)
-            {
-                rows.Add(new Policy.ConsumptionRow { Resource = new Policy.Resource(row.Definition ?? ""), Reason = row.Reason ?? "", Count = row.Count.GetValueOrDefault() });
-            }
-
-            hours.Add(new Policy.ConsumptionHour { Hour = hour.Hour.GetValueOrDefault(), Rows = Domain.EquatableArray.From(rows) });
-        }
-
-        return new Policy.ConsumptionPage { CurrentHour = snapshot.CurrentHour.GetValueOrDefault(), FirstHour = snapshot.FirstHour.GetValueOrDefault(), Hours = Domain.EquatableArray.From(hours) };
-    }
+    internal Task<PbObservations.ConsumptionSnapshot> ReadConsumptionAsync(int sinceHour, CancellationToken cancellationToken) =>
+        Facade.ReadConsumptionAsync(new PbObservations.ConsumptionRequest { SinceHour = sinceHour }, cancellationToken);
 
     /// <summary>
     /// Native's saved storage occupancy ring: each named storage group's hourly stack samples after
     /// <paramref name="sinceHour"/>, ascending. A group with no samples is absent. Game-scoped like consumption: the
     /// group load ids name the map.
     /// </summary>
-    internal async Task<Policy.StoreOccupancy> ReadStorageOccupancyAsync(IReadOnlyCollection<string> groups, int sinceHour, CancellationToken cancellationToken)
-    {
-        var request = new PbObservations.StorageOccupancyRequest
-        {
-            Groups = Domain.EquatableArray.From(groups.Order(StringComparer.Ordinal).Select(id => new PbCommon.Ref { Id = id })),
-            SinceHour = sinceHour >= 0 ? sinceHour : null,
-        };
-        var reply = await Facade.ReadStorageOccupancyAsync(request, cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome;
-        if (outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-
-        var snapshot = outcome.Observed!;
-        var output = new Dictionary<string, Domain.EquatableArray<Policy.OccupancySample>>(StringComparer.Ordinal);
-        foreach (var group in snapshot.Groups)
-        {
-            var samples = new List<Policy.OccupancySample>();
-            foreach (var sample in group.Samples)
-            {
-                samples.Add(new Policy.OccupancySample { Hour = sample.Hour.GetValueOrDefault(), Stacks = sample.Stacks.GetValueOrDefault() });
-            }
-
-            output[group.Group?.Id ?? ""] = Domain.EquatableArray.From(samples);
-        }
-
-        return new Policy.StoreOccupancy { CurrentHour = snapshot.CurrentHour.GetValueOrDefault(), Groups = output };
-    }
+    internal Task<PbObservations.StorageOccupancySnapshot> ReadStorageOccupancyAsync(IReadOnlyCollection<string> groups, int sinceHour, CancellationToken cancellationToken) =>
+        Facade.ReadStorageOccupancyAsync(
+            new PbObservations.StorageOccupancyRequest { Groups = Domain.EquatableArray.From(groups.Order(StringComparer.Ordinal)), SinceHour = sinceHour },
+            cancellationToken);
 
     /// <summary>
     /// A fresh read of one resource definition's reachable mine/harvest sources and
@@ -81,43 +33,24 @@ public sealed partial class FacadeNativeClient
     internal async Task<(IReadOnlyList<Policy.ResourceSource> Rows, Policy.ResourceStorage Storage)> ReadResourceSourcesAsync(PbCommon.Identity identity, string resource, CancellationToken cancellationToken)
     {
         var request = new PbObservations.ResourceSourcesRequest { Scope = new PbObservations.ReadScope { ExpectedIdentity = identity }, Resource = resource };
-        var reply = await Facade.ListResourceSourcesAsync(request, cancellationToken).ConfigureAwait(false);
-        var outcome = reply.Outcome;
-        if (outcome.Unavailable is { } unavailable)
-        {
-            throw Unavailable(unavailable);
-        }
-
-        if (outcome.Failure is { } failure)
-        {
-            throw Failure(failure);
-        }
-
-        var snapshot = outcome.Observed!;
+        var snapshot = await Facade.ListResourceSourcesAsync(request, cancellationToken).ConfigureAwait(false);
         var catalog = await DefinitionCatalogAsync(identity, cancellationToken).ConfigureAwait(false);
-        var storage = ResourceDecodeStorage(snapshot.Storage!, resource, catalog);
+        var storage = ResourceDecodeStorage(snapshot.Storage, resource, catalog);
         var rows = new List<Policy.ResourceSource>(snapshot.Sources.Count);
         foreach (var row in snapshot.Sources)
         {
-            var method = ResourceSourceMethodOf(catalog, row.DefName ?? "");
-            var cell = default(Domain.Cell);
-            if (method == Policy.ResourceSourceMethod.Mine && row.Cell is { } position)
-            {
-                cell = new Domain.Cell(position.X, position.Z);
-            }
-
+            var method = ResourceSourceMethodOf(catalog, row.DefName);
             rows.Add(new Policy.ResourceSource
             {
-                ThingId = row.Source?.Id ?? "",
-                Yield = (long)row.Yield.GetValueOrDefault(),
-                Distance = row.Distance.GetValueOrDefault(),
+                ThingId = row.Id,
+                Yield = (long)row.Yield,
+                Distance = row.Distance,
                 Method = method,
-                Designated = row.Designated ?? false,
-                Taken = row.Taken ?? false,
-                Safety = row.Safety ?? "",
-                Cell = cell,
-                Reachable = row.Reachable is { } reachable ? Known(reachable) : Unknown<bool>(),
-                Buried = row.Buried ?? false,
+                Designated = row.Designated,
+                Taken = row.Taken,
+                Safety = row.Safety,
+                Cell = method == Policy.ResourceSourceMethod.Mine ? row.Cell : default,
+                Buried = row.Buried,
             });
         }
 
@@ -138,19 +71,13 @@ public sealed partial class FacadeNativeClient
             throw BridgeContractException.Contract("invalid resource storage stack limit");
         }
 
-        var cells = new List<Domain.Cell>(storage.Candidates.Count);
-        foreach (var cell in storage.Candidates)
-        {
-            cells.Add(new Domain.Cell(cell.X, cell.Z));
-        }
-
         return new Policy.ResourceStorage
         {
             Capacity = storage.Capacity,
             Stored = storage.Stored,
             StackLimit = stackLimit,
             Haulers = storage.Haulers.Count,
-            Candidates = Domain.EquatableArray.From(cells),
+            Candidates = storage.Candidates,
         };
     }
 

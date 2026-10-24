@@ -3,9 +3,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI;
@@ -24,13 +23,12 @@ namespace HomeBridge.BridgeTools
     internal static class NativeResourceSourcesTool
     {
 
-        internal static Obs.ResourceSourcesReply HandleListResourceSources(Obs.ResourceSourcesRequest request)
+        internal static Obs.ResourceSourcesSnapshot HandleListResourceSources(Obs.ResourceSourcesRequest request)
         {
-            if (!Validate(request, out var failure))
-                return new Obs.ResourceSourcesReply { Outcome = new Obs.ResourceSourcesReplyOutcome.FailureCase(failure) };
-            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out var context, out var error))
-                return new Obs.ResourceSourcesReply { Outcome = error };
-            return Read(map, request, context);
+            if (!Validate(request, out var failure)) throw NativeFaults.Refused(failure);
+            if (!ProtoBoundary.ValidateIdentity(request.Scope?.ExpectedIdentity, out var map, out _, out var error))
+                throw NativeFaults.Refused(error);
+            return Read(map, request);
         }
 
         // Cheap is the read's speed switch: on, the census reads only
@@ -42,14 +40,13 @@ namespace HomeBridge.BridgeTools
 
         // Read is the read on the main thread under a validated identity: the
         // reply its tool encodes, and the section the bundle carries.
-        internal static Obs.ResourceSourcesReply Read(Map map, Obs.ResourceSourcesRequest parsed, Common.ObservationContext context)
+        internal static Obs.ResourceSourcesSnapshot Read(Map map, Obs.ResourceSourcesRequest parsed)
         {
             var cheap = Cheap;
+            var definition = DefDatabase<ThingDef>.GetNamedSilentFail(parsed.Resource)
+                ?? throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NotApplicable, Detail = "Unknown resource definition." });
             try
             {
-                var definition = DefDatabase<ThingDef>.GetNamedSilentFail((parsed.Resource ?? ""));
-                if (definition == null)
-                    return new Obs.ResourceSourcesReply { Outcome = Unavailable(Common.UnavailableReason.NotApplicable, "Unknown resource definition.") };
                 // Only a plant or rock def can yield the resource, so the
                 // census reads those defs' lister lists rather than every
                 // thing on the map; Product still decides per thing. The
@@ -59,11 +56,11 @@ namespace HomeBridge.BridgeTools
                 {
                     deposits = new List<Thing>();
                     foreach (var def in DefDatabase<ThingDef>.AllDefsListForReading)
-                        if (def.plant?.harvestedThingDef?.defName == (parsed.Resource ?? "") || def.building?.mineableThing?.defName == (parsed.Resource ?? ""))
+                        if (def.plant?.harvestedThingDef?.defName == parsed.Resource || def.building?.mineableThing?.defName == parsed.Resource)
                             foreach (var t in map.listerThings.ThingsOfDef(def))
-                                if (ResourceAcquisitionTools.Product(t)?.defName == (parsed.Resource ?? "")) deposits.Add(t);
+                                if (ResourceAcquisitionTools.Product(t)?.defName == parsed.Resource) deposits.Add(t);
                 }
-                else deposits = map.listerThings.AllThings.Where(t => ResourceAcquisitionTools.Product(t)?.defName == (parsed.Resource ?? "")).ToList();
+                else deposits = map.listerThings.AllThings.Where(t => ResourceAcquisitionTools.Product(t)?.defName == parsed.Resource).ToList();
                 var eligible = deposits.Where(t => ResourceAcquisitionTools.Eligible(t, map)).ToList();
                 var admitted = new HashSet<Thing>(eligible);
                 // Buried ore: a supported deposit no colonist can reach,
@@ -75,13 +72,18 @@ namespace HomeBridge.BridgeTools
                 var distances = new Dictionary<Thing, double>(eligible.Count);
                 foreach (var t in eligible) distances[t] = colonists.Min(p => p.Position.DistanceTo(t.Position));
                 var ordered = eligible.OrderByDescending(ResourceAcquisitionTools.Designated).ThenBy(t => distances[t]).ThenBy(t => t.thingIDNumber).ToList();
-                var snapshot = new Obs.ResourceSourcesSnapshot {  
-                    Storage = Storage(map, definition) };
                 var reserved = cheap ? new HashSet<Thing>(map.reservationManager.AllReservedThings()) : null;
-                foreach (var thing in ordered) snapshot = snapshot with { Sources = [.. snapshot.Sources, Project(thing, distances[thing], buried.Contains(thing), reserved)] };
-                return new Obs.ResourceSourcesReply { Outcome = snapshot };
+                return new Obs.ResourceSourcesSnapshot
+                {
+                    Sources = [.. ordered.Select(thing => Project(thing, distances[thing], buried.Contains(thing), reserved))],
+                    Storage = Storage(map, definition),
+                };
             }
-            catch (Exception) { return new Obs.ResourceSourcesReply { Outcome = Unavailable(Common.UnavailableReason.ReadFailed, "Resource sources could not be read completely.") }; }
+            catch (Exception readError)
+            {
+                ModLog.Error("observe", "Resource sources read failed: " + readError);
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Resource sources could not be read completely." });
+            }
         }
 
         internal static bool Validate(Obs.ResourceSourcesRequest request, out Common.Failure failure)
@@ -112,12 +114,15 @@ namespace HomeBridge.BridgeTools
                 // Cheapest tests first; reachability last.
                 .Where(c => c.InBounds(map) && map.zoneManager.ZoneAt(c) == null
                     && !c.GetThingList(map).Any(t => t is Building || t is Blueprint || t is Frame || t.def.category == ThingCategory.Item)
-                    && Protected(c) && !CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)
+                    && Protected(c) && !Verse.CellRect.CenteredOn(c, margin).Any(q => q.InBounds(map) && q.GetEdifice(map) is Mineable)
                     && Accessible(c)).ToList();
-            var result = new Obs.StorageCapacity { Capacity = capacity, Stored = stored };
-            result = result with { Haulers = [.. result.Haulers, .. NativeRef.All(haulers)] };
-            result = result with { Candidates = [.. result.Candidates, .. candidates.Select(c => new Common.Cell { X = c.x, Z = c.z })] };
-            return result;
+            return new Obs.StorageCapacity
+            {
+                Capacity = capacity,
+                Stored = stored,
+                Haulers = [.. haulers.Select(p => new RimGovernor.Brain.Domain.PawnId(p.GetUniqueLoadID()))],
+                Candidates = [.. candidates.Select(c => new RimGovernor.Brain.Domain.Cell(c.x, c.z))],
+            };
         }
 
         internal static List<Pawn> Haulers(Map map) => map.mapPawns.FreeColonistsSpawned.Where(p => !p.Downed && !p.Drafted
@@ -149,30 +154,17 @@ namespace HomeBridge.BridgeTools
                 .SelectMany(g => g.CellsList).Distinct().Where(Protected).Sum(Slots) * def.stackLimit;
         }
 
-        private static Obs.ResourceSource Project(Thing thing, double distance, bool buried, HashSet<Thing>? reserved)
+        private static Obs.ResourceSource Project(Thing thing, double distance, bool buried, HashSet<Thing>? reserved) => new()
         {
-            var mineable = thing is Mineable;
-            var row = new Obs.ResourceSource
-            {
-                Source = NativeRef.Thing(thing),
-                DefName = thing.def.defName,
-                Yield = thing is Plant plant ? plant.YieldNow() : thing.def.building.mineableYield,
-                Reachable = !buried,
-                Buried = buried,
-                Designated = ResourceAcquisitionTools.Designated(thing),
-                Safety = ResourceAcquisitionTools.Safety(thing, thing.Map),
-                Distance = distance,
-            };
-            // Only mine sources carry a cell; harvest/hunt sources come from the
-            // AcquisitionFacts census, which carries its own.
-            if (mineable)
-            {
-                row = row with { Cell = new RimGovernor.Contracts.Wire.Common.Cell { X = thing.Position.x, Z = thing.Position.z } };
-                row = row with { Taken = ResourceAcquisitionTools.Taken(thing, reserved) };
-            }
-            return row;
-        }
-
-        private static Common.Unavailable Unavailable(Common.UnavailableReason reason, string detail) => new Common.Unavailable { Reason = reason, Detail = detail };
+            Id = thing.GetUniqueLoadID(),
+            DefName = thing.def.defName,
+            Cell = new RimGovernor.Brain.Domain.Cell(thing.Position.x, thing.Position.z),
+            Yield = thing is Plant plant ? plant.YieldNow() : thing.def.building.mineableYield,
+            Buried = buried,
+            Designated = ResourceAcquisitionTools.Designated(thing),
+            Safety = ResourceAcquisitionTools.Safety(thing, thing.Map),
+            Distance = distance,
+            Taken = ResourceAcquisitionTools.Taken(thing, reserved),
+        };
     }
 }

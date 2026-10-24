@@ -1,6 +1,6 @@
 #nullable enable
-using System.Threading;
-using System.Threading.Tasks;
+using System.Linq;
+using RimGovernor.Brain.Bridge.Contracts;
 using Verse;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Obs = RimGovernor.Contracts.Wire.Observations;
@@ -11,24 +11,23 @@ namespace HomeBridge.BridgeTools
     // the brain already holds, from the saved ConsumptionState ring.
     internal static class NativeConsumptionTool
     {
-
-        internal static Obs.ConsumptionReply HandleReadConsumption(Obs.ConsumptionRequest request)
+        internal static Obs.ConsumptionSnapshot HandleReadConsumption(Obs.ConsumptionRequest request)
         {
-            var sinceHour = request.SinceHour ?? -1;
             if (Current.Game == null || Find.TickManager == null)
-                return new Obs.ConsumptionReply { Outcome = new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "No game is loaded." } };
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.NotLoaded, Detail = "No game is loaded." });
             var state = ConsumptionState.For(Current.Game);
             var current = ConsumptionState.HourOf(Find.TickManager.TicksGame);
-            var hours = state.After(sinceHour, current, out var first);
-            var snapshot = new Obs.ConsumptionSnapshot { CurrentHour = current, FirstHour = first };
-            foreach (var hour in hours)
+            var hours = state.After(request.SinceHour, current, out var first);
+            return new Obs.ConsumptionSnapshot
             {
-                var entry = new Obs.ConsumptionHour { Hour = hour.Index };
-                foreach (var pair in hour.Rows)
-                    entry = entry with { Rows = [.. entry.Rows, new Obs.ConsumptionRow { Definition = pair.Key.Def, Reason = ConsumptionState.Names[pair.Key.Reason], Count = pair.Value }] };
-                snapshot = snapshot with { Hours = [.. snapshot.Hours, entry] };
-            }
-            return new Obs.ConsumptionReply { Outcome = snapshot };
+                CurrentHour = current,
+                FirstHour = first,
+                Hours = [.. hours.Select(hour => new Obs.ConsumptionHour
+                {
+                    Hour = hour.Index,
+                    Rows = [.. hour.Rows.Select(pair => new Obs.ConsumptionRow { Definition = pair.Key.Def, Reason = ConsumptionState.Names[pair.Key.Reason], Count = pair.Value })],
+                })],
+            };
         }
     }
 }

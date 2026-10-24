@@ -29,7 +29,7 @@ public sealed class MaterialChargeTests
 
     private static readonly ResourceStorage Storage = new() { StackLimit = StackLimit };
 
-    private static ResourceSource Tree(double distance) => new() { ThingId = "tree", Yield = 25, Distance = distance, Reachable = Known(true) };
+    private static ResourceSource Tree(double distance) => new() { ThingId = "tree", Yield = 25, Distance = distance };
 
     /// <summary>A delivery of <paramref name="units"/> of <paramref name="def"/> to room 1's wall, and a refuel drawing the same stack,
     /// both allocated; room 1 a bedroom, priced when <paramref name="priced"/>.</summary>
@@ -89,7 +89,7 @@ public sealed class MaterialChargeTests
     [Fact]
     public void SteelWithNoOreInReachFallsBackToMarketValue()
     {
-        var buried = new ResourceSource { ThingId = "ore", Yield = 35, Distance = 5, Method = ResourceSourceMethod.Mine, Reachable = Known(false), Buried = true };
+        var buried = new ResourceSource { ThingId = "ore", Yield = 35, Distance = 5, Method = ResourceSourceMethod.Mine, Buried = true };
         var value = ForecastValue.MaterialValueOf(Steel, [buried], Storage, Haul, Items);
         Assert.Equal(new ConstructionMaterialValue(MaterialValueBasis.Market, 1.9 / SilverGapRules.ValuePerWorkTick / GameTime.TicksPerDay), value);
         // A failed read prices it the same way.

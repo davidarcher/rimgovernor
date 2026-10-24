@@ -1,6 +1,5 @@
 using System.Globalization;
 using RimGovernor.Brain.Bridge;
-using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
 using Observations = RimGovernor.Contracts.Wire.Observations;
 
@@ -63,10 +62,9 @@ internal static class StorageOccupancyRing
 
     private static async Task<List<Observations.StorageOccupancySample>> SamplesAsync(TypedSession s, string zone, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadStorageOccupancy, new Observations.StorageOccupancyRequest { Groups = [new Common.Ref { Id = zone }] }, cancellationToken).ConfigureAwait(false);
-        var snapshot = TypedReads.Observed(label, NativeOps.ReadStorageOccupancy, reply, reply.Outcome?.Observed);
+        var snapshot = await s.CallAsync(label, NativeOps.ReadStorageOccupancy, new Observations.StorageOccupancyRequest { Groups = [zone], SinceHour = -1 }, cancellationToken).ConfigureAwait(false);
         s.RecordWire(label, snapshot);
-        return [.. snapshot.Groups.Where(g => g.Group?.Id == zone).SelectMany(g => g.Samples)];
+        return [.. snapshot.Groups.Where(g => g.Group == zone).SelectMany(g => g.Samples)];
     }
 
     private static string Render(List<Observations.StorageOccupancySample> samples) =>

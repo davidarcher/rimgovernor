@@ -289,13 +289,11 @@ namespace HomeBridge.BridgeTools
                     try
                     {
                         var began = System.Diagnostics.Stopwatch.GetTimestamp();
-                        var reply = NativeResourceSourcesTool.Read(map, new RimGovernor.Contracts.Wire.Observations.ResourceSourcesRequest { Resource = resource }, context);
+                        var observed = NativeResourceSourcesTool.Read(map, new RimGovernor.Contracts.Wire.Observations.ResourceSourcesRequest { Resource = resource });
                         ms += (System.Diagnostics.Stopwatch.GetTimestamp() - began) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
-                        var observed = reply.Outcome?.Observed;
-                        if (observed != null)
-                            reply = reply with { Outcome = observed with { Sources = [.. observed.Sources.Select(row =>
-                                DefDatabase<ThingDef>.GetNamedSilentFail(row.DefName)?.mineable != true ? row with { Yield = 0 } : row)] } };
-                        return RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(reply);
+                        observed = observed with { Sources = [.. observed.Sources.Select(row =>
+                            DefDatabase<ThingDef>.GetNamedSilentFail(row.DefName)?.mineable != true ? row with { Yield = 0 } : row)] };
+                        return RimGovernor.Contracts.Wire.WireJson.SerializeToUtf8Bytes(observed);
                     }
                     finally { NativeResourceSourcesTool.Cheap = true; ExcavationSafety.Shortcut = true; }
                 }
@@ -305,7 +303,7 @@ namespace HomeBridge.BridgeTools
                         var a = Sources(resource, false, ref offMs);
                         var b = Sources(resource, true, ref onMs);
                         if (!a.SequenceEqual(b)) resourcesEqual = false;
-                        if (i == 0) resourceRows += RimGovernor.Contracts.Wire.WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ResourceSourcesReply>(b).Outcome?.Observed?.Sources.Count ?? 0;
+                        if (i == 0) resourceRows += RimGovernor.Contracts.Wire.WireJson.Deserialize<RimGovernor.Contracts.Wire.Observations.ResourceSourcesSnapshot>(b)!.Sources.Count;
                     }
                 return (object)new { equal = offBytes.SequenceEqual(onBytes) && resourcesEqual, resourcesEqual, resourceRows,
                     resourcesOffMs = System.Math.Round(offMs, 1), resourcesOnMs = System.Math.Round(onMs, 1), offBytes = offBytes.Length, onBytes = onBytes.Length,

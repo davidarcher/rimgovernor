@@ -61,8 +61,6 @@ public sealed record ResourceSource
     /// </summary>
     public Cell Cell { get; init; }
 
-    public Fact<bool> Reachable { get; init; }
-
     /// <summary>
     /// Marks a supported "mine" deposit no colonist can reach yet: it is never mined directly, only tunnelled
     /// to by a corridor excavation (CorridorExcavationSites).
@@ -186,16 +184,12 @@ public static partial class ResourceRules
         return (best, found);
     }
 
-    /// <summary>The open-surface roof check, then the observed route; an unobserved route holds like an unsafe one.</summary>
+    /// <summary>The open-surface roof check: a buried deposit is reached only by a corridor, never mined directly.</summary>
     internal static string MineRouteHold(ResourceSource s)
     {
         if (!MineSafe(s.Safety) || s.Buried)
         {
             return RemoteRules.RemoteHoldRoofSupport;
-        }
-        if (!s.Reachable.TryGetValue(out var route) || !route)
-        {
-            return RemoteRules.RemoteHoldRouteUnsafe;
         }
         return "";
     }

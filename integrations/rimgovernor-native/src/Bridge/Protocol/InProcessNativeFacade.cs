@@ -203,10 +203,10 @@ namespace HomeBridge.BridgeTools
         public Task<Mirror.CombatGeometryReply> ReadCombatGeometryAsync(Mirror.CombatGeometryRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadCombatGeometry, request, () => NativeCombatGeometryTools.HandleRead(request), cancellationToken);
 
-        public Task<Obs.ConsumptionReply> ReadConsumptionAsync(Obs.ConsumptionRequest request, CancellationToken cancellationToken)
+        public Task<Obs.ConsumptionSnapshot> ReadConsumptionAsync(Obs.ConsumptionRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadConsumption, request, () => NativeConsumptionTool.HandleReadConsumption(request), cancellationToken);
 
-        public Task<Obs.StorageOccupancyReply> ReadStorageOccupancyAsync(Obs.StorageOccupancyRequest request, CancellationToken cancellationToken)
+        public Task<Obs.StorageOccupancySnapshot> ReadStorageOccupancyAsync(Obs.StorageOccupancyRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadStorageOccupancy, request, () => NativeStorageOccupancyTool.HandleRead(request), cancellationToken);
 
         public Task<Obs.DefenseSiteReply> ReadDefenseSiteAsync(Obs.DefenseSiteRequest request, CancellationToken cancellationToken)
@@ -221,7 +221,7 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.PopulationReply> ReadPopulationAsync(Obs.PopulationRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadPopulation, request, () => NativePopulationObservation.HandleReadPopulation(request), cancellationToken);
 
-        public Task<Obs.ResourceSourcesReply> ListResourceSourcesAsync(Obs.ResourceSourcesRequest request, CancellationToken cancellationToken)
+        public Task<Obs.ResourceSourcesSnapshot> ListResourceSourcesAsync(Obs.ResourceSourcesRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ListResourceSources, request, () => NativeResourceSourcesTool.HandleListResourceSources(request), cancellationToken);
 
         public Task<Obs.SpatialAccessReply> ReadSpatialAccessAsync(Obs.SpatialAccessRequest request, CancellationToken cancellationToken)

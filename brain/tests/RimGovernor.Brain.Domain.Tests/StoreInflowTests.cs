@@ -1,3 +1,4 @@
+using Obs = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -19,15 +20,15 @@ public sealed class StoreInflowTests
     private static StockpileZone Zone(string id, string role, Rectangle room) =>
         new() { Id = id, Role = role, Cells = PlannedRules.RectCells(room), Filter = new StockpileFilter(FilterBase.Nothing) };
 
-    private static StockpileRequest Request(Dictionary<string, EquatableArray<OccupancySample>> groups) => new()
+    private static StockpileRequest Request(Dictionary<string, EquatableArray<Obs.StorageOccupancySample>> groups) => new()
     {
         Zones = [Zone("Zone_yard", "yard", YardRoom), Zone("Zone_warehouse", "general", WarehouseRoom)],
         Shelves = [new StockpileShelf { Building = "Shelf_7", Zone = "Zone_warehouse" }],
-        Occupancy = Known(new StoreOccupancy { CurrentHour = Now, Groups = groups }),
+        Occupancy = Known(new Obs.StorageOccupancySnapshot { CurrentHour = Now, Groups = [.. groups.Select(g => new Obs.StorageOccupancyGroup { Group = g.Key, Samples = g.Value })] }),
     };
 
-    private static EquatableArray<OccupancySample> Ring(int from, int to, Func<int, int> stacks) =>
-        EquatableArray.From(Enumerable.Range(from, to - from + 1).Select(h => new OccupancySample { Hour = h, Stacks = stacks(h) }));
+    private static EquatableArray<Obs.StorageOccupancySample> Ring(int from, int to, Func<int, int> stacks) =>
+        EquatableArray.From(Enumerable.Range(from, to - from + 1).Select(h => new Obs.StorageOccupancySample { Hour = h, Stacks = stacks(h) }));
 
     private static double Rate(Fact<double> inflow)
     {
@@ -105,7 +106,7 @@ public sealed class StoreInflowTests
     [Fact]
     public void AnUnreadRingReadsUnknown()
     {
-        var request = Request([]) with { Occupancy = Unknown<StoreOccupancy>() };
+        var request = Request([]) with { Occupancy = Unknown<Obs.StorageOccupancySnapshot>() };
         Assert.False(StoreRules.StoreInflow(request, Yard).IsKnown);
     }
 

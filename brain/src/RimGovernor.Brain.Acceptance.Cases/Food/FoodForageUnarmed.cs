@@ -69,9 +69,8 @@ internal static class FoodForageUnarmed
             designated.UnionWith(facts.Acquisition.Where(row => row.Designated == true && row.Source?.Id is { } id && bushes.Contains(id)).Select(row => row.Source!.Id!));
 
             // The ring lists completed hours only; a meal shows once its hour closes.
-            var ring = await s.CallAsync("consumption", NativeOps.ReadConsumption, new Observations.ConsumptionRequest(), ct).ConfigureAwait(false);
-            var hours = TypedReads.Observed("consumption", NativeOps.ReadConsumption, ring, ring.Outcome?.Observed);
-            eaten = hours.Hours.SelectMany(h => h.Rows).Where(r => r is { Definition: "RawBerries", Reason: "food_eaten" }).Sum(r => r.Count ?? 0);
+            var hours = await s.CallAsync("consumption", NativeOps.ReadConsumption, new Observations.ConsumptionRequest { SinceHour = -1 }, ct).ConfigureAwait(false);
+            eaten = hours.Hours.SelectMany(h => h.Rows).Where(r => r is { Definition: "RawBerries", Reason: "food_eaten" }).Sum(r => r.Count);
             return (string.Create(CultureInfo.InvariantCulture, $"designated={designated.Count} eaten={eaten}"), designated.Count > 0 && eaten > 0);
         }, cancellationToken).ConfigureAwait(false);
         s.Record("designated", string.Join(",", designated));

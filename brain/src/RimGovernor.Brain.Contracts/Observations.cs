@@ -3216,252 +3216,147 @@ public sealed record WallUpgradeSitesRequest
     public string? TargetId { get; init; }
 }
 
+/// <summary>
+/// One source of the requested resource: a plant to cut or harvest, or a rock to mine. Id and DefName are the source
+/// thing's load id and def (the method, mine or cut/harvest, is a rule over that def row); Cell is where it stands.
+/// Yield is what taking it gives now; Distance is the nearest free colonist's straight-line distance. Buried is a
+/// supported mine deposit no colonist can reach (usually fogged): a corridor excavation must reach it first, and only
+/// a source that is not buried is reachable. Safety is the native excavation verdict: native_eligible for a plant,
+/// supported_roof or open_surface for a rock. Taken: a reservation or a colonist's current job targets the source.
+/// </summary>
 public sealed record ResourceSource
 {
-    public Common.Ref? Source { get; init; }
+    public required string Id { get; init; }
 
-    public double? Yield { get; init; }
+    public required string DefName { get; init; }
 
-    public bool? Reachable { get; init; }
+    public required Cell Cell { get; init; }
 
-    public bool? Designated { get; init; }
+    public required double Yield { get; init; }
 
-    public string? Safety { get; init; }
+    public required bool Buried { get; init; }
 
-    public double? Distance { get; init; }
+    public required bool Designated { get; init; }
 
-    public bool? Taken { get; init; }
+    public required string Safety { get; init; }
 
-    /// <summary>
-    /// buried: a supported mine deposit no colonist can reach (usually fogged); a corridor excavation must reach it first.
-    /// </summary>
-    public bool? Buried { get; init; }
+    public required double Distance { get; init; }
 
-    /// <summary>
-    /// A mine source's cell: rocks are in no frame's things table.
-    /// </summary>
-    public Common.Cell? Cell { get; init; }
-
-    /// <summary>
-    /// def_name: the source thing's def; the method (mine, cut, harvest) is a rule over that def row.
-    /// </summary>
-    public string? DefName { get; init; }
+    public required bool Taken { get; init; }
 }
 
 /// <summary>
-/// One resource's protected, hauler-reachable storage: its empty-slot
-/// capacity, the count already stored there, the haulers and the candidate
-/// cells for a new stockpile.
+/// One resource's protected, hauler-reachable storage: its empty-slot capacity, the count already stored there, the
+/// haulers and the candidate cells for a new stockpile.
 /// </summary>
 public sealed record StorageCapacity
 {
-    public long Capacity { get; init; }
+    public required long Capacity { get; init; }
 
-    public long Stored { get; init; }
+    public required long Stored { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Haulers { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> Haulers { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> Candidates { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<Cell>))]
+    public required EquatableArray<Cell> Candidates { get; init; }
 }
 
+/// <summary>The requested resource's sources, designated first and then nearest first, and its storage.</summary>
 public sealed record ResourceSourcesSnapshot
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<ResourceSource>))]
-    public EquatableArray<ResourceSource> Sources { get; init; }
+    public required EquatableArray<ResourceSource> Sources { get; init; }
 
-    public StorageCapacity? Storage { get; init; }
-
+    public required StorageCapacity Storage { get; init; }
 }
 
+/// <summary>Resource is the def name of the resource whose sources are read; a def the game does not hold is refused.</summary>
 public sealed record ResourceSourcesRequest
 {
     public ReadScope? Scope { get; init; }
 
-    public string? Resource { get; init; }
-}
-
-public sealed record ResourceSourcesReply
-{
-    public ResourceSourcesReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ResourceSourcesReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ResourceSourcesReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(ResourceSourcesReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(ResourceSourcesReplyOutcome.FailureCase), "failure")]
-public abstract record ResourceSourcesReplyOutcome
-{
-    private protected ResourceSourcesReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ResourceSourcesSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(ResourceSourcesSnapshot Value) : ResourceSourcesReplyOutcome;
-
-    public static implicit operator ResourceSourcesReplyOutcome(ResourceSourcesSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : ResourceSourcesReplyOutcome;
-
-    public static implicit operator ResourceSourcesReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : ResourceSourcesReplyOutcome;
-
-    public static implicit operator ResourceSourcesReplyOutcome(Common.Failure value) => new FailureCase(value);
+    public required string Resource { get; init; }
 }
 
 /// <summary>
-/// Realized consumption. Native keeps a saved hourly ring (2500-tick
-/// hours, 60 days) of what colony stock was spent, per (definition, reason). A
-/// read names the last hour the brain already holds; the reply carries every
-/// completed hour after it (since_hour absent or negative: the whole window),
-/// sparse: an hour or row not listed spent nothing. count is signed: an
-/// ejected refuel or removed shell subtracts. current_hour is still filling and
-/// is never listed; first_hour is the first hour the ring covers.
+/// Realized consumption. Native keeps a saved hourly ring (2500-tick hours, 60 days) of what colony stock was
+/// spent, per (definition, reason). A read names the last hour the brain already holds; the reply carries every
+/// completed hour after it, sparse: an hour or row not listed spent nothing. Count is signed: an ejected refuel or
+/// removed shell subtracts.
 /// </summary>
 public sealed record ConsumptionRow
 {
-    public string? Definition { get; init; }
+    public required string Definition { get; init; }
 
-    public string? Reason { get; init; }
+    public required string Reason { get; init; }
 
-    public long? Count { get; init; }
+    public required long Count { get; init; }
 }
 
 public sealed record ConsumptionHour
 {
-    public int? Hour { get; init; }
+    public required int Hour { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ConsumptionRow>))]
-    public EquatableArray<ConsumptionRow> Rows { get; init; }
+    public required EquatableArray<ConsumptionRow> Rows { get; init; }
 }
 
+/// <summary>CurrentHour is still filling and is never listed; FirstHour is the first hour the ring covers.</summary>
 public sealed record ConsumptionSnapshot
 {
-    public int? CurrentHour { get; init; }
+    public required int CurrentHour { get; init; }
 
-    public int? FirstHour { get; init; }
+    public required int FirstHour { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<ConsumptionHour>))]
-    public EquatableArray<ConsumptionHour> Hours { get; init; }
+    public required EquatableArray<ConsumptionHour> Hours { get; init; }
 }
 
+/// <summary>SinceHour is the last hour the reader holds; the reply lists the completed hours after it (-1 reads the whole ring).</summary>
 public sealed record ConsumptionRequest
 {
-    public int? SinceHour { get; init; }
-}
-
-public sealed record ConsumptionReply
-{
-    public ConsumptionReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="ConsumptionReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(ConsumptionReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(ConsumptionReplyOutcome.UnavailableCase), "unavailable")]
-public abstract record ConsumptionReplyOutcome
-{
-    private protected ConsumptionReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public ConsumptionSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(ConsumptionSnapshot Value) : ConsumptionReplyOutcome;
-
-    public static implicit operator ConsumptionReplyOutcome(ConsumptionSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : ConsumptionReplyOutcome;
-
-    public static implicit operator ConsumptionReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    public required int SinceHour { get; init; }
 }
 
 /// <summary>
-/// Storage occupancy. Native keeps a saved hourly ring (2500-tick hours, 15 days)
-/// of the item stacks held by each of the player's storage groups (stockpile zones
-/// and storage buildings, by load id) on home maps, sampled at each hour's first
-/// tick. A read names the groups and the last hour the reader does not need; the
-/// reply lists, per requested group that has samples, every sample after
-/// since_hour (absent or negative: the whole ring) in ascending hour order. A
-/// group not listed has no samples and is unknown: a group created mid-window
-/// starts its own samples, a deleted group drops out. current_hour is the hour now
-/// running.
+/// Storage occupancy. Native keeps a saved hourly ring (2500-tick hours, 15 days) of the item stacks held by each
+/// of the player's storage groups (stockpile zones and storage buildings, by load id) on home maps, sampled at each
+/// hour's first tick. A read names the groups and the last hour the reader does not need; the reply lists, per
+/// requested group that has samples, every sample after SinceHour in ascending hour order. A group not listed has no
+/// samples: a group created mid-window starts its own samples, a deleted group drops out. CurrentHour is the hour
+/// now running.
 /// </summary>
 public sealed record StorageOccupancySample
 {
-    public int? Hour { get; init; }
+    public required int Hour { get; init; }
 
-    public int? Stacks { get; init; }
+    public required int Stacks { get; init; }
 }
 
 public sealed record StorageOccupancyGroup
 {
-    public Common.Ref? Group { get; init; }
+    public required string Group { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<StorageOccupancySample>))]
-    public EquatableArray<StorageOccupancySample> Samples { get; init; }
+    public required EquatableArray<StorageOccupancySample> Samples { get; init; }
 }
 
 public sealed record StorageOccupancySnapshot
 {
-    public int? CurrentHour { get; init; }
+    public required int CurrentHour { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<StorageOccupancyGroup>))]
-    public EquatableArray<StorageOccupancyGroup> Groups { get; init; }
+    public required EquatableArray<StorageOccupancyGroup> Groups { get; init; }
 }
 
+/// <summary>SinceHour is the last hour the reader does not need (-1 reads the whole ring).</summary>
 public sealed record StorageOccupancyRequest
 {
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Groups { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
+    public required EquatableArray<string> Groups { get; init; }
 
-    public int? SinceHour { get; init; }
-}
-
-public sealed record StorageOccupancyReply
-{
-    public StorageOccupancyReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="StorageOccupancyReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(StorageOccupancyReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(StorageOccupancyReplyOutcome.UnavailableCase), "unavailable")]
-public abstract record StorageOccupancyReplyOutcome
-{
-    private protected StorageOccupancyReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public StorageOccupancySnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(StorageOccupancySnapshot Value) : StorageOccupancyReplyOutcome;
-
-    public static implicit operator StorageOccupancyReplyOutcome(StorageOccupancySnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : StorageOccupancyReplyOutcome;
-
-    public static implicit operator StorageOccupancyReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
+    public required int SinceHour { get; init; }
 }
 
 /// <summary>

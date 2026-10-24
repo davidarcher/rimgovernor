@@ -1,38 +1,10 @@
+using Obs = RimGovernor.Contracts.Wire.Observations;
+
 namespace RimGovernor.Brain.Policy;
 
 // Realized consumption. Native counts what the colony's stock was spent on, per (definition, reason), into a
-// saved hourly ring; the brain holds the hours it was sent and reads a rate over any window as a subtraction.
-
-/// <summary>One (resource, reason) spend; Count is signed (an ejected refuel or a removed shell subtracts).</summary>
-public sealed record ConsumptionRow
-{
-    public Resource Resource { get; init; }
-
-    public string Reason { get; init; } = "";
-
-    public long Count { get; init; }
-}
-
-/// <summary>One completed ring hour, sparse.</summary>
-public sealed record ConsumptionHour
-{
-    public int Hour { get; init; }
-
-    public EquatableArray<ConsumptionRow> Rows { get; init; }
-}
-
-/// <summary>
-/// One native read: the hours after the asked-for hour. CurrentHour is still filling and never listed;
-/// FirstHour is the first hour the ring covers.
-/// </summary>
-public sealed record ConsumptionPage
-{
-    public int CurrentHour { get; init; }
-
-    public int FirstHour { get; init; }
-
-    public EquatableArray<ConsumptionHour> Hours { get; init; }
-}
+// saved hourly ring (Obs.ConsumptionSnapshot); the brain holds the hours it was sent and reads a rate over any
+// window as a subtraction.
 
 /// <summary>The recurring spend over the span the ledger covers inside a rate window.</summary>
 public sealed record ResourceConsumption
@@ -48,13 +20,13 @@ public sealed class ConsumptionLedger
     private bool _have;
     private int _through;
     private int _first;
-    private Dictionary<int, EquatableArray<ConsumptionRow>>? _hours;
+    private Dictionary<int, EquatableArray<Obs.ConsumptionRow>>? _hours;
 
     /// <summary>The hour to pass native: the last completed hour held, or -1 for the whole window.</summary>
     public int Since() => _have ? _through : -1;
 
-    /// <summary>Folds one page in. Every hour up to CurrentHour-1 is now held, listed or not.</summary>
-    public void Merge(ConsumptionPage p)
+    /// <summary>Folds one read in. Every hour up to CurrentHour-1 is now held, listed or not.</summary>
+    public void Merge(Obs.ConsumptionSnapshot p)
     {
         _hours ??= [];
         foreach (var h in p.Hours)
@@ -97,7 +69,8 @@ public sealed class ConsumptionLedger
             {
                 if (ResourceRules.RecurringReasons.Contains(row.Reason))
                 {
-                    recurring[row.Resource] = recurring.GetValueOrDefault(row.Resource) + row.Count;
+                    var spent = new Resource(row.Definition);
+                    recurring[spent] = recurring.GetValueOrDefault(spent) + row.Count;
                 }
             }
         }

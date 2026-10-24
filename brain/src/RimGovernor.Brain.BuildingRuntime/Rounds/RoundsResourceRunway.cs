@@ -18,7 +18,7 @@ internal sealed class ConsumptionMemory : IDisposable
                 (colony, load, ledger) = (snapshot.Colony, snapshot.Load, new ConsumptionLedger());
             }
 
-            ConsumptionPage page;
+            O.ConsumptionSnapshot page;
             try
             {
                 page = await reader.ReadConsumptionAsync(ledger.Since(), ct).ConfigureAwait(false);

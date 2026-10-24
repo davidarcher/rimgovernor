@@ -481,12 +481,10 @@ Kept, reason recorded:
 | StorageCapacity | message | 943 | 8 | mixed | Storage capacity for a resource: capacity, stored, haulers | stack_limit | ThingDef.stackLimit |
 | ResourceSourcesSnapshot | message | 948 | 6 | state | Resource sources, storage and development for a resource |  |  |
 | ResourceSourcesRequest | message | 949 | 3 | state | Read request parameters |  |  |
-| ResourceSourcesReply | message | 950 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | ConsumptionRow | message | 958 | 3 | state | Realized consumption per definition and reason |  |  |
 | ConsumptionHour | message | 959 | 2 | state | One hour of consumption rows |  |  |
 | ConsumptionSnapshot | message | 960 | 3 | state | Hourly consumption ring window |  |  |
 | ConsumptionRequest | message | 961 | 1 | state | Read request parameters |  |  |
-| ConsumptionReply | message | 962 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | HandlerState | message | 963 | 5 | code | Handler skill/priority/eligibility for an animal |  |  |
 | HusbandryAnimal | message | 964 | 3 | state | Animal with handlers |  |  |
 | HusbandrySnapshot | message | 965 | 3 | state | Husbandry census |  |  |

@@ -70,7 +70,7 @@ public static partial class ForecastValue
         HaulModel haul, ItemFacts items)
     {
         var acquired = haul.Chopped.Concat(haul.Mined).FirstOrDefault(s => s.Good == def && s.Valid());
-        var nearest = sources?.Where(s => s.Reachable == Known(true) && !s.Buried
+        var nearest = sources?.Where(s => !s.Buried
             && (s.Method != ResourceSourceMethod.Mine || ResourceRules.MineSafe(s.Safety))).OrderBy(s => s.Distance).FirstOrDefault();
         if (acquired is not null && nearest is not null && storage is { StackLimit: > 0 } store && double.IsFinite(nearest.Distance) && nearest.Distance >= 0)
         {

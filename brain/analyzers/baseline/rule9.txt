@@ -72,8 +72,6 @@ BuildingRuntime/Client/FacadeNativeClient.Pawns.cs|Fact|2
 BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Discard|1
 BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Fact|9
 BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Unknown|4
-BuildingRuntime/Client/FacadeNativeClient.Resources.cs|Fact|1
-BuildingRuntime/Client/FacadeNativeClient.Resources.cs|Unknown|1
 BuildingRuntime/Client/FacadeNativeClient.RoundsFrame.cs|Fact|4
 BuildingRuntime/Client/GearRecipeCatalogAdapter.cs|Fact|3
 BuildingRuntime/Client/IdeologyDecoder.cs|Fact|1
@@ -367,7 +365,7 @@ Contracts/Mirror.cs|NullableValue|34
 Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|58
 Contracts/NeedsForecast.cs|NullableValue|2
-Contracts/Observations.cs|NullableValue|575
+Contracts/Observations.cs|NullableValue|560
 Contracts/Observations.cs|UnknownMember|10
 Contracts/Operations.cs|NullableValue|86
 Contracts/Operations.cs|UnknownMember|14
@@ -817,7 +815,6 @@ Policy/ForecastTerminalStock.cs|Fact|51
 Policy/ForecastThermalExposure.cs|Fact|9
 Policy/ForecastValue.cs|Fact|81
 Policy/ForecastValue.cs|ValueOrDefault|1
-Policy/ForecastValueMaterial.cs|Fact|1
 Policy/ForecastValueThermal.cs|Fact|2
 Policy/ForecastWorkInputs.cs|Fact|8
 Policy/FuelRunway.cs|Fact|19
@@ -1136,7 +1133,7 @@ Policy/ResourceLabor.cs|Fact|8
 Policy/ResourceLabor.cs|Unknown|1
 Policy/ResourceOrders.cs|Discard|1
 Policy/ResourceOrders.cs|Fact|7
-Policy/ResourceProduction.cs|Fact|16
+Policy/ResourceProduction.cs|Fact|14
 Policy/ResourceProduction.cs|UnknownMember|1
 Policy/ResourceRunway.cs|Fact|23
 Policy/ResourceRunway.cs|Unknown|1

@@ -1,3 +1,4 @@
+using Obs = RimGovernor.Contracts.Wire.Observations;
 using RimGovernor.Brain.Domain;
 using RimGovernor.Brain.Policy;
 using Xunit;
@@ -35,15 +36,19 @@ public sealed class YardRunwayTests
         ],
         Loot = Known(EquatableArray.From(loot)),
         Occupancy = perDay is { } rate
-            ? Known(new StoreOccupancy
+            ? Known(new Obs.StorageOccupancySnapshot
             {
                 CurrentHour = Now,
-                Groups = new Dictionary<string, EquatableArray<OccupancySample>>
-                {
-                    ["Zone_yard"] = EquatableArray.From(Enumerable.Range(Now - 71, 72).Select(h => new OccupancySample { Hour = h, Stacks = (int)Math.Round(used - (rate * (Now - h) / 24)) })),
-                },
+                Groups =
+                [
+                    new Obs.StorageOccupancyGroup
+                    {
+                        Group = "Zone_yard",
+                        Samples = EquatableArray.From(Enumerable.Range(Now - 71, 72).Select(h => new Obs.StorageOccupancySample { Hour = h, Stacks = (int)Math.Round(used - (rate * (Now - h) / 24)) })),
+                    },
+                ],
             })
-            : Unknown<StoreOccupancy>(),
+            : Unknown<Obs.StorageOccupancySnapshot>(),
     };
 
     private static LootItem Stranded() => new()

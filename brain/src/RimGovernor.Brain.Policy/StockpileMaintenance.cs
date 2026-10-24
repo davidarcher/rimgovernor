@@ -1,3 +1,4 @@
+using Obs = RimGovernor.Contracts.Wire.Observations;
 using System.Globalization;
 
 namespace RimGovernor.Brain.Policy;
@@ -143,7 +144,7 @@ public sealed record StockpileRequest
     public Fact<EquatableArray<LootItem>> Loot { get; init; }
 
     /// <summary>The native occupancy ring's samples of the zones' and built shelves' groups, read for each store's inflow (StoreInflow).</summary>
-    public Fact<StoreOccupancy> Occupancy { get; init; }
+    public Fact<Obs.StorageOccupancySnapshot> Occupancy { get; init; }
 
     /// <summary>The catalog Shelf's build cost from the stuff it is built from (StorageOptions); unknown without the def or its cost row.</summary>
     public Fact<StorageBuildCost> ShelfCost { get; init; }
