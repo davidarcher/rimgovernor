@@ -295,7 +295,8 @@ connector serving it (#3815: an airlock its parent, a circulation corridor each 
 layout door joins it to, `Context.Connectors`; every way of the connector's, the room
 keeping its own stuff), all one job, less its blocked pieces (#3827, `Context.BlockedItems`:
 the round's read of the one predicate `PlannedRoomDone` uses, `RoundsBuildingPlanner.DefinitionBlockedOf`,
-read evidence only, #3819), which delay nothing. A room whose
+read evidence only, #3819), which delay nothing; a planned site of a blocked piece is never
+generated (#3838, below). A room whose
 every item of one stuff finished in the schedule serves at the last finish, earliest
 stuff first. Otherwise it is owing when it is open (`Context.OpenRooms`: observed started, from
 `PlannedRoomStartedOf`, and not done, `PlannedRoomDone` as its latest reconcile found,
@@ -604,7 +605,16 @@ and stuff:
   else none.
   With every scope of the first stuff, that covers the 4 alternatives per room.
 - floors: one site per floor def.
-- pieces: one site per piece, in the bulk chooser's stuff.
+- pieces: one site per piece, in the bulk chooser's stuff. The round marks a piece's site `Blocked` (#3838,
+  `Rounder.BlockedPiecesOf`) when the one blocked predicate (`RoundsBuildingPlanner.PieceReadinessOf`, read evidence
+  only, #3819) reads its piece Blocked: research read unfinished or the definition read unavailable; no stuff the ring
+  chooser finds; or a material of its cost list beside its stuff (a stove's Steel, a research bench's Steel, #3839)
+  read unstocked and read unobtainable. A material is obtainable when the window offers it
+  (`ColonyProjection.RingSources`, `RingStuffSourcesOf`): tree wood, rock blocks, what its natural rock is mined into
+  (compacted steel's Steel), a stack lying on it, or what deconstructing an unowned, deconstructible building outside
+  any ancient danger yields for certain (its adjusted cost list at `resourcesFractionWhenDeconstructed`, GenLeaving).
+  Trade does not count. An unread stock, unread sources or a building whose yield the catalog cannot read leave the
+  piece Unread, never Blocked.
 - roof: one site.
 
 Shared ring cells go to the lowest room id. Ring cells and pieces with a blueprint or frame placed are left out,
@@ -684,7 +694,9 @@ state when searched). `lab/leg-invalidation` holds this on an open lab patch.
 temperature safety is enabled (the placed-site gate; `planned_sites_unknown` when the facts are). The steps:
 
 1. `PlannedRoomAlternatives` names each room's alternatives (one ring stuff and one scope each; below).
-2. `PlannedRoomCandidates` (Methods generation) assesses every site of every alternative. A site with an
+2. `PlannedRoomCandidates` (Methods generation) first leaves a `Blocked` piece site out of each alternative
+   (`planned_room_site_blocked:{alt}:{site}`, #3838), which is then valued with the pieces that can be built; one
+   left empty or the same as another of its room is dropped. It assesses every remaining site. A site with an
    `Illegal` verdict makes the alternative infeasible (`planned_room_alternative_infeasible:{alt}:{site}`). An
    `Unestimable` or unread verdict, no finish row, no delivery row for owed material, or a clearing with no
    routable row leaves it unvalued (`planned_room_alternative_unvalued:{alt}:{site}:{reason}`). A roof is

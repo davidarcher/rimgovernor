@@ -231,8 +231,8 @@ public sealed class PlannedRoomCreditTests
         PlannedSites =
         [
             new(BarracksWall, 1, "WoodLog", [], [BarracksWall + "/finish"]),
-            new(Beds, 1, "", [], [Beds + "/finish"]) { Piece = "Bed" },
-            new(Stove, 1, "", [], [Stove + "/finish"]) { Piece = "FueledStove" },
+            new(Beds, 1, "", [], [Beds + "/finish"]),
+            new(Stove, 1, "", [], [Stove + "/finish"]),
         ],
         Closures = [new(1, "WoodLog", [new(1, 1)], [BarracksWall], [], new("1", "WoodLog", "Barracks", 10d, Known(1), 4, 0, false))],
         OwedWork = new Dictionary<string, double> { [BarracksWall] = 2 * Day, [Beds] = Day },

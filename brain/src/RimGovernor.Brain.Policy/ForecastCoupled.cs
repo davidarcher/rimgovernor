@@ -29,9 +29,6 @@ public sealed record ForecastMaterialLot(string Lot, string Location, Resource R
 /// </summary>
 public sealed record ForecastPlannedSite(string Site, int Room, string Stuff, EquatableArray<string> Activities, EquatableArray<string> Finishes)
 {
-    /// <summary>The template piece the site builds (its definition, #3827), whose blocked read resolves BlockedItems; empty for any other site.</summary>
-    public string Piece { get; init; } = "";
-
     /// <summary>The Need of a planned site root's outcome, which marks the root as one: the selection exempts its closure
     /// from the thermal-relief gate (#3651). The units are counted from the evaluated outcome (ForecastCoupledOutcome.RequestedDevelopment).</summary>
     public const string DevelopmentNeed = "requested-development";
@@ -85,9 +82,10 @@ public sealed record ForecastCoupledContext
     /// done (PlannedRules.PlannedRoomDone, as their latest reconcile found). Their owed work is done first in the service-day
     /// projection (#3796). Set by the round beside <see cref="InvestmentHorizonDays"/>; none by default.</summary>
     public IReadOnlySet<int> OpenRooms { get; init; } = new HashSet<int>();
-    /// <summary>The owed items (planned site or placed site ids) that are blocked pieces (#3827): the one blocked predicate of
-    /// PlannedRules.PlannedRoomDone (RoundsBuildingPlanner.DefinitionBlockedOf, read evidence only, #3819), resolved by the round
-    /// beside <see cref="OpenRooms"/>. A blocked item does not delay its room's service day (PlannedRoomCredits.ServiceDays); none by default.</summary>
+    /// <summary>The owed placed sites that are blocked pieces (#3827): the one blocked predicate of PlannedRules.PlannedRoomDone
+    /// (RoundsBuildingPlanner.DefinitionBlockedOf, read evidence only, #3819), resolved by the round beside <see cref="OpenRooms"/>.
+    /// A blocked item does not delay its room's service day (PlannedRoomCredits.ServiceDays); none by default. A planned site of
+    /// a blocked piece is never generated (PlannedBuildSite.Blocked, #3838).</summary>
     public IReadOnlySet<string> BlockedItems { get; init; } = new HashSet<string>(StringComparer.Ordinal);
     /// <summary>Per planned bedroom, the colonists the bedroom step would move into it (SleepingRules.PlannedBedroomOccupants,
     /// #3655, #3656: one, or a couple), by pawn id; a bedroom without a row houses nobody and earns no credit.</summary>

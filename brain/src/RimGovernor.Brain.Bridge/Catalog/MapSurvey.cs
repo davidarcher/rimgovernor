@@ -133,20 +133,26 @@ public sealed partial class DefinitionCatalog
     private static bool SurveyTree(ThingDef? def) => def?.plant is { } plant && (plant.forceIsTree || plant.treeCategory != TreeCategory.None);
 
     /// <summary>
-    /// The stuffs the cells offer a ring with nothing stocked (#3747): the items the survey's trees are cut into (their
-    /// harvestedThingDef) and the blocks the natural rock's stone is cut into (its building.mineableThing's
-    /// butcherProducts: a chunk's stonecutting yield), each by def name in order.
+    /// The materials the cells offer beyond the stock (#3747, #3839), each by def name in order: the items the survey's
+    /// trees are cut into (their harvestedThingDef); the blocks the natural rock's stone is cut into (its
+    /// building.mineableThing's butcherProducts: a chunk's stonecutting yield) and what the rock is mined into (its
+    /// mineableThing: an ore's material); the item stacks lying on the cells; and what deconstructing an unowned building
+    /// yields (<see cref="SalvageOf"/>).
     /// </summary>
     public P.RingStuffSources RingStuffSourcesOf(IReadOnlyList<P.SiteCell> cells)
     {
-        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var seen = new HashSet<(string Def, string Stuff)>();
         var wood = new SortedSet<string>(StringComparer.Ordinal);
         var blocks = new SortedSet<string>(StringComparer.Ordinal);
+        var mined = new SortedSet<string>(StringComparer.Ordinal);
+        var items = new SortedSet<string>(StringComparer.Ordinal);
+        var salvage = new SortedSet<string>(StringComparer.Ordinal);
+        var unsalvaged = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var cell in cells)
         {
             foreach (var thing in cell.Things)
             {
-                if (!seen.Add(thing.Def) || FindThing(thing.Def) is not { } def)
+                if (!seen.Add((thing.Def, thing.Building?.Stuff ?? "")) || FindThing(thing.Def) is not { } def)
                 {
                     continue;
                 }
@@ -154,15 +160,69 @@ public sealed partial class DefinitionCatalog
                 {
                     wood.Add(cut.defName);
                 }
-                else if (thing.Has(P.ThingMarks.NaturalRock) && def.building?.mineableThing is { } chunk)
+                else if (thing.Has(P.ThingMarks.NaturalRock) && def.building?.mineableThing is { } yield)
                 {
-                    foreach (var product in chunk.butcherProducts.Seq())
+                    mined.Add(yield.defName);
+                    foreach (var product in yield.butcherProducts.Seq())
                     {
                         blocks.Add(product.thingDef.defName);
                     }
                 }
+                else if (thing.Category == P.ThingCategory.Item)
+                {
+                    items.Add(thing.Def);
+                }
+                else if (Salvageable(thing))
+                {
+                    if (SalvageOf(def, thing.Building?.Stuff ?? "") is { } yields)
+                    {
+                        salvage.UnionWith(yields);
+                    }
+                    else
+                    {
+                        unsalvaged.Add(thing.Def);
+                    }
+                }
             }
         }
-        return new P.RingStuffSources { Wood = Domain.EquatableArray.From(wood.ToList()), Blocks = Domain.EquatableArray.From(blocks.ToList()) };
+        return new P.RingStuffSources
+        {
+            Wood = Domain.EquatableArray.From(wood.ToList()), Blocks = Domain.EquatableArray.From(blocks.ToList()),
+            Mined = Domain.EquatableArray.From(mined.ToList()), Items = Domain.EquatableArray.From(items.ToList()),
+            Salvage = Domain.EquatableArray.From(salvage.ToList()), Unsalvaged = Domain.EquatableArray.From(unsalvaged.ToList()),
+        };
+    }
+
+    // An unowned building the player may deconstruct, outside any ancient danger (SiteCellExtensions.Ruin's rule for any
+    // building, not only an edifice); never a blueprint or frame, whose materials are the colony's own.
+    private static bool Salvageable(P.Thing thing) =>
+        thing.Category == P.ThingCategory.Building && thing.Faction != P.ThingFaction.Player && thing.Has(P.ThingMarks.Deconstructible)
+        && !thing.Has(P.ThingMarks.AncientDanger) && !thing.Has(P.ThingMarks.Blueprint) && !thing.Has(P.ThingMarks.Frame);
+
+    /// <summary>
+    /// What deconstructing a building of <paramref name="def"/> made of <paramref name="stuff"/> yields for certain, by def
+    /// name; null when the catalog has no cost row for it. RimWorld's GenLeaving (DestroyMode.Deconstruct) leaves each
+    /// entry of the building's CostListAdjusted at min(RoundRandom(count x resourcesFractionWhenDeconstructed), count),
+    /// skipping its building.leavingsBlacklist, and a building.forcedCostLeavings entry whole; nothing when the fraction is
+    /// 0. An entry yields for certain when that is at least one unit.
+    /// </summary>
+    private IReadOnlyList<string>? SalvageOf(ThingDef def, string stuff)
+    {
+        IReadOnlyList<Domain.StatCost> costs;
+        try
+        {
+            costs = AdjustedCosts(def.defName, stuff);
+        }
+        catch (Domain.StatException)
+        {
+            return null;
+        }
+        var fraction = def.resourcesFractionWhenDeconstructed;
+        var forced = def.building?.forcedCostLeavings;
+        var blacklist = def.building?.leavingsBlacklist;
+        return fraction == 0 ? [] : [.. costs
+            .Where(c => forced is not null && forced.Any(f => f.defName == c.Def)
+                || (blacklist is null || !blacklist.Any(b => b.defName == c.Def)) && c.Units * fraction >= 1)
+            .Select(c => c.Def)];
     }
 }

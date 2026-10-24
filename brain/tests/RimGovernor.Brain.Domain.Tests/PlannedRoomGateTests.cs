@@ -18,6 +18,12 @@ namespace RimGovernor.Brain.Domain.Tests;
 /// </summary>
 public sealed class PlannedRoomGateTests
 {
+    /// <summary>Steel, as a source of the map offers it (#3839).</summary>
+    internal static readonly EquatableArray<string> SteelOffered = EquatableArray.From(new[] { "Steel" });
+
+    /// <summary>A building whose salvage the catalog could not read (#3839).</summary>
+    internal static readonly EquatableArray<string> MachineUnsalvaged = EquatableArray.From(new[] { "AncientMachine" });
+
     private static readonly GenerationSnapshot World = new(new("colony"), new(1), new("load"), new("review"), new(1), new(1));
 
     private static readonly NeedId Bedroom = NeedId.Of("test-rooms", "room", "a");
@@ -354,24 +360,89 @@ public sealed class PlannedRoomGateTests
     }
 
     /// <summary>
-    /// #3827: the round resolves the forecast's blocked items with the same predicate: a planned bed site blocked on
-    /// research is one; a stove site (no prerequisite, made of no stuff) and a ring site are not, nor is the bed while
-    /// research is unread.
+    /// #3827, #3838: the round marks the planned sites of blocked pieces with the same predicate: a bed site blocked on
+    /// research is one; a stove site whose cost list is unread and a ring site are not, nor is the bed while research is unread.
     /// </summary>
     [Fact]
-    public void TheRoundResolvesBlockedPlannedPiecesForTheServiceDay()
+    public void TheRoundMarksBlockedPlannedPieces()
     {
-        var context = PlannedRoomCreditTests.Context(PlannedRoomCredits.Shipped) with
+        PlannedBuildSite Site(string id, OpKind op, string def) => new(id, 1, op, def, "", Rotation.North, [new Cell(5, 5)]);
+        PlannedBuildSite[] sites =
+        [
+            Site("planned/room1/wall/WoodLog", OpKind.WallIn, ContainmentCellRules.ShellWallDefinition),
+            Site("planned/room1/build/Bed/5/5", OpKind.Build, "Bed"),
+            Site("planned/room1/build/FueledStove/6/6", OpKind.Build, "FueledStove"),
+        ];
+        string[] Blocked(ColonyProjection projection) => [.. Rounder.BlockedPiecesOf(projection, sites).Where(s => s.Blocked).Select(s => s.Id)];
+        Assert.Equal(["planned/room1/build/Bed/5/5"], Blocked(BlockedFacts(Known(true), researchRead: true)));
+        Assert.Empty(Blocked(BlockedFacts(Known(true), researchRead: false)));
+    }
+
+    /// <summary>
+    /// A projection describing a bed (wood, 300 stocked), a stuff-less FueledStove costing 80 Steel and a SimpleResearchBench
+    /// made of wood beside 50 Steel, none of them behind research, with <paramref name="steel"/> stocked and the map's
+    /// <paramref name="sources"/> (none by default); a null stock or sources is unread.
+    /// </summary>
+    internal static ColonyProjection StoveFacts(long steel = 0, RingStuffSources? sources = null, bool stockRead = true, bool sourcesRead = true)
+    {
+        RimGovernor.Brain.Policy.Amount Of(string def, long count) => new(new(def), count);
+        return ColonyFactsCoreTests.Projection() with
         {
-            PlannedSites =
+            Definitions =
             [
-                new("planned/room1/wall/WoodLog", 1, "WoodLog", [], []),
-                new("planned/room1/build/Bed/5/5", 1, "", [], []) { Piece = "Bed" },
-                new("planned/room1/build/FueledStove/6/6", 1, "", [], []) { Piece = "FueledStove" },
+                new PlanningDefinition
+                {
+                    Name = "Bed", Available = Known(true),
+                    StuffOptions = [new StuffOption { Stuff = "WoodLog", Value = 1, Common = true, Costs = [Of("WoodLog", 45)] }],
+                },
+                new PlanningDefinition { Name = "FueledStove", Available = Known(true), Costs = Known(EquatableArray.From(new[] { Of("Steel", 80) })) },
+                new PlanningDefinition
+                {
+                    Name = "SimpleResearchBench", Available = Known(true),
+                    StuffOptions = [new StuffOption { Stuff = "WoodLog", Value = 1, Common = true, Costs = [Of("WoodLog", 75), Of("Steel", 50)] }],
+                },
             ],
+            Resources = stockRead
+                ? Known<IReadOnlyDictionary<Resource, long>>(new Dictionary<Resource, long> { [new("WoodLog")] = 300, [new("Steel")] = steel })
+                : default,
+            RingSources = sourcesRead ? Known(sources ?? new RingStuffSources()) : default,
         };
-        Assert.Equal(["planned/room1/build/Bed/5/5"], RoundsBuildingPlanner.BlockedRoomItems(BlockedFacts(Known(true), researchRead: true), context));
-        Assert.Empty(RoundsBuildingPlanner.BlockedRoomItems(BlockedFacts(Known(true), researchRead: false), context));
+    }
+
+    /// <summary>
+    /// #3839: the one predicate reads a piece's cost list beside its stuff. A stuff-less stove (80 Steel) and a wood research
+    /// bench (beside 50 Steel) are blocked with no Steel stocked and the window offering none; Steel stocked, a stack of it
+    /// lying on the map, compacted steel to mine or an unowned building that yields it on deconstruction makes them
+    /// available; an unread stock, unread map sources, a building whose salvage is unread or an unread cost list leaves
+    /// them unread, so a started room owing only the stove stays open.
+    /// </summary>
+    [Fact]
+    public void AStovesSteelIsReadFromTheStockAndWhatTheMapOffers()
+    {
+        var offered = SteelOffered;
+        DefinitionReadiness Stove(ColonyProjection projection) => RoundsBuildingPlanner.PieceReadinessOf(projection)("FueledStove");
+        DefinitionReadiness Bench(ColonyProjection projection) => RoundsBuildingPlanner.PieceReadinessOf(projection)("SimpleResearchBench");
+
+        Assert.Equal(DefinitionReadiness.Blocked, Stove(StoveFacts()));
+        Assert.Equal(DefinitionReadiness.Blocked, Bench(StoveFacts()));
+        Assert.Equal(DefinitionReadiness.Available, RoundsBuildingPlanner.PieceReadinessOf(StoveFacts())("Bed"));
+        Assert.Equal(DefinitionReadiness.Available, Stove(StoveFacts(steel: 80)));
+        Assert.Equal(DefinitionReadiness.Available, Bench(StoveFacts(steel: 80)));
+        Assert.Equal(DefinitionReadiness.Available, Stove(StoveFacts(sources: new RingStuffSources { Items = offered })));
+        Assert.Equal(DefinitionReadiness.Available, Stove(StoveFacts(sources: new RingStuffSources { Mined = offered })));
+        Assert.Equal(DefinitionReadiness.Available, Stove(StoveFacts(sources: new RingStuffSources { Salvage = offered })));
+        Assert.Equal(DefinitionReadiness.Unread, Stove(StoveFacts(stockRead: false)));
+        Assert.Equal(DefinitionReadiness.Unread, Stove(StoveFacts(sourcesRead: false)));
+        Assert.Equal(DefinitionReadiness.Unread, Stove(StoveFacts(sources: new RingStuffSources { Unsalvaged = MachineUnsalvaged })));
+        var unread = StoveFacts();
+        Assert.Equal(DefinitionReadiness.Unread, Stove(unread with { Definitions = [.. unread.Definitions.Select(d => d.Name == "FueledStove" ? d with { Costs = default } : d)] }));
+
+        var stove = new WantedPiece { DefName = "FueledStove", Minimum = new(6, 7), Maximum = new(6, 7), Size = new(1, 1), Rot = Rotation.North };
+        IReadOnlyList<Operation> owed = [new Operation { Kind = OpKind.Build, Pieces = [stove] }];
+        bool Done(ColonyProjection projection) => PlannedRules.PlannedRoomDone(owed,
+            RoundsBuildingPlanner.PieceBlockedOf(new RoundsReading { Emergency = new(), Frame = new(), Reading = new ColonyReading { Projection = projection } }));
+        Assert.True(Done(StoveFacts()));
+        Assert.False(Done(StoveFacts(sourcesRead: false)));
     }
 
     [Fact]

@@ -26,6 +26,13 @@ public sealed record PlannedBuildSite(string Id, int Room, OpKind Op, string Def
 
     /// <summary>The Cut, Haul and Mine prerequisites native reports for the footprint.</summary>
     public EquatableArray<PlannedSiteClearing> Clearing { get; init; }
+
+    /// <summary>
+    /// A room's Build site whose piece no builder can work now, on read evidence (the one blocked predicate,
+    /// RoundsBuildingPlanner.DefinitionBlockedOf, #3838): its room's alternatives leave it out, so the pieces that can be
+    /// built are valued without it.
+    /// </summary>
+    public bool Blocked { get; init; }
 }
 
 /// <summary>
@@ -50,14 +57,31 @@ public sealed record PlannedSiteFacts
 public sealed record PlannedRingStuff(string Stuff, double Value, bool Stocked);
 
 /// <summary>
-/// The stuffs the map offers a ring with nothing stocked (#3747): Wood the items its standing trees are cut into (the
-/// survey's Tree cells), Blocks the stone blocks its natural rock's stone is cut into (the rock's mined chunk's products).
+/// The materials the planning window's map offers beyond the stock (#3747, #3839), by def name: Wood the items its
+/// standing trees are cut into (the survey's Tree cells), Blocks the stone blocks its natural rock's stone is cut into
+/// (the rock's mined chunk's products), Mined what its natural rock is mined into (an ore its material, Steel for
+/// compacted steel), Items the item stacks lying on it, and Salvage what deconstructing an unowned building on it
+/// yields. A ring's stuff is chosen from Wood and Blocks (PlannedRingStuffs); a piece's cost material is obtainable when
+/// any of them offers it (<see cref="Offers"/>). Unsalvaged names the buildings whose deconstruction yield the catalog
+/// could not read: while any is listed, a material none of them offers is unread, not unobtainable.
 /// </summary>
 public sealed record RingStuffSources
 {
     public EquatableArray<string> Wood { get; init; }
 
     public EquatableArray<string> Blocks { get; init; }
+
+    public EquatableArray<string> Mined { get; init; }
+
+    public EquatableArray<string> Items { get; init; }
+
+    public EquatableArray<string> Salvage { get; init; }
+
+    public EquatableArray<string> Unsalvaged { get; init; }
+
+    /// <summary>Whether the window offers <paramref name="material"/> by any source: wood, blocks, mining, a lying stack or salvage.</summary>
+    public bool Offers(string material) =>
+        Wood.Contains(material) || Blocks.Contains(material) || Mined.Contains(material) || Items.Contains(material) || Salvage.Contains(material);
 }
 
 public static partial class PlannedRules

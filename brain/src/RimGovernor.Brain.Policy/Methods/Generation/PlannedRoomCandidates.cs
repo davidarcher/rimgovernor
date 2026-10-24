@@ -10,9 +10,6 @@ namespace RimGovernor.Brain.Policy.Methods.Generation;
 internal sealed record PlannedSiteOperations(string Site, int Room, string Stuff, string[] Operations, string Finish)
 {
     public string[][] WorkGroups { get; init; } = [];
-
-    /// <summary>The template piece a Build site places (its definition, #3827); empty for any other operation.</summary>
-    public string Piece { get; init; } = "";
 }
 
 internal sealed record PlannedRoomCandidatesResult(
@@ -104,8 +101,16 @@ internal static class PlannedRoomCandidates
         foreach (var room in alternatives.GroupBy(a => a.Room).OrderBy(g => g.Key))
         {
             var valued = new List<PlannedRoomAlternative>();
-            foreach (var alternative in room)
+            foreach (var whole in room)
             {
+                // A Build site whose piece no builder can work (PlannedBuildSite.Blocked, #3838) is left out of its
+                // alternative, which is valued with the pieces that can be built; one left the same as another is dropped.
+                var blocked = whole.Sites.Where(id => byId.TryGetValue(id, out var s) && s.Blocked).ToArray();
+                foreach (var id in blocked) findings.Add("planned_room_site_blocked:" + whole.Id + ":" + id);
+                var alternative = blocked.Length == 0 ? whole : whole with { Sites = EquatableArray.From(whole.Sites.Except(blocked, StringComparer.Ordinal)) };
+                if (blocked.Length > 0 && (alternative.Sites.Count == 0
+                    || room.Any(a => a.Id != whole.Id && a.Sites.Order(StringComparer.Ordinal).SequenceEqual(alternative.Sites.Order(StringComparer.Ordinal), StringComparer.Ordinal))))
+                    continue;
                 var missing = alternative.Sites.Where(id => !byId.ContainsKey(id)).ToArray();
                 if (missing.Length > 0) { findings.Add("planned_room_alternative_unvalued:" + alternative.Id + ":" + missing[0] + ":unknown"); continue; }
                 var verdicts = alternative.Sites.Select(id => (Id: id, Result: assessed.TryGetValue(id, out var known) ? known : assessed[id] = Assess(byId[id]))).ToArray();
@@ -242,8 +247,7 @@ internal static class PlannedRoomCandidates
                     { Producer = finish, Lot = site.Id, Kind = ForecastRequirementKind.Reusable, Provenance = "planned-finish-site:" + site.Id }]));
                 ids.Add(finish); finishes[site.Id] = finish;
                 roomSitesOps.Add(new(site.Id, site.Room, ring ? site.Stuff : "", [.. ids], finish)
-                    { WorkGroups = [[finish], .. hauls, .. site.Clearing.Where(c => ids.Contains(c.Id)).Select(c => new[] { c.Id })],
-                        Piece = site.Op == OpKind.Build ? site.Definition : "" });
+                    { WorkGroups = [[finish], .. hauls, .. site.Clearing.Where(c => ids.Contains(c.Id)).Select(c => new[] { c.Id })] });
             }
             if (operations.Count + roomOperations.Count > OperationBudget)
             {

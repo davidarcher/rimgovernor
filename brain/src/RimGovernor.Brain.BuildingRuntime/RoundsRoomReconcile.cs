@@ -176,21 +176,38 @@ partial class RoundsBuildingPlanner
         return piece => blocked(piece.DefName);
     }
 
-    /// <summary>
-    /// The one blocked predicate (#3754, #3827): a definition is blocked only on read evidence (#3819), when it is read
-    /// unavailable or its research is read with a prerequisite unfinished (DefinitionReadinessOf), or when its stuff
-    /// options, the stock and the map's ring sources are read and the one stuff chooser (PlannedRingStuffsRead) finds
-    /// none the colony stocks or the map offers as wood or rock blocks. An unread fact leaves it unblocked.
-    /// </summary>
+    /// <summary>The one blocked predicate (#3754, #3827): a definition <see cref="PieceReadinessOf"/> reads Blocked.</summary>
     internal static Func<string, bool> DefinitionBlockedOf(Observation.ColonyProjection projection) =>
-        name => RoundsDefenseLayoutPlanner.DefinitionReadinessOf(projection, name) == DefinitionReadiness.Blocked
-            || Rounder.PlannedRingStuffsRead(projection, name, "") is { Stuffs.Count: 0, Read: true };
+        name => PieceReadinessOf(projection)(name) == DefinitionReadiness.Blocked;
+
+    /// <summary>
+    /// What the facts say of building a template piece of a definition now (#3754, #3827, #3839), on read evidence only
+    /// (#3819). Blocked when its definition is read unavailable or its research is read with a prerequisite unfinished
+    /// (DefinitionReadinessOf); when its stuff options, the stock and the map's sources are read and the one stuff chooser
+    /// (PlannedRingStuffsRead) finds none the colony stocks or the map offers as wood or rock blocks; or when a material of
+    /// its cost list other than its stuff (a stuff-less stove's Steel, a research bench's Steel beside its stuff) is read
+    /// unstocked and read unobtainable (Rounder.PieceCostReadiness). Else Unread while any of those facts is unread, and
+    /// Available.
+    /// </summary>
+    internal static Func<string, DefinitionReadiness> PieceReadinessOf(Observation.ColonyProjection projection) => name =>
+    {
+        var (stuffs, stuffRead) = Rounder.PlannedRingStuffsRead(projection, name, "");
+        DefinitionReadiness[] halves =
+        [
+            RoundsDefenseLayoutPlanner.DefinitionReadinessOf(projection, name),
+            stuffs.Count > 0 ? DefinitionReadiness.Available : stuffRead ? DefinitionReadiness.Blocked : DefinitionReadiness.Unread,
+            Rounder.PieceCostReadiness(projection, name),
+        ];
+        return halves.Contains(DefinitionReadiness.Blocked) ? DefinitionReadiness.Blocked
+            : halves.Contains(DefinitionReadiness.Unread) ? DefinitionReadiness.Unread : DefinitionReadiness.Available;
+    };
 
     /// <summary>
     /// The owed items of the coupled comparison's planned rooms that are blocked pieces (#3827), resolved here at the read
-    /// boundary so the service-day projection reads plain ids (ForecastCoupledContext.BlockedItems): each planned site of a
-    /// template piece (ForecastPlannedSite.Piece), and each placed site a room holds (ForecastCoupledContext.RoomItems,
-    /// its definition the construction read's) other than a ring's, whose definition <see cref="DefinitionBlockedOf"/> blocks.
+    /// boundary so the service-day projection reads plain ids (ForecastCoupledContext.BlockedItems): each placed site a
+    /// room holds (ForecastCoupledContext.RoomItems, its definition the construction read's) other than a ring's, whose
+    /// definition <see cref="DefinitionBlockedOf"/> blocks. A planned site of a blocked piece is never generated: its
+    /// room's alternatives leave it out (PlannedBuildSite.Blocked, #3838).
     /// </summary>
     internal static IReadOnlySet<string> BlockedRoomItems(Observation.ColonyProjection projection, Pol.ForecastCoupledContext context)
     {
@@ -198,10 +215,6 @@ partial class RoundsBuildingPlanner
         var ring = context.Closures.SelectMany(c => c.Placed).Select(p => p.Site).ToHashSet(StringComparer.Ordinal);
         var placed = context.Construction.Options.GroupBy(o => o.Site, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.First().Definition, StringComparer.Ordinal);
         var items = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var site in context.PlannedSites.Where(s => s.Piece.Length != 0 && blocked(s.Piece)))
-        {
-            items.Add(site.Site);
-        }
         foreach (var item in context.RoomItems.Where(i => !ring.Contains(i.Item)))
         {
             if (placed.TryGetValue(item.Item, out var definition) && blocked(definition))

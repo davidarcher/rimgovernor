@@ -306,8 +306,9 @@ public sealed partial record ColonyProjection
     public IReadOnlyList<SiteCell> Cells { get; init; } = [];
 
     /// <summary>
-    /// The stuffs the window's cells offer a ring with nothing stocked (#3747, DefinitionCatalog.RingStuffSourcesOf): the
-    /// wood of its standing trees and the blocks of its natural rock. Unknown without a planning window or the catalog.
+    /// The materials the window's cells offer beyond the stock (#3747, #3839, DefinitionCatalog.RingStuffSourcesOf): the
+    /// wood of its standing trees, the blocks and mined items of its natural rock, its lying stacks and what its unowned
+    /// buildings yield on deconstruction. Unknown without a planning window or the catalog.
     /// </summary>
     public Fact<RingStuffSources> RingSources { get; init; }
 

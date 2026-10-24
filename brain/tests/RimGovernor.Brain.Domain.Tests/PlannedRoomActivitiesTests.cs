@@ -288,6 +288,86 @@ public sealed class PlannedRoomActivitiesTests
         Assert.Contains("planned_room_alternative_infeasible:planned/room1/WoodLog/Shell:planned/room1/wall/WoodLog", illegal.CoupledAlternatives!.Findings);
     }
 
+    private static readonly string[] BarracksBeds = ["planned/room1/build/Bed/5/5", "planned/room1/build/Bed/6/5", "planned/room1/build/Bed/7/5"];
+    private const string BarracksStove = "planned/room1/build/FueledStove/6/7";
+    private const string BarracksFull = "planned/room1/WoodLog/Full";
+
+    /// <summary>
+    /// A barracks (#3838) on the colony <paramref name="colony"/> describes: room 1's wooden ring, three beds the builder can
+    /// finish and a FueledStove (80 Steel) with no finish row, as on a map with no Steel stack; the round marks its blocked
+    /// pieces (Rounder.BlockedPiecesOf).
+    /// </summary>
+    private static RoundsFacts Barracks(RimGovernor.Brain.Observation.ColonyProjection colony) => Review(RimGovernor.Brain.BuildingRuntime.Rounder.BlockedPiecesOf(colony,
+    [
+        Ring(OpKind.WallIn, "WoodLog", 60), Ring(OpKind.DoorIn, "WoodLog", 30),
+        .. BarracksBeds.Select((id, i) => Site(id, OpKind.Build, "Bed", "WoodLog", [new Cell(5 + i, 5)], 40, 0, [])),
+        new PlannedBuildSite(BarracksStove, 1, OpKind.Build, "FueledStove", "", Rotation.North, [new Cell(6, 7)])
+            { Verdict = PlannedSiteVerdict.Feasible, Material = [new RimGovernor.Brain.Policy.Amount(new Resource("Steel"), 80)] },
+    ]).ToList());
+
+    /// <summary>
+    /// #3838: a barracks' stove with no Steel anywhere (none stocked, none lying, mined or salvaged) is blocked, so its Full
+    /// alternative leaves it out and is valued with the beds: the bed sites are generated, the stove's is not.
+    /// </summary>
+    [Fact]
+    public void ABlockedStoveIsLeftOutOfTheBarracksAndItsBedsAreValued()
+    {
+        var candidates = Barracks(PlannedRoomGateTests.StoveFacts()).CoupledAlternatives!;
+        Assert.Contains("planned_room_site_blocked:" + BarracksFull + ":" + BarracksStove, candidates.Findings);
+        Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_alternative_unvalued:" + BarracksFull + ":", StringComparison.Ordinal));
+        var full = Assert.Single(candidates.Context.PlannedRooms, a => a.Id == BarracksFull);
+        Assert.Equal([.. BarracksBeds, "planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"], full.Sites.Order(StringComparer.Ordinal));
+        var generated = candidates.Context.PlannedSites.Select(s => s.Site).ToHashSet();
+        Assert.All(BarracksBeds, bed => Assert.Contains(bed, generated));
+        Assert.DoesNotContain(BarracksStove, generated);
+    }
+
+    /// <summary>
+    /// #3838, #3839: with Steel stocked, a stack lying on the map, compacted steel in the window or an unowned building that
+    /// yields it, the stove is kept in the Full alternative, which its missing finish row leaves unvalued as before.
+    /// </summary>
+    [Theory]
+    [InlineData("stocked")]
+    [InlineData("lying")]
+    [InlineData("ore")]
+    [InlineData("salvage")]
+    public void AStoveWhoseSteelTheColonyCanObtainIsKept(string source)
+    {
+        var steel = PlannedRoomGateTests.SteelOffered;
+        var colony = source switch
+        {
+            "stocked" => PlannedRoomGateTests.StoveFacts(steel: 80),
+            "lying" => PlannedRoomGateTests.StoveFacts(sources: new RingStuffSources { Items = steel }),
+            "ore" => PlannedRoomGateTests.StoveFacts(sources: new RingStuffSources { Mined = steel }),
+            _ => PlannedRoomGateTests.StoveFacts(sources: new RingStuffSources { Salvage = steel }),
+        };
+        Assert.Equal(RimGovernor.Brain.BuildingRuntime.DefinitionReadiness.Available, RimGovernor.Brain.BuildingRuntime.RoundsBuildingPlanner.PieceReadinessOf(colony)("FueledStove"));
+        var candidates = Barracks(colony).CoupledAlternatives!;
+        Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_site_blocked:", StringComparison.Ordinal));
+        Assert.Contains("planned_room_alternative_unvalued:" + BarracksFull + ":" + BarracksStove + ":no_finish_option", candidates.Findings);
+        Assert.DoesNotContain(candidates.Context.PlannedRooms, a => a.Id == BarracksFull);
+    }
+
+    /// <summary>#3838, #3839: with any source of Steel unread the stove is Unread, not blocked: the Full alternative keeps it and stays unvalued.</summary>
+    [Theory]
+    [InlineData("stock")]
+    [InlineData("sources")]
+    [InlineData("salvage")]
+    public void AStoveWhoseSteelIsUnreadKeepsTheBarracksUnvalued(string unread)
+    {
+        var colony = unread switch
+        {
+            "stock" => PlannedRoomGateTests.StoveFacts(stockRead: false),
+            "sources" => PlannedRoomGateTests.StoveFacts(sourcesRead: false),
+            _ => PlannedRoomGateTests.StoveFacts(sources: new RingStuffSources { Unsalvaged = PlannedRoomGateTests.MachineUnsalvaged }),
+        };
+        Assert.Equal(RimGovernor.Brain.BuildingRuntime.DefinitionReadiness.Unread, RimGovernor.Brain.BuildingRuntime.RoundsBuildingPlanner.PieceReadinessOf(colony)("FueledStove"));
+        var candidates = Barracks(colony).CoupledAlternatives!;
+        Assert.DoesNotContain(candidates.Findings, f => f.StartsWith("planned_room_site_blocked:", StringComparison.Ordinal));
+        Assert.Contains("planned_room_alternative_unvalued:" + BarracksFull + ":" + BarracksStove + ":no_finish_option", candidates.Findings);
+        Assert.DoesNotContain(candidates.Context.PlannedRooms, a => a.Id == BarracksFull);
+    }
+
     /// <summary>
     /// #3617: a roof-holder under the footprint is a valued Deconstruct clearing carrying the cells it leaves unsupported.
     /// The alternative is valued (not unknown), and the clearing binds as one task whose order removes the roof over those

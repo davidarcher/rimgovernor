@@ -17,7 +17,7 @@ public sealed partial class Rounder
         {
             return Unknown<PlannedSiteFacts>();
         }
-        var sites = new List<PlannedBuildSite>(roomSites);
+        var sites = new List<PlannedBuildSite>(BlockedPiecesOf(colony, roomSites));
         if (shelves.Count > 0)
         {
             var stuff = colony.BuildStuff(StorageRules.ShelfDefinition);
@@ -38,6 +38,16 @@ public sealed partial class Rounder
         {
             Roles = EquatableArray.From(owed!.Sited.Select(r => (Room: r.Room.Id, r.Room.Role)).Distinct().OrderBy(r => r.Room)),
         });
+    }
+
+    /// <summary>
+    /// The room sites with each Build site whose piece the one blocked predicate blocks marked Blocked (#3838,
+    /// RoundsBuildingPlanner.DefinitionBlockedOf): its room's alternatives leave it out.
+    /// </summary>
+    internal static IEnumerable<PlannedBuildSite> BlockedPiecesOf(ColonyProjection colony, IEnumerable<PlannedBuildSite> sites)
+    {
+        var blocked = RoundsBuildingPlanner.DefinitionBlockedOf(colony);
+        return sites.Select(s => s.Op == OpKind.Build && blocked(s.Definition) ? s with { Blocked = true } : s);
     }
 
     /// <summary>One construction activity read of planned sites or routes; null without the read.</summary>
@@ -110,7 +120,7 @@ public sealed partial class Rounder
         }
         var door = RoundsAnimalContainment.AnimalContainmentDefinition(colony.Definitions, doorDef);
         var common = wall.StuffOptions.Any(o => o.Common);
-        var stockRead = colony.TryStock(out var stock);
+        var (stock, sources) = MapMaterialsOf(colony);
         var options = wall.StuffOptions
             .Where(o => (o.Common || !common) && (door is null || door.MakeableFrom(o.Stuff)))
             .Select(o => new PlannedRingStuff(o.Stuff, o.Value, stock is not null && stock.TryGetValue(new Resource(o.Stuff), out var held) && held > 0))
@@ -119,8 +129,42 @@ public sealed partial class Rounder
         {
             return ([], true);
         }
-        var sources = colony.RingSources.ValueOrDefault;
-        return (PlannedRules.PlannedRingStuffs(options, sources ?? new RingStuffSources()), options.Any(o => o.Stocked) || stockRead && sources is not null);
+        return (PlannedRules.PlannedRingStuffs(options, sources ?? new RingStuffSources()), options.Any(o => o.Stocked) || stock is not null && sources is not null);
+    }
+
+    /// <summary>The colony's stock and the materials the planning window offers (ColonyProjection.RingSources, #3747, #3839); each null while unread.</summary>
+    private static (IReadOnlyDictionary<Resource, long>? Stock, RingStuffSources? Sources) MapMaterialsOf(ColonyProjection colony) =>
+        (colony.TryStock(out var stock) ? stock : null, colony.RingSources.ValueOrDefault);
+
+    /// <summary>
+    /// What the stock and the map say of obtaining the materials of a piece's cost list other than its stuff (#3839,
+    /// PlannedPiecePrice: a stuff-less stove's Steel, the Steel a research bench costs beside its stuff). A material is
+    /// obtainable when any is stocked or the window offers it (RingStuffSources.Offers: wood, blocks, mining, a lying stack
+    /// or salvage; trade does not count). Blocked when one is read unstocked and read unobtainable; Unread when the price,
+    /// the stock or the window's sources are unread, or a material none of them offers while a building's salvage is
+    /// unread (RingStuffSources.Unsalvaged); else Available.
+    /// </summary>
+    internal static DefinitionReadiness PieceCostReadiness(ColonyProjection colony, string name)
+    {
+        if (PlannedPiecePrice(colony, name) is not { } price)
+        {
+            return DefinitionReadiness.Unread;
+        }
+        var (stock, sources) = MapMaterialsOf(colony);
+        var readiness = DefinitionReadiness.Available;
+        foreach (var material in price.Costs.Where(c => c.Count > 0 && c.Resource.Value != price.Stuff).Select(c => c.Resource))
+        {
+            if (stock is not null && stock.TryGetValue(material, out var held) && held > 0 || sources is not null && sources.Offers(material.Value))
+            {
+                continue;
+            }
+            if (stock is not null && sources is { Unsalvaged.Count: 0 })
+            {
+                return DefinitionReadiness.Blocked;
+            }
+            readiness = DefinitionReadiness.Unread;
+        }
+        return readiness;
     }
 
     /// <summary>The stuff def is built from for a wanted stuff ("" for a def made from no stuff) and its cost list; null where the def is unavailable or cannot be made from it.</summary>
