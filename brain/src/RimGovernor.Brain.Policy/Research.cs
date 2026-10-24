@@ -46,6 +46,13 @@ public sealed record ResearchProjectFacts
     public EquatableArray<ResearchProjectId> HiddenPrerequisites { get; init; }
 
     /// <summary>
+    /// The defs finishing the project unlocks (ResearchProjectDef.UnlockedDefs, from the definition catalog), by defName, sorted:
+    /// the products of the recipes it gates, the things and terrain that need it, the plants whose sowing needs it, the surgeries
+    /// and the psychic rituals it gates.
+    /// </summary>
+    public EquatableArray<string> Unlocks { get; init; }
+
+    /// <summary>
     /// The native census's CanStartNow predicates the project fails (prerequisite:name, techprints,
     /// ResearchLockBench, ...), empty when it can start now.
     /// </summary>

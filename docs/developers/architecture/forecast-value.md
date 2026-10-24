@@ -443,6 +443,17 @@ finishing the project now adds. The value goes to `PerUnit` under `knowledge/<ca
 the colony has; a category that funds no project, or a project whose points are all given, is worth 0 a point. Without Anomaly the research
 read has no knowledge slot and there is no category. A study's yield of a category is priced at `Investment[KnowledgeKey(category)]`.
 
+What finishing the project adds is what it unlocks, valued by the terms that value the rest of the run (#3848). The catalog gathers a
+project's unlocks the way `ResearchProjectDef.UnlockedDefs` does (`ResearchProjectFacts.Unlocks`): recipe products, things, terrain,
+sown plants, surgeries and psychic rituals that name it. The gear census lists only bills available now, so the gear read adds the bill
+options of apparel that only unfinished knowledge projects keep from the colony (`GearObservation.KnowledgeBills`,
+`ColonyGearReads.KnowledgeBillOptions`). Their garment nodes wait on the knowledge node, picked apart from the garments that can be made
+now (`ProjectGraph.Garments` groups by stuff, slot and the research a bill still waits on), so the apparel term prices the armor they add.
+No other term prices an unlock (weapons, serums, buildings, floors, surgeries, rituals): each unlock of a funded project that is not a gear
+option is named `knowledge_unlock_unmodelled:<project>:<def>` in the graph's findings, which `ProjectMarginals.Findings` carries. An
+apparel unlock is a gear option even without armor (a flare pack): the apparel term prices it at what its armor avoids. In vanilla
+Anomaly the garments with armor are BioferriteExtraction's cultist masks.
+
 *Raid tending (#3635).* `ColonyValue` subtracts the colony's raid harm over the run at the tending the run gives it. The run is cut
 at each doctor's level dates and at each medicine kind's run-out (between events the stock falls at a constant rate, best kind
 first, from `ColonyTrajectory.StartMedicine`); each span costs its days × raids a day × each raid's loss through `HarmLedger`

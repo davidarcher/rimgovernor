@@ -88,6 +88,12 @@ public sealed record GearObservation
     /// <summary>Every outfit policy's load id; one no pawn keeps (OutfitKeep) is owed a prune.</summary>
     public Fact<EquatableArray<string>> Outfits { get; init; }
 
+    /// <summary>
+    /// The bill options of apparel only unfinished knowledge projects (Anomaly) keep from the colony (#3848). No pawn's options hold
+    /// them, since no bill of one can start; the colony model prices what finishing those projects adds with them.
+    /// </summary>
+    public EquatableArray<GearOption> KnowledgeBills { get; init; }
+
     /// <summary>The outfits owed a prune: none until every pawn is on its own outfit (OutfitKeep).</summary>
     public IReadOnlyList<string> OutfitsToPrune()
     {

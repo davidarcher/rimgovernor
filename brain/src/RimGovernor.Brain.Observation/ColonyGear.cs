@@ -15,7 +15,7 @@ public static class ColonyGearReads
     public static Fact<GearObservation> GearFacts(O.ColonyFactsSnapshot v, Tables tables, GearDefinitions defs, Fact<EquatableArray<FoodField>> fields, IReadOnlyList<PlanningDefinition> crops)
     {
         var gear = PlanningWindowReads.RequirePlanning(v).Gear;
-        if (gear is null || defs.Catalog is not { } catalog || !defs.Finished.IsKnown || (uint)gear.Pawns.Count != v.ColonistCount
+        if (gear is null || defs.Catalog is not { } catalog || !defs.Finished.TryGetValue(out var finished) || (uint)gear.Pawns.Count != v.ColonistCount
             || !ColonyDecodeReads.StockCensus(v).TryGetValue(out var stock))
         {
             return Unknown<GearObservation>();
@@ -51,8 +51,40 @@ public static class ColonyGearReads
             Pawns = pawns,
             Stored = GearStorageFacts(gear),
             Outfits = OutfitIds(v.Policies),
+            KnowledgeBills = KnowledgeBillOptions(catalog, finished),
         };
         return Known(result);
+    }
+
+    /// <summary>
+    /// The bill options of apparel that only unfinished knowledge projects (Anomaly) keep from the colony (#3848): every apparel
+    /// recipe of the catalog (<see cref="DefinitionCatalog.ApparelBills"/>) whose unfinished research is all knowledge projects, one
+    /// option per stuff a bill of it takes, as the census writes a bill option (Normal quality, whole). The census lists only
+    /// recipes available now, so these are what finishing those projects adds.
+    /// </summary>
+    public static EquatableArray<GearOption> KnowledgeBillOptions(DefinitionCatalog catalog, IReadOnlySet<string> finished)
+    {
+        var options = new List<GearOption>();
+        foreach (var (def, research) in catalog.ApparelBills())
+        {
+            var open = research.Where(p => !finished.Contains(p)).ToArray();
+            if (open.Length == 0 || !open.All(p => catalog.Research.TryGetValue(p, out var project) && project.KnowledgeCategory.Length > 0))
+            {
+                continue;
+            }
+
+            var stuffs = catalog.ApparelBillStuffs(def);
+            foreach (var stuff in stuffs.Count == 0 && !catalog.ThingRow(def).MadeFromStuff ? [""] : stuffs)
+            {
+                var row = new O.GearLoadoutOption { Id = $"bill:{def}/{stuff}", DefName = def, Source = "bill", Quality = (int)D.QualityCategory.Normal, Condition = 1 };
+                if (GearLoadoutOption(stuff.Length == 0 ? row : row with { Stuff = stuff }, catalog) is { } option)
+                {
+                    options.Add(option);
+                }
+            }
+        }
+
+        return EquatableArray.From(options);
     }
 
     /// <summary>

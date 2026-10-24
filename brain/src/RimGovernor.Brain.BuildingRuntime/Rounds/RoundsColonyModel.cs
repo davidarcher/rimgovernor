@@ -69,8 +69,9 @@ internal static class RoundsColonyModel
         // Each unmet goal with a path through the project graph is a terminal of it (#3505); the rest are named and keep the flat value.
         var paths = (goals?.Goals ?? []).Where(g => GoalRules.Evaluate(g, goals!).State != GoalState.Met).OrderBy(g => g.Id)
             .Select(g => (Goal: GoalRules.NeedOf(g).Value, Path: GoalPaths.Of(g, goals!, input))).ToList();
+        // The pawns' bill options, and the apparel only unfinished knowledge projects keep from the colony (#3848): a garment node of one waits on them.
         var options = colony.Facts.Gear.TryGetValue(out var gear)
-            ? gear.Pawns.Where(p => p.LoadoutModel.IsKnown).SelectMany(p => p.LoadoutModel.Value.Options).Where(o => o.Source == GearSource.Bill).DistinctBy(o => o.ID).ToArray()
+            ? gear.Pawns.Where(p => p.LoadoutModel.IsKnown).SelectMany(p => p.LoadoutModel.Value.Options).Where(o => o.Source == GearSource.Bill).Concat(gear.KnowledgeBills).DistinctBy(o => o.ID).ToArray()
             : [];
         // The colony's expected raid is the same on every pawn's loadout input; the first known one is the colony's.
         var threat = gear is null ? default : gear.Pawns.Where(p => p.LoadoutModel.IsKnown).Select(p => p.LoadoutModel.Value.Threat).FirstOrDefault(t => t.IsKnown);
@@ -252,6 +253,7 @@ internal static class RoundsColonyModel
                 Progress = detail?.Progress ?? default,
                 Prerequisites = detail?.Prerequisites ?? default,
                 KnowledgeCategory = detail?.KnowledgeCategory ?? "",
+                Unlocks = detail?.Unlocks ?? default,
             });
         }
 

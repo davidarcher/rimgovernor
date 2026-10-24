@@ -37,7 +37,7 @@ public sealed record ProjectMarginals
     /// <summary>The run's value in capability-days; unknown when its hunger could not be priced (then there are no marginals).</summary>
     public Fact<double> Value { get; init; }
 
-    /// <summary>The run's gaps and the value's unassessed parts, sorted.</summary>
+    /// <summary>The run's gaps, its project graph's and the value's unassessed parts, sorted.</summary>
     public EquatableArray<string> Findings { get; init; }
 
     /// <summary>Capability-days one hour of the project's work adds (dV/dt), by node id.</summary>
@@ -74,7 +74,7 @@ public static class ProjectMarginalValue
         var start = ColonyModelState.Observed(input, policy);
         var baseline = ColonyModel.Run(input, start, cycles, policy);
         var value = valuation.Price(baseline);
-        var findings = new SortedSet<string>(baseline.Findings.Concat(value.Findings), StringComparer.Ordinal);
+        var findings = new SortedSet<string>(baseline.Findings.Concat(value.Findings).Concat(policy.Projects.Findings), StringComparer.Ordinal);
         var perHour = new SortedDictionary<string, double>(StringComparer.Ordinal);
         var perUnit = new SortedDictionary<string, double>(StringComparer.Ordinal);
         var before = goals.ToDictionary(g => g.Goal, g => CompletionDay(baseline, g), StringComparer.Ordinal);

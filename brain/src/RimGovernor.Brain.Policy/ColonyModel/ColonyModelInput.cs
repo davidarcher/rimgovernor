@@ -36,6 +36,9 @@ public sealed record ModelProject
 
     /// <summary>The project's knowledge category (Anomaly, ResearchProjectDef.knowledgeCategory); empty for a project researched at a bench. A knowledge project's cost is its knowledgeCost in knowledge points, which only study gives.</summary>
     public string KnowledgeCategory { get; init; } = "";
+
+    /// <summary>The defs finishing the project unlocks (<see cref="ResearchProjectFacts.Unlocks"/>).</summary>
+    public EquatableArray<string> Unlocks { get; init; }
 }
 
 /// <summary>

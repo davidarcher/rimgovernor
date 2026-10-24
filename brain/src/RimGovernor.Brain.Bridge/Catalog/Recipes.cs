@@ -192,29 +192,41 @@ public sealed partial class DefinitionCatalog
     /// only product is the def (<c>RecipeDef.ProducedThingDef</c>); null when no recipe makes it.
     /// </summary>
     public (IReadOnlyList<string> Research, IReadOnlyList<StatCost> Ingredients)? ApparelBill(string def, string stuff) =>
-        (_soleProductResearch ?? LazyInitializer.EnsureInitialized(ref _soleProductResearch, SoleProductResearch)).TryGetValue(def, out var research)
-            ? (research, AdjustedCosts(def, stuff))
+        SoleProducts().TryGetValue(def, out var made)
+            ? (made.Research, AdjustedCosts(def, stuff))
             : null;
 
-    // Each def made as the only product of a recipe without special products, with the sorted research of the first
-    // such recipe by defName. A gear census asks it for every bill option of every pawn, so the catalog builds it once.
-    private Dictionary<string, IReadOnlyList<string>>? _soleProductResearch;
+    /// <summary>Every apparel def a recipe makes as its only product (the recipe <see cref="ApparelBill"/> reads), by defName, with that recipe's sorted research.</summary>
+    public IEnumerable<(string Def, IReadOnlyList<string> Research)> ApparelBills() =>
+        SoleProducts().Where(p => FindThing(p.Key)?.IsApparel == true).OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => (p.Key, p.Value.Research));
 
-    private Dictionary<string, IReadOnlyList<string>> SoleProductResearch()
-    {
-        var result = new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
-        foreach (var row in Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal))
+    /// <summary>
+    /// The stuffs a bill of the apparel def (one of <see cref="ApparelBills"/>) takes: <c>GenStuff.AllowedStuffsFor(def)</c> that its
+    /// recipe's fixed ingredient filter allows, sorted (NativeGearFacts.BillOptions); empty for a def not made from stuff.
+    /// </summary>
+    public IReadOnlyList<string> ApparelBillStuffs(string def) =>
+        [.. AllowedStuffs(def).Where(s => FilterAccepts(SoleProducts()[def].Recipe.fixedIngredientFilter, s)).Order(StringComparer.Ordinal)];
+
+    // Each def made as the only product of a recipe without special products, with the first such recipe by defName and its
+    // sorted research. A gear census asks it for every bill option of every pawn, so the catalog builds it once.
+    private Dictionary<string, (RecipeDef Recipe, IReadOnlyList<string> Research)>? _soleProducts;
+
+    private Dictionary<string, (RecipeDef Recipe, IReadOnlyList<string> Research)> SoleProducts() =>
+        _soleProducts ?? LazyInitializer.EnsureInitialized(ref _soleProducts, () =>
         {
-            if (row.specialProducts.Seq().Any() || row.products.Seq().ToList() is not [{ thingDef: { } product }])
+            var result = new Dictionary<string, (RecipeDef, IReadOnlyList<string>)>(StringComparer.Ordinal);
+            foreach (var row in Rows<RecipeDef>().Values.OrderBy(r => r.defName, StringComparer.Ordinal))
             {
-                continue;
+                if (row.specialProducts.Seq().Any() || row.products.Seq().ToList() is not [{ thingDef: { } product }])
+                {
+                    continue;
+                }
+
+                result.TryAdd(product.defName, (row, RecipeResearch(row).Order(StringComparer.Ordinal).ToList()));
             }
 
-            result.TryAdd(product.defName, RecipeResearch(row).Order(StringComparer.Ordinal).ToList());
-        }
-
-        return result;
-    }
+            return result;
+        });
 
     /// <summary>Whether the def has a smoke-pop verb (a <c>Verb_SmokePop</c> in its verbs).</summary>
     public bool SmokePop(string def) =>

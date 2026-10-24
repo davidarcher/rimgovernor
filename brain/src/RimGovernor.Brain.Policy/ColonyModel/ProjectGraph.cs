@@ -79,21 +79,39 @@ public sealed record ProjectGraph
     }
 
     /// <summary>
-    /// The knowledge projects the colony's categories fund (<see cref="KnowledgeProject"/>), each with its unfinished prerequisites, and
-    /// each category's <see cref="Funding"/>: the project's node, or none when it funds no project; no category without Anomaly.
+    /// The finding of what a funded knowledge project unlocks that no term of the colony value prices (#3848), as
+    /// <c>knowledge_unlock_unmodelled:{project}:{def}</c>: its point is priced without it.
     /// </summary>
-    private static ProjectGraph Knowledge(ColonyModelInput input, ModelResearch research)
+    public const string KnowledgeUnlockUnmodelled = "knowledge_unlock_unmodelled";
+
+    /// <summary>
+    /// The knowledge projects the colony's categories fund (<see cref="KnowledgeProject"/>), each with its unfinished prerequisites, and
+    /// each category's <see cref="Funding"/>: the project's node, or none when it funds no project; no category without Anomaly. What a
+    /// funded project unlocks is priced through the nodes that wait on it: an apparel unlock is one of the gear
+    /// <paramref name="options"/>, whose garment node (<see cref="Garments"/>) the apparel term values. Each other unlock is named
+    /// (<see cref="KnowledgeUnlockUnmodelled"/>).
+    /// </summary>
+    private static ProjectGraph Knowledge(ColonyModelInput input, ModelResearch research, IReadOnlyList<GearOption> options)
     {
         var graph = new ProjectGraph();
         var funding = new List<CategoryFunding>();
+        var apparel = options.Select(o => o.Definition.Value).ToHashSet(StringComparer.Ordinal);
+        var unmodelled = new SortedSet<string>(StringComparer.Ordinal);
         foreach (var category in research.Knowledge.Select(k => k.Category))
         {
             var project = KnowledgeProject(research, category);
             funding.Add(new(category, project is { } funded ? ResearchId(funded) : ""));
-            graph = project is { } chain ? graph.Then(ResearchChain(input, chain)) : graph;
+            if (project is not { } chain)
+            {
+                continue;
+            }
+
+            graph = graph.Then(ResearchChain(input, chain));
+            var unlocks = research.Projects.FirstOrDefault(p => p.Project == chain)?.Unlocks ?? default;
+            unmodelled.UnionWith(unlocks.Where(def => !apparel.Contains(def)).Select(def => $"{KnowledgeUnlockUnmodelled}:{chain}:{def}"));
         }
 
-        return graph with { Funding = EquatableArray.From(funding) };
+        return graph.Then(new ProjectGraph { Findings = EquatableArray.From(unmodelled) }) with { Funding = EquatableArray.From(funding) };
     }
 
     /// <summary>
@@ -101,12 +119,13 @@ public sealed record ProjectGraph
     /// harvest, gated on the research the crop's sowing waits on (<see cref="CropChoice.Research"/>). Then each herd of huntable
     /// wildlife is hunted and butchered (<see cref="Hunts"/>). Last, the garments the colony can make from the stuffs it holds or those
     /// nodes yield (<see cref="Garments"/>), so the harm model prices what wearing each avoids from the day it is made. Then the knowledge
-    /// projects the colony's knowledge categories fund (<see cref="Knowledge"/>), whose points are priced per category.
+    /// projects the colony's knowledge categories fund (<see cref="Knowledge"/>), whose points are priced per category by what the nodes
+    /// waiting on them add: the garments of <paramref name="options"/> only those projects keep from the colony.
     /// </summary>
     public static ProjectGraph Standing(ColonyModelInput input, IReadOnlyList<GearOption> options, Fact<RaidThreat> threat)
     {
         var graph = input.Research.TryGetValue(out var research) && !research.Current.IsEmpty ? ResearchChain(input, research.Current) : new ProjectGraph();
-        var knowledge = research is null ? new ProjectGraph() : Knowledge(input, research);
+        var knowledge = research is null ? new ProjectGraph() : Knowledge(input, research, options);
         if (input.Land.TryGetValue(out var land))
         {
             foreach (var field in land.Where(f => f.Crop.Length > 0))
@@ -124,8 +143,8 @@ public sealed record ProjectGraph
     public static string GarmentId(Resource stuff, GearSlot slot) => $"garment:{stuff}:{slot}";
 
     /// <summary>
-    /// One craft node per reachable stuff and gear slot (#3622): of the gear planner's bill options in that stuff and slot (not a
-    /// slave's, a child's, a shield, a psychic or a smoke-pop garment), the def with the most damage avoided per hit against the
+    /// One craft node per reachable stuff and gear slot (#3622), and per unfinished research its bills wait on (#3848): of the bill
+    /// options in that stuff, slot and research (not a slave's, a child's, a shield, a psychic or a smoke-pop garment), the def with the most damage avoided per hit against the
     /// colony's expected raid (<see cref="GearArmorTerm"/>), ties by option id; an option without armor makes no node. A stuff is
     /// reachable when the stock covers the garment's units of it, or a harvest or hunt node of <paramref name="sources"/> yields it.
     /// A node waits on the research its bill needs and takes its stuff from the run's ledger when it starts, so a sourced garment
@@ -158,9 +177,16 @@ public sealed record ProjectGraph
         var armor = new GearArmorTerm(threat);
         var gaps = new ProjectGraph();
         var garments = new List<Garment>();
+
+        // The unfinished research a bill waits on (a knowledge project's, #3848): such a garment is picked apart from those that can be made now.
+        // A project waits when its research chain has a node for it: an unread research state gives none.
+        var waits = new Dictionary<string, bool>(StringComparer.Ordinal);
+        bool Open(string p) => waits.TryGetValue(p, out var open) ? open
+            : waits[p] = ResearchChain(input, new ResearchProjectId(p)).Nodes.Any(n => n.Id == ResearchId(new ResearchProjectId(p)));
+        string Waits(GearOption o) => string.Join(',', o.Research.Where(Open));
         var picks = options.Where(o => o.Source == GearSource.Bill && !o.Stuff.IsEmpty && !o.SlaveOnly && !o.Shield && !o.Psychic && !o.Smokepop
                 && !o.Definition.Value.StartsWith("Kid", StringComparison.Ordinal) && !o.Definition.Value.StartsWith("Apparel_Kid", StringComparison.Ordinal) && armor.Of(o) > 0)
-            .GroupBy(o => (o.Stuff, o.Slot))
+            .GroupBy(o => (o.Stuff, o.Slot, Waits(o)))
             .Select(g => g.OrderByDescending(armor.Of).ThenBy(o => o.ID, StringComparer.Ordinal).First());
         foreach (var garment in picks)
         {
