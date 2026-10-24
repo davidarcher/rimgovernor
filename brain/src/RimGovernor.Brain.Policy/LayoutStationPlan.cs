@@ -393,6 +393,18 @@ public sealed record StationFacts
         }
         return output;
     }
+
+    /// <summary>
+    /// The held plan's unbuilt, unpinned rooms as the embedding keeps them (EmbedInput.Prior, #3740): every room that
+    /// does not stand (StandingIds) and the colony does not hold (Pinned), bar the attached rooms and the successors (a
+    /// successor is the relocation's, priced by the switching price), keyed as BuiltRegions keys a room.
+    /// </summary>
+    internal List<BuiltRegion> PriorRooms()
+    {
+        var standing = StandingIds() ?? new HashSet<int>();
+        var unbuilt = new HashSet<int>(Plan.Rooms.Where(r => !standing.Contains(r.Id) && !Pinned.Contains(r.Id) && !r.Attached() && r.Replaces == 0).Select(r => r.Id));
+        return LayoutPlan.BuiltRegions(Plan, unbuilt);
+    }
 }
 
 /// <summary>One room group with the built rooms matched to it. Rooms are the matched built rooms' ids and Capacity their summed area. Outgrown: the group needs more floor than its built rooms give. Climate is the cold room's climate answer, beside its cooling station: the watts of each opening to the outdoors (#2940); null for a group that does not require cold or when the curve or the game's numbers are unknown.</summary>
@@ -591,6 +603,7 @@ public static partial class LayoutStationPlanRules
                 Standing = f.StandingRooms(),
                 InFlight = RebuildPending(f),
                 RetiredGround = f.Plan.RetiredGround,
+                Prior = f.PriorRooms(),
             },
             Price = f.RegroupPriceOf(),
             Mismatches = f.Mismatches,

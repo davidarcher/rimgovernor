@@ -524,7 +524,7 @@ and `LayoutSiteGround.cs` (the siting seeds), that `Embed` uses with `FieldGain`
 `StationFacts.Derive` and runs `TileStations`, then merges the field zones and plans the
 perimeter (`PlanMountainPockets(PlanPerimeter(...))`). `ReplanLayout` pins the rooms growth holds
 (`TilePinned`, `ReplanTileFacts`) and runs `TileStations` again, so the next plan is the
-tiled plan wholesale. It then puts back the held rooms the tiler left out (`keepHeld`),
+tiled plan wholesale, except that an unbuilt, unpinned room keeps its site and id unless the new embedding beats the held arrangement by `ReplanGain` (#3740), and a room tiled on the interior it had keeps its id either way. It then puts back the held rooms the tiler left out (`keepHeld`),
 retires the ground of a standing room that has no node (`retiredGround`), carries the
 and traces the perimeter around
 what the defense record holds (`LayPerimeter`). What moves among built rooms is decided

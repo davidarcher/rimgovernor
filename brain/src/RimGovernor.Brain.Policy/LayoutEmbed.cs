@@ -66,11 +66,23 @@ public sealed record EmbedInput
     /// <summary>A rebuild is under way (a successor pending or a room being built), so no built room moves.</summary>
     public bool InFlight { get; init; }
 
+    /// <summary>
+    /// The held plan's unbuilt, unpinned rooms (StationFacts.PriorRooms, #3740): a group of a room's match key and
+    /// shape keeps the room's site unless the new embedding beats the held one by PlanWeights.ReplanGain
+    /// (EmbedRun.HoldPrior), and a block that stands exactly where one stood keeps its id (EmbeddedBlock.Prior).
+    /// Empty for a first plan.
+    /// </summary>
+    public IReadOnlyList<BuiltRegion> Prior { get; init; } = [];
+
     /// <summary>The plan's retired ground not yet cleared; no new block stands on it.</summary>
     public IReadOnlyList<Region> RetiredGround { get; init; } = [];
 }
 
-/// <summary>Where a group's interior stands. Built is the standing room the block keeps, Replaces the standing room a moved block supersedes; 0 for neither.</summary>
+/// <summary>
+/// Where a group's interior stands. Built is the standing room the block keeps, Replaces the standing room a moved
+/// block supersedes; 0 for neither. Prior is the held plan's unbuilt room (EmbedInput.Prior) whose interior the block
+/// is, so the tiler keeps its id; 0 for none (#3740).
+/// </summary>
 public sealed record EmbeddedBlock
 {
     public int Group { get; init; }
@@ -80,6 +92,8 @@ public sealed record EmbeddedBlock
     public int Built { get; init; }
 
     public int Replaces { get; init; }
+
+    public int Prior { get; init; }
 }
 
 /// <summary>A pinned standing room no group's block keeps (EmbedInput.Standing): it stays where it stands as an obstacle to every block.</summary>
@@ -157,6 +171,9 @@ public sealed partial class Embedding
     public List<EmbedDecision> Decisions { get; set; } = [];
 
     public EmbedScore Score { get; set; } = new();
+
+    /// <summary>The new embedding against the held plan's unbuilt rooms (EmbedRun.HoldPrior); null when no group could keep one.</summary>
+    public EmbedReplan? Replan { get; set; }
 
     /// <summary>The group's block.</summary>
     public (Rectangle Block, bool Ok) Block(int group)
@@ -554,21 +571,46 @@ internal sealed partial class Embedder : EmbedFixed
     /// <summary>Builds the greedy embedding from a siting seed and searches it.</summary>
     public (Rectangle[] Blocks, BuiltRun Built) Start(Cell seed, int iters)
     {
+        var (blocks, done) = HomeStart();
+        Greedy(blocks, done, seed);
+        Search(blocks, seed, iters, done);
+        // The relocation pass is the one place a built room moves; the unbuilt rooms are
+        // searched again around the result.
+        var built = Relocate(blocks);
+        if (built.Moved >= 0)
+        {
+            Search(blocks, seed, iters, done);
+        }
+        return (blocks, built);
+    }
+
+    /// <summary>The standing rooms as the fixed start: their blocks, and done set for each.</summary>
+    internal (Rectangle[] Blocks, bool[] Done) HomeStart()
+    {
         var n = _groups.Count;
         var blocks = new Rectangle[n];
         var done = new bool[n]; // tried: placed or unplaceable
-        double Total(int i) => _groups[i].Links.Sum(l => l.Weight);
-        var placedAny = false;
         for (var i = 0; i < _home.Count; i++)
         {
-            // The standing rooms are the fixed start.
             if (_home[i].Width > 0)
             {
                 blocks[i] = _home[i];
                 done[i] = true;
-                placedAny = true;
             }
         }
+        return (blocks, done);
+    }
+
+    /// <summary>
+    /// Places every group not done, greedily: always the group with the most weight to what is placed (required links
+    /// first) beside it, the first one at the nearest fit to the seed when nothing is placed.
+    /// </summary>
+    internal void Greedy(Rectangle[] blocks, bool[] done, Cell seed)
+    {
+        var n = _groups.Count;
+        done = (bool[])done.Clone();
+        double Total(int i) => _groups[i].Links.Sum(l => l.Weight);
+        var placedAny = blocks.Any(b => b.Width > 0);
         for (var step = 0; step < n; step++)
         {
             int pick = -1;
@@ -634,19 +676,14 @@ internal sealed partial class Embedder : EmbedFixed
                 blocks[pick] = r;
             }
         }
-        Search(blocks, seed, iters);
-        // The relocation pass is the one place a built room moves; the unbuilt rooms are
-        // searched again around the result.
-        var built = Relocate(blocks);
-        if (built.Moved >= 0)
-        {
-            Search(blocks, seed, iters);
-        }
-        return (blocks, built);
     }
 
-    /// <summary>The seeded local search: siteSearchIters moves per block, a move kept only when the objective strictly falls. A built room is never moved here (see Relocate).</summary>
-    public void Search(Rectangle[] blocks, Cell seed, int iters)
+    /// <summary>
+    /// The seeded local search: siteSearchIters moves per block, a move kept only when the objective strictly falls.
+    /// A block fixed at the start (fixedAt: a built room, or a held unbuilt room the held start keeps) is never moved
+    /// here (see Relocate).
+    /// </summary>
+    public void Search(Rectangle[] blocks, Cell seed, int iters, bool[] fixedAt)
     {
         var placed = new List<int>();
         var movable = new List<int>();
@@ -655,7 +692,7 @@ internal sealed partial class Embedder : EmbedFixed
             if (blocks[i].Width > 0)
             {
                 placed.Add(i);
-                if (_home[i].Width == 0)
+                if (!fixedAt[i])
                 {
                     movable.Add(i);
                 }
@@ -862,6 +899,7 @@ internal sealed partial class EmbedRun
         output.Decisions.AddRange(e.BuiltReport);
         output.Decisions.AddRange(Built.Decisions);
         output.Score.Switch = -(int)Built.Price;
+        var priorTaken = new HashSet<int>();
         for (var i = 0; i < input.Groups.Count; i++)
         {
             var g = input.Groups[i];
@@ -898,7 +936,8 @@ internal sealed partial class EmbedRun
                     built = e.HomeRoom[i];
                 }
             }
-            output.Blocks.Add(new EmbeddedBlock { Group = i, Interior = b, Built = built, Replaces = replaces });
+            var prior = built == 0 && replaces == 0 ? e.PriorAt(i, b, input.Prior, priorTaken) : 0;
+            output.Blocks.Add(new EmbeddedBlock { Group = i, Interior = b, Built = built, Replaces = replaces, Prior = prior });
             output.Decisions.Add(new EmbedDecision { Group = i, Other = -1, Verdict = LayoutEmbedRules.EmbedPlace, Reason = LayoutEmbedRules.ReasonEmbedPlaced });
             output.Score.Cells += b.Width * b.Height;
             output.Score.Soil += (int)e.Soil.Sum(b);
@@ -1113,7 +1152,10 @@ partial class Embedding
                 best = run;
             }
         }
-        return best!.ToEmbedding(input, scorer);
+        var (chosen, replan) = best!.HoldPrior(input.Prior);
+        var output = chosen.ToEmbedding(input, scorer);
+        output.Replan = replan;
+        return output;
     }
 }
 

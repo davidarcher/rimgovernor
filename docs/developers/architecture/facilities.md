@@ -229,6 +229,23 @@ room's id (`tile_room_built`) and sites the mover as a successor
 The cost of the move is `EmbedScore.Switch`. Conflict pricing is the
 regrouping's, below.
 
+#### Unbuilt rooms in the replan
+
+A replan's embedding is searched afresh, so without a price an unbuilt room would
+move, under a new id, whenever the search landed anywhere else. `EmbedInput.Prior`
+(`StationFacts.PriorRooms`: the held plan's rooms that neither stand nor are pinned,
+bar airlocks and successors, keyed as `BuiltRegions` keys them) feeds the hysteresis
+(`EmbedRun.HoldPrior`, `LayoutEmbedPrior.cs`, #3740): at the winning level and seed
+the standing rooms (and the run's relocation) stay, each free group of a held room's
+match key and shape stands on that room's site where it still fits, and the rest
+(a new role, a changed count or size) are placed and searched around them. The new
+embedding replaces that held arrangement only when it leaves less undone, or as much
+and its objective is `ReplanGain` lower; `Embedding.Replan` records the verdict for
+the `layout_replan_tiled` row. Either way a block whose interior is a held room's,
+of its key, carries `EmbeddedBlock.Prior` and the tiler keeps that room's id; only a
+room whose interior changed takes a new one. Built and started rooms move only at
+the switching price above.
+
 ### Regrouping
 
 `policy.Regroup` (`LayoutRegroup.cs`, #2878) is the outer search over the room

@@ -352,7 +352,7 @@ internal sealed partial class Tiler(TileInput input)
             Rooms.Add(new TileRoom(b.Group, b.Interior));
             var room = new PlannedRoom
             {
-                Id = b.Built,
+                Id = b.Built != 0 ? b.Built : b.Prior, // an unbuilt room sited where it stood keeps its id (#3740)
                 Replaces = b.Replaces,
                 Role = role,
                 Region = RegionRules.RectRegion(b.Interior),

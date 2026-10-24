@@ -172,7 +172,8 @@ public sealed partial class Rounder
         var next = run.Next!;
         var advice = run.Tiled!;
         var changed = !LayoutPlan.SamePlan(plan, next);
-        var tiledAttrs = StationAdviceLog.TiledReplanAttrs(LayoutPlan.DiffReplanTile(plan, run.Facts.Built ?? new HashSet<int>(), advice), run.Facts.Built?.Count ?? 0, advice.Tiled!.Plan.Rooms.Count);
+        var replan = advice.Embedding.Replan;
+        var tiledAttrs = StationAdviceLog.TiledReplanAttrs(LayoutPlan.DiffReplanTile(plan, run.Facts.Built ?? new HashSet<int>(), advice), run.Facts.Built?.Count ?? 0, advice.Tiled!.Plan.Rooms.Count, replan);
         tiledAttrs["changed"] = changed;
         tiledAttrs["adopted"] = waited;
         if (pending.Drift.Count > 0)
@@ -180,7 +181,8 @@ public sealed partial class Rounder
             // Which replan inputs drifted since the last replan (the hourly check replans on any of them), or "daily".
             tiledAttrs["inputs_changed"] = pending.Drift;
         }
-        Tel.Decide(decision with { Verdict = "replanned", Reason = "tiled_plan", Attrs = tiledAttrs });
+        var (verdict, reason) = StationAdviceLog.TiledReplanVerdict(replan);
+        Tel.Decide(decision with { Verdict = verdict, Reason = reason, Attrs = tiledAttrs });
         LayoutPlanning.LogInterior(advice);
         LayoutPlanning.LogConduits(advice);
         if (!changed)

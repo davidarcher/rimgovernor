@@ -6,7 +6,7 @@ public readonly record struct RoomLink(int A, int B, Cell Cell);
 /// <summary>One planned room.</summary>
 public sealed partial record PlannedRoom
 {
-    /// <summary>Names the room for as long as the plan lives: handed out by LayoutPlan.NextRoomId, never reused, kept through reshape, shrink and replans that pin the room. Never zero in a plan a store holds.</summary>
+    /// <summary>Names the room for as long as the plan lives: handed out by LayoutPlan.NextRoomId, never reused, kept through reshape, shrink, replans that pin the room and replans that site an unbuilt room on the interior it had (EmbeddedBlock.Prior, #3740). Never zero in a plan a store holds.</summary>
     public int Id { get; init; }
 
     /// <summary>The Id of the room this one supersedes; 0 for none.</summary>

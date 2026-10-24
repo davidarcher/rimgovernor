@@ -125,7 +125,7 @@ public sealed partial class Rounder
 internal static class StationAdviceLog
 {
     /// <summary>The layout_replan_tiled row's attrs: the diff's counts per verdict and its rooms, the standing rooms with no node, and the standing and tiled room counts.</summary>
-    public static Dictionary<string, object?> TiledReplanAttrs(ReplanTileDiff diff, int built, int tiledRooms)
+    public static Dictionary<string, object?> TiledReplanAttrs(ReplanTileDiff diff, int built, int tiledRooms, EmbedReplan? replan)
     {
         var rooms = new List<Dictionary<string, object?>>(diff.Rooms.Count);
         foreach (var d in diff.Rooms)
@@ -143,12 +143,16 @@ internal static class StationAdviceLog
             {
                 row["short"] = d.ShortBy;
             }
+            if (d.Identity != "")
+            {
+                row["id"] = d.Identity;
+            }
             rooms.Add(row);
         }
         var unmatched = diff.Unmatched
             .Select(u => new Dictionary<string, object?> { ["room"] = u.Room, ["role"] = Wire.Name(u.Role), ["reason"] = u.Reason })
             .ToList();
-        return new Dictionary<string, object?>
+        var attrs = new Dictionary<string, object?>
         {
             ["same"] = diff.Count(LayoutReplanTiledRules.TileDiffSame),
             ["moved"] = diff.Count(LayoutReplanTiledRules.TileDiffMoved),
@@ -159,7 +163,20 @@ internal static class StationAdviceLog
             ["built"] = built,
             ["tiled_rooms"] = tiledRooms,
         };
+        if (replan is not null)
+        {
+            // The held arrangement of the unbuilt rooms against the new embedding (#3740), in score points (cost).
+            attrs["held_score"] = replan.Held;
+            attrs["tiled_score"] = replan.Tiled;
+            attrs["held_rooms"] = replan.Rooms;
+            attrs["replan_gain"] = PlanWeights.ReplanGain;
+        }
+        return attrs;
     }
+
+    /// <summary>The layout_replan_tiled row's verdict and reason: the embedding's hysteresis verdict (#3740), else replanned/tiled_plan.</summary>
+    public static (string Verdict, string Reason) TiledReplanVerdict(EmbedReplan? replan) =>
+        replan is null ? ("replanned", "tiled_plan") : (replan.Verdict, replan.Reason);
 
     /// <summary>The layout_regroup row of one regrouping decision: a move applied (kind merge, split or move, the pair of nodes it rules and the total before and after, in score points) or the reason none was.</summary>
     public static Decision RegroupDecision(RegroupDecision d) => new()

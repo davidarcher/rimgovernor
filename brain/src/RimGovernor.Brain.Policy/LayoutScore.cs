@@ -25,7 +25,12 @@ public static class PlanWeights
     // Walk: per step of a link's gap, the affinity-weighted walking distance between the rooms pawns travel.
     public const int Walk = 1;
 
-    /// <summary>The score a replan's candidate must beat the saved plan's by before the unbuilt rooms are sited again: about a room's worth of plain soil, so near-equal layouts never flicker.</summary>
+    /// <summary>
+    /// The score a replan's new embedding must beat the held arrangement of the plan's unbuilt, unpinned rooms by,
+    /// both scored over the same survey and facts, before those rooms are sited again (EmbedRun.HoldPrior, #3740): below
+    /// it every group that still fits its held room's site keeps the site, and so the room its id. About a room's
+    /// worth of plain soil, so near-equal layouts never flicker. A room that stands also pays BuiltSwitch (SwitchThreshold).
+    /// </summary>
     public const int ReplanGain = 100;
 
     /// <summary>The score a plan built on field ground must beat the best plan off it by before siting uses it.</summary>

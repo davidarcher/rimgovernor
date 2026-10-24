@@ -16,6 +16,9 @@ public sealed record TileRoomDiff
     public string Reason { get; init; } = "";
     public bool Built { get; init; }
     public int ShortBy { get; init; }
+
+    /// <summary>An unbuilt room sited again (ReasonDiffSited): IdKept when the tiled room kept its id, IdNew when it took a new one (#3740); empty otherwise.</summary>
+    public string Identity { get; init; } = "";
 }
 
 /// <summary>
@@ -64,6 +67,12 @@ public static partial class LayoutReplanTiledRules
     public const string ReasonDiffOutdoor = "tile_outdoor";
     public const string ReasonDiffNoNativeRole = "tile_no_native_role";
     public const string ReasonDiffSited = "tile_sited_again";
+
+    /// <summary>Identity of a sited room: the tiled room kept the held room's id (its interior is the held one's, #3740).</summary>
+    public const string IdKept = "kept_id";
+
+    /// <summary>Identity of a sited room: the tiled room took a new id from NextRoomId.</summary>
+    public const string IdNew = "new_id";
 
     /// <summary>A standing room the chain cannot pin, matched to the room of its role the tiler builds of its own (a rebuild).</summary>
     public const string ReasonDiffUnpinned = "tile_unpinned_built";
@@ -312,14 +321,20 @@ partial record LayoutPlan
             }
             if (match.TryGetValue(r.Id, out var i))
             {
-                row = row with { Tiled = tiled[i].Id, Verdict = LayoutReplanTiledRules.TileDiffMoved, Reason = LayoutReplanTiledRules.ReasonDiffSited };
+                row = row with
+                {
+                    Tiled = tiled[i].Id,
+                    Verdict = LayoutReplanTiledRules.TileDiffMoved,
+                    Reason = LayoutReplanTiledRules.ReasonDiffSited,
+                    Identity = tiled[i].Id == r.Id ? LayoutReplanTiledRules.IdKept : LayoutReplanTiledRules.IdNew,
+                };
                 if (tiled[i].Region.Bounds() == r.Region.Bounds())
                 {
                     row = row with { Verdict = LayoutReplanTiledRules.TileDiffSame };
                 }
                 if (p.Unmatched != "")
                 {
-                    row = row with { Reason = LayoutReplanTiledRules.ReasonDiffUnpinned };
+                    row = row with { Reason = LayoutReplanTiledRules.ReasonDiffUnpinned, Identity = "" };
                 }
             }
             rows.Add(row);
