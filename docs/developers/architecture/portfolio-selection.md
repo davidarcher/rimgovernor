@@ -68,7 +68,7 @@ either room is priced); its sites are still emitted and exempt.
 `Suite`, both `ForecastHousing.RoyalRoomCredit`; `Kitchen` and `Butchery`, `KitchenCredits`, #3802; `Storage`,
 `MealCloset`, `Reserve` and `Yard`, all `ForecastStorage.StorageCredit`, #3798; `Morgue` and `Tomb`,
 `ForecastCorpses.MorgueCredit` and `TombCredit`, #3806; `Worship`, `ForecastWorship.WorshipCredit`, #3808; `Battery`, `ForecastBattery.BatteryCredit`, zero, #3814; `Pen`,
-`ForecastPens.PenCredit`, #3812) holds a credit for it:
+`ForecastPens.PenCredit`, #3812; `DeathrestChamber`, `ForecastDeathrest.ChamberCredit`, #3810) holds a credit for it:
 
 - `delegate IReadOnlyList<RoomGain>? RoomCredit(ForecastRoomService room, outcome, context, horizonTicks)`
   returns the room's gains per served day (`RoomGain(Subject, Pawn, PerDay)`); null is unassessed.

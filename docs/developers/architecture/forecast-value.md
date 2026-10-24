@@ -410,7 +410,7 @@ comparison (`Rounder.MaterialValuesAsync`, one `ListResourceSources` read per ch
 nearest reachable source's distance × `PathMoveCardinal` ticks, over its load of min(stack limit, max(1, yield)). One work tick
 is one capability-tick. A material with no source in reach (steel with no ore, components, blocks) or a failed read is priced at
 `MarketValue / SilverGapRules.ValuePerWorkTick`, with the ledger finding `material_value_market:<def>`; with no market value
-either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Battery` (#3814, at zero) and `Pen` (#3812).
+either it is charged 0 with `material_value_unpriced:<def>`. The shipped credits (`PlannedRoomCredits.Shipped`) price `Bedroom` (#3655), `Barracks` (#3658), `Lab` (#3800), `Throne` and `Suite` (#3807), `Kitchen` and `Butchery` (#3802), `Storage`, `MealCloset`, `Reserve` and `Yard` (#3798, the storage credit below), `Morgue` and `Tomb` (#3806), `Worship` (#3808), `Battery` (#3814, at zero), `Pen` (#3812) and `DeathrestChamber` (#3810).
 Each fueled source with a steady burn in a shelter (#3673, #3679: a campfire or torch, one of `ForecastShelterPlan.Sources`
 whose native supply is `HeatSupply.Burning`, with its `Fuel` and `FuelPerTick`) is charged, whatever the room's role, `FuelPerTick × (horizon − complete)` units
 of its own fuel under `material/<fuel>` when the outcome completes the shelter inside the horizon, on a row of that source with no
@@ -578,6 +578,25 @@ clamped; each outcome weighted chance × quality when positive, chance otherwise
 quality comps are not modelled. No ideoligion, no believer or no worship room owed earns nothing. A room with no closure
 prediction or an unread one, a demand requirement of a kind the plan cannot predict, missing demand moods or a ritual outcome
 effect not drawn from quality is named `worship_credit_unassessed:<room>`.
+
+*Deathrest chamber credit (#3810).* A planned deathrest chamber the outcome serves is credited through the same seam
+(`ForecastDeathrest.ChamberCredit`) under `deathrest-chamber/<room>/<pawn>`, per deathrester (a pawn whose needs row carries
+`NeedsForecastPawn.Deathrest`, read natively from `Gene_Deathrest`: capacity, the efficiency its spawned bound buildings give now,
+and its `chamberThoughtIndex`). With the need falling `Need_Deathrest.FallPerDay` a day awake and gaining
+`GainPerDayDeathresting` × efficiency a day deathresting (a deathrest starts at 0.05 and, auto-waking, ends at full), the share
+of days spent deathresting is F / (G·e + F): 1/7 with nothing bound. The chamber's furniture
+(`ForecastCoupledContext.DeathrestFurniture`, the staging's own chamber need resolved against the catalog,
+`ChildRoomsRules.DeathrestFurniture`) is bound in id order: each deathrester takes one casket (it is laid in and does not count
+toward capacity) while caskets last, then the other bindables by factor, each up to its stack limit and, when it counts, the
+remaining capacity (the factors and limits are the native `NeedsForecastRead.Deathrest` defs). A deathrester left without a
+casket gains nothing. The gain per day is the share no longer deathresting (one deathrest day is one capability-day: the Deathrest
+hediff caps consciousness at 0.1) plus the `DeathrestChamber` thought between deathrests, through `GainPerDay` (registered in
+`BreakShifts`): the stage the prediction's impressiveness gives (1 + its Impressiveness score stage, none for an ascetic) over the
+awake share after, against the stage the last deathrest left over the awake share now. The lowest-id chamber serves every
+deathrester. No Biotech, no deathrester or no chamber owed earns nothing. Missing deathrest defs, a missing chamber thought stage
+row, or a bindable the defs do not name is a required fact (`RequiredFactException`). Not modelled: a deathrester with auto-wake
+off, and a bound building's power or fuel (`CanIncreasePresence`). The staging still furnishes capacity − 1 accelerators with no
+stack limit (#3842).
 
 *Pen credit (#3812).* A planned pen the outcome serves is credited through the same seam (`ForecastPens.PenCredit`) under
 `pen/<room>/<animal>`, per roamer it takes (`AnimalUpkeepObservation.Roamers`, from the animal census rows' `Roam`: the race,

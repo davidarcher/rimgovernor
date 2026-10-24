@@ -89,6 +89,10 @@ partial class RoundsSleepingUpkeepPlanner
         return needs;
     }
 
+    /// <summary>The deathrest chamber's furniture the deathrest chamber credit reads (#3810), resolved as the staging resolves it.</summary>
+    internal static EquatableArray<DeathrestPiece> DeathrestFurnitureOf(ColonyProjection facts) =>
+        ChildRoomsRules.DeathrestFurniture(ChildRoomNeeds(facts), FurnitureDefinitions(facts));
+
     internal static List<FurnitureDefinition> FurnitureDefinitions(ColonyProjection facts)
     {
         var names = new HashSet<string>(WorshipDefinitions(facts).Concat(ContainmentDefinitions(facts)).Concat(facts.Isolation.Beds), StringComparer.Ordinal);

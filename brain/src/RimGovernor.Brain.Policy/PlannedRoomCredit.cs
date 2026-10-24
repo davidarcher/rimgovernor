@@ -38,7 +38,8 @@ public static class PlannedRoomCredits
     /// the room meets its title's requirement (#3807), Kitchen and Butchery by the food poisoning they prevent (#3802); Storage,
     /// Meal closet, Reserve and Yard by the stock they keep from deteriorating (#3798); Morgue and Tomb by the corpse moods they
     /// remove (#3806); Worship by the ideoligion effects it meets for each believer (#3808); Battery at zero, since no modelled consequence
-    /// changes with it (#3814); Pen by the roamers it keeps from walking off the map (#3812).</summary>
+    /// changes with it (#3814); Pen by the roamers it keeps from walking off the map (#3812); DeathrestChamber by the work days and
+    /// chamber mood its caskets and accelerators give each deathrester (#3810).</summary>
     public static readonly IReadOnlyDictionary<PlannedRole, RoomCredit> Shipped = new Dictionary<PlannedRole, RoomCredit>
     {
         [PlannedRole.Bedroom] = ForecastHousing.BedroomCredit,
@@ -57,15 +58,16 @@ public static class PlannedRoomCredits
         [PlannedRole.Worship] = ForecastWorship.WorshipCredit,
         [PlannedRole.Battery] = ForecastBattery.BatteryCredit,
         [PlannedRole.Pen] = ForecastPens.PenCredit,
+        [PlannedRole.DeathrestChamber] = ForecastDeathrest.ChamberCredit,
     };
 
     /// <summary>
     /// Per pawn, the distinct shifts (mood delta / 100) its mood timeline integrates breaks at, so each mood credit's
     /// <see cref="ForecastHousing.GainPerDay"/> finds its shifted break ticks: the bedroom moves' (#3655), the corpse
-    /// credits' (#3806) and the worship credit's (#3808). Constant per context, so the mood cache key holds.
+    /// credits' (#3806), the worship credit's (#3808) and the deathrest chamber's (#3810). Constant per context, so the mood cache key holds.
     /// </summary>
     internal static IReadOnlyDictionary<string, double[]> BreakShifts(ForecastCoupledContext context) => Shifts.GetValue(context, c =>
-        ForecastHousing.BreakShifts(c).Concat(ForecastCorpses.BreakShifts(c)).Concat(ForecastWorship.Shifts(c)).GroupBy(p => p.Key, StringComparer.Ordinal)
+        ForecastHousing.BreakShifts(c).Concat(ForecastCorpses.BreakShifts(c)).Concat(ForecastWorship.Shifts(c)).Concat(ForecastDeathrest.Shifts(c)).GroupBy(p => p.Key, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.SelectMany(p => p.Value).Distinct().Order().ToArray(), StringComparer.Ordinal));
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<ForecastCoupledContext, IReadOnlyDictionary<string, double[]>> Shifts = new();

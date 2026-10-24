@@ -31,7 +31,29 @@ public sealed record NeedsForecastRead
     /// </summary>
     [JsonConverter(typeof(EquatableArrayJsonConverter<CorpseSightingRead>))]
     public EquatableArray<CorpseSightingRead> Corpses { get; init; }
+    /// <summary>The deathrest defs the deathrest chamber credit reads (#3810); null without Biotech, where no pawn deathrests.</summary>
+    public DeathrestDefsRead? Deathrest { get; init; }
 }
+/// <summary>
+/// The deathrest defs (#3810): <c>Need_Deathrest.FallPerDay</c> and <c>GainPerDayDeathresting</c> (the need a day awake loses, and a
+/// day of deathrest gains at efficiency 1), every building def with a <c>CompProperties_DeathrestBindable</c>, and the minScore of each
+/// <c>RoomStatDefOf.Impressiveness</c> score stage: the DeathrestChamber thought's stage is that score stage + 1 for an indoor room, 0
+/// outdoors (Toils_LayDown.UpdateDeathrestThoughtIndex).
+/// </summary>
+public sealed record DeathrestDefsRead(double FallPerDay, double GainPerDay,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<DeathrestBindableRead>))] EquatableArray<DeathrestBindableRead> Bindables,
+    [property: JsonConverter(typeof(EquatableArrayJsonConverter<double>))] EquatableArray<double> ImpressivenessStages);
+/// <summary>
+/// One deathrest-bindable building def (#3810): its deathrestEffectivenessFactor, stackLimit (0 is none), countsTowardsBuildingLimit
+/// (the deathrester's DeathrestCapacity bounds those) and mustBeLayingInToBind (the casket the deathrester lies in).
+/// </summary>
+public sealed record DeathrestBindableRead(string Def, double Factor, int StackLimit, bool CountsTowardsLimit, bool Casket);
+/// <summary>
+/// A deathrester (#3810): its Gene_Deathrest.DeathrestCapacity; the deathrest efficiency its bound buildings give
+/// (Gene_Deathrest.DeathrestEfficiency's product of each spawned bound building's deathrestEffectivenessFactor above 0, whatever bed
+/// it lies in now; 1 with none); and its chamberThoughtIndex, the DeathrestChamber stage its last deathrest left (-1 none).
+/// </summary>
+public sealed record DeathresterRead(int Capacity, double Efficiency, int ChamberStage);
 /// <summary>
 /// One corpse lying in sight (#3806): whether its event is ObservedLayingRottingCorpse (not fresh), whether its inner pawn was
 /// the player's (a colonist corpse, which a tomb takes), and per colonist with a sighting the ticks before the read of each of
@@ -239,6 +261,8 @@ public sealed record NeedsForecastPawn
     public EquatableArray<CorpseThoughtRead> CorpseThoughts { get; init; }
     /// <summary>The ticks before the read the pawn's sighting record covers (#3806): since its first observer pass, at most two days; 0 with no record.</summary>
     public int SightingTicks { get; init; }
+    /// <summary>The pawn's deathrest (#3810); null when it has no deathrest gene.</summary>
+    public DeathresterRead? Deathrest { get; init; }
 }
 /// <summary>
 /// What a disease incident's course and victim draw read of one pawn (#3824): <c>StatDefOf.ImmunityGainSpeed</c>, and per DiseaseHuman

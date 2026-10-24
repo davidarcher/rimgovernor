@@ -116,6 +116,10 @@ public sealed record ForecastCoupledContext
     public IReadOnlyList<PenRoamer>? Roamers { get; init; }
     /// <summary>The bench a planned laboratory is furnished with (RoundsFacts.LaboratoryBench, #3800); "" none.</summary>
     public string LaboratoryBench { get; init; } = "";
+    /// <summary>The planned deathrest chamber's caskets and other deathrest buildings as the staging resolves them (#3810,
+    /// RoundsSleepingUpkeepPlanner.DeathrestFurnitureOf); none while no deathrester owes a chamber. Set by the round beside
+    /// <see cref="RoyalRooms"/>.</summary>
+    public EquatableArray<DeathrestPiece> DeathrestFurniture { get; init; }
     /// <summary>The benches the colony cooks at now (the coupled food read's conversion benches, #3802): the kitchen credit's
     /// current room is theirs (SupportDemand.FoodPoisonChance of their bench demands).</summary>
     public EquatableArray<string> CookingBenches { get; init; }

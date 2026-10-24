@@ -337,6 +337,15 @@ public static class ChildRoomsRules
             ),
         };
 
+    /// <summary>
+    /// The deathrest chamber's furniture among <paramref name="needs"/> as the reconcile places it (#3810): each entry's resolved
+    /// def and count. None while no chamber is owed or a required entry has no available def.
+    /// </summary>
+    public static EquatableArray<DeathrestPiece> DeathrestFurniture(IEnumerable<ChildRoomNeed> needs, IReadOnlyList<FurnitureDefinition> defs) =>
+        needs.FirstOrDefault(n => n.Role == RoomRole.DeathrestChamber)?.Resolve(defs) is { } pieces
+            ? EquatableArray.From(pieces.Select(p => new DeathrestPiece(p.Piece.Def, p.Count)))
+            : [];
+
     /// <summary>The child rooms a goal can name (#3496); the worship room rides <see cref="WorshipRules.WorshipRoomNeed"/>, which the ideoligion's required buildings size.</summary>
     internal static readonly IReadOnlyList<RoomRole> GoalRoles = [RoomRole.Nursery, RoomRole.Playroom, RoomRole.Classroom, RoomRole.DeathrestChamber];
 

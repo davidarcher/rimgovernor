@@ -126,7 +126,8 @@ internal static class NativeNeedsForecast
                 IncomingDamageFactor = HealthStat(pawn, StatDefOf.IncomingDamageFactor), InjuryHealingFactor = HealthStat(pawn, StatDefOf.InjuryHealingFactor),
                 ResearchSpeed = K(pawn.GetStatValue(StatDefOf.ResearchSpeed) * Find.Storyteller.difficulty.researchSpeedFactor),
                 PlantWorkSpeed = K(pawn.GetStatValue(StatDefOf.PlantWorkSpeed)), Disease = NativeDiseaseFacts.ReadPawn(pawn),
-                CorpseThoughts = CorpseThoughtsOf(pawn), SightingTicks = sightings?.Covered(pawn.thingIDNumber, now) ?? 0 });
+                CorpseThoughts = CorpseThoughtsOf(pawn), SightingTicks = sightings?.Covered(pawn.thingIDNumber, now) ?? 0,
+                Deathrest = DeathresterOf(pawn) });
         }
         var benches = map.listerBuildings.AllBuildingsColonistOfClass<Building_ResearchBench>()
             .Where(b => b.Spawned && (b.GetComp<CompPowerTrader>()?.PowerOn ?? true))
@@ -136,7 +137,33 @@ internal static class NativeNeedsForecast
         return new() { Tick = Find.TickManager.TicksGame, Pawns = EquatableArray.From(rows),
             WeatherThought = weather?.weatherThought?.defName ?? "", WeatherThoughtStages = weather?.weatherThought?.stages?.Count ?? 0,
             RainRate = K(map.weatherManager.RainRate), MapArea = Fact.Known(map.Area), Deterioration = DeteriorationPart(), ResearchBenches = EquatableArray.From(benches),
-            Corpses = CorpsesInSight(map, people, sightings, now) };
+            Corpses = CorpsesInSight(map, people, sightings, now), Deathrest = DeathrestDefs() };
+    }
+    /// <summary>
+    /// The pawn's deathrest (#3810): null without a Gene_Deathrest. Its efficiency is Gene_Deathrest.DeathrestEfficiency's product
+    /// over every spawned bound building, not only the ones usable from the bed it lies in now (BoundComps), so a deathrester awake
+    /// reads the casket and accelerators its next deathrest binds again.
+    /// </summary>
+    private static Obs.DeathresterRead? DeathresterOf(Pawn pawn)
+    {
+        if (pawn.genes?.GetFirstGeneOfType<Gene_Deathrest>() is not Gene_Deathrest gene) return null;
+        var efficiency = 1d;
+        foreach (var building in gene.BoundBuildings)
+            if (building.Spawned && building.TryGetComp<CompDeathrestBindable>() is { Props.deathrestEffectivenessFactor: > 0f } comp)
+                efficiency *= comp.Props.deathrestEffectivenessFactor;
+        return new(gene.DeathrestCapacity, efficiency, gene.chamberThoughtIndex);
+    }
+    /// <summary>The deathrest defs (#3810); null without Biotech. Read-only def data.</summary>
+    private static Obs.DeathrestDefsRead? DeathrestDefs()
+    {
+        if (!ModsConfig.BiotechActive) return null;
+        var bindables = DefDatabase<ThingDef>.AllDefsListForReading
+            .Select(d => (Def: d, Props: d.GetCompProperties<CompProperties_DeathrestBindable>())).Where(d => d.Props is not null)
+            .OrderBy(d => d.Def.defName, StringComparer.Ordinal)
+            .Select(d => new Obs.DeathrestBindableRead(d.Def.defName, d.Props!.deathrestEffectivenessFactor, d.Props.stackLimit, d.Props.countsTowardsBuildingLimit, d.Props.mustBeLayingInToBind));
+        var stages = RoomStatDefOf.Impressiveness.scoreStages?.Select(s => (double)s.minScore)
+            ?? throw new InvalidOperationException("RoomStatDefOf.Impressiveness has no score stages");
+        return new(Need_Deathrest.FallPerDay, Need_Deathrest.GainPerDayDeathresting, EquatableArray.From(bindables), EquatableArray.From(stages));
     }
     /// <summary>PawnObserver.ObservationRadius (a private const in 1.7): the observer sees a thing within this many cells (InHorDistOf).</summary>
     internal const float ObservationRadius = 5f;
@@ -298,6 +325,11 @@ internal static class NativeNeedsForecast
         foreach (var (worker, role) in TitleRoomThoughts)
             foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == worker))
                 Rows(def, role);
+        // The thought a deathrester's chamber gives it between deathrests (#3810), by stage (dull and mediocre give none); no
+        // ThoughtDefOf field names it, its worker class is the typed route.
+        if (pawn.genes?.GetFirstGeneOfType<Gene_Deathrest>() is not null)
+            foreach (var def in DefDatabase<ThoughtDef>.AllDefsListForReading.Where(d => d.workerClass == typeof(ThoughtWorker_DeathrestChamber)))
+                Rows(def, "deathrest_chamber", nullStagesInactive: true);
         return EquatableArray.From(rows);
     }
     /// <summary>
