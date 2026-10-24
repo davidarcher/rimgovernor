@@ -409,8 +409,13 @@ public sealed partial record ForecastCoupledSelection
         var placedRings = candidates.Context.Closures.Where(c => pricedRooms.Contains(c.Room) && c.Placed.Count != 0)
             .Select(c => (c.Ring, Placed: c.Placed.Select(p => ConstructionOutcome + p.Site).ToArray())).ToArray();
         var placedRing = placedRings.SelectMany(c => c.Placed).ToHashSet(StringComparer.Ordinal);
+        // A priced room's own alternatives (PlannedRoomCandidates: ExclusiveOutcome planned/room{R}) are valued by its credit,
+        // so they are the room's as its site roots are (#3823): on a temperate start (relief 0) the gate otherwise holds the
+        // first sleeping room whenever its site roots are not offered on their own.
+        var pricedRoom = pricedRooms.Select(r => FormattableString.Invariant($"planned/room{r}")).ToHashSet(StringComparer.Ordinal);
         // Per root: whether it is graph-only, keys a schedule by id (direct effects or claims; a retained incumbent) and exempts
-        // its closure from the relief gate: a planned site root (#3651), a priced room's placed ring site (#3537), or a root that requests relief.
+        // its closure from the relief gate: a planned site root (#3651), a priced room's placed ring site (#3537) or alternative
+        // (#3823), or a root that requests relief.
         var graphOnly = new bool[alternatives.Length]; var keyed = new bool[alternatives.Length]; var exempting = new bool[alternatives.Length];
         for (var i = 0; i < alternatives.Length; i++)
         {
@@ -418,7 +423,7 @@ public sealed partial record ForecastCoupledSelection
             var plannedSite = PlannedSiteRoot(alternatives[i]);
             keyed[i] = !graphOnly[i] && !plannedSite || incumbentIds.Contains(alternatives[i].Id);
             exempting[i] = plannedSite || alternatives[i].Outcome?.Requirements is { Relief.Count: > 0 }
-                || alternatives[i].ExclusiveOutcome is { } exclusive && placedRing.Contains(exclusive);
+                || alternatives[i].ExclusiveOutcome is { } exclusive && (placedRing.Contains(exclusive) || pricedRoom.Contains(exclusive));
         }
         // A planned room closes only once every ring site of one stuff is built, so one site root alone carries its labor and
         // material and none of the room's value (a bedroom's credit, #3655): adding roots one at a time never reaches the
@@ -644,8 +649,9 @@ public sealed partial record ForecastCoupledSelection
                 NoteGoalRoutes(vector, baselineVector);
                 // Physical feasibility does not certify optional investment. Partial shells retain
                 // unknown exposure; they cannot win by hiding it. Keep expanding complementary roots.
-                // Construction in the closure of a selected planned site root (#3651) or of a root with its own relief is
-                // exempt, and so is a planned room's roof cell when the schedule finishes that room's roof.
+                // Construction in the closure of a selected exempting root (a planned site root, #3651; a priced room's placed ring
+                // site, #3537, or alternative, #3823; a root with its own relief) is exempt, and so is a planned room's roof cell
+                // when the schedule finishes that room's roof.
                 var roofed = candidates.Context.Shelters.Where(r => r.PlannedRoom != 0 && r.RoofCells.Count != 0
                         && outcome.RequestedDevelopment.Contains(FormattableString.Invariant($"planned/room{r.PlannedRoom}/roof")))
                     .SelectMany(r => r.RoofCells.SelectMany(cell => cell)).ToHashSet(StringComparer.Ordinal);

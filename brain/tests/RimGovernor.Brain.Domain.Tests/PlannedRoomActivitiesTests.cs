@@ -142,10 +142,11 @@ public sealed class PlannedRoomActivitiesTests
     }
 
     private static string Why(RoundsFacts facts, ForecastCoupledSelection result) =>
-        string.Join(";", facts.CoupledAlternatives!.Findings.Concat(result.Selection.Findings));
+        "selected=" + string.Join(",", result.Selection.Selected) + " " + string.Join(";", facts.CoupledAlternatives!.Findings.Concat(result.Selection.Findings));
 
+    /// <summary>Whether the selected plan builds the planned site: its own root, or a room alternative naming it (#3823), whichever completes it.</summary>
     private static bool PlannedSelected(ForecastCoupledSelection result, string site) =>
-        result.Selection.Selected.Any(id => id.StartsWith(site + "/composition/", StringComparison.Ordinal));
+        result.Selection.Selected.Any(id => id.StartsWith("planned/", StringComparison.Ordinal)) && result.Selected.RequestedDevelopment.Contains(site);
 
     [Fact]
     public void AnIdleBuilderBuildsTheRoomAndTheRoomCompletesInTheHorizon()

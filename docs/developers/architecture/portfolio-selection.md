@@ -88,9 +88,10 @@ either room is priced); its sites are still emitted and exempt.
   with no builders, an unknown owed work or a null credit is named `{role}_credit_unassessed:{room}`
   and credited nothing.
 
-Work in the closure of a selected planned site root, or of
-a commitment that carries relief, is exempt from the thermal-relief gate on
-construction allocations.
+Work in the closure of a selected planned site root, of a priced room's placed
+ring site (#3537) or room alternative (#3823), or of a commitment that carries
+relief, is exempt from the thermal-relief gate on construction allocations; a
+priced room is valued by its credit, so a temperate start still opens its ring.
 
 Unknown dimensions are compared only when both alternatives assess them.
 Unknown meal thoughts cannot veto known urgent hunger relief. Unknown routes,

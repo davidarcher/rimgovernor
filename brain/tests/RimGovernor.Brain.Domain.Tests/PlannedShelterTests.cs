@@ -137,6 +137,56 @@ public sealed class PlannedShelterTests
         string.Join(";", facts.CoupledAlternatives!.Findings.Concat(result.Selection.Findings.Select(f => f.ToString()))
             .Concat(facts.CoupledAlternatives.Context.Shelters.SelectMany(s => s.Findings)));
 
+    /// <summary>
+    /// #3823: on a temperate fresh colony (relief 0) the live candidates held the barracks only as its room alternative
+    /// (planned/room1/WoodLog/Shell/composition/0, its site roots' composition truncated). The relief gate rejected it in
+    /// every portfolio, so no sleeping ring opened. A priced room's alternative is valued by its credit and is exempt like
+    /// its site roots; the same alternative of an unpriced room is still construction the gate holds.
+    /// </summary>
+    [Fact]
+    public void APricedRoomsAlternativeAloneIsSelectableOnATemperateStartAndAnUnpricedOneIsHeldByTheReliefGate()
+    {
+        string[] sites = ["planned/room1/door/WoodLog", "planned/room1/wall/WoodLog"];
+        RoundsFacts AlternativeOnly(RoundsFacts f) => f with { CoupledAlternatives = f.CoupledAlternatives! with
+            { Alternatives = EquatableArray.From(f.CoupledAlternatives.Alternatives.Where(c => !sites.Contains(c.ExclusiveOutcome))) } };
+        static bool Room(ForecastPortfolioEvidence e) => e.Commitments.Any(id => id.StartsWith("planned/room1/WoodLog/Shell/composition/", StringComparison.Ordinal));
+        static string Reasons(ForecastCoupledSelection r) => string.Join(";", r.Rejected.Select(e => string.Join(",", e.Commitments) + "=" + e.Reason))
+            + " selected=" + string.Join(",", r.Selection.Selected);
+        var facts = Review([Ring(OpKind.WallIn, 40), Ring(OpKind.DoorIn, 30)], ambient: 20);
+
+        var unpriced = AlternativeOnly(facts);
+        Assert.False(unpriced.CoupledAlternatives!.Context.Priced(1));
+        var held = Select(unpriced);
+        Assert.Contains(held.Rejected, e => Room(e) && e.Reason == "construction_without_supported_service_relief:relief=0");
+        Assert.DoesNotContain(held.Selection.Selected, id => id.StartsWith("planned/room1/", StringComparison.Ordinal));
+
+        // The barracks credit (#3658): the sleeper's spot is outdoors in no room (slept_outside -10), the barracks it is booked to
+        // at stage 0 gives slept_in_barracks -2.
+        var outdoors = new NeedCell(Known(false), Known(false), Known(false), Known(true), Known(true));
+        var sleeper = facts.ForecastObserved.Needs!.Pawns[0] with
+        {
+            ThoughtStages = [new("SleptOutside", "slept_outside", 0, -10, Known((double)GameTime.TicksPerDay), false),
+                new("SleptInBarracks", "slept_in_barracks", 0, -2, Known((double)GameTime.TicksPerDay), false)],
+            OwnedBed = "bed",
+            Targets = [new("bed", "rest", "", 1, Known(0d), default, default, Known(.0005)) { Bed = new("", Known(0), false), Cell = outdoors, Location = Inside }],
+        };
+        var barracks = facts with
+        {
+            PlannedSites = Known(facts.PlannedSites.Value with { Roles = [(1, PlannedRole.Barracks)] }),
+            PlannedShelters = [facts.PlannedShelters[0] with { Role = PlannedRole.Barracks }],
+            PlannedRoomPredictions = Known(EquatableArray.From([new PlannedRoomPrediction("1", "WoodLog", "Barracks", Known(30d), Known(0), 1, 0, false)])),
+            ForecastObserved = facts.ForecastObserved with { Needs = facts.ForecastObserved.Needs with { Pawns = [sleeper] } },
+        };
+        var generated = ForecastCoupledCandidates.GenerateCoupledActivities(barracks, Horizon)!.Priced();
+        barracks = AlternativeOnly(barracks with { CoupledAlternatives = generated with { Context = generated.Context with
+            { BedroomOccupants = new Dictionary<int, EquatableArray<string>> { [1] = ["pawn"] }, InvestmentHorizonDays = 10d } } });
+        Assert.True(barracks.CoupledAlternatives!.Context.Priced(1));
+        var result = Select(barracks);
+        Assert.True(result.Selection.Selected.Any(id => id.StartsWith("planned/room1/WoodLog/Shell/composition/", StringComparison.Ordinal)), Reasons(result));
+        Assert.Equal(Known(0d), result.Selected.StationaryThermalRelief);
+        Assert.DoesNotContain(result.Rejected, e => Room(e) && e.Reason.StartsWith("construction_without_supported_service_relief", StringComparison.Ordinal));
+    }
+
     [Fact]
     public void APlannedRoomWithNoPlacedShellIsAValuedShelterBuiltFromItsPlannedSites()
     {

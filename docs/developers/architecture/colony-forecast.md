@@ -731,7 +731,7 @@ with a site finished in the horizon, the completed sites and the alternatives co
 partial names `planned_room_effect_unassessed` instead of a whole-room value, unless its open ring's closure is
 projected (#3744, [roof and room consequences](#roof-and-room-consequences)), which values it.
 
-The thermal-relief gate exempts allocations in the closure of a selected planned site root (#3651). Binding skips unplaced planned
+The thermal-relief gate exempts allocations in the closure of a selected planned site root (#3651) and of a priced room's alternative (#3823). Binding skips unplaced planned
 allocations (`CoordinatedActivityBinding.Start`): a planned site has no action template until placed, except its
 bound `Deconstruct` clearings, which start as orders (#3557). A selection whose
 only work is planned is compared again without the planned roots for the review's orders (#3557); one that then
