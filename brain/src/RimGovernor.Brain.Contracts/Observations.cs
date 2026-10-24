@@ -4428,37 +4428,42 @@ public sealed record GearWeatherCondition
     public float? TemperatureOffsetC { get; init; }
 }
 
+/// <summary>
+/// One trader a session could open with: a map caravan's trader pawn, or a passing orbital trade ship (Orbital).
+/// CanTrade is native's verdict that a session can open now (a pawn: CanTradeNow, not dismissed and arrived; a ship:
+/// CanTradeNow, a powered beacon and a colonist able to use a console with it). Travelling is a caravan still walking
+/// to its trade spot. FactionId is empty for a trader without a faction.
+/// </summary>
 public sealed record Trader
 {
-    [JsonPropertyName("trader")]
-    public EntityRef? Entity { get; init; }
+    public required string Id { get; init; }
 
-    public string? Kind { get; init; }
+    public required bool Orbital { get; init; }
 
-    public Common.Ref? Faction { get; init; }
+    public required string Kind { get; init; }
 
-    public bool? CanTrade { get; init; }
+    public required string FactionId { get; init; }
 
-    public string? Reason { get; init; }
+    public required bool CanTrade { get; init; }
 
-    public bool? Orbital { get; init; }
+    public required bool Travelling { get; init; }
 
-    public uint? GoodsStacks { get; init; }
-
-    public bool? Travelling { get; init; }
-
-    public SnapshotRef? TraderSnapshot { get; init; }
+    public required int GoodsStacks { get; init; }
 }
 
+/// <summary>
+/// The map's traders, in id order, and the colonists eligible to negotiate (not dead, downed, in a mental state or
+/// social-incapable), best trade price improvement first.
+/// </summary>
 public sealed record TradersSnapshot
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Trader>))]
-    public EquatableArray<Trader> Traders { get; init; }
+    public required EquatableArray<Trader> Traders { get; init; }
 
-    [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Ref>))]
-    public EquatableArray<Common.Ref> Negotiators { get; init; }
+    [JsonConverter(typeof(EquatableArrayJsonConverter<PawnId>))]
+    public required EquatableArray<PawnId> Negotiators { get; init; }
 }
 
 public sealed record TradersRequest
@@ -4466,129 +4471,122 @@ public sealed record TradersRequest
     public ReadScope? Scope { get; init; }
 }
 
-public sealed record TradersReply
-{
-    public TradersReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="TradersReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(TradersReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(TradersReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(TradersReplyOutcome.FailureCase), "failure")]
-public abstract record TradersReplyOutcome
-{
-    private protected TradersReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public TradersSnapshot? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(TradersSnapshot Value) : TradersReplyOutcome;
-
-    public static implicit operator TradersReplyOutcome(TradersSnapshot value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : TradersReplyOutcome;
-
-    public static implicit operator TradersReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : TradersReplyOutcome;
-
-    public static implicit operator TradersReplyOutcome(Common.Failure value) => new FailureCase(value);
-}
-
+/// <summary>
+/// One trade sheet line: the line id SetTradeLines addresses, the definition (empty on the favor row, which has no
+/// ThingDef), both sides' counts, both prices, the staged transfer and its bounds. Currency marks the currency row
+/// (the royal favor row too). Pawn is the offered pawn on a pawn line. ThingId is the
+/// line's first colony thing (empty when the colony holds none, and on a pawn line), ZoneId the stockpile it lies in
+/// (empty off a stockpile) and Grade its quality and hit points.
+/// </summary>
 public sealed record TradeLine
 {
-    public DefinitionRef? Definition { get; init; }
+    public required string LineId { get; init; }
 
-    public string? Stuff { get; init; }
+    public required string DefName { get; init; }
 
-    public long? ColonyCount { get; init; }
+    public required string Stuff { get; init; }
 
-    public long? TraderCount { get; init; }
+    public required long ColonyCount { get; init; }
 
-    public double? BuyPrice { get; init; }
+    public required long TraderCount { get; init; }
 
-    public double? SellPrice { get; init; }
+    public required double BuyPrice { get; init; }
 
-    public double? MarketValue { get; init; }
+    public required double SellPrice { get; init; }
 
-    public bool? TraderWillTrade { get; init; }
+    public required bool TraderWillTrade { get; init; }
 
-    public bool? Currency { get; init; }
+    public required bool Currency { get; init; }
 
     /// <summary>The offered pawn on a pawn line, null on every other line.</summary>
-    public TradePawn? Pawn { get; init; }
+    public required TradePawn? Pawn { get; init; }
 
-    public long? TransferCount { get; init; }
+    public required long TransferCount { get; init; }
 
-    public long? MinimumCount { get; init; }
+    public required long MinimumCount { get; init; }
 
-    public long? MaximumCount { get; init; }
+    public required long MaximumCount { get; init; }
 
-    public string? LineId { get; init; }
+    public required string ThingId { get; init; }
 
-    public string? ThingId { get; init; }
+    public required TradeThingGrade Grade { get; init; }
 
-    public int? Quality { get; init; }
+    public required string ZoneId { get; init; }
+}
 
-    public double? HitPointsFraction { get; init; }
+/// <summary>
+/// A line thing's quality (the QualityCategory index) and hit-point fraction, what a gear sale ranks; Ungraded for a
+/// line without a colony thing, or a thing lacking either.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(TradeThingGrade.Graded), "graded")]
+[JsonDerivedType(typeof(TradeThingGrade.Ungraded), "ungraded")]
+public abstract record TradeThingGrade
+{
+    private protected TradeThingGrade() { }
 
-    public string? ZoneId { get; init; }
+    public sealed record Graded(int Quality, double HitPointsFraction) : TradeThingGrade;
 
-    public bool? Favor { get; init; }
+    public sealed record Ungraded : TradeThingGrade;
 }
 
 /// <summary>
 /// A pawn trade line's pawn: its load id, gender, skills and violence capability (what a purchase ranks), and the
-/// prisoner sale facts PreTraded and AllSellableColonyPawns read (guest status, secure, downed, and the extra home /
-/// host faction a sale angers).
+/// prisoner sale facts PreTraded and AllSellableColonyPawns read (guest status, downed, and the extra home / host
+/// faction a sale angers; each faction id empty when the pawn has none).
 /// </summary>
 public sealed record TradePawn
 {
-    public string Id { get; init; } = "";
+    public required string Id { get; init; }
 
-    public Defs.Gender Gender { get; init; }
+    public required Defs.Gender Gender { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Skill>))]
-    public EquatableArray<Skill> Skills { get; init; }
+    public required EquatableArray<Skill> Skills { get; init; }
 
-    public bool ViolenceCapable { get; init; }
+    public required bool ViolenceCapable { get; init; }
 
-    /// <summary>Null on a pawn without a guest tracker.</summary>
-    public Defs.GuestStatus? GuestStatus { get; init; }
+    public required TradePawnGuest Guest { get; init; }
 
-    public bool PrisonerSecure { get; init; }
+    public required bool Downed { get; init; }
 
-    public bool Downed { get; init; }
+    public required string ExtraHomeFactionId { get; init; }
 
-    public Common.Ref? ExtraHomeFaction { get; init; }
-
-    public Common.Ref? ExtraHostFaction { get; init; }
+    public required string ExtraHostFactionId { get; init; }
 }
 
-/// <summary>
-/// TradeSession is the adapter's one live trade: the negotiator
-/// walking to trader_id to open a session (open false), or the pair holding
-/// the open session (open true). Both ids are absent when neither exists.
-/// </summary>
+/// <summary>A trade pawn's guest status and whether a prisoner is secure, or NoGuestTracker for a pawn without one.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(TradePawnGuest.Tracked), "tracked")]
+[JsonDerivedType(typeof(TradePawnGuest.NoGuestTracker), "no_guest_tracker")]
+public abstract record TradePawnGuest
+{
+    private protected TradePawnGuest() { }
+
+    public sealed record Tracked(Defs.GuestStatus Status, bool PrisonerSecure) : TradePawnGuest;
+
+    public sealed record NoGuestTracker : TradePawnGuest;
+}
+
+/// <summary>The adapter's one live trade: Idle, or a negotiator engaged with a trader, walking to open (Open false) or holding the open session.</summary>
 public sealed record TradeSession
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
-    public Common.TradeTarget? Target { get; init; }
+    public required TradeEngagement Engagement { get; init; }
+}
 
-    public string? NegotiatorId { get; init; }
+/// <summary>Whether a negotiator is walking to or trading with a trader.</summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(TradeEngagement.Engaged), "engaged")]
+[JsonDerivedType(typeof(TradeEngagement.Idle), "idle")]
+public abstract record TradeEngagement
+{
+    private protected TradeEngagement() { }
 
-    public bool? Open { get; init; }
+    public sealed record Engaged(Common.TradeTarget Target, PawnId Negotiator, bool Open) : TradeEngagement;
+
+    public sealed record Idle : TradeEngagement;
 }
 
 public sealed record TradeSessionRequest
@@ -4596,78 +4594,51 @@ public sealed record TradeSessionRequest
     public ReadScope? Scope { get; init; }
 }
 
-public sealed record TradeSessionReply
-{
-    public TradeSessionReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="TradeSessionReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(TradeSessionReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(TradeSessionReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(TradeSessionReplyOutcome.FailureCase), "failure")]
-public abstract record TradeSessionReplyOutcome
-{
-    private protected TradeSessionReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public TradeSession? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(TradeSession Value) : TradeSessionReplyOutcome;
-
-    public static implicit operator TradeSessionReplyOutcome(TradeSession value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : TradeSessionReplyOutcome;
-
-    public static implicit operator TradeSessionReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : TradeSessionReplyOutcome;
-
-    public static implicit operator TradeSessionReplyOutcome(Common.Failure value) => new FailureCase(value);
-}
-
 /// <summary>
-/// currency_kind is the open session's currency (vanilla TradeCurrency): silver,
-/// or the trader faction's royal favor (the Royalty tribute collector). In a favor
-/// session every row's sell_price is that item's favor value, TradeLine.favor marks
-/// the favor currency row (no ThingDef, so an empty definition; its transfer_count
-/// is the favor the negotiator gains), and absent reads as silver.
+/// The open session's whole sheet. CurrencyKind is the session's currency (vanilla TradeCurrency): silver, or the
+/// trader faction's royal favor (the Royalty tribute collector), where every line's SellPrice is its favor value and
+/// the currency line's TransferCount the favor the negotiator gains. DealSignature is the token AcceptTrade carries.
 /// </summary>
 public sealed record TradeSheet
 {
-    public SnapshotRef? Snapshot { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
-    public string? SessionId { get; init; }
+    public required string SessionId { get; init; }
 
-    public Common.TradeTarget? Target { get; init; }
+    public required Common.TradeTarget Target { get; init; }
 
-    public Common.Ref? Negotiator { get; init; }
+    public required PawnId Negotiator { get; init; }
 
-    public bool? GiftMode { get; init; }
+    public required bool GiftMode { get; init; }
 
-    public bool? CanTradeNow { get; init; }
+    public required bool CanTradeNow { get; init; }
 
-    public double? Balance { get; init; }
+    public required TradeBalance Balance { get; init; }
 
-    public bool? ColonyCanAfford { get; init; }
-
-    public bool? TraderHasEnoughSilver { get; init; }
+    public required bool TraderHasEnoughSilver { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<TradeLine>))]
-    public EquatableArray<TradeLine> Lines { get; init; }
+    public required EquatableArray<TradeLine> Lines { get; init; }
 
-    public string? DealSignature { get; init; }
+    public required string DealSignature { get; init; }
 
-    public Defs.TradeCurrency? CurrencyKind { get; init; }
+    public required Defs.TradeCurrency CurrencyKind { get; init; }
+}
+
+/// <summary>
+/// The deal's balance on the currency line: its signed transfer (negative when the colony pays) and whether the colony
+/// can afford it; NoCurrencyLine when the deal has no currency tradeable.
+/// </summary>
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
+[JsonDerivedType(typeof(TradeBalance.Counted), "counted")]
+[JsonDerivedType(typeof(TradeBalance.NoCurrencyLine), "no_currency_line")]
+public abstract record TradeBalance
+{
+    private protected TradeBalance() { }
+
+    public sealed record Counted(long Transfer, bool ColonyCanAfford) : TradeBalance;
+
+    public sealed record NoCurrencyLine : TradeBalance;
 }
 
 public sealed record TradeSheetRequest
@@ -4678,48 +4649,6 @@ public sealed record TradeSheetRequest
 
 }
 
-public sealed record TradeSheetReply
-{
-    public TradeSheetReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="TradeSheetReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(TradeSheetReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(TradeSheetReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(TradeSheetReplyOutcome.FailureCase), "failure")]
-public abstract record TradeSheetReplyOutcome
-{
-    private protected TradeSheetReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public TradeSheet? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(TradeSheet Value) : TradeSheetReplyOutcome;
-
-    public static implicit operator TradeSheetReplyOutcome(TradeSheet value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : TradeSheetReplyOutcome;
-
-    public static implicit operator TradeSheetReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : TradeSheetReplyOutcome;
-
-    public static implicit operator TradeSheetReplyOutcome(Common.Failure value) => new FailureCase(value);
-}
-
-/// <summary>
-/// Complete read-only prerequisites, with absent scalars explicitly unknown.
-/// </summary>
 public sealed record TradeAcquisitionRequest
 {
     public ReadScope? Scope { get; init; }
@@ -4727,87 +4656,98 @@ public sealed record TradeAcquisitionRequest
     public Operations.FormCaravanIntent? Pack { get; init; }
 }
 
+/// <summary>A usable comms console and the colonists able to use it now.</summary>
 public sealed record TradeConsole
 {
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> NegotiatorIds { get; init; }
+    public required EquatableArray<string> NegotiatorIds { get; init; }
 }
 
+/// <summary>A passing ship; TraderKind is empty for a ship that is not a trade ship.</summary>
 public sealed record PassingTradeShip
 {
-    public string? TraderKind { get; init; }
+    public required string TraderKind { get; init; }
 }
 
+/// <summary>
+/// One requestable trader: the faction, channel and trader kind, the goodwill it costs and the relation after paying
+/// (Hostile, Neutral or Ally), the last request tick, the cooldown left, the longest arrival delay, whether vanilla
+/// would accept the request now and the colonists able to make it.
+/// </summary>
 public sealed record TradeRequestOption
 {
-    public string? FactionId { get; init; }
+    public required string FactionId { get; init; }
 
-    public Common.TradeRequestKind Kind { get; init; }
+    public required Common.TradeRequestKind Kind { get; init; }
 
-    public string? TraderKind { get; init; }
+    public required string TraderKind { get; init; }
 
-    public int? Goodwill { get; init; }
+    public required int Goodwill { get; init; }
 
-    public int? GoodwillCost { get; init; }
+    public required int GoodwillCost { get; init; }
 
-    public string? RelationAfterPayment { get; init; }
+    public required string RelationAfterPayment { get; init; }
 
-    public long? LastRequestTick { get; init; }
+    public required long LastRequestTick { get; init; }
 
-    public long? CooldownRemainingTicks { get; init; }
+    public required long CooldownRemainingTicks { get; init; }
 
-    public long? ArrivalMaxTicks { get; init; }
+    public required long ArrivalMaxTicks { get; init; }
 
-    public bool? Eligible { get; init; }
+    public required bool Eligible { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> NegotiatorIds { get; init; }
+    public required EquatableArray<string> NegotiatorIds { get; init; }
 }
 
+/// <summary>The comms consoles, passing ships, requestable traders, queued trader arrivals and queued comms work of the map.</summary>
 public sealed record TradeAcquisition
 {
-    public Common.ObservationContext? Context { get; init; }
+    public required Common.ObservationContext Context { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<TradeConsole>))]
-    public EquatableArray<TradeConsole> Consoles { get; init; }
+    public required EquatableArray<TradeConsole> Consoles { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<PassingTradeShip>))]
-    public EquatableArray<PassingTradeShip> PassingShips { get; init; }
+    public required EquatableArray<PassingTradeShip> PassingShips { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<TradeRequestOption>))]
-    public EquatableArray<TradeRequestOption> Requests { get; init; }
+    public required EquatableArray<TradeRequestOption> Requests { get; init; }
 
-    public bool? OrbitalAvailable { get; init; }
+    public required bool OrbitalAvailable { get; init; }
 
-    public TradePackEstimate? Pack { get; init; }
+    /// <summary>The estimate of the requested pack, null when the request names none.</summary>
+    public required TradePackEstimate? Pack { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<TradeRequestArrival>))]
-    public EquatableArray<TradeRequestArrival> Arrivals { get; init; }
+    public required EquatableArray<TradeRequestArrival> Arrivals { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<TradeCommsWork>))]
-    public EquatableArray<TradeCommsWork> CommsWork { get; init; }
+    public required EquatableArray<TradeCommsWork> CommsWork { get; init; }
 }
 
+/// <summary>A queued trader arrival incident: the faction, channel, trader kind and the tick it fires.</summary>
 public sealed record TradeRequestArrival
 {
-    public string? FactionId { get; init; }
+    public required string FactionId { get; init; }
 
-    public Common.TradeRequestKind Kind { get; init; }
+    public required Common.TradeRequestKind Kind { get; init; }
 
-    public string? TraderKind { get; init; }
+    public required string TraderKind { get; init; }
 
-    public long? ArrivalTick { get; init; }
+    public required long ArrivalTick { get; init; }
 }
 
+/// <summary>A colonist's queued or current comms console job with a faction.</summary>
 public sealed record TradeCommsWork
 {
-    public string? NegotiatorId { get; init; }
+    public required string NegotiatorId { get; init; }
 
-    public string? ConsoleId { get; init; }
+    public required string ConsoleId { get; init; }
 
-    public string? FactionId { get; init; }
+    public required string FactionId { get; init; }
 }
 
 public sealed record TradePackEstimate
@@ -4825,45 +4765,6 @@ public sealed record TradePackEstimate
     public WorldRoute? Outbound { get; init; }
 
     public WorldRoute? Home { get; init; }
-}
-
-public sealed record TradeAcquisitionReply
-{
-    public TradeAcquisitionReplyOutcome Outcome { get; init; } = null!;
-}
-
-/// <summary>The <c>outcome</c> choice of <see cref="TradeAcquisitionReply"/>: one derived record per case, discriminated by <c>type</c> in JSON.</summary>
-[JsonPolymorphic(TypeDiscriminatorPropertyName = "type")]
-[JsonDerivedType(typeof(TradeAcquisitionReplyOutcome.ObservedCase), "observed")]
-[JsonDerivedType(typeof(TradeAcquisitionReplyOutcome.UnavailableCase), "unavailable")]
-[JsonDerivedType(typeof(TradeAcquisitionReplyOutcome.FailureCase), "failure")]
-public abstract record TradeAcquisitionReplyOutcome
-{
-    private protected TradeAcquisitionReplyOutcome() { }
-
-    /// <summary>The <c>Observed</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public TradeAcquisition? Observed => (this as ObservedCase)?.Value;
-
-    public sealed record ObservedCase(TradeAcquisition Value) : TradeAcquisitionReplyOutcome;
-
-    public static implicit operator TradeAcquisitionReplyOutcome(TradeAcquisition value) => new ObservedCase(value);
-
-    /// <summary>The <c>Unavailable</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Unavailable? Unavailable => (this as UnavailableCase)?.Value;
-
-    public sealed record UnavailableCase(Common.Unavailable Value) : TradeAcquisitionReplyOutcome;
-
-    public static implicit operator TradeAcquisitionReplyOutcome(Common.Unavailable value) => new UnavailableCase(value);
-
-    /// <summary>The <c>Failure</c> case's payload, null when another case is set.</summary>
-    [JsonIgnore]
-    public Common.Failure? Failure => (this as FailureCase)?.Value;
-
-    public sealed record FailureCase(Common.Failure Value) : TradeAcquisitionReplyOutcome;
-
-    public static implicit operator TradeAcquisitionReplyOutcome(Common.Failure value) => new FailureCase(value);
 }
 
 public sealed record FoodConsumer

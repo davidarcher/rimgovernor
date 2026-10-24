@@ -47,7 +47,7 @@ public static partial class TradePolicyRules
         var found = false;
         foreach (var row in rows)
         {
-            if (row.Pawn is not { } pawn || !row.TraderWillTradeKnown || !row.TraderWillTrade || row.TraderCount < 1 || row.ColonyCount != 0)
+            if (row.Pawn is not { } pawn || !row.TraderWillTrade || row.TraderCount < 1 || row.ColonyCount != 0)
             {
                 continue;
             }
@@ -55,7 +55,7 @@ public static partial class TradePolicyRules
             {
                 continue;
             }
-            if (!row.BuyPriceKnown || !Finite(row.BuyPrice) || row.BuyPrice <= 0 || row.BuyPrice > budget)
+            if (!Finite(row.BuyPrice) || row.BuyPrice <= 0 || row.BuyPrice > budget)
             {
                 continue;
             }

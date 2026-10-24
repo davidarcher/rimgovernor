@@ -19,4 +19,8 @@ internal static class TradeTarget
                 return new TradeParticipant(TradeParticipantKind.Map, "");
         }
     }
+
+    /// <summary>The trader key of the session's engagement; empty while the session is idle.</summary>
+    internal static string TraderOf(PbObservations.TradeSession session) =>
+        session.Engagement is PbObservations.TradeEngagement.Engaged engaged ? TradeParticipantOf(engaged.Target).Key() : "";
 }

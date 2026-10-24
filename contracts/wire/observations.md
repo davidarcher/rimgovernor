@@ -186,8 +186,8 @@ and the prisoners and tame animals holding food policies. The brain holds it as
 - `JobEvidence` reports the pawn's real current job. `preemptible` is set when the
   pawn is controlled with no committed coupled order, so the job is vanilla job
   selection a coupled order may replace (#3670, [pawn activities](../../docs/developers/contracts/pawn-activities.md)).
-- BillStack, BuildingSettings, PawnSettings, GearLoadout,
-  ResearchSnapshot and TradeSheet expose SnapshotRef for exact
+- BillStack, BuildingSettings, PawnSettings, GearLoadout
+  and ResearchSnapshot expose SnapshotRef for exact
   compare-and-set. Read tokens cannot revive authority or prove successful writes.
 - PawnHealth carries surgery facts: `missing_parts` (each missing or
   destroyed part at its common missing ancestor, its parent and the vital flag)
@@ -674,8 +674,8 @@ Tokens cover the relevant native facts and domain-specific settings, not authori
 | HusbandryIntent.animal_id/target_id | ListPawns pawn with animal details (same animal ID), allowed area and master IDs |
 | PrisonerInteractionIntent.pawn_id | ReadPopulation.pawn and current interaction |
 | SetDrafted/AttackTarget/PawnOrderIntent | ListPawns.pawn.snapshot; exact target snapshot from ResolveTarget/GetCells/entity reads |
-| OpenTrade.trader/negotiator | ListTraders.trader.snapshot/negotiator.snapshot |
-| SetTradeLines/AcceptTrade/EndTrade.session | ReadTradeSheet.snapshot; trader and negotiator from ReadTradeSession |
+| OpenTrade.trader/negotiator | ListTraders.trader.id/negotiators |
+| SetTradeLines/AcceptTrade/EndTrade.session | ReadTradeSheet.session_id and deal_signature; trader and negotiator from ReadTradeSession's engagement |
 | SetTradeLines.line_id | ReadTradeSheet.lines.line_id, scoped to frozen sheet; not an inferred DefName/index |
 
 PlaceBuilding uses its placement preview and write authority precondition; it has
@@ -693,5 +693,5 @@ Excavation: `ReadExcavationSite` answers a required snapshot: per-cell rows echo
 
 Wall upgrades: `ListWallUpgradeSites` answers required rows carrying the original wall's `origin`, the `normal`, the backup cells and the support, backup and replacement refs. An unknown target id is refused with `not_found`.
 
-Trade session and sheet headers carry one `common.TradeTarget`, whose settlement arm names the player caravan. `ReadTradeAcquisition` exposes native request prerequisites, all passing ships, queued arrivals/comms work and optional exact-crew packing estimates. Presence remains significant; [controllable trade](../../docs/developers/contracts/controllable-trade.md) defines eligibility and reconciliation.
+Trade session and sheet headers carry one `common.TradeTarget`, whose settlement arm names the player caravan. `ReadTradeAcquisition` exposes native request prerequisites, all passing ships, queued arrivals/comms work and optional exact-crew packing estimates. Every trade read is total: a read that cannot complete is refused or unavailable, a session is `idle` or `engaged`, a sheet's balance is `counted` or `no_currency_line`, a line's thing is `graded` or `ungraded` and a line pawn's guest status is `tracked` or `no_guest_tracker`; [controllable trade](../../docs/developers/contracts/controllable-trade.md) defines eligibility and reconciliation.
 

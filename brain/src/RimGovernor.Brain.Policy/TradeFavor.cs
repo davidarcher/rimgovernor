@@ -1,3 +1,5 @@
+using Trader = RimGovernor.Contracts.Wire.Observations.Trader;
+
 namespace RimGovernor.Brain.Policy;
 
 // The Royalty tribute collector pays royal favor (honor) instead of silver: a caravan of
@@ -17,7 +19,7 @@ public static partial class TradePolicyRules
     public const string SoldPrisonerEvent = "SoldPrisoner";
 
     /// <summary>Whether a trader is the tribute collector.</summary>
-    public static bool IsTributeCollector(TraderFacts t) => t.Kind == TributeCollectorKind;
+    public static bool IsTributeCollector(Trader t) => t.Kind == TributeCollectorKind;
 
     /// <summary>
     /// The gold a favor sale never sells below: the largest of the resource target, the economic floor
@@ -39,7 +41,7 @@ public static partial class TradePolicyRules
     /// </summary>
     public static Fact<TradeNeed> FavorGoldNeed(
         Fact<TradeNeed> need,
-        Fact<EquatableArray<TraderFacts>> traders,
+        Fact<EquatableArray<Trader>> traders,
         Fact<EquatableArray<Amount>> resources,
         IReadOnlyDictionary<Resource, long> targets,
         IReadOnlyDictionary<string, long> floors,
@@ -145,7 +147,7 @@ public static partial class TradePolicyRules
     }
 
     /// <summary>Adds the prisoner-sale reason to the need: a tribute collector is present or arriving and some prisoner is surplus.</summary>
-    public static Fact<TradeNeed> FavorPrisonerNeed(Fact<TradeNeed> need, Fact<EquatableArray<TraderFacts>> traders, IReadOnlySet<PawnId> surplus)
+    public static Fact<TradeNeed> FavorPrisonerNeed(Fact<TradeNeed> need, Fact<EquatableArray<Trader>> traders, IReadOnlySet<PawnId> surplus)
     {
         var nk = need.TryGetValue(out var n);
         var tk = traders.TryGetValue(out var rows);
@@ -170,17 +172,13 @@ public static partial class TradePolicyRules
     private static bool FavorPrisonerRow(TradeSelectionFacts facts, TradeSheetRowFact row) =>
         row.Pawn is { } pawn
         && facts.FavorPrisoners.Contains(new PawnId(pawn.Id))
-        && pawn.GuestStatus == RimGovernor.Contracts.Wire.Defs.GuestStatus.Prisoner
-        && pawn.PrisonerSecure
+        && pawn.Guest is RimGovernor.Contracts.Wire.Observations.TradePawnGuest.Tracked { Status: RimGovernor.Contracts.Wire.Defs.GuestStatus.Prisoner, PrisonerSecure: true }
         && !pawn.Downed
         && pawn.ExtraHomeFaction.Length == 0
         && pawn.ExtraHostFaction.Length == 0
-        && row.TraderWillTradeKnown
         && row.TraderWillTrade
-        && row.CurrencyKnown
         && !row.Currency
         && row.ColonyCount >= 1
-        && row.SellPriceKnown
         && Finite(row.SellPrice)
         && row.SellPrice > 0;
 
@@ -208,11 +206,11 @@ public static partial class TradePolicyRules
             {
                 continue;
             }
-            if (!row.TraderWillTradeKnown || !row.TraderWillTrade || row.Pawn is not null || !row.CurrencyKnown || row.Currency)
+            if (!row.TraderWillTrade || row.Pawn is not null || row.Currency)
             {
                 continue;
             }
-            if (row.ColonyCount < 0 || !row.SellPriceKnown || !Finite(row.SellPrice) || row.SellPrice <= 0)
+            if (row.ColonyCount < 0 || !Finite(row.SellPrice) || row.SellPrice <= 0)
             {
                 continue;
             }

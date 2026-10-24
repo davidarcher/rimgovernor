@@ -1,3 +1,5 @@
+using TradeThingGrade = RimGovernor.Contracts.Wire.Observations.TradeThingGrade;
+
 namespace RimGovernor.Brain.Policy;
 
 /// <summary>
@@ -136,7 +138,7 @@ public static class GearSurplusRules
         }
         var weapons = new Dictionary<Resource, int>(surplus.Weapons);
         var candidates = rows
-            .Where(r => r.ThingID.Length != 0 && r.Pawn is null && r.SellPriceKnown && TradePolicyRules.Finite(r.SellPrice) && r.SellPrice > 0)
+            .Where(r => r.ThingID.Length != 0 && r.Pawn is null && TradePolicyRules.Finite(r.SellPrice) && r.SellPrice > 0)
             .OrderBy(r => r.SellPrice)
             .ThenBy(r => r.ThingID, StringComparer.Ordinal)
             .ToList();
@@ -169,7 +171,7 @@ public static class GearSurplusRules
     /// <summary>The surplus kind of a warehouse gear row.</summary>
     private static GearStock? ApparelKey(TradeSheetRowFact row, IReadOnlySet<string> warehouses)
     {
-        if (!warehouses.Contains(row.ZoneID) || !row.HitPointsKnown || !row.QualityKnown)
+        if (!warehouses.Contains(row.ZoneID) || row.Grade is not TradeThingGrade.Graded grade)
         {
             return null;
         }
@@ -177,8 +179,8 @@ public static class GearSurplusRules
         {
             Definition = new Resource(row.DefName),
             Stuff = new Resource(row.Stuff),
-            Quality = (int)row.Quality,
-            HPBand = Math.Min(9, (int)Math.Floor(row.HitPoints * 10)),
+            Quality = grade.Quality,
+            HPBand = Math.Min(9, (int)Math.Floor(grade.HitPointsFraction * 10)),
         };
     }
 }

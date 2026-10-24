@@ -84,7 +84,7 @@ public sealed partial class BrainComposition(BrainCompositionOptions options)
     {
         var context = await new FacadeWorldSource(client.Facade).ReadContextAsync(ct).ConfigureAwait(false);
         var identity = context.Identity ?? throw new InvalidOperationException("orphans: the loaded world has no identity");
-        TradeSessionRead session;
+        RimGovernor.Contracts.Wire.Observations.TradeSession session;
         try
         {
             session = await ((FacadeNativeClient)client).ReadTradeSessionAsync(identity, ct).ConfigureAwait(false);
@@ -93,11 +93,12 @@ public sealed partial class BrainComposition(BrainCompositionOptions options)
         {
             throw new InvalidOperationException("orphans: trade session: " + e.Message, e);
         }
-        if (session.Trader.Length == 0)
+        if (session.Engagement is not RimGovernor.Contracts.Wire.Observations.TradeEngagement.Engaged engaged)
         {
             return;
         }
-        var end = Trade.NewTradeEnd(session.Trader, new PawnId(session.Negotiator), TradeEndKind.Cancel, false);
+        var trader = RimGovernor.Brain.BuildingRuntime.TradeTarget.TraderOf(session);
+        var end = Trade.NewTradeEnd(trader, engaged.Negotiator, TradeEndKind.Cancel, false);
         var action = DomainAction.NewTradeAction(new ActionId("orphan-trade-end"), end);
         var wire = IntentActionRules.IntentAction("orphan-trade-end", action);
         PbOperations.ApplyReply reply;
@@ -111,9 +112,9 @@ public sealed partial class BrainComposition(BrainCompositionOptions options)
         }
         if (reply.Results.Count == 0 || reply.Results[0].Outcome is not PbOperations.ActionResultOutcome.AppliedCase)
         {
-            log.Warn("orphan_trade_not_cancelled", "governor state: orphan trade not cancelled", ("trader", session.Trader));
+            log.Warn("orphan_trade_not_cancelled", "governor state: orphan trade not cancelled", ("trader", trader));
             return;
         }
-        log.Info("orphan_trade_cancelled", "governor state: cancelled orphan trade", ("trader", session.Trader), ("old_plans", plans.Count));
+        log.Info("orphan_trade_cancelled", "governor state: cancelled orphan trade", ("trader", trader), ("old_plans", plans.Count));
     }
 }

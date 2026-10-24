@@ -156,7 +156,7 @@ public sealed partial class RoundsTradePlanner
         {
             throw new ControlException($"step: err != nil || census.Context.GetTick() < int64(review.Tick): {e.Message}");
         }
-        if ((census.Context?.Tick ?? 0) < (long)review.Tick.Value)
+        if (census.Context.Tick < (long)review.Tick.Value)
         {
             throw new ControlException("step: err != nil || census.Context.GetTick() < int64(review.Tick)");
         }
@@ -169,49 +169,46 @@ public sealed partial class RoundsTradePlanner
         {
             throw new ControlException($"step: err != nil || session.Context.GetTick() < int64(review.Tick): {e.Message}");
         }
-        if ((session.Context?.Tick ?? 0) < (long)review.Tick.Value)
+        if (session.Context.Tick < (long)review.Tick.Value)
         {
             throw new ControlException("step: err != nil || session.Context.GetTick() < int64(review.Tick)");
         }
         // A caravan native holds a session or walk with is driven first, tradeable or not: a session native
         // still holds must be settled, never left, and a walk only game time finishes.
-        var traders = new List<Pol.TraderFacts>(census.Traders.Count);
-        foreach (var row in census.Traders)
-        {
-            traders.Add(new Pol.TraderFacts { Participant = row.Participant, ID = row.Id, Kind = row.Kind, CanTrade = row.CanTrade, Travelling = row.Travelling, GoodsStacks = row.GoodsStacks });
-        }
+        IReadOnlyList<PbObservations.Trader> traders = census.Traders;
+        var engaged = session.Engagement as PbObservations.TradeEngagement.Engaged;
+        var engagedTrader = TradeTarget.TraderOf(session);
         var arriving = false;
-        foreach (var row in census.Traders)
+        foreach (var row in traders)
         {
             arriving = arriving || row.Travelling;
-            if (row.Id != session.Trader)
+            if (engaged is null || row.Key() != engagedTrader)
             {
                 continue;
             }
-            if (TradeSettled(owner, row.Id, true, state.Snapshot, call))
+            if (TradeSettled(owner, row.Key(), true, state.Snapshot, call))
             {
                 continue;
             }
-            if (!session.Open)
+            if (!engaged.Open)
             {
-                return new RoundsTradeResult { Verdict = BuildingReasonExistingWork, Trader = row.Id, Phase = TradeOperationKind.Open };
+                return new RoundsTradeResult { Verdict = BuildingReasonExistingWork, Trader = row.Key(), Phase = TradeOperationKind.Open };
             }
-            return await DriveAsync(state, owner, review, row.Id, traders, new Domain.PawnId(session.Negotiator), started, call, epoch).ConfigureAwait(false);
+            return await DriveAsync(state, owner, review, row.Key(), traders, engaged.Negotiator, started, call, epoch).ConfigureAwait(false);
         }
         var settled = new HashSet<string>();
         var waiting = arriving;
-        foreach (var row in census.Traders)
+        foreach (var row in traders)
         {
-            var over = TradeSettled(owner, row.Id, row.Id == session.Trader, state.Snapshot, call);
+            var over = TradeSettled(owner, row.Key(), row.Key() == engagedTrader, state.Snapshot, call);
             if (over)
             {
-                settled.Add(row.Id);
+                settled.Add(row.Key());
             }
             // A settled caravan is waited out: the occurrence closes when it leaves, and only game time takes it away.
             waiting = waiting || (over && row.CanTrade);
         }
-        var (trader, ok) = Pol.TradePolicyRules.SelectTrader(traders, settled);
-        if (!ok)
+        if (Pol.TradePolicyRules.SelectTrader(traders, settled) is not { } trader)
         {
             if (waiting)
             {
@@ -224,7 +221,7 @@ public sealed partial class RoundsTradePlanner
             return new RoundsTradeResult { Verdict = NoWorker("negotiator") };
         }
         var negotiator = await NegotiatorAsync(state, review, census.Negotiators, call).ConfigureAwait(false);
-        return await OpenAsync(state, owner, trader.ID, negotiator, arbiter, started, trader.Participant, call, epoch).ConfigureAwait(false);
+        return await OpenAsync(state, owner, trader.Key(), negotiator, arbiter, started, trader.Participant(), call, epoch).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -232,7 +229,7 @@ public sealed partial class RoundsTradePlanner
     /// as eligible (alive, undrafted, able to talk). Native's own first row (best trade price improvement) stands
     /// when the roster is unknown or no profile qualifies -- native has already vetted every listed row.
     /// </summary>
-    private async Task<NegotiatorRead> NegotiatorAsync(ControlState state, Sto.Rounds review, IReadOnlyList<NegotiatorRead> eligible, CancellationToken call)
+    private async Task<PawnId> NegotiatorAsync(ControlState state, Sto.Rounds review, EquatableArray<PawnId> eligible, CancellationToken call)
     {
         var expected = await StepScope.StepScopeAsync(Reviewer.Native, call).ConfigureAwait(false);
         if (!RoundsBuildingPlanner.RoundsBuildingBoundary(expected, state.Snapshot, review.Tick))
@@ -244,41 +241,33 @@ public sealed partial class RoundsTradePlanner
         {
             return eligible[0];
         }
-        var ids = eligible.Select(row => new PawnId(row.Id)).ToList();
-        if (Pol.PawnRules.TraderFor(Pol.PawnRules.Among(Pol.PawnRules.Profiles(pawns), ids)) is not { } chosen)
+        if (Pol.PawnRules.TraderFor(Pol.PawnRules.Among(Pol.PawnRules.Profiles(pawns), eligible)) is not { } chosen)
         {
             return eligible[0];
         }
-        foreach (var row in eligible)
-        {
-            if (new PawnId(row.Id) == chosen)
-            {
-                return row;
-            }
-        }
-        return eligible[0];
+        return eligible.Contains(chosen) ? chosen : eligible[0];
     }
 
     /// <summary>
     /// Commits the Open phase: the census already vetted the negotiator's eligibility and the trader's
     /// tradeability, and native checks reachability when the open applies and walks the negotiator over.
     /// </summary>
-    private async Task<RoundsTradeResult> OpenAsync(ControlState state, Sto.NeedOwner owner, string trader, NegotiatorRead negotiator, StepArbiter arbiter, DateTimeOffset started, TradeParticipant participant, CancellationToken call, CancellationToken epoch)
+    private async Task<RoundsTradeResult> OpenAsync(ControlState state, Sto.NeedOwner owner, string trader, PawnId negotiator, StepArbiter arbiter, DateTimeOffset started, TradeParticipant participant, CancellationToken call, CancellationToken epoch)
     {
         if (participant.Kind != TradeParticipantKind.Settlement)
             return new RoundsTradeResult { Verdict = Verdict.AwaitingPlan("unsupported_shared_trade_labor",
                 "Negotiator travel and comms work require shared participant and opportunity alternatives.") };
-        if (!arbiter.TryClaim([], "pawn:" + negotiator.Id))
+        if (!arbiter.TryClaim([], "pawn:" + negotiator.Value))
         {
             return new RoundsTradeResult { Verdict = WaitFor(Pol.Cause.MethodUsed, "negotiator_claim") };
         }
-        var value = Trade.NewTradeOpen(trader, new Domain.PawnId(negotiator.Id), false);
+        var value = Trade.NewTradeOpen(trader, negotiator, false);
         value = value.WithParticipant(participant);
         return await CommitAsync(state, owner, TradeOperationKind.Open, trader, value, started, call, epoch).ConfigureAwait(false);
     }
 
     /// <summary>Advances one caravan's open session: stage the selected lines from its sheet, confirm and accept them, or cancel.</summary>
-    private async Task<RoundsTradeResult> DriveAsync(ControlState state, Sto.NeedOwner owner, Sto.Rounds review, string trader, IReadOnlyList<Pol.TraderFacts> traders, Domain.PawnId negotiator, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
+    private async Task<RoundsTradeResult> DriveAsync(ControlState state, Sto.NeedOwner owner, Sto.Rounds review, string trader, IReadOnlyList<PbObservations.Trader> traders, Domain.PawnId negotiator, DateTimeOffset started, CancellationToken call, CancellationToken epoch)
     {
         var lines = Phase(owner, TradeOperationKind.SetLines, trader, call);
         var end = Phase(owner, TradeOperationKind.End, trader, call);
@@ -303,7 +292,7 @@ public sealed partial class RoundsTradePlanner
         {
             throw new ControlException($"drive: err != nil: {e.Message}");
         }
-        if (sheet.Trader != trader || sheet.Negotiator != negotiator.Value || sheet.GiftMode || !sheet.CanTradeNow)
+        if (TradeTarget.TradeParticipantOf(sheet.Target).Key() != trader || sheet.Negotiator != negotiator || sheet.GiftMode || !sheet.CanTradeNow)
         {
             return await CancelAsync(state, owner, trader, negotiator, started, call, epoch).ConfigureAwait(false);
         }
@@ -368,11 +357,11 @@ public sealed partial class RoundsTradePlanner
         }
         // Lines are staged: re-run the same selection over the live sheet and require an exact match, then
         // native's affordability and the silver reserve, before accepting. Any drift cancels.
-        if (selection.Refused || !SameTradeLines(TradeLinesOf(selection), staged) || !sheet.ColonyCanAfford || !sheet.TraderHasSilver || sheet.DealSignature == "" || (!facts.Favor && !sheet.BalanceKnown))
+        if (selection.Refused || !SameTradeLines(TradeLinesOf(selection), staged) || sheet.Balance is not PbObservations.TradeBalance.Counted { ColonyCanAfford: true } balance || !sheet.TraderHasEnoughSilver || sheet.DealSignature == "")
         {
             return await CancelAsync(state, owner, trader, negotiator, started, call, epoch).ConfigureAwait(false);
         }
-        if (!facts.Favor && (double)facts.ColonySilver + sheet.Balance < (double)selection.SilverReserve)
+        if (!facts.Favor && (double)facts.ColonySilver + balance.Transfer < (double)selection.SilverReserve)
         {
             return await CancelAsync(state, owner, trader, negotiator, started, call, epoch).ConfigureAwait(false);
         }
@@ -381,7 +370,7 @@ public sealed partial class RoundsTradePlanner
     }
 
     /// <summary>Re-measures the need from a fresh colony read and turns it, with the live sheet, into SelectTrade's inputs.</summary>
-    private async Task<(TradeEconomicPolicy Economic, Pol.TradeSelectionFacts Facts, bool Capacity)> SelectionAsync(ControlState state, Sto.Rounds review, TradeSheetRead sheet, string trader, IReadOnlyList<Pol.TraderFacts> traders, CancellationToken call)
+    private async Task<(TradeEconomicPolicy Economic, Pol.TradeSelectionFacts Facts, bool Capacity)> SelectionAsync(ControlState state, Sto.Rounds review, PbObservations.TradeSheet sheet, string trader, IReadOnlyList<PbObservations.Trader> traders, CancellationToken call)
     {
         var identity = Boundary.Identity(state.Snapshot);
         var observed = await Native.ReadColonyFactsAsync(identity, false, call).ConfigureAwait(false);
@@ -408,7 +397,7 @@ public sealed partial class RoundsTradePlanner
         var zoneNative = Native as Observation.IZonesNative;
         projection = await ZonesReads.FillZones(zoneNative, observed.Context.Identity, projection.Identity, projection, call).ConfigureAwait(false);
         // The food plan reads the caravans on the census as present, the session's priced by the offers just recorded from this sheet.
-        projection = projection with { Facts = projection.Facts with { Traders = Known<EquatableArray<Pol.TraderFacts>>([.. traders]) } };
+        projection = projection with { Facts = projection.Facts with { Traders = Known<EquatableArray<PbObservations.Trader>>([.. traders]) } };
         Reviewer.PlanFood(ref projection);
         var seasonal = Reviewer.Seasonal(projection.Facts);
         var construction = await Native.ReadConstructionDeficitsAsync(identity, call).ConfigureAwait(false);
@@ -444,7 +433,7 @@ public sealed partial class RoundsTradePlanner
         {
             throw new ControlException("selection: no definition catalog");
         }
-        var rows = TradeSheetRowFacts(sheet.Rows, catalog);
+        var rows = TradeSheetRowFacts(sheet.Lines, catalog);
         // The plan counts the animals this trader offers as obtainable, so its wants (bought below) and its surplus (sold) agree.
         var planInput = projection.Facts.HerdPlanInput();
         planInput = planInput with { Offers = HerdPurchaseRules.HerdOffers(rows, projection.Facts.AnimalUpkeep.AnimalRaces) };
@@ -465,10 +454,10 @@ public sealed partial class RoundsTradePlanner
         var planned = await PlannedPurchasesAsync(state, review, trader, call).ConfigureAwait(false);
         need = TradeOfferBook.RestrictToPlan(need, planned, Pol.TradePolicyRules.PlannedTradeNutrition(projection.Facts.FoodPlan, trader));
         var economic = Pol.TradePolicyRules.RoundsTradeTargets(projection.Facts.Items, need, rows, targets, projection.Facts.Colonists);
-        var (colonySilver, traderSilver, silverKnown) = TradeSheetSilver(sheet.Rows);
+        var (colonySilver, traderSilver, silverKnown) = TradeSheetSilver(sheet.Lines);
         var facts = new Pol.TradeSelectionFacts { Complete = true, Rows = rows, Floors = floors, CropSurplusFloors = Pol.TradePolicyRules.CropSurplusFloors(need), ColonySilver = colonySilver, TraderSilver = traderSilver, SilverKnown = silverKnown };
         facts = facts with { MaxSilverSpend = Math.Max(0, facts.ColonySilver) };
-        facts = facts with { Favor = sheet.FavorCurrency };
+        facts = facts with { Favor = sheet.CurrencyKind == RimGovernor.Contracts.Wire.Defs.TradeCurrency.Favor };
         facts = facts with { FavorKeep = Pol.TradePolicyRules.FavorGoldKeep(targets, floors, retained) };
         facts = facts with { SaleArt = saleArt ?? [] };
         if (facts.Favor)
@@ -544,9 +533,9 @@ public sealed partial class RoundsTradePlanner
         if (kind != TradeOperationKind.Open)
         {
             var session = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
-            if (session.Trader == trader && session.Target is not null)
+            if (session.Engagement is PbObservations.TradeEngagement.Engaged engaged && TradeTarget.TraderOf(session) == trader)
             {
-                value = value.WithParticipant(TradeTarget.TradeParticipantOf(session.Target));
+                value = value.WithParticipant(TradeTarget.TradeParticipantOf(engaged.Target));
             }
         }
         var action = DomainAction.NewTradeAction(tradeId, value);
@@ -600,11 +589,11 @@ partial class RoundsTradePlanner
         open.Found && !open.Open && (!open.Completed || !engaged);
 
     /// <summary>The goods stacks of the trader on the census.</summary>
-    internal static long TraderStacks(IReadOnlyList<Pol.TraderFacts> traders, string id)
+    internal static long TraderStacks(IReadOnlyList<PbObservations.Trader> traders, string id)
     {
         foreach (var t in traders)
         {
-            if (t.ID == id)
+            if (t.Key() == id)
             {
                 return t.GoodsStacks;
             }
@@ -631,7 +620,7 @@ partial class RoundsTradePlanner
     }
 
     /// <summary>Classifies a food line from the catalog's rows and the evaluated Nutrition stat; a pawn or currency line is never food.</summary>
-    internal static Fact<Pol.TradeFoodGood> TradeFoodFact(TradeSheetRow row, Bridge.DefinitionCatalog catalog)
+    internal static Fact<Pol.TradeFoodGood> TradeFoodFact(PbObservations.TradeLine row, Bridge.DefinitionCatalog catalog)
     {
         if (row.Pawn is not null || row.Currency || row.DefName == "")
         {
@@ -640,7 +629,7 @@ partial class RoundsTradePlanner
         return catalog.TradeFood(row.DefName) is { } good ? Known(good) : Unknown<Pol.TradeFoodGood>();
     }
 
-    internal static List<Pol.TradeSheetRowFact> TradeSheetRowFacts(IReadOnlyList<TradeSheetRow> rows, Bridge.DefinitionCatalog catalog)
+    internal static List<Pol.TradeSheetRowFact> TradeSheetRowFacts(IReadOnlyList<PbObservations.TradeLine> rows, Bridge.DefinitionCatalog catalog)
     {
         var output = new List<Pol.TradeSheetRowFact>(rows.Count);
         foreach (var row in rows)
@@ -653,45 +642,37 @@ partial class RoundsTradePlanner
                 ColonyCount = row.ColonyCount,
                 TraderCount = row.TraderCount,
                 BuyPrice = row.BuyPrice,
-                BuyPriceKnown = row.BuyPriceKnown,
                 SellPrice = row.SellPrice,
-                SellPriceKnown = row.SellPriceKnown,
                 TraderWillTrade = row.TraderWillTrade,
-                TraderWillTradeKnown = row.TraderWillTradeKnown,
                 Currency = row.Currency,
-                CurrencyKnown = row.CurrencyKnown,
                 Pawn = row.Pawn is { } pawn ? TradeRowPawn(pawn) : null,
                 ThingID = row.ThingId,
                 Stuff = row.Stuff,
-                HitPoints = row.HitPoints,
-                HitPointsKnown = row.HitPointsKnown,
-                Quality = row.Quality,
-                QualityKnown = row.QualityKnown,
+                Grade = row.Grade,
                 ZoneID = row.ZoneId,
             });
         }
         return output;
     }
 
-    internal static Pol.TradeRowPawn TradeRowPawn(RimGovernor.Contracts.Wire.Observations.TradePawn pawn) => new()
+    internal static Pol.TradeRowPawn TradeRowPawn(PbObservations.TradePawn pawn) => new()
     {
         Id = pawn.Id,
         Gender = pawn.Gender,
         Skills = [.. pawn.Skills.Select(s => new Pol.ProfileSkill { Name = s.DefName, Level = s.Level, Passion = WireEnums.PassionName(s.Passion), Disabled = s.Disabled })],
         ViolenceCapable = pawn.ViolenceCapable,
-        GuestStatus = pawn.GuestStatus,
-        PrisonerSecure = pawn.PrisonerSecure,
+        Guest = pawn.Guest,
         Downed = pawn.Downed,
-        ExtraHomeFaction = pawn.ExtraHomeFaction?.Id ?? "",
-        ExtraHostFaction = pawn.ExtraHostFaction?.Id ?? "",
+        ExtraHomeFaction = pawn.ExtraHomeFactionId,
+        ExtraHostFaction = pawn.ExtraHostFactionId,
     };
 
-    /// <summary>Reads both sides' current silver from the sheet's own currency row.</summary>
-    internal static (long Colony, long Trader, bool Known) TradeSheetSilver(IReadOnlyList<TradeSheetRow> rows)
+    /// <summary>Reads both sides' current silver from the sheet's own currency line.</summary>
+    internal static (long Colony, long Trader, bool Known) TradeSheetSilver(IReadOnlyList<PbObservations.TradeLine> rows)
     {
         foreach (var row in rows)
         {
-            if (row.CurrencyKnown && row.Currency)
+            if (row.Currency)
             {
                 return (row.ColonyCount, row.TraderCount, true);
             }
@@ -710,14 +691,14 @@ partial class RoundsTradePlanner
     }
 
     /// <summary>Reads the non-currency rows the live sheet has staged, in sheet order, for comparison against a fresh selection.</summary>
-    internal static List<TradeLine> TradeStagedLines(TradeSheetRead sheet)
+    internal static List<TradeLine> TradeStagedLines(PbObservations.TradeSheet sheet)
     {
         var output = new List<TradeLine>();
-        foreach (var row in sheet.Rows)
+        foreach (var row in sheet.Lines)
         {
-            if (row.TransferNow != 0 && !(row.CurrencyKnown && row.Currency))
+            if (row.TransferCount != 0 && !row.Currency)
             {
-                output.Add(new TradeLine { LineId = row.LineId, AbsoluteCount = (int)row.TransferNow });
+                output.Add(new TradeLine { LineId = row.LineId, AbsoluteCount = (int)row.TransferCount });
             }
         }
         return output;

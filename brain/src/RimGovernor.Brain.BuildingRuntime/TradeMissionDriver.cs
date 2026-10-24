@@ -193,7 +193,7 @@ public sealed partial class RoundsTradePlanner
         {
             var session = await Native.ReadTradeSessionAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
             var target = new TradeParticipant(TradeParticipantKind.Settlement, m.Settlement, caravan.Id);
-            if (session.Trader == target.Key())
+            if (TradeTarget.TraderOf(session) == target.Key())
             {
                 if (MissionAttempted(step, "trade-end", call))
                 {
@@ -284,26 +284,27 @@ public sealed partial class RoundsTradePlanner
         {
             return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
         }
-        if (session.Trader.Length != 0 && session.Trader != trader)
+        var engaged = TradeTarget.TraderOf(session);
+        if (engaged.Length != 0 && engaged != trader)
         {
             // Native holds another session (a visiting caravan's, the economy/caravan Need's): the mission waits it out.
             return new RoundsTradeResult { Verdict = WaitFor(Pol.Cause.ExistingWork, "trade_session") };
         }
-        if (session.Trader != trader)
+        if (engaged != trader)
         {
             if (MissionAttempted(step, "trade-open", call))
             {
                 return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
             }
             var census = await Native.ListTradersAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
-            if (!census.Traders.Any(row => row.Id == trader && row.CanTrade))
+            if (!census.Traders.Any(row => row.Key() == trader && row.CanTrade))
             {
                 return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
             }
             var open = Trade.NewTradeOpen(trader, m.Negotiator, false).WithParticipant(target);
             return MissionTradeCommit(state, step, m, open, call, epoch);
         }
-        if (!session.Open)
+        if (session.Engagement is not PbObservations.TradeEngagement.Engaged { Open: true })
         {
             return new RoundsTradeResult { Verdict = BuildingReasonExistingWork };
         }
@@ -318,7 +319,7 @@ public sealed partial class RoundsTradePlanner
         {
             return new RoundsTradeResult { Verdict = FieldUnavailable("food_plan") };
         }
-        if (sheet.Trader != trader || !sheet.CanTradeNow || lines.Count == 0)
+        if (TradeTarget.TradeParticipantOf(sheet.Target).Key() != trader || !sheet.CanTradeNow || lines.Count == 0)
         {
             return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
         }
@@ -331,9 +332,9 @@ public sealed partial class RoundsTradePlanner
             var set = Trade.NewTradeSetLines(trader, m.Negotiator, lines, false).WithParticipant(target);
             return MissionTradeCommit(state, step, m, set, call, epoch);
         }
-        var (silver, _, known) = TradeSheetSilver(sheet.Rows);
-        if (!SameTradeLines(lines, TradeStagedLines(sheet)) || !sheet.ColonyCanAfford
-            || !Pol.TradePolicyRules.TradeMissionPaymentSafe(m.SilverBudget, MissionOptional(silver, known), MissionOptional(sheet.Balance, sheet.BalanceKnown))
+        var (silver, _, known) = TradeSheetSilver(sheet.Lines);
+        if (!SameTradeLines(lines, TradeStagedLines(sheet)) || !known || sheet.Balance is not PbObservations.TradeBalance.Counted { ColonyCanAfford: true } balance
+            || !Pol.TradePolicyRules.TradeMissionPaymentSafe(m.SilverBudget, silver, balance.Transfer)
             || sheet.DealSignature.Length == 0)
         {
             return MissionRecord(step, m with { Phase = TradeMissionPhase.Returning }, call);
@@ -348,7 +349,7 @@ public sealed partial class RoundsTradePlanner
     /// food/resource plans, bounded by saved authorization. It does not publish away goods into home supply
     /// candidates.
     /// </summary>
-    internal async Task<(IReadOnlyList<TradeLine> Lines, IReadOnlyList<CargoItem> Goods)> MissionPurchasesAsync(ControlState state, Sto.Rounds review, TradeMission m, TradeSheetRead sheet, CaravanJourney caravan, CancellationToken ct)
+    internal async Task<(IReadOnlyList<TradeLine> Lines, IReadOnlyList<CargoItem> Goods)> MissionPurchasesAsync(ControlState state, Sto.Rounds review, TradeMission m, PbObservations.TradeSheet sheet, CaravanJourney caravan, CancellationToken ct)
     {
         var reply = await Native.ReadColonyFactsAsync(Boundary.Identity(state.Snapshot), false, ct).ConfigureAwait(false);
         var tables = await Native.FrameTablesAsync(Boundary.Identity(state.Snapshot), ct).ConfigureAwait(false);
@@ -376,7 +377,7 @@ public sealed partial class RoundsTradePlanner
             nutrition[item.Definition] = MissionCatalogStat(catalog, item.Definition, CatalogStats.Nutrition);
         }
         var rows = new List<Pol.MissionPurchaseRow>();
-        foreach (var row in sheet.Rows)
+        foreach (var row in sheet.Lines)
         {
             rows.Add(new Pol.MissionPurchaseRow
             {
@@ -385,12 +386,12 @@ public sealed partial class RoundsTradePlanner
                 TraderCount = row.TraderCount,
                 Pawn = row.Pawn is not null,
                 Currency = row.Currency,
-                BuyPrice = MissionOptional(row.BuyPrice, row.BuyPriceKnown),
-                WillTrade = MissionOptional(row.TraderWillTrade, row.TraderWillTradeKnown),
+                BuyPrice = row.BuyPrice,
+                WillTrade = row.TraderWillTrade,
                 UnitMass = MissionCatalogStat(catalog, row.DefName, CatalogStats.Mass),
             });
         }
-        var (silver, _, known) = TradeSheetSilver(sheet.Rows);
+        var (silver, _, known) = TradeSheetSilver(sheet.Lines);
         return Pol.TradePolicyRules.PlanTradeMissionPurchases(new Pol.MissionPurchaseRequest
         {
             Mission = m,

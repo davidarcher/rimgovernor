@@ -59,7 +59,7 @@ internal static class TradeWorldSession
         async Task Closed(string label)
         {
             var state = await TradeKit.SessionAsync(s, label, cancellationToken).ConfigureAwait(false);
-            if (state.Open == true)
+            if (state.Engagement is Observations.TradeEngagement.Engaged { Open: true })
             {
                 throw new AcceptanceException($"{label}: session still open: {state}");
             }
@@ -72,17 +72,13 @@ internal static class TradeWorldSession
             async Task<(string Signature, bool Done)> Observe(CancellationToken ct)
             {
                 var sheet = await TradeKit.SessionAsync(s, label + "-session", ct).ConfigureAwait(false);
-                var open = sheet.Open == true;
-                var read = open ? await SheetOrNull(ct).ConfigureAwait(false) : null;
-                sessionId = read?.SessionId ?? "";
+                var open = sheet.Engagement is Observations.TradeEngagement.Engaged { Open: true };
+                sessionId = open ? (await Sheet(ct).ConfigureAwait(false)).SessionId : "";
                 return ($"open={open} session={sessionId}", sessionId.Length > 0);
             }
 
-            async Task<Observations.TradeSheet?> SheetOrNull(CancellationToken ct)
-            {
-                var reply = await s.CallAsync(label + "-sheet", NativeOps.ReadTradeSheet, new Observations.TradeSheetRequest { Scope = s.Scope }, ct).ConfigureAwait(false);
-                return reply.Outcome?.Observed;
-            }
+            Task<Observations.TradeSheet> Sheet(CancellationToken ct) =>
+                s.CallAsync(label + "-sheet", NativeOps.ReadTradeSheet, new Observations.TradeSheetRequest { Scope = s.Scope }, ct);
 
             // The orbital open orders a real UseCommsConsole job; its receipt is not an open session.
             if (!(await Observe(cancellationToken).ConfigureAwait(false)).Done)
@@ -93,7 +89,7 @@ internal static class TradeWorldSession
             return sessionId;
         }
 
-        static Observations.TradeLine? Find(Observations.TradeSheet sheet, string name) => sheet.Lines.FirstOrDefault(row => row.Definition?.DefName == name);
+        static Observations.TradeLine? Find(Observations.TradeSheet sheet, string name) => sheet.Lines.FirstOrDefault(row => row.DefName == name);
 
         async Task Cancel(string label)
         {

@@ -65,6 +65,6 @@ public static partial class RoundsRules
         tradeNeed = TradePolicyRules.FavorGoldNeed(tradeNeed, f.Traders, f.Resources, demand.Needs, TradePolicyRules.RoundsTradeFloors(p, null), demand.Retained);
         var shortage = SilverGapRules.RoundsSilverShort(f, p, medicine.Active).TryGetValue(out var silverShort) && silverShort;
         tradeNeed = TradePolicyRules.FavorPrisonerNeed(tradeNeed, f.Traders, f.SurplusPrisoners(shortage));
-        return TradePolicyRules.TradeRecovered(f.Traders, TradePolicyRules.PopulationTradeNeed(tradeNeed, PopulationRules.JoinerCapacity(f.JoinerCapacity())));
+        return TradePolicyRules.TradeRecovered(f.Traders, f.UnpricedTraders, TradePolicyRules.PopulationTradeNeed(tradeNeed, PopulationRules.JoinerCapacity(f.JoinerCapacity())));
     }
 }

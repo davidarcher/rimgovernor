@@ -540,27 +540,8 @@ public static class RoundsReads
     internal static Fact<Ideoligion> FrameIdeology(Ideoligion? read) => read is null ? Unknown<Ideoligion>() : Known(read);
 
     /// <summary>The trader census; unknown when the frame carries none.</summary>
-    internal static Fact<EquatableArray<TraderFacts>> FrameTraders(TradersRead? read)
-    {
-        if (read is null)
-        {
-            return Unknown<EquatableArray<TraderFacts>>();
-        }
-        var rows = new List<TraderFacts>(read.Traders.Count);
-        foreach (var row in read.Traders)
-        {
-            rows.Add(new TraderFacts
-            {
-                Participant = row.Participant,
-                ID = row.Id,
-                Kind = row.Kind,
-                CanTrade = row.CanTrade,
-                Travelling = row.Travelling,
-                GoodsStacks = row.GoodsStacks,
-            });
-        }
-        return Known(EquatableArray.From(rows));
-    }
+    internal static Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.Trader>> FrameTraders(RimGovernor.Contracts.Wire.Observations.TradersSnapshot? read) =>
+        read is null ? Unknown<EquatableArray<RimGovernor.Contracts.Wire.Observations.Trader>>() : Known(read.Traders);
 
     private static Fact<ComfortObservation> HostedComfort(Fact<ComfortObservation> comfort, Fact<RoomObservation> rooms)
     {

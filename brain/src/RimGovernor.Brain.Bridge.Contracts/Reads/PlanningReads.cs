@@ -1,7 +1,6 @@
 using RimGovernor.Brain.Policy;
 using RimGovernor.Contracts.Wire.Common;
 using DomainCell = RimGovernor.Brain.Domain.Cell;
-using TradeTarget = RimGovernor.Contracts.Wire.Common.TradeTarget;
 
 namespace RimGovernor.Brain.Bridge.Contracts;
 
@@ -43,20 +42,6 @@ public sealed record SupplyRead
     public ObservationContext? Context { get; init; }
 
     public IReadOnlyList<SupplyTarget> Targets { get; init; } = [];
-}
-
-/// <summary>The open trade session, its parties and its CAS target.</summary>
-public sealed record TradeSessionRead
-{
-    public TradeTarget? Target { get; init; }
-
-    public ObservationContext? Context { get; init; }
-
-    public string Trader { get; init; } = "";
-
-    public string Negotiator { get; init; } = "";
-
-    public bool Open { get; init; }
 }
 
 /// <summary>Whether one target cell is reachable natively and in the projected layout.</summary>

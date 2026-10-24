@@ -2,15 +2,15 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
+using RimGovernor.Brain.Bridge.Contracts;
+using RimGovernor.Host.Sdk;
 using RimWorld;
 using Verse;
 using Verse.AI.Group;
 using Common = RimGovernor.Contracts.Wire.Common;
 using Defs = RimGovernor.Contracts.Wire.Defs;
 using Obs = RimGovernor.Contracts.Wire.Observations;
+using PawnId = RimGovernor.Brain.Domain.PawnId;
 
 namespace HomeBridge.BridgeTools
 {
@@ -18,24 +18,10 @@ namespace HomeBridge.BridgeTools
     // traders a session could open with, the eligible negotiators, and
     // the currently open session's whole sheet. Every read recomputes from
     // current native state; nothing here stages or closes a session or
-    // issues an order.
+    // issues an order. A read that cannot be completed throws.
     internal static class NativeTradeObservation
     {
-
         private static bool SafeBool(Func<bool> f) { try { return f(); } catch { return false; } }
-        private static int SafeInt(Func<int> f) { try { return f(); } catch { return 0; } }
-        private static float SafeFloat(Func<float> f) { try { return f(); } catch { return 0f; } }
-        private static string SafeText(Func<string?> f) { try { return f() ?? ""; } catch { return ""; } }
-
-
-        // A trader pawn's row head; its token is the row's trader_snapshot.
-        private static Obs.EntityRef PawnRef(Pawn pawn) => new Obs.EntityRef
-        {
-            Id = pawn.GetUniqueLoadID(), DefName = pawn.def.defName, Label = SafeText(() => pawn.LabelShort), MapId = pawn.Map?.uniqueID ?? -1,
-            Position = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z },
-        };
-        private static Obs.SnapshotRef PawnToken(Pawn pawn, Common.ObservationContext context) =>
-            new Obs.SnapshotRef { Context = context, EntityId = pawn.GetUniqueLoadID(), Token = pawn.GetUniqueLoadID() };
 
         // Mirrors NativeTradeOperations.PrepareOpen's negotiator eligibility
         // exactly, so a negotiator listed here is one an open would accept
@@ -43,54 +29,48 @@ namespace HomeBridge.BridgeTools
         internal static bool EligibleNegotiator(Pawn p) =>
             !SafeBool(() => p.Dead) && !SafeBool(() => p.Downed) && !SafeBool(() => p.InMentalState) && !SafeBool(() => p.WorkTagIsDisabled(WorkTags.Social));
 
-        private static float TradeStat(Pawn p) => SafeFloat(() => p.GetStatValue(StatDefOf.TradePriceImprovement));
+        private static string FactionId(Faction? faction) => faction?.GetUniqueLoadID() ?? "";
 
         internal static Obs.TradersSnapshot Traders(Map map, Common.ObservationContext context)
         {
-            var snapshot = new Obs.TradersSnapshot { Context = context };
             var traders = new List<Obs.Trader>();
             foreach (var pawn in map.mapPawns.AllPawnsSpawned.ToList())
             {
-                Pawn_TraderTracker? tracker;
-                try { tracker = pawn.trader; } catch { tracker = null; }
+                var tracker = pawn.trader;
                 if (tracker == null || tracker.traderKind == null) continue;
-                var canTrade = SafeBool(() => pawn.CanTradeNow);
-                var dismissed = SafeBool(() => pawn.mindState != null && pawn.mindState.traderDismissed);
+                var dismissed = pawn.mindState != null && pawn.mindState.traderDismissed;
                 // A caravan still walking to its trade spot is not one the
                 // routine's escort can stand beside: its trader moves every
                 // tick until the lord's travel toil ends.
-                var travelling = SafeBool(() => pawn.GetLord()?.CurLordToil is LordToil_Travel);
-                var row = new Obs.Trader
+                var travelling = pawn.GetLord()?.CurLordToil is LordToil_Travel;
+                traders.Add(new Obs.Trader
                 {
-                    Entity = PawnRef(pawn), TraderSnapshot = PawnToken(pawn, context),
-                    Kind = tracker.traderKind.defName, Faction = NativeRef.Of(pawn.Faction),
-                    CanTrade = canTrade && !dismissed && !travelling, Travelling = travelling, Orbital = false, GoodsStacks = (uint)SafeInt(() => tracker.Goods.Count()),
-                };
-                if (!canTrade) row = row with { Reason = "CanTradeNow is false (downed, in a mental state, asleep, hostile or out of stock)." };
-                else if (dismissed) row = row with { Reason = "The trader was dismissed." };
-                else if (travelling) row = row with { Reason = "The caravan is still travelling to its trade spot." };
-                traders.Add(row);
+                    Id = pawn.GetUniqueLoadID(), Orbital = false, Kind = tracker.traderKind.defName, FactionId = FactionId(pawn.Faction),
+                    CanTrade = pawn.CanTradeNow && !dismissed && !travelling, Travelling = travelling, GoodsStacks = tracker.Goods.Count(),
+                });
             }
             foreach (var ship in map.passingShipManager.passingShips.OfType<TradeShip>())
             {
-                var id = ship.GetUniqueLoadID();
                 var usable = ship.CanTradeNow && Building_OrbitalTradeBeacon.AllPowered(map).Any()
                     && map.mapPawns.FreeColonistsSpawned.Any(p => p.CanTradeWith(ship.Faction, ship.TraderKind).Accepted
                         && map.listerBuildings.allBuildingsColonist.OfType<Building_CommsConsole>().Any(c => NativeTradeAcquisition.ConsoleNegotiator(c, p)));
-                traders.Add(new Obs.Trader { Entity = new Obs.EntityRef { Id = id, Label = ship.FullTitle, MapId = map.uniqueID, Position = new Common.Cell { X = 0, Z = 0 } },
-                    TraderSnapshot = new Obs.SnapshotRef { Context = context, EntityId = id, Token = id }, Kind = ship.TraderKind.defName,
-                    Faction = NativeRef.Of(ship.Faction), CanTrade = usable, Travelling = false, Orbital = true, GoodsStacks = (uint)ship.Goods.Count() });
+                traders.Add(new Obs.Trader
+                {
+                    Id = ship.GetUniqueLoadID(), Orbital = true, Kind = ship.TraderKind.defName, FactionId = FactionId(ship.Faction),
+                    CanTrade = usable, Travelling = false, GoodsStacks = ship.Goods.Count(),
+                });
             }
-            traders.Sort((a, b) => string.CompareOrdinal(a.Entity?.Id, b.Entity?.Id));
-            snapshot = snapshot with { Traders = [.. snapshot.Traders, .. traders] };
+            traders.Sort((a, b) => string.CompareOrdinal(a.Id, b.Id));
             var negotiators = map.mapPawns.FreeColonistsSpawned.Where(EligibleNegotiator).ToList();
             negotiators.Sort((x, y) =>
             {
-                var c = TradeStat(y).CompareTo(TradeStat(x));
+                var c = y.GetStatValue(StatDefOf.TradePriceImprovement).CompareTo(x.GetStatValue(StatDefOf.TradePriceImprovement));
                 return c != 0 ? c : string.CompareOrdinal(x.GetUniqueLoadID(), y.GetUniqueLoadID());
             });
-            snapshot = snapshot with { Negotiators = [.. snapshot.Negotiators, .. negotiators.Select(p => NativeRef.Thing(p))] };
-            return snapshot;
+            return new Obs.TradersSnapshot
+            {
+                Context = context, Traders = [.. traders], Negotiators = [.. negotiators.Select(p => new PawnId(p.GetUniqueLoadID()))],
+            };
         }
 
         /// <summary>
@@ -99,81 +79,70 @@ namespace HomeBridge.BridgeTools
         /// MemberSold goodwill with the extra home or host faction and what
         /// AllSellableColonyPawns lists on.
         /// </summary>
-        private static Obs.TradePawn TradePawn(Pawn p)
+        private static Obs.TradePawn TradePawn(Pawn p) => new Obs.TradePawn
         {
-            var row = new Obs.TradePawn
-            {
-                Id = p.GetUniqueLoadID(),
-                Gender = (Defs.Gender)(int)p.gender,
-                ViolenceCapable = !p.WorkTagIsDisabled(WorkTags.Violent),
-                Downed = p.Downed,
-            };
-            if (p.guest != null) row = row with { GuestStatus = (Defs.GuestStatus)(int)p.guest.GuestStatus, PrisonerSecure = p.guest.PrisonerIsSecure };
-            var home = p.GetExtraHomeFaction();
-            if (home != null) row = row with { ExtraHomeFaction = NativeRef.Of(home) };
-            var host = p.GetExtraHostFaction();
-            if (host != null) row = row with { ExtraHostFaction = NativeRef.Of(host) };
-            if (p.skills != null)
-                row = row with { Skills = [.. p.skills.skills.Select(s => new Obs.Skill { DefName = s.def.defName, Level = s.Level, StoredLevel = s.levelInt, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled })] };
-            return row;
+            Id = p.GetUniqueLoadID(),
+            Gender = (Defs.Gender)(int)p.gender,
+            Skills = p.skills == null ? [] : [.. p.skills.skills.Select(s => new Obs.Skill { DefName = s.def.defName, Level = s.Level, StoredLevel = s.levelInt, Passion = NativeEnums.Passion(s.passion), Disabled = s.TotallyDisabled })],
+            ViolenceCapable = !p.WorkTagIsDisabled(WorkTags.Violent),
+            Guest = p.guest != null
+                ? new Obs.TradePawnGuest.Tracked((Defs.GuestStatus)(int)p.guest.GuestStatus, p.guest.PrisonerIsSecure)
+                : new Obs.TradePawnGuest.NoGuestTracker(),
+            Downed = p.Downed,
+            ExtraHomeFactionId = FactionId(p.GetExtraHomeFaction()),
+            ExtraHostFactionId = FactionId(p.GetExtraHostFaction()),
+        };
+
+        // A line thing's quality and hit-point fraction, what a gear sale ranks.
+        private static Obs.TradeThingGrade Grade(Thing thing)
+        {
+            if (!thing.GetInnerIfMinified().TryGetQuality(out var quality) || !thing.def.useHitPoints || thing.MaxHitPoints <= 0)
+                return new Obs.TradeThingGrade.Ungraded();
+            return new Obs.TradeThingGrade.Graded((int)quality, (double)thing.HitPoints / thing.MaxHitPoints);
         }
 
         private static Obs.TradeLine Line(Tradeable t, int index)
         {
-            ThingDef? def; try { def = t.ThingDef; } catch { def = null; }
-            Pawn? p; try { p = t.AnyThing as Pawn; } catch { p = null; }
-            var pawn = p != null;
-            var favor = SafeBool(() => t.IsFavor);
-            var line = new Obs.TradeLine
+            var pawn = t.AnyThing as Pawn;
+            // One colony thing of a non-pawn line, its stockpile and grade: a
+            // packed sculpture sells line by line, matched to its stock id, and
+            // the controller sells only the worn dump's gear above its caps.
+            var thing = pawn == null ? t.FirstThingColony : null;
+            var zone = thing != null && thing.Spawned ? thing.Map.zoneManager.ZoneAt(thing.Position) as Zone_Stockpile : null;
+            return new Obs.TradeLine
             {
                 LineId = "#" + index,
-                Definition = new Obs.DefinitionRef { DefName = def != null ? def.defName : "" },
-                Stuff = SafeText(() => t.StuffDef != null ? t.StuffDef.defName : ""),
-                ColonyCount = SafeInt(() => t.CountHeldBy(Transactor.Colony)), TraderCount = SafeInt(() => t.CountHeldBy(Transactor.Trader)),
+                DefName = t.ThingDef?.defName ?? "",
+                Stuff = t.StuffDef?.defName ?? "",
+                ColonyCount = t.CountHeldBy(Transactor.Colony), TraderCount = t.CountHeldBy(Transactor.Trader),
                 // GetPriceFor memoises price factors inside the Tradeable: the
                 // session's own scratch state, the same write the vanilla dialog
                 // makes every frame it draws.
-                BuyPrice = SafeFloat(() => t.GetPriceFor(TradeAction.PlayerBuys)), SellPrice = SafeFloat(() => t.GetPriceFor(TradeAction.PlayerSells)),
-                MarketValue = SafeFloat(() => t.BaseMarketValue),
-                TraderWillTrade = SafeBool(() => t.TraderWillTrade), Currency = SafeBool(() => t.IsCurrency), Pawn = p != null ? TradePawn(p) : null, Favor = favor,
-                TransferCount = SafeInt(() => t.CountToTransfer), MinimumCount = SafeInt(() => t.GetMinimumToTransfer()), MaximumCount = SafeInt(() => t.GetMaximumToTransfer()),
+                BuyPrice = t.GetPriceFor(TradeAction.PlayerBuys), SellPrice = t.GetPriceFor(TradeAction.PlayerSells),
+                TraderWillTrade = t.TraderWillTrade, Currency = t.IsCurrency,
+                Pawn = pawn != null ? TradePawn(pawn) : null,
+                TransferCount = t.CountToTransfer, MinimumCount = t.GetMinimumToTransfer(), MaximumCount = t.GetMaximumToTransfer(),
+                ThingId = thing?.GetUniqueLoadID() ?? "",
+                Grade = thing != null ? Grade(thing) : new Obs.TradeThingGrade.Ungraded(),
+                ZoneId = zone?.GetUniqueLoadID() ?? "",
             };
-            if (!pawn)
-            {
-                // One colony thing and its quality: a packed
-                // sculpture sells line by line, matched to its stock id.
-                Thing? thing; try { thing = t.FirstThingColony; } catch { thing = null; }
-                if (thing != null)
-                {
-                    var id = SafeText(() => thing.GetUniqueLoadID());
-                    if (id != "") line = line with { ThingId = id };
-                    try { if (thing.GetInnerIfMinified().TryGetQuality(out var quality)) line = line with { Quality = (int)quality }; } catch { }
-                    // Gear sale: the thing's hit-point fraction and the
-                    // stockpile it lies in, so the controller sells only the worn
-                    // dump's gear above its hit-point cap.
-                    try { if (thing.def.useHitPoints && thing.MaxHitPoints > 0) line = line with { HitPointsFraction = (double)thing.HitPoints / thing.MaxHitPoints }; } catch { }
-                    try
-                    {
-                        var zone = thing.Spawned ? thing.Map.zoneManager.ZoneAt(thing.Position) as Zone_Stockpile : null;
-                        if (zone != null) line = line with { ZoneId = zone.GetUniqueLoadID() };
-                    }
-                    catch { }
-                }
-            }
-            return line;
         }
 
         internal static Obs.TradeSession Session(Common.ObservationContext context)
         {
-            var session = new Obs.TradeSession { Context = context };
-            if (NativeTradeOperations.LiveTarget(context.Identity, out var target, out var negotiator, out var open) && target != null && negotiator != null)
-            { session = session with { Target = target }; session = session with { NegotiatorId = negotiator.GetUniqueLoadID() }; session = session with { Open = open }; }
-            return session;
+            var engaged = NativeTradeOperations.LiveTarget(context.Identity, out var target, out var negotiator, out var open) && target != null && negotiator != null;
+            return new Obs.TradeSession
+            {
+                Context = context,
+                Engagement = engaged
+                    ? new Obs.TradeEngagement.Engaged(target!, new PawnId(negotiator!.GetUniqueLoadID()), open)
+                    : new Obs.TradeEngagement.Idle(),
+            };
         }
 
-        internal static bool Sheet(Common.ObservationContext context, string? sessionId, out Obs.TradeSheet sheet, out Common.Failure failure)
+        internal static bool Sheet(Common.ObservationContext context, string? sessionId, out Obs.TradeSheet? sheet, out Common.Failure failure)
         {
-            sheet = new Obs.TradeSheet();
+            sheet = null;
             if (!NativeTradeOperations.SessionSheet(context.Identity, out var session, out failure)) return false;
             if (!string.IsNullOrEmpty(sessionId) && sessionId != session.SessionId)
             {
@@ -182,71 +151,70 @@ namespace HomeBridge.BridgeTools
             }
             var deal = session.Deal;
             var all = deal.AllTradeables.ToList();
-            Tradeable? currency; try { currency = deal.CurrencyTradeable; } catch { currency = null; }
-            try { deal.UpdateCurrencyCount(); } catch { }
+            var currency = deal.CurrencyTradeable;
+            var lines = new List<Obs.TradeLine>();
+            for (var i = 0; i < all.Count; i++) if (all[i] != null) lines.Add(Line(all[i], i));
             sheet = new Obs.TradeSheet
             {
-                Snapshot = new Obs.SnapshotRef { Context = context, EntityId = session.SessionId, Token = session.DealSignature },
+                Context = context,
                 SessionId = session.SessionId,
                 Target = session.Target,
-                Negotiator = NativeRef.Thing(session.Negotiator),
+                Negotiator = new PawnId(session.Negotiator.GetUniqueLoadID()),
                 GiftMode = session.GiftMode,
-                CanTradeNow = SafeBool(() => session.Trader.CanTradeNow),
-                TraderHasEnoughSilver = SafeBool(() => deal.DoesTraderHaveEnoughSilver()),
+                CanTradeNow = session.Trader.CanTradeNow,
+                // Negative when the colony pays, exactly the currency row's
+                // own signed transfer count.
+                Balance = currency != null
+                    ? new Obs.TradeBalance.Counted(currency.CountToTransfer, currency.CountPostDealFor(Transactor.Colony) >= 0)
+                    : new Obs.TradeBalance.NoCurrencyLine(),
+                TraderHasEnoughSilver = deal.DoesTraderHaveEnoughSilver(),
+                Lines = [.. lines],
                 DealSignature = session.DealSignature,
                 CurrencyKind = NativeTradeOperations.IsFavorSession() ? Defs.TradeCurrency.Favor : Defs.TradeCurrency.Silver,
             };
-            if (currency != null)
-            {
-                // Negative when the colony pays, exactly the currency row's
-                // own signed transfer count.
-                sheet = sheet with { Balance = SafeInt(() => currency.CountToTransfer) };
-                sheet = sheet with { ColonyCanAfford = SafeInt(() => currency.CountPostDealFor(Transactor.Colony)) >= 0 };
-            }
-            for (var i = 0; i < all.Count; i++) if (all[i] != null) sheet = sheet with { Lines = [.. sheet.Lines, Line(all[i], i)] };
             return true;
         }
     }
 
     internal static class NativeTradeObservationTools
     {
-        internal static Obs.TradersReply HandleListTraders(Obs.TradersRequest request)
+        private static void RequireIdentity(Obs.ReadScope? scope)
         {
-            if (request.Scope?.ExpectedIdentity == null)
-                return new Obs.TradersReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") };
-            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var map, out var context, out var failure))
-                return new Obs.TradersReply { Outcome = new Obs.TradersReplyOutcome.FailureCase(failure) };
-            try { return new Obs.TradersReply { Outcome = NativeTradeObservation.Traders(map, context) }; }
-            catch (Exception) { return new Obs.TradersReply { Outcome =
-                new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native trader census could not be read completely." } }; }
+            if (scope?.ExpectedIdentity == null) throw NativeFaults.Refused(ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required."));
         }
 
-        internal static Obs.TradeSessionReply HandleReadTradeSession(Obs.TradeSessionRequest request)
+        // The read's result, or the logged ReadFailed unavailability a read that could not complete throws.
+        private static T Complete<T>(string what, Func<T> read)
         {
-            if (request.Scope?.ExpectedIdentity == null)
-                return new Obs.TradeSessionReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") };
-            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var context, out var failure))
-                return new Obs.TradeSessionReply { Outcome = new Obs.TradeSessionReplyOutcome.FailureCase(failure) };
-            try { return new Obs.TradeSessionReply { Outcome = NativeTradeObservation.Session(context) }; }
-            catch (Exception) { return new Obs.TradeSessionReply { Outcome =
-                new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native trade session could not be read." } }; }
-        }
-
-        internal static Obs.TradeSheetReply HandleReadTradeSheet(Obs.TradeSheetRequest request)
-        {
-            if (request.Scope?.ExpectedIdentity == null)
-                return new Obs.TradeSheetReply { Outcome = ProtoBoundary.Fail(Common.FailureCode.InvalidRequest, "Identity is required.") };
-            if (!ProtoBoundary.ValidateIdentity(request.Scope.ExpectedIdentity, out var context, out var failure))
-                return new Obs.TradeSheetReply { Outcome = new Obs.TradeSheetReplyOutcome.FailureCase(failure) };
-            try
+            try { return read(); }
+            catch (Exception thrown) when (thrown is not NativeFailureException)
             {
-                if (!NativeTradeObservation.Sheet(context, request.SessionId, out var sheet, out failure))
-                    return new Obs.TradeSheetReply { Outcome = new Obs.TradeSheetReplyOutcome.FailureCase(failure) };
-                var reply = new Obs.TradeSheetReply { Outcome = sheet };
-                return reply;
+                ModLog.Error("observe", "Native " + what + " read failed: " + thrown);
+                throw NativeFaults.Unavailable(new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native " + what + " could not be read completely." });
             }
-            catch (Exception) { return new Obs.TradeSheetReply { Outcome =
-                new Common.Unavailable { Reason = Common.UnavailableReason.ReadFailed, Detail = "Native trade sheet could not be read completely." } }; }
+        }
+
+        internal static Obs.TradersSnapshot HandleListTraders(Obs.TradersRequest request)
+        {
+            RequireIdentity(request.Scope);
+            if (!ProtoBoundary.ValidateIdentity(request.Scope!.ExpectedIdentity, out var map, out var context, out var failure)) throw NativeFaults.Refused(failure);
+            return Complete("trader census", () => NativeTradeObservation.Traders(map, context));
+        }
+
+        internal static Obs.TradeSession HandleReadTradeSession(Obs.TradeSessionRequest request)
+        {
+            RequireIdentity(request.Scope);
+            if (!ProtoBoundary.ValidateIdentity(request.Scope!.ExpectedIdentity, out var context, out var failure)) throw NativeFaults.Refused(failure);
+            return Complete("trade session", () => NativeTradeObservation.Session(context));
+        }
+
+        internal static Obs.TradeSheet HandleReadTradeSheet(Obs.TradeSheetRequest request)
+        {
+            RequireIdentity(request.Scope);
+            if (!ProtoBoundary.ValidateIdentity(request.Scope!.ExpectedIdentity, out var context, out var failure)) throw NativeFaults.Refused(failure);
+            return Complete("trade sheet", () => NativeTradeObservation.Sheet(context, request.SessionId, out var sheet, out var refused)
+                ? sheet!
+                : throw NativeFaults.Refused(refused));
         }
     }
 }

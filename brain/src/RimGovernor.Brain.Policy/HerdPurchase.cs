@@ -89,7 +89,7 @@ public static class HerdPurchaseRules
             TradeSheetRowFact? best = null;
             foreach (var row in rows)
             {
-                if (row.Pawn is not { } pawn || !row.TraderWillTradeKnown || !row.TraderWillTrade || row.TraderCount < 1 || row.ColonyCount != 0 || new Resource(row.DefName) != want.Race)
+                if (row.Pawn is not { } pawn || !row.TraderWillTrade || row.TraderCount < 1 || row.ColonyCount != 0 || new Resource(row.DefName) != want.Race)
                 {
                     continue;
                 }
@@ -97,7 +97,7 @@ public static class HerdPurchaseRules
                 {
                     continue;
                 }
-                if (!row.BuyPriceKnown || !TradePolicyRules.Finite(row.BuyPrice) || row.BuyPrice <= 0 || row.BuyPrice > budget)
+                if (!TradePolicyRules.Finite(row.BuyPrice) || row.BuyPrice <= 0 || row.BuyPrice > budget)
                 {
                     continue;
                 }

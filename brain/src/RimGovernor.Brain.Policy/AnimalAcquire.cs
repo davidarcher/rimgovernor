@@ -297,7 +297,7 @@ public static class AnimalAcquireRules
             {
                 var ok = input.Races.Race(new Resource(row.Def), out var race);
                 if (
-                    row.Pawn is not { } gender
+                    row is not TradeOffer.Pawn { Gender: var gender }
                     || !ok
                     || row.Count < 1
                     || gender == RimGovernor.Contracts.Wire.Defs.Gender.None

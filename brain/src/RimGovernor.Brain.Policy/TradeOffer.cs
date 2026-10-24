@@ -24,20 +24,32 @@ public sealed record TradeOffers
     public IReadOnlyList<TradeOffer> Rows { get; init; } = [];
 }
 
-/// <summary>One priced row the trader sells: the definition, how many units it holds and the silver price of one.</summary>
-public sealed record TradeOffer
+/// <summary>
+/// One priced row the trader sells: the definition, how many units it holds and the silver price of one. A Food row
+/// carries its food classification, a Pawn row the live pawn's sex (Def is its race, what an animal purchase
+/// candidate prices), and Goods is every other row.
+/// </summary>
+public abstract record TradeOffer
 {
-    public string Def { get; init; } = "";
+    private protected TradeOffer() { }
 
-    public long Count { get; init; }
+    public required string Def { get; init; }
 
-    public double Price { get; init; }
+    public required long Count { get; init; }
 
-    /// <summary>A live pawn row's sex (Def is its race), what an animal purchase candidate prices; null on any other row.</summary>
-    public RimGovernor.Contracts.Wire.Defs.Gender? Pawn { get; init; }
+    public required double Price { get; init; }
 
-    /// <summary>Classifies a food row (TradeFoodGood); unknown for any other row.</summary>
-    public Fact<TradeFoodGood> Food { get; init; }
+    public sealed record Goods : TradeOffer;
+
+    public sealed record Food : TradeOffer
+    {
+        public required TradeFoodGood Good { get; init; }
+    }
+
+    public sealed record Pawn : TradeOffer
+    {
+        public required RimGovernor.Contracts.Wire.Defs.Gender Gender { get; init; }
+    }
 }
 
 public static partial class TradePolicyRules
@@ -118,13 +130,14 @@ public static partial class TradePolicyRules
             {
                 continue;
             }
-            static double PerNutrition(TradeOffer r) => r.Price / r.Food.ValueOrDefault!.Nutrition;
+            static double PerNutrition(TradeOffer.Food r) => r.Price / r.Good.Nutrition;
 
             var rows = record
-                .Rows.Where(row => row.Food.TryGetValue(out var g) && ValidTradeFood(g) && row.Count > 0 && Finite(row.Price) && row.Price > 0)
+                .Rows.OfType<TradeOffer.Food>()
+                .Where(row => ValidTradeFood(row.Good) && row.Count > 0 && Finite(row.Price) && row.Price > 0)
                 .OrderBy(
                     x => x,
-                    Comparer<TradeOffer>.Create(
+                    Comparer<TradeOffer.Food>.Create(
                         (a, b) =>
                         {
                             var pa = PerNutrition(a);
@@ -144,7 +157,7 @@ public static partial class TradePolicyRules
             var spent = 0.0;
             foreach (var row in rows)
             {
-                var g = row.Food.ValueOrDefault!;
+                var g = row.Good;
                 var count = Math.Min(row.Count, Math.Min(Math.Floor(budget / row.Price), Math.Ceiling(wanted / g.Nutrition)));
                 if (!(count > 0))
                 {

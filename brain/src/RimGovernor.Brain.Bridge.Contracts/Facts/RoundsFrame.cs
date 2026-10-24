@@ -32,7 +32,7 @@ public sealed record RoundsFrame
     /// <summary>The research section a decoded routine frame always carries; null only on the empty carrier frame a room reconcile passes.</summary>
     public ResearchSnapshot? Research { get; init; }
 
-    public TradersRead? Traders { get; init; }
+    public TradersSnapshot? Traders { get; init; }
 
     public WorldProgressionRead? Quests { get; init; }
 

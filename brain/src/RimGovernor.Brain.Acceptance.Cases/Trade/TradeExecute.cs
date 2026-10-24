@@ -69,9 +69,9 @@ internal static class TradeExecute
             }
         }
 
-        static bool Plain(Observations.TradeLine row) => row.TraderWillTrade == true && row.Currency != true && row.Pawn is null && !string.IsNullOrEmpty(row.LineId);
+        static bool Plain(Observations.TradeLine row) => row.TraderWillTrade && !row.Currency && row.Pawn is null && row.LineId.Length != 0;
 
-        static double N(double? value) => value ?? 0;
+        static double N(double value) => value;
 
         // Step 1: open, stage one buy and one sell, accept.
         var sessionId = await Open("open").ConfigureAwait(false);
@@ -103,7 +103,7 @@ internal static class TradeExecute
         s.RecordWire("sell", sell);
         await SetLines("lines", new Operations.TradeLine { LineId = buy.LineId, AbsoluteCount = 1 }, new Operations.TradeLine { LineId = sell.LineId, AbsoluteCount = -sellCount }).ConfigureAwait(false);
         var staged = await TradeKit.SheetAsync(s, "staged", sessionId, cancellationToken).ConfigureAwait(false);
-        if (staged.ColonyCanAfford != true)
+        if (staged.Balance is not Observations.TradeBalance.Counted { ColonyCanAfford: true })
         {
             throw new AcceptanceException($"staged: the colony cannot afford the staged deal: {staged}");
         }
@@ -116,7 +116,7 @@ internal static class TradeExecute
         }
 
         var session = await TradeKit.SessionAsync(s, "session-closed", cancellationToken).ConfigureAwait(false);
-        if (session.Open == true || session.Target?.Kind is not null)
+        if (session.Engagement is not Observations.TradeEngagement.Idle)
         {
             throw new AcceptanceException($"session-closed: expected no live trade after accept, got {session}");
         }
@@ -124,7 +124,7 @@ internal static class TradeExecute
         // Stock moved: a fresh session shows the trader's bought row and the colony's sold row down by the staged counts.
         sessionId = await Open("reopen").ConfigureAwait(false);
         var after = await TradeKit.SheetAsync(s, "after", sessionId, cancellationToken).ConfigureAwait(false);
-        Observations.TradeLine? ByDef(Observations.TradeLine row) => after.Lines.FirstOrDefault(o => o.Definition == row.Definition && o.Stuff == row.Stuff);
+        Observations.TradeLine? ByDef(Observations.TradeLine row) => after.Lines.FirstOrDefault(o => o.DefName == row.DefName && o.Stuff == row.Stuff);
         if (ByDef(buy) is not { } bought || N(bought.TraderCount) != N(buy.TraderCount) - 1)
         {
             throw new AcceptanceException($"after: expected the trader's {buy.LineId} down by one from {buy.TraderCount}, got {ByDef(buy)}");
@@ -140,7 +140,7 @@ internal static class TradeExecute
             ?? throw new AcceptanceException($"after: no row left to buy: {after}");
         await SetLines("dear-lines", new Operations.TradeLine { LineId = dear.LineId, AbsoluteCount = (int)N(dear.MaximumCount) }).ConfigureAwait(false);
         var dearSheet = await TradeKit.SheetAsync(s, "dear", sessionId, cancellationToken).ConfigureAwait(false);
-        if (dearSheet.ColonyCanAfford == true)
+        if (dearSheet.Balance is Observations.TradeBalance.Counted { ColonyCanAfford: true })
         {
             throw new AcceptanceException($"dear: the colony can afford the whole of {dear.LineId}; no unaffordable deal to stage");
         }

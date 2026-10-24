@@ -73,7 +73,7 @@ public sealed partial class FacadeNativeClient
         }
         if (v.Traders is not null)
         {
-            output = output with { Traders = TradeDecodeTraders(v.Traders) };
+            output = output with { Traders = v.Traders };
         }
         if (v.WorldProgression is not null)
         {

@@ -211,9 +211,9 @@ mod. They were generated once from `contracts/proto` and are now owned by hand; 
 - The def mirror (`defs.proto`) is not a wire contract here: only the six game enums the observations carry
   (`Defs.cs`) exist; the catalog replies drop `defs`, `thing_defs`, `terrain_defs` and `game_constants` (the brain
   reads Def data directly). Type names changed to satisfy analyzers:
-  `Mirror.ThingFlag` is `ThingFlagBit`, `Observations.BillStack` is `BillStackRow`; six properties named like
+  `Mirror.ThingFlag` is `ThingFlagBit`, `Observations.BillStack` is `BillStackRow`; five properties named like
   their message got a different name (`Letters.Items`, `Messages.Items`, `Alerts.Items`, `Amount.Value`,
-  `Thing.Entity`, `Trader.Entity`) and keep their JSON name.
+  `Thing.Entity`) and keep their JSON name.
 
 ## Stat reads and the game assemblies (A1b, #3056)
 

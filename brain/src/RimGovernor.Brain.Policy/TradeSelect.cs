@@ -1,11 +1,11 @@
+using TradePawnGuest = RimGovernor.Contracts.Wire.Observations.TradePawnGuest;
+using TradeThingGrade = RimGovernor.Contracts.Wire.Observations.TradeThingGrade;
+
 namespace RimGovernor.Brain.Policy;
 
-
 /// <summary>
-/// One live trade sheet row as SelectTrade reads it. Each optional native field carries its own Known flag:
-/// Python's select_trade tests <c>is not True</c> / <c>is not False</c> precisely so an absent field is never
-/// silently read as a usable value, and this mirrors that. It deliberately mirrors the bridge's trade sheet row
-/// without this package depending on the bridge package.
+/// One live trade sheet row as SelectTrade reads it: the native sheet line with its food classification and the
+/// offered pawn's profile.
 /// </summary>
 public sealed record TradeSheetRowFact
 {
@@ -21,19 +21,11 @@ public sealed record TradeSheetRowFact
 
     public double BuyPrice { get; init; }
 
-    public bool BuyPriceKnown { get; init; }
-
     public double SellPrice { get; init; }
-
-    public bool SellPriceKnown { get; init; }
 
     public bool TraderWillTrade { get; init; }
 
-    public bool TraderWillTradeKnown { get; init; }
-
     public bool Currency { get; init; }
-
-    public bool CurrencyKnown { get; init; }
 
     /// <summary>The offered pawn on a pawn row, null on every other row.</summary>
     public TradeRowPawn? Pawn { get; init; }
@@ -41,16 +33,10 @@ public sealed record TradeSheetRowFact
     /// <summary>A non-pawn row's first colony thing: a packed sculpture's row names its packed item.</summary>
     public string ThingID { get; init; } = "";
 
-    /// <summary>A gear row's hit-point fraction and ZoneID the stockpile its thing lies in; what SaleGear matches.</summary>
-    public double HitPoints { get; init; }
+    /// <summary>A gear row's native QualityCategory index (Awful 0 .. Legendary 6) and hit-point fraction, what SaleGear matches.</summary>
+    public TradeThingGrade Grade { get; init; } = new TradeThingGrade.Ungraded();
 
-    public bool HitPointsKnown { get; init; }
-
-    /// <summary>A gear row's native QualityCategory index (Awful 0 .. Legendary 6).</summary>
-    public int Quality { get; init; }
-
-    public bool QualityKnown { get; init; }
-
+    /// <summary>The stockpile the row's thing lies in.</summary>
     public string ZoneID { get; init; } = "";
 
     /// <summary>A stuffed gear row's material (empty otherwise): what SaleGearSurplus matches beside the definition and condition.</summary>
@@ -69,10 +55,7 @@ public sealed record TradeRowPawn
 
     public bool ViolenceCapable { get; init; }
 
-    /// <summary>Null on a pawn without a guest tracker.</summary>
-    public RimGovernor.Contracts.Wire.Defs.GuestStatus? GuestStatus { get; init; }
-
-    public bool PrisonerSecure { get; init; }
+    public TradePawnGuest Guest { get; init; } = new TradePawnGuest.NoGuestTracker();
 
     public bool Downed { get; init; }
 
@@ -183,7 +166,7 @@ public static partial class TradePolicyRules
     {
         foreach (var row in rows)
         {
-            if (row.CurrencyKnown && row.Currency)
+            if (row.Currency)
             {
                 return (row.DefName, true);
             }
@@ -268,7 +251,7 @@ public static partial class TradePolicyRules
             }
             // Classification comes from ThingDef, never localized names or model guesses; an unknown flag is
             // never read as a permissive default.
-            if (!row.TraderWillTradeKnown || !row.TraderWillTrade || row.Pawn is not null || !row.CurrencyKnown || row.Currency)
+            if (!row.TraderWillTrade || row.Pawn is not null || row.Currency)
             {
                 continue;
             }
@@ -289,7 +272,7 @@ public static partial class TradePolicyRules
             var count = 0L;
             if (stock < floor && target.MaxBuy > 0)
             {
-                if (!row.BuyPriceKnown || !Finite(row.BuyPrice) || row.BuyPrice < 0)
+                if (!Finite(row.BuyPrice) || row.BuyPrice < 0)
                 {
                     continue;
                 }
@@ -317,7 +300,7 @@ public static partial class TradePolicyRules
                 {
                     continue;
                 }
-                if (!row.SellPriceKnown || !Finite(row.SellPrice) || row.SellPrice < 0)
+                if (!Finite(row.SellPrice) || row.SellPrice < 0)
                 {
                     continue;
                 }
@@ -396,11 +379,11 @@ public static partial class TradePolicyRules
         var output = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in rows)
         {
-            if (row.ThingID.Length == 0 || row.Pawn is not null || !warehouses.Contains(row.ZoneID) || !row.HitPointsKnown || !row.QualityKnown)
+            if (row.ThingID.Length == 0 || row.Pawn is not null || !warehouses.Contains(row.ZoneID) || row.Grade is not TradeThingGrade.Graded grade)
             {
                 continue;
             }
-            if (row.HitPoints < StockpileRolesConstants.GearHitPointFloor || row.Quality < floor)
+            if (grade.HitPointsFraction < StockpileRolesConstants.GearHitPointFloor || grade.Quality < floor)
             {
                 output.Add(row.ThingID);
             }
@@ -425,11 +408,11 @@ public static partial class TradePolicyRules
             {
                 continue;
             }
-            if (!row.TraderWillTradeKnown || !row.TraderWillTrade || (row.Pawn is not null) != pawns || !row.CurrencyKnown || row.Currency || stopped.Contains(row.DefName))
+            if (!row.TraderWillTrade || (row.Pawn is not null) != pawns || row.Currency || stopped.Contains(row.DefName))
             {
                 continue;
             }
-            if (row.ColonyCount < 1 || !row.SellPriceKnown || !Finite(row.SellPrice) || row.SellPrice < 0)
+            if (row.ColonyCount < 1 || !Finite(row.SellPrice) || row.SellPrice < 0)
             {
                 continue;
             }

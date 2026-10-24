@@ -147,13 +147,13 @@ public interface INativeFacade
 
     Task<Obs.SpatialAccessReply> ReadSpatialAccessAsync(Obs.SpatialAccessRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.TradeAcquisitionReply> ReadTradeAcquisitionAsync(Obs.TradeAcquisitionRequest request, CancellationToken cancellationToken);
+    Task<Obs.TradeAcquisition> ReadTradeAcquisitionAsync(Obs.TradeAcquisitionRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.TradersReply> ListTradersAsync(Obs.TradersRequest request, CancellationToken cancellationToken);
+    Task<Obs.TradersSnapshot> ListTradersAsync(Obs.TradersRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.TradeSessionReply> ReadTradeSessionAsync(Obs.TradeSessionRequest request, CancellationToken cancellationToken);
+    Task<Obs.TradeSession> ReadTradeSessionAsync(Obs.TradeSessionRequest request, CancellationToken cancellationToken);
 
-    Task<Obs.TradeSheetReply> ReadTradeSheetAsync(Obs.TradeSheetRequest request, CancellationToken cancellationToken);
+    Task<Obs.TradeSheet> ReadTradeSheetAsync(Obs.TradeSheetRequest request, CancellationToken cancellationToken);
 
     Task<Obs.WallUpgradeSnapshot> ListWallUpgradeSitesAsync(Obs.WallUpgradeSitesRequest request, CancellationToken cancellationToken);
 

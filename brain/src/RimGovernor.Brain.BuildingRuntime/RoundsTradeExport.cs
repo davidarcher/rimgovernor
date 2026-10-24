@@ -330,13 +330,9 @@ internal sealed class RoundsTradeExportPlanner : IPurposeReporter
         var seen = new HashSet<string>();
         foreach (var row in facts.Requests)
         {
-            if (row.Eligible is not null && !row.Eligible.GetValueOrDefault())
+            if (row.Eligible && row.TraderKind.Length != 0)
             {
-                continue;
-            }
-            if ((row.TraderKind ?? "") != "")
-            {
-                seen.Add((row.TraderKind ?? ""));
+                seen.Add(row.TraderKind);
             }
         }
         var settlements = await settlementsRead.ConfigureAwait(false);

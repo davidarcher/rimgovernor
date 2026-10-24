@@ -120,8 +120,8 @@ public sealed partial class Rounder
             priced.Add(o.Trader);
         }
 
-        var marked = traders.Select(t => t with { Unpriced = t.CanTrade && !priced.Contains(t.ID) }).ToList();
-        p = p with { Facts = p.Facts with { Traders = Known(EquatableArray.From(marked)) } };
+        var unpriced = traders.Where(t => t.CanTrade && !priced.Contains(t.Key())).Select(t => t.Key()).ToList();
+        p = p with { Facts = p.Facts with { UnpricedTraders = EquatableArray.From(unpriced) } };
     }
 }
 

@@ -224,16 +224,16 @@ namespace HomeBridge.BridgeTools
         public Task<Obs.SpatialAccessReply> ReadSpatialAccessAsync(Obs.SpatialAccessRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadSpatialAccess, request, () => NativeSpatialAccessTool.HandleReadSpatialAccess(request), cancellationToken);
 
-        public Task<Obs.TradeAcquisitionReply> ReadTradeAcquisitionAsync(Obs.TradeAcquisitionRequest request, CancellationToken cancellationToken)
+        public Task<Obs.TradeAcquisition> ReadTradeAcquisitionAsync(Obs.TradeAcquisitionRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadTradeAcquisition, request, () => NativeTradeAcquisitionTools.HandleReadTradeAcquisition(request), cancellationToken);
 
-        public Task<Obs.TradersReply> ListTradersAsync(Obs.TradersRequest request, CancellationToken cancellationToken)
+        public Task<Obs.TradersSnapshot> ListTradersAsync(Obs.TradersRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ListTraders, request, () => NativeTradeObservationTools.HandleListTraders(request), cancellationToken);
 
-        public Task<Obs.TradeSessionReply> ReadTradeSessionAsync(Obs.TradeSessionRequest request, CancellationToken cancellationToken)
+        public Task<Obs.TradeSession> ReadTradeSessionAsync(Obs.TradeSessionRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadTradeSession, request, () => NativeTradeObservationTools.HandleReadTradeSession(request), cancellationToken);
 
-        public Task<Obs.TradeSheetReply> ReadTradeSheetAsync(Obs.TradeSheetRequest request, CancellationToken cancellationToken)
+        public Task<Obs.TradeSheet> ReadTradeSheetAsync(Obs.TradeSheetRequest request, CancellationToken cancellationToken)
             => Read(NativeOps.ReadTradeSheet, request, () => NativeTradeObservationTools.HandleReadTradeSheet(request), cancellationToken);
 
         public Task<Obs.WallUpgradeSnapshot> ListWallUpgradeSitesAsync(Obs.WallUpgradeSitesRequest request, CancellationToken cancellationToken)

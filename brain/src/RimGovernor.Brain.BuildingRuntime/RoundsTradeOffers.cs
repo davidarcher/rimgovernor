@@ -38,7 +38,7 @@ internal sealed partial class TradeOfferBook
     /// The records of the traders on the census that can trade and whose record still describes them
     /// (TradeOffersFresh), in trader id order. A trader that left the census loses its record.
     /// </summary>
-    public List<Pol.TradeOffers> Fresh(GenerationSnapshot snapshot, Tick now, long silver, IReadOnlyList<Pol.TraderFacts> traders)
+    public List<Pol.TradeOffers> Fresh(GenerationSnapshot snapshot, Tick now, long silver, IReadOnlyList<PbObservations.Trader> traders)
     {
         lock (_gate)
         {
@@ -46,10 +46,10 @@ internal sealed partial class TradeOfferBook
             {
                 return [];
             }
-            var present = new Dictionary<string, Pol.TraderFacts>();
+            var present = new Dictionary<string, PbObservations.Trader>();
             foreach (var t in traders)
             {
-                present[t.ID] = t;
+                present[t.Key()] = t;
             }
             var output = new List<Pol.TradeOffers>();
             foreach (var (id, record) in _records.ToList())
@@ -102,9 +102,9 @@ public sealed partial class RoundsTradePlanner
     /// with the colony's silver and the trader's goods stacks the record's freshness is judged against. The plan
     /// reads it from the next plan build on (the book's revision keys the cache).
     /// </summary>
-    private async Task RecordOffersAsync(ControlState state, TradeSheetRead sheet, long stacks, CancellationToken call)
+    private async Task RecordOffersAsync(ControlState state, PbObservations.TradeSheet sheet, long stacks, CancellationToken call)
     {
-        var (silver, _, silverKnown) = TradeSheetSilver(sheet.Rows);
+        var (silver, _, silverKnown) = TradeSheetSilver(sheet.Lines);
         if (!silverKnown)
         {
             return;
@@ -115,16 +115,20 @@ public sealed partial class RoundsTradePlanner
         }
         var catalog = await definitions.DefinitionCatalogAsync(Boundary.Identity(state.Snapshot), call).ConfigureAwait(false);
         var rows = new List<Pol.TradeOffer>();
-        foreach (var row in sheet.Rows)
+        foreach (var row in sheet.Lines)
         {
-            if ((row.CurrencyKnown && row.Currency) || row.TraderCount <= 0 || !row.BuyPriceKnown)
+            if (row.Currency || row.TraderCount <= 0)
             {
                 continue;
             }
-            var food = TradeFoodFact(row, catalog);
-            rows.Add(new Pol.TradeOffer { Def = row.DefName, Count = row.TraderCount, Price = row.BuyPrice, Pawn = row.Pawn?.Gender, Food = food });
+            rows.Add(row.Pawn is { } pawn
+                ? new Pol.TradeOffer.Pawn { Def = row.DefName, Count = row.TraderCount, Price = row.BuyPrice, Gender = pawn.Gender }
+                : row.DefName.Length != 0 && catalog.TradeFood(row.DefName) is { } good
+                    ? new Pol.TradeOffer.Food { Def = row.DefName, Count = row.TraderCount, Price = row.BuyPrice, Good = good }
+                    : new Pol.TradeOffer.Goods { Def = row.DefName, Count = row.TraderCount, Price = row.BuyPrice });
         }
-        var offers = new Pol.TradeOffers { Participant = TradeTarget.TradeParticipantOf(sheet.Target), Trader = sheet.Trader, Tick = new Tick(sheet.Context?.Tick ?? 0), Silver = silver, GoodsStacks = stacks, Rows = rows };
+        var participant = TradeTarget.TradeParticipantOf(sheet.Target);
+        var offers = new Pol.TradeOffers { Participant = participant, Trader = participant.Key(), Tick = new Tick(sheet.Context.Tick), Silver = silver, GoodsStacks = stacks, Rows = rows };
         Reviewer.TradeOffers.Record(state.Snapshot, offers);
     }
 

@@ -291,7 +291,7 @@ leaves the census, a settled session (accept or end) and a new generation drop
 the record. #2166 presents traders on the model from the same records.
 
 Browsing is general: the Round marks every tradeable caravan on the census with
-no fresh record `TraderFacts.Unpriced` (`Rounder.markUnpriced`), and
+no fresh record in `UnpricedTraders` (`Rounder.MarkUnpriced`), and
 `TradeRecovered` keeps the `economy/caravan` Need unmet while one is present,
 whatever the colony needs. The negotiator opens a session, the sheet read
 records the offers and the plan is rebuilt; lines stage only for what the plan

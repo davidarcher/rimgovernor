@@ -398,7 +398,10 @@ public sealed record RoundsFacts
     public Fact<EquatableArray<WasteItem>> Waste { get; init; }
 
     /// <summary>The map trader census (bridge.ListTraders) the economy/caravan Need needs; a source without the read leaves it unknown and the goal off.</summary>
-    public Fact<EquatableArray<TraderFacts>> Traders { get; init; }
+    public Fact<EquatableArray<RimGovernor.Contracts.Wire.Observations.Trader>> Traders { get; init; }
+
+    /// <summary>The keys of the tradeable traders whose sheet the offer book has no fresh record of (TradeRecovered's always-browse session); empty until the food plan marks them.</summary>
+    public EquatableArray<string> UnpricedTraders { get; init; } = [];
 
     /// <summary>The food/blight Need's blighted-plant census (the colony read's plant things of the planning window), for BlightDeficit to detect and SelectBlightCuts to designate from.</summary>
     public Fact<EquatableArray<BlightedPlant>> Blight { get; init; }

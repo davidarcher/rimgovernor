@@ -211,12 +211,9 @@ public static partial class TradePolicyRules
                 || counts[row.DefName] != 1
                 || row.ColonyCount < 0
                 || row.TraderCount <= 0
-                || !row.TraderWillTradeKnown
                 || !row.TraderWillTrade
                 || row.Pawn is not null
-                || !row.CurrencyKnown
                 || row.Currency
-                || !row.BuyPriceKnown
                 || !FieldCapacityRules.FieldPositive(row.BuyPrice)
             )
             {

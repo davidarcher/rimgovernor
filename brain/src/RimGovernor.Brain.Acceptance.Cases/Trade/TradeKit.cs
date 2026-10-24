@@ -65,21 +65,18 @@ internal static class TradeKit
     /// <summary>The live trade session.</summary>
     internal static async Task<Observations.TradeSession> SessionAsync(TypedSession s, string label, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadTradeSession, new Observations.TradeSessionRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
-        return TypedReads.Observed(label, NativeOps.ReadTradeSession, reply, reply.Outcome?.Observed);
+        return await s.CallAsync(label, NativeOps.ReadTradeSession, new Observations.TradeSessionRequest { Scope = s.Scope }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>The open session's sheet.</summary>
     internal static async Task<Observations.TradeSheet> SheetAsync(TypedSession s, string label, string sessionId, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadTradeSheet, new Observations.TradeSheetRequest { Scope = s.Scope, SessionId = sessionId }, cancellationToken).ConfigureAwait(false);
-        return TypedReads.Observed(label, NativeOps.ReadTradeSheet, reply, reply.Outcome?.Observed);
+        return await s.CallAsync(label, NativeOps.ReadTradeSheet, new Observations.TradeSheetRequest { Scope = s.Scope, SessionId = sessionId }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>The trade-acquisition read, with an optional caravan pack to estimate.</summary>
     internal static async Task<Observations.TradeAcquisition> AcquisitionAsync(TypedSession s, string label, Operations.FormCaravanIntent? pack, CancellationToken cancellationToken)
     {
-        var reply = await s.CallAsync(label, NativeOps.ReadTradeAcquisition, new Observations.TradeAcquisitionRequest { Scope = s.Scope, Pack = pack }, cancellationToken).ConfigureAwait(false);
-        return TypedReads.Observed(label, NativeOps.ReadTradeAcquisition, reply, reply.Outcome?.Observed);
+        return await s.CallAsync(label, NativeOps.ReadTradeAcquisition, new Observations.TradeAcquisitionRequest { Scope = s.Scope, Pack = pack }, cancellationToken).ConfigureAwait(false);
     }
 }

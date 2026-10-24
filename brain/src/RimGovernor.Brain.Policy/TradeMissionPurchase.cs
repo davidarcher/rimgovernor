@@ -43,11 +43,11 @@ public sealed record MissionPurchaseRow
 
     public bool Currency { get; init; }
 
-    public Fact<double> BuyPrice { get; init; }
+    public double BuyPrice { get; init; }
 
     public Fact<double> UnitMass { get; init; }
 
-    public Fact<bool> WillTrade { get; init; }
+    public bool WillTrade { get; init; }
 }
 
 public sealed record MissionPurchaseRequest
@@ -217,9 +217,8 @@ public static partial class TradePolicyRules
         }
         foreach (var row in request.Rows)
         {
-            var pk = row.BuyPrice.TryGetValue(out var price);
-            var wk = row.WillTrade.TryGetValue(out var willTrade);
-            if (wanted.GetValueOrDefault(row.DefName) == 0 || row.Pawn || row.Currency || !pk || price <= 0 || !FoodForecastRules.FoodNumber(price) || !wk || !willTrade)
+            var price = row.BuyPrice;
+            if (wanted.GetValueOrDefault(row.DefName) == 0 || row.Pawn || row.Currency || price <= 0 || !FoodForecastRules.FoodNumber(price) || !row.WillTrade)
             {
                 continue;
             }
@@ -270,10 +269,6 @@ public static partial class TradePolicyRules
     }
 
     /// <summary>Rechecks the staged deal against saved authorization.</summary>
-    public static bool TradeMissionPaymentSafe(long budget, Fact<long> silver, Fact<double> balance)
-    {
-        var sk = silver.TryGetValue(out var amount);
-        var bk = balance.TryGetValue(out var charge);
-        return sk && bk && FoodForecastRules.FoodNumber(-charge) && -charge <= budget && amount + charge >= 0;
-    }
+    public static bool TradeMissionPaymentSafe(long budget, long silver, double charge) =>
+        FoodForecastRules.FoodNumber(-charge) && -charge <= budget && silver + charge >= 0;
 }

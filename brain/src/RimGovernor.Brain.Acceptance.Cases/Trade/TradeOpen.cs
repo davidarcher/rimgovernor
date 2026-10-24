@@ -1,5 +1,6 @@
 using Common = RimGovernor.Contracts.Wire.Common;
 using Fx = RimGovernor.Fixtures.Contracts;
+using Observations = RimGovernor.Contracts.Wire.Observations;
 using Operations = RimGovernor.Contracts.Wire.Operations;
 
 namespace RimGovernor.Brain.Acceptance.Cases;
@@ -53,7 +54,8 @@ internal static class TradeOpen
         }
 
         var session = await TradeKit.SessionAsync(s, "session", cancellationToken).ConfigureAwait(false);
-        if (session.Open != true || session.Target?.Kind?.MapTrader?.TraderId != traderId || session.NegotiatorId != crew.Negotiator)
+        if (session.Engagement is not Observations.TradeEngagement.Engaged { Open: true } engaged
+            || engaged.Target.Kind?.MapTrader?.TraderId != traderId || engaged.Negotiator.Value != crew.Negotiator)
         {
             throw new AcceptanceException($"session: expected {crew.Negotiator} trading with {traderId} in an open session, got {session}");
         }

@@ -149,7 +149,7 @@ Deleted as dead (no Go reader): `ConstructionState.total_work` (work left and pe
 
 Kept, reason recorded:
 - `ConstructionState.minimum_finishing_skill`, `QuestSiteCargo.unit_mass`/`market_value`/`nutrition`: the value is the game worker's output for the live frame or quest, not a stat row read.
-- `StockItem.market_value`, `TradeLine.market_value`/`currency`: `StatWorker_MarketValue` including live quality, hit points and contents, and `Tradeable.IsCurrency` for the open session.
+- `StockItem.market_value`, `TradeLine.currency`: `StatWorker_MarketValue` including live quality, hit points and contents, and `Tradeable.IsCurrency` for the open session.
 - Live hit points (`hit_points` on buildings, items and pawns' gear, `max_hit_points` on instances): per-instance state.
 
 ## Native files
@@ -564,14 +564,11 @@ Kept, reason recorded:
 | Trader | message | 1274 | 10 | state | Trader row |  |  |
 | TradersSnapshot | message | 1275 | 3 | state | Traders and negotiators |  |  |
 | TradersRequest | message | 1276 | 1 | state | Read request parameters |  |  |
-| TradersReply | message | 1277 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
-| TradeLine | message | 1280 | 35 | mixed | Trade sheet line: counts, prices, pawn/food facts | category;market_value;currency | ThingDef.thingCategories / statBases MarketValue x stuff x quality (catalog stat table); currency = Go rule over ThingDef (silver) |
+| TradeLine | message | 1280 | 35 | mixed | Trade sheet line: counts, prices, pawn/food facts | category;currency | ThingDef.thingCategories (catalog); currency = Go rule over ThingDef (silver) |
 | TradeSession | message | 1291 | 4 | state | Live trade session pair |  |  |
 | TradeSessionRequest | message | 1292 | 1 | state | Read request parameters |  |  |
-| TradeSessionReply | message | 1293 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | TradeSheet | message | 1294 | 13 | state | Open trade sheet |  |  |
 | TradeSheetRequest | message | 1295 | 5 | state | Read request parameters |  |  |
-| TradeSheetReply | message | 1296 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | TradeAcquisitionRequest | message | 1299 | 2 | state | Trade acquisition request with pack intent |  |  |
 | TradeConsole | message | 1300 | 2 | state | Comms console with negotiators |  |  |
 | PassingTradeShip | message | 1301 | 6 | state | Passing trade ship |  |  |
@@ -580,7 +577,6 @@ Kept, reason recorded:
 | TradeRequestArrival | message | 1327 | 6 | state | Pending trade request arrival |  |  |
 | TradeCommsWork | message | 1328 | 4 | state | Comms work assignment |  |  |
 | TradePackEstimate | message | 1329 | 8 | code | Caravan pack estimate |  |  |
-| TradeAcquisitionReply | message | 1339 | 3 | state | Reply envelope (observed/unavailable/failure) |  |  |
 | FoodConsumer | message | 1341 | 3 | code | Pawn nutrition per day and human-meat acceptance |  |  |
 | FoodStock | message | 1347 | 4 | state | Food stock with nutrition and eaters |  |  |
 | CorpseHandling | message | 1349 | 5 | state | Corpse in field or storage |  |  |

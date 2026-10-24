@@ -1,3 +1,5 @@
+using Trader = RimGovernor.Contracts.Wire.Observations.Trader;
+
 namespace RimGovernor.Brain.Policy;
 
 // The routine trade goal: while a tradeable caravan stands on the map and the colony has
@@ -7,26 +9,14 @@ namespace RimGovernor.Brain.Policy;
 // configuration push: a negotiator's conversation, not a development project, so it holds no development slot.
 
 /// <summary>
-/// One map trader from the trader list as the routine review reads it: CanTrade is native's own verdict that a
-/// session can be opened with it now (CanTradeNow, not dismissed, arrived), Travelling that its caravan is still
-/// walking to its trade spot, GoodsStacks the size of what it carries. Unpriced marks a tradeable caravan whose
-/// sheet the negotiator has no fresh record of: the always-browse phase opens a session to read it.
+/// The census trader's participant: a passing ship is an orbital participant, every other trader a map one. Its
+/// Key() is the trader id the routine, the offer book and the journal name it by.
 /// </summary>
-public sealed record TraderFacts
+public static class TraderParticipant
 {
-    public TradeParticipant Participant { get; init; } = new(TradeParticipantKind.Map, "");
+    public static TradeParticipant Participant(this Trader t) => new(t.Orbital ? TradeParticipantKind.Orbital : TradeParticipantKind.Map, t.Id);
 
-    public string ID { get; init; } = "";
-
-    public string Kind { get; init; } = "";
-
-    public bool CanTrade { get; init; }
-
-    public bool Travelling { get; init; }
-
-    public bool Unpriced { get; init; }
-
-    public long GoodsStacks { get; init; }
+    public static string Key(this Trader t) => t.Participant().Key();
 }
 
 /// <summary>
@@ -290,13 +280,14 @@ public static partial class TradePolicyRules
 
     /// <summary>
     /// The economy/caravan Need's recovered fact: known true when no tradeable or arriving caravan is present or nothing
-    /// is worth trading, known false while both hold or while a tradeable caravan is unpriced (the always-browse
-    /// session), unknown while the need is. A caravan still travelling counts as present so the goal stands (and
+    /// is worth trading, known false while both hold or while a tradeable caravan is unpriced (its key in unpriced:
+    /// a caravan whose sheet the negotiator has no fresh record of, which the always-browse session opens to read),
+    /// unknown while the need is. A caravan still travelling counts as present so the goal stands (and
     /// the planner keeps the clock moving) until it arrives. An unknown trader census (a source without a trader
     /// list) also reads as recovered: there is no caravan the planner could open with, so the goal stays off
     /// rather than standing unknown forever.
     /// </summary>
-    public static Fact<bool> TradeRecovered(Fact<EquatableArray<TraderFacts>> traders, Fact<TradeNeed> need)
+    public static Fact<bool> TradeRecovered(Fact<EquatableArray<Trader>> traders, EquatableArray<string> unpriced, Fact<TradeNeed> need)
     {
         if (!traders.TryGetValue(out var rows))
         {
@@ -307,7 +298,7 @@ public static partial class TradePolicyRules
         foreach (var row in rows!)
         {
             present = present || row.CanTrade || row.Travelling;
-            browse = browse || (row.CanTrade && row.Unpriced);
+            browse = browse || (row.CanTrade && unpriced.Contains(row.Key()));
         }
         if (!present)
         {
@@ -320,24 +311,22 @@ public static partial class TradePolicyRules
         return Known(!n!.Any() && !browse);
     }
 
-    /// <summary>Picks the caravan to open with: tradeable, not already settled this epoch, most goods first, id order on ties.</summary>
-    public static (TraderFacts Trader, bool Ok) SelectTrader(IReadOnlyList<TraderFacts> traders, IReadOnlySet<string> settled)
+    /// <summary>Picks the caravan to open with: tradeable, not already settled this epoch, most goods first, id order on ties; null when none is.</summary>
+    public static Trader? SelectTrader(IReadOnlyList<Trader> traders, IReadOnlySet<string> settled)
     {
-        var best = new TraderFacts();
-        var found = false;
+        Trader? best = null;
         foreach (var row in traders)
         {
-            if (!row.CanTrade || settled.Contains(row.ID))
+            if (!row.CanTrade || settled.Contains(row.Key()))
             {
                 continue;
             }
-            if (!found || row.GoodsStacks > best.GoodsStacks || (row.GoodsStacks == best.GoodsStacks && string.CompareOrdinal(row.ID, best.ID) < 0))
+            if (best is null || row.GoodsStacks > best.GoodsStacks || (row.GoodsStacks == best.GoodsStacks && string.CompareOrdinal(row.Key(), best.Key()) < 0))
             {
                 best = row;
-                found = true;
             }
         }
-        return (best, found);
+        return best;
     }
 
     /// <summary>
@@ -366,7 +355,7 @@ public static partial class TradePolicyRules
             TradeSheetRowFact? pick = null;
             foreach (var row in rows)
             {
-                if (!items.IsMedicine(new Resource(row.DefName)) || row.TraderCount <= 0 || !row.BuyPriceKnown || !Finite(row.BuyPrice) || row.BuyPrice <= 0)
+                if (!items.IsMedicine(new Resource(row.DefName)) || row.TraderCount <= 0 || !Finite(row.BuyPrice) || row.BuyPrice <= 0)
                 {
                     continue;
                 }
@@ -429,7 +418,7 @@ public static partial class TradePolicyRules
                 TradeSheetRowFact? row = null;
                 foreach (var r in rows)
                 {
-                    if (r.DefName == item.Value && r.TraderCount > 0 && r.BuyPriceKnown && Finite(r.BuyPrice) && r.BuyPrice > 0)
+                    if (r.DefName == item.Value && r.TraderCount > 0 && Finite(r.BuyPrice) && r.BuyPrice > 0)
                     {
                         row = r;
                         break;
