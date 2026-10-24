@@ -135,6 +135,17 @@ public sealed record CombatLayout
 /// planner chose from; Pawns is the live state Reaction compares against; Orderable are the defenders whose
 /// drafts the fight's plan owns (the caller's per-plan owned-draft check), the only pawns an order may name.
 /// </summary>
+public abstract record OutdoorTemperature
+{
+    private OutdoorTemperature() { }
+
+    /// <summary>The frame's colony facts read the map's outdoor temperature, in degrees Celsius.</summary>
+    public sealed record Measured(double C) : OutdoorTemperature;
+
+    /// <summary>The frame carries no colony facts (a cut frame): nothing measured the temperature.</summary>
+    public sealed record NoColonyFacts : OutdoorTemperature;
+}
+
 public sealed partial record CombatView
 {
     public Fact<CombatSiteExit> SiteExit { get; init; }
@@ -176,8 +187,8 @@ public sealed partial record CombatView
     /// <summary>The colony's colonist count; below the population target the fight spares contained bleeders.</summary>
     public Fact<int> Population { get; init; }
 
-    /// <summary>The map outdoor temperature in degrees Celsius from the frame; extreme cold or heat waits indoors.</summary>
-    public Fact<double> OutdoorTemperatureC { get; init; }
+    /// <summary>The map outdoor temperature from the frame; extreme cold or heat waits indoors.</summary>
+    public OutdoorTemperature OutdoorTemperature { get; init; } = new OutdoorTemperature.NoColonyFacts();
 
     /// <summary>Marks a squad hunt: Threats are wild prey, not raiders.</summary>
     public bool Hunt { get; init; }

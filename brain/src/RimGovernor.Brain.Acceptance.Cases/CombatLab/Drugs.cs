@@ -60,7 +60,7 @@ internal static class CombatLabDrugs
         foreach (var (id, w) in want.OrderBy(p => p.Key, StringComparer.Ordinal))
         {
             var row = LabFrames.Row(frame, id) ?? throw new AcceptanceException($"combat_pawns has no row for {id}");
-            var got = (row.GoJuiceHigh == true, row.LuciferiumAddicted == true);
+            var got = (row.GoJuiceHigh, row.LuciferiumAddicted);
             if (got != w)
             {
                 throw new AcceptanceException($"combat_pawns {id}: [go_juice_high luciferium_addicted] = [{got.Item1} {got.Item2}], want [{w.Juice} {w.Luci}]");

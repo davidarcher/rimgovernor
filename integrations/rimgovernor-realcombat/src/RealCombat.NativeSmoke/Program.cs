@@ -618,14 +618,14 @@ internal sealed class SeatController : IFightController
 
         if (!_drafted)
         {
-            Record(_seat.Apply(Orders(me.Id!, new Operations.CombatOrderOrder.DraftCase(new Operations.Clear()))));
+            Record(_seat.Apply(Orders(me.Id.Value, new Operations.CombatOrderOrder.DraftCase(new Operations.Clear()))));
             _drafted = true;
         }
 
-        if (_target != foe.Id)
+        if (_target != foe.Id.Value)
         {
-            _target = foe.Id;
-            Record(_seat.Apply(Orders(me.Id!, new Operations.CombatOrderOrder.AttackCase(new Operations.EntityPrecondition { EntityId = foe.Id }))));
+            _target = foe.Id.Value;
+            Record(_seat.Apply(Orders(me.Id.Value, new Operations.CombatOrderOrder.AttackCase(new Operations.EntityPrecondition { EntityId = foe.Id.Value }))));
         }
     }
 

@@ -37,7 +37,7 @@ internal static class CombatLabBreach
         Mirror.CombatPawn? miner = null;
         _ = await new LabFrames(s).UntilAsync("dig", DigTicks, 0, frame =>
         {
-            foreach (var row in frame.CombatPawns.Where(r => raiders.Contains(r.Id ?? "")))
+            foreach (var row in frame.CombatPawns.Where(r => raiders.Contains(r.Id.Value)))
             {
                 jobs[row.Job ?? ""] = jobs.GetValueOrDefault(row.Job ?? "") + 1;
 

@@ -361,44 +361,38 @@ partial class RoundsDefensePlanner
                 weapons.TryGetValue((row.Weapon ?? ""), out var facts);
                 var s = new CombatPawnState
                 {
-                    Id = new PawnId((row.Id ?? "")),
-                    Downed = row.Downed.GetValueOrDefault(),
-                    Dead = row.Dead.GetValueOrDefault(),
+                    Id = row.Id,
+                    Downed = row.Downed,
+                    Dead = row.Dead,
                     Target = new PawnId((row.TargetId ?? "")),
-                    Stance = CombatStance(row.Stance.GetValueOrDefault()),
+                    Stance = CombatStance(row.Stance),
                     Weapon = (row.Weapon ?? ""),
                     WeaponFacts = facts ?? new(),
                     WeaponRange = facts?.Reach ?? 0,
-                    FireMode = WireEnums.FireModeName(row.FireMode.GetValueOrDefault()),
+                    FireMode = row.Draft is { } draft ? WireEnums.FireModeName(draft.FireMode) : "",
                     Job = row.Job ?? "",
-                    TargetMortar = row.TargetMortar.GetValueOrDefault(),
-                    ShieldBelt = row.ShieldBelt.GetValueOrDefault(),
-                    MedicalSkill = row.MedicalSkill.GetValueOrDefault(),
-                    MoveSpeed = row.MoveSpeed.GetValueOrDefault(),
-                    StunTicks = row.StunTicksLeft.GetValueOrDefault(),
-                    GoJuice = row.GoJuiceHigh.GetValueOrDefault(),
-                    Luciferium = row.LuciferiumAddicted.GetValueOrDefault(),
-                    Animal = row.Side.GetValueOrDefault() == M.CombatSide.ColonyAnimal,
+                    TargetMortar = row.TargetMortar,
+                    ShieldBelt = row.Shield is not null,
+                    MedicalSkill = row.MedicalSkill,
+                    MoveSpeed = row.MoveSpeed,
+                    StunTicks = row.StunTicksLeft,
+                    GoJuice = row.GoJuiceHigh,
+                    Luciferium = row.LuciferiumAddicted,
+                    Animal = row.Side == M.CombatSide.ColonyAnimal,
+                    Prisoner = row.Side == M.CombatSide.Prisoner,
+                    Wild = row.Side == M.CombatSide.WildAnimal,
+                    Cell = Known(new Cell(row.Cell.X, row.Cell.Z)),
+                    Health = Known(row.Health),
                 };
                 if (row.CarriedDrugs is { } drugs)
                 {
                     s = s with { CarriedDrugs = Known<EquatableArray<string>>([.. drugs.Defs]) };
                 }
-                if (row.Cell is { } cell)
+                if (row.Shield is { } shield)
                 {
-                    s = s with { Cell = Known(new Cell(cell.X, cell.Z)) };
+                    s = s with { Shield = Known(shield.Energy) };
                 }
-                if (row.ShieldEnergy is not null)
-                {
-                    s = s with { Shield = Known(row.ShieldEnergy.GetValueOrDefault()) };
-                }
-                s = s with { Prisoner = row.Side.GetValueOrDefault() == M.CombatSide.Prisoner };
-                s = s with { Wild = row.Side.GetValueOrDefault() == M.CombatSide.WildAnimal };
-                if (row.Health is not null)
-                {
-                    s = s with { Health = Known(row.Health.GetValueOrDefault()) };
-                }
-                rows.TryGetValue((row.Id ?? ""), out var pawnRow);
+                rows.TryGetValue(row.Id.Value, out var pawnRow);
                 output.Add(ThreatFacts(s, pawnRow, combat.Catalog ?? throw new ControlException("combat pawn states: no definition catalog")));
             }
             return output;
@@ -463,7 +457,7 @@ partial class RoundsDefensePlanner
         M.CombatStance.Cooldown => Pol.CombatStance.Cooldown,
         M.CombatStance.Moving => Pol.CombatStance.Moving,
         M.CombatStance.Melee => Pol.CombatStance.Melee,
-        _ => Pol.CombatStance.Unknown,
+        _ => throw new ArgumentOutOfRangeException(nameof(s), s, "combat stance"),
     };
 
     /// <summary>The newest stop event of the combat read after the tick, or the empty event.</summary>
@@ -472,7 +466,7 @@ partial class RoundsDefensePlanner
         M.CombatEventRow? newest = null;
         foreach (var row in combat.Events)
         {
-            if (row.Stop is null || (row.At?.Tick).GetValueOrDefault() <= since.Value)
+            if (row.Stop is null || row.At.Tick <= since.Value)
             {
                 continue;
             }
@@ -481,11 +475,11 @@ partial class RoundsDefensePlanner
                 newest = row;
             }
         }
-        if (newest is null)
+        if (newest?.Stop is not { } stop)
         {
             return new StopEvent();
         }
-        return new StopEvent { Kind = newest.Stop.GetValueOrDefault(), Pawn = new PawnId((newest.ThingId ?? "")), Target = new PawnId((newest.TargetId ?? "")) };
+        return new StopEvent { Kind = stop.Kind, Pawn = new PawnId((newest.ThingId ?? "")), Target = new PawnId((newest.TargetId ?? "")) };
     }
 
     /// <summary>The memory after a stop's order results: each refused order is remembered by its refusal. Unknown results change nothing.</summary>

@@ -547,14 +547,8 @@ partial class RoundsDefensePlanner
         var melee = new Dictionary<PawnId, Fact<double>>();
         foreach (var row in combat.Pawns)
         {
-            if (row.Armor is not null)
-            {
-                armor[new PawnId((row.Id ?? ""))] = row.Armor.GetValueOrDefault();
-            }
-            if (row.MeleePower is not null && row.Health is not null)
-            {
-                melee[new PawnId((row.Id ?? ""))] = Known(row.MeleePower.GetValueOrDefault() * row.Health.GetValueOrDefault());
-            }
+            armor[row.Id] = row.Armor;
+            melee[row.Id] = Known(row.MeleePower * row.Health);
         }
         var defenders = new List<SquadDefenderFacts>();
         var profiles = new List<PawnProfile>();
@@ -638,7 +632,7 @@ partial class RoundsDefensePlanner
             Mortars = [.. combat.Mortars],
             Shells = combat.Shells,
             Structures = [.. structures],
-            OutdoorTemperatureC = combat.OutdoorTemperatureC,
+            OutdoorTemperature = combat.OutdoorTemperature,
             Population = Known(combat.Emergency.Facts.Colonists.Count),
         };
     }
@@ -684,16 +678,16 @@ partial class RoundsDefensePlanner
                 newest = row;
             }
         }
-        if (newest is null)
+        if (newest?.Pods is not { } pods)
         {
             return Unknown<PodArrival>();
         }
         var landing = new List<Cell>();
-        foreach (var c in newest.LandingCells)
+        foreach (var c in pods.LandingCells)
         {
             landing.Add(new Cell(c.X, c.Z));
         }
-        return Known(new PodArrival { Open = new Tick(newest.OpenTick.GetValueOrDefault()), Landing = [.. landing] });
+        return Known(new PodArrival { Open = new Tick(pods.OpenTick), Landing = [.. landing] });
     }
 
     /// <summary>The shooters with a line of fire to each threatening building: for every known line within the weapon reach, the shooters standing at its origin.</summary>

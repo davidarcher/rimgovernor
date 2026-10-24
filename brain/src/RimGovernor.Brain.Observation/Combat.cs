@@ -44,8 +44,8 @@ public sealed record Combat
     /// <summary>The unroofed player mortars.</summary>
     public IReadOnlyList<P.CombatMortar> Mortars { get; init; } = [];
 
-    /// <summary>The colony facts outdoor temperature.</summary>
-    public Fact<double> OutdoorTemperatureC { get; init; }
+    /// <summary>The colony facts outdoor temperature; a cut frame carries none.</summary>
+    public RimGovernor.Brain.Policy.OutdoorTemperature OutdoorTemperature { get; init; } = new RimGovernor.Brain.Policy.OutdoorTemperature.NoColonyFacts();
 
     public BundleSnapshot? Frame { get; init; }
 

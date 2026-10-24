@@ -153,11 +153,7 @@ namespace HomeBridge.BridgeTools
                 }
                 _active = true;
                 Record(Mirror.CombatLogKind.HostileArrived, Clock.CombatEvent.Unspecified, pawns[0], null, "pods", row =>
-                    {
-                        row = row with { OpenTick = open };
-                        row = row with { LandingCells = [.. row.LandingCells, .. cells.Select(c => new Common.Cell { X = c.x, Z = c.z })] };
-                        return row;
-                    });
+                    row with { Pods = new Mirror.PodLanding { OpenTick = open, LandingCells = [.. cells.Select(c => new Common.Cell { X = c.x, Z = c.z })] } });
             }
             catch { } // Harmony hook inside vanilla code, outside any tool call: a throw would reach the game (not probed in #1887)
         }
@@ -172,8 +168,8 @@ namespace HomeBridge.BridgeTools
                 var map = thing?.MapHeld ?? other?.MapHeld;
                 if (map == null) return;
                 var mark = Next();
-                var row = new Mirror.CombatEventRow { At = new Mirror.Watermark { Tick = mark.Tick, Seq = mark.Seq }, Kind = kind };
-                if (stop != Clock.CombatEvent.Unspecified) row = row with { Stop = stop };
+                var row = new Mirror.CombatEventRow { At = mark.Wire(), Kind = kind };
+                if (stop != Clock.CombatEvent.Unspecified) row = row with { Stop = new Mirror.CombatStop { Kind = stop } };
                 if (thing != null) row = row with { ThingId = LoadId(thing) };
                 if (other != null) row = row with { TargetId = LoadId(other) };
                 if (!string.IsNullOrEmpty(strategy)) row = row with { RaidStrategy = strategy };
@@ -220,7 +216,7 @@ namespace HomeBridge.BridgeTools
                 if (raiders.Any(c => c.InHorDistOf(w.Position, WildRange))) pawns.Add((w, Mirror.CombatSide.WildAnimal));
             // Raiders still in their drop pods are not spawned: a pods
             // arrival keeps combat active until its open tick.
-            _active = hostile || Ring.Any(e => e.MapId == map.uniqueID && e.Row.OpenTick.GetValueOrDefault() > now);
+            _active = hostile || Ring.Any(e => e.MapId == map.uniqueID && e.Row.Pods is { } pods && pods.OpenTick > now);
             _dirty = false;
             if (!Active)
             {
@@ -231,14 +227,15 @@ namespace HomeBridge.BridgeTools
             }
             Mark? capture = null;
             var rows = pawns.Select(e => (e.pawn, row: Project(e.pawn, e.side))).ToList();
-            var step = Compared.Step(rows.Select(e => new KeyValuePair<string, Mirror.CombatPawn>((e.row.Id ?? ""), e.row)));
+            var step = Compared.Step(rows.Select(e => new KeyValuePair<string, Mirror.CombatPawn>(e.row.Id.Value, e.row)));
             foreach (var (pawn, projected) in rows)
             {
                 Mark changed;
+                var id = projected.Id.Value;
                 if (Stamped.TryGetValue(pawn.thingIDNumber, out var stamp)) changed = stamp.Mark;
-                else if (!step.Changed.Contains((projected.Id ?? "")) && ChangedAt.TryGetValue((projected.Id ?? ""), out var held)) changed = held;
+                else if (!step.Changed.Contains(id) && ChangedAt.TryGetValue(id, out var held)) changed = held;
                 else changed = capture ??= Next();
-                ChangedAt[(projected.Id ?? "")] = changed;
+                ChangedAt[id] = changed;
                 var row = projected with { Changed = changed.Wire() };
                 frame = frame with { CombatPawns = [.. frame.CombatPawns, row] };
             }
@@ -259,79 +256,68 @@ namespace HomeBridge.BridgeTools
             return def != null && pawn.health?.hediffSet?.HasHediff(def) == true;
         }
 
+        /// The row as compared: its changed mark is the capture's to set, so
+        /// the projection carries a fixed placeholder the comparison ignores.
+        private static readonly Mirror.Watermark Unmarked = new Mirror.Watermark { Tick = 0, Seq = 0 };
+
         internal static Mirror.CombatPawn Project(Pawn pawn, Mirror.CombatSide side)
         {
-            var row = new Mirror.CombatPawn { Id = LoadId(pawn), Side = side, Cell = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z }, Downed = pawn.Downed, Dead = pawn.Dead };
-            if (pawn.drafter != null)
-            {
-                row = row with { Drafted = pawn.drafter.Drafted };
-                if (pawn.drafter.Drafted) row = row with { FireMode = pawn.drafter.FireAtWill ? RimGovernor.Contracts.Wire.Operations.CombatFireMode.AtWill : RimGovernor.Contracts.Wire.Operations.CombatFireMode.Hold };
-            }
             var job = pawn.CurJob;
-            if (job != null)
-            {
-                row = row with { Job = job.def.defName };
-                var target = job.targetA.Thing;
-                if (target != null)
-                {
-                    row = row with { TargetId = LoadId(target) };
-                    // A frame builds its entity def.
-                    var built = target is Frame frame ? frame.def.entityDefToBuild as ThingDef : target.def;
-                    if (built?.building?.IsMortar == true) row = row with { TargetMortar = true };
-                }
-            }
+            var target = job?.targetA.Thing;
+            // A frame builds its entity def.
+            var built = target is Frame frame ? frame.def.entityDefToBuild as ThingDef : target?.def;
             var stance = pawn.stances?.curStance;
             // A ranged pawn standing to shoot (Wait_Combat) holds no job target; the stance's focus is what it aims at.
-            if (row.TargetId == null && stance is Stance_Busy busy && busy.focusTarg.Thing is { } aimed) row = row with { TargetId = LoadId(aimed) };
-            if (stance is Stance_Warmup) row = row with { Stance = Mirror.CombatStance.Warmup };
-            else if (stance is Stance_Cooldown) row = row with { Stance = Mirror.CombatStance.Cooldown };
-            else if (job != null && job.def == JobDefOf.AttackMelee) row = row with { Stance = Mirror.CombatStance.Melee };
-            else if (pawn.pather != null && pawn.pather.Moving) row = row with { Stance = Mirror.CombatStance.Moving };
-            else row = row with { Stance = Mirror.CombatStance.Idle };
-            try
-            {
-                row = row with { Health = Step(pawn.health.summaryHealth.SummaryHealthPercent, 0.01) };
-                row = row with { MoveSpeed = Step(pawn.GetStatValue(StatDefOf.MoveSpeed), 0.1) };
-                row = row with { MeleePower = Step(pawn.GetStatValue(StatDefOf.MeleeDPS), 0.1) };
-            }
-            catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
-            // Enemy drugs.
-            row = row with { GoJuiceHigh = HasHediff(pawn, "GoJuiceHigh") };
-            row = row with { LuciferiumAddicted = HasHediff(pawn, "LuciferiumAddiction") };
-            if (side == Mirror.CombatSide.Colonist)
-            {
-                var drugs = new Mirror.CarriedDrugs();
-                if (pawn.inventory != null)
-                    drugs = drugs with { Defs = [.. drugs.Defs, .. pawn.inventory.innerContainer
-                        .Where(t => t.stackCount > 0 && t.def.GetCompProperties<CompProperties_Drug>() != null)
-                        .Select(t => t.def.defName).Distinct().OrderBy(name => name, StringComparer.Ordinal)] };
-                row = row with { CarriedDrugs = drugs };
-            }
+            var aimed = target ?? (stance is Stance_Busy busy ? busy.focusTarg.Thing : null);
+            Mirror.CombatStance motion;
+            if (stance is Stance_Warmup) motion = Mirror.CombatStance.Warmup;
+            else if (stance is Stance_Cooldown) motion = Mirror.CombatStance.Cooldown;
+            else if (job != null && job.def == JobDefOf.AttackMelee) motion = Mirror.CombatStance.Melee;
+            else if (pawn.pather != null && pawn.pather.Moving) motion = Mirror.CombatStance.Moving;
+            else motion = Mirror.CombatStance.Idle;
             var shield = pawn.apparel?.WornApparel.Select(a => a.GetComp<CompShield>()).FirstOrDefault(c => c != null);
+            Mirror.CombatShield? worn = null;
             if (shield != null)
             {
-                try
-                {
-                    var max = shield.parent.GetStatValue(StatDefOf.EnergyShieldEnergyMax);
-                    row = row with { ShieldEnergy = max > 0 ? Step(Math.Max(0, Math.Min(1, shield.Energy / max)), 0.05) : 0 };
-                }
-                catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
+                var max = shield.parent.GetStatValue(StatDefOf.EnergyShieldEnergyMax);
+                worn = new Mirror.CombatShield { Energy = max > 0 ? Step(Math.Max(0, Math.Min(1, shield.Energy / max)), 0.05) : 0 };
             }
+            Mirror.CarriedDrugs? drugs = null;
             if (side == Mirror.CombatSide.Colonist)
-            {
-                try { row = row with { Armor = Step(NativeGearFacts.PawnArmor(pawn), 0.05) }; }
-                catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
-            }
-            try { var stun = pawn.stances?.stunner; if (stun != null && stun.Stunned) row = row with { StunTicksLeft = (stun.StunTicksLeft + 29) / 30 * 30 }; } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
-            row = row with { ShieldBelt = shield != null };
-            try { var medicine = pawn.skills?.GetSkill(SkillDefOf.Medicine); if (medicine != null) row = row with { MedicalSkill = medicine.Level }; } catch { } // one pawn field must not drop the whole combat frame; it stays at its unobserved default
+                drugs = new Mirror.CarriedDrugs { Defs = pawn.inventory == null ? [] : [.. pawn.inventory.innerContainer
+                    .Where(t => t.stackCount > 0 && t.def.GetCompProperties<CompProperties_Drug>() != null)
+                    .Select(t => t.def.defName).Distinct().OrderBy(name => name, StringComparer.Ordinal)] };
+            var stun = pawn.stances?.stunner;
             var weapon = pawn.equipment?.Primary;
             var verb = pawn.equipment?.PrimaryEq?.PrimaryVerb;
-            if (weapon != null && verb != null)
+            return new Mirror.CombatPawn
             {
-                row = row with { Weapon = weapon.def.defName };
-            }
-            return row;
+                Id = new RimGovernor.Brain.Domain.PawnId(LoadId(pawn)),
+                Side = side,
+                Cell = new Common.Cell { X = pawn.Position.x, Z = pawn.Position.z },
+                Downed = pawn.Downed,
+                Dead = pawn.Dead,
+                Draft = pawn.drafter != null && pawn.drafter.Drafted
+                    ? new Mirror.CombatDraft { FireMode = pawn.drafter.FireAtWill ? RimGovernor.Contracts.Wire.Operations.CombatFireMode.AtWill : RimGovernor.Contracts.Wire.Operations.CombatFireMode.Hold }
+                    : null,
+                Job = job?.def.defName,
+                TargetId = aimed != null ? LoadId(aimed) : null,
+                TargetMortar = built?.building?.IsMortar == true,
+                Stance = motion,
+                Health = Step(pawn.health.summaryHealth.SummaryHealthPercent, 0.01),
+                MoveSpeed = Step(pawn.GetStatValue(StatDefOf.MoveSpeed), 0.1),
+                MeleePower = Step(pawn.GetStatValue(StatDefOf.MeleeDPS), 0.1),
+                Armor = Step(NativeGearFacts.PawnArmor(pawn), 0.05),
+                // Enemy drugs.
+                GoJuiceHigh = HasHediff(pawn, "GoJuiceHigh"),
+                LuciferiumAddicted = HasHediff(pawn, "LuciferiumAddiction"),
+                CarriedDrugs = drugs,
+                Shield = worn,
+                StunTicksLeft = stun != null && stun.Stunned ? (stun.StunTicksLeft + 29) / 30 * 30 : 0,
+                MedicalSkill = pawn.skills?.GetSkill(SkillDefOf.Medicine)?.Level ?? 0,
+                Weapon = weapon != null && verb != null ? weapon.def.defName : null,
+                Changed = Unmarked,
+            };
         }
 
         internal static string LoadId(Thing thing)

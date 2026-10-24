@@ -54,9 +54,8 @@ public sealed partial class RoundsDefensePlanner
             }
             foreach (var ev in combat.Events)
             {
-                var stopKind = ev.Stop.GetValueOrDefault();
-                if ((ev.At?.Tick).GetValueOrDefault() > fight.Memory.Tick.Value && participants.Contains(new Domain.PawnId((ev.ThingId ?? "")))
-                    && (stopKind == K.CombatEvent.SeriousInjury || stopKind == K.CombatEvent.Downed))
+                if (ev.At.Tick > fight.Memory.Tick.Value && participants.Contains(new Domain.PawnId((ev.ThingId ?? "")))
+                    && ev.Stop is { Kind: K.CombatEvent.SeriousInjury or K.CombatEvent.Downed })
                 {
                     active = false;
                 }

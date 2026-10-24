@@ -29,7 +29,7 @@ public static class CombatCalls
     /// row with strategy pods.
     /// </summary>
     public static bool DropPodArrival(CombatEventRow row) =>
-        row.Kind is not null && row.Kind.GetValueOrDefault() == CombatLogKind.HostileArrived && row.RaidStrategy is not null && (row.RaidStrategy ?? "") == PodsStrategy;
+        row.Kind == CombatLogKind.HostileArrived && row.RaidStrategy == PodsStrategy;
 
     /// <summary>
     /// Decodes an applied combat_orders action receipt, one result per order, in

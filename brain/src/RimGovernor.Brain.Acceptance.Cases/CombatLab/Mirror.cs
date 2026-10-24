@@ -218,7 +218,7 @@ internal static class CombatLabMirror
             down = frames.Events.FirstOrDefault(e => e.Kind is Mirror.CombatLogKind.Downed or Mirror.CombatLogKind.Killed);
             return down is not null;
         }, cancellationToken).ConfigureAwait(false);
-        var kinds = frames.Events.GroupBy(e => e.Kind?.ToString() ?? "").ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+        var kinds = frames.Events.GroupBy(e => e.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
         s.Record("event_kinds", new JsonObject([.. kinds.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k => new KeyValuePair<string, JsonNode?>(k.Key, k.Value))]));
         s.RecordWire("down", down);
         var row = LabFrames.Row(frame, down!.ThingId ?? "");
@@ -228,7 +228,7 @@ internal static class CombatLabMirror
             throw new AcceptanceException($"death {down} with its pawn row still in the same frame: {row}");
         }
 
-        if (row is not null && (row.Downed != true || row.Changed?.Tick < down.At?.Tick))
+        if (row is not null && (!row.Downed || row.Changed.Tick < down!.At.Tick))
         {
             throw new AcceptanceException($"downing {down} without its pawn row downed at or after the event: {row}");
         }

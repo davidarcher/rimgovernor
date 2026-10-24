@@ -61,7 +61,7 @@ BuildingRuntime/Client/FacadeNativeClient.Pawns.cs|Fact|2
 BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Discard|1
 BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Fact|9
 BuildingRuntime/Client/FacadeNativeClient.Placement.cs|Unknown|4
-BuildingRuntime/Client/FacadeNativeClient.RoundsFrame.cs|Fact|3
+BuildingRuntime/Client/FacadeNativeClient.RoundsFrame.cs|Fact|2
 BuildingRuntime/Client/GearRecipeCatalogAdapter.cs|Fact|3
 BuildingRuntime/Client/IdeologyDecoder.cs|Fact|1
 BuildingRuntime/Client/PopulationDecoder.cs|Fact|2
@@ -339,8 +339,6 @@ Contracts/FoodActivities.cs|Fact|4
 Contracts/Json/FactJsonConverter.cs|Fact|5
 Contracts/Lifecycle.cs|NullableValue|42
 Contracts/Lifecycle.cs|UnknownMember|6
-Contracts/Mirror.cs|NullableValue|24
-Contracts/Mirror.cs|UnknownMember|3
 Contracts/NeedsForecast.cs|Fact|3
 Contracts/Observations.cs|NullableValue|239
 Contracts/Observations.cs|UnknownMember|3
@@ -423,7 +421,7 @@ Observation/ColonyRead.cs|Fact|3
 Observation/ColonySurgery.cs|Fact|2
 Observation/ColonyUpkeep.cs|Discard|1
 Observation/ColonyUpkeep.cs|Fact|11
-Observation/Combat.cs|Fact|2
+Observation/Combat.cs|Fact|1
 Observation/Construction.cs|Discard|1
 Observation/Construction.cs|Fact|19
 Observation/Construction.cs|Unknown|4
@@ -569,14 +567,14 @@ Policy/Combat/CombatSquadRoster.cs|Fact|1
 Policy/Combat/CombatTank.cs|Fact|1
 Policy/Combat/CombatTank.cs|ValueOrDefault|3
 Policy/Combat/CombatThreat.cs|Fact|6
-Policy/Combat/CombatWait.cs|Fact|7
+Policy/Combat/CombatWait.cs|Fact|6
 Policy/CombatAnimals.cs|Fact|15
 Policy/CombatAnomaly.cs|Fact|5
 Policy/CombatBatch.cs|Fact|2
 Policy/CombatBleed.cs|Fact|9
 Policy/CombatBlocking.cs|Fact|7
 Policy/CombatCast.cs|Fact|11
-Policy/CombatDecide.cs|Fact|25
+Policy/CombatDecide.cs|Fact|24
 Policy/CombatDecide.cs|NullableValue|7
 Policy/CombatDecide.cs|UnknownMember|1
 Policy/CombatDoor.cs|Fact|5

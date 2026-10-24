@@ -101,8 +101,7 @@ public sealed partial class FacadeNativeClient
         var latest = emergency.Facts.PodsOpen;
         foreach (var row in events)
         {
-            long open = row.OpenTick.GetValueOrDefault();
-            if (CombatCalls.DropPodArrival(row) && open >= censusTick && new Tick(open) > latest)
+            if (CombatCalls.DropPodArrival(row) && row.Pods is { OpenTick: var open } && open >= censusTick && new Tick(open) > latest)
             {
                 latest = new Tick(open);
             }
@@ -307,13 +306,12 @@ public sealed partial class FacadeNativeClient
         var mortars = new List<P.CombatMortar>();
         foreach (var row in v.CombatMortars)
         {
-            _ = TryWireCell(row.Cell, out var cell);
             mortars.Add(new P.CombatMortar
             {
-                Id = row.Id ?? "",
-                Cell = cell,
-                MinRange = row.MinRange.GetValueOrDefault(),
-                MaxRange = row.MaxRange.GetValueOrDefault(),
+                Id = row.Id,
+                Cell = new Cell(row.Cell.X, row.Cell.Z),
+                MinRange = row.MinRange,
+                MaxRange = row.MaxRange,
                 Loaded = row.LoadedShell ?? "",
             });
         }
@@ -321,7 +319,7 @@ public sealed partial class FacadeNativeClient
         // The cut frame carries no colony facts: the temperature is read off the whole frame, unknown when it has none.
         if (view.Snapshot.ColonyFacts is { } colony)
         {
-            output = output with { OutdoorTemperatureC = Fact.Known(colony.OutdoorTemperatureC) };
+            output = output with { OutdoorTemperature = new RimGovernor.Brain.Policy.OutdoorTemperature.Measured(colony.OutdoorTemperatureC) };
         }
         var doorStates = new List<PbObservations.RoomDoor>();
         var rooms = new List<P.CombatRoom>();
@@ -378,16 +376,5 @@ public sealed partial class FacadeNativeClient
         };
         return room;
     }
-
-    /// <summary>The cell of a wire cell, false when it is absent or lacks a coordinate (the cell is then the zero cell).</summary>
-    private static bool TryWireCell(PbCommon.Cell? cell, out Cell result)
-    {
-        if (cell is { X: { } x, Z: { } z })
-        {
-            result = new Cell(x, z);
-            return true;
-        }
-        result = default;
-        return false;
-    }
 }
+

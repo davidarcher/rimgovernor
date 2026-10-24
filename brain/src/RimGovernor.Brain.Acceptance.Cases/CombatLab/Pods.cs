@@ -37,7 +37,7 @@ internal static class CombatLabPods
             return arrival is not null;
         }, cancellationToken).ConfigureAwait(false);
         s.RecordWire("arrival", arrival);
-        if (arrival!.OpenTick is not { } open || open <= arrival.At?.Tick || arrival.LandingCells.Count == 0)
+        if (arrival!.Pods is not { OpenTick: var open } pods || open <= arrival.At.Tick || pods.LandingCells.Count == 0)
         {
             throw new AcceptanceException($"lab-pods row without an open tick after its arrival or landing cells: {arrival}");
         }
@@ -45,7 +45,7 @@ internal static class CombatLabPods
         // Past the open tick every raider is out: a row in the frame, or (shot by the riflemen meanwhile) a logged downing or death.
         var gone = new[] { Mirror.CombatLogKind.Downed, Mirror.CombatLogKind.Killed };
         var frame = await frames.UntilAsync("opened", 2 * CombatLabKit.ProbeTicks, open + 1, _ => true, cancellationToken).ConfigureAwait(false);
-        var inPod = raiders.Where(id => LabFrames.Row(frame, id) is null && !frames.Events.Any(e => e.ThingId == id && gone.Contains(e.Kind ?? default))).ToList();
+        var inPod = raiders.Where(id => LabFrames.Row(frame, id) is null && !frames.Events.Any(e => e.ThingId == id && gone.Contains(e.Kind))).ToList();
         if (inPod.Count != 0)
         {
             throw new AcceptanceException($"lab-pods raiders [{string.Join(", ", inPod)}] still in their pods at tick {frame.Context?.Tick} (open tick {open})");

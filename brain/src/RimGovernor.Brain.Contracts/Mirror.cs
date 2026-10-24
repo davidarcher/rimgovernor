@@ -9,8 +9,6 @@ namespace RimGovernor.Contracts.Wire.Mirror;
 [JsonConverter(typeof(WireEnumConverter<CombatSide>))]
 public enum CombatSide
 {
-    [WireName("COMBAT_SIDE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("COMBAT_SIDE_COLONIST")]
     Colonist = 1,
     [WireName("COMBAT_SIDE_HOSTILE")]
@@ -35,8 +33,6 @@ public enum CombatSide
 [JsonConverter(typeof(WireEnumConverter<CombatStance>))]
 public enum CombatStance
 {
-    [WireName("COMBAT_STANCE_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("COMBAT_STANCE_IDLE")]
     Idle = 1,
     /// <summary>
@@ -64,8 +60,6 @@ public enum CombatStance
 [JsonConverter(typeof(WireEnumConverter<CombatLogKind>))]
 public enum CombatLogKind
 {
-    [WireName("COMBAT_LOG_KIND_UNSPECIFIED")]
-    Unspecified = 0,
     [WireName("COMBAT_LOG_KIND_DOWNED")]
     Downed = 1,
     [WireName("COMBAT_LOG_KIND_KILLED")]
@@ -108,63 +102,60 @@ public enum CombatLogKind
 /// </summary>
 public sealed record CombatPawn
 {
-    /// <summary>
-    /// load id
-    /// </summary>
-    public string? Id { get; init; }
+    public required PawnId Id { get; init; }
 
-    public CombatSide? Side { get; init; }
+    public required CombatSide Side { get; init; }
 
-    public Common.Cell? Cell { get; init; }
+    public required Common.Cell Cell { get; init; }
 
-    public bool? Downed { get; init; }
+    public required bool Downed { get; init; }
 
-    public bool? Dead { get; init; }
+    public required bool Dead { get; init; }
 
-    public bool? Drafted { get; init; }
+    /// <summary>The pawn is drafted, with its fire mode; none when undrafted or undraftable.</summary>
+    public CombatDraft? Draft { get; init; }
 
     /// <summary>
-    /// drafted colonists
-    /// </summary>
-    public Operations.CombatFireMode? FireMode { get; init; }
-
-    /// <summary>
-    /// current job def
+    /// current job def; none without a job
     /// </summary>
     public string? Job { get; init; }
 
     /// <summary>
-    /// current job's target thing
+    /// the current job's target thing, else the busy stance's focus; none without either
     /// </summary>
     public string? TargetId { get; init; }
 
-    public CombatStance? Stance { get; init; }
+    public required CombatStance Stance { get; init; }
 
     /// <summary>
     /// summary health fraction
     /// </summary>
-    public double? Health { get; init; }
+    public required double Health { get; init; }
 
     /// <summary>
     /// cells per second
     /// </summary>
-    public double? MoveSpeed { get; init; }
+    public required double MoveSpeed { get; init; }
 
     /// <summary>
-    /// fraction of max, absent without a shield
+    /// A worn CompShield apparel (shield belt) and its energy; none without one.
     /// </summary>
-    public double? ShieldEnergy { get; init; }
+    public CombatShield? Shield { get; init; }
 
     /// <summary>
-    /// def name, absent when unarmed
+    /// def name, none when unarmed
     /// </summary>
     public string? Weapon { get; init; }
 
     /// <summary>
-    /// Colonists: worn sharp armor, the stronger of natural armor and
-    /// the best worn layer (the raid_armor rule per pawn), to 0.05.
+    /// Worn sharp armor: the stronger of natural armor and the best worn layer (the raid_armor rule per pawn), to 0.05.
     /// </summary>
-    public double? Armor { get; init; }
+    public required double Armor { get; init; }
+
+    /// <summary>
+    /// Melee strength: the MeleeDPS stat, to 0.1.
+    /// </summary>
+    public required double MeleePower { get; init; }
 
     /// <summary>
     /// The watermark of the row's last change: when events concerned the pawn
@@ -172,55 +163,58 @@ public sealed record CombatPawn
     /// death, then another combat stop kind, then any), the matching combat_events
     /// row's; otherwise the capture's. Not part of the change comparison.
     /// </summary>
-    public Watermark? Changed { get; init; }
+    public required Watermark Changed { get; init; }
 
     /// <summary>
-    /// Rescuer choice: a worn CompShield apparel (shield belt), and the
-    /// Medicine skill level (absent without skills).
+    /// Rescuer choice: the Medicine skill level; a pawn without skills (an animal) doctors at 0.
     /// </summary>
-    public bool? ShieldBelt { get; init; }
-
-    public int? MedicalSkill { get; init; }
-
-    /// <summary>
-    /// Melee strength: the MeleeDPS stat, to 0.1.
-    /// </summary>
-    public double? MeleePower { get; init; }
+    public required int MedicalSkill { get; init; }
 
     /// <summary>
     /// Enemy drugs: a GoJuiceHigh hediff (the pawn fights on past
     /// the pain that would down it) and a LuciferiumAddiction hediff.
     /// </summary>
-    public bool? GoJuiceHigh { get; init; }
+    public required bool GoJuiceHigh { get; init; }
 
-    public bool? LuciferiumAddicted { get; init; }
+    public required bool LuciferiumAddicted { get; init; }
 
     /// <summary>
-    /// EMP timing: the stun's ticks left, rounded up to 30, absent when
-    /// not stunned.
+    /// EMP timing: the stun's ticks left, rounded up to 30; 0 when not stunned.
     /// </summary>
-    public int? StunTicksLeft { get; init; }
+    public required int StunTicksLeft { get; init; }
 
     /// <summary>
     /// The job target is a mortar, or a frame that will build one:
     /// a turret whose verb fires mortar shells.
     /// </summary>
-    public bool? TargetMortar { get; init; }
+    public required bool TargetMortar { get; init; }
 
     /// <summary>
-    /// Present after a complete inventory scan; absent means unknown.
+    /// Colonists' inventory scan; none for the other sides, whose inventory is not scanned.
     /// </summary>
     public CarriedDrugs? CarriedDrugs { get; init; }
 }
 
+/// <summary>A drafted pawn's fire mode.</summary>
+public sealed record CombatDraft
+{
+    public required Operations.CombatFireMode FireMode { get; init; }
+}
+
+/// <summary>A worn shield belt: its energy as a fraction of max, to 0.05.</summary>
+public sealed record CombatShield
+{
+    public required double Energy { get; init; }
+}
+
 /// <summary>
 /// Distinct drug ThingDefs with positive stack counts in this pawn's inventory.
-/// A present empty message establishes that the pawn carries no drugs.
+/// An empty list establishes that the pawn carries no drugs.
 /// </summary>
 public sealed record CarriedDrugs
 {
     [JsonConverter(typeof(EquatableArrayJsonConverter<string>))]
-    public EquatableArray<string> Defs { get; init; }
+    public required EquatableArray<string> Defs { get; init; }
 }
 
 /// <summary>
@@ -229,7 +223,7 @@ public sealed record CarriedDrugs
 /// </summary>
 public sealed record CombatDoorRow
 {
-    public Common.Cell? Cell { get; init; }
+    public required Common.Cell Cell { get; init; }
 }
 
 /// <summary>
@@ -240,16 +234,16 @@ public sealed record CombatMortarRow
     /// <summary>
     /// load id
     /// </summary>
-    public string? Id { get; init; }
+    public required string Id { get; init; }
 
-    public Common.Cell? Cell { get; init; }
+    public required Common.Cell Cell { get; init; }
 
-    public float? MinRange { get; init; }
+    public required float MinRange { get; init; }
 
-    public float? MaxRange { get; init; }
+    public required float MaxRange { get; init; }
 
     /// <summary>
-    /// The loaded shell's ThingDef; absent when unloaded.
+    /// The loaded shell's ThingDef; none when unloaded.
     /// </summary>
     public string? LoadedShell { get; init; }
 }
@@ -262,14 +256,14 @@ public sealed record CombatEventRow
     /// <summary>
     /// the event's own mark; the row id is "&lt;tick&gt;.&lt;seq&gt;"
     /// </summary>
-    public Watermark? At { get; init; }
+    public required Watermark At { get; init; }
 
-    public CombatLogKind? Kind { get; init; }
+    public required CombatLogKind Kind { get; init; }
 
     /// <summary>
-    /// The combat stop kind this event is, armed or not; unset for non-stops.
+    /// The combat stop kind this event is, armed or not; none for non-stops.
     /// </summary>
-    public Clock.CombatEvent? Stop { get; init; }
+    public CombatStop? Stop { get; init; }
 
     /// <summary>
     /// the actor or subject
@@ -288,13 +282,24 @@ public sealed record CombatEventRow
     public string? RaidStrategy { get; init; }
 
     /// <summary>
-    /// Drop-pod arrival rows: the tick the last pod opens and the
-    /// cells the pods land on.
+    /// Drop-pod arrival rows: the tick the last pod opens and the cells the pods land on; none on other rows.
     /// </summary>
-    public int? OpenTick { get; init; }
+    public PodLanding? Pods { get; init; }
+}
+
+/// <summary>The combat stop kind of an event row that is one.</summary>
+public sealed record CombatStop
+{
+    public required Clock.CombatEvent Kind { get; init; }
+}
+
+/// <summary>A drop-pod arrival: the tick the last pod opens and the cells the pods land on.</summary>
+public sealed record PodLanding
+{
+    public required int OpenTick { get; init; }
 
     [JsonConverter(typeof(EquatableArrayJsonConverter<Common.Cell>))]
-    public EquatableArray<Common.Cell> LandingCells { get; init; }
+    public required EquatableArray<Common.Cell> LandingCells { get; init; }
 }
 
 /// <summary>
@@ -470,9 +475,9 @@ public sealed record CombatGeometry
 /// </summary>
 public sealed record Watermark
 {
-    public long? Tick { get; init; }
+    public required long Tick { get; init; }
 
-    public uint? Seq { get; init; }
+    public required uint Seq { get; init; }
 }
 
 /// <summary>

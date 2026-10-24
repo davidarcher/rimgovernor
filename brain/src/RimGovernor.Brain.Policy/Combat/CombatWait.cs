@@ -68,9 +68,9 @@ public static partial class CombatWaitRules
         return ours < theirs;
     }
 
-    /// <summary>Reports a known outdoor temperature at or past the cold or heat bound; unknown never shelters.</summary>
+    /// <summary>Reports a measured outdoor temperature at or past the cold or heat bound; a frame without colony facts never shelters.</summary>
     internal static bool ExtremeWeather(CombatView view) =>
-        view.OutdoorTemperatureC.TryGetValue(out var t) && (t <= ExtremeColdC || t >= ExtremeHeatC);
+        view.OutdoorTemperature is OutdoorTemperature.Measured { C: var t } && (t <= ExtremeColdC || t >= ExtremeHeatC);
 
     /// <summary>
     /// Reports a fight whose live hostile pawns (at least one) are all known humanlike, with no pods arrival

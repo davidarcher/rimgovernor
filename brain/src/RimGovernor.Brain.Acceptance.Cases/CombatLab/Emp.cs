@@ -63,7 +63,7 @@ internal static class CombatLabEmp
         var before = await frames.CombatAsync("before", cancellationToken).ConfigureAwait(false);
         foreach (var id in clump)
         {
-            if (LabFrames.Row(before, id) is not { ShieldEnergy: > 0 })
+            if (LabFrames.Row(before, id) is not { Shield.Energy: > 0 })
             {
                 throw new AcceptanceException($"raider {id} before the EMP: want a charged shield, got {LabFrames.Row(before, id)}");
             }
@@ -79,7 +79,7 @@ internal static class CombatLabEmp
         CombatLabKit.Applied("draft", results[0]);
         CombatLabKit.Applied("attack_ground", results[1]);
 
-        var after = await frames.UntilAsync("dropped", CombatLabKit.ProbeTicks, before.Context?.Tick + 1 ?? 0, f => clump.All(id => LabFrames.Row(f, id) is { ShieldEnergy: 0 }), cancellationToken).ConfigureAwait(false);
+        var after = await frames.UntilAsync("dropped", CombatLabKit.ProbeTicks, before.Context?.Tick + 1 ?? 0, f => clump.All(id => LabFrames.Row(f, id) is { Shield.Energy: 0 }), cancellationToken).ConfigureAwait(false);
         s.RecordWireRows("after", clump.Select(id => LabFrames.Row(after, id)));
     }
 }

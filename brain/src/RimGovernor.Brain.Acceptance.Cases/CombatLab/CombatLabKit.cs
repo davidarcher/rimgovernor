@@ -293,7 +293,7 @@ internal sealed class LabFrames
         Last = frame;
         foreach (var e in frame.CombatEvents)
         {
-            if (_seen.Add((e.At?.Tick ?? 0, e.At?.Seq ?? 0)))
+            if (_seen.Add((e.At.Tick, e.At.Seq)))
             {
                 Events.Add(e);
             }
@@ -327,7 +327,7 @@ internal sealed class LabFrames
         UntilAsync(label, CombatLabKit.ProbeTicks, 0, f => f.CombatPawns.Count > 0, cancellationToken);
 
     /// <summary>The frame's combat row of <paramref name="id"/>, null when it has none.</summary>
-    public static Mirror.CombatPawn? Row(Observations.BundleSnapshot frame, string id) => frame.CombatPawns.FirstOrDefault(p => p.Id == id);
+    public static Mirror.CombatPawn? Row(Observations.BundleSnapshot frame, string id) => frame.CombatPawns.FirstOrDefault(p => p.Id.Value == id);
 }
 
 /// <summary>A geometry reply checked against its request (the combat_geometry contract the cases rely on).</summary>

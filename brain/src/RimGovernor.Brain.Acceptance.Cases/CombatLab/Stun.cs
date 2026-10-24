@@ -45,7 +45,7 @@ internal static class CombatLabStun
         var stunned = await frames.UntilAsync("stunned", CombatLabKit.ProbeTicks, staged, f => LabFrames.Row(f, scyther) is not null, cancellationToken).ConfigureAwait(false);
         var row = LabFrames.Row(stunned, scyther)!;
         var elapsed = frames.Tick - staged;
-        var left = row.StunTicksLeft ?? 0;
+        var left = row.StunTicksLeft;
         s.RecordWire("stunned", row);
         if (left <= 0 || left > StunTicks - elapsed + Rounding)
         {
@@ -57,7 +57,7 @@ internal static class CombatLabStun
         var after = await frames.UntilAsync("expired", StunTicks + (2 * CombatLabKit.ProbeTicks), staged + StunTicks + 1, f => LabFrames.Row(f, scyther) is not null, cancellationToken).ConfigureAwait(false);
         var expired = LabFrames.Row(after, scyther)!;
         s.RecordWire("expired", expired);
-        if (expired.StunTicksLeft is { } still)
+        if (expired.StunTicksLeft is > 0 and var still)
         {
             throw new AcceptanceException(string.Create(
                 CultureInfo.InvariantCulture,

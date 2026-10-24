@@ -15,15 +15,15 @@ public sealed class CombatFrameTemperatureTests
     public void TheCombatStateTakesTheFramesOutdoorTemperatureAndTheCutFrameCarriesNoColonyFacts()
     {
         var combat = FacadeNativeClient.DecodeCombat(View(ColonyFactsCoreTests.Snapshot() with { OutdoorTemperatureC = -31.5, ColonistCount = 4 }));
-        Assert.Equal(Fact.Known(-31.5), combat.OutdoorTemperatureC);
+        Assert.Equal(new RimGovernor.Brain.Policy.OutdoorTemperature.Measured(-31.5), combat.OutdoorTemperature);
         // No partial colony facts whose other fields would read as zero.
         Assert.Null(combat.Frame!.ColonyFacts);
     }
 
     [Fact]
-    public void AFrameWithoutColonyFactsLeavesTheOutdoorTemperatureUnknownNotZero()
+    public void AFrameWithoutColonyFactsNamesTheMissingColonyFactsNotZero()
     {
         var combat = FacadeNativeClient.DecodeCombat(View(null));
-        Assert.False(combat.OutdoorTemperatureC.IsKnown);
+        Assert.IsType<RimGovernor.Brain.Policy.OutdoorTemperature.NoColonyFacts>(combat.OutdoorTemperature);
     }
 }

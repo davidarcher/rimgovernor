@@ -120,7 +120,7 @@ internal static class CombatLabOrders
         }
 
         var held = await new LabFrames(s).UntilAsync("fire-mode", CombatLabKit.ProbeTicks, 0, f => LabFrames.Row(f, colonists[3]) is not null, cancellationToken).ConfigureAwait(false);
-        if (LabFrames.Row(held, colonists[3]) is not { FireMode: Operations.CombatFireMode.Hold } holder)
+        if (LabFrames.Row(held, colonists[3]) is not { Draft.FireMode: Operations.CombatFireMode.Hold } holder)
         {
             throw new AcceptanceException($"colonist 3 after fire_mode hold: {LabFrames.Row(held, colonists[3])}");
         }

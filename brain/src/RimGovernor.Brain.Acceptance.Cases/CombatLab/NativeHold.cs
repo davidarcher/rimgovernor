@@ -123,7 +123,7 @@ internal static class CombatLabNativeHold
                 gone = f.Context?.Tick ?? 0;
             }
 
-            retarget = gone < 0 ? null : shots.FirstOrDefault(e => e.TargetId != first && e.At?.Tick > gone && LabFrames.Row(f, e.TargetId!) is { Downed: not true, Dead: not true });
+            retarget = gone < 0 ? null : shots.FirstOrDefault(e => e.TargetId != first && e.At.Tick > gone && LabFrames.Row(f, e.TargetId!) is { Downed: false, Dead: false });
             return retarget is not null;
         }, cancellationToken).ConfigureAwait(false);
         s.Record("first_target", first);
@@ -142,5 +142,5 @@ internal static class CombatLabNativeHold
 
     // The defender's shot_fired events from tick from on, oldest first.
     private static IEnumerable<Mirror.CombatEventRow> Shots(LabFrames frames, string defender, long from) =>
-        frames.Events.Where(e => e.Kind == Mirror.CombatLogKind.ShotFired && e.ThingId == defender && e.At?.Tick >= from);
+        frames.Events.Where(e => e.Kind == Mirror.CombatLogKind.ShotFired && e.ThingId == defender && e.At.Tick >= from);
 }

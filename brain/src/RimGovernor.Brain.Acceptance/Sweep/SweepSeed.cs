@@ -258,7 +258,7 @@ internal static class SweepSeed
         var state = await frames.NextAsync(tick, cancellationToken).ConfigureAwait(false);
         foreach (var row in state.Events)
         {
-            if (row.Kind == Mirror.CombatLogKind.HostileArrived && row.RaidStrategy == "pods" && row.OpenTick > tick)
+            if (row.Kind == Mirror.CombatLogKind.HostileArrived && row.RaidStrategy == "pods" && row.Pods?.OpenTick > tick)
             {
                 return staged;
             }

@@ -74,7 +74,7 @@ internal static class CombatLabHoldFire
     private static SortedDictionary<string, int> Shots(LabFrames frames, long from)
     {
         var shots = new SortedDictionary<string, int>(StringComparer.Ordinal);
-        foreach (var e in frames.Events.Where(e => e.Kind == Mirror.CombatLogKind.ShotFired && e.At?.Tick >= from && e.ThingId is not null))
+        foreach (var e in frames.Events.Where(e => e.Kind == Mirror.CombatLogKind.ShotFired && e.At.Tick >= from && e.ThingId is not null))
         {
             shots[e.ThingId!] = shots.GetValueOrDefault(e.ThingId!) + 1;
         }
